@@ -101,22 +101,22 @@ public class KOMEEvents {
             return;
         }
 
-        LOTRUnitTradeEntry trade = getMatchingTrade(owner, npc);
         int populationCost = getPopulationCost(npc);
-        KOMEPopulationType populationType = getPopulationType(trade);
-        if (!pop.tryUse(populationType, populationCost)) {
+        int armyUsed = data.getArmyPopulationUsed(info.getHiringPlayerUUID());
+        int armyTotal = pop.getCombinedTotal();
+        if (armyTotal - armyUsed < populationCost) {
             int refund = getRefundCost(owner, npc);
             if (refund > 0) {
                 LOTRItemCoin.giveCoins(refund, owner);
             }
-            owner.addChatMessage(new ChatComponentText("You do not have sufficient " + populationType.key + " population to hire another worker. Required: " + populationCost + ", available: " + pop.getAvailable(populationType) + "/" + pop.getTotal(populationType) + (refund > 0 ? ". Refunded " + refund + " coins." : "")));
+            owner.addChatMessage(new ChatComponentText("You do not have sufficient total population to hire another worker. Required: " + populationCost + ", available: " + Math.max(0, armyTotal - armyUsed) + "/" + armyTotal + (refund > 0 ? ". Refunded " + refund + " coins." : "")));
             KOMEReflection.setDead(npc);
             return;
         }
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
         record.entity = entityID;
         record.owner = info.getHiringPlayerUUID();
-        record.type = populationType;
+        record.type = KOMEPopulationType.OFFENSIVE;
         record.cost = populationCost;
         data.hiredUnits.put(entityID, record);
         data.markDirty();
@@ -132,8 +132,6 @@ public class KOMEEvents {
         if (currentCost == record.cost) {
             return;
         }
-        KOMEPlayerPopulation pop = data.getPopulation(record.owner);
-        pop.adjustUsed(record.type, currentCost - record.cost);
         record.cost = currentCost;
         data.markDirty();
     }
@@ -151,9 +149,10 @@ public class KOMEEvents {
                 owner.addChatMessage(new ChatComponentText("Farmhand slot freed: " + data.getFarmhandsUsed(record.owner) + "/" + pop.getFarmhandLimit() + " used"));
             }
         } else {
-            pop.release(record.type, record.cost);
             if (owner != null) {
-                owner.addChatMessage(new ChatComponentText("Population freed: " + record.cost + " " + record.type.key + " (" + pop.getAvailable(record.type) + "/" + pop.getTotal(record.type) + " available)"));
+                int armyUsed = data.getArmyPopulationUsed(record.owner);
+                int armyTotal = pop.getCombinedTotal();
+                owner.addChatMessage(new ChatComponentText("Population freed: " + record.cost + " total (" + Math.max(0, armyTotal - armyUsed) + "/" + armyTotal + " available)"));
             }
         }
         data.markDirty();
@@ -192,7 +191,4 @@ public class KOMEEvents {
         return Math.max(1, MathHelper.ceiling_float_int(KOMEReflection.getMaxHealthOrFallback(npc, defaultUnitCost)));
     }
 
-    private KOMEPopulationType getPopulationType(LOTRUnitTradeEntry trade) {
-        return KOMEPopulationType.OFFENSIVE;
-    }
 }

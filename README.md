@@ -75,7 +75,13 @@ Population has two normal pools:
 - Offensive
 - Defensive
 
-Normal hired combat units consume population from one of those pools. A combat unit's population cost is its current max health, rounded up to the nearest whole number.
+Normal hired combat units consume from the combined army population limit:
+
+```text
+army limit = offensive total + defensive total
+```
+
+The addon still tracks offensive and defensive totals separately for server management, but it does not currently classify individual LOTR units as offensive or defensive. A combat unit's population cost is its current max health, rounded up to the nearest whole number.
 
 ```text
 25 max health = 25 population
@@ -83,7 +89,7 @@ Normal hired combat units consume population from one of those pools. A combat u
 30.5 max health = 31 population
 ```
 
-Tracked hired units are recalculated while active. If a troop levels up and its max health increases, the addon's tracked population usage increases with it. If the player is pushed over their population total, available population shows as 0 until enough population is added or units are dismissed/killed.
+Tracked hired units are recalculated while active. If a troop levels up and its max health increases, the addon's tracked army population usage increases with it. If the player is pushed over their combined army limit, available population shows as 0 until enough population is added or units are dismissed/killed.
 
 Farmhands use a separate slot count instead of consuming offensive or defensive population:
 

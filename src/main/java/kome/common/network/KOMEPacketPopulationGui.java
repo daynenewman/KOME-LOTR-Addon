@@ -15,11 +15,13 @@ public class KOMEPacketPopulationGui implements IMessage {
     public int defensiveUsed;
     public int farmhandsUsed;
     public int farmhandsLimit;
+    public int armyUsed;
+    public int armyTotal;
 
     public KOMEPacketPopulationGui() {
     }
 
-    public KOMEPacketPopulationGui(String playerName, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandsUsed, int farmhandsLimit) {
+    public KOMEPacketPopulationGui(String playerName, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandsUsed, int farmhandsLimit, int armyUsed, int armyTotal) {
         this.playerName = playerName;
         this.offensiveTotal = offensiveTotal;
         this.offensiveUsed = offensiveUsed;
@@ -27,6 +29,8 @@ public class KOMEPacketPopulationGui implements IMessage {
         this.defensiveUsed = defensiveUsed;
         this.farmhandsUsed = farmhandsUsed;
         this.farmhandsLimit = farmhandsLimit;
+        this.armyUsed = armyUsed;
+        this.armyTotal = armyTotal;
     }
 
     @Override
@@ -38,6 +42,8 @@ public class KOMEPacketPopulationGui implements IMessage {
         defensiveUsed = buf.readInt();
         farmhandsUsed = buf.readInt();
         farmhandsLimit = buf.readInt();
+        armyUsed = buf.readInt();
+        armyTotal = buf.readInt();
     }
 
     @Override
@@ -49,12 +55,14 @@ public class KOMEPacketPopulationGui implements IMessage {
         buf.writeInt(defensiveUsed);
         buf.writeInt(farmhandsUsed);
         buf.writeInt(farmhandsLimit);
+        buf.writeInt(armyUsed);
+        buf.writeInt(armyTotal);
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketPopulationGui, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketPopulationGui message, MessageContext ctx) {
-            KOMEAddon.proxy.displayPopulationGui(message.playerName, message.offensiveTotal, message.offensiveUsed, message.defensiveTotal, message.defensiveUsed, message.farmhandsUsed, message.farmhandsLimit);
+            KOMEAddon.proxy.displayPopulationGui(message.playerName, message.offensiveTotal, message.offensiveUsed, message.defensiveTotal, message.defensiveUsed, message.farmhandsUsed, message.farmhandsLimit, message.armyUsed, message.armyTotal);
             return null;
         }
     }

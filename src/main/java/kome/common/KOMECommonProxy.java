@@ -11,7 +11,7 @@ public class KOMECommonProxy {
         FMLCommonHandler.instance().bus().register(events);
     }
 
-    public void displayPopulationGui(String playerName, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandsUsed, int farmhandsLimit) {
+    public void displayPopulationGui(String playerName, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandsUsed, int farmhandsLimit, int armyUsed, int armyTotal) {
     }
 
     public void displayTerritoryGui(String waypoint, String waypointName, String faction, String ruler, String displayName) {

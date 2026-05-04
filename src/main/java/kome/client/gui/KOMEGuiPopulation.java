@@ -12,10 +12,12 @@ public class KOMEGuiPopulation extends GuiScreen {
     private final int defensiveUsed;
     private final int farmhandsUsed;
     private final int farmhandsLimit;
+    private final int armyUsed;
+    private final int armyTotal;
     private GuiTextField playerField;
     private GuiTextField amountField;
 
-    public KOMEGuiPopulation(String playerName, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandsUsed, int farmhandsLimit) {
+    public KOMEGuiPopulation(String playerName, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandsUsed, int farmhandsLimit, int armyUsed, int armyTotal) {
         this.initialPlayer = playerName;
         this.offensiveTotal = offensiveTotal;
         this.offensiveUsed = offensiveUsed;
@@ -23,6 +25,8 @@ public class KOMEGuiPopulation extends GuiScreen {
         this.defensiveUsed = defensiveUsed;
         this.farmhandsUsed = farmhandsUsed;
         this.farmhandsLimit = farmhandsLimit;
+        this.armyUsed = armyUsed;
+        this.armyTotal = armyTotal;
     }
 
     @Override
@@ -89,8 +93,8 @@ public class KOMEGuiPopulation extends GuiScreen {
         drawString(fontRendererObj, "Amount", x, y + 45, 10526880);
         playerField.drawTextBox();
         amountField.drawTextBox();
-        drawString(fontRendererObj, "Offensive: total " + offensiveTotal + "  used " + offensiveUsed + "  available " + Math.max(0, offensiveTotal - offensiveUsed), x, y + 85, 16777215);
-        drawString(fontRendererObj, "Defensive: total " + defensiveTotal + "  used " + defensiveUsed + "  available " + Math.max(0, defensiveTotal - defensiveUsed), x, y + 100, 16777215);
+        drawString(fontRendererObj, "Offensive total: " + offensiveTotal + "   Defensive total: " + defensiveTotal, x, y + 85, 16777215);
+        drawString(fontRendererObj, "Army population: " + armyUsed + "/" + armyTotal + " used   available " + Math.max(0, armyTotal - armyUsed), x, y + 100, 16777215);
         drawString(fontRendererObj, "Farmhands: " + farmhandsUsed + "/" + farmhandsLimit + " used  (total pop / 25)", x, y + 115, 16777215);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

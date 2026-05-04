@@ -70,6 +70,16 @@ public class KOMEWorldData extends WorldSavedData {
         return count;
     }
 
+    public int getArmyPopulationUsed(UUID owner) {
+        int used = 0;
+        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
+            if (!record.farmhand && owner.equals(record.owner)) {
+                used += Math.max(0, record.cost);
+            }
+        }
+        return used;
+    }
+
     public void syncTerritories() {
         KOMEPacketTerritoryData packet = new KOMEPacketTerritoryData(this);
         for (Object player : FMLCommonHandler.instance().getMinecraftServerInstance().getConfigurationManager().playerEntityList) {

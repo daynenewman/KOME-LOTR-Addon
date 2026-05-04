@@ -70,11 +70,13 @@ public class KOMECommandPopulation extends CommandBase {
         KOMEPlayerPopulation pop = data.getPopulation(KOMEReflection.getEntityUUID(player));
         int farmhandsUsed = data.getFarmhandsUsed(KOMEReflection.getEntityUUID(player));
         int farmhandsLimit = pop.getFarmhandLimit();
+        int armyUsed = data.getArmyPopulationUsed(KOMEReflection.getEntityUUID(player));
+        int armyTotal = pop.getCombinedTotal();
         if (gui && sender instanceof EntityPlayerMP) {
-            KOMEPacketHandler.network.sendTo(new KOMEPacketPopulationGui(player.getCommandSenderName(), pop.offensiveTotal, pop.offensiveUsed, pop.defensiveTotal, pop.defensiveUsed, farmhandsUsed, farmhandsLimit), (EntityPlayerMP) sender);
+            KOMEPacketHandler.network.sendTo(new KOMEPacketPopulationGui(player.getCommandSenderName(), pop.offensiveTotal, pop.offensiveUsed, pop.defensiveTotal, pop.defensiveUsed, farmhandsUsed, farmhandsLimit, armyUsed, armyTotal), (EntityPlayerMP) sender);
             return;
         }
-        sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " population: Offensive " + pop.getAvailable(KOMEPopulationType.OFFENSIVE) + "/" + pop.offensiveTotal + " available, Defensive " + pop.getAvailable(KOMEPopulationType.DEFENSIVE) + "/" + pop.defensiveTotal + " available, Farmhands " + farmhandsUsed + "/" + farmhandsLimit + " used"));
+        sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " population: Offensive total " + pop.offensiveTotal + ", Defensive total " + pop.defensiveTotal + ", Army " + armyUsed + "/" + armyTotal + " used, Farmhands " + farmhandsUsed + "/" + farmhandsLimit + " used"));
     }
 
     @Override
