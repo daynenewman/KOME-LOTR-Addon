@@ -66,15 +66,27 @@ public class KOMEReflection {
         try {
             if (getMaxHealthMethod == null) {
                 try {
-                    getMaxHealthMethod = EntityLivingBase.class.getDeclaredMethod("getMaxHealth");
+                    getMaxHealthMethod = EntityLivingBase.class.getMethod("getMaxHealth");
                 } catch (NoSuchMethodException e) {
-                    getMaxHealthMethod = EntityLivingBase.class.getDeclaredMethod("func_110138_aP");
+                    getMaxHealthMethod = EntityLivingBase.class.getMethod("func_110138_aP");
                 }
                 getMaxHealthMethod.setAccessible(true);
             }
             return ((Number) getMaxHealthMethod.invoke(entity)).floatValue();
         } catch (Exception e) {
             throw new RuntimeException("Could not read entity max health", e);
+        }
+    }
+
+    public static float getMaxHealthOrFallback(EntityLivingBase entity, float fallback) {
+        try {
+            float maxHealth = getMaxHealth(entity);
+            if (Float.isNaN(maxHealth) || Float.isInfinite(maxHealth) || maxHealth <= 0.0f) {
+                return fallback;
+            }
+            return maxHealth;
+        } catch (Throwable e) {
+            return fallback;
         }
     }
 }

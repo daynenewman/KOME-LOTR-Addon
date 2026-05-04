@@ -189,7 +189,7 @@ public class KOMEEvents {
     }
 
     private int getPopulationCost(LOTREntityNPC npc) {
-        return Math.max(1, MathHelper.ceiling_float_int(KOMEReflection.getMaxHealth(npc)));
+        return Math.max(1, MathHelper.ceiling_float_int(KOMEReflection.getMaxHealthOrFallback(npc, defaultUnitCost)));
     }
 
     private KOMEPopulationType getPopulationType(LOTRUnitTradeEntry trade) {
