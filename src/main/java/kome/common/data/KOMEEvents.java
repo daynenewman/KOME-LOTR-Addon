@@ -137,7 +137,7 @@ public class KOMEEvents {
         } else {
             pop.release(record.type, record.cost);
             if (owner != null) {
-            owner.addChatMessage(new ChatComponentText("Population freed: " + record.cost + " " + record.type.key + " (" + pop.getAvailable(record.type) + "/" + pop.getTotal(record.type) + " available)"));
+                owner.addChatMessage(new ChatComponentText("Population freed: " + record.cost + " " + record.type.key + " (" + pop.getAvailable(record.type) + "/" + pop.getTotal(record.type) + " available)"));
             }
         }
         data.markDirty();

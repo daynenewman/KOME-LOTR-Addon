@@ -15,6 +15,97 @@ This repo is intentionally addon-only. It does not include the full LOTR mod sou
 - Territory manager commands and GUI.
 - LOTR map overlay for territory display name, ruling faction, and ruling player.
 
+## Project Layout
+
+```text
+src/main/java/kome/common
+```
+
+Shared/server-side addon code. This is where commands, saved data, event handling, and packets live.
+
+```text
+src/main/java/kome/client
+```
+
+Client-only code. This contains keybind handling, map overlay rendering, and GUI screens.
+
+```text
+src/main/resources/mcmod.info
+```
+
+Forge metadata for the addon. The addon mod id is `kome`, and it depends on the LOTR mod id `lotr`.
+
+## Main Classes
+
+`kome.common.KOMEAddon`
+
+Forge entry point. Registers the network packet handler, proxy/event handlers, and server commands.
+
+`kome.common.data.KOMEWorldData`
+
+World-saved data container. Stores player population totals, territory records, and currently tracked hired units in the world save.
+
+`kome.common.data.KOMEEvents`
+
+Main server rule enforcement. Watches hired NPCs, applies the level cap, charges population when units are hired, refunds coins when a hire is denied, and releases population/farmhand slots when tracked NPCs die or are dismissed.
+
+`kome.common.command.KOMECommandPopulation`
+
+Implements `/population`. This is used by both chat commands and the population GUI.
+
+`kome.common.command.KOMECommandTerritory`
+
+Implements `/territory`. This is used by both chat commands and the territory GUI.
+
+`kome.client.KOMEKeyHandler`
+
+Registers and handles the population and territory GUI keybinds. The territory keybind reads the currently selected LOTR map waypoint.
+
+`kome.client.KOMEMapOverlay`
+
+Draws the territory information panel on top of the LOTR map when a selected waypoint has saved KOME territory data.
+
+`kome.common.KOMEReflection`
+
+Small compatibility helper for Minecraft 1.7.10/Forge runtime naming differences. Some Minecraft fields and methods are obfuscated at runtime, so direct calls can crash in a normal client even when they work in the dev environment.
+
+## Population Rules
+
+Population has two normal pools:
+
+- Offensive
+- Defensive
+
+Normal hired combat units consume population from one of those pools. The current rules are:
+
+```text
+Huorns: 75
+Mounted units and Warg Bombardiers: 50
+Trolls and Olog-hai: 125
+All other combat units: 25
+```
+
+Farmhands use a separate slot count instead of consuming offensive or defensive population:
+
+```text
+farmhand limit = (offensive total + defensive total) / 25
+```
+
+All farmer/farmhand/slave/vinehand unit types share that same farmhand limit. If a tracked farmhand dies or is dismissed, the slot is freed.
+
+## Territory Rules
+
+Territory capture rules are not automated. The addon only gives the server an in-game way to record and display territory ownership.
+
+Each territory record stores:
+
+- LOTR waypoint code name
+- Ruling faction
+- Ruling player
+- Optional display name
+
+The territory data is synced from the server to clients so the map overlay can display it.
+
 ## Build
 
 This addon compiles against the LOTR dev classes from the main LOTR source workspace.
