@@ -193,9 +193,6 @@ public class KOMEEvents {
     }
 
     private KOMEPopulationType getPopulationType(LOTRUnitTradeEntry trade) {
-        if (trade != null && trade.getPopulationType() != null && "defensive".equalsIgnoreCase(trade.getPopulationType().getDisplayName())) {
-            return KOMEPopulationType.DEFENSIVE;
-        }
         return KOMEPopulationType.OFFENSIVE;
     }
 }
