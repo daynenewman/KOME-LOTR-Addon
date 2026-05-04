@@ -44,6 +44,7 @@ public class KOMEGuiPopulation extends GuiScreen {
         buttonList.add(new GuiButton(4, x, y + 160, 75, 20, "Set Def"));
         buttonList.add(new GuiButton(5, x + 82, y + 160, 75, 20, "Add Def"));
         buttonList.add(new GuiButton(6, x + 164, y + 160, 75, 20, "Remove Def"));
+        buttonList.add(new GuiButton(7, x, y + 185, 239, 20, "Units"));
     }
 
     @Override
@@ -64,6 +65,8 @@ public class KOMEGuiPopulation extends GuiScreen {
             mc.thePlayer.sendChatMessage("/population add " + player + " defensive " + amount);
         } else if (button.id == 6) {
             mc.thePlayer.sendChatMessage("/population remove " + player + " defensive " + amount);
+        } else if (button.id == 7) {
+            mc.thePlayer.sendChatMessage("/population units " + player);
         }
         mc.thePlayer.closeScreen();
     }

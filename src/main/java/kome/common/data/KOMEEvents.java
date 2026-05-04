@@ -96,6 +96,7 @@ public class KOMEEvents {
             record.type = KOMEPopulationType.OFFENSIVE;
             record.cost = 1;
             record.farmhand = true;
+            record.unitName = getUnitName(npc);
             data.hiredUnits.put(entityID, record);
             data.markDirty();
             return;
@@ -118,6 +119,7 @@ public class KOMEEvents {
         record.owner = info.getHiringPlayerUUID();
         record.type = KOMEPopulationType.OFFENSIVE;
         record.cost = populationCost;
+        record.unitName = getUnitName(npc);
         data.hiredUnits.put(entityID, record);
         data.markDirty();
     }
@@ -128,6 +130,7 @@ public class KOMEEvents {
         if (record == null || record.farmhand) {
             return;
         }
+        record.unitName = getUnitName(npc);
         int currentCost = getPopulationCost(npc);
         if (currentCost == record.cost) {
             return;
@@ -191,4 +194,11 @@ public class KOMEEvents {
         return Math.max(1, MathHelper.ceiling_float_int(KOMEReflection.getMaxHealthOrFallback(npc, defaultUnitCost)));
     }
 
+    private String getUnitName(LOTREntityNPC npc) {
+        String name = npc.getCommandSenderName();
+        if (name == null || name.trim().isEmpty()) {
+            name = npc.getClass().getSimpleName();
+        }
+        return name;
+    }
 }

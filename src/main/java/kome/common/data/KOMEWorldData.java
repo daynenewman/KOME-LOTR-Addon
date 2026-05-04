@@ -80,6 +80,16 @@ public class KOMEWorldData extends WorldSavedData {
         return used;
     }
 
+    public int getTrackedUnitCount(UUID owner, boolean farmhands) {
+        int count = 0;
+        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
+            if (record.farmhand == farmhands && owner.equals(record.owner)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     public void syncTerritories() {
         KOMEPacketTerritoryData packet = new KOMEPacketTerritoryData(this);
         for (Object player : FMLCommonHandler.instance().getMinecraftServerInstance().getConfigurationManager().playerEntityList) {

@@ -10,6 +10,7 @@ public class KOMEHiredUnitRecord {
     public KOMEPopulationType type = KOMEPopulationType.OFFENSIVE;
     public int cost = 25;
     public boolean farmhand;
+    public String unitName = "";
 
     public void readFromNBT(NBTTagCompound nbt) {
         entity = UUID.fromString(nbt.getString("Entity"));
@@ -18,6 +19,7 @@ public class KOMEHiredUnitRecord {
         type = readType == null ? KOMEPopulationType.OFFENSIVE : readType;
         cost = nbt.getInteger("Cost");
         farmhand = nbt.getBoolean("Farmhand");
+        unitName = nbt.getString("UnitName");
     }
 
     public NBTTagCompound writeToNBT() {
@@ -27,6 +29,7 @@ public class KOMEHiredUnitRecord {
         nbt.setString("Type", type.key);
         nbt.setInteger("Cost", cost);
         nbt.setBoolean("Farmhand", farmhand);
+        nbt.setString("UnitName", unitName == null ? "" : unitName);
         return nbt;
     }
 }

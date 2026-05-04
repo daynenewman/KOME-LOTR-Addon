@@ -10,6 +10,8 @@ import net.minecraft.client.settings.KeyBinding;
 import net.minecraftforge.common.MinecraftForge;
 import org.lwjgl.input.Keyboard;
 
+import java.util.List;
+
 public class KOMEClientProxy extends KOMECommonProxy {
     public static KeyBinding populationGuiKey = new KeyBinding("Population GUI", Keyboard.KEY_P, "KOME");
     public static KeyBinding territoryGuiKey = new KeyBinding("Territory GUI", Keyboard.KEY_G, "KOME");
@@ -26,6 +28,11 @@ public class KOMEClientProxy extends KOMECommonProxy {
     @Override
     public void displayPopulationGui(String playerName, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandsUsed, int farmhandsLimit, int armyUsed, int armyTotal) {
         Minecraft.getMinecraft().displayGuiScreen(new KOMEGuiPopulation(playerName, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandsUsed, farmhandsLimit, armyUsed, armyTotal));
+    }
+
+    @Override
+    public void displayPopulationUnitsGui(String playerName, List lines, int armyUsed, int armyTotal, int farmhandsUsed, int farmhandsLimit) {
+        Minecraft.getMinecraft().displayGuiScreen(new kome.client.gui.KOMEGuiPopulationUnits(playerName, lines, armyUsed, armyTotal, farmhandsUsed, farmhandsLimit));
     }
 
     @Override

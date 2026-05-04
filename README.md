@@ -8,6 +8,7 @@ This repo is intentionally addon-only. It does not include the full LOTR mod sou
 
 - Player population tracking with offensive and defensive pools.
 - Population GUI and keybind.
+- Population unit breakdown showing tracked hired units and population cost.
 - Hired-unit population enforcement with coin refunds on failed hires.
 - Farmhand slot tracking based on total population divided by 25.
 - Combat-unit population cost based on max health, including level-up health increases.
@@ -91,6 +92,8 @@ The addon still tracks offensive and defensive totals separately for server mana
 
 Tracked hired units are recalculated while active. If a troop levels up and its max health increases, the addon's tracked army population usage increases with it. If the player is pushed over their combined army limit, available population shows as 0 until enough population is added or units are dismissed/killed.
 
+The population GUI includes a `Units` view. It lists each tracked hired unit and the population it currently uses. Farmhands are shown as farmhand slots instead of army population.
+
 Farmhands use a separate slot count instead of consuming offensive or defensive population:
 
 ```text
@@ -157,6 +160,7 @@ KOME-LOTR-Addon-dev-local.jar
 ```text
 /population get [player]
 /population gui [player]
+/population units [player]
 /population set <player> <offensive|defensive> <amount>
 /population add <player> <offensive|defensive> <amount>
 /population remove <player> <offensive|defensive> <amount>
