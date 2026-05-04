@@ -1,6 +1,7 @@
 package kome.common;
 
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.world.World;
 
 import java.lang.reflect.Field;
@@ -11,6 +12,7 @@ public class KOMEReflection {
     private static Field entityWorldField;
     private static Field entityUUIDField;
     private static Method setDeadMethod;
+    private static Method getMaxHealthMethod;
 
     public static World getWorld(Entity entity) {
         try {
@@ -57,6 +59,22 @@ public class KOMEReflection {
             setDeadMethod.invoke(entity);
         } catch (Exception e) {
             throw new RuntimeException("Could not remove entity", e);
+        }
+    }
+
+    public static float getMaxHealth(EntityLivingBase entity) {
+        try {
+            if (getMaxHealthMethod == null) {
+                try {
+                    getMaxHealthMethod = EntityLivingBase.class.getDeclaredMethod("getMaxHealth");
+                } catch (NoSuchMethodException e) {
+                    getMaxHealthMethod = EntityLivingBase.class.getDeclaredMethod("func_110138_aP");
+                }
+                getMaxHealthMethod.setAccessible(true);
+            }
+            return ((Number) getMaxHealthMethod.invoke(entity)).floatValue();
+        } catch (Exception e) {
+            throw new RuntimeException("Could not read entity max health", e);
         }
     }
 }

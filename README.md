@@ -10,7 +10,7 @@ This repo is intentionally addon-only. It does not include the full LOTR mod sou
 - Population GUI and keybind.
 - Hired-unit population enforcement with coin refunds on failed hires.
 - Farmhand slot tracking based on total population divided by 25.
-- Unit price categories for farmhands, Huorns, mounted units, Warg Bombardiers, Trolls, Olog-hai, and standard units.
+- Combat-unit population cost based on max health, including level-up health increases.
 - Hired-unit level cap.
 - Territory manager commands and GUI.
 - LOTR map overlay for territory display name, ruling faction, and ruling player.
@@ -47,7 +47,7 @@ World-saved data container. Stores player population totals, territory records, 
 
 `kome.common.data.KOMEEvents`
 
-Main server rule enforcement. Watches hired NPCs, applies the level cap, charges population when units are hired, refunds coins when a hire is denied, and releases population/farmhand slots when tracked NPCs die or are dismissed.
+Main server rule enforcement. Watches hired NPCs, applies the level cap, charges population when units are hired, updates population cost as max health changes, refunds coins when a hire is denied, and releases population/farmhand slots when tracked NPCs die or are dismissed.
 
 `kome.common.command.KOMECommandPopulation`
 
@@ -76,14 +76,15 @@ Population has two normal pools:
 - Offensive
 - Defensive
 
-Normal hired combat units consume population from one of those pools. The current rules are:
+Normal hired combat units consume population from one of those pools. A combat unit's population cost is its current max health, rounded up to the nearest whole number.
 
 ```text
-Huorns: 75
-Mounted units and Warg Bombardiers: 50
-Trolls and Olog-hai: 125
-All other combat units: 25
+25 max health = 25 population
+30 max health = 30 population
+30.5 max health = 31 population
 ```
+
+Tracked hired units are recalculated while active. If a troop levels up and its max health increases, the addon's tracked population usage increases with it. If the player is pushed over their population total, available population shows as 0 until enough population is added or units are dismissed/killed.
 
 Farmhands use a separate slot count instead of consuming offensive or defensive population:
 

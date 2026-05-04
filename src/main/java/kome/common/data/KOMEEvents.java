@@ -15,6 +15,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.inventory.Container;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.MathHelper;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
@@ -46,6 +47,7 @@ public class KOMEEvents {
             capLevel(npc);
             if (npc.hiredNPCInfo.isActive) {
                 handleHiredUnit(npc);
+                updateTrackedPopulationCost(npc);
             } else {
                 releaseIfTracked(npc);
             }
@@ -102,7 +104,7 @@ public class KOMEEvents {
         }
 
         LOTRUnitTradeEntry trade = getMatchingTrade(owner, npc);
-        int populationCost = getPopulationCost(npc, trade);
+        int populationCost = getPopulationCost(npc);
         KOMEPopulationType populationType = getPopulationType(trade);
         if (!pop.tryUse(populationType, populationCost)) {
             int refund = getRefundCost(owner, npc);
@@ -119,6 +121,22 @@ public class KOMEEvents {
         record.type = populationType;
         record.cost = populationCost;
         data.hiredUnits.put(entityID, record);
+        data.markDirty();
+    }
+
+    private void updateTrackedPopulationCost(LOTREntityNPC npc) {
+        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
+        KOMEHiredUnitRecord record = data.hiredUnits.get(KOMEReflection.getEntityUUID(npc));
+        if (record == null || record.farmhand) {
+            return;
+        }
+        int currentCost = getPopulationCost(npc);
+        if (currentCost == record.cost) {
+            return;
+        }
+        KOMEPlayerPopulation pop = data.getPopulation(record.owner);
+        pop.adjustUsed(record.type, currentCost - record.cost);
+        record.cost = currentCost;
         data.markDirty();
     }
 
@@ -185,18 +203,8 @@ public class KOMEEvents {
         return bestMatch;
     }
 
-    private int getPopulationCost(LOTREntityNPC npc, LOTRUnitTradeEntry trade) {
-        String name = npc.getClass().getSimpleName();
-        if (name.contains("OlogHai") || name.contains("Troll") && !name.contains("HalfTroll")) {
-            return 125;
-        }
-        if (name.contains("Huorn")) {
-            return 75;
-        }
-        if (name.contains("WargBombardier") || trade != null && trade.mountClass != null) {
-            return 50;
-        }
-        return defaultUnitCost;
+    private int getPopulationCost(LOTREntityNPC npc) {
+        return Math.max(1, MathHelper.ceiling_float_int(KOMEReflection.getMaxHealth(npc)));
     }
 
     private KOMEPopulationType getPopulationType(LOTRUnitTradeEntry trade) {

@@ -65,6 +65,14 @@ public class KOMEPlayerPopulation {
         }
     }
 
+    public void adjustUsed(KOMEPopulationType type, int amount) {
+        if (type == KOMEPopulationType.DEFENSIVE) {
+            defensiveUsed = Math.max(0, defensiveUsed + amount);
+        } else {
+            offensiveUsed = Math.max(0, offensiveUsed + amount);
+        }
+    }
+
     public void readFromNBT(NBTTagCompound nbt) {
         offensiveTotal = nbt.getInteger("OffensiveTotal");
         offensiveUsed = nbt.getInteger("OffensiveUsed");
