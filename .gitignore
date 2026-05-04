@@ -1,0 +1,12 @@
+.gradle/
+.gradle-user-home/
+build/
+out/
+run/
+runs/
+*.log
+*.iml
+.idea/
+.vscode/
+Thumbs.db
+desktop.ini
