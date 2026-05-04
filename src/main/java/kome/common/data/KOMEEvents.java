@@ -23,7 +23,6 @@ import net.minecraftforge.event.entity.living.LivingEvent;
 import java.util.UUID;
 
 public class KOMEEvents {
-    public static int maximumHiredUnitLevel = 40;
     public static int defaultUnitCost = 25;
 
     @SubscribeEvent
@@ -44,7 +43,6 @@ public class KOMEEvents {
     public void onLivingUpdate(LivingEvent.LivingUpdateEvent event) {
         if (!KOMEReflection.getWorld(event.entityLiving).isRemote && event.entityLiving instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
-            capLevel(npc);
             if (npc.hiredNPCInfo.isActive) {
                 handleHiredUnit(npc);
                 updateTrackedPopulationCost(npc);
@@ -159,19 +157,6 @@ public class KOMEEvents {
             }
         }
         data.markDirty();
-    }
-
-    private void capLevel(LOTREntityNPC npc) {
-        if (maximumHiredUnitLevel <= 0 || !npc.hiredNPCInfo.isActive) {
-            return;
-        }
-        if (npc.hiredNPCInfo.xpLevel > maximumHiredUnitLevel) {
-            npc.hiredNPCInfo.xpLevel = maximumHiredUnitLevel;
-        }
-        int capXP = LOTRHiredNPCInfo.totalXPForLevel(maximumHiredUnitLevel);
-        if (npc.hiredNPCInfo.xp > capXP) {
-            npc.hiredNPCInfo.xp = capXP;
-        }
     }
 
     private int getRefundCost(EntityPlayer owner, LOTREntityNPC hiredNPC) {

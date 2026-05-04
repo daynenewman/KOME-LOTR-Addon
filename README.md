@@ -11,7 +11,6 @@ This repo is intentionally addon-only. It does not include the full LOTR mod sou
 - Hired-unit population enforcement with coin refunds on failed hires.
 - Farmhand slot tracking based on total population divided by 25.
 - Combat-unit population cost based on max health, including level-up health increases.
-- Hired-unit level cap.
 - Territory manager commands and GUI.
 - LOTR map overlay for territory display name, ruling faction, and ruling player.
 
@@ -47,7 +46,7 @@ World-saved data container. Stores player population totals, territory records, 
 
 `kome.common.data.KOMEEvents`
 
-Main server rule enforcement. Watches hired NPCs, applies the level cap, charges population when units are hired, updates population cost as max health changes, refunds coins when a hire is denied, and releases population/farmhand slots when tracked NPCs die or are dismissed.
+Main server rule enforcement. Watches hired NPCs, charges population when units are hired, updates population cost as max health changes, refunds coins when a hire is denied, and releases population/farmhand slots when tracked NPCs die or are dismissed.
 
 `kome.common.command.KOMECommandPopulation`
 
