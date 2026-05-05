@@ -82,12 +82,18 @@ Normal hired combat units consume from the combined army population limit:
 army limit = offensive total + defensive total
 ```
 
-The addon still tracks offensive and defensive totals separately for server management, but it does not currently classify individual LOTR units as offensive or defensive. A combat unit's population cost is its current max health, rounded up to the nearest whole number.
+The addon still tracks offensive and defensive totals separately for server management, but it does not currently classify individual LOTR units as offensive or defensive. A combat unit's population cost starts from its unit category and can increase above that if its current max health is higher.
 
 ```text
-25 max health = 25 population
-30 max health = 30 population
-30.5 max health = 31 population
+Huorns start at 75 population
+Mounted units and Warg Bombardiers start at 50 population
+Trolls and Olog-hai start at 125 population
+All other units start at 25 population
+
+25 max health standard unit = 25 population
+30 max health standard unit = 30 population
+30.5 max health standard unit = 31 population
+25 max health mounted unit = 50 population
 ```
 
 Tracked hired units are recalculated while active. If a troop levels up and its max health increases, the addon's tracked army population usage increases with it. If the player is pushed over their combined army limit, available population shows as 0 until enough population is added or units are dismissed/killed.

@@ -110,7 +110,8 @@ public class KOMECommandPopulation extends CommandBase {
             if (record.farmhand) {
                 farmhandLines.add(name + " - farmhand slot");
             } else {
-                armyLines.add(name + " - " + record.cost + " population");
+                String note = record.mounted ? " (mounted)" : "";
+                armyLines.add(name + " - " + record.cost + " population" + note);
             }
         }
         List lines = new ArrayList();

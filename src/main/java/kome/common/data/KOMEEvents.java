@@ -102,7 +102,10 @@ public class KOMEEvents {
             return;
         }
 
-        int populationCost = getPopulationCost(npc);
+        LOTRUnitTradeEntry trade = getMatchingTrade(owner, npc);
+        boolean mounted = isMountedTrade(trade);
+        int baseCost = getBasePopulationCost(npc, trade);
+        int populationCost = getPopulationCost(npc, baseCost);
         int armyUsed = data.getArmyPopulationUsed(info.getHiringPlayerUUID());
         int armyTotal = pop.getCombinedTotal();
         if (armyTotal - armyUsed < populationCost) {
@@ -119,6 +122,8 @@ public class KOMEEvents {
         record.owner = info.getHiringPlayerUUID();
         record.type = KOMEPopulationType.OFFENSIVE;
         record.cost = populationCost;
+        record.baseCost = baseCost;
+        record.mounted = mounted;
         record.unitName = getUnitName(npc);
         data.hiredUnits.put(entityID, record);
         data.markDirty();
@@ -131,7 +136,13 @@ public class KOMEEvents {
             return;
         }
         record.unitName = getUnitName(npc);
-        int currentCost = getPopulationCost(npc);
+        if (record.baseCost <= 0) {
+            record.baseCost = getBasePopulationCost(npc, null);
+            if (record.mounted) {
+                record.baseCost = Math.max(record.baseCost, 50);
+            }
+        }
+        int currentCost = getPopulationCost(npc, record.baseCost);
         if (currentCost == record.cost) {
             return;
         }
@@ -190,8 +201,27 @@ public class KOMEEvents {
         return bestMatch;
     }
 
-    private int getPopulationCost(LOTREntityNPC npc) {
-        return Math.max(1, MathHelper.ceiling_float_int(KOMEReflection.getMaxHealthOrFallback(npc, defaultUnitCost)));
+    private int getPopulationCost(LOTREntityNPC npc, int baseCost) {
+        int healthCost = Math.max(1, MathHelper.ceiling_float_int(KOMEReflection.getMaxHealthOrFallback(npc, defaultUnitCost)));
+        return Math.max(Math.max(1, baseCost), healthCost);
+    }
+
+    private int getBasePopulationCost(LOTREntityNPC npc, LOTRUnitTradeEntry trade) {
+        String name = npc.getClass().getSimpleName();
+        if (name.contains("OlogHai") || name.contains("Troll") && !name.contains("HalfTroll")) {
+            return 125;
+        }
+        if (name.contains("Huorn")) {
+            return 75;
+        }
+        if (name.contains("WargBombardier") || isMountedTrade(trade)) {
+            return 50;
+        }
+        return defaultUnitCost;
+    }
+
+    private boolean isMountedTrade(LOTRUnitTradeEntry trade) {
+        return trade != null && trade.mountClass != null;
     }
 
     private String getUnitName(LOTREntityNPC npc) {
