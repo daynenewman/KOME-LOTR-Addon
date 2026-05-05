@@ -103,8 +103,8 @@ public class KOMEEvents {
         }
 
         LOTRUnitTradeEntry trade = getMatchingTrade(owner, npc);
-        boolean mounted = isMountedTrade(trade);
-        int baseCost = getBasePopulationCost(npc, trade);
+        boolean mounted = isMountedUnit(npc, trade);
+        int baseCost = getBasePopulationCost(npc, trade, mounted);
         int populationCost = getPopulationCost(npc, baseCost);
         int armyUsed = data.getArmyPopulationUsed(info.getHiringPlayerUUID());
         int armyTotal = pop.getCombinedTotal();
@@ -136,11 +136,11 @@ public class KOMEEvents {
             return;
         }
         record.unitName = getUnitName(npc);
+        record.mounted = record.mounted || isMountedUnit(npc, null);
         if (record.baseCost <= 0) {
-            record.baseCost = getBasePopulationCost(npc, null);
-            if (record.mounted) {
-                record.baseCost = Math.max(record.baseCost, 50);
-            }
+            record.baseCost = getBasePopulationCost(npc, null, record.mounted);
+        } else if (record.mounted && record.baseCost < 50) {
+            record.baseCost = 50;
         }
         int currentCost = getPopulationCost(npc, record.baseCost);
         if (currentCost == record.cost) {
@@ -192,10 +192,13 @@ public class KOMEEvents {
             return null;
         }
         LOTRUnitTradeEntry bestMatch = null;
+        boolean mountedNPC = KOMEReflection.getRidingEntity(hiredNPC) != null;
         for (LOTRUnitTradeEntry entry : ((LOTRUnitTradeable) trader).getUnits().tradeEntries) {
             if (entry.entityClass != null && entry.entityClass.isAssignableFrom(hiredNPC.getClass())) {
                 bestMatch = entry;
-                break;
+                if (mountedNPC == isMountedTrade(entry)) {
+                    break;
+                }
             }
         }
         return bestMatch;
@@ -206,7 +209,7 @@ public class KOMEEvents {
         return Math.max(Math.max(1, baseCost), healthCost);
     }
 
-    private int getBasePopulationCost(LOTREntityNPC npc, LOTRUnitTradeEntry trade) {
+    private int getBasePopulationCost(LOTREntityNPC npc, LOTRUnitTradeEntry trade, boolean mounted) {
         String name = npc.getClass().getSimpleName();
         if (name.contains("OlogHai") || name.contains("Troll") && !name.contains("HalfTroll")) {
             return 125;
@@ -214,10 +217,14 @@ public class KOMEEvents {
         if (name.contains("Huorn")) {
             return 75;
         }
-        if (name.contains("WargBombardier") || isMountedTrade(trade)) {
+        if (name.contains("WargBombardier") || mounted || isMountedTrade(trade)) {
             return 50;
         }
         return defaultUnitCost;
+    }
+
+    private boolean isMountedUnit(LOTREntityNPC npc, LOTRUnitTradeEntry trade) {
+        return KOMEReflection.getRidingEntity(npc) != null || isMountedTrade(trade);
     }
 
     private boolean isMountedTrade(LOTRUnitTradeEntry trade) {

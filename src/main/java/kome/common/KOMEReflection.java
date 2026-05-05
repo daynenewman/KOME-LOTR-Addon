@@ -11,6 +11,7 @@ import java.util.UUID;
 public class KOMEReflection {
     private static Field entityWorldField;
     private static Field entityUUIDField;
+    private static Field ridingEntityField;
     private static Method setDeadMethod;
     private static Method getMaxHealthMethod;
 
@@ -43,6 +44,22 @@ public class KOMEReflection {
             return (UUID) entityUUIDField.get(entity);
         } catch (Exception e) {
             throw new RuntimeException("Could not read entity UUID", e);
+        }
+    }
+
+    public static Entity getRidingEntity(Entity entity) {
+        try {
+            if (ridingEntityField == null) {
+                try {
+                    ridingEntityField = Entity.class.getDeclaredField("ridingEntity");
+                } catch (NoSuchFieldException e) {
+                    ridingEntityField = Entity.class.getDeclaredField("field_70154_o");
+                }
+                ridingEntityField.setAccessible(true);
+            }
+            return (Entity) ridingEntityField.get(entity);
+        } catch (Exception e) {
+            return null;
         }
     }
 
