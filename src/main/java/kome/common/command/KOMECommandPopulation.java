@@ -98,7 +98,8 @@ public class KOMECommandPopulation extends CommandBase {
         int farmhandsLimit = pop.getFarmhandLimit();
         int armyUsed = data.getArmyPopulationUsed(playerID);
         int armyTotal = pop.getCombinedTotal();
-        List lines = new ArrayList();
+        List armyLines = new ArrayList();
+        List farmhandLines = new ArrayList();
         for (Object object : data.hiredUnits.entrySet()) {
             Map.Entry entry = (Map.Entry) object;
             kome.common.data.KOMEHiredUnitRecord record = (kome.common.data.KOMEHiredUnitRecord) entry.getValue();
@@ -107,11 +108,17 @@ public class KOMECommandPopulation extends CommandBase {
             }
             String name = record.unitName == null || record.unitName.trim().isEmpty() ? shortID(record.entity) : record.unitName;
             if (record.farmhand) {
-                lines.add(name + " - farmhand slot");
+                farmhandLines.add(name + " - farmhand slot");
             } else {
-                lines.add(name + " - " + record.cost + " population");
+                armyLines.add(name + " - " + record.cost + " population");
             }
         }
+        List lines = new ArrayList();
+        lines.add("Army Units (" + armyLines.size() + ")");
+        lines.addAll(armyLines);
+        lines.add("");
+        lines.add("Farmhands (" + farmhandLines.size() + ")");
+        lines.addAll(farmhandLines);
         if (sender instanceof EntityPlayerMP) {
             KOMEPacketHandler.network.sendTo(new KOMEPacketPopulationUnitsGui(player.getCommandSenderName(), lines, armyUsed, armyTotal, farmhandsUsed, farmhandsLimit), (EntityPlayerMP) sender);
             return;

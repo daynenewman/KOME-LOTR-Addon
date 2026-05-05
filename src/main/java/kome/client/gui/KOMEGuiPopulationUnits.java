@@ -25,11 +25,9 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
 
     @Override
     public void initGui() {
-        int x = width / 2 - 120;
+        int x = width / 2 - 38;
         int y = height / 2 + 82;
         buttonList.add(new GuiButton(0, x, y, 75, 20, "Back"));
-        buttonList.add(new GuiButton(1, x + 82, y, 75, 20, "Up"));
-        buttonList.add(new GuiButton(2, x + 164, y, 75, 20, "Down"));
     }
 
     @Override
@@ -37,10 +35,6 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
         if (button.id == 0) {
             mc.thePlayer.sendChatMessage("/population gui " + playerName);
             mc.thePlayer.closeScreen();
-        } else if (button.id == 1) {
-            scroll = Math.max(0, scroll - 1);
-        } else if (button.id == 2) {
-            scroll = Math.min(Math.max(0, lines.size() - getVisibleRows()), scroll + 1);
         }
     }
 
@@ -64,13 +58,24 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
         drawString(fontRendererObj, "Army: " + armyUsed + "/" + armyTotal + " used   available " + Math.max(0, armyTotal - armyUsed), x, y + 18, 16777215);
         drawString(fontRendererObj, "Farmhands: " + farmhandsUsed + "/" + farmhandsLimit + " used", x, y + 32, 16777215);
 
-        int listY = y + 52;
+        int listX = x - 4;
+        int listY = y + 48;
+        int listWidth = 308;
+        int listHeight = getVisibleRows() * 12 + 8;
+        drawRect(listX, listY - 4, listX + listWidth, listY + listHeight, 0xAA1F1F1F);
+        drawRect(listX + 1, listY - 3, listX + listWidth - 1, listY + listHeight - 1, 0x662B3322);
+
         int rows = getVisibleRows();
         if (lines.isEmpty()) {
             drawString(fontRendererObj, "No tracked hired units.", x, listY, 16777215);
         } else {
             for (int i = 0; i < rows && scroll + i < lines.size(); i++) {
-                drawString(fontRendererObj, String.valueOf(lines.get(scroll + i)), x, listY + i * 12, 16777215);
+                String line = String.valueOf(lines.get(scroll + i));
+                int color = line.startsWith("Army Units") || line.startsWith("Farmhands") ? 0xFFE0A0 : 0xFFFFFF;
+                drawString(fontRendererObj, line, x, listY + i * 12, color);
+            }
+            if (lines.size() > rows) {
+                drawString(fontRendererObj, (scroll + 1) + "-" + Math.min(lines.size(), scroll + rows) + "/" + lines.size(), listX + listWidth - 48, listY + listHeight - 12, 0xAAAAAA);
             }
         }
         super.drawScreen(mouseX, mouseY, partialTicks);

@@ -92,7 +92,7 @@ The addon still tracks offensive and defensive totals separately for server mana
 
 Tracked hired units are recalculated while active. If a troop levels up and its max health increases, the addon's tracked army population usage increases with it. If the player is pushed over their combined army limit, available population shows as 0 until enough population is added or units are dismissed/killed.
 
-The population GUI includes a `Units` view. It lists each tracked hired unit and the population it currently uses. Farmhands are shown as farmhand slots instead of army population.
+The population GUI includes a scrollable `Units` view. It groups tracked hired units into `Army Units` and `Farmhands`, then shows the population or farmhand slot each one currently uses.
 
 Farmhands use a separate slot count instead of consuming offensive or defensive population:
 
