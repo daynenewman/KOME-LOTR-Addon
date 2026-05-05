@@ -78,10 +78,12 @@ public class KOMECommandPopulation extends CommandBase {
 
     private void sendStatus(ICommandSender sender, EntityPlayerMP player, boolean gui) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEPlayerPopulation pop = data.getPopulation(KOMEReflection.getEntityUUID(player));
-        int farmhandsUsed = data.getFarmhandsUsed(KOMEReflection.getEntityUUID(player));
+        UUID playerID = KOMEReflection.getEntityUUID(player);
+        data.removeInactiveLoadedHiredUnits(KOMEReflection.getWorld(player), playerID);
+        KOMEPlayerPopulation pop = data.getPopulation(playerID);
+        int farmhandsUsed = data.getFarmhandsUsed(playerID);
         int farmhandsLimit = pop.getFarmhandLimit();
-        int armyUsed = data.getArmyPopulationUsed(KOMEReflection.getEntityUUID(player));
+        int armyUsed = data.getArmyPopulationUsed(playerID);
         int armyTotal = pop.getCombinedTotal();
         if (gui && sender instanceof EntityPlayerMP) {
             KOMEPacketHandler.network.sendTo(new KOMEPacketPopulationGui(player.getCommandSenderName(), pop.offensiveTotal, pop.offensiveUsed, pop.defensiveTotal, pop.defensiveUsed, farmhandsUsed, farmhandsLimit, armyUsed, armyTotal), (EntityPlayerMP) sender);
@@ -93,6 +95,7 @@ public class KOMECommandPopulation extends CommandBase {
     private void sendUnitBreakdown(ICommandSender sender, EntityPlayerMP player) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         UUID playerID = KOMEReflection.getEntityUUID(player);
+        data.removeInactiveLoadedHiredUnits(KOMEReflection.getWorld(player), playerID);
         KOMEPlayerPopulation pop = data.getPopulation(playerID);
         int farmhandsUsed = data.getFarmhandsUsed(playerID);
         int farmhandsLimit = pop.getFarmhandLimit();
@@ -106,12 +109,11 @@ public class KOMECommandPopulation extends CommandBase {
             if (!playerID.equals(record.owner)) {
                 continue;
             }
-            String name = record.unitName == null || record.unitName.trim().isEmpty() ? shortID(record.entity) : record.unitName;
             if (record.farmhand) {
-                farmhandLines.add(name + " - farmhand slot");
+                farmhandLines.add(getFarmhandDisplayName(record) + " - farmhand slot");
             } else {
                 String note = record.mounted ? " (mounted)" : "";
-                armyLines.add(name + " - " + record.cost + " population" + note);
+                armyLines.add(getUnitDisplayName(record) + " - " + record.cost + " population" + note);
             }
         }
         List lines = new ArrayList();
@@ -137,6 +139,19 @@ public class KOMECommandPopulation extends CommandBase {
     private String shortID(UUID id) {
         String value = id == null ? "Unknown unit" : id.toString();
         return value.length() <= 8 ? value : value.substring(0, 8);
+    }
+
+    private String getUnitDisplayName(kome.common.data.KOMEHiredUnitRecord record) {
+        return record.unitName == null || record.unitName.trim().isEmpty() ? shortID(record.entity) : record.unitName;
+    }
+
+    private String getFarmhandDisplayName(kome.common.data.KOMEHiredUnitRecord record) {
+        String name = getUnitDisplayName(record);
+        return isNumberOnly(name) || shortID(record.entity).equals(name) ? "Farmhand" : name;
+    }
+
+    private boolean isNumberOnly(String value) {
+        return value != null && value.trim().matches("[0-9]+");
     }
 
     @Override

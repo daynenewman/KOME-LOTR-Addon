@@ -1,8 +1,11 @@
 package kome.common.data;
 
 import cpw.mods.fml.common.FMLCommonHandler;
+import kome.common.KOMEReflection;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketTerritoryData;
+import lotr.common.entity.npc.LOTREntityNPC;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -11,7 +14,9 @@ import net.minecraft.world.WorldSavedData;
 import net.minecraft.world.storage.MapStorage;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 public class KOMEWorldData extends WorldSavedData {
@@ -88,6 +93,30 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
         return count;
+    }
+
+    public void removeInactiveLoadedHiredUnits(World world, UUID owner) {
+        Set<UUID> inactiveUnits = new HashSet<>();
+        for (Object object : world.loadedEntityList) {
+            if (!(object instanceof LOTREntityNPC)) {
+                continue;
+            }
+            LOTREntityNPC npc = (LOTREntityNPC) object;
+            UUID entityID = KOMEReflection.getEntityUUID(npc);
+            KOMEHiredUnitRecord record = hiredUnits.get(entityID);
+            if (record == null || owner != null && !owner.equals(record.owner)) {
+                continue;
+            }
+            if (!npc.isEntityAlive() || !npc.hiredNPCInfo.isActive) {
+                inactiveUnits.add(entityID);
+            }
+        }
+        for (UUID entityID : inactiveUnits) {
+            hiredUnits.remove(entityID);
+        }
+        if (!inactiveUnits.isEmpty()) {
+            markDirty();
+        }
     }
 
     public void syncTerritories() {

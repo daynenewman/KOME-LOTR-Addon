@@ -43,6 +43,11 @@ public class KOMEEvents {
     public void onLivingUpdate(LivingEvent.LivingUpdateEvent event) {
         if (!KOMEReflection.getWorld(event.entityLiving).isRemote && event.entityLiving instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
+            if (!npc.isEntityAlive()) {
+                releaseIfTracked(npc);
+                releaseLinkedInactiveUnits(npc);
+                return;
+            }
             if (npc.hiredNPCInfo.isActive) {
                 handleHiredUnit(npc);
                 updateTrackedPopulationCost(npc);
@@ -55,7 +60,9 @@ public class KOMEEvents {
     @SubscribeEvent
     public void onLivingDeath(LivingDeathEvent event) {
         if (!KOMEReflection.getWorld(event.entityLiving).isRemote && event.entityLiving instanceof LOTREntityNPC) {
-            releaseIfTracked((LOTREntityNPC) event.entityLiving);
+            LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
+            releaseIfTracked(npc);
+            releaseLinkedInactiveUnits(npc);
         }
     }
 
@@ -96,7 +103,7 @@ public class KOMEEvents {
             record.type = KOMEPopulationType.OFFENSIVE;
             record.cost = 1;
             record.farmhand = true;
-            record.unitName = getUnitName(npc);
+            record.unitName = getFarmhandName(npc);
             data.hiredUnits.put(entityID, record);
             data.markDirty();
             return;
@@ -170,6 +177,21 @@ public class KOMEEvents {
             }
         }
         data.markDirty();
+    }
+
+    private void releaseLinkedInactiveUnits(LOTREntityNPC npc) {
+        releaseLinkedInactiveUnit(KOMEReflection.getRidingEntity(npc));
+        releaseLinkedInactiveUnit(KOMEReflection.getRiddenByEntity(npc));
+    }
+
+    private void releaseLinkedInactiveUnit(Entity entity) {
+        if (!(entity instanceof LOTREntityNPC)) {
+            return;
+        }
+        LOTREntityNPC linkedNPC = (LOTREntityNPC) entity;
+        if (!linkedNPC.isEntityAlive() || !linkedNPC.hiredNPCInfo.isActive) {
+            releaseIfTracked(linkedNPC);
+        }
     }
 
     private int getRefundCost(EntityPlayer owner, LOTREntityNPC hiredNPC) {
@@ -254,5 +276,14 @@ public class KOMEEvents {
             name = npc.getClass().getSimpleName();
         }
         return name;
+    }
+
+    private String getFarmhandName(LOTREntityNPC npc) {
+        String name = getUnitName(npc);
+        return isNumberOnly(name) ? "Farmhand" : name;
+    }
+
+    private boolean isNumberOnly(String value) {
+        return value != null && value.trim().matches("[0-9]+");
     }
 }

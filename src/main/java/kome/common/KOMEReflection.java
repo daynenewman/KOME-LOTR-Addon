@@ -12,6 +12,7 @@ public class KOMEReflection {
     private static Field entityWorldField;
     private static Field entityUUIDField;
     private static Field ridingEntityField;
+    private static Field riddenByEntityField;
     private static Method setDeadMethod;
     private static Method getMaxHealthMethod;
 
@@ -58,6 +59,22 @@ public class KOMEReflection {
                 ridingEntityField.setAccessible(true);
             }
             return (Entity) ridingEntityField.get(entity);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public static Entity getRiddenByEntity(Entity entity) {
+        try {
+            if (riddenByEntityField == null) {
+                try {
+                    riddenByEntityField = Entity.class.getDeclaredField("riddenByEntity");
+                } catch (NoSuchFieldException e) {
+                    riddenByEntityField = Entity.class.getDeclaredField("field_70153_n");
+                }
+                riddenByEntityField.setAccessible(true);
+            }
+            return (Entity) riddenByEntityField.get(entity);
         } catch (Exception e) {
             return null;
         }
