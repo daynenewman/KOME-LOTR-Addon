@@ -217,18 +217,35 @@ public class KOMEEvents {
         if (name.contains("Huorn")) {
             return 75;
         }
-        if (name.contains("WargBombardier") || mounted || isMountedTrade(trade)) {
+        if (name.contains("WargBombardier") || mounted || isMountedTrade(trade) || isMountedName(npc)) {
             return 50;
         }
         return defaultUnitCost;
     }
 
     private boolean isMountedUnit(LOTREntityNPC npc, LOTRUnitTradeEntry trade) {
-        return KOMEReflection.getRidingEntity(npc) != null || isMountedTrade(trade);
+        return KOMEReflection.getRidingEntity(npc) != null || isMountedTrade(trade) || isMountedName(npc);
     }
 
     private boolean isMountedTrade(LOTRUnitTradeEntry trade) {
         return trade != null && trade.mountClass != null;
+    }
+
+    private boolean isMountedName(LOTREntityNPC npc) {
+        String className = npc.getClass().getSimpleName().toLowerCase();
+        String displayName = getUnitName(npc).toLowerCase();
+        return className.contains("outrider")
+            || displayName.contains("outrider")
+            || displayName.contains("mounted")
+            || displayName.contains("horse")
+            || displayName.contains("warg")
+            || displayName.contains("boar")
+            || displayName.contains("elk")
+            || displayName.contains("camel")
+            || displayName.contains("rhino")
+            || displayName.contains("zebra")
+            || displayName.contains("giraffe")
+            || displayName.contains("spider rider");
     }
 
     private String getUnitName(LOTREntityNPC npc) {
