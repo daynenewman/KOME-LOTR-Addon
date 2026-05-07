@@ -4,6 +4,7 @@ import kome.common.data.KOMEPlayerPopulation;
 import kome.common.data.KOMEPopulationType;
 import kome.common.data.KOMEWorldData;
 import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketHireType;
 import kome.common.network.KOMEPacketPopulationGui;
 import kome.common.network.KOMEPacketPopulationUnitsGui;
 import kome.common.KOMEReflection;
@@ -27,7 +28,7 @@ public class KOMECommandPopulation extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/population get [player] | gui [player] | units [player] | set/add/remove <player> <offensive|defensive> <amount>";
+        return "/population get [player] | gui [player] | units [player] | hiretype [player] <offensive|defensive> | set/add/remove <player> <offensive|defensive> <amount>";
     }
 
     @Override
@@ -48,6 +49,10 @@ public class KOMECommandPopulation extends CommandBase {
         if ("units".equalsIgnoreCase(args[0])) {
             EntityPlayerMP player = args.length >= 2 ? getPlayer(sender, args[1]) : getCommandSenderAsPlayer(sender);
             sendUnitBreakdown(sender, player);
+            return;
+        }
+        if ("hiretype".equalsIgnoreCase(args[0])) {
+            setHireType(sender, args);
             return;
         }
         if (args.length != 4) {
@@ -83,13 +88,15 @@ public class KOMECommandPopulation extends CommandBase {
         KOMEPlayerPopulation pop = data.getPopulation(playerID);
         int farmhandsUsed = data.getFarmhandsUsed(playerID);
         int farmhandsLimit = pop.getFarmhandLimit();
-        int armyUsed = data.getArmyPopulationUsed(playerID);
+        int offensiveUsed = data.getArmyPopulationUsed(playerID, KOMEPopulationType.OFFENSIVE);
+        int defensiveUsed = data.getArmyPopulationUsed(playerID, KOMEPopulationType.DEFENSIVE);
+        int armyUsed = offensiveUsed + defensiveUsed;
         int armyTotal = pop.getCombinedTotal();
         if (gui && sender instanceof EntityPlayerMP) {
-            KOMEPacketHandler.network.sendTo(new KOMEPacketPopulationGui(player.getCommandSenderName(), pop.offensiveTotal, pop.offensiveUsed, pop.defensiveTotal, pop.defensiveUsed, farmhandsUsed, farmhandsLimit, armyUsed, armyTotal), (EntityPlayerMP) sender);
+            KOMEPacketHandler.network.sendTo(new KOMEPacketPopulationGui(player.getCommandSenderName(), pop.offensiveTotal, offensiveUsed, pop.defensiveTotal, defensiveUsed, farmhandsUsed, farmhandsLimit, armyUsed, armyTotal), (EntityPlayerMP) sender);
             return;
         }
-        sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " population: Offensive total " + pop.offensiveTotal + ", Defensive total " + pop.defensiveTotal + ", Army " + armyUsed + "/" + armyTotal + " used, Farmhands " + farmhandsUsed + "/" + farmhandsLimit + " used"));
+        sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " population: Offensive " + offensiveUsed + "/" + pop.offensiveTotal + " used, Defensive " + defensiveUsed + "/" + pop.defensiveTotal + " used, Next hire " + pop.hireType.key + ", Farmhands " + farmhandsUsed + "/" + farmhandsLimit + " used"));
     }
 
     private void sendUnitBreakdown(ICommandSender sender, EntityPlayerMP player) {
@@ -99,9 +106,12 @@ public class KOMECommandPopulation extends CommandBase {
         KOMEPlayerPopulation pop = data.getPopulation(playerID);
         int farmhandsUsed = data.getFarmhandsUsed(playerID);
         int farmhandsLimit = pop.getFarmhandLimit();
-        int armyUsed = data.getArmyPopulationUsed(playerID);
+        int offensiveUsed = data.getArmyPopulationUsed(playerID, KOMEPopulationType.OFFENSIVE);
+        int defensiveUsed = data.getArmyPopulationUsed(playerID, KOMEPopulationType.DEFENSIVE);
+        int armyUsed = offensiveUsed + defensiveUsed;
         int armyTotal = pop.getCombinedTotal();
-        List armyLines = new ArrayList();
+        List offensiveLines = new ArrayList();
+        List defensiveLines = new ArrayList();
         List farmhandLines = new ArrayList();
         for (Object object : data.hiredUnits.entrySet()) {
             Map.Entry entry = (Map.Entry) object;
@@ -113,12 +123,20 @@ public class KOMECommandPopulation extends CommandBase {
                 farmhandLines.add(getFarmhandDisplayName(record) + " - farmhand slot");
             } else {
                 String note = record.mounted ? " (mounted)" : "";
-                armyLines.add(getUnitDisplayName(record) + " - " + record.cost + " population" + note);
+                String line = getUnitDisplayName(record) + " - " + record.cost + " population" + note;
+                if (record.type == KOMEPopulationType.DEFENSIVE) {
+                    defensiveLines.add(line);
+                } else {
+                    offensiveLines.add(line);
+                }
             }
         }
         List lines = new ArrayList();
-        lines.add("Army Units (" + armyLines.size() + ")");
-        lines.addAll(armyLines);
+        lines.add("Offensive Units (" + offensiveLines.size() + ")");
+        lines.addAll(offensiveLines);
+        lines.add("");
+        lines.add("Defensive Units (" + defensiveLines.size() + ")");
+        lines.addAll(defensiveLines);
         lines.add("");
         lines.add("Farmhands (" + farmhandLines.size() + ")");
         lines.addAll(farmhandLines);
@@ -134,6 +152,29 @@ public class KOMECommandPopulation extends CommandBase {
                 sender.addChatMessage(new ChatComponentText(String.valueOf(line)));
             }
         }
+    }
+
+    private void setHireType(ICommandSender sender, String[] args) {
+        EntityPlayerMP player;
+        KOMEPopulationType type;
+        if (args.length == 2) {
+            player = getCommandSenderAsPlayer(sender);
+            type = KOMEPopulationType.forName(args[1]);
+        } else if (args.length == 3) {
+            player = getPlayer(sender, args[1]);
+            type = KOMEPopulationType.forName(args[2]);
+        } else {
+            throw new WrongUsageException("Usage: /population hiretype [player] <offensive|defensive>");
+        }
+        if (type == null) {
+            throw new WrongUsageException("Hire type must be offensive or defensive");
+        }
+        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+        KOMEPlayerPopulation pop = data.getPopulation(KOMEReflection.getEntityUUID(player));
+        pop.hireType = type;
+        data.markDirty();
+        KOMEPacketHandler.network.sendTo(new KOMEPacketHireType(type), player);
+        sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " next hires will use " + type.key + " population."));
     }
 
     private String shortID(UUID id) {
@@ -157,7 +198,20 @@ public class KOMECommandPopulation extends CommandBase {
     @Override
     public java.util.List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "get", "gui", "units", "set", "add", "remove");
+            return getListOfStringsMatchingLastWord(args, "get", "gui", "units", "hiretype", "set", "add", "remove");
+        }
+        if (args.length == 2 && "hiretype".equalsIgnoreCase(args[0])) {
+            List completions = new ArrayList();
+            completions.add("offensive");
+            completions.add("defensive");
+            String[] usernames = MinecraftServer.getServer().getAllUsernames();
+            for (String username : usernames) {
+                completions.add(username);
+            }
+            return getListOfStringsFromIterableMatchingLastWord(args, completions);
+        }
+        if (args.length == 3 && "hiretype".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(args, "offensive", "defensive");
         }
         if (args.length == 2) {
             return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());

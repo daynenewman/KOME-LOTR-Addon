@@ -14,5 +14,6 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketTerritoryGui.Handler.class, KOMEPacketTerritoryGui.class, 1, Side.CLIENT);
         network.registerMessage(KOMEPacketTerritoryData.Handler.class, KOMEPacketTerritoryData.class, 2, Side.CLIENT);
         network.registerMessage(KOMEPacketPopulationUnitsGui.Handler.class, KOMEPacketPopulationUnitsGui.class, 3, Side.CLIENT);
+        network.registerMessage(KOMEPacketHireType.Handler.class, KOMEPacketHireType.class, 4, Side.CLIENT);
     }
 }

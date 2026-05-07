@@ -31,20 +31,22 @@ public class KOMEGuiPopulation extends GuiScreen {
 
     @Override
     public void initGui() {
-        int x = width / 2 - 120;
-        int y = height / 2 - 95;
-        playerField = new GuiTextField(fontRendererObj, x, y + 20, 240, 20);
+        int x = width / 2 - 135;
+        int y = height / 2 - 115;
+        playerField = new GuiTextField(fontRendererObj, x, y + 20, 270, 20);
         playerField.setText(initialPlayer);
-        amountField = new GuiTextField(fontRendererObj, x, y + 55, 80, 20);
+        amountField = new GuiTextField(fontRendererObj, x, y + 55, 90, 20);
         amountField.setText("25");
-        buttonList.add(new GuiButton(0, x + 90, y + 55, 70, 20, "Load"));
-        buttonList.add(new GuiButton(1, x, y + 135, 75, 20, "Set Off"));
-        buttonList.add(new GuiButton(2, x + 82, y + 135, 75, 20, "Add Off"));
-        buttonList.add(new GuiButton(3, x + 164, y + 135, 75, 20, "Remove Off"));
-        buttonList.add(new GuiButton(4, x, y + 160, 75, 20, "Set Def"));
-        buttonList.add(new GuiButton(5, x + 82, y + 160, 75, 20, "Add Def"));
-        buttonList.add(new GuiButton(6, x + 164, y + 160, 75, 20, "Remove Def"));
-        buttonList.add(new GuiButton(7, x, y + 185, 239, 20, "Units"));
+        buttonList.add(new GuiButton(0, x + 100, y + 55, 75, 20, "Load"));
+        int buttonWidth = 86;
+        int buttonGap = 6;
+        buttonList.add(new GuiButton(1, x, y + 155, buttonWidth, 20, "Set Off"));
+        buttonList.add(new GuiButton(2, x + buttonWidth + buttonGap, y + 155, buttonWidth, 20, "Add Off"));
+        buttonList.add(new GuiButton(3, x + (buttonWidth + buttonGap) * 2, y + 155, buttonWidth, 20, "Remove Off"));
+        buttonList.add(new GuiButton(4, x, y + 180, buttonWidth, 20, "Set Def"));
+        buttonList.add(new GuiButton(5, x + buttonWidth + buttonGap, y + 180, buttonWidth, 20, "Add Def"));
+        buttonList.add(new GuiButton(6, x + (buttonWidth + buttonGap) * 2, y + 180, buttonWidth, 20, "Remove Def"));
+        buttonList.add(new GuiButton(7, x, y + 205, 270, 20, "Units"));
     }
 
     @Override
@@ -89,16 +91,20 @@ public class KOMEGuiPopulation extends GuiScreen {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
-        int x = width / 2 - 120;
-        int y = height / 2 - 95;
+        int x = width / 2 - 135;
+        int y = height / 2 - 115;
+        int offensiveAvailable = Math.max(0, offensiveTotal - offensiveUsed);
+        int defensiveAvailable = Math.max(0, defensiveTotal - defensiveUsed);
+        int armyAvailable = Math.max(0, armyTotal - armyUsed);
         drawCenteredString(fontRendererObj, "Population Manager", width / 2, y, 16777215);
         drawString(fontRendererObj, "Player", x, y + 10, 10526880);
         drawString(fontRendererObj, "Amount", x, y + 45, 10526880);
         playerField.drawTextBox();
         amountField.drawTextBox();
-        drawString(fontRendererObj, "Offensive total: " + offensiveTotal + "   Defensive total: " + defensiveTotal, x, y + 85, 16777215);
-        drawString(fontRendererObj, "Army population: " + armyUsed + "/" + armyTotal + " used   available " + Math.max(0, armyTotal - armyUsed), x, y + 100, 16777215);
-        drawString(fontRendererObj, "Farmhands: " + farmhandsUsed + "/" + farmhandsLimit + " used  (total pop / 25)", x, y + 115, 16777215);
+        drawString(fontRendererObj, "Offensive: " + offensiveUsed + "/" + offensiveTotal + " used, " + offensiveAvailable + " available", x, y + 85, 0xF5D27A);
+        drawString(fontRendererObj, "Defensive: " + defensiveUsed + "/" + defensiveTotal + " used, " + defensiveAvailable + " available", x, y + 100, 0x9ED6FF);
+        drawString(fontRendererObj, "Total army: " + armyUsed + "/" + armyTotal + " used, " + armyAvailable + " available", x, y + 115, 16777215);
+        drawString(fontRendererObj, "Farmhands: " + farmhandsUsed + "/" + farmhandsLimit + " used", x, y + 130, 0xD7FF9E);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 }

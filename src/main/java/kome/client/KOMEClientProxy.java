@@ -23,6 +23,8 @@ public class KOMEClientProxy extends KOMECommonProxy {
         ClientRegistry.registerKeyBinding(territoryGuiKey);
         FMLCommonHandler.instance().bus().register(new KOMEKeyHandler());
         MinecraftForge.EVENT_BUS.register(new KOMEChatSanitizer());
+        MinecraftForge.EVENT_BUS.register(new KOMEUnitTradeOverlay());
+        MinecraftForge.EVENT_BUS.register(new KOMEConquestMapOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEMapOverlay());
     }
 

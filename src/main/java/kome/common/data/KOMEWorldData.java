@@ -76,9 +76,13 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public int getArmyPopulationUsed(UUID owner) {
+        return getArmyPopulationUsed(owner, null);
+    }
+
+    public int getArmyPopulationUsed(UUID owner, KOMEPopulationType type) {
         int used = 0;
         for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (!record.farmhand && owner.equals(record.owner)) {
+            if (!record.farmhand && owner.equals(record.owner) && (type == null || record.type == type)) {
                 used += Math.max(0, record.cost);
             }
         }

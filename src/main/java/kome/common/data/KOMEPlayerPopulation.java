@@ -7,6 +7,7 @@ public class KOMEPlayerPopulation {
     public int offensiveUsed;
     public int defensiveTotal;
     public int defensiveUsed;
+    public KOMEPopulationType hireType = KOMEPopulationType.OFFENSIVE;
 
     public int getTotal(KOMEPopulationType type) {
         return type == KOMEPopulationType.DEFENSIVE ? defensiveTotal : offensiveTotal;
@@ -78,6 +79,8 @@ public class KOMEPlayerPopulation {
         offensiveUsed = nbt.getInteger("OffensiveUsed");
         defensiveTotal = nbt.getInteger("DefensiveTotal");
         defensiveUsed = nbt.getInteger("DefensiveUsed");
+        KOMEPopulationType readHireType = KOMEPopulationType.forName(nbt.getString("HireType"));
+        hireType = readHireType == null ? KOMEPopulationType.OFFENSIVE : readHireType;
     }
 
     public NBTTagCompound writeToNBT() {
@@ -86,6 +89,7 @@ public class KOMEPlayerPopulation {
         nbt.setInteger("OffensiveUsed", offensiveUsed);
         nbt.setInteger("DefensiveTotal", defensiveTotal);
         nbt.setInteger("DefensiveUsed", defensiveUsed);
+        nbt.setString("HireType", (hireType == null ? KOMEPopulationType.OFFENSIVE : hireType).key);
         return nbt;
     }
 }

@@ -2,18 +2,24 @@ package kome.common.data;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.PlayerEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
 import kome.common.KOMEReflection;
+import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketHireType;
 import lotr.common.entity.npc.LOTRHireableBase;
 import lotr.common.entity.npc.LOTREntityNPC;
 import lotr.common.entity.npc.LOTRHiredNPCInfo;
 import lotr.common.entity.npc.LOTRUnitTradeEntry;
 import lotr.common.entity.npc.LOTRUnitTradeable;
 import lotr.common.inventory.LOTRContainerUnitTrade;
+import lotr.common.LOTRMod;
 import lotr.common.item.LOTRItemCoin;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.MathHelper;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
@@ -21,14 +27,28 @@ import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 
 import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
 
 public class KOMEEvents {
     public static int defaultUnitCost = 25;
+    private final Map<UUID, Integer> lastCoinValues = new HashMap<>();
+    private final Map<UUID, int[]> lastCoinCounts = new HashMap<>();
 
     @SubscribeEvent
     public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.player instanceof EntityPlayerMP) {
-            KOMEWorldData.get(KOMEReflection.getWorld(event.player)).syncTerritories((EntityPlayerMP) event.player);
+            KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
+            data.syncTerritories((EntityPlayerMP) event.player);
+            KOMEPacketHandler.network.sendTo(new KOMEPacketHireType(data.getPopulation(KOMEReflection.getEntityUUID(event.player)).hireType), (EntityPlayerMP) event.player);
+            cacheCoinValue((EntityPlayer) event.player);
+        }
+    }
+
+    @SubscribeEvent
+    public void onPlayerTick(TickEvent.PlayerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END && !KOMEReflection.getWorld(event.player).isRemote) {
+            cacheCoinValue(event.player);
         }
     }
 
@@ -85,14 +105,12 @@ public class KOMEEvents {
             return;
         }
         KOMEPlayerPopulation pop = data.getPopulation(info.getHiringPlayerUUID());
+        KOMEPopulationType hireType = pop.hireType == null ? KOMEPopulationType.OFFENSIVE : pop.hireType;
         if (isFarmhand) {
             int limit = pop.getFarmhandLimit();
             int used = data.getFarmhandsUsed(info.getHiringPlayerUUID());
             if (used >= limit) {
-                int refund = getRefundCost(owner, npc);
-                if (refund > 0) {
-                    LOTRItemCoin.giveCoins(refund, owner);
-                }
+                int refund = refundDeniedHire(owner, npc);
                 owner.addChatMessage(new ChatComponentText("You do not have enough farmhand slots. Farmhands used: " + used + "/" + limit + (refund > 0 ? ". Refunded " + refund + " coins." : "")));
                 KOMEReflection.setDead(npc);
                 return;
@@ -111,25 +129,22 @@ public class KOMEEvents {
 
         LOTRUnitTradeEntry trade = getMatchingTrade(owner, npc);
         boolean mounted = isMountedUnit(npc, trade);
-        int baseCost = getBasePopulationCost(npc, trade, mounted);
-        int populationCost = getPopulationCost(npc, baseCost);
-        int armyUsed = data.getArmyPopulationUsed(info.getHiringPlayerUUID());
-        int armyTotal = pop.getCombinedTotal();
+        int rawPopulationCost = getRawPopulationCost(npc, mounted);
+        int populationCost = applyHireTypeCost(rawPopulationCost, hireType);
+        int armyUsed = data.getArmyPopulationUsed(info.getHiringPlayerUUID(), hireType);
+        int armyTotal = pop.getTotal(hireType);
         if (armyTotal - armyUsed < populationCost) {
-            int refund = getRefundCost(owner, npc);
-            if (refund > 0) {
-                LOTRItemCoin.giveCoins(refund, owner);
-            }
-            owner.addChatMessage(new ChatComponentText("You do not have sufficient total population to hire another worker. Required: " + populationCost + ", available: " + Math.max(0, armyTotal - armyUsed) + "/" + armyTotal + (refund > 0 ? ". Refunded " + refund + " coins." : "")));
+            int refund = refundDeniedHire(owner, npc);
+            owner.addChatMessage(new ChatComponentText("You do not have sufficient " + hireType.key + " population to hire another worker. Required: " + populationCost + ", available: " + Math.max(0, armyTotal - armyUsed) + "/" + armyTotal + (refund > 0 ? ". Refunded " + refund + " coins." : "")));
             KOMEReflection.setDead(npc);
             return;
         }
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
         record.entity = entityID;
         record.owner = info.getHiringPlayerUUID();
-        record.type = KOMEPopulationType.OFFENSIVE;
+        record.type = hireType;
         record.cost = populationCost;
-        record.baseCost = baseCost;
+        record.baseCost = rawPopulationCost;
         record.mounted = mounted;
         record.unitName = getUnitName(npc);
         data.hiredUnits.put(entityID, record);
@@ -144,15 +159,12 @@ public class KOMEEvents {
         }
         record.unitName = getUnitName(npc);
         record.mounted = record.mounted || isMountedUnit(npc, null);
-        if (record.baseCost <= 0) {
-            record.baseCost = getBasePopulationCost(npc, null, record.mounted);
-        } else if (record.mounted && record.baseCost < 50) {
-            record.baseCost = 50;
-        }
-        int currentCost = getPopulationCost(npc, record.baseCost);
-        if (currentCost == record.cost) {
+        int rawPopulationCost = getRawPopulationCost(npc, record.mounted);
+        int currentCost = applyHireTypeCost(rawPopulationCost, record.type);
+        if (currentCost == record.cost && rawPopulationCost == record.baseCost) {
             return;
         }
+        record.baseCost = rawPopulationCost;
         record.cost = currentCost;
         data.markDirty();
     }
@@ -171,9 +183,9 @@ public class KOMEEvents {
             }
         } else {
             if (owner != null) {
-                int armyUsed = data.getArmyPopulationUsed(record.owner);
-                int armyTotal = pop.getCombinedTotal();
-                owner.addChatMessage(new ChatComponentText("Population freed: " + record.cost + " total (" + Math.max(0, armyTotal - armyUsed) + "/" + armyTotal + " available)"));
+                int armyUsed = data.getArmyPopulationUsed(record.owner, record.type);
+                int armyTotal = pop.getTotal(record.type);
+                owner.addChatMessage(new ChatComponentText("Population freed: " + record.cost + " " + record.type.key + " (" + Math.max(0, armyTotal - armyUsed) + "/" + armyTotal + " available)"));
             }
         }
         data.markDirty();
@@ -194,7 +206,37 @@ public class KOMEEvents {
         }
     }
 
+    private int refundDeniedHire(EntityPlayer owner, LOTREntityNPC hiredNPC) {
+        UUID ownerID = KOMEReflection.getEntityUUID(owner);
+        Integer lastCoins = lastCoinValues.get(ownerID);
+        int[] lastCounts = lastCoinCounts.get(ownerID);
+        if (lastCoins != null && lastCounts != null) {
+            int currentCoins = LOTRItemCoin.getInventoryValue(owner, false);
+            int spentCoins = lastCoins - currentCoins;
+            if (spentCoins > 0) {
+                restoreCoinCounts(owner, lastCounts);
+                cacheCoinValue(owner);
+                return spentCoins;
+            }
+        }
+        int refund = getRefundCost(owner, hiredNPC);
+        if (refund > 0) {
+            LOTRItemCoin.giveCoins(refund, owner);
+            cacheCoinValue(owner);
+        }
+        return refund;
+    }
+
     private int getRefundCost(EntityPlayer owner, LOTREntityNPC hiredNPC) {
+        UUID ownerID = KOMEReflection.getEntityUUID(owner);
+        Integer lastCoins = lastCoinValues.get(ownerID);
+        if (lastCoins != null) {
+            int currentCoins = LOTRItemCoin.getInventoryValue(owner, false);
+            int spentCoins = lastCoins - currentCoins;
+            if (spentCoins > 0) {
+                return spentCoins;
+            }
+        }
         LOTRUnitTradeEntry bestMatch = getMatchingTrade(owner, hiredNPC);
         if (bestMatch == null) {
             return 0;
@@ -202,6 +244,87 @@ public class KOMEEvents {
         Container container = owner.openContainer;
         LOTRHireableBase trader = ((LOTRContainerUnitTrade) container).theUnitTrader;
         return bestMatch.getCost(owner, trader);
+    }
+
+    private void cacheCoinValue(EntityPlayer player) {
+        lastCoinValues.put(KOMEReflection.getEntityUUID(player), LOTRItemCoin.getInventoryValue(player, false));
+        lastCoinCounts.put(KOMEReflection.getEntityUUID(player), getCoinCounts(player));
+    }
+
+    private int[] getCoinCounts(EntityPlayer player) {
+        int[] counts = new int[LOTRItemCoin.values.length];
+        InventoryPlayer inv = player.inventory;
+        countCoinStack(inv.getItemStack(), counts);
+        for (ItemStack stack : inv.mainInventory) {
+            countCoinStack(stack, counts);
+        }
+        return counts;
+    }
+
+    private void countCoinStack(ItemStack stack, int[] counts) {
+        if (stack != null && stack.getItem() instanceof LOTRItemCoin) {
+            int coinType = stack.getItemDamage();
+            if (coinType >= 0 && coinType < counts.length) {
+                counts[coinType] += stack.stackSize;
+            }
+        }
+    }
+
+    private void restoreCoinCounts(EntityPlayer player, int[] targetCounts) {
+        int[] currentCounts = getCoinCounts(player);
+        for (int i = 0; i < currentCounts.length && i < targetCounts.length; i++) {
+            int extra = currentCounts[i] - targetCounts[i];
+            if (extra > 0) {
+                removeCoinCount(player, i, extra);
+            }
+        }
+        currentCounts = getCoinCounts(player);
+        for (int i = 0; i < currentCounts.length && i < targetCounts.length; i++) {
+            int missing = targetCounts[i] - currentCounts[i];
+            if (missing > 0) {
+                addCoinCount(player, i, missing);
+            }
+        }
+    }
+
+    private void removeCoinCount(EntityPlayer player, int coinType, int count) {
+        InventoryPlayer inv = player.inventory;
+        ItemStack held = inv.getItemStack();
+        if (isCoinType(held, coinType)) {
+            int taken = Math.min(count, held.stackSize);
+            held.stackSize -= taken;
+            count -= taken;
+            if (held.stackSize <= 0) {
+                inv.setItemStack(null);
+            }
+        }
+        for (int slot = 0; slot < inv.mainInventory.length && count > 0; slot++) {
+            ItemStack stack = inv.mainInventory[slot];
+            if (!isCoinType(stack, coinType)) {
+                continue;
+            }
+            int taken = Math.min(count, stack.stackSize);
+            stack.stackSize -= taken;
+            count -= taken;
+            if (stack.stackSize <= 0) {
+                inv.mainInventory[slot] = null;
+            }
+        }
+    }
+
+    private void addCoinCount(EntityPlayer player, int coinType, int count) {
+        while (count > 0) {
+            int stackSize = Math.min(count, 64);
+            ItemStack stack = new ItemStack(LOTRMod.silverCoin, stackSize, coinType);
+            if (!player.inventory.addItemStackToInventory(stack)) {
+                player.dropPlayerItemWithRandomChoice(stack, false);
+            }
+            count -= stackSize;
+        }
+    }
+
+    private boolean isCoinType(ItemStack stack, int coinType) {
+        return stack != null && stack.getItem() instanceof LOTRItemCoin && stack.getItemDamage() == coinType;
     }
 
     private LOTRUnitTradeEntry getMatchingTrade(EntityPlayer owner, LOTREntityNPC hiredNPC) {
@@ -226,23 +349,17 @@ public class KOMEEvents {
         return bestMatch;
     }
 
-    private int getPopulationCost(LOTREntityNPC npc, int baseCost) {
+    private int getRawPopulationCost(LOTREntityNPC npc, boolean mounted) {
         int healthCost = Math.max(1, MathHelper.ceiling_float_int(KOMEReflection.getMaxHealthOrFallback(npc, defaultUnitCost)));
-        return Math.max(Math.max(1, baseCost), healthCost);
+        return mounted ? healthCost + 25 : healthCost;
     }
 
-    private int getBasePopulationCost(LOTREntityNPC npc, LOTRUnitTradeEntry trade, boolean mounted) {
-        String name = npc.getClass().getSimpleName();
-        if (name.contains("OlogHai") || name.contains("Troll") && !name.contains("HalfTroll")) {
-            return 125;
+    private int applyHireTypeCost(int rawCost, KOMEPopulationType hireType) {
+        rawCost = Math.max(1, rawCost);
+        if (hireType == KOMEPopulationType.DEFENSIVE) {
+            return Math.max(1, MathHelper.ceiling_float_int(rawCost / 2.0f));
         }
-        if (name.contains("Huorn")) {
-            return 75;
-        }
-        if (name.contains("WargBombardier") || mounted || isMountedTrade(trade) || isMountedName(npc)) {
-            return 50;
-        }
-        return defaultUnitCost;
+        return rawCost;
     }
 
     private boolean isMountedUnit(LOTREntityNPC npc, LOTRUnitTradeEntry trade) {

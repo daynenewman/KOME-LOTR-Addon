@@ -23,4 +23,4 @@ tasks.named<Jar>("jar") {
     archiveBaseName.set("KOME-LOTR-Addon")
 }
 
-extra["modVersion"] = "dev-local"
+extra["modVersion"] = "1.0.1"
