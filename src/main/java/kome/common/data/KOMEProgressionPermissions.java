@@ -32,6 +32,9 @@ public class KOMEProgressionPermissions {
             return false;
         }
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+        if (!data.isProgressionEnabled()) {
+            return true;
+        }
         UUID playerID = KOMEReflection.getEntityUUID(player);
         return data.getProgression(playerID).isCompleted(permission);
     }

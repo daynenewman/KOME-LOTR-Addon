@@ -39,7 +39,7 @@ public class KOMECommandProgression extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/progression get [player] | list [player] <group> | pledge | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | reset <player>";
+        return "/progression status | enable | disable | get [player] | list [player] <group> | pledge | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | reset <player>";
     }
 
     @Override
@@ -51,6 +51,22 @@ public class KOMECommandProgression extends CommandBase {
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length < 1) {
             throw new WrongUsageException(getCommandUsage(sender));
+        }
+        if ("status".equalsIgnoreCase(args[0])) {
+            KOMEWorldData data = KOMEWorldData.get(getSenderWorld(sender));
+            sender.addChatMessage(new ChatComponentText("KOME progression restrictions are " + (data.isProgressionEnabled() ? "enabled." : "disabled.")));
+            return;
+        }
+        if ("enable".equalsIgnoreCase(args[0]) || "disable".equalsIgnoreCase(args[0])) {
+            requireStaff(sender);
+            if (args.length != 1) {
+                throw new WrongUsageException(getCommandUsage(sender));
+            }
+            boolean enabled = "enable".equalsIgnoreCase(args[0]);
+            KOMEWorldData data = KOMEWorldData.get(getSenderWorld(sender));
+            data.setProgressionEnabled(enabled);
+            sender.addChatMessage(new ChatComponentText("KOME progression restrictions are now " + (enabled ? "enabled." : "disabled.")));
+            return;
         }
         if ("get".equalsIgnoreCase(args[0])) {
             EntityPlayerMP player = args.length >= 2 ? getPlayer(sender, args[1]) : getCommandSenderAsPlayer(sender);
@@ -242,6 +258,7 @@ public class KOMECommandProgression extends CommandBase {
     private void sendSummary(ICommandSender sender, EntityPlayerMP player) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+        sender.addChatMessage(new ChatComponentText("Progression restrictions: " + (data.isProgressionEnabled() ? "enabled" : "disabled")));
         sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " progression: " + progression.getCompletedCount(null) + "/" + progression.getTotalCount(null) + " complete"));
         sender.addChatMessage(new ChatComponentText("Pledged lord: " + progression.getPledgedLordDisplay()));
         for (String group : GROUPS) {
@@ -326,6 +343,13 @@ public class KOMECommandProgression extends CommandBase {
         }
     }
 
+    private World getSenderWorld(ICommandSender sender) {
+        if (sender instanceof EntityPlayerMP) {
+            return KOMEReflection.getWorld((EntityPlayerMP) sender);
+        }
+        return MinecraftServer.getServer().worldServers[0];
+    }
+
     private KOMEProgressionAchievement getSelfCompletableAchievement(String id) {
         KOMEProgressionAchievement achievement = getPlayerProgressionAchievement(id);
         if (KOMEProgressionAchievement.isAutoManaged(achievement.id)) {
@@ -348,7 +372,7 @@ public class KOMECommandProgression extends CommandBase {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "get", "list", "pledge", "offerings", "complete", "uncomplete", "roll", "reroll", "grant", "revoke", "grantall", "reset");
+            return getListOfStringsMatchingLastWord(args, "status", "enable", "disable", "get", "list", "pledge", "offerings", "complete", "uncomplete", "roll", "reroll", "grant", "revoke", "grantall", "reset");
         }
         if (args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "grant".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "grantall".equalsIgnoreCase(args[0]) || "reset".equalsIgnoreCase(args[0]) || "reroll".equalsIgnoreCase(args[0]))) {
             return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());

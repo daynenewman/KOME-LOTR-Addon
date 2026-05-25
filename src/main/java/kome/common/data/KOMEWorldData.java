@@ -31,6 +31,7 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<UUID, String> playerNames = new HashMap<>();
     private final Map<String, UUID> kingsByFaction = new HashMap<>();
     private final Map<String, String> kingNamesByFaction = new HashMap<>();
+    private boolean progressionEnabled = true;
 
     public KOMEWorldData() {
         super(DATA_NAME);
@@ -128,6 +129,17 @@ public class KOMEWorldData extends WorldSavedData {
         return key.length() > 0 && playerID != null && playerID.equals(kingsByFaction.get(key));
     }
 
+    public boolean isProgressionEnabled() {
+        return progressionEnabled;
+    }
+
+    public void setProgressionEnabled(boolean enabled) {
+        if (progressionEnabled != enabled) {
+            progressionEnabled = enabled;
+            markDirty();
+        }
+    }
+
     private static String normalizeFactionKey(String value) {
         return value == null ? "" : value.toLowerCase().replaceAll("[^a-z0-9]", "");
     }
@@ -222,6 +234,7 @@ public class KOMEWorldData extends WorldSavedData {
         playerNames.clear();
         kingsByFaction.clear();
         kingNamesByFaction.clear();
+        progressionEnabled = !nbt.hasKey("ProgressionEnabled") || nbt.getBoolean("ProgressionEnabled");
 
         NBTTagList popList = nbt.getTagList("Populations", 10);
         for (int i = 0; i < popList.tagCount(); i++) {
@@ -286,6 +299,8 @@ public class KOMEWorldData extends WorldSavedData {
 
     @Override
     public void writeToNBT(NBTTagCompound nbt) {
+        nbt.setBoolean("ProgressionEnabled", progressionEnabled);
+
         NBTTagList popList = new NBTTagList();
         for (Map.Entry<UUID, KOMEPlayerPopulation> entry : populations.entrySet()) {
             NBTTagCompound pop = entry.getValue().writeToNBT();
