@@ -1,5 +1,7 @@
 package kome.client.gui;
 
+import kome.client.KOMEMinecraftClient;
+
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -58,14 +60,14 @@ public class KOMEGuiTerritory extends GuiScreen {
             factionIndex = (factionIndex + 1) % factions.size();
             refreshFactionButton();
         } else if (button.id == 3) {
-            mc.thePlayer.sendChatMessage("/territory set " + waypoint + " " + factions.get(factionIndex) + " " + noneIfBlank(rulerField.getText()) + suffix(displayNameField.getText()));
-            mc.thePlayer.closeScreen();
+            KOMEMinecraftClient.sendChat("/territory set " + waypoint + " " + factions.get(factionIndex) + " " + noneIfBlank(rulerField.getText()) + suffix(displayNameField.getText()));
+            KOMEMinecraftClient.closePlayerScreen();
         } else if (button.id == 4) {
-            mc.thePlayer.sendChatMessage("/territory clear " + waypoint);
-            mc.thePlayer.closeScreen();
+            KOMEMinecraftClient.sendChat("/territory clear " + waypoint);
+            KOMEMinecraftClient.closePlayerScreen();
         } else if (button.id == 5) {
-            mc.thePlayer.sendChatMessage("/territory gui " + waypoint);
-            mc.thePlayer.closeScreen();
+            KOMEMinecraftClient.sendChat("/territory gui " + waypoint);
+            KOMEMinecraftClient.closePlayerScreen();
         }
     }
 

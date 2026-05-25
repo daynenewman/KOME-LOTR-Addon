@@ -4,7 +4,9 @@ import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
+import kome.common.command.KOMECommandConquest;
 import kome.common.command.KOMECommandPopulation;
+import kome.common.command.KOMECommandProgression;
 import kome.common.command.KOMECommandTerritory;
 import kome.common.network.KOMEPacketHandler;
 
@@ -26,7 +28,9 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
+        event.registerServerCommand(new KOMECommandConquest());
         event.registerServerCommand(new KOMECommandPopulation());
+        event.registerServerCommand(new KOMECommandProgression());
         event.registerServerCommand(new KOMECommandTerritory());
     }
 }

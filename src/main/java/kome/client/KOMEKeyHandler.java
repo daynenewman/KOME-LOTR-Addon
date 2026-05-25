@@ -6,7 +6,7 @@ import cpw.mods.fml.common.gameevent.TickEvent;
 import lotr.client.gui.LOTRGuiMap;
 import lotr.common.world.map.LOTRAbstractWaypoint;
 import lotr.common.world.map.LOTRWaypoint;
-import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiScreen;
 import org.lwjgl.input.Keyboard;
 
 import java.lang.reflect.Field;
@@ -17,12 +17,11 @@ public class KOMEKeyHandler {
 
     @SubscribeEvent
     public void onKeyInput(InputEvent.KeyInputEvent event) {
-        Minecraft mc = Minecraft.getMinecraft();
-        if (KOMEClientProxy.populationGuiKey.getIsKeyPressed() && mc.thePlayer != null && mc.currentScreen == null) {
-            mc.thePlayer.sendChatMessage("/population gui " + mc.thePlayer.getCommandSenderName());
+        if (KOMEClientProxy.populationGuiKey.getIsKeyPressed() && KOMEMinecraftClient.player() != null && KOMEMinecraftClient.currentScreen() == null) {
+            KOMEMinecraftClient.sendChat("/population gui " + KOMEMinecraftClient.playerName());
         }
         if (KOMEClientProxy.territoryGuiKey.getIsKeyPressed()) {
-            openTerritoryGui(mc);
+            openTerritoryGui();
         }
     }
 
@@ -31,21 +30,21 @@ public class KOMEKeyHandler {
         if (event.phase != TickEvent.Phase.END) {
             return;
         }
-        Minecraft mc = Minecraft.getMinecraft();
-        boolean territoryDown = Keyboard.isKeyDown(KOMEClientProxy.territoryGuiKey.getKeyCode());
+        boolean territoryDown = Keyboard.isKeyDown(KOMEClientProxy.TERRITORY_GUI_KEY_CODE);
         if (territoryDown && !territoryWasDown) {
-            openTerritoryGui(mc);
+            openTerritoryGui();
         }
         territoryWasDown = territoryDown;
     }
 
-    private void openTerritoryGui(Minecraft mc) {
-        if (mc.thePlayer == null || !(mc.currentScreen instanceof LOTRGuiMap)) {
+    private void openTerritoryGui() {
+        GuiScreen screen = KOMEMinecraftClient.currentScreen();
+        if (KOMEMinecraftClient.player() == null || !(screen instanceof LOTRGuiMap)) {
             return;
         }
-        LOTRAbstractWaypoint selected = getSelectedWaypoint((LOTRGuiMap) mc.currentScreen);
+        LOTRAbstractWaypoint selected = getSelectedWaypoint((LOTRGuiMap) screen);
         if (selected instanceof LOTRWaypoint) {
-            mc.thePlayer.sendChatMessage("/territory gui " + ((LOTRWaypoint) selected).getCodeName());
+            KOMEMinecraftClient.sendChat("/territory gui " + ((LOTRWaypoint) selected).getCodeName());
         }
     }
 

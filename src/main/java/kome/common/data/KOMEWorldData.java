@@ -3,6 +3,7 @@ package kome.common.data;
 import cpw.mods.fml.common.FMLCommonHandler;
 import kome.common.KOMEReflection;
 import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketConquestData;
 import kome.common.network.KOMEPacketTerritoryData;
 import lotr.common.entity.npc.LOTREntityNPC;
 import net.minecraft.entity.Entity;
@@ -23,8 +24,13 @@ public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
 
     public final Map<UUID, KOMEPlayerPopulation> populations = new HashMap<>();
+    public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
     public final Map<String, KOMETerritory> territories = new HashMap<>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
+    public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
+    public final Map<UUID, String> playerNames = new HashMap<>();
+    private final Map<String, UUID> kingsByFaction = new HashMap<>();
+    private final Map<String, String> kingNamesByFaction = new HashMap<>();
 
     public KOMEWorldData() {
         super(DATA_NAME);
@@ -35,10 +41,10 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public static KOMEWorldData get(World world) {
-        if (world.isRemote) {
+        if (KOMEReflection.isRemote(world)) {
             return KOMEClientData.INSTANCE;
         }
-        MapStorage storage = world.mapStorage;
+        MapStorage storage = KOMEReflection.getMapStorage(world);
         KOMEWorldData data = (KOMEWorldData) storage.loadData(KOMEWorldData.class, DATA_NAME);
         if (data == null) {
             data = new KOMEWorldData();
@@ -56,6 +62,15 @@ public class KOMEWorldData extends WorldSavedData {
         return pop;
     }
 
+    public KOMEPlayerProgression getProgression(UUID player) {
+        KOMEPlayerProgression progression = progressions.get(player);
+        if (progression == null) {
+            progression = new KOMEPlayerProgression();
+            progressions.put(player, progression);
+        }
+        return progression;
+    }
+
     public KOMETerritory getTerritory(String waypoint) {
         KOMETerritory territory = territories.get(waypoint);
         if (territory == null) {
@@ -63,6 +78,58 @@ public class KOMEWorldData extends WorldSavedData {
             territories.put(waypoint, territory);
         }
         return territory;
+    }
+
+    public KOMEConquestTile getConquestTile(String tileId) {
+        String normalized = KOMEConquestTile.normalizeId(tileId);
+        KOMEConquestTile tile = conquestTiles.get(normalized);
+        if (tile == null) {
+            tile = new KOMEConquestTile(normalized);
+            conquestTiles.put(normalized, tile);
+        }
+        return tile;
+    }
+
+    public void rememberPlayerName(UUID playerID, String playerName) {
+        if (playerID == null || playerName == null || playerName.trim().isEmpty()) {
+            return;
+        }
+        String previous = playerNames.put(playerID, playerName);
+        if (!playerName.equals(previous)) {
+            markDirty();
+        }
+    }
+
+    public boolean claimFactionKing(String factionKey, String factionName, UUID playerID, String playerName) {
+        String key = normalizeFactionKey(factionKey);
+        if (key.length() == 0 || playerID == null) {
+            return false;
+        }
+        UUID existing = kingsByFaction.get(key);
+        if (existing == null) {
+            kingsByFaction.put(key, playerID);
+            kingNamesByFaction.put(key, playerName == null ? "" : playerName);
+            markDirty();
+            return true;
+        }
+        if (existing.equals(playerID)) {
+            String currentName = kingNamesByFaction.get(key);
+            if (playerName != null && playerName.length() > 0 && !playerName.equals(currentName)) {
+                kingNamesByFaction.put(key, playerName);
+                markDirty();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isFactionKing(String factionKey, UUID playerID) {
+        String key = normalizeFactionKey(factionKey);
+        return key.length() > 0 && playerID != null && playerID.equals(kingsByFaction.get(key));
+    }
+
+    private static String normalizeFactionKey(String value) {
+        return value == null ? "" : value.toLowerCase().replaceAll("[^a-z0-9]", "");
     }
 
     public int getFarmhandsUsed(UUID owner) {
@@ -134,11 +201,27 @@ public class KOMEWorldData extends WorldSavedData {
         KOMEPacketHandler.network.sendTo(new KOMEPacketTerritoryData(this), player);
     }
 
+    public void syncConquestTiles() {
+        KOMEPacketConquestData packet = new KOMEPacketConquestData(this);
+        for (Object player : FMLCommonHandler.instance().getMinecraftServerInstance().getConfigurationManager().playerEntityList) {
+            KOMEPacketHandler.network.sendTo(packet, (EntityPlayerMP) player);
+        }
+    }
+
+    public void syncConquestTiles(EntityPlayerMP player) {
+        KOMEPacketHandler.network.sendTo(new KOMEPacketConquestData(this), player);
+    }
+
     @Override
     public void readFromNBT(NBTTagCompound nbt) {
         populations.clear();
+        progressions.clear();
         territories.clear();
         hiredUnits.clear();
+        conquestTiles.clear();
+        playerNames.clear();
+        kingsByFaction.clear();
+        kingNamesByFaction.clear();
 
         NBTTagList popList = nbt.getTagList("Populations", 10);
         for (int i = 0; i < popList.tagCount(); i++) {
@@ -155,11 +238,49 @@ public class KOMEWorldData extends WorldSavedData {
             territories.put(territory.waypoint, territory);
         }
 
+        NBTTagList progressionList = nbt.getTagList("Progressions", 10);
+        for (int i = 0; i < progressionList.tagCount(); i++) {
+            NBTTagCompound entry = progressionList.getCompoundTagAt(i);
+            KOMEPlayerProgression progression = new KOMEPlayerProgression();
+            progression.readFromNBT(entry);
+            progressions.put(UUID.fromString(entry.getString("Player")), progression);
+        }
+
+        NBTTagList playerNameList = nbt.getTagList("PlayerNames", 10);
+        for (int i = 0; i < playerNameList.tagCount(); i++) {
+            NBTTagCompound entry = playerNameList.getCompoundTagAt(i);
+            String player = entry.getString("Player");
+            String name = entry.getString("Name");
+            if (player.length() > 0 && name.length() > 0) {
+                playerNames.put(UUID.fromString(player), name);
+            }
+        }
+
         NBTTagList hiredList = nbt.getTagList("HiredUnits", 10);
         for (int i = 0; i < hiredList.tagCount(); i++) {
             KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
             record.readFromNBT(hiredList.getCompoundTagAt(i));
             hiredUnits.put(record.entity, record);
+        }
+
+        NBTTagList conquestList = nbt.getTagList("ConquestTiles", 10);
+        for (int i = 0; i < conquestList.tagCount(); i++) {
+            KOMEConquestTile tile = new KOMEConquestTile("");
+            tile.readFromNBT(conquestList.getCompoundTagAt(i));
+            if (!tile.id.isEmpty()) {
+                conquestTiles.put(tile.id, tile);
+            }
+        }
+
+        NBTTagList kingList = nbt.getTagList("FactionKings", 10);
+        for (int i = 0; i < kingList.tagCount(); i++) {
+            NBTTagCompound entry = kingList.getCompoundTagAt(i);
+            String faction = normalizeFactionKey(entry.getString("Faction"));
+            String player = entry.getString("Player");
+            if (faction.length() > 0 && player.length() > 0) {
+                kingsByFaction.put(faction, UUID.fromString(player));
+                kingNamesByFaction.put(faction, entry.getString("Name"));
+            }
         }
     }
 
@@ -173,6 +294,23 @@ public class KOMEWorldData extends WorldSavedData {
         }
         nbt.setTag("Populations", popList);
 
+        NBTTagList progressionList = new NBTTagList();
+        for (Map.Entry<UUID, KOMEPlayerProgression> entry : progressions.entrySet()) {
+            NBTTagCompound progression = entry.getValue().writeToNBT();
+            progression.setString("Player", entry.getKey().toString());
+            progressionList.appendTag(progression);
+        }
+        nbt.setTag("Progressions", progressionList);
+
+        NBTTagList playerNameList = new NBTTagList();
+        for (Map.Entry<UUID, String> entry : playerNames.entrySet()) {
+            NBTTagCompound playerName = new NBTTagCompound();
+            playerName.setString("Player", entry.getKey().toString());
+            playerName.setString("Name", entry.getValue() == null ? "" : entry.getValue());
+            playerNameList.appendTag(playerName);
+        }
+        nbt.setTag("PlayerNames", playerNameList);
+
         NBTTagList territoryList = new NBTTagList();
         for (KOMETerritory territory : territories.values()) {
             territoryList.appendTag(territory.writeToNBT());
@@ -184,5 +322,22 @@ public class KOMEWorldData extends WorldSavedData {
             hiredList.appendTag(record.writeToNBT());
         }
         nbt.setTag("HiredUnits", hiredList);
+
+        NBTTagList conquestList = new NBTTagList();
+        for (KOMEConquestTile tile : conquestTiles.values()) {
+            conquestList.appendTag(tile.writeToNBT());
+        }
+        nbt.setTag("ConquestTiles", conquestList);
+
+        NBTTagList kingList = new NBTTagList();
+        for (Map.Entry<String, UUID> entry : kingsByFaction.entrySet()) {
+            NBTTagCompound king = new NBTTagCompound();
+            king.setString("Faction", entry.getKey());
+            king.setString("Player", entry.getValue().toString());
+            String name = kingNamesByFaction.get(entry.getKey());
+            king.setString("Name", name == null ? "" : name);
+            kingList.appendTag(king);
+        }
+        nbt.setTag("FactionKings", kingList);
     }
 }

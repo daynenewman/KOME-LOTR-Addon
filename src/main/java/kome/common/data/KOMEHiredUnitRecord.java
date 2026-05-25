@@ -10,6 +10,8 @@ public class KOMEHiredUnitRecord {
     public KOMEPopulationType type = KOMEPopulationType.OFFENSIVE;
     public int cost = 25;
     public int baseCost = 25;
+    public int level = 1;
+    public int levelCap;
     public boolean farmhand;
     public boolean mounted;
     public String unitName = "";
@@ -21,6 +23,8 @@ public class KOMEHiredUnitRecord {
         type = readType == null ? KOMEPopulationType.OFFENSIVE : readType;
         cost = nbt.getInteger("Cost");
         baseCost = nbt.hasKey("BaseCost") ? nbt.getInteger("BaseCost") : 25;
+        level = nbt.hasKey("Level") ? Math.max(1, nbt.getInteger("Level")) : 1;
+        levelCap = Math.max(0, nbt.getInteger("LevelCap"));
         farmhand = nbt.getBoolean("Farmhand");
         mounted = nbt.getBoolean("Mounted");
         unitName = nbt.getString("UnitName");
@@ -33,6 +37,8 @@ public class KOMEHiredUnitRecord {
         nbt.setString("Type", type.key);
         nbt.setInteger("Cost", cost);
         nbt.setInteger("BaseCost", baseCost);
+        nbt.setInteger("Level", level);
+        nbt.setInteger("LevelCap", levelCap);
         nbt.setBoolean("Farmhand", farmhand);
         nbt.setBoolean("Mounted", mounted);
         nbt.setString("UnitName", unitName == null ? "" : unitName);

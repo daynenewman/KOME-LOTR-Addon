@@ -1,5 +1,7 @@
 package kome.client.gui;
 
+import kome.client.KOMEMinecraftClient;
+
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
@@ -54,23 +56,23 @@ public class KOMEGuiPopulation extends GuiScreen {
         String player = playerField.getText().trim();
         String amount = amountField.getText().trim();
         if (button.id == 0) {
-            mc.thePlayer.sendChatMessage("/population gui " + player);
+            KOMEMinecraftClient.sendChat("/population gui " + player);
         } else if (button.id == 1) {
-            mc.thePlayer.sendChatMessage("/population set " + player + " offensive " + amount);
+            KOMEMinecraftClient.sendChat("/population set " + player + " offensive " + amount);
         } else if (button.id == 2) {
-            mc.thePlayer.sendChatMessage("/population add " + player + " offensive " + amount);
+            KOMEMinecraftClient.sendChat("/population add " + player + " offensive " + amount);
         } else if (button.id == 3) {
-            mc.thePlayer.sendChatMessage("/population remove " + player + " offensive " + amount);
+            KOMEMinecraftClient.sendChat("/population remove " + player + " offensive " + amount);
         } else if (button.id == 4) {
-            mc.thePlayer.sendChatMessage("/population set " + player + " defensive " + amount);
+            KOMEMinecraftClient.sendChat("/population set " + player + " defensive " + amount);
         } else if (button.id == 5) {
-            mc.thePlayer.sendChatMessage("/population add " + player + " defensive " + amount);
+            KOMEMinecraftClient.sendChat("/population add " + player + " defensive " + amount);
         } else if (button.id == 6) {
-            mc.thePlayer.sendChatMessage("/population remove " + player + " defensive " + amount);
+            KOMEMinecraftClient.sendChat("/population remove " + player + " defensive " + amount);
         } else if (button.id == 7) {
-            mc.thePlayer.sendChatMessage("/population units " + player);
+            KOMEMinecraftClient.sendChat("/population units " + player);
         }
-        mc.thePlayer.closeScreen();
+        KOMEMinecraftClient.closePlayerScreen();
     }
 
     @Override

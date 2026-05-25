@@ -29,7 +29,7 @@ public class KOMEUnitTradeOverlay {
         KOMEPopulationType nextType = KOMEClientData.INSTANCE.hireType == KOMEPopulationType.DEFENSIVE ? KOMEPopulationType.OFFENSIVE : KOMEPopulationType.DEFENSIVE;
         KOMEClientData.INSTANCE.hireType = nextType;
         event.button.displayString = buttonLabel();
-        Minecraft.getMinecraft().thePlayer.sendChatMessage("/population hiretype " + nextType.key);
+            KOMEMinecraftClient.sendChat("/population hiretype " + nextType.key);
         event.setCanceled(true);
     }
 

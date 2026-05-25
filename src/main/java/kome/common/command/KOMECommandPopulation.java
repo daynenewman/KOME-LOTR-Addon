@@ -2,6 +2,7 @@ package kome.common.command;
 
 import kome.common.data.KOMEPlayerPopulation;
 import kome.common.data.KOMEPopulationType;
+import kome.common.data.KOMEProgressionPermissions;
 import kome.common.data.KOMEWorldData;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketHireType;
@@ -60,6 +61,9 @@ public class KOMECommandPopulation extends CommandBase {
         }
 
         EntityPlayerMP player = getPlayer(sender, args[1]);
+        if (!canManagePopulation(sender, player)) {
+            return;
+        }
         KOMEPopulationType type = KOMEPopulationType.forName(args[2]);
         if (type == null) {
             throw new WrongUsageException("Population type must be offensive or defensive");
@@ -79,6 +83,18 @@ public class KOMECommandPopulation extends CommandBase {
         }
         data.markDirty();
         sendStatus(sender, player, false);
+    }
+
+    private boolean canManagePopulation(ICommandSender sender, EntityPlayerMP target) {
+        if (sender.canCommandSenderUseCommand(2, getCommandName())) {
+            return true;
+        }
+        EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+        if (!KOMEReflection.getEntityUUID(player).equals(KOMEReflection.getEntityUUID(target))) {
+            KOMEProgressionPermissions.deny(player, "You can only change your own population.");
+            return false;
+        }
+        return KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.GROW_POPULATION);
     }
 
     private void sendStatus(ICommandSender sender, EntityPlayerMP player, boolean gui) {
@@ -119,11 +135,11 @@ public class KOMECommandPopulation extends CommandBase {
             if (!playerID.equals(record.owner)) {
                 continue;
             }
+            int cap = Math.max(0, record.levelCap);
             if (record.farmhand) {
-                farmhandLines.add(getFarmhandDisplayName(record) + " - farmhand slot");
+                farmhandLines.add(formatUnitOverviewLine(record, getFarmhandDisplayName(record), "farmhand", "0", false, cap));
             } else {
-                String note = record.mounted ? " (mounted)" : "";
-                String line = getUnitDisplayName(record) + " - " + record.cost + " population" + note;
+                String line = formatUnitOverviewLine(record, getUnitDisplayName(record), record.type.key, String.valueOf(record.cost), record.mounted, cap);
                 if (record.type == KOMEPopulationType.DEFENSIVE) {
                     defensiveLines.add(line);
                 } else {
@@ -189,6 +205,10 @@ public class KOMECommandPopulation extends CommandBase {
     private String getFarmhandDisplayName(kome.common.data.KOMEHiredUnitRecord record) {
         String name = getUnitDisplayName(record);
         return isNumberOnly(name) || shortID(record.entity).equals(name) ? "Farmhand" : name;
+    }
+
+    private String formatUnitOverviewLine(kome.common.data.KOMEHiredUnitRecord record, String name, String kind, String cost, boolean mounted, int cap) {
+        return "UNITCAP\t" + record.entity + "\t" + name + "\t" + kind + "\t" + cost + "\t" + mounted + "\t" + cap;
     }
 
     private boolean isNumberOnly(String value) {

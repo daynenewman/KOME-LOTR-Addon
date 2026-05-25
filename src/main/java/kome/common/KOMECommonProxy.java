@@ -19,4 +19,20 @@ public class KOMECommonProxy {
 
     public void displayTerritoryGui(String waypoint, String waypointName, String faction, String ruler, String displayName) {
     }
+
+    public void displayConquestCaptureGui(String tileId, String ownerFaction, String ruler) {
+    }
+
+    public void updateProgressionData(String playerName, java.util.List completed) {
+    }
+
+    public void updateProgressionData(String playerName, java.util.List completed, java.util.Map assignments) {
+        updateProgressionData(playerName, completed);
+    }
+
+    public void updateQuotaLedger(java.util.List lines) {
+    }
+
+    public void updateServerRecords(java.util.List lines) {
+    }
 }

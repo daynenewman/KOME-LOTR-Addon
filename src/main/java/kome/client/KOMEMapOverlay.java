@@ -41,7 +41,7 @@ public class KOMEMapOverlay {
         if (!isBlank(territory.ruler)) {
             lines.add("Ruling Player: " + territory.ruler);
         }
-        FontRenderer font = Minecraft.getMinecraft().fontRenderer;
+        FontRenderer font = KOMEMinecraftClient.fontRenderer();
         drawPanel(font, lines, event.gui.width - getPanelWidth(font, lines) - 36, 68);
     }
 
