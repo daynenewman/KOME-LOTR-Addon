@@ -81,7 +81,6 @@ public class KOMEEvents {
         if (event.player instanceof EntityPlayerMP) {
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
             data.rememberPlayerName(KOMEReflection.getEntityUUID(event.player), event.player.getCommandSenderName());
-            data.syncTerritories((EntityPlayerMP) event.player);
             data.syncConquestTiles((EntityPlayerMP) event.player);
             KOMEPacketHandler.network.sendTo(new KOMEPacketHireType(data.getPopulation(KOMEReflection.getEntityUUID(event.player)).hireType), (EntityPlayerMP) event.player);
             KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
@@ -867,11 +866,7 @@ public class KOMEEvents {
     }
 
     private int applyHireTypeCost(int rawCost, KOMEPopulationType hireType) {
-        rawCost = Math.max(1, rawCost);
-        if (hireType == KOMEPopulationType.DEFENSIVE) {
-            return Math.max(1, MathHelper.ceiling_float_int(rawCost / 2.0f));
-        }
-        return rawCost;
+        return Math.max(1, rawCost);
     }
 
     private boolean isMountedUnit(LOTREntityNPC npc, LOTRUnitTradeEntry trade) {

@@ -8,7 +8,6 @@ import kome.common.command.KOMECommandAlliance;
 import kome.common.command.KOMECommandConquest;
 import kome.common.command.KOMECommandPopulation;
 import kome.common.command.KOMECommandProgression;
-import kome.common.command.KOMECommandTerritory;
 import kome.common.network.KOMEPacketHandler;
 
 @Mod(modid = KOMEAddon.MODID, name = "Kings of Middle-earth Server Addon", version = "1.0.0", dependencies = "required-after:lotr")
@@ -33,6 +32,5 @@ public class KOMEAddon {
         event.registerServerCommand(new KOMECommandConquest());
         event.registerServerCommand(new KOMECommandPopulation());
         event.registerServerCommand(new KOMECommandProgression());
-        event.registerServerCommand(new KOMECommandTerritory());
     }
 }

@@ -41,7 +41,7 @@ public class KOMEServerRecordBuilder {
         });
 
         List lines = new ArrayList();
-        lines.add(join("SUMMARY", String.valueOf(records.size()), String.valueOf(data.territories.size()), String.valueOf(getClaimedTileCount(data))));
+        lines.add(join("SUMMARY", String.valueOf(records.size()), String.valueOf(getClaimedTileCount(data))));
         for (PlayerRecord record : records) {
             addPlayerLine(lines, data, world, record);
         }
@@ -58,8 +58,7 @@ public class KOMEServerRecordBuilder {
             pop = new KOMEPlayerPopulation();
         }
 
-        TerritorySummary territories = getTerritories(data, record.name);
-        TerritorySummary tiles = getConquestTiles(data, record.name);
+        TileSummary tiles = getConquestTiles(data, record.name);
         FactionInfo faction = getFactionInfo(data, world, record.id, progression);
 
         lines.add(join(
@@ -71,9 +70,7 @@ public class KOMEServerRecordBuilder {
             getProgressionSummary(progression),
             getPopulationSummary(pop),
             String.valueOf(tiles.count),
-            String.valueOf(territories.count),
-            joinNames(tiles.names),
-            joinNames(territories.names)
+            joinNames(tiles.names)
         ));
     }
 
@@ -123,20 +120,8 @@ public class KOMEServerRecordBuilder {
         return new FactionInfo(faction, faction == null || faction.trim().isEmpty() ? "No faction" : faction);
     }
 
-    private static TerritorySummary getTerritories(KOMEWorldData data, String playerName) {
-        TerritorySummary summary = new TerritorySummary();
-        for (KOMETerritory territory : data.territories.values()) {
-            if (matchesPlayer(territory.ruler, playerName)) {
-                summary.count++;
-                summary.names.add(territory.displayName == null || territory.displayName.trim().isEmpty() ? territory.waypoint : territory.displayName);
-            }
-        }
-        Collections.sort(summary.names);
-        return summary;
-    }
-
-    private static TerritorySummary getConquestTiles(KOMEWorldData data, String playerName) {
-        TerritorySummary summary = new TerritorySummary();
+    private static TileSummary getConquestTiles(KOMEWorldData data, String playerName) {
+        TileSummary summary = new TileSummary();
         for (KOMEConquestTile tile : data.conquestTiles.values()) {
             if (tile.isClaimed() && matchesPlayer(tile.ruler, playerName)) {
                 summary.count++;
@@ -215,7 +200,7 @@ public class KOMEServerRecordBuilder {
         }
     }
 
-    private static class TerritorySummary {
+    private static class TileSummary {
         private int count;
         private final List names = new ArrayList();
     }

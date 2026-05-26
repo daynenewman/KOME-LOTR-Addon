@@ -17,9 +17,6 @@ public class KOMECommonProxy {
     public void displayPopulationUnitsGui(String playerName, java.util.List lines, int armyUsed, int armyTotal, int farmhandsUsed, int farmhandsLimit) {
     }
 
-    public void displayTerritoryGui(String waypoint, String waypointName, String faction, String ruler, String displayName) {
-    }
-
     public void displayConquestCaptureGui(String tileId, String ownerFaction, String ruler) {
     }
 

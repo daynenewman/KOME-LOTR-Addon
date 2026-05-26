@@ -144,7 +144,6 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         drawSection("Population", record.population, x, y);
         drawSection("Progression", record.progress + " completed", x, y + 34);
         drawSection("Tiles controlled", record.tileCount + formatNames(record.tiles), x, y + 68);
-        drawSection("Territories controlled", record.territoryCount + formatNames(record.territories), x, y + 112);
     }
 
     private void drawReturnButton(int mouseX, int mouseY) {
@@ -237,11 +236,10 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             return 0;
         }
         Record record = (Record) records.get(selected);
-        int lines = 8;
+        int lines = 6;
         lines += getWrappedLineCount(record.population);
         lines += getWrappedLineCount(record.progress + " completed");
         lines += getWrappedLineCount(record.tileCount + formatNames(record.tiles));
-        lines += getWrappedLineCount(record.territoryCount + formatNames(record.territories));
         return lines;
     }
 
@@ -266,9 +264,9 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             if (parts.length == 0) {
                 continue;
             }
-            if ("SUMMARY".equals(parts[0]) && parts.length >= 4) {
-                summary = "Players: " + parts[1] + " | Territories: " + parts[2] + " | Tiles: " + parts[3];
-            } else if ("PLAYER".equals(parts[0]) && parts.length >= 11) {
+            if ("SUMMARY".equals(parts[0]) && parts.length >= 3) {
+                summary = "Players: " + parts[1] + " | Tiles: " + parts[2];
+            } else if ("PLAYER".equals(parts[0]) && parts.length >= 10) {
                 records.add(new Record(parts));
             }
         }
@@ -282,9 +280,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         private final String progress;
         private final String population;
         private final String tileCount;
-        private final String territoryCount;
         private final String tiles;
-        private final String territories;
 
         private Record(String[] parts) {
             uuid = parts[1];
@@ -294,9 +290,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             progress = parts[5];
             population = parts[6];
             tileCount = parts[7];
-            territoryCount = parts[8];
-            tiles = parts[9];
-            territories = parts[10];
+            tiles = parts[8];
         }
     }
 }

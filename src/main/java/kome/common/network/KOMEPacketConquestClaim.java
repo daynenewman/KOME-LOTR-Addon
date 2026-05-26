@@ -7,7 +7,6 @@ import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEConquestTile;
-import kome.common.data.KOMEProgressionPermissions;
 import kome.common.data.KOMEWorldData;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
@@ -46,9 +45,6 @@ public class KOMEPacketConquestClaim implements IMessage {
             String tileId = KOMEConquestTile.normalizeId(message.tileId);
             if (tileId.isEmpty() || !KOMEConquestTile.isCanonicalTileId(tileId)) {
                 player.addChatMessage(new ChatComponentText("Invalid conquest tile."));
-                return null;
-            }
-            if (!KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.TAKE_WAYPOINTS)) {
                 return null;
             }
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));

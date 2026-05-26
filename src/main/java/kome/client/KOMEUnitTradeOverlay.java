@@ -10,6 +10,7 @@ import net.minecraftforge.client.event.GuiScreenEvent;
 
 public class KOMEUnitTradeOverlay {
     private static final int HIRE_TYPE_BUTTON = 904201;
+    private static final int PLEDGE_BUTTON = 904202;
 
     @SubscribeEvent
     public void onInitGui(GuiScreenEvent.InitGuiEvent.Post event) {
@@ -19,17 +20,26 @@ public class KOMEUnitTradeOverlay {
         int guiLeft = (event.gui.width - 220) / 2;
         int guiTop = (event.gui.height - 256) / 2;
         event.buttonList.add(new GuiButton(HIRE_TYPE_BUTTON, Math.max(4, guiLeft - 154), guiTop + 38, 150, 20, buttonLabel()));
+        event.buttonList.add(new GuiButton(PLEDGE_BUTTON, Math.max(4, guiLeft - 154), guiTop + 62, 150, 20, "Pledge to this lord"));
     }
 
     @SubscribeEvent
     public void onAction(GuiScreenEvent.ActionPerformedEvent.Pre event) {
-        if (!(event.gui instanceof LOTRGuiHireBase) || event.button.id != HIRE_TYPE_BUTTON) {
+        if (!(event.gui instanceof LOTRGuiHireBase)) {
+            return;
+        }
+        if (event.button.id == PLEDGE_BUTTON) {
+            KOMEMinecraftClient.sendChat("/progression pledge");
+            event.setCanceled(true);
+            return;
+        }
+        if (event.button.id != HIRE_TYPE_BUTTON) {
             return;
         }
         KOMEPopulationType nextType = KOMEClientData.INSTANCE.hireType == KOMEPopulationType.DEFENSIVE ? KOMEPopulationType.OFFENSIVE : KOMEPopulationType.DEFENSIVE;
         KOMEClientData.INSTANCE.hireType = nextType;
         event.button.displayString = buttonLabel();
-            KOMEMinecraftClient.sendChat("/population hiretype " + nextType.key);
+        KOMEMinecraftClient.sendChat("/population hiretype " + nextType.key);
         event.setCanceled(true);
     }
 

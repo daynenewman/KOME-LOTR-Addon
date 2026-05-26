@@ -39,15 +39,12 @@ public class KOMEGuiPopulation extends GuiScreen {
         playerField.setText(initialPlayer);
         amountField = new GuiTextField(fontRendererObj, x, y + 55, 90, 20);
         amountField.setText("25");
-        buttonList.add(new GuiButton(0, x + 100, y + 55, 75, 20, "Load"));
-        int buttonWidth = 86;
+        int buttonWidth = 132;
         int buttonGap = 6;
-        buttonList.add(new GuiButton(1, x, y + 155, buttonWidth, 20, "Set Off"));
-        buttonList.add(new GuiButton(2, x + buttonWidth + buttonGap, y + 155, buttonWidth, 20, "Add Off"));
-        buttonList.add(new GuiButton(3, x + (buttonWidth + buttonGap) * 2, y + 155, buttonWidth, 20, "Remove Off"));
-        buttonList.add(new GuiButton(4, x, y + 180, buttonWidth, 20, "Set Def"));
-        buttonList.add(new GuiButton(5, x + buttonWidth + buttonGap, y + 180, buttonWidth, 20, "Add Def"));
-        buttonList.add(new GuiButton(6, x + (buttonWidth + buttonGap) * 2, y + 180, buttonWidth, 20, "Remove Def"));
+        buttonList.add(new GuiButton(2, x, y + 155, buttonWidth, 20, "Add Off"));
+        buttonList.add(new GuiButton(3, x + buttonWidth + buttonGap, y + 155, buttonWidth, 20, "Remove Off"));
+        buttonList.add(new GuiButton(5, x, y + 180, buttonWidth, 20, "Add Def"));
+        buttonList.add(new GuiButton(6, x + buttonWidth + buttonGap, y + 180, buttonWidth, 20, "Remove Def"));
         buttonList.add(new GuiButton(7, x, y + 205, 270, 20, "Units"));
     }
 
@@ -55,16 +52,10 @@ public class KOMEGuiPopulation extends GuiScreen {
     protected void actionPerformed(GuiButton button) {
         String player = playerField.getText().trim();
         String amount = amountField.getText().trim();
-        if (button.id == 0) {
-            KOMEMinecraftClient.sendChat("/population gui " + player);
-        } else if (button.id == 1) {
-            KOMEMinecraftClient.sendChat("/population set " + player + " offensive " + amount);
-        } else if (button.id == 2) {
+        if (button.id == 2) {
             KOMEMinecraftClient.sendChat("/population add " + player + " offensive " + amount);
         } else if (button.id == 3) {
             KOMEMinecraftClient.sendChat("/population remove " + player + " offensive " + amount);
-        } else if (button.id == 4) {
-            KOMEMinecraftClient.sendChat("/population set " + player + " defensive " + amount);
         } else if (button.id == 5) {
             KOMEMinecraftClient.sendChat("/population add " + player + " defensive " + amount);
         } else if (button.id == 6) {

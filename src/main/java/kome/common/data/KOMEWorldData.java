@@ -4,7 +4,6 @@ import cpw.mods.fml.common.FMLCommonHandler;
 import kome.common.KOMEReflection;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketConquestData;
-import kome.common.network.KOMEPacketTerritoryData;
 import lotr.common.entity.npc.LOTREntityNPC;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -25,7 +24,6 @@ public class KOMEWorldData extends WorldSavedData {
 
     public final Map<UUID, KOMEPlayerPopulation> populations = new HashMap<>();
     public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
-    public final Map<String, KOMETerritory> territories = new HashMap<>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
     public final Map<String, KOMEAlliance> alliances = new HashMap<>();
@@ -71,15 +69,6 @@ public class KOMEWorldData extends WorldSavedData {
             progressions.put(player, progression);
         }
         return progression;
-    }
-
-    public KOMETerritory getTerritory(String waypoint) {
-        KOMETerritory territory = territories.get(waypoint);
-        if (territory == null) {
-            territory = new KOMETerritory(waypoint);
-            territories.put(waypoint, territory);
-        }
-        return territory;
     }
 
     public KOMEConquestTile getConquestTile(String tileId) {
@@ -238,17 +227,6 @@ public class KOMEWorldData extends WorldSavedData {
         }
     }
 
-    public void syncTerritories() {
-        KOMEPacketTerritoryData packet = new KOMEPacketTerritoryData(this);
-        for (Object player : FMLCommonHandler.instance().getMinecraftServerInstance().getConfigurationManager().playerEntityList) {
-            KOMEPacketHandler.network.sendTo(packet, (EntityPlayerMP) player);
-        }
-    }
-
-    public void syncTerritories(EntityPlayerMP player) {
-        KOMEPacketHandler.network.sendTo(new KOMEPacketTerritoryData(this), player);
-    }
-
     public void syncConquestTiles() {
         KOMEPacketConquestData packet = new KOMEPacketConquestData(this);
         for (Object player : FMLCommonHandler.instance().getMinecraftServerInstance().getConfigurationManager().playerEntityList) {
@@ -264,7 +242,6 @@ public class KOMEWorldData extends WorldSavedData {
     public void readFromNBT(NBTTagCompound nbt) {
         populations.clear();
         progressions.clear();
-        territories.clear();
         hiredUnits.clear();
         conquestTiles.clear();
         alliances.clear();
@@ -279,13 +256,6 @@ public class KOMEWorldData extends WorldSavedData {
             KOMEPlayerPopulation pop = new KOMEPlayerPopulation();
             pop.readFromNBT(entry);
             populations.put(UUID.fromString(entry.getString("Player")), pop);
-        }
-
-        NBTTagList territoryList = nbt.getTagList("Territories", 10);
-        for (int i = 0; i < territoryList.tagCount(); i++) {
-            KOMETerritory territory = new KOMETerritory("");
-            territory.readFromNBT(territoryList.getCompoundTagAt(i));
-            territories.put(territory.waypoint, territory);
         }
 
         NBTTagList progressionList = nbt.getTagList("Progressions", 10);
@@ -371,12 +341,6 @@ public class KOMEWorldData extends WorldSavedData {
             playerNameList.appendTag(playerName);
         }
         nbt.setTag("PlayerNames", playerNameList);
-
-        NBTTagList territoryList = new NBTTagList();
-        for (KOMETerritory territory : territories.values()) {
-            territoryList.appendTag(territory.writeToNBT());
-        }
-        nbt.setTag("Territories", territoryList);
 
         NBTTagList hiredList = new NBTTagList();
         for (KOMEHiredUnitRecord record : hiredUnits.values()) {
