@@ -21,9 +21,11 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private static List factionKeys = new ArrayList();
     private static List factionNames = new ArrayList();
     private static String summary = "Loading...";
+    private static String viewerFactionKey = "";
+    private static String viewerFactionName = "No pledged faction";
+
     private int scroll;
     private int selected = -1;
-    private int senderIndex;
     private int receiverIndex = 1;
     private int selectedType;
     private boolean createMode;
@@ -41,8 +43,15 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         ySize = 256;
         super.initGui();
         buttonMenuReturn = null;
-        configureButtons();
+        ensureFactions();
+        if (!viewerFactionKey.isEmpty()) {
+            int index = factionKeys.indexOf(viewerFactionKey);
+            if (index >= 0 && receiverIndex == index) {
+                receiverIndex = wrap(index + 1, factionKeys.size());
+            }
+        }
         requestAlliances();
+        configureButtons();
     }
 
     @Override
@@ -74,18 +83,13 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             createMode = !createMode;
             selected = -1;
             scroll = 0;
-            configureButtons();
         } else if (button.id == 20) {
-            senderIndex = wrap(senderIndex - 1, factionKeys.size());
+            receiverIndex = nextReceiver(-1);
         } else if (button.id == 21) {
-            senderIndex = wrap(senderIndex + 1, factionKeys.size());
+            receiverIndex = nextReceiver(1);
         } else if (button.id == 22) {
-            receiverIndex = wrap(receiverIndex - 1, factionKeys.size());
-        } else if (button.id == 23) {
-            receiverIndex = wrap(receiverIndex + 1, factionKeys.size());
-        } else if (button.id == 24) {
             selectedType = (selectedType + 1) % 3;
-        } else if (button.id == 25) {
+        } else if (button.id == 23) {
             sendRequestCommand();
         } else if (button.id == 30 && selected >= 0 && selected < records.size()) {
             Record record = (Record) records.get(selected);
@@ -99,6 +103,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         } else {
             super.actionPerformed(button);
         }
+        configureButtons();
     }
 
     @Override
@@ -135,21 +140,18 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             } else {
                 mc.displayGuiScreen(new LOTRGuiMenu());
             }
-            configureButtons();
             return;
         }
         if (createMode || selected >= 0) {
             return;
         }
-        int rowHeight = 36;
-        int x0 = guiLeft + 9;
-        int y0 = guiTop + 42;
+        int x = guiLeft + 11;
+        int y = guiTop + 48;
         for (int i = 0; i < getVisibleRows() && scroll + i < records.size(); i++) {
-            int y = y0 + i * rowHeight;
-            if (mouseX >= x0 && mouseX < x0 + 190 && mouseY >= y && mouseY < y + 32) {
+            int rowY = y + i * 44;
+            if (mouseX >= x && mouseX < x + 186 && mouseY >= rowY && mouseY < rowY + 38) {
                 selected = scroll + i;
                 scroll = 0;
-                configureButtons();
                 return;
             }
         }
@@ -165,24 +167,21 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private void configureButtons() {
-        ensureFactions();
         buttonList.clear();
-        buttonList.add(new GuiButton(10, guiLeft + 144, guiTop + 8, 48, 20, createMode ? "List" : "New"));
+        buttonList.add(new GuiButton(10, guiLeft + 152, guiTop + 8, 40, 20, createMode ? "List" : "New"));
         if (createMode) {
-            buttonList.add(new GuiButton(20, guiLeft + 15, guiTop + 78, 22, 20, "<"));
-            buttonList.add(new GuiButton(21, guiLeft + 181, guiTop + 78, 22, 20, ">"));
-            buttonList.add(new GuiButton(22, guiLeft + 15, guiTop + 124, 22, 20, "<"));
-            buttonList.add(new GuiButton(23, guiLeft + 181, guiTop + 124, 22, 20, ">"));
-            buttonList.add(new GuiButton(24, guiLeft + 46, guiTop + 166, 128, 20, typeName()));
-            GuiButton request = new GuiButton(25, guiLeft + 55, guiTop + 206, 110, 20, "Send Request");
-            request.enabled = senderIndex != receiverIndex && !factionKeys.isEmpty();
+            buttonList.add(new GuiButton(20, guiLeft + 17, guiTop + 119, 22, 20, "<"));
+            buttonList.add(new GuiButton(21, guiLeft + 181, guiTop + 119, 22, 20, ">"));
+            buttonList.add(new GuiButton(22, guiLeft + 45, guiTop + 158, 130, 20, typeName()));
+            GuiButton request = new GuiButton(23, guiLeft + 52, guiTop + 205, 116, 20, "Send Request");
+            request.enabled = !viewerFactionKey.isEmpty() && !viewerFactionKey.equals(factionKey(receiverIndex));
             buttonList.add(request);
         } else if (selected >= 0 && selected < records.size()) {
             Record record = (Record) records.get(selected);
-            buttonList.add(new GuiButton(30, guiLeft + 118, guiTop + 208, 70, 20, "Goods"));
-            GuiButton civil = new GuiButton(31, guiLeft + 28, guiTop + 62, 54, 16, "Accept");
-            GuiButton military = new GuiButton(32, guiLeft + 28, guiTop + 108, 54, 16, "Accept");
-            GuiButton trade = new GuiButton(33, guiLeft + 28, guiTop + 164, 54, 16, "Accept");
+            buttonList.add(new GuiButton(30, guiLeft + 121, guiTop + 212, 68, 20, "Goods"));
+            GuiButton civil = new GuiButton(31, guiLeft + 150, guiTop + 64, 44, 16, "Accept");
+            GuiButton military = new GuiButton(32, guiLeft + 150, guiTop + 112, 44, 16, "Accept");
+            GuiButton trade = new GuiButton(33, guiLeft + 150, guiTop + 160, 44, 16, "Accept");
             civil.enabled = record.civilTier == -2;
             military.enabled = record.militaryTier == -2;
             trade.enabled = record.tradeTier == -2;
@@ -194,68 +193,73 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
 
     private void drawList(int mouseX, int mouseY) {
         drawReturnButton(mouseX, mouseY, false);
-        mc.fontRenderer.drawString(trim(summary, 186), guiLeft + 12, guiTop + 30, 0x2B2117);
+        mc.fontRenderer.drawString(trim(summary, 132), guiLeft + 34, guiTop + 14, 0x2B2117);
+        mc.fontRenderer.drawString("Your faction: " + trim(viewerFactionName, 118), guiLeft + 13, guiTop + 31, 0x4A2C0C);
         if (records.isEmpty()) {
-            mc.fontRenderer.drawString("No alliances recorded yet.", guiLeft + 18, guiTop + 56, 0x2B2117);
-            mc.fontRenderer.drawString("Use New to send a request.", guiLeft + 18, guiTop + 70, 0x4A2C0C);
+            mc.fontRenderer.drawString("No alliances recorded yet.", guiLeft + 18, guiTop + 62, 0x2B2117);
+            mc.fontRenderer.drawString("Use New to send a request.", guiLeft + 18, guiTop + 76, 0x4A2C0C);
             return;
         }
-        int rowHeight = 36;
-        int x = guiLeft + 9;
-        int y = guiTop + 42;
+        int x = guiLeft + 11;
+        int y = guiTop + 48;
         for (int i = 0; i < getVisibleRows() && scroll + i < records.size(); i++) {
             Record record = (Record) records.get(scroll + i);
-            int rowY = y + i * rowHeight;
-            boolean hover = mouseX >= x && mouseX < x + 190 && mouseY >= rowY && mouseY < rowY + 32;
-            int fill = hover ? 0xEE4B321F : 0xDD2F2117;
-            Gui.drawRect(x, rowY, x + 190, rowY + 32, 0xFF160E08);
-            Gui.drawRect(x + 1, rowY + 1, x + 189, rowY + 31, fill);
-            mc.fontRenderer.drawString(trim(record.factionA, 82), x + 8, rowY + 5, 0xFFFFFFFF);
-            mc.fontRenderer.drawString("->", x + 91, rowY + 5, 0xFFFFD36A);
-            mc.fontRenderer.drawString(trim(record.factionB, 82), x + 108, rowY + 5, 0xFFFFFFFF);
-            mc.fontRenderer.drawString(tierLabel("Civil", record.civilTier), x + 8, rowY + 19, 0xFFE8C46A);
-            mc.fontRenderer.drawString(tierLabel("Mil", record.militaryTier), x + 70, rowY + 19, 0xFFFFE6A3);
-            mc.fontRenderer.drawString(tierLabel("Trade", record.tradeTier), x + 126, rowY + 19, 0xFFE8C46A);
+            int rowY = y + i * 44;
+            boolean hover = mouseX >= x && mouseX < x + 186 && mouseY >= rowY && mouseY < rowY + 38;
+            Gui.drawRect(x, rowY, x + 186, rowY + 38, 0xFF160E08);
+            Gui.drawRect(x + 1, rowY + 1, x + 185, rowY + 37, hover ? 0xEE4B321F : 0xDD2F2117);
+            mc.fontRenderer.drawString(trim(record.factionA, 76), x + 7, rowY + 5, 0xFFFFFFFF);
+            mc.fontRenderer.drawString("->", x + 83, rowY + 5, 0xFFFFD36A);
+            mc.fontRenderer.drawString(trim(record.factionB, 80), x + 100, rowY + 5, 0xFFFFFFFF);
+            mc.fontRenderer.drawString(tierLabel("Civil", record.civilTier), x + 7, rowY + 21, 0xFFE8C46A);
+            mc.fontRenderer.drawString(tierLabel("Mil", record.militaryTier), x + 66, rowY + 21, 0xFFFFE6A3);
+            mc.fontRenderer.drawString(tierLabel("Trade", record.tradeTier), x + 119, rowY + 21, 0xFFE8C46A);
         }
     }
 
     private void drawCreate() {
         drawReturnButton(-1, -1, true);
         int x = guiLeft + 18;
-        mc.fontRenderer.drawString("Sender faction", x, guiTop + 60, 0x4A2C0C);
-        mc.fontRenderer.drawString(trim(factionName(senderIndex), 134), guiLeft + 44, guiTop + 84, 0x1B1208);
-        mc.fontRenderer.drawString("Receiving faction", x, guiTop + 106, 0x4A2C0C);
-        mc.fontRenderer.drawString(trim(factionName(receiverIndex), 134), guiLeft + 44, guiTop + 130, 0x1B1208);
-        mc.fontRenderer.drawString("Alliance type", x, guiTop + 152, 0x4A2C0C);
-        if (senderIndex == receiverIndex) {
-            mc.fontRenderer.drawString("Choose two different factions.", x, guiTop + 190, 0x8A1F0C);
+        mc.fontRenderer.drawString("Sender faction", x, guiTop + 54, 0x4A2C0C);
+        mc.fontRenderer.drawString(trim(viewerFactionName, 178), x, guiTop + 68, viewerFactionKey.isEmpty() ? 0x8A1F0C : 0x1B1208);
+        mc.fontRenderer.drawString("Receiving faction", x, guiTop + 102, 0x4A2C0C);
+        drawField(guiLeft + 44, guiTop + 121, 132, trim(factionName(receiverIndex), 126));
+        mc.fontRenderer.drawString("Alliance type", x, guiTop + 145, 0x4A2C0C);
+        if (viewerFactionKey.isEmpty()) {
+            mc.fontRenderer.drawString("Pledge to a faction before sending.", x, guiTop + 188, 0x8A1F0C);
+        } else if (viewerFactionKey.equals(factionKey(receiverIndex))) {
+            mc.fontRenderer.drawString("Choose another faction.", x, guiTop + 188, 0x8A1F0C);
         } else {
-            mc.fontRenderer.drawString("Request creates one-way access.", x, guiTop + 190, 0x1B1208);
+            mc.fontRenderer.drawString("Creates one-way faction access.", x, guiTop + 188, 0x1B1208);
         }
     }
 
     private void drawDetail(Record record) {
         drawReturnButton(-1, -1, true);
-        int x = guiLeft + 16;
-        int y = guiTop + 38 - scroll * 10;
-        mc.fontRenderer.drawString(trim(record.factionA, 86), x, y, 0x1B1208);
-        mc.fontRenderer.drawString("->", guiLeft + 107, y, 0x4A2C0C);
-        mc.fontRenderer.drawString(trim(record.factionB, 86), guiLeft + 123, y, 0x1B1208);
-        drawAllianceSection("Civil Alliance", record.civilTier, x, y + 28);
-        drawAllianceSection("Military Alliance", record.militaryTier, x, y + 74);
-        drawAllianceSection("Trade Alliance", record.tradeTier, x, y + 130);
+        int x = guiLeft + 15;
+        mc.fontRenderer.drawString(trim(record.factionA, 82), x, guiTop + 36, 0x1B1208);
+        mc.fontRenderer.drawString("->", guiLeft + 102, guiTop + 36, 0x4A2C0C);
+        mc.fontRenderer.drawString(trim(record.factionB, 82), guiLeft + 119, guiTop + 36, 0x1B1208);
+        drawAllianceSection("Civil", record.civilTier, x, guiTop + 58, 0);
+        drawAllianceSection("Military", record.militaryTier, x, guiTop + 106, 1);
+        drawAllianceSection("Trade", record.tradeTier, x, guiTop + 154, 2);
         if (record.lastUpdatedBy.length() > 0) {
-            mc.fontRenderer.drawString("Updated by " + trim(record.lastUpdatedBy, 120), x, y + 190, 0x4A2C0C);
+            mc.fontRenderer.drawString("Updated by " + trim(record.lastUpdatedBy, 94), x, guiTop + 218, 0x4A2C0C);
         }
     }
 
-    private void drawAllianceSection(String title, int tier, int x, int y) {
-        mc.fontRenderer.drawString(title, x, y, 0x4A2C0C);
-        mc.fontRenderer.drawString(displayTier(tier), x, y + 12, 0x1B1208);
-        List wrapped = mc.fontRenderer.listFormattedStringToWidth(getBenefit(title, tier), 178);
+    private void drawAllianceSection(String title, int tier, int x, int y, int typeIndex) {
+        int color = typeIndex == 1 ? 0x5B2A14 : 0x4A2C0C;
+        mc.fontRenderer.drawString(title + " - " + displayTier(tier), x, y, color);
+        List wrapped = mc.fontRenderer.listFormattedStringToWidth(getBenefit(title, tier), 128);
         for (int i = 0; i < wrapped.size() && i < 3; i++) {
-            mc.fontRenderer.drawString(String.valueOf(wrapped.get(i)), x, y + 24 + i * 10, 0x1B1208);
+            mc.fontRenderer.drawString(String.valueOf(wrapped.get(i)), x, y + 12 + i * 10, 0x1B1208);
         }
+    }
+
+    private void drawField(int x, int y, int width, String text) {
+        Gui.drawRect(x - 2, y - 3, x + width + 2, y + 11, 0x553B250E);
+        mc.fontRenderer.drawString(text, x, y, 0x1B1208);
     }
 
     private void drawReturnButton(int mouseX, int mouseY, boolean backToList) {
@@ -268,13 +272,16 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private void drawScrollbar() {
-        int size = selected >= 0 ? getDetailLineCount() : records.size();
+        if (createMode) {
+            return;
+        }
+        int size = selected >= 0 ? 0 : records.size();
         int scrollBarX0 = guiLeft + 201;
-        int scrollBarY0 = guiTop + 42;
+        int scrollBarY0 = guiTop + 48;
         mc.getTextureManager().bindTexture(LOTRGuiAchievements.iconsTexture);
-        if (size > getVisibleCount()) {
+        if (size > getVisibleRows()) {
             int maxScroll = Math.max(1, getMaxScroll());
-            int offset = (int) (scroll / (float) maxScroll * 181.0f);
+            int offset = (int) (scroll / (float) maxScroll * 175.0f);
             drawTexturedModalRect(scrollBarX0, scrollBarY0 + offset, 190, 0, 10, 17);
         } else {
             drawTexturedModalRect(scrollBarX0, scrollBarY0, 200, 0, 10, 17);
@@ -286,9 +293,9 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         int maxScroll = getMaxScroll();
         int scrollBarX0 = guiLeft + 201;
         int scrollBarX1 = scrollBarX0 + 12;
-        int scrollBarY0 = guiTop + 42;
-        int scrollBarY1 = guiTop + 246;
-        if (!wasMouseDown && isMouseDown && maxScroll > 0 && mouseX >= scrollBarX0 && mouseX < scrollBarX1 && mouseY >= scrollBarY0 && mouseY < scrollBarY1) {
+        int scrollBarY0 = guiTop + 48;
+        int scrollBarY1 = guiTop + 240;
+        if (!wasMouseDown && isMouseDown && maxScroll > 0 && selected < 0 && !createMode && mouseX >= scrollBarX0 && mouseX < scrollBarX1 && mouseY >= scrollBarY0 && mouseY < scrollBarY1) {
             isScrolling = true;
         }
         if (!isMouseDown) {
@@ -303,31 +310,29 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private int getVisibleRows() {
-        return 5;
-    }
-
-    private int getVisibleCount() {
-        return selected >= 0 ? 18 : getVisibleRows();
-    }
-
-    private int getDetailLineCount() {
-        if (selected < 0 || selected >= records.size()) {
-            return 0;
-        }
-        Record record = (Record) records.get(selected);
-        return 8 + getBenefitLineCount("Civil Alliance", record.civilTier) + getBenefitLineCount("Military Alliance", record.militaryTier) + getBenefitLineCount("Trade Alliance", record.tradeTier);
-    }
-
-    private int getBenefitLineCount(String title, int tier) {
-        return Math.max(1, mc.fontRenderer.listFormattedStringToWidth(getBenefit(title, tier), 178).size()) + 2;
+        return 4;
     }
 
     private int getScrollStep() {
-        return selected >= 0 ? 3 : 1;
+        return 1;
     }
 
     private int getMaxScroll() {
-        return selected >= 0 ? Math.max(0, getDetailLineCount() - getVisibleCount()) : Math.max(0, records.size() - getVisibleRows());
+        return selected >= 0 || createMode ? 0 : Math.max(0, records.size() - getVisibleRows());
+    }
+
+    private int nextReceiver(int direction) {
+        if (factionKeys.isEmpty()) {
+            return 0;
+        }
+        int next = receiverIndex;
+        for (int i = 0; i < factionKeys.size(); i++) {
+            next = wrap(next + direction, factionKeys.size());
+            if (!viewerFactionKey.equals(factionKey(next))) {
+                return next;
+            }
+        }
+        return next;
     }
 
     private String tierLabel(String label, int tier) {
@@ -335,12 +340,12 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private String displayTier(int tier) {
-        return tier == -2 ? "Pending" : tier < 0 ? "None" : "Tier " + tier;
+        return tier == -2 ? "Pending" : tier < 0 ? "None" : "T" + tier;
     }
 
     private String getBenefit(String title, int tier) {
         if (tier < 0) {
-            return tier == -2 ? "Waiting for the receiving faction to accept this request." : "No alliance of this type has been recorded.";
+            return tier == -2 ? "Waiting for the receiving king to accept." : "No alliance of this type.";
         }
         if (title.startsWith("Civil")) {
             return tier == 0 ? "Alliance begins." : tier == 1 ? "May use faction waypoints." : "May hire farmhands.";
@@ -356,18 +361,18 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
                 return "May attack through that faction.";
             }
             if (tier == 3) {
-                return "May command the faction's armies while with units of that faction.";
+                return "May command armies with matching units.";
             }
-            return "May spawn your captain in that faction's land.";
+            return "May spawn your captain in their land.";
         }
-        return tier == 0 ? "Alliance begins." : tier == 1 ? "May build in that faction's land." : "May add a new crop trade to a produce merchant.";
+        return tier == 0 ? "Alliance begins." : tier == 1 ? "May build in that faction's land." : "May add crop trade to produce merchant.";
     }
 
     private void sendRequestCommand() {
-        if (factionKeys.isEmpty() || senderIndex == receiverIndex) {
+        if (viewerFactionKey.isEmpty() || viewerFactionKey.equals(factionKey(receiverIndex))) {
             return;
         }
-        KOMEMinecraftClient.sendChat("/alliance request " + typeKey() + " " + factionKey(senderIndex) + " " + factionKey(receiverIndex));
+        KOMEMinecraftClient.sendChat("/alliance request " + typeKey() + " " + viewerFactionKey + " " + factionKey(receiverIndex));
         createMode = false;
         requestAlliances();
     }
@@ -445,6 +450,9 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             }
             if ("SUMMARY".equals(parts[0]) && parts.length >= 2) {
                 summary = "Alliances: " + parts[1];
+            } else if ("VIEWER".equals(parts[0]) && parts.length >= 3) {
+                viewerFactionKey = parts[1];
+                viewerFactionName = parts[2].length() == 0 ? "No pledged faction" : parts[2];
             } else if ("ALLIANCE".equals(parts[0]) && parts.length >= 10) {
                 records.add(new Record(parts));
             }
@@ -460,10 +468,10 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private static class Record {
-        private final String factionA;
-        private final String factionB;
         private final String keyA;
         private final String keyB;
+        private final String factionA;
+        private final String factionB;
         private final int civilTier;
         private final int militaryTier;
         private final int tradeTier;

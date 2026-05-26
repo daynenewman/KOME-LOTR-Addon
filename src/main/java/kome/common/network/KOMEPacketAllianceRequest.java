@@ -22,7 +22,7 @@ public class KOMEPacketAllianceRequest implements IMessage {
         @Override
         public IMessage onMessage(KOMEPacketAllianceRequest message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
-            KOMEPacketHandler.network.sendTo(new KOMEPacketAllianceData(KOMEAllianceRecordBuilder.build(KOMEWorldData.get(KOMEReflection.getWorld(player)))), player);
+            KOMEPacketHandler.network.sendTo(new KOMEPacketAllianceData(KOMEAllianceRecordBuilder.build(KOMEWorldData.get(KOMEReflection.getWorld(player)), player)), player);
             return null;
         }
     }

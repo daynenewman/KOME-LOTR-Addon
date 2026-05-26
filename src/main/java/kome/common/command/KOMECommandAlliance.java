@@ -2,8 +2,11 @@ package kome.common.command;
 
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceInventory;
+import kome.common.data.KOMEPlayerProgression;
 import kome.common.data.KOMEWorldData;
+import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
@@ -59,6 +62,7 @@ public class KOMECommandAlliance extends CommandBase {
             String type = parseType(args[1]);
             String senderFaction = parseFaction(args[2]);
             String receiverFaction = parseFaction(args[3]);
+            requireSenderFaction(sender, data, senderFaction);
             if (senderFaction.equals(receiverFaction)) {
                 throw new WrongUsageException("A faction cannot ally with itself.");
             }
@@ -95,7 +99,7 @@ public class KOMECommandAlliance extends CommandBase {
             if (args.length != 3) {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
-            net.minecraft.entity.player.EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+            EntityPlayerMP player = getCommandSenderAsPlayer(sender);
             String senderFaction = parseFaction(args[1]);
             String receiverFaction = parseFaction(args[2]);
             KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, false);
@@ -247,6 +251,14 @@ public class KOMECommandAlliance extends CommandBase {
         if (resolved != null && resolved.isPlayableAlignmentFaction()) {
             return resolved.codeName();
         }
+        String normalized = KOMEAlliance.normalizeFactionKey(value);
+        for (LOTRFaction faction : LOTRFaction.values()) {
+            if (faction != null && faction.isPlayableAlignmentFaction()
+                && (KOMEAlliance.normalizeFactionKey(faction.codeName()).equals(normalized)
+                || KOMEAlliance.normalizeFactionKey(faction.factionName()).equals(normalized))) {
+                return faction.codeName();
+            }
+        }
         for (Object object : LOTRFaction.getPlayableAlignmentFactionNames()) {
             String faction = (String) object;
             if (faction.equalsIgnoreCase(value)) {
@@ -258,8 +270,37 @@ public class KOMECommandAlliance extends CommandBase {
     }
 
     private static String displayFaction(String key) {
-        LOTRFaction faction = LOTRFaction.forName(key);
+        LOTRFaction faction = LOTRFaction.forName(parseFactionLenient(key));
         return faction == null ? key : faction.factionName();
+    }
+
+    private static String parseFactionLenient(String value) {
+        try {
+            return parseFaction(value);
+        } catch (RuntimeException e) {
+            return value;
+        }
+    }
+
+    private void requireSenderFaction(ICommandSender sender, KOMEWorldData data, String senderFaction) {
+        if (sender.canCommandSenderUseCommand(2, getCommandName())) {
+            return;
+        }
+        EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+        String pledged = getPlayerFaction(data, player);
+        if (!senderFaction.equals(pledged)) {
+            throw new WrongUsageException("You can only send alliance requests from your pledged faction.");
+        }
+    }
+
+    private String getPlayerFaction(KOMEWorldData data, EntityPlayerMP player) {
+        LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
+        if (pledge != null) {
+            return pledge.codeName();
+        }
+        KOMEPlayerProgression progression = data.getProgression(kome.common.KOMEReflection.getEntityUUID(player));
+        String faction = progression.getPledgedLordFaction();
+        return faction == null || faction.trim().isEmpty() ? "" : parseFaction(faction);
     }
 
     private void requireStaff(ICommandSender sender) {
