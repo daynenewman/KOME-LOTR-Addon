@@ -2,6 +2,7 @@ package kome.client.gui;
 
 import kome.client.KOMEMinecraftClient;
 
+import lotr.client.gui.LOTRGuiMenu;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
@@ -41,6 +42,7 @@ public class KOMEGuiPopulation extends GuiScreen {
         amountField.setText("25");
         int buttonWidth = 132;
         int buttonGap = 6;
+        buttonList.add(new GuiButton(0, x, y - 6, 50, 20, "Back"));
         buttonList.add(new GuiButton(2, x, y + 155, buttonWidth, 20, "Add Off"));
         buttonList.add(new GuiButton(3, x + buttonWidth + buttonGap, y + 155, buttonWidth, 20, "Remove Off"));
         buttonList.add(new GuiButton(5, x, y + 180, buttonWidth, 20, "Add Def"));
@@ -52,7 +54,10 @@ public class KOMEGuiPopulation extends GuiScreen {
     protected void actionPerformed(GuiButton button) {
         String player = playerField.getText().trim();
         String amount = amountField.getText().trim();
-        if (button.id == 2) {
+        if (button.id == 0) {
+            mc.displayGuiScreen(new LOTRGuiMenu());
+            return;
+        } else if (button.id == 2) {
             KOMEMinecraftClient.sendChat("/population add " + player + " offensive " + amount);
         } else if (button.id == 3) {
             KOMEMinecraftClient.sendChat("/population remove " + player + " offensive " + amount);
