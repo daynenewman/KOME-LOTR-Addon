@@ -24,7 +24,7 @@ public class KOMECommandAlliance extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/alliance request|accept <senderFaction> <receiverFaction> | goods <senderFaction> <receiverFaction> | get <senderFaction> <receiverFaction> | set <civil|military|trade> <senderFaction> <receiverFaction> <tier> | clear <senderFaction> <receiverFaction> | list [faction] | benefits";
+        return "/alliance request|accept|break <senderFaction> <receiverFaction> | goods <senderFaction> <receiverFaction> | get <senderFaction> <receiverFaction> | set <civil|military|trade> <senderFaction> <receiverFaction> <tier> | clear <senderFaction> <receiverFaction> | list [faction] | benefits";
     }
 
     @Override
@@ -100,6 +100,17 @@ public class KOMECommandAlliance extends CommandBase {
             sender.addChatMessage(new ChatComponentText("Accepted alliance: " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
             return;
         }
+        if ("break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0])) {
+            if (args.length != 3) {
+                throw new WrongUsageException(getCommandUsage(sender));
+            }
+            String senderFaction = parseFaction(args[1]);
+            String receiverFaction = parseFaction(args[2]);
+            requireBreakPermission(sender, data, senderFaction, receiverFaction);
+            boolean removed = data.clearAlliance(senderFaction, receiverFaction);
+            sender.addChatMessage(new ChatComponentText((removed ? "Broke alliance: " : "No alliance found for ") + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
+            return;
+        }
         if ("goods".equalsIgnoreCase(args[0]) || "storage".equalsIgnoreCase(args[0])) {
             if (args.length != 3) {
                 throw new WrongUsageException(getCommandUsage(sender));
@@ -155,7 +166,7 @@ public class KOMECommandAlliance extends CommandBase {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "request", "accept", "goods", "get", "set", "clear", "list", "benefits");
+            return getListOfStringsMatchingLastWord(args, "request", "accept", "break", "goods", "get", "set", "clear", "list", "benefits");
         }
         if (args.length == 2 && "set".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, KOMEAlliance.CIVIL, KOMEAlliance.MILITARY, KOMEAlliance.TRADE);
@@ -168,8 +179,8 @@ public class KOMECommandAlliance extends CommandBase {
     }
 
     private boolean isFactionArgument(String[] args) {
-        return args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "goods".equalsIgnoreCase(args[0]) || "list".equalsIgnoreCase(args[0]))
-            || args.length == 3 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "goods".equalsIgnoreCase(args[0]) || "set".equalsIgnoreCase(args[0]) || "request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]))
+        return args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "goods".equalsIgnoreCase(args[0]) || "list".equalsIgnoreCase(args[0]))
+            || args.length == 3 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "goods".equalsIgnoreCase(args[0]) || "set".equalsIgnoreCase(args[0]) || "request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]))
             || args.length == 4 && ("set".equalsIgnoreCase(args[0]) || "request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]));
     }
 
@@ -316,6 +327,17 @@ public class KOMECommandAlliance extends CommandBase {
         String pledged = getPlayerFaction(data, player);
         if (!senderFaction.equals(pledged)) {
             throw new WrongUsageException("You can only send alliance requests from your pledged faction.");
+        }
+    }
+
+    private void requireBreakPermission(ICommandSender sender, KOMEWorldData data, String senderFaction, String receiverFaction) {
+        if (sender.canCommandSenderUseCommand(2, getCommandName())) {
+            return;
+        }
+        EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+        String pledged = getPlayerFaction(data, player);
+        if (!senderFaction.equals(pledged) && !data.isFactionKing(receiverFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+            throw new WrongUsageException("Only staff, the sender faction, or the receiving faction king can break this alliance.");
         }
     }
 

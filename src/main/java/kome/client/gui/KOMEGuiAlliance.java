@@ -100,6 +100,11 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             Record record = (Record) records.get(selected);
             KOMEMinecraftClient.sendChat("/alliance accept " + record.keyA + " " + record.keyB);
             requestAlliances();
+        } else if (button.id == 32 && selected >= 0 && selected < records.size()) {
+            Record record = (Record) records.get(selected);
+            KOMEMinecraftClient.sendChat("/alliance break " + record.keyA + " " + record.keyB);
+            selected = -1;
+            requestAlliances();
         } else if (button.id == 40) {
             selectedType = wrap(selectedType - 1, 3);
         } else if (button.id == 41) {
@@ -185,6 +190,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             GuiButton accept = new GuiButton(31, guiLeft + 43, guiTop + 212, 68, 20, "Accept");
             accept.enabled = record.hasPending();
             buttonList.add(accept);
+            buttonList.add(new GuiButton(32, guiLeft + 121, guiTop + 188, 68, 20, "Break"));
             buttonList.add(new GuiButton(40, guiLeft + 18, guiTop + 60, 22, 20, "<"));
             buttonList.add(new GuiButton(41, guiLeft + 180, guiTop + 60, 22, 20, ">"));
         }
