@@ -28,6 +28,7 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<String, KOMETerritory> territories = new HashMap<>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
+    public final Map<String, KOMEAlliance> alliances = new HashMap<>();
     public final Map<UUID, String> playerNames = new HashMap<>();
     private final Map<String, UUID> kingsByFaction = new HashMap<>();
     private final Map<String, String> kingNamesByFaction = new HashMap<>();
@@ -89,6 +90,30 @@ public class KOMEWorldData extends WorldSavedData {
             conquestTiles.put(normalized, tile);
         }
         return tile;
+    }
+
+    public KOMEAlliance getAlliance(String factionA, String factionB, boolean create) {
+        String key = KOMEAlliance.pairKey(factionA, factionB);
+        KOMEAlliance alliance = alliances.get(key);
+        if (alliance == null && create) {
+            alliance = new KOMEAlliance(factionA, factionB);
+            alliances.put(key, alliance);
+        }
+        return alliance;
+    }
+
+    public int getAllianceTier(String type, String factionA, String factionB) {
+        KOMEAlliance alliance = getAlliance(factionA, factionB, false);
+        return alliance == null ? -1 : alliance.getTier(KOMEAlliance.normalizeType(type));
+    }
+
+    public boolean clearAlliance(String factionA, String factionB) {
+        String key = KOMEAlliance.pairKey(factionA, factionB);
+        boolean removed = alliances.remove(key) != null;
+        if (removed) {
+            markDirty();
+        }
+        return removed;
     }
 
     public void rememberPlayerName(UUID playerID, String playerName) {
@@ -231,6 +256,7 @@ public class KOMEWorldData extends WorldSavedData {
         territories.clear();
         hiredUnits.clear();
         conquestTiles.clear();
+        alliances.clear();
         playerNames.clear();
         kingsByFaction.clear();
         kingNamesByFaction.clear();
@@ -282,6 +308,15 @@ public class KOMEWorldData extends WorldSavedData {
             tile.readFromNBT(conquestList.getCompoundTagAt(i));
             if (!tile.id.isEmpty()) {
                 conquestTiles.put(tile.id, tile);
+            }
+        }
+
+        NBTTagList allianceList = nbt.getTagList("Alliances", 10);
+        for (int i = 0; i < allianceList.tagCount(); i++) {
+            KOMEAlliance alliance = new KOMEAlliance("", "");
+            alliance.readFromNBT(allianceList.getCompoundTagAt(i));
+            if (alliance.factionA.length() > 0 && alliance.factionB.length() > 0 && alliance.hasAnyAlliance()) {
+                alliances.put(KOMEAlliance.pairKey(alliance.factionA, alliance.factionB), alliance);
             }
         }
 
@@ -343,6 +378,14 @@ public class KOMEWorldData extends WorldSavedData {
             conquestList.appendTag(tile.writeToNBT());
         }
         nbt.setTag("ConquestTiles", conquestList);
+
+        NBTTagList allianceList = new NBTTagList();
+        for (KOMEAlliance alliance : alliances.values()) {
+            if (alliance != null && alliance.hasAnyAlliance()) {
+                allianceList.appendTag(alliance.writeToNBT());
+            }
+        }
+        nbt.setTag("Alliances", allianceList);
 
         NBTTagList kingList = new NBTTagList();
         for (Map.Entry<String, UUID> entry : kingsByFaction.entrySet()) {

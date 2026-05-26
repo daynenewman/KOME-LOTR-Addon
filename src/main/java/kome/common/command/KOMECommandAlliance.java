@@ -1,0 +1,207 @@
+package kome.common.command;
+
+import kome.common.data.KOMEAlliance;
+import kome.common.data.KOMEWorldData;
+import lotr.common.fac.LOTRFaction;
+import net.minecraft.command.CommandBase;
+import net.minecraft.command.ICommandSender;
+import net.minecraft.command.WrongUsageException;
+import net.minecraft.util.ChatComponentText;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+public class KOMECommandAlliance extends CommandBase {
+    @Override
+    public String getCommandName() {
+        return "alliance";
+    }
+
+    @Override
+    public String getCommandUsage(ICommandSender sender) {
+        return "/alliance get <factionA> <factionB> | set <civil|military|trade> <factionA> <factionB> <tier> | clear <factionA> <factionB> | list [faction] | benefits";
+    }
+
+    @Override
+    public int getRequiredPermissionLevel() {
+        return 0;
+    }
+
+    @Override
+    public void processCommand(ICommandSender sender, String[] args) {
+        if (args.length < 1) {
+            throw new WrongUsageException(getCommandUsage(sender));
+        }
+        KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
+        if ("benefits".equalsIgnoreCase(args[0])) {
+            sendBenefits(sender);
+            return;
+        }
+        if ("list".equalsIgnoreCase(args[0])) {
+            String faction = args.length >= 2 ? parseFaction(args[1]) : "";
+            listAlliances(sender, data, faction);
+            return;
+        }
+        if ("get".equalsIgnoreCase(args[0])) {
+            if (args.length != 3) {
+                throw new WrongUsageException(getCommandUsage(sender));
+            }
+            KOMEAlliance alliance = data.getAlliance(parseFaction(args[1]), parseFaction(args[2]), false);
+            sendAlliance(sender, alliance, parseFaction(args[1]), parseFaction(args[2]));
+            return;
+        }
+        if ("set".equalsIgnoreCase(args[0])) {
+            requireStaff(sender);
+            if (args.length != 5) {
+                throw new WrongUsageException(getCommandUsage(sender));
+            }
+            String type = KOMEAlliance.normalizeType(args[1]);
+            if (!KOMEAlliance.isValidType(type)) {
+                throw new WrongUsageException("Unknown alliance type: " + args[1]);
+            }
+            int tier = parseIntBounded(sender, args[4], 0, KOMEAlliance.maxTier(type));
+            String factionA = parseFaction(args[2]);
+            String factionB = parseFaction(args[3]);
+            if (factionA.equals(factionB)) {
+                throw new WrongUsageException("A faction cannot ally with itself.");
+            }
+            KOMEAlliance alliance = data.getAlliance(factionA, factionB, true);
+            alliance.setTier(type, tier, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
+            data.markDirty();
+            sender.addChatMessage(new ChatComponentText("Set " + displayType(type) + " alliance " + displayFaction(factionA) + " <-> " + displayFaction(factionB) + " to tier " + tier + "."));
+            sender.addChatMessage(new ChatComponentText(getBenefit(type, tier)));
+            return;
+        }
+        if ("clear".equalsIgnoreCase(args[0])) {
+            requireStaff(sender);
+            if (args.length != 3) {
+                throw new WrongUsageException(getCommandUsage(sender));
+            }
+            boolean removed = data.clearAlliance(parseFaction(args[1]), parseFaction(args[2]));
+            sender.addChatMessage(new ChatComponentText((removed ? "Cleared" : "No alliance found for") + " " + args[1] + " <-> " + args[2] + "."));
+            return;
+        }
+        throw new WrongUsageException(getCommandUsage(sender));
+    }
+
+    @Override
+    public List addTabCompletionOptions(ICommandSender sender, String[] args) {
+        if (args.length == 1) {
+            return getListOfStringsMatchingLastWord(args, "get", "set", "clear", "list", "benefits");
+        }
+        if (args.length == 2 && "set".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(args, KOMEAlliance.CIVIL, KOMEAlliance.MILITARY, KOMEAlliance.TRADE);
+        }
+        if (isFactionArgument(args)) {
+            List names = LOTRFaction.getPlayableAlignmentFactionNames();
+            return getListOfStringsMatchingLastWord(args, (String[]) names.toArray(new String[names.size()]));
+        }
+        return null;
+    }
+
+    private boolean isFactionArgument(String[] args) {
+        return args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "list".equalsIgnoreCase(args[0]))
+            || args.length == 3 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "set".equalsIgnoreCase(args[0]))
+            || args.length == 4 && "set".equalsIgnoreCase(args[0]);
+    }
+
+    private void listAlliances(ICommandSender sender, KOMEWorldData data, String faction) {
+        List<String> lines = new ArrayList<>();
+        for (KOMEAlliance alliance : data.alliances.values()) {
+            if (alliance == null || !alliance.hasAnyAlliance()) {
+                continue;
+            }
+            if (!faction.isEmpty() && !faction.equals(alliance.factionA) && !faction.equals(alliance.factionB)) {
+                continue;
+            }
+            lines.add(formatAlliance(alliance));
+        }
+        Collections.sort(lines);
+        if (lines.isEmpty()) {
+            sender.addChatMessage(new ChatComponentText(faction.isEmpty() ? "No alliances recorded." : "No alliances recorded for " + displayFaction(faction) + "."));
+            return;
+        }
+        sender.addChatMessage(new ChatComponentText("Recorded alliances:"));
+        for (String line : lines) {
+            sender.addChatMessage(new ChatComponentText(line));
+        }
+    }
+
+    private void sendAlliance(ICommandSender sender, KOMEAlliance alliance, String factionA, String factionB) {
+        if (alliance == null || !alliance.hasAnyAlliance()) {
+            sender.addChatMessage(new ChatComponentText(displayFaction(factionA) + " <-> " + displayFaction(factionB) + ": no alliance"));
+            return;
+        }
+        sender.addChatMessage(new ChatComponentText(formatAlliance(alliance)));
+    }
+
+    private String formatAlliance(KOMEAlliance alliance) {
+        return displayFaction(alliance.factionA) + " <-> " + displayFaction(alliance.factionB)
+            + ": civil " + displayTier(alliance.civilTier)
+            + ", military " + displayTier(alliance.militaryTier)
+            + ", trade " + displayTier(alliance.tradeTier);
+    }
+
+    private static String displayTier(int tier) {
+        return tier < 0 ? "none" : "T" + tier;
+    }
+
+    private void sendBenefits(ICommandSender sender) {
+        sender.addChatMessage(new ChatComponentText("Civil: T0 alliance begins, T1 use faction WPs, T2 hire farmhands."));
+        sender.addChatMessage(new ChatComponentText("Military: T0 alliance begins, T1 hire 1 unit, T2 attack through faction, T3 command armies, T4 spawn captain."));
+        sender.addChatMessage(new ChatComponentText("Trade: T0 alliance begins, T1 build in faction land, T2 add produce merchant crop trade."));
+    }
+
+    private static String getBenefit(String type, int tier) {
+        if (KOMEAlliance.CIVIL.equals(type)) {
+            return tier == 0 ? "Benefit: alliance begins." : tier == 1 ? "Benefit: may use faction waypoints." : "Benefit: may hire farmhands.";
+        }
+        if (KOMEAlliance.MILITARY.equals(type)) {
+            if (tier == 0) {
+                return "Benefit: alliance begins.";
+            }
+            if (tier == 1) {
+                return "Benefit: may hire 1 unit from that faction.";
+            }
+            if (tier == 2) {
+                return "Benefit: may attack through that faction.";
+            }
+            if (tier == 3) {
+                return "Benefit: may command the faction's armies while with units of that faction.";
+            }
+            return "Benefit: may spawn your captain in that faction's land.";
+        }
+        return tier == 0 ? "Benefit: alliance begins." : tier == 1 ? "Benefit: may build in that faction's land." : "Benefit: may add a new crop trade to a produce merchant.";
+    }
+
+    private static String displayType(String type) {
+        return Character.toUpperCase(type.charAt(0)) + type.substring(1);
+    }
+
+    private static String parseFaction(String value) {
+        LOTRFaction resolved = LOTRFaction.forName(value);
+        if (resolved != null && resolved.isPlayableAlignmentFaction()) {
+            return resolved.codeName();
+        }
+        for (Object object : LOTRFaction.getPlayableAlignmentFactionNames()) {
+            String faction = (String) object;
+            if (faction.equalsIgnoreCase(value)) {
+                LOTRFaction byDisplay = LOTRFaction.forName(faction);
+                return byDisplay == null ? faction : byDisplay.codeName();
+            }
+        }
+        throw new WrongUsageException("Unknown faction: " + value);
+    }
+
+    private static String displayFaction(String key) {
+        LOTRFaction faction = LOTRFaction.forName(key);
+        return faction == null ? key : faction.factionName();
+    }
+
+    private void requireStaff(ICommandSender sender) {
+        if (!sender.canCommandSenderUseCommand(2, getCommandName())) {
+            throw new WrongUsageException("You do not have permission to change alliances.");
+        }
+    }
+}
