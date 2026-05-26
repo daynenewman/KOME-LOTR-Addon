@@ -1,6 +1,8 @@
 package kome.client.gui;
 
 import kome.client.KOMEMinecraftClient;
+import kome.common.network.KOMEPacketConquestClaim;
+import kome.common.network.KOMEPacketHandler;
 
 import lotr.client.gui.LOTRGuiMap;
 import lotr.common.LOTRLevelData;
@@ -31,7 +33,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (button.id == 0) {
             LOTRFaction pledge = getPledgeFaction();
             if (pledge != null) {
-                KOMEMinecraftClient.sendChat("/conquest claim " + tileId + " " + pledge.codeName());
+                KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestClaim(tileId));
             }
             mc.displayGuiScreen(new LOTRGuiMap());
         } else if (button.id == 1) {
