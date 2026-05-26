@@ -49,7 +49,7 @@ public class KOMEPacketConquestClaim implements IMessage {
             }
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
             KOMEConquestTile tile = data.getConquestTile(tileId);
-            tile.claim(pledge.codeName(), player.getCommandSenderName(), player.getCommandSenderName(), KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
+            tile.claim(pledge.codeName(), KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
             data.markDirty();
             data.syncConquestTiles();
             player.addChatMessage(new ChatComponentText("Claimed conquest tile " + tileId + " for " + pledge.factionName()));

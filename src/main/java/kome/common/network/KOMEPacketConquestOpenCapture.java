@@ -39,7 +39,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
                 return null;
             }
             KOMEConquestTile tile = KOMEWorldData.get(KOMEReflection.getWorld(player)).getConquestTile(tileId);
-            KOMEPacketHandler.network.sendTo(new KOMEPacketConquestCaptureGui(tile.id, tile.ownerFaction, tile.ruler), player);
+            KOMEPacketHandler.network.sendTo(new KOMEPacketConquestCaptureGui(tile.id, tile.ownerFaction), player);
             return null;
         }
     }

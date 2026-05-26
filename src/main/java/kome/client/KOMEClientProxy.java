@@ -36,8 +36,8 @@ public class KOMEClientProxy extends KOMECommonProxy {
     }
 
     @Override
-    public void displayConquestCaptureGui(String tileId, String ownerFaction, String ruler) {
-        KOMEMinecraftClient.displayGui(new KOMEGuiConquestCapture(tileId, ownerFaction, ruler));
+    public void displayConquestCaptureGui(String tileId, String ownerFaction) {
+        KOMEMinecraftClient.displayGui(new KOMEGuiConquestCapture(tileId, ownerFaction));
     }
 
     @Override

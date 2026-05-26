@@ -22,7 +22,7 @@ public class KOMECommandConquest extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/conquest get <tile> | claim <tile> <faction|none> [ruler...] | transfer <tile> <faction> [ruler...] | clear <tile> | clearAll | list | purgeLegacy";
+        return "/conquest get <tile> | claim <tile> <faction|none> | transfer <tile> <faction> | clear <tile> | clearAll | list | purgeLegacy";
     }
 
     @Override
@@ -65,7 +65,7 @@ public class KOMECommandConquest extends CommandBase {
             if (tile == null || !tile.isClaimed()) {
                 sender.addChatMessage(new ChatComponentText(tileId + ": unclaimed"));
             } else {
-                sender.addChatMessage(new ChatComponentText(tileId + ": faction=" + tile.ownerFaction + ", ruler=" + valueOrNone(tile.ruler) + ", claimedBy=" + valueOrNone(tile.lastClaimedBy) + ", time=" + tile.claimedWorldTime));
+                sender.addChatMessage(new ChatComponentText(tileId + ": faction=" + tile.ownerFaction + ", time=" + tile.claimedWorldTime));
             }
             return;
         }
@@ -89,15 +89,14 @@ public class KOMECommandConquest extends CommandBase {
                 return;
             }
             String faction = parseFaction(args[2]);
-            String ruler = args.length >= 4 ? joinFrom(args, 3) : sender.getCommandSenderName();
-            requireClaimPermission(sender, faction, ruler);
+            requireClaimPermission(sender, faction);
             KOMEConquestTile tile = data.getConquestTile(tileId);
             if (faction.isEmpty()) {
                 tile.clear();
                 sender.addChatMessage(new ChatComponentText("Set conquest tile " + tileId + " to unclaimed"));
             } else {
-                tile.claim(faction, ruler, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
-                sender.addChatMessage(new ChatComponentText("Claimed conquest tile " + tileId + " for " + faction + " under " + valueOrNone(ruler)));
+                tile.claim(faction, sender.getEntityWorld().getTotalWorldTime());
+                sender.addChatMessage(new ChatComponentText("Claimed conquest tile " + tileId + " for " + faction));
             }
             data.markDirty();
             data.syncConquestTiles();
@@ -117,11 +116,10 @@ public class KOMECommandConquest extends CommandBase {
                 throw new WrongUsageException("Tile " + tileId + " is unclaimed.");
             }
             requireTransferPermission(sender, tile);
-            String ruler = args.length >= 4 ? joinFrom(args, 3) : sender.getCommandSenderName();
-            tile.claim(faction, ruler, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
+            tile.claim(faction, sender.getEntityWorld().getTotalWorldTime());
             data.markDirty();
             data.syncConquestTiles();
-            sender.addChatMessage(new ChatComponentText("Transferred conquest tile " + tileId + " to " + faction + " under " + valueOrNone(ruler)));
+            sender.addChatMessage(new ChatComponentText("Transferred conquest tile " + tileId + " to " + faction));
             return;
         }
 
@@ -215,7 +213,7 @@ public class KOMECommandConquest extends CommandBase {
         throw new WrongUsageException("Unknown faction: " + value);
     }
 
-    private void requireClaimPermission(ICommandSender sender, String faction, String ruler) {
+    private void requireClaimPermission(ICommandSender sender, String faction) {
         if (sender.canCommandSenderUseCommand(2, getCommandName())) {
             return;
         }
@@ -223,9 +221,6 @@ public class KOMECommandConquest extends CommandBase {
         LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
         if (pledge == null || faction.isEmpty() || !pledge.codeName().equals(faction)) {
             throw new WrongUsageException("You can only claim conquest tiles for your pledged faction.");
-        }
-        if (!player.getCommandSenderName().equalsIgnoreCase(ruler)) {
-            throw new WrongUsageException("You can only claim conquest tiles under your own name.");
         }
     }
 
@@ -235,8 +230,8 @@ public class KOMECommandConquest extends CommandBase {
         }
         EntityPlayerMP player = getCommandSenderAsPlayer(sender);
         LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
-        if (pledge == null || !pledge.codeName().equals(tile.ownerFaction) || !player.getCommandSenderName().equalsIgnoreCase(tile.ruler)) {
-            throw new WrongUsageException("Only the ruling player of the owning faction can transfer this conquest tile.");
+        if (pledge == null || !pledge.codeName().equals(tile.ownerFaction)) {
+            throw new WrongUsageException("Only members of the owning faction can transfer this conquest tile.");
         }
     }
 
@@ -246,18 +241,4 @@ public class KOMECommandConquest extends CommandBase {
         }
     }
 
-    private static String joinFrom(String[] args, int start) {
-        StringBuilder sb = new StringBuilder();
-        for (int i = start; i < args.length; i++) {
-            if (i > start) {
-                sb.append(' ');
-            }
-            sb.append(args[i]);
-        }
-        return sb.toString();
-    }
-
-    private static String valueOrNone(String value) {
-        return value == null || value.trim().isEmpty() ? "none" : value;
-    }
 }

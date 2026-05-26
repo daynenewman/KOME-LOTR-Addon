@@ -11,12 +11,10 @@ import net.minecraft.client.gui.GuiScreen;
 public class KOMEGuiConquestCapture extends GuiScreen {
     private final String tileId;
     private final String ownerFaction;
-    private final String ruler;
 
-    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String ruler) {
+    public KOMEGuiConquestCapture(String tileId, String ownerFaction) {
         this.tileId = tileId;
         this.ownerFaction = ownerFaction == null ? "" : ownerFaction;
-        this.ruler = ruler == null ? "" : ruler;
     }
 
     @Override
@@ -33,7 +31,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (button.id == 0) {
             LOTRFaction pledge = getPledgeFaction();
             if (pledge != null) {
-                KOMEMinecraftClient.sendChat("/conquest claim " + tileId + " " + pledge.codeName() + " " + KOMEMinecraftClient.playerName());
+                KOMEMinecraftClient.sendChat("/conquest claim " + tileId + " " + pledge.codeName());
             }
             mc.displayGuiScreen(new LOTRGuiMap());
         } else if (button.id == 1) {
@@ -47,12 +45,11 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         int x = width / 2 - 120;
         int y = height / 2 - 70;
         drawCenteredString(fontRendererObj, "Conquest Tile " + tileId, width / 2, y, 0xFFFFFF);
-        drawCenteredString(fontRendererObj, "Current owner: " + valueOrUnclaimed(ownerFaction), width / 2, y + 28, 0xD8D8D8);
-        drawCenteredString(fontRendererObj, "Ruler: " + valueOrNone(ruler), width / 2, y + 42, 0xD8D8D8);
+        drawCenteredString(fontRendererObj, "Owning faction: " + valueOrUnclaimed(ownerFaction), width / 2, y + 28, 0xD8D8D8);
         LOTRFaction pledge = getPledgeFaction();
-        drawCenteredString(fontRendererObj, "Your faction: " + (pledge == null ? "none" : pledge.factionName()), width / 2, y + 62, pledge == null ? 0xFF7777 : 0xAAFFAA);
+        drawCenteredString(fontRendererObj, "Your faction: " + (pledge == null ? "none" : pledge.factionName()), width / 2, y + 52, pledge == null ? 0xFF7777 : 0xAAFFAA);
         if (pledge == null) {
-            drawCenteredString(fontRendererObj, "You must pledge to a faction before claiming.", width / 2, y + 86, 0xFF7777);
+            drawCenteredString(fontRendererObj, "You must pledge to a faction before claiming.", width / 2, y + 76, 0xFF7777);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
@@ -65,7 +62,4 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         return value == null || value.trim().isEmpty() ? "unclaimed" : value;
     }
 
-    private static String valueOrNone(String value) {
-        return value == null || value.trim().isEmpty() ? "none" : value;
-    }
 }

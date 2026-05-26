@@ -5,8 +5,6 @@ import net.minecraft.nbt.NBTTagCompound;
 public class KOMEConquestTile {
     public String id;
     public String ownerFaction = "";
-    public String ruler = "";
-    public String lastClaimedBy = "";
     public long claimedWorldTime;
 
     public KOMEConquestTile(String id) {
@@ -17,25 +15,19 @@ public class KOMEConquestTile {
         return ownerFaction != null && !ownerFaction.trim().isEmpty();
     }
 
-    public void claim(String faction, String ruler, String claimedBy, long worldTime) {
+    public void claim(String faction, long worldTime) {
         ownerFaction = valueOrBlank(faction);
-        this.ruler = valueOrBlank(ruler);
-        lastClaimedBy = valueOrBlank(claimedBy);
         claimedWorldTime = worldTime;
     }
 
     public void clear() {
         ownerFaction = "";
-        ruler = "";
-        lastClaimedBy = "";
         claimedWorldTime = 0L;
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
         id = normalizeId(nbt.getString("Id"));
         ownerFaction = nbt.getString("OwnerFaction");
-        ruler = nbt.getString("Ruler");
-        lastClaimedBy = nbt.getString("LastClaimedBy");
         claimedWorldTime = nbt.getLong("ClaimedWorldTime");
     }
 
@@ -43,8 +35,6 @@ public class KOMEConquestTile {
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Id", normalizeId(id));
         nbt.setString("OwnerFaction", valueOrBlank(ownerFaction));
-        nbt.setString("Ruler", valueOrBlank(ruler));
-        nbt.setString("LastClaimedBy", valueOrBlank(lastClaimedBy));
         nbt.setLong("ClaimedWorldTime", claimedWorldTime);
         return nbt;
     }

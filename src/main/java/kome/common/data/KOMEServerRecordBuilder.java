@@ -58,8 +58,8 @@ public class KOMEServerRecordBuilder {
             pop = new KOMEPlayerPopulation();
         }
 
-        TileSummary tiles = getConquestTiles(data, record.name);
         FactionInfo faction = getFactionInfo(data, world, record.id, progression);
+        TileSummary tiles = getConquestTiles(data, faction.key);
 
         lines.add(join(
             "PLAYER",
@@ -120,10 +120,10 @@ public class KOMEServerRecordBuilder {
         return new FactionInfo(faction, faction == null || faction.trim().isEmpty() ? "No faction" : faction);
     }
 
-    private static TileSummary getConquestTiles(KOMEWorldData data, String playerName) {
+    private static TileSummary getConquestTiles(KOMEWorldData data, String factionKey) {
         TileSummary summary = new TileSummary();
         for (KOMEConquestTile tile : data.conquestTiles.values()) {
-            if (tile.isClaimed() && matchesPlayer(tile.ruler, playerName)) {
+            if (tile.isClaimed() && factionMatches(tile.ownerFaction, factionKey)) {
                 summary.count++;
                 summary.names.add(tile.id);
             }
@@ -132,8 +132,8 @@ public class KOMEServerRecordBuilder {
         return summary;
     }
 
-    private static boolean matchesPlayer(String value, String playerName) {
-        return value != null && playerName != null && value.trim().equalsIgnoreCase(playerName.trim());
+    private static boolean factionMatches(String value, String factionKey) {
+        return value != null && factionKey != null && value.trim().equalsIgnoreCase(factionKey.trim());
     }
 
     private static String joinNames(List names) {

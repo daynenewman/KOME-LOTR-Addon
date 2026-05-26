@@ -10,35 +10,31 @@ import kome.common.KOMEAddon;
 public class KOMEPacketConquestCaptureGui implements IMessage {
     public String tileId;
     public String ownerFaction;
-    public String ruler;
 
     public KOMEPacketConquestCaptureGui() {
     }
 
-    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction, String ruler) {
+    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction) {
         this.tileId = tileId;
         this.ownerFaction = ownerFaction;
-        this.ruler = ruler;
     }
 
     @Override
     public void fromBytes(ByteBuf buf) {
         tileId = ByteBufUtils.readUTF8String(buf);
         ownerFaction = ByteBufUtils.readUTF8String(buf);
-        ruler = ByteBufUtils.readUTF8String(buf);
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
         ByteBufUtils.writeUTF8String(buf, tileId);
         ByteBufUtils.writeUTF8String(buf, ownerFaction);
-        ByteBufUtils.writeUTF8String(buf, ruler);
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketConquestCaptureGui, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketConquestCaptureGui message, MessageContext ctx) {
-            KOMEAddon.proxy.displayConquestCaptureGui(message.tileId, message.ownerFaction, message.ruler);
+            KOMEAddon.proxy.displayConquestCaptureGui(message.tileId, message.ownerFaction);
             return null;
         }
     }
