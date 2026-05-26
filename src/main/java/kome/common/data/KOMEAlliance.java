@@ -1,11 +1,16 @@
 package kome.common.data;
 
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
+import net.minecraft.item.ItemStack;
 
 public class KOMEAlliance {
     public static final String CIVIL = "civil";
     public static final String MILITARY = "military";
     public static final String TRADE = "trade";
+    public static final int STORAGE_SLOTS = 54;
+    public static final int NONE = -1;
+    public static final int PENDING = -2;
 
     public String factionA = "";
     public String factionB = "";
@@ -14,6 +19,7 @@ public class KOMEAlliance {
     public int tradeTier = -1;
     public String lastUpdatedBy = "";
     public long updatedWorldTime;
+    private final ItemStack[] storage = new ItemStack[STORAGE_SLOTS];
 
     public KOMEAlliance(String factionA, String factionB) {
         this.factionA = normalizeFactionKey(factionA);
@@ -46,7 +52,37 @@ public class KOMEAlliance {
     }
 
     public boolean hasAnyAlliance() {
-        return civilTier >= 0 || militaryTier >= 0 || tradeTier >= 0;
+        return civilTier != NONE || militaryTier != NONE || tradeTier != NONE;
+    }
+
+    public boolean hasAccepted(String type) {
+        return getTier(normalizeType(type)) >= 0;
+    }
+
+    public ItemStack getStorage(int slot) {
+        return slot >= 0 && slot < storage.length ? storage[slot] : null;
+    }
+
+    public void setStorage(int slot, ItemStack stack) {
+        if (slot >= 0 && slot < storage.length) {
+            storage[slot] = stack;
+        }
+    }
+
+    public ItemStack decrStorage(int slot, int count) {
+        ItemStack stack = getStorage(slot);
+        if (stack == null) {
+            return null;
+        }
+        if (stack.stackSize <= count) {
+            setStorage(slot, null);
+            return stack;
+        }
+        ItemStack split = stack.splitStack(count);
+        if (stack.stackSize <= 0) {
+            setStorage(slot, null);
+        }
+        return split;
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
@@ -57,6 +93,17 @@ public class KOMEAlliance {
         tradeTier = nbt.hasKey("TradeTier") ? nbt.getInteger("TradeTier") : -1;
         lastUpdatedBy = nbt.getString("LastUpdatedBy");
         updatedWorldTime = nbt.getLong("UpdatedWorldTime");
+        for (int i = 0; i < storage.length; i++) {
+            storage[i] = null;
+        }
+        NBTTagList storageList = nbt.getTagList("Storage", 10);
+        for (int i = 0; i < storageList.tagCount(); i++) {
+            NBTTagCompound entry = storageList.getCompoundTagAt(i);
+            int slot = entry.getByte("Slot") & 255;
+            if (slot >= 0 && slot < storage.length) {
+                storage[slot] = ItemStack.loadItemStackFromNBT(entry);
+            }
+        }
     }
 
     public NBTTagCompound writeToNBT() {
@@ -68,6 +115,16 @@ public class KOMEAlliance {
         nbt.setInteger("TradeTier", tradeTier);
         nbt.setString("LastUpdatedBy", lastUpdatedBy == null ? "" : lastUpdatedBy);
         nbt.setLong("UpdatedWorldTime", updatedWorldTime);
+        NBTTagList storageList = new NBTTagList();
+        for (int i = 0; i < storage.length; i++) {
+            if (storage[i] != null) {
+                NBTTagCompound entry = new NBTTagCompound();
+                entry.setByte("Slot", (byte) i);
+                storage[i].writeToNBT(entry);
+                storageList.appendTag(entry);
+            }
+        }
+        nbt.setTag("Storage", storageList);
         return nbt;
     }
 
@@ -99,9 +156,11 @@ public class KOMEAlliance {
     }
 
     public static String pairKey(String factionA, String factionB) {
-        String a = normalizeFactionKey(factionA);
-        String b = normalizeFactionKey(factionB);
-        return a.compareTo(b) <= 0 ? a + "|" + b : b + "|" + a;
+        return directionKey(factionA, factionB);
+    }
+
+    public static String directionKey(String senderFaction, String receiverFaction) {
+        return normalizeFactionKey(senderFaction) + ">" + normalizeFactionKey(receiverFaction);
     }
 
     public static String normalizeFactionKey(String value) {

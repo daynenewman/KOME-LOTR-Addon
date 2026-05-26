@@ -93,7 +93,7 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public KOMEAlliance getAlliance(String factionA, String factionB, boolean create) {
-        String key = KOMEAlliance.pairKey(factionA, factionB);
+        String key = KOMEAlliance.directionKey(factionA, factionB);
         KOMEAlliance alliance = alliances.get(key);
         if (alliance == null && create) {
             alliance = new KOMEAlliance(factionA, factionB);
@@ -108,7 +108,7 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public boolean clearAlliance(String factionA, String factionB) {
-        String key = KOMEAlliance.pairKey(factionA, factionB);
+        String key = KOMEAlliance.directionKey(factionA, factionB);
         boolean removed = alliances.remove(key) != null;
         if (removed) {
             markDirty();
@@ -152,6 +152,17 @@ public class KOMEWorldData extends WorldSavedData {
     public boolean isFactionKing(String factionKey, UUID playerID) {
         String key = normalizeFactionKey(factionKey);
         return key.length() > 0 && playerID != null && playerID.equals(kingsByFaction.get(key));
+    }
+
+    public boolean hasFactionKing(String factionKey) {
+        String key = normalizeFactionKey(factionKey);
+        return key.length() > 0 && kingsByFaction.containsKey(key);
+    }
+
+    public String getFactionKingName(String factionKey) {
+        String key = normalizeFactionKey(factionKey);
+        String name = kingNamesByFaction.get(key);
+        return name == null ? "" : name;
     }
 
     public boolean isProgressionEnabled() {
@@ -316,7 +327,7 @@ public class KOMEWorldData extends WorldSavedData {
             KOMEAlliance alliance = new KOMEAlliance("", "");
             alliance.readFromNBT(allianceList.getCompoundTagAt(i));
             if (alliance.factionA.length() > 0 && alliance.factionB.length() > 0 && alliance.hasAnyAlliance()) {
-                alliances.put(KOMEAlliance.pairKey(alliance.factionA, alliance.factionB), alliance);
+                alliances.put(KOMEAlliance.directionKey(alliance.factionA, alliance.factionB), alliance);
             }
         }
 

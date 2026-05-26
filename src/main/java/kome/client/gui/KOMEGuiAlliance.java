@@ -125,7 +125,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             Gui.drawRect(x, rowY, x + 190, rowY + 32, 0xFF160E08);
             Gui.drawRect(x + 1, rowY + 1, x + 189, rowY + 31, fill);
             mc.fontRenderer.drawString(trim(record.factionA, 82), x + 8, rowY + 5, 0xFFFFFFFF);
-            mc.fontRenderer.drawString("<->", x + 87, rowY + 5, 0xFFFFD36A);
+            mc.fontRenderer.drawString("->", x + 91, rowY + 5, 0xFFFFD36A);
             mc.fontRenderer.drawString(trim(record.factionB, 82), x + 108, rowY + 5, 0xFFFFFFFF);
             mc.fontRenderer.drawString(tierLabel("Civil", record.civilTier), x + 8, rowY + 19, 0xFFE8C46A);
             mc.fontRenderer.drawString(tierLabel("Mil", record.militaryTier), x + 70, rowY + 19, 0xFFFFE6A3);
@@ -138,7 +138,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         int x = guiLeft + 16;
         int y = guiTop + 38 - scroll * 10;
         mc.fontRenderer.drawString(trim(record.factionA, 86), x, y, 0x1B1208);
-        mc.fontRenderer.drawString("<->", guiLeft + 103, y, 0x4A2C0C);
+        mc.fontRenderer.drawString("->", guiLeft + 107, y, 0x4A2C0C);
         mc.fontRenderer.drawString(trim(record.factionB, 86), guiLeft + 123, y, 0x1B1208);
         drawAllianceSection("Civil Alliance", record.civilTier, x, y + 28);
         drawAllianceSection("Military Alliance", record.militaryTier, x, y + 74);
@@ -234,12 +234,12 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private String displayTier(int tier) {
-        return tier < 0 ? "None" : "Tier " + tier;
+        return tier == -2 ? "Pending" : tier < 0 ? "None" : "Tier " + tier;
     }
 
     private String getBenefit(String title, int tier) {
         if (tier < 0) {
-            return "No alliance of this type has been recorded.";
+            return tier == -2 ? "Waiting for the receiving faction to accept this request." : "No alliance of this type has been recorded.";
         }
         if (title.startsWith("Civil")) {
             return tier == 0 ? "Alliance begins." : tier == 1 ? "May use faction waypoints." : "May hire farmhands.";
