@@ -26,5 +26,7 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketUnitCapRequest.Handler.class, KOMEPacketUnitCapRequest.class, 14, Side.SERVER);
         network.registerMessage(KOMEPacketUnitCapUpdate.Handler.class, KOMEPacketUnitCapUpdate.class, 15, Side.SERVER);
         network.registerMessage(KOMEPacketUnitCapSync.Handler.class, KOMEPacketUnitCapSync.class, 16, Side.CLIENT);
+        network.registerMessage(KOMEPacketAllianceRequest.Handler.class, KOMEPacketAllianceRequest.class, 17, Side.SERVER);
+        network.registerMessage(KOMEPacketAllianceData.Handler.class, KOMEPacketAllianceData.class, 18, Side.CLIENT);
     }
 }

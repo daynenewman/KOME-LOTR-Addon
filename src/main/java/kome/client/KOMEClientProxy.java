@@ -3,6 +3,7 @@ package kome.client;
 import cpw.mods.fml.client.registry.ClientRegistry;
 import cpw.mods.fml.common.FMLCommonHandler;
 import kome.client.gui.KOMEGuiConquestCapture;
+import kome.client.gui.KOMEGuiAlliance;
 import kome.client.gui.KOMEGuiPopulation;
 import kome.client.gui.KOMEGuiProgression;
 import kome.client.gui.KOMEGuiServerRecords;
@@ -75,5 +76,10 @@ public class KOMEClientProxy extends KOMECommonProxy {
     @Override
     public void updateServerRecords(List lines) {
         KOMEGuiServerRecords.update(lines);
+    }
+
+    @Override
+    public void updateAllianceData(List lines) {
+        KOMEGuiAlliance.update(lines);
     }
 }

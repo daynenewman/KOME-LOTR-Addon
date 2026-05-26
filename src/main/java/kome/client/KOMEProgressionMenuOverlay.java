@@ -11,9 +11,10 @@ public class KOMEProgressionMenuOverlay {
         if (!(event.gui instanceof LOTRGuiMenu)) {
             return;
         }
-        int x = event.gui.width / 2 - 37;
+        int x = event.gui.width / 2 - 58;
         int y = event.gui.height / 2 + 47;
         event.buttonList.add(new LOTRGuiButtonMenu((LOTRGuiMenu) event.gui, 2, x, y, kome.client.gui.KOMEGuiProgression.class, "KOME Progression", -1));
         event.buttonList.add(new LOTRGuiButtonMenu((LOTRGuiMenu) event.gui, 3, x + 42, y, kome.client.gui.KOMEGuiServerRecords.class, "KOME Server Records", -1));
+        event.buttonList.add(new LOTRGuiButtonMenu((LOTRGuiMenu) event.gui, 4, x + 84, y, kome.client.gui.KOMEGuiAlliance.class, "KOME Alliances", -1));
     }
 }

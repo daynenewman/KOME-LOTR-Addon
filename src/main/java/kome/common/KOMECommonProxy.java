@@ -35,4 +35,7 @@ public class KOMECommonProxy {
 
     public void updateServerRecords(java.util.List lines) {
     }
+
+    public void updateAllianceData(java.util.List lines) {
+    }
 }
