@@ -39,7 +39,15 @@ public class KOMEAllianceRecordBuilder {
             + alliance.militaryTier + "\t"
             + alliance.tradeTier + "\t"
             + alliance.lastUpdatedBy + "\t"
-            + alliance.updatedWorldTime;
+            + alliance.updatedWorldTime + "\t"
+            + safe(alliance.getAssignment("military.food")) + "\t"
+            + alliance.getDelivered("military.food") + "\t"
+            + safe(alliance.getAssignment("trade.food")) + "\t"
+            + alliance.getDelivered("trade.food");
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value.replace('\t', ' ');
     }
 
     private static String displayFaction(String key) {

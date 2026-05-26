@@ -69,6 +69,8 @@ public class KOMEAllianceInventory implements IInventory {
 
     @Override
     public void markDirty() {
+        processFoodQuota("military.food");
+        processFoodQuota("trade.food");
         applyCoinUnlocks();
         data.markDirty();
     }
@@ -98,7 +100,14 @@ public class KOMEAllianceInventory implements IInventory {
             alliance.setTier(KOMEAlliance.CIVIL, 1, "Alliance goods", alliance.updatedWorldTime);
         }
         if (alliance.tradeTier == 0 && coins >= 5000) {
-            alliance.setTier(KOMEAlliance.TRADE, 1, "Alliance goods", alliance.updatedWorldTime);
+            Quota quota = parseQuota(alliance.getAssignment("trade.food"));
+            if (quota == null || alliance.getDelivered("trade.food") >= quota.requiredUnits) {
+                alliance.setTier(KOMEAlliance.TRADE, 1, "Alliance goods", alliance.updatedWorldTime);
+            }
+        }
+        Quota militaryQuota = parseQuota(alliance.getAssignment("military.food"));
+        if (alliance.militaryTier == 0 && militaryQuota != null && alliance.getDelivered("military.food") >= militaryQuota.requiredUnits) {
+            alliance.setTier(KOMEAlliance.MILITARY, 1, "Alliance goods", alliance.updatedWorldTime);
         }
     }
 
@@ -111,5 +120,80 @@ public class KOMEAllianceInventory implements IInventory {
             }
         }
         return value;
+    }
+
+    private void processFoodQuota(String id) {
+        Quota quota = parseQuota(alliance.getAssignment(id));
+        if (quota == null) {
+            return;
+        }
+        for (int i = 0; i < getSizeInventory(); i++) {
+            ItemStack stack = getStackInSlot(i);
+            if (stack == null || !matches(stack, quota)) {
+                continue;
+            }
+            int needed = quota.requiredUnits - alliance.getDelivered(id);
+            if (needed <= 0) {
+                return;
+            }
+            int taken = Math.min(stack.stackSize, needed);
+            alliance.addDelivered(id, taken);
+            stack.stackSize -= taken;
+            if (stack.stackSize <= 0) {
+                alliance.setStorage(i, null);
+            } else {
+                alliance.setStorage(i, stack);
+            }
+        }
+    }
+
+    private boolean matches(ItemStack stack, Quota quota) {
+        String wanted = normalize(quota.item);
+        return normalize(stack.getDisplayName()).contains(wanted) || normalize(stack.getUnlocalizedName()).contains(wanted);
+    }
+
+    private Quota parseQuota(String text) {
+        if (text == null || !text.startsWith("Collect ")) {
+            return null;
+        }
+        String rest = text.substring("Collect ".length());
+        int firstSpace = rest.indexOf(' ');
+        if (firstSpace <= 0) {
+            return null;
+        }
+        int amount = parseInt(rest.substring(0, firstSpace));
+        String afterAmount = rest.substring(firstSpace + 1);
+        int ofIndex = afterAmount.indexOf(" of ");
+        if (amount <= 0 || ofIndex <= 0) {
+            return null;
+        }
+        String unit = afterAmount.substring(0, ofIndex).trim();
+        String item = afterAmount.substring(ofIndex + 4).trim();
+        boolean stacks = "stacks".equalsIgnoreCase(unit);
+        return new Quota(item, stacks ? amount * 64 : amount, stacks);
+    }
+
+    private int parseInt(String value) {
+        try {
+            return Integer.parseInt(value);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.toLowerCase().replaceAll("[^a-z0-9]", "");
+    }
+
+    private static class Quota {
+        private final String item;
+        private final int requiredUnits;
+        private final boolean stacks;
+
+        private Quota(String item, int requiredUnits, boolean stacks) {
+            this.item = item;
+            this.requiredUnits = requiredUnits;
+            this.stacks = stacks;
+        }
     }
 }

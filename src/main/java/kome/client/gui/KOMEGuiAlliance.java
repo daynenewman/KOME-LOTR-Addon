@@ -263,6 +263,10 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             int color = tier == -2 ? 0x7A4A1C : i <= tier ? 0x1B1208 : 0x806C55;
             mc.fontRenderer.drawString("T" + i + ": " + benefits[i], x, rowY, color);
         }
+        List wrapped = mc.fontRenderer.listFormattedStringToWidth("Next: " + getNextRequirement(record), 178);
+        for (int i = 0; i < wrapped.size() && i < 3; i++) {
+            mc.fontRenderer.drawString(String.valueOf(wrapped.get(i)), x, guiTop + 174 + i * 10, 0x4A2C0C);
+        }
     }
 
     private void drawField(int x, int y, int width, String text) {
@@ -376,6 +380,76 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         return tier == 0 ? "Alliance begins." : tier == 1 ? "May build in that faction's land." : "May add crop trade to produce merchant.";
     }
 
+    private String getNextRequirement(Record record) {
+        if (selectedType == 0) {
+            if (record.civilTier < 0) {
+                return "Wait for acceptance.";
+            }
+            if (record.civilTier == 0) {
+                return "Deposit 1000 coins in Goods.";
+            }
+            if (record.civilTier == 1) {
+                return "Trade 500 coins worth of goods. Staff confirms for now.";
+            }
+            return "Civil alliance complete.";
+        }
+        if (selectedType == 1) {
+            if (record.militaryTier < 0) {
+                return "Wait for acceptance.";
+            }
+            if (record.militaryTier == 0) {
+                return quotaStatus(record.militaryFood, record.militaryFoodDelivered);
+            }
+            if (record.militaryTier == 1) {
+                return "Kill 2000 enemies. Tracker not wired yet.";
+            }
+            if (record.militaryTier == 2) {
+                return "250 pop build in faction and WP battle with them.";
+            }
+            if (record.militaryTier == 3) {
+                return "3k alignment, 50 pop, and 30k coins.";
+            }
+            return "Military alliance complete.";
+        }
+        if (record.tradeTier < 0) {
+            return "Wait for acceptance.";
+        }
+        if (record.tradeTier == 0) {
+            return "Deposit 5000 coins plus " + quotaStatus(record.tradeFood, record.tradeFoodDelivered);
+        }
+        if (record.tradeTier == 1) {
+            return "Earn 50 farmer pop points. Tracker not wired yet.";
+        }
+        return "Trade alliance complete.";
+    }
+
+    private String quotaStatus(String assignment, int delivered) {
+        int required = quotaRequiredUnits(assignment);
+        if (required <= 0) {
+            return "Food quota not rolled yet.";
+        }
+        return assignment + " (" + delivered + "/" + required + " units delivered)";
+    }
+
+    private int quotaRequiredUnits(String assignment) {
+        if (assignment == null || !assignment.startsWith("Collect ")) {
+            return 0;
+        }
+        String rest = assignment.substring("Collect ".length());
+        int firstSpace = rest.indexOf(' ');
+        if (firstSpace <= 0) {
+            return 0;
+        }
+        int amount = parseInt(rest.substring(0, firstSpace));
+        String afterAmount = rest.substring(firstSpace + 1);
+        int ofIndex = afterAmount.indexOf(" of ");
+        if (amount <= 0 || ofIndex <= 0) {
+            return 0;
+        }
+        String unit = afterAmount.substring(0, ofIndex).trim();
+        return "stacks".equalsIgnoreCase(unit) ? amount * 64 : amount;
+    }
+
     private void sendRequestCommand() {
         if (viewerFactionKey.isEmpty() || viewerFactionKey.equals(factionKey(receiverIndex)) || isEnemyAlliance(viewerFactionKey, factionKey(receiverIndex))) {
             return;
@@ -482,6 +556,10 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         private final int militaryTier;
         private final int tradeTier;
         private final String lastUpdatedBy;
+        private final String militaryFood;
+        private final int militaryFoodDelivered;
+        private final String tradeFood;
+        private final int tradeFoodDelivered;
 
         private Record(String[] parts) {
             keyA = parts[1];
@@ -492,6 +570,10 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             militaryTier = parseInt(parts[6]);
             tradeTier = parseInt(parts[7]);
             lastUpdatedBy = parts[8];
+            militaryFood = parts.length > 10 ? parts[10] : "";
+            militaryFoodDelivered = parts.length > 11 ? parseInt(parts[11]) : 0;
+            tradeFood = parts.length > 12 ? parts[12] : "";
+            tradeFoodDelivered = parts.length > 13 ? parseInt(parts[13]) : 0;
         }
 
         private boolean hasPending() {

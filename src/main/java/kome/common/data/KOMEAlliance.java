@@ -3,6 +3,8 @@ package kome.common.data;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.item.ItemStack;
+import java.util.HashMap;
+import java.util.Map;
 
 public class KOMEAlliance {
     public static final String CIVIL = "civil";
@@ -20,6 +22,8 @@ public class KOMEAlliance {
     public String lastUpdatedBy = "";
     public long updatedWorldTime;
     private final ItemStack[] storage = new ItemStack[STORAGE_SLOTS];
+    private final Map<String, String> assignments = new HashMap<String, String>();
+    private final Map<String, Integer> delivered = new HashMap<String, Integer>();
 
     public KOMEAlliance(String factionA, String factionB) {
         this.factionA = normalizeFactionKey(factionA);
@@ -59,6 +63,30 @@ public class KOMEAlliance {
         return getTier(normalizeType(type)) >= 0;
     }
 
+    public String getAssignment(String id) {
+        String value = assignments.get(id);
+        return value == null ? "" : value;
+    }
+
+    public void setAssignment(String id, String value) {
+        if (value == null || value.trim().isEmpty()) {
+            assignments.remove(id);
+        } else {
+            assignments.put(id, value);
+        }
+    }
+
+    public int getDelivered(String id) {
+        Integer value = delivered.get(id);
+        return value == null ? 0 : value.intValue();
+    }
+
+    public void addDelivered(String id, int amount) {
+        if (amount > 0) {
+            delivered.put(id, Integer.valueOf(getDelivered(id) + amount));
+        }
+    }
+
     public ItemStack getStorage(int slot) {
         return slot >= 0 && slot < storage.length ? storage[slot] : null;
     }
@@ -93,6 +121,18 @@ public class KOMEAlliance {
         tradeTier = nbt.hasKey("TradeTier") ? nbt.getInteger("TradeTier") : -1;
         lastUpdatedBy = nbt.getString("LastUpdatedBy");
         updatedWorldTime = nbt.getLong("UpdatedWorldTime");
+        assignments.clear();
+        delivered.clear();
+        NBTTagList assignmentList = nbt.getTagList("Assignments", 10);
+        for (int i = 0; i < assignmentList.tagCount(); i++) {
+            NBTTagCompound entry = assignmentList.getCompoundTagAt(i);
+            assignments.put(entry.getString("ID"), entry.getString("Value"));
+        }
+        NBTTagList deliveredList = nbt.getTagList("Delivered", 10);
+        for (int i = 0; i < deliveredList.tagCount(); i++) {
+            NBTTagCompound entry = deliveredList.getCompoundTagAt(i);
+            delivered.put(entry.getString("ID"), Integer.valueOf(entry.getInteger("Amount")));
+        }
         for (int i = 0; i < storage.length; i++) {
             storage[i] = null;
         }
@@ -115,6 +155,22 @@ public class KOMEAlliance {
         nbt.setInteger("TradeTier", tradeTier);
         nbt.setString("LastUpdatedBy", lastUpdatedBy == null ? "" : lastUpdatedBy);
         nbt.setLong("UpdatedWorldTime", updatedWorldTime);
+        NBTTagList assignmentList = new NBTTagList();
+        for (Map.Entry<String, String> entry : assignments.entrySet()) {
+            NBTTagCompound item = new NBTTagCompound();
+            item.setString("ID", entry.getKey());
+            item.setString("Value", entry.getValue());
+            assignmentList.appendTag(item);
+        }
+        nbt.setTag("Assignments", assignmentList);
+        NBTTagList deliveredList = new NBTTagList();
+        for (Map.Entry<String, Integer> entry : delivered.entrySet()) {
+            NBTTagCompound item = new NBTTagCompound();
+            item.setString("ID", entry.getKey());
+            item.setInteger("Amount", entry.getValue().intValue());
+            deliveredList.appendTag(item);
+        }
+        nbt.setTag("Delivered", deliveredList);
         NBTTagList storageList = new NBTTagList();
         for (int i = 0; i < storage.length; i++) {
             if (storage[i] != null) {

@@ -3,6 +3,7 @@ package kome.common.command;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceInventory;
 import kome.common.data.KOMEPlayerProgression;
+import kome.common.data.KOMEProgressionTaskGenerator;
 import kome.common.data.KOMEWorldData;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
@@ -70,6 +71,8 @@ public class KOMECommandAlliance extends CommandBase {
                 throw new WrongUsageException("Enemy factions cannot form alliances.");
             }
             KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, true);
+            ensureFoodQuota(alliance, "military.food", sender);
+            ensureFoodQuota(alliance, "trade.food", sender);
             int status = data.hasFactionKing(receiverFaction) ? KOMEAlliance.PENDING : 0;
             setInitialTier(alliance, KOMEAlliance.CIVIL, status, sender);
             setInitialTier(alliance, KOMEAlliance.MILITARY, status, sender);
@@ -268,6 +271,13 @@ public class KOMECommandAlliance extends CommandBase {
     private void setInitialTier(KOMEAlliance alliance, String type, int status, ICommandSender sender) {
         if (alliance.getTier(type) == KOMEAlliance.NONE || alliance.getTier(type) == KOMEAlliance.PENDING) {
             alliance.setTier(type, status, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
+        }
+    }
+
+    private void ensureFoodQuota(KOMEAlliance alliance, String id, ICommandSender sender) {
+        if (alliance.getAssignment(id).trim().isEmpty()) {
+            long seed = sender.getEntityWorld().getTotalWorldTime() ^ System.nanoTime() ^ id.hashCode();
+            alliance.setAssignment(id, KOMEProgressionTaskGenerator.roll("serf.food_quota_1", seed));
         }
     }
 
