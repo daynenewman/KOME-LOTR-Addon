@@ -105,6 +105,10 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             KOMEMinecraftClient.sendChat("/alliance break " + record.keyA + " " + record.keyB);
             selected = -1;
             requestAlliances();
+        } else if (button.id == 33 && selected >= 0 && selected < records.size()) {
+            Record record = (Record) records.get(selected);
+            KOMEMinecraftClient.sendChat("/alliance roll " + (selectedType == 1 ? "military" : "trade") + " " + record.keyA + " " + record.keyB);
+            requestAlliances();
         } else if (button.id == 40) {
             selectedType = wrap(selectedType - 1, 3);
         } else if (button.id == 41) {
@@ -186,13 +190,16 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             buttonList.add(request);
         } else if (selected >= 0 && selected < records.size()) {
             Record record = (Record) records.get(selected);
-            buttonList.add(new GuiButton(30, guiLeft + 121, guiTop + 212, 68, 20, "Goods"));
-            GuiButton accept = new GuiButton(31, guiLeft + 43, guiTop + 212, 68, 20, "Accept");
+            buttonList.add(new GuiButton(30, guiLeft + 111, guiTop + 224, 42, 18, "Goods"));
+            GuiButton accept = new GuiButton(31, guiLeft + 63, guiTop + 224, 42, 18, "Accept");
             accept.enabled = record.hasPending();
             buttonList.add(accept);
-            buttonList.add(new GuiButton(32, guiLeft + 121, guiTop + 188, 68, 20, "Break"));
-            buttonList.add(new GuiButton(40, guiLeft + 18, guiTop + 60, 22, 20, "<"));
-            buttonList.add(new GuiButton(41, guiLeft + 180, guiTop + 60, 22, 20, ">"));
+            buttonList.add(new GuiButton(32, guiLeft + 15, guiTop + 224, 42, 18, "Break"));
+            GuiButton roll = new GuiButton(33, guiLeft + 159, guiTop + 224, 42, 18, "Roll");
+            roll.enabled = record.needsQuotaRoll(selectedType);
+            buttonList.add(roll);
+            buttonList.add(new GuiButton(40, guiLeft + 18, guiTop + 55, 22, 20, "<"));
+            buttonList.add(new GuiButton(41, guiLeft + 180, guiTop + 55, 22, 20, ">"));
         }
     }
 
@@ -247,10 +254,8 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         mc.fontRenderer.drawString(trim(record.factionA, 82), x, guiTop + 36, 0x1B1208);
         mc.fontRenderer.drawString("->", guiLeft + 102, guiTop + 36, 0x4A2C0C);
         mc.fontRenderer.drawString(trim(record.factionB, 82), guiLeft + 119, guiTop + 36, 0x1B1208);
-        drawAllianceDetails(record, x, guiTop + 63);
-        if (record.lastUpdatedBy.length() > 0) {
-            mc.fontRenderer.drawString("Updated by " + trim(record.lastUpdatedBy, 94), x, guiTop + 218, 0x4A2C0C);
-        }
+        drawAllianceDetails(record, x, guiTop + 58);
+        mc.fontRenderer.drawString("Updated by " + trim(record.lastUpdatedBy.length() > 0 ? record.lastUpdatedBy : "server", 94), x, guiTop + 205, 0x4A2C0C);
     }
 
     private void drawAllianceDetails(Record record, int x, int y) {
@@ -259,13 +264,14 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         drawCenteredString(title + " - " + displayTier(tier), guiLeft + xSize / 2, y, 0x4A2C0C);
         String[] benefits = selectedType == 0 ? CIVIL_BENEFITS : selectedType == 1 ? MILITARY_BENEFITS : TRADE_BENEFITS;
         for (int i = 0; i < benefits.length; i++) {
-            int rowY = y + 24 + i * 28;
+            int rowY = y + 18 + i * 13;
             int color = tier == -2 ? 0x7A4A1C : i <= tier ? 0x1B1208 : 0x806C55;
             mc.fontRenderer.drawString("T" + i + ": " + benefits[i], x, rowY, color);
         }
+        Gui.drawRect(guiLeft + 12, guiTop + 140, guiLeft + 198, guiTop + 198, 0x221B1208);
         List wrapped = mc.fontRenderer.listFormattedStringToWidth("Next: " + getNextRequirement(record), 178);
-        for (int i = 0; i < wrapped.size() && i < 3; i++) {
-            mc.fontRenderer.drawString(String.valueOf(wrapped.get(i)), x, guiTop + 174 + i * 10, 0x4A2C0C);
+        for (int i = 0; i < wrapped.size() && i < 5; i++) {
+            mc.fontRenderer.drawString(String.valueOf(wrapped.get(i)), x, guiTop + 145 + i * 10, 0x4A2C0C);
         }
     }
 
@@ -426,7 +432,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private String quotaStatus(String assignment, int delivered) {
         int required = quotaRequiredUnits(assignment);
         if (required <= 0) {
-            return "Food quota not rolled yet.";
+            return "Food quota not rolled yet. Click Roll.";
         }
         return assignment + " (" + delivered + "/" + required + " units delivered)";
     }
@@ -578,6 +584,11 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
 
         private boolean hasPending() {
             return civilTier == -2 || militaryTier == -2 || tradeTier == -2;
+        }
+
+        private boolean needsQuotaRoll(int selectedType) {
+            return selectedType == 1 && militaryTier == 0 && militaryFood.trim().isEmpty()
+                || selectedType == 2 && tradeTier == 0 && tradeFood.trim().isEmpty();
         }
     }
 }
