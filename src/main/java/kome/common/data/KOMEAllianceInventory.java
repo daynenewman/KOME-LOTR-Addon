@@ -1,19 +1,27 @@
 package kome.common.data;
 
+import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketQuotaLedger;
 import lotr.common.item.LOTRItemCoin;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.item.ItemStack;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class KOMEAllianceInventory implements IInventory {
     private final KOMEWorldData data;
     private final KOMEAlliance alliance;
+    private final EntityPlayerMP viewer;
     private final String name;
 
-    public KOMEAllianceInventory(KOMEWorldData data, KOMEAlliance alliance) {
+    public KOMEAllianceInventory(KOMEWorldData data, KOMEAlliance alliance, EntityPlayerMP viewer) {
         this.data = data;
         this.alliance = alliance;
-        this.name = "Alliance Goods";
+        this.viewer = viewer;
+        this.name = "Alliance Ledger";
     }
 
     @Override
@@ -48,7 +56,7 @@ public class KOMEAllianceInventory implements IInventory {
         if (stack != null && stack.stackSize > getInventoryStackLimit()) {
             stack.stackSize = getInventoryStackLimit();
         }
-        if (stack != null && depositQuotaStack(stack)) {
+        if (stack != null && (depositQuotaStack(stack) || depositCoinStack(stack))) {
             stack = stack.stackSize > 0 ? stack : null;
         }
         alliance.setStorage(index, stack);
@@ -74,6 +82,7 @@ public class KOMEAllianceInventory implements IInventory {
     public void markDirty() {
         applyCoinUnlocks();
         data.markDirty();
+        sendLedger();
     }
 
     @Override
@@ -96,11 +105,10 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private void applyCoinUnlocks() {
-        int coins = getCoinValue();
-        if (alliance.civilTier == 0 && coins >= 1000) {
+        if (alliance.civilTier == 0 && alliance.getDelivered("civil.coins") >= 1000) {
             alliance.setTier(KOMEAlliance.CIVIL, 1, "Alliance goods", alliance.updatedWorldTime);
         }
-        if (alliance.tradeTier == 0 && coins >= 5000) {
+        if (alliance.tradeTier == 0 && alliance.getDelivered("trade.coins") >= 5000) {
             Quota quota = parseQuota(alliance.getAssignment("trade.food"));
             if (quota == null || alliance.getDelivered("trade.food") >= quota.requiredUnits) {
                 alliance.setTier(KOMEAlliance.TRADE, 1, "Alliance goods", alliance.updatedWorldTime);
@@ -142,12 +150,12 @@ public class KOMEAllianceInventory implements IInventory {
     private int getNeededCoinValue() {
         int needed = 0;
         if (alliance.civilTier == 0) {
-            needed += 1000;
+            needed += Math.max(0, 1000 - alliance.getDelivered("civil.coins"));
         }
         if (alliance.tradeTier == 0) {
-            needed += 5000;
+            needed += Math.max(0, 5000 - alliance.getDelivered("trade.coins"));
         }
-        return Math.max(0, needed - getCoinValue());
+        return needed;
     }
 
     private boolean depositQuotaStack(ItemStack stack) {
@@ -171,6 +179,70 @@ public class KOMEAllianceInventory implements IInventory {
         alliance.addClaimGoods(id, sample, taken);
         stack.stackSize -= taken;
         return true;
+    }
+
+    private boolean depositCoinStack(ItemStack stack) {
+        if (!(stack.getItem() instanceof LOTRItemCoin)) {
+            return false;
+        }
+        int value = LOTRItemCoin.values[Math.max(0, Math.min(stack.getItemDamage(), LOTRItemCoin.values.length - 1))];
+        return depositCoins(stack, value, "civil.coins", 1000, alliance.civilTier)
+            || depositCoins(stack, value, "trade.coins", 5000, alliance.tradeTier);
+    }
+
+    private boolean depositCoins(ItemStack stack, int coinValue, String id, int required, int tier) {
+        if (tier != 0 || coinValue <= 0) {
+            return false;
+        }
+        int neededValue = required - alliance.getDelivered(id);
+        if (neededValue <= 0) {
+            return false;
+        }
+        int neededCoins = (neededValue + coinValue - 1) / coinValue;
+        int taken = Math.min(stack.stackSize, neededCoins);
+        ItemStack sample = stack.copy();
+        sample.stackSize = 1;
+        alliance.addDelivered(id, taken * coinValue);
+        alliance.addClaimGoods(id, sample, taken);
+        stack.stackSize -= taken;
+        return true;
+    }
+
+    private void sendLedger() {
+        if (viewer == null) {
+            return;
+        }
+        KOMEPacketHandler.network.sendTo(new KOMEPacketQuotaLedger(getLedgerLines()), viewer);
+    }
+
+    private List getLedgerLines() {
+        List lines = new ArrayList();
+        addCoinLine(lines, "Civil Coins", "civil.coins", 1000, alliance.civilTier == 0);
+        addQuotaLine(lines, "Military Food", "military.food");
+        addCoinLine(lines, "Trade Coins", "trade.coins", 5000, alliance.tradeTier == 0);
+        addQuotaLine(lines, "Trade Food", "trade.food");
+        return lines;
+    }
+
+    private void addCoinLine(List lines, String label, String id, int required, boolean active) {
+        if (!active && alliance.getDelivered(id) <= 0) {
+            return;
+        }
+        int delivered = Math.min(alliance.getDelivered(id), required);
+        lines.add(label + ": " + delivered + "/" + required + " coins" + (delivered >= required ? " complete" : ""));
+    }
+
+    private void addQuotaLine(List lines, String label, String id) {
+        Quota quota = parseQuota(alliance.getAssignment(id));
+        if (quota == null) {
+            return;
+        }
+        int delivered = Math.min(alliance.getDelivered(id), quota.requiredUnits);
+        int shownDelivered = quota.stacks ? delivered / 64 : delivered;
+        int shownRequired = quota.stacks ? quota.requiredUnits / 64 : quota.requiredUnits;
+        String unit = quota.stacks ? "stacks" : "units";
+        lines.add(label + ": " + quota.item);
+        lines.add("  Delivered: " + shownDelivered + "/" + shownRequired + " " + unit + (delivered >= quota.requiredUnits ? " complete" : ""));
     }
 
     private boolean matches(ItemStack stack, Quota quota) {

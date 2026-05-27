@@ -176,7 +176,7 @@ public class KOMECommandAlliance extends CommandBase {
                 throw new WrongUsageException("No alliance request exists for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ".");
             }
             requireGoodsDepositPermission(sender, data, senderFaction);
-            player.displayGUIChest(new KOMEAllianceInventory(data, alliance));
+            player.displayGUIChest(new KOMEAllianceInventory(data, alliance, player));
             sender.addChatMessage(new ChatComponentText("Opened alliance goods for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ". Quota items are compressed into the ledger."));
             return;
         }
@@ -279,6 +279,8 @@ public class KOMECommandAlliance extends CommandBase {
         }
         claimed += claimVirtualGoods(player, alliance, "military.food");
         claimed += claimVirtualGoods(player, alliance, "trade.food");
+        claimed += claimVirtualGoods(player, alliance, "civil.coins");
+        claimed += claimVirtualGoods(player, alliance, "trade.coins");
         player.inventoryContainer.detectAndSendChanges();
         return claimed;
     }

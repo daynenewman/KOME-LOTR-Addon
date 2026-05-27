@@ -21,12 +21,12 @@ public class KOMEQuotaLedgerOverlay {
 
     @SubscribeEvent
     public void onDrawChest(GuiScreenEvent.DrawScreenEvent.Post event) {
-        if (!(event.gui instanceof GuiChest) || lines.isEmpty() || !isLordOfferings((GuiChest) event.gui)) {
+        if (!(event.gui instanceof GuiChest) || lines.isEmpty() || !isLedgerInventory((GuiChest) event.gui)) {
             return;
         }
         FontRenderer font = KOMEMinecraftClient.fontRenderer();
         List drawLines = new ArrayList();
-        drawLines.add("Lord Ledger");
+        drawLines.add(getLedgerTitle((GuiChest) event.gui));
 
         int panelWidth = Math.min(220, Math.max(150, getPanelWidth(font, lines) + 12));
         int textWidth = panelWidth - 10;
@@ -46,7 +46,16 @@ public class KOMEQuotaLedgerOverlay {
         }
     }
 
-    private boolean isLordOfferings(GuiChest chest) {
+    private boolean isLedgerInventory(GuiChest chest) {
+        String name = getLowerInventoryName(chest);
+        return "Lord Offerings".equals(name) || "Alliance Ledger".equals(name);
+    }
+
+    private String getLedgerTitle(GuiChest chest) {
+        return "Alliance Ledger".equals(getLowerInventoryName(chest)) ? "Alliance Ledger" : "Lord Ledger";
+    }
+
+    private String getLowerInventoryName(GuiChest chest) {
         try {
             if (lowerChestField == null) {
                 try {
@@ -57,9 +66,9 @@ public class KOMEQuotaLedgerOverlay {
                 lowerChestField.setAccessible(true);
             }
             IInventory inventory = (IInventory) lowerChestField.get(chest);
-            return inventory != null && "Lord Offerings".equals(inventory.getInventoryName());
+            return inventory == null ? "" : inventory.getInventoryName();
         } catch (Exception e) {
-            return false;
+            return "";
         }
     }
 
