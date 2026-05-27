@@ -210,7 +210,9 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         accept.enabled = record.hasPending(selectedType);
         buttonList.add(accept);
         buttonList.add(new GuiButton(21, guiLeft + 240, guiTop + ySize - 36, 62, 20, "Ledger"));
-        buttonList.add(new GuiButton(22, guiLeft + 306, guiTop + ySize - 36, 58, 20, "Claim"));
+        GuiButton claim = new GuiButton(22, guiLeft + 306, guiTop + ySize - 36, 58, 20, "Claim");
+        claim.enabled = viewerFactionKey.equals(record.keyB);
+        buttonList.add(claim);
         GuiButton roll = new GuiButton(23, guiLeft + 240, guiTop + ySize - 61, 62, 20, "Roll");
         roll.enabled = record.needsQuotaRoll(selectedType);
         buttonList.add(roll);
@@ -278,7 +280,6 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         } else {
             drawTierSections(record, x, guiTop + 112, 220, 126);
         }
-        fontRendererObj.drawString("Last: " + trim(record.lastUpdatedBy.length() == 0 ? "server" : record.lastUpdatedBy, 168), x, guiTop + ySize - 86, 0x70401C);
     }
 
     private void drawTierSections(Record record, int x, int y, int width, int height) {

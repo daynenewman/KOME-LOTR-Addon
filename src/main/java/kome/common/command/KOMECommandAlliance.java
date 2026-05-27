@@ -208,8 +208,11 @@ public class KOMECommandAlliance extends CommandBase {
             EntityPlayerMP player = getCommandSenderAsPlayer(sender);
             String senderFaction = parseFaction(args[1]);
             String receiverFaction = parseFaction(args[2]);
-            if (!sender.canCommandSenderUseCommand(2, getCommandName()) && !data.isFactionKing(receiverFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
-                throw new WrongUsageException("Only staff or the receiving faction king can claim alliance goods.");
+            if (!data.hasFactionKing(receiverFaction)) {
+                throw new WrongUsageException(displayFaction(receiverFaction) + " has no recorded king yet, so alliance goods cannot be claimed.");
+            }
+            if (!data.isFactionKing(receiverFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+                throw new WrongUsageException("Only the receiving faction king can claim alliance goods.");
             }
             KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, false);
             if (alliance == null || !alliance.hasAnyAlliance()) {
