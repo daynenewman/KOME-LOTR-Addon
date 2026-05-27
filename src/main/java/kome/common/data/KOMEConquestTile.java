@@ -5,6 +5,8 @@ import net.minecraft.nbt.NBTTagCompound;
 public class KOMEConquestTile {
     public String id;
     public String ownerFaction = "";
+    public String pendingTransferFromFaction = "";
+    public String pendingTransferToFaction = "";
     public long claimedWorldTime;
 
     public KOMEConquestTile(String id) {
@@ -17,17 +19,35 @@ public class KOMEConquestTile {
 
     public void claim(String faction, long worldTime) {
         ownerFaction = valueOrBlank(faction);
+        clearPendingTransfer();
         claimedWorldTime = worldTime;
+    }
+
+    public void proposeTransfer(String fromFaction, String toFaction) {
+        pendingTransferFromFaction = valueOrBlank(fromFaction);
+        pendingTransferToFaction = valueOrBlank(toFaction);
+    }
+
+    public boolean hasPendingTransfer() {
+        return pendingTransferFromFaction.trim().length() > 0 && pendingTransferToFaction.trim().length() > 0;
+    }
+
+    public void clearPendingTransfer() {
+        pendingTransferFromFaction = "";
+        pendingTransferToFaction = "";
     }
 
     public void clear() {
         ownerFaction = "";
+        clearPendingTransfer();
         claimedWorldTime = 0L;
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
         id = normalizeId(nbt.getString("Id"));
         ownerFaction = nbt.getString("OwnerFaction");
+        pendingTransferFromFaction = nbt.getString("PendingTransferFromFaction");
+        pendingTransferToFaction = nbt.getString("PendingTransferToFaction");
         claimedWorldTime = nbt.getLong("ClaimedWorldTime");
     }
 
@@ -35,6 +55,8 @@ public class KOMEConquestTile {
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Id", normalizeId(id));
         nbt.setString("OwnerFaction", valueOrBlank(ownerFaction));
+        nbt.setString("PendingTransferFromFaction", valueOrBlank(pendingTransferFromFaction));
+        nbt.setString("PendingTransferToFaction", valueOrBlank(pendingTransferToFaction));
         nbt.setLong("ClaimedWorldTime", claimedWorldTime);
         return nbt;
     }

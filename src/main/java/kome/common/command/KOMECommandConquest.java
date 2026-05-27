@@ -22,7 +22,7 @@ public class KOMECommandConquest extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/conquest get <tile> | claim <tile> <faction|none> | transfer <tile> <faction> | clear <tile> | clearAll | list | purgeLegacy";
+        return "/conquest get <tile> | claim <tile> <faction|none> | transfer <tile> <faction> | accept <tile> | cancelTransfer <tile> | clear <tile> | clearAll | list | purgeLegacy";
     }
 
     @Override
@@ -66,6 +66,9 @@ public class KOMECommandConquest extends CommandBase {
                 sender.addChatMessage(new ChatComponentText(tileId + ": unclaimed"));
             } else {
                 sender.addChatMessage(new ChatComponentText(tileId + ": faction=" + tile.ownerFaction + ", time=" + tile.claimedWorldTime));
+                if (tile.hasPendingTransfer()) {
+                    sender.addChatMessage(new ChatComponentText("Pending transfer: " + tile.pendingTransferFromFaction + " -> " + tile.pendingTransferToFaction));
+                }
             }
             return;
         }
@@ -115,11 +118,35 @@ public class KOMECommandConquest extends CommandBase {
             if (!tile.isClaimed()) {
                 throw new WrongUsageException("Tile " + tileId + " is unclaimed.");
             }
-            requireTransferPermission(sender, tile);
+            if (faction.equals(tile.ownerFaction)) {
+                throw new WrongUsageException("That tile is already owned by " + faction + ".");
+            }
+            requireTransferOfferPermission(sender, data, tile, faction);
+            tile.proposeTransfer(tile.ownerFaction, faction);
+            data.markDirty();
+            data.syncConquestTiles();
+            sender.addChatMessage(new ChatComponentText("Offered conquest tile " + tileId + " to " + faction + ". Their king must accept."));
+            return;
+        }
+
+        if ("accept".equalsIgnoreCase(args[0])) {
+            KOMEConquestTile tile = data.getConquestTile(tileId);
+            requireTransferAcceptPermission(sender, data, tile);
+            String faction = tile.pendingTransferToFaction;
             tile.claim(faction, sender.getEntityWorld().getTotalWorldTime());
             data.markDirty();
             data.syncConquestTiles();
-            sender.addChatMessage(new ChatComponentText("Transferred conquest tile " + tileId + " to " + faction));
+            sender.addChatMessage(new ChatComponentText("Accepted conquest tile " + tileId + " for " + faction));
+            return;
+        }
+
+        if ("cancelTransfer".equalsIgnoreCase(args[0]) || "canceltrade".equalsIgnoreCase(args[0])) {
+            KOMEConquestTile tile = data.getConquestTile(tileId);
+            requireTransferCancelPermission(sender, tile);
+            tile.clearPendingTransfer();
+            data.markDirty();
+            data.syncConquestTiles();
+            sender.addChatMessage(new ChatComponentText("Cancelled pending transfer for conquest tile " + tileId));
             return;
         }
 
@@ -129,7 +156,7 @@ public class KOMECommandConquest extends CommandBase {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "get", "claim", "transfer", "trade", "clear", "clearAll", "list", "purgeLegacy");
+            return getListOfStringsMatchingLastWord(args, "get", "claim", "transfer", "trade", "accept", "cancelTransfer", "clear", "clearAll", "list", "purgeLegacy");
         }
         if (args.length == 3 && ("claim".equalsIgnoreCase(args[0]) || "transfer".equalsIgnoreCase(args[0]) || "trade".equalsIgnoreCase(args[0]))) {
             List names = LOTRFaction.getPlayableAlignmentFactionNames();
@@ -224,14 +251,45 @@ public class KOMECommandConquest extends CommandBase {
         }
     }
 
-    private void requireTransferPermission(ICommandSender sender, KOMEConquestTile tile) {
+    private void requireTransferOfferPermission(ICommandSender sender, KOMEWorldData data, KOMEConquestTile tile, String targetFaction) {
+        if (!data.hasFactionKing(tile.ownerFaction) || !data.hasFactionKing(targetFaction)) {
+            throw new WrongUsageException("Tile trades require real player kings for both factions.");
+        }
         if (sender.canCommandSenderUseCommand(2, getCommandName())) {
             return;
         }
         EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-        LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
-        if (pledge == null || !pledge.codeName().equals(tile.ownerFaction)) {
-            throw new WrongUsageException("Only members of the owning faction can transfer this conquest tile.");
+        if (!data.isFactionKing(tile.ownerFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+            throw new WrongUsageException("Only the owning faction's king can offer this conquest tile.");
+        }
+    }
+
+    private void requireTransferAcceptPermission(ICommandSender sender, KOMEWorldData data, KOMEConquestTile tile) {
+        if (!tile.hasPendingTransfer()) {
+            throw new WrongUsageException("This conquest tile has no pending transfer.");
+        }
+        if (!data.hasFactionKing(tile.pendingTransferFromFaction) || !data.hasFactionKing(tile.pendingTransferToFaction)) {
+            throw new WrongUsageException("Tile trades require real player kings for both factions.");
+        }
+        if (sender.canCommandSenderUseCommand(2, getCommandName())) {
+            return;
+        }
+        EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+        if (!data.isFactionKing(tile.pendingTransferToFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+            throw new WrongUsageException("Only the receiving faction's king can accept this conquest tile.");
+        }
+    }
+
+    private void requireTransferCancelPermission(ICommandSender sender, KOMEConquestTile tile) {
+        if (!tile.hasPendingTransfer()) {
+            throw new WrongUsageException("This conquest tile has no pending transfer.");
+        }
+        if (sender.canCommandSenderUseCommand(2, getCommandName())) {
+            return;
+        }
+        EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+        if (!KOMEWorldData.get(sender.getEntityWorld()).isFactionKing(tile.pendingTransferFromFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+            throw new WrongUsageException("Only the offering faction's king can cancel this transfer.");
         }
     }
 

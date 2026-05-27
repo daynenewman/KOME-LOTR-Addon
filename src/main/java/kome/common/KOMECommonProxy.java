@@ -17,7 +17,7 @@ public class KOMECommonProxy {
     public void displayPopulationUnitsGui(String playerName, java.util.List lines, int armyUsed, int armyTotal, int farmhandsUsed, int farmhandsLimit) {
     }
 
-    public void displayConquestCaptureGui(String tileId, String ownerFaction) {
+    public void displayConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction) {
     }
 
     public void updateProgressionData(String playerName, java.util.List completed) {
