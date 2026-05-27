@@ -41,17 +41,17 @@ public class KOMEProgressionTaskGenerator {
     private static final QuotaOption[] FOODS = new QuotaOption[] {
         stacks("Melon", 9), units("Dalish Pastry", 73), stacks("Poisonous Potato", 23), stacks("Roast Chestnut", 17),
         units("Torog Stew", 91), stacks("Cooked Venison", 27), stacks("Almond", 12), units("Melon Soup", 36),
-        stacks("Cooked Lion Meat", 14), stacks("Raw Salmon", 30), units("Hobbit Pancake with Syrup", 35),
-        stacks("Cooked Fish", 15), stacks("Rhino Meat", 10), stacks("Leek", 24), stacks("Cranberries", 29),
-        stacks("Cherry", 32), stacks("Mutton", 31), stacks("Porkchop", 7), units("Mushroom Pie", 60),
+        stacks("Cooked Lion", 14), stacks("Raw Salmon", 30), units("Hobbit Pancake with Maple Syrup", 35),
+        stacks("Cooked Fish", 15), stacks("Raw Rhino", 10), stacks("Leek", 24), stacks("Cranberries", 29),
+        stacks("Cherries", 32), stacks("Raw Mutton", 31), stacks("Raw Porkchop", 7), units("Mushroom Pie", 60),
         units("Chocolate Marchpane", 89), stacks("Morgul-shroom", 5), stacks("Green Grapes", 13),
-        stacks("Rabbit Meat", 18), stacks("Cooked Camel Meat", 28), stacks("Lettuce", 25), units("Shish Kebab", 109),
-        stacks("Suspicious Meat", 62), stacks("Orange", 68), stacks("Cooked Rhino Meat", 90),
-        stacks("Golden Carrot", 77), stacks("Cooked Potato", 112), stacks("Lembas", 17), stacks("Salt", 28),
+        stacks("Raw Rabbit", 18), stacks("Cooked Camel", 28), stacks("Lettuce", 25), units("Shish Kebab", 109),
+        stacks("Suspicious Meat", 62), stacks("Orange", 68), stacks("Cooked Rhino", 90),
+        stacks("Golden Carrot", 77), stacks("Baked Potato", 112), stacks("Lembas", 17), stacks("Salt", 28),
         units("Banana Bread", 92), stacks("Pear", 100), units("Hobbit Pancake", 99), stacks("Maggoty Bread", 108),
-        stacks("Egg", 42), stacks("Cookie", 95), stacks("Raspberries", 105), stacks("Lion Meat", 118),
-        stacks("Yam", 37), stacks("Steak", 31), stacks("Mirk-shroom", 13), stacks("Corn", 111),
-        stacks("Cooked Rabbit Meat", 51), stacks("Blueberries", 30), stacks("Camel Meat", 103)
+        stacks("Egg", 42), stacks("Cookie", 95), stacks("Raspberries", 105), stacks("Raw Lion", 118),
+        stacks("Yam", 37), stacks("Steak", 31), stacks("Morgul-shroom", 13), stacks("Corn", 111),
+        stacks("Cooked Rabbit", 51), stacks("Blueberries", 30), stacks("Raw Camel", 103)
     };
 
     private static final DrinkOption[] DRINKS = new DrinkOption[] {

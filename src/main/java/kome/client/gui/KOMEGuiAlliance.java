@@ -8,7 +8,9 @@ import lotr.client.gui.LOTRGuiMenuBase;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.ScaledResolution;
 import org.lwjgl.input.Mouse;
+import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +34,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private int selectedType;
     private int receiverIndex = 1;
     private int scroll;
+    private int detailScroll;
     private boolean createMode;
 
     public static void update(List updatedLines) {
@@ -90,6 +93,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             sendRequestCommand();
         } else if (button.id >= 10 && button.id <= 12) {
             selectedType = button.id - 10;
+            detailScroll = 0;
         } else if (selected >= 0 && selected < records.size()) {
             Record record = (Record) records.get(selected);
             if (button.id == 20) {
@@ -117,6 +121,15 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     public void handleMouseInput() {
         super.handleMouseInput();
         int wheel = Mouse.getEventDWheel();
+        if (!createMode && selected >= 0 && selected < records.size()) {
+            int max = getMaxDetailScroll((Record) records.get(selected));
+            if (wheel > 0) {
+                detailScroll = Math.max(0, detailScroll - 18);
+            } else if (wheel < 0) {
+                detailScroll = Math.min(max, detailScroll + 18);
+            }
+            return;
+        }
         int max = Math.max(0, records.size() - getVisibleRows());
         if (wheel > 0) {
             scroll = Math.max(0, scroll - 1);
@@ -137,6 +150,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             int rowY = y + i * 35;
             if (mouseX >= x && mouseX < x + 128 && mouseY >= rowY && mouseY < rowY + 29) {
                 selected = scroll + i;
+                detailScroll = 0;
                 return;
             }
         }
@@ -227,16 +241,84 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         fontRendererObj.drawString(trim(record.factionB, 76), x + 96, guiTop + 82, 0x2B160D);
         int tier = record.getTier(selectedType);
         fontRendererObj.drawString(TYPES[selectedType] + " " + displayTier(tier), x, guiTop + 100, tier >= 0 ? 0x275018 : 0x8A2B18);
+        drawTierSections(record, x, guiTop + 112, 166, 78);
+        fontRendererObj.drawString("Last: " + trim(record.lastUpdatedBy.length() == 0 ? "server" : record.lastUpdatedBy, 110), x, guiTop + 210, 0x70401C);
+    }
+
+    private void drawTierSections(Record record, int x, int y, int width, int height) {
+        int max = getMaxDetailScroll(record);
+        detailScroll = Math.max(0, Math.min(max, detailScroll));
+        enableScissor(x, y, width, height);
+        String[] benefits = BENEFITS[selectedType];
+        int tier = record.getTier(selectedType);
+        int cursorY = y - detailScroll;
+        for (int i = 0; i < benefits.length; i++) {
+            int panelHeight = getTierPanelHeight(i);
+            boolean unlocked = tier >= i;
+            boolean current = tier == i - 1 || tier == i;
+            int fill = unlocked ? 0xFFE2C98F : current ? 0xFFD6BA7E : 0xFFC7B48D;
+            Gui.drawRect(x, cursorY, x + width, cursorY + panelHeight - 4, 0xFF7A4A25);
+            Gui.drawRect(x + 1, cursorY + 1, x + width - 1, cursorY + panelHeight - 5, fill);
+            fontRendererObj.drawString("Tier " + i, x + 6, cursorY + 6, unlocked ? 0x244712 : 0x6B4F37);
+            fontRendererObj.drawString(unlocked ? "Unlocked" : "Locked", x + width - 52, cursorY + 6, unlocked ? 0x275018 : 0x7B5E42);
+            fontRendererObj.drawString(trim(benefits[i], width - 14), x + 6, cursorY + 18, 0x2B160D);
+            String requirement = getTierRequirement(record, i);
+            List lines = fontRendererObj.listFormattedStringToWidth(requirement, width - 12);
+            for (int line = 0; line < lines.size() && line < 2; line++) {
+                fontRendererObj.drawString(String.valueOf(lines.get(line)), x + 6, cursorY + 30 + line * 10, 0x4B301E);
+            }
+            cursorY += panelHeight;
+        }
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        if (max > 0) {
+            fontRendererObj.drawString((detailScroll + 1) + "/" + (max + 1), x + width - 34, y + height + 2, 0x70401C);
+        }
+    }
+
+    private int getTierPanelHeight(int tierIndex) {
+        return selectedType == 1 && tierIndex == 3 ? 62 : 52;
+    }
+
+    private int getMaxDetailScroll(Record record) {
+        return Math.max(0, getDetailContentHeight(record) - 78);
+    }
+
+    private int getDetailContentHeight(Record record) {
+        int height = 0;
         String[] benefits = BENEFITS[selectedType];
         for (int i = 0; i < benefits.length; i++) {
-            int color = tier >= i ? 0x213915 : 0x7B6A52;
-            fontRendererObj.drawString("T" + i + " " + benefits[i], x, guiTop + 118 + i * 12, color);
+            height += getTierPanelHeight(i);
         }
-        List wrapped = fontRendererObj.listFormattedStringToWidth("Next: " + getNextRequirement(record), 166);
-        for (int i = 0; i < wrapped.size() && i < 4; i++) {
-            fontRendererObj.drawString(String.valueOf(wrapped.get(i)), x, guiTop + 170 + i * 10, 0x3A2115);
+        return height;
+    }
+
+    private String getTierRequirement(Record record, int tierIndex) {
+        if (tierIndex == 0) {
+            return "Requirement: receiving faction accepts the request.";
         }
-        fontRendererObj.drawString("Last: " + trim(record.lastUpdatedBy.length() == 0 ? "server" : record.lastUpdatedBy, 110), x, guiTop + 210, 0x70401C);
+        if (selectedType == 0) {
+            return tierIndex == 1 ? "Requirement: deposit 1000 coins." : "Requirement: trade 500 coins worth of goods; staff confirms.";
+        }
+        if (selectedType == 1) {
+            if (tierIndex == 1) {
+                return "Requirement: " + quotaStatus(record.militaryFood, record.militaryFoodDelivered);
+            }
+            if (tierIndex == 2) {
+                return "Requirement: kill 2000 enemies.";
+            }
+            if (tierIndex == 3) {
+                return "Requirement: 250 pop build in faction and waypoint battle with them.";
+            }
+            return "Requirement: 3k alignment, 50 pop, and 30k coins.";
+        }
+        return tierIndex == 1 ? "Requirement: 5000 coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered) : "Requirement: earn 50 farmer pop points.";
+    }
+
+    private void enableScissor(int x, int y, int width, int height) {
+        ScaledResolution scaled = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
+        int scale = scaled.getScaleFactor();
+        GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        GL11.glScissor(x * scale, (this.height - y - height) * scale, width * scale, height * scale);
     }
 
     private void drawCreate() {
