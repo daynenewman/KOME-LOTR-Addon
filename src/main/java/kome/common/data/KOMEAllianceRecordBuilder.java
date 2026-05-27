@@ -43,7 +43,8 @@ public class KOMEAllianceRecordBuilder {
             + safe(alliance.getAssignment("military.food")) + "\t"
             + alliance.getDelivered("military.food") + "\t"
             + safe(alliance.getAssignment("trade.food")) + "\t"
-            + alliance.getDelivered("trade.food");
+            + alliance.getDelivered("trade.food") + "\t"
+            + alliance.getDelivered("civil.trade");
     }
 
     private static String safe(String value) {

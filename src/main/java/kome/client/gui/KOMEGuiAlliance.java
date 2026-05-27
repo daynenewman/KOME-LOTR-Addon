@@ -357,7 +357,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return "Requirement: receiving faction accepts the request.";
         }
         if (selectedType == 0) {
-            return tierIndex == 1 ? "Requirement: deposit 1000 coins." : "Requirement: trade 500 coins worth of goods; staff confirms.";
+            return tierIndex == 1 ? "Requirement: deposit 1000 coins." : "Requirement: buy or sell 500 coins with " + record.factionB + " traders. Progress: " + Math.min(record.civilTradeDelivered, 500) + "/500 coins.";
         }
         if (selectedType == 1) {
             if (tierIndex == 1) {
@@ -621,6 +621,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         private final int militaryFoodDelivered;
         private final String tradeFood;
         private final int tradeFoodDelivered;
+        private final int civilTradeDelivered;
 
         private Record(String[] parts) {
             keyA = parts[1];
@@ -635,6 +636,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             militaryFoodDelivered = parts.length > 11 ? parseInt(parts[11]) : 0;
             tradeFood = parts.length > 12 ? parts[12] : "";
             tradeFoodDelivered = parts.length > 13 ? parseInt(parts[13]) : 0;
+            civilTradeDelivered = parts.length > 14 ? parseInt(parts[14]) : 0;
         }
 
         private int getTier(int type) {

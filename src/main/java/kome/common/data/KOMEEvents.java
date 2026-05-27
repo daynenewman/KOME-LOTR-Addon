@@ -23,6 +23,7 @@ import lotr.common.inventory.LOTRContainerHobbitOven;
 import lotr.common.inventory.LOTRContainerPouch;
 import lotr.common.inventory.LOTRContainerTrade;
 import lotr.common.LOTRMod;
+import lotr.common.fac.LOTRFaction;
 import lotr.common.item.LOTRItemCoin;
 import lotr.common.item.LOTRItemMug;
 import lotr.common.item.LOTRItemPouch;
@@ -72,6 +73,7 @@ import java.util.Map;
 
 public class KOMEEvents {
     public static int defaultUnitCost = 25;
+    private static final int CIVIL_TRADER_REQUIRED = 500;
     private final Map<UUID, Integer> lastCoinValues = new HashMap<>();
     private final Map<UUID, int[]> lastCoinCounts = new HashMap<>();
     private final Map<UUID, Long> lastStoneCraftDenials = new HashMap<>();
@@ -102,6 +104,7 @@ public class KOMEEvents {
                 KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
                 KOMEProgressionTitles.updatePlayerTitle((EntityPlayerMP) event.player);
             }
+            trackAllianceCivilTraderProgress(event.player);
             cacheCoinValue(event.player);
         }
     }
@@ -539,6 +542,70 @@ public class KOMEEvents {
     private void cacheCoinValue(EntityPlayer player) {
         lastCoinValues.put(KOMEReflection.getEntityUUID(player), LOTRItemCoin.getInventoryValue(player, false));
         lastCoinCounts.put(KOMEReflection.getEntityUUID(player), getCoinCounts(player));
+    }
+
+    private void trackAllianceCivilTraderProgress(EntityPlayer player) {
+        if (!(player instanceof EntityPlayerMP) || !(player.openContainer instanceof LOTRContainerTrade)) {
+            return;
+        }
+        UUID playerID = KOMEReflection.getEntityUUID(player);
+        Integer previous = lastCoinValues.get(playerID);
+        if (previous == null) {
+            return;
+        }
+        int current = LOTRItemCoin.getInventoryValue(player, false);
+        int tradeValue = Math.abs(current - previous.intValue());
+        if (tradeValue <= 0) {
+            return;
+        }
+        LOTREntityNPC trader = ((LOTRContainerTrade) player.openContainer).theTraderNPC;
+        LOTRFaction traderFaction = trader == null ? null : trader.getFaction();
+        if (traderFaction == null) {
+            return;
+        }
+        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+        String playerFaction = getPlayerFactionKey(player, data);
+        String traderFactionKey = traderFaction.codeName();
+        if (playerFaction.length() == 0 || traderFactionKey == null || traderFactionKey.length() == 0) {
+            return;
+        }
+        boolean changed = false;
+        for (KOMEAlliance alliance : data.alliances.values()) {
+            if (alliance == null || alliance.civilTier != 1) {
+                continue;
+            }
+            if (!factionMatches(alliance.factionA, playerFaction) || !factionMatches(alliance.factionB, traderFactionKey)) {
+                continue;
+            }
+            int delivered = alliance.getDelivered("civil.trade");
+            if (delivered >= CIVIL_TRADER_REQUIRED) {
+                continue;
+            }
+            int credited = Math.min(tradeValue, CIVIL_TRADER_REQUIRED - delivered);
+            alliance.addDelivered("civil.trade", credited);
+            changed = true;
+            if (alliance.getDelivered("civil.trade") >= CIVIL_TRADER_REQUIRED) {
+                alliance.setTier(KOMEAlliance.CIVIL, 2, "Trader progress", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
+                player.addChatMessage(new ChatComponentText("Civil alliance upgraded to T2 with " + traderFaction.factionName() + "."));
+            }
+        }
+        if (changed) {
+            data.markDirty();
+        }
+    }
+
+    private String getPlayerFactionKey(EntityPlayer player, KOMEWorldData data) {
+        LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
+        if (pledge != null) {
+            return pledge.codeName();
+        }
+        KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+        String faction = progression.getPledgedLordFaction();
+        return faction == null ? "" : faction;
+    }
+
+    private boolean factionMatches(String a, String b) {
+        return KOMEAlliance.normalizeFactionKey(a).equals(KOMEAlliance.normalizeFactionKey(b));
     }
 
     private int[] getCoinCounts(EntityPlayer player) {
