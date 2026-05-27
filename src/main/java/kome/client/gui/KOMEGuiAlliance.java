@@ -161,9 +161,9 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         buttonList.add(new GuiButton(1, guiLeft + 15, guiTop + 12, 48, 20, "Menu"));
         buttonList.add(new GuiButton(2, guiLeft + 292, guiTop + 12, 52, 20, createMode ? "List" : "New"));
         if (createMode) {
-            buttonList.add(new GuiButton(3, guiLeft + 90, guiTop + 132, 24, 20, "<"));
-            buttonList.add(new GuiButton(4, guiLeft + 246, guiTop + 132, 24, 20, ">"));
-            GuiButton send = new GuiButton(5, guiLeft + 128, guiTop + 202, 104, 20, "Send Request");
+            buttonList.add(new GuiButton(3, guiLeft + 103, guiTop + 134, 24, 20, "<"));
+            buttonList.add(new GuiButton(4, guiLeft + 233, guiTop + 134, 24, 20, ">"));
+            GuiButton send = new GuiButton(5, guiLeft + 128, guiTop + 207, 104, 20, "Send Request");
             send.enabled = canSendRequest();
             buttonList.add(send);
             return;
@@ -196,9 +196,15 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         Gui.drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, 0xDD11120F);
         Gui.drawRect(guiLeft + 4, guiTop + 4, guiLeft + xSize - 4, guiTop + ySize - 4, 0xFFE7D1A4);
         Gui.drawRect(guiLeft + 8, guiTop + 38, guiLeft + xSize - 8, guiTop + 40, 0xFF5D311E);
-        Gui.drawRect(guiLeft + 154, guiTop + 45, guiLeft + 156, guiTop + ySize - 12, 0xAA5D311E);
-        Gui.drawRect(guiLeft + 14, guiTop + 52, guiLeft + 148, guiTop + 238, 0x33281610);
-        Gui.drawRect(guiLeft + 164, guiTop + 77, guiLeft + 346, guiTop + 194, 0x22281610);
+        if (createMode) {
+            Gui.drawRect(guiLeft + 42, guiTop + 60, guiLeft + 318, guiTop + 235, 0x553B250E);
+            Gui.drawRect(guiLeft + 47, guiTop + 65, guiLeft + 313, guiTop + 230, 0xFFEFD9AA);
+            Gui.drawRect(guiLeft + 58, guiTop + 92, guiLeft + 302, guiTop + 94, 0x664A2A18);
+        } else {
+            Gui.drawRect(guiLeft + 154, guiTop + 45, guiLeft + 156, guiTop + ySize - 12, 0xAA5D311E);
+            Gui.drawRect(guiLeft + 14, guiTop + 52, guiLeft + 148, guiTop + 238, 0x33281610);
+            Gui.drawRect(guiLeft + 164, guiTop + 77, guiLeft + 346, guiTop + 194, 0x22281610);
+        }
     }
 
     private void drawHeader() {
@@ -322,15 +328,15 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private void drawCreate() {
-        int x = guiLeft + 50;
-        fontRendererObj.drawString("Send a one-way alliance request", x, guiTop + 65, 0x2B160D);
-        fontRendererObj.drawString("Sender", x, guiTop + 98, 0x70401C);
-        drawBox(x + 58, guiTop + 95, 220, trim(viewerFactionName, 210));
-        fontRendererObj.drawString("Receiver", x, guiTop + 136, 0x70401C);
-        drawBox(x + 78, guiTop + 133, 126, trim(factionName(receiverIndex), 116));
-        List lines = fontRendererObj.listFormattedStringToWidth(getCreateMessage(), 260);
+        int x = guiLeft + 66;
+        drawCenteredString(fontRendererObj, "Send a one-way alliance request", guiLeft + xSize / 2, guiTop + 74, 0x2B160D);
+        fontRendererObj.drawString("Sender", x, guiTop + 108, 0x70401C);
+        drawBox(x + 58, guiTop + 105, 170, trim(viewerFactionName, 160));
+        fontRendererObj.drawString("Receiver", x, guiTop + 139, 0x70401C);
+        drawBox(x + 78, guiTop + 136, 106, trim(factionName(receiverIndex), 96));
+        List lines = fontRendererObj.listFormattedStringToWidth(getCreateMessage(), 224);
         for (int i = 0; i < lines.size() && i < 3; i++) {
-            fontRendererObj.drawString(String.valueOf(lines.get(i)), x, guiTop + 166 + i * 10, canSendRequest() ? 0x3A2115 : 0x8A2B18);
+            fontRendererObj.drawString(String.valueOf(lines.get(i)), x, guiTop + 171 + i * 10, canSendRequest() ? 0x3A2115 : 0x8A2B18);
         }
     }
 
