@@ -56,10 +56,7 @@ public class KOMEAllianceInventory implements IInventory {
         if (stack != null && stack.stackSize > getInventoryStackLimit()) {
             stack.stackSize = getInventoryStackLimit();
         }
-        if (stack != null && (depositQuotaStack(stack) || depositCoinStack(stack))) {
-            stack = stack.stackSize > 0 ? stack : null;
-        }
-        alliance.setStorage(index, stack);
+        alliance.setStorage(index, absorbStack(stack));
         markDirty();
     }
 
@@ -80,9 +77,13 @@ public class KOMEAllianceInventory implements IInventory {
 
     @Override
     public void markDirty() {
+        absorbStoredStacks();
         applyCoinUnlocks();
         data.markDirty();
         sendLedger();
+        if (viewer != null && viewer.openContainer != null) {
+            viewer.openContainer.detectAndSendChanges();
+        }
     }
 
     @Override
@@ -161,6 +162,22 @@ public class KOMEAllianceInventory implements IInventory {
     private boolean depositQuotaStack(ItemStack stack) {
         return depositQuotaStack(stack, "military.food", alliance.militaryTier)
             || depositQuotaStack(stack, "trade.food", alliance.tradeTier);
+    }
+
+    private ItemStack absorbStack(ItemStack stack) {
+        if (stack != null && (depositQuotaStack(stack) || depositCoinStack(stack)) && stack.stackSize <= 0) {
+            return null;
+        }
+        return stack;
+    }
+
+    private void absorbStoredStacks() {
+        for (int i = 0; i < getSizeInventory(); i++) {
+            ItemStack stack = alliance.getStorage(i);
+            if (stack != null) {
+                alliance.setStorage(i, absorbStack(stack));
+            }
+        }
     }
 
     private boolean depositQuotaStack(ItemStack stack, String id, int tier) {
