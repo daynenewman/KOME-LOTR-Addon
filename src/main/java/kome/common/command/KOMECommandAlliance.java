@@ -10,6 +10,7 @@ import kome.common.network.KOMEPacketAllianceData;
 import kome.common.network.KOMEPacketHandler;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
+import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
@@ -71,15 +72,17 @@ public class KOMECommandAlliance extends CommandBase {
             if (senderFaction.equals(receiverFaction)) {
                 throw new WrongUsageException("A faction cannot ally with itself.");
             }
-            if (isEnemyAlliance(senderFaction, receiverFaction)) {
-                throw new WrongUsageException("Enemy factions cannot form alliances.");
-            }
+            boolean senderIsKing = isSenderFactionKing(sender, data, senderFaction);
+            requireDiplomacyPermission(sender, data, senderFaction, receiverFaction, type, senderIsKing);
             KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, true);
             if (alliance.getTier(type) != KOMEAlliance.NONE) {
                 throw new WrongUsageException("A " + displayType(type) + " alliance already exists for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ".");
             }
             int status = data.hasFactionKing(receiverFaction) ? KOMEAlliance.PENDING : 0;
-            setInitialTier(alliance, type, status, sender);
+            setInitialTiers(alliance, type, status, sender);
+            if (status == 0) {
+                overrideRelationsForAlliance(senderFaction, receiverFaction, type);
+            }
             data.markDirty();
             if (status == KOMEAlliance.PENDING) {
                 sender.addChatMessage(new ChatComponentText("Requested " + displayType(type) + " alliance: " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ". Waiting for " + data.getFactionKingName(receiverFaction) + " to accept."));
@@ -105,7 +108,8 @@ public class KOMECommandAlliance extends CommandBase {
             if (alliance.getTier(type) != KOMEAlliance.PENDING) {
                 throw new WrongUsageException("No pending " + displayType(type) + " alliance exists for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ".");
             }
-            acceptTier(alliance, type, sender);
+            acceptTiers(alliance, type, sender);
+            overrideRelationsForAlliance(senderFaction, receiverFaction, type);
             data.markDirty();
             sender.addChatMessage(new ChatComponentText("Accepted " + displayType(type) + " alliance: " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
             return;
@@ -421,9 +425,11 @@ public class KOMECommandAlliance extends CommandBase {
         return type;
     }
 
-    private void setInitialTier(KOMEAlliance alliance, String type, int status, ICommandSender sender) {
-        if (alliance.getTier(type) == KOMEAlliance.NONE || alliance.getTier(type) == KOMEAlliance.PENDING) {
-            alliance.setTier(type, status, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
+    private void setInitialTiers(KOMEAlliance alliance, String type, int status, ICommandSender sender) {
+        for (String impliedType : impliedAllianceTypes(type)) {
+            if (alliance.getTier(impliedType) == KOMEAlliance.NONE) {
+                alliance.setTier(impliedType, status, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
+            }
         }
     }
 
@@ -442,10 +448,22 @@ public class KOMECommandAlliance extends CommandBase {
         }
     }
 
-    private void acceptTier(KOMEAlliance alliance, String type, ICommandSender sender) {
-        if (alliance.getTier(type) == KOMEAlliance.PENDING) {
-            alliance.setTier(type, 0, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
+    private void acceptTiers(KOMEAlliance alliance, String type, ICommandSender sender) {
+        for (String impliedType : impliedAllianceTypes(type)) {
+            if (alliance.getTier(impliedType) == KOMEAlliance.PENDING) {
+                alliance.setTier(impliedType, 0, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
+            }
         }
+    }
+
+    private String[] impliedAllianceTypes(String type) {
+        if (KOMEAlliance.MILITARY.equals(type)) {
+            return new String[] {KOMEAlliance.CIVIL, KOMEAlliance.TRADE, KOMEAlliance.MILITARY};
+        }
+        if (KOMEAlliance.TRADE.equals(type)) {
+            return new String[] {KOMEAlliance.CIVIL, KOMEAlliance.TRADE};
+        }
+        return new String[] {KOMEAlliance.CIVIL};
     }
 
     private static String parseFaction(String value) {
@@ -477,9 +495,45 @@ public class KOMECommandAlliance extends CommandBase {
     }
 
     private static boolean isEnemyAlliance(String factionA, String factionB) {
+        LOTRFactionRelations.Relation relation = getRelation(factionA, factionB);
+        return relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
+    }
+
+    private static LOTRFactionRelations.Relation getRelation(String factionA, String factionB) {
         LOTRFaction a = LOTRFaction.forName(parseFactionLenient(factionA));
         LOTRFaction b = LOTRFaction.forName(parseFactionLenient(factionB));
-        return a != null && b != null && (a.isMortalEnemy(b) || b.isMortalEnemy(a) || a.isBadRelation(b) || b.isBadRelation(a));
+        return a == null || b == null ? LOTRFactionRelations.Relation.NEUTRAL : LOTRFactionRelations.getRelations(a, b);
+    }
+
+    private static void overrideRelationsForAlliance(String factionA, String factionB, String type) {
+        LOTRFaction a = LOTRFaction.forName(parseFactionLenient(factionA));
+        LOTRFaction b = LOTRFaction.forName(parseFactionLenient(factionB));
+        if (a != null && b != null) {
+            LOTRFactionRelations.overrideRelations(a, b, relationForAllianceType(type));
+        }
+    }
+
+    private static LOTRFactionRelations.Relation relationForAllianceType(String type) {
+        if (KOMEAlliance.MILITARY.equals(type)) {
+            return LOTRFactionRelations.Relation.ALLY;
+        }
+        if (KOMEAlliance.TRADE.equals(type)) {
+            return LOTRFactionRelations.Relation.FRIEND;
+        }
+        return LOTRFactionRelations.Relation.NEUTRAL;
+    }
+
+    private static boolean relationAllowsKinglessRequest(String type, String factionA, String factionB) {
+        LOTRFactionRelations.Relation relation = getRelation(factionA, factionB);
+        if (KOMEAlliance.MILITARY.equals(type)) {
+            return relation == LOTRFactionRelations.Relation.ALLY;
+        }
+        if (KOMEAlliance.TRADE.equals(type)) {
+            return relation == LOTRFactionRelations.Relation.ALLY || relation == LOTRFactionRelations.Relation.FRIEND;
+        }
+        return relation == LOTRFactionRelations.Relation.ALLY
+            || relation == LOTRFactionRelations.Relation.FRIEND
+            || relation == LOTRFactionRelations.Relation.NEUTRAL;
     }
 
     private static String parseFactionLenient(String value) {
@@ -498,6 +552,26 @@ public class KOMECommandAlliance extends CommandBase {
         String pledged = getPlayerFaction(data, player);
         if (!senderFaction.equals(pledged)) {
             throw new WrongUsageException("You can only send alliance requests from your pledged faction.");
+        }
+    }
+
+    private boolean isSenderFactionKing(ICommandSender sender, KOMEWorldData data, String senderFaction) {
+        if (sender.canCommandSenderUseCommand(2, getCommandName())) {
+            return true;
+        }
+        EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+        return data.isFactionKing(senderFaction, kome.common.KOMEReflection.getEntityUUID(player));
+    }
+
+    private void requireDiplomacyPermission(ICommandSender sender, KOMEWorldData data, String senderFaction, String receiverFaction, String type, boolean senderIsKing) {
+        if (senderIsKing) {
+            return;
+        }
+        if (data.hasFactionKing(senderFaction)) {
+            throw new WrongUsageException("Only the sending faction king can send alliance requests.");
+        }
+        if (!relationAllowsKinglessRequest(type, senderFaction, receiverFaction)) {
+            throw new WrongUsageException("A kingless faction can only request civil alliances with neutral or better factions, trade alliances with friends or allies, and military alliances with allies.");
         }
     }
 

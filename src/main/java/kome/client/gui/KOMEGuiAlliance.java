@@ -6,6 +6,7 @@ import kome.common.network.KOMEPacketHandler;
 import lotr.client.gui.LOTRGuiMenu;
 import lotr.client.gui.LOTRGuiMenuBase;
 import lotr.common.fac.LOTRFaction;
+import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.ScaledResolution;
@@ -29,6 +30,8 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private static String summary = "Alliances: 0";
     private static String viewerFactionKey = "";
     private static String viewerFactionName = "No pledged faction";
+    private static boolean viewerIsKing;
+    private static boolean viewerFactionHasKing;
 
     private int selected = -1;
     private int selectedType;
@@ -435,8 +438,11 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         if (viewerFactionKey.equals(receiver)) {
             return "Choose a different faction.";
         }
-        if (isEnemyAlliance(viewerFactionKey, receiver)) {
-            return "Enemy factions cannot form alliances.";
+        if (!canRequestByDiplomacy(receiver, createType)) {
+            if (viewerFactionHasKing) {
+                return "Only your faction king can send alliance requests.";
+            }
+            return "Your faction has no king, so this request must match the current faction relation.";
         }
         if (hasAllAllianceTypes(receiver)) {
             return "All alliance types already exist with this faction.";
@@ -581,9 +587,28 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         String receiver = factionKey(index);
         return !viewerFactionKey.isEmpty()
             && !viewerFactionKey.equals(receiver)
-            && !isEnemyAlliance(viewerFactionKey, receiver)
+            && canRequestByDiplomacy(receiver, createType)
             && !hasAllAllianceTypes(receiver)
             && getAllianceTier(receiver, createType) == -1;
+    }
+
+    private boolean canRequestByDiplomacy(String receiver, int type) {
+        if (viewerIsKing) {
+            return true;
+        }
+        if (viewerFactionHasKing) {
+            return false;
+        }
+        LOTRFactionRelations.Relation relation = getRelation(viewerFactionKey, receiver);
+        if (type == 1) {
+            return relation == LOTRFactionRelations.Relation.ALLY;
+        }
+        if (type == 2) {
+            return relation == LOTRFactionRelations.Relation.ALLY || relation == LOTRFactionRelations.Relation.FRIEND;
+        }
+        return relation == LOTRFactionRelations.Relation.ALLY
+            || relation == LOTRFactionRelations.Relation.FRIEND
+            || relation == LOTRFactionRelations.Relation.NEUTRAL;
     }
 
     private boolean hasAllAllianceTypes(String receiver) {
@@ -633,9 +658,14 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private static boolean isEnemyAlliance(String factionA, String factionB) {
+        LOTRFactionRelations.Relation relation = getRelation(factionA, factionB);
+        return relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
+    }
+
+    private static LOTRFactionRelations.Relation getRelation(String factionA, String factionB) {
         LOTRFaction a = LOTRFaction.forName(factionA);
         LOTRFaction b = LOTRFaction.forName(factionB);
-        return a != null && b != null && (a.isMortalEnemy(b) || b.isMortalEnemy(a) || a.isBadRelation(b) || b.isBadRelation(a));
+        return a == null || b == null ? LOTRFactionRelations.Relation.NEUTRAL : LOTRFactionRelations.getRelations(a, b);
     }
 
     private String trim(String value, int width) {
@@ -663,6 +693,8 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private static void parseRecords() {
         records = new ArrayList();
         summary = "Alliances: 0";
+        viewerIsKing = false;
+        viewerFactionHasKing = false;
         for (Object object : rawLines) {
             String line = String.valueOf(object);
             String[] parts = line.split("\t", -1);
@@ -674,6 +706,8 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             } else if ("VIEWER".equals(parts[0]) && parts.length >= 3) {
                 viewerFactionKey = parts[1];
                 viewerFactionName = parts[2].length() == 0 ? "No pledged faction" : parts[2];
+                viewerIsKing = parts.length > 3 && "1".equals(parts[3]);
+                viewerFactionHasKing = parts.length > 4 && "1".equals(parts[4]);
             } else if ("ALLIANCE".equals(parts[0]) && parts.length >= 10) {
                 records.add(new Record(parts));
             }

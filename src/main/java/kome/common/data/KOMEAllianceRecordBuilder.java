@@ -20,7 +20,10 @@ public class KOMEAllianceRecordBuilder {
         }
         Collections.sort(allianceLines);
         lines.add("SUMMARY\t" + allianceLines.size());
-        lines.add("VIEWER\t" + getViewerFactionKey(data, viewer) + "\t" + getViewerFactionName(data, viewer));
+        String viewerFactionKey = getViewerFactionKey(data, viewer);
+        lines.add("VIEWER\t" + viewerFactionKey + "\t" + getViewerFactionName(data, viewer)
+            + "\t" + (isViewerKing(data, viewer, viewerFactionKey) ? "1" : "0")
+            + "\t" + (data.hasFactionKing(viewerFactionKey) ? "1" : "0"));
         lines.addAll(allianceLines);
         return lines;
     }
@@ -76,6 +79,11 @@ public class KOMEAllianceRecordBuilder {
         }
         KOMEPlayerProgression progression = data.getProgression(kome.common.KOMEReflection.getEntityUUID(viewer));
         return findFaction(progression.getPledgedLordFaction());
+    }
+
+    private static boolean isViewerKing(KOMEWorldData data, EntityPlayer viewer, String factionKey) {
+        return viewer != null && factionKey != null && factionKey.length() > 0
+            && data.isFactionKing(factionKey, kome.common.KOMEReflection.getEntityUUID(viewer));
     }
 
     private static LOTRFaction findFaction(String value) {
