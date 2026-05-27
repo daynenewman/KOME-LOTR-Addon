@@ -2,7 +2,6 @@ package kome.client.gui;
 
 import kome.client.KOMEMinecraftClient;
 import kome.common.data.KOMEProgressionAchievement;
-import kome.common.data.KOMEProgressionTaskGenerator;
 import lotr.client.gui.LOTRGuiAchievements;
 import lotr.client.gui.LOTRGuiMenuBase;
 import net.minecraft.client.gui.Gui;
@@ -255,7 +254,20 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     }
 
     private boolean needsRoll(KOMEProgressionAchievement achievement) {
-        return KOMEProgressionTaskGenerator.canRoll(achievement.id) && getAssignment(achievement).length() == 0;
+        return canRoll(achievement) && getAssignment(achievement).length() == 0;
+    }
+
+    private boolean canRoll(KOMEProgressionAchievement achievement) {
+        if (achievement == null || "baseline".equals(achievement.group)) {
+            return false;
+        }
+        String id = achievement.id;
+        return achievement.requirement.toLowerCase().contains("random task")
+            || id.startsWith("serf.food_quota")
+            || "serf.drink_quota".equals(id)
+            || id.startsWith("knight.drop_quota")
+            || id.startsWith("knight.faction_")
+            || "lord.fell_beast".equals(id);
     }
 
     private String getRequirementText(KOMEProgressionAchievement achievement) {
