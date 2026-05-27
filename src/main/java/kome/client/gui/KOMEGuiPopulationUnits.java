@@ -58,29 +58,6 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
     }
 
     @Override
-    protected void mouseClicked(int mouseX, int mouseY, int button) {
-        if (button == 0) {
-            UnitLine unit = getClickedUnit(mouseX, mouseY);
-            if (unit != null) {
-                int control = getClickedCapControl(mouseX, mouseY);
-                if (control == -1) {
-                    updateUnitCap(unit, unit.cap > 1 ? unit.cap - 1 : 0);
-                    return;
-                }
-                if (control == 1) {
-                    updateUnitCap(unit, unit.cap > 0 ? unit.cap + 1 : 1);
-                    return;
-                }
-                if (control == 0) {
-                    updateUnitCap(unit, 0);
-                    return;
-                }
-            }
-        }
-        super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    @Override
     public void handleMouseInput() {
         super.handleMouseInput();
         int wheel = org.lwjgl.input.Mouse.getEventDWheel();
@@ -127,9 +104,6 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
                 drawString(fontRendererObj, unit.type, x + 126, rowY, 0xFFFFFF);
                 drawString(fontRendererObj, unit.cost, x + 178, rowY, 0xFFFFFF);
                 drawString(fontRendererObj, unit.cap > 0 ? String.valueOf(unit.cap) : "-", x + 216, rowY, unit.cap > 0 ? 0x55FF55 : 0xAAAAAA);
-                drawCapControl(mouseX, mouseY, x + 244, rowY - 1, "-", -1);
-                drawCapControl(mouseX, mouseY, x + 262, rowY - 1, "+", 1);
-                drawCapControl(mouseX, mouseY, x + 280, rowY - 1, "x", 0);
             }
             if (visibleUnits.size() > rows) {
                 drawString(fontRendererObj, (scroll + 1) + "-" + Math.min(visibleUnits.size(), scroll + rows) + "/" + visibleUnits.size(), listX + listWidth - 48, listY + listHeight - 12, 0xAAAAAA);
@@ -234,56 +208,6 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
 
     private int getTabCount(List units, List fallbackLines) {
         return units.isEmpty() ? fallbackLines.size() : units.size();
-    }
-
-    private UnitLine getClickedUnit(int mouseX, int mouseY) {
-        int x = width / 2 - 150;
-        int y = height / 2 - 100;
-        int listY = y + 78;
-        List visibleUnits = getSelectedUnits();
-        for (int i = 0; i < getVisibleRows() && scroll + i < visibleUnits.size(); i++) {
-            int rowY = listY + i * 12;
-            if (mouseY >= rowY - 2 && mouseY < rowY + 10 && mouseX >= x && mouseX < x + 300) {
-                return (UnitLine) visibleUnits.get(scroll + i);
-            }
-        }
-        return null;
-    }
-
-    private int getClickedCapControl(int mouseX, int mouseY) {
-        int x = width / 2 - 150;
-        int y = height / 2 - 100;
-        int listY = y + 78;
-        for (int i = 0; i < getVisibleRows(); i++) {
-            int rowY = listY + i * 12 - 1;
-            if (mouseY >= rowY && mouseY < rowY + 10) {
-                if (mouseX >= x + 244 && mouseX < x + 257) {
-                    return -1;
-                }
-                if (mouseX >= x + 262 && mouseX < x + 275) {
-                    return 1;
-                }
-                if (mouseX >= x + 280 && mouseX < x + 293) {
-                    return 0;
-                }
-            }
-        }
-        return 2;
-    }
-
-    private void drawCapControl(int mouseX, int mouseY, int x, int y, String label, int action) {
-        boolean hover = mouseX >= x && mouseX < x + 13 && mouseY >= y && mouseY < y + 10;
-        drawRect(x, y, x + 13, y + 10, hover ? 0xCC6B552A : 0xAA2B2B2B);
-        drawCenteredString(fontRendererObj, label, x + 6, y + 1, action == 0 ? 0xFF7777 : 0xFFFFFF);
-    }
-
-    private void updateUnitCap(UnitLine unit, int cap) {
-        unit.cap = cap;
-        if (cap <= 0) {
-            KOMEMinecraftClient.sendChat("/unitcap clearuuid " + unit.uuid);
-        } else {
-            KOMEMinecraftClient.sendChat("/unitcap setuuid " + cap + " " + unit.uuid);
-        }
     }
 
     private String trim(String value, int width) {
