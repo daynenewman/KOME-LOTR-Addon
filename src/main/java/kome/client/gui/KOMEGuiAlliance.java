@@ -88,14 +88,21 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             selected = -1;
             scroll = 0;
             detailScroll = 0;
+            if (createMode) {
+                receiverIndex = ensureReceiverIndex(receiverIndex, 1);
+            }
         } else if (button.id == 3) {
             receiverIndex = nextReceiver(-1);
         } else if (button.id == 4) {
             receiverIndex = nextReceiver(1);
         } else if (button.id == 5) {
             sendRequestCommand();
-        } else if (button.id >= 6 && button.id <= 8) {
-            createType = button.id - 6;
+        } else if (button.id == 6) {
+            createType = wrap(createType - 1, TYPES.length);
+            receiverIndex = ensureReceiverIndex(receiverIndex, -1);
+        } else if (button.id == 7) {
+            createType = wrap(createType + 1, TYPES.length);
+            receiverIndex = ensureReceiverIndex(receiverIndex, 1);
         } else if (button.id >= 10 && button.id <= 12) {
             selectedType = button.id - 10;
             detailScroll = 0;
@@ -171,20 +178,19 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         buttonList.add(new GuiButton(1, guiLeft + 15, guiTop + 12, 48, 20, "Menu"));
         buttonList.add(new GuiButton(2, guiLeft + xSize - 68, guiTop + 12, 52, 20, createMode ? "List" : "New"));
         if (createMode) {
-            buttonList.add(new GuiButton(6, guiLeft + 96, guiTop + 101, 62, 18, "Civil"));
-            buttonList.add(new GuiButton(7, guiLeft + 176, guiTop + 101, 76, 18, "Military"));
-            buttonList.add(new GuiButton(8, guiLeft + 270, guiTop + 101, 62, 18, "Trade"));
-            buttonList.add(new GuiButton(3, guiLeft + 134, guiTop + 145, 24, 20, "<"));
-            buttonList.add(new GuiButton(4, guiLeft + 272, guiTop + 145, 24, 20, ">"));
+            receiverIndex = ensureReceiverIndex(receiverIndex, 1);
+            int center = guiLeft + xSize / 2;
+            buttonList.add(new GuiButton(6, center - 96, guiTop + 121, 24, 20, "<"));
+            buttonList.add(new GuiButton(7, center + 72, guiTop + 121, 24, 20, ">"));
+            GuiButton receiverLeft = new GuiButton(3, center - 126, guiTop + 191, 24, 20, "<");
+            receiverLeft.enabled = hasSelectableReceiver(createType);
+            buttonList.add(receiverLeft);
+            GuiButton receiverRight = new GuiButton(4, center + 102, guiTop + 191, 24, 20, ">");
+            receiverRight.enabled = hasSelectableReceiver(createType);
+            buttonList.add(receiverRight);
             GuiButton send = new GuiButton(5, guiLeft + 163, guiTop + ySize - 58, 104, 20, "Send Request");
             send.enabled = canSendRequest();
             buttonList.add(send);
-            for (Object object : buttonList) {
-                GuiButton createButton = (GuiButton) object;
-                if (createButton.id >= 6 && createButton.id <= 8) {
-                    createButton.enabled = createType != createButton.id - 6;
-                }
-            }
             return;
         }
         buttonList.add(new GuiButton(10, guiLeft + 178, guiTop + 52, 62, 18, "Civil"));
@@ -382,16 +388,21 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private void drawCreate() {
-        int x = guiLeft + 92;
+        int center = guiLeft + xSize / 2;
+        int labelX = center - 130;
+        int receiverBoxWidth = 180;
+        String receiverName = hasSelectableReceiver(createType) && isSelectableReceiver(receiverIndex) ? factionName(receiverIndex) : "No eligible faction";
         drawCenteredString(fontRendererObj, "Send a one-way alliance request", guiLeft + xSize / 2, guiTop + 77, 0x2B160D);
-        drawCenteredString(fontRendererObj, TYPES[createType], guiLeft + xSize / 2, guiTop + 126, 0x5D311E);
-        fontRendererObj.drawString("Sender", x, guiTop + 144, 0x70401C);
-        drawBox(x + 58, guiTop + 141, 190, trim(viewerFactionName, 180));
-        fontRendererObj.drawString("Receiver", x, guiTop + 174, 0x70401C);
-        drawBox(x + 78, guiTop + 171, 118, trim(factionName(receiverIndex), 108));
-        List lines = fontRendererObj.listFormattedStringToWidth(getCreateMessage(), 250);
+        fontRendererObj.drawString("Alliance Type", labelX, guiTop + 105, 0x70401C);
+        drawBox(center - 55, guiTop + 123, 110, trim(TYPES[createType], 100));
+        fontRendererObj.drawString("Sender", labelX, guiTop + 151, 0x70401C);
+        drawBox(center - 105, guiTop + 148, 210, trim(viewerFactionName, 200));
+        fontRendererObj.drawString("Receiver", labelX, guiTop + 181, 0x70401C);
+        drawBox(center - receiverBoxWidth / 2, guiTop + 193, receiverBoxWidth, trim(receiverName, receiverBoxWidth - 10));
+        List lines = fontRendererObj.listFormattedStringToWidth(getCreateMessage(), 286);
+        int messageX = center - 143;
         for (int i = 0; i < lines.size() && i < 3; i++) {
-            fontRendererObj.drawString(String.valueOf(lines.get(i)), x, guiTop + 204 + i * 10, canSendRequest() ? 0x3A2115 : 0x8A2B18);
+            fontRendererObj.drawString(String.valueOf(lines.get(i)), messageX, guiTop + 224 + i * 10, canSendRequest() ? 0x3A2115 : 0x8A2B18);
         }
     }
 
@@ -409,19 +420,28 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private boolean canSendRequest() {
-        String receiver = factionKey(receiverIndex);
-        return !viewerFactionKey.isEmpty() && !viewerFactionKey.equals(receiver) && !isEnemyAlliance(viewerFactionKey, receiver);
+        return isSelectableReceiver(receiverIndex);
     }
 
     private String getCreateMessage() {
         if (viewerFactionKey.isEmpty()) {
             return "Pledge to a faction before sending alliance requests.";
         }
-        if (viewerFactionKey.equals(factionKey(receiverIndex))) {
+        if (!hasSelectableReceiver(createType)) {
+            return "No eligible factions remain for " + TYPES[createType] + " requests.";
+        }
+        String receiver = factionKey(receiverIndex);
+        if (viewerFactionKey.equals(receiver)) {
             return "Choose a different faction.";
         }
-        if (isEnemyAlliance(viewerFactionKey, factionKey(receiverIndex))) {
+        if (isEnemyAlliance(viewerFactionKey, receiver)) {
             return "Enemy factions cannot form alliances.";
+        }
+        if (hasAllAllianceTypes(receiver)) {
+            return "All alliance types already exist with this faction.";
+        }
+        if (getAllianceTier(receiver, createType) != -1) {
+            return "A " + TYPES[createType] + " alliance already exists with this faction.";
         }
         return "This sends only a " + TYPES[createType] + " request. The other alliance types must be requested separately.";
     }
@@ -519,11 +539,70 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         int next = receiverIndex;
         for (int i = 0; i < factionKeys.size(); i++) {
             next = wrap(next + direction, factionKeys.size());
-            if (!viewerFactionKey.equals(factionKey(next)) && !isEnemyAlliance(viewerFactionKey, factionKey(next))) {
+            if (isSelectableReceiver(next)) {
                 return next;
             }
         }
         return next;
+    }
+
+    private int ensureReceiverIndex(int preferred, int direction) {
+        if (isSelectableReceiver(preferred)) {
+            return preferred;
+        }
+        if (factionKeys.isEmpty()) {
+            return 0;
+        }
+        int next = preferred;
+        for (int i = 0; i < factionKeys.size(); i++) {
+            if (isSelectableReceiver(next)) {
+                return next;
+            }
+            next = wrap(next + direction, factionKeys.size());
+        }
+        return preferred;
+    }
+
+    private boolean hasSelectableReceiver(int type) {
+        int previousType = createType;
+        createType = type;
+        for (int i = 0; i < factionKeys.size(); i++) {
+            if (isSelectableReceiver(i)) {
+                createType = previousType;
+                return true;
+            }
+        }
+        createType = previousType;
+        return false;
+    }
+
+    private boolean isSelectableReceiver(int index) {
+        String receiver = factionKey(index);
+        return !viewerFactionKey.isEmpty()
+            && !viewerFactionKey.equals(receiver)
+            && !isEnemyAlliance(viewerFactionKey, receiver)
+            && !hasAllAllianceTypes(receiver)
+            && getAllianceTier(receiver, createType) == -1;
+    }
+
+    private boolean hasAllAllianceTypes(String receiver) {
+        Record record = findRecord(viewerFactionKey, receiver);
+        return record != null && record.civilTier != -1 && record.militaryTier != -1 && record.tradeTier != -1;
+    }
+
+    private int getAllianceTier(String receiver, int type) {
+        Record record = findRecord(viewerFactionKey, receiver);
+        return record == null ? -1 : record.getTier(type);
+    }
+
+    private Record findRecord(String sender, String receiver) {
+        for (Object object : records) {
+            Record record = (Record) object;
+            if (record.keyA.equals(sender) && record.keyB.equals(receiver)) {
+                return record;
+            }
+        }
+        return null;
     }
 
     private int getVisibleRows() {

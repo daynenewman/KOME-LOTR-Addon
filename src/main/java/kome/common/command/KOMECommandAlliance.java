@@ -75,6 +75,9 @@ public class KOMECommandAlliance extends CommandBase {
                 throw new WrongUsageException("Enemy factions cannot form alliances.");
             }
             KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, true);
+            if (alliance.getTier(type) != KOMEAlliance.NONE) {
+                throw new WrongUsageException("A " + displayType(type) + " alliance already exists for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ".");
+            }
             int status = data.hasFactionKing(receiverFaction) ? KOMEAlliance.PENDING : 0;
             setInitialTier(alliance, type, status, sender);
             data.markDirty();
