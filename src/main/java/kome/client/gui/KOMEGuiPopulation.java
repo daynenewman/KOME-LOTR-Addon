@@ -42,7 +42,7 @@ public class KOMEGuiPopulation extends GuiScreen {
         amountField.setText("25");
         int buttonWidth = 132;
         int buttonGap = 6;
-        buttonList.add(new GuiButton(0, x, y - 6, 50, 20, "Back"));
+        buttonList.add(new GuiButton(0, x, y - 30, 50, 20, "Back"));
         buttonList.add(new GuiButton(2, x, y + 155, buttonWidth, 20, "Add Off"));
         buttonList.add(new GuiButton(3, x + buttonWidth + buttonGap, y + 155, buttonWidth, 20, "Remove Off"));
         buttonList.add(new GuiButton(5, x, y + 180, buttonWidth, 20, "Add Def"));
