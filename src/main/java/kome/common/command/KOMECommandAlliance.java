@@ -26,7 +26,7 @@ public class KOMECommandAlliance extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/alliance request|accept|break <senderFaction> <receiverFaction> | roll <military|trade> <senderFaction> <receiverFaction> | goods|claimGoods <senderFaction> <receiverFaction> | get <senderFaction> <receiverFaction> | set <civil|military|trade> <senderFaction> <receiverFaction> <tier> | clear <senderFaction> <receiverFaction> | list [faction] | benefits";
+        return "/alliance request|accept|break <senderFaction> <receiverFaction> | roll|reroll <military|trade> <senderFaction> <receiverFaction> | goods|claimGoods <senderFaction> <receiverFaction> | get <senderFaction> <receiverFaction> | set <civil|military|trade> <senderFaction> <receiverFaction> <tier> | clear <senderFaction> <receiverFaction> | list [faction] | benefits";
     }
 
     @Override
@@ -138,6 +138,32 @@ public class KOMECommandAlliance extends CommandBase {
             sender.addChatMessage(new ChatComponentText("Rolled " + displayType(type) + " alliance quota: " + alliance.getAssignment(id)));
             return;
         }
+        if ("reroll".equalsIgnoreCase(args[0]) || "rerollQuota".equalsIgnoreCase(args[0])) {
+            requireStaff(sender);
+            if (args.length != 4) {
+                throw new WrongUsageException(getCommandUsage(sender));
+            }
+            String type = parseType(args[1]);
+            if (!KOMEAlliance.MILITARY.equals(type) && !KOMEAlliance.TRADE.equals(type)) {
+                throw new WrongUsageException("Only military and trade alliances use food quotas.");
+            }
+            String senderFaction = parseFaction(args[2]);
+            String receiverFaction = parseFaction(args[3]);
+            KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, false);
+            if (alliance == null || !alliance.hasAnyAlliance()) {
+                throw new WrongUsageException("No alliance request exists for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ".");
+            }
+            String id = KOMEAlliance.MILITARY.equals(type) ? "military.food" : "trade.food";
+            String previous = alliance.getAssignment(id);
+            rollFoodQuota(alliance, id, sender, true);
+            data.markDirty();
+            sender.addChatMessage(new ChatComponentText("Rerolled " + displayType(type) + " alliance quota for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
+            if (previous != null && previous.trim().length() > 0) {
+                sender.addChatMessage(new ChatComponentText("Previous: " + previous));
+            }
+            sender.addChatMessage(new ChatComponentText("New: " + alliance.getAssignment(id)));
+            return;
+        }
         if ("goods".equalsIgnoreCase(args[0]) || "storage".equalsIgnoreCase(args[0])) {
             if (args.length != 3) {
                 throw new WrongUsageException(getCommandUsage(sender));
@@ -213,12 +239,15 @@ public class KOMECommandAlliance extends CommandBase {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "request", "accept", "break", "roll", "goods", "claimGoods", "get", "set", "clear", "list", "benefits");
+            return getListOfStringsMatchingLastWord(args, "request", "accept", "break", "roll", "reroll", "goods", "claimGoods", "get", "set", "clear", "list", "benefits");
         }
         if (args.length == 2 && "set".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, KOMEAlliance.CIVIL, KOMEAlliance.MILITARY, KOMEAlliance.TRADE);
         }
         if (args.length == 2 && "roll".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(args, KOMEAlliance.MILITARY, KOMEAlliance.TRADE);
+        }
+        if (args.length == 2 && ("reroll".equalsIgnoreCase(args[0]) || "rerollQuota".equalsIgnoreCase(args[0]))) {
             return getListOfStringsMatchingLastWord(args, KOMEAlliance.MILITARY, KOMEAlliance.TRADE);
         }
         if (isFactionArgument(args)) {
@@ -230,8 +259,8 @@ public class KOMECommandAlliance extends CommandBase {
 
     private boolean isFactionArgument(String[] args) {
         return args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "goods".equalsIgnoreCase(args[0]) || "claimGoods".equalsIgnoreCase(args[0]) || "claim".equalsIgnoreCase(args[0]) || "list".equalsIgnoreCase(args[0]))
-            || args.length == 3 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "goods".equalsIgnoreCase(args[0]) || "claimGoods".equalsIgnoreCase(args[0]) || "claim".equalsIgnoreCase(args[0]) || "set".equalsIgnoreCase(args[0]) || "roll".equalsIgnoreCase(args[0]) || "request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]))
-            || args.length == 4 && ("set".equalsIgnoreCase(args[0]) || "roll".equalsIgnoreCase(args[0]) || "request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]));
+            || args.length == 3 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "goods".equalsIgnoreCase(args[0]) || "claimGoods".equalsIgnoreCase(args[0]) || "claim".equalsIgnoreCase(args[0]) || "set".equalsIgnoreCase(args[0]) || "roll".equalsIgnoreCase(args[0]) || "reroll".equalsIgnoreCase(args[0]) || "rerollQuota".equalsIgnoreCase(args[0]) || "request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]))
+            || args.length == 4 && ("set".equalsIgnoreCase(args[0]) || "roll".equalsIgnoreCase(args[0]) || "reroll".equalsIgnoreCase(args[0]) || "rerollQuota".equalsIgnoreCase(args[0]) || "request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]));
     }
 
     private int claimStoredGoods(EntityPlayerMP player, KOMEAlliance alliance) {
@@ -341,8 +370,15 @@ public class KOMECommandAlliance extends CommandBase {
 
     private void ensureFoodQuota(KOMEAlliance alliance, String id, ICommandSender sender) {
         if (alliance.getAssignment(id).trim().isEmpty()) {
-            long seed = sender.getEntityWorld().getTotalWorldTime() ^ System.nanoTime() ^ id.hashCode();
-            alliance.setAssignment(id, KOMEProgressionTaskGenerator.roll("serf.food_quota_1", seed));
+            rollFoodQuota(alliance, id, sender, false);
+        }
+    }
+
+    private void rollFoodQuota(KOMEAlliance alliance, String id, ICommandSender sender, boolean resetDelivered) {
+        long seed = sender.getEntityWorld().getTotalWorldTime() ^ System.nanoTime() ^ id.hashCode();
+        alliance.setAssignment(id, KOMEProgressionTaskGenerator.roll("serf.food_quota_1", seed));
+        if (resetDelivered) {
+            alliance.setDelivered(id, 0);
         }
     }
 
