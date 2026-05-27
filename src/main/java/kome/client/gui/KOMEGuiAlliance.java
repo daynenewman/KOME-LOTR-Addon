@@ -36,6 +36,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private int scroll;
     private int detailScroll;
     private boolean createMode;
+    private boolean permissionMode;
 
     public static void update(List updatedLines) {
         rawLines = updatedLines == null ? new ArrayList() : new ArrayList(updatedLines);
@@ -44,8 +45,8 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
 
     @Override
     public void initGui() {
-        xSize = 360;
-        ySize = 260;
+        xSize = 430;
+        ySize = 280;
         super.initGui();
         buttonMenuReturn = null;
         ensureFactions();
@@ -85,6 +86,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             createMode = !createMode;
             selected = -1;
             scroll = 0;
+            detailScroll = 0;
         } else if (button.id == 3) {
             receiverIndex = nextReceiver(-1);
         } else if (button.id == 4) {
@@ -112,6 +114,9 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
                 KOMEMinecraftClient.sendChat("/alliance break " + record.keyA + " " + record.keyB);
                 selected = -1;
                 requestAlliances();
+            } else if (button.id == 25) {
+                permissionMode = !permissionMode;
+                detailScroll = 0;
             }
         }
         configureButtons();
@@ -148,7 +153,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         int y = guiTop + 58;
         for (int i = 0; i < getVisibleRows() && scroll + i < records.size(); i++) {
             int rowY = y + i * 35;
-            if (mouseX >= x && mouseX < x + 128 && mouseY >= rowY && mouseY < rowY + 29) {
+            if (mouseX >= x && mouseX < x + 138 && mouseY >= rowY && mouseY < rowY + 29) {
                 selected = scroll + i;
                 detailScroll = 0;
                 return;
@@ -159,18 +164,18 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private void configureButtons() {
         buttonList.clear();
         buttonList.add(new GuiButton(1, guiLeft + 15, guiTop + 12, 48, 20, "Menu"));
-        buttonList.add(new GuiButton(2, guiLeft + 292, guiTop + 12, 52, 20, createMode ? "List" : "New"));
+        buttonList.add(new GuiButton(2, guiLeft + xSize - 68, guiTop + 12, 52, 20, createMode ? "List" : "New"));
         if (createMode) {
-            buttonList.add(new GuiButton(3, guiLeft + 103, guiTop + 134, 24, 20, "<"));
-            buttonList.add(new GuiButton(4, guiLeft + 233, guiTop + 134, 24, 20, ">"));
-            GuiButton send = new GuiButton(5, guiLeft + 128, guiTop + 207, 104, 20, "Send Request");
+            buttonList.add(new GuiButton(3, guiLeft + 134, guiTop + 145, 24, 20, "<"));
+            buttonList.add(new GuiButton(4, guiLeft + 272, guiTop + 145, 24, 20, ">"));
+            GuiButton send = new GuiButton(5, guiLeft + 163, guiTop + 222, 104, 20, "Send Request");
             send.enabled = canSendRequest();
             buttonList.add(send);
             return;
         }
-        buttonList.add(new GuiButton(10, guiLeft + 170, guiTop + 52, 54, 18, "Civil"));
-        buttonList.add(new GuiButton(11, guiLeft + 226, guiTop + 52, 62, 18, "Military"));
-        buttonList.add(new GuiButton(12, guiLeft + 290, guiTop + 52, 54, 18, "Trade"));
+        buttonList.add(new GuiButton(10, guiLeft + 178, guiTop + 52, 62, 18, "Civil"));
+        buttonList.add(new GuiButton(11, guiLeft + 244, guiTop + 52, 76, 18, "Military"));
+        buttonList.add(new GuiButton(12, guiLeft + 324, guiTop + 52, 62, 18, "Trade"));
         for (Object object : buttonList) {
             GuiButton button = (GuiButton) object;
             if (button.id >= 10 && button.id <= 12) {
@@ -181,15 +186,16 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return;
         }
         Record record = (Record) records.get(selected);
-        GuiButton accept = new GuiButton(20, guiLeft + 170, guiTop + 224, 54, 20, "Accept");
+        GuiButton accept = new GuiButton(20, guiLeft + 178, guiTop + 244, 58, 20, "Accept");
         accept.enabled = record.hasPending();
         buttonList.add(accept);
-        buttonList.add(new GuiButton(21, guiLeft + 226, guiTop + 224, 54, 20, "Deposit"));
-        buttonList.add(new GuiButton(22, guiLeft + 282, guiTop + 224, 54, 20, "Claim"));
-        GuiButton roll = new GuiButton(23, guiLeft + 226, guiTop + 199, 54, 20, "Roll");
+        buttonList.add(new GuiButton(21, guiLeft + 240, guiTop + 244, 62, 20, "Deposit"));
+        buttonList.add(new GuiButton(22, guiLeft + 306, guiTop + 244, 58, 20, "Claim"));
+        GuiButton roll = new GuiButton(23, guiLeft + 240, guiTop + 219, 62, 20, "Roll");
         roll.enabled = record.needsQuotaRoll(selectedType);
         buttonList.add(roll);
-        buttonList.add(new GuiButton(24, guiLeft + 170, guiTop + 199, 54, 20, "Break"));
+        buttonList.add(new GuiButton(24, guiLeft + 178, guiTop + 219, 58, 20, "Break"));
+        buttonList.add(new GuiButton(25, guiLeft + 306, guiTop + 219, 58, 20, permissionMode ? "Tiers" : "Perms"));
     }
 
     private void drawPanel() {
@@ -197,20 +203,20 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         Gui.drawRect(guiLeft + 4, guiTop + 4, guiLeft + xSize - 4, guiTop + ySize - 4, 0xFFE7D1A4);
         Gui.drawRect(guiLeft + 8, guiTop + 38, guiLeft + xSize - 8, guiTop + 40, 0xFF5D311E);
         if (createMode) {
-            Gui.drawRect(guiLeft + 42, guiTop + 60, guiLeft + 318, guiTop + 235, 0x553B250E);
-            Gui.drawRect(guiLeft + 47, guiTop + 65, guiLeft + 313, guiTop + 230, 0xFFEFD9AA);
-            Gui.drawRect(guiLeft + 58, guiTop + 92, guiLeft + 302, guiTop + 94, 0x664A2A18);
+            Gui.drawRect(guiLeft + 58, guiTop + 62, guiLeft + xSize - 58, guiTop + 250, 0x553B250E);
+            Gui.drawRect(guiLeft + 63, guiTop + 67, guiLeft + xSize - 63, guiTop + 245, 0xFFEFD9AA);
+            Gui.drawRect(guiLeft + 76, guiTop + 96, guiLeft + xSize - 76, guiTop + 98, 0x664A2A18);
         } else {
-            Gui.drawRect(guiLeft + 154, guiTop + 45, guiLeft + 156, guiTop + ySize - 12, 0xAA5D311E);
-            Gui.drawRect(guiLeft + 14, guiTop + 52, guiLeft + 148, guiTop + 238, 0x33281610);
-            Gui.drawRect(guiLeft + 164, guiTop + 77, guiLeft + 346, guiTop + 194, 0x22281610);
+            Gui.drawRect(guiLeft + 164, guiTop + 45, guiLeft + 166, guiTop + ySize - 12, 0xAA5D311E);
+            Gui.drawRect(guiLeft + 14, guiTop + 52, guiLeft + 158, guiTop + 258, 0x33281610);
+            Gui.drawRect(guiLeft + 174, guiTop + 77, guiLeft + xSize - 16, guiTop + 214, 0x22281610);
         }
     }
 
     private void drawHeader() {
         drawCenteredString(fontRendererObj, "KOME Alliances", guiLeft + xSize / 2, guiTop + 16, 0x2B160D);
         fontRendererObj.drawString(summary, guiLeft + 75, guiTop + 18, 0x70401C);
-        fontRendererObj.drawString("Your faction: " + trim(viewerFactionName, 150), guiLeft + 18, guiTop + 43, 0x2B160D);
+        fontRendererObj.drawString("Your faction: " + trim(viewerFactionName, 220), guiLeft + 18, guiTop + 43, 0x2B160D);
     }
 
     private void drawList(int mouseX, int mouseY) {
@@ -225,9 +231,9 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             Record record = (Record) records.get(scroll + i);
             int rowY = y + i * 35;
             boolean active = selected == scroll + i;
-            boolean hover = mouseX >= x && mouseX < x + 128 && mouseY >= rowY && mouseY < rowY + 29;
-            Gui.drawRect(x, rowY, x + 128, rowY + 29, active ? 0xFF51331E : hover ? 0xFF7A542F : 0xFF2F2117);
-            fontRendererObj.drawString(trim(record.factionB, 116), x + 6, rowY + 5, 0xFFF2E5BC);
+            boolean hover = mouseX >= x && mouseX < x + 138 && mouseY >= rowY && mouseY < rowY + 29;
+            Gui.drawRect(x, rowY, x + 138, rowY + 29, active ? 0xFF51331E : hover ? 0xFF7A542F : 0xFF2F2117);
+            fontRendererObj.drawString(trim(record.factionB, 126), x + 6, rowY + 5, 0xFFF2E5BC);
             fontRendererObj.drawString(statusLine(record), x + 6, rowY + 17, 0xFFD9B56A);
         }
     }
@@ -237,18 +243,22 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return;
         }
         if (selected < 0 || selected >= records.size()) {
-            fontRendererObj.drawString("Select an alliance to manage it.", guiLeft + 178, guiTop + 104, 0x3A2115);
+            fontRendererObj.drawString("Select an alliance to manage it.", guiLeft + 188, guiTop + 112, 0x3A2115);
             return;
         }
         Record record = (Record) records.get(selected);
-        int x = guiLeft + 170;
-        fontRendererObj.drawString(trim(record.factionA, 76), x, guiTop + 82, 0x2B160D);
-        fontRendererObj.drawString("->", x + 78, guiTop + 82, 0x70401C);
-        fontRendererObj.drawString(trim(record.factionB, 76), x + 96, guiTop + 82, 0x2B160D);
+        int x = guiLeft + 188;
+        fontRendererObj.drawString(trim(record.factionA, 96), x, guiTop + 82, 0x2B160D);
+        fontRendererObj.drawString("->", x + 100, guiTop + 82, 0x70401C);
+        fontRendererObj.drawString(trim(record.factionB, 96), x + 118, guiTop + 82, 0x2B160D);
         int tier = record.getTier(selectedType);
         fontRendererObj.drawString(TYPES[selectedType] + " " + displayTier(tier), x, guiTop + 100, tier >= 0 ? 0x275018 : 0x8A2B18);
-        drawTierSections(record, x, guiTop + 112, 166, 78);
-        fontRendererObj.drawString("Last: " + trim(record.lastUpdatedBy.length() == 0 ? "server" : record.lastUpdatedBy, 110), x, guiTop + 210, 0x70401C);
+        if (permissionMode) {
+            drawPermissionSummary(record, x, guiTop + 112, 220, 98);
+        } else {
+            drawTierSections(record, x, guiTop + 112, 220, 98);
+        }
+        fontRendererObj.drawString("Last: " + trim(record.lastUpdatedBy.length() == 0 ? "server" : record.lastUpdatedBy, 140), x, guiTop + 215, 0x70401C);
     }
 
     private void drawTierSections(Record record, int x, int y, int width, int height) {
@@ -270,7 +280,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             fontRendererObj.drawString(trim(benefits[i], width - 14), x + 6, cursorY + 18, 0x2B160D);
             String requirement = getTierRequirement(record, i);
             List lines = fontRendererObj.listFormattedStringToWidth(requirement, width - 12);
-            for (int line = 0; line < lines.size() && line < 2; line++) {
+            for (int line = 0; line < lines.size() && line < 4; line++) {
                 fontRendererObj.drawString(String.valueOf(lines.get(line)), x + 6, cursorY + 30 + line * 10, 0x4B301E);
             }
             cursorY += panelHeight;
@@ -282,20 +292,56 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private int getTierPanelHeight(int tierIndex) {
-        return selectedType == 1 && tierIndex == 3 ? 62 : 52;
+        return 78;
     }
 
     private int getMaxDetailScroll(Record record) {
-        return Math.max(0, getDetailContentHeight(record) - 78);
+        int visibleHeight = permissionMode ? 98 : 98;
+        return Math.max(0, getDetailContentHeight(record) - visibleHeight);
     }
 
     private int getDetailContentHeight(Record record) {
+        if (permissionMode) {
+            return getPermissionContentHeight(record);
+        }
         int height = 0;
         String[] benefits = BENEFITS[selectedType];
         for (int i = 0; i < benefits.length; i++) {
             height += getTierPanelHeight(i);
         }
         return height;
+    }
+
+    private int getPermissionContentHeight(Record record) {
+        int height = 10;
+        for (int type = 0; type < TYPES.length; type++) {
+            height += 16 + BENEFITS[type].length * 12;
+        }
+        return height;
+    }
+
+    private void drawPermissionSummary(Record record, int x, int y, int width, int height) {
+        int max = getMaxDetailScroll(record);
+        detailScroll = Math.max(0, Math.min(max, detailScroll));
+        enableScissor(x, y, width, height);
+        int cursorY = y + 2 - detailScroll;
+        for (int type = 0; type < TYPES.length; type++) {
+            int tier = record.getTier(type);
+            fontRendererObj.drawString(TYPES[type] + " Permissions", x + 4, cursorY, 0x2B160D);
+            cursorY += 14;
+            for (int i = 0; i < BENEFITS[type].length; i++) {
+                boolean unlocked = tier >= i;
+                int color = unlocked ? 0x275018 : 0x7B5E42;
+                String status = unlocked ? "Unlocked" : "Locked";
+                fontRendererObj.drawString(status + ": " + BENEFITS[type][i], x + 10, cursorY, color);
+                cursorY += 12;
+            }
+            cursorY += 4;
+        }
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        if (max > 0) {
+            fontRendererObj.drawString((detailScroll + 1) + "/" + (max + 1), x + width - 34, y + height + 2, 0x70401C);
+        }
     }
 
     private String getTierRequirement(Record record, int tierIndex) {
@@ -328,15 +374,15 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private void drawCreate() {
-        int x = guiLeft + 66;
-        drawCenteredString(fontRendererObj, "Send a one-way alliance request", guiLeft + xSize / 2, guiTop + 74, 0x2B160D);
-        fontRendererObj.drawString("Sender", x, guiTop + 108, 0x70401C);
-        drawBox(x + 58, guiTop + 105, 170, trim(viewerFactionName, 160));
-        fontRendererObj.drawString("Receiver", x, guiTop + 139, 0x70401C);
-        drawBox(x + 78, guiTop + 136, 106, trim(factionName(receiverIndex), 96));
-        List lines = fontRendererObj.listFormattedStringToWidth(getCreateMessage(), 224);
+        int x = guiLeft + 92;
+        drawCenteredString(fontRendererObj, "Send a one-way alliance request", guiLeft + xSize / 2, guiTop + 77, 0x2B160D);
+        fontRendererObj.drawString("Sender", x, guiTop + 112, 0x70401C);
+        drawBox(x + 58, guiTop + 109, 190, trim(viewerFactionName, 180));
+        fontRendererObj.drawString("Receiver", x, guiTop + 150, 0x70401C);
+        drawBox(x + 78, guiTop + 147, 118, trim(factionName(receiverIndex), 108));
+        List lines = fontRendererObj.listFormattedStringToWidth(getCreateMessage(), 250);
         for (int i = 0; i < lines.size() && i < 3; i++) {
-            fontRendererObj.drawString(String.valueOf(lines.get(i)), x, guiTop + 171 + i * 10, canSendRequest() ? 0x3A2115 : 0x8A2B18);
+            fontRendererObj.drawString(String.valueOf(lines.get(i)), x, guiTop + 184 + i * 10, canSendRequest() ? 0x3A2115 : 0x8A2B18);
         }
     }
 
