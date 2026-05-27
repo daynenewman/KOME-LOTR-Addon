@@ -46,7 +46,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     @Override
     public void initGui() {
         xSize = 430;
-        ySize = 280;
+        ySize = 330;
         super.initGui();
         buttonMenuReturn = null;
         ensureFactions();
@@ -170,7 +170,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         if (createMode) {
             buttonList.add(new GuiButton(3, guiLeft + 134, guiTop + 145, 24, 20, "<"));
             buttonList.add(new GuiButton(4, guiLeft + 272, guiTop + 145, 24, 20, ">"));
-            GuiButton send = new GuiButton(5, guiLeft + 163, guiTop + 222, 104, 20, "Send Request");
+            GuiButton send = new GuiButton(5, guiLeft + 163, guiTop + ySize - 58, 104, 20, "Send Request");
             send.enabled = canSendRequest();
             buttonList.add(send);
             return;
@@ -188,16 +188,16 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return;
         }
         Record record = (Record) records.get(selected);
-        GuiButton accept = new GuiButton(20, guiLeft + 178, guiTop + 244, 58, 20, "Accept");
+        GuiButton accept = new GuiButton(20, guiLeft + 178, guiTop + ySize - 36, 58, 20, "Accept");
         accept.enabled = record.hasPending();
         buttonList.add(accept);
-        buttonList.add(new GuiButton(21, guiLeft + 240, guiTop + 244, 62, 20, "Ledger"));
-        buttonList.add(new GuiButton(22, guiLeft + 306, guiTop + 244, 58, 20, "Claim"));
-        GuiButton roll = new GuiButton(23, guiLeft + 240, guiTop + 219, 62, 20, "Roll");
+        buttonList.add(new GuiButton(21, guiLeft + 240, guiTop + ySize - 36, 62, 20, "Ledger"));
+        buttonList.add(new GuiButton(22, guiLeft + 306, guiTop + ySize - 36, 58, 20, "Claim"));
+        GuiButton roll = new GuiButton(23, guiLeft + 240, guiTop + ySize - 61, 62, 20, "Roll");
         roll.enabled = record.needsQuotaRoll(selectedType);
         buttonList.add(roll);
-        buttonList.add(new GuiButton(24, guiLeft + 178, guiTop + 219, 58, 20, "Break"));
-        buttonList.add(new GuiButton(25, guiLeft + 306, guiTop + 219, 58, 20, permissionMode ? "Tiers" : "Perms"));
+        buttonList.add(new GuiButton(24, guiLeft + 178, guiTop + ySize - 61, 58, 20, "Break"));
+        buttonList.add(new GuiButton(25, guiLeft + 306, guiTop + ySize - 61, 58, 20, permissionMode ? "Tiers" : "Perms"));
     }
 
     private void drawPanel() {
@@ -205,13 +205,13 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         Gui.drawRect(guiLeft + 4, guiTop + 4, guiLeft + xSize - 4, guiTop + ySize - 4, 0xFFE7D1A4);
         Gui.drawRect(guiLeft + 8, guiTop + 38, guiLeft + xSize - 8, guiTop + 40, 0xFF5D311E);
         if (createMode) {
-            Gui.drawRect(guiLeft + 58, guiTop + 62, guiLeft + xSize - 58, guiTop + 250, 0x553B250E);
-            Gui.drawRect(guiLeft + 63, guiTop + 67, guiLeft + xSize - 63, guiTop + 245, 0xFFEFD9AA);
+            Gui.drawRect(guiLeft + 58, guiTop + 62, guiLeft + xSize - 58, guiTop + ySize - 30, 0x553B250E);
+            Gui.drawRect(guiLeft + 63, guiTop + 67, guiLeft + xSize - 63, guiTop + ySize - 35, 0xFFEFD9AA);
             Gui.drawRect(guiLeft + 76, guiTop + 96, guiLeft + xSize - 76, guiTop + 98, 0x664A2A18);
         } else {
             Gui.drawRect(guiLeft + 164, guiTop + 45, guiLeft + 166, guiTop + ySize - 12, 0xAA5D311E);
-            Gui.drawRect(guiLeft + 14, guiTop + 52, guiLeft + 158, guiTop + 258, 0x33281610);
-            Gui.drawRect(guiLeft + 174, guiTop + 77, guiLeft + xSize - 16, guiTop + 214, 0x22281610);
+            Gui.drawRect(guiLeft + 14, guiTop + 52, guiLeft + 158, guiTop + ySize - 22, 0x33281610);
+            Gui.drawRect(guiLeft + 174, guiTop + 77, guiLeft + xSize - 16, guiTop + ySize - 90, 0x22281610);
         }
     }
 
@@ -256,11 +256,11 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         int tier = record.getTier(selectedType);
         fontRendererObj.drawString(TYPES[selectedType] + " " + displayTier(tier), x, guiTop + 100, tier >= 0 ? 0x275018 : 0x8A2B18);
         if (permissionMode) {
-            drawPermissionSummary(record, x, guiTop + 112, 220, 98);
+            drawPermissionSummary(record, x, guiTop + 112, 220, 126);
         } else {
-            drawTierSections(record, x, guiTop + 112, 220, 98);
+            drawTierSections(record, x, guiTop + 112, 220, 126);
         }
-        fontRendererObj.drawString("Last: " + trim(record.lastUpdatedBy.length() == 0 ? "server" : record.lastUpdatedBy, 140), x, guiTop + 215, 0x70401C);
+        fontRendererObj.drawString("Last: " + trim(record.lastUpdatedBy.length() == 0 ? "server" : record.lastUpdatedBy, 168), x, guiTop + ySize - 86, 0x70401C);
     }
 
     private void drawTierSections(Record record, int x, int y, int width, int height) {
@@ -288,9 +288,6 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             cursorY += panelHeight;
         }
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
-        if (max > 0) {
-            fontRendererObj.drawString((detailScroll + 1) + "/" + (max + 1), x + width - 34, y + height + 2, 0x70401C);
-        }
     }
 
     private int getTierPanelHeight(int tierIndex) {
@@ -298,7 +295,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private int getMaxDetailScroll(Record record) {
-        int visibleHeight = permissionMode ? 98 : 98;
+        int visibleHeight = 126;
         return Math.max(0, getDetailContentHeight(record) - visibleHeight);
     }
 
@@ -341,9 +338,6 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             cursorY += 4;
         }
         GL11.glDisable(GL11.GL_SCISSOR_TEST);
-        if (max > 0) {
-            fontRendererObj.drawString((detailScroll + 1) + "/" + (max + 1), x + width - 34, y + height + 2, 0x70401C);
-        }
     }
 
     private String getTierRequirement(Record record, int tierIndex) {
@@ -516,7 +510,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private int getVisibleRows() {
-        return 5;
+        return Math.max(5, (ySize - 86) / 35);
     }
 
     private String factionKey(int index) {
