@@ -189,7 +189,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         GuiButton accept = new GuiButton(20, guiLeft + 178, guiTop + 244, 58, 20, "Accept");
         accept.enabled = record.hasPending();
         buttonList.add(accept);
-        buttonList.add(new GuiButton(21, guiLeft + 240, guiTop + 244, 62, 20, "Deposit"));
+        buttonList.add(new GuiButton(21, guiLeft + 240, guiTop + 244, 62, 20, "Ledger"));
         buttonList.add(new GuiButton(22, guiLeft + 306, guiTop + 244, 58, 20, "Claim"));
         GuiButton roll = new GuiButton(23, guiLeft + 240, guiTop + 219, 62, 20, "Roll");
         roll.enabled = record.needsQuotaRoll(selectedType);

@@ -48,6 +48,9 @@ public class KOMEAllianceInventory implements IInventory {
         if (stack != null && stack.stackSize > getInventoryStackLimit()) {
             stack.stackSize = getInventoryStackLimit();
         }
+        if (stack != null && depositQuotaStack(stack)) {
+            stack = stack.stackSize > 0 ? stack : null;
+        }
         alliance.setStorage(index, stack);
         markDirty();
     }
@@ -69,8 +72,6 @@ public class KOMEAllianceInventory implements IInventory {
 
     @Override
     public void markDirty() {
-        processFoodQuota("military.food");
-        processFoodQuota("trade.food");
         applyCoinUnlocks();
         data.markDirty();
     }
@@ -122,22 +123,6 @@ public class KOMEAllianceInventory implements IInventory {
         return value;
     }
 
-    private void processFoodQuota(String id) {
-        Quota quota = parseQuota(alliance.getAssignment(id));
-        if (quota == null) {
-            return;
-        }
-        int deposited = 0;
-        for (int i = 0; i < getSizeInventory(); i++) {
-            ItemStack stack = getStackInSlot(i);
-            if (stack == null || !matches(stack, quota)) {
-                continue;
-            }
-            deposited += stack.stackSize;
-        }
-        alliance.setDelivered(id, Math.min(deposited, quota.requiredUnits));
-    }
-
     private boolean isAcceptedRequirement(ItemStack stack) {
         if (stack.getItem() instanceof LOTRItemCoin) {
             return getNeededCoinValue() > 0;
@@ -163,6 +148,29 @@ public class KOMEAllianceInventory implements IInventory {
             needed += 5000;
         }
         return Math.max(0, needed - getCoinValue());
+    }
+
+    private boolean depositQuotaStack(ItemStack stack) {
+        return depositQuotaStack(stack, "military.food", alliance.militaryTier)
+            || depositQuotaStack(stack, "trade.food", alliance.tradeTier);
+    }
+
+    private boolean depositQuotaStack(ItemStack stack, String id, int tier) {
+        Quota quota = parseQuota(alliance.getAssignment(id));
+        if (tier != 0 || quota == null || !matches(stack, quota)) {
+            return false;
+        }
+        int needed = quota.requiredUnits - alliance.getDelivered(id);
+        if (needed <= 0) {
+            return false;
+        }
+        int taken = Math.min(stack.stackSize, needed);
+        ItemStack sample = stack.copy();
+        sample.stackSize = 1;
+        alliance.addDelivered(id, taken);
+        alliance.addClaimGoods(id, sample, taken);
+        stack.stackSize -= taken;
+        return true;
     }
 
     private boolean matches(ItemStack stack, Quota quota) {

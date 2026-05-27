@@ -177,7 +177,7 @@ public class KOMECommandAlliance extends CommandBase {
             }
             requireGoodsDepositPermission(sender, data, senderFaction);
             player.displayGUIChest(new KOMEAllianceInventory(data, alliance));
-            sender.addChatMessage(new ChatComponentText("Opened alliance goods for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
+            sender.addChatMessage(new ChatComponentText("Opened alliance goods for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ". Quota items are compressed into the ledger."));
             return;
         }
         if ("claimGoods".equalsIgnoreCase(args[0]) || "claim".equalsIgnoreCase(args[0])) {
@@ -277,7 +277,30 @@ public class KOMECommandAlliance extends CommandBase {
             alliance.setStorage(i, null);
             claimed++;
         }
+        claimed += claimVirtualGoods(player, alliance, "military.food");
+        claimed += claimVirtualGoods(player, alliance, "trade.food");
         player.inventoryContainer.detectAndSendChanges();
+        return claimed;
+    }
+
+    private int claimVirtualGoods(EntityPlayerMP player, KOMEAlliance alliance, String id) {
+        ItemStack sample = alliance.getClaimSample(id);
+        int amount = alliance.getClaimAmount(id);
+        if (sample == null || amount <= 0) {
+            return 0;
+        }
+        int claimed = 0;
+        int max = Math.max(1, sample.getMaxStackSize());
+        while (amount > 0) {
+            ItemStack stack = sample.copy();
+            stack.stackSize = Math.min(max, amount);
+            amount -= stack.stackSize;
+            if (!player.inventory.addItemStackToInventory(stack)) {
+                player.dropPlayerItemWithRandomChoice(stack, false);
+            }
+            claimed++;
+        }
+        alliance.clearClaimGoods(id);
         return claimed;
     }
 
@@ -379,6 +402,7 @@ public class KOMECommandAlliance extends CommandBase {
         alliance.setAssignment(id, KOMEProgressionTaskGenerator.roll("serf.food_quota_1", seed));
         if (resetDelivered) {
             alliance.setDelivered(id, 0);
+            alliance.clearClaimGoods(id);
         }
     }
 

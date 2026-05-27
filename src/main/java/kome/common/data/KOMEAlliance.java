@@ -10,7 +10,7 @@ public class KOMEAlliance {
     public static final String CIVIL = "civil";
     public static final String MILITARY = "military";
     public static final String TRADE = "trade";
-    public static final int STORAGE_SLOTS = 54;
+    public static final int STORAGE_SLOTS = 9;
     public static final int NONE = -1;
     public static final int PENDING = -2;
 
@@ -24,6 +24,8 @@ public class KOMEAlliance {
     private final ItemStack[] storage = new ItemStack[STORAGE_SLOTS];
     private final Map<String, String> assignments = new HashMap<String, String>();
     private final Map<String, Integer> delivered = new HashMap<String, Integer>();
+    private final Map<String, ItemStack> claimSamples = new HashMap<String, ItemStack>();
+    private final Map<String, Integer> claimAmounts = new HashMap<String, Integer>();
 
     public KOMEAlliance(String factionA, String factionB) {
         this.factionA = normalizeFactionKey(factionA);
@@ -95,6 +97,31 @@ public class KOMEAlliance {
         }
     }
 
+    public ItemStack getClaimSample(String id) {
+        ItemStack stack = claimSamples.get(id);
+        return stack == null ? null : stack.copy();
+    }
+
+    public int getClaimAmount(String id) {
+        Integer amount = claimAmounts.get(id);
+        return amount == null ? 0 : amount.intValue();
+    }
+
+    public void addClaimGoods(String id, ItemStack sample, int amount) {
+        if (id == null || sample == null || amount <= 0) {
+            return;
+        }
+        ItemStack stored = sample.copy();
+        stored.stackSize = 1;
+        claimSamples.put(id, stored);
+        claimAmounts.put(id, Integer.valueOf(getClaimAmount(id) + amount));
+    }
+
+    public void clearClaimGoods(String id) {
+        claimSamples.remove(id);
+        claimAmounts.remove(id);
+    }
+
     public ItemStack getStorage(int slot) {
         return slot >= 0 && slot < storage.length ? storage[slot] : null;
     }
@@ -131,6 +158,8 @@ public class KOMEAlliance {
         updatedWorldTime = nbt.getLong("UpdatedWorldTime");
         assignments.clear();
         delivered.clear();
+        claimSamples.clear();
+        claimAmounts.clear();
         NBTTagList assignmentList = nbt.getTagList("Assignments", 10);
         for (int i = 0; i < assignmentList.tagCount(); i++) {
             NBTTagCompound entry = assignmentList.getCompoundTagAt(i);
@@ -150,6 +179,18 @@ public class KOMEAlliance {
             int slot = entry.getByte("Slot") & 255;
             if (slot >= 0 && slot < storage.length) {
                 storage[slot] = ItemStack.loadItemStackFromNBT(entry);
+            }
+        }
+        NBTTagList claimList = nbt.getTagList("ClaimGoods", 10);
+        for (int i = 0; i < claimList.tagCount(); i++) {
+            NBTTagCompound entry = claimList.getCompoundTagAt(i);
+            String id = entry.getString("ID");
+            ItemStack sample = ItemStack.loadItemStackFromNBT(entry.getCompoundTag("Stack"));
+            int amount = entry.getInteger("Amount");
+            if (id.length() > 0 && sample != null && amount > 0) {
+                sample.stackSize = 1;
+                claimSamples.put(id, sample);
+                claimAmounts.put(id, Integer.valueOf(amount));
             }
         }
     }
@@ -189,6 +230,21 @@ public class KOMEAlliance {
             }
         }
         nbt.setTag("Storage", storageList);
+        NBTTagList claimList = new NBTTagList();
+        for (Map.Entry<String, Integer> entry : claimAmounts.entrySet()) {
+            ItemStack sample = claimSamples.get(entry.getKey());
+            if (sample == null || entry.getValue().intValue() <= 0) {
+                continue;
+            }
+            NBTTagCompound item = new NBTTagCompound();
+            item.setString("ID", entry.getKey());
+            item.setInteger("Amount", entry.getValue().intValue());
+            NBTTagCompound stack = new NBTTagCompound();
+            sample.writeToNBT(stack);
+            item.setTag("Stack", stack);
+            claimList.appendTag(item);
+        }
+        nbt.setTag("ClaimGoods", claimList);
         return nbt;
     }
 
