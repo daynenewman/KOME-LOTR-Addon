@@ -91,7 +91,7 @@ public class KOMEAllianceInventory implements IInventory {
 
     @Override
     public boolean isItemValidForSlot(int index, ItemStack stack) {
-        return true;
+        return stack != null && isAcceptedRequirement(stack);
     }
 
     private void applyCoinUnlocks() {
@@ -127,24 +127,42 @@ public class KOMEAllianceInventory implements IInventory {
         if (quota == null) {
             return;
         }
+        int deposited = 0;
         for (int i = 0; i < getSizeInventory(); i++) {
             ItemStack stack = getStackInSlot(i);
             if (stack == null || !matches(stack, quota)) {
                 continue;
             }
-            int needed = quota.requiredUnits - alliance.getDelivered(id);
-            if (needed <= 0) {
-                return;
-            }
-            int taken = Math.min(stack.stackSize, needed);
-            alliance.addDelivered(id, taken);
-            stack.stackSize -= taken;
-            if (stack.stackSize <= 0) {
-                alliance.setStorage(i, null);
-            } else {
-                alliance.setStorage(i, stack);
-            }
+            deposited += stack.stackSize;
         }
+        alliance.setDelivered(id, Math.min(deposited, quota.requiredUnits));
+    }
+
+    private boolean isAcceptedRequirement(ItemStack stack) {
+        if (stack.getItem() instanceof LOTRItemCoin) {
+            return getNeededCoinValue() > 0;
+        }
+        return matchesActiveQuota(stack);
+    }
+
+    private boolean matchesActiveQuota(ItemStack stack) {
+        Quota militaryQuota = parseQuota(alliance.getAssignment("military.food"));
+        if (alliance.militaryTier == 0 && militaryQuota != null && alliance.getDelivered("military.food") < militaryQuota.requiredUnits && matches(stack, militaryQuota)) {
+            return true;
+        }
+        Quota tradeQuota = parseQuota(alliance.getAssignment("trade.food"));
+        return alliance.tradeTier == 0 && tradeQuota != null && alliance.getDelivered("trade.food") < tradeQuota.requiredUnits && matches(stack, tradeQuota);
+    }
+
+    private int getNeededCoinValue() {
+        int needed = 0;
+        if (alliance.civilTier == 0) {
+            needed += 1000;
+        }
+        if (alliance.tradeTier == 0) {
+            needed += 5000;
+        }
+        return Math.max(0, needed - getCoinValue());
     }
 
     private boolean matches(ItemStack stack, Quota quota) {

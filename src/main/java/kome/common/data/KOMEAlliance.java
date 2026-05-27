@@ -87,6 +87,14 @@ public class KOMEAlliance {
         }
     }
 
+    public void setDelivered(String id, int amount) {
+        if (amount <= 0) {
+            delivered.remove(id);
+        } else {
+            delivered.put(id, Integer.valueOf(amount));
+        }
+    }
+
     public ItemStack getStorage(int slot) {
         return slot >= 0 && slot < storage.length ? storage[slot] : null;
     }
