@@ -110,7 +110,7 @@ public class KOMEAllianceInventory implements IInventory {
         }
         if (alliance.tradeTier == 0 && alliance.getDelivered("trade.coins") >= 5000) {
             Quota quota = parseQuota(alliance.getAssignment("trade.food"));
-            if (quota == null || alliance.getDelivered("trade.food") >= quota.requiredUnits) {
+            if (quota != null && alliance.getDelivered("trade.food") >= quota.requiredUnits) {
                 alliance.setTier(KOMEAlliance.TRADE, 1, "Alliance goods", alliance.updatedWorldTime);
             }
         }

@@ -108,8 +108,10 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
                 KOMEMinecraftClient.sendChat("/alliance claimGoods " + record.keyA + " " + record.keyB);
                 requestAlliances();
             } else if (button.id == 23) {
-                KOMEMinecraftClient.sendChat("/alliance roll " + (selectedType == 1 ? "military" : "trade") + " " + record.keyA + " " + record.keyB);
-                requestAlliances();
+                String type = selectedType == 1 ? "military" : selectedType == 2 ? "trade" : "";
+                if (!type.isEmpty()) {
+                    KOMEMinecraftClient.sendChat("/alliance roll " + type + " " + record.keyA + " " + record.keyB);
+                }
             } else if (button.id == 24) {
                 KOMEMinecraftClient.sendChat("/alliance break " + record.keyA + " " + record.keyB);
                 selected = -1;

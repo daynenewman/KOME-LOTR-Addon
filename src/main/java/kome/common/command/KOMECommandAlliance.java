@@ -2,9 +2,12 @@ package kome.common.command;
 
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceInventory;
+import kome.common.data.KOMEAllianceRecordBuilder;
 import kome.common.data.KOMEPlayerProgression;
 import kome.common.data.KOMEProgressionTaskGenerator;
 import kome.common.data.KOMEWorldData;
+import kome.common.network.KOMEPacketAllianceData;
+import kome.common.network.KOMEPacketHandler;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -136,6 +139,7 @@ public class KOMECommandAlliance extends CommandBase {
             ensureFoodQuota(alliance, id, sender);
             data.markDirty();
             sender.addChatMessage(new ChatComponentText("Rolled " + displayType(type) + " alliance quota: " + alliance.getAssignment(id)));
+            sendAllianceRefresh(sender, data);
             return;
         }
         if ("reroll".equalsIgnoreCase(args[0]) || "rerollQuota".equalsIgnoreCase(args[0])) {
@@ -162,6 +166,7 @@ public class KOMECommandAlliance extends CommandBase {
                 sender.addChatMessage(new ChatComponentText("Previous: " + previous));
             }
             sender.addChatMessage(new ChatComponentText("New: " + alliance.getAssignment(id)));
+            sendAllianceRefresh(sender, data);
             return;
         }
         if ("goods".equalsIgnoreCase(args[0]) || "storage".equalsIgnoreCase(args[0])) {
@@ -334,6 +339,13 @@ public class KOMECommandAlliance extends CommandBase {
             return;
         }
         sender.addChatMessage(new ChatComponentText(formatAlliance(alliance)));
+    }
+
+    private void sendAllianceRefresh(ICommandSender sender, KOMEWorldData data) {
+        if (sender instanceof EntityPlayerMP) {
+            EntityPlayerMP player = (EntityPlayerMP) sender;
+            KOMEPacketHandler.network.sendTo(new KOMEPacketAllianceData(KOMEAllianceRecordBuilder.build(data, player)), player);
+        }
     }
 
     private String formatAlliance(KOMEAlliance alliance) {
