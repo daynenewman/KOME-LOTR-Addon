@@ -29,7 +29,7 @@ public class KOMECommandAlliance extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/alliance request|accept|break <senderFaction> <receiverFaction> | roll|reroll <military|trade> <senderFaction> <receiverFaction> | goods|claimGoods <senderFaction> <receiverFaction> | get <senderFaction> <receiverFaction> | set <civil|military|trade> <senderFaction> <receiverFaction> <tier> | clear <senderFaction> <receiverFaction> | list [faction] | benefits";
+        return "/alliance request|accept|break <civil|military|trade> <senderFaction> <receiverFaction> | roll|reroll <military|trade> <senderFaction> <receiverFaction> | goods|claimGoods <senderFaction> <receiverFaction> | get <senderFaction> <receiverFaction> | set <civil|military|trade> <senderFaction> <receiverFaction> <tier> | clear <senderFaction> <receiverFaction> | list [faction] | benefits";
     }
 
     @Override
@@ -61,12 +61,12 @@ public class KOMECommandAlliance extends CommandBase {
             return;
         }
         if ("request".equalsIgnoreCase(args[0])) {
-            if (args.length != 3 && args.length != 4) {
+            if (args.length != 4) {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
-            int offset = args.length == 4 ? 1 : 0;
-            String senderFaction = parseFaction(args[1 + offset]);
-            String receiverFaction = parseFaction(args[2 + offset]);
+            String type = parseType(args[1]);
+            String senderFaction = parseFaction(args[2]);
+            String receiverFaction = parseFaction(args[3]);
             requireSenderFaction(sender, data, senderFaction);
             if (senderFaction.equals(receiverFaction)) {
                 throw new WrongUsageException("A faction cannot ally with itself.");
@@ -76,44 +76,57 @@ public class KOMECommandAlliance extends CommandBase {
             }
             KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, true);
             int status = data.hasFactionKing(receiverFaction) ? KOMEAlliance.PENDING : 0;
-            setInitialTier(alliance, KOMEAlliance.CIVIL, status, sender);
-            setInitialTier(alliance, KOMEAlliance.MILITARY, status, sender);
-            setInitialTier(alliance, KOMEAlliance.TRADE, status, sender);
+            setInitialTier(alliance, type, status, sender);
             data.markDirty();
             if (status == KOMEAlliance.PENDING) {
-                sender.addChatMessage(new ChatComponentText("Requested alliance: " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ". Waiting for " + data.getFactionKingName(receiverFaction) + " to accept."));
+                sender.addChatMessage(new ChatComponentText("Requested " + displayType(type) + " alliance: " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ". Waiting for " + data.getFactionKingName(receiverFaction) + " to accept."));
             } else {
-                sender.addChatMessage(new ChatComponentText("Accepted automatically: " + displayFaction(receiverFaction) + " has no recorded king. " + displayFaction(senderFaction) + " now has alliance tier 0."));
+                sender.addChatMessage(new ChatComponentText("Accepted automatically: " + displayFaction(receiverFaction) + " has no recorded king. " + displayFaction(senderFaction) + " now has " + displayType(type) + " tier 0."));
             }
             return;
         }
         if ("accept".equalsIgnoreCase(args[0])) {
-            if (args.length != 3 && args.length != 4) {
+            if (args.length != 4) {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
-            int offset = args.length == 4 ? 1 : 0;
-            String senderFaction = parseFaction(args[1 + offset]);
-            String receiverFaction = parseFaction(args[2 + offset]);
+            String type = parseType(args[1]);
+            String senderFaction = parseFaction(args[2]);
+            String receiverFaction = parseFaction(args[3]);
             if (!sender.canCommandSenderUseCommand(2, getCommandName()) && !data.isFactionKing(receiverFaction, kome.common.KOMEReflection.getEntityUUID(getCommandSenderAsPlayer(sender)))) {
                 throw new WrongUsageException("Only staff or the receiving faction king can accept this alliance.");
             }
-            KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, true);
-            acceptTier(alliance, KOMEAlliance.CIVIL, sender);
-            acceptTier(alliance, KOMEAlliance.MILITARY, sender);
-            acceptTier(alliance, KOMEAlliance.TRADE, sender);
+            KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, false);
+            if (alliance == null || !alliance.hasAnyAlliance()) {
+                throw new WrongUsageException("No alliance request exists for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ".");
+            }
+            if (alliance.getTier(type) != KOMEAlliance.PENDING) {
+                throw new WrongUsageException("No pending " + displayType(type) + " alliance exists for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ".");
+            }
+            acceptTier(alliance, type, sender);
             data.markDirty();
-            sender.addChatMessage(new ChatComponentText("Accepted alliance: " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
+            sender.addChatMessage(new ChatComponentText("Accepted " + displayType(type) + " alliance: " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
             return;
         }
         if ("break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0])) {
-            if (args.length != 3) {
+            if (args.length != 3 && args.length != 4) {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
-            String senderFaction = parseFaction(args[1]);
-            String receiverFaction = parseFaction(args[2]);
+            String type = args.length == 4 ? parseType(args[1]) : "";
+            String senderFaction = parseFaction(args[args.length - 2]);
+            String receiverFaction = parseFaction(args[args.length - 1]);
             requireBreakPermission(sender, data, senderFaction, receiverFaction);
-            boolean removed = data.clearAlliance(senderFaction, receiverFaction);
-            sender.addChatMessage(new ChatComponentText((removed ? "Broke alliance: " : "No alliance found for ") + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
+            KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, false);
+            boolean removed;
+            if (type.isEmpty()) {
+                removed = data.clearAlliance(senderFaction, receiverFaction);
+            } else {
+                removed = alliance != null && alliance.getTier(type) != KOMEAlliance.NONE;
+                if (removed) {
+                    alliance.setTier(type, KOMEAlliance.NONE, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
+                    data.markDirty();
+                }
+            }
+            sender.addChatMessage(new ChatComponentText((removed ? "Broke " + (type.isEmpty() ? "" : displayType(type) + " ") + "alliance: " : "No alliance found for ") + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
             return;
         }
         if ("roll".equalsIgnoreCase(args[0])) {
@@ -249,6 +262,9 @@ public class KOMECommandAlliance extends CommandBase {
         if (args.length == 2 && "set".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, KOMEAlliance.CIVIL, KOMEAlliance.MILITARY, KOMEAlliance.TRADE);
         }
+        if (args.length == 2 && ("request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]) || "break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]))) {
+            return getListOfStringsMatchingLastWord(args, KOMEAlliance.CIVIL, KOMEAlliance.MILITARY, KOMEAlliance.TRADE);
+        }
         if (args.length == 2 && "roll".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, KOMEAlliance.MILITARY, KOMEAlliance.TRADE);
         }
@@ -265,7 +281,7 @@ public class KOMECommandAlliance extends CommandBase {
     private boolean isFactionArgument(String[] args) {
         return args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "goods".equalsIgnoreCase(args[0]) || "claimGoods".equalsIgnoreCase(args[0]) || "claim".equalsIgnoreCase(args[0]) || "list".equalsIgnoreCase(args[0]))
             || args.length == 3 && ("get".equalsIgnoreCase(args[0]) || "clear".equalsIgnoreCase(args[0]) || "break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "goods".equalsIgnoreCase(args[0]) || "claimGoods".equalsIgnoreCase(args[0]) || "claim".equalsIgnoreCase(args[0]) || "set".equalsIgnoreCase(args[0]) || "roll".equalsIgnoreCase(args[0]) || "reroll".equalsIgnoreCase(args[0]) || "rerollQuota".equalsIgnoreCase(args[0]) || "request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]))
-            || args.length == 4 && ("set".equalsIgnoreCase(args[0]) || "roll".equalsIgnoreCase(args[0]) || "reroll".equalsIgnoreCase(args[0]) || "rerollQuota".equalsIgnoreCase(args[0]) || "request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]));
+            || args.length == 4 && ("set".equalsIgnoreCase(args[0]) || "roll".equalsIgnoreCase(args[0]) || "reroll".equalsIgnoreCase(args[0]) || "rerollQuota".equalsIgnoreCase(args[0]) || "request".equalsIgnoreCase(args[0]) || "accept".equalsIgnoreCase(args[0]) || "break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]));
     }
 
     private int claimStoredGoods(EntityPlayerMP player, KOMEAlliance alliance) {
@@ -421,7 +437,7 @@ public class KOMECommandAlliance extends CommandBase {
     }
 
     private void acceptTier(KOMEAlliance alliance, String type, ICommandSender sender) {
-        if (alliance.getTier(type) == KOMEAlliance.PENDING || alliance.getTier(type) == KOMEAlliance.NONE) {
+        if (alliance.getTier(type) == KOMEAlliance.PENDING) {
             alliance.setTier(type, 0, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
         }
     }

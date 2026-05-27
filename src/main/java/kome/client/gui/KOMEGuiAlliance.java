@@ -32,6 +32,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
 
     private int selected = -1;
     private int selectedType;
+    private int createType;
     private int receiverIndex = 1;
     private int scroll;
     private int detailScroll;
@@ -93,13 +94,15 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             receiverIndex = nextReceiver(1);
         } else if (button.id == 5) {
             sendRequestCommand();
+        } else if (button.id >= 6 && button.id <= 8) {
+            createType = button.id - 6;
         } else if (button.id >= 10 && button.id <= 12) {
             selectedType = button.id - 10;
             detailScroll = 0;
         } else if (selected >= 0 && selected < records.size()) {
             Record record = (Record) records.get(selected);
             if (button.id == 20) {
-                KOMEMinecraftClient.sendChat("/alliance accept " + record.keyA + " " + record.keyB);
+                KOMEMinecraftClient.sendChat("/alliance accept " + typeKey(selectedType) + " " + record.keyA + " " + record.keyB);
                 requestAlliances();
             } else if (button.id == 21) {
                 KOMEMinecraftClient.sendChat("/alliance goods " + record.keyA + " " + record.keyB);
@@ -113,7 +116,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
                     KOMEMinecraftClient.sendChat("/alliance roll " + type + " " + record.keyA + " " + record.keyB);
                 }
             } else if (button.id == 24) {
-                KOMEMinecraftClient.sendChat("/alliance break " + record.keyA + " " + record.keyB);
+                KOMEMinecraftClient.sendChat("/alliance break " + typeKey(selectedType) + " " + record.keyA + " " + record.keyB);
                 selected = -1;
                 requestAlliances();
             } else if (button.id == 25) {
@@ -168,11 +171,20 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         buttonList.add(new GuiButton(1, guiLeft + 15, guiTop + 12, 48, 20, "Menu"));
         buttonList.add(new GuiButton(2, guiLeft + xSize - 68, guiTop + 12, 52, 20, createMode ? "List" : "New"));
         if (createMode) {
+            buttonList.add(new GuiButton(6, guiLeft + 96, guiTop + 101, 62, 18, "Civil"));
+            buttonList.add(new GuiButton(7, guiLeft + 176, guiTop + 101, 76, 18, "Military"));
+            buttonList.add(new GuiButton(8, guiLeft + 270, guiTop + 101, 62, 18, "Trade"));
             buttonList.add(new GuiButton(3, guiLeft + 134, guiTop + 145, 24, 20, "<"));
             buttonList.add(new GuiButton(4, guiLeft + 272, guiTop + 145, 24, 20, ">"));
             GuiButton send = new GuiButton(5, guiLeft + 163, guiTop + ySize - 58, 104, 20, "Send Request");
             send.enabled = canSendRequest();
             buttonList.add(send);
+            for (Object object : buttonList) {
+                GuiButton createButton = (GuiButton) object;
+                if (createButton.id >= 6 && createButton.id <= 8) {
+                    createButton.enabled = createType != createButton.id - 6;
+                }
+            }
             return;
         }
         buttonList.add(new GuiButton(10, guiLeft + 178, guiTop + 52, 62, 18, "Civil"));
@@ -189,7 +201,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         }
         Record record = (Record) records.get(selected);
         GuiButton accept = new GuiButton(20, guiLeft + 178, guiTop + ySize - 36, 58, 20, "Accept");
-        accept.enabled = record.hasPending();
+        accept.enabled = record.hasPending(selectedType);
         buttonList.add(accept);
         buttonList.add(new GuiButton(21, guiLeft + 240, guiTop + ySize - 36, 62, 20, "Ledger"));
         buttonList.add(new GuiButton(22, guiLeft + 306, guiTop + ySize - 36, 58, 20, "Claim"));
@@ -372,13 +384,14 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private void drawCreate() {
         int x = guiLeft + 92;
         drawCenteredString(fontRendererObj, "Send a one-way alliance request", guiLeft + xSize / 2, guiTop + 77, 0x2B160D);
-        fontRendererObj.drawString("Sender", x, guiTop + 112, 0x70401C);
-        drawBox(x + 58, guiTop + 109, 190, trim(viewerFactionName, 180));
-        fontRendererObj.drawString("Receiver", x, guiTop + 150, 0x70401C);
-        drawBox(x + 78, guiTop + 147, 118, trim(factionName(receiverIndex), 108));
+        drawCenteredString(fontRendererObj, TYPES[createType], guiLeft + xSize / 2, guiTop + 126, 0x5D311E);
+        fontRendererObj.drawString("Sender", x, guiTop + 144, 0x70401C);
+        drawBox(x + 58, guiTop + 141, 190, trim(viewerFactionName, 180));
+        fontRendererObj.drawString("Receiver", x, guiTop + 174, 0x70401C);
+        drawBox(x + 78, guiTop + 171, 118, trim(factionName(receiverIndex), 108));
         List lines = fontRendererObj.listFormattedStringToWidth(getCreateMessage(), 250);
         for (int i = 0; i < lines.size() && i < 3; i++) {
-            fontRendererObj.drawString(String.valueOf(lines.get(i)), x, guiTop + 184 + i * 10, canSendRequest() ? 0x3A2115 : 0x8A2B18);
+            fontRendererObj.drawString(String.valueOf(lines.get(i)), x, guiTop + 204 + i * 10, canSendRequest() ? 0x3A2115 : 0x8A2B18);
         }
     }
 
@@ -410,16 +423,20 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         if (isEnemyAlliance(viewerFactionKey, factionKey(receiverIndex))) {
             return "Enemy factions cannot form alliances.";
         }
-        return "The request starts Civil, Military, and Trade at tier 0 after acceptance.";
+        return "This sends only a " + TYPES[createType] + " request. The other alliance types must be requested separately.";
     }
 
     private void sendRequestCommand() {
         if (!canSendRequest()) {
             return;
         }
-        KOMEMinecraftClient.sendChat("/alliance request " + viewerFactionKey + " " + factionKey(receiverIndex));
+        KOMEMinecraftClient.sendChat("/alliance request " + typeKey(createType) + " " + viewerFactionKey + " " + factionKey(receiverIndex));
         createMode = false;
         requestAlliances();
+    }
+
+    private String typeKey(int type) {
+        return type == 0 ? "civil" : type == 1 ? "military" : "trade";
     }
 
     private String statusLine(Record record) {
@@ -626,6 +643,10 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
 
         private boolean hasPending() {
             return civilTier == -2 || militaryTier == -2 || tradeTier == -2;
+        }
+
+        private boolean hasPending(int type) {
+            return getTier(type) == -2;
         }
 
         private boolean needsQuotaRoll(int type) {
