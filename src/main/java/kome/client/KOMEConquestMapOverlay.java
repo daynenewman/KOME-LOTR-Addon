@@ -46,8 +46,12 @@ public class KOMEConquestMapOverlay {
     private static int renderedClaimRevision = -1;
     private static DynamicTexture highlightTexture;
     private static DynamicTexture claimedTexture;
+    private static DynamicTexture borderGuideTexture;
+    private static DynamicTexture labelTexture;
     private static ResourceLocation highlightTextureLocation;
     private static ResourceLocation claimedTextureLocation;
+    private static ResourceLocation borderGuideTextureLocation;
+    private static ResourceLocation labelTextureLocation;
     private static boolean showConquestTiles = true;
     private static final Map<Integer, String> tileIdsByColor = new HashMap<>();
     private static final Map<String, Integer> tileColorsById = new HashMap<>();
@@ -75,8 +79,8 @@ public class KOMEConquestMapOverlay {
         if (tileColor != 0) {
             drawHighlightTexture(map, tileColor, getClaimedFactionColor(tileColor));
         }
-        drawMapTexture(map, BORDER_GUIDE, 1.0f);
-        drawMapTexture(map, LABELS, 1.0f);
+        drawMapTexture(map, getBorderGuideTextureLocation(), 1.0f);
+        drawMapTexture(map, getLabelTextureLocation(), 1.0f);
     }
 
     @SubscribeEvent
@@ -170,6 +174,42 @@ public class KOMEConquestMapOverlay {
             return true;
         } catch (Exception e) {
             return false;
+        }
+    }
+
+    private static ResourceLocation getBorderGuideTextureLocation() {
+        if (borderGuideTextureLocation == null) {
+            borderGuideTextureLocation = loadDynamicTexture("kome_conquest_borders", BORDER_GUIDE);
+        }
+        return borderGuideTextureLocation;
+    }
+
+    private static ResourceLocation getLabelTextureLocation() {
+        if (labelTextureLocation == null) {
+            labelTextureLocation = loadDynamicTexture("kome_conquest_labels", LABELS);
+        }
+        return labelTextureLocation;
+    }
+
+    private static ResourceLocation loadDynamicTexture(String name, ResourceLocation resource) {
+        try {
+            InputStream input = KOMEMinecraftClient.resourceManager().getResource(resource).getInputStream();
+            BufferedImage image = ImageIO.read(input);
+            input.close();
+            if (image == null) {
+                return null;
+            }
+            DynamicTexture texture = new DynamicTexture(image.getWidth(), image.getHeight());
+            image.getRGB(0, 0, image.getWidth(), image.getHeight(), texture.getTextureData(), 0, image.getWidth());
+            texture.updateDynamicTexture();
+            if (resource == BORDER_GUIDE) {
+                borderGuideTexture = texture;
+            } else if (resource == LABELS) {
+                labelTexture = texture;
+            }
+            return KOMEMinecraftClient.textureManager().getDynamicTextureLocation(name, texture);
+        } catch (Exception e) {
+            return null;
         }
     }
 
@@ -358,6 +398,9 @@ public class KOMEConquestMapOverlay {
     }
 
     private static void drawMapTexture(LOTRGuiMap map, ResourceLocation texture, float alpha) {
+        if (texture == null) {
+            return;
+        }
         int mapWidth = mapInt("mapWidth");
         int mapHeight = mapInt("mapHeight");
         int mapXMin = mapInt("mapXMin");
