@@ -9,6 +9,7 @@ import kome.common.network.KOMEPacketHandler;
 import lotr.client.gui.LOTRGuiMap;
 import lotr.common.fac.LOTRFaction;
 import lotr.common.world.genlayer.LOTRGenLayerWorld;
+import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.Tessellator;
@@ -81,6 +82,9 @@ public class KOMEConquestMapOverlay {
         }
         drawMapTexture(map, getBorderGuideTextureLocation(), 1.0f);
         drawMapTexture(map, getLabelTextureLocation(), 1.0f);
+        if (tileColor != 0) {
+            drawTileTooltip(map, tileColor, event.mouseX, event.mouseY);
+        }
     }
 
     @SubscribeEvent
@@ -395,6 +399,28 @@ public class KOMEConquestMapOverlay {
         }
         KOMEConquestTile tile = (KOMEConquestTile) KOMEClientData.INSTANCE.conquestTiles.get(tileId);
         return tile != null && tile.isClaimed() ? factionArgb(tile.ownerFaction) : UNCLAIMED_HIGHLIGHT_COLOR;
+    }
+
+    private static void drawTileTooltip(LOTRGuiMap map, int tileColor, int mouseX, int mouseY) {
+        String tileId = tileIdsByColor.get(tileColor);
+        if (tileId == null) {
+            return;
+        }
+        String text = "Tile " + tileId;
+        FontRenderer font = KOMEMinecraftClient.fontRenderer();
+        int width = font.getStringWidth(text);
+        int x = mouseX + 10;
+        int y = mouseY + 10;
+        int mapXMax = mapInt("mapXMax");
+        int mapYMax = mapInt("mapYMax");
+        if (x + width + 4 > mapXMax) {
+            x = mouseX - width - 10;
+        }
+        if (y + 12 > mapYMax) {
+            y = mouseY - 14;
+        }
+        Gui.drawRect(x - 3, y - 3, x + width + 3, y + 11, 0xC0000000);
+        font.drawStringWithShadow(text, x, y, 0xFFFFFF);
     }
 
     private static void drawMapTexture(LOTRGuiMap map, ResourceLocation texture, float alpha) {
