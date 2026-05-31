@@ -2,6 +2,7 @@ package kome.client.gui;
 
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketLordAction;
+import kome.client.KOMEEntityHighlightOverlay;
 import lotr.client.gui.LOTRGuiButtonRedBook;
 import lotr.client.gui.LOTRGuiMenuBase;
 import net.minecraft.client.gui.GuiButton;
@@ -24,11 +25,14 @@ public class KOMEGuiLordMenu extends LOTRGuiMenuBase {
         xSize = 220;
         ySize = 140;
         super.initGui();
+        buttonList.clear();
         buttonMenuReturn = null;
         int center = width / 2;
-        buttonList.add(new LOTRGuiButtonRedBook(0, center - 72, guiTop + 72, 144, 20, currentLord ? "Re-pledge to this lord" : "Pledge to this lord"));
         if (currentLord) {
-            buttonList.add(new LOTRGuiButtonRedBook(1, center - 72, guiTop + 96, 144, 20, "Open offerings"));
+            buttonList.add(new LOTRGuiButtonRedBook(1, center - 72, guiTop + 72, 144, 20, "Open offerings"));
+            buttonList.add(new LOTRGuiButtonRedBook(2, center - 72, guiTop + 96, 144, 20, "Highlight lord"));
+        } else {
+            buttonList.add(new LOTRGuiButtonRedBook(0, center - 72, guiTop + 84, 144, 20, "Pledge to this lord"));
         }
     }
 
@@ -51,6 +55,9 @@ public class KOMEGuiLordMenu extends LOTRGuiMenuBase {
             mc.displayGuiScreen(null);
         } else if (button.id == 1) {
             KOMEPacketHandler.network.sendToServer(new KOMEPacketLordAction(entityId, KOMEPacketLordAction.OFFERINGS));
+            mc.displayGuiScreen(null);
+        } else if (button.id == 2) {
+            KOMEEntityHighlightOverlay.highlight(entityId, lordName);
             mc.displayGuiScreen(null);
         }
     }
