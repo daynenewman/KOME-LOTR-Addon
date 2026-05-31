@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KOMEAllianceInventory implements IInventory {
+    private static final int TRADE_T1_COINS_REQUIRED = 5000;
+    private static final int TRADE_T2_COINS_REQUIRED = 10000;
     private final KOMEWorldData data;
     private final KOMEAlliance alliance;
     private final EntityPlayerMP viewer;
@@ -109,11 +111,14 @@ public class KOMEAllianceInventory implements IInventory {
         if (alliance.civilTier == 0 && alliance.getDelivered("civil.coins") >= 1000) {
             alliance.setTier(KOMEAlliance.CIVIL, 1, "Alliance goods", alliance.updatedWorldTime);
         }
-        if (alliance.tradeTier == 0 && alliance.getDelivered("trade.coins") >= 5000) {
+        if (alliance.tradeTier == 0 && alliance.getDelivered("trade.coins") >= TRADE_T1_COINS_REQUIRED) {
             Quota quota = parseQuota(alliance.getAssignment("trade.food"));
             if (quota != null && alliance.getDelivered("trade.food") >= quota.requiredUnits) {
                 alliance.setTier(KOMEAlliance.TRADE, 1, "Alliance goods", alliance.updatedWorldTime);
             }
+        }
+        if (alliance.tradeTier == 1 && alliance.getDelivered("trade.t2.coins") >= TRADE_T2_COINS_REQUIRED && data.getFactionFarmerPop(alliance.factionA) >= 50) {
+            alliance.setTier(KOMEAlliance.TRADE, 2, "Alliance goods", alliance.updatedWorldTime);
         }
         Quota militaryQuota = parseQuota(alliance.getAssignment("military.food"));
         if (alliance.militaryTier == 0 && militaryQuota != null && alliance.getDelivered("military.food") >= militaryQuota.requiredUnits) {
@@ -154,7 +159,10 @@ public class KOMEAllianceInventory implements IInventory {
             needed += Math.max(0, 1000 - alliance.getDelivered("civil.coins"));
         }
         if (alliance.tradeTier == 0) {
-            needed += Math.max(0, 5000 - alliance.getDelivered("trade.coins"));
+            needed += Math.max(0, TRADE_T1_COINS_REQUIRED - alliance.getDelivered("trade.coins"));
+        }
+        if (alliance.tradeTier == 1) {
+            needed += Math.max(0, TRADE_T2_COINS_REQUIRED - alliance.getDelivered("trade.t2.coins"));
         }
         return needed;
     }
@@ -204,7 +212,8 @@ public class KOMEAllianceInventory implements IInventory {
         }
         int value = LOTRItemCoin.values[Math.max(0, Math.min(stack.getItemDamage(), LOTRItemCoin.values.length - 1))];
         return depositCoins(stack, value, "civil.coins", 1000, alliance.civilTier)
-            || depositCoins(stack, value, "trade.coins", 5000, alliance.tradeTier);
+            || depositCoins(stack, value, "trade.coins", TRADE_T1_COINS_REQUIRED, alliance.tradeTier == 0 ? 0 : -1)
+            || depositCoins(stack, value, "trade.t2.coins", TRADE_T2_COINS_REQUIRED, alliance.tradeTier == 1 ? 0 : -1);
     }
 
     private boolean depositCoins(ItemStack stack, int coinValue, String id, int required, int tier) {
@@ -236,8 +245,13 @@ public class KOMEAllianceInventory implements IInventory {
         List lines = new ArrayList();
         addCoinLine(lines, "Civil Coins", "civil.coins", 1000, alliance.civilTier == 0);
         addQuotaLine(lines, "Military Food", "military.food");
-        addCoinLine(lines, "Trade Coins", "trade.coins", 5000, alliance.tradeTier == 0);
+        addCoinLine(lines, "Trade T1 Coins", "trade.coins", TRADE_T1_COINS_REQUIRED, alliance.tradeTier == 0);
         addQuotaLine(lines, "Trade Food", "trade.food");
+        addCoinLine(lines, "Trade T2 Coins", "trade.t2.coins", TRADE_T2_COINS_REQUIRED, alliance.tradeTier == 1);
+        if (alliance.tradeTier >= 1) {
+            int pop = Math.min(data.getFactionFarmerPop(alliance.factionA), 50);
+            lines.add("Trade T2 Farmer Pop: " + pop + "/50" + (pop >= 50 ? " complete" : ""));
+        }
         return lines;
     }
 

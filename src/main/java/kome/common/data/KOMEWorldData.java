@@ -154,6 +154,26 @@ public class KOMEWorldData extends WorldSavedData {
         return name == null ? "" : name;
     }
 
+    public int getFactionFarmerPop(String factionKey) {
+        String key = normalizeFactionKey(factionKey);
+        if (key.length() == 0) {
+            return 0;
+        }
+        int total = 0;
+        for (Map.Entry<UUID, KOMEPlayerPopulation> entry : populations.entrySet()) {
+            UUID playerID = entry.getKey();
+            KOMEPlayerProgression progression = progressions.get(playerID);
+            boolean member = progression != null && key.equals(normalizeFactionKey(progression.getPledgedLordFaction()));
+            if (!member && playerID != null && playerID.equals(kingsByFaction.get(key))) {
+                member = true;
+            }
+            if (member && entry.getValue() != null) {
+                total += entry.getValue().getFarmhandLimit();
+            }
+        }
+        return total;
+    }
+
     public boolean isProgressionEnabled() {
         return progressionEnabled;
     }

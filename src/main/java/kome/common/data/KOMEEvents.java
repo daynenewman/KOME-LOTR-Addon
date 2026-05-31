@@ -77,6 +77,8 @@ public class KOMEEvents {
     public static int defaultUnitCost = 25;
     private static final int CIVIL_TRADER_REQUIRED = 500;
     private static final int MILITARY_KILLS_REQUIRED = 2000;
+    private static final int TRADE_T2_COINS_REQUIRED = 10000;
+    private static final int TRADE_T2_FARMER_POP_REQUIRED = 50;
     private final Map<UUID, Integer> lastCoinValues = new HashMap<>();
     private final Map<UUID, int[]> lastCoinCounts = new HashMap<>();
     private final Map<UUID, Long> lastStoneCraftDenials = new HashMap<>();
@@ -106,6 +108,7 @@ public class KOMEEvents {
             if (event.player instanceof EntityPlayerMP && KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(event.player)) % 100L == 0L) {
                 KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
                 KOMEProgressionTitles.updatePlayerTitle((EntityPlayerMP) event.player);
+                updateAllianceTradeT2Progress((EntityPlayerMP) event.player);
             }
             trackAllianceCivilTraderProgress(event.player);
             cacheCoinValue(event.player);
@@ -624,6 +627,34 @@ public class KOMEEvents {
         if (changed) {
             data.markDirty();
         }
+    }
+
+    private void updateAllianceTradeT2Progress(EntityPlayerMP player) {
+        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+        String playerFaction = getPlayerFactionKey(player, data);
+        if (playerFaction.length() == 0) {
+            return;
+        }
+        boolean changed = false;
+        for (KOMEAlliance alliance : data.alliances.values()) {
+            if (alliance == null || alliance.tradeTier != 1 || !factionMatches(alliance.factionA, playerFaction)) {
+                continue;
+            }
+            if (alliance.getDelivered("trade.t2.coins") >= TRADE_T2_COINS_REQUIRED
+                && data.getFactionFarmerPop(alliance.factionA) >= TRADE_T2_FARMER_POP_REQUIRED) {
+                alliance.setTier(KOMEAlliance.TRADE, 2, "Trade requirements", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
+                player.addChatMessage(new ChatComponentText("Trade alliance upgraded to T2 with " + displayFaction(alliance.factionB) + "."));
+                changed = true;
+            }
+        }
+        if (changed) {
+            data.markDirty();
+        }
+    }
+
+    private String displayFaction(String key) {
+        LOTRFaction faction = LOTRFaction.forName(key);
+        return faction == null ? key : faction.factionName();
     }
 
     private boolean isEnemyOf(LOTRFaction faction, LOTRFaction other) {

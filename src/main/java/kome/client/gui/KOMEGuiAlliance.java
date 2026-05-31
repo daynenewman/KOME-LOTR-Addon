@@ -381,7 +381,9 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             }
             return "Requirement: 3k alignment, 50 pop, and 30k coins.";
         }
-        return tierIndex == 1 ? "Requirement: 5000 coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered) : "Requirement: earn 50 farmer pop points.";
+        return tierIndex == 1
+            ? "Requirement: 5000 coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered)
+            : "Requirement: earn 50 farmer pop points and deposit 10000 coins. Progress: " + Math.min(record.tradeFarmerPop, 50) + "/50 farmer pop, " + Math.min(record.tradeT2CoinsDelivered, 10000) + "/10000 coins.";
     }
 
     private void enableScissor(int x, int y, int width, int height) {
@@ -507,7 +509,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return "Deposit 5000 coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered);
         }
         if (tier == 1) {
-            return "Earn 50 farmer pop points. Tracker not wired yet.";
+            return "Earn 50 farmer pop points and deposit 10000 coins. Progress: " + Math.min(record.tradeFarmerPop, 50) + "/50 farmer pop, " + Math.min(record.tradeT2CoinsDelivered, 10000) + "/10000 coins.";
         }
         return "Trade alliance complete.";
     }
@@ -764,6 +766,8 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         private final int tradeFoodDelivered;
         private final int civilTradeDelivered;
         private final int militaryKillsDelivered;
+        private final int tradeT2CoinsDelivered;
+        private final int tradeFarmerPop;
 
         private Record(String[] parts) {
             keyA = parts[1];
@@ -780,6 +784,8 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             tradeFoodDelivered = parts.length > 13 ? parseInt(parts[13]) : 0;
             civilTradeDelivered = parts.length > 14 ? parseInt(parts[14]) : 0;
             militaryKillsDelivered = parts.length > 15 ? parseInt(parts[15]) : 0;
+            tradeT2CoinsDelivered = parts.length > 16 ? parseInt(parts[16]) : 0;
+            tradeFarmerPop = parts.length > 17 ? parseInt(parts[17]) : 0;
         }
 
         private int getTier(int type) {

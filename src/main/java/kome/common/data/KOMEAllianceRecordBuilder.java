@@ -16,7 +16,7 @@ public class KOMEAllianceRecordBuilder {
             if (alliance == null || !alliance.hasAnyAlliance()) {
                 continue;
             }
-            allianceLines.add(formatAlliance(alliance));
+            allianceLines.add(formatAlliance(data, alliance));
         }
         Collections.sort(allianceLines);
         lines.add("SUMMARY\t" + allianceLines.size());
@@ -32,7 +32,7 @@ public class KOMEAllianceRecordBuilder {
         return build(data, null);
     }
 
-    private static String formatAlliance(KOMEAlliance alliance) {
+    private static String formatAlliance(KOMEWorldData data, KOMEAlliance alliance) {
         return "ALLIANCE\t"
             + alliance.factionA + "\t"
             + alliance.factionB + "\t"
@@ -48,7 +48,9 @@ public class KOMEAllianceRecordBuilder {
             + safe(alliance.getAssignment("trade.food")) + "\t"
             + alliance.getDelivered("trade.food") + "\t"
             + alliance.getDelivered("civil.trade") + "\t"
-            + alliance.getDelivered("military.kills");
+            + alliance.getDelivered("military.kills") + "\t"
+            + alliance.getDelivered("trade.t2.coins") + "\t"
+            + data.getFactionFarmerPop(alliance.factionA);
     }
 
     private static String safe(String value) {
