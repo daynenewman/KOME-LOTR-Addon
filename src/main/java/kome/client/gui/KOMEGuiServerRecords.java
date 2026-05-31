@@ -31,7 +31,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     @Override
     public void initGui() {
         xSize = Math.min(620, width - 36);
-        ySize = Math.min(350, height - 44);
+        ySize = Math.min(410, height - 44);
         super.initGui();
         buttonList.clear();
         buttonMenuReturn = null;
@@ -153,7 +153,8 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         drawInfoCard("Progression", record.progress + " completed", x + 14, cardY, width - 28);
         drawInfoCard("Population", record.population, x + 14, cardY + 52, width - 28);
         drawInfoCard("Pledged Lord", record.lord, x + 14, cardY + 104, width - 28);
-        drawInfoCard("Tiles Controlled", record.tileCount + formatNames(record.tiles), x + 14, cardY + 156, width - 28);
+        drawInfoCard("Alliances", record.alliances, x + 14, cardY + 156, width - 28);
+        drawInfoCard("Tiles Controlled", record.tileCount + formatNames(record.tiles), x + 14, cardY + 208, width - 28);
     }
 
     private void drawInfoCard(String title, String value, int x, int y, int width) {
@@ -273,6 +274,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         private final String progress;
         private final String population;
         private final String lord;
+        private final String alliances;
         private final String tileCount;
         private final String tiles;
 
@@ -283,12 +285,19 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             rank = parts[4];
             progress = parts[5];
             population = parts[6];
-            if (parts.length >= 10) {
+            if (parts.length >= 11) {
                 lord = parts[7].length() == 0 ? "No pledged lord" : parts[7];
+                alliances = parts[8].length() == 0 ? "No alliances" : parts[8];
+                tileCount = parts[9];
+                tiles = parts[10];
+            } else if (parts.length >= 10) {
+                lord = parts[7].length() == 0 ? "No pledged lord" : parts[7];
+                alliances = "No alliances";
                 tileCount = parts[8];
                 tiles = parts[9];
             } else {
                 lord = "No pledged lord";
+                alliances = "No alliances";
                 tileCount = parts[7];
                 tiles = parts[8];
             }

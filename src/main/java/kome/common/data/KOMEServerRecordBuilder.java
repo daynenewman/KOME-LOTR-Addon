@@ -70,6 +70,7 @@ public class KOMEServerRecordBuilder {
             getProgressionSummary(progression),
             getPopulationSummary(pop),
             progression == null ? "No pledged lord" : progression.getPledgedLordDisplay(),
+            getAllianceSummary(data, faction.key),
             String.valueOf(tiles.count),
             joinNames(tiles.names)
         ));
@@ -135,6 +136,38 @@ public class KOMEServerRecordBuilder {
 
     private static boolean factionMatches(String value, String factionKey) {
         return value != null && factionKey != null && value.trim().equalsIgnoreCase(factionKey.trim());
+    }
+
+    private static String getAllianceSummary(KOMEWorldData data, String factionKey) {
+        if (factionKey == null || factionKey.trim().isEmpty()) {
+            return "No faction alliances";
+        }
+        List lines = new ArrayList();
+        for (KOMEAlliance alliance : data.alliances.values()) {
+            if (alliance == null || !alliance.hasAnyAlliance()) {
+                continue;
+            }
+            if (factionMatches(alliance.factionA, factionKey)) {
+                lines.add("To " + displayFaction(alliance.factionB) + ": " + tierSummary(alliance));
+            } else if (factionMatches(alliance.factionB, factionKey)) {
+                lines.add("From " + displayFaction(alliance.factionA) + ": " + tierSummary(alliance));
+            }
+        }
+        Collections.sort(lines);
+        return joinNames(lines);
+    }
+
+    private static String tierSummary(KOMEAlliance alliance) {
+        return "C " + displayTier(alliance.civilTier) + ", M " + displayTier(alliance.militaryTier) + ", T " + displayTier(alliance.tradeTier);
+    }
+
+    private static String displayTier(int tier) {
+        return tier == KOMEAlliance.PENDING ? "Pending" : tier == KOMEAlliance.NONE ? "None" : "T" + tier;
+    }
+
+    private static String displayFaction(String key) {
+        LOTRFaction faction = LOTRFaction.forName(key);
+        return faction == null ? key : faction.factionName();
     }
 
     private static String joinNames(List names) {
