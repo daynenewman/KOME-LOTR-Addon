@@ -25,6 +25,7 @@ import lotr.common.inventory.LOTRContainerPouch;
 import lotr.common.inventory.LOTRContainerTrade;
 import lotr.common.LOTRMod;
 import lotr.common.fac.LOTRFaction;
+import lotr.common.fac.LOTRFactionRelations;
 import lotr.common.item.LOTRItemCoin;
 import lotr.common.item.LOTRItemMug;
 import lotr.common.item.LOTRItemPouch;
@@ -75,6 +76,7 @@ import java.util.Map;
 public class KOMEEvents {
     public static int defaultUnitCost = 25;
     private static final int CIVIL_TRADER_REQUIRED = 500;
+    private static final int MILITARY_KILLS_REQUIRED = 2000;
     private final Map<UUID, Integer> lastCoinValues = new HashMap<>();
     private final Map<UUID, int[]> lastCoinCounts = new HashMap<>();
     private final Map<UUID, Long> lastStoneCraftDenials = new HashMap<>();
@@ -285,6 +287,7 @@ public class KOMEEvents {
     public void onLivingDeath(LivingDeathEvent event) {
         if (!KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving)) && event.entityLiving instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
+            trackAllianceMilitaryKillProgress(event, npc);
             releaseIfTracked(npc);
             releaseLinkedInactiveUnits(npc);
         }
@@ -582,6 +585,50 @@ public class KOMEEvents {
         if (changed) {
             data.markDirty();
         }
+    }
+
+    private void trackAllianceMilitaryKillProgress(LivingDeathEvent event, LOTREntityNPC npc) {
+        if (event.source == null || !(event.source.getEntity() instanceof EntityPlayerMP)) {
+            return;
+        }
+        EntityPlayerMP player = (EntityPlayerMP) event.source.getEntity();
+        LOTRFaction killedFaction = npc.getFaction();
+        if (killedFaction == null || !killedFaction.isPlayableAlignmentFaction()) {
+            return;
+        }
+        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+        String playerFaction = getPlayerFactionKey(player, data);
+        if (playerFaction.length() == 0) {
+            return;
+        }
+        boolean changed = false;
+        for (KOMEAlliance alliance : data.alliances.values()) {
+            if (alliance == null || alliance.militaryTier != 1 || !factionMatches(alliance.factionA, playerFaction)) {
+                continue;
+            }
+            LOTRFaction receiver = LOTRFaction.forName(alliance.factionB);
+            if (receiver == null || receiver == killedFaction || !isEnemyOf(receiver, killedFaction)) {
+                continue;
+            }
+            int delivered = alliance.getDelivered("military.kills");
+            if (delivered >= MILITARY_KILLS_REQUIRED) {
+                continue;
+            }
+            alliance.addDelivered("military.kills", 1);
+            changed = true;
+            if (alliance.getDelivered("military.kills") >= MILITARY_KILLS_REQUIRED) {
+                alliance.setTier(KOMEAlliance.MILITARY, 2, "Enemy kills", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
+                player.addChatMessage(new ChatComponentText("Military alliance upgraded to T2 with " + receiver.factionName() + "."));
+            }
+        }
+        if (changed) {
+            data.markDirty();
+        }
+    }
+
+    private boolean isEnemyOf(LOTRFaction faction, LOTRFaction other) {
+        LOTRFactionRelations.Relation relation = LOTRFactionRelations.getRelations(faction, other);
+        return relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
     }
 
     private String getPlayerFactionKey(EntityPlayer player, KOMEWorldData data) {

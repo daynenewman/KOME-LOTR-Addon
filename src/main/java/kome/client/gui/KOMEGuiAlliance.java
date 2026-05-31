@@ -374,7 +374,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
                 return "Requirement: " + quotaStatus(record.militaryFood, record.militaryFoodDelivered);
             }
             if (tierIndex == 2) {
-                return "Requirement: kill 2000 enemies.";
+                return "Requirement: kill 2000 enemies of " + record.factionB + ". Progress: " + Math.min(record.militaryKillsDelivered, 2000) + "/2000 kills. Possible targets: " + enemyFactionList(record.keyB) + ".";
             }
             if (tierIndex == 3) {
                 return "Requirement: 250 pop build in faction and waypoint battle with them.";
@@ -493,7 +493,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
                 return quotaStatus(record.militaryFood, record.militaryFoodDelivered);
             }
             if (tier == 1) {
-                return "Kill 2000 enemies. Tracker not wired yet.";
+                return "Kill 2000 enemies of " + record.factionB + ". Progress: " + Math.min(record.militaryKillsDelivered, 2000) + "/2000 kills.";
             }
             if (tier == 2) {
                 return "250 pop build in faction and waypoint battle with them.";
@@ -662,6 +662,33 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         return relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
     }
 
+    private static String enemyFactionList(String factionKey) {
+        List names = new ArrayList();
+        LOTRFaction faction = LOTRFaction.forName(factionKey);
+        if (faction == null) {
+            return "none";
+        }
+        for (LOTRFaction other : LOTRFaction.values()) {
+            if (other != null && other != faction && other.isPlayableAlignmentFaction()) {
+                LOTRFactionRelations.Relation relation = LOTRFactionRelations.getRelations(faction, other);
+                if (relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY) {
+                    names.add(other.factionName());
+                }
+            }
+        }
+        if (names.isEmpty()) {
+            return "none";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < names.size(); i++) {
+            if (i > 0) {
+                builder.append(", ");
+            }
+            builder.append(names.get(i));
+        }
+        return builder.toString();
+    }
+
     private static LOTRFactionRelations.Relation getRelation(String factionA, String factionB) {
         LOTRFaction a = LOTRFaction.forName(factionA);
         LOTRFaction b = LOTRFaction.forName(factionB);
@@ -736,6 +763,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         private final String tradeFood;
         private final int tradeFoodDelivered;
         private final int civilTradeDelivered;
+        private final int militaryKillsDelivered;
 
         private Record(String[] parts) {
             keyA = parts[1];
@@ -751,6 +779,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             tradeFood = parts.length > 12 ? parts[12] : "";
             tradeFoodDelivered = parts.length > 13 ? parseInt(parts[13]) : 0;
             civilTradeDelivered = parts.length > 14 ? parseInt(parts[14]) : 0;
+            militaryKillsDelivered = parts.length > 15 ? parseInt(parts[15]) : 0;
         }
 
         private int getTier(int type) {
