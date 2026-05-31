@@ -133,6 +133,9 @@ public class KOMECommandAlliance extends CommandBase {
                     data.markDirty();
                 }
             }
+            if (removed) {
+                syncRelationsForAlliancePair(data, senderFaction, receiverFaction);
+            }
             sender.addChatMessage(new ChatComponentText((removed ? "Broke " + (type.isEmpty() ? "" : displayType(type) + " ") + "alliance: " : "No alliance found for ") + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
             return;
         }
@@ -247,6 +250,7 @@ public class KOMECommandAlliance extends CommandBase {
             }
             KOMEAlliance alliance = data.getAlliance(factionA, factionB, true);
             alliance.setTier(type, tier, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
+            syncRelationsForAlliancePair(data, factionA, factionB);
             data.markDirty();
             sender.addChatMessage(new ChatComponentText("Set " + displayType(type) + " alliance " + displayFaction(factionA) + " -> " + displayFaction(factionB) + " to tier " + tier + "."));
             sender.addChatMessage(new ChatComponentText(getBenefit(type, tier)));
@@ -257,7 +261,12 @@ public class KOMECommandAlliance extends CommandBase {
             if (args.length != 3) {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
-            boolean removed = data.clearAlliance(parseFaction(args[1]), parseFaction(args[2]));
+            String factionA = parseFaction(args[1]);
+            String factionB = parseFaction(args[2]);
+            boolean removed = data.clearAlliance(factionA, factionB);
+            if (removed) {
+                syncRelationsForAlliancePair(data, factionA, factionB);
+            }
             sender.addChatMessage(new ChatComponentText((removed ? "Cleared" : "No alliance found for") + " " + args[1] + " -> " + args[2] + "."));
             return;
         }
@@ -511,6 +520,59 @@ public class KOMECommandAlliance extends CommandBase {
         if (a != null && b != null) {
             LOTRFactionRelations.overrideRelations(a, b, relationForAllianceType(type));
         }
+    }
+
+    private static void syncRelationsForAlliancePair(KOMEWorldData data, String factionA, String factionB) {
+        LOTRFaction a = LOTRFaction.forName(parseFactionLenient(factionA));
+        LOTRFaction b = LOTRFaction.forName(parseFactionLenient(factionB));
+        if (a == null || b == null || a == b) {
+            return;
+        }
+        LOTRFactionRelations.Relation relation = strongestAllianceRelation(data.getAlliance(factionA, factionB, false));
+        relation = strongestRelation(relation, strongestAllianceRelation(data.getAlliance(factionB, factionA, false)));
+        if (relation == null) {
+            relation = LOTRFactionRelations.getFromDefaultMap(new LOTRFactionRelations.FactionPair(a, b));
+        }
+        LOTRFactionRelations.overrideRelations(a, b, relation);
+    }
+
+    private static LOTRFactionRelations.Relation strongestAllianceRelation(KOMEAlliance alliance) {
+        if (alliance == null) {
+            return null;
+        }
+        if (alliance.militaryTier >= 0) {
+            return LOTRFactionRelations.Relation.ALLY;
+        }
+        if (alliance.tradeTier >= 0) {
+            return LOTRFactionRelations.Relation.FRIEND;
+        }
+        if (alliance.civilTier >= 0) {
+            return LOTRFactionRelations.Relation.NEUTRAL;
+        }
+        return null;
+    }
+
+    private static LOTRFactionRelations.Relation strongestRelation(LOTRFactionRelations.Relation left, LOTRFactionRelations.Relation right) {
+        if (left == null) {
+            return right;
+        }
+        if (right == null) {
+            return left;
+        }
+        return relationStrength(right) > relationStrength(left) ? right : left;
+    }
+
+    private static int relationStrength(LOTRFactionRelations.Relation relation) {
+        if (relation == LOTRFactionRelations.Relation.ALLY) {
+            return 3;
+        }
+        if (relation == LOTRFactionRelations.Relation.FRIEND) {
+            return 2;
+        }
+        if (relation == LOTRFactionRelations.Relation.NEUTRAL) {
+            return 1;
+        }
+        return 0;
     }
 
     private static LOTRFactionRelations.Relation relationForAllianceType(String type) {
