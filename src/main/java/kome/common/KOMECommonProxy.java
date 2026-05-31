@@ -38,4 +38,7 @@ public class KOMECommonProxy {
 
     public void updateAllianceData(java.util.List lines) {
     }
+
+    public void highlightEntity(int entityId, String name, double x, double y, double z) {
+    }
 }

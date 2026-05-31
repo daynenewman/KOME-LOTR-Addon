@@ -71,4 +71,9 @@ public class KOMEClientProxy extends KOMECommonProxy {
     public void updateAllianceData(List lines) {
         KOMEGuiAlliance.update(lines);
     }
+
+    @Override
+    public void highlightEntity(int entityId, String name, double x, double y, double z) {
+        KOMEEntityHighlightOverlay.highlight(entityId, name, x, y, z);
+    }
 }

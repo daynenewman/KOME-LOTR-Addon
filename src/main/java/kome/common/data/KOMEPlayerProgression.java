@@ -19,6 +19,10 @@ public class KOMEPlayerProgression {
     private String pledgedLordID = "";
     private String pledgedLordName = "";
     private String pledgedLordFaction = "";
+    private int pledgedLordDimension;
+    private double pledgedLordX;
+    private double pledgedLordY;
+    private double pledgedLordZ;
 
     public boolean isCompleted(KOMEProgressionAchievement achievement) {
         return achievement != null && (achievement.defaultUnlocked || completed.contains(achievement.id));
@@ -42,6 +46,10 @@ public class KOMEPlayerProgression {
         pledgedLordID = "";
         pledgedLordName = "";
         pledgedLordFaction = "";
+        pledgedLordDimension = 0;
+        pledgedLordX = 0.0D;
+        pledgedLordY = 0.0D;
+        pledgedLordZ = 0.0D;
     }
 
     public String getAssignment(String id) {
@@ -79,6 +87,13 @@ public class KOMEPlayerProgression {
         pledgedLordFaction = clean(faction);
     }
 
+    public void setPledgedLordLocation(int dimension, double x, double y, double z) {
+        pledgedLordDimension = dimension;
+        pledgedLordX = x;
+        pledgedLordY = y;
+        pledgedLordZ = z;
+    }
+
     public boolean hasPledgedLord() {
         return pledgedLordName != null && !pledgedLordName.trim().isEmpty();
     }
@@ -89,6 +104,22 @@ public class KOMEPlayerProgression {
 
     public String getPledgedLordFaction() {
         return pledgedLordFaction;
+    }
+
+    public int getPledgedLordDimension() {
+        return pledgedLordDimension;
+    }
+
+    public double getPledgedLordX() {
+        return pledgedLordX;
+    }
+
+    public double getPledgedLordY() {
+        return pledgedLordY;
+    }
+
+    public double getPledgedLordZ() {
+        return pledgedLordZ;
     }
 
     public String getPledgedLordDisplay() {
@@ -188,6 +219,10 @@ public class KOMEPlayerProgression {
         pledgedLordID = nbt.getString("PledgedLordID");
         pledgedLordName = nbt.getString("PledgedLordName");
         pledgedLordFaction = nbt.getString("PledgedLordFaction");
+        pledgedLordDimension = nbt.getInteger("PledgedLordDimension");
+        pledgedLordX = nbt.getDouble("PledgedLordX");
+        pledgedLordY = nbt.getDouble("PledgedLordY");
+        pledgedLordZ = nbt.getDouble("PledgedLordZ");
         clearOfferings();
         NBTTagList offeringList = nbt.getTagList("Offerings", 10);
         for (int i = 0; i < offeringList.tagCount(); i++) {
@@ -225,6 +260,10 @@ public class KOMEPlayerProgression {
         nbt.setString("PledgedLordID", pledgedLordID);
         nbt.setString("PledgedLordName", pledgedLordName);
         nbt.setString("PledgedLordFaction", pledgedLordFaction);
+        nbt.setInteger("PledgedLordDimension", pledgedLordDimension);
+        nbt.setDouble("PledgedLordX", pledgedLordX);
+        nbt.setDouble("PledgedLordY", pledgedLordY);
+        nbt.setDouble("PledgedLordZ", pledgedLordZ);
         NBTTagList offeringList = new NBTTagList();
         for (int i = 0; i < offerings.length; i++) {
             if (offerings[i] != null) {

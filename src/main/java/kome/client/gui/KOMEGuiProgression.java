@@ -3,6 +3,7 @@ package kome.client.gui;
 import kome.client.KOMEMinecraftClient;
 import kome.common.data.KOMEProgressionAchievement;
 import lotr.client.gui.LOTRGuiAchievements;
+import lotr.client.gui.LOTRGuiButtonRedBook;
 import lotr.client.gui.LOTRGuiMenuBase;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
@@ -26,6 +27,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
 
     private GuiButton buttonCategoryPrev;
     private GuiButton buttonCategoryNext;
+    private GuiButton buttonFindLord;
     private int currentGroup;
     private int scroll;
     private boolean isScrolling;
@@ -48,6 +50,9 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
                 prevGroup();
             } else if (button == buttonCategoryNext) {
                 nextGroup();
+            } else if (button == buttonFindLord) {
+                KOMEMinecraftClient.sendChat("/progression findlord");
+                mc.displayGuiScreen(null);
             } else {
                 super.actionPerformed(button);
             }
@@ -102,6 +107,8 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         buttonList.add(buttonCategoryPrev);
         buttonCategoryNext = new GuiButton(1, guiLeft + 187, guiTop + 9, 20, 20, ">");
         buttonList.add(buttonCategoryNext);
+        buttonFindLord = new LOTRGuiButtonRedBook(2, guiLeft + 68, guiTop + ySize + 4, 84, 20, "Find Lord");
+        buttonList.add(buttonFindLord);
     }
 
     @Override

@@ -1,6 +1,8 @@
 package kome.common.data;
 
 import kome.common.KOMEReflection;
+import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketLordHighlight;
 import lotr.common.entity.npc.LOTRHireableBase;
 import lotr.common.entity.npc.LOTREntityNPC;
 import lotr.common.entity.npc.LOTRHiredNPCInfo;
@@ -14,6 +16,7 @@ import net.minecraft.util.ChatComponentText;
 import net.minecraft.world.World;
 
 import java.util.List;
+import java.util.UUID;
 
 public class KOMEProgressionLords {
     public static boolean pledgeToLord(EntityPlayerMP player, LOTRHireableBase lord) {
@@ -31,6 +34,7 @@ public class KOMEProgressionLords {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
         progression.setPledgedLord(String.valueOf(KOMEReflection.getEntityUUID(entity)), lord.getNPCName(), faction == null ? "" : faction.factionName());
+        progression.setPledgedLordLocation(KOMEReflection.getWorld(player).provider.dimensionId, entity.posX, entity.posY, entity.posZ);
         boolean changed = progression.grant("wanderer.find_serf_lord");
         changed = KOMEProgressionAutoCompleter.applyUnlocks(progression) > 0 || changed;
         data.markDirty();
@@ -54,6 +58,47 @@ public class KOMEProgressionLords {
         data.markDirty();
         KOMEProgressionQuotas.sendQuotaLedger(player, progression);
         player.displayGUIChest(new KOMEProgressionOfferingInventory(data, progression, player));
+    }
+
+    public static void highlightPledgedLord(EntityPlayerMP player) {
+        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+        KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+        if (!progression.hasPledgedLord()) {
+            throw new WrongUsageException("Pledge to a lord first.");
+        }
+        Entity loaded = findLoadedPledgedLord(player, progression);
+        if (loaded != null) {
+            progression.setPledgedLordLocation(KOMEReflection.getWorld(player).provider.dimensionId, loaded.posX, loaded.posY, loaded.posZ);
+            data.markDirty();
+            KOMEPacketHandler.network.sendTo(new KOMEPacketLordHighlight(loaded.getEntityId(), progression.getPledgedLordDisplay(), loaded.posX, loaded.posY, loaded.posZ), player);
+            player.addChatMessage(new ChatComponentText("Highlighted " + progression.getPledgedLordDisplay() + "."));
+            return;
+        }
+        if (progression.getPledgedLordDimension() != KOMEReflection.getWorld(player).provider.dimensionId) {
+            player.addChatMessage(new ChatComponentText("Your pledged lord is recorded in another dimension. Go there and use /progression findlord again."));
+            return;
+        }
+        KOMEPacketHandler.network.sendTo(new KOMEPacketLordHighlight(-1, progression.getPledgedLordDisplay(), progression.getPledgedLordX(), progression.getPledgedLordY(), progression.getPledgedLordZ()), player);
+        player.addChatMessage(new ChatComponentText("Your pledged lord is not loaded nearby. Highlighting the last known location."));
+    }
+
+    private static Entity findLoadedPledgedLord(EntityPlayerMP player, KOMEPlayerProgression progression) {
+        UUID pledgedID;
+        try {
+            pledgedID = UUID.fromString(progression.getPledgedLordID());
+        } catch (Exception e) {
+            pledgedID = null;
+        }
+        if (pledgedID == null) {
+            return null;
+        }
+        World world = KOMEReflection.getWorld(player);
+        for (Object object : world.loadedEntityList) {
+            if (object instanceof Entity && pledgedID.equals(KOMEReflection.getEntityUUID((Entity) object))) {
+                return (Entity) object;
+            }
+        }
+        return null;
     }
 
     public static LOTRHireableBase findNearbyPledgeLord(EntityPlayerMP player) {

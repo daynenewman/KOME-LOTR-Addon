@@ -29,5 +29,6 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketConquestTransfer.Handler.class, KOMEPacketConquestTransfer.class, 19, Side.SERVER);
         network.registerMessage(KOMEPacketLordMenu.Handler.class, KOMEPacketLordMenu.class, 20, Side.CLIENT);
         network.registerMessage(KOMEPacketLordAction.Handler.class, KOMEPacketLordAction.class, 21, Side.SERVER);
+        network.registerMessage(KOMEPacketLordHighlight.Handler.class, KOMEPacketLordHighlight.class, 22, Side.CLIENT);
     }
 }

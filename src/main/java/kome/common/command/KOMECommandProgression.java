@@ -31,7 +31,7 @@ public class KOMECommandProgression extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/progression status | enable | disable | get [player] | list [player] <group> | pledge | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | reset <player>";
+        return "/progression status | enable | disable | get [player] | list [player] <group> | pledge | findlord | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | reset <player>";
     }
 
     @Override
@@ -87,6 +87,14 @@ public class KOMECommandProgression extends CommandBase {
             }
             EntityPlayerMP player = getCommandSenderAsPlayer(sender);
             KOMEProgressionLords.openOfferings(player);
+            return;
+        }
+        if ("findlord".equalsIgnoreCase(args[0]) || "highlightlord".equalsIgnoreCase(args[0])) {
+            if (args.length != 1) {
+                throw new WrongUsageException(getCommandUsage(sender));
+            }
+            EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+            KOMEProgressionLords.highlightPledgedLord(player);
             return;
         }
         if ("complete".equalsIgnoreCase(args[0])) {
@@ -300,7 +308,7 @@ public class KOMECommandProgression extends CommandBase {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "status", "enable", "disable", "get", "list", "pledge", "offerings", "complete", "uncomplete", "roll", "reroll", "grant", "revoke", "grantall", "reset");
+            return getListOfStringsMatchingLastWord(args, "status", "enable", "disable", "get", "list", "pledge", "findlord", "offerings", "complete", "uncomplete", "roll", "reroll", "grant", "revoke", "grantall", "reset");
         }
         if (args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "grant".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "grantall".equalsIgnoreCase(args[0]) || "reset".equalsIgnoreCase(args[0]) || "reroll".equalsIgnoreCase(args[0]))) {
             return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());

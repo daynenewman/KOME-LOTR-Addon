@@ -13,17 +13,33 @@ public class KOMEEntityHighlightOverlay {
     private static final long DURATION_MS = 30000L;
     private static int entityId = -1;
     private static String entityName = "";
+    private static double targetX;
+    private static double targetY;
+    private static double targetZ;
+    private static boolean hasTargetPosition;
     private static long expiresAt;
 
     public static void highlight(int id, String name) {
+        highlight(id, name, 0.0D, 0.0D, 0.0D, false);
+    }
+
+    public static void highlight(int id, String name, double x, double y, double z) {
+        highlight(id, name, x, y, z, true);
+    }
+
+    private static void highlight(int id, String name, double x, double y, double z, boolean hasPosition) {
         entityId = id;
         entityName = name == null ? "Pledged lord" : name;
+        targetX = x;
+        targetY = y;
+        targetZ = z;
+        hasTargetPosition = hasPosition;
         expiresAt = System.currentTimeMillis() + DURATION_MS;
     }
 
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
-        if (entityId < 0 || System.currentTimeMillis() > expiresAt) {
+        if ((entityId < 0 && !hasTargetPosition) || System.currentTimeMillis() > expiresAt) {
             clear();
             return;
         }
@@ -32,17 +48,24 @@ public class KOMEEntityHighlightOverlay {
             clear();
             return;
         }
-        Entity entity = mc.theWorld.getEntityByID(entityId);
-        if (entity == null || entity.isDead) {
+        Entity entity = entityId < 0 ? null : mc.theWorld.getEntityByID(entityId);
+        if (entity != null && !entity.isDead) {
+            targetX = entity.posX;
+            targetY = entity.posY;
+            targetZ = entity.posZ;
+            hasTargetPosition = true;
+            drawHighlight(entity);
+        } else if (hasTargetPosition) {
+            drawPositionHighlight(targetX, targetY, targetZ);
+        } else {
             clear();
-            return;
         }
-        drawHighlight(entity);
     }
 
     private static void clear() {
         entityId = -1;
         entityName = "";
+        hasTargetPosition = false;
         expiresAt = 0L;
     }
 
@@ -60,6 +83,34 @@ public class KOMEEntityHighlightOverlay {
         GL11.glLineWidth(1.0F);
         GL11.glColor4f(1.0F, 0.86F, 0.25F, 0.85F);
         drawBeacon(entity, box);
+        GL11.glPopAttrib();
+        RenderHelper.enableStandardItemLighting();
+    }
+
+    private void drawPositionHighlight(double x, double y, double z) {
+        double renderX = x - RenderManager.renderPosX;
+        double renderY = y - RenderManager.renderPosY;
+        double renderZ = z - RenderManager.renderPosZ;
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_CURRENT_BIT | GL11.GL_LINE_BIT);
+        GL11.glDisable(GL11.GL_TEXTURE_2D);
+        GL11.glDisable(GL11.GL_LIGHTING);
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GL11.glLineWidth(4.0F);
+        GL11.glColor4f(1.0F, 0.86F, 0.25F, 0.9F);
+        GL11.glBegin(GL11.GL_LINES);
+        vertex(renderX, renderY, renderZ);
+        vertex(renderX, renderY + 10.0D, renderZ);
+        vertex(renderX - 1.0D, renderY + 9.0D, renderZ);
+        vertex(renderX, renderY + 10.0D, renderZ);
+        vertex(renderX + 1.0D, renderY + 9.0D, renderZ);
+        vertex(renderX, renderY + 10.0D, renderZ);
+        vertex(renderX, renderY + 9.0D, renderZ - 1.0D);
+        vertex(renderX, renderY + 10.0D, renderZ);
+        vertex(renderX, renderY + 9.0D, renderZ + 1.0D);
+        vertex(renderX, renderY + 10.0D, renderZ);
+        GL11.glEnd();
         GL11.glPopAttrib();
         RenderHelper.enableStandardItemLighting();
     }
