@@ -3,23 +3,15 @@ package kome.common.command;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEProgressionAutoCompleter;
 import kome.common.data.KOMEPlayerProgression;
-import kome.common.data.KOMEProgressionOfferingInventory;
-import kome.common.data.KOMEProgressionQuotas;
 import kome.common.data.KOMEProgressionAchievement;
-import kome.common.data.KOMEProgressionPermissions;
+import kome.common.data.KOMEProgressionLords;
 import kome.common.data.KOMEProgressionTaskGenerator;
 import kome.common.data.KOMEProgressionTitles;
 import kome.common.data.KOMEWorldData;
 import lotr.common.entity.npc.LOTRHireableBase;
-import lotr.common.entity.npc.LOTRHiredNPCInfo;
-import lotr.common.entity.npc.LOTREntityNPC;
-import lotr.common.entity.npc.LOTRUnitTradeEntry;
-import lotr.common.entity.npc.LOTRUnitTradeable;
-import lotr.common.fac.LOTRFaction;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
-import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
@@ -82,26 +74,11 @@ public class KOMECommandProgression extends CommandBase {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
             EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-            if (!KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.PLEDGE)) {
-                return;
-            }
-            LOTRHireableBase lord = findNearbyPledgeLord(player);
+            LOTRHireableBase lord = KOMEProgressionLords.findNearbyPledgeLord(player);
             if (lord == null) {
-                throw new WrongUsageException("Stand within 8 blocks of a captain or unit-trading lord, then use /progression pledge.");
+                throw new WrongUsageException("Stand within 8 blocks of a captain or unit-trading lord, or shift-click one to open the lord menu.");
             }
-            Entity entity = (Entity) lord;
-            LOTRFaction faction = lord.getFaction();
-            KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-            progression.setPledgedLord(String.valueOf(KOMEReflection.getEntityUUID(entity)), lord.getNPCName(), faction == null ? "" : faction.factionName());
-            boolean changed = progression.grant("wanderer.find_serf_lord");
-            changed = KOMEProgressionAutoCompleter.applyUnlocks(progression) > 0 || changed;
-            data.markDirty();
-            syncProgression(player, progression);
-            player.addChatMessage(new ChatComponentText("Pledged loyalty to " + progression.getPledgedLordDisplay() + ". Bring your quotas to this lord."));
-            if (changed) {
-                player.addChatMessage(new ChatComponentText("Completed: Pledge to a Lord"));
-            }
+            KOMEProgressionLords.pledgeToLord(player, lord);
             return;
         }
         if ("offerings".equalsIgnoreCase(args[0]) || "lordinv".equalsIgnoreCase(args[0]) || "quota".equalsIgnoreCase(args[0])) {
@@ -109,16 +86,7 @@ public class KOMECommandProgression extends CommandBase {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
             EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-            KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-            if (!progression.hasPledgedLord()) {
-                throw new WrongUsageException("Pledge to a lord first with /progression pledge.");
-            }
-            KOMEProgressionQuotas.processDeposits(progression);
-            KOMEProgressionQuotas.applyCompletedQuotas(progression);
-            data.markDirty();
-            KOMEProgressionQuotas.sendQuotaLedger(player, progression);
-            player.displayGUIChest(new KOMEProgressionOfferingInventory(data, progression, player));
+            KOMEProgressionLords.openOfferings(player);
             return;
         }
         if ("complete".equalsIgnoreCase(args[0])) {
@@ -270,46 +238,6 @@ public class KOMECommandProgression extends CommandBase {
     private void syncProgression(EntityPlayerMP player, KOMEPlayerProgression progression) {
         KOMEProgressionAutoCompleter.syncPlayer(player, progression);
         KOMEProgressionTitles.updatePlayerTitle(player);
-    }
-
-    private LOTRHireableBase findNearbyPledgeLord(EntityPlayerMP player) {
-        World world = KOMEReflection.getWorld(player);
-        List entities = world.getEntitiesWithinAABB(LOTREntityNPC.class, player.boundingBox.expand(8.0D, 4.0D, 8.0D));
-        LOTRHireableBase nearest = null;
-        double nearestDistance = Double.MAX_VALUE;
-        for (Object object : entities) {
-            if (!(object instanceof LOTRHireableBase) || !(object instanceof LOTRUnitTradeable) || !(object instanceof Entity)) {
-                continue;
-            }
-            LOTRHireableBase hireable = (LOTRHireableBase) object;
-            Entity entity = (Entity) object;
-            if (!isPledgeLord(hireable)) {
-                continue;
-            }
-            double distance = player.getDistanceSqToEntity(entity);
-            if (distance < nearestDistance) {
-                nearest = hireable;
-                nearestDistance = distance;
-            }
-        }
-        return nearest;
-    }
-
-    private boolean isPledgeLord(LOTRHireableBase hireable) {
-        if (!(hireable instanceof LOTRUnitTradeable)) {
-            return false;
-        }
-        LOTRUnitTradeEntry[] entries = ((LOTRUnitTradeable) hireable).getUnits().tradeEntries;
-        if (entries == null) {
-            return false;
-        }
-        for (LOTRUnitTradeEntry entry : entries) {
-            if (entry != null && entry.task != LOTRHiredNPCInfo.Task.FARMER) {
-                return true;
-            }
-        }
-        String className = hireable.getClass().getSimpleName().toLowerCase();
-        return className.contains("captain") || className.contains("commander") || className.contains("lord") || className.contains("warlord") || className.contains("chieftain");
     }
 
     private void listProgression(ICommandSender sender, String[] args) {

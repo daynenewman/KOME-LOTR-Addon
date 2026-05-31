@@ -8,6 +8,7 @@ import cpw.mods.fml.common.gameevent.TickEvent;
 import kome.common.KOMEReflection;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketHireType;
+import kome.common.network.KOMEPacketLordMenu;
 import lotr.common.LOTRLevelData;
 import lotr.common.LOTRPlayerData;
 import lotr.common.entity.npc.LOTRHireableBase;
@@ -132,15 +133,12 @@ public class KOMEEvents {
             return;
         }
         if (event.entityPlayer.isSneaking() && event.target instanceof LOTRHireableBase) {
-            KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-            if (isPledgedLord(event.target, progression)) {
-                KOMEProgressionQuotas.processDeposits(progression);
-                KOMEProgressionQuotas.applyCompletedQuotas(progression);
-                data.markDirty();
-                KOMEProgressionQuotas.sendQuotaLedger(player, progression);
-                player.displayGUIChest(new KOMEProgressionOfferingInventory(data, progression, player));
-                player.addChatMessage(new ChatComponentText("Opened offerings for " + progression.getPledgedLordDisplay() + "."));
+            LOTRHireableBase lord = (LOTRHireableBase) event.target;
+            if (KOMEProgressionLords.isPledgeLord(lord)) {
+                KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+                KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+                LOTRFaction faction = lord.getFaction();
+                KOMEPacketHandler.network.sendTo(new KOMEPacketLordMenu(event.target.getEntityId(), lord.getNPCName(), faction == null ? "" : faction.factionName(), KOMEProgressionLords.isPledgedLord(event.target, progression)), player);
                 event.setCanceled(true);
                 return;
             }
@@ -363,14 +361,6 @@ public class KOMEEvents {
         record.unitName = getUnitName(npc);
         data.hiredUnits.put(entityID, record);
         data.markDirty();
-    }
-
-    private boolean isPledgedLord(Entity target, KOMEPlayerProgression progression) {
-        if (progression == null || !progression.hasPledgedLord()) {
-            return false;
-        }
-        String pledgedID = progression.getPledgedLordID();
-        return pledgedID != null && pledgedID.equals(String.valueOf(KOMEReflection.getEntityUUID(target)));
     }
 
     private void enforceMiniQuestPermission(EntityPlayerMP player) {

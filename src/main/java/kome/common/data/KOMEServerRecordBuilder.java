@@ -69,6 +69,7 @@ public class KOMEServerRecordBuilder {
             getRank(data, record.id, progression, faction.key),
             getProgressionSummary(progression),
             getPopulationSummary(pop),
+            progression == null ? "No pledged lord" : progression.getPledgedLordDisplay(),
             String.valueOf(tiles.count),
             joinNames(tiles.names)
         ));

@@ -3,6 +3,7 @@ package kome.client;
 import cpw.mods.fml.common.FMLCommonHandler;
 import kome.client.gui.KOMEGuiConquestCapture;
 import kome.client.gui.KOMEGuiAlliance;
+import kome.client.gui.KOMEGuiLordMenu;
 import kome.client.gui.KOMEGuiPopulation;
 import kome.client.gui.KOMEGuiProgression;
 import kome.client.gui.KOMEGuiServerRecords;
@@ -20,6 +21,7 @@ public class KOMEClientProxy extends KOMECommonProxy {
         MinecraftForge.EVENT_BUS.register(new KOMEProgressionMenuOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEUnitOverviewCapOverlay());
+        MinecraftForge.EVENT_BUS.register(new KOMEEntityHighlightOverlay());
         KOMEConquestMapOverlay conquestMapOverlay = new KOMEConquestMapOverlay();
         FMLCommonHandler.instance().bus().register(conquestMapOverlay);
         MinecraftForge.EVENT_BUS.register(conquestMapOverlay);
@@ -38,6 +40,11 @@ public class KOMEClientProxy extends KOMECommonProxy {
     @Override
     public void displayConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction) {
         KOMEMinecraftClient.displayGui(new KOMEGuiConquestCapture(tileId, ownerFaction, pendingFromFaction, pendingToFaction));
+    }
+
+    @Override
+    public void displayLordMenu(int entityId, String lordName, String factionName, boolean currentLord) {
+        KOMEMinecraftClient.displayGui(new KOMEGuiLordMenu(entityId, lordName, factionName, currentLord));
     }
 
     @Override

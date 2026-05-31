@@ -143,7 +143,8 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         int y = guiTop + 88 - scroll * 10;
         drawSection("Population", record.population, x, y);
         drawSection("Progression", record.progress + " completed", x, y + 34);
-        drawSection("Tiles controlled", record.tileCount + formatNames(record.tiles), x, y + 68);
+        drawSection("Pledged lord", record.lord, x, y + 68);
+        drawSection("Tiles controlled", record.tileCount + formatNames(record.tiles), x, y + 102);
     }
 
     private void drawReturnButton(int mouseX, int mouseY) {
@@ -239,6 +240,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         int lines = 6;
         lines += getWrappedLineCount(record.population);
         lines += getWrappedLineCount(record.progress + " completed");
+        lines += getWrappedLineCount(record.lord);
         lines += getWrappedLineCount(record.tileCount + formatNames(record.tiles));
         return lines;
     }
@@ -279,6 +281,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         private final String rank;
         private final String progress;
         private final String population;
+        private final String lord;
         private final String tileCount;
         private final String tiles;
 
@@ -289,8 +292,15 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             rank = parts[4];
             progress = parts[5];
             population = parts[6];
-            tileCount = parts[7];
-            tiles = parts[8];
+            if (parts.length >= 11) {
+                lord = parts[7].length() == 0 ? "No pledged lord" : parts[7];
+                tileCount = parts[8];
+                tiles = parts[9];
+            } else {
+                lord = "No pledged lord";
+                tileCount = parts[7];
+                tiles = parts[8];
+            }
         }
     }
 }

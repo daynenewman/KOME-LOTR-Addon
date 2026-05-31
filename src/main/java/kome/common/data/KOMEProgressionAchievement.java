@@ -113,7 +113,7 @@ public class KOMEProgressionAchievement {
         a(list, "wanderer.smoke_drink", "wanderer", "Advancement", "Well, If You Insist", "Complete the assigned random task.");
         a(list, "wanderer.dangerous_business", "wanderer", "Quota", "Dangerous Business", "Explore 20 regions of Middle-earth.");
         a(list, "wanderer.travel_30km", "wanderer", "Quota", "30 km Traveler", "Travel a total of 30 km in game across all travel modes.");
-        a(list, "wanderer.find_serf_lord", "wanderer", "Selling into Serfdom", "Pledge to a Lord", "Use /progression pledge near a captain or unit-trading lord.");
+        a(list, "wanderer.find_serf_lord", "wanderer", "Selling into Serfdom", "Pledge to a Lord", "Shift-click a captain or unit-trading lord and pledge in the lord menu.");
         a(list, "wanderer.place_weapon_holder", "wanderer", "Selling into Serfdom", "Place Weapon Holder", "Place a weapon holder near the area your to-be lord roams.");
         a(list, "wanderer.hoe_agreement", "wanderer", "Selling into Serfdom", "Hoe Agreement", "Place a hoe on your lord's weapon holder.");
 
