@@ -21,7 +21,6 @@ public class KOMEClientProxy extends KOMECommonProxy {
         MinecraftForge.EVENT_BUS.register(new KOMEProgressionMenuOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEUnitOverviewCapOverlay());
-        MinecraftForge.EVENT_BUS.register(new KOMEEntityHighlightOverlay());
         KOMEConquestMapOverlay conquestMapOverlay = new KOMEConquestMapOverlay();
         FMLCommonHandler.instance().bus().register(conquestMapOverlay);
         MinecraftForge.EVENT_BUS.register(conquestMapOverlay);

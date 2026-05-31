@@ -2,7 +2,6 @@ package kome.client.gui;
 
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketServerRecordRequest;
-import lotr.client.gui.LOTRGuiAchievements;
 import lotr.client.gui.LOTRGuiMenu;
 import lotr.client.gui.LOTRGuiMenuBase;
 import net.minecraft.client.entity.AbstractClientPlayer;
@@ -18,8 +17,9 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     private static List rawLines = new ArrayList();
     private static List records = new ArrayList();
     private static String summary = "Loading...";
+
     private int scroll;
-    private int selected = -1;
+    private int selected;
     private boolean isScrolling;
     private boolean wasMouseDown;
 
@@ -30,11 +30,12 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
 
     @Override
     public void initGui() {
-        xSize = 220;
-        ySize = 256;
+        xSize = Math.min(620, width - 36);
+        ySize = Math.min(350, height - 44);
         super.initGui();
         buttonList.clear();
         buttonMenuReturn = null;
+        selected = records.isEmpty() ? -1 : Math.max(0, Math.min(selected, records.size() - 1));
         requestRecords();
     }
 
@@ -42,16 +43,8 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         updateScrollbarDrag(mouseX, mouseY);
         drawDefaultBackground();
-        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        mc.getTextureManager().bindTexture(LOTRGuiAchievements.pageTexture);
-        drawTexturedModalRect(guiLeft, guiTop, 0, 0, 220, 256);
-        drawCenteredString("KOME Server Records", guiLeft + xSize / 2, guiTop - 20, 16777215);
-        if (selected >= 0 && selected < records.size()) {
-            drawDetail((Record) records.get(selected));
-        } else {
-            drawList(mouseX, mouseY);
-        }
-        drawScrollbar();
+        drawPanel(mouseX, mouseY);
+        super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
     @Override
@@ -61,11 +54,11 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         if (wheel == 0) {
             return;
         }
-        int maxScroll = getMaxScroll();
+        int max = getMaxScroll();
         if (wheel > 0) {
-            scroll = Math.max(0, scroll - getScrollStep());
+            scroll = Math.max(0, scroll - 1);
         } else {
-            scroll = Math.min(maxScroll, scroll + getScrollStep());
+            scroll = Math.min(max, scroll + 1);
         }
     }
 
@@ -74,25 +67,20 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         if (button != 0) {
             return;
         }
-        if (mouseX >= guiLeft + 8 && mouseX < guiLeft + 25 && mouseY >= guiTop + 8 && mouseY < guiTop + 25) {
+        if (inside(mouseX, mouseY, guiLeft + 14, guiTop + 14, 56, 20)) {
             mc.displayGuiScreen(new LOTRGuiMenu());
             return;
         }
-        if (selected >= 0) {
-            if (mouseX >= guiLeft + 9 && mouseX < guiLeft + 199 && mouseY >= guiTop + 32 && mouseY < guiTop + 65) {
-                selected = -1;
-                scroll = 0;
-            }
+        if (inside(mouseX, mouseY, guiLeft + xSize - 74, guiTop + 14, 60, 20)) {
+            requestRecords();
             return;
         }
-        int rowHeight = 34;
-        int x0 = guiLeft + 9;
-        int y0 = guiTop + 42;
+        int listX = guiLeft + 18;
+        int listY = guiTop + 78;
         for (int i = 0; i < getVisibleRows() && scroll + i < records.size(); i++) {
-            int y = y0 + i * rowHeight;
-            if (mouseX >= x0 && mouseX < x0 + 190 && mouseY >= y && mouseY < y + 30) {
+            int rowY = listY + i * 32;
+            if (inside(mouseX, mouseY, listX, rowY, getListWidth(), 28)) {
                 selected = scroll + i;
-                scroll = 0;
                 return;
             }
         }
@@ -102,115 +90,110 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         rawLines = new ArrayList();
         records = new ArrayList();
         summary = "Loading...";
-        selected = -1;
         scroll = 0;
+        selected = -1;
         KOMEPacketHandler.network.sendToServer(new KOMEPacketServerRecordRequest());
     }
 
-    private void drawList(int mouseX, int mouseY) {
-        drawReturnButton(mouseX, mouseY);
-        mc.fontRenderer.drawString(trim(summary, 186), guiLeft + 12, guiTop + 30, 0x2B2117);
+    private void drawPanel(int mouseX, int mouseY) {
+        Gui.drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, 0xE20B0B0A);
+        Gui.drawRect(guiLeft + 5, guiTop + 5, guiLeft + xSize - 5, guiTop + ySize - 5, 0xFFF0D9A6);
+        Gui.drawRect(guiLeft + 10, guiTop + 42, guiLeft + xSize - 10, guiTop + 45, 0xFF5D311E);
+        drawButton(guiLeft + 14, guiTop + 14, 56, 20, "Menu", inside(mouseX, mouseY, guiLeft + 14, guiTop + 14, 56, 20));
+        drawButton(guiLeft + xSize - 74, guiTop + 14, 60, 20, "Refresh", inside(mouseX, mouseY, guiLeft + xSize - 74, guiTop + 14, 60, 20));
+        drawCenteredString(fontRendererObj, "KOME Server Records", guiLeft + xSize / 2, guiTop + 18, 0x2B160D);
+        fontRendererObj.drawString(summary, guiLeft + 18, guiTop + 52, 0x4A2C0C);
+
+        int listX = guiLeft + 18;
+        int listY = guiTop + 78;
+        int listW = getListWidth();
+        int detailX = listX + listW + 14;
+        int detailW = guiLeft + xSize - 18 - detailX;
+        drawTable(listX, listY, listW, mouseX, mouseY);
+        drawDetail(detailX, listY, detailW);
+        drawScrollbar(listX + listW - 8, listY);
+    }
+
+    private void drawTable(int x, int y, int width, int mouseX, int mouseY) {
+        Gui.drawRect(x, y - 20, x + width, guiTop + ySize - 18, 0x33160E08);
+        fontRendererObj.drawString("Player", x + 8, y - 13, 0x4A2C0C);
+        fontRendererObj.drawString("Faction / Rank", x + 128, y - 13, 0x4A2C0C);
         if (records.isEmpty()) {
-            mc.fontRenderer.drawString("No player records yet.", guiLeft + 18, guiTop + 56, 0x2B2117);
+            fontRendererObj.drawString("No player records yet.", x + 12, y + 12, 0x2B160D);
             return;
         }
-        int rowHeight = 34;
-        int x = guiLeft + 9;
-        int y = guiTop + 42;
         for (int i = 0; i < getVisibleRows() && scroll + i < records.size(); i++) {
             Record record = (Record) records.get(scroll + i);
-            int rowY = y + i * rowHeight;
-            boolean hover = mouseX >= x && mouseX < x + 190 && mouseY >= rowY && mouseY < rowY + 30;
-            int fill = hover ? 0xEE4B321F : 0xDD2F2117;
-            Gui.drawRect(x, rowY, x + 190, rowY + 30, 0xFF160E08);
-            Gui.drawRect(x + 1, rowY + 1, x + 189, rowY + 29, fill);
-            drawPlayerHead(record.name, x + 5, rowY + 6);
-            mc.fontRenderer.drawString(trim(record.name, 72), x + 27, rowY + 5, 0xFFFFFFFF);
-            mc.fontRenderer.drawString(trim(record.faction, 92), x + 27, rowY + 17, 0xFFFFD36A);
-            mc.fontRenderer.drawString(trim(record.rank, 42), x + 135, rowY + 5, 0xFFFFE6A3);
-            mc.fontRenderer.drawString(trim(record.progress, 34) + " " + record.tileCount + "t", x + 135, rowY + 17, 0xFFFFFFFF);
+            int rowY = y + i * 32;
+            boolean active = selected == scroll + i;
+            boolean hover = inside(mouseX, mouseY, x, rowY, width - 12, 28);
+            int fill = active ? 0xFF4E321D : hover ? 0xFF7A542F : 0xFF2F2117;
+            Gui.drawRect(x, rowY, x + width - 12, rowY + 28, 0xFF160E08);
+            Gui.drawRect(x + 1, rowY + 1, x + width - 13, rowY + 27, fill);
+            drawPlayerHead(record.name, x + 6, rowY + 6);
+            fontRendererObj.drawString(trim(record.name, 88), x + 30, rowY + 5, 0xFFFFFFFF);
+            fontRendererObj.drawString(trim(record.progress + " complete", 88), x + 30, rowY + 17, 0xFFD9B56A);
+            fontRendererObj.drawString(trim(record.faction, width - 170), x + 128, rowY + 5, 0xFFFFD36A);
+            fontRendererObj.drawString(trim(record.rank + " | " + record.tileCount + " tiles", width - 170), x + 128, rowY + 17, 0xFFFFFFFF);
         }
     }
 
-    private void drawDetail(Record record) {
-        drawReturnButton(-1, -1);
-        int headerY = guiTop + 52;
-        drawPlayerHead(record.name, guiLeft + 16, headerY);
-        mc.fontRenderer.drawString(trim(record.name, 150), guiLeft + 40, headerY - 1, 0x1B1208);
-        mc.fontRenderer.drawString(trim(record.faction + " - " + record.rank, 150), guiLeft + 40, headerY + 11, 0x3B250E);
+    private void drawDetail(int x, int y, int width) {
+        Gui.drawRect(x, y - 20, x + width, guiTop + ySize - 18, 0x44281610);
+        if (selected < 0 || selected >= records.size()) {
+            fontRendererObj.drawString("Select a player to view their record.", x + 14, y + 14, 0x2B160D);
+            return;
+        }
+        Record record = (Record) records.get(selected);
+        drawPlayerHead(record.name, x + 14, y - 12);
+        fontRendererObj.drawString(trim(record.name, width - 48), x + 40, y - 14, 0x1B1208);
+        fontRendererObj.drawString(trim(record.faction + " - " + record.rank, width - 48), x + 40, y - 2, 0x4A2C0C);
 
-        int x = guiLeft + 16;
-        int y = guiTop + 88 - scroll * 10;
-        drawSection("Population", record.population, x, y);
-        drawSection("Progression", record.progress + " completed", x, y + 34);
-        drawSection("Pledged lord", record.lord, x, y + 68);
-        drawSection("Tiles controlled", record.tileCount + formatNames(record.tiles), x, y + 102);
+        int cardY = y + 24;
+        drawInfoCard("Progression", record.progress + " completed", x + 14, cardY, width - 28);
+        drawInfoCard("Population", record.population, x + 14, cardY + 52, width - 28);
+        drawInfoCard("Pledged Lord", record.lord, x + 14, cardY + 104, width - 28);
+        drawInfoCard("Tiles Controlled", record.tileCount + formatNames(record.tiles), x + 14, cardY + 156, width - 28);
     }
 
-    private void drawReturnButton(int mouseX, int mouseY) {
-        int x = guiLeft + 8;
-        int y = guiTop + 8;
-        boolean hover = mouseX >= x && mouseX < x + 17 && mouseY >= y && mouseY < y + 17;
-        Gui.drawRect(x, y, x + 17, y + 17, 0xFF2B2117);
-        Gui.drawRect(x + 1, y + 1, x + 16, y + 16, hover ? 0xFFE8C46A : 0xFFC8A85E);
-        mc.fontRenderer.drawString("<", x + 6, y + 5, 0xFF1B1208);
-    }
-
-    private void drawSection(String title, String value, int x, int y) {
-        mc.fontRenderer.drawString(title, x, y, 0x4A2C0C);
-        List wrapped = mc.fontRenderer.listFormattedStringToWidth(value == null || value.length() == 0 ? "None" : value, 178);
-        for (int i = 0; i < wrapped.size() && i < 3; i++) {
-            mc.fontRenderer.drawString(String.valueOf(wrapped.get(i)), x, y + 12 + i * 10, 0x1B1208);
+    private void drawInfoCard(String title, String value, int x, int y, int width) {
+        Gui.drawRect(x, y, x + width, y + 43, 0xFF7A4A25);
+        Gui.drawRect(x + 1, y + 1, x + width - 1, y + 42, 0xFFE4C98F);
+        fontRendererObj.drawString(title, x + 8, y + 7, 0x4A2C0C);
+        List wrapped = fontRendererObj.listFormattedStringToWidth(value == null || value.trim().isEmpty() ? "None" : value, width - 16);
+        for (int i = 0; i < wrapped.size() && i < 2; i++) {
+            fontRendererObj.drawString(String.valueOf(wrapped.get(i)), x + 8, y + 20 + i * 10, 0x1B1208);
         }
     }
 
-    private String formatNames(String names) {
-        return names == null || names.trim().isEmpty() ? "" : " - " + names;
+    private void drawButton(int x, int y, int width, int height, String text, boolean hover) {
+        Gui.drawRect(x, y, x + width, y + height, 0xFF2B2117);
+        Gui.drawRect(x + 1, y + 1, x + width - 1, y + height - 1, hover ? 0xFFE8C46A : 0xFF4B321F);
+        int color = hover ? 0xFF1B1208 : 0xFFFFE6A3;
+        fontRendererObj.drawString(text, x + (width - fontRendererObj.getStringWidth(text)) / 2, y + 6, color);
     }
 
-    private void drawPlayerHead(String playerName, int x, int y) {
-        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        ResourceLocation skin = AbstractClientPlayer.getLocationSkin(playerName);
-        AbstractClientPlayer.getDownloadImageSkin(skin, playerName);
-        mc.getTextureManager().bindTexture(skin);
-        func_152125_a(x, y, 8.0f, 8.0f, 8, 8, 16, 16, 64.0f, 64.0f);
-        func_152125_a(x, y, 40.0f, 8.0f, 8, 8, 16, 16, 64.0f, 64.0f);
-    }
-
-    private String trim(String value, int width) {
-        value = value == null ? "" : value;
-        if (mc.fontRenderer.getStringWidth(value) <= width) {
-            return value;
+    private void drawScrollbar(int x, int y) {
+        int rows = getVisibleRows();
+        if (records.size() <= rows) {
+            return;
         }
-        String suffix = "...";
-        while (value.length() > 0 && mc.fontRenderer.getStringWidth(value + suffix) > width) {
-            value = value.substring(0, value.length() - 1);
-        }
-        return value + suffix;
-    }
-
-    private void drawScrollbar() {
-        int size = selected >= 0 ? getDetailLineCount() : records.size();
-        int scrollBarX0 = guiLeft + 201;
-        int scrollBarY0 = guiTop + 42;
-        mc.getTextureManager().bindTexture(LOTRGuiAchievements.iconsTexture);
-        if (size > getVisibleCount()) {
-            int maxScroll = Math.max(1, getMaxScroll());
-            int offset = (int) (scroll / (float) maxScroll * 181.0f);
-            drawTexturedModalRect(scrollBarX0, scrollBarY0 + offset, 190, 0, 10, 17);
-        } else {
-            drawTexturedModalRect(scrollBarX0, scrollBarY0, 200, 0, 10, 17);
-        }
+        int trackH = rows * 32 - 4;
+        Gui.drawRect(x, y, x + 5, y + trackH, 0x662B2117);
+        int max = Math.max(1, getMaxScroll());
+        int handleH = Math.max(18, trackH * rows / records.size());
+        int handleY = y + (trackH - handleH) * scroll / max;
+        Gui.drawRect(x, handleY, x + 5, handleY + handleH, 0xFF5D311E);
     }
 
     private void updateScrollbarDrag(int mouseX, int mouseY) {
         boolean isMouseDown = Mouse.isButtonDown(0);
-        int maxScroll = getMaxScroll();
-        int scrollBarX0 = guiLeft + 201;
-        int scrollBarX1 = scrollBarX0 + 12;
-        int scrollBarY0 = guiTop + 42;
-        int scrollBarY1 = guiTop + 246;
-        if (!wasMouseDown && isMouseDown && maxScroll > 0 && selected < 0 && mouseX >= scrollBarX0 && mouseX < scrollBarX1 && mouseY >= scrollBarY0 && mouseY < scrollBarY1) {
+        int listX = guiLeft + 18;
+        int listY = guiTop + 78;
+        int scrollX = listX + getListWidth() - 8;
+        int trackH = getVisibleRows() * 32 - 4;
+        int max = getMaxScroll();
+        if (!wasMouseDown && isMouseDown && max > 0 && inside(mouseX, mouseY, scrollX - 2, listY, 9, trackH)) {
             isScrolling = true;
         }
         if (!isMouseDown) {
@@ -218,43 +201,51 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         }
         wasMouseDown = isMouseDown;
         if (isScrolling) {
-            float currentScroll = (mouseY - scrollBarY0 - 8.5f) / (scrollBarY1 - scrollBarY0 - 17.0f);
-            currentScroll = Math.max(0.0f, Math.min(1.0f, currentScroll));
-            scroll = Math.round(currentScroll * maxScroll);
+            float amount = (mouseY - listY) / (float) Math.max(1, trackH);
+            amount = Math.max(0.0F, Math.min(1.0F, amount));
+            scroll = Math.round(amount * max);
         }
+    }
+
+    private void drawPlayerHead(String playerName, int x, int y) {
+        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        ResourceLocation skin = AbstractClientPlayer.getLocationSkin(playerName);
+        AbstractClientPlayer.getDownloadImageSkin(skin, playerName);
+        mc.getTextureManager().bindTexture(skin);
+        func_152125_a(x, y, 8.0F, 8.0F, 8, 8, 16, 16, 64.0F, 64.0F);
+        func_152125_a(x, y, 40.0F, 8.0F, 8, 8, 16, 16, 64.0F, 64.0F);
+    }
+
+    private String formatNames(String names) {
+        return names == null || names.trim().isEmpty() ? "" : " - " + names;
+    }
+
+    private boolean inside(int mouseX, int mouseY, int x, int y, int width, int height) {
+        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+    }
+
+    private int getListWidth() {
+        return Math.max(260, Math.min(340, xSize / 2 + 30));
     }
 
     private int getVisibleRows() {
-        return 5;
-    }
-
-    private int getVisibleCount() {
-        return selected >= 0 ? 14 : getVisibleRows();
-    }
-
-    private int getDetailLineCount() {
-        if (selected < 0 || selected >= records.size()) {
-            return 0;
-        }
-        Record record = (Record) records.get(selected);
-        int lines = 6;
-        lines += getWrappedLineCount(record.population);
-        lines += getWrappedLineCount(record.progress + " completed");
-        lines += getWrappedLineCount(record.lord);
-        lines += getWrappedLineCount(record.tileCount + formatNames(record.tiles));
-        return lines;
-    }
-
-    private int getWrappedLineCount(String value) {
-        return Math.max(1, mc.fontRenderer.listFormattedStringToWidth(value == null || value.length() == 0 ? "None" : value, 178).size());
-    }
-
-    private int getScrollStep() {
-        return selected >= 0 ? 3 : 1;
+        return Math.max(5, (ySize - 102) / 32);
     }
 
     private int getMaxScroll() {
-        return selected >= 0 ? Math.max(0, getDetailLineCount() - getVisibleCount()) : Math.max(0, records.size() - getVisibleRows());
+        return Math.max(0, records.size() - getVisibleRows());
+    }
+
+    private String trim(String value, int width) {
+        value = value == null ? "" : value;
+        if (fontRendererObj.getStringWidth(value) <= width) {
+            return value;
+        }
+        String suffix = "...";
+        while (value.length() > 0 && fontRendererObj.getStringWidth(value + suffix) > width) {
+            value = value.substring(0, value.length() - 1);
+        }
+        return value + suffix;
     }
 
     private static void parseRecords() {
@@ -267,8 +258,8 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
                 continue;
             }
             if ("SUMMARY".equals(parts[0]) && parts.length >= 3) {
-                summary = "Players: " + parts[1] + " | Tiles: " + parts[2];
-            } else if ("PLAYER".equals(parts[0]) && parts.length >= 10) {
+                summary = "Players: " + parts[1] + " | Claimed tiles: " + parts[2];
+            } else if ("PLAYER".equals(parts[0]) && parts.length >= 9) {
                 records.add(new Record(parts));
             }
         }
@@ -292,7 +283,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             rank = parts[4];
             progress = parts[5];
             population = parts[6];
-            if (parts.length >= 11) {
+            if (parts.length >= 10) {
                 lord = parts[7].length() == 0 ? "No pledged lord" : parts[7];
                 tileCount = parts[8];
                 tiles = parts[9];

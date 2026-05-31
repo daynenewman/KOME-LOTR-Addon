@@ -1,7 +1,6 @@
 package kome.client.gui;
 
 import kome.client.KOMEMinecraftClient;
-import kome.client.KOMEEntityHighlightOverlay;
 import kome.common.data.KOMEProgressionAchievement;
 import lotr.client.gui.LOTRGuiAchievements;
 import lotr.client.gui.LOTRGuiMenuBase;
@@ -27,7 +26,6 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
 
     private GuiButton buttonCategoryPrev;
     private GuiButton buttonCategoryNext;
-    private GuiButton buttonHighlightLord;
     private int currentGroup;
     private int scroll;
     private boolean isScrolling;
@@ -50,8 +48,6 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
                 prevGroup();
             } else if (button == buttonCategoryNext) {
                 nextGroup();
-            } else if (button == buttonHighlightLord) {
-                KOMEEntityHighlightOverlay.highlight(getMeta("__pledged_lord_id"), getMeta("__pledged_lord"));
             } else {
                 super.actionPerformed(button);
             }
@@ -73,10 +69,6 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         String owner = playerName == null || playerName.length() == 0 ? "Loading..." : playerName;
         drawCenteredString(owner + " - " + totalComplete + "/" + KOMEProgressionAchievement.ALL.size(), guiLeft + xSize / 2, guiTop - 18, 12632256);
         drawCenteredString(GROUP_NAMES[currentGroup] + " (" + complete + "/" + groupAchievements.size() + ")", guiLeft + xSize / 2, guiTop + 28, 8019267);
-        String lord = getMeta("__pledged_lord");
-        if (lord.length() > 0 && !"No pledged lord".equals(lord)) {
-            drawCenteredString("Lord: " + trimToWidth(lord, 150), guiLeft + xSize / 2, guiTop + 39, 5652783);
-        }
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
@@ -110,9 +102,6 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         buttonList.add(buttonCategoryPrev);
         buttonCategoryNext = new GuiButton(1, guiLeft + 187, guiTop + 9, 20, 20, ">");
         buttonList.add(buttonCategoryNext);
-        buttonHighlightLord = new GuiButton(2, guiLeft + 77, guiTop + 231, 66, 18, "Find Lord");
-        buttonHighlightLord.enabled = getMeta("__pledged_lord_id").length() > 0;
-        buttonList.add(buttonHighlightLord);
     }
 
     @Override
@@ -288,11 +277,6 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
 
     private String getAssignment(KOMEProgressionAchievement achievement) {
         Object value = assignments.get(achievement.id);
-        return value == null ? "" : String.valueOf(value);
-    }
-
-    private String getMeta(String key) {
-        Object value = assignments.get(key);
         return value == null ? "" : String.valueOf(value);
     }
 

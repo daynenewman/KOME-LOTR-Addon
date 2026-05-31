@@ -131,10 +131,7 @@ public class KOMEProgressionAutoCompleter {
                 completed.add(achievement.id);
             }
         }
-        java.util.Map assignments = new java.util.HashMap(progression.getAssignments());
-        assignments.put("__pledged_lord", progression.getPledgedLordDisplay());
-        assignments.put("__pledged_lord_id", progression.getPledgedLordID());
-        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, assignments), player);
+        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments()), player);
     }
 
     private static int grantAfter(KOMEPlayerProgression progression, String requiredID, String... unlockedIDs) {
