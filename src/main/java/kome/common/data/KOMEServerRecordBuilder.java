@@ -119,6 +119,10 @@ public class KOMEServerRecordBuilder {
             }
         }
         String faction = progression == null ? "" : progression.getPledgedLordFaction();
+        LOTRFaction resolved = findFaction(faction);
+        if (resolved != null) {
+            return new FactionInfo(resolved.codeName(), resolved.factionName());
+        }
         return new FactionInfo(faction, faction == null || faction.trim().isEmpty() ? "No faction" : faction);
     }
 
@@ -135,7 +139,7 @@ public class KOMEServerRecordBuilder {
     }
 
     private static boolean factionMatches(String value, String factionKey) {
-        return value != null && factionKey != null && value.trim().equalsIgnoreCase(factionKey.trim());
+        return value != null && factionKey != null && KOMEAlliance.normalizeFactionKey(value).equals(KOMEAlliance.normalizeFactionKey(factionKey));
     }
 
     private static String getAllianceSummary(KOMEWorldData data, String factionKey) {
@@ -166,8 +170,24 @@ public class KOMEServerRecordBuilder {
     }
 
     private static String displayFaction(String key) {
-        LOTRFaction faction = LOTRFaction.forName(key);
+        LOTRFaction faction = findFaction(key);
         return faction == null ? key : faction.factionName();
+    }
+
+    private static LOTRFaction findFaction(String value) {
+        LOTRFaction direct = LOTRFaction.forName(value);
+        if (direct != null) {
+            return direct;
+        }
+        String normalized = KOMEAlliance.normalizeFactionKey(value);
+        for (LOTRFaction faction : LOTRFaction.values()) {
+            if (faction != null
+                && (KOMEAlliance.normalizeFactionKey(faction.codeName()).equals(normalized)
+                || KOMEAlliance.normalizeFactionKey(faction.factionName()).equals(normalized))) {
+                return faction;
+            }
+        }
+        return null;
     }
 
     private static String joinNames(List names) {
