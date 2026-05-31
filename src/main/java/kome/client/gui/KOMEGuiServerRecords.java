@@ -4,11 +4,8 @@ import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketServerRecordRequest;
 import lotr.client.gui.LOTRGuiMenu;
 import lotr.client.gui.LOTRGuiMenuBase;
-import net.minecraft.client.entity.AbstractClientPlayer;
 import net.minecraft.client.gui.Gui;
-import net.minecraft.util.ResourceLocation;
 import org.lwjgl.input.Mouse;
-import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -116,8 +113,8 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
 
     private void drawTable(int x, int y, int width, int mouseX, int mouseY) {
         Gui.drawRect(x, y - 20, x + width, guiTop + ySize - 18, 0x33160E08);
-        fontRendererObj.drawString("Player", x + 8, y - 13, 0x4A2C0C);
-        fontRendererObj.drawString("Faction / Rank", x + 128, y - 13, 0x4A2C0C);
+        fontRendererObj.drawString("Player / Rank", x + 8, y - 13, 0x4A2C0C);
+        fontRendererObj.drawString("Faction", x + 128, y - 13, 0x4A2C0C);
         if (records.isEmpty()) {
             fontRendererObj.drawString("No player records yet.", x + 12, y + 12, 0x2B160D);
             return;
@@ -130,11 +127,10 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             int fill = active ? 0xFF4E321D : hover ? 0xFF7A542F : 0xFF2F2117;
             Gui.drawRect(x, rowY, x + width - 12, rowY + 28, 0xFF160E08);
             Gui.drawRect(x + 1, rowY + 1, x + width - 13, rowY + 27, fill);
-            drawPlayerHead(record.name, x + 6, rowY + 6);
+            drawFactionBadge(record.faction, x + 6, rowY + 5, 20);
             fontRendererObj.drawString(trim(record.name, 88), x + 30, rowY + 5, 0xFFFFFFFF);
-            fontRendererObj.drawString(trim(record.progress + " complete", 88), x + 30, rowY + 17, 0xFFD9B56A);
-            fontRendererObj.drawString(trim(record.faction, width - 170), x + 128, rowY + 5, 0xFFFFD36A);
-            fontRendererObj.drawString(trim(record.rank + " | " + record.tileCount + " tiles", width - 170), x + 128, rowY + 17, 0xFFFFFFFF);
+            fontRendererObj.drawString(trim(record.rank, 88), x + 30, rowY + 17, 0xFFD9B56A);
+            fontRendererObj.drawString(trim(record.faction, width - 170), x + 128, rowY + 11, 0xFFFFD36A);
         }
     }
 
@@ -145,7 +141,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             return;
         }
         Record record = (Record) records.get(selected);
-        drawPlayerHead(record.name, x + 14, y - 12);
+        drawFactionBadge(record.faction, x + 14, y - 12, 20);
         fontRendererObj.drawString(trim(record.name, width - 48), x + 40, y - 14, 0x1B1208);
         fontRendererObj.drawString(trim(record.faction + " - " + record.rank, width - 48), x + 40, y - 2, 0x4A2C0C);
 
@@ -208,13 +204,69 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         }
     }
 
-    private void drawPlayerHead(String playerName, int x, int y) {
-        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        ResourceLocation skin = AbstractClientPlayer.getLocationSkin(playerName);
-        AbstractClientPlayer.getDownloadImageSkin(skin, playerName);
-        mc.getTextureManager().bindTexture(skin);
-        func_152125_a(x, y, 8.0F, 8.0F, 8, 8, 16, 16, 64.0F, 64.0F);
-        func_152125_a(x, y, 40.0F, 8.0F, 8, 8, 16, 16, 64.0F, 64.0F);
+    private void drawFactionBadge(String faction, int x, int y, int size) {
+        int color = factionColor(faction);
+        Gui.drawRect(x, y, x + size, y + size, 0xFF160E08);
+        Gui.drawRect(x + 1, y + 1, x + size - 1, y + size - 1, 0xFF000000 | color);
+        Gui.drawRect(x + 3, y + 3, x + size - 3, y + size - 3, 0x33160E08);
+        String initials = factionInitials(faction);
+        int textWidth = fontRendererObj.getStringWidth(initials);
+        fontRendererObj.drawString(initials, x + (size - textWidth) / 2, y + 6, 0xFFFFFFFF);
+    }
+
+    private int factionColor(String faction) {
+        if (faction == null || faction.trim().length() == 0 || "No faction".equals(faction)) {
+            return 0x6B5A3A;
+        }
+        String key = faction.toLowerCase();
+        if (key.contains("dunedain") || key.contains("ranger")) {
+            return 0x2F6B3C;
+        }
+        if (key.contains("hobbit")) {
+            return 0xC59B3F;
+        }
+        if (key.contains("mordor")) {
+            return 0x1B1B1B;
+        }
+        if (key.contains("gondor")) {
+            return 0xD8D8D8;
+        }
+        if (key.contains("rohan")) {
+            return 0x5D8B2E;
+        }
+        if (key.contains("isengard")) {
+            return 0x6E6E72;
+        }
+        if (key.contains("angmar")) {
+            return 0x4E2A73;
+        }
+        if (key.contains("blue") || key.contains("mountain")) {
+            return 0x337AA8;
+        }
+        if (key.contains("durin") || key.contains("dwarf")) {
+            return 0x8A5A2B;
+        }
+        int hash = key.hashCode();
+        int red = 80 + (hash & 0x7F);
+        int green = 80 + ((hash >> 8) & 0x7F);
+        int blue = 80 + ((hash >> 16) & 0x7F);
+        return red << 16 | green << 8 | blue;
+    }
+
+    private String factionInitials(String faction) {
+        if (faction == null || faction.trim().length() == 0 || "No faction".equals(faction)) {
+            return "-";
+        }
+        String[] words = faction.split(" ");
+        String initials = "";
+        for (int i = 0; i < words.length && initials.length() < 2; i++) {
+            String word = words[i].replaceAll("[^A-Za-z0-9]", "");
+            if (word.length() == 0 || "of".equalsIgnoreCase(word) || "the".equalsIgnoreCase(word) || "and".equalsIgnoreCase(word)) {
+                continue;
+            }
+            initials += word.substring(0, 1).toUpperCase();
+        }
+        return initials.length() == 0 ? faction.substring(0, 1).toUpperCase() : initials;
     }
 
     private String formatNames(String names) {
