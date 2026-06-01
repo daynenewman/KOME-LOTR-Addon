@@ -25,7 +25,6 @@ import lotr.common.inventory.LOTRContainerPouch;
 import lotr.common.inventory.LOTRContainerTrade;
 import lotr.common.LOTRMod;
 import lotr.common.fac.LOTRFaction;
-import lotr.common.fac.LOTRFactionRelations;
 import lotr.common.item.LOTRItemCoin;
 import lotr.common.item.LOTRItemMug;
 import lotr.common.item.LOTRItemPouch;
@@ -108,6 +107,7 @@ public class KOMEEvents {
             if (event.player instanceof EntityPlayerMP && KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(event.player)) % 100L == 0L) {
                 KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
                 KOMEProgressionTitles.updatePlayerTitle((EntityPlayerMP) event.player);
+                updateAllianceMilitaryKillProgress((EntityPlayerMP) event.player);
                 updateAllianceTradeT2Progress((EntityPlayerMP) event.player);
             }
             trackAllianceCivilTraderProgress(event.player);
@@ -290,7 +290,6 @@ public class KOMEEvents {
     public void onLivingDeath(LivingDeathEvent event) {
         if (!KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving)) && event.entityLiving instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
-            trackAllianceMilitaryKillProgress(event, npc);
             releaseIfTracked(npc);
             releaseLinkedInactiveUnits(npc);
         }
@@ -590,95 +589,38 @@ public class KOMEEvents {
         }
     }
 
-    private void trackAllianceMilitaryKillProgress(LivingDeathEvent event, LOTREntityNPC npc) {
-        LOTRFaction killedFaction = npc.getFaction();
-        if (killedFaction == null || !killedFaction.isPlayableAlignmentFaction()) {
-            return;
-        }
-        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
-        KillCredit credit = getAllianceKillCredit(event, data);
-        if (credit == null || credit.factionKey.length() == 0) {
+    private void updateAllianceMilitaryKillProgress(EntityPlayerMP player) {
+        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+        String playerFaction = getPlayerFactionKey(player, data);
+        if (playerFaction.length() == 0) {
             return;
         }
         boolean changed = false;
         for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || !factionMatches(alliance.factionA, credit.factionKey)) {
+            if (alliance == null || alliance.militaryTier != 1 || !factionMatches(alliance.factionA, playerFaction)) {
                 continue;
             }
             LOTRFaction receiver = LOTRFaction.forName(alliance.factionB);
-            if (receiver == null || receiver == killedFaction || !isEnemyOf(receiver, killedFaction)) {
+            if (receiver == null) {
                 continue;
             }
-            if (alliance.militaryTier < 1) {
-                if (credit.player != null) {
-                    credit.player.addChatMessage(new ChatComponentText("Military alliance enemy kill found for " + receiver.factionName() + ", but kills only count after Military T1 is unlocked."));
+            int current = LOTRLevelData.getData(player).getFactionData(receiver).getEnemiesKilled();
+            int previous = alliance.getDelivered("military.kills");
+            if (current != previous) {
+                alliance.setDelivered("military.kills", Math.min(current, MILITARY_KILLS_REQUIRED));
+                changed = true;
+                int progress = alliance.getDelivered("military.kills");
+                if (progress <= 5 || progress % 25 == 0) {
+                    player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + progress + "/" + MILITARY_KILLS_REQUIRED + "."));
                 }
-                continue;
-            }
-            if (alliance.militaryTier >= 2) {
-                continue;
-            }
-            int delivered = alliance.getDelivered("military.kills");
-            if (delivered >= MILITARY_KILLS_REQUIRED) {
-                continue;
-            }
-            alliance.addDelivered("military.kills", 1);
-            changed = true;
-            int progress = alliance.getDelivered("military.kills");
-            if (credit.player != null && (progress <= 5 || progress % 25 == 0)) {
-                credit.player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + progress + "/" + MILITARY_KILLS_REQUIRED + "."));
             }
             if (alliance.getDelivered("military.kills") >= MILITARY_KILLS_REQUIRED) {
-                alliance.setTier(KOMEAlliance.MILITARY, 2, "Enemy kills", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(npc)));
-                if (credit.player != null) {
-                    credit.player.addChatMessage(new ChatComponentText("Military alliance upgraded to T2 with " + receiver.factionName() + "."));
-                }
+                alliance.setTier(KOMEAlliance.MILITARY, 2, "Enemy kills", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
+                player.addChatMessage(new ChatComponentText("Military alliance upgraded to T2 with " + receiver.factionName() + "."));
             }
         }
         if (changed) {
             data.markDirty();
-        }
-    }
-
-    private KillCredit getAllianceKillCredit(LivingDeathEvent event, KOMEWorldData data) {
-        if (event.source == null) {
-            return null;
-        }
-        KillCredit credit = getAllianceKillCredit(event.source.getEntity(), data);
-        return credit == null ? getAllianceKillCredit(event.source.getSourceOfDamage(), data) : credit;
-    }
-
-    private KillCredit getAllianceKillCredit(Entity attacker, KOMEWorldData data) {
-        if (attacker instanceof EntityPlayer) {
-            EntityPlayer player = (EntityPlayer) attacker;
-            return new KillCredit(getPlayerFactionKey(player, data), player instanceof EntityPlayerMP ? (EntityPlayerMP) player : null);
-        }
-        if (attacker instanceof LOTREntityNPC) {
-            LOTREntityNPC hired = (LOTREntityNPC) attacker;
-            if (hired.hiredNPCInfo != null && hired.hiredNPCInfo.isActive && hired.hiredNPCInfo.getHiringPlayerUUID() != null) {
-                EntityPlayer owner = hired.hiredNPCInfo.getHiringPlayer();
-                if (owner != null) {
-                    return new KillCredit(getPlayerFactionKey(owner, data), owner instanceof EntityPlayerMP ? (EntityPlayerMP) owner : null);
-                }
-                return new KillCredit(getPlayerFactionKey(hired.hiredNPCInfo.getHiringPlayerUUID(), data), null);
-            }
-        }
-        return null;
-    }
-
-    private String getPlayerFactionKey(UUID playerID, KOMEWorldData data) {
-        KOMEPlayerProgression progression = data.getProgression(playerID);
-        String faction = progression.getPledgedLordFaction();
-        return faction == null ? "" : faction;
-    }
-
-    private static class KillCredit {
-        private final String factionKey;
-        private final EntityPlayerMP player;
-
-        private KillCredit(String factionKey, EntityPlayerMP player) {
-            this.factionKey = factionKey == null ? "" : factionKey;
-            this.player = player;
         }
     }
 
@@ -708,11 +650,6 @@ public class KOMEEvents {
     private String displayFaction(String key) {
         LOTRFaction faction = LOTRFaction.forName(key);
         return faction == null ? key : faction.factionName();
-    }
-
-    private boolean isEnemyOf(LOTRFaction faction, LOTRFaction other) {
-        LOTRFactionRelations.Relation relation = LOTRFactionRelations.getRelations(faction, other);
-        return relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
     }
 
     private String getPlayerFactionKey(EntityPlayer player, KOMEWorldData data) {
