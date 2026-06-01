@@ -591,22 +591,18 @@ public class KOMEEvents {
     }
 
     private void trackAllianceMilitaryKillProgress(LivingDeathEvent event, LOTREntityNPC npc) {
-        if (event.source == null || !(event.source.getEntity() instanceof EntityPlayerMP)) {
-            return;
-        }
-        EntityPlayerMP player = (EntityPlayerMP) event.source.getEntity();
         LOTRFaction killedFaction = npc.getFaction();
         if (killedFaction == null || !killedFaction.isPlayableAlignmentFaction()) {
             return;
         }
-        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        String playerFaction = getPlayerFactionKey(player, data);
-        if (playerFaction.length() == 0) {
+        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
+        KillCredit credit = getAllianceKillCredit(event, data);
+        if (credit == null || credit.factionKey.length() == 0) {
             return;
         }
         boolean changed = false;
         for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || alliance.militaryTier != 1 || !factionMatches(alliance.factionA, playerFaction)) {
+            if (alliance == null || alliance.militaryTier != 1 || !factionMatches(alliance.factionA, credit.factionKey)) {
                 continue;
             }
             LOTRFaction receiver = LOTRFaction.forName(alliance.factionB);
@@ -620,12 +616,56 @@ public class KOMEEvents {
             alliance.addDelivered("military.kills", 1);
             changed = true;
             if (alliance.getDelivered("military.kills") >= MILITARY_KILLS_REQUIRED) {
-                alliance.setTier(KOMEAlliance.MILITARY, 2, "Enemy kills", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
-                player.addChatMessage(new ChatComponentText("Military alliance upgraded to T2 with " + receiver.factionName() + "."));
+                alliance.setTier(KOMEAlliance.MILITARY, 2, "Enemy kills", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(npc)));
+                if (credit.player != null) {
+                    credit.player.addChatMessage(new ChatComponentText("Military alliance upgraded to T2 with " + receiver.factionName() + "."));
+                }
             }
         }
         if (changed) {
             data.markDirty();
+        }
+    }
+
+    private KillCredit getAllianceKillCredit(LivingDeathEvent event, KOMEWorldData data) {
+        if (event.source == null) {
+            return null;
+        }
+        KillCredit credit = getAllianceKillCredit(event.source.getEntity(), data);
+        return credit == null ? getAllianceKillCredit(event.source.getSourceOfDamage(), data) : credit;
+    }
+
+    private KillCredit getAllianceKillCredit(Entity attacker, KOMEWorldData data) {
+        if (attacker instanceof EntityPlayer) {
+            EntityPlayer player = (EntityPlayer) attacker;
+            return new KillCredit(getPlayerFactionKey(player, data), player instanceof EntityPlayerMP ? (EntityPlayerMP) player : null);
+        }
+        if (attacker instanceof LOTREntityNPC) {
+            LOTREntityNPC hired = (LOTREntityNPC) attacker;
+            if (hired.hiredNPCInfo != null && hired.hiredNPCInfo.isActive && hired.hiredNPCInfo.getHiringPlayerUUID() != null) {
+                EntityPlayer owner = hired.hiredNPCInfo.getHiringPlayer();
+                if (owner != null) {
+                    return new KillCredit(getPlayerFactionKey(owner, data), owner instanceof EntityPlayerMP ? (EntityPlayerMP) owner : null);
+                }
+                return new KillCredit(getPlayerFactionKey(hired.hiredNPCInfo.getHiringPlayerUUID(), data), null);
+            }
+        }
+        return null;
+    }
+
+    private String getPlayerFactionKey(UUID playerID, KOMEWorldData data) {
+        KOMEPlayerProgression progression = data.getProgression(playerID);
+        String faction = progression.getPledgedLordFaction();
+        return faction == null ? "" : faction;
+    }
+
+    private static class KillCredit {
+        private final String factionKey;
+        private final EntityPlayerMP player;
+
+        private KillCredit(String factionKey, EntityPlayerMP player) {
+            this.factionKey = factionKey == null ? "" : factionKey;
+            this.player = player;
         }
     }
 
