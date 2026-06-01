@@ -75,8 +75,8 @@ public class KOMEGuiPopulation extends GuiScreen {
             KOMEMinecraftClient.sendChat("/population remove " + player + " defensive " + amount);
         } else if (button.id == 7) {
             KOMEMinecraftClient.sendChat("/population units " + player);
+            KOMEMinecraftClient.closePlayerScreen();
         }
-        KOMEMinecraftClient.closePlayerScreen();
     }
 
     @Override
