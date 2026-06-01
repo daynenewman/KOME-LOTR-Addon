@@ -602,11 +602,20 @@ public class KOMEEvents {
         }
         boolean changed = false;
         for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || alliance.militaryTier != 1 || !factionMatches(alliance.factionA, credit.factionKey)) {
+            if (alliance == null || !factionMatches(alliance.factionA, credit.factionKey)) {
                 continue;
             }
             LOTRFaction receiver = LOTRFaction.forName(alliance.factionB);
             if (receiver == null || receiver == killedFaction || !isEnemyOf(receiver, killedFaction)) {
+                continue;
+            }
+            if (alliance.militaryTier < 1) {
+                if (credit.player != null) {
+                    credit.player.addChatMessage(new ChatComponentText("Military alliance enemy kill found for " + receiver.factionName() + ", but kills only count after Military T1 is unlocked."));
+                }
+                continue;
+            }
+            if (alliance.militaryTier >= 2) {
                 continue;
             }
             int delivered = alliance.getDelivered("military.kills");
@@ -615,6 +624,10 @@ public class KOMEEvents {
             }
             alliance.addDelivered("military.kills", 1);
             changed = true;
+            int progress = alliance.getDelivered("military.kills");
+            if (credit.player != null && (progress <= 5 || progress % 25 == 0)) {
+                credit.player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + progress + "/" + MILITARY_KILLS_REQUIRED + "."));
+            }
             if (alliance.getDelivered("military.kills") >= MILITARY_KILLS_REQUIRED) {
                 alliance.setTier(KOMEAlliance.MILITARY, 2, "Enemy kills", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(npc)));
                 if (credit.player != null) {
