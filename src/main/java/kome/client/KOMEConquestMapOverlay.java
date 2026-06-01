@@ -5,6 +5,7 @@ import cpw.mods.fml.common.gameevent.TickEvent;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEConquestTile;
+import kome.common.data.KOMETileTroopSummary;
 import kome.common.network.KOMEPacketConquestOpenCapture;
 import kome.common.network.KOMEPacketHandler;
 import lotr.client.gui.LOTRGuiMap;
@@ -57,6 +58,7 @@ public class KOMEConquestMapOverlay {
     private static boolean showConquestTiles = true;
     private static final Map<Integer, String> tileIdsByColor = new HashMap<>();
     private static final Map<String, Integer> tileColorsById = new HashMap<>();
+    private static final Map<String, int[]> tileCentersById = new HashMap<>();
     private static final Map<String, Field> lotrMapFields = new HashMap<>();
     private boolean wasRightMouseDown;
     private boolean wasLeftMouseDown;
@@ -83,6 +85,7 @@ public class KOMEConquestMapOverlay {
         }
         drawMapTexture(map, getBorderGuideTextureLocation(), 1.0f);
         drawMapTexture(map, getLabelTextureLocation(), 1.0f);
+        drawTroopMarkers(map);
         if (tileColor != 0) {
             drawTileTooltip(map, tileColor, event.mouseX, event.mouseY);
         }
@@ -169,9 +172,10 @@ public class KOMEConquestMapOverlay {
             InputStream input = KOMEMinecraftClient.resourceManager().getResource(TILE_ID_MASK).getInputStream();
             tileMaskImage = ImageIO.read(input);
             input.close();
-            tileMaskPixels = new int[tileMaskImage.getWidth() * tileMaskImage.getHeight()];
-            tileMaskImage.getRGB(0, 0, tileMaskImage.getWidth(), tileMaskImage.getHeight(), tileMaskPixels, 0, tileMaskImage.getWidth());
-            loadTileIdMap();
+        tileMaskPixels = new int[tileMaskImage.getWidth() * tileMaskImage.getHeight()];
+        tileMaskImage.getRGB(0, 0, tileMaskImage.getWidth(), tileMaskImage.getHeight(), tileMaskPixels, 0, tileMaskImage.getWidth());
+        loadTileIdMap();
+        computeTileCenters();
             highlightTexture = new DynamicTexture(tileMaskImage.getWidth(), tileMaskImage.getHeight());
             highlightTextureLocation = KOMEMinecraftClient.textureManager().getDynamicTextureLocation("kome_conquest_hover", highlightTexture);
             claimedTexture = new DynamicTexture(tileMaskImage.getWidth(), tileMaskImage.getHeight());
@@ -221,6 +225,7 @@ public class KOMEConquestMapOverlay {
     private static void loadTileIdMap() throws Exception {
         tileIdsByColor.clear();
         tileColorsById.clear();
+        tileCentersById.clear();
         InputStream input = KOMEMinecraftClient.resourceManager().getResource(TILE_ID_MAP).getInputStream();
         BufferedReader reader = new BufferedReader(new InputStreamReader(input, "UTF-8"));
         String line;
@@ -246,6 +251,36 @@ public class KOMEConquestMapOverlay {
             tileColorsById.put(tileId, color);
         }
         reader.close();
+    }
+
+    private static void computeTileCenters() {
+        Map<Integer, long[]> totals = new HashMap<Integer, long[]>();
+        int width = tileMaskImage.getWidth();
+        int height = tileMaskImage.getHeight();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int argb = tileMaskPixels[y * width + x];
+                if (!isClaimableColor(argb)) {
+                    continue;
+                }
+                int color = argb & 0xFFFFFF;
+                long[] total = totals.get(color);
+                if (total == null) {
+                    total = new long[3];
+                    totals.put(color, total);
+                }
+                total[0] += x;
+                total[1] += y;
+                total[2]++;
+            }
+        }
+        for (Map.Entry<Integer, long[]> entry : totals.entrySet()) {
+            String tile = tileIdsByColor.get(entry.getKey());
+            long[] total = entry.getValue();
+            if (tile != null && total[2] > 0) {
+                tileCentersById.put(KOMEConquestTile.normalizeId(tile), new int[] {(int) (total[0] / total[2]), (int) (total[1] / total[2])});
+            }
+        }
     }
 
     private static boolean isClaimableColor(int argb) {
@@ -427,6 +462,49 @@ public class KOMEConquestMapOverlay {
         if (movementText.length() > 0) {
             font.drawStringWithShadow(movementText, x, y + 10, 0xA8D8FF);
         }
+    }
+
+    private static void drawTroopMarkers(LOTRGuiMap map) {
+        if (!ensureTileMaskLoaded()) {
+            return;
+        }
+        for (Object object : KOMEClientData.INSTANCE.troopSummaries.values()) {
+            KOMETileTroopSummary summary = (KOMETileTroopSummary) object;
+            if (summary == null || !summary.hasAnyTroops()) {
+                continue;
+            }
+            int[] center = tileCentersById.get(KOMEConquestTile.normalizeId(summary.tileId));
+            if (center == null) {
+                continue;
+            }
+            int screenX = mapScreenX(map, center[0]);
+            int screenY = mapScreenY(map, center[1]);
+            if (screenX < mapInt("mapXMin") || screenX > mapInt("mapXMax") || screenY < mapInt("mapYMin") || screenY > mapInt("mapYMax")) {
+                continue;
+            }
+            int pop = summary.stationedPop + summary.movingPop + summary.incomingPop;
+            int color = summary.stationedPop > 0 ? 0xFF55FF77 : summary.incomingPop > 0 ? 0xFF6FCBFF : 0xFFFFD966;
+            Gui.drawRect(screenX - 5, screenY - 5, screenX + 6, screenY + 6, 0xCC000000);
+            Gui.drawRect(screenX - 4, screenY - 4, screenX + 5, screenY + 5, color);
+            Gui.drawRect(screenX - 2, screenY - 2, screenX + 3, screenY + 3, 0xEE1B1208);
+            String text = abbreviatePop(pop);
+            FontRenderer font = KOMEMinecraftClient.fontRenderer();
+            font.drawStringWithShadow(text, screenX + 7, screenY - 4, 0xFFFFFF);
+        }
+    }
+
+    private static int mapScreenX(LOTRGuiMap map, int imageX) {
+        double mapX = imageX * (double) LOTRGenLayerWorld.imageWidth / tileMaskImage.getWidth();
+        return (int) Math.round(mapInt("mapXMin") + mapInt("mapWidth") / 2.0 + (mapX - mapNumber(map, "posX")) * mapNumber(map, "zoomScale"));
+    }
+
+    private static int mapScreenY(LOTRGuiMap map, int imageY) {
+        double mapY = imageY * (double) LOTRGenLayerWorld.imageHeight / tileMaskImage.getHeight();
+        return (int) Math.round(mapInt("mapYMin") + mapInt("mapHeight") / 2.0 + (mapY - mapNumber(map, "posY")) * mapNumber(map, "zoomScale"));
+    }
+
+    private static String abbreviatePop(int pop) {
+        return pop >= 1000 ? (pop / 1000) + "k" : String.valueOf(pop);
     }
 
     private static String getMovementTooltip(String tileId) {

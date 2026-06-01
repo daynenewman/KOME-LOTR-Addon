@@ -8,9 +8,14 @@ import io.netty.buffer.ByteBuf;
 import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEConquestTile;
+import kome.common.data.KOMEHiredUnitRecord;
+import kome.common.data.KOMETileTroopSummary;
 import kome.common.data.KOMEWorldData;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class KOMEPacketConquestData implements IMessage {
     public NBTTagCompound data = new NBTTagCompound();
@@ -33,6 +38,13 @@ public class KOMEPacketConquestData implements IMessage {
             }
         }
         data.setTag("ArmyMovements", movementList);
+        NBTTagList troopList = new NBTTagList();
+        for (KOMETileTroopSummary summary : buildTroopSummaries(worldData).values()) {
+            if (summary.hasAnyTroops()) {
+                troopList.appendTag(summary.writeToNBT());
+            }
+        }
+        data.setTag("TroopSummaries", troopList);
     }
 
     @Override
@@ -66,8 +78,52 @@ public class KOMEPacketConquestData implements IMessage {
                     KOMEClientData.INSTANCE.armyMovements.put(order.id, order);
                 }
             }
+            KOMEClientData.INSTANCE.troopSummaries.clear();
+            NBTTagList troopList = message.data.getTagList("TroopSummaries", 10);
+            for (int i = 0; i < troopList.tagCount(); i++) {
+                KOMETileTroopSummary summary = new KOMETileTroopSummary();
+                summary.readFromNBT(troopList.getCompoundTagAt(i));
+                if (summary.tileId.length() > 0 && summary.hasAnyTroops()) {
+                    KOMEClientData.INSTANCE.troopSummaries.put(summary.tileId, summary);
+                }
+            }
             KOMEClientData.INSTANCE.conquestRevision++;
             return null;
         }
+    }
+
+    private static Map<String, KOMETileTroopSummary> buildTroopSummaries(KOMEWorldData worldData) {
+        Map<String, KOMETileTroopSummary> summaries = new HashMap<String, KOMETileTroopSummary>();
+        for (KOMEHiredUnitRecord record : worldData.hiredUnits.values()) {
+            if (record == null || record.currentTile == null || record.currentTile.length() == 0 || record.farmhand) {
+                continue;
+            }
+            String tile = KOMEConquestTile.normalizeId(record.currentTile);
+            KOMETileTroopSummary summary = getSummary(summaries, tile);
+            if (record.movementOrderId != null && record.movementOrderId.length() > 0) {
+                summary.movingPop += record.cost;
+            } else {
+                summary.stationedPop += record.cost;
+            }
+        }
+        for (KOMEArmyMovementOrder order : worldData.armyMovements.values()) {
+            if (order == null || !order.isMoving()) {
+                continue;
+            }
+            getSummary(summaries, order.destinationTile).incomingPop += order.population;
+            getSummary(summaries, order.originTile).movingPop += order.population;
+        }
+        return summaries;
+    }
+
+    private static KOMETileTroopSummary getSummary(Map<String, KOMETileTroopSummary> summaries, String tileId) {
+        String tile = KOMEConquestTile.normalizeId(tileId);
+        KOMETileTroopSummary summary = summaries.get(tile);
+        if (summary == null) {
+            summary = new KOMETileTroopSummary();
+            summary.tileId = tile;
+            summaries.put(tile, summary);
+        }
+        return summary;
     }
 }
