@@ -15,6 +15,8 @@ public class KOMEHiredUnitRecord {
     public boolean farmhand;
     public boolean mounted;
     public String unitName = "";
+    public String currentTile = "";
+    public String movementOrderId = "";
 
     public void readFromNBT(NBTTagCompound nbt) {
         entity = UUID.fromString(nbt.getString("Entity"));
@@ -28,6 +30,8 @@ public class KOMEHiredUnitRecord {
         farmhand = nbt.getBoolean("Farmhand");
         mounted = nbt.getBoolean("Mounted");
         unitName = nbt.getString("UnitName");
+        currentTile = KOMEConquestTile.normalizeId(nbt.getString("CurrentTile"));
+        movementOrderId = nbt.getString("MovementOrderId");
     }
 
     public NBTTagCompound writeToNBT() {
@@ -42,6 +46,8 @@ public class KOMEHiredUnitRecord {
         nbt.setBoolean("Farmhand", farmhand);
         nbt.setBoolean("Mounted", mounted);
         nbt.setString("UnitName", unitName == null ? "" : unitName);
+        nbt.setString("CurrentTile", KOMEConquestTile.normalizeId(currentTile));
+        nbt.setString("MovementOrderId", movementOrderId == null ? "" : movementOrderId);
         return nbt;
     }
 }

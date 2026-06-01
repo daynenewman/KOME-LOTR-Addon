@@ -2,6 +2,7 @@ package kome.client;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
+import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEConquestTile;
 import kome.common.network.KOMEPacketConquestOpenCapture;
@@ -407,8 +408,9 @@ public class KOMEConquestMapOverlay {
             return;
         }
         String text = "Tile " + tileId;
+        String movementText = getMovementTooltip(tileId);
         FontRenderer font = KOMEMinecraftClient.fontRenderer();
-        int width = font.getStringWidth(text);
+        int width = Math.max(font.getStringWidth(text), movementText.length() == 0 ? 0 : font.getStringWidth(movementText));
         int x = mouseX + 10;
         int y = mouseY + 10;
         int mapXMax = mapInt("mapXMax");
@@ -416,11 +418,67 @@ public class KOMEConquestMapOverlay {
         if (x + width + 4 > mapXMax) {
             x = mouseX - width - 10;
         }
-        if (y + 12 > mapYMax) {
-            y = mouseY - 14;
+        int height = movementText.length() == 0 ? 12 : 22;
+        if (y + height > mapYMax) {
+            y = mouseY - height - 4;
         }
-        Gui.drawRect(x - 3, y - 3, x + width + 3, y + 11, 0xC0000000);
+        Gui.drawRect(x - 3, y - 3, x + width + 3, y + height - 1, 0xC0000000);
         font.drawStringWithShadow(text, x, y, 0xFFFFFF);
+        if (movementText.length() > 0) {
+            font.drawStringWithShadow(movementText, x, y + 10, 0xA8D8FF);
+        }
+    }
+
+    private static String getMovementTooltip(String tileId) {
+        int outgoing = 0;
+        int incoming = 0;
+        int outgoingPop = 0;
+        int incomingPop = 0;
+        long now = System.currentTimeMillis();
+        long soonest = Long.MAX_VALUE;
+        for (Object object : KOMEClientData.INSTANCE.armyMovements.values()) {
+            KOMEArmyMovementOrder order = (KOMEArmyMovementOrder) object;
+            if (order == null || !order.isMoving()) {
+                continue;
+            }
+            if (tileId.equals(order.originTile)) {
+                outgoing++;
+                outgoingPop += order.population;
+            }
+            if (tileId.equals(order.destinationTile)) {
+                incoming++;
+                incomingPop += order.population;
+                soonest = Math.min(soonest, order.getRemainingMillis(now));
+            }
+        }
+        if (incoming == 0 && outgoing == 0) {
+            return "";
+        }
+        String text = "";
+        if (incoming > 0) {
+            text += "In " + incomingPop + " pop ETA " + formatDuration(soonest);
+        }
+        if (outgoing > 0) {
+            if (text.length() > 0) {
+                text += " | ";
+            }
+            text += "Out " + outgoingPop + " pop";
+        }
+        return text;
+    }
+
+    private static String formatDuration(long millis) {
+        long minutes = Math.max(0L, (millis + 59999L) / 60000L);
+        long days = minutes / 1440L;
+        long hours = (minutes % 1440L) / 60L;
+        long mins = minutes % 60L;
+        if (days > 0) {
+            return days + "d " + hours + "h";
+        }
+        if (hours > 0) {
+            return hours + "h " + mins + "m";
+        }
+        return mins + "m";
     }
 
     private static void drawMapTexture(LOTRGuiMap map, ResourceLocation texture, float alpha) {

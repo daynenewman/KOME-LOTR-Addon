@@ -27,6 +27,7 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
     public final Map<String, KOMEAlliance> alliances = new HashMap<>();
+    public final Map<String, KOMEArmyMovementOrder> armyMovements = new HashMap<>();
     public final Map<UUID, String> playerNames = new HashMap<>();
     private final Map<String, UUID> kingsByFaction = new HashMap<>();
     private final Map<String, String> kingNamesByFaction = new HashMap<>();
@@ -302,6 +303,7 @@ public class KOMEWorldData extends WorldSavedData {
         hiredUnits.clear();
         conquestTiles.clear();
         alliances.clear();
+        armyMovements.clear();
         playerNames.clear();
         kingsByFaction.clear();
         kingNamesByFaction.clear();
@@ -355,6 +357,15 @@ public class KOMEWorldData extends WorldSavedData {
             alliance.readFromNBT(allianceList.getCompoundTagAt(i));
             if (alliance.factionA.length() > 0 && alliance.factionB.length() > 0 && alliance.hasAnyAlliance()) {
                 alliances.put(KOMEAlliance.directionKey(alliance.factionA, alliance.factionB), alliance);
+            }
+        }
+
+        NBTTagList movementList = nbt.getTagList("ArmyMovements", 10);
+        for (int i = 0; i < movementList.tagCount(); i++) {
+            KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
+            order.readFromNBT(movementList.getCompoundTagAt(i));
+            if (order.id.length() > 0) {
+                armyMovements.put(order.id, order);
             }
         }
 
@@ -418,6 +429,14 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
         nbt.setTag("Alliances", allianceList);
+
+        NBTTagList movementList = new NBTTagList();
+        for (KOMEArmyMovementOrder order : armyMovements.values()) {
+            if (order != null && order.id != null && order.id.length() > 0) {
+                movementList.appendTag(order.writeToNBT());
+            }
+        }
+        nbt.setTag("ArmyMovements", movementList);
 
         NBTTagList kingList = new NBTTagList();
         for (Map.Entry<String, UUID> entry : kingsByFaction.entrySet()) {

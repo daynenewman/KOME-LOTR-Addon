@@ -6,6 +6,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.PlayerEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import kome.common.KOMEReflection;
+import kome.common.command.KOMECommandTroops;
 import kome.common.network.KOMEPacketAllianceData;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketHireType;
@@ -112,6 +113,9 @@ public class KOMEEvents {
                 KOMEProgressionTitles.updatePlayerTitle((EntityPlayerMP) event.player);
                 updateAllianceMilitaryKillProgress((EntityPlayerMP) event.player);
                 updateAllianceTradeT2Progress((EntityPlayerMP) event.player);
+            }
+            if (KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(event.player)) % 1200L == 0L) {
+                KOMECommandTroops.processArrivals(KOMEWorldData.get(KOMEReflection.getWorld(event.player)), System.currentTimeMillis(), false);
             }
             trackAllianceCivilTraderProgress(event.player);
             cacheCoinValue(event.player);

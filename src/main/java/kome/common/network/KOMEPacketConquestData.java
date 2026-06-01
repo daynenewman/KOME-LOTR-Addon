@@ -6,6 +6,7 @@ import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
 import kome.common.data.KOMEClientData;
+import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEWorldData;
 import net.minecraft.nbt.NBTTagCompound;
@@ -25,6 +26,13 @@ public class KOMEPacketConquestData implements IMessage {
             }
         }
         data.setTag("ConquestTiles", list);
+        NBTTagList movementList = new NBTTagList();
+        for (KOMEArmyMovementOrder order : worldData.armyMovements.values()) {
+            if (order != null && order.isMoving()) {
+                movementList.appendTag(order.writeToNBT());
+            }
+        }
+        data.setTag("ArmyMovements", movementList);
     }
 
     @Override
@@ -47,6 +55,15 @@ public class KOMEPacketConquestData implements IMessage {
                 tile.readFromNBT(list.getCompoundTagAt(i));
                 if (!tile.id.isEmpty() && tile.isClaimed()) {
                     KOMEClientData.INSTANCE.conquestTiles.put(tile.id, tile);
+                }
+            }
+            KOMEClientData.INSTANCE.armyMovements.clear();
+            NBTTagList movementList = message.data.getTagList("ArmyMovements", 10);
+            for (int i = 0; i < movementList.tagCount(); i++) {
+                KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
+                order.readFromNBT(movementList.getCompoundTagAt(i));
+                if (order.id.length() > 0 && order.isMoving()) {
+                    KOMEClientData.INSTANCE.armyMovements.put(order.id, order);
                 }
             }
             KOMEClientData.INSTANCE.conquestRevision++;
