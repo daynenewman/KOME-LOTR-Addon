@@ -82,7 +82,7 @@ public class KOMECommandPopulation extends CommandBase {
             throw new WrongUsageException(getCommandUsage(sender));
         }
         data.markDirty();
-        sendStatus(sender, player, false);
+        sendStatus(sender, player, sender instanceof EntityPlayerMP);
     }
 
     private boolean canManagePopulation(ICommandSender sender, EntityPlayerMP target) {
