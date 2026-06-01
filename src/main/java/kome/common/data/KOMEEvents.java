@@ -322,7 +322,7 @@ public class KOMEEvents {
         KOMEPlayerPopulation pop = data.getPopulation(info.getHiringPlayerUUID());
         KOMEPopulationType hireType = pop.hireType == null ? KOMEPopulationType.OFFENSIVE : pop.hireType;
         if (isFarmhand) {
-            int limit = pop.getFarmhandLimit();
+            int limit = data.getFarmhandLimit(info.getHiringPlayerUUID());
             int used = data.getFarmhandsUsed(info.getHiringPlayerUUID());
             if (used >= limit) {
                 int refund = refundDeniedHire(owner, npc);
@@ -467,7 +467,7 @@ public class KOMEEvents {
         EntityPlayer owner = KOMEReflection.getWorld(npc).func_152378_a(record.owner);
         if (record.farmhand) {
             if (owner != null) {
-                owner.addChatMessage(new ChatComponentText("Farmhand slot freed: " + data.getFarmhandsUsed(record.owner) + "/" + pop.getFarmhandLimit() + " used"));
+                owner.addChatMessage(new ChatComponentText("Farmhand slot freed: " + data.getFarmhandsUsed(record.owner) + "/" + data.getFarmhandLimit(record.owner) + " used"));
             }
         } else {
             if (owner != null) {

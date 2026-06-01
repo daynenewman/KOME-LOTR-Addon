@@ -383,7 +383,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         }
         return tierIndex == 1
             ? "Requirement: 5000 coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered)
-            : "Requirement: earn 50 farmer pop points and deposit 10000 coins. Progress: " + Math.min(record.tradeFarmerPop, 50) + "/50 farmer pop, " + Math.min(record.tradeT2CoinsDelivered, 10000) + "/10000 coins.";
+            : tradeT2Requirement(record);
     }
 
     private void enableScissor(int x, int y, int width, int height) {
@@ -509,9 +509,15 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return "Deposit 5000 coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered);
         }
         if (tier == 1) {
-            return "Earn 50 farmer pop points and deposit 10000 coins. Progress: " + Math.min(record.tradeFarmerPop, 50) + "/50 farmer pop, " + Math.min(record.tradeT2CoinsDelivered, 10000) + "/10000 coins.";
+            return tradeT2Requirement(record);
         }
         return "Trade alliance complete.";
+    }
+
+    private String tradeT2Requirement(Record record) {
+        return "Spend 50 farmer pop and deposit 10000 coins. Available farmer pop: "
+            + Math.min(record.tradeFarmerPop, 50) + "/50. Coins: "
+            + Math.min(record.tradeT2CoinsDelivered, 10000) + "/10000.";
     }
 
     private String quotaStatus(String assignment, int delivered) {

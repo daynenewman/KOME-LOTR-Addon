@@ -248,9 +248,11 @@ public class KOMEAllianceInventory implements IInventory {
         addCoinLine(lines, "Trade T1 Coins", "trade.coins", TRADE_T1_COINS_REQUIRED, alliance.tradeTier == 0);
         addQuotaLine(lines, "Trade Food", "trade.food");
         addCoinLine(lines, "Trade T2 Coins", "trade.t2.coins", TRADE_T2_COINS_REQUIRED, alliance.tradeTier == 1);
-        if (alliance.tradeTier >= 1) {
+        if (alliance.tradeTier == 1) {
             int pop = Math.min(data.getFactionFarmerPop(alliance.factionA), 50);
-            lines.add("Trade T2 Farmer Pop: " + pop + "/50" + (pop >= 50 ? " complete" : ""));
+            lines.add("Trade T2 Farmer Pop Cost: " + pop + "/50 available" + (pop >= 50 ? " complete" : ""));
+        } else if (alliance.tradeTier >= 2) {
+            lines.add("Trade T2 Farmer Pop Cost: 50/50 spent complete");
         }
         return lines;
     }

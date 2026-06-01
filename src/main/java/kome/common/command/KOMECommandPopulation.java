@@ -103,7 +103,7 @@ public class KOMECommandPopulation extends CommandBase {
         data.removeInactiveLoadedHiredUnits(KOMEReflection.getWorld(player), playerID);
         KOMEPlayerPopulation pop = data.getPopulation(playerID);
         int farmhandsUsed = data.getFarmhandsUsed(playerID);
-        int farmhandsLimit = pop.getFarmhandLimit();
+        int farmhandsLimit = data.getFarmhandLimit(playerID);
         int offensiveUsed = data.getArmyPopulationUsed(playerID, KOMEPopulationType.OFFENSIVE);
         int defensiveUsed = data.getArmyPopulationUsed(playerID, KOMEPopulationType.DEFENSIVE);
         int armyUsed = offensiveUsed + defensiveUsed;
@@ -121,7 +121,7 @@ public class KOMECommandPopulation extends CommandBase {
         data.removeInactiveLoadedHiredUnits(KOMEReflection.getWorld(player), playerID);
         KOMEPlayerPopulation pop = data.getPopulation(playerID);
         int farmhandsUsed = data.getFarmhandsUsed(playerID);
-        int farmhandsLimit = pop.getFarmhandLimit();
+        int farmhandsLimit = data.getFarmhandLimit(playerID);
         int offensiveUsed = data.getArmyPopulationUsed(playerID, KOMEPopulationType.OFFENSIVE);
         int defensiveUsed = data.getArmyPopulationUsed(playerID, KOMEPopulationType.DEFENSIVE);
         int armyUsed = offensiveUsed + defensiveUsed;

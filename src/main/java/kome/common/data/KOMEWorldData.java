@@ -168,10 +168,47 @@ public class KOMEWorldData extends WorldSavedData {
                 member = true;
             }
             if (member && entry.getValue() != null) {
-                total += entry.getValue().getFarmhandLimit();
+                total += entry.getValue().getFarmhandLimit() * 25;
             }
         }
-        return total;
+        return Math.max(0, total - getFactionFarmerPopSpent(key));
+    }
+
+    public int getFarmhandLimit(UUID owner) {
+        KOMEPlayerPopulation pop = getPopulation(owner);
+        return Math.max(0, pop.getFarmhandLimit() - getFactionFarmerSlotsSpent(getPlayerFactionKey(owner)));
+    }
+
+    private String getPlayerFactionKey(UUID playerID) {
+        KOMEPlayerProgression progression = progressions.get(playerID);
+        String key = progression == null ? "" : normalizeFactionKey(progression.getPledgedLordFaction());
+        if (key.length() > 0) {
+            return key;
+        }
+        for (Map.Entry<String, UUID> entry : kingsByFaction.entrySet()) {
+            if (playerID != null && playerID.equals(entry.getValue())) {
+                return entry.getKey();
+            }
+        }
+        return "";
+    }
+
+    private int getFactionFarmerSlotsSpent(String factionKey) {
+        return getFactionFarmerPopSpent(factionKey) / 25;
+    }
+
+    private int getFactionFarmerPopSpent(String factionKey) {
+        String key = normalizeFactionKey(factionKey);
+        if (key.length() == 0) {
+            return 0;
+        }
+        int spent = 0;
+        for (KOMEAlliance alliance : alliances.values()) {
+            if (alliance != null && alliance.tradeTier >= 2 && key.equals(normalizeFactionKey(alliance.factionA))) {
+                spent += 50;
+            }
+        }
+        return spent;
     }
 
     public boolean isProgressionEnabled() {
