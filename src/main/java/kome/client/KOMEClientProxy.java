@@ -43,6 +43,11 @@ public class KOMEClientProxy extends KOMECommonProxy {
     }
 
     @Override
+    public void displayConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis) {
+        KOMEMinecraftClient.displayGui(new KOMEGuiConquestCapture(tileId, ownerFaction, pendingFromFaction, pendingToFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis));
+    }
+
+    @Override
     public void displayLordMenu(int entityId, String lordName, String factionName, boolean currentLord) {
         KOMEMinecraftClient.displayGui(new KOMEGuiLordMenu(entityId, lordName, factionName, currentLord));
     }

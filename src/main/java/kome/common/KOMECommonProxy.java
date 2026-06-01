@@ -20,6 +20,10 @@ public class KOMECommonProxy {
     public void displayConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction) {
     }
 
+    public void displayConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis) {
+        displayConquestCaptureGui(tileId, ownerFaction, pendingFromFaction, pendingToFaction);
+    }
+
     public void displayLordMenu(int entityId, String lordName, String factionName, boolean currentLord) {
     }
 

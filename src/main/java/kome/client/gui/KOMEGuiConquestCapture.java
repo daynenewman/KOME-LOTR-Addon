@@ -19,22 +19,40 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private final String ownerFaction;
     private final String pendingFromFaction;
     private final String pendingToFaction;
+    private final int offensivePop;
+    private final int defensivePop;
+    private final int mountedPop;
+    private final int groundPop;
+    private final int incomingPop;
+    private final int outgoingPop;
+    private final long incomingEtaMillis;
     private final List transferFactions = new ArrayList();
     private int transferIndex;
     private boolean transferMode;
 
     public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction) {
+        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, 0, 0, 0, 0, 0, 0, 0L);
+    }
+
+    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis) {
         this.tileId = tileId;
         this.ownerFaction = ownerFaction == null ? "" : ownerFaction;
         this.pendingFromFaction = pendingFromFaction == null ? "" : pendingFromFaction;
         this.pendingToFaction = pendingToFaction == null ? "" : pendingToFaction;
+        this.offensivePop = offensivePop;
+        this.defensivePop = defensivePop;
+        this.mountedPop = mountedPop;
+        this.groundPop = groundPop;
+        this.incomingPop = incomingPop;
+        this.outgoingPop = outgoingPop;
+        this.incomingEtaMillis = incomingEtaMillis;
     }
 
     @Override
     public void initGui() {
         buildTransferFactions();
         int x = width / 2 - 90;
-        int y = height / 2 + 28;
+        int y = height / 2 + 54;
         buttonList.clear();
         if (transferMode) {
             buttonList.add(new GuiButton(2, x, y - 2, 28, 20, "<"));
@@ -48,14 +66,17 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             GuiButton transfer = new GuiButton(5, x + 95, y, 85, 20, "Sell/Trade");
             transfer.enabled = isOwnedByPledge() && !transferFactions.isEmpty();
             buttonList.add(transfer);
+            GuiButton move = new GuiButton(8, x, y + 24, 180, 20, "Move Troops");
+            move.enabled = offensivePop > 0;
+            buttonList.add(move);
             if (isPendingToPledge()) {
-                buttonList.add(new GuiButton(6, x, y + 24, 85, 20, "Accept"));
-                buttonList.add(new GuiButton(1, x + 95, y + 24, 85, 20, "Cancel"));
+                buttonList.add(new GuiButton(6, x, y + 48, 85, 20, "Accept"));
+                buttonList.add(new GuiButton(1, x + 95, y + 48, 85, 20, "Cancel"));
             } else if (isOwnedByPledge() && hasPendingTransfer()) {
-                buttonList.add(new GuiButton(7, x, y + 24, 85, 20, "Cancel Offer"));
-                buttonList.add(new GuiButton(1, x + 95, y + 24, 85, 20, "Back"));
+                buttonList.add(new GuiButton(7, x, y + 48, 85, 20, "Cancel Offer"));
+                buttonList.add(new GuiButton(1, x + 95, y + 48, 85, 20, "Back"));
             } else {
-                buttonList.add(new GuiButton(1, x + 47, y + 24, 85, 20, "Cancel"));
+                buttonList.add(new GuiButton(1, x + 47, y + 48, 85, 20, "Cancel"));
             }
         }
     }
@@ -89,6 +110,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         } else if (button.id == 7) {
             KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestTransfer(tileId, pendingToFaction, KOMEPacketConquestTransfer.CANCEL));
             mc.displayGuiScreen(new LOTRGuiMap());
+        } else if (button.id == 8) {
+            mc.displayGuiScreen(new KOMEGuiTroopMove(tileId, offensivePop, mountedPop, groundPop));
         }
     }
 
@@ -96,26 +119,37 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
         int x = width / 2 - 120;
-        int y = height / 2 - 70;
+        int y = height / 2 - 96;
         drawCenteredString(fontRendererObj, "Conquest Tile " + tileId, width / 2, y, 0xFFFFFF);
         drawCenteredString(fontRendererObj, "Owning faction: " + valueOrUnclaimed(ownerFaction), width / 2, y + 28, 0xD8D8D8);
         LOTRFaction pledge = getPledgeFaction();
         drawCenteredString(fontRendererObj, "Your faction: " + (pledge == null ? "none" : pledge.factionName()), width / 2, y + 52, pledge == null ? 0xFF7777 : 0xAAFFAA);
+        drawTroopSummary(y + 72);
         if (transferMode) {
             LOTRFaction target = getTransferFaction();
-            drawCenteredString(fontRendererObj, "Offer transfer to:", width / 2, y + 76, 0xFFFFFF);
-            drawCenteredString(fontRendererObj, target == null ? "No valid factions" : target.factionName(), width / 2, y + 91, 0xFFE8C46A);
+            drawCenteredString(fontRendererObj, "Offer transfer to:", width / 2, y + 128, 0xFFFFFF);
+            drawCenteredString(fontRendererObj, target == null ? "No valid factions" : target.factionName(), width / 2, y + 143, 0xFFE8C46A);
         } else if (isPendingToPledge()) {
-            drawCenteredString(fontRendererObj, "Offered by " + factionName(pendingFromFaction), width / 2, y + 76, 0xFFE8C46A);
-            drawCenteredString(fontRendererObj, "Your king may accept this tile.", width / 2, y + 91, 0xFFFFFF);
+            drawCenteredString(fontRendererObj, "Offered by " + factionName(pendingFromFaction), width / 2, y + 128, 0xFFE8C46A);
+            drawCenteredString(fontRendererObj, "Your king may accept this tile.", width / 2, y + 143, 0xFFFFFF);
         } else if (pledge == null) {
-            drawCenteredString(fontRendererObj, "You must pledge to a faction before claiming.", width / 2, y + 76, 0xFF7777);
+            drawCenteredString(fontRendererObj, "You must pledge to a faction before claiming.", width / 2, y + 128, 0xFF7777);
         } else if (hasPendingTransfer()) {
-            drawCenteredString(fontRendererObj, "Pending offer to " + factionName(pendingToFaction), width / 2, y + 76, 0xFFE8C46A);
+            drawCenteredString(fontRendererObj, "Pending offer to " + factionName(pendingToFaction), width / 2, y + 128, 0xFFE8C46A);
         } else if (isOwnedByPledge()) {
-            drawCenteredString(fontRendererObj, "Only king-to-king tile trades are allowed.", width / 2, y + 76, 0xFFE8C46A);
+            drawCenteredString(fontRendererObj, "Only king-to-king tile trades are allowed.", width / 2, y + 128, 0xFFE8C46A);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
+    }
+
+    private void drawTroopSummary(int y) {
+        int x = width / 2 - 116;
+        drawRect(x, y, x + 232, y + 48, 0xAA1F160E);
+        drawString(fontRendererObj, "Your troops in tile", x + 8, y + 7, 0xFFE8C46A);
+        drawString(fontRendererObj, "Off " + offensivePop + "  Def " + defensivePop, x + 8, y + 20, 0xFFFFFF);
+        drawString(fontRendererObj, "Mounted " + mountedPop + "  Ground " + groundPop, x + 112, y + 20, 0xD8D8D8);
+        String movement = "Incoming " + incomingPop + (incomingPop > 0 ? " ETA " + formatDuration(incomingEtaMillis) : "") + "  Outgoing " + outgoingPop;
+        drawString(fontRendererObj, movement, x + 8, y + 33, 0xA8D8FF);
     }
 
     private LOTRFaction getPledgeFaction() {
@@ -164,6 +198,20 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private static String valueOrUnclaimed(String value) {
         return value == null || value.trim().isEmpty() ? "unclaimed" : value;
+    }
+
+    private static String formatDuration(long millis) {
+        long minutes = Math.max(0L, (millis + 59999L) / 60000L);
+        long days = minutes / 1440L;
+        long hours = (minutes % 1440L) / 60L;
+        long mins = minutes % 60L;
+        if (days > 0) {
+            return days + "d " + hours + "h";
+        }
+        if (hours > 0) {
+            return hours + "h " + mins + "m";
+        }
+        return mins + "m";
     }
 
 }
