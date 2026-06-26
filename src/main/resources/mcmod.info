@@ -2,7 +2,7 @@
   {
     "modid": "kome",
     "name": "Kings of Middle-earth Server Addon",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "authorList": ["Kings of Middle-earth"],
     "description": "Server-rule tools for LOTR: progression, population tracking, conquest tiles, alliances, and hired-unit limits.",
     "dependencies": ["required-after:lotr"]
