@@ -1,10 +1,11 @@
 package kome.client.gui;
 
 import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketMovementHistoryRequest;
 import kome.common.network.KOMEPacketServerRecordRequest;
 import lotr.client.gui.LOTRGuiMenu;
 import lotr.client.gui.LOTRGuiMenuBase;
-import net.minecraft.client.gui.Gui;
+import net.minecraft.client.gui.GuiButton;
 import org.lwjgl.input.Mouse;
 
 import java.util.ArrayList;
@@ -16,23 +17,54 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     private static String summary = "Loading...";
 
     private int scroll;
+    private int detailScroll;
     private int selected;
     private boolean isScrolling;
+    private boolean isDetailScrolling;
     private boolean wasMouseDown;
+
+    private GuiButton buttonMenu;
+    private GuiButton buttonRefresh;
+    private GuiButton buttonMovementHistory;
 
     public static void update(List updatedLines) {
         rawLines = updatedLines == null ? new ArrayList() : new ArrayList(updatedLines);
         parseRecords();
     }
 
+    public static void resetData() {
+        rawLines = new ArrayList();
+        records = new ArrayList();
+        summary = "Loading...";
+    }
+
+    public static void update(List updatedLines, boolean reset, boolean complete) {
+        if (reset) {
+            rawLines = new ArrayList();
+        }
+        if (updatedLines != null) {
+            rawLines.addAll(updatedLines);
+        }
+        summary = "Loading... (" + rawLines.size() + " lines)";
+        if (complete) {
+            parseRecords();
+        }
+    }
+
     @Override
     public void initGui() {
-        xSize = Math.min(620, width - 36);
-        ySize = Math.min(410, height - 44);
+        xSize = Math.min(660, width - 36);
+        ySize = Math.min(430, height - 44);
         super.initGui();
         buttonList.clear();
         buttonMenuReturn = null;
         selected = records.isEmpty() ? -1 : Math.max(0, Math.min(selected, records.size() - 1));
+        buttonMenu = KOMEGuiButton.small(0, guiLeft + 14, guiTop + 14, "Menu");
+        buttonRefresh = KOMEGuiButton.normal(1, guiLeft + xSize - 110, guiTop + 14, "Refresh");
+        buttonMovementHistory = new KOMEGuiButton(2, guiLeft + xSize - 184, guiTop + 47, 164, KOMEGuiButton.HEIGHT_SMALL, "Troop Movements");
+        buttonList.add(buttonMenu);
+        buttonList.add(buttonMovementHistory);
+        buttonList.add(buttonRefresh);
         requestRecords();
     }
 
@@ -51,11 +83,26 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         if (wheel == 0) {
             return;
         }
-        int max = getMaxScroll();
-        if (wheel > 0) {
-            scroll = Math.max(0, scroll - 1);
+        int mouseX = Mouse.getEventX() * width / mc.displayWidth;
+        int mouseY = height - Mouse.getEventY() * height / mc.displayHeight - 1;
+        int detailX = getDetailX();
+        int detailY = getContentY();
+        int detailW = getDetailWidth();
+        int detailH = getContentHeight();
+        if (KOMEGuiTheme.isHovered(mouseX, mouseY, detailX, detailY, detailW, detailH)) {
+            int max = getMaxDetailScroll();
+            if (wheel > 0) {
+                detailScroll = Math.max(0, detailScroll - 18);
+            } else {
+                detailScroll = Math.min(max, detailScroll + 18);
+            }
         } else {
-            scroll = Math.min(max, scroll + 1);
+            int max = getMaxScroll();
+            if (wheel > 0) {
+                scroll = Math.max(0, scroll - 1);
+            } else {
+                scroll = Math.min(max, scroll + 1);
+            }
         }
     }
 
@@ -64,22 +111,32 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         if (button != 0) {
             return;
         }
-        if (inside(mouseX, mouseY, guiLeft + 14, guiTop + 14, 56, 20)) {
-            mc.displayGuiScreen(new LOTRGuiMenu());
-            return;
-        }
-        if (inside(mouseX, mouseY, guiLeft + xSize - 74, guiTop + 14, 60, 20)) {
-            requestRecords();
-            return;
-        }
         int listX = guiLeft + 18;
-        int listY = guiTop + 78;
+        int listY = getContentY() + 23;
         for (int i = 0; i < getVisibleRows() && scroll + i < records.size(); i++) {
-            int rowY = listY + i * 32;
-            if (inside(mouseX, mouseY, listX, rowY, getListWidth(), 28)) {
+            int rowY = listY + i * getRowHeight();
+            if (KOMEGuiTheme.isHovered(mouseX, mouseY, listX + 4, rowY, getListWidth() - 18, getRowHeight() - 6)) {
                 selected = scroll + i;
+                detailScroll = 0;
                 return;
             }
+        }
+        super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public void actionPerformed(GuiButton button) {
+        if (!button.enabled) {
+            return;
+        }
+        if (button == buttonMenu) {
+            mc.displayGuiScreen(new LOTRGuiMenu());
+        } else if (button == buttonMovementHistory) {
+            KOMEPacketHandler.network.sendToServer(new KOMEPacketMovementHistoryRequest("", false));
+        } else if (button == buttonRefresh) {
+            requestRecords();
+        } else {
+            super.actionPerformed(button);
         }
     }
 
@@ -88,113 +145,140 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         records = new ArrayList();
         summary = "Loading...";
         scroll = 0;
+        detailScroll = 0;
         selected = -1;
         KOMEPacketHandler.network.sendToServer(new KOMEPacketServerRecordRequest());
     }
 
     private void drawPanel(int mouseX, int mouseY) {
-        Gui.drawRect(guiLeft, guiTop, guiLeft + xSize, guiTop + ySize, 0xE20B0B0A);
-        Gui.drawRect(guiLeft + 5, guiTop + 5, guiLeft + xSize - 5, guiTop + ySize - 5, 0xFFF0D9A6);
-        Gui.drawRect(guiLeft + 10, guiTop + 42, guiLeft + xSize - 10, guiTop + 45, 0xFF5D311E);
-        drawButton(guiLeft + 14, guiTop + 14, 56, 20, "Menu", inside(mouseX, mouseY, guiLeft + 14, guiTop + 14, 56, 20));
-        drawButton(guiLeft + xSize - 74, guiTop + 14, 60, 20, "Refresh", inside(mouseX, mouseY, guiLeft + xSize - 74, guiTop + 14, 60, 20));
-        drawCenteredString(fontRendererObj, "KOME Server Records", guiLeft + xSize / 2, guiTop + 18, 0x2B160D);
-        fontRendererObj.drawString(summary, guiLeft + 18, guiTop + 52, 0x4A2C0C);
+        KOMEGuiTheme.drawMainPanel(guiLeft, guiTop, xSize, ySize);
+        KOMEGuiTheme.drawHeader(fontRendererObj, "Server Records", guiLeft + 130, guiTop + 13, xSize - 260);
+        fontRendererObj.drawString(summary, guiLeft + 20, guiTop + 52, KOMEGuiTheme.COLOR_TEXT_MUTED);
 
         int listX = guiLeft + 18;
-        int listY = guiTop + 78;
+        int listY = getContentY();
         int listW = getListWidth();
-        int detailX = listX + listW + 14;
-        int detailW = guiLeft + xSize - 18 - detailX;
+        int detailX = getDetailX();
+        int detailW = getDetailWidth();
         drawTable(listX, listY, listW, mouseX, mouseY);
-        drawDetail(detailX, listY, detailW);
-        drawScrollbar(listX + listW - 8, listY);
+        drawDetail(detailX, listY, detailW, mouseX, mouseY);
+        drawListScrollbar(listX + listW - 10, listY + 23);
     }
 
     private void drawTable(int x, int y, int width, int mouseX, int mouseY) {
-        Gui.drawRect(x, y - 20, x + width, guiTop + ySize - 18, 0x33160E08);
-        fontRendererObj.drawString("Player / Rank", x + 8, y - 13, 0x4A2C0C);
-        fontRendererObj.drawString("Faction", x + 128, y - 13, 0x4A2C0C);
+        KOMEGuiTheme.drawSubPanel(x, y, width, getContentHeight());
+        KOMEGuiTheme.drawSectionTitle(fontRendererObj, "Public Ledger", x + 9, y + 8, width - 18);
         if (records.isEmpty()) {
-            fontRendererObj.drawString("No player records yet.", x + 12, y + 12, 0x2B160D);
+            fontRendererObj.drawString("No player records yet.", x + 14, y + 35, KOMEGuiTheme.COLOR_TEXT);
             return;
         }
+        int listY = y + 23;
+        int rowH = getRowHeight();
+        KOMEGuiTheme.enableScissor(mc, x + 1, listY, width - 3, getContentHeight() - 28);
         for (int i = 0; i < getVisibleRows() && scroll + i < records.size(); i++) {
             Record record = (Record) records.get(scroll + i);
-            int rowY = y + i * 32;
+            int rowY = listY + i * rowH;
             boolean active = selected == scroll + i;
-            boolean hover = inside(mouseX, mouseY, x, rowY, width - 12, 28);
-            int fill = active ? 0xFF4E321D : hover ? 0xFF7A542F : 0xFF2F2117;
-            Gui.drawRect(x, rowY, x + width - 12, rowY + 28, 0xFF160E08);
-            Gui.drawRect(x + 1, rowY + 1, x + width - 13, rowY + 27, fill);
-            drawFactionBadge(record.faction, x + 6, rowY + 5, 20);
-            fontRendererObj.drawString(trim(record.name, 88), x + 30, rowY + 5, 0xFFFFFFFF);
-            fontRendererObj.drawString(trim(record.rank, 88), x + 30, rowY + 17, 0xFFD9B56A);
-            fontRendererObj.drawString(trim(record.faction, width - 170), x + 128, rowY + 11, 0xFFFFD36A);
+            boolean hover = KOMEGuiTheme.isHovered(mouseX, mouseY, x + 4, rowY, width - 18, rowH - 6);
+            drawPlayerRow(record, x + 4, rowY, width - 18, rowH - 6, active, hover);
         }
+        KOMEGuiTheme.disableScissor();
     }
 
-    private void drawDetail(int x, int y, int width) {
-        Gui.drawRect(x, y - 20, x + width, guiTop + ySize - 18, 0x44281610);
+    private void drawPlayerRow(Record record, int x, int y, int width, int height, boolean selectedRow, boolean hovered) {
+        int border = selectedRow ? KOMEGuiTheme.COLOR_GOLD : hovered ? KOMEGuiTheme.COLOR_BORDER_RED_LIGHT : KOMEGuiTheme.COLOR_GOLD_DARK;
+        int fill = selectedRow ? 0xFFE8D6A8 : hovered ? KOMEGuiTheme.COLOR_PARCHMENT_LIGHT : KOMEGuiTheme.COLOR_PARCHMENT_DARK;
+        KOMEGuiTheme.drawBorderedRect(x, y, width, height, border, fill);
+        if (selectedRow) {
+            KOMEGuiTheme.drawBorderedRect(x + 2, y + 2, 4, height - 4, KOMEGuiTheme.COLOR_BORDER_RED, KOMEGuiTheme.COLOR_BORDER_RED);
+        }
+        drawFactionIcon(record.faction, x + 10, y + 8, 22);
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, record.name, width - 48), x + 40, y + 6, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, record.faction, width - 48), x + 40, y + 18, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, record.rank, width - 48), x + 40, y + 30, KOMEGuiTheme.COLOR_TEXT_MUTED);
+    }
+
+    private void drawDetail(int x, int y, int width, int mouseX, int mouseY) {
+        int height = getContentHeight();
+        KOMEGuiTheme.drawSubPanel(x, y, width, height);
         if (selected < 0 || selected >= records.size()) {
-            fontRendererObj.drawString("Select a player to view their record.", x + 14, y + 14, 0x2B160D);
+            int cardW = Math.min(230, width - 36);
+            int cardX = x + (width - cardW) / 2;
+            int cardY = y + height / 2 - 24;
+            KOMEGuiTheme.drawCard(cardX, cardY, cardW, 48, false);
+            KOMEGuiTheme.drawWrappedText(fontRendererObj, "Select a player record.", cardX + 16, cardY + 17, cardW - 32, KOMEGuiTheme.COLOR_TEXT_MUTED);
             return;
         }
         Record record = (Record) records.get(selected);
-        drawFactionBadge(record.faction, x + 14, y - 12, 20);
-        fontRendererObj.drawString(trim(record.name, width - 48), x + 40, y - 14, 0x1B1208);
-        fontRendererObj.drawString(trim(record.faction + " - " + record.rank, width - 48), x + 40, y - 2, 0x4A2C0C);
-
-        int cardY = y + 24;
-        drawInfoCard("Progression", record.progress + " completed", x + 14, cardY, width - 28);
-        drawInfoCard("Population", record.population, x + 14, cardY + 52, width - 28);
-        drawInfoCard("Pledged Lord", record.lord, x + 14, cardY + 104, width - 28);
-        drawInfoCard("Alliances", record.alliances, x + 14, cardY + 156, width - 28);
-        drawInfoCard("Tiles Controlled", record.tileCount + formatNames(record.tiles), x + 14, cardY + 208, width - 28);
+        KOMEGuiTheme.drawSectionTitle(fontRendererObj, KOMEGuiTheme.trimToWidth(fontRendererObj, record.name, width - 18), x + 9, y + 8, width - 18);
+        KOMEGuiTheme.enableScissor(mc, x + 1, y + 23, width - 3, height - 28);
+        int cursorY = y + 28 - detailScroll;
+        cursorY = drawInfoCard("Faction / Rank", record.faction + " / " + record.rank, x + 12, cursorY, width - 24, mouseX, mouseY);
+        cursorY = drawInfoCard("Progression", record.progress + " completed", x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        cursorY = drawInfoCard("Population", record.population, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        cursorY = drawInfoCard("Pledged Lord", record.lord, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        cursorY = drawInfoCard("Alliances", record.alliances, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        cursorY = drawInfoCard("Controlled Tiles", record.tileCount + formatNames(record.tiles), x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        drawInfoCard("Troop Movement Records", "Use Troop Movements above to view your faction's active and historical company movements.", x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        KOMEGuiTheme.disableScissor();
+        detailScroll = Math.min(detailScroll, getMaxDetailScroll());
+        drawDetailScrollbar(x + width - 10, y + 23, height - 28);
     }
 
-    private void drawInfoCard(String title, String value, int x, int y, int width) {
-        Gui.drawRect(x, y, x + width, y + 43, 0xFF7A4A25);
-        Gui.drawRect(x + 1, y + 1, x + width - 1, y + 42, 0xFFE4C98F);
-        fontRendererObj.drawString(title, x + 8, y + 7, 0x4A2C0C);
-        List wrapped = fontRendererObj.listFormattedStringToWidth(value == null || value.trim().isEmpty() ? "None" : value, width - 16);
-        for (int i = 0; i < wrapped.size() && i < 2; i++) {
-            fontRendererObj.drawString(String.valueOf(wrapped.get(i)), x + 8, y + 20 + i * 10, 0x1B1208);
-        }
+    private int drawInfoCard(String title, String value, int x, int y, int width, int mouseX, int mouseY) {
+        String display = value == null || value.trim().length() == 0 ? "None" : value;
+        int cardHeight = getCardHeight(display, width);
+        KOMEGuiTheme.drawCard(x, y, width, cardHeight, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, cardHeight));
+        fontRendererObj.drawString(title, x + 8, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+        KOMEGuiTheme.drawWrappedText(fontRendererObj, display, x + 8, y + 20, width - 16, KOMEGuiTheme.COLOR_TEXT);
+        return y + cardHeight;
     }
 
-    private void drawButton(int x, int y, int width, int height, String text, boolean hover) {
-        Gui.drawRect(x, y, x + width, y + height, 0xFF2B2117);
-        Gui.drawRect(x + 1, y + 1, x + width - 1, y + height - 1, hover ? 0xFFE8C46A : 0xFF4B321F);
-        int color = hover ? 0xFF1B1208 : 0xFFFFE6A3;
-        fontRendererObj.drawString(text, x + (width - fontRendererObj.getStringWidth(text)) / 2, y + 6, color);
-    }
-
-    private void drawScrollbar(int x, int y) {
+    private void drawListScrollbar(int x, int y) {
         int rows = getVisibleRows();
         if (records.size() <= rows) {
             return;
         }
-        int trackH = rows * 32 - 4;
-        Gui.drawRect(x, y, x + 5, y + trackH, 0x662B2117);
+        int trackH = rows * getRowHeight() - 4;
+        KOMEGuiTheme.drawBorderedRect(x, y, 5, trackH, KOMEGuiTheme.COLOR_GOLD_DARK, 0x552B2117);
         int max = Math.max(1, getMaxScroll());
         int handleH = Math.max(18, trackH * rows / records.size());
         int handleY = y + (trackH - handleH) * scroll / max;
-        Gui.drawRect(x, handleY, x + 5, handleY + handleH, 0xFF5D311E);
+        KOMEGuiTheme.drawBorderedRect(x, handleY, 5, handleH, KOMEGuiTheme.COLOR_BORDER_RED, KOMEGuiTheme.COLOR_GOLD);
+    }
+
+    private void drawDetailScrollbar(int x, int y, int height) {
+        int max = getMaxDetailScroll();
+        if (max <= 0) {
+            return;
+        }
+        KOMEGuiTheme.drawBorderedRect(x, y, 5, height, KOMEGuiTheme.COLOR_GOLD_DARK, 0x552B2117);
+        int content = getDetailContentHeight();
+        int handleH = Math.max(18, height * height / Math.max(height, content));
+        int handleY = y + (height - handleH) * detailScroll / max;
+        KOMEGuiTheme.drawBorderedRect(x, handleY, 5, handleH, KOMEGuiTheme.COLOR_BORDER_RED, KOMEGuiTheme.COLOR_GOLD);
     }
 
     private void updateScrollbarDrag(int mouseX, int mouseY) {
         boolean isMouseDown = Mouse.isButtonDown(0);
         int listX = guiLeft + 18;
-        int listY = guiTop + 78;
-        int scrollX = listX + getListWidth() - 8;
-        int trackH = getVisibleRows() * 32 - 4;
+        int listY = getContentY() + 23;
+        int scrollX = listX + getListWidth() - 10;
+        int trackH = getVisibleRows() * getRowHeight() - 4;
         int max = getMaxScroll();
-        if (!wasMouseDown && isMouseDown && max > 0 && inside(mouseX, mouseY, scrollX - 2, listY, 9, trackH)) {
+        int detailX = getDetailX() + getDetailWidth() - 10;
+        int detailY = getContentY() + 23;
+        int detailH = getContentHeight() - 28;
+        int detailMax = getMaxDetailScroll();
+        if (!wasMouseDown && isMouseDown && max > 0 && KOMEGuiTheme.isHovered(mouseX, mouseY, scrollX - 2, listY, 9, trackH)) {
             isScrolling = true;
+        }
+        if (!wasMouseDown && isMouseDown && detailMax > 0 && KOMEGuiTheme.isHovered(mouseX, mouseY, detailX - 2, detailY, 9, detailH)) {
+            isDetailScrolling = true;
         }
         if (!isMouseDown) {
             isScrolling = false;
+            isDetailScrolling = false;
         }
         wasMouseDown = isMouseDown;
         if (isScrolling) {
@@ -202,16 +286,20 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             amount = Math.max(0.0F, Math.min(1.0F, amount));
             scroll = Math.round(amount * max);
         }
+        if (isDetailScrolling) {
+            float amount = (mouseY - detailY) / (float) Math.max(1, detailH);
+            amount = Math.max(0.0F, Math.min(1.0F, amount));
+            detailScroll = Math.round(amount * detailMax);
+        }
     }
 
-    private void drawFactionBadge(String faction, int x, int y, int size) {
+    private void drawFactionIcon(String faction, int x, int y, int size) {
         int color = factionColor(faction);
-        Gui.drawRect(x, y, x + size, y + size, 0xFF160E08);
-        Gui.drawRect(x + 1, y + 1, x + size - 1, y + size - 1, 0xFF000000 | color);
-        Gui.drawRect(x + 3, y + 3, x + size - 3, y + size - 3, 0x33160E08);
+        KOMEGuiTheme.drawIconSlot(x, y, size, false);
+        KOMEGuiTheme.drawBorderedRect(x + 2, y + 2, size - 4, size - 4, KOMEGuiTheme.COLOR_BORDER_DARK, 0xFF000000 | color);
         String initials = factionInitials(faction);
         int textWidth = fontRendererObj.getStringWidth(initials);
-        fontRendererObj.drawString(initials, x + (size - textWidth) / 2, y + 6, 0xFFFFFFFF);
+        fontRendererObj.drawString(initials, x + (size - textWidth) / 2, y + 7, KOMEGuiTheme.COLOR_TEXT_LIGHT);
     }
 
     private int factionColor(String faction) {
@@ -273,32 +361,62 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         return names == null || names.trim().isEmpty() ? "" : " - " + names;
     }
 
-    private boolean inside(int mouseX, int mouseY, int x, int y, int width, int height) {
-        return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
+    private int getContentY() {
+        return guiTop + 84;
+    }
+
+    private int getContentHeight() {
+        return ySize - 102;
     }
 
     private int getListWidth() {
-        return Math.max(260, Math.min(340, xSize / 2 + 30));
+        return Math.max(230, Math.min(285, xSize / 2 - 20));
+    }
+
+    private int getDetailX() {
+        return guiLeft + 18 + getListWidth() + 12;
+    }
+
+    private int getDetailWidth() {
+        return guiLeft + xSize - 18 - getDetailX();
+    }
+
+    private int getRowHeight() {
+        return 48;
     }
 
     private int getVisibleRows() {
-        return Math.max(5, (ySize - 102) / 32);
+        return Math.max(4, (getContentHeight() - 28) / getRowHeight());
     }
 
     private int getMaxScroll() {
         return Math.max(0, records.size() - getVisibleRows());
     }
 
-    private String trim(String value, int width) {
-        value = value == null ? "" : value;
-        if (fontRendererObj.getStringWidth(value) <= width) {
-            return value;
+    private int getMaxDetailScroll() {
+        return Math.max(0, getDetailContentHeight() - (getContentHeight() - 28));
+    }
+
+    private int getDetailContentHeight() {
+        if (selected < 0 || selected >= records.size()) {
+            return 0;
         }
-        String suffix = "...";
-        while (value.length() > 0 && fontRendererObj.getStringWidth(value + suffix) > width) {
-            value = value.substring(0, value.length() - 1);
-        }
-        return value + suffix;
+        Record record = (Record) records.get(selected);
+        int width = getDetailWidth() - 24;
+        int total = 5 * 8;
+        total += getCardHeight(record.faction + " / " + record.rank, width);
+        total += getCardHeight(record.progress + " completed", width);
+        total += getCardHeight(record.population, width);
+        total += getCardHeight(record.lord, width);
+        total += getCardHeight(record.alliances, width);
+        total += getCardHeight(record.tileCount + formatNames(record.tiles), width);
+        total += getCardHeight("Use Troop Movements above to view your faction's active and historical company movements.", width);
+        return total;
+    }
+
+    private int getCardHeight(String value, int width) {
+        String display = value == null || value.trim().length() == 0 ? "None" : value;
+        return 28 + KOMEGuiTheme.wrapText(fontRendererObj, display, width - 16).size() * 10;
     }
 
     private static void parseRecords() {

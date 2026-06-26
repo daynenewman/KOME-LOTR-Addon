@@ -14,4 +14,8 @@ public class KOMEUnitCapClientState {
     public static void setCap(int entityId, int cap) {
         caps.put(Integer.valueOf(entityId), Integer.valueOf(cap));
     }
+
+    public static void reset() {
+        caps.clear();
+    }
 }

@@ -1,11 +1,12 @@
 package kome.common.command;
 
+import kome.common.KOMEAddon;
 import kome.common.data.KOMEAlliance;
-import kome.common.data.KOMEAllianceInventory;
 import kome.common.data.KOMEAllianceRecordBuilder;
 import kome.common.data.KOMEPlayerProgression;
 import kome.common.data.KOMEProgressionTaskGenerator;
 import kome.common.data.KOMEWorldData;
+import kome.common.gui.KOMEAllianceGuiHandler;
 import kome.common.network.KOMEPacketAllianceData;
 import kome.common.network.KOMEPacketHandler;
 import lotr.common.LOTRLevelData;
@@ -98,8 +99,15 @@ public class KOMECommandAlliance extends CommandBase {
             String type = parseType(args[1]);
             String senderFaction = parseFaction(args[2]);
             String receiverFaction = parseFaction(args[3]);
-            if (!sender.canCommandSenderUseCommand(2, getCommandName()) && !data.isFactionKing(receiverFaction, kome.common.KOMEReflection.getEntityUUID(getCommandSenderAsPlayer(sender)))) {
-                throw new WrongUsageException("Only staff or the receiving faction king can accept this alliance.");
+            if (!sender.canCommandSenderUseCommand(2, getCommandName())) {
+                EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+                String pledged = getPlayerFaction(data, player);
+                if (senderFaction.equals(pledged)) {
+                    throw new WrongUsageException("The sending faction cannot accept its own alliance request.");
+                }
+                if (!data.isFactionKing(receiverFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+                    throw new WrongUsageException("Only staff or the receiving faction king can accept this alliance.");
+                }
             }
             KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, false);
             if (alliance == null || !alliance.hasAnyAlliance()) {
@@ -154,6 +162,12 @@ public class KOMECommandAlliance extends CommandBase {
             if (alliance == null || !alliance.hasAnyAlliance()) {
                 throw new WrongUsageException("No alliance request exists for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ".");
             }
+            if (alliance.getTier(type) == KOMEAlliance.PENDING) {
+                throw new WrongUsageException("This " + displayType(type) + " alliance request must be accepted before tiers can progress.");
+            }
+            if (alliance.getTier(type) != 0) {
+                throw new WrongUsageException("Only tier 0 " + displayType(type) + " alliances need a food quota roll.");
+            }
             String id = KOMEAlliance.MILITARY.equals(type) ? "military.food" : "trade.food";
             if (!alliance.getAssignment(id).trim().isEmpty()) {
                 sender.addChatMessage(new ChatComponentText(displayType(type) + " quota already rolled: " + alliance.getAssignment(id)));
@@ -203,8 +217,9 @@ public class KOMECommandAlliance extends CommandBase {
             if (alliance == null || !alliance.hasAnyAlliance()) {
                 throw new WrongUsageException("No alliance request exists for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ".");
             }
-            requireGoodsDepositPermission(sender, data, senderFaction);
-            player.displayGUIChest(new KOMEAllianceInventory(data, alliance, player));
+            requireGoodsLedgerPermission(sender, data, senderFaction, receiverFaction);
+            KOMEAllianceGuiHandler.openAllianceLedger(player, alliance);
+            player.openGui(KOMEAddon.instance, KOMEAllianceGuiHandler.ALLIANCE_LEDGER, player.worldObj, 0, 0, 0);
             sender.addChatMessage(new ChatComponentText("Opened alliance goods for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ". Quota items are compressed into the ledger."));
             return;
         }
@@ -227,6 +242,10 @@ public class KOMECommandAlliance extends CommandBase {
             }
             int claimed = claimStoredGoods(player, alliance);
             data.markDirty();
+            if (player.openContainer != null) {
+                player.openContainer.detectAndSendChanges();
+            }
+            sendAllianceRefresh(sender, data);
             sender.addChatMessage(new ChatComponentText("Claimed " + claimed + " alliance goods stacks/items from " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + "."));
             return;
         }
@@ -321,6 +340,8 @@ public class KOMECommandAlliance extends CommandBase {
         claimed += claimVirtualGoods(player, alliance, "trade.food");
         claimed += claimVirtualGoods(player, alliance, "civil.coins");
         claimed += claimVirtualGoods(player, alliance, "trade.coins");
+        claimed += claimVirtualGoods(player, alliance, "trade.t2.coins");
+        claimed += claimVirtualGoods(player, alliance, "military.t4.coins");
         player.inventoryContainer.detectAndSendChanges();
         return claimed;
     }
@@ -476,31 +497,18 @@ public class KOMECommandAlliance extends CommandBase {
     }
 
     private static String parseFaction(String value) {
-        LOTRFaction resolved = LOTRFaction.forName(value);
+        LOTRFaction resolved = KOMEAlliance.findLotrFaction(value);
         if (resolved != null && resolved.isPlayableAlignmentFaction()) {
-            return resolved.codeName();
+            return KOMEAlliance.normalizeFactionKey(resolved.codeName());
         }
-        String normalized = KOMEAlliance.normalizeFactionKey(value);
-        for (LOTRFaction faction : LOTRFaction.values()) {
-            if (faction != null && faction.isPlayableAlignmentFaction()
-                && (KOMEAlliance.normalizeFactionKey(faction.codeName()).equals(normalized)
-                || KOMEAlliance.normalizeFactionKey(faction.factionName()).equals(normalized))) {
-                return faction.codeName();
-            }
-        }
-        for (Object object : LOTRFaction.getPlayableAlignmentFactionNames()) {
-            String faction = (String) object;
-            if (faction.equalsIgnoreCase(value)) {
-                LOTRFaction byDisplay = LOTRFaction.forName(faction);
-                return byDisplay == null ? faction : byDisplay.codeName();
-            }
+        if (KOMEAlliance.normalizeFactionKey(value).length() == 0) {
+            return "";
         }
         throw new WrongUsageException("Unknown faction: " + value);
     }
 
     private static String displayFaction(String key) {
-        LOTRFaction faction = LOTRFaction.forName(parseFactionLenient(key));
-        return faction == null ? key : faction.factionName();
+        return KOMEAlliance.displayFactionName(key);
     }
 
     private static boolean isEnemyAlliance(String factionA, String factionB) {
@@ -509,22 +517,22 @@ public class KOMECommandAlliance extends CommandBase {
     }
 
     private static LOTRFactionRelations.Relation getRelation(String factionA, String factionB) {
-        LOTRFaction a = LOTRFaction.forName(parseFactionLenient(factionA));
-        LOTRFaction b = LOTRFaction.forName(parseFactionLenient(factionB));
+        LOTRFaction a = KOMEAlliance.findLotrFaction(factionA);
+        LOTRFaction b = KOMEAlliance.findLotrFaction(factionB);
         return a == null || b == null ? LOTRFactionRelations.Relation.NEUTRAL : LOTRFactionRelations.getRelations(a, b);
     }
 
     private static void overrideRelationsForAlliance(String factionA, String factionB, String type) {
-        LOTRFaction a = LOTRFaction.forName(parseFactionLenient(factionA));
-        LOTRFaction b = LOTRFaction.forName(parseFactionLenient(factionB));
+        LOTRFaction a = KOMEAlliance.findLotrFaction(factionA);
+        LOTRFaction b = KOMEAlliance.findLotrFaction(factionB);
         if (a != null && b != null) {
             LOTRFactionRelations.overrideRelations(a, b, relationForAllianceType(type));
         }
     }
 
     private static void syncRelationsForAlliancePair(KOMEWorldData data, String factionA, String factionB) {
-        LOTRFaction a = LOTRFaction.forName(parseFactionLenient(factionA));
-        LOTRFaction b = LOTRFaction.forName(parseFactionLenient(factionB));
+        LOTRFaction a = KOMEAlliance.findLotrFaction(factionA);
+        LOTRFaction b = KOMEAlliance.findLotrFaction(factionB);
         if (a == null || b == null || a == b) {
             return;
         }
@@ -534,6 +542,38 @@ public class KOMECommandAlliance extends CommandBase {
             relation = LOTRFactionRelations.getFromDefaultMap(new LOTRFactionRelations.FactionPair(a, b));
         }
         LOTRFactionRelations.overrideRelations(a, b, relation);
+    }
+
+    public static void reconcileKinglessPendingAlliances(KOMEWorldData data, long worldTime) {
+        if (data == null) {
+            return;
+        }
+        boolean changed = false;
+        for (KOMEAlliance alliance : data.alliances.values()) {
+            if (alliance == null || data.hasFactionKing(alliance.factionB)) {
+                continue;
+            }
+            boolean allianceChanged = false;
+            if (alliance.civilTier == KOMEAlliance.PENDING) {
+                alliance.setTier(KOMEAlliance.CIVIL, 0, "Automatic acceptance: no receiving king", worldTime);
+                allianceChanged = true;
+            }
+            if (alliance.militaryTier == KOMEAlliance.PENDING) {
+                alliance.setTier(KOMEAlliance.MILITARY, 0, "Automatic acceptance: no receiving king", worldTime);
+                allianceChanged = true;
+            }
+            if (alliance.tradeTier == KOMEAlliance.PENDING) {
+                alliance.setTier(KOMEAlliance.TRADE, 0, "Automatic acceptance: no receiving king", worldTime);
+                allianceChanged = true;
+            }
+            if (allianceChanged) {
+                syncRelationsForAlliancePair(data, alliance.factionA, alliance.factionB);
+                changed = true;
+            }
+        }
+        if (changed) {
+            data.markDirty();
+        }
     }
 
     private static LOTRFactionRelations.Relation strongestAllianceRelation(KOMEAlliance alliance) {
@@ -658,10 +698,22 @@ public class KOMECommandAlliance extends CommandBase {
         }
     }
 
+    private void requireGoodsLedgerPermission(ICommandSender sender, KOMEWorldData data, String senderFaction, String receiverFaction) {
+        if (sender.canCommandSenderUseCommand(2, getCommandName())) {
+            return;
+        }
+        EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+        String playerFaction = getPlayerFaction(data, player);
+        if (senderFaction.equals(playerFaction) || data.isFactionKing(receiverFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+            return;
+        }
+        throw new WrongUsageException("Only members of the sending faction or the receiving faction king can open alliance goods.");
+    }
+
     private String getPlayerFaction(KOMEWorldData data, EntityPlayerMP player) {
         LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
         if (pledge != null) {
-            return pledge.codeName();
+            return KOMEAlliance.normalizeFactionKey(pledge.codeName());
         }
         KOMEPlayerProgression progression = data.getProgression(kome.common.KOMEReflection.getEntityUUID(player));
         String faction = progression.getPledgedLordFaction();

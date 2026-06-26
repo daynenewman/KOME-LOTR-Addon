@@ -1,0 +1,20 @@
+KOME tile ownership defaults strategy
+
+This file documents the starting conquest ownership data in kome_tile_ownership_defaults.csv.
+
+Rules:
+- LOTR waypoint default rows are treated as authoritative faction anchors.
+- Non-waypoint tiles are not automatically owned just because they are nearest to a faction.
+- A non-waypoint tile receives a default owner only when it is part of a clear, connected faction core around existing waypoint defaults.
+- Borderlands, wilderness, roads, mountains, ambiguous buffers, and contested areas are intentionally allowed to remain unclaimed.
+- Existing conquest ownership is not overwritten on normal server restart. Current ownership initializes from default ownership only when there is no current conquest owner, or when /kome conquest reset is run.
+- /kome conquest reset resets ownership only. It does not clear tile population, player reserves, allocations, used population, or unit funding records.
+
+Weighted balance scoring:
+- normal owned non-waypoint tile = 1 point
+- level 1 waypoint tile = 2 points
+- level 2 waypoint tile = 4 points
+- level 3 waypoint tile = 6 points
+- capital or major center = 8 points where marked by the generated balance_weight column
+
+The balance report generated for this pass is stored in kome_tile_ownership_balance_report.txt.

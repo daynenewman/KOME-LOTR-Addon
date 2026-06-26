@@ -1,8 +1,10 @@
 package kome.common.data;
 
+import lotr.common.fac.LOTRFaction;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.item.ItemStack;
+import java.text.Normalizer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -284,6 +286,63 @@ public class KOMEAlliance {
     }
 
     public static String normalizeFactionKey(String value) {
-        return value == null ? "" : value.toLowerCase().replaceAll("[^a-z0-9]", "");
+        String normalized = value == null ? "" : Normalizer.normalize(value, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
+        String key = normalized.toLowerCase().replaceAll("[^a-z0-9]", "");
+        if ("".equals(key) || "none".equals(key) || "neutral".equals(key) || "neutralzone".equals(key)
+                || "unclaimed".equals(key) || "unaligned".equals(key)) {
+            return "";
+        }
+        if ("rangernorth".equals(key) || "rangersnorth".equals(key) || "rangerofthenorth".equals(key)
+                || "rangersofthenorth".equals(key) || "dunedainnorth".equals(key)
+                || "dunedainofthenorth".equals(key) || "northerndunedain".equals(key)) {
+            return "dunedain";
+        }
+        if ("highelf".equals(key) || "highelves".equals(key) || "highelven".equals(key)
+                || "lindon".equals(key) || "rivendell".equals(key) || "imladris".equals(key)) {
+            return "highelves";
+        }
+        if ("nearharad".equals(key) || "harad".equals(key) || "haradwaith".equals(key)
+                || "southron".equals(key) || "southrons".equals(key)) {
+            return "harad";
+        }
+        return key;
+    }
+
+    public static LOTRFaction findLotrFaction(String value) {
+        LOTRFaction direct = LOTRFaction.forName(value);
+        if (direct != null) {
+            return direct;
+        }
+        String normalized = normalizeFactionKey(value);
+        for (LOTRFaction faction : LOTRFaction.values()) {
+            if (faction != null && faction.isPlayableAlignmentFaction()
+                && (normalizeFactionKey(faction.codeName()).equals(normalized)
+                || normalizeFactionKey(faction.factionName()).equals(normalized))) {
+                return faction;
+            }
+        }
+        return null;
+    }
+
+    public static String displayFactionName(String key) {
+        String normalized = normalizeFactionKey(key);
+        if ("dunedain".equals(normalized)) {
+            return "Dunedain";
+        }
+        if ("highelves".equals(normalized)) {
+            return "High Elves";
+        }
+        if ("harad".equals(normalized)) {
+            return "Harad";
+        }
+        LOTRFaction faction = findLotrFaction(key);
+        if (faction != null) {
+            return faction.factionName();
+        }
+        if (key == null || key.length() == 0) {
+            return "No faction";
+        }
+        String value = key.replace('_', ' ').replace('-', ' ');
+        return Character.toUpperCase(value.charAt(0)) + value.substring(1);
     }
 }

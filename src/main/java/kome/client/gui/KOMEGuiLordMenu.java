@@ -3,7 +3,6 @@ package kome.client.gui;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketLordAction;
 import kome.client.KOMEEntityHighlightOverlay;
-import lotr.client.gui.LOTRGuiButtonRedBook;
 import lotr.client.gui.LOTRGuiMenuBase;
 import net.minecraft.client.gui.GuiButton;
 
@@ -29,19 +28,29 @@ public class KOMEGuiLordMenu extends LOTRGuiMenuBase {
         buttonMenuReturn = null;
         int center = width / 2;
         if (currentLord) {
-            buttonList.add(new LOTRGuiButtonRedBook(1, center - 72, guiTop + 72, 144, 20, "Open offerings"));
-            buttonList.add(new LOTRGuiButtonRedBook(2, center - 72, guiTop + 96, 144, 20, "Highlight lord"));
+            buttonList.add(KOMEGuiButton.wide(1, center - 72, guiTop + 82, "Open offerings"));
+            buttonList.add(KOMEGuiButton.wide(2, center - 72, guiTop + 106, "Highlight lord"));
         } else {
-            buttonList.add(new LOTRGuiButtonRedBook(0, center - 72, guiTop + 84, 144, 20, "Pledge to this lord"));
+            buttonList.add(KOMEGuiButton.wide(0, center - 72, guiTop + 94, "Pledge to this lord"));
         }
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
-        drawCenteredString(fontRendererObj, "Lord Menu", width / 2, guiTop + 18, 0xFFFFFF);
-        drawCenteredString(fontRendererObj, trim(lordName, 190), width / 2, guiTop + 40, 0xFFE6A3);
-        drawCenteredString(fontRendererObj, factionName == null || factionName.length() == 0 ? "No faction" : trim(factionName, 190), width / 2, guiTop + 52, 0xCCCCCC);
+        KOMEGuiTheme.drawMainPanel(guiLeft, guiTop, xSize, ySize);
+        KOMEGuiTheme.drawHeader(fontRendererObj, "Lord Menu", guiLeft + 10, guiTop + 10, xSize - 20);
+
+        int cardX = guiLeft + 18;
+        int cardY = guiTop + 42;
+        int cardW = xSize - 36;
+        KOMEGuiTheme.drawCard(cardX, cardY, cardW, 31, KOMEGuiTheme.isHovered(mouseX, mouseY, cardX, cardY, cardW, 31));
+        drawCenteredString(fontRendererObj, KOMEGuiTheme.trimToWidth(fontRendererObj, lordName, cardW - 12), width / 2, cardY + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+        String faction = factionName == null || factionName.length() == 0 ? "No faction" : factionName;
+        drawCenteredString(fontRendererObj, KOMEGuiTheme.trimToWidth(fontRendererObj, faction, cardW - 12), width / 2, cardY + 18, KOMEGuiTheme.COLOR_TEXT_MUTED);
+
+        String status = currentLord ? "Current pledged lord" : "Available for pledge";
+        drawCenteredString(fontRendererObj, status, width / 2, guiTop + 126, KOMEGuiTheme.COLOR_TEXT_MUTED);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
@@ -62,15 +71,4 @@ public class KOMEGuiLordMenu extends LOTRGuiMenuBase {
         }
     }
 
-    private String trim(String value, int width) {
-        value = value == null ? "" : value;
-        if (fontRendererObj.getStringWidth(value) <= width) {
-            return value;
-        }
-        String suffix = "...";
-        while (value.length() > 0 && fontRendererObj.getStringWidth(value + suffix) > width) {
-            value = value.substring(0, value.length() - 1);
-        }
-        return value + suffix;
-    }
 }

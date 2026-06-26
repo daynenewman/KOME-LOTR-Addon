@@ -50,7 +50,9 @@ public class KOMEAllianceRecordBuilder {
             + alliance.getDelivered("civil.trade") + "\t"
             + alliance.getDelivered("military.kills") + "\t"
             + alliance.getDelivered("trade.t2.coins") + "\t"
-            + data.getFactionFarmerPop(alliance.factionA);
+            + data.getFactionFarmerPop(alliance.factionA) + "\t"
+            + alliance.getDelivered("military.t4.coins") + "\t"
+            + data.getFactionPopulation(alliance.factionA);
     }
 
     private static String safe(String value) {
@@ -58,8 +60,7 @@ public class KOMEAllianceRecordBuilder {
     }
 
     private static String displayFaction(String key) {
-        LOTRFaction faction = findFaction(key);
-        return faction == null ? key : faction.factionName();
+        return KOMEAlliance.displayFactionName(key);
     }
 
     private static String getViewerFactionKey(KOMEWorldData data, EntityPlayer viewer) {

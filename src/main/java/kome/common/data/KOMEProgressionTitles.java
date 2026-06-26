@@ -1,6 +1,7 @@
 package kome.common.data;
 
 import kome.common.KOMEReflection;
+import kome.common.command.KOMECommandAlliance;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -25,6 +26,7 @@ public class KOMEProgressionTitles {
         UUID playerID = KOMEReflection.getEntityUUID(player);
         KOMEPlayerProgression progression = data.getProgression(playerID);
         Rank rank = getRank(player, data, playerID, progression);
+        KOMECommandAlliance.reconcileKinglessPendingAlliances(data, KOMEReflection.getTotalWorldTime(world));
         Scoreboard scoreboard = world.getScoreboard();
         ensureTeam(scoreboard, rank);
         String playerName = player.getCommandSenderName();
@@ -49,11 +51,12 @@ public class KOMEProgressionTitles {
     }
 
     private static Rank getRank(EntityPlayerMP player, KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression) {
-        if (isGroupComplete(progression, "prince_king")) {
-            FactionRankKey faction = getFactionRankKey(player, progression);
-            if (faction.key.length() > 0 && data.claimFactionKing(faction.key, faction.name, playerID, player.getCommandSenderName())) {
-                return new Rank(TEAM_PREFIX + "king", "[King] ");
-            }
+        FactionRankKey faction = getFactionRankKey(player, progression);
+        boolean kingEligible = isGroupComplete(progression, "prince_king");
+        if (data.reconcilePlayerKingship(faction.key, playerID, player.getCommandSenderName(), kingEligible)) {
+            return new Rank(TEAM_PREFIX + "king", "[King] ");
+        }
+        if (kingEligible) {
             return new Rank(TEAM_PREFIX + "prince", "[Prince] ");
         }
         if (isGroupComplete(progression, "lord")) {
@@ -80,10 +83,10 @@ public class KOMEProgressionTitles {
     private static FactionRankKey getFactionRankKey(EntityPlayerMP player, KOMEPlayerProgression progression) {
         LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
         if (pledge != null) {
-            return new FactionRankKey(pledge.codeName(), pledge.factionName());
+            return new FactionRankKey(KOMEAlliance.normalizeFactionKey(pledge.codeName()), pledge.factionName());
         }
         String faction = progression == null ? "" : progression.getPledgedLordFaction();
-        return new FactionRankKey(faction, faction);
+        return new FactionRankKey(KOMEAlliance.normalizeFactionKey(faction), KOMEAlliance.displayFactionName(faction));
     }
 
     private static class FactionRankKey {

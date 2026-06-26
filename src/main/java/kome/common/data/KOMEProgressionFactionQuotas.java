@@ -4,8 +4,8 @@ import lotr.common.fac.LOTRFaction;
 
 public class KOMEProgressionFactionQuotas {
     public static final String[] FACTIONS = new String[] {
-        "Near Harad", "Mordor", "Woodland Realm", "Gondor", "Rohan", "Blue Mountains",
-        "Gundabad", "Hobbits", "High Elves", "Dunedain of the North", "Dorwinion",
+        "Harad", "Mordor", "Woodland Realm", "Gondor", "Rohan", "Blue Mountains",
+        "Gundabad", "Hobbits", "High Elves", "Dunedain", "Dorwinion",
         "Angmar", "Dol Guldur", "Rhudel", "Bree-land", "Half-trolls", "Fangorn",
         "Morwaith", "Dale", "Dunland", "Durin's Folk", "Isengard", "Lothlorien"
     };
@@ -44,26 +44,16 @@ public class KOMEProgressionFactionQuotas {
 
     public static boolean isElite(LOTRFaction faction) {
         String name = normalize(faction == null ? "" : faction.codeName());
-        return "highelf".equals(name) || "lothlorien".equals(name) || "durinsfolk".equals(name)
+        return "highelves".equals(name) || "lothlorien".equals(name) || "durinsfolk".equals(name)
             || "gondor".equals(name) || "rohan".equals(name) || "mordor".equals(name)
             || "angmar".equals(name) || "dolguldur".equals(name) || "isengard".equals(name);
     }
 
     private static LOTRFaction findFaction(String name) {
-        LOTRFaction faction = LOTRFaction.forName(name);
-        if (faction != null) {
-            return faction;
-        }
-        String normalized = normalize(name);
-        for (LOTRFaction candidate : LOTRFaction.values()) {
-            if (normalize(candidate.factionName()).equals(normalized) || normalize(candidate.codeName()).equals(normalized)) {
-                return candidate;
-            }
-        }
-        return null;
+        return KOMEAlliance.findLotrFaction(name);
     }
 
     private static String normalize(String value) {
-        return value == null ? "" : value.toLowerCase().replaceAll("[^a-z0-9]", "");
+        return KOMEAlliance.normalizeFactionKey(value);
     }
 }

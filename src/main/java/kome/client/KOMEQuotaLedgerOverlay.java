@@ -1,6 +1,7 @@
 package kome.client;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import kome.client.gui.KOMEGuiTheme;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.inventory.GuiChest;
@@ -19,15 +20,22 @@ public class KOMEQuotaLedgerOverlay {
         lines = newLines == null ? new ArrayList() : new ArrayList(newLines);
     }
 
+    public static void reset() {
+        lines = new ArrayList();
+    }
+
     @SubscribeEvent
     public void onDrawChest(GuiScreenEvent.DrawScreenEvent.Post event) {
         if (!(event.gui instanceof GuiChest) || lines.isEmpty() || !isLedgerInventory((GuiChest) event.gui)) {
             return;
         }
+        drawLegacyLedger(event);
+    }
+
+    private void drawLegacyLedger(GuiScreenEvent.DrawScreenEvent.Post event) {
         FontRenderer font = KOMEMinecraftClient.fontRenderer();
         List drawLines = new ArrayList();
         drawLines.add(getLedgerTitle((GuiChest) event.gui));
-
         int panelWidth = Math.min(220, Math.max(150, getPanelWidth(font, lines) + 12));
         int textWidth = panelWidth - 10;
         for (Object line : lines) {
@@ -46,9 +54,107 @@ public class KOMEQuotaLedgerOverlay {
         }
     }
 
+    public static List getLinesSnapshot() {
+        return new ArrayList(lines);
+    }
+
+    public static List getStructuredLines(String key) {
+        List result = new ArrayList();
+        for (Object object : lines) {
+            String[] parts = String.valueOf(object).split("\t", -1);
+            if (parts.length > 0 && key.equals(parts[0])) {
+                result.add(parts);
+            }
+        }
+        return result;
+    }
+
+    public static String part(String[] parts, int index) {
+        return parts != null && index >= 0 && index < parts.length ? parts[index] : "";
+    }
+
+    public static String[] getStructuredLine(String key, String type) {
+        for (Object object : lines) {
+            String[] parts = String.valueOf(object).split("\t", -1);
+            if (parts.length >= 2 && key.equals(parts[0]) && type.equals(parts[1])) {
+                return parts;
+            }
+        }
+        return null;
+    }
+
+    public static String getRelationSummary() {
+        for (Object object : lines) {
+            String[] parts = String.valueOf(object).split("\t", -1);
+            if (parts.length >= 3 && "SUMMARY".equals(parts[0])) {
+                return parts[1] + " -> " + parts[2];
+            }
+        }
+        return "Alliance goods";
+    }
+
+    public static boolean canDepositGoods() {
+        for (Object object : lines) {
+            String[] parts = String.valueOf(object).split("\t", -1);
+            if (parts.length >= 4 && "VIEWER".equals(parts[0])) {
+                return "1".equals(parts[2]);
+            }
+        }
+        return false;
+    }
+
+    public static String getViewerName() {
+        for (Object object : lines) {
+            String[] parts = String.valueOf(object).split("\t", -1);
+            if (parts.length >= 2 && "VIEWER".equals(parts[0])) {
+                String value = parts[1];
+                return "Unknown viewer".equals(value) || "No pledged faction".equals(value) ? "" : value;
+            }
+        }
+        return "";
+    }
+
+    public static boolean canClaimGoods() {
+        for (Object object : lines) {
+            String[] parts = String.valueOf(object).split("\t", -1);
+            if (parts.length >= 3 && "CLAIM".equals(parts[0])) {
+                return "1".equals(parts[2]);
+            }
+        }
+        return false;
+    }
+
+    public static String getClaimText() {
+        for (Object object : lines) {
+            String[] parts = String.valueOf(object).split("\t", -1);
+            if (parts.length >= 4 && "CLAIM".equals(parts[0])) {
+                return canClaimGoods() ? parts[1] : parts[3] + ".";
+            }
+        }
+        return "Only the receiving faction king can claim goods.";
+    }
+
+    public static String getSenderKey() {
+        return getSummaryPart(3);
+    }
+
+    public static String getReceiverKey() {
+        return getSummaryPart(4);
+    }
+
+    private static String getSummaryPart(int index) {
+        for (Object object : lines) {
+            String[] parts = String.valueOf(object).split("\t", -1);
+            if (parts.length > index && "SUMMARY".equals(parts[0])) {
+                return parts[index];
+            }
+        }
+        return "";
+    }
+
     private boolean isLedgerInventory(GuiChest chest) {
         String name = getLowerInventoryName(chest);
-        return "Lord Offerings".equals(name) || "Alliance Ledger".equals(name);
+        return "Lord Offerings".equals(name);
     }
 
     private String getLedgerTitle(GuiChest chest) {

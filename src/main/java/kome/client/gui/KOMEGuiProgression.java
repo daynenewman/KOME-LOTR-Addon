@@ -43,6 +43,12 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         assignments = assignmentMap == null ? new HashMap() : new HashMap(assignmentMap);
     }
 
+    public static void resetData() {
+        playerName = "";
+        completed = new HashSet();
+        assignments = new HashMap();
+    }
+
     @Override
     public void actionPerformed(GuiButton button) {
         if (button.enabled) {

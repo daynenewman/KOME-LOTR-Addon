@@ -115,21 +115,21 @@ public class KOMEServerRecordBuilder {
         if (player != null) {
             LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
             if (pledge != null) {
-                return new FactionInfo(pledge.codeName(), pledge.factionName());
+                return new FactionInfo(KOMEAlliance.normalizeFactionKey(pledge.codeName()), pledge.factionName());
             }
         }
         String faction = progression == null ? "" : progression.getPledgedLordFaction();
         LOTRFaction resolved = findFaction(faction);
         if (resolved != null) {
-            return new FactionInfo(resolved.codeName(), resolved.factionName());
+            return new FactionInfo(KOMEAlliance.normalizeFactionKey(resolved.codeName()), resolved.factionName());
         }
-        return new FactionInfo(faction, faction == null || faction.trim().isEmpty() ? "No faction" : faction);
+        return new FactionInfo(KOMEAlliance.normalizeFactionKey(faction), KOMEAlliance.displayFactionName(faction));
     }
 
     private static TileSummary getConquestTiles(KOMEWorldData data, String factionKey) {
         TileSummary summary = new TileSummary();
         for (KOMEConquestTile tile : data.conquestTiles.values()) {
-            if (tile.isClaimed() && factionMatches(tile.ownerFaction, factionKey)) {
+            if (tile.isClaimed() && factionMatches(tile.currentRulingFaction(), factionKey)) {
                 summary.count++;
                 summary.names.add(tile.id);
             }
@@ -170,8 +170,7 @@ public class KOMEServerRecordBuilder {
     }
 
     private static String displayFaction(String key) {
-        LOTRFaction faction = findFaction(key);
-        return faction == null ? key : faction.factionName();
+        return KOMEAlliance.displayFactionName(key);
     }
 
     private static LOTRFaction findFaction(String value) {

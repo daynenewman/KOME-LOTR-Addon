@@ -30,5 +30,12 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketLordMenu.Handler.class, KOMEPacketLordMenu.class, 20, Side.CLIENT);
         network.registerMessage(KOMEPacketLordAction.Handler.class, KOMEPacketLordAction.class, 21, Side.SERVER);
         network.registerMessage(KOMEPacketLordHighlight.Handler.class, KOMEPacketLordHighlight.class, 22, Side.CLIENT);
+        network.registerMessage(KOMEPacketTilePopulationUpdate.Handler.class, KOMEPacketTilePopulationUpdate.class, 23, Side.SERVER);
+        network.registerMessage(KOMEPacketTileAllocationUpdate.Handler.class, KOMEPacketTileAllocationUpdate.class, 24, Side.SERVER);
+        network.registerMessage(KOMEPacketCompanyListGui.Handler.class, KOMEPacketCompanyListGui.class, 25, Side.CLIENT);
+        network.registerMessage(KOMEPacketCompanyMoveConfirmGui.Handler.class, KOMEPacketCompanyMoveConfirmGui.class, 26, Side.CLIENT);
+        network.registerMessage(KOMEPacketCompanyMovePreviewResult.Handler.class, KOMEPacketCompanyMovePreviewResult.class, 27, Side.CLIENT);
+        network.registerMessage(KOMEPacketMovementHistoryRequest.Handler.class, KOMEPacketMovementHistoryRequest.class, 28, Side.SERVER);
+        network.registerMessage(KOMEPacketMovementHistoryData.Handler.class, KOMEPacketMovementHistoryData.class, 29, Side.CLIENT);
     }
 }

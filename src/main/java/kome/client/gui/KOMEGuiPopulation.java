@@ -1,155 +1,551 @@
 package kome.client.gui;
 
+import kome.client.KOMEConquestMapOverlay;
 import kome.client.KOMEMinecraftClient;
-
+import kome.common.network.KOMEPacketConquestOpenCapture;
+import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketPopulationGui;
 import lotr.client.gui.LOTRGuiMenu;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
+import org.lwjgl.input.Mouse;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class KOMEGuiPopulation extends GuiScreen {
-    private static final int PANEL_WIDTH = 460;
-    private static final int PANEL_HEIGHT = 280;
-    private static final int COLOR_PANEL = 0xFFE8D4A0;
-    private static final int COLOR_PANEL_DARK = 0xFFC2AE80;
-    private static final int COLOR_BORDER = 0xFF5A3019;
-    private static final int COLOR_TEXT = 0xFF21150D;
-    private static final int COLOR_MUTED = 0xFF6F4A2A;
-    private static final int COLOR_OFFENSIVE = 0xFFE3B843;
-    private static final int COLOR_DEFENSIVE = 0xFF6FB7E8;
-    private static final int COLOR_FARMHAND = 0xFF8BCF63;
-    private final String initialPlayer;
-    private final int offensiveTotal;
-    private final int offensiveUsed;
-    private final int defensiveTotal;
-    private final int defensiveUsed;
-    private final int farmhandsUsed;
-    private final int farmhandsLimit;
-    private final int armyUsed;
-    private final int armyTotal;
+    private static final int PANEL_WIDTH = 760;
+    private static final int PANEL_HEIGHT = 520;
+    private static final int TAB_OVERVIEW = 0;
+    private static final int TAB_PLAYERS = 1;
+    private static final int TAB_TILES = 2;
+    private static final int TAB_ORDERS = 3;
+    private static final int COLOR_OFF_USED = 0xFF8E2F2F;
+    private static final int COLOR_OFF_AVAILABLE = 0xFFD6A04A;
+    private static final int COLOR_DEF_USED = 0xFF2F5F8F;
+    private static final int COLOR_DEF_AVAILABLE = 0xFF8FB8CC;
+
+    private final KOMEPacketPopulationGui data;
     private GuiTextField playerField;
     private GuiTextField amountField;
+    private GuiTextField tileField;
+    private int activeTab = TAB_OVERVIEW;
+    private int playerScroll;
+    private int tileScroll;
 
-    public KOMEGuiPopulation(String playerName, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandsUsed, int farmhandsLimit, int armyUsed, int armyTotal) {
-        this.initialPlayer = playerName;
-        this.offensiveTotal = offensiveTotal;
-        this.offensiveUsed = offensiveUsed;
-        this.defensiveTotal = defensiveTotal;
-        this.defensiveUsed = defensiveUsed;
-        this.farmhandsUsed = farmhandsUsed;
-        this.farmhandsLimit = farmhandsLimit;
-        this.armyUsed = armyUsed;
-        this.armyTotal = armyTotal;
+    public KOMEGuiPopulation(KOMEPacketPopulationGui message) {
+        data = message == null ? new KOMEPacketPopulationGui() : message;
+        data.sanitizeTopLevel();
+    }
+
+    public KOMEGuiPopulation(String playerName, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed,
+            int farmhandsUsed, int farmhandsLimit, int armyUsed, int armyTotal, int tileOffensiveTotal,
+            int tileOffensiveUsed, int tileDefensiveTotal, int tileDefensiveUsed, int controlledTiles,
+            int allocatedOffensive, int allocatedOffensiveUsed, int allocatedDefensive, int allocatedDefensiveUsed,
+            String allocationSummary, boolean canManageAllocations) {
+        this(new KOMEPacketPopulationGui(playerName, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed,
+            farmhandsUsed, farmhandsLimit, armyUsed, armyTotal, tileOffensiveTotal, tileOffensiveUsed,
+            tileDefensiveTotal, tileDefensiveUsed, controlledTiles, allocatedOffensive, allocatedOffensiveUsed,
+            allocatedDefensive, allocatedDefensiveUsed, allocationSummary, canManageAllocations));
     }
 
     @Override
     public void initGui() {
-        int x = width / 2 - PANEL_WIDTH / 2;
-        int y = height / 2 - PANEL_HEIGHT / 2;
-        playerField = new GuiTextField(fontRendererObj, x + 28, y + 78, 180, 18);
-        playerField.setText(initialPlayer);
-        amountField = new GuiTextField(fontRendererObj, x + 28, y + 120, 80, 18);
+        buttonList.clear();
+        int x = getPanelX();
+        int y = getPanelY();
+        int w = getPanelWidth();
+
+        buttonList.add(KOMEGuiButton.small(0, x + 14, y + 14, "Menu"));
+        buttonList.add(new KOMEGuiButton(8, x + w - 212, y + 14, 90, 22, "Tiles"));
+        buttonList.add(new KOMEGuiButton(7, x + w - 114, y + 14, 90, 22, "Units"));
+
+        int tabY = y + 46;
+        int tabX = x + 22;
+        addTabButton(20, tabX, tabY, "Overview", TAB_OVERVIEW);
+        addTabButton(21, tabX + 96, tabY, "Players", TAB_PLAYERS);
+        addTabButton(22, tabX + 192, tabY, "Tiles", TAB_TILES);
+        addTabButton(23, tabX + 288, tabY, "Orders", TAB_ORDERS);
+
+        int ordersY = contentY() + 68;
+        playerField = new GuiTextField(fontRendererObj, x + 154, ordersY, 166, 18);
+        playerField.setText(data.playerName);
+        amountField = new GuiTextField(fontRendererObj, x + 404, ordersY, 58, 18);
         amountField.setText("25");
-        buttonList.add(new GuiButton(0, x + 18, y + 16, 70, 20, "Menu"));
-        buttonList.add(new GuiButton(7, x + PANEL_WIDTH - 90, y + 16, 72, 20, "Units"));
-        buttonList.add(new GuiButton(2, x + 28, y + 166, 86, 20, "+ Off"));
-        buttonList.add(new GuiButton(3, x + 122, y + 166, 86, 20, "- Off"));
-        buttonList.add(new GuiButton(5, x + 28, y + 192, 86, 20, "+ Def"));
-        buttonList.add(new GuiButton(6, x + 122, y + 192, 86, 20, "- Def"));
+        tileField = new GuiTextField(fontRendererObj, x + 154, ordersY + 78, 80, 18);
+        tileField.setText("");
+
+        if (activeTab == TAB_ORDERS && data.canManageAllocations) {
+            int buttonY = ordersY + 35;
+            buttonList.add(new KOMEGuiButton(2, x + 154, buttonY, 104, 22, "+ Offensive"));
+            buttonList.add(new KOMEGuiButton(3, x + 266, buttonY, 104, 22, "- Offensive"));
+            buttonList.add(new KOMEGuiButton(5, x + 378, buttonY, 104, 22, "+ Defensive"));
+            buttonList.add(new KOMEGuiButton(6, x + 490, buttonY, 104, 22, "- Defensive"));
+            int allocationY = ordersY + 113;
+            buttonList.add(new KOMEGuiButton(30, x + 154, allocationY, 132, 22, "+ Offensive Allocation"));
+            buttonList.add(new KOMEGuiButton(31, x + 294, allocationY, 132, 22, "- Offensive Allocation"));
+            buttonList.add(new KOMEGuiButton(32, x + 434, allocationY, 132, 22, "+ Defensive Allocation"));
+            buttonList.add(new KOMEGuiButton(33, x + 574, allocationY, 132, 22, "- Defensive Allocation"));
+        }
+    }
+
+    private void addTabButton(int id, int x, int y, String label, int tab) {
+        buttonList.add(new KOMEGuiButton(id, x, y, 88, 22, label, activeTab == tab).setSelected(activeTab == tab));
     }
 
     @Override
     protected void actionPerformed(GuiButton button) {
-        String player = playerField.getText().trim();
-        String amount = amountField.getText().trim();
         if (button.id == 0) {
             mc.displayGuiScreen(new LOTRGuiMenu());
-            return;
-        } else if (button.id == 2) {
-            KOMEMinecraftClient.sendChat("/population add " + player + " offensive " + amount);
-        } else if (button.id == 3) {
-            KOMEMinecraftClient.sendChat("/population remove " + player + " offensive " + amount);
-        } else if (button.id == 5) {
-            KOMEMinecraftClient.sendChat("/population add " + player + " defensive " + amount);
-        } else if (button.id == 6) {
-            KOMEMinecraftClient.sendChat("/population remove " + player + " defensive " + amount);
         } else if (button.id == 7) {
-            KOMEMinecraftClient.sendChat("/population units " + player);
+            KOMEMinecraftClient.sendChat("/population units " + safePlayer());
             KOMEMinecraftClient.closePlayerScreen();
+        } else if (button.id == 8) {
+            KOMEConquestMapOverlay.openPreservedMap();
+        } else if (button.id >= 20 && button.id <= 23) {
+            activeTab = button.id - 20;
+            initGui();
+        } else if (button.id == 2) {
+            KOMEMinecraftClient.sendChat("/population add " + safePlayer() + " offensive " + safeAmount());
+        } else if (button.id == 3) {
+            KOMEMinecraftClient.sendChat("/population remove " + safePlayer() + " offensive " + safeAmount());
+        } else if (button.id == 5) {
+            KOMEMinecraftClient.sendChat("/population add " + safePlayer() + " defensive " + safeAmount());
+        } else if (button.id == 6) {
+            KOMEMinecraftClient.sendChat("/population remove " + safePlayer() + " defensive " + safeAmount());
+        } else if (button.id == 30) {
+            sendAllocationCommand("allocate", "offensive");
+        } else if (button.id == 31) {
+            sendAllocationCommand("unallocate", "offensive");
+        } else if (button.id == 32) {
+            sendAllocationCommand("allocate", "defensive");
+        } else if (button.id == 33) {
+            sendAllocationCommand("unallocate", "defensive");
         }
+    }
+
+    private void sendAllocationCommand(String action, String type) {
+        String tile = tileField == null ? "" : tileField.getText().trim();
+        if (tile.length() == 0) {
+            return;
+        }
+        KOMEMinecraftClient.sendChat("/population " + action + " " + tile + " " + safePlayer() + " " + type + " " + safeAmount());
     }
 
     @Override
     protected void keyTyped(char c, int key) {
-        if (playerField.textboxKeyTyped(c, key) || amountField.textboxKeyTyped(c, key)) {
-            return;
+        if (activeTab == TAB_ORDERS && data.canManageAllocations) {
+            if (playerField.textboxKeyTyped(c, key) || amountField.textboxKeyTyped(c, key) || tileField.textboxKeyTyped(c, key)) {
+                return;
+            }
         }
         super.keyTyped(c, key);
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) {
+        if (activeTab == TAB_PLAYERS && handlePlayerRowClick(mouseX, mouseY)) {
+            return;
+        }
+        if (activeTab == TAB_TILES && handleTileRowClick(mouseX, mouseY)) {
+            return;
+        }
         super.mouseClicked(mouseX, mouseY, button);
-        playerField.mouseClicked(mouseX, mouseY, button);
-        amountField.mouseClicked(mouseX, mouseY, button);
+        if (activeTab == TAB_ORDERS && data.canManageAllocations) {
+            playerField.mouseClicked(mouseX, mouseY, button);
+            amountField.mouseClicked(mouseX, mouseY, button);
+            tileField.mouseClicked(mouseX, mouseY, button);
+        }
+    }
+
+    @Override
+    public void handleMouseInput() {
+        super.handleMouseInput();
+        int wheel = Mouse.getEventDWheel();
+        if (wheel == 0) {
+            return;
+        }
+        if (activeTab == TAB_PLAYERS) {
+            playerScroll = clamp(playerScroll + (wheel < 0 ? 1 : -1), 0, maxPlayerScroll());
+        } else if (activeTab == TAB_TILES) {
+            tileScroll = clamp(tileScroll + (wheel < 0 ? 1 : -1), 0, maxTileScroll());
+        }
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
-        int x = width / 2 - PANEL_WIDTH / 2;
-        int y = height / 2 - PANEL_HEIGHT / 2;
-        int offensiveAvailable = Math.max(0, offensiveTotal - offensiveUsed);
-        int defensiveAvailable = Math.max(0, defensiveTotal - defensiveUsed);
-        int armyAvailable = Math.max(0, armyTotal - armyUsed);
-        drawPanel(x, y);
-        drawCenteredString(fontRendererObj, "KOME Population", width / 2, y + 22, COLOR_TEXT);
-        drawString(fontRendererObj, "Manager", x + 98, y + 22, COLOR_MUTED);
-
-        drawString(fontRendererObj, "Player", x + 28, y + 66, COLOR_MUTED);
-        drawString(fontRendererObj, "Amount", x + 28, y + 108, COLOR_MUTED);
-        playerField.drawTextBox();
-        amountField.drawTextBox();
-
-        drawString(fontRendererObj, "Adjust totals", x + 28, y + 150, COLOR_MUTED);
-        drawStatCard(x + 240, y + 62, 190, 48, "Offensive", offensiveUsed, offensiveTotal, offensiveAvailable, COLOR_OFFENSIVE);
-        drawStatCard(x + 240, y + 120, 190, 48, "Defensive", defensiveUsed, defensiveTotal, defensiveAvailable, COLOR_DEFENSIVE);
-        drawStatCard(x + 240, y + 178, 190, 48, "Total army", armyUsed, armyTotal, armyAvailable, 0xFFFFFFFF);
-        drawFarmhandCard(x + 28, y + 226, 402);
+        int x = getPanelX();
+        int y = getPanelY();
+        int w = getPanelWidth();
+        int h = getPanelHeight();
+        KOMEGuiTheme.drawMainPanel(x, y, w, h);
+        KOMEGuiTheme.drawHeader(fontRendererObj, "Population", x + 246, y + 12, w - 492);
+        drawFactionLine(x, y);
+        if (activeTab == TAB_OVERVIEW) {
+            drawOverviewTab(x, y, w);
+        } else if (activeTab == TAB_PLAYERS) {
+            drawPlayersTab(x, y, w, h, mouseX, mouseY);
+        } else if (activeTab == TAB_TILES) {
+            drawTilesTab(x, y, w, h, mouseX, mouseY);
+        } else {
+            drawOrdersTab(x, y, w);
+        }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
 
-    private void drawPanel(int x, int y) {
-        drawRect(x - 6, y - 6, x + PANEL_WIDTH + 6, y + PANEL_HEIGHT + 6, 0xCC000000);
-        drawRect(x, y, x + PANEL_WIDTH, y + PANEL_HEIGHT, COLOR_PANEL);
-        drawRect(x + 8, y + 8, x + PANEL_WIDTH - 8, y + 10, COLOR_BORDER);
-        drawRect(x + 8, y + 48, x + PANEL_WIDTH - 8, y + 52, COLOR_BORDER);
-        drawRect(x + 18, y + 58, x + 222, y + 220, COLOR_PANEL_DARK);
-        drawRect(x + 232, y + 58, x + PANEL_WIDTH - 18, y + 236, COLOR_PANEL_DARK);
+    private void drawFactionLine(int x, int y) {
+        String faction = data.viewerFaction == null || data.viewerFaction.length() == 0 ? "No faction" : data.viewerFaction;
+        fontRendererObj.drawString("Faction: " + faction, x + 414, y + 52, KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 
-    private void drawStatCard(int x, int y, int width, int height, String label, int used, int total, int available, int color) {
-        drawRect(x, y, x + width, y + height, 0xFF8A5A31);
-        drawRect(x + 1, y + 1, x + width - 1, y + height - 1, 0xFFE0C58A);
-        drawString(fontRendererObj, label, x + 8, y + 7, COLOR_TEXT);
-        drawString(fontRendererObj, used + "/" + total + " used", x + 8, y + 20, 0xFFFFFFFF);
-        drawString(fontRendererObj, available + " available", x + width - 80, y + 20, COLOR_MUTED);
-        drawProgressBar(x + 8, y + height - 12, width - 16, 5, used, total, color);
-    }
-
-    private void drawFarmhandCard(int x, int y, int width) {
-        drawRect(x, y, x + width, y + 34, 0xFF8A5A31);
-        drawRect(x + 1, y + 1, x + width - 1, y + 33, 0xFFE0C58A);
-        drawString(fontRendererObj, "Farmhands", x + 8, y + 8, COLOR_TEXT);
-        drawString(fontRendererObj, farmhandsUsed + "/" + farmhandsLimit + " used", x + 92, y + 8, COLOR_MUTED);
-        drawProgressBar(x + 8, y + 23, width - 16, 5, farmhandsUsed, farmhandsLimit, COLOR_FARMHAND);
-    }
-
-    private void drawProgressBar(int x, int y, int width, int height, int used, int total, int color) {
-        drawRect(x, y, x + width, y + height, 0xFF3B2A18);
-        int filled = total <= 0 ? 0 : Math.min(width, Math.max(0, used * width / total));
-        if (filled > 0) {
-            drawRect(x, y, x + filled, y + height, color);
+    private void drawOverviewTab(int x, int y, int w) {
+        int cy = contentY();
+        if (isNoFaction()) {
+            drawEmptyState(x + 24, cy, w - 48, "No faction population data found.");
+            return;
         }
+        drawCapacityCard(x + 24, cy, w - 48, 92, "Your Total Military Capacity",
+            data.viewerTotalOffensiveUsed, data.viewerTotalOffensiveTotal, data.viewerTotalOffensiveAvailable,
+            data.viewerTotalDefensiveUsed, data.viewerTotalDefensiveTotal, data.viewerTotalDefensiveAvailable,
+            false, 0, 0);
+
+        int sourceY = cy + 102;
+        int sourceW = (w - 58) / 2;
+        drawSourceCard(x + 24, sourceY, sourceW, "Personal Reserve",
+            data.personalReserveOffensiveTotal, data.personalReserveOffensiveUsed, data.personalReserveOffensiveAvailable,
+            data.personalReserveDefensiveTotal, data.personalReserveDefensiveUsed, data.personalReserveDefensiveAvailable);
+        drawSourceCard(x + 34 + sourceW, sourceY, sourceW, "Assigned from Tiles",
+            data.assignedTileOffensiveTotal, data.assignedTileOffensiveUsed, data.assignedTileOffensiveAvailable,
+            data.assignedTileDefensiveTotal, data.assignedTileDefensiveUsed, data.assignedTileDefensiveAvailable);
+
+        drawCapacityCard(x + 24, sourceY + 86, w - 48, 92, "Faction Military Capacity",
+            data.factionOffensiveUsed, data.factionOffensiveTotal, data.factionOffensiveAvailable,
+            data.factionDefensiveUsed, data.factionDefensiveTotal, data.factionDefensiveAvailable,
+            true, data.factionFarmhandUsed, data.factionFarmhandTotal);
+        fontRendererObj.drawString("Controlled Tiles: " + data.factionControlledTileCount, x + w - 184, sourceY + 96, KOMEGuiTheme.COLOR_TEXT_MUTED);
+
+        int notesY = sourceY + 188;
+        KOMEGuiTheme.drawSubPanel(x + 24, notesY, w - 48, 82);
+        fontRendererObj.drawString("Important Notes", x + 36, notesY + 8, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString("- Offensive population can be used for movable armies.", x + 36, notesY + 24, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("- Defensive population is for defensive units and cannot move with normal companies.", x + 36, notesY + 36, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("- Tile population must be assigned before a player can use it.", x + 36, notesY + 48, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("- Used population is tied to currently hired units.", x + 36, notesY + 60, KOMEGuiTheme.COLOR_TEXT);
+    }
+
+    private void drawCapacityCard(int x, int y, int width, int height, String title, int offUsed, int offTotal, int offAvail, int defUsed, int defTotal, int defAvail, boolean farmhands, int farmUsed, int farmTotal) {
+        KOMEGuiTheme.drawSubPanel(x, y, width, height);
+        int used = clamp(offUsed, 0, offTotal) + clamp(defUsed, 0, defTotal);
+        int total = Math.max(0, offTotal) + Math.max(0, defTotal);
+        int available = Math.max(0, offAvail) + Math.max(0, defAvail);
+        fontRendererObj.drawString(title, x + 12, y + 8, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString("Used " + used + " / " + total + "     Available " + available, x + 248, y + 8, KOMEGuiTheme.COLOR_TEXT);
+        if (farmhands) {
+            fontRendererObj.drawString("Farmhands " + farmUsed + " / " + farmTotal, x + width - 156, y + 8, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        }
+        fontRendererObj.drawString("Offensive: " + offUsed + " / " + offTotal + "     available " + offAvail, x + 12, y + 27, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Defensive: " + defUsed + " / " + defTotal + "     available " + defAvail, x + 12, y + 41, KOMEGuiTheme.COLOR_TEXT);
+        drawStackedCapacityBar(x + 12, y + 62, width - 24, 10, offUsed, offAvail, defUsed, defAvail);
+        drawLegend(x + 12, y + 76);
+    }
+
+    private void drawSourceCard(int x, int y, int width, String title, int offTotal, int offUsed, int offAvail, int defTotal, int defUsed, int defAvail) {
+        KOMEGuiTheme.drawSubPanel(x, y, width, 76);
+        fontRendererObj.drawString(title, x + 12, y + 8, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString("Offensive: total " + offTotal + " / used " + offUsed + " / available " + offAvail, x + 12, y + 28, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Defensive: total " + defTotal + " / used " + defUsed + " / available " + defAvail, x + 12, y + 44, KOMEGuiTheme.COLOR_TEXT);
+    }
+
+    private void drawPlayersTab(int x, int y, int w, int h, int mouseX, int mouseY) {
+        int cy = contentY();
+        fontRendererObj.drawString("Faction Player Breakdown", x + 24, cy, KOMEGuiTheme.COLOR_BORDER_RED);
+        List rows = getPlayerRowsWithUnallocated();
+        if (rows.isEmpty()) {
+            drawEmptyState(x + 24, cy + 18, w - 48, "No faction player population data found.");
+            return;
+        }
+        int listY = cy + 18;
+        int listH = y + h - listY - 18;
+        playerScroll = clamp(playerScroll, 0, maxPlayerScroll());
+        KOMEGuiTheme.enableScissor(mc, x + 18, listY, w - 36, listH);
+        for (int i = 0; i < visiblePlayerRows() + 1 && playerScroll + i < rows.size(); i++) {
+            drawPlayerRow(x + 24, listY + i * playerRowHeight(), w - 48, (KOMEPacketPopulationGui.CapacityBreakdown) rows.get(playerScroll + i), mouseX, mouseY);
+        }
+        KOMEGuiTheme.disableScissor();
+        drawScrollHint(x + w - 18, listY, listH, rows.size(), visiblePlayerRows(), playerScroll);
+    }
+
+    private void drawPlayerRow(int x, int y, int width, KOMEPacketPopulationGui.CapacityBreakdown row, int mouseX, int mouseY) {
+        row.sanitize();
+        KOMEGuiTheme.drawCard(x, y, width, playerRowHeight() - 6, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, playerRowHeight() - 6));
+        int total = row.offensiveTotal + row.defensiveTotal;
+        int used = row.offensiveUsed + row.defensiveUsed;
+        int available = row.offensiveAvailable + row.defensiveAvailable;
+        String name = row.unallocated ? "Unallocated" : row.playerName;
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, name, 142), x + 10, y + 7, row.unallocated ? KOMEGuiTheme.COLOR_TEXT_MUTED : KOMEGuiTheme.COLOR_BORDER_RED);
+        if (row.unallocated) {
+            fontRendererObj.drawString("Total: " + available + " / " + total, x + 164, y + 7, KOMEGuiTheme.COLOR_TEXT);
+            fontRendererObj.drawString("Offensive: " + row.offensiveAvailable + " / " + row.offensiveTotal, x + 164, y + 21, KOMEGuiTheme.COLOR_TEXT);
+            fontRendererObj.drawString("Defensive: " + row.defensiveAvailable + " / " + row.defensiveTotal, x + 336, y + 21, KOMEGuiTheme.COLOR_TEXT);
+        } else {
+            fontRendererObj.drawString("Total: " + used + " / " + total + "     available " + available, x + 164, y + 7, KOMEGuiTheme.COLOR_TEXT);
+            fontRendererObj.drawString("Offensive: " + row.offensiveUsed + " / " + row.offensiveTotal + "     available " + row.offensiveAvailable, x + 164, y + 21, KOMEGuiTheme.COLOR_TEXT);
+            fontRendererObj.drawString("Defensive: " + row.defensiveUsed + " / " + row.defensiveTotal + "     available " + row.defensiveAvailable, x + 336, y + 21, KOMEGuiTheme.COLOR_TEXT);
+        }
+        drawStackedCapacityBar(x + 164, y + 39, 266, 8, row.offensiveUsed, row.offensiveAvailable, row.defensiveUsed, row.defensiveAvailable);
+        if (!row.unallocated) {
+            drawMiniButton(x + width - 202, y + 34, 44, "View", mouseX, mouseY);
+            if (data.canManageAllocations && row.canManage) {
+                drawMiniButton(x + width - 152, y + 34, 62, "Allocate", mouseX, mouseY);
+                drawMiniButton(x + width - 84, y + 34, 58, "Reclaim", mouseX, mouseY);
+            }
+        }
+    }
+
+    private void drawTilesTab(int x, int y, int w, int h, int mouseX, int mouseY) {
+        int cy = contentY();
+        fontRendererObj.drawString("Faction-Controlled Tile Population", x + 24, cy, KOMEGuiTheme.COLOR_BORDER_RED);
+        if (data.tileBreakdowns == null || data.tileBreakdowns.isEmpty()) {
+            drawEmptyState(x + 24, cy + 18, w - 48, "No controlled tiles found.");
+            return;
+        }
+        int listY = cy + 18;
+        int listH = y + h - listY - 18;
+        tileScroll = clamp(tileScroll, 0, maxTileScroll());
+        KOMEGuiTheme.enableScissor(mc, x + 18, listY, w - 36, listH);
+        for (int i = 0; i < visibleTileRows() + 1 && tileScroll + i < data.tileBreakdowns.size(); i++) {
+            Object object = data.tileBreakdowns.get(tileScroll + i);
+            if (object instanceof KOMEPacketPopulationGui.TileBreakdown) {
+                drawTileRow(x + 24, listY + i * tileRowHeight(), w - 48, (KOMEPacketPopulationGui.TileBreakdown) object, mouseX, mouseY);
+            }
+        }
+        KOMEGuiTheme.disableScissor();
+        drawScrollHint(x + w - 18, listY, listH, data.tileBreakdowns.size(), visibleTileRows(), tileScroll);
+    }
+
+    private void drawTileRow(int x, int y, int width, KOMEPacketPopulationGui.TileBreakdown row, int mouseX, int mouseY) {
+        row.sanitize();
+        KOMEGuiTheme.drawCard(x, y, width, tileRowHeight() - 6, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, tileRowHeight() - 6));
+        fontRendererObj.drawString("Tile " + row.tileId, x + 10, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString("Ruler: " + row.ownerFaction, x + 10, y + 22, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString("Offensive: total " + row.offensiveTotal + "     allocated " + row.offensiveAllocated + "     unallocated " + row.offensiveUnallocated, x + 162, y + 8, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Defensive: total " + row.defensiveTotal + "     allocated " + row.defensiveAllocated + "     unallocated " + row.defensiveUnallocated, x + 162, y + 23, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Farmhands: " + row.farmhandUsed + " / " + row.farmhandTotal, x + 162, y + 38, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        drawMiniButton(x + width - 74, y + 18, 58, "Manage", mouseX, mouseY);
+    }
+
+    private void drawOrdersTab(int x, int y, int w) {
+        int cy = contentY();
+        fontRendererObj.drawString("Population Orders", x + 24, cy, KOMEGuiTheme.COLOR_BORDER_RED);
+        if (!data.canManageAllocations) {
+            drawEmptyState(x + 24, cy + 24, w - 48, "You do not have permission to issue population orders.");
+            return;
+        }
+        int formY = cy + 34;
+        KOMEGuiTheme.drawSubPanel(x + 24, formY, w - 48, 208);
+        fontRendererObj.drawString("Target Player:", x + 42, formY + 18, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString("Amount:", x + 334, formY + 18, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        playerField.drawTextBox();
+        amountField.drawTextBox();
+        fontRendererObj.drawString("Player Reserve", x + 42, formY + 50, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString("Adjust the selected player's personal reserve population.", x + 42, formY + 66, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString("Tile Allocation", x + 42, formY + 128, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString("Tile:", x + 42, formY + 148, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        tileField.drawTextBox();
+        fontRendererObj.drawString("Assign or reclaim faction tile population for the target player.", x + 250, formY + 148, KOMEGuiTheme.COLOR_TEXT_MUTED);
+    }
+
+    private boolean handlePlayerRowClick(int mouseX, int mouseY) {
+        List rows = getPlayerRowsWithUnallocated();
+        int x = getPanelX() + 24;
+        int y = contentY() + 18;
+        int width = getPanelWidth() - 48;
+        for (int i = 0; i < visiblePlayerRows() + 1 && playerScroll + i < rows.size(); i++) {
+            KOMEPacketPopulationGui.CapacityBreakdown row = (KOMEPacketPopulationGui.CapacityBreakdown) rows.get(playerScroll + i);
+            int rowY = y + i * playerRowHeight();
+            if (row.unallocated) {
+                continue;
+            }
+            if (KOMEGuiTheme.isHovered(mouseX, mouseY, x + width - 202, rowY + 34, 44, 16)) {
+                KOMEMinecraftClient.sendChat("/population units " + row.playerName);
+                KOMEMinecraftClient.closePlayerScreen();
+                return true;
+            }
+            if (data.canManageAllocations && row.canManage && KOMEGuiTheme.isHovered(mouseX, mouseY, x + width - 152, rowY + 34, 62, 16)) {
+                openOrdersFor(row.playerName);
+                return true;
+            }
+            if (data.canManageAllocations && row.canManage && KOMEGuiTheme.isHovered(mouseX, mouseY, x + width - 84, rowY + 34, 58, 16)) {
+                openOrdersFor(row.playerName);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean handleTileRowClick(int mouseX, int mouseY) {
+        int x = getPanelX() + 24;
+        int y = contentY() + 18;
+        int width = getPanelWidth() - 48;
+        for (int i = 0; i < visibleTileRows() + 1 && tileScroll + i < data.tileBreakdowns.size(); i++) {
+            Object object = data.tileBreakdowns.get(tileScroll + i);
+            if (!(object instanceof KOMEPacketPopulationGui.TileBreakdown)) {
+                continue;
+            }
+            KOMEPacketPopulationGui.TileBreakdown row = (KOMEPacketPopulationGui.TileBreakdown) object;
+            int rowY = y + i * tileRowHeight();
+            if (KOMEGuiTheme.isHovered(mouseX, mouseY, x + width - 74, rowY + 18, 58, 16)) {
+                KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(row.tileId));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void openOrdersFor(String playerName) {
+        activeTab = TAB_ORDERS;
+        initGui();
+        playerField.setText(playerName == null ? "" : playerName);
+    }
+
+    private List getPlayerRowsWithUnallocated() {
+        List rows = new ArrayList();
+        if (data.playerBreakdowns != null) {
+            rows.addAll(data.playerBreakdowns);
+        }
+        if (data.unallocatedBreakdown != null && data.unallocatedBreakdown.hasAny()) {
+            rows.add(data.unallocatedBreakdown);
+        }
+        return rows;
+    }
+
+    private void drawStackedCapacityBar(int x, int y, int width, int height, int offensiveUsed, int offensiveAvailable, int defensiveUsed, int defensiveAvailable) {
+        offensiveUsed = Math.max(0, offensiveUsed);
+        offensiveAvailable = Math.max(0, offensiveAvailable);
+        defensiveUsed = Math.max(0, defensiveUsed);
+        defensiveAvailable = Math.max(0, defensiveAvailable);
+        int total = offensiveUsed + offensiveAvailable + defensiveUsed + defensiveAvailable;
+        KOMEGuiTheme.drawBorderedRect(x, y, width, height, KOMEGuiTheme.COLOR_BORDER_DARK, 0xFF3A2A1B);
+        if (total <= 0) {
+            return;
+        }
+        int innerX = x + 1;
+        int innerY = y + 1;
+        int innerW = width - 2;
+        int innerH = height - 2;
+        int drawn = 0;
+        drawn += drawStackSegment(innerX + drawn, innerY, innerW, innerH, drawn, total, offensiveUsed, COLOR_OFF_USED);
+        drawn += drawStackSegment(innerX + drawn, innerY, innerW, innerH, drawn, total, offensiveAvailable, COLOR_OFF_AVAILABLE);
+        drawn += drawStackSegment(innerX + drawn, innerY, innerW, innerH, drawn, total, defensiveUsed, COLOR_DEF_USED);
+        drawStackSegment(innerX + drawn, innerY, innerW, innerH, drawn, total, defensiveAvailable, COLOR_DEF_AVAILABLE);
+    }
+
+    private int drawStackSegment(int x, int y, int fullWidth, int height, int alreadyDrawn, int total, int value, int color) {
+        if (value <= 0 || total <= 0 || alreadyDrawn >= fullWidth) {
+            return 0;
+        }
+        int segmentWidth = Math.max(1, Math.round(fullWidth * (value / (float) total)));
+        segmentWidth = Math.min(segmentWidth, fullWidth - alreadyDrawn);
+        drawRect(x, y, x + segmentWidth, y + height, color);
+        drawRect(x, y, x + segmentWidth, y + 2, 0x22FFFFFF);
+        return segmentWidth;
+    }
+
+    private void drawLegend(int x, int y) {
+        drawLegendSwatch(x, y, COLOR_OFF_USED, "Off used");
+        drawLegendSwatch(x + 78, y, COLOR_OFF_AVAILABLE, "Off available");
+        drawLegendSwatch(x + 176, y, COLOR_DEF_USED, "Def used");
+        drawLegendSwatch(x + 254, y, COLOR_DEF_AVAILABLE, "Def available");
+    }
+
+    private void drawLegendSwatch(int x, int y, int color, String label) {
+        drawRect(x, y + 2, x + 7, y + 9, color);
+        fontRendererObj.drawString(label, x + 10, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
+    }
+
+    private void drawMiniButton(int x, int y, int width, String label, int mouseX, int mouseY) {
+        boolean hovered = KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, 16);
+        KOMEGuiTheme.drawBorderedRect(x, y, width, 16, hovered ? KOMEGuiTheme.COLOR_GOLD : KOMEGuiTheme.COLOR_BORDER_RED, hovered ? KOMEGuiTheme.COLOR_PARCHMENT_LIGHT : KOMEGuiTheme.COLOR_PARCHMENT_DARK);
+        String trimmed = KOMEGuiTheme.trimToWidth(fontRendererObj, label, width - 6);
+        fontRendererObj.drawString(trimmed, x + width / 2 - fontRendererObj.getStringWidth(trimmed) / 2, y + 4, KOMEGuiTheme.COLOR_TEXT);
+    }
+
+    private void drawEmptyState(int x, int y, int width, String text) {
+        KOMEGuiTheme.drawSubPanel(x, y, width, 52);
+        fontRendererObj.drawString(text, x + 12, y + 20, KOMEGuiTheme.COLOR_TEXT_MUTED);
+    }
+
+    private void drawScrollHint(int x, int y, int height, int totalRows, int visibleRows, int scroll) {
+        if (totalRows <= visibleRows) {
+            return;
+        }
+        drawRect(x, y, x + 2, y + height, 0x665A171A);
+        int thumbH = Math.max(12, height * visibleRows / totalRows);
+        int thumbY = y + (height - thumbH) * scroll / Math.max(1, totalRows - visibleRows);
+        drawRect(x - 1, thumbY, x + 3, thumbY + thumbH, KOMEGuiTheme.COLOR_BORDER_RED);
+    }
+
+    private int contentY() {
+        return getPanelY() + 78;
+    }
+
+    private int playerRowHeight() {
+        return 64;
+    }
+
+    private int tileRowHeight() {
+        return 62;
+    }
+
+    private int visiblePlayerRows() {
+        return Math.max(1, (getPanelY() + getPanelHeight() - (contentY() + 18) - 18) / playerRowHeight());
+    }
+
+    private int visibleTileRows() {
+        return Math.max(1, (getPanelY() + getPanelHeight() - (contentY() + 18) - 18) / tileRowHeight());
+    }
+
+    private int maxPlayerScroll() {
+        return Math.max(0, getPlayerRowsWithUnallocated().size() - visiblePlayerRows());
+    }
+
+    private int maxTileScroll() {
+        return Math.max(0, (data.tileBreakdowns == null ? 0 : data.tileBreakdowns.size()) - visibleTileRows());
+    }
+
+    private boolean isNoFaction() {
+        return data.viewerFaction == null || data.viewerFaction.length() == 0 || "None".equalsIgnoreCase(data.viewerFaction) || "No faction".equalsIgnoreCase(data.viewerFaction);
+    }
+
+    private String safePlayer() {
+        String player = playerField == null ? "" : playerField.getText().trim();
+        return player.length() == 0 ? data.playerName : player;
+    }
+
+    private String safeAmount() {
+        String amount = amountField == null ? "" : amountField.getText().trim();
+        return amount.length() == 0 ? "0" : amount;
+    }
+
+    private static int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private int getPanelWidth() {
+        return Math.min(PANEL_WIDTH, width - 20);
+    }
+
+    private int getPanelHeight() {
+        return Math.min(PANEL_HEIGHT, height - 20);
+    }
+
+    private int getPanelX() {
+        return width / 2 - getPanelWidth() / 2;
+    }
+
+    private int getPanelY() {
+        return height / 2 - getPanelHeight() / 2;
     }
 }

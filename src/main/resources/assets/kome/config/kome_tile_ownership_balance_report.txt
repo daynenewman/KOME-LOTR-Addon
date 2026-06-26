@@ -1,0 +1,156 @@
+KOME default conquest ownership balance report
+Strategy: waypoint defaults are authoritative anchors; non-waypoint tiles are only assigned by conservative connected core expansion. Ambiguous borderlands and wilderness remain unclaimed.
+Total known tiles: 645; owned defaults: 226; unclaimed defaults: 419; waypoint/default anchor tiles: 180; core expansion tiles: 65.
+Unresolved waypoint names from waypoint default CSV, left to explicit tile defaults/manual review if needed: 99
+Unresolved sample: Bardhaven, Amon Gwin, Mirulond, Duneard, Durfalas, Hardorogost, Kimen Kah, Sereghir, Tol Torog, Ain an-Ahar, Ajtiaz an-Ahar, An-batina, Anat an-Khorumor, Anat an-Phoinur, Arminazul, Ayukaph-amam, Bakrizad, Belkadar, Emerald Lakes, Ephalon, Gath-azrazain, Ijdi-ilel, Izem-ulzuz, Khopakadar, Lipha-tun, Ninzadin, Nuremin, Tawinen, Topaz Bay, Ugri-zadin, Umbar, Yaphurushi, Elostirion, Ford of Bruinen, North Mithlond, South Mithlond, Orthanc (Capital), Sapper's Grove, Shagrat's Tomb, Black Gate
+
+Faction, tiles, waypointTiles, level1, level2, level3, weightedScore, borderTiles, adjacentEnemyFactions, unclaimedNeighborTiles
+HOBBIT: tiles=25, waypoint=25, L1=0, L2=3, L3=22, score=146, border=13, enemyAdj=1 [DUNEDAIN], unclaimedAdj=7
+GONDOR: tiles=29, waypoint=29, L1=12, L2=16, L3=1, score=96, border=24, enemyAdj=2 [MORDOR,ROHAN], unclaimedAdj=17
+MORDOR: tiles=14, waypoint=14, L1=3, L2=0, L3=11, score=76, border=11, enemyAdj=1 [GONDOR], unclaimedAdj=16
+DUNLAND: tiles=12, waypoint=9, L1=0, L2=5, L3=4, score=47, border=11, enemyAdj=4 [FANGORN,ISENGARD,LOTHLORIEN,ROHAN], unclaimedAdj=10
+HIGH_ELVES: tiles=7, waypoint=6, L1=0, L2=0, L3=6, score=37, border=7, enemyAdj=2 [BLUE_MOUNTAINS,GUNDABAD], unclaimedAdj=5
+ROHAN: tiles=9, waypoint=8, L1=1, L2=5, L3=2, score=37, border=5, enemyAdj=3 [DUNLAND,FANGORN,GONDOR], unclaimedAdj=7
+GUNDABAD: tiles=16, waypoint=12, L1=8, L2=4, L3=0, score=36, border=9, enemyAdj=6 [ANGMAR,DALE,DOL_GULDUR,DUNEDAIN,HIGH_ELVES,LOTHLORIEN], unclaimedAdj=16
+HARAD: tiles=12, waypoint=7, L1=1, L2=4, L3=2, score=35, border=11, enemyAdj=0 [-], unclaimedAdj=26
+BLUE_MOUNTAINS: tiles=12, waypoint=7, L1=0, L2=7, L3=0, score=33, border=7, enemyAdj=2 [ANGMAR,HIGH_ELVES], unclaimedAdj=7
+BREE: tiles=6, waypoint=5, L1=0, L2=4, L3=1, score=25, border=5, enemyAdj=1 [DUNEDAIN], unclaimedAdj=2
+LOTHLORIEN: tiles=8, waypoint=5, L1=2, L2=0, L3=3, score=25, border=4, enemyAdj=3 [DOL_GULDUR,DUNLAND,GUNDABAD], unclaimedAdj=3
+DALE: tiles=7, waypoint=5, L1=0, L2=4, L3=1, score=24, border=7, enemyAdj=4 [ANGMAR,DURINS_FOLK,GUNDABAD,WOOD_ELF], unclaimedAdj=9
+DOL_GULDUR: tiles=11, waypoint=4, L1=2, L2=1, L3=1, score=23, border=9, enemyAdj=4 [DORWINION,GUNDABAD,LOTHLORIEN,WOOD_ELF], unclaimedAdj=10
+DURINS_FOLK: tiles=9, waypoint=3, L1=0, L2=2, L3=1, score=22, border=8, enemyAdj=2 [ANGMAR,DALE], unclaimedAdj=9
+ANGMAR: tiles=11, waypoint=6, L1=5, L2=1, L3=0, score=21, border=9, enemyAdj=6 [BLUE_MOUNTAINS,DALE,DUNEDAIN,DURINS_FOLK,GUNDABAD,WOOD_ELF], unclaimedAdj=10
+DORWINION: tiles=10, waypoint=3, L1=1, L2=2, L3=0, score=17, border=7, enemyAdj=1 [DOL_GULDUR], unclaimedAdj=11
+DUNEDAIN: tiles=10, waypoint=5, L1=4, L2=1, L3=0, score=17, border=10, enemyAdj=4 [ANGMAR,BREE,GUNDABAD,HOBBIT], unclaimedAdj=16
+ISENGARD: tiles=3, waypoint=2, L1=0, L2=0, L3=2, score=15, border=2, enemyAdj=1 [DUNLAND], unclaimedAdj=2
+RHUDEL: tiles=9, waypoint=1, L1=0, L2=1, L3=0, score=12, border=8, enemyAdj=0 [-], unclaimedAdj=9
+FANGORN: tiles=4, waypoint=3, L1=2, L2=1, L3=0, score=9, border=4, enemyAdj=2 [DUNLAND,ROHAN], unclaimedAdj=3
+WOOD_ELF: tiles=2, waypoint=2, L1=1, L2=0, L3=1, score=8, border=2, enemyAdj=3 [ANGMAR,DALE,DOL_GULDUR], unclaimedAdj=6
+
+Unclaimed tile count: 419
+First 120 unclaimed tiles/reasons:
+T001: Unclaimed wilderness/buffer; nearest faction anchor T085 is 814.1px away.
+T002: Unclaimed wilderness/buffer; nearest faction anchor T055 is 500.0px away.
+T003: Unclaimed wilderness/buffer; nearest faction anchor T055 is 496.7px away.
+T004: Unclaimed wilderness/buffer; nearest faction anchor T055 is 494.9px away.
+T005: Unclaimed wilderness/buffer; nearest faction anchor T055 is 491.3px away.
+T006: Unclaimed wilderness/buffer; nearest faction anchor T055 is 490.1px away.
+T007: Unclaimed wilderness/buffer; nearest faction anchor T024 is 424.7px away.
+T008: Unclaimed wilderness/buffer; nearest faction anchor T024 is 424.8px away.
+T009: Unclaimed wilderness/buffer; nearest faction anchor T024 is 424.9px away.
+T010: Unclaimed wilderness/buffer; nearest faction anchor T085 is 887.0px away.
+T011: Unclaimed wilderness/buffer; nearest faction anchor T085 is 869.5px away.
+T012: Unclaimed wilderness/buffer; nearest faction anchor T085 is 872.9px away.
+T013: Unclaimed wilderness/buffer; nearest faction anchor T024 is 175.6px away.
+T014: Unclaimed wilderness/buffer; nearest faction anchor T085 is 423.9px away.
+T015: Unclaimed wilderness/buffer; nearest faction anchor T085 is 421.8px away.
+T016: Unclaimed wilderness/buffer; nearest faction anchor T054 is 397.3px away.
+T017: Unclaimed wilderness/buffer; nearest faction anchor T054 is 368.0px away.
+T018: Unclaimed wilderness/buffer; nearest faction anchor T054 is 371.5px away.
+T019: Unclaimed wilderness/buffer; nearest faction anchor T054 is 371.1px away.
+T020: Unclaimed wilderness/buffer; nearest faction anchor T024 is 118.7px away.
+T021: Unclaimed wilderness/buffer; nearest faction anchor T024 is 118.8px away.
+T022: Unclaimed wilderness/buffer; nearest faction anchor T085 is 466.4px away.
+T023: Unclaimed wilderness/buffer; nearest faction anchor T085 is 495.0px away.
+T025: Unclaimed wilderness/buffer; nearest faction anchor T040 is 150.8px away.
+T026: Unclaimed wilderness/buffer; nearest faction anchor T040 is 149.7px away.
+T027: Unclaimed wilderness/buffer; nearest faction anchor T244 is 881.0px away.
+T028: Unclaimed wilderness/buffer; nearest faction anchor T244 is 881.0px away.
+T029: Unclaimed wilderness/buffer; nearest faction anchor T244 is 886.3px away.
+T030: Unclaimed buffer for balance; not part of a connected core expansion.
+T031: Unclaimed wilderness/buffer; nearest faction anchor T244 is 908.5px away.
+T032: Unclaimed wilderness/buffer; nearest faction anchor T244 is 907.2px away.
+T039: Waypoint default: Himling
+T044: Unclaimed wilderness/buffer; nearest faction anchor T244 is 836.6px away.
+T047: Waypoint default: Tol Fuin
+T049: Unclaimed wilderness/buffer; nearest faction anchor T244 is 521.2px away.
+T052: Unclaimed buffer for balance; not part of a connected core expansion.
+T053: Unclaimed wilderness/buffer; nearest faction anchor T244 is 637.0px away.
+T060: Unclaimed wilderness/buffer; nearest faction anchor T244 is 413.5px away.
+T061: Waypoint default: Framsburg
+T065: Unclaimed wilderness/buffer; nearest faction anchor T085 is 183.7px away.
+T066: Unclaimed buffer for balance; not part of a connected core expansion.
+T067: Unclaimed contested border between DUNEDAIN and HOBBIT.
+T072: Unclaimed buffer for balance; not part of a connected core expansion.
+T074: Unclaimed buffer for balance; not part of a connected core expansion.
+T077: Unclaimed wilderness/buffer; nearest faction anchor T244 is 297.1px away.
+T078: Waypoint default: North Downs
+T079: Unclaimed contested border between GUNDABAD and ANGMAR.
+T080: Unclaimed buffer for balance; not part of a connected core expansion.
+T082: Unclaimed contested border between DURINS_FOLK and DALE.
+T083: Unclaimed wilderness/buffer; nearest faction anchor T244 is 418.9px away.
+T088: Unclaimed buffer for balance; not part of a connected core expansion.
+T092: Unclaimed buffer for balance; not part of a connected core expansion.
+T093: Unclaimed contested border between DUNEDAIN and GUNDABAD.
+T094: Unclaimed wilderness/buffer; nearest faction anchor T244 is 684.2px away.
+T095: Unclaimed contested border between DURINS_FOLK and DALE.
+T098: Unclaimed contested border between DALE and DURINS_FOLK.
+T104: Waypoint default: Carrock
+T105: Unclaimed wilderness/buffer; nearest faction anchor T244 is 865.8px away.
+T106: Waypoint default: Forest Gate
+T107: Unclaimed wilderness/buffer; nearest faction anchor T244 is 311.0px away.
+T112: Unclaimed buffer for balance; not part of a connected core expansion.
+T113: Unclaimed contested border between WOOD_ELF and DOL_GULDUR.
+T114: Unclaimed wilderness/buffer; nearest faction anchor T244 is 419.8px away.
+T118: Unclaimed wilderness/buffer; nearest faction anchor T244 is 208.4px away.
+T119: Unclaimed buffer for balance; not part of a connected core expansion.
+T120: Unclaimed buffer for balance; not part of a connected core expansion.
+T122: Waypoint default: Beorn's Hall
+T123: Unclaimed contested border between DUNEDAIN and HIGH_ELVES.
+T124: Unclaimed wilderness/buffer; nearest faction anchor T244 is 238.5px away.
+T129: Waypoint default: Tol Morwen
+T130: Unclaimed buffer for balance; not part of a connected core expansion.
+T138: Unclaimed buffer for balance; not part of a connected core expansion.
+T155: Unclaimed contested border between DOL_GULDUR and GUNDABAD.
+T156: Unclaimed wilderness/buffer; nearest faction anchor T244 is 544.1px away.
+T159: Unclaimed buffer for balance; not part of a connected core expansion.
+T163: Unclaimed wilderness/buffer; nearest faction anchor T244 is 174.6px away.
+T165: Unclaimed wilderness/buffer; nearest faction anchor T085 is 126.5px away.
+T168: Unclaimed buffer for balance; not part of a connected core expansion.
+T170: Waypoint default: Withywindle Valley
+T172: Unclaimed wilderness/buffer; nearest faction anchor T244 is 156.2px away.
+T174: Waypoint default: Old Ford
+T176: Unclaimed buffer for balance; not part of a connected core expansion.
+T181: Unclaimed contested border between HOBBIT and BLUE_MOUNTAINS.
+T183: Unclaimed buffer for balance; not part of a connected core expansion.
+T184: Unclaimed wilderness/buffer; nearest faction anchor T244 is 305.1px away.
+T186: Unclaimed buffer for balance; not part of a connected core expansion.
+T187: Waypoint default: South Downs
+T188: Unclaimed buffer for balance; not part of a connected core expansion.
+T191: Unclaimed wilderness/buffer; nearest faction anchor T244 is 754.2px away.
+T192: Unclaimed wilderness/buffer; nearest faction anchor T244 is 186.3px away.
+T193: Unclaimed buffer for balance; not part of a connected core expansion.
+T195: Unclaimed contested border between DORWINION and DALE.
+T198: Unclaimed buffer for balance; not part of a connected core expansion.
+T200: Unclaimed contested border between BREE and DUNEDAIN.
+T201: Unclaimed wilderness/buffer; nearest faction anchor T255 is 137.3px away.
+T203: Unclaimed buffer for balance; not part of a connected core expansion.
+T204: Waypoint default: Greenway Crossroads
+T205: Unclaimed buffer for balance; not part of a connected core expansion.
+T210: Unclaimed wilderness/buffer; nearest faction anchor T244 is 361.2px away.
+T215: Unclaimed buffer for balance; not part of a connected core expansion.
+T219: Unclaimed wilderness/buffer; nearest faction anchor T244 is 292.6px away.
+T222: Unclaimed wilderness/buffer; nearest faction anchor T244 is 583.0px away.
+T224: Unclaimed wilderness/buffer; nearest faction anchor T244 is 167.1px away.
+T227: Unclaimed wilderness/buffer; nearest faction anchor T244 is 882.0px away.
+T228: Unclaimed buffer for balance; not part of a connected core expansion.
+T229: Waypoint default: Tharbad
+T230: Unclaimed buffer for balance; not part of a connected core expansion.
+T234: Unclaimed wilderness/buffer; nearest faction anchor T244 is 410.7px away.
+T235: Waypoint default: Old Rhovanion
+T236: Unclaimed wilderness/buffer; nearest faction anchor T244 is 354.3px away.
+T240: Unclaimed buffer for balance; not part of a connected core expansion.
+T248: Unclaimed buffer for balance; not part of a connected core expansion.
+T249: Unclaimed wilderness/buffer; nearest faction anchor T244 is 383.5px away.
+T251: Unclaimed wilderness/buffer; nearest faction anchor T244 is 227.1px away.
+T252: Unclaimed contested border between GUNDABAD and DUNEDAIN.
+T254: Unclaimed wilderness/buffer; nearest faction anchor T244 is 288.0px away.
+T256: Unclaimed buffer for balance; not part of a connected core expansion.
+T257: Unclaimed wilderness/buffer; nearest faction anchor T244 is 373.8px away.
+T258: Unclaimed wilderness/buffer; nearest faction anchor T244 is 511.6px away.
+T260: Unclaimed wilderness/buffer; nearest faction anchor T244 is 514.7px away.
+
+Questionable/manual-review notes:
+- This is a conservative first pass; high-waypoint factions keep original waypoint ownership but receive little/no free non-waypoint expansion.
+- Borderland and wilderness tiles are intentionally unclaimed unless connected to one clear nearby faction core.
+- Review unresolved waypoint names and any custom Harad/Umbar/Far Harad waypoints not represented by the base LOTR waypoint enum.

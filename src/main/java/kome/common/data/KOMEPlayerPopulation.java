@@ -30,13 +30,11 @@ public class KOMEPlayerPopulation {
     }
 
     public void setTotal(KOMEPopulationType type, int amount) {
-        amount = Math.max(0, amount);
+        amount = Math.max(getUsed(type), amount);
         if (type == KOMEPopulationType.DEFENSIVE) {
             defensiveTotal = amount;
-            defensiveUsed = Math.min(defensiveUsed, defensiveTotal);
         } else {
             offensiveTotal = amount;
-            offensiveUsed = Math.min(offensiveUsed, offensiveTotal);
         }
     }
 
@@ -68,9 +66,18 @@ public class KOMEPlayerPopulation {
 
     public void adjustUsed(KOMEPopulationType type, int amount) {
         if (type == KOMEPopulationType.DEFENSIVE) {
-            defensiveUsed = Math.max(0, defensiveUsed + amount);
+            defensiveUsed = Math.max(0, Math.min(defensiveTotal, defensiveUsed + amount));
         } else {
-            offensiveUsed = Math.max(0, offensiveUsed + amount);
+            offensiveUsed = Math.max(0, Math.min(offensiveTotal, offensiveUsed + amount));
+        }
+    }
+
+    public void setUsed(KOMEPopulationType type, int amount) {
+        int used = Math.max(0, Math.min(getTotal(type), amount));
+        if (type == KOMEPopulationType.DEFENSIVE) {
+            defensiveUsed = used;
+        } else {
+            offensiveUsed = used;
         }
     }
 

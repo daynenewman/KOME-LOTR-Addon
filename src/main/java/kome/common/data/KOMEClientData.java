@@ -9,4 +9,24 @@ public class KOMEClientData extends KOMEWorldData {
     private KOMEClientData() {
         super("KOME_ClientData");
     }
+
+    public void resetClientState() {
+        populations.clear();
+        progressions.clear();
+        hiredUnits.clear();
+        conquestTiles.clear();
+        tilePopulations.clear();
+        populationAllocations.clear();
+        activeRecruitmentTiles.clear();
+        tileWaypointLinksByTileId.clear();
+        routeEdges.clear();
+        alliances.clear();
+        armyMovements.clear();
+        armyCompanies.clear();
+        playerNames.clear();
+        clearFactionKingRecords();
+        troopSummaries.clear();
+        hireType = KOMEPopulationType.OFFENSIVE;
+        conquestRevision++;
+    }
 }
