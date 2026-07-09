@@ -51,7 +51,7 @@ T051,Angmar,0,ANGMAR (MOUNTIANS),CORE_EXPANSION,1,Connected core expansion from 
 T052,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
 T053,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 637.0px away.,NO
 T054,Gundabad,1,FORODWAITH,MANUAL_DEFAULT,2,Manual default ownership update: Gundabad.,NO
-T055,Durin's Folk,1,GREY_MOUNTAINS,MANUAL_DEFAULT,2,Manual default ownership update: Durin's Folk.,NO
+T055,Angmar,1,,MANUAL_DEFAULT,2,Manual default ownership update: Angmar.,NO
 T056,Durin's Folk,0,IRON_HILLS,CORE_EXPANSION,1,Connected core expansion from T086; nearest clear faction anchor 54.8px away,NO
 T057,Angmar,0,MISTY_MOUNTAINS,CORE_EXPANSION,1,Manual default ownership update: Angmar.,NO
 T058,Durin's Folk,0,IRON_HILLS,CORE_EXPANSION,1,Connected core expansion from T085; nearest clear faction anchor 48.4px away,NO
@@ -95,7 +95,7 @@ T097,Durin's Folk,0,IRON_HILLS,CORE_EXPANSION,1,Connected core expansion from T0
 T098,,0,,UNCLAIMED,0,Unclaimed contested border between Dale and Durin's Folk.,NO
 T099,Gundabad,0,MISTY_MOUNTAINS,CORE_EXPANSION,1,Connected core expansion from T068; nearest clear faction anchor 56.3px away,NO
 T100,Wood Elves,3,WOODLAND_REALM,WAYPOINT_DEFAULT,6,Waypoint default: Thranduil's Halls,NO
-T101,Blue Mountains,0,BLUE_MOUNTAINS,CORE_EXPANSION,1,Connected core expansion from T108; nearest clear faction anchor 38.5px away,NO
+T101,High Elves,0,,MANUAL_DEFAULT,1,Manual default ownership update: High Elves.,NO
 T102,Wood Elves,1,MIRKWOOD (NORTHERN),WAYPOINT_DEFAULT,2,Waypoint default: Enchanted River,NO
 T103,Durin's Folk,0,IRON_HILLS,CORE_EXPANSION,1,Connected core expansion from T085; nearest clear faction anchor 103.3px away,NO
 T104,,1,VALES_OF_ANDUIN,WAYPOINT_DEFAULT,0,Waypoint default: Carrock,NO
@@ -159,7 +159,7 @@ T164,Bree-land,3,BREE_LAND,WAYPOINT_DEFAULT,8,Waypoint default: Bree,NO
 T165,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T085 is 126.5px away.,NO
 T166,Hobbits,3,SHIRE,WAYPOINT_DEFAULT,6,Waypoint default: Bucklebury,NO
 T167,Hobbits,3,SHIRE,WAYPOINT_DEFAULT,6,Waypoint default: Frogmorton,NO
-T168,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
+T168,High Elves,0,,MANUAL_DEFAULT,1,Manual default ownership update: High Elves.,NO
 T169,Hobbits,3,SHIRE,WAYPOINT_DEFAULT,6,Waypoint default: Stock,NO
 T170,,1,OLD_FOREST,WAYPOINT_DEFAULT,0,Waypoint default: Withywindle Valley,NO
 T171,Bree-land,2,BREE_LAND,WAYPOINT_DEFAULT,4,Waypoint default: Forsaken Inn,NO
@@ -172,7 +172,7 @@ T177,Hobbits,3,SHIRE,WAYPOINT_DEFAULT,6,Waypoint default: Haysend,NO
 T178,Hobbits,3,SHIRE,WAYPOINT_DEFAULT,6,Waypoint default: Deephallow,NO
 T179,Hobbits,3,SHIRE,WAYPOINT_DEFAULT,6,Waypoint default: Michel Delving,NO
 T180,Hobbits,3,SHIRE,WAYPOINT_DEFAULT,6,Waypoint default: Greenholm,NO
-T181,,0,,UNCLAIMED,0,Unclaimed contested border between Hobbits and Blue Mountains.,NO
+T181,High Elves,0,,MANUAL_DEFAULT,1,Manual default ownership update: High Elves.,NO
 T182,Hobbits,3,SHIRE,WAYPOINT_DEFAULT,6,Waypoint default: Willowbottom,NO
 T183,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
 T184,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 305.1px away.,NO
@@ -240,7 +240,7 @@ T246,Dol Guldur,3,MIRKWOOD (DOL_GULDUR),WAYPOINT_DEFAULT,8,Waypoint default: Dol
 T247,Lothlorien,3,LOTHLORIEN,WAYPOINT_DEFAULT,6,Waypoint default: House of Nimrodel,NO
 T248,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
 T249,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 383.5px away.,NO
-T250,Lothlorien,0,LOTHLORIEN,CORE_EXPANSION,1,Connected core expansion from T237; nearest clear faction anchor 49.0px away,NO
+T250,,0,,UNCLAIMED,0,Unclaimed by manual default ownership update.,NO
 T251,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 227.1px away.,NO
 T252,,0,,UNCLAIMED,0,Unclaimed contested border between Gundabad and Dunedain.,NO
 T253,Lothlorien,0,VALES_OF_ANDUIN (CELEBRANT),CORE_EXPANSION,1,Connected core expansion from T266; nearest clear faction anchor 31.8px away,NO
@@ -257,13 +257,13 @@ T263,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is
 T264,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
 T265,Dol Guldur,0,MIRKWOOD (DOL_GULDUR),CORE_EXPANSION,1,Connected core expansion from T246; nearest clear faction anchor 86.8px away,NO
 T266,Lothlorien,1,VALES_OF_ANDUIN (CELEBRANT),WAYPOINT_DEFAULT,2,Waypoint default: Field of Celebrant,NO
-T267,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
+T267,Dunland,0,,MANUAL_DEFAULT,1,Manual default ownership update: Dunland.,NO
 T268,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
 T269,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 692.9px away.,NO
 T270,Dol Guldur,0,MIRKWOOD (DOL_GULDUR),CORE_EXPANSION,1,Connected core expansion from T246; nearest clear faction anchor 63.0px away,NO
 T271,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
 T272,,0,,UNCLAIMED,0,Unclaimed contested border between Fangorn and Lothlorien.,NO
-T273,Dorwinion,0,DORWINION,CORE_EXPANSION,1,Connected core expansion from T275; nearest clear faction anchor 59.8px away,NO
+T273,Rhudel,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rhudel.,NO
 T274,,1,ERIADOR,WAYPOINT_DEFAULT,0,Waypoint default: Eryn Vorn,NO
 T275,Dorwinion,2,DORWINION,WAYPOINT_DEFAULT,4,Waypoint default: Golden Ford,NO
 T276,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 413.2px away.,NO
@@ -276,33 +276,33 @@ T282,Rhudel,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rhudel.,NO
 T283,Fangorn,1,FANGORN,WAYPOINT_DEFAULT,2,Waypoint default: Wellinghall,NO
 T284,Dunland,2,ENEDWAITH,WAYPOINT_DEFAULT,4,Waypoint default: Lond Daer,NO
 T285,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T246 is 124.6px away.,NO
-T286,,3,DUNLAND,UNCLAIMED,0,Unclaimed by manual default ownership update.,NO
+T286,Rohan,3,,MANUAL_DEFAULT,6,Manual default ownership update: Rohan.,NO
 T287,Fangorn,1,FANGORN,WAYPOINT_DEFAULT,2,Waypoint default: Treebeard's Hill,NO
 T288,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T241 is 142.2px away.,NO
 T289,,0,ENEDWAITH,UNCLAIMED,0,Unclaimed by manual default ownership update.,NO
 T290,Rhudel,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rhudel.,NO
 T291,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 136.1px away.,NO
-T292,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
+T292,Rhudel,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rhudel.,NO
 T293,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 138.5px away.,NO
 T294,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 139.5px away.,NO
 T295,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 141.2px away.,NO
-T296,Dorwinion,0,DORWINION,CORE_EXPANSION,1,Connected core expansion from T275; nearest clear faction anchor 57.8px away,NO
+T296,Rhudel,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rhudel.,NO
 T297,,1,BROWN_LANDS,WAYPOINT_DEFAULT,0,Waypoint default: South Undeep,NO
 T298,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T346 is 125.6px away.,NO
-T299,,0,,UNCLAIMED,0,Unclaimed contested border between Dunland and Gundabad.,NO
+T299,Dunland,0,,MANUAL_DEFAULT,1,Manual default ownership update: Dunland.,NO
 T300,Fangorn,2,FANGORN,WAYPOINT_DEFAULT,4,Waypoint default: Derndingle,NO
 T301,Gundabad,1,MISTY_MOUNTAINS,WAYPOINT_DEFAULT,2,Waypoint default: Mount Methedras,NO
 T302,Rhudel,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rhudel.,NO
 T303,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 369.7px away.,NO
 T304,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 937.5px away.,NO
-T305,Fangorn,0,FANGORN,CORE_EXPANSION,1,Connected core expansion from T300; nearest clear faction anchor 16.3px away,NO
+T305,Isengard,0,,MANUAL_DEFAULT,1,Manual default ownership update: Isengard.,NO
 T306,Dunland,2,ENEDWAITH,WAYPOINT_DEFAULT,4,Waypoint default: Old South Road,NO
 T307,Rohan,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rohan.,NO
 T308,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T244 is 237.0px away.,NO
-T309,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
+T309,Isengard,0,,MANUAL_DEFAULT,1,Manual default ownership update: Isengard.,NO
 T310,Isengard,0,NAN_CURUNIR,CORE_EXPANSION,1,Connected core expansion from T315; nearest clear faction anchor 9.6px away,NO
 T311,Isengard,3,URUK_HIGHLANDS,WAYPOINT_DEFAULT,6,Waypoint default: Uruk Highlands,NO
-T312,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T355 is 123.5px away.,NO
+T312,Rhudel,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rhudel.,NO
 T313,Dunland,0,ENEDWAITH,CORE_EXPANSION,1,Connected core expansion from T284; nearest clear faction anchor 73.7px away,NO
 T314,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
 T315,Isengard,3,NAN_CURUNIR,WAYPOINT_DEFAULT,8,Waypoint default: Isengard,NO
@@ -313,15 +313,15 @@ T319,,0,,UNCLAIMED,0,Unclaimed contested border between Dorwinion and Mordor.,NO
 T320,Dunland,3,DUNLAND,WAYPOINT_DEFAULT,6,Waypoint default: Wulfburg,NO
 T321,Dunland,3,DUNLAND,WAYPOINT_DEFAULT,6,Waypoint default: Fords of Isen,NO
 T322,,0,,UNCLAIMED,0,Unclaimed contested border between Dorwinion and Mordor.,NO
-T323,,0,,UNCLAIMED,0,Unclaimed contested border between Rohan and Isengard.,NO
+T323,Rohan,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rohan.,NO
 T324,Rohan,2,ROHAN (WESTEMNET),WAYPOINT_DEFAULT,4,Waypoint default: Entwade,NO
 T325,Rohan,2,ROHAN (WESTFOLD),WAYPOINT_DEFAULT,4,Waypoint default: Grimslade,NO
-T326,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
+T326,Mordor,0,,MANUAL_DEFAULT,1,Manual default ownership update: Mordor.,NO
 T327,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
 T328,Rohan,2,ROHAN (EASTEMNET),WAYPOINT_DEFAULT,4,Waypoint default: Eastmark,NO
-T329,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
+T329,Rhudel,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rhudel.,NO
 T330,Dunland,2,ENEDWAITH,WAYPOINT_DEFAULT,4,Waypoint default: Mouths of Isen,NO
-T331,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
+T331,Rhudel,0,,MANUAL_DEFAULT,1,Manual default ownership update: Rhudel.,NO
 T332,Mordor,1,EMYN_MUIL,WAYPOINT_DEFAULT,2,Waypoint default: Argonath,NO
 T333,Dunland,2,WEST_MARCH,WAYPOINT_DEFAULT,4,Waypoint default: Corsair's Landing,NO
 T334,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
@@ -347,7 +347,7 @@ T354,Rohan,2,ROHAN (EASTFOLD),WAYPOINT_DEFAULT,4,Waypoint default: Aldburg,NO
 T355,Mordor,3,MORDOR (EASTERN_DESOLATION),WAYPOINT_DEFAULT,6,Waypoint default: Eastern Guard,NO
 T356,Mordor,3,MORDOR (MOUNTIANS),WAYPOINT_DEFAULT,6,Waypoint default: Durthang,NO
 T357,Mordor,3,MORDOR,WAYPOINT_DEFAULT,6,Waypoint default: Carach Angren,NO
-T358,Mordor,0,MORDOR,MANUAL_DEFAULT,1,Manual default ownership update: Mordor dark-region fill.,NO
+T358,Gondor,0,,MANUAL_DEFAULT,1,Manual default ownership update: Gondor.,NO
 T359,Rohan,2,ROHAN (EASTEMNET),WAYPOINT_DEFAULT,4,Waypoint default: Mering Stream,NO
 T360,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
 T361,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core expansion.,NO
@@ -528,7 +528,7 @@ T535,Morwaith,0,,MANUAL_DEFAULT,1,Manual default ownership update: Morwaith.,NO
 T536,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T483 is 495.3px away.,NO
 T537,Morwaith,0,,MANUAL_DEFAULT,1,Manual default ownership update: Morwaith.,NO
 T538,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T483 is 491.7px away.,NO
-T539,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 456.4px away.,NO
+T539,Half-trolls,0,,MANUAL_DEFAULT,1,Manual default ownership update: Half-trolls.,NO
 T540,Morwaith,0,,MANUAL_DEFAULT,1,Manual default ownership update: Morwaith.,NO
 T541,Morwaith,0,,MANUAL_DEFAULT,1,Manual default ownership update: Morwaith.,NO
 T542,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T483 is 558.2px away.,NO
@@ -538,9 +538,9 @@ T545,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is
 T546,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 330.1px away.,NO
 T547,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T483 is 575.9px away.,NO
 T548,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 283.0px away.,NO
-T549,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 323.3px away.,NO
+T549,Half-trolls,0,,MANUAL_DEFAULT,1,Manual default ownership update: Half-trolls.,NO
 T550,Morwaith,0,,MANUAL_DEFAULT,1,Manual default ownership update: Morwaith.,NO
-T551,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 250.1px away.,NO
+T551,Half-trolls,0,,MANUAL_DEFAULT,1,Manual default ownership update: Half-trolls.,NO
 T552,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 469.2px away.,NO
 T553,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 590.1px away.,NO
 T554,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 176.6px away.,NO
@@ -552,17 +552,17 @@ T559,,0,,UNCLAIMED,0,Unclaimed buffer for balance; not part of a connected core 
 T560,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T483 is 737.1px away.,NO
 T561,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 124.5px away.,NO
 T562,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 680.6px away.,NO
-T563,Morwaith,0,,MANUAL_DEFAULT,1,Manual default ownership update: Morwaith.,NO
-T564,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 205.3px away.,NO
+T563,,0,,UNCLAIMED,0,Unclaimed by manual default ownership update.,NO
+T564,Half-trolls,0,,MANUAL_DEFAULT,1,Manual default ownership update: Half-trolls.,NO
 T565,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 153.6px away.,NO
 T566,Taurethrim,0,,MANUAL_DEFAULT,1,Manual default ownership update: Taurethrim.,NO
-T567,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 221.9px away.,NO
+T567,Half-trolls,0,,MANUAL_DEFAULT,1,Manual default ownership update: Half-trolls.,NO
 T568,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 455.9px away.,NO
 T569,,0,GULF_HARAD,UNCLAIMED,0,Unclaimed by manual default ownership update.,NO
 T570,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 212.8px away.,NO
 T571,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 211.2px away.,NO
 T572,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 189.1px away.,NO
-T573,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 145.2px away.,NO
+T573,Half-trolls,0,,MANUAL_DEFAULT,1,Manual default ownership update: Half-trolls.,NO
 T574,Taurethrim,0,,MANUAL_DEFAULT,1,Manual default ownership update: Taurethrim.,NO
 T575,,3,GULF_HARAD,WAYPOINT_DEFAULT,0,Waypoint default: Bridge of Harlanhir,NO
 T576,,0,GULF_HARAD,UNCLAIMED,0,Unclaimed by manual default ownership update.,NO
@@ -576,7 +576,7 @@ T583,Taurethrim,0,,MANUAL_DEFAULT,1,Manual default ownership update: Taurethrim.
 T584,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 203.6px away.,NO
 T585,Taurethrim,0,,MANUAL_DEFAULT,1,Manual default ownership update: Taurethrim.,NO
 T586,Taurethrim,0,,MANUAL_DEFAULT,1,Manual default ownership update: Taurethrim.,NO
-T587,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 286.4px away.,NO
+T587,Half-trolls,0,,MANUAL_DEFAULT,1,Manual default ownership update: Half-trolls.,NO
 T588,Taurethrim,0,,MANUAL_DEFAULT,1,Manual default ownership update: Taurethrim.,NO
 T589,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 169.1px away.,NO
 T590,,0,,UNCLAIMED,0,Unclaimed wilderness/buffer; nearest faction anchor T575 is 656.7px away.,NO

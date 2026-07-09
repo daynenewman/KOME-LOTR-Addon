@@ -96,6 +96,7 @@ public class KOMEConquestMapOverlay {
     private static ResourceLocation troopMarkerTextureLocation;
     private static ResourceLocation bridgeMarkerTextureLocation;
     private static boolean showConquestTiles = true;
+    private static boolean showRiverBlockMarkers = true;
     private static boolean showBridgeMarkers = true;
     private static boolean showTroopMarkers = true;
     private static final Map<Integer, String> tileIdsByColor = new HashMap<>();
@@ -240,14 +241,17 @@ public class KOMEConquestMapOverlay {
         drawActiveMovementRoutes(map);
         drawRoutePreview(map);
         List<String> automaticBridgeTooltip = drawAutomaticBridgeDebugMarkers(map, event.mouseX, event.mouseY);
+        List<String> riverBlockTooltip = drawAutomaticRiverBlockMarkers(map, event.mouseX, event.mouseY);
         drawRouteEdgeMarkers(map);
         drawTroopMarkers(map);
         List<String> liveUnitTooltip = drawLiveUnitMarkers(map, event.mouseX, event.mouseY);
-        if (tileColor != 0 && automaticBridgeTooltip == null && liveUnitTooltip == null) {
+        if (tileColor != 0 && automaticBridgeTooltip == null && riverBlockTooltip == null && liveUnitTooltip == null) {
             drawTileTooltip(map, tileColor, event.mouseX, event.mouseY);
         }
         if (automaticBridgeTooltip != null) {
             drawAutomaticBridgeTooltip(map, automaticBridgeTooltip, event.mouseX, event.mouseY);
+        } else if (riverBlockTooltip != null) {
+            drawMarkerTooltip(map, riverBlockTooltip, event.mouseX, event.mouseY);
         } else if (liveUnitTooltip != null) {
             drawMarkerTooltip(map, liveUnitTooltip, event.mouseX, event.mouseY);
         }
@@ -301,6 +305,8 @@ public class KOMEConquestMapOverlay {
                 } else if (!isChoosingDestination() && isOverConquestToggleButton(map, mouseX, mouseY)) {
                     showConquestTiles = !showConquestTiles;
                     clearHighlightTexture();
+                } else if (!isChoosingDestination() && isOverRiverBlockToggleButton(map, mouseX, mouseY)) {
+                    showRiverBlockMarkers = !showRiverBlockMarkers;
                 } else if (!isChoosingDestination() && isOverBridgeToggleButton(map, mouseX, mouseY)) {
                     showBridgeMarkers = !showBridgeMarkers;
                 } else if (!isChoosingDestination() && isOverTroopToggleButton(map, mouseX, mouseY)) {
@@ -601,7 +607,10 @@ public class KOMEConquestMapOverlay {
             int green = Integer.parseInt(rgb[1].trim());
             int blue = Integer.parseInt(rgb[2].trim());
             int color = red << 16 | green << 8 | blue;
-            String tileId = line.substring(equals + 1).trim();
+            String tileId = KOMEConquestTile.normalizeId(line.substring(equals + 1));
+            if (KOMEConquestTileDefaults.isRetiredTile(tileId)) {
+                continue;
+            }
             tileIdsByColor.put(color, tileId);
             tileColorsById.put(tileId, color);
         }
@@ -645,9 +654,11 @@ public class KOMEConquestMapOverlay {
     private static void drawToggleButtons(LOTRGuiMap map, int mouseX, int mouseY) {
         drawToggleButton(toggleButtonX(0), toggleButtonY(), "C", showConquestTiles,
             "Hide conquest tiles", "Show conquest tiles", isOverConquestToggleButton(map, mouseX, mouseY));
-        drawToggleButton(toggleButtonX(1), toggleButtonY(), "B", showBridgeMarkers,
+        drawToggleButton(toggleButtonX(1), toggleButtonY(), "R", showRiverBlockMarkers,
+            "Hide river blockers", "Show river blockers", isOverRiverBlockToggleButton(map, mouseX, mouseY));
+        drawToggleButton(toggleButtonX(2), toggleButtonY(), "B", showBridgeMarkers,
             "Hide bridge markers", "Show bridge markers", isOverBridgeToggleButton(map, mouseX, mouseY));
-        drawToggleButton(toggleButtonX(2), toggleButtonY(), "T", showTroopMarkers,
+        drawToggleButton(toggleButtonX(3), toggleButtonY(), "T", showTroopMarkers,
             "Hide troop markers", "Show troop markers", isOverTroopToggleButton(map, mouseX, mouseY));
     }
 
@@ -683,11 +694,15 @@ public class KOMEConquestMapOverlay {
     }
 
     private static boolean isOverBridgeToggleButton(LOTRGuiMap map, int mouseX, int mouseY) {
+        return isOverToggleButton(toggleButtonX(2), toggleButtonY(), mouseX, mouseY);
+    }
+
+    private static boolean isOverRiverBlockToggleButton(LOTRGuiMap map, int mouseX, int mouseY) {
         return isOverToggleButton(toggleButtonX(1), toggleButtonY(), mouseX, mouseY);
     }
 
     private static boolean isOverTroopToggleButton(LOTRGuiMap map, int mouseX, int mouseY) {
-        return isOverToggleButton(toggleButtonX(2), toggleButtonY(), mouseX, mouseY);
+        return isOverToggleButton(toggleButtonX(3), toggleButtonY(), mouseX, mouseY);
     }
 
     private static boolean isOverToggleButton(int x, int y, int mouseX, int mouseY) {
@@ -695,7 +710,7 @@ public class KOMEConquestMapOverlay {
     }
 
     private static int toggleButtonX(int index) {
-        int groupWidth = TOGGLE_BUTTON_SIZE * 3 + TOGGLE_BUTTON_GAP * 2;
+        int groupWidth = TOGGLE_BUTTON_SIZE * 4 + TOGGLE_BUTTON_GAP * 3;
         return mapInt("mapXMax") - groupWidth - TOGGLE_BUTTON_RIGHT_MARGIN
             + index * (TOGGLE_BUTTON_SIZE + TOGGLE_BUTTON_GAP);
     }
@@ -765,13 +780,13 @@ public class KOMEConquestMapOverlay {
         Map<String, Integer> colors = new HashMap<>();
         putFactionColor(colors, "ANGMAR", 0x7E8FA8);
         putFactionColor(colors, "GONDOR", 0xF7F7EF);
-        putFactionColor(colors, "DURINS_FOLK", 0xC99A20);
+        putFactionColor(colors, "DURINS_FOLK", 0x4B6182);
         putFactionColor(colors, "DUNEDAIN", 0x1F5A36);
         putFactionColor(colors, "RANGER_NORTH", 0x1F5A36);
         putFactionColor(colors, "ROHAN", 0x8FC43A);
         putFactionColor(colors, "ISENGARD", 0x6A6A6A);
         putFactionColor(colors, "MORDOR", 0x0E0E0E);
-        putFactionColor(colors, "RHUDEL", 0xB13D32);
+        putFactionColor(colors, "RHUDEL", 0xC49227);
         putFactionColor(colors, "WOOD_ELF", 0x22A060);
         putFactionColor(colors, "HARAD", 0xD24D20);
         putFactionColor(colors, "NEAR_HARAD", 0xD24D20);
@@ -786,7 +801,7 @@ public class KOMEConquestMapOverlay {
         putFactionColor(colors, "DUNLAND", 0x805333);
         putFactionColor(colors, "MORWAITH", 0x7A1230);
         putFactionColor(colors, "HALF_TROLL", 0x737A35);
-        putFactionColor(colors, "GUNDABAD", 0x465A70);
+        putFactionColor(colors, "GUNDABAD", 0x866043);
         putFactionColor(colors, "DORWINION", 0x8B3F8C);
         putFactionColor(colors, "DOL_GULDUR", 0x4C6F30);
         putFactionColor(colors, "FANGORN", 0x2B6B28);
@@ -1112,6 +1127,40 @@ public class KOMEConquestMapOverlay {
                 tooltip.add("Automatic Bridge");
                 tooltip.add(marker.getTilePairLabel());
                 tooltip.add("XYZ: " + Math.round(marker.x) + ", " + Math.round(marker.y) + ", " + Math.round(marker.z));
+            }
+        }
+        return tooltip;
+    }
+
+    private static List<String> drawAutomaticRiverBlockMarkers(LOTRGuiMap map, int mouseX, int mouseY) {
+        if (!showRiverBlockMarkers || !ensureTileMaskLoaded()) {
+            return null;
+        }
+        FontRenderer font = KOMEMinecraftClient.fontRenderer();
+        int mapXMin = mapInt("mapXMin");
+        int mapXMax = mapInt("mapXMax");
+        int mapYMin = mapInt("mapYMin");
+        int mapYMax = mapInt("mapYMax");
+        List<String> tooltip = null;
+        for (KOMEConquestTileDefaults.AutomaticRiverBlockerMarker marker : KOMEConquestTileDefaults.getAutomaticRiverBlockerMarkers()) {
+            if (marker.dimensionId != LOTRDimension.MIDDLE_EARTH.dimensionID) {
+                continue;
+            }
+            int screenX = worldScreenX(map, marker.x);
+            int screenY = worldScreenY(map, marker.z);
+            if (screenX < mapXMin || screenX > mapXMax || screenY < mapYMin || screenY > mapYMax) {
+                continue;
+            }
+            drawDiamond(screenX, screenY, 7, 0xDD001018);
+            drawDiamond(screenX, screenY, 6, 0xFF1FA8E0);
+            drawDiamond(screenX, screenY, 3, 0xFF06324A);
+            String glyph = "R";
+            font.drawString(glyph, screenX - font.getStringWidth(glyph) / 2, screenY - 3, 0xFFFFFFFF);
+            if (Math.abs(mouseX - screenX) <= 9 && Math.abs(mouseY - screenY) <= 9) {
+                tooltip = new ArrayList<String>();
+                tooltip.add("River Block");
+                tooltip.add(marker.getTilePairLabel());
+                tooltip.add("/troops route unblock " + marker.fromTile + " " + marker.toTile);
             }
         }
         return tooltip;

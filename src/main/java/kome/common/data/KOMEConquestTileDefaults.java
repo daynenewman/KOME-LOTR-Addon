@@ -24,8 +24,9 @@ public class KOMEConquestTileDefaults {
     private static final String MAP_BRIDGE_MARKERS = "assets/kome/map/reset_conquest_bridges.png";
     private static final double DEFAULT_Y = 80.0D;
     private static final int ADJACENCY_SCAN_GAP = 3;
-    private static final int RIVER_BORDER_SEARCH_RADIUS = 6;
+    private static final int RIVER_BORDER_TANGENT_RADIUS = 2;
     private static final int RIVER_BORDER_MIN_WATER_PIXELS = 3;
+    private static final int BRIDGE_RESOLVER_RIVER_SEARCH_RADIUS = 6;
     private static final int BRIDGE_BORDER_NORMAL_RADIUS = 5;
     private static final int BRIDGE_BORDER_TANGENT_RADIUS = 2;
     private static final int BRIDGE_BORDER_MIN_ROAD_PIXELS = 6;
@@ -39,6 +40,7 @@ public class KOMEConquestTileDefaults {
     private static final Map<String, TileCenter> tileCenters = new HashMap<String, TileCenter>();
     private static final Map<String, Set<String>> tileAdjacency = new HashMap<String, Set<String>>();
     private static final Map<String, EdgeStats> automaticEdgeStats = new HashMap<String, EdgeStats>();
+    private static final Map<String, EdgeStats> bridgeResolverEdgeStats = new HashMap<String, EdgeStats>();
     private static final String[][] EXPLICIT_OPEN_EDGES = new String[][] {
         {"T133", "T141"},
         {"T057", "T068"},
@@ -57,7 +59,21 @@ public class KOMEConquestTileDefaults {
         {"T179", "T180"},
         {"T180", "T176"},
         {"T176", "T181"},
-        {"T181", "T168"}
+        {"T181", "T168"},
+        {"T190", "T212"},
+        {"T194", "T212"},
+        {"T353", "T371"},
+        {"T389", "T408"},
+        {"T389", "T398"},
+        {"T410", "T416"},
+        {"T111", "T128"},
+        {"T086", "T115"},
+        {"T408", "T421"},
+        {"T415", "T425"}
+    };
+    private static final String[][] EXPLICIT_BRIDGE_EDGE_REMAPS = new String[][] {
+        {"T469", "T475", "T470", "T472"},
+        {"T472", "T475", "T470", "T472"}
     };
     private static final String[][] EXPLICIT_REMOVED_EDGES = new String[][] {
         {"T233", "T232"},
@@ -204,6 +220,27 @@ public class KOMEConquestTileDefaults {
         return getAutomaticBridgeMarkers().size();
     }
 
+    public static List<AutomaticRiverBlockerMarker> getAutomaticRiverBlockerMarkers() {
+        ensureLoaded();
+        List<AutomaticRiverBlockerMarker> blockers = new ArrayList<AutomaticRiverBlockerMarker>();
+        for (Map.Entry<String, EdgeStats> entry : automaticEdgeStats.entrySet()) {
+            EdgeStats stats = entry.getValue();
+            if (stats == null || !stats.isRiver() || stats.isBridge() || !stats.hasRiverMarker()) {
+                continue;
+            }
+            String[] tiles = entry.getKey().split("\\|");
+            if (tiles.length != 2) {
+                continue;
+            }
+            int imageX = stats.riverMarkerX();
+            int imageY = stats.riverMarkerY();
+            blockers.add(new AutomaticRiverBlockerMarker(tiles[0], tiles[1], LOTRDimension.MIDDLE_EARTH.dimensionID,
+                imageToWorldX(imageX, stats.riverMarkerImageWidth()), DEFAULT_Y,
+                imageToWorldZ(imageY, stats.riverMarkerImageHeight()), imageX, imageY));
+        }
+        return blockers;
+    }
+
     private static void ensureLoaded() {
         ensureRetiredTilesLoaded();
         if (loaded) {
@@ -265,8 +302,11 @@ public class KOMEConquestTileDefaults {
                             int otherAlpha = other >>> 24;
                             if (isAdjacentTilePixel(idsByColor, color, otherColor, otherAlpha)) {
                                 boolean riverNearBorder = isRiverNearBorder(overlayPixels, width, height, x, y, distance, true);
+                                boolean bridgeResolverRiver = isBridgeResolverRiverNearBorder(overlayPixels, width, height, x, y, distance, true);
                                 registerPixelAdjacency(idsByColor, color, otherColor, otherAlpha,
-                                    riverNearBorder, null, width, height);
+                                    riverNearBorder, null, width, height, x + distance / 2, y);
+                                registerBridgeResolverPixelAdjacency(idsByColor, color, otherColor, otherAlpha,
+                                    bridgeResolverRiver, width, height, x + distance / 2, y);
                             }
                         }
                         if (y + distance < height) {
@@ -275,8 +315,11 @@ public class KOMEConquestTileDefaults {
                             int otherAlpha = other >>> 24;
                             if (isAdjacentTilePixel(idsByColor, color, otherColor, otherAlpha)) {
                                 boolean riverNearBorder = isRiverNearBorder(overlayPixels, width, height, x, y, distance, false);
+                                boolean bridgeResolverRiver = isBridgeResolverRiverNearBorder(overlayPixels, width, height, x, y, distance, false);
                                 registerPixelAdjacency(idsByColor, color, otherColor, otherAlpha,
-                                    riverNearBorder, null, width, height);
+                                    riverNearBorder, null, width, height, x, y + distance / 2);
+                                registerBridgeResolverPixelAdjacency(idsByColor, color, otherColor, otherAlpha,
+                                    bridgeResolverRiver, width, height, x, y + distance / 2);
                             }
                         }
                     }
@@ -306,6 +349,30 @@ public class KOMEConquestTileDefaults {
     private static void ensureRetiredTilesLoaded() {
         if (RETIRED_TILE_IDS.isEmpty()) {
             RETIRED_TILE_IDS.add("T045");
+            RETIRED_TILE_IDS.add("T327");
+            RETIRED_TILE_IDS.add("T257");
+            RETIRED_TILE_IDS.add("T271");
+            RETIRED_TILE_IDS.add("T291");
+            RETIRED_TILE_IDS.add("T293");
+            RETIRED_TILE_IDS.add("T294");
+            RETIRED_TILE_IDS.add("T295");
+            RETIRED_TILE_IDS.add("T424");
+            RETIRED_TILE_IDS.add("T456");
+            RETIRED_TILE_IDS.add("T458");
+            RETIRED_TILE_IDS.add("T459");
+            RETIRED_TILE_IDS.add("T520");
+            RETIRED_TILE_IDS.add("T521");
+            RETIRED_TILE_IDS.add("T522");
+            RETIRED_TILE_IDS.add("T526");
+            RETIRED_TILE_IDS.add("T527");
+            RETIRED_TILE_IDS.add("T528");
+            RETIRED_TILE_IDS.add("T529");
+            RETIRED_TILE_IDS.add("T530");
+            RETIRED_TILE_IDS.add("T531");
+            RETIRED_TILE_IDS.add("T532");
+            RETIRED_TILE_IDS.add("T545");
+            RETIRED_TILE_IDS.add("T546");
+            RETIRED_TILE_IDS.add("T571");
         }
     }
 
@@ -355,14 +422,57 @@ public class KOMEConquestTileDefaults {
         if (overlayPixels == null || distance <= 0) {
             return false;
         }
+        int checkedLines = 0;
+        int qualifyingLines = 0;
+        int totalSamples = 0;
+        int totalWater = 0;
+        for (int tangent = -RIVER_BORDER_TANGENT_RADIUS; tangent <= RIVER_BORDER_TANGENT_RADIUS; tangent++) {
+            int lineSamples = 0;
+            int lineWater = 0;
+            for (int step = 0; step <= distance; step++) {
+                int sampleX = horizontal ? x + step : x + tangent;
+                int sampleY = horizontal ? y + tangent : y + step;
+                if (sampleX < 0 || sampleX >= width || sampleY < 0 || sampleY >= height) {
+                    continue;
+                }
+                lineSamples++;
+                if (isWaterColor(overlayPixels[sampleY * width + sampleX])) {
+                    lineWater++;
+                }
+            }
+            if (lineSamples <= 0) {
+                continue;
+            }
+            checkedLines++;
+            totalSamples += lineSamples;
+            totalWater += lineWater;
+            if (lineWater * 2 >= lineSamples) {
+                qualifyingLines++;
+            }
+        }
+        return checkedLines > 0 && totalWater >= RIVER_BORDER_MIN_WATER_PIXELS
+            && (qualifyingLines >= 2 || qualifyingLines * 100 / checkedLines >= 60
+                || totalSamples > 0 && totalWater * 100 / totalSamples >= 60);
+    }
+
+    private static boolean isWaterColor(int argb) {
+        int red = argb >> 16 & 255;
+        int green = argb >> 8 & 255;
+        int blue = argb & 255;
+        return blue > 80 && blue > red + 18 && blue > green + 5;
+    }
+
+    private static boolean isBridgeResolverRiverNearBorder(int[] overlayPixels, int width, int height, int x, int y, int distance, boolean horizontal) {
+        if (overlayPixels == null || distance <= 0) {
+            return false;
+        }
         int samples = 0;
         int water = 0;
         for (int step = 0; step <= distance; step++) {
             int sampleX = horizontal ? x + step : x;
             int sampleY = horizontal ? y : y + step;
-            int rgb = overlayPixels[sampleY * width + sampleX];
             samples++;
-            if (isWaterColor(rgb)) {
+            if (isWaterColor(overlayPixels[sampleY * width + sampleX])) {
                 water++;
             }
         }
@@ -372,8 +482,8 @@ public class KOMEConquestTileDefaults {
         int centerX = horizontal ? x + distance / 2 : x;
         int centerY = horizontal ? y : y + distance / 2;
         int nearbyWater = 0;
-        for (int sampleY = Math.max(0, centerY - RIVER_BORDER_SEARCH_RADIUS); sampleY <= Math.min(height - 1, centerY + RIVER_BORDER_SEARCH_RADIUS); sampleY++) {
-            for (int sampleX = Math.max(0, centerX - RIVER_BORDER_SEARCH_RADIUS); sampleX <= Math.min(width - 1, centerX + RIVER_BORDER_SEARCH_RADIUS); sampleX++) {
+        for (int sampleY = Math.max(0, centerY - BRIDGE_RESOLVER_RIVER_SEARCH_RADIUS); sampleY <= Math.min(height - 1, centerY + BRIDGE_RESOLVER_RIVER_SEARCH_RADIUS); sampleY++) {
+            for (int sampleX = Math.max(0, centerX - BRIDGE_RESOLVER_RIVER_SEARCH_RADIUS); sampleX <= Math.min(width - 1, centerX + BRIDGE_RESOLVER_RIVER_SEARCH_RADIUS); sampleX++) {
                 if (isWaterColor(overlayPixels[sampleY * width + sampleX])) {
                     nearbyWater++;
                     if (nearbyWater >= RIVER_BORDER_MIN_WATER_PIXELS) {
@@ -383,13 +493,6 @@ public class KOMEConquestTileDefaults {
             }
         }
         return false;
-    }
-
-    private static boolean isWaterColor(int argb) {
-        int red = argb >> 16 & 255;
-        int green = argb >> 8 & 255;
-        int blue = argb & 255;
-        return blue > 80 && blue > red + 18 && blue > green + 5;
     }
 
     private static void scanAutomaticBridgeMarkers(Map<Integer, String> idsByColor, int[] tilePixels, int[] roadPixels, int[] overlayPixels, int width, int height) {
@@ -436,8 +539,12 @@ public class KOMEConquestTileDefaults {
                 if (pair == null) {
                     continue;
                 }
-                EdgeStats stats = automaticEdgeStats.get(KOMEConquestRouteEdge.key(pair[0], pair[1]));
-                if (stats != null) {
+                String originalPairKey = KOMEConquestRouteEdge.key(pair[0], pair[1]);
+                pair = remapExplicitBridgePair(pair);
+                boolean remapped = !originalPairKey.equals(KOMEConquestRouteEdge.key(pair[0], pair[1]));
+                EdgeStats resolverStats = bridgeResolverEdgeStats.get(KOMEConquestRouteEdge.key(pair[0], pair[1]));
+                if (remapped || resolverStats != null && resolverStats.isRiver()) {
+                    EdgeStats stats = getOrCreateExplicitBridgeStats(pair[0], pair[1]);
                     stats.recordBridgePixel(new BridgePixel(component.centerX(), component.centerY(), width, height));
                 }
             }
@@ -566,12 +673,25 @@ public class KOMEConquestTileDefaults {
 
     private static String[] resolveExplicitBridgeTilePair(Map<Integer, String> idsByColor, int[] tilePixels, int width, int height, int centerX, int centerY) {
         Map<String, Integer> nearest = collectNearestTiles(idsByColor, tilePixels, width, height, centerX, centerY, EXPLICIT_BRIDGE_TILE_PAIR_SEARCH_RADIUS);
-        String[] riverPair = chooseNearestPair(nearest, true);
+        String[] riverPair = chooseNearestPair(nearest, true, bridgeResolverEdgeStats);
         if (riverPair != null) {
             return riverPair;
         }
-        String[] adjacentPair = chooseNearestPair(nearest, false);
+        String[] adjacentPair = chooseNearestPair(nearest, false, bridgeResolverEdgeStats);
         return adjacentPair != null ? adjacentPair : chooseNearestAnyPair(nearest);
+    }
+
+    private static String[] remapExplicitBridgePair(String[] pair) {
+        if (pair == null || pair.length != 2) {
+            return pair;
+        }
+        String key = KOMEConquestRouteEdge.key(pair[0], pair[1]);
+        for (String[] remap : EXPLICIT_BRIDGE_EDGE_REMAPS) {
+            if (remap.length == 4 && key.equals(KOMEConquestRouteEdge.key(remap[0], remap[1]))) {
+                return new String[] {KOMEConquestTile.normalizeId(remap[2]), KOMEConquestTile.normalizeId(remap[3])};
+            }
+        }
+        return pair;
     }
 
     private static Map<String, Integer> collectNearestTiles(Map<Integer, String> idsByColor, int[] tilePixels, int width, int height, int centerX, int centerY, int radius) {
@@ -600,6 +720,10 @@ public class KOMEConquestTileDefaults {
     }
 
     private static String[] chooseNearestPair(Map<String, Integer> nearest, boolean riverOnly) {
+        return chooseNearestPair(nearest, riverOnly, automaticEdgeStats);
+    }
+
+    private static String[] chooseNearestPair(Map<String, Integer> nearest, boolean riverOnly, Map<String, EdgeStats> edgeStats) {
         String bestA = null;
         String bestB = null;
         int bestDistance = Integer.MAX_VALUE;
@@ -608,7 +732,7 @@ public class KOMEConquestTileDefaults {
                 if (first.getKey().compareTo(second.getKey()) >= 0) {
                     continue;
                 }
-                EdgeStats stats = automaticEdgeStats.get(KOMEConquestRouteEdge.key(first.getKey(), second.getKey()));
+                EdgeStats stats = edgeStats.get(KOMEConquestRouteEdge.key(first.getKey(), second.getKey()));
                 if (stats == null || (riverOnly && !stats.isRiver())) {
                     continue;
                 }
@@ -793,14 +917,37 @@ public class KOMEConquestTileDefaults {
     }
 
     private static void registerPixelAdjacency(Map<Integer, String> idsByColor, int color, int otherColor, int otherAlpha,
-            boolean riverGap, BridgePixel bridgePixel, int imageWidth, int imageHeight) {
+            boolean riverGap, BridgePixel bridgePixel, int imageWidth, int imageHeight, int markerX, int markerY) {
         if (!isAdjacentTilePixel(idsByColor, color, otherColor, otherAlpha)) {
             return;
         }
-        addAdjacency(idsByColor.get(color), idsByColor.get(otherColor), riverGap, bridgePixel, imageWidth, imageHeight);
+        addAdjacency(idsByColor.get(color), idsByColor.get(otherColor), riverGap, bridgePixel, imageWidth, imageHeight, markerX, markerY);
     }
 
-    private static void addAdjacency(String first, String second, boolean riverGap, BridgePixel bridgePixel, int imageWidth, int imageHeight) {
+    private static void registerBridgeResolverPixelAdjacency(Map<Integer, String> idsByColor, int color, int otherColor, int otherAlpha,
+            boolean riverGap, int imageWidth, int imageHeight, int markerX, int markerY) {
+        if (!isAdjacentTilePixel(idsByColor, color, otherColor, otherAlpha)) {
+            return;
+        }
+        addBridgeResolverAdjacency(idsByColor.get(color), idsByColor.get(otherColor), riverGap, imageWidth, imageHeight, markerX, markerY);
+    }
+
+    private static void addBridgeResolverAdjacency(String first, String second, boolean riverGap, int imageWidth, int imageHeight, int markerX, int markerY) {
+        String a = KOMEConquestTile.normalizeId(first);
+        String b = KOMEConquestTile.normalizeId(second);
+        if (a.length() == 0 || b.length() == 0 || a.equals(b)) {
+            return;
+        }
+        String key = KOMEConquestRouteEdge.key(a, b);
+        EdgeStats stats = bridgeResolverEdgeStats.get(key);
+        if (stats == null) {
+            stats = new EdgeStats();
+            bridgeResolverEdgeStats.put(key, stats);
+        }
+        stats.add(riverGap, null, imageWidth, imageHeight, markerX, markerY);
+    }
+
+    private static void addAdjacency(String first, String second, boolean riverGap, BridgePixel bridgePixel, int imageWidth, int imageHeight, int markerX, int markerY) {
         String a = KOMEConquestTile.normalizeId(first);
         String b = KOMEConquestTile.normalizeId(second);
         if (a.length() == 0 || b.length() == 0 || a.equals(b)) {
@@ -812,7 +959,7 @@ public class KOMEConquestTileDefaults {
             stats = new EdgeStats();
             automaticEdgeStats.put(key, stats);
         }
-        stats.add(riverGap, bridgePixel, imageWidth, imageHeight);
+        stats.add(riverGap, bridgePixel, imageWidth, imageHeight, markerX, markerY);
         Set<String> aSet = tileAdjacency.get(a);
         if (aSet == null) {
             aSet = new HashSet<String>();
@@ -881,12 +1028,18 @@ public class KOMEConquestTileDefaults {
         private int total;
         private int river;
         private int bridge;
+        private int riverMarkerX;
+        private int riverMarkerY;
+        private int riverMarkerSamples;
+        private int riverMarkerImageWidth;
+        private int riverMarkerImageHeight;
         private final List<BridgePixel> bridgePixels = new ArrayList<BridgePixel>();
 
-        private void add(boolean riverGap, BridgePixel bridgePixel, int imageWidth, int imageHeight) {
+        private void add(boolean riverGap, BridgePixel bridgePixel, int imageWidth, int imageHeight, int markerX, int markerY) {
             total++;
             if (riverGap) {
                 river++;
+                recordRiverMarkerPixel(markerX, markerY, imageWidth, imageHeight);
             }
             if (bridgePixel != null) {
                 bridge++;
@@ -912,7 +1065,40 @@ public class KOMEConquestTileDefaults {
             total = 1;
             river = 0;
             bridge = 0;
+            riverMarkerX = 0;
+            riverMarkerY = 0;
+            riverMarkerSamples = 0;
+            riverMarkerImageWidth = 0;
+            riverMarkerImageHeight = 0;
             bridgePixels.clear();
+        }
+
+        private void recordRiverMarkerPixel(int x, int y, int imageWidth, int imageHeight) {
+            riverMarkerX += x;
+            riverMarkerY += y;
+            riverMarkerSamples++;
+            riverMarkerImageWidth = imageWidth;
+            riverMarkerImageHeight = imageHeight;
+        }
+
+        private boolean hasRiverMarker() {
+            return riverMarkerSamples > 0 && riverMarkerImageWidth > 0 && riverMarkerImageHeight > 0;
+        }
+
+        private int riverMarkerX() {
+            return riverMarkerSamples <= 0 ? 0 : Math.round(riverMarkerX / (float) riverMarkerSamples);
+        }
+
+        private int riverMarkerY() {
+            return riverMarkerSamples <= 0 ? 0 : Math.round(riverMarkerY / (float) riverMarkerSamples);
+        }
+
+        private int riverMarkerImageWidth() {
+            return riverMarkerImageWidth;
+        }
+
+        private int riverMarkerImageHeight() {
+            return riverMarkerImageHeight;
         }
 
         private void addBridgePixel(BridgePixel pixel) {
@@ -931,7 +1117,7 @@ public class KOMEConquestTileDefaults {
         }
 
         private boolean isBridge() {
-            return isRiver() && !bridgePixels.isEmpty();
+            return !bridgePixels.isEmpty();
         }
     }
 
@@ -996,6 +1182,32 @@ public class KOMEConquestTileDefaults {
         public final int imageY;
 
         private AutomaticBridgeMarker(String fromTile, String toTile, int dimensionId, double x, double y, double z, int imageX, int imageY) {
+            this.fromTile = KOMEConquestTile.normalizeId(fromTile);
+            this.toTile = KOMEConquestTile.normalizeId(toTile);
+            this.dimensionId = dimensionId;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.imageX = imageX;
+            this.imageY = imageY;
+        }
+
+        public String getTilePairLabel() {
+            return fromTile + " <-> " + toTile;
+        }
+    }
+
+    public static class AutomaticRiverBlockerMarker {
+        public final String fromTile;
+        public final String toTile;
+        public final int dimensionId;
+        public final double x;
+        public final double y;
+        public final double z;
+        public final int imageX;
+        public final int imageY;
+
+        private AutomaticRiverBlockerMarker(String fromTile, String toTile, int dimensionId, double x, double y, double z, int imageX, int imageY) {
             this.fromTile = KOMEConquestTile.normalizeId(fromTile);
             this.toTile = KOMEConquestTile.normalizeId(toTile);
             this.dimensionId = dimensionId;

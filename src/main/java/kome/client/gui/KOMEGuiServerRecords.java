@@ -331,7 +331,10 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             return 0x337AA8;
         }
         if (key.contains("durin") || key.contains("dwarf")) {
-            return 0x8A5A2B;
+            return 0x4B6182;
+        }
+        if (key.contains("rhudel")) {
+            return 0xC49227;
         }
         int hash = key.hashCode();
         int red = 80 + (hash & 0x7F);

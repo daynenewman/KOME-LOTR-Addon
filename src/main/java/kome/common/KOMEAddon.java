@@ -17,7 +17,7 @@ import kome.common.network.KOMEPacketHandler;
 
 import java.util.List;
 
-@Mod(modid = KOMEAddon.MODID, name = "Kings of Middle-earth Server Addon", version = "1.0.5", dependencies = "required-after:lotr")
+@Mod(modid = KOMEAddon.MODID, name = "Kings of Middle-earth Server Addon", version = "1.0.6", dependencies = "required-after:lotr")
 public class KOMEAddon {
     public static final String MODID = "kome";
 
