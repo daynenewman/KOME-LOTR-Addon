@@ -3,11 +3,13 @@ package kome.client;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import kome.common.data.KOMEArmyMovementOrder;
+import kome.common.data.KOMEArmyCompany;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEConquestRouteEdge;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEConquestTileDefaults;
+import kome.common.data.KOMEUnitMapMarker;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMETileTroopSummary;
 import kome.client.gui.KOMEGuiTheme;
@@ -46,6 +48,7 @@ public class KOMEConquestMapOverlay {
     private static final ResourceLocation TILE_ID_MASK = new ResourceLocation("kome:map/reset_conquest_tile_ids.png");
     private static final ResourceLocation TILE_ID_MAP = new ResourceLocation("kome:map/reset_conquest_tile_ids.txt");
     private static final ResourceLocation BORDER_GUIDE = new ResourceLocation("kome:map/reset_conquest_borders_thin.png");
+    private static final ResourceLocation DESERT_SHADE = new ResourceLocation("kome:map/reset_conquest_desert_shade.png");
     private static final ResourceLocation LABELS = new ResourceLocation("kome:map/reset_conquest_labels.png");
     private static final ResourceLocation TROOP_MARKER_ART = new ResourceLocation("kome:textures/gui/troopsicon.png");
     private static final ResourceLocation BRIDGE_MARKER_ART = new ResourceLocation("kome:textures/gui/bridge.png");
@@ -55,6 +58,8 @@ public class KOMEConquestMapOverlay {
     private static final int CLAIM_EDGE_ALPHA = 0xCC;
     private static final int TROOP_MARKER_WIDTH = 9;
     private static final int TROOP_MARKER_HEIGHT = 15;
+    private static final int LIVE_COMPANY_MARKER_WIDTH = 11;
+    private static final int LIVE_COMPANY_MARKER_HEIGHT = 18;
     private static final int BRIDGE_MARKER_WIDTH = 8;
     private static final int BRIDGE_MARKER_HEIGHT = 5;
     private static final float TROOP_COUNT_TEXT_SCALE = 0.70F;
@@ -66,6 +71,10 @@ public class KOMEConquestMapOverlay {
     private static final int ROUTE_GOLD = 0xFFE8C46A;
     private static final int ROUTE_DARK = 0xFF3A2A12;
     private static final int ROUTE_DESTINATION = 0xFF7A1F25;
+    private static final int TOGGLE_BUTTON_SIZE = 14;
+    private static final int TOGGLE_BUTTON_GAP = 4;
+    private static final int TOGGLE_BUTTON_TOP_MARGIN = 28;
+    private static final int TOGGLE_BUTTON_RIGHT_MARGIN = 8;
     private static final boolean SHOW_AUTOMATIC_BRIDGE_DEBUG = true;
     private static final Map<String, Integer> CONQUEST_FACTION_COLORS = createFactionColors();
     private static BufferedImage tileMaskImage;
@@ -75,16 +84,20 @@ public class KOMEConquestMapOverlay {
     private static DynamicTexture highlightTexture;
     private static DynamicTexture claimedTexture;
     private static DynamicTexture borderGuideTexture;
+    private static DynamicTexture desertShadeTexture;
     private static DynamicTexture labelTexture;
     private static DynamicTexture troopMarkerTexture;
     private static DynamicTexture bridgeMarkerTexture;
     private static ResourceLocation highlightTextureLocation;
     private static ResourceLocation claimedTextureLocation;
     private static ResourceLocation borderGuideTextureLocation;
+    private static ResourceLocation desertShadeTextureLocation;
     private static ResourceLocation labelTextureLocation;
     private static ResourceLocation troopMarkerTextureLocation;
     private static ResourceLocation bridgeMarkerTextureLocation;
     private static boolean showConquestTiles = true;
+    private static boolean showBridgeMarkers = true;
+    private static boolean showTroopMarkers = true;
     private static final Map<Integer, String> tileIdsByColor = new HashMap<>();
     private static final Map<String, Integer> tileColorsById = new HashMap<>();
     private static final Map<String, int[]> tileCentersById = new HashMap<>();
@@ -208,7 +221,7 @@ public class KOMEConquestMapOverlay {
             return;
         }
 
-        drawToggleButton(map, event.mouseX, event.mouseY);
+        drawToggleButtons(map, event.mouseX, event.mouseY);
         if (isChoosingDestination()) {
             drawDestinationInstruction(map);
         }
@@ -218,6 +231,7 @@ public class KOMEConquestMapOverlay {
 
         int tileColor = getHoveredTileColor(map, event.mouseX, event.mouseY);
         drawClaimedTexture(map);
+        drawMapTexture(map, getDesertShadeTextureLocation(), 1.0f);
         if (tileColor != 0) {
             drawHighlightTexture(map, tileColor);
         }
@@ -228,11 +242,14 @@ public class KOMEConquestMapOverlay {
         List<String> automaticBridgeTooltip = drawAutomaticBridgeDebugMarkers(map, event.mouseX, event.mouseY);
         drawRouteEdgeMarkers(map);
         drawTroopMarkers(map);
-        if (tileColor != 0 && automaticBridgeTooltip == null) {
+        List<String> liveUnitTooltip = drawLiveUnitMarkers(map, event.mouseX, event.mouseY);
+        if (tileColor != 0 && automaticBridgeTooltip == null && liveUnitTooltip == null) {
             drawTileTooltip(map, tileColor, event.mouseX, event.mouseY);
         }
         if (automaticBridgeTooltip != null) {
             drawAutomaticBridgeTooltip(map, automaticBridgeTooltip, event.mouseX, event.mouseY);
+        } else if (liveUnitTooltip != null) {
+            drawMarkerTooltip(map, liveUnitTooltip, event.mouseX, event.mouseY);
         }
         drawRoutePreviewPanel(map, event.mouseX, event.mouseY);
         drawRouteErrorPanel(map);
@@ -281,9 +298,13 @@ public class KOMEConquestMapOverlay {
                     KOMEMinecraftClient.closePlayerScreen();
                 } else if (isPreviewingRoute() && isOverRouteCancelButton(map, mouseX, mouseY)) {
                     clearRoutePreview();
-                } else if (!isChoosingDestination() && isOverToggleButton(map, mouseX, mouseY)) {
+                } else if (!isChoosingDestination() && isOverConquestToggleButton(map, mouseX, mouseY)) {
                     showConquestTiles = !showConquestTiles;
                     clearHighlightTexture();
+                } else if (!isChoosingDestination() && isOverBridgeToggleButton(map, mouseX, mouseY)) {
+                    showBridgeMarkers = !showBridgeMarkers;
+                } else if (!isChoosingDestination() && isOverTroopToggleButton(map, mouseX, mouseY)) {
+                    showTroopMarkers = !showTroopMarkers;
                 }
             }
         }
@@ -437,6 +458,13 @@ public class KOMEConquestMapOverlay {
         return borderGuideTextureLocation;
     }
 
+    private static ResourceLocation getDesertShadeTextureLocation() {
+        if (desertShadeTextureLocation == null) {
+            desertShadeTextureLocation = loadDynamicTexture("kome_conquest_desert_shade", DESERT_SHADE);
+        }
+        return desertShadeTextureLocation;
+    }
+
     private static ResourceLocation getLabelTextureLocation() {
         if (labelTextureLocation == null) {
             labelTextureLocation = loadDynamicTexture("kome_conquest_labels", LABELS);
@@ -471,6 +499,8 @@ public class KOMEConquestMapOverlay {
             texture.updateDynamicTexture();
             if (resource == BORDER_GUIDE) {
                 borderGuideTexture = texture;
+            } else if (resource == DESERT_SHADE) {
+                desertShadeTexture = texture;
             } else if (resource == LABELS) {
                 labelTexture = texture;
             }
@@ -612,17 +642,26 @@ public class KOMEConquestMapOverlay {
         return (argb >>> 24) > 24 && tileIdsByColor.containsKey(argb & 0xFFFFFF);
     }
 
-    private static void drawToggleButton(LOTRGuiMap map, int mouseX, int mouseY) {
-        int x = toggleButtonX();
-        int y = toggleButtonY();
-        boolean hover = isOverToggleButton(map, mouseX, mouseY);
-        int fill = showConquestTiles ? 0xDD2E5D27 : 0xDD4F2A2A;
-        Gui.drawRect(x, y, x + 10, y + 10, 0xFF1B1208);
-        Gui.drawRect(x + 1, y + 1, x + 9, y + 9, hover ? 0xFFE8C46A : fill);
-        KOMEMinecraftClient.fontRenderer().drawString("C", x + 2, y + 1, hover ? 0xFF1B1208 : 0xFFFFFFFF);
+    private static void drawToggleButtons(LOTRGuiMap map, int mouseX, int mouseY) {
+        drawToggleButton(toggleButtonX(0), toggleButtonY(), "C", showConquestTiles,
+            "Hide conquest tiles", "Show conquest tiles", isOverConquestToggleButton(map, mouseX, mouseY));
+        drawToggleButton(toggleButtonX(1), toggleButtonY(), "B", showBridgeMarkers,
+            "Hide bridge markers", "Show bridge markers", isOverBridgeToggleButton(map, mouseX, mouseY));
+        drawToggleButton(toggleButtonX(2), toggleButtonY(), "T", showTroopMarkers,
+            "Hide troop markers", "Show troop markers", isOverTroopToggleButton(map, mouseX, mouseY));
+    }
+
+    private static void drawToggleButton(int x, int y, String glyph, boolean enabled, String enabledTooltip, String disabledTooltip, boolean hover) {
+        FontRenderer font = KOMEMinecraftClient.fontRenderer();
+        int fill = enabled ? 0xDD2E5D27 : 0xDD4F2A2A;
+        Gui.drawRect(x, y, x + TOGGLE_BUTTON_SIZE, y + TOGGLE_BUTTON_SIZE, 0xFF1B1208);
+        Gui.drawRect(x + 1, y + 1, x + TOGGLE_BUTTON_SIZE - 1, y + TOGGLE_BUTTON_SIZE - 1, hover ? 0xFFE8C46A : fill);
+        int glyphX = x + (TOGGLE_BUTTON_SIZE - font.getStringWidth(glyph)) / 2;
+        int glyphY = y + (TOGGLE_BUTTON_SIZE - 8) / 2;
+        font.drawString(glyph, glyphX, glyphY, hover ? 0xFF1B1208 : 0xFFFFFFFF);
         if (hover) {
-            String label = showConquestTiles ? "Hide conquest tiles" : "Show conquest tiles";
-            KOMEMinecraftClient.fontRenderer().drawStringWithShadow(label, x - KOMEMinecraftClient.fontRenderer().getStringWidth(label) - 4, y + 1, 0xFFFFFF);
+            String label = enabled ? enabledTooltip : disabledTooltip;
+            font.drawStringWithShadow(label, x - font.getStringWidth(label) - 4, y + 3, 0xFFFFFF);
         }
     }
 
@@ -639,18 +678,30 @@ public class KOMEConquestMapOverlay {
         font.drawString(help, x + 9, y + 19, 0xFFFFFFFF);
     }
 
-    private static boolean isOverToggleButton(LOTRGuiMap map, int mouseX, int mouseY) {
-        int x = toggleButtonX();
-        int y = toggleButtonY();
-        return mouseX >= x && mouseX < x + 10 && mouseY >= y && mouseY < y + 10;
+    private static boolean isOverConquestToggleButton(LOTRGuiMap map, int mouseX, int mouseY) {
+        return isOverToggleButton(toggleButtonX(0), toggleButtonY(), mouseX, mouseY);
     }
 
-    private static int toggleButtonX() {
-        return mapInt("mapXMax") - 86;
+    private static boolean isOverBridgeToggleButton(LOTRGuiMap map, int mouseX, int mouseY) {
+        return isOverToggleButton(toggleButtonX(1), toggleButtonY(), mouseX, mouseY);
+    }
+
+    private static boolean isOverTroopToggleButton(LOTRGuiMap map, int mouseX, int mouseY) {
+        return isOverToggleButton(toggleButtonX(2), toggleButtonY(), mouseX, mouseY);
+    }
+
+    private static boolean isOverToggleButton(int x, int y, int mouseX, int mouseY) {
+        return mouseX >= x && mouseX < x + TOGGLE_BUTTON_SIZE && mouseY >= y && mouseY < y + TOGGLE_BUTTON_SIZE;
+    }
+
+    private static int toggleButtonX(int index) {
+        int groupWidth = TOGGLE_BUTTON_SIZE * 3 + TOGGLE_BUTTON_GAP * 2;
+        return mapInt("mapXMax") - groupWidth - TOGGLE_BUTTON_RIGHT_MARGIN
+            + index * (TOGGLE_BUTTON_SIZE + TOGGLE_BUTTON_GAP);
     }
 
     private static int toggleButtonY() {
-        return mapInt("mapYMin") + 6;
+        return mapInt("mapYMin") + TOGGLE_BUTTON_TOP_MARGIN;
     }
 
     private static void drawClaimedTexture(LOTRGuiMap map) {
@@ -785,7 +836,7 @@ public class KOMEConquestMapOverlay {
         KOMETileTroopSummary summary = (KOMETileTroopSummary) KOMEClientData.INSTANCE.troopSummaries.get(tileId);
         String owner = tile != null && tile.currentRulingFaction().length() > 0 ? tile.currentRulingFaction() : summary == null ? "" : summary.ownerFaction;
         if (owner.length() > 0) {
-            lines.add("Current Ruling Faction: " + owner);
+            lines.add("Current Ruling Faction: " + KOMEAlliance.displayFactionName(owner));
         }
         KOMETileWaypointLink waypointLink = (KOMETileWaypointLink) KOMEClientData.INSTANCE.tileWaypointLinksByTileId.get(tileId);
         lines.add("LOTR Waypoint: " + (waypointLink == null ? "Missing" : waypointLink.displayName()));
@@ -831,20 +882,30 @@ public class KOMEConquestMapOverlay {
     }
 
     private static void drawTroopMarkers(LOTRGuiMap map) {
+        if (!showTroopMarkers) {
+            return;
+        }
         if (!ensureTileMaskLoaded()) {
             return;
         }
+        Map<String, Integer> hiddenStationedPopulationByTile = liveCompanyStationedPopulationByTile();
         for (Object object : KOMEClientData.INSTANCE.troopSummaries.values()) {
             KOMETileTroopSummary summary = (KOMETileTroopSummary) object;
             if (summary == null || !summary.hasAnyTroops()) {
                 continue;
             }
-            int[] center = tileCentersById.get(KOMEConquestTile.normalizeId(summary.tileId));
-            if (center == null) {
+            String tileId = KOMEConquestTile.normalizeId(summary.tileId);
+            int hiddenStationedPop = mapIntValue(hiddenStationedPopulationByTile, tileId);
+            int visibleStationedPop = Math.max(0, summary.stationedPop - hiddenStationedPop);
+            if (visibleStationedPop <= 0 && summary.movingPop <= 0 && summary.incomingPop <= 0) {
                 continue;
             }
-            int screenX = mapScreenX(map, center[0]);
-            int screenY = mapScreenY(map, center[1]);
+            int[] screen = tileAnchorScreenPosition(map, tileId);
+            if (screen == null) {
+                continue;
+            }
+            int screenX = screen[0];
+            int screenY = screen[1];
             if (screenX < mapInt("mapXMin") || screenX > mapInt("mapXMax") || screenY < mapInt("mapYMin") || screenY > mapInt("mapYMax")) {
                 continue;
             }
@@ -852,7 +913,7 @@ public class KOMEConquestMapOverlay {
             int markerX = screenX - TROOP_MARKER_WIDTH / 2;
             int markerY = screenY - TROOP_MARKER_HEIGHT / 2;
             drawTexturedMarker(getTroopMarkerTextureLocation(), markerX, markerY, TROOP_MARKER_WIDTH, TROOP_MARKER_HEIGHT);
-            int primaryPop = summary.stationedPop > 0 ? summary.stationedPop : summary.incomingPop > 0 ? summary.incomingPop : summary.movingPop;
+            int primaryPop = visibleStationedPop > 0 ? visibleStationedPop : summary.incomingPop > 0 ? summary.incomingPop : summary.movingPop;
             drawTroopCount(font, markerX, markerY, TROOP_MARKER_WIDTH, TROOP_MARKER_HEIGHT, primaryPop);
             int sideTextY = markerY + 4;
             if (summary.movingPop > 0 && primaryPop != summary.movingPop) {
@@ -863,6 +924,128 @@ public class KOMEConquestMapOverlay {
                 font.drawStringWithShadow("<" + abbreviatePop(summary.incomingPop), markerX + TROOP_MARKER_WIDTH + 2, sideTextY, 0xFF6FCBFF);
             }
         }
+    }
+
+    private static List<String> drawLiveUnitMarkers(LOTRGuiMap map, int mouseX, int mouseY) {
+        if (!showTroopMarkers || KOMEClientData.INSTANCE.unitMapMarkers.isEmpty()) {
+            return null;
+        }
+        int mapXMin = mapInt("mapXMin");
+        int mapXMax = mapInt("mapXMax");
+        int mapYMin = mapInt("mapYMin");
+        int mapYMax = mapInt("mapYMax");
+        List<String> tooltip = null;
+        for (Object object : KOMEClientData.INSTANCE.unitMapMarkers) {
+            KOMEUnitMapMarker marker = (KOMEUnitMapMarker) object;
+            if (marker == null || marker.dimensionId != LOTRDimension.MIDDLE_EARTH.dimensionID) {
+                continue;
+            }
+            int screenX = worldScreenX(map, marker.x);
+            int screenY = worldScreenY(map, marker.z);
+            if (screenX < mapXMin || screenX > mapXMax || screenY < mapYMin || screenY > mapYMax) {
+                continue;
+            }
+            FontRenderer font = KOMEMinecraftClient.fontRenderer();
+            int markerX = screenX - LIVE_COMPANY_MARKER_WIDTH / 2;
+            int markerY = screenY - LIVE_COMPANY_MARKER_HEIGHT / 2;
+            drawTexturedMarker(getTroopMarkerTextureLocation(), markerX, markerY, LIVE_COMPANY_MARKER_WIDTH, LIVE_COMPANY_MARKER_HEIGHT);
+            drawTroopCount(font, markerX, markerY, LIVE_COMPANY_MARKER_WIDTH, LIVE_COMPANY_MARKER_HEIGHT, marker.population);
+            if (tooltip == null && mouseX >= markerX - 3 && mouseX <= markerX + LIVE_COMPANY_MARKER_WIDTH + 3
+                    && mouseY >= markerY - 3 && mouseY <= markerY + LIVE_COMPANY_MARKER_HEIGHT + 3) {
+                tooltip = liveUnitTooltip(marker);
+            }
+        }
+        return tooltip;
+    }
+
+    private static Map<String, Integer> liveCompanyStationedPopulationByTile() {
+        Map<String, Integer> populationByTile = new HashMap<String, Integer>();
+        if (KOMEClientData.INSTANCE.unitMapMarkers.isEmpty()) {
+            return populationByTile;
+        }
+        for (Object object : KOMEClientData.INSTANCE.unitMapMarkers) {
+            KOMEUnitMapMarker marker = (KOMEUnitMapMarker) object;
+            if (marker == null || marker.dimensionId != LOTRDimension.MIDDLE_EARTH.dimensionID) {
+                continue;
+            }
+            String tileId = markerStationedTile(marker);
+            int population = Math.max(0, marker.population);
+            if (tileId.length() > 0 && population > 0) {
+                populationByTile.put(tileId, Integer.valueOf(mapIntValue(populationByTile, tileId) + population));
+            }
+        }
+        return populationByTile;
+    }
+
+    private static String markerStationedTile(KOMEUnitMapMarker marker) {
+        String tile = KOMEConquestTile.normalizeId(marker == null ? "" : marker.currentTile);
+        if (tile.length() > 0) {
+            return tile;
+        }
+        if (marker == null || marker.entityId == null || marker.entityId.length() == 0) {
+            return "";
+        }
+        Object companyObject = KOMEClientData.INSTANCE.armyCompanies.get(marker.entityId);
+        if (companyObject instanceof KOMEArmyCompany) {
+            KOMEArmyCompany company = (KOMEArmyCompany) companyObject;
+            return KOMEConquestTile.normalizeId(company.currentTile);
+        }
+        return "";
+    }
+
+    private static int mapIntValue(Map<String, Integer> values, String key) {
+        Integer value = values.get(key);
+        return value == null ? 0 : value.intValue();
+    }
+
+    private static String tileIdAtWorld(double worldX, double worldZ) {
+        if (!ensureTileMaskLoaded()) {
+            return "";
+        }
+        double mapX = worldX / LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originX;
+        double mapY = worldZ / LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originZ;
+        int imageX = (int) Math.floor(mapX * tileMaskImage.getWidth() / LOTRGenLayerWorld.imageWidth);
+        int imageY = (int) Math.floor(mapY * tileMaskImage.getHeight() / LOTRGenLayerWorld.imageHeight);
+        if (imageX < 0 || imageY < 0 || imageX >= tileMaskImage.getWidth() || imageY >= tileMaskImage.getHeight()) {
+            return "";
+        }
+        int color = tileMaskPixels[imageY * tileMaskImage.getWidth() + imageX];
+        if (!isClaimableColor(color)) {
+            return "";
+        }
+        String tileId = tileIdsByColor.get(Integer.valueOf(color & 0xFFFFFF));
+        return tileId == null ? "" : KOMEConquestTile.normalizeId(tileId);
+    }
+
+    private static List<String> liveUnitTooltip(KOMEUnitMapMarker marker) {
+        List<String> lines = new ArrayList<String>();
+        lines.add(marker.companyName == null || marker.companyName.length() == 0 ? "Company" : marker.companyName);
+        lines.add("Loaded units: " + marker.unitCount);
+        lines.add("Population: " + marker.population + (marker.mounted ? " mounted" : " mixed/ground"));
+        lines.add(marker.haltedProtected ? "Halted: Protected / Inactive" : "Active: Vulnerable / Combat-capable");
+        String stationedTile = markerStationedTile(marker);
+        if (stationedTile.length() > 0) {
+            lines.add("Stationed tile: " + stationedTile);
+        }
+        String positionTile = tileIdAtWorld(marker.x, marker.z);
+        if (positionTile.length() > 0 && stationedTile.length() > 0 && !positionTile.equals(stationedTile)) {
+            lines.add("Position tile: " + positionTile);
+        }
+        lines.add("Company center: " + Math.round(marker.x) + ", " + Math.round(marker.y) + ", " + Math.round(marker.z));
+        return lines;
+    }
+
+    private static int[] tileAnchorScreenPosition(LOTRGuiMap map, String tileId) {
+        String normalized = KOMEConquestTile.normalizeId(tileId);
+        KOMETileWaypointLink waypointLink = (KOMETileWaypointLink) KOMEClientData.INSTANCE.tileWaypointLinksByTileId.get(normalized);
+        if (waypointLink != null && (Math.abs(waypointLink.waypointWorldX) > 0.001D || Math.abs(waypointLink.waypointWorldZ) > 0.001D)) {
+            return new int[] {worldScreenX(map, waypointLink.waypointWorldX), worldScreenY(map, waypointLink.waypointWorldZ)};
+        }
+        int[] center = tileCentersById.get(normalized);
+        if (center == null) {
+            return null;
+        }
+        return new int[] {mapScreenX(map, center[0]), mapScreenY(map, center[1])};
     }
 
     private static void drawRouteEdgeMarkers(LOTRGuiMap map) {
@@ -886,6 +1069,9 @@ public class KOMEConquestMapOverlay {
             }
             boolean bridge = KOMEConquestRouteEdge.BRIDGE.equals(edge.edgeType);
             if (bridge) {
+                if (!showBridgeMarkers) {
+                    continue;
+                }
                 drawTexturedMarker(getBridgeMarkerTextureLocation(), screenX - BRIDGE_MARKER_WIDTH / 2,
                     screenY - BRIDGE_MARKER_HEIGHT / 2, BRIDGE_MARKER_WIDTH, BRIDGE_MARKER_HEIGHT);
             } else {
@@ -900,7 +1086,7 @@ public class KOMEConquestMapOverlay {
     }
 
     private static List<String> drawAutomaticBridgeDebugMarkers(LOTRGuiMap map, int mouseX, int mouseY) {
-        if (!SHOW_AUTOMATIC_BRIDGE_DEBUG || !ensureTileMaskLoaded()) {
+        if (!showBridgeMarkers || !SHOW_AUTOMATIC_BRIDGE_DEBUG || !ensureTileMaskLoaded()) {
             return null;
         }
         int mapXMin = mapInt("mapXMin");
@@ -932,6 +1118,10 @@ public class KOMEConquestMapOverlay {
     }
 
     private static void drawAutomaticBridgeTooltip(LOTRGuiMap map, List<String> lines, int mouseX, int mouseY) {
+        drawMarkerTooltip(map, lines, mouseX, mouseY);
+    }
+
+    private static void drawMarkerTooltip(LOTRGuiMap map, List<String> lines, int mouseX, int mouseY) {
         if (lines == null || lines.isEmpty()) {
             return;
         }
@@ -967,9 +1157,9 @@ public class KOMEConquestMapOverlay {
         List<String> tiles = new ArrayList<String>();
         for (String tile : routePreviewTiles) {
             String normalized = KOMEConquestTile.normalizeId(tile);
-            int[] center = tileCentersById.get(normalized);
-            if (center != null) {
-                points.add(new int[] {mapScreenX(map, center[0]), mapScreenY(map, center[1])});
+            int[] point = tileAnchorScreenPosition(map, normalized);
+            if (point != null) {
+                points.add(point);
                 tiles.add(normalized);
             }
         }
@@ -1011,9 +1201,9 @@ public class KOMEConquestMapOverlay {
             List<String> tiles = new ArrayList<String>();
             for (String tile : order.routeTiles) {
                 String normalized = KOMEConquestTile.normalizeId(tile);
-                int[] center = tileCentersById.get(normalized);
-                if (center != null) {
-                    points.add(new int[] {mapScreenX(map, center[0]), mapScreenY(map, center[1])});
+                int[] point = tileAnchorScreenPosition(map, normalized);
+                if (point != null) {
+                    points.add(point);
                     tiles.add(normalized);
                 }
             }

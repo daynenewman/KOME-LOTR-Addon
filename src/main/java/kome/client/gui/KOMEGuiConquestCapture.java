@@ -27,6 +27,10 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private static final int ACTION_BUTTON_GAP = 12;
     private static final int HEADER_META_Y_OFFSET = 39;
     private static final int CONTENT_Y_OFFSET = 62;
+    private static final int CARD_CONTENT_Y_OFFSET = 24;
+    private static final int CARD_CONTROL_HEIGHT = 18;
+    private static final int CARD_CONTROL_BOTTOM_PADDING = 13;
+    private static final int CARD_CONTROL_LABEL_GAP = 13;
     private static final int ID_CLAIM = 0;
     private static final int ID_BACK = 1;
     private static final int ID_PREV_FACTION = 2;
@@ -253,10 +257,10 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         int contentY = panelY + CONTENT_Y_OFFSET;
         int actionTop = panelY + panelH - ACTION_AREA_HEIGHT;
         int colW = (panelW - margin * 2 - gap) / 2;
-        int rowH = Math.max(94, (actionTop - contentY - gap) / 2);
+        int rowH = Math.max(112, (actionTop - contentY - gap) / 2);
         int x = panelX + margin + colW + gap;
         int y = contentY + rowH + gap;
-        int controlsY = y + rowH - 24;
+        int controlsY = controlRowY(y, rowH);
         allocationPlayerField = new GuiTextField(fontRendererObj, x + 10, controlsY + 1, 90, 16);
         allocationPlayerField.setText(mc.thePlayer == null ? "" : mc.thePlayer.getCommandSenderName());
         allocationAmountField = new GuiTextField(fontRendererObj, x + 104, controlsY + 1, 38, 16);
@@ -284,11 +288,11 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         int contentY = panelY + CONTENT_Y_OFFSET;
         int actionTop = panelY + panelH - ACTION_AREA_HEIGHT;
         int colW = (panelW - margin * 2 - gap) / 2;
-        int rowH = Math.max(94, (actionTop - contentY - gap) / 2);
+        int rowH = Math.max(112, (actionTop - contentY - gap) / 2);
         int x = panelX + margin + colW + gap;
         int y = contentY;
         int controlGap = 5;
-        int controlY = y + rowH - 25;
+        int controlY = controlRowY(y, rowH);
         int amountW = 48;
         int buttonStartX = x + 12 + amountW + 12;
         int buttonW = Math.max(42, (x + colW - 12 - buttonStartX - controlGap * 3) / 4);
@@ -439,7 +443,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private void drawStatusCard(int x, int y, int w, int h, int mouseX, int mouseY) {
         KOMEGuiTheme.drawCard(x, y, w, h, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, w, h));
         title("Tile Status", x, y, w);
-        int lineY = y + 18;
+        int lineY = y + CARD_CONTENT_Y_OFFSET;
         lineY = line(x, lineY, "ID", tileId, w);
         lineY = line(x, lineY, "Level", waypointLevel >= 1 && waypointLevel <= 3 ? String.valueOf(waypointLevel) : "Unknown", w);
         lineY = line(x, lineY, "Current Ruling Faction", rulingFactionLabel(currentRulingFaction.length() == 0 ? ownerFaction : currentRulingFaction), w);
@@ -458,30 +462,31 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         KOMEGuiTheme.drawCard(x, y, w, h, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, w, h));
         title("Tile Population", x, y, w);
         if (!hasPopulationData()) {
-            KOMEGuiTheme.drawWrappedText(fontRendererObj, "Tile population data unavailable.", x + 8, y + 22, w - 16, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            KOMEGuiTheme.drawWrappedText(fontRendererObj, "Tile population data unavailable.", x + 8, y + CARD_CONTENT_Y_OFFSET, w - 16, KOMEGuiTheme.COLOR_TEXT_MUTED);
         } else {
             int offAvail = Math.max(0, offensiveTotal - offensiveUsed);
             int defAvail = Math.max(0, defensiveTotal - defensiveUsed);
-            line(x, y + 20, "Offensive", offensiveUsed + "/" + offensiveTotal + " used, " + offAvail + " available", w);
-            KOMEGuiTheme.drawProgressBar(fontRendererObj, x + 10, y + 35, w - 20, 10, ratio(offensiveUsed, offensiveTotal), KOMEGuiTheme.COLOR_GOOD, "");
-            line(x, y + 51, "Defensive", defensiveUsed + "/" + defensiveTotal + " used, " + defAvail + " available", w);
-            KOMEGuiTheme.drawProgressBar(fontRendererObj, x + 10, y + 66, w - 20, 10, ratio(defensiveUsed, defensiveTotal), KOMEGuiTheme.COLOR_WARN, "");
+            line(x, y + CARD_CONTENT_Y_OFFSET, "Offensive", offensiveUsed + "/" + offensiveTotal + " used, " + offAvail + " available", w);
+            KOMEGuiTheme.drawProgressBar(fontRendererObj, x + 10, y + CARD_CONTENT_Y_OFFSET + 15, w - 20, 10, ratio(offensiveUsed, offensiveTotal), KOMEGuiTheme.COLOR_GOOD, "");
+            line(x, y + CARD_CONTENT_Y_OFFSET + 31, "Defensive", defensiveUsed + "/" + defensiveTotal + " used, " + defAvail + " available", w);
+            KOMEGuiTheme.drawProgressBar(fontRendererObj, x + 10, y + CARD_CONTENT_Y_OFFSET + 46, w - 20, 10, ratio(defensiveUsed, defensiveTotal), KOMEGuiTheme.COLOR_WARN, "");
             if (farmhandTotal > 0 || farmhandUsed > 0) {
-                line(x, y + 80, "Farmhands", farmhandUsed + "/" + farmhandTotal, w);
+                line(x, y + CARD_CONTENT_Y_OFFSET + 61, "Farmhands", farmhandUsed + "/" + farmhandTotal, w);
             }
         }
         if (populationAmountField != null) {
-            fontRendererObj.drawString("Amount", x + 12, y + h - 36, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            int labelY = controlLabelY(y, h);
+            fontRendererObj.drawString("Amount", x + 12, labelY, KOMEGuiTheme.COLOR_TEXT_MUTED);
             if (!canEditPopulation) {
-                fontRendererObj.drawString("View only", x + w - 66, y + h - 36, KOMEGuiTheme.COLOR_TEXT_DISABLED);
+                fontRendererObj.drawString("View only", x + w - 66, labelY, KOMEGuiTheme.COLOR_TEXT_DISABLED);
             }
         }
     }
 
     private void drawStationedCard(int x, int y, int w, int h, int mouseX, int mouseY) {
         KOMEGuiTheme.drawCard(x, y, w, h, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, w, h));
-        title("Stationed Units / " + stationedCompanyCount() + " Companies", x, y, w);
-        int lineY = y + 18;
+        title("Stationed Units / " + stationedCompanyCount() + " Companies", x, y, w, 104);
+        int lineY = y + CARD_CONTENT_Y_OFFSET;
         lineY = line(x, lineY, "Faction Offensive", offensivePop + " movable", w);
         lineY = line(x, lineY, "Faction Defensive", defensivePop + " immobile", w);
         lineY = line(x, lineY, "Faction Split", mountedPop + " mounted / " + groundPop + " ground", w);
@@ -538,7 +543,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private void drawMovementCard(int x, int y, int w, int h, int mouseX, int mouseY) {
         KOMEGuiTheme.drawCard(x, y, w, h, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, w, h));
         title("Population Allocation", x, y, w);
-        int lineY = y + 18;
+        int lineY = y + CARD_CONTENT_Y_OFFSET;
         lineY = line(x, lineY, "Offensive", offensiveAllocated + " allocated, " + Math.max(0, offensiveTotal - offensiveAllocated) + " unallocated", w);
         lineY = line(x, lineY, "Defensive", defensiveAllocated + " allocated, " + Math.max(0, defensiveTotal - defensiveAllocated) + " unallocated", w);
         lineY = line(x, lineY, "My Offensive", myOffensiveUsed + "/" + myOffensiveAllocated + " used, " + Math.max(0, myOffensiveAllocated - myOffensiveUsed) + " available", w);
@@ -551,12 +556,23 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, allocationSummary, w - 20), x + 10, lineY + 1, KOMEGuiTheme.COLOR_TEXT_MUTED);
         }
         if (allocationPlayerField != null) {
-            fontRendererObj.drawString(canEditPopulation ? "Player / amount" : "Allocation management requires king/admin", x + 10, y + h - 48, canEditPopulation ? KOMEGuiTheme.COLOR_TEXT_MUTED : KOMEGuiTheme.COLOR_TEXT_DISABLED);
+            fontRendererObj.drawString(canEditPopulation ? "Player / amount" : "Allocation management requires king/admin", x + 10, controlLabelY(y, h), canEditPopulation ? KOMEGuiTheme.COLOR_TEXT_MUTED : KOMEGuiTheme.COLOR_TEXT_DISABLED);
         }
         if (canEditPopulation) {
             String arrival = "Arrival Point: stand there and run /troops arrival set " + tileId;
-            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, arrival, w - 20), x + 10, y + h - 16, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            int arrivalY = Math.max(lineY + 2, controlLabelY(y, h) - 12);
+            if (arrivalY + 8 < controlLabelY(y, h)) {
+                fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, arrival, w - 20), x + 10, arrivalY, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            }
         }
+    }
+
+    private static int controlRowY(int y, int h) {
+        return y + h - CARD_CONTROL_BOTTOM_PADDING - CARD_CONTROL_HEIGHT;
+    }
+
+    private static int controlLabelY(int y, int h) {
+        return controlRowY(y, h) - CARD_CONTROL_LABEL_GAP;
     }
 
     private void drawActionCard(int x, int y, int w, int h, int mouseX, int mouseY) {
@@ -572,8 +588,13 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
     private void title(String text, int x, int y, int w) {
-        fontRendererObj.drawString(text, x + 12, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
-        KOMEGuiTheme.drawDivider(x + 12, y + 18, w - 24);
+        title(text, x, y, w, 0);
+    }
+
+    private void title(String text, int x, int y, int w, int rightInset) {
+        int usableW = Math.max(24, w - 24 - rightInset);
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, text, usableW), x + 12, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+        KOMEGuiTheme.drawDivider(x + 12, y + 18, usableW);
     }
 
     private int line(int x, int y, String label, String value, int w) {

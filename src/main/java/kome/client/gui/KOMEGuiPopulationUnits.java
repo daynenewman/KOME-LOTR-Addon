@@ -145,9 +145,9 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
         KOMEGuiTheme.drawMainPanel(x, y, panelW, panelH);
         KOMEGuiTheme.drawHeader(fontRendererObj, "Unit Command", x + 128, y + 12, panelW - 256);
         String context = tileFilter.length() > 0 ? "Stationed at Tile " + tileFilter : playerName + "'s hired units";
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, context, 250), x + MARGIN, y + 20, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, context, 210), x + MARGIN, y + 20, KOMEGuiTheme.COLOR_TEXT_MUTED);
         String capacity = "Military " + armyUsed + "/" + armyTotal + "   Farmhands " + farmhandsUsed + "/" + farmhandsLimit;
-        fontRendererObj.drawString(capacity, x + panelW - MARGIN - fontRendererObj.getStringWidth(capacity), y + 20, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString(capacity, x + panelW - MARGIN - fontRendererObj.getStringWidth(capacity), y + 32, KOMEGuiTheme.COLOR_TEXT_MUTED);
 
         int contentY = y + 78;
         int contentH = panelH - 78 - MARGIN - ACTION_HEIGHT - 10;
@@ -196,14 +196,14 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
         String company = unit.companyName.length() == 0 ? "Unassigned" : unit.companyName + " (" + unit.companyStatus + ")";
         String owner = unit.ownerName + "  |  " + unit.factionName + "  |  " + company;
         fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, owner, width - 24), x + 12, y + 23, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        drawStatusBadge(unit.movementStatus, x + width - 92, y + 8, 80);
+        drawStatusBadge(unit.haltedProtected ? "Protected" : unit.movementStatus, x + width - 92, y + 8, 80);
 
         int cardY = y + 40;
         drawLocationCard(unit, x + 10, cardY, width - 20, 76);
         cardY += 84;
         drawPopulationCard(unit, x + 10, cardY, width - 20, 94);
         cardY += 102;
-        drawMovementCard(unit, x + 10, cardY, width - 20, Math.max(56, height - (cardY - y) - 10));
+        drawMovementCard(unit, x + 10, cardY, width - 20, Math.max(86, height - (cardY - y) - 10));
     }
 
     private void drawLocationCard(KOMEUnitGuiEntry unit, int x, int y, int width, int height) {
@@ -237,15 +237,32 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
         KOMEGuiTheme.drawCard(x, y, width, height, false);
         KOMEGuiTheme.drawSectionTitle(fontRendererObj, "Movement", x + 10, y + 8, width - 20);
         detailLine(x, y + 24, width, "Can Move", unit.canMove ? "Yes" : "No");
+        detailLine(x, y + 38, width, "State", unit.haltedProtected ? "Halted: Protected / Inactive" : "Active: Vulnerable / Combat-capable");
         String note = unit.canMove
             ? unit.mounted ? "Mounted units move faster in mounted-only orders." : "Ground or mixed armies use the slower movement rate."
-            : unit.cannotMoveReason;
-        KOMEGuiTheme.drawWrappedText(fontRendererObj, note, x + 10, y + 40, width - 20, unit.canMove ? KOMEGuiTheme.COLOR_TEXT_MUTED : KOMEGuiTheme.COLOR_WARN);
+            : unit.haltedProtected ? "Protected halted units cannot attack, target enemies, or count as active combatants." : unit.cannotMoveReason;
+        int footerY = y + height - 14;
+        int noteBottom = drawWrappedTextAbove(note, x + 10, y + 54, width - 20, footerY - 6,
+            unit.canMove ? KOMEGuiTheme.COLOR_TEXT_MUTED : KOMEGuiTheme.COLOR_WARN);
         if (unit.movementOrderId.length() > 0) {
-            fontRendererObj.drawString("Order: " + unit.movementOrderId, x + 10, y + height - 14, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, "Order: " + unit.movementOrderId, width - 20), x + 10, Math.max(footerY, noteBottom + 4), KOMEGuiTheme.COLOR_TEXT_MUTED);
         } else {
-            fontRendererObj.drawString("Movement is handled by troop movement orders.", x + 10, y + height - 14, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, "Movement is handled by troop movement orders.", width - 20), x + 10, Math.max(footerY, noteBottom + 4), KOMEGuiTheme.COLOR_TEXT_MUTED);
         }
+    }
+
+    private int drawWrappedTextAbove(String text, int x, int y, int width, int maxBottom, int color) {
+        List lines = KOMEGuiTheme.wrapText(fontRendererObj, text, width);
+        int maxLines = Math.max(1, (maxBottom - y) / 10);
+        int lineCount = Math.min(lines.size(), maxLines);
+        for (int i = 0; i < lineCount; i++) {
+            String line = (String) lines.get(i);
+            if (i == lineCount - 1 && lines.size() > lineCount) {
+                line = KOMEGuiTheme.trimToWidth(fontRendererObj, line + "...", width);
+            }
+            fontRendererObj.drawString(line, x, y + i * 10, color);
+        }
+        return y + lineCount * 10;
     }
 
     private void detailLine(int x, int y, int width, String label, String value) {

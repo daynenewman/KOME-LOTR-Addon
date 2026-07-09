@@ -218,8 +218,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         cursorY = drawInfoCard("Population", record.population, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Pledged Lord", record.lord, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Alliances", record.alliances, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
-        cursorY = drawInfoCard("Controlled Tiles", record.tileCount + formatNames(record.tiles), x + 12, cursorY + 8, width - 24, mouseX, mouseY);
-        drawInfoCard("Troop Movement Records", "Use Troop Movements above to view your faction's active and historical company movements.", x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        drawInfoCard("Controlled Tiles", record.tileCount + formatNames(record.tiles), x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         KOMEGuiTheme.disableScissor();
         detailScroll = Math.min(detailScroll, getMaxDetailScroll());
         drawDetailScrollbar(x + width - 10, y + 23, height - 28);
@@ -303,7 +302,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     }
 
     private int factionColor(String faction) {
-        if (faction == null || faction.trim().length() == 0 || "No faction".equals(faction)) {
+        if (isUnpledgedFaction(faction)) {
             return 0x6B5A3A;
         }
         String key = faction.toLowerCase();
@@ -342,7 +341,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     }
 
     private String factionInitials(String faction) {
-        if (faction == null || faction.trim().length() == 0 || "No faction".equals(faction)) {
+        if (isUnpledgedFaction(faction)) {
             return "-";
         }
         String[] words = faction.split(" ");
@@ -403,14 +402,13 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         }
         Record record = (Record) records.get(selected);
         int width = getDetailWidth() - 24;
-        int total = 5 * 8;
+        int total = 4 * 8;
         total += getCardHeight(record.faction + " / " + record.rank, width);
         total += getCardHeight(record.progress + " completed", width);
         total += getCardHeight(record.population, width);
         total += getCardHeight(record.lord, width);
         total += getCardHeight(record.alliances, width);
         total += getCardHeight(record.tileCount + formatNames(record.tiles), width);
-        total += getCardHeight("Use Troop Movements above to view your faction's active and historical company movements.", width);
         return total;
     }
 
@@ -451,7 +449,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         private Record(String[] parts) {
             uuid = parts[1];
             name = parts[2];
-            faction = parts[3].length() == 0 ? "No faction" : parts[3];
+            faction = normalizeFactionDisplay(parts[3]);
             rank = parts[4];
             progress = parts[5];
             population = parts[6];
@@ -472,5 +470,22 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
                 tiles = parts[8];
             }
         }
+    }
+
+    private static String normalizeFactionDisplay(String faction) {
+        return isUnpledgedFaction(faction) ? "Unpledged" : faction;
+    }
+
+    private static boolean isUnpledgedFaction(String faction) {
+        if (faction == null) {
+            return true;
+        }
+        String value = faction.trim();
+        if (value.length() == 0 || "No faction".equalsIgnoreCase(value) || "Unpledged".equalsIgnoreCase(value)) {
+            return true;
+        }
+        String normalized = value.toLowerCase().replaceAll("[^a-z0-9]", "");
+        return normalized.length() == 0 || "unaligned".equals(normalized)
+            || "lotrfactionunalignedname".equals(normalized);
     }
 }

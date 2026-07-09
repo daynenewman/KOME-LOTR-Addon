@@ -53,7 +53,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         boolean canEditPopulation = canEditPopulation(data, player, tile);
         data.rebuildArmyCompaniesForPlayer(KOMEReflection.getWorld(player), viewerId);
         TroopSummary summary = summarizeTroops(data, ownerFaction, tileId, viewerId);
-        boolean canMoveTroops = hasControllableCompanyAtTile(data, viewerId, tileId);
+        boolean canMoveTroops = hasControllableCompanyAtTile(data, viewerId, viewerFaction, tileId, player.canCommandSenderUseCommand(2, "troops"));
         int offensiveTotal = data.getEffectiveUsablePopulation(tileId, ownerFaction, KOMEPopulationType.OFFENSIVE);
         int offensiveUsed = data.getEffectiveUsedPopulation(tileId, ownerFaction, KOMEPopulationType.OFFENSIVE);
         int defensiveTotal = data.getEffectiveUsablePopulation(tileId, ownerFaction, KOMEPopulationType.DEFENSIVE);
@@ -124,6 +124,9 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             if (record.movementOrderId != null && record.movementOrderId.length() > 0) {
                 continue;
             }
+            if (kome.common.data.KOMEHaltedUnitProtection.isProtectedRecord(data, null, record)) {
+                continue;
+            }
             if (viewerId.equals(record.owner)) {
                 if (record.type == KOMEPopulationType.DEFENSIVE) {
                     summary.myDefensivePop += record.cost;
@@ -180,7 +183,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         return summary;
     }
 
-    private static boolean hasControllableCompanyAtTile(KOMEWorldData data, java.util.UUID viewerId, String tileId) {
+    private static boolean hasControllableCompanyAtTile(KOMEWorldData data, java.util.UUID viewerId, String viewerFaction, String tileId, boolean admin) {
         String tile = KOMEConquestTile.normalizeId(tileId);
         for (Object object : data.armyCompanies.values()) {
             if (!(object instanceof kome.common.data.KOMEArmyCompany)) {
@@ -198,6 +201,16 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
                     && tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
                     && record.lotrCompanyValue != null && record.lotrCompanyValue.length() > 0) {
                 return true;
+            }
+        }
+        if (admin && data.canFactionStandOnTile(tile, viewerFaction)) {
+            for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
+                if (record != null && viewerId.equals(record.owner) && !record.farmhand
+                        && record.type == KOMEPopulationType.OFFENSIVE && !record.isMoving()
+                        && tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
+                        && (record.companyId == null || record.companyId.length() == 0)) {
+                    return true;
+                }
             }
         }
         return false;

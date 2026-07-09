@@ -37,5 +37,6 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketCompanyMovePreviewResult.Handler.class, KOMEPacketCompanyMovePreviewResult.class, 27, Side.CLIENT);
         network.registerMessage(KOMEPacketMovementHistoryRequest.Handler.class, KOMEPacketMovementHistoryRequest.class, 28, Side.SERVER);
         network.registerMessage(KOMEPacketMovementHistoryData.Handler.class, KOMEPacketMovementHistoryData.class, 29, Side.CLIENT);
+        network.registerMessage(KOMEPacketUnitMapMarkers.Handler.class, KOMEPacketUnitMapMarkers.class, 30, Side.CLIENT);
     }
 }

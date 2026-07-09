@@ -1,11 +1,14 @@
 package kome.common.command;
 
+import kome.common.KOMEReflection;
 import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMETileOwnershipDefaults;
 import kome.common.data.KOMEWaypointDefaults;
+import kome.common.network.KOMEPacketUnitMapMarkers;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.ChatComponentText;
 
 import java.util.List;
@@ -18,7 +21,7 @@ public class KOMECommandKome extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/kome conquest <reset|balance> | waypointdefaults <reload|apply>";
+        return "/kome conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status>";
     }
 
     @Override
@@ -65,19 +68,49 @@ public class KOMECommandKome extends CommandBase {
                 return;
             }
         }
+        if (args.length == 2 && "adminmarkers".equalsIgnoreCase(args[0])) {
+            requireStaff(sender);
+            if (!(sender instanceof EntityPlayerMP)) {
+                throw new WrongUsageException("Only a player can change personal admin marker visibility.");
+            }
+            EntityPlayerMP player = (EntityPlayerMP) sender;
+            KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
+            if ("on".equalsIgnoreCase(args[1]) || "all".equalsIgnoreCase(args[1])) {
+                data.setAdminUnitMapMarkersDisabled(KOMEReflection.getEntityUUID(player), false);
+                KOMEPacketUnitMapMarkers.sendToPlayer(data, player);
+                sender.addChatMessage(new ChatComponentText("Admin live unit markers: showing all tracked loaded units."));
+                return;
+            }
+            if ("off".equalsIgnoreCase(args[1]) || "own".equalsIgnoreCase(args[1])) {
+                data.setAdminUnitMapMarkersDisabled(KOMEReflection.getEntityUUID(player), true);
+                KOMEPacketUnitMapMarkers.sendToPlayer(data, player);
+                sender.addChatMessage(new ChatComponentText("Admin live unit markers disabled. Map now shows only your own loaded units."));
+                return;
+            }
+            if ("status".equalsIgnoreCase(args[1])) {
+                boolean disabled = data.isAdminUnitMapMarkersDisabled(KOMEReflection.getEntityUUID(player));
+                sender.addChatMessage(new ChatComponentText(disabled
+                    ? "Admin live unit markers are disabled; showing only your own loaded units."
+                    : "Admin live unit markers are enabled; showing all tracked loaded units."));
+                return;
+            }
+        }
         throw new WrongUsageException(getCommandUsage(sender));
     }
 
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "conquest", "waypointdefaults");
+            return getListOfStringsMatchingLastWord(args, "conquest", "waypointdefaults", "adminmarkers");
         }
         if (args.length == 2 && "conquest".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, "reset", "balance");
         }
         if (args.length == 2 && "waypointdefaults".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, "reload", "apply");
+        }
+        if (args.length == 2 && "adminmarkers".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(args, "on", "off", "status");
         }
         return null;
     }

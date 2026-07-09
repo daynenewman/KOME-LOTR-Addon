@@ -1,6 +1,7 @@
 package kome.client.gui;
 
 import kome.client.KOMEMinecraftClient;
+import kome.common.data.KOMEAllianceInventory;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import org.lwjgl.input.Mouse;
@@ -391,22 +392,25 @@ public class KOMEGuiAllianceDetail extends GuiScreen {
         }
         if (selectedType == 0) {
             if (tier == 0) {
-                return "Deposit 1000 coins to unlock Tier I.";
+                return "Deposit " + KOMEAllianceInventory.CIVIL_T1_COINS_REQUIRED + " coins to unlock Tier I.";
             }
             if (tier == 1) {
-                return "Trade 500 coins worth of goods to unlock Tier II.";
+                return "Trade " + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " coins worth of goods to unlock Tier II.";
             }
             return "No further requirement.";
         }
         if (selectedType == 1) {
             if (tier == 0) return record.militaryFood.length() == 0 ? "Roll a military food quota." : "Deliver " + record.militaryFood + ".";
-            if (tier == 1) return "Kill 2000 enemies of " + record.factionB + ".";
+            if (tier == 1) return "Kill " + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " enemies of " + record.factionB + ".";
             if (tier == 2) return "Complete the population build and waypoint battle.";
-            if (tier == 3) return "Deliver 50 population and 30000 coins.";
+            if (tier == 3) return "Deliver " + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + " population and "
+                + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + " coins.";
             return "No further requirement.";
         }
-        if (tier == 0) return record.tradeFood.length() == 0 ? "Roll a trade food quota." : "Deliver " + record.tradeFood + " and 5000 coins.";
-        if (tier == 1) return "Deliver 50 farmer population and 10000 coins.";
+        if (tier == 0) return record.tradeFood.length() == 0 ? "Roll a trade food quota." : "Deliver " + record.tradeFood
+            + " and " + KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED + " coins.";
+        if (tier == 1) return "Deliver " + KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED
+            + " farmer population and " + KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED + " coins.";
         return "No further requirement.";
     }
 
@@ -415,7 +419,10 @@ public class KOMEGuiAllianceDetail extends GuiScreen {
             if (record.civilTier == 0) {
                 return new Progress(0, 0, "Coin deposit progress is shown in the ledger.");
             }
-            return new Progress(Math.min(record.civilTradeDelivered, 500), 500, Math.min(record.civilTradeDelivered, 500) + " / 500 trade coins");
+            return new Progress(Math.min(record.civilTradeDelivered, KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED),
+                KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED,
+                Math.min(record.civilTradeDelivered, KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED)
+                    + " / " + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " trade coins");
         }
         if (selectedType == 1) {
             if (record.militaryTier == 0) {
@@ -423,14 +430,27 @@ public class KOMEGuiAllianceDetail extends GuiScreen {
                 return new Progress(Math.min(record.militaryFoodDelivered, required), required, required > 0 ? Math.min(record.militaryFoodDelivered, required) + " / " + required + " food" : "Quota not rolled");
             }
             if (record.militaryTier == 1) {
-                return new Progress(Math.min(record.militaryKillsDelivered, 2000), 2000, Math.min(record.militaryKillsDelivered, 2000) + " / 2000 kills");
+                return new Progress(Math.min(record.militaryKillsDelivered, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED),
+                    KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED,
+                    Math.min(record.militaryKillsDelivered, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED)
+                        + " / " + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " kills");
             }
-            return new Progress(Math.min(record.militaryT4CoinsDelivered, 30000), 30000, Math.min(record.militaryT4Pop, 50) + " / 50 pop, " + Math.min(record.militaryT4CoinsDelivered, 30000) + " / 30000 coins");
+            return new Progress(Math.min(record.militaryT4CoinsDelivered, KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED),
+                KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED,
+                Math.min(record.militaryT4Pop, KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED)
+                    + " / " + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + " pop, "
+                    + Math.min(record.militaryT4CoinsDelivered, KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED)
+                    + " / " + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + " coins");
         }
         if (record.tradeTier == 0) {
             return new Progress(Math.min(record.tradeFoodDelivered, quotaRequiredUnits(record.tradeFood)), quotaRequiredUnits(record.tradeFood), record.tradeFood.length() > 0 ? record.tradeFoodDelivered + " food delivered" : "Quota not rolled");
         }
-        return new Progress(Math.min(record.tradeT2CoinsDelivered, 10000), 10000, Math.min(record.tradeFarmerPop, 50) + " / 50 farmer pop, " + Math.min(record.tradeT2CoinsDelivered, 10000) + " / 10000 coins");
+        return new Progress(Math.min(record.tradeT2CoinsDelivered, KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED),
+            KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED,
+            Math.min(record.tradeFarmerPop, KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED)
+                + " / " + KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED + " farmer pop, "
+                + Math.min(record.tradeT2CoinsDelivered, KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED)
+                + " / " + KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED + " coins");
     }
 
     private String benefitSummary() {

@@ -12,6 +12,7 @@ import kome.common.network.KOMEPacketAllianceData;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketHireType;
 import kome.common.network.KOMEPacketLordMenu;
+import kome.common.network.KOMEPacketUnitMapMarkers;
 import lotr.common.LOTRLevelData;
 import lotr.common.LOTRPlayerData;
 import lotr.common.entity.npc.LOTRHireableBase;
@@ -35,6 +36,7 @@ import lotr.common.item.LOTRItemPouch;
 import lotr.common.quest.LOTRMiniQuest;
 import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.passive.EntityAnimal;
@@ -70,6 +72,9 @@ import net.minecraftforge.event.entity.player.PlayerOpenContainerEvent;
 import net.minecraftforge.event.entity.player.PlayerUseItemEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraft.world.WorldServer;
 
@@ -81,14 +86,11 @@ import java.util.Map;
 
 public class KOMEEvents {
     public static int defaultUnitCost = 25;
-    private static final int CIVIL_TRADER_REQUIRED = 500;
-    private static final int MILITARY_KILLS_REQUIRED = 2000;
-    private static final int TRADE_T2_COINS_REQUIRED = 10000;
-    private static final int TRADE_T2_FARMER_POP_REQUIRED = 50;
     private final Map<UUID, Integer> lastCoinValues = new HashMap<>();
     private final Map<UUID, int[]> lastCoinCounts = new HashMap<>();
     private final Map<UUID, Long> lastStoneCraftDenials = new HashMap<>();
     private long nextMovementArrivalCheckMillis;
+    private long nextLiveUnitMarkerSyncMillis;
     private long automaticWaypointLinkCheckMillis;
     private boolean automaticWaypointLinksEnsured;
 
@@ -147,6 +149,19 @@ public class KOMEEvents {
         MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
         if (server == null || server.worldServers == null) {
             return;
+        }
+        if (now >= nextLiveUnitMarkerSyncMillis) {
+            nextLiveUnitMarkerSyncMillis = now + 1000L;
+            KOMEWorldData markerData = null;
+            for (WorldServer world : server.worldServers) {
+                if (world != null && !KOMEReflection.isRemote(world)) {
+                    markerData = KOMEWorldData.get(world);
+                    break;
+                }
+            }
+            if (markerData != null) {
+                KOMEPacketUnitMapMarkers.sendToAll(markerData);
+            }
         }
         if (!automaticWaypointLinksEnsured) {
             if (automaticWaypointLinkCheckMillis <= 0L) {
@@ -348,6 +363,12 @@ public class KOMEEvents {
     public void onLivingUpdate(LivingEvent.LivingUpdateEvent event) {
         if (!KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving)) && event.entityLiving instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
+            if (npc.hiredNPCInfo != null && npc.hiredNPCInfo.isActive && KOMEHaltedUnitProtection.isProtected(npc)) {
+                if (npc.getHealth() <= 0.0F) {
+                    npc.setHealth(1.0F);
+                }
+                KOMEHaltedUnitProtection.applyInactiveState(npc);
+            }
             if (!npc.isEntityAlive()) {
                 releaseIfTracked(npc);
                 releaseLinkedInactiveUnits(npc);
@@ -363,10 +384,79 @@ public class KOMEEvents {
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onLivingAttack(LivingAttackEvent event) {
+        if (event.entityLiving == null || KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving))) {
+            return;
+        }
+        if (event.entityLiving instanceof LOTREntityNPC && KOMEHaltedUnitProtection.isProtected((LOTREntityNPC) event.entityLiving)) {
+            KOMEHaltedUnitProtection.applyInactiveState((LOTREntityNPC) event.entityLiving);
+            event.setCanceled(true);
+            return;
+        }
+        Entity source = event.source == null ? null : event.source.getEntity();
+        if (source instanceof LOTREntityNPC && KOMEHaltedUnitProtection.isProtected((LOTREntityNPC) source)) {
+            KOMEHaltedUnitProtection.applyInactiveState((LOTREntityNPC) source);
+            event.setCanceled(true);
+            return;
+        }
+        if (event.entityLiving instanceof LOTREntityNPC) {
+            KOMEHaltedUnitProtection.noteCombat(event.entityLiving);
+        }
+        if (source instanceof EntityLivingBase) {
+            KOMEHaltedUnitProtection.noteCombat((EntityLivingBase) source);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onLivingHurt(LivingHurtEvent event) {
+        if (event.entityLiving == null || KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving))) {
+            return;
+        }
+        if (event.entityLiving instanceof LOTREntityNPC && KOMEHaltedUnitProtection.isProtected((LOTREntityNPC) event.entityLiving)) {
+            KOMEHaltedUnitProtection.applyInactiveState((LOTREntityNPC) event.entityLiving);
+            event.ammount = 0.0F;
+            event.setCanceled(true);
+            return;
+        }
+        Entity source = event.source == null ? null : event.source.getEntity();
+        if (source instanceof LOTREntityNPC && KOMEHaltedUnitProtection.isProtected((LOTREntityNPC) source)) {
+            KOMEHaltedUnitProtection.applyInactiveState((LOTREntityNPC) source);
+            event.ammount = 0.0F;
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onLivingSetAttackTarget(LivingSetAttackTargetEvent event) {
+        if (KOMEHaltedUnitProtection.isApplyingInactiveState()) {
+            return;
+        }
+        if (event.entityLiving instanceof LOTREntityNPC && !KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving))) {
+            LOTREntityNPC attacker = (LOTREntityNPC) event.entityLiving;
+            if (KOMEHaltedUnitProtection.isProtected(attacker)) {
+                KOMEHaltedUnitProtection.applyInactiveState(attacker);
+                return;
+            }
+        }
+        if (event.target instanceof LOTREntityNPC && !KOMEReflection.isRemote(KOMEReflection.getWorld(event.target))) {
+            LOTREntityNPC target = (LOTREntityNPC) event.target;
+            if (KOMEHaltedUnitProtection.isProtected(target) && event.entityLiving instanceof net.minecraft.entity.EntityLiving) {
+                ((net.minecraft.entity.EntityLiving) event.entityLiving).setAttackTarget(null);
+            }
+        }
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onLivingDeath(LivingDeathEvent event) {
         if (!KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving)) && event.entityLiving instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
+            if (KOMEHaltedUnitProtection.isProtected(npc)) {
+                npc.setHealth(Math.max(1.0F, npc.getHealth()));
+                KOMEHaltedUnitProtection.applyInactiveState(npc);
+                event.setCanceled(true);
+                return;
+            }
             trackAllianceMilitaryKill(npc, event.source);
             releaseIfTracked(npc);
             releaseLinkedInactiveUnits(npc);
@@ -769,13 +859,13 @@ public class KOMEEvents {
                 continue;
             }
             int delivered = alliance.getDelivered("civil.trade");
-            if (delivered >= CIVIL_TRADER_REQUIRED) {
+            if (delivered >= KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED) {
                 continue;
             }
-            int credited = Math.min(tradeValue, CIVIL_TRADER_REQUIRED - delivered);
+            int credited = Math.min(tradeValue, KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED - delivered);
             alliance.addDelivered("civil.trade", credited);
             changed = true;
-            if (alliance.getDelivered("civil.trade") >= CIVIL_TRADER_REQUIRED) {
+            if (alliance.getDelivered("civil.trade") >= KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED) {
                 alliance.setTier(KOMEAlliance.CIVIL, 2, "Trader progress", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
                 player.addChatMessage(new ChatComponentText("Civil alliance upgraded to T2 with " + traderFaction.factionName() + "."));
             }
@@ -806,14 +896,14 @@ public class KOMEEvents {
             int current = LOTRLevelData.getData(player).getFactionData(receiver).getEnemiesKilled();
             int previous = alliance.getDelivered("military.kills");
             if (current > previous) {
-                alliance.setDelivered("military.kills", Math.min(current, MILITARY_KILLS_REQUIRED));
+                alliance.setDelivered("military.kills", Math.min(current, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED));
                 changed = true;
                 int progress = alliance.getDelivered("military.kills");
                 if (progress <= 5 || progress % 25 == 0) {
-                    player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + progress + "/" + MILITARY_KILLS_REQUIRED + "."));
+                    player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + progress + "/" + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + "."));
                 }
             }
-            if (alliance.getDelivered("military.kills") >= MILITARY_KILLS_REQUIRED) {
+            if (alliance.getDelivered("military.kills") >= KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED) {
                 alliance.setTier(KOMEAlliance.MILITARY, 2, "Enemy kills", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
                 player.addChatMessage(new ChatComponentText("Military alliance upgraded to T2 with " + receiver.factionName() + "."));
                 changed = true;
@@ -846,14 +936,14 @@ public class KOMEEvents {
                 continue;
             }
             int current = LOTRLevelData.getData(player).getFactionData(receiver).getEnemiesKilled();
-            int next = Math.min(MILITARY_KILLS_REQUIRED, Math.max(current, alliance.getDelivered("military.kills") + 1));
+            int next = Math.min(KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED, Math.max(current, alliance.getDelivered("military.kills") + 1));
             if (next > alliance.getDelivered("military.kills")) {
                 alliance.setDelivered("military.kills", next);
                 changed = true;
                 if (next <= 5 || next % 25 == 0) {
-                    player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + next + "/" + MILITARY_KILLS_REQUIRED + "."));
+                    player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + next + "/" + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + "."));
                 }
-                if (next >= MILITARY_KILLS_REQUIRED) {
+                if (next >= KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED) {
                     alliance.setTier(KOMEAlliance.MILITARY, 2, "Enemy kills", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
                     player.addChatMessage(new ChatComponentText("Military alliance upgraded to T2 with " + receiver.factionName() + "."));
                 }
@@ -880,8 +970,8 @@ public class KOMEEvents {
             if (alliance == null || alliance.tradeTier != 1 || !factionMatches(alliance.factionA, playerFaction)) {
                 continue;
             }
-            if (alliance.getDelivered("trade.t2.coins") >= TRADE_T2_COINS_REQUIRED
-                && data.getFactionFarmerPop(alliance.factionA) >= TRADE_T2_FARMER_POP_REQUIRED) {
+            if (alliance.getDelivered("trade.t2.coins") >= KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED
+                && data.getFactionFarmerPop(alliance.factionA) >= KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED) {
                 alliance.setTier(KOMEAlliance.TRADE, 2, "Trade requirements", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
                 player.addChatMessage(new ChatComponentText("Trade alliance upgraded to T2 with " + displayFaction(alliance.factionB) + "."));
                 changed = true;

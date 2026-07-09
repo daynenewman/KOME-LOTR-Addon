@@ -91,12 +91,12 @@ public class KOMECommandConquest extends CommandBase {
                 String current = tile.currentRulingFaction();
                 String defaultFaction = KOMEAlliance.normalizeFactionKey(tile.defaultRulingFaction);
                 sender.addChatMessage(new ChatComponentText(tileId + ": current ruling faction="
-                    + (current.length() == 0 ? "unclaimed" : current) + ", default ruling faction="
-                    + (defaultFaction.length() == 0 ? "unclaimed" : defaultFaction) + ", level="
+                    + displayFaction(current) + ", default ruling faction="
+                    + displayFaction(defaultFaction) + ", level="
                     + (tile.waypointLevel >= 1 && tile.waypointLevel <= 3 ? tile.waypointLevel : 0)
                     + ", region=" + safe(tile.mapRegion) + ", time=" + tile.claimedWorldTime));
                 if (tile.hasPendingTransfer()) {
-                    sender.addChatMessage(new ChatComponentText("Pending transfer: " + tile.pendingTransferFromFaction + " -> " + tile.pendingTransferToFaction));
+                    sender.addChatMessage(new ChatComponentText("Pending transfer: " + displayFaction(tile.pendingTransferFromFaction) + " -> " + displayFaction(tile.pendingTransferToFaction)));
                 }
             }
             return;
@@ -130,7 +130,7 @@ public class KOMECommandConquest extends CommandBase {
                 EntityPlayerMP claimant = sender instanceof EntityPlayerMP ? (EntityPlayerMP) sender : null;
                 data.claimTile(tile, faction, sender.getEntityWorld().getTotalWorldTime(), claimant == null ? null : kome.common.KOMEReflection.getEntityUUID(claimant), claimant == null ? sender.getCommandSenderName() : claimant.getCommandSenderName());
                 data.ensureDefaultArrivalPoint(tile);
-                sender.addChatMessage(new ChatComponentText("Claimed conquest tile " + tileId + " for " + faction));
+                sender.addChatMessage(new ChatComponentText("Claimed conquest tile " + tileId + " for " + displayFaction(faction)));
             }
             data.markDirty();
             data.syncConquestTiles();
@@ -151,13 +151,13 @@ public class KOMECommandConquest extends CommandBase {
             }
             String currentOwner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
             if (faction.equals(currentOwner)) {
-                throw new WrongUsageException("That tile is already owned by " + faction + ".");
+                throw new WrongUsageException("That tile is already owned by " + displayFaction(faction) + ".");
             }
             requireTransferOfferPermission(sender, data, tile, faction);
             tile.proposeTransfer(currentOwner, faction);
             data.markDirty();
             data.syncConquestTiles();
-            sender.addChatMessage(new ChatComponentText("Offered conquest tile " + tileId + " to " + faction + ". Their king must accept."));
+            sender.addChatMessage(new ChatComponentText("Offered conquest tile " + tileId + " to " + displayFaction(faction) + ". Their king must accept."));
             return;
         }
 
@@ -169,7 +169,7 @@ public class KOMECommandConquest extends CommandBase {
             data.claimTile(tile, faction, sender.getEntityWorld().getTotalWorldTime(), claimant == null ? null : kome.common.KOMEReflection.getEntityUUID(claimant), claimant == null ? sender.getCommandSenderName() : claimant.getCommandSenderName());
             data.ensureDefaultArrivalPoint(tile);
             data.syncConquestTiles();
-            sender.addChatMessage(new ChatComponentText("Accepted conquest tile " + tileId + " for " + faction));
+            sender.addChatMessage(new ChatComponentText("Accepted conquest tile " + tileId + " for " + displayFaction(faction)));
             return;
         }
 
@@ -470,7 +470,7 @@ public class KOMECommandConquest extends CommandBase {
             if (count > 0) {
                 line.append(", ");
             }
-            line.append(id).append("=").append(tile.currentRulingFaction());
+            line.append(id).append("=").append(displayFaction(tile.currentRulingFaction()));
             count++;
             if (count >= 12) {
                 line.append("...");
@@ -525,6 +525,10 @@ public class KOMECommandConquest extends CommandBase {
             return KOMEAlliance.normalizeFactionKey(resolved.codeName());
         }
         throw new WrongUsageException("Unknown faction: " + value);
+    }
+
+    private static String displayFaction(String value) {
+        return KOMEAlliance.normalizeFactionKey(value).length() == 0 ? "unclaimed" : KOMEAlliance.displayFactionName(value);
     }
 
     private static String safe(String value) {

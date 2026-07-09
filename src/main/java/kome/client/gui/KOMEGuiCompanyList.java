@@ -15,13 +15,19 @@ import java.util.List;
 public class KOMEGuiCompanyList extends GuiScreen {
     private static final int PANEL_WIDTH = 520;
     private static final int PANEL_HEIGHT = 350;
+    private static final int ID_CHOOSE_DESTINATION = 2;
+    private static final int ID_BACK = 3;
+    private static final int ID_REFRESH = 4;
+    private static final int ID_CREATE_COMPANY = 5;
     private final String tileId;
     private final List<KOMECompanyGuiEntry> companies = new ArrayList<KOMECompanyGuiEntry>();
+    private final boolean canCreate;
     private int selectedIndex = -1;
     private int scroll;
 
     public KOMEGuiCompanyList(String tileId, List companies, boolean canCreate) {
         this.tileId = tileId == null ? "" : tileId;
+        this.canCreate = canCreate;
         for (Object object : companies) {
             if (object instanceof KOMECompanyGuiEntry) {
                 this.companies.add((KOMECompanyGuiEntry) object);
@@ -34,11 +40,14 @@ public class KOMEGuiCompanyList extends GuiScreen {
         buttonList.clear();
         int x = panelX();
         int y = panelY();
-        GuiButton choose = new KOMEGuiButton(2, x + PANEL_WIDTH - 172, y + PANEL_HEIGHT - 67, 150, 22, "Choose Destination", true);
+        GuiButton choose = new KOMEGuiButton(ID_CHOOSE_DESTINATION, x + PANEL_WIDTH - 172, y + PANEL_HEIGHT - 67, 150, 22, "Choose Destination", true);
         choose.enabled = selectedIndex >= 0 && selectedIndex < companies.size() && companies.get(selectedIndex).canMove;
         buttonList.add(choose);
-        buttonList.add(new KOMEGuiButton(3, x + 22, y + PANEL_HEIGHT - 34, 110, 22, "Back"));
-        buttonList.add(new KOMEGuiButton(4, x + PANEL_WIDTH - 132, y + PANEL_HEIGHT - 34, 110, 22, "Refresh"));
+        buttonList.add(new KOMEGuiButton(ID_BACK, x + 22, y + PANEL_HEIGHT - 34, 110, 22, "Back"));
+        GuiButton create = new KOMEGuiButton(ID_CREATE_COMPANY, x + 142, y + PANEL_HEIGHT - 34, 142, 22, "Create Company");
+        create.enabled = canCreate;
+        buttonList.add(create);
+        buttonList.add(new KOMEGuiButton(ID_REFRESH, x + PANEL_WIDTH - 132, y + PANEL_HEIGHT - 34, 110, 22, "Refresh"));
     }
 
     @Override
@@ -46,15 +55,18 @@ public class KOMEGuiCompanyList extends GuiScreen {
         if (!button.enabled) {
             return;
         }
-        if (button.id == 2 && selectedIndex >= 0) {
+        if (button.id == ID_CHOOSE_DESTINATION && selectedIndex >= 0) {
             KOMECompanyGuiEntry company = companies.get(selectedIndex);
             KOMEConquestMapOverlay.beginDestinationSelection(company.id, company.name, company.tile);
             KOMEConquestMapOverlay.openPreservedMap();
-        } else if (button.id == 3) {
+        } else if (button.id == ID_BACK) {
             KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(tileId));
             KOMEMinecraftClient.closePlayerScreen();
-        } else if (button.id == 4) {
+        } else if (button.id == ID_REFRESH) {
             KOMEMinecraftClient.sendChat("/troops companies " + tileId);
+            KOMEMinecraftClient.closePlayerScreen();
+        } else if (button.id == ID_CREATE_COMPANY) {
+            KOMEMinecraftClient.sendChat("/troops createcompany " + tileId + " Company " + tileId);
             KOMEMinecraftClient.closePlayerScreen();
         }
     }
@@ -100,7 +112,7 @@ public class KOMEGuiCompanyList extends GuiScreen {
         int rowY = y + 62;
         if (companies.isEmpty()) {
             KOMEGuiTheme.drawSubPanel(x + 22, rowY, PANEL_WIDTH - 44, 52);
-            fontRendererObj.drawString("No companies are stationed here.", x + 36, rowY + 20, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            fontRendererObj.drawString(canCreate ? "No companies are stationed here. Create one from unassigned units." : "No companies are stationed here.", x + 36, rowY + 20, KOMEGuiTheme.COLOR_TEXT_MUTED);
         }
         for (int row = 0; row < Math.min(5, companies.size() - scroll); row++) {
             int index = scroll + row;

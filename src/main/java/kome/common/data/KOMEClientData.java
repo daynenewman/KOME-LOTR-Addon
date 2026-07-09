@@ -4,6 +4,7 @@ public class KOMEClientData extends KOMEWorldData {
     public static final KOMEClientData INSTANCE = new KOMEClientData();
     public KOMEPopulationType hireType = KOMEPopulationType.OFFENSIVE;
     public final java.util.Map<String, KOMETileTroopSummary> troopSummaries = new java.util.HashMap<String, KOMETileTroopSummary>();
+    public final java.util.List<KOMEUnitMapMarker> unitMapMarkers = new java.util.ArrayList<KOMEUnitMapMarker>();
     public int conquestRevision;
 
     private KOMEClientData() {
@@ -26,6 +27,7 @@ public class KOMEClientData extends KOMEWorldData {
         playerNames.clear();
         clearFactionKingRecords();
         troopSummaries.clear();
+        unitMapMarkers.clear();
         hireType = KOMEPopulationType.OFFENSIVE;
         conquestRevision++;
     }

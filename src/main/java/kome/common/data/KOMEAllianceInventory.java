@@ -14,10 +14,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KOMEAllianceInventory implements IInventory {
-    private static final int TRADE_T1_COINS_REQUIRED = 5000;
-    private static final int TRADE_T2_COINS_REQUIRED = 10000;
-    private static final int MILITARY_T4_COINS_REQUIRED = 30000;
-    private static final int MILITARY_T4_POP_REQUIRED = 50;
+    public static final int CIVIL_T1_COINS_REQUIRED = 1000;
+    public static final int CIVIL_T2_TRADE_REQUIRED = 500;
+    public static final int MILITARY_T2_KILLS_REQUIRED = 2000;
+    public static final int MILITARY_T4_COINS_REQUIRED = 30000;
+    public static final int MILITARY_T4_POP_REQUIRED = 50;
+    public static final int TRADE_T1_COINS_REQUIRED = 5000;
+    public static final int TRADE_T2_COINS_REQUIRED = 10000;
+    public static final int TRADE_T2_FARMER_POP_REQUIRED = 50;
     private static final String[] CLAIM_IDS = new String[] {"civil.coins", "trade.coins", "trade.t2.coins", "military.t4.coins", "military.food", "trade.food"};
     private final KOMEWorldData data;
     private final KOMEAlliance alliance;
@@ -115,7 +119,7 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private void applyCoinUnlocks() {
-        if (alliance.civilTier == 0 && alliance.getDelivered("civil.coins") >= 1000) {
+        if (alliance.civilTier == 0 && alliance.getDelivered("civil.coins") >= CIVIL_T1_COINS_REQUIRED) {
             alliance.setTier(KOMEAlliance.CIVIL, 1, "Alliance goods", alliance.updatedWorldTime);
         }
         if (alliance.tradeTier == 0 && alliance.getDelivered("trade.coins") >= TRADE_T1_COINS_REQUIRED) {
@@ -124,7 +128,7 @@ public class KOMEAllianceInventory implements IInventory {
                 alliance.setTier(KOMEAlliance.TRADE, 1, "Alliance goods", alliance.updatedWorldTime);
             }
         }
-        if (alliance.tradeTier == 1 && alliance.getDelivered("trade.t2.coins") >= TRADE_T2_COINS_REQUIRED && data.getFactionFarmerPop(alliance.factionA) >= 50) {
+        if (alliance.tradeTier == 1 && alliance.getDelivered("trade.t2.coins") >= TRADE_T2_COINS_REQUIRED && data.getFactionFarmerPop(alliance.factionA) >= TRADE_T2_FARMER_POP_REQUIRED) {
             alliance.setTier(KOMEAlliance.TRADE, 2, "Alliance goods", alliance.updatedWorldTime);
         }
         Quota militaryQuota = parseQuota(alliance.getAssignment("military.food"));
@@ -168,7 +172,7 @@ public class KOMEAllianceInventory implements IInventory {
     private int getNeededCoinValue() {
         int needed = 0;
         if (alliance.civilTier == 0) {
-            needed += Math.max(0, 1000 - alliance.getDelivered("civil.coins"));
+            needed += Math.max(0, CIVIL_T1_COINS_REQUIRED - alliance.getDelivered("civil.coins"));
         }
         if (alliance.tradeTier == 0) {
             needed += Math.max(0, TRADE_T1_COINS_REQUIRED - alliance.getDelivered("trade.coins"));
@@ -226,7 +230,7 @@ public class KOMEAllianceInventory implements IInventory {
             return false;
         }
         int value = LOTRItemCoin.values[Math.max(0, Math.min(stack.getItemDamage(), LOTRItemCoin.values.length - 1))];
-        return depositCoins(stack, value, "civil.coins", 1000, alliance.civilTier)
+        return depositCoins(stack, value, "civil.coins", CIVIL_T1_COINS_REQUIRED, alliance.civilTier)
             || depositCoins(stack, value, "trade.coins", TRADE_T1_COINS_REQUIRED, alliance.tradeTier == 0 ? 0 : -1)
             || depositCoins(stack, value, "trade.t2.coins", TRADE_T2_COINS_REQUIRED, alliance.tradeTier == 1 ? 0 : -1)
             || depositCoins(stack, value, "military.t4.coins", MILITARY_T4_COINS_REQUIRED, alliance.militaryTier == 3 ? 0 : -1);
@@ -276,7 +280,7 @@ public class KOMEAllianceInventory implements IInventory {
         lines.add("DEPOSIT\tPlace required coins or quota foods in the chest slots. Accepted goods are compressed into this ledger.");
         lines.add("CLAIM\t" + getClaimSummary() + "\t" + (canClaim ? "1" : "0") + "\t" + (canClaim ? "Receiving faction king" : "Only the receiving faction king can claim"));
         if (alliance.civilTier != KOMEAlliance.NONE) {
-            addCoinLine(lines, "Civil Coins", "civil.coins", 1000, alliance.civilTier == 0);
+            addCoinLine(lines, "Civil Coins", "civil.coins", CIVIL_T1_COINS_REQUIRED, alliance.civilTier == 0);
         }
         if (alliance.militaryTier != KOMEAlliance.NONE) {
             addQuotaLine(lines, "Military Food", "military.food");
@@ -290,10 +294,10 @@ public class KOMEAllianceInventory implements IInventory {
         if (alliance.tradeTier != KOMEAlliance.NONE) {
             addCoinLine(lines, "Trade T2 Coins", "trade.t2.coins", TRADE_T2_COINS_REQUIRED, alliance.tradeTier == 1);
             if (alliance.tradeTier == 1) {
-                int pop = Math.min(data.getFactionFarmerPop(alliance.factionA), 50);
-                lines.add("Trade T2 Farmer Pop Cost: " + pop + "/50 available" + (pop >= 50 ? " complete" : ""));
+                int pop = Math.min(data.getFactionFarmerPop(alliance.factionA), TRADE_T2_FARMER_POP_REQUIRED);
+                lines.add("Trade T2 Farmer Pop Cost: " + pop + "/" + TRADE_T2_FARMER_POP_REQUIRED + " available" + (pop >= TRADE_T2_FARMER_POP_REQUIRED ? " complete" : ""));
             } else if (alliance.tradeTier >= 2) {
-                lines.add("Trade T2 Farmer Pop Cost: 50/50 spent complete");
+                lines.add("Trade T2 Farmer Pop Cost: " + TRADE_T2_FARMER_POP_REQUIRED + "/" + TRADE_T2_FARMER_POP_REQUIRED + " spent complete");
             }
         }
         if (alliance.militaryTier != KOMEAlliance.NONE) {
@@ -330,10 +334,10 @@ public class KOMEAllianceInventory implements IInventory {
             return alliance.civilTier == KOMEAlliance.PENDING ? "Receiving faction must accept the request." : "No active civil alliance.";
         }
         if (alliance.civilTier == 0) {
-            return "Deposit 1000 coins.";
+            return "Deposit " + CIVIL_T1_COINS_REQUIRED + " coins.";
         }
         if (alliance.civilTier == 1) {
-            return "Trade 500 coins worth of goods with the receiver.";
+            return "Trade " + CIVIL_T2_TRADE_REQUIRED + " coins worth of goods with the receiver.";
         }
         return "Civil alliance requirements complete.";
     }
@@ -350,20 +354,20 @@ public class KOMEAllianceInventory implements IInventory {
 
     private int getCivilDelivered() {
         if (alliance.civilTier == 0) {
-            return Math.min(alliance.getDelivered("civil.coins"), 1000);
+            return Math.min(alliance.getDelivered("civil.coins"), CIVIL_T1_COINS_REQUIRED);
         }
         if (alliance.civilTier == 1) {
-            return Math.min(alliance.getDelivered("civil.trade"), 500);
+            return Math.min(alliance.getDelivered("civil.trade"), CIVIL_T2_TRADE_REQUIRED);
         }
         return alliance.civilTier >= 2 ? 1 : 0;
     }
 
     private int getCivilRequired() {
         if (alliance.civilTier == 0) {
-            return 1000;
+            return CIVIL_T1_COINS_REQUIRED;
         }
         if (alliance.civilTier == 1) {
-            return 500;
+            return CIVIL_T2_TRADE_REQUIRED;
         }
         return alliance.civilTier >= 2 ? 1 : 0;
     }
@@ -387,13 +391,13 @@ public class KOMEAllianceInventory implements IInventory {
             return quota.length() == 0 ? "Roll a military food quota." : quota;
         }
         if (alliance.militaryTier == 1) {
-            return "Kill 2000 enemies of the receiver.";
+            return "Kill " + MILITARY_T2_KILLS_REQUIRED + " enemies of the receiver.";
         }
         if (alliance.militaryTier == 2) {
             return "Complete the population build and waypoint battle.";
         }
         if (alliance.militaryTier == 3) {
-            return "Provide 50 population and 30000 coins.";
+            return "Provide " + MILITARY_T4_POP_REQUIRED + " population and " + MILITARY_T4_COINS_REQUIRED + " coins.";
         }
         return "Military alliance requirements complete.";
     }
@@ -417,7 +421,7 @@ public class KOMEAllianceInventory implements IInventory {
             return quota == null ? 0 : Math.min(alliance.getDelivered("military.food"), quota.requiredUnits);
         }
         if (alliance.militaryTier == 1) {
-            return Math.min(alliance.getDelivered("military.kills"), 2000);
+            return Math.min(alliance.getDelivered("military.kills"), MILITARY_T2_KILLS_REQUIRED);
         }
         if (alliance.militaryTier == 3) {
             return Math.min(alliance.getDelivered("military.t4.coins"), MILITARY_T4_COINS_REQUIRED);
@@ -431,7 +435,7 @@ public class KOMEAllianceInventory implements IInventory {
             return quota == null ? 0 : quota.requiredUnits;
         }
         if (alliance.militaryTier == 1) {
-            return 2000;
+            return MILITARY_T2_KILLS_REQUIRED;
         }
         if (alliance.militaryTier == 3) {
             return MILITARY_T4_COINS_REQUIRED;
@@ -461,10 +465,10 @@ public class KOMEAllianceInventory implements IInventory {
         }
         if (alliance.tradeTier == 0) {
             String quota = alliance.getAssignment("trade.food");
-            return "Deposit 5000 coins" + (quota.length() == 0 ? " and roll a trade food quota." : " and " + quota + ".");
+            return "Deposit " + TRADE_T1_COINS_REQUIRED + " coins" + (quota.length() == 0 ? " and roll a trade food quota." : " and " + quota + ".");
         }
         if (alliance.tradeTier == 1) {
-            return "Provide 50 farmer population and 10000 coins.";
+            return "Provide " + TRADE_T2_FARMER_POP_REQUIRED + " farmer population and " + TRADE_T2_COINS_REQUIRED + " coins.";
         }
         return "Trade alliance requirements complete.";
     }

@@ -115,15 +115,18 @@ public class KOMEServerRecordBuilder {
         if (player != null) {
             LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
             if (pledge != null) {
-                return new FactionInfo(KOMEAlliance.normalizeFactionKey(pledge.codeName()), pledge.factionName());
+                String key = KOMEAlliance.normalizeFactionKey(pledge.codeName());
+                return new FactionInfo(key, key.length() == 0 ? "Unpledged" : pledge.factionName());
             }
         }
         String faction = progression == null ? "" : progression.getPledgedLordFaction();
         LOTRFaction resolved = findFaction(faction);
         if (resolved != null) {
-            return new FactionInfo(KOMEAlliance.normalizeFactionKey(resolved.codeName()), resolved.factionName());
+            String key = KOMEAlliance.normalizeFactionKey(resolved.codeName());
+            return new FactionInfo(key, key.length() == 0 ? "Unpledged" : resolved.factionName());
         }
-        return new FactionInfo(KOMEAlliance.normalizeFactionKey(faction), KOMEAlliance.displayFactionName(faction));
+        String key = KOMEAlliance.normalizeFactionKey(faction);
+        return new FactionInfo(key, key.length() == 0 ? "Unpledged" : KOMEAlliance.displayFactionName(faction));
     }
 
     private static TileSummary getConquestTiles(KOMEWorldData data, String factionKey) {

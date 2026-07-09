@@ -25,6 +25,8 @@ import java.util.UUID;
 
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
+    private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
+    private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int MILITARY_PASSAGE_TIER = 2;
 
     public final Map<UUID, KOMEPlayerPopulation> populations = new HashMap<>();
@@ -42,6 +44,7 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<String, KOMEArmyCompany> armyCompanies = new HashMap<>();
     public final Map<String, KOMEMovementHistoryRecord> movementHistory = new HashMap<>();
     public final Map<UUID, String> playerNames = new HashMap<>();
+    private final Set<UUID> adminUnitMapMarkerOptOuts = new HashSet<UUID>();
     private final Map<String, UUID> kingsByFaction = new HashMap<>();
     private final Map<String, String> kingNamesByFaction = new HashMap<>();
     private boolean progressionEnabled = true;
@@ -412,13 +415,6 @@ public class KOMEWorldData extends WorldSavedData {
 
     private Map<String, KOMEWaypointDefaults.Entry> resolveWaypointDefaultAssignmentsByTile() {
         Map<String, KOMEWaypointDefaults.Entry> defaultsByTile = new HashMap<String, KOMEWaypointDefaults.Entry>();
-        for (KOMETileOwnershipDefaults.Entry tileDefault : KOMETileOwnershipDefaults.entries()) {
-            if (tileDefault == null || tileDefault.tileId.length() == 0
-                    || KOMEConquestTileDefaults.isRetiredTile(tileDefault.tileId)) {
-                continue;
-            }
-            defaultsByTile.put(tileDefault.tileId, tileDefault.asWaypointDefaultsEntry());
-        }
         for (KOMETileWaypointLink link : tileWaypointLinksByTileId.values()) {
             if (link == null || link.tileId == null || link.tileId.length() == 0) {
                 continue;
@@ -432,6 +428,15 @@ public class KOMEWorldData extends WorldSavedData {
                 continue;
             }
             defaultsByTile.put(tileId, defaults);
+        }
+        // Tile ownership defaults are the final curated conquest defaults. They
+        // intentionally override older waypoint-level defaults for the same tile.
+        for (KOMETileOwnershipDefaults.Entry tileDefault : KOMETileOwnershipDefaults.entries()) {
+            if (tileDefault == null || tileDefault.tileId.length() == 0
+                    || KOMEConquestTileDefaults.isRetiredTile(tileDefault.tileId)) {
+                continue;
+            }
+            defaultsByTile.put(tileDefault.tileId, tileDefault.asWaypointDefaultsEntry());
         }
         return defaultsByTile;
     }
@@ -457,10 +462,52 @@ public class KOMEWorldData extends WorldSavedData {
                 changed++;
             }
         }
+        preserveResetTilePopulationValue(resetTiles);
         conquestDefaultsInitialized = true;
         markDirty();
         syncConquestTiles();
         return changed;
+    }
+
+    private void preserveResetTilePopulationValue(Set<String> resetTiles) {
+        if (resetTiles == null || resetTiles.isEmpty()) {
+            return;
+        }
+        Map<String, KOMETilePopulation> remapped = new HashMap<String, KOMETilePopulation>();
+        Set<String> normalizedResetTiles = new HashSet<String>();
+        for (String tileId : resetTiles) {
+            normalizedResetTiles.add(KOMEConquestTile.normalizeId(tileId));
+        }
+        for (Map.Entry<String, KOMETilePopulation> entry : tilePopulations.entrySet()) {
+            KOMETilePopulation population = entry.getValue();
+            if (population == null) {
+                continue;
+            }
+            String tileId = KOMEConquestTile.normalizeId(population.tileId);
+            KOMEConquestTile tile = conquestTiles.get(tileId);
+            String resetOwner = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+            String source = KOMEAlliance.normalizeFactionKey(population.sourceFaction);
+            if (normalizedResetTiles.contains(tileId) && resetOwner.length() > 0) {
+                source = resetOwner;
+            }
+            String key = tilePopulationKey(tileId, source);
+            KOMETilePopulation target = remapped.get(key);
+            if (target == null) {
+                target = new KOMETilePopulation(tileId, source);
+                remapped.put(key, target);
+            }
+            target.offensiveTotal += Math.max(0, population.offensiveTotal);
+            target.offensiveUsed += Math.max(0, population.offensiveUsed);
+            target.defensiveTotal += Math.max(0, population.defensiveTotal);
+            target.defensiveUsed += Math.max(0, population.defensiveUsed);
+            target.farmhandTotal += Math.max(0, population.farmhandTotal);
+            target.farmhandUsed += Math.max(0, population.farmhandUsed);
+            target.offensiveUsed = Math.min(target.offensiveUsed, target.offensiveTotal);
+            target.defensiveUsed = Math.min(target.defensiveUsed, target.defensiveTotal);
+            target.farmhandUsed = Math.min(target.farmhandUsed, target.farmhandTotal);
+        }
+        tilePopulations.clear();
+        tilePopulations.putAll(remapped);
     }
 
     public List<String> buildConquestBalanceReportLines() {
@@ -625,6 +672,9 @@ public class KOMEWorldData extends WorldSavedData {
         if (center == null) {
             return;
         }
+        if (ensureDefaultArrivalPointFromLinkedWaypoint(tile, center)) {
+            return;
+        }
         KOMETileWaypoint existing = getTileWaypoint(tile.id, KOMETileWaypoint.RALLY);
         if (existing != null) {
             if (existing.manualOverride) {
@@ -638,6 +688,57 @@ public class KOMEWorldData extends WorldSavedData {
         }
         tile.setAnchor(center.dimensionId, center.x, center.y, center.z);
         setTileWaypoint(tile.id, KOMETileWaypoint.RALLY, center.dimensionId, center.x, center.y, center.z, "Auto tile center", false);
+    }
+
+    private boolean ensureDefaultArrivalPointFromLinkedWaypoint(KOMEConquestTile tile, KOMEConquestTileDefaults.TileCenter center) {
+        KOMETileWaypoint existing = getTileWaypoint(tile.id, KOMETileWaypoint.RALLY);
+        if (existing != null && existing.manualOverride) {
+            syncTileAnchor(tile, existing.dimensionId, existing.x, existing.y, existing.z);
+            return true;
+        }
+        KOMETileWaypointLink link = getTileWaypointLink(tile.id);
+        if (link == null || link.lotrWaypointKey == null || link.lotrWaypointKey.length() == 0) {
+            return false;
+        }
+        double x = link.waypointWorldX;
+        double z = link.waypointWorldZ;
+        int dimensionId = link.dimensionId == 0 ? center.dimensionId : link.dimensionId;
+        LOTRWaypoint waypoint = link.resolveWaypoint();
+        if (waypoint != null) {
+            x = waypoint.getXCoord();
+            z = waypoint.getZCoord();
+            if (dimensionId == 0) {
+                dimensionId = center.dimensionId;
+            }
+        }
+        if (Math.abs(x) < 0.001D && Math.abs(z) < 0.001D) {
+            return false;
+        }
+        double y = center.y;
+        if (existing != null && existing.dimensionId == dimensionId) {
+            double dx = existing.x - x;
+            double dy = existing.y - y;
+            double dz = existing.z - z;
+            boolean sameAutomaticSource = AUTO_WAYPOINT_RALLY_SOURCE.equals(existing.createdBy);
+            if (sameAutomaticSource && dx * dx + dy * dy + dz * dz < AUTO_RALLY_REFRESH_DISTANCE_SQ) {
+                syncTileAnchor(tile, dimensionId, x, y, z);
+                return true;
+            }
+        }
+        tile.setAnchor(dimensionId, x, y, z);
+        setTileWaypoint(tile.id, KOMETileWaypoint.RALLY, dimensionId, x, y, z, AUTO_WAYPOINT_RALLY_SOURCE, false);
+        return true;
+    }
+
+    private void syncTileAnchor(KOMEConquestTile tile, int dimensionId, double x, double y, double z) {
+        if (tile == null || (tile.hasAnchor && tile.anchorDimension == dimensionId
+                && Math.abs(tile.anchorX - x) < 0.001D
+                && Math.abs(tile.anchorY - y) < 0.001D
+                && Math.abs(tile.anchorZ - z) < 0.001D)) {
+            return;
+        }
+        tile.setAnchor(dimensionId, x, y, z);
+        markDirty();
     }
 
     public KOMETilePopulation getTilePopulation(String tileId) {
@@ -882,6 +983,13 @@ public class KOMEWorldData extends WorldSavedData {
         String faction = KOMEAlliance.normalizeFactionKey(factionKey);
         KOMEConquestTile tile = conquestTiles.get(tileKey);
         return tile != null && tile.isClaimed() && faction.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()));
+    }
+
+    public boolean canFactionStandOnTile(String tileId, String factionKey) {
+        String tileKey = KOMEConquestTile.normalizeId(tileId);
+        String faction = KOMEAlliance.normalizeFactionKey(factionKey);
+        KOMEConquestTile tile = conquestTiles.get(tileKey);
+        return tile != null && tile.isClaimed() && canFactionUseMilitaryPassage(faction, tile.currentRulingFaction());
     }
 
     public KOMEPlayerTilePopulationAllocation getAllocation(String tileId, String faction, UUID playerId) {
@@ -1359,7 +1467,7 @@ public class KOMEWorldData extends WorldSavedData {
         int spent = 0;
         for (KOMEAlliance alliance : alliances.values()) {
             if (alliance != null && alliance.tradeTier >= 2 && key.equals(normalizeFactionKey(alliance.factionA))) {
-                spent += 50;
+                spent += KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED;
             }
         }
         return spent;
@@ -1373,7 +1481,7 @@ public class KOMEWorldData extends WorldSavedData {
         int spent = 0;
         for (KOMEAlliance alliance : alliances.values()) {
             if (alliance != null && alliance.militaryTier >= 4 && key.equals(normalizeFactionKey(alliance.factionA))) {
-                spent += 50;
+                spent += KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED;
             }
         }
         return spent;
@@ -1702,6 +1810,25 @@ public class KOMEWorldData extends WorldSavedData {
         KOMEPacketConquestData.sendChunked(this, player);
     }
 
+    public boolean isAdminUnitMapMarkersDisabled(UUID playerId) {
+        return playerId != null && adminUnitMapMarkerOptOuts.contains(playerId);
+    }
+
+    public void setAdminUnitMapMarkersDisabled(UUID playerId, boolean disabled) {
+        if (playerId == null) {
+            return;
+        }
+        boolean changed;
+        if (disabled) {
+            changed = adminUnitMapMarkerOptOuts.add(playerId);
+        } else {
+            changed = adminUnitMapMarkerOptOuts.remove(playerId);
+        }
+        if (changed) {
+            markDirty();
+        }
+    }
+
     public KOMETilePopulation getFundingPool(KOMEHiredUnitRecord record) {
         if (record == null) {
             return null;
@@ -1779,6 +1906,7 @@ public class KOMEWorldData extends WorldSavedData {
         armyCompanies.clear();
         movementHistory.clear();
         playerNames.clear();
+        adminUnitMapMarkerOptOuts.clear();
         clearFactionKingRecords();
         progressionEnabled = !nbt.hasKey("ProgressionEnabled") || nbt.getBoolean("ProgressionEnabled");
         movementSecondsPerTileOverride = Math.max(0, nbt.getInteger("MovementSecondsPerTileOverride"));
@@ -1828,6 +1956,14 @@ public class KOMEWorldData extends WorldSavedData {
             if (faction.length() > 0 && player.length() > 0) {
                 kingsByFaction.put(faction, UUID.fromString(player));
                 kingNamesByFaction.put(faction, entry.getString("Name"));
+            }
+        }
+
+        NBTTagList adminMarkerList = nbt.getTagList("AdminUnitMapMarkerOptOuts", 10);
+        for (int i = 0; i < adminMarkerList.tagCount(); i++) {
+            String player = adminMarkerList.getCompoundTagAt(i).getString("Player");
+            if (player.length() > 0) {
+                adminUnitMapMarkerOptOuts.add(UUID.fromString(player));
             }
         }
 
@@ -2149,6 +2285,16 @@ public class KOMEWorldData extends WorldSavedData {
             playerNameList.appendTag(playerName);
         }
         nbt.setTag("PlayerNames", playerNameList);
+
+        NBTTagList adminMarkerList = new NBTTagList();
+        for (UUID playerId : adminUnitMapMarkerOptOuts) {
+            if (playerId != null) {
+                NBTTagCompound entry = new NBTTagCompound();
+                entry.setString("Player", playerId.toString());
+                adminMarkerList.appendTag(entry);
+            }
+        }
+        nbt.setTag("AdminUnitMapMarkerOptOuts", adminMarkerList);
 
         NBTTagList hiredList = new NBTTagList();
         for (KOMEHiredUnitRecord record : hiredUnits.values()) {

@@ -292,6 +292,12 @@ public class KOMEAlliance {
                 || "unclaimed".equals(key) || "unaligned".equals(key)) {
             return "";
         }
+        if ("hobbits".equals(key)) {
+            return "hobbit";
+        }
+        if ("breeland".equals(key)) {
+            return "bree";
+        }
         if ("rangernorth".equals(key) || "rangersnorth".equals(key) || "rangerofthenorth".equals(key)
                 || "rangersofthenorth".equals(key) || "dunedainnorth".equals(key)
                 || "dunedainofthenorth".equals(key) || "northerndunedain".equals(key)) {
@@ -304,6 +310,10 @@ public class KOMEAlliance {
         if ("nearharad".equals(key) || "harad".equals(key) || "haradwaith".equals(key)
                 || "southron".equals(key) || "southrons".equals(key)) {
             return "harad";
+        }
+        if ("woodelf".equals(key) || "woodelves".equals(key) || "woodlandrealm".equals(key)
+                || "mirkwoodelves".equals(key)) {
+            return "woodelf";
         }
         return key;
     }

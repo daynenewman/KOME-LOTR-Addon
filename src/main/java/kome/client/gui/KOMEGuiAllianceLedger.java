@@ -2,6 +2,7 @@ package kome.client.gui;
 
 import kome.client.KOMEMinecraftClient;
 import kome.client.KOMEQuotaLedgerOverlay;
+import kome.common.data.KOMEAllianceInventory;
 import kome.common.gui.KOMEContainerAllianceLedger;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
@@ -189,14 +190,14 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
         if ("Military".equals(type) && quotaItem.length() > 0 && requirement.startsWith("Collect ")) {
             return "Food quota rolled";
         }
-        if ("Trade".equals(type) && quotaItem.length() > 0 && requirement.indexOf("5000 coins") >= 0) {
+        if ("Trade".equals(type) && quotaItem.length() > 0 && hasCoinRequirement(requirement, KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED)) {
             return "Deliver coins + food quota";
         }
-        if (requirement.indexOf("1000 coins") >= 0) {
-            return "Deliver 1000 Coins";
+        if (hasCoinRequirement(requirement, KOMEAllianceInventory.CIVIL_T1_COINS_REQUIRED)) {
+            return coinDeliveryLabel(KOMEAllianceInventory.CIVIL_T1_COINS_REQUIRED);
         }
-        if (requirement.indexOf("5000 coins") >= 0) {
-            return "Deliver 5000 Coins + Roll Trade Quota";
+        if (hasCoinRequirement(requirement, KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED)) {
+            return coinDeliveryLabel(KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED) + " + Roll Trade Quota";
         }
         if (requirement.indexOf("food quota") >= 0) {
             return type.equals("Trade") ? "Roll trade quota" : "Roll food quota";
@@ -204,11 +205,11 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
         if (requirement.startsWith("Collect ")) {
             return "Quota: " + requirement.substring("Collect ".length());
         }
-        if (requirement.indexOf("10000 coins") >= 0) {
-            return "Deliver 10000 Coins";
+        if (hasCoinRequirement(requirement, KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED)) {
+            return coinDeliveryLabel(KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED);
         }
-        if (requirement.indexOf("2000 enemies") >= 0) {
-            return "Kill 2000 enemies";
+        if (hasEnemyRequirement(requirement, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED)) {
+            return "Kill " + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " enemies";
         }
         if (requirement.indexOf("Receiving faction") >= 0) {
             return "Awaiting acceptance";
@@ -217,6 +218,18 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
             return "No active alliance";
         }
         return requirement;
+    }
+
+    private boolean hasCoinRequirement(String requirement, int required) {
+        return requirement.indexOf(required + " coins") >= 0;
+    }
+
+    private boolean hasEnemyRequirement(String requirement, int required) {
+        return requirement.indexOf(required + " enemies") >= 0;
+    }
+
+    private String coinDeliveryLabel(int required) {
+        return "Deliver " + required + " Coins";
     }
 
     private String ledgerProgress(String type, String[] parts, String[] quota) {

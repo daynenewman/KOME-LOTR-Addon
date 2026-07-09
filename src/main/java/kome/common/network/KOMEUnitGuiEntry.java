@@ -30,6 +30,7 @@ public class KOMEUnitGuiEntry {
     public String companyId = "";
     public String companyName = "";
     public String companyStatus = "";
+    public boolean haltedProtected;
 
     public void fromBytes(ByteBuf buf) {
         entityId = read(buf);
@@ -58,6 +59,7 @@ public class KOMEUnitGuiEntry {
         companyId = read(buf);
         companyName = read(buf);
         companyStatus = read(buf);
+        haltedProtected = buf.readBoolean();
     }
 
     public void toBytes(ByteBuf buf) {
@@ -87,6 +89,7 @@ public class KOMEUnitGuiEntry {
         write(buf, companyId);
         write(buf, companyName);
         write(buf, companyStatus);
+        buf.writeBoolean(haltedProtected);
     }
 
     private static String read(ByteBuf buf) {

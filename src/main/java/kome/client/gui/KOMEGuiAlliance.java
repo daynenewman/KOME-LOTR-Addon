@@ -2,6 +2,7 @@ package kome.client.gui;
 
 import kome.client.KOMEMinecraftClient;
 import kome.common.data.KOMEAlliance;
+import kome.common.data.KOMEAllianceInventory;
 import kome.common.network.KOMEPacketAllianceRequest;
 import kome.common.network.KOMEPacketHandler;
 import lotr.client.gui.LOTRGuiMenu;
@@ -367,22 +368,32 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return "Requirement: receiving faction accepts the request.";
         }
         if (selectedType == 0) {
-            return tierIndex == 1 ? "Requirement: deposit 1000 coins." : "Requirement: buy or sell 500 coins with " + record.factionB + " traders. Progress: " + Math.min(record.civilTradeDelivered, 500) + "/500 coins.";
+            return tierIndex == 1 ? "Requirement: deposit " + KOMEAllianceInventory.CIVIL_T1_COINS_REQUIRED + " coins."
+                : "Requirement: buy or sell " + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " coins with " + record.factionB
+                + " traders. Progress: " + Math.min(record.civilTradeDelivered, KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED)
+                + "/" + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " coins.";
         }
         if (selectedType == 1) {
             if (tierIndex == 1) {
                 return "Requirement: " + quotaStatus(record.militaryFood, record.militaryFoodDelivered);
             }
             if (tierIndex == 2) {
-                return "Requirement: kill 2000 enemies of " + record.factionB + ". Progress: " + Math.min(record.militaryKillsDelivered, 2000) + "/2000 kills. Possible targets: " + enemyFactionList(record.keyB) + ".";
+                return "Requirement: kill " + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " enemies of " + record.factionB
+                    + ". Progress: " + Math.min(record.militaryKillsDelivered, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED)
+                    + "/" + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " kills. Possible targets: " + enemyFactionList(record.keyB) + ".";
             }
             if (tierIndex == 3) {
-                return "Requirement: 250 pop build in faction and waypoint battle with them.";
+                return "Requirement: complete the population build and waypoint battle.";
             }
-            return "Requirement: 3k alignment. Cost: 50 pop and 30000 coins. Available pop: " + Math.min(record.militaryT4Pop, 50) + "/50. Coins: " + Math.min(record.militaryT4CoinsDelivered, 30000) + "/30000.";
+            return "Requirement: cost " + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + " pop and "
+                + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + " coins. Available pop: "
+                + Math.min(record.militaryT4Pop, KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED) + "/"
+                + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + ". Coins: "
+                + Math.min(record.militaryT4CoinsDelivered, KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED) + "/"
+                + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + ".";
         }
         return tierIndex == 1
-            ? "Requirement: 5000 coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered)
+            ? "Requirement: " + KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED + " coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered)
             : tradeT2Requirement(record);
     }
 
@@ -493,17 +504,24 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
 
     private String getDeliveredProgress(Record record) {
         if (selectedType == 0) {
-            return record.civilTradeDelivered > 0 ? Math.min(record.civilTradeDelivered, 500) + "/500 trade coins" : "No delivered progress yet.";
+            return record.civilTradeDelivered > 0
+                ? Math.min(record.civilTradeDelivered, KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED)
+                + "/" + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " trade coins"
+                : "No delivered progress yet.";
         }
         if (selectedType == 1) {
             if (record.militaryTier == 0) {
                 return quotaStatus(record.militaryFood, record.militaryFoodDelivered);
             }
             if (record.militaryTier == 1) {
-                return Math.min(record.militaryKillsDelivered, 2000) + "/2000 enemy kills";
+                return Math.min(record.militaryKillsDelivered, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED)
+                    + "/" + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " enemy kills";
             }
             if (record.militaryTier >= 3) {
-                return Math.min(record.militaryT4Pop, 50) + "/50 pop, " + Math.min(record.militaryT4CoinsDelivered, 30000) + "/30000 coins";
+                return Math.min(record.militaryT4Pop, KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED)
+                    + "/" + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + " pop, "
+                    + Math.min(record.militaryT4CoinsDelivered, KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED)
+                    + "/" + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + " coins";
             }
             return "No delivered progress yet.";
         }
@@ -511,7 +529,10 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return quotaStatus(record.tradeFood, record.tradeFoodDelivered);
         }
         if (record.tradeTier >= 1) {
-            return Math.min(record.tradeFarmerPop, 50) + "/50 farmer pop, " + Math.min(record.tradeT2CoinsDelivered, 10000) + "/10000 coins";
+            return Math.min(record.tradeFarmerPop, KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED)
+                + "/" + KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED + " farmer pop, "
+                + Math.min(record.tradeT2CoinsDelivered, KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED)
+                + "/" + KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED + " coins";
         }
         return "No delivered progress yet.";
     }
@@ -534,10 +555,10 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         }
         if (selectedType == 0) {
             if (tier == 0) {
-                return "Deposit 1000 coins.";
+                return "Deposit " + KOMEAllianceInventory.CIVIL_T1_COINS_REQUIRED + " coins.";
             }
             if (tier == 1) {
-                return "Trade 500 coins worth of goods. Staff confirms this tier for now.";
+                return "Trade " + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " coins worth of goods. Staff confirms this tier for now.";
             }
             return "Civil alliance complete.";
         }
@@ -546,18 +567,25 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
                 return quotaStatus(record.militaryFood, record.militaryFoodDelivered);
             }
             if (tier == 1) {
-                return "Kill 2000 enemies of " + record.factionB + ". Progress: " + Math.min(record.militaryKillsDelivered, 2000) + "/2000 kills.";
+                return "Kill " + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " enemies of " + record.factionB
+                    + ". Progress: " + Math.min(record.militaryKillsDelivered, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED)
+                    + "/" + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " kills.";
             }
             if (tier == 2) {
-                return "250 pop build in faction and waypoint battle with them.";
+                return "Complete the population build and waypoint battle.";
             }
             if (tier == 3) {
-                return "3k alignment required. Cost: 50 pop and 30000 coins. Pop: " + Math.min(record.militaryT4Pop, 50) + "/50. Coins: " + Math.min(record.militaryT4CoinsDelivered, 30000) + "/30000.";
+                return "Cost: " + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + " pop and "
+                    + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + " coins. Pop: "
+                    + Math.min(record.militaryT4Pop, KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED)
+                    + "/" + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + ". Coins: "
+                    + Math.min(record.militaryT4CoinsDelivered, KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED)
+                    + "/" + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + ".";
             }
             return "Military alliance complete.";
         }
         if (tier == 0) {
-            return "Deposit 5000 coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered);
+            return "Deposit " + KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED + " coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered);
         }
         if (tier == 1) {
             return tradeT2Requirement(record);
@@ -566,9 +594,12 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private String tradeT2Requirement(Record record) {
-        return "Spend 50 farmer pop and deposit 10000 coins. Available farmer pop: "
-            + Math.min(record.tradeFarmerPop, 50) + "/50. Coins: "
-            + Math.min(record.tradeT2CoinsDelivered, 10000) + "/10000.";
+        return "Spend " + KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED + " farmer pop and deposit "
+            + KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED + " coins. Available farmer pop: "
+            + Math.min(record.tradeFarmerPop, KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED)
+            + "/" + KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED + ". Coins: "
+            + Math.min(record.tradeT2CoinsDelivered, KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED)
+            + "/" + KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED + ".";
     }
 
     private String quotaStatus(String assignment, int delivered) {

@@ -669,6 +669,7 @@ public class KOMECommandPopulation extends CommandBase {
         unit.levelCap = Math.max(0, record.levelCap);
         unit.companyId = record.companyId == null ? "" : record.companyId;
         unit.companyName = record.lotrCompanyValue == null ? "" : record.lotrCompanyValue;
+        unit.haltedProtected = kome.common.data.KOMEHaltedUnitProtection.isProtectedRecord(data, null, record);
         kome.common.data.KOMEArmyCompany company = data.armyCompanies.get(unit.companyId);
         if (company != null) {
             unit.companyName = company.name;
@@ -691,7 +692,10 @@ public class KOMECommandPopulation extends CommandBase {
             unit.movementStatus = "Stationed";
         }
 
-        if (record.farmhand) {
+        if (unit.haltedProtected) {
+            unit.canMove = false;
+            unit.cannotMoveReason = "Halted: Protected / Inactive";
+        } else if (record.farmhand) {
             unit.canMove = false;
             unit.cannotMoveReason = "Farmhands are not military units";
             unit.releasesTo = "Player farmhand capacity";
@@ -722,13 +726,7 @@ public class KOMECommandPopulation extends CommandBase {
     }
 
     private boolean canCompanyStandOnTile(KOMEWorldData data, String tileId, String factionKey) {
-        KOMEConquestTile tile = data.getConquestTile(tileId);
-        if (tile == null || !tile.isClaimed()) {
-            return false;
-        }
-        String owner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
-        String faction = KOMEAlliance.normalizeFactionKey(factionKey);
-        return owner.equals(faction) || data.canFactionUseMilitaryPassage(faction, owner);
+        return data.canFactionStandOnTile(tileId, factionKey);
     }
 
     private String knownPlayerName(KOMEWorldData data, UUID playerId) {
