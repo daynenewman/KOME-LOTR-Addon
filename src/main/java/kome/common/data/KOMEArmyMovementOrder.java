@@ -16,6 +16,10 @@ public class KOMEArmyMovementOrder {
     public static final String SPAWN_BLOCKED = "spawn_blocked";
     public static final String WAITING_NEXT_STEP = "waiting_next_step";
     public static final String STOPPED = "stopped";
+    public static final String ACCESS_HALTED = "access_halted";
+    public static final String RETREATING = "retreating";
+    public static final String HOLDING = "holding";
+    public static final String WAR_ENDED_HALTED = "war_ended_halted";
     public static final long REAL_DAY_MILLIS = 24L * 60L * 60L * 1000L;
 
     public String id = "";
@@ -28,6 +32,7 @@ public class KOMEArmyMovementOrder {
     public String destinationTile = "";
     public final List<UUID> units = new ArrayList<UUID>();
     public final List<String> routeTiles = new ArrayList<String>();
+    public final List<String> traveledRouteTiles = new ArrayList<String>();
     public int population;
     public int mountedUnits;
     public int groundUnits;
@@ -89,10 +94,17 @@ public class KOMEArmyMovementOrder {
     public int lastChunkLoadChunkZ;
     public long lastChunkLoadAttemptMillis;
     public boolean lastChunkLoadTicketAcquired;
+    public boolean retreating;
+    public boolean haltAfterArrival;
+    public String accessLossReason = "";
+    public long accessLostAtMillis;
+    public String accessChoice = "";
 
     public boolean isMoving() {
         return MOVING.equals(status) || PENDING_SPAWN.equals(status) || SPAWNING.equals(status)
-            || SPAWN_BLOCKED.equals(status) || WAITING_NEXT_STEP.equals(status);
+            || SPAWN_BLOCKED.equals(status) || WAITING_NEXT_STEP.equals(status)
+            || ACCESS_HALTED.equals(status) || RETREATING.equals(status) || HOLDING.equals(status)
+            || WAR_ENDED_HALTED.equals(status);
     }
 
     public boolean hasArrived(long nowMillis) {
@@ -198,6 +210,11 @@ public class KOMEArmyMovementOrder {
         nbt.setInteger("LastChunkLoadChunkZ", lastChunkLoadChunkZ);
         nbt.setLong("LastChunkLoadAttemptMillis", lastChunkLoadAttemptMillis);
         nbt.setBoolean("LastChunkLoadTicketAcquired", lastChunkLoadTicketAcquired);
+        nbt.setBoolean("Retreating", retreating);
+        nbt.setBoolean("HaltAfterArrival", haltAfterArrival);
+        nbt.setString("AccessLossReason", accessLossReason == null ? "" : accessLossReason);
+        nbt.setLong("AccessLostAtMillis", accessLostAtMillis);
+        nbt.setString("AccessChoice", accessChoice == null ? "" : accessChoice);
         NBTTagList unitList = new NBTTagList();
         for (UUID unit : units) {
             if (unit != null) {
@@ -214,6 +231,13 @@ public class KOMEArmyMovementOrder {
             routeList.appendTag(entry);
         }
         nbt.setTag("RouteTiles", routeList);
+        NBTTagList traveledList = new NBTTagList();
+        for (String tile : traveledRouteTiles) {
+            NBTTagCompound entry = new NBTTagCompound();
+            entry.setString("Tile", KOMEConquestTile.normalizeId(tile));
+            traveledList.appendTag(entry);
+        }
+        nbt.setTag("TraveledRouteTiles", traveledList);
         return nbt;
     }
 
@@ -304,6 +328,11 @@ public class KOMEArmyMovementOrder {
         lastChunkLoadChunkZ = nbt.hasKey("LastChunkLoadChunkZ") ? nbt.getInteger("LastChunkLoadChunkZ") : 0;
         lastChunkLoadAttemptMillis = nbt.hasKey("LastChunkLoadAttemptMillis") ? nbt.getLong("LastChunkLoadAttemptMillis") : 0L;
         lastChunkLoadTicketAcquired = nbt.hasKey("LastChunkLoadTicketAcquired") && nbt.getBoolean("LastChunkLoadTicketAcquired");
+        retreating = nbt.getBoolean("Retreating");
+        haltAfterArrival = nbt.getBoolean("HaltAfterArrival");
+        accessLossReason = nbt.getString("AccessLossReason");
+        accessLostAtMillis = nbt.getLong("AccessLostAtMillis");
+        accessChoice = nbt.getString("AccessChoice");
         units.clear();
         NBTTagList unitList = nbt.getTagList("Units", 10);
         for (int i = 0; i < unitList.tagCount(); i++) {
@@ -318,6 +347,19 @@ public class KOMEArmyMovementOrder {
             String tile = KOMEConquestTile.normalizeId(routeList.getCompoundTagAt(i).getString("Tile"));
             if (tile.length() > 0) {
                 routeTiles.add(tile);
+            }
+        }
+        traveledRouteTiles.clear();
+        NBTTagList traveledList = nbt.getTagList("TraveledRouteTiles", 10);
+        for (int i = 0; i < traveledList.tagCount(); i++) {
+            String tile = KOMEConquestTile.normalizeId(traveledList.getCompoundTagAt(i).getString("Tile"));
+            if (tile.length() > 0) {
+                traveledRouteTiles.add(tile);
+            }
+        }
+        if (traveledRouteTiles.isEmpty() && currentTile.length() > 0) {
+            for (int i = 0; i <= currentRouteIndex && i < routeTiles.size(); i++) {
+                traveledRouteTiles.add(KOMEConquestTile.normalizeId(routeTiles.get(i)));
             }
         }
         if (finalDestinationTile.length() == 0) {

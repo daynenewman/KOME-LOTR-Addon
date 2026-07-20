@@ -1,5 +1,7 @@
 # KOME Troop Movement Current Status
 
+> Read this together with the schema-5 war/transfer/departure addendum below; earlier owner-only route descriptions do not override current Military T2 or Wartime Stewardship checks.
+
 This document describes the current troop movement implementation as of the company-based movement pass. It focuses on how the backend state is stored, how movement is started and completed, and how that data reaches the front-end GUIs.
 
 ## High-Level Model
@@ -463,6 +465,22 @@ The Move button does not move one unit directly. It sends:
 ```
 
 So movement is still company-based.
+
+## Schema-5 war, transfer, and departure addendum
+
+Company movement now persists native faction, temporary authority type, authorized war IDs, legal opponent context, population source, stewardship reservation, permanent transfer offer, and withdrawal/demobilization state. The company GUI exposes these fields directly from the server.
+
+Wartime Stewardship routes by native identity. It may enter native land, current Military T2 passage, or the union of opposing factions in every authorizing active war. The actor must remain the recognized, actually pledged supporting king; ordinary members and operators playing normally cannot command the company. Checks run at GUI/action construction, preview, dispatch, departure, every step/arrival, pending spawn, tile change, war mutation/end, alliance downgrade, supporting-king loss/replacement, native-king creation, and restart. It grants no conquest-claim authority.
+
+Supporting factions enroll automatically on a kingless native side when Military T3 is effective. This recorded war membership is not removed when temporary authority becomes dormant. Ending one overlapping war removes only that war ID and its opponents; another valid active war keeps the company authorized and prevents premature withdrawal.
+
+When a war enters ENDING, an affected company in former opponent territory becomes `WAR_ENDED_HALTED`. Stay/Resume/Continue/retarget/recruit are rejected; only Retreat is accepted. Retreat follows the physical traveled route and prefers native territory before Military T2 staging. With no safe route, records remain `PENDING_ADMIN_RESOLUTION`; units are not teleported or deleted.
+
+At a safe tile, stewardship-created units demobilize without drops and exact native population returns once. Pre-existing native/orphan companies instead lose temporary control and become dormant. Persistent tombstones protect unloaded entities.
+
+Permanent transfer commands are owner offer, recipient accept/reject, and owner cancel. The recipient must be online and actually pledged to the same native faction. All units and reserve/allocation funding validate before one atomic mutation; moving, stewardship, malformed, or underfunded companies fail unchanged. Temporary delegation is never permanent transfer.
+
+Pledge departure cancels owned movement before snapshot/entity cleanup. A moving unit is removed from its snapshot path and cannot reappear at origin/destination. The Companies screen `Departure` button sends a typed sender-only request and opens a scrollable server-authored preview; refresh preserves its context and Back returns to the Companies screen. The command preview remains available for diagnostics.
 
 ## Map And Tile Command Troop Counts
 

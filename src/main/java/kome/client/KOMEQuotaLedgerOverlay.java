@@ -142,6 +142,38 @@ public class KOMEQuotaLedgerOverlay {
         return getSummaryPart(4);
     }
 
+    public static boolean canSwitchLedger() {
+        for (Object object : lines) {
+            String[] parts = String.valueOf(object).split("\t", -1);
+            if (parts.length >= 5 && "SWITCH".equals(parts[0])) {
+                return "1".equals(parts[4]);
+            }
+        }
+        return false;
+    }
+
+    public static String getSwitchLabel() {
+        return getSingleLinePart("SWITCH", 1, "Other Ledger");
+    }
+
+    public static String getSwitchSenderKey() {
+        return getSingleLinePart("SWITCH", 2, "");
+    }
+
+    public static String getSwitchReceiverKey() {
+        return getSingleLinePart("SWITCH", 3, "");
+    }
+
+    private static String getSingleLinePart(String key, int index, String fallback) {
+        for (Object object : lines) {
+            String[] parts = String.valueOf(object).split("\t", -1);
+            if (parts.length > index && key.equals(parts[0])) {
+                return parts[index];
+            }
+        }
+        return fallback;
+    }
+
     private static String getSummaryPart(int index) {
         for (Object object : lines) {
             String[] parts = String.valueOf(object).split("\t", -1);

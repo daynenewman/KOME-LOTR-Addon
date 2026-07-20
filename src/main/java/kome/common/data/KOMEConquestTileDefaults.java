@@ -39,6 +39,7 @@ public class KOMEConquestTileDefaults {
     private static final int EXPLICIT_BRIDGE_TILE_PAIR_SEARCH_RADIUS = 40;
     private static final Map<String, TileCenter> tileCenters = new HashMap<String, TileCenter>();
     private static final Map<String, Set<String>> tileAdjacency = new HashMap<String, Set<String>>();
+    private static final Set<String> knownTileIds = new HashSet<String>();
     private static final Map<String, EdgeStats> automaticEdgeStats = new HashMap<String, EdgeStats>();
     private static final Map<String, EdgeStats> bridgeResolverEdgeStats = new HashMap<String, EdgeStats>();
     private static final String[][] EXPLICIT_OPEN_EDGES = new String[][] {
@@ -151,6 +152,7 @@ public class KOMEConquestTileDefaults {
         ensureLoaded();
         Set<String> ids = new HashSet<String>(tileCenters.keySet());
         ids.addAll(tileAdjacency.keySet());
+        ids.addAll(knownTileIds);
         ids.removeAll(RETIRED_TILE_IDS);
         return ids;
     }
@@ -249,6 +251,10 @@ public class KOMEConquestTileDefaults {
         loaded = true;
         try {
             Map<Integer, String> idsByColor = loadTileIds();
+            for (String tileId : idsByColor.values()) {
+                String normalized = KOMEConquestTile.normalizeId(tileId);
+                if (normalized.length() > 0) knownTileIds.add(normalized);
+            }
             InputStream input = KOMEConquestTileDefaults.class.getClassLoader().getResourceAsStream(TILE_ID_MASK);
             if (input == null) {
                 return;

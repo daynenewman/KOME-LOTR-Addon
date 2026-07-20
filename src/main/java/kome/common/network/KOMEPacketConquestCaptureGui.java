@@ -54,6 +54,9 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
     public String currentRulingFaction = "";
     public String defaultRulingFaction = "";
     public String mapRegion = "";
+    public boolean claimConfirmationArmed;
+    public String claimWarning = "";
+    public String claimWarDestination = "";
 
     public KOMEPacketConquestCaptureGui() {
     }
@@ -187,6 +190,9 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         currentRulingFaction = ByteBufUtils.readUTF8String(buf);
         defaultRulingFaction = ByteBufUtils.readUTF8String(buf);
         mapRegion = ByteBufUtils.readUTF8String(buf);
+        claimConfirmationArmed = buf.readBoolean();
+        claimWarning = ByteBufUtils.readUTF8String(buf);
+        claimWarDestination = ByteBufUtils.readUTF8String(buf);
     }
 
     @Override
@@ -237,12 +243,15 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         ByteBufUtils.writeUTF8String(buf, currentRulingFaction);
         ByteBufUtils.writeUTF8String(buf, defaultRulingFaction);
         ByteBufUtils.writeUTF8String(buf, mapRegion);
+        buf.writeBoolean(claimConfirmationArmed);
+        ByteBufUtils.writeUTF8String(buf, claimWarning == null ? "" : claimWarning);
+        ByteBufUtils.writeUTF8String(buf, claimWarDestination == null ? "" : claimWarDestination);
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketConquestCaptureGui, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketConquestCaptureGui message, MessageContext ctx) {
-            KOMEAddon.proxy.displayConquestCaptureGui(message.tileId, message.ownerFaction, message.pendingFromFaction, message.pendingToFaction, message.viewerFaction, message.offensivePop, message.defensivePop, message.mountedPop, message.groundPop, message.incomingPop, message.outgoingPop, message.incomingEtaMillis, message.offensiveTotal, message.offensiveUsed, message.defensiveTotal, message.defensiveUsed, message.farmhandTotal, message.farmhandUsed, message.canClaim, message.canTransfer, message.canAcceptTransfer, message.canCancelTransfer, message.canMoveTroops, message.canEditPopulation, message.offensiveAllocated, message.defensiveAllocated, message.myOffensiveAllocated, message.myOffensiveUsed, message.myDefensiveAllocated, message.myDefensiveUsed, message.claimantName, message.allocationSummary, message.ownerHasKing, message.myOffensivePop, message.myDefensivePop, message.myMountedPop, message.myGroundPop, message.activeRecruitmentTile, message.canSetRecruitmentTile, message.lotrWaypointKey, message.lotrWaypointDisplayName, message.lotrWaypointRegion, message.waypointLevel, message.currentRulingFaction, message.defaultRulingFaction, message.mapRegion);
+            KOMEAddon.proxy.displayConquestCaptureGui(message);
             return null;
         }
     }

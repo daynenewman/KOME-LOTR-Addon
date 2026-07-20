@@ -1,12 +1,12 @@
 package kome.client.gui;
 
 import kome.client.KOMEConquestMapOverlay;
-import kome.client.KOMEMinecraftClient;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
 import kome.common.data.KOMEClientData;
 import kome.common.network.KOMEPacketConquestClaim;
+import kome.common.network.KOMEPacketConquestCaptureGui;
 import kome.common.network.KOMEPacketConquestTransfer;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketTilePopulationUpdate;
@@ -98,6 +98,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private String currentRulingFaction = "";
     private String defaultRulingFaction = "";
     private String mapRegion = "";
+    private boolean claimConfirmationArmed;
+    private String claimWarning = "";
+    private String claimWarDestination = "";
     private final List transferFactions = new ArrayList();
     private int transferIndex;
     private boolean transferMode;
@@ -108,6 +111,25 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private int panelY;
     private int panelW;
     private int panelH;
+    private final KOMEGuiConfirmationDialog confirmation = new KOMEGuiConfirmationDialog();
+    private boolean confirmationDismissed;
+
+    public KOMEGuiConquestCapture(KOMEPacketConquestCaptureGui message) {
+        this(message.tileId, message.ownerFaction, message.pendingFromFaction, message.pendingToFaction,
+            message.viewerFaction, message.offensivePop, message.defensivePop, message.mountedPop, message.groundPop,
+            message.incomingPop, message.outgoingPop, message.incomingEtaMillis, message.offensiveTotal, message.offensiveUsed,
+            message.defensiveTotal, message.defensiveUsed, message.farmhandTotal, message.farmhandUsed, message.canClaim,
+            message.canTransfer, message.canAcceptTransfer, message.canCancelTransfer, message.canMoveTroops,
+            message.canEditPopulation, message.offensiveAllocated, message.defensiveAllocated, message.myOffensiveAllocated,
+            message.myOffensiveUsed, message.myDefensiveAllocated, message.myDefensiveUsed, message.claimantName,
+            message.allocationSummary, message.ownerHasKing, message.myOffensivePop, message.myDefensivePop,
+            message.myMountedPop, message.myGroundPop, message.activeRecruitmentTile, message.canSetRecruitmentTile,
+            message.lotrWaypointKey, message.lotrWaypointDisplayName, message.lotrWaypointRegion, message.waypointLevel,
+            message.currentRulingFaction, message.defaultRulingFaction, message.mapRegion);
+        claimConfirmationArmed = message.claimConfirmationArmed;
+        claimWarning = safe(message.claimWarning);
+        claimWarDestination = safe(message.claimWarDestination);
+    }
 
     public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction) {
         this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, "", 0, 0, 0, 0, 0, 0, 0L);
@@ -232,7 +254,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         int gap = ACTION_BUTTON_GAP;
         int buttonCount = hasPendingTransfer() ? 5 : 4;
         int buttonW = Math.max(52, (panelW - PANEL_MARGIN * 2 - gap * (buttonCount - 1)) / buttonCount);
-        GuiButton claim = new KOMEGuiButton(ID_CLAIM, startX, actionY, buttonW, ACTION_BUTTON_HEIGHT, "Claim");
+        KOMEGuiButton claim = new KOMEGuiButton(ID_CLAIM, startX, actionY, buttonW, ACTION_BUTTON_HEIGHT,
+            claimConfirmationArmed ? "Confirm Hostile Claim" : "Claim");
+        if (claimConfirmationArmed) claim.setStyle(KOMEGuiButton.Style.DESTRUCTIVE);
         claim.enabled = canClaim;
         buttonList.add(claim);
         GuiButton transfer = new KOMEGuiButton(ID_TRANSFER_MODE, startX + (buttonW + gap), actionY, buttonW, ACTION_BUTTON_HEIGHT, "Sell/Trade");
@@ -248,6 +272,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             buttonList.add(new KOMEGuiButton(ID_BACK, startX + (buttonW + gap) * 4, actionY, buttonW, ACTION_BUTTON_HEIGHT, "Back"));
         } else {
             buttonList.add(new KOMEGuiButton(ID_BACK, startX + (buttonW + gap) * 3, actionY, buttonW, ACTION_BUTTON_HEIGHT, "Back"));
+        }
+        if (claimConfirmationArmed && !confirmationDismissed && !confirmation.isVisible()) {
+            showClaimConfirmation();
         }
     }
 
@@ -319,8 +346,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             return;
         }
         if (button.id == ID_CLAIM) {
-            KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestClaim(tileId));
-            KOMEConquestMapOverlay.openPreservedMap();
+            confirmationDismissed = false;
+            showClaimConfirmation();
         } else if (button.id == ID_BACK) {
             KOMEConquestMapOverlay.openPreservedMap();
         } else if (button.id == ID_PREV_FACTION) {
@@ -343,8 +370,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestTransfer(tileId, pendingToFaction, KOMEPacketConquestTransfer.CANCEL));
             KOMEConquestMapOverlay.openPreservedMap();
         } else if (button.id == ID_MOVE) {
-            KOMEMinecraftClient.sendChat("/troops companies " + tileId);
-            KOMEMinecraftClient.closePlayerScreen();
+            KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction("list", "", "", tileId));
         } else if (button.id == ID_CANCEL_TRANSFER_MODE) {
             transferMode = false;
             initGui();
@@ -353,12 +379,10 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         } else if (button.id >= ID_ALLOCATE_OFFENSIVE && button.id <= ID_UNALLOCATE_DEFENSIVE) {
             sendAllocationUpdate(button.id);
         } else if (button.id == ID_SET_RECRUITMENT_TILE) {
-            KOMEMinecraftClient.sendChat("/troops recruit " + tileId);
+            KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction("recruit", "", "", tileId));
             KOMEConquestMapOverlay.openPreservedMap();
         } else if (button.id == ID_VIEW_UNITS) {
-            String player = mc.thePlayer == null ? "" : mc.thePlayer.getCommandSenderName();
-            KOMEMinecraftClient.sendChat("/population units " + player + " " + tileId);
-            KOMEMinecraftClient.closePlayerScreen();
+            KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction("population_units", "", "", tileId));
         }
     }
 
@@ -379,10 +403,16 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
         drawDisabledTooltip(mouseX, mouseY);
+        confirmation.draw(fontRendererObj, width, height, mouseX, mouseY);
     }
 
     @Override
     protected void keyTyped(char c, int key) {
+        if (confirmation.isVisible() && key == 1) {
+            confirmation.hide();
+            confirmationDismissed = true;
+            return;
+        }
         if (populationAmountField != null && populationAmountField.textboxKeyTyped(c, key)) {
             return;
         }
@@ -394,6 +424,18 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) {
+        if (confirmation.isVisible()) {
+            int result = confirmation.click(mouseX, mouseY, button);
+            if (result == KOMEGuiConfirmationDialog.CONFIRM) {
+                confirmation.hide();
+                KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestClaim(tileId));
+                KOMEConquestMapOverlay.openPreservedMap();
+            } else if (result == KOMEGuiConfirmationDialog.CANCEL) {
+                confirmation.hide();
+                confirmationDismissed = true;
+            }
+            return;
+        }
         super.mouseClicked(mouseX, mouseY, button);
         if (populationAmountField != null) {
             populationAmountField.mouseClicked(mouseX, mouseY, button);
@@ -584,7 +626,19 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         } else if (hasPendingTransfer()) {
             String pending = "Pending: " + factionName(pendingFromFaction) + " -> " + factionName(pendingToFaction);
             KOMEGuiTheme.drawCenteredPlainText(fontRendererObj, KOMEGuiTheme.trimToWidth(fontRendererObj, pending, w - 20), x + w / 2, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+        } else if (claimWarning.length() > 0) {
+            String warning = claimWarning + (claimWarDestination.length() == 0 ? "" : " " + claimWarDestination);
+            KOMEGuiTheme.drawWarningBanner(fontRendererObj, claimConfirmationArmed ? "Claim Consequences" : "Claim Notice",
+                warning, x + 4, y + 2, w - 8,
+                claimConfirmationArmed ? KOMEGuiTheme.Status.DENIED : KOMEGuiTheme.Status.WARNING);
         }
+    }
+
+    private void showClaimConfirmation() {
+        String warning = claimWarning.length() > 0 ? claimWarning : "The server will evaluate ownership, alliance, and war consequences before changing this tile.";
+        if (claimWarDestination.length() > 0) warning += " " + claimWarDestination;
+        confirmation.show(claimConfirmationArmed ? "Confirm Allied/Hostile Claim" : "Confirm Tile Claim",
+            warning, claimConfirmationArmed ? "Confirm Claim" : "Continue");
     }
 
     private void title(String text, int x, int y, int w) {

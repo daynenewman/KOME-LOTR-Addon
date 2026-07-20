@@ -4,6 +4,7 @@ import kome.client.KOMEMinecraftClient;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceInventory;
 import kome.common.network.KOMEPacketAllianceRequest;
+import kome.common.network.KOMEPacketAllianceAction;
 import kome.common.network.KOMEPacketHandler;
 import lotr.client.gui.LOTRGuiMenu;
 import lotr.client.gui.LOTRGuiMenuBase;
@@ -13,7 +14,9 @@ import net.minecraft.client.gui.GuiButton;
 import org.lwjgl.input.Mouse;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private static final String[] TYPES = KOMEAlliancePermissions.TYPES;
@@ -22,11 +25,20 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private static List records = new ArrayList();
     private static List factionKeys = new ArrayList();
     private static List factionNames = new ArrayList();
+    private static List factionKingKeys = new ArrayList();
+    private static List requestOptions = new ArrayList();
+    private static Map trackRecords = new HashMap();
+    private static Map militaryContexts = new HashMap();
+    private static Map militaryCompanies = new HashMap();
     private static String summary = "Alliances: 0";
     private static String viewerFactionKey = "";
     private static String viewerFactionName = "No pledged faction";
     private static boolean viewerIsKing;
     private static boolean viewerFactionHasKing;
+    private static boolean viewerIsAdmin;
+    private static boolean operatorViewEnabled;
+    private static String serverMessage = "";
+    private static String configSummary = "Standard | Waypoints on";
 
     private int selected = -1;
     private int selectedType;
@@ -36,20 +48,41 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private int detailScroll;
     private boolean createMode;
     private boolean permissionMode;
+    private final KOMEGuiScrollPanel listPanel = new KOMEGuiScrollPanel();
 
     public static void update(List updatedLines) {
         rawLines = updatedLines == null ? new ArrayList() : new ArrayList(updatedLines);
         parseRecords();
+        if (KOMEMinecraftClient.currentScreen() instanceof KOMEGuiAllianceDetail) {
+            ((KOMEGuiAllianceDetail) KOMEMinecraftClient.currentScreen()).refreshRecord();
+        }
     }
 
     public static void resetData() {
         rawLines = new ArrayList();
         records = new ArrayList();
+        factionKingKeys = new ArrayList();
+        requestOptions = new ArrayList();
+        trackRecords = new HashMap();
+        militaryContexts = new HashMap();
+        militaryCompanies = new HashMap();
         summary = "Alliances: 0";
         viewerFactionKey = "";
         viewerFactionName = "No pledged faction";
         viewerIsKing = false;
         viewerFactionHasKing = false;
+        viewerIsAdmin = false;
+        operatorViewEnabled = false;
+        serverMessage = "";
+        configSummary = "Standard | Waypoints on";
+    }
+
+    public static void setServerMessage(String message) {
+        serverMessage = message == null ? "" : message;
+    }
+
+    static String serverMessage() {
+        return serverMessage;
     }
 
     @Override
@@ -85,6 +118,12 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     @Override
+    public void updateScreen() {
+        if (Boolean.getBoolean("kome.guiCapture") && mc.thePlayer == null) return;
+        super.updateScreen();
+    }
+
+    @Override
     public void actionPerformed(GuiButton button) {
         if (!button.enabled) {
             return;
@@ -111,6 +150,12 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         } else if (button.id == 7) {
             createType = wrap(createType + 1, TYPES.length);
             receiverIndex = ensureReceiverIndex(receiverIndex, 1);
+        } else if (button.id == 8 && viewerIsAdmin) {
+            operatorViewEnabled = !operatorViewEnabled;
+            selected = -1;
+            scroll = 0;
+            detailScroll = 0;
+            requestAlliances();
         }
         configureButtons();
     }
@@ -152,7 +197,13 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private void configureButtons() {
         buttonList.clear();
         buttonList.add(KOMEGuiButton.small(1, guiLeft + 14, guiTop + 14, "Menu"));
-        buttonList.add(KOMEGuiButton.small(2, guiLeft + xSize - 68, guiTop + 14, createMode ? "List" : "New"));
+        if (viewerIsAdmin) {
+            buttonList.add(new KOMEGuiButton(8, guiLeft + 76, guiTop + 14, 108, 20,
+                "Operator View: " + (operatorViewEnabled ? "On" : "Off")));
+        }
+        GuiButton mode = KOMEGuiButton.small(2, guiLeft + xSize - 68, guiTop + 14, createMode ? "List" : "New");
+        mode.enabled = createMode || !viewerFactionKey.isEmpty();
+        buttonList.add(mode);
         if (createMode) {
             receiverIndex = ensureReceiverIndex(receiverIndex, 1);
             int center = guiLeft + xSize / 2;
@@ -162,17 +213,20 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             int formH = getContentHeight() - 12;
             int cardX = formX + 32;
             int cardW = formW - 64;
-            int typeY = formY + 100;
-            int receiverY = formY + 154;
-            buttonList.add(new KOMEGuiButton(6, cardX + 14, typeY + 24, 30, 20, "<"));
-            buttonList.add(new KOMEGuiButton(7, cardX + cardW - 44, typeY + 24, 30, 20, ">"));
-            GuiButton receiverLeft = new KOMEGuiButton(3, cardX + 14, receiverY + 24, 30, 20, "<");
+            boolean compact = isCompactCreate(formH);
+            int typeY = compact ? formY + 53 : formY + 100;
+            int receiverY = compact ? formY + 76 : formY + 154;
+            int selectorY = compact ? 2 : 24;
+            int selectorH = compact ? 16 : 20;
+            buttonList.add(new KOMEGuiButton(6, cardX + 14, typeY + selectorY, 30, selectorH, "<"));
+            buttonList.add(new KOMEGuiButton(7, cardX + cardW - 44, typeY + selectorY, 30, selectorH, ">"));
+            GuiButton receiverLeft = new KOMEGuiButton(3, cardX + 14, receiverY + selectorY, 30, selectorH, "<");
             receiverLeft.enabled = hasSelectableReceiver(createType);
             buttonList.add(receiverLeft);
-            GuiButton receiverRight = new KOMEGuiButton(4, cardX + cardW - 44, receiverY + 24, 30, 20, ">");
+            GuiButton receiverRight = new KOMEGuiButton(4, cardX + cardW - 44, receiverY + selectorY, 30, selectorH, ">");
             receiverRight.enabled = hasSelectableReceiver(createType);
             buttonList.add(receiverRight);
-            GuiButton send = new KOMEGuiButton(5, center - 86, formY + formH - 34, 172, 24, "Send Request");
+            GuiButton send = new KOMEGuiButton(5, center - 86, formY + formH - (compact ? 28 : 34), 172, 24, "Send Request");
             send.enabled = canSendRequest();
             buttonList.add(send);
             return;
@@ -180,12 +234,21 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private void drawHeader() {
-        KOMEGuiTheme.drawHeader(fontRendererObj, "Alliances", guiLeft + 126, guiTop + 13, xSize - 252);
+        int headerX = guiLeft + (viewerIsAdmin ? 192 : 126);
+        KOMEGuiTheme.drawHeader(fontRendererObj, "Alliances", headerX, guiTop + 13,
+            guiLeft + xSize - 126 - headerX);
         int metaY = guiTop + 48;
-        int leftW = xSize / 2 - 42;
-        fontRendererObj.drawString("Your Faction: " + KOMEGuiTheme.trimToWidth(fontRendererObj, viewerFactionName, leftW - 74), guiLeft + 22, metaY, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("King: " + (viewerIsKing ? "Yes" : "No"), guiLeft + xSize - 94, metaY, viewerIsKing ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_TEXT_MUTED);
-        fontRendererObj.drawString(summary, guiLeft + xSize / 2 - fontRendererObj.getStringWidth(summary) / 2, metaY, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        int columnW = (xSize - 44) / 3;
+        String faction = KOMEGuiTheme.trimToWidth(fontRendererObj, "Your Faction: " + viewerFactionName, columnW - 8);
+        fontRendererObj.drawString(faction, guiLeft + 22, metaY, KOMEGuiTheme.COLOR_TEXT);
+        String authority = "King: " + (viewerIsKing ? "Yes" : "No")
+            + (viewerIsAdmin ? " | Operator view: " + (operatorViewEnabled ? "all records" : "faction only") : "");
+        authority = KOMEGuiTheme.trimToWidth(fontRendererObj, authority, columnW - 8);
+        fontRendererObj.drawString(authority, guiLeft + xSize - fontRendererObj.getStringWidth(authority) - 22, metaY,
+            viewerIsKing || viewerIsAdmin ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_TEXT_MUTED);
+        String centerMeta = summary + " | " + configSummary;
+        centerMeta = KOMEGuiTheme.trimToWidth(fontRendererObj, centerMeta, columnW - 8);
+        fontRendererObj.drawString(centerMeta, guiLeft + xSize / 2 - fontRendererObj.getStringWidth(centerMeta) / 2, metaY, KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 
     private void drawList(int mouseX, int mouseY) {
@@ -200,7 +263,9 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return;
         }
         int rowStart = y + 28;
-        KOMEGuiTheme.enableScissor(mc, x + 1, rowStart, width - 3, height - 34);
+        listPanel.layout(x + 1, rowStart, width - 3, height - 34,
+            records.size() * getRowHeight()).setScroll(scroll * getRowHeight());
+        listPanel.begin(mc);
         for (int i = 0; i < getVisibleRows() && scroll + i < records.size(); i++) {
             Record record = (Record) records.get(scroll + i);
             int rowY = rowStart + i * getRowHeight();
@@ -208,18 +273,19 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             boolean hover = KOMEGuiTheme.isHovered(mouseX, mouseY, x + 8, rowY, width - 24, getRowHeight() - 8);
             drawAllianceRow(record, x + 8, rowY, width - 24, getRowHeight() - 8, active, hover);
         }
-        KOMEGuiTheme.disableScissor();
-        drawListScrollbar(x + width - 10, rowStart, height - 34);
+        listPanel.end();
+        listPanel.drawScrollbar();
     }
 
     private void drawAllianceRow(Record record, int x, int y, int width, int height, boolean active, boolean hover) {
         KOMEGuiTheme.drawCard(x, y, width, height, active || hover);
-        if (active) {
-            KOMEGuiTheme.drawBorderedRect(x + 2, y + 2, 4, height - 4, KOMEGuiTheme.COLOR_BORDER_RED, KOMEGuiTheme.COLOR_BORDER_RED);
-        }
+        int accent = KOMEGuiTheme.factionColor(record.allyFaction);
+        KOMEGuiTheme.drawBorderedRect(x + 2, y + 2, 4, height - 4,
+            active ? KOMEGuiTheme.COLOR_GOLD : accent, accent);
         int hintWidth = fontRendererObj.getStringWidth("Click for details");
         int titleWidth = width > 310 ? width - hintWidth - 32 : width - 24;
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, record.factionA + " -> " + record.factionB, titleWidth), x + 12, y + 9, KOMEGuiTheme.COLOR_BORDER_RED);
+        String title = record.factionA + " <-> " + record.factionB + " | " + record.strongestAgreement();
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, title, titleWidth), x + 12, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
         if (width > 310) {
             fontRendererObj.drawString("Click for details", x + width - hintWidth - 12, y + 9, KOMEGuiTheme.COLOR_TEXT_MUTED);
         }
@@ -232,11 +298,15 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         if (record.hasPending()) {
             drawStatusChip("Pending", -2, x + 12 + (chipW + chipGap) * 3, chipY, chipW);
         }
+        String footer = record.kingStatus() + (record.provisional() ? " | " + record.graceText() : "");
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, footer, width - 24), x + 12, y + height - 10,
+            record.provisional() ? KOMEGuiTheme.COLOR_WARN : KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 
     private void drawStatusChip(String label, int tier, int x, int y, int width) {
-        int fill = tier == -2 ? KOMEGuiTheme.COLOR_WARN : tier >= 0 ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_TEXT_MUTED;
-        KOMEGuiTheme.drawFactionBadge(fontRendererObj, label + " " + displayTier(tier), x, y, width, fill);
+        KOMEGuiTheme.Status status = tier == -2 ? KOMEGuiTheme.Status.WARNING
+            : tier >= 0 ? KOMEGuiTheme.Status.ACTIVE : KOMEGuiTheme.Status.LOCKED;
+        KOMEGuiTheme.drawStatusChip(fontRendererObj, label + " " + displayTier(tier), status, x, y, width);
     }
 
     private void drawDetail(int mouseX, int mouseY) {
@@ -269,10 +339,11 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
 
     private void drawTopDetailCard(Record record, int x, int y, int width, int mouseX, int mouseY) {
         KOMEGuiTheme.drawCard(x, y, width, 52, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, 52));
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, record.factionA + " -> " + record.factionB, width - 14), x + 8, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, record.factionA + " <-> " + record.factionB, width - 14), x + 8, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
         fontRendererObj.drawString("Sender: " + KOMEGuiTheme.trimToWidth(fontRendererObj, record.factionA, width / 2 - 58), x + 8, y + 21, KOMEGuiTheme.COLOR_TEXT);
         fontRendererObj.drawString("Receiver: " + KOMEGuiTheme.trimToWidth(fontRendererObj, record.factionB, width / 2 - 68), x + width / 2, y + 21, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("Updated by: " + KOMEGuiTheme.trimToWidth(fontRendererObj, record.lastUpdatedBy, width - 86), x + 8, y + 35, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        String footer = "Updated by: " + record.lastUpdatedBy;
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, footer, width - 16), x + 8, y + 35, KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 
     private void drawTierSections(Record record, int x, int y, int width, int height, int mouseX, int mouseY) {
@@ -284,7 +355,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         String next = getNextRequirement(record);
         int cursorY = y - detailScroll;
         cursorY = drawStatusCard(record, x, cursorY, width, mouseX, mouseY, next) + 8;
-        for (int i = 0; i < benefits.length; i++) {
+        for (int i = 1; i < benefits.length; i++) {
             String requirement = getTierRequirement(record, i);
             int panelHeight = getTierPanelHeight(requirement, width);
             boolean unlocked = tier >= i;
@@ -322,7 +393,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         int width = getDetailWidth() - 24;
         int height = 72 + KOMEGuiTheme.wrapText(fontRendererObj, getNextRequirement(record), width - 16).size() * 10 + KOMEGuiTheme.wrapText(fontRendererObj, getDeliveredProgress(record), width - 16).size() * 10;
         String[] benefits = BENEFITS[selectedType];
-        for (int i = 0; i < benefits.length; i++) {
+        for (int i = 1; i < benefits.length; i++) {
             height += getTierPanelHeight(getTierRequirement(record, i), width) + 8;
         }
         return height;
@@ -333,7 +404,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         int height = 0;
         for (int type = 0; type < TYPES.length; type++) {
             height += 26 + KOMEGuiTheme.wrapText(fontRendererObj, getPermissionLine(record, type), width - 16).size() * 10;
-            height += BENEFITS[type].length * 12 + 10;
+            height += (BENEFITS[type].length - 1) * 12 + 10;
         }
         return height;
     }
@@ -345,13 +416,13 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         int cursorY = y + 2 - detailScroll;
         for (int type = 0; type < TYPES.length; type++) {
             int tier = record.getTier(type);
-            int cardHeight = 28 + BENEFITS[type].length * 12 + KOMEGuiTheme.wrapText(fontRendererObj, getPermissionLine(record, type), width - 16).size() * 10;
+            int cardHeight = 28 + (BENEFITS[type].length - 1) * 12 + KOMEGuiTheme.wrapText(fontRendererObj, getPermissionLine(record, type), width - 16).size() * 10;
             KOMEGuiTheme.drawCard(x, cursorY, width, cardHeight, KOMEGuiTheme.isHovered(mouseX, mouseY, x, cursorY + detailScroll, width, cardHeight));
             fontRendererObj.drawString(TYPES[type] + " Permissions - " + displayTier(tier), x + 8, cursorY + 7, KOMEGuiTheme.COLOR_BORDER_RED);
             cursorY += 21;
             cursorY = KOMEGuiTheme.drawWrappedText(fontRendererObj, getPermissionLine(record, type), x + 8, cursorY, width - 16, KOMEGuiTheme.COLOR_TEXT_MUTED) + 4;
             String[] benefits = BENEFITS[type];
-            for (int i = 0; i < benefits.length; i++) {
+            for (int i = 1; i < benefits.length; i++) {
                 boolean unlocked = tier >= i;
                 int color = unlocked ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_TEXT_MUTED;
                 fontRendererObj.drawString((unlocked ? "* " : "- ") + benefits[i], x + 12, cursorY, color);
@@ -364,37 +435,26 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private String getTierRequirement(Record record, int tierIndex) {
-        if (tierIndex == 0) {
-            return "Requirement: receiving faction accepts the request.";
+        String base = "Both faction sides must independently complete their rolled T" + tierIndex + " item quota.";
+        if (selectedType == 0 && tierIndex == 2) {
+            return base + " Each side must also complete " + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " legitimate allied trades.";
         }
-        if (selectedType == 0) {
-            return tierIndex == 1 ? "Requirement: deposit " + KOMEAllianceInventory.CIVIL_T1_COINS_REQUIRED + " coins."
-                : "Requirement: buy or sell " + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " coins with " + record.factionB
-                + " traders. Progress: " + Math.min(record.civilTradeDelivered, KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED)
-                + "/" + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " coins.";
+        if (selectedType == 1 && tierIndex == 1) {
+            return base + " Each side must reach 50 eligible kills and 50 effective offensive population.";
         }
-        if (selectedType == 1) {
-            if (tierIndex == 1) {
-                return "Requirement: " + quotaStatus(record.militaryFood, record.militaryFoodDelivered);
-            }
-            if (tierIndex == 2) {
-                return "Requirement: kill " + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " enemies of " + record.factionB
-                    + ". Progress: " + Math.min(record.militaryKillsDelivered, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED)
-                    + "/" + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " kills. Possible targets: " + enemyFactionList(record.keyB) + ".";
-            }
-            if (tierIndex == 3) {
-                return "Requirement: complete the population build and waypoint battle.";
-            }
-            return "Requirement: cost " + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + " pop and "
-                + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + " coins. Available pop: "
-                + Math.min(record.militaryT4Pop, KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED) + "/"
-                + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + ". Coins: "
-                + Math.min(record.militaryT4CoinsDelivered, KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED) + "/"
-                + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + ".";
+        if (selectedType == 1 && tierIndex == 2) {
+            return base + " Each side must reach 500 cumulative eligible kills and 150 effective offensive population.";
         }
-        return tierIndex == 1
-            ? "Requirement: " + KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED + " coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered)
-            : tradeT2Requirement(record);
+        if (selectedType == 1 && tierIndex == 3) {
+            return base + " Each side must reach 1,000 cumulative eligible kills and 300 effective offensive population.";
+        }
+        if (selectedType == 2 && tierIndex == 1) {
+            return base + " Each side must complete 50 legitimate allied trades.";
+        }
+        if (selectedType == 2 && tierIndex == 2) {
+            return base + " Each side must complete 250 cumulative legitimate allied trades.";
+        }
+        return base;
     }
 
     private void drawCreate(int mouseX, int mouseY) {
@@ -405,16 +465,19 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         int formH = getContentHeight() - 12;
         int cardX = formX + 32;
         int cardW = formW - 64;
-        int senderY = formY + 42;
-        int typeY = formY + 100;
-        int receiverY = formY + 154;
-        int sendY = formY + formH - 34;
+        boolean compact = isCompactCreate(formH);
+        int cardH = compact ? 20 : 48;
+        int senderY = compact ? formY + 30 : formY + 42;
+        int typeY = compact ? formY + 53 : formY + 100;
+        int receiverY = compact ? formY + 76 : formY + 154;
+        int sendY = formY + formH - (compact ? 28 : 34);
         String receiverName = hasSelectableReceiver(createType) && isSelectableReceiver(receiverIndex) ? factionName(receiverIndex) : "No eligible faction";
         KOMEGuiTheme.drawSubPanel(formX, formY, formW, formH);
         KOMEGuiTheme.drawSectionTitle(fontRendererObj, "Send Alliance Request", formX + 14, formY + 12, formW - 28);
-        drawFormCard("Sender faction", viewerFactionName, cardX, senderY, cardW, mouseX, mouseY);
-        drawFormCard("Alliance type", TYPES[createType], cardX, typeY, cardW, mouseX, mouseY);
-        drawFormCard("Receiver faction", receiverName, cardX, receiverY, cardW, mouseX, mouseY);
+        drawFormCard("Sender faction", viewerFactionName, cardX, senderY, cardW, cardH, mouseX, mouseY);
+        drawFormCard("Alliance type", TYPES[createType], cardX, typeY, cardW, cardH, mouseX, mouseY);
+        drawFormCard("Receiver faction", receiverName, cardX, receiverY, cardW, cardH, mouseX, mouseY);
+        if (compact) return;
         String description = getTypeDescription(createType);
         int descriptionY = receiverY + 56;
         int messageY = sendY - 31;
@@ -424,8 +487,32 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         KOMEGuiTheme.drawWrappedText(fontRendererObj, getCreateMessage(), cardX, messageY, cardW, canSendRequest() ? KOMEGuiTheme.COLOR_TEXT_MUTED : KOMEGuiTheme.COLOR_BAD);
     }
 
-    private void drawFormCard(String title, String value, int x, int y, int width, int mouseX, int mouseY) {
-        KOMEGuiTheme.drawCard(x, y, width, 48, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, 48));
+    private void drawFormCard(String title, String value, int x, int y, int width, int height, int mouseX, int mouseY) {
+        KOMEGuiTheme.drawCard(x, y, width, height, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, height));
+        if (height <= 20) {
+            boolean selector = title.indexOf("Alliance type") >= 0 || title.indexOf("Receiver faction") >= 0;
+            if (selector) {
+                String prefix = title.indexOf("Alliance type") >= 0 ? "Type: " : "Receiver: ";
+                KOMEGuiTheme.drawCenteredPlainText(fontRendererObj,
+                    KOMEGuiTheme.trimToWidth(fontRendererObj, prefix + value, width - 104),
+                    x + width / 2, y + 6, KOMEGuiTheme.COLOR_GOLD);
+                return;
+            }
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, title, 86), x + 7, y + 6, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            int inset = 92;
+            int rightInset = title.indexOf("faction") >= 0 && !"No eligible faction".equals(value) ? 82 : 8;
+            String text = KOMEGuiTheme.trimToWidth(fontRendererObj, value, Math.max(28, width - inset - rightInset));
+            KOMEGuiTheme.drawCenteredPlainText(fontRendererObj, text, x + inset + (width - inset - rightInset) / 2,
+                y + 6, KOMEGuiTheme.COLOR_TEXT);
+            if (title.indexOf("faction") >= 0 && !"No eligible faction".equals(value)) {
+                String key = title.indexOf("Sender") >= 0 ? viewerFactionKey
+                    : hasSelectableReceiver(createType) && isSelectableReceiver(receiverIndex) ? factionKey(receiverIndex) : "";
+                KOMEGuiTheme.drawFactionBadge(fontRendererObj, key, title.indexOf("Sender") >= 0 ? "Our Faction" : "Partner",
+                    x + width - 78, y + 1, 70);
+            }
+            return;
+        }
+
         fontRendererObj.drawString(title, x + 10, y + 8, KOMEGuiTheme.COLOR_TEXT_MUTED);
         boolean selector = title.indexOf("Alliance type") >= 0 || title.indexOf("Receiver faction") >= 0;
         int valueX = selector ? x + 58 : x + 10;
@@ -436,13 +523,28 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         } else {
             fontRendererObj.drawString(text, valueX, y + 28, KOMEGuiTheme.COLOR_BORDER_RED);
         }
+        if (title.indexOf("faction") >= 0 && !"No eligible faction".equals(value)) {
+            String key = title.indexOf("Sender") >= 0 ? viewerFactionKey
+                : hasSelectableReceiver(createType) && isSelectableReceiver(receiverIndex) ? factionKey(receiverIndex) : "";
+            KOMEGuiTheme.drawFactionBadge(fontRendererObj, key,
+                title.indexOf("Sender") >= 0 ? "Our Faction" : "Partner", x + width - 94, y + 7, 84);
+        }
+    }
+
+    private boolean isCompactCreate(int formHeight) {
+        return formHeight < 230;
     }
 
     private void requestAlliances() {
+        if (Boolean.getBoolean("kome.guiCapture")) return;
         rawLines = new ArrayList();
         records = new ArrayList();
         summary = "Loading...";
-        KOMEPacketHandler.network.sendToServer(new KOMEPacketAllianceRequest());
+        KOMEPacketHandler.network.sendToServer(new KOMEPacketAllianceRequest(operatorViewEnabled));
+    }
+
+    void setVisualTestCreateMode(boolean value) {
+        if (Boolean.getBoolean("kome.guiCapture")) createMode = value;
     }
 
     private boolean canSendRequest() {
@@ -461,10 +563,12 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return "Choose a different faction.";
         }
         if (!canRequestByDiplomacy(receiver, createType)) {
-            if (viewerFactionHasKing) {
+            if (viewerFactionHasKing && !viewerIsKing) {
                 return "Only your faction king can send alliance requests.";
             }
-            return "Your faction has no king, so this request must match the current faction relation.";
+            LOTRFactionRelations.Relation relation = getDefaultRelation(viewerFactionKey, receiver);
+            return "Default LOTR relation is " + relationName(relation)
+                + ". Civil requires Neutral+, Trade requires Friend+, and Military requires Ally.";
         }
         if (hasAllAllianceTypes(receiver)) {
             return "All alliance types already exist with this faction.";
@@ -472,7 +576,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         if (getAllianceTier(receiver, createType) != -1) {
             return "A " + TYPES[createType] + " alliance already exists with this faction.";
         }
-        return "This sends only a " + TYPES[createType] + " request. The other alliance types must be requested separately.";
+        return requestCascadeMessage(receiver);
     }
 
     private String getTypeDescription(int type) {
@@ -489,7 +593,8 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         if (!canSendRequest()) {
             return;
         }
-        KOMEMinecraftClient.sendChat("/alliance request " + typeKey(createType) + " " + viewerFactionKey + " " + factionKey(receiverIndex));
+        KOMEPacketHandler.network.sendToServer(new KOMEPacketAllianceAction("request", typeKey(createType),
+            viewerFactionKey, factionKey(receiverIndex)));
         createMode = false;
         requestAlliances();
     }
@@ -499,42 +604,11 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private String displayTier(int tier) {
-        return tier == -2 ? "Pending" : tier < 0 ? "None" : "T" + tier;
+        return tier == -2 ? "Pending" : tier < 0 ? "None" : tier == 0 ? "Established" : "T" + tier;
     }
 
     private String getDeliveredProgress(Record record) {
-        if (selectedType == 0) {
-            return record.civilTradeDelivered > 0
-                ? Math.min(record.civilTradeDelivered, KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED)
-                + "/" + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " trade coins"
-                : "No delivered progress yet.";
-        }
-        if (selectedType == 1) {
-            if (record.militaryTier == 0) {
-                return quotaStatus(record.militaryFood, record.militaryFoodDelivered);
-            }
-            if (record.militaryTier == 1) {
-                return Math.min(record.militaryKillsDelivered, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED)
-                    + "/" + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " enemy kills";
-            }
-            if (record.militaryTier >= 3) {
-                return Math.min(record.militaryT4Pop, KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED)
-                    + "/" + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + " pop, "
-                    + Math.min(record.militaryT4CoinsDelivered, KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED)
-                    + "/" + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + " coins";
-            }
-            return "No delivered progress yet.";
-        }
-        if (record.tradeTier == 0) {
-            return quotaStatus(record.tradeFood, record.tradeFoodDelivered);
-        }
-        if (record.tradeTier >= 1) {
-            return Math.min(record.tradeFarmerPop, KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED)
-                + "/" + KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED + " farmer pop, "
-                + Math.min(record.tradeT2CoinsDelivered, KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED)
-                + "/" + KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED + " coins";
-        }
-        return "No delivered progress yet.";
+        return "Your side: " + record.quota(selectedType, false) + ". Allied side: " + record.quota(selectedType, true) + ".";
     }
 
     private String getPermissionLine(Record record, int type) {
@@ -545,7 +619,9 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         if (tier < 0) {
             return "No active " + TYPES[type] + " alliance.";
         }
-        return "Unlocked through " + displayTier(tier) + ". Higher tiers continue to unlock the listed permissions.";
+        String state = record.provisional() ? "Provisional succession/grace state. " : "";
+        return state + (tier == 0 ? "T0 is accepted base status and grants no tier benefit. " : "Unlocked through " + displayTier(tier) + ". ")
+            + "Higher tiers require both faction sides to complete their own shared-side objective.";
     }
 
     private String getNextRequirement(Record record) {
@@ -553,80 +629,13 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         if (tier == -2) {
             return "Waiting for the receiving king to accept.";
         }
-        if (selectedType == 0) {
-            if (tier == 0) {
-                return "Deposit " + KOMEAllianceInventory.CIVIL_T1_COINS_REQUIRED + " coins.";
-            }
-            if (tier == 1) {
-                return "Trade " + KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED + " coins worth of goods. Staff confirms this tier for now.";
-            }
-            return "Civil alliance complete.";
+        int maxTier = selectedType == 1 ? 3 : 2;
+        if (tier >= maxTier) {
+            return TYPES[selectedType] + " alliance complete.";
         }
-        if (selectedType == 1) {
-            if (tier == 0) {
-                return quotaStatus(record.militaryFood, record.militaryFoodDelivered);
-            }
-            if (tier == 1) {
-                return "Kill " + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " enemies of " + record.factionB
-                    + ". Progress: " + Math.min(record.militaryKillsDelivered, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED)
-                    + "/" + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " kills.";
-            }
-            if (tier == 2) {
-                return "Complete the population build and waypoint battle.";
-            }
-            if (tier == 3) {
-                return "Cost: " + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + " pop and "
-                    + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + " coins. Pop: "
-                    + Math.min(record.militaryT4Pop, KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED)
-                    + "/" + KOMEAllianceInventory.MILITARY_T4_POP_REQUIRED + ". Coins: "
-                    + Math.min(record.militaryT4CoinsDelivered, KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED)
-                    + "/" + KOMEAllianceInventory.MILITARY_T4_COINS_REQUIRED + ".";
-            }
-            return "Military alliance complete.";
-        }
-        if (tier == 0) {
-            return "Deposit " + KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED + " coins and " + quotaStatus(record.tradeFood, record.tradeFoodDelivered);
-        }
-        if (tier == 1) {
-            return tradeT2Requirement(record);
-        }
-        return "Trade alliance complete.";
-    }
-
-    private String tradeT2Requirement(Record record) {
-        return "Spend " + KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED + " farmer pop and deposit "
-            + KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED + " coins. Available farmer pop: "
-            + Math.min(record.tradeFarmerPop, KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED)
-            + "/" + KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED + ". Coins: "
-            + Math.min(record.tradeT2CoinsDelivered, KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED)
-            + "/" + KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED + ".";
-    }
-
-    private String quotaStatus(String assignment, int delivered) {
-        int required = quotaRequiredUnits(assignment);
-        if (required <= 0) {
-            return "food quota not rolled yet.";
-        }
-        return assignment + " (" + delivered + "/" + required + " units)";
-    }
-
-    private int quotaRequiredUnits(String assignment) {
-        if (assignment == null || !assignment.startsWith("Collect ")) {
-            return 0;
-        }
-        String rest = assignment.substring("Collect ".length());
-        int firstSpace = rest.indexOf(' ');
-        if (firstSpace <= 0) {
-            return 0;
-        }
-        int amount = parseInt(rest.substring(0, firstSpace));
-        String afterAmount = rest.substring(firstSpace + 1);
-        int ofIndex = afterAmount.indexOf(" of ");
-        if (amount <= 0 || ofIndex <= 0) {
-            return 0;
-        }
-        String unit = afterAmount.substring(0, ofIndex).trim();
-        return "stacks".equalsIgnoreCase(unit) ? amount * 64 : amount;
+        int target = tier + 1;
+        return getTierRequirement(record, target) + " Your side: " + record.quota(selectedType, false)
+            + ". Allied side: " + record.quota(selectedType, true) + ".";
     }
 
     private int getTierPanelHeight(String requirement, int width) {
@@ -761,22 +770,40 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private boolean canRequestByDiplomacy(String receiver, int type) {
-        if (viewerIsKing) {
-            return true;
-        }
-        if (viewerFactionHasKing) {
+        if (!viewerIsKing) {
             return false;
         }
-        LOTRFactionRelations.Relation relation = getRelation(viewerFactionKey, receiver);
-        if (type == 1) {
-            return relation == LOTRFactionRelations.Relation.ALLY;
+        RequestOption option = findRequestOption(receiver);
+        return option != null && option.allowed(type);
+    }
+
+    private String requestCascadeMessage(String receiver) {
+        String suffix = receiverHasKing(receiver) ? " Waiting for the receiving king to accept."
+            : " The receiving faction has no recorded king, so it starts immediately.";
+        if (createType == 1) {
+            return "Military also starts Trade and Civil." + suffix;
         }
-        if (type == 2) {
-            return relation == LOTRFactionRelations.Relation.ALLY || relation == LOTRFactionRelations.Relation.FRIEND;
+        if (createType == 2) {
+            return "Trade also starts Civil." + suffix;
         }
-        return relation == LOTRFactionRelations.Relation.ALLY
-            || relation == LOTRFactionRelations.Relation.FRIEND
-            || relation == LOTRFactionRelations.Relation.NEUTRAL;
+        return "Civil starts the base diplomatic relationship." + suffix;
+    }
+
+    private static boolean receiverHasKing(String receiver) {
+        RequestOption option = findRequestOption(receiver);
+        return option != null ? option.receiverHasKing
+            : factionKingKeys.contains(KOMEAlliance.normalizeFactionKey(receiver));
+    }
+
+    private static RequestOption findRequestOption(String receiver) {
+        String key = KOMEAlliance.normalizeFactionKey(receiver);
+        for (Object object : requestOptions) {
+            RequestOption option = (RequestOption) object;
+            if (option.faction.equals(key)) {
+                return option;
+            }
+        }
+        return null;
     }
 
     private boolean hasAllAllianceTypes(String receiver) {
@@ -792,9 +819,18 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     private Record findRecord(String sender, String receiver) {
         for (Object object : records) {
             Record record = (Record) object;
-            if (record.keyA.equals(sender) && record.keyB.equals(receiver)) {
+            if (KOMEAlliance.pairKey(record.keyA, record.keyB).equals(KOMEAlliance.pairKey(sender, receiver))) {
                 return record;
             }
+        }
+        return null;
+    }
+
+    static Record recordFor(String first, String second) {
+        String pair = KOMEAlliance.pairKey(first, second);
+        for (Object object : records) {
+            Record record = (Record) object;
+            if (pair.equals(KOMEAlliance.pairKey(record.keyA, record.keyB))) return record;
         }
         return null;
     }
@@ -836,7 +872,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
     }
 
     private int getRowHeight() {
-        return 64;
+        return 70;
     }
 
     static String viewerFactionKey() {
@@ -845,6 +881,14 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
 
     static boolean viewerIsKing() {
         return viewerIsKing;
+    }
+
+    static boolean viewerIsAdmin() {
+        return viewerIsAdmin;
+    }
+
+    static boolean operatorViewEnabled() {
+        return operatorViewEnabled;
     }
 
     private String factionKey(int index) {
@@ -863,7 +907,7 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         }
         for (LOTRFaction faction : LOTRFaction.values()) {
             if (faction != null && faction.isPlayableAlignmentFaction()) {
-                factionKeys.add(faction.codeName());
+                factionKeys.add(KOMEAlliance.normalizeFactionKey(faction.codeName()));
                 factionNames.add(faction.factionName());
             }
         }
@@ -907,6 +951,43 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         return a == null || b == null ? LOTRFactionRelations.Relation.NEUTRAL : LOTRFactionRelations.getRelations(a, b);
     }
 
+    private static LOTRFactionRelations.Relation getDefaultRelation(String factionA, String factionB) {
+        LOTRFaction a = KOMEAlliance.findLotrFaction(factionA);
+        LOTRFaction b = KOMEAlliance.findLotrFaction(factionB);
+        if (a == null || b == null || a == b) {
+            return LOTRFactionRelations.Relation.NEUTRAL;
+        }
+        LOTRFactionRelations.Relation relation = getDefaultRelationReflective(a, b);
+        return relation == null ? LOTRFactionRelations.Relation.NEUTRAL : relation;
+    }
+
+    private static LOTRFactionRelations.Relation getDefaultRelationReflective(LOTRFaction a, LOTRFaction b) {
+        try {
+            java.lang.reflect.Method method = LOTRFactionRelations.class.getDeclaredMethod("getFromDefaultMap", LOTRFactionRelations.FactionPair.class);
+            method.setAccessible(true);
+            Object value = method.invoke(null, new LOTRFactionRelations.FactionPair(a, b));
+            return value instanceof LOTRFactionRelations.Relation ? (LOTRFactionRelations.Relation) value : null;
+        } catch (Throwable ignored) {
+            return LOTRFactionRelations.getRelations(a, b);
+        }
+    }
+
+    private static String relationName(LOTRFactionRelations.Relation relation) {
+        if (relation == LOTRFactionRelations.Relation.MORTAL_ENEMY) {
+            return "Mortal Enemy";
+        }
+        if (relation == LOTRFactionRelations.Relation.ENEMY) {
+            return "Enemy";
+        }
+        if (relation == LOTRFactionRelations.Relation.FRIEND) {
+            return "Friend";
+        }
+        if (relation == LOTRFactionRelations.Relation.ALLY) {
+            return "Ally";
+        }
+        return "Neutral";
+    }
+
     static int wrap(int index, int size) {
         if (size <= 0) {
             return 0;
@@ -919,9 +1000,16 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
 
     private static void parseRecords() {
         records = new ArrayList();
+        factionKingKeys = new ArrayList();
+        requestOptions = new ArrayList();
+        trackRecords = new HashMap();
+        militaryContexts = new HashMap();
+        militaryCompanies = new HashMap();
         summary = "Alliances: 0";
         viewerIsKing = false;
         viewerFactionHasKing = false;
+        viewerIsAdmin = false;
+        operatorViewEnabled = false;
         for (Object object : rawLines) {
             String line = String.valueOf(object);
             String[] parts = line.split("\t", -1);
@@ -931,14 +1019,51 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             if ("SUMMARY".equals(parts[0]) && parts.length >= 2) {
                 summary = "Alliances: " + parts[1];
             } else if ("VIEWER".equals(parts[0]) && parts.length >= 3) {
-                viewerFactionKey = parts[1];
+                viewerFactionKey = KOMEAlliance.normalizeFactionKey(parts[1]);
                 viewerFactionName = parts[2].length() == 0 ? "No pledged faction" : parts[2];
                 viewerIsKing = parts.length > 3 && "1".equals(parts[3]);
                 viewerFactionHasKing = parts.length > 4 && "1".equals(parts[4]);
+                viewerIsAdmin = parts.length > 5 && "1".equals(parts[5]);
+                operatorViewEnabled = parts.length > 6 && "1".equals(parts[6]);
+            } else if ("CONFIG".equals(parts[0]) && parts.length >= 5) {
+                configSummary = titleCase(parts[1]) + " | Waypoints " + ("1".equals(parts[3]) ? "on" : "off")
+                    + ("1".equals(parts[4]) ? " | bypass" : "");
+            } else if ("KING".equals(parts[0]) && parts.length >= 2) {
+                factionKingKeys.add(KOMEAlliance.normalizeFactionKey(parts[1]));
+            } else if ("REQUEST_OPTION".equals(parts[0]) && parts.length >= 6) {
+                requestOptions.add(new RequestOption(parts));
+            } else if ("TRACK".equals(parts[0]) && parts.length >= 25) {
+                TrackRecord track = new TrackRecord(parts);
+                trackRecords.put(trackKey(track.pair, track.side, track.type), track);
+            } else if ("MILITARY_CONTEXT".equals(parts[0]) && parts.length >= 15) {
+                MilitaryContext context = new MilitaryContext(parts);
+                militaryContexts.put(militaryKey(context.pair, context.nativeFaction), context);
+            } else if ("MILITARY_COMPANY".equals(parts[0]) && parts.length >= 16) {
+                MilitaryCompany company = new MilitaryCompany(parts);
+                String key = militaryKey(company.pair, company.nativeFaction);
+                List values = (List) militaryCompanies.get(key);
+                if (values == null) {
+                    values = new ArrayList();
+                    militaryCompanies.put(key, values);
+                }
+                values.add(company);
             } else if ("ALLIANCE".equals(parts[0]) && parts.length >= 10) {
                 records.add(new Record(parts));
             }
         }
+    }
+
+    private static String trackKey(String pair, String side, String type) {
+        return pair + "|" + KOMEAlliance.normalizeFactionKey(side) + "|" + KOMEAlliance.normalizeType(type);
+    }
+
+    private static String militaryKey(String pair, String nativeFaction) {
+        return pair + "|" + KOMEAlliance.normalizeFactionKey(nativeFaction);
+    }
+
+    private static String titleCase(String value) {
+        return value == null || value.length() == 0 ? "Standard"
+            : Character.toUpperCase(value.charAt(0)) + value.substring(1).toLowerCase();
     }
 
     private static int parseInt(String value) {
@@ -946,6 +1071,123 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return Integer.parseInt(value);
         } catch (NumberFormatException e) {
             return -1;
+        }
+    }
+
+    private static long parseLong(String value) {
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return 0L;
+        }
+    }
+
+    private static final class RequestOption {
+        final String faction;
+        final boolean civil;
+        final boolean military;
+        final boolean trade;
+        final boolean receiverHasKing;
+
+        private RequestOption(String[] parts) {
+            faction = KOMEAlliance.normalizeFactionKey(parts[1]);
+            civil = "1".equals(parts[2]);
+            military = "1".equals(parts[3]);
+            trade = "1".equals(parts[4]);
+            receiverHasKing = "1".equals(parts[5]);
+        }
+
+        boolean allowed(int type) {
+            return type == 1 ? military : type == 2 ? trade : civil;
+        }
+    }
+
+    static final class TrackRecord {
+        final String pair;
+        final String side;
+        final String partner;
+        final String type;
+        final String status;
+        final int tier;
+        final int targetTier;
+        final String quotaName;
+        final int quotaRequired;
+        final int quotaDelivered;
+        final String activityLabel;
+        final int activityRequired;
+        final int activityProgress;
+        final int populationRequired;
+        final int populationProgress;
+        final boolean completed;
+        final boolean waived;
+        final boolean graceActive;
+        final long graceEnd;
+        final boolean successionActive;
+        final long successionEnd;
+        final String benefit;
+        final boolean canManage;
+        final String actionReason;
+
+        private TrackRecord(String[] parts) {
+            pair = parts[1]; side = KOMEAlliance.normalizeFactionKey(parts[2]);
+            partner = KOMEAlliance.normalizeFactionKey(parts[3]); type = KOMEAlliance.normalizeType(parts[4]);
+            status = parts[5]; tier = parseInt(parts[6]); targetTier = parseInt(parts[7]); quotaName = parts[8];
+            quotaRequired = parseInt(parts[9]); quotaDelivered = parseInt(parts[10]); activityLabel = parts[11];
+            activityRequired = parseInt(parts[12]); activityProgress = parseInt(parts[13]);
+            populationRequired = parseInt(parts[14]); populationProgress = parseInt(parts[15]);
+            completed = "1".equals(parts[16]); waived = "1".equals(parts[17]); graceActive = "1".equals(parts[18]);
+            graceEnd = parseLong(parts[19]); successionActive = "1".equals(parts[20]); successionEnd = parseLong(parts[21]);
+            benefit = parts[22]; canManage = "1".equals(parts[23]); actionReason = parts[24];
+        }
+    }
+
+    static final class MilitaryContext {
+        final String pair;
+        final String nativeFaction;
+        final String supportingFaction;
+        final String state;
+        final String nativeKingName;
+        final String nativeKingId;
+        final String supportingKingName;
+        final String supportingKingId;
+        final String wars;
+        final String opponents;
+        final int eligible;
+        final int used;
+        final int available;
+        final String reason;
+
+        private MilitaryContext(String[] parts) {
+            pair = parts[1]; nativeFaction = KOMEAlliance.normalizeFactionKey(parts[2]);
+            supportingFaction = KOMEAlliance.normalizeFactionKey(parts[3]); state = parts[4];
+            nativeKingName = parts[5]; nativeKingId = parts[6]; supportingKingName = parts[7]; supportingKingId = parts[8];
+            wars = parts[9]; opponents = parts[10]; eligible = parseInt(parts[11]); used = parseInt(parts[12]);
+            available = parseInt(parts[13]); reason = parts[14];
+        }
+    }
+
+    static final class MilitaryCompany {
+        final String pair;
+        final String nativeFaction;
+        final String supportingFaction;
+        final String id;
+        final String name;
+        final String owner;
+        final String controller;
+        final boolean controllerIsKing;
+        final String wars;
+        final String tendency;
+        final String movementState;
+        final String cleanupState;
+        final String reason;
+        final int population;
+        final String actions;
+
+        private MilitaryCompany(String[] parts) {
+            pair = parts[1]; nativeFaction = KOMEAlliance.normalizeFactionKey(parts[2]);
+            supportingFaction = KOMEAlliance.normalizeFactionKey(parts[3]); id = parts[4]; name = parts[5]; owner = parts[6];
+            controller = parts[7]; controllerIsKing = "1".equals(parts[8]); wars = parts[9]; tendency = parts[10];
+            movementState = parts[11]; cleanupState = parts[12]; reason = parts[13]; population = parseInt(parts[14]); actions = parts[15];
         }
     }
 
@@ -965,13 +1207,37 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
         final int civilTradeDelivered;
         final int militaryKillsDelivered;
         final int tradeT2CoinsDelivered;
-        final int tradeFarmerPop;
-        final int militaryT4CoinsDelivered;
-        final int militaryT4Pop;
+        final int alliedTradesDelivered;
+        final int militaryNextKillRequirement;
+        final int offensiveCapacityMilestone;
+        final String civilStatus;
+        final String militaryStatus;
+        final String tradeStatus;
+        final String contributorFaction;
+        final String allyFaction;
+        final int contributorCivilCompleted;
+        final int contributorMilitaryCompleted;
+        final int contributorTradeCompleted;
+        final int allyCivilCompleted;
+        final int allyMilitaryCompleted;
+        final int allyTradeCompleted;
+        final boolean contributorWaived;
+        final boolean allyWaived;
+        final long contributorDeadline;
+        final long allyDeadline;
+        final String contributorCivilQuota;
+        final String contributorMilitaryQuota;
+        final String contributorTradeQuota;
+        final String allyCivilQuota;
+        final String allyMilitaryQuota;
+        final String allyTradeQuota;
+        final String civilPendingReceiver;
+        final String militaryPendingReceiver;
+        final String tradePendingReceiver;
 
         private Record(String[] parts) {
-            keyA = parts[1];
-            keyB = parts[2];
+            keyA = KOMEAlliance.normalizeFactionKey(parts[1]);
+            keyB = KOMEAlliance.normalizeFactionKey(parts[2]);
             factionA = parts[3];
             factionB = parts[4];
             civilTier = parseInt(parts[5]);
@@ -985,9 +1251,37 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             civilTradeDelivered = parts.length > 14 ? parseInt(parts[14]) : 0;
             militaryKillsDelivered = parts.length > 15 ? parseInt(parts[15]) : 0;
             tradeT2CoinsDelivered = parts.length > 16 ? parseInt(parts[16]) : 0;
-            tradeFarmerPop = parts.length > 17 ? parseInt(parts[17]) : 0;
-            militaryT4CoinsDelivered = parts.length > 18 ? parseInt(parts[18]) : 0;
-            militaryT4Pop = parts.length > 19 ? parseInt(parts[19]) : 0;
+            alliedTradesDelivered = parts.length > 17 ? parseInt(parts[17]) : civilTradeDelivered;
+            militaryNextKillRequirement = parts.length > 18 ? parseInt(parts[18]) : 0;
+            offensiveCapacityMilestone = parts.length > 19 ? parseInt(parts[19]) : 0;
+            civilStatus = parts.length > 20 ? parts[20] : statusFromTier(civilTier);
+            tradeStatus = parts.length > 21 ? parts[21] : statusFromTier(tradeTier);
+            militaryStatus = parts.length > 22 ? parts[22] : statusFromTier(militaryTier);
+            contributorFaction = parts.length > 23 ? parts[23] : keyA;
+            allyFaction = parts.length > 24 ? parts[24] : keyB;
+            contributorCivilCompleted = parts.length > 25 ? parseInt(parts[25]) : civilTier;
+            contributorTradeCompleted = parts.length > 26 ? parseInt(parts[26]) : tradeTier;
+            contributorMilitaryCompleted = parts.length > 27 ? parseInt(parts[27]) : militaryTier;
+            allyCivilCompleted = parts.length > 28 ? parseInt(parts[28]) : civilTier;
+            allyTradeCompleted = parts.length > 29 ? parseInt(parts[29]) : tradeTier;
+            allyMilitaryCompleted = parts.length > 30 ? parseInt(parts[30]) : militaryTier;
+            contributorWaived = parts.length > 31 && "1".equals(parts[31]);
+            allyWaived = parts.length > 32 && "1".equals(parts[32]);
+            contributorDeadline = parts.length > 33 ? parseLong(parts[33]) : 0L;
+            allyDeadline = parts.length > 34 ? parseLong(parts[34]) : 0L;
+            civilPendingReceiver = parts.length > 35 ? parts[35] : keyB;
+            tradePendingReceiver = parts.length > 36 ? parts[36] : keyB;
+            militaryPendingReceiver = parts.length > 37 ? parts[37] : keyB;
+            contributorCivilQuota = parts.length > 38 ? parts[38] : "T" + (civilTier + 1) + ": quota not rolled";
+            contributorMilitaryQuota = parts.length > 39 ? parts[39] : "T" + (militaryTier + 1) + ": quota not rolled";
+            contributorTradeQuota = parts.length > 40 ? parts[40] : "T" + (tradeTier + 1) + ": quota not rolled";
+            allyCivilQuota = parts.length > 41 ? parts[41] : "Unknown";
+            allyMilitaryQuota = parts.length > 42 ? parts[42] : "Unknown";
+            allyTradeQuota = parts.length > 43 ? parts[43] : "Unknown";
+        }
+
+        private static String statusFromTier(int tier) {
+            return tier == KOMEAlliance.PENDING ? "pending" : tier >= 0 ? "active" : "none";
         }
 
         int getTier(int type) {
@@ -1006,9 +1300,81 @@ public class KOMEGuiAlliance extends LOTRGuiMenuBase {
             return civilTier != -1 || militaryTier != -1 || tradeTier != -1;
         }
 
+        boolean hasAnyAcceptedAlliance() {
+            return civilTier >= 0 || militaryTier >= 0 || tradeTier >= 0;
+        }
+
         boolean needsQuotaRoll(int type) {
-            return type == 1 && militaryTier == 0 && militaryFood.trim().isEmpty()
-                || type == 2 && tradeTier == 0 && tradeFood.trim().isEmpty();
+            int tier = getTier(type);
+            return tier >= 0 && tier < (type == 1 ? 3 : 2) && quota(type, false).indexOf("quota not rolled") >= 0;
+        }
+
+        String quota(int type, boolean alliedSide) {
+            if (alliedSide) {
+                return type == 0 ? allyCivilQuota : type == 1 ? allyMilitaryQuota : allyTradeQuota;
+            }
+            return type == 0 ? contributorCivilQuota : type == 1 ? contributorMilitaryQuota : contributorTradeQuota;
+        }
+
+        int completedTier(int type, boolean alliedSide) {
+            if (alliedSide) {
+                return type == 0 ? allyCivilCompleted : type == 1 ? allyMilitaryCompleted : allyTradeCompleted;
+            }
+            return type == 0 ? contributorCivilCompleted : type == 1 ? contributorMilitaryCompleted : contributorTradeCompleted;
+        }
+
+        String status(int type) {
+            return type == 0 ? civilStatus : type == 1 ? militaryStatus : tradeStatus;
+        }
+
+        String pendingReceiver(int type) {
+            return type == 0 ? civilPendingReceiver : type == 1 ? militaryPendingReceiver : tradePendingReceiver;
+        }
+
+        boolean provisional() {
+            long now = System.currentTimeMillis();
+            return contributorDeadline > now || allyDeadline > now;
+        }
+
+        String strongestAgreement() {
+            int type = militaryTier >= tradeTier && militaryTier >= civilTier ? 1 : tradeTier >= civilTier ? 2 : 0;
+            int tier = getTier(type);
+            return tier == KOMEAlliance.PENDING ? (type == 0 ? "Civil" : type == 1 ? "Military" : "Trade") + " Pending"
+                : tier < 0 ? "No accepted track" : (type == 0 ? "Civil" : type == 1 ? "Military" : "Trade") + " T" + tier;
+        }
+
+        String kingStatus() {
+            return factionA + ": " + (factionKingKeys.contains(keyA) ? "King" : "Kingless") + " | "
+                + factionB + ": " + (factionKingKeys.contains(keyB) ? "King" : "Kingless");
+        }
+
+        String graceText() {
+            long deadline = Math.max(contributorDeadline, allyDeadline);
+            long remaining = Math.max(0L, deadline - System.currentTimeMillis());
+            long minutes = remaining / 60000L;
+            long days = minutes / 1440L;
+            long hours = minutes % 1440L / 60L;
+            long mins = minutes % 60L;
+            return "Grace until " + new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(new java.util.Date(deadline))
+                + " (" + days + "d " + hours + "h " + mins + "m remaining)";
+        }
+
+        TrackRecord track(int type, boolean alliedSide) {
+            String side = alliedSide ? allyFaction : contributorFaction;
+            return (TrackRecord) trackRecords.get(trackKey(KOMEAlliance.pairKey(keyA, keyB), side,
+                type == 0 ? KOMEAlliance.CIVIL : type == 1 ? KOMEAlliance.MILITARY : KOMEAlliance.TRADE));
+        }
+
+        MilitaryContext militaryContext(boolean alliedSide) {
+            String side = alliedSide ? allyFaction : contributorFaction;
+            return (MilitaryContext) militaryContexts.get(militaryKey(KOMEAlliance.pairKey(keyA, keyB), side));
+        }
+
+        List militaryCompanies(boolean alliedSide) {
+            String side = alliedSide ? allyFaction : contributorFaction;
+            List values = (List) militaryCompanies.get(militaryKey(KOMEAlliance.pairKey(keyA, keyB), side));
+            return values == null ? java.util.Collections.EMPTY_LIST : values;
         }
     }
+
 }

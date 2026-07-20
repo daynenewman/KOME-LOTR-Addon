@@ -18,9 +18,17 @@ import java.util.List;
 import java.util.Map;
 
 public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
-    private static String rememberedFilter = "All";
+    private static final String MODE_COMPANIES = "Companies";
+    private static final String MODE_ACTIVE = "Active Movements";
+    private static final String MODE_HISTORY = "Movement History";
+
+    private static String rememberedFilter = MODE_HISTORY;
     private static String rememberedCompanyKey = "";
     private static String rememberedMovementId = "";
+    private static boolean rememberedChoosingCompany;
+    private static boolean rememberedMovementDetail;
+    private static int rememberedScroll;
+    private static int rememberedDetailScroll;
 
     private final String baseTitle;
     private final String requestFaction;
@@ -29,10 +37,11 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
     private final List<KOMEMovementHistoryRecord> visibleRecords = new ArrayList<KOMEMovementHistoryRecord>();
     private final List<CompanySummary> companySummaries = new ArrayList<CompanySummary>();
 
-    private String filter = "All";
+    private String filter = MODE_HISTORY;
     private String selectedCompanyKey = "";
     private String selectedMovementId = "";
     private boolean choosingCompany;
+    private boolean viewingMovementDetail;
     private int selected = -1;
     private int scroll;
     private int detailScroll;
@@ -52,10 +61,18 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
         }
         sortRecords(allRecords);
         rebuildCompanies();
-        filter = rememberedFilter == null || rememberedFilter.length() == 0 ? "All" : rememberedFilter;
+        filter = normalizeMode(rememberedFilter);
         selectedCompanyKey = findCompany(rememberedCompanyKey) == null ? "" : rememberedCompanyKey;
         selectedMovementId = rememberedMovementId == null ? "" : rememberedMovementId;
+        choosingCompany = rememberedChoosingCompany && selectedCompanyKey.length() == 0;
+        viewingMovementDetail = rememberedMovementDetail && selectedMovementId.length() > 0;
         applyFilter(true);
+        scroll = Math.max(0, Math.min(maxScroll(), rememberedScroll));
+        detailScroll = Math.max(0, Math.min(maxDetailScroll(), rememberedDetailScroll));
+        if (viewingMovementDetail && selectedRecord() == null) {
+            viewingMovementDetail = false;
+            rememberedMovementDetail = false;
+        }
     }
 
     @Override
@@ -73,9 +90,10 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
         int x = guiLeft + 18;
         int y = guiTop + 52;
         for (int i = 0; i < filters.length; i++) {
-            GuiButton button = KOMEGuiButton.small(10 + i, x + i * 73, y, filters[i]);
-            boolean selectedButton = "Company".equals(filters[i]) ? selectedCompanyKey.length() > 0 || choosingCompany : filters[i].equals(filter) && !choosingCompany;
+            KOMEGuiButton button = new KOMEGuiButton(10 + i, x + i * 124, y, 116, KOMEGuiButton.HEIGHT_SMALL, filters[i]);
+            boolean selectedButton = isModeSelected(filters[i]);
             button.enabled = !selectedButton;
+            button.setSelected(selectedButton);
             buttonList.add(button);
         }
     }
@@ -86,26 +104,66 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
             return;
         }
         if (button == buttonBack) {
-            mc.displayGuiScreen(new KOMEGuiServerRecords());
+            handleBack();
         } else if (button == buttonRefresh) {
             rememberState();
             KOMEPacketHandler.network.sendToServer(new KOMEPacketMovementHistoryRequest(requestFaction, allFactions));
         } else if (button.id >= 10 && button.id < 20) {
             String chosen = filters()[button.id - 10];
-            if ("Company".equals(chosen)) {
+            viewingMovementDetail = false;
+            selectedMovementId = "";
+            if (MODE_COMPANIES.equals(chosen)) {
                 choosingCompany = true;
+                selectedCompanyKey = "";
             } else {
                 filter = chosen;
                 rememberedFilter = filter;
                 choosingCompany = false;
+                selectedCompanyKey = "";
                 detailScroll = 0;
                 scroll = 0;
                 applyFilter(false);
             }
+            rememberState();
             initGui();
         } else {
             super.actionPerformed(button);
         }
+    }
+
+    private void handleBack() {
+        if (viewingMovementDetail) {
+            viewingMovementDetail = false;
+            rememberedMovementDetail = false;
+            detailScroll = 0;
+            if (selectedRecord() == null) {
+                selectedMovementId = "";
+                applyFilter(false);
+            }
+            rememberState();
+            initGui();
+            return;
+        }
+        if (selectedCompanyKey.length() > 0) {
+            selectedCompanyKey = "";
+            rememberedCompanyKey = "";
+            choosingCompany = false;
+            detailScroll = 0;
+            applyFilter(true);
+            rememberState();
+            initGui();
+            return;
+        }
+        if (choosingCompany) {
+            choosingCompany = false;
+            filter = normalizeMode(rememberedFilter);
+            applyFilter(true);
+            rememberState();
+            initGui();
+            return;
+        }
+        clearRememberedState();
+        mc.displayGuiScreen(new KOMEGuiServerRecords());
     }
 
     @Override
@@ -148,13 +206,14 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
     private boolean handleHeaderClick(int mouseX, int mouseY) {
         int x = listX();
         int y = contentY() + 25;
-        if (selectedCompanyKey.length() > 0 && KOMEGuiTheme.isHovered(mouseX, mouseY, x + 9, y, 118, 16)) {
+        if (selectedCompanyKey.length() > 0 && !viewingMovementDetail && KOMEGuiTheme.isHovered(mouseX, mouseY, x + 9, y, 118, 16)) {
             selectedCompanyKey = "";
             rememberedCompanyKey = "";
             choosingCompany = false;
             scroll = 0;
             detailScroll = 0;
             applyFilter(false);
+            rememberState();
             initGui();
             return true;
         }
@@ -172,9 +231,11 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
                     selectedCompanyKey = company.companyKey;
                     rememberedCompanyKey = selectedCompanyKey;
                     choosingCompany = false;
+                    viewingMovementDetail = false;
                     scroll = 0;
                     detailScroll = 0;
                     applyFilter(false);
+                    rememberState();
                     initGui();
                     return true;
                 }
@@ -187,7 +248,9 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
                 selected = scroll + i;
                 selectedMovementId = visibleRecords.get(selected).historyId;
                 rememberedMovementId = selectedMovementId;
+                viewingMovementDetail = true;
                 detailScroll = 0;
+                rememberState();
                 return true;
             }
         }
@@ -215,14 +278,17 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
         int x = listX();
         int y = contentY();
         KOMEGuiTheme.drawSubPanel(x, y, listW(), contentH());
-        String title = choosingCompany ? "Companies" : selectedCompanyKey.length() > 0 ? "Company Movements" : filter + " Movements";
+        String title = choosingCompany ? "Companies" : selectedCompanyKey.length() > 0 ? "Company Movement List" : filter;
         KOMEGuiTheme.drawSectionTitle(fontRendererObj, title, x + 9, y + 8, listW() - 18);
-        if (selectedCompanyKey.length() > 0 && !choosingCompany) {
-            drawMiniButton(x + 9, y + 25, 118, "Back to All Movements", mouseX, mouseY);
+        if (selectedCompanyKey.length() > 0 && !choosingCompany && !viewingMovementDetail) {
+            drawMiniButton(x + 9, y + 25, 118, "Back to " + filter, mouseX, mouseY);
             CompanySummary company = findCompany(selectedCompanyKey);
             if (company != null) {
                 fontRendererObj.drawString("Viewing Company: " + trim(company.companyName, listW() - 154), x + 134, y + 29, KOMEGuiTheme.COLOR_TEXT_MUTED);
             }
+        } else if (selectedCompanyKey.length() > 0 && viewingMovementDetail) {
+            CompanySummary company = findCompany(selectedCompanyKey);
+            fontRendererObj.drawString("From Company: " + trim(company == null ? selectedCompanyKey : company.companyName, listW() - 28), x + 9, y + 29, KOMEGuiTheme.COLOR_TEXT_MUTED);
         }
         if (choosingCompany) {
             drawCompanyList(mouseX, mouseY);
@@ -268,13 +334,13 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
     }
 
     private void drawMovementRow(KOMEMovementHistoryRecord record, int x, int y, int w, int h, boolean selectedRow, boolean hovered) {
-        KOMEGuiTheme.drawBorderedRect(x, y, w, h, selectedRow ? KOMEGuiTheme.COLOR_GOLD : KOMEGuiTheme.COLOR_GOLD_DARK,
+        KOMEGuiTheme.drawBorderedRect(x, y, w, h, selectedRow ? KOMEGuiTheme.COLOR_GOLD : statusColor(record.status),
             hovered ? KOMEGuiTheme.COLOR_PARCHMENT_LIGHT : KOMEGuiTheme.COLOR_PARCHMENT_DARK);
-        fontRendererObj.drawString(trim(record.companyName, w - 96), x + 8, y + 6, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString(trim(record.companyName + " (" + shortId(record.companyId) + ")", w - 96), x + 8, y + 6, KOMEGuiTheme.COLOR_BORDER_RED);
         drawStatus(record.status, x + w - 74, y + 5, 66);
-        fontRendererObj.drawString(routeSummary(record), x + 8, y + 20, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString(trim(record.totalPopulation + " pop | " + clean(record.ownerName) + " | " + displayFaction(record.faction), w - 16), x + 8, y + 34, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        fontRendererObj.drawString("Last updated: " + absoluteTime(activityTime(record)), x + 8, y + 48, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString(trim(routeSummary(record) + " | route " + stepsTotal(record) + " tile(s)", w - 16), x + 8, y + 20, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString(trim(record.unitCount + " units | " + record.totalPopulation + " pop | " + clean(record.ownerName), w - 16), x + 8, y + 34, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString(trim("Started: " + absoluteTime(record.createdAtMillis) + " | Updated: " + absoluteTime(activityTime(record)), w - 16), x + 8, y + 48, KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 
     private void drawCompanyRow(CompanySummary company, int x, int y, int w, int h, boolean hovered) {
@@ -291,22 +357,42 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
         int x = detailX();
         int y = contentY();
         KOMEGuiTheme.drawSubPanel(x, y, detailW(), contentH());
-        if (selectedCompanyKey.length() > 0) {
+        if (viewingMovementDetail) {
+            drawMovementDetail(x, y);
+        } else if (selectedCompanyKey.length() > 0) {
             drawCompanyDetail(x, y, mouseX, mouseY);
         } else {
-            drawMovementDetail(x, y);
+            drawOverviewDetail(x, y);
         }
     }
 
     private void drawMovementDetail(int x, int y) {
-        if (selected < 0 || selected >= visibleRecords.size()) {
-            fontRendererObj.drawString("Select a movement record.", x + 14, y + 38, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        KOMEMovementHistoryRecord record = selectedRecord();
+        if (record == null) {
+            KOMEGuiTheme.drawSectionTitle(fontRendererObj, "Movement Missing", x + 9, y + 8, detailW() - 18);
+            KOMEGuiTheme.drawWrappedText(fontRendererObj, "That movement order is no longer available, or you no longer have access to it. Press Back to return to the previous movement list.",
+                x + 14, y + 38, detailW() - 28, KOMEGuiTheme.COLOR_WARN);
             return;
         }
-        KOMEMovementHistoryRecord record = visibleRecords.get(selected);
-        KOMEGuiTheme.drawSectionTitle(fontRendererObj, trim(record.companyName, detailW() - 18), x + 9, y + 8, detailW() - 18);
+        KOMEGuiTheme.drawSectionTitle(fontRendererObj, trim("Movement #" + movementId(record), detailW() - 18), x + 9, y + 8, detailW() - 18);
         KOMEGuiTheme.enableScissor(mc, x + 1, y + 24, detailW() - 2, contentH() - 28);
         drawMovementDetailCards(record, x, y + 30 - detailScroll);
+        KOMEGuiTheme.disableScissor();
+    }
+
+    private void drawOverviewDetail(int x, int y) {
+        KOMEGuiTheme.drawSectionTitle(fontRendererObj, filter, x + 9, y + 8, detailW() - 18);
+        KOMEGuiTheme.enableScissor(mc, x + 1, y + 24, detailW() - 2, contentH() - 28);
+        int cy = y + 30 - detailScroll;
+        cy = detailCard("Current View", "Viewing: " + filter
+            + "\nScope: " + (allFactions ? "all factions" : displayFaction(requestFaction))
+            + "\nRecords shown: " + visibleRecords.size()
+            + "\nCompanies shown: " + companySummaries.size()
+            + "\nClick a movement row to inspect the individual order.", x + 12, cy, detailW() - 24);
+        if (!visibleRecords.isEmpty()) {
+            KOMEMovementHistoryRecord record = visibleRecords.get(Math.max(0, Math.min(selected, visibleRecords.size() - 1)));
+            detailCard("Newest Matching Movement", compactMovementSummary(record), x + 12, cy + 8, detailW() - 24);
+        }
         KOMEGuiTheme.disableScissor();
     }
 
@@ -350,10 +436,14 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
     }
 
     private int drawMovementDetailCards(KOMEMovementHistoryRecord record, int x, int cy) {
-        cy = detailCard("Status", statusLabel(record) + "\nOwner: " + record.ownerName + "\nFaction: " + displayFaction(record.faction)
+        cy = detailCard("Status", "Company: " + clean(record.companyName) + " (" + shortId(record.companyId) + ")"
+            + "\nOrder: " + movementId(record)
+            + "\nStatus: " + statusLabel(record)
+            + "\nOwner: " + record.ownerName + "\nFaction: " + displayFaction(record.faction)
             + "\nLast updated: " + absoluteTime(activityTime(record)), x + 12, cy, detailW() - 24);
         cy = detailCard("Route", "Origin: " + record.originTile + "\nCurrent: " + clean(record.currentTile)
             + "\nNext: " + clean(record.nextTile) + "\nFinal: " + record.finalDestinationTile
+            + "\nLength: " + stepsTotal(record) + " tile(s)"
             + "\nRoute: " + joinRoute(record.routeTiles), x + 12, cy + 8, detailW() - 24);
         cy = detailCard("Progress", "Steps: " + record.completedSteps + " / " + stepsTotal(record)
             + "\nUnits: " + record.unitCount + "\nPopulation: " + record.totalPopulation
@@ -395,6 +485,20 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
             + "\nLast step: " + absoluteTime(record.lastStepMillis);
     }
 
+    private String compactMovementSummary(KOMEMovementHistoryRecord record) {
+        if (record == null) {
+            return "No movement selected.";
+        }
+        return "Company: " + clean(record.companyName) + " (" + shortId(record.companyId) + ")"
+            + "\nOrder: " + movementId(record)
+            + "\nRoute: " + routeSummary(record)
+            + "\nStatus: " + statusLabel(record.status)
+            + "\nLength: " + stepsTotal(record) + " tile(s)"
+            + "\nStarted: " + absoluteTime(record.createdAtMillis)
+            + "\nProgress: " + record.completedSteps + " / " + stepsTotal(record)
+            + "\nUnits: " + record.unitCount + " | Pop: " + record.totalPopulation;
+    }
+
     private int detailCard(String title, String value, int x, int y, int w) {
         int h = 28 + KOMEGuiTheme.wrapText(fontRendererObj, value, w - 16).size() * 10;
         KOMEGuiTheme.drawCard(x, y, w, h, false);
@@ -404,9 +508,7 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
     }
 
     private void drawStatus(String status, int x, int y, int w) {
-        int color = KOMEMovementHistoryRecord.ACTIVE.equals(status) ? KOMEGuiTheme.COLOR_GOOD
-            : KOMEMovementHistoryRecord.ARRIVED.equals(status) ? KOMEGuiTheme.COLOR_GOLD
-            : KOMEMovementHistoryRecord.FAILED.equals(status) ? KOMEGuiTheme.COLOR_WARN : KOMEGuiTheme.COLOR_TEXT_MUTED;
+        int color = statusColor(status);
         KOMEGuiTheme.drawBorderedRect(x, y, w, 14, KOMEGuiTheme.COLOR_GOLD_DARK, 0xFFE8D6A8);
         String label = statusLabel(status);
         fontRendererObj.drawString(label, x + (w - fontRendererObj.getStringWidth(label)) / 2, y + 3, color);
@@ -425,7 +527,8 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
             if (selectedCompanyKey.length() > 0 && !selectedCompanyKey.equals(record.stableCompanyKey())) {
                 continue;
             }
-            if ("All".equals(filter) || statusLabel(record.status).equals(filter)) {
+            if (selectedCompanyKey.length() > 0 || MODE_HISTORY.equals(filter)
+                    || MODE_ACTIVE.equals(filter) && KOMEMovementHistoryRecord.ACTIVE.equals(record.status)) {
                 visibleRecords.add(record);
             }
         }
@@ -433,6 +536,9 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
         if (!preserveSelection || !selectMovementById(selectedMovementId)) {
             selected = visibleRecords.isEmpty() ? -1 : 0;
             selectedMovementId = selected >= 0 ? visibleRecords.get(selected).historyId : "";
+        }
+        if (viewingMovementDetail && selectedRecord() == null) {
+            viewingMovementDetail = false;
         }
         rememberedMovementId = selectedMovementId;
         if (scroll > maxScroll()) {
@@ -462,7 +568,9 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
         selectedMovementId = record.historyId;
         rememberedMovementId = selectedMovementId;
         selectMovementById(selectedMovementId);
+        viewingMovementDetail = true;
         detailScroll = 0;
+        rememberState();
     }
 
     private void rebuildCompanies() {
@@ -546,14 +654,26 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
         rememberedFilter = filter;
         rememberedCompanyKey = selectedCompanyKey;
         rememberedMovementId = selectedMovementId;
+        rememberedChoosingCompany = choosingCompany;
+        rememberedMovementDetail = viewingMovementDetail;
+        rememberedScroll = scroll;
+        rememberedDetailScroll = detailScroll;
     }
 
     private String dynamicTitle() {
         CompanySummary company = findCompany(selectedCompanyKey);
-        if (company != null) {
-            return baseTitle + " - " + company.companyName;
+        KOMEMovementHistoryRecord record = selectedRecord();
+        if (viewingMovementDetail && record != null) {
+            return "Troop Movement > " + (company == null ? "All" : "Company: " + company.companyName)
+                + " > Movement #" + movementId(record);
         }
-        return baseTitle + " - All Companies";
+        if (company != null) {
+            return "Troop Movement > Company: " + company.companyName;
+        }
+        if (choosingCompany) {
+            return "Troop Movement > Companies";
+        }
+        return "Troop Movement > " + filter;
     }
 
     private String summaryText() {
@@ -574,8 +694,8 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
         if (selectedCompanyKey.length() > 0) {
             return "No records found for this company.";
         }
-        if (!"All".equals(filter)) {
-            return "No " + filter.toLowerCase() + " movements found.";
+        if (MODE_ACTIVE.equals(filter)) {
+            return "No active movements found.";
         }
         return "No movement records found.";
     }
@@ -644,7 +764,79 @@ public class KOMEGuiMovementHistory extends LOTRGuiMenuBase {
     }
 
     private String[] filters() {
-        return new String[] {"All", "Active", "Arrived", "Stopped", "Cancelled", "Failed", "Company"};
+        return new String[] {MODE_COMPANIES, MODE_ACTIVE, MODE_HISTORY};
+    }
+
+    private boolean isModeSelected(String mode) {
+        if (MODE_COMPANIES.equals(mode)) {
+            return choosingCompany;
+        }
+        return selectedCompanyKey.length() == 0 && !choosingCompany && !viewingMovementDetail && mode.equals(filter);
+    }
+
+    private String normalizeMode(String mode) {
+        if (MODE_ACTIVE.equals(mode) || "Active".equals(mode)) {
+            return MODE_ACTIVE;
+        }
+        if (MODE_COMPANIES.equals(mode) || "Company".equals(mode)) {
+            return MODE_HISTORY;
+        }
+        return MODE_HISTORY;
+    }
+
+    private KOMEMovementHistoryRecord selectedRecord() {
+        if (selected >= 0 && selected < visibleRecords.size()) {
+            KOMEMovementHistoryRecord record = visibleRecords.get(selected);
+            if (selectedMovementId == null || selectedMovementId.length() == 0
+                    || selectedMovementId.equals(record.historyId) || selectedMovementId.equals(record.movementOrderId)) {
+                return record;
+            }
+        }
+        if (selectMovementById(selectedMovementId) && selected >= 0 && selected < visibleRecords.size()) {
+            return visibleRecords.get(selected);
+        }
+        return null;
+    }
+
+    private void clearRememberedState() {
+        rememberedFilter = MODE_HISTORY;
+        rememberedCompanyKey = "";
+        rememberedMovementId = "";
+        rememberedChoosingCompany = false;
+        rememberedMovementDetail = false;
+        rememberedScroll = 0;
+        rememberedDetailScroll = 0;
+    }
+
+    private int statusColor(String status) {
+        if (KOMEMovementHistoryRecord.ACTIVE.equals(status)) {
+            return KOMEGuiTheme.COLOR_GOOD;
+        }
+        if (KOMEMovementHistoryRecord.ARRIVED.equals(status)) {
+            return KOMEGuiTheme.COLOR_GOLD;
+        }
+        if (KOMEMovementHistoryRecord.FAILED.equals(status)) {
+            return KOMEGuiTheme.COLOR_WARN;
+        }
+        return KOMEGuiTheme.COLOR_TEXT_MUTED;
+    }
+
+    private String movementId(KOMEMovementHistoryRecord record) {
+        if (record == null) {
+            return "None";
+        }
+        if (record.movementOrderId != null && record.movementOrderId.length() > 0) {
+            return record.movementOrderId;
+        }
+        return clean(record.historyId);
+    }
+
+    private String shortId(String id) {
+        String value = id == null ? "" : id.trim();
+        if (value.length() == 0) {
+            return "no id";
+        }
+        return value.length() <= 8 ? value : value.substring(0, 8);
     }
 
     private int contentY() { return guiTop + 90; }

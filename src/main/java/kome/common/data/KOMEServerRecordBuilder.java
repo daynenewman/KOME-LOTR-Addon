@@ -41,14 +41,73 @@ public class KOMEServerRecordBuilder {
         });
 
         List lines = new ArrayList();
-        lines.add(join("SUMMARY", String.valueOf(records.size()), String.valueOf(getClaimedTileCount(data))));
+        lines.add(join("SUMMARY", String.valueOf(records.size()), String.valueOf(getClaimedTileCount(data)), String.valueOf(data.wars.size())));
         for (PlayerRecord record : records) {
             addPlayerLine(lines, data, world, record);
         }
         if (records.isEmpty()) {
             lines.add(join("EMPTY", "No player records have been saved yet."));
         }
+        for (KOMEWar war : KOMEWarService.sortedWars(data)) addWarLine(lines, data, war);
         return lines;
+    }
+
+    private static void addWarLine(List lines, KOMEWorldData data, KOMEWar war) {
+        KOMEWar.TileCaptureEvent latest = war.tileCaptureHistory.isEmpty() ? null
+            : war.tileCaptureHistory.get(war.tileCaptureHistory.size() - 1);
+        String latestCapture = latest == null ? "No tile captures" : latest.tileId + ": "
+            + displayFaction(latest.formerOwner) + " -> " + displayFaction(latest.newOwner) + " by "
+            + latest.claimantName + " @ " + latest.timestamp + " (" + latest.claimMethod + ")";
+        int activeCompanies = 0;
+        int pending = 0;
+        List<String> coordinators = new ArrayList<String>();
+        List<String> reservations = new ArrayList<String>();
+        for (KOMEWar.StewardshipAuthorization authorization : war.stewardshipAuthorizations) {
+            if ("ACTIVE".equals(authorization.state)) activeCompanies++;
+            if (!"ACTIVE".equals(authorization.state) && !"DEMOBILIZED".equals(authorization.state)) pending++;
+            coordinators.add(authorization.controllerName + " (" + displayFaction(authorization.controllerFaction) + ")");
+            reservations.add(authorization.companyId + "=" + authorization.reservation + " [" + authorization.state + "]");
+        }
+        List<String> warnings = new ArrayList<String>();
+        for (String faction : war.sideOneFactions) warnings.addAll(KOMEWarService.contradictoryMemberships(data, faction));
+        for (String faction : war.sideTwoFactions) warnings.addAll(KOMEWarService.contradictoryMemberships(data, faction));
+        List<String> captures = new ArrayList<String>();
+        for (KOMEWar.TileCaptureEvent event : war.tileCaptureHistory) {
+            captures.add(event.tileId + " " + displayFaction(event.formerOwner) + " -> " + displayFaction(event.newOwner)
+                + " by " + event.claimantName + " @ " + event.timestamp);
+        }
+        List<String> administration = new ArrayList<String>();
+        for (KOMEWar.AdministrativeEvent event : war.administrativeHistory) {
+            administration.add(event.action + " by " + event.actor + ": " + event.detail + " @ " + event.timestamp);
+        }
+        List<String> memberships = new ArrayList<String>();
+        for (KOMEWar.MembershipRecord membership : war.membershipHistory) {
+            memberships.add(displayFaction(membership.faction) + " side " + membership.side + " [" + membership.source + "]"
+                + (membership.nativeFaction.length() == 0 ? "" : " for native " + displayFaction(membership.nativeFaction))
+                + (membership.active ? " active" : " ended: " + membership.endReason));
+        }
+        List<String> supportEnrollments = new ArrayList<String>();
+        for (KOMEWar.MilitarySupportEnrollment enrollment : war.militarySupportEnrollments) {
+            supportEnrollments.add(displayFaction(enrollment.supportingFaction) + " supporting "
+                + displayFaction(enrollment.nativeFaction) + " [" + enrollment.state + "] king="
+                + (enrollment.authorizedKingName.length() == 0 ? "none" : enrollment.authorizedKingName + "/" + enrollment.authorizedKing)
+                + ": " + enrollment.reason);
+            if ("CONTRADICTION".equals(enrollment.state)) warnings.add(enrollment.reason);
+        }
+        lines.add(join("WAR", war.id, war.displayName.length() == 0 ? war.id : war.displayName, war.status,
+            war.sideOneName, displayFactions(war.sideOneFactions), war.sideTwoName, displayFactions(war.sideTwoFactions),
+            String.valueOf(war.createdAtMillis), latestCapture, String.valueOf(activeCompanies),
+            warnings.isEmpty() ? "None" : joinNames(warnings), joinNames(captures), joinNames(coordinators),
+            joinNames(reservations), String.valueOf(pending), joinNames(administration), war.endingReason,
+            String.valueOf(war.endingAtMillis), String.valueOf(war.endedAtMillis), joinNames(memberships),
+            joinNames(supportEnrollments)));
+    }
+
+    private static String displayFactions(Set<String> factions) {
+        List<String> names = new ArrayList<String>();
+        for (String faction : factions) names.add(displayFaction(faction));
+        Collections.sort(names);
+        return joinNames(names);
     }
 
     private static void addPlayerLine(List lines, KOMEWorldData data, World world, PlayerRecord record) {

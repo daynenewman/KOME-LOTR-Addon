@@ -1,12 +1,14 @@
 package kome.client.gui;
 
 import kome.client.KOMEMinecraftClient;
+import kome.common.network.KOMEPacketAllianceAction;
+import kome.common.network.KOMEPacketHandler;
 import kome.client.KOMEQuotaLedgerOverlay;
-import kome.common.data.KOMEAllianceInventory;
 import kome.common.gui.KOMEContainerAllianceLedger;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.inventory.IInventory;
+import org.lwjgl.opengl.GL11;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +16,7 @@ import java.util.List;
 public class KOMEGuiAllianceLedger extends GuiContainer {
     private static final int ID_BACK = 1;
     private static final int ID_CLAIM = 2;
+    private static final int ID_SWITCH = 3;
     private static final int MARGIN = 18;
     private static final int GAP = 14;
     private static final int CARD_PADDING = 10;
@@ -23,12 +26,14 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
     private static final int PROGRESS_Y = 128;
     private static final int PROGRESS_HEIGHT = 66;
     private static final int QUOTA_Y = 204;
-    private static final int QUOTA_HEIGHT = 48;
+    private static final int QUOTA_HEIGHT = 56;
     private static final int DEPOSIT_Y = 260;
     private static final int DEPOSIT_HEIGHT = 52;
     private static final int INVENTORY_LABEL_Y = 322;
     private static final int BOTTOM_BUTTON_Y = 432;
     private static final int BOTTOM_BUTTON_HEIGHT = 22;
+    private float renderScale = 1.0F;
+    private boolean drawingScaled;
 
     public KOMEGuiAllianceLedger(IInventory playerInventory, IInventory ledgerInventory) {
         super(new KOMEContainerAllianceLedger(playerInventory, ledgerInventory));
@@ -38,12 +43,55 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
 
     @Override
     public void initGui() {
-        super.initGui();
+        if (Boolean.getBoolean("kome.guiCapture") && mc.thePlayer == null) {
+            guiLeft = (width - xSize) / 2;
+            guiTop = (height - ySize) / 2;
+        } else {
+            super.initGui();
+        }
+        renderScale = Math.min(1.0F, Math.min((width - 8) / (float) xSize, (height - 8) / (float) ySize));
+        renderScale = Math.max(0.35F, renderScale);
+        guiLeft = Math.round((width / renderScale - xSize) / 2.0F);
+        guiTop = Math.round((height / renderScale - ySize) / 2.0F);
         buttonList.clear();
         buttonList.add(new KOMEGuiButton(ID_BACK, guiLeft + MARGIN, guiTop + BOTTOM_BUTTON_Y, 92, BOTTOM_BUTTON_HEIGHT, "Back"));
+        GuiButton switchLedger = new KOMEGuiButton(ID_SWITCH, guiLeft + MARGIN + 100, guiTop + BOTTOM_BUTTON_Y, 132, BOTTOM_BUTTON_HEIGHT, KOMEQuotaLedgerOverlay.getSwitchLabel());
+        switchLedger.enabled = KOMEQuotaLedgerOverlay.canSwitchLedger();
+        buttonList.add(switchLedger);
         GuiButton claim = new KOMEGuiButton(ID_CLAIM, guiLeft + xSize - MARGIN - 132, guiTop + BOTTOM_BUTTON_Y, 132, BOTTOM_BUTTON_HEIGHT, "Claim Goods", true);
         claim.enabled = KOMEQuotaLedgerOverlay.canClaimGoods();
         buttonList.add(claim);
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        super.drawDefaultBackground();
+        drawingScaled = true;
+        GL11.glPushMatrix();
+        GL11.glScalef(renderScale, renderScale, 1.0F);
+        super.drawScreen(Math.round(mouseX / renderScale), Math.round(mouseY / renderScale), partialTicks);
+        GL11.glPopMatrix();
+        drawingScaled = false;
+    }
+
+    @Override
+    public void drawDefaultBackground() {
+        if (!drawingScaled) super.drawDefaultBackground();
+    }
+
+    @Override
+    protected void mouseClicked(int mouseX, int mouseY, int mouseButton) {
+        super.mouseClicked(Math.round(mouseX / renderScale), Math.round(mouseY / renderScale), mouseButton);
+    }
+
+    @Override
+    protected void mouseClickMove(int mouseX, int mouseY, int mouseButton, long heldTime) {
+        super.mouseClickMove(Math.round(mouseX / renderScale), Math.round(mouseY / renderScale), mouseButton, heldTime);
+    }
+
+    @Override
+    protected void mouseMovedOrUp(int mouseX, int mouseY, int state) {
+        super.mouseMovedOrUp(Math.round(mouseX / renderScale), Math.round(mouseY / renderScale), state);
     }
 
     @Override
@@ -53,18 +101,26 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
         }
         if (button.id == ID_BACK) {
             mc.displayGuiScreen(new KOMEGuiAlliance());
+        } else if (button.id == ID_SWITCH) {
+            String sender = KOMEQuotaLedgerOverlay.getSwitchSenderKey();
+            String receiver = KOMEQuotaLedgerOverlay.getSwitchReceiverKey();
+            if (sender.length() > 0 && receiver.length() > 0) {
+                KOMEQuotaLedgerOverlay.reset();
+                mc.thePlayer.closeScreen();
+                KOMEPacketHandler.network.sendToServer(new KOMEPacketAllianceAction("ledger", "", sender, receiver));
+            }
         } else if (button.id == ID_CLAIM) {
             String sender = KOMEQuotaLedgerOverlay.getSenderKey();
             String receiver = KOMEQuotaLedgerOverlay.getReceiverKey();
             if (sender.length() > 0 && receiver.length() > 0) {
-                KOMEMinecraftClient.sendChat("/alliance claimGoods " + sender + " " + receiver);
-                mc.displayGuiScreen(new KOMEGuiAlliance());
+                KOMEPacketHandler.network.sendToServer(new KOMEPacketAllianceAction("claim", "", sender, receiver));
             }
         }
     }
 
     @Override
     protected void drawGuiContainerBackgroundLayer(float partialTicks, int mouseX, int mouseY) {
+        refreshActionButtons();
         KOMEGuiTheme.drawMainPanel(guiLeft, guiTop, xSize, ySize);
         KOMEGuiTheme.drawHeader(fontRendererObj, "Alliance Goods Ledger", guiLeft + 170, guiTop + TITLE_Y, xSize - 340);
         drawSummaryCard();
@@ -84,16 +140,30 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
         int y = guiTop + SUMMARY_Y;
         int w = xSize - MARGIN * 2;
         KOMEGuiTheme.drawCard(x, y, w, SUMMARY_HEIGHT, false);
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, KOMEQuotaLedgerOverlay.getRelationSummary(), w - CARD_PADDING * 2), x + CARD_PADDING, y + 9, KOMEGuiTheme.COLOR_BORDER_RED);
+        String relation = KOMEQuotaLedgerOverlay.getRelationSummary();
+        String[] pair = relation.split(" -> ", 2);
+        int badgeW = Math.min(190, (w - 64) / 2);
+        if (pair.length == 2) {
+            KOMEGuiTheme.drawFactionBadge(fontRendererObj, KOMEQuotaLedgerOverlay.getSenderKey(), pair[0],
+                x + CARD_PADDING, y + 6, badgeW);
+            KOMEGuiTheme.drawCenteredPlainText(fontRendererObj, "->", x + w / 2, y + 11, KOMEGuiTheme.COLOR_GOLD);
+            KOMEGuiTheme.drawFactionBadge(fontRendererObj, KOMEQuotaLedgerOverlay.getReceiverKey(), pair[1],
+                x + w - CARD_PADDING - badgeW, y + 6, badgeW);
+        } else {
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, relation, w - CARD_PADDING * 2), x + CARD_PADDING, y + 9, KOMEGuiTheme.COLOR_GOLD);
+        }
         int lineY = y + 28;
         String viewer = KOMEQuotaLedgerOverlay.getViewerName();
         if (viewer.length() > 0) {
             fontRendererObj.drawString("Your Faction: " + KOMEGuiTheme.trimToWidth(fontRendererObj, viewer, w - CARD_PADDING * 2), x + CARD_PADDING, lineY, KOMEGuiTheme.COLOR_TEXT);
         }
         int permissionsY = y + 50;
-        fontRendererObj.drawString("Can Deposit: " + yesNo(KOMEQuotaLedgerOverlay.canDepositGoods()), x + CARD_PADDING, permissionsY, KOMEQuotaLedgerOverlay.canDepositGoods() ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_TEXT_MUTED);
-        String claim = "Can Claim: " + yesNo(KOMEQuotaLedgerOverlay.canClaimGoods());
-        fontRendererObj.drawString(claim, x + w - CARD_PADDING - fontRendererObj.getStringWidth(claim), permissionsY, KOMEQuotaLedgerOverlay.canClaimGoods() ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_TEXT_MUTED);
+        KOMEGuiTheme.drawStatusChip(fontRendererObj, "Deposit " + yesNo(KOMEQuotaLedgerOverlay.canDepositGoods()),
+            x + CARD_PADDING, permissionsY - 3, KOMEQuotaLedgerOverlay.canDepositGoods() ? KOMEGuiTheme.Status.ACTIVE : KOMEGuiTheme.Status.LOCKED);
+        String claim = "Claim " + yesNo(KOMEQuotaLedgerOverlay.canClaimGoods());
+        int claimW = KOMEGuiTheme.statusChipWidth(fontRendererObj, claim);
+        KOMEGuiTheme.drawStatusChip(fontRendererObj, claim, x + w - CARD_PADDING - claimW, permissionsY - 3,
+            KOMEQuotaLedgerOverlay.canClaimGoods() ? KOMEGuiTheme.Status.ACTIVE : KOMEGuiTheme.Status.LOCKED);
     }
 
     private void drawProgressCards() {
@@ -119,13 +189,16 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
             String requirement = ledgerRequirement(type, KOMEQuotaLedgerOverlay.part(parts, 3), quota);
             String progressText = cardProgress(type, parts);
             fontRendererObj.drawString(type, cardX + CARD_PADDING, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
-            fontRendererObj.drawString(status, cardX + CARD_PADDING, y + 22, KOMEGuiTheme.COLOR_TEXT);
-            List wrapped = fontRendererObj.listFormattedStringToWidth(requirement, cardW - CARD_PADDING * 2);
-            for (int line = 0; line < wrapped.size() && line < 2; line++) {
-                fontRendererObj.drawString(String.valueOf(wrapped.get(line)), cardX + CARD_PADDING, y + 37 + line * 10, KOMEGuiTheme.COLOR_TEXT_MUTED);
-            }
+            KOMEGuiTheme.drawStatusChip(fontRendererObj, status, cardX + cardW - CARD_PADDING - KOMEGuiTheme.statusChipWidth(fontRendererObj, status),
+                y + 5, ledgerStatus(status));
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, requirement, cardW - CARD_PADDING * 2), cardX + CARD_PADDING, y + 27, KOMEGuiTheme.COLOR_TEXT_MUTED);
             if (progressText.length() > 0) {
-                fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, progressText, cardW - CARD_PADDING * 2), cardX + CARD_PADDING, y + 56, KOMEGuiTheme.COLOR_TEXT);
+                int delivered = parseInt(KOMEQuotaLedgerOverlay.part(parts, 5));
+                int required = parseInt(KOMEQuotaLedgerOverlay.part(parts, 6));
+                KOMEGuiTheme.drawProgressBar(fontRendererObj, cardX + CARD_PADDING, y + 44,
+                    cardW - CARD_PADDING * 2, 11, required <= 0 ? 0F : delivered / (float) required,
+                    required > 0 && delivered >= required ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_GOLD,
+                    KOMEGuiTheme.trimToWidth(fontRendererObj, progressText, cardW - CARD_PADDING * 2 - 8));
             }
         }
     }
@@ -138,11 +211,11 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
         fontRendererObj.drawString("Current Quotas", x + CARD_PADDING, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
         List quotaLines = visibleQuotaLines();
         if (quotaLines.isEmpty()) {
-            fontRendererObj.drawString("No current food quotas for this alliance.", x + CARD_PADDING, y + 26, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            fontRendererObj.drawString("No current rolled item quotas for this alliance.", x + CARD_PADDING, y + 26, KOMEGuiTheme.COLOR_TEXT_MUTED);
             return;
         }
-        for (int i = 0; i < quotaLines.size() && i < 2; i++) {
-            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, String.valueOf(quotaLines.get(i)), w - CARD_PADDING * 2), x + CARD_PADDING, y + 22 + i * 13, KOMEGuiTheme.COLOR_TEXT);
+        for (int i = 0; i < quotaLines.size() && i < 3; i++) {
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, String.valueOf(quotaLines.get(i)), w - CARD_PADDING * 2), x + CARD_PADDING, y + 21 + i * 12, KOMEGuiTheme.COLOR_TEXT);
         }
     }
 
@@ -151,7 +224,7 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
         int y = guiTop + DEPOSIT_Y;
         int w = xSize - MARGIN * 2;
         KOMEGuiTheme.drawSubPanel(x, y, w, DEPOSIT_HEIGHT);
-        fontRendererObj.drawString("Deposit Goods", x + CARD_PADDING, y + 8, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString(KOMEQuotaLedgerOverlay.canDepositGoods() ? "Deposit Goods" : "Ledger Storage (Read Only)", x + CARD_PADDING, y + 8, KOMEGuiTheme.COLOR_BORDER_RED);
         KOMEGuiTheme.drawWrappedText(fontRendererObj, depositHelperText(), x + CARD_PADDING, y + 22, KOMEContainerAllianceLedger.DEPOSIT_X - MARGIN - CARD_PADDING * 2, KOMEGuiTheme.COLOR_TEXT_MUTED);
         drawSlotRow(KOMEContainerAllianceLedger.DEPOSIT_X, KOMEContainerAllianceLedger.DEPOSIT_Y, 9);
     }
@@ -168,8 +241,9 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
 
     private void drawClaimStatus() {
         String text = KOMEQuotaLedgerOverlay.getClaimText();
-        int textWidth = xSize - 260;
-        KOMEGuiTheme.drawWrappedText(fontRendererObj, text, guiLeft + 128, guiTop + BOTTOM_BUTTON_Y + 6, textWidth, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        int textX = guiLeft + MARGIN + 240;
+        int textWidth = xSize - MARGIN * 2 - 240 - 140;
+        KOMEGuiTheme.drawWrappedText(fontRendererObj, text, textX, guiTop + BOTTOM_BUTTON_Y + 2, textWidth, KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 
     private void drawSlotRow(int x, int y, int count) {
@@ -182,54 +256,21 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
         return value ? "Yes" : "No";
     }
 
+    private KOMEGuiTheme.Status ledgerStatus(String status) {
+        String normalized = status == null ? "" : status.toLowerCase();
+        if (normalized.indexOf("complete") >= 0 || normalized.indexOf("active") >= 0) return KOMEGuiTheme.Status.ACTIVE;
+        if (normalized.indexOf("pending") >= 0 || normalized.indexOf("grace") >= 0) return KOMEGuiTheme.Status.WARNING;
+        if (normalized.indexOf("suspend") >= 0 || normalized.indexOf("denied") >= 0) return KOMEGuiTheme.Status.DENIED;
+        return KOMEGuiTheme.Status.LOCKED;
+    }
+
+    private int parseInt(String value) {
+        try { return Math.max(0, Integer.parseInt(value)); }
+        catch (Exception ignored) { return 0; }
+    }
+
     private String ledgerRequirement(String type, String requirement, String[] quota) {
-        if (requirement == null || requirement.length() == 0) {
-            return "";
-        }
-        String quotaItem = KOMEQuotaLedgerOverlay.part(quota, 2);
-        if ("Military".equals(type) && quotaItem.length() > 0 && requirement.startsWith("Collect ")) {
-            return "Food quota rolled";
-        }
-        if ("Trade".equals(type) && quotaItem.length() > 0 && hasCoinRequirement(requirement, KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED)) {
-            return "Deliver coins + food quota";
-        }
-        if (hasCoinRequirement(requirement, KOMEAllianceInventory.CIVIL_T1_COINS_REQUIRED)) {
-            return coinDeliveryLabel(KOMEAllianceInventory.CIVIL_T1_COINS_REQUIRED);
-        }
-        if (hasCoinRequirement(requirement, KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED)) {
-            return coinDeliveryLabel(KOMEAllianceInventory.TRADE_T1_COINS_REQUIRED) + " + Roll Trade Quota";
-        }
-        if (requirement.indexOf("food quota") >= 0) {
-            return type.equals("Trade") ? "Roll trade quota" : "Roll food quota";
-        }
-        if (requirement.startsWith("Collect ")) {
-            return "Quota: " + requirement.substring("Collect ".length());
-        }
-        if (hasCoinRequirement(requirement, KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED)) {
-            return coinDeliveryLabel(KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED);
-        }
-        if (hasEnemyRequirement(requirement, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED)) {
-            return "Kill " + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + " enemies";
-        }
-        if (requirement.indexOf("Receiving faction") >= 0) {
-            return "Awaiting acceptance";
-        }
-        if (requirement.indexOf("No active") >= 0) {
-            return "No active alliance";
-        }
-        return requirement;
-    }
-
-    private boolean hasCoinRequirement(String requirement, int required) {
-        return requirement.indexOf(required + " coins") >= 0;
-    }
-
-    private boolean hasEnemyRequirement(String requirement, int required) {
-        return requirement.indexOf(required + " enemies") >= 0;
-    }
-
-    private String coinDeliveryLabel(int required) {
-        return "Deliver " + required + " Coins";
+        return requirement == null ? "" : requirement;
     }
 
     private String ledgerProgress(String type, String[] parts, String[] quota) {
@@ -241,11 +282,7 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
         if (quotaItem.length() <= 0) {
             return main;
         }
-        String quotaProgress = "Food: " + KOMEQuotaLedgerOverlay.part(quota, 3) + "/" + KOMEQuotaLedgerOverlay.part(quota, 4) + " " + KOMEQuotaLedgerOverlay.part(quota, 5);
-        if ("Trade".equals(type) && main.length() > 0) {
-            return main.replace("Coins delivered", "Coins") + " | " + quotaProgress;
-        }
-        return quotaProgress;
+        return "Items: " + KOMEQuotaLedgerOverlay.part(quota, 3) + "/" + KOMEQuotaLedgerOverlay.part(quota, 4) + " " + KOMEQuotaLedgerOverlay.part(quota, 5);
     }
 
     private String cardProgress(String type, String[] parts) {
@@ -308,6 +345,9 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
 
     private List visibleQuotaLines() {
         List lines = new ArrayList();
+        if (hasVisibleType("Civil")) {
+            lines.add(quotaLine("Civil", "Civil"));
+        }
         if (hasVisibleType("Military")) {
             lines.add(quotaLine("Military", "Military"));
         }
@@ -318,6 +358,12 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
     }
 
     private String depositHelperText() {
+        if (!KOMEQuotaLedgerOverlay.canDepositGoods()) {
+            return "This is the allied faction's contribution ledger. Switch back to your side to deposit.";
+        }
+        if (!hasRolledQuota()) {
+            return "No quota is rolled for this side. Return to Alliance Detail, select a track, and use Roll first.";
+        }
         List progress = visibleProgressLines();
         if (progress.size() == 1) {
             String[] parts = (String[]) progress.get(0);
@@ -325,5 +371,23 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
             return "Place required " + type + " goods into the ledger slots.";
         }
         return "Place required goods for this alliance into the ledger slots.";
+    }
+
+    private boolean hasRolledQuota() {
+        return KOMEQuotaLedgerOverlay.part(KOMEQuotaLedgerOverlay.getStructuredLine("QUOTA", "Civil"), 2).length() > 0
+            || KOMEQuotaLedgerOverlay.part(KOMEQuotaLedgerOverlay.getStructuredLine("QUOTA", "Military"), 2).length() > 0
+            || KOMEQuotaLedgerOverlay.part(KOMEQuotaLedgerOverlay.getStructuredLine("QUOTA", "Trade"), 2).length() > 0;
+    }
+
+    private void refreshActionButtons() {
+        for (Object object : buttonList) {
+            GuiButton button = (GuiButton) object;
+            if (button.id == ID_CLAIM) {
+                button.enabled = KOMEQuotaLedgerOverlay.canClaimGoods();
+            } else if (button.id == ID_SWITCH) {
+                button.enabled = KOMEQuotaLedgerOverlay.canSwitchLedger();
+                button.displayString = KOMEQuotaLedgerOverlay.getSwitchLabel();
+            }
+        }
     }
 }

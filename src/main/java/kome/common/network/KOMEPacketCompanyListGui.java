@@ -12,6 +12,7 @@ import java.util.List;
 
 public class KOMEPacketCompanyListGui implements IMessage {
     public String tileId = "";
+    public String tileDisplayName = "";
     public final List<KOMECompanyGuiEntry> companies = new ArrayList<KOMECompanyGuiEntry>();
     public boolean canCreate;
 
@@ -19,7 +20,12 @@ public class KOMEPacketCompanyListGui implements IMessage {
     }
 
     public KOMEPacketCompanyListGui(String tileId, List<KOMECompanyGuiEntry> companies, boolean canCreate) {
+        this(tileId, "", companies, canCreate);
+    }
+
+    public KOMEPacketCompanyListGui(String tileId, String tileDisplayName, List<KOMECompanyGuiEntry> companies, boolean canCreate) {
         this.tileId = tileId == null ? "" : tileId;
+        this.tileDisplayName = tileDisplayName == null ? "" : tileDisplayName;
         if (companies != null) {
             this.companies.addAll(companies);
         }
@@ -29,6 +35,7 @@ public class KOMEPacketCompanyListGui implements IMessage {
     @Override
     public void fromBytes(ByteBuf buf) {
         tileId = ByteBufUtils.readUTF8String(buf);
+        tileDisplayName = ByteBufUtils.readUTF8String(buf);
         canCreate = buf.readBoolean();
         int count = buf.readInt();
         companies.clear();
@@ -42,6 +49,7 @@ public class KOMEPacketCompanyListGui implements IMessage {
     @Override
     public void toBytes(ByteBuf buf) {
         ByteBufUtils.writeUTF8String(buf, tileId);
+        ByteBufUtils.writeUTF8String(buf, tileDisplayName);
         buf.writeBoolean(canCreate);
         buf.writeInt(companies.size());
         for (KOMECompanyGuiEntry entry : companies) {
@@ -52,7 +60,7 @@ public class KOMEPacketCompanyListGui implements IMessage {
     public static class Handler implements IMessageHandler<KOMEPacketCompanyListGui, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketCompanyListGui message, MessageContext ctx) {
-            KOMEAddon.proxy.displayCompanyListGui(message.tileId, message.companies, message.canCreate);
+            KOMEAddon.proxy.displayCompanyListGui(message.tileId, message.tileDisplayName, message.companies, message.canCreate);
             return null;
         }
     }

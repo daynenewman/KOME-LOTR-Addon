@@ -329,12 +329,25 @@ public class KOMEGuiPopulation extends GuiScreen {
     private void drawTileRow(int x, int y, int width, KOMEPacketPopulationGui.TileBreakdown row, int mouseX, int mouseY) {
         row.sanitize();
         KOMEGuiTheme.drawCard(x, y, width, tileRowHeight() - 6, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, tileRowHeight() - 6));
-        fontRendererObj.drawString("Tile " + row.tileId, x + 10, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+        String title = tileTitle(row);
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, title, 260), x + 10, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
         fontRendererObj.drawString("Ruler: " + row.ownerFaction, x + 10, y + 22, KOMEGuiTheme.COLOR_TEXT_MUTED);
         fontRendererObj.drawString("Offensive: total " + row.offensiveTotal + "     allocated " + row.offensiveAllocated + "     unallocated " + row.offensiveUnallocated, x + 162, y + 8, KOMEGuiTheme.COLOR_TEXT);
         fontRendererObj.drawString("Defensive: total " + row.defensiveTotal + "     allocated " + row.defensiveAllocated + "     unallocated " + row.defensiveUnallocated, x + 162, y + 23, KOMEGuiTheme.COLOR_TEXT);
         fontRendererObj.drawString("Farmhands: " + row.farmhandUsed + " / " + row.farmhandTotal, x + 162, y + 38, KOMEGuiTheme.COLOR_TEXT_MUTED);
         drawMiniButton(x + width - 74, y + 18, 58, "Manage", mouseX, mouseY);
+    }
+
+    private String tileTitle(KOMEPacketPopulationGui.TileBreakdown row) {
+        String tile = row == null || row.tileId == null ? "" : row.tileId.trim();
+        String display = row == null || row.tileDisplayName == null ? "" : row.tileDisplayName.trim();
+        if (display.length() == 0) {
+            return "Tile " + tile;
+        }
+        if (tile.length() > 0 && !display.equalsIgnoreCase(tile)) {
+            return display + " (" + tile + ")";
+        }
+        return display;
     }
 
     private void drawOrdersTab(int x, int y, int w) {

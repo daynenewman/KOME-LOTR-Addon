@@ -7,6 +7,9 @@ import java.util.UUID;
 public class KOMEHiredUnitRecord {
     public static final String SOURCE_TILE_POOL = "TILE_POOL";
     public static final String SOURCE_PLAYER_RESERVE = "PLAYER_RESERVE";
+    public static final String SOURCE_TILE_ALLOCATION = "TILE_ALLOCATION";
+    public static final String SOURCE_STEWARDSHIP_RESERVATION = "STEWARDSHIP_RESERVATION";
+    public static final String SOURCE_OTHER_LEGACY = "OTHER_LEGACY";
 
     public UUID entity;
     public UUID owner;
@@ -33,6 +36,21 @@ public class KOMEHiredUnitRecord {
     public UUID companyAssignedBy;
     public String companyAssignedByName = "";
     public String movementOrderId = "";
+    /** Faction that supplied the NPC class; population ownership remains in sourceFaction. */
+    public String unitFaction = "";
+    public String alliancePair = "";
+    public String benefitSource = "";
+    public String spawningFaction = "";
+    public UUID controller;
+    /** Migration-only schema-2 fields; cleared after their exact population source is released. */
+    public boolean legacyAllianceCaptain;
+    public boolean legacyCaptainSuspended;
+    public int legacyCaptainPopulationReservation;
+    public String populationOwningFaction = "";
+    public String controllerAuthority = "";
+    public String stewardshipWarIds = "";
+    public boolean populationReturned;
+    public String releaseState = "";
     public NBTTagCompound movingEntityData;
     public NBTTagCompound stationedEntityData;
 
@@ -49,7 +67,8 @@ public class KOMEHiredUnitRecord {
         mounted = nbt.getBoolean("Mounted");
         unitName = nbt.getString("UnitName");
         sourceType = nbt.hasKey("SourceType") ? nbt.getString("SourceType") : SOURCE_TILE_POOL;
-        if (!SOURCE_PLAYER_RESERVE.equals(sourceType)) {
+        if (!SOURCE_PLAYER_RESERVE.equals(sourceType) && !SOURCE_TILE_ALLOCATION.equals(sourceType)
+                && !SOURCE_STEWARDSHIP_RESERVATION.equals(sourceType) && !SOURCE_OTHER_LEGACY.equals(sourceType)) {
             sourceType = SOURCE_TILE_POOL;
         }
         String savedSourcePlayer = nbt.getString("SourcePlayer");
@@ -72,6 +91,20 @@ public class KOMEHiredUnitRecord {
             sourceTileId = currentTile;
         }
         movementOrderId = nbt.getString("MovementOrderId");
+        unitFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("UnitFaction"));
+        alliancePair = nbt.getString("AlliancePair");
+        benefitSource = nbt.getString("BenefitSource");
+        spawningFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("SpawningFaction"));
+        String savedController = nbt.getString("Controller");
+        controller = savedController.length() == 0 ? owner : UUID.fromString(savedController);
+        legacyAllianceCaptain = nbt.getBoolean("AllianceCaptain");
+        legacyCaptainSuspended = nbt.getBoolean("CaptainSuspended");
+        legacyCaptainPopulationReservation = Math.max(0, nbt.getInteger("CaptainPopulationReservation"));
+        populationOwningFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("PopulationOwningFaction"));
+        controllerAuthority = nbt.getString("ControllerAuthority");
+        stewardshipWarIds = nbt.getString("StewardshipWarIds");
+        populationReturned = nbt.getBoolean("PopulationReturned");
+        releaseState = nbt.getString("ReleaseState");
         movingEntityData = nbt.hasKey("MovingEntityData", 10) ? nbt.getCompoundTag("MovingEntityData") : null;
         stationedEntityData = nbt.hasKey("StationedEntityData", 10) ? nbt.getCompoundTag("StationedEntityData") : null;
     }
@@ -103,6 +136,16 @@ public class KOMEHiredUnitRecord {
         nbt.setString("CompanyAssignedBy", companyAssignedBy == null ? "" : companyAssignedBy.toString());
         nbt.setString("CompanyAssignedByName", companyAssignedByName == null ? "" : companyAssignedByName);
         nbt.setString("MovementOrderId", movementOrderId == null ? "" : movementOrderId);
+        nbt.setString("UnitFaction", KOMEAlliance.normalizeFactionKey(unitFaction));
+        nbt.setString("AlliancePair", alliancePair == null ? "" : alliancePair);
+        nbt.setString("BenefitSource", benefitSource == null ? "" : benefitSource);
+        nbt.setString("SpawningFaction", KOMEAlliance.normalizeFactionKey(spawningFaction));
+        nbt.setString("Controller", (controller == null ? owner : controller).toString());
+        nbt.setString("PopulationOwningFaction", KOMEAlliance.normalizeFactionKey(populationOwningFaction));
+        nbt.setString("ControllerAuthority", controllerAuthority == null ? "" : controllerAuthority);
+        nbt.setString("StewardshipWarIds", stewardshipWarIds == null ? "" : stewardshipWarIds);
+        nbt.setBoolean("PopulationReturned", populationReturned);
+        nbt.setString("ReleaseState", releaseState == null ? "" : releaseState);
         if (movingEntityData != null) {
             nbt.setTag("MovingEntityData", movingEntityData);
         }

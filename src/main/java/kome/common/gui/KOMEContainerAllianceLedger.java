@@ -5,6 +5,7 @@ import net.minecraft.inventory.Container;
 import net.minecraft.inventory.IInventory;
 import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
+import kome.common.data.KOMEAllianceInventory;
 
 public class KOMEContainerAllianceLedger extends Container {
     public static final int LEDGER_SLOTS = 9;
@@ -24,7 +25,13 @@ public class KOMEContainerAllianceLedger extends Container {
         int i;
         int j;
         for (i = 0; i < LEDGER_SLOTS; i++) {
-            addSlotToContainer(new Slot(ledgerInventory, i, DEPOSIT_X + i * 18, DEPOSIT_Y));
+            addSlotToContainer(new Slot(ledgerInventory, i, DEPOSIT_X + i * 18, DEPOSIT_Y) {
+                @Override
+                public boolean canTakeStack(EntityPlayer player) {
+                    return !(inventory instanceof KOMEAllianceInventory)
+                        || ((KOMEAllianceInventory) inventory).canViewerTakeRemainder();
+                }
+            });
         }
         for (j = 0; j < 3; j++) {
             for (i = 0; i < 9; i++) {
@@ -46,6 +53,7 @@ public class KOMEContainerAllianceLedger extends Container {
         ItemStack copy = null;
         Slot slot = (Slot) inventorySlots.get(index);
         if (slot != null && slot.getHasStack()) {
+            if (index < LEDGER_SLOTS && !slot.canTakeStack(player)) return null;
             ItemStack stack = slot.getStack();
             copy = stack.copy();
             if (index < LEDGER_SLOTS) {
@@ -62,6 +70,13 @@ public class KOMEContainerAllianceLedger extends Container {
             }
         }
         return copy;
+    }
+
+    public void refreshLedger() {
+        if (ledgerInventory instanceof KOMEAllianceInventory) {
+            ((KOMEAllianceInventory) ledgerInventory).refreshViewer();
+        }
+        detectAndSendChanges();
     }
 
     @Override

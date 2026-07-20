@@ -576,6 +576,20 @@ You can provide this document to ChatGPT with the following prompt:
 
 > I am planning the KOME population and conquest tile systems for a Minecraft LOTR server addon. Read the attached implementation document carefully. Help me choose a coherent authoritative population model without inventing unrelated gameplay systems. First identify contradictions and player-facing confusion in the current implementation. Then compare faction-and-tile, player-and-deployment, and national-plus-local models. Recommend one model, explain migration concerns, and propose an incremental implementation plan that preserves existing hired units, alliances, progression, and conquest tile data.
 
+## Schema-5 population and pledge lifecycle addendum
+
+Wartime Stewardship now uses one global 100% allowance of the kingless native faction's currently unallocated, native-source offensive population. It excludes defensive/farmer population, every unspent player allocation, already funded units, captured/foreign-source pools, and assets owned by a player still actually pledged to the native faction. Multiple allied controllers share the same used/available pool; controller identity never changes the source faction.
+
+An active war automatically records effective Military T3 supporting factions on the kingless native side. Population access is nevertheless actor-specific: only each supporting faction's currently recognized, actually pledged king may reserve or control native stewardship population. Operator status is not population authority. Direct active opposition disables the contradictory supporter until an operator resolves the war membership.
+
+Supporting-king loss does not refund or reassign native population; it clears temporary control and safely halts movement while preserving reservations and exact source ownership. A valid replacement supporting king resumes authority automatically. Native-king creation ends kingless use immediately. Legitimate pre-existing native companies remain; stewardship-created units return population only through safe withdrawal/demobilization and existing tombstone rules.
+
+Every hired-unit record retains exact funding provenance: player reserve, tile pool, player tile allocation, stewardship reservation, or quarantined legacy source. Permanent company transfer moves reserve/allocation responsibility only after full preflight; direct tile-pool provenance is unchanged. Temporary delegation never transfers funding.
+
+Actual LOTR unpledge/switch cleanup returns player reserve to the recorded player, tile pool to the exact source pool, and allocation usage to the exact allocation/pool before closing stale allocation capacity. Farmhands free their slot without population credit. Stewardship population is not refunded because a temporary controller leaves; it returns only on legitimate native demobilization.
+
+Unloaded released units use persistent tombstones with independent `populationReturned` and `entityRemoved` flags. This prevents both duplicate credit and later active ghosts. Unknown legacy provenance is quarantined and never guessed.
+
 ## Primary Source Files
 
 - `src/main/java/kome/common/data/KOMEPlayerPopulation.java`
@@ -591,4 +605,3 @@ You can provide this document to ChatGPT with the following prompt:
 - `src/main/java/kome/client/gui/KOMEGuiPopulationUnits.java`
 - `src/main/java/kome/client/gui/KOMEGuiConquestCapture.java`
 - `src/main/java/kome/common/data/KOMEAllianceInventory.java`
-

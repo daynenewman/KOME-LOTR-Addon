@@ -76,7 +76,6 @@ public class KOMEConquestMapOverlay {
     private static final int TOGGLE_BUTTON_TOP_MARGIN = 28;
     private static final int TOGGLE_BUTTON_RIGHT_MARGIN = 8;
     private static final boolean SHOW_AUTOMATIC_BRIDGE_DEBUG = true;
-    private static final Map<String, Integer> CONQUEST_FACTION_COLORS = createFactionColors();
     private static BufferedImage tileMaskImage;
     private static int[] tileMaskPixels;
     private static int highlightedTileColor;
@@ -759,59 +758,12 @@ public class KOMEConquestMapOverlay {
 
     private static int factionArgb(String factionName) {
         LOTRFaction faction = LOTRFaction.forName(factionName);
-        if (faction != null) {
-            Integer conquestColor = CONQUEST_FACTION_COLORS.get(faction.codeName());
-            if (conquestColor != null) {
-                return conquestColor.intValue();
-            }
-        }
-        Integer normalizedColor = CONQUEST_FACTION_COLORS.get(KOMEAlliance.normalizeFactionKey(factionName));
-        if (normalizedColor != null) {
-            return normalizedColor.intValue();
-        }
+        if (faction != null) return faction.getFactionColor() & 0xFFFFFF;
         int hash = factionName == null ? 0 : factionName.toLowerCase().hashCode();
         int red = 80 + Math.abs(hash & 0x7F);
         int green = 80 + Math.abs(hash >> 8 & 0x7F);
         int blue = 80 + Math.abs(hash >> 16 & 0x7F);
         return red << 16 | green << 8 | blue;
-    }
-
-    private static Map<String, Integer> createFactionColors() {
-        Map<String, Integer> colors = new HashMap<>();
-        putFactionColor(colors, "ANGMAR", 0x7E8FA8);
-        putFactionColor(colors, "GONDOR", 0xF7F7EF);
-        putFactionColor(colors, "DURINS_FOLK", 0x4B6182);
-        putFactionColor(colors, "DUNEDAIN", 0x1F5A36);
-        putFactionColor(colors, "RANGER_NORTH", 0x1F5A36);
-        putFactionColor(colors, "ROHAN", 0x8FC43A);
-        putFactionColor(colors, "ISENGARD", 0x6A6A6A);
-        putFactionColor(colors, "MORDOR", 0x0E0E0E);
-        putFactionColor(colors, "RHUDEL", 0xC49227);
-        putFactionColor(colors, "WOOD_ELF", 0x22A060);
-        putFactionColor(colors, "HARAD", 0xD24D20);
-        putFactionColor(colors, "NEAR_HARAD", 0xD24D20);
-        putFactionColor(colors, "HIGH_ELVES", 0x58BFEF);
-        putFactionColor(colors, "HIGH_ELF", 0x58BFEF);
-        putFactionColor(colors, "TAURETHRIM", 0x00A98B);
-        putFactionColor(colors, "BREE", 0xC8A56A);
-        putFactionColor(colors, "BLUE_MOUNTAINS", 0x2468C8);
-        putFactionColor(colors, "DALE", 0xD9822B);
-        putFactionColor(colors, "HOBBIT", 0x6FBF55);
-        putFactionColor(colors, "LOTHLORIEN", 0xE4D34C);
-        putFactionColor(colors, "DUNLAND", 0x805333);
-        putFactionColor(colors, "MORWAITH", 0x7A1230);
-        putFactionColor(colors, "HALF_TROLL", 0x737A35);
-        putFactionColor(colors, "GUNDABAD", 0x866043);
-        putFactionColor(colors, "DORWINION", 0x8B3F8C);
-        putFactionColor(colors, "DOL_GULDUR", 0x4C6F30);
-        putFactionColor(colors, "FANGORN", 0x2B6B28);
-        putFactionColor(colors, "NONE", 0x9A9A9A);
-        return colors;
-    }
-
-    private static void putFactionColor(Map<String, Integer> colors, String factionKey, int color) {
-        colors.put(factionKey, Integer.valueOf(color));
-        colors.put(KOMEAlliance.normalizeFactionKey(factionKey), Integer.valueOf(color));
     }
 
     private static void drawHighlightTexture(LOTRGuiMap map, int tileColor) {

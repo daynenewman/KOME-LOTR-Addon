@@ -5,45 +5,51 @@ import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.util.ResourceLocation;
+import lotr.common.fac.LOTRFaction;
 import org.lwjgl.opengl.GL11;
 
 import java.util.List;
 
 public final class KOMEGuiTheme {
     public static final int COLOR_SHADOW = 0xAA000000;
-    public static final int COLOR_PARCHMENT = 0xFFE7D1A4;
-    public static final int COLOR_PARCHMENT_LIGHT = 0xFFF2DFB4;
-    public static final int COLOR_PARCHMENT_DARK = 0xFFD5B982;
-    public static final int COLOR_PANEL_DARK = 0xFF1E1410;
-    public static final int COLOR_PANEL_DARK_SOFT = 0xDD2A1B14;
-    public static final int COLOR_BORDER_DARK = 0xFF2B1412;
-    public static final int COLOR_BORDER_RED = 0xFF5A171A;
-    public static final int COLOR_BORDER_RED_LIGHT = 0xFF8A2D31;
-    public static final int COLOR_GOLD = 0xFFF1D27A;
-    public static final int COLOR_GOLD_DARK = 0xFF9F7530;
-    public static final int COLOR_TEXT = 0xFF2B1A0E;
-    public static final int COLOR_TEXT_LIGHT = 0xFFEEDDB1;
-    public static final int COLOR_TEXT_MUTED = 0xFF6B5436;
-    public static final int COLOR_TEXT_DISABLED = 0xFF7A6A55;
-    public static final int COLOR_GOOD = 0xFF3E6B2E;
-    public static final int COLOR_WARN = 0xFF8A5A00;
-    public static final int COLOR_BAD = 0xFF7B3434;
+    public static final int COLOR_PARCHMENT = 0xFF3A3026;
+    public static final int COLOR_PARCHMENT_LIGHT = 0xFF4B3E30;
+    public static final int COLOR_PARCHMENT_DARK = 0xFF2A231C;
+    public static final int COLOR_PANEL_DARK = 0xFF15120F;
+    public static final int COLOR_PANEL_DARK_SOFT = 0xF02A241E;
+    public static final int COLOR_BORDER_DARK = 0xFF0D0B09;
+    public static final int COLOR_BORDER_RED = 0xFF6A2628;
+    public static final int COLOR_BORDER_RED_LIGHT = 0xFF9A4547;
+    public static final int COLOR_GOLD = 0xFFE8C46A;
+    public static final int COLOR_GOLD_DARK = 0xFF9E7938;
+    public static final int COLOR_TEXT = 0xFFE9DABA;
+    public static final int COLOR_TEXT_LIGHT = 0xFFF4E7C8;
+    public static final int COLOR_TEXT_MUTED = 0xFFC2AD83;
+    public static final int COLOR_TEXT_DISABLED = 0xFF827768;
+    public static final int COLOR_GOOD = 0xFF79A965;
+    public static final int COLOR_WARN = 0xFFD0A044;
+    public static final int COLOR_BAD = 0xFFC25B5B;
+    public static final int COLOR_STONE = 0xFF242424;
 
     public static final ResourceLocation PARCHMENT_TEXTURE = new ResourceLocation("kome", "textures/gui/parchment.png");
 
     private KOMEGuiTheme() {
     }
 
+    public enum Status {
+        ACTIVE, COMPLETE, PLANNED, WARNING, DENIED, LOCKED, NEUTRAL
+    }
+
     public static void drawMainPanel(int x, int y, int width, int height) {
         drawRect(x - 4, y - 4, x + width + 4, y + height + 4, COLOR_SHADOW);
-        drawBorderedRect(x, y, width, height, COLOR_BORDER_DARK, COLOR_PARCHMENT_DARK);
-        drawBorderedRect(x + 3, y + 3, width - 6, height - 6, COLOR_BORDER_RED, COLOR_PARCHMENT);
+        drawBorderedRect(x, y, width, height, COLOR_BORDER_DARK, COLOR_STONE);
+        drawBorderedRect(x + 3, y + 3, width - 6, height - 6, COLOR_BORDER_RED, COLOR_PANEL_DARK_SOFT);
         drawRect(x + 7, y + 7, x + width - 7, y + 9, 0x66FFFFFF);
         drawRect(x + 7, y + height - 9, x + width - 7, y + height - 7, 0x335A171A);
     }
 
     public static void drawSubPanel(int x, int y, int width, int height) {
-        drawBorderedRect(x, y, width, height, 0xAA5A171A, COLOR_PARCHMENT_LIGHT);
+        drawBorderedRect(x, y, width, height, 0xAA6A2628, COLOR_PARCHMENT);
         drawRect(x + 2, y + 2, x + width - 2, y + 4, 0x44FFFFFF);
     }
 
@@ -146,6 +152,44 @@ public final class KOMEGuiTheme {
         drawCenteredString(font, trimToWidth(font, label, width - 8), x + width / 2, y + 5, COLOR_TEXT_LIGHT);
     }
 
+    public static int drawFactionBadge(FontRenderer font, String factionKey, String label, int x, int y, int width) {
+        int color = factionColor(factionKey);
+        int fillColor = ((color >> 16 & 0xFF) * 3 / 5) << 16
+            | ((color >> 8 & 0xFF) * 3 / 5) << 8 | (color & 0xFF) * 3 / 5;
+        drawFactionBadge(font, label, x, y, width, fillColor);
+        return color;
+    }
+
+    public static void drawStatusChip(FontRenderer font, String label, Status status, int x, int y, int width) {
+        int color = statusColor(status);
+        int fill = 0xCC000000 | (color & 0x00FFFFFF);
+        drawBorderedRect(x, y, width, 18, color, fill);
+        drawCenteredString(font, trimToWidth(font, label, width - 8), x + width / 2, y + 5, COLOR_TEXT_LIGHT);
+    }
+
+    public static int statusChipWidth(FontRenderer font, String label) {
+        return Math.max(44, font.getStringWidth(label == null ? "" : label) + 14);
+    }
+
+    public static void drawStatusChip(FontRenderer font, String label, int x, int y, Status status) {
+        drawStatusChip(font, label, status, x, y, statusChipWidth(font, label));
+    }
+
+    public static int warningBannerHeight(FontRenderer font, String message, int width) {
+        return Math.max(34, 18 + wrapText(font, message, Math.max(1, width - 28)).size() * 10);
+    }
+
+    public static int drawWarningBanner(FontRenderer font, String title, String message,
+            int x, int y, int width, Status status) {
+        int height = warningBannerHeight(font, message, width);
+        int color = statusColor(status);
+        drawBorderedRect(x, y, width, height, color, 0xEE2B2119);
+        drawRect(x + 3, y + 3, x + 7, y + height - 3, color);
+        font.drawString(trimToWidth(font, title, width - 24), x + 13, y + 7, color);
+        drawWrappedText(font, message, x + 13, y + 19, width - 24, COLOR_TEXT);
+        return y + height;
+    }
+
     public static void drawIconSlot(int x, int y, int size, boolean hovered) {
         drawBorderedRect(x, y, size, size, hovered ? COLOR_GOLD : COLOR_BORDER_DARK, 0xFF3A281A);
         drawRect(x + 2, y + 2, x + size - 2, y + size - 2, hovered ? 0x22E8C46A : 0x22000000);
@@ -154,8 +198,13 @@ public final class KOMEGuiTheme {
     public static void enableScissor(Minecraft mc, int x, int y, int width, int height) {
         ScaledResolution scaledResolution = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
         int scale = scaledResolution.getScaleFactor();
+        int left = Math.max(0, Math.min(scaledResolution.getScaledWidth(), x));
+        int top = Math.max(0, Math.min(scaledResolution.getScaledHeight(), y));
+        int right = Math.max(left, Math.min(scaledResolution.getScaledWidth(), x + Math.max(0, width)));
+        int bottom = Math.max(top, Math.min(scaledResolution.getScaledHeight(), y + Math.max(0, height)));
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(x * scale, (scaledResolution.getScaledHeight() - y - height) * scale, width * scale, height * scale);
+        GL11.glScissor(left * scale, (scaledResolution.getScaledHeight() - bottom) * scale,
+            Math.max(0, right - left) * scale, Math.max(0, bottom - top) * scale);
     }
 
     public static void disableScissor() {
@@ -181,6 +230,29 @@ public final class KOMEGuiTheme {
     public static List wrapText(FontRenderer font, String text, int width) {
         text = text == null ? "" : text;
         return font.listFormattedStringToWidth(text, width);
+    }
+
+    public static int factionColor(String factionKey) {
+        String key = factionKey == null ? "" : factionKey.trim();
+        try {
+            for (LOTRFaction faction : LOTRFaction.values()) {
+                if (faction != null && faction.codeName().equalsIgnoreCase(key)) return faction.getFactionColor();
+            }
+        } catch (Throwable ignored) {
+        }
+        int hash = key.toLowerCase(java.util.Locale.ROOT).hashCode();
+        int red = 64 + (hash >>> 16 & 95);
+        int green = 58 + (hash >>> 8 & 85);
+        int blue = 52 + (hash & 75);
+        return red << 16 | green << 8 | blue;
+    }
+
+    public static int statusColor(Status status) {
+        if (status == Status.ACTIVE || status == Status.COMPLETE) return COLOR_GOOD;
+        if (status == Status.PLANNED || status == Status.WARNING) return COLOR_WARN;
+        if (status == Status.DENIED) return COLOR_BAD;
+        if (status == Status.LOCKED) return COLOR_TEXT_DISABLED;
+        return COLOR_GOLD_DARK;
     }
 
     static void drawBorderedRect(int x, int y, int width, int height, int border, int fill) {

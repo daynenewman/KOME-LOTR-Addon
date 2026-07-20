@@ -137,10 +137,7 @@ public class KOMEPacketConquestTransfer implements IMessage {
 
         private String getPlayerFaction(KOMEWorldData data, EntityPlayerMP player) {
             LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
-            if (pledge != null) {
-                return KOMEAlliance.normalizeFactionKey(pledge.codeName());
-            }
-            return data.getPlayerFactionKey(KOMEReflection.getEntityUUID(player));
+            return pledge == null ? "" : KOMEAlliance.normalizeFactionKey(pledge.codeName());
         }
     }
 }

@@ -441,6 +441,7 @@ public class KOMEPacketPopulationGui implements IMessage {
 
     public static class TileBreakdown {
         public String tileId = "";
+        public String tileDisplayName = "";
         public String ownerFaction = "";
         public int offensiveTotal;
         public int offensiveAllocated;
@@ -453,6 +454,7 @@ public class KOMEPacketPopulationGui implements IMessage {
 
         public void sanitize() {
             tileId = safe(tileId);
+            tileDisplayName = safe(tileDisplayName);
             ownerFaction = safe(ownerFaction);
             offensiveTotal = Math.max(0, offensiveTotal);
             offensiveAllocated = clamp(offensiveAllocated, 0, offensiveTotal);
@@ -466,6 +468,7 @@ public class KOMEPacketPopulationGui implements IMessage {
 
         public void fromBytes(ByteBuf buf) {
             tileId = ByteBufUtils.readUTF8String(buf);
+            tileDisplayName = ByteBufUtils.readUTF8String(buf);
             ownerFaction = ByteBufUtils.readUTF8String(buf);
             offensiveTotal = buf.readInt();
             offensiveAllocated = buf.readInt();
@@ -481,6 +484,7 @@ public class KOMEPacketPopulationGui implements IMessage {
         public void toBytes(ByteBuf buf) {
             sanitize();
             ByteBufUtils.writeUTF8String(buf, tileId);
+            ByteBufUtils.writeUTF8String(buf, tileDisplayName);
             ByteBufUtils.writeUTF8String(buf, ownerFaction);
             buf.writeInt(offensiveTotal);
             buf.writeInt(offensiveAllocated);

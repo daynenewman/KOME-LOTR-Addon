@@ -4,6 +4,10 @@ build/
 out/
 run/
 runs/
+outputs/
+run-client-production-verification*/
+run-production-*/
+run-server-production-verification*/
 *.log
 *.iml
 .idea/

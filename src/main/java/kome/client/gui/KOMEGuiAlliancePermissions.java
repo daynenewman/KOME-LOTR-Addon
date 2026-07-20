@@ -1,5 +1,6 @@
 package kome.client.gui;
 
+import kome.common.data.KOMEAllianceBenefits;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import org.lwjgl.input.Mouse;
@@ -14,7 +15,7 @@ public class KOMEGuiAlliancePermissions extends GuiScreen {
     private static final int GAP = 8;
     private static final int TAB_HEIGHT = 24;
     private static final int STATUS_HEIGHT = 62;
-    private static final int ROW_HEIGHT = 28;
+    private static final int ROW_HEIGHT = 42;
     private static final int SECTION_GAP = 10;
 
     private final KOMEGuiAlliance.Record record;
@@ -115,7 +116,7 @@ public class KOMEGuiAlliancePermissions extends GuiScreen {
     }
 
     private void drawRelationship() {
-        String relation = record.factionA + " -> " + record.factionB;
+        String relation = record.factionA + " <-> " + record.factionB;
         KOMEGuiTheme.drawCenteredPlainText(fontRendererObj, KOMEGuiTheme.trimToWidth(fontRendererObj, relation, panelW - MARGIN * 2), panelX + panelW / 2, panelY + 48, KOMEGuiTheme.COLOR_BORDER_RED);
     }
 
@@ -152,7 +153,7 @@ public class KOMEGuiAlliancePermissions extends GuiScreen {
         fontRendererObj.drawString("Current Status", x + 14, y + 9, KOMEGuiTheme.COLOR_BORDER_RED);
         fontRendererObj.drawString("Type: " + KOMEAlliancePermissions.TYPES[selectedType], x + 14, y + 27, KOMEGuiTheme.COLOR_TEXT);
         fontRendererObj.drawString("Current Tier: " + displayTier(tier), x + w / 2 - 36, y + 27, KOMEGuiTheme.COLOR_TEXT);
-        String status = tier == -2 ? "Pending" : tier >= 0 ? "Active" : "Unavailable";
+        String status = tier == -2 ? "Pending" : record.provisional() ? "Provisional" : tier >= 0 ? "Active" : "Unavailable";
         int color = tier == -2 ? KOMEGuiTheme.COLOR_WARN : tier >= 0 ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_TEXT_MUTED;
         fontRendererObj.drawString("Status: " + status, x + w - 116, y + 27, color);
         if (tier == -2) {
@@ -184,35 +185,34 @@ public class KOMEGuiAlliancePermissions extends GuiScreen {
         KOMEGuiTheme.drawCard(x, y, w, ROW_HEIGHT - 3, hovered);
         String indicator = unlocked ? "Unlocked" : "Locked";
         int color = unlocked ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_TEXT_MUTED;
-        fontRendererObj.drawString((unlocked ? "+ " : "- ") + permission.name, x + 10, y + 9, color);
+        fontRendererObj.drawString((unlocked ? "+ " : "- ") + permission.name, x + 10, y + 7, color);
         int statusWidth = fontRendererObj.getStringWidth(indicator);
         if (unlocked) {
-            fontRendererObj.drawString(indicator, x + w - statusWidth - 10, y + 9, color);
+            fontRendererObj.drawString(indicator, x + w - statusWidth - 10, y + 7, color);
         } else {
             String requirement = permission.requirement;
             int available = Math.max(80, w / 2);
-            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, requirement, available), x + w - available - 10, y + 9, KOMEGuiTheme.COLOR_TEXT_DISABLED);
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, requirement, available), x + w - available - 10, y + 7, KOMEGuiTheme.COLOR_TEXT_DISABLED);
         }
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, permission.restriction, w - 24), x + 12, y + 22, KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 
     private List getPermissions(boolean unlocked) {
         List permissions = new ArrayList();
         int tier = record.getTier(selectedType);
         String[] names = KOMEAlliancePermissions.UNLOCKS[selectedType];
-        for (int requiredTier = 0; requiredTier < names.length; requiredTier++) {
+        for (int requiredTier = 1; requiredTier < names.length; requiredTier++) {
             boolean isUnlocked = tier >= requiredTier;
             if (isUnlocked == unlocked) {
-                permissions.add(new Permission(names[requiredTier], requirementText(requiredTier, tier)));
+                permissions.add(new Permission(names[requiredTier], requirementText(requiredTier, tier),
+                    KOMEAllianceBenefits.get(selectedType, requiredTier).restriction));
             }
         }
         return permissions;
     }
 
     private String requirementText(int requiredTier, int currentTier) {
-        if (currentTier == -2 && requiredTier == 0) {
-            return "Requires request acceptance";
-        }
-        return "Requires " + KOMEAlliancePermissions.TYPES[selectedType] + " T" + requiredTier;
+        return "Requires both sides to complete " + KOMEAlliancePermissions.TYPES[selectedType] + " T" + requiredTier;
     }
 
     private int getTabsY() {
@@ -234,12 +234,12 @@ public class KOMEGuiAlliancePermissions extends GuiScreen {
         int unlocked = 0;
         int tier = record.getTier(selectedType);
         String[] permissions = KOMEAlliancePermissions.UNLOCKS[selectedType];
-        for (int i = 0; i < permissions.length; i++) {
+        for (int i = 1; i < permissions.length; i++) {
             if (tier >= i) {
                 unlocked++;
             }
         }
-        int locked = permissions.length - unlocked;
+        int locked = permissions.length - 1 - unlocked;
         return STATUS_HEIGHT + SECTION_GAP * 2
             + 28 + Math.max(1, unlocked) * ROW_HEIGHT + 6
             + 28 + Math.max(1, locked) * ROW_HEIGHT + 6;
@@ -263,16 +263,18 @@ public class KOMEGuiAlliancePermissions extends GuiScreen {
     }
 
     private String displayTier(int tier) {
-        return tier == -2 ? "Pending" : tier < 0 ? "None" : "T" + tier;
+        return tier == -2 ? "Pending" : tier < 0 ? "None" : tier == 0 ? "Established" : "T" + tier;
     }
 
     private static class Permission {
         private final String name;
         private final String requirement;
+        private final String restriction;
 
-        private Permission(String name, String requirement) {
+        private Permission(String name, String requirement, String restriction) {
             this.name = name;
             this.requirement = requirement;
+            this.restriction = restriction;
         }
     }
 }

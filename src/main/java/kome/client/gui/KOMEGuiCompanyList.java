@@ -1,10 +1,10 @@
 package kome.client.gui;
 
 import kome.client.KOMEConquestMapOverlay;
-import kome.client.KOMEMinecraftClient;
 import kome.common.network.KOMECompanyGuiEntry;
 import kome.common.network.KOMEPacketConquestOpenCapture;
 import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketTroopGuiAction;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import org.lwjgl.input.Mouse;
@@ -14,19 +14,35 @@ import java.util.List;
 
 public class KOMEGuiCompanyList extends GuiScreen {
     private static final int PANEL_WIDTH = 520;
-    private static final int PANEL_HEIGHT = 350;
+    private static final int PANEL_HEIGHT = 410;
+    private static final int ROW_HEIGHT = 52;
     private static final int ID_CHOOSE_DESTINATION = 2;
     private static final int ID_BACK = 3;
     private static final int ID_REFRESH = 4;
     private static final int ID_CREATE_COMPANY = 5;
+    private static final int ID_TENDENCY = 6;
+    private static final int ID_STAY = 7;
+    private static final int ID_RETREAT = 8;
+    private static final int ID_RESUME = 9;
+    private static final int ID_RECLAIM = 10;
+    private static final int ID_DISBAND = 11;
+    private static final int ID_PLEDGE_DEPARTURE = 12;
     private final String tileId;
+    private final String tileDisplayName;
     private final List<KOMECompanyGuiEntry> companies = new ArrayList<KOMECompanyGuiEntry>();
     private final boolean canCreate;
     private int selectedIndex = -1;
     private int scroll;
+    private boolean confirmReclaim;
+    private boolean confirmDisband;
 
     public KOMEGuiCompanyList(String tileId, List companies, boolean canCreate) {
+        this(tileId, "", companies, canCreate);
+    }
+
+    public KOMEGuiCompanyList(String tileId, String tileDisplayName, List companies, boolean canCreate) {
         this.tileId = tileId == null ? "" : tileId;
+        this.tileDisplayName = tileDisplayName == null ? "" : tileDisplayName;
         this.canCreate = canCreate;
         for (Object object : companies) {
             if (object instanceof KOMECompanyGuiEntry) {
@@ -40,14 +56,42 @@ public class KOMEGuiCompanyList extends GuiScreen {
         buttonList.clear();
         int x = panelX();
         int y = panelY();
-        GuiButton choose = new KOMEGuiButton(ID_CHOOSE_DESTINATION, x + PANEL_WIDTH - 172, y + PANEL_HEIGHT - 67, 150, 22, "Choose Destination", true);
-        choose.enabled = selectedIndex >= 0 && selectedIndex < companies.size() && companies.get(selectedIndex).canMove;
-        buttonList.add(choose);
+        addCompanyActions(x, y);
         buttonList.add(new KOMEGuiButton(ID_BACK, x + 22, y + PANEL_HEIGHT - 34, 110, 22, "Back"));
         GuiButton create = new KOMEGuiButton(ID_CREATE_COMPANY, x + 142, y + PANEL_HEIGHT - 34, 142, 22, "Create Company");
         create.enabled = canCreate;
         buttonList.add(create);
+        buttonList.add(new KOMEGuiButton(ID_PLEDGE_DEPARTURE, x + 294, y + PANEL_HEIGHT - 34, 84, 22, "Departure"));
         buttonList.add(new KOMEGuiButton(ID_REFRESH, x + PANEL_WIDTH - 132, y + PANEL_HEIGHT - 34, 110, 22, "Refresh"));
+    }
+
+    private void addCompanyActions(int x, int y) {
+        List actions = new ArrayList();
+        KOMECompanyGuiEntry selected = selectedCompany();
+        actions.add(new CompanyAction(ID_CHOOSE_DESTINATION, "Choose Destination", selected != null && selected.canMove));
+        if (selected != null && selected.canSetTendency) {
+            actions.add(new CompanyAction(ID_TENDENCY, "Toggle Tendency", true));
+        }
+        if (selected != null && selected.canChooseAccessResponse && selected.movementOrderId.length() > 0) {
+            boolean retreatOnly = "war_ended_halted".equals(selected.movementStatus);
+            if (!retreatOnly) actions.add(new CompanyAction(ID_STAY, "Stay", true));
+            actions.add(new CompanyAction(ID_RETREAT, "Retreat", true));
+            if (!retreatOnly) actions.add(new CompanyAction(ID_RESUME, "Resume", true));
+        }
+        if (selected != null && selected.canReclaim && !"NATIVE".equals(selected.controllerAuthority)) {
+            actions.add(new CompanyAction(ID_RECLAIM, confirmReclaim ? "Confirm Reclaim" : "Reclaim", true));
+        }
+        if (selected != null && selected.canDisband) {
+            actions.add(new CompanyAction(ID_DISBAND, confirmDisband ? "Confirm Disband" : "Disband", true));
+        }
+        int gap = 6;
+        int width = (PANEL_WIDTH - 44 - gap * (actions.size() - 1)) / actions.size();
+        for (int i = 0; i < actions.size(); i++) {
+            CompanyAction action = (CompanyAction) actions.get(i);
+            GuiButton button = new KOMEGuiButton(action.id, x + 22 + i * (width + gap), y + PANEL_HEIGHT - 68, width, 22, action.label);
+            button.enabled = action.enabled;
+            buttonList.add(button);
+        }
     }
 
     @Override
@@ -61,14 +105,38 @@ public class KOMEGuiCompanyList extends GuiScreen {
             KOMEConquestMapOverlay.openPreservedMap();
         } else if (button.id == ID_BACK) {
             KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(tileId));
-            KOMEMinecraftClient.closePlayerScreen();
         } else if (button.id == ID_REFRESH) {
-            KOMEMinecraftClient.sendChat("/troops companies " + tileId);
-            KOMEMinecraftClient.closePlayerScreen();
+            sendTroopAction("list", "", "");
         } else if (button.id == ID_CREATE_COMPANY) {
-            KOMEMinecraftClient.sendChat("/troops createcompany " + tileId + " Company " + tileId);
-            KOMEMinecraftClient.closePlayerScreen();
+            sendTroopAction("create", "", "");
+        } else if (button.id == ID_PLEDGE_DEPARTURE) {
+            kome.common.network.KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketPledgeDepartureRequest());
+        } else if (selectedCompany() != null && button.id == ID_TENDENCY) {
+            KOMECompanyGuiEntry company = selectedCompany();
+            String next = "AGGRESSIVE".equals(company.tendency) ? "conservative" : "aggressive";
+            sendTroopAction("tendency", company.id, next);
+        } else if (selectedCompany() != null && (button.id == ID_STAY || button.id == ID_RETREAT || button.id == ID_RESUME)) {
+            String action = button.id == ID_STAY ? "stay" : button.id == ID_RETREAT ? "retreat" : "resume";
+            sendTroopAction("movement", selectedCompany().movementOrderId, action);
+        } else if (selectedCompany() != null && button.id == ID_RECLAIM) {
+            if (!confirmReclaim) {
+                confirmReclaim = true;
+                initGui();
+                return;
+            }
+            sendTroopAction("reclaim", selectedCompany().id, "");
+        } else if (selectedCompany() != null && button.id == ID_DISBAND) {
+            if (!confirmDisband) {
+                confirmDisband = true;
+                initGui();
+                return;
+            }
+            sendTroopAction("disband", selectedCompany().id, "");
         }
+    }
+
+    private void sendTroopAction(String action, String companyId, String value) {
+        KOMEPacketHandler.network.sendToServer(new KOMEPacketTroopGuiAction(action, companyId, value, tileId));
     }
 
     @Override
@@ -82,8 +150,10 @@ public class KOMEGuiCompanyList extends GuiScreen {
         int x = panelX() + 22;
         int y = panelY() + 62;
         for (int row = 0; row < Math.min(5, companies.size() - scroll); row++) {
-            if (mouseX >= x && mouseX < x + PANEL_WIDTH - 44 && mouseY >= y + row * 45 && mouseY < y + row * 45 + 39) {
+            if (mouseX >= x && mouseX < x + PANEL_WIDTH - 44 && mouseY >= y + row * ROW_HEIGHT && mouseY < y + row * ROW_HEIGHT + ROW_HEIGHT - 6) {
                 selectedIndex = scroll + row;
+                confirmReclaim = false;
+                confirmDisband = false;
                 initGui();
                 return;
             }
@@ -107,8 +177,15 @@ public class KOMEGuiCompanyList extends GuiScreen {
         int y = panelY();
         KOMEGuiTheme.drawMainPanel(x, y, PANEL_WIDTH, PANEL_HEIGHT);
         KOMEGuiTheme.drawHeader(fontRendererObj, "Select Company", x + 110, y + 10, PANEL_WIDTH - 220);
-        fontRendererObj.drawString("Stationed at Tile " + tileId, x + 22, y + 43, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("Companies come from the LOTR Unit Overview Company column.", x + 22, y + PANEL_HEIGHT - 82, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString(fontRendererObj.trimStringToWidth("Stationed at " + screenTileLabel(), PANEL_WIDTH - 44),
+            x + 22, y + 43, KOMEGuiTheme.COLOR_TEXT);
+        KOMECompanyGuiEntry selectedCompany = selectedCompany();
+        String authoritySummary = selectedCompany == null
+            ? "Select a company to inspect owner, temporary authority, tendency, and stewardship capacity."
+            : "Stewardship for " + selectedCompany.faction + ": unallocated " + selectedCompany.stewardshipUnallocated
+                + " | global 100% eligible cap " + selectedCompany.stewardshipGlobalCap + " | reserved " + selectedCompany.stewardshipReserved
+                + " | available " + selectedCompany.stewardshipAvailable;
+        fontRendererObj.drawString(fontRendererObj.trimStringToWidth(authoritySummary, PANEL_WIDTH - 44), x + 22, y + PANEL_HEIGHT - 88, KOMEGuiTheme.COLOR_TEXT_MUTED);
         int rowY = y + 62;
         if (companies.isEmpty()) {
             KOMEGuiTheme.drawSubPanel(x + 22, rowY, PANEL_WIDTH - 44, 52);
@@ -117,17 +194,25 @@ public class KOMEGuiCompanyList extends GuiScreen {
         for (int row = 0; row < Math.min(5, companies.size() - scroll); row++) {
             int index = scroll + row;
             KOMECompanyGuiEntry company = companies.get(index);
-            int cardY = rowY + row * 45;
-            KOMEGuiTheme.drawSubPanel(x + 22, cardY, PANEL_WIDTH - 44, 39);
+            int cardY = rowY + row * ROW_HEIGHT;
+            KOMEGuiTheme.drawSubPanel(x + 22, cardY, PANEL_WIDTH - 44, ROW_HEIGHT - 6);
             if (index == selectedIndex) {
                 drawRect(x + 24, cardY + 2, x + PANEL_WIDTH - 24, cardY + 4, KOMEGuiTheme.COLOR_BORDER_RED);
             }
-            fontRendererObj.drawString(company.name, x + 34, cardY + 7, KOMEGuiTheme.COLOR_TEXT);
+            String speed = company.groundPopulation == 0 ? "2 tiles/day" : "1 tile/day";
+            String status = company.status + " | " + speed;
+            String companyLabel = displayCompanyName(company) + " @ " + displayTileLabel(company.tile, company.tileDisplayName);
+            int statusWidth = fontRendererObj.getStringWidth(status);
+            int labelWidth = Math.max(90, PANEL_WIDTH - 76 - statusWidth - 10);
+            fontRendererObj.drawString(fontRendererObj.trimStringToWidth(companyLabel, labelWidth), x + 34, cardY + 7, KOMEGuiTheme.COLOR_TEXT);
             String composition = company.unitCount + " units | " + company.population + " pop | Mounted "
                 + company.mountedPopulation + " | Ground " + company.groundPopulation;
             fontRendererObj.drawString(composition, x + 34, cardY + 21, KOMEGuiTheme.COLOR_TEXT_MUTED);
-            String speed = company.groundPopulation == 0 ? "2 tiles/day" : "1 tile/day";
-            fontRendererObj.drawString(company.status + " | " + speed, x + PANEL_WIDTH - 34 - fontRendererObj.getStringWidth(company.status + " | " + speed),
+            String controller = "Native " + company.nativeFaction + " | Owner " + company.ownerName + " | Controller " + company.controllerName + " (" + company.controllerAuthority
+                + ") | Wars " + company.authorizedWarIds + " | Targets " + company.legalTargets + " | Cleanup " + company.withdrawalState
+                + (company.movementStatus.length() > 0 ? " | " + company.movementStatus : "");
+            fontRendererObj.drawString(fontRendererObj.trimStringToWidth(controller, PANEL_WIDTH - 68), x + 34, cardY + 34, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            fontRendererObj.drawString(status, x + PANEL_WIDTH - 34 - statusWidth,
                 cardY + 7, company.canMove ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_WARN);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
@@ -143,5 +228,50 @@ public class KOMEGuiCompanyList extends GuiScreen {
 
     private int panelY() {
         return height / 2 - PANEL_HEIGHT / 2;
+    }
+
+    private String screenTileLabel() {
+        if (tileId.length() == 0) {
+            return "all company tiles";
+        }
+        return displayTileLabel(tileId, tileDisplayName);
+    }
+
+    private String displayTileLabel(String tile, String displayName) {
+        String normalizedTile = tile == null ? "" : tile.trim();
+        String waypointName = displayName == null ? "" : displayName.trim();
+        if (normalizedTile.length() == 0) {
+            return waypointName.length() == 0 ? "unknown tile" : waypointName;
+        }
+        if (waypointName.length() > 0 && !waypointName.equalsIgnoreCase(normalizedTile)) {
+            return waypointName + " (" + normalizedTile + ")";
+        }
+        return "Tile " + normalizedTile;
+    }
+
+    private String displayCompanyName(KOMECompanyGuiEntry company) {
+        if (company == null) {
+            return "Unknown company";
+        }
+        if (company.name != null && company.name.trim().length() > 0) {
+            return company.name.trim();
+        }
+        return company.id == null || company.id.length() == 0 ? "Unknown company" : company.id;
+    }
+
+    private KOMECompanyGuiEntry selectedCompany() {
+        return selectedIndex >= 0 && selectedIndex < companies.size() ? companies.get(selectedIndex) : null;
+    }
+
+    private static class CompanyAction {
+        private final int id;
+        private final String label;
+        private final boolean enabled;
+
+        private CompanyAction(int id, String label, boolean enabled) {
+            this.id = id;
+            this.label = label;
+            this.enabled = enabled;
+        }
     }
 }

@@ -9,6 +9,7 @@ import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEPopulationType;
 import kome.common.data.KOMEProgressionPermissions;
 import kome.common.data.KOMETilePopulation;
+import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMEWorldData;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketHireType;
@@ -505,6 +506,8 @@ public class KOMECommandPopulation extends CommandBase {
         for (KOMEConquestTile tile : tiles) {
             KOMEPacketPopulationGui.TileBreakdown row = new KOMEPacketPopulationGui.TileBreakdown();
             row.tileId = KOMEConquestTile.normalizeId(tile.id);
+            KOMETileWaypointLink waypointLink = data.getTileWaypointLink(row.tileId);
+            row.tileDisplayName = waypointLink == null ? "" : waypointLink.displayName();
             row.ownerFaction = displayFaction(tile.currentRulingFaction());
             row.offensiveTotal = data.getEffectiveUsablePopulation(tile.id, normalizedFaction, KOMEPopulationType.OFFENSIVE);
             row.offensiveAllocated = data.getTotalAllocated(tile.id, normalizedFaction, KOMEPopulationType.OFFENSIVE);

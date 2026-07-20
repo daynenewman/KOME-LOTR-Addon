@@ -15,6 +15,9 @@ import kome.common.data.KOMEPlayerTilePopulationAllocation;
 import kome.common.data.KOMETilePopulation;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMEClaimConfirmation;
+import kome.common.data.KOMEWar;
+import kome.common.data.KOMEWarService;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -94,7 +97,27 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         if (allocations.size() > shownAllocations) {
             allocationSummary.append("; +").append(allocations.size() - shownAllocations).append(" more");
         }
-        KOMEPacketHandler.network.sendTo(new KOMEPacketConquestCaptureGui(tile.id, ownerFaction, tile.pendingTransferFromFaction, tile.pendingTransferToFaction, viewerFaction, summary.offensivePop, summary.defensivePop, summary.mountedPop, summary.groundPop, summary.incomingPop, summary.outgoingPop, summary.incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAccept, canCancel, canMoveTroops, canEditPopulation, offensiveAllocated, defensiveAllocated, myAllocation == null ? 0 : myAllocation.offensiveAllocated, myAllocation == null ? 0 : myAllocation.offensiveUsed, myAllocation == null ? 0 : myAllocation.defensiveAllocated, myAllocation == null ? 0 : myAllocation.defensiveUsed, tile.claimedByName, allocationSummary.toString(), data.hasFactionKing(ownerFaction), summary.myOffensivePop, summary.myDefensivePop, summary.myMountedPop, summary.myGroundPop, activeRecruitmentTile, canSetRecruitmentTile, waypointLink == null ? "" : waypointLink.lotrWaypointKey, waypointLink == null ? "" : waypointLink.displayName(), waypointLink == null ? "" : waypointLink.waypointRegion, tile.waypointLevel, tile.currentRulingFaction(), tile.defaultRulingFaction, tile.mapRegion), player);
+        KOMEPacketConquestCaptureGui packet = new KOMEPacketConquestCaptureGui(tile.id, ownerFaction, tile.pendingTransferFromFaction, tile.pendingTransferToFaction, viewerFaction, summary.offensivePop, summary.defensivePop, summary.mountedPop, summary.groundPop, summary.incomingPop, summary.outgoingPop, summary.incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAccept, canCancel, canMoveTroops, canEditPopulation, offensiveAllocated, defensiveAllocated, myAllocation == null ? 0 : myAllocation.offensiveAllocated, myAllocation == null ? 0 : myAllocation.offensiveUsed, myAllocation == null ? 0 : myAllocation.defensiveAllocated, myAllocation == null ? 0 : myAllocation.defensiveUsed, tile.claimedByName, allocationSummary.toString(), data.hasFactionKing(ownerFaction), summary.myOffensivePop, summary.myDefensivePop, summary.myMountedPop, summary.myGroundPop, activeRecruitmentTile, canSetRecruitmentTile, waypointLink == null ? "" : waypointLink.lotrWaypointKey, waypointLink == null ? "" : waypointLink.displayName(), waypointLink == null ? "" : waypointLink.waypointRegion, tile.waypointLevel, tile.currentRulingFaction(), tile.defaultRulingFaction, tile.mapRegion);
+        if (canClaim && ownerFaction.length() > 0) {
+            boolean alliedConfirmation = KOMEWarService.requiresHostileConfirmation(data, viewerFaction, ownerFaction);
+            KOMEClaimConfirmation confirmation = data.conquestClaimConfirmations.get(viewerId);
+            long now = System.currentTimeMillis();
+            packet.claimConfirmationArmed = alliedConfirmation && confirmation != null && confirmation.expiresAtMillis >= now
+                && tileId.equals(confirmation.tileId) && ownerFaction.equals(confirmation.expectedOwner)
+                && KOMEWarService.allianceFingerprint(data, viewerFaction, ownerFaction).equals(confirmation.expectedAllianceState);
+            StringBuilder warning = new StringBuilder("This tile is controlled by ").append(KOMEAlliance.displayFactionName(ownerFaction))
+                .append(". Capturing it is a hostile act.");
+            if (alliedConfirmation) warning.append(" Capturing it will immediately end all direct Civil, Trade, and Military agreements between ")
+                .append(KOMEAlliance.displayFactionName(viewerFaction)).append(" and ").append(KOMEAlliance.displayFactionName(ownerFaction))
+                .append(", revoke delegated authority, and begin or update a war. Confirmation expires 30 seconds after the first click.");
+            java.util.List<KOMEWar> sameSide = KOMEWarService.findActiveSameSide(data, viewerFaction, ownerFaction);
+            if (!sameSide.isEmpty()) warning.append(" WARNING: current same-side coalition membership will become contradictory and require operator correction.");
+            packet.claimWarning = warning.toString();
+            KOMEWar existingWar = KOMEWarService.findActiveOpposition(data, viewerFaction, ownerFaction);
+            packet.claimWarDestination = existingWar == null ? "This claim will create a new two-side coalition war."
+                : "This claim will append a tile-capture event to " + (existingWar.displayName.length() == 0 ? existingWar.id : existingWar.displayName + " (" + existingWar.id + ")") + ".";
+        }
+        KOMEPacketHandler.network.sendTo(packet, player);
     }
 
     public static boolean canEditPopulation(KOMEWorldData data, EntityPlayerMP player, KOMEConquestTile tile) {
@@ -109,10 +132,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
 
     private static String getPlayerFaction(KOMEWorldData data, EntityPlayerMP player) {
         LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
-        if (pledge != null) {
-            return KOMEAlliance.normalizeFactionKey(pledge.codeName());
-        }
-        return data.getPlayerFactionKey(KOMEReflection.getEntityUUID(player));
+        return pledge == null ? "" : KOMEAlliance.normalizeFactionKey(pledge.codeName());
     }
 
     private static TroopSummary summarizeTroops(KOMEWorldData data, String ownerFaction, String tileId, java.util.UUID viewerId) {

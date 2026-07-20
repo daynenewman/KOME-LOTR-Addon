@@ -8,6 +8,8 @@ import io.netty.buffer.ByteBuf;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEConquestTile;
+import kome.common.data.KOMEConquestClaimService;
+import kome.common.data.KOMEWar;
 import kome.common.data.KOMEWorldData;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
@@ -50,21 +52,30 @@ public class KOMEPacketConquestClaim implements IMessage {
                 return null;
             }
             KOMEConquestTile tile = data.getConquestTile(tileId);
-            data.claimTile(tile, pledge, KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)), KOMEReflection.getEntityUUID(player), player.getCommandSenderName());
-            data.ensureDefaultArrivalPoint(tile);
-            data.markDirty();
-            data.syncConquestTiles();
+            KOMEConquestClaimService.Result result = KOMEConquestClaimService.claim(data, tile, pledge,
+                KOMEReflection.getEntityUUID(player), player.getCommandSenderName(),
+                KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)), System.currentTimeMillis());
             KOMEPacketConquestOpenCapture.sendTileCommand(player, tileId);
-            player.addChatMessage(new ChatComponentText("Claimed conquest tile " + tileId + " for " + KOMEAlliance.displayFactionName(pledge)));
+            player.addChatMessage(new ChatComponentText(result.message));
+            if (result.success) {
+                data.ensureDefaultArrivalPoint(tile);
+                data.syncConquestTiles();
+                if (!result.sameSideContradictions.isEmpty()) {
+                    StringBuilder wars = new StringBuilder();
+                    for (KOMEWar war : result.sameSideContradictions) {
+                        if (wars.length() > 0) wars.append(", ");
+                        wars.append(war.id);
+                    }
+                    player.addChatMessage(new ChatComponentText("WARNING: the factions still share a side in " + wars
+                        + ". Direct hostility now takes priority; an operator must move or remove a faction."));
+                }
+            }
             return null;
         }
 
         private String getPlayerFaction(KOMEWorldData data, EntityPlayerMP player) {
             LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
-            if (pledge != null) {
-                return KOMEAlliance.normalizeFactionKey(pledge.codeName());
-            }
-            return data.getPlayerFactionKey(KOMEReflection.getEntityUUID(player));
+            return pledge == null ? "" : KOMEAlliance.normalizeFactionKey(pledge.codeName());
         }
     }
 }

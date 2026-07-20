@@ -12,12 +12,13 @@ import kome.common.command.KOMECommandKome;
 import kome.common.command.KOMECommandPopulation;
 import kome.common.command.KOMECommandProgression;
 import kome.common.command.KOMECommandTroops;
+import kome.common.command.KOMECommandWar;
 import kome.common.gui.KOMEAllianceGuiHandler;
 import kome.common.network.KOMEPacketHandler;
 
 import java.util.List;
 
-@Mod(modid = KOMEAddon.MODID, name = "Kings of Middle-earth Server Addon", version = "1.0.6", dependencies = "required-after:lotr")
+@Mod(modid = KOMEAddon.MODID, name = "Kings of Middle-earth Server Addon", version = "1.0.7", dependencies = "required-after:lotr")
 public class KOMEAddon {
     public static final String MODID = "kome";
 
@@ -54,5 +55,6 @@ public class KOMEAddon {
         event.registerServerCommand(new KOMECommandPopulation());
         event.registerServerCommand(new KOMECommandProgression());
         event.registerServerCommand(new KOMECommandTroops());
+        event.registerServerCommand(new KOMECommandWar());
     }
 }

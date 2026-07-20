@@ -1,7 +1,8 @@
 package kome.client.gui;
 
-import kome.client.KOMEMinecraftClient;
 import kome.common.network.KOMEPacketCompanyMoveConfirmGui;
+import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketTroopGuiAction;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 
@@ -26,10 +27,10 @@ public class KOMEGuiCompanyMoveConfirm extends GuiScreen {
     @Override
     protected void actionPerformed(GuiButton button) {
         if (button.id == 0) {
-            KOMEMinecraftClient.sendChat("/troops movecompany " + move.companyId + " " + move.destinationTile);
-            KOMEMinecraftClient.closePlayerScreen();
+            KOMEPacketHandler.network.sendToServer(new KOMEPacketTroopGuiAction(
+                "move", move.companyId, move.destinationTile, move.originTile));
         } else if (button.id == 1) {
-            KOMEMinecraftClient.closePlayerScreen();
+            mc.displayGuiScreen(null);
         }
     }
 
@@ -43,7 +44,7 @@ public class KOMEGuiCompanyMoveConfirm extends GuiScreen {
         drawCard(x + 24, y + 55, PANEL_WIDTH - 48, 66, "Company", move.companyName,
             move.unitCount + " units | " + move.population + " population");
         drawCard(x + 24, y + 126, PANEL_WIDTH - 48, 70, "Route",
-            "Tile " + move.originTile + " -> Tile " + move.destinationTile,
+            routeLine(),
             move.routeSummary);
         drawCard(x + 24, y + 204, PANEL_WIDTH - 48, 44, "Arrival Point",
             "Dim " + move.arrivalDimension + " at " + formatCoord(move.arrivalX) + ", " + formatCoord(move.arrivalY) + ", " + formatCoord(move.arrivalZ),
@@ -62,8 +63,22 @@ public class KOMEGuiCompanyMoveConfirm extends GuiScreen {
     private void drawCard(int x, int y, int width, int height, String title, String line1, String line2) {
         KOMEGuiTheme.drawSubPanel(x, y, width, height);
         fontRendererObj.drawString(title, x + 12, y + 10, KOMEGuiTheme.COLOR_BORDER_RED);
-        fontRendererObj.drawString(line1, x + 12, y + 28, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, line1, width - 24), x + 12, y + 28, KOMEGuiTheme.COLOR_TEXT);
         fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, line2, width - 24), x + 12, y + 45, KOMEGuiTheme.COLOR_TEXT_MUTED);
+    }
+
+    private String routeLine() {
+        if (move.routeTiles == null || move.routeTiles.isEmpty()) {
+            return "Tile " + move.originTile + " -> Tile " + move.destinationTile;
+        }
+        StringBuilder builder = new StringBuilder("Path ");
+        for (int i = 0; i < move.routeTiles.size(); i++) {
+            if (i > 0) {
+                builder.append(" -> ");
+            }
+            builder.append(move.routeTiles.get(i));
+        }
+        return builder.toString();
     }
 
     private String formatDuration(long millis) {

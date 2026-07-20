@@ -88,6 +88,7 @@ public class KOMEEvents {
     public static int defaultUnitCost = 25;
     private final Map<UUID, Integer> lastCoinValues = new HashMap<>();
     private final Map<UUID, int[]> lastCoinCounts = new HashMap<>();
+    private final Map<String, Integer> lastTradeCounts = new HashMap<String, Integer>();
     private final Map<UUID, Long> lastStoneCraftDenials = new HashMap<>();
     private long nextMovementArrivalCheckMillis;
     private long nextLiveUnitMarkerSyncMillis;
@@ -97,6 +98,7 @@ public class KOMEEvents {
     public void resetSessionState() {
         lastCoinValues.clear();
         lastCoinCounts.clear();
+        lastTradeCounts.clear();
         lastStoneCraftDenials.clear();
         automaticWaypointLinkCheckMillis = 0L;
         automaticWaypointLinksEnsured = false;
@@ -108,13 +110,22 @@ public class KOMEEvents {
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
             KOMECommandTroops.removeStaleMovingEntities(data, KOMEReflection.getWorld(event.player));
             data.rememberPlayerName(KOMEReflection.getEntityUUID(event.player), event.player.getCommandSenderName());
+            KOMEPledgeReleaseService.observePledge(data, (EntityPlayerMP) event.player,
+                getActualPledgeFactionKey(event.player), System.currentTimeMillis());
             data.syncConquestTiles((EntityPlayerMP) event.player);
+            sendAllianceRefresh((EntityPlayerMP) event.player, data);
             KOMEPacketHandler.network.sendTo(new KOMEPacketHireType(data.getPopulation(KOMEReflection.getEntityUUID(event.player)).hireType), (EntityPlayerMP) event.player);
             KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
             KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP) event.player, data.getProgression(KOMEReflection.getEntityUUID(event.player)));
             KOMEProgressionTitles.updatePlayerTitle((EntityPlayerMP) event.player);
             cacheCoinValue((EntityPlayer) event.player);
+            cacheTradeCounts((EntityPlayerMP) event.player);
         }
+    }
+
+    @SubscribeEvent
+    public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        KOMEAllianceRecordBuilder.clearOperatorView(event.player);
     }
 
     @SubscribeEvent
@@ -122,6 +133,9 @@ public class KOMEEvents {
         if (event.phase == TickEvent.Phase.END && !KOMEReflection.isRemote(KOMEReflection.getWorld(event.player))) {
             enforceOpenContainerRestrictions(event.player);
             if (event.player instanceof EntityPlayerMP && KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(event.player)) % 20L == 0L) {
+                KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
+                KOMEPledgeReleaseService.observePledge(data, (EntityPlayerMP) event.player,
+                    getActualPledgeFactionKey(event.player), System.currentTimeMillis());
                 enforceMiniQuestPermission((EntityPlayerMP) event.player);
                 enforceMountPermission((EntityPlayerMP) event.player);
             }
@@ -131,7 +145,7 @@ public class KOMEEvents {
                 updateAllianceMilitaryKillProgress((EntityPlayerMP) event.player);
                 updateAllianceTradeT2Progress((EntityPlayerMP) event.player);
             }
-            trackAllianceCivilTraderProgress(event.player);
+            trackAllianceTradeProgress(event.player);
             cacheCoinValue(event.player);
         }
     }
@@ -176,8 +190,13 @@ public class KOMEEvents {
                 continue;
             }
             KOMEWorldData data = KOMEWorldData.get(world);
+            data.reconcileAllianceLifecycle(now, world.getTotalWorldTime());
+            kome.common.command.KOMECommandAlliance.reconcileKinglessPendingAlliances(data, world.getTotalWorldTime());
             if (!data.armyMovements.isEmpty()) {
                 KOMECommandTroops.processMovementTick(data, world, now);
+            }
+            for (KOMEArmyCompany company : new ArrayList<KOMEArmyCompany>(data.armyCompanies.values())) {
+                KOMEWartimeStewardshipService.demobilizeIfSafe(data, company, world, now);
             }
         }
     }
@@ -196,10 +215,14 @@ public class KOMEEvents {
         }
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onEntityJoinWorld(EntityJoinWorldEvent event) {
         if (!KOMEReflection.isRemote(event.world) && event.entity instanceof LOTREntityNPC) {
             KOMEWorldData data = KOMEWorldData.get(event.world);
+            if (KOMEPledgeReleaseService.interceptReleasedEntity(data, event.entity, System.currentTimeMillis())) {
+                event.setCanceled(true);
+                return;
+            }
             KOMEHiredUnitRecord movingRecord = data.hiredUnits.get(KOMEReflection.getEntityUUID(event.entity));
             if (movingRecord != null && movingRecord.isMoving()) {
                 if (KOMECommandTroops.isArrivalSpawnInProgress(data, movingRecord)) {
@@ -492,8 +515,34 @@ public class KOMEEvents {
             KOMEReflection.setDead(npc);
             return;
         }
+        String ownerFaction = getPlayerFactionKey(owner, data);
+        LOTRFaction npcFaction = npc.getFaction();
+        String unitFaction = npcFaction == null ? "" : KOMEAlliance.normalizeFactionKey(npcFaction.codeName());
+        boolean alliedHire = ownerFaction.length() > 0 && unitFaction.length() > 0 && !ownerFaction.equals(unitFaction);
+        String alliancePair = alliedHire ? KOMEAlliance.pairKey(ownerFaction, unitFaction) : "";
+        KOMEAllianceAuthority allianceAuthority = new KOMEAllianceAuthority(data);
+        boolean stewardshipHire = alliedHire && !isFarmhand && !data.hasFactionKing(unitFaction)
+            && KOMEWarService.supportingKingDecision(data, unitFaction, ownerFaction,
+                info.getHiringPlayerUUID()).allowed;
+        if (alliedHire) {
+            boolean allowed = isFarmhand ? allianceAuthority.canFactionHireAlliedFarmhand(ownerFaction, unitFaction)
+                : allianceAuthority.canFactionHireAlliedMilitaryUnit(ownerFaction, unitFaction);
+            if (!allowed) {
+                denyAlliedHire(owner, npc, isFarmhand
+                    ? "Civil Tier 2 is required to hire a farmhand from " + KOMEAlliance.displayFactionName(unitFaction) + "."
+                    : "Military Tier 1 is required to hire a combat unit from " + KOMEAlliance.displayFactionName(unitFaction) + ".");
+                return;
+            }
+            if (!isFarmhand && !stewardshipHire && hasTierOneAlliedUnit(data, info.getHiringPlayerUUID(), alliancePair)) {
+                denyAlliedHire(owner, npc, "You already maintain the one allied combat unit allowed for this Military agreement.");
+                return;
+            }
+        }
         KOMEPlayerPopulation pop = data.getPopulation(info.getHiringPlayerUUID());
         KOMEPopulationType hireType = pop.hireType == null ? KOMEPopulationType.OFFENSIVE : pop.hireType;
+        if (stewardshipHire) {
+            hireType = KOMEPopulationType.OFFENSIVE;
+        }
         if (isFarmhand) {
             int limit = data.getFarmhandLimit(info.getHiringPlayerUUID());
             int used = data.getFarmhandsUsed(info.getHiringPlayerUUID());
@@ -511,6 +560,16 @@ public class KOMEEvents {
             record.level = Math.max(1, info.xpLevel);
             record.farmhand = true;
             record.unitName = getFarmhandName(npc);
+            record.unitFaction = unitFaction;
+            record.sourceFaction = KOMEAlliance.normalizeFactionKey(ownerFaction);
+            record.sourcePlayer = info.getHiringPlayerUUID();
+            record.sourceType = KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE;
+            record.sourceTileId = data.getActiveRecruitmentTile(info.getHiringPlayerUUID(), ownerFaction);
+            record.currentTile = record.sourceTileId.length() > 0 ? record.sourceTileId : data.findFactionControlledTile(ownerFaction);
+            record.alliancePair = alliancePair;
+            record.benefitSource = alliedHire ? "CIVIL_T2_FARMHAND" : "";
+            record.spawningFaction = KOMEAlliance.normalizeFactionKey(ownerFaction);
+            record.controller = info.getHiringPlayerUUID();
             record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
             data.hiredUnits.put(entityID, record);
             data.markDirty();
@@ -521,31 +580,39 @@ public class KOMEEvents {
         boolean mounted = isMountedUnit(npc, trade);
         int rawPopulationCost = getRawPopulationCost(npc, mounted);
         int populationCost = applyHireTypeCost(rawPopulationCost, hireType);
-        String ownerFaction = getPlayerFactionKey(owner, data);
         UUID hiringPlayer = info.getHiringPlayerUUID();
         String activeRecruitmentTile = data.getActiveRecruitmentTile(hiringPlayer, ownerFaction);
-        KOMETilePopulation originPopulation = activeRecruitmentTile.length() == 0 ? null
-            : data.findPlayerAllocatedPopulationInTile(activeRecruitmentTile, ownerFaction, hiringPlayer, hireType, populationCost);
-        if (originPopulation == null) {
+        KOMETilePopulation originPopulation = stewardshipHire
+            ? data.findKinglessStewardshipPool(unitFaction, populationCost)
+            : activeRecruitmentTile.length() == 0 ? null
+                : data.findPlayerAllocatedPopulationInTile(activeRecruitmentTile, ownerFaction, hiringPlayer, hireType, populationCost);
+        if (!stewardshipHire && originPopulation == null) {
             originPopulation = data.findPlayerAllocatedTileWithPopulation(ownerFaction, hiringPlayer, hireType, populationCost);
         }
         String originTile = originPopulation != null ? originPopulation.tileId
-            : activeRecruitmentTile.length() > 0 ? activeRecruitmentTile : data.findFactionControlledTile(ownerFaction);
-        boolean tileFunded = originPopulation != null && originPopulation.tryUseEffective(hireType, populationCost, ownerFaction);
-        KOMEPlayerTilePopulationAllocation allocation = tileFunded ? data.getAllocation(originPopulation.tileId, ownerFaction, hiringPlayer) : null;
-        if (tileFunded && (allocation == null || !allocation.tryUse(hireType, populationCost))) {
+            : activeRecruitmentTile.length() > 0 && !stewardshipHire ? activeRecruitmentTile
+                : data.findFactionControlledTile(stewardshipHire ? unitFaction : ownerFaction);
+        boolean withinStewardshipCap = !stewardshipHire || data.getKinglessStewardshipAvailable(unitFaction) >= populationCost;
+        String fundingFaction = stewardshipHire ? unitFaction : ownerFaction;
+        boolean tileFunded = withinStewardshipCap && originPopulation != null
+            && originPopulation.tryUseEffective(hireType, populationCost, fundingFaction);
+        KOMEPlayerTilePopulationAllocation allocation = tileFunded && !stewardshipHire
+            ? data.getAllocation(originPopulation.tileId, ownerFaction, hiringPlayer) : null;
+        if (tileFunded && !stewardshipHire && (allocation == null || !allocation.tryUse(hireType, populationCost))) {
             originPopulation.release(hireType, populationCost);
             tileFunded = false;
         }
         boolean reserveFunded = false;
-        if (!tileFunded && originTile.length() > 0) {
+        if (!stewardshipHire && !tileFunded && originTile.length() > 0) {
             reserveFunded = pop.tryUse(hireType, populationCost);
         }
         if (!tileFunded && !reserveFunded) {
             int refund = refundDeniedHire(owner, npc);
-            int factionTotal = data.getFactionTilePopulationTotal(ownerFaction, hireType);
-            int factionUsed = data.getFactionTilePopulationUsed(ownerFaction, hireType);
-            String reason = originTile.length() == 0
+            int factionTotal = data.getFactionTilePopulationTotal(fundingFaction, hireType);
+            int factionUsed = data.getFactionTilePopulationUsed(fundingFaction, hireType);
+            String reason = stewardshipHire ? "The shared 100% wartime stewardship pool of eligible unallocated offensive population is exhausted. Available: "
+                + data.getKinglessStewardshipAvailable(unitFaction) + ", required: " + populationCost + "."
+                : originTile.length() == 0
                 ? "No controlled conquest tile is available as a physical origin."
                 : "Not enough tile or player reserve " + hireType.key + " population. Required: " + populationCost
                     + ", allocated tile available: " + getFactionPlayerAllocationAvailable(data, ownerFaction, hiringPlayer, hireType)
@@ -564,25 +631,54 @@ public class KOMEEvents {
         record.level = Math.max(1, info.xpLevel);
         record.mounted = mounted;
         record.unitName = getUnitName(npc);
-        record.sourceType = tileFunded ? KOMEHiredUnitRecord.SOURCE_TILE_POOL : KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE;
+        record.sourceType = stewardshipHire ? KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION
+            : tileFunded && allocation != null ? KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION
+            : tileFunded ? KOMEHiredUnitRecord.SOURCE_TILE_POOL : KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE;
         record.sourcePlayer = info.getHiringPlayerUUID();
         record.sourceTileId = tileFunded ? originPopulation.tileId : "";
         record.sourceFaction = tileFunded ? originPopulation.sourceFaction : KOMEAlliance.normalizeFactionKey(ownerFaction);
-        if (tileFunded) {
+        if (tileFunded && !stewardshipHire) {
             record.allocationTileId = originPopulation.tileId;
             record.allocationFaction = KOMEAlliance.normalizeFactionKey(ownerFaction);
             record.allocationPlayer = hiringPlayer;
         }
         record.currentTile = originTile;
+        record.unitFaction = unitFaction;
+        record.alliancePair = alliancePair;
+        record.benefitSource = stewardshipHire ? "MILITARY_T3_STEWARDSHIP" : alliedHire ? "MILITARY_T1_RECRUIT" : "";
+        record.spawningFaction = KOMEAlliance.normalizeFactionKey(ownerFaction);
+        record.controller = hiringPlayer;
+        record.populationOwningFaction = KOMEAlliance.normalizeFactionKey(stewardshipHire ? unitFaction : ownerFaction);
+        record.controllerAuthority = stewardshipHire ? KOMEArmyCompany.AUTHORITY_STEWARDSHIP : KOMEArmyCompany.AUTHORITY_NATIVE;
+        record.stewardshipWarIds = stewardshipHire
+            ? KOMEWarService.authorizationWarIds(data, unitFaction, ownerFaction) : "";
         record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
         data.hiredUnits.put(entityID, record);
         data.markDirty();
         data.syncConquestTiles();
-        String funding = tileFunded ? "allocated tile population" : "player reserve population";
+        String funding = stewardshipHire ? "kingless-faction stewardship population"
+            : tileFunded ? "allocated tile population" : "player reserve population";
         String fallback = activeRecruitmentTile.length() > 0 && !activeRecruitmentTile.equals(originTile)
             ? " Active recruitment tile " + activeRecruitmentTile + " could not fund this hire, so fallback tile " + originTile + " was used."
             : "";
         owner.addChatMessage(new ChatComponentText(record.unitName + " recruited at " + originTile + " using " + funding + "." + fallback));
+    }
+
+    private void denyAlliedHire(EntityPlayer owner, LOTREntityNPC npc, String reason) {
+        int refund = refundDeniedHire(owner, npc);
+        KOMEProgressionPermissions.deny(owner, reason + (refund > 0 ? " Refunded " + refund + " coins." : ""));
+        KOMEReflection.setDead(npc);
+    }
+
+    private boolean hasTierOneAlliedUnit(KOMEWorldData data, UUID owner, String alliancePair) {
+        for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
+            if (record != null && owner.equals(record.owner) && !record.farmhand
+                    && "MILITARY_T1_RECRUIT".equals(record.benefitSource)
+                    && alliancePair.equals(record.alliancePair)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void enforceMiniQuestPermission(EntityPlayerMP player) {
@@ -825,57 +921,49 @@ public class KOMEEvents {
         lastCoinCounts.put(KOMEReflection.getEntityUUID(player), getCoinCounts(player));
     }
 
-    private void trackAllianceCivilTraderProgress(EntityPlayer player) {
-        if (!(player instanceof EntityPlayerMP) || !(player.openContainer instanceof LOTRContainerTrade)) {
-            return;
-        }
-        UUID playerID = KOMEReflection.getEntityUUID(player);
-        Integer previous = lastCoinValues.get(playerID);
-        if (previous == null) {
-            return;
-        }
-        int current = LOTRItemCoin.getInventoryValue(player, false);
-        int tradeValue = Math.abs(current - previous.intValue());
-        if (tradeValue <= 0) {
-            return;
-        }
-        LOTREntityNPC trader = ((LOTRContainerTrade) player.openContainer).theTraderNPC;
-        LOTRFaction traderFaction = trader == null ? null : trader.getFaction();
-        if (traderFaction == null) {
+    private void trackAllianceTradeProgress(EntityPlayer player) {
+        if (!(player instanceof EntityPlayerMP)) {
             return;
         }
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         String playerFaction = getPlayerFactionKey(player, data);
-        String traderFactionKey = traderFaction.codeName();
-        if (playerFaction.length() == 0 || traderFactionKey == null || traderFactionKey.length() == 0) {
+        if (playerFaction.length() == 0) {
             return;
         }
         boolean changed = false;
         for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || alliance.civilTier != 1) {
+            if (alliance == null || !alliance.involves(playerFaction)
+                    || !alliance.hasAccepted(KOMEAlliance.CIVIL) && !alliance.hasAccepted(KOMEAlliance.TRADE)) {
                 continue;
             }
-            if (!factionMatches(alliance.factionA, playerFaction) || !factionMatches(alliance.factionB, traderFactionKey)) {
+            String alliedFaction = alliance.getOtherFaction(playerFaction);
+            LOTRFaction lotrFaction = findFaction(alliedFaction);
+            if (lotrFaction == null) {
                 continue;
             }
-            int delivered = alliance.getDelivered("civil.trade");
-            if (delivered >= KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED) {
+            String key = tradeCounterKey(KOMEReflection.getEntityUUID(player), alliedFaction);
+            int current = LOTRLevelData.getData(player).getFactionData(lotrFaction).getTradeCount();
+            Integer previous = lastTradeCounts.put(key, Integer.valueOf(current));
+            if (previous == null || current <= previous.intValue()) {
                 continue;
             }
-            int credited = Math.min(tradeValue, KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED - delivered);
-            alliance.addDelivered("civil.trade", credited);
+            int completedTransactions = current - previous.intValue();
+            alliance.addDelivered(playerFaction, KOMEAllianceProgressionService.ALLIED_TRADES, completedTransactions);
             changed = true;
-            if (alliance.getDelivered("civil.trade") >= KOMEAllianceInventory.CIVIL_T2_TRADE_REQUIRED) {
-                alliance.setTier(KOMEAlliance.CIVIL, 2, "Trader progress", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
-                player.addChatMessage(new ChatComponentText("Civil alliance upgraded to T2 with " + traderFaction.factionName() + "."));
-            }
+            KOMEAllianceProgressionService.refreshFactionCompletion(data, alliance, playerFaction, KOMEAlliance.CIVIL,
+                KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
+            KOMEAllianceProgressionService.refreshFactionCompletion(data, alliance, playerFaction, KOMEAlliance.TRADE,
+                KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
         }
         if (changed) {
             data.markDirty();
-            if (player instanceof EntityPlayerMP) {
-                sendAllianceRefresh((EntityPlayerMP) player, data);
+            for (KOMEAlliance alliance : data.alliances.values()) {
+                if (alliance != null && alliance.involves(playerFaction)) {
+                    kome.common.command.KOMECommandAlliance.sendAllianceRefreshToParticipants(data, alliance);
+                }
             }
         }
+        cacheTradeCounts((EntityPlayerMP) player);
     }
 
     private void updateAllianceMilitaryKillProgress(EntityPlayerMP player) {
@@ -886,28 +974,12 @@ public class KOMEEvents {
         }
         boolean changed = false;
         for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || alliance.militaryTier != 1 || !factionMatches(alliance.factionA, playerFaction)) {
+            if (alliance == null || !alliance.hasAccepted(KOMEAlliance.MILITARY)
+                    || alliance.militaryTier >= KOMEAlliance.maxTier(KOMEAlliance.MILITARY) || !alliance.involves(playerFaction)) {
                 continue;
             }
-            LOTRFaction receiver = findFaction(alliance.factionB);
-            if (receiver == null) {
-                continue;
-            }
-            int current = LOTRLevelData.getData(player).getFactionData(receiver).getEnemiesKilled();
-            int previous = alliance.getDelivered("military.kills");
-            if (current > previous) {
-                alliance.setDelivered("military.kills", Math.min(current, KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED));
-                changed = true;
-                int progress = alliance.getDelivered("military.kills");
-                if (progress <= 5 || progress % 25 == 0) {
-                    player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + progress + "/" + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + "."));
-                }
-            }
-            if (alliance.getDelivered("military.kills") >= KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED) {
-                alliance.setTier(KOMEAlliance.MILITARY, 2, "Enemy kills", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
-                player.addChatMessage(new ChatComponentText("Military alliance upgraded to T2 with " + receiver.factionName() + "."));
-                changed = true;
-            }
+            changed = KOMEAllianceProgressionService.refreshFactionCompletion(data, alliance, playerFaction, KOMEAlliance.MILITARY,
+                KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player))) || changed;
         }
         if (changed) {
             data.markDirty();
@@ -920,6 +992,13 @@ public class KOMEEvents {
             return;
         }
         EntityPlayerMP player = (EntityPlayerMP) source.getEntity();
+        if (npc.hiredNPCInfo != null && npc.hiredNPCInfo.isActive
+                && KOMEReflection.getEntityUUID(player).equals(npc.hiredNPCInfo.getHiringPlayerUUID())) {
+            return;
+        }
+        if (npc.getEntityData().getBoolean("KOMEDebugUnit") || npc.getEntityData().getBoolean("KOMETestUnit")) {
+            return;
+        }
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         String playerFaction = getPlayerFactionKey(player, data);
         LOTRFaction killedFaction = npc.getFaction();
@@ -928,30 +1007,35 @@ public class KOMEEvents {
         }
         boolean changed = false;
         for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || alliance.militaryTier != 1 || !factionMatches(alliance.factionA, playerFaction)) {
+            if (alliance == null || !alliance.hasAccepted(KOMEAlliance.MILITARY)
+                    || alliance.militaryTier >= KOMEAlliance.maxTier(KOMEAlliance.MILITARY) || !alliance.involves(playerFaction)) {
                 continue;
             }
-            LOTRFaction receiver = findFaction(alliance.factionB);
+            LOTRFaction receiver = findFaction(alliance.getOtherFaction(playerFaction));
             if (receiver == null || !isEnemyOf(receiver, killedFaction)) {
                 continue;
             }
-            int current = LOTRLevelData.getData(player).getFactionData(receiver).getEnemiesKilled();
-            int next = Math.min(KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED, Math.max(current, alliance.getDelivered("military.kills") + 1));
-            if (next > alliance.getDelivered("military.kills")) {
-                alliance.setDelivered("military.kills", next);
+            int previousKills = alliance.getDelivered(playerFaction, KOMEAllianceProgressionService.ELIGIBLE_KILLS);
+            int next = previousKills == Integer.MAX_VALUE ? previousKills : previousKills + 1;
+            if (next > previousKills) {
+                alliance.setDelivered(playerFaction, KOMEAllianceProgressionService.ELIGIBLE_KILLS, next);
                 changed = true;
+                int targetTier = Math.min(KOMEAlliance.maxTier(KOMEAlliance.MILITARY), alliance.militaryTier + 1);
+                int required = data.getAllianceActivityRequirement(KOMEAlliance.MILITARY, targetTier);
                 if (next <= 5 || next % 25 == 0) {
-                    player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + next + "/" + KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED + "."));
+                    player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + next + "/" + required + "."));
                 }
-                if (next >= KOMEAllianceInventory.MILITARY_T2_KILLS_REQUIRED) {
-                    alliance.setTier(KOMEAlliance.MILITARY, 2, "Enemy kills", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
-                    player.addChatMessage(new ChatComponentText("Military alliance upgraded to T2 with " + receiver.factionName() + "."));
-                }
+                KOMEAllianceProgressionService.refreshFactionCompletion(data, alliance, playerFaction, KOMEAlliance.MILITARY,
+                    KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
             }
         }
         if (changed) {
             data.markDirty();
-            sendAllianceRefresh(player, data);
+            for (KOMEAlliance alliance : data.alliances.values()) {
+                if (alliance != null && alliance.involves(playerFaction)) {
+                    kome.common.command.KOMECommandAlliance.sendAllianceRefreshToParticipants(data, alliance);
+                }
+            }
         }
     }
 
@@ -967,15 +1051,11 @@ public class KOMEEvents {
         }
         boolean changed = false;
         for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || alliance.tradeTier != 1 || !factionMatches(alliance.factionA, playerFaction)) {
+            if (alliance == null || alliance.tradeTier != 1 || !alliance.involves(playerFaction)) {
                 continue;
             }
-            if (alliance.getDelivered("trade.t2.coins") >= KOMEAllianceInventory.TRADE_T2_COINS_REQUIRED
-                && data.getFactionFarmerPop(alliance.factionA) >= KOMEAllianceInventory.TRADE_T2_FARMER_POP_REQUIRED) {
-                alliance.setTier(KOMEAlliance.TRADE, 2, "Trade requirements", KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)));
-                player.addChatMessage(new ChatComponentText("Trade alliance upgraded to T2 with " + displayFaction(alliance.factionB) + "."));
-                changed = true;
-            }
+            changed = KOMEAllianceProgressionService.refreshFactionCompletion(data, alliance, playerFaction, KOMEAlliance.TRADE,
+                KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player))) || changed;
         }
         if (changed) {
             data.markDirty();
@@ -990,8 +1070,26 @@ public class KOMEEvents {
         if (faction == null || possibleEnemy == null) {
             return false;
         }
-        LOTRFactionRelations.Relation relation = LOTRFactionRelations.getRelations(faction, possibleEnemy);
+        LOTRFactionRelations.Relation relation = KOMEAllianceAuthority.getDefaultRelation(faction.codeName(), possibleEnemy.codeName());
         return relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
+    }
+
+    private void cacheTradeCounts(EntityPlayerMP player) {
+        if (player == null) {
+            return;
+        }
+        UUID playerId = KOMEReflection.getEntityUUID(player);
+        for (LOTRFaction faction : LOTRFaction.values()) {
+            if (faction != null && faction.isPlayableAlignmentFaction()) {
+                String key = KOMEAlliance.normalizeFactionKey(faction.codeName());
+                lastTradeCounts.put(tradeCounterKey(playerId, key),
+                    Integer.valueOf(LOTRLevelData.getData(player).getFactionData(faction).getTradeCount()));
+            }
+        }
+    }
+
+    private String tradeCounterKey(UUID playerId, String faction) {
+        return (playerId == null ? "" : playerId.toString()) + "|" + KOMEAlliance.normalizeFactionKey(faction);
     }
 
     private LOTRFaction findFaction(String value) {
@@ -1012,12 +1110,12 @@ public class KOMEEvents {
 
     private String getPlayerFactionKey(EntityPlayer player, KOMEWorldData data) {
         LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
-        if (pledge != null) {
-            return KOMEAlliance.normalizeFactionKey(pledge.codeName());
-        }
-        KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-        String faction = progression.getPledgedLordFaction();
-        return faction == null ? "" : faction;
+        return pledge == null ? "" : KOMEAlliance.normalizeFactionKey(pledge.codeName());
+    }
+
+    private String getActualPledgeFactionKey(EntityPlayer player) {
+        LOTRFaction pledge = player == null ? null : LOTRLevelData.getData(player).getPledgeFaction();
+        return pledge == null ? "" : KOMEAlliance.normalizeFactionKey(pledge.codeName());
     }
 
     private boolean factionMatches(String a, String b) {

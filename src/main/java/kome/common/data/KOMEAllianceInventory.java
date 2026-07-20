@@ -1,10 +1,10 @@
 package kome.common.data;
 
+import kome.common.command.KOMECommandAlliance;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketQuotaLedger;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
-import lotr.common.item.LOTRItemCoin;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.IInventory;
@@ -14,24 +14,27 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KOMEAllianceInventory implements IInventory {
-    public static final int CIVIL_T1_COINS_REQUIRED = 1000;
-    public static final int CIVIL_T2_TRADE_REQUIRED = 500;
-    public static final int MILITARY_T2_KILLS_REQUIRED = 2000;
-    public static final int MILITARY_T4_COINS_REQUIRED = 30000;
-    public static final int MILITARY_T4_POP_REQUIRED = 50;
-    public static final int TRADE_T1_COINS_REQUIRED = 5000;
-    public static final int TRADE_T2_COINS_REQUIRED = 10000;
-    public static final int TRADE_T2_FARMER_POP_REQUIRED = 50;
+    public static final int CIVIL_T2_TRADE_REQUIRED = 100;
+    public static final int TRADE_T1_TRADE_REQUIRED = 50;
+    public static final int MILITARY_T1_KILLS_REQUIRED = 50;
+    public static final int MILITARY_T2_KILLS_REQUIRED = 500;
+    public static final int MILITARY_T3_KILLS_REQUIRED = 1000;
+    public static final int MILITARY_T1_POP_REQUIRED = 50;
+    public static final int MILITARY_T2_POP_REQUIRED = 150;
+    public static final int MILITARY_T3_POP_REQUIRED = 300;
+    // Retired IDs remain claimable only so migration never destroys deposited legacy goods.
     private static final String[] CLAIM_IDS = new String[] {"civil.coins", "trade.coins", "trade.t2.coins", "military.t4.coins", "military.food", "trade.food"};
     private final KOMEWorldData data;
     private final KOMEAlliance alliance;
     private final EntityPlayerMP viewer;
+    private final String ledgerFaction;
     private final String name;
 
-    public KOMEAllianceInventory(KOMEWorldData data, KOMEAlliance alliance, EntityPlayerMP viewer) {
+    public KOMEAllianceInventory(KOMEWorldData data, KOMEAlliance alliance, EntityPlayerMP viewer, String ledgerFaction) {
         this.data = data;
         this.alliance = alliance;
         this.viewer = viewer;
+        this.ledgerFaction = KOMEAlliance.normalizeFactionKey(ledgerFaction);
         this.name = "Alliance Ledger";
         sendLedger();
     }
@@ -43,12 +46,12 @@ public class KOMEAllianceInventory implements IInventory {
 
     @Override
     public ItemStack getStackInSlot(int slotIn) {
-        return alliance.getStorage(slotIn);
+        return alliance.getStorage(ledgerFaction, slotIn);
     }
 
     @Override
     public ItemStack decrStackSize(int index, int count) {
-        ItemStack stack = alliance.decrStorage(index, count);
+        ItemStack stack = alliance.decrStorage(ledgerFaction, index, count);
         if (stack != null) {
             markDirty();
         }
@@ -57,8 +60,8 @@ public class KOMEAllianceInventory implements IInventory {
 
     @Override
     public ItemStack getStackInSlotOnClosing(int index) {
-        ItemStack stack = alliance.getStorage(index);
-        alliance.setStorage(index, null);
+        ItemStack stack = alliance.getStorage(ledgerFaction, index);
+        alliance.setStorage(ledgerFaction, index, null);
         markDirty();
         return stack;
     }
@@ -68,7 +71,7 @@ public class KOMEAllianceInventory implements IInventory {
         if (stack != null && stack.stackSize > getInventoryStackLimit()) {
             stack.stackSize = getInventoryStackLimit();
         }
-        alliance.setStorage(index, absorbStack(stack));
+        alliance.setStorage(ledgerFaction, index, absorbStack(stack));
         markDirty();
     }
 
@@ -93,6 +96,7 @@ public class KOMEAllianceInventory implements IInventory {
         applyCoinUnlocks();
         data.markDirty();
         sendLedger();
+        KOMECommandAlliance.sendAllianceRefreshToParticipants(data, alliance);
         if (viewer != null && viewer.openContainer != null) {
             viewer.openContainer.detectAndSendChanges();
         }
@@ -100,7 +104,10 @@ public class KOMEAllianceInventory implements IInventory {
 
     @Override
     public boolean isUseableByPlayer(EntityPlayer player) {
-        return true;
+        if (!(player instanceof EntityPlayerMP) || player != viewer || data.getAlliance(alliance.factionA, alliance.factionB, false) != alliance) {
+            return false;
+        }
+        return new KOMEAllianceAuthority(data).canUseAllianceLedger((EntityPlayerMP) player, alliance, false).allowed;
     }
 
     @Override
@@ -119,80 +126,69 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private void applyCoinUnlocks() {
-        if (alliance.civilTier == 0 && alliance.getDelivered("civil.coins") >= CIVIL_T1_COINS_REQUIRED) {
-            alliance.setTier(KOMEAlliance.CIVIL, 1, "Alliance goods", alliance.updatedWorldTime);
-        }
-        if (alliance.tradeTier == 0 && alliance.getDelivered("trade.coins") >= TRADE_T1_COINS_REQUIRED) {
-            Quota quota = parseQuota(alliance.getAssignment("trade.food"));
-            if (quota != null && alliance.getDelivered("trade.food") >= quota.requiredUnits) {
-                alliance.setTier(KOMEAlliance.TRADE, 1, "Alliance goods", alliance.updatedWorldTime);
-            }
-        }
-        if (alliance.tradeTier == 1 && alliance.getDelivered("trade.t2.coins") >= TRADE_T2_COINS_REQUIRED && data.getFactionFarmerPop(alliance.factionA) >= TRADE_T2_FARMER_POP_REQUIRED) {
-            alliance.setTier(KOMEAlliance.TRADE, 2, "Alliance goods", alliance.updatedWorldTime);
-        }
-        Quota militaryQuota = parseQuota(alliance.getAssignment("military.food"));
-        if (alliance.militaryTier == 0 && militaryQuota != null && alliance.getDelivered("military.food") >= militaryQuota.requiredUnits) {
-            alliance.setTier(KOMEAlliance.MILITARY, 1, "Alliance goods", alliance.updatedWorldTime);
-        }
-        if (alliance.militaryTier == 3
-            && alliance.getDelivered("military.t4.coins") >= MILITARY_T4_COINS_REQUIRED
-            && data.getFactionPopulation(alliance.factionA) >= MILITARY_T4_POP_REQUIRED) {
-            alliance.setTier(KOMEAlliance.MILITARY, 4, "Alliance goods", alliance.updatedWorldTime);
-        }
-    }
-
-    private int getCoinValue() {
-        int value = 0;
-        for (int i = 0; i < getSizeInventory(); i++) {
-            ItemStack stack = getStackInSlot(i);
-            if (stack != null && stack.getItem() instanceof LOTRItemCoin) {
-                value += LOTRItemCoin.values[Math.max(0, Math.min(stack.getItemDamage(), LOTRItemCoin.values.length - 1))] * stack.stackSize;
-            }
-        }
-        return value;
+        KOMEAllianceProgressionService.refreshFactionCompletion(data, alliance, ledgerFaction, KOMEAlliance.CIVIL, alliance.updatedWorldTime);
+        KOMEAllianceProgressionService.refreshFactionCompletion(data, alliance, ledgerFaction, KOMEAlliance.TRADE, alliance.updatedWorldTime);
+        KOMEAllianceProgressionService.refreshFactionCompletion(data, alliance, ledgerFaction, KOMEAlliance.MILITARY, alliance.updatedWorldTime);
     }
 
     private boolean isAcceptedRequirement(ItemStack stack) {
-        if (stack.getItem() instanceof LOTRItemCoin) {
-            return getNeededCoinValue() > 0;
-        }
         return matchesActiveQuota(stack);
     }
 
     private boolean matchesActiveQuota(ItemStack stack) {
-        Quota militaryQuota = parseQuota(alliance.getAssignment("military.food"));
-        if (alliance.militaryTier == 0 && militaryQuota != null && alliance.getDelivered("military.food") < militaryQuota.requiredUnits && matches(stack, militaryQuota)) {
-            return true;
+        String[] types = new String[] {KOMEAlliance.CIVIL, KOMEAlliance.TRADE, KOMEAlliance.MILITARY};
+        for (int i = 0; i < types.length; i++) {
+            int target = alliance.getTier(types[i]) + 1;
+            if (target < 1 || target > KOMEAlliance.maxTier(types[i])) {
+                continue;
+            }
+            String id = KOMEAllianceQuotaPool.assignmentId(types[i], target);
+            KOMEAllianceQuotaPool.Requirement requirement = KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, types[i], target);
+            if (requirement != null && requirement.isValid()
+                    && alliance.getDelivered(ledgerFaction, id) < requirement.requiredUnits && requirement.matches(stack)) {
+                return true;
+            }
         }
-        Quota tradeQuota = parseQuota(alliance.getAssignment("trade.food"));
-        return alliance.tradeTier == 0 && tradeQuota != null && alliance.getDelivered("trade.food") < tradeQuota.requiredUnits && matches(stack, tradeQuota);
+        return false;
     }
 
     private int getNeededCoinValue() {
-        int needed = 0;
-        if (alliance.civilTier == 0) {
-            needed += Math.max(0, CIVIL_T1_COINS_REQUIRED - alliance.getDelivered("civil.coins"));
-        }
-        if (alliance.tradeTier == 0) {
-            needed += Math.max(0, TRADE_T1_COINS_REQUIRED - alliance.getDelivered("trade.coins"));
-        }
-        if (alliance.tradeTier == 1) {
-            needed += Math.max(0, TRADE_T2_COINS_REQUIRED - alliance.getDelivered("trade.t2.coins"));
-        }
-        if (alliance.militaryTier == 3) {
-            needed += Math.max(0, MILITARY_T4_COINS_REQUIRED - alliance.getDelivered("military.t4.coins"));
-        }
-        return needed;
+        return 0;
     }
 
     private boolean depositQuotaStack(ItemStack stack) {
-        return depositQuotaStack(stack, "military.food", alliance.militaryTier)
-            || depositQuotaStack(stack, "trade.food", alliance.tradeTier);
+        return depositCurrentRequirement(stack, KOMEAlliance.CIVIL)
+            || depositCurrentRequirement(stack, KOMEAlliance.TRADE)
+            || depositCurrentRequirement(stack, KOMEAlliance.MILITARY);
+    }
+
+    private boolean depositCurrentRequirement(ItemStack stack, String type) {
+        int target = alliance.getTier(type) + 1;
+        if (target < 1 || target > KOMEAlliance.maxTier(type)) {
+            return false;
+        }
+        String id = KOMEAllianceQuotaPool.assignmentId(type, target);
+        KOMEAllianceQuotaPool.Requirement requirement = KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, type, target);
+        if (requirement == null || !requirement.isValid() || !requirement.matches(stack)) {
+            return false;
+        }
+        int needed = requirement.requiredUnits - alliance.getDelivered(ledgerFaction, id);
+        if (needed <= 0) {
+            return false;
+        }
+        int taken = Math.min(stack.stackSize, needed);
+        ItemStack sample = stack.copy();
+        sample.stackSize = 1;
+        alliance.addDelivered(ledgerFaction, id, taken);
+        if (KOMEAlliance.TRADE.equals(type)) {
+            alliance.addClaimGoods(ledgerFaction, id, sample, taken);
+        }
+        stack.stackSize -= taken;
+        return true;
     }
 
     private ItemStack absorbStack(ItemStack stack) {
-        if (canViewerDeposit() && stack != null && (depositQuotaStack(stack) || depositCoinStack(stack)) && stack.stackSize <= 0) {
+        if (canViewerDeposit() && stack != null && depositQuotaStack(stack) && stack.stackSize <= 0) {
             return null;
         }
         return stack;
@@ -200,56 +196,27 @@ public class KOMEAllianceInventory implements IInventory {
 
     private void absorbStoredStacks() {
         for (int i = 0; i < getSizeInventory(); i++) {
-            ItemStack stack = alliance.getStorage(i);
+            ItemStack stack = alliance.getStorage(ledgerFaction, i);
             if (stack != null) {
-                alliance.setStorage(i, absorbStack(stack));
+                alliance.setStorage(ledgerFaction, i, absorbStack(stack));
             }
         }
     }
 
     private boolean depositQuotaStack(ItemStack stack, String id, int tier) {
-        Quota quota = parseQuota(alliance.getAssignment(id));
+        Quota quota = parseQuota(alliance.getAssignment(ledgerFaction, id));
         if (tier != 0 || quota == null || !matches(stack, quota)) {
             return false;
         }
-        int needed = quota.requiredUnits - alliance.getDelivered(id);
+        int needed = quota.requiredUnits - alliance.getDelivered(ledgerFaction, id);
         if (needed <= 0) {
             return false;
         }
         int taken = Math.min(stack.stackSize, needed);
         ItemStack sample = stack.copy();
         sample.stackSize = 1;
-        alliance.addDelivered(id, taken);
-        alliance.addClaimGoods(id, sample, taken);
-        stack.stackSize -= taken;
-        return true;
-    }
-
-    private boolean depositCoinStack(ItemStack stack) {
-        if (!(stack.getItem() instanceof LOTRItemCoin)) {
-            return false;
-        }
-        int value = LOTRItemCoin.values[Math.max(0, Math.min(stack.getItemDamage(), LOTRItemCoin.values.length - 1))];
-        return depositCoins(stack, value, "civil.coins", CIVIL_T1_COINS_REQUIRED, alliance.civilTier)
-            || depositCoins(stack, value, "trade.coins", TRADE_T1_COINS_REQUIRED, alliance.tradeTier == 0 ? 0 : -1)
-            || depositCoins(stack, value, "trade.t2.coins", TRADE_T2_COINS_REQUIRED, alliance.tradeTier == 1 ? 0 : -1)
-            || depositCoins(stack, value, "military.t4.coins", MILITARY_T4_COINS_REQUIRED, alliance.militaryTier == 3 ? 0 : -1);
-    }
-
-    private boolean depositCoins(ItemStack stack, int coinValue, String id, int required, int tier) {
-        if (tier != 0 || coinValue <= 0) {
-            return false;
-        }
-        int neededValue = required - alliance.getDelivered(id);
-        if (neededValue <= 0) {
-            return false;
-        }
-        int neededCoins = (neededValue + coinValue - 1) / coinValue;
-        int taken = Math.min(stack.stackSize, neededCoins);
-        ItemStack sample = stack.copy();
-        sample.stackSize = 1;
-        alliance.addDelivered(id, taken * coinValue);
-        alliance.addClaimGoods(id, sample, taken);
+        alliance.addDelivered(ledgerFaction, id, taken);
+        alliance.addClaimGoods(ledgerFaction, id, sample, taken);
         stack.stackSize -= taken;
         return true;
     }
@@ -261,55 +228,49 @@ public class KOMEAllianceInventory implements IInventory {
         KOMEPacketHandler.network.sendTo(new KOMEPacketQuotaLedger(getLedgerLines()), viewer);
     }
 
+    /** Only the contributing side may take back a stack remainder that exceeded a rolled quota. */
+    public boolean canViewerTakeRemainder() {
+        return canViewerDeposit();
+    }
+
+    public void refreshViewer() {
+        sendLedger();
+    }
+
     private List getLedgerLines() {
         List lines = new ArrayList();
         boolean canClaim = canViewerClaim();
-        lines.add("SUMMARY\t" + displayFaction(alliance.factionA) + "\t" + displayFaction(alliance.factionB) + "\t" + alliance.factionA + "\t" + alliance.factionB);
+        String receivingFaction = alliance.getOtherFaction(ledgerFaction);
+        lines.add(buildSummaryLine(alliance, ledgerFaction));
         lines.add("VIEWER\t" + getViewerFactionName() + "\t" + (canViewerDeposit() ? "1" : "0") + "\t" + (canClaim ? "1" : "0"));
+        lines.add("SWITCH\tView " + displayFaction(receivingFaction) + " Ledger\t" + receivingFaction + "\t" + ledgerFaction + "\t" + (canViewerOpenLedger(receivingFaction, ledgerFaction) ? "1" : "0"));
         if (alliance.civilTier != KOMEAlliance.NONE) {
             addProgressLine(lines, "Civil", alliance.civilTier, getCivilRequirement(), getCivilProgressLabel(), getCivilDelivered(), getCivilRequired(), getCivilReward());
+            addQuotaProgressLine(lines, "Civil", currentRequirementId(KOMEAlliance.CIVIL));
         }
         if (alliance.militaryTier != KOMEAlliance.NONE) {
             addProgressLine(lines, "Military", alliance.militaryTier, getMilitaryRequirement(), getMilitaryProgressLabel(), getMilitaryDelivered(), getMilitaryRequired(), getMilitaryReward());
-            addQuotaProgressLine(lines, "Military", "military.food");
+            addQuotaProgressLine(lines, "Military", currentRequirementId(KOMEAlliance.MILITARY));
         }
         if (alliance.tradeTier != KOMEAlliance.NONE) {
             addProgressLine(lines, "Trade", alliance.tradeTier, getTradeRequirement(), getTradeProgressLabel(), getTradeDelivered(), getTradeRequired(), getTradeReward());
-            addQuotaProgressLine(lines, "Trade", "trade.food");
+            addQuotaProgressLine(lines, "Trade", currentRequirementId(KOMEAlliance.TRADE));
         }
-        lines.add("DEPOSIT\tPlace required coins or quota foods in the chest slots. Accepted goods are compressed into this ledger.");
+        addFactionSideLine(lines, alliance.factionA);
+        addFactionSideLine(lines, alliance.factionB);
+        lines.add("DEPOSIT\tPlace only the exact server-rolled supplies in the chest slots. New reciprocal coin payments and legacy food quotas are not accepted. Civil and Military projects consume supplies; completed Trade exchanges make goods claimable by the opposite faction.");
         lines.add("CLAIM\t" + getClaimSummary() + "\t" + (canClaim ? "1" : "0") + "\t" + (canClaim ? "Receiving faction king" : "Only the receiving faction king can claim"));
-        if (alliance.civilTier != KOMEAlliance.NONE) {
-            addCoinLine(lines, "Civil Coins", "civil.coins", CIVIL_T1_COINS_REQUIRED, alliance.civilTier == 0);
-        }
-        if (alliance.militaryTier != KOMEAlliance.NONE) {
-            addQuotaLine(lines, "Military Food", "military.food");
-        }
-        if (alliance.tradeTier != KOMEAlliance.NONE) {
-            addCoinLine(lines, "Trade T1 Coins", "trade.coins", TRADE_T1_COINS_REQUIRED, alliance.tradeTier == 0);
-        }
-        if (alliance.tradeTier != KOMEAlliance.NONE) {
-            addQuotaLine(lines, "Trade Food", "trade.food");
-        }
-        if (alliance.tradeTier != KOMEAlliance.NONE) {
-            addCoinLine(lines, "Trade T2 Coins", "trade.t2.coins", TRADE_T2_COINS_REQUIRED, alliance.tradeTier == 1);
-            if (alliance.tradeTier == 1) {
-                int pop = Math.min(data.getFactionFarmerPop(alliance.factionA), TRADE_T2_FARMER_POP_REQUIRED);
-                lines.add("Trade T2 Farmer Pop Cost: " + pop + "/" + TRADE_T2_FARMER_POP_REQUIRED + " available" + (pop >= TRADE_T2_FARMER_POP_REQUIRED ? " complete" : ""));
-            } else if (alliance.tradeTier >= 2) {
-                lines.add("Trade T2 Farmer Pop Cost: " + TRADE_T2_FARMER_POP_REQUIRED + "/" + TRADE_T2_FARMER_POP_REQUIRED + " spent complete");
-            }
-        }
-        if (alliance.militaryTier != KOMEAlliance.NONE) {
-            addCoinLine(lines, "Military T4 Coins", "military.t4.coins", MILITARY_T4_COINS_REQUIRED, alliance.militaryTier == 3);
-            if (alliance.militaryTier == 3) {
-                int pop = Math.min(data.getFactionPopulation(alliance.factionA), MILITARY_T4_POP_REQUIRED);
-                lines.add("Military T4 Pop Cost: " + pop + "/" + MILITARY_T4_POP_REQUIRED + " available" + (pop >= MILITARY_T4_POP_REQUIRED ? " complete" : ""));
-            } else if (alliance.militaryTier >= 4) {
-                lines.add("Military T4 Pop Cost: " + MILITARY_T4_POP_REQUIRED + "/" + MILITARY_T4_POP_REQUIRED + " spent complete");
-            }
-        }
         return lines;
+    }
+
+    static String buildSummaryLine(KOMEAlliance alliance, String contributingFaction) {
+        String contributor = KOMEAlliance.normalizeFactionKey(contributingFaction);
+        if (alliance == null || !alliance.involves(contributor)) {
+            contributor = alliance == null ? "" : alliance.factionA;
+        }
+        String receiver = alliance == null ? "" : alliance.getOtherFaction(contributor);
+        return "SUMMARY\t" + KOMEAlliance.displayFactionName(contributor) + "\t" + KOMEAlliance.displayFactionName(receiver) + "\t"
+            + contributor + "\t" + receiver + "\t" + (alliance == null ? "" : alliance.getPairKey());
     }
 
     private void addProgressLine(List lines, String type, int tier, String requirement, String progressLabel, int delivered, int required, String reward) {
@@ -317,204 +278,203 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private void addQuotaProgressLine(List lines, String type, String id) {
-        Quota quota = parseQuota(alliance.getAssignment(id));
+        int typeIndex = "Civil".equals(type) ? 0 : "Military".equals(type) ? 1 : 2;
+        String typeKey = typeIndex == 0 ? KOMEAlliance.CIVIL : typeIndex == 1 ? KOMEAlliance.MILITARY : KOMEAlliance.TRADE;
+        int target = Math.max(1, Math.min(KOMEAlliance.maxTier(typeKey), alliance.getTier(typeKey) + 1));
+        KOMEAllianceQuotaPool.Requirement requirement = KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, typeKey, target);
+        if (requirement != null) {
+            if (!requirement.isValid()) {
+                lines.add("QUOTA\t" + type + "\tINVALID_REQUIREMENT: " + requirement.invalidReason + "\t0\t0\toperator reroll required");
+                return;
+            }
+            int delivered = Math.min(alliance.getDelivered(ledgerFaction, id), requirement.requiredUnits);
+            lines.add("QUOTA\t" + type + "\t" + requirement.displayName + "\t" + delivered + "\t" + requirement.requiredUnits + "\titems");
+            return;
+        }
+        Quota quota = parseQuota(alliance.getAssignment(ledgerFaction, id));
         if (quota == null) {
             lines.add("QUOTA\t" + type + "\t\t0\t0\t");
             return;
         }
-        int delivered = Math.min(alliance.getDelivered(id), quota.requiredUnits);
+        int delivered = Math.min(alliance.getDelivered(ledgerFaction, id), quota.requiredUnits);
         int shownDelivered = quota.stacks ? delivered / 64 : delivered;
         int shownRequired = quota.stacks ? quota.requiredUnits / 64 : quota.requiredUnits;
         String unit = quota.stacks ? "stacks" : "items";
         lines.add("QUOTA\t" + type + "\t" + quota.item + "\t" + shownDelivered + "\t" + shownRequired + "\t" + unit);
     }
 
+    private String currentRequirementId(String type) {
+        int target = Math.max(1, alliance.getTier(type) + 1);
+        return KOMEAllianceQuotaPool.assignmentId(type, Math.min(KOMEAlliance.maxTier(type), target));
+    }
+
+    private void addFactionSideLine(List lines, String faction) {
+        KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(faction);
+        if (ledger == null) {
+            return;
+        }
+        long deadline = Math.max(ledger.graceEndMillis, ledger.successionEndMillis);
+        lines.add("SIDE\t" + faction + "\t" + displayFaction(faction) + "\t"
+            + ledger.getCompletedTier(KOMEAlliance.CIVIL) + "\t" + ledger.getCompletedTier(KOMEAlliance.TRADE) + "\t"
+            + ledger.getCompletedTier(KOMEAlliance.MILITARY) + "\t" + (ledger.kinglessWaived ? "1" : "0") + "\t" + deadline);
+    }
+
     private String getCivilRequirement() {
         if (alliance.civilTier < 0) {
             return alliance.civilTier == KOMEAlliance.PENDING ? "Receiving faction must accept the request." : "No active civil alliance.";
         }
-        if (alliance.civilTier == 0) {
-            return "Deposit " + CIVIL_T1_COINS_REQUIRED + " coins.";
-        }
-        if (alliance.civilTier == 1) {
-            return "Trade " + CIVIL_T2_TRADE_REQUIRED + " coins worth of goods with the receiver.";
-        }
-        return "Civil alliance requirements complete.";
+        int target = alliance.civilTier + 1;
+        return currentRequirementText(KOMEAlliance.CIVIL, target == 2
+            ? " and complete " + data.getAllianceActivityRequirement(KOMEAlliance.CIVIL, 2) + " legitimate allied trades" : "");
     }
 
     private String getCivilProgressLabel() {
-        if (alliance.civilTier == 0) {
-            return "Coins delivered";
-        }
-        if (alliance.civilTier == 1) {
-            return "Trade delivered";
+        if (alliance.civilTier >= 0 && alliance.civilTier < KOMEAlliance.maxTier(KOMEAlliance.CIVIL)) {
+            return "Supplies delivered";
         }
         return alliance.civilTier >= 2 ? "Complete" : "Not started";
     }
 
     private int getCivilDelivered() {
-        if (alliance.civilTier == 0) {
-            return Math.min(alliance.getDelivered("civil.coins"), CIVIL_T1_COINS_REQUIRED);
-        }
-        if (alliance.civilTier == 1) {
-            return Math.min(alliance.getDelivered("civil.trade"), CIVIL_T2_TRADE_REQUIRED);
+        if (alliance.civilTier >= 0 && alliance.civilTier < KOMEAlliance.maxTier(KOMEAlliance.CIVIL)) {
+            return currentRequirementDelivered(KOMEAlliance.CIVIL);
         }
         return alliance.civilTier >= 2 ? 1 : 0;
     }
 
     private int getCivilRequired() {
-        if (alliance.civilTier == 0) {
-            return CIVIL_T1_COINS_REQUIRED;
-        }
-        if (alliance.civilTier == 1) {
-            return CIVIL_T2_TRADE_REQUIRED;
+        if (alliance.civilTier >= 0 && alliance.civilTier < KOMEAlliance.maxTier(KOMEAlliance.CIVIL)) {
+            return currentRequirementRequired(KOMEAlliance.CIVIL);
         }
         return alliance.civilTier >= 2 ? 1 : 0;
     }
 
     private String getCivilReward() {
-        if (alliance.civilTier < 1) {
-            return "Unlock Civil T1 benefits";
-        }
-        if (alliance.civilTier == 1) {
-            return "Unlock faction waypoints";
-        }
-        return "Civil benefits unlocked";
+        return nextBenefit(KOMEAlliance.CIVIL);
     }
 
     private String getMilitaryRequirement() {
         if (alliance.militaryTier < 0) {
             return alliance.militaryTier == KOMEAlliance.PENDING ? "Receiving faction must accept the request." : "No active military alliance.";
         }
-        if (alliance.militaryTier == 0) {
-            String quota = alliance.getAssignment("military.food");
-            return quota.length() == 0 ? "Roll a military food quota." : quota;
-        }
-        if (alliance.militaryTier == 1) {
-            return "Kill " + MILITARY_T2_KILLS_REQUIRED + " enemies of the receiver.";
-        }
-        if (alliance.militaryTier == 2) {
-            return "Complete the population build and waypoint battle.";
-        }
-        if (alliance.militaryTier == 3) {
-            return "Provide " + MILITARY_T4_POP_REQUIRED + " population and " + MILITARY_T4_COINS_REQUIRED + " coins.";
-        }
-        return "Military alliance requirements complete.";
+        int target = alliance.militaryTier + 1;
+        String extra = target >= 1 && target <= 3 ? " and reach "
+            + data.getAllianceActivityRequirement(KOMEAlliance.MILITARY, target) + " cumulative eligible kills plus "
+            + data.getAlliancePopulationRequirement(KOMEAlliance.MILITARY, target) + " effective offensive population" : "";
+        return currentRequirementText(KOMEAlliance.MILITARY, extra);
     }
 
     private String getMilitaryProgressLabel() {
-        if (alliance.militaryTier == 0) {
-            return "Food delivered";
+        if (alliance.militaryTier >= 0 && alliance.militaryTier < KOMEAlliance.maxTier(KOMEAlliance.MILITARY)) {
+            return "Supplies delivered";
         }
-        if (alliance.militaryTier == 1) {
-            return "Kills delivered";
-        }
-        if (alliance.militaryTier == 3) {
-            return "Coins delivered";
-        }
-        return alliance.militaryTier >= 4 ? "Complete" : "Status";
+        return alliance.militaryTier >= 3 ? "Complete" : "Status";
     }
 
     private int getMilitaryDelivered() {
-        if (alliance.militaryTier == 0) {
-            Quota quota = parseQuota(alliance.getAssignment("military.food"));
-            return quota == null ? 0 : Math.min(alliance.getDelivered("military.food"), quota.requiredUnits);
+        if (alliance.militaryTier >= 0 && alliance.militaryTier < KOMEAlliance.maxTier(KOMEAlliance.MILITARY)) {
+            return currentRequirementDelivered(KOMEAlliance.MILITARY);
         }
-        if (alliance.militaryTier == 1) {
-            return Math.min(alliance.getDelivered("military.kills"), MILITARY_T2_KILLS_REQUIRED);
-        }
-        if (alliance.militaryTier == 3) {
-            return Math.min(alliance.getDelivered("military.t4.coins"), MILITARY_T4_COINS_REQUIRED);
-        }
-        return alliance.militaryTier >= 4 ? 1 : 0;
+        return alliance.militaryTier >= 3 ? 1 : 0;
     }
 
     private int getMilitaryRequired() {
-        if (alliance.militaryTier == 0) {
-            Quota quota = parseQuota(alliance.getAssignment("military.food"));
-            return quota == null ? 0 : quota.requiredUnits;
+        if (alliance.militaryTier >= 0 && alliance.militaryTier < KOMEAlliance.maxTier(KOMEAlliance.MILITARY)) {
+            return currentRequirementRequired(KOMEAlliance.MILITARY);
         }
-        if (alliance.militaryTier == 1) {
-            return MILITARY_T2_KILLS_REQUIRED;
-        }
-        if (alliance.militaryTier == 3) {
-            return MILITARY_T4_COINS_REQUIRED;
-        }
-        return alliance.militaryTier >= 4 ? 1 : 0;
+        return alliance.militaryTier >= 3 ? 1 : 0;
     }
 
     private String getMilitaryReward() {
-        if (alliance.militaryTier < 1) {
-            return "Unlock Military T1 benefits";
-        }
-        if (alliance.militaryTier == 1) {
-            return "Unlock military cooperation";
-        }
-        if (alliance.militaryTier == 2) {
-            return "Unlock army command";
-        }
-        if (alliance.militaryTier == 3) {
-            return "Unlock captain spawning";
-        }
-        return "Military benefits unlocked";
+        return nextBenefit(KOMEAlliance.MILITARY);
     }
 
     private String getTradeRequirement() {
         if (alliance.tradeTier < 0) {
             return alliance.tradeTier == KOMEAlliance.PENDING ? "Receiving faction must accept the request." : "No active trade alliance.";
         }
-        if (alliance.tradeTier == 0) {
-            String quota = alliance.getAssignment("trade.food");
-            return "Deposit " + TRADE_T1_COINS_REQUIRED + " coins" + (quota.length() == 0 ? " and roll a trade food quota." : " and " + quota + ".");
-        }
-        if (alliance.tradeTier == 1) {
-            return "Provide " + TRADE_T2_FARMER_POP_REQUIRED + " farmer population and " + TRADE_T2_COINS_REQUIRED + " coins.";
-        }
-        return "Trade alliance requirements complete.";
+        int target = alliance.tradeTier + 1;
+        String extra = target == 1 || target == 2 ? " and complete "
+            + data.getAllianceActivityRequirement(KOMEAlliance.TRADE, target) + " cumulative legitimate allied trades" : "";
+        return currentRequirementText(KOMEAlliance.TRADE, extra);
     }
 
     private String getTradeProgressLabel() {
-        if (alliance.tradeTier == 0) {
-            return "Coins delivered";
-        }
-        if (alliance.tradeTier == 1) {
-            return "T2 coins delivered";
+        if (alliance.tradeTier >= 0 && alliance.tradeTier < KOMEAlliance.maxTier(KOMEAlliance.TRADE)) {
+            return "Goods delivered";
         }
         return alliance.tradeTier >= 2 ? "Complete" : "Not started";
     }
 
     private int getTradeDelivered() {
-        if (alliance.tradeTier == 0) {
-            return Math.min(alliance.getDelivered("trade.coins"), TRADE_T1_COINS_REQUIRED);
-        }
-        if (alliance.tradeTier == 1) {
-            return Math.min(alliance.getDelivered("trade.t2.coins"), TRADE_T2_COINS_REQUIRED);
+        if (alliance.tradeTier >= 0 && alliance.tradeTier < KOMEAlliance.maxTier(KOMEAlliance.TRADE)) {
+            return currentRequirementDelivered(KOMEAlliance.TRADE);
         }
         return alliance.tradeTier >= 2 ? 1 : 0;
     }
 
     private int getTradeRequired() {
-        if (alliance.tradeTier == 0) {
-            return TRADE_T1_COINS_REQUIRED;
-        }
-        if (alliance.tradeTier == 1) {
-            return TRADE_T2_COINS_REQUIRED;
+        if (alliance.tradeTier >= 0 && alliance.tradeTier < KOMEAlliance.maxTier(KOMEAlliance.TRADE)) {
+            return currentRequirementRequired(KOMEAlliance.TRADE);
         }
         return alliance.tradeTier >= 2 ? 1 : 0;
     }
 
     private String getTradeReward() {
-        if (alliance.tradeTier < 1) {
-            return "Unlock building in receiver land";
+        return nextBenefit(KOMEAlliance.TRADE);
+    }
+
+    private String nextBenefit(String type) {
+        int next = alliance.getTier(type) + 1;
+        if (next < 1 || next > KOMEAlliance.maxTier(type)) {
+            return displayType(type) + " track complete";
         }
-        if (alliance.tradeTier == 1) {
-            return "Unlock merchant crop production";
+        return KOMEAllianceBenefits.get(type, next).title;
+    }
+
+    private String currentRequirementText(String type, String extra) {
+        int target = alliance.getTier(type) + 1;
+        if (target > KOMEAlliance.maxTier(type)) {
+            return displayFaction(ledgerFaction) + " has completed this alliance track.";
         }
-        return "Trade benefits unlocked";
+        String id = KOMEAllianceQuotaPool.assignmentId(type, target);
+        KOMEAllianceQuotaPool.Requirement requirement = KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, type, target);
+        if (requirement == null) {
+            return "Reveal the " + displayType(type) + " T" + target + " faction quota.";
+        }
+        if (!requirement.isValid()) {
+            return "INVALID_REQUIREMENT: " + requirement.invalidReason + ". An operator must reroll it; delivered goods remain recoverable.";
+        }
+        return requirement.display() + (extra == null ? "" : extra) + ".";
+    }
+
+    private int currentRequirementDelivered(String type) {
+        int target = alliance.getTier(type) + 1;
+        if (target > KOMEAlliance.maxTier(type)) {
+            return 1;
+        }
+        String id = KOMEAllianceQuotaPool.assignmentId(type, target);
+        KOMEAllianceQuotaPool.Requirement requirement = KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, type, target);
+        return requirement == null || !requirement.isValid() ? 0
+            : Math.min(requirement.requiredUnits, alliance.getDelivered(ledgerFaction, id));
+    }
+
+    private int currentRequirementRequired(String type) {
+        int target = alliance.getTier(type) + 1;
+        if (target > KOMEAlliance.maxTier(type)) {
+            return 1;
+        }
+        KOMEAllianceQuotaPool.Requirement requirement = KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, type, target);
+        return requirement == null || !requirement.isValid() ? 0 : requirement.requiredUnits;
+    }
+
+    private String displayType(String type) {
+        String normalized = KOMEAlliance.normalizeType(type);
+        return normalized.length() == 0 ? "Alliance" : Character.toUpperCase(normalized.charAt(0)) + normalized.substring(1);
     }
 
     private boolean canViewerClaim() {
-        return viewer != null && data.isFactionKing(alliance.factionB, kome.common.KOMEReflection.getEntityUUID(viewer));
+        return viewer != null && data.isFactionKing(alliance.getOtherFaction(ledgerFaction), kome.common.KOMEReflection.getEntityUUID(viewer));
     }
 
     private boolean canViewerDeposit() {
@@ -524,13 +484,31 @@ public class KOMEAllianceInventory implements IInventory {
         if (viewer.canCommandSenderUseCommand(2, "alliance")) {
             return true;
         }
+        return ledgerFaction.equals(getViewerFactionKey());
+    }
+
+    private boolean canViewerOpenLedger(String contributingFaction, String receivingFaction) {
+        if (viewer == null) {
+            return false;
+        }
+        if (viewer.canCommandSenderUseCommand(2, "alliance")) {
+            return true;
+        }
+        return KOMEAlliance.normalizeFactionKey(contributingFaction).equals(getViewerFactionKey())
+            || data.isFactionKing(receivingFaction, kome.common.KOMEReflection.getEntityUUID(viewer));
+    }
+
+    private String getViewerFactionKey() {
+        if (viewer == null) {
+            return "";
+        }
         LOTRFaction faction = LOTRLevelData.getData(viewer).getPledgeFaction();
         String viewerFaction = faction == null ? "" : faction.codeName();
         if (viewerFaction.length() == 0) {
             KOMEPlayerProgression progression = data.getProgression(kome.common.KOMEReflection.getEntityUUID(viewer));
             viewerFaction = progression.getPledgedLordFaction();
         }
-        return alliance.factionA.equals(KOMEAlliance.normalizeFactionKey(viewerFaction));
+        return KOMEAlliance.normalizeFactionKey(viewerFaction);
     }
 
     private String getViewerFactionName() {
@@ -548,8 +526,12 @@ public class KOMEAllianceInventory implements IInventory {
     private String getClaimSummary() {
         int total = 0;
         int categories = 0;
-        for (int i = 0; i < CLAIM_IDS.length; i++) {
-            int amount = alliance.getClaimAmount(CLAIM_IDS[i]);
+        KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(ledgerFaction);
+        if (ledger == null) {
+            return "No goods are currently claimable.";
+        }
+        for (String id : ledger.getClaimIds()) {
+            int amount = alliance.getClaimAmount(ledgerFaction, id);
             if (amount > 0) {
                 total += amount;
                 categories++;
@@ -574,19 +556,19 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private void addCoinLine(List lines, String label, String id, int required, boolean active) {
-        if (!active && alliance.getDelivered(id) <= 0) {
+        if (!active && alliance.getDelivered(ledgerFaction, id) <= 0) {
             return;
         }
-        int delivered = Math.min(alliance.getDelivered(id), required);
+        int delivered = Math.min(alliance.getDelivered(ledgerFaction, id), required);
         lines.add(label + ": " + delivered + "/" + required + " coins" + (delivered >= required ? " complete" : ""));
     }
 
     private void addQuotaLine(List lines, String label, String id) {
-        Quota quota = parseQuota(alliance.getAssignment(id));
+        Quota quota = parseQuota(alliance.getAssignment(ledgerFaction, id));
         if (quota == null) {
             return;
         }
-        int delivered = Math.min(alliance.getDelivered(id), quota.requiredUnits);
+        int delivered = Math.min(alliance.getDelivered(ledgerFaction, id), quota.requiredUnits);
         int shownDelivered = quota.stacks ? delivered / 64 : delivered;
         int shownRequired = quota.stacks ? quota.requiredUnits / 64 : quota.requiredUnits;
         String unit = quota.stacks ? "stacks" : "units";

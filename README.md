@@ -14,6 +14,27 @@ This repo is intentionally addon-only. It does not include the full LOTR mod sou
 - Combat-unit population cost based on max health, including level-up health increases.
 - Territory manager commands and GUI.
 - LOTR map overlay for territory display name, ruling faction, and ruling player.
+- Canonical mutual Civil, Trade, and Military alliances with shared faction-side progression.
+- Two-king/kingless diplomacy, faction-side succession/contribution grace, and relation synchronization.
+- Addon-only, server-enforced conquest-owner waypoints plus civilian/combat hiring and Military T2 passage.
+- Persisted two-side coalition wars created/updated by hostile conquest claims, with operator lifecycle and Server Records GUI.
+- Military T3 king-to-king voluntary delegation plus automatic-war-enrolled, supporting-king-only kingless stewardship using one global 100% native eligible pool.
+- Trade T1 mutual ledger exchange and Trade T2 future Produce Farmer metadata only; legacy post and retired-development pending inventory migrate losslessly to recovery.
+- Permanent whole-company transfer and actual-pledge departure cleanup with exact-source refunds and unloaded-unit tombstones.
+- Per-step movement access revalidation with safe war-ending withdrawal/demobilization.
+
+## Alliance Documentation
+
+- [`docs/ALLIANCE_SYSTEM.md`](docs/ALLIANCE_SYSTEM.md) — architecture, tiers, lifecycle, benefits, and persistence.
+- [`docs/ALLIANCE_MIGRATION.md`](docs/ALLIANCE_MIGRATION.md) — schema 5 cleanup/recovery, backup, and rollback guidance.
+- [`docs/ALLIANCE_ADMIN.md`](docs/ALLIANCE_ADMIN.md) — commands, configuration, and operational notes.
+- [`docs/ALLIANCE_TEST_MATRIX.md`](docs/ALLIANCE_TEST_MATRIX.md) — automated gates and multiplayer scenarios.
+
+- [`docs/KOME_SERVER_RECORDS.md`](docs/KOME_SERVER_RECORDS.md) - Players/Wars records and filters.
+- [`docs/KOME_PRODUCE_FARMER.md`](docs/KOME_PRODUCE_FARMER.md) - future design note; no Produce Farmer runtime currently exists.
+- [`docs/KOME_ALLIANCE_WAR_AUDIT_2026-07-19.md`](docs/KOME_ALLIANCE_WAR_AUDIT_2026-07-19.md) - post-implementation audit.
+
+Schema 5 migration and rollback details are in `docs/ALLIANCE_MIGRATION.md`.
 
 ## Project Layout
 
@@ -43,7 +64,7 @@ Forge entry point. Registers the network packet handler, proxy/event handlers, a
 
 `kome.common.data.KOMEWorldData`
 
-World-saved data container. Stores player population totals, territory records, and currently tracked hired units in the world save.
+World-saved data container. Stores population, territory, canonical alliances/ledgers, wars, Produce slots, companies/movement, pledge tombstones, and hired-unit provenance.
 
 `kome.common.data.KOMEEvents`
 
@@ -110,7 +131,7 @@ All farmer/farmhand/slave/vinehand unit types share that same farmhand limit. If
 
 ## Territory Rules
 
-Territory capture rules are not automated. The addon only gives the server an in-game way to record and display territory ownership.
+KOME does not simulate battles or victory. Player hostile claims are server-authoritative and create/update coalition-war history; accepted transfers and operator corrections remain non-war administrative paths.
 
 Each territory record stores:
 
@@ -175,7 +196,22 @@ KOME-LOTR-Addon-dev-local.jar
 /territory gui <waypoint>
 /territory set <waypoint> <faction|none> <ruler|none> [display name...]
 /territory clear <waypoint>
+
+/alliance request|accept|break <civil|trade|military> <factionA> <factionB>
+/alliance roll|goods|claimGoods ...
+/alliance config difficulty|requirement|quota item|waypointRestriction|grace ...
+/alliance waypoint bypass|check ...
+/alliance grace status <A> <B> [affected] | set|expire <A> <B> <affected> ...
+
+/war create|rename|side|status|list|end|finalize|cancel ...
+
+/troops companies [tile]
+/troops company <id> tendency|delegate|reclaim|transfer|acceptTransfer|rejectTransfer|cancelTransfer ...
+/troops movement stay|retreat|resume <orderId>
+/troops pledgeRelease preview|status|retry|resolve ...
 ```
+
+See the admin guide for complete syntax and operator-only configuration.
 
 ## Notes
 

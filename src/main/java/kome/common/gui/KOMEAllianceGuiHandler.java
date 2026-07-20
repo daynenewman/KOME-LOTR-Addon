@@ -18,8 +18,8 @@ public class KOMEAllianceGuiHandler implements IGuiHandler {
     public static final int ALLIANCE_LEDGER = 1;
     private static final Map pendingLedgers = new HashMap();
 
-    public static void openAllianceLedger(EntityPlayerMP player, KOMEAlliance alliance) {
-        pendingLedgers.put(KOMEReflection.getEntityUUID(player), alliance);
+    public static void openAllianceLedger(EntityPlayerMP player, KOMEAlliance alliance, String contributingFaction) {
+        pendingLedgers.put(KOMEReflection.getEntityUUID(player), new PendingLedger(alliance, contributingFaction));
     }
 
     public static void resetSessionState() {
@@ -32,11 +32,11 @@ public class KOMEAllianceGuiHandler implements IGuiHandler {
             return null;
         }
         UUID uuid = KOMEReflection.getEntityUUID(player);
-        KOMEAlliance alliance = (KOMEAlliance) pendingLedgers.remove(uuid);
-        if (alliance == null) {
+        PendingLedger pending = (PendingLedger) pendingLedgers.remove(uuid);
+        if (pending == null || pending.alliance == null) {
             return null;
         }
-        KOMEAllianceInventory inventory = new KOMEAllianceInventory(KOMEWorldData.get(world), alliance, (EntityPlayerMP) player);
+        KOMEAllianceInventory inventory = new KOMEAllianceInventory(KOMEWorldData.get(world), pending.alliance, (EntityPlayerMP) player, pending.contributingFaction);
         return new KOMEContainerAllianceLedger(player.inventory, inventory);
     }
 
@@ -47,5 +47,15 @@ public class KOMEAllianceGuiHandler implements IGuiHandler {
         }
         InventoryBasic clientInventory = new InventoryBasic("Alliance Ledger", true, KOMEAlliance.STORAGE_SLOTS);
         return new kome.client.gui.KOMEGuiAllianceLedger(player.inventory, clientInventory);
+    }
+
+    private static class PendingLedger {
+        private final KOMEAlliance alliance;
+        private final String contributingFaction;
+
+        private PendingLedger(KOMEAlliance alliance, String contributingFaction) {
+            this.alliance = alliance;
+            this.contributingFaction = KOMEAlliance.normalizeFactionKey(contributingFaction);
+        }
     }
 }

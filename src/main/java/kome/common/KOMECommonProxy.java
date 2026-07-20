@@ -14,6 +14,7 @@ public class KOMECommonProxy {
     }
 
     public void resetServerSessionState() {
+        kome.common.data.KOMEAllianceRecordBuilder.resetSessionState();
         if (events != null) {
             events.resetSessionState();
         }
@@ -32,6 +33,10 @@ public class KOMECommonProxy {
     public void displayCompanyListGui(String tileId, java.util.List companies, boolean canCreate) {
     }
 
+    public void displayCompanyListGui(String tileId, String tileDisplayName, java.util.List companies, boolean canCreate) {
+        displayCompanyListGui(tileId, companies, canCreate);
+    }
+
     public void displayCompanyMoveConfirmGui(kome.common.network.KOMEPacketCompanyMoveConfirmGui message) {
     }
 
@@ -42,6 +47,20 @@ public class KOMECommonProxy {
     }
 
     public void displayConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction) {
+    }
+
+    public void displayConquestCaptureGui(kome.common.network.KOMEPacketConquestCaptureGui message) {
+        displayConquestCaptureGui(message.tileId, message.ownerFaction, message.pendingFromFaction, message.pendingToFaction,
+            message.viewerFaction, message.offensivePop, message.defensivePop, message.mountedPop, message.groundPop,
+            message.incomingPop, message.outgoingPop, message.incomingEtaMillis, message.offensiveTotal, message.offensiveUsed,
+            message.defensiveTotal, message.defensiveUsed, message.farmhandTotal, message.farmhandUsed, message.canClaim,
+            message.canTransfer, message.canAcceptTransfer, message.canCancelTransfer, message.canMoveTroops,
+            message.canEditPopulation, message.offensiveAllocated, message.defensiveAllocated, message.myOffensiveAllocated,
+            message.myOffensiveUsed, message.myDefensiveAllocated, message.myDefensiveUsed, message.claimantName,
+            message.allocationSummary, message.ownerHasKing, message.myOffensivePop, message.myDefensivePop,
+            message.myMountedPop, message.myGroundPop, message.activeRecruitmentTile, message.canSetRecruitmentTile,
+            message.lotrWaypointKey, message.lotrWaypointDisplayName, message.lotrWaypointRegion, message.waypointLevel,
+            message.currentRulingFaction, message.defaultRulingFaction, message.mapRegion);
     }
 
     public void displayConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis) {
@@ -97,6 +116,9 @@ public class KOMECommonProxy {
     }
 
     public void updateAllianceData(java.util.List lines) {
+    }
+
+    public void displayPledgeDeparture(kome.common.network.KOMEPacketPledgeDepartureData message) {
     }
 
     public void highlightEntity(int entityId, String name, double x, double y, double z) {

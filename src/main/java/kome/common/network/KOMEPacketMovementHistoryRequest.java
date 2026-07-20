@@ -110,7 +110,7 @@ public class KOMEPacketMovementHistoryRequest implements IMessage {
 
         private static String playerFaction(KOMEWorldData data, EntityPlayerMP player) {
             LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
-            String key = pledge == null ? data.getPlayerFactionKey(KOMEReflection.getEntityUUID(player)) : pledge.codeName();
+            String key = pledge == null ? "" : pledge.codeName();
             return KOMEAlliance.normalizeFactionKey(key);
         }
 

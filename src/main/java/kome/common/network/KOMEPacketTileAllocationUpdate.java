@@ -75,7 +75,7 @@ public class KOMEPacketTileAllocationUpdate implements IMessage {
                 return null;
             }
             LOTRFaction targetPledge = LOTRLevelData.getData(target).getPledgeFaction();
-            String targetFaction = targetPledge == null ? data.getPlayerFactionKey(KOMEReflection.getEntityUUID(target)) : targetPledge.codeName();
+            String targetFaction = targetPledge == null ? "" : targetPledge.codeName();
             if (!admin && !KOMEAlliance.normalizeFactionKey(rulingFaction).equals(KOMEAlliance.normalizeFactionKey(targetFaction))) {
                 actor.addChatMessage(new ChatComponentText("The target player must belong to the tile owner's faction."));
                 return null;
