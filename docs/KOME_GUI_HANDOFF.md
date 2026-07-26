@@ -77,12 +77,13 @@ Required manual matrix: Small, Normal, Large, Auto, and 854x480; long Build/fact
 - `KOMEGuiConquestCapture` — Builds-first Tile Command, split pools, contributions, confirmations.
 - `KOMEGuiAllianceLedger` — schema-7 direction and quota presentation over authoritative slots.
 - `KOMEGuiCompanyList` — persistent source-tile company presentation and rename.
-- `KOMEGuiPopulation` / `KOMEGuiPopulationUnits` — source/company and renamed-company context.
 - `KOMEGuiServerRecords` / `KOMEServerRecordPresentation` — directional stage, split population, Build counts, retained tile drilldown.
 - `KOMEConquestMapOverlay` — Build markers and click-through.
 - `KOMEWaypointMapOverlay` — waypoint-first presentation retained.
+- `KOMEProgressionMenuOverlay` — routes Alliance and Tile Command entry points to the redesigned screens.
 - `KOMEGuiVisualCaptureController` — schema-7/Build deterministic fixtures.
 - `KOMEClientProxy` — unified-screen routing and capture registration.
+- Removed obsolete `KOMEGuiAlliance`, `KOMEGuiAllianceDetail`, `KOMEGuiAlliancePermissions`, and `KOMEAlliancePermissions`.
 - Shared existing components reused: `KOMEGuiTheme`, `KOMEGuiButton`, `KOMEGuiScrollPanel`, `KOMEGuiConfirmationDialog`.
 
 ## Genuine remaining visual work

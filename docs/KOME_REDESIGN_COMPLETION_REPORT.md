@@ -1,39 +1,165 @@
 # KOME redesign completion report
 
-Status: implementation complete; final artifact verification values are recorded after the clean release build.
+Final verification date: 2026-07-26.
 
-## Delivered scope
+## Outcome
 
-- Build schema 1 and split population schema 2.
-- Alliance schema 7 unified directional ladder.
-- Builds-first Tile Command and map markers.
-- Persistent owner/source-tile company assignment and rename.
-- Server-authoritative placement, contribution, migration, progression, delegation, war, and destructive-action validation.
-- Current documentation set with pre-schema-7 material isolated under `archive`.
+The full Build, split-population, automatic-company, directional-alliance, and affected-GUI redesign is implemented in the KOME addon. No base LOTR source or jar was modified.
 
-## Schema and migration summary
+- Alliance schema: **7**
+- Build schema: **1**
+- Population schema: **2**
+- Addon version: **1.0.7**
 
-Alliance 6 and earlier migrate per direction to the highest clearly supported benefit, with ambiguous cases lowered and persistent merchant entitlement preserved separately. Build collections initialize empty. Legacy tile population becomes explicit native source-faction pools; it is never fabricated into Builds. Obsolete grace and alliance-waypoint fields do not participate in runtime behavior.
+## Delivered behavior
 
-## New primary classes/services
+- Persistent Builds with exact coordinates, stable IDs, selectable population owner, half-hour conversion, pending/approved/removed contribution audit, manager succession, map markers, normal deletion, restricted enemy destruction, and committed-capacity protection.
+- Separate native and Build population by tile/source faction with controller-owned 100% and foreign 50% effective access.
+- Builds-first Tile Command with Population and Allocations tabs and complete normal GUI workflows.
+- One auto-created/reused company per owner/source tile; immutable source identity and owner rename action.
+- One formal relationship containing two independent Stage 0-4 directions, lower-stage shared relation, king/kingless request rules, one authoritative ledger, Stage 3 Build-hours milestone, and Stage 4 qualifying deployment/delegation/stewardship.
+- No runtime grace downgrade and no alliance-related waypoint restriction.
+- Typed schema-7 alliance records and updated Server Records.
+- Armed allied/hostile claim confirmation is initialized at screen level and remains visible on the default Builds tab.
 
-- `KOMEPlayerBuild`, `KOMEBuildContribution`
-- `KOMEBuildService`, `KOMEBuildPopulationService`
-- `KOMEAllianceStageProgress`, `KOMEAllianceProgressionService`
-- `KOMEGuiAllianceUnified`
-- `KOMEPacketBuildAction`
+## Migration
 
-The existing `KOMEWorldData`, population/funding records, company/war services, packet layer, Tile Command, map overlay, ledger container, and Server Records were extended rather than duplicated.
+Schema 6 and older alliances migrate each faction direction independently to the highest stage supported by a clearly earned corresponding benefit. Ambiguous data uses the lower safe stage; directions and ledger goods are never merged. A clearly earned merchant entitlement is retained separately.
 
-## Verification
+Build schema 1 initializes a clean empty collection for old worlds. Population schema 2 converts legacy tile totals to native source-faction pools using saved source, then controller, then legacy faction as fallback. It never invents Builds. Existing allocations, living units, funding provenance, companies, and wars are reconciled after all source records load.
 
-Final automated count, clean Gradle output, jar filename/size/SHA-256, deployed hash, commits, and tree state will be filled from the final clean run before handoff.
+Obsolete grace and alliance-waypoint fields are ignored and removed on the next save. Legacy internal tokens used by existing NBT/quota/recovery records remain compatibility identifiers only.
 
-## Known limitations
+## Production source changes
 
-- A hire for a company currently away still spawns through LOTR's normal safe player-side path, then joins the persistent company. The addon does not force-load a remote chunk or teleport the new entity.
-- Produce merchant slots are persistent entitlements and query APIs only; no Produce merchant/economy is implemented.
-- Deterministic ledger screenshots use a visual twin; the real container slots/hitboxes require live manual testing.
-- Minecraft 1.7.10 has no modern accessibility/layout framework; KOME uses its scaled scissor, wrapping, tooltip, and confirmation utilities.
+### Added
 
-See `KOME_DECISION_LOG.md` for all judgments and `KOME_TEST_PLAN.md` for remaining multiplayer/manual checks.
+- `kome.client.gui.KOMEGuiAllianceUnified`
+- `kome.common.command.KOMECommandBuild`
+- `kome.common.data.KOMEAllianceStageProgress`
+- `kome.common.data.KOMEBuildContribution`
+- `kome.common.data.KOMEBuildPopulationService`
+- `kome.common.data.KOMEBuildService`
+- `kome.common.data.KOMEPlayerBuild`
+- `kome.common.network.KOMEPacketBuildAction`
+
+### Modified
+
+- Client/routing: `KOMEClientProxy`, `KOMEConquestMapOverlay`, `KOMEProgressionMenuOverlay`, `KOMEWaypointMapOverlay`
+- GUI/presentation: `KOMEGuiAllianceLedger`, `KOMEGuiCompanyList`, `KOMEGuiConquestCapture`, `KOMEGuiServerRecords`, `KOMEGuiVisualCaptureController`, `KOMEServerRecordPresentation`
+- Commands: `KOMECommandAlliance`, `KOMECommandTroops`, `KOMECommandWar`
+- Core/data: `KOMEAddon`, `KOMEAlliance`, `KOMEAllianceAuthority`, `KOMEAllianceFactionLedger`, `KOMEAllianceInventory`, `KOMEAllianceProgressionService`, `KOMEAllianceRecordBuilder`, `KOMEAllianceTemporaryCommandPolicy`, `KOMEArmyCompany`, `KOMEClientData`, `KOMEEvents`, `KOMEHiredUnitRecord`, `KOMEPledgeReleaseService`, `KOMEServerRecordBuilder`, `KOMETilePopulation`, `KOMEWar`, `KOMEWarService`, `KOMEWartimeStewardshipService`, `KOMEWaypointAccessService`, `KOMEWorldData`
+- Network: `KOMEPacketAllianceAction`, `KOMEPacketConquestCaptureGui`, `KOMEPacketConquestData`, `KOMEPacketConquestOpenCapture`, `KOMEPacketHandler`, `KOMEPacketTroopGuiAction`
+
+### Removed
+
+- `KOMEGuiAlliance`
+- `KOMEGuiAllianceDetail`
+- `KOMEGuiAlliancePermissions`
+- `KOMEAlliancePermissions`
+- `KOMEAllianceBenefits`
+- `KOMEAllianceGraceService`
+
+## Automated verification
+
+Final command:
+
+```powershell
+.\gradlew clean test build --no-daemon --console=plain
+```
+
+Result: **BUILD SUCCESSFUL**, 25 actionable tasks (24 executed, 1 up-to-date).
+
+| Suite | Tests | Failures | Errors | Skipped |
+|---|---:|---:|---:|---:|
+| `KOMEGuiScrollPanelTest` | 4 | 0 | 0 | 0 |
+| `KOMEGuiServerRecordsPresentationTest` | 7 | 0 | 0 | 0 |
+| `KOMEAllianceModelTest` | 21 | 0 | 0 | 0 |
+| `KOMEAllianceSystemsTest` | 49 | 0 | 0 | 0 |
+| `KOMEBaseIsolationTest` | 5 | 0 | 0 | 0 |
+| `KOMERedesignSystemsTest` | 53 | 0 | 0 | 0 |
+| `KOMEWaypointTransformerTest` | 5 | 0 | 0 | 0 |
+| **Total** | **144** | **0** | **0** | **0** |
+
+Coverage includes Build placement/owner anti-exploit, half-hours, approval/removal/deletion/destruction/succession/persistence, committed-capacity safety, native/Build source separation, capture/reclaim/reset, exact funding return, auto-company reuse/rename/away fallback/transfer, directional migration/stages/break, kingless behavior, Stage 3 reversal boundaries, strict Stage 4 time/unit/pledge/territory/once-only rules, war cleanup, records, scrolling, transformer structure, and addon/base isolation.
+
+## GUI evidence
+
+The property-gated client loaded KOME and LOTR, registered the waypoint transformer, injected `LOTRPlayerData.receiveFTBouncePacket`, rendered 11 deterministic screens, and shut down cleanly at each setting:
+
+| Setting | Resolution | Screens |
+|---|---:|---:|
+| Small | 1280x720 | 11 |
+| Normal | 1280x720 | 11 |
+| Large | 1280x720 | 11 |
+| Auto | 1600x900 | 11 |
+| Smallest supported | 854x480 | 11 |
+| **Total** | | **55** |
+
+The linked evidence matrix is `gui-scale-verification/README.md`. The 854x480 allied/hostile claim spot-check shows full consequences and reachable Confirm/Cancel over the Builds tab.
+
+The ledger image is a visual twin and does not validate the real authoritative container's slots, dragging, shift-click, or hitboxes. Those remain manual tests.
+
+## Artifact and deployment
+
+Release/reobfuscated addon:
+
+```text
+C:\Users\dayne\OneDrive\Desktop\The-Lord-of-the-Rings-main\KOME-LOTR-Addon\build\libs\KOME-LOTR-Addon-1.0.7.jar
+Size: 11,646,366 bytes
+SHA-256: 9F0D28FBC20E04537CEF41F341BFABE7C13BEB0EAD74792837B36F9923F776B1
+```
+
+Deployed DEV copy:
+
+```text
+C:\Users\dayne\curseforge\minecraft\Instances\Lord of the Rings DEV\mods\KOME-LOTR-Addon-1.0.7.jar
+Size: 11,646,366 bytes
+SHA-256: 9F0D28FBC20E04537CEF41F341BFABE7C13BEB0EAD74792837B36F9923F776B1
+```
+
+The DEV instance's untouched production LOTR artifact was hashed immediately before and after addon deployment:
+
+```text
+C:\Users\dayne\curseforge\minecraft\Instances\Lord of the Rings DEV\mods\LOTRMod v36.15.jar
+Size: 28,936,383 bytes
+SHA-256 before/after: 4F296E749C0D4739ECF859217A526B4218A2A45A768C08D3D551AF0D0D3D5635
+Last-write timestamp unchanged: 2026-01-23T14:12:45.8835270-06:00
+```
+
+The adjacent `LOTR-Test-Server` E21B28... jar is a smaller development/test fixture and was neither used as the production artifact nor modified.
+
+## Commits
+
+- `4d07193` — persistent Builds and split-population foundations
+- `cf0f9ff` — unified alliance stage workflow and GUI
+- `d6cc4e7` — schema-7 and Build safety hardening
+- `d692457` — current documentation and legacy archive split
+- `61ab6ea` — screen-level conquest confirmation wiring
+- `28e47ce` — refreshed 55-image schema-7 GUI evidence
+
+No push was performed.
+
+## Judgment calls and limitations
+
+All judgments are expanded in `KOME_DECISION_LOG.md`. The release-relevant ones are:
+
+- conservative per-direction legacy stage mapping;
+- two-edge server validation for a foreign Build population owner;
+- normal player-side spawn plus persistent association when the source-tile company is away, avoiding unsafe 1.7.10 remote chunk/entity manipulation;
+- Build manager transfer to the population-owner king, otherwise preserved with no normal manager until operator repair;
+- claimed Stage 3 remains unlocked after later deletion, while removed/deleted/pre-break hours cannot satisfy an unclaimed/new relationship;
+- persistent, non-duplicating Stage 2 merchant entitlement without implementing a Produce economy;
+- compatibility NBT tokens retained without active legacy gameplay.
+
+## Manual tests still required
+
+Automated tests and deterministic screenshots do not replace a populated multiplayer session. Complete the checklist in `KOME_TEST_PLAN.md`, especially:
+
+- real ledger slots/hitboxes/deposit/claim/drag/shift-click;
+- live map marker clicks with densely co-located Builds;
+- multiple real players submitting/reviewing Build hours and manager succession;
+- living-unit allocation safety across capture/reclaim/reset/restart;
+- company-away hire appearance and later spatial convergence;
+- full Stage 4 war/delegation/stewardship and war-end cleanup;
+- migration of a copied production schema-6 world followed by a cold restart.
