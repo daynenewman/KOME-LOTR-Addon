@@ -188,6 +188,23 @@ public class KOMEAllianceFactionLedger {
         return false;
     }
 
+    /** Clears relationship-scoped progress while retaining physical/recovery goods for return. */
+    public void resetFormalProgress() {
+        for (int i = 0; i < storage.length; i++) {
+            if (storage[i] != null && storage[i].stackSize > 0) {
+                recoveryStorage.add(storage[i].copy());
+                storage[i] = null;
+            }
+        }
+        assignments.clear();
+        delivered.clear();
+        completedTiers.clear();
+        unlockedTiers.clear();
+        clearContributionGrace();
+        clearSuccession();
+        kinglessWaived = false;
+    }
+
     public ItemStack removeRecoveryStack(int index) {
         return index >= 0 && index < recoveryStorage.size() ? recoveryStorage.remove(index) : null;
     }

@@ -32,12 +32,11 @@ public class KOMEAllianceAuthority {
 
     static Decision decideRequestAlliance(String type, String fromFaction, String toFaction, String actorFaction,
             boolean actorIsFromKing, boolean fromHasKing, boolean toHasKing, LOTRFactionRelations.Relation relation) {
-        String normalizedType = KOMEAlliance.normalizeType(type);
         String from = KOMEAlliance.normalizeFactionKey(fromFaction);
         String to = KOMEAlliance.normalizeFactionKey(toFaction);
         String actorSide = KOMEAlliance.normalizeFactionKey(actorFaction);
-        if (!KOMEAlliance.isValidType(normalizedType) || from.length() == 0 || to.length() == 0 || from.equals(to)) {
-            return Decision.deny("Choose two different playable factions and a valid alliance type.");
+        if (from.length() == 0 || to.length() == 0 || from.equals(to)) {
+            return Decision.deny("Choose two different playable factions.");
         }
         if (!from.equals(actorSide)) {
             return Decision.deny("You may negotiate only for your pledged faction.");
@@ -49,11 +48,12 @@ public class KOMEAllianceAuthority {
             // Two sovereign kings may negotiate across hostile lore defaults. Acceptance remains receiver-only.
             return Decision.allow(false);
         }
-        if (!relationAllows(normalizedType, relation)) {
+        int automaticStage = automaticStageForKinglessRelation(relation);
+        if (automaticStage < 0) {
             return Decision.deny("The original LOTR relation is " + relationName(relation)
-                + "; it does not permit a " + normalizedType + " agreement.");
+                + "; Enemy and Mortal Enemy kingless factions cannot auto-accept.");
         }
-        return Decision.allow(!toHasKing);
+        return Decision.allow(true, automaticStage);
     }
 
     public Decision canAcceptAlliance(EntityPlayerMP actor, KOMEAlliance alliance, String type, String receivingFaction) {
@@ -137,41 +137,32 @@ public class KOMEAllianceAuthority {
         if (alliance == null || alliance.getStatus(type) != KOMEAllianceTrackStatus.ACTIVE) {
             return KOMEAlliance.NONE;
         }
-        int storedTier = alliance.getFactionTier(actingFaction, type);
-        if (storedTier < 0) {
-            return KOMEAlliance.NONE;
-        }
-        KOMEAllianceFactionLedger side = alliance.getFactionLedger(actingFaction);
-        int provisional = storedTier;
-        if (side != null && (side.isContributionGraceActive(nowMillis) || side.isSuccessionActive(nowMillis))) {
-            provisional = Math.max(provisional, provisionalTier(side, type));
-        }
-        return Math.min(KOMEAlliance.maxTier(type), provisional);
+        return alliance.getFactionTier(actingFaction, type);
+    }
+
+    public int getEffectiveStage(String actingFaction, String partnerFaction) {
+        KOMEAlliance alliance = data == null ? null : data.getAlliance(actingFaction, partnerFaction, false);
+        return alliance == null || alliance.getRelationshipStatus() != KOMEAllianceTrackStatus.ACTIVE
+            ? KOMEAlliance.NONE : alliance.getFactionStage(actingFaction);
     }
 
     public boolean isTierProvisional(KOMEAlliance alliance, String type, long nowMillis) {
-        if (alliance == null || alliance.getStatus(type) != KOMEAllianceTrackStatus.ACTIVE) {
-            return false;
-        }
-        KOMEAllianceFactionLedger first = alliance.getFactionLedger(alliance.factionA);
-        KOMEAllianceFactionLedger second = alliance.getFactionLedger(alliance.factionB);
-        return first != null && (first.isContributionGraceActive(nowMillis) || first.isSuccessionActive(nowMillis))
-            || second != null && (second.isContributionGraceActive(nowMillis) || second.isSuccessionActive(nowMillis));
+        return false;
     }
 
     public boolean canFactionUseAlliedWaypoint(String travelerFaction, String waypointFaction) {
-        return !isDirectlyHostile(travelerFaction, waypointFaction)
-            && getEffectiveTier(travelerFaction, waypointFaction, KOMEAlliance.CIVIL, System.currentTimeMillis()) >= 1;
+        return !isDirectlyHostile(travelerFaction, waypointFaction);
     }
 
     public boolean canFactionHireAlliedFarmhand(String hiringFaction, String unitFaction) {
         return !isDirectlyHostile(hiringFaction, unitFaction)
-            && getEffectiveTier(hiringFaction, unitFaction, KOMEAlliance.CIVIL, System.currentTimeMillis()) >= 2;
+            && getEffectiveStage(hiringFaction, unitFaction) >= 1;
     }
 
     public boolean canFactionHireAlliedMilitaryUnit(String hiringFaction, String unitFaction) {
-        return !isDirectlyHostile(hiringFaction, unitFaction)
-            && getEffectiveTier(hiringFaction, unitFaction, KOMEAlliance.MILITARY, System.currentTimeMillis()) >= 1;
+        return data != null && !data.hasFactionKing(unitFaction) && !isDirectlyHostile(hiringFaction, unitFaction)
+            && getEffectiveStage(hiringFaction, unitFaction) >= 4
+            && !KOMEWarService.authorizedSameSideWars(data, unitFaction, hiringFaction).isEmpty();
     }
 
     public boolean canFactionUseMilitaryPassage(String movingFaction, String tileOwnerFaction) {
@@ -179,12 +170,12 @@ public class KOMEAllianceAuthority {
         String owner = KOMEAlliance.normalizeFactionKey(tileOwnerFaction);
         return moving.length() > 0 && (moving.equals(owner)
             || !isDirectlyHostile(moving, owner)
-                && getEffectiveTier(moving, owner, KOMEAlliance.MILITARY, System.currentTimeMillis()) >= KOMEWorldData.MILITARY_PASSAGE_TIER);
+                && getEffectiveStage(moving, owner) >= 3);
     }
 
     public boolean canTemporarilyCommand(String companyFaction, String controllerFaction) {
         if (isDirectlyHostile(companyFaction, controllerFaction)
-                || getEffectiveTier(controllerFaction, companyFaction, KOMEAlliance.MILITARY, System.currentTimeMillis()) < 3) {
+                || getEffectiveStage(controllerFaction, companyFaction) < 4) {
             return false;
         }
         return data != null && (data.hasFactionKing(companyFaction)
@@ -210,7 +201,7 @@ public class KOMEAllianceAuthority {
         if (isDirectlyHostile(nativeKey, supportingKey))
             return Decision.deny("Direct active opposition overrides Military T3 delegation.");
         return canVoluntarilyDelegate(nativeKey, supportingKey) ? Decision.allow(false)
-            : Decision.deny("An effectively active mutual Military T3 alliance is required.");
+            : Decision.deny("The receiving faction needs directional Stage 4 Military Partnership.");
     }
 
     public Decision canControlTemporaryCompany(KOMEArmyCompany company, UUID actor) {
@@ -273,6 +264,15 @@ public class KOMEAllianceAuthority {
         return LOTRFactionRelations.getRelations(first, second);
     }
 
+    public static LOTRFactionRelations.Relation getCurrentRelation(String firstFaction, String secondFaction) {
+        LOTRFaction first = KOMEAlliance.findLotrFaction(firstFaction);
+        LOTRFaction second = KOMEAlliance.findLotrFaction(secondFaction);
+        if (first == null || second == null || first == second) {
+            return LOTRFactionRelations.Relation.NEUTRAL;
+        }
+        return LOTRFactionRelations.getRelations(first, second);
+    }
+
     public static boolean relationAllows(String type, LOTRFactionRelations.Relation relation) {
         String normalizedType = KOMEAlliance.normalizeType(type);
         if (KOMEAlliance.MILITARY.equals(normalizedType)) {
@@ -283,6 +283,14 @@ public class KOMEAllianceAuthority {
         }
         return KOMEAlliance.CIVIL.equals(normalizedType) && (relation == LOTRFactionRelations.Relation.ALLY
             || relation == LOTRFactionRelations.Relation.FRIEND || relation == LOTRFactionRelations.Relation.NEUTRAL);
+    }
+
+    /** Neutral -> Stage 1, Friend -> Stage 2, Ally -> Stage 3, hostile -> reject. */
+    public static int automaticStageForKinglessRelation(LOTRFactionRelations.Relation relation) {
+        if (relation == LOTRFactionRelations.Relation.ALLY) return 3;
+        if (relation == LOTRFactionRelations.Relation.FRIEND) return 2;
+        if (relation == LOTRFactionRelations.Relation.NEUTRAL) return 1;
+        return -1;
     }
 
     public static String relationName(LOTRFactionRelations.Relation relation) {
@@ -318,20 +326,26 @@ public class KOMEAllianceAuthority {
     public static class Decision {
         public final boolean allowed;
         public final boolean automaticAcceptance;
+        public final int automaticStage;
         public final String reason;
 
-        private Decision(boolean allowed, boolean automaticAcceptance, String reason) {
+        private Decision(boolean allowed, boolean automaticAcceptance, int automaticStage, String reason) {
             this.allowed = allowed;
             this.automaticAcceptance = automaticAcceptance;
+            this.automaticStage = Math.max(0, Math.min(3, automaticStage));
             this.reason = reason == null ? "" : reason;
         }
 
         public static Decision allow(boolean automaticAcceptance) {
-            return new Decision(true, automaticAcceptance, "");
+            return new Decision(true, automaticAcceptance, 0, "");
+        }
+
+        public static Decision allow(boolean automaticAcceptance, int automaticStage) {
+            return new Decision(true, automaticAcceptance, automaticStage, "");
         }
 
         public static Decision deny(String reason) {
-            return new Decision(false, false, reason);
+            return new Decision(false, false, 0, reason);
         }
     }
 }

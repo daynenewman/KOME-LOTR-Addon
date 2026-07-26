@@ -11,6 +11,10 @@ public class KOMETilePopulation {
     public int offensiveUsed;
     public int defensiveTotal;
     public int defensiveUsed;
+    /** Explicit native/default baseline. Build population is added on top during reconciliation. */
+    public int nativeOffensiveTotal;
+    public int nativeDefensiveTotal;
+    public boolean nativeBaselineInitialized;
     public int farmhandTotal;
     public int farmhandUsed;
 
@@ -114,6 +118,9 @@ public class KOMETilePopulation {
         nbt.setInteger("OffensiveUsed", offensiveUsed);
         nbt.setInteger("DefensiveTotal", defensiveTotal);
         nbt.setInteger("DefensiveUsed", defensiveUsed);
+        nbt.setInteger("NativeOffensiveTotal", Math.max(0, nativeOffensiveTotal));
+        nbt.setInteger("NativeDefensiveTotal", Math.max(0, nativeDefensiveTotal));
+        nbt.setBoolean("NativeBaselineInitialized", nativeBaselineInitialized);
         nbt.setInteger("FarmhandTotal", farmhandTotal);
         nbt.setInteger("FarmhandUsed", farmhandUsed);
         return nbt;
@@ -126,6 +133,12 @@ public class KOMETilePopulation {
         faction = sourceFaction;
         offensiveTotal = Math.max(0, nbt.getInteger("OffensiveTotal"));
         defensiveTotal = Math.max(0, nbt.getInteger("DefensiveTotal"));
+        nativeBaselineInitialized = nbt.hasKey("NativeBaselineInitialized")
+            ? nbt.getBoolean("NativeBaselineInitialized") : true;
+        nativeOffensiveTotal = nbt.hasKey("NativeOffensiveTotal")
+            ? Math.max(0, nbt.getInteger("NativeOffensiveTotal")) : offensiveTotal;
+        nativeDefensiveTotal = nbt.hasKey("NativeDefensiveTotal")
+            ? Math.max(0, nbt.getInteger("NativeDefensiveTotal")) : defensiveTotal;
         farmhandTotal = Math.max(0, nbt.getInteger("FarmhandTotal"));
         offensiveUsed = clamp(nbt.getInteger("OffensiveUsed"), 0, offensiveTotal);
         defensiveUsed = clamp(nbt.getInteger("DefensiveUsed"), 0, defensiveTotal);

@@ -5,6 +5,7 @@ import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceAuthority;
+import kome.common.data.KOMEAllianceProgressionService;
 import kome.common.data.KOMEAllianceTemporaryCommandPolicy;
 import kome.common.data.KOMEConquestRouteEdge;
 import kome.common.data.KOMEConquestTile;
@@ -163,14 +164,7 @@ public class KOMECommandTroops extends CommandBase {
             return;
         }
         if ("createcompany".equalsIgnoreCase(args[0])) {
-            if (!sender.canCommandSenderUseCommand(2, getCommandName())) {
-                throw new WrongUsageException("Legacy manual company creation is operator-only. Use the LOTR Unit Overview Company column for normal troop movement companies.");
-            }
-            if (args.length < 3) {
-                throw new WrongUsageException(getCommandUsage(sender));
-            }
-            createCompany(sender, player, data, owner, parseTile(args[1]), joinName(args, 2));
-            return;
+            throw new WrongUsageException("Manual company creation was retired. Each combat hire automatically joins the owner's persistent hiring-tile company.");
         }
         if ("snapshotcompany".equalsIgnoreCase(args[0])) {
             if (args.length != 2) {
@@ -1312,6 +1306,7 @@ public class KOMECommandTroops extends CommandBase {
         for (UUID unitId : unitIds) {
             KOMEHiredUnitRecord record = data.hiredUnits.remove(unitId);
             if (record == null) continue;
+            data.releaseFundingBuild(record);
             returned += Math.max(0, record.cost);
             if (record.isPlayerReserveFunded()) {
                 data.getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer).release(record.type, record.cost);
@@ -2742,6 +2737,7 @@ public class KOMECommandTroops extends CommandBase {
                 if (company != null) {
                     company.currentTile = stepDestinationTile;
                     company.updatedAtMillis = nowMillis;
+                    KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, nowMillis);
                 }
                 if (finalStep) {
                     if (order.haltAfterArrival) {
@@ -5151,7 +5147,7 @@ public class KOMECommandTroops extends CommandBase {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "list", "tile", "debugtile", "unit", "companies", "company", "createcompany", "snapshotcompany",
+            return getListOfStringsMatchingLastWord(args, "list", "tile", "debugtile", "unit", "companies", "company", "snapshotcompany",
                 "arrivals", "locate", "previewmove", "movecompany", "moving", "movetime", "movement", "pledgeRelease", "route", "arrival", "waypoint", "anchor", "recruit", "station", "arrive");
         }
         if (args.length == 2 && "route".equalsIgnoreCase(args[0])) {

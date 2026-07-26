@@ -635,8 +635,14 @@ public class KOMEEvents {
             : tileFunded && allocation != null ? KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION
             : tileFunded ? KOMEHiredUnitRecord.SOURCE_TILE_POOL : KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE;
         record.sourcePlayer = info.getHiringPlayerUUID();
-        record.sourceTileId = tileFunded ? originPopulation.tileId : "";
+        record.sourceTileId = tileFunded ? originPopulation.tileId : KOMEConquestTile.normalizeId(originTile);
         record.sourceFaction = tileFunded ? originPopulation.sourceFaction : KOMEAlliance.normalizeFactionKey(ownerFaction);
+        if (tileFunded && originPopulation != null) {
+            KOMEConquestTile fundingTile = data.conquestTiles.get(KOMEConquestTile.normalizeId(originPopulation.tileId));
+            String controllerFaction = fundingTile == null ? fundingFaction : fundingTile.currentRulingFaction();
+            record.sourceBuildId = data.assignFundingBuild(originPopulation.tileId, originPopulation.sourceFaction,
+                hireType, populationCost, controllerFaction);
+        }
         if (tileFunded && !stewardshipHire) {
             record.allocationTileId = originPopulation.tileId;
             record.allocationFaction = KOMEAlliance.normalizeFactionKey(ownerFaction);
@@ -654,6 +660,7 @@ public class KOMEEvents {
             ? KOMEWarService.authorizationWarIds(data, unitFaction, ownerFaction) : "";
         record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
         data.hiredUnits.put(entityID, record);
+        data.assignUnitToHiringTileCompany(record, owner.getCommandSenderName());
         data.markDirty();
         data.syncConquestTiles();
         String funding = stewardshipHire ? "kingless-faction stewardship population"
@@ -740,6 +747,13 @@ public class KOMEEvents {
         record.level = currentLevel;
         record.baseCost = rawPopulationCost;
         record.cost = currentCost;
+        if (record.sourceBuildId != null && record.sourceBuildId.length() > 0) {
+            KOMEPlayerBuild sourceBuild = data.getBuild(record.sourceBuildId);
+            if (sourceBuild != null) {
+                sourceBuild.adjustCommitted(record.type, currentCost - previousCost);
+                sourceBuild.updatedAtMillis = System.currentTimeMillis();
+            }
+        }
         if (record.isPlayerReserveFunded()) {
             data.getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer).adjustUsed(record.type, currentCost - previousCost);
         } else {
@@ -765,6 +779,17 @@ public class KOMEEvents {
         if (record.isPlayerReserveFunded()) {
             KOMEPlayerPopulation pop = data.getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer);
             return pop.getAvailable(record.type) >= extraCost;
+        }
+        if (record.sourceBuildId != null && record.sourceBuildId.length() > 0) {
+            KOMEPlayerBuild sourceBuild = data.getBuild(record.sourceBuildId);
+            if (sourceBuild == null || !sourceBuild.active) return false;
+            KOMEConquestTile sourceTile = data.conquestTiles.get(KOMEConquestTile.normalizeId(record.sourceTileId));
+            String controller = sourceTile == null ? "" : sourceTile.currentRulingFaction();
+            boolean full = KOMEAlliance.normalizeFactionKey(sourceBuild.populationFaction)
+                .equals(KOMEAlliance.normalizeFactionKey(controller));
+            if (sourceBuild.availablePopulation(record.type, data.buildPopulationPerHalfHour, full) < extraCost) {
+                return false;
+            }
         }
             KOMETilePopulation population = data.getFundingPool(record);
             if (population != null) {
@@ -819,6 +844,7 @@ public class KOMEEvents {
         }
         data.hiredUnits.remove(entityId);
         data.removeUnitFromCompany(record);
+        data.releaseFundingBuild(record);
         EntityPlayer owner = KOMEReflection.getWorld(npc).func_152378_a(record.owner);
         if (record.farmhand) {
             if (owner != null) {

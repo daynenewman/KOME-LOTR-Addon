@@ -26,6 +26,8 @@ public final class KOMEWarService {
         war.displayName = name == null ? "" : name.trim();
         war.sideOneFactions.add(a);
         war.sideTwoFactions.add(b);
+        war.initiatingFaction = a;
+        war.defendingFaction = b;
         war.createdAtMillis = Math.max(0L, now);
         war.lastUpdatedAtMillis = war.createdAtMillis;
         war.addAdministrativeEvent(actor, "CREATE", a + " opposed to " + b, now);
@@ -33,6 +35,7 @@ public final class KOMEWarService {
         war.recordMembership(b, 2, "MANUAL", "", actor, now);
         data.wars.put(war.id, war);
         reconcileAutomaticMilitarySupport(data, now, "War created");
+        KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
         data.markDirty();
         return war;
     }
@@ -55,6 +58,7 @@ public final class KOMEWarService {
         if (war != null) {
             war.addTileCapture(tileId, former, next, claimant, claimantName, now, claimMethod);
             reconcileAutomaticMilitarySupport(data, now, "Capture updated active war");
+            KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
             data.markDirty();
         }
         return war;
@@ -194,8 +198,13 @@ public final class KOMEWarService {
                 }
             }
         } while (added && ++passes < Math.max(4, data.alliances.size() + 1));
+        scanStageFour(data, now);
         if (changed) data.markDirty();
         return changed;
+    }
+
+    private static void scanStageFour(KOMEWorldData data, long now) {
+        KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
     }
 
     private static boolean hasEffectiveMilitaryT3(KOMEWorldData data, String first, String second, long now) {

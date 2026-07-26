@@ -13,6 +13,7 @@ import kome.common.data.KOMEConquestRouteEdge;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEPopulationType;
+import kome.common.data.KOMEPlayerBuild;
 import kome.common.data.KOMETilePopulation;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMETileTroopSummary;
@@ -78,6 +79,11 @@ public class KOMEPacketConquestData implements IMessage {
             }
         }
         data.setTag("TileWaypointLinks", waypointLinkList);
+        NBTTagList buildList = new NBTTagList();
+        for (KOMEPlayerBuild build : worldData.builds.values()) {
+            if (build != null && build.active && build.markerVisible) buildList.appendTag(buildMarkerTag(build));
+        }
+        data.setTag("BuildMarkers", buildList);
     }
 
     private KOMEPacketConquestData(NBTTagCompound data, boolean reset, boolean complete) {
@@ -140,20 +146,26 @@ public class KOMEPacketConquestData implements IMessage {
                 waypointLinkTags.add(link.writeToNBT());
             }
         }
+        List buildMarkerTags = new ArrayList();
+        for (KOMEPlayerBuild build : worldData.builds.values()) {
+            if (build != null && build.active && build.markerVisible) buildMarkerTags.add(buildMarkerTag(build));
+        }
 
-        int total = tileTags.size() + movementTags.size() + companyTags.size() + troopTags.size() + routeEdgeTags.size() + waypointLinkTags.size();
+        int total = tileTags.size() + movementTags.size() + companyTags.size() + troopTags.size()
+            + routeEdgeTags.size() + waypointLinkTags.size() + buildMarkerTags.size();
         if (total == 0) {
             KOMEPacketHandler.network.sendTo(new KOMEPacketConquestData(new NBTTagCompound(), true, true), player);
             return;
         }
 
         boolean first = true;
-        first = sendListChunks(player, "ConquestTiles", tileTags, first, movementTags.isEmpty() && companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty());
-        first = sendListChunks(player, "ArmyMovements", movementTags, first, companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty());
-        first = sendListChunks(player, "ArmyCompanies", companyTags, first, troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty());
-        first = sendListChunks(player, "TroopSummaries", troopTags, first, routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty());
-        first = sendListChunks(player, "RouteEdges", routeEdgeTags, first, waypointLinkTags.isEmpty());
-        sendListChunks(player, "TileWaypointLinks", waypointLinkTags, first, true);
+        first = sendListChunks(player, "ConquestTiles", tileTags, first, movementTags.isEmpty() && companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
+        first = sendListChunks(player, "ArmyMovements", movementTags, first, companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
+        first = sendListChunks(player, "ArmyCompanies", companyTags, first, troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
+        first = sendListChunks(player, "TroopSummaries", troopTags, first, routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
+        first = sendListChunks(player, "RouteEdges", routeEdgeTags, first, waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
+        first = sendListChunks(player, "TileWaypointLinks", waypointLinkTags, first, buildMarkerTags.isEmpty());
+        sendListChunks(player, "BuildMarkers", buildMarkerTags, first, true);
     }
 
     private static boolean sendListChunks(net.minecraft.entity.player.EntityPlayerMP player, String key, List tags, boolean first, boolean finalSection) {
@@ -185,6 +197,7 @@ public class KOMEPacketConquestData implements IMessage {
                 KOMEClientData.INSTANCE.troopSummaries.clear();
                 KOMEClientData.INSTANCE.routeEdges.clear();
                 KOMEClientData.INSTANCE.tileWaypointLinksByTileId.clear();
+                KOMEClientData.INSTANCE.builds.clear();
             }
             NBTTagList companyList = message.data.getTagList("ArmyCompanies", 10);
             for (int i = 0; i < companyList.tagCount(); i++) {
@@ -234,11 +247,35 @@ public class KOMEPacketConquestData implements IMessage {
                     KOMEClientData.INSTANCE.tileWaypointLinksByTileId.put(link.tileId, link);
                 }
             }
+            NBTTagList buildList = message.data.getTagList("BuildMarkers", 10);
+            for (int i = 0; i < buildList.tagCount(); i++) {
+                KOMEPlayerBuild build = new KOMEPlayerBuild();
+                build.readFromNBT(buildList.getCompoundTagAt(i));
+                if (build.id.length() > 0 && build.active && build.markerVisible) {
+                    KOMEClientData.INSTANCE.builds.put(build.id, build);
+                }
+            }
             if (message.complete) {
                 KOMEClientData.INSTANCE.conquestRevision++;
             }
             return null;
         }
+    }
+
+    private static NBTTagCompound buildMarkerTag(KOMEPlayerBuild build) {
+        NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setString("Id", build.id);
+        nbt.setString("DisplayName", build.displayName);
+        nbt.setString("TileId", build.tileId);
+        nbt.setInteger("Dimension", build.dimension);
+        nbt.setDouble("X", build.x);
+        nbt.setDouble("Y", build.y);
+        nbt.setDouble("Z", build.z);
+        nbt.setString("PopulationFaction", build.populationFaction);
+        nbt.setBoolean("Active", true);
+        nbt.setBoolean("MarkerVisible", true);
+        nbt.setString("MarkerLabel", build.markerLabel);
+        return nbt;
     }
 
     private static Map<String, KOMETileTroopSummary> buildTroopSummaries(KOMEWorldData worldData) {

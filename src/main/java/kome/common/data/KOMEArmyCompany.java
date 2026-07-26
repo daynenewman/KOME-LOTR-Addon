@@ -22,6 +22,8 @@ public class KOMEArmyCompany {
     public String name = "";
     public String lotrCompanyValue = "";
     public String currentTile = "";
+    /** Immutable hiring/source tile used to keep one persistent company per player and source tile. */
+    public String sourceTileId = "";
     public final List<UUID> units = new ArrayList<UUID>();
     public int totalPopulation;
     public int mountedPopulation;
@@ -81,6 +83,7 @@ public class KOMEArmyCompany {
         nbt.setString("Name", name == null ? "" : name);
         nbt.setString("LotrCompanyValue", lotrCompanyValue == null ? "" : lotrCompanyValue);
         nbt.setString("CurrentTile", KOMEConquestTile.normalizeId(currentTile));
+        nbt.setString("SourceTileId", KOMEConquestTile.normalizeId(sourceTileId));
         nbt.setInteger("TotalPopulation", totalPopulation);
         nbt.setInteger("MountedPopulation", mountedPopulation);
         nbt.setInteger("GroundPopulation", groundPopulation);
@@ -139,6 +142,8 @@ public class KOMEArmyCompany {
         name = nbt.getString("Name");
         lotrCompanyValue = nbt.getString("LotrCompanyValue");
         currentTile = KOMEConquestTile.normalizeId(nbt.getString("CurrentTile"));
+        sourceTileId = KOMEConquestTile.normalizeId(nbt.getString("SourceTileId"));
+        if (sourceTileId.length() == 0) sourceTileId = currentTile;
         totalPopulation = Math.max(0, nbt.getInteger("TotalPopulation"));
         mountedPopulation = Math.max(0, nbt.getInteger("MountedPopulation"));
         groundPopulation = Math.max(0, nbt.getInteger("GroundPopulation"));

@@ -1,6 +1,7 @@
 package kome.common.command;
 
 import kome.common.data.KOMEAlliance;
+import kome.common.data.KOMEAllianceProgressionService;
 import kome.common.data.KOMEWar;
 import kome.common.data.KOMEWarService;
 import kome.common.data.KOMEWartimeStewardshipService;
@@ -209,6 +210,7 @@ public class KOMECommandWar extends CommandBase {
 
     private void refresh(KOMEWorldData data, String reason) {
         KOMEWarService.reconcileAutomaticMilitarySupport(data, System.currentTimeMillis(), reason);
+        KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, System.currentTimeMillis());
         KOMEWartimeStewardshipService.revalidateAll(data, System.currentTimeMillis(), reason);
         KOMECommandTroops.revalidateTemporaryControllers(data, System.currentTimeMillis(), reason);
     }

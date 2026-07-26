@@ -7,6 +7,7 @@ import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketTroopGuiAction;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.GuiTextField;
 import org.lwjgl.input.Mouse;
 
 import java.util.ArrayList;
@@ -27,6 +28,7 @@ public class KOMEGuiCompanyList extends GuiScreen {
     private static final int ID_RECLAIM = 10;
     private static final int ID_DISBAND = 11;
     private static final int ID_PLEDGE_DEPARTURE = 12;
+    private static final int ID_RENAME = 13;
     private final String tileId;
     private final String tileDisplayName;
     private final List<KOMECompanyGuiEntry> companies = new ArrayList<KOMECompanyGuiEntry>();
@@ -35,6 +37,7 @@ public class KOMEGuiCompanyList extends GuiScreen {
     private int scroll;
     private boolean confirmReclaim;
     private boolean confirmDisband;
+    private GuiTextField renameField;
 
     public KOMEGuiCompanyList(String tileId, List companies, boolean canCreate) {
         this(tileId, "", companies, canCreate);
@@ -56,19 +59,21 @@ public class KOMEGuiCompanyList extends GuiScreen {
         buttonList.clear();
         int x = panelX();
         int y = panelY();
+        renameField = new GuiTextField(fontRendererObj, x + 310, y + PANEL_HEIGHT - 112, 184, 18);
+        renameField.setMaxStringLength(24);
+        KOMECompanyGuiEntry selected = selectedCompany();
+        renameField.setText(selected == null ? "" : displayCompanyName(selected));
         addCompanyActions(x, y);
-        buttonList.add(new KOMEGuiButton(ID_BACK, x + 22, y + PANEL_HEIGHT - 34, 110, 22, "Back"));
-        GuiButton create = new KOMEGuiButton(ID_CREATE_COMPANY, x + 142, y + PANEL_HEIGHT - 34, 142, 22, "Create Company");
-        create.enabled = canCreate;
-        buttonList.add(create);
-        buttonList.add(new KOMEGuiButton(ID_PLEDGE_DEPARTURE, x + 294, y + PANEL_HEIGHT - 34, 84, 22, "Departure"));
-        buttonList.add(new KOMEGuiButton(ID_REFRESH, x + PANEL_WIDTH - 132, y + PANEL_HEIGHT - 34, 110, 22, "Refresh"));
+        buttonList.add(new KOMEGuiButton(ID_BACK, x + 22, y + PANEL_HEIGHT - 34, 140, 22, "Back"));
+        buttonList.add(new KOMEGuiButton(ID_PLEDGE_DEPARTURE, x + 172, y + PANEL_HEIGHT - 34, 140, 22, "Departure"));
+        buttonList.add(new KOMEGuiButton(ID_REFRESH, x + 322, y + PANEL_HEIGHT - 34, 176, 22, "Refresh"));
     }
 
     private void addCompanyActions(int x, int y) {
         List actions = new ArrayList();
         KOMECompanyGuiEntry selected = selectedCompany();
         actions.add(new CompanyAction(ID_CHOOSE_DESTINATION, "Choose Destination", selected != null && selected.canMove));
+        actions.add(new CompanyAction(ID_RENAME, "Rename Company", selected != null));
         if (selected != null && selected.canSetTendency) {
             actions.add(new CompanyAction(ID_TENDENCY, "Toggle Tendency", true));
         }
@@ -107,14 +112,14 @@ public class KOMEGuiCompanyList extends GuiScreen {
             KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(tileId));
         } else if (button.id == ID_REFRESH) {
             sendTroopAction("list", "", "");
-        } else if (button.id == ID_CREATE_COMPANY) {
-            sendTroopAction("create", "", "");
         } else if (button.id == ID_PLEDGE_DEPARTURE) {
             kome.common.network.KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketPledgeDepartureRequest());
         } else if (selectedCompany() != null && button.id == ID_TENDENCY) {
             KOMECompanyGuiEntry company = selectedCompany();
             String next = "AGGRESSIVE".equals(company.tendency) ? "conservative" : "aggressive";
             sendTroopAction("tendency", company.id, next);
+        } else if (selectedCompany() != null && button.id == ID_RENAME) {
+            sendTroopAction("rename", selectedCompany().id, renameField == null ? "" : renameField.getText());
         } else if (selectedCompany() != null && (button.id == ID_STAY || button.id == ID_RETREAT || button.id == ID_RESUME)) {
             String action = button.id == ID_STAY ? "stay" : button.id == ID_RETREAT ? "retreat" : "resume";
             sendTroopAction("movement", selectedCompany().movementOrderId, action);
@@ -141,12 +146,16 @@ public class KOMEGuiCompanyList extends GuiScreen {
 
     @Override
     protected void keyTyped(char c, int key) {
+        if (renameField != null && renameField.textboxKeyTyped(c, key)) {
+            return;
+        }
         super.keyTyped(c, key);
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) {
         super.mouseClicked(mouseX, mouseY, button);
+        if (renameField != null) renameField.mouseClicked(mouseX, mouseY, button);
         int x = panelX() + 22;
         int y = panelY() + 62;
         for (int row = 0; row < Math.min(5, companies.size() - scroll); row++) {
@@ -186,10 +195,12 @@ public class KOMEGuiCompanyList extends GuiScreen {
                 + " | global 100% eligible cap " + selectedCompany.stewardshipGlobalCap + " | reserved " + selectedCompany.stewardshipReserved
                 + " | available " + selectedCompany.stewardshipAvailable;
         fontRendererObj.drawString(fontRendererObj.trimStringToWidth(authoritySummary, PANEL_WIDTH - 44), x + 22, y + PANEL_HEIGHT - 88, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString("Company name:", x + 232, y + PANEL_HEIGHT - 108, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        if (renameField != null) renameField.drawTextBox();
         int rowY = y + 62;
         if (companies.isEmpty()) {
             KOMEGuiTheme.drawSubPanel(x + 22, rowY, PANEL_WIDTH - 44, 52);
-            fontRendererObj.drawString(canCreate ? "No companies are stationed here. Create one from unassigned units." : "No companies are stationed here.", x + 36, rowY + 20, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            fontRendererObj.drawString("No companies are stationed here. Combat hires create and join their hiring-tile company automatically.", x + 36, rowY + 20, KOMEGuiTheme.COLOR_TEXT_MUTED);
         }
         for (int row = 0; row < Math.min(5, companies.size() - scroll); row++) {
             int index = scroll + row;

@@ -7,6 +7,7 @@ import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.common.ForgeChunkManager;
 import kome.common.command.KOMECommandAlliance;
+import kome.common.command.KOMECommandBuild;
 import kome.common.command.KOMECommandConquest;
 import kome.common.command.KOMECommandKome;
 import kome.common.command.KOMECommandPopulation;
@@ -50,6 +51,7 @@ public class KOMEAddon {
         proxy.resetServerSessionState();
         KOMEAllianceGuiHandler.resetSessionState();
         event.registerServerCommand(new KOMECommandAlliance());
+        event.registerServerCommand(new KOMECommandBuild());
         event.registerServerCommand(new KOMECommandConquest());
         event.registerServerCommand(new KOMECommandKome());
         event.registerServerCommand(new KOMECommandPopulation());

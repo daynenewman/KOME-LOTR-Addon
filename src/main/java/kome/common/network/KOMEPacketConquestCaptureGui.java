@@ -6,6 +6,8 @@ import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
 import kome.common.KOMEAddon;
+import java.util.ArrayList;
+import java.util.List;
 
 public class KOMEPacketConquestCaptureGui implements IMessage {
     public String tileId;
@@ -57,6 +59,15 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
     public boolean claimConfirmationArmed;
     public String claimWarning = "";
     public String claimWarDestination = "";
+    public final List<BuildView> builds = new ArrayList<BuildView>();
+    public final List<PopulationPoolView> populationPools = new ArrayList<PopulationPoolView>();
+    public final List<String> selectablePopulationOwners = new ArrayList<String>();
+    public int viewerDimension;
+    public double viewerX;
+    public double viewerY;
+    public double viewerZ;
+    public int buildPopulationPerHalfHour = 5;
+    public String focusBuildId = "";
 
     public KOMEPacketConquestCaptureGui() {
     }
@@ -193,6 +204,29 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         claimConfirmationArmed = buf.readBoolean();
         claimWarning = ByteBufUtils.readUTF8String(buf);
         claimWarDestination = ByteBufUtils.readUTF8String(buf);
+        builds.clear();
+        int buildCount = Math.max(0, Math.min(2048, buf.readInt()));
+        for (int i = 0; i < buildCount; i++) {
+            BuildView view = new BuildView();
+            view.read(buf);
+            builds.add(view);
+        }
+        populationPools.clear();
+        int poolCount = Math.max(0, Math.min(512, buf.readInt()));
+        for (int i = 0; i < poolCount; i++) {
+            PopulationPoolView view = new PopulationPoolView();
+            view.read(buf);
+            populationPools.add(view);
+        }
+        selectablePopulationOwners.clear();
+        int ownerCount = Math.max(0, Math.min(256, buf.readInt()));
+        for (int i = 0; i < ownerCount; i++) selectablePopulationOwners.add(ByteBufUtils.readUTF8String(buf));
+        viewerDimension = buf.readInt();
+        viewerX = buf.readDouble();
+        viewerY = buf.readDouble();
+        viewerZ = buf.readDouble();
+        buildPopulationPerHalfHour = Math.max(1, buf.readInt());
+        focusBuildId = ByteBufUtils.readUTF8String(buf);
     }
 
     @Override
@@ -246,6 +280,18 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         buf.writeBoolean(claimConfirmationArmed);
         ByteBufUtils.writeUTF8String(buf, claimWarning == null ? "" : claimWarning);
         ByteBufUtils.writeUTF8String(buf, claimWarDestination == null ? "" : claimWarDestination);
+        buf.writeInt(builds.size());
+        for (BuildView view : builds) view.write(buf);
+        buf.writeInt(populationPools.size());
+        for (PopulationPoolView view : populationPools) view.write(buf);
+        buf.writeInt(selectablePopulationOwners.size());
+        for (String owner : selectablePopulationOwners) ByteBufUtils.writeUTF8String(buf, owner == null ? "" : owner);
+        buf.writeInt(viewerDimension);
+        buf.writeDouble(viewerX);
+        buf.writeDouble(viewerY);
+        buf.writeDouble(viewerZ);
+        buf.writeInt(Math.max(1, buildPopulationPerHalfHour));
+        ByteBufUtils.writeUTF8String(buf, focusBuildId == null ? "" : focusBuildId);
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketConquestCaptureGui, IMessage> {
@@ -254,5 +300,154 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             KOMEAddon.proxy.displayConquestCaptureGui(message);
             return null;
         }
+    }
+
+    public static class BuildView {
+        public String id = "";
+        public String name = "";
+        public String populationFaction = "";
+        public String builder = "";
+        public String manager = "";
+        public int dimension;
+        public double x;
+        public double y;
+        public double z;
+        public int offensiveHalfHours;
+        public int defensiveHalfHours;
+        public int offensivePopulation;
+        public int defensivePopulation;
+        public int offensiveCommitted;
+        public int defensiveCommitted;
+        public int pendingCount;
+        public String status = "";
+        public boolean canManage;
+        public boolean canDestroy;
+        public final List<ContributionView> contributions = new ArrayList<ContributionView>();
+
+        void read(ByteBuf buf) {
+            id = ByteBufUtils.readUTF8String(buf);
+            name = ByteBufUtils.readUTF8String(buf);
+            populationFaction = ByteBufUtils.readUTF8String(buf);
+            builder = ByteBufUtils.readUTF8String(buf);
+            manager = ByteBufUtils.readUTF8String(buf);
+            dimension = buf.readInt();
+            x = buf.readDouble();
+            y = buf.readDouble();
+            z = buf.readDouble();
+            offensiveHalfHours = buf.readInt();
+            defensiveHalfHours = buf.readInt();
+            offensivePopulation = buf.readInt();
+            defensivePopulation = buf.readInt();
+            offensiveCommitted = buf.readInt();
+            defensiveCommitted = buf.readInt();
+            pendingCount = buf.readInt();
+            status = ByteBufUtils.readUTF8String(buf);
+            canManage = buf.readBoolean();
+            canDestroy = buf.readBoolean();
+            contributions.clear();
+            int count = Math.max(0, Math.min(4096, buf.readInt()));
+            for (int i = 0; i < count; i++) {
+                ContributionView contribution = new ContributionView();
+                contribution.read(buf);
+                contributions.add(contribution);
+            }
+        }
+
+        void write(ByteBuf buf) {
+            ByteBufUtils.writeUTF8String(buf, safe(id));
+            ByteBufUtils.writeUTF8String(buf, safe(name));
+            ByteBufUtils.writeUTF8String(buf, safe(populationFaction));
+            ByteBufUtils.writeUTF8String(buf, safe(builder));
+            ByteBufUtils.writeUTF8String(buf, safe(manager));
+            buf.writeInt(dimension);
+            buf.writeDouble(x);
+            buf.writeDouble(y);
+            buf.writeDouble(z);
+            buf.writeInt(offensiveHalfHours);
+            buf.writeInt(defensiveHalfHours);
+            buf.writeInt(offensivePopulation);
+            buf.writeInt(defensivePopulation);
+            buf.writeInt(offensiveCommitted);
+            buf.writeInt(defensiveCommitted);
+            buf.writeInt(pendingCount);
+            ByteBufUtils.writeUTF8String(buf, safe(status));
+            buf.writeBoolean(canManage);
+            buf.writeBoolean(canDestroy);
+            buf.writeInt(contributions.size());
+            for (ContributionView contribution : contributions) contribution.write(buf);
+        }
+    }
+
+    public static class ContributionView {
+        public String id = "";
+        public String player = "";
+        public String faction = "";
+        public int offensiveHalfHours;
+        public int defensiveHalfHours;
+        public String status = "";
+
+        void read(ByteBuf buf) {
+            id = ByteBufUtils.readUTF8String(buf);
+            player = ByteBufUtils.readUTF8String(buf);
+            faction = ByteBufUtils.readUTF8String(buf);
+            offensiveHalfHours = buf.readInt();
+            defensiveHalfHours = buf.readInt();
+            status = ByteBufUtils.readUTF8String(buf);
+        }
+
+        void write(ByteBuf buf) {
+            ByteBufUtils.writeUTF8String(buf, safe(id));
+            ByteBufUtils.writeUTF8String(buf, safe(player));
+            ByteBufUtils.writeUTF8String(buf, safe(faction));
+            buf.writeInt(offensiveHalfHours);
+            buf.writeInt(defensiveHalfHours);
+            ByteBufUtils.writeUTF8String(buf, safe(status));
+        }
+    }
+
+    public static class PopulationPoolView {
+        public String faction = "";
+        public int nativeOffensive;
+        public int nativeDefensive;
+        public int buildOffensive;
+        public int buildDefensive;
+        public int physicalOffensive;
+        public int physicalDefensive;
+        public int usableOffensive;
+        public int usableDefensive;
+        public int usedOffensive;
+        public int usedDefensive;
+
+        void read(ByteBuf buf) {
+            faction = ByteBufUtils.readUTF8String(buf);
+            nativeOffensive = buf.readInt();
+            nativeDefensive = buf.readInt();
+            buildOffensive = buf.readInt();
+            buildDefensive = buf.readInt();
+            physicalOffensive = buf.readInt();
+            physicalDefensive = buf.readInt();
+            usableOffensive = buf.readInt();
+            usableDefensive = buf.readInt();
+            usedOffensive = buf.readInt();
+            usedDefensive = buf.readInt();
+        }
+
+        void write(ByteBuf buf) {
+            ByteBufUtils.writeUTF8String(buf, safe(faction));
+            buf.writeInt(nativeOffensive);
+            buf.writeInt(nativeDefensive);
+            buf.writeInt(buildOffensive);
+            buf.writeInt(buildDefensive);
+            buf.writeInt(physicalOffensive);
+            buf.writeInt(physicalDefensive);
+            buf.writeInt(usableOffensive);
+            buf.writeInt(usableDefensive);
+            buf.writeInt(usedOffensive);
+            buf.writeInt(usedDefensive);
+        }
+    }
+
+    private static String safe(String value) {
+        return value == null ? "" : value;
     }
 }

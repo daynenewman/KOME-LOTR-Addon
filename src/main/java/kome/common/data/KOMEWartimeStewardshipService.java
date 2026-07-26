@@ -203,6 +203,7 @@ public final class KOMEWartimeStewardshipService {
             record.stationedEntityData = null;
             if (tombstone.complete()) tombstone.completedTimestamp = nowMillis;
             data.removeUnitFromCompany(record);
+            data.releaseFundingBuild(record);
             data.hiredUnits.remove(unitId);
             removed++;
         }

@@ -7,6 +7,7 @@ import kome.common.data.KOMEArmyCompany;
 import kome.common.data.KOMEClientData;
 import kome.common.network.KOMEPacketConquestClaim;
 import kome.common.network.KOMEPacketConquestCaptureGui;
+import kome.common.network.KOMEPacketBuildAction;
 import kome.common.network.KOMEPacketConquestTransfer;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketTilePopulationUpdate;
@@ -15,6 +16,7 @@ import lotr.common.fac.LOTRFaction;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
+import org.lwjgl.input.Mouse;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +28,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private static final int ACTION_BUTTON_HEIGHT = 24;
     private static final int ACTION_BUTTON_GAP = 12;
     private static final int HEADER_META_Y_OFFSET = 39;
-    private static final int CONTENT_Y_OFFSET = 62;
+    private static final int CONTENT_Y_OFFSET = 88;
     private static final int CARD_CONTENT_Y_OFFSET = 24;
     private static final int CARD_CONTROL_HEIGHT = 18;
     private static final int CARD_CONTROL_BOTTOM_PADDING = 13;
@@ -51,6 +53,33 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private static final int ID_UNALLOCATE_DEFENSIVE = 17;
     private static final int ID_SET_RECRUITMENT_TILE = 18;
     private static final int ID_VIEW_UNITS = 19;
+    private static final int ID_TAB_BUILDS = 20;
+    private static final int ID_TAB_POPULATION = 21;
+    private static final int ID_TAB_ALLOCATIONS = 22;
+    private static final int ID_BUILD_NEW = 23;
+    private static final int ID_BUILD_LIST = 24;
+    private static final int ID_BUILD_CONTRIBUTE = 25;
+    private static final int ID_BUILD_RENAME = 26;
+    private static final int ID_BUILD_DELETE = 27;
+    private static final int ID_BUILD_DESTROY = 28;
+    private static final int ID_BUILD_SUBMIT_CREATE = 29;
+    private static final int ID_BUILD_OWNER_PREV = 30;
+    private static final int ID_BUILD_OWNER_NEXT = 31;
+    private static final int ID_BUILD_OFF_MINUS = 32;
+    private static final int ID_BUILD_OFF_PLUS = 33;
+    private static final int ID_BUILD_DEF_MINUS = 34;
+    private static final int ID_BUILD_DEF_PLUS = 35;
+    private static final int ID_BUILD_SUBMIT_CONTRIBUTION = 36;
+    private static final int ID_BUILD_SUBMIT_RENAME = 37;
+    private static final int ID_BUILD_VIEW_BASE = 100;
+    private static final int ID_BUILD_APPROVE_BASE = 200;
+    private static final int ID_BUILD_REJECT_BASE = 300;
+    private static final int ID_BUILD_REMOVE_BASE = 400;
+    private static final int BUILD_MODE_LIST = 0;
+    private static final int BUILD_MODE_DETAIL = 1;
+    private static final int BUILD_MODE_CREATE = 2;
+    private static final int BUILD_MODE_CONTRIBUTE = 3;
+    private static final int BUILD_MODE_RENAME = 4;
 
     private final String tileId;
     private final String ownerFaction;
@@ -113,6 +142,26 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private int panelH;
     private final KOMEGuiConfirmationDialog confirmation = new KOMEGuiConfirmationDialog();
     private boolean confirmationDismissed;
+    private final List buildViews = new ArrayList();
+    private final List populationPoolViews = new ArrayList();
+    private final List selectablePopulationOwners = new ArrayList();
+    private int viewerDimension;
+    private double viewerWorldX;
+    private double viewerWorldY;
+    private double viewerWorldZ;
+    private int buildPopulationPerHalfHour = 5;
+    private int activeTab;
+    private int buildMode;
+    private int selectedBuildIndex = -1;
+    private int buildScroll;
+    private int poolScroll;
+    private int contributionScroll;
+    private int populationOwnerIndex;
+    private int editOffensiveHalfHours;
+    private int editDefensiveHalfHours;
+    private GuiTextField buildNameField;
+    private String pendingDestructiveBuildAction = "";
+    private String pendingDestructiveBuildId = "";
 
     public KOMEGuiConquestCapture(KOMEPacketConquestCaptureGui message) {
         this(message.tileId, message.ownerFaction, message.pendingFromFaction, message.pendingToFaction,
@@ -129,6 +178,25 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         claimConfirmationArmed = message.claimConfirmationArmed;
         claimWarning = safe(message.claimWarning);
         claimWarDestination = safe(message.claimWarDestination);
+        buildViews.addAll(message.builds);
+        populationPoolViews.addAll(message.populationPools);
+        selectablePopulationOwners.addAll(message.selectablePopulationOwners);
+        viewerDimension = message.viewerDimension;
+        viewerWorldX = message.viewerX;
+        viewerWorldY = message.viewerY;
+        viewerWorldZ = message.viewerZ;
+        buildPopulationPerHalfHour = Math.max(1, message.buildPopulationPerHalfHour);
+        if (message.focusBuildId != null && message.focusBuildId.length() > 0) {
+            for (int i = 0; i < buildViews.size(); i++) {
+                KOMEPacketConquestCaptureGui.BuildView view =
+                    (KOMEPacketConquestCaptureGui.BuildView) buildViews.get(i);
+                if (message.focusBuildId.equals(view.id)) {
+                    selectedBuildIndex = i;
+                    buildMode = BUILD_MODE_DETAIL;
+                    break;
+                }
+            }
+        }
     }
 
     public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction) {
@@ -220,6 +288,16 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         populationAmountField = null;
         allocationPlayerField = null;
         allocationAmountField = null;
+        buildNameField = null;
+        addTabButtons();
+        if (activeTab == 0) {
+            initBuildControls();
+            return;
+        }
+        if (activeTab == 1) {
+            initPopulationPoolControls();
+            return;
+        }
         int actionTop = panelY + panelH - ACTION_AREA_HEIGHT;
         int actionY = actionTop + 40;
         if (transferMode) {
@@ -276,6 +354,123 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (claimConfirmationArmed && !confirmationDismissed && !confirmation.isVisible()) {
             showClaimConfirmation();
         }
+    }
+
+    private void addTabButtons() {
+        int x = panelX + PANEL_MARGIN;
+        int y = panelY + 59;
+        int gap = 7;
+        int width = Math.max(62, (panelW - PANEL_MARGIN * 2 - gap * 2) / 3);
+        KOMEGuiButton builds = KOMEGuiButton.tab(ID_TAB_BUILDS, x, y, width, "Builds", activeTab == 0);
+        KOMEGuiButton population = KOMEGuiButton.tab(ID_TAB_POPULATION, x + width + gap, y, width, "Population", activeTab == 1);
+        KOMEGuiButton allocations = KOMEGuiButton.tab(ID_TAB_ALLOCATIONS, x + (width + gap) * 2, y, width, "Allocations", activeTab == 2);
+        buttonList.add(builds);
+        buttonList.add(population);
+        buttonList.add(allocations);
+    }
+
+    private void initBuildControls() {
+        int contentY = panelY + CONTENT_Y_OFFSET;
+        int footerY = panelY + panelH - 32;
+        buttonList.add(new KOMEGuiButton(ID_BACK, panelX + PANEL_MARGIN, footerY, 104, 22, "Back to Map"));
+        if (buildMode == BUILD_MODE_LIST) {
+            GuiButton create = new KOMEGuiButton(ID_BUILD_NEW, panelX + panelW - PANEL_MARGIN - 132, footerY,
+                132, 22, "Create Build");
+            create.enabled = !selectablePopulationOwners.isEmpty();
+            buttonList.add(create);
+            int visible = buildVisibleRows();
+            buildScroll = clamp(buildScroll, 0, Math.max(0, buildViews.size() - visible));
+            for (int row = 0; row < visible && buildScroll + row < buildViews.size(); row++) {
+                int y = contentY + 27 + row * 58;
+                buttonList.add(new KOMEGuiButton(ID_BUILD_VIEW_BASE + row,
+                    panelX + panelW - PANEL_MARGIN - 78, y + 17, 66, 19, "Details"));
+            }
+            return;
+        }
+        buttonList.add(new KOMEGuiButton(ID_BUILD_LIST, panelX + 132, footerY, 94, 22, "Build List"));
+        KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
+        if (buildMode == BUILD_MODE_CREATE || buildMode == BUILD_MODE_RENAME) {
+            buildNameField = new GuiTextField(fontRendererObj, panelX + PANEL_MARGIN + 142, contentY + 40,
+                Math.max(120, panelW - PANEL_MARGIN * 2 - 166), 18);
+            buildNameField.setMaxStringLength(40);
+            buildNameField.setText(buildMode == BUILD_MODE_RENAME && selected != null ? selected.name : "");
+        }
+        if (buildMode == BUILD_MODE_CREATE || buildMode == BUILD_MODE_CONTRIBUTE) {
+            int controlsY = contentY + 129;
+            addHourButtons(controlsY);
+            if (buildMode == BUILD_MODE_CREATE) {
+                buttonList.add(KOMEGuiButton.small(ID_BUILD_OWNER_PREV, panelX + PANEL_MARGIN + 142, contentY + 74, "<"));
+                buttonList.add(KOMEGuiButton.small(ID_BUILD_OWNER_NEXT, panelX + panelW - PANEL_MARGIN - 22, contentY + 74, ">"));
+                buttonList.add(new KOMEGuiButton(ID_BUILD_SUBMIT_CREATE, panelX + panelW - PANEL_MARGIN - 136,
+                    footerY, 136, 22, "Confirm Build"));
+            } else {
+                buttonList.add(new KOMEGuiButton(ID_BUILD_SUBMIT_CONTRIBUTION, panelX + panelW - PANEL_MARGIN - 136,
+                    footerY, 136, 22, selected != null && selected.canManage ? "Apply Hours" : "Submit Hours"));
+            }
+            return;
+        }
+        if (buildMode == BUILD_MODE_RENAME) {
+            buttonList.add(new KOMEGuiButton(ID_BUILD_SUBMIT_RENAME, panelX + panelW - PANEL_MARGIN - 128,
+                footerY, 128, 22, "Save Name"));
+            return;
+        }
+        if (selected == null) {
+            buildMode = BUILD_MODE_LIST;
+            initGui();
+            return;
+        }
+        int actionX = panelX + PANEL_MARGIN;
+        int actionY = contentY + 91;
+        int gap = 7;
+        int actionW = Math.max(72, (panelW - PANEL_MARGIN * 2 - gap * 3) / 4);
+        buttonList.add(new KOMEGuiButton(ID_BUILD_CONTRIBUTE, actionX, actionY, actionW, 20, "Add Hours"));
+        GuiButton rename = new KOMEGuiButton(ID_BUILD_RENAME, actionX + actionW + gap, actionY, actionW, 20, "Rename");
+        rename.enabled = selected.canManage;
+        buttonList.add(rename);
+        GuiButton delete = new KOMEGuiButton(ID_BUILD_DELETE, actionX + (actionW + gap) * 2, actionY, actionW, 20, "Delete");
+        delete.enabled = selected.canManage && selected.offensiveCommitted == 0 && selected.defensiveCommitted == 0;
+        ((KOMEGuiButton) delete).setStyle(KOMEGuiButton.Style.DESTRUCTIVE);
+        buttonList.add(delete);
+        GuiButton destroy = new KOMEGuiButton(ID_BUILD_DESTROY, actionX + (actionW + gap) * 3, actionY, actionW, 20, "Destroy Enemy");
+        destroy.enabled = selected.canDestroy && selected.offensiveCommitted == 0 && selected.defensiveCommitted == 0;
+        ((KOMEGuiButton) destroy).setStyle(KOMEGuiButton.Style.DESTRUCTIVE);
+        buttonList.add(destroy);
+        int visible = contributionVisibleRows();
+        contributionScroll = clamp(contributionScroll, 0, Math.max(0, selected.contributions.size() - visible));
+        for (int row = 0; row < visible && contributionScroll + row < selected.contributions.size(); row++) {
+            KOMEPacketConquestCaptureGui.ContributionView contribution =
+                (KOMEPacketConquestCaptureGui.ContributionView) selected.contributions.get(contributionScroll + row);
+            int y = contentY + 150 + row * 38;
+            if (selected.canManage && "PENDING".equals(contribution.status)) {
+                buttonList.add(new KOMEGuiButton(ID_BUILD_APPROVE_BASE + row, panelX + panelW - PANEL_MARGIN - 126,
+                    y + 9, 57, 18, "Approve"));
+                buttonList.add(new KOMEGuiButton(ID_BUILD_REJECT_BASE + row, panelX + panelW - PANEL_MARGIN - 64,
+                    y + 9, 57, 18, "Reject"));
+            } else if (selected.canManage && "APPROVED".equals(contribution.status)) {
+                GuiButton remove = new KOMEGuiButton(ID_BUILD_REMOVE_BASE + row, panelX + panelW - PANEL_MARGIN - 72,
+                    y + 9, 65, 18, "Remove");
+                ((KOMEGuiButton) remove).setStyle(KOMEGuiButton.Style.DESTRUCTIVE);
+                buttonList.add(remove);
+            }
+        }
+    }
+
+    private void initPopulationPoolControls() {
+        int footerY = panelY + panelH - 32;
+        buttonList.add(new KOMEGuiButton(ID_BACK, panelX + PANEL_MARGIN, footerY, 104, 22, "Back to Map"));
+        buttonList.add(new KOMEGuiButton(ID_VIEW_UNITS, panelX + panelW - PANEL_MARGIN - 112, footerY,
+            112, 22, "View Units"));
+        poolScroll = clamp(poolScroll, 0, Math.max(0, populationPoolViews.size() - poolVisibleRows()));
+    }
+
+    private void addHourButtons(int y) {
+        int left = panelX + PANEL_MARGIN + 142;
+        int groupW = Math.max(110, (panelW - PANEL_MARGIN * 2 - 166) / 2);
+        buttonList.add(KOMEGuiButton.small(ID_BUILD_OFF_MINUS, left, y, "-"));
+        buttonList.add(KOMEGuiButton.small(ID_BUILD_OFF_PLUS, left + groupW - 20, y, "+"));
+        int right = left + groupW + 16;
+        buttonList.add(KOMEGuiButton.small(ID_BUILD_DEF_MINUS, right, y, "-"));
+        buttonList.add(KOMEGuiButton.small(ID_BUILD_DEF_PLUS, right + groupW - 20, y, "+"));
     }
 
     private void addAllocationControls() {
@@ -345,6 +540,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (!button.enabled) {
             return;
         }
+        if (handleBuildAndTabAction(button)) {
+            return;
+        }
         if (button.id == ID_CLAIM) {
             confirmationDismissed = false;
             showClaimConfirmation();
@@ -386,6 +584,101 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
     }
 
+    private boolean handleBuildAndTabAction(GuiButton button) {
+        if (button.id >= ID_TAB_BUILDS && button.id <= ID_TAB_ALLOCATIONS) {
+            activeTab = button.id - ID_TAB_BUILDS;
+            buildMode = BUILD_MODE_LIST;
+            transferMode = false;
+            initGui();
+            return true;
+        }
+        if (activeTab != 0) return false;
+        if (button.id >= ID_BUILD_VIEW_BASE && button.id < ID_BUILD_VIEW_BASE + 100) {
+            selectedBuildIndex = buildScroll + button.id - ID_BUILD_VIEW_BASE;
+            buildMode = BUILD_MODE_DETAIL;
+            contributionScroll = 0;
+            initGui();
+            return true;
+        }
+        if (button.id == ID_BUILD_NEW) {
+            buildMode = BUILD_MODE_CREATE;
+            editOffensiveHalfHours = 0;
+            editDefensiveHalfHours = 0;
+            populationOwnerIndex = clamp(populationOwnerIndex, 0, Math.max(0, selectablePopulationOwners.size() - 1));
+            initGui();
+            return true;
+        }
+        if (button.id == ID_BUILD_LIST) {
+            buildMode = BUILD_MODE_LIST;
+            initGui();
+            return true;
+        }
+        if (button.id == ID_BUILD_CONTRIBUTE) {
+            buildMode = BUILD_MODE_CONTRIBUTE;
+            editOffensiveHalfHours = 0;
+            editDefensiveHalfHours = 0;
+            initGui();
+            return true;
+        }
+        if (button.id == ID_BUILD_RENAME) {
+            buildMode = BUILD_MODE_RENAME;
+            initGui();
+            return true;
+        }
+        if (button.id == ID_BUILD_OFF_MINUS) editOffensiveHalfHours = Math.max(0, editOffensiveHalfHours - 1);
+        else if (button.id == ID_BUILD_OFF_PLUS) editOffensiveHalfHours++;
+        else if (button.id == ID_BUILD_DEF_MINUS) editDefensiveHalfHours = Math.max(0, editDefensiveHalfHours - 1);
+        else if (button.id == ID_BUILD_DEF_PLUS) editDefensiveHalfHours++;
+        else if (button.id == ID_BUILD_OWNER_PREV) populationOwnerIndex = wrap(populationOwnerIndex - 1, selectablePopulationOwners.size());
+        else if (button.id == ID_BUILD_OWNER_NEXT) populationOwnerIndex = wrap(populationOwnerIndex + 1, selectablePopulationOwners.size());
+        else if (button.id == ID_BUILD_SUBMIT_CREATE) {
+            String owner = selectablePopulationOwners.isEmpty() ? "" : (String) selectablePopulationOwners.get(populationOwnerIndex);
+            sendBuildAction("create", "", "", buildNameField == null ? "" : buildNameField.getText(), owner);
+        } else if (button.id == ID_BUILD_SUBMIT_CONTRIBUTION) {
+            KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
+            if (selected != null && editOffensiveHalfHours + editDefensiveHalfHours > 0) {
+                sendBuildAction("contribute", selected.id, "", "", "");
+            }
+        } else if (button.id == ID_BUILD_SUBMIT_RENAME) {
+            KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
+            if (selected != null) sendBuildAction("rename", selected.id, "",
+                buildNameField == null ? "" : buildNameField.getText(), "");
+        } else if (button.id == ID_BUILD_DELETE || button.id == ID_BUILD_DESTROY) {
+            KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
+            if (selected != null) {
+                pendingDestructiveBuildAction = button.id == ID_BUILD_DELETE ? "delete" : "destroy";
+                pendingDestructiveBuildId = selected.id;
+                confirmation.show(button.id == ID_BUILD_DELETE ? "Delete Build" : "Destroy Enemy Build",
+                    "This permanently removes all active Build hours, generated population, progression credit, pending submissions, and the map marker. This cannot proceed while the Build funds living units.",
+                    button.id == ID_BUILD_DELETE ? "Delete Build" : "Destroy Build");
+            }
+        } else if (button.id >= ID_BUILD_APPROVE_BASE && button.id < ID_BUILD_APPROVE_BASE + 100) {
+            sendContributionAction("approve", button.id - ID_BUILD_APPROVE_BASE);
+        } else if (button.id >= ID_BUILD_REJECT_BASE && button.id < ID_BUILD_REJECT_BASE + 100) {
+            sendContributionAction("reject", button.id - ID_BUILD_REJECT_BASE);
+        } else if (button.id >= ID_BUILD_REMOVE_BASE && button.id < ID_BUILD_REMOVE_BASE + 100) {
+            sendContributionAction("remove", button.id - ID_BUILD_REMOVE_BASE);
+        } else {
+            return false;
+        }
+        return true;
+    }
+
+    private void sendContributionAction(String action, int visibleRow) {
+        KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
+        int index = contributionScroll + visibleRow;
+        if (selected == null || index < 0 || index >= selected.contributions.size()) return;
+        KOMEPacketConquestCaptureGui.ContributionView contribution =
+            (KOMEPacketConquestCaptureGui.ContributionView) selected.contributions.get(index);
+        sendBuildAction(action, selected.id, contribution.id, "", "");
+    }
+
+    private void sendBuildAction(String action, String buildId, String contributionId, String text, String owner) {
+        KOMEPacketHandler.network.sendToServer(new KOMEPacketBuildAction(action, tileId, buildId,
+            contributionId, text, owner, editOffensiveHalfHours, editDefensiveHalfHours,
+            viewerDimension, viewerWorldX, viewerWorldY, viewerWorldZ));
+    }
+
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
@@ -393,7 +686,13 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         KOMEGuiTheme.drawMainPanel(panelX, panelY, panelW, panelH);
         KOMEGuiTheme.drawHeader(fontRendererObj, "Tile Command", panelX + 8, panelY + 8, panelW - 16);
         drawHeaderMeta();
-        drawCards(mouseX, mouseY);
+        if (activeTab == 0) {
+            drawBuildTab(mouseX, mouseY);
+        } else if (activeTab == 1) {
+            drawPopulationPoolTab(mouseX, mouseY);
+        } else {
+            drawCards(mouseX, mouseY);
+        }
         if (populationAmountField != null) {
             populationAmountField.drawTextBox();
         }
@@ -401,6 +700,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             allocationPlayerField.drawTextBox();
             allocationAmountField.drawTextBox();
         }
+        if (buildNameField != null) buildNameField.drawTextBox();
         super.drawScreen(mouseX, mouseY, partialTicks);
         drawDisabledTooltip(mouseX, mouseY);
         confirmation.draw(fontRendererObj, width, height, mouseX, mouseY);
@@ -411,6 +711,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (confirmation.isVisible() && key == 1) {
             confirmation.hide();
             confirmationDismissed = true;
+            pendingDestructiveBuildAction = "";
+            pendingDestructiveBuildId = "";
             return;
         }
         if (populationAmountField != null && populationAmountField.textboxKeyTyped(c, key)) {
@@ -419,6 +721,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (allocationPlayerField != null && (allocationPlayerField.textboxKeyTyped(c, key) || allocationAmountField.textboxKeyTyped(c, key))) {
             return;
         }
+        if (buildNameField != null && buildNameField.textboxKeyTyped(c, key)) return;
         super.keyTyped(c, key);
     }
 
@@ -428,11 +731,20 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             int result = confirmation.click(mouseX, mouseY, button);
             if (result == KOMEGuiConfirmationDialog.CONFIRM) {
                 confirmation.hide();
-                KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestClaim(tileId));
-                KOMEConquestMapOverlay.openPreservedMap();
+                if (pendingDestructiveBuildAction.length() > 0) {
+                    sendBuildAction(pendingDestructiveBuildAction, pendingDestructiveBuildId, "",
+                        pendingDestructiveBuildAction.equals("destroy") ? "Enemy homeland destruction" : "Deleted in Tile Command", "");
+                    pendingDestructiveBuildAction = "";
+                    pendingDestructiveBuildId = "";
+                } else {
+                    KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestClaim(tileId));
+                    KOMEConquestMapOverlay.openPreservedMap();
+                }
             } else if (result == KOMEGuiConfirmationDialog.CANCEL) {
                 confirmation.hide();
                 confirmationDismissed = true;
+                pendingDestructiveBuildAction = "";
+                pendingDestructiveBuildId = "";
             }
             return;
         }
@@ -443,6 +755,26 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (allocationPlayerField != null) {
             allocationPlayerField.mouseClicked(mouseX, mouseY, button);
             allocationAmountField.mouseClicked(mouseX, mouseY, button);
+        }
+        if (buildNameField != null) buildNameField.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public void handleMouseInput() {
+        super.handleMouseInput();
+        int wheel = Mouse.getEventDWheel();
+        if (wheel == 0) return;
+        int delta = wheel > 0 ? -1 : 1;
+        if (activeTab == 0 && buildMode == BUILD_MODE_LIST) {
+            buildScroll = clamp(buildScroll + delta, 0, Math.max(0, buildViews.size() - buildVisibleRows()));
+            initGui();
+        } else if (activeTab == 0 && buildMode == BUILD_MODE_DETAIL) {
+            KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
+            contributionScroll = clamp(contributionScroll + delta, 0,
+                Math.max(0, selected == null ? 0 : selected.contributions.size() - contributionVisibleRows()));
+            initGui();
+        } else if (activeTab == 1) {
+            poolScroll = clamp(poolScroll + delta, 0, Math.max(0, populationPoolViews.size() - poolVisibleRows()));
         }
     }
 
@@ -464,6 +796,253 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         fontRendererObj.drawString("Ruler: " + KOMEGuiTheme.trimToWidth(fontRendererObj, rulingFactionLabel(currentRulingFaction.length() == 0 ? ownerFaction : currentRulingFaction), ownerW - 42), ownerX, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
         String viewer = "Your Faction: " + (hasViewerFaction() ? factionName(viewerFaction) : "No faction");
         fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, viewer, viewerW), viewerX, y, hasViewerFaction() ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_BAD);
+    }
+
+    private void drawBuildTab(int mouseX, int mouseY) {
+        int x = panelX + PANEL_MARGIN;
+        int y = panelY + CONTENT_Y_OFFSET;
+        int w = panelW - PANEL_MARGIN * 2;
+        int bottom = panelY + panelH - 40;
+        KOMEGuiTheme.drawSubPanel(x, y, w, Math.max(40, bottom - y));
+        if (buildMode == BUILD_MODE_LIST) {
+            KOMEGuiTheme.drawSectionTitle(fontRendererObj, "Builds in " + tileDisplayName(), x + 12, y + 9, w - 24);
+            if (buildViews.isEmpty()) {
+                KOMEGuiTheme.drawWarningBanner(fontRendererObj, "No Builds",
+                    "No persistent Builds exist in this tile. Create one at your current world position; the server validates the coordinates, controller relation, and selected population owner.",
+                    x + 14, y + 38, w - 28, KOMEGuiTheme.Status.NEUTRAL);
+                return;
+            }
+            int visible = buildVisibleRows();
+            int viewportY = y + 25;
+            int viewportH = Math.max(24, bottom - viewportY - 6);
+            KOMEGuiTheme.enableScissor(mc, x + 6, viewportY, w - 12, viewportH);
+            for (int row = 0; row < visible && buildScroll + row < buildViews.size(); row++) {
+                KOMEPacketConquestCaptureGui.BuildView build =
+                    (KOMEPacketConquestCaptureGui.BuildView) buildViews.get(buildScroll + row);
+                int cardY = y + 27 + row * 58;
+                KOMEGuiTheme.drawCard(x + 8, cardY, w - 16, 52,
+                    KOMEGuiTheme.isHovered(mouseX, mouseY, x + 8, cardY, w - 16, 52));
+                fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
+                    build.name + " (" + build.id + ")", Math.max(80, w - 230)), x + 18, cardY + 7,
+                    KOMEGuiTheme.COLOR_BORDER_RED);
+                KOMEGuiTheme.drawFactionBadge(fontRendererObj, build.populationFaction, build.status,
+                    x + w - 210, cardY + 4, 112);
+                fontRendererObj.drawString("Hours O " + displayHalfHours(build.offensiveHalfHours)
+                    + " / D " + displayHalfHours(build.defensiveHalfHours) + "   Population O "
+                    + build.offensivePopulation + " / D " + build.defensivePopulation,
+                    x + 18, cardY + 22, KOMEGuiTheme.COLOR_TEXT);
+                fontRendererObj.drawString("Manager: " + safeName(build.manager, "Unassigned")
+                    + "   Pending: " + build.pendingCount + "   At " + coord(build.x) + ", "
+                    + coord(build.y) + ", " + coord(build.z),
+                    x + 18, cardY + 36, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            }
+            KOMEGuiTheme.disableScissor();
+            drawSimpleScrollbar(x + w - 7, viewportY, viewportH, buildScroll, buildViews.size(), visible);
+            return;
+        }
+        if (buildMode == BUILD_MODE_CREATE) {
+            drawBuildEditor(x, y, w, true);
+            return;
+        }
+        KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
+        if (selected == null) {
+            fontRendererObj.drawString("The selected Build is no longer available.", x + 16, y + 18, KOMEGuiTheme.COLOR_BAD);
+            return;
+        }
+        if (buildMode == BUILD_MODE_CONTRIBUTE) {
+            drawBuildEditor(x, y, w, false);
+            return;
+        }
+        if (buildMode == BUILD_MODE_RENAME) {
+            KOMEGuiTheme.drawSectionTitle(fontRendererObj, "Rename " + selected.id, x + 12, y + 10, w - 24);
+            fontRendererObj.drawString("Build name", x + 20, y + 43, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            KOMEGuiTheme.drawWrappedText(fontRendererObj,
+                "The stable Build ID and source tile do not change when the visible name changes.",
+                x + 20, y + 76, w - 40, KOMEGuiTheme.COLOR_TEXT);
+            return;
+        }
+        drawBuildDetail(selected, x, y, w, bottom, mouseX, mouseY);
+    }
+
+    private void drawBuildEditor(int x, int y, int w, boolean creating) {
+        KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
+        KOMEGuiTheme.drawSectionTitle(fontRendererObj,
+            creating ? "Create Persistent Build" : "Contribute to " + (selected == null ? "Build" : selected.name),
+            x + 12, y + 10, w - 24);
+        if (creating) {
+            fontRendererObj.drawString("Name", x + 20, y + 43, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            String owner = selectablePopulationOwners.isEmpty() ? "No eligible owner"
+                : (String) selectablePopulationOwners.get(clamp(populationOwnerIndex, 0, selectablePopulationOwners.size() - 1));
+            fontRendererObj.drawString("Population owner", x + 20, y + 80, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            KOMEGuiTheme.drawCenteredPlainText(fontRendererObj, factionName(owner), x + w / 2, y + 81,
+                KOMEGuiTheme.COLOR_GOLD);
+            fontRendererObj.drawString("Coordinates", x + 20, y + 105, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            fontRendererObj.drawString(viewerDimension + ": " + coord(viewerWorldX) + ", " + coord(viewerWorldY)
+                + ", " + coord(viewerWorldZ), x + 162, y + 105, KOMEGuiTheme.COLOR_TEXT);
+        } else {
+            KOMEGuiTheme.drawWarningBanner(fontRendererObj, selected != null && selected.canManage
+                    ? "Immediate Manager Contribution" : "Manager Approval Required",
+                selected != null && selected.canManage
+                    ? "Your hours apply immediately because you manage this Build."
+                    : "Your submission remains Pending and creates no population or alliance credit until the current manager approves it.",
+                x + 16, y + 37, w - 32,
+                selected != null && selected.canManage ? KOMEGuiTheme.Status.ACTIVE : KOMEGuiTheme.Status.WARNING);
+        }
+        int hoursY = y + 137;
+        fontRendererObj.drawString("Offensive Hours", x + 20, hoursY, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString("Defensive Hours", x + w / 2 + 8, hoursY, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        KOMEGuiTheme.drawCenteredPlainText(fontRendererObj, displayHalfHours(editOffensiveHalfHours),
+            x + 142 + Math.max(110, (w - 166) / 2) / 2, hoursY, KOMEGuiTheme.COLOR_GOLD);
+        KOMEGuiTheme.drawCenteredPlainText(fontRendererObj, displayHalfHours(editDefensiveHalfHours),
+            x + 158 + Math.max(110, (w - 166) / 2) + Math.max(110, (w - 166) / 2) / 2,
+            hoursY, KOMEGuiTheme.COLOR_GOLD);
+        int generatedOff = editOffensiveHalfHours * buildPopulationPerHalfHour;
+        int generatedDef = editDefensiveHalfHours * buildPopulationPerHalfHour;
+        KOMEGuiTheme.drawWarningBanner(fontRendererObj, "Population Preview",
+            "Approved hours generate " + generatedOff + " offensive and " + generatedDef
+                + " defensive population at the configured rate of " + buildPopulationPerHalfHour + " population per half-hour. "
+                + (creating ? "The builder receives contribution credit; " + (selectablePopulationOwners.isEmpty()
+                    ? "no owner is eligible." : factionName((String) selectablePopulationOwners.get(populationOwnerIndex)))
+                    + " permanently owns the generated population." : "Contribution credit follows your current faction; population ownership does not change."),
+            x + 16, y + 175, w - 32, KOMEGuiTheme.Status.NEUTRAL);
+    }
+
+    private void drawBuildDetail(KOMEPacketConquestCaptureGui.BuildView build, int x, int y, int w,
+            int bottom, int mouseX, int mouseY) {
+        KOMEGuiTheme.drawSectionTitle(fontRendererObj, build.name + " (" + build.id + ")", x + 12, y + 9, w - 24);
+        fontRendererObj.drawString("Owner: " + factionName(build.populationFaction) + "   Status: " + build.status
+            + "   Builder: " + safeName(build.builder, "Unknown") + "   Manager: " + safeName(build.manager, "Unassigned"),
+            x + 16, y + 29, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Coordinates " + build.dimension + ": " + coord(build.x) + ", " + coord(build.y)
+            + ", " + coord(build.z) + "   Pending " + build.pendingCount,
+            x + 16, y + 43, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString("Approved hours O " + displayHalfHours(build.offensiveHalfHours) + " / D "
+            + displayHalfHours(build.defensiveHalfHours) + "   Population O " + build.offensiveCommitted + "/"
+            + build.offensivePopulation + " committed / D " + build.defensiveCommitted + "/"
+            + build.defensivePopulation + " committed", x + 16, y + 57, KOMEGuiTheme.COLOR_TEXT);
+        KOMEGuiTheme.drawDivider(x + 12, y + 123, w - 24);
+        fontRendererObj.drawString("Contribution Audit", x + 16, y + 132, KOMEGuiTheme.COLOR_BORDER_RED);
+        if (build.contributions.isEmpty()) {
+            fontRendererObj.drawString("No contributions have been submitted.", x + 18, y + 157, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            return;
+        }
+        int visible = contributionVisibleRows();
+        int viewportY = y + 146;
+        int viewportH = Math.max(20, bottom - viewportY - 4);
+        KOMEGuiTheme.enableScissor(mc, x + 8, viewportY, w - 16, viewportH);
+        for (int row = 0; row < visible && contributionScroll + row < build.contributions.size(); row++) {
+            KOMEPacketConquestCaptureGui.ContributionView contribution =
+                (KOMEPacketConquestCaptureGui.ContributionView) build.contributions.get(contributionScroll + row);
+            int cardY = y + 150 + row * 38;
+            KOMEGuiTheme.drawCard(x + 10, cardY, w - 20, 33,
+                KOMEGuiTheme.isHovered(mouseX, mouseY, x + 10, cardY, w - 20, 33));
+            int color = "APPROVED".equals(contribution.status) ? KOMEGuiTheme.COLOR_GOOD
+                : "PENDING".equals(contribution.status) ? KOMEGuiTheme.COLOR_WARN : KOMEGuiTheme.COLOR_BAD;
+            fontRendererObj.drawString(contribution.player + " / " + factionName(contribution.faction)
+                + "   O " + displayHalfHours(contribution.offensiveHalfHours) + "h, D "
+                + displayHalfHours(contribution.defensiveHalfHours) + "h", x + 18, cardY + 7,
+                KOMEGuiTheme.COLOR_TEXT);
+            fontRendererObj.drawString(contribution.status, x + 18, cardY + 20, color);
+        }
+        KOMEGuiTheme.disableScissor();
+        drawSimpleScrollbar(x + w - 7, viewportY, viewportH, contributionScroll,
+            build.contributions.size(), visible);
+    }
+
+    private void drawPopulationPoolTab(int mouseX, int mouseY) {
+        int x = panelX + PANEL_MARGIN;
+        int y = panelY + CONTENT_Y_OFFSET;
+        int w = panelW - PANEL_MARGIN * 2;
+        int bottom = panelY + panelH - 40;
+        KOMEGuiTheme.drawSubPanel(x, y, w, Math.max(40, bottom - y));
+        int physical = 0;
+        int usable = 0;
+        for (Object object : populationPoolViews) {
+            KOMEPacketConquestCaptureGui.PopulationPoolView pool =
+                (KOMEPacketConquestCaptureGui.PopulationPoolView) object;
+            physical += pool.physicalOffensive + pool.physicalDefensive;
+            usable += pool.usableOffensive + pool.usableDefensive;
+        }
+        KOMEGuiTheme.drawSectionTitle(fontRendererObj, "Faction-owned Population Pools", x + 12, y + 9, w - 24);
+        fontRendererObj.drawString("Physical " + physical + "   Usable by " + factionName(ownerFaction) + " " + usable
+            + "   Foreign pools provide 50% while this faction controls the tile.",
+            x + 16, y + 29, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        if (populationPoolViews.isEmpty()) {
+            fontRendererObj.drawString("No population pools are recorded in this tile.", x + 18, y + 55,
+                KOMEGuiTheme.COLOR_TEXT_MUTED);
+            return;
+        }
+        int visible = poolVisibleRows();
+        int viewportY = y + 43;
+        int viewportH = Math.max(24, bottom - viewportY - 5);
+        KOMEGuiTheme.enableScissor(mc, x + 7, viewportY, w - 14, viewportH);
+        for (int row = 0; row < visible && poolScroll + row < populationPoolViews.size(); row++) {
+            KOMEPacketConquestCaptureGui.PopulationPoolView pool =
+                (KOMEPacketConquestCaptureGui.PopulationPoolView) populationPoolViews.get(poolScroll + row);
+            int cardY = y + 46 + row * 69;
+            KOMEGuiTheme.drawCard(x + 9, cardY, w - 18, 63,
+                KOMEGuiTheme.isHovered(mouseX, mouseY, x + 9, cardY, w - 18, 63));
+            fontRendererObj.drawString(factionName(pool.faction), x + 18, cardY + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+            String access = KOMEAlliance.normalizeFactionKey(pool.faction).equals(KOMEAlliance.normalizeFactionKey(ownerFaction))
+                ? "100% controller-owned access" : "50% captured access";
+            fontRendererObj.drawString(access, x + w - 18 - fontRendererObj.getStringWidth(access), cardY + 7,
+                access.startsWith("100") ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_WARN);
+            fontRendererObj.drawString("Native O " + pool.nativeOffensive + " / D " + pool.nativeDefensive
+                + "   Build O " + pool.buildOffensive + " / D " + pool.buildDefensive,
+                x + 18, cardY + 22, KOMEGuiTheme.COLOR_TEXT);
+            fontRendererObj.drawString("Physical O " + pool.physicalOffensive + " / D " + pool.physicalDefensive
+                + "   Usable O " + pool.usableOffensive + " / D " + pool.usableDefensive,
+                x + 18, cardY + 36, KOMEGuiTheme.COLOR_TEXT);
+            fontRendererObj.drawString("Used O " + pool.usedOffensive + " / D " + pool.usedDefensive
+                + "   Available O " + Math.max(0, pool.usableOffensive - pool.usedOffensive)
+                + " / D " + Math.max(0, pool.usableDefensive - pool.usedDefensive),
+                x + 18, cardY + 50, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        }
+        KOMEGuiTheme.disableScissor();
+        drawSimpleScrollbar(x + w - 7, viewportY, viewportH, poolScroll, populationPoolViews.size(), visible);
+    }
+
+    private void drawSimpleScrollbar(int x, int y, int height, int offset, int total, int visible) {
+        if (total <= visible || visible <= 0) return;
+        KOMEGuiTheme.drawBorderedRect(x, y, 5, height, KOMEGuiTheme.COLOR_GOLD_DARK, 0x552B2117);
+        int handleH = Math.max(16, height * visible / Math.max(1, total));
+        int max = Math.max(1, total - visible);
+        int handleY = y + (height - handleH) * offset / max;
+        KOMEGuiTheme.drawBorderedRect(x, handleY, 5, handleH, KOMEGuiTheme.COLOR_BORDER_RED, KOMEGuiTheme.COLOR_GOLD);
+    }
+
+    private int buildVisibleRows() {
+        return Math.max(1, (panelH - CONTENT_Y_OFFSET - 48) / 58);
+    }
+
+    private int poolVisibleRows() {
+        return Math.max(1, (panelH - CONTENT_Y_OFFSET - 62) / 69);
+    }
+
+    private int contributionVisibleRows() {
+        return Math.max(1, (panelH - CONTENT_Y_OFFSET - 196) / 38);
+    }
+
+    private KOMEPacketConquestCaptureGui.BuildView selectedBuild() {
+        return selectedBuildIndex >= 0 && selectedBuildIndex < buildViews.size()
+            ? (KOMEPacketConquestCaptureGui.BuildView) buildViews.get(selectedBuildIndex) : null;
+    }
+
+    private String tileDisplayName() {
+        return lotrWaypointDisplayName.length() > 0 ? lotrWaypointDisplayName + " (" + tileId + ")" : tileId;
+    }
+
+    private static String displayHalfHours(int halfHours) {
+        int safe = Math.max(0, halfHours);
+        return safe % 2 == 0 ? Integer.toString(safe / 2) : safe / 2 + ".5";
+    }
+
+    private static String safeName(String value, String fallback) {
+        return value == null || value.length() == 0 ? fallback : value;
+    }
+
+    private static int coord(double value) {
+        return (int) Math.floor(value);
     }
 
     private void drawCards(int mouseX, int mouseY) {
@@ -809,6 +1388,10 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private static int wrap(int value, int size) {
         return size <= 0 ? 0 : (value % size + size) % size;
+    }
+
+    private static int clamp(int value, int minimum, int maximum) {
+        return Math.max(minimum, Math.min(maximum, value));
     }
 
     private static String factionName(String factionKey) {

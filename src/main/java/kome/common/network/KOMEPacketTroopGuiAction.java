@@ -7,6 +7,8 @@ import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
 import kome.common.command.KOMECommandPopulation;
 import kome.common.command.KOMECommandTroops;
+import kome.common.KOMEReflection;
+import kome.common.data.KOMEWorldData;
 import net.minecraft.command.CommandException;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.ChatComponentText;
@@ -52,7 +54,8 @@ public class KOMEPacketTroopGuiAction implements IMessage {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
             String action = safe(message.action).trim().toLowerCase(Locale.ROOT);
             String companyId = safe(message.companyId).trim();
-            String value = safe(message.value).trim().toLowerCase(Locale.ROOT);
+            String rawValue = safe(message.value).trim();
+            String value = rawValue.toLowerCase(Locale.ROOT);
             String tileId = safe(message.tileId).trim();
             try {
                 KOMECommandTroops troops = new KOMECommandTroops();
@@ -60,14 +63,20 @@ public class KOMEPacketTroopGuiAction implements IMessage {
                     troops.processCommand(player, tileId.length() == 0 ? new String[] {"companies"}
                         : new String[] {"companies", tileId});
                 } else if ("create".equals(action)) {
-                    require(tileId, "A tile is required.");
-                    troops.processCommand(player, new String[] {"createcompany", tileId, "Company", tileId});
-                    refresh(troops, player, tileId);
+                    throw new IllegalArgumentException("Manual company creation was retired; combat hires create their hiring-tile company automatically.");
                 } else if ("tendency".equals(action)) {
                     requireCompany(companyId);
                     if (!"aggressive".equals(value) && !"conservative".equals(value))
                         throw new IllegalArgumentException("Unknown company tendency.");
                     troops.processCommand(player, new String[] {"company", companyId, "tendency", value});
+                    refresh(troops, player, tileId);
+                } else if ("rename".equals(action)) {
+                    requireCompany(companyId);
+                    require(rawValue, "Enter a company name.");
+                    KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+                    if (!data.renameHiringCompany(companyId, KOMEReflection.getEntityUUID(player), rawValue)) {
+                        throw new IllegalArgumentException("Only the company owner may choose a valid company name.");
+                    }
                     refresh(troops, player, tileId);
                 } else if ("movement".equals(action)) {
                     requireCompany(companyId);

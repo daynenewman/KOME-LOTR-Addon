@@ -6,6 +6,8 @@ import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
 import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.List;
 
 public class KOMEAlliance {
     public static final String CIVIL = "civil";
@@ -14,7 +16,7 @@ public class KOMEAlliance {
     public static final int STORAGE_SLOTS = 9;
     public static final int NONE = -1;
     public static final int PENDING = -2;
-    public static final int DATA_SCHEMA_VERSION = 6;
+    public static final int DATA_SCHEMA_VERSION = 7;
 
     public String factionA = "";
     public String factionB = "";
@@ -41,6 +43,11 @@ public class KOMEAlliance {
     private String militaryPendingReceiver = "";
     private KOMEAllianceFactionLedger ledgerA;
     private KOMEAllianceFactionLedger ledgerB;
+    private KOMEAllianceStageProgress stageA;
+    private KOMEAllianceStageProgress stageB;
+    private KOMEAllianceTrackStatus relationshipStatus = KOMEAllianceTrackStatus.NONE;
+    private String requestedBy = "";
+    private String pendingReceiver = "";
     private String loadedSourceFaction = "";
 
     public KOMEAlliance(String firstFaction, String secondFaction) {
@@ -82,6 +89,57 @@ public class KOMEAlliance {
         return null;
     }
 
+    public KOMEAllianceStageProgress getStageProgress(String faction) {
+        String key = normalizeFactionKey(faction);
+        if (stageA != null && key.equals(stageA.faction)) return stageA;
+        if (stageB != null && key.equals(stageB.faction)) return stageB;
+        return null;
+    }
+
+    public int getFactionStage(String faction) {
+        KOMEAllianceStageProgress progress = getStageProgress(faction);
+        return progress == null ? NONE : progress.stage;
+    }
+
+    public int getSharedRelationStage() {
+        if (relationshipStatus != KOMEAllianceTrackStatus.ACTIVE) return NONE;
+        return Math.min(Math.max(0, stageA == null ? 0 : stageA.stage),
+            Math.max(0, stageB == null ? 0 : stageB.stage));
+    }
+
+    public KOMEAllianceTrackStatus getRelationshipStatus() {
+        return relationshipStatus;
+    }
+
+    public boolean setFactionStage(String faction, int stage, String updatedBy, long worldTime, long nowMillis) {
+        if (relationshipStatus != KOMEAllianceTrackStatus.ACTIVE) return false;
+        KOMEAllianceStageProgress progress = getStageProgress(faction);
+        if (progress == null) return false;
+        int next = Math.max(0, Math.min(4, stage));
+        if (next == progress.stage) return false;
+        progress.setStage(next, nowMillis);
+        lastUpdatedBy = updatedBy == null ? "" : updatedBy;
+        updatedWorldTime = Math.max(0L, worldTime);
+        updatedRealTimeMillis = Math.max(0L, nowMillis);
+        synchronizeLegacyViewFromStages();
+        return true;
+    }
+
+    public boolean hasProduceMerchantSlot(String faction) {
+        KOMEAllianceStageProgress progress = getStageProgress(faction);
+        return progress != null && progress.produceMerchantSlotUnlocked;
+    }
+
+    public static String stageName(int stage) {
+        switch (Math.max(0, Math.min(4, stage))) {
+            case 1: return "Cooperation";
+            case 2: return "Friends";
+            case 3: return "Allies";
+            case 4: return "Military Partnership";
+            default: return "Formal Neutrality";
+        }
+    }
+
     public int getTier(String type) {
         syncStatusFromCompatibilityFields();
         String normalizedType = normalizeType(type);
@@ -102,50 +160,32 @@ public class KOMEAlliance {
      * mutual, while benefits and the next progression target are directional.
      */
     public int getFactionTier(String faction, String type) {
-        syncStatusFromCompatibilityFields();
-        String normalizedType = normalizeType(type);
-        KOMEAllianceTrackStatus status = getStatusWithoutSync(normalizedType);
-        if (status == KOMEAllianceTrackStatus.PENDING) {
+        if (relationshipStatus == KOMEAllianceTrackStatus.PENDING) {
             return PENDING;
         }
-        if (status != KOMEAllianceTrackStatus.ACTIVE) {
+        if (relationshipStatus != KOMEAllianceTrackStatus.ACTIVE) {
             return NONE;
         }
-        KOMEAllianceFactionLedger ledger = getFactionLedger(faction);
-        if (ledger == null) {
-            return NONE;
-        }
-        int unlocked = ledger.getUnlockedTier(normalizedType);
-        return unlocked < 0 ? 0 : unlocked;
+        return compatibilityTierForStage(getFactionStage(faction), normalizeType(type));
     }
 
     public void setFactionTier(String faction, String type, int tier, String updatedBy, long worldTime) {
         String normalizedType = normalizeType(type);
-        KOMEAllianceFactionLedger ledger = getFactionLedger(faction);
-        if (!isValidType(normalizedType) || ledger == null
-                || getStatus(normalizedType) != KOMEAllianceTrackStatus.ACTIVE) {
+        if (!isValidType(normalizedType) || getStageProgress(faction) == null
+                || relationshipStatus != KOMEAllianceTrackStatus.ACTIVE) {
             return;
         }
-        ledger.setUnlockedTier(normalizedType, tier);
-        refreshCompatibilityTier(normalizedType);
+        int targetStage = stageForCompatibilityTier(normalizedType, tier);
+        if (targetStage > getFactionStage(faction)) {
+            setFactionStage(faction, targetStage, updatedBy, worldTime, System.currentTimeMillis());
+        }
         lastUpdatedBy = updatedBy == null ? "" : updatedBy;
         updatedWorldTime = Math.max(0L, worldTime);
         updatedRealTimeMillis = System.currentTimeMillis();
     }
 
     public KOMEAllianceTrackStatus getStatus(String type) {
-        syncStatusFromCompatibilityFields();
-        String normalizedType = normalizeType(type);
-        if (CIVIL.equals(normalizedType)) {
-            return civilStatus;
-        }
-        if (MILITARY.equals(normalizedType)) {
-            return militaryStatus;
-        }
-        if (TRADE.equals(normalizedType)) {
-            return tradeStatus;
-        }
-        return KOMEAllianceTrackStatus.NONE;
+        return isValidType(type) ? relationshipStatus : KOMEAllianceTrackStatus.NONE;
     }
 
     public void setTier(String type, int tier, String updatedBy, long worldTime) {
@@ -154,8 +194,17 @@ public class KOMEAlliance {
             return;
         }
         KOMEAllianceTrackStatus status = KOMEAllianceTrackStatus.fromLegacyTier(tier);
-        setTrack(normalizedType, status, tier, updatedBy, worldTime, System.currentTimeMillis());
-        ensureHierarchy();
+        if (status == KOMEAllianceTrackStatus.NONE) {
+            clearAllTracks(updatedBy, worldTime);
+        } else if (status == KOMEAllianceTrackStatus.PENDING) {
+            relationshipStatus = KOMEAllianceTrackStatus.PENDING;
+            synchronizeLegacyViewFromStages();
+        } else {
+            relationshipStatus = KOMEAllianceTrackStatus.ACTIVE;
+            int stage = stageForCompatibilityTier(normalizedType, tier);
+            setFactionStage(factionA, stage, updatedBy, worldTime, System.currentTimeMillis());
+            setFactionStage(factionB, stage, updatedBy, worldTime, System.currentTimeMillis());
+        }
     }
 
     public void setTrack(String type, KOMEAllianceTrackStatus status, int tier, String updatedBy,
@@ -165,6 +214,7 @@ public class KOMEAlliance {
             return;
         }
         KOMEAllianceTrackStatus safeStatus = status == null ? KOMEAllianceTrackStatus.NONE : status;
+        relationshipStatus = safeStatus;
         int compatibilityTier = compatibilityTier(normalizedType, safeStatus, tier);
         if (CIVIL.equals(normalizedType)) {
             civilStatus = safeStatus;
@@ -183,115 +233,69 @@ public class KOMEAlliance {
         lastUpdatedBy = updatedBy == null ? "" : updatedBy;
         updatedWorldTime = Math.max(0L, worldTime);
         updatedRealTimeMillis = Math.max(0L, realTimeMillis);
+        if (safeStatus == KOMEAllianceTrackStatus.ACTIVE) {
+            int stage = stageForCompatibilityTier(normalizedType, tier);
+            if (stageA != null) stageA.setStage(stage, realTimeMillis);
+            if (stageB != null) stageB.setStage(stage, realTimeMillis);
+        } else if (safeStatus == KOMEAllianceTrackStatus.NONE) {
+            if (stageA != null) stageA.resetFormalProgress();
+            if (stageB != null) stageB.resetFormalProgress();
+        }
+        synchronizeLegacyViewFromStages();
     }
 
     public void requestTrack(String type, String updatedBy, long worldTime, boolean pending) {
-        String normalizedType = normalizeType(type);
-        KOMEAllianceTrackStatus status = pending ? KOMEAllianceTrackStatus.PENDING : KOMEAllianceTrackStatus.ACTIVE;
-        if (MILITARY.equals(normalizedType)) {
-            establishMinimum(CIVIL, status, updatedBy, worldTime);
-            establishMinimum(TRADE, status, updatedBy, worldTime);
-            setTrack(MILITARY, status, 0, updatedBy, worldTime, System.currentTimeMillis());
-        } else if (TRADE.equals(normalizedType)) {
-            establishMinimum(CIVIL, status, updatedBy, worldTime);
-            setTrack(TRADE, status, 0, updatedBy, worldTime, System.currentTimeMillis());
-        } else if (CIVIL.equals(normalizedType)) {
-            setTrack(CIVIL, status, 0, updatedBy, worldTime, System.currentTimeMillis());
-        }
-        ensureHierarchy();
+        if (!isValidType(type)) return;
+        relationshipStatus = pending ? KOMEAllianceTrackStatus.PENDING : KOMEAllianceTrackStatus.ACTIVE;
+        lastUpdatedBy = updatedBy == null ? "" : updatedBy;
+        updatedWorldTime = Math.max(0L, worldTime);
+        updatedRealTimeMillis = System.currentTimeMillis();
+        synchronizeLegacyViewFromStages();
     }
 
     public void setPendingParties(String type, String requestedBy, String pendingReceiver) {
-        String normalizedType = normalizeType(type);
-        String requester = normalizeFactionKey(requestedBy);
-        String receiver = normalizeFactionKey(pendingReceiver);
-        if (MILITARY.equals(normalizedType)) {
-            setPendingPartiesIfPending(CIVIL, requester, receiver);
-            setPendingPartiesIfPending(TRADE, requester, receiver);
-            setPendingPartiesIfPending(MILITARY, requester, receiver);
-        } else if (TRADE.equals(normalizedType)) {
-            setPendingPartiesIfPending(CIVIL, requester, receiver);
-            setPendingPartiesIfPending(TRADE, requester, receiver);
-        } else {
-            setPendingPartiesIfPending(CIVIL, requester, receiver);
-        }
+        if (relationshipStatus != KOMEAllianceTrackStatus.PENDING) return;
+        this.requestedBy = normalizeFactionKey(requestedBy);
+        this.pendingReceiver = normalizeFactionKey(pendingReceiver);
+        synchronizeLegacyViewFromStages();
     }
 
     public String getPendingReceiver(String type) {
-        String normalizedType = normalizeType(type);
-        if (CIVIL.equals(normalizedType)) {
-            return civilPendingReceiver;
-        }
-        if (TRADE.equals(normalizedType)) {
-            return tradePendingReceiver;
-        }
-        if (MILITARY.equals(normalizedType)) {
-            return militaryPendingReceiver;
-        }
-        return "";
+        return isValidType(type) ? pendingReceiver : "";
     }
 
     public String getRequestedBy(String type) {
-        String normalizedType = normalizeType(type);
-        if (CIVIL.equals(normalizedType)) {
-            return civilRequestedBy;
-        }
-        if (TRADE.equals(normalizedType)) {
-            return tradeRequestedBy;
-        }
-        if (MILITARY.equals(normalizedType)) {
-            return militaryRequestedBy;
-        }
-        return "";
+        return isValidType(type) ? requestedBy : "";
     }
 
     public boolean acceptTrack(String type, String updatedBy, long worldTime) {
-        String normalizedType = normalizeType(type);
-        if (!isValidType(normalizedType) || getStatus(normalizedType) != KOMEAllianceTrackStatus.PENDING) {
+        if (!isValidType(type) || relationshipStatus != KOMEAllianceTrackStatus.PENDING) {
             return false;
         }
-        if (MILITARY.equals(normalizedType)) {
-            activateIfPending(CIVIL, updatedBy, worldTime);
-            activateIfPending(TRADE, updatedBy, worldTime);
-            activateIfPending(MILITARY, updatedBy, worldTime);
-        } else if (TRADE.equals(normalizedType)) {
-            activateIfPending(CIVIL, updatedBy, worldTime);
-            activateIfPending(TRADE, updatedBy, worldTime);
-        } else {
-            activateIfPending(CIVIL, updatedBy, worldTime);
-        }
-        ensureHierarchy();
+        relationshipStatus = KOMEAllianceTrackStatus.ACTIVE;
+        requestedBy = "";
+        pendingReceiver = "";
+        lastUpdatedBy = updatedBy == null ? "" : updatedBy;
+        updatedWorldTime = Math.max(0L, worldTime);
+        updatedRealTimeMillis = System.currentTimeMillis();
+        synchronizeLegacyViewFromStages();
         return true;
     }
 
     public boolean breakTrack(String type, String updatedBy, long worldTime) {
-        String normalizedType = normalizeType(type);
-        if (!isValidType(normalizedType) || getStatus(normalizedType) == KOMEAllianceTrackStatus.NONE) {
+        if (!isValidType(type) || relationshipStatus == KOMEAllianceTrackStatus.NONE) {
             return false;
         }
-        if (CIVIL.equals(normalizedType)) {
-            setTrack(CIVIL, KOMEAllianceTrackStatus.NONE, NONE, updatedBy, worldTime, System.currentTimeMillis());
-            setTrack(TRADE, KOMEAllianceTrackStatus.NONE, NONE, updatedBy, worldTime, System.currentTimeMillis());
-            setTrack(MILITARY, KOMEAllianceTrackStatus.NONE, NONE, updatedBy, worldTime, System.currentTimeMillis());
-        } else if (TRADE.equals(normalizedType)) {
-            setTrack(TRADE, KOMEAllianceTrackStatus.NONE, NONE, updatedBy, worldTime, System.currentTimeMillis());
-            setTrack(MILITARY, KOMEAllianceTrackStatus.NONE, NONE, updatedBy, worldTime, System.currentTimeMillis());
-        } else {
-            setTrack(MILITARY, KOMEAllianceTrackStatus.NONE, NONE, updatedBy, worldTime, System.currentTimeMillis());
-        }
+        clearAllTracks(updatedBy, worldTime);
         return true;
     }
 
     public boolean hasAnyAlliance() {
-        return getStatus(CIVIL) != KOMEAllianceTrackStatus.NONE
-            || getStatus(TRADE) != KOMEAllianceTrackStatus.NONE
-            || getStatus(MILITARY) != KOMEAllianceTrackStatus.NONE;
+        return relationshipStatus != KOMEAllianceTrackStatus.NONE;
     }
 
     public boolean hasAnyAcceptedAlliance() {
-        return getStatus(CIVIL) == KOMEAllianceTrackStatus.ACTIVE
-            || getStatus(TRADE) == KOMEAllianceTrackStatus.ACTIVE
-            || getStatus(MILITARY) == KOMEAllianceTrackStatus.ACTIVE;
+        return relationshipStatus == KOMEAllianceTrackStatus.ACTIVE;
     }
 
     public boolean hasAccepted(String type) {
@@ -303,10 +307,32 @@ public class KOMEAlliance {
             || ledgerB != null && ledgerB.hasStoredOrClaimableGoods();
     }
 
+    /**
+     * Stage 2 produce-merchant entitlements deliberately survive a relationship break.  The
+     * relationship record therefore remains persistent even when it has no active or pending
+     * alliance and no recoverable ledger goods.
+     */
+    public boolean hasPersistentEntitlements() {
+        return stageA != null && stageA.produceMerchantSlotUnlocked
+            || stageB != null && stageB.produceMerchantSlotUnlocked;
+    }
+
+    public boolean hasPersistentData() {
+        return hasAnyAlliance() || hasRecoverableGoods() || hasPersistentEntitlements();
+    }
+
     public void clearAllTracks(String updatedBy, long worldTime) {
-        setTrack(CIVIL, KOMEAllianceTrackStatus.NONE, NONE, updatedBy, worldTime, System.currentTimeMillis());
-        setTrack(TRADE, KOMEAllianceTrackStatus.NONE, NONE, updatedBy, worldTime, System.currentTimeMillis());
-        setTrack(MILITARY, KOMEAllianceTrackStatus.NONE, NONE, updatedBy, worldTime, System.currentTimeMillis());
+        relationshipStatus = KOMEAllianceTrackStatus.NONE;
+        requestedBy = "";
+        pendingReceiver = "";
+        if (stageA != null) stageA.resetFormalProgress();
+        if (stageB != null) stageB.resetFormalProgress();
+        if (ledgerA != null) ledgerA.resetFormalProgress();
+        if (ledgerB != null) ledgerB.resetFormalProgress();
+        lastUpdatedBy = updatedBy == null ? "" : updatedBy;
+        updatedWorldTime = Math.max(0L, worldTime);
+        updatedRealTimeMillis = System.currentTimeMillis();
+        synchronizeLegacyViewFromStages();
     }
 
     public String getAssignment(String id) {
@@ -465,10 +491,19 @@ public class KOMEAlliance {
             updatedWorldTime = other.updatedWorldTime;
             updatedRealTimeMillis = other.updatedRealTimeMillis;
         }
+        relationshipStatus = statusStrength(other.relationshipStatus) > statusStrength(relationshipStatus)
+            ? other.relationshipStatus : relationshipStatus;
+        if (other.stageA != null) mergeStage(other.stageA);
+        if (other.stageB != null) mergeStage(other.stageB);
+        if (pendingReceiver.length() == 0 && other.pendingReceiver.length() > 0) {
+            requestedBy = other.requestedBy;
+            pendingReceiver = other.pendingReceiver;
+        }
         ensureHierarchy();
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
+        int schemaVersion = nbt.hasKey("SchemaVersion") ? nbt.getInteger("SchemaVersion") : 0;
         String sourceFaction = normalizeFactionKey(nbt.getString("FactionA"));
         String targetFaction = normalizeFactionKey(nbt.getString("FactionB"));
         loadedSourceFaction = sourceFaction;
@@ -538,7 +573,24 @@ public class KOMEAlliance {
         refreshCompatibilityTier(CIVIL);
         refreshCompatibilityTier(TRADE);
         refreshCompatibilityTier(MILITARY);
-        ensureHierarchy();
+        NBTTagList stageProgress = nbt.getTagList("StageProgress", 10);
+        if (schemaVersion >= 7 && stageProgress.tagCount() > 0) {
+            for (int i = 0; i < stageProgress.tagCount(); i++) {
+                KOMEAllianceStageProgress loaded = new KOMEAllianceStageProgress("");
+                loaded.readFromNBT(stageProgress.getCompoundTagAt(i));
+                KOMEAllianceStageProgress target = getStageProgress(loaded.faction);
+                if (target != null) copyStage(target, loaded);
+            }
+            relationshipStatus = KOMEAllianceTrackStatus.fromKey(nbt.getString("RelationshipStatus"));
+            requestedBy = normalizeFactionKey(nbt.getString("RequestedBy"));
+            pendingReceiver = normalizeFactionKey(nbt.getString("PendingReceiver"));
+        } else {
+            relationshipStatus = strongestLegacyStatus();
+            migrateLegacyStages();
+            requestedBy = firstNonBlank(civilRequestedBy, tradeRequestedBy, militaryRequestedBy);
+            pendingReceiver = firstNonBlank(civilPendingReceiver, tradePendingReceiver, militaryPendingReceiver);
+        }
+        synchronizeLegacyViewFromStages();
     }
 
     public NBTTagCompound writeToNBT() {
@@ -563,6 +615,13 @@ public class KOMEAlliance {
         nbt.setString("LastUpdatedBy", lastUpdatedBy == null ? "" : lastUpdatedBy);
         nbt.setLong("UpdatedWorldTime", Math.max(0L, updatedWorldTime));
         nbt.setLong("UpdatedRealTimeMillis", Math.max(0L, updatedRealTimeMillis));
+        nbt.setString("RelationshipStatus", relationshipStatus.key);
+        nbt.setString("RequestedBy", requestedBy);
+        nbt.setString("PendingReceiver", pendingReceiver);
+        NBTTagList stageProgress = new NBTTagList();
+        if (stageA != null) stageProgress.appendTag(stageA.writeToNBT());
+        if (stageB != null) stageProgress.appendTag(stageB.writeToNBT());
+        nbt.setTag("StageProgress", stageProgress);
         NBTTagList ledgers = new NBTTagList();
         if (ledgerA != null) {
             ledgers.appendTag(ledgerA.writeToNBT());
@@ -575,19 +634,7 @@ public class KOMEAlliance {
     }
 
     public void ensureHierarchy() {
-        syncStatusFromCompatibilityFields();
-        if (militaryStatus == KOMEAllianceTrackStatus.ACTIVE) {
-            activateMinimum(CIVIL);
-            activateMinimum(TRADE);
-        } else if (militaryStatus == KOMEAllianceTrackStatus.PENDING) {
-            pendingMinimum(CIVIL);
-            pendingMinimum(TRADE);
-        }
-        if (tradeStatus == KOMEAllianceTrackStatus.ACTIVE) {
-            activateMinimum(CIVIL);
-        } else if (tradeStatus == KOMEAllianceTrackStatus.PENDING) {
-            pendingMinimum(CIVIL);
-        }
+        synchronizeLegacyViewFromStages();
     }
 
     public static String normalizeType(String type) {
@@ -679,6 +726,19 @@ public class KOMEAlliance {
         return null;
     }
 
+    public static List<String> allFactionKeys() {
+        List<String> result = new ArrayList<String>();
+        for (LOTRFaction faction : LOTRFaction.values()) {
+            if (faction != null && faction.isPlayableAlignmentFaction()) {
+                String key = normalizeFactionKey(faction.codeName());
+                if (key.length() > 0 && !result.contains(key)) {
+                    result.add(key);
+                }
+            }
+        }
+        return result;
+    }
+
     public static String displayFactionName(String key) {
         String normalized = normalizeFactionKey(key);
         if ("dunedain".equals(normalized)) {
@@ -713,6 +773,8 @@ public class KOMEAlliance {
         }
         ledgerA = new KOMEAllianceFactionLedger(factionA);
         ledgerB = new KOMEAllianceFactionLedger(factionB);
+        stageA = new KOMEAllianceStageProgress(factionA);
+        stageB = new KOMEAllianceStageProgress(factionB);
     }
 
     private void activateIfPending(String type, String updatedBy, long worldTime) {
@@ -822,12 +884,7 @@ public class KOMEAlliance {
     }
 
     private void syncStatusFromCompatibilityFields() {
-        civilStatus = KOMEAllianceTrackStatus.fromLegacyTier(civilTier);
-        tradeStatus = KOMEAllianceTrackStatus.fromLegacyTier(tradeTier);
-        militaryStatus = KOMEAllianceTrackStatus.fromLegacyTier(militaryTier);
-        civilTier = compatibilityTier(CIVIL, civilStatus, civilTier);
-        tradeTier = compatibilityTier(TRADE, tradeStatus, tradeTier);
-        militaryTier = compatibilityTier(MILITARY, militaryStatus, militaryTier);
+        synchronizeLegacyViewFromStages();
     }
 
     private void migrateFactionTiers(String type, KOMEAllianceTrackStatus status, int legacyTier) {
@@ -933,5 +990,139 @@ public class KOMEAlliance {
             return 1;
         }
         return 0;
+    }
+
+    private void synchronizeLegacyViewFromStages() {
+        KOMEAllianceTrackStatus status = relationshipStatus == null ? KOMEAllianceTrackStatus.NONE : relationshipStatus;
+        civilStatus = status;
+        tradeStatus = status;
+        militaryStatus = status;
+        if (status == KOMEAllianceTrackStatus.PENDING) {
+            civilTier = tradeTier = militaryTier = PENDING;
+            civilRequestedBy = tradeRequestedBy = militaryRequestedBy = requestedBy;
+            civilPendingReceiver = tradePendingReceiver = militaryPendingReceiver = pendingReceiver;
+            setAllFactionTiers(CIVIL, NONE);
+            setAllFactionTiers(TRADE, NONE);
+            setAllFactionTiers(MILITARY, NONE);
+            return;
+        }
+        if (status == KOMEAllianceTrackStatus.NONE) {
+            civilTier = tradeTier = militaryTier = NONE;
+            civilRequestedBy = tradeRequestedBy = militaryRequestedBy = "";
+            civilPendingReceiver = tradePendingReceiver = militaryPendingReceiver = "";
+            setAllFactionTiers(CIVIL, NONE);
+            setAllFactionTiers(TRADE, NONE);
+            setAllFactionTiers(MILITARY, NONE);
+            return;
+        }
+        civilRequestedBy = tradeRequestedBy = militaryRequestedBy = "";
+        civilPendingReceiver = tradePendingReceiver = militaryPendingReceiver = "";
+        applyCompatibilityToLedger(stageA);
+        applyCompatibilityToLedger(stageB);
+        civilTier = Math.min(compatibilityTierForStage(stageA == null ? 0 : stageA.stage, CIVIL),
+            compatibilityTierForStage(stageB == null ? 0 : stageB.stage, CIVIL));
+        tradeTier = Math.min(compatibilityTierForStage(stageA == null ? 0 : stageA.stage, TRADE),
+            compatibilityTierForStage(stageB == null ? 0 : stageB.stage, TRADE));
+        militaryTier = Math.min(compatibilityTierForStage(stageA == null ? 0 : stageA.stage, MILITARY),
+            compatibilityTierForStage(stageB == null ? 0 : stageB.stage, MILITARY));
+    }
+
+    private void applyCompatibilityToLedger(KOMEAllianceStageProgress stage) {
+        if (stage == null) return;
+        KOMEAllianceFactionLedger ledger = getFactionLedger(stage.faction);
+        if (ledger == null) return;
+        ledger.setUnlockedTier(CIVIL, compatibilityTierForStage(stage.stage, CIVIL));
+        ledger.setUnlockedTier(TRADE, compatibilityTierForStage(stage.stage, TRADE));
+        ledger.setUnlockedTier(MILITARY, compatibilityTierForStage(stage.stage, MILITARY));
+    }
+
+    private static int compatibilityTierForStage(int stage, String type) {
+        int safeStage = Math.max(0, Math.min(4, stage));
+        String normalized = normalizeType(type);
+        if (CIVIL.equals(normalized)) return safeStage >= 1 ? 2 : 0;
+        if (TRADE.equals(normalized)) return safeStage >= 2 ? 2 : 0;
+        if (MILITARY.equals(normalized)) return safeStage >= 4 ? 3 : safeStage >= 3 ? 2 : 0;
+        return NONE;
+    }
+
+    private static int stageForCompatibilityTier(String type, int tier) {
+        String normalized = normalizeType(type);
+        if (MILITARY.equals(normalized)) return tier >= 3 ? 4 : tier >= 2 ? 3 : 0;
+        if (TRADE.equals(normalized)) return tier >= 2 ? 2 : 0;
+        return CIVIL.equals(normalized) && tier >= 2 ? 1 : 0;
+    }
+
+    private KOMEAllianceTrackStatus strongestLegacyStatus() {
+        KOMEAllianceTrackStatus result = civilStatus;
+        if (statusStrength(tradeStatus) > statusStrength(result)) result = tradeStatus;
+        if (statusStrength(militaryStatus) > statusStrength(result)) result = militaryStatus;
+        return result;
+    }
+
+    private void migrateLegacyStages() {
+        int stageForA = migratedStageForLedger(ledgerA);
+        int stageForB = migratedStageForLedger(ledgerB);
+        if (relationshipStatus == KOMEAllianceTrackStatus.ACTIVE) {
+            stageA.setStage(stageForA, updatedRealTimeMillis);
+            stageB.setStage(stageForB, updatedRealTimeMillis);
+        }
+        if (legacyTier(ledgerA, TRADE) >= 2) stageA.produceMerchantSlotUnlocked = true;
+        if (legacyTier(ledgerB, TRADE) >= 2) stageB.produceMerchantSlotUnlocked = true;
+    }
+
+    private static int migratedStageForLedger(KOMEAllianceFactionLedger ledger) {
+        int military = legacyTier(ledger, MILITARY);
+        int trade = legacyTier(ledger, TRADE);
+        int civil = legacyTier(ledger, CIVIL);
+        if (military >= 3) return 4;
+        if (military >= 2) return 3;
+        if (trade >= 2) return 2;
+        if (civil >= 2) return 1;
+        return 0;
+    }
+
+    private static int legacyTier(KOMEAllianceFactionLedger ledger, String type) {
+        return ledger == null ? NONE : Math.max(ledger.getUnlockedTier(type), ledger.getCompletedTier(type));
+    }
+
+    private void mergeStage(KOMEAllianceStageProgress other) {
+        KOMEAllianceStageProgress target = getStageProgress(other.faction);
+        if (target == null) return;
+        if (other.stage > target.stage) target.setStage(other.stage, updatedRealTimeMillis);
+        target.produceMerchantSlotUnlocked |= other.produceMerchantSlotUnlocked;
+        for (int i = 1; i <= 4; i++) {
+            target.claimedAtMillis[i] = earliestPositive(target.claimedAtMillis[i], other.claimedAtMillis[i]);
+            target.fixedCompletedAtMillis[i] = earliestPositive(target.fixedCompletedAtMillis[i], other.fixedCompletedAtMillis[i]);
+        }
+        if (target.qualifyingDeploymentAtMillis <= 0L
+                || other.qualifyingDeploymentAtMillis > 0L && other.qualifyingDeploymentAtMillis < target.qualifyingDeploymentAtMillis) {
+            target.qualifyingWarId = other.qualifyingWarId;
+            target.qualifyingCompanyId = other.qualifyingCompanyId;
+            target.qualifyingDeploymentAtMillis = other.qualifyingDeploymentAtMillis;
+        }
+    }
+
+    private static void copyStage(KOMEAllianceStageProgress target, KOMEAllianceStageProgress source) {
+        target.stage = source.stage;
+        target.produceMerchantSlotUnlocked = source.produceMerchantSlotUnlocked;
+        target.qualifyingWarId = source.qualifyingWarId;
+        target.qualifyingCompanyId = source.qualifyingCompanyId;
+        target.qualifyingDeploymentAtMillis = source.qualifyingDeploymentAtMillis;
+        for (int i = 1; i <= 4; i++) {
+            target.claimedAtMillis[i] = source.claimedAtMillis[i];
+            target.fixedCompletedAtMillis[i] = source.fixedCompletedAtMillis[i];
+        }
+    }
+
+    private static long earliestPositive(long left, long right) {
+        if (left <= 0L) return right;
+        if (right <= 0L) return left;
+        return Math.min(left, right);
+    }
+
+    private static String firstNonBlank(String first, String second, String third) {
+        if (first != null && first.length() > 0) return first;
+        if (second != null && second.length() > 0) return second;
+        return third == null ? "" : third;
     }
 }

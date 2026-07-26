@@ -59,12 +59,11 @@ public class KOMEPacketAllianceAction implements IMessage {
             String second = KOMEAlliance.normalizeFactionKey(message.secondFaction);
             try {
                 String[] command;
-                if ("request".equals(action) || "accept".equals(action) || "roll".equals(action)) {
-                    if (!KOMEAlliance.isValidType(track)) throw new IllegalArgumentException("A valid alliance track is required.");
-                    command = new String[] {action, track, first, second};
+                if ("request".equals(action) || "accept".equals(action) || "roll".equals(action)
+                        || "claimstage".equals(action)) {
+                    command = new String[] {action, first, second};
                 } else if ("break".equals(action)) {
-                    if (!KOMEAlliance.isValidType(track)) throw new IllegalArgumentException("A valid alliance track is required.");
-                    command = new String[] {action, track, first, second};
+                    command = new String[] {action, first, second};
                 } else if ("ledger".equals(action)) {
                     command = new String[] {"goods", first, second};
                 } else if ("claim".equals(action)) {

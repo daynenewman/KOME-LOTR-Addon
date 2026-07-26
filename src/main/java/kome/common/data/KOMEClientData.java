@@ -23,6 +23,7 @@ public class KOMEClientData extends KOMEWorldData {
         activeRecruitmentTiles.clear();
         tileWaypointLinksByTileId.clear();
         routeEdges.clear();
+        builds.clear();
         alliances.clear();
         wars.clear();
         conquestClaimConfirmations.clear();
@@ -36,7 +37,7 @@ public class KOMEClientData extends KOMEWorldData {
         unitMapMarkers.clear();
         hireType = KOMEPopulationType.OFFENSIVE;
         allianceDifficulty = KOMEAllianceRequirements.STANDARD;
-        waypointRestrictionEnabled = true;
+        waypointRestrictionEnabled = false;
         successionGraceDefaultMillis = KOMEAllianceAuthority.FOURTEEN_DAYS_MILLIS;
         contributionGraceDefaultMillis = KOMEAllianceAuthority.FOURTEEN_DAYS_MILLIS;
         clientViewerIsAdmin = false;

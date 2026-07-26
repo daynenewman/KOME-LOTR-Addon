@@ -21,6 +21,9 @@ public class KOMEWar {
     public String status = ACTIVE;
     public String sideOneName = "Side One";
     public String sideTwoName = "Side Two";
+    /** Original attacker and defender. Kept separately from mutable coalition membership. */
+    public String initiatingFaction = "";
+    public String defendingFaction = "";
     public final Set<String> sideOneFactions = new LinkedHashSet<String>();
     public final Set<String> sideTwoFactions = new LinkedHashSet<String>();
     public long createdAtMillis;
@@ -63,6 +66,22 @@ public class KOMEWar {
     public boolean sameSide(String first, String second) {
         int a = sideOf(first);
         return a > 0 && a == sideOf(second);
+    }
+
+    public boolean isDefendingFaction(String faction) {
+        return defendingFaction.equals(KOMEAlliance.normalizeFactionKey(faction));
+    }
+
+    /** Timestamp at which a faction most recently became an active member of this war. */
+    public long activeMembershipAddedAt(String faction) {
+        String key = KOMEAlliance.normalizeFactionKey(faction);
+        long result = 0L;
+        for (MembershipRecord record : membershipHistory) {
+            if (record.active && record.faction.equals(key)) {
+                result = Math.max(result, record.addedAtMillis);
+            }
+        }
+        return result;
     }
 
     public Set<String> getSide(int side) {
@@ -175,6 +194,8 @@ public class KOMEWar {
         nbt.setString("Status", normalizedStatus(status));
         nbt.setString("SideOneName", safeName(sideOneName, "Side One"));
         nbt.setString("SideTwoName", safeName(sideTwoName, "Side Two"));
+        nbt.setString("InitiatingFaction", KOMEAlliance.normalizeFactionKey(initiatingFaction));
+        nbt.setString("DefendingFaction", KOMEAlliance.normalizeFactionKey(defendingFaction));
         nbt.setTag("SideOneFactions", writeStrings(sideOneFactions));
         nbt.setTag("SideTwoFactions", writeStrings(sideTwoFactions));
         nbt.setLong("CreatedAtMillis", createdAtMillis);
@@ -215,6 +236,15 @@ public class KOMEWar {
         readStrings(nbt.getTagList("SideTwoFactions", 10), sideTwoFactions);
         // Deterministically reject a corrupt duplicate rather than allowing a faction on both sides.
         sideTwoFactions.removeAll(sideOneFactions);
+        initiatingFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("InitiatingFaction"));
+        defendingFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("DefendingFaction"));
+        // Older records were created with the initiating faction on side one and defender on side two.
+        if (initiatingFaction.length() == 0 && !sideOneFactions.isEmpty()) {
+            initiatingFaction = sideOneFactions.iterator().next();
+        }
+        if (defendingFaction.length() == 0 && !sideTwoFactions.isEmpty()) {
+            defendingFaction = sideTwoFactions.iterator().next();
+        }
         createdAtMillis = Math.max(0L, nbt.getLong("CreatedAtMillis"));
         endingAtMillis = Math.max(0L, nbt.getLong("EndingAtMillis"));
         endedAtMillis = Math.max(0L, nbt.getLong("EndedAtMillis"));

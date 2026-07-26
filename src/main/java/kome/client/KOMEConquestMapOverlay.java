@@ -9,6 +9,7 @@ import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEConquestRouteEdge;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEConquestTileDefaults;
+import kome.common.data.KOMEPlayerBuild;
 import kome.common.data.KOMEUnitMapMarker;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMETileTroopSummary;
@@ -244,7 +245,9 @@ public class KOMEConquestMapOverlay {
         drawRouteEdgeMarkers(map);
         drawTroopMarkers(map);
         List<String> liveUnitTooltip = drawLiveUnitMarkers(map, event.mouseX, event.mouseY);
-        if (tileColor != 0 && automaticBridgeTooltip == null && riverBlockTooltip == null && liveUnitTooltip == null) {
+        List<String> buildTooltip = drawBuildMarkers(map, event.mouseX, event.mouseY);
+        if (tileColor != 0 && automaticBridgeTooltip == null && riverBlockTooltip == null
+                && liveUnitTooltip == null && buildTooltip == null) {
             drawTileTooltip(map, tileColor, event.mouseX, event.mouseY);
         }
         if (automaticBridgeTooltip != null) {
@@ -253,6 +256,8 @@ public class KOMEConquestMapOverlay {
             drawMarkerTooltip(map, riverBlockTooltip, event.mouseX, event.mouseY);
         } else if (liveUnitTooltip != null) {
             drawMarkerTooltip(map, liveUnitTooltip, event.mouseX, event.mouseY);
+        } else if (buildTooltip != null) {
+            drawMarkerTooltip(map, buildTooltip, event.mouseX, event.mouseY);
         }
         drawRoutePreviewPanel(map, event.mouseX, event.mouseY);
         drawRouteErrorPanel(map);
@@ -310,6 +315,11 @@ public class KOMEConquestMapOverlay {
                     showBridgeMarkers = !showBridgeMarkers;
                 } else if (!isChoosingDestination() && isOverTroopToggleButton(map, mouseX, mouseY)) {
                     showTroopMarkers = !showTroopMarkers;
+                } else if (!isChoosingDestination()) {
+                    KOMEPlayerBuild build = buildMarkerAt(map, mouseX, mouseY);
+                    if (build != null) {
+                        KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(build.tileId, build.id));
+                    }
                 }
             }
         }
@@ -923,6 +933,52 @@ public class KOMEConquestMapOverlay {
             }
         }
         return tooltip;
+    }
+
+    private static List<String> drawBuildMarkers(LOTRGuiMap map, int mouseX, int mouseY) {
+        List<String> tooltip = null;
+        for (KOMEPlayerBuild build : KOMEClientData.INSTANCE.builds.values()) {
+            if (build == null || !build.active || !build.markerVisible
+                    || build.dimension != LOTRDimension.MIDDLE_EARTH.dimensionID) continue;
+            int markerX = worldScreenX(map, build.x) - 3 + buildMarkerOffset(build.id, true);
+            int markerY = worldScreenY(map, build.z) - 3 + buildMarkerOffset(build.id, false);
+            if (markerX < mapInt("mapXMin") || markerX > mapInt("mapXMax") - 7
+                    || markerY < mapInt("mapYMin") || markerY > mapInt("mapYMax") - 7) continue;
+            Gui.drawRect(markerX, markerY, markerX + 7, markerY + 7, 0xFF2A1517);
+            Gui.drawRect(markerX + 1, markerY + 1, markerX + 6, markerY + 6, 0xFFE1B952);
+            Gui.drawRect(markerX + 2, markerY + 2, markerX + 5, markerY + 5, 0xFF7A272B);
+            if (tooltip == null && mouseX >= markerX - 2 && mouseX <= markerX + 8
+                    && mouseY >= markerY - 2 && mouseY <= markerY + 8) {
+                tooltip = new ArrayList<String>();
+                tooltip.add(build.displayName + " (" + build.id + ")");
+                tooltip.add("Owner: " + KOMEAlliance.displayFactionName(build.populationFaction));
+                tooltip.add("Tile: " + build.tileId + " | " + coord(build.x) + ", " + coord(build.y) + ", " + coord(build.z));
+                tooltip.add("Left-click: open Build details");
+            }
+        }
+        return tooltip;
+    }
+
+    private static KOMEPlayerBuild buildMarkerAt(LOTRGuiMap map, int mouseX, int mouseY) {
+        for (KOMEPlayerBuild build : KOMEClientData.INSTANCE.builds.values()) {
+            if (build == null || !build.active || !build.markerVisible
+                    || build.dimension != LOTRDimension.MIDDLE_EARTH.dimensionID) continue;
+            int markerX = worldScreenX(map, build.x) - 3 + buildMarkerOffset(build.id, true);
+            int markerY = worldScreenY(map, build.z) - 3 + buildMarkerOffset(build.id, false);
+            if (mouseX >= markerX - 2 && mouseX <= markerX + 8
+                    && mouseY >= markerY - 2 && mouseY <= markerY + 8) return build;
+        }
+        return null;
+    }
+
+    private static int buildMarkerOffset(String id, boolean horizontal) {
+        int hash = id == null ? 0 : id.hashCode();
+        int shifted = horizontal ? hash : hash >>> 8;
+        return Math.abs(shifted % 5) - 2;
+    }
+
+    private static int coord(double value) {
+        return (int) Math.floor(value);
     }
 
     private static Map<String, Integer> liveCompanyStationedPopulationByTile() {

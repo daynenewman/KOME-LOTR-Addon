@@ -21,61 +21,20 @@ public final class KOMEWaypointAccessService {
     public static Decision evaluate(KOMEWorldData data, UUID playerId, String playerFaction, boolean operator,
             LOTRAbstractWaypoint waypoint, boolean nativeEligible) {
         String normalizedPlayerFaction = KOMEAlliance.normalizeFactionKey(playerFaction);
-        if (data == null || waypoint == null) {
+        if (waypoint == null) {
             return Decision.denied("", "", normalizedPlayerFaction, 0, nativeEligible, "No waypoint was selected.");
         }
-        if (!data.waypointRestrictionEnabled) {
-            return Decision.allowed("", "", normalizedPlayerFaction, 0, nativeEligible, nativeEligible,
-                "KOME territory restriction is disabled; native LOTR eligibility applies.", State.DISABLED);
-        }
-        boolean bypass = operator || data.hasWaypointRestrictionBypass(playerId);
-        String tileId = KOMEConquestTileDefaults.getTileIdAtMapPosition(waypoint.getX(), waypoint.getY());
-        if (tileId == null || tileId.length() == 0) {
-            debugUnmapped(waypoint);
-        }
-        return evaluateResolvedTile(data, playerId, normalizedPlayerFaction, bypass, tileId, nativeEligible);
+        return Decision.allowed("", "", normalizedPlayerFaction, 0, nativeEligible, nativeEligible,
+            "KOME adds no alliance or conquest-tier waypoint restriction; native LOTR eligibility applies.", State.DISABLED);
     }
 
     /** Pure resolved-tile policy boundary used by diagnostics and deterministic tests. */
     public static Decision evaluateResolvedTile(KOMEWorldData data, UUID playerId, String playerFaction, boolean bypass,
             String tileId, boolean nativeEligible) {
         String normalizedPlayerFaction = KOMEAlliance.normalizeFactionKey(playerFaction);
-        if (data == null) {
-            return Decision.denied("", "", normalizedPlayerFaction, 0, nativeEligible, "Alliance data is unavailable.");
-        }
-        if (!data.waypointRestrictionEnabled) {
-            return Decision.allowed("", "", normalizedPlayerFaction, 0, nativeEligible, nativeEligible,
-                "KOME territory restriction is disabled; native LOTR eligibility applies.", State.DISABLED);
-        }
-        bypass = bypass || data.hasWaypointRestrictionBypass(playerId);
-        KOMEConquestTile tile = data.conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
-        if (tileId == null || tileId.length() == 0 || tile == null) {
-            return Decision.allowed("", "", normalizedPlayerFaction, 0, nativeEligible, nativeEligible,
-                "Waypoint is not mapped to a canonical KOME tile; native LOTR eligibility applies.", State.UNMAPPED);
-        }
-        String owner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
-        int civilTier = owner.length() == 0 || normalizedPlayerFaction.length() == 0 ? 0
-            : new KOMEAllianceAuthority(data).getEffectiveTier(normalizedPlayerFaction, owner, KOMEAlliance.CIVIL, System.currentTimeMillis());
-        if (bypass) {
-            return Decision.allowed(tile.id, owner, normalizedPlayerFaction, civilTier, nativeEligible, nativeEligible,
-                "Operator/player bypass ignores only KOME territory gating.", State.BYPASS);
-        }
-        if (owner.length() == 0) {
-            return Decision.allowed(tile.id, owner, normalizedPlayerFaction, 0, nativeEligible, nativeEligible,
-                "Destination is truly unclaimed.", State.UNCLAIMED);
-        }
-        if (owner.equals(normalizedPlayerFaction)) {
-            return Decision.allowed(tile.id, owner, normalizedPlayerFaction, civilTier, nativeEligible, nativeEligible,
-                "Destination is controlled by the player's faction.", State.OWN);
-        }
-        if (normalizedPlayerFaction.length() > 0 && civilTier >= 1) {
-            return Decision.allowed(tile.id, owner, normalizedPlayerFaction, civilTier, nativeEligible, nativeEligible,
-                "Destination is controlled by an active mutual Civil T1 ally.", State.ALLY);
-        }
-        String reason = normalizedPlayerFaction.length() == 0
-            ? "A pledged faction is required for access to claimed territory."
-            : "Destination is controlled by " + KOMEAlliance.displayFactionName(owner) + " without active mutual Civil T1.";
-        return Decision.denied(tile.id, owner, normalizedPlayerFaction, civilTier, nativeEligible, reason);
+        return Decision.allowed(KOMEConquestTile.normalizeId(tileId), "", normalizedPlayerFaction, 0,
+            nativeEligible, nativeEligible,
+            "KOME adds no alliance or conquest-tier waypoint restriction; native LOTR eligibility applies.", State.DISABLED);
     }
 
     public static Decision evaluatePlayer(EntityPlayer player, LOTRAbstractWaypoint waypoint, boolean nativeEligible) {

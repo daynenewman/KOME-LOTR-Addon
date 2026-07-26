@@ -43,5 +43,6 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketPledgeDepartureRequest.Handler.class, KOMEPacketPledgeDepartureRequest.class, 33, Side.SERVER);
         network.registerMessage(KOMEPacketPledgeDepartureData.Handler.class, KOMEPacketPledgeDepartureData.class, 34, Side.CLIENT);
         network.registerMessage(KOMEPacketTroopGuiAction.Handler.class, KOMEPacketTroopGuiAction.class, 35, Side.SERVER);
+        network.registerMessage(KOMEPacketBuildAction.Handler.class, KOMEPacketBuildAction.class, 36, Side.SERVER);
     }
 }
