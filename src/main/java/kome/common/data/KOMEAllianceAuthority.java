@@ -116,30 +116,6 @@ public class KOMEAllianceAuthority {
             : Decision.deny("Only pledged members of a participating faction may contribute.");
     }
 
-    public int getEffectiveTier(String firstFaction, String secondFaction, String type, long nowMillis) {
-        KOMEAlliance alliance = data == null ? null : data.getAlliance(firstFaction, secondFaction, false);
-        return getEffectiveTier(alliance, firstFaction, type, nowMillis);
-    }
-
-    /**
-     * Legacy non-directional query. It deliberately returns the lower side so callers cannot gain
-     * a benefit that only the other faction unlocked.
-     */
-    public int getEffectiveTier(KOMEAlliance alliance, String type, long nowMillis) {
-        if (alliance == null) {
-            return KOMEAlliance.NONE;
-        }
-        return Math.min(getEffectiveTier(alliance, alliance.factionA, type, nowMillis),
-            getEffectiveTier(alliance, alliance.factionB, type, nowMillis));
-    }
-
-    public int getEffectiveTier(KOMEAlliance alliance, String actingFaction, String type, long nowMillis) {
-        if (alliance == null || alliance.getStatus(type) != KOMEAllianceTrackStatus.ACTIVE) {
-            return KOMEAlliance.NONE;
-        }
-        return alliance.getFactionTier(actingFaction, type);
-    }
-
     public int getEffectiveStage(String actingFaction, String partnerFaction) {
         KOMEAlliance alliance = data == null ? null : data.getAlliance(actingFaction, partnerFaction, false);
         return alliance == null || alliance.getRelationshipStatus() != KOMEAllianceTrackStatus.ACTIVE
@@ -201,7 +177,7 @@ public class KOMEAllianceAuthority {
                 || !supportingKey.equals(KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(supportingKing))))
             return Decision.deny("The recipient must be the recognized, pledged king of the supporting faction.");
         if (isDirectlyHostile(nativeKey, supportingKey))
-            return Decision.deny("Direct active opposition overrides Military T3 delegation.");
+            return Decision.deny("Direct active opposition overrides Stage 4 delegation.");
         return canVoluntarilyDelegate(nativeKey, supportingKey) ? Decision.allow(false)
             : Decision.deny("The receiving faction needs directional Stage 4 Military Partnership.");
     }
@@ -214,7 +190,7 @@ public class KOMEAllianceAuthority {
             return decision.allowed ? Decision.allow(false) : Decision.deny(decision.reason);
         }
         if (!KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority))
-            return Decision.deny("This company is not under Military T3 temporary control.");
+            return Decision.deny("This company is not under Stage 4 temporary control.");
         String nativeFaction = KOMEWartimeStewardshipService.nativeFaction(company);
         String supportingFaction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor));
         if (company.owner == null || company.delegatedBy == null || !company.owner.equals(company.delegatedBy))
@@ -309,20 +285,6 @@ public class KOMEAllianceAuthority {
             return "Ally";
         }
         return "Neutral";
-    }
-
-    private static int provisionalTier(KOMEAllianceFactionLedger ledger, String type) {
-        String normalizedType = KOMEAlliance.normalizeType(type);
-        if (KOMEAlliance.CIVIL.equals(normalizedType)) {
-            return ledger.provisionalCivilTier;
-        }
-        if (KOMEAlliance.TRADE.equals(normalizedType)) {
-            return ledger.provisionalTradeTier;
-        }
-        if (KOMEAlliance.MILITARY.equals(normalizedType)) {
-            return ledger.provisionalMilitaryTier;
-        }
-        return KOMEAlliance.NONE;
     }
 
     public static class Decision {

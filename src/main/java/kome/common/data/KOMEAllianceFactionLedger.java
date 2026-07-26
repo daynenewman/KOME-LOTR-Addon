@@ -13,15 +13,6 @@ import java.util.HashSet;
 
 public class KOMEAllianceFactionLedger {
     public String faction = "";
-    public boolean kinglessWaived;
-    public String graceReason = "";
-    public long graceStartMillis;
-    public long graceEndMillis;
-    public long successionStartMillis;
-    public long successionEndMillis;
-    public int provisionalCivilTier = KOMEAlliance.NONE;
-    public int provisionalTradeTier = KOMEAlliance.NONE;
-    public int provisionalMilitaryTier = KOMEAlliance.NONE;
 
     private final ItemStack[] storage = new ItemStack[KOMEAlliance.STORAGE_SLOTS];
     private final List<ItemStack> recoveryStorage = new ArrayList<ItemStack>();
@@ -200,9 +191,6 @@ public class KOMEAllianceFactionLedger {
         delivered.clear();
         completedTiers.clear();
         unlockedTiers.clear();
-        clearContributionGrace();
-        clearSuccession();
-        kinglessWaived = false;
     }
 
     public ItemStack removeRecoveryStack(int index) {
@@ -213,43 +201,6 @@ public class KOMEAllianceFactionLedger {
         if (stack != null && stack.stackSize > 0) {
             recoveryStorage.add(stack.copy());
         }
-    }
-
-    public void beginContributionGrace(String reason, long nowMillis, long durationMillis, int civilTier, int tradeTier, int militaryTier) {
-        graceReason = reason == null ? "" : reason;
-        graceStartMillis = Math.max(0L, nowMillis);
-        graceEndMillis = safeDeadline(graceStartMillis, durationMillis);
-        provisionalCivilTier = civilTier;
-        provisionalTradeTier = tradeTier;
-        provisionalMilitaryTier = militaryTier;
-        kinglessWaived = false;
-    }
-
-    public void clearContributionGrace() {
-        graceReason = "";
-        graceStartMillis = 0L;
-        graceEndMillis = 0L;
-        provisionalCivilTier = KOMEAlliance.NONE;
-        provisionalTradeTier = KOMEAlliance.NONE;
-        provisionalMilitaryTier = KOMEAlliance.NONE;
-    }
-
-    public void beginSuccession(long nowMillis, long durationMillis) {
-        successionStartMillis = Math.max(0L, nowMillis);
-        successionEndMillis = safeDeadline(successionStartMillis, durationMillis);
-    }
-
-    public void clearSuccession() {
-        successionStartMillis = 0L;
-        successionEndMillis = 0L;
-    }
-
-    public boolean isContributionGraceActive(long nowMillis) {
-        return graceEndMillis > 0L && nowMillis < graceEndMillis;
-    }
-
-    public boolean isSuccessionActive(long nowMillis) {
-        return successionEndMillis > 0L && nowMillis < successionEndMillis;
     }
 
     public void mergeFrom(KOMEAllianceFactionLedger other, boolean combineStoredGoods) {
@@ -272,8 +223,6 @@ public class KOMEAllianceFactionLedger {
         for (Map.Entry<String, Integer> entry : other.unlockedTiers.entrySet()) {
             setUnlockedTier(entry.getKey(), Math.max(getUnlockedTier(entry.getKey()), entry.getValue().intValue()));
         }
-        kinglessWaived = kinglessWaived || other.kinglessWaived;
-        mergeGrace(other);
         if (combineStoredGoods) {
             for (int i = 0; i < other.storage.length; i++) {
                 mergeStoredStack(other.storage[i]);
@@ -307,15 +256,6 @@ public class KOMEAllianceFactionLedger {
 
     public void readFromNBT(NBTTagCompound nbt) {
         faction = KOMEAlliance.normalizeFactionKey(nbt.getString("Faction"));
-        kinglessWaived = nbt.getBoolean("KinglessWaived");
-        graceReason = nbt.getString("GraceReason");
-        graceStartMillis = nonNegative(nbt.getLong("GraceStartMillis"));
-        graceEndMillis = nonNegative(nbt.getLong("GraceEndMillis"));
-        successionStartMillis = nonNegative(nbt.getLong("SuccessionStartMillis"));
-        successionEndMillis = nonNegative(nbt.getLong("SuccessionEndMillis"));
-        provisionalCivilTier = sanitizeProvisional(nbt.getInteger("ProvisionalCivilTier"), KOMEAlliance.CIVIL);
-        provisionalTradeTier = sanitizeProvisional(nbt.getInteger("ProvisionalTradeTier"), KOMEAlliance.TRADE);
-        provisionalMilitaryTier = sanitizeProvisional(nbt.getInteger("ProvisionalMilitaryTier"), KOMEAlliance.MILITARY);
         assignments.clear();
         delivered.clear();
         completedTiers.clear();
@@ -338,15 +278,6 @@ public class KOMEAllianceFactionLedger {
     public NBTTagCompound writeToNBT() {
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Faction", KOMEAlliance.normalizeFactionKey(faction));
-        nbt.setBoolean("KinglessWaived", kinglessWaived);
-        nbt.setString("GraceReason", graceReason == null ? "" : graceReason);
-        nbt.setLong("GraceStartMillis", nonNegative(graceStartMillis));
-        nbt.setLong("GraceEndMillis", nonNegative(graceEndMillis));
-        nbt.setLong("SuccessionStartMillis", nonNegative(successionStartMillis));
-        nbt.setLong("SuccessionEndMillis", nonNegative(successionEndMillis));
-        nbt.setInteger("ProvisionalCivilTier", sanitizeProvisional(provisionalCivilTier, KOMEAlliance.CIVIL));
-        nbt.setInteger("ProvisionalTradeTier", sanitizeProvisional(provisionalTradeTier, KOMEAlliance.TRADE));
-        nbt.setInteger("ProvisionalMilitaryTier", sanitizeProvisional(provisionalMilitaryTier, KOMEAlliance.MILITARY));
         nbt.setTag("Assignments", writeStringMap(assignments));
         nbt.setTag("Delivered", writeIntMap(delivered, "Amount"));
         nbt.setTag("CompletedTiers", writeIntMap(completedTiers, "Tier"));
@@ -386,21 +317,6 @@ public class KOMEAllianceFactionLedger {
         }
         nbt.setTag("ClaimGoods", claimList);
         return nbt;
-    }
-
-    private void mergeGrace(KOMEAllianceFactionLedger other) {
-        if (other.graceEndMillis > graceEndMillis) {
-            graceReason = other.graceReason;
-            graceStartMillis = other.graceStartMillis;
-            graceEndMillis = other.graceEndMillis;
-            provisionalCivilTier = other.provisionalCivilTier;
-            provisionalTradeTier = other.provisionalTradeTier;
-            provisionalMilitaryTier = other.provisionalMilitaryTier;
-        }
-        if (other.successionEndMillis > successionEndMillis) {
-            successionStartMillis = other.successionStartMillis;
-            successionEndMillis = other.successionEndMillis;
-        }
     }
 
     private void mergeStoredStack(ItemStack incoming) {
@@ -517,19 +433,6 @@ public class KOMEAllianceFactionLedger {
             list.appendTag(item);
         }
         return list;
-    }
-
-    private static int sanitizeProvisional(int tier, String type) {
-        return tier < 0 ? KOMEAlliance.NONE : Math.min(KOMEAlliance.maxTier(type), tier);
-    }
-
-    private static long nonNegative(long value) {
-        return Math.max(0L, value);
-    }
-
-    private static long safeDeadline(long start, long duration) {
-        long safeDuration = Math.max(0L, duration);
-        return Long.MAX_VALUE - start < safeDuration ? Long.MAX_VALUE : start + safeDuration;
     }
 
     private static String normalizeId(String id) {

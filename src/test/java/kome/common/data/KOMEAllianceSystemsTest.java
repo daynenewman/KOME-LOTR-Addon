@@ -24,21 +24,16 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void tradeTierTwoUsesFutureOnlyProduceBenefitMetadataAndWritesNoRuntimeState() {
-        KOMEAllianceBenefits.Benefit benefit = KOMEAllianceBenefits.get(KOMEAlliance.TRADE, 2);
-        assertEquals("Additional Produce Farmer Slot", benefit.title);
-        assertEquals("This Trade T2 alliance has unlocked an additional Produce Farmer slot. "
-            + "Produce Farmer integration will be added in a future update.", benefit.restriction);
-
+    public void stageTwoStoresOnlyThePersistentMerchantEntitlementAndNoProduceRuntimeState() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEAlliance alliance = data.getAlliance("faction_one", "faction_two", true);
-        alliance.requestTrack(KOMEAlliance.TRADE, "test", 0L, false);
-        alliance.setTier(KOMEAlliance.TRADE, 2, "test", 1L);
+        alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
+        alliance.setFactionStage("faction_one", 2, "test", 1L, 1L);
         NBTTagCompound saved = new NBTTagCompound();
         saved.setInteger("TradeProduceSlotsMaximum", 99);
         saved.setTag("AllianceProduceSlots", new net.minecraft.nbt.NBTTagList());
         data.writeToNBT(saved);
-        assertEquals(2, alliance.getTier(KOMEAlliance.TRADE));
+        assertTrue(alliance.hasProduceMerchantSlot("faction_one"));
         assertFalse(saved.hasKey("TradeProduceSlotsMaximum"));
         assertFalse(saved.hasKey("AllianceProduceSlots"));
     }
@@ -193,16 +188,12 @@ public class KOMEAllianceSystemsTest {
     public void schemaThreeSettingsAndMaximumMilitaryTierPersist() {
         KOMEWorldData source = new KOMEWorldData("test");
         source.allianceDifficulty = KOMEAllianceRequirements.HARD;
-        source.waypointRestrictionEnabled = false;
         NBTTagCompound saved = new NBTTagCompound();
         source.writeToNBT(saved);
         KOMEWorldData loaded = new KOMEWorldData("test");
         loaded.readFromNBT(saved);
         assertEquals(KOMEAllianceRequirements.HARD, loaded.allianceDifficulty);
-        assertFalse(loaded.waypointRestrictionEnabled);
         assertEquals(3, KOMEAlliance.maxTier(KOMEAlliance.MILITARY));
-        assertEquals("Accepted base", KOMEAllianceBenefits.get(KOMEAlliance.MILITARY, 0).title);
-        assertTrue(KOMEAllianceBenefits.get(KOMEAlliance.MILITARY, 3).restriction.indexOf("dormant during peace") >= 0);
 
         NBTTagCompound legacyAlliance = new NBTTagCompound();
         legacyAlliance.setString("FactionA", "gondor");
@@ -244,20 +235,6 @@ public class KOMEAllianceSystemsTest {
         data.allianceDifficulty = KOMEAllianceRequirements.EASY;
         assertEquals(65, data.getAllianceActivityRequirement(KOMEAlliance.CIVIL, 2));
         assertEquals(300, data.getAlliancePopulationRequirement(KOMEAlliance.MILITARY, 3));
-    }
-
-    @Test
-    public void graceDurationUnitsAreExactAndRejectInvalidValues() {
-        assertEquals(30_000L, KOMEAllianceRequirements.parseDurationMillis("30s"));
-        assertEquals(600_000L, KOMEAllianceRequirements.parseDurationMillis("10m"));
-        assertEquals(43_200_000L, KOMEAllianceRequirements.parseDurationMillis("12h"));
-        assertEquals(1_209_600_000L, KOMEAllianceRequirements.parseDurationMillis("14d"));
-        try {
-            KOMEAllianceRequirements.parseDurationMillis("0m");
-            fail("Zero duration must be rejected");
-        } catch (IllegalArgumentException expected) {
-            assertTrue(expected.getMessage().length() > 0);
-        }
     }
 
     @Test
@@ -317,28 +294,34 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void waypointGraceAndRequirementConfigurationSurviveRestart() {
+    public void retiredWaypointAndGraceTagsAreDiscardedWhileQuotaConfigurationSurvives() {
         UUID player = UUID.randomUUID();
         KOMEWorldData source = new KOMEWorldData("test");
         source.allianceDifficulty = KOMEAllianceRequirements.EASY;
-        source.waypointRestrictionEnabled = false;
-        source.setWaypointRestrictionBypass(player, true);
-        source.successionGraceDefaultMillis = 60_000L;
-        source.contributionGraceDefaultMillis = 30_000L;
         source.setAllianceRequirement(KOMEAlliance.MILITARY, 2, "population", 222);
         source.recordAllianceAdminAction("tester", "persistence check");
         NBTTagCompound saved = new NBTTagCompound();
         source.writeToNBT(saved);
+        saved.setBoolean("WaypointRestrictionEnabled", true);
+        saved.setLong("SuccessionGraceDefaultMillis", 60_000L);
+        saved.setLong("ContributionGraceDefaultMillis", 30_000L);
+        net.minecraft.nbt.NBTTagList bypasses = new net.minecraft.nbt.NBTTagList();
+        NBTTagCompound bypass = new NBTTagCompound();
+        bypass.setString("Player", player.toString());
+        bypasses.appendTag(bypass);
+        saved.setTag("WaypointRestrictionBypasses", bypasses);
 
         KOMEWorldData loaded = new KOMEWorldData("test");
         loaded.readFromNBT(saved);
         assertEquals(KOMEAllianceRequirements.EASY, loaded.allianceDifficulty);
-        assertFalse(loaded.waypointRestrictionEnabled);
-        assertTrue(loaded.hasWaypointRestrictionBypass(player));
-        assertEquals(60_000L, loaded.successionGraceDefaultMillis);
-        assertEquals(30_000L, loaded.contributionGraceDefaultMillis);
         assertEquals(222, loaded.getAlliancePopulationRequirement(KOMEAlliance.MILITARY, 2));
         assertEquals(1, loaded.allianceAdminAudit.size());
+        NBTTagCompound normalized = new NBTTagCompound();
+        loaded.writeToNBT(normalized);
+        assertFalse(normalized.hasKey("WaypointRestrictionEnabled"));
+        assertFalse(normalized.hasKey("WaypointRestrictionBypasses"));
+        assertFalse(normalized.hasKey("SuccessionGraceDefaultMillis"));
+        assertFalse(normalized.hasKey("ContributionGraceDefaultMillis"));
     }
 
     @Test
@@ -364,8 +347,8 @@ public class KOMEAllianceSystemsTest {
             assertFalse("ALLIANCE".equals(parts[0]));
             assertFalse(line.contains("FarmerReserved"));
         }
-        assertTrue(config);
-        assertTrue(requirement);
+        assertFalse(config);
+        assertFalse(requirement);
         assertEquals(1, relationships);
     }
 
@@ -1177,8 +1160,8 @@ public class KOMEAllianceSystemsTest {
             300L, "king unpledged");
         assertTrue(kingResult.wasKing);
         assertFalse(data.hasFactionKing("gondor"));
-        assertEquals(0L, alliance.getFactionLedger("gondor").successionEndMillis);
         assertEquals(0, alliance.getFactionStage("gondor"));
+        assertFalse(alliance.getFactionLedger("gondor").writeToNBT().hasKey("SuccessionEndMillis"));
 
         UUID nativeOwner = UUID.randomUUID();
         UUID controller = UUID.randomUUID();

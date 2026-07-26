@@ -84,9 +84,10 @@ public final class KOMEWarService {
         if (data == null || data.hasFactionKing(nativeFaction)) return result;
         if (findActiveOpposition(data, nativeFaction, controllerFaction) != null) return result;
         KOMEAlliance alliance = data.getAlliance(nativeFaction, controllerFaction, false);
-        if (alliance == null || new KOMEAllianceAuthority(data).getEffectiveTier(
-                alliance, controllerFaction, KOMEAlliance.MILITARY, System.currentTimeMillis()) < 3
-                || !alliance.hasAccepted(KOMEAlliance.MILITARY)) return result;
+        if (alliance == null || alliance.getRelationshipStatus() != KOMEAllianceTrackStatus.ACTIVE
+                || new KOMEAllianceAuthority(data).getEffectiveStage(controllerFaction, nativeFaction) < 4) {
+            return result;
+        }
         for (KOMEWar war : sortedWars(data)) {
             if (war.isActive() && war.sameSide(nativeFaction, controllerFaction)) result.add(war);
         }
@@ -109,11 +110,11 @@ public final class KOMEWarService {
             return AuthorizationDecision.deny("The supporting faction is directly opposed to the native faction in an active war.");
         List<KOMEWar> wars = authorizedSameSideWars(data, nativeKey, supportingKey);
         if (wars.isEmpty())
-            return AuthorizationDecision.deny("No active same-side war and effective mutual Military T3 alliance authorize stewardship.");
+            return AuthorizationDecision.deny("No active same-side war and directional Stage 4 Military Partnership authorize stewardship.");
         return AuthorizationDecision.allow(wars);
     }
 
-    /** Idempotently enrolls every eligible Military T3 supporter on each kingless native side. */
+    /** Idempotently enrolls every eligible Stage 4 supporter on each kingless native side. */
     public static boolean reconcileAutomaticMilitarySupport(KOMEWorldData data, long now, String reason) {
         if (data == null) return false;
         boolean changed = false;
@@ -140,9 +141,9 @@ public final class KOMEWarService {
                     } else if (data.hasFactionKing(enrollment.nativeFaction)) {
                         changed |= updateEnrollment(enrollment, "DORMANT", null, "",
                             "The native faction has a recognized king; kingless Wartime Stewardship is dormant", nativeSide, now);
-                    } else if (!hasEffectiveMilitaryT3(data, enrollment.nativeFaction, enrollment.supportingFaction, now)) {
+                    } else if (!hasDirectionalStageFour(data, enrollment.nativeFaction, enrollment.supportingFaction)) {
                         changed |= updateEnrollment(enrollment, "DORMANT", null, "",
-                            "The mutual Military T3 alliance is not effectively active", nativeSide, now);
+                            "Directional Stage 4 Military Partnership is not active", nativeSide, now);
                     }
                 }
                 if (!war.isActive()) continue;
@@ -155,7 +156,7 @@ public final class KOMEWarService {
                     for (KOMEAlliance alliance : data.alliances.values()) {
                         if (alliance == null || !alliance.involves(nativeFaction)) continue;
                         String supportingFaction = alliance.getOtherFaction(nativeFaction);
-                        if (!hasEffectiveMilitaryT3(data, nativeFaction, supportingFaction, now)) continue;
+                        if (!hasDirectionalStageFour(data, nativeFaction, supportingFaction)) continue;
                         int supportingSide = war.sideOf(supportingFaction);
                         KOMEWar.MilitarySupportEnrollment enrollment = war.supportEnrollment(nativeFaction, supportingFaction, true);
                         String previousState = enrollment.state;
@@ -187,11 +188,11 @@ public final class KOMEWarService {
                                     "Recognized supporting king is not actually pledged to the supporting faction", nativeSide, now);
                             } else if (findActiveOpposition(data, nativeFaction, supportingFaction) != null) {
                                 changed |= updateEnrollment(enrollment, "CONTRADICTION", null, "",
-                                    "Direct active opposition overrides Military T3 authority", nativeSide, now);
+                                "Direct active opposition overrides Stage 4 authority", nativeSide, now);
                             } else {
                                 changed |= updateEnrollment(enrollment, "ACTIVE", king,
                                     data.getFactionKingName(supportingFaction),
-                                    "Recognized pledged supporting king; active same-side war and effective Military T3", nativeSide, now);
+                                    "Recognized pledged supporting king; active same-side war and directional Stage 4", nativeSide, now);
                             }
                         }
                     }
@@ -207,10 +208,10 @@ public final class KOMEWarService {
         KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
     }
 
-    private static boolean hasEffectiveMilitaryT3(KOMEWorldData data, String first, String second, long now) {
-        KOMEAlliance alliance = data == null ? null : data.getAlliance(first, second, false);
-        return alliance != null && alliance.hasAccepted(KOMEAlliance.MILITARY)
-            && new KOMEAllianceAuthority(data).getEffectiveTier(alliance, second, KOMEAlliance.MILITARY, now) >= 3;
+    private static boolean hasDirectionalStageFour(KOMEWorldData data, String nativeFaction, String supportingFaction) {
+        KOMEAlliance alliance = data == null ? null : data.getAlliance(nativeFaction, supportingFaction, false);
+        return alliance != null && alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE
+            && new KOMEAllianceAuthority(data).getEffectiveStage(supportingFaction, nativeFaction) >= 4;
     }
 
     private static boolean updateEnrollment(KOMEWar.MilitarySupportEnrollment enrollment, String state,
@@ -252,16 +253,13 @@ public final class KOMEWarService {
     public static String allianceFingerprint(KOMEWorldData data, String first, String second) {
         StringBuilder result = new StringBuilder();
         KOMEAlliance alliance = data == null ? null : data.getAlliance(first, second, false);
-        if (alliance == null) result.append("none");
-        else result.append(alliance.getStatus(KOMEAlliance.CIVIL)).append(':')
-            .append(alliance.getFactionTier(first, KOMEAlliance.CIVIL)).append(':')
-            .append(alliance.getFactionTier(second, KOMEAlliance.CIVIL))
-            .append('|').append(alliance.getStatus(KOMEAlliance.TRADE)).append(':')
-            .append(alliance.getFactionTier(first, KOMEAlliance.TRADE)).append(':')
-            .append(alliance.getFactionTier(second, KOMEAlliance.TRADE))
-            .append('|').append(alliance.getStatus(KOMEAlliance.MILITARY)).append(':')
-            .append(alliance.getFactionTier(first, KOMEAlliance.MILITARY)).append(':')
-            .append(alliance.getFactionTier(second, KOMEAlliance.MILITARY));
+        if (alliance == null) {
+            result.append("none");
+        } else {
+            result.append(alliance.getRelationshipStatus()).append(':')
+                .append(alliance.getFactionStage(first)).append(':')
+                .append(alliance.getFactionStage(second));
+        }
         result.append("|same=");
         for (KOMEWar war : findActiveSameSide(data, first, second)) result.append(war.id).append(',');
         result.append("|activeMembership=");

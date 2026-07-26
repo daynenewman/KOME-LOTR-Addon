@@ -170,10 +170,11 @@ public class KOMEAllianceModelTest {
         data.claimFactionKing("rohan", "Rohan", king, "First");
         data.reconcilePlayerKingship("rohan", king, "First", false);
         assertEquals(3, alliance.getFactionStage("rohan"));
-        assertEquals(0L, alliance.getFactionLedger("rohan").successionEndMillis);
         data.claimFactionKing("rohan", "Rohan", UUID.randomUUID(), "Second");
         assertEquals(3, alliance.getFactionStage("rohan"));
-        assertEquals(0L, alliance.getFactionLedger("rohan").graceEndMillis);
+        NBTTagCompound ledger = alliance.getFactionLedger("rohan").writeToNBT();
+        assertFalse(ledger.hasKey("SuccessionEndMillis"));
+        assertFalse(ledger.hasKey("GraceEndMillis"));
     }
 
     @Test public void stageNamesAreStableAndAsciiSafe() {

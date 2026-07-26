@@ -155,7 +155,17 @@ public final class KOMEBuildService {
         int nextDef = build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour)
             - KOMEBuildPopulationService.generatedPopulation(contribution.defensiveHalfHours, data.buildPopulationPerHalfHour);
         if (nextOff < build.offensiveCommittedPopulation || nextDef < build.defensiveCommittedPopulation) {
-            return Decision.deny("Those hours fund active units; reclaim or release that committed population first.");
+            return Decision.deny("Those hours fund active units. Build commitments are O"
+                + build.offensiveCommittedPopulation + "/D" + build.defensiveCommittedPopulation
+                + "; projected Build population is O" + Math.max(0, nextOff) + "/D" + Math.max(0, nextDef) + ".");
+        }
+        Decision capacity = canReducePopulation(data, build,
+            KOMEBuildPopulationService.generatedPopulation(contribution.offensiveHalfHours,
+                data.buildPopulationPerHalfHour),
+            KOMEBuildPopulationService.generatedPopulation(contribution.defensiveHalfHours,
+                data.buildPopulationPerHalfHour));
+        if (!capacity.allowed) {
+            return capacity;
         }
         contribution.status = KOMEBuildContribution.REMOVED;
         contribution.decidedAtMillis = Math.max(0L, nowMillis);
@@ -173,7 +183,15 @@ public final class KOMEBuildService {
         if (build == null || !build.active) return Decision.deny("The Build is already inactive.");
         if (!admin && !isManager(build, actor)) return Decision.deny("Only the current manager or an administrator may delete this Build.");
         if (build.offensiveCommittedPopulation > 0 || build.defensiveCommittedPopulation > 0) {
-            return Decision.deny("The Build funds active units; reclaim or release its committed population before deletion.");
+            return Decision.deny("The Build funds active units (O" + build.offensiveCommittedPopulation
+                + "/D" + build.defensiveCommittedPopulation
+                + "); reclaim or release that committed population before deletion.");
+        }
+        Decision capacity = canReducePopulation(data, build,
+            build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour),
+            build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour));
+        if (!capacity.allowed) {
+            return capacity;
         }
         String safeReason = safe(reason);
         softDelete(data, build, actor, actorName, safeReason.length() == 0 ? "Deleted by manager" : safeReason, nowMillis);
@@ -196,6 +214,12 @@ public final class KOMEBuildService {
         }
         if (build.offensiveCommittedPopulation > 0 || build.defensiveCommittedPopulation > 0) {
             return Decision.deny("The Build funds active units; reclaim or release its committed population before destruction.");
+        }
+        Decision capacity = canReducePopulation(data, build,
+            build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour),
+            build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour));
+        if (!capacity.allowed) {
+            return capacity;
         }
         softDelete(data, build, actor, actorName, "Destroyed by enemy homeland controller", nowMillis);
         return Decision.allow();
@@ -331,6 +355,51 @@ public final class KOMEBuildService {
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
         data.recalculateBuildPopulationPool(build.tileId, build.populationFaction);
         data.markDirty();
+    }
+
+    /**
+     * Prevents a Build mutation from silently shrinking a source pool or the controller's
+     * effective tile capacity below already used or allocated population.
+     */
+    private static Decision canReducePopulation(KOMEWorldData data, KOMEPlayerBuild build,
+            int offensiveReduction, int defensiveReduction) {
+        if (data == null || build == null) return Decision.deny("Build population data is unavailable.");
+        KOMEConquestTile tile = data.conquestTiles.get(KOMEConquestTile.normalizeId(build.tileId));
+        String controller = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+        KOMETilePopulation pool = data.getTilePopulationPool(build.tileId, build.populationFaction);
+        if (pool == null) return Decision.allow();
+        Decision offensive = canReducePopulation(data, pool, controller, KOMEPopulationType.OFFENSIVE,
+            Math.max(0, offensiveReduction));
+        if (!offensive.allowed) return offensive;
+        return canReducePopulation(data, pool, controller, KOMEPopulationType.DEFENSIVE,
+            Math.max(0, defensiveReduction));
+    }
+
+    private static Decision canReducePopulation(KOMEWorldData data, KOMETilePopulation pool,
+            String controller, KOMEPopulationType type, int reduction) {
+        if (reduction <= 0) return Decision.allow();
+        int currentPhysical = pool.getTotal(type);
+        int projectedPhysical = Math.max(0, currentPhysical - reduction);
+        int sourceUsed = pool.getUsed(type);
+        int currentEffective = pool.getEffectiveTotal(type, controller);
+        boolean controllerOwnsPool = KOMEAlliance.normalizeFactionKey(pool.sourceFaction)
+            .equals(KOMEAlliance.normalizeFactionKey(controller));
+        int projectedEffective = controllerOwnsPool ? projectedPhysical : projectedPhysical / 2;
+        int tileEffectiveAfter = Math.max(0,
+            data.getEffectiveUsablePopulation(pool.tileId, controller, type)
+                - currentEffective + projectedEffective);
+        int allocated = data.getTotalAllocated(pool.tileId, controller, type);
+        int used = data.getEffectiveUsedPopulation(pool.tileId, controller, type);
+        int required = Math.max(allocated, used);
+        if (projectedPhysical < sourceUsed || tileEffectiveAfter < required) {
+            return Decision.deny("Cannot remove " + type.key + " Build population: projected source pool "
+                + projectedPhysical + " physical/" + projectedEffective + " usable and tile "
+                + tileEffectiveAfter + " usable, but " + sourceUsed + " source population is used and "
+                + required + " tile population is allocated or used. Release at least "
+                + Math.max(Math.max(0, sourceUsed - projectedPhysical),
+                    Math.max(0, required - tileEffectiveAfter)) + " first.");
+        }
+        return Decision.allow();
     }
 
     public static final class Decision {

@@ -84,7 +84,7 @@ public class KOMECommandWar extends CommandBase {
                     + " [" + (membership.active ? "active" : "ended: " + membership.endReason) + "]."));
             }
             for (KOMEWar.MilitarySupportEnrollment enrollment : war.militarySupportEnrollments) {
-                sender.addChatMessage(new ChatComponentText("Military T3 support: "
+                sender.addChatMessage(new ChatComponentText("Stage 4 support: "
                     + KOMEAlliance.displayFactionName(enrollment.supportingFaction) + " for "
                     + KOMEAlliance.displayFactionName(enrollment.nativeFaction) + " = " + enrollment.state
                     + (enrollment.authorizedKing == null ? "" : ", king " + enrollment.authorizedKingName + " (" + enrollment.authorizedKing + ")")

@@ -7,7 +7,6 @@ public class KOMEClientData extends KOMEWorldData {
     public final java.util.List<KOMEUnitMapMarker> unitMapMarkers = new java.util.ArrayList<KOMEUnitMapMarker>();
     public int conquestRevision;
     public boolean clientViewerIsAdmin;
-    public boolean clientWaypointBypass;
 
     private KOMEClientData() {
         super("KOME_ClientData");
@@ -27,7 +26,6 @@ public class KOMEClientData extends KOMEWorldData {
         alliances.clear();
         wars.clear();
         conquestClaimConfirmations.clear();
-        waypointRestrictionBypasses.clear();
         allianceRequirementOverrides.clear();
         armyMovements.clear();
         armyCompanies.clear();
@@ -37,11 +35,7 @@ public class KOMEClientData extends KOMEWorldData {
         unitMapMarkers.clear();
         hireType = KOMEPopulationType.OFFENSIVE;
         allianceDifficulty = KOMEAllianceRequirements.STANDARD;
-        waypointRestrictionEnabled = false;
-        successionGraceDefaultMillis = KOMEAllianceAuthority.FOURTEEN_DAYS_MILLIS;
-        contributionGraceDefaultMillis = KOMEAllianceAuthority.FOURTEEN_DAYS_MILLIS;
         clientViewerIsAdmin = false;
-        clientWaypointBypass = false;
         conquestRevision++;
     }
 }

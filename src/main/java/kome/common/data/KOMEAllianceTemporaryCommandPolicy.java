@@ -2,7 +2,7 @@ package kome.common.data;
 
 import java.util.Locale;
 
-/** Explicit Military T3 temporary-controller whitelist. Everything else is owner-only. */
+/** Explicit Stage 4 temporary-controller whitelist. Everything else is owner-only. */
 public final class KOMEAllianceTemporaryCommandPolicy {
     private KOMEAllianceTemporaryCommandPolicy() {
     }

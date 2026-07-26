@@ -71,7 +71,7 @@ public final class KOMEWartimeStewardshipService {
             company.authorizedWarIds.add(war.id);
             upsertAuthorization(war, company, controllerFaction, nowMillis);
         }
-        company.authorizationReason = reason == null ? "Same-side active war and Military T3" : reason;
+        company.authorizationReason = reason == null ? "Same-side active war and Stage 4" : reason;
         company.stewardshipCreated = company.stewardshipCreated || hasStewardshipUnits(data, company);
         company.stewardshipReservation = reservation(data, company);
         company.withdrawalState = KOMEArmyCompany.CLEANUP_NONE;

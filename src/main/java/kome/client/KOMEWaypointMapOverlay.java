@@ -128,7 +128,7 @@ public final class KOMEWaypointMapOverlay {
                 color = 0xFF55FF55;
                 break;
             case ALLY:
-                state = "CIVIL T1 ACCESS";
+                state = "ALLIED TERRITORY";
                 color = 0xFF55AAFF;
                 break;
             case UNCLAIMED:

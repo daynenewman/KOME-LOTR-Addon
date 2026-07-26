@@ -51,15 +51,17 @@ public final class KOMEGuiVisualCaptureController {
     }
 
     private void addScreens() {
-        add("alliance-list", new ScreenFactory() { public GuiScreen create() { return new KOMEGuiAlliance(); }});
+        addAlliance("alliance-list", 0, 0, "", false);
         add("alliance-create", new ScreenFactory() { public GuiScreen create() {
-            KOMEGuiAlliance gui = new KOMEGuiAlliance(); gui.setVisualTestCreateMode(true); return gui;
+            KOMEGuiAllianceUnified gui = new KOMEGuiAllianceUnified();
+            gui.setVisualTestState(1, 0, "", false);
+            return gui;
         }});
-        addDetail("alliance-overview", 0, 0, false);
-        addDetail("alliance-requirements", 1, 0, false);
-        addDetail("alliance-benefits", 2, 0, false);
-        addDetail("alliance-military", 3, 1, false);
-        addDetail("alliance-break-confirmation", 0, 1, true);
+        addAlliance("alliance-overview", 2, 0, "gondor|rohan", false);
+        addAlliance("alliance-requirements", 2, 1, "gondor|rohan", false);
+        addAlliance("alliance-benefits", 2, 2, "gondor|rohan", false);
+        addAlliance("alliance-military", 2, 3, "gondor|rohan", false);
+        addAlliance("alliance-break-confirmation", 2, 0, "gondor|rohan", true);
         add("alliance-ledger", new ScreenFactory() { public GuiScreen create() {
             prepareLedgerData();
             return new LedgerVisualPreview();
@@ -71,11 +73,10 @@ public final class KOMEGuiVisualCaptureController {
         add("pledge-departure-preview", new ScreenFactory() { public GuiScreen create() { return pledgeGui(); }});
     }
 
-    private void addDetail(String name, final int view, final int type, final boolean confirmBreak) {
+    private void addAlliance(String name, final int mode, final int tab, final String pair, final boolean confirmBreak) {
         add(name, new ScreenFactory() { public GuiScreen create() {
-            KOMEGuiAlliance.Record record = KOMEGuiAlliance.recordFor("gondor", "rohan");
-            KOMEGuiAllianceDetail gui = new KOMEGuiAllianceDetail(record);
-            gui.setVisualTestView(view, type, confirmBreak);
+            KOMEGuiAllianceUnified gui = new KOMEGuiAllianceUnified();
+            gui.setVisualTestState(mode, tab, pair, confirmBreak);
             return gui;
         }});
     }
@@ -107,48 +108,29 @@ public final class KOMEGuiVisualCaptureController {
         List lines = new ArrayList();
         lines.add("SUMMARY\t2");
         lines.add("VIEWER\tgondor\tGondor\t1\t1\t1\t0");
-        lines.add("CONFIG\tstandard\t0\t1\t0");
-        lines.add("KING\tgondor");
-        lines.add("KING\trohan");
-        lines.add("REQUEST_OPTION\trohan\t1\t1\t1\t1");
-        lines.add("REQUEST_OPTION\thighelves\t1\t0\t1\t1");
-        long grace = System.currentTimeMillis() + 172800000L;
-        lines.add(join(new String[] {"ALLIANCE","gondor","rohan","Gondor","Rohan","1","2","-2","Steward Ecthelion","",
-            "T3 provisions","48","Trade stores","20","74","638","0","222","1000","300","active","pending","active",
-            "gondor","rohan","1","0","2","1","0","2","0","0",String.valueOf(grace),"0","rohan","rohan","rohan",
-            "T2: 32/64 White Stone","T3: 48/96 Lembas","T1: quota not rolled","T2: 64/64 White Stone","T3: 96/96 Lembas","T1: quota not rolled"}));
-        lines.add(join(new String[] {"ALLIANCE","gondor","highelves","Gondor","High Elves","0","-1","1","Lady Miriel","",
-            "","0","","0","12","0","0","52","0","0","active","active","none","gondor","highelves","0","1","-1","0","1","-1","0","0","0","0","highelves","highelves","highelves","T1: quota not rolled","None","T2: 8/40 Mallorn Goods","T1: complete","None","T2: 40/40 Mallorn Goods"}));
-        String pair = "gondor|rohan";
-        addTrack(lines, pair, "gondor", "rohan", "civil", 1, 2, "White Stone", 64, 32, "Allied trades", 25, 18, 0, 0, "Civil access active");
-        addTrack(lines, pair, "rohan", "gondor", "civil", 1, 2, "White Stone", 64, 64, "Allied trades", 25, 25, 0, 0, "Partner complete");
-        addTrack(lines, pair, "gondor", "rohan", "military", 2, 3, "Lembas", 96, 48, "Eligible kills", 1000, 638, 300, 214, "War support authorized");
-        addTrack(lines, pair, "rohan", "gondor", "military", 2, 3, "Lembas", 96, 96, "Eligible kills", 1000, 1000, 300, 327, "Partner complete");
-        lines.add("MILITARY_CONTEXT\t" + pair + "\tgondor\trohan\tACTIVE\tSteward Ecthelion\tking-gondor\tKing Eomer\tking-rohan\tNorthern Coalition War\tMordor, Isengard\t420\t214\t206\tAll war support is server-authorized.");
-        lines.add("MILITARY_CONTEXT\t" + pair + "\trohan\tgondor\tACTIVE\tKing Eomer\tking-rohan\tSteward Ecthelion\tking-gondor\tNorthern Coalition War\tMordor, Isengard\t380\t192\t188\tAll war support is server-authorized.");
-        lines.add("MILITARY_COMPANY\t" + pair + "\tgondor\trohan\tcompany-westfold\tWestfold Riders\tKing Eomer\tSteward Ecthelion\t1\tNorthern Coalition War\tDEFENSIVE\tSTATIONED\tNONE\tAuthorized allied stewardship\t84\twithdraw, recall, inspect");
-        KOMEGuiAlliance.update(lines);
-    }
-
-    private static void addTrack(List lines, String pair, String side, String partner, String type, int tier, int target,
-            String quota, int required, int delivered, String activity, int activityRequired, int activityProgress,
-            int populationRequired, int populationProgress, String reason) {
-        boolean complete = delivered >= required && activityProgress >= activityRequired && populationProgress >= populationRequired;
-        lines.add(join(new String[] {"TRACK",pair,side,partner,type,"active",String.valueOf(tier),String.valueOf(target),quota,
-            String.valueOf(required),String.valueOf(delivered),activity,String.valueOf(activityRequired),String.valueOf(activityProgress),
-            String.valueOf(populationRequired),String.valueOf(populationProgress),complete ? "1" : "0","0","0","0","0","0",
-            "Authoritative server benefit","1",reason}));
+        lines.add("CONFIG\tstandard\t1.0\t0\t0\t0\t0");
+        lines.add("KING\tgondor\tSteward Ecthelion");
+        lines.add("KING\trohan\tKing Eomer");
+        lines.add("REQUEST_OPTION_V2\trohan\tRohan\t1\t1\t0\t0\t");
+        lines.add("REQUEST_OPTION_V2\thighelves\tHigh Elves of Lindon and Rivendell\t1\t1\t0\t0\t");
+        lines.add(join(new String[] {"STAGE_RELATION","gondor|rohan","gondor","rohan","Gondor","Rohan",
+            "gondor","rohan","3","2","active","","","Friends","1","1","1","4",
+            "Royal Provision Crates","96","48","0","1",
+            "Deploy a non-empty Gondor company in Rohan-controlled land during a new defensive war after Stage 3.",
+            "1","","","1","Stage 3 claimed by Steward Ecthelion","18420"}));
+        lines.add(join(new String[] {"STAGE_RELATION","gondor|highelves","gondor","highelves","Gondor",
+            "High Elves of Lindon and Rivendell","gondor","highelves","-1","-1","pending","gondor",
+            "highelves","Default","1","1","1","0","","0","0","0","1",
+            "Awaiting the receiving king.","0","","","0","Requested by Steward Ecthelion","18422"}));
+        KOMEGuiAllianceUnified.update(lines);
     }
 
     private static void prepareLedgerData() {
         List lines = new ArrayList();
-        lines.add("SUMMARY\tGondor\tRohan\tgondor\trohan");
+        lines.add("SUMMARY\tGondor\tRohan\tgondor\trohan\tgondor|rohan");
         lines.add("VIEWER\tGondor\t1\t1");
-        lines.add("PROGRESS\tCivil\tActive\tT2 cooperative goods\tGoods delivered\t32\t64");
-        lines.add("PROGRESS\tMilitary\tActive\tT3 provisions\tGoods delivered\t48\t96");
-        lines.add("PROGRESS\tTrade\tPending\tAwaiting acceptance\tGoods delivered\t0\t40");
-        lines.add("QUOTA\tCivil\tWhite Stone\t32\t64\tblocks");
-        lines.add("QUOTA\tMilitary\tLembas\t48\t96\titems");
+        lines.add("PROGRESS\tStage 4\tCurrent Stage 3\tNext: Military Partnership | Qualifying defensive deployment required\tGoods delivered\t48\t96\tMilitary Partnership");
+        lines.add("QUOTA\tStage 4\tRoyal Provision Crates\t48\t96\titems");
         lines.add("CLAIM\tIncoming goods are held for Rohan's king\t0\tNo incoming goods are currently claimable");
         lines.add("SWITCH\tView Rohan Ledger\trohan\tgondor\t1");
         KOMEQuotaLedgerOverlay.update(lines);
@@ -158,9 +140,9 @@ public final class KOMEGuiVisualCaptureController {
         List lines = new ArrayList();
         lines.add("SUMMARY\t4\t12\t1");
         lines.add(join(new String[] {"WAR","war-north-001","Northern Coalition War","ACTIVE","Free Peoples","Gondor, Rohan, High Elves",
-            "Shadow Host","Mordor, Isengard","2026-07-18 08:30","Amon Sul captured by Gondor","3","Succession grace affects one support company",
+            "Shadow Host","Mordor, Isengard","2026-07-18 08:30","Amon Sul captured by Gondor","3","One Stage 4 support company is awaiting withdrawal",
             "Amon Sul: Mordor -> Gondor; Westfold: Isengard -> Rohan","Gondor joined by declaration; Rohan joined by defense pact",
-            "Westfold Riders (Military T3, server-authorized)","Steward Ecthelion; King Eomer","Westfold Riders: 84 offensive population",
+            "Westfold Riders (Stage 4, server-authorized)","Steward Ecthelion; King Eomer","Westfold Riders: 84 offensive population",
             "One withdrawal completes in 1d 4h","Created by Steward Ecthelion; Rohan joined automatically","None","None","None",
             "Gondor=DECLARATION; Rohan=DEFENSE; Mordor=DECLARATION; Isengard=COALITION","Rohan->Gondor: Westfold Riders"}));
         KOMEGuiServerRecords.update(lines);
@@ -182,6 +164,37 @@ public final class KOMEGuiVisualCaptureController {
         data.defaultRulingFaction = "rangersnorth"; data.mapRegion = "Eriador"; data.claimConfirmationArmed = true;
         data.claimWarning = "Rohan is allied with Gondor. Confirming converts this capture into a recorded war consequence.";
         data.claimWarDestination = "Destination: Northern Coalition War / Free Peoples side.";
+        data.viewerDimension = 0; data.viewerX = 1824.5D; data.viewerY = 72D; data.viewerZ = -935.5D;
+        data.buildPopulationPerHalfHour = 5;
+        data.selectablePopulationOwners.add("gondor");
+        data.selectablePopulationOwners.add("rohan");
+        for (int i = 1; i <= 8; i++) {
+            KOMEPacketConquestCaptureGui.BuildView build = new KOMEPacketConquestCaptureGui.BuildView();
+            build.id = String.format("B%05d", i);
+            build.name = i == 2 ? "The Very Long Restoration of the Northern Watch and Beacon Works"
+                : i % 2 == 0 ? "Rohan Forward Granary " + i : "Gondor Stoneworks " + i;
+            build.populationFaction = i % 3 == 0 ? "rohan" : "gondor";
+            build.builder = i % 2 == 0 ? "WestfoldBuilder" : "Steward Ecthelion";
+            build.manager = build.populationFaction.equals("gondor") ? "Steward Ecthelion" : "King Eomer";
+            build.dimension = 0; build.x = 1810D + i * 4D; build.y = 71D; build.z = -950D + i * 3D;
+            build.offensiveHalfHours = 8 + i; build.defensiveHalfHours = 3 + i;
+            build.offensivePopulation = build.offensiveHalfHours * 5;
+            build.defensivePopulation = build.defensiveHalfHours * 5;
+            build.offensiveCommitted = i * 3; build.defensiveCommitted = i;
+            build.pendingCount = i % 3; build.status = i % 3 == 0 ? "Friendly" : "Owned";
+            build.canManage = true;
+            data.builds.add(build);
+        }
+        KOMEPacketConquestCaptureGui.PopulationPoolView gondor = new KOMEPacketConquestCaptureGui.PopulationPoolView();
+        gondor.faction = "gondor"; gondor.nativeOffensive = 50; gondor.nativeDefensive = 25;
+        gondor.buildOffensive = 180; gondor.buildDefensive = 90; gondor.physicalOffensive = 230;
+        gondor.physicalDefensive = 115; gondor.usableOffensive = 115; gondor.usableDefensive = 57;
+        gondor.usedOffensive = 84; gondor.usedDefensive = 36; data.populationPools.add(gondor);
+        KOMEPacketConquestCaptureGui.PopulationPoolView rohan = new KOMEPacketConquestCaptureGui.PopulationPoolView();
+        rohan.faction = "rohan"; rohan.buildOffensive = 120; rohan.buildDefensive = 60;
+        rohan.physicalOffensive = 120; rohan.physicalDefensive = 60; rohan.usableOffensive = 120;
+        rohan.usableDefensive = 60; rohan.usedOffensive = 42; rohan.usedDefensive = 18;
+        data.populationPools.add(rohan);
         return new KOMEGuiConquestCapture(data);
     }
 
@@ -225,28 +238,22 @@ public final class KOMEGuiVisualCaptureController {
             KOMEGuiTheme.drawStatusChip(fontRendererObj, "Deposit Yes", left + 28, top + 95, KOMEGuiTheme.Status.ACTIVE);
             int claimW = KOMEGuiTheme.statusChipWidth(fontRendererObj, "Claim No");
             KOMEGuiTheme.drawStatusChip(fontRendererObj, "Claim No", left + 592 - claimW, top + 95, KOMEGuiTheme.Status.LOCKED);
-            String[] types = {"Civil", "Military", "Trade"};
-            String[] states = {"Active", "Active", "Pending"};
-            int[] delivered = {32, 48, 0};
-            int[] required = {64, 96, 40};
-            int cardW = 185;
-            for (int i = 0; i < 3; i++) {
-                int x = left + 18 + i * (cardW + 14);
-                KOMEGuiTheme.drawCard(x, top + 128, cardW, 66, false);
-                fontRendererObj.drawString(types[i], x + 10, top + 135, KOMEGuiTheme.COLOR_GOLD);
-                int chipW = KOMEGuiTheme.statusChipWidth(fontRendererObj, states[i]);
-                KOMEGuiTheme.drawStatusChip(fontRendererObj, states[i], i == 2 ? KOMEGuiTheme.Status.WARNING : KOMEGuiTheme.Status.ACTIVE,
-                    x + cardW - chipW - 10, top + 133, chipW);
-                fontRendererObj.drawString(i == 2 ? "Awaiting acceptance" : "Rolled cooperative goods", x + 10, top + 155, KOMEGuiTheme.COLOR_TEXT_MUTED);
-                KOMEGuiTheme.drawProgressBar(fontRendererObj, x + 10, top + 172, cardW - 20, 11,
-                    delivered[i] / (float) required[i], KOMEGuiTheme.COLOR_GOLD,
-                    delivered[i] + " / " + required[i] + " delivered");
-            }
+            int stageX = left + 18;
+            int stageW = 584;
+            KOMEGuiTheme.drawCard(stageX, top + 128, stageW, 66, false);
+            fontRendererObj.drawString("Stage 4 - Military Partnership", stageX + 10, top + 135, KOMEGuiTheme.COLOR_GOLD);
+            String stageState = "Current Stage 3";
+            int chipW = KOMEGuiTheme.statusChipWidth(fontRendererObj, stageState);
+            KOMEGuiTheme.drawStatusChip(fontRendererObj, stageState, KOMEGuiTheme.Status.ACTIVE,
+                stageX + stageW - chipW - 10, top + 133, chipW);
+            fontRendererObj.drawString("Next requirement: Royal Provision Crates and one qualifying defensive deployment",
+                stageX + 10, top + 155, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            KOMEGuiTheme.drawProgressBar(fontRendererObj, stageX + 10, top + 172, stageW - 20, 11,
+                0.5F, KOMEGuiTheme.COLOR_GOLD, "48 / 96 goods delivered");
             KOMEGuiTheme.drawSubPanel(left + 18, top + 204, 584, 56);
             fontRendererObj.drawString("Current Quotas", left + 28, top + 211, KOMEGuiTheme.COLOR_GOLD);
-            fontRendererObj.drawString("Civil: 32/64 blocks of White Stone", left + 28, top + 227, KOMEGuiTheme.COLOR_TEXT);
-            fontRendererObj.drawString("Military: 48/96 items of Lembas", left + 28, top + 239, KOMEGuiTheme.COLOR_TEXT);
-            fontRendererObj.drawString("Trade: awaiting acceptance", left + 28, top + 251, KOMEGuiTheme.COLOR_WARN);
+            fontRendererObj.drawString("Stage 4: 48/96 Royal Provision Crates", left + 28, top + 227, KOMEGuiTheme.COLOR_TEXT);
+            fontRendererObj.drawString("Fixed milestone: qualifying deployment not yet recorded", left + 28, top + 242, KOMEGuiTheme.COLOR_WARN);
             KOMEGuiTheme.drawSubPanel(left + 18, top + 260, 584, 52);
             fontRendererObj.drawString("Deposit Goods", left + 28, top + 268, KOMEGuiTheme.COLOR_GOLD);
             fontRendererObj.drawString("Place required goods into the authoritative ledger slots.", left + 28, top + 282, KOMEGuiTheme.COLOR_TEXT_MUTED);

@@ -123,12 +123,14 @@ public final class KOMEAllianceProgressionService {
         String partner = KOMEAlliance.normalizeFactionKey(partnerFaction);
         KOMEAllianceStageProgress progress = alliance.getStageProgress(progressing);
         KOMEConquestTile tile = data.conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
-        if (progress == null || progress.stage != 3 || company.units.isEmpty()
+        if (progress == null || progress.stage != 3 || !hasValidLivingUnit(data, company, progressing)
                 || !progressing.equals(KOMEAlliance.normalizeFactionKey(company.faction))
+                || company.owner == null
+                || !progressing.equals(KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(company.owner)))
                 || tile == null || !partner.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))
                 || !war.sameSide(progressing, partner) || !war.isDefendingFaction(partner)
                 || progress.claimedAtMillis[3] <= 0L
-                || war.activeMembershipAddedAt(progressing) < progress.claimedAtMillis[3]) {
+                || war.activeMembershipAddedAt(progressing) <= progress.claimedAtMillis[3]) {
             return false;
         }
         progress.qualifyingWarId = war.id;
@@ -158,7 +160,7 @@ public final class KOMEAllianceProgressionService {
                             || !war.sameSide(actor, partner)) continue;
                     for (KOMEArmyCompany company : data.armyCompanies.values()) {
                         if (company == null || !actor.equals(KOMEAlliance.normalizeFactionKey(company.faction))
-                                || company.units.isEmpty()) continue;
+                                || !hasValidLivingUnit(data, company, actor)) continue;
                         if (recordQualifyingWarDeployment(data, alliance, actor, partner, company, war,
                                 company.currentTile, nowMillis)) {
                             changed = true;
@@ -170,18 +172,18 @@ public final class KOMEAllianceProgressionService {
         return changed;
     }
 
-    /** No active system uses the retired track-specific completion model. */
-    public static boolean activityComplete(KOMEWorldData data, KOMEAlliance alliance, String faction,
-            String type, int tier) {
-        return true;
-    }
-
-    public static boolean recomputeFactionTiers(KOMEAlliance alliance, String type, long worldTime) {
-        return false;
-    }
-
-    @Deprecated
-    public static boolean recomputeSharedTier(KOMEAlliance alliance, String type, long worldTime) {
+    private static boolean hasValidLivingUnit(KOMEWorldData data, KOMEArmyCompany company, String faction) {
+        if (data == null || company == null || company.owner == null) return false;
+        String expectedFaction = KOMEAlliance.normalizeFactionKey(faction);
+        for (java.util.UUID unitId : company.units) {
+            KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
+            if (record != null && !record.populationReturned && !record.farmhand
+                    && record.type == KOMEPopulationType.OFFENSIVE
+                    && company.owner.equals(record.owner)
+                    && expectedFaction.equals(KOMEAlliance.normalizeFactionKey(record.unitFaction))) {
+                return true;
+            }
+        }
         return false;
     }
 

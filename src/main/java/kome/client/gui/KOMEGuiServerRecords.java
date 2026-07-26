@@ -372,7 +372,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         cursorY = drawCoalitionCard(war.sideOneName, war.sideOneFactions, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawCoalitionCard(war.sideTwoName, war.sideTwoFactions, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Coalition Membership Provenance", war.memberships, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
-        cursorY = drawInfoCard("Automatic Military T3 Support", war.supportEnrollments, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        cursorY = drawInfoCard("Automatic Stage 4 Support", war.supportEnrollments, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Latest Tile Event", war.latestCapture, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Tile-capture History", war.captureHistory, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Supporting Coordinators", war.coordinators, x + 12, cursorY + 8, width - 24, mouseX, mouseY);

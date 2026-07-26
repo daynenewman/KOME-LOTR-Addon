@@ -57,6 +57,7 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
     private int optionIndex;
     private String selectedPair = "";
     private int contentHeight;
+    private boolean visualConfirmation;
 
     public static void update(List lines) {
         List<Relationship> nextRelationships = new ArrayList<Relationship>();
@@ -108,8 +109,20 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
         panelY = (height - panelH) / 2;
         super.initGui();
         buttonMenuReturn = null;
-        requestData();
+        if (!Boolean.getBoolean("kome.guiCapture") || mc.thePlayer != null) requestData();
         configureButtons();
+        if (visualConfirmation && selected() != null) {
+            confirmation.show("Break Alliance",
+                "Both directional stages and active requirements will be erased. Existing Stage 2 merchant-slot entitlements remain unique and persistent.",
+                "Break Alliance");
+        }
+    }
+
+    public void setVisualTestState(int requestedMode, int requestedTab, String pair, boolean confirmBreak) {
+        mode = clamp(requestedMode, 0, 2);
+        tab = clamp(requestedTab, 0, 3);
+        selectedPair = pair == null ? "" : pair;
+        visualConfirmation = confirmBreak;
     }
 
     private void refreshAfterPacket() {

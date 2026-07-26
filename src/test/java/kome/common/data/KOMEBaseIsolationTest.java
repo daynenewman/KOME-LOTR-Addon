@@ -43,11 +43,11 @@ public class KOMEBaseIsolationTest {
         assertFalse(Files.exists(main.resolve("kome/client/gui/KOMEGuiAllianceProduction.java")));
 
         String allianceCommand = read(main.resolve("kome/common/command/KOMECommandAlliance.java"));
-        String allianceDetail = read(main.resolve("kome/client/gui/KOMEGuiAllianceDetail.java"));
+        String allianceGui = read(main.resolve("kome/client/gui/KOMEGuiAllianceUnified.java"));
         String worldData = read(main.resolve("kome/common/data/KOMEWorldData.java"));
         assertFalse(allianceCommand.contains("/alliance production"));
         assertFalse(allianceCommand.contains("tradeProduceSlots"));
-        assertFalse(allianceDetail.contains("Production"));
+        assertFalse(allianceGui.contains("Production"));
         assertTrue(worldData.contains("nbt.removeTag(\"AllianceProduceSlots\")"));
         assertTrue(worldData.contains("nbt.removeTag(\"TradeProduceSlotsMaximum\")"));
         assertFalse(worldData.contains("nbt.setTag(\"AllianceProduceSlots\""));
@@ -74,8 +74,7 @@ public class KOMEBaseIsolationTest {
         String actionPacket = read(main.resolve("kome/common/network/KOMEPacketAllianceAction.java"));
         String troopPacket = read(main.resolve("kome/common/network/KOMEPacketTroopGuiAction.java"));
         String recordBuilder = read(main.resolve("kome/common/data/KOMEAllianceRecordBuilder.java"));
-        String allianceGui = read(main.resolve("kome/client/gui/KOMEGuiAlliance.java"));
-        String allianceDetail = read(main.resolve("kome/client/gui/KOMEGuiAllianceDetail.java"));
+        String allianceGui = read(main.resolve("kome/client/gui/KOMEGuiAllianceUnified.java"));
         assertTrue(warCommand.contains("list [active|ending|ended|all]"));
         assertTrue(warCommand.contains("\"ending\".equals(filter) && !war.isEnding()"));
         assertTrue(packetHandler.contains("KOMEPacketAllianceAction.Handler.class"));
@@ -83,12 +82,14 @@ public class KOMEBaseIsolationTest {
         assertTrue(actionPacket.contains("new KOMECommandAlliance().processCommand(player, command)"));
         assertTrue(actionPacket.contains("KOMEAllianceRecordBuilder.build(data, player)"));
         assertTrue(actionPacket.contains("new KOMECommandTroops().processCommand(player, new String[] {\"companies\"})"));
-        assertTrue(recordBuilder.contains("MILITARY_CONTEXT\\t"));
-        assertTrue(recordBuilder.contains("MILITARY_COMPANY\\t"));
-        assertTrue(allianceGui.contains("\"TRACK\".equals(parts[0])"));
-        assertTrue(allianceGui.contains("\"MILITARY_CONTEXT\".equals(parts[0])"));
-        assertTrue(allianceDetail.contains("new KOMEPacketMovementHistoryRequest"));
-        assertFalse(allianceDetail.contains("sendChat(\"/troops"));
+        assertTrue(recordBuilder.contains("STAGE_RELATION\\t"));
+        assertTrue(recordBuilder.contains("REQUEST_OPTION_V2\\t"));
+        assertFalse(recordBuilder.contains("MILITARY_CONTEXT\\t"));
+        assertFalse(recordBuilder.contains("MILITARY_COMPANY\\t"));
+        assertTrue(allianceGui.contains("\"STAGE_RELATION\".equals(parts[0])"));
+        assertTrue(allianceGui.contains("\"REQUEST_OPTION_V2\".equals(parts[0])"));
+        assertTrue(allianceGui.contains("KOMEGuiConfirmation"));
+        assertFalse(allianceGui.contains("sendChat(\"/troops"));
         assertTrue(troopPacket.contains("Unknown troop GUI action"));
         assertTrue(troopPacket.contains("Troop action rejected:"));
     }

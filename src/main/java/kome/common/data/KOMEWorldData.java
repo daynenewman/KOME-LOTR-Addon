@@ -30,7 +30,6 @@ public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
-    public static final int MILITARY_PASSAGE_TIER = 2;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
     public static final int BUILD_DATA_SCHEMA_VERSION = 1;
     public static final int POPULATION_DATA_SCHEMA_VERSION = 2;
@@ -61,7 +60,6 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<String, Integer> allianceQuotaWeightOverrides = new HashMap<String, Integer>();
     public final Map<String, Integer> allianceQuotaMaximumOverrides = new HashMap<String, Integer>();
     public final Map<String, Boolean> allianceQuotaEnabledOverrides = new HashMap<String, Boolean>();
-    public final Set<UUID> waypointRestrictionBypasses = new HashSet<UUID>();
     public final List<String> allianceAdminAudit = new ArrayList<String>();
     public final List<NBTTagCompound> quarantinedAllianceRecords = new ArrayList<NBTTagCompound>();
     public final Map<String, KOMEArmyMovementOrder> armyMovements = new HashMap<>();
@@ -82,13 +80,6 @@ public class KOMEWorldData extends WorldSavedData {
     public int buildPopulationPerHalfHour = KOMEBuildPopulationService.DEFAULT_POPULATION_PER_HALF_HOUR;
     public int allianceStageThreeRequiredHalfHours = KOMEBuildPopulationService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
     public String allianceDifficulty = KOMEAllianceRequirements.STANDARD;
-    /**
-     * Retained only for wire/save compatibility with schema 5-6 clients.  KOME no longer gates
-     * LOTR waypoint travel by alliance or conquest ownership and this value is always false.
-     */
-    public boolean waypointRestrictionEnabled = false;
-    public long successionGraceDefaultMillis = KOMEAllianceAuthority.FOURTEEN_DAYS_MILLIS;
-    public long contributionGraceDefaultMillis = KOMEAllianceAuthority.FOURTEEN_DAYS_MILLIS;
     public static final int MAX_MOVEMENT_HISTORY_PER_FACTION = 250;
     private boolean conquestDefaultsInitialized;
     private boolean allianceRelationsNeedReapply;
@@ -196,19 +187,6 @@ public class KOMEWorldData extends WorldSavedData {
 
     public int getFactionEffectiveOffensiveCapacity(String faction) {
         return Math.max(0, getFactionEffectivePopulationSummary(faction).offensiveTotal);
-    }
-
-    public boolean hasWaypointRestrictionBypass(UUID playerId) {
-        return playerId != null && waypointRestrictionBypasses.contains(playerId);
-    }
-
-    public void setWaypointRestrictionBypass(UUID playerId, boolean enabled) {
-        if (playerId == null) {
-            return;
-        }
-        if (enabled ? waypointRestrictionBypasses.add(playerId) : waypointRestrictionBypasses.remove(playerId)) {
-            markDirty();
-        }
     }
 
     public void recordAllianceAdminAction(String actor, String action) {
@@ -1526,11 +1504,6 @@ public class KOMEWorldData extends WorldSavedData {
         return alliance;
     }
 
-    public int getAllianceTier(String type, String factionA, String factionB) {
-        KOMEAlliance alliance = getAlliance(factionA, factionB, false);
-        return alliance == null ? -1 : alliance.getFactionTier(factionA, KOMEAlliance.normalizeType(type));
-    }
-
     public boolean hasProduceMerchantSlot(String faction, String partnerFaction) {
         KOMEAlliance alliance = getAlliance(faction, partnerFaction, false);
         return alliance != null && alliance.hasProduceMerchantSlot(faction);
@@ -1762,64 +1735,6 @@ public class KOMEWorldData extends WorldSavedData {
         // Schema 7 deliberately has no king-loss or contribution grace lifecycle.  Losing or
         // gaining a king preserves every directional stage and unlocked benefit.
         return false;
-    }
-
-    private void downgradeToCompletedTiers(KOMEAlliance alliance, String faction, long worldTime) {
-        KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(faction);
-        if (ledger == null) {
-            return;
-        }
-        String[] types = new String[] {KOMEAlliance.CIVIL, KOMEAlliance.TRADE, KOMEAlliance.MILITARY};
-        for (int i = 0; i < types.length; i++) {
-            String type = types[i];
-            if (!alliance.hasAccepted(type)) {
-                continue;
-            }
-            int completed = Math.max(0, Math.min(KOMEAlliance.maxTier(type), ledger.getCompletedTier(type)));
-            if (completed < alliance.getFactionTier(faction, type)) {
-                alliance.setFactionTier(faction, type, completed, "Contribution grace expired", worldTime);
-            }
-        }
-    }
-
-    void expireContributionSide(KOMEAlliance alliance, String affectedFaction, long worldTime) {
-        KOMEAllianceFactionLedger ledger = KOMEAllianceGraceService.requireLedger(alliance, affectedFaction);
-        ledger.clearContributionGrace();
-        downgradeToCompletedTiers(alliance, affectedFaction, worldTime);
-        KOMECommandAlliance.syncRelationsForAlliancePair(this, alliance.factionA, alliance.factionB);
-        markDirty();
-    }
-
-    private void capAllianceAfterSuccession(KOMEAlliance alliance, String kinglessFaction, long worldTime) {
-        String otherFaction = alliance.getOtherFaction(kinglessFaction);
-        lotr.common.fac.LOTRFactionRelations.Relation relation = KOMEAllianceAuthority.getDefaultRelation(kinglessFaction, otherFaction);
-        applySuccessionRelationCap(alliance, relation, worldTime);
-        KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(kinglessFaction);
-        if (ledger != null && alliance.hasAnyAcceptedAlliance()) {
-            ledger.kinglessWaived = true;
-        }
-    }
-
-    static void applySuccessionRelationCap(KOMEAlliance alliance,
-            lotr.common.fac.LOTRFactionRelations.Relation relation, long worldTime) {
-        if (alliance == null) {
-            return;
-        }
-        if (relation == lotr.common.fac.LOTRFactionRelations.Relation.FRIEND) {
-            alliance.breakTrack(KOMEAlliance.MILITARY, "Succession expired: default Friend cap", worldTime);
-        } else if (relation == lotr.common.fac.LOTRFactionRelations.Relation.NEUTRAL) {
-            alliance.breakTrack(KOMEAlliance.TRADE, "Succession expired: default Neutral cap", worldTime);
-        } else if (relation != lotr.common.fac.LOTRFactionRelations.Relation.ALLY) {
-            alliance.clearAllTracks("Succession expired: hostile default relation", worldTime);
-        }
-    }
-
-    void expireSuccessionSide(KOMEAlliance alliance, String affectedFaction, long worldTime) {
-        KOMEAllianceFactionLedger ledger = KOMEAllianceGraceService.requireLedger(alliance, affectedFaction);
-        capAllianceAfterSuccession(alliance, ledger.faction, worldTime);
-        ledger.clearSuccession();
-        KOMECommandAlliance.syncRelationsForAlliancePair(this, alliance.factionA, alliance.factionB);
-        markDirty();
     }
 
     public int getFactionFarmerPop(String factionKey) {
@@ -2398,7 +2313,6 @@ public class KOMEWorldData extends WorldSavedData {
         allianceQuotaWeightOverrides.clear();
         allianceQuotaMaximumOverrides.clear();
         allianceQuotaEnabledOverrides.clear();
-        waypointRestrictionBypasses.clear();
         allianceAdminAudit.clear();
         quarantinedAllianceRecords.clear();
         armyMovements.clear();
@@ -2422,11 +2336,6 @@ public class KOMEWorldData extends WorldSavedData {
             ? Math.max(1, nbt.getInteger("AllianceStageThreeRequiredHalfHours"))
             : KOMEBuildPopulationService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
         allianceDifficulty = KOMEAllianceRequirements.normalizeDifficulty(nbt.getString("AllianceDifficulty"));
-        waypointRestrictionEnabled = false;
-        successionGraceDefaultMillis = nbt.hasKey("SuccessionGraceDefaultMillis")
-            ? Math.max(1000L, nbt.getLong("SuccessionGraceDefaultMillis")) : KOMEAllianceAuthority.FOURTEEN_DAYS_MILLIS;
-        contributionGraceDefaultMillis = nbt.hasKey("ContributionGraceDefaultMillis")
-            ? Math.max(1000L, nbt.getLong("ContributionGraceDefaultMillis")) : KOMEAllianceAuthority.FOURTEEN_DAYS_MILLIS;
         NBTTagList requirementConfig = nbt.getTagList("AllianceRequirementOverrides", 10);
         for (int i = 0; i < requirementConfig.tagCount(); i++) {
             NBTTagCompound entry = requirementConfig.getCompoundTagAt(i);
@@ -2450,13 +2359,6 @@ public class KOMEWorldData extends WorldSavedData {
             }
             if (entry.hasKey("Enabled")) {
                 allianceQuotaEnabledOverrides.put(key, Boolean.valueOf(entry.getBoolean("Enabled")));
-            }
-        }
-        NBTTagList bypassList = nbt.getTagList("WaypointRestrictionBypasses", 10);
-        for (int i = 0; i < bypassList.tagCount(); i++) {
-            try {
-                waypointRestrictionBypasses.add(UUID.fromString(bypassList.getCompoundTagAt(i).getString("Player")));
-            } catch (IllegalArgumentException ignored) {
             }
         }
         NBTTagList adminAuditList = nbt.getTagList("AllianceAdminAudit", 10);
@@ -2843,9 +2745,6 @@ public class KOMEWorldData extends WorldSavedData {
                     String faction = pairFactions[i];
                     KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(faction);
                     if (ledger != null) {
-                        ledger.kinglessWaived = false;
-                        ledger.clearContributionGrace();
-                        ledger.clearSuccession();
                         int legacyTrades = Math.max(ledger.getDelivered("civil.trade"), ledger.getDelivered("trade.trade"));
                         if (legacyTrades > ledger.getDelivered(KOMEAllianceProgressionService.ALLIED_TRADES)) {
                             ledger.setDelivered(KOMEAllianceProgressionService.ALLIED_TRADES, legacyTrades);
@@ -3113,12 +3012,6 @@ public class KOMEWorldData extends WorldSavedData {
         return changed;
     }
 
-    private boolean hasMissingAllianceContributions(KOMEAlliance alliance, KOMEAllianceFactionLedger ledger) {
-        return alliance.hasAccepted(KOMEAlliance.CIVIL) && ledger.getCompletedTier(KOMEAlliance.CIVIL) < alliance.getFactionTier(ledger.faction, KOMEAlliance.CIVIL)
-            || alliance.hasAccepted(KOMEAlliance.TRADE) && ledger.getCompletedTier(KOMEAlliance.TRADE) < alliance.getFactionTier(ledger.faction, KOMEAlliance.TRADE)
-            || alliance.hasAccepted(KOMEAlliance.MILITARY) && ledger.getCompletedTier(KOMEAlliance.MILITARY) < alliance.getFactionTier(ledger.faction, KOMEAlliance.MILITARY);
-    }
-
     @Override
     public void writeToNBT(NBTTagCompound nbt) {
         nbt.removeTag("TradeProduceSlotsMaximum");
@@ -3137,9 +3030,10 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.setInteger("BuildPopulationPerHalfHour", Math.max(1, buildPopulationPerHalfHour));
         nbt.setInteger("AllianceStageThreeRequiredHalfHours", Math.max(1, allianceStageThreeRequiredHalfHours));
         nbt.setString("AllianceDifficulty", KOMEAllianceRequirements.normalizeDifficulty(allianceDifficulty));
-        nbt.setBoolean("WaypointRestrictionEnabled", false);
-        nbt.setLong("SuccessionGraceDefaultMillis", Math.max(1000L, successionGraceDefaultMillis));
-        nbt.setLong("ContributionGraceDefaultMillis", Math.max(1000L, contributionGraceDefaultMillis));
+        nbt.removeTag("WaypointRestrictionEnabled");
+        nbt.removeTag("WaypointRestrictionBypasses");
+        nbt.removeTag("SuccessionGraceDefaultMillis");
+        nbt.removeTag("ContributionGraceDefaultMillis");
         NBTTagList requirementConfig = new NBTTagList();
         for (Map.Entry<String, Integer> entry : allianceRequirementOverrides.entrySet()) {
             if (entry.getKey() != null && entry.getKey().length() > 0 && entry.getValue() != null) {
@@ -3176,15 +3070,6 @@ public class KOMEWorldData extends WorldSavedData {
             quotaItemConfig.appendTag(value);
         }
         nbt.setTag("AllianceQuotaItemOverrides", quotaItemConfig);
-        NBTTagList bypassList = new NBTTagList();
-        for (UUID playerId : waypointRestrictionBypasses) {
-            if (playerId != null) {
-                NBTTagCompound value = new NBTTagCompound();
-                value.setString("Player", playerId.toString());
-                bypassList.appendTag(value);
-            }
-        }
-        nbt.setTag("WaypointRestrictionBypasses", bypassList);
         NBTTagList adminAuditList = new NBTTagList();
         for (String entry : allianceAdminAudit) {
             if (entry != null && entry.length() > 0) {

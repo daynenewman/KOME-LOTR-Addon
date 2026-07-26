@@ -47,8 +47,7 @@ public final class KOMEWaypointAccessService {
         boolean operator = KOMEReflection.isRemote(player.worldObj)
             ? KOMEClientData.INSTANCE.clientViewerIsAdmin : player.canCommandSenderUseCommand(2, "alliance");
         UUID playerId = KOMEReflection.getEntityUUID(player);
-        boolean clientBypass = KOMEReflection.isRemote(player.worldObj) && KOMEClientData.INSTANCE.clientWaypointBypass;
-        return evaluate(data, playerId, faction, operator || clientBypass, waypoint, nativeEligible);
+        return evaluate(data, playerId, faction, operator, waypoint, nativeEligible);
     }
 
     /** Native progression without the original waypoint-faction alignment gate. */

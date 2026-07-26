@@ -4,9 +4,7 @@ import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.network.FMLNetworkEvent;
 import kome.client.gui.KOMEGuiConquestCapture;
-import kome.client.gui.KOMEGuiAlliance;
 import kome.client.gui.KOMEGuiAllianceUnified;
-import kome.client.gui.KOMEGuiAllianceDetail;
 import kome.client.gui.KOMEGuiLordMenu;
 import kome.client.gui.KOMEGuiPopulation;
 import kome.client.gui.KOMEGuiProgression;
@@ -16,7 +14,6 @@ import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEAlliance;
 import lotr.client.gui.LOTRGuiMap;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.client.event.ClientChatReceivedEvent;
 
 import java.util.List;
 
@@ -53,18 +50,9 @@ public class KOMEClientProxy extends KOMECommonProxy {
         resetClientSessionState();
     }
 
-    @SubscribeEvent
-    public void onClientChat(ClientChatReceivedEvent event) {
-        if (event != null && event.message != null
-                && KOMEMinecraftClient.currentScreen() instanceof KOMEGuiAllianceDetail) {
-            KOMEGuiAlliance.setServerMessage(event.message.getUnformattedText());
-        }
-    }
-
     private void resetClientSessionState() {
         KOMEClientData.INSTANCE.resetClientState();
         KOMEQuotaLedgerOverlay.reset();
-        KOMEGuiAlliance.resetData();
         KOMEGuiAllianceUnified.resetData();
         KOMEGuiProgression.resetData();
         KOMEGuiServerRecords.resetData();
@@ -201,7 +189,6 @@ public class KOMEClientProxy extends KOMECommonProxy {
     @Override
     public void updateAllianceData(List lines) {
         updateClientAllianceCache(lines);
-        KOMEGuiAlliance.update(lines);
         KOMEGuiAllianceUnified.update(lines);
     }
 
@@ -225,14 +212,6 @@ public class KOMEClientProxy extends KOMECommonProxy {
         }
         for (Object value : lines) {
             String[] parts = String.valueOf(value).split("\t", -1);
-            if (parts.length >= 7 && "CONFIG".equals(parts[0])) {
-                KOMEClientData.INSTANCE.allianceDifficulty = parts[1];
-                KOMEClientData.INSTANCE.waypointRestrictionEnabled = "1".equals(parts[3]);
-                KOMEClientData.INSTANCE.clientWaypointBypass = "1".equals(parts[4]);
-                KOMEClientData.INSTANCE.successionGraceDefaultMillis = parseLong(parts[5]);
-                KOMEClientData.INSTANCE.contributionGraceDefaultMillis = parseLong(parts[6]);
-                continue;
-            }
             if (parts.length >= 6 && "REQUIREMENT".equals(parts[0])) {
                 int tier = parseTier(parts[2]);
                 KOMEClientData.INSTANCE.allianceRequirementOverrides.put(
@@ -252,17 +231,6 @@ public class KOMEClientProxy extends KOMECommonProxy {
                 KOMEClientData.INSTANCE.alliances.put(alliance.getPairKey(), alliance);
                 continue;
             }
-            if (parts.length < 8 || !"ALLIANCE".equals(parts[0])) {
-                continue;
-            }
-            if (KOMEClientData.INSTANCE.alliances.containsKey(KOMEAlliance.pairKey(parts[1], parts[2]))) {
-                continue;
-            }
-            KOMEAlliance alliance = new KOMEAlliance(parts[1], parts[2]);
-            alliance.setTier(KOMEAlliance.CIVIL, parseTier(parts[5]), "server", 0L);
-            alliance.setTier(KOMEAlliance.MILITARY, parseTier(parts[6]), "server", 0L);
-            alliance.setTier(KOMEAlliance.TRADE, parseTier(parts[7]), "server", 0L);
-            KOMEClientData.INSTANCE.alliances.put(alliance.getPairKey(), alliance);
         }
     }
 
@@ -271,14 +239,6 @@ public class KOMEClientProxy extends KOMECommonProxy {
             return Integer.parseInt(value);
         } catch (NumberFormatException e) {
             return KOMEAlliance.NONE;
-        }
-    }
-
-    private long parseLong(String value) {
-        try {
-            return Long.parseLong(value);
-        } catch (NumberFormatException e) {
-            return 0L;
         }
     }
 

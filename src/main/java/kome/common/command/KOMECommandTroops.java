@@ -1117,7 +1117,7 @@ public class KOMECommandTroops extends CommandBase {
         String action = args[2].toLowerCase(java.util.Locale.ROOT);
         if (!admin && company.isTemporarilyControlledBy(actor) && !actor.equals(company.owner)
                 && !KOMEAllianceTemporaryCommandPolicy.allows(action)) {
-            throw new WrongUsageException("Temporary Military T3 command permits only View, Dispatch, Continue, Halt, Stay, Retreat, and Resume; structural and owner-only administration is forbidden.");
+            throw new WrongUsageException("Temporary Stage 4 command permits only View, Dispatch, Continue, Halt, Stay, Retreat, and Resume; structural and owner-only administration is forbidden.");
         }
         if ("tendency".equals(action)) {
             if (args.length != 4 || !admin && !actor.equals(company.owner)) {
@@ -1895,11 +1895,11 @@ public class KOMECommandTroops extends CommandBase {
         if (safeIndex < 0) {
             if (company != null && company.stewardshipCreated) {
                 company.withdrawalState = KOMEArmyCompany.CLEANUP_ADMIN;
-                order.pendingSpawnReason = "No safe native or Military T2 staging tile exists on the actual traveled route";
+                order.pendingSpawnReason = "No safe native or Stage 3 passage tile exists on the actual traveled route";
                 order.accessLossReason = order.pendingSpawnReason;
                 data.markDirty();
             }
-            throw new WrongUsageException("No safe native or Military T2 staging tile exists on the company's actual traveled route. The halted company is preserved for admin resolution.");
+            throw new WrongUsageException("No safe native or Stage 3 passage tile exists on the company's actual traveled route. The halted company is preserved for admin resolution.");
         }
         order.routeTiles.clear();
         for (int i = currentIndex; i >= safeIndex; i--) {
@@ -2353,8 +2353,7 @@ public class KOMECommandTroops extends CommandBase {
             return route.failureReason;
         }
         return "No legal route to this tile. Destination is not reachable through your claimed "
-            + displayFaction(company.faction) + " tiles or allied Military T"
-            + KOMEWorldData.MILITARY_PASSAGE_TIER + "+ passage tiles.";
+            + displayFaction(company.faction) + " tiles or partner tiles unlocked by Stage 3 passage.";
     }
 
     private List<RouteBlocker> sortedRouteBlockers(RouteResult route) {
@@ -2910,7 +2909,7 @@ public class KOMECommandTroops extends CommandBase {
     }
 
     private static void reconcileTemporaryControllers(KOMEWorldData data, long nowMillis) {
-        reconcileTemporaryControllers(data, nowMillis, "Military Tier 3 temporary command is no longer valid");
+        reconcileTemporaryControllers(data, nowMillis, "Stage 4 temporary command is no longer valid");
     }
 
     private static void reconcileTemporaryControllers(KOMEWorldData data, long nowMillis, String reason) {
@@ -2927,11 +2926,11 @@ public class KOMECommandTroops extends CommandBase {
             if (controllerFaction.length() > 0
                     && new KOMEAllianceAuthority(data).canControlTemporaryCompany(company, company.temporaryController).allowed) {
                 if (KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) KOMEWartimeStewardshipService.authorizeCompany(data, company, controllerFaction,
-                    "Active same-side war, pledged supporting king, and Military T3 revalidated", nowMillis);
+                    "Active same-side war, pledged supporting king, and Stage 4 revalidated", nowMillis);
                 continue;
             }
             String revocation = reason == null || reason.length() == 0
-                ? "Military Tier 3 temporary command is no longer valid" : reason;
+                ? "Stage 4 temporary command is no longer valid" : reason;
             if (KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) {
                 KOMEWartimeStewardshipService.revalidateCompany(data, company, nowMillis, revocation);
             } else {
@@ -4078,9 +4077,9 @@ public class KOMECommandTroops extends CommandBase {
                 throw new WrongUsageException("Wartime Stewardship is no longer authorized; this company is halted for withdrawal/demobilization.");
             }
         } else if (temporary && !new KOMEAllianceAuthority(data).canVoluntarilyDelegate(companyFaction, playerFaction)) {
-            company.clearTemporaryController("Military Tier 3 voluntary delegation is no longer valid");
+            company.clearTemporaryController("Stage 4 voluntary delegation is no longer valid");
             data.markDirty();
-            throw new WrongUsageException("Temporary command expired because voluntary Military Tier 3 delegation is no longer active.");
+            throw new WrongUsageException("Temporary command expired because voluntary Stage 4 delegation is no longer active.");
         }
         if (company.isMoving()) {
             throw new WrongUsageException(company.name + " is already moving.");
@@ -4114,8 +4113,7 @@ public class KOMECommandTroops extends CommandBase {
             if (!KOMEWartimeStewardshipService.canEnter(data, company, owner, false)) {
                 route.valid = false;
                 route.failureReason = "Wartime Stewardship cannot enter " + tileId + " ("
-                    + displayFaction(owner) + "). Legal territory is native land, Military T"
-                    + KOMEWorldData.MILITARY_PASSAGE_TIER + " passage, or an opposing side of an authorized active war.";
+                    + displayFaction(owner) + "). Legal territory is native land, Stage 3 partner passage, or an opposing side of an authorized active war.";
                 return;
             }
         }
@@ -4274,7 +4272,7 @@ public class KOMECommandTroops extends CommandBase {
         }
         throw new WrongUsageException(role + " tile " + normalizedTile + " is owned by " + displayFaction(owner)
             + " (" + emptyKey(owner) + "), and " + displayFaction(companyFaction) + " (" + emptyKey(companyFaction)
-            + ") has no Military T" + KOMEWorldData.MILITARY_PASSAGE_TIER + " passage there.");
+            + ") has no Stage 3 passage there.");
     }
 
     private String companyStandBlockReason(KOMEWorldData data, KOMEArmyCompany company, String tileId) {
@@ -4291,8 +4289,7 @@ public class KOMECommandTroops extends CommandBase {
         if (owner.equals(companyFaction) || data.canFactionUseMilitaryPassage(companyFaction, owner)) {
             return "";
         }
-        return displayFaction(companyFaction) + " has no Military T" + KOMEWorldData.MILITARY_PASSAGE_TIER
-            + " passage through " + displayFaction(owner);
+        return displayFaction(companyFaction) + " has no Stage 3 passage through " + displayFaction(owner);
     }
 
     private static void refreshCompany(KOMEWorldData data, KOMEArmyCompany company) {
@@ -4402,7 +4399,7 @@ public class KOMECommandTroops extends CommandBase {
                 && (company == null || !KOMEWartimeStewardshipService.canEnter(data, company, originOwner, false))) {
             result.failureReason = "Origin tile " + start + " is owned by " + displayFaction(originOwner)
                 + " (" + emptyKey(originOwner) + "), but moving faction is " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") and has no Military T" + KOMEWorldData.MILITARY_PASSAGE_TIER + " passage there.";
+                + " (" + emptyKey(faction) + ") and has no directional Stage 3 passage there.";
             return result;
         }
         String destinationBlock = routeTileBlockReason(data, goal, faction, true, company);
@@ -4531,8 +4528,7 @@ public class KOMECommandTroops extends CommandBase {
         StringBuilder message = new StringBuilder();
         message.append("No legal route from ").append(start).append(" to ").append(goal).append(".");
         message.append(" Destination ").append(goal).append(" was not reachable through claimed ")
-            .append(displayFaction(faction)).append(" tiles or allied Military T")
-            .append(KOMEWorldData.MILITARY_PASSAGE_TIER).append("+ passage tiles.");
+            .append(displayFaction(faction)).append(" tiles or partner tiles unlocked by Stage 3 passage.");
         if (visited == null || visited.size() <= 1) {
             message.append(" The origin has no legal outgoing route steps.");
         }
@@ -4606,7 +4602,7 @@ public class KOMECommandTroops extends CommandBase {
         if (destination) {
             return "Enemy tile attack movement is not implemented yet. Destination tile " + tileKey + " is owned by "
                 + displayFaction(owner) + " (" + emptyKey(owner) + "), and " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") has no Military T" + KOMEWorldData.MILITARY_PASSAGE_TIER + " passage.";
+                + " (" + emptyKey(faction) + ") has no Stage 3 passage.";
         }
         return "Tile " + tileKey + " is controlled by " + displayFaction(owner) + " and no military passage permission exists.";
     }
