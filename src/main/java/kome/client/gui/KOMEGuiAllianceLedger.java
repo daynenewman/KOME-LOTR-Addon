@@ -100,7 +100,7 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
             return;
         }
         if (button.id == ID_BACK) {
-            mc.displayGuiScreen(new KOMEGuiAlliance());
+            mc.displayGuiScreen(new KOMEGuiAllianceUnified());
         } else if (button.id == ID_SWITCH) {
             String sender = KOMEQuotaLedgerOverlay.getSwitchSenderKey();
             String receiver = KOMEQuotaLedgerOverlay.getSwitchReceiverKey();
@@ -173,8 +173,8 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
         if (progress.isEmpty()) {
             int cardW = xSize - MARGIN * 2;
             KOMEGuiTheme.drawCard(x, y, cardW, PROGRESS_HEIGHT, false);
-            fontRendererObj.drawString("Alliance Types", x + CARD_PADDING, y + 8, KOMEGuiTheme.COLOR_BORDER_RED);
-            KOMEGuiTheme.drawWrappedText(fontRendererObj, "No alliance types are active or pending for this relationship.", x + CARD_PADDING, y + 26, cardW - CARD_PADDING * 2, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            fontRendererObj.drawString("Directional Stage", x + CARD_PADDING, y + 8, KOMEGuiTheme.COLOR_BORDER_RED);
+            KOMEGuiTheme.drawWrappedText(fontRendererObj, "No active next-stage ledger exists for this relationship.", x + CARD_PADDING, y + 26, cardW - CARD_PADDING * 2, KOMEGuiTheme.COLOR_TEXT_MUTED);
             return;
         }
         int count = progress.size();
@@ -259,7 +259,7 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
     private KOMEGuiTheme.Status ledgerStatus(String status) {
         String normalized = status == null ? "" : status.toLowerCase();
         if (normalized.indexOf("complete") >= 0 || normalized.indexOf("active") >= 0) return KOMEGuiTheme.Status.ACTIVE;
-        if (normalized.indexOf("pending") >= 0 || normalized.indexOf("grace") >= 0) return KOMEGuiTheme.Status.WARNING;
+        if (normalized.indexOf("pending") >= 0) return KOMEGuiTheme.Status.WARNING;
         if (normalized.indexOf("suspend") >= 0 || normalized.indexOf("denied") >= 0) return KOMEGuiTheme.Status.DENIED;
         return KOMEGuiTheme.Status.LOCKED;
     }
@@ -345,14 +345,10 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
 
     private List visibleQuotaLines() {
         List lines = new ArrayList();
-        if (hasVisibleType("Civil")) {
-            lines.add(quotaLine("Civil", "Civil"));
-        }
-        if (hasVisibleType("Military")) {
-            lines.add(quotaLine("Military", "Military"));
-        }
-        if (hasVisibleType("Trade")) {
-            lines.add(quotaLine("Trade", "Trade"));
+        List progress = visibleProgressLines();
+        for (Object value : progress) {
+            String type = KOMEQuotaLedgerOverlay.part((String[]) value, 1);
+            if (type.length() > 0) lines.add(quotaLine(type, type));
         }
         return lines;
     }
@@ -362,7 +358,7 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
             return "This is the allied faction's contribution ledger. Switch back to your side to deposit.";
         }
         if (!hasRolledQuota()) {
-            return "No quota is rolled for this side. Return to Alliance Detail, select a track, and use Roll first.";
+            return "No quota is rolled for this side. Return to Alliance Detail and use Roll Requirement first.";
         }
         List progress = visibleProgressLines();
         if (progress.size() == 1) {
@@ -374,9 +370,11 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
     }
 
     private boolean hasRolledQuota() {
-        return KOMEQuotaLedgerOverlay.part(KOMEQuotaLedgerOverlay.getStructuredLine("QUOTA", "Civil"), 2).length() > 0
-            || KOMEQuotaLedgerOverlay.part(KOMEQuotaLedgerOverlay.getStructuredLine("QUOTA", "Military"), 2).length() > 0
-            || KOMEQuotaLedgerOverlay.part(KOMEQuotaLedgerOverlay.getStructuredLine("QUOTA", "Trade"), 2).length() > 0;
+        List quotas = KOMEQuotaLedgerOverlay.getStructuredLines("QUOTA");
+        for (Object value : quotas) {
+            if (KOMEQuotaLedgerOverlay.part((String[]) value, 2).length() > 0) return true;
+        }
+        return false;
     }
 
     private void refreshActionButtons() {

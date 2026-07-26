@@ -439,7 +439,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         int cardHeight = getAlliancesCardHeight(summaries.size());
         KOMEGuiTheme.drawCard(x, y, width, cardHeight,
             KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, cardHeight));
-        drawSummaryHeader("Alliances / Own Tiers",
+        drawSummaryHeader("Directional Alliances",
             KOMEServerRecordPresentation.countLabel(summaries.size(), "Alliance", "Alliances"), x, y, width);
         if (summaries.isEmpty()) {
             fontRendererObj.drawString("No alliances", x + 10, y + 32, KOMEGuiTheme.COLOR_TEXT_MUTED);
@@ -457,9 +457,9 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
                 x + 10, cursorY, KOMEGuiTheme.COLOR_TEXT);
             int trackY = cursorY + 13;
             int trackWidth = (width - 20) / 3;
-            drawAllianceTrack("Civilian", summary.civilian, x + 10, trackY, trackWidth);
-            drawAllianceTrack("Military", summary.military, x + 10 + trackWidth, trackY, trackWidth);
-            drawAllianceTrack("Trade", summary.trade, x + 10 + trackWidth * 2, trackY, width - 20 - trackWidth * 2);
+            drawAllianceTrack("Own", displayStage(summary.stage), x + 10, trackY, trackWidth);
+            drawAllianceTrack("Partner", displayStage(summary.partnerStage), x + 10 + trackWidth, trackY, trackWidth);
+            drawAllianceTrack("Shared", summary.sharedRelation, x + 10 + trackWidth * 2, trackY, width - 20 - trackWidth * 2);
             cursorY += ALLIANCE_ROW_HEIGHT;
         }
         if (summaries.size() > shown) {
@@ -648,6 +648,11 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             return KOMEGuiTheme.COLOR_WARN;
         }
         return KOMEServerRecordPresentation.isUnlockedTier(tier) ? KOMEGuiTheme.COLOR_GOLD : KOMEGuiTheme.COLOR_TEXT_DISABLED;
+    }
+
+    private String displayStage(String value) {
+        if ("Pending".equalsIgnoreCase(value) || "-".equals(value)) return value;
+        return value != null && value.startsWith("Stage ") ? value : "Stage " + value;
     }
 
     private void drawTileBadge(String label, int x, int y, int width) {

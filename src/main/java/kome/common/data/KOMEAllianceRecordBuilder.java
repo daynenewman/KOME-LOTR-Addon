@@ -47,7 +47,7 @@ public class KOMEAllianceRecordBuilder {
 
     public static List build(KOMEWorldData data, EntityPlayer viewer) {
         List lines = new ArrayList();
-        List allianceLines = new ArrayList();
+        List stageLines = new ArrayList();
         String viewerFactionKey = getViewerFactionKey(data, viewer);
         boolean operator = viewer == null || viewer.canCommandSenderUseCommand(2, "alliance");
         boolean operatorView = viewer == null || resolveOperatorView(operator,
@@ -59,10 +59,10 @@ public class KOMEAllianceRecordBuilder {
             if (!includeViewerRecord(operatorView, alliance.involves(viewerFactionKey))) {
                 continue;
             }
-            allianceLines.add(formatAlliance(data, alliance, viewerFactionKey, viewer, operator));
+            stageLines.add(formatStageAlliance(data, alliance, viewerFactionKey, viewer, operator));
         }
-        Collections.sort(allianceLines);
-        lines.add("SUMMARY\t" + allianceLines.size());
+        Collections.sort(stageLines);
+        lines.add("SUMMARY\t" + stageLines.size());
         lines.add("VIEWER\t" + viewerFactionKey + "\t" + getViewerFactionName(data, viewer)
             + "\t" + (isViewerKing(data, viewer, viewerFactionKey) ? "1" : "0")
             + "\t" + (data.hasFactionKing(viewerFactionKey) ? "1" : "0")
@@ -90,57 +90,17 @@ public class KOMEAllianceRecordBuilder {
                     KOMEAllianceAuthority.Decision civil = KOMEAllianceAuthority.decideRequestAlliance(
                         KOMEAlliance.CIVIL, viewerFactionKey, key, viewerFactionKey, viewerKing, senderKing,
                         receiverKing, KOMEAllianceAuthority.getDefaultRelation(viewerFactionKey, key));
-                    KOMEAllianceAuthority.Decision military = KOMEAllianceAuthority.decideRequestAlliance(
-                        KOMEAlliance.MILITARY, viewerFactionKey, key, viewerFactionKey, viewerKing, senderKing,
-                        receiverKing, KOMEAllianceAuthority.getDefaultRelation(viewerFactionKey, key));
-                    KOMEAllianceAuthority.Decision trade = KOMEAllianceAuthority.decideRequestAlliance(
-                        KOMEAlliance.TRADE, viewerFactionKey, key, viewerFactionKey, viewerKing, senderKing,
-                        receiverKing, KOMEAllianceAuthority.getDefaultRelation(viewerFactionKey, key));
-                    lines.add("REQUEST_OPTION\t" + key + "\t" + flag(civil.allowed) + "\t"
-                        + flag(military.allowed) + "\t" + flag(trade.allowed) + "\t" + flag(receiverKing));
+                    lines.add("REQUEST_OPTION_V2\t" + key + "\t" + displayFaction(key) + "\t"
+                        + flag(civil.allowed) + "\t" + flag(receiverKing) + "\t"
+                        + flag(civil.automaticAcceptance) + "\t" + civil.automaticStage + "\t"
+                        + safe(civil.reason));
                 }
                 if (data.hasFactionKing(key) && (operatorView || key.equals(viewerFactionKey) || isVisiblePartner(data, viewerFactionKey, key))) {
                     lines.add("KING\t" + key + "\t" + data.getFactionKingName(key));
                 }
             }
         }
-        lines.addAll(allianceLines);
-        List trackLines = new ArrayList();
-        for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || !alliance.hasAnyAlliance() || !includeViewerRecord(operatorView, alliance.involves(viewerFactionKey))) {
-                continue;
-            }
-            String side = alliance.involves(viewerFactionKey) ? viewerFactionKey : alliance.factionA;
-            String other = alliance.getOtherFaction(side);
-            for (String type : new String[] {KOMEAlliance.CIVIL, KOMEAlliance.TRADE, KOMEAlliance.MILITARY}) {
-                if (alliance.getStatus(type) == KOMEAllianceTrackStatus.NONE) {
-                    continue;
-                }
-                trackLines.add(formatTrack(data, alliance, side, other, type, viewer, operator));
-                trackLines.add(formatTrack(data, alliance, other, side, type, viewer, operator));
-            }
-        }
-        Collections.sort(trackLines);
-        lines.addAll(trackLines);
-        List militaryLines = new ArrayList();
-        for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || alliance.getStatus(KOMEAlliance.MILITARY) == KOMEAllianceTrackStatus.NONE
-                    || !includeViewerRecord(operatorView, alliance.involves(viewerFactionKey))) {
-                continue;
-            }
-            String side = alliance.involves(viewerFactionKey) ? viewerFactionKey : alliance.factionA;
-            String other = alliance.getOtherFaction(side);
-            militaryLines.add(formatMilitaryContext(data, alliance, side, other));
-            militaryLines.add(formatMilitaryContext(data, alliance, other, side));
-            for (KOMEArmyCompany company : data.armyCompanies.values()) {
-                String companyLine = formatMilitaryCompany(data, alliance, side, other, company, viewer);
-                if (companyLine.length() > 0) militaryLines.add(companyLine);
-                companyLine = formatMilitaryCompany(data, alliance, other, side, company, viewer);
-                if (companyLine.length() > 0) militaryLines.add(companyLine);
-            }
-        }
-        Collections.sort(militaryLines);
-        lines.addAll(militaryLines);
+        lines.addAll(stageLines);
         return lines;
     }
 
@@ -383,6 +343,68 @@ public class KOMEAllianceRecordBuilder {
             + safe(quotaSummary(data, alliance, ally, KOMEAlliance.TRADE)) + "\t"
             + "None\tNone\t"
             + (admin || viewer != null && data.isFactionKing(contributor, kome.common.KOMEReflection.getEntityUUID(viewer)) ? "1" : "0");
+    }
+
+    /** Schema-7 presentation record consumed by the unified relationship screen. */
+    private static String formatStageAlliance(KOMEWorldData data, KOMEAlliance alliance,
+            String viewerFaction, EntityPlayer viewer, boolean admin) {
+        String side = alliance.involves(viewerFaction) ? viewerFaction : alliance.factionA;
+        String partner = alliance.getOtherFaction(side);
+        KOMEAllianceStageProgress progress = alliance.getStageProgress(side);
+        KOMEAllianceStageProgress partnerProgress = alliance.getStageProgress(partner);
+        int stage = alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE
+            ? alliance.getFactionStage(side) : KOMEAlliance.NONE;
+        int otherStage = alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE
+            ? alliance.getFactionStage(partner) : KOMEAlliance.NONE;
+        int nextStage = stage >= 0 && stage < 4 ? stage + 1 : 0;
+        String quotaName = "";
+        int quotaRequired = 0;
+        int quotaDelivered = 0;
+        if (nextStage > 0) {
+            String id = KOMEAllianceProgressionService.stageRequirementId(nextStage);
+            KOMEAllianceQuotaPool.Requirement quota = KOMEAllianceQuotaPool.parse(alliance.getAssignment(side, id));
+            if (quota != null) {
+                quotaName = quota.displayName;
+                quotaRequired = quota.requiredUnits;
+            }
+            quotaDelivered = alliance.getDelivered(side, id);
+        }
+        int fixedProgress = 1;
+        int fixedRequired = 1;
+        if (nextStage == 3) {
+            fixedProgress = KOMEBuildService.approvedHalfHoursForPartner(data, side, partner);
+            fixedRequired = Math.max(1, data.allianceStageThreeRequiredHalfHours);
+        } else if (nextStage == 4) {
+            fixedProgress = progress != null && progress.qualifyingDeploymentAtMillis > 0L ? 1 : 0;
+        }
+        boolean canManage = admin || viewer != null
+            && data.isFactionKing(side, kome.common.KOMEReflection.getEntityUUID(viewer));
+        String sharedRelation = alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE
+            ? sharedRelationName(alliance.getSharedRelationStage()) : "Default";
+        return "STAGE_RELATION\t" + alliance.getPairKey() + "\t"
+            + alliance.factionA + "\t" + alliance.factionB + "\t"
+            + displayFaction(alliance.factionA) + "\t" + displayFaction(alliance.factionB) + "\t"
+            + side + "\t" + partner + "\t" + stage + "\t" + otherStage + "\t"
+            + alliance.getRelationshipStatus().key + "\t" + safe(alliance.getRequestedBy(KOMEAlliance.CIVIL)) + "\t"
+            + safe(alliance.getPendingReceiver(KOMEAlliance.CIVIL)) + "\t" + sharedRelation + "\t"
+            + flag(canManage) + "\t" + flag(data.hasFactionKing(side)) + "\t"
+            + flag(data.hasFactionKing(partner)) + "\t" + nextStage + "\t"
+            + safe(quotaName) + "\t" + quotaRequired + "\t" + quotaDelivered + "\t"
+            + fixedProgress + "\t" + fixedRequired + "\t"
+            + safe(nextStage > 0
+                ? KOMEAllianceProgressionService.fixedMilestoneDescription(data, alliance, side, nextStage)
+                : "All four stages claimed.") + "\t"
+            + flag(progress != null && progress.produceMerchantSlotUnlocked) + "\t"
+            + safe(progress == null ? "" : progress.qualifyingWarId) + "\t"
+            + safe(progress == null ? "" : progress.qualifyingCompanyId) + "\t"
+            + flag(partnerProgress != null && partnerProgress.produceMerchantSlotUnlocked) + "\t"
+            + safe(alliance.lastUpdatedBy) + "\t" + alliance.updatedWorldTime;
+    }
+
+    private static String sharedRelationName(int stage) {
+        if (stage >= 3) return "Allies";
+        if (stage >= 2) return "Friends";
+        return "Neutral";
     }
 
     private static String quotaSummary(KOMEWorldData data, KOMEAlliance alliance, String faction, String type) {

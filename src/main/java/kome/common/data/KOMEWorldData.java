@@ -2122,6 +2122,10 @@ public class KOMEWorldData extends WorldSavedData {
 
     public KOMEArmyCompany assignUnitToHiringTileCompany(KOMEHiredUnitRecord record, String ownerName) {
         if (!isEligibleForAutoCompany(record) || record.owner == null) return null;
+        // This service is the authoritative completion point for a successful hire.
+        // Keeping the record before recomputing prevents a newly assigned live unit from
+        // being mistaken for a stale company member when callers have not inserted it yet.
+        hiredUnits.put(record.entity, record);
         String sourceTile = KOMEConquestTile.normalizeId(record.sourceTileId);
         if (sourceTile.length() == 0) sourceTile = KOMEConquestTile.normalizeId(record.currentTile);
         if (sourceTile.length() == 0) return null;
@@ -2838,10 +2842,10 @@ public class KOMEWorldData extends WorldSavedData {
                 for (int i = 0; i < pairFactions.length; i++) {
                     String faction = pairFactions[i];
                     KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(faction);
-                    if (ledger != null && !hasFactionKing(faction) && alliance.hasAnyAcceptedAlliance()) {
-                        ledger.kinglessWaived = true;
-                    }
                     if (ledger != null) {
+                        ledger.kinglessWaived = false;
+                        ledger.clearContributionGrace();
+                        ledger.clearSuccession();
                         int legacyTrades = Math.max(ledger.getDelivered("civil.trade"), ledger.getDelivered("trade.trade"));
                         if (legacyTrades > ledger.getDelivered(KOMEAllianceProgressionService.ALLIED_TRADES)) {
                             ledger.setDelivered(KOMEAllianceProgressionService.ALLIED_TRADES, legacyTrades);

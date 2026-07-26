@@ -5,6 +5,7 @@ import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.network.FMLNetworkEvent;
 import kome.client.gui.KOMEGuiConquestCapture;
 import kome.client.gui.KOMEGuiAlliance;
+import kome.client.gui.KOMEGuiAllianceUnified;
 import kome.client.gui.KOMEGuiAllianceDetail;
 import kome.client.gui.KOMEGuiLordMenu;
 import kome.client.gui.KOMEGuiPopulation;
@@ -64,6 +65,7 @@ public class KOMEClientProxy extends KOMECommonProxy {
         KOMEClientData.INSTANCE.resetClientState();
         KOMEQuotaLedgerOverlay.reset();
         KOMEGuiAlliance.resetData();
+        KOMEGuiAllianceUnified.resetData();
         KOMEGuiProgression.resetData();
         KOMEGuiServerRecords.resetData();
         KOMEUnitCapClientState.reset();
@@ -200,6 +202,7 @@ public class KOMEClientProxy extends KOMECommonProxy {
     public void updateAllianceData(List lines) {
         updateClientAllianceCache(lines);
         KOMEGuiAlliance.update(lines);
+        KOMEGuiAllianceUnified.update(lines);
     }
 
     @Override
@@ -240,7 +243,19 @@ public class KOMEClientProxy extends KOMECommonProxy {
                     kome.common.data.KOMEAllianceRequirements.key(parts[1], tier, "population"), Integer.valueOf(parseTier(parts[5])));
                 continue;
             }
+            if (parts.length >= 11 && "STAGE_RELATION".equals(parts[0])
+                    && "active".equalsIgnoreCase(parts[10])) {
+                KOMEAlliance alliance = new KOMEAlliance(parts[2], parts[3]);
+                alliance.requestTrack(KOMEAlliance.CIVIL, "server", 0L, false);
+                alliance.setFactionStage(parts[6], parseTier(parts[8]), "server", 0L, 0L);
+                alliance.setFactionStage(parts[7], parseTier(parts[9]), "server", 0L, 0L);
+                KOMEClientData.INSTANCE.alliances.put(alliance.getPairKey(), alliance);
+                continue;
+            }
             if (parts.length < 8 || !"ALLIANCE".equals(parts[0])) {
+                continue;
+            }
+            if (KOMEClientData.INSTANCE.alliances.containsKey(KOMEAlliance.pairKey(parts[1], parts[2]))) {
                 continue;
             }
             KOMEAlliance alliance = new KOMEAlliance(parts[1], parts[2]);

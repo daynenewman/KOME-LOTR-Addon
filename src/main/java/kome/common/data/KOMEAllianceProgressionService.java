@@ -191,10 +191,18 @@ public final class KOMEAllianceProgressionService {
         return KOMEAlliance.MILITARY;
     }
 
+    public static String stageQuotaType(int targetStage) {
+        return quotaType(targetStage);
+    }
+
     private static int quotaTier(int targetStage) {
         if (targetStage <= 1) return 1;
         if (targetStage == 2) return 2;
         return targetStage == 3 ? 2 : 3;
+    }
+
+    public static int stageQuotaTier(int targetStage) {
+        return quotaTier(targetStage);
     }
 
     public static final class Decision {

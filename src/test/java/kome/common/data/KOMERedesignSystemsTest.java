@@ -1,0 +1,475 @@
+package kome.common.data;
+
+import net.minecraft.nbt.NBTTagCompound;
+import org.junit.Test;
+
+import java.util.List;
+import java.util.UUID;
+
+import static org.junit.Assert.*;
+
+/** Cross-system regression coverage for Builds, split population, companies, and stage milestones. */
+public class KOMERedesignSystemsTest {
+    @Test public void oneHourProducesTenPopulationByDefault() {
+        assertEquals(10, KOMEBuildPopulationService.generatedPopulation(
+            KOMEBuildPopulationService.toHalfHours(1.0D), KOMEBuildPopulationService.DEFAULT_POPULATION_PER_HALF_HOUR));
+    }
+
+    @Test public void halfHourProducesFivePopulationByDefault() {
+        assertEquals(5, KOMEBuildPopulationService.generatedPopulation(
+            KOMEBuildPopulationService.toHalfHours(0.5D), KOMEBuildPopulationService.DEFAULT_POPULATION_PER_HALF_HOUR));
+    }
+
+    @Test public void invalidQuarterHourIncrementsAreRejected() {
+        assertFalse(KOMEBuildPopulationService.isValidHours(0.1D));
+        assertFalse(KOMEBuildPopulationService.isValidHours(0.25D));
+        assertFalse(KOMEBuildPopulationService.isValidHours(0.75D));
+    }
+
+    @Test public void ownControlledTileAllowsBuildPlacement() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
+    }
+
+    @Test public void alliedControlledTileAllowsBuildPlacement() {
+        KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
+        establishSharedStage(data, "gondor", "rohan", 3);
+        assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
+    }
+
+    @Test public void friendlyControlledTileAllowsBuildPlacement() {
+        KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
+        establishSharedStage(data, "gondor", "rohan", 2);
+        assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
+    }
+
+    @Test public void enemyControlledTileRejectsBuildPlacementEvenInDefaultHomeland() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "mordor");
+        assertFalse(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
+    }
+
+    @Test public void foreignPopulationOwnerMustBeSafeWithPlayerAndController() {
+        KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
+        establishSharedStage(data, "gondor", "rohan", 2);
+        assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "rohan").allowed);
+        assertFalse(KOMEBuildService.canPlace(data, "gondor", "T100", "mordor").allowed);
+    }
+
+    @Test public void originalManagerContributionApprovesImmediately() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        UUID builder = UUID.randomUUID();
+        KOMEPlayerBuild build = KOMEBuildService.create(data, "Citadel", "T100", 0, 0, 64, 0,
+            builder, "Builder", "gondor", "gondor", 2, 1, 10L);
+        assertEquals(10, build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour));
+        assertEquals(5, build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour));
+        assertEquals(KOMEBuildContribution.APPROVED, build.contributions.get(0).status);
+    }
+
+    @Test public void otherPlayerContributionRemainsPending() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 0, 0);
+        KOMEBuildContribution contribution = KOMEBuildService.addSubmission(data, build, UUID.randomUUID(),
+            "Helper", "rohan", 2, 2, false, 20L);
+        assertTrue(contribution.isPending());
+        assertEquals(0, build.approvedHalfHours(KOMEPopulationType.OFFENSIVE));
+    }
+
+    @Test public void managerApprovalAppliesPopulationAndCredit() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 0, 0);
+        UUID helper = UUID.randomUUID();
+        KOMEBuildContribution contribution = KOMEBuildService.addSubmission(
+            data, build, helper, "Helper", "rohan", 2, 1, false, 20L);
+        assertTrue(KOMEBuildService.decideSubmission(data, build, contribution.id,
+            build.managerUuid, build.managerName, true, "approved", 30L).allowed);
+        assertEquals(10, build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour));
+        assertEquals(Integer.valueOf(3), build.activeHalfHoursByPlayer().get(helper));
+        assertEquals(Integer.valueOf(3), build.activeHalfHoursByFaction().get("rohan"));
+    }
+
+    @Test public void rejectionNeverAppliesPopulation() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 0, 0);
+        KOMEBuildContribution contribution = KOMEBuildService.addSubmission(
+            data, build, UUID.randomUUID(), "Helper", "rohan", 2, 1, false, 20L);
+        assertTrue(KOMEBuildService.decideSubmission(data, build, contribution.id,
+            build.managerUuid, build.managerName, false, "rejected", 30L).allowed);
+        assertEquals(0, build.approvedHalfHours(KOMEPopulationType.OFFENSIVE));
+    }
+
+    @Test public void offensiveAndDefensiveHoursRemainSeparated() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 4, 7);
+        assertEquals(4, build.approvedHalfHours(KOMEPopulationType.OFFENSIVE));
+        assertEquals(7, build.approvedHalfHours(KOMEPopulationType.DEFENSIVE));
+    }
+
+    @Test public void managerRemovalReversesActiveCredit() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 2, 0);
+        String id = build.contributions.get(0).id;
+        assertTrue(KOMEBuildService.removeApprovedContribution(data, build, id,
+            build.managerUuid, build.managerName, "remove", 40L).allowed);
+        assertEquals(0, build.approvedHalfHours(KOMEPopulationType.OFFENSIVE));
+        assertTrue(build.activeHalfHoursByFaction().isEmpty());
+    }
+
+    @Test public void removalIsBlockedWhenItFundsLivingUnits() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 4, 0);
+        build.adjustCommitted(KOMEPopulationType.OFFENSIVE, 5);
+        assertFalse(KOMEBuildService.removeApprovedContribution(data, build, build.contributions.get(0).id,
+            build.managerUuid, build.managerName, "unsafe", 40L).allowed);
+    }
+
+    @Test public void buildDeletionRemovesPopulationAndMarker() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 4, 0);
+        assertTrue(KOMEBuildService.deleteBuild(data, build, build.managerUuid,
+            build.managerName, false, "delete", 40L).allowed);
+        assertFalse(build.active);
+        assertFalse(build.markerVisible);
+        assertEquals(0, data.getBuildPopulationTotal("T100", "gondor", KOMEPopulationType.OFFENSIVE));
+    }
+
+    @Test public void buildDeletionIsBlockedByCommittedPopulation() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 4, 0);
+        build.adjustCommitted(KOMEPopulationType.OFFENSIVE, 10);
+        assertFalse(KOMEBuildService.deleteBuild(data, build, build.managerUuid,
+            build.managerName, false, "delete", 40L).allowed);
+    }
+
+    @Test public void managerTransfersToPopulationFactionKing() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 0, 0);
+        KOMEPlayerProgression departed = new KOMEPlayerProgression();
+        departed.setPledgedLord("x", "x", "rohan");
+        data.progressions.put(build.managerUuid, departed);
+        UUID king = UUID.randomUUID();
+        data.claimFactionKing("gondor", "Gondor", king, "King");
+        KOMEBuildService.reconcileManager(data, build);
+        assertEquals(king, build.managerUuid);
+        assertEquals("King", build.managerName);
+    }
+
+    @Test public void managerFallbackPreservesUnmanageableBuildWhenNoKingExists() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 0, 0);
+        KOMEPlayerProgression departed = new KOMEPlayerProgression();
+        departed.setPledgedLord("x", "x", "rohan");
+        data.progressions.put(build.managerUuid, departed);
+        assertTrue(KOMEBuildService.reconcileManager(data, build));
+        assertNull(build.managerUuid);
+        assertTrue(build.active);
+    }
+
+    @Test public void enemyBuildDestructionWorksOnlyInControllersDefaultHomeland() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        UUID king = UUID.randomUUID();
+        data.claimFactionKing("gondor", "Gondor", king, "King");
+        KOMEPlayerBuild enemy = manualBuild(data, "mordor");
+        assertNotNull(KOMEWarService.createWar(data, "gondor", "mordor", "Homeland defense", "test", 40L));
+        assertTrue(KOMEBuildService.destroyEnemyBuild(data, enemy, king, "King", "gondor", false, 50L).allowed);
+    }
+
+    @Test public void enemyBuildDestructionIsRejectedInForeignConqueredLand() {
+        KOMEWorldData data = dataWithTile("T100", "rohan", "gondor");
+        UUID king = UUID.randomUUID();
+        data.claimFactionKing("gondor", "Gondor", king, "King");
+        assertFalse(KOMEBuildService.destroyEnemyBuild(data, manualBuild(data, "mordor"),
+            king, "King", "gondor", false, 50L).allowed);
+    }
+
+    @Test public void alliedBuildCannotBeDestroyed() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        UUID king = UUID.randomUUID();
+        data.claimFactionKing("gondor", "Gondor", king, "King");
+        assertFalse(KOMEBuildService.destroyEnemyBuild(data, manualBuild(data, "rohan"),
+            king, "King", "gondor", false, 50L).allowed);
+    }
+
+    @Test public void multipleBuildsAndOwnersRemainDistinct() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        manualBuild(data, "gondor");
+        manualBuild(data, "rohan");
+        manualBuild(data, "gondor");
+        assertEquals(3, KOMEBuildService.buildsInTile(data, "T100", false).size());
+    }
+
+    @Test public void buildAndContributionPersistenceRoundTrip() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 3, 2);
+        NBTTagCompound nbt = new NBTTagCompound();
+        data.writeToNBT(nbt);
+        KOMEWorldData restored = new KOMEWorldData("test");
+        restored.readFromNBT(nbt);
+        KOMEPlayerBuild loaded = restored.getBuild(build.id);
+        assertNotNull(loaded);
+        assertEquals(3, loaded.approvedHalfHours(KOMEPopulationType.OFFENSIVE));
+        assertEquals(2, loaded.approvedHalfHours(KOMEPopulationType.DEFENSIVE));
+    }
+
+    @Test public void ownPopulationPoolIsUsableAtOneHundredPercent() {
+        KOMETilePopulation pool = pool("T100", "gondor", 100, 20);
+        assertEquals(100, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
+        assertEquals(80, pool.getEffectiveAvailable(KOMEPopulationType.OFFENSIVE, "gondor"));
+    }
+
+    @Test public void foreignPopulationPoolIsUsableAtFiftyPercent() {
+        KOMETilePopulation pool = pool("T100", "rohan", 100, 20);
+        assertEquals(50, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
+        assertEquals(30, pool.getEffectiveAvailable(KOMEPopulationType.OFFENSIVE, "gondor"));
+    }
+
+    @Test public void populationOwnerHasNoUseWhileNotController() {
+        KOMETilePopulation pool = pool("T100", "gondor", 100, 0);
+        assertEquals(50, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "mordor"));
+        assertNotEquals(100, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "mordor"));
+    }
+
+    @Test public void reclaimRestoresFullUseWithoutChangingOwnership() {
+        KOMETilePopulation pool = pool("T100", "gondor", 100, 0);
+        assertEquals(50, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "mordor"));
+        assertEquals(100, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
+        assertEquals("gondor", pool.sourceFaction);
+    }
+
+    @Test public void seasonalResetPreservesForeignPoolProvenance() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "mordor");
+        KOMETilePopulation gondor = data.getOrCreateTilePopulationPool("T100", "gondor");
+        gondor.nativeOffensiveTotal = gondor.offensiveTotal = 50;
+        gondor.nativeBaselineInitialized = true;
+        KOMETilePopulation mordor = data.getOrCreateTilePopulationPool("T100", "mordor");
+        mordor.nativeOffensiveTotal = mordor.offensiveTotal = 40;
+        mordor.nativeBaselineInitialized = true;
+        data.resetConquestOwnershipToDefaults(20L);
+        assertNotNull(data.getTilePopulationPool("T100", "gondor"));
+        assertNotNull(data.getTilePopulationPool("T100", "mordor"));
+        assertEquals(50, gondor.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
+        assertEquals(20, mordor.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
+    }
+
+    @Test public void buildCommitmentsRebuildFromUnitFundingRecords() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 10, 0);
+        KOMEHiredUnitRecord unit = unit(UUID.randomUUID(), "gondor", "T100", 25);
+        unit.sourceBuildId = build.id;
+        data.hiredUnits.put(unit.entity, unit);
+        build.clearCommittedPopulation();
+        data.reconcileBuildCommitments();
+        assertEquals(25, build.offensiveCommittedPopulation);
+    }
+
+    @Test public void firstHireCreatesOneSourceTileCompany() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID owner = UUID.randomUUID();
+        setFaction(data, owner, "gondor");
+        KOMEHiredUnitRecord unit = unit(owner, "gondor", "T100", 25);
+        KOMEArmyCompany company = data.assignUnitToHiringTileCompany(unit, "Player");
+        assertNotNull(company);
+        assertEquals("T100", company.sourceTileId);
+        assertEquals(1, company.units.size());
+    }
+
+    @Test public void laterHireFromSameTileJoinsSameCompany() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID owner = UUID.randomUUID();
+        setFaction(data, owner, "gondor");
+        KOMEArmyCompany first = data.assignUnitToHiringTileCompany(unit(owner, "gondor", "T100", 25), "Player");
+        KOMEArmyCompany second = data.assignUnitToHiringTileCompany(unit(owner, "gondor", "T100", 25), "Player");
+        assertSame(first, second);
+        assertEquals(2, first.units.size());
+        assertEquals(1, data.armyCompanies.size());
+    }
+
+    @Test public void renamedCompanyRetainsImmutableSourceTileIdentity() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID owner = UUID.randomUUID();
+        setFaction(data, owner, "gondor");
+        KOMEArmyCompany company = data.assignUnitToHiringTileCompany(unit(owner, "gondor", "T100", 25), "Player");
+        assertTrue(data.renameHiringCompany(company.id, owner, "Northern Watch"));
+        assertEquals("Northern Watch", company.name);
+        assertEquals("T100", company.sourceTileId);
+    }
+
+    @Test public void awayCompanyStillReceivesHireWithoutDuplicateCompany() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID owner = UUID.randomUUID();
+        setFaction(data, owner, "gondor");
+        KOMEArmyCompany company = data.assignUnitToHiringTileCompany(unit(owner, "gondor", "T100", 25), "Player");
+        company.currentTile = "T999";
+        KOMEArmyCompany reused = data.assignUnitToHiringTileCompany(unit(owner, "gondor", "T100", 25), "Player");
+        assertSame(company, reused);
+        assertEquals("T999", reused.currentTile);
+        assertEquals(1, data.armyCompanies.size());
+    }
+
+    @Test public void stageThreeCountsApprovedPreAlliancePartnerBuildHours() {
+        KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
+        KOMEPlayerBuild build = manualBuild(data, "rohan");
+        UUID contributor = UUID.randomUUID();
+        KOMEBuildContribution approved = new KOMEBuildContribution();
+        approved.id = "H1"; approved.contributorUuid = contributor; approved.contributorFaction = "gondor";
+        approved.offensiveHalfHours = 12; approved.defensiveHalfHours = 8;
+        approved.status = KOMEBuildContribution.APPROVED;
+        build.contributions.add(approved);
+        KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
+        alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
+        alliance.setFactionStage("gondor", 2, "test", 0L, 100L);
+        assertTrue(KOMEAllianceProgressionService.fixedMilestoneComplete(data, alliance, "gondor", 3));
+    }
+
+    @Test public void pendingBuildHoursDoNotCountForStageThree() {
+        KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
+        KOMEPlayerBuild build = manualBuild(data, "rohan");
+        KOMEBuildContribution pending = new KOMEBuildContribution();
+        pending.id = "H1"; pending.contributorFaction = "gondor"; pending.offensiveHalfHours = 20;
+        build.contributions.add(pending);
+        assertEquals(0, KOMEBuildService.approvedHalfHoursForPartner(data, "gondor", "rohan"));
+    }
+
+    @Test public void deletedHoursRemoveUnclaimedStageThreeProgress() {
+        KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
+        KOMEPlayerBuild build = manualBuild(data, "rohan");
+        KOMEBuildContribution approved = approved("gondor", 20);
+        build.contributions.add(approved);
+        assertEquals(20, KOMEBuildService.approvedHalfHoursForPartner(data, "gondor", "rohan"));
+        build.active = false;
+        assertEquals(0, KOMEBuildService.approvedHalfHoursForPartner(data, "gondor", "rohan"));
+    }
+
+    @Test public void claimedStageThreeDoesNotDowngradeAfterBuildDeletion() {
+        KOMEAlliance alliance = activeAlliance("gondor", "rohan");
+        alliance.setFactionStage("gondor", 3, "test", 0L, 100L);
+        assertEquals(3, alliance.getFactionStage("gondor"));
+        assertEquals(100L, alliance.getStageProgress("gondor").claimedAtMillis[3]);
+    }
+
+    @Test public void stageFourRequiresNewDefensiveWarDeploymentAfterStageThree() {
+        KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
+        KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
+        alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
+        alliance.setFactionStage("gondor", 3, "test", 0L, 100L);
+        KOMEWar war = KOMEWarService.createWar(data, "mordor", "rohan", "Defense", "test", 200L);
+        war.addFaction(2, "gondor");
+        war.recordMembership("gondor", 2, "MANUAL", "", "test", 210L);
+        KOMEArmyCompany company = company("C1", "gondor", "T100");
+        data.armyCompanies.put(company.id, company);
+        assertTrue(KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, 220L));
+        assertEquals(war.id, alliance.getStageProgress("gondor").qualifyingWarId);
+    }
+
+    @Test public void stageFourRejectsEmptyCompanyAndOldMembership() {
+        KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
+        KOMEAlliance alliance = activeAlliance("gondor", "rohan");
+        KOMEWar war = KOMEWarService.createWar(data, "mordor", "rohan", "Old Defense", "test", 20L);
+        war.addFaction(2, "gondor");
+        war.recordMembership("gondor", 2, "MANUAL", "", "test", 30L);
+        alliance.setFactionStage("gondor", 3, "test", 0L, 100L);
+        KOMEArmyCompany empty = new KOMEArmyCompany();
+        empty.id = "EMPTY"; empty.faction = "gondor"; empty.currentTile = "T100";
+        data.armyCompanies.put(empty.id, empty);
+        assertFalse(KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, 120L));
+    }
+
+    @Test public void stageFourRejectsPartnerDefaultLandNotCurrentlyControlledByPartner() {
+        KOMEWorldData data = dataWithTile("T100", "rohan", "mordor");
+        KOMEAlliance alliance = activeAlliance("gondor", "rohan");
+        alliance.setFactionStage("gondor", 3, "test", 0L, 100L);
+        KOMEWar war = KOMEWarService.createWar(data, "mordor", "rohan", "Defense", "test", 200L);
+        war.addFaction(2, "gondor");
+        war.recordMembership("gondor", 2, "MANUAL", "", "test", 210L);
+        KOMEArmyCompany company = company("C1", "gondor", "T100");
+        assertFalse(KOMEAllianceProgressionService.recordQualifyingWarDeployment(
+            data, alliance, "gondor", "rohan", company, war, "T100", 220L));
+    }
+
+    private static KOMEWorldData dataWithTile(String tileId, String defaultFaction, String controller) {
+        KOMEWorldData data = new KOMEWorldData("test");
+        KOMEConquestTile tile = new KOMEConquestTile(tileId);
+        tile.defaultRulingFaction = defaultFaction;
+        tile.claim(controller, 0L);
+        data.conquestTiles.put(tile.id, tile);
+        return data;
+    }
+
+    private static KOMEPlayerBuild build(KOMEWorldData data, String populationFaction, int off, int def) {
+        UUID builder = UUID.randomUUID();
+        return KOMEBuildService.create(data, "Build", "T100", 0, 0, 64, 0,
+            builder, "Builder", "gondor", populationFaction, off, def, 10L);
+    }
+
+    private static KOMEPlayerBuild manualBuild(KOMEWorldData data, String populationFaction) {
+        KOMEPlayerBuild build = new KOMEPlayerBuild();
+        build.id = data.nextBuildId();
+        build.displayName = "Build " + build.id;
+        build.tileId = "T100";
+        build.populationFaction = populationFaction;
+        build.builderUuid = build.managerUuid = UUID.randomUUID();
+        build.builderName = build.managerName = "Builder";
+        build.originalBuilderFaction = "gondor";
+        build.createdAtMillis = 1L;
+        build.updatedAtMillis = 1L;
+        data.builds.put(build.id, build);
+        return build;
+    }
+
+    private static KOMETilePopulation pool(String tile, String owner, int total, int used) {
+        KOMETilePopulation pool = new KOMETilePopulation(tile, owner);
+        pool.offensiveTotal = total;
+        pool.offensiveUsed = used;
+        return pool;
+    }
+
+    private static void setFaction(KOMEWorldData data, UUID owner, String faction) {
+        KOMEPlayerProgression progression = new KOMEPlayerProgression();
+        progression.setPledgedLord("lord", "Lord", faction);
+        data.progressions.put(owner, progression);
+    }
+
+    private static KOMEHiredUnitRecord unit(UUID owner, String faction, String tile, int cost) {
+        KOMEHiredUnitRecord unit = new KOMEHiredUnitRecord();
+        unit.entity = UUID.randomUUID();
+        unit.owner = owner;
+        unit.unitFaction = faction;
+        unit.sourceFaction = faction;
+        unit.sourceTileId = tile;
+        unit.currentTile = tile;
+        unit.cost = cost;
+        unit.type = KOMEPopulationType.OFFENSIVE;
+        return unit;
+    }
+
+    private static KOMEBuildContribution approved(String faction, int halfHours) {
+        KOMEBuildContribution contribution = new KOMEBuildContribution();
+        contribution.id = "H1";
+        contribution.contributorFaction = faction;
+        contribution.offensiveHalfHours = halfHours;
+        contribution.status = KOMEBuildContribution.APPROVED;
+        return contribution;
+    }
+
+    private static KOMEAlliance activeAlliance(String first, String second) {
+        KOMEAlliance alliance = new KOMEAlliance(first, second);
+        alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
+        return alliance;
+    }
+
+    private static KOMEAlliance establishSharedStage(KOMEWorldData data, String first, String second, int stage) {
+        KOMEAlliance alliance = data.getAlliance(first, second, true);
+        alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
+        alliance.setFactionStage(first, stage, "test", 0L, 1L);
+        alliance.setFactionStage(second, stage, "test", 0L, 1L);
+        return alliance;
+    }
+
+    private static KOMEArmyCompany company(String id, String faction, String tile) {
+        KOMEArmyCompany company = new KOMEArmyCompany();
+        company.id = id;
+        company.faction = faction;
+        company.currentTile = tile;
+        company.units.add(UUID.randomUUID());
+        return company;
+    }
+}

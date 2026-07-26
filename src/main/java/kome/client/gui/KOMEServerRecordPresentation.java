@@ -35,7 +35,7 @@ final class KOMEServerRecordPresentation {
             } else if (text.startsWith("From ")) {
                 text = text.substring(5);
             }
-            int detailStart = text.indexOf(": C ");
+            int detailStart = text.indexOf(": ");
             if (detailStart < 0) {
                 continue;
             }
@@ -44,10 +44,19 @@ final class KOMEServerRecordPresentation {
             if (faction.length() == 0) {
                 continue;
             }
-            summaries.add(new AllianceSummary(faction,
-                displayAllianceTier(findTrackValue(details, "C")),
-                displayAllianceTier(findTrackValue(details, "M")),
-                displayAllianceTier(findTrackValue(details, "T"))));
+            if (details.startsWith("Stage ")) {
+                summaries.add(new AllianceSummary(faction,
+                    valueAfter(details, "Stage "), valueAfter(details, "Partner "),
+                    valueAfter(details, "Shared ")));
+            } else if ("Pending".equalsIgnoreCase(details)) {
+                summaries.add(new AllianceSummary(faction, "Pending", "-", "Pending"));
+            } else {
+                // Legacy record compatibility during rolling upgrades.
+                summaries.add(new AllianceSummary(faction,
+                    displayAllianceTier(findTrackValue(details, "C")),
+                    displayAllianceTier(findTrackValue(details, "M")),
+                    displayAllianceTier(findTrackValue(details, "T"))));
+            }
         }
         return summaries;
     }
@@ -180,6 +189,14 @@ final class KOMEServerRecordPresentation {
         return (end < 0 ? details.substring(start) : details.substring(start, end)).trim();
     }
 
+    private static String valueAfter(String details, String label) {
+        int start = details.indexOf(label);
+        if (start < 0) return "-";
+        start += label.length();
+        int end = details.indexOf(" |", start);
+        return (end < 0 ? details.substring(start) : details.substring(start, end)).trim();
+    }
+
     private static String displayAllianceTier(String tier) {
         if (tier == null) {
             return "Locked";
@@ -205,15 +222,22 @@ final class KOMEServerRecordPresentation {
 
     static final class AllianceSummary {
         final String faction;
+        final String stage;
+        final String partnerStage;
+        final String sharedRelation;
+        /** Legacy aliases kept for old capture/test fixtures only. */
         final String civilian;
         final String military;
         final String trade;
 
-        AllianceSummary(String faction, String civilian, String military, String trade) {
+        AllianceSummary(String faction, String stage, String partnerStage, String sharedRelation) {
             this.faction = faction;
-            this.civilian = civilian;
-            this.military = military;
-            this.trade = trade;
+            this.stage = stage;
+            this.partnerStage = partnerStage;
+            this.sharedRelation = sharedRelation;
+            this.civilian = stage;
+            this.military = partnerStage;
+            this.trade = sharedRelation;
         }
     }
 

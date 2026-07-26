@@ -136,20 +136,16 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private boolean matchesActiveQuota(ItemStack stack) {
-        String[] types = new String[] {KOMEAlliance.CIVIL, KOMEAlliance.TRADE, KOMEAlliance.MILITARY};
-        for (int i = 0; i < types.length; i++) {
-            int target = tier(types[i]) + 1;
-            if (target < 1 || target > KOMEAlliance.maxTier(types[i])) {
-                continue;
-            }
-            String id = KOMEAllianceQuotaPool.assignmentId(types[i], target);
-            KOMEAllianceQuotaPool.Requirement requirement = KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, types[i], target);
-            if (requirement != null && requirement.isValid()
-                    && alliance.getDelivered(ledgerFaction, id) < requirement.requiredUnits && requirement.matches(stack)) {
-                return true;
-            }
-        }
-        return false;
+        int targetStage = alliance.getFactionStage(ledgerFaction) + 1;
+        if (targetStage < 1 || targetStage > 4) return false;
+        String type = KOMEAllianceProgressionService.stageQuotaType(targetStage);
+        int tier = KOMEAllianceProgressionService.stageQuotaTier(targetStage);
+        String id = KOMEAllianceProgressionService.stageRequirementId(targetStage);
+        KOMEAllianceQuotaPool.Requirement requirement =
+            KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, type, tier);
+        return requirement != null && requirement.isValid()
+            && alliance.getDelivered(ledgerFaction, id) < requirement.requiredUnits
+            && requirement.matches(stack);
     }
 
     private int getNeededCoinValue() {
@@ -157,9 +153,23 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private boolean depositQuotaStack(ItemStack stack) {
-        return depositCurrentRequirement(stack, KOMEAlliance.CIVIL)
-            || depositCurrentRequirement(stack, KOMEAlliance.TRADE)
-            || depositCurrentRequirement(stack, KOMEAlliance.MILITARY);
+        int targetStage = alliance.getFactionStage(ledgerFaction) + 1;
+        if (targetStage < 1 || targetStage > 4) return false;
+        String type = KOMEAllianceProgressionService.stageQuotaType(targetStage);
+        int tier = KOMEAllianceProgressionService.stageQuotaTier(targetStage);
+        String id = KOMEAllianceProgressionService.stageRequirementId(targetStage);
+        KOMEAllianceQuotaPool.Requirement requirement =
+            KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, type, tier);
+        if (requirement == null || !requirement.isValid() || !requirement.matches(stack)) return false;
+        int needed = requirement.requiredUnits - alliance.getDelivered(ledgerFaction, id);
+        if (needed <= 0) return false;
+        int taken = Math.min(stack.stackSize, needed);
+        ItemStack sample = stack.copy();
+        sample.stackSize = 1;
+        alliance.addDelivered(ledgerFaction, id, taken);
+        if (targetStage == 2) alliance.addClaimGoods(ledgerFaction, id, sample, taken);
+        stack.stackSize -= taken;
+        return true;
     }
 
     private boolean depositCurrentRequirement(ItemStack stack, String type) {
@@ -244,21 +254,35 @@ public class KOMEAllianceInventory implements IInventory {
         lines.add(buildSummaryLine(alliance, ledgerFaction));
         lines.add("VIEWER\t" + getViewerFactionName() + "\t" + (canViewerDeposit() ? "1" : "0") + "\t" + (canClaim ? "1" : "0"));
         lines.add("SWITCH\tView " + displayFaction(receivingFaction) + " Ledger\t" + receivingFaction + "\t" + ledgerFaction + "\t" + (canViewerOpenLedger(receivingFaction, ledgerFaction) ? "1" : "0"));
-        if (tier(KOMEAlliance.CIVIL) != KOMEAlliance.NONE) {
-            addProgressLine(lines, "Civil", tier(KOMEAlliance.CIVIL), getCivilRequirement(), getCivilProgressLabel(), getCivilDelivered(), getCivilRequired(), getCivilReward());
-            addQuotaProgressLine(lines, "Civil", currentRequirementId(KOMEAlliance.CIVIL));
-        }
-        if (tier(KOMEAlliance.MILITARY) != KOMEAlliance.NONE) {
-            addProgressLine(lines, "Military", tier(KOMEAlliance.MILITARY), getMilitaryRequirement(), getMilitaryProgressLabel(), getMilitaryDelivered(), getMilitaryRequired(), getMilitaryReward());
-            addQuotaProgressLine(lines, "Military", currentRequirementId(KOMEAlliance.MILITARY));
-        }
-        if (tier(KOMEAlliance.TRADE) != KOMEAlliance.NONE) {
-            addProgressLine(lines, "Trade", tier(KOMEAlliance.TRADE), getTradeRequirement(), getTradeProgressLabel(), getTradeDelivered(), getTradeRequired(), getTradeReward());
-            addQuotaProgressLine(lines, "Trade", currentRequirementId(KOMEAlliance.TRADE));
+        if (alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.PENDING) {
+            addProgressLine(lines, "Relationship", KOMEAlliance.PENDING,
+                "The receiving king must accept before goods can be delivered.", "", 0, 0, "Stage 0");
+        } else if (alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE) {
+            int stage = alliance.getFactionStage(ledgerFaction);
+            int targetStage = stage + 1;
+            if (targetStage <= 4) {
+                String type = KOMEAllianceProgressionService.stageQuotaType(targetStage);
+                int quotaTier = KOMEAllianceProgressionService.stageQuotaTier(targetStage);
+                String id = KOMEAllianceProgressionService.stageRequirementId(targetStage);
+                KOMEAllianceQuotaPool.Requirement requirement =
+                    KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, type, quotaTier);
+                int required = requirement == null ? 0 : requirement.requiredUnits;
+                int delivered = Math.min(alliance.getDelivered(ledgerFaction, id), required);
+                String label = "Stage " + targetStage;
+                String fixed = KOMEAllianceProgressionService.fixedMilestoneDescription(
+                    data, alliance, ledgerFaction, targetStage);
+                addProgressLine(lines, label, stage, "Next: " + KOMEAlliance.stageName(targetStage)
+                    + " | " + fixed, "Goods delivered", delivered, required,
+                    KOMEAlliance.stageName(targetStage));
+                addQuotaProgressLine(lines, label, id, type, quotaTier);
+            } else {
+                addProgressLine(lines, "Stage 4", 4, "All alliance stages claimed.", "",
+                    0, 0, KOMEAlliance.stageName(4));
+            }
         }
         addFactionSideLine(lines, alliance.factionA);
         addFactionSideLine(lines, alliance.factionB);
-        lines.add("DEPOSIT\tPlace only the exact server-rolled supplies in the chest slots. New reciprocal coin payments and legacy food quotas are not accepted. Civil and Military projects consume supplies; completed Trade exchanges make goods claimable by the opposite faction.");
+        lines.add("DEPOSIT\tPlace only the exact server-rolled supplies for this side's next stage in the ledger slots. Stage 2 support goods remain claimable by the partner; other stage goods are consumed as contributions.");
         lines.add("CLAIM\t" + getClaimSummary() + "\t" + (canClaim ? "1" : "0") + "\t" + (canClaim ? "Receiving faction king" : "Only the receiving faction king can claim"));
         return lines;
     }
@@ -274,7 +298,10 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private void addProgressLine(List lines, String type, int tier, String requirement, String progressLabel, int delivered, int required, String reward) {
-        lines.add("PROGRESS\t" + type + "\t" + displayTier(tier) + "\t" + requirement + "\t" + progressLabel + "\t" + delivered + "\t" + required + "\t" + reward);
+        String status = type != null && type.startsWith("Stage ") && tier >= 0
+            ? "Current Stage " + tier : displayTier(tier);
+        lines.add("PROGRESS\t" + type + "\t" + status + "\t" + requirement + "\t"
+            + progressLabel + "\t" + delivered + "\t" + required + "\t" + reward);
     }
 
     private void addQuotaProgressLine(List lines, String type, String id) {
@@ -301,6 +328,23 @@ public class KOMEAllianceInventory implements IInventory {
         int shownRequired = quota.stacks ? quota.requiredUnits / 64 : quota.requiredUnits;
         String unit = quota.stacks ? "stacks" : "items";
         lines.add("QUOTA\t" + type + "\t" + quota.item + "\t" + shownDelivered + "\t" + shownRequired + "\t" + unit);
+    }
+
+    private void addQuotaProgressLine(List lines, String label, String id, String type, int targetTier) {
+        KOMEAllianceQuotaPool.Requirement requirement =
+            KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, type, targetTier);
+        if (requirement == null) {
+            lines.add("QUOTA\t" + label + "\t\t0\t0\t");
+            return;
+        }
+        if (!requirement.isValid()) {
+            lines.add("QUOTA\t" + label + "\tINVALID_REQUIREMENT: " + requirement.invalidReason
+                + "\t0\t0\toperator reroll required");
+            return;
+        }
+        int delivered = Math.min(alliance.getDelivered(ledgerFaction, id), requirement.requiredUnits);
+        lines.add("QUOTA\t" + label + "\t" + requirement.displayName + "\t"
+            + delivered + "\t" + requirement.requiredUnits + "\titems");
     }
 
     private String currentRequirementId(String type) {

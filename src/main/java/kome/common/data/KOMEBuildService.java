@@ -40,6 +40,7 @@ public final class KOMEBuildService {
         String player = KOMEAlliance.normalizeFactionKey(playerFaction);
         KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
         if (player.length() == 0 || tile == null || !tile.isClaimed()) return result;
+        if (!canPlace(data, player, tile.id, player).allowed) return result;
         result.add(player);
         String controller = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
         for (String candidate : KOMEAlliance.allFactionKeys()) {
@@ -293,18 +294,34 @@ public final class KOMEBuildService {
         String b = KOMEAlliance.normalizeFactionKey(second);
         if (a.length() == 0 || b.length() == 0) return false;
         if (a.equals(b)) return true;
+        KOMEAlliance alliance = data == null ? null : data.getAlliance(a, b, false);
+        if (alliance != null && alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE) {
+            return alliance.getSharedRelationStage() >= 2;
+        }
         LOTRFactionRelations.Relation relation = KOMEAllianceAuthority.getCurrentRelation(a, b);
         return relation == LOTRFactionRelations.Relation.FRIEND || relation == LOTRFactionRelations.Relation.ALLY;
     }
 
     public static boolean isHostile(KOMEWorldData data, String first, String second) {
+        if (data != null && KOMEWarService.findActiveOpposition(data, first, second) != null) return true;
+        KOMEAlliance alliance = data == null ? null : data.getAlliance(first, second, false);
+        if (alliance != null && alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE) return false;
         LOTRFactionRelations.Relation relation = KOMEAllianceAuthority.getCurrentRelation(first, second);
-        return relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY
-            || data != null && KOMEWarService.findActiveOpposition(data, first, second) != null;
+        return relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
     }
 
     private static void softDelete(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
             String actorName, String reason, long nowMillis) {
+        for (KOMEBuildContribution contribution : build.contributions) {
+            if (contribution == null || contribution.isRemoved()
+                    || KOMEBuildContribution.REJECTED.equals(contribution.status)) continue;
+            contribution.status = contribution.isPending()
+                ? KOMEBuildContribution.REJECTED : KOMEBuildContribution.REMOVED;
+            contribution.decidedAtMillis = Math.max(0L, nowMillis);
+            contribution.decidedByUuid = actor;
+            contribution.decidedByName = safe(actorName);
+            contribution.decisionReason = safe(reason);
+        }
         build.active = false;
         build.markerVisible = false;
         build.deletedAtMillis = Math.max(0L, nowMillis);

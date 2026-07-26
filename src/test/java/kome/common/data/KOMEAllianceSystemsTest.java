@@ -342,31 +342,31 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void viewerScopedContractCarriesExplicitTrackAndConfigurationFields() {
+    public void viewerScopedContractCarriesUnifiedStageAndConfigurationFields() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
         alliance.requestTrack(KOMEAlliance.MILITARY, "test", 0L, false);
         java.util.List lines = KOMEAllianceRecordBuilder.build(data, null);
         boolean config = false;
         boolean requirement = false;
-        int tracks = 0;
+        int relationships = 0;
         for (Object value : lines) {
             String line = String.valueOf(value);
             String[] parts = line.split("\\t", -1);
             config |= parts.length >= 7 && "CONFIG".equals(parts[0]);
             requirement |= parts.length >= 6 && "REQUIREMENT".equals(parts[0]);
-            if (parts.length >= 25 && "TRACK".equals(parts[0])) {
-                tracks++;
-                if (KOMEAlliance.MILITARY.equals(parts[4])) {
-                    assertTrue(Integer.parseInt(parts[7]) <= 3);
-                }
-                assertTrue(parts[24].length() > 0);
+            if (parts.length >= 30 && "STAGE_RELATION".equals(parts[0])) {
+                relationships++;
+                assertEquals("active", parts[10]);
+                assertEquals("Neutral", parts[13]);
             }
+            assertFalse("TRACK".equals(parts[0]));
+            assertFalse("ALLIANCE".equals(parts[0]));
             assertFalse(line.contains("FarmerReserved"));
         }
         assertTrue(config);
         assertTrue(requirement);
-        assertEquals(6, tracks);
+        assertEquals(1, relationships);
     }
 
     @Test
@@ -404,7 +404,9 @@ public class KOMEAllianceSystemsTest {
         assertFalse(neutralCivil.automaticAcceptance);
         assertTrue(friendTrade.allowed);
         assertTrue(friendTrade.automaticAcceptance);
-        assertFalse(friendMilitary.allowed);
+        assertTrue(friendMilitary.allowed);
+        assertTrue(friendMilitary.automaticAcceptance);
+        assertEquals(2, friendMilitary.automaticStage);
         assertFalse(nonKing.allowed);
     }
 
@@ -423,8 +425,8 @@ public class KOMEAllianceSystemsTest {
             "gondor", true, true, false, neutral).automaticAcceptance);
         assertTrue(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.TRADE, "gondor", "bree",
             "gondor", true, true, false, friend).automaticAcceptance);
-        assertFalse(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.MILITARY, "gondor", "bree",
-            "gondor", true, true, false, friend).allowed);
+        assertEquals(2, KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.MILITARY, "gondor", "bree",
+            "gondor", true, true, false, friend).automaticStage);
         assertTrue(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.MILITARY, "gondor", "bree",
             "gondor", true, true, false, ally).automaticAcceptance);
         assertFalse(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.CIVIL, "gondor", "bree",
@@ -524,28 +526,23 @@ public class KOMEAllianceSystemsTest {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
         KOMEAllianceAuthority authority = new KOMEAllianceAuthority(data);
-        alliance.setTier(KOMEAlliance.CIVIL, 0, "test", 0L);
-        assertFalse(authority.canFactionUseAlliedWaypoint("gondor", "rohan"));
-        alliance.setTier(KOMEAlliance.CIVIL, 1, "test", 0L);
+        alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
         assertTrue(authority.canFactionUseAlliedWaypoint("gondor", "rohan"));
         assertFalse(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
-        alliance.setTier(KOMEAlliance.CIVIL, 2, "test", 0L);
+        alliance.setFactionStage("gondor", 1, "test", 0L, 1L);
+        assertTrue(authority.canFactionUseAlliedWaypoint("gondor", "rohan"));
         assertTrue(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
-        alliance.setTier(KOMEAlliance.TRADE, 1, "test", 0L);
-        assertTrue(authority.getEffectiveTier(alliance, KOMEAlliance.TRADE, System.currentTimeMillis()) >= 1);
-        alliance.setTier(KOMEAlliance.TRADE, 2, "test", 0L);
-        assertEquals("Additional Produce Farmer Slot", KOMEAllianceBenefits.get(KOMEAlliance.TRADE, 2).title);
-        alliance.setTier(KOMEAlliance.MILITARY, 1, "test", 0L);
-        assertTrue(authority.canFactionHireAlliedMilitaryUnit("gondor", "rohan"));
+        alliance.setFactionStage("gondor", 2, "test", 0L, 2L);
+        assertTrue(alliance.hasProduceMerchantSlot("gondor"));
         assertFalse(authority.canFactionUseMilitaryPassage("gondor", "rohan"));
-        alliance.setTier(KOMEAlliance.MILITARY, 2, "test", 0L);
+        alliance.setFactionStage("gondor", 3, "test", 0L, 3L);
         assertTrue(authority.canFactionUseMilitaryPassage("gondor", "rohan"));
-        assertTrue(authority.canFactionUseMilitaryPassage("rohan", "gondor"));
+        assertFalse(authority.canFactionUseMilitaryPassage("rohan", "gondor"));
         assertFalse(authority.canTemporarilyCommand("gondor", "rohan"));
-        alliance.setTier(KOMEAlliance.MILITARY, 3, "test", 0L);
+        alliance.setFactionStage("rohan", 4, "test", 0L, 4L);
         data.claimFactionKing("gondor", "Gondor", UUID.randomUUID(), "King");
         assertTrue(authority.canTemporarilyCommand("gondor", "rohan"));
-        assertFalse(authority.canFactionUseAlliedWaypoint("gondor", "mordor"));
+        assertTrue(authority.canFactionUseAlliedWaypoint("gondor", "mordor"));
     }
 
     @Test
@@ -602,47 +599,23 @@ public class KOMEAllianceSystemsTest {
     public void viewerTracksRemainSideSpecificAndOmitAbsentMilitary() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
-        alliance.requestTrack(KOMEAlliance.TRADE, "test", 0L, false);
-        alliance.setTier(KOMEAlliance.CIVIL, 1, "test", 0L);
-        alliance.setDelivered("gondor", KOMEAllianceProgressionService.ALLIED_TRADES, 31);
-        alliance.setDelivered("rohan", KOMEAllianceProgressionService.ALLIED_TRADES, 7);
-        alliance.getFactionLedger("gondor").setCompletedTier(KOMEAlliance.CIVIL, 2);
-        long rohanDeadline = System.currentTimeMillis() + 100000L;
-        alliance.getFactionLedger("rohan").beginContributionGrace("test", rohanDeadline - 1000L, 1000L,
-            1, 0, KOMEAlliance.NONE);
-        alliance.getFactionLedger("rohan").graceEndMillis = rohanDeadline;
-
-        int trackCount = 0;
-        boolean gondor = false;
-        boolean rohan = false;
+        alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
+        alliance.setFactionStage("gondor", 3, "test", 0L, 10L);
+        alliance.setFactionStage("rohan", 1, "test", 0L, 11L);
+        int stageRecords = 0;
         for (Object value : KOMEAllianceRecordBuilder.build(data, null)) {
             String line = String.valueOf(value);
             assertFalse(line.contains("military.t4"));
-            assertFalse(line.toLowerCase().contains("farmer requirement"));
             String[] parts = line.split("\\t", -1);
-            if (parts.length < 25 || !"TRACK".equals(parts[0])) {
-                continue;
-            }
-            trackCount++;
-            assertFalse(KOMEAlliance.MILITARY.equals(parts[4]));
-            if (KOMEAlliance.CIVIL.equals(parts[4]) && "gondor".equals(parts[2])) {
-                gondor = true;
-                assertEquals("rohan", parts[3]);
-                assertEquals("31", parts[13]);
-                assertEquals("1", parts[16]);
-                assertEquals("0", parts[23]);
-                assertEquals("0", parts[19]);
-            }
-            if (KOMEAlliance.CIVIL.equals(parts[4]) && "rohan".equals(parts[2])) {
-                rohan = true;
-                assertEquals("gondor", parts[3]);
-                assertEquals("7", parts[13]);
-                assertEquals(String.valueOf(rohanDeadline), parts[19]);
-            }
+            if (parts.length < 27 || !"STAGE_RELATION".equals(parts[0])) continue;
+            stageRecords++;
+            assertEquals("gondor", parts[6]);
+            assertEquals("rohan", parts[7]);
+            assertEquals("3", parts[8]);
+            assertEquals("1", parts[9]);
+            assertEquals("Neutral", parts[13]);
         }
-        assertEquals(4, trackCount);
-        assertTrue(gondor);
-        assertTrue(rohan);
+        assertEquals(1, stageRecords);
     }
 
     @Test
@@ -1194,7 +1167,7 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void departingKingStartsSuccessionAndTemporaryControllerDepartureDoesNotDeleteNativeForces() {
+    public void departingKingPreservesStagesWithoutGraceAndControllerDepartureDoesNotDeleteNativeForces() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID king = UUID.randomUUID();
         KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
@@ -1204,7 +1177,8 @@ public class KOMEAllianceSystemsTest {
             300L, "king unpledged");
         assertTrue(kingResult.wasKing);
         assertFalse(data.hasFactionKing("gondor"));
-        assertTrue(alliance.getFactionLedger("gondor").successionEndMillis > 0L);
+        assertEquals(0L, alliance.getFactionLedger("gondor").successionEndMillis);
+        assertEquals(0, alliance.getFactionStage("gondor"));
 
         UUID nativeOwner = UUID.randomUUID();
         UUID controller = UUID.randomUUID();

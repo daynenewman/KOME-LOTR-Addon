@@ -430,6 +430,26 @@ public class KOMECommandAlliance extends CommandBase {
             sender.addChatMessage(new ChatComponentText("Alliance difficulty set to " + difficulty + ". Existing completed tiers remain completed; open quotas were resized."));
             return;
         }
+        if (args.length == 3 && "stage3hours".equalsIgnoreCase(args[1])) {
+            double hours;
+            try {
+                hours = Double.parseDouble(args[2]);
+            } catch (NumberFormatException error) {
+                throw new WrongUsageException("Stage 3 hours must use 0.5-hour increments.");
+            }
+            int halfHours;
+            try {
+                halfHours = kome.common.data.KOMEBuildPopulationService.toHalfHours(hours);
+            } catch (IllegalArgumentException error) {
+                throw new WrongUsageException(error.getMessage());
+            }
+            if (halfHours < 1) throw new WrongUsageException("Stage 3 hours must be at least 0.5.");
+            data.allianceStageThreeRequiredHalfHours = halfHours;
+            recordAndRefresh(sender, data, "set Stage 3 Build-hour threshold " + hours);
+            sender.addChatMessage(new ChatComponentText("Stage 3 Build contribution threshold set to "
+                + kome.common.data.KOMEBuildPopulationService.displayHours(halfHours) + " hours."));
+            return;
+        }
         if (args.length == 3 && "waypointRestriction".equalsIgnoreCase(args[1])) {
             throw new WrongUsageException("Alliance-gated waypoint restrictions were removed in schema 7.");
         }
@@ -453,7 +473,7 @@ public class KOMECommandAlliance extends CommandBase {
             sender.addChatMessage(new ChatComponentText("Configured " + displayType(type) + " T" + tier + " " + kind + " base to " + value + ". Completed tiers were not revoked."));
             return;
         }
-        throw new WrongUsageException("/alliance config difficulty <easy|standard|hard> | requirement <type> <tier> <items|activity|population> <value> | quota item <registry[:meta]> <weight|max|enabled|show> [value] | waypointRestriction <on|off> | grace <succession|contribution> <duration>");
+        throw new WrongUsageException("/alliance config difficulty <easy|standard|hard> | stage3hours <hours> | requirement <legacy-quota-family> <tier> <items|activity|population> <value> | quota item <registry[:meta]> <weight|max|enabled|show> [value]");
     }
 
     private void processWaypointAdmin(ICommandSender sender, String[] args, KOMEWorldData data) {
@@ -965,7 +985,8 @@ public class KOMECommandAlliance extends CommandBase {
             return;
         }
         LOTRFactionRelations.Relation relation = getDefaultRelation(factionA, factionB);
-        relation = strongestRelation(relation, strongestAllianceRelation(data.getAlliance(factionA, factionB, false)));
+        LOTRFactionRelations.Relation formal = strongestAllianceRelation(data.getAlliance(factionA, factionB, false));
+        if (formal != null) relation = formal;
         LOTRFactionRelations.overrideRelations(a, b, relation);
     }
 

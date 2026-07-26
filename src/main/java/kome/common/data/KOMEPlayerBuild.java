@@ -51,7 +51,8 @@ public class KOMEPlayerBuild {
     }
 
     public int approvedPopulation(KOMEPopulationType type, int populationPerHalfHour) {
-        return approvedHalfHours(type) * Math.max(1, populationPerHalfHour);
+        return KOMEBuildPopulationService.generatedPopulation(
+            approvedHalfHours(type), populationPerHalfHour);
     }
 
     public int committedPopulation(KOMEPopulationType type) {

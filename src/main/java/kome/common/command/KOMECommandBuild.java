@@ -27,7 +27,7 @@ public class KOMECommandBuild extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/build list [tile] | inspect <id> | pools <tile> | reassign <id> <onlinePlayer> | remove <id> | sethours <id> <offensive|defensive> <hours>";
+        return "/build list [tile] | inspect <id> | pools <tile> | reassign <id> <onlinePlayer> | remove <id> | sethours <id> <offensive|defensive> <hours> | config populationPerHalfHour <value>";
     }
 
     @Override
@@ -40,6 +40,27 @@ public class KOMECommandBuild extends CommandBase {
         if (args.length == 0) throw new WrongUsageException(getCommandUsage(sender));
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
+        if ("config".equals(action) && args.length == 3
+                && "populationperhalfhour".equalsIgnoreCase(args[1])) {
+            int value;
+            try {
+                value = Integer.parseInt(args[2]);
+            } catch (NumberFormatException error) {
+                throw new WrongUsageException("Population per half-hour must be a positive integer.");
+            }
+            if (value < 1 || value > 100000) {
+                throw new WrongUsageException("Population per half-hour must be between 1 and 100000.");
+            }
+            data.buildPopulationPerHalfHour = value;
+            for (KOMEPlayerBuild candidate : data.builds.values()) {
+                if (candidate != null) data.recalculateBuildPopulationPool(candidate.tileId, candidate.populationFaction);
+            }
+            data.reconcileBuildCommitments();
+            data.markDirty();
+            sender.addChatMessage(new ChatComponentText("Build conversion set to " + value
+                + " population per approved half-hour."));
+            return;
+        }
         if ("list".equals(action)) {
             String tile = args.length > 1 ? args[1] : "";
             List<KOMEPlayerBuild> builds = tile.length() == 0

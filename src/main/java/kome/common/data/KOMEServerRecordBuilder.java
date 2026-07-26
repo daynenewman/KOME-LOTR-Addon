@@ -127,7 +127,7 @@ public class KOMEServerRecordBuilder {
             faction.name,
             getRank(data, record.id, progression, faction.key),
             getProgressionSummary(progression),
-            getPopulationSummary(pop),
+            getPopulationSummary(data, pop, faction.key),
             progression == null ? "No pledged lord" : progression.getPledgedLordDisplay(),
             getAllianceSummary(data, faction.key),
             String.valueOf(tiles.count),
@@ -142,8 +142,20 @@ public class KOMEServerRecordBuilder {
         return progression.getCompletedCount(null) + "/" + progression.getTotalCount(null);
     }
 
-    private static String getPopulationSummary(KOMEPlayerPopulation pop) {
-        return "Off " + pop.offensiveTotal + ", Def " + pop.defensiveTotal + ", Total " + pop.getCombinedTotal();
+    private static String getPopulationSummary(KOMEWorldData data, KOMEPlayerPopulation pop, String faction) {
+        int builds = 0;
+        int buildPopulation = 0;
+        for (KOMEPlayerBuild build : data.builds.values()) {
+            if (build != null && build.active
+                    && KOMEAlliance.normalizeFactionKey(faction).equals(
+                        KOMEAlliance.normalizeFactionKey(build.populationFaction))) {
+                builds++;
+                buildPopulation += build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour);
+                buildPopulation += build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour);
+            }
+        }
+        return "Off " + pop.offensiveTotal + ", Def " + pop.defensiveTotal + ", Total " + pop.getCombinedTotal()
+            + ", Builds " + builds + ", Build Pop " + buildPopulation;
     }
 
     private static String getRank(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {
@@ -222,19 +234,23 @@ public class KOMEServerRecordBuilder {
                 continue;
             }
             if (factionMatches(alliance.factionA, factionKey)) {
-                lines.add("To " + displayFaction(alliance.factionB) + ": " + tierSummary(alliance, factionKey));
+                lines.add("To " + displayFaction(alliance.factionB) + ": " + stageSummary(alliance, factionKey));
             } else if (factionMatches(alliance.factionB, factionKey)) {
-                lines.add("From " + displayFaction(alliance.factionA) + ": " + tierSummary(alliance, factionKey));
+                lines.add("To " + displayFaction(alliance.factionA) + ": " + stageSummary(alliance, factionKey));
             }
         }
         Collections.sort(lines);
         return joinNames(lines);
     }
 
-    private static String tierSummary(KOMEAlliance alliance, String faction) {
-        return "C " + displayTier(alliance.getFactionTier(faction, KOMEAlliance.CIVIL))
-            + ", M " + displayTier(alliance.getFactionTier(faction, KOMEAlliance.MILITARY))
-            + ", T " + displayTier(alliance.getFactionTier(faction, KOMEAlliance.TRADE));
+    private static String stageSummary(KOMEAlliance alliance, String faction) {
+        if (alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.PENDING) return "Pending";
+        String partner = alliance.getOtherFaction(faction);
+        int own = alliance.getFactionStage(faction);
+        int other = alliance.getFactionStage(partner);
+        int shared = alliance.getSharedRelationStage();
+        return "Stage " + own + " | Partner " + other + " | Shared "
+            + (shared >= 3 ? "Allies" : shared >= 2 ? "Friends" : "Neutral");
     }
 
     private static String displayTier(int tier) {
