@@ -215,14 +215,16 @@ public class KOMECommandAlliance extends CommandBase {
             if (alliance.getTier(type) == KOMEAlliance.PENDING) {
                 throw new WrongUsageException("This " + displayType(type) + " alliance request must be accepted before tiers can progress.");
             }
-            int targetTier = alliance.getTier(type) + 1;
-            if (alliance.getTier(type) < 0 || targetTier > KOMEAlliance.maxTier(type)) {
-                throw new WrongUsageException("This " + displayType(type) + " track has no next quota tier.");
-            }
             String contributingFaction = sender instanceof EntityPlayerMP
                 ? new KOMEAllianceAuthority(data).getPlayerFaction((EntityPlayerMP) sender) : senderFaction;
             if (!sender.canCommandSenderUseCommand(2, getCommandName()) && !alliance.involves(contributingFaction)) {
                 throw new WrongUsageException("Only pledged members of a participating faction may roll this shared quota.");
+            }
+            int currentTier = alliance.getFactionTier(contributingFaction, type);
+            int targetTier = currentTier + 1;
+            if (currentTier < 0 || targetTier > KOMEAlliance.maxTier(type)) {
+                throw new WrongUsageException("This " + displayType(type) + " track has no next quota tier for "
+                    + displayFaction(contributingFaction) + ".");
             }
             String id = KOMEAllianceQuotaPool.assignmentId(type, targetTier);
             if (!alliance.getAssignment(contributingFaction, id).trim().isEmpty()) {
@@ -252,7 +254,8 @@ public class KOMECommandAlliance extends CommandBase {
             if (alliance == null || !alliance.hasAnyAlliance()) {
                 throw new WrongUsageException("No alliance request exists for " + displayFaction(senderFaction) + " -> " + displayFaction(receiverFaction) + ".");
             }
-            int targetTier = Math.min(KOMEAlliance.maxTier(type), Math.max(1, alliance.getTier(type) + 1));
+            int targetTier = Math.min(KOMEAlliance.maxTier(type),
+                Math.max(1, alliance.getFactionTier(senderFaction, type) + 1));
             String id = KOMEAllianceQuotaPool.assignmentId(type, targetTier);
             String previous = alliance.getAssignment(senderFaction, id);
             KOMEAllianceQuotaPool.Requirement rerolled = KOMEAllianceQuotaPool.reroll(data, alliance, type, targetTier, senderFaction, (int) (System.currentTimeMillis() & 0x7fffffff));
@@ -536,7 +539,7 @@ public class KOMECommandAlliance extends CommandBase {
             }
             recordAndRefresh(sender, data, graceAudit(alliance, change));
             sender.addChatMessage(new ChatComponentText("Force-expired " + displayFaction(change.affectedFaction)
-                + "'s " + change.type + " grace and reconciled the mutual tier. The other faction side was unchanged."));
+                + "'s " + change.type + " grace and reconciled that faction's tiers. The other faction side was unchanged."));
             return;
         }
         throw new WrongUsageException("/alliance grace status <factionA> <factionB> [affectedFaction] | set <factionA> <factionB> <affectedFaction> <succession|contribution> <duration> | expire <factionA> <factionB> <affectedFaction> <succession|contribution>");

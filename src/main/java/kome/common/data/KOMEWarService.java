@@ -81,7 +81,7 @@ public final class KOMEWarService {
         if (findActiveOpposition(data, nativeFaction, controllerFaction) != null) return result;
         KOMEAlliance alliance = data.getAlliance(nativeFaction, controllerFaction, false);
         if (alliance == null || new KOMEAllianceAuthority(data).getEffectiveTier(
-                alliance, KOMEAlliance.MILITARY, System.currentTimeMillis()) < 3
+                alliance, controllerFaction, KOMEAlliance.MILITARY, System.currentTimeMillis()) < 3
                 || !alliance.hasAccepted(KOMEAlliance.MILITARY)) return result;
         for (KOMEWar war : sortedWars(data)) {
             if (war.isActive() && war.sameSide(nativeFaction, controllerFaction)) result.add(war);
@@ -149,9 +149,9 @@ public final class KOMEWarService {
                     int nativeSide = war.sideOf(nativeFaction);
                     if (nativeSide == 0 || data.hasFactionKing(nativeFaction)) continue;
                     for (KOMEAlliance alliance : data.alliances.values()) {
-                        if (alliance == null || !alliance.involves(nativeFaction)
-                                || !hasEffectiveMilitaryT3(data, alliance.factionA, alliance.factionB, now)) continue;
+                        if (alliance == null || !alliance.involves(nativeFaction)) continue;
                         String supportingFaction = alliance.getOtherFaction(nativeFaction);
+                        if (!hasEffectiveMilitaryT3(data, nativeFaction, supportingFaction, now)) continue;
                         int supportingSide = war.sideOf(supportingFaction);
                         KOMEWar.MilitarySupportEnrollment enrollment = war.supportEnrollment(nativeFaction, supportingFaction, true);
                         String previousState = enrollment.state;
@@ -201,7 +201,7 @@ public final class KOMEWarService {
     private static boolean hasEffectiveMilitaryT3(KOMEWorldData data, String first, String second, long now) {
         KOMEAlliance alliance = data == null ? null : data.getAlliance(first, second, false);
         return alliance != null && alliance.hasAccepted(KOMEAlliance.MILITARY)
-            && new KOMEAllianceAuthority(data).getEffectiveTier(alliance, KOMEAlliance.MILITARY, now) >= 3;
+            && new KOMEAllianceAuthority(data).getEffectiveTier(alliance, second, KOMEAlliance.MILITARY, now) >= 3;
     }
 
     private static boolean updateEnrollment(KOMEWar.MilitarySupportEnrollment enrollment, String state,
@@ -244,9 +244,15 @@ public final class KOMEWarService {
         StringBuilder result = new StringBuilder();
         KOMEAlliance alliance = data == null ? null : data.getAlliance(first, second, false);
         if (alliance == null) result.append("none");
-        else result.append(alliance.getStatus(KOMEAlliance.CIVIL)).append(':').append(alliance.getTier(KOMEAlliance.CIVIL))
-            .append('|').append(alliance.getStatus(KOMEAlliance.TRADE)).append(':').append(alliance.getTier(KOMEAlliance.TRADE))
-            .append('|').append(alliance.getStatus(KOMEAlliance.MILITARY)).append(':').append(alliance.getTier(KOMEAlliance.MILITARY));
+        else result.append(alliance.getStatus(KOMEAlliance.CIVIL)).append(':')
+            .append(alliance.getFactionTier(first, KOMEAlliance.CIVIL)).append(':')
+            .append(alliance.getFactionTier(second, KOMEAlliance.CIVIL))
+            .append('|').append(alliance.getStatus(KOMEAlliance.TRADE)).append(':')
+            .append(alliance.getFactionTier(first, KOMEAlliance.TRADE)).append(':')
+            .append(alliance.getFactionTier(second, KOMEAlliance.TRADE))
+            .append('|').append(alliance.getStatus(KOMEAlliance.MILITARY)).append(':')
+            .append(alliance.getFactionTier(first, KOMEAlliance.MILITARY)).append(':')
+            .append(alliance.getFactionTier(second, KOMEAlliance.MILITARY));
         result.append("|same=");
         for (KOMEWar war : findActiveSameSide(data, first, second)) result.append(war.id).append(',');
         result.append("|activeMembership=");

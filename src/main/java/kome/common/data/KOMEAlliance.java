@@ -14,7 +14,7 @@ public class KOMEAlliance {
     public static final int STORAGE_SLOTS = 9;
     public static final int NONE = -1;
     public static final int PENDING = -2;
-    public static final int DATA_SCHEMA_VERSION = 5;
+    public static final int DATA_SCHEMA_VERSION = 6;
 
     public String factionA = "";
     public String factionB = "";
@@ -97,6 +97,42 @@ public class KOMEAlliance {
         return NONE;
     }
 
+    /**
+     * Returns the tier unlocked by one participating faction. The relationship status remains
+     * mutual, while benefits and the next progression target are directional.
+     */
+    public int getFactionTier(String faction, String type) {
+        syncStatusFromCompatibilityFields();
+        String normalizedType = normalizeType(type);
+        KOMEAllianceTrackStatus status = getStatusWithoutSync(normalizedType);
+        if (status == KOMEAllianceTrackStatus.PENDING) {
+            return PENDING;
+        }
+        if (status != KOMEAllianceTrackStatus.ACTIVE) {
+            return NONE;
+        }
+        KOMEAllianceFactionLedger ledger = getFactionLedger(faction);
+        if (ledger == null) {
+            return NONE;
+        }
+        int unlocked = ledger.getUnlockedTier(normalizedType);
+        return unlocked < 0 ? 0 : unlocked;
+    }
+
+    public void setFactionTier(String faction, String type, int tier, String updatedBy, long worldTime) {
+        String normalizedType = normalizeType(type);
+        KOMEAllianceFactionLedger ledger = getFactionLedger(faction);
+        if (!isValidType(normalizedType) || ledger == null
+                || getStatus(normalizedType) != KOMEAllianceTrackStatus.ACTIVE) {
+            return;
+        }
+        ledger.setUnlockedTier(normalizedType, tier);
+        refreshCompatibilityTier(normalizedType);
+        lastUpdatedBy = updatedBy == null ? "" : updatedBy;
+        updatedWorldTime = Math.max(0L, worldTime);
+        updatedRealTimeMillis = System.currentTimeMillis();
+    }
+
     public KOMEAllianceTrackStatus getStatus(String type) {
         syncStatusFromCompatibilityFields();
         String normalizedType = normalizeType(type);
@@ -143,6 +179,7 @@ public class KOMEAlliance {
         if (safeStatus != KOMEAllianceTrackStatus.PENDING) {
             clearPendingParties(normalizedType);
         }
+        setAllFactionTiers(normalizedType, safeStatus == KOMEAllianceTrackStatus.ACTIVE ? compatibilityTier : NONE);
         lastUpdatedBy = updatedBy == null ? "" : updatedBy;
         updatedWorldTime = Math.max(0L, worldTime);
         updatedRealTimeMillis = Math.max(0L, realTimeMillis);
@@ -419,6 +456,9 @@ public class KOMEAlliance {
         if (ledgerB != null && otherB != null) {
             ledgerB.mergeFrom(otherB, combineStoredGoods);
         }
+        refreshCompatibilityTier(CIVIL);
+        refreshCompatibilityTier(TRADE);
+        refreshCompatibilityTier(MILITARY);
         if (other.updatedRealTimeMillis > updatedRealTimeMillis
                 || other.updatedRealTimeMillis == updatedRealTimeMillis && other.updatedWorldTime > updatedWorldTime) {
             lastUpdatedBy = other.lastUpdatedBy;
@@ -492,6 +532,12 @@ public class KOMEAlliance {
                 }
             }
         }
+        migrateFactionTiers(CIVIL, civilStatus, civilTier);
+        migrateFactionTiers(TRADE, tradeStatus, tradeTier);
+        migrateFactionTiers(MILITARY, militaryStatus, militaryTier);
+        refreshCompatibilityTier(CIVIL);
+        refreshCompatibilityTier(TRADE);
+        refreshCompatibilityTier(MILITARY);
         ensureHierarchy();
     }
 
@@ -722,6 +768,11 @@ public class KOMEAlliance {
         if (status != KOMEAllianceTrackStatus.PENDING) {
             clearPendingParties(type);
         }
+        if (status == KOMEAllianceTrackStatus.ACTIVE) {
+            initializeFactionTierIfMissing(type, compatibilityTier);
+        } else {
+            setAllFactionTiers(type, NONE);
+        }
     }
 
     private void setPendingPartiesIfPending(String type, String requester, String receiver) {
@@ -777,6 +828,54 @@ public class KOMEAlliance {
         civilTier = compatibilityTier(CIVIL, civilStatus, civilTier);
         tradeTier = compatibilityTier(TRADE, tradeStatus, tradeTier);
         militaryTier = compatibilityTier(MILITARY, militaryStatus, militaryTier);
+    }
+
+    private void migrateFactionTiers(String type, KOMEAllianceTrackStatus status, int legacyTier) {
+        if (status != KOMEAllianceTrackStatus.ACTIVE) {
+            setAllFactionTiers(type, NONE);
+            return;
+        }
+        int migrated = Math.max(0, Math.min(maxTier(type), legacyTier));
+        initializeFactionTierIfMissing(type, migrated);
+    }
+
+    private void initializeFactionTierIfMissing(String type, int tier) {
+        if (ledgerA != null && !ledgerA.hasUnlockedTier(type)) {
+            ledgerA.setUnlockedTier(type, tier);
+        }
+        if (ledgerB != null && !ledgerB.hasUnlockedTier(type)) {
+            ledgerB.setUnlockedTier(type, tier);
+        }
+    }
+
+    private void setAllFactionTiers(String type, int tier) {
+        if (ledgerA != null) {
+            ledgerA.setUnlockedTier(type, tier);
+        }
+        if (ledgerB != null) {
+            ledgerB.setUnlockedTier(type, tier);
+        }
+    }
+
+    private void refreshCompatibilityTier(String type) {
+        KOMEAllianceTrackStatus status = getStatusWithoutSync(type);
+        int tier;
+        if (status == KOMEAllianceTrackStatus.PENDING) {
+            tier = PENDING;
+        } else if (status == KOMEAllianceTrackStatus.NONE) {
+            tier = NONE;
+        } else {
+            int first = ledgerA == null ? 0 : Math.max(0, ledgerA.getUnlockedTier(type));
+            int second = ledgerB == null ? 0 : Math.max(0, ledgerB.getUnlockedTier(type));
+            tier = Math.min(first, second);
+        }
+        if (CIVIL.equals(type)) {
+            civilTier = tier;
+        } else if (TRADE.equals(type)) {
+            tradeTier = tier;
+        } else if (MILITARY.equals(type)) {
+            militaryTier = tier;
+        }
     }
 
     private void readLegacyLedger(NBTTagCompound nbt, String contributingFaction) {

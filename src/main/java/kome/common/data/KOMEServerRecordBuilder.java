@@ -222,17 +222,19 @@ public class KOMEServerRecordBuilder {
                 continue;
             }
             if (factionMatches(alliance.factionA, factionKey)) {
-                lines.add("To " + displayFaction(alliance.factionB) + ": " + tierSummary(alliance));
+                lines.add("To " + displayFaction(alliance.factionB) + ": " + tierSummary(alliance, factionKey));
             } else if (factionMatches(alliance.factionB, factionKey)) {
-                lines.add("From " + displayFaction(alliance.factionA) + ": " + tierSummary(alliance));
+                lines.add("From " + displayFaction(alliance.factionA) + ": " + tierSummary(alliance, factionKey));
             }
         }
         Collections.sort(lines);
         return joinNames(lines);
     }
 
-    private static String tierSummary(KOMEAlliance alliance) {
-        return "C " + displayTier(alliance.civilTier) + ", M " + displayTier(alliance.militaryTier) + ", T " + displayTier(alliance.tradeTier);
+    private static String tierSummary(KOMEAlliance alliance, String faction) {
+        return "C " + displayTier(alliance.getFactionTier(faction, KOMEAlliance.CIVIL))
+            + ", M " + displayTier(alliance.getFactionTier(faction, KOMEAlliance.MILITARY))
+            + ", T " + displayTier(alliance.getFactionTier(faction, KOMEAlliance.TRADE));
     }
 
     private static String displayTier(int tier) {

@@ -212,7 +212,7 @@ public class KOMEGuiAlliancePermissions extends GuiScreen {
     }
 
     private String requirementText(int requiredTier, int currentTier) {
-        return "Requires both sides to complete " + KOMEAlliancePermissions.TYPES[selectedType] + " T" + requiredTier;
+        return "Requires your faction's " + KOMEAlliancePermissions.TYPES[selectedType] + " T" + requiredTier;
     }
 
     private int getTabsY() {

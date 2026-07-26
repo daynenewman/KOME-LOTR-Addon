@@ -1415,7 +1415,7 @@ public class KOMEWorldData extends WorldSavedData {
 
     public int getAllianceTier(String type, String factionA, String factionB) {
         KOMEAlliance alliance = getAlliance(factionA, factionB, false);
-        return alliance == null ? -1 : alliance.getTier(KOMEAlliance.normalizeType(type));
+        return alliance == null ? -1 : alliance.getFactionTier(factionA, KOMEAlliance.normalizeType(type));
     }
 
     public boolean clearAlliance(String factionA, String factionB) {
@@ -1645,7 +1645,10 @@ public class KOMEWorldData extends WorldSavedData {
             }
             if (ledger.kinglessWaived) {
                 ledger.beginContributionGrace("Kingless contribution waiver ended", nowMillis,
-                    contributionGraceDefaultMillis, alliance.civilTier, alliance.tradeTier, alliance.militaryTier);
+                    contributionGraceDefaultMillis,
+                    alliance.getFactionTier(faction, KOMEAlliance.CIVIL),
+                    alliance.getFactionTier(faction, KOMEAlliance.TRADE),
+                    alliance.getFactionTier(faction, KOMEAlliance.MILITARY));
                 changed = true;
             }
         }
@@ -1669,7 +1672,6 @@ public class KOMEWorldData extends WorldSavedData {
             }
             boolean allianceChanged = false;
             String[] factions = new String[] {alliance.factionA, alliance.factionB};
-            boolean contributionGraceExpired = false;
             for (int i = 0; i < factions.length; i++) {
                 String faction = factions[i];
                 KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(faction);
@@ -1678,12 +1680,15 @@ public class KOMEWorldData extends WorldSavedData {
                 }
                 if (hasFactionKing(faction) && ledger.kinglessWaived) {
                     ledger.beginContributionGrace("Kingless contribution waiver ended", nowMillis,
-                        contributionGraceDefaultMillis, alliance.civilTier, alliance.tradeTier, alliance.militaryTier);
+                        contributionGraceDefaultMillis,
+                        alliance.getFactionTier(faction, KOMEAlliance.CIVIL),
+                        alliance.getFactionTier(faction, KOMEAlliance.TRADE),
+                        alliance.getFactionTier(faction, KOMEAlliance.MILITARY));
                     allianceChanged = true;
                 }
                 if (ledger.graceEndMillis > 0L && nowMillis >= ledger.graceEndMillis) {
                     ledger.clearContributionGrace();
-                    contributionGraceExpired = true;
+                    downgradeToCompletedTiers(alliance, faction, worldTime);
                     allianceChanged = true;
                 }
                 if (ledger.successionEndMillis > 0L) {
@@ -1696,9 +1701,6 @@ public class KOMEWorldData extends WorldSavedData {
                         allianceChanged = true;
                     }
                 }
-            }
-            if (contributionGraceExpired) {
-                downgradeToCompletedSharedTiers(alliance, worldTime);
             }
             if (allianceChanged) {
                 KOMECommandAlliance.syncRelationsForAlliancePair(this, alliance.factionA, alliance.factionB);
@@ -1714,16 +1716,20 @@ public class KOMEWorldData extends WorldSavedData {
         return changed;
     }
 
-    private void downgradeToCompletedSharedTiers(KOMEAlliance alliance, long worldTime) {
+    private void downgradeToCompletedTiers(KOMEAlliance alliance, String faction, long worldTime) {
+        KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(faction);
+        if (ledger == null) {
+            return;
+        }
         String[] types = new String[] {KOMEAlliance.CIVIL, KOMEAlliance.TRADE, KOMEAlliance.MILITARY};
         for (int i = 0; i < types.length; i++) {
             String type = types[i];
             if (!alliance.hasAccepted(type)) {
                 continue;
             }
-            int completed = sharedCompletedTier(alliance, type);
-            if (completed < alliance.getTier(type)) {
-                alliance.setTier(type, completed, "Contribution grace expired", worldTime);
+            int completed = Math.max(0, Math.min(KOMEAlliance.maxTier(type), ledger.getCompletedTier(type)));
+            if (completed < alliance.getFactionTier(faction, type)) {
+                alliance.setFactionTier(faction, type, completed, "Contribution grace expired", worldTime);
             }
         }
     }
@@ -1731,17 +1737,9 @@ public class KOMEWorldData extends WorldSavedData {
     void expireContributionSide(KOMEAlliance alliance, String affectedFaction, long worldTime) {
         KOMEAllianceFactionLedger ledger = KOMEAllianceGraceService.requireLedger(alliance, affectedFaction);
         ledger.clearContributionGrace();
-        downgradeToCompletedSharedTiers(alliance, worldTime);
+        downgradeToCompletedTiers(alliance, affectedFaction, worldTime);
         KOMECommandAlliance.syncRelationsForAlliancePair(this, alliance.factionA, alliance.factionB);
         markDirty();
-    }
-
-    private int sharedCompletedTier(KOMEAlliance alliance, String type) {
-        KOMEAllianceFactionLedger first = alliance.getFactionLedger(alliance.factionA);
-        KOMEAllianceFactionLedger second = alliance.getFactionLedger(alliance.factionB);
-        int firstCompleted = first == null ? 0 : first.kinglessWaived ? alliance.getTier(type) : first.getCompletedTier(type);
-        int secondCompleted = second == null ? 0 : second.kinglessWaived ? alliance.getTier(type) : second.getCompletedTier(type);
-        return Math.max(0, Math.min(KOMEAlliance.maxTier(type), Math.min(firstCompleted, secondCompleted)));
     }
 
     private void capAllianceAfterSuccession(KOMEAlliance alliance, String kinglessFaction, long worldTime) {
@@ -3025,9 +3023,9 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     private boolean hasMissingAllianceContributions(KOMEAlliance alliance, KOMEAllianceFactionLedger ledger) {
-        return alliance.hasAccepted(KOMEAlliance.CIVIL) && ledger.getCompletedTier(KOMEAlliance.CIVIL) < alliance.getTier(KOMEAlliance.CIVIL)
-            || alliance.hasAccepted(KOMEAlliance.TRADE) && ledger.getCompletedTier(KOMEAlliance.TRADE) < alliance.getTier(KOMEAlliance.TRADE)
-            || alliance.hasAccepted(KOMEAlliance.MILITARY) && ledger.getCompletedTier(KOMEAlliance.MILITARY) < alliance.getTier(KOMEAlliance.MILITARY);
+        return alliance.hasAccepted(KOMEAlliance.CIVIL) && ledger.getCompletedTier(KOMEAlliance.CIVIL) < alliance.getFactionTier(ledger.faction, KOMEAlliance.CIVIL)
+            || alliance.hasAccepted(KOMEAlliance.TRADE) && ledger.getCompletedTier(KOMEAlliance.TRADE) < alliance.getFactionTier(ledger.faction, KOMEAlliance.TRADE)
+            || alliance.hasAccepted(KOMEAlliance.MILITARY) && ledger.getCompletedTier(KOMEAlliance.MILITARY) < alliance.getFactionTier(ledger.faction, KOMEAlliance.MILITARY);
     }
 
     @Override

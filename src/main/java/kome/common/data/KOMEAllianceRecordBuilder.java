@@ -147,7 +147,8 @@ public class KOMEAllianceRecordBuilder {
     private static String formatMilitaryContext(KOMEWorldData data, KOMEAlliance alliance,
             String nativeFaction, String supportingFaction) {
         long now = System.currentTimeMillis();
-        int effectiveTier = new KOMEAllianceAuthority(data).getEffectiveTier(alliance, KOMEAlliance.MILITARY, now);
+        int effectiveTier = new KOMEAllianceAuthority(data).getEffectiveTier(
+            alliance, supportingFaction, KOMEAlliance.MILITARY, now);
         boolean nativeHasKing = data.hasFactionKing(nativeFaction);
         UUID nativeKing = data.getFactionKingId(nativeFaction);
         UUID supportingKing = data.getFactionKingId(supportingFaction);
@@ -162,7 +163,7 @@ public class KOMEAllianceRecordBuilder {
         String state;
         String reason;
         if (effectiveTier < 3) {
-            state = alliance.getTier(KOMEAlliance.MILITARY) >= 3 ? "SUSPENDED" : "LOCKED";
+            state = alliance.getFactionTier(supportingFaction, KOMEAlliance.MILITARY) >= 3 ? "SUSPENDED" : "LOCKED";
             reason = "An effectively active mutual Military T3 alliance is required.";
         } else if (directlyOpposed) {
             state = "CONTRADICTION";
@@ -239,7 +240,7 @@ public class KOMEAllianceRecordBuilder {
 
     private static String formatTrack(KOMEWorldData data, KOMEAlliance alliance, String side, String partner,
             String type, EntityPlayer viewer, boolean admin) {
-        int tier = alliance.getTier(type);
+        int tier = alliance.getFactionTier(side, type);
         int target = tier >= 0 && tier < KOMEAlliance.maxTier(type) ? tier + 1 : 0;
         KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(side);
         KOMEAllianceQuotaPool.Requirement quota = target == 0 ? null
@@ -343,9 +344,9 @@ public class KOMEAllianceRecordBuilder {
             + alliance.factionB + "\t"
             + displayFaction(alliance.factionA) + "\t"
             + displayFaction(alliance.factionB) + "\t"
-            + alliance.civilTier + "\t"
-            + alliance.militaryTier + "\t"
-            + alliance.tradeTier + "\t"
+            + alliance.getFactionTier(contributor, KOMEAlliance.CIVIL) + "\t"
+            + alliance.getFactionTier(contributor, KOMEAlliance.MILITARY) + "\t"
+            + alliance.getFactionTier(contributor, KOMEAlliance.TRADE) + "\t"
             + alliance.lastUpdatedBy + "\t"
             + alliance.updatedWorldTime + "\t"
             + safe(alliance.getAssignment(contributor, "military.food")) + "\t"
@@ -356,7 +357,8 @@ public class KOMEAllianceRecordBuilder {
             + alliance.getDelivered(contributor, "military.kills") + "\t"
             + alliance.getDelivered(contributor, "trade.t2.coins") + "\t"
             + alliance.getDelivered(contributor, KOMEAllianceProgressionService.ALLIED_TRADES) + "\t"
-            + data.getAllianceActivityRequirement(KOMEAlliance.MILITARY, Math.max(1, Math.min(3, alliance.militaryTier + 1))) + "\t"
+            + data.getAllianceActivityRequirement(KOMEAlliance.MILITARY, Math.max(1,
+                Math.min(3, alliance.getFactionTier(contributor, KOMEAlliance.MILITARY) + 1))) + "\t"
             + alliance.getDelivered(contributor, KOMEAllianceProgressionService.OFFENSIVE_CAPACITY_MAX) + "\t"
             + alliance.getStatus(KOMEAlliance.CIVIL).key + "\t"
             + alliance.getStatus(KOMEAlliance.TRADE).key + "\t"
@@ -384,7 +386,7 @@ public class KOMEAllianceRecordBuilder {
     }
 
     private static String quotaSummary(KOMEWorldData data, KOMEAlliance alliance, String faction, String type) {
-        int currentTier = alliance.getTier(type);
+        int currentTier = alliance.getFactionTier(faction, type);
         if (currentTier == KOMEAlliance.PENDING) {
             return "Pending acceptance";
         }
@@ -400,7 +402,7 @@ public class KOMEAllianceRecordBuilder {
             return "T" + targetTier + ": kingless contribution waived";
         }
         if (ledger != null && ledger.getCompletedTier(type) >= targetTier) {
-            return "T" + targetTier + ": side complete; waiting for ally";
+            return "T" + targetTier + ": side complete";
         }
         String id = KOMEAllianceQuotaPool.assignmentId(type, targetTier);
         KOMEAllianceQuotaPool.Requirement requirement = KOMEAllianceQuotaPool.resolve(data, alliance, faction, type, targetTier);

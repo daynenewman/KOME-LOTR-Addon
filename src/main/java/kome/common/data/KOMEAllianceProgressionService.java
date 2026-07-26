@@ -16,9 +16,9 @@ public final class KOMEAllianceProgressionService {
         String normalizedFaction = KOMEAlliance.normalizeFactionKey(faction);
         String normalizedType = KOMEAlliance.normalizeType(type);
         KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(normalizedFaction);
-        int target = alliance.getTier(normalizedType) + 1;
+        int target = alliance.getFactionTier(normalizedFaction, normalizedType) + 1;
         if (ledger == null || target < 1 || target > KOMEAlliance.maxTier(normalizedType)
-                || ledger.getCompletedTier(normalizedType) >= target) {
+                || alliance.getStatus(normalizedType) != KOMEAllianceTrackStatus.ACTIVE) {
             return false;
         }
 
@@ -31,22 +31,25 @@ public final class KOMEAllianceProgressionService {
         String id = KOMEAllianceQuotaPool.assignmentId(normalizedType, target);
         KOMEAllianceQuotaPool.Requirement requirement = KOMEAllianceQuotaPool.resolve(data, alliance,
             normalizedFaction, normalizedType, target);
-        if (requirement == null || !requirement.isValid()
-                || alliance.getDelivered(normalizedFaction, id) < requirement.requiredUnits) {
-            return false;
-        }
-        if (!activityComplete(data, alliance, normalizedFaction, normalizedType, target)) {
-            return false;
-        }
-        if (KOMEAlliance.MILITARY.equals(normalizedType)) {
-            int populationRequired = data.getAlliancePopulationRequirement(normalizedType, target);
-            if (alliance.getDelivered(normalizedFaction, OFFENSIVE_CAPACITY_MAX) < populationRequired) {
+        if (ledger.getCompletedTier(normalizedType) < target) {
+            if (requirement == null || !requirement.isValid()
+                    || alliance.getDelivered(normalizedFaction, id) < requirement.requiredUnits) {
                 return false;
             }
+            if (!activityComplete(data, alliance, normalizedFaction, normalizedType, target)) {
+                return false;
+            }
+            if (KOMEAlliance.MILITARY.equals(normalizedType)) {
+                int populationRequired = data.getAlliancePopulationRequirement(normalizedType, target);
+                if (alliance.getDelivered(normalizedFaction, OFFENSIVE_CAPACITY_MAX) < populationRequired) {
+                    return false;
+                }
+            }
+            ledger.setCompletedTier(normalizedType, target);
         }
-        ledger.setCompletedTier(normalizedType, target);
-        boolean advanced = recomputeSharedTier(alliance, normalizedType, worldTime);
-        if (advanced && KOMEAlliance.MILITARY.equals(normalizedType) && alliance.getTier(normalizedType) >= 3) {
+        boolean advanced = advanceFactionTier(alliance, normalizedFaction, normalizedType, worldTime);
+        if (advanced && KOMEAlliance.MILITARY.equals(normalizedType)
+                && alliance.getFactionTier(normalizedFaction, normalizedType) >= 3) {
             KOMEWarService.reconcileAutomaticMilitarySupport(data, System.currentTimeMillis(), "Military T3 became effective");
             KOMEWartimeStewardshipService.revalidateAll(data, System.currentTimeMillis(), "Military T3 became effective");
         }
@@ -66,23 +69,30 @@ public final class KOMEAllianceProgressionService {
             && alliance.getDelivered(faction, ELIGIBLE_KILLS) >= required;
     }
 
-    public static boolean recomputeSharedTier(KOMEAlliance alliance, String type, long worldTime) {
+    public static boolean recomputeFactionTiers(KOMEAlliance alliance, String type, long worldTime) {
         if (alliance == null || !alliance.hasAccepted(type)) {
             return false;
         }
-        int current = alliance.getTier(type);
+        boolean first = advanceFactionTier(alliance, alliance.factionA, type, worldTime);
+        boolean second = advanceFactionTier(alliance, alliance.factionB, type, worldTime);
+        return first || second;
+    }
+
+    /** Compatibility entry point for older integrations; progression is no longer shared. */
+    @Deprecated
+    public static boolean recomputeSharedTier(KOMEAlliance alliance, String type, long worldTime) {
+        return recomputeFactionTiers(alliance, type, worldTime);
+    }
+
+    private static boolean advanceFactionTier(KOMEAlliance alliance, String faction, String type, long worldTime) {
+        int current = alliance.getFactionTier(faction, type);
         int target = current + 1;
-        if (target < 1 || target > KOMEAlliance.maxTier(type)) {
+        KOMEAllianceFactionLedger ledger = alliance.getFactionLedger(faction);
+        if (ledger == null || target < 1 || target > KOMEAlliance.maxTier(type)
+                || !ledger.kinglessWaived && ledger.getCompletedTier(type) < target) {
             return false;
         }
-        KOMEAllianceFactionLedger first = alliance.getFactionLedger(alliance.factionA);
-        KOMEAllianceFactionLedger second = alliance.getFactionLedger(alliance.factionB);
-        boolean firstComplete = first != null && (first.kinglessWaived || first.getCompletedTier(type) >= target);
-        boolean secondComplete = second != null && (second.kinglessWaived || second.getCompletedTier(type) >= target);
-        if (!firstComplete || !secondComplete) {
-            return false;
-        }
-        alliance.setTier(type, target, "Shared faction requirements", worldTime);
+        alliance.setFactionTier(faction, type, target, "Faction requirements completed", worldTime);
         return true;
     }
 }

@@ -17,7 +17,9 @@ public final class KOMEAllianceGraceService {
             ledger.beginSuccession(nowMillis, durationMillis);
         } else {
             ledger.beginContributionGrace("Administrative grace", nowMillis, durationMillis,
-                alliance.civilTier, alliance.tradeTier, alliance.militaryTier);
+                alliance.getFactionTier(ledger.faction, KOMEAlliance.CIVIL),
+                alliance.getFactionTier(ledger.faction, KOMEAlliance.TRADE),
+                alliance.getFactionTier(ledger.faction, KOMEAlliance.MILITARY));
         }
         return new Change(ledger.faction, normalizedType, formerDeadline, deadline(ledger, normalizedType),
             "administrative set");

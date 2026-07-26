@@ -54,6 +54,14 @@ final class KOMEServerRecordPresentation {
 
     static List parseTileIds(String names) {
         List tiles = new ArrayList();
+        for (Object value : parseTileEntries(names)) {
+            tiles.add(((TileEntry) value).label);
+        }
+        return tiles;
+    }
+
+    static List parseTileEntries(String names) {
+        List tiles = new ArrayList();
         if (names == null || names.trim().length() == 0) {
             return tiles;
         }
@@ -61,10 +69,35 @@ final class KOMEServerRecordPresentation {
         for (String value : values) {
             String tile = value == null ? "" : value.trim();
             if (tile.length() > 0) {
-                tiles.add(tile);
+                String tileId = tile;
+                String waypoint = "";
+                int open = tile.lastIndexOf(" (");
+                if (open > 0 && tile.endsWith(")")) {
+                    String candidate = tile.substring(open + 2, tile.length() - 1).trim();
+                    if (isTileId(candidate)) {
+                        tileId = candidate.toUpperCase();
+                        waypoint = tile.substring(0, open).trim();
+                    }
+                } else if (isTileId(tile)) {
+                    tileId = tile.toUpperCase();
+                }
+                String label = waypoint.length() == 0 ? tileId : waypoint + " (" + tileId + ")";
+                tiles.add(new TileEntry(tileId, waypoint, label));
             }
         }
         return tiles;
+    }
+
+    private static boolean isTileId(String value) {
+        if (value == null || value.length() < 2 || (value.charAt(0) != 'T' && value.charAt(0) != 't')) {
+            return false;
+        }
+        for (int i = 1; i < value.length(); i++) {
+            if (!Character.isDigit(value.charAt(i))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static TileBadgeLayout computeTileBadgeLayout(int tileCount, int badgeWidth, int width,
@@ -199,6 +232,18 @@ final class KOMEServerRecordPresentation {
             this.visibleTiles = visibleTiles;
             this.hiddenTiles = hiddenTiles;
             this.rows = rows;
+        }
+    }
+
+    static final class TileEntry {
+        final String tileId;
+        final String waypointName;
+        final String label;
+
+        TileEntry(String tileId, String waypointName, String label) {
+            this.tileId = tileId;
+            this.waypointName = waypointName;
+            this.label = label;
         }
     }
 }

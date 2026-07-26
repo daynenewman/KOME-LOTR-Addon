@@ -975,7 +975,8 @@ public class KOMEEvents {
         boolean changed = false;
         for (KOMEAlliance alliance : data.alliances.values()) {
             if (alliance == null || !alliance.hasAccepted(KOMEAlliance.MILITARY)
-                    || alliance.militaryTier >= KOMEAlliance.maxTier(KOMEAlliance.MILITARY) || !alliance.involves(playerFaction)) {
+                    || alliance.getFactionTier(playerFaction, KOMEAlliance.MILITARY) >= KOMEAlliance.maxTier(KOMEAlliance.MILITARY)
+                    || !alliance.involves(playerFaction)) {
                 continue;
             }
             changed = KOMEAllianceProgressionService.refreshFactionCompletion(data, alliance, playerFaction, KOMEAlliance.MILITARY,
@@ -1008,7 +1009,8 @@ public class KOMEEvents {
         boolean changed = false;
         for (KOMEAlliance alliance : data.alliances.values()) {
             if (alliance == null || !alliance.hasAccepted(KOMEAlliance.MILITARY)
-                    || alliance.militaryTier >= KOMEAlliance.maxTier(KOMEAlliance.MILITARY) || !alliance.involves(playerFaction)) {
+                    || alliance.getFactionTier(playerFaction, KOMEAlliance.MILITARY) >= KOMEAlliance.maxTier(KOMEAlliance.MILITARY)
+                    || !alliance.involves(playerFaction)) {
                 continue;
             }
             LOTRFaction receiver = findFaction(alliance.getOtherFaction(playerFaction));
@@ -1020,7 +1022,8 @@ public class KOMEEvents {
             if (next > previousKills) {
                 alliance.setDelivered(playerFaction, KOMEAllianceProgressionService.ELIGIBLE_KILLS, next);
                 changed = true;
-                int targetTier = Math.min(KOMEAlliance.maxTier(KOMEAlliance.MILITARY), alliance.militaryTier + 1);
+                int targetTier = Math.min(KOMEAlliance.maxTier(KOMEAlliance.MILITARY),
+                    alliance.getFactionTier(playerFaction, KOMEAlliance.MILITARY) + 1);
                 int required = data.getAllianceActivityRequirement(KOMEAlliance.MILITARY, targetTier);
                 if (next <= 5 || next % 25 == 0) {
                     player.addChatMessage(new ChatComponentText("Military alliance kill progress with " + receiver.factionName() + ": " + next + "/" + required + "."));
@@ -1051,7 +1054,8 @@ public class KOMEEvents {
         }
         boolean changed = false;
         for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || alliance.tradeTier != 1 || !alliance.involves(playerFaction)) {
+            if (alliance == null || alliance.getFactionTier(playerFaction, KOMEAlliance.TRADE) != 1
+                    || !alliance.involves(playerFaction)) {
                 continue;
             }
             changed = KOMEAllianceProgressionService.refreshFactionCompletion(data, alliance, playerFaction, KOMEAlliance.TRADE,

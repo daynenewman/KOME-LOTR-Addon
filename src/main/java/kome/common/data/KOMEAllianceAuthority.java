@@ -118,25 +118,33 @@ public class KOMEAllianceAuthority {
 
     public int getEffectiveTier(String firstFaction, String secondFaction, String type, long nowMillis) {
         KOMEAlliance alliance = data == null ? null : data.getAlliance(firstFaction, secondFaction, false);
-        return getEffectiveTier(alliance, type, nowMillis);
+        return getEffectiveTier(alliance, firstFaction, type, nowMillis);
     }
 
+    /**
+     * Legacy non-directional query. It deliberately returns the lower side so callers cannot gain
+     * a benefit that only the other faction unlocked.
+     */
     public int getEffectiveTier(KOMEAlliance alliance, String type, long nowMillis) {
+        if (alliance == null) {
+            return KOMEAlliance.NONE;
+        }
+        return Math.min(getEffectiveTier(alliance, alliance.factionA, type, nowMillis),
+            getEffectiveTier(alliance, alliance.factionB, type, nowMillis));
+    }
+
+    public int getEffectiveTier(KOMEAlliance alliance, String actingFaction, String type, long nowMillis) {
         if (alliance == null || alliance.getStatus(type) != KOMEAllianceTrackStatus.ACTIVE) {
             return KOMEAlliance.NONE;
         }
-        int storedTier = alliance.getTier(type);
+        int storedTier = alliance.getFactionTier(actingFaction, type);
         if (storedTier < 0) {
             return KOMEAlliance.NONE;
         }
-        KOMEAllianceFactionLedger first = alliance.getFactionLedger(alliance.factionA);
-        KOMEAllianceFactionLedger second = alliance.getFactionLedger(alliance.factionB);
+        KOMEAllianceFactionLedger side = alliance.getFactionLedger(actingFaction);
         int provisional = storedTier;
-        if (first != null && (first.isContributionGraceActive(nowMillis) || first.isSuccessionActive(nowMillis))) {
-            provisional = Math.max(provisional, provisionalTier(first, type));
-        }
-        if (second != null && (second.isContributionGraceActive(nowMillis) || second.isSuccessionActive(nowMillis))) {
-            provisional = Math.max(provisional, provisionalTier(second, type));
+        if (side != null && (side.isContributionGraceActive(nowMillis) || side.isSuccessionActive(nowMillis))) {
+            provisional = Math.max(provisional, provisionalTier(side, type));
         }
         return Math.min(KOMEAlliance.maxTier(type), provisional);
     }
@@ -176,7 +184,7 @@ public class KOMEAllianceAuthority {
 
     public boolean canTemporarilyCommand(String companyFaction, String controllerFaction) {
         if (isDirectlyHostile(companyFaction, controllerFaction)
-                || getEffectiveTier(companyFaction, controllerFaction, KOMEAlliance.MILITARY, System.currentTimeMillis()) < 3) {
+                || getEffectiveTier(controllerFaction, companyFaction, KOMEAlliance.MILITARY, System.currentTimeMillis()) < 3) {
             return false;
         }
         return data != null && (data.hasFactionKing(companyFaction)

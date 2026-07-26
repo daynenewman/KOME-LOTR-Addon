@@ -35,15 +35,68 @@ public class KOMEAllianceModelTest {
     }
 
     @Test
-    public void sharedTierRequiresBothFactionLedgersOrWaiver() {
+    public void factionTiersAdvanceIndependentlyAndWaiverAffectsOnlyItsSide() {
         KOMEAlliance alliance = new KOMEAlliance("gondor", "rohan");
         alliance.requestTrack(KOMEAlliance.CIVIL, "king", 1L, false);
         alliance.getFactionLedger("gondor").setCompletedTier(KOMEAlliance.CIVIL, 1);
-        assertFalse(KOMEAllianceProgressionService.recomputeSharedTier(alliance, KOMEAlliance.CIVIL, 2L));
+        assertTrue(KOMEAllianceProgressionService.recomputeFactionTiers(alliance, KOMEAlliance.CIVIL, 2L));
+        assertEquals(1, alliance.getFactionTier("gondor", KOMEAlliance.CIVIL));
+        assertEquals(0, alliance.getFactionTier("rohan", KOMEAlliance.CIVIL));
         assertEquals(0, alliance.civilTier);
         alliance.getFactionLedger("rohan").kinglessWaived = true;
-        assertTrue(KOMEAllianceProgressionService.recomputeSharedTier(alliance, KOMEAlliance.CIVIL, 3L));
+        assertTrue(KOMEAllianceProgressionService.recomputeFactionTiers(alliance, KOMEAlliance.CIVIL, 3L));
+        assertEquals(1, alliance.getFactionTier("rohan", KOMEAlliance.CIVIL));
         assertEquals(1, alliance.civilTier);
+        alliance.getFactionLedger("rohan").kinglessWaived = false;
+        alliance.getFactionLedger("gondor").setCompletedTier(KOMEAlliance.CIVIL, 2);
+        assertTrue(KOMEAllianceProgressionService.recomputeFactionTiers(alliance, KOMEAlliance.CIVIL, 4L));
+        assertEquals(2, alliance.getFactionTier("gondor", KOMEAlliance.CIVIL));
+        assertEquals(1, alliance.getFactionTier("rohan", KOMEAlliance.CIVIL));
+    }
+
+    @Test
+    public void allTrackBenefitsUseTheActingFactionsOwnTier() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
+        alliance.requestTrack(KOMEAlliance.MILITARY, "king", 1L, false);
+        KOMEAllianceAuthority authority = new KOMEAllianceAuthority(data);
+        for (String type : new String[] {KOMEAlliance.CIVIL, KOMEAlliance.TRADE, KOMEAlliance.MILITARY}) {
+            alliance.getFactionLedger("gondor").setCompletedTier(type, 1);
+            assertTrue(KOMEAllianceProgressionService.recomputeFactionTiers(alliance, type, 2L));
+            assertEquals(1, alliance.getFactionTier("gondor", type));
+            assertEquals(0, alliance.getFactionTier("rohan", type));
+            assertEquals(1, authority.getEffectiveTier(alliance, "gondor", type, 3L));
+            assertEquals(0, authority.getEffectiveTier(alliance, "rohan", type, 3L));
+        }
+    }
+
+    @Test
+    public void schemaFiveSharedTierMigratesToBothFactionSides() {
+        NBTTagCompound saved = new NBTTagCompound();
+        saved.setString("FactionA", "gondor");
+        saved.setString("FactionB", "rohan");
+        saved.setString("CivilStatus", "active");
+        saved.setString("TradeStatus", "active");
+        saved.setString("MilitaryStatus", "active");
+        saved.setInteger("CivilTier", 2);
+        saved.setInteger("TradeTier", 1);
+        saved.setInteger("MilitaryTier", 3);
+        NBTTagList ledgers = new NBTTagList();
+        ledgers.appendTag(new KOMEAllianceFactionLedger("gondor").writeToNBT());
+        ledgers.appendTag(new KOMEAllianceFactionLedger("rohan").writeToNBT());
+        saved.setTag("FactionLedgers", ledgers);
+
+        KOMEAlliance migrated = new KOMEAlliance("", "");
+        migrated.readFromNBT(saved);
+        for (String faction : new String[] {"gondor", "rohan"}) {
+            assertEquals(2, migrated.getFactionTier(faction, KOMEAlliance.CIVIL));
+            assertEquals(1, migrated.getFactionTier(faction, KOMEAlliance.TRADE));
+            assertEquals(3, migrated.getFactionTier(faction, KOMEAlliance.MILITARY));
+        }
+        KOMEAlliance restored = new KOMEAlliance("", "");
+        restored.readFromNBT(migrated.writeToNBT());
+        assertEquals(2, restored.getFactionTier("gondor", KOMEAlliance.CIVIL));
+        assertEquals(2, restored.getFactionTier("rohan", KOMEAlliance.CIVIL));
     }
 
     @Test

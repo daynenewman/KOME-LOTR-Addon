@@ -2,9 +2,9 @@
 
 ## Server-authoritative alliance model
 
-An alliance is one canonical unordered LOTR faction pair. Civil, Trade, and Military retain independent statuses and faction-side ledgers. `ACTIVE/T0` means Established and grants no benefit. Civil and Trade end at T2; Military ends at T3. Trade depends on Civil, and Military depends on both lower tracks.
+An alliance is one canonical unordered LOTR faction pair. Civil, Trade, and Military retain mutual relationship statuses plus faction-side ledgers and unlocked tiers. `ACTIVE/T0` means Established and grants no benefit. Civil and Trade end at T2; Military ends at T3. Trade depends on Civil, and Military depends on both lower tracks.
 
-Every faction side shares its own persisted quota assignment, deposits, claims, recovery storage, cumulative activity, completed tiers, waiver, and contribution/succession grace. The mutual tier advances only when both sides complete or validly waive the target. Weighted quota selection, side-specific recovery, and fourteen-day grace remain unchanged.
+Every faction side has its own persisted unlocked Civil/Trade/Military tiers, quota assignment, deposits, claims, recovery storage, cumulative activity, completed requirements, waiver, and contribution/succession grace. Completing a target advances only that faction's tier; its partner may remain at a different tier. Every permission and benefit reads the acting faction's tier. Weighted quota selection, side-specific recovery, and fourteen-day grace remain unchanged.
 
 Normal requests remain limited by the current server-derived request options. Two kings may negotiate across any default relation. A king requesting toward a kingless faction is limited to Civil at Neutral+, Trade at Friend+, and Military at Ally; eligible requests auto-accept with a kingless-side waiver. The GUI cycles only through server-approved candidates. Operator all-record visibility is an explicit session toggle and never changes request authority.
 
@@ -28,10 +28,10 @@ Trade activity never resets between tiers. There is no Trade T2 structure or pop
 
 - Civil T1: allied public-waypoint access, still subject to native LOTR progression and the final server gate.
 - Civil T2: eligible allied farmhand hiring with existing funding provenance.
-- Trade T1: mutual faction-side goods exchange through the shared ledger. Each side contributes its roll; the opposite side claims it.
+- Trade T1: faction-side goods exchange through the alliance ledger. A faction with the unlock contributes its own roll; the opposite side claims those goods.
 - Trade T2: display-only future benefit, `Additional Produce Farmer Slot`. It currently exposes no action or runtime state.
 - Military T1: one eligible allied combat recruit per player/pair under existing funding rules.
-- Military T2: mutual army passage. It grants no ownership, population, hiring, or conquest rights.
+- Military T2: army passage for the faction that unlocked it. It grants no ownership, population, hiring, or conquest rights.
 - Military T3: voluntary delegation when the native faction has a king, or Wartime Stewardship when it is kingless and both factions share an active war side.
 
 Trade posts no longer exist. There are no charters, locations, approvals, inputs, outputs, timers, catch-up settings, post limits, or post permissions. The migration-only reader still recovers legacy inventories exactly once.

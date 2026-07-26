@@ -1,6 +1,6 @@
 # Alliance and War Administration
 
-All state changes are server-authoritative. Take a complete stopped-server world backup before deploying schema 5.
+All state changes are server-authoritative. Take a complete stopped-server world backup before deploying schema 6.
 
 ## Visibility and diplomacy
 
@@ -104,7 +104,7 @@ Durations accept seconds, minutes, hours, and days. Requirement changes never re
 
 After deployment:
 
-1. Confirm the schema-5 migration summary and legacy post recovery totals in the server log.
+1. Confirm the schema-6 migration summary and legacy post recovery totals in the server log.
 2. Open Alliance Benefits and verify Trade T2 shows the future Produce message with no action; confirm there is no Production tab or Produce command.
 3. Run `/war list all` and confirm old worlds begin with no inferred historical wars.
 4. Check `/troops pledgeRelease status <player>` for pending/quarantined entities.

@@ -87,4 +87,21 @@ public class KOMEGuiServerRecordsPresentationTest {
         assertEquals(3, overflow.rows);
         assertEquals(100, overflow.visibleTiles + overflow.hiddenTiles);
     }
+
+    @Test
+    public void controlledTileEntriesPreserveWaypointFirstLabelsAndUnderlyingIds() {
+        List entries = KOMEServerRecordPresentation.parseTileEntries(
+            "Fornost (T116), Weather Hills (t132), T217");
+        assertEquals(3, entries.size());
+        KOMEServerRecordPresentation.TileEntry fornost =
+            (KOMEServerRecordPresentation.TileEntry) entries.get(0);
+        assertEquals("Fornost", fornost.waypointName);
+        assertEquals("T116", fornost.tileId);
+        assertEquals("Fornost (T116)", fornost.label);
+        KOMEServerRecordPresentation.TileEntry fallback =
+            (KOMEServerRecordPresentation.TileEntry) entries.get(2);
+        assertEquals("", fallback.waypointName);
+        assertEquals("T217", fallback.tileId);
+        assertEquals("T217", fallback.label);
+    }
 }

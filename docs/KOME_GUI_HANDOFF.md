@@ -1,6 +1,6 @@
 # KOME GUI handoff
 
-Current source-of-truth handoff for addon 1.0.7 and alliance schema 5, updated 2026-07-19 after the dedicated visual pass.
+Current source-of-truth handoff for addon 1.0.7 and alliance schema 6, updated 2026-07-25 after the directional progression and Controlled Tiles follow-up.
 
 Historical descriptions and superseded recommendations are isolated in `archive/KOME_GUI_HANDOFF_LEGACY_PRE_VISUAL_PASS.md`. Do not use the archive to infer current behavior.
 
@@ -51,8 +51,8 @@ Source: `KOMEGuiAllianceDetail`
 The selected pair and tab survive authoritative refresh. All four tabs use a single scroll viewport with a fixed action bar:
 
 - **Overview** — type selector, grace/kingless/pending/war warning, current tier, next objective, per-side progress, rolled quota, and unlocked benefits.
-- **Requirements** — three authoritative per-track cards with contribution, partner progress, milestones, remainder, validity, completion/waiver/grace, and server-authorized roll action.
-- **Benefits** — the shared benefit catalog with Active, Locked, Suspended, and Planned status.
+- **Requirements** — three authoritative per-track cards with the selected faction's contribution and tier, partner progress, milestones, remainder, validity, completion/waiver/grace, and server-authorized roll action.
+- **Benefits** — the selected faction's benefit catalog with Active, Locked, Suspended, and Planned status.
 - **Military** — native owner/controller context, recognized kings, authorizing wars, opponents, global offensive population, companies, cleanup/movement state, reason, and allowed actions.
 
 Short screens use a compact relationship header; lifecycle detail remains in the scrollable warning banner. The content viewport therefore remains usable at Large scale and 854x480.
@@ -76,6 +76,8 @@ Source: `KOMEGuiServerRecords`
 Players/Wars mode and All/Active/Ending/Ended filter survive refresh. The War list uses coalition faction marks, status chips, warning state, and a scaled list viewport. Detail uses a separate scaled viewport with coalition badges, wrapped provenance/support/capture/stewardship/admin records, a dedicated warning banner, status/date state, and end reason.
 
 Refresh no longer clears the current mode, filter, list selection, or reasonable scroll before replacement records arrive.
+
+The player Controlled Tiles card remains a compact preview. Its full content area opens an in-place, scrollable tile list using waypoint-first labels and separate tile IDs. Back closes the subview without recreating the records screen, preserving player selection and detail scroll.
 
 ## Allied-tile confirmation
 

@@ -138,7 +138,7 @@ public class KOMEAllianceInventory implements IInventory {
     private boolean matchesActiveQuota(ItemStack stack) {
         String[] types = new String[] {KOMEAlliance.CIVIL, KOMEAlliance.TRADE, KOMEAlliance.MILITARY};
         for (int i = 0; i < types.length; i++) {
-            int target = alliance.getTier(types[i]) + 1;
+            int target = tier(types[i]) + 1;
             if (target < 1 || target > KOMEAlliance.maxTier(types[i])) {
                 continue;
             }
@@ -163,7 +163,7 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private boolean depositCurrentRequirement(ItemStack stack, String type) {
-        int target = alliance.getTier(type) + 1;
+        int target = tier(type) + 1;
         if (target < 1 || target > KOMEAlliance.maxTier(type)) {
             return false;
         }
@@ -244,16 +244,16 @@ public class KOMEAllianceInventory implements IInventory {
         lines.add(buildSummaryLine(alliance, ledgerFaction));
         lines.add("VIEWER\t" + getViewerFactionName() + "\t" + (canViewerDeposit() ? "1" : "0") + "\t" + (canClaim ? "1" : "0"));
         lines.add("SWITCH\tView " + displayFaction(receivingFaction) + " Ledger\t" + receivingFaction + "\t" + ledgerFaction + "\t" + (canViewerOpenLedger(receivingFaction, ledgerFaction) ? "1" : "0"));
-        if (alliance.civilTier != KOMEAlliance.NONE) {
-            addProgressLine(lines, "Civil", alliance.civilTier, getCivilRequirement(), getCivilProgressLabel(), getCivilDelivered(), getCivilRequired(), getCivilReward());
+        if (tier(KOMEAlliance.CIVIL) != KOMEAlliance.NONE) {
+            addProgressLine(lines, "Civil", tier(KOMEAlliance.CIVIL), getCivilRequirement(), getCivilProgressLabel(), getCivilDelivered(), getCivilRequired(), getCivilReward());
             addQuotaProgressLine(lines, "Civil", currentRequirementId(KOMEAlliance.CIVIL));
         }
-        if (alliance.militaryTier != KOMEAlliance.NONE) {
-            addProgressLine(lines, "Military", alliance.militaryTier, getMilitaryRequirement(), getMilitaryProgressLabel(), getMilitaryDelivered(), getMilitaryRequired(), getMilitaryReward());
+        if (tier(KOMEAlliance.MILITARY) != KOMEAlliance.NONE) {
+            addProgressLine(lines, "Military", tier(KOMEAlliance.MILITARY), getMilitaryRequirement(), getMilitaryProgressLabel(), getMilitaryDelivered(), getMilitaryRequired(), getMilitaryReward());
             addQuotaProgressLine(lines, "Military", currentRequirementId(KOMEAlliance.MILITARY));
         }
-        if (alliance.tradeTier != KOMEAlliance.NONE) {
-            addProgressLine(lines, "Trade", alliance.tradeTier, getTradeRequirement(), getTradeProgressLabel(), getTradeDelivered(), getTradeRequired(), getTradeReward());
+        if (tier(KOMEAlliance.TRADE) != KOMEAlliance.NONE) {
+            addProgressLine(lines, "Trade", tier(KOMEAlliance.TRADE), getTradeRequirement(), getTradeProgressLabel(), getTradeDelivered(), getTradeRequired(), getTradeReward());
             addQuotaProgressLine(lines, "Trade", currentRequirementId(KOMEAlliance.TRADE));
         }
         addFactionSideLine(lines, alliance.factionA);
@@ -280,7 +280,7 @@ public class KOMEAllianceInventory implements IInventory {
     private void addQuotaProgressLine(List lines, String type, String id) {
         int typeIndex = "Civil".equals(type) ? 0 : "Military".equals(type) ? 1 : 2;
         String typeKey = typeIndex == 0 ? KOMEAlliance.CIVIL : typeIndex == 1 ? KOMEAlliance.MILITARY : KOMEAlliance.TRADE;
-        int target = Math.max(1, Math.min(KOMEAlliance.maxTier(typeKey), alliance.getTier(typeKey) + 1));
+        int target = Math.max(1, Math.min(KOMEAlliance.maxTier(typeKey), tier(typeKey) + 1));
         KOMEAllianceQuotaPool.Requirement requirement = KOMEAllianceQuotaPool.resolve(data, alliance, ledgerFaction, typeKey, target);
         if (requirement != null) {
             if (!requirement.isValid()) {
@@ -304,7 +304,7 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private String currentRequirementId(String type) {
-        int target = Math.max(1, alliance.getTier(type) + 1);
+        int target = Math.max(1, tier(type) + 1);
         return KOMEAllianceQuotaPool.assignmentId(type, Math.min(KOMEAlliance.maxTier(type), target));
     }
 
@@ -320,33 +320,33 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private String getCivilRequirement() {
-        if (alliance.civilTier < 0) {
-            return alliance.civilTier == KOMEAlliance.PENDING ? "Receiving faction must accept the request." : "No active civil alliance.";
+        if (tier(KOMEAlliance.CIVIL) < 0) {
+            return tier(KOMEAlliance.CIVIL) == KOMEAlliance.PENDING ? "Receiving faction must accept the request." : "No active civil alliance.";
         }
-        int target = alliance.civilTier + 1;
+        int target = tier(KOMEAlliance.CIVIL) + 1;
         return currentRequirementText(KOMEAlliance.CIVIL, target == 2
             ? " and complete " + data.getAllianceActivityRequirement(KOMEAlliance.CIVIL, 2) + " legitimate allied trades" : "");
     }
 
     private String getCivilProgressLabel() {
-        if (alliance.civilTier >= 0 && alliance.civilTier < KOMEAlliance.maxTier(KOMEAlliance.CIVIL)) {
+        if (tier(KOMEAlliance.CIVIL) >= 0 && tier(KOMEAlliance.CIVIL) < KOMEAlliance.maxTier(KOMEAlliance.CIVIL)) {
             return "Supplies delivered";
         }
-        return alliance.civilTier >= 2 ? "Complete" : "Not started";
+        return tier(KOMEAlliance.CIVIL) >= 2 ? "Complete" : "Not started";
     }
 
     private int getCivilDelivered() {
-        if (alliance.civilTier >= 0 && alliance.civilTier < KOMEAlliance.maxTier(KOMEAlliance.CIVIL)) {
+        if (tier(KOMEAlliance.CIVIL) >= 0 && tier(KOMEAlliance.CIVIL) < KOMEAlliance.maxTier(KOMEAlliance.CIVIL)) {
             return currentRequirementDelivered(KOMEAlliance.CIVIL);
         }
-        return alliance.civilTier >= 2 ? 1 : 0;
+        return tier(KOMEAlliance.CIVIL) >= 2 ? 1 : 0;
     }
 
     private int getCivilRequired() {
-        if (alliance.civilTier >= 0 && alliance.civilTier < KOMEAlliance.maxTier(KOMEAlliance.CIVIL)) {
+        if (tier(KOMEAlliance.CIVIL) >= 0 && tier(KOMEAlliance.CIVIL) < KOMEAlliance.maxTier(KOMEAlliance.CIVIL)) {
             return currentRequirementRequired(KOMEAlliance.CIVIL);
         }
-        return alliance.civilTier >= 2 ? 1 : 0;
+        return tier(KOMEAlliance.CIVIL) >= 2 ? 1 : 0;
     }
 
     private String getCivilReward() {
@@ -354,10 +354,10 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private String getMilitaryRequirement() {
-        if (alliance.militaryTier < 0) {
-            return alliance.militaryTier == KOMEAlliance.PENDING ? "Receiving faction must accept the request." : "No active military alliance.";
+        if (tier(KOMEAlliance.MILITARY) < 0) {
+            return tier(KOMEAlliance.MILITARY) == KOMEAlliance.PENDING ? "Receiving faction must accept the request." : "No active military alliance.";
         }
-        int target = alliance.militaryTier + 1;
+        int target = tier(KOMEAlliance.MILITARY) + 1;
         String extra = target >= 1 && target <= 3 ? " and reach "
             + data.getAllianceActivityRequirement(KOMEAlliance.MILITARY, target) + " cumulative eligible kills plus "
             + data.getAlliancePopulationRequirement(KOMEAlliance.MILITARY, target) + " effective offensive population" : "";
@@ -365,24 +365,24 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private String getMilitaryProgressLabel() {
-        if (alliance.militaryTier >= 0 && alliance.militaryTier < KOMEAlliance.maxTier(KOMEAlliance.MILITARY)) {
+        if (tier(KOMEAlliance.MILITARY) >= 0 && tier(KOMEAlliance.MILITARY) < KOMEAlliance.maxTier(KOMEAlliance.MILITARY)) {
             return "Supplies delivered";
         }
-        return alliance.militaryTier >= 3 ? "Complete" : "Status";
+        return tier(KOMEAlliance.MILITARY) >= 3 ? "Complete" : "Status";
     }
 
     private int getMilitaryDelivered() {
-        if (alliance.militaryTier >= 0 && alliance.militaryTier < KOMEAlliance.maxTier(KOMEAlliance.MILITARY)) {
+        if (tier(KOMEAlliance.MILITARY) >= 0 && tier(KOMEAlliance.MILITARY) < KOMEAlliance.maxTier(KOMEAlliance.MILITARY)) {
             return currentRequirementDelivered(KOMEAlliance.MILITARY);
         }
-        return alliance.militaryTier >= 3 ? 1 : 0;
+        return tier(KOMEAlliance.MILITARY) >= 3 ? 1 : 0;
     }
 
     private int getMilitaryRequired() {
-        if (alliance.militaryTier >= 0 && alliance.militaryTier < KOMEAlliance.maxTier(KOMEAlliance.MILITARY)) {
+        if (tier(KOMEAlliance.MILITARY) >= 0 && tier(KOMEAlliance.MILITARY) < KOMEAlliance.maxTier(KOMEAlliance.MILITARY)) {
             return currentRequirementRequired(KOMEAlliance.MILITARY);
         }
-        return alliance.militaryTier >= 3 ? 1 : 0;
+        return tier(KOMEAlliance.MILITARY) >= 3 ? 1 : 0;
     }
 
     private String getMilitaryReward() {
@@ -390,34 +390,34 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private String getTradeRequirement() {
-        if (alliance.tradeTier < 0) {
-            return alliance.tradeTier == KOMEAlliance.PENDING ? "Receiving faction must accept the request." : "No active trade alliance.";
+        if (tier(KOMEAlliance.TRADE) < 0) {
+            return tier(KOMEAlliance.TRADE) == KOMEAlliance.PENDING ? "Receiving faction must accept the request." : "No active trade alliance.";
         }
-        int target = alliance.tradeTier + 1;
+        int target = tier(KOMEAlliance.TRADE) + 1;
         String extra = target == 1 || target == 2 ? " and complete "
             + data.getAllianceActivityRequirement(KOMEAlliance.TRADE, target) + " cumulative legitimate allied trades" : "";
         return currentRequirementText(KOMEAlliance.TRADE, extra);
     }
 
     private String getTradeProgressLabel() {
-        if (alliance.tradeTier >= 0 && alliance.tradeTier < KOMEAlliance.maxTier(KOMEAlliance.TRADE)) {
+        if (tier(KOMEAlliance.TRADE) >= 0 && tier(KOMEAlliance.TRADE) < KOMEAlliance.maxTier(KOMEAlliance.TRADE)) {
             return "Goods delivered";
         }
-        return alliance.tradeTier >= 2 ? "Complete" : "Not started";
+        return tier(KOMEAlliance.TRADE) >= 2 ? "Complete" : "Not started";
     }
 
     private int getTradeDelivered() {
-        if (alliance.tradeTier >= 0 && alliance.tradeTier < KOMEAlliance.maxTier(KOMEAlliance.TRADE)) {
+        if (tier(KOMEAlliance.TRADE) >= 0 && tier(KOMEAlliance.TRADE) < KOMEAlliance.maxTier(KOMEAlliance.TRADE)) {
             return currentRequirementDelivered(KOMEAlliance.TRADE);
         }
-        return alliance.tradeTier >= 2 ? 1 : 0;
+        return tier(KOMEAlliance.TRADE) >= 2 ? 1 : 0;
     }
 
     private int getTradeRequired() {
-        if (alliance.tradeTier >= 0 && alliance.tradeTier < KOMEAlliance.maxTier(KOMEAlliance.TRADE)) {
+        if (tier(KOMEAlliance.TRADE) >= 0 && tier(KOMEAlliance.TRADE) < KOMEAlliance.maxTier(KOMEAlliance.TRADE)) {
             return currentRequirementRequired(KOMEAlliance.TRADE);
         }
-        return alliance.tradeTier >= 2 ? 1 : 0;
+        return tier(KOMEAlliance.TRADE) >= 2 ? 1 : 0;
     }
 
     private String getTradeReward() {
@@ -425,7 +425,7 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private String nextBenefit(String type) {
-        int next = alliance.getTier(type) + 1;
+        int next = tier(type) + 1;
         if (next < 1 || next > KOMEAlliance.maxTier(type)) {
             return displayType(type) + " track complete";
         }
@@ -433,7 +433,7 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private String currentRequirementText(String type, String extra) {
-        int target = alliance.getTier(type) + 1;
+        int target = tier(type) + 1;
         if (target > KOMEAlliance.maxTier(type)) {
             return displayFaction(ledgerFaction) + " has completed this alliance track.";
         }
@@ -449,7 +449,7 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private int currentRequirementDelivered(String type) {
-        int target = alliance.getTier(type) + 1;
+        int target = tier(type) + 1;
         if (target > KOMEAlliance.maxTier(type)) {
             return 1;
         }
@@ -460,7 +460,7 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private int currentRequirementRequired(String type) {
-        int target = alliance.getTier(type) + 1;
+        int target = tier(type) + 1;
         if (target > KOMEAlliance.maxTier(type)) {
             return 1;
         }
@@ -471,6 +471,10 @@ public class KOMEAllianceInventory implements IInventory {
     private String displayType(String type) {
         String normalized = KOMEAlliance.normalizeType(type);
         return normalized.length() == 0 ? "Alliance" : Character.toUpperCase(normalized.charAt(0)) + normalized.substring(1);
+    }
+
+    private int tier(String type) {
+        return alliance.getFactionTier(ledgerFaction, type);
     }
 
     private boolean canViewerClaim() {

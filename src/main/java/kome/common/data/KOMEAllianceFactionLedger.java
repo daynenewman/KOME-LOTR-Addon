@@ -28,6 +28,7 @@ public class KOMEAllianceFactionLedger {
     private final Map<String, String> assignments = new HashMap<String, String>();
     private final Map<String, Integer> delivered = new HashMap<String, Integer>();
     private final Map<String, Integer> completedTiers = new HashMap<String, Integer>();
+    private final Map<String, Integer> unlockedTiers = new HashMap<String, Integer>();
     private final Map<String, ItemStack> claimSamples = new HashMap<String, ItemStack>();
     private final Map<String, Integer> claimAmounts = new HashMap<String, Integer>();
 
@@ -83,6 +84,29 @@ public class KOMEAllianceFactionLedger {
         }
         int bounded = Math.max(0, Math.min(KOMEAlliance.maxTier(normalizedType), tier));
         completedTiers.put(normalizedType, Integer.valueOf(bounded));
+    }
+
+    public boolean hasUnlockedTier(String type) {
+        return unlockedTiers.containsKey(KOMEAlliance.normalizeType(type));
+    }
+
+    public int getUnlockedTier(String type) {
+        Integer value = unlockedTiers.get(KOMEAlliance.normalizeType(type));
+        return value == null ? KOMEAlliance.NONE
+            : Math.max(0, Math.min(KOMEAlliance.maxTier(type), value.intValue()));
+    }
+
+    public void setUnlockedTier(String type, int tier) {
+        String normalizedType = KOMEAlliance.normalizeType(type);
+        if (!KOMEAlliance.isValidType(normalizedType)) {
+            return;
+        }
+        if (tier < 0) {
+            unlockedTiers.remove(normalizedType);
+            return;
+        }
+        unlockedTiers.put(normalizedType, Integer.valueOf(
+            Math.max(0, Math.min(KOMEAlliance.maxTier(normalizedType), tier))));
     }
 
     public ItemStack getClaimSample(String id) {
@@ -228,6 +252,9 @@ public class KOMEAllianceFactionLedger {
         for (Map.Entry<String, Integer> entry : other.completedTiers.entrySet()) {
             setCompletedTier(entry.getKey(), Math.max(getCompletedTier(entry.getKey()), entry.getValue().intValue()));
         }
+        for (Map.Entry<String, Integer> entry : other.unlockedTiers.entrySet()) {
+            setUnlockedTier(entry.getKey(), Math.max(getUnlockedTier(entry.getKey()), entry.getValue().intValue()));
+        }
         kinglessWaived = kinglessWaived || other.kinglessWaived;
         mergeGrace(other);
         if (combineStoredGoods) {
@@ -275,6 +302,7 @@ public class KOMEAllianceFactionLedger {
         assignments.clear();
         delivered.clear();
         completedTiers.clear();
+        unlockedTiers.clear();
         claimSamples.clear();
         claimAmounts.clear();
         recoveryStorage.clear();
@@ -284,6 +312,7 @@ public class KOMEAllianceFactionLedger {
         readAssignments(nbt.getTagList("Assignments", 10));
         readDelivered(nbt.getTagList("Delivered", 10));
         readCompleted(nbt.getTagList("CompletedTiers", 10));
+        readUnlocked(nbt.getTagList("UnlockedTiers", 10));
         readStorage(nbt.getTagList("Storage", 10));
         readRecovery(nbt.getTagList("RecoveryStorage", 10));
         readClaims(nbt.getTagList("ClaimGoods", 10));
@@ -304,6 +333,7 @@ public class KOMEAllianceFactionLedger {
         nbt.setTag("Assignments", writeStringMap(assignments));
         nbt.setTag("Delivered", writeIntMap(delivered, "Amount"));
         nbt.setTag("CompletedTiers", writeIntMap(completedTiers, "Tier"));
+        nbt.setTag("UnlockedTiers", writeIntMap(unlockedTiers, "Tier"));
         NBTTagList storageList = new NBTTagList();
         for (int i = 0; i < storage.length; i++) {
             if (storage[i] != null) {
@@ -404,6 +434,13 @@ public class KOMEAllianceFactionLedger {
         for (int i = 0; i < list.tagCount(); i++) {
             NBTTagCompound entry = list.getCompoundTagAt(i);
             setCompletedTier(entry.getString("ID"), entry.getInteger("Tier"));
+        }
+    }
+
+    private void readUnlocked(NBTTagList list) {
+        for (int i = 0; i < list.tagCount(); i++) {
+            NBTTagCompound entry = list.getCompoundTagAt(i);
+            setUnlockedTier(entry.getString("ID"), entry.getInteger("Tier"));
         }
     }
 

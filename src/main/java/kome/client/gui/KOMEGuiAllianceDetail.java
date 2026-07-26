@@ -832,7 +832,7 @@ public class KOMEGuiAllianceDetail extends GuiScreen {
     private String requirementText(int type, int targetTier) {
         String key = typeKey(type);
         int stacks = KOMEClientData.INSTANCE.getAllianceItemStackEquivalents(key, targetTier);
-        return "Both sides complete an independent rolled T" + targetTier + " item quota (" + stacks
+        return "Your faction completes its rolled T" + targetTier + " item quota (" + stacks
             + " ordinary-stack equivalents before item weighting)" + activityRequirement(type, targetTier) + ".";
     }
 
@@ -840,13 +840,13 @@ public class KOMEGuiAllianceDetail extends GuiScreen {
         int activity = KOMEClientData.INSTANCE.getAllianceActivityRequirement(typeKey(type), targetTier);
         int population = KOMEClientData.INSTANCE.getAlliancePopulationRequirement(typeKey(type), targetTier);
         if (type == 0 && targetTier == 2) {
-            return " plus " + activity + " legitimate allied trades per side";
+            return " plus " + activity + " legitimate allied trades";
         }
         if (type == 1 && targetTier >= 1) {
-            return " plus " + activity + " cumulative eligible NPC kills and " + population + " effective offensive population per side";
+            return " plus " + activity + " cumulative eligible NPC kills and " + population + " effective offensive population";
         }
         if (type == 2 && targetTier == 1) {
-            return " plus " + activity + " legitimate allied trades per side";
+            return " plus " + activity + " legitimate allied trades";
         }
         if (type == 2 && targetTier == 2) {
             return " plus " + activity + " cumulative legitimate allied trades";

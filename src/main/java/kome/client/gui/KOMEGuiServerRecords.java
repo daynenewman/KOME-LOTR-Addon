@@ -22,6 +22,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     private static final int TILE_MAX_ROWS = 3;
     private static final int PLAYER_DETAIL_TOP_INSET = 5;
     private static final int PLAYER_DETAIL_CARD_GAPS = 5;
+    private static final int TILE_LIST_ROW_HEIGHT = 30;
     private static List rawLines = new ArrayList();
     private static List records = new ArrayList();
     private static List playerRecords = new ArrayList();
@@ -35,15 +36,26 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     private int selected;
     private boolean isScrolling;
     private boolean isDetailScrolling;
+    private boolean isTileListScrolling;
     private boolean wasMouseDown;
+    private boolean tileListOpen;
+    private int tileListScroll;
+    private List tileListEntries = new ArrayList();
+    private String tileListPlayer = "";
+    private int controlledTilesX;
+    private int controlledTilesY;
+    private int controlledTilesWidth;
+    private int controlledTilesHeight;
     private final KOMEGuiScrollPanel listPanel = new KOMEGuiScrollPanel();
     private final KOMEGuiScrollPanel detailPanel = new KOMEGuiScrollPanel();
+    private final KOMEGuiScrollPanel tileListPanel = new KOMEGuiScrollPanel();
 
     private GuiButton buttonMenu;
     private GuiButton buttonRefresh;
     private GuiButton buttonMovementHistory;
     private GuiButton buttonRecordMode;
     private GuiButton buttonWarFilter;
+    private GuiButton buttonTilesBack;
 
     public static void update(List updatedLines) {
         rawLines = updatedLines == null ? new ArrayList() : new ArrayList(updatedLines);
@@ -90,12 +102,23 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         buttonList.add(buttonWarFilter);
         buttonList.add(buttonMovementHistory);
         buttonList.add(buttonRefresh);
-        requestRecords();
+        if (tileListOpen) {
+            setPrimaryButtonsVisible(false);
+            buttonTilesBack = KOMEGuiButton.small(5, guiLeft + 14, guiTop + 14, "Back");
+            buttonList.add(buttonTilesBack);
+            tileListScroll = Math.min(tileListScroll, getMaxTileListScroll());
+        } else {
+            requestRecords();
+        }
     }
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        updateScrollbarDrag(mouseX, mouseY);
+        if (tileListOpen) {
+            updateTileListScrollbarDrag(mouseX, mouseY);
+        } else {
+            updateScrollbarDrag(mouseX, mouseY);
+        }
         drawDefaultBackground();
         drawPanel(mouseX, mouseY);
         super.drawScreen(mouseX, mouseY, partialTicks);
@@ -116,6 +139,15 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         }
         int mouseX = Mouse.getEventX() * width / mc.displayWidth;
         int mouseY = height - Mouse.getEventY() * height / mc.displayHeight - 1;
+        if (tileListOpen) {
+            if (KOMEGuiTheme.isHovered(mouseX, mouseY, getTileListX(), getTileListY(),
+                    getTileListWidth(), getTileListHeight())) {
+                tileListScroll = wheel > 0
+                    ? Math.max(0, tileListScroll - TILE_LIST_ROW_HEIGHT)
+                    : Math.min(getMaxTileListScroll(), tileListScroll + TILE_LIST_ROW_HEIGHT);
+            }
+            return;
+        }
         int detailX = getDetailX();
         int detailY = getContentY();
         int detailW = getDetailWidth();
@@ -140,6 +172,18 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) {
         if (button != 0) {
+            return;
+        }
+        if (tileListOpen) {
+            super.mouseClicked(mouseX, mouseY, button);
+            return;
+        }
+        if (!showWars && selected >= 0 && selected < records.size()
+                && KOMEGuiTheme.isHovered(mouseX, mouseY, controlledTilesX, controlledTilesY,
+                    controlledTilesWidth, controlledTilesHeight)
+                && KOMEGuiTheme.isHovered(mouseX, mouseY, getDetailX(), getContentY() + 23,
+                    getDetailWidth(), getContentHeight() - 28)) {
+            openTileList((Record) records.get(selected));
             return;
         }
         int listX = guiLeft + 18;
@@ -181,6 +225,8 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             initGui();
         } else if (button == buttonRefresh) {
             requestRecords();
+        } else if (button == buttonTilesBack) {
+            closeTileList();
         } else {
             super.actionPerformed(button);
         }
@@ -201,6 +247,10 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     }
 
     private void drawPanel(int mouseX, int mouseY) {
+        if (tileListOpen) {
+            drawTileListView(mouseX, mouseY);
+            return;
+        }
         if (records.isEmpty()) {
             selected = -1;
             scroll = 0;
@@ -389,7 +439,8 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         int cardHeight = getAlliancesCardHeight(summaries.size());
         KOMEGuiTheme.drawCard(x, y, width, cardHeight,
             KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, cardHeight));
-        drawSummaryHeader("Alliances", KOMEServerRecordPresentation.countLabel(summaries.size(), "Alliance", "Alliances"), x, y, width);
+        drawSummaryHeader("Alliances / Own Tiers",
+            KOMEServerRecordPresentation.countLabel(summaries.size(), "Alliance", "Alliances"), x, y, width);
         if (summaries.isEmpty()) {
             fontRendererObj.drawString("No alliances", x + 10, y + 32, KOMEGuiTheme.COLOR_TEXT_MUTED);
             return y + cardHeight;
@@ -423,6 +474,10 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         int declaredCount = Math.max(KOMEServerRecordPresentation.parseNonNegativeInt(count, tiles.size()), tiles.size());
         KOMEServerRecordPresentation.TileBadgeLayout layout = tileBadgeLayout(tiles, width);
         int cardHeight = getControlledTilesCardHeight(layout);
+        controlledTilesX = x;
+        controlledTilesY = y;
+        controlledTilesWidth = width;
+        controlledTilesHeight = cardHeight;
         KOMEGuiTheme.drawCard(x, y, width, cardHeight,
             KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, cardHeight));
         drawSummaryHeader("Controlled Tiles", KOMEServerRecordPresentation.countLabel(declaredCount, "Tile", "Tiles"), x, y, width);
@@ -449,6 +504,123 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             drawTileBadge("+" + layout.hiddenTiles + " more", cursorX, cursorY, layout.badgeWidth);
         }
         return y + cardHeight;
+    }
+
+    private void openTileList(Record record) {
+        tileListEntries = KOMEServerRecordPresentation.parseTileEntries(record.tiles);
+        tileListPlayer = record.name;
+        tileListScroll = 0;
+        tileListOpen = true;
+        setPrimaryButtonsVisible(false);
+        buttonTilesBack = KOMEGuiButton.small(5, guiLeft + 14, guiTop + 14, "Back");
+        buttonList.add(buttonTilesBack);
+    }
+
+    private void closeTileList() {
+        tileListOpen = false;
+        tileListScroll = 0;
+        isTileListScrolling = false;
+        if (buttonTilesBack != null) {
+            buttonList.remove(buttonTilesBack);
+            buttonTilesBack = null;
+        }
+        setPrimaryButtonsVisible(true);
+    }
+
+    private void setPrimaryButtonsVisible(boolean visible) {
+        buttonMenu.visible = visible;
+        buttonRefresh.visible = visible;
+        buttonMovementHistory.visible = visible;
+        buttonRecordMode.visible = visible;
+        buttonWarFilter.visible = visible && showWars;
+    }
+
+    private void drawTileListView(int mouseX, int mouseY) {
+        KOMEGuiTheme.drawMainPanel(guiLeft, guiTop, xSize, ySize);
+        KOMEGuiTheme.drawHeader(fontRendererObj, "Controlled Tiles", guiLeft + 130, guiTop + 13, xSize - 260);
+        String subtitle = tileListPlayer + " | "
+            + KOMEServerRecordPresentation.countLabel(tileListEntries.size(), "Tile", "Tiles");
+        subtitle = KOMEGuiTheme.trimToWidth(fontRendererObj, subtitle, xSize - 64);
+        fontRendererObj.drawString(subtitle,
+            guiLeft + xSize / 2 - fontRendererObj.getStringWidth(subtitle) / 2,
+            guiTop + 58, KOMEGuiTheme.COLOR_TEXT_MUTED);
+
+        int x = getTileListX();
+        int y = getTileListY();
+        int width = getTileListWidth();
+        int height = getTileListHeight();
+        KOMEGuiTheme.drawSubPanel(x, y, width, height);
+        KOMEGuiTheme.drawSectionTitle(fontRendererObj, "All Controlled Tiles", x + 9, y + 8, width - 18);
+        if (tileListEntries.isEmpty()) {
+            fontRendererObj.drawString("No controlled tiles", x + 14, y + 36, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            return;
+        }
+
+        int viewportY = y + 24;
+        int viewportH = height - 26;
+        int contentHeight = tileListEntries.size() * TILE_LIST_ROW_HEIGHT + 6;
+        tileListPanel.layout(x + 1, viewportY, width - 3, viewportH, contentHeight).setScroll(tileListScroll);
+        tileListScroll = tileListPanel.getScroll();
+        tileListPanel.begin(mc);
+        int rowY = viewportY + 3 - tileListScroll;
+        for (int i = 0; i < tileListEntries.size(); i++) {
+            KOMEServerRecordPresentation.TileEntry entry =
+                (KOMEServerRecordPresentation.TileEntry) tileListEntries.get(i);
+            boolean hovered = KOMEGuiTheme.isHovered(mouseX, mouseY, x + 10, rowY, width - 25,
+                TILE_LIST_ROW_HEIGHT - 4);
+            KOMEGuiTheme.drawCard(x + 10, rowY, width - 25, TILE_LIST_ROW_HEIGHT - 4, hovered);
+            String name = entry.waypointName.length() == 0 ? entry.tileId : entry.waypointName;
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, name, width - 115),
+                x + 20, rowY + 9, KOMEGuiTheme.COLOR_TEXT);
+            int badgeW = Math.max(48, fontRendererObj.getStringWidth(entry.tileId) + 14);
+            drawTileBadge(entry.tileId, x + width - badgeW - 22, rowY + 5, badgeW);
+            rowY += TILE_LIST_ROW_HEIGHT;
+        }
+        tileListPanel.end();
+        tileListScroll = Math.min(tileListScroll, getMaxTileListScroll());
+        tileListPanel.drawScrollbar();
+    }
+
+    private int getTileListX() {
+        return guiLeft + 18;
+    }
+
+    private int getTileListY() {
+        return getContentY();
+    }
+
+    private int getTileListWidth() {
+        return xSize - 36;
+    }
+
+    private int getTileListHeight() {
+        return getContentHeight();
+    }
+
+    private int getMaxTileListScroll() {
+        int viewport = Math.max(1, getTileListHeight() - 26);
+        return Math.max(0, tileListEntries.size() * TILE_LIST_ROW_HEIGHT + 6 - viewport);
+    }
+
+    private void updateTileListScrollbarDrag(int mouseX, int mouseY) {
+        boolean isMouseDown = Mouse.isButtonDown(0);
+        int x = getTileListX() + getTileListWidth() - 10;
+        int y = getTileListY() + 24;
+        int height = getTileListHeight() - 26;
+        int max = getMaxTileListScroll();
+        if (!wasMouseDown && isMouseDown && max > 0
+                && KOMEGuiTheme.isHovered(mouseX, mouseY, x - 2, y, 9, height)) {
+            isTileListScrolling = true;
+        }
+        if (!isMouseDown) {
+            isTileListScrolling = false;
+        }
+        wasMouseDown = isMouseDown;
+        if (isTileListScrolling) {
+            float amount = (mouseY - y) / (float) Math.max(1, height);
+            amount = Math.max(0.0F, Math.min(1.0F, amount));
+            tileListScroll = Math.round(amount * max);
+        }
     }
 
     private void drawSummaryHeader(String title, String total, int x, int y, int width) {
