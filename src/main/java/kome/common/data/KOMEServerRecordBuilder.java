@@ -193,11 +193,19 @@ public class KOMEServerRecordBuilder {
         for (KOMEConquestTile tile : data.conquestTiles.values()) {
             if (tile.isClaimed() && factionMatches(tile.currentRulingFaction(), factionKey)) {
                 summary.count++;
-                summary.names.add(tile.id);
+                KOMETileWaypointLink waypoint = data.getTileWaypointLink(tile.id);
+                String waypointName = waypoint == null ? "" : safeRecordLabel(waypoint.displayName());
+                summary.names.add(waypointName.length() == 0
+                    ? tile.id
+                    : waypointName + " (" + tile.id + ")");
             }
         }
         Collections.sort(summary.names);
         return summary;
+    }
+
+    private static String safeRecordLabel(String value) {
+        return value == null ? "" : value.replace(',', ' ').replace('\t', ' ').trim();
     }
 
     private static boolean factionMatches(String value, String factionKey) {

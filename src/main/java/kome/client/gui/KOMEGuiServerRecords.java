@@ -13,6 +13,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
+    private static final int SUMMARY_HEADER_HEIGHT = 24;
+    private static final int POPULATION_CARD_HEIGHT = 66;
+    private static final int ALLIANCE_ROW_HEIGHT = 31;
+    private static final int ALLIANCE_MAX_ROWS = 3;
+    private static final int TILE_BADGE_HEIGHT = 16;
+    private static final int TILE_BADGE_GAP = 5;
+    private static final int TILE_MAX_ROWS = 3;
+    private static final int PLAYER_DETAIL_TOP_INSET = 5;
+    private static final int PLAYER_DETAIL_CARD_GAPS = 5;
     private static List rawLines = new ArrayList();
     private static List records = new ArrayList();
     private static List playerRecords = new ArrayList();
@@ -291,10 +300,10 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         int cursorY = y + 28 - detailScroll;
         cursorY = drawInfoCard("Faction / Rank", record.faction + " / " + record.rank, x + 12, cursorY, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Progression", record.progress + " completed", x + 12, cursorY + 8, width - 24, mouseX, mouseY);
-        cursorY = drawInfoCard("Population", record.population, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        cursorY = drawPopulationCard(record.population, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Pledged Lord", record.lord, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
-        cursorY = drawInfoCard("Alliances", record.alliances, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
-        drawInfoCard("Controlled Tiles", record.tileCount + formatNames(record.tiles), x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        cursorY = drawAlliancesCard(record.alliances, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        drawControlledTilesCard(record.tileCount, record.tiles, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         detailPanel.end();
         detailScroll = Math.min(detailScroll, getMaxDetailScroll());
         detailPanel.drawScrollbar();
@@ -362,6 +371,119 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         fontRendererObj.drawString(title, x + 8, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
         KOMEGuiTheme.drawWrappedText(fontRendererObj, display, x + 8, y + 20, width - 16, KOMEGuiTheme.COLOR_TEXT);
         return y + cardHeight;
+    }
+
+    private int drawPopulationCard(String value, int x, int y, int width, int mouseX, int mouseY) {
+        KOMEServerRecordPresentation.PopulationSummary population =
+            KOMEServerRecordPresentation.parsePopulationSummary(value);
+        KOMEGuiTheme.drawCard(x, y, width, POPULATION_CARD_HEIGHT,
+            KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, POPULATION_CARD_HEIGHT));
+        drawSummaryHeader("Population", "Total " + population.total, x, y, width);
+        drawRightAlignedRow("Offensive", String.valueOf(population.offensive), x + 10, y + 29, width - 20);
+        drawRightAlignedRow("Defensive", String.valueOf(population.defensive), x + 10, y + 45, width - 20);
+        return y + POPULATION_CARD_HEIGHT;
+    }
+
+    private int drawAlliancesCard(String value, int x, int y, int width, int mouseX, int mouseY) {
+        List summaries = KOMEServerRecordPresentation.parseAllianceSummaries(value);
+        int cardHeight = getAlliancesCardHeight(summaries.size());
+        KOMEGuiTheme.drawCard(x, y, width, cardHeight,
+            KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, cardHeight));
+        drawSummaryHeader("Alliances", KOMEServerRecordPresentation.countLabel(summaries.size(), "Alliance", "Alliances"), x, y, width);
+        if (summaries.isEmpty()) {
+            fontRendererObj.drawString("No alliances", x + 10, y + 32, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            return y + cardHeight;
+        }
+        int shown = Math.min(ALLIANCE_MAX_ROWS, summaries.size());
+        int cursorY = y + SUMMARY_HEADER_HEIGHT + 4;
+        for (int i = 0; i < shown; i++) {
+            KOMEServerRecordPresentation.AllianceSummary summary =
+                (KOMEServerRecordPresentation.AllianceSummary) summaries.get(i);
+            if (i > 0) {
+                KOMEGuiTheme.drawDivider(x + 10, cursorY - 3, width - 20);
+            }
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, summary.faction, width - 20),
+                x + 10, cursorY, KOMEGuiTheme.COLOR_TEXT);
+            int trackY = cursorY + 13;
+            int trackWidth = (width - 20) / 3;
+            drawAllianceTrack("Civilian", summary.civilian, x + 10, trackY, trackWidth);
+            drawAllianceTrack("Military", summary.military, x + 10 + trackWidth, trackY, trackWidth);
+            drawAllianceTrack("Trade", summary.trade, x + 10 + trackWidth * 2, trackY, width - 20 - trackWidth * 2);
+            cursorY += ALLIANCE_ROW_HEIGHT;
+        }
+        if (summaries.size() > shown) {
+            fontRendererObj.drawString("+" + (summaries.size() - shown) + " more",
+                x + 10, y + cardHeight - 14, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        }
+        return y + cardHeight;
+    }
+
+    private int drawControlledTilesCard(String count, String names, int x, int y, int width, int mouseX, int mouseY) {
+        List tiles = KOMEServerRecordPresentation.parseTileIds(names);
+        int declaredCount = Math.max(KOMEServerRecordPresentation.parseNonNegativeInt(count, tiles.size()), tiles.size());
+        KOMEServerRecordPresentation.TileBadgeLayout layout = tileBadgeLayout(tiles, width);
+        int cardHeight = getControlledTilesCardHeight(layout);
+        KOMEGuiTheme.drawCard(x, y, width, cardHeight,
+            KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, cardHeight));
+        drawSummaryHeader("Controlled Tiles", KOMEServerRecordPresentation.countLabel(declaredCount, "Tile", "Tiles"), x, y, width);
+        if (tiles.isEmpty()) {
+            fontRendererObj.drawString("No controlled tiles", x + 10, y + 32, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            return y + cardHeight;
+        }
+        int cursorX = x + 10;
+        int cursorY = y + SUMMARY_HEADER_HEIGHT + 5;
+        for (int i = 0; i < layout.visibleTiles; i++) {
+            if (i > 0 && i % layout.perRow == 0) {
+                cursorX = x + 10;
+                cursorY += TILE_BADGE_HEIGHT + TILE_BADGE_GAP;
+            }
+            drawTileBadge(String.valueOf(tiles.get(i)), cursorX, cursorY, layout.badgeWidth);
+            cursorX += layout.badgeWidth + TILE_BADGE_GAP;
+        }
+        if (layout.hiddenTiles > 0) {
+            int badgeIndex = layout.visibleTiles;
+            if (badgeIndex > 0 && badgeIndex % layout.perRow == 0) {
+                cursorX = x + 10;
+                cursorY += TILE_BADGE_HEIGHT + TILE_BADGE_GAP;
+            }
+            drawTileBadge("+" + layout.hiddenTiles + " more", cursorX, cursorY, layout.badgeWidth);
+        }
+        return y + cardHeight;
+    }
+
+    private void drawSummaryHeader(String title, String total, int x, int y, int width) {
+        fontRendererObj.drawString(title, x + 10, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString(total, x + width - fontRendererObj.getStringWidth(total) - 10,
+            y + 7, KOMEGuiTheme.COLOR_TEXT);
+        KOMEGuiTheme.drawDivider(x + 10, y + 20, width - 20);
+    }
+
+    private void drawRightAlignedRow(String label, String value, int x, int y, int width) {
+        fontRendererObj.drawString(label, x, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString(value, x + width - fontRendererObj.getStringWidth(value), y, KOMEGuiTheme.COLOR_TEXT);
+    }
+
+    private void drawAllianceTrack(String label, String tier, int x, int y, int width) {
+        String safeLabel = KOMEGuiTheme.trimToWidth(fontRendererObj, label, Math.max(1, width - 34));
+        fontRendererObj.drawString(safeLabel, x, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        int valueX = x + fontRendererObj.getStringWidth(safeLabel) + 4;
+        String safeTier = KOMEGuiTheme.trimToWidth(fontRendererObj, tier, Math.max(1, x + width - valueX - 2));
+        fontRendererObj.drawString(safeTier, valueX, y, allianceTierColor(tier));
+    }
+
+    private int allianceTierColor(String tier) {
+        if ("Pending".equalsIgnoreCase(tier)) {
+            return KOMEGuiTheme.COLOR_WARN;
+        }
+        return KOMEServerRecordPresentation.isUnlockedTier(tier) ? KOMEGuiTheme.COLOR_GOLD : KOMEGuiTheme.COLOR_TEXT_DISABLED;
+    }
+
+    private void drawTileBadge(String label, int x, int y, int width) {
+        KOMEGuiTheme.drawBorderedRect(x, y, width, TILE_BADGE_HEIGHT,
+            KOMEGuiTheme.COLOR_GOLD_DARK, KOMEGuiTheme.COLOR_PANEL_DARK_SOFT);
+        String display = KOMEGuiTheme.trimToWidth(fontRendererObj, label, width - 8);
+        fontRendererObj.drawString(display, x + (width - fontRendererObj.getStringWidth(display)) / 2,
+            y + 4, KOMEGuiTheme.COLOR_TEXT);
     }
 
     private void drawListScrollbar(int x, int y) {
@@ -521,19 +643,45 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             return total;
         }
         Record record = (Record) selectedRecord;
-        int total = 4 * 8;
+        int total = PLAYER_DETAIL_TOP_INSET + PLAYER_DETAIL_CARD_GAPS * 8;
         total += getCardHeight(record.faction + " / " + record.rank, width);
         total += getCardHeight(record.progress + " completed", width);
-        total += getCardHeight(record.population, width);
+        total += POPULATION_CARD_HEIGHT;
         total += getCardHeight(record.lord, width);
-        total += getCardHeight(record.alliances, width);
-        total += getCardHeight(record.tileCount + formatNames(record.tiles), width);
+        total += getAlliancesCardHeight(KOMEServerRecordPresentation.parseAllianceSummaries(record.alliances).size());
+        total += getControlledTilesCardHeight(tileBadgeLayout(KOMEServerRecordPresentation.parseTileIds(record.tiles), width));
         return total;
     }
 
     private int getCardHeight(String value, int width) {
         String display = value == null || value.trim().length() == 0 ? "None" : value;
         return 28 + KOMEGuiTheme.wrapText(fontRendererObj, display, width - 16).size() * 10;
+    }
+
+    private int getAlliancesCardHeight(int allianceCount) {
+        if (allianceCount <= 0) {
+            return 52;
+        }
+        int shown = Math.min(ALLIANCE_MAX_ROWS, allianceCount);
+        return SUMMARY_HEADER_HEIGHT + 8 + shown * ALLIANCE_ROW_HEIGHT + (allianceCount > shown ? 14 : 0);
+    }
+
+    private int getControlledTilesCardHeight(KOMEServerRecordPresentation.TileBadgeLayout layout) {
+        if (layout.totalTiles <= 0) {
+            return 52;
+        }
+        return SUMMARY_HEADER_HEIGHT + 10 + layout.rows * TILE_BADGE_HEIGHT
+            + Math.max(0, layout.rows - 1) * TILE_BADGE_GAP;
+    }
+
+    private KOMEServerRecordPresentation.TileBadgeLayout tileBadgeLayout(List tiles, int width) {
+        int maxTextWidth = fontRendererObj.getStringWidth("+999 more");
+        for (Object value : tiles) {
+            maxTextWidth = Math.max(maxTextWidth, fontRendererObj.getStringWidth(String.valueOf(value)));
+        }
+        int badgeWidth = Math.max(58, Math.min(84, maxTextWidth + 14));
+        return KOMEServerRecordPresentation.computeTileBadgeLayout(
+            tiles.size(), badgeWidth, width, 20, TILE_BADGE_GAP, TILE_MAX_ROWS);
     }
 
     private static void parseRecords() {

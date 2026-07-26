@@ -115,9 +115,10 @@ public final class KOMEGuiTheme {
         if (y + height + 8 > screenHeight) {
             y = screenHeight - height - 8;
         }
-        drawBorderedRect(x - 4, y - 4, tooltipWidth + 8, height + 8, COLOR_BORDER_DARK, 0xF0F2DFB4);
+        drawRect(x - 6, y - 6, x + tooltipWidth + 6, y + height + 6, COLOR_SHADOW);
+        drawBorderedRect(x - 4, y - 4, tooltipWidth + 8, height + 8, COLOR_GOLD_DARK, 0xFA1B1713);
         for (int i = 0; i < lines.size(); i++) {
-            font.drawString(String.valueOf(lines.get(i)), x, y + i * 10, COLOR_TEXT);
+            font.drawString(String.valueOf(lines.get(i)), x, y + i * 10, COLOR_TEXT_LIGHT);
         }
     }
 
