@@ -180,6 +180,15 @@ public final class KOMEBuildService {
 
     public static Decision deleteBuild(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
             String actorName, boolean admin, String reason, long nowMillis) {
+        Decision allowed = canDeleteBuild(data, build, actor, admin);
+        if (!allowed.allowed) return allowed;
+        String safeReason = safe(reason);
+        softDelete(data, build, actor, actorName, safeReason.length() == 0 ? "Deleted by manager" : safeReason, nowMillis);
+        return Decision.allow();
+    }
+
+    public static Decision canDeleteBuild(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
+            boolean admin) {
         if (build == null || !build.active) return Decision.deny("The Build is already inactive.");
         if (!admin && !isManager(build, actor)) return Decision.deny("Only the current manager or an administrator may delete this Build.");
         if (build.offensiveCommittedPopulation > 0 || build.defensiveCommittedPopulation > 0) {
@@ -193,13 +202,19 @@ public final class KOMEBuildService {
         if (!capacity.allowed) {
             return capacity;
         }
-        String safeReason = safe(reason);
-        softDelete(data, build, actor, actorName, safeReason.length() == 0 ? "Deleted by manager" : safeReason, nowMillis);
         return Decision.allow();
     }
 
     public static Decision destroyEnemyBuild(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
             String actorName, String actorFaction, boolean admin, long nowMillis) {
+        Decision allowed = canDestroyEnemyBuild(data, build, actor, actorFaction, admin);
+        if (!allowed.allowed) return allowed;
+        softDelete(data, build, actor, actorName, "Destroyed by enemy homeland controller", nowMillis);
+        return Decision.allow();
+    }
+
+    public static Decision canDestroyEnemyBuild(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
+            String actorFaction, boolean admin) {
         if (data == null || build == null || !build.active) return Decision.deny("The Build is not active.");
         KOMEConquestTile tile = data.conquestTiles.get(build.tileId);
         String controller = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
@@ -221,7 +236,6 @@ public final class KOMEBuildService {
         if (!capacity.allowed) {
             return capacity;
         }
-        softDelete(data, build, actor, actorName, "Destroyed by enemy homeland controller", nowMillis);
         return Decision.allow();
     }
 

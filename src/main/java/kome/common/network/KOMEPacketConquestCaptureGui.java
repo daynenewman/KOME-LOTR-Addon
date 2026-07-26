@@ -322,6 +322,8 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         public String status = "";
         public boolean canManage;
         public boolean canDestroy;
+        public String destroyMode = "";
+        public String destroyReason = "";
         public final List<ContributionView> contributions = new ArrayList<ContributionView>();
 
         void read(ByteBuf buf) {
@@ -344,6 +346,8 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             status = ByteBufUtils.readUTF8String(buf);
             canManage = buf.readBoolean();
             canDestroy = buf.readBoolean();
+            destroyMode = ByteBufUtils.readUTF8String(buf);
+            destroyReason = ByteBufUtils.readUTF8String(buf);
             contributions.clear();
             int count = Math.max(0, Math.min(4096, buf.readInt()));
             for (int i = 0; i < count; i++) {
@@ -373,6 +377,8 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             ByteBufUtils.writeUTF8String(buf, safe(status));
             buf.writeBoolean(canManage);
             buf.writeBoolean(canDestroy);
+            ByteBufUtils.writeUTF8String(buf, safe(destroyMode));
+            ByteBufUtils.writeUTF8String(buf, safe(destroyReason));
             buf.writeInt(contributions.size());
             for (ContributionView contribution : contributions) contribution.write(buf);
         }

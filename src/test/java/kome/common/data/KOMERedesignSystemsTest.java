@@ -26,6 +26,57 @@ public class KOMERedesignSystemsTest {
         assertFalse(KOMEBuildPopulationService.isValidHours(0.75D));
     }
 
+    @Test public void typedWholeAndHalfHoursNormalizeToCanonicalHalfHours() {
+        assertEquals(0, KOMEBuildPopulationService.parseHalfHours("0"));
+        assertEquals(1, KOMEBuildPopulationService.parseHalfHours(".5"));
+        assertEquals(1, KOMEBuildPopulationService.parseHalfHours("0.5"));
+        assertEquals(2, KOMEBuildPopulationService.parseHalfHours("1"));
+        assertEquals(2, KOMEBuildPopulationService.parseHalfHours("1.0"));
+        assertEquals(3, KOMEBuildPopulationService.parseHalfHours(" 1.5 "));
+    }
+
+    @Test public void typedInvalidHoursAreRejected() {
+        String[] invalid = {"", " ", "-0.5", "0.1", "0.25", "0.75", "NaN", "Infinity", "1e0", "one", "1..5"};
+        for (String value : invalid) {
+            try {
+                KOMEBuildPopulationService.parseHalfHours(value);
+                fail("Expected invalid Build hours: " + value);
+            } catch (IllegalArgumentException expected) {
+                assertTrue(expected.getMessage().contains("whole/half-hour"));
+            }
+        }
+    }
+
+    @Test public void typedHourPreviewUsesConfiguredConversionRate() {
+        assertEquals(21, KOMEBuildPopulationService.generatedPopulation(
+            KOMEBuildPopulationService.parseHalfHours("1.5"), 7));
+    }
+
+    @Test public void populationGraphSegmentsPreservePhysicalCapacity() {
+        KOMEPopulationGraph.Segments segments = KOMEPopulationGraph.segments(100, 50, 20);
+        assertEquals(100, segments.physical);
+        assertEquals(20, segments.used);
+        assertEquals(30, segments.available);
+        assertEquals(50, segments.inaccessible);
+    }
+
+    @Test public void populationGraphHandlesControllerForeignAndZeroPools() {
+        assertEquals("100% Controller-Owned Access", KOMEPopulationGraph.accessLabel(true, 100, 100));
+        assertEquals("50% Captured Access", KOMEPopulationGraph.accessLabel(false, 100, 50));
+        assertEquals("0% Owner Access While Occupied", KOMEPopulationGraph.accessLabel(false, 1, 0));
+        KOMEPopulationGraph.Segments zero = KOMEPopulationGraph.segments(0, 0, 0);
+        assertEquals(0, zero.used + zero.available + zero.inaccessible);
+    }
+
+    @Test public void populationGraphClampsInvalidAndOverflowingPresentationTotals() {
+        KOMEPopulationGraph.Segments segments = KOMEPopulationGraph.segments(10, 50, 99);
+        assertEquals(10, segments.used);
+        assertEquals(0, segments.available);
+        assertEquals(0, segments.inaccessible);
+        assertEquals(Integer.MAX_VALUE,
+            KOMEPopulationGraph.saturatingAdd(Integer.MAX_VALUE - 2, 10));
+    }
+
     @Test public void ownControlledTileAllowsBuildPlacement() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
@@ -225,6 +276,34 @@ public class KOMERedesignSystemsTest {
         KOMEPlayerBuild enemy = manualBuild(data, "mordor");
         assertNotNull(KOMEWarService.createWar(data, "gondor", "mordor", "Homeland defense", "test", 40L));
         assertTrue(KOMEBuildService.destroyEnemyBuild(data, enemy, king, "King", "gondor", false, 50L).allowed);
+    }
+
+    @Test public void destroyButtonPreflightSelectsExistingManagerDeletePermission() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild build = build(data, "gondor", 0, 0);
+        assertTrue(KOMEBuildService.canDeleteBuild(data, build, build.managerUuid, false).allowed);
+        assertFalse(KOMEBuildService.canDeleteBuild(data, build, UUID.randomUUID(), false).allowed);
+    }
+
+    @Test public void destroyButtonPreflightSelectsEligibleHostileKingPermission() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        UUID king = UUID.randomUUID();
+        data.claimFactionKing("gondor", "Gondor", king, "King");
+        KOMEPlayerBuild enemy = manualBuild(data, "mordor");
+        KOMEWarService.createWar(data, "gondor", "mordor", "Homeland defense", "test", 40L);
+        assertTrue(KOMEBuildService.canDestroyEnemyBuild(
+            data, enemy, king, "gondor", false).allowed);
+    }
+
+    @Test public void destroyButtonPreflightReturnsExactInvalidKingReason() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild enemy = manualBuild(data, "mordor");
+        KOMEWarService.createWar(data, "gondor", "mordor", "Homeland defense", "test", 40L);
+        KOMEBuildService.Decision denied = KOMEBuildService.canDestroyEnemyBuild(
+            data, enemy, UUID.randomUUID(), "gondor", false);
+        assertFalse(denied.allowed);
+        assertEquals("Only the current controller's king or an administrator may destroy an enemy Build.",
+            denied.reason);
     }
 
     @Test public void enemyBuildDestructionIsRejectedInForeignConqueredLand() {

@@ -25,6 +25,23 @@ public final class KOMEBuildPopulationService {
         return (int) halfHours;
     }
 
+    /**
+     * Strict player-input boundary for Build hour fields. The wire and persistence
+     * formats remain integer half-hours, so invalid decimal increments never reach
+     * a Build mutation.
+     */
+    public static int parseHalfHours(String value) {
+        String text = value == null ? "" : value.trim();
+        if (!text.matches("(?:\\d+|\\d+\\.0|\\d*\\.5)")) {
+            throw invalidHours();
+        }
+        try {
+            return toHalfHours(Double.parseDouble(text));
+        } catch (NumberFormatException error) {
+            throw invalidHours();
+        }
+    }
+
     public static double toHours(int halfHours) {
         return Math.max(0, halfHours) / 2.0D;
     }
@@ -37,5 +54,10 @@ public final class KOMEBuildPopulationService {
     public static String displayHours(int halfHours) {
         int safe = Math.max(0, halfHours);
         return safe % 2 == 0 ? Integer.toString(safe / 2) : safe / 2 + ".5";
+    }
+
+    private static IllegalArgumentException invalidHours() {
+        return new IllegalArgumentException(
+            "Hours must be 0 or a positive whole/half-hour value (for example 0, 0.5, 1, or 1.5).");
     }
 }

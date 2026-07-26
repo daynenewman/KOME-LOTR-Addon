@@ -162,9 +162,22 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             view.pendingCount = build.pendingCount();
             view.status = buildStatus(data, viewerFaction, controller, build.populationFaction);
             view.canManage = admin || KOMEBuildService.isManager(build, viewerId);
-            view.canDestroy = admin || data.isFactionKing(controller, viewerId)
-                && controller.equals(KOMEAlliance.normalizeFactionKey(tile.defaultRulingFaction))
-                && KOMEBuildService.isHostile(data, controller, build.populationFaction);
+            KOMEBuildService.Decision delete = KOMEBuildService.canDeleteBuild(
+                data, build, viewerId, admin);
+            KOMEBuildService.Decision destroy = KOMEBuildService.canDestroyEnemyBuild(
+                data, build, viewerId, viewerFaction, admin);
+            view.canDestroy = destroy.allowed;
+            if (delete.allowed) {
+                view.destroyMode = "delete";
+            } else if (destroy.allowed) {
+                view.destroyMode = "destroy";
+            } else if (view.canManage) {
+                view.destroyMode = "delete";
+                view.destroyReason = delete.reason;
+            } else {
+                view.destroyMode = "destroy";
+                view.destroyReason = destroy.reason;
+            }
             for (KOMEBuildContribution contribution : build.sortedContributions()) {
                 KOMEPacketConquestCaptureGui.ContributionView contributionView =
                     new KOMEPacketConquestCaptureGui.ContributionView();
