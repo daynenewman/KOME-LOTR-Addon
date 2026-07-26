@@ -30,18 +30,23 @@ The suites cover model serialization/migration, alliance authority/progression, 
 - Exercise the two-edge foreign owner selector with a hostile third faction.
 - Create multiple Builds and multiple owners in one tile.
 - Verify exact coordinate marker, tooltip, co-located offset, click-through, rename, and deletion disappearance.
-- Submit 0.5 and whole hours; reject 0.1/0.25/0.75.
+- Type `0`, `.5`, `0.5`, whole hours, and `.5` increments; verify normalization, immediate preview, and exact server result.
+- Reject blank, negative, NaN, Infinity, exponent, malformed, `0.1`, `0.25`, and `0.75` typed input; verify the canonical integer-half-hour packet boundary and server rejection of forged negative/empty contributions.
+- Exercise offensive and defensive minus/plus controls at zero and large values; each step is exactly 0.5 and never underflows.
 - Confirm manager hours are immediate and another player's are pending.
 - Approve/reject; verify player/faction credit and offensive/defensive population.
 - Remove approved hours and verify totals/milestone reverse.
 - Change pledge/king; verify succession and no-manager fallback.
-- Test manager delete and homeland-only enemy destruction confirmations.
+- Verify the single Destroy Build button selects manager/operator deletion or homeland-only hostile destruction without changing either permission rule.
+- Verify the single button is disabled with the exact server reason when neither path is legal, and that confirmation text identifies the selected mode.
 - Fund living units/allocations and verify unsafe remove/delete/destruction is blocked with actionable numbers.
 
 ### Population
 
 - Confirm controller-owned 100%, foreign 50%, owner 0% while occupied, and reclaim 100%.
-- Verify odd-total rounding, native vs Build rows, capture, seasonal reset, restart, unit death, and no duplication/negative values.
+- Verify odd-total rounding, Base vs Build rows, capture, seasonal reset, restart, unit death, and no duplication/negative values.
+- Verify every faction card's used/available/inaccessible segments and physical/usable numeric totals at 100%, captured 50%, zero, fully used, and near-integer-limit inputs.
+- Hover Base and verify the explanatory tooltip; hover both graphs and verify exact segment values.
 - Confirm a Build-funded unit returns to its exact source.
 
 ### Companies
@@ -84,6 +89,9 @@ At Small, Normal, Large, Auto, and 854x480:
 - Many Builds, pools, pending submissions, alliance records, and controlled tiles scroll to the final row.
 - Fixed buttons do not move with content scroll.
 - No text/card/button overlap or clipping.
+- Build creation keeps name, owner, coordinate, offensive, defensive, preview, and footer controls aligned and reachable.
+- Build detail keeps grouped identity and capacity cards readable, with equal action sizing and one Destroy Build action.
+- Population cards keep both segmented bars, legends, numeric totals, access state, and hover targets inside the viewport.
 - Back/Escape returns correctly and sends no destructive mutation.
 - Selected tile, Build, alliance tab, player, war filter, and valid scroll survive refresh.
 - Map markers are clickable without blocking normal map interaction.

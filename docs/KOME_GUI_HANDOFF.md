@@ -16,13 +16,13 @@ The title retains waypoint-first tile naming. Tabs are **Builds** (default), **P
 
 ### Builds
 
-The list card click region and `View` button open detail. `Create Build` opens the in-GUI name, coordinates/tile, population-owner, offensive half-hour, defensive half-hour, ownership warning, preview, confirm, and cancel flow.
+The list card click region and `View` button open detail. `Create Build` opens a responsive form with name, exact world coordinates/tile, population owner, and side-by-side offensive/defensive hour controls. Each hour control has a typed field plus minus/plus buttons that change the value by 0.5 and clamp at the supported bounds. The client accepts only non-negative whole- or half-hour values, normalizes accepted values on focus loss or confirmation, updates the population preview immediately, and shows a readable inline reason instead of submitting when either field is invalid. The server validates the submitted canonical half-hour values again.
 
-Build detail exposes Add Hours, Rename, pending Approve/Reject, active-contribution Remove, Delete, and eligible Destroy Enemy. Contribution rows scroll independently when necessary. Disabled buttons use the server reason. Delete/Destroy open confirmation and only send after Confirm.
+Build detail groups status/identity, coordinates, and offensive/defensive capacity into readable cards. Add Hours and Rename are followed by one context-aware **Destroy Build** action. For a manager/operator it represents normal deletion; otherwise it represents the existing homeland-only hostile-destruction path. The server-authored preflight supplies the exact mode and denial reason. Pending Approve/Reject and active-contribution Remove remain in the contribution audit. Contribution rows scroll independently when necessary. Destroy Build opens a mode-specific confirmation and only sends after Confirm.
 
 ### Population and allocations
 
-Population is a scrollable faction-pool list showing native/Build, physical/effective, used, and available offensive/defensive values plus captured-half state. Allocations remains a separate tab with explicit add/reclaim controls; reclaim means reducing an allocation that is not already used by a living unit.
+Population is a scrollable faction-pool card list. Each faction shows its access state, separate **Base** and **Build** sources, and offensive/defensive segmented bars for used, available, and inaccessible capacity. Exact physical, usable, used, and available values remain visible next to the bars and in hover tooltips. **Base Population** is presentation-only terminology for the existing native baseline; NBT keys and backend field names are unchanged. Allocations remains a separate tab with explicit add/reclaim controls; reclaim means reducing an allocation that is not already used by a living unit.
 
 ## Conquest-map Builds
 
@@ -67,21 +67,22 @@ The deterministic visual capture uses a container-free ledger twin because the L
 
 ## Responsive rules
 
-Cards derive width from the current scaled screen. Long text is wrapped or ellipsized with a readable tooltip. Content viewports scroll; action bars do not translate with scroll. Every scroll range is computed from content bottom minus viewport bottom so the final row is reachable.
+Cards derive width from the current scaled screen. Tile Command uses a logical responsive canvas below its design width/height so the complete header, form, content viewport, and fixed footer remain reachable at 854x480; drawing, mouse hitboxes, text fields, dialogs, tooltips, and OpenGL scissoring use the same transform. Long text is wrapped or ellipsized with a readable tooltip. Content viewports scroll; action bars do not translate with scroll. Every scroll range is computed from content bottom minus viewport bottom so the final row is reachable.
 
 Required manual matrix: Small, Normal, Large, Auto, and 854x480; long Build/faction/player names; many Builds/pools/submissions; final-row scroll; tab/selection retention; map marker click; real ledger slots; back/Escape; every destructive confirmation.
 
 ## Changed or added GUI classes
 
 - `KOMEGuiAllianceUnified` — new unified list/request/four-tab detail.
-- `KOMEGuiConquestCapture` — Builds-first Tile Command, split pools, contributions, confirmations.
+- `KOMEGuiConquestCapture` — responsive Builds-first Tile Command, typed half-hour form, grouped Build detail, one context-aware Destroy Build action, segmented population pools, allocations, and confirmations.
 - `KOMEGuiAllianceLedger` — schema-7 direction and quota presentation over authoritative slots.
 - `KOMEGuiCompanyList` — persistent source-tile company presentation and rename.
 - `KOMEGuiServerRecords` / `KOMEServerRecordPresentation` — directional stage, split population, Build counts, retained tile drilldown.
 - `KOMEConquestMapOverlay` — Build markers and click-through.
 - `KOMEWaypointMapOverlay` — waypoint-first presentation retained.
 - `KOMEProgressionMenuOverlay` — routes Alliance and Tile Command entry points to the redesigned screens.
-- `KOMEGuiVisualCaptureController` — schema-7/Build deterministic fixtures.
+- `KOMEGuiTheme` — responsive-scale scissor overload used by Tile Command.
+- `KOMEGuiVisualCaptureController` — schema-7/Build deterministic fixtures, including the Build create/detail/population screens and exact scale profiles.
 - `KOMEClientProxy` — unified-screen routing and capture registration.
 - Removed obsolete `KOMEGuiAlliance`, `KOMEGuiAllianceDetail`, `KOMEGuiAlliancePermissions`, and `KOMEAlliancePermissions`.
 - Shared existing components reused: `KOMEGuiTheme`, `KOMEGuiButton`, `KOMEGuiScrollPanel`, `KOMEGuiConfirmationDialog`.

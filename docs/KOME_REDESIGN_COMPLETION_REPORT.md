@@ -13,9 +13,9 @@ The full Build, split-population, automatic-company, directional-alliance, and a
 
 ## Delivered behavior
 
-- Persistent Builds with exact coordinates, stable IDs, selectable population owner, half-hour conversion, pending/approved/removed contribution audit, manager succession, map markers, normal deletion, restricted enemy destruction, and committed-capacity protection.
-- Separate native and Build population by tile/source faction with controller-owned 100% and foreign 50% effective access.
-- Builds-first Tile Command with Population and Allocations tabs and complete normal GUI workflows.
+- Persistent Builds with exact coordinates, stable IDs, selectable population owner, strict typed whole/half-hour input, configured-rate preview, pending/approved/removed contribution audit, manager succession, map markers, normal deletion, restricted enemy destruction, and committed-capacity protection.
+- Separate Base/native and Build population by tile/source faction with controller-owned 100% and foreign 50% effective access. Player-facing text says Base Population while the compatibility fields remain unchanged.
+- Builds-first Tile Command with a responsive creation grid, grouped Build detail, one context-aware Destroy Build action, faction-pool population graphs, an Allocations tab, and complete normal GUI workflows.
 - One auto-created/reused company per owner/source tile; immutable source identity and owner rename action.
 - One formal relationship containing two independent Stage 0-4 directions, lower-stage shared relation, king/kingless request rules, one authoritative ledger, Stage 3 Build-hours milestone, and Stage 4 qualifying deployment/delegation/stewardship.
 - No runtime grace downgrade and no alliance-related waypoint restriction.
@@ -40,6 +40,7 @@ Obsolete grace and alliance-waypoint fields are ignored and removed on the next 
 - `kome.common.data.KOMEBuildContribution`
 - `kome.common.data.KOMEBuildPopulationService`
 - `kome.common.data.KOMEBuildService`
+- `kome.common.data.KOMEPopulationGraph`
 - `kome.common.data.KOMEPlayerBuild`
 - `kome.common.network.KOMEPacketBuildAction`
 
@@ -77,28 +78,28 @@ Result: **BUILD SUCCESSFUL**, 25 actionable tasks (24 executed, 1 up-to-date).
 | `KOMEAllianceModelTest` | 21 | 0 | 0 | 0 |
 | `KOMEAllianceSystemsTest` | 49 | 0 | 0 | 0 |
 | `KOMEBaseIsolationTest` | 5 | 0 | 0 | 0 |
-| `KOMERedesignSystemsTest` | 53 | 0 | 0 | 0 |
+| `KOMERedesignSystemsTest` | 63 | 0 | 0 | 0 |
 | `KOMEWaypointTransformerTest` | 5 | 0 | 0 | 0 |
-| **Total** | **144** | **0** | **0** | **0** |
+| **Total** | **154** | **0** | **0** | **0** |
 
-Coverage includes Build placement/owner anti-exploit, half-hours, approval/removal/deletion/destruction/succession/persistence, committed-capacity safety, native/Build source separation, capture/reclaim/reset, exact funding return, auto-company reuse/rename/away fallback/transfer, directional migration/stages/break, kingless behavior, Stage 3 reversal boundaries, strict Stage 4 time/unit/pledge/territory/once-only rules, war cleanup, records, scrolling, transformer structure, and addon/base isolation.
+Coverage includes Build placement/owner anti-exploit, strict typed whole/half-hour parsing, configured conversion, safe button bounds, manager/hostile-king destroy preflights and denial reasons, approval/removal/deletion/destruction/succession/persistence, committed-capacity safety, Base/native-versus-Build source separation, segmented graph math and overflow handling, capture/reclaim/reset, exact funding return, auto-company reuse/rename/away fallback/transfer, directional migration/stages/break, kingless behavior, Stage 3 reversal boundaries, strict Stage 4 time/unit/pledge/territory/once-only rules, war cleanup, records, scrolling, transformer structure, and addon/base isolation.
 
 ## GUI evidence
 
-The property-gated client loaded KOME and LOTR, registered the waypoint transformer, injected `LOTRPlayerData.receiveFTBouncePacket`, rendered 11 deterministic screens, and shut down cleanly at each setting:
+The property-gated client loaded KOME and LOTR, registered the waypoint transformer, injected `LOTRPlayerData.receiveFTBouncePacket`, rendered 14 deterministic screens, and shut down cleanly at each setting:
 
 | Setting | Resolution | Screens |
 |---|---:|---:|
-| Small | 1280x720 | 11 |
-| Normal | 1280x720 | 11 |
-| Large | 1280x720 | 11 |
-| Auto | 1600x900 | 11 |
-| Smallest supported | 854x480 | 11 |
-| **Total** | | **55** |
+| Small | 1280x720 | 14 |
+| Normal | 1280x720 | 14 |
+| Large | 1280x720 | 14 |
+| Auto | 1600x900 | 14 |
+| Smallest supported | 854x480 | 14 |
+| **Total** | | **70** |
 
-The linked evidence matrix is `gui-scale-verification/README.md`. The 854x480 allied/hostile claim spot-check shows full consequences and reachable Confirm/Cancel over the Builds tab.
+The linked evidence matrix is `gui-scale-verification/README.md`. It now includes dedicated Tile Command Build creation, Build detail, and Population captures at every setting. The responsive logical transform keeps drawing, text fields, buttons, dialogs/tooltips, mouse hitboxes, and scissoring aligned at 854x480. The allied/hostile claim spot-check still shows full consequences and reachable Confirm/Cancel over the Builds tab.
 
-The ledger image is a visual twin and does not validate the real authoritative container's slots, dragging, shift-click, or hitboxes. Those remain manual tests.
+The screenshots are visual regression evidence and do not validate real text-field focus/input, destructive packet outcomes, or scrolling through every live-data row. The ledger image is a visual twin and does not validate the real authoritative container's slots, dragging, shift-click, or hitboxes. Those remain manual tests.
 
 ## Artifact and deployment
 
@@ -106,16 +107,16 @@ Release/reobfuscated addon:
 
 ```text
 C:\Users\dayne\OneDrive\Desktop\The-Lord-of-the-Rings-main\KOME-LOTR-Addon\build\libs\KOME-LOTR-Addon-1.0.7.jar
-Size: 11,646,366 bytes
-SHA-256: 9F0D28FBC20E04537CEF41F341BFABE7C13BEB0EAD74792837B36F9923F776B1
+Size: 11,656,697 bytes
+SHA-256: FB4BE9ACE4ACE14C841A1DB1E29C9D8EA47E374B455CB0A38A274664137596EA
 ```
 
 Deployed DEV copy:
 
 ```text
 C:\Users\dayne\curseforge\minecraft\Instances\Lord of the Rings DEV\mods\KOME-LOTR-Addon-1.0.7.jar
-Size: 11,646,366 bytes
-SHA-256: 9F0D28FBC20E04537CEF41F341BFABE7C13BEB0EAD74792837B36F9923F776B1
+Size: 11,656,697 bytes
+SHA-256: FB4BE9ACE4ACE14C841A1DB1E29C9D8EA47E374B455CB0A38A274664137596EA
 ```
 
 The DEV instance's untouched production LOTR artifact was hashed immediately before and after addon deployment:
@@ -137,6 +138,10 @@ The adjacent `LOTR-Test-Server` E21B28... jar is a smaller development/test fixt
 - `d692457` — current documentation and legacy archive split
 - `61ab6ea` — screen-level conquest confirmation wiring
 - `28e47ce` — refreshed 55-image schema-7 GUI evidence
+- `a2f4219` — strict hour parsing, population graph math, and Build-destruction preflights
+- `07efe3d` — responsive Tile Command Build/population visual cleanup
+- `fa8f27f` — deterministic 14-screen scale-profile verification
+- `12326ac` — safe half-hour button boundary clamping
 
 No push was performed.
 
@@ -151,6 +156,9 @@ All judgments are expanded in `KOME_DECISION_LOG.md`. The release-relevant ones 
 - claimed Stage 3 remains unlocked after later deletion, while removed/deleted/pre-break hours cannot satisfy an unclaimed/new relationship;
 - persistent, non-duplicating Stage 2 merchant entitlement without implementing a Produce economy;
 - compatibility NBT tokens retained without active legacy gameplay.
+- player-facing **Base Population** terminology retained the existing native backend/NBT source without a schema migration;
+- the population bars reuse KOME's bordered progress-bar language but use a dedicated overflow-safe segment calculator because Allocations has no inaccessible third segment;
+- one Destroy Build action chooses between the two existing server-authoritative mutation paths rather than merging their permissions.
 
 ## Manual tests still required
 
@@ -158,6 +166,9 @@ Automated tests and deterministic screenshots do not replace a populated multipl
 
 - real ledger slots/hitboxes/deposit/claim/drag/shift-click;
 - live map marker clicks with densely co-located Builds;
+- live typed-field focus, Enter/focus-loss normalization, plus/minus stepping, and validation feedback at all GUI scales;
+- live population graph hover values and scrolling through more than two faction pools;
+- manager, hostile-king, denied, and committed-capacity Destroy Build confirmations and outcomes;
 - multiple real players submitting/reviewing Build hours and manager succession;
 - living-unit allocation safety across capture/reclaim/reset/restart;
 - company-away hire appearance and later spatial convergence;

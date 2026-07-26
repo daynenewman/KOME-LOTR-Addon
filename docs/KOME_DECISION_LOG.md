@@ -124,6 +124,30 @@ Why: the base LOTR pouch hook dereferences a live player for `GuiContainer` menu
 
 Alternative rejected: weakening production container behavior to satisfy screenshot automation.
 
+## D16 — Typed Build hours
+
+Decision: expose offensive and defensive hours as typed decimal fields with adjacent 0.5 decrement/increment buttons, normalize valid input to canonical integer half-hours, and validate those bounds again in the server-authoritative mutation service.
+
+Why: direct entry is efficient for large contributions, while fixed 0.5 controls make the supported granularity obvious. Duplicate validation preserves server authority.
+
+Alternative rejected: client-only validation, quarter-hour rounding, or spinner-only entry.
+
+## D17 — One Build destruction action
+
+Decision: present one **Destroy Build** action. The server preflight selects manager/operator deletion or existing controller-king hostile homeland destruction and supplies the precise disabled reason.
+
+Why: both actions remove the same persistent object and require confirmation; two adjacent destructive buttons obscured which one applied without changing authority.
+
+Alternative rejected: retaining separate Delete/Destroy Enemy controls or broadening either permission path.
+
+## D18 — Base Population presentation
+
+Decision: keep persisted/backend `native` fields unchanged, but call the concept **Base Population** in player-facing GUI and command output. Visualize each faction pool as used, available, and inaccessible segments with exact numeric values.
+
+Why: "Base" explains the source without implying faction ethnicity, and segmented graphs make conquest access loss visible while preserving source ownership.
+
+Alternative rejected: schema/NBT renames or a blended tile-wide graph that hides faction provenance.
+
 ## Future questions intentionally not implemented
 
 - Broader foreign-owner placement rules or explicit tile-owner approval.
