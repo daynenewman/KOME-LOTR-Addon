@@ -290,6 +290,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         allocationAmountField = null;
         buildNameField = null;
         addTabButtons();
+        if (claimConfirmationArmed && !confirmationDismissed && !confirmation.isVisible()) {
+            showClaimConfirmation();
+        }
         if (activeTab == 0) {
             initBuildControls();
             return;
@@ -350,9 +353,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             buttonList.add(new KOMEGuiButton(ID_BACK, startX + (buttonW + gap) * 4, actionY, buttonW, ACTION_BUTTON_HEIGHT, "Back"));
         } else {
             buttonList.add(new KOMEGuiButton(ID_BACK, startX + (buttonW + gap) * 3, actionY, buttonW, ACTION_BUTTON_HEIGHT, "Back"));
-        }
-        if (claimConfirmationArmed && !confirmationDismissed && !confirmation.isVisible()) {
-            showClaimConfirmation();
         }
     }
 
