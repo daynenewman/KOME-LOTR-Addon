@@ -64,7 +64,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private static final int ID_BUILD_CONTRIBUTE = 25;
     private static final int ID_BUILD_RENAME = 26;
     private static final int ID_BUILD_DELETE = 27;
-    private static final int ID_BUILD_DESTROY = 28;
     private static final int ID_BUILD_SUBMIT_CREATE = 29;
     private static final int ID_BUILD_OWNER_PREV = 30;
     private static final int ID_BUILD_OWNER_NEXT = 31;
@@ -664,10 +663,15 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (button.id == ID_BUILD_OFF_MINUS || button.id == ID_BUILD_OFF_PLUS
                 || button.id == ID_BUILD_DEF_MINUS || button.id == ID_BUILD_DEF_PLUS) {
             if (!normalizeHourFields()) return true;
-            if (button.id == ID_BUILD_OFF_MINUS) editOffensiveHalfHours = Math.max(0, editOffensiveHalfHours - 1);
-            else if (button.id == ID_BUILD_OFF_PLUS) editOffensiveHalfHours++;
-            else if (button.id == ID_BUILD_DEF_MINUS) editDefensiveHalfHours = Math.max(0, editDefensiveHalfHours - 1);
-            else editDefensiveHalfHours++;
+            if (button.id == ID_BUILD_OFF_MINUS) {
+                editOffensiveHalfHours = KOMEBuildPopulationService.adjustHalfHours(editOffensiveHalfHours, -1);
+            } else if (button.id == ID_BUILD_OFF_PLUS) {
+                editOffensiveHalfHours = KOMEBuildPopulationService.adjustHalfHours(editOffensiveHalfHours, 1);
+            } else if (button.id == ID_BUILD_DEF_MINUS) {
+                editDefensiveHalfHours = KOMEBuildPopulationService.adjustHalfHours(editDefensiveHalfHours, -1);
+            } else {
+                editDefensiveHalfHours = KOMEBuildPopulationService.adjustHalfHours(editDefensiveHalfHours, 1);
+            }
             syncHourFields();
         }
         else if (button.id == ID_BUILD_OWNER_PREV) populationOwnerIndex = wrap(populationOwnerIndex - 1, selectablePopulationOwners.size());

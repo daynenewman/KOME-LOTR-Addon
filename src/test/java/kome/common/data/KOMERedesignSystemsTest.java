@@ -52,6 +52,13 @@ public class KOMERedesignSystemsTest {
             KOMEBuildPopulationService.parseHalfHours("1.5"), 7));
     }
 
+    @Test public void halfHourButtonsClampAtSupportedBounds() {
+        assertEquals(0, KOMEBuildPopulationService.adjustHalfHours(0, -1));
+        assertEquals(1, KOMEBuildPopulationService.adjustHalfHours(0, 1));
+        assertEquals(Integer.MAX_VALUE,
+            KOMEBuildPopulationService.adjustHalfHours(Integer.MAX_VALUE, 1));
+    }
+
     @Test public void populationGraphSegmentsPreservePhysicalCapacity() {
         KOMEPopulationGraph.Segments segments = KOMEPopulationGraph.segments(100, 50, 20);
         assertEquals(100, segments.physical);

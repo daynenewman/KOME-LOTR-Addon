@@ -51,6 +51,12 @@ public final class KOMEBuildPopulationService {
         return result > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) result;
     }
 
+    public static int adjustHalfHours(int halfHours, int delta) {
+        long adjusted = (long) Math.max(0, halfHours) + delta;
+        if (adjusted <= 0L) return 0;
+        return adjusted >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) adjusted;
+    }
+
     public static String displayHours(int halfHours) {
         int safe = Math.max(0, halfHours);
         return safe % 2 == 0 ? Integer.toString(safe / 2) : safe / 2 + ".5";
