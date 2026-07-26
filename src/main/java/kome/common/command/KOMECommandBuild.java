@@ -32,7 +32,7 @@ public class KOMECommandBuild extends CommandBase {
 
     @Override
     public int getRequiredPermissionLevel() {
-        return 2;
+        return 0;
     }
 
     @Override
@@ -42,6 +42,7 @@ public class KOMECommandBuild extends CommandBase {
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
         if ("config".equals(action) && args.length == 3
                 && "populationperhalfhour".equalsIgnoreCase(args[1])) {
+            requireStaff(sender);
             int value;
             try {
                 value = Integer.parseInt(args[2]);
@@ -100,6 +101,7 @@ public class KOMECommandBuild extends CommandBase {
             return;
         }
         if ("reassign".equals(action) && args.length == 3) {
+            requireStaff(sender);
             EntityPlayerMP target = getPlayer(sender, args[2]);
             build.managerUuid = KOMEReflection.getEntityUUID(target);
             build.managerName = target.getCommandSenderName();
@@ -109,6 +111,7 @@ public class KOMECommandBuild extends CommandBase {
             return;
         }
         if ("remove".equals(action) && args.length == 2) {
+            requireStaff(sender);
             KOMEBuildService.Decision decision = KOMEBuildService.deleteBuild(data, build, null,
                 sender.getCommandSenderName(), true, "Administrative repair removal", System.currentTimeMillis());
             if (!decision.allowed) throw new WrongUsageException(decision.reason);
@@ -116,6 +119,7 @@ public class KOMECommandBuild extends CommandBase {
             return;
         }
         if ("sethours".equals(action) && args.length == 4) {
+            requireStaff(sender);
             KOMEPopulationType type = parseType(args[2]);
             double hours;
             try {
@@ -160,6 +164,12 @@ public class KOMECommandBuild extends CommandBase {
             return;
         }
         throw new WrongUsageException(getCommandUsage(sender));
+    }
+
+    private void requireStaff(ICommandSender sender) {
+        if (!sender.canCommandSenderUseCommand(2, getCommandName())) {
+            throw new WrongUsageException("Only administrators may modify Build records or configuration.");
+        }
     }
 
     private static String summary(KOMEWorldData data, KOMEPlayerBuild build) {

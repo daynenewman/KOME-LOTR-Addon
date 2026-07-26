@@ -28,7 +28,7 @@ public class KOMECommandWar extends CommandBase {
 
     @Override
     public int getRequiredPermissionLevel() {
-        return 2;
+        return 0;
     }
 
     @Override
@@ -38,6 +38,7 @@ public class KOMECommandWar extends CommandBase {
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
         long now = System.currentTimeMillis();
         if ("create".equals(action)) {
+            requireStaff(sender);
             if (args.length < 3) throw new WrongUsageException("/war create <factionA> <factionB> [name]");
             String first = faction(args[1]);
             String second = faction(args[2]);
@@ -94,6 +95,7 @@ public class KOMECommandWar extends CommandBase {
             return;
         }
         if ("rename".equals(action)) {
+            requireStaff(sender);
             if (args.length < 3) throw new WrongUsageException("/war rename <warId> <name>");
             KOMEWar war = war(data, args[1]);
             war.displayName = nonempty(join(args, 2), "War name");
@@ -103,10 +105,12 @@ public class KOMECommandWar extends CommandBase {
             return;
         }
         if ("side".equals(action)) {
+            requireStaff(sender);
             handleSide(sender, data, args, now);
             return;
         }
         if ("end".equals(action) || "finalize".equals(action) || "cancel".equals(action)) {
+            requireStaff(sender);
             if (args.length < 2) throw new WrongUsageException("/war " + action + " <warId> [reason]");
             KOMEWar war = war(data, args[1]);
             String reason = join(args, 2);
@@ -146,6 +150,12 @@ public class KOMECommandWar extends CommandBase {
             return;
         }
         throw new WrongUsageException(getCommandUsage(sender));
+    }
+
+    private void requireStaff(ICommandSender sender) {
+        if (!sender.canCommandSenderUseCommand(2, getCommandName())) {
+            throw new WrongUsageException("Only administrators may modify war records.");
+        }
     }
 
     private void handleSide(ICommandSender sender, KOMEWorldData data, String[] args, long now) {

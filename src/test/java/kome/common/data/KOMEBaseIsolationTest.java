@@ -94,6 +94,38 @@ public class KOMEBaseIsolationTest {
         assertTrue(troopPacket.contains("Troop action rejected:"));
     }
 
+    @Test
+    public void readOnlyBuildAndWarCommandsArePublicWhileMutationsRemainStaffOnly() throws Exception {
+        Path commands = Paths.get("").toAbsolutePath().normalize()
+            .resolve("src/main/java/kome/common/command");
+        String build = read(commands.resolve("KOMECommandBuild.java")).replace("\r\n", "\n");
+        String war = read(commands.resolve("KOMECommandWar.java")).replace("\r\n", "\n");
+
+        assertTrue(build.contains("public int getRequiredPermissionLevel() {\n        return 0;"));
+        assertTrue(war.contains("public int getRequiredPermissionLevel() {\n        return 0;"));
+
+        assertTrue(build.contains("if (\"list\".equals(action))"));
+        assertTrue(build.contains("if (\"pools\".equals(action)"));
+        assertTrue(build.contains("if (\"inspect\".equals(action)"));
+        assertTrue(build.contains("Only administrators may modify Build records or configuration."));
+        assertEquals(4, occurrences(build, "requireStaff(sender);"));
+
+        assertTrue(war.contains("if (\"list\".equals(action))"));
+        assertTrue(war.contains("if (\"status\".equals(action))"));
+        assertTrue(war.contains("Only administrators may modify war records."));
+        assertEquals(4, occurrences(war, "requireStaff(sender);"));
+    }
+
+    private static int occurrences(String text, String value) {
+        int count = 0;
+        int offset = 0;
+        while ((offset = text.indexOf(value, offset)) >= 0) {
+            count++;
+            offset += value.length();
+        }
+        return count;
+    }
+
     private static String read(Path path) throws Exception {
         assertTrue("Missing source: " + path, Files.isRegularFile(path));
         return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
