@@ -70,6 +70,15 @@ public final class KOMEGuiVisualCaptureController {
             prepareWarData(); KOMEGuiServerRecords.setVisualTestWarMode(true); return new KOMEGuiServerRecords();
         }});
         add("allied-tile-confirmation", new ScreenFactory() { public GuiScreen create() { return captureGui(); }});
+        add("tile-build-create", new ScreenFactory() { public GuiScreen create() {
+            return captureGui(0, 2, -1);
+        }});
+        add("tile-build-detail", new ScreenFactory() { public GuiScreen create() {
+            return captureGui(0, 1, 0);
+        }});
+        add("tile-population", new ScreenFactory() { public GuiScreen create() {
+            return captureGui(1, 0, -1);
+        }});
         add("pledge-departure-preview", new ScreenFactory() { public GuiScreen create() { return pledgeGui(); }});
     }
 
@@ -149,6 +158,10 @@ public final class KOMEGuiVisualCaptureController {
     }
 
     private static GuiScreen captureGui() {
+        return captureGui(-1, -1, -1);
+    }
+
+    private static GuiScreen captureGui(int tab, int mode, int selectedIndex) {
         KOMEPacketConquestCaptureGui data = new KOMEPacketConquestCaptureGui();
         data.tileId = "amon_sul"; data.ownerFaction = "rohan"; data.viewerFaction = "gondor";
         data.offensivePop = 184; data.defensivePop = 96; data.mountedPop = 122; data.groundPop = 62;
@@ -183,6 +196,13 @@ public final class KOMEGuiVisualCaptureController {
             build.offensiveCommitted = i * 3; build.defensiveCommitted = i;
             build.pendingCount = i % 3; build.status = i % 3 == 0 ? "Friendly" : "Owned";
             build.canManage = true;
+            build.destroyMode = "delete";
+            build.destroyReason = "The Build funds active units; release committed population before destruction.";
+            if (i == 1) {
+                build.offensiveCommitted = 0;
+                build.defensiveCommitted = 0;
+                build.destroyReason = "";
+            }
             data.builds.add(build);
         }
         KOMEPacketConquestCaptureGui.PopulationPoolView gondor = new KOMEPacketConquestCaptureGui.PopulationPoolView();
@@ -195,7 +215,9 @@ public final class KOMEGuiVisualCaptureController {
         rohan.physicalOffensive = 120; rohan.physicalDefensive = 60; rohan.usableOffensive = 120;
         rohan.usableDefensive = 60; rohan.usedOffensive = 42; rohan.usedDefensive = 18;
         data.populationPools.add(rohan);
-        return new KOMEGuiConquestCapture(data);
+        KOMEGuiConquestCapture gui = new KOMEGuiConquestCapture(data);
+        if (tab >= 0) gui.setVisualTestState(tab, mode, selectedIndex);
+        return gui;
     }
 
     private static GuiScreen pledgeGui() {

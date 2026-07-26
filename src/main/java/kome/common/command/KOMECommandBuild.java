@@ -78,7 +78,7 @@ public class KOMECommandBuild extends CommandBase {
             String controller = data.getConquestTile(args[1]).currentRulingFaction();
             for (KOMETilePopulation pool : pools) {
                 sender.addChatMessage(new ChatComponentText(KOMEAlliance.displayFactionName(pool.sourceFaction)
-                    + " native O" + pool.nativeOffensiveTotal + "/D" + pool.nativeDefensiveTotal
+                    + " base O" + pool.nativeOffensiveTotal + "/D" + pool.nativeDefensiveTotal
                     + " build O" + data.getBuildPopulationTotal(pool.tileId, pool.sourceFaction, KOMEPopulationType.OFFENSIVE)
                     + "/D" + data.getBuildPopulationTotal(pool.tileId, pool.sourceFaction, KOMEPopulationType.DEFENSIVE)
                     + " usable O" + pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, controller)
