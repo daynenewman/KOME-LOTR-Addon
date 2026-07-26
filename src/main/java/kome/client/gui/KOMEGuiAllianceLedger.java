@@ -43,7 +43,7 @@ public class KOMEGuiAllianceLedger extends GuiContainer {
 
     @Override
     public void initGui() {
-        if (Boolean.getBoolean("kome.guiCapture") && mc.thePlayer == null) {
+        if (KOMEGuiVisualCaptureController.isCaptureEnabled() && mc.thePlayer == null) {
             guiLeft = (width - xSize) / 2;
             guiTop = (height - ySize) / 2;
         } else {

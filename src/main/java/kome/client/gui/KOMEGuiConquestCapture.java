@@ -18,6 +18,7 @@ import lotr.common.fac.LOTRFaction;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
+import org.lwjgl.opengl.GL11;
 import org.lwjgl.input.Mouse;
 
 import java.util.ArrayList;
@@ -146,6 +147,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private int panelY;
     private int panelW;
     private int panelH;
+    private float renderScale = 1.0F;
+    private int logicalWidth;
+    private int logicalHeight;
     private final KOMEGuiConfirmationDialog confirmation = new KOMEGuiConfirmationDialog();
     private boolean confirmationDismissed;
     private final List buildViews = new ArrayList();
@@ -763,17 +767,24 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        // A previous screen may have been replaced while its scroll viewport was
+        // active. Start each frame from a known GL clipping state.
+        KOMEGuiTheme.disableScissor();
         drawDefaultBackground();
         computeLayout();
+        int logicalMouseX = toLogical(mouseX);
+        int logicalMouseY = toLogical(mouseY);
+        GL11.glPushMatrix();
+        GL11.glScalef(renderScale, renderScale, 1.0F);
         KOMEGuiTheme.drawMainPanel(panelX, panelY, panelW, panelH);
         KOMEGuiTheme.drawHeader(fontRendererObj, "Tile Command", panelX + 8, panelY + 8, panelW - 16);
         drawHeaderMeta();
         if (activeTab == 0) {
-            drawBuildTab(mouseX, mouseY);
+            drawBuildTab(logicalMouseX, logicalMouseY);
         } else if (activeTab == 1) {
-            drawPopulationPoolTab(mouseX, mouseY);
+            drawPopulationPoolTab(logicalMouseX, logicalMouseY);
         } else {
-            drawCards(mouseX, mouseY);
+            drawCards(logicalMouseX, logicalMouseY);
         }
         if (populationAmountField != null) {
             populationAmountField.drawTextBox();
@@ -787,14 +798,16 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             buildOffensiveHoursField.drawTextBox();
             buildDefensiveHoursField.drawTextBox();
         }
-        super.drawScreen(mouseX, mouseY, partialTicks);
+        super.drawScreen(logicalMouseX, logicalMouseY, partialTicks);
         if (populationHoverTooltip.length() > 0) {
             List lines = new ArrayList();
             lines.add(populationHoverTooltip);
-            KOMEGuiTheme.drawTooltip(fontRendererObj, lines, mouseX, mouseY, width, height);
+            KOMEGuiTheme.drawTooltip(fontRendererObj, lines, logicalMouseX, logicalMouseY,
+                logicalWidth, logicalHeight);
         }
-        drawDisabledTooltip(mouseX, mouseY);
-        confirmation.draw(fontRendererObj, width, height, mouseX, mouseY);
+        drawDisabledTooltip(logicalMouseX, logicalMouseY);
+        confirmation.draw(fontRendererObj, logicalWidth, logicalHeight, logicalMouseX, logicalMouseY);
+        GL11.glPopMatrix();
     }
 
     @Override
@@ -830,6 +843,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) {
+        mouseX = toLogical(mouseX);
+        mouseY = toLogical(mouseY);
         if (confirmation.isVisible()) {
             int result = confirmation.click(mouseX, mouseY, button);
             if (result == KOMEGuiConfirmationDialog.CONFIRM) {
@@ -903,10 +918,18 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
     private void computeLayout() {
-        panelW = Math.min(760, width - 28);
-        panelH = Math.min(430, height - 28);
-        panelX = (width - panelW) / 2;
-        panelY = (height - panelH) / 2;
+        renderScale = Math.min(1.0F, Math.min(
+            Math.max(1, width) / 788.0F, Math.max(1, height) / 458.0F));
+        logicalWidth = Math.max(1, Math.round(width / renderScale));
+        logicalHeight = Math.max(1, Math.round(height / renderScale));
+        panelW = Math.min(760, logicalWidth - 28);
+        panelH = Math.min(430, logicalHeight - 28);
+        panelX = (logicalWidth - panelW) / 2;
+        panelY = (logicalHeight - panelH) / 2;
+    }
+
+    private int toLogical(int coordinate) {
+        return Math.round(coordinate / Math.max(0.01F, renderScale));
     }
 
     private void drawHeaderMeta() {
@@ -939,7 +962,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             int visible = buildVisibleRows();
             int viewportY = y + 25;
             int viewportH = Math.max(24, bottom - viewportY - 6);
-            KOMEGuiTheme.enableScissor(mc, x + 6, viewportY, w - 12, viewportH);
+            KOMEGuiTheme.enableScissor(mc, x + 6, viewportY, w - 12, viewportH, renderScale);
             for (int row = 0; row < visible && buildScroll + row < buildViews.size(); row++) {
                 KOMEPacketConquestCaptureGui.BuildView build =
                     (KOMEPacketConquestCaptureGui.BuildView) buildViews.get(buildScroll + row);
@@ -1067,7 +1090,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         int visible = contributionVisibleRows();
         int viewportY = y + 169;
         int viewportH = Math.max(20, bottom - viewportY - 4);
-        KOMEGuiTheme.enableScissor(mc, x + 8, viewportY, w - 16, viewportH);
+        KOMEGuiTheme.enableScissor(mc, x + 8, viewportY, w - 16, viewportH, renderScale);
         for (int row = 0; row < visible && contributionScroll + row < build.contributions.size(); row++) {
             KOMEPacketConquestCaptureGui.ContributionView contribution =
                 (KOMEPacketConquestCaptureGui.ContributionView) build.contributions.get(contributionScroll + row);
@@ -1140,7 +1163,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         int visible = poolVisibleRows();
         int viewportY = y + 57;
         int viewportH = Math.max(24, bottom - viewportY - 5);
-        KOMEGuiTheme.enableScissor(mc, x + 7, viewportY, w - 14, viewportH);
+        KOMEGuiTheme.enableScissor(mc, x + 7, viewportY, w - 14, viewportH, renderScale);
         for (int row = 0; row < visible && poolScroll + row < populationPoolViews.size(); row++) {
             KOMEPacketConquestCaptureGui.PopulationPoolView pool =
                 (KOMEPacketConquestCaptureGui.PopulationPoolView) populationPoolViews.get(poolScroll + row);
@@ -1482,7 +1505,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             if (button.visible && !button.enabled && KOMEGuiTheme.isHovered(mouseX, mouseY, button.xPosition, button.yPosition, button.width, button.height)) {
                 List lines = new ArrayList();
                 lines.add(disabledReason(button.id));
-                KOMEGuiTheme.drawTooltip(fontRendererObj, lines, mouseX, mouseY, width, height);
+                KOMEGuiTheme.drawTooltip(fontRendererObj, lines, mouseX, mouseY,
+                    logicalWidth, logicalHeight);
                 return;
             }
         }

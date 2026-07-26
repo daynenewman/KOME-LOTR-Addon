@@ -8,6 +8,9 @@ import kome.common.network.KOMEPacketPledgeDepartureData;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.util.ScreenShotHelper;
+import org.lwjgl.LWJGLException;
+import org.lwjgl.opengl.Display;
+import org.lwjgl.opengl.DisplayMode;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -23,10 +26,17 @@ public final class KOMEGuiVisualCaptureController {
     private int screenTicks;
     private int index = -1;
     private boolean configured;
+    private String captureLabel = "scale";
+    private String captureDirectory = "gui-captures";
+
+    public static boolean isCaptureEnabled() {
+        return Boolean.getBoolean("kome.guiCapture")
+            || System.getProperty("kome.guiCaptureProfile", "").trim().length() > 0;
+    }
 
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || !Boolean.getBoolean("kome.guiCapture")) return;
+        if (event.phase != TickEvent.Phase.END || !isCaptureEnabled()) return;
         Minecraft mc = Minecraft.getMinecraft();
         if (!configured) {
             if (++startupTicks < 30) return;
@@ -44,10 +54,42 @@ public final class KOMEGuiVisualCaptureController {
 
     private void configure(Minecraft mc) {
         configured = true;
-        mc.gameSettings.guiScale = Integer.getInteger("kome.guiCaptureScale", 2);
+        String profile = System.getProperty("kome.guiCaptureProfile", "").trim();
+        int requestedWidth = mc.displayWidth;
+        int requestedHeight = mc.displayHeight;
+        int requestedScale = Integer.getInteger("kome.guiCaptureScale", 2);
+        if ("small".equals(profile)) {
+            requestedWidth = 1280; requestedHeight = 720; requestedScale = 1; captureLabel = "small";
+        } else if ("normal".equals(profile)) {
+            requestedWidth = 1280; requestedHeight = 720; requestedScale = 2; captureLabel = "normal";
+        } else if ("large".equals(profile)) {
+            requestedWidth = 1280; requestedHeight = 720; requestedScale = 3; captureLabel = "large";
+        } else if ("auto".equals(profile)) {
+            requestedWidth = 1600; requestedHeight = 900; requestedScale = 0; captureLabel = "auto";
+        } else if ("min-854x480".equals(profile)) {
+            requestedWidth = 854; requestedHeight = 480; requestedScale = 0; captureLabel = "min-854x480";
+        } else {
+            captureLabel = System.getProperty("kome.guiCaptureLabel", "scale");
+        }
+        if (profile.length() > 0) captureDirectory = "../docs/gui-scale-verification";
+        resizeWindow(mc, requestedWidth, requestedHeight);
+        mc.gameSettings.guiScale = requestedScale;
         mc.resize(mc.displayWidth, mc.displayHeight);
         prepareAllianceData();
         addScreens();
+    }
+
+    private void resizeWindow(Minecraft mc, int width, int height) {
+        int safeWidth = Math.max(854, width);
+        int safeHeight = Math.max(480, height);
+        if (mc.displayWidth == safeWidth && mc.displayHeight == safeHeight) return;
+        try {
+            Display.setDisplayMode(new DisplayMode(safeWidth, safeHeight));
+            mc.displayWidth = safeWidth;
+            mc.displayHeight = safeHeight;
+        } catch (LWJGLException error) {
+            throw new IllegalStateException("Unable to set deterministic GUI capture size.", error);
+        }
     }
 
     private void addScreens() {
@@ -106,10 +148,9 @@ public final class KOMEGuiVisualCaptureController {
     }
 
     private void capture(Minecraft mc, String screenName) {
-        File output = new File(System.getProperty("kome.guiCaptureDir", "gui-captures"));
+        File output = new File(System.getProperty("kome.guiCaptureDir", captureDirectory));
         output.mkdirs();
-        String label = System.getProperty("kome.guiCaptureLabel", "scale");
-        ScreenShotHelper.saveScreenshot(output, label + "-" + screenName + ".png",
+        ScreenShotHelper.saveScreenshot(output, captureLabel + "-" + screenName + ".png",
             mc.displayWidth, mc.displayHeight, mc.getFramebuffer());
     }
 

@@ -197,12 +197,27 @@ public final class KOMEGuiTheme {
     }
 
     public static void enableScissor(Minecraft mc, int x, int y, int width, int height) {
+        enableScissor(mc, x, y, width, height, 1.0F);
+    }
+
+    /**
+     * Scissor mapping for screens that render a larger logical canvas through an
+     * additional GUI-space scale. Minecraft's own GUI scale is still applied in
+     * physical framebuffer coordinates.
+     */
+    public static void enableScissor(Minecraft mc, int x, int y, int width, int height,
+            float renderScale) {
         ScaledResolution scaledResolution = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight);
         int scale = scaledResolution.getScaleFactor();
-        int left = Math.max(0, Math.min(scaledResolution.getScaledWidth(), x));
-        int top = Math.max(0, Math.min(scaledResolution.getScaledHeight(), y));
-        int right = Math.max(left, Math.min(scaledResolution.getScaledWidth(), x + Math.max(0, width)));
-        int bottom = Math.max(top, Math.min(scaledResolution.getScaledHeight(), y + Math.max(0, height)));
+        float safeRenderScale = Math.max(0.01F, Math.min(1.0F, renderScale));
+        int left = Math.max(0, Math.min(scaledResolution.getScaledWidth(),
+            Math.round(x * safeRenderScale)));
+        int top = Math.max(0, Math.min(scaledResolution.getScaledHeight(),
+            Math.round(y * safeRenderScale)));
+        int right = Math.max(left, Math.min(scaledResolution.getScaledWidth(),
+            Math.round((x + Math.max(0, width)) * safeRenderScale)));
+        int bottom = Math.max(top, Math.min(scaledResolution.getScaledHeight(),
+            Math.round((y + Math.max(0, height)) * safeRenderScale)));
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
         GL11.glScissor(left * scale, (scaledResolution.getScaledHeight() - bottom) * scale,
             Math.max(0, right - left) * scale, Math.max(0, bottom - top) * scale);

@@ -126,7 +126,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
 
     @Override
     public void updateScreen() {
-        if (Boolean.getBoolean("kome.guiCapture") && mc.thePlayer == null) return;
+        if (KOMEGuiVisualCaptureController.isCaptureEnabled() && mc.thePlayer == null) return;
         super.updateScreen();
     }
 
@@ -233,14 +233,14 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     }
 
     private void requestRecords() {
-        if (Boolean.getBoolean("kome.guiCapture")) return;
+        if (KOMEGuiVisualCaptureController.isCaptureEnabled()) return;
         rawLines = new ArrayList();
         summary = "Loading...";
         KOMEPacketHandler.network.sendToServer(new KOMEPacketServerRecordRequest());
     }
 
     static void setVisualTestWarMode(boolean value) {
-        if (!Boolean.getBoolean("kome.guiCapture")) return;
+        if (!KOMEGuiVisualCaptureController.isCaptureEnabled()) return;
         showWars = value;
         warFilter = "ALL";
         applyRecordMode();

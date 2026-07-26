@@ -35,7 +35,7 @@ public class KOMEClientProxy extends KOMECommonProxy {
         FMLCommonHandler.instance().bus().register(conquestMapOverlay);
         MinecraftForge.EVENT_BUS.register(conquestMapOverlay);
         FMLCommonHandler.instance().bus().register(this);
-        if (Boolean.getBoolean("kome.guiCapture")) {
+        if (kome.client.gui.KOMEGuiVisualCaptureController.isCaptureEnabled()) {
             FMLCommonHandler.instance().bus().register(new kome.client.gui.KOMEGuiVisualCaptureController());
         }
     }

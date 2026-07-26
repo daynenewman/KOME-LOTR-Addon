@@ -109,7 +109,7 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
         panelY = (height - panelH) / 2;
         super.initGui();
         buttonMenuReturn = null;
-        if (!Boolean.getBoolean("kome.guiCapture") || mc.thePlayer != null) requestData();
+        if (!KOMEGuiVisualCaptureController.isCaptureEnabled() || mc.thePlayer != null) requestData();
         configureButtons();
         if (visualConfirmation && selected() != null) {
             confirmation.show("Break Alliance",
@@ -155,7 +155,7 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
 
     @Override
     public void updateScreen() {
-        if (Boolean.getBoolean("kome.guiCapture") && mc.thePlayer == null) return;
+        if (KOMEGuiVisualCaptureController.isCaptureEnabled() && mc.thePlayer == null) return;
         super.updateScreen();
     }
 
