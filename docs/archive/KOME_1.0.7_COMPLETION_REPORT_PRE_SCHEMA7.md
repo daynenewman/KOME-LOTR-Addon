@@ -1,4 +1,6 @@
-# KOME 1.0.7 completion report
+# Legacy KOME 1.0.7 Completion Report (Pre-Schema 7)
+
+> Historical release verification. Use `KOME_REDESIGN_COMPLETION_REPORT.md` for the current addon build.
 
 Final source and verification record for the schema-5 alliance/war revision and the dedicated GUI completion pass, updated 2026-07-19.
 

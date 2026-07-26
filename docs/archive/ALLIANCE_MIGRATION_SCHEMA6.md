@@ -1,4 +1,6 @@
-# Alliance Schema-6 Migration and Rollback
+# Legacy Alliance Schema-6 Migration and Rollback
+
+> Archived on 2026-07-26. Use `KOME_ALLIANCE_MIGRATION.md` for the current schema-7 migration.
 
 ## Mandatory backup
 

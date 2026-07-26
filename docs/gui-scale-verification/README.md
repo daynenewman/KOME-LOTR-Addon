@@ -1,6 +1,6 @@
 # KOME GUI scale verification screenshots
 
-Captured from the final 2026-07-19 visual source with deterministic long-data fixtures. Each image is the full display resolution.
+Captured from the schema-7/Build visual source on 2026-07-26 with deterministic long-data fixtures. Each image is the full display resolution.
 
 | Screen | Small 1280x720 | Normal 1280x720 | Large 1280x720 | Auto 1600x900 | Minimum 854x480 Auto |
 |---|---|---|---|---|---|
@@ -16,4 +16,6 @@ Captured from the final 2026-07-19 visual source with deterministic long-data fi
 | Allied tile confirmation | [image](small-allied-tile-confirmation.png) | [image](normal-allied-tile-confirmation.png) | [image](large-allied-tile-confirmation.png) | [image](auto-allied-tile-confirmation.png) | [image](min-854x480-allied-tile-confirmation.png) |
 | Pledge departure | [image](small-pledge-departure-preview.png) | [image](normal-pledge-departure-preview.png) | [image](large-pledge-departure-preview.png) | [image](auto-pledge-departure-preview.png) | [image](min-854x480-pledge-departure-preview.png) |
 
-The matrix contains 55 PNGs. Scroll viewports intentionally clip content below their boundaries; visible proportional scrollbars and fixed actions show that the clipped content remains reachable.
+The matrix contains 55 PNGs. The alliance images use the unified directional ladder. The allied-tile capture also exercises the Builds-first Tile Command fixture with multiple Builds and split population behind the confirmation. Scroll viewports intentionally clip content below their boundaries; visible proportional scrollbars and fixed actions show that clipped content remains reachable.
+
+These deterministic captures are visual regression evidence, not a substitute for the multiplayer/manual matrix in `../KOME_TEST_PLAN.md`. In particular, the ledger twin cannot validate the real container's slots, dragging, shift-click, or hitboxes.

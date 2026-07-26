@@ -1,4 +1,6 @@
-# KOME 1.0.7
+# Legacy KOME 1.0.7 Release Notes (Pre-Schema 7)
+
+> Historical release notes retained for traceability; current schema-7 behavior supersedes them.
 
 Schema 5 alliance/war/economy/pledge revision.
 

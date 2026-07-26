@@ -1,4 +1,6 @@
-# KOME LOTR Addon 1.0.5
+# KOME LOTR Addon 1.0.5 (historical)
+
+> Archived release note. It does not describe the current schema-7 implementation.
 
 Release prep notes for the 1.0.5 season/reset systems update.
 

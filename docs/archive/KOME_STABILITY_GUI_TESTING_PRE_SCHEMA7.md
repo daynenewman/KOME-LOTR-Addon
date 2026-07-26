@@ -1,4 +1,6 @@
-# KOME Stability and GUI Clarity Testing
+# Legacy KOME Stability and GUI Clarity Testing
+
+> Archived on 2026-07-26. Use `KOME_TEST_PLAN.md` and `gui-scale-verification/README.md`.
 
 This checklist is for the current stability sprint. It is intentionally limited to existing alliance, troop movement, population, server records, and related GUI behavior.
 

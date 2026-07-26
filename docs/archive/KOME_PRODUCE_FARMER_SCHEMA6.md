@@ -1,4 +1,6 @@
-# Produce Farmer Future-Design Note
+# Legacy Produce Farmer Future-Design Note
+
+> Archived on 2026-07-26. The current contract is the Stage 2 merchant-slot entitlement documented in `KOME_ALLIANCE_SYSTEM.md`.
 
 KOME does not currently implement a Produce Farmer runtime.
 

@@ -1,4 +1,6 @@
-# Alliance and War Administration
+# Legacy Alliance and War Administration (Schema 6)
+
+> Archived on 2026-07-26. Commands in this file may be retired and must not be used as current syntax.
 
 All state changes are server-authoritative. Take a complete stopped-server world backup before deploying schema 6.
 

@@ -1,4 +1,6 @@
-# KOME LOTR Addon 1.0.6
+# KOME LOTR Addon 1.0.6 (historical)
+
+> Archived release note. It does not describe the current schema-7 implementation.
 
 Release prep notes for the 1.0.6 conquest map cleanup update.
 

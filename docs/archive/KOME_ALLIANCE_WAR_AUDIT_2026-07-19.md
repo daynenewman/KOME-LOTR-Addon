@@ -1,4 +1,6 @@
-# KOME Alliance/War Revision Post-Implementation Audit
+# Legacy KOME Alliance/War Revision Post-Implementation Audit
+
+> Historical schema-6 audit. It does not describe the current four-stage ladder.
 
 Date: 2026-07-19
 World schema: 5

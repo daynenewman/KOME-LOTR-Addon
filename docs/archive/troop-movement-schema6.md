@@ -1,4 +1,6 @@
-# KOME Troop Movement Current Status
+# Legacy KOME Troop Movement Status (Schema 6)
+
+> Archived on 2026-07-26. Stage 3/4 movement authority is documented in `KOME_ALLIANCE_SYSTEM.md`.
 
 > Read this together with the schema-5 war/transfer/departure addendum below; earlier owner-only route descriptions do not override current Military T2 or Wartime Stewardship checks.
 

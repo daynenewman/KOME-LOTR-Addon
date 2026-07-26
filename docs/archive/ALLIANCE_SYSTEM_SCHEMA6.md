@@ -1,4 +1,6 @@
-# KOME Alliance, War, and Pledge System
+# Legacy KOME Alliance, War, and Pledge System (Schema 6)
+
+> Archived on 2026-07-26. This describes the retired three-track system and is not current gameplay documentation.
 
 ## Server-authoritative alliance model
 

@@ -1,4 +1,6 @@
-# Alliance Verification Matrix
+# Legacy Alliance Verification Matrix (Schema 6)
+
+> Archived on 2026-07-26. Use `KOME_TEST_PLAN.md` for schema-7 verification.
 
 ## Automated gates
 

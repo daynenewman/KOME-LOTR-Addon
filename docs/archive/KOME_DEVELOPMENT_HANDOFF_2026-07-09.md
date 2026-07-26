@@ -1,4 +1,6 @@
-# KOME Project Status Handoff - July 9, 2026
+# Legacy KOME Project Status Handoff - July 9, 2026
+
+> Historical handoff. Use `KOME_GUI_HANDOFF.md` and `KOME_REDESIGN_COMPLETION_REPORT.md` for current source status.
 
 > Historical baseline. Alliance/war/economy/pledge behavior was superseded by schema 5 / addon 1.0.7 on 2026-07-19. Use `ALLIANCE_SYSTEM.md`, `ALLIANCE_ADMIN.md`, `ALLIANCE_MIGRATION.md`, `KOME_SERVER_RECORDS.md`, `KOME_PRODUCE_FARMER.md`, and the 2026-07-19 audit for current behavior.
 

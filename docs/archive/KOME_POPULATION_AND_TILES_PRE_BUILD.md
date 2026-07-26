@@ -1,4 +1,6 @@
-# KOME Population and Tile System
+# Legacy KOME Population and Tile System (Pre-Build)
+
+> Archived on 2026-07-26. Use `KOME_POPULATION_SYSTEM.md` and `KOME_BUILD_SYSTEM.md` for current behavior.
 
 This document describes how population and conquest tiles currently work in the KOME codebase. It is intended as a source document for discussing future population and tile design.
 
