@@ -9,7 +9,7 @@ The full Build, split-population, automatic-company, directional-alliance, and a
 - Alliance schema: **7**
 - Build schema: **1**
 - Population schema: **2**
-- Addon version: **1.0.7**
+- Addon version: **1.0.8**
 
 ## Delivered behavior
 
@@ -77,10 +77,10 @@ Result: **BUILD SUCCESSFUL**, 25 actionable tasks (24 executed, 1 up-to-date).
 | `KOMEGuiServerRecordsPresentationTest` | 7 | 0 | 0 | 0 |
 | `KOMEAllianceModelTest` | 21 | 0 | 0 | 0 |
 | `KOMEAllianceSystemsTest` | 49 | 0 | 0 | 0 |
-| `KOMEBaseIsolationTest` | 5 | 0 | 0 | 0 |
+| `KOMEBaseIsolationTest` | 6 | 0 | 0 | 0 |
 | `KOMERedesignSystemsTest` | 63 | 0 | 0 | 0 |
 | `KOMEWaypointTransformerTest` | 5 | 0 | 0 | 0 |
-| **Total** | **154** | **0** | **0** | **0** |
+| **Total** | **155** | **0** | **0** | **0** |
 
 Coverage includes Build placement/owner anti-exploit, strict typed whole/half-hour parsing, configured conversion, safe button bounds, manager/hostile-king destroy preflights and denial reasons, approval/removal/deletion/destruction/succession/persistence, committed-capacity safety, Base/native-versus-Build source separation, segmented graph math and overflow handling, capture/reclaim/reset, exact funding return, auto-company reuse/rename/away fallback/transfer, directional migration/stages/break, kingless behavior, Stage 3 reversal boundaries, strict Stage 4 time/unit/pledge/territory/once-only rules, war cleanup, records, scrolling, transformer structure, and addon/base isolation.
 
@@ -106,18 +106,12 @@ The screenshots are visual regression evidence and do not validate real text-fie
 Release/reobfuscated addon:
 
 ```text
-C:\Users\dayne\OneDrive\Desktop\The-Lord-of-the-Rings-main\KOME-LOTR-Addon\build\libs\KOME-LOTR-Addon-1.0.7.jar
-Size: 11,656,697 bytes
-SHA-256: FB4BE9ACE4ACE14C841A1DB1E29C9D8EA47E374B455CB0A38A274664137596EA
+C:\Users\dayne\OneDrive\Desktop\The-Lord-of-the-Rings-main\KOME-LOTR-Addon\build\libs\KOME-LOTR-Addon-1.0.8.jar
+Size: 11,657,011 bytes
+SHA-256: 94F5E018109BCDA5BCCA3C8C44E398A89A7D046C76C67B3D93221DB713B5F97B
 ```
 
-Deployed DEV copy:
-
-```text
-C:\Users\dayne\curseforge\minecraft\Instances\Lord of the Rings DEV\mods\KOME-LOTR-Addon-1.0.7.jar
-Size: 11,656,697 bytes
-SHA-256: FB4BE9ACE4ACE14C841A1DB1E29C9D8EA47E374B455CB0A38A274664137596EA
-```
+This 1.0.8 release candidate was produced by the clean verification command above. Client/server profile deployment is a separate release operation and must use this exact artifact on every participant.
 
 The DEV instance's untouched production LOTR artifact was hashed immediately before and after addon deployment:
 
@@ -143,7 +137,8 @@ The adjacent `LOTR-Test-Server` E21B28... jar is a smaller development/test fixt
 - `fa8f27f` — deterministic 14-screen scale-profile verification
 - `12326ac` — safe half-hour button boundary clamping
 
-No push was performed.
+- `018bf14` — Tile Command cleanup documentation and captures
+- `7917f50` — public read-only Build and War inspection with staff-only mutations
 
 ## Judgment calls and limitations
 

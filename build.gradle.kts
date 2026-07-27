@@ -34,4 +34,4 @@ tasks.named<Jar>("jar") {
     }
 }
 
-extra["modVersion"] = "1.0.7"
+extra["modVersion"] = "1.0.8"

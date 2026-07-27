@@ -25,6 +25,7 @@ There is no active three-track alliance model, king-loss grace timer, or allianc
 - [Decision log](docs/KOME_DECISION_LOG.md)
 - [Test plan](docs/KOME_TEST_PLAN.md)
 - [Redesign completion report](docs/KOME_REDESIGN_COMPLETION_REPORT.md)
+- [KOME 1.0.8 release notes](docs/RELEASE_1.0.8.md)
 - [Historical/archive documents](docs/archive/README.md)
 
 ## Schemas
