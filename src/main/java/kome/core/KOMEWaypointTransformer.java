@@ -13,6 +13,7 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.FrameNode;
 
 /**
  * Adds the last possible server-side destination check to unmodified LOTR v36.15
@@ -69,6 +70,7 @@ public final class KOMEWaypointTransformer implements IClassTransformer {
         guard.add(new JumpInsnNode(Opcodes.IFNE, permitted));
         guard.add(new InsnNode(Opcodes.RETURN));
         guard.add(permitted);
+        guard.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
         target.instructions.insert(guard);
 
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
