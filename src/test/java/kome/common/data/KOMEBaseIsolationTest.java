@@ -6,23 +6,34 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
 
 import static org.junit.Assert.*;
 
 public class KOMEBaseIsolationTest {
     @Test
-    public void restoredLotrWaypointSourcesContainNoKomeAllianceHook() throws Exception {
-        Path root = Paths.get("..").toAbsolutePath().normalize();
-        String waypoint = read(root.resolve("src/main/java/lotr/common/world/map/LOTRWaypoint.java"));
-        String playerData = read(root.resolve("src/main/java/lotr/common/LOTRPlayerData.java"));
-        assertFalse(waypoint.contains("isKOMEAlliedWaypointUnlocked"));
-        assertFalse(waypoint.contains("kome.common.data.KOMEWaypoint"));
-        int start = playerData.indexOf("public void receiveFTBouncePacket()");
-        int end = playerData.indexOf("public void rejectFellowshipInvite", start);
-        assertTrue(start >= 0 && end > start);
-        String method = playerData.substring(start, end);
-        assertTrue(method.contains("fastTravelTo(targetFTWaypoint);"));
-        assertFalse(method.contains("KOME"));
+    public void stockLotrJarRemainsAnUnmodifiedBinaryBuildInput() throws Exception {
+        Path addon = Paths.get("").toAbsolutePath().normalize();
+        Path stockLotrJar = addon.resolve("libs/LOTRMod v36.15.jar");
+
+        assertFalse("Base LOTR source must not be vendored into KOME",
+            Files.exists(addon.resolve("src/main/java/lotr")));
+
+        assertTrue("Missing stock LOTRMod v36.15.jar",
+            Files.isRegularFile(stockLotrJar));
+
+        assertEquals("Stock LOTRMod v36.15.jar was modified",
+            "4F296E749C0D4739ECF859217A526B4218A2A45A768C08D3D551AF0D0D3D5635",
+            sha256(stockLotrJar));
+
+        String buildScript = read(addon.resolve("build.gradle.kts"));
+
+        assertTrue(buildScript.contains(
+            "rfg.deobf(project.files(\"libs/LOTRMod v36.15.jar\"))"));
+
+        assertFalse(buildScript.contains("kome.lotrClassesDir"));
+        assertFalse(buildScript.contains("kome.lotrResourcesDir"));
+        assertFalse(buildScript.contains("kome.lotrRuntimeJar"));
     }
 
     @Test
@@ -114,6 +125,17 @@ public class KOMEBaseIsolationTest {
         assertTrue(war.contains("if (\"status\".equals(action))"));
         assertTrue(war.contains("Only administrators may modify war records."));
         assertEquals(4, occurrences(war, "requireStaff(sender);"));
+    }
+
+    private static String sha256(Path path) throws Exception {
+        byte[] digest = MessageDigest.getInstance("SHA-256")
+            .digest(Files.readAllBytes(path));
+
+        StringBuilder result = new StringBuilder();
+        for (byte value : digest) {
+            result.append(String.format("%02X", value & 0xff));
+        }
+        return result.toString();
     }
 
     private static int occurrences(String text, String value) {

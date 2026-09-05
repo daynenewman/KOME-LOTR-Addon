@@ -2,16 +2,25 @@ plugins {
     id("com.gtnewhorizons.gtnhconvention")
 }
 
-val lotrClassesDir = providers.gradleProperty("kome.lotrClassesDir").orElse("../build/classes/java/main")
-val lotrResourcesDir = providers.gradleProperty("kome.lotrResourcesDir").orElse("../build/resources/main")
-val lotrRuntimeJar = providers.gradleProperty("kome.lotrRuntimeJar").orElse("../build/libs/lotr-dev-local-dev.jar")
-
 dependencies {
-    compileOnly(files(lotrClassesDir, lotrResourcesDir))
-    runtimeOnly(files(lotrRuntimeJar))
+    add(
+        "devOnlyNonPublishable",
+        rfg.deobf(project.files("libs/LOTRMod v36.15.jar"))
+    )
+    add(
+        "testCompileOnly",
+        rfg.deobf(project.files("libs/LOTRMod v36.15.jar"))
+    )
+    add(
+        "testRuntimeOnly",
+        rfg.deobf(project.files("libs/LOTRMod v36.15.jar"))
+    )
+
     testImplementation("junit:junit:4.13.2")
-    testCompileOnly(files(lotrClassesDir, lotrResourcesDir))
-    testRuntimeOnly(files(lotrClassesDir, lotrResourcesDir))
+}
+
+sourceSets.named("main") {
+    output.setResourcesDir(java.classesDirectory.get().asFile)
 }
 
 tasks.withType<JavaCompile>().configureEach {

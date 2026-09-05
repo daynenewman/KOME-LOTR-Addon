@@ -9,7 +9,9 @@ import lotr.common.world.map.LOTRAbstractWaypoint;
 import lotr.common.world.map.LOTRWaypoint;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.world.WorldServer;
 
 import java.util.UUID;
 
@@ -59,7 +61,11 @@ public final class KOMEWaypointAccessService {
             return waypoint.hasPlayerUnlocked(player);
         }
         LOTRWaypoint standard = (LOTRWaypoint) waypoint;
-        return !standard.isHidden && LOTRLevelData.getData(player).isFTRegionUnlocked(standard.region);
+        if (standard.isHidden()) {
+            return false;
+        }
+        LOTRWaypoint.Region region = findWaypointRegion(standard);
+        return region != null && LOTRLevelData.getData(player).isFTRegionUnlocked(region);
     }
 
     /** Entry point injected into unmodified LOTR bytecode by KOME's narrow transformer. */
@@ -67,7 +73,7 @@ public final class KOMEWaypointAccessService {
         if (playerData == null || playerData.getTargetFTWaypoint() == null) {
             return true;
         }
-        EntityPlayer player = playerData.getPlayer();
+        EntityPlayer player = findServerPlayer(playerData.getPlayerUUID());
         if (!(player instanceof EntityPlayerMP)) {
             return true;
         }
@@ -77,6 +83,32 @@ public final class KOMEWaypointAccessService {
             playerData.setTargetFTWaypoint(null);
         }
         return decision.finalAllowed;
+    }
+
+    private static LOTRWaypoint.Region findWaypointRegion(LOTRWaypoint waypoint) {
+        for (LOTRWaypoint.Region region : LOTRWaypoint.Region.values()) {
+            if (region.waypoints.contains(waypoint)) {
+                return region;
+            }
+        }
+        return null;
+    }
+
+    private static EntityPlayer findServerPlayer(UUID playerId) {
+        MinecraftServer server = MinecraftServer.getServer();
+        if (server == null || server.worldServers == null || playerId == null) {
+            return null;
+        }
+        for (WorldServer world : server.worldServers) {
+            if (world == null) {
+                continue;
+            }
+            EntityPlayer player = world.func_152378_a(playerId);
+            if (player != null) {
+                return player;
+            }
+        }
+        return null;
     }
 
     private static void debugUnmapped(LOTRAbstractWaypoint waypoint) {
