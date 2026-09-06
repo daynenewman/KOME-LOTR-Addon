@@ -45,7 +45,7 @@ public class CharacterCreationIsolationTest {
     }
 
     @Test
-    public void characterCreationCoordinatorIsDormantAndHasNoInjectedLifecycle() throws Exception {
+    public void characterCreationLifecycleIsExplicitlyOwnedByKome() throws Exception {
         Path mainJava = addon().resolve("src/main/java");
         String coordinator = read(mainJava.resolve("com/lotrcharactercreation/LOTRCharacterCreation.java"));
 
@@ -53,15 +53,100 @@ public class CharacterCreationIsolationTest {
         assertFalse(coordinator.contains("@Mod.EventHandler"));
         assertFalse(coordinator.contains("@SidedProxy"));
         assertTrue(coordinator.contains("public static CommonProxy proxy;"));
+        assertTrue(coordinator.contains("public void commonPreInitialize(FMLPreInitializationEvent event)"));
+        assertTrue(coordinator.contains("public void initializeSidedProxy()"));
+        assertTrue(coordinator.contains("public void registerServerCommands(FMLServerStartingEvent event)"));
         assertTrue(coordinator.contains(
             "new File(event.getModConfigurationDirectory(), \"lotrcharactercreation.cfg\")"));
+        assertEquals(1, occurrences(coordinator, "ModNetwork.initialize();"));
+        assertEquals(1, occurrences(coordinator, "MinecraftForge.EVENT_BUS.register(raceTraitEventHandler);"));
+        assertEquals(1, occurrences(coordinator, "MinecraftForge.EVENT_BUS.register(racialPlayerSoundHandler);"));
 
-        String komeLifecycle = read(mainJava.resolve("kome/common/KOMEAddon.java"))
-            + read(mainJava.resolve("kome/common/KOMECommonProxy.java"))
-            + read(mainJava.resolve("kome/client/KOMEClientProxy.java"));
-        assertFalse(komeLifecycle.contains("LOTRCharacterCreation"));
-        assertFalse(komeLifecycle.contains("ModNetwork.initialize()"));
-        assertFalse(komeLifecycle.contains("com.lotrcharactercreation"));
+        String komeAddon = read(mainJava.resolve("kome/common/KOMEAddon.java"));
+        assertTrue(komeAddon.contains("public void preInit(FMLPreInitializationEvent event)"));
+        assertEquals(1, occurrences(komeAddon, "characterCreation.commonPreInitialize(event);"));
+        assertEquals(1, occurrences(komeAddon, "characterCreation.initializeSidedProxy();"));
+        assertEquals(1, occurrences(komeAddon, "characterCreation.registerServerCommands(event);"));
+    }
+
+    @Test
+    public void characterCreationProxyCompositionPreservesTheSidedBoundary() throws Exception {
+        Path mainJava = addon().resolve("src/main/java");
+        String commonProxy = read(mainJava.resolve("kome/common/KOMECommonProxy.java"));
+        String clientProxy = read(mainJava.resolve("kome/client/KOMEClientProxy.java"));
+        String coordinator = read(mainJava.resolve("com/lotrcharactercreation/LOTRCharacterCreation.java"));
+
+        assertTrue(commonProxy.contains("private final CommonProxy characterCreationProxy;"));
+        assertTrue(commonProxy.contains("this(new CommonProxy());"));
+        assertEquals(1, occurrences(commonProxy, "LOTRCharacterCreation.proxy = characterCreationProxy;"));
+        assertEquals(1, occurrences(clientProxy, "super(new ClientProxy());"));
+        assertEquals(1, occurrences(coordinator, "proxy.initialize(customSkinRoot);"));
+
+        List<Path> clientProxyReferences = new ArrayList<>();
+        for (Path source : javaSources(mainJava)) {
+            if (read(source).contains("com.lotrcharactercreation.proxy.ClientProxy")) {
+                clientProxyReferences.add(mainJava.relativize(source));
+            }
+        }
+        assertEquals(Arrays.asList(Paths.get("kome/client/KOMEClientProxy.java")), clientProxyReferences);
+    }
+
+    @Test
+    public void komeMapInitializationPrecedesCharacterCreationClientInitialization() throws Exception {
+        Path mainJava = addon().resolve("src/main/java");
+        String komeAddon = read(mainJava.resolve("kome/common/KOMEAddon.java"));
+        String komeClientProxy = read(mainJava.resolve("kome/client/KOMEClientProxy.java"));
+        String characterClientProxy = read(mainJava.resolve("com/lotrcharactercreation/proxy/ClientProxy.java"));
+
+        assertBefore(komeAddon, "proxy.init();", "characterCreation.initializeSidedProxy();");
+        assertTrue(komeClientProxy.contains("new KOMEWaypointMapOverlay()"));
+        assertTrue(komeClientProxy.contains("new KOMEConquestMapOverlay()"));
+        assertTrue(characterClientProxy.contains("new LOTRMapPlayerAppearanceHandler()"));
+    }
+
+    @Test
+    public void komeAndCharacterCreationKeepSeparateNetworkChannels() throws Exception {
+        Path mainJava = addon().resolve("src/main/java");
+        String characterNetwork = read(mainJava.resolve("com/lotrcharactercreation/network/ModNetwork.java"));
+        String komeNetwork = read(mainJava.resolve("kome/common/network/KOMEPacketHandler.java"));
+        String komeAddon = read(mainJava.resolve("kome/common/KOMEAddon.java"));
+
+        assertTrue(characterNetwork.contains("newSimpleChannel(\"lotrcreation\")"));
+        assertTrue(komeNetwork.contains("newSimpleChannel(KOMEAddon.MODID)"));
+        assertTrue(komeAddon.contains("public static final String MODID = \"kome\";"));
+    }
+
+    @Test
+    public void characterCreationCommandsRetainTheirNamesAndSingleRegistrationPath() throws Exception {
+        Path characterCreation = addon().resolve("src/main/java/com/lotrcharactercreation");
+        String coordinator = read(characterCreation.resolve("LOTRCharacterCreation.java"));
+
+        assertEquals(1, occurrences(coordinator, "event.registerServerCommand(new CommandCharacter());"));
+        assertEquals(1, occurrences(coordinator, "event.registerServerCommand(new CommandLotrCreation());"));
+        assertEquals(1, occurrences(coordinator, "event.registerServerCommand(new CommandLotrRace());"));
+        assertTrue(read(characterCreation.resolve("command/CommandCharacter.java")).contains("return \"character\";"));
+        assertTrue(read(characterCreation.resolve("command/CommandLotrCreation.java")).contains("return \"lotrcreation\";"));
+        assertTrue(read(characterCreation.resolve("command/CommandLotrRace.java")).contains("return \"lotrrace\";"));
+
+        String clientProxy = read(characterCreation.resolve("proxy/ClientProxy.java"));
+        assertEquals(1, occurrences(clientProxy, "ClientCommandHandler.instance.registerCommand(manSkinReviewCommand);"));
+    }
+
+    @Test
+    public void commonBootstrapSourcesRemainClientClassFree() throws Exception {
+        Path mainJava = addon().resolve("src/main/java");
+        for (String relativePath : new String[] {
+            "kome/common/KOMEAddon.java",
+            "kome/common/KOMECommonProxy.java",
+            "com/lotrcharactercreation/LOTRCharacterCreation.java",
+            "com/lotrcharactercreation/proxy/CommonProxy.java"
+        }) {
+            String source = read(mainJava.resolve(relativePath));
+            assertFalse(relativePath, source.contains("com.lotrcharactercreation.proxy.ClientProxy"));
+            assertFalse(relativePath, source.contains("net.minecraft.client."));
+            assertFalse(relativePath, source.contains("lotr.client."));
+            assertFalse(relativePath, source.contains("org.lwjgl."));
+        }
     }
 
     @Test
@@ -156,6 +241,24 @@ public class CharacterCreationIsolationTest {
             }
         });
         return sources;
+    }
+
+    private static int occurrences(String text, String value) {
+        int count = 0;
+        int offset = 0;
+        while ((offset = text.indexOf(value, offset)) >= 0) {
+            count++;
+            offset += value.length();
+        }
+        return count;
+    }
+
+    private static void assertBefore(String text, String first, String second) {
+        int firstIndex = text.indexOf(first);
+        int secondIndex = text.indexOf(second);
+        assertTrue("Missing expected first value: " + first, firstIndex >= 0);
+        assertTrue("Missing expected second value: " + second, secondIndex >= 0);
+        assertTrue(first + " must precede " + second, firstIndex < secondIndex);
     }
 
     private static String read(Path path) throws IOException {

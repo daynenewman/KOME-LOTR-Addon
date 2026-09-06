@@ -1,5 +1,6 @@
 package kome.client;
 
+import com.lotrcharactercreation.proxy.ClientProxy;
 import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.network.FMLNetworkEvent;
@@ -18,6 +19,10 @@ import net.minecraftforge.common.MinecraftForge;
 import java.util.List;
 
 public class KOMEClientProxy extends KOMECommonProxy {
+    public KOMEClientProxy() {
+        super(new ClientProxy());
+    }
+
     @Override
     public void init() {
         super.init();

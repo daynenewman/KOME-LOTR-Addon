@@ -38,13 +38,14 @@ public class LOTRCharacterCreation {
 
     private final CommonRaceTraitEventHandler raceTraitEventHandler = new CommonRaceTraitEventHandler();
     private final RacialPlayerSoundHandler racialPlayerSoundHandler = new RacialPlayerSoundHandler();
+    private File customSkinRoot;
 
     public static CommonProxy proxy;
 
-    public void preInitialize(FMLPreInitializationEvent event) {
+    public void commonPreInitialize(FMLPreInitializationEvent event) {
         File configFile = new File(event.getModConfigurationDirectory(), "lotrcharactercreation.cfg");
         ModConfiguration.load(configFile);
-        File customSkinRoot = new File(
+        customSkinRoot = new File(
             new File(event.getModConfigurationDirectory(), "lotrcharactercreation"),
             "custom_skins");
         try {
@@ -66,6 +67,15 @@ public class LOTRCharacterCreation {
         MinecraftForge.EVENT_BUS.register(this);
         MinecraftForge.EVENT_BUS.register(raceTraitEventHandler);
         MinecraftForge.EVENT_BUS.register(racialPlayerSoundHandler);
+    }
+
+    public void initializeSidedProxy() {
+        if (proxy == null) {
+            throw new IllegalStateException("Character Creation proxy was not assigned by KOME");
+        }
+        if (customSkinRoot == null) {
+            throw new IllegalStateException("Character Creation common pre-initialization has not completed");
+        }
         proxy.initialize(customSkinRoot);
     }
 
@@ -148,7 +158,7 @@ public class LOTRCharacterCreation {
         }
     }
 
-    public void serverStarting(FMLServerStartingEvent event) {
+    public void registerServerCommands(FMLServerStartingEvent event) {
         event.registerServerCommand(new CommandCharacter());
         event.registerServerCommand(new CommandLotrCreation());
         event.registerServerCommand(new CommandLotrRace());

@@ -1,9 +1,11 @@
 package kome.common;
 
+import com.lotrcharactercreation.LOTRCharacterCreation;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.common.ForgeChunkManager;
 import kome.common.command.KOMECommandAlliance;
@@ -23,11 +25,18 @@ import java.util.List;
 public class KOMEAddon {
     public static final String MODID = "kome";
 
+    private final LOTRCharacterCreation characterCreation = new LOTRCharacterCreation();
+
     @Mod.Instance(MODID)
     public static KOMEAddon instance;
 
     @SidedProxy(clientSide = "kome.client.KOMEClientProxy", serverSide = "kome.common.KOMECommonProxy")
     public static KOMECommonProxy proxy;
+
+    @Mod.EventHandler
+    public void preInit(FMLPreInitializationEvent event) {
+        characterCreation.commonPreInitialize(event);
+    }
 
     @Mod.EventHandler
     public void init(FMLInitializationEvent event) {
@@ -44,6 +53,7 @@ public class KOMEAddon {
             }
         });
         proxy.init();
+        characterCreation.initializeSidedProxy();
     }
 
     @Mod.EventHandler
@@ -58,5 +68,6 @@ public class KOMEAddon {
         event.registerServerCommand(new KOMECommandProgression());
         event.registerServerCommand(new KOMECommandTroops());
         event.registerServerCommand(new KOMECommandWar());
+        characterCreation.registerServerCommands(event);
     }
 }

@@ -1,11 +1,23 @@
 package kome.common;
 
+import com.lotrcharactercreation.LOTRCharacterCreation;
+import com.lotrcharactercreation.proxy.CommonProxy;
 import cpw.mods.fml.common.FMLCommonHandler;
 import kome.common.data.KOMEEvents;
 import net.minecraftforge.common.MinecraftForge;
 
 public class KOMECommonProxy {
+    private final CommonProxy characterCreationProxy;
     private KOMEEvents events;
+
+    public KOMECommonProxy() {
+        this(new CommonProxy());
+    }
+
+    protected KOMECommonProxy(CommonProxy characterCreationProxy) {
+        this.characterCreationProxy = characterCreationProxy;
+        LOTRCharacterCreation.proxy = characterCreationProxy;
+    }
 
     public void init() {
         events = new KOMEEvents();
