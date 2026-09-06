@@ -8,7 +8,8 @@ public class CommonProxy {
     public void initialize(File customSkinRoot) {}
 
     public void handleCharacterCreationRequired(String serializedStageId, String serializedRaceId,
-        String serializedSexId, String serializedFactionId, String appearancePresetId) {}
+        String serializedSexId, String serializedFactionId, String appearancePresetId, String currentPledgeCode,
+        boolean automaticStartingAllegiance) {}
 
     public void handleRaceSelectionAccepted(String serializedRaceId) {}
 

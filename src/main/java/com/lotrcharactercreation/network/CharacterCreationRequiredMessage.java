@@ -15,16 +15,21 @@ public class CharacterCreationRequiredMessage implements IMessage {
     private String serializedSexId;
     private String serializedFactionId;
     private String appearancePresetId;
+    private String currentPledgeCode;
+    private boolean automaticStartingAllegiance;
 
     public CharacterCreationRequiredMessage() {}
 
     public CharacterCreationRequiredMessage(String serializedStageId, String serializedRaceId, String serializedSexId,
-        String serializedFactionId, String appearancePresetId) {
+        String serializedFactionId, String appearancePresetId, String currentPledgeCode,
+        boolean automaticStartingAllegiance) {
         this.serializedStageId = serializedStageId;
         this.serializedRaceId = serializedRaceId;
         this.serializedSexId = serializedSexId;
         this.serializedFactionId = serializedFactionId;
         this.appearancePresetId = appearancePresetId;
+        this.currentPledgeCode = currentPledgeCode;
+        this.automaticStartingAllegiance = automaticStartingAllegiance;
     }
 
     public String getSerializedStageId() {
@@ -47,6 +52,14 @@ public class CharacterCreationRequiredMessage implements IMessage {
         return appearancePresetId;
     }
 
+    public String getCurrentPledgeCode() {
+        return currentPledgeCode;
+    }
+
+    public boolean isAutomaticStartingAllegiance() {
+        return automaticStartingAllegiance;
+    }
+
     @Override
     public void fromBytes(ByteBuf buffer) {
         serializedStageId = ByteBufUtils.readUTF8String(buffer);
@@ -54,6 +67,8 @@ public class CharacterCreationRequiredMessage implements IMessage {
         serializedSexId = ByteBufUtils.readUTF8String(buffer);
         serializedFactionId = ByteBufUtils.readUTF8String(buffer);
         appearancePresetId = ByteBufUtils.readUTF8String(buffer);
+        currentPledgeCode = ByteBufUtils.readUTF8String(buffer);
+        automaticStartingAllegiance = buffer.readBoolean();
     }
 
     @Override
@@ -63,6 +78,8 @@ public class CharacterCreationRequiredMessage implements IMessage {
         ByteBufUtils.writeUTF8String(buffer, serializedSexId == null ? "" : serializedSexId);
         ByteBufUtils.writeUTF8String(buffer, serializedFactionId);
         ByteBufUtils.writeUTF8String(buffer, appearancePresetId == null ? "" : appearancePresetId);
+        ByteBufUtils.writeUTF8String(buffer, currentPledgeCode == null ? "" : currentPledgeCode);
+        buffer.writeBoolean(automaticStartingAllegiance);
     }
 
     public static class Handler implements IMessageHandler<CharacterCreationRequiredMessage, IMessage> {
@@ -74,7 +91,9 @@ public class CharacterCreationRequiredMessage implements IMessage {
                 message.getSerializedRaceId(),
                 message.getSerializedSexId(),
                 message.getSerializedFactionId(),
-                message.getAppearancePresetId());
+                message.getAppearancePresetId(),
+                message.getCurrentPledgeCode(),
+                message.isAutomaticStartingAllegiance());
             return null;
         }
     }

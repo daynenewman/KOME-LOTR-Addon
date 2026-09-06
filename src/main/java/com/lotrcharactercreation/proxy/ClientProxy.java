@@ -89,7 +89,8 @@ public class ClientProxy extends CommonProxy {
 
     @Override
     public void handleCharacterCreationRequired(final String serializedStageId, final String serializedRaceId,
-        final String serializedSexId, final String serializedFactionId, final String appearancePresetId) {
+        final String serializedSexId, final String serializedFactionId, final String appearancePresetId,
+        final String currentPledgeCode, final boolean automaticStartingAllegiance) {
         Minecraft.getMinecraft()
             .func_152344_a(new Runnable() {
 
@@ -109,7 +110,14 @@ public class ClientProxy extends CommonProxy {
                     PlayerRace race = PlayerRace.findBySerializedId(serializedRaceId);
                     PlayerSex sex = PlayerSex.findBySerializedId(serializedSexId);
                     StartingFaction faction = StartingFaction.findBySerializedId(serializedFactionId);
-                    GuiScreen screen = createMandatoryScreen(stage, race, sex, faction, appearancePresetId);
+                    GuiScreen screen = createMandatoryScreen(
+                        stage,
+                        race,
+                        sex,
+                        faction,
+                        appearancePresetId,
+                        currentPledgeCode,
+                        automaticStartingAllegiance);
                     if (screen != null) {
                         minecraft.displayGuiScreen(screen);
                     }
@@ -362,7 +370,8 @@ public class ClientProxy extends CommonProxy {
     }
 
     private static GuiScreen createMandatoryScreen(CharacterCreationStage stage, PlayerRace race, PlayerSex sex,
-        StartingFaction faction, String appearancePresetId) {
+        StartingFaction faction, String appearancePresetId, String currentPledgeCode,
+        boolean automaticStartingAllegiance) {
         if (stage == null || race == null) {
             return null;
         }
@@ -397,7 +406,14 @@ public class ClientProxy extends CommonProxy {
             return appearanceScreen;
         }
         if (stage == CharacterCreationStage.CONFIRMATION) {
-            return new GuiCharacterConfirmation(appearanceScreen, race, sex, faction, appearancePresetId);
+            return new GuiCharacterConfirmation(
+                appearanceScreen,
+                race,
+                sex,
+                faction,
+                appearancePresetId,
+                currentPledgeCode,
+                automaticStartingAllegiance);
         }
         return null;
     }

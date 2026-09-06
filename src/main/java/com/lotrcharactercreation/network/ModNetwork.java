@@ -17,6 +17,7 @@ import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
 import com.lotrcharactercreation.appearance.PlayerSex;
 import com.lotrcharactercreation.body.PlayerRaceEyeService;
 import com.lotrcharactercreation.body.PlayerRaceSizeService;
+import com.lotrcharactercreation.config.ModConfiguration;
 import com.lotrcharactercreation.creation.CharacterCreationFlowService;
 import com.lotrcharactercreation.creation.CharacterCreationStage;
 import com.lotrcharactercreation.faction.StartingFaction;
@@ -30,6 +31,8 @@ import com.lotrcharactercreation.waypoint.StartingWaypointApplication.Result;
 import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
 import cpw.mods.fml.relauncher.Side;
+import lotr.common.LOTRLevelData;
+import lotr.common.fac.LOTRFaction;
 
 public final class ModNetwork {
 
@@ -39,7 +42,7 @@ public final class ModNetwork {
     private static final Queue<PendingAppearanceSelection> PENDING_APPEARANCE_SELECTIONS = new ConcurrentLinkedQueue<>();
     private static final Queue<PendingSexSelection> PENDING_SEX_SELECTIONS = new ConcurrentLinkedQueue<>();
     private static final Queue<PendingCharacterCreationBack> PENDING_CHARACTER_CREATION_BACKS = new ConcurrentLinkedQueue<>();
-    private static final Queue<EntityPlayerMP> PENDING_CHARACTER_FINALIZATIONS = new ConcurrentLinkedQueue<>();
+    private static final Queue<PendingCharacterFinalization> PENDING_CHARACTER_FINALIZATIONS = new ConcurrentLinkedQueue<>();
     private static final Queue<EntityPlayerMP> PENDING_ELF_GRAPPLE_ATTACKS = new ConcurrentLinkedQueue<>();
     private static final Set<UUID> PENDING_CHARACTER_FINALIZATION_IDS = Collections
         .newSetFromMap(new ConcurrentHashMap<UUID, Boolean>());
@@ -127,13 +130,17 @@ public final class ModNetwork {
         PlayerRace race = PlayerRaceData.getRace(player);
         PlayerSex sex = PlayerRaceData.getSex(player);
         StartingFaction faction = PlayerRaceData.getStartingFaction(player);
+        LOTRFaction currentPledge = LOTRLevelData.getData(player)
+            .getPledgeFaction();
         CHANNEL.sendTo(
             new CharacterCreationRequiredMessage(
                 stage.getSerializedId(),
                 race.getSerializedId(),
                 sex == null ? null : sex.getSerializedId(),
                 faction.getSerializedId(),
-                PlayerRaceData.getAppearancePresetId(player)),
+                PlayerRaceData.getAppearancePresetId(player),
+                StartingFactionApplication.pledgeCode(currentPledge),
+                ModConfiguration.isAutomaticStartingAllegianceEnabled()),
             player);
     }
 
@@ -255,8 +262,8 @@ public final class ModNetwork {
         PENDING_SEX_SELECTIONS.add(new PendingSexSelection(player, serializedSexId));
     }
 
-    public static void sendCharacterFinalization() {
-        CHANNEL.sendToServer(new CharacterFinalizationMessage());
+    public static void sendCharacterFinalization(boolean replacementConfirmed, String expectedExistingPledgeCode) {
+        CHANNEL.sendToServer(new CharacterFinalizationMessage(replacementConfirmed, expectedExistingPledgeCode));
     }
 
     public static void sendCharacterCreationBack(CharacterCreationStage sourceStage) {
@@ -267,19 +274,48 @@ public final class ModNetwork {
         PENDING_CHARACTER_CREATION_BACKS.add(new PendingCharacterCreationBack(player, serializedSourceStageId));
     }
 
-    public static void enqueueCharacterFinalization(EntityPlayerMP player) {
+    public static void enqueueCharacterFinalization(EntityPlayerMP player, boolean replacementConfirmed,
+        String expectedExistingPledgeCode) {
         if (PENDING_CHARACTER_FINALIZATION_IDS.add(player.getUniqueID())) {
-            PENDING_CHARACTER_FINALIZATIONS.add(player);
+            PENDING_CHARACTER_FINALIZATIONS
+                .add(new PendingCharacterFinalization(player, replacementConfirmed, expectedExistingPledgeCode));
         }
     }
 
-    private static void finalizeCharacterCreation(EntityPlayerMP player) {
+    private static void finalizeCharacterCreation(PendingCharacterFinalization request) {
+        EntityPlayerMP player = request.player;
         if (!CharacterCreationFlowService.isReadyForFinalization(player)) {
             sendCharacterCreationRequired(player);
             return;
         }
 
-        StartingFaction appliedFaction = StartingFactionApplication.tryApply(player);
+        StartingFaction selectedFaction = PlayerRaceData.getStartingFaction(player);
+        LOTRFaction actualExistingPledge = LOTRLevelData.getData(player)
+            .getPledgeFaction();
+        String actualExistingPledgeCode = StartingFactionApplication.pledgeCode(actualExistingPledge);
+        String selectedPledgeCode = StartingFactionApplication.pledgeCode(selectedFaction.getLotrFaction());
+        boolean automaticStartingAllegiance = ModConfiguration.isAutomaticStartingAllegianceEnabled();
+        if (!StartingFactionApplication.isFinalizationAuthorized(
+            automaticStartingAllegiance,
+            PlayerRaceData.isCharacterCreationComplete(player),
+            actualExistingPledgeCode,
+            selectedPledgeCode,
+            request.replacementConfirmed,
+            request.expectedExistingPledgeCode)) {
+            boolean pledgeStateChanged = automaticStartingAllegiance
+                && !actualExistingPledgeCode.equals(normalizePledgeCode(request.expectedExistingPledgeCode));
+            String detail = pledgeStateChanged
+                ? "Your LOTR pledge changed before confirmation. Review the updated pledge warning and confirm again."
+                : "You must explicitly confirm the displayed LOTR pledge replacement.";
+            player.addChatMessage(new ChatComponentText("[LOTR Character Creation] " + detail));
+            sendCharacterCreationRequired(player);
+            return;
+        }
+
+        StartingFaction appliedFaction = StartingFactionApplication.tryApply(
+            player,
+            request.replacementConfirmed,
+            request.expectedExistingPledgeCode);
         if (appliedFaction != null) {
             CHANNEL.sendTo(new StartingFactionAppliedMessage(appliedFaction.getSerializedId()), player);
         }
@@ -491,16 +527,21 @@ public final class ModNetwork {
     }
 
     private static void processPendingCharacterFinalizations(MinecraftServer server) {
-        EntityPlayerMP player;
-        while ((player = PENDING_CHARACTER_FINALIZATIONS.poll()) != null) {
+        PendingCharacterFinalization request;
+        while ((request = PENDING_CHARACTER_FINALIZATIONS.poll()) != null) {
             try {
-                if (isConnected(server, player) && !PlayerRaceData.isCharacterCreationComplete(player)) {
-                    finalizeCharacterCreation(player);
+                if (isConnected(server, request.player)
+                    && !PlayerRaceData.isCharacterCreationComplete(request.player)) {
+                    finalizeCharacterCreation(request);
                 }
             } finally {
-                PENDING_CHARACTER_FINALIZATION_IDS.remove(player.getUniqueID());
+                PENDING_CHARACTER_FINALIZATION_IDS.remove(request.player.getUniqueID());
             }
         }
+    }
+
+    private static String normalizePledgeCode(String pledgeCode) {
+        return pledgeCode == null ? "" : pledgeCode;
     }
 
     private static boolean isConnected(MinecraftServer server, EntityPlayerMP player) {
@@ -577,6 +618,20 @@ public final class ModNetwork {
         private PendingCharacterCreationBack(EntityPlayerMP player, String serializedSourceStageId) {
             this.player = player;
             this.serializedSourceStageId = serializedSourceStageId;
+        }
+    }
+
+    private static final class PendingCharacterFinalization {
+
+        private final EntityPlayerMP player;
+        private final boolean replacementConfirmed;
+        private final String expectedExistingPledgeCode;
+
+        private PendingCharacterFinalization(EntityPlayerMP player, boolean replacementConfirmed,
+            String expectedExistingPledgeCode) {
+            this.player = player;
+            this.replacementConfirmed = replacementConfirmed;
+            this.expectedExistingPledgeCode = expectedExistingPledgeCode;
         }
     }
 }
