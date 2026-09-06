@@ -155,7 +155,10 @@ public class CharacterCreationIsolationTest {
         String playerData = read(characterCreation.resolve("race/PlayerRaceData.java"));
 
         assertEquals("PlayerPersisted", EntityPlayer.PERSISTED_NBT_TAG);
+        assertTrue(playerData.contains("private static final String MOD_DATA_TAG = \"lotrcharactercreation\";"));
         assertTrue(playerData.contains("EntityPlayer.PERSISTED_NBT_TAG"));
+        assertTrue(playerData.contains("entityData.getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG)"));
+        assertTrue(playerData.contains("persistedData.getCompoundTag(MOD_DATA_TAG)"));
         for (String identifier : new String[] {
             "lotrcharactercreation",
             "race",
@@ -184,8 +187,11 @@ public class CharacterCreationIsolationTest {
 
         String coordinator = read(characterCreation.resolve("LOTRCharacterCreation.java"));
         assertTrue(coordinator.contains("\"lotrcharactercreation.cfg\""));
-        assertTrue(coordinator.contains("\"lotrcharactercreation\""));
-        assertTrue(coordinator.contains("\"custom_skins\""));
+        assertTrue(Pattern.compile(
+            "new\\s+File\\s*\\(\\s*new\\s+File\\s*\\(\\s*event\\.getModConfigurationDirectory\\(\\),"
+                + "\\s*\"lotrcharactercreation\"\\s*\\),\\s*\"custom_skins\"\\s*\\)")
+            .matcher(coordinator)
+            .find());
 
         String raceTraits = read(characterCreation.resolve("trait/CommonRaceTraitEventHandler.java"));
         assertTrue(raceTraits.contains("\"lotrcharactercreationRacialHealthLoad\""));
@@ -193,6 +199,42 @@ public class CharacterCreationIsolationTest {
         String hobbitThrowable = read(characterCreation.resolve("trait/HobbitThrowableService.java"));
         assertTrue(hobbitThrowable.contains("\"lotrcharactercreationHobbitChargedProjectile\""));
         assertTrue(hobbitThrowable.contains("\"lotrcharactercreationHobbitChargedDamage\""));
+    }
+
+    @Test
+    public void komeSourcesDoNotOwnCharacterCreationConfigOrPlayerStorage() throws Exception {
+        Path komeSources = addon().resolve("src/main/java/kome");
+        for (Path source : javaSources(komeSources)) {
+            String relativePath = komeSources.relativize(source).toString();
+            String text = read(source);
+
+            assertFalse(relativePath, text.contains("\"lotrcharactercreation.cfg\""));
+            assertFalse(relativePath, text.contains("\"automaticStartingAllegiance\""));
+            assertFalse(relativePath, text.contains("com.lotrcharactercreation.config.ModConfiguration"));
+            assertFalse(relativePath, Pattern.compile("\\bgetEntityData\\s*\\(").matcher(text).find());
+            assertFalse(relativePath, text.contains("EntityPlayer.PERSISTED_NBT_TAG"));
+            assertFalse(relativePath, text.contains("\"ForgeData\""));
+            assertFalse(relativePath, text.contains("\"PlayerPersisted\""));
+            assertFalse(relativePath, text.contains("\"lotrcharactercreation\""));
+        }
+    }
+
+    @Test
+    public void komePledgeObserverStillReadsAndObservesTheActualLotrPledge() throws Exception {
+        String events = read(addon().resolve("src/main/java/kome/common/data/KOMEEvents.java"));
+        String login = between(events, "public void onPlayerLogin", "public void onPlayerLogout");
+        String tick = between(events, "public void onPlayerTick", "public void onServerTick");
+        String actualPledge = between(events, "private String getActualPledgeFactionKey", "private boolean factionMatches");
+
+        assertEquals(2, occurrences(events, "KOMEPledgeReleaseService.observePledge("));
+        assertTrue(login.contains("KOMEPledgeReleaseService.observePledge("));
+        assertTrue(login.contains("getActualPledgeFactionKey(event.player)"));
+        assertTrue(tick.contains("TickEvent.Phase.END"));
+        assertTrue(tick.contains("% 20L == 0L"));
+        assertTrue(tick.contains("KOMEPledgeReleaseService.observePledge("));
+        assertTrue(tick.contains("getActualPledgeFactionKey(event.player)"));
+        assertTrue(actualPledge.contains("LOTRLevelData.getData(player).getPledgeFaction()"));
+        assertTrue(actualPledge.contains("KOMEAlliance.normalizeFactionKey(pledge.codeName())"));
     }
 
     @Test
@@ -259,6 +301,14 @@ public class CharacterCreationIsolationTest {
         assertTrue("Missing expected first value: " + first, firstIndex >= 0);
         assertTrue("Missing expected second value: " + second, secondIndex >= 0);
         assertTrue(first + " must precede " + second, firstIndex < secondIndex);
+    }
+
+    private static String between(String text, String start, String end) {
+        int startIndex = text.indexOf(start);
+        int endIndex = text.indexOf(end, startIndex);
+        assertTrue("Missing expected start value: " + start, startIndex >= 0);
+        assertTrue("Missing expected end value: " + end, endIndex >= 0);
+        return text.substring(startIndex, endIndex);
     }
 
     private static String read(Path path) throws IOException {
