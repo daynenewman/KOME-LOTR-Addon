@@ -101,7 +101,43 @@ public class CharacterCreationIsolationTest {
         assertBefore(komeAddon, "proxy.init();", "characterCreation.initializeSidedProxy();");
         assertTrue(komeClientProxy.contains("new KOMEWaypointMapOverlay()"));
         assertTrue(komeClientProxy.contains("new KOMEConquestMapOverlay()"));
-        assertTrue(characterClientProxy.contains("new LOTRMapPlayerAppearanceHandler()"));
+        assertEquals(
+            1,
+            occurrences(
+                characterClientProxy,
+                "MinecraftForge.EVENT_BUS.register(new LOTRMapPlayerAppearanceHandler());"));
+
+        int appearanceHandlerConstructions = 0;
+        for (Path source : javaSources(mainJava.resolve("com/lotrcharactercreation"))) {
+            appearanceHandlerConstructions += occurrences(read(source), "new LOTRMapPlayerAppearanceHandler()");
+        }
+        assertEquals(1, appearanceHandlerConstructions);
+    }
+
+    @Test
+    public void komeDoesNotClaimCharacterCreationPlayerRendererOwnership() throws Exception {
+        Path mainJava = addon().resolve("src/main/java");
+        Path komeSources = mainJava.resolve("kome");
+        Pattern entityPlayerRendererRegistration = Pattern.compile(
+            "registerEntityRenderingHandler\\s*\\(\\s*(?:net\\.minecraft\\.entity\\.player\\.)?EntityPlayer\\.class");
+
+        for (Path source : javaSources(komeSources)) {
+            String relativePath = komeSources.relativize(source).toString();
+            String text = read(source);
+            assertFalse(relativePath, text.contains("RenderPlayerEvent"));
+            assertFalse(relativePath, text.contains("entityRenderMap"));
+            assertFalse(relativePath, entityPlayerRendererRegistration.matcher(text).find());
+        }
+
+        Path characterCreation = mainJava.resolve("com/lotrcharactercreation");
+        int rendererRegistrationPaths = 0;
+        for (Path source : javaSources(characterCreation)) {
+            Matcher matcher = entityPlayerRendererRegistration.matcher(read(source));
+            while (matcher.find()) {
+                ++rendererRegistrationPaths;
+            }
+        }
+        assertEquals(1, rendererRegistrationPaths);
     }
 
     @Test
@@ -147,6 +183,67 @@ public class CharacterCreationIsolationTest {
             assertFalse(relativePath, source.contains("lotr.client."));
             assertFalse(relativePath, source.contains("org.lwjgl."));
         }
+    }
+
+    @Test
+    public void elfFoodSaturationRetainsTheServerSafeNbtPath() throws Exception {
+        String traits = read(
+            addon().resolve("src/main/java/com/lotrcharactercreation/trait/CommonRaceTraitEventHandler.java"));
+        String finishedUsingItem = between(
+            traits,
+            "public void playerFinishedUsingItem",
+            "public void playerBreakSpeed");
+
+        assertTrue(finishedUsingItem.contains("FoodStats foodStats = player.getFoodStats();"));
+        assertTrue(finishedUsingItem.contains("foodStats.writeNBT(foodStatsData);"));
+        assertTrue(finishedUsingItem.contains("\"foodSaturationLevel\""));
+        assertTrue(finishedUsingItem.contains("foodStats.readNBT(foodStatsData);"));
+        assertBefore(finishedUsingItem, "foodStats.writeNBT(foodStatsData);", "\"foodSaturationLevel\"");
+        assertBefore(finishedUsingItem, "\"foodSaturationLevel\"", "foodStats.readNBT(foodStatsData);");
+        assertFalse(finishedUsingItem.contains("setFoodSaturationLevel("));
+        assertFalse(finishedUsingItem.contains("func_75119_b("));
+    }
+
+    @Test
+    public void racialMaximumHealthIsAppliedDuringPlayerNbtLoad() throws Exception {
+        Path traitsRoot = addon().resolve("src/main/java/com/lotrcharactercreation/trait");
+        String eventHandler = read(traitsRoot.resolve("CommonRaceTraitEventHandler.java"));
+        String entityConstructing = between(eventHandler, "public void entityConstructing", "public void playerCloned");
+        String healthLoadProperty = between(
+            eventHandler,
+            "private static final class RacialHealthLoadProperty",
+            "private static void tryStartDwarfFeastEating");
+
+        assertTrue(entityConstructing.contains("event.entity instanceof EntityPlayerMP"));
+        assertTrue(entityConstructing.contains("registerExtendedProperties("));
+        assertTrue(entityConstructing.contains("\"lotrcharactercreationRacialHealthLoad\""));
+        assertTrue(entityConstructing.contains("new RacialHealthLoadProperty((EntityPlayerMP) event.entity)"));
+        assertTrue(healthLoadProperty.contains("implements IExtendedEntityProperties"));
+        assertTrue(healthLoadProperty.contains("public void loadNBTData(NBTTagCompound compound)"));
+        assertTrue(healthLoadProperty.contains("RaceTraitService.prepareMaxHealthForLoad(player);"));
+
+        String traitService = read(traitsRoot.resolve("RaceTraitService.java"));
+        String prepareForLoad = between(
+            traitService,
+            "static void prepareMaxHealthForLoad",
+            "private static double getMaxHealthModifier");
+        assertTrue(prepareForLoad.contains("SharedMonsterAttributes.maxHealth"));
+        assertTrue(prepareForLoad.contains("getMaxHealthModifier(race, false)"));
+        assertTrue(prepareForLoad.contains("replaceModifier("));
+    }
+
+    @Test
+    public void commonDwarfEatingDoesNotUseTheClientOnlyItemInUseAccessor() throws Exception {
+        String eventHandler = read(
+            addon().resolve("src/main/java/com/lotrcharactercreation/trait/CommonRaceTraitEventHandler.java"));
+        String dwarfEating = between(
+            eventHandler,
+            "private static void tryStartDwarfFeastEating",
+            "private void applyDwarfFeastOverflow");
+
+        assertTrue(dwarfEating.contains("player.getCurrentEquippedItem()"));
+        assertTrue(dwarfEating.contains("player.setItemInUse("));
+        assertFalse(dwarfEating.contains("getItemInUse("));
     }
 
     @Test
