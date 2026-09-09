@@ -365,7 +365,14 @@ public class CharacterCreationIsolationTest {
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),
-                com.enovak.lotrmoremobs.coremod.PathFinderGatePartTransformer.class.getName()
+                com.enovak.lotrmoremobs.coremod.PathFinderGatePartTransformer.class.getName(),
+
+"com.fuzs.aquaacrobatics.core.asm.AquaEntityPlayerTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaServerPlayerTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaBiomeTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaCommonWorldTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaClientEntityTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaLateClientPlayerTransformer"
             },
             plugin.getASMTransformerClass());
         assertNull(plugin.getAccessTransformerClass());
