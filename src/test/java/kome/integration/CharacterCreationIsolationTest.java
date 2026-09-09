@@ -355,11 +355,17 @@ public class CharacterCreationIsolationTest {
     }
 
     @Test
-    public void komeCorePluginStillExposesOnlyTheWaypointTransformer() {
+    public void komeCorePluginExposesKomeAndLotrMoreMobsTransformers() {
         KOMECorePlugin plugin = new KOMECorePlugin();
 
         assertArrayEquals(
-            new String[] { KOMEWaypointTransformer.class.getName() },
+            new String[] {
+                KOMEWaypointTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.PathFinderGatePartTransformer.class.getName()
+            },
             plugin.getASMTransformerClass());
         assertNull(plugin.getAccessTransformerClass());
     }
