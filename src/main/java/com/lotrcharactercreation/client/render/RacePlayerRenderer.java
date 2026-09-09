@@ -18,6 +18,8 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.IItemRenderer;
 import net.minecraftforge.client.MinecraftForgeClient;
 import net.minecraftforge.client.event.RenderPlayerEvent;
+import com.enovak.lotrmoremobs.entity.animal.LOTREntityMumakil;
+import net.minecraft.entity.EntityLivingBase;
 
 import org.lwjgl.opengl.GL11;
 
@@ -94,6 +96,33 @@ public class RacePlayerRenderer extends RenderPlayer {
             ensureRaceRendererMapping(player);
         }
     }
+
+@Override
+protected void renderModel(
+    EntityLivingBase entity,
+    float limbSwing,
+    float limbSwingAmount,
+    float ageInTicks,
+    float netHeadYaw,
+    float headPitch,
+    float scaleFactor
+) {
+    if (entity.ridingEntity instanceof LOTREntityMumakil
+        && ((LOTREntityMumakil) entity.ridingEntity)
+            .hasMumakilSyncedHowdahEquipped()) {
+        this.modelBipedMain.isRiding = false;
+    }
+
+    super.renderModel(
+        entity,
+        limbSwing,
+        limbSwingAmount,
+        ageInTicks,
+        netHeadYaw,
+        headPitch,
+        scaleFactor
+    );
+}
 
     @Override
     public void doRender(AbstractClientPlayer player, double x, double y, double z, float yaw, float partialTicks) {
