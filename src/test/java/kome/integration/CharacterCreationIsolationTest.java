@@ -339,10 +339,11 @@ public class CharacterCreationIsolationTest {
         Path accessTransformer = addon().resolve("src/main/resources/META-INF/lotrcharactercreation_at.cfg");
         assertTrue("Missing Character Creation access transformer", Files.isRegularFile(accessTransformer));
         assertEquals(Arrays.asList(
-            "public net.minecraft.entity.Entity func_70105_a(FF)V",
-            "public net.minecraft.entity.EntityAgeable func_70105_a(FF)V",
-            "public net.minecraft.entity.monster.EntityZombie func_70105_a(FF)V"),
-            Files.readAllLines(accessTransformer, StandardCharsets.UTF_8));
+    "public net.minecraft.entity.Entity func_70105_a(FF)V",
+    "public net.minecraft.entity.EntityAgeable func_70105_a(FF)V",
+    "public net.minecraft.entity.monster.EntityZombie func_70105_a(FF)V",
+    "public net.minecraft.entity.Entity field_70148_d # firstUpdate"),
+    Files.readAllLines(accessTransformer, StandardCharsets.UTF_8));
     }
 
     @Test

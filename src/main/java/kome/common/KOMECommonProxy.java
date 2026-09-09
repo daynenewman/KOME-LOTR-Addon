@@ -6,6 +6,7 @@ import com.lotrcharactercreation.proxy.CommonProxy;
 import cpw.mods.fml.common.FMLCommonHandler;
 import kome.common.data.KOMEEvents;
 import net.minecraftforge.common.MinecraftForge;
+import com.fuzs.aquaacrobatics.AquaAcrobatics;
 
 public class KOMECommonProxy {
     private final CommonProxy characterCreationProxy;
@@ -20,12 +21,14 @@ public class KOMECommonProxy {
     }
 
     protected KOMECommonProxy(
-            CommonProxy characterCreationProxy,
-            com.enovak.lotrmoremobs.proxy.CommonProxy lotrMoreMobsProxy) {
-        this.characterCreationProxy = characterCreationProxy;
-        LOTRCharacterCreation.proxy = characterCreationProxy;
-        Main.proxy = lotrMoreMobsProxy;
-    }
+        CommonProxy characterCreationProxy,
+        com.enovak.lotrmoremobs.proxy.CommonProxy lotrMoreMobsProxy) {
+    this.characterCreationProxy = characterCreationProxy;
+    LOTRCharacterCreation.proxy = characterCreationProxy;
+    Main.proxy = lotrMoreMobsProxy;
+    AquaAcrobatics.proxy =
+            new com.fuzs.aquaacrobatics.proxy.CommonProxy();
+}
 
     public void init() {
         events = new KOMEEvents();

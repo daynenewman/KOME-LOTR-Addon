@@ -23,7 +23,11 @@ public class KOMEClientProxy extends KOMECommonProxy {
         super(new ClientProxy());
         com.enovak.lotrmoremobs.Main.proxy =
                 new com.enovak.lotrmoremobs.proxy.ClientProxy();
+com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
+        new com.fuzs.aquaacrobatics.proxy.ClientProxy();
     }
+
+
 
     @Override
     public void init() {
