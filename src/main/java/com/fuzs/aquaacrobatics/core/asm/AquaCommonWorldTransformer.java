@@ -21,6 +21,7 @@ import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.FrameNode;
 
 
 /** Common targeted ASM bridges for the projectile and underwater grass-like boundaries. */
@@ -504,8 +505,10 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
         method.instructions.add(new JumpInsnNode(Opcodes.IFEQ, fallback));
         method.instructions.add(new InsnNode(Opcodes.ICONST_1));
         method.instructions.add(new InsnNode(Opcodes.IRETURN));
-        method.instructions.add(fallback);
-        method.instructions.add(new VarInsnNode(Opcodes.ALOAD, 0));
+method.instructions.add(fallback);
+method.instructions.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
+method.instructions.add(new VarInsnNode(Opcodes.ALOAD, 0));
+
         method.instructions.add(new VarInsnNode(Opcodes.ALOAD, 1));
         method.instructions.add(new VarInsnNode(Opcodes.ILOAD, 2));
         method.instructions.add(new VarInsnNode(Opcodes.ILOAD, 3));
@@ -662,9 +665,15 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
         hook.add(new JumpInsnNode(Opcodes.IFEQ, skip));
         hook.add(new VarInsnNode(Opcodes.ALOAD, 0));
         // Stable Forge SRG is required for this inherited protected Entity method; raw is sa.I()V.
-        hook.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, classNode.name, "func_145775_I", "()V", false));
-        hook.add(skip);
-        onUpdate.instructions.insert(posXWrite, hook);
+       hook.add(new MethodInsnNode(
+        Opcodes.INVOKEVIRTUAL,
+        classNode.name,
+        "func_145775_I",
+        "()V",
+        false));
+hook.add(skip);
+hook.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
+onUpdate.instructions.insert(posXWrite, hook);
     }
 
     private FieldInsnNode findSinglePosXWrite(ClassNode classNode, MethodNode method) {
@@ -740,8 +749,9 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
                 false));
         bridge.add(new JumpInsnNode(Opcodes.IFEQ, continueVanilla));
         bridge.add(new InsnNode(Opcodes.RETURN));
-        bridge.add(continueVanilla);
-        updateTick.instructions.insert(bridge);
+bridge.add(continueVanilla);
+bridge.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
+updateTick.instructions.insert(bridge);
     }
 
     private void replaceOptionalSecondSetBlock(MethodNode updateTick) {
