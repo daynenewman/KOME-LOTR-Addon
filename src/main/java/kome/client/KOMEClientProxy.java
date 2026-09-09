@@ -21,6 +21,8 @@ import java.util.List;
 public class KOMEClientProxy extends KOMECommonProxy {
     public KOMEClientProxy() {
         super(new ClientProxy());
+        com.enovak.lotrmoremobs.Main.proxy =
+                new com.enovak.lotrmoremobs.proxy.ClientProxy();
     }
 
     @Override

@@ -1,12 +1,15 @@
 package kome.common;
 
+import com.enovak.lotrmoremobs.Main;
 import com.lotrcharactercreation.LOTRCharacterCreation;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.SidedProxy;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
+import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
+import cpw.mods.fml.common.event.FMLServerStoppingEvent;
 import net.minecraftforge.common.ForgeChunkManager;
 import kome.common.command.KOMECommandAlliance;
 import kome.common.command.KOMECommandBuild;
@@ -26,6 +29,7 @@ public class KOMEAddon {
     public static final String MODID = "kome";
 
     private final LOTRCharacterCreation characterCreation = new LOTRCharacterCreation();
+    private final Main lotrMoreMobs = new Main();
 
     @Mod.Instance(MODID)
     public static KOMEAddon instance;
@@ -36,6 +40,7 @@ public class KOMEAddon {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         characterCreation.commonPreInitialize(event);
+        lotrMoreMobs.preInit(event);
     }
 
     @Mod.EventHandler
@@ -54,6 +59,12 @@ public class KOMEAddon {
         });
         proxy.init();
         characterCreation.initializeSidedProxy();
+        lotrMoreMobs.init(event);
+    }
+
+    @Mod.EventHandler
+    public void postInit(FMLPostInitializationEvent event) {
+        lotrMoreMobs.postInit(event);
     }
 
     @Mod.EventHandler
@@ -69,5 +80,11 @@ public class KOMEAddon {
         event.registerServerCommand(new KOMECommandTroops());
         event.registerServerCommand(new KOMECommandWar());
         characterCreation.registerServerCommands(event);
+        lotrMoreMobs.serverStarting(event);
+    }
+
+    @Mod.EventHandler
+    public void serverStopping(FMLServerStoppingEvent event) {
+        lotrMoreMobs.serverStopping(event);
     }
 }

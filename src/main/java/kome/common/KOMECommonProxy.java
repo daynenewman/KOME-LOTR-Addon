@@ -1,5 +1,6 @@
 package kome.common;
 
+import com.enovak.lotrmoremobs.Main;
 import com.lotrcharactercreation.LOTRCharacterCreation;
 import com.lotrcharactercreation.proxy.CommonProxy;
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -15,8 +16,15 @@ public class KOMECommonProxy {
     }
 
     protected KOMECommonProxy(CommonProxy characterCreationProxy) {
+        this(characterCreationProxy, new com.enovak.lotrmoremobs.proxy.CommonProxy());
+    }
+
+    protected KOMECommonProxy(
+            CommonProxy characterCreationProxy,
+            com.enovak.lotrmoremobs.proxy.CommonProxy lotrMoreMobsProxy) {
         this.characterCreationProxy = characterCreationProxy;
         LOTRCharacterCreation.proxy = characterCreationProxy;
+        Main.proxy = lotrMoreMobsProxy;
     }
 
     public void init() {
