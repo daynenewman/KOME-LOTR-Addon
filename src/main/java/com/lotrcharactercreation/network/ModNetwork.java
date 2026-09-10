@@ -11,7 +11,6 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
 
-import com.lotrcharactercreation.appearance.AppearancePreset;
 import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
 import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
 import com.lotrcharactercreation.appearance.PlayerSex;
@@ -433,21 +432,13 @@ public final class ModNetwork {
             }
 
             StartingFaction faction = StartingFaction.findBySerializedId(selection.serializedFactionId);
-            PlayerRace race = PlayerRaceData.getRace(selection.player);
-            if (faction == null || !PlayerRaceData.isRaceSelectionComplete(selection.player)
-                || PlayerRaceData.isCharacterCreationComplete(selection.player)
-                || PlayerRaceData.isStartingFactionApplied(selection.player)
-                || PlayerRaceData.isStartingWaypointApplied(selection.player)
-                || !faction.isAllowedFor(race)) {
+            if (!CharacterCreationFlowService.selectStartingFaction(selection.player, faction)) {
                 if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
                     sendCharacterCreationRequired(selection.player);
                 }
                 continue;
             }
 
-            PlayerRaceData.setStartingFaction(selection.player, faction);
-            PlayerRaceData.setFactionSelectionComplete(selection.player, true);
-            CharacterCreationFlowService.requireAppearanceConfirmation(selection.player);
             sendPlayerAppearanceToTrackingAndSelf(selection.player);
             CHANNEL.sendTo(new StartingFactionSelectionAcceptedMessage(faction.getSerializedId()), selection.player);
             sendCharacterCreationRequired(selection.player);
@@ -461,27 +452,8 @@ public final class ModNetwork {
                 continue;
             }
 
-            PlayerRace race = PlayerRaceData.getRace(selection.player);
-            PlayerSex storedSex = PlayerRaceData.getSex(selection.player);
-            PlayerSex selectionSex = AppearanceSelectionRules.getSelectionSex(race, storedSex);
-            StartingFaction faction = PlayerRaceData.getStartingFaction(selection.player);
-            AppearancePreset preset = AppearancePresetRegistry.findById(selection.presetId);
-            boolean hasRequiredChoices = PlayerRaceData.isCharacterCreationComplete(selection.player)
-                || (PlayerRaceData.isRaceSelectionComplete(selection.player)
-                    && PlayerRaceData.isFactionSelectionComplete(selection.player));
-            boolean accepted = hasRequiredChoices && preset != null
-                && AppearanceSelectionRules.isPresetAllowed(race, selectionSex, faction, selection.presetId);
-
-            if (accepted && storedSex != selectionSex) {
-                accepted = selectionSex == PlayerSex.NONE && (race == PlayerRace.ORC || race == PlayerRace.URUK_HAI);
-                if (accepted) {
-                    PlayerRaceData.setSex(selection.player, selectionSex);
-                }
-            }
-
+            boolean accepted = CharacterCreationFlowService.selectAppearance(selection.player, selection.presetId);
             if (accepted) {
-                PlayerRaceData.setAppearancePreset(selection.player, preset);
-                PlayerRaceData.setAppearanceInitialized(selection.player, true);
                 sendPlayerAppearanceToTrackingAndSelf(selection.player);
             }
 
@@ -501,19 +473,9 @@ public final class ModNetwork {
                 continue;
             }
 
-            PlayerRace race = PlayerRaceData.getRace(selection.player);
             PlayerSex sex = PlayerSex.findBySerializedId(selection.serializedSexId);
-            boolean hasSelectedRace = PlayerRaceData.isCharacterCreationComplete(selection.player)
-                || PlayerRaceData.isRaceSelectionComplete(selection.player);
-            boolean choicesEditable = PlayerRaceData.isCharacterCreationComplete(selection.player)
-                || (!PlayerRaceData.isStartingFactionApplied(selection.player)
-                    && !PlayerRaceData.isStartingWaypointApplied(selection.player));
-            boolean accepted = hasSelectedRace && choicesEditable
-                && AppearanceSelectionRules.supportsSelectableSex(race)
-                && (sex == PlayerSex.MALE || sex == PlayerSex.FEMALE);
+            boolean accepted = CharacterCreationFlowService.selectSex(selection.player, sex);
             if (accepted) {
-                PlayerRaceData.setSex(selection.player, sex);
-                CharacterCreationFlowService.requireAppearanceConfirmation(selection.player);
                 sendPlayerAppearanceToTrackingAndSelf(selection.player);
             }
 

@@ -299,6 +299,23 @@ public class CharacterCreationIsolationTest {
     }
 
     @Test
+    public void selectionPacketsDelegateToTheServerAuthorizedFlowPolicy() throws Exception {
+        Path characterCreation = addon().resolve("src/main/java/com/lotrcharactercreation");
+        String network = read(characterCreation.resolve("network/ModNetwork.java"));
+        String flow = read(characterCreation.resolve("creation/CharacterCreationFlowService.java"));
+        String playerData = read(characterCreation.resolve("race/PlayerRaceData.java"));
+
+        assertTrue(flow.contains("isSelectionMutationAuthorized"));
+        assertTrue(network.contains("CharacterCreationFlowService.selectRace(selection.player, race)"));
+        assertTrue(network.contains("CharacterCreationFlowService.selectSex(selection.player, sex)"));
+        assertTrue(network.contains("CharacterCreationFlowService.selectStartingFaction(selection.player, faction)"));
+        assertTrue(
+            network.contains("CharacterCreationFlowService.selectAppearance(selection.player, selection.presetId)"));
+        assertTrue(playerData.contains("private static final String CHARACTER_EDIT_AUTHORIZED_TAG"));
+        assertFalse(network.contains("setCharacterEditAuthorized"));
+    }
+
+    @Test
     public void komeSourcesDoNotOwnCharacterCreationConfigOrPlayerStorage() throws Exception {
         Path komeSources = addon().resolve("src/main/java/kome");
         for (Path source : javaSources(komeSources)) {

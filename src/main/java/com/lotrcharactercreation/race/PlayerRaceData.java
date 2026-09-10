@@ -24,6 +24,7 @@ public final class PlayerRaceData {
     private static final String STARTING_WAYPOINT_TAG = "startingWaypoint";
     private static final String STARTING_WAYPOINT_APPLIED_TAG = "startingWaypointApplied";
     private static final String CHARACTER_CREATION_COMPLETE_TAG = "characterCreationComplete";
+    private static final String CHARACTER_EDIT_AUTHORIZED_TAG = "characterEditAuthorized";
     private static final String DWARF_STAMINA_TAG = "dwarfStamina";
     private static final String DWARF_FEAST_TAG = "dwarfFeast";
     private static final String DWARF_STAMINA_EXHAUSTED_TAG = "dwarfStaminaExhausted";
@@ -216,7 +217,38 @@ public final class PlayerRaceData {
     }
 
     public static void setCharacterCreationComplete(EntityPlayerMP player, boolean complete) {
-        getModData(player, true).setBoolean(CHARACTER_CREATION_COMPLETE_TAG, complete);
+        NBTTagCompound modData = getModData(player, true);
+        modData.setBoolean(CHARACTER_CREATION_COMPLETE_TAG, complete);
+        if (complete) {
+            modData.removeTag(CHARACTER_EDIT_AUTHORIZED_TAG);
+        }
+    }
+
+    /**
+     * Returns whether server code has explicitly authorized this player to edit
+     * character selections outside the normal first-time flow. The flag does not
+     * choose or reopen a stage by itself.
+     */
+    public static boolean isCharacterEditAuthorized(EntityPlayerMP player) {
+        NBTTagCompound modData = getModData(player, false);
+        return modData != null && modData.hasKey(CHARACTER_EDIT_AUTHORIZED_TAG, Constants.NBT.TAG_BYTE)
+            && modData.getBoolean(CHARACTER_EDIT_AUTHORIZED_TAG);
+    }
+
+    /**
+     * Server-side entry point for future administrative recreation flows. No
+     * client packet exposes this setter.
+     */
+    public static void setCharacterEditAuthorized(EntityPlayerMP player, boolean authorized) {
+        if (authorized) {
+            getModData(player, true).setBoolean(CHARACTER_EDIT_AUTHORIZED_TAG, true);
+            return;
+        }
+
+        NBTTagCompound modData = getModData(player, false);
+        if (modData != null) {
+            modData.removeTag(CHARACTER_EDIT_AUTHORIZED_TAG);
+        }
     }
 
     public static boolean hasDwarfResourceData(EntityPlayerMP player) {
