@@ -316,6 +316,28 @@ public class CharacterCreationIsolationTest {
     }
 
     @Test
+    public void lotrMapUsesEntityAwareLocalAndProfileUuidRemoteAppearanceLookups() throws Exception {
+        String mapHandler = read(
+            addon().resolve("src/main/java/com/lotrcharactercreation/client/render/LOTRMapPlayerAppearanceHandler.java"));
+        String draw = between(mapHandler, "public void afterMapDraw", "private static void prepareGuiRenderState");
+        String remoteLookup = between(
+            mapHandler,
+            "private static void renderRemoteReplacementIcon",
+            "private static void renderLocalReplacementIcon");
+        String localLookup = between(
+            mapHandler,
+            "private static void renderLocalReplacementIcon",
+            "private static void renderReplacementIcon");
+
+        assertTrue(draw.contains("renderRemoteReplacementIcon("));
+        assertTrue(draw.contains("renderLocalReplacementIcon("));
+        assertTrue(remoteLookup.contains(".get(profile.getId())"));
+        assertFalse(remoteLookup.contains(".get(player)"));
+        assertTrue(localLookup.contains(".get(player)"));
+        assertFalse(localLookup.contains(".get(profile.getId())"));
+    }
+
+    @Test
     public void komeSourcesDoNotOwnCharacterCreationConfigOrPlayerStorage() throws Exception {
         Path komeSources = addon().resolve("src/main/java/kome");
         for (Path source : javaSources(komeSources)) {

@@ -53,17 +53,20 @@ public final class LOTRMapPlayerAppearanceHandler {
             prepareGuiRenderState();
             for (PlayerLocation location : snapshot.getPlayerLocations()
                 .values()) {
-                renderReplacementIcon(mapGui, snapshot, location.getProfile(), location.getPosX(), location.getPosZ());
+                renderRemoteReplacementIcon(
+                    mapGui,
+                    snapshot,
+                    location.getProfile(),
+                    location.getPosX(),
+                    location.getPosZ());
             }
 
             Minecraft minecraft = Minecraft.getMinecraft();
             if (snapshot.isMiddleEarth() && minecraft.thePlayer != null) {
-                renderReplacementIcon(
+                renderLocalReplacementIcon(
                     mapGui,
                     snapshot,
-                    minecraft.thePlayer.getGameProfile(),
-                    minecraft.thePlayer.posX,
-                    minecraft.thePlayer.posZ);
+                    minecraft.thePlayer);
             }
         } finally {
             GL11.glPopAttrib();
@@ -81,7 +84,7 @@ public final class LOTRMapPlayerAppearanceHandler {
         GL11.glColor4f(1.0F, 1.0F, 1.0F, 1.0F);
     }
 
-    private static void renderReplacementIcon(LOTRGuiMap mapGui, MapSnapshot snapshot, GameProfile profile,
+    private static void renderRemoteReplacementIcon(LOTRGuiMap mapGui, MapSnapshot snapshot, GameProfile profile,
         double worldX, double worldZ) {
         if (profile == null || profile.getId() == null) {
             return;
@@ -89,6 +92,18 @@ public final class LOTRMapPlayerAppearanceHandler {
 
         SynchronizedPlayerAppearance appearance = ClientPlayerAppearanceCache.getInstance()
             .get(profile.getId());
+        renderReplacementIcon(mapGui, snapshot, profile, appearance, worldX, worldZ);
+    }
+
+    private static void renderLocalReplacementIcon(LOTRGuiMap mapGui, MapSnapshot snapshot,
+        AbstractClientPlayer player) {
+        SynchronizedPlayerAppearance appearance = ClientPlayerAppearanceCache.getInstance()
+            .get(player);
+        renderReplacementIcon(mapGui, snapshot, player.getGameProfile(), appearance, player.posX, player.posZ);
+    }
+
+    private static void renderReplacementIcon(LOTRGuiMap mapGui, MapSnapshot snapshot, GameProfile profile,
+        SynchronizedPlayerAppearance appearance, double worldX, double worldZ) {
         if (appearance == null || appearance.getAppearancePresetId() == null) {
             return;
         }
