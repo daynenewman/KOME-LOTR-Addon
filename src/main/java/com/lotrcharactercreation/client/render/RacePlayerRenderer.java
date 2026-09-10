@@ -13,6 +13,7 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
+import net.minecraft.item.ItemFishingRod;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.IItemRenderer;
@@ -53,6 +54,8 @@ public class RacePlayerRenderer extends RenderPlayer {
     private static final float VANILLA_BOW_HELD_ITEM_Y = 0.125F;
     private static final float VANILLA_ROTATE_AROUND_Y = 0.125F;
     private static final float HOBBIT_HELD_ITEM_Y = 0.075F;
+    // Applied after the arm rotation; positive local Y moves the item farther down and past the hand.
+    private static final float HOBBIT_FISHING_ROD_LOCAL_Y_CORRECTION = 0.0F;
 
     private final PlayerManModelAdapter manModel = new PlayerManModelAdapter();
     private final PlayerDwarfModelAdapter dwarfModel = new PlayerDwarfModelAdapter();
@@ -171,7 +174,9 @@ public class RacePlayerRenderer extends RenderPlayer {
         ModelBiped equippedModel = modelBipedMain;
         ModelRenderer originalRightArm = equippedModel.bipedRightArm;
         ItemStack renderedHeldItem = player.fishEntity == null ? heldItem : new ItemStack(Items.stick);
-        hobbitHeldItemArmTransform.configure(originalRightArm, getHobbitHeldItemYCorrection(renderedHeldItem));
+        hobbitHeldItemArmTransform.configure(
+            originalRightArm,
+            getHobbitHeldItemYCorrection(selectHobbitHeldItemForCorrection(heldItem, renderedHeldItem)));
         equippedModel.bipedRightArm = hobbitHeldItemArmTransform;
         try {
             super.renderEquippedItems(player, partialTicks);
@@ -528,10 +533,19 @@ public class RacePlayerRenderer extends RenderPlayer {
             .resolveWithFallback(player, appearance.getRace(), appearance.getSex(), appearance.getAppearancePresetId());
     }
 
-    private static float getHobbitHeldItemYCorrection(ItemStack heldItem) {
+    static ItemStack selectHobbitHeldItemForCorrection(ItemStack originalHeldItem, ItemStack renderedHeldItem) {
+        return originalHeldItem != null && originalHeldItem.getItem() instanceof ItemFishingRod
+            ? originalHeldItem
+            : renderedHeldItem;
+    }
+
+    static float getHobbitHeldItemYCorrection(ItemStack heldItem) {
         Item item = heldItem.getItem();
         if (item == null) {
             return 0.0F;
+        }
+        if (item instanceof ItemFishingRod) {
+            return HOBBIT_FISHING_ROD_LOCAL_Y_CORRECTION;
         }
 
         IItemRenderer customRenderer = MinecraftForgeClient
@@ -540,15 +554,25 @@ public class RacePlayerRenderer extends RenderPlayer {
             IItemRenderer.ItemRenderType.EQUIPPED,
             heldItem,
             IItemRenderer.ItemRendererHelper.BLOCK_3D);
-        if (usesBlock3DTransform || item instanceof ItemBlock && RenderBlocks.renderItemIn3d(
-            Block.getBlockFromItem(item)
-                .getRenderType())) {
+        boolean usesBlock3DItemTransform = usesBlock3DTransform
+            || item instanceof ItemBlock && RenderBlocks.renderItemIn3d(
+                Block.getBlockFromItem(item)
+                    .getRenderType());
+        return calculateHobbitHeldItemYCorrection(
+            usesBlock3DItemTransform,
+            item == Items.bow,
+            item.isFull3D() && item.shouldRotateAroundWhenRendering());
+    }
+
+    static float calculateHobbitHeldItemYCorrection(boolean usesBlock3DTransform, boolean isBow,
+        boolean rotatesAroundWhenRendering) {
+        if (usesBlock3DTransform) {
             return HOBBIT_HELD_ITEM_Y - VANILLA_HELD_ITEM_Y;
         }
-        if (item == Items.bow) {
+        if (isBow) {
             return HOBBIT_HELD_ITEM_Y - VANILLA_BOW_HELD_ITEM_Y;
         }
-        if (item.isFull3D() && item.shouldRotateAroundWhenRendering()) {
+        if (rotatesAroundWhenRendering) {
             return VANILLA_HELD_ITEM_Y - VANILLA_ROTATE_AROUND_Y;
         }
         return HOBBIT_HELD_ITEM_Y - VANILLA_HELD_ITEM_Y;
