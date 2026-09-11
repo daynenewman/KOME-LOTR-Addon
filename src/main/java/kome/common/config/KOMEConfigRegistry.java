@@ -8,6 +8,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 
 import net.minecraftforge.common.config.Configuration;
 
@@ -19,6 +20,9 @@ public final class KOMEConfigRegistry {
     public static final String BATTLE_CATEGORY = "battle";
     public static final String MUSTER_CATEGORY = "muster";
     public static final String SIEGE_CATEGORY = "siege";
+    public static final String BATTLE_SUPPORT_CATEGORY = "battleSupport";
+    public static final String ENCIRCLEMENT_CATEGORY = "encirclement";
+    public static final String SEASON_CATEGORY = "season";
     public static final String LOCAL_TIME = "localTime";
     public static final String TIMEZONE = "timezone";
     public static final String HOURS_PER_POPULATION_POINT = "hoursPerPopulationPoint";
@@ -45,6 +49,21 @@ public final class KOMEConfigRegistry {
             "supportFallbackGraceSeconds";
     public static final String PRE_BREACH_REPAIR = "preBreachRepair";
     public static final String POST_BREACH_REPAIR_ENABLED = "postBreachRepairEnabled";
+    public static final String BATTLE_SUPPORT_MODE = "mode";
+    public static final String FULL_DAMAGE_DISTANCE_BLOCKS = "fullDamageDistanceBlocks";
+    public static final String HALF_DAMAGE_DISTANCE_BLOCKS = "halfDamageDistanceBlocks";
+    public static final String LOW_DAMAGE_DISTANCE_BLOCKS = "lowDamageDistanceBlocks";
+    public static final String MINIMUM_DAMAGE_DISTANCE_BLOCKS = "minimumDamageDistanceBlocks";
+    public static final String HALF_DAMAGE_MULTIPLIER = "halfDamageMultiplier";
+    public static final String LOW_DAMAGE_MULTIPLIER = "lowDamageMultiplier";
+    public static final String MINIMUM_DAMAGE_MULTIPLIER = "minimumDamageMultiplier";
+    public static final String HARD_FALLBACK_DISTANCE_BLOCKS = "hardFallbackDistanceBlocks";
+    public static final String OPEN_BATTLE_RADIUS_BLOCKS = "openBattleRadiusBlocks";
+    public static final String STARVATION_GRACE_DAYS = "starvationGraceDays";
+    public static final String ANNOUNCED_ASSAULT_NOTICE_HOURS = "announcedAssaultNoticeHours";
+    public static final String OFFLINE_STARVATION_CATCH_UP = "offlineStarvationCatchUp";
+    public static final String MINIMUM_WAR_SEASON_LENGTH_DAYS = "minimumWarSeasonLengthDays";
+    public static final String AUTOMATIC_FINALE_ENABLED = "automaticFinaleEnabled";
 
     private static final String DEFAULT_LOCAL_TIME = "20:00";
     private static final String DEFAULT_TIMEZONE = "America/Chicago";
@@ -63,6 +82,11 @@ public final class KOMEConfigRegistry {
             EncircledCapitalArrivalPolicy.TBD);
     private static volatile SiegeSettings siege = new SiegeSettings(OptionalDouble.empty(),
             1, 15, PreBreachRepair.TBD, false);
+    private static volatile BattleSupportSettings battleSupport = new BattleSupportSettings(
+            BattleSupportMode.CURVE, 32, 48, 64, 70, 0.50D, 0.10D, 0.01D, 48, 192);
+    private static volatile EncirclementSettings encirclement =
+            new EncirclementSettings(10, 48, false);
+    private static volatile SeasonSettings season = new SeasonSettings(OptionalInt.empty(), false);
 
     private KOMEConfigRegistry() {
     }
@@ -76,12 +100,18 @@ public final class KOMEConfigRegistry {
         BattleSettings loadedBattle = readBattle(configuration);
         MusterSettings loadedMuster = readMuster(configuration);
         SiegeSettings loadedSiege = readSiege(configuration);
+        BattleSupportSettings loadedBattleSupport = readBattleSupport(configuration);
+        EncirclementSettings loadedEncirclement = readEncirclement(configuration);
+        SeasonSettings loadedSeason = readSeason(configuration);
         dailyBatch = loadedDailyBatch;
         population = loadedPopulation;
         movement = loadedMovement;
         battle = loadedBattle;
         muster = loadedMuster;
         siege = loadedSiege;
+        battleSupport = loadedBattleSupport;
+        encirclement = loadedEncirclement;
+        season = loadedSeason;
         if (configuration.hasChanged()) {
             configuration.save();
         }
@@ -109,6 +139,18 @@ public final class KOMEConfigRegistry {
 
     public static SiegeSettings siege() {
         return siege;
+    }
+
+    public static BattleSupportSettings battleSupport() {
+        return battleSupport;
+    }
+
+    public static EncirclementSettings encirclement() {
+        return encirclement;
+    }
+
+    public static SeasonSettings season() {
+        return season;
     }
 
     private static DailyBatchSettings readDailyBatch(Configuration c) {
@@ -204,6 +246,87 @@ public final class KOMEConfigRegistry {
                 preBreachRepair, postBreachRepairEnabled);
     }
 
+    private static BattleSupportSettings readBattleSupport(Configuration c) {
+        BattleSupportMode mode = parseEnum(BATTLE_SUPPORT_CATEGORY, BATTLE_SUPPORT_MODE,
+                value(c, BATTLE_SUPPORT_CATEGORY, BATTLE_SUPPORT_MODE, "CURVE"),
+                BattleSupportMode.class);
+        int fullDistance = positive(BATTLE_SUPPORT_CATEGORY, FULL_DAMAGE_DISTANCE_BLOCKS,
+                value(c, BATTLE_SUPPORT_CATEGORY, FULL_DAMAGE_DISTANCE_BLOCKS, "32"));
+        String halfDistanceValue = value(c, BATTLE_SUPPORT_CATEGORY,
+                HALF_DAMAGE_DISTANCE_BLOCKS, "48");
+        int halfDistance = positive(BATTLE_SUPPORT_CATEGORY, HALF_DAMAGE_DISTANCE_BLOCKS,
+                halfDistanceValue);
+        requireGreater(BATTLE_SUPPORT_CATEGORY, HALF_DAMAGE_DISTANCE_BLOCKS,
+                halfDistanceValue, halfDistance, fullDistance, FULL_DAMAGE_DISTANCE_BLOCKS);
+        String lowDistanceValue = value(c, BATTLE_SUPPORT_CATEGORY,
+                LOW_DAMAGE_DISTANCE_BLOCKS, "64");
+        int lowDistance = positive(BATTLE_SUPPORT_CATEGORY, LOW_DAMAGE_DISTANCE_BLOCKS,
+                lowDistanceValue);
+        requireGreater(BATTLE_SUPPORT_CATEGORY, LOW_DAMAGE_DISTANCE_BLOCKS, lowDistanceValue,
+                lowDistance, halfDistance, HALF_DAMAGE_DISTANCE_BLOCKS);
+        String minimumDistanceValue = value(c, BATTLE_SUPPORT_CATEGORY,
+                MINIMUM_DAMAGE_DISTANCE_BLOCKS, "70");
+        int minimumDistance = positive(BATTLE_SUPPORT_CATEGORY,
+                MINIMUM_DAMAGE_DISTANCE_BLOCKS, minimumDistanceValue);
+        requireGreater(BATTLE_SUPPORT_CATEGORY, MINIMUM_DAMAGE_DISTANCE_BLOCKS,
+                minimumDistanceValue, minimumDistance, lowDistance,
+                LOW_DAMAGE_DISTANCE_BLOCKS);
+        double halfMultiplier = finiteUnitInterval(BATTLE_SUPPORT_CATEGORY,
+                HALF_DAMAGE_MULTIPLIER,
+                value(c, BATTLE_SUPPORT_CATEGORY, HALF_DAMAGE_MULTIPLIER, "0.5"));
+        String lowMultiplierValue = value(c, BATTLE_SUPPORT_CATEGORY,
+                LOW_DAMAGE_MULTIPLIER, "0.1");
+        double lowMultiplier = finiteUnitInterval(BATTLE_SUPPORT_CATEGORY,
+                LOW_DAMAGE_MULTIPLIER, lowMultiplierValue);
+        requireNoGreater(BATTLE_SUPPORT_CATEGORY, LOW_DAMAGE_MULTIPLIER,
+                lowMultiplierValue, lowMultiplier, halfMultiplier, HALF_DAMAGE_MULTIPLIER);
+        String minimumMultiplierValue = value(c, BATTLE_SUPPORT_CATEGORY,
+                MINIMUM_DAMAGE_MULTIPLIER, "0.01");
+        double minimumMultiplier = finiteUnitInterval(BATTLE_SUPPORT_CATEGORY,
+                MINIMUM_DAMAGE_MULTIPLIER, minimumMultiplierValue);
+        requireNoGreater(BATTLE_SUPPORT_CATEGORY, MINIMUM_DAMAGE_MULTIPLIER,
+                minimumMultiplierValue, minimumMultiplier, lowMultiplier,
+                LOW_DAMAGE_MULTIPLIER);
+        int hardFallbackDistance = positive(BATTLE_SUPPORT_CATEGORY,
+                HARD_FALLBACK_DISTANCE_BLOCKS,
+                value(c, BATTLE_SUPPORT_CATEGORY, HARD_FALLBACK_DISTANCE_BLOCKS, "48"));
+        int openBattleRadius = positive(BATTLE_SUPPORT_CATEGORY, OPEN_BATTLE_RADIUS_BLOCKS,
+                value(c, BATTLE_SUPPORT_CATEGORY, OPEN_BATTLE_RADIUS_BLOCKS, "192"));
+        return new BattleSupportSettings(mode, fullDistance, halfDistance, lowDistance,
+                minimumDistance, halfMultiplier, lowMultiplier, minimumMultiplier,
+                hardFallbackDistance, openBattleRadius);
+    }
+
+    private static EncirclementSettings readEncirclement(Configuration c) {
+        int graceDays = nonNegative(ENCIRCLEMENT_CATEGORY, STARVATION_GRACE_DAYS,
+                value(c, ENCIRCLEMENT_CATEGORY, STARVATION_GRACE_DAYS, "10"));
+        int noticeHours = positive(ENCIRCLEMENT_CATEGORY, ANNOUNCED_ASSAULT_NOTICE_HOURS,
+                value(c, ENCIRCLEMENT_CATEGORY, ANNOUNCED_ASSAULT_NOTICE_HOURS, "48"));
+        String catchUpValue = value(c, ENCIRCLEMENT_CATEGORY,
+                OFFLINE_STARVATION_CATCH_UP, "false");
+        boolean catchUp = bool(ENCIRCLEMENT_CATEGORY, OFFLINE_STARVATION_CATCH_UP,
+                catchUpValue);
+        if (catchUp) {
+            throw invalid(ENCIRCLEMENT_CATEGORY, OFFLINE_STARVATION_CATCH_UP,
+                    catchUpValue, "must be false because offline starvation does not catch up");
+        }
+        return new EncirclementSettings(graceDays, noticeHours, false);
+    }
+
+    private static SeasonSettings readSeason(Configuration c) {
+        OptionalInt minimumLength = parseOptionalPositiveInt(MINIMUM_WAR_SEASON_LENGTH_DAYS,
+                value(c, SEASON_CATEGORY, MINIMUM_WAR_SEASON_LENGTH_DAYS, "TBD"));
+        String automaticFinaleValue = value(c, SEASON_CATEGORY, AUTOMATIC_FINALE_ENABLED,
+                "false");
+        boolean automaticFinale = bool(SEASON_CATEGORY, AUTOMATIC_FINALE_ENABLED,
+                automaticFinaleValue);
+        if (automaticFinale) {
+            throw invalid(SEASON_CATEGORY, AUTOMATIC_FINALE_ENABLED, automaticFinaleValue,
+                    "must be false because Draft 0.4 never starts Finale automatically");
+        }
+        return new SeasonSettings(minimumLength, false);
+    }
+
     private static String value(Configuration c, String category, String key,
             String defaultValue) {
         return c.get(category, key, defaultValue).getString();
@@ -244,6 +367,48 @@ public final class KOMEConfigRegistry {
         }
         throw invalid(SIEGE_CATEGORY, key, value,
                 "must be TBD or a finite number greater than 0");
+    }
+
+    private static OptionalInt parseOptionalPositiveInt(String key, String value) {
+        if ("TBD".equals(value)) {
+            return OptionalInt.empty();
+        }
+        try {
+            int result = Integer.parseInt(value);
+            if (result > 0) {
+                return OptionalInt.of(result);
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        throw invalid(SEASON_CATEGORY, key, value,
+                "must be TBD or an integer greater than 0");
+    }
+
+    private static double finiteUnitInterval(String category, String key, String value) {
+        try {
+            double result = Double.parseDouble(value);
+            if (!Double.isNaN(result) && !Double.isInfinite(result)
+                    && result >= 0.0D && result <= 1.0D) {
+                return result;
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        throw invalid(category, key, value, "must be a finite number between 0.0 and 1.0");
+    }
+
+    private static void requireGreater(String category, String key, String value,
+            int actual, int previous, String previousKey) {
+        if (actual <= previous) {
+            throw invalid(category, key, value, "must be greater than " + previousKey);
+        }
+    }
+
+    private static void requireNoGreater(String category, String key, String value,
+            double actual, double previous, String previousKey) {
+        if (actual > previous) {
+            throw invalid(category, key, value,
+                    "must be less than or equal to " + previousKey);
+        }
     }
 
     private static <T extends Enum<T>> T parseEnum(String category, String key,
@@ -417,6 +582,11 @@ public final class KOMEConfigRegistry {
         DISABLED
     }
 
+    public enum BattleSupportMode {
+        CURVE,
+        HARD_FALLBACK
+    }
+
     public static final class MusterSettings {
         private final int threatDistanceTiles;
         private final int budgetDailyPopulationMultiplier;
@@ -486,5 +656,79 @@ public final class KOMEConfigRegistry {
         public boolean isPostBreachRepairEnabled() {
             return postBreachRepairEnabled;
         }
+    }
+
+    public static final class BattleSupportSettings {
+        private final BattleSupportMode mode;
+        private final int fullDamageDistanceBlocks;
+        private final int halfDamageDistanceBlocks;
+        private final int lowDamageDistanceBlocks;
+        private final int minimumDamageDistanceBlocks;
+        private final double halfDamageMultiplier;
+        private final double lowDamageMultiplier;
+        private final double minimumDamageMultiplier;
+        private final int hardFallbackDistanceBlocks;
+        private final int openBattleRadiusBlocks;
+
+        private BattleSupportSettings(BattleSupportMode mode, int fullDistance,
+                int halfDistance, int lowDistance, int minimumDistance,
+                double halfMultiplier, double lowMultiplier, double minimumMultiplier,
+                int hardFallbackDistance, int openBattleRadius) {
+            this.mode = mode;
+            fullDamageDistanceBlocks = fullDistance;
+            halfDamageDistanceBlocks = halfDistance;
+            lowDamageDistanceBlocks = lowDistance;
+            minimumDamageDistanceBlocks = minimumDistance;
+            halfDamageMultiplier = halfMultiplier;
+            lowDamageMultiplier = lowMultiplier;
+            minimumDamageMultiplier = minimumMultiplier;
+            hardFallbackDistanceBlocks = hardFallbackDistance;
+            openBattleRadiusBlocks = openBattleRadius;
+        }
+
+        public BattleSupportMode getMode() { return mode; }
+        public int getFullDamageDistanceBlocks() { return fullDamageDistanceBlocks; }
+        public int getHalfDamageDistanceBlocks() { return halfDamageDistanceBlocks; }
+        public int getLowDamageDistanceBlocks() { return lowDamageDistanceBlocks; }
+        public int getMinimumDamageDistanceBlocks() { return minimumDamageDistanceBlocks; }
+        public double getHalfDamageMultiplier() { return halfDamageMultiplier; }
+        public double getLowDamageMultiplier() { return lowDamageMultiplier; }
+        public double getMinimumDamageMultiplier() { return minimumDamageMultiplier; }
+        public int getHardFallbackDistanceBlocks() { return hardFallbackDistanceBlocks; }
+        public int getOpenBattleRadiusBlocks() { return openBattleRadiusBlocks; }
+    }
+
+    public static final class EncirclementSettings {
+        private final int starvationGraceDays;
+        private final int announcedAssaultNoticeHours;
+        private final boolean offlineStarvationCatchUp;
+
+        private EncirclementSettings(int starvationGraceDays,
+                int announcedAssaultNoticeHours, boolean offlineStarvationCatchUp) {
+            this.starvationGraceDays = starvationGraceDays;
+            this.announcedAssaultNoticeHours = announcedAssaultNoticeHours;
+            this.offlineStarvationCatchUp = offlineStarvationCatchUp;
+        }
+
+        public int getStarvationGraceDays() { return starvationGraceDays; }
+        public int getAnnouncedAssaultNoticeHours() { return announcedAssaultNoticeHours; }
+        public boolean isOfflineStarvationCatchUp() { return offlineStarvationCatchUp; }
+    }
+
+    public static final class SeasonSettings {
+        private final OptionalInt minimumWarSeasonLengthDays;
+        private final boolean automaticFinaleEnabled;
+
+        private SeasonSettings(OptionalInt minimumWarSeasonLengthDays,
+                boolean automaticFinaleEnabled) {
+            this.minimumWarSeasonLengthDays = minimumWarSeasonLengthDays;
+            this.automaticFinaleEnabled = automaticFinaleEnabled;
+        }
+
+        public OptionalInt getMinimumWarSeasonLengthDays() {
+            return minimumWarSeasonLengthDays;
+        }
+
+        public boolean isAutomaticFinaleEnabled() { return automaticFinaleEnabled; }
     }
 }

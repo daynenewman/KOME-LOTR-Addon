@@ -55,6 +55,22 @@ public class KOMEConfigRegistryTest {
         assertEquals(KOMEConfigRegistry.PreBreachRepair.TBD,
                 KOMEConfigRegistry.siege().getPreBreachRepair());
         assertFalse(KOMEConfigRegistry.siege().isPostBreachRepairEnabled());
+        assertEquals(KOMEConfigRegistry.BattleSupportMode.CURVE,
+                KOMEConfigRegistry.battleSupport().getMode());
+        assertEquals(32, KOMEConfigRegistry.battleSupport().getFullDamageDistanceBlocks());
+        assertEquals(48, KOMEConfigRegistry.battleSupport().getHalfDamageDistanceBlocks());
+        assertEquals(64, KOMEConfigRegistry.battleSupport().getLowDamageDistanceBlocks());
+        assertEquals(70, KOMEConfigRegistry.battleSupport().getMinimumDamageDistanceBlocks());
+        assertEquals(0.50D, KOMEConfigRegistry.battleSupport().getHalfDamageMultiplier(), 0.0D);
+        assertEquals(0.10D, KOMEConfigRegistry.battleSupport().getLowDamageMultiplier(), 0.0D);
+        assertEquals(0.01D, KOMEConfigRegistry.battleSupport().getMinimumDamageMultiplier(), 0.0D);
+        assertEquals(48, KOMEConfigRegistry.battleSupport().getHardFallbackDistanceBlocks());
+        assertEquals(192, KOMEConfigRegistry.battleSupport().getOpenBattleRadiusBlocks());
+        assertEquals(10, KOMEConfigRegistry.encirclement().getStarvationGraceDays());
+        assertEquals(48, KOMEConfigRegistry.encirclement().getAnnouncedAssaultNoticeHours());
+        assertFalse(KOMEConfigRegistry.encirclement().isOfflineStarvationCatchUp());
+        assertFalse(KOMEConfigRegistry.season().getMinimumWarSeasonLengthDays().isPresent());
+        assertFalse(KOMEConfigRegistry.season().isAutomaticFinaleEnabled());
     }
 
     @Test
@@ -275,8 +291,156 @@ public class KOMEConfigRegistryTest {
         return KOMEConfigRegistry.siege().getPreBreachRepair();
     }
 
+    @Test
+    public void battleSupportModeAndCustomValuesLoad() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.BATTLE_SUPPORT_MODE, "HARD_FALLBACK");
+        write(file, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.FULL_DAMAGE_DISTANCE_BLOCKS, "20");
+        write(file, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.HALF_DAMAGE_DISTANCE_BLOCKS, "30");
+        write(file, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.LOW_DAMAGE_DISTANCE_BLOCKS, "40");
+        write(file, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.MINIMUM_DAMAGE_DISTANCE_BLOCKS, "50");
+        write(file, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.HALF_DAMAGE_MULTIPLIER, "0.8");
+        write(file, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.LOW_DAMAGE_MULTIPLIER, "0.4");
+        write(file, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.MINIMUM_DAMAGE_MULTIPLIER, "0.2");
+        write(file, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.HARD_FALLBACK_DISTANCE_BLOCKS, "45");
+        write(file, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.OPEN_BATTLE_RADIUS_BLOCKS, "160");
+        KOMEConfigRegistry.load(file);
+        assertEquals(KOMEConfigRegistry.BattleSupportMode.HARD_FALLBACK,
+                KOMEConfigRegistry.battleSupport().getMode());
+        assertEquals(20, KOMEConfigRegistry.battleSupport().getFullDamageDistanceBlocks());
+        assertEquals(30, KOMEConfigRegistry.battleSupport().getHalfDamageDistanceBlocks());
+        assertEquals(40, KOMEConfigRegistry.battleSupport().getLowDamageDistanceBlocks());
+        assertEquals(50, KOMEConfigRegistry.battleSupport().getMinimumDamageDistanceBlocks());
+        assertEquals(0.8D, KOMEConfigRegistry.battleSupport().getHalfDamageMultiplier(), 0.0D);
+        assertEquals(0.4D, KOMEConfigRegistry.battleSupport().getLowDamageMultiplier(), 0.0D);
+        assertEquals(0.2D, KOMEConfigRegistry.battleSupport().getMinimumDamageMultiplier(), 0.0D);
+        assertEquals(45, KOMEConfigRegistry.battleSupport().getHardFallbackDistanceBlocks());
+        assertEquals(160, KOMEConfigRegistry.battleSupport().getOpenBattleRadiusBlocks());
+    }
+
+    @Test
+    public void invalidBattleSupportValuesFail() throws Exception {
+        invalid(KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.BATTLE_SUPPORT_MODE, "UNKNOWN");
+        invalid(KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.FULL_DAMAGE_DISTANCE_BLOCKS, "0");
+        invalid(KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.HARD_FALLBACK_DISTANCE_BLOCKS, "-1");
+        invalid(KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.OPEN_BATTLE_RADIUS_BLOCKS, "0");
+        invalid(KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.HALF_DAMAGE_MULTIPLIER, "-0.1");
+        invalid(KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.HALF_DAMAGE_MULTIPLIER, "1.1");
+        invalid(KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.HALF_DAMAGE_MULTIPLIER, "NaN");
+        invalid(KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.HALF_DAMAGE_MULTIPLIER, "Infinity");
+    }
+
+    @Test
+    public void battleSupportOrderingFailuresFail() throws Exception {
+        invalid(new String[][] {
+                {KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                        KOMEConfigRegistry.FULL_DAMAGE_DISTANCE_BLOCKS, "32"},
+                {KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                        KOMEConfigRegistry.HALF_DAMAGE_DISTANCE_BLOCKS, "32"}
+        }, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.HALF_DAMAGE_DISTANCE_BLOCKS, "32");
+        invalid(new String[][] {
+                {KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                        KOMEConfigRegistry.HALF_DAMAGE_DISTANCE_BLOCKS, "48"},
+                {KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                        KOMEConfigRegistry.LOW_DAMAGE_DISTANCE_BLOCKS, "48"}
+        }, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.LOW_DAMAGE_DISTANCE_BLOCKS, "48");
+        invalid(new String[][] {
+                {KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                        KOMEConfigRegistry.LOW_DAMAGE_DISTANCE_BLOCKS, "64"},
+                {KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                        KOMEConfigRegistry.MINIMUM_DAMAGE_DISTANCE_BLOCKS, "64"}
+        }, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.MINIMUM_DAMAGE_DISTANCE_BLOCKS, "64");
+        invalid(new String[][] {
+                {KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                        KOMEConfigRegistry.HALF_DAMAGE_MULTIPLIER, "0.2"},
+                {KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                        KOMEConfigRegistry.LOW_DAMAGE_MULTIPLIER, "0.3"}
+        }, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.LOW_DAMAGE_MULTIPLIER, "0.3");
+        invalid(new String[][] {
+                {KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                        KOMEConfigRegistry.LOW_DAMAGE_MULTIPLIER, "0.2"},
+                {KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                        KOMEConfigRegistry.MINIMUM_DAMAGE_MULTIPLIER, "0.3"}
+        }, KOMEConfigRegistry.BATTLE_SUPPORT_CATEGORY,
+                KOMEConfigRegistry.MINIMUM_DAMAGE_MULTIPLIER, "0.3");
+    }
+
+    @Test
+    public void encirclementValidationHonorsDraftRule() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.ENCIRCLEMENT_CATEGORY,
+                KOMEConfigRegistry.STARVATION_GRACE_DAYS, "0");
+        KOMEConfigRegistry.load(file);
+        assertEquals(0, KOMEConfigRegistry.encirclement().getStarvationGraceDays());
+        invalid(KOMEConfigRegistry.ENCIRCLEMENT_CATEGORY,
+                KOMEConfigRegistry.STARVATION_GRACE_DAYS, "-1");
+        invalid(KOMEConfigRegistry.ENCIRCLEMENT_CATEGORY,
+                KOMEConfigRegistry.ANNOUNCED_ASSAULT_NOTICE_HOURS, "0");
+        invalid(KOMEConfigRegistry.ENCIRCLEMENT_CATEGORY,
+                KOMEConfigRegistry.OFFLINE_STARVATION_CATCH_UP, "sometimes");
+        invalid(KOMEConfigRegistry.ENCIRCLEMENT_CATEGORY,
+                KOMEConfigRegistry.OFFLINE_STARVATION_CATCH_UP, "true");
+    }
+
+    @Test
+    public void seasonValidationHonorsDraftRule() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.SEASON_CATEGORY,
+                KOMEConfigRegistry.MINIMUM_WAR_SEASON_LENGTH_DAYS, "30");
+        KOMEConfigRegistry.load(file);
+        assertEquals(30, KOMEConfigRegistry.season().getMinimumWarSeasonLengthDays()
+                .getAsInt());
+        invalid(KOMEConfigRegistry.SEASON_CATEGORY,
+                KOMEConfigRegistry.MINIMUM_WAR_SEASON_LENGTH_DAYS, "0");
+        invalid(KOMEConfigRegistry.SEASON_CATEGORY,
+                KOMEConfigRegistry.MINIMUM_WAR_SEASON_LENGTH_DAYS, "-1");
+        invalid(KOMEConfigRegistry.SEASON_CATEGORY,
+                KOMEConfigRegistry.MINIMUM_WAR_SEASON_LENGTH_DAYS, "unknown");
+        invalid(KOMEConfigRegistry.SEASON_CATEGORY,
+                KOMEConfigRegistry.AUTOMATIC_FINALE_ENABLED, "sometimes");
+        invalidWithReason(KOMEConfigRegistry.SEASON_CATEGORY,
+                KOMEConfigRegistry.AUTOMATIC_FINALE_ENABLED, "true",
+                "never starts Finale automatically");
+    }
+
     private void invalid(String category, String key, String value) throws Exception {
         invalid(new String[][] {{category, key, value}}, category, key, value);
+    }
+
+    private void invalidWithReason(String category, String key, String value,
+            String reason) throws Exception {
+        File file = configFile();
+        write(file, category, key, value);
+        try {
+            KOMEConfigRegistry.load(file);
+            fail("Expected invalid configuration to fail startup");
+        } catch (KOMEConfigValidationException expected) {
+            assertTrue(expected.getMessage().contains(category + "." + key));
+            assertTrue(expected.getMessage().contains("'" + value + "'"));
+            assertTrue(expected.getMessage().contains(reason));
+        }
     }
 
     private void invalid(String[][] entries, String expectedCategory, String expectedKey,
