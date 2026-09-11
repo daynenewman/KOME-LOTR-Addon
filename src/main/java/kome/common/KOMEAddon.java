@@ -20,10 +20,12 @@ import kome.common.command.KOMECommandPopulation;
 import kome.common.command.KOMECommandProgression;
 import kome.common.command.KOMECommandTroops;
 import kome.common.command.KOMECommandWar;
+import kome.common.config.KOMEConfigRegistry;
 import kome.common.gui.KOMEAllianceGuiHandler;
 import kome.common.network.KOMEPacketHandler;
 import net.minecraftforge.common.ForgeChunkManager;
 
+import java.io.File;
 import java.util.List;
 
 @Mod(
@@ -54,6 +56,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        KOMEConfigRegistry.load(new File(event.getModConfigurationDirectory(), "kome.cfg"));
         characterCreation.commonPreInitialize(event);
         lotrMoreMobs.preInit(event);
         aquaAcrobatics.onPreInit(event);
