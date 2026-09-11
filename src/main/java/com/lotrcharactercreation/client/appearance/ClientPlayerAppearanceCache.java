@@ -64,7 +64,7 @@ public final class ClientPlayerAppearanceCache {
 
         PlayerSex safeSex = AppearancePresetRegistry.isSexValidForRace(race, sex) ? sex : null;
         String safePresetId = AppearancePresetRegistry.isPresetValid(
-            ClientLocalAppearancePresetCatalog.get(), race, safeSex, appearancePresetId)
+            ClientCustomSkinManager.getInstance().getCatalog(), race, safeSex, appearancePresetId)
             ? appearancePresetId
             : null;
         SynchronizedPlayerAppearance appearance = new SynchronizedPlayerAppearance(

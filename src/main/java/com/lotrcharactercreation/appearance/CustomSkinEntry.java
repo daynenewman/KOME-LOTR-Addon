@@ -132,7 +132,7 @@ public final class CustomSkinEntry {
         return Arrays.copyOf(pngBytes, pngBytes.length);
     }
 
-    AppearancePreset getAppearancePreset() {
+    public AppearancePreset getAppearancePreset() {
         return appearancePreset;
     }
 

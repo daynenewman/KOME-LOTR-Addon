@@ -80,7 +80,7 @@ public class CharacterCreationIsolationTest {
         assertTrue(commonProxy.contains("this(new CommonProxy());"));
         assertEquals(1, occurrences(commonProxy, "LOTRCharacterCreation.proxy = characterCreationProxy;"));
         assertEquals(1, occurrences(clientProxy, "super(new ClientProxy());"));
-        assertEquals(1, occurrences(coordinator, "proxy.initialize(customSkinRoot);"));
+        assertEquals(1, occurrences(coordinator, "proxy.initialize(customSkinRoot, configurationDirectory);"));
 
         List<Path> clientProxyReferences = new ArrayList<>();
         for (Path source : javaSources(mainJava)) {

@@ -29,15 +29,10 @@ public final class ClientAppearanceTextureResolver {
     private static final String ORC_FALLBACK_PRESET_ID = "orc_common_0";
     private static final String URUK_HAI_FALLBACK_PRESET_ID = "uruk_hai_isengard_0";
 
-    private static ExternalAppearanceTextureManager externalTextureManager;
-
     private ClientAppearanceTextureResolver() {}
 
-    public static void initialize(File customSkinRoot) {
-        ClientLocalAppearancePresetCatalog.initialize(customSkinRoot);
-        if (externalTextureManager == null) {
-            externalTextureManager = new ExternalAppearanceTextureManager(customSkinRoot);
-        }
+    public static void initialize(File customSkinRoot, File configurationDirectory) {
+        ClientCustomSkinManager.getInstance().initialize(customSkinRoot, configurationDirectory);
     }
 
     public static ResourceLocation resolve(EntityPlayer player, AppearancePreset preset) {
@@ -56,8 +51,9 @@ public final class ClientAppearanceTextureResolver {
 
     private static ResourceLocation resolveWithFallback(PlayerRace race, PlayerSex sex, String presetId,
         ResourceLocation accountSkin) {
-        AppearancePreset preset = ClientLocalAppearancePresetCatalog.get().findById(presetId);
-        if (AppearancePresetRegistry.isPresetValid(ClientLocalAppearancePresetCatalog.get(), race, sex, presetId)) {
+        AppearancePreset preset = ClientCustomSkinManager.getInstance().getCatalog().findById(presetId);
+        if (AppearancePresetRegistry.isPresetValid(
+            ClientCustomSkinManager.getInstance().getCatalog(), race, sex, presetId)) {
             ResourceLocation texture = resolve(preset, accountSkin);
             if (texture != null) {
                 return texture;
@@ -88,7 +84,7 @@ public final class ClientAppearanceTextureResolver {
             case MINECRAFT_ACCOUNT:
                 return accountSkin;
             case EXTERNAL:
-                return externalTextureManager == null ? null : externalTextureManager.resolve(preset);
+                return ClientCustomSkinManager.getInstance().resolveExternal(preset);
             default:
                 return null;
         }

@@ -13,6 +13,7 @@ import net.minecraftforge.common.MinecraftForge;
 import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
 import com.lotrcharactercreation.appearance.PlayerSex;
 import com.lotrcharactercreation.client.appearance.ClientAppearanceTextureResolver;
+import com.lotrcharactercreation.client.appearance.ClientCustomSkinManager;
 import com.lotrcharactercreation.client.appearance.ClientMinecraftAccountSkinResolver;
 import com.lotrcharactercreation.client.appearance.ClientPlayerAppearanceCache;
 import com.lotrcharactercreation.client.body.ClientPlayerEyeCameraService;
@@ -40,8 +41,8 @@ import lotr.common.world.map.LOTRWaypoint;
 public class ClientProxy extends CommonProxy {
 
     @Override
-    public void initialize(File customSkinRoot) {
-        ClientAppearanceTextureResolver.initialize(customSkinRoot);
+    public void initialize(File customSkinRoot, File configurationDirectory) {
+        ClientAppearanceTextureResolver.initialize(customSkinRoot, configurationDirectory);
         CommandManSkinReview manSkinReviewCommand = new CommandManSkinReview();
         ClientCommandHandler.instance.registerCommand(manSkinReviewCommand);
         FMLCommonHandler.instance()
@@ -62,6 +63,9 @@ public class ClientProxy extends CommonProxy {
         FMLCommonHandler.instance()
             .bus()
             .register(cache);
+        FMLCommonHandler.instance()
+            .bus()
+            .register(ClientCustomSkinManager.getInstance());
         FMLCommonHandler.instance()
             .bus()
             .register(eyeCameraService);

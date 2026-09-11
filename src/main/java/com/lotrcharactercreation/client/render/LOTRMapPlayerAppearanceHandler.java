@@ -14,7 +14,7 @@ import com.lotrcharactercreation.appearance.AppearancePreset;
 import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
 import com.lotrcharactercreation.appearance.AppearanceSourceType;
 import com.lotrcharactercreation.client.appearance.ClientAppearanceTextureResolver;
-import com.lotrcharactercreation.client.appearance.ClientLocalAppearancePresetCatalog;
+import com.lotrcharactercreation.client.appearance.ClientCustomSkinManager;
 import com.lotrcharactercreation.client.appearance.ClientMinecraftAccountSkinResolver;
 import com.lotrcharactercreation.client.appearance.ClientPlayerAppearanceCache;
 import com.lotrcharactercreation.client.appearance.ClientPlayerAppearanceCache.SynchronizedPlayerAppearance;
@@ -110,10 +110,11 @@ public final class LOTRMapPlayerAppearanceHandler {
         }
 
         String presetId = appearance.getAppearancePresetId();
-        AppearancePreset preset = ClientLocalAppearancePresetCatalog.get().findById(presetId);
+        AppearancePreset preset = ClientCustomSkinManager.getInstance().getCatalog().findById(presetId);
         if (preset == null
             || !AppearancePresetRegistry.isPresetValid(
-                ClientLocalAppearancePresetCatalog.get(), appearance.getRace(), appearance.getSex(), presetId)) {
+                ClientCustomSkinManager.getInstance().getCatalog(), appearance.getRace(), appearance.getSex(),
+                presetId)) {
             return;
         }
 

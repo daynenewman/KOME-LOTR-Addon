@@ -41,12 +41,14 @@ public class LOTRCharacterCreation {
     private final CommonRaceTraitEventHandler raceTraitEventHandler = new CommonRaceTraitEventHandler();
     private final RacialPlayerSoundHandler racialPlayerSoundHandler = new RacialPlayerSoundHandler();
     private File customSkinRoot;
+    private File configurationDirectory;
     private Logger logger;
 
     public static CommonProxy proxy;
 
     public void commonPreInitialize(FMLPreInitializationEvent event) {
         logger = event.getModLog();
+        configurationDirectory = event.getModConfigurationDirectory();
         File configFile = new File(event.getModConfigurationDirectory(), "lotrcharactercreation.cfg");
         ModConfiguration.load(configFile);
         customSkinRoot = new File(
@@ -79,7 +81,7 @@ public class LOTRCharacterCreation {
         if (customSkinRoot == null) {
             throw new IllegalStateException("Character Creation common pre-initialization has not completed");
         }
-        proxy.initialize(customSkinRoot);
+        proxy.initialize(customSkinRoot, configurationDirectory);
     }
 
     @SubscribeEvent

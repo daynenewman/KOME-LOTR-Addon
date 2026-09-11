@@ -2,10 +2,12 @@ package com.lotrcharactercreation.appearance;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.regex.Pattern;
 
 public final class CustomSkinHashing {
 
     private static final char[] LOWERCASE_HEX = "0123456789abcdef".toCharArray();
+    private static final Pattern CANONICAL_SHA_256 = Pattern.compile("[0-9a-f]{64}");
 
     private CustomSkinHashing() {}
 
@@ -14,6 +16,10 @@ public final class CustomSkinHashing {
             throw new IllegalArgumentException("bytes cannot be null");
         }
         return toLowercaseHex(newSha256().digest(bytes));
+    }
+
+    public static boolean isCanonicalSha256(String hash) {
+        return hash != null && CANONICAL_SHA_256.matcher(hash).matches();
     }
 
     static MessageDigest newSha256() {

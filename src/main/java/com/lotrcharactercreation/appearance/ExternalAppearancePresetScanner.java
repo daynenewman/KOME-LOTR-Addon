@@ -100,6 +100,15 @@ public final class ExternalAppearancePresetScanner {
             : false;
     }
 
+    /** Fully validates and decodes PNG bytes using exact trusted dimensions. */
+    public static BufferedImage decodeFullyValidatedPng(byte[] bytes, int expectedWidth, int expectedHeight) {
+        if (bytes == null || expectedWidth <= 0 || expectedHeight <= 0) {
+            return null;
+        }
+        PngValidation validation = validatePng(bytes, expectedWidth, expectedHeight);
+        return validation.valid ? validation.decodedImage : null;
+    }
+
     public static String createDeterministicPresetId(PlayerRace race, PlayerSex sex, String groupToken,
         String filenameStem) {
         if (race == null || sex == null || groupToken == null || filenameStem == null) {
@@ -341,6 +350,20 @@ public final class ExternalAppearancePresetScanner {
     }
 
     private static PngValidation validatePng(byte[] bytes, PlayerRace race) {
+        int expectedWidth = 64;
+        int expectedHeight = race == PlayerRace.ORC || race == PlayerRace.URUK_HAI ? 32 : 64;
+        PngValidation validation = validatePng(bytes, expectedWidth, expectedHeight);
+        if (!validation.valid) {
+            return validation;
+        }
+        if (!hasExpectedDimensions(race, validation.width, validation.height)) {
+            return PngValidation.invalid("dimensions " + validation.width + "x" + validation.height
+                + " do not match " + expectedDimensions(race));
+        }
+        return validation;
+    }
+
+    private static PngValidation validatePng(byte[] bytes, int expectedWidth, int expectedHeight) {
         if (bytes.length < 33 || !startsWith(bytes, PNG_SIGNATURE)) {
             return PngValidation.invalid("missing PNG signature or IHDR");
         }
@@ -400,9 +423,9 @@ public final class ExternalAppearancePresetScanner {
         if (!sawHeader || !sawImageData || !sawEnd) {
             return PngValidation.invalid("PNG is missing required chunks");
         }
-        if (!hasExpectedDimensions(race, width, height)) {
+        if (width != expectedWidth || height != expectedHeight) {
             return PngValidation.invalid("dimensions " + width + "x" + height + " do not match "
-                + expectedDimensions(race));
+                + expectedWidth + "x" + expectedHeight);
         }
 
         BufferedImage decoded;
@@ -415,10 +438,11 @@ public final class ExternalAppearancePresetScanner {
             return PngValidation.invalid("full PNG decode returned no image");
         }
         if (decoded.getWidth() != width || decoded.getHeight() != height
-            || !hasExpectedDimensions(race, decoded.getWidth(), decoded.getHeight())) {
+            || decoded.getWidth() != expectedWidth
+            || decoded.getHeight() != expectedHeight) {
             return PngValidation.invalid("decoded PNG dimensions do not match validated IHDR");
         }
-        return PngValidation.valid(width, height);
+        return PngValidation.valid(width, height, decoded);
     }
 
     private static byte[] readBounded(Path path, int maximumBytes) throws IOException {
@@ -591,20 +615,22 @@ public final class ExternalAppearancePresetScanner {
         private final boolean valid;
         private final int width;
         private final int height;
+        private final BufferedImage decodedImage;
         private final String reason;
 
-        private static PngValidation valid(int width, int height) {
-            return new PngValidation(true, width, height, null);
+        private static PngValidation valid(int width, int height, BufferedImage decodedImage) {
+            return new PngValidation(true, width, height, decodedImage, null);
         }
 
         private static PngValidation invalid(String reason) {
-            return new PngValidation(false, 0, 0, reason);
+            return new PngValidation(false, 0, 0, null, reason);
         }
 
-        private PngValidation(boolean valid, int width, int height, String reason) {
+        private PngValidation(boolean valid, int width, int height, BufferedImage decodedImage, String reason) {
             this.valid = valid;
             this.width = width;
             this.height = height;
+            this.decodedImage = decodedImage;
             this.reason = reason;
         }
     }

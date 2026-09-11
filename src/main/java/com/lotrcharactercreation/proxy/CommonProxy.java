@@ -5,7 +5,7 @@ import java.util.UUID;
 
 public class CommonProxy {
 
-    public void initialize(File customSkinRoot) {}
+    public void initialize(File customSkinRoot, File configurationDirectory) {}
 
     public void handleCharacterCreationRequired(String serializedStageId, String serializedRaceId,
         String serializedSexId, String serializedFactionId, String appearancePresetId, String currentPledgeCode,
