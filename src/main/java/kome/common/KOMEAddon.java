@@ -30,8 +30,12 @@ import java.util.List;
         modid = KOMEAddon.MODID,
         name = "Kings of Middle-earth Server Addon",
         version = "1.0.8",
-        dependencies = "required-after:lotr"
+        dependencies = "required-after:lotr",
+        guiFactory =
+                "com.enovak.lotrmoremobs.client.config."
+                        + "MumakilConfigGuiFactory"
 )
+
 public class KOMEAddon {
     public static final String MODID = "kome";
 
