@@ -3,9 +3,10 @@ package com.lotrcharactercreation.creation;
 import net.minecraft.entity.player.EntityPlayerMP;
 
 import com.lotrcharactercreation.appearance.AppearancePreset;
-import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
+import com.lotrcharactercreation.appearance.AppearancePresetCatalog;
 import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
 import com.lotrcharactercreation.appearance.PlayerSex;
+import com.lotrcharactercreation.appearance.ServerCustomSkinLibrary;
 import com.lotrcharactercreation.faction.StartingFaction;
 import com.lotrcharactercreation.race.PlayerRace;
 import com.lotrcharactercreation.race.PlayerRaceData;
@@ -39,8 +40,9 @@ public final class CharacterCreationFlowService {
         }
 
         String presetId = PlayerRaceData.getAppearancePresetId(player);
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
         if (!PlayerRaceData.isAppearanceInitialized(player)
-            || !AppearanceSelectionRules.isPresetAllowed(race, sex, faction, presetId)) {
+            || !AppearanceSelectionRules.isPresetAllowed(catalog, race, sex, faction, presetId)) {
             return CharacterCreationStage.APPEARANCE;
         }
         return CharacterCreationStage.CONFIRMATION;
@@ -130,8 +132,9 @@ public final class CharacterCreationFlowService {
         PlayerRace race = PlayerRaceData.getRace(player);
         PlayerSex sex = AppearanceSelectionRules.getSelectionSex(race, PlayerRaceData.getSex(player));
         StartingFaction faction = PlayerRaceData.getStartingFaction(player);
-        AppearancePreset preset = AppearancePresetRegistry.findById(presetId);
-        if (preset == null || !AppearanceSelectionRules.isPresetAllowed(race, sex, faction, presetId)) {
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
+        AppearancePreset preset = catalog.findById(presetId);
+        if (preset == null || !AppearanceSelectionRules.isPresetAllowed(catalog, race, sex, faction, presetId)) {
             return false;
         }
 
@@ -186,8 +189,9 @@ public final class CharacterCreationFlowService {
         PlayerSex sex = AppearanceSelectionRules.getSelectionSex(race, PlayerRaceData.getSex(player));
         StartingFaction faction = PlayerRaceData.getStartingFaction(player);
         String presetId = PlayerRaceData.getAppearancePresetId(player);
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
         boolean allowed = PlayerRaceData.isFactionSelectionComplete(player)
-            && AppearanceSelectionRules.isPresetAllowed(race, sex, faction, presetId);
+            && AppearanceSelectionRules.isPresetAllowed(catalog, race, sex, faction, presetId);
 
         if (!allowed) {
             PlayerRaceData.clearAppearancePreset(player);

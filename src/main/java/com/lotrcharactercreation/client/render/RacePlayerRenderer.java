@@ -27,6 +27,7 @@ import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
 import com.lotrcharactercreation.appearance.PlayerSex;
 import com.lotrcharactercreation.body.RaceBodyDefinition;
 import com.lotrcharactercreation.client.appearance.ClientAppearanceTextureResolver;
+import com.lotrcharactercreation.client.appearance.ClientLocalAppearancePresetCatalog;
 import com.lotrcharactercreation.client.appearance.ClientPlayerAppearanceCache;
 import com.lotrcharactercreation.client.appearance.ClientPlayerAppearanceCache.SynchronizedPlayerAppearance;
 import com.lotrcharactercreation.client.body.ClientPlayerEyeCameraService;
@@ -410,11 +411,12 @@ public class RacePlayerRenderer extends RenderPlayer {
 
     private static boolean isValidManLotrAppearance(EntityPlayer player, SynchronizedPlayerAppearance appearance) {
         String presetId = appearance.getAppearancePresetId();
-        if (!AppearancePresetRegistry.isPresetValid(PlayerRace.MAN, appearance.getSex(), presetId)) {
+        if (!AppearancePresetRegistry.isPresetValid(
+            ClientLocalAppearancePresetCatalog.get(), PlayerRace.MAN, appearance.getSex(), presetId)) {
             return false;
         }
 
-        AppearancePreset preset = AppearancePresetRegistry.findById(presetId);
+        AppearancePreset preset = ClientLocalAppearancePresetCatalog.get().findById(presetId);
         return ClientAppearanceTextureResolver.isLotrCharacterTexture(preset) && ClientAppearanceTextureResolver
             .resolveWithFallback(player, PlayerRace.MAN, appearance.getSex(), presetId) != null;
     }

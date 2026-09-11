@@ -25,6 +25,7 @@ import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
 import com.lotrcharactercreation.appearance.AppearanceSourceType;
 import com.lotrcharactercreation.appearance.ExternalAppearancePresetScanner;
 import com.lotrcharactercreation.appearance.PlayerSex;
+import com.lotrcharactercreation.appearance.ServerCustomSkinLibrary;
 import com.lotrcharactercreation.creation.CharacterCreationFlowService;
 import com.lotrcharactercreation.creation.CharacterCreationStage;
 import com.lotrcharactercreation.faction.StartingFaction;
@@ -56,7 +57,7 @@ public class CharacterCreationLegacyCompatibilityTest {
 
         BufferedImage image = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
         assertTrue(ImageIO.write(image, "png", customSkinFile.toFile()));
-        AppearancePresetRegistry.initialize(customSkinRoot.toFile(), null);
+        assertTrue(ServerCustomSkinLibrary.getInstance().reload(customSkinRoot.toFile(), null).isApplied());
     }
 
     @Test
@@ -127,7 +128,9 @@ public class CharacterCreationLegacyCompatibilityTest {
         assertEquals(AppearanceSourceType.EXTERNAL, scannedPreset.getSourceType());
         assertEquals("man/male/gondor/legacy_hero.png", scannedPreset.getExternalRelativePath());
 
-        AppearancePreset registeredPreset = AppearancePresetRegistry.findById(CUSTOM_PRESET_ID);
+        AppearancePreset registeredPreset = ServerCustomSkinLibrary.getInstance()
+            .getCurrentCatalog()
+            .findById(CUSTOM_PRESET_ID);
         assertNotNull(registeredPreset);
         assertEquals("man/male/gondor/legacy_hero.png", registeredPreset.getExternalRelativePath());
 

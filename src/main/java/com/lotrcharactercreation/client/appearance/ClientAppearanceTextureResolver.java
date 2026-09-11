@@ -34,6 +34,7 @@ public final class ClientAppearanceTextureResolver {
     private ClientAppearanceTextureResolver() {}
 
     public static void initialize(File customSkinRoot) {
+        ClientLocalAppearancePresetCatalog.initialize(customSkinRoot);
         if (externalTextureManager == null) {
             externalTextureManager = new ExternalAppearanceTextureManager(customSkinRoot);
         }
@@ -55,8 +56,8 @@ public final class ClientAppearanceTextureResolver {
 
     private static ResourceLocation resolveWithFallback(PlayerRace race, PlayerSex sex, String presetId,
         ResourceLocation accountSkin) {
-        AppearancePreset preset = AppearancePresetRegistry.findById(presetId);
-        if (AppearancePresetRegistry.isPresetValid(race, sex, presetId)) {
+        AppearancePreset preset = ClientLocalAppearancePresetCatalog.get().findById(presetId);
+        if (AppearancePresetRegistry.isPresetValid(ClientLocalAppearancePresetCatalog.get(), race, sex, presetId)) {
             ResourceLocation texture = resolve(preset, accountSkin);
             if (texture != null) {
                 return texture;

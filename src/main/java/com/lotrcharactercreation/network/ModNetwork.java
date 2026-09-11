@@ -12,8 +12,10 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
 
 import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
+import com.lotrcharactercreation.appearance.AppearancePresetCatalog;
 import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
 import com.lotrcharactercreation.appearance.PlayerSex;
+import com.lotrcharactercreation.appearance.ServerCustomSkinLibrary;
 import com.lotrcharactercreation.body.PlayerRaceEyeService;
 import com.lotrcharactercreation.body.PlayerRaceSizeService;
 import com.lotrcharactercreation.config.ModConfiguration;
@@ -206,7 +208,8 @@ public final class ModNetwork {
         PlayerRace race = PlayerRaceData.getRace(player);
         PlayerSex sex = AppearanceSelectionRules.getSelectionSex(race, PlayerRaceData.getSex(player));
         StartingFaction faction = PlayerRaceData.getStartingFaction(player);
-        if (AppearanceSelectionRules.getCandidates(race, sex, faction)
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
+        if (AppearanceSelectionRules.getCandidates(catalog, race, sex, faction)
             .isEmpty()) {
             String detail = sex == null ? "Set a valid appearance sex first."
                 : "No appearances match the current race and faction.";
@@ -215,7 +218,7 @@ public final class ModNetwork {
         }
 
         String currentPresetId = PlayerRaceData.getAppearancePresetId(player);
-        if (!AppearanceSelectionRules.isPresetAllowed(race, sex, faction, currentPresetId)) {
+        if (!AppearanceSelectionRules.isPresetAllowed(catalog, race, sex, faction, currentPresetId)) {
             currentPresetId = null;
         }
         CHANNEL.sendTo(
@@ -515,7 +518,8 @@ public final class ModNetwork {
         PlayerSex sex = PlayerRaceData.getSex(player);
         String presetId = PlayerRaceData.getAppearancePresetId(player);
         if (!PlayerRaceData.isAppearanceInitialized(player)
-            || !AppearancePresetRegistry.isPresetValid(race, sex, presetId)) {
+            || !AppearancePresetRegistry.isPresetValid(
+                ServerCustomSkinLibrary.getInstance().getCurrentCatalog(), race, sex, presetId)) {
             presetId = null;
         }
 

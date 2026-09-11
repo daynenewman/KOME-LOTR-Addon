@@ -8,6 +8,7 @@ import net.minecraftforge.common.util.Constants;
 import com.lotrcharactercreation.appearance.AppearancePreset;
 import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
 import com.lotrcharactercreation.appearance.PlayerSex;
+import com.lotrcharactercreation.appearance.ServerCustomSkinLibrary;
 import com.lotrcharactercreation.faction.StartingFaction;
 
 public final class PlayerRaceData {
@@ -85,14 +86,18 @@ public final class PlayerRaceData {
     }
 
     public static AppearancePreset getAppearancePreset(EntityPlayerMP player) {
-        return AppearancePresetRegistry.findById(getAppearancePresetId(player));
+        return ServerCustomSkinLibrary.getInstance().getCurrentCatalog().findById(getAppearancePresetId(player));
     }
 
     public static void setAppearancePreset(EntityPlayerMP player, AppearancePreset preset) {
         if (preset == null) {
             throw new IllegalArgumentException("appearance preset cannot be null");
         }
-        if (!AppearancePresetRegistry.isPresetValid(getRace(player), getSex(player), preset.getId())) {
+        if (!AppearancePresetRegistry.isPresetValid(
+            ServerCustomSkinLibrary.getInstance().getCurrentCatalog(),
+            getRace(player),
+            getSex(player),
+            preset.getId())) {
             throw new IllegalArgumentException("appearance preset is not valid for the player's race and sex");
         }
 
@@ -114,7 +119,11 @@ public final class PlayerRaceData {
 
     public static void setAppearanceInitialized(EntityPlayerMP player, boolean initialized) {
         if (initialized && !AppearancePresetRegistry
-            .isAppearanceValid(getRace(player), getSex(player), getAppearancePresetId(player))) {
+            .isAppearanceValid(
+                ServerCustomSkinLibrary.getInstance().getCurrentCatalog(),
+                getRace(player),
+                getSex(player),
+                getAppearancePresetId(player))) {
             throw new IllegalStateException("cannot initialize invalid appearance data");
         }
 

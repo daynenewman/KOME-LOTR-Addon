@@ -20,7 +20,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import com.lotrcharactercreation.appearance.AppearancePreset;
-import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
 import com.lotrcharactercreation.appearance.AppearanceSourceType;
 import com.lotrcharactercreation.appearance.ExternalAppearancePresetScanner;
 
@@ -62,7 +61,7 @@ final class ExternalAppearanceTextureManager {
             return null;
         }
 
-        AppearancePreset registeredPreset = AppearancePresetRegistry.findById(preset.getId());
+        AppearancePreset registeredPreset = ClientLocalAppearancePresetCatalog.get().findById(preset.getId());
         if (registeredPreset != preset) {
             return fail(preset, "preset is not the locally registered definition", null);
         }

@@ -6,10 +6,10 @@ import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 
 import com.lotrcharactercreation.appearance.AppearancePreset;
-import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
 import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
 import com.lotrcharactercreation.appearance.AppearanceSourceType;
 import com.lotrcharactercreation.appearance.PlayerSex;
+import com.lotrcharactercreation.client.appearance.ClientLocalAppearancePresetCatalog;
 import com.lotrcharactercreation.creation.CharacterCreationStage;
 import com.lotrcharactercreation.faction.StartingFaction;
 import com.lotrcharactercreation.network.ModNetwork;
@@ -152,7 +152,7 @@ public class GuiCharacterConfirmation extends GuiScreen {
     }
 
     private String getAppearanceDisplayName() {
-        AppearancePreset preset = AppearancePresetRegistry.findById(appearancePresetId);
+        AppearancePreset preset = ClientLocalAppearancePresetCatalog.get().findById(appearancePresetId);
         if (preset == null) {
             return "Unknown";
         }
@@ -163,7 +163,8 @@ public class GuiCharacterConfirmation extends GuiScreen {
             return preset.getDisplayName();
         }
 
-        List<AppearancePreset> candidates = AppearanceSelectionRules.getCandidates(race, sex, faction);
+        List<AppearancePreset> candidates = AppearanceSelectionRules.getCandidates(
+            ClientLocalAppearancePresetCatalog.get(), race, sex, faction);
         for (int index = 0; index < candidates.size(); index++) {
             if (candidates.get(index)
                 .getId()

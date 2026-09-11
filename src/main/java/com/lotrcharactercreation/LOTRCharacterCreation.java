@@ -6,7 +6,9 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 
-import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
+import org.apache.logging.log4j.Logger;
+
+import com.lotrcharactercreation.appearance.ServerCustomSkinLibrary;
 import com.lotrcharactercreation.body.PlayerRaceEyeService;
 import com.lotrcharactercreation.body.PlayerRaceSizeService;
 import com.lotrcharactercreation.command.CommandCharacter;
@@ -39,10 +41,12 @@ public class LOTRCharacterCreation {
     private final CommonRaceTraitEventHandler raceTraitEventHandler = new CommonRaceTraitEventHandler();
     private final RacialPlayerSoundHandler racialPlayerSoundHandler = new RacialPlayerSoundHandler();
     private File customSkinRoot;
+    private Logger logger;
 
     public static CommonProxy proxy;
 
     public void commonPreInitialize(FMLPreInitializationEvent event) {
+        logger = event.getModLog();
         File configFile = new File(event.getModConfigurationDirectory(), "lotrcharactercreation.cfg");
         ModConfiguration.load(configFile);
         customSkinRoot = new File(
@@ -59,7 +63,6 @@ public class LOTRCharacterCreation {
         }
         event.getModLog()
             .info("LOTR Character Creation custom skin root: " + customSkinRoot.getAbsolutePath());
-        AppearancePresetRegistry.initialize(customSkinRoot, event.getModLog());
         ModNetwork.initialize();
         FMLCommonHandler.instance()
             .bus()
@@ -159,6 +162,7 @@ public class LOTRCharacterCreation {
     }
 
     public void registerServerCommands(FMLServerStartingEvent event) {
+        ServerCustomSkinLibrary.getInstance().reload(customSkinRoot, logger);
         event.registerServerCommand(new CommandCharacter());
         event.registerServerCommand(new CommandLotrCreation());
         event.registerServerCommand(new CommandLotrRace());
