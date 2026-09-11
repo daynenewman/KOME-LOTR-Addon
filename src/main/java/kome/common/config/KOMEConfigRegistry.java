@@ -29,6 +29,7 @@ public final class KOMEConfigRegistry {
     public static final String CAPTURED_BUILD_MULTIPLIER = "capturedBuildMultiplier";
     public static final String OFFLINE_POPULATION_CATCH_UP = "offlinePopulationCatchUp";
     public static final String POPULATION_CAP_ENABLED = "populationCapEnabled";
+    public static final String POPULATION_CAP_VALUE = "populationCapValue";
     public static final String ENCIRCLEMENT_POPULATION_SUPPRESSION_ENABLED =
             "encirclementPopulationSuppressionEnabled";
     public static final String FOOT_OR_MIXED_TILES_PER_DAY = "footOrMixedTilesPerDay";
@@ -49,6 +50,7 @@ public final class KOMEConfigRegistry {
             "supportFallbackGraceSeconds";
     public static final String PRE_BREACH_REPAIR = "preBreachRepair";
     public static final String POST_BREACH_REPAIR_ENABLED = "postBreachRepairEnabled";
+    public static final String EXTERIOR_MARGIN_BLOCKS = "exteriorMarginBlocks";
     public static final String BATTLE_SUPPORT_MODE = "mode";
     public static final String FULL_DAMAGE_DISTANCE_BLOCKS = "fullDamageDistanceBlocks";
     public static final String HALF_DAMAGE_DISTANCE_BLOCKS = "halfDamageDistanceBlocks";
@@ -75,13 +77,13 @@ public final class KOMEConfigRegistry {
             new DailyBatchSettings(LocalTime.parse(DEFAULT_LOCAL_TIME),
                     ZoneId.of(DEFAULT_TIMEZONE));
     private static volatile PopulationSettings population =
-            new PopulationSettings(10, 0.50D, true, false, false);
+            new PopulationSettings(10, 0.50D, true, false, OptionalInt.empty(), false);
     private static volatile MovementSettings movement = new MovementSettings(1, 2);
     private static volatile BattleSettings battle = new BattleSettings(20, 35, 50);
     private static volatile MusterSettings muster = new MusterSettings(2, 21, 24,
             EncircledCapitalArrivalPolicy.TBD);
     private static volatile SiegeSettings siege = new SiegeSettings(OptionalDouble.empty(),
-            1, 15, PreBreachRepair.TBD, false);
+            1, 15, PreBreachRepair.TBD, false, 192);
     private static volatile BattleSupportSettings battleSupport = new BattleSupportSettings(
             BattleSupportMode.CURVE, 32, 48, 64, 70, 0.50D, 0.10D, 0.01D, 48, 192);
     private static volatile EncirclementSettings encirclement =
@@ -170,11 +172,19 @@ public final class KOMEConfigRegistry {
                 value(c, POPULATION_CATEGORY, OFFLINE_POPULATION_CATCH_UP, "true"));
         boolean cap = bool(POPULATION_CATEGORY, POPULATION_CAP_ENABLED,
                 value(c, POPULATION_CATEGORY, POPULATION_CAP_ENABLED, "false"));
+        String capValue = value(c, POPULATION_CATEGORY, POPULATION_CAP_VALUE, "TBD");
+        OptionalInt populationCapValue = parseOptionalPositiveInt(POPULATION_CATEGORY,
+                POPULATION_CAP_VALUE, capValue);
+        if (cap && !populationCapValue.isPresent()) {
+            throw invalid(POPULATION_CATEGORY, POPULATION_CAP_VALUE, capValue,
+                    "must be configured when populationCapEnabled is true");
+        }
         boolean suppression = bool(POPULATION_CATEGORY,
                 ENCIRCLEMENT_POPULATION_SUPPRESSION_ENABLED,
                 value(c, POPULATION_CATEGORY,
                         ENCIRCLEMENT_POPULATION_SUPPRESSION_ENABLED, "false"));
-        return new PopulationSettings(hours, multiplier, catchUp, cap, suppression);
+        return new PopulationSettings(hours, multiplier, catchUp, cap, populationCapValue,
+                suppression);
     }
 
     private static MovementSettings readMovement(Configuration c) {
@@ -242,8 +252,10 @@ public final class KOMEConfigRegistry {
         boolean postBreachRepairEnabled = bool(SIEGE_CATEGORY,
                 POST_BREACH_REPAIR_ENABLED,
                 value(c, SIEGE_CATEGORY, POST_BREACH_REPAIR_ENABLED, "false"));
+        int exteriorMargin = positive(SIEGE_CATEGORY, EXTERIOR_MARGIN_BLOCKS,
+                value(c, SIEGE_CATEGORY, EXTERIOR_MARGIN_BLOCKS, "192"));
         return new SiegeSettings(gateHpPerApprovedHour, supportMinimum, fallbackGrace,
-                preBreachRepair, postBreachRepairEnabled);
+                preBreachRepair, postBreachRepairEnabled, exteriorMargin);
     }
 
     private static BattleSupportSettings readBattleSupport(Configuration c) {
@@ -314,7 +326,8 @@ public final class KOMEConfigRegistry {
     }
 
     private static SeasonSettings readSeason(Configuration c) {
-        OptionalInt minimumLength = parseOptionalPositiveInt(MINIMUM_WAR_SEASON_LENGTH_DAYS,
+        OptionalInt minimumLength = parseOptionalPositiveInt(SEASON_CATEGORY,
+                MINIMUM_WAR_SEASON_LENGTH_DAYS,
                 value(c, SEASON_CATEGORY, MINIMUM_WAR_SEASON_LENGTH_DAYS, "TBD"));
         String automaticFinaleValue = value(c, SEASON_CATEGORY, AUTOMATIC_FINALE_ENABLED,
                 "false");
@@ -369,7 +382,8 @@ public final class KOMEConfigRegistry {
                 "must be TBD or a finite number greater than 0");
     }
 
-    private static OptionalInt parseOptionalPositiveInt(String key, String value) {
+    private static OptionalInt parseOptionalPositiveInt(String category, String key,
+            String value) {
         if ("TBD".equals(value)) {
             return OptionalInt.empty();
         }
@@ -380,7 +394,7 @@ public final class KOMEConfigRegistry {
             }
         } catch (NumberFormatException ignored) {
         }
-        throw invalid(SEASON_CATEGORY, key, value,
+        throw invalid(category, key, value,
                 "must be TBD or an integer greater than 0");
     }
 
@@ -496,14 +510,16 @@ public final class KOMEConfigRegistry {
         private final double capturedBuildMultiplier;
         private final boolean offlinePopulationCatchUp;
         private final boolean populationCapEnabled;
+        private final OptionalInt populationCapValue;
         private final boolean encirclementPopulationSuppressionEnabled;
 
         private PopulationSettings(int hours, double multiplier, boolean catchUp,
-                boolean cap, boolean suppression) {
+                boolean cap, OptionalInt populationCapValue, boolean suppression) {
             hoursPerPopulationPoint = hours;
             capturedBuildMultiplier = multiplier;
             offlinePopulationCatchUp = catchUp;
             populationCapEnabled = cap;
+            this.populationCapValue = populationCapValue;
             encirclementPopulationSuppressionEnabled = suppression;
         }
 
@@ -521,6 +537,10 @@ public final class KOMEConfigRegistry {
 
         public boolean isPopulationCapEnabled() {
             return populationCapEnabled;
+        }
+
+        public OptionalInt getPopulationCapValue() {
+            return populationCapValue;
         }
 
         public boolean isEncirclementPopulationSuppressionEnabled() {
@@ -625,16 +645,18 @@ public final class KOMEConfigRegistry {
         private final int supportFallbackGraceSeconds;
         private final PreBreachRepair preBreachRepair;
         private final boolean postBreachRepairEnabled;
+        private final int exteriorMarginBlocks;
 
         private SiegeSettings(OptionalDouble gateHpPerApprovedHour,
                 int normalSegmentSupportMinimumTroops,
                 int supportFallbackGraceSeconds, PreBreachRepair preBreachRepair,
-                boolean postBreachRepairEnabled) {
+                boolean postBreachRepairEnabled, int exteriorMarginBlocks) {
             this.gateHpPerApprovedHour = gateHpPerApprovedHour;
             this.normalSegmentSupportMinimumTroops = normalSegmentSupportMinimumTroops;
             this.supportFallbackGraceSeconds = supportFallbackGraceSeconds;
             this.preBreachRepair = preBreachRepair;
             this.postBreachRepairEnabled = postBreachRepairEnabled;
+            this.exteriorMarginBlocks = exteriorMarginBlocks;
         }
 
         public OptionalDouble getGateHpPerApprovedHour() {
@@ -655,6 +677,10 @@ public final class KOMEConfigRegistry {
 
         public boolean isPostBreachRepairEnabled() {
             return postBreachRepairEnabled;
+        }
+
+        public int getExteriorMarginBlocks() {
+            return exteriorMarginBlocks;
         }
     }
 

@@ -38,6 +38,7 @@ public class KOMEConfigRegistryTest {
         assertEquals(0.50D, population.getCapturedBuildMultiplier(), 0.0D);
         assertTrue(population.isOfflinePopulationCatchUp());
         assertEquals(false, population.isPopulationCapEnabled());
+        assertFalse(population.getPopulationCapValue().isPresent());
         assertEquals(false, population.isEncirclementPopulationSuppressionEnabled());
         assertEquals(1, KOMEConfigRegistry.movement().getFootOrMixedTilesPerDay());
         assertEquals(2, KOMEConfigRegistry.movement().getFullyMountedTilesPerDay());
@@ -55,6 +56,7 @@ public class KOMEConfigRegistryTest {
         assertEquals(KOMEConfigRegistry.PreBreachRepair.TBD,
                 KOMEConfigRegistry.siege().getPreBreachRepair());
         assertFalse(KOMEConfigRegistry.siege().isPostBreachRepairEnabled());
+        assertEquals(192, KOMEConfigRegistry.siege().getExteriorMarginBlocks());
         assertEquals(KOMEConfigRegistry.BattleSupportMode.CURVE,
                 KOMEConfigRegistry.battleSupport().getMode());
         assertEquals(32, KOMEConfigRegistry.battleSupport().getFullDamageDistanceBlocks());
@@ -423,6 +425,115 @@ public class KOMEConfigRegistryTest {
         invalidWithReason(KOMEConfigRegistry.SEASON_CATEGORY,
                 KOMEConfigRegistry.AUTOMATIC_FINALE_ENABLED, "true",
                 "never starts Finale automatically");
+    }
+
+    @Test
+    public void populationCapValuesValidateAndLoad() throws Exception {
+        File disabledFile = configFile();
+        write(disabledFile, KOMEConfigRegistry.POPULATION_CATEGORY,
+                KOMEConfigRegistry.POPULATION_CAP_VALUE, "250");
+        KOMEConfigRegistry.load(disabledFile);
+        assertFalse(KOMEConfigRegistry.population().isPopulationCapEnabled());
+        assertEquals(250, KOMEConfigRegistry.population().getPopulationCapValue()
+                .getAsInt());
+
+        File enabledFile = configFile();
+        write(enabledFile, KOMEConfigRegistry.POPULATION_CATEGORY,
+                KOMEConfigRegistry.POPULATION_CAP_ENABLED, "true");
+        write(enabledFile, KOMEConfigRegistry.POPULATION_CATEGORY,
+                KOMEConfigRegistry.POPULATION_CAP_VALUE, "250");
+        KOMEConfigRegistry.load(enabledFile);
+        assertTrue(KOMEConfigRegistry.population().isPopulationCapEnabled());
+        assertEquals(250, KOMEConfigRegistry.population().getPopulationCapValue()
+                .getAsInt());
+
+        populationCapEnabledWithoutValueFails();
+        invalid(KOMEConfigRegistry.POPULATION_CATEGORY,
+                KOMEConfigRegistry.POPULATION_CAP_VALUE, "0");
+        invalid(KOMEConfigRegistry.POPULATION_CATEGORY,
+                KOMEConfigRegistry.POPULATION_CAP_VALUE, "-1");
+        invalid(KOMEConfigRegistry.POPULATION_CATEGORY,
+                KOMEConfigRegistry.POPULATION_CAP_VALUE, "unknown");
+    }
+
+    @Test
+    public void siegeExteriorMarginValidatesAndLoads() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.EXTERIOR_MARGIN_BLOCKS, "256");
+        KOMEConfigRegistry.load(file);
+        assertEquals(256, KOMEConfigRegistry.siege().getExteriorMarginBlocks());
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.EXTERIOR_MARGIN_BLOCKS, "0");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.EXTERIOR_MARGIN_BLOCKS, "-1");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.EXTERIOR_MARGIN_BLOCKS, "unknown");
+    }
+
+    @Test
+    public void invalidLateCategoryDoesNotPartiallyPublishRegistry() throws Exception {
+        File validFile = configFile();
+        write(validFile, KOMEConfigRegistry.MOVEMENT_CATEGORY,
+                KOMEConfigRegistry.FOOT_OR_MIXED_TILES_PER_DAY, "3");
+        write(validFile, KOMEConfigRegistry.MOVEMENT_CATEGORY,
+                KOMEConfigRegistry.FULLY_MOUNTED_TILES_PER_DAY, "4");
+        write(validFile, KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.EXTERIOR_MARGIN_BLOCKS, "256");
+        KOMEConfigRegistry.load(validFile);
+        KOMEConfigRegistry.PopulationSettings publishedPopulation =
+                KOMEConfigRegistry.population();
+        KOMEConfigRegistry.DailyBatchSettings publishedDailyBatch =
+                KOMEConfigRegistry.dailyBatch();
+        KOMEConfigRegistry.MovementSettings publishedMovement =
+                KOMEConfigRegistry.movement();
+        KOMEConfigRegistry.BattleSettings publishedBattle = KOMEConfigRegistry.battle();
+        KOMEConfigRegistry.SiegeSettings publishedSiege = KOMEConfigRegistry.siege();
+        KOMEConfigRegistry.MusterSettings publishedMuster = KOMEConfigRegistry.muster();
+        KOMEConfigRegistry.BattleSupportSettings publishedBattleSupport =
+                KOMEConfigRegistry.battleSupport();
+        KOMEConfigRegistry.EncirclementSettings publishedEncirclement =
+                KOMEConfigRegistry.encirclement();
+        KOMEConfigRegistry.SeasonSettings publishedSeason = KOMEConfigRegistry.season();
+
+        File invalidFile = configFile();
+        write(invalidFile, KOMEConfigRegistry.MOVEMENT_CATEGORY,
+                KOMEConfigRegistry.FOOT_OR_MIXED_TILES_PER_DAY, "1");
+        write(invalidFile, KOMEConfigRegistry.SEASON_CATEGORY,
+                KOMEConfigRegistry.AUTOMATIC_FINALE_ENABLED, "true");
+        try {
+            KOMEConfigRegistry.load(invalidFile);
+            fail("Expected invalid late-category configuration to fail startup");
+        } catch (KOMEConfigValidationException expected) {
+            assertTrue(expected.getMessage().contains("season.automaticFinaleEnabled"));
+        }
+
+        assertTrue(publishedPopulation == KOMEConfigRegistry.population());
+        assertTrue(publishedDailyBatch == KOMEConfigRegistry.dailyBatch());
+        assertTrue(publishedMovement == KOMEConfigRegistry.movement());
+        assertTrue(publishedBattle == KOMEConfigRegistry.battle());
+        assertTrue(publishedSiege == KOMEConfigRegistry.siege());
+        assertTrue(publishedMuster == KOMEConfigRegistry.muster());
+        assertTrue(publishedBattleSupport == KOMEConfigRegistry.battleSupport());
+        assertTrue(publishedEncirclement == KOMEConfigRegistry.encirclement());
+        assertTrue(publishedSeason == KOMEConfigRegistry.season());
+        assertEquals(3, KOMEConfigRegistry.movement().getFootOrMixedTilesPerDay());
+        assertEquals(256, KOMEConfigRegistry.siege().getExteriorMarginBlocks());
+    }
+
+    private void populationCapEnabledWithoutValueFails() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.POPULATION_CATEGORY,
+                KOMEConfigRegistry.POPULATION_CAP_ENABLED, "true");
+        try {
+            KOMEConfigRegistry.load(file);
+            fail("Expected enabled population cap without a value to fail startup");
+        } catch (KOMEConfigValidationException expected) {
+            assertTrue(expected.getMessage().contains("population.populationCapValue"));
+            assertTrue(expected.getMessage().contains("'TBD'"));
+            assertTrue(expected.getMessage().contains(
+                    "must be configured when populationCapEnabled is true"));
+        }
     }
 
     private void invalid(String category, String key, String value) throws Exception {
