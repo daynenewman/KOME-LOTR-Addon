@@ -95,6 +95,7 @@ public class KOMEConfigInspectionTest {
                 "siege.gateHpPerApprovedHour=TBD", "siege.normalSegmentSupportMinimumTroops=1",
                 "siege.supportFallbackGraceSeconds=15", "siege.preBreachRepair=TBD",
                 "siege.postBreachRepairEnabled=false", "siege.exteriorMarginBlocks=192",
+                "siege.activeSiegeCheckInWindowMinutes=TBD",
                 "battleSupport.mode=CURVE", "battleSupport.fullDamageDistanceBlocks=32",
                 "battleSupport.halfDamageDistanceBlocks=48", "battleSupport.lowDamageDistanceBlocks=64",
                 "battleSupport.minimumDamageDistanceBlocks=70", "battleSupport.halfDamageMultiplier=0.5",

@@ -83,6 +83,7 @@ public final class KOMEConfigInspection {
             add(values, category, "preBreachRepair", s.getPreBreachRepair());
             add(values, category, "postBreachRepairEnabled", s.isPostBreachRepairEnabled());
             add(values, category, "exteriorMarginBlocks", s.getExteriorMarginBlocks());
+            add(values, category, "activeSiegeCheckInWindowMinutes", s.getActiveSiegeCheckInWindowMinutes());
         } else if ("battleSupport".equals(category)) {
             KOMEConfigRegistry.BattleSupportSettings s = KOMEConfigRegistry.battleSupport();
             add(values, category, "mode", s.getMode());

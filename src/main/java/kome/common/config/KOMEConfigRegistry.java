@@ -51,6 +51,7 @@ public final class KOMEConfigRegistry {
     public static final String PRE_BREACH_REPAIR = "preBreachRepair";
     public static final String POST_BREACH_REPAIR_ENABLED = "postBreachRepairEnabled";
     public static final String EXTERIOR_MARGIN_BLOCKS = "exteriorMarginBlocks";
+    public static final String ACTIVE_SIEGE_CHECK_IN_WINDOW_MINUTES = "activeSiegeCheckInWindowMinutes";
     public static final String BATTLE_SUPPORT_MODE = "mode";
     public static final String FULL_DAMAGE_DISTANCE_BLOCKS = "fullDamageDistanceBlocks";
     public static final String HALF_DAMAGE_DISTANCE_BLOCKS = "halfDamageDistanceBlocks";
@@ -73,22 +74,14 @@ public final class KOMEConfigRegistry {
             DateTimeFormatter.ofPattern("HH:mm")
                     .withResolverStyle(ResolverStyle.STRICT);
 
-    private static volatile DailyBatchSettings dailyBatch =
-            new DailyBatchSettings(LocalTime.parse(DEFAULT_LOCAL_TIME),
-                    ZoneId.of(DEFAULT_TIMEZONE));
-    private static volatile PopulationSettings population =
-            new PopulationSettings(10, 0.50D, true, false, OptionalInt.empty(), false);
-    private static volatile MovementSettings movement = new MovementSettings(1, 2);
-    private static volatile BattleSettings battle = new BattleSettings(20, 35, 50);
-    private static volatile MusterSettings muster = new MusterSettings(2, 21, 24,
-            EncircledCapitalArrivalPolicy.TBD);
-    private static volatile SiegeSettings siege = new SiegeSettings(OptionalDouble.empty(),
-            1, 15, PreBreachRepair.TBD, false, 192);
-    private static volatile BattleSupportSettings battleSupport = new BattleSupportSettings(
-            BattleSupportMode.CURVE, 32, 48, 64, 70, 0.50D, 0.10D, 0.01D, 48, 192);
-    private static volatile EncirclementSettings encirclement =
-            new EncirclementSettings(10, 48, false);
-    private static volatile SeasonSettings season = new SeasonSettings(OptionalInt.empty(), false);
+    private static volatile ValidatedConfig current = new ValidatedConfig(
+            new DailyBatchSettings(LocalTime.parse(DEFAULT_LOCAL_TIME), ZoneId.of(DEFAULT_TIMEZONE)),
+            new PopulationSettings(10, 0.50D, true, false, OptionalInt.empty(), false),
+            new MovementSettings(1, 2), new BattleSettings(20, 35, 50),
+            new MusterSettings(2, 21, 24, EncircledCapitalArrivalPolicy.TBD),
+            new SiegeSettings(OptionalDouble.empty(), 1, 15, PreBreachRepair.TBD, false, 192, OptionalInt.empty()),
+            new BattleSupportSettings(BattleSupportMode.CURVE, 32, 48, 64, 70, 0.50D, 0.10D, 0.01D, 48, 192),
+            new EncirclementSettings(10, 48, false), new SeasonSettings(OptionalInt.empty(), false));
 
     private KOMEConfigRegistry() {
     }
@@ -96,63 +89,77 @@ public final class KOMEConfigRegistry {
     public static synchronized void load(File file) {
         Configuration configuration = new Configuration(file);
         configuration.load();
-        DailyBatchSettings loadedDailyBatch = readDailyBatch(configuration);
-        PopulationSettings loadedPopulation = readPopulation(configuration);
-        MovementSettings loadedMovement = readMovement(configuration);
-        BattleSettings loadedBattle = readBattle(configuration);
-        MusterSettings loadedMuster = readMuster(configuration);
-        SiegeSettings loadedSiege = readSiege(configuration);
-        BattleSupportSettings loadedBattleSupport = readBattleSupport(configuration);
-        EncirclementSettings loadedEncirclement = readEncirclement(configuration);
-        SeasonSettings loadedSeason = readSeason(configuration);
-        dailyBatch = loadedDailyBatch;
-        population = loadedPopulation;
-        movement = loadedMovement;
-        battle = loadedBattle;
-        muster = loadedMuster;
-        siege = loadedSiege;
-        battleSupport = loadedBattleSupport;
-        encirclement = loadedEncirclement;
-        season = loadedSeason;
+        publish(readValidated(configuration));
         if (configuration.hasChanged()) {
             configuration.save();
         }
     }
 
+    public static ValidatedConfig readValidated(File file) {
+        Configuration configuration = new Configuration(file);
+        configuration.load();
+        return readValidated(configuration);
+    }
+
+    public static synchronized ConfigApplyResult applyValidated(ValidatedConfig candidate,
+            RuntimeActivity activity) {
+        KOMEConfigChangeSet changes = KOMEConfigChangeSet.compare(currentValidated(), candidate);
+        ChangeDecision decision = KOMEConfigChangeGuard.evaluate(changes, activity);
+        if (decision.isAllowed()) {
+            publish(candidate);
+        }
+        return new ConfigApplyResult(changes, decision);
+    }
+
+    private static ValidatedConfig readValidated(Configuration configuration) {
+        return new ValidatedConfig(readDailyBatch(configuration), readPopulation(configuration),
+                readMovement(configuration), readBattle(configuration), readMuster(configuration),
+                readSiege(configuration), readBattleSupport(configuration),
+                readEncirclement(configuration), readSeason(configuration));
+    }
+
+    private static void publish(ValidatedConfig config) {
+        current = config;
+    }
+
+    public static ValidatedConfig currentValidated() {
+        return current;
+    }
+
     public static DailyBatchSettings dailyBatch() {
-        return dailyBatch;
+        return current.getDailyBatch();
     }
 
     public static PopulationSettings population() {
-        return population;
+        return current.getPopulation();
     }
 
     public static MovementSettings movement() {
-        return movement;
+        return current.getMovement();
     }
 
     public static BattleSettings battle() {
-        return battle;
+        return current.getBattle();
     }
 
     public static MusterSettings muster() {
-        return muster;
+        return current.getMuster();
     }
 
     public static SiegeSettings siege() {
-        return siege;
+        return current.getSiege();
     }
 
     public static BattleSupportSettings battleSupport() {
-        return battleSupport;
+        return current.getBattleSupport();
     }
 
     public static EncirclementSettings encirclement() {
-        return encirclement;
+        return current.getEncirclement();
     }
 
     public static SeasonSettings season() {
-        return season;
+        return current.getSeason();
     }
 
     private static DailyBatchSettings readDailyBatch(Configuration c) {
@@ -254,8 +261,11 @@ public final class KOMEConfigRegistry {
                 value(c, SIEGE_CATEGORY, POST_BREACH_REPAIR_ENABLED, "false"));
         int exteriorMargin = positive(SIEGE_CATEGORY, EXTERIOR_MARGIN_BLOCKS,
                 value(c, SIEGE_CATEGORY, EXTERIOR_MARGIN_BLOCKS, "192"));
+        OptionalInt checkInWindow = parseOptionalPositiveInt(SIEGE_CATEGORY,
+                ACTIVE_SIEGE_CHECK_IN_WINDOW_MINUTES,
+                value(c, SIEGE_CATEGORY, ACTIVE_SIEGE_CHECK_IN_WINDOW_MINUTES, "TBD"));
         return new SiegeSettings(gateHpPerApprovedHour, supportMinimum, fallbackGrace,
-                preBreachRepair, postBreachRepairEnabled, exteriorMargin);
+                preBreachRepair, postBreachRepairEnabled, exteriorMargin, checkInWindow);
     }
 
     private static BattleSupportSettings readBattleSupport(Configuration c) {
@@ -505,6 +515,53 @@ public final class KOMEConfigRegistry {
         }
     }
 
+    public static final class ValidatedConfig {
+        private final DailyBatchSettings dailyBatch;
+        private final PopulationSettings population;
+        private final MovementSettings movement;
+        private final BattleSettings battle;
+        private final MusterSettings muster;
+        private final SiegeSettings siege;
+        private final BattleSupportSettings battleSupport;
+        private final EncirclementSettings encirclement;
+        private final SeasonSettings season;
+
+        private ValidatedConfig(DailyBatchSettings dailyBatch, PopulationSettings population,
+                MovementSettings movement, BattleSettings battle, MusterSettings muster,
+                SiegeSettings siege, BattleSupportSettings battleSupport,
+                EncirclementSettings encirclement, SeasonSettings season) {
+            this.dailyBatch = dailyBatch; this.population = population; this.movement = movement;
+            this.battle = battle; this.muster = muster; this.siege = siege;
+            this.battleSupport = battleSupport; this.encirclement = encirclement;
+            this.season = season;
+        }
+        public DailyBatchSettings getDailyBatch() { return dailyBatch; }
+        public PopulationSettings getPopulation() { return population; }
+        public MovementSettings getMovement() { return movement; }
+        public BattleSettings getBattle() { return battle; }
+        public MusterSettings getMuster() { return muster; }
+        public SiegeSettings getSiege() { return siege; }
+        public BattleSupportSettings getBattleSupport() { return battleSupport; }
+        public EncirclementSettings getEncirclement() { return encirclement; }
+        public SeasonSettings getSeason() { return season; }
+    }
+
+    public interface RuntimeActivity {
+        boolean isDailyTransactionInProgress();
+        boolean isActiveSiegeInProgress();
+        java.util.Collection<String> getActiveSiegeLockedConfigKeys();
+    }
+
+    public static final class ConfigApplyResult {
+        private final KOMEConfigChangeSet changes;
+        private final ChangeDecision decision;
+        private ConfigApplyResult(KOMEConfigChangeSet changes, ChangeDecision decision) {
+            this.changes = changes; this.decision = decision;
+        }
+        public KOMEConfigChangeSet getChanges() { return changes; }
+        public ChangeDecision getDecision() { return decision; }
+    }
+
     public static final class PopulationSettings {
         private final int hoursPerPopulationPoint;
         private final double capturedBuildMultiplier;
@@ -646,17 +703,20 @@ public final class KOMEConfigRegistry {
         private final PreBreachRepair preBreachRepair;
         private final boolean postBreachRepairEnabled;
         private final int exteriorMarginBlocks;
+        private final OptionalInt activeSiegeCheckInWindowMinutes;
 
         private SiegeSettings(OptionalDouble gateHpPerApprovedHour,
                 int normalSegmentSupportMinimumTroops,
                 int supportFallbackGraceSeconds, PreBreachRepair preBreachRepair,
-                boolean postBreachRepairEnabled, int exteriorMarginBlocks) {
+                boolean postBreachRepairEnabled, int exteriorMarginBlocks,
+                OptionalInt activeSiegeCheckInWindowMinutes) {
             this.gateHpPerApprovedHour = gateHpPerApprovedHour;
             this.normalSegmentSupportMinimumTroops = normalSegmentSupportMinimumTroops;
             this.supportFallbackGraceSeconds = supportFallbackGraceSeconds;
             this.preBreachRepair = preBreachRepair;
             this.postBreachRepairEnabled = postBreachRepairEnabled;
             this.exteriorMarginBlocks = exteriorMarginBlocks;
+            this.activeSiegeCheckInWindowMinutes = activeSiegeCheckInWindowMinutes;
         }
 
         public OptionalDouble getGateHpPerApprovedHour() {
@@ -681,6 +741,10 @@ public final class KOMEConfigRegistry {
 
         public int getExteriorMarginBlocks() {
             return exteriorMarginBlocks;
+        }
+
+        public OptionalInt getActiveSiegeCheckInWindowMinutes() {
+            return activeSiegeCheckInWindowMinutes;
         }
     }
 
