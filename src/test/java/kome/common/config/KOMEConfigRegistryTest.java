@@ -13,6 +13,7 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -43,6 +44,17 @@ public class KOMEConfigRegistryTest {
         assertEquals(20, KOMEConfigRegistry.battle().getResponseLevel1Minutes());
         assertEquals(35, KOMEConfigRegistry.battle().getResponseLevel2Minutes());
         assertEquals(50, KOMEConfigRegistry.battle().getResponseLevel3Minutes());
+        assertEquals(2, KOMEConfigRegistry.muster().getThreatDistanceTiles());
+        assertEquals(21, KOMEConfigRegistry.muster().getBudgetDailyPopulationMultiplier());
+        assertEquals(24, KOMEConfigRegistry.muster().getArrivalDelayHours());
+        assertEquals(KOMEConfigRegistry.EncircledCapitalArrivalPolicy.TBD,
+                KOMEConfigRegistry.muster().getEncircledCapitalArrivalPolicy());
+        assertFalse(KOMEConfigRegistry.siege().getGateHpPerApprovedHour().isPresent());
+        assertEquals(1, KOMEConfigRegistry.siege().getNormalSegmentSupportMinimumTroops());
+        assertEquals(15, KOMEConfigRegistry.siege().getSupportFallbackGraceSeconds());
+        assertEquals(KOMEConfigRegistry.PreBreachRepair.TBD,
+                KOMEConfigRegistry.siege().getPreBreachRepair());
+        assertFalse(KOMEConfigRegistry.siege().isPostBreachRepairEnabled());
     }
 
     @Test
@@ -145,6 +157,20 @@ public class KOMEConfigRegistryTest {
         write(file, KOMEConfigRegistry.BATTLE_CATEGORY, KOMEConfigRegistry.RESPONSE_LEVEL_1_MINUTES, "15");
         write(file, KOMEConfigRegistry.BATTLE_CATEGORY, KOMEConfigRegistry.RESPONSE_LEVEL_2_MINUTES, "30");
         write(file, KOMEConfigRegistry.BATTLE_CATEGORY, KOMEConfigRegistry.RESPONSE_LEVEL_3_MINUTES, "45");
+        write(file, KOMEConfigRegistry.MUSTER_CATEGORY,
+                KOMEConfigRegistry.THREAT_DISTANCE_TILES, "3");
+        write(file, KOMEConfigRegistry.MUSTER_CATEGORY,
+                KOMEConfigRegistry.BUDGET_DAILY_POPULATION_MULTIPLIER, "28");
+        write(file, KOMEConfigRegistry.MUSTER_CATEGORY,
+                KOMEConfigRegistry.ARRIVAL_DELAY_HOURS, "12");
+        write(file, KOMEConfigRegistry.MUSTER_CATEGORY,
+                KOMEConfigRegistry.ENCIRCLED_CAPITAL_ARRIVAL_POLICY, "relief");
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.GATE_HP_PER_APPROVED_HOUR, "12.5");
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.PRE_BREACH_REPAIR, "ENABLED");
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.POST_BREACH_REPAIR_ENABLED, "true");
         KOMEConfigRegistry.load(file);
         assertEquals(LocalTime.of(6, 30), KOMEConfigRegistry.dailyBatch().getLocalTime());
         assertEquals(ZoneId.of("Europe/London"), KOMEConfigRegistry.dailyBatch().getTimezone());
@@ -153,6 +179,100 @@ public class KOMEConfigRegistryTest {
         assertEquals(15, KOMEConfigRegistry.battle().getResponseLevel1Minutes());
         assertEquals(30, KOMEConfigRegistry.battle().getResponseLevel2Minutes());
         assertEquals(45, KOMEConfigRegistry.battle().getResponseLevel3Minutes());
+        assertEquals(3, KOMEConfigRegistry.muster().getThreatDistanceTiles());
+        assertEquals(28, KOMEConfigRegistry.muster().getBudgetDailyPopulationMultiplier());
+        assertEquals(12, KOMEConfigRegistry.muster().getArrivalDelayHours());
+        assertEquals(KOMEConfigRegistry.EncircledCapitalArrivalPolicy.RELIEF,
+                KOMEConfigRegistry.muster().getEncircledCapitalArrivalPolicy());
+        assertEquals(12.5D, KOMEConfigRegistry.siege().getGateHpPerApprovedHour()
+                .getAsDouble(), 0.0D);
+        assertEquals(KOMEConfigRegistry.PreBreachRepair.ENABLED,
+                KOMEConfigRegistry.siege().getPreBreachRepair());
+        assertTrue(KOMEConfigRegistry.siege().isPostBreachRepairEnabled());
+    }
+
+    @Test
+    public void musterNumericValuesAtOrBelowZeroFail() throws Exception {
+        invalid(KOMEConfigRegistry.MUSTER_CATEGORY,
+                KOMEConfigRegistry.THREAT_DISTANCE_TILES, "0");
+        invalid(KOMEConfigRegistry.MUSTER_CATEGORY,
+                KOMEConfigRegistry.BUDGET_DAILY_POPULATION_MULTIPLIER, "-1");
+        invalid(KOMEConfigRegistry.MUSTER_CATEGORY,
+                KOMEConfigRegistry.ARRIVAL_DELAY_HOURS, "0");
+    }
+
+    @Test
+    public void invalidMusterPolicyFails() throws Exception {
+        invalid(KOMEConfigRegistry.MUSTER_CATEGORY,
+                KOMEConfigRegistry.ENCIRCLED_CAPITAL_ARRIVAL_POLICY, "BLOCKED");
+    }
+
+    @Test
+    public void positiveCustomGateHpLoads() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.GATE_HP_PER_APPROVED_HOUR, "4.25");
+        KOMEConfigRegistry.load(file);
+        assertEquals(4.25D, KOMEConfigRegistry.siege().getGateHpPerApprovedHour()
+                .getAsDouble(), 0.0D);
+    }
+
+    @Test
+    public void invalidGateHpValuesFail() throws Exception {
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.GATE_HP_PER_APPROVED_HOUR, "0");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.GATE_HP_PER_APPROVED_HOUR, "-1");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.GATE_HP_PER_APPROVED_HOUR, "NaN");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.GATE_HP_PER_APPROVED_HOUR, "Infinity");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.GATE_HP_PER_APPROVED_HOUR, "unknown");
+    }
+
+    @Test
+    public void segmentSupportMinimumRejectsNonPositiveValues() throws Exception {
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.NORMAL_SEGMENT_SUPPORT_MINIMUM_TROOPS, "0");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.NORMAL_SEGMENT_SUPPORT_MINIMUM_TROOPS, "-1");
+    }
+
+    @Test
+    public void fallbackGraceAllowsZeroAndRejectsNegative() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.SUPPORT_FALLBACK_GRACE_SECONDS, "0");
+        KOMEConfigRegistry.load(file);
+        assertEquals(0, KOMEConfigRegistry.siege().getSupportFallbackGraceSeconds());
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.SUPPORT_FALLBACK_GRACE_SECONDS, "-1");
+    }
+
+    @Test
+    public void preBreachRepairStatesParseAndInvalidStateFails() throws Exception {
+        assertEquals(KOMEConfigRegistry.PreBreachRepair.ENABLED,
+                loadPreBreachRepair("ENABLED"));
+        assertEquals(KOMEConfigRegistry.PreBreachRepair.DISABLED,
+                loadPreBreachRepair("DISABLED"));
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.PRE_BREACH_REPAIR, "MAYBE");
+    }
+
+    @Test
+    public void invalidPostBreachRepairBooleanFails() throws Exception {
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.POST_BREACH_REPAIR_ENABLED, "sometimes");
+    }
+
+    private KOMEConfigRegistry.PreBreachRepair loadPreBreachRepair(String value)
+            throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY,
+                KOMEConfigRegistry.PRE_BREACH_REPAIR, value);
+        KOMEConfigRegistry.load(file);
+        return KOMEConfigRegistry.siege().getPreBreachRepair();
     }
 
     private void invalid(String category, String key, String value) throws Exception {

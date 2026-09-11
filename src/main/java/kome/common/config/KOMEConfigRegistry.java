@@ -7,6 +7,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
+import java.util.OptionalDouble;
 
 import net.minecraftforge.common.config.Configuration;
 
@@ -16,6 +17,8 @@ public final class KOMEConfigRegistry {
     public static final String POPULATION_CATEGORY = "population";
     public static final String MOVEMENT_CATEGORY = "movement";
     public static final String BATTLE_CATEGORY = "battle";
+    public static final String MUSTER_CATEGORY = "muster";
+    public static final String SIEGE_CATEGORY = "siege";
     public static final String LOCAL_TIME = "localTime";
     public static final String TIMEZONE = "timezone";
     public static final String HOURS_PER_POPULATION_POINT = "hoursPerPopulationPoint";
@@ -29,6 +32,19 @@ public final class KOMEConfigRegistry {
     public static final String RESPONSE_LEVEL_1_MINUTES = "responseLevel1Minutes";
     public static final String RESPONSE_LEVEL_2_MINUTES = "responseLevel2Minutes";
     public static final String RESPONSE_LEVEL_3_MINUTES = "responseLevel3Minutes";
+    public static final String THREAT_DISTANCE_TILES = "threatDistanceTiles";
+    public static final String BUDGET_DAILY_POPULATION_MULTIPLIER =
+            "budgetDailyPopulationMultiplier";
+    public static final String ARRIVAL_DELAY_HOURS = "arrivalDelayHours";
+    public static final String ENCIRCLED_CAPITAL_ARRIVAL_POLICY =
+            "encircledCapitalArrivalPolicy";
+    public static final String GATE_HP_PER_APPROVED_HOUR = "gateHpPerApprovedHour";
+    public static final String NORMAL_SEGMENT_SUPPORT_MINIMUM_TROOPS =
+            "normalSegmentSupportMinimumTroops";
+    public static final String SUPPORT_FALLBACK_GRACE_SECONDS =
+            "supportFallbackGraceSeconds";
+    public static final String PRE_BREACH_REPAIR = "preBreachRepair";
+    public static final String POST_BREACH_REPAIR_ENABLED = "postBreachRepairEnabled";
 
     private static final String DEFAULT_LOCAL_TIME = "20:00";
     private static final String DEFAULT_TIMEZONE = "America/Chicago";
@@ -43,6 +59,10 @@ public final class KOMEConfigRegistry {
             new PopulationSettings(10, 0.50D, true, false, false);
     private static volatile MovementSettings movement = new MovementSettings(1, 2);
     private static volatile BattleSettings battle = new BattleSettings(20, 35, 50);
+    private static volatile MusterSettings muster = new MusterSettings(2, 21, 24,
+            EncircledCapitalArrivalPolicy.TBD);
+    private static volatile SiegeSettings siege = new SiegeSettings(OptionalDouble.empty(),
+            1, 15, PreBreachRepair.TBD, false);
 
     private KOMEConfigRegistry() {
     }
@@ -54,10 +74,14 @@ public final class KOMEConfigRegistry {
         PopulationSettings loadedPopulation = readPopulation(configuration);
         MovementSettings loadedMovement = readMovement(configuration);
         BattleSettings loadedBattle = readBattle(configuration);
+        MusterSettings loadedMuster = readMuster(configuration);
+        SiegeSettings loadedSiege = readSiege(configuration);
         dailyBatch = loadedDailyBatch;
         population = loadedPopulation;
         movement = loadedMovement;
         battle = loadedBattle;
+        muster = loadedMuster;
+        siege = loadedSiege;
         if (configuration.hasChanged()) {
             configuration.save();
         }
@@ -77,6 +101,14 @@ public final class KOMEConfigRegistry {
 
     public static BattleSettings battle() {
         return battle;
+    }
+
+    public static MusterSettings muster() {
+        return muster;
+    }
+
+    public static SiegeSettings siege() {
+        return siege;
     }
 
     private static DailyBatchSettings readDailyBatch(Configuration c) {
@@ -138,6 +170,40 @@ public final class KOMEConfigRegistry {
         return new BattleSettings(level1, level2, level3);
     }
 
+    private static MusterSettings readMuster(Configuration c) {
+        int threatDistance = positive(MUSTER_CATEGORY, THREAT_DISTANCE_TILES,
+                value(c, MUSTER_CATEGORY, THREAT_DISTANCE_TILES, "2"));
+        int budgetMultiplier = positive(MUSTER_CATEGORY,
+                BUDGET_DAILY_POPULATION_MULTIPLIER,
+                value(c, MUSTER_CATEGORY, BUDGET_DAILY_POPULATION_MULTIPLIER, "21"));
+        int arrivalDelay = positive(MUSTER_CATEGORY, ARRIVAL_DELAY_HOURS,
+                value(c, MUSTER_CATEGORY, ARRIVAL_DELAY_HOURS, "24"));
+        EncircledCapitalArrivalPolicy policy = parseEnum(MUSTER_CATEGORY,
+                ENCIRCLED_CAPITAL_ARRIVAL_POLICY,
+                value(c, MUSTER_CATEGORY, ENCIRCLED_CAPITAL_ARRIVAL_POLICY, "TBD"),
+                EncircledCapitalArrivalPolicy.class);
+        return new MusterSettings(threatDistance, budgetMultiplier, arrivalDelay, policy);
+    }
+
+    private static SiegeSettings readSiege(Configuration c) {
+        OptionalDouble gateHpPerApprovedHour = parseOptionalPositiveDouble(
+                GATE_HP_PER_APPROVED_HOUR,
+                value(c, SIEGE_CATEGORY, GATE_HP_PER_APPROVED_HOUR, "TBD"));
+        int supportMinimum = positive(SIEGE_CATEGORY,
+                NORMAL_SEGMENT_SUPPORT_MINIMUM_TROOPS,
+                value(c, SIEGE_CATEGORY, NORMAL_SEGMENT_SUPPORT_MINIMUM_TROOPS, "1"));
+        int fallbackGrace = nonNegative(SIEGE_CATEGORY, SUPPORT_FALLBACK_GRACE_SECONDS,
+                value(c, SIEGE_CATEGORY, SUPPORT_FALLBACK_GRACE_SECONDS, "15"));
+        PreBreachRepair preBreachRepair = parseEnum(SIEGE_CATEGORY, PRE_BREACH_REPAIR,
+                value(c, SIEGE_CATEGORY, PRE_BREACH_REPAIR, "TBD"),
+                PreBreachRepair.class);
+        boolean postBreachRepairEnabled = bool(SIEGE_CATEGORY,
+                POST_BREACH_REPAIR_ENABLED,
+                value(c, SIEGE_CATEGORY, POST_BREACH_REPAIR_ENABLED, "false"));
+        return new SiegeSettings(gateHpPerApprovedHour, supportMinimum, fallbackGrace,
+                preBreachRepair, postBreachRepairEnabled);
+    }
+
     private static String value(Configuration c, String category, String key,
             String defaultValue) {
         return c.get(category, key, defaultValue).getString();
@@ -152,6 +218,41 @@ public final class KOMEConfigRegistry {
         } catch (NumberFormatException ignored) {
         }
         throw invalid(category, key, value, "must be an integer greater than 0");
+    }
+
+    private static int nonNegative(String category, String key, String value) {
+        try {
+            int result = Integer.parseInt(value);
+            if (result >= 0) {
+                return result;
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        throw invalid(category, key, value, "must be an integer greater than or equal to 0");
+    }
+
+    private static OptionalDouble parseOptionalPositiveDouble(String key, String value) {
+        if ("TBD".equals(value)) {
+            return OptionalDouble.empty();
+        }
+        try {
+            double result = Double.parseDouble(value);
+            if (!Double.isNaN(result) && !Double.isInfinite(result) && result > 0.0D) {
+                return OptionalDouble.of(result);
+            }
+        } catch (NumberFormatException ignored) {
+        }
+        throw invalid(SIEGE_CATEGORY, key, value,
+                "must be TBD or a finite number greater than 0");
+    }
+
+    private static <T extends Enum<T>> T parseEnum(String category, String key,
+            String value, Class<T> enumType) {
+        try {
+            return Enum.valueOf(enumType, value.toUpperCase(java.util.Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            throw invalid(category, key, value, "must be a supported value");
+        }
     }
 
     private static double multiplier(String value) {
@@ -301,6 +402,89 @@ public final class KOMEConfigRegistry {
 
         public int getResponseLevel3Minutes() {
             return responseLevel3Minutes;
+        }
+    }
+
+    public enum EncircledCapitalArrivalPolicy {
+        TBD,
+        GARRISON,
+        RELIEF
+    }
+
+    public enum PreBreachRepair {
+        TBD,
+        ENABLED,
+        DISABLED
+    }
+
+    public static final class MusterSettings {
+        private final int threatDistanceTiles;
+        private final int budgetDailyPopulationMultiplier;
+        private final int arrivalDelayHours;
+        private final EncircledCapitalArrivalPolicy encircledCapitalArrivalPolicy;
+
+        private MusterSettings(int threatDistanceTiles,
+                int budgetDailyPopulationMultiplier, int arrivalDelayHours,
+                EncircledCapitalArrivalPolicy encircledCapitalArrivalPolicy) {
+            this.threatDistanceTiles = threatDistanceTiles;
+            this.budgetDailyPopulationMultiplier = budgetDailyPopulationMultiplier;
+            this.arrivalDelayHours = arrivalDelayHours;
+            this.encircledCapitalArrivalPolicy = encircledCapitalArrivalPolicy;
+        }
+
+        public int getThreatDistanceTiles() {
+            return threatDistanceTiles;
+        }
+
+        public int getBudgetDailyPopulationMultiplier() {
+            return budgetDailyPopulationMultiplier;
+        }
+
+        public int getArrivalDelayHours() {
+            return arrivalDelayHours;
+        }
+
+        public EncircledCapitalArrivalPolicy getEncircledCapitalArrivalPolicy() {
+            return encircledCapitalArrivalPolicy;
+        }
+    }
+
+    public static final class SiegeSettings {
+        private final OptionalDouble gateHpPerApprovedHour;
+        private final int normalSegmentSupportMinimumTroops;
+        private final int supportFallbackGraceSeconds;
+        private final PreBreachRepair preBreachRepair;
+        private final boolean postBreachRepairEnabled;
+
+        private SiegeSettings(OptionalDouble gateHpPerApprovedHour,
+                int normalSegmentSupportMinimumTroops,
+                int supportFallbackGraceSeconds, PreBreachRepair preBreachRepair,
+                boolean postBreachRepairEnabled) {
+            this.gateHpPerApprovedHour = gateHpPerApprovedHour;
+            this.normalSegmentSupportMinimumTroops = normalSegmentSupportMinimumTroops;
+            this.supportFallbackGraceSeconds = supportFallbackGraceSeconds;
+            this.preBreachRepair = preBreachRepair;
+            this.postBreachRepairEnabled = postBreachRepairEnabled;
+        }
+
+        public OptionalDouble getGateHpPerApprovedHour() {
+            return gateHpPerApprovedHour;
+        }
+
+        public int getNormalSegmentSupportMinimumTroops() {
+            return normalSegmentSupportMinimumTroops;
+        }
+
+        public int getSupportFallbackGraceSeconds() {
+            return supportFallbackGraceSeconds;
+        }
+
+        public PreBreachRepair getPreBreachRepair() {
+            return preBreachRepair;
+        }
+
+        public boolean isPostBreachRepairEnabled() {
+            return postBreachRepairEnabled;
         }
     }
 }
