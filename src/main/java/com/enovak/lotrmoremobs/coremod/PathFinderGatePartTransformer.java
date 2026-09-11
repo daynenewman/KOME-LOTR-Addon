@@ -8,7 +8,6 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.IincInsnNode;
 import org.objectweb.asm.tree.InsnList;
 import org.objectweb.asm.tree.JumpInsnNode;
@@ -47,7 +46,7 @@ public final class PathFinderGatePartTransformer
     private static final String HOOK_METHOD =
             "shouldTreatKnownGatePartAsClear";
     private static final String HOOK_DESCRIPTOR =
-            "(Ljava/lang/Object;III)Z";
+            "(Ljava/lang/Object;Ljava/lang/Object;III)Z";
 
     @Override
     public byte[] transform(
@@ -89,22 +88,15 @@ public final class PathFinderGatePartTransformer
 
         LabelNode advanceInnerZ = new LabelNode();
         target.instructions.insertBefore(zIncrement, advanceInnerZ);
-        LabelNode useVanillaClassification = new LabelNode();
+
         InsnList hook = new InsnList();
+
         hook.add(new VarInsnNode(Opcodes.ALOAD, blockLoad.blockLocal));
-        hook.add(new FieldInsnNode(
-                Opcodes.GETSTATIC,
-                SIEGE_REGISTRY_OWNER,
-                GATE_PART_FIELD,
-                isNotchTarget(target)
-                        ? GATE_PART_NOTCH_DESCRIPTOR
-                        : GATE_PART_DESCRIPTOR
-        ));
-        hook.add(new JumpInsnNode(Opcodes.IF_ACMPNE, useVanillaClassification));
         hook.add(new VarInsnNode(Opcodes.ALOAD, 0));
         hook.add(new VarInsnNode(Opcodes.ILOAD, blockLoad.xLocal));
         hook.add(new VarInsnNode(Opcodes.ILOAD, blockLoad.yLocal));
         hook.add(new VarInsnNode(Opcodes.ILOAD, blockLoad.zLocal));
+
         hook.add(new MethodInsnNode(
                 Opcodes.INVOKESTATIC,
                 HOOK_OWNER,
@@ -112,9 +104,9 @@ public final class PathFinderGatePartTransformer
                 HOOK_DESCRIPTOR,
                 false
         ));
-        hook.add(new JumpInsnNode(Opcodes.IFEQ, useVanillaClassification));
-        hook.add(new JumpInsnNode(Opcodes.GOTO, advanceInnerZ));
-        hook.add(useVanillaClassification);
+
+        hook.add(new JumpInsnNode(Opcodes.IFNE, advanceInnerZ));
+
         target.instructions.insert(blockLoad.storeInstruction, hook);
 
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);

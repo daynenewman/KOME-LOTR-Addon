@@ -15,6 +15,7 @@ import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.FrameNode;
 
 public final class AquaServerPlayerTransformer implements IClassTransformer {
 
@@ -78,6 +79,15 @@ public final class AquaServerPlayerTransformer implements IClassTransformer {
             tail.add(new JumpInsnNode(Opcodes.IFEQ, checkHeight));
             tail.add(new JumpInsnNode(Opcodes.GOTO, apply));
             tail.add(checkHeight);
+            tail.add(new FrameNode(
+                    Opcodes.F_APPEND,
+                    2,
+                    new Object[] {
+                            "com/fuzs/aquaacrobatics/entity/Pose",
+                            "com/fuzs/aquaacrobatics/entity/EntitySize"
+                    },
+                    0,
+                    null));
             tail.add(new VarInsnNode(Opcodes.ALOAD, 0));
             tail.add(new FieldInsnNode(Opcodes.GETFIELD, entityOwner, height, "F"));
             tail.add(new VarInsnNode(Opcodes.ALOAD, 2));
@@ -85,6 +95,7 @@ public final class AquaServerPlayerTransformer implements IClassTransformer {
             tail.add(new InsnNode(Opcodes.FCMPL));
             tail.add(new JumpInsnNode(Opcodes.IFEQ, skip));
             tail.add(apply);
+            tail.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
             tail.add(new VarInsnNode(Opcodes.ALOAD, 0));
             tail.add(new VarInsnNode(Opcodes.ALOAD, 2));
             tail.add(new FieldInsnNode(Opcodes.GETFIELD, "com/fuzs/aquaacrobatics/entity/EntitySize", "width", "F"));
@@ -92,6 +103,7 @@ public final class AquaServerPlayerTransformer implements IClassTransformer {
             tail.add(new FieldInsnNode(Opcodes.GETFIELD, "com/fuzs/aquaacrobatics/entity/EntitySize", "height", "F"));
             tail.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, entityOwner, setSize, "(FF)V", false));
             tail.add(skip);
+            tail.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
             update.instructions.insertBefore(instruction, tail);
             returns++;
         }
@@ -117,6 +129,7 @@ public final class AquaServerPlayerTransformer implements IClassTransformer {
             "(L" + classNode.name + ";)F", false));
         head.add(new InsnNode(Opcodes.FRETURN));
         head.add(original);
+        head.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
         eye.instructions.insert(head);
     }
 

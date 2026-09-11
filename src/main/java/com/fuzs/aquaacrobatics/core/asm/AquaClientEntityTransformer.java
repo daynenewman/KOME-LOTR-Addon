@@ -16,6 +16,7 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.FrameNode;
 
 /**
  * Client-target router intentionally free of client Minecraft class references.
@@ -63,6 +64,8 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
     private static final String GL11 = "org/lwjgl/opengl/GL11";
     private static final String GL_COLOR_4F = "glColor4f";
     private static final String GL_COLOR_4F_DESCRIPTOR = "(FFFF)V";
+    private static final String NETWORK_STANCE_POS_Y_FIELD =
+            "aqua$networkOriginalPosY";
 
     @Override
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
@@ -304,14 +307,18 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
     }
 
     private MethodNode findMethod(ClassNode c,String desc,String... names){MethodNode r=null;for(MethodNode m:c.methods){if(!m.desc.equals(desc))continue;boolean ok=false;for(String n:names)if(n.equals(m.name))ok=true;if(!ok)continue;if(r!=null)throw new IllegalStateException("Ambiguous Aqua client target "+desc);r=m;}if(r==null)throw new IllegalStateException("Missing Aqua client target "+desc);return r;}
-    private void addClientPlayerPushOutHooks(ClassNode c){MethodNode m=findMethod(c,"(DDD)Z","func_145771_j","j");LabelNode continueOriginal=new LabelNode();InsnList h=new InsnList();h.add(new VarInsnNode(Opcodes.ALOAD,0));h.add(new VarInsnNode(Opcodes.DLOAD,1));h.add(new VarInsnNode(Opcodes.DLOAD,5));h.add(new MethodInsnNode(Opcodes.INVOKESTATIC,PLAYER_MOVEMENT_POLICY,"handleExactPlayerBlockCollision","(L"+c.name+";DD)Z",false));h.add(new JumpInsnNode(Opcodes.IFEQ,continueOriginal));h.add(new InsnNode(Opcodes.ICONST_0));h.add(new InsnNode(Opcodes.IRETURN));h.add(continueOriginal);m.instructions.insert(h);MethodInsnNode round=null;for(AbstractInsnNode i=m.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode){MethodInsnNode x=(MethodInsnNode)i;if("java/lang/Math".equals(x.owner)&&"round".equals(x.name)&&"(F)I".equals(x.desc)){if(round!=null)throw new IllegalStateException("Ambiguous EntityPlayerSP Math.round redirect");round=x;}}if(round==null)throw new IllegalStateException("Missing EntityPlayerSP Math.round redirect");round.setOpcode(Opcodes.INVOKESTATIC);round.owner=PLAYER_MOVEMENT_POLICY;round.name="roundPlayerBlockCollisionOffset";round.itf=false;MethodNode action=findMethod(
+    private void addClientPlayerPushOutHooks(ClassNode c){MethodNode m=findMethod(c,"(DDD)Z","func_145771_j","j");LabelNode continueOriginal=new LabelNode();InsnList h=new InsnList();h.add(new VarInsnNode(Opcodes.ALOAD,0));h.add(new VarInsnNode(Opcodes.DLOAD,1));h.add(new VarInsnNode(Opcodes.DLOAD,5));h.add(new MethodInsnNode(Opcodes.INVOKESTATIC,PLAYER_MOVEMENT_POLICY,"handleExactPlayerBlockCollision","(L"+c.name+";DD)Z",false));h.add(new JumpInsnNode(Opcodes.IFEQ,continueOriginal));h.add(new InsnNode(Opcodes.ICONST_0));h.add(new InsnNode(Opcodes.IRETURN));h.add(continueOriginal);
+        h.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
+        m.instructions.insert(h);MethodInsnNode round=null;for(AbstractInsnNode i=m.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode){MethodInsnNode x=(MethodInsnNode)i;if("java/lang/Math".equals(x.owner)&&"round".equals(x.name)&&"(F)I".equals(x.desc)){if(round!=null)throw new IllegalStateException("Ambiguous EntityPlayerSP Math.round redirect");round=x;}}if(round==null)throw new IllegalStateException("Missing EntityPlayerSP Math.round redirect");round.setOpcode(Opcodes.INVOKESTATIC);round.owner=PLAYER_MOVEMENT_POLICY;round.name="roundPlayerBlockCollisionOffset";round.itf=false;MethodNode action=findMethod(
         c,
         "()V",
         "updateEntityActionState",
         "func_70626_be",
         "bq");
         int tails=0;for(AbstractInsnNode i=action.instructions.getFirst();i!=null;i=i.getNext())if(i.getOpcode()==Opcodes.RETURN){InsnList tail=new InsnList();tail.add(new VarInsnNode(Opcodes.ALOAD,0));tail.add(new MethodInsnNode(Opcodes.INVOKESTATIC,PLAYER_MOVEMENT_POLICY,"applyForcedLandCrawlMovement","(L"+c.name+";)V",false));action.instructions.insertBefore(i,tail);tails++;}if(tails!=1)throw new IllegalStateException("EntityPlayerSP expected one updateEntityActionState return, found "+tails);}
-    private void addMovementStorageAccess(ClassNode c){if(c.interfaces.contains(MOVEMENT_STORAGE_ACCESS))throw new IllegalStateException("Duplicate movement storage access interface");c.interfaces.add(MOVEMENT_STORAGE_ACCESS);String d="L"+MOVEMENT_STORAGE+";";for(FieldNode f:c.fields)if("aqua$movementStorage".equals(f.name)&&d.equals(f.desc))throw new IllegalStateException("Duplicate movement storage field");c.fields.add(new FieldNode(Opcodes.ACC_PRIVATE,"aqua$movementStorage",d,null,null));absent(c,"aqua$getMovementStorage","()"+d);MethodNode g=new MethodNode(Opcodes.ACC_PUBLIC,"aqua$getMovementStorage","()"+d,null,null);LabelNode ready=new LabelNode();g.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));g.instructions.add(new FieldInsnNode(Opcodes.GETFIELD,c.name,"aqua$movementStorage",d));g.instructions.add(new JumpInsnNode(Opcodes.IFNONNULL,ready));g.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));g.instructions.add(new org.objectweb.asm.tree.TypeInsnNode(Opcodes.NEW,MOVEMENT_STORAGE));g.instructions.add(new InsnNode(Opcodes.DUP));g.instructions.add(new MethodInsnNode(Opcodes.INVOKESPECIAL,MOVEMENT_STORAGE,"<init>","()V",false));g.instructions.add(new FieldInsnNode(Opcodes.PUTFIELD,c.name,"aqua$movementStorage",d));g.instructions.add(ready);g.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));g.instructions.add(new FieldInsnNode(Opcodes.GETFIELD,c.name,"aqua$movementStorage",d));g.instructions.add(new InsnNode(Opcodes.ARETURN));c.methods.add(g);}
+    private void addMovementStorageAccess(ClassNode c){if(c.interfaces.contains(MOVEMENT_STORAGE_ACCESS))throw new IllegalStateException("Duplicate movement storage access interface");c.interfaces.add(MOVEMENT_STORAGE_ACCESS);String d="L"+MOVEMENT_STORAGE+";";for(FieldNode f:c.fields)if("aqua$movementStorage".equals(f.name)&&d.equals(f.desc))throw new IllegalStateException("Duplicate movement storage field");c.fields.add(new FieldNode(Opcodes.ACC_PRIVATE,"aqua$movementStorage",d,null,null));absent(c,"aqua$getMovementStorage","()"+d);MethodNode g=new MethodNode(Opcodes.ACC_PUBLIC,"aqua$getMovementStorage","()"+d,null,null);LabelNode ready=new LabelNode();g.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));g.instructions.add(new FieldInsnNode(Opcodes.GETFIELD,c.name,"aqua$movementStorage",d));g.instructions.add(new JumpInsnNode(Opcodes.IFNONNULL,ready));g.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));g.instructions.add(new org.objectweb.asm.tree.TypeInsnNode(Opcodes.NEW,MOVEMENT_STORAGE));g.instructions.add(new InsnNode(Opcodes.DUP));g.instructions.add(new MethodInsnNode(Opcodes.INVOKESPECIAL,MOVEMENT_STORAGE,"<init>","()V",false));g.instructions.add(new FieldInsnNode(Opcodes.PUTFIELD,c.name,"aqua$movementStorage",d));g.instructions.add(ready);
+        g.instructions.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
+        g.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));g.instructions.add(new FieldInsnNode(Opcodes.GETFIELD,c.name,"aqua$movementStorage",d));g.instructions.add(new InsnNode(Opcodes.ARETURN));c.methods.add(g);}
     private void addCameraBridge(ClassNode c) {
       MethodNode camera=findMethod(c,"(F)V","orientCamera","func_78467_g","h"); String entity=viewEntityDesc(c); VarInsnNode store=null;
       for(AbstractInsnNode i=camera.instructions.getFirst();i!=null;i=i.getNext()) if(i instanceof VarInsnNode&&i.getOpcode()==Opcodes.FSTORE&&((VarInsnNode)i).var==3) { AbstractInsnNode a=previousOpcode(i),b=previousOpcode(a),d=previousOpcode(b),n=nextOpcode(i),n2=nextOpcode(n); if(a!=null&&a.getOpcode()==Opcodes.FSUB&&b instanceof org.objectweb.asm.tree.LdcInsnNode&&((org.objectweb.asm.tree.LdcInsnNode)b).cst instanceof Float&&((Float)((org.objectweb.asm.tree.LdcInsnNode)b).cst).floatValue()==1.62F&&d instanceof FieldInsnNode&&d.getOpcode()==Opcodes.GETFIELD&&"F".equals(((FieldInsnNode)d).desc)&&isCameraYOffset(((FieldInsnNode)d).name)&&n instanceof VarInsnNode&&n.getOpcode()==Opcodes.ALOAD&&((VarInsnNode)n).var==2&&n2 instanceof FieldInsnNode&&n2.getOpcode()==Opcodes.GETFIELD&&"D".equals(((FieldInsnNode)n2).desc)&&isCameraPrevX(((FieldInsnNode)n2).name)) {if(store!=null)throw new IllegalStateException("ambiguous EntityRenderer camera local");store=(VarInsnNode)i;} }
@@ -375,34 +382,93 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
 
     private void addClientPlayerNetworkStanceGuard(ClassNode c) {
         MethodNode method = findSendMotionUpdates(c);
-        int savedPosY = method.maxLocals;
-        method.maxLocals += 2;
+
+        for (FieldNode field : c.fields) {
+            if (NETWORK_STANCE_POS_Y_FIELD.equals(field.name)) {
+                throw new IllegalStateException(
+                        "Duplicate EntityClientPlayerMP network stance field"
+                );
+            }
+        }
+
+        c.fields.add(new FieldNode(
+                Opcodes.ACC_PRIVATE,
+                NETWORK_STANCE_POS_Y_FIELD,
+                "D",
+                null,
+                null
+        ));
 
         AbstractInsnNode first = method.instructions.getFirst();
-        while (first != null && first.getOpcode() < 0) first = first.getNext();
-        if (first == null) throw new IllegalStateException("Empty EntityClientPlayerMP sendMotionUpdates");
+        while (first != null && first.getOpcode() < 0) {
+            first = first.getNext();
+        }
+
+        if (first == null) {
+            throw new IllegalStateException(
+                    "Empty EntityClientPlayerMP sendMotionUpdates"
+            );
+        }
 
         InsnList begin = new InsnList();
+
+        // Save the real client posY into a synthetic field.
         begin.add(new VarInsnNode(Opcodes.ALOAD, 0));
-        begin.add(new MethodInsnNode(Opcodes.INVOKESTATIC, CLIENT_PLAYER_LOGIC, "beginLegalNetworkStance",
-            "(L" + c.name + ";)D", false));
-        begin.add(new VarInsnNode(Opcodes.DSTORE, savedPosY));
+        begin.add(new VarInsnNode(Opcodes.ALOAD, 0));
+        begin.add(new MethodInsnNode(
+                Opcodes.INVOKESTATIC,
+                CLIENT_PLAYER_LOGIC,
+                "beginLegalNetworkStance",
+                "(L" + c.name + ";)D",
+                false
+        ));
+        begin.add(new FieldInsnNode(
+                Opcodes.PUTFIELD,
+                c.name,
+                NETWORK_STANCE_POS_Y_FIELD,
+                "D"
+        ));
+
         method.instructions.insertBefore(first, begin);
 
         int returns = 0;
-        for (AbstractInsnNode instruction = method.instructions.getFirst(); instruction != null;
-            instruction = instruction.getNext()) {
-            if (instruction.getOpcode() != Opcodes.RETURN) continue;
+
+        for (AbstractInsnNode instruction = method.instructions.getFirst();
+             instruction != null;
+             instruction = instruction.getNext()) {
+
+            if (instruction.getOpcode() != Opcodes.RETURN) {
+                continue;
+            }
+
             InsnList end = new InsnList();
+
             end.add(new VarInsnNode(Opcodes.ALOAD, 0));
-            end.add(new VarInsnNode(Opcodes.DLOAD, savedPosY));
-            end.add(new MethodInsnNode(Opcodes.INVOKESTATIC, CLIENT_PLAYER_LOGIC, "endLegalNetworkStance",
-                "(L" + c.name + ";D)V", false));
+            end.add(new VarInsnNode(Opcodes.ALOAD, 0));
+            end.add(new FieldInsnNode(
+                    Opcodes.GETFIELD,
+                    c.name,
+                    NETWORK_STANCE_POS_Y_FIELD,
+                    "D"
+            ));
+            end.add(new MethodInsnNode(
+                    Opcodes.INVOKESTATIC,
+                    CLIENT_PLAYER_LOGIC,
+                    "endLegalNetworkStance",
+                    "(L" + c.name + ";D)V",
+                    false
+            ));
+
             method.instructions.insertBefore(instruction, end);
             ++returns;
         }
-        if (returns != 1) throw new IllegalStateException(
-            "EntityClientPlayerMP sendMotionUpdates expected one RETURN, found " + returns);
+
+        if (returns != 1) {
+            throw new IllegalStateException(
+                    "EntityClientPlayerMP sendMotionUpdates expected one RETURN, found "
+                            + returns
+            );
+        }
     }
 
     /**

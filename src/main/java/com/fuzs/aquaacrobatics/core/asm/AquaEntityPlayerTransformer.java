@@ -18,6 +18,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.FrameNode;
 
 /**
  * Inserts the Phase 2B pose-update bridge immediately after Forge's player
@@ -513,6 +514,7 @@ public final class AquaEntityPlayerTransformer implements IClassTransformer {
         method.instructions.add(new MethodInsnNode(Opcodes.INVOKESPECIAL, STATE_OWNER, "<init>", "()V", false));
         method.instructions.add(new FieldInsnNode(Opcodes.PUTFIELD, owner, STATE_FIELD, STATE_DESCRIPTOR));
         method.instructions.add(initialized);
+        method.instructions.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
         method.instructions.add(new VarInsnNode(Opcodes.ALOAD, 0));
         method.instructions.add(new FieldInsnNode(Opcodes.GETFIELD, owner, STATE_FIELD, STATE_DESCRIPTOR));
         method.instructions.add(new InsnNode(Opcodes.ARETURN));
@@ -807,6 +809,7 @@ public final class AquaEntityPlayerTransformer implements IClassTransformer {
             false));
         head.add(new InsnNode(Opcodes.FRETURN));
         head.add(vanilla);
+        head.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
         eyeHeight.instructions.insert(head);
     }
 
@@ -914,6 +917,7 @@ public final class AquaEntityPlayerTransformer implements IClassTransformer {
         bridge.add(new JumpInsnNode(Opcodes.IFEQ, continueVanilla));
         bridge.add(new InsnNode(Opcodes.RETURN));
         bridge.add(continueVanilla);
+        bridge.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
         travel.instructions.insertBefore(travel.instructions.getFirst(), bridge);
     }
 
