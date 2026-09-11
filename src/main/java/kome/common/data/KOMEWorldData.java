@@ -33,8 +33,11 @@ public class KOMEWorldData extends WorldSavedData {
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
     public static final int BUILD_DATA_SCHEMA_VERSION = 1;
     public static final int POPULATION_DATA_SCHEMA_VERSION = 2;
+    public static final int FACTION_POPULATION_DATA_SCHEMA_VERSION = 1;
 
     public final Map<UUID, KOMEPlayerPopulation> populations = new HashMap<>();
+    /** Canonical future-facing faction population banks; legacy ledgers remain separate for now. */
+    public final Map<String, KOMEFactionPopulation> factionPopulations = new HashMap<String, KOMEFactionPopulation>();
     public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
@@ -112,6 +115,81 @@ public class KOMEWorldData extends WorldSavedData {
             populations.put(player, pop);
         }
         return pop;
+    }
+
+    /** Controlled creation for world-data internals and deterministic tests. */
+    public KOMEFactionPopulation getFactionPopulation(String faction) {
+        String normalizedFaction = normalizeFactionPopulationKey(faction);
+        KOMEFactionPopulation population = factionPopulations.get(normalizedFaction);
+        if (population == null) {
+            population = new KOMEFactionPopulation();
+            factionPopulations.put(normalizedFaction, population);
+        }
+        return population;
+    }
+
+    public KOMEFactionPopulation getFactionPopulationIfPresent(String faction) {
+        return factionPopulations.get(normalizeFactionPopulationKey(faction));
+    }
+
+    public boolean trySpendFactionPopulation(String faction, int amount) {
+        String normalizedFaction = normalizeFactionPopulationKey(faction);
+        if (amount < 0) {
+            throw new IllegalArgumentException("Population spend must not be negative: " + amount);
+        }
+        KOMEFactionPopulation population = factionPopulations.get(normalizedFaction);
+        if (population == null) {
+            return amount == 0;
+        }
+        boolean spent = population.trySpend(amount);
+        if (spent && amount > 0) {
+            markDirty();
+        }
+        return spent;
+    }
+
+    public void grantFactionPopulation(String faction, int amount) {
+        String normalizedFaction = normalizeFactionPopulationKey(faction);
+        if (amount < 0) {
+            throw new IllegalArgumentException("Population grant must not be negative: " + amount);
+        }
+        if (amount == 0) {
+            return;
+        }
+        KOMEFactionPopulation population = factionPopulations.get(normalizedFaction);
+        if (population == null) {
+            population = new KOMEFactionPopulation();
+            factionPopulations.put(normalizedFaction, population);
+        }
+        population.grant(amount);
+        markDirty();
+    }
+
+    public void setFactionPopulation(String faction, int amount) {
+        String normalizedFaction = normalizeFactionPopulationKey(faction);
+        if (amount < 0) {
+            throw new IllegalArgumentException("Available population must not be negative: " + amount);
+        }
+        KOMEFactionPopulation population = factionPopulations.get(normalizedFaction);
+        if (population == null) {
+            if (amount == 0) {
+                return;
+            }
+            population = new KOMEFactionPopulation();
+            factionPopulations.put(normalizedFaction, population);
+        }
+        if (population.getAvailablePopulation() != amount) {
+            population.setAvailablePopulation(amount);
+            markDirty();
+        }
+    }
+
+    private static String normalizeFactionPopulationKey(String faction) {
+        String normalizedFaction = KOMEAlliance.normalizeFactionKey(faction);
+        if (normalizedFaction.length() == 0) {
+            throw new IllegalArgumentException("Faction population requires a nonblank faction key");
+        }
+        return normalizedFaction;
     }
 
     public KOMEPlayerProgression getProgression(UUID player) {
@@ -1757,7 +1835,8 @@ public class KOMEWorldData extends WorldSavedData {
         return Math.max(0, total);
     }
 
-    public int getFactionPopulation(String factionKey) {
+    /** Legacy split-ledger total retained temporarily while KOM-6 migrates consumers. */
+    public int getLegacyFactionPopulationTotal(String factionKey) {
         String key = normalizeFactionKey(factionKey);
         if (key.length() == 0) {
             return 0;
@@ -2289,6 +2368,7 @@ public class KOMEWorldData extends WorldSavedData {
         int returnedCaptainPopulation = 0;
         int removedPostFarmerReservations = 0;
         populations.clear();
+        factionPopulations.clear();
         progressions.clear();
         hiredUnits.clear();
         conquestTiles.clear();
@@ -2382,6 +2462,18 @@ public class KOMEWorldData extends WorldSavedData {
             KOMEPlayerPopulation pop = new KOMEPlayerPopulation();
             pop.readFromNBT(entry);
             populations.put(UUID.fromString(entry.getString("Player")), pop);
+        }
+
+        NBTTagList factionPopulationList = nbt.getTagList("FactionPopulations", 10);
+        for (int i = 0; i < factionPopulationList.tagCount(); i++) {
+            NBTTagCompound entry = factionPopulationList.getCompoundTagAt(i);
+            String faction = KOMEAlliance.normalizeFactionKey(entry.getString("Faction"));
+            if (faction.length() == 0) {
+                continue;
+            }
+            KOMEFactionPopulation population = new KOMEFactionPopulation();
+            population.setAvailablePopulation(entry.getInteger("AvailablePopulation"));
+            factionPopulations.put(faction, population);
         }
 
         NBTTagList progressionList = nbt.getTagList("Progressions", 10);
@@ -3088,6 +3180,22 @@ public class KOMEWorldData extends WorldSavedData {
             popList.appendTag(pop);
         }
         nbt.setTag("Populations", popList);
+
+        nbt.setInteger("FactionPopulationDataSchemaVersion", FACTION_POPULATION_DATA_SCHEMA_VERSION);
+        NBTTagList factionPopulationList = new NBTTagList();
+        List<String> factionPopulationKeys = new ArrayList<String>(factionPopulations.keySet());
+        Collections.sort(factionPopulationKeys);
+        for (String faction : factionPopulationKeys) {
+            KOMEFactionPopulation population = factionPopulations.get(faction);
+            if (population == null) {
+                continue;
+            }
+            NBTTagCompound entry = new NBTTagCompound();
+            entry.setString("Faction", KOMEAlliance.normalizeFactionKey(faction));
+            entry.setInteger("AvailablePopulation", population.getAvailablePopulation());
+            factionPopulationList.appendTag(entry);
+        }
+        nbt.setTag("FactionPopulations", factionPopulationList);
 
         NBTTagList progressionList = new NBTTagList();
         for (Map.Entry<UUID, KOMEPlayerProgression> entry : progressions.entrySet()) {
