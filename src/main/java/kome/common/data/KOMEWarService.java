@@ -251,32 +251,65 @@ public final class KOMEWarService {
     }
 
     public static String allianceFingerprint(KOMEWorldData data, String first, String second) {
+        String a = KOMEAlliance.normalizeFactionKey(first);
+        String b = KOMEAlliance.normalizeFactionKey(second);
         StringBuilder result = new StringBuilder();
-        KOMEAlliance alliance = data == null ? null : data.getAlliance(first, second, false);
-        if (alliance == null) {
-            result.append("none");
-        } else {
-            result.append(alliance.getRelationshipStatus()).append(':')
-                .append(alliance.getFactionStage(first)).append(':')
-                .append(alliance.getFactionStage(second));
+
+        KOMEDiplomacyRelation relation =
+            KOMEDiplomacyService.getRelation(data, a, b);
+
+        result.append("diplomacy=").append(relation.key);
+
+        KOMEDiplomacyRecord record = null;
+        if (data != null
+                && a.length() > 0
+                && b.length() > 0
+                && !a.equals(b)) {
+            record = KOMEDiplomacyService.records(data).get(
+                KOMEDiplomacyRecord.pairKey(a, b));
         }
+
+        if (record != null && record.pendingTarget != null) {
+            result.append("|pending=")
+                .append(record.pendingTarget.key)
+                .append(':')
+                .append(record.requestingFaction)
+                .append(':')
+                .append(record.receivingFaction);
+        }
+
         result.append("|same=");
-        for (KOMEWar war : findActiveSameSide(data, first, second)) result.append(war.id).append(',');
+        for (KOMEWar war : findActiveSameSide(data, a, b)) {
+            result.append(war.id).append(',');
+        }
+
         result.append("|activeMembership=");
         for (KOMEWar war : sortedWars(data)) {
-            if (war.isActive() && (war.sideOf(first) > 0 || war.sideOf(second) > 0)) {
-                result.append(war.id).append(':').append(war.sideOf(first)).append(':').append(war.sideOf(second)).append(',');
+            if (war.isActive()
+                    && (war.sideOf(a) > 0 || war.sideOf(b) > 0)) {
+                result.append(war.id)
+                    .append(':')
+                    .append(war.sideOf(a))
+                    .append(':')
+                    .append(war.sideOf(b))
+                    .append(',');
             }
         }
+
         return result.toString();
     }
 
-    public static boolean requiresHostileConfirmation(KOMEWorldData data, String first, String second) {
-        KOMEAlliance alliance = data == null ? null : data.getAlliance(first, second, false);
-        return alliance != null && alliance.hasAnyAcceptedAlliance()
+    public static boolean requiresHostileConfirmation(
+            KOMEWorldData data,
+            String first,
+            String second) {
+        return KOMEDiplomacyService.relationAtLeast(
+                data,
+                first,
+                second,
+                KOMEDiplomacyRelation.FRIENDS)
             || !findActiveSameSide(data, first, second).isEmpty();
     }
-
     public static List<String> contradictoryMemberships(KOMEWorldData data, String faction) {
         List<String> result = new ArrayList<String>();
         if (data == null) return result;

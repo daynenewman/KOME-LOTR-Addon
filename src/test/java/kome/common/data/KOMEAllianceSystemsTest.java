@@ -635,50 +635,118 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void alliedClaimRequiresFreshSecondServerConfirmationAndBreaksDirectTracks() {
+    public void alliedClaimRequiresFreshSecondServerConfirmationWithoutBreakingDiplomacy() {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
-        alliance.requestTrack(KOMEAlliance.MILITARY, "test", 0L, false);
+
+        KOMEDiplomacyRecord diplomacy =
+            new KOMEDiplomacyRecord("gondor", "rohan");
+        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
+        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+
         KOMEConquestTile tile = new KOMEConquestTile("T200");
         tile.claim("rohan", 0L);
         data.conquestTiles.put(tile.id, tile);
+
         UUID claimant = UUID.randomUUID();
-        KOMEConquestClaimService.Result first = KOMEConquestClaimService.claim(data, tile, "gondor", claimant,
-            "Tester", 10L, 1_000L);
+
+        KOMEConquestClaimService.Result first =
+            KOMEConquestClaimService.claim(
+                data,
+                tile,
+                "gondor",
+                claimant,
+                "Tester",
+                10L,
+                1_000L);
+
         assertFalse(first.success);
         assertTrue(first.confirmationRequired);
         assertEquals("rohan", tile.currentRulingFaction());
-        KOMEConquestClaimService.Result second = KOMEConquestClaimService.claim(data, tile, "gondor", claimant,
-            "Tester", 11L, 1_001L);
+
+        KOMEConquestClaimService.Result second =
+            KOMEConquestClaimService.claim(
+                data,
+                tile,
+                "gondor",
+                claimant,
+                "Tester",
+                11L,
+                1_001L);
+
         assertTrue(second.success);
-        assertTrue(second.allianceBroken);
+        assertFalse(second.allianceBroken);
         assertEquals("gondor", tile.currentRulingFaction());
         assertNotNull(second.war);
         assertTrue(second.war.opposes("gondor", "rohan"));
-        assertFalse(alliance.hasAnyAlliance());
+        assertEquals(
+            KOMEDiplomacyRelation.FRIENDS,
+            KOMEDiplomacyService.getRelation(data, "gondor", "rohan"));
     }
-
     @Test
     public void alliedClaimConfirmationExpiresAndOwnerMutationInvalidatesIt() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.getAlliance("gondor", "rohan", true).requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
+
+        KOMEDiplomacyRecord diplomacy =
+            new KOMEDiplomacyRecord("gondor", "rohan");
+        diplomacy.relation = KOMEDiplomacyRelation.ALLIES;
+        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+
         KOMEConquestTile tile = new KOMEConquestTile("T201");
         tile.claim("rohan", 0L);
+
         UUID claimant = UUID.randomUUID();
-        assertTrue(KOMEConquestClaimService.claim(data, tile, "gondor", claimant, "Tester", 0L, 1_000L).confirmationRequired);
-        KOMEConquestClaimService.Result expired = KOMEConquestClaimService.claim(data, tile, "gondor", claimant,
-            "Tester", 0L, 1_000L + KOMEWarService.CLAIM_CONFIRMATION_MILLIS + 1L);
+
+        assertTrue(
+            KOMEConquestClaimService.claim(
+                data,
+                tile,
+                "gondor",
+                claimant,
+                "Tester",
+                0L,
+                1_000L).confirmationRequired);
+
+        KOMEConquestClaimService.Result expired =
+            KOMEConquestClaimService.claim(
+                data,
+                tile,
+                "gondor",
+                claimant,
+                "Tester",
+                0L,
+                1_000L + KOMEWarService.CLAIM_CONFIRMATION_MILLIS + 1L);
+
         assertTrue(expired.staleConfirmation);
         assertEquals("rohan", tile.currentRulingFaction());
 
-        KOMEConquestClaimService.claim(data, tile, "gondor", claimant, "Tester", 0L, 2_000L);
-        tile.claim("mordor", 1L);
-        KOMEConquestClaimService.Result changed = KOMEConquestClaimService.claim(data, tile, "gondor", claimant,
-            "Tester", 1L, 2_001L);
-        assertFalse(changed.success);
-        assertEquals("mordor", tile.currentRulingFaction());
-    }
+        KOMEConquestClaimService.claim(
+            data,
+            tile,
+            "gondor",
+            claimant,
+            "Tester",
+            0L,
+            2_000L);
 
+        tile.claim("mordor", 1L);
+
+        KOMEConquestClaimService.Result changed =
+            KOMEConquestClaimService.claim(
+                data,
+                tile,
+                "gondor",
+                claimant,
+                "Tester",
+                1L,
+                2_001L);
+
+        assertFalse(changed.success);
+        assertTrue(changed.staleConfirmation);
+        assertEquals("mordor", tile.currentRulingFaction());
+        assertEquals(
+            KOMEDiplomacyRelation.ALLIES,
+            KOMEDiplomacyService.getRelation(data, "gondor", "rohan"));
+    }
     @Test
     public void wartimeStewardshipIsDormantInPeaceAndTargetsOnlyOpposingSide() {
         KOMEWorldData data = new KOMEWorldData("test");
