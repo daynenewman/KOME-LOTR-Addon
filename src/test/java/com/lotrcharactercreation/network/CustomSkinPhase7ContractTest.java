@@ -137,7 +137,8 @@ public class CustomSkinPhase7ContractTest {
 
     private static String read(Path path) throws Exception {
         assertTrue("Missing source file: " + path, Files.isRegularFile(path));
-        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+        String text = new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+        return text.replace("\r\n", "\n").replace('\r', '\n');
     }
 
     private static int occurrences(String text, String value) {
