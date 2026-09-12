@@ -86,6 +86,12 @@ public class KOMEConfigRegistryTest {
         invalid(KOMEConfigRegistry.POPULATION_CATEGORY, KOMEConfigRegistry.UNIT_POPULATION_COST_OVERRIDES, "lotr.troll=0");
     }
 
+    @Test public void warInactivityAndBondSettingsAreTypedAndSafeByDefault() throws Exception {
+        File file=configFile(); write(file,"season","warInactivityDurationMillis","5000"); write(file,"season","warBondsEnabled","true"); write(file,"season","attackerWarBond","7"); write(file,"season","participationWarBond","3"); KOMEConfigRegistry.load(file);
+        assertEquals(5000,KOMEConfigRegistry.season().getWarInactivityDurationMillis().getAsInt()); assertTrue(KOMEConfigRegistry.season().isWarBondsEnabled()); assertEquals(7,KOMEConfigRegistry.season().getAttackerWarBond()); assertEquals(3,KOMEConfigRegistry.season().getParticipationWarBond());
+        invalid("season","attackerWarBond","-1"); invalid("season","participationWarBond","-1"); invalid("season","warBondsEnabled","sometimes"); KOMEConfigRegistry.load(configFile());
+    }
+
     @Test public void gearRulesUseStableItemIdsAndValidateFactionLists() throws Exception {
         File file = configFile();
         write(file, KOMEConfigRegistry.GEAR_CATEGORY, KOMEConfigRegistry.GEAR_RESTRICTION_RULES,

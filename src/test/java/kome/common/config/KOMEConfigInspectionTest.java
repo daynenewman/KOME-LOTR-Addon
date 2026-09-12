@@ -104,7 +104,7 @@ public class KOMEConfigInspectionTest {
                 "battleSupport.hardFallbackDistanceBlocks=48", "battleSupport.openBattleRadiusBlocks=192",
                 "encirclement.starvationGraceDays=10", "encirclement.announcedAssaultNoticeHours=48",
                 "encirclement.offlineStarvationCatchUp=false", "season.minimumWarSeasonLengthDays=TBD",
-                "season.automaticFinaleEnabled=false", "gear.restrictionRules={}"
+                "season.automaticFinaleEnabled=false", "season.warInactivityDurationMillis=TBD", "season.warBondsEnabled=false", "season.attackerWarBond=0", "season.participationWarBond=0", "gear.restrictionRules={}"
         };
         Map<String, String> result = new TreeMap<String, String>();
         for (String entry : entries) {

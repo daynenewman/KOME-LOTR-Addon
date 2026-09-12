@@ -76,6 +76,10 @@ public final class KOMEConfigRegistry {
     public static final String OFFLINE_STARVATION_CATCH_UP = "offlineStarvationCatchUp";
     public static final String MINIMUM_WAR_SEASON_LENGTH_DAYS = "minimumWarSeasonLengthDays";
     public static final String AUTOMATIC_FINALE_ENABLED = "automaticFinaleEnabled";
+    public static final String WAR_INACTIVITY_DURATION_MILLIS = "warInactivityDurationMillis";
+    public static final String WAR_BONDS_ENABLED = "warBondsEnabled";
+    public static final String ATTACKER_WAR_BOND = "attackerWarBond";
+    public static final String PARTICIPATION_WAR_BOND = "participationWarBond";
 
     private static final String DEFAULT_LOCAL_TIME = "20:00";
     private static final String DEFAULT_TIMEZONE = "America/Chicago";
@@ -90,7 +94,7 @@ public final class KOMEConfigRegistry {
             new MusterSettings(2, 21, 24, EncircledCapitalArrivalPolicy.TBD),
             new SiegeSettings(OptionalDouble.empty(), 1, 15, PreBreachRepair.TBD, false, 192, OptionalInt.empty()),
             new BattleSupportSettings(BattleSupportMode.CURVE, 32, 48, 64, 70, 0.50D, 0.10D, 0.01D, 48, 192),
-            new EncirclementSettings(10, 48, false), new SeasonSettings(OptionalInt.empty(), false),
+            new EncirclementSettings(10, 48, false), new SeasonSettings(OptionalInt.empty(), false, OptionalInt.empty(), false, 0, 0),
             new GearSettings(Collections.<String, GearRuleSetting>emptyMap()));
 
     private KOMEConfigRegistry() {
@@ -422,7 +426,11 @@ public final class KOMEConfigRegistry {
             throw invalid(SEASON_CATEGORY, AUTOMATIC_FINALE_ENABLED, automaticFinaleValue,
                     "must be false because Draft 0.4 never starts Finale automatically");
         }
-        return new SeasonSettings(minimumLength, false);
+        OptionalInt inactivity = parseOptionalPositiveInt(SEASON_CATEGORY, WAR_INACTIVITY_DURATION_MILLIS, value(c, SEASON_CATEGORY, WAR_INACTIVITY_DURATION_MILLIS, "TBD"));
+        boolean bonds = bool(SEASON_CATEGORY, WAR_BONDS_ENABLED, value(c, SEASON_CATEGORY, WAR_BONDS_ENABLED, "false"));
+        int attackerBond = nonNegative(SEASON_CATEGORY, ATTACKER_WAR_BOND, value(c, SEASON_CATEGORY, ATTACKER_WAR_BOND, "0"));
+        int participationBond = nonNegative(SEASON_CATEGORY, PARTICIPATION_WAR_BOND, value(c, SEASON_CATEGORY, PARTICIPATION_WAR_BOND, "0"));
+        return new SeasonSettings(minimumLength, false, inactivity, bonds, attackerBond, participationBond);
     }
 
     private static String value(Configuration c, String category, String key,
@@ -948,13 +956,15 @@ public final class KOMEConfigRegistry {
     }
 
     public static final class SeasonSettings {
+        private final OptionalInt inactivityDurationMillis; private final boolean warBondsEnabled; private final int attackerWarBond, participationWarBond;
         private final OptionalInt minimumWarSeasonLengthDays;
         private final boolean automaticFinaleEnabled;
 
         private SeasonSettings(OptionalInt minimumWarSeasonLengthDays,
-                boolean automaticFinaleEnabled) {
+                boolean automaticFinaleEnabled, OptionalInt inactivityDurationMillis, boolean warBondsEnabled, int attackerWarBond, int participationWarBond) {
             this.minimumWarSeasonLengthDays = minimumWarSeasonLengthDays;
             this.automaticFinaleEnabled = automaticFinaleEnabled;
+            this.inactivityDurationMillis=inactivityDurationMillis; this.warBondsEnabled=warBondsEnabled; this.attackerWarBond=attackerWarBond; this.participationWarBond=participationWarBond;
         }
 
         public OptionalInt getMinimumWarSeasonLengthDays() {
@@ -962,5 +972,9 @@ public final class KOMEConfigRegistry {
         }
 
         public boolean isAutomaticFinaleEnabled() { return automaticFinaleEnabled; }
+        public OptionalInt getWarInactivityDurationMillis(){return inactivityDurationMillis;}
+        public boolean isWarBondsEnabled(){return warBondsEnabled;}
+        public int getAttackerWarBond(){return attackerWarBond;}
+        public int getParticipationWarBond(){return participationWarBond;}
     }
 }

@@ -12,16 +12,30 @@ import java.util.UUID;
 /** Pure war-registry rules shared by conquest, commands, movement and records. */
 public final class KOMEWarService {
     public static final long CLAIM_CONFIRMATION_MILLIS = 30_000L;
+    private static volatile KOMEWarBondFundingProvider bondFundingProvider;
+    public static void setBondFundingProvider(KOMEWarBondFundingProvider provider){bondFundingProvider=provider;}
+    public static AuthorizationDecision postParticipationBond(KOMEWar war,String faction,String role,long now){int amount=KOMEConfigRegistry.season().isWarBondsEnabled()?KOMEConfigRegistry.season().getParticipationWarBond():0;if(amount<=0)return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());for(KOMEWar.BondEscrow e:war.bondEscrows)if(e.faction.equals(KOMEAlliance.normalizeFactionKey(faction))&&e.role.equals(role))return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());if(bondFundingProvider==null)return AuthorizationDecision.deny("War bonds require a funding provider; none is installed.");KOMEWarBondFundingProvider.Result r=bondFundingProvider.debit(faction,amount,"war-participation");if(!r.success)return AuthorizationDecision.deny("War bond funding failed: "+r.reason);KOMEWar.BondEscrow e=new KOMEWar.BondEscrow();e.faction=KOMEAlliance.normalizeFactionKey(faction);e.role=role;e.amount=amount;e.postedAtMillis=now;war.bondEscrows.add(e);return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());}
+    public static AuthorizationDecision resolveBond(KOMEWar war,KOMEWar.BondEscrow e,String action,String destination,long now){if(e==null||!"HELD".equals(e.status))return AuthorizationDecision.deny("Escrow is already resolved.");if("FORFEIT".equals(action)){e.status="FORFEITED";e.resolvedAtMillis=now;return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());}if(bondFundingProvider==null)return AuthorizationDecision.deny("No funding provider is installed for escrow resolution.");String target="REFUND".equals(action)?e.faction:destination;if(target==null||target.length()==0)return AuthorizationDecision.deny("A payout destination is required.");KOMEWarBondFundingProvider.Result r=bondFundingProvider.credit(target,e.amount,"war-escrow-"+action);if(!r.success)return AuthorizationDecision.deny(r.reason);e.status=action;e.resolvedAtMillis=now;return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());}
 
     private KOMEWarService() {
     }
 
     public static KOMEWar createWar(KOMEWorldData data, String first, String second, String name,
             String actor, long now) {
-        KOMEWar war = createWarInternal(data, first, second, name, actor, now, true);
-        if (war != null) recordFirstLegalConflict(data, now);
-        return war;
+        return createWarResult(data,first,second,name,actor,now).war;
     }
+    public static CreationResult createWarResult(KOMEWorldData data,String first,String second,String name,String actor,long now) {
+        KOMEWar existing=findActiveOpposition(data,first,second); if(existing!=null)return CreationResult.ok(existing);
+        int bond=KOMEConfigRegistry.season().isWarBondsEnabled()?KOMEConfigRegistry.season().getAttackerWarBond():0;
+        if(bond>0 && bondFundingProvider==null) return CreationResult.deny("War bonds require a funding provider; none is installed.");
+        if(bond>0){KOMEWarBondFundingProvider.Result paid=bondFundingProvider.debit(first,bond,"war-declaration");if(!paid.success)return CreationResult.deny("War bond funding failed: "+paid.reason);}
+        KOMEWar war = createWarInternal(data, first, second, name, actor, now, true);
+        if(war!=null && bond>0){KOMEWar.BondEscrow e=new KOMEWar.BondEscrow();e.faction=KOMEAlliance.normalizeFactionKey(first);e.role="ATTACKER_DECLARATION";e.amount=bond;e.postedAtMillis=Math.max(0L,now);war.bondEscrows.add(e);}
+        if (war != null) recordFirstLegalConflict(data, now);
+        return war==null?CreationResult.deny("Could not create the war record."):CreationResult.ok(war);
+    }
+    public static final class CreationResult { public final KOMEWar war; public final String reason; private CreationResult(KOMEWar w,String r){war=w;reason=r;} static CreationResult ok(KOMEWar w){return new CreationResult(w,"");} static CreationResult deny(String r){return new CreationResult(null,r);} }
+    public static AuthorizationDecision declarationBondDecision(String attacker){int bond=KOMEConfigRegistry.season().isWarBondsEnabled()?KOMEConfigRegistry.season().getAttackerWarBond():0;if(bond<=0)return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());if(bondFundingProvider==null)return AuthorizationDecision.deny("War bonds require a funding provider; none is installed.");return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());}
 
     /** Canonical integration point for any already-validated conflict source. */
     public static KOMEWarSeasonState.TransitionResult recordFirstLegalConflict(KOMEWorldData data, long now) {
@@ -49,6 +63,7 @@ public final class KOMEWarService {
         war.defendingFaction = b;
         war.createdAtMillis = Math.max(0L, now);
         war.lastUpdatedAtMillis = war.createdAtMillis;
+        war.lastActivePressureAtMillis = war.createdAtMillis;
         war.addAdministrativeEvent(actor, "CREATE", a + " opposed to " + b, now);
         war.recordMembership(a, 1, "MANUAL", "", actor, now);
         war.recordMembership(b, 2, "MANUAL", "", actor, now);
@@ -79,6 +94,7 @@ public final class KOMEWarService {
         }
         if (war != null) {
             recordFirstLegalConflict(data, now);
+            recordHostilePressure(data, war, now, "HOSTILE_CAPTURE");
             war.addTileCapture(tileId, former, next, claimant, claimantName, now, claimMethod);
             reconcileAutomaticMilitarySupport(data, now, "Capture updated active war");
             KOMEMovementAccessService.revalidateAll(data, now);
@@ -86,6 +102,25 @@ public final class KOMEWarService {
             data.markDirty();
         }
         return war;
+    }
+
+    /** Hook for conflict, encirclement, siege, relief, and future systems; timestamps are caller supplied. */
+    public static boolean recordHostilePressure(KOMEWorldData data, KOMEWar war, long now, String source) {
+        if (data == null || war == null || !war.isActive()) return false;
+        long timestamp = Math.max(war.lastActivePressureAtMillis, Math.max(0L, now));
+        if (timestamp == war.lastActivePressureAtMillis) return false;
+        war.lastActivePressureAtMillis = timestamp;
+        war.lastUpdatedAtMillis = Math.max(war.lastUpdatedAtMillis, timestamp);
+        war.addAdministrativeEvent("system", "ACTIVE_PRESSURE", source == null ? "" : source, timestamp);
+        data.markDirty(); return true;
+    }
+
+    public static boolean isInactivityEligible(KOMEWar war, long now, long thresholdMillis) {
+        return war != null && war.isActive() && thresholdMillis >= 0L && Math.max(0L, now) - war.lastActivePressureAtMillis >= thresholdMillis;
+    }
+    public static boolean isInactivityEligible(KOMEWar war, long now) {
+        return KOMEConfigRegistry.season().getWarInactivityDurationMillis().isPresent()
+            && isInactivityEligible(war, now, KOMEConfigRegistry.season().getWarInactivityDurationMillis().getAsInt());
     }
 
     public static KOMEWar findActiveOpposition(KOMEWorldData data, String first, String second) {
