@@ -180,91 +180,6 @@ public class KOMECommandAlliance extends CommandBase {
         throw new WrongUsageException(getCommandUsage(sender));
     }
 
-    private void processAllianceConfig(ICommandSender sender, String[] args, KOMEWorldData data) {
-        requireStaff(sender);
-        if ((args.length == 5 || args.length == 6) && "quota".equalsIgnoreCase(args[1])
-                && "item".equalsIgnoreCase(args[2])) {
-            KOMEAllianceQuotaPool.EntryView entry = KOMEAllianceQuotaPool.findEntry(data, args[3]);
-            if (entry == null) {
-                throw new WrongUsageException("Unknown quota-pool item. Use a registry ID such as minecraft:iron_sword or minecraft:wool:0.");
-            }
-            String setting = args[4].toLowerCase(java.util.Locale.ROOT);
-            if (args.length == 5 && "show".equals(setting)) {
-                sender.addChatMessage(new ChatComponentText("Quota item " + entry.key + ": weight=" + entry.effortWeight
-                    + ", max=" + entry.maximumQuantity + ", enabled=" + entry.enabled + ", tracks="
-                    + entry.allowedTracks + ", minimumTier=" + entry.minimumTier + ", category=" + entry.category + "."));
-                return;
-            }
-            if (args.length != 6) {
-                throw new WrongUsageException("/alliance config quota item <registry[:meta]> <weight|max|enabled|show> [value]");
-            }
-            if ("weight".equals(setting)) {
-                int weight = parseIntBounded(sender, args[5], 1, 64);
-                if (!KOMEAllianceRequirements.isSupportedWeight(weight)) {
-                    throw new WrongUsageException("Quota weight must be 1, 2, 4, 8, 16, 32, or 64.");
-                }
-                data.setAllianceQuotaWeight(entry.key, weight);
-            } else if ("max".equals(setting)) {
-                data.setAllianceQuotaMaximum(entry.key, parseIntBounded(sender, args[5], 1, 1000000));
-            } else if ("enabled".equals(setting)) {
-                data.setAllianceQuotaItemEnabled(entry.key, parseOnOff(args[5]));
-            } else {
-                throw new WrongUsageException("Quota item setting must be weight, max, enabled, or show.");
-            }
-            KOMEAllianceQuotaPool.validateExistingRequirements(data);
-            KOMEAllianceQuotaPool.EntryView updated = KOMEAllianceQuotaPool.findEntry(data, args[3]);
-            recordAndRefresh(sender, data, "set quota item " + updated.key + " " + setting + " " + args[5]);
-            sender.addChatMessage(new ChatComponentText("Quota item " + updated.key + " now has weight="
-                + updated.effortWeight + ", max=" + updated.maximumQuantity + ", enabled=" + updated.enabled
-                + ". Open invalid rolls are marked INVALID_REQUIREMENT and can be repaired with /alliance reroll."));
-            return;
-        }
-        if (args.length == 3 && "difficulty".equalsIgnoreCase(args[1])) {
-            String difficulty = KOMEAllianceRequirements.normalizeDifficulty(args[2]);
-            if (!difficulty.equalsIgnoreCase(args[2])) {
-                throw new WrongUsageException("Difficulty must be easy, standard, or hard.");
-            }
-            data.allianceDifficulty = difficulty;
-            KOMEAllianceQuotaPool.reconcileConfiguredQuantities(data);
-            recordAndRefresh(sender, data, "set difficulty " + difficulty);
-            sender.addChatMessage(new ChatComponentText("Alliance difficulty set to " + difficulty + ". Existing completed tiers remain completed; open quotas were resized."));
-            return;
-        }
-        if (args.length == 3 && "stage3hours".equalsIgnoreCase(args[1])) {
-            double hours;
-            try {
-                hours = Double.parseDouble(args[2]);
-            } catch (NumberFormatException error) {
-                throw new WrongUsageException("Stage 3 hours must use 0.5-hour increments.");
-            }
-            int halfHours;
-            try {
-                halfHours = kome.common.data.KOMEHalfHourService.toHalfHours(hours);
-            } catch (IllegalArgumentException error) {
-                throw new WrongUsageException(error.getMessage());
-            }
-            if (halfHours < 1) throw new WrongUsageException("Stage 3 hours must be at least 0.5.");
-            data.allianceStageThreeRequiredHalfHours = halfHours;
-            recordAndRefresh(sender, data, "set Stage 3 Build-hour threshold " + hours);
-            sender.addChatMessage(new ChatComponentText("Stage 3 Build contribution threshold set to "
-                + kome.common.data.KOMEHalfHourService.displayHours(halfHours) + " hours."));
-            return;
-        }
-        if (args.length == 4 && "stagequota".equalsIgnoreCase(args[1])) {
-            int stage = parseIntBounded(sender, args[2], 1, 4);
-            int value = parseIntBounded(sender, args[3], 1, 1000000);
-            String type = KOMEAllianceProgressionService.stageQuotaType(stage);
-            int tier = KOMEAllianceProgressionService.stageQuotaTier(stage);
-            data.setAllianceRequirement(type, tier, "items", value);
-            KOMEAllianceQuotaPool.reconcileConfiguredQuantities(data);
-            recordAndRefresh(sender, data, "set Stage " + stage + " quota base " + value);
-            sender.addChatMessage(new ChatComponentText("Configured Stage " + stage
-                + " rolled quota base to " + value + " stack-equivalents. Claimed stages were not revoked."));
-            return;
-        }
-        throw new WrongUsageException("/alliance config difficulty <easy|standard|hard> | stagequota <1-4> <stack-equivalents> | stage3hours <hours> | quota item <registry[:meta]> <weight|max|enabled|show> [value]");
-    }
-
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
@@ -581,14 +496,6 @@ public class KOMECommandAlliance extends CommandBase {
             + ": " + displayFaction(alliance.factionA) + " Stage " + alliance.getFactionStage(alliance.factionA)
             + ", " + displayFaction(alliance.factionB) + " Stage " + alliance.getFactionStage(alliance.factionB)
             + ", shared relation " + KOMEAllianceAuthority.relationName(strongestAllianceRelation(alliance));
-    }
-
-    private void sendBenefits(ICommandSender sender) {
-        sender.addChatMessage(new ChatComponentText("Stage 0 Formal Neutrality: accepted relationship; no directional benefit."));
-        sender.addChatMessage(new ChatComponentText("Stage 1 Cooperation: directional allied-farmer hiring."));
-        sender.addChatMessage(new ChatComponentText("Stage 2 Friends: persistent Produce merchant-slot entitlement (future Produce integration)."));
-        sender.addChatMessage(new ChatComponentText("Stage 3 Allies: directional company passage through partner-controlled tiles."));
-        sender.addChatMessage(new ChatComponentText("Stage 4 Military Partnership: explicit company delegation and restricted kingless wartime authority."));
     }
 
     private static String parseFaction(String value) {
