@@ -59,6 +59,27 @@ public class KOMEWaypointAccessServiceTest {
     }
 
     @Test
+    public void activeWarOverridesAcceptedDiplomacy() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        KOMEConquestTile tile = claimedTile("A1", "rohan");
+        data.conquestTiles.put(tile.id, tile);
+
+        KOMEDiplomacyRecord diplomacy =
+            new KOMEDiplomacyRecord("gondor", "rohan");
+        diplomacy.relation = KOMEDiplomacyRelation.ALLIES;
+        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+
+        KOMEWarService.createWar(
+            data, "gondor", "rohan", "Test War", "test", 1L);
+
+        KOMEWaypointAccessService.Decision decision =
+            KOMEWaypointAccessService.evaluateResolvedTile(
+                data, UUID.randomUUID(), "gondor", false, tile.id, true);
+
+        assertFalse(decision.finalAllowed);
+        assertEquals(KOMEWaypointAccessService.State.DENIED, decision.state);
+    }
+    @Test
     public void friendsRelationAllowsForeignTerritory() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEConquestTile tile = claimedTile("A1", "rohan");

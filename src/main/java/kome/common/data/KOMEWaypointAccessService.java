@@ -129,6 +129,17 @@ public final class KOMEWaypointAccessService {
                 "The destination is controlled by your faction.", State.OWN);
         }
 
+        if (KOMEWarService.findActiveOpposition(
+                data, normalizedPlayerFaction, owner) != null) {
+            return Decision.denied(
+                normalizedTileId,
+                owner,
+                normalizedPlayerFaction,
+                0,
+                nativeEligible,
+                "Fast travel into " + KOMEAlliance.displayFactionName(owner)
+                    + " territory is blocked because your factions are active enemies.");
+        }
         if (KOMEDiplomacyService.relationAtLeast(
                 data, normalizedPlayerFaction, owner, KOMEDiplomacyRelation.FRIENDS)) {
             return Decision.allowed(normalizedTileId, owner, normalizedPlayerFaction, 0,
