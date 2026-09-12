@@ -44,7 +44,12 @@ public class CommandLotrCreation extends CommandBase {
         if (arguments[0].equalsIgnoreCase("complete")) {
             PlayerRaceData.setCharacterCreationComplete(player, true);
         } else if (arguments[0].equalsIgnoreCase("reset")) {
-            PlayerRaceData.setCharacterCreationComplete(player, false);
+            ChatComponentText error = new ChatComponentText(
+                "Unsafe reset is disabled. Use /kome character recreate <player>.");
+            error.getChatStyle()
+                .setColor(EnumChatFormatting.RED);
+            sender.addChatMessage(error);
+            return;
         } else {
             sendUsageError(sender);
             return;

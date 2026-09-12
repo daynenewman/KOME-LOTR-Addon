@@ -205,6 +205,14 @@ public class ClientProxy extends CommonProxy {
                     }
 
                     CharacterCreationStage stage = CharacterCreationStage.findBySerializedId(serializedStageId);
+                    if (stage == CharacterCreationStage.COMPLETE) {
+                        if (minecraft.currentScreen instanceof GuiCharacterConfirmation) {
+                            minecraft.displayGuiScreen(null);
+                        }
+                        minecraft.thePlayer.addChatMessage(
+                            new ChatComponentText("[LOTR Character Creation] Character recreation complete."));
+                        return;
+                    }
                     if (stage == CharacterCreationStage.RACE) {
                         minecraft.displayGuiScreen(new GuiRaceSelection());
                         return;

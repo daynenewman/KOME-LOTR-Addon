@@ -121,7 +121,7 @@ public class GuiCharacterConfirmation extends GuiScreen {
         } else {
             drawCenteredString(
                 fontRendererObj,
-                "Starting allegiance and travel are applied only after confirmation.",
+                "Confirm to save these character choices.",
                 width / 2,
                 centerY + 24,
                 0xA0A0A0);

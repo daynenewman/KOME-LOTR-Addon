@@ -21,12 +21,14 @@ import com.lotrcharactercreation.body.PlayerRaceEyeService;
 import com.lotrcharactercreation.body.PlayerRaceSizeService;
 import com.lotrcharactercreation.config.ModConfiguration;
 import com.lotrcharactercreation.creation.CharacterCreationFlowService;
+import com.lotrcharactercreation.creation.CharacterRecreationService;
 import com.lotrcharactercreation.creation.CharacterCreationStage;
 import com.lotrcharactercreation.faction.StartingFaction;
 import com.lotrcharactercreation.faction.StartingFactionApplication;
 import com.lotrcharactercreation.race.PlayerRace;
 import com.lotrcharactercreation.race.PlayerRaceData;
 import com.lotrcharactercreation.trait.ElfGrappleService;
+import com.lotrcharactercreation.trait.RaceTraitService;
 import com.lotrcharactercreation.waypoint.StartingWaypointApplication;
 import com.lotrcharactercreation.waypoint.StartingWaypointApplication.Result;
 
@@ -227,7 +229,24 @@ public final class ModNetwork {
                 faction.getSerializedId(),
                 PlayerRaceData.getAppearancePresetId(player),
                 StartingFactionApplication.pledgeCode(currentPledge),
-                ModConfiguration.isAutomaticStartingAllegianceEnabled()),
+                ModConfiguration.isAutomaticStartingAllegianceEnabled()
+                    && !CharacterRecreationService.isInProgress(player)),
+            player);
+    }
+
+    public static void sendCharacterRecreationCompleted(EntityPlayerMP player) {
+        PlayerRace race = PlayerRaceData.getRace(player);
+        PlayerSex sex = PlayerRaceData.getSex(player);
+        StartingFaction faction = PlayerRaceData.getStartingFaction(player);
+        CHANNEL.sendTo(
+            new CharacterCreationRequiredMessage(
+                CharacterCreationStage.COMPLETE.getSerializedId(),
+                race.getSerializedId(),
+                sex == null ? null : sex.getSerializedId(),
+                faction.getSerializedId(),
+                PlayerRaceData.getAppearancePresetId(player),
+                "",
+                false),
             player);
     }
 
@@ -374,6 +393,20 @@ public final class ModNetwork {
         EntityPlayerMP player = request.player;
         if (!CharacterCreationFlowService.isReadyForFinalization(player)) {
             sendCharacterCreationRequired(player);
+            return;
+        }
+
+        if (CharacterRecreationService.isInProgress(player)) {
+            if (!CharacterRecreationService.complete(player)) {
+                sendCharacterCreationRequired(player);
+                return;
+            }
+
+            PlayerRaceSizeService.applyStoredRaceSize(player);
+            PlayerRaceEyeService.applyStoredServerEyeHeight(player);
+            RaceTraitService.refreshDerivedAttributes(player);
+            sendPlayerAppearanceToTrackingAndSelf(player);
+            sendCharacterRecreationCompleted(player);
             return;
         }
 
