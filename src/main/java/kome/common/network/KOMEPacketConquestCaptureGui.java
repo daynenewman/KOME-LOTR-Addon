@@ -66,7 +66,6 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
     public double viewerX;
     public double viewerY;
     public double viewerZ;
-    public int buildPopulationPerHalfHour = 5;
     public String focusBuildId = "";
 
     public KOMEPacketConquestCaptureGui() {
@@ -225,7 +224,6 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         viewerX = buf.readDouble();
         viewerY = buf.readDouble();
         viewerZ = buf.readDouble();
-        buildPopulationPerHalfHour = Math.max(1, buf.readInt());
         focusBuildId = ByteBufUtils.readUTF8String(buf);
     }
 
@@ -290,7 +288,6 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         buf.writeDouble(viewerX);
         buf.writeDouble(viewerY);
         buf.writeDouble(viewerZ);
-        buf.writeInt(Math.max(1, buildPopulationPerHalfHour));
         ByteBufUtils.writeUTF8String(buf, focusBuildId == null ? "" : focusBuildId);
     }
 
@@ -312,12 +309,8 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         public double x;
         public double y;
         public double z;
-        public int offensiveHalfHours;
-        public int defensiveHalfHours;
-        public int offensivePopulation;
-        public int defensivePopulation;
-        public int offensiveCommitted;
-        public int defensiveCommitted;
+        public String buildType = "";
+        public int approvedHalfHours;
         public int pendingCount;
         public String status = "";
         public boolean canManage;
@@ -336,12 +329,8 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             x = buf.readDouble();
             y = buf.readDouble();
             z = buf.readDouble();
-            offensiveHalfHours = buf.readInt();
-            defensiveHalfHours = buf.readInt();
-            offensivePopulation = buf.readInt();
-            defensivePopulation = buf.readInt();
-            offensiveCommitted = buf.readInt();
-            defensiveCommitted = buf.readInt();
+            buildType = ByteBufUtils.readUTF8String(buf);
+            approvedHalfHours = buf.readInt();
             pendingCount = buf.readInt();
             status = ByteBufUtils.readUTF8String(buf);
             canManage = buf.readBoolean();
@@ -367,12 +356,8 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             buf.writeDouble(x);
             buf.writeDouble(y);
             buf.writeDouble(z);
-            buf.writeInt(offensiveHalfHours);
-            buf.writeInt(defensiveHalfHours);
-            buf.writeInt(offensivePopulation);
-            buf.writeInt(defensivePopulation);
-            buf.writeInt(offensiveCommitted);
-            buf.writeInt(defensiveCommitted);
+            ByteBufUtils.writeUTF8String(buf, safe(buildType));
+            buf.writeInt(approvedHalfHours);
             buf.writeInt(pendingCount);
             ByteBufUtils.writeUTF8String(buf, safe(status));
             buf.writeBoolean(canManage);
@@ -388,16 +373,14 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         public String id = "";
         public String player = "";
         public String faction = "";
-        public int offensiveHalfHours;
-        public int defensiveHalfHours;
+        public int halfHours;
         public String status = "";
 
         void read(ByteBuf buf) {
             id = ByteBufUtils.readUTF8String(buf);
             player = ByteBufUtils.readUTF8String(buf);
             faction = ByteBufUtils.readUTF8String(buf);
-            offensiveHalfHours = buf.readInt();
-            defensiveHalfHours = buf.readInt();
+            halfHours = buf.readInt();
             status = ByteBufUtils.readUTF8String(buf);
         }
 
@@ -405,8 +388,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             ByteBufUtils.writeUTF8String(buf, safe(id));
             ByteBufUtils.writeUTF8String(buf, safe(player));
             ByteBufUtils.writeUTF8String(buf, safe(faction));
-            buf.writeInt(offensiveHalfHours);
-            buf.writeInt(defensiveHalfHours);
+            buf.writeInt(halfHours);
             ByteBufUtils.writeUTF8String(buf, safe(status));
         }
     }

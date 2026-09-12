@@ -153,13 +153,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             view.x = build.x;
             view.y = build.y;
             view.z = build.z;
-            // Slice-2 transport compatibility only: a canonical Build has one lane.
-            view.offensiveHalfHours = build.isNormal() ? build.approvedHalfHours() : 0;
-            view.defensiveHalfHours = build.isDefensive() ? build.approvedHalfHours() : 0;
-            view.offensivePopulation = 0;
-            view.defensivePopulation = 0;
-            view.offensiveCommitted = 0;
-            view.defensiveCommitted = 0;
+            view.buildType = build.type.key;
+            view.approvedHalfHours = build.approvedHalfHours();
             view.pendingCount = build.pendingCount();
             view.status = buildStatus(data, viewerFaction, controller, build.populationFaction);
             view.canManage = admin || KOMEBuildService.isManager(build, viewerId);
@@ -185,8 +180,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
                 contributionView.id = contribution.id;
                 contributionView.player = contribution.contributorName;
                 contributionView.faction = contribution.contributorFaction;
-                contributionView.offensiveHalfHours = build.isNormal() ? contribution.halfHours : 0;
-                contributionView.defensiveHalfHours = build.isDefensive() ? contribution.halfHours : 0;
+                contributionView.halfHours = contribution.halfHours;
                 contributionView.status = contribution.status;
                 view.contributions.add(contributionView);
             }
@@ -196,7 +190,6 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         packet.viewerX = player.posX;
         packet.viewerY = player.posY;
         packet.viewerZ = player.posZ;
-        packet.buildPopulationPerHalfHour = Math.max(1, data.buildPopulationPerHalfHour);
     }
 
     private static String buildStatus(KOMEWorldData data, String viewerFaction, String controller, String buildOwner) {

@@ -87,22 +87,6 @@ public final class KOMEBuildService {
         return result;
     }
 
-    public static KOMEPlayerBuild create(KOMEWorldData data, String name, String tileId, int dimension,
-            double x, double y, double z, UUID builder, String builderName, String builderFaction,
-            String populationFaction, int offensiveHalfHours, int defensiveHalfHours, long nowMillis) {
-        LegacyHours legacy = translateLegacyHours(null, offensiveHalfHours, defensiveHalfHours);
-        return create(data, name, tileId, dimension, x, y, z, builder, builderName, builderFaction,
-            populationFaction, legacy.type, legacy.halfHours, nowMillis);
-    }
-
-    public static KOMEBuildContribution addSubmission(KOMEWorldData data, KOMEPlayerBuild build,
-            UUID contributor, String contributorName, String contributorFaction, int offensiveHalfHours,
-            int defensiveHalfHours, boolean contributorIsManager, long nowMillis) {
-        LegacyHours legacy = translateLegacyHours(build, offensiveHalfHours, defensiveHalfHours);
-        return addSubmission(data, build, contributor, contributorName, contributorFaction, legacy.halfHours,
-            contributorIsManager, nowMillis);
-    }
-
     /** Canonical contribution boundary: an existing Build supplies its only type. */
     public static KOMEBuildContribution addSubmission(KOMEWorldData data, KOMEPlayerBuild build,
             UUID contributor, String contributorName, String contributorFaction, int halfHours,
@@ -343,26 +327,6 @@ public final class KOMEBuildService {
         data.markDirty();
     }
 
-    /** Slice-2 boundary adapter for the still-split packet/UI payload. */
-    private static LegacyHours translateLegacyHours(KOMEPlayerBuild existing, int offensive, int defensive) {
-        if (offensive < 0 || defensive < 0) throw new IllegalArgumentException("Build hours cannot be negative.");
-        if ((offensive > 0) == (defensive > 0)) {
-            throw new IllegalArgumentException(offensive > 0
-                ? "Choose either Normal or Defensive Build hours, not both."
-                : "Submit at least one half-hour.");
-        }
-        KOMEBuildType type = offensive > 0 ? KOMEBuildType.NORMAL : KOMEBuildType.DEFENSIVE;
-        if (existing != null && existing.type != type) {
-            throw new IllegalArgumentException("Submitted Build hours do not match this Build's type.");
-        }
-        return new LegacyHours(type, offensive > 0 ? offensive : defensive);
-    }
-
-    private static final class LegacyHours {
-        final KOMEBuildType type;
-        final int halfHours;
-        LegacyHours(KOMEBuildType type, int halfHours) { this.type = type; this.halfHours = halfHours; }
-    }
 
     public static final class Decision {
         public final boolean allowed;

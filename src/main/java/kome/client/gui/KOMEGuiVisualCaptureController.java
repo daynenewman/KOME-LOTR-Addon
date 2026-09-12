@@ -219,7 +219,6 @@ public final class KOMEGuiVisualCaptureController {
         data.claimWarning = "Rohan is allied with Gondor. Confirming converts this capture into a recorded war consequence.";
         data.claimWarDestination = "Destination: Northern Coalition War / Free Peoples side.";
         data.viewerDimension = 0; data.viewerX = 1824.5D; data.viewerY = 72D; data.viewerZ = -935.5D;
-        data.buildPopulationPerHalfHour = 5;
         data.selectablePopulationOwners.add("gondor");
         data.selectablePopulationOwners.add("rohan");
         for (int i = 1; i <= 8; i++) {
@@ -231,17 +230,13 @@ public final class KOMEGuiVisualCaptureController {
             build.builder = i % 2 == 0 ? "WestfoldBuilder" : "Steward Ecthelion";
             build.manager = build.populationFaction.equals("gondor") ? "Steward Ecthelion" : "King Eomer";
             build.dimension = 0; build.x = 1810D + i * 4D; build.y = 71D; build.z = -950D + i * 3D;
-            build.offensiveHalfHours = 8 + i; build.defensiveHalfHours = 3 + i;
-            build.offensivePopulation = build.offensiveHalfHours * 5;
-            build.defensivePopulation = build.defensiveHalfHours * 5;
-            build.offensiveCommitted = i * 3; build.defensiveCommitted = i;
+            build.buildType = i % 2 == 0 ? "DEFENSIVE" : "NORMAL";
+            build.approvedHalfHours = 8 + i;
             build.pendingCount = i % 3; build.status = i % 3 == 0 ? "Friendly" : "Owned";
             build.canManage = true;
             build.destroyMode = "delete";
-            build.destroyReason = "The Build funds active units; release committed population before destruction.";
+            build.destroyReason = "";
             if (i == 1) {
-                build.offensiveCommitted = 0;
-                build.defensiveCommitted = 0;
                 build.destroyReason = "";
             }
             data.builds.add(build);

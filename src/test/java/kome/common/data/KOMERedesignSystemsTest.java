@@ -137,7 +137,7 @@ public class KOMERedesignSystemsTest {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 0, 0);
         KOMEBuildContribution contribution = KOMEBuildService.addSubmission(data, build, UUID.randomUUID(),
-            "Helper", "rohan", 2, 0, false, 20L);
+            "Helper", "rohan", 2, false, 20L);
         assertTrue(contribution.isPending());
         assertEquals(0, build.approvedHalfHours());
     }
@@ -147,7 +147,7 @@ public class KOMERedesignSystemsTest {
         KOMEPlayerBuild build = build(data, "gondor", 0, 0);
         UUID helper = UUID.randomUUID();
         KOMEBuildContribution contribution = KOMEBuildService.addSubmission(
-            data, build, helper, "Helper", "rohan", 2, 0, false, 20L);
+            data, build, helper, "Helper", "rohan", 2, false, 20L);
         assertTrue(KOMEBuildService.decideSubmission(data, build, contribution.id,
             build.managerUuid, build.managerName, true, "approved", 30L).allowed);
         assertEquals(2, build.approvedHalfHours());
@@ -159,7 +159,7 @@ public class KOMERedesignSystemsTest {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 0, 0);
         KOMEBuildContribution contribution = KOMEBuildService.addSubmission(
-            data, build, UUID.randomUUID(), "Helper", "rohan", 2, 0, false, 20L);
+            data, build, UUID.randomUUID(), "Helper", "rohan", 2, false, 20L);
         assertTrue(KOMEBuildService.decideSubmission(data, build, contribution.id,
             build.managerUuid, build.managerName, false, "rejected", 30L).allowed);
         assertEquals(0, build.approvedHalfHours());
@@ -249,7 +249,7 @@ public class KOMERedesignSystemsTest {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 0, 0);
         KOMEBuildContribution pending = KOMEBuildService.addSubmission(data, build, UUID.randomUUID(),
-            "Helper", "rohan", 1, 0, false, 20L);
+            "Helper", "rohan", 1, false, 20L);
         KOMEPlayerProgression departed = new KOMEPlayerProgression();
         departed.setPledgedLord("x", "x", "rohan");
         data.progressions.put(build.managerUuid, departed);
@@ -340,7 +340,7 @@ public class KOMERedesignSystemsTest {
         KOMEPlayerBuild build = build(data, "gondor", 2, 0);
         KOMEBuildContribution approved = build.contributions.get(0);
         KOMEBuildContribution pending = KOMEBuildService.addSubmission(data, build, UUID.randomUUID(),
-            "Helper", "rohan", 1, 0, false, 20L);
+            "Helper", "rohan", 1, false, 20L);
         assertTrue(KOMEBuildService.deleteBuild(data, build, build.managerUuid,
             build.managerName, false, "delete", 40L).allowed);
         assertTrue(approved.isRemoved());
@@ -427,10 +427,10 @@ public class KOMERedesignSystemsTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void legacyAdapterRejectsMixedLanes() {
+    public void canonicalCreationRejectsMissingType() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEBuildService.create(data, "Build", "T100", 0, 0, 64, 0, UUID.randomUUID(), "Builder",
-            "gondor", "gondor", 1, 1, 10L);
+            "gondor", "gondor", null, 1, 10L);
     }
 
     @Test public void ownPopulationPoolIsUsableAtOneHundredPercent() {
