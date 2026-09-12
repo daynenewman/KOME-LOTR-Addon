@@ -18,16 +18,16 @@ import net.minecraft.util.ChatComponentText;
 /** Typed GUI intent. Faction identity and authority are always recomputed by the server command path. */
 public class KOMEPacketAllianceAction implements IMessage {
     public String action = "";
-    public String track = "";
+    public String targetRelation = "";
     public String firstFaction = "";
     public String secondFaction = "";
 
     public KOMEPacketAllianceAction() {
     }
 
-    public KOMEPacketAllianceAction(String action, String track, String firstFaction, String secondFaction) {
+    public KOMEPacketAllianceAction(String action, String targetRelation, String firstFaction, String secondFaction) {
         this.action = safe(action);
-        this.track = safe(track);
+        this.targetRelation = safe(targetRelation);
         this.firstFaction = safe(firstFaction);
         this.secondFaction = safe(secondFaction);
     }
@@ -35,7 +35,7 @@ public class KOMEPacketAllianceAction implements IMessage {
     @Override
     public void fromBytes(ByteBuf buf) {
         action = ByteBufUtils.readUTF8String(buf);
-        track = ByteBufUtils.readUTF8String(buf);
+        targetRelation = ByteBufUtils.readUTF8String(buf);
         firstFaction = ByteBufUtils.readUTF8String(buf);
         secondFaction = ByteBufUtils.readUTF8String(buf);
     }
@@ -43,7 +43,7 @@ public class KOMEPacketAllianceAction implements IMessage {
     @Override
     public void toBytes(ByteBuf buf) {
         ByteBufUtils.writeUTF8String(buf, action);
-        ByteBufUtils.writeUTF8String(buf, track);
+        ByteBufUtils.writeUTF8String(buf, targetRelation);
         ByteBufUtils.writeUTF8String(buf, firstFaction);
         ByteBufUtils.writeUTF8String(buf, secondFaction);
     }
@@ -54,26 +54,14 @@ public class KOMEPacketAllianceAction implements IMessage {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
             String action = normalizeAction(message.action);
-            String track = KOMEAlliance.normalizeType(message.track);
+            String targetRelation = safe(message.targetRelation).trim().toLowerCase(java.util.Locale.ROOT);
             String first = KOMEAlliance.normalizeFactionKey(message.firstFaction);
             String second = KOMEAlliance.normalizeFactionKey(message.secondFaction);
             try {
                 String[] command;
-                if ("request".equals(action) || "accept".equals(action) || "roll".equals(action)
-                        || "claimstage".equals(action)) {
-                    command = new String[] {action, first, second};
-                } else if ("break".equals(action)) {
-                    command = new String[] {action, first, second};
-                } else if ("ledger".equals(action)) {
-                    command = new String[] {"goods", first, second};
-                } else if ("claim".equals(action)) {
-                    command = new String[] {"claimGoods", first, second};
-                } else if ("companies".equals(action)) {
-                    if (first.length() == 0 || second.length() == 0 || first.equals(second))
-                        throw new IllegalArgumentException("Two different faction records are required.");
-                    new KOMECommandTroops().processCommand(player, new String[] {"companies"});
-                    command = null;
-                } else {
+                if ("request".equals(action)) command = new String[] {action, first, second, targetRelation};
+                else if ("accept".equals(action) || "cancel".equals(action)) command = new String[] {action, first, second};
+                else {
                     throw new IllegalArgumentException("Unknown alliance GUI action.");
                 }
                 if (command != null) {

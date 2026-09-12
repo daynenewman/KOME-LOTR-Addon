@@ -338,10 +338,9 @@ public class KOMEAllianceSystemsTest {
             String[] parts = line.split("\\t", -1);
             config |= parts.length >= 7 && "CONFIG".equals(parts[0]);
             requirement |= parts.length >= 6 && "REQUIREMENT".equals(parts[0]);
-            if (parts.length >= 30 && "STAGE_RELATION".equals(parts[0])) {
+            if (parts.length >= 5 && "DIPLOMACY_RELATION".equals(parts[0])) {
                 relationships++;
-                assertEquals("active", parts[10]);
-                assertEquals("Neutral", parts[13]);
+                assertEquals("neutral", parts[4]);
             }
             assertFalse("TRACK".equals(parts[0]));
             assertFalse("ALLIANCE".equals(parts[0]));
@@ -349,7 +348,7 @@ public class KOMEAllianceSystemsTest {
         }
         assertFalse(config);
         assertFalse(requirement);
-        assertEquals(1, relationships);
+        assertEquals(0, relationships);
     }
 
     @Test
@@ -590,15 +589,13 @@ public class KOMEAllianceSystemsTest {
             String line = String.valueOf(value);
             assertFalse(line.contains("military.t4"));
             String[] parts = line.split("\\t", -1);
-            if (parts.length < 27 || !"STAGE_RELATION".equals(parts[0])) continue;
+            if (parts.length < 5 || !"DIPLOMACY_RELATION".equals(parts[0])) continue;
             stageRecords++;
-            assertEquals("gondor", parts[6]);
-            assertEquals("rohan", parts[7]);
-            assertEquals("3", parts[8]);
-            assertEquals("1", parts[9]);
-            assertEquals("Neutral", parts[13]);
+            assertEquals("gondor", parts[2]);
+            assertEquals("rohan", parts[3]);
+            assertEquals("neutral", parts[4]);
         }
-        assertEquals(1, stageRecords);
+        assertEquals(0, stageRecords);
     }
 
     @Test

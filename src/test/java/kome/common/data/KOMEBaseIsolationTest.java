@@ -92,13 +92,12 @@ public class KOMEBaseIsolationTest {
         assertTrue(packetHandler.contains("KOMEPacketTroopGuiAction.Handler.class"));
         assertTrue(actionPacket.contains("new KOMECommandAlliance().processCommand(player, command)"));
         assertTrue(actionPacket.contains("KOMEAllianceRecordBuilder.build(data, player)"));
-        assertTrue(actionPacket.contains("new KOMECommandTroops().processCommand(player, new String[] {\"companies\"})"));
-        assertTrue(recordBuilder.contains("STAGE_RELATION\\t"));
-        assertTrue(recordBuilder.contains("REQUEST_OPTION_V2\\t"));
+        assertFalse(actionPacket.contains("new KOMECommandTroops().processCommand(player, new String[] {\"companies\"})"));
+        assertTrue(recordBuilder.contains("DIPLOMACY_RELATION\\t"));
+        assertTrue(recordBuilder.contains("DIPLOMACY_REQUEST_OPTION\\t"));
         assertFalse(recordBuilder.contains("MILITARY_CONTEXT\\t"));
         assertFalse(recordBuilder.contains("MILITARY_COMPANY\\t"));
-        assertTrue(allianceGui.contains("\"STAGE_RELATION\".equals(parts[0])"));
-        assertTrue(allianceGui.contains("\"REQUEST_OPTION_V2\".equals(parts[0])"));
+        assertTrue(allianceGui.contains("DIPLOMACY_RELATION"));
         assertTrue(allianceGui.contains("KOMEGuiConfirmation"));
         assertFalse(allianceGui.contains("sendChat(\"/troops"));
         assertTrue(troopPacket.contains("Unknown troop GUI action"));

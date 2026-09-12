@@ -17,6 +17,7 @@ import kome.common.data.KOMEPopulationType;
 import kome.common.data.KOMEPlayerTilePopulationAllocation;
 import kome.common.data.KOMETilePopulation;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMEDiplomacyService;
 import kome.common.data.KOMEWarService;
 import kome.common.data.KOMEWartimeStewardshipService;
 import kome.common.gui.KOMEAllianceGuiHandler;
@@ -45,7 +46,7 @@ public class KOMECommandAlliance extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/alliance request <from> <to> | accept <from> <to> | break <from> <to> | roll <from> <to> | claimstage <from> <to> | goods <from> <to> | get|list|stage";
+        return "/alliance list [faction] | get <factionA> <factionB> | request <from> <to> <friends|allies> | accept <from> <to> | cancel <from> <to>";
     }
 
     @Override
@@ -81,89 +82,28 @@ public class KOMECommandAlliance extends CommandBase {
             return;
         }
         if ("request".equalsIgnoreCase(args[0])) {
-            if (args.length != 3) {
+            if (args.length != 4) {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
-            String type = KOMEAlliance.CIVIL;
             String senderFaction = parseFaction(args[1]);
             String receiverFaction = parseFaction(args[2]);
-            if (senderFaction.equals(receiverFaction)) {
-                throw new WrongUsageException("A faction cannot ally with itself.");
-            }
-            EntityPlayerMP actor = sender instanceof EntityPlayerMP ? (EntityPlayerMP) sender : null;
-            KOMEAllianceAuthority.Decision requestDecision;
-            if (actor == null && sender.canCommandSenderUseCommand(2, getCommandName())) {
-                int autoStage = KOMEAllianceAuthority.automaticStageForKinglessRelation(
-                    KOMEAllianceAuthority.getDefaultRelation(senderFaction, receiverFaction));
-                requestDecision = data.hasFactionKing(receiverFaction)
-                    ? KOMEAllianceAuthority.Decision.allow(false)
-                    : autoStage < 0 ? KOMEAllianceAuthority.Decision.deny("Hostile kingless factions cannot auto-accept.")
-                    : KOMEAllianceAuthority.Decision.allow(true, autoStage);
-            } else {
-                requestDecision = new KOMEAllianceAuthority(data).canRequestAlliance(actor, type, senderFaction, receiverFaction);
-            }
-            if (!requestDecision.allowed) {
-                throw new WrongUsageException(requestDecision.reason);
-            }
-            KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, true);
-            if (alliance.hasAnyAlliance()) {
-                throw new WrongUsageException("An alliance or request already exists for this faction pair.");
-            }
-            boolean pending = !requestDecision.automaticAcceptance;
-            alliance.requestTrack(type, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime(), pending);
-            if (pending) {
-                alliance.setPendingParties(type, senderFaction, receiverFaction);
-            }
-            if (!pending) {
-                alliance.setFactionStage(senderFaction, requestDecision.automaticStage,
-                    "Kingless automatic acceptance", sender.getEntityWorld().getTotalWorldTime(), System.currentTimeMillis());
-                alliance.setFactionStage(receiverFaction, requestDecision.automaticStage,
-                    "Kingless automatic acceptance", sender.getEntityWorld().getTotalWorldTime(), System.currentTimeMillis());
-                syncRelationsForAlliancePair(data, senderFaction, receiverFaction);
-            }
-            data.markDirty();
-            sendAllianceRefreshToParticipants(data, alliance);
-            if (pending) {
-                sender.addChatMessage(new ChatComponentText("Requested a formal alliance between " + displayFaction(senderFaction) + " and " + displayFaction(receiverFaction) + ". Acceptance begins both directions at Stage 0."));
-            } else {
-                sender.addChatMessage(new ChatComponentText("Accepted automatically at Stage "
-                    + requestDecision.automaticStage + ": " + displayFaction(receiverFaction)
-                    + " is kingless and its default relation is "
-                    + KOMEAllianceAuthority.relationName(KOMEAllianceAuthority.getDefaultRelation(senderFaction, receiverFaction)) + "."));
-            }
+            kome.common.data.KOMEDiplomacyRelation target = kome.common.data.KOMEDiplomacyRelation.parse(args[3]); EntityPlayerMP actor=sender instanceof EntityPlayerMP?(EntityPlayerMP)sender:null;
+            KOMEDiplomacyService.Result result=KOMEDiplomacyService.requestIncrease(data,senderFaction,receiverFaction,target,actor==null?null:kome.common.KOMEReflection.getEntityUUID(actor),System.currentTimeMillis()); if(!result.accepted)throw new WrongUsageException(result.reason); sender.addChatMessage(new ChatComponentText("Diplomacy request sent: "+target.displayName+"."));
             return;
         }
         if ("accept".equalsIgnoreCase(args[0])) {
             if (args.length != 3) {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
-            String type = KOMEAlliance.CIVIL;
             String senderFaction = parseFaction(args[1]);
             String receiverFaction = parseFaction(args[2]);
-            KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, false);
-            if (alliance == null || !alliance.hasAnyAlliance()) {
-                throw new WrongUsageException("No mutual alliance request exists between " + displayFaction(senderFaction) + " and " + displayFaction(receiverFaction) + ".");
-            }
-            EntityPlayerMP actor = sender instanceof EntityPlayerMP ? (EntityPlayerMP) sender : null;
-            String authoritativeReceiver = alliance.getPendingReceiver(type).length() > 0
-                ? alliance.getPendingReceiver(type) : receiverFaction;
-            KOMEAllianceAuthority.Decision acceptDecision = actor == null && sender.canCommandSenderUseCommand(2, getCommandName())
-                ? KOMEAllianceAuthority.Decision.allow(false)
-                : new KOMEAllianceAuthority(data).canAcceptAlliance(actor, alliance, type, authoritativeReceiver);
-            if (!acceptDecision.allowed) {
-                throw new WrongUsageException(acceptDecision.reason);
-            }
-            if (alliance.getRelationshipStatus() != kome.common.data.KOMEAllianceTrackStatus.PENDING) {
-                throw new WrongUsageException("No pending formal alliance exists between " + displayFaction(senderFaction) + " and " + displayFaction(receiverFaction) + ".");
-            }
-            alliance.acceptTrack(type, sender.getCommandSenderName(), sender.getEntityWorld().getTotalWorldTime());
-            syncRelationsForAlliancePair(data, senderFaction, receiverFaction);
-            data.markDirty();
-            sendAllianceRefreshToParticipants(data, alliance);
-            sender.addChatMessage(new ChatComponentText("Accepted formal alliance between " + displayFaction(senderFaction) + " and " + displayFaction(receiverFaction) + " at Stage 0 in both directions."));
+            EntityPlayerMP actor=sender instanceof EntityPlayerMP?(EntityPlayerMP)sender:null; boolean admin=sender.canCommandSenderUseCommand(2,getCommandName()); UUID acceptor=admin?data.getFactionKingId(receiverFaction):actor==null?null:kome.common.KOMEReflection.getEntityUUID(actor); KOMEDiplomacyService.Result result=KOMEDiplomacyService.acceptPendingIncrease(data,receiverFaction,senderFaction,acceptor,System.currentTimeMillis()); if(!result.accepted)throw new WrongUsageException(result.reason); sender.addChatMessage(new ChatComponentText("Diplomacy relation accepted."));
             return;
         }
+        if ("cancel".equalsIgnoreCase(args[0])) { if(args.length!=3)throw new WrongUsageException(getCommandUsage(sender)); EntityPlayerMP actor=sender instanceof EntityPlayerMP?(EntityPlayerMP)sender:null; KOMEDiplomacyService.Result result=KOMEDiplomacyService.cancelPendingRequest(data,parseFaction(args[1]),parseFaction(args[2]),actor==null?null:kome.common.KOMEReflection.getEntityUUID(actor),sender.canCommandSenderUseCommand(2,getCommandName())); if(!result.accepted)throw new WrongUsageException(result.reason); sender.addChatMessage(new ChatComponentText("Diplomacy request cancelled.")); return; }
         if ("break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0])) {
+            throw new WrongUsageException("Accepted relation downgrade policy is not configured.");
+            /*
             if (args.length != 3) {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
@@ -183,9 +123,11 @@ public class KOMECommandAlliance extends CommandBase {
                 sendAllianceRefreshToParticipants(data, alliance);
             }
             sender.addChatMessage(new ChatComponentText((removed ? "Broke the formal alliance between " : "No alliance found for ") + displayFaction(senderFaction) + " and " + displayFaction(receiverFaction) + ". Stage 2 merchant entitlements remain unlocked."));
-            return;
+            return; */
         }
         if ("roll".equalsIgnoreCase(args[0])) {
+            throw new WrongUsageException("Stage and quota progression has been retired.");
+            /*
             if (args.length != 3) {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
@@ -222,7 +164,7 @@ public class KOMECommandAlliance extends CommandBase {
             data.markDirty();
             sender.addChatMessage(new ChatComponentText("Revealed Stage " + targetStage + " quota for " + displayFaction(contributingFaction) + ": " + requirement.display()));
             sendAllianceRefreshToParticipants(data, alliance);
-            return;
+            return; */
         }
         if ("claimstage".equalsIgnoreCase(args[0]) || "advance".equalsIgnoreCase(args[0])) {
             if (args.length != 3) throw new WrongUsageException(getCommandUsage(sender));
