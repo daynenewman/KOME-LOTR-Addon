@@ -53,6 +53,8 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<String, KOMEConquestRouteEdge> routeEdges = new HashMap<>();
     public final Map<String, KOMEPlayerBuild> builds = new HashMap<String, KOMEPlayerBuild>();
     public final Map<String, KOMEAlliance> alliances = new HashMap<>();
+    /** KOM-13 canonical bilateral diplomacy; legacy alliances remain separate compatibility state. */
+    public final Map<String, KOMEDiplomacyRecord> canonicalDiplomacyRecords = new HashMap<String, KOMEDiplomacyRecord>();
     public final Set<String> recoveredLegacyTradePostIds = new HashSet<String>();
     public final List<NBTTagCompound> quarantinedTradePostRecords = new ArrayList<NBTTagCompound>();
     public final Map<String, KOMEWar> wars = new HashMap<String, KOMEWar>();
@@ -2301,6 +2303,7 @@ public class KOMEWorldData extends WorldSavedData {
         routeEdges.clear();
         builds.clear();
         alliances.clear();
+        canonicalDiplomacyRecords.clear();
         recoveredLegacyTradePostIds.clear();
         quarantinedTradePostRecords.clear();
         wars.clear();
@@ -2401,6 +2404,11 @@ public class KOMEWorldData extends WorldSavedData {
             if (faction.length() > 0 && remainder > 0L && remainder < KOMEPopulationRate.SCALE) {
                 populationPayoutRemainders.put(faction, Long.valueOf(remainder));
             }
+        }
+        NBTTagList diplomacyList = nbt.getTagList("CanonicalDiplomacyRecords", 10);
+        for (int i = 0; i < diplomacyList.tagCount(); i++) {
+            try { KOMEDiplomacyRecord record = KOMEDiplomacyRecord.readFromNBT(diplomacyList.getCompoundTagAt(i)); canonicalDiplomacyRecords.put(record.key(), record); }
+            catch (IllegalArgumentException ignored) { }
         }
 
         NBTTagList progressionList = nbt.getTagList("Progressions", 10);
@@ -3134,6 +3142,11 @@ public class KOMEWorldData extends WorldSavedData {
             NBTTagCompound entry = new NBTTagCompound(); entry.setString("Faction", faction); entry.setLong("RemainderUnits", remainder.longValue()); payoutRemainders.appendTag(entry);
         }
         nbt.setTag("PopulationPayoutRemainders", payoutRemainders);
+        NBTTagList diplomacyList = new NBTTagList();
+        List<String> diplomacyKeys = new ArrayList<String>(canonicalDiplomacyRecords.keySet());
+        Collections.sort(diplomacyKeys);
+        for (String key : diplomacyKeys) { KOMEDiplomacyRecord record = canonicalDiplomacyRecords.get(key); if (record != null) diplomacyList.appendTag(record.writeToNBT()); }
+        nbt.setTag("CanonicalDiplomacyRecords", diplomacyList);
 
         NBTTagList progressionList = new NBTTagList();
         for (Map.Entry<UUID, KOMEPlayerProgression> entry : progressions.entrySet()) {
