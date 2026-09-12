@@ -26,15 +26,14 @@ public final class KOMEWaypointAccessService {
 
         if (waypoint == null) {
             return Decision.denied(
-                "", "", normalizedPlayerFaction, 0, nativeEligible,
+                "", "", normalizedPlayerFaction, nativeEligible,
                 "No waypoint was selected.");
         }
 
         // Wanderers / unpledged players retain ordinary LOTR fast travel.
         if (normalizedPlayerFaction.length() == 0) {
             return Decision.allowed(
-                "", "", normalizedPlayerFaction, 0,
-                nativeEligible, nativeEligible,
+                "", "", normalizedPlayerFaction, nativeEligible, nativeEligible,
                 "Unpledged players use native LOTR waypoint access.",
                 State.DISABLED);
         }
@@ -44,8 +43,7 @@ public final class KOMEWaypointAccessService {
         if (tileId.length() == 0) {
             debugUnmapped(waypoint);
             return Decision.allowed(
-                "", "", normalizedPlayerFaction, 0,
-                nativeEligible, nativeEligible,
+                "", "", normalizedPlayerFaction, nativeEligible, nativeEligible,
                 "This waypoint is not linked to a canonical KOME conquest tile; native LOTR eligibility applies.",
                 State.UNMAPPED);
         }
@@ -90,42 +88,36 @@ public final class KOMEWaypointAccessService {
         String normalizedPlayerFaction = KOMEAlliance.normalizeFactionKey(playerFaction);
 
         if (data == null || normalizedTileId.length() == 0) {
-            return Decision.allowed(normalizedTileId, "", normalizedPlayerFaction, 0,
-                nativeEligible, nativeEligible,
+            return Decision.allowed(normalizedTileId, "", normalizedPlayerFaction, nativeEligible, nativeEligible,
                 "No canonical KOME destination tile is available; native LOTR eligibility applies.", State.UNMAPPED);
         }
 
         // Wanderers / unpledged players retain ordinary LOTR travel behavior.
         if (normalizedPlayerFaction.length() == 0) {
-            return Decision.allowed(normalizedTileId, "", normalizedPlayerFaction, 0,
-                nativeEligible, nativeEligible,
+            return Decision.allowed(normalizedTileId, "", normalizedPlayerFaction, nativeEligible, nativeEligible,
                 "Unpledged players use native LOTR waypoint access.", State.DISABLED);
         }
 
         KOMEConquestTile tile = data.conquestTiles.get(normalizedTileId);
         if (tile == null) {
-            return Decision.allowed(normalizedTileId, "", normalizedPlayerFaction, 0,
-                nativeEligible, nativeEligible,
+            return Decision.allowed(normalizedTileId, "", normalizedPlayerFaction, nativeEligible, nativeEligible,
                 "This destination has no canonical KOME tile record; native LOTR eligibility applies.", State.UNMAPPED);
         }
 
         String owner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
 
         if (bypass) {
-            return Decision.allowed(normalizedTileId, owner, normalizedPlayerFaction, 0,
-                nativeEligible, nativeEligible,
+            return Decision.allowed(normalizedTileId, owner, normalizedPlayerFaction, nativeEligible, nativeEligible,
                 "Operator waypoint bypass.", State.BYPASS);
         }
 
         if (owner.length() == 0) {
-            return Decision.allowed(normalizedTileId, "", normalizedPlayerFaction, 0,
-                nativeEligible, nativeEligible,
+            return Decision.allowed(normalizedTileId, "", normalizedPlayerFaction, nativeEligible, nativeEligible,
                 "The destination is unclaimed; native LOTR eligibility applies.", State.UNCLAIMED);
         }
 
         if (owner.equals(normalizedPlayerFaction)) {
-            return Decision.allowed(normalizedTileId, owner, normalizedPlayerFaction, 0,
-                nativeEligible, nativeEligible,
+            return Decision.allowed(normalizedTileId, owner, normalizedPlayerFaction, nativeEligible, nativeEligible,
                 "The destination is controlled by your faction.", State.OWN);
         }
 
@@ -134,31 +126,26 @@ public final class KOMEWaypointAccessService {
             return Decision.denied(
                 normalizedTileId,
                 owner,
-                normalizedPlayerFaction,
-                0,
-                nativeEligible,
+                normalizedPlayerFaction, nativeEligible,
                 "Fast travel into " + KOMEAlliance.displayFactionName(owner)
                     + " territory is blocked because your factions are active enemies.");
         }
         if (KOMEDiplomacyService.relationAtLeast(
                 data, normalizedPlayerFaction, owner, KOMEDiplomacyRelation.FRIENDS)) {
-            return Decision.allowed(normalizedTileId, owner, normalizedPlayerFaction, 0,
-                nativeEligible, nativeEligible,
+            return Decision.allowed(normalizedTileId, owner, normalizedPlayerFaction, nativeEligible, nativeEligible,
                 "An accepted Friends or Allies relation permits travel into this territory.", State.ALLY);
         }
 
         return Decision.denied(
             normalizedTileId,
             owner,
-            normalizedPlayerFaction,
-            0,
-            nativeEligible,
+            normalizedPlayerFaction, nativeEligible,
             "Fast travel into " + KOMEAlliance.displayFactionName(owner)
                 + " territory requires an accepted Friends or Allies relation.");
     }
     public static Decision evaluatePlayer(EntityPlayer player, LOTRAbstractWaypoint waypoint, boolean nativeEligible) {
         if (player == null) {
-            return Decision.denied("", "", "", 0, nativeEligible, "Player is unavailable.");
+            return Decision.denied("", "", "", nativeEligible, "Player is unavailable.");
         }
         KOMEWorldData data = KOMEReflection.isRemote(player.worldObj) ? KOMEClientData.INSTANCE : KOMEWorldData.get(player.worldObj);
         LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
@@ -244,19 +231,17 @@ public final class KOMEWaypointAccessService {
         public final String tileId;
         public final String tileOwner;
         public final String playerFaction;
-        public final int civilTier;
         public final boolean nativeEligible;
         public final boolean territoryAllowed;
         public final boolean finalAllowed;
         public final String reason;
         public final State state;
 
-        private Decision(String tileId, String tileOwner, String playerFaction, int civilTier, boolean nativeEligible,
+        private Decision(String tileId, String tileOwner, String playerFaction, boolean nativeEligible,
                 boolean territoryAllowed, boolean finalAllowed, String reason, State state) {
             this.tileId = tileId == null ? "" : tileId;
             this.tileOwner = KOMEAlliance.normalizeFactionKey(tileOwner);
             this.playerFaction = KOMEAlliance.normalizeFactionKey(playerFaction);
-            this.civilTier = Math.max(0, civilTier);
             this.nativeEligible = nativeEligible;
             this.territoryAllowed = territoryAllowed;
             this.finalAllowed = finalAllowed;
@@ -264,14 +249,14 @@ public final class KOMEWaypointAccessService {
             this.state = state;
         }
 
-        static Decision allowed(String tileId, String owner, String faction, int civilTier, boolean nativeEligibility,
+        static Decision allowed(String tileId, String owner, String faction, boolean nativeEligibility,
                 boolean result, String reason, State state) {
-            return new Decision(tileId, owner, faction, civilTier, nativeEligibility, true, result,
+            return new Decision(tileId, owner, faction, nativeEligibility, true, result,
                 result ? reason : "Native LOTR restrictions still deny this destination. " + reason, state);
         }
 
-        static Decision denied(String tileId, String owner, String faction, int civilTier, boolean nativeEligibility, String reason) {
-            return new Decision(tileId, owner, faction, civilTier, nativeEligibility, false, false, reason, State.DENIED);
+        static Decision denied(String tileId, String owner, String faction, boolean nativeEligibility, String reason) {
+            return new Decision(tileId, owner, faction, nativeEligibility, false, false, reason, State.DENIED);
         }
     }
 }

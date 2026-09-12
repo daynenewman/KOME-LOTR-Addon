@@ -50,12 +50,6 @@ public class KOMEAllianceAuthority {
         return false;
     }
 
-    public boolean canFactionUseAlliedWaypoint(String travelerFaction, String waypointFaction) {
-        // KOME no longer adds an alliance or war gate to LOTR waypoint travel.
-        // Native LOTR waypoint ownership and fast-travel checks remain authoritative.
-        return true;
-    }
-
     public boolean canFactionHireAlliedFarmhand(String hiringFaction, String unitFaction) {
         return !isDirectlyHostile(hiringFaction, unitFaction)
             && getEffectiveStage(hiringFaction, unitFaction) >= 1;

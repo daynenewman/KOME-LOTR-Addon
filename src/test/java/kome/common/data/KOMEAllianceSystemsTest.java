@@ -448,10 +448,8 @@ public class KOMEAllianceSystemsTest {
         KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
         KOMEAllianceAuthority authority = new KOMEAllianceAuthority(data);
         alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
-        assertTrue(authority.canFactionUseAlliedWaypoint("gondor", "rohan"));
         assertFalse(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
         alliance.setFactionStage("gondor", 1, "test", 0L, 1L);
-        assertTrue(authority.canFactionUseAlliedWaypoint("gondor", "rohan"));
         assertTrue(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
         alliance.setFactionStage("gondor", 2, "test", 0L, 2L);
         assertTrue(alliance.hasProduceMerchantSlot("gondor"));
@@ -463,7 +461,6 @@ public class KOMEAllianceSystemsTest {
         alliance.setFactionStage("rohan", 4, "test", 0L, 4L);
         data.claimFactionKing("gondor", "Gondor", UUID.randomUUID(), "King");
         assertTrue(authority.canTemporarilyCommand("gondor", "rohan"));
-        assertTrue(authority.canFactionUseAlliedWaypoint("gondor", "mordor"));
     }
 
     @Test
