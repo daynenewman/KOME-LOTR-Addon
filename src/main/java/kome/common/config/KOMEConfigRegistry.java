@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import net.minecraftforge.common.config.Configuration;
+import kome.common.data.KOMEProgressionAchievement;
 
 /** Canonical, typed KOME configuration values. */
 public final class KOMEConfigRegistry {
@@ -26,6 +27,9 @@ public final class KOMEConfigRegistry {
     public static final String BATTLE_SUPPORT_CATEGORY = "battleSupport";
     public static final String ENCIRCLEMENT_CATEGORY = "encirclement";
     public static final String SEASON_CATEGORY = "season";
+    public static final String GEAR_CATEGORY = "gear";
+    /** Semicolon-separated category~itemId~gearPermission~armorPermission~factions~npcAllowed~bossExclusive rules. */
+    public static final String GEAR_RESTRICTION_RULES = "restrictionRules";
     public static final String LOCAL_TIME = "localTime";
     public static final String TIMEZONE = "timezone";
     public static final String HOURS_PER_POPULATION_POINT = "hoursPerPopulationPoint";
@@ -86,7 +90,8 @@ public final class KOMEConfigRegistry {
             new MusterSettings(2, 21, 24, EncircledCapitalArrivalPolicy.TBD),
             new SiegeSettings(OptionalDouble.empty(), 1, 15, PreBreachRepair.TBD, false, 192, OptionalInt.empty()),
             new BattleSupportSettings(BattleSupportMode.CURVE, 32, 48, 64, 70, 0.50D, 0.10D, 0.01D, 48, 192),
-            new EncirclementSettings(10, 48, false), new SeasonSettings(OptionalInt.empty(), false));
+            new EncirclementSettings(10, 48, false), new SeasonSettings(OptionalInt.empty(), false),
+            new GearSettings(Collections.<String, GearRuleSetting>emptyMap()));
 
     private KOMEConfigRegistry() {
     }
@@ -120,7 +125,7 @@ public final class KOMEConfigRegistry {
         return new ValidatedConfig(readDailyBatch(configuration), readPopulation(configuration),
                 readMovement(configuration), readBattle(configuration), readMuster(configuration),
                 readSiege(configuration), readBattleSupport(configuration),
-                readEncirclement(configuration), readSeason(configuration));
+                readEncirclement(configuration), readSeason(configuration), readGear(configuration));
     }
 
     private static void publish(ValidatedConfig config) {
@@ -166,6 +171,52 @@ public final class KOMEConfigRegistry {
     public static SeasonSettings season() {
         return current.getSeason();
     }
+
+    public static GearSettings gear() {
+        return current.getGear();
+    }
+
+    private static GearSettings readGear(Configuration c) {
+        String source = value(c, GEAR_CATEGORY, GEAR_RESTRICTION_RULES, "");
+        Map<String, GearRuleSetting> rules = new LinkedHashMap<String, GearRuleSetting>();
+        if (source.trim().length() == 0) return new GearSettings(rules);
+        for (String entry : source.split(";")) {
+            String[] fields = entry.trim().split("~", -1);
+            if (fields.length != 7 || fields[0].trim().length() == 0 || fields[1].trim().length() == 0) {
+                throw invalid(GEAR_CATEGORY, GEAR_RESTRICTION_RULES, source,
+                        "must contain category~itemId~gearPermission~armorPermission~factions~npcAllowed~bossExclusive entries");
+            }
+            String category = fields[0].trim().toLowerCase(java.util.Locale.ROOT);
+            String itemId = fields[1].trim().toLowerCase(java.util.Locale.ROOT);
+            if (!("mithril".equals(category) || "utumno".equals(category) || "gondolin".equals(category)
+                    || "mallorn".equals(category) || "morgul".equals(category) || "galvorn".equals(category)
+                    || "stone_tool".equals(category) || "boss".equals(category) || "future".equals(category))) {
+                throw invalid(GEAR_CATEGORY, GEAR_RESTRICTION_RULES, source, "category must be a supported gear restriction category");
+            }
+            if (itemId.indexOf(':') <= 0) throw invalid(GEAR_CATEGORY, GEAR_RESTRICTION_RULES, source,
+                    "item IDs must be namespaced registry identifiers");
+            java.util.Set<String> factions = new java.util.LinkedHashSet<String>();
+            if (!"-".equals(fields[4].trim()) && fields[4].trim().length() != 0) for (String faction : fields[4].split("\\|")) {
+                String normalized = faction.trim().toLowerCase(java.util.Locale.ROOT);
+                if (normalized.length() == 0 || !factions.add(normalized)) throw invalid(GEAR_CATEGORY, GEAR_RESTRICTION_RULES, source,
+                        "faction lists must contain unique non-empty keys");
+            }
+            boolean npcAllowed = bool(GEAR_CATEGORY, GEAR_RESTRICTION_RULES, fields[5].trim());
+            boolean bossExclusive = bool(GEAR_CATEGORY, GEAR_RESTRICTION_RULES, fields[6].trim());
+            String gearPermission = dashToEmpty(fields[2]);
+            String armorPermission = dashToEmpty(fields[3]);
+            if ((gearPermission.length() != 0 && KOMEProgressionAchievement.forID(gearPermission) == null)
+                    || (armorPermission.length() != 0 && KOMEProgressionAchievement.forID(armorPermission) == null)) {
+                throw invalid(GEAR_CATEGORY, GEAR_RESTRICTION_RULES, source, "progression permissions must be canonical progression IDs or -");
+            }
+            GearRuleSetting rule = new GearRuleSetting(category, itemId, gearPermission, armorPermission, factions, npcAllowed, bossExclusive);
+            if (rules.put(itemId, rule) != null) throw invalid(GEAR_CATEGORY, GEAR_RESTRICTION_RULES, source,
+                    "must not contain duplicate item IDs");
+        }
+        return new GearSettings(rules);
+    }
+
+    private static String dashToEmpty(String value) { return "-".equals(value.trim()) ? "" : value.trim().toLowerCase(java.util.Locale.ROOT); }
 
     private static DailyBatchSettings readDailyBatch(Configuration c) {
         return new DailyBatchSettings(
@@ -549,15 +600,17 @@ public final class KOMEConfigRegistry {
         private final BattleSupportSettings battleSupport;
         private final EncirclementSettings encirclement;
         private final SeasonSettings season;
+        private final GearSettings gear;
 
         private ValidatedConfig(DailyBatchSettings dailyBatch, PopulationSettings population,
                 MovementSettings movement, BattleSettings battle, MusterSettings muster,
                 SiegeSettings siege, BattleSupportSettings battleSupport,
-                EncirclementSettings encirclement, SeasonSettings season) {
+                EncirclementSettings encirclement, SeasonSettings season, GearSettings gear) {
             this.dailyBatch = dailyBatch; this.population = population; this.movement = movement;
             this.battle = battle; this.muster = muster; this.siege = siege;
             this.battleSupport = battleSupport; this.encirclement = encirclement;
             this.season = season;
+            this.gear = gear;
         }
         public DailyBatchSettings getDailyBatch() { return dailyBatch; }
         public PopulationSettings getPopulation() { return population; }
@@ -568,6 +621,61 @@ public final class KOMEConfigRegistry {
         public BattleSupportSettings getBattleSupport() { return battleSupport; }
         public EncirclementSettings getEncirclement() { return encirclement; }
         public SeasonSettings getSeason() { return season; }
+        public GearSettings getGear() { return gear; }
+    }
+
+    /** Immutable, validated overrides for the central legendary-gear registry. */
+    public static final class GearSettings {
+        private final Map<String, GearRuleSetting> rulesByItemId;
+        private GearSettings(Map<String, GearRuleSetting> rules) {
+            rulesByItemId = Collections.unmodifiableMap(new LinkedHashMap<String, GearRuleSetting>(rules));
+        }
+        public Map<String, GearRuleSetting> getRulesByItemId() { return rulesByItemId; }
+    }
+
+    public static final class GearRuleSetting {
+        private final String category, itemId, gearPermission, armorPermission;
+        private final java.util.Set<String> permittedFactions;
+        private final boolean npcAllowed, bossExclusive;
+        private GearRuleSetting(String category, String itemId, String gearPermission,
+                String armorPermission, java.util.Set<String> factions, boolean npcAllowed,
+                boolean bossExclusive) {
+            this.category = category; this.itemId = itemId; this.gearPermission = gearPermission;
+            this.armorPermission = armorPermission;
+            this.permittedFactions = Collections.unmodifiableSet(new java.util.LinkedHashSet<String>(factions));
+            this.npcAllowed = npcAllowed; this.bossExclusive = bossExclusive;
+        }
+        public String getCategory() { return category; }
+        public String getItemId() { return itemId; }
+        public String getGearPermission() { return gearPermission; }
+        public String getArmorPermission() { return armorPermission; }
+        public java.util.Set<String> getPermittedFactions() { return permittedFactions; }
+        public boolean isNpcAllowed() { return npcAllowed; }
+        public boolean isBossExclusive() { return bossExclusive; }
+        @Override public boolean equals(Object other) {
+            if (!(other instanceof GearRuleSetting)) return false;
+            GearRuleSetting that = (GearRuleSetting) other;
+            return category.equals(that.category) && itemId.equals(that.itemId)
+                    && gearPermission.equals(that.gearPermission) && armorPermission.equals(that.armorPermission)
+                    && permittedFactions.equals(that.permittedFactions) && npcAllowed == that.npcAllowed
+                    && bossExclusive == that.bossExclusive;
+        }
+        @Override public int hashCode() {
+            int result = category.hashCode(); result = 31 * result + itemId.hashCode();
+            result = 31 * result + gearPermission.hashCode(); result = 31 * result + armorPermission.hashCode();
+            result = 31 * result + permittedFactions.hashCode(); result = 31 * result + (npcAllowed ? 1 : 0);
+            return 31 * result + (bossExclusive ? 1 : 0);
+        }
+        @Override public String toString() {
+            return category + "~" + itemId + "~" + (gearPermission.length() == 0 ? "-" : gearPermission)
+                    + "~" + (armorPermission.length() == 0 ? "-" : armorPermission) + "~"
+                    + (permittedFactions.isEmpty() ? "-" : join(permittedFactions)) + "~" + npcAllowed + "~" + bossExclusive;
+        }
+        private static String join(java.util.Set<String> values) {
+            StringBuilder result = new StringBuilder();
+            for (String value : values) { if (result.length() > 0) result.append('|'); result.append(value); }
+            return result.toString();
+        }
     }
 
     public interface RuntimeActivity {

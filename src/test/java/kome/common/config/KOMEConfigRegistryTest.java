@@ -86,6 +86,17 @@ public class KOMEConfigRegistryTest {
         invalid(KOMEConfigRegistry.POPULATION_CATEGORY, KOMEConfigRegistry.UNIT_POPULATION_COST_OVERRIDES, "lotr.troll=0");
     }
 
+    @Test public void gearRulesUseStableItemIdsAndValidateFactionLists() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.GEAR_CATEGORY, KOMEConfigRegistry.GEAR_RESTRICTION_RULES,
+                "future~example:legend~baseline.faction_gear~baseline.faction_armor~gondolin|lindon~true~false");
+        KOMEConfigRegistry.load(file);
+        KOMEConfigRegistry.GearRuleSetting rule = KOMEConfigRegistry.gear().getRulesByItemId().get("example:legend");
+        assertEquals("future", rule.getCategory()); assertTrue(rule.getPermittedFactions().contains("gondolin"));
+        invalid(KOMEConfigRegistry.GEAR_CATEGORY, KOMEConfigRegistry.GEAR_RESTRICTION_RULES,
+                "future~example:legend~-~-~gondolin|gondolin~true~false");
+    }
+
     @Test
     public void zeroHoursFailWithKeyAndValue() throws Exception {
         invalid(KOMEConfigRegistry.POPULATION_CATEGORY,

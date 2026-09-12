@@ -43,7 +43,7 @@ public class KOMEConfigInspectionTest {
             previous = value.format();
         }
         assertEquals(new HashSet<String>(Arrays.asList("dailyBatch", "population", "movement",
-                "battle", "muster", "siege", "battleSupport", "encirclement", "season")), categories);
+                "battle", "muster", "siege", "battleSupport", "encirclement", "season", "gear")), categories);
         assertEquals(expectedDefaults().keySet(), keys);
         assertEquals(expectedDefaults(), valuesByName(values));
     }
@@ -104,7 +104,7 @@ public class KOMEConfigInspectionTest {
                 "battleSupport.hardFallbackDistanceBlocks=48", "battleSupport.openBattleRadiusBlocks=192",
                 "encirclement.starvationGraceDays=10", "encirclement.announcedAssaultNoticeHours=48",
                 "encirclement.offlineStarvationCatchUp=false", "season.minimumWarSeasonLengthDays=TBD",
-                "season.automaticFinaleEnabled=false"
+                "season.automaticFinaleEnabled=false", "gear.restrictionRules={}"
         };
         Map<String, String> result = new TreeMap<String, String>();
         for (String entry : entries) {

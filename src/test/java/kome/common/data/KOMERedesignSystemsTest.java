@@ -75,16 +75,18 @@ public class KOMERedesignSystemsTest {
         assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
     }
 
-    @Test public void alliedControlledTileAllowsBuildPlacement() {
+    @Test public void alliedControlledTileStillRequiresExplicitBuildPermission() {
         KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
         establishCanonicalDiplomacy(data, "gondor", "rohan", KOMEDiplomacyRelation.ALLIES);
+        assertFalse(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
+        grantConstruction(data, "T100", "rohan", "gondor");
         assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
     }
 
-    @Test public void friendlyControlledTileAllowsBuildPlacement() {
+    @Test public void friendlyControlledTileStillRequiresExplicitBuildPermission() {
         KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
         establishCanonicalDiplomacy(data, "gondor", "rohan", KOMEDiplomacyRelation.FRIENDS);
-        assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
+        assertFalse(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
     }
 
     @Test public void enemyControlledTileRejectsBuildPlacementEvenInDefaultHomeland() {
@@ -95,6 +97,7 @@ public class KOMERedesignSystemsTest {
     @Test public void foreignPopulationOwnerMustBeSafeWithPlayerAndController() {
         KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
         establishCanonicalDiplomacy(data, "gondor", "rohan", KOMEDiplomacyRelation.FRIENDS);
+        grantConstruction(data, "T100", "rohan", "gondor");
         assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "rohan").allowed);
         assertFalse(KOMEBuildService.canPlace(data, "gondor", "T100", "mordor").allowed);
     }
@@ -102,10 +105,17 @@ public class KOMERedesignSystemsTest {
     @Test public void foreignPopulationOwnerCannotExploitAnUnsafeThirdFactionRelationship() {
         KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
         establishCanonicalDiplomacy(data, "gondor", "rohan", KOMEDiplomacyRelation.FRIENDS);
+        grantConstruction(data, "T100", "rohan", "gondor");
         establishCanonicalDiplomacy(data, "gondor", "bree", KOMEDiplomacyRelation.FRIENDS);
         assertFalse(KOMEBuildService.canPlace(data, "gondor", "T100", "bree").allowed);
         establishCanonicalDiplomacy(data, "rohan", "bree", KOMEDiplomacyRelation.FRIENDS);
         assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "bree").allowed);
+    }
+
+    private static void grantConstruction(KOMEWorldData data, String tile, String owner, String grantee) {
+        UUID ruler = UUID.randomUUID();
+        assertTrue(KOMERulerService.assignRuler(data, owner, ruler, "Ruler"));
+        assertTrue(KOMEForeignConstructionService.grant(data, tile, ruler, grantee, 1L).allowed);
     }
 
     @Test public void originalManagerContributionApprovesImmediately() {

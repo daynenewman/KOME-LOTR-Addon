@@ -89,6 +89,7 @@ public class KOMEEvents {
     private final Map<UUID, Integer> lastCoinValues = new HashMap<>();
     private final Map<UUID, int[]> lastCoinCounts = new HashMap<>();
     private final Map<UUID, Long> lastStoneCraftDenials = new HashMap<>();
+    private final Map<UUID, Long> lastGearDenials = new HashMap<>();
     private long nextMovementArrivalCheckMillis;
     private long nextLiveUnitMarkerSyncMillis;
     private long automaticWaypointLinkCheckMillis;
@@ -99,6 +100,7 @@ public class KOMEEvents {
         lastCoinValues.clear();
         lastCoinCounts.clear();
         lastStoneCraftDenials.clear();
+        lastGearDenials.clear();
         automaticWaypointLinkCheckMillis = 0L;
         automaticWaypointLinksEnsured = false;
         populationPayoutRuntime.resetSession();
@@ -143,6 +145,7 @@ public class KOMEEvents {
                     getActualPledgeFactionKey(event.player), System.currentTimeMillis());
                 enforceMiniQuestPermission((EntityPlayerMP) event.player);
                 enforceMountPermission((EntityPlayerMP) event.player);
+                enforceEquippedGear(event.player);
             }
             if (event.player instanceof EntityPlayerMP && KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(event.player)) % 100L == 0L) {
                 KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
@@ -237,6 +240,7 @@ public class KOMEEvents {
                 return;
             }
             handleHiredUnit((LOTREntityNPC) event.entity);
+            enforceNpcEquipment((LOTREntityNPC) event.entity);
         }
     }
 
@@ -291,6 +295,10 @@ public class KOMEEvents {
         if (held == null) {
             return;
         }
+        if (!requireGearAction(event.entityPlayer, held, KOMEGearRestrictionService.Action.USE)) {
+            event.setCanceled(true);
+            return;
+        }
         if (event.action == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK && isHoe(held)
             && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.FARMING)) {
             event.setCanceled(true);
@@ -343,6 +351,11 @@ public class KOMEEvents {
         if (event.entityPlayer == null || KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityPlayer)) || event.item == null) {
             return;
         }
+        if (!requireGearAction(event.entityPlayer, event.item, KOMEGearRestrictionService.Action.USE)) {
+            event.duration = 0;
+            event.setCanceled(true);
+            return;
+        }
         if (isFireOrLightItem(event.item) && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.FIRE)) {
             event.duration = 0;
             event.setCanceled(true);
@@ -375,17 +388,6 @@ public class KOMEEvents {
     }
 
     @SubscribeEvent
-    public void onItemCrafted(PlayerEvent.ItemCraftedEvent event) {
-        if (event.player == null || KOMEReflection.isRemote(KOMEReflection.getWorld(event.player)) || event.crafting == null) {
-            return;
-        }
-        if (isStoneTool(event.crafting) && !KOMEProgressionPermissions.has(event.player, KOMEProgressionPermissions.STONEWORK)) {
-            removeMatchingItems(event.player, event.crafting, event.crafting.stackSize);
-            KOMEProgressionPermissions.deny(event.player, "You have not unlocked Stonework yet. Stone tool removed.");
-        }
-    }
-
-    @SubscribeEvent
     public void onLivingUpdate(LivingEvent.LivingUpdateEvent event) {
         if (!KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving)) && event.entityLiving instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
@@ -407,6 +409,7 @@ public class KOMEEvents {
             } else {
                 releaseIfTracked(npc);
             }
+            if (npc.ticksExisted % 20 == 0) enforceNpcEquipment(npc);
         }
     }
 
@@ -1002,9 +1005,7 @@ public class KOMEEvents {
                 rejectCookableInputs(player, container, 0, 1);
             }
         }
-        if (!KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.STONEWORK)) {
-            clearBlockedStoneToolResult(player, container);
-        }
+        clearBlockedStoneToolResult(player, container);
     }
 
     private void clearBlockedStoneToolResult(EntityPlayer player, Container container) {
@@ -1021,13 +1022,15 @@ public class KOMEEvents {
         if (!isStoneTool(result)) {
             return;
         }
+        KOMEGearRestrictionService.Decision decision = KOMEGearRestrictionService.evaluatePlayer(player, result, KOMEGearRestrictionService.Action.USE);
+        if (decision.allowed) return;
         craftResult.setInventorySlotContents(0, null);
         UUID playerID = KOMEReflection.getEntityUUID(player);
         long now = KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player));
         Long last = lastStoneCraftDenials.get(playerID);
         if (last == null || now - last.longValue() >= 40L) {
             lastStoneCraftDenials.put(playerID, now);
-            KOMEProgressionPermissions.deny(player, "You have not unlocked Stonework yet.");
+            KOMEProgressionPermissions.deny(player, decision.playerMessage());
         }
     }
 
@@ -1132,22 +1135,39 @@ public class KOMEEvents {
     }
 
     private boolean isStoneTool(ItemStack stack) {
-        if (stack == null) {
-            return false;
+        return KOMEGearRestrictionService.isStoneTool(stack);
+    }
+
+    private boolean requireGearAction(EntityPlayer player, ItemStack stack, KOMEGearRestrictionService.Action action) {
+        KOMEGearRestrictionService.Decision decision = KOMEGearRestrictionService.evaluatePlayer(player, stack, action);
+        if (decision.allowed) return true;
+        UUID playerID = KOMEReflection.getEntityUUID(player);
+        long now = KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player));
+        Long last = lastGearDenials.get(playerID);
+        if (last == null || now - last.longValue() >= 40L) {
+            lastGearDenials.put(playerID, now);
+            KOMEProgressionPermissions.deny(player, decision.playerMessage());
         }
-        Item item = stack.getItem();
-        if (item == net.minecraft.init.Items.stone_sword
-            || item == net.minecraft.init.Items.stone_pickaxe
-            || item == net.minecraft.init.Items.stone_axe
-            || item == net.minecraft.init.Items.stone_shovel
-            || item == net.minecraft.init.Items.stone_hoe
-            || item == LOTRMod.spearStone) {
-            return true;
+        return false;
+    }
+
+    /** Return unauthorized armor to its owner instead of deleting a trophy or inventory item. */
+    private void enforceEquippedGear(EntityPlayer player) {
+        for (int slot = 0; slot < player.inventory.armorInventory.length; slot++) {
+            ItemStack stack = player.inventory.armorInventory[slot];
+            if (stack == null || requireGearAction(player, stack, KOMEGearRestrictionService.Action.EQUIP_ARMOR)) continue;
+            player.inventory.armorInventory[slot] = null;
+            if (!player.inventory.addItemStackToInventory(stack)) player.dropPlayerItemWithRandomChoice(stack, false);
         }
-        String text = getItemText(stack);
-        return text.contains("stone")
-            && (item instanceof ItemTool || item instanceof ItemSword || item instanceof ItemHoe)
-            && (text.contains("pickaxe") || text.contains("axe") || text.contains("shovel") || text.contains("hoe") || text.contains("sword"));
+    }
+
+    private void enforceNpcEquipment(LOTREntityNPC npc) {
+        LOTRFaction faction = npc.getFaction();
+        String factionKey = faction == null ? "" : faction.codeName();
+        for (int slot = 0; slot <= 4; slot++) {
+            ItemStack stack = npc.getEquipmentInSlot(slot);
+            if (stack != null && !KOMEGearRestrictionService.evaluateNpc(factionKey, stack).allowed) npc.setCurrentItemOrArmor(slot, null);
+        }
     }
 
     private boolean containsMeatWord(ItemStack stack) {

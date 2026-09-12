@@ -22,7 +22,7 @@ public final class KOMEBuildService {
             String populationFaction, KOMEBuildType type, int halfHours, long nowMillis) {
         if (type == null) throw new IllegalArgumentException("Build type is required.");
         if (halfHours <= 0) throw new IllegalArgumentException("Submit at least one half-hour.");
-        Decision placement = canPlace(data, builderFaction, tileId, populationFaction);
+        Decision placement = canPlace(data, builder, builderFaction, tileId, populationFaction);
         if (!placement.allowed) throw new IllegalArgumentException(placement.reason);
         KOMEPlayerBuild build = new KOMEPlayerBuild();
         build.id = data.nextBuildId();
@@ -50,15 +50,18 @@ public final class KOMEBuildService {
 
     public static Decision canPlace(KOMEWorldData data, String playerFaction, String tileId,
             String populationFaction) {
+        return canPlace(data, null, playerFaction, tileId, populationFaction);
+    }
+
+    public static Decision canPlace(KOMEWorldData data, UUID builder, String playerFaction, String tileId,
+            String populationFaction) {
         String player = KOMEAlliance.normalizeFactionKey(playerFaction);
         String owner = KOMEAlliance.normalizeFactionKey(populationFaction);
         KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
         if (data == null || tile == null || !tile.isClaimed()) return Decision.deny("The selected conquest tile is not claimed.");
         String controller = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
-        if (player.length() == 0) return Decision.deny("You must be pledged to place a Build.");
-        if (!player.equals(controller) && !isFriendlyOrAllied(data, player, controller)) {
-            return Decision.deny("Builds may only be placed in your own, Friendly, or Allied controlled tiles.");
-        }
+        KOMEForeignConstructionService.Decision construction = KOMEForeignConstructionService.canConstruct(data, tile.id, builder, player);
+        if (!construction.allowed) return Decision.deny(construction.reason);
         if (owner.length() == 0) return Decision.deny("Choose a population-owning faction.");
         if (owner.equals(player)) return Decision.allow();
         if (!isFriendlyOrAllied(data, player, owner) || !isFriendlyOrAllied(data, controller, owner)) {
