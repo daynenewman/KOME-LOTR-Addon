@@ -77,13 +77,13 @@ public class KOMERedesignSystemsTest {
 
     @Test public void alliedControlledTileAllowsBuildPlacement() {
         KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
-        establishSharedStage(data, "gondor", "rohan", 3);
+        establishCanonicalDiplomacy(data, "gondor", "rohan", KOMEDiplomacyRelation.ALLIES);
         assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
     }
 
     @Test public void friendlyControlledTileAllowsBuildPlacement() {
         KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
-        establishSharedStage(data, "gondor", "rohan", 2);
+        establishCanonicalDiplomacy(data, "gondor", "rohan", KOMEDiplomacyRelation.FRIENDS);
         assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
     }
 
@@ -94,17 +94,17 @@ public class KOMERedesignSystemsTest {
 
     @Test public void foreignPopulationOwnerMustBeSafeWithPlayerAndController() {
         KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
-        establishSharedStage(data, "gondor", "rohan", 2);
+        establishCanonicalDiplomacy(data, "gondor", "rohan", KOMEDiplomacyRelation.FRIENDS);
         assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "rohan").allowed);
         assertFalse(KOMEBuildService.canPlace(data, "gondor", "T100", "mordor").allowed);
     }
 
     @Test public void foreignPopulationOwnerCannotExploitAnUnsafeThirdFactionRelationship() {
         KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
-        establishSharedStage(data, "gondor", "rohan", 2);
-        establishSharedStage(data, "gondor", "bree", 2);
+        establishCanonicalDiplomacy(data, "gondor", "rohan", KOMEDiplomacyRelation.FRIENDS);
+        establishCanonicalDiplomacy(data, "gondor", "bree", KOMEDiplomacyRelation.FRIENDS);
         assertFalse(KOMEBuildService.canPlace(data, "gondor", "T100", "bree").allowed);
-        establishSharedStage(data, "rohan", "bree", 2);
+        establishCanonicalDiplomacy(data, "rohan", "bree", KOMEDiplomacyRelation.FRIENDS);
         assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "bree").allowed);
     }
 
@@ -775,6 +775,16 @@ public class KOMERedesignSystemsTest {
         return alliance;
     }
 
+    private static void establishCanonicalDiplomacy(
+            KOMEWorldData data,
+            String first,
+            String second,
+            KOMEDiplomacyRelation relation) {
+        KOMEDiplomacyRecord record = new KOMEDiplomacyRecord(first, second);
+        record.relation = relation;
+        record.updatedAt = 1L;
+        data.canonicalDiplomacyRecords.put(record.key(), record);
+    }
     private static KOMEAlliance establishSharedStage(KOMEWorldData data, String first, String second, int stage) {
         KOMEAlliance alliance = data.getAlliance(first, second, true);
         alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);

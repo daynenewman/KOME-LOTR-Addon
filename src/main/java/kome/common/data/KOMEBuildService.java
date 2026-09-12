@@ -313,20 +313,21 @@ public final class KOMEBuildService {
         String b = KOMEAlliance.normalizeFactionKey(second);
         if (a.length() == 0 || b.length() == 0) return false;
         if (a.equals(b)) return true;
-        KOMEAlliance alliance = data == null ? null : data.getAlliance(a, b, false);
-        if (alliance != null && alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE) {
-            return alliance.getSharedRelationStage() >= 2;
-        }
-        LOTRFactionRelations.Relation relation = KOMEAllianceAuthority.getCurrentRelation(a, b);
-        return relation == LOTRFactionRelations.Relation.FRIEND || relation == LOTRFactionRelations.Relation.ALLY;
+
+        return data != null && KOMEDiplomacyService.relationAtLeast(
+            data, a, b, KOMEDiplomacyRelation.FRIENDS);
     }
 
     public static boolean isHostile(KOMEWorldData data, String first, String second) {
-        if (data != null && KOMEWarService.findActiveOpposition(data, first, second) != null) return true;
-        KOMEAlliance alliance = data == null ? null : data.getAlliance(first, second, false);
-        if (alliance != null && alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE) return false;
-        LOTRFactionRelations.Relation relation = KOMEAllianceAuthority.getCurrentRelation(first, second);
-        return relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
+        if (data != null && KOMEWarService.findActiveOpposition(data, first, second) != null) {
+            return true;
+        }
+
+        LOTRFactionRelations.Relation relation =
+            KOMEAllianceAuthority.getCurrentRelation(first, second);
+
+        return relation == LOTRFactionRelations.Relation.ENEMY
+            || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
     }
 
     private static void softDelete(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
