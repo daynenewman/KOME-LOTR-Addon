@@ -823,7 +823,7 @@ public class KOMEAllianceSystemsTest {
         KOMEWartimeStewardshipService.revalidateCompany(data, company, 4L, "side changed");
         assertEquals(1, company.authorizedWarIds.size());
         assertTrue(company.authorizedWarIds.contains(south.id));
-        data.claimFactionKing("rohan", "Rohan", UUID.randomUUID(), "King");
+        KOMERulerService.assignRuler(data, "rohan", UUID.randomUUID(), "King");
         assertFalse(KOMEWartimeStewardshipService.revalidateCompany(data, company, 5L, "king returned"));
         assertNull(company.temporaryController);
     }
@@ -948,7 +948,7 @@ public class KOMEAllianceSystemsTest {
         assertTrue(company.authorizedWarIds.contains(war.id));
 
         data.lastKnownPlayerFactions.put(originalKing, "");
-        data.reconcilePlayerKingship("", originalKing, "First King", false);
+        KOMERulerService.removeRulerHeldBy(data, originalKing);
         assertNull(company.temporaryController);
         assertEquals(KOMEArmyCompany.AUTHORITY_STEWARDSHIP, company.controllerAuthority);
         assertEquals(war.sideOf("native_zeta"), war.sideOf("support_eta"));
@@ -1234,7 +1234,7 @@ public class KOMEAllianceSystemsTest {
         UUID king = UUID.randomUUID();
         KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
         alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
-        data.claimFactionKing("gondor", "Gondor", king, "King");
+        KOMERulerService.assignRuler(data, "gondor", king, "King");
         KOMEPledgeReleaseService.Result kingResult = KOMEPledgeReleaseService.release(data, king, "King", "gondor", "",
             300L, "king unpledged");
         assertTrue(kingResult.wasKing);
@@ -1294,7 +1294,7 @@ public class KOMEAllianceSystemsTest {
     private static UUID crown(KOMEWorldData data, String faction, String name) {
         UUID player = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(player, faction);
-        assertTrue(data.claimFactionKing(faction, faction, player, name));
+        assertTrue(KOMERulerService.assignRuler(data, faction, player, name));
         return player;
     }
 

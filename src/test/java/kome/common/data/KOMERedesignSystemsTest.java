@@ -223,7 +223,7 @@ public class KOMERedesignSystemsTest {
         departed.setPledgedLord("x", "x", "rohan");
         data.progressions.put(build.managerUuid, departed);
         UUID king = UUID.randomUUID();
-        data.claimFactionKing("gondor", "Gondor", king, "King");
+        KOMERulerService.assignRuler(data, "gondor", king, "King");
         KOMEBuildService.reconcileManager(data, build);
         assertEquals(king, build.managerUuid);
         assertEquals("King", build.managerName);
@@ -238,7 +238,7 @@ public class KOMERedesignSystemsTest {
         departed.setPledgedLord("x", "x", "rohan");
         data.progressions.put(build.managerUuid, departed);
         UUID king = UUID.randomUUID();
-        data.claimFactionKing("gondor", "Gondor", king, "King");
+        KOMERulerService.assignRuler(data, "gondor", king, "King");
         KOMEBuildService.reconcileManager(data, build);
         assertEquals(king, build.managerUuid);
         assertSame(pending, build.getContribution(pending.id));
@@ -261,7 +261,7 @@ public class KOMERedesignSystemsTest {
     @Test public void enemyBuildDestructionWorksOnlyInControllersDefaultHomeland() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         UUID king = UUID.randomUUID();
-        data.claimFactionKing("gondor", "Gondor", king, "King");
+        KOMERulerService.assignRuler(data, "gondor", king, "King");
         KOMEPlayerBuild enemy = manualBuild(data, "mordor");
         assertNotNull(KOMEWarService.createWar(data, "gondor", "mordor", "Homeland defense", "test", 40L));
         assertTrue(KOMEBuildService.destroyEnemyBuild(data, enemy, king, "King", "gondor", false, 50L).allowed);
@@ -277,7 +277,7 @@ public class KOMERedesignSystemsTest {
     @Test public void destroyButtonPreflightSelectsEligibleHostileKingPermission() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         UUID king = UUID.randomUUID();
-        data.claimFactionKing("gondor", "Gondor", king, "King");
+        KOMERulerService.assignRuler(data, "gondor", king, "King");
         KOMEPlayerBuild enemy = manualBuild(data, "mordor");
         KOMEWarService.createWar(data, "gondor", "mordor", "Homeland defense", "test", 40L);
         assertTrue(KOMEBuildService.canDestroyEnemyBuild(
@@ -298,7 +298,7 @@ public class KOMERedesignSystemsTest {
     @Test public void enemyBuildDestructionIsRejectedInForeignConqueredLand() {
         KOMEWorldData data = dataWithTile("T100", "rohan", "gondor");
         UUID king = UUID.randomUUID();
-        data.claimFactionKing("gondor", "Gondor", king, "King");
+        KOMERulerService.assignRuler(data, "gondor", king, "King");
         assertFalse(KOMEBuildService.destroyEnemyBuild(data, manualBuild(data, "mordor"),
             king, "King", "gondor", false, 50L).allowed);
     }
@@ -306,7 +306,7 @@ public class KOMERedesignSystemsTest {
     @Test public void alliedBuildCannotBeDestroyed() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         UUID king = UUID.randomUUID();
-        data.claimFactionKing("gondor", "Gondor", king, "King");
+        KOMERulerService.assignRuler(data, "gondor", king, "King");
         assertFalse(KOMEBuildService.destroyEnemyBuild(data, manualBuild(data, "rohan"),
             king, "King", "gondor", false, 50L).allowed);
     }

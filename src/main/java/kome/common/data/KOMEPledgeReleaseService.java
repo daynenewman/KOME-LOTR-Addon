@@ -95,7 +95,7 @@ public final class KOMEPledgeReleaseService {
         result.formerFaction = former;
         result.newFaction = current;
         result.wasKing = data.isFactionKing(former, player);
-        if (result.wasKing) data.reconcilePlayerKingship(current, player, playerName, false);
+        if (result.wasKing) KOMERulerService.removeRulerHeldBy(data, player);
 
         // Revoke both delegations issued by the departing king and temporary control held by the departing player.
         for (KOMEArmyCompany company : data.armyCompanies.values()) {

@@ -138,10 +138,10 @@ public class KOMEAllianceModelTest {
         alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
         alliance.setFactionStage("rohan", 3, "test", 0L, 5L);
         UUID king = UUID.randomUUID();
-        data.claimFactionKing("rohan", "Rohan", king, "First");
-        data.reconcilePlayerKingship("rohan", king, "First", false);
+        KOMERulerService.assignRuler(data, "rohan", king, "First");
+        KOMERulerService.removeRulerHeldBy(data, king);
         assertEquals(3, alliance.getFactionStage("rohan"));
-        data.claimFactionKing("rohan", "Rohan", UUID.randomUUID(), "Second");
+        KOMERulerService.assignRuler(data, "rohan", UUID.randomUUID(), "Second");
         assertEquals(3, alliance.getFactionStage("rohan"));
         NBTTagCompound ledger = alliance.getFactionLedger("rohan").writeToNBT();
         assertFalse(ledger.hasKey("SuccessionEndMillis"));

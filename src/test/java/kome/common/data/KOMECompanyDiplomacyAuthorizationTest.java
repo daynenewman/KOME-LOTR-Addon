@@ -197,7 +197,7 @@ public class KOMECompanyDiplomacyAuthorizationTest {
     private static UUID crown(KOMEWorldData data, String faction, String name) {
         UUID king = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(king, faction);
-        assertTrue(data.claimFactionKing(faction, faction, king, name));
+        assertTrue(KOMERulerService.assignRuler(data, faction, king, name));
         return king;
     }
 

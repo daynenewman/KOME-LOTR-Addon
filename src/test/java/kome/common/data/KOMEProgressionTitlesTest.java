@@ -39,7 +39,7 @@ public class KOMEProgressionTitlesTest {
         UUID ruler = UUID.randomUUID();
         KOMEPlayerProgression endgameProgression = complete(data, endgame, "prince_king");
 
-        assertTrue(data.claimFactionKing(FACTION, "Gondor", ruler, "Ruler"));
+        assertTrue(KOMERulerService.assignRuler(data, FACTION, ruler, "Ruler"));
         assertEquals("Prince", KOMEProgressionTitles.resolveRankName(data, endgame, endgameProgression, FACTION));
         assertEquals("King", KOMEProgressionTitles.resolveRankName(data, ruler, data.getProgression(ruler), FACTION));
         assertEquals(ruler, data.getFactionKingId(FACTION));
@@ -51,7 +51,7 @@ public class KOMEProgressionTitlesTest {
     public void recognizedRulerIsKingWithoutFinalProgression() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID ruler = UUID.randomUUID();
-        assertTrue(data.claimFactionKing(FACTION, "Gondor", ruler, "Ruler"));
+        assertTrue(KOMERulerService.assignRuler(data, FACTION, ruler, "Ruler"));
 
         assertEquals("King", KOMEProgressionTitles.resolveRankName(data, ruler, data.getProgression(ruler), FACTION));
         assertEquals("King", KOMEServerRecordBuilder.getRank(data, ruler, data.getProgression(ruler), FACTION));

@@ -1658,76 +1658,47 @@ public class KOMEWorldData extends WorldSavedData {
         }
     }
 
-    public boolean claimFactionKing(String factionKey, String factionName, UUID playerID, String playerName) {
-        return reconcilePlayerKingship(factionKey, playerID, playerName, true);
-    }
-
-    public boolean reconcilePlayerKingship(String factionKey, UUID playerID, String playerName, boolean eligible) {
-        String key = normalizeFactionKey(factionKey);
-        if (playerID == null) {
-            return false;
-        }
-        boolean changed = false;
-        List<String> staleFactions = new ArrayList<String>();
-        for (Map.Entry<String, UUID> entry : kingsByFaction.entrySet()) {
-            if (playerID.equals(entry.getValue()) && (!eligible || !key.equals(entry.getKey()))) {
-                staleFactions.add(entry.getKey());
-            }
-        }
-        for (String staleFaction : staleFactions) {
-            kingsByFaction.remove(staleFaction);
-            kingNamesByFaction.remove(staleFaction);
-            onFactionKingLost(staleFaction, System.currentTimeMillis());
-            changed = true;
-        }
-        if (!eligible || key.length() == 0) {
-            if (changed) {
-                markDirty();
-            }
-            return false;
-        }
-        UUID existing = kingsByFaction.get(key);
-        if (existing == null) {
-            kingsByFaction.put(key, playerID);
-            kingNamesByFaction.put(key, playerName == null ? "" : playerName);
-            onFactionKingGained(key, System.currentTimeMillis());
-            markDirty();
-            return true;
-        }
-        if (existing.equals(playerID)) {
-            String currentName = kingNamesByFaction.get(key);
-            if (playerName != null && playerName.length() > 0 && !playerName.equals(currentName)) {
-                kingNamesByFaction.put(key, playerName);
-                markDirty();
-            } else if (changed) {
-                markDirty();
-            }
-            return true;
-        }
-        if (changed) {
-            markDirty();
-        }
-        return false;
-    }
-
     public boolean isFactionKing(String factionKey, UUID playerID) {
-        String key = normalizeFactionKey(factionKey);
-        return key.length() > 0 && playerID != null && playerID.equals(kingsByFaction.get(key));
+        return KOMERulerService.isRuler(this, factionKey, playerID);
     }
 
     public boolean hasFactionKing(String factionKey) {
-        String key = normalizeFactionKey(factionKey);
-        return key.length() > 0 && kingsByFaction.containsKey(key);
+        return KOMERulerService.hasRuler(this, factionKey);
     }
 
     public UUID getFactionKingId(String factionKey) {
-        return kingsByFaction.get(normalizeFactionKey(factionKey));
+        return KOMERulerService.getRuler(this, factionKey);
     }
 
     public String getFactionKingName(String factionKey) {
-        String key = normalizeFactionKey(factionKey);
-        String name = kingNamesByFaction.get(key);
+        return KOMERulerService.getRulerName(this, factionKey);
+    }
+
+    UUID readFactionKingId(String factionKey) {
+        return kingsByFaction.get(normalizeFactionKey(factionKey));
+    }
+
+    String readFactionKingName(String factionKey) {
+        String name = kingNamesByFaction.get(normalizeFactionKey(factionKey));
         return name == null ? "" : name;
+    }
+
+    Map<String, UUID> factionKingRecordsSnapshot() {
+        return new HashMap<String, UUID>(kingsByFaction);
+    }
+
+    void writeFactionKingRecord(String factionKey, UUID playerID, String playerName) {
+        String key = normalizeFactionKey(factionKey);
+        kingsByFaction.put(key, playerID);
+        kingNamesByFaction.put(key, playerName == null ? "" : playerName);
+    }
+
+    boolean removeFactionKingRecord(String factionKey) {
+        String key = normalizeFactionKey(factionKey);
+        boolean existed = kingsByFaction.containsKey(key) || kingNamesByFaction.containsKey(key);
+        kingsByFaction.remove(key);
+        kingNamesByFaction.remove(key);
+        return existed;
     }
 
     protected void clearFactionKingRecords() {
@@ -2503,8 +2474,12 @@ public class KOMEWorldData extends WorldSavedData {
             String faction = normalizeFactionKey(entry.getString("Faction"));
             String player = entry.getString("Player");
             if (faction.length() > 0 && player.length() > 0) {
-                kingsByFaction.put(faction, UUID.fromString(player));
-                kingNamesByFaction.put(faction, entry.getString("Name"));
+                try {
+                    kingsByFaction.put(faction, UUID.fromString(player));
+                    kingNamesByFaction.put(faction, entry.getString("Name"));
+                } catch (IllegalArgumentException ignored) {
+                    // Invalid persisted ruler records are ignored rather than inventing a ruler.
+                }
             }
         }
 
