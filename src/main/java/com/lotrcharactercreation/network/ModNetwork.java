@@ -1,6 +1,7 @@
 package com.lotrcharactercreation.network;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -31,6 +32,7 @@ import com.lotrcharactercreation.waypoint.StartingWaypointApplication.Result;
 
 import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
+import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.relauncher.Side;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
@@ -120,6 +122,90 @@ public final class ModNetwork {
         CHANNEL.registerMessage(UrukRageStateMessage.Handler.class, UrukRageStateMessage.class, 17, Side.CLIENT);
         CHANNEL.registerMessage(ElfGrappleStateMessage.Handler.class, ElfGrappleStateMessage.class, 18, Side.CLIENT);
         CHANNEL.registerMessage(ElfGrappleAttackMessage.Handler.class, ElfGrappleAttackMessage.class, 19, Side.SERVER);
+        CHANNEL.registerMessage(
+            CustomSkinManifestBeginMessage.Handler.class,
+            CustomSkinManifestBeginMessage.class,
+            20,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinManifestPageMessage.Handler.class,
+            CustomSkinManifestPageMessage.class,
+            21,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinManifestEndMessage.Handler.class,
+            CustomSkinManifestEndMessage.class,
+            22,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinTransferStartMessage.Handler.class,
+            CustomSkinTransferStartMessage.class,
+            23,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinTransferChunkMessage.Handler.class,
+            CustomSkinTransferChunkMessage.class,
+            24,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinTransferEndMessage.Handler.class,
+            CustomSkinTransferEndMessage.class,
+            25,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinManifestReadyMessage.Handler.class,
+            CustomSkinManifestReadyMessage.class,
+            26,
+            Side.SERVER);
+        CHANNEL.registerMessage(
+            CustomSkinRequestPageMessage.Handler.class,
+            CustomSkinRequestPageMessage.class,
+            27,
+            Side.SERVER);
+        CHANNEL.registerMessage(
+            CustomSkinTransferResultMessage.Handler.class,
+            CustomSkinTransferResultMessage.class,
+            28,
+            Side.SERVER);
+    }
+
+    public static void beginCustomSkinSync(EntityPlayerMP player) {
+        ServerCustomSkinSyncService.getInstance().beginSession(player);
+    }
+
+    public static void clearCustomSkinSync(EntityPlayerMP player) {
+        ServerCustomSkinSyncService.getInstance().clearPlayer(player);
+    }
+
+    public static void sendCustomSkinManifestReady(int schemaVersion, long epoch, long revision, String digest) {
+        CHANNEL.sendToServer(new CustomSkinManifestReadyMessage(schemaVersion, epoch, revision, digest));
+    }
+
+    public static void sendCustomSkinRequests(long epoch, long revision,
+        List<CustomSkinRequestIdentity> identities) {
+        CHANNEL.sendToServer(new CustomSkinRequestPageMessage(epoch, revision, identities));
+    }
+
+    public static void sendCustomSkinTransferResult(long transferId, long epoch, String presetId, String sha256,
+        int resultCode) {
+        CHANNEL.sendToServer(new CustomSkinTransferResultMessage(
+            transferId,
+            epoch,
+            presetId,
+            sha256,
+            resultCode));
+    }
+
+    static void sendTo(IMessage message, EntityPlayerMP player) {
+        CHANNEL.sendTo(message, player);
+    }
+
+    static void refreshAppearanceStateAfterManifestReady(EntityPlayerMP player) {
+        sendPlayerAppearanceToTrackingAndSelf(player);
+        sendAllPlayerAppearancesTo(player);
+        if (!PlayerRaceData.isCharacterCreationComplete(player)) {
+            sendCharacterCreationRequired(player);
+        }
     }
 
     public static void sendCharacterCreationRequired(EntityPlayerMP player) {
@@ -361,6 +447,7 @@ public final class ModNetwork {
 
     public static void processPendingSelections() {
         MinecraftServer server = MinecraftServer.getServer();
+        ServerCustomSkinSyncService.getInstance().processPending(server);
         processPendingCharacterCreationBacks(server);
         processPendingRaceSelections(server);
         processPendingStartingFactionSelections(server);

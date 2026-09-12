@@ -33,7 +33,7 @@ import com.lotrcharactercreation.race.PlayerRace;
 /** Discovers and fully validates external preset content without loading Minecraft client classes. */
 public final class ExternalAppearancePresetScanner {
 
-    static final int MAX_FILENAME_STEM_LENGTH = 64;
+    public static final int MAX_FILENAME_STEM_LENGTH = 64;
     static final Pattern VALID_FILENAME_STEM = Pattern.compile("[a-z0-9_-]+");
 
     private static final byte[] PNG_SIGNATURE = {
@@ -121,6 +121,33 @@ public final class ExternalAppearancePresetScanner {
             + groupToken
             + "_"
             + filenameStem;
+    }
+
+    public static boolean isValidFilenameStem(String filenameStem) {
+        return filenameStem != null
+            && !filenameStem.isEmpty()
+            && filenameStem.length() <= MAX_FILENAME_STEM_LENGTH
+            && VALID_FILENAME_STEM.matcher(filenameStem).matches();
+    }
+
+    public static boolean isValidGroupToken(PlayerRace race, String groupToken) {
+        return race != null && groupToken != null && parseGroup(race, groupToken).valid;
+    }
+
+    public static String getNormalizedGroupId(PlayerRace race, String groupToken) {
+        GroupParseResult result = race == null || groupToken == null ? GroupParseResult.INVALID
+            : parseGroup(race, groupToken);
+        if (!result.valid) {
+            throw new IllegalArgumentException("invalid custom skin group token");
+        }
+        return result.groupId;
+    }
+
+    public static String createDisplayName(String filenameStem) {
+        if (!isValidFilenameStem(filenameStem)) {
+            throw new IllegalArgumentException("invalid custom skin filename stem");
+        }
+        return displayName(filenameStem);
     }
 
     private static void scanRaceDirectories(Path root, ScanContext context) throws ScanFailureException {
@@ -228,8 +255,7 @@ public final class ExternalAppearancePresetScanner {
             }
 
             String stem = filename.substring(0, filename.length() - 4);
-            if (stem.isEmpty() || stem.length() > MAX_FILENAME_STEM_LENGTH
-                || !VALID_FILENAME_STEM.matcher(stem).matches()) {
+            if (!isValidFilenameStem(stem)) {
                 context.reject("Skipping invalid custom skin filename: " + relativeTo(root, path));
                 continue;
             }

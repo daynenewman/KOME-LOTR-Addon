@@ -101,6 +101,33 @@ public final class ClientCustomSkinManager {
         textureManager.contentAvailable(definition);
     }
 
+    public boolean hasCachedContent(String presetId, String sha256) {
+        ClientExternalSkinDefinition definition = getExternalDefinition(presetId);
+        return definition != null && definition.getSha256().equals(sha256) && cache != null
+            && cache.find(definition) != null;
+    }
+
+    public boolean acceptDownloadedContent(String presetId, String sha256, byte[] bytes) {
+        ClientExternalSkinDefinition definition = getExternalDefinition(presetId);
+        if (definition == null || !definition.getSha256().equals(sha256) || bytes == null || cache == null) {
+            return false;
+        }
+        try {
+            cache.writePart(definition, bytes);
+            ClientCustomSkinCache.CachedContent promoted = cache.promotePart(definition);
+            if (promoted == null || !isActive(definition)) {
+                return false;
+            }
+            contentAvailable(presetId, sha256);
+            return true;
+        } catch (IOException | RuntimeException exception) {
+            cache.discardPart(sha256);
+            LOGGER.warn("Could not validate and promote downloaded custom skin " + definition.getIdentity(),
+                exception);
+            return false;
+        }
+    }
+
     /** Removes active metadata and loaded texture state for one logical preset. */
     public synchronized void invalidatePreset(String presetId) {
         if (presetId == null || presetId.isEmpty()) {
@@ -123,12 +150,7 @@ public final class ClientCustomSkinManager {
 
     @SubscribeEvent
     public void connected(FMLNetworkEvent.ClientConnectedToServerEvent event) {
-        synchronized (this) {
-            if (textureManager != null) {
-                textureManager.clearConnectionState();
-            }
-            publishCatalog(localCompatibilityDefinitions);
-        }
+        clearConnectionState();
     }
 
     @SubscribeEvent

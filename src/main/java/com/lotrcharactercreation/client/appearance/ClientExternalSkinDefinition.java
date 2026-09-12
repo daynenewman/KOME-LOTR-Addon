@@ -3,6 +3,7 @@ package com.lotrcharactercreation.client.appearance;
 import com.lotrcharactercreation.appearance.AppearancePreset;
 import com.lotrcharactercreation.appearance.AppearanceSourceType;
 import com.lotrcharactercreation.appearance.CustomSkinEntry;
+import com.lotrcharactercreation.appearance.CustomSkinManifestEntry;
 import com.lotrcharactercreation.appearance.CustomSkinScanLimits;
 import com.lotrcharactercreation.appearance.ExternalAppearancePresetScanner;
 
@@ -22,6 +23,18 @@ public final class ClientExternalSkinDefinition {
     public static ClientExternalSkinDefinition fromValidatedEntry(CustomSkinEntry entry) {
         if (entry == null) {
             throw new IllegalArgumentException("custom skin entry cannot be null");
+        }
+        return new ClientExternalSkinDefinition(
+            entry.getAppearancePreset(),
+            entry.getSha256(),
+            entry.getByteSize(),
+            entry.getWidth(),
+            entry.getHeight());
+    }
+
+    public static ClientExternalSkinDefinition fromManifestEntry(CustomSkinManifestEntry entry) {
+        if (entry == null) {
+            throw new IllegalArgumentException("custom skin manifest entry cannot be null");
         }
         return new ClientExternalSkinDefinition(
             entry.getAppearancePreset(),

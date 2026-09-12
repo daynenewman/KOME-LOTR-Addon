@@ -35,8 +35,8 @@ final class ClientExternalTextureState {
         return !failedIdentities.contains(identity);
     }
 
-    void contentAvailable(ClientCustomSkinIdentity identity) {
-        failedIdentities.remove(identity);
+    boolean contentAvailable(ClientCustomSkinIdentity identity) {
+        return failedIdentities.remove(identity);
     }
 
     ClientCustomSkinIdentity invalidatePreset(String presetId) {

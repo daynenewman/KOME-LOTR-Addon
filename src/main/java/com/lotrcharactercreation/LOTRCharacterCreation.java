@@ -95,11 +95,9 @@ public class LOTRCharacterCreation {
         if (!PlayerRaceData.isCharacterCreationComplete(player)) {
             CharacterCreationFlowService.ensureInherentSex(player);
         }
+        ModNetwork.beginCustomSkinSync(player);
         applySizeAndSynchronize(player);
         ModNetwork.sendAllPlayerAppearancesTo(player);
-        if (!PlayerRaceData.isCharacterCreationComplete(player)) {
-            ModNetwork.sendCharacterCreationRequired(player);
-        }
     }
 
     @SubscribeEvent
@@ -133,6 +131,7 @@ public class LOTRCharacterCreation {
             OrcEnvironmentService.clearTransientState(player);
             DwarfTraitService.clearTransientState(player);
             PlayerRaceSizeService.removeScheduledServerReapply(player);
+            ModNetwork.clearCustomSkinSync(player);
         }
     }
 

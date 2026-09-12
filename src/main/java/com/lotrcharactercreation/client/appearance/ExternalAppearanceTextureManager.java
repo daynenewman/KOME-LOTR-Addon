@@ -75,7 +75,9 @@ final class ExternalAppearanceTextureManager {
             return;
         }
         synchronized (this) {
-            state.contentAvailable(definition.getIdentity());
+            if (!state.contentAvailable(definition.getIdentity())) {
+                return;
+            }
             if (pendingLoads.contains(definition.getIdentity())) {
                 return;
             }

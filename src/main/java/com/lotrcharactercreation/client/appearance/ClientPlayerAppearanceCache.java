@@ -14,6 +14,7 @@ import net.minecraftforge.event.entity.player.PlayerWakeUpEvent;
 import net.minecraftforge.event.world.WorldEvent;
 
 import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
+import com.lotrcharactercreation.appearance.CustomSkinManifestEntry;
 import com.lotrcharactercreation.appearance.PlayerSex;
 import com.lotrcharactercreation.body.PlayerRaceSizeService;
 import com.lotrcharactercreation.race.PlayerRace;
@@ -63,8 +64,9 @@ public final class ClientPlayerAppearanceCache {
         }
 
         PlayerSex safeSex = AppearancePresetRegistry.isSexValidForRace(race, sex) ? sex : null;
-        String safePresetId = AppearancePresetRegistry.isPresetValid(
-            ClientCustomSkinManager.getInstance().getCatalog(), race, safeSex, appearancePresetId)
+        boolean knownPreset = AppearancePresetRegistry.isPresetValid(
+            ClientCustomSkinManager.getInstance().getCatalog(), race, safeSex, appearancePresetId);
+        String safePresetId = knownPreset || CustomSkinManifestEntry.isPossibleExternalPresetId(appearancePresetId)
             ? appearancePresetId
             : null;
         SynchronizedPlayerAppearance appearance = new SynchronizedPlayerAppearance(

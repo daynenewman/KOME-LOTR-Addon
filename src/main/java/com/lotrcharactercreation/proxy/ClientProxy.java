@@ -1,6 +1,8 @@
 package com.lotrcharactercreation.proxy;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import net.minecraft.client.Minecraft;
@@ -11,9 +13,11 @@ import net.minecraftforge.client.ClientCommandHandler;
 import net.minecraftforge.common.MinecraftForge;
 
 import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
+import com.lotrcharactercreation.appearance.CustomSkinManifestEntry;
 import com.lotrcharactercreation.appearance.PlayerSex;
 import com.lotrcharactercreation.client.appearance.ClientAppearanceTextureResolver;
 import com.lotrcharactercreation.client.appearance.ClientCustomSkinManager;
+import com.lotrcharactercreation.client.appearance.ClientCustomSkinSyncService;
 import com.lotrcharactercreation.client.appearance.ClientMinecraftAccountSkinResolver;
 import com.lotrcharactercreation.client.appearance.ClientPlayerAppearanceCache;
 import com.lotrcharactercreation.client.body.ClientPlayerEyeCameraService;
@@ -68,6 +72,9 @@ public class ClientProxy extends CommonProxy {
             .register(ClientCustomSkinManager.getInstance());
         FMLCommonHandler.instance()
             .bus()
+            .register(ClientCustomSkinSyncService.getInstance());
+        FMLCommonHandler.instance()
+            .bus()
             .register(eyeCameraService);
         FMLCommonHandler.instance()
             .bus()
@@ -89,6 +96,98 @@ public class ClientProxy extends CommonProxy {
         MinecraftForge.EVENT_BUS.register(urukRageState);
         MinecraftForge.EVENT_BUS.register(new LOTRMapPlayerAppearanceHandler());
         MinecraftForge.EVENT_BUS.register(new ClientRacialPlayerSoundHandler());
+    }
+
+    @Override
+    public void handleCustomSkinManifestBegin(final int schemaVersion, final long epoch, final long revision,
+        final String digest, final int entryCount, final long totalBytes, final int pageCount) {
+        Minecraft.getMinecraft().func_152344_a(new Runnable() {
+
+            @Override
+            public void run() {
+                ClientCustomSkinSyncService.getInstance().handleManifestBegin(
+                    schemaVersion,
+                    epoch,
+                    revision,
+                    digest,
+                    entryCount,
+                    totalBytes,
+                    pageCount);
+            }
+        });
+    }
+
+    @Override
+    public void handleCustomSkinManifestPage(final long epoch, final int pageIndex, final int pageCount,
+        List<CustomSkinManifestEntry> entries) {
+        final List<CustomSkinManifestEntry> copiedEntries = new ArrayList<CustomSkinManifestEntry>(entries);
+        Minecraft.getMinecraft().func_152344_a(new Runnable() {
+
+            @Override
+            public void run() {
+                ClientCustomSkinSyncService.getInstance()
+                    .handleManifestPage(epoch, pageIndex, pageCount, copiedEntries);
+            }
+        });
+    }
+
+    @Override
+    public void handleCustomSkinManifestEnd(final long epoch, final long revision, final String digest) {
+        Minecraft.getMinecraft().func_152344_a(new Runnable() {
+
+            @Override
+            public void run() {
+                ClientCustomSkinSyncService.getInstance().handleManifestEnd(epoch, revision, digest);
+            }
+        });
+    }
+
+    @Override
+    public void handleCustomSkinTransferStart(final long transferId, final long epoch, final long revision,
+        final String presetId, final String sha256, final int byteSize, final int chunkCount, final int width,
+        final int height) {
+        Minecraft.getMinecraft().func_152344_a(new Runnable() {
+
+            @Override
+            public void run() {
+                ClientCustomSkinSyncService.getInstance().handleTransferStart(
+                    transferId,
+                    epoch,
+                    revision,
+                    presetId,
+                    sha256,
+                    byteSize,
+                    chunkCount,
+                    width,
+                    height);
+            }
+        });
+    }
+
+    @Override
+    public void handleCustomSkinTransferChunk(final long transferId, final int chunkIndex, byte[] data) {
+        final byte[] copiedData = java.util.Arrays.copyOf(data, data.length);
+        Minecraft.getMinecraft().func_152344_a(new Runnable() {
+
+            @Override
+            public void run() {
+                ClientCustomSkinSyncService.getInstance()
+                    .handleTransferChunk(transferId, chunkIndex, copiedData);
+            }
+        });
+    }
+
+    @Override
+    public void handleCustomSkinTransferEnd(final long transferId, final long epoch, final String presetId,
+        final String sha256) {
+        Minecraft.getMinecraft().func_152344_a(new Runnable() {
+
+            @Override
+            public void run() {
+                ClientCustomSkinSyncService.getInstance()
+                    .handleTransferEnd(transferId, epoch, presetId, sha256);
+            }
+        });
     }
 
     @Override
