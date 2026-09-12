@@ -221,7 +221,7 @@ public class KOMEGuiPopulation extends GuiScreen {
         fontRendererObj.drawString(title, x + 12, y + 8, KOMEGuiTheme.COLOR_BORDER_RED);
         fontRendererObj.drawString("Used " + used + " / " + total + "     Available " + available, x + 248, y + 8, KOMEGuiTheme.COLOR_TEXT);
         if (farmhands) {
-            fontRendererObj.drawString("Farmhands " + farmUsed + " / " + farmTotal, x + width - 156, y + 8, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            fontRendererObj.drawString("Farmhands " + farmUsed + (farmTotal < 0 ? " (unlimited)" : " / " + farmTotal), x + width - 156, y + 8, KOMEGuiTheme.COLOR_TEXT_MUTED);
         }
         fontRendererObj.drawString("Offensive: " + offUsed + " / " + offTotal + "     available " + offAvail, x + 12, y + 27, KOMEGuiTheme.COLOR_TEXT);
         fontRendererObj.drawString("Defensive: " + defUsed + " / " + defTotal + "     available " + defAvail, x + 12, y + 41, KOMEGuiTheme.COLOR_TEXT);

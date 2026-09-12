@@ -88,6 +88,7 @@ public class KOMEConfigInspectionTest {
                 "population.hoursPerPopulationPoint=10", "population.capturedBuildMultiplier=0.5",
                 "population.offlinePopulationCatchUp=true", "population.populationCapEnabled=false",
                 "population.populationCapValue=TBD", "population.encirclementPopulationSuppressionEnabled=false",
+                "population.unitPopulationCostOverrides={}",
                 "movement.footOrMixedTilesPerDay=1", "movement.fullyMountedTilesPerDay=2",
                 "battle.responseLevel1Minutes=20", "battle.responseLevel2Minutes=35", "battle.responseLevel3Minutes=50",
                 "muster.threatDistanceTiles=2", "muster.budgetDailyPopulationMultiplier=21",

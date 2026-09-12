@@ -147,7 +147,9 @@ public class KOMEProgressionAutoCompleter {
     }
 
     private static int grantIf(KOMEPlayerProgression progression, String id, boolean condition) {
-        return condition && progression.grant(id) ? 1 : 0;
+        KOMEProgressionAchievement achievement = KOMEProgressionAchievement.forID(id);
+        return condition && KOMEProgressionPermissionRegistry.canComplete(progression, achievement)
+            && progression.grant(id) ? 1 : 0;
     }
 
     private static boolean isComplete(KOMEPlayerProgression progression, String id) {

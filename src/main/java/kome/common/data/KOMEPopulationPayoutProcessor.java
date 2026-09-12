@@ -51,6 +51,12 @@ public final class KOMEPopulationPayoutProcessor {
         return new Result(all, false, false, startup ? "startup processed" : "live processed");
     }
     private static Result processOne(KOMEWorldData data, Instant boundary) {
+        // Frozen phases consume the boundary without accruing catch-up population later.
+        if (!data.warSeason.isPopulationPayoutEnabled()) {
+            data.lastPopulationPayoutBoundaryMillis = boundary.toEpochMilli();
+            data.markDirty();
+            return new Result(Collections.<FactionResult>emptyList(), false, false, "frozen during " + data.warSeason.phase);
+        }
         Map<String,KOMEPopulationRate> rates = new TreeMap<String,KOMEPopulationRate>(KOMEPopulationService.getAllDailyPopulationRates(data));
         List<FactionResult> plan = new ArrayList<FactionResult>();
         boolean cap = KOMEConfigRegistry.population().isPopulationCapEnabled();

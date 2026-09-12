@@ -102,7 +102,7 @@ public class KOMEProgressionAchievement {
         a(list, "baseline.redstone", "baseline", "Other", "Redstone", "Use redstone.");
         a(list, "baseline.hire_units", "baseline", "War & Population", "Hire Units", "Hire units.");
         a(list, "baseline.grow_population", "baseline", "War & Population", "Grow Population", "Grow your population.");
-        a(list, "baseline.free_war", "baseline", "War & Population", "Freely Declare War", "Freely declare war and take waypoints.");
+        a(list, "baseline.free_war", "baseline", "War & Population", "War Season Context", "Learn how the canonical War Season and conflict systems operate.");
         a(list, "baseline.mithril_gear", "baseline", "Crafting & Gear", "Mithril Gear", "Craft mithril gear.");
         a(list, "baseline.enchanted_books", "baseline", "Crafting & Gear", "Enchanted Books", "Craft and use enchanted books.");
 

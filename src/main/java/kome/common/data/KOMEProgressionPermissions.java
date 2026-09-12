@@ -22,6 +22,8 @@ public class KOMEProgressionPermissions {
     public static final String GROW_POPULATION = "baseline.grow_population";
     public static final String HIRE_UNITS = "baseline.hire_units";
     public static final String TAKE_WAYPOINTS = "baseline.take_waypoints";
+    public static final String RECLAIM_WAYPOINTS = "baseline.reclaim_waypoints";
+    public static final String FAST_TRAVEL = "baseline.fast_travel";
 
     public static boolean has(EntityPlayer player, String permissionID) {
         if (player == null || permissionID == null) {

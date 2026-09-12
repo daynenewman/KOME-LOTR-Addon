@@ -5,6 +5,7 @@ import kome.common.data.KOMEProgressionAutoCompleter;
 import kome.common.data.KOMEPlayerProgression;
 import kome.common.data.KOMEProgressionAchievement;
 import kome.common.data.KOMEProgressionLords;
+import kome.common.data.KOMEProgressionPermissionRegistry;
 import kome.common.data.KOMEProgressionTaskGenerator;
 import kome.common.data.KOMEProgressionTitles;
 import kome.common.data.KOMEWorldData;
@@ -105,6 +106,9 @@ public class KOMECommandProgression extends CommandBase {
             KOMEProgressionAchievement achievement = getSelfCompletableAchievement(args[1]);
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
             KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+            if (!KOMEProgressionPermissionRegistry.canComplete(progression, achievement)) {
+                throw new WrongUsageException("Cannot complete " + achievement.title + ":" + KOMEProgressionPermissionRegistry.prerequisiteText(achievement).trim());
+            }
             boolean changed = progression.grant(achievement.id);
             changed = KOMEProgressionAutoCompleter.applyUnlocks(progression) > 0 || changed;
             data.markDirty();

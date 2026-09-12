@@ -1,5 +1,7 @@
 package kome.common.data;
 
+import kome.common.config.KOMEConfigRegistry;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -16,7 +18,19 @@ public final class KOMEWarService {
 
     public static KOMEWar createWar(KOMEWorldData data, String first, String second, String name,
             String actor, long now) {
-        return createWarInternal(data, first, second, name, actor, now, true);
+        KOMEWar war = createWarInternal(data, first, second, name, actor, now, true);
+        if (war != null) recordFirstLegalConflict(data, now);
+        return war;
+    }
+
+    /** Canonical integration point for any already-validated conflict source. */
+    public static KOMEWarSeasonState.TransitionResult recordFirstLegalConflict(KOMEWorldData data, long now) {
+        if (data == null) return KOMEWarSeasonState.TransitionResult.denied("Missing world data.");
+        long duration = KOMEConfigRegistry.season().getMinimumWarSeasonLengthDays().isPresent()
+            ? KOMEConfigRegistry.season().getMinimumWarSeasonLengthDays().getAsInt() * 86400000L : -1L;
+        KOMEWarSeasonState.TransitionResult result = data.warSeason.recordLegalConflict(now, duration);
+        if (result.allowed) data.markDirty();
+        return result;
     }
 
     private static KOMEWar createWarInternal(KOMEWorldData data, String first, String second, String name,
@@ -64,6 +78,7 @@ public final class KOMEWarService {
             }
         }
         if (war != null) {
+            recordFirstLegalConflict(data, now);
             war.addTileCapture(tileId, former, next, claimant, claimantName, now, claimMethod);
             reconcileAutomaticMilitarySupport(data, now, "Capture updated active war");
             KOMEMovementAccessService.revalidateAll(data, now);

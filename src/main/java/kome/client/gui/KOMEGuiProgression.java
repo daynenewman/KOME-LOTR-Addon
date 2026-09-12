@@ -2,6 +2,7 @@ package kome.client.gui;
 
 import kome.client.KOMEMinecraftClient;
 import kome.common.data.KOMEProgressionAchievement;
+import kome.common.data.KOMEProgressionPermissionRegistry;
 import lotr.client.gui.LOTRGuiAchievements;
 import lotr.client.gui.LOTRGuiButtonRedBook;
 import lotr.client.gui.LOTRGuiMenuBase;
@@ -294,7 +295,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
 
     private String getRequirementText(KOMEProgressionAchievement achievement) {
         String assignment = getAssignment(achievement);
-        return assignment.length() == 0 ? achievement.requirement : assignment;
+        return assignment.length() == 0 ? KOMEProgressionPermissionRegistry.requirementText(achievement) : assignment + KOMEProgressionPermissionRegistry.prerequisiteText(achievement);
     }
 
     private String getAssignment(KOMEProgressionAchievement achievement) {

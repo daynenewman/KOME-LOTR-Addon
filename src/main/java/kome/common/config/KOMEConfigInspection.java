@@ -60,6 +60,7 @@ public final class KOMEConfigInspection {
             add(values, category, "populationCapEnabled", s.isPopulationCapEnabled());
             add(values, category, "populationCapValue", s.getPopulationCapValue());
             add(values, category, "encirclementPopulationSuppressionEnabled", s.isEncirclementPopulationSuppressionEnabled());
+            add(values, category, "unitPopulationCostOverrides", s.getUnitPopulationCostOverrides());
         } else if ("movement".equals(category)) {
             KOMEConfigRegistry.MovementSettings s = KOMEConfigRegistry.movement();
             add(values, category, "footOrMixedTilesPerDay", s.getFootOrMixedTilesPerDay());

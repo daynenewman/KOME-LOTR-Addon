@@ -9,6 +9,9 @@ import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import net.minecraftforge.common.config.Configuration;
 
@@ -32,6 +35,8 @@ public final class KOMEConfigRegistry {
     public static final String POPULATION_CAP_VALUE = "populationCapValue";
     public static final String ENCIRCLEMENT_POPULATION_SUPPRESSION_ENABLED =
             "encirclementPopulationSuppressionEnabled";
+    /** Comma-separated stable entity-id=population-cost entries. Overrides replace the formula. */
+    public static final String UNIT_POPULATION_COST_OVERRIDES = "unitPopulationCostOverrides";
     public static final String FOOT_OR_MIXED_TILES_PER_DAY = "footOrMixedTilesPerDay";
     public static final String FULLY_MOUNTED_TILES_PER_DAY = "fullyMountedTilesPerDay";
     public static final String RESPONSE_LEVEL_1_MINUTES = "responseLevel1Minutes";
@@ -191,7 +196,26 @@ public final class KOMEConfigRegistry {
                 value(c, POPULATION_CATEGORY,
                         ENCIRCLEMENT_POPULATION_SUPPRESSION_ENABLED, "false"));
         return new PopulationSettings(hours, multiplier, catchUp, cap, populationCapValue,
-                suppression);
+                suppression, parseUnitPopulationOverrides(value(c, POPULATION_CATEGORY,
+                        UNIT_POPULATION_COST_OVERRIDES, "")));
+    }
+
+    private static Map<String, Integer> parseUnitPopulationOverrides(String value) {
+        Map<String, Integer> result = new LinkedHashMap<String, Integer>();
+        if (value == null || value.trim().length() == 0) return result;
+        for (String part : value.split(",")) {
+            String[] pair = part.trim().split("=", -1);
+            if (pair.length != 2 || pair[0].trim().length() == 0) throw invalid(POPULATION_CATEGORY,
+                    UNIT_POPULATION_COST_OVERRIDES, value, "must be comma-separated entityId=positiveCost entries");
+            int cost;
+            try { cost = Integer.parseInt(pair[1].trim()); }
+            catch (NumberFormatException e) { throw invalid(POPULATION_CATEGORY, UNIT_POPULATION_COST_OVERRIDES, value, "costs must be positive integers"); }
+            if (cost <= 0) throw invalid(POPULATION_CATEGORY, UNIT_POPULATION_COST_OVERRIDES, value, "costs must be positive integers");
+            String id = pair[0].trim().toLowerCase(java.util.Locale.ROOT);
+            if (result.put(id, Integer.valueOf(cost)) != null) throw invalid(POPULATION_CATEGORY,
+                    UNIT_POPULATION_COST_OVERRIDES, value, "must not contain duplicate entity IDs");
+        }
+        return result;
     }
 
     private static MovementSettings readMovement(Configuration c) {
@@ -569,15 +593,23 @@ public final class KOMEConfigRegistry {
         private final boolean populationCapEnabled;
         private final OptionalInt populationCapValue;
         private final boolean encirclementPopulationSuppressionEnabled;
+        private final Map<String, Integer> unitPopulationCostOverrides;
 
         private PopulationSettings(int hours, double multiplier, boolean catchUp,
                 boolean cap, OptionalInt populationCapValue, boolean suppression) {
+            this(hours, multiplier, catchUp, cap, populationCapValue, suppression,
+                    Collections.<String, Integer>emptyMap());
+        }
+        private PopulationSettings(int hours, double multiplier, boolean catchUp,
+                boolean cap, OptionalInt populationCapValue, boolean suppression,
+                Map<String, Integer> overrides) {
             hoursPerPopulationPoint = hours;
             capturedBuildMultiplier = multiplier;
             offlinePopulationCatchUp = catchUp;
             populationCapEnabled = cap;
             this.populationCapValue = populationCapValue;
             encirclementPopulationSuppressionEnabled = suppression;
+            unitPopulationCostOverrides = Collections.unmodifiableMap(new LinkedHashMap<String, Integer>(overrides));
         }
 
         public int getHoursPerPopulationPoint() {
@@ -603,6 +635,8 @@ public final class KOMEConfigRegistry {
         public boolean isEncirclementPopulationSuppressionEnabled() {
             return encirclementPopulationSuppressionEnabled;
         }
+
+        public Map<String, Integer> getUnitPopulationCostOverrides() { return unitPopulationCostOverrides; }
     }
 
     public static final class MovementSettings {

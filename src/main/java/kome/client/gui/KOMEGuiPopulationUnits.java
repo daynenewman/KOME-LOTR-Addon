@@ -146,7 +146,7 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
         KOMEGuiTheme.drawHeader(fontRendererObj, "Unit Command", x + 128, y + 12, panelW - 256);
         String context = tileFilter.length() > 0 ? "Stationed at Tile " + tileFilter : playerName + "'s hired units";
         fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, context, 210), x + MARGIN, y + 20, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        String capacity = "Military " + armyUsed + "/" + armyTotal + "   Farmhands " + farmhandsUsed + "/" + farmhandsLimit;
+        String capacity = "Military " + armyUsed + "/" + armyTotal + "   Farmhands " + farmhandsUsed + (farmhandsLimit < 0 ? " (unlimited)" : "/" + farmhandsLimit);
         fontRendererObj.drawString(capacity, x + panelW - MARGIN - fontRendererObj.getStringWidth(capacity), y + 32, KOMEGuiTheme.COLOR_TEXT_MUTED);
 
         int contentY = y + 78;

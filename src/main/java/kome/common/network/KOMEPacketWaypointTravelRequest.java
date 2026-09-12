@@ -5,6 +5,7 @@ import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
 import kome.common.data.KOMEWaypointAccessService;
+import kome.common.data.KOMEProgressionPermissions;
 import lotr.common.LOTRConfig;
 import lotr.common.LOTRLevelData;
 import lotr.common.LOTRPlayerData;
@@ -48,6 +49,7 @@ public final class KOMEPacketWaypointTravelRequest implements IMessage {
                 return null;
             }
             LOTRWaypoint waypoint = waypoints[message.waypointId];
+            if (!KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.FAST_TRAVEL)) return null;
             boolean nativeProgression = KOMEWaypointAccessService.hasNativeProgression(player, waypoint);
             KOMEWaypointAccessService.Decision decision = KOMEWaypointAccessService.evaluatePlayer(player, waypoint, nativeProgression);
             if (!decision.finalAllowed) {

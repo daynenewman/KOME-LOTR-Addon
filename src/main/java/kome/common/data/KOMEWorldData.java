@@ -86,6 +86,8 @@ public class KOMEWorldData extends WorldSavedData {
     public String movementDailyResetTime = "20:00";
     public String movementDailyResetTimezone = "America/Chicago";
     public int nextWarSequence = 1;
+    /** The sole persisted campaign-season authority; population and unit records remain separate. */
+    public final KOMEWarSeasonState warSeason = new KOMEWarSeasonState();
     public int nextBuildSequence = 1;
     public int allianceStageThreeRequiredHalfHours = KOMEHalfHourService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
     public String allianceDifficulty = KOMEAllianceRequirements.STANDARD;
@@ -1780,10 +1782,8 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public int getFarmhandLimit(UUID owner) {
-        KOMEPlayerPopulation pop = getPopulation(owner);
-        int allocatedPopulation = getPlayerTilePopulationAllocated(owner);
-        int populationSlots = (pop.getCombinedTotal() + allocatedPopulation) / 25;
-        return Math.max(0, populationSlots);
+        // Farmhands have no KOME population-derived hiring capacity.
+        return -1;
     }
 
     public int getPlayerTilePopulationAllocated(UUID owner) {
@@ -2325,6 +2325,7 @@ public class KOMEWorldData extends WorldSavedData {
         movementDailyResetTime = nbt.hasKey("MovementDailyResetTime") ? nbt.getString("MovementDailyResetTime") : "20:00";
         movementDailyResetTimezone = nbt.hasKey("MovementDailyResetTimezone") ? nbt.getString("MovementDailyResetTimezone") : "America/Chicago";
         nextWarSequence = nbt.hasKey("NextWarSequence") ? Math.max(1, nbt.getInteger("NextWarSequence")) : 1;
+        warSeason.readFromNBT(nbt.getCompoundTag("WarSeason"));
         nextBuildSequence = nbt.hasKey("NextBuildSequence") ? Math.max(1, nbt.getInteger("NextBuildSequence")) : 1;
         allianceStageThreeRequiredHalfHours = nbt.hasKey("AllianceStageThreeRequiredHalfHours")
             ? Math.max(1, nbt.getInteger("AllianceStageThreeRequiredHalfHours"))
@@ -3061,6 +3062,9 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.setString("MovementDailyResetTime", movementDailyResetTime == null ? "20:00" : movementDailyResetTime);
         nbt.setString("MovementDailyResetTimezone", movementDailyResetTimezone == null ? "America/Chicago" : movementDailyResetTimezone);
         nbt.setInteger("NextWarSequence", Math.max(1, nextWarSequence));
+        NBTTagCompound warSeasonTag = new NBTTagCompound();
+        warSeason.writeToNBT(warSeasonTag);
+        nbt.setTag("WarSeason", warSeasonTag);
         nbt.setInteger("NextBuildSequence", Math.max(1, nextBuildSequence));
         nbt.setInteger("AllianceStageThreeRequiredHalfHours", Math.max(1, allianceStageThreeRequiredHalfHours));
         nbt.setString("AllianceDifficulty", KOMEAllianceRequirements.normalizeDifficulty(allianceDifficulty));

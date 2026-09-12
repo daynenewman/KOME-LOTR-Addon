@@ -40,6 +40,7 @@ public class KOMEConfigRegistryTest {
         assertEquals(false, population.isPopulationCapEnabled());
         assertFalse(population.getPopulationCapValue().isPresent());
         assertEquals(false, population.isEncirclementPopulationSuppressionEnabled());
+        assertTrue(population.getUnitPopulationCostOverrides().isEmpty());
         assertEquals(1, KOMEConfigRegistry.movement().getFootOrMixedTilesPerDay());
         assertEquals(2, KOMEConfigRegistry.movement().getFullyMountedTilesPerDay());
         assertEquals(20, KOMEConfigRegistry.battle().getResponseLevel1Minutes());
@@ -73,6 +74,16 @@ public class KOMEConfigRegistryTest {
         assertFalse(KOMEConfigRegistry.encirclement().isOfflineStarvationCatchUp());
         assertFalse(KOMEConfigRegistry.season().getMinimumWarSeasonLengthDays().isPresent());
         assertFalse(KOMEConfigRegistry.season().isAutomaticFinaleEnabled());
+    }
+
+    @Test public void unitPopulationOverridesUseStableEntityIdsAndRequirePositiveCosts() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.POPULATION_CATEGORY, KOMEConfigRegistry.UNIT_POPULATION_COST_OVERRIDES,
+                "lotr.troll=90,minecraft:zombie=12");
+        KOMEConfigRegistry.load(file);
+        assertEquals(Integer.valueOf(90), KOMEConfigRegistry.population().getUnitPopulationCostOverrides().get("lotr.troll"));
+        assertEquals(Integer.valueOf(12), KOMEConfigRegistry.population().getUnitPopulationCostOverrides().get("minecraft:zombie"));
+        invalid(KOMEConfigRegistry.POPULATION_CATEGORY, KOMEConfigRegistry.UNIT_POPULATION_COST_OVERRIDES, "lotr.troll=0");
     }
 
     @Test

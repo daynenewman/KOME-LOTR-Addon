@@ -18,6 +18,7 @@ import kome.common.command.KOMECommandConquest;
 import kome.common.command.KOMECommandKome;
 import kome.common.command.KOMECommandPopulation;
 import kome.common.command.KOMECommandProgression;
+import kome.common.command.KOMECommandSeason;
 import kome.common.command.KOMECommandTroops;
 import kome.common.command.KOMECommandWar;
 import kome.common.config.KOMEConfigRegistry;
@@ -120,6 +121,7 @@ public class KOMEAddon {
         event.registerServerCommand(new KOMECommandProgression());
         event.registerServerCommand(new KOMECommandTroops());
         event.registerServerCommand(new KOMECommandWar());
+        event.registerServerCommand(new KOMECommandSeason());
 
         characterCreation.registerServerCommands(event);
         lotrMoreMobs.serverStarting(event);

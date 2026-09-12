@@ -17,6 +17,10 @@ public class KOMEHiredUnitRecord {
     public KOMEPopulationType type = KOMEPopulationType.OFFENSIVE;
     public int cost = 25;
     public int baseCost = 25;
+    /** Permanent bank debit total; may exceed current cost after a health decrease. */
+    public int populationSpent = 25;
+    /** Stable registered entity ID used by the cost override registry. */
+    public String unitEntityId = "";
     public int level = 1;
     public int levelCap;
     public boolean farmhand;
@@ -63,6 +67,8 @@ public class KOMEHiredUnitRecord {
         type = readType == null ? KOMEPopulationType.OFFENSIVE : readType;
         cost = nbt.getInteger("Cost");
         baseCost = nbt.hasKey("BaseCost") ? nbt.getInteger("BaseCost") : 25;
+        populationSpent = nbt.hasKey("PopulationSpent") ? Math.max(0, nbt.getInteger("PopulationSpent")) : Math.max(0, cost);
+        unitEntityId = nbt.getString("UnitEntityId");
         level = nbt.hasKey("Level") ? Math.max(1, nbt.getInteger("Level")) : 1;
         levelCap = Math.max(0, nbt.getInteger("LevelCap"));
         farmhand = nbt.getBoolean("Farmhand");
@@ -120,6 +126,8 @@ public class KOMEHiredUnitRecord {
         nbt.setString("Type", type.key);
         nbt.setInteger("Cost", cost);
         nbt.setInteger("BaseCost", baseCost);
+        nbt.setInteger("PopulationSpent", populationSpent);
+        nbt.setString("UnitEntityId", unitEntityId == null ? "" : unitEntityId);
         nbt.setInteger("Level", level);
         nbt.setInteger("LevelCap", levelCap);
         nbt.setBoolean("Farmhand", farmhand);

@@ -34,6 +34,7 @@ import lotr.common.item.LOTRItemPouch;
 import lotr.common.quest.LOTRMiniQuest;
 import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
@@ -579,8 +580,9 @@ public class KOMEEvents {
 
         LOTRUnitTradeEntry trade = getMatchingTrade(owner, npc);
         boolean mounted = isMountedUnit(npc, trade);
-        int rawPopulationCost = getRawPopulationCost(npc, mounted);
-        int populationCost = rawPopulationCost;
+        int healthCost = getHealthPopulationCost(npc);
+        String unitEntityId = getUnitEntityId(npc);
+        int populationCost = KOMEUnitPopulationCostService.calculate(unitEntityId, healthCost, mounted, false);
         UUID hiringPlayer = info.getHiringPlayerUUID();
         String activeRecruitmentTile = data.getActiveRecruitmentTile(hiringPlayer, ownerFaction);
         String originTile = activeRecruitmentTile.length() > 0 ? activeRecruitmentTile
@@ -590,7 +592,9 @@ public class KOMEEvents {
         record.owner = info.getHiringPlayerUUID();
         record.type = KOMEPopulationType.OFFENSIVE;
         record.cost = populationCost;
-        record.baseCost = rawPopulationCost;
+        record.baseCost = healthCost;
+        record.populationSpent = populationCost;
+        record.unitEntityId = unitEntityId;
         record.level = Math.max(1, info.xpLevel);
         record.mounted = mounted;
         record.unitName = getUnitName(npc);
@@ -626,7 +630,7 @@ public class KOMEEvents {
         data.markDirty();
         data.syncConquestTiles();
         owner.addChatMessage(new ChatComponentText(record.unitName + " recruited at " + originTile
-            + " using " + KOMEAlliance.displayFactionName(ownerFaction) + " population."));
+            + " using " + populationCost + " " + KOMEAlliance.displayFactionName(ownerFaction) + " population."));
     }
 
     private void denyAlliedHire(EntityPlayer owner, LOTREntityNPC npc, String reason) {
@@ -679,23 +683,33 @@ public class KOMEEvents {
         if (record.level <= 0) {
             record.level = Math.max(1, npc.hiredNPCInfo.xpLevel);
         }
+        int healthCost = getHealthPopulationCost(npc);
+        if (record.unitEntityId == null || record.unitEntityId.length() == 0) record.unitEntityId = getUnitEntityId(npc);
+        int currentCost = KOMEUnitPopulationCostService.calculate(record.unitEntityId, healthCost, record.mounted, false);
+        if (!record.isFactionPopulationBankFunded() && currentCost > record.cost && npc.hiredNPCInfo.xpLevel > record.level && !hasPopulationForCostIncrease(data, record, currentCost - record.cost)) {
+            denyLevelUpForPopulation(npc, data, record, currentCost - record.cost);
+            healthCost = getHealthPopulationCost(npc);
+            currentCost = KOMEUnitPopulationCostService.calculate(record.unitEntityId, healthCost, record.mounted, false);
+        }
         if (record.isFactionPopulationBankFunded()) {
+            int extra = KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, record, currentCost);
+            if (extra < 0) {
+                denyLevelUpForPopulation(npc, data, record, Math.max(0, currentCost - Math.max(record.populationSpent, record.cost)));
+                return;
+            }
+            record.level = Math.max(1, npc.hiredNPCInfo.xpLevel);
+            record.baseCost = healthCost;
+            data.markDirty();
+            data.syncConquestTiles();
             return;
         }
-        int rawPopulationCost = getRawPopulationCost(npc, record.mounted);
-        int currentCost = applyHireTypeCost(rawPopulationCost, record.type);
-        if (currentCost > record.cost && npc.hiredNPCInfo.xpLevel > record.level && !hasPopulationForCostIncrease(data, record, currentCost - record.cost)) {
-            denyLevelUpForPopulation(npc, data, record, currentCost - record.cost);
-            rawPopulationCost = getRawPopulationCost(npc, record.mounted);
-            currentCost = applyHireTypeCost(rawPopulationCost, record.type);
-        }
         int currentLevel = Math.max(1, npc.hiredNPCInfo.xpLevel);
-        if (currentCost == record.cost && rawPopulationCost == record.baseCost && currentLevel == record.level) {
+        if (currentCost == record.cost && healthCost == record.baseCost && currentLevel == record.level) {
             return;
         }
         int previousCost = record.cost;
         record.level = currentLevel;
-        record.baseCost = rawPopulationCost;
+        record.baseCost = healthCost;
         record.cost = currentCost;
         if (record.isPlayerReserveFunded()) {
             data.getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer).adjustUsed(record.type, currentCost - previousCost);
@@ -1241,39 +1255,21 @@ public class KOMEEvents {
         return bestMatch;
     }
 
-    private int getRawPopulationCost(LOTREntityNPC npc, boolean mounted) {
-        int healthCost = Math.max(1, MathHelper.ceiling_float_int(KOMEReflection.getMaxHealthOrFallback(npc, defaultUnitCost)));
-        return mounted ? healthCost + 25 : healthCost;
-    }
+    private int getHealthPopulationCost(LOTREntityNPC npc) { return Math.max(1, MathHelper.ceiling_float_int(KOMEReflection.getMaxHealthOrFallback(npc, defaultUnitCost))); }
 
-    private int applyHireTypeCost(int rawCost, KOMEPopulationType hireType) {
-        return Math.max(1, rawCost);
+    private String getUnitEntityId(LOTREntityNPC npc) {
+        String id = npc == null ? null : EntityList.getEntityString(npc);
+        return id == null ? "" : id.toLowerCase(java.util.Locale.ROOT);
     }
 
     private boolean isMountedUnit(LOTREntityNPC npc, LOTRUnitTradeEntry trade) {
-        return KOMEReflection.getRidingEntity(npc) != null || isMountedTrade(trade) || isMountedName(npc);
+        return KOMEReflection.getRidingEntity(npc) != null || isMountedTrade(trade);
     }
 
     private boolean isMountedTrade(LOTRUnitTradeEntry trade) {
         return trade != null && trade.mountClass != null;
     }
 
-    private boolean isMountedName(LOTREntityNPC npc) {
-        String className = npc.getClass().getSimpleName().toLowerCase();
-        String displayName = getUnitName(npc).toLowerCase();
-        return className.contains("outrider")
-            || displayName.contains("outrider")
-            || displayName.contains("mounted")
-            || displayName.contains("horse")
-            || displayName.contains("warg")
-            || displayName.contains("boar")
-            || displayName.contains("elk")
-            || displayName.contains("camel")
-            || displayName.contains("rhino")
-            || displayName.contains("zebra")
-            || displayName.contains("giraffe")
-            || displayName.contains("spider rider");
-    }
 
     private String getUnitName(LOTREntityNPC npc) {
         String name = npc.getCommandSenderName();

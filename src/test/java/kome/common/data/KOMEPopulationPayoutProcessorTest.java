@@ -166,7 +166,7 @@ public class KOMEPopulationPayoutProcessorTest {
         assertEquals("gondor",received.viewerFaction); assertEquals(4,received.availablePopulation); assertEquals(2,received.activePopulation); assertEquals(50000L,received.dailyPopulationRateUnits);
     }
 
-    private static KOMEWorldData world(String faction,int halfHours){KOMEWorldData d=new KOMEWorldData("payout");add(d,faction,KOMEBuildType.NORMAL,halfHours);return d;}
+    private static KOMEWorldData world(String faction,int halfHours){KOMEWorldData d=new KOMEWorldData("payout");d.warSeason.recordLegalConflict(0L, -1L);add(d,faction,KOMEBuildType.NORMAL,halfHours);return d;}
     private static void add(KOMEWorldData d,String faction,KOMEBuildType type,int hours){String tile="T-"+faction;KOMEConquestTile t=new KOMEConquestTile(tile);t.claim(faction,0L);d.conquestTiles.put(t.id,t);KOMEPlayerBuild b=new KOMEPlayerBuild();b.id="B-"+faction;b.tileId=t.id;b.populationFaction=faction;b.type=type;b.active=true;KOMEBuildContribution c=new KOMEBuildContribution();c.id="H";c.halfHours=hours;c.status=KOMEBuildContribution.APPROVED;b.contributions.add(c);d.builds.put(b.id,b);}
     private static Instant initializeAndNext(KOMEWorldData data){KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data,Instant.parse("2026-01-10T02:00:00Z"));return KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis));}
     private interface Checked { void run() throws Exception; }

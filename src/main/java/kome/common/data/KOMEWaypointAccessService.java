@@ -181,6 +181,11 @@ public final class KOMEWaypointAccessService {
         if (!(player instanceof EntityPlayerMP)) {
             return true;
         }
+        if (!KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.FAST_TRAVEL)) {
+            player.addChatMessage(new ChatComponentText("Fast travel denied: you have not unlocked Fast Travel yet."));
+            playerData.setTargetFTWaypoint(null);
+            return false;
+        }
         Decision decision = evaluatePlayer(player, playerData.getTargetFTWaypoint(), true);
         if (!decision.finalAllowed) {
             player.addChatMessage(new ChatComponentText("Fast travel denied: " + decision.reason));
