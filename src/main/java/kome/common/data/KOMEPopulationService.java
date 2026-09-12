@@ -1,6 +1,8 @@
 package kome.common.data;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 /** Read-only access to the canonical faction bank and informational active population. */
 public final class KOMEPopulationService {
@@ -73,6 +75,16 @@ public final class KOMEPopulationService {
             total = saturatingAdd(total, Math.max(0, record.cost));
         }
         return total;
+    }
+
+    public static KOMEPopulationRate getDailyPopulationRate(KOMEWorldData data, String faction) {
+        return KOMEPopulationRateService.getDailyPopulationRate(data, faction);
+    }
+    public static Map<String, KOMEPopulationRate> getAllDailyPopulationRates(KOMEWorldData data) {
+        return KOMEPopulationRateService.getAllDailyPopulationRates(data);
+    }
+    public static List<KOMEPopulationRateContribution> getPopulationRateContributions(KOMEWorldData data) {
+        return KOMEPopulationRateService.getPopulationRateContributions(data);
     }
 
     private static String populationFaction(KOMEHiredUnitRecord record) {
