@@ -2,6 +2,7 @@ package kome.common.command;
 
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceProgressionService;
+import kome.common.data.KOMEMovementAccessService;
 import kome.common.data.KOMEWar;
 import kome.common.data.KOMEWarService;
 import kome.common.data.KOMEWartimeStewardshipService;
@@ -228,6 +229,7 @@ public class KOMECommandWar extends CommandBase {
     private void changed(KOMEWorldData data, String action) {
         data.recordAllianceAdminAction("war", action);
         data.markDirty();
+        KOMEMovementAccessService.revalidateAll(data, System.currentTimeMillis());
         KOMECommandAlliance.sendAllianceRefreshToAll(data);
     }
 

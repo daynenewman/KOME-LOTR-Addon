@@ -35,6 +35,7 @@ public final class KOMEWarService {
         war.recordMembership(b, 2, "MANUAL", "", actor, now);
         data.wars.put(war.id, war);
         reconcileAutomaticMilitarySupport(data, now, "War created");
+        KOMEMovementAccessService.revalidateAll(data, now);
         KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
         data.markDirty();
         return war;

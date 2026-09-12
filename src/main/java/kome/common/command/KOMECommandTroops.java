@@ -15,6 +15,7 @@ import kome.common.data.KOMEEntitySnapshots;
 import kome.common.data.KOMEHaltedUnitProtection;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEMovementHistoryRecord;
+import kome.common.data.KOMEMovementAccessService;
 import kome.common.data.KOMEPopulationType;
 import kome.common.data.KOMEPledgeReleaseService;
 import kome.common.data.KOMETileWaypointLink;
@@ -2996,16 +2997,12 @@ public class KOMECommandTroops extends CommandBase {
     }
 
     private static boolean isMovementStepAuthorized(KOMEWorldData data, KOMEArmyMovementOrder order) {
-        return isMovementStepAuthorized(data, order, activeStepOrigin(order), activeStepDestination(order), order.retreating);
+        return KOMEMovementAccessService.isMovementStepAuthorized(data, order);
     }
 
     private static boolean isMovementStepAuthorized(KOMEWorldData data, KOMEArmyMovementOrder order,
             String origin, String destination, boolean retreat) {
-        if (data == null || order == null) {
-            return false;
-        }
-        return (retreat || isTileStandableForOrder(data, order, origin, false))
-            && isTileStandableForOrder(data, order, destination, retreat);
+        return KOMEMovementAccessService.isMovementStepAuthorized(data, order, origin, destination, retreat);
     }
 
     private static boolean isTileStandableForOrder(KOMEWorldData data, KOMEArmyMovementOrder order, String tileId, boolean retreat) {
@@ -3025,50 +3022,19 @@ public class KOMECommandTroops extends CommandBase {
     }
 
     private static String movementAccessReason(KOMEWorldData data, KOMEArmyMovementOrder order) {
-        return movementAccessReason(data, order, activeStepDestination(order));
+        return KOMEMovementAccessService.movementAccessReason(data, order);
     }
 
     private static String movementAccessReason(KOMEWorldData data, KOMEArmyMovementOrder order, String destination) {
-        KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(destination);
-        String owner = tile == null ? "unknown" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
-        return "Military passage lost before entering " + destination + " (owner " + KOMEAlliance.displayFactionName(owner) + ").";
+        return KOMEMovementAccessService.movementAccessReason(data, order, destination);
     }
 
     static boolean markCommittedStepForAccessLoss(KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis) {
-        if (order == null || order.haltAfterArrival) {
-            return false;
-        }
-        order.haltAfterArrival = true;
-        if (order.accessLossReason == null || order.accessLossReason.length() == 0) {
-            order.accessLossReason = movementAccessReason(data, order);
-        }
-        if (order.accessLostAtMillis <= 0L) {
-            order.accessLostAtMillis = nowMillis;
-        }
-        if (order.accessChoice == null || order.accessChoice.length() == 0) {
-            order.accessChoice = "PENDING";
-        }
-        return true;
+        return KOMEMovementAccessService.markCommittedStepForAccessLoss(data, order, nowMillis);
     }
 
     static void haltForAccessLoss(KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis, String reason) {
-        if (order == null) {
-            return;
-        }
-        order.status = KOMEArmyMovementOrder.ACCESS_HALTED;
-        order.accessLossReason = reason == null ? "Military passage is no longer valid." : reason;
-        order.accessLostAtMillis = nowMillis;
-        order.accessChoice = "PENDING";
-        order.pendingSpawnReason = order.accessLossReason;
-        order.nextStepDepartureMillis = 0L;
-        order.nextStepAvailableMillis = 0L;
-        KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
-        if (company != null) {
-            company.status = KOMEArmyCompany.STATIONED;
-            company.movementOrderId = order.id;
-            company.updatedAtMillis = nowMillis;
-        }
-        data.updateMovementHistory(order, KOMEMovementHistoryRecord.FAILED);
+        KOMEMovementAccessService.haltForAccessLoss(data, order, nowMillis, reason);
     }
 
     private static boolean scheduleNextRouteStep(KOMEWorldData data, KOMEArmyMovementOrder order, World world, long nowMillis) {

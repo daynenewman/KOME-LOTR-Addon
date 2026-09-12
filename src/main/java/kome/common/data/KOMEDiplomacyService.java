@@ -173,6 +173,7 @@ public final class KOMEDiplomacyService {
             actor == null ? "" : actor.toString();
 
         data.markDirty();
+        KOMEMovementAccessService.revalidateAll(data, now);
         return Result.ok(record);
     }
 
