@@ -97,7 +97,7 @@ public class KOMEAllianceRecordBuilder {
 
     private static boolean isViewerKing(KOMEWorldData data, EntityPlayer viewer, String factionKey) {
         return viewer != null && factionKey != null && factionKey.length() > 0
-            && KOMERulerAuthorization.canActAsRuler(data, factionKey, kome.common.KOMEReflection.getEntityUUID(viewer));
+            && KOMERulerService.isRuler(data, factionKey, kome.common.KOMEReflection.getEntityUUID(viewer));
     }
 
     private static LOTRFaction findFaction(String value) {
