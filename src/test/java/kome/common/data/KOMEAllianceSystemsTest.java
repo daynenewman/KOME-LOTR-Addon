@@ -699,7 +699,7 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void wholeCompanyReserveTransferIsAtomicAndPreservesNativeFaction() {
+    public void legacyReserveCompanyTransferIsRejectedWithoutMutation() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID owner = UUID.randomUUID();
         UUID recipient = UUID.randomUUID();
@@ -716,13 +716,13 @@ public class KOMEAllianceSystemsTest {
         company.nativeFaction = "gondor"; company.units.add(unit.entity); unit.companyId = company.id;
         data.hiredUnits.put(unit.entity, unit); data.armyCompanies.put(company.id, company);
         assertTrue(KOMECompanyTransferService.offer(data, company, owner, recipient, "New", 100L).success);
-        assertTrue(KOMECompanyTransferService.accept(data, company, recipient, "New", 101L).success);
-        assertEquals(recipient, company.owner);
-        assertEquals(recipient, unit.owner);
+        assertFalse(KOMECompanyTransferService.accept(data, company, recipient, "New", 101L).success);
+        assertEquals(owner, company.owner);
+        assertEquals(owner, unit.owner);
         assertEquals("gondor", company.nativeFaction);
         assertEquals("gondor", unit.sourceFaction);
-        assertEquals(0, data.getPopulation(owner).offensiveUsed);
-        assertEquals(25, data.getPopulation(recipient).offensiveUsed);
+        assertEquals(25, data.getPopulation(owner).offensiveUsed);
+        assertEquals(0, data.getPopulation(recipient).offensiveUsed);
     }
 
     @Test

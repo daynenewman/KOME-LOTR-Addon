@@ -520,6 +520,14 @@ public class KOMEEvents {
         boolean stewardshipHire = alliedHire && !isFarmhand && !data.hasFactionKing(unitFaction)
             && KOMEWarService.supportingKingDecision(data, unitFaction, ownerFaction,
                 info.getHiringPlayerUUID()).allowed;
+        if (stewardshipHire) {
+            int refund = refundDeniedHire(owner, npc);
+            KOMEProgressionPermissions.deny(owner,
+                "Stewardship recruitment is unavailable pending canonical population migration."
+                    + (refund > 0 ? " Refunded " + refund + " coins." : ""));
+            KOMEReflection.setDead(npc);
+            return;
+        }
         if (alliedHire) {
             boolean allowed = isFarmhand
                 ? allianceAuthority.canFactionHireAlliedFarmhand(ownerFaction, unitFaction)

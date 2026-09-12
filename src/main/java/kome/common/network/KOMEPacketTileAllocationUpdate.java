@@ -56,6 +56,10 @@ public class KOMEPacketTileAllocationUpdate implements IMessage {
         @Override
         public IMessage onMessage(KOMEPacketTileAllocationUpdate message, MessageContext ctx) {
             EntityPlayerMP actor = ctx.getServerHandler().playerEntity;
+            if (!legacyPopulationMutationsEnabled()) {
+                actor.addChatMessage(new ChatComponentText("Tile population allocations are unavailable pending canonical population migration."));
+                return null;
+            }
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(actor));
             String tileId = KOMEConquestTile.normalizeId(message.tileId);
             KOMEConquestTile tile = data.conquestTiles.get(tileId);
@@ -96,4 +100,6 @@ public class KOMEPacketTileAllocationUpdate implements IMessage {
             return null;
         }
     }
+
+    private static boolean legacyPopulationMutationsEnabled() { return false; }
 }

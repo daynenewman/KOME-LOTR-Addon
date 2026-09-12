@@ -61,26 +61,11 @@ public final class KOMECompanyTransferService {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
             if (record == null || !company.owner.equals(record.owner)) return Result.failure("Transfer rejected: a company unit record is missing or has a different owner.");
             if (record.isMoving()) return Result.failure("Transfer rejected: unit " + unitId + " is crossing a movement boundary.");
-            if (KOMEHiredUnitRecord.SOURCE_OTHER_LEGACY.equals(record.sourceType)
-                    || KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)) {
-                return Result.failure("Transfer rejected: unit " + unitId + " has non-transferable or quarantined provenance " + record.sourceType + ".");
+            if (!record.isFactionPopulationBankFunded()) {
+                return Result.failure("Transfer rejected: unit " + unitId + " does not use canonical faction-bank provenance.");
             }
             records.add(record);
-            if (record.isFactionPopulationBankFunded()) {
-                // Ownership changes without moving permanently-spent canonical population.
-            } else if (record.isPlayerReserveFunded()) {
-                add(reserveNeeds, record.type, record.cost);
-                UUID formerSource = record.sourcePlayer == null ? company.owner : record.sourcePlayer;
-                add(formerReserveUses, reserveKey(formerSource, record.type), record.cost);
-            } else if (record.allocationPlayer != null || KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION.equals(record.sourceType)) {
-                String key = allocationKey(record.allocationTileId, record.allocationFaction, record.type);
-                add(allocationNeeds, key, record.cost);
-                UUID formerAllocationPlayer = record.allocationPlayer == null ? company.owner : record.allocationPlayer;
-                add(formerAllocationUses, allocationOwnerKey(record.allocationTileId, record.allocationFaction,
-                    formerAllocationPlayer, record.type), record.cost);
-            } else if (data.getFundingPool(record) == null) {
-                return Result.failure("Transfer rejected: exact tile-pool source is missing for unit " + unitId + ".");
-            }
+            // Ownership changes without moving permanently-spent canonical population.
         }
         for (Map.Entry<KOMEPopulationType, Integer> entry : reserveNeeds.entrySet()) {
             if (data.getPopulation(recipient).getAvailable(entry.getKey()) < entry.getValue().intValue()) {
@@ -123,17 +108,6 @@ public final class KOMECompanyTransferService {
 
         UUID formerOwner = company.owner;
         for (KOMEHiredUnitRecord record : records) {
-            if (record.isPlayerReserveFunded()) {
-                UUID oldSource = record.sourcePlayer == null ? formerOwner : record.sourcePlayer;
-                data.getPopulation(oldSource).release(record.type, record.cost);
-                record.sourcePlayer = recipient;
-            } else if (record.allocationPlayer != null || KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION.equals(record.sourceType)) {
-                KOMEPlayerTilePopulationAllocation oldAllocation = data.getAllocation(record.allocationTileId,
-                    record.allocationFaction, record.allocationPlayer == null ? formerOwner : record.allocationPlayer);
-                if (oldAllocation != null) oldAllocation.release(record.type, record.cost);
-                record.sourceType = KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION;
-                record.allocationPlayer = recipient;
-            }
             record.owner = recipient;
             record.controller = recipient;
             record.companyAssignedBy = recipient;

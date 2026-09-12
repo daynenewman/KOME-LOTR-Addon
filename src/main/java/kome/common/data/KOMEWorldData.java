@@ -1544,16 +1544,9 @@ public class KOMEWorldData extends WorldSavedData {
     /** Releases only legacy population ledgers after an ordinary unit removal. */
     public boolean releasePopulationForOrdinaryUnitRemoval(KOMEHiredUnitRecord record) {
         if (record == null) return false;
-        releaseFundingBuild(record);
-        if (record.farmhand || record.isFactionPopulationBankFunded()) return false;
-        if (record.isPlayerReserveFunded()) {
-            getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer).release(record.type, record.cost);
-        } else {
-            KOMETilePopulation population = getFundingPool(record);
-            if (population != null) population.release(record.type, record.cost);
-            releaseAllocationUsed(record);
-        }
-        return true;
+        // Successful canonical combat hires are permanently spent. Legacy records are no
+        // longer accepted as a runtime funding authority and receive no synthetic refund.
+        return false;
     }
 
     public void reconcileBuildManagers() {
