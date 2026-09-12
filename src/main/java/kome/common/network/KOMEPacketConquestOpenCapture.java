@@ -8,7 +8,8 @@ import io.netty.buffer.ByteBuf;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEAlliance;
-import kome.common.data.KOMEAllianceAuthority;
+import kome.common.data.KOMEDiplomacyRelation;
+import kome.common.data.KOMEDiplomacyService;
 import kome.common.data.KOMEBuildContribution;
 import kome.common.data.KOMEBuildService;
 import kome.common.data.KOMEConquestTile;
@@ -194,15 +195,28 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
     private static String buildStatus(KOMEWorldData data, String viewerFaction, String controller, String buildOwner) {
         String viewer = KOMEAlliance.normalizeFactionKey(viewerFaction);
         String owner = KOMEAlliance.normalizeFactionKey(buildOwner);
-        if (owner.equals(viewer)) return owner.equals(controller) ? "Owned" : "Captured";
-        lotr.common.fac.LOTRFactionRelations.Relation relation = KOMEAllianceAuthority.getCurrentRelation(viewer, owner);
-        if (relation == lotr.common.fac.LOTRFactionRelations.Relation.ALLY) return "Allied";
-        if (relation == lotr.common.fac.LOTRFactionRelations.Relation.FRIEND) return "Friendly";
-        if (relation == lotr.common.fac.LOTRFactionRelations.Relation.ENEMY
-                || relation == lotr.common.fac.LOTRFactionRelations.Relation.MORTAL_ENEMY) return "Enemy";
+
+        if (owner.equals(viewer)) {
+            return owner.equals(controller) ? "Owned" : "Captured";
+        }
+
+        KOMEDiplomacyRelation relation =
+            KOMEDiplomacyService.getRelation(data, viewer, owner);
+
+        if (relation == KOMEDiplomacyRelation.ALLIES) {
+            return "Allied";
+        }
+
+        if (relation == KOMEDiplomacyRelation.FRIENDS) {
+            return "Friendly";
+        }
+
+        if (KOMEBuildService.isHostile(data, viewer, owner)) {
+            return "Enemy";
+        }
+
         return "Neutral";
     }
-
     public static boolean canEditPopulation(KOMEWorldData data, EntityPlayerMP player, KOMEConquestTile tile) {
         if (player.canCommandSenderUseCommand(2, "population")) {
             return tile != null && tile.isClaimed();
