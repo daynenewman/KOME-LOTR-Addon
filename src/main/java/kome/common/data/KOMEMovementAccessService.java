@@ -108,7 +108,7 @@ public final class KOMEMovementAccessService {
         data.updateMovementHistory(order, KOMEMovementHistoryRecord.FAILED);
     }
 
-    private static boolean isTileStandableForOrder(KOMEWorldData data, KOMEArmyMovementOrder order,
+    public static boolean isTileStandableForOrder(KOMEWorldData data, KOMEArmyMovementOrder order,
             String tileId, boolean retreat) {
         String tileKey = KOMEConquestTile.normalizeId(tileId);
         KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(tileKey);
@@ -123,6 +123,85 @@ public final class KOMEMovementAccessService {
             return true;
         }
         return retreat && order != null && order.traveledRouteTiles.contains(tileKey);
+    }
+
+    /** Returns the nearest earlier recorded route tile that is legal to remain on. */
+    public static int findRetreatRouteIndex(KOMEWorldData data, KOMEArmyMovementOrder order) {
+        if (data == null || order == null) {
+            return -1;
+        }
+        String current = KOMEConquestTile.normalizeId(order.currentTile);
+        ArrayList<String> traveled = new ArrayList<String>(order.traveledRouteTiles);
+        if (traveled.isEmpty()) {
+            traveled.add(current);
+        }
+        int currentIndex = traveled.lastIndexOf(current);
+        if (currentIndex < 0) {
+            return -1;
+        }
+        for (int i = currentIndex - 1; i >= 0; i--) {
+            if (isTileStandableForOrder(data, order, traveled.get(i), false)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** Preserves stewardship withdrawal priority: native territory before allied staging. */
+    public static int findStewardshipRetreatRouteIndex(KOMEWorldData data, KOMEArmyMovementOrder order) {
+        if (data == null || order == null) {
+            return -1;
+        }
+        ArrayList<String> traveled = traveledRoute(order);
+        int currentIndex = traveled.lastIndexOf(KOMEConquestTile.normalizeId(order.currentTile));
+        if (currentIndex < 0) {
+            return -1;
+        }
+        KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
+        String nativeFaction = company == null ? KOMEAlliance.normalizeFactionKey(order.ownerFaction)
+            : KOMEWartimeStewardshipService.nativeFaction(company);
+        for (int i = currentIndex - 1; i >= 0; i--) {
+            KOMEConquestTile tile = data.conquestTiles.get(KOMEConquestTile.normalizeId(traveled.get(i)));
+            if (tile != null && nativeFaction.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
+                return i;
+            }
+        }
+        for (int i = currentIndex - 1; i >= 0; i--) {
+            KOMEConquestTile tile = data.conquestTiles.get(KOMEConquestTile.normalizeId(traveled.get(i)));
+            String owner = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+            if (owner.length() > 0 && data.canFactionUseMilitaryPassage(nativeFaction, owner)
+                    && isTileStandableForOrder(data, order, traveled.get(i), false)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** Resolves only an actual remaining forward route step; final arrival is not resumable. */
+    public static String resolveProspectiveForwardStep(KOMEArmyMovementOrder order) {
+        if (order == null || order.routeTiles.isEmpty()) {
+            return "";
+        }
+        int finalIndex = order.finalRouteIndex > 0 ? order.finalRouteIndex : order.routeTiles.size() - 1;
+        if (order.currentRouteIndex >= finalIndex || order.nextRouteIndex <= order.currentRouteIndex
+                || order.nextRouteIndex >= order.routeTiles.size()) {
+            return "";
+        }
+        String destination = KOMEConquestTile.normalizeId(order.currentStepDestinationTile);
+        if (destination.length() > 0) {
+            return destination;
+        }
+        destination = KOMEConquestTile.normalizeId(order.nextTile);
+        return destination.length() > 0 ? destination
+            : KOMEConquestTile.normalizeId(order.routeTiles.get(order.nextRouteIndex));
+    }
+
+    private static ArrayList<String> traveledRoute(KOMEArmyMovementOrder order) {
+        ArrayList<String> traveled = new ArrayList<String>(order.traveledRouteTiles);
+        if (traveled.isEmpty()) {
+            traveled.add(KOMEConquestTile.normalizeId(order.currentTile));
+        }
+        return traveled;
     }
 
     private static String activeStepOrigin(KOMEArmyMovementOrder order) {

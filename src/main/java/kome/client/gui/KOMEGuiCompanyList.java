@@ -79,9 +79,9 @@ public class KOMEGuiCompanyList extends GuiScreen {
         }
         if (selected != null && selected.canChooseAccessResponse && selected.movementOrderId.length() > 0) {
             boolean retreatOnly = "war_ended_halted".equals(selected.movementStatus);
-            if (!retreatOnly) actions.add(new CompanyAction(ID_STAY, "Stay", true));
-            actions.add(new CompanyAction(ID_RETREAT, "Retreat", true));
-            if (!retreatOnly) actions.add(new CompanyAction(ID_RESUME, "Resume", true));
+            if (!retreatOnly) actions.add(new CompanyAction(ID_STAY, "Stay", selected.canStay));
+            actions.add(new CompanyAction(ID_RETREAT, "Retreat", selected.canRetreat));
+            if (!retreatOnly) actions.add(new CompanyAction(ID_RESUME, "Resume", selected.canResume));
         }
         if (selected != null && selected.canReclaim && !"NATIVE".equals(selected.controllerAuthority)) {
             actions.add(new CompanyAction(ID_RECLAIM, confirmReclaim ? "Confirm Reclaim" : "Reclaim", true));
@@ -194,7 +194,22 @@ public class KOMEGuiCompanyList extends GuiScreen {
             : "Stewardship for " + selectedCompany.faction + ": unallocated " + selectedCompany.stewardshipUnallocated
                 + " | global 100% eligible cap " + selectedCompany.stewardshipGlobalCap + " | reserved " + selectedCompany.stewardshipReserved
                 + " | available " + selectedCompany.stewardshipAvailable;
-        fontRendererObj.drawString(fontRendererObj.trimStringToWidth(authoritySummary, PANEL_WIDTH - 44), x + 22, y + PANEL_HEIGHT - 88, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        String recoverySummary = selectedCompany == null || selectedCompany.accessLossReason.length() == 0
+            ? ""
+            : "Access: " + selectedCompany.accessLossReason + " | Current " + selectedCompany.currentTile
+                + " | Next " + selectedCompany.nextTile;
+        String recoveryActions = selectedCompany == null || selectedCompany.accessLossReason.length() == 0
+            ? ""
+            : "Actions: Stay=" + selectedCompany.canStay + " | Retreat="
+                + (selectedCompany.canRetreat ? selectedCompany.retreatTargetTile : selectedCompany.retreatBlockedReason)
+                + " | Resume=" + (selectedCompany.canResume ? "available" : selectedCompany.resumeBlockedReason);
+        fontRendererObj.drawString(fontRendererObj.trimStringToWidth(
+            recoverySummary.length() == 0 ? authoritySummary : recoverySummary, PANEL_WIDTH - 44),
+            x + 22, y + PANEL_HEIGHT - 88, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        if (recoveryActions.length() > 0) {
+            fontRendererObj.drawString(fontRendererObj.trimStringToWidth(recoveryActions, PANEL_WIDTH - 44),
+                x + 22, y + PANEL_HEIGHT - 76, KOMEGuiTheme.COLOR_WARN);
+        }
         fontRendererObj.drawString("Company name:", x + 232, y + PANEL_HEIGHT - 108, KOMEGuiTheme.COLOR_TEXT_MUTED);
         if (renameField != null) renameField.drawTextBox();
         int rowY = y + 62;
@@ -227,7 +242,8 @@ public class KOMEGuiCompanyList extends GuiScreen {
                 cardY + 7, company.canMove ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_WARN);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
-        if (selectedIndex >= 0 && !companies.get(selectedIndex).canMove) {
+        if (selectedIndex >= 0 && !companies.get(selectedIndex).canMove
+                && companies.get(selectedIndex).accessLossReason.length() == 0) {
             KOMEGuiTheme.drawCenteredPlainText(fontRendererObj, companies.get(selectedIndex).cannotMoveReason,
                 x + PANEL_WIDTH / 2, y + PANEL_HEIGHT - 91, KOMEGuiTheme.COLOR_WARN);
         }

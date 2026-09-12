@@ -16,6 +16,7 @@ import kome.common.data.KOMEHaltedUnitProtection;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEMovementHistoryRecord;
 import kome.common.data.KOMEMovementAccessService;
+import kome.common.data.KOMEMovementRecoveryOptions;
 import kome.common.data.KOMEPopulationType;
 import kome.common.data.KOMEPledgeReleaseService;
 import kome.common.data.KOMETileWaypointLink;
@@ -1055,6 +1056,17 @@ public class KOMECommandTroops extends CommandBase {
                 && (KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status) || KOMEArmyMovementOrder.HOLDING.equals(order.status)
                     || KOMEArmyMovementOrder.STOPPED.equals(order.status)
                     || KOMEArmyMovementOrder.WAR_ENDED_HALTED.equals(order.status));
+            KOMEMovementRecoveryOptions recovery = KOMEMovementRecoveryOptions.forOrder(data, order);
+            entry.canStay = canControl && recovery.canStay;
+            entry.canRetreat = canControl && recovery.canRetreat;
+            entry.canResume = canControl && recovery.canResume;
+            entry.accessLossReason = recovery.accessLossReason;
+            entry.resumeBlockedReason = recovery.resumeBlockedReason;
+            entry.retreatTargetTile = recovery.retreatTargetTile;
+            entry.currentTile = recovery.currentTile;
+            entry.nextTile = recovery.nextTile;
+            entry.intendedDestinationTile = recovery.destinationTile;
+            entry.retreatBlockedReason = recovery.retreatBlockedReason;
             boolean stewardshipCompany = false;
             for (UUID unitId : company.units) {
                 KOMEHiredUnitRecord unitRecord = data.hiredUnits.get(unitId);
@@ -1857,7 +1869,7 @@ public class KOMECommandTroops extends CommandBase {
                 + (company != null && KOMEArmyCompany.AGGRESSIVE.equals(company.tendency) ? "Stay (Aggressive)" : "Retreat (Conservative)") + "." : "")));
     }
 
-    private void beginRetreat(ICommandSender sender, KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis) {
+    void beginRetreat(ICommandSender sender, KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis) {
         if (!KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)
                 && !KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status)
                 && !KOMEArmyMovementOrder.STOPPED.equals(order.status)
@@ -1875,39 +1887,20 @@ public class KOMECommandTroops extends CommandBase {
             traveled.add(current);
             currentIndex = traveled.size() - 1;
         }
-        KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
-        String nativeFaction = company == null ? KOMEAlliance.normalizeFactionKey(order.ownerFaction)
-            : KOMEWartimeStewardshipService.nativeFaction(company);
-        int safeIndex = -1;
-        // Withdrawal priority is native territory first, even when a nearer allied staging
-        // tile exists on the actual traveled route.
-        for (int i = currentIndex - 1; i >= 0; i--) {
-            KOMEConquestTile candidate = data.conquestTiles.get(KOMEConquestTile.normalizeId(traveled.get(i)));
-            if (candidate != null && nativeFaction.equals(KOMEAlliance.normalizeFactionKey(candidate.currentRulingFaction()))) {
-                safeIndex = i;
-                break;
-            }
-        }
-        if (safeIndex < 0) {
-            for (int i = currentIndex - 1; i >= 0; i--) {
-                KOMEConquestTile candidate = data.conquestTiles.get(KOMEConquestTile.normalizeId(traveled.get(i)));
-                String owner = candidate == null ? "" : KOMEAlliance.normalizeFactionKey(candidate.currentRulingFaction());
-                if (owner.length() > 0 && data.canFactionUseMilitaryPassage(nativeFaction, owner)
-                        && isTileStandableForOrder(data, order, traveled.get(i), false)) {
-                    safeIndex = i;
-                    break;
-                }
-            }
-        }
-        if (safeIndex < 0) {
+        KOMEMovementRecoveryOptions recovery = KOMEMovementRecoveryOptions.forOrder(data, order);
+        if (!recovery.canRetreat) {
+            KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
             if (company != null && company.stewardshipCreated) {
                 company.withdrawalState = KOMEArmyCompany.CLEANUP_ADMIN;
-                order.pendingSpawnReason = "No safe native or canonical Allies passage tile exists on the actual traveled route";
-                order.accessLossReason = order.pendingSpawnReason;
+                order.pendingSpawnReason = recovery.retreatBlockedReason;
+                order.accessLossReason = recovery.retreatBlockedReason;
                 data.markDirty();
             }
-            throw new WrongUsageException("No safe native or canonical Allies passage tile exists on the company's actual traveled route. The halted company is preserved for admin resolution.");
+            throw new WrongUsageException(recovery.retreatBlockedReason
+                + " The halted company is preserved for admin resolution.");
         }
+        KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
+        int safeIndex = recovery.retreatRouteIndex;
         order.routeTiles.clear();
         for (int i = currentIndex; i >= safeIndex; i--) {
             String tile = KOMEConquestTile.normalizeId(traveled.get(i));
@@ -1956,9 +1949,9 @@ public class KOMECommandTroops extends CommandBase {
     }
 
     void resumeAccessHaltedRoute(ICommandSender sender, KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis) {
-        String prospectiveDestination = KOMEConquestTile.normalizeId(order.currentStepDestinationTile);
+        String prospectiveDestination = KOMEMovementAccessService.resolveProspectiveForwardStep(order);
         if (prospectiveDestination.length() == 0) {
-            prospectiveDestination = nextRouteTile(order);
+            throw new WrongUsageException("No remaining forward route or movement step is available; Resume is not legal.");
         }
         if (!isMovementStepAuthorized(data, order, activeStepOrigin(order), prospectiveDestination, false)) {
             throw new WrongUsageException("The route is still unauthorized: "
@@ -3006,19 +2999,7 @@ public class KOMECommandTroops extends CommandBase {
     }
 
     private static boolean isTileStandableForOrder(KOMEWorldData data, KOMEArmyMovementOrder order, String tileId, boolean retreat) {
-        String tileKey = KOMEConquestTile.normalizeId(tileId);
-        KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(tileKey);
-        if (tile == null || !tile.isClaimed()) {
-            return false;
-        }
-        String owner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
-        String faction = KOMEAlliance.normalizeFactionKey(order == null ? "" : order.ownerFaction);
-        KOMEArmyCompany company = data == null || order == null ? null : data.armyCompanies.get(order.companyId);
-        if (owner.equals(faction) || data.canFactionUseMilitaryPassage(faction, owner)
-                || company != null && KOMEWartimeStewardshipService.canEnter(data, company, owner, retreat)) {
-            return true;
-        }
-        return retreat && order != null && order.traveledRouteTiles.contains(tileKey);
+        return KOMEMovementAccessService.isTileStandableForOrder(data, order, tileId, retreat);
     }
 
     private static String movementAccessReason(KOMEWorldData data, KOMEArmyMovementOrder order) {

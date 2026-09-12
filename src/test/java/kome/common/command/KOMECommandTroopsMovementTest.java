@@ -7,8 +7,13 @@ import kome.common.data.KOMEDiplomacyRecord;
 import kome.common.data.KOMEDiplomacyRelation;
 import kome.common.data.KOMEDiplomacyService;
 import kome.common.data.KOMEMovementAccessService;
+import kome.common.data.KOMEMovementHistoryRecord;
+import kome.common.data.KOMEMovementRecoveryOptions;
 import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMEWarService;
+import kome.common.network.KOMECompanyGuiEntry;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.nbt.NBTTagCompound;
@@ -499,6 +504,191 @@ public class KOMECommandTroopsMovementTest {
         assertTrue(loaded.haltAfterArrival);
         assertEquals("Previous canonical denial", loaded.accessLossReason);
         assertEquals(1300L, loaded.accessLostAtMillis);
+    }
+
+    @Test
+    public void retreatProjectionUsesOnlyNearestEarlierRecordedLegalTile() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        claim(data, "T001", "gondor");
+        claim(data, "T002", "mordor");
+        claim(data, "T003", "gondor");
+        claim(data, "T004", "rohan");
+        KOMEArmyMovementOrder order = order("T001", "T002", "T003", "T004");
+        order.status = KOMEArmyMovementOrder.ACCESS_HALTED;
+        order.currentTile = "T003";
+        order.nextTile = "T004";
+        order.currentStepOriginTile = "T003";
+        order.currentStepDestinationTile = "T004";
+        order.currentRouteIndex = 2;
+        order.nextRouteIndex = 3;
+        order.traveledRouteTiles.add("T001");
+        order.traveledRouteTiles.add("T002");
+        order.traveledRouteTiles.add("T003");
+
+        KOMEMovementRecoveryOptions options = KOMEMovementRecoveryOptions.forOrder(data, order);
+
+        assertTrue(options.canRetreat);
+        assertEquals("T001", options.retreatTargetTile);
+        assertEquals(0, options.retreatRouteIndex);
+        assertTrue(KOMEMovementAccessService.isMovementStepAuthorized(data, order, "T003", "T002", true));
+        assertFalse(KOMEMovementAccessService.isMovementStepAuthorized(data, order, "T003", "T004", false));
+
+        data.armyMovements.put(order.id, order);
+        new KOMECommandTroops().beginRetreat(commandSender(), data, order, 1500L);
+        assertEquals(KOMEArmyMovementOrder.WAITING_NEXT_STEP, order.status);
+        assertEquals("T001", order.destinationTile);
+        assertEquals(KOMEMovementHistoryRecord.ACTIVE, data.movementHistory.get(order.id).status);
+    }
+
+    @Test
+    public void noLegalRetreatTargetLeavesHaltedOrderUntouched() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        claim(data, "T001", "mordor");
+        claim(data, "T002", "mordor");
+        claim(data, "T003", "gondor");
+        KOMEArmyMovementOrder order = order("T001", "T002", "T003", "T004");
+        order.status = KOMEArmyMovementOrder.ACCESS_HALTED;
+        order.currentTile = "T003";
+        order.nextTile = "T004";
+        order.currentRouteIndex = 2;
+        order.nextRouteIndex = 3;
+        order.traveledRouteTiles.add("T001");
+        order.traveledRouteTiles.add("T002");
+        order.traveledRouteTiles.add("T003");
+        data.armyMovements.put(order.id, order);
+
+        KOMEMovementRecoveryOptions options = KOMEMovementRecoveryOptions.forOrder(data, order);
+
+        assertFalse(options.canRetreat);
+        assertTrue(options.retreatBlockedReason.contains("recorded traveled route"));
+        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, order.status);
+        assertEquals("T003", order.currentTile);
+        assertEquals(2, order.currentRouteIndex);
+        assertEquals(3, order.nextRouteIndex);
+    }
+
+    @Test
+    public void recoveryProjectionSeparatesResumeFromRetreatCorridorAccess() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        setRelation(data, KOMEDiplomacyRelation.FRIENDS);
+        KOMEArmyMovementOrder order = inFlightOrder();
+        order.status = KOMEArmyMovementOrder.ACCESS_HALTED;
+        order.haltAfterArrival = true;
+        data.armyMovements.put(order.id, order);
+
+        KOMEMovementRecoveryOptions blocked = KOMEMovementRecoveryOptions.forOrder(data, order);
+        assertFalse(blocked.canResume);
+        assertTrue(blocked.resumeBlockedReason.contains("Military passage lost"));
+
+        setRelation(data, KOMEDiplomacyRelation.ALLIES);
+        KOMEMovementRecoveryOptions restored = KOMEMovementRecoveryOptions.forOrder(data, order);
+        assertTrue(restored.canResume);
+        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, order.status);
+        assertTrue(order.haltAfterArrival);
+    }
+
+    @Test
+    public void recoveryProjectionSerializesPlayerFacingAccessChoices() {
+        KOMECompanyGuiEntry sent = new KOMECompanyGuiEntry();
+        sent.canStay = true;
+        sent.canRetreat = true;
+        sent.canResume = false;
+        sent.accessLossReason = "Military passage lost before entering T004 (owner Rohan).";
+        sent.resumeBlockedReason = "The route is still unauthorized: canonical denial.";
+        sent.retreatTargetTile = "T001";
+        sent.currentTile = "T003";
+        sent.nextTile = "T004";
+        sent.intendedDestinationTile = "T004";
+        sent.retreatBlockedReason = "";
+        ByteBuf bytes = Unpooled.buffer();
+        sent.toBytes(bytes);
+        KOMECompanyGuiEntry received = new KOMECompanyGuiEntry();
+        received.fromBytes(bytes);
+
+        assertTrue(received.canStay);
+        assertTrue(received.canRetreat);
+        assertFalse(received.canResume);
+        assertEquals(sent.accessLossReason, received.accessLossReason);
+        assertEquals(sent.resumeBlockedReason, received.resumeBlockedReason);
+        assertEquals("T001", received.retreatTargetTile);
+        assertEquals("T003", received.currentTile);
+        assertEquals("T004", received.nextTile);
+    }
+
+    @Test
+    public void warEndedHaltedProjectionRemainsRetreatOnly() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        claim(data, "T001", "gondor");
+        claim(data, "T002", "rohan");
+        setRelation(data, KOMEDiplomacyRelation.ALLIES);
+        KOMEArmyMovementOrder order = order("T001", "T002", "T003");
+        order.status = KOMEArmyMovementOrder.WAR_ENDED_HALTED;
+        order.currentTile = "T002";
+        order.traveledRouteTiles.add("T001");
+        order.traveledRouteTiles.add("T002");
+        order.currentRouteIndex = 1;
+        order.nextRouteIndex = 2;
+
+        KOMEMovementRecoveryOptions options = KOMEMovementRecoveryOptions.forOrder(data, order);
+
+        assertFalse(options.canStay);
+        assertTrue(options.canRetreat);
+        assertEquals("T001", options.retreatTargetTile);
+        assertFalse(options.canResume);
+        assertTrue(options.resumeBlockedReason.contains("retreat only"));
+    }
+
+    @Test
+    public void finalRouteHaltDoesNotProjectOrAllowResume() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        claim(data, "T001", "gondor");
+        claim(data, "T002", "gondor");
+        claim(data, "T003", "gondor");
+        KOMEArmyMovementOrder order = order("T001", "T002", "T003");
+        order.status = KOMEArmyMovementOrder.ACCESS_HALTED;
+        order.haltAfterArrival = true;
+        order.currentTile = "T003";
+        order.nextTile = "";
+        order.currentStepDestinationTile = "";
+        order.currentRouteIndex = 2;
+        order.nextRouteIndex = 2;
+        order.finalRouteIndex = 2;
+        order.traveledRouteTiles.add("T001");
+        order.traveledRouteTiles.add("T002");
+        order.traveledRouteTiles.add("T003");
+        data.armyMovements.put(order.id, order);
+
+        KOMEMovementRecoveryOptions options = KOMEMovementRecoveryOptions.forOrder(data, order);
+        assertFalse(options.canResume);
+        assertTrue(options.resumeBlockedReason.contains("No remaining forward route"));
+
+        try {
+            new KOMECommandTroops().resumeAccessHaltedRoute(commandSender(), data, order, 1600L);
+            throw new AssertionError("Final-route Resume should be rejected");
+        } catch (WrongUsageException expected) {
+            assertTrue(expected.getMessage().contains("No remaining forward route"));
+        }
+        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, order.status);
+        assertTrue(order.haltAfterArrival);
+        assertEquals("T003", order.currentTile);
+        assertEquals(2, order.currentRouteIndex);
+        assertEquals(2, order.nextRouteIndex);
+        assertEquals(3, order.traveledRouteTiles.size());
+    }
+
+    @Test
+    public void movementHistoryTracksAccessHaltAndSuccessfulResume() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        setRelation(data, KOMEDiplomacyRelation.FRIENDS);
+        KOMEArmyMovementOrder order = queuedOrder();
+        data.armyMovements.put(order.id, order);
+
+        KOMEMovementAccessService.haltForAccessLoss(data, order, 1400L, "Canonical passage denied.");
+        assertEquals(KOMEMovementHistoryRecord.FAILED, data.movementHistory.get(order.id).status);
+
+        setRelation(data, KOMEDiplomacyRelation.ALLIES);
+        new KOMECommandTroops().resumeAccessHaltedRoute(commandSender(), data, order, 1401L);
+        assertEquals(KOMEMovementHistoryRecord.ACTIVE, data.movementHistory.get(order.id).status);
     }
 
     private static KOMEArmyMovementOrder order(String... route) {
