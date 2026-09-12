@@ -39,7 +39,7 @@ public class CustomSkinPhase7ContractTest {
             "static void refreshAppearanceStateAfterManifestReady",
             "public static void sendCharacterCreationRequired");
 
-        assertBefore(login, "ModNetwork.beginCustomSkinSync(player);", "applySizeAndSynchronize(player);");
+        assertBefore(login, "ModNetwork.beginCustomSkinSync(player);", "refreshPlayerStateAndSynchronize(player);");
         assertFalse(login.contains("ModNetwork.sendCharacterCreationRequired(player);"));
         assertTrue(refresh.contains("sendPlayerAppearanceToTrackingAndSelf(player);"));
         assertTrue(refresh.contains("sendAllPlayerAppearancesTo(player);"));

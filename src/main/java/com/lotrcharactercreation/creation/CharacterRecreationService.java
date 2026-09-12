@@ -38,6 +38,10 @@ public final class CharacterRecreationService {
             && !PlayerRaceData.isCharacterCreationComplete(player);
     }
 
+    public static boolean isAwaitingRaceSelection(EntityPlayerMP player) {
+        return isInProgress(player) && !PlayerRaceData.isRaceSelectionComplete(player);
+    }
+
     /**
      * Completes only the selection portion of an authorized recreation. This
      * deliberately does not invoke starting allegiance or waypoint services.

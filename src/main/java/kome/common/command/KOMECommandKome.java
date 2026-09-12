@@ -1,5 +1,6 @@
 package kome.common.command;
 
+import com.lotrcharactercreation.LOTRCharacterCreation;
 import com.lotrcharactercreation.creation.CharacterRecreationService;
 import com.lotrcharactercreation.creation.CharacterRecreationService.StartResult;
 import com.lotrcharactercreation.network.ModNetwork;
@@ -46,6 +47,7 @@ public class KOMECommandKome extends CommandBase {
                 return;
             }
 
+            LOTRCharacterCreation.refreshPlayerStateAndSynchronize(target);
             ModNetwork.sendCharacterCreationRequired(target);
             if (result == StartResult.STARTED) {
                 sender.addChatMessage(

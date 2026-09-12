@@ -639,12 +639,13 @@ public final class ModNetwork {
     }
 
     private static PlayerAppearanceSyncMessage createPlayerAppearanceMessage(EntityPlayerMP player) {
-        PlayerRace race = PlayerRaceData.getRace(player);
-        PlayerSex sex = PlayerRaceData.getSex(player);
-        String presetId = PlayerRaceData.getAppearancePresetId(player);
-        if (!PlayerRaceData.isAppearanceInitialized(player)
+        boolean awaitingRecreationRace = CharacterRecreationService.isAwaitingRaceSelection(player);
+        PlayerRace race = awaitingRecreationRace ? PlayerRace.MAN : PlayerRaceData.getRace(player);
+        PlayerSex sex = awaitingRecreationRace ? null : PlayerRaceData.getSex(player);
+        String presetId = awaitingRecreationRace ? null : PlayerRaceData.getAppearancePresetId(player);
+        if (!awaitingRecreationRace && (!PlayerRaceData.isAppearanceInitialized(player)
             || !AppearancePresetRegistry.isPresetValid(
-                ServerCustomSkinLibrary.getInstance().getCurrentCatalog(), race, sex, presetId)) {
+                ServerCustomSkinLibrary.getInstance().getCurrentCatalog(), race, sex, presetId))) {
             presetId = null;
         }
 

@@ -23,14 +23,41 @@ public class CharacterRecreationContractTest {
         int staffGate = command.indexOf("requireStaff(sender);", recreateBranch);
         int targetLookup = command.indexOf("getPlayer(sender, args[2])", recreateBranch);
         int recreationStart = command.indexOf("CharacterRecreationService.begin(target)", recreateBranch);
+        int stateRefresh = command.indexOf("LOTRCharacterCreation.refreshPlayerStateAndSynchronize(target)", recreationStart);
+        int guiOpen = command.indexOf("ModNetwork.sendCharacterCreationRequired(target)", stateRefresh);
 
         assertTrue(recreateBranch >= 0);
         assertTrue(staffGate > recreateBranch);
         assertTrue(targetLookup > staffGate);
         assertTrue(recreationStart > targetLookup);
+        assertTrue(stateRefresh > recreationStart);
+        assertTrue(guiOpen > stateRefresh);
         assertTrue(command.contains("canCommandSenderUseCommand(2, getCommandName())"));
         assertTrue(command.contains("MinecraftServer.getServer().getAllUsernames()"));
-        assertTrue(command.contains("ModNetwork.sendCharacterCreationRequired(target)"));
+    }
+
+    @Test
+    public void recreationStartImmediatelyRefreshesNeutralIncompletePresentation() throws Exception {
+        String lifecycle = source("main/java/com/lotrcharactercreation/LOTRCharacterCreation.java");
+        String network = source("main/java/com/lotrcharactercreation/network/ModNetwork.java");
+        String service = source("main/java/com/lotrcharactercreation/creation/CharacterRecreationService.java");
+
+        assertTrue(lifecycle.contains("public static void refreshPlayerStateAndSynchronize(EntityPlayerMP player)"));
+        assertTrue(lifecycle.contains("CharacterRecreationService.isAwaitingRaceSelection(player) ? PlayerRace.MAN"));
+        assertTrue(lifecycle.contains("PlayerRaceSizeService.applyRaceSize(player, presentationRace)"));
+        assertTrue(lifecycle.contains("PlayerRaceEyeService.applyServerEyeHeight(player, presentationRace)"));
+        assertTrue(lifecycle.contains("RaceTraitService.refreshDerivedAttributes(player)"));
+        assertTrue(lifecycle.contains("ModNetwork.sendPlayerAppearanceToTrackingAndSelf(player)"));
+
+        assertTrue(network.contains("CharacterRecreationService.isAwaitingRaceSelection(player)"));
+        assertTrue(network.contains("PlayerRace race = awaitingRecreationRace ? PlayerRace.MAN"));
+        assertTrue(network.contains("PlayerSex sex = awaitingRecreationRace ? null"));
+        assertTrue(network.contains("String presetId = awaitingRecreationRace ? null"));
+
+        assertTrue(service.contains("isInProgress(player) && !PlayerRaceData.isRaceSelectionComplete(player)"));
+        assertFalse(service.contains("PlayerRaceData.setRace(player"));
+        assertFalse(service.contains("PlayerRaceData.setSex(player"));
+        assertFalse(service.contains("PlayerRaceData.setAppearancePresetId(player"));
     }
 
     @Test

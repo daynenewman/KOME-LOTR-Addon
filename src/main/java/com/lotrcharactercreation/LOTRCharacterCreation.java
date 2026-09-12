@@ -16,8 +16,10 @@ import com.lotrcharactercreation.command.CommandLotrCreation;
 import com.lotrcharactercreation.command.CommandLotrRace;
 import com.lotrcharactercreation.config.ModConfiguration;
 import com.lotrcharactercreation.creation.CharacterCreationFlowService;
+import com.lotrcharactercreation.creation.CharacterRecreationService;
 import com.lotrcharactercreation.network.ModNetwork;
 import com.lotrcharactercreation.proxy.CommonProxy;
+import com.lotrcharactercreation.race.PlayerRace;
 import com.lotrcharactercreation.race.PlayerRaceData;
 import com.lotrcharactercreation.sound.RacialPlayerSoundHandler;
 import com.lotrcharactercreation.trait.CommonRaceTraitEventHandler;
@@ -96,7 +98,7 @@ public class LOTRCharacterCreation {
             CharacterCreationFlowService.ensureInherentSex(player);
         }
         ModNetwork.beginCustomSkinSync(player);
-        applySizeAndSynchronize(player);
+        refreshPlayerStateAndSynchronize(player);
         ModNetwork.sendAllPlayerAppearancesTo(player);
     }
 
@@ -169,9 +171,11 @@ public class LOTRCharacterCreation {
         event.registerServerCommand(new CommandLotrRace());
     }
 
-    private static void applySizeAndSynchronize(EntityPlayerMP player) {
-        PlayerRaceSizeService.applyStoredRaceSize(player);
-        PlayerRaceEyeService.applyStoredServerEyeHeight(player);
+    public static void refreshPlayerStateAndSynchronize(EntityPlayerMP player) {
+        PlayerRace presentationRace = CharacterRecreationService.isAwaitingRaceSelection(player) ? PlayerRace.MAN
+            : PlayerRaceData.getRace(player);
+        PlayerRaceSizeService.applyRaceSize(player, presentationRace);
+        PlayerRaceEyeService.applyServerEyeHeight(player, presentationRace);
         RaceTraitService.refreshDerivedAttributes(player);
         ModNetwork.sendPlayerAppearanceToTrackingAndSelf(player);
         ElfGrappleService.synchronizeOwner(player);
@@ -181,7 +185,7 @@ public class LOTRCharacterCreation {
         if (!PlayerRaceData.isCharacterCreationComplete(player)) {
             CharacterCreationFlowService.ensureInherentSex(player);
         }
-        applySizeAndSynchronize(player);
+        refreshPlayerStateAndSynchronize(player);
         if (!PlayerRaceData.isCharacterCreationComplete(player)) {
             ModNetwork.sendCharacterCreationRequired(player);
         }
