@@ -97,8 +97,9 @@ public class KOMECommandPopulation extends CommandBase {
         for (kome.common.data.KOMEPopulationRateContribution row : kome.common.data.KOMEPopulationService.getPopulationRateContributions(data)) {
             if (requested.length() > 0 && !requested.equals(row.populationFaction)) continue;
             sender.addChatMessage(new ChatComponentText("Build " + row.buildId + " " + row.displayName + " tile " + row.tileId
+                    + " " + row.populationFaction + " -> " + (row.currentController.length() == 0 ? "UNCONTROLLED" : row.currentController)
                     + ": approved " + (row.approvedHalfHours / 2) + "h, original " + row.originalRate.formatPerDay()
-                    + ", " + row.status + ", current " + row.currentRate.formatPerDay()));
+                    + " x" + row.multiplier + ", " + row.status + ", current " + row.currentRate.formatPerDay()));
         }
     }
 

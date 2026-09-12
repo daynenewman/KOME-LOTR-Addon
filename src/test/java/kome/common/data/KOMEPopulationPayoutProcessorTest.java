@@ -39,8 +39,8 @@ public class KOMEPopulationPayoutProcessorTest {
         KOMEWorldData data = world("gondor", 10); add(data, "rohan", KOMEBuildType.NORMAL, 20); add(data, "mordor", KOMEBuildType.DEFENSIVE, 40);
         data.conquestTiles.get(KOMEConquestTile.normalizeId("T-rohan")).claim("gondor", 0L); Instant now = Instant.parse("2026-01-10T18:00:00Z");
         KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data, now); Instant due = KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis)); KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data, due);
-        assertEquals(0, KOMEPopulationService.getAvailablePopulation(data,"gondor")); assertEquals(0, KOMEPopulationService.getAvailablePopulation(data,"rohan")); assertEquals(0, KOMEPopulationService.getAvailablePopulation(data,"mordor"));
-        assertEquals(Long.valueOf(500000L), data.populationPayoutRemainders.get("gondor")); assertFalse(data.populationPayoutRemainders.containsKey("rohan"));
+        assertEquals(1, KOMEPopulationService.getAvailablePopulation(data,"gondor")); assertEquals(0, KOMEPopulationService.getAvailablePopulation(data,"rohan")); assertEquals(0, KOMEPopulationService.getAvailablePopulation(data,"mordor"));
+        assertFalse(data.populationPayoutRemainders.containsKey("gondor")); assertFalse(data.populationPayoutRemainders.containsKey("rohan"));
     }
 
     @Test public void freshInitializationNeverPaysRetroactivelyAndFutureBoundaryPays() {
@@ -68,6 +68,14 @@ public class KOMEPopulationPayoutProcessorTest {
         KOMEWorldData data=new KOMEWorldData("x"); NBTTagCompound nbt=new NBTTagCompound(); nbt.setBoolean("PopulationPayoutInitialized",true); NBTTagList list=new NBTTagList();
         for(long value:new long[]{-1L,KOMEPopulationRate.SCALE}) { NBTTagCompound e=new NBTTagCompound();e.setString("Faction","gondor");e.setLong("RemainderUnits",value);list.appendTag(e); } nbt.setTag("PopulationPayoutRemainders",list); data.readFromNBT(nbt);
         assertTrue(data.populationPayoutRemainders.isEmpty());
+    }
+
+    @Test public void capturedRateFeedsExistingFractionalPayoutProcessor() {
+        KOMEWorldData data=world("gondor",20); data.conquestTiles.get(KOMEConquestTile.normalizeId("T-gondor")).claim("rohan",0L);
+        KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data,Instant.parse("2026-01-10T02:00:00Z"));
+        Instant first=KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis)); Instant second=KOMEPopulationPayoutProcessor.nextBoundary(first);
+        KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data,second);
+        assertEquals(1,KOMEPopulationService.getAvailablePopulation(data,"rohan")); assertEquals(0,KOMEPopulationService.getAvailablePopulation(data,"gondor"));
     }
 
     @Test public void startupCatchUpProcessesEachMissedBoundaryWithFractionalRemainders() throws Exception {

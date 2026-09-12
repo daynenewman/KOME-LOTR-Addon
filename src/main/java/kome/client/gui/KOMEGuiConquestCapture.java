@@ -1156,7 +1156,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         fontRendererObj.drawString("Available", x + 58, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
         drawRect(x + 124, y + 2, x + 131, y + 9, COLOR_POOL_INACCESSIBLE);
         fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
-            "Inaccessible (foreign pools provide 50% while occupied)", Math.max(20, width - 134)),
+            "Inaccessible", Math.max(20, width - 134)),
             x + 134, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 
