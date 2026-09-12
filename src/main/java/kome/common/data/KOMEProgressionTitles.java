@@ -26,7 +26,7 @@ public class KOMEProgressionTitles {
         UUID playerID = KOMEReflection.getEntityUUID(player);
         KOMEPlayerProgression progression = data.getProgression(playerID);
         Rank rank = getRank(player, data, playerID, progression);
-        KOMECommandAlliance.reconcileKinglessPendingAlliances(data, KOMEReflection.getTotalWorldTime(world));
+
         Scoreboard scoreboard = world.getScoreboard();
         ensureTeam(scoreboard, rank);
         String playerName = player.getCommandSenderName();

@@ -1738,7 +1738,7 @@ public class KOMEWorldData extends WorldSavedData {
 
     public boolean reconcileAllianceLifecycle(long nowMillis, long worldTime) {
         if (allianceRelationsNeedReapply) {
-            KOMECommandAlliance.reapplyAllAllianceRelations(this);
+            KOMEDiplomacyService.reapplyLotrProjection(this);
             allianceRelationsNeedReapply = false;
         }
         // Schema 7 deliberately has no king-loss or contribution grace lifecycle.  Losing or

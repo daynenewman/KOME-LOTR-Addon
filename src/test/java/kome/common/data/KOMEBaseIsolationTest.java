@@ -98,7 +98,7 @@ public class KOMEBaseIsolationTest {
         assertFalse(recordBuilder.contains("MILITARY_CONTEXT\\t"));
         assertFalse(recordBuilder.contains("MILITARY_COMPANY\\t"));
         assertTrue(allianceGui.contains("DIPLOMACY_RELATION"));
-        assertTrue(allianceGui.contains("KOMEGuiConfirmation"));
+        assertFalse(allianceGui.contains("KOMEGuiConfirmation"));
         assertFalse(allianceGui.contains("sendChat(\"/troops"));
         assertTrue(troopPacket.contains("Unknown troop GUI action"));
         assertTrue(troopPacket.contains("Troop action rejected:"));

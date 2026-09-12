@@ -193,7 +193,7 @@ public class KOMEEvents {
             KOMEWorldData data = KOMEWorldData.get(world);
             populationPayoutRuntime.onLiveCheck(data, Instant.ofEpochMilli(now));
             data.reconcileAllianceLifecycle(now, world.getTotalWorldTime());
-            kome.common.command.KOMECommandAlliance.reconcileKinglessPendingAlliances(data, world.getTotalWorldTime());
+
             if (!data.armyMovements.isEmpty()) {
                 KOMECommandTroops.processMovementTick(data, world, now);
             }
