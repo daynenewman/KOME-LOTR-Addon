@@ -18,6 +18,7 @@ There is no active three-track alliance model, king-loss grace timer, or allianc
 
 - [Build system](docs/KOME_BUILD_SYSTEM.md)
 - [Population system](docs/KOME_POPULATION_SYSTEM.md)
+- [Character Creation](docs/KOME_CHARACTER_CREATION.md)
 - [Alliance system](docs/KOME_ALLIANCE_SYSTEM.md)
 - [Alliance migration](docs/KOME_ALLIANCE_MIGRATION.md)
 - [GUI handoff](docs/KOME_GUI_HANDOFF.md)

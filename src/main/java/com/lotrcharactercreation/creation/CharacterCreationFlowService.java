@@ -2,8 +2,11 @@ package com.lotrcharactercreation.creation;
 
 import net.minecraft.entity.player.EntityPlayerMP;
 
+import com.lotrcharactercreation.appearance.AppearancePreset;
+import com.lotrcharactercreation.appearance.AppearancePresetCatalog;
 import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
 import com.lotrcharactercreation.appearance.PlayerSex;
+import com.lotrcharactercreation.appearance.ServerCustomSkinLibrary;
 import com.lotrcharactercreation.faction.StartingFaction;
 import com.lotrcharactercreation.race.PlayerRace;
 import com.lotrcharactercreation.race.PlayerRaceData;
@@ -37,8 +40,9 @@ public final class CharacterCreationFlowService {
         }
 
         String presetId = PlayerRaceData.getAppearancePresetId(player);
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
         if (!PlayerRaceData.isAppearanceInitialized(player)
-            || !AppearanceSelectionRules.isPresetAllowed(race, sex, faction, presetId)) {
+            || !AppearanceSelectionRules.isPresetAllowed(catalog, race, sex, faction, presetId)) {
             return CharacterCreationStage.APPEARANCE;
         }
         return CharacterCreationStage.CONFIRMATION;
@@ -48,9 +52,29 @@ public final class CharacterCreationFlowService {
         return getNextRequiredStage(player) == CharacterCreationStage.CONFIRMATION;
     }
 
+    /**
+     * Central server-side policy for all character-selection mutations. Normal
+     * creation requires the exact current stage and untouched one-time setup
+     * gates. A future administrative flow may persistently authorize editing,
+     * but must still deliberately reopen the intended stage.
+     */
+    public static boolean isSelectionMutationAuthorized(EntityPlayerMP player, CharacterCreationStage requiredStage) {
+        if (player == null || requiredStage == null || requiredStage == CharacterCreationStage.COMPLETE
+            || getNextRequiredStage(player) != requiredStage) {
+            return false;
+        }
+
+        if (PlayerRaceData.isCharacterEditAuthorized(player)) {
+            return true;
+        }
+
+        return !PlayerRaceData.isCharacterCreationComplete(player)
+            && !PlayerRaceData.isStartingFactionApplied(player)
+            && !PlayerRaceData.isStartingWaypointApplied(player);
+    }
+
     public static boolean selectRace(EntityPlayerMP player, PlayerRace race) {
-        if (race == null || !choicesAreEditable(player)
-            || getNextRequiredStage(player) != CharacterCreationStage.RACE) {
+        if (race == null || !isSelectionMutationAuthorized(player, CharacterCreationStage.RACE)) {
             return false;
         }
 
@@ -66,8 +90,61 @@ public final class CharacterCreationFlowService {
         return true;
     }
 
+    public static boolean selectSex(EntityPlayerMP player, PlayerSex sex) {
+        if (player == null) {
+            return false;
+        }
+
+        PlayerRace race = PlayerRaceData.getRace(player);
+        if (!isSelectionMutationAuthorized(player, CharacterCreationStage.SEX)
+            || !AppearanceSelectionRules.supportsSelectableSex(race)
+            || (sex != PlayerSex.MALE && sex != PlayerSex.FEMALE)) {
+            return false;
+        }
+
+        PlayerRaceData.setSex(player, sex);
+        requireAppearanceConfirmation(player);
+        return true;
+    }
+
+    public static boolean selectStartingFaction(EntityPlayerMP player, StartingFaction faction) {
+        if (player == null || faction == null) {
+            return false;
+        }
+
+        PlayerRace race = PlayerRaceData.getRace(player);
+        if (!isSelectionMutationAuthorized(player, CharacterCreationStage.FACTION)
+            || !faction.isAllowedFor(race)) {
+            return false;
+        }
+
+        PlayerRaceData.setStartingFaction(player, faction);
+        PlayerRaceData.setFactionSelectionComplete(player, true);
+        requireAppearanceConfirmation(player);
+        return true;
+    }
+
+    public static boolean selectAppearance(EntityPlayerMP player, String presetId) {
+        if (!isSelectionMutationAuthorized(player, CharacterCreationStage.APPEARANCE)) {
+            return false;
+        }
+
+        PlayerRace race = PlayerRaceData.getRace(player);
+        PlayerSex sex = AppearanceSelectionRules.getSelectionSex(race, PlayerRaceData.getSex(player));
+        StartingFaction faction = PlayerRaceData.getStartingFaction(player);
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
+        AppearancePreset preset = catalog.findById(presetId);
+        if (preset == null || !AppearanceSelectionRules.isPresetAllowed(catalog, race, sex, faction, presetId)) {
+            return false;
+        }
+
+        PlayerRaceData.setAppearancePreset(player, preset);
+        PlayerRaceData.setAppearanceInitialized(player, true);
+        return true;
+    }
+
     public static boolean goBackFrom(EntityPlayerMP player, CharacterCreationStage sourceStage) {
-        if (sourceStage == null || !choicesAreEditable(player) || getNextRequiredStage(player) != sourceStage) {
+        if (!isSelectionMutationAuthorized(player, sourceStage)) {
             return false;
         }
 
@@ -112,18 +189,14 @@ public final class CharacterCreationFlowService {
         PlayerSex sex = AppearanceSelectionRules.getSelectionSex(race, PlayerRaceData.getSex(player));
         StartingFaction faction = PlayerRaceData.getStartingFaction(player);
         String presetId = PlayerRaceData.getAppearancePresetId(player);
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
         boolean allowed = PlayerRaceData.isFactionSelectionComplete(player)
-            && AppearanceSelectionRules.isPresetAllowed(race, sex, faction, presetId);
+            && AppearanceSelectionRules.isPresetAllowed(catalog, race, sex, faction, presetId);
 
         if (!allowed) {
             PlayerRaceData.clearAppearancePreset(player);
         }
         PlayerRaceData.setAppearanceInitialized(player, false);
-    }
-
-    private static boolean choicesAreEditable(EntityPlayerMP player) {
-        return !PlayerRaceData.isCharacterCreationComplete(player) && !PlayerRaceData.isStartingFactionApplied(player)
-            && !PlayerRaceData.isStartingWaypointApplied(player);
     }
 
     private static void returnToSex(EntityPlayerMP player) {

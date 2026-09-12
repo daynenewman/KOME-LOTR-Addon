@@ -37,12 +37,13 @@ public final class DwarfAppearanceInitializer {
         if (group == null) {
             throw new IllegalArgumentException("Dwarf appearance group cannot be null");
         }
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
 
         String storedPresetId = PlayerRaceData.getAppearancePresetId(player);
         PlayerSex storedSex = PlayerRaceData.getSex(player);
-        AppearancePreset storedPreset = AppearancePresetRegistry.findById(storedPresetId);
+        AppearancePreset storedPreset = catalog.findById(storedPresetId);
         boolean storedAppearanceValid = storedSex == sex
-            && AppearancePresetRegistry.isDwarfPresetValid(storedPresetId, sex, group);
+            && AppearancePresetRegistry.isDwarfPresetValid(catalog, storedPresetId, sex, group);
 
         if (!forceReroll && PlayerRaceData.isAppearanceInitialized(player) && storedAppearanceValid) {
             return storedPreset;
@@ -59,7 +60,7 @@ public final class DwarfAppearanceInitializer {
         }
 
         List<AppearancePreset> candidates = new ArrayList<AppearancePreset>(
-            AppearancePresetRegistry.getDwarfPresets(sex, group));
+            AppearancePresetRegistry.getDwarfPresets(catalog, sex, group));
         if (forceReroll && storedAppearanceValid && candidates.size() > 1) {
             candidates.remove(storedPreset);
         }

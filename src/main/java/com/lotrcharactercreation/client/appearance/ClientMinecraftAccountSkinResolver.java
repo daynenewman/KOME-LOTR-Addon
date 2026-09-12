@@ -156,8 +156,9 @@ public final class ClientMinecraftAccountSkinResolver {
         }
 
         String presetId = appearance.getAppearancePresetId();
-        AppearancePreset preset = AppearancePresetRegistry.findById(presetId);
-        return preset != null && AppearancePresetRegistry.isPresetValid(PlayerRace.MAN, appearance.getSex(), presetId)
+        AppearancePreset preset = ClientCustomSkinManager.getInstance().getCatalog().findById(presetId);
+        return preset != null && AppearancePresetRegistry.isPresetValid(
+            ClientCustomSkinManager.getInstance().getCatalog(), PlayerRace.MAN, appearance.getSex(), presetId)
             && preset.getSourceType() == AppearanceSourceType.MINECRAFT_ACCOUNT;
     }
 }

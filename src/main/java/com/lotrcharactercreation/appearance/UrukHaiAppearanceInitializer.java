@@ -32,14 +32,16 @@ public final class UrukHaiAppearanceInitializer {
         if (group == null) {
             throw new IllegalArgumentException("Uruk-hai appearance group cannot be null");
         }
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
 
         String storedPresetId = PlayerRaceData.getAppearancePresetId(player);
         PlayerSex storedSex = PlayerRaceData.getSex(player);
-        AppearancePreset storedPreset = AppearancePresetRegistry.findById(storedPresetId);
+        AppearancePreset storedPreset = catalog.findById(storedPresetId);
         boolean storedAppearanceValid = storedSex == PlayerSex.NONE
-            && AppearancePresetRegistry.isUrukHaiPresetValid(storedPresetId, group);
+            && AppearancePresetRegistry.isUrukHaiPresetValid(catalog, storedPresetId, group);
         boolean storedDataMateriallyValid = storedSex == PlayerSex.NONE
-            && AppearancePresetRegistry.isPresetValid(PlayerRace.URUK_HAI, PlayerSex.NONE, storedPresetId);
+            && AppearancePresetRegistry.isPresetValid(
+                catalog, PlayerRace.URUK_HAI, PlayerSex.NONE, storedPresetId);
 
         if (!forceReroll && PlayerRaceData.isAppearanceInitialized(player) && storedAppearanceValid) {
             return storedPreset;
@@ -56,7 +58,7 @@ public final class UrukHaiAppearanceInitializer {
         }
 
         List<AppearancePreset> candidates = new ArrayList<AppearancePreset>(
-            AppearancePresetRegistry.getUrukHaiPresets(group));
+            AppearancePresetRegistry.getUrukHaiPresets(catalog, group));
         if (forceReroll && storedAppearanceValid && candidates.size() > 1) {
             candidates.remove(storedPreset);
         }

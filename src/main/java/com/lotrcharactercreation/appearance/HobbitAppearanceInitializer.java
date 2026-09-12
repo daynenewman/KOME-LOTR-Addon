@@ -32,12 +32,13 @@ public final class HobbitAppearanceInitializer {
         if (!AppearancePresetRegistry.isSexValidForRace(PlayerRace.HOBBIT, sex)) {
             throw new IllegalArgumentException("Hobbit appearance sex must be male or female");
         }
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
 
         String storedPresetId = PlayerRaceData.getAppearancePresetId(player);
         PlayerSex storedSex = PlayerRaceData.getSex(player);
-        AppearancePreset storedPreset = AppearancePresetRegistry.findById(storedPresetId);
+        AppearancePreset storedPreset = catalog.findById(storedPresetId);
         boolean storedAppearanceValid = storedSex == sex
-            && AppearancePresetRegistry.isPresetValid(PlayerRace.HOBBIT, sex, storedPresetId);
+            && AppearancePresetRegistry.isPresetValid(catalog, PlayerRace.HOBBIT, sex, storedPresetId);
 
         if (!forceReroll && PlayerRaceData.isAppearanceInitialized(player) && storedAppearanceValid) {
             return storedPreset;
@@ -53,7 +54,7 @@ public final class HobbitAppearanceInitializer {
         }
 
         List<AppearancePreset> candidates = new ArrayList<AppearancePreset>(
-            AppearancePresetRegistry.getPresets(PlayerRace.HOBBIT, sex));
+            catalog.getPresets(PlayerRace.HOBBIT, sex));
         if (forceReroll && storedAppearanceValid && candidates.size() > 1) {
             candidates.remove(storedPreset);
         }

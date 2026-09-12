@@ -36,12 +36,13 @@ public final class ElfAppearanceInitializer {
         if (group == null) {
             throw new IllegalArgumentException("Elf appearance group cannot be null");
         }
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
 
         String storedPresetId = PlayerRaceData.getAppearancePresetId(player);
         PlayerSex storedSex = PlayerRaceData.getSex(player);
-        AppearancePreset storedPreset = AppearancePresetRegistry.findById(storedPresetId);
+        AppearancePreset storedPreset = catalog.findById(storedPresetId);
         boolean storedAppearanceValid = storedSex == sex
-            && AppearancePresetRegistry.isElfPresetValid(storedPresetId, sex, group);
+            && AppearancePresetRegistry.isElfPresetValid(catalog, storedPresetId, sex, group);
 
         if (!forceReroll && PlayerRaceData.isAppearanceInitialized(player) && storedAppearanceValid) {
             return storedPreset;
@@ -58,7 +59,7 @@ public final class ElfAppearanceInitializer {
         }
 
         List<AppearancePreset> candidates = new ArrayList<AppearancePreset>(
-            AppearancePresetRegistry.getPresets(PlayerRace.ELF, sex, group.getSerializedId()));
+            catalog.getPresets(PlayerRace.ELF, sex, group.getSerializedId()));
         if (forceReroll && storedAppearanceValid && candidates.size() > 1) {
             candidates.remove(storedPreset);
         }

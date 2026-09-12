@@ -11,20 +11,34 @@ import io.netty.buffer.ByteBuf;
 public class SexSelectionMessage implements IMessage {
 
     private String serializedSexId;
+    private boolean valid;
 
     public SexSelectionMessage() {}
 
     public SexSelectionMessage(String serializedSexId) {
         this.serializedSexId = serializedSexId;
+        valid = LegacyC2SProtocol.isValidRequiredString(serializedSexId, LegacyC2SProtocol.MAX_SEX_ID_BYTES);
     }
 
     public String getSerializedSexId() {
         return serializedSexId;
     }
 
+    public boolean isValid() {
+        return valid;
+    }
+
     @Override
     public void fromBytes(ByteBuf buffer) {
-        serializedSexId = ByteBufUtils.readUTF8String(buffer);
+        valid = false;
+        serializedSexId = null;
+        try {
+            serializedSexId = LegacyC2SProtocol.readRequiredString(buffer, LegacyC2SProtocol.MAX_SEX_ID_BYTES);
+            LegacyC2SProtocol.requireFullyRead(buffer);
+            valid = true;
+        } catch (RuntimeException exception) {
+            LegacyC2SProtocol.warnMalformedOnce("SexSelection", exception);
+        }
     }
 
     @Override
@@ -36,8 +50,10 @@ public class SexSelectionMessage implements IMessage {
 
         @Override
         public IMessage onMessage(SexSelectionMessage message, MessageContext context) {
-            EntityPlayerMP player = context.getServerHandler().playerEntity;
-            ModNetwork.enqueueSexSelection(player, message.getSerializedSexId());
+            if (message.isValid()) {
+                EntityPlayerMP player = context.getServerHandler().playerEntity;
+                ModNetwork.enqueueSexSelection(player, message.getSerializedSexId());
+            }
             return null;
         }
     }
