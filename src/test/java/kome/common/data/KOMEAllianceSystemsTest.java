@@ -1191,7 +1191,7 @@ public class KOMEAllianceSystemsTest {
         reserve.offensiveUsed = 25;
         KOMEPlayerBuild build = new KOMEPlayerBuild();
         build.id = "BANK-BUILD";
-        build.adjustCommitted(KOMEPopulationType.OFFENSIVE, 25);
+        build.type = KOMEBuildType.NORMAL;
         data.builds.put(build.id, build);
         KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
             KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
@@ -1201,7 +1201,7 @@ public class KOMEAllianceSystemsTest {
 
         assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
         assertEquals(25, reserve.offensiveUsed);
-        assertEquals(25, build.committedPopulation(KOMEPopulationType.OFFENSIVE));
+        assertEquals(0, build.approvedHalfHours());
     }
 
     @Test

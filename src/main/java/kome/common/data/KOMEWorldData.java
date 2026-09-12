@@ -669,12 +669,6 @@ public class KOMEWorldData extends WorldSavedData {
             population.defensiveUsed = Math.min(Math.max(0, population.defensiveUsed), Math.max(0, population.defensiveTotal));
             population.farmhandUsed = Math.min(Math.max(0, population.farmhandUsed), Math.max(0, population.farmhandTotal));
         }
-        for (KOMEPlayerBuild build : builds.values()) {
-            if (build != null && build.active
-                    && resetTiles.contains(KOMEConquestTile.normalizeId(build.tileId))) {
-                recalculateBuildPopulationPool(build.tileId, build.populationFaction);
-            }
-        }
     }
 
     public List<String> buildConquestBalanceReportLines() {
@@ -1475,16 +1469,9 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public int getBuildPopulationTotal(String tileId, String populationFaction, KOMEPopulationType type) {
-        int total = 0;
-        String tile = KOMEConquestTile.normalizeId(tileId);
-        String faction = normalizeFactionKey(populationFaction);
-        for (KOMEPlayerBuild build : builds.values()) {
-            if (build != null && build.active && tile.equals(build.tileId)
-                    && faction.equals(normalizeFactionKey(build.populationFaction))) {
-                total += build.approvedPopulation(type, buildPopulationPerHalfHour);
-            }
-        }
-        return Math.max(0, total);
+        // Retained only so legacy diagnostics can load until Slice 3. Build hours are no
+        // longer a spendable population source.
+        return 0;
     }
 
     public int getNativePopulationTotal(String tileId, String populationFaction, KOMEPopulationType type) {
@@ -1495,50 +1482,17 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public void recalculateBuildPopulationPool(String tileId, String populationFaction) {
-        String tile = KOMEConquestTile.normalizeId(tileId);
-        String faction = normalizeFactionKey(populationFaction);
-        if (tile.length() == 0 || faction.length() == 0) return;
-        KOMETilePopulation population = getOrCreateTilePopulationPool(tile, faction);
-        if (!population.nativeBaselineInitialized) {
-            population.nativeOffensiveTotal = Math.max(0, population.offensiveTotal);
-            population.nativeDefensiveTotal = Math.max(0, population.defensiveTotal);
-            population.nativeBaselineInitialized = true;
-        }
-        population.setTotal(KOMEPopulationType.OFFENSIVE, saturatedAdd(population.nativeOffensiveTotal,
-            getBuildPopulationTotal(tile, faction, KOMEPopulationType.OFFENSIVE)));
-        population.setTotal(KOMEPopulationType.DEFENSIVE, saturatedAdd(population.nativeDefensiveTotal,
-            getBuildPopulationTotal(tile, faction, KOMEPopulationType.DEFENSIVE)));
-        reconcileClaimantAllocation(conquestTiles.get(tile));
-        markDirty();
+        // Legacy no-op: canonical Build changes never alter tile population pools.
     }
 
     public String assignFundingBuild(String tileId, String populationFaction, KOMEPopulationType type,
             int populationCost, String controllingFaction) {
-        String tile = KOMEConquestTile.normalizeId(tileId);
-        String faction = normalizeFactionKey(populationFaction);
-        boolean fullyUsable = faction.equals(normalizeFactionKey(controllingFaction));
-        List<KOMEPlayerBuild> candidates = KOMEBuildService.buildsInTile(this, tile, false);
-        for (KOMEPlayerBuild build : candidates) {
-            if (build != null && faction.equals(normalizeFactionKey(build.populationFaction))
-                    && build.availablePopulation(type, buildPopulationPerHalfHour, fullyUsable) >= populationCost) {
-                build.adjustCommitted(type, populationCost);
-                build.updatedAtMillis = System.currentTimeMillis();
-                markDirty();
-                return build.id;
-            }
-        }
+        // No ordinary unit may acquire a Build-backed funding source.
         return "";
     }
 
     public void releaseFundingBuild(KOMEHiredUnitRecord record) {
-        if (record == null || record.isFactionPopulationBankFunded()
-                || record.sourceBuildId == null || record.sourceBuildId.length() == 0) return;
-        KOMEPlayerBuild build = getBuild(record.sourceBuildId);
-        if (build != null) {
-            build.adjustCommitted(record.type, -Math.max(0, record.cost));
-            build.updatedAtMillis = System.currentTimeMillis();
-            markDirty();
-        }
+        // No-op compatibility hook: Build-backed population commitments no longer exist.
     }
 
     /** Releases only legacy population ledgers after an ordinary unit removal. */
@@ -1560,15 +1514,7 @@ public class KOMEWorldData extends WorldSavedData {
      * after load so stale cache values cannot make destructive Build actions unsafe.
      */
     public void reconcileBuildCommitments() {
-        for (KOMEPlayerBuild build : builds.values()) {
-            if (build != null) build.clearCommittedPopulation();
-        }
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (record == null || record.populationReturned || record.sourceBuildId == null
-                    || record.sourceBuildId.length() == 0) continue;
-            KOMEPlayerBuild build = getBuild(record.sourceBuildId);
-            if (build != null) build.adjustCommitted(record.type, Math.max(0, record.cost));
-        }
+        // No-op compatibility hook: Build commitments are not part of the canonical model.
     }
 
     private static int saturatedAdd(int left, int right) {
@@ -2590,15 +2536,15 @@ public class KOMEWorldData extends WorldSavedData {
         NBTTagList buildList = nbt.getTagList("Builds", 10);
         for (int i = 0; i < buildList.tagCount(); i++) {
             KOMEPlayerBuild build = new KOMEPlayerBuild();
-            build.readFromNBT(buildList.getCompoundTagAt(i));
-            if (build.id.length() > 0 && build.tileId.length() > 0 && build.populationFaction.length() > 0) {
-                builds.put(build.id, build);
+            try {
+                build.readFromNBT(buildList.getCompoundTagAt(i));
+                if (build.id.length() > 0 && build.tileId.length() > 0 && build.populationFaction.length() > 0) {
+                    builds.put(build.id, build);
+                }
+            } catch (IllegalArgumentException ignored) {
+                safeAllianceInfo("[KOME] Discarded stale Build record without a valid BuildType.");
             }
         }
-        for (KOMEPlayerBuild build : builds.values()) {
-            recalculateBuildPopulationPool(build.tileId, build.populationFaction);
-        }
-        reconcileBuildCommitments();
         if (savedBuildSchema < BUILD_DATA_SCHEMA_VERSION) {
             safeAllianceInfo("[KOME] Build schema " + savedBuildSchema + " -> " + BUILD_DATA_SCHEMA_VERSION
                 + ": initialized persistent Build collection without converting legacy population.");

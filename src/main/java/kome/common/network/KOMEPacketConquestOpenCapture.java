@@ -153,12 +153,13 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             view.x = build.x;
             view.y = build.y;
             view.z = build.z;
-            view.offensiveHalfHours = build.approvedHalfHours(KOMEPopulationType.OFFENSIVE);
-            view.defensiveHalfHours = build.approvedHalfHours(KOMEPopulationType.DEFENSIVE);
-            view.offensivePopulation = build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour);
-            view.defensivePopulation = build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour);
-            view.offensiveCommitted = build.offensiveCommittedPopulation;
-            view.defensiveCommitted = build.defensiveCommittedPopulation;
+            // Slice-2 transport compatibility only: a canonical Build has one lane.
+            view.offensiveHalfHours = build.isNormal() ? build.approvedHalfHours() : 0;
+            view.defensiveHalfHours = build.isDefensive() ? build.approvedHalfHours() : 0;
+            view.offensivePopulation = 0;
+            view.defensivePopulation = 0;
+            view.offensiveCommitted = 0;
+            view.defensiveCommitted = 0;
             view.pendingCount = build.pendingCount();
             view.status = buildStatus(data, viewerFaction, controller, build.populationFaction);
             view.canManage = admin || KOMEBuildService.isManager(build, viewerId);
@@ -184,8 +185,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
                 contributionView.id = contribution.id;
                 contributionView.player = contribution.contributorName;
                 contributionView.faction = contribution.contributorFaction;
-                contributionView.offensiveHalfHours = contribution.offensiveHalfHours;
-                contributionView.defensiveHalfHours = contribution.defensiveHalfHours;
+                contributionView.offensiveHalfHours = build.isNormal() ? contribution.halfHours : 0;
+                contributionView.defensiveHalfHours = build.isDefensive() ? contribution.halfHours : 0;
                 contributionView.status = contribution.status;
                 view.contributions.add(contributionView);
             }

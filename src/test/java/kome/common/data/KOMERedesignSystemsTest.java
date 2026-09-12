@@ -1,6 +1,7 @@
 package kome.common.data;
 
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import org.junit.Test;
 
 import java.util.List;
@@ -126,9 +127,9 @@ public class KOMERedesignSystemsTest {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         UUID builder = UUID.randomUUID();
         KOMEPlayerBuild build = KOMEBuildService.create(data, "Citadel", "T100", 0, 0, 64, 0,
-            builder, "Builder", "gondor", "gondor", 2, 1, 10L);
-        assertEquals(10, build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour));
-        assertEquals(5, build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour));
+            builder, "Builder", "gondor", "gondor", KOMEBuildType.NORMAL, 2, 10L);
+        assertEquals(2, build.approvedHalfHours());
+        assertTrue(build.isNormal());
         assertEquals(KOMEBuildContribution.APPROVED, build.contributions.get(0).status);
     }
 
@@ -136,9 +137,9 @@ public class KOMERedesignSystemsTest {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 0, 0);
         KOMEBuildContribution contribution = KOMEBuildService.addSubmission(data, build, UUID.randomUUID(),
-            "Helper", "rohan", 2, 2, false, 20L);
+            "Helper", "rohan", 2, 0, false, 20L);
         assertTrue(contribution.isPending());
-        assertEquals(0, build.approvedHalfHours(KOMEPopulationType.OFFENSIVE));
+        assertEquals(0, build.approvedHalfHours());
     }
 
     @Test public void managerApprovalAppliesPopulationAndCredit() {
@@ -146,29 +147,29 @@ public class KOMERedesignSystemsTest {
         KOMEPlayerBuild build = build(data, "gondor", 0, 0);
         UUID helper = UUID.randomUUID();
         KOMEBuildContribution contribution = KOMEBuildService.addSubmission(
-            data, build, helper, "Helper", "rohan", 2, 1, false, 20L);
+            data, build, helper, "Helper", "rohan", 2, 0, false, 20L);
         assertTrue(KOMEBuildService.decideSubmission(data, build, contribution.id,
             build.managerUuid, build.managerName, true, "approved", 30L).allowed);
-        assertEquals(10, build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour));
-        assertEquals(Integer.valueOf(3), build.activeHalfHoursByPlayer().get(helper));
-        assertEquals(Integer.valueOf(3), build.activeHalfHoursByFaction().get("rohan"));
+        assertEquals(2, build.approvedHalfHours());
+        assertEquals(Integer.valueOf(2), build.activeHalfHoursByPlayer().get(helper));
+        assertEquals(Integer.valueOf(2), build.activeHalfHoursByFaction().get("rohan"));
     }
 
     @Test public void rejectionNeverAppliesPopulation() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 0, 0);
         KOMEBuildContribution contribution = KOMEBuildService.addSubmission(
-            data, build, UUID.randomUUID(), "Helper", "rohan", 2, 1, false, 20L);
+            data, build, UUID.randomUUID(), "Helper", "rohan", 2, 0, false, 20L);
         assertTrue(KOMEBuildService.decideSubmission(data, build, contribution.id,
             build.managerUuid, build.managerName, false, "rejected", 30L).allowed);
-        assertEquals(0, build.approvedHalfHours(KOMEPopulationType.OFFENSIVE));
+        assertEquals(0, build.approvedHalfHours());
     }
 
-    @Test public void offensiveAndDefensiveHoursRemainSeparated() {
+    @Test public void canonicalBuildHasOneHoursStream() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
-        KOMEPlayerBuild build = build(data, "gondor", 4, 7);
-        assertEquals(4, build.approvedHalfHours(KOMEPopulationType.OFFENSIVE));
-        assertEquals(7, build.approvedHalfHours(KOMEPopulationType.DEFENSIVE));
+        KOMEPlayerBuild build = build(data, "gondor", 4, 0);
+        assertEquals(4, build.approvedHalfHours());
+        assertEquals(0, build.approvedDefensiveHalfHours());
     }
 
     @Test public void managerRemovalReversesActiveCredit() {
@@ -177,15 +178,14 @@ public class KOMERedesignSystemsTest {
         String id = build.contributions.get(0).id;
         assertTrue(KOMEBuildService.removeApprovedContribution(data, build, id,
             build.managerUuid, build.managerName, "remove", 40L).allowed);
-        assertEquals(0, build.approvedHalfHours(KOMEPopulationType.OFFENSIVE));
+        assertEquals(0, build.approvedHalfHours());
         assertTrue(build.activeHalfHoursByFaction().isEmpty());
     }
 
-    @Test public void removalIsBlockedWhenItFundsLivingUnits() {
+    @Test public void removalDoesNotDependOnFormerUnitCommitments() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 4, 0);
-        build.adjustCommitted(KOMEPopulationType.OFFENSIVE, 5);
-        assertFalse(KOMEBuildService.removeApprovedContribution(data, build, build.contributions.get(0).id,
+        assertTrue(KOMEBuildService.removeApprovedContribution(data, build, build.contributions.get(0).id,
             build.managerUuid, build.managerName, "unsafe", 40L).allowed);
     }
 
@@ -199,15 +199,14 @@ public class KOMERedesignSystemsTest {
         assertEquals(0, data.getBuildPopulationTotal("T100", "gondor", KOMEPopulationType.OFFENSIVE));
     }
 
-    @Test public void buildDeletionIsBlockedByCommittedPopulation() {
+    @Test public void buildDeletionDoesNotDependOnCommittedPopulation() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 4, 0);
-        build.adjustCommitted(KOMEPopulationType.OFFENSIVE, 10);
-        assertFalse(KOMEBuildService.deleteBuild(data, build, build.managerUuid,
+        assertTrue(KOMEBuildService.deleteBuild(data, build, build.managerUuid,
             build.managerName, false, "delete", 40L).allowed);
     }
 
-    @Test public void buildDeletionIsBlockedWhenControllerAllocationNeedsItsCapacity() {
+    @Test public void buildDeletionDoesNotDependOnFormerAllocationCapacity() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 4, 0);
         KOMEPlayerTilePopulationAllocation allocation = data.getOrCreateAllocation(
@@ -215,9 +214,8 @@ public class KOMERedesignSystemsTest {
         allocation.offensiveAllocated = 20;
         KOMEBuildService.Decision decision = KOMEBuildService.deleteBuild(data, build,
             build.managerUuid, build.managerName, false, "delete", 40L);
-        assertFalse(decision.allowed);
-        assertTrue(decision.reason.contains("allocated or used"));
-        assertTrue(build.active);
+        assertTrue(decision.allowed);
+        assertFalse(build.active);
     }
 
     @Test public void nativeCapacityMayCoverBuildDeletionWithoutOrphaningAllocation() {
@@ -251,7 +249,7 @@ public class KOMERedesignSystemsTest {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 0, 0);
         KOMEBuildContribution pending = KOMEBuildService.addSubmission(data, build, UUID.randomUUID(),
-            "Helper", "rohan", 1, 1, false, 20L);
+            "Helper", "rohan", 1, 0, false, 20L);
         KOMEPlayerProgression departed = new KOMEPlayerProgression();
         departed.setPledgedLord("x", "x", "rohan");
         data.progressions.put(build.managerUuid, departed);
@@ -353,15 +351,86 @@ public class KOMERedesignSystemsTest {
 
     @Test public void buildAndContributionPersistenceRoundTrip() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
-        KOMEPlayerBuild build = build(data, "gondor", 3, 2);
+        KOMEPlayerBuild build = build(data, "gondor", 3, 0);
         NBTTagCompound nbt = new NBTTagCompound();
         data.writeToNBT(nbt);
         KOMEWorldData restored = new KOMEWorldData("test");
         restored.readFromNBT(nbt);
         KOMEPlayerBuild loaded = restored.getBuild(build.id);
         assertNotNull(loaded);
-        assertEquals(3, loaded.approvedHalfHours(KOMEPopulationType.OFFENSIVE));
-        assertEquals(2, loaded.approvedHalfHours(KOMEPopulationType.DEFENSIVE));
+        assertEquals(3, loaded.approvedHalfHours());
+        assertEquals(KOMEBuildType.NORMAL, loaded.type);
+    }
+
+    @Test public void canonicalBuildNbtContainsOnlyTypeAndSingleHoursValue() {
+        KOMEPlayerBuild build = new KOMEPlayerBuild();
+        build.id = "B1";
+        build.type = KOMEBuildType.DEFENSIVE;
+        KOMEBuildContribution contribution = approved("gondor", 7);
+        build.contributions.add(contribution);
+        NBTTagCompound nbt = build.writeToNBT();
+        assertEquals("DEFENSIVE", nbt.getString("BuildType"));
+        assertFalse(nbt.hasKey("OffensiveCommittedPopulation"));
+        assertFalse(nbt.hasKey("DefensiveCommittedPopulation"));
+        NBTTagCompound saved = nbt.getTagList("Contributions", 10).getCompoundTagAt(0);
+        assertEquals(7, saved.getInteger("HalfHours"));
+        assertFalse(saved.hasKey("OffensiveHalfHours"));
+        assertFalse(saved.hasKey("DefensiveHalfHours"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void missingBuildTypeIsRejectedRatherThanAssumedNormal() {
+        new KOMEPlayerBuild().readFromNBT(new NBTTagCompound());
+    }
+
+    @Test public void worldLoadDiscardsStaleBuildWithoutType() {
+        NBTTagCompound saved = new NBTTagCompound();
+        NBTTagList builds = new NBTTagList();
+        NBTTagCompound stale = new NBTTagCompound();
+        stale.setString("Id", "B-stale");
+        stale.setString("TileId", "T100");
+        stale.setString("PopulationFaction", "gondor");
+        builds.appendTag(stale);
+        saved.setTag("Builds", builds);
+        KOMEWorldData data = new KOMEWorldData("test");
+        data.readFromNBT(saved);
+        assertNull(data.getBuild("B-stale"));
+    }
+
+    @Test public void normalRateIsExactAndDefensiveRateIsZero() {
+        KOMEPlayerBuild normal = new KOMEPlayerBuild();
+        normal.type = KOMEBuildType.NORMAL;
+        normal.contributions.add(approved("gondor", 20));
+        assertArrayEquals(new long[] {20L, 20L}, normal.originalPopulationRate(10));
+        assertArrayEquals(new long[] {20L, 4294967294L}, normal.originalPopulationRate(Integer.MAX_VALUE));
+        KOMEPlayerBuild defensive = new KOMEPlayerBuild();
+        defensive.type = KOMEBuildType.DEFENSIVE;
+        defensive.contributions.add(approved("gondor", 20));
+        assertArrayEquals(new long[] {0L, 1L}, defensive.originalPopulationRate(10));
+        assertEquals(20, defensive.approvedDefensiveHalfHours());
+    }
+
+    @Test public void buildMutationsNeverChangeFactionAvailablePopulation() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        data.grantFactionPopulation("gondor", 91);
+        UUID manager = UUID.randomUUID();
+        KOMEPlayerBuild build = KOMEBuildService.create(data, "Build", "T100", 0, 0, 64, 0,
+            manager, "Manager", "gondor", "gondor", KOMEBuildType.NORMAL, 2, 10L);
+        KOMEBuildContribution pending = KOMEBuildService.addSubmission(data, build, UUID.randomUUID(),
+            "Helper", "gondor", 3, false, 20L);
+        assertTrue(KOMEBuildService.decideSubmission(data, build, pending.id, manager, "Manager", true,
+            "approved", 30L).allowed);
+        assertTrue(KOMEBuildService.removeApprovedContribution(data, build, pending.id, manager, "Manager",
+            "removed", 40L).allowed);
+        assertTrue(KOMEBuildService.deleteBuild(data, build, manager, "Manager", false, "deleted", 50L).allowed);
+        assertEquals(91, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void legacyAdapterRejectsMixedLanes() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEBuildService.create(data, "Build", "T100", 0, 0, 64, 0, UUID.randomUUID(), "Builder",
+            "gondor", "gondor", 1, 1, 10L);
     }
 
     @Test public void ownPopulationPoolIsUsableAtOneHundredPercent() {
@@ -404,7 +473,7 @@ public class KOMERedesignSystemsTest {
         assertEquals(20, mordor.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
     }
 
-    @Test public void nativeAndBuildPopulationStaySeparateAndTileTotalsRemainDeterministic() {
+    @Test public void buildHoursDoNotMutateLegacyTilePopulation() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMETilePopulation gondor = data.getOrCreateTilePopulationPool("T100", "gondor");
         gondor.nativeOffensiveTotal = gondor.offensiveTotal = 50;
@@ -414,21 +483,20 @@ public class KOMERedesignSystemsTest {
         rohanBuild.contributions.add(approved("gondor", 8));
         data.recalculateBuildPopulationPool("T100", "rohan");
         assertEquals(50, data.getNativePopulationTotal("T100", "gondor", KOMEPopulationType.OFFENSIVE));
-        assertEquals(50, data.getBuildPopulationTotal("T100", "gondor", KOMEPopulationType.OFFENSIVE));
-        assertEquals(100, data.getTilePopulationPool("T100", "gondor").offensiveTotal);
-        assertEquals(40, data.getTilePopulationPool("T100", "rohan").offensiveTotal);
-        assertEquals(120, data.getEffectiveUsablePopulation("T100", "gondor", KOMEPopulationType.OFFENSIVE));
+        assertEquals(0, data.getBuildPopulationTotal("T100", "gondor", KOMEPopulationType.OFFENSIVE));
+        assertEquals(50, data.getTilePopulationPool("T100", "gondor").offensiveTotal);
+        assertNull(data.getTilePopulationPool("T100", "rohan"));
+        assertEquals(50, data.getEffectiveUsablePopulation("T100", "gondor", KOMEPopulationType.OFFENSIVE));
     }
 
-    @Test public void buildCommitmentsRebuildFromUnitFundingRecords() {
+    @Test public void buildCommitmentReconciliationIsNowANoOp() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 10, 0);
         KOMEHiredUnitRecord unit = unit(UUID.randomUUID(), "gondor", "T100", 25);
         unit.sourceBuildId = build.id;
         data.hiredUnits.put(unit.entity, unit);
-        build.clearCommittedPopulation();
         data.reconcileBuildCommitments();
-        assertEquals(25, build.offensiveCommittedPopulation);
+        assertEquals(10, build.approvedHalfHours());
     }
 
     @Test public void firstHireCreatesOneSourceTileCompany() {
@@ -496,7 +564,7 @@ public class KOMERedesignSystemsTest {
         UUID contributor = UUID.randomUUID();
         KOMEBuildContribution approved = new KOMEBuildContribution();
         approved.id = "H1"; approved.contributorUuid = contributor; approved.contributorFaction = "gondor";
-        approved.offensiveHalfHours = 12; approved.defensiveHalfHours = 8;
+        approved.halfHours = 20;
         approved.status = KOMEBuildContribution.APPROVED;
         build.contributions.add(approved);
         KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
@@ -509,7 +577,7 @@ public class KOMERedesignSystemsTest {
         KOMEWorldData data = dataWithTile("T100", "rohan", "rohan");
         KOMEPlayerBuild build = manualBuild(data, "rohan");
         KOMEBuildContribution pending = new KOMEBuildContribution();
-        pending.id = "H1"; pending.contributorFaction = "gondor"; pending.offensiveHalfHours = 20;
+        pending.id = "H1"; pending.contributorFaction = "gondor"; pending.halfHours = 20;
         build.contributions.add(pending);
         assertEquals(0, KOMEBuildService.approvedHalfHoursForPartner(data, "gondor", "rohan"));
     }
@@ -653,15 +721,18 @@ public class KOMERedesignSystemsTest {
     }
 
     private static KOMEPlayerBuild build(KOMEWorldData data, String populationFaction, int off, int def) {
+        if (off <= 0 && def <= 0) return manualBuild(data, populationFaction);
         UUID builder = UUID.randomUUID();
         return KOMEBuildService.create(data, "Build", "T100", 0, 0, 64, 0,
-            builder, "Builder", "gondor", populationFaction, off, def, 10L);
+            builder, "Builder", "gondor", populationFaction,
+            off > 0 ? KOMEBuildType.NORMAL : KOMEBuildType.DEFENSIVE, off > 0 ? off : def, 10L);
     }
 
     private static KOMEPlayerBuild manualBuild(KOMEWorldData data, String populationFaction) {
         KOMEPlayerBuild build = new KOMEPlayerBuild();
         build.id = data.nextBuildId();
         build.displayName = "Build " + build.id;
+        build.type = KOMEBuildType.NORMAL;
         build.tileId = "T100";
         build.populationFaction = populationFaction;
         build.builderUuid = build.managerUuid = UUID.randomUUID();
@@ -703,7 +774,7 @@ public class KOMERedesignSystemsTest {
         KOMEBuildContribution contribution = new KOMEBuildContribution();
         contribution.id = "H1";
         contribution.contributorFaction = faction;
-        contribution.offensiveHalfHours = halfHours;
+        contribution.halfHours = halfHours;
         contribution.status = KOMEBuildContribution.APPROVED;
         return contribution;
     }

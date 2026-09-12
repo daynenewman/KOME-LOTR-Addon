@@ -20,8 +20,8 @@ public class KOMEBuildContribution {
     public UUID contributorUuid;
     public String contributorName = "";
     public String contributorFaction = "";
-    public int offensiveHalfHours;
-    public int defensiveHalfHours;
+    /** Canonical single contribution duration, in half-hour units. */
+    public int halfHours;
     public String status = PENDING;
     public long submittedAtMillis;
     public long decidedAtMillis;
@@ -30,7 +30,7 @@ public class KOMEBuildContribution {
     public String decisionReason = "";
 
     public int totalHalfHours() {
-        return Math.max(0, offensiveHalfHours) + Math.max(0, defensiveHalfHours);
+        return Math.max(0, halfHours);
     }
 
     public boolean isPending() {
@@ -51,8 +51,7 @@ public class KOMEBuildContribution {
         nbt.setString("ContributorUuid", contributorUuid == null ? "" : contributorUuid.toString());
         nbt.setString("ContributorName", safe(contributorName));
         nbt.setString("ContributorFaction", KOMEAlliance.normalizeFactionKey(contributorFaction));
-        nbt.setInteger("OffensiveHalfHours", Math.max(0, offensiveHalfHours));
-        nbt.setInteger("DefensiveHalfHours", Math.max(0, defensiveHalfHours));
+        nbt.setInteger("HalfHours", Math.max(0, halfHours));
         nbt.setString("Status", normalizeStatus(status));
         nbt.setLong("SubmittedAtMillis", Math.max(0L, submittedAtMillis));
         nbt.setLong("DecidedAtMillis", Math.max(0L, decidedAtMillis));
@@ -67,8 +66,7 @@ public class KOMEBuildContribution {
         contributorUuid = parseUuid(nbt.getString("ContributorUuid"));
         contributorName = safe(nbt.getString("ContributorName"));
         contributorFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("ContributorFaction"));
-        offensiveHalfHours = Math.max(0, nbt.getInteger("OffensiveHalfHours"));
-        defensiveHalfHours = Math.max(0, nbt.getInteger("DefensiveHalfHours"));
+        halfHours = Math.max(0, nbt.getInteger("HalfHours"));
         status = normalizeStatus(nbt.getString("Status"));
         submittedAtMillis = Math.max(0L, nbt.getLong("SubmittedAtMillis"));
         decidedAtMillis = Math.max(0L, nbt.getLong("DecidedAtMillis"));

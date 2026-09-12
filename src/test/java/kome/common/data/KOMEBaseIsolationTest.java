@@ -116,10 +116,9 @@ public class KOMEBaseIsolationTest {
         assertTrue(war.contains("public int getRequiredPermissionLevel() {\n        return 0;"));
 
         assertTrue(build.contains("if (\"list\".equals(action))"));
-        assertTrue(build.contains("if (\"pools\".equals(action)"));
         assertTrue(build.contains("if (\"inspect\".equals(action)"));
         assertTrue(build.contains("Only administrators may modify Build records or configuration."));
-        assertEquals(4, occurrences(build, "requireStaff(sender);"));
+        assertEquals(3, occurrences(build, "requireStaff(sender);"));
 
         assertTrue(war.contains("if (\"list\".equals(action))"));
         assertTrue(war.contains("if (\"status\".equals(action))"));

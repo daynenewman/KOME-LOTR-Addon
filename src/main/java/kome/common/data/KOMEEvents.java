@@ -685,13 +685,6 @@ public class KOMEEvents {
         record.level = currentLevel;
         record.baseCost = rawPopulationCost;
         record.cost = currentCost;
-        if (record.sourceBuildId != null && record.sourceBuildId.length() > 0) {
-            KOMEPlayerBuild sourceBuild = data.getBuild(record.sourceBuildId);
-            if (sourceBuild != null) {
-                sourceBuild.adjustCommitted(record.type, currentCost - previousCost);
-                sourceBuild.updatedAtMillis = System.currentTimeMillis();
-            }
-        }
         if (record.isPlayerReserveFunded()) {
             data.getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer).adjustUsed(record.type, currentCost - previousCost);
         } else {
@@ -717,17 +710,6 @@ public class KOMEEvents {
         if (record.isPlayerReserveFunded()) {
             KOMEPlayerPopulation pop = data.getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer);
             return pop.getAvailable(record.type) >= extraCost;
-        }
-        if (record.sourceBuildId != null && record.sourceBuildId.length() > 0) {
-            KOMEPlayerBuild sourceBuild = data.getBuild(record.sourceBuildId);
-            if (sourceBuild == null || !sourceBuild.active) return false;
-            KOMEConquestTile sourceTile = data.conquestTiles.get(KOMEConquestTile.normalizeId(record.sourceTileId));
-            String controller = sourceTile == null ? "" : sourceTile.currentRulingFaction();
-            boolean full = KOMEAlliance.normalizeFactionKey(sourceBuild.populationFaction)
-                .equals(KOMEAlliance.normalizeFactionKey(controller));
-            if (sourceBuild.availablePopulation(record.type, data.buildPopulationPerHalfHour, full) < extraCost) {
-                return false;
-            }
         }
             KOMETilePopulation population = data.getFundingPool(record);
             if (population != null) {
