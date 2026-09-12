@@ -1531,7 +1531,8 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public void releaseFundingBuild(KOMEHiredUnitRecord record) {
-        if (record == null || record.sourceBuildId == null || record.sourceBuildId.length() == 0) return;
+        if (record == null || record.isFactionPopulationBankFunded()
+                || record.sourceBuildId == null || record.sourceBuildId.length() == 0) return;
         KOMEPlayerBuild build = getBuild(record.sourceBuildId);
         if (build != null) {
             build.adjustCommitted(record.type, -Math.max(0, record.cost));
@@ -2006,7 +2007,9 @@ public class KOMEWorldData extends WorldSavedData {
             removeUnitFromCompany(record);
             releaseFundingBuild(record);
             if (record != null && !record.farmhand) {
-                if (record.isPlayerReserveFunded()) {
+                if (record.isFactionPopulationBankFunded()) {
+                    // Canonical faction-bank population is permanently spent at hire time.
+                } else if (record.isPlayerReserveFunded()) {
                     getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer).release(record.type, record.cost);
                 } else {
                     KOMETilePopulation population = getFundingPool(record);
@@ -2690,6 +2693,7 @@ public class KOMEWorldData extends WorldSavedData {
                     && !KOMEHiredUnitRecord.SOURCE_TILE_POOL.equals(record.sourceType)
                     && !KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION.equals(record.sourceType)
                     && !KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)
+                    && !KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK.equals(record.sourceType)
                     && !KOMEHiredUnitRecord.SOURCE_OTHER_LEGACY.equals(record.sourceType)) {
                 record.sourceType = KOMEHiredUnitRecord.SOURCE_OTHER_LEGACY;
                 migratedPopulationData = true;

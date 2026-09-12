@@ -507,6 +507,13 @@ public class KOMEEvents {
             return;
         }
         String ownerFaction = getPlayerFactionKey(owner, data);
+        if (!isFarmhand && ownerFaction.length() == 0) {
+            int refund = refundDeniedHire(owner, npc);
+            KOMEProgressionPermissions.deny(owner, "A current pledged faction is required to spend population."
+                + (refund > 0 ? " Refunded " + refund + " coins." : ""));
+            KOMEReflection.setDead(npc);
+            return;
+        }
         LOTRFaction npcFaction = npc.getFaction();
         String unitFaction = npcFaction == null ? "" : KOMEAlliance.normalizeFactionKey(npcFaction.codeName());
         boolean alliedHire = ownerFaction.length() > 0 && unitFaction.length() > 0 && !ownerFaction.equals(unitFaction);
@@ -526,25 +533,12 @@ public class KOMEEvents {
                 return;
             }
         }
-        KOMEPlayerPopulation pop = data.getPopulation(info.getHiringPlayerUUID());
-        KOMEPopulationType hireType = pop.hireType == null ? KOMEPopulationType.OFFENSIVE : pop.hireType;
-        if (stewardshipHire) {
-            hireType = KOMEPopulationType.OFFENSIVE;
-        }
         if (isFarmhand) {
-            int limit = data.getFarmhandLimit(info.getHiringPlayerUUID());
-            int used = data.getFarmhandsUsed(info.getHiringPlayerUUID());
-            if (used >= limit) {
-                int refund = refundDeniedHire(owner, npc);
-                KOMEProgressionPermissions.deny(owner, "You do not have enough farmhand slots. Farmhands used: " + used + "/" + limit + (refund > 0 ? ". Refunded " + refund + " coins." : ""));
-                KOMEReflection.setDead(npc);
-                return;
-            }
             KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
             record.entity = entityID;
             record.owner = info.getHiringPlayerUUID();
             record.type = KOMEPopulationType.OFFENSIVE;
-            record.cost = 1;
+            record.cost = 0;
             record.level = Math.max(1, info.xpLevel);
             record.farmhand = true;
             record.unitName = getFarmhandName(npc);
@@ -568,97 +562,53 @@ public class KOMEEvents {
         LOTRUnitTradeEntry trade = getMatchingTrade(owner, npc);
         boolean mounted = isMountedUnit(npc, trade);
         int rawPopulationCost = getRawPopulationCost(npc, mounted);
-        int populationCost = applyHireTypeCost(rawPopulationCost, hireType);
+        int populationCost = rawPopulationCost;
         UUID hiringPlayer = info.getHiringPlayerUUID();
         String activeRecruitmentTile = data.getActiveRecruitmentTile(hiringPlayer, ownerFaction);
-        KOMETilePopulation originPopulation = stewardshipHire
-            ? data.findKinglessStewardshipPool(unitFaction, populationCost)
-            : activeRecruitmentTile.length() == 0 ? null
-                : data.findPlayerAllocatedPopulationInTile(activeRecruitmentTile, ownerFaction, hiringPlayer, hireType, populationCost);
-        if (!stewardshipHire && originPopulation == null) {
-            originPopulation = data.findPlayerAllocatedTileWithPopulation(ownerFaction, hiringPlayer, hireType, populationCost);
-        }
-        String originTile = originPopulation != null ? originPopulation.tileId
-            : activeRecruitmentTile.length() > 0 && !stewardshipHire ? activeRecruitmentTile
-                : data.findFactionControlledTile(stewardshipHire ? unitFaction : ownerFaction);
-        boolean withinStewardshipCap = !stewardshipHire || data.getKinglessStewardshipAvailable(unitFaction) >= populationCost;
-        String fundingFaction = stewardshipHire ? unitFaction : ownerFaction;
-        boolean tileFunded = withinStewardshipCap && originPopulation != null
-            && originPopulation.tryUseEffective(hireType, populationCost, fundingFaction);
-        KOMEPlayerTilePopulationAllocation allocation = tileFunded && !stewardshipHire
-            ? data.getAllocation(originPopulation.tileId, ownerFaction, hiringPlayer) : null;
-        if (tileFunded && !stewardshipHire && (allocation == null || !allocation.tryUse(hireType, populationCost))) {
-            originPopulation.release(hireType, populationCost);
-            tileFunded = false;
-        }
-        boolean reserveFunded = false;
-        if (!stewardshipHire && !tileFunded && originTile.length() > 0) {
-            reserveFunded = pop.tryUse(hireType, populationCost);
-        }
-        if (!tileFunded && !reserveFunded) {
-            int refund = refundDeniedHire(owner, npc);
-            int factionTotal = data.getFactionTilePopulationTotal(fundingFaction, hireType);
-            int factionUsed = data.getFactionTilePopulationUsed(fundingFaction, hireType);
-            String reason = stewardshipHire ? "The shared 100% wartime stewardship pool of eligible unallocated offensive population is exhausted. Available: "
-                + data.getKinglessStewardshipAvailable(unitFaction) + ", required: " + populationCost + "."
-                : originTile.length() == 0
-                ? "No controlled conquest tile is available as a physical origin."
-                : "Not enough tile or player reserve " + hireType.key + " population. Required: " + populationCost
-                    + ", allocated tile available: " + getFactionPlayerAllocationAvailable(data, ownerFaction, hiringPlayer, hireType)
-                    + ", faction tile available: " + Math.max(0, factionTotal - factionUsed) + "/" + factionTotal
-                    + ", reserve available: " + pop.getAvailable(hireType) + "/" + pop.getTotal(hireType) + ".";
-            KOMEProgressionPermissions.deny(owner, reason + (refund > 0 ? " Refunded " + refund + " coins." : ""));
-            KOMEReflection.setDead(npc);
-            return;
-        }
+        String originTile = activeRecruitmentTile.length() > 0 ? activeRecruitmentTile
+            : data.findFactionControlledTile(ownerFaction);
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
         record.entity = entityID;
         record.owner = info.getHiringPlayerUUID();
-        record.type = hireType;
+        record.type = KOMEPopulationType.OFFENSIVE;
         record.cost = populationCost;
         record.baseCost = rawPopulationCost;
         record.level = Math.max(1, info.xpLevel);
         record.mounted = mounted;
         record.unitName = getUnitName(npc);
-        record.sourceType = stewardshipHire ? KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION
-            : tileFunded && allocation != null ? KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION
-            : tileFunded ? KOMEHiredUnitRecord.SOURCE_TILE_POOL : KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE;
         record.sourcePlayer = info.getHiringPlayerUUID();
-        record.sourceTileId = tileFunded ? originPopulation.tileId : KOMEConquestTile.normalizeId(originTile);
-        record.sourceFaction = tileFunded ? originPopulation.sourceFaction : KOMEAlliance.normalizeFactionKey(ownerFaction);
-        if (tileFunded && originPopulation != null) {
-            KOMEConquestTile fundingTile = data.conquestTiles.get(KOMEConquestTile.normalizeId(originPopulation.tileId));
-            String controllerFaction = fundingTile == null ? fundingFaction : fundingTile.currentRulingFaction();
-            record.sourceBuildId = data.assignFundingBuild(originPopulation.tileId, originPopulation.sourceFaction,
-                hireType, populationCost, controllerFaction);
-        }
-        if (tileFunded && !stewardshipHire) {
-            record.allocationTileId = originPopulation.tileId;
-            record.allocationFaction = KOMEAlliance.normalizeFactionKey(ownerFaction);
-            record.allocationPlayer = hiringPlayer;
-        }
+        record.sourceTileId = KOMEConquestTile.normalizeId(originTile);
+        KOMEPopulationService.recordCombatHirePayment(record, ownerFaction);
         record.currentTile = originTile;
         record.unitFaction = unitFaction;
         record.alliancePair = alliancePair;
         // Persisted identifier retained so existing hired-unit records remain compatible.
-        record.benefitSource = stewardshipHire ? "MILITARY_T3_STEWARDSHIP" : "";
+        record.benefitSource = "";
         record.spawningFaction = KOMEAlliance.normalizeFactionKey(ownerFaction);
         record.controller = hiringPlayer;
-        record.populationOwningFaction = KOMEAlliance.normalizeFactionKey(stewardshipHire ? unitFaction : ownerFaction);
-        record.controllerAuthority = stewardshipHire ? KOMEArmyCompany.AUTHORITY_STEWARDSHIP : KOMEArmyCompany.AUTHORITY_NATIVE;
-        record.stewardshipWarIds = stewardshipHire
-            ? KOMEWarService.authorizationWarIds(data, unitFaction, ownerFaction) : "";
+        record.controllerAuthority = KOMEArmyCompany.AUTHORITY_NATIVE;
+        record.stewardshipWarIds = "";
         record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
-        data.hiredUnits.put(entityID, record);
-        data.assignUnitToHiringTileCompany(record, owner.getCommandSenderName());
+        if (!KOMEPopulationService.tryDebitCombatHire(data, ownerFaction, populationCost)) {
+            int refund = refundDeniedHire(owner, npc);
+            KOMEProgressionPermissions.deny(owner, "Not enough available population for "
+                + KOMEAlliance.displayFactionName(ownerFaction) + ". Required: " + populationCost + "."
+                + (refund > 0 ? " Refunded " + refund + " coins." : ""));
+            KOMEReflection.setDead(npc);
+            return;
+        }
+        try {
+            data.hiredUnits.put(entityID, record);
+            data.assignUnitToHiringTileCompany(record, owner.getCommandSenderName());
+        } catch (RuntimeException failure) {
+            data.hiredUnits.remove(entityID);
+            KOMEPopulationService.rollbackCombatHireDebit(data, ownerFaction, populationCost);
+            throw failure;
+        }
         data.markDirty();
         data.syncConquestTiles();
-        String funding = stewardshipHire ? "kingless-faction stewardship population"
-            : tileFunded ? "allocated tile population" : "player reserve population";
-        String fallback = activeRecruitmentTile.length() > 0 && !activeRecruitmentTile.equals(originTile)
-            ? " Active recruitment tile " + activeRecruitmentTile + " could not fund this hire, so fallback tile " + originTile + " was used."
-            : "";
-        owner.addChatMessage(new ChatComponentText(record.unitName + " recruited at " + originTile + " using " + funding + "." + fallback));
+        owner.addChatMessage(new ChatComponentText(record.unitName + " recruited at " + originTile
+            + " using " + KOMEAlliance.displayFactionName(ownerFaction) + " population."));
     }
 
     private void denyAlliedHire(EntityPlayer owner, LOTREntityNPC npc, String reason) {
@@ -710,6 +660,9 @@ public class KOMEEvents {
         }
         if (record.level <= 0) {
             record.level = Math.max(1, npc.hiredNPCInfo.xpLevel);
+        }
+        if (record.isFactionPopulationBankFunded()) {
+            return;
         }
         int rawPopulationCost = getRawPopulationCost(npc, record.mounted);
         int currentCost = applyHireTypeCost(rawPopulationCost, record.type);
@@ -823,7 +776,7 @@ public class KOMEEvents {
         }
         data.hiredUnits.remove(entityId);
         data.removeUnitFromCompany(record);
-        data.releaseFundingBuild(record);
+        if (!record.isFactionPopulationBankFunded()) data.releaseFundingBuild(record);
         EntityPlayer owner = KOMEReflection.getWorld(npc).func_152378_a(record.owner);
         if (record.farmhand) {
             if (owner != null) {
@@ -832,7 +785,9 @@ public class KOMEEvents {
         } else {
             KOMETilePopulation population = null;
             KOMEPlayerPopulation reserve = null;
-            if (record.isPlayerReserveFunded()) {
+            if (record.isFactionPopulationBankFunded()) {
+                // Canonical faction-bank population is permanently spent at hire time.
+            } else if (record.isPlayerReserveFunded()) {
                 reserve = data.getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer);
                 reserve.release(record.type, record.cost);
             } else {

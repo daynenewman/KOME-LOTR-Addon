@@ -49,6 +49,10 @@ public final class KOMECompanyTransferService {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
             if (record == null || !company.owner.equals(record.owner)) return Result.failure("Transfer rejected: a company unit record is missing or has a different owner.");
             if (record.isMoving()) return Result.failure("Transfer rejected: unit " + unitId + " is crossing a movement boundary.");
+            if (record.isFactionPopulationBankFunded()) {
+                return Result.failure("Transfer rejected: unit " + unitId
+                    + " uses canonical permanently-spent faction population; company transfer migration is not available yet.");
+            }
             if (KOMEHiredUnitRecord.SOURCE_OTHER_LEGACY.equals(record.sourceType)
                     || KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)) {
                 return Result.failure("Transfer rejected: unit " + unitId + " has non-transferable or quarantined provenance " + record.sourceType + ".");

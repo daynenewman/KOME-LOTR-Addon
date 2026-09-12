@@ -9,6 +9,7 @@ public class KOMEHiredUnitRecord {
     public static final String SOURCE_PLAYER_RESERVE = "PLAYER_RESERVE";
     public static final String SOURCE_TILE_ALLOCATION = "TILE_ALLOCATION";
     public static final String SOURCE_STEWARDSHIP_RESERVATION = "STEWARDSHIP_RESERVATION";
+    public static final String SOURCE_FACTION_POPULATION_BANK = "FACTION_POPULATION_BANK";
     public static final String SOURCE_OTHER_LEGACY = "OTHER_LEGACY";
 
     public UUID entity;
@@ -70,7 +71,9 @@ public class KOMEHiredUnitRecord {
         unitName = nbt.getString("UnitName");
         sourceType = nbt.hasKey("SourceType") ? nbt.getString("SourceType") : SOURCE_TILE_POOL;
         if (!SOURCE_PLAYER_RESERVE.equals(sourceType) && !SOURCE_TILE_ALLOCATION.equals(sourceType)
-                && !SOURCE_STEWARDSHIP_RESERVATION.equals(sourceType) && !SOURCE_OTHER_LEGACY.equals(sourceType)) {
+                && !SOURCE_STEWARDSHIP_RESERVATION.equals(sourceType)
+                && !SOURCE_FACTION_POPULATION_BANK.equals(sourceType)
+                && !SOURCE_OTHER_LEGACY.equals(sourceType)) {
             sourceType = SOURCE_TILE_POOL;
         }
         String savedSourcePlayer = nbt.getString("SourcePlayer");
@@ -161,6 +164,10 @@ public class KOMEHiredUnitRecord {
 
     public boolean isPlayerReserveFunded() {
         return SOURCE_PLAYER_RESERVE.equals(sourceType);
+    }
+
+    public boolean isFactionPopulationBankFunded() {
+        return SOURCE_FACTION_POPULATION_BANK.equals(sourceType);
     }
 
     public boolean isMoving() {

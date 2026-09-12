@@ -29,6 +29,34 @@ public final class KOMEPopulationService {
         data.grantFactionPopulation(faction, amount);
     }
 
+    /** Debits the one canonical faction bank for a new combat hire. */
+    public static boolean tryDebitCombatHire(KOMEWorldData data, String faction, int amount) {
+        return trySpend(data, faction, amount);
+    }
+
+    /** Used only to undo a debit when the same hire transaction cannot commit. */
+    public static void rollbackCombatHireDebit(KOMEWorldData data, String faction, int amount) {
+        grant(data, faction, amount);
+    }
+
+    /** Marks a newly-created combat record as funded by the canonical faction bank. */
+    public static void recordCombatHirePayment(KOMEHiredUnitRecord record, String faction) {
+        if (record == null) {
+            throw new IllegalArgumentException("Hired-unit record is required");
+        }
+        String normalizedFaction = KOMEAlliance.normalizeFactionKey(faction);
+        if (normalizedFaction.length() == 0) {
+            throw new IllegalArgumentException("Combat hire requires a nonblank paying faction");
+        }
+        record.sourceType = KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK;
+        record.sourceFaction = normalizedFaction;
+        record.sourceBuildId = "";
+        record.allocationTileId = "";
+        record.allocationFaction = "";
+        record.allocationPlayer = null;
+        record.populationOwningFaction = normalizedFaction;
+    }
+
     /**
      * Active population is informational only. Callers must provide records known
      * to be living: hired records alone do not persist an authoritative liveness flag.

@@ -158,6 +158,10 @@ public final class KOMEPledgeReleaseService {
             if (record.farmhand) {
                 tombstone.populationReturned = true;
                 result.farmhandsReleased++;
+            } else if (record.isFactionPopulationBankFunded()) {
+                // Canonical faction-bank population was permanently spent at hire.
+                // Mark this bookkeeping complete without reviving any legacy source.
+                markPermanentlySpentPopulationHandled(record, tombstone);
             } else if (KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)) {
                 // Native population remains committed until native demobilization, never because a controller leaves.
                 tombstone.quarantined = true;
@@ -322,6 +326,13 @@ public final class KOMEPledgeReleaseService {
         record.releaseState = "PLEDGE_RELEASED";
         tombstone.populationReturned = true;
         return true;
+    }
+
+    private static void markPermanentlySpentPopulationHandled(KOMEHiredUnitRecord record,
+            KOMEPledgeReleaseTombstone tombstone) {
+        record.populationReturned = true;
+        record.releaseState = "PLEDGE_RELEASED_PERMANENTLY_SPENT";
+        tombstone.populationReturned = true;
     }
 
     private static boolean isOwnedFormerFactionUnit(KOMEHiredUnitRecord record, UUID player, String formerFaction) {

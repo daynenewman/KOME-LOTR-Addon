@@ -1101,6 +1101,75 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
+    public void pledgeReleaseHandlesFactionBankUnitWithoutRefundOrQuarantine() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID player = UUID.randomUUID();
+        data.grantFactionPopulation("gondor", 75);
+        KOMEPlayerPopulation reserve = data.getPopulation(player);
+        reserve.offensiveTotal = 50;
+        KOMEHiredUnitRecord unit = ownedUnit(player, "gondor",
+            KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
+        KOMEArmyCompany company = company("faction-bank-release", player, unit);
+        data.hiredUnits.put(unit.entity, unit);
+        data.armyCompanies.put(company.id, company);
+
+        KOMEPledgeReleaseService.Result result = KOMEPledgeReleaseService.release(data, player, "Rider", "gondor", "",
+            100L, "test faction-bank unpledge");
+
+        assertEquals(1, result.unitsReleased);
+        assertEquals(0, result.quarantined);
+        assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(0, reserve.offensiveUsed);
+        assertFalse(data.hiredUnits.containsKey(unit.entity));
+        KOMEPledgeReleaseTombstone tombstone = data.pledgeReleaseTombstones.get(unit.entity);
+        assertTrue(tombstone.populationReturned);
+        assertFalse(tombstone.quarantined);
+        assertEquals(KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, tombstone.fundingSource);
+    }
+
+    @Test
+    public void factionBankCompanyTransferIsRejectedBeforeLegacyFundingChecks() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID owner = UUID.randomUUID();
+        UUID recipient = UUID.randomUUID();
+        KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
+            KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
+        KOMEArmyCompany company = company("faction-bank-transfer", owner, unit);
+        data.hiredUnits.put(unit.entity, unit);
+        data.armyCompanies.put(company.id, company);
+        assertTrue(KOMECompanyTransferService.offer(data, company, owner, recipient, "New", 10L).success);
+
+        KOMECompanyTransferService.Result result = KOMECompanyTransferService.accept(data, company, recipient, "New", 11L);
+
+        assertFalse(result.success);
+        assertTrue(result.message.contains("canonical permanently-spent faction population"));
+        assertFalse(result.message.contains("exact tile-pool source is missing"));
+        assertEquals(owner, company.owner);
+        assertEquals(owner, unit.owner);
+    }
+
+    @Test
+    public void factionBankOrdinaryCleanupCannotReleaseBuildOrLegacyReserve() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID owner = UUID.randomUUID();
+        KOMEPlayerPopulation reserve = data.getPopulation(owner);
+        reserve.offensiveTotal = 50;
+        reserve.offensiveUsed = 25;
+        KOMEPlayerBuild build = new KOMEPlayerBuild();
+        build.id = "BANK-BUILD";
+        build.adjustCommitted(KOMEPopulationType.OFFENSIVE, 25);
+        data.builds.put(build.id, build);
+        KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
+            KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
+        unit.sourceBuildId = build.id;
+
+        data.releaseFundingBuild(unit);
+
+        assertEquals(25, reserve.offensiveUsed);
+        assertEquals(25, build.committedPopulation(KOMEPopulationType.OFFENSIVE));
+    }
+
+    @Test
     public void pledgeReleaseCancelsSnapshotsReconcilesAllocationAndQuarantinesUnknownSources() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID player = UUID.randomUUID();
