@@ -363,67 +363,6 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void normalAllianceRequestsAlwaysRespectOriginalFactionRelations() {
-        KOMEAllianceAuthority.Decision enemyCivil = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.CIVIL, "dunedain", "mordor", "dunedain", true, true, true,
-            lotr.common.fac.LOTRFactionRelations.Relation.ENEMY);
-        KOMEAllianceAuthority.Decision neutralCivil = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.CIVIL, "dunedain", "bree", "dunedain", true, true, true,
-            lotr.common.fac.LOTRFactionRelations.Relation.NEUTRAL);
-        KOMEAllianceAuthority.Decision friendTrade = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.TRADE, "dunedain", "bree", "dunedain", true, true, false,
-            lotr.common.fac.LOTRFactionRelations.Relation.FRIEND);
-        KOMEAllianceAuthority.Decision friendMilitary = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.MILITARY, "dunedain", "bree", "dunedain", true, true, false,
-            lotr.common.fac.LOTRFactionRelations.Relation.FRIEND);
-        KOMEAllianceAuthority.Decision nonKing = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.CIVIL, "dunedain", "bree", "dunedain", false, true, true,
-            lotr.common.fac.LOTRFactionRelations.Relation.ALLY);
-
-        assertTrue(enemyCivil.allowed);
-        assertFalse(enemyCivil.automaticAcceptance);
-        assertTrue(neutralCivil.allowed);
-        assertFalse(neutralCivil.automaticAcceptance);
-        assertTrue(friendTrade.allowed);
-        assertTrue(friendTrade.automaticAcceptance);
-        assertTrue(friendMilitary.allowed);
-        assertTrue(friendMilitary.automaticAcceptance);
-        assertEquals(2, friendMilitary.automaticStage);
-        assertFalse(nonKing.allowed);
-    }
-
-    @Test
-    public void oneKingRequestsUseLoreCapsWhileTwoKingsMayNegotiateAcrossHostility() {
-        lotr.common.fac.LOTRFactionRelations.Relation enemy = lotr.common.fac.LOTRFactionRelations.Relation.ENEMY;
-        lotr.common.fac.LOTRFactionRelations.Relation neutral = lotr.common.fac.LOTRFactionRelations.Relation.NEUTRAL;
-        lotr.common.fac.LOTRFactionRelations.Relation friend = lotr.common.fac.LOTRFactionRelations.Relation.FRIEND;
-        lotr.common.fac.LOTRFactionRelations.Relation ally = lotr.common.fac.LOTRFactionRelations.Relation.ALLY;
-
-        assertTrue(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.MILITARY, "gondor", "mordor",
-            "gondor", true, true, true, enemy).allowed);
-        assertFalse(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.CIVIL, "gondor", "mordor",
-            "gondor", true, true, false, enemy).allowed);
-        assertTrue(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.CIVIL, "gondor", "bree",
-            "gondor", true, true, false, neutral).automaticAcceptance);
-        assertTrue(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.TRADE, "gondor", "bree",
-            "gondor", true, true, false, friend).automaticAcceptance);
-        assertEquals(2, KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.MILITARY, "gondor", "bree",
-            "gondor", true, true, false, friend).automaticStage);
-        assertTrue(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.MILITARY, "gondor", "bree",
-            "gondor", true, true, false, ally).automaticAcceptance);
-        assertFalse(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.CIVIL, "gondor", "bree",
-            "gondor", false, false, false, neutral).allowed);
-    }
-
-    @Test
-    public void acceptanceIsRestrictedToThePendingReceiverKing() {
-        assertTrue(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "rohan", true).allowed);
-        assertFalse(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "gondor", true).allowed);
-        assertFalse(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "rohan", false).allowed);
-        assertFalse(KOMEAllianceAuthority.decideAcceptAlliance(false, "rohan", "rohan", true).allowed);
-    }
-
-    @Test
     public void quotaMaximumsExcludeCandidatesAndCanFailCleanly() {
         assertEquals(2, KOMEAllianceQuotaPool.eligibleQuantityCountForTest(20,
             KOMEAllianceRequirements.STANDARD, new int[] {8, 16, 32}, new int[] {100, 80, 40},

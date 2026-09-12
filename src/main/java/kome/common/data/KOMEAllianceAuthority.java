@@ -17,82 +17,6 @@ public class KOMEAllianceAuthority {
         this.data = data;
     }
 
-    public Decision canRequestAlliance(EntityPlayerMP actor, String type, String fromFaction, String toFaction) {
-        String normalizedType = KOMEAlliance.normalizeType(type);
-        String from = KOMEAlliance.normalizeFactionKey(fromFaction);
-        String to = KOMEAlliance.normalizeFactionKey(toFaction);
-        if (actor == null || data == null) {
-            return Decision.deny("A server player is required.");
-        }
-        String actorFaction = getPlayerFaction(actor);
-        boolean actorIsFromKing = data.isFactionKing(from, KOMEReflection.getEntityUUID(actor));
-        return decideRequestAlliance(normalizedType, from, to, actorFaction, actorIsFromKing,
-            data.hasFactionKing(from), data.hasFactionKing(to), getDefaultRelation(from, to));
-    }
-
-    static Decision decideRequestAlliance(String type, String fromFaction, String toFaction, String actorFaction,
-            boolean actorIsFromKing, boolean fromHasKing, boolean toHasKing, LOTRFactionRelations.Relation relation) {
-        String from = KOMEAlliance.normalizeFactionKey(fromFaction);
-        String to = KOMEAlliance.normalizeFactionKey(toFaction);
-        String actorSide = KOMEAlliance.normalizeFactionKey(actorFaction);
-        if (from.length() == 0 || to.length() == 0 || from.equals(to)) {
-            return Decision.deny("Choose two different playable factions.");
-        }
-        if (!from.equals(actorSide)) {
-            return Decision.deny("You may negotiate only for your pledged faction.");
-        }
-        if (!fromHasKing || !actorIsFromKing) {
-            return Decision.deny("Only your faction king may send alliance requests.");
-        }
-        if (toHasKing) {
-            // Two sovereign kings may negotiate across hostile lore defaults. Acceptance remains receiver-only.
-            return Decision.allow(false);
-        }
-        int automaticStage = automaticStageForKinglessRelation(relation);
-        if (automaticStage < 0) {
-            return Decision.deny("The original LOTR relation is " + relationName(relation)
-                + "; Enemy and Mortal Enemy kingless factions cannot auto-accept.");
-        }
-        return Decision.allow(true, automaticStage);
-    }
-
-    public Decision canAcceptAlliance(EntityPlayerMP actor, KOMEAlliance alliance, String type, String receivingFaction) {
-        String receiving = KOMEAlliance.normalizeFactionKey(receivingFaction);
-        if (actor == null || alliance == null || !alliance.involves(receiving)) {
-            return Decision.deny("No matching mutual alliance request exists.");
-        }
-        return decideAcceptAlliance(alliance.getStatus(type) == KOMEAllianceTrackStatus.PENDING,
-            alliance.getPendingReceiver(type), receiving, isFactionKing(actor, receiving));
-    }
-
-    static Decision decideAcceptAlliance(boolean pending, String pendingReceiver, String attemptedReceiver,
-            boolean actorIsAttemptedReceiverKing) {
-        String expected = KOMEAlliance.normalizeFactionKey(pendingReceiver);
-        String attempted = KOMEAlliance.normalizeFactionKey(attemptedReceiver);
-        if (!pending) {
-            return Decision.deny("That agreement is not pending.");
-        }
-        if (expected.length() > 0 && !expected.equals(attempted)) {
-            return Decision.deny("Only " + KOMEAlliance.displayFactionName(expected) + " may accept this request.");
-        }
-        return actorIsAttemptedReceiverKing ? Decision.allow(false)
-            : Decision.deny("Only the receiving faction king may accept.");
-    }
-
-    public Decision canBreakAlliance(EntityPlayerMP actor, KOMEAlliance alliance) {
-        if (actor == null || alliance == null) {
-            return Decision.deny("No matching mutual alliance exists.");
-        }
-        if (isAdmin(actor)) {
-            return Decision.allow(false);
-        }
-        UUID actorId = KOMEReflection.getEntityUUID(actor);
-        if (data.isFactionKing(alliance.factionA, actorId) || data.isFactionKing(alliance.factionB, actorId)) {
-            return Decision.allow(false);
-        }
-        return Decision.deny("Only a participating faction king or an administrator may break this alliance.");
-    }
-
     public Decision canViewAlliance(EntityPlayerMP actor, KOMEAlliance alliance) {
         if (actor == null || alliance == null) {
             return Decision.deny("No alliance is available.");
@@ -224,24 +148,6 @@ public class KOMEAllianceAuthority {
         return player != null && player.canCommandSenderUseCommand(2, "alliance");
     }
 
-    public static LOTRFactionRelations.Relation getDefaultRelation(String firstFaction, String secondFaction) {
-        LOTRFaction first = KOMEAlliance.findLotrFaction(firstFaction);
-        LOTRFaction second = KOMEAlliance.findLotrFaction(secondFaction);
-        if (first == null || second == null || first == second) {
-            return LOTRFactionRelations.Relation.NEUTRAL;
-        }
-        try {
-            java.lang.reflect.Method method = LOTRFactionRelations.class.getDeclaredMethod("getFromDefaultMap", LOTRFactionRelations.FactionPair.class);
-            method.setAccessible(true);
-            Object value = method.invoke(null, new LOTRFactionRelations.FactionPair(first, second));
-            if (value instanceof LOTRFactionRelations.Relation) {
-                return (LOTRFactionRelations.Relation) value;
-            }
-        } catch (Throwable ignored) {
-        }
-        return LOTRFactionRelations.getRelations(first, second);
-    }
-
     public static LOTRFactionRelations.Relation getCurrentRelation(String firstFaction, String secondFaction) {
         LOTRFaction first = KOMEAlliance.findLotrFaction(firstFaction);
         LOTRFaction second = KOMEAlliance.findLotrFaction(secondFaction);
@@ -249,42 +155,6 @@ public class KOMEAllianceAuthority {
             return LOTRFactionRelations.Relation.NEUTRAL;
         }
         return LOTRFactionRelations.getRelations(first, second);
-    }
-
-    public static boolean relationAllows(String type, LOTRFactionRelations.Relation relation) {
-        String normalizedType = KOMEAlliance.normalizeType(type);
-        if (KOMEAlliance.MILITARY.equals(normalizedType)) {
-            return relation == LOTRFactionRelations.Relation.ALLY;
-        }
-        if (KOMEAlliance.TRADE.equals(normalizedType)) {
-            return relation == LOTRFactionRelations.Relation.ALLY || relation == LOTRFactionRelations.Relation.FRIEND;
-        }
-        return KOMEAlliance.CIVIL.equals(normalizedType) && (relation == LOTRFactionRelations.Relation.ALLY
-            || relation == LOTRFactionRelations.Relation.FRIEND || relation == LOTRFactionRelations.Relation.NEUTRAL);
-    }
-
-    /** Neutral -> Stage 1, Friend -> Stage 2, Ally -> Stage 3, hostile -> reject. */
-    public static int automaticStageForKinglessRelation(LOTRFactionRelations.Relation relation) {
-        if (relation == LOTRFactionRelations.Relation.ALLY) return 3;
-        if (relation == LOTRFactionRelations.Relation.FRIEND) return 2;
-        if (relation == LOTRFactionRelations.Relation.NEUTRAL) return 1;
-        return -1;
-    }
-
-    public static String relationName(LOTRFactionRelations.Relation relation) {
-        if (relation == LOTRFactionRelations.Relation.MORTAL_ENEMY) {
-            return "Mortal Enemy";
-        }
-        if (relation == LOTRFactionRelations.Relation.ENEMY) {
-            return "Enemy";
-        }
-        if (relation == LOTRFactionRelations.Relation.FRIEND) {
-            return "Friend";
-        }
-        if (relation == LOTRFactionRelations.Relation.ALLY) {
-            return "Ally";
-        }
-        return "Neutral";
     }
 
     public static class Decision {

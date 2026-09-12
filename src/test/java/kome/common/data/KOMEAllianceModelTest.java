@@ -132,35 +132,6 @@ public class KOMEAllianceModelTest {
         assertEquals(2, migrated.getFactionStage("rohan"));
     }
 
-    @Test public void kinglessRelationMappingNeverAutoGrantsFour() {
-        assertEquals(-1, KOMEAllianceAuthority.automaticStageForKinglessRelation(LOTRFactionRelations.Relation.ENEMY));
-        assertEquals(-1, KOMEAllianceAuthority.automaticStageForKinglessRelation(LOTRFactionRelations.Relation.MORTAL_ENEMY));
-        assertEquals(1, KOMEAllianceAuthority.automaticStageForKinglessRelation(LOTRFactionRelations.Relation.NEUTRAL));
-        assertEquals(2, KOMEAllianceAuthority.automaticStageForKinglessRelation(LOTRFactionRelations.Relation.FRIEND));
-        assertEquals(3, KOMEAllianceAuthority.automaticStageForKinglessRelation(LOTRFactionRelations.Relation.ALLY));
-    }
-
-    @Test public void twoKingsMayNegotiateAcrossHostileDefault() {
-        KOMEAllianceAuthority.Decision decision = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.CIVIL, "gondor", "mordor", "gondor", true, true, true,
-            LOTRFactionRelations.Relation.ENEMY);
-        assertTrue(decision.allowed);
-        assertFalse(decision.automaticAcceptance);
-    }
-
-    @Test public void hostileKinglessRequestIsRejected() {
-        KOMEAllianceAuthority.Decision decision = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.CIVIL, "gondor", "mordor", "gondor", true, true, false,
-            LOTRFactionRelations.Relation.ENEMY);
-        assertFalse(decision.allowed);
-    }
-
-    @Test public void acceptanceIsReceiverKingOnly() {
-        assertTrue(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "rohan", true).allowed);
-        assertFalse(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "gondor", true).allowed);
-        assertFalse(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "rohan", false).allowed);
-    }
-
     @Test public void kingLossAndReplacementDoNotChangeStagesOrStartGrace() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
