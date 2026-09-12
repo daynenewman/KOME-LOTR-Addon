@@ -443,6 +443,11 @@ public final class ModNetwork {
 
         applyStartingWaypointIfReady(player);
         if (PlayerRaceData.isCharacterCreationComplete(player)) {
+            // LOTR's incremental alignment packet is keyed by the server player UUID. In
+            // offline-mode development/multiplayer that UUID can differ from the client's
+            // session UUID, leaving the local HUD cache stale. Reuse LOTR's login refresh,
+            // which applies the authoritative data directly to the local client player.
+            LOTRLevelData.sendPlayerData(player);
             sendPlayerAppearanceToTrackingAndSelf(player);
         } else {
             if (!PlayerRaceData.isStartingFactionApplied(player)) {
