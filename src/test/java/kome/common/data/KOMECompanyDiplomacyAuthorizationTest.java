@@ -1,5 +1,6 @@
 package kome.common.data;
 
+import kome.common.command.KOMECommandTroops;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -107,6 +108,52 @@ public class KOMECompanyDiplomacyAuthorizationTest {
             data, "gondor_test", "rohan_test", "Test War", "test", 30L));
 
         assertFalse(data.canFactionUseMilitaryPassage("gondor_test", "rohan_test"));
+    }
+    @Test
+    public void delegatedControlRevalidationUsesCanonicalHostilityAndPreservesNativeIdentity() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID nativeKing = crown(data, "native_test", "Native King");
+
+        UUID owner = UUID.randomUUID();
+        data.lastKnownPlayerFactions.put(owner, "native_test");
+
+        UUID recipient = UUID.randomUUID();
+        data.lastKnownPlayerFactions.put(recipient, "recipient_test");
+
+        KOMEArmyCompany company = new KOMEArmyCompany();
+        company.id = "C1";
+        company.owner = owner;
+        company.ownerName = "Owner";
+        company.faction = "native_test";
+        company.nativeFaction = "native_test";
+        company.populationSource = "native_test";
+        company.temporaryController = recipient;
+        company.temporaryControllerName = "Recipient";
+        company.delegatedBy = nativeKing;
+        company.delegatedByName = "Native King";
+        company.controllerAuthority = KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE;
+        data.armyCompanies.put(company.id, company);
+
+        KOMECommandTroops.revalidateTemporaryControllers(data, 50L, "Test revalidation");
+
+        assertEquals(recipient, company.temporaryController);
+        assertEquals(KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE, company.controllerAuthority);
+        assertEquals(owner, company.owner);
+        assertEquals("native_test", company.faction);
+        assertEquals("native_test", company.nativeFaction);
+        assertEquals("native_test", company.populationSource);
+
+        assertNotNull(KOMEWarService.createWar(
+            data, "native_test", "recipient_test", "Test War", "test", 60L));
+
+        KOMECommandTroops.revalidateTemporaryControllers(data, 70L, "War relationship changed");
+
+        assertNull(company.temporaryController);
+        assertEquals(KOMEArmyCompany.AUTHORITY_NATIVE, company.controllerAuthority);
+        assertEquals(owner, company.owner);
+        assertEquals("native_test", company.faction);
+        assertEquals("native_test", company.nativeFaction);
+        assertEquals("native_test", company.populationSource);
     }
     private static UUID crown(KOMEWorldData data, String faction, String name) {
         UUID king = UUID.randomUUID();
