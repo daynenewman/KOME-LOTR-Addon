@@ -42,7 +42,7 @@ public class KOMECommandPopulation extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/population get [player] | gui [player] | units [player] [tile] | faction <faction>";
+        return "/population get [player] | gui [player] | units [player] [tile] | faction <faction> | rate [faction]";
     }
 
     @Override
@@ -80,7 +80,26 @@ public class KOMECommandPopulation extends CommandBase {
             sendFactionStatus(sender, args);
             return;
         }
+        if ("rate".equalsIgnoreCase(args[0])) {
+            sendRateAudit(sender, args);
+            return;
+        }
         throw new WrongUsageException(getCommandUsage(sender));
+    }
+
+    /** Canonical Build-rate audit; captured rows remain visible at zero pending KOM-9. */
+    private void sendRateAudit(ICommandSender sender, String[] args) {
+        if (args.length > 2) throw new WrongUsageException("/population rate [faction]");
+        KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
+        String requested = args.length == 2 ? KOMEAlliance.normalizeFactionKey(args[1]) : "";
+        if (requested.length() > 0) sender.addChatMessage(new ChatComponentText("Faction " + displayFaction(requested)
+                + " Daily Population Rate: " + kome.common.data.KOMEPopulationService.getDailyPopulationRate(data, requested).formatPerDay()));
+        for (kome.common.data.KOMEPopulationRateContribution row : kome.common.data.KOMEPopulationService.getPopulationRateContributions(data)) {
+            if (requested.length() > 0 && !requested.equals(row.populationFaction)) continue;
+            sender.addChatMessage(new ChatComponentText("Build " + row.buildId + " " + row.displayName + " tile " + row.tileId
+                    + ": approved " + (row.approvedHalfHours / 2) + "h, original " + row.originalRate.formatPerDay()
+                    + ", " + row.status + ", current " + row.currentRate.formatPerDay()));
+        }
     }
 
     private void manageTilePopulation(ICommandSender sender, String[] args) {
@@ -330,6 +349,7 @@ public class KOMECommandPopulation extends CommandBase {
             packet.viewerFaction = displayFaction(faction);
             packet.availablePopulation = kome.common.data.KOMEPopulationService.getAvailablePopulation(data, faction);
             packet.activePopulation = kome.common.data.KOMEPopulationService.getActivePopulation(faction, data.hiredUnits.values());
+            packet.dailyPopulationRateUnits = kome.common.data.KOMEPopulationService.getDailyPopulationRate(data, faction).getFixedUnitsPerDay();
             packet.canManageAllocations = canManageAllocations;
             packet.personalReserveOffensiveTotal = pop.offensiveTotal;
             packet.personalReserveOffensiveUsed = offensiveUsed;

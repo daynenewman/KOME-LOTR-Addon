@@ -73,6 +73,7 @@ import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.world.BlockEvent;
+import net.minecraftforge.event.world.WorldEvent;
 import net.minecraft.world.WorldServer;
 
 import java.util.ArrayList;
@@ -80,6 +81,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.HashMap;
 import java.util.Map;
+import java.time.Instant;
 
 public class KOMEEvents {
     public static int defaultUnitCost = 25;
@@ -90,6 +92,7 @@ public class KOMEEvents {
     private long nextLiveUnitMarkerSyncMillis;
     private long automaticWaypointLinkCheckMillis;
     private boolean automaticWaypointLinksEnsured;
+    private final KOMEPopulationPayoutRuntime populationPayoutRuntime = new KOMEPopulationPayoutRuntime();
 
     public void resetSessionState() {
         lastCoinValues.clear();
@@ -97,6 +100,14 @@ public class KOMEEvents {
         lastStoneCraftDenials.clear();
         automaticWaypointLinkCheckMillis = 0L;
         automaticWaypointLinksEnsured = false;
+        populationPayoutRuntime.resetSession();
+    }
+
+    /** Startup runs once per authoritative loaded world; client load events never mutate world data. */
+    @SubscribeEvent
+    public void onWorldLoad(WorldEvent.Load event) {
+        if (event == null || event.world == null || KOMEReflection.isRemote(event.world)) return;
+        populationPayoutRuntime.onStartup(KOMEWorldData.get(event.world), Instant.now());
     }
 
     @SubscribeEvent
@@ -180,6 +191,7 @@ public class KOMEEvents {
                 continue;
             }
             KOMEWorldData data = KOMEWorldData.get(world);
+            populationPayoutRuntime.onLiveCheck(data, Instant.ofEpochMilli(now));
             data.reconcileAllianceLifecycle(now, world.getTotalWorldTime());
             kome.common.command.KOMECommandAlliance.reconcileKinglessPendingAlliances(data, world.getTotalWorldTime());
             if (!data.armyMovements.isEmpty()) {

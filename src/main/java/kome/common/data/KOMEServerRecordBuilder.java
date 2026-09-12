@@ -140,8 +140,9 @@ public class KOMEServerRecordBuilder {
     private static String getPopulationSummary(KOMEWorldData data, String faction) {
         int available = KOMEPopulationService.getAvailablePopulation(data, faction);
         int active = KOMEPopulationService.getActivePopulation(faction, data.hiredUnits.values());
+        String rate = KOMEPopulationService.getDailyPopulationRate(data, faction).formatPerDay();
         return "Faction " + displayFaction(faction) + ", Available Population " + available
-            + ", Active Population " + active;
+            + ", Active Population " + active + ", Daily Population Rate " + rate;
     }
 
     private static String getRank(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {

@@ -3,10 +3,12 @@ package kome.common.data;
 import kome.common.config.KOMEConfigRegistry;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
-import net.minecraftforge.common.config.Configuration;
+import io.netty.buffer.Unpooled;
 import org.junit.Test;
-import java.io.File;
 import java.time.Instant;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.util.OptionalInt;
 import static org.junit.Assert.*;
 
 /** Deterministic KOM-7 Slice-2 payout regression coverage; no runtime clock is used. */
@@ -139,14 +141,32 @@ public class KOMEPopulationPayoutProcessorTest {
         }});
     }
 
+    @Test public void runtimeStartupRunsOnceAndStalledLiveChecksProcessEveryDueBoundary() {
+        KOMEWorldData data=world("gondor",10); KOMEPopulationPayoutRuntime runtime=new KOMEPopulationPayoutRuntime();
+        Instant start=Instant.parse("2026-01-10T02:00:00Z"); assertNotNull(runtime.onStartup(data,start)); assertNull(runtime.onStartup(data,start));
+        Instant first=KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis));
+        Instant third=KOMEPopulationPayoutProcessor.nextBoundary(KOMEPopulationPayoutProcessor.nextBoundary(first));
+        KOMEPopulationPayoutProcessor.Result result=runtime.onLiveCheck(data,third);
+        assertEquals(3,result.factions.size()); assertEquals(1,KOMEPopulationService.getAvailablePopulation(data,"gondor")); assertEquals(Long.valueOf(500000L),data.populationPayoutRemainders.get("gondor"));
+        long boundary=data.lastPopulationPayoutBoundaryMillis; runtime.onLiveCheck(data,third); assertEquals(boundary,data.lastPopulationPayoutBoundaryMillis);
+    }
+
+    @Test public void rateFormattingAndPopulationPacketPreserveFractionalCanonicalRate() {
+        assertEquals("1",new KOMEPopulationRate(1000000L).formatPerDay()); assertEquals("0.5",new KOMEPopulationRate(500000L).formatPerDay()); assertEquals("0.05",new KOMEPopulationRate(50000L).formatPerDay());
+        kome.common.network.KOMEPacketPopulationGui sent=new kome.common.network.KOMEPacketPopulationGui(); sent.viewerFaction="gondor"; sent.availablePopulation=4; sent.activePopulation=2; sent.dailyPopulationRateUnits=50000L;
+        io.netty.buffer.ByteBuf bytes=Unpooled.buffer(); sent.toBytes(bytes); kome.common.network.KOMEPacketPopulationGui received=new kome.common.network.KOMEPacketPopulationGui(); received.fromBytes(bytes);
+        assertEquals("gondor",received.viewerFaction); assertEquals(4,received.availablePopulation); assertEquals(2,received.activePopulation); assertEquals(50000L,received.dailyPopulationRateUnits);
+    }
+
     private static KOMEWorldData world(String faction,int halfHours){KOMEWorldData d=new KOMEWorldData("payout");add(d,faction,KOMEBuildType.NORMAL,halfHours);return d;}
     private static void add(KOMEWorldData d,String faction,KOMEBuildType type,int hours){String tile="T-"+faction;KOMEConquestTile t=new KOMEConquestTile(tile);t.claim(faction,0L);d.conquestTiles.put(t.id,t);KOMEPlayerBuild b=new KOMEPlayerBuild();b.id="B-"+faction;b.tileId=t.id;b.populationFaction=faction;b.type=type;b.active=true;KOMEBuildContribution c=new KOMEBuildContribution();c.id="H";c.halfHours=hours;c.status=KOMEBuildContribution.APPROVED;b.contributions.add(c);d.builds.put(b.id,b);}
     private static Instant initializeAndNext(KOMEWorldData data){KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data,Instant.parse("2026-01-10T02:00:00Z"));return KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis));}
     private interface Checked { void run() throws Exception; }
     private static void withPopulationSettings(boolean catchUp,boolean cap,Integer capValue,int hours,Checked body) throws Exception {
-        KOMEConfigRegistry.ValidatedConfig prior=KOMEConfigRegistry.currentValidated(); File file=File.createTempFile("kome-payout",".cfg");
-        try { write(file,KOMEConfigRegistry.OFFLINE_POPULATION_CATCH_UP,Boolean.toString(catchUp)); write(file,KOMEConfigRegistry.POPULATION_CAP_ENABLED,Boolean.toString(cap)); write(file,KOMEConfigRegistry.POPULATION_CAP_VALUE,capValue==null?"TBD":capValue.toString()); write(file,KOMEConfigRegistry.HOURS_PER_POPULATION_POINT,Integer.toString(hours)); KOMEConfigRegistry.load(file); body.run(); }
-        finally { KOMEConfigRegistry.applyValidated(prior,new KOMEConfigRegistry.RuntimeActivity(){public boolean isDailyTransactionInProgress(){return false;}public boolean isActiveSiegeInProgress(){return false;}public java.util.Collection<String> getActiveSiegeLockedConfigKeys(){return java.util.Collections.emptyList();}}); file.delete(); }
+        KOMEConfigRegistry.ValidatedConfig config=KOMEConfigRegistry.currentValidated(); Field field=KOMEConfigRegistry.ValidatedConfig.class.getDeclaredField("population"); field.setAccessible(true); Object prior=field.get(config);
+        Constructor<KOMEConfigRegistry.PopulationSettings> constructor=KOMEConfigRegistry.PopulationSettings.class.getDeclaredConstructor(int.class,double.class,boolean.class,boolean.class,OptionalInt.class,boolean.class); constructor.setAccessible(true);
+        KOMEConfigRegistry.PopulationSettings old=(KOMEConfigRegistry.PopulationSettings)prior;
+        try { field.set(config,constructor.newInstance(hours,old.getCapturedBuildMultiplier(),catchUp,cap,capValue==null?OptionalInt.empty():OptionalInt.of(capValue.intValue()),old.isEncirclementPopulationSuppressionEnabled())); body.run(); }
+        finally { field.set(config,prior); }
     }
-    private static void write(File file,String key,String value){Configuration c=new Configuration(file);c.load();c.get(KOMEConfigRegistry.POPULATION_CATEGORY,key,"default").set(value);c.save();}
 }

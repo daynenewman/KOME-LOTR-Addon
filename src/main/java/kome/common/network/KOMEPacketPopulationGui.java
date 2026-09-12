@@ -16,6 +16,8 @@ public class KOMEPacketPopulationGui implements IMessage {
     /** Canonical player-facing population projection. */
     public int availablePopulation;
     public int activePopulation;
+    /** Fixed-point canonical daily rate, one million units per population/day. */
+    public long dailyPopulationRateUnits;
     public boolean canManageAllocations;
 
     // Legacy names retained for older constructors/client references.
@@ -154,6 +156,7 @@ public class KOMEPacketPopulationGui implements IMessage {
         viewerFaction = ByteBufUtils.readUTF8String(buf);
         availablePopulation = buf.readInt();
         activePopulation = buf.readInt();
+        dailyPopulationRateUnits = buf.readLong();
         canManageAllocations = buf.readBoolean();
         offensiveTotal = buf.readInt();
         offensiveUsed = buf.readInt();
@@ -224,6 +227,7 @@ public class KOMEPacketPopulationGui implements IMessage {
         ByteBufUtils.writeUTF8String(buf, viewerFaction);
         buf.writeInt(availablePopulation);
         buf.writeInt(activePopulation);
+        buf.writeLong(dailyPopulationRateUnits);
         buf.writeBoolean(canManageAllocations);
         buf.writeInt(offensiveTotal);
         buf.writeInt(offensiveUsed);
@@ -292,6 +296,7 @@ public class KOMEPacketPopulationGui implements IMessage {
         viewerFaction = safe(viewerFaction);
         availablePopulation = Math.max(0, availablePopulation);
         activePopulation = Math.max(0, activePopulation);
+        dailyPopulationRateUnits = Math.max(0L, dailyPopulationRateUnits);
         allocationSummary = safe(allocationSummary);
         offensiveTotal = Math.max(0, offensiveTotal);
         offensiveUsed = clamp(offensiveUsed, 0, offensiveTotal);

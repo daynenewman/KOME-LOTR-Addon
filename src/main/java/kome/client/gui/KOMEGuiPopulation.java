@@ -210,7 +210,7 @@ public class KOMEGuiPopulation extends GuiScreen {
         fontRendererObj.drawString("Canonical Faction Population", x + 36, cy + 12, KOMEGuiTheme.COLOR_BORDER_RED);
         fontRendererObj.drawString("Available Population: " + data.availablePopulation, x + 36, cy + 34, KOMEGuiTheme.COLOR_TEXT);
         fontRendererObj.drawString("Active Population: " + data.activePopulation, x + 36, cy + 52, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("Daily Population Rate is not yet available.", x + 36, cy + 70, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString("Daily Population Rate: " + new kome.common.data.KOMEPopulationRate(data.dailyPopulationRateUnits).formatPerDay(), x + 36, cy + 70, KOMEGuiTheme.COLOR_TEXT);
     }
 
     private void drawCapacityCard(int x, int y, int width, int height, String title, int offUsed, int offTotal, int offAvail, int defUsed, int defTotal, int defAvail, boolean farmhands, int farmUsed, int farmTotal) {
