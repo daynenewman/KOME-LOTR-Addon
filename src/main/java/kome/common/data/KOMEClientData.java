@@ -23,6 +23,7 @@ public class KOMEClientData extends KOMEWorldData {
         routeEdges.clear();
         builds.clear();
         alliances.clear();
+        canonicalDiplomacyRecords.clear();
         wars.clear();
         conquestClaimConfirmations.clear();
         allianceRequirementOverrides.clear();

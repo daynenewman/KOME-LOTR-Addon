@@ -60,17 +60,19 @@ public class KOMEAllianceModelTest {
         assertFalse(authority.canFactionUseMilitaryPassage("rohan", "gondor"));
     }
 
-    @Test public void waypointUseHasNoAllianceStageGate() {
+    @Test public void waypointUseRequiresCanonicalDiplomacyForForeignTerritory() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEConquestTile tile = new KOMEConquestTile("T001");
         tile.claim("mordor", 0L);
         data.conquestTiles.put(tile.id, tile);
-        KOMEWaypointAccessService.Decision decision =
-            KOMEWaypointAccessService.evaluateResolvedTile(data, UUID.randomUUID(), "gondor", false, tile.id, true);
-        assertTrue(decision.finalAllowed);
-        assertEquals(KOMEWaypointAccessService.State.DISABLED, decision.state);
-    }
 
+        KOMEWaypointAccessService.Decision decision =
+            KOMEWaypointAccessService.evaluateResolvedTile(
+                data, UUID.randomUUID(), "gondor", false, tile.id, true);
+
+        assertFalse(decision.finalAllowed);
+        assertEquals(KOMEWaypointAccessService.State.DENIED, decision.state);
+    }
     @Test public void stageTwoMerchantEntitlementPersistsAcrossBreak() {
         KOMEAlliance alliance = active("gondor", "rohan");
         alliance.setFactionStage("gondor", 2, "test", 0L, 10L);
