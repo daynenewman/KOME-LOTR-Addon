@@ -133,6 +133,7 @@ public class LOTRCharacterCreation {
             OrcEnvironmentService.clearTransientState(player);
             DwarfTraitService.clearTransientState(player);
             PlayerRaceSizeService.removeScheduledServerReapply(player);
+            ModNetwork.clearPendingLegacyRequests(player);
             ModNetwork.clearCustomSkinSync(player);
         }
     }
@@ -165,6 +166,7 @@ public class LOTRCharacterCreation {
     }
 
     public void registerServerCommands(FMLServerStartingEvent event) {
+        ModNetwork.clearAllPendingLegacyRequests();
         ServerCustomSkinLibrary.getInstance().reload(customSkinRoot, logger);
         event.registerServerCommand(new CommandCharacter());
         event.registerServerCommand(new CommandLotrCreation());

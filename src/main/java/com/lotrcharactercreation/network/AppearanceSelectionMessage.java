@@ -11,20 +11,36 @@ import io.netty.buffer.ByteBuf;
 public class AppearanceSelectionMessage implements IMessage {
 
     private String presetId;
+    private boolean valid;
 
     public AppearanceSelectionMessage() {}
 
     public AppearanceSelectionMessage(String presetId) {
         this.presetId = presetId;
+        valid = LegacyC2SProtocol
+            .isValidRequiredString(presetId, LegacyC2SProtocol.MAX_APPEARANCE_PRESET_ID_BYTES);
     }
 
     public String getPresetId() {
         return presetId;
     }
 
+    public boolean isValid() {
+        return valid;
+    }
+
     @Override
     public void fromBytes(ByteBuf buffer) {
-        presetId = ByteBufUtils.readUTF8String(buffer);
+        valid = false;
+        presetId = null;
+        try {
+            presetId = LegacyC2SProtocol
+                .readRequiredString(buffer, LegacyC2SProtocol.MAX_APPEARANCE_PRESET_ID_BYTES);
+            LegacyC2SProtocol.requireFullyRead(buffer);
+            valid = true;
+        } catch (RuntimeException exception) {
+            LegacyC2SProtocol.warnMalformedOnce("AppearanceSelection", exception);
+        }
     }
 
     @Override
@@ -36,8 +52,10 @@ public class AppearanceSelectionMessage implements IMessage {
 
         @Override
         public IMessage onMessage(AppearanceSelectionMessage message, MessageContext context) {
-            EntityPlayerMP player = context.getServerHandler().playerEntity;
-            ModNetwork.enqueueAppearanceSelection(player, message.getPresetId());
+            if (message.isValid()) {
+                EntityPlayerMP player = context.getServerHandler().playerEntity;
+                ModNetwork.enqueueAppearanceSelection(player, message.getPresetId());
+            }
             return null;
         }
     }

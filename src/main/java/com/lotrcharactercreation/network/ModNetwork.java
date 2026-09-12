@@ -48,9 +48,13 @@ public final class ModNetwork {
     private static final Queue<PendingSexSelection> PENDING_SEX_SELECTIONS = new ConcurrentLinkedQueue<>();
     private static final Queue<PendingCharacterCreationBack> PENDING_CHARACTER_CREATION_BACKS = new ConcurrentLinkedQueue<>();
     private static final Queue<PendingCharacterFinalization> PENDING_CHARACTER_FINALIZATIONS = new ConcurrentLinkedQueue<>();
-    private static final Queue<EntityPlayerMP> PENDING_ELF_GRAPPLE_ATTACKS = new ConcurrentLinkedQueue<>();
+    private static final Queue<PendingElfGrappleAttack> PENDING_ELF_GRAPPLE_ATTACKS = new ConcurrentLinkedQueue<>();
     private static final Set<UUID> PENDING_CHARACTER_FINALIZATION_IDS = Collections
         .newSetFromMap(new ConcurrentHashMap<UUID, Boolean>());
+    private static final Object LEGACY_REQUEST_QUEUE_LOCK = new Object();
+    private static final LegacyRequestAdmission LEGACY_REQUEST_ADMISSION = new LegacyRequestAdmission(
+        LegacyC2SProtocol.MAX_PENDING_ACTIONS_PER_PLAYER,
+        LegacyC2SProtocol.MAX_PENDING_ACTIONS_TOTAL);
 
     private ModNetwork() {}
 
@@ -273,7 +277,7 @@ public final class ModNetwork {
     }
 
     public static void enqueueElfGrappleAttack(EntityPlayerMP player) {
-        PENDING_ELF_GRAPPLE_ATTACKS.add(player);
+        enqueueLegacyRequest(PENDING_ELF_GRAPPLE_ATTACKS, new PendingElfGrappleAttack(player));
     }
 
     public static void sendPlayerAppearance(EntityPlayerMP subject, EntityPlayerMP recipient) {
@@ -298,7 +302,9 @@ public final class ModNetwork {
     }
 
     public static void enqueueRaceSelection(EntityPlayerMP player, String serializedRaceId) {
-        PENDING_RACE_SELECTIONS.add(new PendingRaceSelection(player, serializedRaceId));
+        if (LegacyC2SProtocol.isValidRequiredString(serializedRaceId, LegacyC2SProtocol.MAX_RACE_ID_BYTES)) {
+            enqueueLegacyRequest(PENDING_RACE_SELECTIONS, new PendingRaceSelection(player, serializedRaceId));
+        }
     }
 
     public static void sendStartingFactionSelection(StartingFaction faction) {
@@ -306,7 +312,11 @@ public final class ModNetwork {
     }
 
     public static void enqueueStartingFactionSelection(EntityPlayerMP player, String serializedFactionId) {
-        PENDING_FACTION_SELECTIONS.add(new PendingStartingFactionSelection(player, serializedFactionId));
+        if (LegacyC2SProtocol.isValidRequiredString(serializedFactionId, LegacyC2SProtocol.MAX_FACTION_ID_BYTES)) {
+            enqueueLegacyRequest(
+                PENDING_FACTION_SELECTIONS,
+                new PendingStartingFactionSelection(player, serializedFactionId));
+        }
     }
 
     public static void sendAppearanceSelectionOpen(EntityPlayerMP player) {
@@ -340,7 +350,9 @@ public final class ModNetwork {
     }
 
     public static void enqueueAppearanceSelection(EntityPlayerMP player, String presetId) {
-        PENDING_APPEARANCE_SELECTIONS.add(new PendingAppearanceSelection(player, presetId));
+        if (LegacyC2SProtocol.isValidRequiredString(presetId, LegacyC2SProtocol.MAX_APPEARANCE_PRESET_ID_BYTES)) {
+            enqueueLegacyRequest(PENDING_APPEARANCE_SELECTIONS, new PendingAppearanceSelection(player, presetId));
+        }
     }
 
     public static void sendSexSelectionOpen(EntityPlayerMP player) {
@@ -366,7 +378,9 @@ public final class ModNetwork {
     }
 
     public static void enqueueSexSelection(EntityPlayerMP player, String serializedSexId) {
-        PENDING_SEX_SELECTIONS.add(new PendingSexSelection(player, serializedSexId));
+        if (LegacyC2SProtocol.isValidRequiredString(serializedSexId, LegacyC2SProtocol.MAX_SEX_ID_BYTES)) {
+            enqueueLegacyRequest(PENDING_SEX_SELECTIONS, new PendingSexSelection(player, serializedSexId));
+        }
     }
 
     public static void sendCharacterFinalization(boolean replacementConfirmed, String expectedExistingPledgeCode) {
@@ -378,14 +392,66 @@ public final class ModNetwork {
     }
 
     public static void enqueueCharacterCreationBack(EntityPlayerMP player, String serializedSourceStageId) {
-        PENDING_CHARACTER_CREATION_BACKS.add(new PendingCharacterCreationBack(player, serializedSourceStageId));
+        if (LegacyC2SProtocol.isValidRequiredString(serializedSourceStageId, LegacyC2SProtocol.MAX_STAGE_ID_BYTES)) {
+            enqueueLegacyRequest(
+                PENDING_CHARACTER_CREATION_BACKS,
+                new PendingCharacterCreationBack(player, serializedSourceStageId));
+        }
     }
 
     public static void enqueueCharacterFinalization(EntityPlayerMP player, boolean replacementConfirmed,
         String expectedExistingPledgeCode) {
-        if (PENDING_CHARACTER_FINALIZATION_IDS.add(player.getUniqueID())) {
-            PENDING_CHARACTER_FINALIZATIONS
-                .add(new PendingCharacterFinalization(player, replacementConfirmed, expectedExistingPledgeCode));
+        if (player == null || !LegacyC2SProtocol
+            .isValidNullableString(expectedExistingPledgeCode, LegacyC2SProtocol.MAX_PLEDGE_CODE_BYTES)) {
+            return;
+        }
+
+        synchronized (LEGACY_REQUEST_QUEUE_LOCK) {
+            UUID playerId = player.getUniqueID();
+            if (PENDING_CHARACTER_FINALIZATION_IDS.add(playerId)) {
+                PendingCharacterFinalization request = new PendingCharacterFinalization(
+                    player,
+                    replacementConfirmed,
+                    expectedExistingPledgeCode);
+                if (admitLegacyRequest(player)) {
+                    PENDING_CHARACTER_FINALIZATIONS.add(request);
+                } else {
+                    PENDING_CHARACTER_FINALIZATION_IDS.remove(playerId);
+                }
+            }
+        }
+    }
+
+    public static void clearPendingLegacyRequests(EntityPlayerMP player) {
+        if (player == null) {
+            return;
+        }
+
+        synchronized (LEGACY_REQUEST_QUEUE_LOCK) {
+            UUID playerId = player.getUniqueID();
+            discardPendingRequests(PENDING_RACE_SELECTIONS, playerId);
+            discardPendingRequests(PENDING_FACTION_SELECTIONS, playerId);
+            discardPendingRequests(PENDING_APPEARANCE_SELECTIONS, playerId);
+            discardPendingRequests(PENDING_SEX_SELECTIONS, playerId);
+            discardPendingRequests(PENDING_CHARACTER_CREATION_BACKS, playerId);
+            discardPendingRequests(PENDING_CHARACTER_FINALIZATIONS, playerId);
+            discardPendingRequests(PENDING_ELF_GRAPPLE_ATTACKS, playerId);
+            PENDING_CHARACTER_FINALIZATION_IDS.remove(playerId);
+            LEGACY_REQUEST_ADMISSION.clearPlayer(playerId);
+        }
+    }
+
+    public static void clearAllPendingLegacyRequests() {
+        synchronized (LEGACY_REQUEST_QUEUE_LOCK) {
+            PENDING_RACE_SELECTIONS.clear();
+            PENDING_FACTION_SELECTIONS.clear();
+            PENDING_APPEARANCE_SELECTIONS.clear();
+            PENDING_SEX_SELECTIONS.clear();
+            PENDING_CHARACTER_CREATION_BACKS.clear();
+            PENDING_CHARACTER_FINALIZATIONS.clear();
+            PENDING_ELF_GRAPPLE_ATTACKS.clear();
+            PENDING_CHARACTER_FINALIZATION_IDS.clear();
+            LEGACY_REQUEST_ADMISSION.clearAll();
         }
     }
 
@@ -496,10 +562,14 @@ public final class ModNetwork {
     }
 
     private static void processPendingElfGrappleAttacks(MinecraftServer server) {
-        EntityPlayerMP player;
-        while ((player = PENDING_ELF_GRAPPLE_ATTACKS.poll()) != null) {
-            if (isConnected(server, player)) {
-                ElfGrappleService.handleAttackRequest(player);
+        PendingElfGrappleAttack request;
+        while ((request = PENDING_ELF_GRAPPLE_ATTACKS.poll()) != null) {
+            try {
+                if (isConnected(server, request.player)) {
+                    ElfGrappleService.handleAttackRequest(request.player);
+                }
+            } finally {
+                releaseLegacyRequest(request.player);
             }
         }
     }
@@ -507,89 +577,107 @@ public final class ModNetwork {
     private static void processPendingRaceSelections(MinecraftServer server) {
         PendingRaceSelection selection;
         while ((selection = PENDING_RACE_SELECTIONS.poll()) != null) {
-            if (!isConnected(server, selection.player)) {
-                continue;
-            }
-
-            PlayerRace race = PlayerRace.findBySerializedId(selection.serializedRaceId);
-            if (race == null || !CharacterCreationFlowService.selectRace(selection.player, race)) {
-                if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
-                    sendCharacterCreationRequired(selection.player);
+            try {
+                if (!isConnected(server, selection.player)) {
+                    continue;
                 }
-                continue;
-            }
 
-            PlayerRaceSizeService.applyStoredRaceSize(selection.player);
-            PlayerRaceEyeService.applyStoredServerEyeHeight(selection.player);
-            sendPlayerAppearanceToTrackingAndSelf(selection.player);
-            CHANNEL.sendTo(new RaceSelectionAcceptedMessage(race.getSerializedId()), selection.player);
-            sendCharacterCreationRequired(selection.player);
+                PlayerRace race = PlayerRace.findBySerializedId(selection.serializedRaceId);
+                if (race == null || !CharacterCreationFlowService.selectRace(selection.player, race)) {
+                    if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
+                        sendCharacterCreationRequired(selection.player);
+                    }
+                    continue;
+                }
+
+                PlayerRaceSizeService.applyStoredRaceSize(selection.player);
+                PlayerRaceEyeService.applyStoredServerEyeHeight(selection.player);
+                sendPlayerAppearanceToTrackingAndSelf(selection.player);
+                CHANNEL.sendTo(new RaceSelectionAcceptedMessage(race.getSerializedId()), selection.player);
+                sendCharacterCreationRequired(selection.player);
+            } finally {
+                releaseLegacyRequest(selection.player);
+            }
         }
     }
 
     private static void processPendingCharacterCreationBacks(MinecraftServer server) {
         PendingCharacterCreationBack request;
         while ((request = PENDING_CHARACTER_CREATION_BACKS.poll()) != null) {
-            if (!isConnected(server, request.player)) {
-                continue;
-            }
+            try {
+                if (!isConnected(server, request.player)) {
+                    continue;
+                }
 
-            CharacterCreationStage sourceStage = CharacterCreationStage
-                .findBySerializedId(request.serializedSourceStageId);
-            boolean movedBack = CharacterCreationFlowService.goBackFrom(request.player, sourceStage);
-            boolean finalizationStarted = PlayerRaceData.isStartingFactionApplied(request.player)
-                || PlayerRaceData.isStartingWaypointApplied(request.player);
-            if (movedBack) {
-                sendPlayerAppearanceToTrackingAndSelf(request.player);
-            } else if (PlayerRaceData.isCharacterCreationComplete(request.player)) {
-                request.player.addChatMessage(new ChatComponentText("Your character has already been created."));
-                continue;
-            } else if (finalizationStarted) {
-                request.player.addChatMessage(new ChatComponentText("Character creation is not available."));
-            }
+                CharacterCreationStage sourceStage = CharacterCreationStage
+                    .findBySerializedId(request.serializedSourceStageId);
+                boolean movedBack = CharacterCreationFlowService.goBackFrom(request.player, sourceStage);
+                boolean finalizationStarted = PlayerRaceData.isStartingFactionApplied(request.player)
+                    || PlayerRaceData.isStartingWaypointApplied(request.player);
+                if (movedBack) {
+                    sendPlayerAppearanceToTrackingAndSelf(request.player);
+                } else if (PlayerRaceData.isCharacterCreationComplete(request.player)) {
+                    request.player.addChatMessage(new ChatComponentText("Your character has already been created."));
+                    continue;
+                } else if (finalizationStarted) {
+                    request.player.addChatMessage(new ChatComponentText("Character creation is not available."));
+                }
 
-            sendCharacterCreationRequired(request.player);
+                sendCharacterCreationRequired(request.player);
+            } finally {
+                releaseLegacyRequest(request.player);
+            }
         }
     }
 
     private static void processPendingStartingFactionSelections(MinecraftServer server) {
         PendingStartingFactionSelection selection;
         while ((selection = PENDING_FACTION_SELECTIONS.poll()) != null) {
-            if (!isConnected(server, selection.player)) {
-                continue;
-            }
-
-            StartingFaction faction = StartingFaction.findBySerializedId(selection.serializedFactionId);
-            if (!CharacterCreationFlowService.selectStartingFaction(selection.player, faction)) {
-                if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
-                    sendCharacterCreationRequired(selection.player);
+            try {
+                if (!isConnected(server, selection.player)) {
+                    continue;
                 }
-                continue;
-            }
 
-            sendPlayerAppearanceToTrackingAndSelf(selection.player);
-            CHANNEL.sendTo(new StartingFactionSelectionAcceptedMessage(faction.getSerializedId()), selection.player);
-            sendCharacterCreationRequired(selection.player);
+                StartingFaction faction = StartingFaction.findBySerializedId(selection.serializedFactionId);
+                if (!CharacterCreationFlowService.selectStartingFaction(selection.player, faction)) {
+                    if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
+                        sendCharacterCreationRequired(selection.player);
+                    }
+                    continue;
+                }
+
+                sendPlayerAppearanceToTrackingAndSelf(selection.player);
+                CHANNEL.sendTo(
+                    new StartingFactionSelectionAcceptedMessage(faction.getSerializedId()),
+                    selection.player);
+                sendCharacterCreationRequired(selection.player);
+            } finally {
+                releaseLegacyRequest(selection.player);
+            }
         }
     }
 
     private static void processPendingAppearanceSelections(MinecraftServer server) {
         PendingAppearanceSelection selection;
         while ((selection = PENDING_APPEARANCE_SELECTIONS.poll()) != null) {
-            if (!isConnected(server, selection.player)) {
-                continue;
-            }
+            try {
+                if (!isConnected(server, selection.player)) {
+                    continue;
+                }
 
-            boolean accepted = CharacterCreationFlowService.selectAppearance(selection.player, selection.presetId);
-            if (accepted) {
-                sendPlayerAppearanceToTrackingAndSelf(selection.player);
-            }
+                boolean accepted = CharacterCreationFlowService.selectAppearance(selection.player, selection.presetId);
+                if (accepted) {
+                    sendPlayerAppearanceToTrackingAndSelf(selection.player);
+                }
 
-            CHANNEL.sendTo(
-                new AppearanceSelectionResultMessage(accepted, accepted ? selection.presetId : ""),
-                selection.player);
-            if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
-                sendCharacterCreationRequired(selection.player);
+                CHANNEL.sendTo(
+                    new AppearanceSelectionResultMessage(accepted, accepted ? selection.presetId : ""),
+                    selection.player);
+                if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
+                    sendCharacterCreationRequired(selection.player);
+                }
+            } finally {
+                releaseLegacyRequest(selection.player);
             }
         }
     }
@@ -597,21 +685,25 @@ public final class ModNetwork {
     private static void processPendingSexSelections(MinecraftServer server) {
         PendingSexSelection selection;
         while ((selection = PENDING_SEX_SELECTIONS.poll()) != null) {
-            if (!isConnected(server, selection.player)) {
-                continue;
-            }
+            try {
+                if (!isConnected(server, selection.player)) {
+                    continue;
+                }
 
-            PlayerSex sex = PlayerSex.findBySerializedId(selection.serializedSexId);
-            boolean accepted = CharacterCreationFlowService.selectSex(selection.player, sex);
-            if (accepted) {
-                sendPlayerAppearanceToTrackingAndSelf(selection.player);
-            }
+                PlayerSex sex = PlayerSex.findBySerializedId(selection.serializedSexId);
+                boolean accepted = CharacterCreationFlowService.selectSex(selection.player, sex);
+                if (accepted) {
+                    sendPlayerAppearanceToTrackingAndSelf(selection.player);
+                }
 
-            CHANNEL.sendTo(
-                new SexSelectionResultMessage(accepted, accepted ? sex.getSerializedId() : ""),
-                selection.player);
-            if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
-                sendCharacterCreationRequired(selection.player);
+                CHANNEL.sendTo(
+                    new SexSelectionResultMessage(accepted, accepted ? sex.getSerializedId() : ""),
+                    selection.player);
+                if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
+                    sendCharacterCreationRequired(selection.player);
+                }
+            } finally {
+                releaseLegacyRequest(selection.player);
             }
         }
     }
@@ -626,12 +718,43 @@ public final class ModNetwork {
                 }
             } finally {
                 PENDING_CHARACTER_FINALIZATION_IDS.remove(request.player.getUniqueID());
+                releaseLegacyRequest(request.player);
             }
         }
     }
 
     private static String normalizePledgeCode(String pledgeCode) {
         return pledgeCode == null ? "" : pledgeCode;
+    }
+
+    private static <T extends PendingLegacyRequest> void enqueueLegacyRequest(Queue<T> queue, T request) {
+        if (request.player == null) {
+            return;
+        }
+
+        synchronized (LEGACY_REQUEST_QUEUE_LOCK) {
+            if (admitLegacyRequest(request.player)) {
+                queue.add(request);
+            }
+        }
+    }
+
+    private static boolean admitLegacyRequest(EntityPlayerMP player) {
+        return player != null && LEGACY_REQUEST_ADMISSION.tryAcquire(player.getUniqueID());
+    }
+
+    private static void releaseLegacyRequest(EntityPlayerMP player) {
+        if (player != null) {
+            LEGACY_REQUEST_ADMISSION.release(player.getUniqueID());
+        }
+    }
+
+    private static <T extends PendingLegacyRequest> void discardPendingRequests(Queue<T> queue, UUID playerId) {
+        for (T request : queue) {
+            if (playerId.equals(request.player.getUniqueID()) && queue.remove(request)) {
+                releaseLegacyRequest(request.player);
+            }
+        }
     }
 
     private static boolean isConnected(MinecraftServer server, EntityPlayerMP player) {
@@ -658,72 +781,82 @@ public final class ModNetwork {
             PlayerRaceData.isCharacterCreationComplete(player));
     }
 
-    private static final class PendingRaceSelection {
+    private abstract static class PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
+        protected final EntityPlayerMP player;
+
+        private PendingLegacyRequest(EntityPlayerMP player) {
+            this.player = player;
+        }
+    }
+
+    private static final class PendingRaceSelection extends PendingLegacyRequest {
+
         private final String serializedRaceId;
 
         private PendingRaceSelection(EntityPlayerMP player, String serializedRaceId) {
-            this.player = player;
+            super(player);
             this.serializedRaceId = serializedRaceId;
         }
     }
 
-    private static final class PendingStartingFactionSelection {
+    private static final class PendingStartingFactionSelection extends PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
         private final String serializedFactionId;
 
         private PendingStartingFactionSelection(EntityPlayerMP player, String serializedFactionId) {
-            this.player = player;
+            super(player);
             this.serializedFactionId = serializedFactionId;
         }
     }
 
-    private static final class PendingAppearanceSelection {
+    private static final class PendingAppearanceSelection extends PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
         private final String presetId;
 
         private PendingAppearanceSelection(EntityPlayerMP player, String presetId) {
-            this.player = player;
+            super(player);
             this.presetId = presetId;
         }
     }
 
-    private static final class PendingSexSelection {
+    private static final class PendingSexSelection extends PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
         private final String serializedSexId;
 
         private PendingSexSelection(EntityPlayerMP player, String serializedSexId) {
-            this.player = player;
+            super(player);
             this.serializedSexId = serializedSexId;
         }
     }
 
-    private static final class PendingCharacterCreationBack {
+    private static final class PendingCharacterCreationBack extends PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
         private final String serializedSourceStageId;
 
         private PendingCharacterCreationBack(EntityPlayerMP player, String serializedSourceStageId) {
-            this.player = player;
+            super(player);
             this.serializedSourceStageId = serializedSourceStageId;
         }
     }
 
-    private static final class PendingCharacterFinalization {
+    private static final class PendingCharacterFinalization extends PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
         private final boolean replacementConfirmed;
         private final String expectedExistingPledgeCode;
 
         private PendingCharacterFinalization(EntityPlayerMP player, boolean replacementConfirmed,
             String expectedExistingPledgeCode) {
-            this.player = player;
+            super(player);
             this.replacementConfirmed = replacementConfirmed;
             this.expectedExistingPledgeCode = expectedExistingPledgeCode;
+        }
+    }
+
+    private static final class PendingElfGrappleAttack extends PendingLegacyRequest {
+
+        private PendingElfGrappleAttack(EntityPlayerMP player) {
+            super(player);
         }
     }
 }
