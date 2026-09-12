@@ -74,8 +74,11 @@ public class KOMECommandAlliance extends CommandBase {
             if (args.length != 3) {
                 throw new WrongUsageException(getCommandUsage(sender));
             }
-            KOMEAlliance alliance = data.getAlliance(parseFaction(args[1]), parseFaction(args[2]), false);
-            sendAlliance(sender, alliance, parseFaction(args[1]), parseFaction(args[2]));
+
+            String factionA = parseFaction(args[1]);
+            String factionB = parseFaction(args[2]);
+
+            sendDiplomacy(sender, data, factionA, factionB);
             return;
         }
         if ("request".equalsIgnoreCase(args[0])) {
@@ -385,46 +388,131 @@ public class KOMECommandAlliance extends CommandBase {
     }
 
     private void listAlliances(ICommandSender sender, KOMEWorldData data, String faction) {
-        if (sender instanceof EntityPlayerMP && !sender.canCommandSenderUseCommand(2, getCommandName())) {
-            String viewerFaction = new KOMEAllianceAuthority(data).getPlayerFaction((EntityPlayerMP) sender);
+        if (sender instanceof EntityPlayerMP
+                && !sender.canCommandSenderUseCommand(2, getCommandName())) {
+            String viewerFaction =
+                new KOMEAllianceAuthority(data).getPlayerFaction((EntityPlayerMP) sender);
+
             if (faction.length() > 0 && !faction.equals(viewerFaction)) {
-                throw new WrongUsageException("You may list only alliances involving your pledged faction.");
+                throw new WrongUsageException(
+                    "You may list only diplomacy involving your pledged faction.");
             }
+
             faction = viewerFaction;
         }
-        List<String> lines = new ArrayList<>();
-        for (KOMEAlliance alliance : data.alliances.values()) {
-            if (alliance == null || !alliance.hasAnyAlliance()) {
+
+        List<String> lines = new ArrayList<String>();
+
+        for (kome.common.data.KOMEDiplomacyRecord record
+                : KOMEDiplomacyService.records(data).values()) {
+            if (record == null) {
                 continue;
             }
-            if (!faction.isEmpty() && !faction.equals(alliance.factionA) && !faction.equals(alliance.factionB)) {
+
+            if (!faction.isEmpty()
+                    && !faction.equals(record.factionA)
+                    && !faction.equals(record.factionB)) {
                 continue;
             }
-            lines.add(formatAlliance(alliance));
+
+            String line =
+                "[" + record.key() + "] "
+                    + displayFaction(record.factionA)
+                    + " <-> "
+                    + displayFaction(record.factionB)
+                    + ": "
+                    + record.relation.displayName;
+
+            if (record.pendingTarget != null) {
+                line +=
+                    " | Pending "
+                        + record.pendingTarget.displayName
+                        + " ("
+                        + displayFaction(record.requestingFaction)
+                        + " -> "
+                        + displayFaction(record.receivingFaction)
+                        + ")";
+            }
+
+            lines.add(line);
         }
+
         Collections.sort(lines);
+
         if (lines.isEmpty()) {
-            sender.addChatMessage(new ChatComponentText(faction.isEmpty() ? "No alliances recorded." : "No alliances recorded for " + displayFaction(faction) + "."));
+            sender.addChatMessage(new ChatComponentText(
+                faction.isEmpty()
+                    ? "No diplomacy relationships recorded."
+                    : "No diplomacy relationships recorded for "
+                        + displayFaction(faction)
+                        + "."));
             return;
         }
-        sender.addChatMessage(new ChatComponentText("Recorded alliances:"));
+
+        sender.addChatMessage(
+            new ChatComponentText("Recorded diplomacy relationships:"));
+
         for (String line : lines) {
             sender.addChatMessage(new ChatComponentText(line));
         }
     }
+    private void sendDiplomacy(
+            ICommandSender sender,
+            KOMEWorldData data,
+            String factionA,
+            String factionB) {
 
-    private void sendAlliance(ICommandSender sender, KOMEAlliance alliance, String factionA, String factionB) {
-        if (sender instanceof EntityPlayerMP && alliance != null
-                && !new KOMEAllianceAuthority(KOMEWorldData.get(sender.getEntityWorld())).canViewAlliance((EntityPlayerMP) sender, alliance).allowed) {
-            throw new WrongUsageException("You may view only alliances involving your pledged faction.");
+        if (sender instanceof EntityPlayerMP
+                && !sender.canCommandSenderUseCommand(2, getCommandName())) {
+            String viewerFaction =
+                new KOMEAllianceAuthority(data).getPlayerFaction((EntityPlayerMP) sender);
+
+            if (!factionA.equals(viewerFaction)
+                    && !factionB.equals(viewerFaction)) {
+                throw new WrongUsageException(
+                    "You may view only diplomacy involving your pledged faction.");
+            }
         }
-        if (alliance == null || !alliance.hasAnyAlliance()) {
-            sender.addChatMessage(new ChatComponentText(displayFaction(factionA) + " -> " + displayFaction(factionB) + ": no alliance"));
+
+        String key =
+            kome.common.data.KOMEDiplomacyRecord.pairKey(
+                factionA, factionB);
+
+        kome.common.data.KOMEDiplomacyRecord record =
+            KOMEDiplomacyService.records(data).get(key);
+
+        if (record == null) {
+            sender.addChatMessage(new ChatComponentText(
+                displayFaction(factionA)
+                    + " <-> "
+                    + displayFaction(factionB)
+                    + ": "
+                    + KOMEDiplomacyService.getRelation(
+                        data, factionA, factionB).displayName));
             return;
         }
-        sender.addChatMessage(new ChatComponentText(formatAlliance(alliance)));
-    }
 
+        String line =
+            "[" + record.key() + "] "
+                + displayFaction(record.factionA)
+                + " <-> "
+                + displayFaction(record.factionB)
+                + ": "
+                + record.relation.displayName;
+
+        if (record.pendingTarget != null) {
+            line +=
+                " | Pending "
+                    + record.pendingTarget.displayName
+                    + " ("
+                    + displayFaction(record.requestingFaction)
+                    + " -> "
+                    + displayFaction(record.receivingFaction)
+                    + ")";
+        }
+
+        sender.addChatMessage(new ChatComponentText(line));
+    }
     private void sendAllianceRefresh(ICommandSender sender, KOMEWorldData data) {
         if (sender instanceof EntityPlayerMP) {
             EntityPlayerMP player = (EntityPlayerMP) sender;
