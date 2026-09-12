@@ -1541,6 +1541,21 @@ public class KOMEWorldData extends WorldSavedData {
         }
     }
 
+    /** Releases only legacy population ledgers after an ordinary unit removal. */
+    public boolean releasePopulationForOrdinaryUnitRemoval(KOMEHiredUnitRecord record) {
+        if (record == null) return false;
+        releaseFundingBuild(record);
+        if (record.farmhand || record.isFactionPopulationBankFunded()) return false;
+        if (record.isPlayerReserveFunded()) {
+            getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer).release(record.type, record.cost);
+        } else {
+            KOMETilePopulation population = getFundingPool(record);
+            if (population != null) population.release(record.type, record.cost);
+            releaseAllocationUsed(record);
+        }
+        return true;
+    }
+
     public void reconcileBuildManagers() {
         for (KOMEPlayerBuild build : builds.values()) {
             KOMEBuildService.reconcileManager(this, build);
@@ -2005,20 +2020,7 @@ public class KOMEWorldData extends WorldSavedData {
         for (UUID entityID : inactiveUnits) {
             KOMEHiredUnitRecord record = hiredUnits.remove(entityID);
             removeUnitFromCompany(record);
-            releaseFundingBuild(record);
-            if (record != null && !record.farmhand) {
-                if (record.isFactionPopulationBankFunded()) {
-                    // Canonical faction-bank population is permanently spent at hire time.
-                } else if (record.isPlayerReserveFunded()) {
-                    getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer).release(record.type, record.cost);
-                } else {
-                    KOMETilePopulation population = getFundingPool(record);
-                    if (population != null) {
-                        population.release(record.type, record.cost);
-                    }
-                    releaseAllocationUsed(record);
-                }
-            }
+            releasePopulationForOrdinaryUnitRemoval(record);
         }
         if (!inactiveUnits.isEmpty()) {
             markDirty();

@@ -776,7 +776,6 @@ public class KOMEEvents {
         }
         data.hiredUnits.remove(entityId);
         data.removeUnitFromCompany(record);
-        if (!record.isFactionPopulationBankFunded()) data.releaseFundingBuild(record);
         EntityPlayer owner = KOMEReflection.getWorld(npc).func_152378_a(record.owner);
         if (record.farmhand) {
             if (owner != null) {
@@ -789,14 +788,10 @@ public class KOMEEvents {
                 // Canonical faction-bank population is permanently spent at hire time.
             } else if (record.isPlayerReserveFunded()) {
                 reserve = data.getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer);
-                reserve.release(record.type, record.cost);
             } else {
                 population = data.getFundingPool(record);
-                if (population != null) {
-                    population.release(record.type, record.cost);
-                }
-                data.releaseAllocationUsed(record);
             }
+            data.releasePopulationForOrdinaryUnitRemoval(record);
             if (owner != null) {
                 if (reserve != null) {
                     owner.addChatMessage(new ChatComponentText("Player reserve population freed: " + record.cost + " " + record.type.key + " (" + reserve.getAvailable(record.type) + "/" + reserve.getTotal(record.type) + " available)"));

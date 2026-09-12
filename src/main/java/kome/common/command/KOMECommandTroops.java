@@ -1306,14 +1306,8 @@ public class KOMECommandTroops extends CommandBase {
         for (UUID unitId : unitIds) {
             KOMEHiredUnitRecord record = data.hiredUnits.remove(unitId);
             if (record == null) continue;
-            data.releaseFundingBuild(record);
-            returned += Math.max(0, record.cost);
-            if (record.isPlayerReserveFunded()) {
-                data.getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer).release(record.type, record.cost);
-            } else {
-                kome.common.data.KOMETilePopulation pool = data.getFundingPool(record);
-                if (pool != null) pool.release(record.type, record.cost);
-                data.releaseAllocationUsed(record);
+            if (data.releasePopulationForOrdinaryUnitRemoval(record)) {
+                returned += Math.max(0, record.cost);
             }
             Entity entity = loaded.get(unitId);
             if (entity != null) KOMEReflection.setDead(entity);

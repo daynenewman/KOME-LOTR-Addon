@@ -22,6 +22,12 @@ public final class KOMECompanyTransferService {
         if (company.isMoving()) return Result.failure("A company cannot transfer while moving or crossing a route boundary.");
         if (recipient == null || recipient.equals(owner)) return Result.failure("Choose a different same-faction recipient.");
         if (KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) return Result.failure("Wartime Stewardship is temporary authority, not transferable ownership.");
+        String requiredFaction = KOMEAlliance.normalizeFactionKey(company.faction);
+        String recipientFaction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(recipient));
+        if (requiredFaction.length() == 0 || !requiredFaction.equals(recipientFaction)) {
+            return Result.failure("Transfer rejected: recipient is not currently pledged to the company's required faction "
+                + KOMEAlliance.displayFactionName(requiredFaction) + ".");
+        }
         company.transferRecipient = recipient;
         company.transferRecipientName = recipientName == null ? "" : recipientName;
         company.transferOfferedBy = owner;
@@ -40,6 +46,12 @@ public final class KOMECompanyTransferService {
             return Result.failure("The company transfer offer expired.");
         }
         if (company.isMoving()) return Result.failure("The company began moving; transfer cannot complete across a movement boundary.");
+        String requiredFaction = KOMEAlliance.normalizeFactionKey(company.faction);
+        String recipientFaction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(recipient));
+        if (requiredFaction.length() == 0 || !requiredFaction.equals(recipientFaction)) {
+            return Result.failure("Transfer rejected: recipient is not currently pledged to the company's required faction "
+                + KOMEAlliance.displayFactionName(requiredFaction) + ".");
+        }
         List<KOMEHiredUnitRecord> records = new ArrayList<KOMEHiredUnitRecord>();
         Map<String, Integer> allocationNeeds = new HashMap<String, Integer>();
         Map<String, Integer> formerAllocationUses = new HashMap<String, Integer>();
@@ -49,16 +61,14 @@ public final class KOMECompanyTransferService {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
             if (record == null || !company.owner.equals(record.owner)) return Result.failure("Transfer rejected: a company unit record is missing or has a different owner.");
             if (record.isMoving()) return Result.failure("Transfer rejected: unit " + unitId + " is crossing a movement boundary.");
-            if (record.isFactionPopulationBankFunded()) {
-                return Result.failure("Transfer rejected: unit " + unitId
-                    + " uses canonical permanently-spent faction population; company transfer migration is not available yet.");
-            }
             if (KOMEHiredUnitRecord.SOURCE_OTHER_LEGACY.equals(record.sourceType)
                     || KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)) {
                 return Result.failure("Transfer rejected: unit " + unitId + " has non-transferable or quarantined provenance " + record.sourceType + ".");
             }
             records.add(record);
-            if (record.isPlayerReserveFunded()) {
+            if (record.isFactionPopulationBankFunded()) {
+                // Ownership changes without moving permanently-spent canonical population.
+            } else if (record.isPlayerReserveFunded()) {
                 add(reserveNeeds, record.type, record.cost);
                 UUID formerSource = record.sourcePlayer == null ? company.owner : record.sourcePlayer;
                 add(formerReserveUses, reserveKey(formerSource, record.type), record.cost);
