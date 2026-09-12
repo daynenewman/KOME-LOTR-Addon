@@ -96,6 +96,9 @@ public final class KOMEConquestClaimService {
             KOMEWarService.findActiveSameSide(data, nextOwner, previousOwner);
         result.message = "Claimed conquest tile " + tile.id + " for " + KOMEAlliance.displayFactionName(nextOwner)
             + (war == null ? "." : "; recorded in " + displayWar(war) + ".");
+        if (war == null) {
+            KOMEMovementAccessService.revalidateAll(data, nowMillis);
+        }
         data.markDirty();
         return result;
     }

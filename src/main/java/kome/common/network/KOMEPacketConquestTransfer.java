@@ -8,6 +8,7 @@ import io.netty.buffer.ByteBuf;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEConquestTile;
+import kome.common.data.KOMEMovementAccessService;
 import kome.common.data.KOMEWorldData;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
@@ -129,6 +130,7 @@ public class KOMEPacketConquestTransfer implements IMessage {
             }
             String tileId = tile.id;
             data.claimTile(tile, targetFaction, KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)), KOMEReflection.getEntityUUID(player), player.getCommandSenderName());
+            KOMEMovementAccessService.revalidateAll(data, System.currentTimeMillis());
             data.ensureDefaultArrivalPoint(tile);
             data.syncConquestTiles();
             KOMEPacketConquestOpenCapture.sendTileCommand(player, tileId);

@@ -682,6 +682,9 @@ public class KOMEWorldData extends WorldSavedData {
         }
         preserveResetTilePopulationValue(resetTiles);
         conquestDefaultsInitialized = true;
+        if (changed > 0) {
+            KOMEMovementAccessService.revalidateAll(this, System.currentTimeMillis());
+        }
         markDirty();
         syncConquestTiles();
         return changed;
@@ -2962,10 +2965,6 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
-        KOMEWarService.reconcileAutomaticMilitarySupport(this, System.currentTimeMillis(), "World load reconciliation");
-        KOMEWartimeStewardshipService.revalidateAll(this, System.currentTimeMillis(),
-            savedAllianceSchema < 5 ? "Schema-5 removed peacetime kingless stewardship" : "Restart authorization revalidation");
-        KOMECommandTroops.revalidateTemporaryControllers(this, System.currentTimeMillis(), "Restart authorization revalidation");
         if (savedAllianceSchema < 5) {
             safeAllianceInfo("[KOME] Alliance schema-5 migration: coalition wars initialized without inferred history; "
                 + "peacetime kingless stewardship revoked; Trade Posts recovered to ledgers; pledge-release tracking enabled.");
@@ -2979,6 +2978,13 @@ public class KOMEWorldData extends WorldSavedData {
         if (applyWaypointDefaults(!conquestDefaultsInitialized)) {
             migratedPopulationData = true;
         }
+
+        long restartRevalidationNow = System.currentTimeMillis();
+        KOMEWarService.reconcileAutomaticMilitarySupport(this, restartRevalidationNow, "World load reconciliation");
+        KOMEWartimeStewardshipService.revalidateAll(this, restartRevalidationNow,
+            savedAllianceSchema < 5 ? "Schema-5 removed peacetime kingless stewardship" : "Restart authorization revalidation");
+        KOMECommandTroops.revalidateTemporaryControllers(this, restartRevalidationNow, "Restart authorization revalidation");
+        KOMEMovementAccessService.revalidateAll(this, restartRevalidationNow);
 
         if (migratedPopulationData || migratedAllianceData) {
             markDirty();

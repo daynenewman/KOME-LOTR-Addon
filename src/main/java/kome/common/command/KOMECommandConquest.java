@@ -4,6 +4,7 @@ import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEConquestTileDefaults;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMETileWaypointLink;
+import kome.common.data.KOMEMovementAccessService;
 import kome.common.data.KOMEWorldData;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
@@ -106,6 +107,7 @@ public class KOMECommandConquest extends CommandBase {
             requireStaff(sender);
             KOMEConquestTile tile = data.getConquestTile(tileId);
             tile.clear();
+            KOMEMovementAccessService.revalidateAll(data, System.currentTimeMillis());
             data.markDirty();
             data.syncConquestTiles();
             sender.addChatMessage(new ChatComponentText("Cleared conquest tile " + tileId));
@@ -125,10 +127,12 @@ public class KOMECommandConquest extends CommandBase {
             KOMEConquestTile tile = data.getConquestTile(tileId);
             if (faction.isEmpty()) {
                 tile.clear();
+                KOMEMovementAccessService.revalidateAll(data, System.currentTimeMillis());
                 sender.addChatMessage(new ChatComponentText("Set conquest tile " + tileId + " to unclaimed"));
             } else {
                 EntityPlayerMP claimant = sender instanceof EntityPlayerMP ? (EntityPlayerMP) sender : null;
                 data.claimTile(tile, faction, sender.getEntityWorld().getTotalWorldTime(), claimant == null ? null : kome.common.KOMEReflection.getEntityUUID(claimant), claimant == null ? sender.getCommandSenderName() : claimant.getCommandSenderName());
+                KOMEMovementAccessService.revalidateAll(data, System.currentTimeMillis());
                 data.ensureDefaultArrivalPoint(tile);
                 sender.addChatMessage(new ChatComponentText("Claimed conquest tile " + tileId + " for " + displayFaction(faction)));
             }
@@ -167,6 +171,7 @@ public class KOMECommandConquest extends CommandBase {
             String faction = tile.pendingTransferToFaction;
             EntityPlayerMP claimant = sender instanceof EntityPlayerMP ? (EntityPlayerMP) sender : null;
             data.claimTile(tile, faction, sender.getEntityWorld().getTotalWorldTime(), claimant == null ? null : kome.common.KOMEReflection.getEntityUUID(claimant), claimant == null ? sender.getCommandSenderName() : claimant.getCommandSenderName());
+            KOMEMovementAccessService.revalidateAll(data, System.currentTimeMillis());
             data.ensureDefaultArrivalPoint(tile);
             data.syncConquestTiles();
             sender.addChatMessage(new ChatComponentText("Accepted conquest tile " + tileId + " for " + displayFaction(faction)));
@@ -504,6 +509,7 @@ public class KOMECommandConquest extends CommandBase {
             }
         }
         if (cleared > 0) {
+            KOMEMovementAccessService.revalidateAll(data, System.currentTimeMillis());
             data.markDirty();
         }
         data.syncConquestTiles();

@@ -16,6 +16,11 @@ public final class KOMEWarService {
 
     public static KOMEWar createWar(KOMEWorldData data, String first, String second, String name,
             String actor, long now) {
+        return createWarInternal(data, first, second, name, actor, now, true);
+    }
+
+    private static KOMEWar createWarInternal(KOMEWorldData data, String first, String second, String name,
+            String actor, long now, boolean revalidateMovement) {
         String a = KOMEAlliance.normalizeFactionKey(first);
         String b = KOMEAlliance.normalizeFactionKey(second);
         if (a.length() == 0 || b.length() == 0 || a.equals(b)) return null;
@@ -35,9 +40,11 @@ public final class KOMEWarService {
         war.recordMembership(b, 2, "MANUAL", "", actor, now);
         data.wars.put(war.id, war);
         reconcileAutomaticMilitarySupport(data, now, "War created");
-        KOMEMovementAccessService.revalidateAll(data, now);
-        KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
-        data.markDirty();
+        if (revalidateMovement) {
+            KOMEMovementAccessService.revalidateAll(data, now);
+            KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
+            data.markDirty();
+        }
         return war;
     }
 
@@ -48,7 +55,7 @@ public final class KOMEWarService {
         if (former.length() == 0 || next.length() == 0 || former.equals(next)) return null;
         KOMEWar war = findActiveOpposition(data, former, next);
         if (war == null) {
-            war = createWar(data, next, former, "", claimantName, now);
+            war = createWarInternal(data, next, former, "", claimantName, now, false);
             if (war != null) {
                 war.endMembership(next, "Capture-created war provenance correction", now);
                 war.endMembership(former, "Capture-created war provenance correction", now);
@@ -59,6 +66,7 @@ public final class KOMEWarService {
         if (war != null) {
             war.addTileCapture(tileId, former, next, claimant, claimantName, now, claimMethod);
             reconcileAutomaticMilitarySupport(data, now, "Capture updated active war");
+            KOMEMovementAccessService.revalidateAll(data, now);
             KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
             data.markDirty();
         }

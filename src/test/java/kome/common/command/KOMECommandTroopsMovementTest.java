@@ -1,6 +1,7 @@
 package kome.common.command;
 
 import kome.common.data.KOMEArmyMovementOrder;
+import kome.common.data.KOMEConquestClaimService;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEDiplomacyRecord;
 import kome.common.data.KOMEDiplomacyRelation;
@@ -10,6 +11,7 @@ import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMEWarService;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
+import net.minecraft.nbt.NBTTagCompound;
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
@@ -265,6 +267,53 @@ public class KOMECommandTroopsMovementTest {
     }
 
     @Test
+    public void hostileCaptureOnExistingWarRevalidatesAfterFinalCaptureState() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        claim(data, "T001", "rohan");
+        claim(data, "T002", "mordor");
+        assertTrue(KOMEWarService.createWar(data, "rohan", "mordor", "Existing War", "test", 910L) != null);
+
+        KOMEArmyMovementOrder order = order("T001", "T002", "T003");
+        order.ownerFaction = "rohan";
+        order.status = KOMEArmyMovementOrder.WAITING_NEXT_STEP;
+        order.currentRouteIndex = 0;
+        order.nextRouteIndex = 1;
+        order.currentTile = "T001";
+        order.nextTile = "T002";
+        order.currentStepOriginTile = "T001";
+        order.currentStepDestinationTile = "T002";
+        order.traveledRouteTiles.add("T001");
+        data.armyMovements.put(order.id, order);
+
+        KOMEWarService.recordHostileCapture(data, "T003", "rohan", "mordor",
+            UUID.randomUUID(), "Capture", 911L, "TEST_CAPTURE");
+
+        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, order.status);
+        assertTrue(order.accessLossReason.contains("T002"));
+        assertEquals("T001", order.currentTile);
+        assertEquals(0, order.currentRouteIndex);
+        assertEquals(1, order.nextRouteIndex);
+    }
+
+    @Test
+    public void captureCreatedWarRevalidatesOnlyAfterFinalCaptureState() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        setRelation(data, KOMEDiplomacyRelation.ALLIES);
+        KOMEArmyMovementOrder order = queuedOrder();
+        data.armyMovements.put(order.id, order);
+
+        KOMEWarService.recordHostileCapture(data, "T002", "rohan", "gondor",
+            UUID.randomUUID(), "Capture", 920L, "TEST_CAPTURE");
+
+        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, order.status);
+        assertEquals(920L, order.accessLostAtMillis);
+        assertTrue(order.accessLossReason.contains("T002"));
+        assertEquals("T001", order.currentTile);
+        assertEquals(0, order.currentRouteIndex);
+        assertEquals(1, order.nextRouteIndex);
+    }
+
+    @Test
     public void restoringAlliesDoesNotAutoResumeHaltedMovement() {
         KOMEWorldData data = new KOMEWorldData("test");
         setRelation(data, KOMEDiplomacyRelation.FRIENDS);
@@ -318,6 +367,138 @@ public class KOMECommandTroopsMovementTest {
             KOMEDiplomacyService.getRelation(data, "gondor", "rohan"));
         assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, order.status);
         assertTrue(order.accessLossReason.contains("T002"));
+    }
+
+    @Test
+    public void runtimeOwnershipResetRevalidatesQueuedMovementWithoutChangingProgress() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        setRelation(data, KOMEDiplomacyRelation.FRIENDS);
+        KOMEArmyMovementOrder order = queuedOrder();
+        data.armyMovements.put(order.id, order);
+        data.conquestTiles.get("T001").defaultRulingFaction = "gondor";
+        data.conquestTiles.get("T002").defaultRulingFaction = "mordor";
+
+        assertTrue(data.resetConquestOwnershipToDefaults(1000L) > 0);
+        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, order.status);
+        assertEquals("T001", order.currentTile);
+        assertEquals(0, order.currentRouteIndex);
+        assertEquals(1, order.nextRouteIndex);
+        assertEquals(1, order.traveledRouteTiles.size());
+        assertTrue(order.accessLossReason.contains("T002"));
+        assertTrue(order.accessLostAtMillis > 0L);
+    }
+
+    @Test
+    public void completedPlayerClaimRevalidatesQueuedMovement() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        claim(data, "T001", "gondor");
+        claim(data, "T002", "rohan");
+        KOMEArmyMovementOrder order = queuedOrder();
+        data.armyMovements.put(order.id, order);
+
+        KOMEConquestClaimService.Result result = KOMEConquestClaimService.claim(
+            data, data.conquestTiles.get("T002"), "mordor", UUID.randomUUID(), "Claimant", 0L, 920L);
+
+        assertTrue(result.success);
+        assertEquals("mordor", data.conquestTiles.get("T002").currentRulingFaction());
+        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, order.status);
+        assertEquals("T001", order.currentTile);
+        assertEquals(0, order.currentRouteIndex);
+        assertEquals(1, order.nextRouteIndex);
+        assertTrue(order.accessLossReason.contains("T002"));
+    }
+
+    @Test
+    public void ownershipRestorationDoesNotAutoResumeAccessHaltedMovement() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        setRelation(data, KOMEDiplomacyRelation.FRIENDS);
+        KOMEArmyMovementOrder order = queuedOrder();
+        order.status = KOMEArmyMovementOrder.ACCESS_HALTED;
+        order.haltAfterArrival = true;
+        order.accessChoice = "PENDING";
+        data.armyMovements.put(order.id, order);
+
+        data.conquestTiles.get("T002").claim("gondor", 1001L);
+        assertFalse(KOMEMovementAccessService.revalidateAll(data, 1002L));
+        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, order.status);
+        assertTrue(order.haltAfterArrival);
+    }
+
+    @Test
+    public void restartRevalidatesQueuedMovementAfterAllStateIsLoaded() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        setRelation(data, KOMEDiplomacyRelation.FRIENDS);
+        KOMEArmyMovementOrder order = queuedOrder();
+        data.armyMovements.put(order.id, order);
+
+        NBTTagCompound saved = new NBTTagCompound();
+        data.writeToNBT(saved);
+        KOMEWorldData restored = new KOMEWorldData("restored");
+        restored.readFromNBT(saved);
+
+        KOMEArmyMovementOrder loaded = restored.armyMovements.get(order.id);
+        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, loaded.status);
+        assertEquals("T001", loaded.currentTile);
+        assertEquals(0, loaded.currentRouteIndex);
+        assertEquals(1, loaded.nextRouteIndex);
+        assertEquals(order.traveledRouteTiles, loaded.traveledRouteTiles);
+        assertTrue(loaded.accessLossReason.contains("T002"));
+        assertTrue(loaded.accessLostAtMillis > 0L);
+    }
+
+    @Test
+    public void restartRevalidatesCommittedMovementWithoutRewindingOrDiscardingRetryState() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        setRelation(data, KOMEDiplomacyRelation.FRIENDS);
+        KOMEArmyMovementOrder order = inFlightOrder();
+        order.status = KOMEArmyMovementOrder.PENDING_SPAWN;
+        order.pendingSpawnReason = "Chunk retry";
+        order.spawnAttemptCount = 3;
+        order.nextSpawnRetryMillis = 1200L;
+        order.spawnRetryPaused = true;
+        data.armyMovements.put(order.id, order);
+
+        NBTTagCompound saved = new NBTTagCompound();
+        data.writeToNBT(saved);
+        KOMEWorldData restored = new KOMEWorldData("restored");
+        restored.readFromNBT(saved);
+
+        KOMEArmyMovementOrder loaded = restored.armyMovements.get(order.id);
+        assertEquals(KOMEArmyMovementOrder.PENDING_SPAWN, loaded.status);
+        assertTrue(loaded.haltAfterArrival);
+        assertEquals("T002", loaded.currentStepDestinationTile);
+        assertEquals("T002", loaded.arrivalPointTileId);
+        assertEquals(10.5D, loaded.arrivalX, 0.0D);
+        assertEquals(3, loaded.spawnAttemptCount);
+        assertEquals(1200L, loaded.nextSpawnRetryMillis);
+        assertTrue(loaded.spawnRetryPaused);
+        assertEquals(0, loaded.currentRouteIndex);
+        assertEquals(1, loaded.nextRouteIndex);
+        assertEquals(order.traveledRouteTiles, loaded.traveledRouteTiles);
+    }
+
+    @Test
+    public void restartKeepsAlreadyHaltedMovementHaltedWhenPassageIsRestored() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        setRelation(data, KOMEDiplomacyRelation.ALLIES);
+        KOMEArmyMovementOrder order = queuedOrder();
+        order.status = KOMEArmyMovementOrder.ACCESS_HALTED;
+        order.haltAfterArrival = true;
+        order.accessChoice = "PENDING";
+        order.accessLossReason = "Previous canonical denial";
+        order.accessLostAtMillis = 1300L;
+        data.armyMovements.put(order.id, order);
+
+        NBTTagCompound saved = new NBTTagCompound();
+        data.writeToNBT(saved);
+        KOMEWorldData restored = new KOMEWorldData("restored");
+        restored.readFromNBT(saved);
+
+        KOMEArmyMovementOrder loaded = restored.armyMovements.get(order.id);
+        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, loaded.status);
+        assertTrue(loaded.haltAfterArrival);
+        assertEquals("Previous canonical denial", loaded.accessLossReason);
+        assertEquals(1300L, loaded.accessLostAtMillis);
     }
 
     private static KOMEArmyMovementOrder order(String... route) {
