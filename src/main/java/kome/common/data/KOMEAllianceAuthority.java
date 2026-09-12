@@ -61,61 +61,15 @@ public class KOMEAllianceAuthority {
             && !KOMEWarService.authorizedSameSideWars(data, unitFaction, hiringFaction).isEmpty();
     }
 
-    public boolean canFactionUseMilitaryPassage(String movingFaction, String tileOwnerFaction) {
-        String moving = KOMEAlliance.normalizeFactionKey(movingFaction);
-        String owner = KOMEAlliance.normalizeFactionKey(tileOwnerFaction);
-        return moving.length() > 0 && (moving.equals(owner)
-            || !isDirectlyHostile(moving, owner)
-                && getEffectiveStage(moving, owner) >= 3);
-    }
-
-    public boolean canTemporarilyCommand(String companyFaction, String controllerFaction) {
-        if (isDirectlyHostile(companyFaction, controllerFaction)
-                || getEffectiveStage(controllerFaction, companyFaction) < 4) {
-            return false;
-        }
-        return data != null && (data.hasFactionKing(companyFaction)
-            || !KOMEWarService.authorizedSameSideWars(data, companyFaction, controllerFaction).isEmpty());
-    }
-
-    public boolean canVoluntarilyDelegate(String nativeFaction, String controllerFaction) {
-        return data != null && data.hasFactionKing(nativeFaction) && canTemporarilyCommand(nativeFaction, controllerFaction);
-    }
-
-    public Decision canVoluntarilyDelegate(String nativeFaction, UUID nativeKing, String controllerFaction,
-            UUID supportingKing) {
-        String nativeKey = KOMEAlliance.normalizeFactionKey(nativeFaction);
-        String supportingKey = KOMEAlliance.normalizeFactionKey(controllerFaction);
-        if (data == null || nativeKing == null || supportingKing == null)
-            return Decision.deny("Both recognized kings are required.");
-        if (!data.isFactionKing(nativeKey, nativeKing)
-                || !nativeKey.equals(KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(nativeKing))))
-            return Decision.deny("Only the recognized, pledged native king may delegate a personally owned company.");
-        if (!data.isFactionKing(supportingKey, supportingKing)
-                || !supportingKey.equals(KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(supportingKing))))
-            return Decision.deny("The recipient must be the recognized, pledged king of the supporting faction.");
-        if (isDirectlyHostile(nativeKey, supportingKey))
-            return Decision.deny("Direct active opposition overrides Stage 4 delegation.");
-        return canVoluntarilyDelegate(nativeKey, supportingKey) ? Decision.allow()
-            : Decision.deny("The receiving faction needs directional Stage 4 Military Partnership.");
-    }
-
     public Decision canControlTemporaryCompany(KOMEArmyCompany company, UUID actor) {
         if (data == null || company == null || actor == null || !actor.equals(company.temporaryController))
             return Decision.deny("The player is not the recorded temporary controller.");
-        if (KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) {
-            KOMEWarService.AuthorizationDecision decision = KOMEWartimeStewardshipService.controllerDecision(data, company, actor);
-            return decision.allowed ? Decision.allow() : Decision.deny(decision.reason);
-        }
-        if (!KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority))
-            return Decision.deny("This company is not under Stage 4 temporary control.");
-        String nativeFaction = KOMEWartimeStewardshipService.nativeFaction(company);
-        String supportingFaction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor));
-        if (company.owner == null || company.delegatedBy == null || !company.owner.equals(company.delegatedBy))
-            return Decision.deny("Voluntary delegation is limited to a native king's personally owned company.");
-        return canVoluntarilyDelegate(nativeFaction, company.delegatedBy, supportingFaction, actor);
+        if (!KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority))
+            return Decision.deny("This company is not under Wartime Stewardship temporary control.");
+        KOMEWarService.AuthorizationDecision decision =
+            KOMEWartimeStewardshipService.controllerDecision(data, company, actor);
+        return decision.allowed ? Decision.allow() : Decision.deny(decision.reason);
     }
-
     public boolean canWartimeSteward(String nativeFaction, String controllerFaction) {
         return data != null && !data.hasFactionKing(nativeFaction)
             && !KOMEWarService.authorizedSameSideWars(data, nativeFaction, controllerFaction).isEmpty();

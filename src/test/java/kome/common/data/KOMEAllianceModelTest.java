@@ -55,9 +55,7 @@ public class KOMEAllianceModelTest {
         alliance.setFactionStage("gondor", 3, "test", 0L, 10L);
         KOMEAllianceAuthority authority = new KOMEAllianceAuthority(data);
         assertTrue(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
-        assertTrue(authority.canFactionUseMilitaryPassage("gondor", "rohan"));
         assertFalse(authority.canFactionHireAlliedFarmhand("rohan", "gondor"));
-        assertFalse(authority.canFactionUseMilitaryPassage("rohan", "gondor"));
     }
 
     @Test public void waypointUseRequiresCanonicalDiplomacyForForeignTerritory() {

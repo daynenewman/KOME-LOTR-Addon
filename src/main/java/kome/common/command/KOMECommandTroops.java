@@ -1901,11 +1901,11 @@ public class KOMECommandTroops extends CommandBase {
         if (safeIndex < 0) {
             if (company != null && company.stewardshipCreated) {
                 company.withdrawalState = KOMEArmyCompany.CLEANUP_ADMIN;
-                order.pendingSpawnReason = "No safe native or Stage 3 passage tile exists on the actual traveled route";
+                order.pendingSpawnReason = "No safe native or canonical Allies passage tile exists on the actual traveled route";
                 order.accessLossReason = order.pendingSpawnReason;
                 data.markDirty();
             }
-            throw new WrongUsageException("No safe native or Stage 3 passage tile exists on the company's actual traveled route. The halted company is preserved for admin resolution.");
+            throw new WrongUsageException("No safe native or canonical Allies passage tile exists on the company's actual traveled route. The halted company is preserved for admin resolution.");
         }
         order.routeTiles.clear();
         for (int i = currentIndex; i >= safeIndex; i--) {
@@ -2359,7 +2359,7 @@ public class KOMECommandTroops extends CommandBase {
             return route.failureReason;
         }
         return "No legal route to this tile. Destination is not reachable through your claimed "
-            + displayFaction(company.faction) + " tiles or partner tiles unlocked by Stage 3 passage.";
+            + displayFaction(company.faction) + " tiles or partner tiles unlocked by canonical Allies passage.";
     }
 
     private List<RouteBlocker> sortedRouteBlockers(RouteResult route) {
@@ -4319,7 +4319,7 @@ public class KOMECommandTroops extends CommandBase {
         }
         throw new WrongUsageException(role + " tile " + normalizedTile + " is owned by " + displayFaction(owner)
             + " (" + emptyKey(owner) + "), and " + displayFaction(companyFaction) + " (" + emptyKey(companyFaction)
-            + ") has no Stage 3 passage there.");
+            + ") has no canonical Allies passage there.");
     }
 
     private String companyStandBlockReason(KOMEWorldData data, KOMEArmyCompany company, String tileId) {
@@ -4336,7 +4336,7 @@ public class KOMECommandTroops extends CommandBase {
         if (owner.equals(companyFaction) || data.canFactionUseMilitaryPassage(companyFaction, owner)) {
             return "";
         }
-        return displayFaction(companyFaction) + " has no Stage 3 passage through " + displayFaction(owner);
+        return displayFaction(companyFaction) + " has no canonical Allies passage through " + displayFaction(owner);
     }
 
     private static void refreshCompany(KOMEWorldData data, KOMEArmyCompany company) {
@@ -4446,7 +4446,7 @@ public class KOMECommandTroops extends CommandBase {
                 && (company == null || !KOMEWartimeStewardshipService.canEnter(data, company, originOwner, false))) {
             result.failureReason = "Origin tile " + start + " is owned by " + displayFaction(originOwner)
                 + " (" + emptyKey(originOwner) + "), but moving faction is " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") and has no directional Stage 3 passage there.";
+                + " (" + emptyKey(faction) + ") and has no canonical Allies passage there.";
             return result;
         }
         String destinationBlock = routeTileBlockReason(data, goal, faction, true, company);
@@ -4575,7 +4575,7 @@ public class KOMECommandTroops extends CommandBase {
         StringBuilder message = new StringBuilder();
         message.append("No legal route from ").append(start).append(" to ").append(goal).append(".");
         message.append(" Destination ").append(goal).append(" was not reachable through claimed ")
-            .append(displayFaction(faction)).append(" tiles or partner tiles unlocked by Stage 3 passage.");
+            .append(displayFaction(faction)).append(" tiles or partner tiles unlocked by canonical Allies passage.");
         if (visited == null || visited.size() <= 1) {
             message.append(" The origin has no legal outgoing route steps.");
         }
@@ -4649,7 +4649,7 @@ public class KOMECommandTroops extends CommandBase {
         if (destination) {
             return "Enemy tile attack movement is not implemented yet. Destination tile " + tileKey + " is owned by "
                 + displayFaction(owner) + " (" + emptyKey(owner) + "), and " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") has no Stage 3 passage.";
+                + " (" + emptyKey(faction) + ") has no canonical Allies passage.";
         }
         return "Tile " + tileKey + " is controlled by " + displayFaction(owner) + " and no military passage permission exists.";
     }

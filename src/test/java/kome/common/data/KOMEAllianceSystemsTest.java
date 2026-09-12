@@ -443,7 +443,7 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void benefitAuthorityGatesEveryEstablishedTier() {
+    public void benefitAuthorityGatesEstablishedFarmhandAndMerchantTiers() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
         KOMEAllianceAuthority authority = new KOMEAllianceAuthority(data);
@@ -453,18 +453,10 @@ public class KOMEAllianceSystemsTest {
         assertTrue(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
         alliance.setFactionStage("gondor", 2, "test", 0L, 2L);
         assertTrue(alliance.hasProduceMerchantSlot("gondor"));
-        assertFalse(authority.canFactionUseMilitaryPassage("gondor", "rohan"));
-        alliance.setFactionStage("gondor", 3, "test", 0L, 3L);
-        assertTrue(authority.canFactionUseMilitaryPassage("gondor", "rohan"));
-        assertFalse(authority.canFactionUseMilitaryPassage("rohan", "gondor"));
-        assertFalse(authority.canTemporarilyCommand("gondor", "rohan"));
-        alliance.setFactionStage("rohan", 4, "test", 0L, 4L);
-        data.claimFactionKing("gondor", "Gondor", UUID.randomUUID(), "King");
-        assertTrue(authority.canTemporarilyCommand("gondor", "rohan"));
     }
 
     @Test
-    public void militaryTierThreeTemporaryCommandWhitelistIsExplicitAndClosed() {
+    public void temporaryCompanyCommandWhitelistIsExplicitAndClosed() {
         for (String action : new String[] {"view", "dispatch", "continue", "halt", "stay", "retreat", "resume"}) {
             assertTrue(action, KOMEAllianceTemporaryCommandPolicy.allows(action));
         }
@@ -1023,23 +1015,6 @@ public class KOMEAllianceSystemsTest {
             KOMEAlliance.normalizeFactionKey("opponent_xi")));
         assertTrue(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
             KOMEAlliance.normalizeFactionKey("opponent_omicron")));
-    }
-
-    @Test
-    public void voluntaryDelegationRequiresBothRecognizedPledgedMilitaryTierThreeKings() {
-        KOMEWorldData data = new KOMEWorldData("test");
-        establishMilitaryT3(data, "native_pi", "support_rho");
-        UUID nativeKing = crown(data, "native_pi", "Native King");
-        UUID supportingKing = crown(data, "support_rho", "Supporting King");
-        UUID member = UUID.randomUUID();
-        data.lastKnownPlayerFactions.put(member, "support_rho");
-        KOMEAllianceAuthority authority = new KOMEAllianceAuthority(data);
-
-        assertTrue(authority.canVoluntarilyDelegate("native_pi", nativeKing, "support_rho", supportingKing).allowed);
-        assertFalse(authority.canVoluntarilyDelegate("native_pi", nativeKing, "support_rho", member).allowed);
-        assertFalse(authority.canVoluntarilyDelegate("native_pi", UUID.randomUUID(), "support_rho", supportingKing).allowed);
-        data.lastKnownPlayerFactions.put(supportingKing, "");
-        assertFalse(authority.canVoluntarilyDelegate("native_pi", nativeKing, "support_rho", supportingKing).allowed);
     }
 
     @Test
