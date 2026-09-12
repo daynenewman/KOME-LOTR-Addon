@@ -1551,17 +1551,9 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public boolean canFactionUseMilitaryPassage(String movingFaction, String tileOwnerFaction) {
-        String moving = KOMEAlliance.normalizeFactionKey(movingFaction);
-        String owner = KOMEAlliance.normalizeFactionKey(tileOwnerFaction);
-        if (moving.length() == 0 || owner.length() == 0) {
-            return false;
-        }
-        if (moving.equals(owner)) {
-            return true;
-        }
-        return new KOMEAllianceAuthority(this).canFactionUseMilitaryPassage(moving, owner);
+        return KOMECompanyDiplomacyAuthorization
+            .canUseMilitaryPassage(this, movingFaction, tileOwnerFaction).allowed;
     }
-
     public KOMEConquestRouteEdge getRouteEdgeOverride(String tileA, String tileB) {
         return routeEdges.get(KOMEConquestRouteEdge.key(tileA, tileB));
     }

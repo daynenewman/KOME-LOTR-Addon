@@ -83,6 +83,31 @@ public class KOMECompanyDiplomacyAuthorizationTest {
             .canContinueDelegation(data, "native_test", recipient).allowed);
     }
 
+    @Test
+    public void worldDataPassageBoundaryUsesCanonicalDiplomacy() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID gondorKing = crown(data, "gondor_test", "Gondor King");
+        UUID rohanKing = crown(data, "rohan_test", "Rohan King");
+
+        assertFalse(data.canFactionUseMilitaryPassage("gondor_test", "rohan_test"));
+
+        increaseRelation(
+            data, "gondor_test", "rohan_test",
+            KOMEDiplomacyRelation.FRIENDS, gondorKing, rohanKing, 10L);
+
+        assertFalse(data.canFactionUseMilitaryPassage("gondor_test", "rohan_test"));
+
+        increaseRelation(
+            data, "gondor_test", "rohan_test",
+            KOMEDiplomacyRelation.ALLIES, gondorKing, rohanKing, 20L);
+
+        assertTrue(data.canFactionUseMilitaryPassage("gondor_test", "rohan_test"));
+
+        assertNotNull(KOMEWarService.createWar(
+            data, "gondor_test", "rohan_test", "Test War", "test", 30L));
+
+        assertFalse(data.canFactionUseMilitaryPassage("gondor_test", "rohan_test"));
+    }
     private static UUID crown(KOMEWorldData data, String faction, String name) {
         UUID king = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(king, faction);
