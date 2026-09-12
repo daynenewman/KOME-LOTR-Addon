@@ -6,7 +6,9 @@ import com.lotrcharactercreation.creation.CharacterRecreationService.StartResult
 import com.lotrcharactercreation.network.ModNetwork;
 import kome.common.KOMEReflection;
 import kome.common.config.KOMEConfigInspection;
+import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMERulerService;
 import kome.common.data.KOMETileOwnershipDefaults;
 import kome.common.data.KOMEWaypointDefaults;
 import kome.common.network.KOMEPacketUnitMapMarkers;
@@ -16,8 +18,11 @@ import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
+import lotr.common.fac.LOTRFaction;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 public class KOMECommandKome extends CommandBase {
     @Override
@@ -27,7 +32,7 @@ public class KOMECommandKome extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/kome character recreate <player> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status>";
+        return "/kome character recreate <player> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
     @Override
@@ -59,6 +64,11 @@ public class KOMECommandKome extends CommandBase {
                 sender.addChatMessage(
                     new ChatComponentText("Reopened character recreation for " + target.getCommandSenderName() + "."));
             }
+            return;
+        }
+        if (args.length >= 3 && "ruler".equalsIgnoreCase(args[0])) {
+            requireStaff(sender);
+            processRuler(sender, args);
             return;
         }
         if (args.length == 1 && "config".equalsIgnoreCase(args[0])) {
@@ -151,7 +161,18 @@ public class KOMECommandKome extends CommandBase {
                 "config",
                 "conquest",
                 "waypointdefaults",
-                "adminmarkers");
+                "adminmarkers",
+                "ruler");
+        }
+        if (args.length == 2 && "ruler".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(args, "get", "assign", "remove", "repair");
+        }
+        if (args.length == 3 && "ruler".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(args, factionSuggestions());
+        }
+        if (args.length == 4 && "ruler".equalsIgnoreCase(args[0])
+            && ("assign".equalsIgnoreCase(args[1]) || "repair".equalsIgnoreCase(args[1]))) {
+            return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());
         }
         if (args.length == 2 && "character".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, "recreate");
@@ -186,9 +207,85 @@ public class KOMECommandKome extends CommandBase {
     }
 
     private void requireStaff(ICommandSender sender) {
-        if (!sender.canCommandSenderUseCommand(2, getCommandName())) {
+        if (!hasStaffPermission(sender)) {
             throw new WrongUsageException("You do not have permission to use this KOME admin command.");
         }
+    }
+
+    boolean hasStaffPermission(ICommandSender sender) {
+        return sender != null && sender.canCommandSenderUseCommand(2, getCommandName());
+    }
+
+    private void processRuler(ICommandSender sender, String[] args) {
+        if (args.length < 3) {
+            throw new WrongUsageException("/kome ruler <get|assign|remove|repair> <faction> [player]");
+        }
+        String action = args[1].toLowerCase();
+        String faction = resolveSupportedFaction(args[2]);
+        KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
+        if ("get".equals(action) && args.length == 3) {
+            UUID ruler = KOMERulerService.getRuler(data, faction);
+            if (ruler == null) {
+                sender.addChatMessage(new ChatComponentText("" + KOMEAlliance.displayFactionName(faction) + " has no recognized ruler."));
+            } else {
+                sender.addChatMessage(new ChatComponentText(KOMEAlliance.displayFactionName(faction)
+                    + " ruler: " + ruler + " (" + KOMERulerService.getRulerName(data, faction) + ")."));
+            }
+            return;
+        }
+        if ("assign".equals(action) && args.length == 4) {
+            EntityPlayerMP target = getPlayer(sender, args[3]);
+            UUID previous = KOMERulerService.getRuler(data, faction);
+            KOMERulerService.assignRuler(data, faction, KOMEReflection.getEntityUUID(target), target.getCommandSenderName());
+            sender.addChatMessage(new ChatComponentText("Assigned " + target.getCommandSenderName() + " as ruler of "
+                + KOMEAlliance.displayFactionName(faction) + (previous == null ? "." : "; replaced " + previous + ".")));
+            return;
+        }
+        if ("remove".equals(action) && args.length == 3) {
+            UUID previous = KOMERulerService.getRuler(data, faction);
+            if (previous == null) {
+                sender.addChatMessage(new ChatComponentText(KOMEAlliance.displayFactionName(faction) + " has no recognized ruler; no change made."));
+            } else {
+                KOMERulerService.removeRuler(data, faction);
+                sender.addChatMessage(new ChatComponentText("Removed recognized ruler " + previous + " from "
+                    + KOMEAlliance.displayFactionName(faction) + "."));
+            }
+            return;
+        }
+        if ("repair".equals(action) && (args.length == 3 || args.length == 4)) {
+            UUID authoritativeID = null;
+            String authoritativeName = null;
+            if (args.length == 4) {
+                EntityPlayerMP target = getPlayer(sender, args[3]);
+                authoritativeID = KOMEReflection.getEntityUUID(target);
+                authoritativeName = target.getCommandSenderName();
+            }
+            KOMERulerService.RepairResult result = KOMERulerService.repair(data, faction, authoritativeID, authoritativeName);
+            UUID ruler = KOMERulerService.getRuler(data, faction);
+            sender.addChatMessage(new ChatComponentText("Ruler repair for " + KOMEAlliance.displayFactionName(faction)
+                + ": " + (result.changed ? "changed" : "unchanged") + " - " + result.reason
+                + ". Result: " + (ruler == null ? "no ruler" : ruler + " (" + KOMERulerService.getRulerName(data, faction) + ")")));
+            return;
+        }
+        throw new WrongUsageException("/kome ruler <get|assign|remove|repair> <faction> [player]");
+    }
+
+    private String resolveSupportedFaction(String value) {
+        LOTRFaction faction = KOMEAlliance.findLotrFaction(value);
+        if (faction == null || !faction.isPlayableAlignmentFaction()) {
+            throw new WrongUsageException("Unknown supported faction: " + value);
+        }
+        return KOMEAlliance.normalizeFactionKey(faction.codeName());
+    }
+
+    private String[] factionSuggestions() {
+        List<String> suggestions = new ArrayList<String>();
+        for (LOTRFaction faction : LOTRFaction.values()) {
+            if (faction != null && faction.isPlayableAlignmentFaction()) {
+                suggestions.add(faction.codeName());
+            }
+        }
+        return suggestions.toArray(new String[suggestions.size()]);
     }
 
     private void sendConfig(ICommandSender sender,
