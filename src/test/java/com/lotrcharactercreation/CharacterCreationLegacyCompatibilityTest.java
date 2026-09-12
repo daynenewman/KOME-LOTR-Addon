@@ -25,7 +25,10 @@ import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
 import com.lotrcharactercreation.appearance.AppearanceSourceType;
 import com.lotrcharactercreation.appearance.ExternalAppearancePresetScanner;
 import com.lotrcharactercreation.appearance.PlayerSex;
+import com.lotrcharactercreation.appearance.ServerCustomSkinLibrary;
 import com.lotrcharactercreation.creation.CharacterCreationFlowService;
+import com.lotrcharactercreation.creation.CharacterRecreationService;
+import com.lotrcharactercreation.creation.CharacterRecreationService.StartResult;
 import com.lotrcharactercreation.creation.CharacterCreationStage;
 import com.lotrcharactercreation.faction.StartingFaction;
 import com.lotrcharactercreation.race.PlayerRace;
@@ -56,7 +59,7 @@ public class CharacterCreationLegacyCompatibilityTest {
 
         BufferedImage image = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
         assertTrue(ImageIO.write(image, "png", customSkinFile.toFile()));
-        AppearancePresetRegistry.initialize(customSkinRoot.toFile(), null);
+        assertTrue(ServerCustomSkinLibrary.getInstance().reload(customSkinRoot.toFile(), null).isApplied());
     }
 
     @Test
@@ -81,6 +84,7 @@ public class CharacterCreationLegacyCompatibilityTest {
         assertTrue(PlayerRaceData.isStartingFactionApplied(fixture.player));
         assertTrue(PlayerRaceData.isStartingWaypointApplied(fixture.player));
         assertTrue(PlayerRaceData.isCharacterCreationComplete(fixture.player));
+        assertFalse(PlayerRaceData.isCharacterEditAuthorized(fixture.player));
         assertTrue(PlayerRaceData.hasDwarfResourceData(fixture.player));
         assertEquals(63.25F, PlayerRaceData.getDwarfStamina(fixture.player), 0.0F);
         assertEquals(17, PlayerRaceData.getDwarfFeast(fixture.player));
@@ -126,7 +130,9 @@ public class CharacterCreationLegacyCompatibilityTest {
         assertEquals(AppearanceSourceType.EXTERNAL, scannedPreset.getSourceType());
         assertEquals("man/male/gondor/legacy_hero.png", scannedPreset.getExternalRelativePath());
 
-        AppearancePreset registeredPreset = AppearancePresetRegistry.findById(CUSTOM_PRESET_ID);
+        AppearancePreset registeredPreset = ServerCustomSkinLibrary.getInstance()
+            .getCurrentCatalog()
+            .findById(CUSTOM_PRESET_ID);
         assertNotNull(registeredPreset);
         assertEquals("man/male/gondor/legacy_hero.png", registeredPreset.getExternalRelativePath());
 
@@ -139,6 +145,310 @@ public class CharacterCreationLegacyCompatibilityTest {
         try (Stream<Path> files = Files.walk(configurationDirectory)) {
             assertEquals(1L, files.filter(path -> path.getFileName().toString().endsWith(".png")).count());
         }
+    }
+
+    @Test
+    public void incompletePlayerCanSelectSexAtTheRequiredStage() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        fixture.legacyData.setBoolean("characterCreationComplete", false);
+        fixture.legacyData.setBoolean("startingFactionApplied", false);
+        fixture.legacyData.setBoolean("startingWaypointApplied", false);
+        fixture.legacyData.removeTag("sex");
+        fixture.legacyData.setBoolean("factionSelectionComplete", false);
+        fixture.legacyData.removeTag("appearancePreset");
+        fixture.legacyData.setBoolean("appearanceInitialized", false);
+
+        assertEquals(CharacterCreationStage.SEX, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+        assertTrue(CharacterCreationFlowService.selectSex(fixture.player, PlayerSex.FEMALE));
+        assertEquals(PlayerSex.FEMALE, PlayerRaceData.getSex(fixture.player));
+        assertEquals(CharacterCreationStage.FACTION, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+    }
+
+    @Test
+    public void incompletePlayerCanSelectAppearanceAtTheRequiredStage() throws Exception {
+        LegacyFixture fixture = fixtureForStage(CharacterCreationStage.APPEARANCE);
+
+        assertTrue(CharacterCreationFlowService.selectAppearance(fixture.player, CUSTOM_PRESET_ID));
+        assertEquals(CUSTOM_PRESET_ID, PlayerRaceData.getAppearancePresetId(fixture.player));
+        assertTrue(PlayerRaceData.isAppearanceInitialized(fixture.player));
+        assertEquals(
+            CharacterCreationStage.CONFIRMATION,
+            CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+    }
+
+    @Test
+    public void completedPlayerCannotChangeSex() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+
+        assertFalse(CharacterCreationFlowService.selectSex(fixture.player, PlayerSex.FEMALE));
+        assertEquals(PlayerSex.MALE, PlayerRaceData.getSex(fixture.player));
+        assertEquals(CUSTOM_PRESET_ID, PlayerRaceData.getAppearancePresetId(fixture.player));
+        assertTrue(PlayerRaceData.isAppearanceInitialized(fixture.player));
+    }
+
+    @Test
+    public void completedPlayerCannotChangeAppearance() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        String replacementPresetId = "man_gondor_m_civilian_0";
+        assertNotNull(AppearancePresetRegistry.findById(replacementPresetId));
+
+        assertFalse(CharacterCreationFlowService.selectAppearance(fixture.player, replacementPresetId));
+        assertEquals(CUSTOM_PRESET_ID, PlayerRaceData.getAppearancePresetId(fixture.player));
+        assertTrue(PlayerRaceData.isAppearanceInitialized(fixture.player));
+    }
+
+    @Test
+    public void completedPlayerCannotChangeRace() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+
+        assertFalse(CharacterCreationFlowService.selectRace(fixture.player, PlayerRace.ELF));
+        assertEquals(PlayerRace.MAN, PlayerRaceData.getRace(fixture.player));
+        assertTrue(PlayerRaceData.isRaceSelectionComplete(fixture.player));
+    }
+
+    @Test
+    public void authorizationAloneDoesNotBypassTheCompletedStage() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        PlayerRaceData.setCharacterEditAuthorized(fixture.player, true);
+
+        assertEquals(CharacterCreationStage.COMPLETE, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+        assertFalse(CharacterCreationFlowService.selectRace(fixture.player, PlayerRace.ELF));
+        assertFalse(CharacterCreationFlowService.selectSex(fixture.player, PlayerSex.FEMALE));
+        assertFalse(CharacterCreationFlowService.selectAppearance(fixture.player, "man_gondor_m_civilian_0"));
+        assertEquals(PlayerRace.MAN, PlayerRaceData.getRace(fixture.player));
+        assertEquals(PlayerSex.MALE, PlayerRaceData.getSex(fixture.player));
+        assertEquals(CUSTOM_PRESET_ID, PlayerRaceData.getAppearancePresetId(fixture.player));
+    }
+
+    @Test
+    public void incompletePlayerCannotMutateSelectionsOutsideTheRequiredStage() throws Exception {
+        LegacyFixture fixture = fixtureForStage(CharacterCreationStage.CONFIRMATION);
+
+        assertFalse(CharacterCreationFlowService.selectRace(fixture.player, PlayerRace.ELF));
+        assertFalse(CharacterCreationFlowService.selectSex(fixture.player, PlayerSex.FEMALE));
+        assertFalse(CharacterCreationFlowService.selectStartingFaction(fixture.player, StartingFaction.WANDERER));
+        assertFalse(CharacterCreationFlowService.selectAppearance(fixture.player, "man_gondor_m_civilian_0"));
+        assertEquals(CharacterCreationStage.CONFIRMATION, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+        assertEquals(PlayerRace.MAN, PlayerRaceData.getRace(fixture.player));
+        assertEquals(PlayerSex.MALE, PlayerRaceData.getSex(fixture.player));
+        assertEquals(StartingFaction.GONDOR, PlayerRaceData.getStartingFaction(fixture.player));
+        assertEquals(CUSTOM_PRESET_ID, PlayerRaceData.getAppearancePresetId(fixture.player));
+    }
+
+    @Test
+    public void authorizedRecreationCanFollowSelectionStagesWithoutResettingOneTimeFlags() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        PlayerRaceData.setCharacterEditAuthorized(fixture.player, true);
+        PlayerRaceData.setCharacterCreationComplete(fixture.player, false);
+        PlayerRaceData.setRaceSelectionComplete(fixture.player, false);
+
+        assertTrue(PlayerRaceData.isStartingFactionApplied(fixture.player));
+        assertTrue(PlayerRaceData.isStartingWaypointApplied(fixture.player));
+        assertEquals(CharacterCreationStage.RACE, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+
+        assertTrue(CharacterCreationFlowService.selectRace(fixture.player, PlayerRace.ELF));
+        assertEquals(CharacterCreationStage.SEX, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+        assertTrue(CharacterCreationFlowService.selectSex(fixture.player, PlayerSex.FEMALE));
+        assertEquals(CharacterCreationStage.FACTION, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+        assertTrue(CharacterCreationFlowService.selectStartingFaction(fixture.player, StartingFaction.LOTHLORIEN));
+        assertEquals(CharacterCreationStage.APPEARANCE, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+        assertTrue(CharacterCreationFlowService.selectAppearance(fixture.player, "elf_galadhrim_f_0"));
+        assertEquals(
+            CharacterCreationStage.CONFIRMATION,
+            CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+
+        assertTrue(PlayerRaceData.isCharacterEditAuthorized(fixture.player));
+        assertTrue(PlayerRaceData.isStartingFactionApplied(fixture.player));
+        assertTrue(PlayerRaceData.isStartingWaypointApplied(fixture.player));
+
+        PlayerRaceData.setCharacterCreationComplete(fixture.player, true);
+        assertFalse(PlayerRaceData.isCharacterEditAuthorized(fixture.player));
+        assertTrue(PlayerRaceData.isStartingFactionApplied(fixture.player));
+        assertTrue(PlayerRaceData.isStartingWaypointApplied(fixture.player));
+    }
+
+    @Test
+    public void safeRecreationReopensRaceWithoutChangingPositionOrOneTimeState() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        fixture.player.dimension = 7;
+        fixture.player.posX = 123.25D;
+        fixture.player.posY = 64.5D;
+        fixture.player.posZ = -456.75D;
+        fixture.player.rotationYaw = 91.0F;
+        fixture.player.rotationPitch = -17.5F;
+
+        assertEquals(StartResult.STARTED, CharacterRecreationService.begin(fixture.player));
+
+        assertFalse(PlayerRaceData.isCharacterCreationComplete(fixture.player));
+        assertTrue(PlayerRaceData.isCharacterEditAuthorized(fixture.player));
+        assertFalse(PlayerRaceData.isRaceSelectionComplete(fixture.player));
+        assertEquals(CharacterCreationStage.RACE, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+        assertTrue(PlayerRaceData.isStartingFactionApplied(fixture.player));
+        assertTrue(PlayerRaceData.isStartingWaypointApplied(fixture.player));
+        assertEquals("minas_tirith", PlayerRaceData.getStartingWaypointCodeName(fixture.player));
+        assertEquals(7, fixture.player.dimension);
+        assertEquals(123.25D, fixture.player.posX, 0.0D);
+        assertEquals(64.5D, fixture.player.posY, 0.0D);
+        assertEquals(-456.75D, fixture.player.posZ, 0.0D);
+        assertEquals(91.0F, fixture.player.rotationYaw, 0.0F);
+        assertEquals(-17.5F, fixture.player.rotationPitch, 0.0F);
+    }
+
+    @Test
+    public void repeatedRecreationCommandResumesCurrentStageWithoutResettingProgress() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        assertEquals(StartResult.STARTED, CharacterRecreationService.begin(fixture.player));
+        assertTrue(CharacterCreationFlowService.selectRace(fixture.player, PlayerRace.ELF));
+        assertEquals(CharacterCreationStage.SEX, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+
+        assertEquals(StartResult.RESUMED, CharacterRecreationService.begin(fixture.player));
+        assertEquals(CharacterCreationStage.SEX, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+        assertTrue(PlayerRaceData.isCharacterEditAuthorized(fixture.player));
+    }
+
+    @Test
+    public void incompleteFirstTimePlayerIsNotConvertedIntoARecreationSession() throws Exception {
+        LegacyFixture fixture = fixtureForStage(CharacterCreationStage.SEX);
+
+        assertEquals(StartResult.ALREADY_IN_CREATION, CharacterRecreationService.begin(fixture.player));
+        assertFalse(PlayerRaceData.isCharacterEditAuthorized(fixture.player));
+        assertEquals(CharacterCreationStage.SEX, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+    }
+
+    @Test
+    public void recreationCompletionClearsAuthorizationAndPreservesOneTimeState() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        fixture.player.dimension = 3;
+        fixture.player.posX = 8.0D;
+        fixture.player.posY = 72.0D;
+        fixture.player.posZ = 14.0D;
+
+        assertEquals(StartResult.STARTED, CharacterRecreationService.begin(fixture.player));
+        assertTrue(CharacterCreationFlowService.selectRace(fixture.player, PlayerRace.ELF));
+        assertTrue(CharacterCreationFlowService.selectSex(fixture.player, PlayerSex.FEMALE));
+        assertTrue(CharacterCreationFlowService.selectStartingFaction(fixture.player, StartingFaction.LOTHLORIEN));
+        assertTrue(CharacterCreationFlowService.selectAppearance(fixture.player, "elf_galadhrim_f_0"));
+        assertTrue(CharacterCreationFlowService.isReadyForFinalization(fixture.player));
+
+        assertTrue(CharacterRecreationService.complete(fixture.player));
+        assertTrue(PlayerRaceData.isCharacterCreationComplete(fixture.player));
+        assertFalse(PlayerRaceData.isCharacterEditAuthorized(fixture.player));
+        assertEquals(PlayerRace.ELF, PlayerRaceData.getRace(fixture.player));
+        assertEquals(PlayerSex.FEMALE, PlayerRaceData.getSex(fixture.player));
+        assertEquals("elf_galadhrim_f_0", PlayerRaceData.getAppearancePresetId(fixture.player));
+        assertEquals(StartingFaction.LOTHLORIEN, PlayerRaceData.getStartingFaction(fixture.player));
+        assertTrue(PlayerRaceData.isStartingFactionApplied(fixture.player));
+        assertTrue(PlayerRaceData.isStartingWaypointApplied(fixture.player));
+        assertEquals("minas_tirith", PlayerRaceData.getStartingWaypointCodeName(fixture.player));
+        assertEquals(3, fixture.player.dimension);
+        assertEquals(8.0D, fixture.player.posX, 0.0D);
+        assertEquals(72.0D, fixture.player.posY, 0.0D);
+        assertEquals(14.0D, fixture.player.posZ, 0.0D);
+    }
+
+    @Test
+    public void recreationStillUsesServerCatalogValidationForExternalAndAccountSkins() throws Exception {
+        LegacyFixture externalFixture = completedLegacyFixture();
+        assertEquals(StartResult.STARTED, CharacterRecreationService.begin(externalFixture.player));
+        assertTrue(CharacterCreationFlowService.selectRace(externalFixture.player, PlayerRace.MAN));
+        assertTrue(CharacterCreationFlowService.selectSex(externalFixture.player, PlayerSex.MALE));
+        assertTrue(CharacterCreationFlowService.selectStartingFaction(externalFixture.player, StartingFaction.GONDOR));
+        assertTrue(CharacterCreationFlowService.selectAppearance(externalFixture.player, CUSTOM_PRESET_ID));
+        assertEquals(CUSTOM_PRESET_ID, PlayerRaceData.getAppearancePresetId(externalFixture.player));
+
+        LegacyFixture accountFixture = completedLegacyFixture();
+        assertEquals(StartResult.STARTED, CharacterRecreationService.begin(accountFixture.player));
+        assertTrue(CharacterCreationFlowService.selectRace(accountFixture.player, PlayerRace.MAN));
+        assertTrue(CharacterCreationFlowService.selectSex(accountFixture.player, PlayerSex.FEMALE));
+        assertTrue(CharacterCreationFlowService.selectStartingFaction(accountFixture.player, StartingFaction.GONDOR));
+        assertTrue(
+            CharacterCreationFlowService
+                .selectAppearance(accountFixture.player, AppearancePresetRegistry.MAN_MINECRAFT_SKIN_FEMALE_ID));
+        assertEquals(
+            AppearancePresetRegistry.MAN_MINECRAFT_SKIN_FEMALE_ID,
+            PlayerRaceData.getAppearancePresetId(accountFixture.player));
+    }
+
+    @Test
+    public void onePlayersRecreationAuthorizationDoesNotAuthorizeAnotherPlayer() throws Exception {
+        LegacyFixture authorized = completedLegacyFixture();
+        LegacyFixture blocked = completedLegacyFixture();
+        assertEquals(StartResult.STARTED, CharacterRecreationService.begin(authorized.player));
+
+        assertTrue(CharacterCreationFlowService.selectRace(authorized.player, PlayerRace.ELF));
+        assertFalse(CharacterCreationFlowService.selectRace(blocked.player, PlayerRace.ELF));
+        assertFalse(PlayerRaceData.isCharacterEditAuthorized(blocked.player));
+        assertEquals(PlayerRace.MAN, PlayerRaceData.getRace(blocked.player));
+    }
+
+    @Test
+    public void authorizedRecreationSurvivesPersistedDataReloadAndResumesItsStage() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        assertEquals(StartResult.STARTED, CharacterRecreationService.begin(fixture.player));
+        assertTrue(CharacterCreationFlowService.selectRace(fixture.player, PlayerRace.DWARF));
+        assertEquals(CharacterCreationStage.SEX, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+
+        NBTTagCompound reloadedForgeData = (NBTTagCompound) fixture.forgeData.copy();
+        LegacyPlayer reloadedPlayer = allocatePlayer(reloadedForgeData);
+        assertTrue(CharacterRecreationService.isInProgress(reloadedPlayer));
+        assertFalse(PlayerRaceData.isCharacterCreationComplete(reloadedPlayer));
+        assertTrue(PlayerRaceData.isCharacterEditAuthorized(reloadedPlayer));
+        assertEquals(CharacterCreationStage.SEX, CharacterCreationFlowService.getNextRequiredStage(reloadedPlayer));
+        assertTrue(PlayerRaceData.isStartingFactionApplied(reloadedPlayer));
+        assertTrue(PlayerRaceData.isStartingWaypointApplied(reloadedPlayer));
+    }
+
+    @Test
+    public void persistedAuthorizationOnACompletedPlayerIsReopenedWithoutStackingState() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        PlayerRaceData.setCharacterEditAuthorized(fixture.player, true);
+
+        assertEquals(StartResult.RESUMED, CharacterRecreationService.begin(fixture.player));
+        assertTrue(CharacterRecreationService.isInProgress(fixture.player));
+        assertEquals(CharacterCreationStage.RACE, CharacterCreationFlowService.getNextRequiredStage(fixture.player));
+        assertTrue(PlayerRaceData.isStartingFactionApplied(fixture.player));
+        assertTrue(PlayerRaceData.isStartingWaypointApplied(fixture.player));
+    }
+
+    @Test
+    public void missingAuthorizationDefaultsToUnauthorizedWithoutMutatingLegacyNbt() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        NBTTagCompound originalLegacyData = (NBTTagCompound) fixture.legacyData.copy();
+
+        assertFalse(PlayerRaceData.isCharacterEditAuthorized(fixture.player));
+        assertFalse(fixture.legacyData.hasKey("characterEditAuthorized"));
+        assertEquals(originalLegacyData, fixture.legacyData);
+
+        PlayerRaceData.setCharacterCreationComplete(fixture.player, false);
+        PlayerRaceData.setRaceSelectionComplete(fixture.player, false);
+        assertFalse(
+            CharacterCreationFlowService
+                .isSelectionMutationAuthorized(fixture.player, CharacterCreationStage.RACE));
+        assertFalse(CharacterCreationFlowService.selectRace(fixture.player, PlayerRace.ELF));
+        assertTrue(PlayerRaceData.isStartingFactionApplied(fixture.player));
+        assertTrue(PlayerRaceData.isStartingWaypointApplied(fixture.player));
+    }
+
+    @Test
+    public void editAuthorizationPersistsInTheLegacyCharacterCreationNbtHierarchy() throws Exception {
+        LegacyFixture fixture = completedLegacyFixture();
+        PlayerRaceData.setCharacterEditAuthorized(fixture.player, true);
+
+        assertTrue(fixture.legacyData.getBoolean("characterEditAuthorized"));
+        NBTTagCompound reloadedForgeData = (NBTTagCompound) fixture.forgeData.copy();
+        LegacyPlayer reloadedPlayer = allocatePlayer(reloadedForgeData);
+        assertTrue(PlayerRaceData.isCharacterEditAuthorized(reloadedPlayer));
+        assertTrue(PlayerRaceData.isStartingFactionApplied(reloadedPlayer));
+        assertTrue(PlayerRaceData.isStartingWaypointApplied(reloadedPlayer));
+
+        PlayerRaceData.setCharacterEditAuthorized(reloadedPlayer, false);
+        assertFalse(PlayerRaceData.isCharacterEditAuthorized(reloadedPlayer));
+        assertFalse(
+            reloadedForgeData.getCompoundTag(EntityPlayer.PERSISTED_NBT_TAG)
+                .getCompoundTag(LEGACY_DATA_TAG)
+                .hasKey("characterEditAuthorized"));
+        assertTrue(PlayerRaceData.isStartingFactionApplied(reloadedPlayer));
+        assertTrue(PlayerRaceData.isStartingWaypointApplied(reloadedPlayer));
     }
 
     private static LegacyFixture fixtureForStage(CharacterCreationStage stage) throws Exception {

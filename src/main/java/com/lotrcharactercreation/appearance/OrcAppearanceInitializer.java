@@ -30,12 +30,13 @@ public final class OrcAppearanceInitializer {
         if (PlayerRaceData.getRace(player) != PlayerRace.ORC) {
             throw new IllegalArgumentException("Orc appearances can only be assigned to Orc players");
         }
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
 
         String storedPresetId = PlayerRaceData.getAppearancePresetId(player);
         PlayerSex storedSex = PlayerRaceData.getSex(player);
-        AppearancePreset storedPreset = AppearancePresetRegistry.findById(storedPresetId);
+        AppearancePreset storedPreset = catalog.findById(storedPresetId);
         boolean storedAppearanceValid = storedSex == PlayerSex.NONE
-            && AppearancePresetRegistry.isOrcPresetValid(storedPresetId, BUILT_IN_GROUP);
+            && AppearancePresetRegistry.isOrcPresetValid(catalog, storedPresetId, BUILT_IN_GROUP);
 
         if (!forceReroll && PlayerRaceData.isAppearanceInitialized(player) && storedAppearanceValid) {
             return storedPreset;
@@ -52,7 +53,7 @@ public final class OrcAppearanceInitializer {
         }
 
         List<AppearancePreset> candidates = new ArrayList<AppearancePreset>(
-            AppearancePresetRegistry.getOrcPresets(BUILT_IN_GROUP));
+            AppearancePresetRegistry.getOrcPresets(catalog, BUILT_IN_GROUP));
         if (forceReroll && storedAppearanceValid && candidates.size() > 1) {
             candidates.remove(storedPreset);
         }

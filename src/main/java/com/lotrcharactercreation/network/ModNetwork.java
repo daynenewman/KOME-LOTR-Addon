@@ -1,6 +1,7 @@
 package com.lotrcharactercreation.network;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
@@ -11,25 +12,29 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
 
-import com.lotrcharactercreation.appearance.AppearancePreset;
 import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
+import com.lotrcharactercreation.appearance.AppearancePresetCatalog;
 import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
 import com.lotrcharactercreation.appearance.PlayerSex;
+import com.lotrcharactercreation.appearance.ServerCustomSkinLibrary;
 import com.lotrcharactercreation.body.PlayerRaceEyeService;
 import com.lotrcharactercreation.body.PlayerRaceSizeService;
 import com.lotrcharactercreation.config.ModConfiguration;
 import com.lotrcharactercreation.creation.CharacterCreationFlowService;
+import com.lotrcharactercreation.creation.CharacterRecreationService;
 import com.lotrcharactercreation.creation.CharacterCreationStage;
 import com.lotrcharactercreation.faction.StartingFaction;
 import com.lotrcharactercreation.faction.StartingFactionApplication;
 import com.lotrcharactercreation.race.PlayerRace;
 import com.lotrcharactercreation.race.PlayerRaceData;
 import com.lotrcharactercreation.trait.ElfGrappleService;
+import com.lotrcharactercreation.trait.RaceTraitService;
 import com.lotrcharactercreation.waypoint.StartingWaypointApplication;
 import com.lotrcharactercreation.waypoint.StartingWaypointApplication.Result;
 
 import cpw.mods.fml.common.network.NetworkRegistry;
 import cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper;
+import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.relauncher.Side;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
@@ -43,9 +48,13 @@ public final class ModNetwork {
     private static final Queue<PendingSexSelection> PENDING_SEX_SELECTIONS = new ConcurrentLinkedQueue<>();
     private static final Queue<PendingCharacterCreationBack> PENDING_CHARACTER_CREATION_BACKS = new ConcurrentLinkedQueue<>();
     private static final Queue<PendingCharacterFinalization> PENDING_CHARACTER_FINALIZATIONS = new ConcurrentLinkedQueue<>();
-    private static final Queue<EntityPlayerMP> PENDING_ELF_GRAPPLE_ATTACKS = new ConcurrentLinkedQueue<>();
+    private static final Queue<PendingElfGrappleAttack> PENDING_ELF_GRAPPLE_ATTACKS = new ConcurrentLinkedQueue<>();
     private static final Set<UUID> PENDING_CHARACTER_FINALIZATION_IDS = Collections
         .newSetFromMap(new ConcurrentHashMap<UUID, Boolean>());
+    private static final Object LEGACY_REQUEST_QUEUE_LOCK = new Object();
+    private static final LegacyRequestAdmission LEGACY_REQUEST_ADMISSION = new LegacyRequestAdmission(
+        LegacyC2SProtocol.MAX_PENDING_ACTIONS_PER_PLAYER,
+        LegacyC2SProtocol.MAX_PENDING_ACTIONS_TOTAL);
 
     private ModNetwork() {}
 
@@ -119,6 +128,90 @@ public final class ModNetwork {
         CHANNEL.registerMessage(UrukRageStateMessage.Handler.class, UrukRageStateMessage.class, 17, Side.CLIENT);
         CHANNEL.registerMessage(ElfGrappleStateMessage.Handler.class, ElfGrappleStateMessage.class, 18, Side.CLIENT);
         CHANNEL.registerMessage(ElfGrappleAttackMessage.Handler.class, ElfGrappleAttackMessage.class, 19, Side.SERVER);
+        CHANNEL.registerMessage(
+            CustomSkinManifestBeginMessage.Handler.class,
+            CustomSkinManifestBeginMessage.class,
+            20,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinManifestPageMessage.Handler.class,
+            CustomSkinManifestPageMessage.class,
+            21,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinManifestEndMessage.Handler.class,
+            CustomSkinManifestEndMessage.class,
+            22,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinTransferStartMessage.Handler.class,
+            CustomSkinTransferStartMessage.class,
+            23,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinTransferChunkMessage.Handler.class,
+            CustomSkinTransferChunkMessage.class,
+            24,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinTransferEndMessage.Handler.class,
+            CustomSkinTransferEndMessage.class,
+            25,
+            Side.CLIENT);
+        CHANNEL.registerMessage(
+            CustomSkinManifestReadyMessage.Handler.class,
+            CustomSkinManifestReadyMessage.class,
+            26,
+            Side.SERVER);
+        CHANNEL.registerMessage(
+            CustomSkinRequestPageMessage.Handler.class,
+            CustomSkinRequestPageMessage.class,
+            27,
+            Side.SERVER);
+        CHANNEL.registerMessage(
+            CustomSkinTransferResultMessage.Handler.class,
+            CustomSkinTransferResultMessage.class,
+            28,
+            Side.SERVER);
+    }
+
+    public static void beginCustomSkinSync(EntityPlayerMP player) {
+        ServerCustomSkinSyncService.getInstance().beginSession(player);
+    }
+
+    public static void clearCustomSkinSync(EntityPlayerMP player) {
+        ServerCustomSkinSyncService.getInstance().clearPlayer(player);
+    }
+
+    public static void sendCustomSkinManifestReady(int schemaVersion, long epoch, long revision, String digest) {
+        CHANNEL.sendToServer(new CustomSkinManifestReadyMessage(schemaVersion, epoch, revision, digest));
+    }
+
+    public static void sendCustomSkinRequests(long epoch, long revision,
+        List<CustomSkinRequestIdentity> identities) {
+        CHANNEL.sendToServer(new CustomSkinRequestPageMessage(epoch, revision, identities));
+    }
+
+    public static void sendCustomSkinTransferResult(long transferId, long epoch, String presetId, String sha256,
+        int resultCode) {
+        CHANNEL.sendToServer(new CustomSkinTransferResultMessage(
+            transferId,
+            epoch,
+            presetId,
+            sha256,
+            resultCode));
+    }
+
+    static void sendTo(IMessage message, EntityPlayerMP player) {
+        CHANNEL.sendTo(message, player);
+    }
+
+    static void refreshAppearanceStateAfterManifestReady(EntityPlayerMP player) {
+        sendPlayerAppearanceToTrackingAndSelf(player);
+        sendAllPlayerAppearancesTo(player);
+        if (!PlayerRaceData.isCharacterCreationComplete(player)) {
+            sendCharacterCreationRequired(player);
+        }
     }
 
     public static void sendCharacterCreationRequired(EntityPlayerMP player) {
@@ -140,7 +233,24 @@ public final class ModNetwork {
                 faction.getSerializedId(),
                 PlayerRaceData.getAppearancePresetId(player),
                 StartingFactionApplication.pledgeCode(currentPledge),
-                ModConfiguration.isAutomaticStartingAllegianceEnabled()),
+                ModConfiguration.isAutomaticStartingAllegianceEnabled()
+                    && !CharacterRecreationService.isInProgress(player)),
+            player);
+    }
+
+    public static void sendCharacterRecreationCompleted(EntityPlayerMP player) {
+        PlayerRace race = PlayerRaceData.getRace(player);
+        PlayerSex sex = PlayerRaceData.getSex(player);
+        StartingFaction faction = PlayerRaceData.getStartingFaction(player);
+        CHANNEL.sendTo(
+            new CharacterCreationRequiredMessage(
+                CharacterCreationStage.COMPLETE.getSerializedId(),
+                race.getSerializedId(),
+                sex == null ? null : sex.getSerializedId(),
+                faction.getSerializedId(),
+                PlayerRaceData.getAppearancePresetId(player),
+                "",
+                false),
             player);
     }
 
@@ -167,7 +277,7 @@ public final class ModNetwork {
     }
 
     public static void enqueueElfGrappleAttack(EntityPlayerMP player) {
-        PENDING_ELF_GRAPPLE_ATTACKS.add(player);
+        enqueueLegacyRequest(PENDING_ELF_GRAPPLE_ATTACKS, new PendingElfGrappleAttack(player));
     }
 
     public static void sendPlayerAppearance(EntityPlayerMP subject, EntityPlayerMP recipient) {
@@ -192,7 +302,9 @@ public final class ModNetwork {
     }
 
     public static void enqueueRaceSelection(EntityPlayerMP player, String serializedRaceId) {
-        PENDING_RACE_SELECTIONS.add(new PendingRaceSelection(player, serializedRaceId));
+        if (LegacyC2SProtocol.isValidRequiredString(serializedRaceId, LegacyC2SProtocol.MAX_RACE_ID_BYTES)) {
+            enqueueLegacyRequest(PENDING_RACE_SELECTIONS, new PendingRaceSelection(player, serializedRaceId));
+        }
     }
 
     public static void sendStartingFactionSelection(StartingFaction faction) {
@@ -200,14 +312,19 @@ public final class ModNetwork {
     }
 
     public static void enqueueStartingFactionSelection(EntityPlayerMP player, String serializedFactionId) {
-        PENDING_FACTION_SELECTIONS.add(new PendingStartingFactionSelection(player, serializedFactionId));
+        if (LegacyC2SProtocol.isValidRequiredString(serializedFactionId, LegacyC2SProtocol.MAX_FACTION_ID_BYTES)) {
+            enqueueLegacyRequest(
+                PENDING_FACTION_SELECTIONS,
+                new PendingStartingFactionSelection(player, serializedFactionId));
+        }
     }
 
     public static void sendAppearanceSelectionOpen(EntityPlayerMP player) {
         PlayerRace race = PlayerRaceData.getRace(player);
         PlayerSex sex = AppearanceSelectionRules.getSelectionSex(race, PlayerRaceData.getSex(player));
         StartingFaction faction = PlayerRaceData.getStartingFaction(player);
-        if (AppearanceSelectionRules.getCandidates(race, sex, faction)
+        AppearancePresetCatalog catalog = ServerCustomSkinLibrary.getInstance().getCurrentCatalog();
+        if (AppearanceSelectionRules.getCandidates(catalog, race, sex, faction)
             .isEmpty()) {
             String detail = sex == null ? "Set a valid appearance sex first."
                 : "No appearances match the current race and faction.";
@@ -216,7 +333,7 @@ public final class ModNetwork {
         }
 
         String currentPresetId = PlayerRaceData.getAppearancePresetId(player);
-        if (!AppearanceSelectionRules.isPresetAllowed(race, sex, faction, currentPresetId)) {
+        if (!AppearanceSelectionRules.isPresetAllowed(catalog, race, sex, faction, currentPresetId)) {
             currentPresetId = null;
         }
         CHANNEL.sendTo(
@@ -233,7 +350,9 @@ public final class ModNetwork {
     }
 
     public static void enqueueAppearanceSelection(EntityPlayerMP player, String presetId) {
-        PENDING_APPEARANCE_SELECTIONS.add(new PendingAppearanceSelection(player, presetId));
+        if (LegacyC2SProtocol.isValidRequiredString(presetId, LegacyC2SProtocol.MAX_APPEARANCE_PRESET_ID_BYTES)) {
+            enqueueLegacyRequest(PENDING_APPEARANCE_SELECTIONS, new PendingAppearanceSelection(player, presetId));
+        }
     }
 
     public static void sendSexSelectionOpen(EntityPlayerMP player) {
@@ -259,7 +378,9 @@ public final class ModNetwork {
     }
 
     public static void enqueueSexSelection(EntityPlayerMP player, String serializedSexId) {
-        PENDING_SEX_SELECTIONS.add(new PendingSexSelection(player, serializedSexId));
+        if (LegacyC2SProtocol.isValidRequiredString(serializedSexId, LegacyC2SProtocol.MAX_SEX_ID_BYTES)) {
+            enqueueLegacyRequest(PENDING_SEX_SELECTIONS, new PendingSexSelection(player, serializedSexId));
+        }
     }
 
     public static void sendCharacterFinalization(boolean replacementConfirmed, String expectedExistingPledgeCode) {
@@ -271,14 +392,66 @@ public final class ModNetwork {
     }
 
     public static void enqueueCharacterCreationBack(EntityPlayerMP player, String serializedSourceStageId) {
-        PENDING_CHARACTER_CREATION_BACKS.add(new PendingCharacterCreationBack(player, serializedSourceStageId));
+        if (LegacyC2SProtocol.isValidRequiredString(serializedSourceStageId, LegacyC2SProtocol.MAX_STAGE_ID_BYTES)) {
+            enqueueLegacyRequest(
+                PENDING_CHARACTER_CREATION_BACKS,
+                new PendingCharacterCreationBack(player, serializedSourceStageId));
+        }
     }
 
     public static void enqueueCharacterFinalization(EntityPlayerMP player, boolean replacementConfirmed,
         String expectedExistingPledgeCode) {
-        if (PENDING_CHARACTER_FINALIZATION_IDS.add(player.getUniqueID())) {
-            PENDING_CHARACTER_FINALIZATIONS
-                .add(new PendingCharacterFinalization(player, replacementConfirmed, expectedExistingPledgeCode));
+        if (player == null || !LegacyC2SProtocol
+            .isValidNullableString(expectedExistingPledgeCode, LegacyC2SProtocol.MAX_PLEDGE_CODE_BYTES)) {
+            return;
+        }
+
+        synchronized (LEGACY_REQUEST_QUEUE_LOCK) {
+            UUID playerId = player.getUniqueID();
+            if (PENDING_CHARACTER_FINALIZATION_IDS.add(playerId)) {
+                PendingCharacterFinalization request = new PendingCharacterFinalization(
+                    player,
+                    replacementConfirmed,
+                    expectedExistingPledgeCode);
+                if (admitLegacyRequest(player)) {
+                    PENDING_CHARACTER_FINALIZATIONS.add(request);
+                } else {
+                    PENDING_CHARACTER_FINALIZATION_IDS.remove(playerId);
+                }
+            }
+        }
+    }
+
+    public static void clearPendingLegacyRequests(EntityPlayerMP player) {
+        if (player == null) {
+            return;
+        }
+
+        synchronized (LEGACY_REQUEST_QUEUE_LOCK) {
+            UUID playerId = player.getUniqueID();
+            discardPendingRequests(PENDING_RACE_SELECTIONS, playerId);
+            discardPendingRequests(PENDING_FACTION_SELECTIONS, playerId);
+            discardPendingRequests(PENDING_APPEARANCE_SELECTIONS, playerId);
+            discardPendingRequests(PENDING_SEX_SELECTIONS, playerId);
+            discardPendingRequests(PENDING_CHARACTER_CREATION_BACKS, playerId);
+            discardPendingRequests(PENDING_CHARACTER_FINALIZATIONS, playerId);
+            discardPendingRequests(PENDING_ELF_GRAPPLE_ATTACKS, playerId);
+            PENDING_CHARACTER_FINALIZATION_IDS.remove(playerId);
+            LEGACY_REQUEST_ADMISSION.clearPlayer(playerId);
+        }
+    }
+
+    public static void clearAllPendingLegacyRequests() {
+        synchronized (LEGACY_REQUEST_QUEUE_LOCK) {
+            PENDING_RACE_SELECTIONS.clear();
+            PENDING_FACTION_SELECTIONS.clear();
+            PENDING_APPEARANCE_SELECTIONS.clear();
+            PENDING_SEX_SELECTIONS.clear();
+            PENDING_CHARACTER_CREATION_BACKS.clear();
+            PENDING_CHARACTER_FINALIZATIONS.clear();
+            PENDING_ELF_GRAPPLE_ATTACKS.clear();
+            PENDING_CHARACTER_FINALIZATION_IDS.clear();
+            LEGACY_REQUEST_ADMISSION.clearAll();
         }
     }
 
@@ -286,6 +459,20 @@ public final class ModNetwork {
         EntityPlayerMP player = request.player;
         if (!CharacterCreationFlowService.isReadyForFinalization(player)) {
             sendCharacterCreationRequired(player);
+            return;
+        }
+
+        if (CharacterRecreationService.isInProgress(player)) {
+            if (!CharacterRecreationService.complete(player)) {
+                sendCharacterCreationRequired(player);
+                return;
+            }
+
+            PlayerRaceSizeService.applyStoredRaceSize(player);
+            PlayerRaceEyeService.applyStoredServerEyeHeight(player);
+            RaceTraitService.refreshDerivedAttributes(player);
+            sendPlayerAppearanceToTrackingAndSelf(player);
+            sendCharacterRecreationCompleted(player);
             return;
         }
 
@@ -322,6 +509,11 @@ public final class ModNetwork {
 
         applyStartingWaypointIfReady(player);
         if (PlayerRaceData.isCharacterCreationComplete(player)) {
+            // LOTR's incremental alignment packet is keyed by the server player UUID. In
+            // offline-mode development/multiplayer that UUID can differ from the client's
+            // session UUID, leaving the local HUD cache stale. Reuse LOTR's login refresh,
+            // which applies the authoritative data directly to the local client player.
+            LOTRLevelData.sendPlayerData(player);
             sendPlayerAppearanceToTrackingAndSelf(player);
         } else {
             if (!PlayerRaceData.isStartingFactionApplied(player)) {
@@ -359,6 +551,7 @@ public final class ModNetwork {
 
     public static void processPendingSelections() {
         MinecraftServer server = MinecraftServer.getServer();
+        ServerCustomSkinSyncService.getInstance().processPending(server);
         processPendingCharacterCreationBacks(server);
         processPendingRaceSelections(server);
         processPendingStartingFactionSelections(server);
@@ -369,10 +562,14 @@ public final class ModNetwork {
     }
 
     private static void processPendingElfGrappleAttacks(MinecraftServer server) {
-        EntityPlayerMP player;
-        while ((player = PENDING_ELF_GRAPPLE_ATTACKS.poll()) != null) {
-            if (isConnected(server, player)) {
-                ElfGrappleService.handleAttackRequest(player);
+        PendingElfGrappleAttack request;
+        while ((request = PENDING_ELF_GRAPPLE_ATTACKS.poll()) != null) {
+            try {
+                if (isConnected(server, request.player)) {
+                    ElfGrappleService.handleAttackRequest(request.player);
+                }
+            } finally {
+                releaseLegacyRequest(request.player);
             }
         }
     }
@@ -380,116 +577,107 @@ public final class ModNetwork {
     private static void processPendingRaceSelections(MinecraftServer server) {
         PendingRaceSelection selection;
         while ((selection = PENDING_RACE_SELECTIONS.poll()) != null) {
-            if (!isConnected(server, selection.player)) {
-                continue;
-            }
-
-            PlayerRace race = PlayerRace.findBySerializedId(selection.serializedRaceId);
-            if (race == null || !CharacterCreationFlowService.selectRace(selection.player, race)) {
-                if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
-                    sendCharacterCreationRequired(selection.player);
+            try {
+                if (!isConnected(server, selection.player)) {
+                    continue;
                 }
-                continue;
-            }
 
-            PlayerRaceSizeService.applyStoredRaceSize(selection.player);
-            PlayerRaceEyeService.applyStoredServerEyeHeight(selection.player);
-            sendPlayerAppearanceToTrackingAndSelf(selection.player);
-            CHANNEL.sendTo(new RaceSelectionAcceptedMessage(race.getSerializedId()), selection.player);
-            sendCharacterCreationRequired(selection.player);
+                PlayerRace race = PlayerRace.findBySerializedId(selection.serializedRaceId);
+                if (race == null || !CharacterCreationFlowService.selectRace(selection.player, race)) {
+                    if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
+                        sendCharacterCreationRequired(selection.player);
+                    }
+                    continue;
+                }
+
+                PlayerRaceSizeService.applyStoredRaceSize(selection.player);
+                PlayerRaceEyeService.applyStoredServerEyeHeight(selection.player);
+                sendPlayerAppearanceToTrackingAndSelf(selection.player);
+                CHANNEL.sendTo(new RaceSelectionAcceptedMessage(race.getSerializedId()), selection.player);
+                sendCharacterCreationRequired(selection.player);
+            } finally {
+                releaseLegacyRequest(selection.player);
+            }
         }
     }
 
     private static void processPendingCharacterCreationBacks(MinecraftServer server) {
         PendingCharacterCreationBack request;
         while ((request = PENDING_CHARACTER_CREATION_BACKS.poll()) != null) {
-            if (!isConnected(server, request.player)) {
-                continue;
-            }
+            try {
+                if (!isConnected(server, request.player)) {
+                    continue;
+                }
 
-            CharacterCreationStage sourceStage = CharacterCreationStage
-                .findBySerializedId(request.serializedSourceStageId);
-            boolean movedBack = CharacterCreationFlowService.goBackFrom(request.player, sourceStage);
-            boolean finalizationStarted = PlayerRaceData.isStartingFactionApplied(request.player)
-                || PlayerRaceData.isStartingWaypointApplied(request.player);
-            if (movedBack) {
-                sendPlayerAppearanceToTrackingAndSelf(request.player);
-            } else if (PlayerRaceData.isCharacterCreationComplete(request.player)) {
-                request.player.addChatMessage(new ChatComponentText("Your character has already been created."));
-                continue;
-            } else if (finalizationStarted) {
-                request.player.addChatMessage(new ChatComponentText("Character creation is not available."));
-            }
+                CharacterCreationStage sourceStage = CharacterCreationStage
+                    .findBySerializedId(request.serializedSourceStageId);
+                boolean movedBack = CharacterCreationFlowService.goBackFrom(request.player, sourceStage);
+                boolean finalizationStarted = PlayerRaceData.isStartingFactionApplied(request.player)
+                    || PlayerRaceData.isStartingWaypointApplied(request.player);
+                if (movedBack) {
+                    sendPlayerAppearanceToTrackingAndSelf(request.player);
+                } else if (PlayerRaceData.isCharacterCreationComplete(request.player)) {
+                    request.player.addChatMessage(new ChatComponentText("Your character has already been created."));
+                    continue;
+                } else if (finalizationStarted) {
+                    request.player.addChatMessage(new ChatComponentText("Character creation is not available."));
+                }
 
-            sendCharacterCreationRequired(request.player);
+                sendCharacterCreationRequired(request.player);
+            } finally {
+                releaseLegacyRequest(request.player);
+            }
         }
     }
 
     private static void processPendingStartingFactionSelections(MinecraftServer server) {
         PendingStartingFactionSelection selection;
         while ((selection = PENDING_FACTION_SELECTIONS.poll()) != null) {
-            if (!isConnected(server, selection.player)) {
-                continue;
-            }
-
-            StartingFaction faction = StartingFaction.findBySerializedId(selection.serializedFactionId);
-            PlayerRace race = PlayerRaceData.getRace(selection.player);
-            if (faction == null || !PlayerRaceData.isRaceSelectionComplete(selection.player)
-                || PlayerRaceData.isCharacterCreationComplete(selection.player)
-                || PlayerRaceData.isStartingFactionApplied(selection.player)
-                || PlayerRaceData.isStartingWaypointApplied(selection.player)
-                || !faction.isAllowedFor(race)) {
-                if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
-                    sendCharacterCreationRequired(selection.player);
+            try {
+                if (!isConnected(server, selection.player)) {
+                    continue;
                 }
-                continue;
-            }
 
-            PlayerRaceData.setStartingFaction(selection.player, faction);
-            PlayerRaceData.setFactionSelectionComplete(selection.player, true);
-            CharacterCreationFlowService.requireAppearanceConfirmation(selection.player);
-            sendPlayerAppearanceToTrackingAndSelf(selection.player);
-            CHANNEL.sendTo(new StartingFactionSelectionAcceptedMessage(faction.getSerializedId()), selection.player);
-            sendCharacterCreationRequired(selection.player);
+                StartingFaction faction = StartingFaction.findBySerializedId(selection.serializedFactionId);
+                if (!CharacterCreationFlowService.selectStartingFaction(selection.player, faction)) {
+                    if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
+                        sendCharacterCreationRequired(selection.player);
+                    }
+                    continue;
+                }
+
+                sendPlayerAppearanceToTrackingAndSelf(selection.player);
+                CHANNEL.sendTo(
+                    new StartingFactionSelectionAcceptedMessage(faction.getSerializedId()),
+                    selection.player);
+                sendCharacterCreationRequired(selection.player);
+            } finally {
+                releaseLegacyRequest(selection.player);
+            }
         }
     }
 
     private static void processPendingAppearanceSelections(MinecraftServer server) {
         PendingAppearanceSelection selection;
         while ((selection = PENDING_APPEARANCE_SELECTIONS.poll()) != null) {
-            if (!isConnected(server, selection.player)) {
-                continue;
-            }
-
-            PlayerRace race = PlayerRaceData.getRace(selection.player);
-            PlayerSex storedSex = PlayerRaceData.getSex(selection.player);
-            PlayerSex selectionSex = AppearanceSelectionRules.getSelectionSex(race, storedSex);
-            StartingFaction faction = PlayerRaceData.getStartingFaction(selection.player);
-            AppearancePreset preset = AppearancePresetRegistry.findById(selection.presetId);
-            boolean hasRequiredChoices = PlayerRaceData.isCharacterCreationComplete(selection.player)
-                || (PlayerRaceData.isRaceSelectionComplete(selection.player)
-                    && PlayerRaceData.isFactionSelectionComplete(selection.player));
-            boolean accepted = hasRequiredChoices && preset != null
-                && AppearanceSelectionRules.isPresetAllowed(race, selectionSex, faction, selection.presetId);
-
-            if (accepted && storedSex != selectionSex) {
-                accepted = selectionSex == PlayerSex.NONE && (race == PlayerRace.ORC || race == PlayerRace.URUK_HAI);
-                if (accepted) {
-                    PlayerRaceData.setSex(selection.player, selectionSex);
+            try {
+                if (!isConnected(server, selection.player)) {
+                    continue;
                 }
-            }
 
-            if (accepted) {
-                PlayerRaceData.setAppearancePreset(selection.player, preset);
-                PlayerRaceData.setAppearanceInitialized(selection.player, true);
-                sendPlayerAppearanceToTrackingAndSelf(selection.player);
-            }
+                boolean accepted = CharacterCreationFlowService.selectAppearance(selection.player, selection.presetId);
+                if (accepted) {
+                    sendPlayerAppearanceToTrackingAndSelf(selection.player);
+                }
 
-            CHANNEL.sendTo(
-                new AppearanceSelectionResultMessage(accepted, accepted ? selection.presetId : ""),
-                selection.player);
-            if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
-                sendCharacterCreationRequired(selection.player);
+                CHANNEL.sendTo(
+                    new AppearanceSelectionResultMessage(accepted, accepted ? selection.presetId : ""),
+                    selection.player);
+                if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
+                    sendCharacterCreationRequired(selection.player);
+                }
+            } finally {
+                releaseLegacyRequest(selection.player);
             }
         }
     }
@@ -497,31 +685,25 @@ public final class ModNetwork {
     private static void processPendingSexSelections(MinecraftServer server) {
         PendingSexSelection selection;
         while ((selection = PENDING_SEX_SELECTIONS.poll()) != null) {
-            if (!isConnected(server, selection.player)) {
-                continue;
-            }
+            try {
+                if (!isConnected(server, selection.player)) {
+                    continue;
+                }
 
-            PlayerRace race = PlayerRaceData.getRace(selection.player);
-            PlayerSex sex = PlayerSex.findBySerializedId(selection.serializedSexId);
-            boolean hasSelectedRace = PlayerRaceData.isCharacterCreationComplete(selection.player)
-                || PlayerRaceData.isRaceSelectionComplete(selection.player);
-            boolean choicesEditable = PlayerRaceData.isCharacterCreationComplete(selection.player)
-                || (!PlayerRaceData.isStartingFactionApplied(selection.player)
-                    && !PlayerRaceData.isStartingWaypointApplied(selection.player));
-            boolean accepted = hasSelectedRace && choicesEditable
-                && AppearanceSelectionRules.supportsSelectableSex(race)
-                && (sex == PlayerSex.MALE || sex == PlayerSex.FEMALE);
-            if (accepted) {
-                PlayerRaceData.setSex(selection.player, sex);
-                CharacterCreationFlowService.requireAppearanceConfirmation(selection.player);
-                sendPlayerAppearanceToTrackingAndSelf(selection.player);
-            }
+                PlayerSex sex = PlayerSex.findBySerializedId(selection.serializedSexId);
+                boolean accepted = CharacterCreationFlowService.selectSex(selection.player, sex);
+                if (accepted) {
+                    sendPlayerAppearanceToTrackingAndSelf(selection.player);
+                }
 
-            CHANNEL.sendTo(
-                new SexSelectionResultMessage(accepted, accepted ? sex.getSerializedId() : ""),
-                selection.player);
-            if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
-                sendCharacterCreationRequired(selection.player);
+                CHANNEL.sendTo(
+                    new SexSelectionResultMessage(accepted, accepted ? sex.getSerializedId() : ""),
+                    selection.player);
+                if (!PlayerRaceData.isCharacterCreationComplete(selection.player)) {
+                    sendCharacterCreationRequired(selection.player);
+                }
+            } finally {
+                releaseLegacyRequest(selection.player);
             }
         }
     }
@@ -536,6 +718,7 @@ public final class ModNetwork {
                 }
             } finally {
                 PENDING_CHARACTER_FINALIZATION_IDS.remove(request.player.getUniqueID());
+                releaseLegacyRequest(request.player);
             }
         }
     }
@@ -544,16 +727,48 @@ public final class ModNetwork {
         return pledgeCode == null ? "" : pledgeCode;
     }
 
+    private static <T extends PendingLegacyRequest> void enqueueLegacyRequest(Queue<T> queue, T request) {
+        if (request.player == null) {
+            return;
+        }
+
+        synchronized (LEGACY_REQUEST_QUEUE_LOCK) {
+            if (admitLegacyRequest(request.player)) {
+                queue.add(request);
+            }
+        }
+    }
+
+    private static boolean admitLegacyRequest(EntityPlayerMP player) {
+        return player != null && LEGACY_REQUEST_ADMISSION.tryAcquire(player.getUniqueID());
+    }
+
+    private static void releaseLegacyRequest(EntityPlayerMP player) {
+        if (player != null) {
+            LEGACY_REQUEST_ADMISSION.release(player.getUniqueID());
+        }
+    }
+
+    private static <T extends PendingLegacyRequest> void discardPendingRequests(Queue<T> queue, UUID playerId) {
+        for (T request : queue) {
+            if (playerId.equals(request.player.getUniqueID()) && queue.remove(request)) {
+                releaseLegacyRequest(request.player);
+            }
+        }
+    }
+
     private static boolean isConnected(MinecraftServer server, EntityPlayerMP player) {
         return server != null && server.getConfigurationManager().playerEntityList.contains(player);
     }
 
     private static PlayerAppearanceSyncMessage createPlayerAppearanceMessage(EntityPlayerMP player) {
-        PlayerRace race = PlayerRaceData.getRace(player);
-        PlayerSex sex = PlayerRaceData.getSex(player);
-        String presetId = PlayerRaceData.getAppearancePresetId(player);
-        if (!PlayerRaceData.isAppearanceInitialized(player)
-            || !AppearancePresetRegistry.isPresetValid(race, sex, presetId)) {
+        boolean awaitingRecreationRace = CharacterRecreationService.isAwaitingRaceSelection(player);
+        PlayerRace race = awaitingRecreationRace ? PlayerRace.MAN : PlayerRaceData.getRace(player);
+        PlayerSex sex = awaitingRecreationRace ? null : PlayerRaceData.getSex(player);
+        String presetId = awaitingRecreationRace ? null : PlayerRaceData.getAppearancePresetId(player);
+        if (!awaitingRecreationRace && (!PlayerRaceData.isAppearanceInitialized(player)
+            || !AppearancePresetRegistry.isPresetValid(
+                ServerCustomSkinLibrary.getInstance().getCurrentCatalog(), race, sex, presetId))) {
             presetId = null;
         }
 
@@ -566,72 +781,82 @@ public final class ModNetwork {
             PlayerRaceData.isCharacterCreationComplete(player));
     }
 
-    private static final class PendingRaceSelection {
+    private abstract static class PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
+        protected final EntityPlayerMP player;
+
+        private PendingLegacyRequest(EntityPlayerMP player) {
+            this.player = player;
+        }
+    }
+
+    private static final class PendingRaceSelection extends PendingLegacyRequest {
+
         private final String serializedRaceId;
 
         private PendingRaceSelection(EntityPlayerMP player, String serializedRaceId) {
-            this.player = player;
+            super(player);
             this.serializedRaceId = serializedRaceId;
         }
     }
 
-    private static final class PendingStartingFactionSelection {
+    private static final class PendingStartingFactionSelection extends PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
         private final String serializedFactionId;
 
         private PendingStartingFactionSelection(EntityPlayerMP player, String serializedFactionId) {
-            this.player = player;
+            super(player);
             this.serializedFactionId = serializedFactionId;
         }
     }
 
-    private static final class PendingAppearanceSelection {
+    private static final class PendingAppearanceSelection extends PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
         private final String presetId;
 
         private PendingAppearanceSelection(EntityPlayerMP player, String presetId) {
-            this.player = player;
+            super(player);
             this.presetId = presetId;
         }
     }
 
-    private static final class PendingSexSelection {
+    private static final class PendingSexSelection extends PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
         private final String serializedSexId;
 
         private PendingSexSelection(EntityPlayerMP player, String serializedSexId) {
-            this.player = player;
+            super(player);
             this.serializedSexId = serializedSexId;
         }
     }
 
-    private static final class PendingCharacterCreationBack {
+    private static final class PendingCharacterCreationBack extends PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
         private final String serializedSourceStageId;
 
         private PendingCharacterCreationBack(EntityPlayerMP player, String serializedSourceStageId) {
-            this.player = player;
+            super(player);
             this.serializedSourceStageId = serializedSourceStageId;
         }
     }
 
-    private static final class PendingCharacterFinalization {
+    private static final class PendingCharacterFinalization extends PendingLegacyRequest {
 
-        private final EntityPlayerMP player;
         private final boolean replacementConfirmed;
         private final String expectedExistingPledgeCode;
 
         private PendingCharacterFinalization(EntityPlayerMP player, boolean replacementConfirmed,
             String expectedExistingPledgeCode) {
-            this.player = player;
+            super(player);
             this.replacementConfirmed = replacementConfirmed;
             this.expectedExistingPledgeCode = expectedExistingPledgeCode;
+        }
+    }
+
+    private static final class PendingElfGrappleAttack extends PendingLegacyRequest {
+
+        private PendingElfGrappleAttack(EntityPlayerMP player) {
+            super(player);
         }
     }
 }

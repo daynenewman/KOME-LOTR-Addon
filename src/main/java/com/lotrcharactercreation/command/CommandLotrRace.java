@@ -13,6 +13,7 @@ import net.minecraft.util.EnumChatFormatting;
 import com.lotrcharactercreation.appearance.AppearancePreset;
 import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
 import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
+import com.lotrcharactercreation.appearance.ServerCustomSkinLibrary;
 import com.lotrcharactercreation.appearance.DwarfAppearanceGroup;
 import com.lotrcharactercreation.appearance.DwarfAppearanceInitializer;
 import com.lotrcharactercreation.appearance.ElfAppearanceGroup;
@@ -223,7 +224,8 @@ public class CommandLotrRace extends CommandBase {
 
         String oldPresetId = PlayerRaceData.getAppearancePresetId(player);
         PlayerRaceData.setSex(player, sex);
-        if (!AppearancePresetRegistry.isPresetValid(race, sex, oldPresetId)) {
+        if (!AppearancePresetRegistry.isPresetValid(
+            ServerCustomSkinLibrary.getInstance().getCurrentCatalog(), race, sex, oldPresetId)) {
             PlayerRaceData.clearAppearancePreset(player);
             PlayerRaceData.setAppearanceInitialized(player, false);
         }

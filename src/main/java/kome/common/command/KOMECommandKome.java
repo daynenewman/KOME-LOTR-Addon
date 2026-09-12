@@ -1,5 +1,9 @@
 package kome.common.command;
 
+import com.lotrcharactercreation.LOTRCharacterCreation;
+import com.lotrcharactercreation.creation.CharacterRecreationService;
+import com.lotrcharactercreation.creation.CharacterRecreationService.StartResult;
+import com.lotrcharactercreation.network.ModNetwork;
 import kome.common.KOMEReflection;
 import kome.common.config.KOMEConfigInspection;
 import kome.common.data.KOMEWorldData;
@@ -10,6 +14,7 @@ import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
 
 import java.util.List;
@@ -22,7 +27,7 @@ public class KOMECommandKome extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/kome config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status>";
+        return "/kome character recreate <player> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status>";
     }
 
     @Override
@@ -32,6 +37,30 @@ public class KOMECommandKome extends CommandBase {
 
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
+        if (args.length == 3 && "character".equalsIgnoreCase(args[0])
+            && "recreate".equalsIgnoreCase(args[1])) {
+            requireStaff(sender);
+            EntityPlayerMP target = getPlayer(sender, args[2]);
+            StartResult result = CharacterRecreationService.begin(target);
+            if (result == StartResult.ALREADY_IN_CREATION) {
+                sender.addChatMessage(
+                    new ChatComponentText(target.getCommandSenderName() + " is already in Character Creation."));
+                return;
+            }
+
+            LOTRCharacterCreation.refreshPlayerStateAndSynchronize(target);
+            ModNetwork.sendCharacterCreationRequired(target);
+            if (result == StartResult.STARTED) {
+                sender.addChatMessage(
+                    new ChatComponentText("Started safe character recreation for " + target.getCommandSenderName() + "."));
+                target.addChatMessage(
+                    new ChatComponentText("[LOTR Character Creation] An administrator reopened Character Creation."));
+            } else {
+                sender.addChatMessage(
+                    new ChatComponentText("Reopened character recreation for " + target.getCommandSenderName() + "."));
+            }
+            return;
+        }
         if (args.length == 1 && "config".equalsIgnoreCase(args[0])) {
             requireStaff(sender);
             sendConfig(sender, KOMEConfigInspection.getAllEffectiveValues());
@@ -116,12 +145,33 @@ public class KOMECommandKome extends CommandBase {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "config", "conquest", "waypointdefaults", "adminmarkers");
+            return getListOfStringsMatchingLastWord(
+                args,
+                "character",
+                "config",
+                "conquest",
+                "waypointdefaults",
+                "adminmarkers");
+        }
+        if (args.length == 2 && "character".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(args, "recreate");
+        }
+        if (args.length == 3 && "character".equalsIgnoreCase(args[0])
+            && "recreate".equalsIgnoreCase(args[1])) {
+            return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());
         }
         if (args.length == 2 && "config".equalsIgnoreCase(args[0])) {
-            return getListOfStringsMatchingLastWord(args,
-                    "dailyBatch", "population", "movement", "battle", "muster", "siege",
-                    "battleSupport", "encirclement", "season");
+            return getListOfStringsMatchingLastWord(
+                args,
+                "dailyBatch",
+                "population",
+                "movement",
+                "battle",
+                "muster",
+                "siege",
+                "battleSupport",
+                "encirclement",
+                "season");
         }
         if (args.length == 2 && "conquest".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, "reset", "balance");

@@ -12,12 +12,15 @@ public class CharacterFinalizationMessage implements IMessage {
 
     private boolean replacementConfirmed;
     private String expectedExistingPledgeCode;
+    private boolean valid;
 
     public CharacterFinalizationMessage() {}
 
     public CharacterFinalizationMessage(boolean replacementConfirmed, String expectedExistingPledgeCode) {
         this.replacementConfirmed = replacementConfirmed;
         this.expectedExistingPledgeCode = expectedExistingPledgeCode;
+        valid = LegacyC2SProtocol
+            .isValidNullableString(expectedExistingPledgeCode, LegacyC2SProtocol.MAX_PLEDGE_CODE_BYTES);
     }
 
     public boolean isReplacementConfirmed() {
@@ -28,10 +31,23 @@ public class CharacterFinalizationMessage implements IMessage {
         return expectedExistingPledgeCode;
     }
 
+    public boolean isValid() {
+        return valid;
+    }
+
     @Override
     public void fromBytes(ByteBuf buffer) {
-        replacementConfirmed = buffer.readBoolean();
-        expectedExistingPledgeCode = ByteBufUtils.readUTF8String(buffer);
+        valid = false;
+        expectedExistingPledgeCode = null;
+        try {
+            replacementConfirmed = buffer.readBoolean();
+            expectedExistingPledgeCode = LegacyC2SProtocol
+                .readNullableString(buffer, LegacyC2SProtocol.MAX_PLEDGE_CODE_BYTES);
+            LegacyC2SProtocol.requireFullyRead(buffer);
+            valid = true;
+        } catch (RuntimeException exception) {
+            LegacyC2SProtocol.warnMalformedOnce("CharacterFinalization", exception);
+        }
     }
 
     @Override
@@ -44,11 +60,13 @@ public class CharacterFinalizationMessage implements IMessage {
 
         @Override
         public IMessage onMessage(CharacterFinalizationMessage message, MessageContext context) {
-            EntityPlayerMP player = context.getServerHandler().playerEntity;
-            ModNetwork.enqueueCharacterFinalization(
-                player,
-                message.isReplacementConfirmed(),
-                message.getExpectedExistingPledgeCode());
+            if (message.isValid()) {
+                EntityPlayerMP player = context.getServerHandler().playerEntity;
+                ModNetwork.enqueueCharacterFinalization(
+                    player,
+                    message.isReplacementConfirmed(),
+                    message.getExpectedExistingPledgeCode());
+            }
             return null;
         }
     }

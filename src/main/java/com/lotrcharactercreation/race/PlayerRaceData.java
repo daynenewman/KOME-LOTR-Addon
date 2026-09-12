@@ -8,6 +8,7 @@ import net.minecraftforge.common.util.Constants;
 import com.lotrcharactercreation.appearance.AppearancePreset;
 import com.lotrcharactercreation.appearance.AppearancePresetRegistry;
 import com.lotrcharactercreation.appearance.PlayerSex;
+import com.lotrcharactercreation.appearance.ServerCustomSkinLibrary;
 import com.lotrcharactercreation.faction.StartingFaction;
 
 public final class PlayerRaceData {
@@ -24,6 +25,7 @@ public final class PlayerRaceData {
     private static final String STARTING_WAYPOINT_TAG = "startingWaypoint";
     private static final String STARTING_WAYPOINT_APPLIED_TAG = "startingWaypointApplied";
     private static final String CHARACTER_CREATION_COMPLETE_TAG = "characterCreationComplete";
+    private static final String CHARACTER_EDIT_AUTHORIZED_TAG = "characterEditAuthorized";
     private static final String DWARF_STAMINA_TAG = "dwarfStamina";
     private static final String DWARF_FEAST_TAG = "dwarfFeast";
     private static final String DWARF_STAMINA_EXHAUSTED_TAG = "dwarfStaminaExhausted";
@@ -84,14 +86,18 @@ public final class PlayerRaceData {
     }
 
     public static AppearancePreset getAppearancePreset(EntityPlayerMP player) {
-        return AppearancePresetRegistry.findById(getAppearancePresetId(player));
+        return ServerCustomSkinLibrary.getInstance().getCurrentCatalog().findById(getAppearancePresetId(player));
     }
 
     public static void setAppearancePreset(EntityPlayerMP player, AppearancePreset preset) {
         if (preset == null) {
             throw new IllegalArgumentException("appearance preset cannot be null");
         }
-        if (!AppearancePresetRegistry.isPresetValid(getRace(player), getSex(player), preset.getId())) {
+        if (!AppearancePresetRegistry.isPresetValid(
+            ServerCustomSkinLibrary.getInstance().getCurrentCatalog(),
+            getRace(player),
+            getSex(player),
+            preset.getId())) {
             throw new IllegalArgumentException("appearance preset is not valid for the player's race and sex");
         }
 
@@ -113,7 +119,11 @@ public final class PlayerRaceData {
 
     public static void setAppearanceInitialized(EntityPlayerMP player, boolean initialized) {
         if (initialized && !AppearancePresetRegistry
-            .isAppearanceValid(getRace(player), getSex(player), getAppearancePresetId(player))) {
+            .isAppearanceValid(
+                ServerCustomSkinLibrary.getInstance().getCurrentCatalog(),
+                getRace(player),
+                getSex(player),
+                getAppearancePresetId(player))) {
             throw new IllegalStateException("cannot initialize invalid appearance data");
         }
 
@@ -216,7 +226,38 @@ public final class PlayerRaceData {
     }
 
     public static void setCharacterCreationComplete(EntityPlayerMP player, boolean complete) {
-        getModData(player, true).setBoolean(CHARACTER_CREATION_COMPLETE_TAG, complete);
+        NBTTagCompound modData = getModData(player, true);
+        modData.setBoolean(CHARACTER_CREATION_COMPLETE_TAG, complete);
+        if (complete) {
+            modData.removeTag(CHARACTER_EDIT_AUTHORIZED_TAG);
+        }
+    }
+
+    /**
+     * Returns whether server code has explicitly authorized this player to edit
+     * character selections outside the normal first-time flow. The flag does not
+     * choose or reopen a stage by itself.
+     */
+    public static boolean isCharacterEditAuthorized(EntityPlayerMP player) {
+        NBTTagCompound modData = getModData(player, false);
+        return modData != null && modData.hasKey(CHARACTER_EDIT_AUTHORIZED_TAG, Constants.NBT.TAG_BYTE)
+            && modData.getBoolean(CHARACTER_EDIT_AUTHORIZED_TAG);
+    }
+
+    /**
+     * Server-side entry point for future administrative recreation flows. No
+     * client packet exposes this setter.
+     */
+    public static void setCharacterEditAuthorized(EntityPlayerMP player, boolean authorized) {
+        if (authorized) {
+            getModData(player, true).setBoolean(CHARACTER_EDIT_AUTHORIZED_TAG, true);
+            return;
+        }
+
+        NBTTagCompound modData = getModData(player, false);
+        if (modData != null) {
+            modData.removeTag(CHARACTER_EDIT_AUTHORIZED_TAG);
+        }
     }
 
     public static boolean hasDwarfResourceData(EntityPlayerMP player) {

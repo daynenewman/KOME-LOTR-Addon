@@ -80,7 +80,7 @@ public class CharacterCreationIsolationTest {
         assertTrue(commonProxy.contains("this(new CommonProxy());"));
         assertEquals(1, occurrences(commonProxy, "LOTRCharacterCreation.proxy = characterCreationProxy;"));
         assertEquals(1, occurrences(clientProxy, "super(new ClientProxy());"));
-        assertEquals(1, occurrences(coordinator, "proxy.initialize(customSkinRoot);"));
+        assertEquals(1, occurrences(coordinator, "proxy.initialize(customSkinRoot, configurationDirectory);"));
 
         List<Path> clientProxyReferences = new ArrayList<>();
         for (Path source : javaSources(mainJava)) {
@@ -296,6 +296,45 @@ public class CharacterCreationIsolationTest {
         String hobbitThrowable = read(characterCreation.resolve("trait/HobbitThrowableService.java"));
         assertTrue(hobbitThrowable.contains("\"lotrcharactercreationHobbitChargedProjectile\""));
         assertTrue(hobbitThrowable.contains("\"lotrcharactercreationHobbitChargedDamage\""));
+    }
+
+    @Test
+    public void selectionPacketsDelegateToTheServerAuthorizedFlowPolicy() throws Exception {
+        Path characterCreation = addon().resolve("src/main/java/com/lotrcharactercreation");
+        String network = read(characterCreation.resolve("network/ModNetwork.java"));
+        String flow = read(characterCreation.resolve("creation/CharacterCreationFlowService.java"));
+        String playerData = read(characterCreation.resolve("race/PlayerRaceData.java"));
+
+        assertTrue(flow.contains("isSelectionMutationAuthorized"));
+        assertTrue(network.contains("CharacterCreationFlowService.selectRace(selection.player, race)"));
+        assertTrue(network.contains("CharacterCreationFlowService.selectSex(selection.player, sex)"));
+        assertTrue(network.contains("CharacterCreationFlowService.selectStartingFaction(selection.player, faction)"));
+        assertTrue(
+            network.contains("CharacterCreationFlowService.selectAppearance(selection.player, selection.presetId)"));
+        assertTrue(playerData.contains("private static final String CHARACTER_EDIT_AUTHORIZED_TAG"));
+        assertFalse(network.contains("setCharacterEditAuthorized"));
+    }
+
+    @Test
+    public void lotrMapUsesEntityAwareLocalAndProfileUuidRemoteAppearanceLookups() throws Exception {
+        String mapHandler = read(
+            addon().resolve("src/main/java/com/lotrcharactercreation/client/render/LOTRMapPlayerAppearanceHandler.java"));
+        String draw = between(mapHandler, "public void afterMapDraw", "private static void prepareGuiRenderState");
+        String remoteLookup = between(
+            mapHandler,
+            "private static void renderRemoteReplacementIcon",
+            "private static void renderLocalReplacementIcon");
+        String localLookup = between(
+            mapHandler,
+            "private static void renderLocalReplacementIcon",
+            "private static void renderReplacementIcon");
+
+        assertTrue(draw.contains("renderRemoteReplacementIcon("));
+        assertTrue(draw.contains("renderLocalReplacementIcon("));
+        assertTrue(remoteLookup.contains(".get(profile.getId())"));
+        assertFalse(remoteLookup.contains(".get(player)"));
+        assertTrue(localLookup.contains(".get(player)"));
+        assertFalse(localLookup.contains(".get(profile.getId())"));
     }
 
     @Test

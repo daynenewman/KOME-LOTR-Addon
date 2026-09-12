@@ -32,6 +32,11 @@ public final class AppearanceSelectionRules {
     }
 
     public static List<AppearancePreset> getCandidates(PlayerRace race, PlayerSex sex, StartingFaction faction) {
+        return getCandidates(AppearancePresetRegistry.getBuiltInCatalog(), race, sex, faction);
+    }
+
+    public static List<AppearancePreset> getCandidates(AppearancePresetCatalog catalog, PlayerRace race,
+        PlayerSex sex, StartingFaction faction) {
         if (race == null || faction == null
             || !faction.isAllowedFor(race)
             || !AppearancePresetRegistry.isSexValidForRace(race, sex)) {
@@ -39,29 +44,34 @@ public final class AppearanceSelectionRules {
         }
 
         if (race == PlayerRace.MAN) {
-            return getManCandidates(sex, faction);
+            return getManCandidates(catalog, sex, faction);
         }
 
         if (race == PlayerRace.HOBBIT) {
-            return AppearancePresetRegistry.getPresets(race, sex);
+            return catalog.getPresets(race, sex);
         }
 
         if (faction == StartingFaction.WANDERER
             && (race == PlayerRace.DWARF || race == PlayerRace.ELF || race == PlayerRace.URUK_HAI)) {
-            return AppearancePresetRegistry.getPresets(race, sex);
+            return catalog.getPresets(race, sex);
         }
 
         String groupId = getAllowedGroupId(race, faction);
         return groupId == null ? Collections.<AppearancePreset>emptyList()
-            : AppearancePresetRegistry.getPresets(race, sex, groupId);
+            : catalog.getPresets(race, sex, groupId);
     }
 
     public static boolean isPresetAllowed(PlayerRace race, PlayerSex sex, StartingFaction faction, String presetId) {
-        if (!AppearancePresetRegistry.isPresetValid(race, sex, presetId)) {
+        return isPresetAllowed(AppearancePresetRegistry.getBuiltInCatalog(), race, sex, faction, presetId);
+    }
+
+    public static boolean isPresetAllowed(AppearancePresetCatalog catalog, PlayerRace race, PlayerSex sex,
+        StartingFaction faction, String presetId) {
+        if (!AppearancePresetRegistry.isPresetValid(catalog, race, sex, presetId)) {
             return false;
         }
 
-        for (AppearancePreset candidate : getCandidates(race, sex, faction)) {
+        for (AppearancePreset candidate : getCandidates(catalog, race, sex, faction)) {
             if (candidate.getId()
                 .equals(presetId)) {
                 return true;
@@ -123,18 +133,19 @@ public final class AppearanceSelectionRules {
         return null;
     }
 
-    private static List<AppearancePreset> getManCandidates(PlayerSex sex, StartingFaction faction) {
+    private static List<AppearancePreset> getManCandidates(AppearancePresetCatalog catalog, PlayerSex sex,
+        StartingFaction faction) {
         Map<String, AppearancePreset> candidates = new LinkedHashMap<String, AppearancePreset>();
         if (faction == StartingFaction.WANDERER) {
-            addPresets(candidates, AppearancePresetRegistry.getPresets(PlayerRace.MAN, sex));
+            addPresets(candidates, catalog.getPresets(PlayerRace.MAN, sex));
         } else {
             String groupId = getManGroupId(faction);
             if (groupId != null) {
-                addPresets(candidates, AppearancePresetRegistry.getPresets(PlayerRace.MAN, sex, groupId));
+                addPresets(candidates, catalog.getPresets(PlayerRace.MAN, sex, groupId));
             }
         }
 
-        AppearancePreset accountPreset = AppearancePresetRegistry.getManAccountPreset(sex);
+        AppearancePreset accountPreset = AppearancePresetRegistry.getManAccountPreset(catalog, sex);
         if (accountPreset != null) {
             candidates.put(accountPreset.getId(), accountPreset);
         }

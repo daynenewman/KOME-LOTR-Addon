@@ -11,20 +11,34 @@ import io.netty.buffer.ByteBuf;
 public class RaceSelectionMessage implements IMessage {
 
     private String serializedRaceId;
+    private boolean valid;
 
     public RaceSelectionMessage() {}
 
     public RaceSelectionMessage(String serializedRaceId) {
         this.serializedRaceId = serializedRaceId;
+        valid = LegacyC2SProtocol.isValidRequiredString(serializedRaceId, LegacyC2SProtocol.MAX_RACE_ID_BYTES);
     }
 
     public String getSerializedRaceId() {
         return serializedRaceId;
     }
 
+    public boolean isValid() {
+        return valid;
+    }
+
     @Override
     public void fromBytes(ByteBuf buffer) {
-        serializedRaceId = ByteBufUtils.readUTF8String(buffer);
+        valid = false;
+        serializedRaceId = null;
+        try {
+            serializedRaceId = LegacyC2SProtocol.readRequiredString(buffer, LegacyC2SProtocol.MAX_RACE_ID_BYTES);
+            LegacyC2SProtocol.requireFullyRead(buffer);
+            valid = true;
+        } catch (RuntimeException exception) {
+            LegacyC2SProtocol.warnMalformedOnce("RaceSelection", exception);
+        }
     }
 
     @Override
@@ -36,8 +50,10 @@ public class RaceSelectionMessage implements IMessage {
 
         @Override
         public IMessage onMessage(RaceSelectionMessage message, MessageContext context) {
-            EntityPlayerMP player = context.getServerHandler().playerEntity;
-            ModNetwork.enqueueRaceSelection(player, message.getSerializedRaceId());
+            if (message.isValid()) {
+                EntityPlayerMP player = context.getServerHandler().playerEntity;
+                ModNetwork.enqueueRaceSelection(player, message.getSerializedRaceId());
+            }
             return null;
         }
     }

@@ -9,6 +9,7 @@ import net.minecraft.client.gui.GuiScreen;
 import com.lotrcharactercreation.appearance.AppearancePreset;
 import com.lotrcharactercreation.appearance.AppearanceSelectionRules;
 import com.lotrcharactercreation.appearance.PlayerSex;
+import com.lotrcharactercreation.client.appearance.ClientCustomSkinManager;
 import com.lotrcharactercreation.client.render.AppearancePreviewRenderer;
 import com.lotrcharactercreation.creation.CharacterCreationStage;
 import com.lotrcharactercreation.faction.StartingFaction;
@@ -60,7 +61,8 @@ public class GuiAppearanceSelection extends GuiScreen {
         this.race = race;
         this.sex = sex;
         this.faction = faction;
-        candidates = AppearanceSelectionRules.getCandidates(race, sex, faction);
+        candidates = AppearanceSelectionRules.getCandidates(
+            ClientCustomSkinManager.getInstance().getCatalog(), race, sex, faction);
         selectedIndex = findPresetIndex(currentPresetId);
     }
 

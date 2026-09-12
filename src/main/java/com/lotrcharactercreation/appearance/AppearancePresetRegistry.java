@@ -1,13 +1,10 @@
 package com.lotrcharactercreation.appearance;
 
-import java.io.File;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-
-import org.apache.logging.log4j.Logger;
+import java.util.Set;
 
 import com.lotrcharactercreation.race.PlayerRace;
 
@@ -17,37 +14,16 @@ public final class AppearancePresetRegistry {
     public static final String MAN_MINECRAFT_SKIN_FEMALE_ID = "man_minecraft_skin_f";
 
     private static final String LOTR_TEXTURE_NAMESPACE = "lotr";
-    private static Map<String, AppearancePreset> presets = Collections.emptyMap();
-    private static boolean initialized;
+    private static final AppearancePresetCatalog BUILT_IN_CATALOG = new AppearancePresetCatalog(createPresets().values());
 
     private AppearancePresetRegistry() {}
 
-    public static synchronized void initialize(File customSkinRoot, Logger logger) {
-        if (initialized) {
-            return;
-        }
+    public static AppearancePresetCatalog getBuiltInCatalog() {
+        return BUILT_IN_CATALOG;
+    }
 
-        Map<String, AppearancePreset> initializedPresets = createPresets();
-        List<AppearancePreset> externalPresets = ExternalAppearancePresetScanner.scan(customSkinRoot, logger);
-        int registeredExternalPresets = 0;
-        for (AppearancePreset externalPreset : externalPresets) {
-            if (initializedPresets.containsKey(externalPreset.getId())) {
-                if (logger != null) {
-                    logger.warn(
-                        "Skipping external appearance preset because its ID collides with a built-in preset: "
-                            + externalPreset.getId());
-                }
-                continue;
-            }
-            initializedPresets.put(externalPreset.getId(), externalPreset);
-            registeredExternalPresets++;
-        }
-
-        presets = Collections.unmodifiableMap(initializedPresets);
-        initialized = true;
-        if (logger != null) {
-            logger.info("Registered " + registeredExternalPresets + " external appearance preset(s)");
-        }
+    public static Set<String> getBuiltInPresetIds() {
+        return BUILT_IN_CATALOG.getPresetsById().keySet();
     }
 
     public static AppearancePreset findById(String id) {
@@ -55,7 +31,7 @@ public final class AppearancePresetRegistry {
             return null;
         }
 
-        return getInitializedPresets().get(id);
+        return BUILT_IN_CATALOG.findById(id);
     }
 
     public static List<AppearancePreset> getPresets(PlayerRace race, PlayerSex sex) {
@@ -63,53 +39,59 @@ public final class AppearancePresetRegistry {
     }
 
     public static List<AppearancePreset> getPresets(PlayerRace race, PlayerSex sex, String groupId) {
-        if (!isSexValidForRace(race, sex)) {
-            return Collections.emptyList();
-        }
-
-        List<AppearancePreset> matches = new ArrayList<AppearancePreset>();
-        for (AppearancePreset preset : getInitializedPresets().values()) {
-            if (preset.getRace() == race && preset.getSex() == sex
-                && (groupId == null || groupId.equals(preset.getGroupId()))) {
-                matches.add(preset);
-            }
-        }
-
-        return Collections.unmodifiableList(matches);
+        return BUILT_IN_CATALOG.getPresets(race, sex, groupId);
     }
 
     public static List<AppearancePreset> getDwarfPresets(PlayerSex sex, DwarfAppearanceGroup group) {
+        return getDwarfPresets(BUILT_IN_CATALOG, sex, group);
+    }
+
+    public static List<AppearancePreset> getDwarfPresets(AppearancePresetCatalog catalog, PlayerSex sex,
+        DwarfAppearanceGroup group) {
         if (!isSexValidForRace(PlayerRace.DWARF, sex) || group == null) {
             return Collections.emptyList();
         }
 
-        return getPresets(PlayerRace.DWARF, sex, group.getSerializedId());
+        return catalog.getPresets(PlayerRace.DWARF, sex, group.getSerializedId());
     }
 
     public static AppearancePreset getManAccountPreset(PlayerSex sex) {
+        return getManAccountPreset(BUILT_IN_CATALOG, sex);
+    }
+
+    public static AppearancePreset getManAccountPreset(AppearancePresetCatalog catalog, PlayerSex sex) {
         if (sex == PlayerSex.MALE) {
-            return findById(MAN_MINECRAFT_SKIN_MALE_ID);
+            return catalog.findById(MAN_MINECRAFT_SKIN_MALE_ID);
         }
         if (sex == PlayerSex.FEMALE) {
-            return findById(MAN_MINECRAFT_SKIN_FEMALE_ID);
+            return catalog.findById(MAN_MINECRAFT_SKIN_FEMALE_ID);
         }
         return null;
     }
 
     public static List<AppearancePreset> getOrcPresets(OrcAppearanceGroup group) {
+        return getOrcPresets(BUILT_IN_CATALOG, group);
+    }
+
+    public static List<AppearancePreset> getOrcPresets(AppearancePresetCatalog catalog, OrcAppearanceGroup group) {
         if (group == null) {
             return Collections.emptyList();
         }
 
-        return getPresets(PlayerRace.ORC, PlayerSex.NONE, group.getSerializedId());
+        return catalog.getPresets(PlayerRace.ORC, PlayerSex.NONE, group.getSerializedId());
     }
 
     public static List<AppearancePreset> getUrukHaiPresets(UrukHaiAppearanceGroup group) {
+        return getUrukHaiPresets(BUILT_IN_CATALOG, group);
+    }
+
+    public static List<AppearancePreset> getUrukHaiPresets(AppearancePresetCatalog catalog,
+        UrukHaiAppearanceGroup group) {
         if (group == null) {
             return Collections.emptyList();
         }
 
-        return getPresets(PlayerRace.URUK_HAI, PlayerSex.NONE, group.getSerializedId());
+        return catalog.getPresets(PlayerRace.URUK_HAI, PlayerSex.NONE, group.getSerializedId());
     }
 
     public static boolean isSexValidForRace(PlayerRace race, PlayerSex sex) {
@@ -132,7 +114,15 @@ public final class AppearancePresetRegistry {
     }
 
     public static boolean isPresetValid(PlayerRace race, PlayerSex sex, String presetId) {
-        AppearancePreset preset = findById(presetId);
+        return isPresetValid(BUILT_IN_CATALOG, race, sex, presetId);
+    }
+
+    public static boolean isPresetValid(AppearancePresetCatalog catalog, PlayerRace race, PlayerSex sex,
+        String presetId) {
+        if (catalog == null) {
+            return false;
+        }
+        AppearancePreset preset = catalog.findById(presetId);
         if (preset == null || preset.getRace() != race || preset.getSex() != sex) {
             return false;
         }
@@ -166,6 +156,11 @@ public final class AppearancePresetRegistry {
     }
 
     public static boolean isAppearanceValid(PlayerRace race, PlayerSex sex, String presetId) {
+        return isAppearanceValid(BUILT_IN_CATALOG, race, sex, presetId);
+    }
+
+    public static boolean isAppearanceValid(AppearancePresetCatalog catalog, PlayerRace race, PlayerSex sex,
+        String presetId) {
         if (!isSexValidForRace(race, sex)) {
             return false;
         }
@@ -175,18 +170,23 @@ public final class AppearancePresetRegistry {
             || race == PlayerRace.HOBBIT
             || race == PlayerRace.ORC
             || race == PlayerRace.URUK_HAI) {
-            return isPresetValid(race, sex, presetId);
+            return isPresetValid(catalog, race, sex, presetId);
         }
 
         if (presetId == null || presetId.isEmpty()) {
             return true;
         }
 
-        return isPresetValid(race, sex, presetId);
+        return isPresetValid(catalog, race, sex, presetId);
     }
 
     public static boolean isDwarfPresetValid(String presetId, PlayerSex sex, DwarfAppearanceGroup group) {
-        AppearancePreset preset = findById(presetId);
+        return isDwarfPresetValid(BUILT_IN_CATALOG, presetId, sex, group);
+    }
+
+    public static boolean isDwarfPresetValid(AppearancePresetCatalog catalog, String presetId, PlayerSex sex,
+        DwarfAppearanceGroup group) {
+        AppearancePreset preset = catalog.findById(presetId);
         return preset != null && preset.getRace() == PlayerRace.DWARF
             && preset.getSex() == sex
             && group != null
@@ -195,22 +195,37 @@ public final class AppearancePresetRegistry {
     }
 
     public static boolean isElfPresetValid(String presetId, PlayerSex sex, ElfAppearanceGroup group) {
-        AppearancePreset preset = findById(presetId);
-        return group != null && isPresetValid(PlayerRace.ELF, sex, presetId)
+        return isElfPresetValid(BUILT_IN_CATALOG, presetId, sex, group);
+    }
+
+    public static boolean isElfPresetValid(AppearancePresetCatalog catalog, String presetId, PlayerSex sex,
+        ElfAppearanceGroup group) {
+        AppearancePreset preset = catalog.findById(presetId);
+        return group != null && isPresetValid(catalog, PlayerRace.ELF, sex, presetId)
             && group.getSerializedId()
                 .equals(preset.getGroupId());
     }
 
     public static boolean isOrcPresetValid(String presetId, OrcAppearanceGroup group) {
-        AppearancePreset preset = findById(presetId);
-        return group != null && isPresetValid(PlayerRace.ORC, PlayerSex.NONE, presetId)
+        return isOrcPresetValid(BUILT_IN_CATALOG, presetId, group);
+    }
+
+    public static boolean isOrcPresetValid(AppearancePresetCatalog catalog, String presetId,
+        OrcAppearanceGroup group) {
+        AppearancePreset preset = catalog.findById(presetId);
+        return group != null && isPresetValid(catalog, PlayerRace.ORC, PlayerSex.NONE, presetId)
             && group.getSerializedId()
                 .equals(preset.getGroupId());
     }
 
     public static boolean isUrukHaiPresetValid(String presetId, UrukHaiAppearanceGroup group) {
-        AppearancePreset preset = findById(presetId);
-        return group != null && isPresetValid(PlayerRace.URUK_HAI, PlayerSex.NONE, presetId)
+        return isUrukHaiPresetValid(BUILT_IN_CATALOG, presetId, group);
+    }
+
+    public static boolean isUrukHaiPresetValid(AppearancePresetCatalog catalog, String presetId,
+        UrukHaiAppearanceGroup group) {
+        AppearancePreset preset = catalog.findById(presetId);
+        return group != null && isPresetValid(catalog, PlayerRace.URUK_HAI, PlayerSex.NONE, presetId)
             && group.getSerializedId()
                 .equals(preset.getGroupId());
     }
@@ -734,13 +749,6 @@ public final class AppearancePresetRegistry {
         if (presets.put(id, preset) != null) {
             throw new IllegalStateException("Duplicate appearance preset ID: " + id);
         }
-    }
-
-    private static Map<String, AppearancePreset> getInitializedPresets() {
-        if (!initialized) {
-            throw new IllegalStateException("AppearancePresetRegistry has not been initialized");
-        }
-        return presets;
     }
 
     private static boolean isLotrCharacterTexture(AppearancePreset preset) {
