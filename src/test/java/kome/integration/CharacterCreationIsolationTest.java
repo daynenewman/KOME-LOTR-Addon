@@ -378,10 +378,11 @@ public class CharacterCreationIsolationTest {
         Path accessTransformer = addon().resolve("src/main/resources/META-INF/lotrcharactercreation_at.cfg");
         assertTrue("Missing Character Creation access transformer", Files.isRegularFile(accessTransformer));
         assertEquals(Arrays.asList(
-            "public net.minecraft.entity.Entity func_70105_a(FF)V",
-            "public net.minecraft.entity.EntityAgeable func_70105_a(FF)V",
-            "public net.minecraft.entity.monster.EntityZombie func_70105_a(FF)V"),
-            Files.readAllLines(accessTransformer, StandardCharsets.UTF_8));
+    "public net.minecraft.entity.Entity func_70105_a(FF)V",
+    "public net.minecraft.entity.EntityAgeable func_70105_a(FF)V",
+    "public net.minecraft.entity.monster.EntityZombie func_70105_a(FF)V",
+    "public net.minecraft.entity.Entity field_70148_d # firstUpdate"),
+    Files.readAllLines(accessTransformer, StandardCharsets.UTF_8));
     }
 
     @Test
@@ -394,11 +395,24 @@ public class CharacterCreationIsolationTest {
     }
 
     @Test
-    public void komeCorePluginStillExposesOnlyTheWaypointTransformer() {
+    public void komeCorePluginExposesKomeAndLotrMoreMobsTransformers() {
         KOMECorePlugin plugin = new KOMECorePlugin();
 
         assertArrayEquals(
-            new String[] { KOMEWaypointTransformer.class.getName() },
+            new String[] {
+                KOMEWaypointTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.PathFinderGatePartTransformer.class.getName(),
+
+"com.fuzs.aquaacrobatics.core.asm.AquaEntityPlayerTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaServerPlayerTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaBiomeTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaCommonWorldTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaClientEntityTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaLateClientPlayerTransformer"
+            },
             plugin.getASMTransformerClass());
         assertNull(plugin.getAccessTransformerClass());
     }

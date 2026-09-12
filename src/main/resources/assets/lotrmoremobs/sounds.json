@@ -1,0 +1,120 @@
+{
+  "mumakil.death": {
+    "category": "hostile",
+    "sounds": [
+      "lotrmoremobs:mumakil/death"
+    ]
+  },
+  "mumakil.ears": {
+    "category": "hostile",
+    "sounds": [
+      "lotrmoremobs:mumakil/ears"
+    ]
+  },
+  "mumakil.step": {
+    "category": "hostile",
+    "sounds": [
+      "lotrmoremobs:mumakil/step1",
+      "lotrmoremobs:mumakil/step2",
+      "lotrmoremobs:mumakil/step3",
+      "lotrmoremobs:mumakil/step4",
+      "lotrmoremobs:mumakil/step5",
+      "lotrmoremobs:mumakil/step6",
+      "lotrmoremobs:mumakil/step7",
+      "lotrmoremobs:mumakil/step8"
+    ]
+  },
+
+  "mumakil.trample": {
+    "category": "hostile",
+    "sounds": [
+      "lotrmoremobs:mumakil/strike"
+    ]
+  },
+
+  "mumakil.strike": {
+    "category": "hostile",
+    "sounds": [
+      "lotrmoremobs:mumakil/strike"
+    ]
+  },
+  "mumakil.trumpet": {
+    "category": "hostile",
+    "sounds": [
+      "lotrmoremobs:mumakil/trumpet"
+    ]
+  },
+  "mumakil.calftrumpet": {
+    "category": "neutral",
+    "sounds": [
+      "lotrmoremobs:mumakil/calftrumpet"
+    ]
+  },
+  "mumakil.angry": {
+    "category": "hostile",
+    "sounds": [
+      "lotrmoremobs:mumakil/angry"
+    ]
+  },
+  "harad_warhorn": {
+    "category": "hostile",
+    "sounds": [
+      "lotrmoremobs:harad_warhorn/haradrim_war_horn"
+    ]
+  },
+  "siege.gate_breach": {
+    "category": "block",
+    "sounds": [
+      "lotrmoremobs:siege/breach"
+    ]
+  },
+  "siege.gate_finalize": {
+    "category": "block",
+    "sounds": [
+      "lotrmoremobs:siege/finalize"
+    ]
+  },
+  "siege.gate_open": {
+    "category": "block",
+    "sounds": [
+      "lotrmoremobs:siege/gate_opens"
+    ]
+  },
+  "siege.gate_close": {
+    "category": "block",
+    "sounds": [
+      "lotrmoremobs:siege/gate_close"
+    ]
+  },
+  "siege.ram_hit": {
+    "category": "hostile",
+    "sounds": [
+      "lotrmoremobs:siege/hit1",
+      "lotrmoremobs:siege/hit2",
+      "lotrmoremobs:siege/hit3"
+    ]
+  },
+  "siege.repair": {
+    "category": "block",
+    "sounds": [
+      "lotrmoremobs:siege/repair1",
+      "lotrmoremobs:siege/repair2",
+      "lotrmoremobs:siege/repair3",
+      "lotrmoremobs:siege/repair4"
+    ]
+  },
+  "siege.repair_build": {
+    "category": "neutral",
+    "sounds": [
+      "lotrmoremobs:siege/repair5",
+      "lotrmoremobs:siege/repair6",
+      "lotrmoremobs:siege/repair7"
+    ]
+  },
+  "siege.ram_target_set": {
+    "category": "neutral",
+    "sounds": [
+      "lotrmoremobs:siege/set_ram_target"
+    ]
+  }
+}

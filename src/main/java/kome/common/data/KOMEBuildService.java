@@ -16,6 +16,38 @@ public final class KOMEBuildService {
     private KOMEBuildService() {
     }
 
+    /** Canonical Slice-1 creation boundary. Legacy callers remain at the packet edge. */
+    public static KOMEPlayerBuild create(KOMEWorldData data, String name, String tileId, int dimension,
+            double x, double y, double z, UUID builder, String builderName, String builderFaction,
+            String populationFaction, KOMEBuildType type, int halfHours, long nowMillis) {
+        if (type == null) throw new IllegalArgumentException("Build type is required.");
+        if (halfHours <= 0) throw new IllegalArgumentException("Submit at least one half-hour.");
+        Decision placement = canPlace(data, builderFaction, tileId, populationFaction);
+        if (!placement.allowed) throw new IllegalArgumentException(placement.reason);
+        KOMEPlayerBuild build = new KOMEPlayerBuild();
+        build.id = data.nextBuildId();
+        build.displayName = KOMEPlayerBuild.sanitizeName(name);
+        build.tileId = KOMEConquestTile.normalizeId(tileId);
+        build.dimension = dimension;
+        build.x = x;
+        build.y = y;
+        build.z = z;
+        build.builderUuid = builder;
+        build.builderName = safe(builderName);
+        build.managerUuid = builder;
+        build.managerName = safe(builderName);
+        build.originalBuilderFaction = KOMEAlliance.normalizeFactionKey(builderFaction);
+        build.populationFaction = KOMEAlliance.normalizeFactionKey(populationFaction);
+        build.type = type;
+        build.createdAtMillis = Math.max(0L, nowMillis);
+        build.updatedAtMillis = Math.max(0L, nowMillis);
+        build.markerLabel = build.displayName;
+        data.builds.put(build.id, build);
+        addSubmission(data, build, builder, builderName, builderFaction, halfHours, true, nowMillis);
+        data.markDirty();
+        return build;
+    }
+
     public static Decision canPlace(KOMEWorldData data, String playerFaction, String tileId,
             String populationFaction) {
         String player = KOMEAlliance.normalizeFactionKey(playerFaction);
@@ -55,55 +87,20 @@ public final class KOMEBuildService {
         return result;
     }
 
-    public static KOMEPlayerBuild create(KOMEWorldData data, String name, String tileId, int dimension,
-            double x, double y, double z, UUID builder, String builderName, String builderFaction,
-            String populationFaction, int offensiveHalfHours, int defensiveHalfHours, long nowMillis) {
-        Decision placement = canPlace(data, builderFaction, tileId, populationFaction);
-        if (!placement.allowed) throw new IllegalArgumentException(placement.reason);
-        if (offensiveHalfHours < 0 || defensiveHalfHours < 0) {
-            throw new IllegalArgumentException("Build hours cannot be negative.");
-        }
-        KOMEPlayerBuild build = new KOMEPlayerBuild();
-        build.id = data.nextBuildId();
-        build.displayName = KOMEPlayerBuild.sanitizeName(name);
-        build.tileId = KOMEConquestTile.normalizeId(tileId);
-        build.dimension = dimension;
-        build.x = x;
-        build.y = y;
-        build.z = z;
-        build.builderUuid = builder;
-        build.builderName = safe(builderName);
-        build.managerUuid = builder;
-        build.managerName = safe(builderName);
-        build.originalBuilderFaction = KOMEAlliance.normalizeFactionKey(builderFaction);
-        build.populationFaction = KOMEAlliance.normalizeFactionKey(populationFaction);
-        build.createdAtMillis = Math.max(0L, nowMillis);
-        build.updatedAtMillis = Math.max(0L, nowMillis);
-        build.markerLabel = build.displayName;
-        data.builds.put(build.id, build);
-        if (offensiveHalfHours > 0 || defensiveHalfHours > 0) {
-            addSubmission(data, build, builder, builderName, builderFaction, offensiveHalfHours,
-                defensiveHalfHours, true, nowMillis);
-        }
-        data.recalculateBuildPopulationPool(build.tileId, build.populationFaction);
-        data.markDirty();
-        return build;
-    }
-
+    /** Canonical contribution boundary: an existing Build supplies its only type. */
     public static KOMEBuildContribution addSubmission(KOMEWorldData data, KOMEPlayerBuild build,
-            UUID contributor, String contributorName, String contributorFaction, int offensiveHalfHours,
-            int defensiveHalfHours, boolean contributorIsManager, long nowMillis) {
-        if (data == null || build == null || !build.active) throw new IllegalArgumentException("The Build is not active.");
-        if (offensiveHalfHours < 0 || defensiveHalfHours < 0 || offensiveHalfHours + defensiveHalfHours <= 0) {
-            throw new IllegalArgumentException("Submit at least one half-hour.");
+            UUID contributor, String contributorName, String contributorFaction, int halfHours,
+            boolean contributorIsManager, long nowMillis) {
+        if (data == null || build == null || !build.active || build.type == null) {
+            throw new IllegalArgumentException("The Build is not active.");
         }
+        if (halfHours <= 0) throw new IllegalArgumentException("Submit at least one half-hour.");
         KOMEBuildContribution contribution = new KOMEBuildContribution();
         contribution.id = data.nextBuildContributionId(build);
         contribution.contributorUuid = contributor;
         contribution.contributorName = safe(contributorName);
         contribution.contributorFaction = KOMEAlliance.normalizeFactionKey(contributorFaction);
-        contribution.offensiveHalfHours = offensiveHalfHours;
-        contribution.defensiveHalfHours = defensiveHalfHours;
+        contribution.halfHours = halfHours;
         contribution.submittedAtMillis = Math.max(0L, nowMillis);
         if (contributorIsManager && contributor != null && contributor.equals(build.managerUuid)) {
             contribution.status = KOMEBuildContribution.APPROVED;
@@ -114,7 +111,6 @@ public final class KOMEBuildService {
         }
         build.contributions.add(contribution);
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
-        data.recalculateBuildPopulationPool(build.tileId, build.populationFaction);
         data.markDirty();
         return contribution;
     }
@@ -135,7 +131,6 @@ public final class KOMEBuildService {
         contribution.decidedByName = safe(managerName);
         contribution.decisionReason = safe(reason);
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
-        data.recalculateBuildPopulationPool(build.tileId, build.populationFaction);
         data.markDirty();
         return Decision.allow();
     }
@@ -150,30 +145,12 @@ public final class KOMEBuildService {
         if (!admin && !isManager(build, manager)) return Decision.deny("Only the current Build manager may remove approved hours.");
         KOMEBuildContribution contribution = build == null ? null : build.getContribution(contributionId);
         if (contribution == null || !contribution.isApproved()) return Decision.deny("That contribution is not active and approved.");
-        int nextOff = build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour)
-            - KOMEBuildPopulationService.generatedPopulation(contribution.offensiveHalfHours, data.buildPopulationPerHalfHour);
-        int nextDef = build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour)
-            - KOMEBuildPopulationService.generatedPopulation(contribution.defensiveHalfHours, data.buildPopulationPerHalfHour);
-        if (nextOff < build.offensiveCommittedPopulation || nextDef < build.defensiveCommittedPopulation) {
-            return Decision.deny("Those hours fund active units. Build commitments are O"
-                + build.offensiveCommittedPopulation + "/D" + build.defensiveCommittedPopulation
-                + "; projected Build population is O" + Math.max(0, nextOff) + "/D" + Math.max(0, nextDef) + ".");
-        }
-        Decision capacity = canReducePopulation(data, build,
-            KOMEBuildPopulationService.generatedPopulation(contribution.offensiveHalfHours,
-                data.buildPopulationPerHalfHour),
-            KOMEBuildPopulationService.generatedPopulation(contribution.defensiveHalfHours,
-                data.buildPopulationPerHalfHour));
-        if (!capacity.allowed) {
-            return capacity;
-        }
         contribution.status = KOMEBuildContribution.REMOVED;
         contribution.decidedAtMillis = Math.max(0L, nowMillis);
         contribution.decidedByUuid = manager;
         contribution.decidedByName = safe(managerName);
         contribution.decisionReason = safe(reason);
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
-        data.recalculateBuildPopulationPool(build.tileId, build.populationFaction);
         data.markDirty();
         return Decision.allow();
     }
@@ -191,17 +168,6 @@ public final class KOMEBuildService {
             boolean admin) {
         if (build == null || !build.active) return Decision.deny("The Build is already inactive.");
         if (!admin && !isManager(build, actor)) return Decision.deny("Only the current manager or an administrator may delete this Build.");
-        if (build.offensiveCommittedPopulation > 0 || build.defensiveCommittedPopulation > 0) {
-            return Decision.deny("The Build funds active units (O" + build.offensiveCommittedPopulation
-                + "/D" + build.defensiveCommittedPopulation
-                + "); reclaim or release that committed population before deletion.");
-        }
-        Decision capacity = canReducePopulation(data, build,
-            build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour),
-            build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour));
-        if (!capacity.allowed) {
-            return capacity;
-        }
         return Decision.allow();
     }
 
@@ -226,15 +192,6 @@ public final class KOMEBuildService {
         if (!controller.equals(defaultOwner)) return Decision.deny("Enemy destruction is allowed only in the controller's original homeland.");
         if (!isHostile(data, controller, build.populationFaction)) {
             return Decision.deny("Friendly, Allied, and Neutral Builds cannot be destroyed.");
-        }
-        if (build.offensiveCommittedPopulation > 0 || build.defensiveCommittedPopulation > 0) {
-            return Decision.deny("The Build funds active units; reclaim or release its committed population before destruction.");
-        }
-        Decision capacity = canReducePopulation(data, build,
-            build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour),
-            build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour));
-        if (!capacity.allowed) {
-            return capacity;
         }
         return Decision.allow();
     }
@@ -296,6 +253,30 @@ public final class KOMEBuildService {
         return result;
     }
 
+    /** Authoritative KOM-7 input: active NORMAL Builds and their exact rate inputs. */
+    public static List<KOMEPlayerBuild> activeNormalBuilds(KOMEWorldData data) {
+        return activeBuildsOfType(data, KOMEBuildType.NORMAL);
+    }
+
+    /** Authoritative downstream siege input: active DEFENSIVE Builds and approved defensive hours. */
+    public static List<KOMEPlayerBuild> activeDefensiveBuilds(KOMEWorldData data) {
+        return activeBuildsOfType(data, KOMEBuildType.DEFENSIVE);
+    }
+
+    private static List<KOMEPlayerBuild> activeBuildsOfType(KOMEWorldData data, KOMEBuildType type) {
+        List<KOMEPlayerBuild> result = new ArrayList<KOMEPlayerBuild>();
+        if (data == null || type == null) return result;
+        for (KOMEPlayerBuild build : data.builds.values()) {
+            if (build != null && build.active && build.type == type) result.add(build);
+        }
+        Collections.sort(result, new Comparator<KOMEPlayerBuild>() {
+            @Override public int compare(KOMEPlayerBuild left, KOMEPlayerBuild right) {
+                return safe(left.id).compareTo(safe(right.id));
+            }
+        });
+        return result;
+    }
+
     public static boolean isManager(KOMEPlayerBuild build, UUID actor) {
         return build != null && build.active && actor != null && actor.equals(build.managerUuid);
     }
@@ -332,20 +313,21 @@ public final class KOMEBuildService {
         String b = KOMEAlliance.normalizeFactionKey(second);
         if (a.length() == 0 || b.length() == 0) return false;
         if (a.equals(b)) return true;
-        KOMEAlliance alliance = data == null ? null : data.getAlliance(a, b, false);
-        if (alliance != null && alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE) {
-            return alliance.getSharedRelationStage() >= 2;
-        }
-        LOTRFactionRelations.Relation relation = KOMEAllianceAuthority.getCurrentRelation(a, b);
-        return relation == LOTRFactionRelations.Relation.FRIEND || relation == LOTRFactionRelations.Relation.ALLY;
+
+        return data != null && KOMEDiplomacyService.relationAtLeast(
+            data, a, b, KOMEDiplomacyRelation.FRIENDS);
     }
 
     public static boolean isHostile(KOMEWorldData data, String first, String second) {
-        if (data != null && KOMEWarService.findActiveOpposition(data, first, second) != null) return true;
-        KOMEAlliance alliance = data == null ? null : data.getAlliance(first, second, false);
-        if (alliance != null && alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE) return false;
-        LOTRFactionRelations.Relation relation = KOMEAllianceAuthority.getCurrentRelation(first, second);
-        return relation == LOTRFactionRelations.Relation.ENEMY || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
+        if (data != null && KOMEWarService.findActiveOpposition(data, first, second) != null) {
+            return true;
+        }
+
+        LOTRFactionRelations.Relation relation =
+            KOMEAllianceAuthority.getCurrentRelation(first, second);
+
+        return relation == LOTRFactionRelations.Relation.ENEMY
+            || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
     }
 
     private static void softDelete(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
@@ -367,54 +349,9 @@ public final class KOMEBuildService {
         build.deletedByName = safe(actorName);
         build.deletionReason = safe(reason);
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
-        data.recalculateBuildPopulationPool(build.tileId, build.populationFaction);
         data.markDirty();
     }
 
-    /**
-     * Prevents a Build mutation from silently shrinking a source pool or the controller's
-     * effective tile capacity below already used or allocated population.
-     */
-    private static Decision canReducePopulation(KOMEWorldData data, KOMEPlayerBuild build,
-            int offensiveReduction, int defensiveReduction) {
-        if (data == null || build == null) return Decision.deny("Build population data is unavailable.");
-        KOMEConquestTile tile = data.conquestTiles.get(KOMEConquestTile.normalizeId(build.tileId));
-        String controller = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
-        KOMETilePopulation pool = data.getTilePopulationPool(build.tileId, build.populationFaction);
-        if (pool == null) return Decision.allow();
-        Decision offensive = canReducePopulation(data, pool, controller, KOMEPopulationType.OFFENSIVE,
-            Math.max(0, offensiveReduction));
-        if (!offensive.allowed) return offensive;
-        return canReducePopulation(data, pool, controller, KOMEPopulationType.DEFENSIVE,
-            Math.max(0, defensiveReduction));
-    }
-
-    private static Decision canReducePopulation(KOMEWorldData data, KOMETilePopulation pool,
-            String controller, KOMEPopulationType type, int reduction) {
-        if (reduction <= 0) return Decision.allow();
-        int currentPhysical = pool.getTotal(type);
-        int projectedPhysical = Math.max(0, currentPhysical - reduction);
-        int sourceUsed = pool.getUsed(type);
-        int currentEffective = pool.getEffectiveTotal(type, controller);
-        boolean controllerOwnsPool = KOMEAlliance.normalizeFactionKey(pool.sourceFaction)
-            .equals(KOMEAlliance.normalizeFactionKey(controller));
-        int projectedEffective = controllerOwnsPool ? projectedPhysical : projectedPhysical / 2;
-        int tileEffectiveAfter = Math.max(0,
-            data.getEffectiveUsablePopulation(pool.tileId, controller, type)
-                - currentEffective + projectedEffective);
-        int allocated = data.getTotalAllocated(pool.tileId, controller, type);
-        int used = data.getEffectiveUsedPopulation(pool.tileId, controller, type);
-        int required = Math.max(allocated, used);
-        if (projectedPhysical < sourceUsed || tileEffectiveAfter < required) {
-            return Decision.deny("Cannot remove " + type.key + " Build population: projected source pool "
-                + projectedPhysical + " physical/" + projectedEffective + " usable and tile "
-                + tileEffectiveAfter + " usable, but " + sourceUsed + " source population is used and "
-                + required + " tile population is allocated or used. Release at least "
-                + Math.max(Math.max(0, sourceUsed - projectedPhysical),
-                    Math.max(0, required - tileEffectiveAfter)) + " first.");
-        }
-        return Decision.allow();
-    }
 
     public static final class Decision {
         public final boolean allowed;

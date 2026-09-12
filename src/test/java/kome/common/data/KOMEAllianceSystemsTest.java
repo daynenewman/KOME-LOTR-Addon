@@ -338,10 +338,9 @@ public class KOMEAllianceSystemsTest {
             String[] parts = line.split("\\t", -1);
             config |= parts.length >= 7 && "CONFIG".equals(parts[0]);
             requirement |= parts.length >= 6 && "REQUIREMENT".equals(parts[0]);
-            if (parts.length >= 30 && "STAGE_RELATION".equals(parts[0])) {
+            if (parts.length >= 5 && "DIPLOMACY_RELATION".equals(parts[0])) {
                 relationships++;
-                assertEquals("active", parts[10]);
-                assertEquals("Neutral", parts[13]);
+                assertEquals("neutral", parts[4]);
             }
             assertFalse("TRACK".equals(parts[0]));
             assertFalse("ALLIANCE".equals(parts[0]));
@@ -349,7 +348,7 @@ public class KOMEAllianceSystemsTest {
         }
         assertFalse(config);
         assertFalse(requirement);
-        assertEquals(1, relationships);
+        assertEquals(0, relationships);
     }
 
     @Test
@@ -361,67 +360,6 @@ public class KOMEAllianceSystemsTest {
         assertEquals("bree", parts[3]);
         assertEquals("angmar", parts[4]);
         assertEquals(alliance.getPairKey(), parts[5]);
-    }
-
-    @Test
-    public void normalAllianceRequestsAlwaysRespectOriginalFactionRelations() {
-        KOMEAllianceAuthority.Decision enemyCivil = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.CIVIL, "dunedain", "mordor", "dunedain", true, true, true,
-            lotr.common.fac.LOTRFactionRelations.Relation.ENEMY);
-        KOMEAllianceAuthority.Decision neutralCivil = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.CIVIL, "dunedain", "bree", "dunedain", true, true, true,
-            lotr.common.fac.LOTRFactionRelations.Relation.NEUTRAL);
-        KOMEAllianceAuthority.Decision friendTrade = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.TRADE, "dunedain", "bree", "dunedain", true, true, false,
-            lotr.common.fac.LOTRFactionRelations.Relation.FRIEND);
-        KOMEAllianceAuthority.Decision friendMilitary = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.MILITARY, "dunedain", "bree", "dunedain", true, true, false,
-            lotr.common.fac.LOTRFactionRelations.Relation.FRIEND);
-        KOMEAllianceAuthority.Decision nonKing = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.CIVIL, "dunedain", "bree", "dunedain", false, true, true,
-            lotr.common.fac.LOTRFactionRelations.Relation.ALLY);
-
-        assertTrue(enemyCivil.allowed);
-        assertFalse(enemyCivil.automaticAcceptance);
-        assertTrue(neutralCivil.allowed);
-        assertFalse(neutralCivil.automaticAcceptance);
-        assertTrue(friendTrade.allowed);
-        assertTrue(friendTrade.automaticAcceptance);
-        assertTrue(friendMilitary.allowed);
-        assertTrue(friendMilitary.automaticAcceptance);
-        assertEquals(2, friendMilitary.automaticStage);
-        assertFalse(nonKing.allowed);
-    }
-
-    @Test
-    public void oneKingRequestsUseLoreCapsWhileTwoKingsMayNegotiateAcrossHostility() {
-        lotr.common.fac.LOTRFactionRelations.Relation enemy = lotr.common.fac.LOTRFactionRelations.Relation.ENEMY;
-        lotr.common.fac.LOTRFactionRelations.Relation neutral = lotr.common.fac.LOTRFactionRelations.Relation.NEUTRAL;
-        lotr.common.fac.LOTRFactionRelations.Relation friend = lotr.common.fac.LOTRFactionRelations.Relation.FRIEND;
-        lotr.common.fac.LOTRFactionRelations.Relation ally = lotr.common.fac.LOTRFactionRelations.Relation.ALLY;
-
-        assertTrue(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.MILITARY, "gondor", "mordor",
-            "gondor", true, true, true, enemy).allowed);
-        assertFalse(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.CIVIL, "gondor", "mordor",
-            "gondor", true, true, false, enemy).allowed);
-        assertTrue(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.CIVIL, "gondor", "bree",
-            "gondor", true, true, false, neutral).automaticAcceptance);
-        assertTrue(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.TRADE, "gondor", "bree",
-            "gondor", true, true, false, friend).automaticAcceptance);
-        assertEquals(2, KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.MILITARY, "gondor", "bree",
-            "gondor", true, true, false, friend).automaticStage);
-        assertTrue(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.MILITARY, "gondor", "bree",
-            "gondor", true, true, false, ally).automaticAcceptance);
-        assertFalse(KOMEAllianceAuthority.decideRequestAlliance(KOMEAlliance.CIVIL, "gondor", "bree",
-            "gondor", false, false, false, neutral).allowed);
-    }
-
-    @Test
-    public void acceptanceIsRestrictedToThePendingReceiverKing() {
-        assertTrue(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "rohan", true).allowed);
-        assertFalse(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "gondor", true).allowed);
-        assertFalse(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "rohan", false).allowed);
-        assertFalse(KOMEAllianceAuthority.decideAcceptAlliance(false, "rohan", "rohan", true).allowed);
     }
 
     @Test
@@ -505,31 +443,20 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void benefitAuthorityGatesEveryEstablishedTier() {
+    public void benefitAuthorityGatesEstablishedFarmhandAndMerchantTiers() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
         KOMEAllianceAuthority authority = new KOMEAllianceAuthority(data);
         alliance.requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
-        assertTrue(authority.canFactionUseAlliedWaypoint("gondor", "rohan"));
         assertFalse(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
         alliance.setFactionStage("gondor", 1, "test", 0L, 1L);
-        assertTrue(authority.canFactionUseAlliedWaypoint("gondor", "rohan"));
         assertTrue(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
         alliance.setFactionStage("gondor", 2, "test", 0L, 2L);
         assertTrue(alliance.hasProduceMerchantSlot("gondor"));
-        assertFalse(authority.canFactionUseMilitaryPassage("gondor", "rohan"));
-        alliance.setFactionStage("gondor", 3, "test", 0L, 3L);
-        assertTrue(authority.canFactionUseMilitaryPassage("gondor", "rohan"));
-        assertFalse(authority.canFactionUseMilitaryPassage("rohan", "gondor"));
-        assertFalse(authority.canTemporarilyCommand("gondor", "rohan"));
-        alliance.setFactionStage("rohan", 4, "test", 0L, 4L);
-        data.claimFactionKing("gondor", "Gondor", UUID.randomUUID(), "King");
-        assertTrue(authority.canTemporarilyCommand("gondor", "rohan"));
-        assertTrue(authority.canFactionUseAlliedWaypoint("gondor", "mordor"));
     }
 
     @Test
-    public void militaryTierThreeTemporaryCommandWhitelistIsExplicitAndClosed() {
+    public void temporaryCompanyCommandWhitelistIsExplicitAndClosed() {
         for (String action : new String[] {"view", "dispatch", "continue", "halt", "stay", "retreat", "resume"}) {
             assertTrue(action, KOMEAllianceTemporaryCommandPolicy.allows(action));
         }
@@ -590,15 +517,13 @@ public class KOMEAllianceSystemsTest {
             String line = String.valueOf(value);
             assertFalse(line.contains("military.t4"));
             String[] parts = line.split("\\t", -1);
-            if (parts.length < 27 || !"STAGE_RELATION".equals(parts[0])) continue;
+            if (parts.length < 5 || !"DIPLOMACY_RELATION".equals(parts[0])) continue;
             stageRecords++;
-            assertEquals("gondor", parts[6]);
-            assertEquals("rohan", parts[7]);
-            assertEquals("3", parts[8]);
-            assertEquals("1", parts[9]);
-            assertEquals("Neutral", parts[13]);
+            assertEquals("gondor", parts[2]);
+            assertEquals("rohan", parts[3]);
+            assertEquals("neutral", parts[4]);
         }
-        assertEquals(1, stageRecords);
+        assertEquals(0, stageRecords);
     }
 
     @Test
@@ -638,50 +563,118 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void alliedClaimRequiresFreshSecondServerConfirmationAndBreaksDirectTracks() {
+    public void alliedClaimRequiresFreshSecondServerConfirmationWithoutBreakingDiplomacy() {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
-        alliance.requestTrack(KOMEAlliance.MILITARY, "test", 0L, false);
+
+        KOMEDiplomacyRecord diplomacy =
+            new KOMEDiplomacyRecord("gondor", "rohan");
+        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
+        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+
         KOMEConquestTile tile = new KOMEConquestTile("T200");
         tile.claim("rohan", 0L);
         data.conquestTiles.put(tile.id, tile);
+
         UUID claimant = UUID.randomUUID();
-        KOMEConquestClaimService.Result first = KOMEConquestClaimService.claim(data, tile, "gondor", claimant,
-            "Tester", 10L, 1_000L);
+
+        KOMEConquestClaimService.Result first =
+            KOMEConquestClaimService.claim(
+                data,
+                tile,
+                "gondor",
+                claimant,
+                "Tester",
+                10L,
+                1_000L);
+
         assertFalse(first.success);
         assertTrue(first.confirmationRequired);
         assertEquals("rohan", tile.currentRulingFaction());
-        KOMEConquestClaimService.Result second = KOMEConquestClaimService.claim(data, tile, "gondor", claimant,
-            "Tester", 11L, 1_001L);
+
+        KOMEConquestClaimService.Result second =
+            KOMEConquestClaimService.claim(
+                data,
+                tile,
+                "gondor",
+                claimant,
+                "Tester",
+                11L,
+                1_001L);
+
         assertTrue(second.success);
-        assertTrue(second.allianceBroken);
+        assertFalse(second.allianceBroken);
         assertEquals("gondor", tile.currentRulingFaction());
         assertNotNull(second.war);
         assertTrue(second.war.opposes("gondor", "rohan"));
-        assertFalse(alliance.hasAnyAlliance());
+        assertEquals(
+            KOMEDiplomacyRelation.FRIENDS,
+            KOMEDiplomacyService.getRelation(data, "gondor", "rohan"));
     }
-
     @Test
     public void alliedClaimConfirmationExpiresAndOwnerMutationInvalidatesIt() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.getAlliance("gondor", "rohan", true).requestTrack(KOMEAlliance.CIVIL, "test", 0L, false);
+
+        KOMEDiplomacyRecord diplomacy =
+            new KOMEDiplomacyRecord("gondor", "rohan");
+        diplomacy.relation = KOMEDiplomacyRelation.ALLIES;
+        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+
         KOMEConquestTile tile = new KOMEConquestTile("T201");
         tile.claim("rohan", 0L);
+
         UUID claimant = UUID.randomUUID();
-        assertTrue(KOMEConquestClaimService.claim(data, tile, "gondor", claimant, "Tester", 0L, 1_000L).confirmationRequired);
-        KOMEConquestClaimService.Result expired = KOMEConquestClaimService.claim(data, tile, "gondor", claimant,
-            "Tester", 0L, 1_000L + KOMEWarService.CLAIM_CONFIRMATION_MILLIS + 1L);
+
+        assertTrue(
+            KOMEConquestClaimService.claim(
+                data,
+                tile,
+                "gondor",
+                claimant,
+                "Tester",
+                0L,
+                1_000L).confirmationRequired);
+
+        KOMEConquestClaimService.Result expired =
+            KOMEConquestClaimService.claim(
+                data,
+                tile,
+                "gondor",
+                claimant,
+                "Tester",
+                0L,
+                1_000L + KOMEWarService.CLAIM_CONFIRMATION_MILLIS + 1L);
+
         assertTrue(expired.staleConfirmation);
         assertEquals("rohan", tile.currentRulingFaction());
 
-        KOMEConquestClaimService.claim(data, tile, "gondor", claimant, "Tester", 0L, 2_000L);
-        tile.claim("mordor", 1L);
-        KOMEConquestClaimService.Result changed = KOMEConquestClaimService.claim(data, tile, "gondor", claimant,
-            "Tester", 1L, 2_001L);
-        assertFalse(changed.success);
-        assertEquals("mordor", tile.currentRulingFaction());
-    }
+        KOMEConquestClaimService.claim(
+            data,
+            tile,
+            "gondor",
+            claimant,
+            "Tester",
+            0L,
+            2_000L);
 
+        tile.claim("mordor", 1L);
+
+        KOMEConquestClaimService.Result changed =
+            KOMEConquestClaimService.claim(
+                data,
+                tile,
+                "gondor",
+                claimant,
+                "Tester",
+                1L,
+                2_001L);
+
+        assertFalse(changed.success);
+        assertTrue(changed.staleConfirmation);
+        assertEquals("mordor", tile.currentRulingFaction());
+        assertEquals(
+            KOMEDiplomacyRelation.ALLIES,
+            KOMEDiplomacyService.getRelation(data, "gondor", "rohan"));
+    }
     @Test
     public void wartimeStewardshipIsDormantInPeaceAndTargetsOnlyOpposingSide() {
         KOMEWorldData data = new KOMEWorldData("test");
@@ -699,10 +692,11 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void wholeCompanyReserveTransferIsAtomicAndPreservesNativeFaction() {
+    public void legacyReserveCompanyTransferIsRejectedWithoutMutation() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID owner = UUID.randomUUID();
         UUID recipient = UUID.randomUUID();
+        data.lastKnownPlayerFactions.put(recipient, "gondor");
         data.getPopulation(owner).offensiveTotal = 50;
         data.getPopulation(owner).offensiveUsed = 25;
         data.getPopulation(recipient).offensiveTotal = 50;
@@ -715,13 +709,13 @@ public class KOMEAllianceSystemsTest {
         company.nativeFaction = "gondor"; company.units.add(unit.entity); unit.companyId = company.id;
         data.hiredUnits.put(unit.entity, unit); data.armyCompanies.put(company.id, company);
         assertTrue(KOMECompanyTransferService.offer(data, company, owner, recipient, "New", 100L).success);
-        assertTrue(KOMECompanyTransferService.accept(data, company, recipient, "New", 101L).success);
-        assertEquals(recipient, company.owner);
-        assertEquals(recipient, unit.owner);
+        assertFalse(KOMECompanyTransferService.accept(data, company, recipient, "New", 101L).success);
+        assertEquals(owner, company.owner);
+        assertEquals(owner, unit.owner);
         assertEquals("gondor", company.nativeFaction);
         assertEquals("gondor", unit.sourceFaction);
-        assertEquals(0, data.getPopulation(owner).offensiveUsed);
-        assertEquals(25, data.getPopulation(recipient).offensiveUsed);
+        assertEquals(25, data.getPopulation(owner).offensiveUsed);
+        assertEquals(0, data.getPopulation(recipient).offensiveUsed);
     }
 
     @Test
@@ -1024,27 +1018,11 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void voluntaryDelegationRequiresBothRecognizedPledgedMilitaryTierThreeKings() {
-        KOMEWorldData data = new KOMEWorldData("test");
-        establishMilitaryT3(data, "native_pi", "support_rho");
-        UUID nativeKing = crown(data, "native_pi", "Native King");
-        UUID supportingKing = crown(data, "support_rho", "Supporting King");
-        UUID member = UUID.randomUUID();
-        data.lastKnownPlayerFactions.put(member, "support_rho");
-        KOMEAllianceAuthority authority = new KOMEAllianceAuthority(data);
-
-        assertTrue(authority.canVoluntarilyDelegate("native_pi", nativeKing, "support_rho", supportingKing).allowed);
-        assertFalse(authority.canVoluntarilyDelegate("native_pi", nativeKing, "support_rho", member).allowed);
-        assertFalse(authority.canVoluntarilyDelegate("native_pi", UUID.randomUUID(), "support_rho", supportingKing).allowed);
-        data.lastKnownPlayerFactions.put(supportingKing, "");
-        assertFalse(authority.canVoluntarilyDelegate("native_pi", nativeKing, "support_rho", supportingKing).allowed);
-    }
-
-    @Test
     public void reserveTransferRejectsUnprovenFormerFundingWithoutPartialMutation() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID owner = UUID.randomUUID();
         UUID recipient = UUID.randomUUID();
+        data.lastKnownPlayerFactions.put(recipient, "gondor");
         data.getPopulation(owner).offensiveTotal = 50;
         data.getPopulation(owner).offensiveUsed = 0;
         data.getPopulation(recipient).offensiveTotal = 50;
@@ -1098,6 +1076,107 @@ public class KOMEAllianceSystemsTest {
         KOMEPledgeReleaseService.release(data, player, "Rider", "gondor", "", 101L, "idempotence retry");
         assertEquals(0, population.offensiveUsed);
         assertTrue(tombstone.populationReturned);
+    }
+
+    @Test
+    public void pledgeReleaseHandlesFactionBankUnitWithoutRefundOrQuarantine() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID player = UUID.randomUUID();
+        data.grantFactionPopulation("gondor", 75);
+        KOMEPlayerPopulation reserve = data.getPopulation(player);
+        reserve.offensiveTotal = 50;
+        KOMEHiredUnitRecord unit = ownedUnit(player, "gondor",
+            KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
+        KOMEArmyCompany company = company("faction-bank-release", player, unit);
+        data.hiredUnits.put(unit.entity, unit);
+        data.armyCompanies.put(company.id, company);
+
+        KOMEPledgeReleaseService.Result result = KOMEPledgeReleaseService.release(data, player, "Rider", "gondor", "",
+            100L, "test faction-bank unpledge");
+
+        assertEquals(1, result.unitsReleased);
+        assertEquals(0, result.quarantined);
+        assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(0, reserve.offensiveUsed);
+        assertFalse(data.hiredUnits.containsKey(unit.entity));
+        KOMEPledgeReleaseTombstone tombstone = data.pledgeReleaseTombstones.get(unit.entity);
+        assertTrue(tombstone.populationReturned);
+        assertFalse(tombstone.quarantined);
+        assertEquals(KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, tombstone.fundingSource);
+    }
+
+    @Test
+    public void factionBankCompanyTransferChangesOwnershipWithoutMovingPopulation() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID owner = UUID.randomUUID();
+        UUID recipient = UUID.randomUUID();
+        data.lastKnownPlayerFactions.put(recipient, "gondor");
+        data.grantFactionPopulation("gondor", 75);
+        KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
+            KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
+        NBTTagCompound snapshot = new NBTTagCompound();
+        snapshot.setTag("HiredNPCInfo", new NBTTagCompound());
+        unit.stationedEntityData = snapshot;
+        KOMEArmyCompany company = company("faction-bank-transfer", owner, unit);
+        data.hiredUnits.put(unit.entity, unit);
+        data.armyCompanies.put(company.id, company);
+        assertTrue(KOMECompanyTransferService.offer(data, company, owner, recipient, "New", 10L).success);
+
+        KOMECompanyTransferService.Result result = KOMECompanyTransferService.accept(data, company, recipient, "New", 11L);
+
+        assertTrue(result.success);
+        assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals("gondor", unit.populationOwningFaction);
+        assertEquals(KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, unit.sourceType);
+        assertEquals(recipient, company.owner);
+        assertEquals(recipient, unit.owner);
+        assertEquals(recipient, unit.controller);
+        assertEquals(recipient.toString(), unit.stationedEntityData.getCompoundTag("HiredNPCInfo").getString("HiringPlayerUUID"));
+    }
+
+    @Test
+    public void factionBankCompanyTransferRejectsWrongFactionWithoutMutation() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID owner = UUID.randomUUID();
+        UUID recipient = UUID.randomUUID();
+        data.lastKnownPlayerFactions.put(recipient, "rohan");
+        data.grantFactionPopulation("gondor", 75);
+        KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
+            KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
+        KOMEArmyCompany company = company("faction-bank-wrong-faction", owner, unit);
+        data.hiredUnits.put(unit.entity, unit);
+        data.armyCompanies.put(company.id, company);
+        KOMECompanyTransferService.Result result = KOMECompanyTransferService.offer(data, company, owner, recipient, "New", 10L);
+
+        assertFalse(result.success);
+        assertTrue(result.message.contains("not currently pledged"));
+        assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(owner, company.owner);
+        assertEquals(owner, unit.owner);
+        assertEquals(KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, unit.sourceType);
+        assertNull(company.transferRecipient);
+    }
+
+    @Test
+    public void factionBankOrdinaryAndInactiveCleanupCannotReleaseAnyPopulationLedger() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID owner = UUID.randomUUID();
+        data.grantFactionPopulation("gondor", 75);
+        KOMEPlayerPopulation reserve = data.getPopulation(owner);
+        reserve.offensiveTotal = 50;
+        reserve.offensiveUsed = 25;
+        KOMEPlayerBuild build = new KOMEPlayerBuild();
+        build.id = "BANK-BUILD";
+        build.type = KOMEBuildType.NORMAL;
+        data.builds.put(build.id, build);
+        KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
+            KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
+
+        assertFalse(data.releasePopulationForOrdinaryUnitRemoval(unit));
+
+        assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(25, reserve.offensiveUsed);
+        assertEquals(0, build.approvedHalfHours());
     }
 
     @Test

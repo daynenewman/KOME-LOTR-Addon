@@ -49,6 +49,10 @@ public class KOMEPacketTilePopulationUpdate implements IMessage {
         @Override
         public IMessage onMessage(KOMEPacketTilePopulationUpdate message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
+            if (!legacyPopulationMutationsEnabled()) {
+                player.addChatMessage(new ChatComponentText("Tile population editing is unavailable pending canonical population migration."));
+                return null;
+            }
             String tileId = KOMEConquestTile.normalizeId(message.tileId);
             if (tileId.isEmpty() || !KOMEConquestTile.isCanonicalTileId(tileId)) {
                 player.addChatMessage(new ChatComponentText("Invalid conquest tile."));
@@ -92,4 +96,6 @@ public class KOMEPacketTilePopulationUpdate implements IMessage {
             return null;
         }
     }
+
+    private static boolean legacyPopulationMutationsEnabled() { return false; }
 }

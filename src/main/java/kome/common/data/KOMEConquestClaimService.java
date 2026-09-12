@@ -1,7 +1,5 @@
 package kome.common.data;
 
-import kome.common.command.KOMECommandAlliance;
-import kome.common.command.KOMECommandTroops;
 
 import java.util.List;
 import java.util.UUID;
@@ -77,27 +75,25 @@ public final class KOMEConquestClaimService {
         }
 
         data.conquestClaimConfirmations.remove(claimant);
-        boolean brokeAlliance = false;
-        KOMEAlliance alliance = previousOwner.length() == 0 ? null : data.getAlliance(nextOwner, previousOwner, false);
-        if (confirmationRequired && alliance != null && alliance.hasAnyAlliance()) {
-            alliance.clearAllTracks("Hostile conquest by " + safe(claimantName), worldTime);
-            brokeAlliance = true;
-            data.recordAllianceAdminAction(safe(claimantName), "hostile conquest ended all direct tracks for "
-                + KOMEAlliance.pairKey(nextOwner, previousOwner) + " at " + tile.id);
-            KOMECommandAlliance.syncRelationsForAlliancePair(data, nextOwner, previousOwner);
-        }
-
         data.claimTile(tile, nextOwner, worldTime, claimant, claimantName);
-        KOMEWar war = previousOwner.length() == 0 ? null : KOMEWarService.recordHostileCapture(data, tile.id,
-            previousOwner, nextOwner, claimant, claimantName, nowMillis, METHOD_PLAYER_CONQUEST);
-        if (brokeAlliance) {
-            KOMECommandTroops.revalidateTemporaryControllers(data, nowMillis,
-                "Direct alliance ended by hostile conquest at " + tile.id);
-        }
+
+        KOMEWar war = previousOwner.length() == 0
+            ? null
+            : KOMEWarService.recordHostileCapture(
+                data,
+                tile.id,
+                previousOwner,
+                nextOwner,
+                claimant,
+                claimantName,
+                nowMillis,
+                METHOD_PLAYER_CONQUEST);
+
         result.success = true;
         result.war = war;
-        result.allianceBroken = brokeAlliance;
-        result.sameSideContradictions = KOMEWarService.findActiveSameSide(data, nextOwner, previousOwner);
+        result.allianceBroken = false;
+        result.sameSideContradictions =
+            KOMEWarService.findActiveSameSide(data, nextOwner, previousOwner);
         result.message = "Claimed conquest tile " + tile.id + " for " + KOMEAlliance.displayFactionName(nextOwner)
             + (war == null ? "." : "; recorded in " + displayWar(war) + ".");
         data.markDirty();
@@ -117,18 +113,28 @@ public final class KOMEConquestClaimService {
     }
 
     private static String warning(KOMEWorldData data, String claimantFaction, String owner) {
-        String first = "This tile is controlled by " + KOMEAlliance.displayFactionName(owner)
-            + ". Capturing it is a hostile act.";
-        KOMEAlliance alliance = data.getAlliance(claimantFaction, owner, false);
-        if (alliance != null && alliance.hasAnyAcceptedAlliance()) {
-            return first + " Capturing this tile will immediately end all direct Civil, Trade, and Military agreements between "
-                + KOMEAlliance.displayFactionName(claimantFaction) + " and " + KOMEAlliance.displayFactionName(owner)
-                + ", revoke delegated authority, and begin a war. Click Claim again within 30 seconds to continue.";
-        }
-        return first + " These factions share a coalition side. The claim will create direct hostility without silently changing that coalition. "
-            + "Click Claim again within 30 seconds to continue.";
-    }
+        String first =
+            "This tile is controlled by "
+                + KOMEAlliance.displayFactionName(owner)
+                + ". Capturing it is a hostile act.";
 
+        KOMEDiplomacyRelation relation =
+            KOMEDiplomacyService.getRelation(data, claimantFaction, owner);
+
+        if (relation.rank() >= KOMEDiplomacyRelation.FRIENDS.rank()) {
+            return first
+                + " These factions are currently "
+                + relation.displayName
+                + ". The conquest will begin or record a war, but it will not automatically "
+                + "change the accepted diplomacy relation. Click Claim again within 30 seconds "
+                + "to continue.";
+        }
+
+        return first
+            + " These factions share a coalition side. The claim will create direct hostility "
+            + "without silently changing that coalition. Click Claim again within 30 seconds "
+            + "to continue.";
+    }
     private static String displayWar(KOMEWar war) {
         return war.displayName == null || war.displayName.trim().length() == 0 ? war.id : war.displayName + " (" + war.id + ")";
     }

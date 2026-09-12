@@ -3,6 +3,7 @@ package kome.common.command;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
+import kome.common.data.KOMECompanyDiplomacyAuthorization;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceAuthority;
 import kome.common.data.KOMEAllianceProgressionService;
@@ -1117,7 +1118,7 @@ public class KOMECommandTroops extends CommandBase {
         String action = args[2].toLowerCase(java.util.Locale.ROOT);
         if (!admin && company.isTemporarilyControlledBy(actor) && !actor.equals(company.owner)
                 && !KOMEAllianceTemporaryCommandPolicy.allows(action)) {
-            throw new WrongUsageException("Temporary Stage 4 command permits only View, Dispatch, Continue, Halt, Stay, Retreat, and Resume; structural and owner-only administration is forbidden.");
+            throw new WrongUsageException("Temporary delegated command permits only View, Dispatch, Continue, Halt, Stay, Retreat, and Resume; structural and owner-only administration is forbidden.");
         }
         if ("tendency".equals(action)) {
             if (args.length != 4 || !admin && !actor.equals(company.owner)) {
@@ -1176,36 +1177,40 @@ public class KOMECommandTroops extends CommandBase {
             if (args.length != 4) {
                 throw new WrongUsageException("/troops company <id> delegate <onlinePlayer>");
             }
-            String nativeFaction = normalizeFaction(company.faction);
-            if (!actor.equals(company.owner) || !data.isFactionKing(nativeFaction, actor)
-                    || !nativeFaction.equals(normalizeFaction(getPlayerFaction(data, player)))) {
-                throw new WrongUsageException("Only a faction king may delegate a company they personally own.");
-            }
+            String nativeFaction = KOMEWartimeStewardshipService.nativeFaction(company);
             EntityPlayerMP target = MinecraftServer.getServer().getConfigurationManager().func_152612_a(args[3]);
             if (target == null) {
                 throw new WrongUsageException("The temporary commander must be online.");
             }
-            String controllerFaction = normalizeFaction(getPlayerFaction(data, target));
-            KOMEAllianceAuthority.Decision delegation = new KOMEAllianceAuthority(data).canVoluntarilyDelegate(
-                nativeFaction, actor, controllerFaction, KOMEReflection.getEntityUUID(target));
+            UUID targetId = KOMEReflection.getEntityUUID(target);
+            KOMECompanyDiplomacyAuthorization.Decision delegation =
+                KOMECompanyDiplomacyAuthorization.canStartDelegation(
+                    data, nativeFaction, actor, targetId);
             if (!delegation.allowed) {
                 throw new WrongUsageException(delegation.reason);
             }
-            company.temporaryController = KOMEReflection.getEntityUUID(target);
-            company.temporaryControllerName = target.getCommandSenderName();
+            long delegationNow = System.currentTimeMillis();
+            if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
+                    && company.temporaryController != null) {
+                data.recordCompanyDelegationAudit(
+                    delegationNow, "REVOKED_REDELEGATED", company,
+                    actor, player.getCommandSenderName(),
+                    company.temporaryController, company.temporaryControllerName,
+                    "Replaced by a new delegation");
+            }
+            company.temporaryController = targetId;            company.temporaryControllerName = target.getCommandSenderName();
             company.delegatedBy = actor;
             company.delegatedByName = player.getCommandSenderName();
             company.controllerAuthority = KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE;
-            company.delegationAlliancePair = KOMEAlliance.pairKey(nativeFaction, controllerFaction);
-            company.delegatedAtMillis = System.currentTimeMillis();
+            company.delegationAlliancePair = "";
+            company.delegatedAtMillis = delegationNow;
             company.delegationRevocationReason = "";
-            data.markDirty();
-            sender.addChatMessage(new ChatComponentText("Delegated movement command of " + company.name + " to " + company.temporaryControllerName
+            data.recordCompanyDelegationAudit(
+                delegationNow, "DELEGATED", company,
+                actor, player.getCommandSenderName(),
+                targetId, target.getCommandSenderName(), "");
+            data.markDirty();            sender.addChatMessage(new ChatComponentText("Delegated movement command of " + company.name + " to " + company.temporaryControllerName
                 + ". Ownership and population sources remain unchanged."));
-            return;
-        }
-        if ("disband".equals(action)) {
-            disbandStewardshipCompany(sender, player, data, company, actor, admin);
             return;
         }
         if ("reclaim".equals(action) || "revoke".equals(action)) {
@@ -1227,9 +1232,16 @@ public class KOMECommandTroops extends CommandBase {
                     }
                 }
             } else {
+                if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
+                        && company.temporaryController != null) {
+                    data.recordCompanyDelegationAudit(
+                        System.currentTimeMillis(), "REVOKED_MANUAL", company,
+                        actor, player.getCommandSenderName(),
+                        company.temporaryController, company.temporaryControllerName,
+                        "Reclaimed by native authority");
+                }
                 company.clearTemporaryController("Reclaimed by native authority");
-            }
-            KOMEArmyMovementOrder order = data.armyMovements.get(company.movementOrderId);
+            }            KOMEArmyMovementOrder order = data.armyMovements.get(company.movementOrderId);
             if (order != null && KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)) {
                 haltForAccessLoss(data, order, System.currentTimeMillis(), "Temporary command reclaimed by native authority.");
             } else if (order != null && order.isMoving()) {
@@ -1306,14 +1318,8 @@ public class KOMECommandTroops extends CommandBase {
         for (UUID unitId : unitIds) {
             KOMEHiredUnitRecord record = data.hiredUnits.remove(unitId);
             if (record == null) continue;
-            data.releaseFundingBuild(record);
-            returned += Math.max(0, record.cost);
-            if (record.isPlayerReserveFunded()) {
-                data.getPopulation(record.sourcePlayer == null ? record.owner : record.sourcePlayer).release(record.type, record.cost);
-            } else {
-                kome.common.data.KOMETilePopulation pool = data.getFundingPool(record);
-                if (pool != null) pool.release(record.type, record.cost);
-                data.releaseAllocationUsed(record);
+            if (data.releasePopulationForOrdinaryUnitRemoval(record)) {
+                returned += Math.max(0, record.cost);
             }
             Entity entity = loaded.get(unitId);
             if (entity != null) KOMEReflection.setDead(entity);
@@ -1895,11 +1901,11 @@ public class KOMECommandTroops extends CommandBase {
         if (safeIndex < 0) {
             if (company != null && company.stewardshipCreated) {
                 company.withdrawalState = KOMEArmyCompany.CLEANUP_ADMIN;
-                order.pendingSpawnReason = "No safe native or Stage 3 passage tile exists on the actual traveled route";
+                order.pendingSpawnReason = "No safe native or canonical Allies passage tile exists on the actual traveled route";
                 order.accessLossReason = order.pendingSpawnReason;
                 data.markDirty();
             }
-            throw new WrongUsageException("No safe native or Stage 3 passage tile exists on the company's actual traveled route. The halted company is preserved for admin resolution.");
+            throw new WrongUsageException("No safe native or canonical Allies passage tile exists on the company's actual traveled route. The halted company is preserved for admin resolution.");
         }
         order.routeTiles.clear();
         for (int i = currentIndex; i >= safeIndex; i--) {
@@ -2353,7 +2359,7 @@ public class KOMECommandTroops extends CommandBase {
             return route.failureReason;
         }
         return "No legal route to this tile. Destination is not reachable through your claimed "
-            + displayFaction(company.faction) + " tiles or partner tiles unlocked by Stage 3 passage.";
+            + displayFaction(company.faction) + " tiles or partner tiles unlocked by canonical Allies passage.";
     }
 
     private List<RouteBlocker> sortedRouteBlockers(RouteResult route) {
@@ -2922,6 +2928,27 @@ public class KOMECommandTroops extends CommandBase {
             if (KOMEArmyCompany.AUTHORITY_NATIVE_RECLAIM.equals(company.controllerAuthority)) {
                 continue;
             }
+            if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)) {
+                KOMECompanyDiplomacyAuthorization.Decision continuation =
+                    KOMECompanyDiplomacyAuthorization.canContinueDelegation(
+                        data, KOMEWartimeStewardshipService.nativeFaction(company), company.temporaryController);
+                if (continuation.allowed) {
+                    continue;
+                }
+                String revocation = continuation.reason;
+                if (revocation.length() == 0) {
+                    revocation = reason == null || reason.length() == 0
+                        ? "Canonical company delegation is no longer valid"
+                        : reason;
+                }
+                data.recordCompanyDelegationAudit(
+                    nowMillis, "REVOKED_AUTOMATIC", company,
+                    null, "",
+                    company.temporaryController, company.temporaryControllerName,
+                    revocation);
+                company.clearTemporaryController(revocation);
+                data.markDirty();
+                continue;            }
             String controllerFaction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(company.temporaryController));
             if (controllerFaction.length() > 0
                     && new KOMEAllianceAuthority(data).canControlTemporaryCompany(company, company.temporaryController).allowed) {
@@ -4076,10 +4103,15 @@ public class KOMECommandTroops extends CommandBase {
                     "Wartime Stewardship authorization changed before movement")) {
                 throw new WrongUsageException("Wartime Stewardship is no longer authorized; this company is halted for withdrawal/demobilization.");
             }
-        } else if (temporary && !new KOMEAllianceAuthority(data).canVoluntarilyDelegate(companyFaction, playerFaction)) {
-            company.clearTemporaryController("Stage 4 voluntary delegation is no longer valid");
-            data.markDirty();
-            throw new WrongUsageException("Temporary command expired because voluntary Stage 4 delegation is no longer active.");
+        } else if (temporary && KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
+                && !canUseDelegatedCompanyControl(data, company, owner)) {
+            data.recordCompanyDelegationAudit(
+                System.currentTimeMillis(), "REVOKED_AUTOMATIC", company,
+                null, "",
+                company.temporaryController, company.temporaryControllerName,
+                "Canonical company delegation is no longer valid");
+            company.clearTemporaryController("Canonical company delegation is no longer valid");
+            data.markDirty();            throw new WrongUsageException("Temporary command expired because canonical company delegation is no longer valid.");
         }
         if (company.isMoving()) {
             throw new WrongUsageException(company.name + " is already moving.");
@@ -4152,6 +4184,16 @@ public class KOMECommandTroops extends CommandBase {
         return "";
     }
 
+    private static boolean canUseDelegatedCompanyControl(
+            KOMEWorldData data, KOMEArmyCompany company, UUID actor) {
+        if (data == null || company == null || actor == null
+                || !KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
+                || !company.isTemporarilyControlledBy(actor)) {
+            return false;
+        }
+        return KOMECompanyDiplomacyAuthorization.canContinueDelegation(
+            data, KOMEWartimeStewardshipService.nativeFaction(company), actor).allowed;
+    }
     private boolean canPlayerControlCompany(KOMEWorldData data, EntityPlayerMP player, KOMEArmyCompany company) {
         if (player == null || company == null) {
             return false;
@@ -4159,6 +4201,9 @@ public class KOMECommandTroops extends CommandBase {
         UUID actor = KOMEReflection.getEntityUUID(player);
         boolean temporary = KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
             || KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority);
+        if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)) {
+            return canUseDelegatedCompanyControl(data, company, actor);
+        }
         if (temporary) return new KOMEAllianceAuthority(data).canControlTemporaryCompany(company, actor).allowed;
         return player.canCommandSenderUseCommand(2, getCommandName()) || actor.equals(company.owner);
     }
@@ -4169,8 +4214,10 @@ public class KOMECommandTroops extends CommandBase {
         }
         KOMEArmyCompany company = data == null ? null : data.armyCompanies.get(order.companyId);
         UUID actor = KOMEReflection.getEntityUUID(player);
-        if (company != null && (KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
-                || KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority))) {
+        if (company != null && KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)) {
+            return canUseDelegatedCompanyControl(data, company, actor);
+        }
+        if (company != null && KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) {
             return new KOMEAllianceAuthority(data).canControlTemporaryCompany(company, actor).allowed;
         }
         return player.canCommandSenderUseCommand(2, getCommandName()) || actor.equals(order.owner);
@@ -4272,7 +4319,7 @@ public class KOMECommandTroops extends CommandBase {
         }
         throw new WrongUsageException(role + " tile " + normalizedTile + " is owned by " + displayFaction(owner)
             + " (" + emptyKey(owner) + "), and " + displayFaction(companyFaction) + " (" + emptyKey(companyFaction)
-            + ") has no Stage 3 passage there.");
+            + ") has no canonical Allies passage there.");
     }
 
     private String companyStandBlockReason(KOMEWorldData data, KOMEArmyCompany company, String tileId) {
@@ -4289,7 +4336,7 @@ public class KOMECommandTroops extends CommandBase {
         if (owner.equals(companyFaction) || data.canFactionUseMilitaryPassage(companyFaction, owner)) {
             return "";
         }
-        return displayFaction(companyFaction) + " has no Stage 3 passage through " + displayFaction(owner);
+        return displayFaction(companyFaction) + " has no canonical Allies passage through " + displayFaction(owner);
     }
 
     private static void refreshCompany(KOMEWorldData data, KOMEArmyCompany company) {
@@ -4399,7 +4446,7 @@ public class KOMECommandTroops extends CommandBase {
                 && (company == null || !KOMEWartimeStewardshipService.canEnter(data, company, originOwner, false))) {
             result.failureReason = "Origin tile " + start + " is owned by " + displayFaction(originOwner)
                 + " (" + emptyKey(originOwner) + "), but moving faction is " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") and has no directional Stage 3 passage there.";
+                + " (" + emptyKey(faction) + ") and has no canonical Allies passage there.";
             return result;
         }
         String destinationBlock = routeTileBlockReason(data, goal, faction, true, company);
@@ -4528,7 +4575,7 @@ public class KOMECommandTroops extends CommandBase {
         StringBuilder message = new StringBuilder();
         message.append("No legal route from ").append(start).append(" to ").append(goal).append(".");
         message.append(" Destination ").append(goal).append(" was not reachable through claimed ")
-            .append(displayFaction(faction)).append(" tiles or partner tiles unlocked by Stage 3 passage.");
+            .append(displayFaction(faction)).append(" tiles or partner tiles unlocked by canonical Allies passage.");
         if (visited == null || visited.size() <= 1) {
             message.append(" The origin has no legal outgoing route steps.");
         }
@@ -4602,7 +4649,7 @@ public class KOMECommandTroops extends CommandBase {
         if (destination) {
             return "Enemy tile attack movement is not implemented yet. Destination tile " + tileKey + " is owned by "
                 + displayFaction(owner) + " (" + emptyKey(owner) + "), and " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") has no Stage 3 passage.";
+                + " (" + emptyKey(faction) + ") has no canonical Allies passage.";
         }
         return "Tile " + tileKey + " is controlled by " + displayFaction(owner) + " and no military passage permission exists.";
     }

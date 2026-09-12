@@ -9,6 +9,7 @@ import kome.common.KOMEReflection;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceAuthority;
 import kome.common.data.KOMEBuildService;
+import kome.common.data.KOMEBuildType;
 import kome.common.data.KOMEPlayerBuild;
 import kome.common.data.KOMEWorldData;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -24,8 +25,8 @@ public class KOMEPacketBuildAction implements IMessage {
     public String contributionId = "";
     public String text = "";
     public String populationFaction = "";
-    public int offensiveHalfHours;
-    public int defensiveHalfHours;
+    public String buildType = "";
+    public int halfHours;
     public int dimension;
     public double x;
     public double y;
@@ -35,7 +36,7 @@ public class KOMEPacketBuildAction implements IMessage {
     }
 
     public KOMEPacketBuildAction(String action, String tileId, String buildId, String contributionId,
-            String text, String populationFaction, int offensiveHalfHours, int defensiveHalfHours,
+            String text, String populationFaction, String buildType, int halfHours,
             int dimension, double x, double y, double z) {
         this.action = safe(action);
         this.tileId = safe(tileId);
@@ -43,8 +44,8 @@ public class KOMEPacketBuildAction implements IMessage {
         this.contributionId = safe(contributionId);
         this.text = safe(text);
         this.populationFaction = safe(populationFaction);
-        this.offensiveHalfHours = offensiveHalfHours;
-        this.defensiveHalfHours = defensiveHalfHours;
+        this.buildType = safe(buildType);
+        this.halfHours = halfHours;
         this.dimension = dimension;
         this.x = x;
         this.y = y;
@@ -59,8 +60,8 @@ public class KOMEPacketBuildAction implements IMessage {
         contributionId = ByteBufUtils.readUTF8String(buf);
         text = ByteBufUtils.readUTF8String(buf);
         populationFaction = ByteBufUtils.readUTF8String(buf);
-        offensiveHalfHours = buf.readInt();
-        defensiveHalfHours = buf.readInt();
+        buildType = ByteBufUtils.readUTF8String(buf);
+        halfHours = buf.readInt();
         dimension = buf.readInt();
         x = buf.readDouble();
         y = buf.readDouble();
@@ -75,8 +76,8 @@ public class KOMEPacketBuildAction implements IMessage {
         ByteBufUtils.writeUTF8String(buf, safe(contributionId));
         ByteBufUtils.writeUTF8String(buf, safe(text));
         ByteBufUtils.writeUTF8String(buf, safe(populationFaction));
-        buf.writeInt(offensiveHalfHours);
-        buf.writeInt(defensiveHalfHours);
+        ByteBufUtils.writeUTF8String(buf, safe(buildType));
+        buf.writeInt(halfHours);
         buf.writeInt(dimension);
         buf.writeDouble(x);
         buf.writeDouble(y);
@@ -104,13 +105,15 @@ public class KOMEPacketBuildAction implements IMessage {
                     }
                     KOMEBuildService.create(data, message.text, tile, message.dimension, message.x, message.y,
                         message.z, actorId, actorName, actorFaction, message.populationFaction,
-                        message.offensiveHalfHours, message.defensiveHalfHours, System.currentTimeMillis());
+                        KOMEBuildType.forKey(message.buildType), message.halfHours, System.currentTimeMillis());
                 } else {
                     KOMEPlayerBuild build = data.getBuild(message.buildId);
                     if (build == null || !tile.equals(build.tileId)) throw new IllegalArgumentException("Unknown Build in this tile.");
                     if ("contribute".equals(action)) {
-                        KOMEBuildService.addSubmission(data, build, actorId, actorName, actorFaction,
-                            message.offensiveHalfHours, message.defensiveHalfHours,
+                        if (message.buildType.length() > 0 && build.type != KOMEBuildType.forKey(message.buildType)) {
+                            throw new IllegalArgumentException("Submitted Build type does not match the existing Build.");
+                        }
+                        KOMEBuildService.addSubmission(data, build, actorId, actorName, actorFaction, message.halfHours,
                             KOMEBuildService.isManager(build, actorId), System.currentTimeMillis());
                     } else if ("approve".equals(action) || "reject".equals(action)) {
                         require(KOMEBuildService.decideSubmission(data, build, message.contributionId,

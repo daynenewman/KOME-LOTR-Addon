@@ -5,6 +5,10 @@ plugins {
 dependencies {
     add(
         "devOnlyNonPublishable",
+        rfg.deobf(project.files("libs/geckolib-unofficial-1.7.10-1.0.4.jar"))
+    )
+    add(
+        "devOnlyNonPublishable",
         rfg.deobf(project.files("libs/LOTRMod v36.15.jar"))
     )
     add(

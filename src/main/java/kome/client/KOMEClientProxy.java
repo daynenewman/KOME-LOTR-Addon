@@ -21,13 +21,18 @@ import java.util.List;
 public class KOMEClientProxy extends KOMECommonProxy {
     public KOMEClientProxy() {
         super(new ClientProxy());
+        com.enovak.lotrmoremobs.Main.proxy =
+                new com.enovak.lotrmoremobs.proxy.ClientProxy();
+com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
+        new com.fuzs.aquaacrobatics.proxy.ClientProxy();
     }
+
+
 
     @Override
     public void init() {
         super.init();
         MinecraftForge.EVENT_BUS.register(new KOMEChatSanitizer());
-        MinecraftForge.EVENT_BUS.register(new KOMEUnitTradeOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEProgressionMenuOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEUnitOverviewCapOverlay());
@@ -212,33 +217,64 @@ public class KOMEClientProxy extends KOMECommonProxy {
     private void updateClientAllianceCache(List lines) {
         KOMEClientData.INSTANCE.alliances.clear();
         KOMEClientData.INSTANCE.allianceRequirementOverrides.clear();
+        KOMEClientData.INSTANCE.canonicalDiplomacyRecords.clear();
+
         if (lines == null) {
             return;
         }
+
         for (Object value : lines) {
             String[] parts = String.valueOf(value).split("\t", -1);
-            if (parts.length >= 6 && "REQUIREMENT".equals(parts[0])) {
-                int tier = parseTier(parts[2]);
-                KOMEClientData.INSTANCE.allianceRequirementOverrides.put(
-                    kome.common.data.KOMEAllianceRequirements.key(parts[1], tier, "items"), Integer.valueOf(parseTier(parts[3])));
-                KOMEClientData.INSTANCE.allianceRequirementOverrides.put(
-                    kome.common.data.KOMEAllianceRequirements.key(parts[1], tier, "activity"), Integer.valueOf(parseTier(parts[4])));
-                KOMEClientData.INSTANCE.allianceRequirementOverrides.put(
-                    kome.common.data.KOMEAllianceRequirements.key(parts[1], tier, "population"), Integer.valueOf(parseTier(parts[5])));
+
+            if (parts.length >= 13 && "DIPLOMACY_RELATION".equals(parts[0])) {
+                try {
+                    kome.common.data.KOMEDiplomacyRecord record =
+                        new kome.common.data.KOMEDiplomacyRecord(parts[2], parts[3]);
+
+                    record.relation =
+                        kome.common.data.KOMEDiplomacyRelation.parse(parts[4]);
+
+                    if ("1".equals(parts[5]) && parts[6].length() > 0) {
+                        record.pendingTarget =
+                            kome.common.data.KOMEDiplomacyRelation.parse(parts[6]);
+                        record.requestingFaction =
+                            KOMEAlliance.normalizeFactionKey(parts[7]);
+                        record.receivingFaction =
+                            KOMEAlliance.normalizeFactionKey(parts[8]);
+                    }
+
+                    record.lastUpdatedBy = parts[11];
+
+                    KOMEClientData.INSTANCE.canonicalDiplomacyRecords.put(
+                        record.key(), record);
+                } catch (RuntimeException ignored) {
+                    // Malformed client cache data cannot grant authority.
+                    // The server remains authoritative.
+                }
+
                 continue;
             }
-            if (parts.length >= 11 && "STAGE_RELATION".equals(parts[0])
-                    && "active".equalsIgnoreCase(parts[10])) {
-                KOMEAlliance alliance = new KOMEAlliance(parts[2], parts[3]);
-                alliance.requestTrack(KOMEAlliance.CIVIL, "server", 0L, false);
-                alliance.setFactionStage(parts[6], parseTier(parts[8]), "server", 0L, 0L);
-                alliance.setFactionStage(parts[7], parseTier(parts[9]), "server", 0L, 0L);
-                KOMEClientData.INSTANCE.alliances.put(alliance.getPairKey(), alliance);
-                continue;
+
+            if (parts.length >= 6 && "REQUIREMENT".equals(parts[0])) {
+                int tier = parseTier(parts[2]);
+
+                KOMEClientData.INSTANCE.allianceRequirementOverrides.put(
+                    kome.common.data.KOMEAllianceRequirements.key(
+                        parts[1], tier, "items"),
+                    Integer.valueOf(parseTier(parts[3])));
+
+                KOMEClientData.INSTANCE.allianceRequirementOverrides.put(
+                    kome.common.data.KOMEAllianceRequirements.key(
+                        parts[1], tier, "activity"),
+                    Integer.valueOf(parseTier(parts[4])));
+
+                KOMEClientData.INSTANCE.allianceRequirementOverrides.put(
+                    kome.common.data.KOMEAllianceRequirements.key(
+                        parts[1], tier, "population"),
+                    Integer.valueOf(parseTier(parts[5])));
             }
         }
     }
-
     private int parseTier(String value) {
         try {
             return Integer.parseInt(value);

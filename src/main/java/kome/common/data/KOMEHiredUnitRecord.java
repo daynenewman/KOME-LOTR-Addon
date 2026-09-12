@@ -9,6 +9,7 @@ public class KOMEHiredUnitRecord {
     public static final String SOURCE_PLAYER_RESERVE = "PLAYER_RESERVE";
     public static final String SOURCE_TILE_ALLOCATION = "TILE_ALLOCATION";
     public static final String SOURCE_STEWARDSHIP_RESERVATION = "STEWARDSHIP_RESERVATION";
+    public static final String SOURCE_FACTION_POPULATION_BANK = "FACTION_POPULATION_BANK";
     public static final String SOURCE_OTHER_LEGACY = "OTHER_LEGACY";
 
     public UUID entity;
@@ -26,7 +27,6 @@ public class KOMEHiredUnitRecord {
     public String sourceTileId = "";
     public String sourceFaction = "";
     /** Empty means native/legacy population; otherwise identifies the Build that funded this unit. */
-    public String sourceBuildId = "";
     public String allocationTileId = "";
     public String allocationFaction = "";
     public UUID allocationPlayer;
@@ -70,14 +70,15 @@ public class KOMEHiredUnitRecord {
         unitName = nbt.getString("UnitName");
         sourceType = nbt.hasKey("SourceType") ? nbt.getString("SourceType") : SOURCE_TILE_POOL;
         if (!SOURCE_PLAYER_RESERVE.equals(sourceType) && !SOURCE_TILE_ALLOCATION.equals(sourceType)
-                && !SOURCE_STEWARDSHIP_RESERVATION.equals(sourceType) && !SOURCE_OTHER_LEGACY.equals(sourceType)) {
+                && !SOURCE_STEWARDSHIP_RESERVATION.equals(sourceType)
+                && !SOURCE_FACTION_POPULATION_BANK.equals(sourceType)
+                && !SOURCE_OTHER_LEGACY.equals(sourceType)) {
             sourceType = SOURCE_TILE_POOL;
         }
         String savedSourcePlayer = nbt.getString("SourcePlayer");
         sourcePlayer = savedSourcePlayer.length() == 0 ? owner : UUID.fromString(savedSourcePlayer);
         sourceTileId = KOMEConquestTile.normalizeId(nbt.getString("SourceTile"));
         sourceFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("SourceFaction"));
-        sourceBuildId = nbt.getString("SourceBuildId").trim().toUpperCase(java.util.Locale.ROOT);
         allocationTileId = KOMEConquestTile.normalizeId(nbt.getString("AllocationTile"));
         allocationFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("AllocationFaction"));
         String savedAllocationPlayer = nbt.getString("AllocationPlayer");
@@ -128,7 +129,6 @@ public class KOMEHiredUnitRecord {
         nbt.setString("SourcePlayer", (sourcePlayer == null ? owner : sourcePlayer).toString());
         nbt.setString("SourceTile", KOMEConquestTile.normalizeId(sourceTileId));
         nbt.setString("SourceFaction", KOMEAlliance.normalizeFactionKey(sourceFaction));
-        nbt.setString("SourceBuildId", sourceBuildId == null ? "" : sourceBuildId);
         nbt.setString("AllocationTile", KOMEConquestTile.normalizeId(allocationTileId));
         nbt.setString("AllocationFaction", KOMEAlliance.normalizeFactionKey(allocationFaction));
         nbt.setString("AllocationPlayer", allocationPlayer == null ? "" : allocationPlayer.toString());
@@ -161,6 +161,10 @@ public class KOMEHiredUnitRecord {
 
     public boolean isPlayerReserveFunded() {
         return SOURCE_PLAYER_RESERVE.equals(sourceType);
+    }
+
+    public boolean isFactionPopulationBankFunded() {
+        return SOURCE_FACTION_POPULATION_BANK.equals(sourceType);
     }
 
     public boolean isMoving() {

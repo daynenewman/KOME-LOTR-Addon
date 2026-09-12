@@ -55,22 +55,22 @@ public class KOMEAllianceModelTest {
         alliance.setFactionStage("gondor", 3, "test", 0L, 10L);
         KOMEAllianceAuthority authority = new KOMEAllianceAuthority(data);
         assertTrue(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
-        assertTrue(authority.canFactionUseMilitaryPassage("gondor", "rohan"));
         assertFalse(authority.canFactionHireAlliedFarmhand("rohan", "gondor"));
-        assertFalse(authority.canFactionUseMilitaryPassage("rohan", "gondor"));
     }
 
-    @Test public void waypointUseHasNoAllianceStageGate() {
+    @Test public void waypointUseRequiresCanonicalDiplomacyForForeignTerritory() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEConquestTile tile = new KOMEConquestTile("T001");
         tile.claim("mordor", 0L);
         data.conquestTiles.put(tile.id, tile);
-        KOMEWaypointAccessService.Decision decision =
-            KOMEWaypointAccessService.evaluateResolvedTile(data, UUID.randomUUID(), "gondor", false, tile.id, true);
-        assertTrue(decision.finalAllowed);
-        assertEquals(KOMEWaypointAccessService.State.DISABLED, decision.state);
-    }
 
+        KOMEWaypointAccessService.Decision decision =
+            KOMEWaypointAccessService.evaluateResolvedTile(
+                data, UUID.randomUUID(), "gondor", false, tile.id, true);
+
+        assertFalse(decision.finalAllowed);
+        assertEquals(KOMEWaypointAccessService.State.DENIED, decision.state);
+    }
     @Test public void stageTwoMerchantEntitlementPersistsAcrossBreak() {
         KOMEAlliance alliance = active("gondor", "rohan");
         alliance.setFactionStage("gondor", 2, "test", 0L, 10L);
@@ -130,35 +130,6 @@ public class KOMEAllianceModelTest {
         KOMEAlliance migrated = readLegacy(2, 0, 0, 0, 2, 0);
         assertEquals(1, migrated.getFactionStage("gondor"));
         assertEquals(2, migrated.getFactionStage("rohan"));
-    }
-
-    @Test public void kinglessRelationMappingNeverAutoGrantsFour() {
-        assertEquals(-1, KOMEAllianceAuthority.automaticStageForKinglessRelation(LOTRFactionRelations.Relation.ENEMY));
-        assertEquals(-1, KOMEAllianceAuthority.automaticStageForKinglessRelation(LOTRFactionRelations.Relation.MORTAL_ENEMY));
-        assertEquals(1, KOMEAllianceAuthority.automaticStageForKinglessRelation(LOTRFactionRelations.Relation.NEUTRAL));
-        assertEquals(2, KOMEAllianceAuthority.automaticStageForKinglessRelation(LOTRFactionRelations.Relation.FRIEND));
-        assertEquals(3, KOMEAllianceAuthority.automaticStageForKinglessRelation(LOTRFactionRelations.Relation.ALLY));
-    }
-
-    @Test public void twoKingsMayNegotiateAcrossHostileDefault() {
-        KOMEAllianceAuthority.Decision decision = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.CIVIL, "gondor", "mordor", "gondor", true, true, true,
-            LOTRFactionRelations.Relation.ENEMY);
-        assertTrue(decision.allowed);
-        assertFalse(decision.automaticAcceptance);
-    }
-
-    @Test public void hostileKinglessRequestIsRejected() {
-        KOMEAllianceAuthority.Decision decision = KOMEAllianceAuthority.decideRequestAlliance(
-            KOMEAlliance.CIVIL, "gondor", "mordor", "gondor", true, true, false,
-            LOTRFactionRelations.Relation.ENEMY);
-        assertFalse(decision.allowed);
-    }
-
-    @Test public void acceptanceIsReceiverKingOnly() {
-        assertTrue(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "rohan", true).allowed);
-        assertFalse(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "gondor", true).allowed);
-        assertFalse(KOMEAllianceAuthority.decideAcceptAlliance(true, "rohan", "rohan", false).allowed);
     }
 
     @Test public void kingLossAndReplacementDoNotChangeStagesOrStartGrace() {

@@ -8,9 +8,9 @@ import io.netty.buffer.ByteBuf;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEAlliance;
-import kome.common.data.KOMEAllianceAuthority;
+import kome.common.data.KOMEDiplomacyRelation;
+import kome.common.data.KOMEDiplomacyService;
 import kome.common.data.KOMEBuildContribution;
-import kome.common.data.KOMEBuildPopulationService;
 import kome.common.data.KOMEBuildService;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEHiredUnitRecord;
@@ -153,12 +153,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             view.x = build.x;
             view.y = build.y;
             view.z = build.z;
-            view.offensiveHalfHours = build.approvedHalfHours(KOMEPopulationType.OFFENSIVE);
-            view.defensiveHalfHours = build.approvedHalfHours(KOMEPopulationType.DEFENSIVE);
-            view.offensivePopulation = build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour);
-            view.defensivePopulation = build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour);
-            view.offensiveCommitted = build.offensiveCommittedPopulation;
-            view.defensiveCommitted = build.defensiveCommittedPopulation;
+            view.buildType = build.type.key;
+            view.approvedHalfHours = build.approvedHalfHours();
             view.pendingCount = build.pendingCount();
             view.status = buildStatus(data, viewerFaction, controller, build.populationFaction);
             view.canManage = admin || KOMEBuildService.isManager(build, viewerId);
@@ -184,49 +180,43 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
                 contributionView.id = contribution.id;
                 contributionView.player = contribution.contributorName;
                 contributionView.faction = contribution.contributorFaction;
-                contributionView.offensiveHalfHours = contribution.offensiveHalfHours;
-                contributionView.defensiveHalfHours = contribution.defensiveHalfHours;
+                contributionView.halfHours = contribution.halfHours;
                 contributionView.status = contribution.status;
                 view.contributions.add(contributionView);
             }
             packet.builds.add(view);
         }
-        for (KOMETilePopulation pool : data.getTilePopulationPools(tile.id)) {
-            KOMEPacketConquestCaptureGui.PopulationPoolView view =
-                new KOMEPacketConquestCaptureGui.PopulationPoolView();
-            view.faction = pool.sourceFaction;
-            view.nativeOffensive = data.getNativePopulationTotal(tile.id, pool.sourceFaction, KOMEPopulationType.OFFENSIVE);
-            view.nativeDefensive = data.getNativePopulationTotal(tile.id, pool.sourceFaction, KOMEPopulationType.DEFENSIVE);
-            view.buildOffensive = data.getBuildPopulationTotal(tile.id, pool.sourceFaction, KOMEPopulationType.OFFENSIVE);
-            view.buildDefensive = data.getBuildPopulationTotal(tile.id, pool.sourceFaction, KOMEPopulationType.DEFENSIVE);
-            view.physicalOffensive = pool.offensiveTotal;
-            view.physicalDefensive = pool.defensiveTotal;
-            view.usableOffensive = pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, controller);
-            view.usableDefensive = pool.getEffectiveTotal(KOMEPopulationType.DEFENSIVE, controller);
-            view.usedOffensive = pool.offensiveUsed;
-            view.usedDefensive = pool.defensiveUsed;
-            packet.populationPools.add(view);
-        }
-        packet.selectablePopulationOwners.addAll(KOMEBuildService.selectablePopulationOwners(data, viewerFaction, tile.id));
         packet.viewerDimension = player.worldObj.provider.dimensionId;
         packet.viewerX = player.posX;
         packet.viewerY = player.posY;
         packet.viewerZ = player.posZ;
-        packet.buildPopulationPerHalfHour = Math.max(1, data.buildPopulationPerHalfHour);
     }
 
     private static String buildStatus(KOMEWorldData data, String viewerFaction, String controller, String buildOwner) {
         String viewer = KOMEAlliance.normalizeFactionKey(viewerFaction);
         String owner = KOMEAlliance.normalizeFactionKey(buildOwner);
-        if (owner.equals(viewer)) return owner.equals(controller) ? "Owned" : "Captured";
-        lotr.common.fac.LOTRFactionRelations.Relation relation = KOMEAllianceAuthority.getCurrentRelation(viewer, owner);
-        if (relation == lotr.common.fac.LOTRFactionRelations.Relation.ALLY) return "Allied";
-        if (relation == lotr.common.fac.LOTRFactionRelations.Relation.FRIEND) return "Friendly";
-        if (relation == lotr.common.fac.LOTRFactionRelations.Relation.ENEMY
-                || relation == lotr.common.fac.LOTRFactionRelations.Relation.MORTAL_ENEMY) return "Enemy";
+
+        if (owner.equals(viewer)) {
+            return owner.equals(controller) ? "Owned" : "Captured";
+        }
+
+        KOMEDiplomacyRelation relation =
+            KOMEDiplomacyService.getRelation(data, viewer, owner);
+
+        if (relation == KOMEDiplomacyRelation.ALLIES) {
+            return "Allied";
+        }
+
+        if (relation == KOMEDiplomacyRelation.FRIENDS) {
+            return "Friendly";
+        }
+
+        if (KOMEBuildService.isHostile(data, viewer, owner)) {
+            return "Enemy";
+        }
+
         return "Neutral";
     }
-
     public static boolean canEditPopulation(KOMEWorldData data, EntityPlayerMP player, KOMEConquestTile tile) {
         if (player.canCommandSenderUseCommand(2, "population")) {
             return tile != null && tile.isClaimed();

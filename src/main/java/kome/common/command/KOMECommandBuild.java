@@ -3,10 +3,10 @@ package kome.common.command;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEBuildContribution;
-import kome.common.data.KOMEBuildPopulationService;
+import kome.common.data.KOMEHalfHourService;
 import kome.common.data.KOMEBuildService;
 import kome.common.data.KOMEPlayerBuild;
-import kome.common.data.KOMEPopulationType;
+import kome.common.data.KOMEBuildType;
 import kome.common.data.KOMETilePopulation;
 import kome.common.data.KOMEWorldData;
 import net.minecraft.command.CommandBase;
@@ -27,7 +27,7 @@ public class KOMECommandBuild extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/build list [tile] | inspect <id> | pools <tile> | reassign <id> <onlinePlayer> | remove <id> | sethours <id> <offensive|defensive> <hours> | config populationPerHalfHour <value>";
+        return "/build list [tile] | inspect <id> | reassign <id> <onlinePlayer> | remove <id> | sethours <id> <normal|defensive> <hours>";
     }
 
     @Override
@@ -40,28 +40,6 @@ public class KOMECommandBuild extends CommandBase {
         if (args.length == 0) throw new WrongUsageException(getCommandUsage(sender));
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
-        if ("config".equals(action) && args.length == 3
-                && "populationperhalfhour".equalsIgnoreCase(args[1])) {
-            requireStaff(sender);
-            int value;
-            try {
-                value = Integer.parseInt(args[2]);
-            } catch (NumberFormatException error) {
-                throw new WrongUsageException("Population per half-hour must be a positive integer.");
-            }
-            if (value < 1 || value > 100000) {
-                throw new WrongUsageException("Population per half-hour must be between 1 and 100000.");
-            }
-            data.buildPopulationPerHalfHour = value;
-            for (KOMEPlayerBuild candidate : data.builds.values()) {
-                if (candidate != null) data.recalculateBuildPopulationPool(candidate.tileId, candidate.populationFaction);
-            }
-            data.reconcileBuildCommitments();
-            data.markDirty();
-            sender.addChatMessage(new ChatComponentText("Build conversion set to " + value
-                + " population per approved half-hour."));
-            return;
-        }
         if ("list".equals(action)) {
             String tile = args.length > 1 ? args[1] : "";
             List<KOMEPlayerBuild> builds = tile.length() == 0
@@ -70,20 +48,6 @@ public class KOMECommandBuild extends CommandBase {
             sender.addChatMessage(new ChatComponentText("Build records: " + builds.size()));
             for (KOMEPlayerBuild build : builds) {
                 if (build != null) sender.addChatMessage(new ChatComponentText(summary(data, build)));
-            }
-            return;
-        }
-        if ("pools".equals(action) && args.length == 2) {
-            List<KOMETilePopulation> pools = data.getTilePopulationPools(args[1]);
-            sender.addChatMessage(new ChatComponentText("Population pools in " + args[1] + ": " + pools.size()));
-            String controller = data.getConquestTile(args[1]).currentRulingFaction();
-            for (KOMETilePopulation pool : pools) {
-                sender.addChatMessage(new ChatComponentText(KOMEAlliance.displayFactionName(pool.sourceFaction)
-                    + " base O" + pool.nativeOffensiveTotal + "/D" + pool.nativeDefensiveTotal
-                    + " build O" + data.getBuildPopulationTotal(pool.tileId, pool.sourceFaction, KOMEPopulationType.OFFENSIVE)
-                    + "/D" + data.getBuildPopulationTotal(pool.tileId, pool.sourceFaction, KOMEPopulationType.DEFENSIVE)
-                    + " usable O" + pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, controller)
-                    + "/D" + pool.getEffectiveTotal(KOMEPopulationType.DEFENSIVE, controller)));
             }
             return;
         }
@@ -96,8 +60,7 @@ public class KOMECommandBuild extends CommandBase {
                 + (build.managerName.length() == 0 ? "unassigned" : build.managerName) + " coordinates="
                 + build.dimension + ":" + round(build.x) + "," + round(build.y) + "," + round(build.z)));
             sender.addChatMessage(new ChatComponentText("Contributions=" + build.contributions.size()
-                + " pending=" + build.pendingCount() + " committed O" + build.offensiveCommittedPopulation
-                + "/D" + build.defensiveCommittedPopulation));
+                + " pending=" + build.pendingCount()));
             return;
         }
         if ("reassign".equals(action) && args.length == 3) {
@@ -120,7 +83,8 @@ public class KOMECommandBuild extends CommandBase {
         }
         if ("sethours".equals(action) && args.length == 4) {
             requireStaff(sender);
-            KOMEPopulationType type = parseType(args[2]);
+            KOMEBuildType type = parseType(args[2]);
+            if (type != build.type) throw new WrongUsageException("Hours must match this Build's " + build.type.key + " type.");
             double hours;
             try {
                 hours = Double.parseDouble(args[3]);
@@ -129,27 +93,20 @@ public class KOMECommandBuild extends CommandBase {
             }
             int halfHours;
             try {
-                halfHours = KOMEBuildPopulationService.toHalfHours(hours);
+                halfHours = KOMEHalfHourService.toHalfHours(hours);
             } catch (IllegalArgumentException error) {
                 throw new WrongUsageException(error.getMessage());
             }
-            int population = KOMEBuildPopulationService.generatedPopulation(halfHours, data.buildPopulationPerHalfHour);
-            if (population < build.committedPopulation(type)) {
-                throw new WrongUsageException("The requested total is below " + build.committedPopulation(type)
-                    + " population already committed to living units.");
-            }
             for (KOMEBuildContribution contribution : build.contributions) {
                 if (contribution == null || !contribution.isApproved()) continue;
-                if (type == KOMEPopulationType.DEFENSIVE) contribution.defensiveHalfHours = 0;
-                else contribution.offensiveHalfHours = 0;
+                contribution.halfHours = 0;
             }
             if (halfHours > 0) {
                 KOMEBuildContribution repair = new KOMEBuildContribution();
                 repair.id = data.nextBuildContributionId(build);
                 repair.contributorName = sender.getCommandSenderName();
                 repair.contributorFaction = build.originalBuilderFaction;
-                repair.offensiveHalfHours = type == KOMEPopulationType.OFFENSIVE ? halfHours : 0;
-                repair.defensiveHalfHours = type == KOMEPopulationType.DEFENSIVE ? halfHours : 0;
+                repair.halfHours = halfHours;
                 repair.status = KOMEBuildContribution.APPROVED;
                 repair.submittedAtMillis = repair.decidedAtMillis = System.currentTimeMillis();
                 repair.decidedByName = sender.getCommandSenderName();
@@ -157,10 +114,9 @@ public class KOMECommandBuild extends CommandBase {
                 build.contributions.add(repair);
             }
             build.updatedAtMillis = System.currentTimeMillis();
-            data.recalculateBuildPopulationPool(build.tileId, build.populationFaction);
             data.markDirty();
             sender.addChatMessage(new ChatComponentText("Set " + build.id + " " + type.key + " hours to "
-                + KOMEBuildPopulationService.displayHours(halfHours) + "."));
+                + KOMEHalfHourService.displayHours(halfHours) + "."));
             return;
         }
         throw new WrongUsageException(getCommandUsage(sender));
@@ -175,16 +131,14 @@ public class KOMECommandBuild extends CommandBase {
     private static String summary(KOMEWorldData data, KOMEPlayerBuild build) {
         return build.id + " [" + (build.active ? "active" : "deleted") + "] " + build.displayName
             + " tile=" + build.tileId + " owner=" + KOMEAlliance.displayFactionName(build.populationFaction)
-            + " hours O" + KOMEBuildPopulationService.displayHours(build.approvedHalfHours(KOMEPopulationType.OFFENSIVE))
-            + "/D" + KOMEBuildPopulationService.displayHours(build.approvedHalfHours(KOMEPopulationType.DEFENSIVE))
-            + " pop O" + build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour)
-            + "/D" + build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour);
+            + " type=" + build.type.key + " hours="
+            + KOMEHalfHourService.displayHours(build.approvedHalfHours());
     }
 
-    private static KOMEPopulationType parseType(String value) {
-        if ("off".equalsIgnoreCase(value) || "offensive".equalsIgnoreCase(value)) return KOMEPopulationType.OFFENSIVE;
-        if ("def".equalsIgnoreCase(value) || "defensive".equalsIgnoreCase(value)) return KOMEPopulationType.DEFENSIVE;
-        throw new WrongUsageException("Population type must be offensive or defensive.");
+    private static KOMEBuildType parseType(String value) {
+        if ("normal".equalsIgnoreCase(value)) return KOMEBuildType.NORMAL;
+        if ("def".equalsIgnoreCase(value) || "defensive".equalsIgnoreCase(value)) return KOMEBuildType.DEFENSIVE;
+        throw new WrongUsageException("Build type must be normal or defensive.");
     }
 
     private static int round(double value) {

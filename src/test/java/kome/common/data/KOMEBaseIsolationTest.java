@@ -92,14 +92,13 @@ public class KOMEBaseIsolationTest {
         assertTrue(packetHandler.contains("KOMEPacketTroopGuiAction.Handler.class"));
         assertTrue(actionPacket.contains("new KOMECommandAlliance().processCommand(player, command)"));
         assertTrue(actionPacket.contains("KOMEAllianceRecordBuilder.build(data, player)"));
-        assertTrue(actionPacket.contains("new KOMECommandTroops().processCommand(player, new String[] {\"companies\"})"));
-        assertTrue(recordBuilder.contains("STAGE_RELATION\\t"));
-        assertTrue(recordBuilder.contains("REQUEST_OPTION_V2\\t"));
+        assertFalse(actionPacket.contains("new KOMECommandTroops().processCommand(player, new String[] {\"companies\"})"));
+        assertTrue(recordBuilder.contains("DIPLOMACY_RELATION\\t"));
+        assertTrue(recordBuilder.contains("DIPLOMACY_REQUEST_OPTION\\t"));
         assertFalse(recordBuilder.contains("MILITARY_CONTEXT\\t"));
         assertFalse(recordBuilder.contains("MILITARY_COMPANY\\t"));
-        assertTrue(allianceGui.contains("\"STAGE_RELATION\".equals(parts[0])"));
-        assertTrue(allianceGui.contains("\"REQUEST_OPTION_V2\".equals(parts[0])"));
-        assertTrue(allianceGui.contains("KOMEGuiConfirmation"));
+        assertTrue(allianceGui.contains("DIPLOMACY_RELATION"));
+        assertFalse(allianceGui.contains("KOMEGuiConfirmation"));
         assertFalse(allianceGui.contains("sendChat(\"/troops"));
         assertTrue(troopPacket.contains("Unknown troop GUI action"));
         assertTrue(troopPacket.contains("Troop action rejected:"));
@@ -116,10 +115,9 @@ public class KOMEBaseIsolationTest {
         assertTrue(war.contains("public int getRequiredPermissionLevel() {\n        return 0;"));
 
         assertTrue(build.contains("if (\"list\".equals(action))"));
-        assertTrue(build.contains("if (\"pools\".equals(action)"));
         assertTrue(build.contains("if (\"inspect\".equals(action)"));
         assertTrue(build.contains("Only administrators may modify Build records or configuration."));
-        assertEquals(4, occurrences(build, "requireStaff(sender);"));
+        assertEquals(3, occurrences(build, "requireStaff(sender);"));
 
         assertTrue(war.contains("if (\"list\".equals(action))"));
         assertTrue(war.contains("if (\"status\".equals(action))"));

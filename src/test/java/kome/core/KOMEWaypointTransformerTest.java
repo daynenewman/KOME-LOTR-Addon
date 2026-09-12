@@ -21,8 +21,20 @@ import static org.junit.Assert.*;
 
 public class KOMEWaypointTransformerTest {
     @Test
-    public void corePluginRegistersOnlyTheWaypointTransformer() {
-        assertArrayEquals(new String[] { KOMEWaypointTransformer.class.getName() },
+    public void corePluginRegistersKomeAndLotrMoreMobsTransformers() {
+        assertArrayEquals(new String[] {
+                KOMEWaypointTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),
+                com.enovak.lotrmoremobs.coremod.PathFinderGatePartTransformer.class.getName(),
+"com.fuzs.aquaacrobatics.core.asm.AquaEntityPlayerTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaServerPlayerTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaBiomeTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaCommonWorldTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaClientEntityTransformer",
+"com.fuzs.aquaacrobatics.core.asm.AquaLateClientPlayerTransformer"
+            },
             new KOMECorePlugin().getASMTransformerClass());
     }
 

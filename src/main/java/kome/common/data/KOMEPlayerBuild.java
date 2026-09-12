@@ -35,49 +35,33 @@ public class KOMEPlayerBuild {
     public String deletionReason = "";
     public boolean markerVisible = true;
     public String markerLabel = "";
-    public int offensiveCommittedPopulation;
-    public int defensiveCommittedPopulation;
+    public KOMEBuildType type;
     public final List<KOMEBuildContribution> contributions = new ArrayList<KOMEBuildContribution>();
 
-    public int approvedHalfHours(KOMEPopulationType type) {
+    /** Approved canonical construction hours; only NORMAL produces a future population rate. */
+    public int approvedHalfHours() {
         int result = 0;
         for (KOMEBuildContribution contribution : contributions) {
             if (contribution != null && contribution.isApproved()) {
-                result += type == KOMEPopulationType.DEFENSIVE
-                    ? contribution.defensiveHalfHours : contribution.offensiveHalfHours;
+                result = saturatedAdd(result, contribution.totalHalfHours());
             }
         }
         return Math.max(0, result);
     }
 
-    public int approvedPopulation(KOMEPopulationType type, int populationPerHalfHour) {
-        return KOMEBuildPopulationService.generatedPopulation(
-            approvedHalfHours(type), populationPerHalfHour);
+    public boolean isNormal() { return type == KOMEBuildType.NORMAL; }
+    public boolean isDefensive() { return type == KOMEBuildType.DEFENSIVE; }
+
+    /** Exact rational rate: numerator half-hours, denominator 2 * configured hours per point. */
+    public long[] originalPopulationRate(int hoursPerPopulationPoint) {
+        long denominator = Math.multiplyExact(2L, Math.max(1L, (long) hoursPerPopulationPoint));
+        return isNormal() ? new long[] { approvedHalfHours(), denominator }
+            : new long[] { 0L, 1L };
     }
 
-    public int committedPopulation(KOMEPopulationType type) {
-        return type == KOMEPopulationType.DEFENSIVE
-            ? Math.max(0, defensiveCommittedPopulation) : Math.max(0, offensiveCommittedPopulation);
-    }
+    /** Canonical downstream source for KOM-10; NORMAL Builds never supply defensive hours. */
+    public int approvedDefensiveHalfHours() { return isDefensive() ? approvedHalfHours() : 0; }
 
-    public int availablePopulation(KOMEPopulationType type, int populationPerHalfHour, boolean fullyUsable) {
-        int physical = approvedPopulation(type, populationPerHalfHour);
-        int usable = fullyUsable ? physical : physical / 2;
-        return Math.max(0, usable - committedPopulation(type));
-    }
-
-    public void adjustCommitted(KOMEPopulationType type, int delta) {
-        if (type == KOMEPopulationType.DEFENSIVE) {
-            defensiveCommittedPopulation = safeCommittedDelta(defensiveCommittedPopulation, delta);
-        } else {
-            offensiveCommittedPopulation = safeCommittedDelta(offensiveCommittedPopulation, delta);
-        }
-    }
-
-    public void clearCommittedPopulation() {
-        offensiveCommittedPopulation = 0;
-        defensiveCommittedPopulation = 0;
-    }
 
     public int pendingCount() {
         int count = 0;
@@ -158,8 +142,8 @@ public class KOMEPlayerBuild {
         nbt.setString("DeletionReason", safe(deletionReason));
         nbt.setBoolean("MarkerVisible", markerVisible);
         nbt.setString("MarkerLabel", sanitizeName(markerLabel));
-        nbt.setInteger("OffensiveCommittedPopulation", Math.max(0, offensiveCommittedPopulation));
-        nbt.setInteger("DefensiveCommittedPopulation", Math.max(0, defensiveCommittedPopulation));
+        if (type == null) throw new IllegalStateException("Build type is required.");
+        nbt.setString("BuildType", type.key);
         NBTTagList contributionList = new NBTTagList();
         for (KOMEBuildContribution contribution : contributions) {
             if (contribution != null && contribution.id != null && contribution.id.length() > 0) {
@@ -193,8 +177,8 @@ public class KOMEPlayerBuild {
         deletionReason = safe(nbt.getString("DeletionReason"));
         markerVisible = !nbt.hasKey("MarkerVisible") || nbt.getBoolean("MarkerVisible");
         markerLabel = sanitizeName(nbt.getString("MarkerLabel"));
-        offensiveCommittedPopulation = Math.max(0, nbt.getInteger("OffensiveCommittedPopulation"));
-        defensiveCommittedPopulation = Math.max(0, nbt.getInteger("DefensiveCommittedPopulation"));
+        if (!nbt.hasKey("BuildType")) throw new IllegalArgumentException("Build is missing BuildType.");
+        type = KOMEBuildType.forKey(nbt.getString("BuildType"));
         contributions.clear();
         NBTTagList contributionList = nbt.getTagList("Contributions", 10);
         for (int i = 0; i < contributionList.tagCount(); i++) {
@@ -225,13 +209,9 @@ public class KOMEPlayerBuild {
         }
     }
 
-    private static int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private static int safeCommittedDelta(int value, int delta) {
-        long next = (long) Math.max(0, value) + delta;
-        return next <= 0L ? 0 : next >= Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) next;
+    private static int saturatedAdd(int left, int right) {
+        long total = (long) Math.max(0, left) + Math.max(0, right);
+        return total > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) total;
     }
 
     private static String safe(String value) {

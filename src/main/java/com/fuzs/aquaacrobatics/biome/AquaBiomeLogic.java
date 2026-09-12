@@ -1,0 +1,1 @@
+package com.fuzs.aquaacrobatics.biome; import net.minecraft.world.biome.BiomeGenBase;import com.fuzs.aquaacrobatics.config.ConfigHandler;public final class AquaBiomeLogic{private AquaBiomeLogic(){}public static int c(BiomeGenBase b,int v){return ConfigHandler.BlocksConfig.newWaterColors?BiomeWaterFogColors.getWaterColorForBiome(b,v):v;}}

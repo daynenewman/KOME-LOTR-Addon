@@ -4,12 +4,13 @@ import kome.client.KOMEConquestMapOverlay;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
-import kome.common.data.KOMEBuildPopulationService;
+import kome.common.data.KOMEHalfHourService;
 import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEPopulationGraph;
 import kome.common.network.KOMEPacketConquestClaim;
 import kome.common.network.KOMEPacketConquestCaptureGui;
 import kome.common.network.KOMEPacketBuildAction;
+import kome.common.data.KOMEBuildType;
 import kome.common.network.KOMEPacketConquestTransfer;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketTilePopulationUpdate;
@@ -158,7 +159,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private double viewerWorldX;
     private double viewerWorldY;
     private double viewerWorldZ;
-    private int buildPopulationPerHalfHour = 5;
     private int activeTab;
     private int buildMode;
     private int selectedBuildIndex = -1;
@@ -166,11 +166,10 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private int poolScroll;
     private int contributionScroll;
     private int populationOwnerIndex;
-    private int editOffensiveHalfHours;
-    private int editDefensiveHalfHours;
+    private int editHalfHours;
+    private KOMEBuildType editBuildType = KOMEBuildType.NORMAL;
     private GuiTextField buildNameField;
-    private GuiTextField buildOffensiveHoursField;
-    private GuiTextField buildDefensiveHoursField;
+    private GuiTextField buildHoursField;
     private String buildHoursValidation = "";
     private String populationHoverTooltip = "";
     private String pendingDestructiveBuildAction = "";
@@ -198,7 +197,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         viewerWorldX = message.viewerX;
         viewerWorldY = message.viewerY;
         viewerWorldZ = message.viewerZ;
-        buildPopulationPerHalfHour = Math.max(1, message.buildPopulationPerHalfHour);
         if (message.focusBuildId != null && message.focusBuildId.length() > 0) {
             for (int i = 0; i < buildViews.size(); i++) {
                 KOMEPacketConquestCaptureGui.BuildView view =
@@ -310,18 +308,13 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         allocationPlayerField = null;
         allocationAmountField = null;
         buildNameField = null;
-        buildOffensiveHoursField = null;
-        buildDefensiveHoursField = null;
+        buildHoursField = null;
         addTabButtons();
         if (claimConfirmationArmed && !confirmationDismissed && !confirmation.isVisible()) {
             showClaimConfirmation();
         }
         if (activeTab == 0) {
             initBuildControls();
-            return;
-        }
-        if (activeTab == 1) {
-            initPopulationPoolControls();
             return;
         }
         int actionTop = panelY + panelH - ACTION_AREA_HEIGHT;
@@ -335,10 +328,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             buttonList.add(transfer);
             buttonList.add(KOMEGuiButton.normal(ID_CANCEL_TRANSFER_MODE, panelX + panelW / 2 + 4, actionY, "Cancel"));
             return;
-        }
-        if (canEditPopulation) {
-            addPopulationControls();
-            addAllocationControls();
         }
         if (isOwnedByPledge()) {
             int contentY = panelY + CONTENT_Y_OFFSET;
@@ -382,14 +371,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private void addTabButtons() {
         int x = panelX + PANEL_MARGIN;
         int y = panelY + 59;
-        int gap = 7;
-        int width = Math.max(62, (panelW - PANEL_MARGIN * 2 - gap * 2) / 3);
+        int width = Math.max(62, panelW - PANEL_MARGIN * 2);
         KOMEGuiButton builds = KOMEGuiButton.tab(ID_TAB_BUILDS, x, y, width, "Builds", activeTab == 0);
-        KOMEGuiButton population = KOMEGuiButton.tab(ID_TAB_POPULATION, x + width + gap, y, width, "Population", activeTab == 1);
-        KOMEGuiButton allocations = KOMEGuiButton.tab(ID_TAB_ALLOCATIONS, x + (width + gap) * 2, y, width, "Allocations", activeTab == 2);
         buttonList.add(builds);
-        buttonList.add(population);
-        buttonList.add(allocations);
     }
 
     private void initBuildControls() {
@@ -491,20 +475,17 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
     private void addHourControls(int x, int w, int y) {
-        int gap = 16;
-        int groupW = Math.max(76, (w - 40 - gap) / 2);
+        int groupW = Math.max(76, w - 40);
         int left = x + 20;
-        int right = left + groupW + gap;
         buttonList.add(KOMEGuiButton.small(ID_BUILD_OFF_MINUS, left, y, "-"));
         buttonList.add(KOMEGuiButton.small(ID_BUILD_OFF_PLUS, left + groupW - 20, y, "+"));
-        buttonList.add(KOMEGuiButton.small(ID_BUILD_DEF_MINUS, right, y, "-"));
-        buttonList.add(KOMEGuiButton.small(ID_BUILD_DEF_PLUS, right + groupW - 20, y, "+"));
-        buildOffensiveHoursField = new GuiTextField(fontRendererObj, left + 25, y + 1,
+        if (buildMode == BUILD_MODE_CREATE) {
+            buttonList.add(new KOMEGuiButton(ID_BUILD_DEF_MINUS, left, y - 24, 92, 18, "Normal"));
+            buttonList.add(new KOMEGuiButton(ID_BUILD_DEF_PLUS, left + 98, y - 24, 92, 18, "Defensive"));
+        }
+        buildHoursField = new GuiTextField(fontRendererObj, left + 25, y + 1,
             Math.max(26, groupW - 50), 16);
-        buildDefensiveHoursField = new GuiTextField(fontRendererObj, right + 25, y + 1,
-            Math.max(26, groupW - 50), 16);
-        buildOffensiveHoursField.setMaxStringLength(12);
-        buildDefensiveHoursField.setMaxStringLength(12);
+        buildHoursField.setMaxStringLength(12);
         syncHourFields();
     }
 
@@ -637,8 +618,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         if (button.id == ID_BUILD_NEW) {
             buildMode = BUILD_MODE_CREATE;
-            editOffensiveHalfHours = 0;
-            editDefensiveHalfHours = 0;
+            editHalfHours = 0;
+            editBuildType = KOMEBuildType.NORMAL;
             populationOwnerIndex = clamp(populationOwnerIndex, 0, Math.max(0, selectablePopulationOwners.size() - 1));
             initGui();
             return true;
@@ -650,8 +631,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         if (button.id == ID_BUILD_CONTRIBUTE) {
             buildMode = BUILD_MODE_CONTRIBUTE;
-            editOffensiveHalfHours = 0;
-            editDefensiveHalfHours = 0;
+            editHalfHours = 0;
+            KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
+            if (selected != null) editBuildType = KOMEBuildType.forKey(selected.buildType);
             initGui();
             return true;
         }
@@ -660,20 +642,17 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             initGui();
             return true;
         }
-        if (button.id == ID_BUILD_OFF_MINUS || button.id == ID_BUILD_OFF_PLUS
-                || button.id == ID_BUILD_DEF_MINUS || button.id == ID_BUILD_DEF_PLUS) {
+        if (button.id == ID_BUILD_OFF_MINUS || button.id == ID_BUILD_OFF_PLUS) {
             if (!normalizeHourFields()) return true;
             if (button.id == ID_BUILD_OFF_MINUS) {
-                editOffensiveHalfHours = KOMEBuildPopulationService.adjustHalfHours(editOffensiveHalfHours, -1);
-            } else if (button.id == ID_BUILD_OFF_PLUS) {
-                editOffensiveHalfHours = KOMEBuildPopulationService.adjustHalfHours(editOffensiveHalfHours, 1);
-            } else if (button.id == ID_BUILD_DEF_MINUS) {
-                editDefensiveHalfHours = KOMEBuildPopulationService.adjustHalfHours(editDefensiveHalfHours, -1);
+                editHalfHours = KOMEHalfHourService.adjustHalfHours(editHalfHours, -1);
             } else {
-                editDefensiveHalfHours = KOMEBuildPopulationService.adjustHalfHours(editDefensiveHalfHours, 1);
+                editHalfHours = KOMEHalfHourService.adjustHalfHours(editHalfHours, 1);
             }
             syncHourFields();
         }
+        else if (button.id == ID_BUILD_DEF_MINUS && buildMode == BUILD_MODE_CREATE) editBuildType = KOMEBuildType.NORMAL;
+        else if (button.id == ID_BUILD_DEF_PLUS && buildMode == BUILD_MODE_CREATE) editBuildType = KOMEBuildType.DEFENSIVE;
         else if (button.id == ID_BUILD_OWNER_PREV) populationOwnerIndex = wrap(populationOwnerIndex - 1, selectablePopulationOwners.size());
         else if (button.id == ID_BUILD_OWNER_NEXT) populationOwnerIndex = wrap(populationOwnerIndex + 1, selectablePopulationOwners.size());
         else if (button.id == ID_BUILD_SUBMIT_CREATE) {
@@ -683,7 +662,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         } else if (button.id == ID_BUILD_SUBMIT_CONTRIBUTION) {
             if (!normalizeHourFields()) return true;
             KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
-            if (selected != null && editOffensiveHalfHours + editDefensiveHalfHours > 0) {
+            if (selected != null && editHalfHours > 0) {
                 sendBuildAction("contribute", selected.id, "", "", "");
             }
         } else if (button.id == ID_BUILD_SUBMIT_RENAME) {
@@ -727,7 +706,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private void sendBuildAction(String action, String buildId, String contributionId, String text, String owner) {
         KOMEPacketHandler.network.sendToServer(new KOMEPacketBuildAction(action, tileId, buildId,
-            contributionId, text, owner, editOffensiveHalfHours, editDefensiveHalfHours,
+            contributionId, text, owner, editBuildType.key, editHalfHours,
             viewerDimension, viewerWorldX, viewerWorldY, viewerWorldZ));
     }
 
@@ -740,22 +719,16 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
     private void syncHourFields() {
-        if (buildOffensiveHoursField != null) {
-            buildOffensiveHoursField.setText(KOMEBuildPopulationService.displayHours(editOffensiveHalfHours));
-        }
-        if (buildDefensiveHoursField != null) {
-            buildDefensiveHoursField.setText(KOMEBuildPopulationService.displayHours(editDefensiveHalfHours));
+        if (buildHoursField != null) {
+            buildHoursField.setText(KOMEHalfHourService.displayHours(editHalfHours));
         }
         buildHoursValidation = "";
     }
 
     private boolean updateHoursFromFields(boolean normalize) {
-        if (buildOffensiveHoursField == null || buildDefensiveHoursField == null) return true;
+        if (buildHoursField == null) return true;
         try {
-            int offensive = KOMEBuildPopulationService.parseHalfHours(buildOffensiveHoursField.getText());
-            int defensive = KOMEBuildPopulationService.parseHalfHours(buildDefensiveHoursField.getText());
-            editOffensiveHalfHours = offensive;
-            editDefensiveHalfHours = defensive;
+            editHalfHours = KOMEHalfHourService.parseHalfHours(buildHoursField.getText());
             buildHoursValidation = "";
             if (normalize) syncHourFields();
             return true;
@@ -798,9 +771,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             allocationAmountField.drawTextBox();
         }
         if (buildNameField != null) buildNameField.drawTextBox();
-        if (buildOffensiveHoursField != null) {
-            buildOffensiveHoursField.drawTextBox();
-            buildDefensiveHoursField.drawTextBox();
+        if (buildHoursField != null) {
+            buildHoursField.drawTextBox();
         }
         super.drawScreen(logicalMouseX, logicalMouseY, partialTicks);
         if (populationHoverTooltip.length() > 0) {
@@ -823,14 +795,12 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             pendingDestructiveBuildId = "";
             return;
         }
-        if (buildOffensiveHoursField != null
-                && (buildOffensiveHoursField.isFocused() || buildDefensiveHoursField.isFocused())) {
+        if (buildHoursField != null && buildHoursField.isFocused()) {
             if (key == 28 || key == 156) {
                 normalizeHourFields();
                 return;
             }
-            if (buildOffensiveHoursField.textboxKeyTyped(c, key)
-                    || buildDefensiveHoursField.textboxKeyTyped(c, key)) {
+            if (buildHoursField.textboxKeyTyped(c, key)) {
                 updateHoursFromFields(false);
                 return;
             }
@@ -870,8 +840,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             }
             return;
         }
-        boolean offensiveFocused = buildOffensiveHoursField != null && buildOffensiveHoursField.isFocused();
-        boolean defensiveFocused = buildDefensiveHoursField != null && buildDefensiveHoursField.isFocused();
+        boolean hoursFocused = buildHoursField != null && buildHoursField.isFocused();
         super.mouseClicked(mouseX, mouseY, button);
         if (populationAmountField != null) {
             populationAmountField.mouseClicked(mouseX, mouseY, button);
@@ -881,11 +850,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             allocationAmountField.mouseClicked(mouseX, mouseY, button);
         }
         if (buildNameField != null) buildNameField.mouseClicked(mouseX, mouseY, button);
-        if (buildOffensiveHoursField != null) {
-            buildOffensiveHoursField.mouseClicked(mouseX, mouseY, button);
-            buildDefensiveHoursField.mouseClicked(mouseX, mouseY, button);
-            if ((offensiveFocused && !buildOffensiveHoursField.isFocused())
-                    || (defensiveFocused && !buildDefensiveHoursField.isFocused())) {
+        if (buildHoursField != null) {
+            buildHoursField.mouseClicked(mouseX, mouseY, button);
+            if (hoursFocused && !buildHoursField.isFocused()) {
                 normalizeHourFields();
             }
         }
@@ -897,8 +864,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (allocationPlayerField != null) allocationPlayerField.updateCursorCounter();
         if (allocationAmountField != null) allocationAmountField.updateCursorCounter();
         if (buildNameField != null) buildNameField.updateCursorCounter();
-        if (buildOffensiveHoursField != null) buildOffensiveHoursField.updateCursorCounter();
-        if (buildDefensiveHoursField != null) buildDefensiveHoursField.updateCursorCounter();
+        if (buildHoursField != null) buildHoursField.updateCursorCounter();
         super.updateScreen();
     }
 
@@ -978,9 +944,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                     KOMEGuiTheme.COLOR_BORDER_RED);
                 KOMEGuiTheme.drawFactionBadge(fontRendererObj, build.populationFaction, build.status,
                     x + w - 210, cardY + 4, 112);
-                fontRendererObj.drawString("Hours O " + displayHalfHours(build.offensiveHalfHours)
-                    + " / D " + displayHalfHours(build.defensiveHalfHours) + "   Population O "
-                    + build.offensivePopulation + " / D " + build.defensivePopulation,
+                fontRendererObj.drawString("Type " + build.buildType + "   Approved Hours "
+                    + displayHalfHours(build.approvedHalfHours),
                     x + 18, cardY + 22, KOMEGuiTheme.COLOR_TEXT);
                 fontRendererObj.drawString("Manager: " + safeName(build.manager, "Unassigned")
                     + "   Pending: " + build.pendingCount + "   At " + coord(build.x) + ", "
@@ -1046,22 +1011,15 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                 x + 16, y + 37, w - 32,
                 selected != null && selected.canManage ? KOMEGuiTheme.Status.ACTIVE : KOMEGuiTheme.Status.WARNING);
         }
-        int groupW = Math.max(76, (w - 40 - 16) / 2);
-        fontRendererObj.drawString("Offensive Hours", x + 20, controlsY - 13, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        fontRendererObj.drawString("Defensive Hours", x + 20 + groupW + 16, controlsY - 13,
+        fontRendererObj.drawString((creating ? "Build Type: " + editBuildType.key : "Build Type: "
+            + (selected == null ? "" : selected.buildType)) + "   Hours", x + 20, controlsY - 13,
             KOMEGuiTheme.COLOR_TEXT_MUTED);
         if (buildHoursValidation.length() > 0) {
             KOMEGuiTheme.drawWrappedText(fontRendererObj, buildHoursValidation, x + 20, controlsY + 22,
                 w - 40, KOMEGuiTheme.COLOR_BAD);
         }
-        int generatedOff = KOMEBuildPopulationService.generatedPopulation(
-            editOffensiveHalfHours, buildPopulationPerHalfHour);
-        int generatedDef = KOMEBuildPopulationService.generatedPopulation(
-            editDefensiveHalfHours, buildPopulationPerHalfHour);
-        KOMEGuiTheme.drawWarningBanner(fontRendererObj, "Population Preview",
-            "Approved hours generate " + generatedOff + " offensive and " + generatedDef
-                + " defensive population at the configured rate of " + buildPopulationPerHalfHour + " population per half-hour. "
-                + (creating ? "The builder receives contribution credit; " + (selectablePopulationOwners.isEmpty()
+        KOMEGuiTheme.drawWarningBanner(fontRendererObj, "Canonical Build Hours",
+            "Approved half-hours are stored exactly. " + (creating ? "The builder receives contribution credit; " + (selectablePopulationOwners.isEmpty()
                     ? "no owner is eligible." : factionName((String) selectablePopulationOwners.get(populationOwnerIndex)))
                     + " permanently owns the generated population." : "Contribution credit follows your current faction; population ownership does not change."),
             x + 16, y + (creating ? 164 : 157), w - 32, KOMEGuiTheme.Status.NEUTRAL);
@@ -1079,12 +1037,10 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             "Coordinates: X " + coord(build.x) + " / Y " + coord(build.y) + " / Z " + coord(build.z)
                 + " / Dimension " + build.dimension + "   Pending: " + build.pendingCount, w - 48),
             x + 20, y + 56, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        int statGap = 8;
-        int statW = (w - 24 - statGap) / 2;
-        drawBuildPopulationColumn("Offensive", build.offensiveHalfHours, build.offensivePopulation,
-            build.offensiveCommitted, x + 12, y + 74, statW);
-        drawBuildPopulationColumn("Defensive", build.defensiveHalfHours, build.defensivePopulation,
-            build.defensiveCommitted, x + 12 + statW + statGap, y + 74, statW);
+        KOMEGuiTheme.drawCard(x + 12, y + 74, w - 24, 42, false);
+        fontRendererObj.drawString("Type: " + build.buildType, x + 20, y + 82, KOMEGuiTheme.COLOR_GOLD);
+        fontRendererObj.drawString("Approved Hours: " + displayHalfHours(build.approvedHalfHours), x + 20, y + 98,
+            KOMEGuiTheme.COLOR_TEXT);
         KOMEGuiTheme.drawDivider(x + 12, y + 147, w - 24);
         fontRendererObj.drawString("Contribution Audit", x + 16, y + 156, KOMEGuiTheme.COLOR_BORDER_RED);
         if (build.contributions.isEmpty()) {
@@ -1104,8 +1060,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             int color = "APPROVED".equals(contribution.status) ? KOMEGuiTheme.COLOR_GOOD
                 : "PENDING".equals(contribution.status) ? KOMEGuiTheme.COLOR_WARN : KOMEGuiTheme.COLOR_BAD;
             fontRendererObj.drawString(contribution.player + " / " + factionName(contribution.faction)
-                + "   O " + displayHalfHours(contribution.offensiveHalfHours) + "h, D "
-                + displayHalfHours(contribution.defensiveHalfHours) + "h", x + 18, cardY + 7,
+                + "   Hours " + displayHalfHours(contribution.halfHours), x + 18, cardY + 7,
                 KOMEGuiTheme.COLOR_TEXT);
             fontRendererObj.drawString(contribution.status, x + 18, cardY + 20, color);
         }
@@ -1114,18 +1069,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             build.contributions.size(), visible);
     }
 
-    private void drawBuildPopulationColumn(String title, int halfHours, int population, int committed,
-            int x, int y, int w) {
-        int available = Math.max(0, population - committed);
-        KOMEGuiTheme.drawCard(x, y, w, 42, false);
-        fontRendererObj.drawString(title, x + 8, y + 6, KOMEGuiTheme.COLOR_GOLD);
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
-            "Hours " + displayHalfHours(halfHours) + "   Population " + population, w - 16),
-            x + 8, y + 18, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
-            "Committed " + committed + "   Available " + available, w - 16),
-            x + 8, y + 30, KOMEGuiTheme.COLOR_TEXT_MUTED);
-    }
 
     private void drawPopulationPoolTab(int mouseX, int mouseY) {
         populationHoverTooltip = "";
@@ -1213,7 +1156,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         fontRendererObj.drawString("Available", x + 58, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
         drawRect(x + 124, y + 2, x + 131, y + 9, COLOR_POOL_INACCESSIBLE);
         fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
-            "Inaccessible (foreign pools provide 50% while occupied)", Math.max(20, width - 134)),
+            "Inaccessible", Math.max(20, width - 134)),
             x + 134, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 

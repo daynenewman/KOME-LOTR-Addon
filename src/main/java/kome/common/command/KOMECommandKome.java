@@ -5,6 +5,7 @@ import com.lotrcharactercreation.creation.CharacterRecreationService;
 import com.lotrcharactercreation.creation.CharacterRecreationService.StartResult;
 import com.lotrcharactercreation.network.ModNetwork;
 import kome.common.KOMEReflection;
+import kome.common.config.KOMEConfigInspection;
 import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMETileOwnershipDefaults;
 import kome.common.data.KOMEWaypointDefaults;
@@ -26,7 +27,7 @@ public class KOMECommandKome extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/kome character recreate <player> | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status>";
+        return "/kome character recreate <player> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status>";
     }
 
     @Override
@@ -57,6 +58,20 @@ public class KOMECommandKome extends CommandBase {
             } else {
                 sender.addChatMessage(
                     new ChatComponentText("Reopened character recreation for " + target.getCommandSenderName() + "."));
+            }
+            return;
+        }
+        if (args.length == 1 && "config".equalsIgnoreCase(args[0])) {
+            requireStaff(sender);
+            sendConfig(sender, KOMEConfigInspection.getAllEffectiveValues());
+            return;
+        }
+        if (args.length == 2 && "config".equalsIgnoreCase(args[0])) {
+            requireStaff(sender);
+            try {
+                sendConfig(sender, KOMEConfigInspection.getEffectiveValues(args[1]));
+            } catch (IllegalArgumentException e) {
+                throw new WrongUsageException(e.getMessage() + ". Use /kome config [dailyBatch|population|movement|battle|muster|siege|battleSupport|encirclement|season]");
             }
             return;
         }
@@ -130,7 +145,13 @@ public class KOMECommandKome extends CommandBase {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "character", "conquest", "waypointdefaults", "adminmarkers");
+            return getListOfStringsMatchingLastWord(
+                args,
+                "character",
+                "config",
+                "conquest",
+                "waypointdefaults",
+                "adminmarkers");
         }
         if (args.length == 2 && "character".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, "recreate");
@@ -138,6 +159,19 @@ public class KOMECommandKome extends CommandBase {
         if (args.length == 3 && "character".equalsIgnoreCase(args[0])
             && "recreate".equalsIgnoreCase(args[1])) {
             return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());
+        }
+        if (args.length == 2 && "config".equalsIgnoreCase(args[0])) {
+            return getListOfStringsMatchingLastWord(
+                args,
+                "dailyBatch",
+                "population",
+                "movement",
+                "battle",
+                "muster",
+                "siege",
+                "battleSupport",
+                "encirclement",
+                "season");
         }
         if (args.length == 2 && "conquest".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, "reset", "balance");
@@ -154,6 +188,13 @@ public class KOMECommandKome extends CommandBase {
     private void requireStaff(ICommandSender sender) {
         if (!sender.canCommandSenderUseCommand(2, getCommandName())) {
             throw new WrongUsageException("You do not have permission to use this KOME admin command.");
+        }
+    }
+
+    private void sendConfig(ICommandSender sender,
+            List<KOMEConfigInspection.EffectiveValue> values) {
+        for (KOMEConfigInspection.EffectiveValue value : values) {
+            sender.addChatMessage(new ChatComponentText(value.format()));
         }
     }
 }
