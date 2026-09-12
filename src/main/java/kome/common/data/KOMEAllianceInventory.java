@@ -262,7 +262,7 @@ public class KOMEAllianceInventory implements IInventory {
     }
 
     private boolean canViewerClaim() {
-        return viewer != null && data.isFactionKing(alliance.getOtherFaction(ledgerFaction), kome.common.KOMEReflection.getEntityUUID(viewer));
+        return viewer != null && KOMERulerAuthorization.canActAsRuler(data, alliance.getOtherFaction(ledgerFaction), kome.common.KOMEReflection.getEntityUUID(viewer));
     }
 
     private boolean canViewerDeposit() {
@@ -283,7 +283,7 @@ public class KOMEAllianceInventory implements IInventory {
             return true;
         }
         return KOMEAlliance.normalizeFactionKey(contributingFaction).equals(getViewerFactionKey())
-            || data.isFactionKing(receivingFaction, kome.common.KOMEReflection.getEntityUUID(viewer));
+            || KOMERulerAuthorization.canActAsRuler(data, receivingFaction, kome.common.KOMEReflection.getEntityUUID(viewer));
     }
 
     private String getViewerFactionKey() {

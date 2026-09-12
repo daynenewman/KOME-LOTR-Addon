@@ -40,7 +40,7 @@ public final class KOMECompanyDiplomacyAuthorization {
         if (delegatingKing.equals(recipient)) {
             return Decision.deny("Delegation requires another player.");
         }
-        if (!data.isFactionKing(nativeKey, delegatingKing)
+        if (!KOMERulerAuthorization.canActAsRuler(data, nativeKey, delegatingKing)
                 || !nativeKey.equals(KOMEAlliance.normalizeFactionKey(
                     data.getPlayerFactionKey(delegatingKing)))) {
             return Decision.deny("Only the recognized, pledged native King may delegate company control.");

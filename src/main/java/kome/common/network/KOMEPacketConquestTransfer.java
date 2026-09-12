@@ -10,6 +10,7 @@ import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEMovementAccessService;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMERulerAuthorization;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -76,7 +77,7 @@ public class KOMEPacketConquestTransfer implements IMessage {
                 acceptTransfer(player, pledge, data, tile);
                 return null;
             }
-            if (!data.isFactionKing(rulingFaction, KOMEReflection.getEntityUUID(player))) {
+            if (!KOMERulerAuthorization.canActAsRuler(data, rulingFaction, KOMEReflection.getEntityUUID(player))) {
                 player.addChatMessage(new ChatComponentText("Only the owning faction's king can offer this conquest tile."));
                 return null;
             }
@@ -120,7 +121,7 @@ public class KOMEPacketConquestTransfer implements IMessage {
                 player.addChatMessage(new ChatComponentText("This conquest tile is not being offered to your faction."));
                 return;
             }
-            if (!data.isFactionKing(targetFaction, KOMEReflection.getEntityUUID(player))) {
+            if (!KOMERulerAuthorization.canActAsRuler(data, targetFaction, KOMEReflection.getEntityUUID(player))) {
                 player.addChatMessage(new ChatComponentText("Only your faction's king can accept this conquest tile."));
                 return;
             }

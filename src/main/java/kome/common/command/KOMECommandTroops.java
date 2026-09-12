@@ -22,6 +22,7 @@ import kome.common.data.KOMEPledgeReleaseService;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMETileWaypoint;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMERulerAuthorization;
 import kome.common.data.KOMEWartimeStewardshipService;
 import kome.common.data.KOMEWarService;
 import kome.common.data.KOMECompanyTransferService;
@@ -1005,7 +1006,7 @@ public class KOMECommandTroops extends CommandBase {
         for (KOMEArmyCompany company : data.armyCompanies.values()) {
             if (company == null || !admin && !owner.equals(company.owner) && !company.isTemporarilyControlledBy(owner)
                     && !(KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
-                        && data.isFactionKing(company.faction, owner))) {
+                        && KOMERulerAuthorization.canActAsRuler(data, company.faction, owner))) {
                 continue;
             }
             if (tile.length() > 0 && !companyHasPresenceAtTile(data, company, tile)) {
@@ -1051,7 +1052,7 @@ public class KOMECommandTroops extends CommandBase {
             entry.authorizationReason = company.authorizationReason;
             entry.canSetTendency = admin || owner.equals(company.owner);
             entry.canReclaim = admin || owner.equals(company.owner) || owner.equals(company.delegatedBy)
-                || KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority) && data.isFactionKing(company.faction, owner);
+                || KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority) && KOMERulerAuthorization.canActAsRuler(data, company.faction, owner);
             entry.canChooseAccessResponse = canControl && order != null
                 && (KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status) || KOMEArmyMovementOrder.HOLDING.equals(order.status)
                     || KOMEArmyMovementOrder.STOPPED.equals(order.status)
@@ -1073,7 +1074,7 @@ public class KOMECommandTroops extends CommandBase {
                 stewardshipCompany = stewardshipCompany || unitRecord != null
                     && "MILITARY_T3_STEWARDSHIP".equals(unitRecord.benefitSource);
             }
-            entry.canDisband = admin || stewardshipCompany && (owner.equals(company.owner) || data.isFactionKing(company.faction, owner));
+            entry.canDisband = admin || stewardshipCompany && (owner.equals(company.owner) || KOMERulerAuthorization.canActAsRuler(data, company.faction, owner));
             entry.stewardshipUnallocated = data.getKinglessStewardshipUnallocated(company.faction);
             entry.stewardshipGlobalCap = data.getKinglessStewardshipGlobalCap(company.faction);
             entry.stewardshipReserved = data.getKinglessStewardshipReserved(company.faction);
@@ -1228,7 +1229,7 @@ public class KOMECommandTroops extends CommandBase {
         }
         if ("reclaim".equals(action) || "revoke".equals(action)) {
             boolean nativeStewardshipReclaim = KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
-                && data.isFactionKing(company.faction, actor);
+                && KOMERulerAuthorization.canActAsRuler(data, company.faction, actor);
             if (!admin && !actor.equals(company.owner) && !actor.equals(company.delegatedBy) && !nativeStewardshipReclaim) {
                 throw new WrongUsageException("Only the native owner or delegating king may reclaim this company.");
             }
@@ -1294,7 +1295,7 @@ public class KOMECommandTroops extends CommandBase {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
             stewardship = stewardship || record != null && "MILITARY_T3_STEWARDSHIP".equals(record.benefitSource);
         }
-        boolean nativeKing = stewardship && data.isFactionKing(company.faction, actor);
+        boolean nativeKing = stewardship && KOMERulerAuthorization.canActAsRuler(data, company.faction, actor);
         if (!admin && !actor.equals(company.owner) && !nativeKing) {
             throw new WrongUsageException("Only the native owner, native faction king, or an operator may disband a stewardship company.");
         }
@@ -1351,7 +1352,7 @@ public class KOMECommandTroops extends CommandBase {
         }
         UUID actor = KOMEReflection.getEntityUUID(player);
         boolean nativeSteward = KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
-            && data.isFactionKing(company.faction, actor);
+            && KOMERulerAuthorization.canActAsRuler(data, company.faction, actor);
         if (!sender.canCommandSenderUseCommand(2, getCommandName()) && !canPlayerControlCompany(data, player, company) && !nativeSteward) {
             throw new WrongUsageException("You do not have authority to view that company record.");
         }
@@ -2106,7 +2107,7 @@ public class KOMECommandTroops extends CommandBase {
             KOMEConquestTile tile = data.conquestTiles.get(tileId);
             String playerFaction = normalizeFaction(getPlayerFaction(data, player));
             String rulingFaction = tile == null ? "" : tile.currentRulingFaction();
-            if (tile == null || !playerFaction.equals(normalizeFaction(rulingFaction)) || !data.isFactionKing(rulingFaction, KOMEReflection.getEntityUUID(player))) {
+            if (tile == null || !playerFaction.equals(normalizeFaction(rulingFaction)) || !KOMERulerAuthorization.canActAsRuler(data, rulingFaction, KOMEReflection.getEntityUUID(player))) {
                 throw new WrongUsageException("Only operators or the owning faction's king can manage troop waypoints.");
             }
         }

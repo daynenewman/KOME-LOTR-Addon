@@ -72,7 +72,7 @@ public class KOMEProgressionTitles {
     }
 
     static String resolveRankName(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {
-        if (data != null && data.isFactionKing(factionKey, playerID)) {
+        if (data != null && KOMERulerService.isRuler(data, factionKey, playerID)) {
             return "King";
         }
         if (isGroupComplete(progression, "prince_king") || isGroupComplete(progression, "lord")) {

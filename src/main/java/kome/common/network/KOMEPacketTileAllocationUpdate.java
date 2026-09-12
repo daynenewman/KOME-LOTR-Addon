@@ -10,6 +10,7 @@ import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEPopulationType;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMERulerAuthorization;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -69,7 +70,7 @@ public class KOMEPacketTileAllocationUpdate implements IMessage {
             }
             String rulingFaction = tile.currentRulingFaction();
             boolean admin = actor.canCommandSenderUseCommand(2, "population");
-            if (!admin && !data.isFactionKing(rulingFaction, KOMEReflection.getEntityUUID(actor))) {
+            if (!admin && !KOMERulerAuthorization.canActAsRuler(data, rulingFaction, KOMEReflection.getEntityUUID(actor))) {
                 actor.addChatMessage(new ChatComponentText("Only the owning faction's king or an admin can manage allocations."));
                 return null;
             }

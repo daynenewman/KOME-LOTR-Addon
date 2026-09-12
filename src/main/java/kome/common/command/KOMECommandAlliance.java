@@ -13,6 +13,7 @@ import kome.common.data.KOMEPopulationType;
 import kome.common.data.KOMEPlayerTilePopulationAllocation;
 import kome.common.data.KOMETilePopulation;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMERulerAuthorization;
 import kome.common.data.KOMEDiplomacyService;
 import kome.common.data.KOMEWarService;
 import kome.common.data.KOMEWartimeStewardshipService;
@@ -130,7 +131,7 @@ public class KOMECommandAlliance extends CommandBase {
             if (!data.hasFactionKing(receiverFaction)) {
                 throw new WrongUsageException(displayFaction(receiverFaction) + " has no recorded king yet, so alliance goods cannot be claimed.");
             }
-            if (!data.isFactionKing(receiverFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+            if (!KOMERulerAuthorization.canActAsRuler(data, receiverFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
                 throw new WrongUsageException("Only the receiving faction king can claim alliance goods.");
             }
             KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, false);
@@ -486,7 +487,7 @@ public class KOMECommandAlliance extends CommandBase {
         }
         EntityPlayerMP player = getCommandSenderAsPlayer(sender);
         String playerFaction = getPlayerFaction(data, player);
-        if (senderFaction.equals(playerFaction) || data.isFactionKing(receiverFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+        if (senderFaction.equals(playerFaction) || KOMERulerAuthorization.canActAsRuler(data, receiverFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
             return;
         }
         throw new WrongUsageException("Only members of the sending faction or the receiving faction king can open alliance goods.");

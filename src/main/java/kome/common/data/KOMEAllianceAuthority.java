@@ -89,7 +89,7 @@ public class KOMEAllianceAuthority {
 
     public boolean isFactionKing(EntityPlayerMP player, String faction) {
         return player != null && data != null
-            && data.isFactionKing(faction, KOMEReflection.getEntityUUID(player));
+            && KOMERulerAuthorization.canActAsRuler(data, faction, KOMEReflection.getEntityUUID(player));
     }
 
     public boolean isAdmin(EntityPlayerMP player) {

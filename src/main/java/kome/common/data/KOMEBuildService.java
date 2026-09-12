@@ -186,7 +186,7 @@ public final class KOMEBuildService {
         String controller = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
         String defaultOwner = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.defaultRulingFaction);
         String acting = KOMEAlliance.normalizeFactionKey(actorFaction);
-        if (!admin && (!acting.equals(controller) || !data.isFactionKing(controller, actor))) {
+        if (!admin && (!acting.equals(controller) || !KOMERulerAuthorization.canActAsRuler(data, controller, actor))) {
             return Decision.deny("Only the current controller's king or an administrator may destroy an enemy Build.");
         }
         if (!controller.equals(defaultOwner)) return Decision.deny("Enemy destruction is allowed only in the controller's original homeland.");

@@ -5,6 +5,7 @@ import kome.common.data.KOMEConquestTileDefaults;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMEMovementAccessService;
+import kome.common.data.KOMERulerAuthorization;
 import kome.common.data.KOMEWorldData;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
@@ -561,7 +562,7 @@ public class KOMECommandConquest extends CommandBase {
             return;
         }
         EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-        if (!data.isFactionKing(rulingFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+        if (!KOMERulerAuthorization.canActAsRuler(data, rulingFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
             throw new WrongUsageException("Only the owning faction's king can offer this conquest tile.");
         }
     }
@@ -577,7 +578,7 @@ public class KOMECommandConquest extends CommandBase {
             return;
         }
         EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-        if (!data.isFactionKing(tile.pendingTransferToFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+        if (!KOMERulerAuthorization.canActAsRuler(data, tile.pendingTransferToFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
             throw new WrongUsageException("Only the receiving faction's king can accept this conquest tile.");
         }
     }
@@ -590,7 +591,7 @@ public class KOMECommandConquest extends CommandBase {
             return;
         }
         EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-        if (!KOMEWorldData.get(sender.getEntityWorld()).isFactionKing(tile.pendingTransferFromFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
+        if (!KOMERulerAuthorization.canActAsRuler(KOMEWorldData.get(sender.getEntityWorld()), tile.pendingTransferFromFaction, kome.common.KOMEReflection.getEntityUUID(player))) {
             throw new WrongUsageException("Only the offering faction's king can cancel this transfer.");
         }
     }

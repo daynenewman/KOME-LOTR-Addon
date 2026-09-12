@@ -111,7 +111,7 @@ public final class KOMEWarService {
             return AuthorizationDecision.deny("Missing stewardship identity.");
         if (data.hasFactionKing(nativeKey))
             return AuthorizationDecision.deny("Wartime Stewardship is dormant because the native faction has a king.");
-        if (!data.isFactionKing(supportingKey, actor))
+        if (!KOMERulerAuthorization.canActAsRuler(data, supportingKey, actor))
             return AuthorizationDecision.deny("Only the currently recognized supporting king may use Wartime Stewardship.");
         if (!supportingKey.equals(KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor))))
             return AuthorizationDecision.deny("The recognized supporting king is not actually pledged to the supporting faction.");

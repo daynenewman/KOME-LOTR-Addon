@@ -146,7 +146,7 @@ public class KOMEServerRecordBuilder {
     }
 
     static String getRank(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {
-        if (data.isFactionKing(factionKey, playerID)) {
+        if (KOMERulerService.isRuler(data, factionKey, playerID)) {
             return "King";
         }
         if (isGroupComplete(progression, "prince_king")) {

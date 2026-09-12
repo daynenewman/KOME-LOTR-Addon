@@ -11,6 +11,7 @@ import kome.common.data.KOMEProgressionPermissions;
 import kome.common.data.KOMETilePopulation;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMERulerAuthorization;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketPopulationGui;
 import kome.common.network.KOMEPacketPopulationUnitsGui;
@@ -234,7 +235,7 @@ public class KOMECommandPopulation extends CommandBase {
         String rulingFaction = tile.currentRulingFaction();
         if (!admin) {
             EntityPlayerMP actor = getCommandSenderAsPlayer(sender);
-            if (!data.isFactionKing(rulingFaction, KOMEReflection.getEntityUUID(actor))) {
+            if (!KOMERulerAuthorization.canActAsRuler(data, rulingFaction, KOMEReflection.getEntityUUID(actor))) {
                 throw new WrongUsageException("Only the owning faction's king or an admin can manage tile allocations.");
             }
         }
@@ -337,7 +338,7 @@ public class KOMECommandPopulation extends CommandBase {
         if (gui && sender instanceof EntityPlayerMP) {
             EntityPlayerMP viewer = (EntityPlayerMP) sender;
             boolean canManageAllocations = viewer.canCommandSenderUseCommand(2, getCommandName())
-                || data.isFactionKing(faction, KOMEReflection.getEntityUUID(viewer));
+                || KOMERulerAuthorization.canActAsRuler(data, faction, KOMEReflection.getEntityUUID(viewer));
             List capacityRows = buildFactionMilitaryCapacityRows(data, faction, canManageAllocations);
             KOMEPacketPopulationGui.CapacityBreakdown unallocated = buildUnallocatedCapacityRow(data, faction, tile);
             int factionOffensiveTotal = data.getFactionPlayerReserveTotal(faction, KOMEPopulationType.OFFENSIVE) + tile.offensiveTotal;

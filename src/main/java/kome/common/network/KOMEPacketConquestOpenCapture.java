@@ -20,6 +20,7 @@ import kome.common.data.KOMEPlayerBuild;
 import kome.common.data.KOMETilePopulation;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMERulerAuthorization;
 import kome.common.data.KOMEClaimConfirmation;
 import kome.common.data.KOMEWar;
 import kome.common.data.KOMEWarService;
@@ -86,9 +87,9 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             farmhandUsed += Math.min(population.farmhandUsed, ownerPool ? population.farmhandTotal : population.farmhandTotal / 2);
         }
         boolean canClaim = viewerFaction.length() > 0 && !viewerFaction.equals(ownerFaction);
-        boolean ownerKing = data.isFactionKing(ownerFaction, KOMEReflection.getEntityUUID(player));
+        boolean ownerKing = KOMERulerAuthorization.canActAsRuler(data, ownerFaction, KOMEReflection.getEntityUUID(player));
         boolean canTransfer = tile.isClaimed() && viewerFaction.equals(ownerFaction) && ownerKing;
-        boolean canAccept = tile.hasPendingTransfer() && viewerFaction.equals(pendingToFaction) && data.isFactionKing(pendingToFaction, KOMEReflection.getEntityUUID(player));
+        boolean canAccept = tile.hasPendingTransfer() && viewerFaction.equals(pendingToFaction) && KOMERulerAuthorization.canActAsRuler(data, pendingToFaction, KOMEReflection.getEntityUUID(player));
         boolean canCancel = tile.hasPendingTransfer() && viewerFaction.equals(ownerFaction) && ownerKing;
         int offensiveAllocated = data.getTotalAllocated(tileId, ownerFaction, KOMEPopulationType.OFFENSIVE);
         int defensiveAllocated = data.getTotalAllocated(tileId, ownerFaction, KOMEPopulationType.DEFENSIVE);
@@ -224,7 +225,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         if (tile == null || !tile.isClaimed()) {
             return false;
         }
-        return data.isFactionKing(tile.currentRulingFaction(), KOMEReflection.getEntityUUID(player));
+        return KOMERulerAuthorization.canActAsRuler(data, tile.currentRulingFaction(), KOMEReflection.getEntityUUID(player));
     }
 
     private static String getPlayerFaction(KOMEWorldData data, EntityPlayerMP player) {

@@ -92,7 +92,7 @@ public final class KOMEDiplomacyService {
             return Result.denied("Invalid diplomacy request");
         }
 
-        if (!data.isFactionKing(requester, actor)) {
+        if (!KOMERulerAuthorization.canActAsRuler(data, requester, actor)) {
             return Result.denied("Requester must be the recognized King");
         }
 
@@ -161,7 +161,7 @@ public final class KOMEDiplomacyService {
             KOMEAlliance.normalizeFactionKey(receiver);
 
         if (!receivingFaction.equals(record.receivingFaction)
-                || !data.isFactionKing(receivingFaction, actor)) {
+                || !KOMERulerAuthorization.canActAsRuler(data, receivingFaction, actor)) {
             return Result.denied(
                 "Only the receiving faction King may accept");
         }
@@ -199,7 +199,7 @@ public final class KOMEDiplomacyService {
         String requester =
             KOMEAlliance.normalizeFactionKey(record.requestingFaction);
 
-        if (!admin && !data.isFactionKing(requester, actor)) {
+        if (!admin && !KOMERulerAuthorization.canActAsRuler(data, requester, actor)) {
             return Result.denied(
                 "Only the requesting faction King may cancel");
         }
