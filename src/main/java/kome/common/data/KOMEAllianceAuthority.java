@@ -22,7 +22,7 @@ public class KOMEAllianceAuthority {
             return Decision.deny("No alliance is available.");
         }
         if (isAdmin(actor) || alliance.involves(getPlayerFaction(actor))) {
-            return Decision.allow(false);
+            return Decision.allow();
         }
         return Decision.deny("Alliance details are private to participating factions.");
     }
@@ -33,10 +33,10 @@ public class KOMEAllianceAuthority {
             return view;
         }
         if (!mutate || isAdmin(actor)) {
-            return Decision.allow(false);
+            return Decision.allow();
         }
         String faction = getPlayerFaction(actor);
-        return alliance.involves(faction) ? Decision.allow(false)
+        return alliance.involves(faction) ? Decision.allow()
             : Decision.deny("Only pledged members of a participating faction may contribute.");
     }
 
@@ -102,7 +102,7 @@ public class KOMEAllianceAuthority {
             return Decision.deny("The recipient must be the recognized, pledged king of the supporting faction.");
         if (isDirectlyHostile(nativeKey, supportingKey))
             return Decision.deny("Direct active opposition overrides Stage 4 delegation.");
-        return canVoluntarilyDelegate(nativeKey, supportingKey) ? Decision.allow(false)
+        return canVoluntarilyDelegate(nativeKey, supportingKey) ? Decision.allow()
             : Decision.deny("The receiving faction needs directional Stage 4 Military Partnership.");
     }
 
@@ -111,7 +111,7 @@ public class KOMEAllianceAuthority {
             return Decision.deny("The player is not the recorded temporary controller.");
         if (KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) {
             KOMEWarService.AuthorizationDecision decision = KOMEWartimeStewardshipService.controllerDecision(data, company, actor);
-            return decision.allowed ? Decision.allow(false) : Decision.deny(decision.reason);
+            return decision.allowed ? Decision.allow() : Decision.deny(decision.reason);
         }
         if (!KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority))
             return Decision.deny("This company is not under Stage 4 temporary control.");
@@ -159,27 +159,18 @@ public class KOMEAllianceAuthority {
 
     public static class Decision {
         public final boolean allowed;
-        public final boolean automaticAcceptance;
-        public final int automaticStage;
         public final String reason;
 
-        private Decision(boolean allowed, boolean automaticAcceptance, int automaticStage, String reason) {
+        private Decision(boolean allowed, String reason) {
             this.allowed = allowed;
-            this.automaticAcceptance = automaticAcceptance;
-            this.automaticStage = Math.max(0, Math.min(3, automaticStage));
             this.reason = reason == null ? "" : reason;
         }
 
-        public static Decision allow(boolean automaticAcceptance) {
-            return new Decision(true, automaticAcceptance, 0, "");
-        }
-
-        public static Decision allow(boolean automaticAcceptance, int automaticStage) {
-            return new Decision(true, automaticAcceptance, automaticStage, "");
+        public static Decision allow() {
+            return new Decision(true, "");
         }
 
         public static Decision deny(String reason) {
-            return new Decision(false, false, 0, reason);
+            return new Decision(false, reason);
         }
-    }
-}
+    }}

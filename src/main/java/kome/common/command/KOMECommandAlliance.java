@@ -3,13 +3,9 @@ package kome.common.command;
 import kome.common.KOMEAddon;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceAuthority;
-import kome.common.data.KOMEArmyCompany;
 import kome.common.data.KOMEAllianceFactionLedger;
 import kome.common.data.KOMEAllianceInventory;
 import kome.common.data.KOMEAllianceRecordBuilder;
-import kome.common.data.KOMEAllianceRequirements;
-import kome.common.data.KOMEAllianceQuotaPool;
-import kome.common.data.KOMEAllianceProgressionService;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEConquestTileDefaults;
 import kome.common.data.KOMEHiredUnitRecord;
@@ -25,7 +21,6 @@ import kome.common.network.KOMEPacketAllianceData;
 import kome.common.network.KOMEPacketHandler;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
-import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
@@ -102,28 +97,8 @@ public class KOMECommandAlliance extends CommandBase {
         }
         if ("cancel".equalsIgnoreCase(args[0])) { if(args.length!=3)throw new WrongUsageException(getCommandUsage(sender)); EntityPlayerMP actor=sender instanceof EntityPlayerMP?(EntityPlayerMP)sender:null; KOMEDiplomacyService.Result result=KOMEDiplomacyService.cancelPendingRequest(data,parseFaction(args[1]),parseFaction(args[2]),actor==null?null:kome.common.KOMEReflection.getEntityUUID(actor),sender.canCommandSenderUseCommand(2,getCommandName())); if(!result.accepted)throw new WrongUsageException(result.reason); sender.addChatMessage(new ChatComponentText("Diplomacy request cancelled.")); return; }
         if ("break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0])) {
-            throw new WrongUsageException("Accepted relation downgrade policy is not configured.");
-            /*
-            if (args.length != 3) {
-                throw new WrongUsageException(getCommandUsage(sender));
-            }
-            String senderFaction = parseFaction(args[1]);
-            String receiverFaction = parseFaction(args[2]);
-            KOMEAlliance alliance = data.getAlliance(senderFaction, receiverFaction, false);
-            EntityPlayerMP actor = sender instanceof EntityPlayerMP ? (EntityPlayerMP) sender : null;
-            KOMEAllianceAuthority.Decision breakDecision = actor == null && sender.canCommandSenderUseCommand(2, getCommandName())
-                ? KOMEAllianceAuthority.Decision.allow(false)
-                : new KOMEAllianceAuthority(data).canBreakAlliance(actor, alliance);
-            if (!breakDecision.allowed) {
-                throw new WrongUsageException(breakDecision.reason);
-            }
-            boolean removed = data.clearAlliance(senderFaction, receiverFaction);
-            if (removed) {
-                syncRelationsForAlliancePair(data, senderFaction, receiverFaction);
-                sendAllianceRefreshToParticipants(data, alliance);
-            }
-            sender.addChatMessage(new ChatComponentText((removed ? "Broke the formal alliance between " : "No alliance found for ") + displayFaction(senderFaction) + " and " + displayFaction(receiverFaction) + ". Stage 2 merchant entitlements remain unlocked."));
-            return; */
+            throw new WrongUsageException(
+                "Accepted relation downgrade policy is not configured.");
         }
         if ("goods".equalsIgnoreCase(args[0]) || "storage".equalsIgnoreCase(args[0])) {
             if (args.length != 3) {
