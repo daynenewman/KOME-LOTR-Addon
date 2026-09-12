@@ -613,6 +613,7 @@ public class KOMECommandTroopsMovementTest {
         assertEquals("T001", received.retreatTargetTile);
         assertEquals("T003", received.currentTile);
         assertEquals("T004", received.nextTile);
+        assertEquals("T004", received.intendedDestinationTile);
     }
 
     @Test

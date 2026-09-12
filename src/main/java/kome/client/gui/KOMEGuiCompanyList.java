@@ -194,10 +194,7 @@ public class KOMEGuiCompanyList extends GuiScreen {
             : "Stewardship for " + selectedCompany.faction + ": unallocated " + selectedCompany.stewardshipUnallocated
                 + " | global 100% eligible cap " + selectedCompany.stewardshipGlobalCap + " | reserved " + selectedCompany.stewardshipReserved
                 + " | available " + selectedCompany.stewardshipAvailable;
-        String recoverySummary = selectedCompany == null || selectedCompany.accessLossReason.length() == 0
-            ? ""
-            : "Access: " + selectedCompany.accessLossReason + " | Current " + selectedCompany.currentTile
-                + " | Next " + selectedCompany.nextTile;
+        String recoverySummary = KOMECompanyRecoveryPresentation.haltedRecoverySummary(selectedCompany);
         String recoveryActions = selectedCompany == null || selectedCompany.accessLossReason.length() == 0
             ? ""
             : "Actions: Stay=" + selectedCompany.canStay + " | Retreat="
