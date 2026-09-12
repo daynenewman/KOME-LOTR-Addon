@@ -10,7 +10,6 @@ import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceAuthority;
 import kome.common.data.KOMEBuildContribution;
-import kome.common.data.KOMEBuildPopulationService;
 import kome.common.data.KOMEBuildService;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEHiredUnitRecord;

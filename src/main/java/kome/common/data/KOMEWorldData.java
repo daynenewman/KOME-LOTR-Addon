@@ -80,8 +80,7 @@ public class KOMEWorldData extends WorldSavedData {
     public String movementDailyResetTimezone = "America/Chicago";
     public int nextWarSequence = 1;
     public int nextBuildSequence = 1;
-    public int buildPopulationPerHalfHour = KOMEBuildPopulationService.DEFAULT_POPULATION_PER_HALF_HOUR;
-    public int allianceStageThreeRequiredHalfHours = KOMEBuildPopulationService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
+    public int allianceStageThreeRequiredHalfHours = KOMEHalfHourService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
     public String allianceDifficulty = KOMEAllianceRequirements.STANDARD;
     public static final int MAX_MOVEMENT_HISTORY_PER_FACTION = 250;
     private boolean conquestDefaultsInitialized;
@@ -1433,8 +1432,7 @@ public class KOMEWorldData extends WorldSavedData {
             return false;
         }
         population.setTotal(type, nextTotal);
-        int buildPopulation = getBuildPopulationTotal(tileId, population.sourceFaction, type);
-        int nativeTotal = Math.max(0, nextTotal - buildPopulation);
+        int nativeTotal = Math.max(0, nextTotal);
         if (type == KOMEPopulationType.DEFENSIVE) {
             population.nativeDefensiveTotal = nativeTotal;
         } else {
@@ -1468,31 +1466,11 @@ public class KOMEWorldData extends WorldSavedData {
         return builds.get(buildId == null ? "" : buildId.trim().toUpperCase(java.util.Locale.ROOT));
     }
 
-    public int getBuildPopulationTotal(String tileId, String populationFaction, KOMEPopulationType type) {
-        // Retained only so legacy diagnostics can load until Slice 3. Build hours are no
-        // longer a spendable population source.
-        return 0;
-    }
-
     public int getNativePopulationTotal(String tileId, String populationFaction, KOMEPopulationType type) {
         KOMETilePopulation population = getTilePopulationPool(tileId, populationFaction);
         if (population == null) return 0;
         return type == KOMEPopulationType.DEFENSIVE
             ? Math.max(0, population.nativeDefensiveTotal) : Math.max(0, population.nativeOffensiveTotal);
-    }
-
-    public void recalculateBuildPopulationPool(String tileId, String populationFaction) {
-        // Legacy no-op: canonical Build changes never alter tile population pools.
-    }
-
-    public String assignFundingBuild(String tileId, String populationFaction, KOMEPopulationType type,
-            int populationCost, String controllingFaction) {
-        // No ordinary unit may acquire a Build-backed funding source.
-        return "";
-    }
-
-    public void releaseFundingBuild(KOMEHiredUnitRecord record) {
-        // No-op compatibility hook: Build-backed population commitments no longer exist.
     }
 
     /** Releases only legacy population ledgers after an ordinary unit removal. */
@@ -1507,14 +1485,6 @@ public class KOMEWorldData extends WorldSavedData {
         for (KOMEPlayerBuild build : builds.values()) {
             KOMEBuildService.reconcileManager(this, build);
         }
-    }
-
-    /**
-     * Hired-unit funding records are authoritative. Rebuild cached commitments
-     * after load so stale cache values cannot make destructive Build actions unsafe.
-     */
-    public void reconcileBuildCommitments() {
-        // No-op compatibility hook: Build commitments are not part of the canonical model.
     }
 
     private static int saturatedAdd(int left, int right) {
@@ -2353,12 +2323,9 @@ public class KOMEWorldData extends WorldSavedData {
         movementDailyResetTimezone = nbt.hasKey("MovementDailyResetTimezone") ? nbt.getString("MovementDailyResetTimezone") : "America/Chicago";
         nextWarSequence = nbt.hasKey("NextWarSequence") ? Math.max(1, nbt.getInteger("NextWarSequence")) : 1;
         nextBuildSequence = nbt.hasKey("NextBuildSequence") ? Math.max(1, nbt.getInteger("NextBuildSequence")) : 1;
-        buildPopulationPerHalfHour = nbt.hasKey("BuildPopulationPerHalfHour")
-            ? Math.max(1, nbt.getInteger("BuildPopulationPerHalfHour"))
-            : KOMEBuildPopulationService.DEFAULT_POPULATION_PER_HALF_HOUR;
         allianceStageThreeRequiredHalfHours = nbt.hasKey("AllianceStageThreeRequiredHalfHours")
             ? Math.max(1, nbt.getInteger("AllianceStageThreeRequiredHalfHours"))
-            : KOMEBuildPopulationService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
+            : KOMEHalfHourService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
         allianceDifficulty = KOMEAllianceRequirements.normalizeDifficulty(nbt.getString("AllianceDifficulty"));
         NBTTagList requirementConfig = nbt.getTagList("AllianceRequirementOverrides", 10);
         for (int i = 0; i < requirementConfig.tagCount(); i++) {
@@ -3064,7 +3031,6 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.setString("MovementDailyResetTimezone", movementDailyResetTimezone == null ? "America/Chicago" : movementDailyResetTimezone);
         nbt.setInteger("NextWarSequence", Math.max(1, nextWarSequence));
         nbt.setInteger("NextBuildSequence", Math.max(1, nextBuildSequence));
-        nbt.setInteger("BuildPopulationPerHalfHour", Math.max(1, buildPopulationPerHalfHour));
         nbt.setInteger("AllianceStageThreeRequiredHalfHours", Math.max(1, allianceStageThreeRequiredHalfHours));
         nbt.setString("AllianceDifficulty", KOMEAllianceRequirements.normalizeDifficulty(allianceDifficulty));
         nbt.removeTag("WaypointRestrictionEnabled");

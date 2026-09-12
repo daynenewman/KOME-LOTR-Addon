@@ -322,7 +322,6 @@ public final class KOMEPledgeReleaseService {
             pool.release(record.type, amount);
         } else return false;
         record.populationReturned = true;
-        data.releaseFundingBuild(record);
         record.releaseState = "PLEDGE_RELEASED";
         tombstone.populationReturned = true;
         return true;

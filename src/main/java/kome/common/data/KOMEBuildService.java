@@ -253,6 +253,30 @@ public final class KOMEBuildService {
         return result;
     }
 
+    /** Authoritative KOM-7 input: active NORMAL Builds and their exact rate inputs. */
+    public static List<KOMEPlayerBuild> activeNormalBuilds(KOMEWorldData data) {
+        return activeBuildsOfType(data, KOMEBuildType.NORMAL);
+    }
+
+    /** Authoritative downstream siege input: active DEFENSIVE Builds and approved defensive hours. */
+    public static List<KOMEPlayerBuild> activeDefensiveBuilds(KOMEWorldData data) {
+        return activeBuildsOfType(data, KOMEBuildType.DEFENSIVE);
+    }
+
+    private static List<KOMEPlayerBuild> activeBuildsOfType(KOMEWorldData data, KOMEBuildType type) {
+        List<KOMEPlayerBuild> result = new ArrayList<KOMEPlayerBuild>();
+        if (data == null || type == null) return result;
+        for (KOMEPlayerBuild build : data.builds.values()) {
+            if (build != null && build.active && build.type == type) result.add(build);
+        }
+        Collections.sort(result, new Comparator<KOMEPlayerBuild>() {
+            @Override public int compare(KOMEPlayerBuild left, KOMEPlayerBuild right) {
+                return safe(left.id).compareTo(safe(right.id));
+            }
+        });
+        return result;
+    }
+
     public static boolean isManager(KOMEPlayerBuild build, UUID actor) {
         return build != null && build.active && actor != null && actor.equals(build.managerUuid);
     }

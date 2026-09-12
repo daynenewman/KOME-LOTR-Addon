@@ -3,7 +3,7 @@ package kome.common.command;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEBuildContribution;
-import kome.common.data.KOMEBuildPopulationService;
+import kome.common.data.KOMEHalfHourService;
 import kome.common.data.KOMEBuildService;
 import kome.common.data.KOMEPlayerBuild;
 import kome.common.data.KOMEBuildType;
@@ -93,7 +93,7 @@ public class KOMECommandBuild extends CommandBase {
             }
             int halfHours;
             try {
-                halfHours = KOMEBuildPopulationService.toHalfHours(hours);
+                halfHours = KOMEHalfHourService.toHalfHours(hours);
             } catch (IllegalArgumentException error) {
                 throw new WrongUsageException(error.getMessage());
             }
@@ -116,7 +116,7 @@ public class KOMECommandBuild extends CommandBase {
             build.updatedAtMillis = System.currentTimeMillis();
             data.markDirty();
             sender.addChatMessage(new ChatComponentText("Set " + build.id + " " + type.key + " hours to "
-                + KOMEBuildPopulationService.displayHours(halfHours) + "."));
+                + KOMEHalfHourService.displayHours(halfHours) + "."));
             return;
         }
         throw new WrongUsageException(getCommandUsage(sender));
@@ -132,7 +132,7 @@ public class KOMECommandBuild extends CommandBase {
         return build.id + " [" + (build.active ? "active" : "deleted") + "] " + build.displayName
             + " tile=" + build.tileId + " owner=" + KOMEAlliance.displayFactionName(build.populationFaction)
             + " type=" + build.type.key + " hours="
-            + KOMEBuildPopulationService.displayHours(build.approvedHalfHours());
+            + KOMEHalfHourService.displayHours(build.approvedHalfHours());
     }
 
     private static KOMEBuildType parseType(String value) {

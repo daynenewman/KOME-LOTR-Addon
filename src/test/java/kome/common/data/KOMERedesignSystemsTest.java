@@ -11,36 +11,26 @@ import static org.junit.Assert.*;
 
 /** Cross-system regression coverage for Builds, split population, companies, and stage milestones. */
 public class KOMERedesignSystemsTest {
-    @Test public void oneHourProducesTenPopulationByDefault() {
-        assertEquals(10, KOMEBuildPopulationService.generatedPopulation(
-            KOMEBuildPopulationService.toHalfHours(1.0D), KOMEBuildPopulationService.DEFAULT_POPULATION_PER_HALF_HOUR));
-    }
-
-    @Test public void halfHourProducesFivePopulationByDefault() {
-        assertEquals(5, KOMEBuildPopulationService.generatedPopulation(
-            KOMEBuildPopulationService.toHalfHours(0.5D), KOMEBuildPopulationService.DEFAULT_POPULATION_PER_HALF_HOUR));
-    }
-
     @Test public void invalidQuarterHourIncrementsAreRejected() {
-        assertFalse(KOMEBuildPopulationService.isValidHours(0.1D));
-        assertFalse(KOMEBuildPopulationService.isValidHours(0.25D));
-        assertFalse(KOMEBuildPopulationService.isValidHours(0.75D));
+        assertFalse(KOMEHalfHourService.isValidHours(0.1D));
+        assertFalse(KOMEHalfHourService.isValidHours(0.25D));
+        assertFalse(KOMEHalfHourService.isValidHours(0.75D));
     }
 
     @Test public void typedWholeAndHalfHoursNormalizeToCanonicalHalfHours() {
-        assertEquals(0, KOMEBuildPopulationService.parseHalfHours("0"));
-        assertEquals(1, KOMEBuildPopulationService.parseHalfHours(".5"));
-        assertEquals(1, KOMEBuildPopulationService.parseHalfHours("0.5"));
-        assertEquals(2, KOMEBuildPopulationService.parseHalfHours("1"));
-        assertEquals(2, KOMEBuildPopulationService.parseHalfHours("1.0"));
-        assertEquals(3, KOMEBuildPopulationService.parseHalfHours(" 1.5 "));
+        assertEquals(0, KOMEHalfHourService.parseHalfHours("0"));
+        assertEquals(1, KOMEHalfHourService.parseHalfHours(".5"));
+        assertEquals(1, KOMEHalfHourService.parseHalfHours("0.5"));
+        assertEquals(2, KOMEHalfHourService.parseHalfHours("1"));
+        assertEquals(2, KOMEHalfHourService.parseHalfHours("1.0"));
+        assertEquals(3, KOMEHalfHourService.parseHalfHours(" 1.5 "));
     }
 
     @Test public void typedInvalidHoursAreRejected() {
         String[] invalid = {"", " ", "-0.5", "0.1", "0.25", "0.75", "NaN", "Infinity", "1e0", "one", "1..5"};
         for (String value : invalid) {
             try {
-                KOMEBuildPopulationService.parseHalfHours(value);
+                KOMEHalfHourService.parseHalfHours(value);
                 fail("Expected invalid Build hours: " + value);
             } catch (IllegalArgumentException expected) {
                 assertTrue(expected.getMessage().contains("whole/half-hour"));
@@ -48,16 +38,11 @@ public class KOMERedesignSystemsTest {
         }
     }
 
-    @Test public void typedHourPreviewUsesConfiguredConversionRate() {
-        assertEquals(21, KOMEBuildPopulationService.generatedPopulation(
-            KOMEBuildPopulationService.parseHalfHours("1.5"), 7));
-    }
-
     @Test public void halfHourButtonsClampAtSupportedBounds() {
-        assertEquals(0, KOMEBuildPopulationService.adjustHalfHours(0, -1));
-        assertEquals(1, KOMEBuildPopulationService.adjustHalfHours(0, 1));
+        assertEquals(0, KOMEHalfHourService.adjustHalfHours(0, -1));
+        assertEquals(1, KOMEHalfHourService.adjustHalfHours(0, 1));
         assertEquals(Integer.MAX_VALUE,
-            KOMEBuildPopulationService.adjustHalfHours(Integer.MAX_VALUE, 1));
+            KOMEHalfHourService.adjustHalfHours(Integer.MAX_VALUE, 1));
     }
 
     @Test public void populationGraphSegmentsPreservePhysicalCapacity() {
@@ -196,7 +181,6 @@ public class KOMERedesignSystemsTest {
             build.managerName, false, "delete", 40L).allowed);
         assertFalse(build.active);
         assertFalse(build.markerVisible);
-        assertEquals(0, data.getBuildPopulationTotal("T100", "gondor", KOMEPopulationType.OFFENSIVE));
     }
 
     @Test public void buildDeletionDoesNotDependOnCommittedPopulation() {
@@ -410,6 +394,18 @@ public class KOMERedesignSystemsTest {
         assertEquals(20, defensive.approvedDefensiveHalfHours());
     }
 
+    @Test public void downstreamBuildQueriesSeparateNormalAndDefensive() {
+        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
+        KOMEPlayerBuild normal = KOMEBuildService.create(data, "Normal", "T100", 0, 0, 64, 0,
+            UUID.randomUUID(), "Builder", "gondor", "gondor", KOMEBuildType.NORMAL, 8, 10L);
+        KOMEPlayerBuild defensive = KOMEBuildService.create(data, "Defensive", "T100", 0, 0, 64, 0,
+            UUID.randomUUID(), "Builder", "gondor", "gondor", KOMEBuildType.DEFENSIVE, 6, 10L);
+        assertEquals(java.util.Collections.singletonList(normal), KOMEBuildService.activeNormalBuilds(data));
+        assertEquals(java.util.Collections.singletonList(defensive), KOMEBuildService.activeDefensiveBuilds(data));
+        assertArrayEquals(new long[] {8L, 20L}, normal.originalPopulationRate(10));
+        assertArrayEquals(new long[] {0L, 1L}, defensive.originalPopulationRate(10));
+    }
+
     @Test public void buildMutationsNeverChangeFactionAvailablePopulation() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         data.grantFactionPopulation("gondor", 91);
@@ -481,21 +477,15 @@ public class KOMERedesignSystemsTest {
         build(data, "gondor", 10, 0);
         KOMEPlayerBuild rohanBuild = manualBuild(data, "rohan");
         rohanBuild.contributions.add(approved("gondor", 8));
-        data.recalculateBuildPopulationPool("T100", "rohan");
         assertEquals(50, data.getNativePopulationTotal("T100", "gondor", KOMEPopulationType.OFFENSIVE));
-        assertEquals(0, data.getBuildPopulationTotal("T100", "gondor", KOMEPopulationType.OFFENSIVE));
         assertEquals(50, data.getTilePopulationPool("T100", "gondor").offensiveTotal);
         assertNull(data.getTilePopulationPool("T100", "rohan"));
         assertEquals(50, data.getEffectiveUsablePopulation("T100", "gondor", KOMEPopulationType.OFFENSIVE));
     }
 
-    @Test public void buildCommitmentReconciliationIsNowANoOp() {
+    @Test public void hiredUnitsHaveNoBuildFundingReference() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 10, 0);
-        KOMEHiredUnitRecord unit = unit(UUID.randomUUID(), "gondor", "T100", 25);
-        unit.sourceBuildId = build.id;
-        data.hiredUnits.put(unit.entity, unit);
-        data.reconcileBuildCommitments();
         assertEquals(10, build.approvedHalfHours());
     }
 

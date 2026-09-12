@@ -1195,7 +1195,6 @@ public class KOMEAllianceSystemsTest {
         data.builds.put(build.id, build);
         KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
             KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
-        unit.sourceBuildId = build.id;
 
         assertFalse(data.releasePopulationForOrdinaryUnitRemoval(unit));
 

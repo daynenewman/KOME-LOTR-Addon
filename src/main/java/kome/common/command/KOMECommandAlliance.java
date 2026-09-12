@@ -427,7 +427,7 @@ public class KOMECommandAlliance extends CommandBase {
             }
             int halfHours;
             try {
-                halfHours = kome.common.data.KOMEBuildPopulationService.toHalfHours(hours);
+                halfHours = kome.common.data.KOMEHalfHourService.toHalfHours(hours);
             } catch (IllegalArgumentException error) {
                 throw new WrongUsageException(error.getMessage());
             }
@@ -435,7 +435,7 @@ public class KOMECommandAlliance extends CommandBase {
             data.allianceStageThreeRequiredHalfHours = halfHours;
             recordAndRefresh(sender, data, "set Stage 3 Build-hour threshold " + hours);
             sender.addChatMessage(new ChatComponentText("Stage 3 Build contribution threshold set to "
-                + kome.common.data.KOMEBuildPopulationService.displayHours(halfHours) + " hours."));
+                + kome.common.data.KOMEHalfHourService.displayHours(halfHours) + " hours."));
             return;
         }
         if (args.length == 4 && "stagequota".equalsIgnoreCase(args[1])) {

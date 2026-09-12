@@ -50,7 +50,6 @@ public final class KOMEPopulationService {
         }
         record.sourceType = KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK;
         record.sourceFaction = normalizedFaction;
-        record.sourceBuildId = "";
         record.allocationTileId = "";
         record.allocationFaction = "";
         record.allocationPlayer = null;

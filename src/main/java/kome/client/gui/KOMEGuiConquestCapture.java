@@ -4,7 +4,7 @@ import kome.client.KOMEConquestMapOverlay;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
-import kome.common.data.KOMEBuildPopulationService;
+import kome.common.data.KOMEHalfHourService;
 import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEPopulationGraph;
 import kome.common.network.KOMEPacketConquestClaim;
@@ -645,9 +645,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (button.id == ID_BUILD_OFF_MINUS || button.id == ID_BUILD_OFF_PLUS) {
             if (!normalizeHourFields()) return true;
             if (button.id == ID_BUILD_OFF_MINUS) {
-                editHalfHours = KOMEBuildPopulationService.adjustHalfHours(editHalfHours, -1);
+                editHalfHours = KOMEHalfHourService.adjustHalfHours(editHalfHours, -1);
             } else {
-                editHalfHours = KOMEBuildPopulationService.adjustHalfHours(editHalfHours, 1);
+                editHalfHours = KOMEHalfHourService.adjustHalfHours(editHalfHours, 1);
             }
             syncHourFields();
         }
@@ -720,7 +720,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private void syncHourFields() {
         if (buildHoursField != null) {
-            buildHoursField.setText(KOMEBuildPopulationService.displayHours(editHalfHours));
+            buildHoursField.setText(KOMEHalfHourService.displayHours(editHalfHours));
         }
         buildHoursValidation = "";
     }
@@ -728,7 +728,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private boolean updateHoursFromFields(boolean normalize) {
         if (buildHoursField == null) return true;
         try {
-            editHalfHours = KOMEBuildPopulationService.parseHalfHours(buildHoursField.getText());
+            editHalfHours = KOMEHalfHourService.parseHalfHours(buildHoursField.getText());
             buildHoursValidation = "";
             if (normalize) syncHourFields();
             return true;

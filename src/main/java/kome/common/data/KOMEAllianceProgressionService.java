@@ -108,9 +108,9 @@ public final class KOMEAllianceProgressionService {
         if (targetStage == 3) {
             int current = KOMEBuildService.approvedHalfHoursForPartner(data, actingFaction,
                 alliance.getOtherFaction(actingFaction));
-            return "Stage 3 requires " + KOMEBuildPopulationService.displayHours(data.allianceStageThreeRequiredHalfHours)
+            return "Stage 3 requires " + KOMEHalfHourService.displayHours(data.allianceStageThreeRequiredHalfHours)
                 + " approved Build hours for the partner; current "
-                + KOMEBuildPopulationService.displayHours(current) + ".";
+                + KOMEHalfHourService.displayHours(current) + ".";
         }
         return "Stage 4 requires a new qualifying company deployment in partner-controlled land during an active shared defensive war.";
     }
