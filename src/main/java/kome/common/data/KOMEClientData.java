@@ -2,7 +2,6 @@ package kome.common.data;
 
 public class KOMEClientData extends KOMEWorldData {
     public static final KOMEClientData INSTANCE = new KOMEClientData();
-    public KOMEPopulationType hireType = KOMEPopulationType.OFFENSIVE;
     public final java.util.Map<String, KOMETileTroopSummary> troopSummaries = new java.util.HashMap<String, KOMETileTroopSummary>();
     public final java.util.List<KOMEUnitMapMarker> unitMapMarkers = new java.util.ArrayList<KOMEUnitMapMarker>();
     public int conquestRevision;
@@ -33,7 +32,6 @@ public class KOMEClientData extends KOMEWorldData {
         clearFactionKingRecords();
         troopSummaries.clear();
         unitMapMarkers.clear();
-        hireType = KOMEPopulationType.OFFENSIVE;
         allianceDifficulty = KOMEAllianceRequirements.STANDARD;
         clientViewerIsAdmin = false;
         conquestRevision++;

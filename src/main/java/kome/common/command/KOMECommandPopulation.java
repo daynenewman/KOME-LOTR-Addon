@@ -12,7 +12,6 @@ import kome.common.data.KOMETilePopulation;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMEWorldData;
 import kome.common.network.KOMEPacketHandler;
-import kome.common.network.KOMEPacketHireType;
 import kome.common.network.KOMEPacketPopulationGui;
 import kome.common.network.KOMEPacketPopulationUnitsGui;
 import kome.common.network.KOMEUnitGuiEntry;
@@ -43,7 +42,7 @@ public class KOMECommandPopulation extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/population get [player] | gui [player] | units [player] [tile] | hiretype [player] <offensive|defensive> | set/add/remove <player> <offensive|defensive> <amount> | addtile/removetile <tileId> <offensive|defensive> <amount> | tile <tileId> | faction <faction> | allocations <tileId> | allocate/unallocate <tileId> <player> <offensive|defensive> <amount>";
+        return "/population get [player] | gui [player] | units [player] [tile] | faction <faction>";
     }
 
     @Override
@@ -73,10 +72,6 @@ public class KOMECommandPopulation extends CommandBase {
             sendUnitBreakdown(sender, player, filterTile);
             return;
         }
-        if ("hiretype".equalsIgnoreCase(args[0])) {
-            setHireType(sender, args);
-            return;
-        }
         if ("tile".equalsIgnoreCase(args[0])) {
             sendTileStatus(sender, args);
             return;
@@ -85,53 +80,7 @@ public class KOMECommandPopulation extends CommandBase {
             sendFactionStatus(sender, args);
             return;
         }
-        if ("allocations".equalsIgnoreCase(args[0])) {
-            sendAllocationStatus(sender, args);
-            return;
-        }
-        if ("allocate".equalsIgnoreCase(args[0]) || "unallocate".equalsIgnoreCase(args[0])) {
-            manageAllocation(sender, args);
-            return;
-        }
-        if ("addtile".equalsIgnoreCase(args[0]) || "removetile".equalsIgnoreCase(args[0])) {
-            manageTilePopulation(sender, args);
-            return;
-        }
-        if (args.length != 4) {
-            throw new WrongUsageException(getCommandUsage(sender));
-        }
-
-        EntityPlayerMP player = getPlayer(sender, args[1]);
-        if (!canManagePopulation(sender, player)) {
-            return;
-        }
-        KOMEPopulationType type = KOMEPopulationType.forName(args[2]);
-        if (type == null) {
-            throw new WrongUsageException("Population type must be offensive or defensive");
-        }
-        int amount = Math.max(0, parseInt(sender, args[3]));
-        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEPlayerPopulation pop = data.getPopulation(KOMEReflection.getEntityUUID(player));
-        int before = pop.getTotal(type);
-        int requestedTotal;
-
-        if ("set".equalsIgnoreCase(args[0])) {
-            requestedTotal = amount;
-            pop.setTotal(type, amount);
-        } else if ("add".equalsIgnoreCase(args[0])) {
-            requestedTotal = before + amount;
-            pop.addTotal(type, amount);
-        } else if ("remove".equalsIgnoreCase(args[0])) {
-            requestedTotal = Math.max(0, before - amount);
-            pop.addTotal(type, -amount);
-        } else {
-            throw new WrongUsageException(getCommandUsage(sender));
-        }
-        data.markDirty();
-        if (requestedTotal < pop.getUsed(type)) {
-            sender.addChatMessage(new ChatComponentText("Player reserve population cannot be reduced below " + pop.getUsed(type) + " while it is funding active units."));
-        }
-        sendStatus(sender, player, sender instanceof EntityPlayerMP);
+        throw new WrongUsageException(getCommandUsage(sender));
     }
 
     private void manageTilePopulation(ICommandSender sender, String[] args) {
@@ -379,6 +328,8 @@ public class KOMECommandPopulation extends CommandBase {
             factionDefensiveUsed = clamp(factionDefensiveUsed, 0, factionDefensiveTotal);
             KOMEPacketPopulationGui packet = new KOMEPacketPopulationGui(player.getCommandSenderName(), pop.offensiveTotal, offensiveUsed, pop.defensiveTotal, defensiveUsed, farmhandsUsed, farmhandsLimit, armyUsed, armyTotal, tile.offensiveTotal, tile.offensiveUsed, tile.defensiveTotal, tile.defensiveUsed, data.getFactionControlledTileCount(faction), allocatedOffensive, allocatedOffensiveUsed, allocatedDefensive, allocatedDefensiveUsed, allocationSummary.toString(), canManageAllocations, factionOffensiveTotal, factionOffensiveUsed, Math.max(0, factionOffensiveTotal - factionOffensiveUsed), factionDefensiveTotal, factionDefensiveUsed, Math.max(0, factionDefensiveTotal - factionDefensiveUsed), capacityRows, unallocated);
             packet.viewerFaction = displayFaction(faction);
+            packet.availablePopulation = kome.common.data.KOMEPopulationService.getAvailablePopulation(data, faction);
+            packet.activePopulation = kome.common.data.KOMEPopulationService.getActivePopulation(faction, data.hiredUnits.values());
             packet.canManageAllocations = canManageAllocations;
             packet.personalReserveOffensiveTotal = pop.offensiveTotal;
             packet.personalReserveOffensiveUsed = offensiveUsed;
@@ -746,29 +697,6 @@ public class KOMECommandPopulation extends CommandBase {
     private String tileLabel(String tile) {
         String normalized = KOMEConquestTile.normalizeId(tile);
         return normalized.length() == 0 ? "Unstationed" : "Tile " + normalized;
-    }
-
-    private void setHireType(ICommandSender sender, String[] args) {
-        EntityPlayerMP player;
-        KOMEPopulationType type;
-        if (args.length == 2) {
-            player = getCommandSenderAsPlayer(sender);
-            type = KOMEPopulationType.forName(args[1]);
-        } else if (args.length == 3) {
-            player = getPlayer(sender, args[1]);
-            type = KOMEPopulationType.forName(args[2]);
-        } else {
-            throw new WrongUsageException("Usage: /population hiretype [player] <offensive|defensive>");
-        }
-        if (type == null) {
-            throw new WrongUsageException("Hire type must be offensive or defensive");
-        }
-        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEPlayerPopulation pop = data.getPopulation(KOMEReflection.getEntityUUID(player));
-        pop.hireType = type;
-        data.markDirty();
-        KOMEPacketHandler.network.sendTo(new KOMEPacketHireType(type), player);
-        sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " next hires will use " + type.key + " population."));
     }
 
     private String shortID(UUID id) {

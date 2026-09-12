@@ -320,10 +320,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             initBuildControls();
             return;
         }
-        if (activeTab == 1) {
-            initPopulationPoolControls();
-            return;
-        }
         int actionTop = panelY + panelH - ACTION_AREA_HEIGHT;
         int actionY = actionTop + 40;
         if (transferMode) {
@@ -335,10 +331,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             buttonList.add(transfer);
             buttonList.add(KOMEGuiButton.normal(ID_CANCEL_TRANSFER_MODE, panelX + panelW / 2 + 4, actionY, "Cancel"));
             return;
-        }
-        if (canEditPopulation) {
-            addPopulationControls();
-            addAllocationControls();
         }
         if (isOwnedByPledge()) {
             int contentY = panelY + CONTENT_Y_OFFSET;
@@ -382,14 +374,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private void addTabButtons() {
         int x = panelX + PANEL_MARGIN;
         int y = panelY + 59;
-        int gap = 7;
-        int width = Math.max(62, (panelW - PANEL_MARGIN * 2 - gap * 2) / 3);
+        int width = Math.max(62, panelW - PANEL_MARGIN * 2);
         KOMEGuiButton builds = KOMEGuiButton.tab(ID_TAB_BUILDS, x, y, width, "Builds", activeTab == 0);
-        KOMEGuiButton population = KOMEGuiButton.tab(ID_TAB_POPULATION, x + width + gap, y, width, "Population", activeTab == 1);
-        KOMEGuiButton allocations = KOMEGuiButton.tab(ID_TAB_ALLOCATIONS, x + (width + gap) * 2, y, width, "Allocations", activeTab == 2);
         buttonList.add(builds);
-        buttonList.add(population);
-        buttonList.add(allocations);
     }
 
     private void initBuildControls() {

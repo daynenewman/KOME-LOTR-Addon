@@ -33,7 +33,6 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void init() {
         super.init();
         MinecraftForge.EVENT_BUS.register(new KOMEChatSanitizer());
-        MinecraftForge.EVENT_BUS.register(new KOMEUnitTradeOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEProgressionMenuOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEUnitOverviewCapOverlay());

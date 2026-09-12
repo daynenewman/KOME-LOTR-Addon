@@ -10,7 +10,6 @@ import kome.common.KOMEReflection;
 import kome.common.command.KOMECommandTroops;
 import kome.common.network.KOMEPacketAllianceData;
 import kome.common.network.KOMEPacketHandler;
-import kome.common.network.KOMEPacketHireType;
 import kome.common.network.KOMEPacketLordMenu;
 import kome.common.network.KOMEPacketUnitMapMarkers;
 import lotr.common.LOTRLevelData;
@@ -110,7 +109,6 @@ public class KOMEEvents {
                 getActualPledgeFactionKey(event.player), System.currentTimeMillis());
             data.syncConquestTiles((EntityPlayerMP) event.player);
             sendAllianceRefresh((EntityPlayerMP) event.player, data);
-            KOMEPacketHandler.network.sendTo(new KOMEPacketHireType(data.getPopulation(KOMEReflection.getEntityUUID(event.player)).hireType), (EntityPlayerMP) event.player);
             KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
             KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP) event.player, data.getProgression(KOMEReflection.getEntityUUID(event.player)));
             KOMEProgressionTitles.updatePlayerTitle((EntityPlayerMP) event.player);

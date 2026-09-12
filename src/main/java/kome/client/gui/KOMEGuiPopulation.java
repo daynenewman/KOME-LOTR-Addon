@@ -66,7 +66,6 @@ public class KOMEGuiPopulation extends GuiScreen {
         addTabButton(20, tabX, tabY, "Overview", TAB_OVERVIEW);
         addTabButton(21, tabX + 96, tabY, "Players", TAB_PLAYERS);
         addTabButton(22, tabX + 192, tabY, "Tiles", TAB_TILES);
-        addTabButton(23, tabX + 288, tabY, "Orders", TAB_ORDERS);
 
         int formY = contentY() + 34;
         int ordersFieldY = formY + 35;
@@ -77,7 +76,7 @@ public class KOMEGuiPopulation extends GuiScreen {
         tileField = new GuiTextField(fontRendererObj, x + 154, formY + 151, 80, 18);
         tileField.setText("");
 
-        if (activeTab == TAB_ORDERS && data.canManageAllocations) {
+        if (false && activeTab == TAB_ORDERS && data.canManageAllocations) {
             int buttonY = formY + 94;
             buttonList.add(new KOMEGuiButton(2, x + 154, buttonY, 104, 22, "+ Offensive"));
             buttonList.add(new KOMEGuiButton(3, x + 266, buttonY, 104, 22, "- Offensive"));
@@ -191,7 +190,7 @@ public class KOMEGuiPopulation extends GuiScreen {
         } else if (activeTab == TAB_TILES) {
             drawTilesTab(x, y, w, h, mouseX, mouseY);
         } else {
-            drawOrdersTab(x, y, w);
+            drawOverviewTab(x, y, w);
         }
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
@@ -207,33 +206,11 @@ public class KOMEGuiPopulation extends GuiScreen {
             drawEmptyState(x + 24, cy, w - 48, "No faction population data found.");
             return;
         }
-        drawCapacityCard(x + 24, cy, w - 48, 92, "Your Total Military Capacity",
-            data.viewerTotalOffensiveUsed, data.viewerTotalOffensiveTotal, data.viewerTotalOffensiveAvailable,
-            data.viewerTotalDefensiveUsed, data.viewerTotalDefensiveTotal, data.viewerTotalDefensiveAvailable,
-            false, 0, 0);
-
-        int sourceY = cy + 102;
-        int sourceW = (w - 58) / 2;
-        drawSourceCard(x + 24, sourceY, sourceW, "Personal Reserve",
-            data.personalReserveOffensiveTotal, data.personalReserveOffensiveUsed, data.personalReserveOffensiveAvailable,
-            data.personalReserveDefensiveTotal, data.personalReserveDefensiveUsed, data.personalReserveDefensiveAvailable);
-        drawSourceCard(x + 34 + sourceW, sourceY, sourceW, "Assigned from Tiles",
-            data.assignedTileOffensiveTotal, data.assignedTileOffensiveUsed, data.assignedTileOffensiveAvailable,
-            data.assignedTileDefensiveTotal, data.assignedTileDefensiveUsed, data.assignedTileDefensiveAvailable);
-
-        drawCapacityCard(x + 24, sourceY + 86, w - 48, 92, "Faction Military Capacity",
-            data.factionOffensiveUsed, data.factionOffensiveTotal, data.factionOffensiveAvailable,
-            data.factionDefensiveUsed, data.factionDefensiveTotal, data.factionDefensiveAvailable,
-            true, data.factionFarmhandUsed, data.factionFarmhandTotal);
-        fontRendererObj.drawString("Controlled Tiles: " + data.factionControlledTileCount, x + w - 184, sourceY + 112, KOMEGuiTheme.COLOR_TEXT_MUTED);
-
-        int notesY = sourceY + 188;
-        KOMEGuiTheme.drawSubPanel(x + 24, notesY, w - 48, 82);
-        fontRendererObj.drawString("Important Notes", x + 36, notesY + 8, KOMEGuiTheme.COLOR_BORDER_RED);
-        fontRendererObj.drawString("- Offensive population can be used for movable armies.", x + 36, notesY + 24, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("- Defensive population is for defensive units and cannot move with normal companies.", x + 36, notesY + 36, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("- Tile population must be assigned before a player can use it.", x + 36, notesY + 48, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("- Used population is tied to currently hired units.", x + 36, notesY + 60, KOMEGuiTheme.COLOR_TEXT);
+        KOMEGuiTheme.drawSubPanel(x + 24, cy, w - 48, 92);
+        fontRendererObj.drawString("Canonical Faction Population", x + 36, cy + 12, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString("Available Population: " + data.availablePopulation, x + 36, cy + 34, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Active Population: " + data.activePopulation, x + 36, cy + 52, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Daily Population Rate is not yet available.", x + 36, cy + 70, KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 
     private void drawCapacityCard(int x, int y, int width, int height, String title, int offUsed, int offTotal, int offAvail, int defUsed, int defTotal, int defAvail, boolean farmhands, int farmUsed, int farmTotal) {

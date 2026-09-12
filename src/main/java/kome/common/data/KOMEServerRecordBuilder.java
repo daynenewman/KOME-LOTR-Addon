@@ -112,11 +112,6 @@ public class KOMEServerRecordBuilder {
 
     private static void addPlayerLine(List lines, KOMEWorldData data, World world, PlayerRecord record) {
         KOMEPlayerProgression progression = data.progressions.get(record.id);
-        KOMEPlayerPopulation pop = data.populations.get(record.id);
-        if (pop == null) {
-            pop = new KOMEPlayerPopulation();
-        }
-
         FactionInfo faction = getFactionInfo(data, world, record.id, progression);
         TileSummary tiles = getConquestTiles(data, faction.key);
 
@@ -127,7 +122,7 @@ public class KOMEServerRecordBuilder {
             faction.name,
             getRank(data, record.id, progression, faction.key),
             getProgressionSummary(progression),
-            getPopulationSummary(data, pop, faction.key),
+            getPopulationSummary(data, faction.key),
             progression == null ? "No pledged lord" : progression.getPledgedLordDisplay(),
             getAllianceSummary(data, faction.key),
             String.valueOf(tiles.count),
@@ -142,20 +137,11 @@ public class KOMEServerRecordBuilder {
         return progression.getCompletedCount(null) + "/" + progression.getTotalCount(null);
     }
 
-    private static String getPopulationSummary(KOMEWorldData data, KOMEPlayerPopulation pop, String faction) {
-        int builds = 0;
-        int buildPopulation = 0;
-        for (KOMEPlayerBuild build : data.builds.values()) {
-            if (build != null && build.active
-                    && KOMEAlliance.normalizeFactionKey(faction).equals(
-                        KOMEAlliance.normalizeFactionKey(build.populationFaction))) {
-                builds++;
-                buildPopulation += build.approvedPopulation(KOMEPopulationType.OFFENSIVE, data.buildPopulationPerHalfHour);
-                buildPopulation += build.approvedPopulation(KOMEPopulationType.DEFENSIVE, data.buildPopulationPerHalfHour);
-            }
-        }
-        return "Off " + pop.offensiveTotal + ", Def " + pop.defensiveTotal + ", Total " + pop.getCombinedTotal()
-            + ", Builds " + builds + ", Build Pop " + buildPopulation;
+    private static String getPopulationSummary(KOMEWorldData data, String faction) {
+        int available = KOMEPopulationService.getAvailablePopulation(data, faction);
+        int active = KOMEPopulationService.getActivePopulation(faction, data.hiredUnits.values());
+        return "Faction " + displayFaction(faction) + ", Available Population " + available
+            + ", Active Population " + active;
     }
 
     private static String getRank(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {

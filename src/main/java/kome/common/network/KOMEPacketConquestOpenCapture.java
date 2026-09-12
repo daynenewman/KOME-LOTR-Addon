@@ -191,23 +191,6 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             }
             packet.builds.add(view);
         }
-        for (KOMETilePopulation pool : data.getTilePopulationPools(tile.id)) {
-            KOMEPacketConquestCaptureGui.PopulationPoolView view =
-                new KOMEPacketConquestCaptureGui.PopulationPoolView();
-            view.faction = pool.sourceFaction;
-            view.nativeOffensive = data.getNativePopulationTotal(tile.id, pool.sourceFaction, KOMEPopulationType.OFFENSIVE);
-            view.nativeDefensive = data.getNativePopulationTotal(tile.id, pool.sourceFaction, KOMEPopulationType.DEFENSIVE);
-            view.buildOffensive = data.getBuildPopulationTotal(tile.id, pool.sourceFaction, KOMEPopulationType.OFFENSIVE);
-            view.buildDefensive = data.getBuildPopulationTotal(tile.id, pool.sourceFaction, KOMEPopulationType.DEFENSIVE);
-            view.physicalOffensive = pool.offensiveTotal;
-            view.physicalDefensive = pool.defensiveTotal;
-            view.usableOffensive = pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, controller);
-            view.usableDefensive = pool.getEffectiveTotal(KOMEPopulationType.DEFENSIVE, controller);
-            view.usedOffensive = pool.offensiveUsed;
-            view.usedDefensive = pool.defensiveUsed;
-            packet.populationPools.add(view);
-        }
-        packet.selectablePopulationOwners.addAll(KOMEBuildService.selectablePopulationOwners(data, viewerFaction, tile.id));
         packet.viewerDimension = player.worldObj.provider.dimensionId;
         packet.viewerX = player.posX;
         packet.viewerY = player.posY;

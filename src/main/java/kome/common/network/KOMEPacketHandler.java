@@ -12,7 +12,6 @@ public class KOMEPacketHandler {
         network = NetworkRegistry.INSTANCE.newSimpleChannel(KOMEAddon.MODID);
         network.registerMessage(KOMEPacketPopulationGui.Handler.class, KOMEPacketPopulationGui.class, 0, Side.CLIENT);
         network.registerMessage(KOMEPacketPopulationUnitsGui.Handler.class, KOMEPacketPopulationUnitsGui.class, 3, Side.CLIENT);
-        network.registerMessage(KOMEPacketHireType.Handler.class, KOMEPacketHireType.class, 4, Side.CLIENT);
         network.registerMessage(KOMEPacketConquestCaptureGui.Handler.class, KOMEPacketConquestCaptureGui.class, 5, Side.CLIENT);
         network.registerMessage(KOMEPacketConquestClaim.Handler.class, KOMEPacketConquestClaim.class, 6, Side.SERVER);
         network.registerMessage(KOMEPacketConquestOpenCapture.Handler.class, KOMEPacketConquestOpenCapture.class, 7, Side.SERVER);
