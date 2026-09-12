@@ -78,7 +78,7 @@ public class KOMECommandTroops extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/troops ... | company <id> [tendency <aggressive|conservative>|delegate <player>|reclaim|transfer <player>|acceptTransfer|rejectTransfer|cancelTransfer] | pledgeRelease <preview|status|retry|resolve> ... | previewmove|movecompany ... | movement <stay|retreat|stop|...> <orderId> | ...";
+        return "/troops ... | stewardship reconcile <faction> | company <id> [tendency <aggressive|conservative>|delegate <player>|reclaim|transfer <player>|acceptTransfer|rejectTransfer|cancelTransfer] | pledgeRelease <preview|status|retry|resolve> ... | previewmove|movecompany ... | movement <stay|retreat|stop|...> <orderId> | ...";
     }
 
     @Override
@@ -96,6 +96,20 @@ public class KOMECommandTroops extends CommandBase {
         UUID owner = KOMEReflection.getEntityUUID(player);
         if ("pledgeRelease".equalsIgnoreCase(args[0])) {
             handlePledgeRelease(sender, data, owner, args);
+            return;
+        }
+        if ("stewardship".equalsIgnoreCase(args[0])) {
+            if (args.length != 3 || !"reconcile".equalsIgnoreCase(args[1])) {
+                throw new WrongUsageException("/troops stewardship reconcile <nativeFaction>");
+            }
+            if (!sender.canCommandSenderUseCommand(2, getCommandName())) {
+                throw new WrongUsageException("Only an operator may reconcile kingless defensive unit records.");
+            }
+            KOMEWartimeStewardshipService.RepairResult result =
+                KOMEWartimeStewardshipService.reconcileDefensiveUnits(data, args[2], System.currentTimeMillis());
+            if (!result.allowed) throw new WrongUsageException(result.reason);
+            sender.addChatMessage(new ChatComponentText(result.reason + " Links repaired: " + result.repairedLinks
+                + "; controller records repaired: " + result.repairedControllers + "."));
             return;
         }
         if ("list".equalsIgnoreCase(args[0])) {
@@ -2930,7 +2944,7 @@ public class KOMECommandTroops extends CommandBase {
     }
 
     private static void reconcileTemporaryControllers(KOMEWorldData data, long nowMillis) {
-        reconcileTemporaryControllers(data, nowMillis, "Stage 4 temporary command is no longer valid");
+        reconcileTemporaryControllers(data, nowMillis, "Temporary command is no longer valid");
     }
 
     private static void reconcileTemporaryControllers(KOMEWorldData data, long nowMillis, String reason) {
@@ -2968,11 +2982,11 @@ public class KOMECommandTroops extends CommandBase {
             if (controllerFaction.length() > 0
                     && new KOMEAllianceAuthority(data).canControlTemporaryCompany(company, company.temporaryController).allowed) {
                 if (KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) KOMEWartimeStewardshipService.authorizeCompany(data, company, controllerFaction,
-                    "Active same-side war, pledged supporting king, and Stage 4 revalidated", nowMillis);
+                    "Friends-or-better diplomacy, same-side active war, and recognized supporting ruler revalidated", nowMillis);
                 continue;
             }
             String revocation = reason == null || reason.length() == 0
-                ? "Stage 4 temporary command is no longer valid" : reason;
+                ? "Temporary command is no longer valid" : reason;
             if (KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) {
                 KOMEWartimeStewardshipService.revalidateCompany(data, company, nowMillis, revocation);
             } else {

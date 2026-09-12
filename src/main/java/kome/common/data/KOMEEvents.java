@@ -551,7 +551,7 @@ public class KOMEEvents {
             if (!allowed) {
                 denyAlliedHire(owner, npc, isFarmhand
                     ? "Stage 1 Cooperation is required to hire a farmhand from " + KOMEAlliance.displayFactionName(unitFaction) + "."
-                    : "Allied combat hiring is limited to a recognized Stage 4 king exercising valid kingless wartime authority.");
+                    : "Allied combat hiring requires a recognized supporting ruler with valid kingless wartime stewardship authority.");
                 return;
             }
         }
