@@ -38,6 +38,10 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<UUID, KOMEPlayerPopulation> populations = new HashMap<>();
     /** Canonical future-facing faction population banks; legacy ledgers remain separate for now. */
     public final Map<String, KOMEFactionPopulation> factionPopulations = new HashMap<String, KOMEFactionPopulation>();
+    /** KOM-7 payout state; rate remains derived from Builds and configuration. */
+    public boolean populationPayoutInitialized;
+    public long lastPopulationPayoutBoundaryMillis = -1L;
+    public final Map<String, Long> populationPayoutRemainders = new HashMap<String, Long>();
     public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
@@ -2283,6 +2287,9 @@ public class KOMEWorldData extends WorldSavedData {
         int removedPostFarmerReservations = 0;
         populations.clear();
         factionPopulations.clear();
+        populationPayoutInitialized = nbt.getBoolean("PopulationPayoutInitialized");
+        lastPopulationPayoutBoundaryMillis = populationPayoutInitialized ? nbt.getLong("LastPopulationPayoutBoundaryMillis") : -1L;
+        populationPayoutRemainders.clear();
         progressions.clear();
         hiredUnits.clear();
         conquestTiles.clear();
@@ -2385,6 +2392,15 @@ public class KOMEWorldData extends WorldSavedData {
             KOMEFactionPopulation population = new KOMEFactionPopulation();
             population.setAvailablePopulation(entry.getInteger("AvailablePopulation"));
             factionPopulations.put(faction, population);
+        }
+        NBTTagList payoutRemainders = nbt.getTagList("PopulationPayoutRemainders", 10);
+        for (int i = 0; i < payoutRemainders.tagCount(); i++) {
+            NBTTagCompound entry = payoutRemainders.getCompoundTagAt(i);
+            String faction = KOMEAlliance.normalizeFactionKey(entry.getString("Faction"));
+            long remainder = entry.getLong("RemainderUnits");
+            if (faction.length() > 0 && remainder > 0L && remainder < KOMEPopulationRate.SCALE) {
+                populationPayoutRemainders.put(faction, Long.valueOf(remainder));
+            }
         }
 
         NBTTagList progressionList = nbt.getTagList("Progressions", 10);
@@ -3107,6 +3123,17 @@ public class KOMEWorldData extends WorldSavedData {
             factionPopulationList.appendTag(entry);
         }
         nbt.setTag("FactionPopulations", factionPopulationList);
+        nbt.setBoolean("PopulationPayoutInitialized", populationPayoutInitialized);
+        nbt.setLong("LastPopulationPayoutBoundaryMillis", populationPayoutInitialized ? lastPopulationPayoutBoundaryMillis : -1L);
+        NBTTagList payoutRemainders = new NBTTagList();
+        List<String> remainderFactions = new ArrayList<String>(populationPayoutRemainders.keySet());
+        Collections.sort(remainderFactions);
+        for (String faction : remainderFactions) {
+            Long remainder = populationPayoutRemainders.get(faction);
+            if (remainder == null || remainder.longValue() <= 0L || remainder.longValue() >= KOMEPopulationRate.SCALE) continue;
+            NBTTagCompound entry = new NBTTagCompound(); entry.setString("Faction", faction); entry.setLong("RemainderUnits", remainder.longValue()); payoutRemainders.appendTag(entry);
+        }
+        nbt.setTag("PopulationPayoutRemainders", payoutRemainders);
 
         NBTTagList progressionList = new NBTTagList();
         for (Map.Entry<UUID, KOMEPlayerProgression> entry : progressions.entrySet()) {
