@@ -1,6 +1,7 @@
 package kome.common.data;
 
 import kome.common.command.KOMECommandTroops;
+import net.minecraft.nbt.NBTTagCompound;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -150,10 +151,48 @@ public class KOMECompanyDiplomacyAuthorizationTest {
 
         assertNull(company.temporaryController);
         assertEquals(KOMEArmyCompany.AUTHORITY_NATIVE, company.controllerAuthority);
+        assertEquals(1, data.companyDelegationAudit.size());
+        assertTrue(data.companyDelegationAudit.get(0).contains("|action=REVOKED_AUTOMATIC|"));
+        assertTrue(data.companyDelegationAudit.get(0).contains("|company=C1|"));
         assertEquals(owner, company.owner);
         assertEquals("native_test", company.faction);
         assertEquals("native_test", company.nativeFaction);
         assertEquals("native_test", company.populationSource);
+    }
+    @Test
+    public void companyDelegationAuditPersistsAcrossWorldSave() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID owner = UUID.randomUUID();
+        UUID king = UUID.randomUUID();
+        UUID controller = UUID.randomUUID();
+
+        KOMEArmyCompany company = new KOMEArmyCompany();
+        company.id = "AUDIT-C1";
+        company.owner = owner;
+        company.faction = "native_test";
+        company.nativeFaction = "native_test";
+
+        data.recordCompanyDelegationAudit(
+            123L, "DELEGATED", company,
+            king, "Native King",
+            controller, "Commander",
+            "test audit");
+
+        assertEquals(1, data.companyDelegationAudit.size());
+        String expected = data.companyDelegationAudit.get(0);
+        assertTrue(expected.contains("|action=DELEGATED|"));
+        assertTrue(expected.contains("|company=AUDIT-C1|"));
+        assertTrue(expected.contains("|native=" + KOMEAlliance.normalizeFactionKey("native_test") + "|"));
+        assertTrue(expected.contains("|controller=" + controller + "|"));
+
+        NBTTagCompound saved = new NBTTagCompound();
+        data.writeToNBT(saved);
+
+        KOMEWorldData restored = new KOMEWorldData("restored");
+        restored.readFromNBT(saved);
+
+        assertEquals(1, restored.companyDelegationAudit.size());
+        assertEquals(expected, restored.companyDelegationAudit.get(0));
     }
     private static UUID crown(KOMEWorldData data, String faction, String name) {
         UUID king = UUID.randomUUID();

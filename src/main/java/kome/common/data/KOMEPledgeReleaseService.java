@@ -111,7 +111,17 @@ public final class KOMEPledgeReleaseService {
                     ? KOMEArmyCompany.CLEANUP_WITHDRAWAL : KOMEArmyCompany.CLEANUP_NONE;
                 KOMEWartimeStewardshipService.revalidateCompany(data, company, nowMillis, "Controller pledge ended");
             } else {
-                company.clearTemporaryController("Delegating king or controller left " + KOMEAlliance.displayFactionName(former));
+                String delegationReason =
+                    "Delegating king or controller left " + KOMEAlliance.displayFactionName(former);
+                if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
+                        && company.temporaryController != null) {
+                    data.recordCompanyDelegationAudit(
+                        nowMillis, "REVOKED_PLEDGE", company,
+                        player, playerName,
+                        company.temporaryController, company.temporaryControllerName,
+                        delegationReason);
+                }
+                company.clearTemporaryController(delegationReason);
             }
             result.temporaryAuthoritiesRevoked++;
         }

@@ -1189,16 +1189,27 @@ public class KOMECommandTroops extends CommandBase {
             if (!delegation.allowed) {
                 throw new WrongUsageException(delegation.reason);
             }
-            company.temporaryController = targetId;
-            company.temporaryControllerName = target.getCommandSenderName();
+            long delegationNow = System.currentTimeMillis();
+            if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
+                    && company.temporaryController != null) {
+                data.recordCompanyDelegationAudit(
+                    delegationNow, "REVOKED_REDELEGATED", company,
+                    actor, player.getCommandSenderName(),
+                    company.temporaryController, company.temporaryControllerName,
+                    "Replaced by a new delegation");
+            }
+            company.temporaryController = targetId;            company.temporaryControllerName = target.getCommandSenderName();
             company.delegatedBy = actor;
             company.delegatedByName = player.getCommandSenderName();
             company.controllerAuthority = KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE;
             company.delegationAlliancePair = "";
-            company.delegatedAtMillis = System.currentTimeMillis();
+            company.delegatedAtMillis = delegationNow;
             company.delegationRevocationReason = "";
-            data.markDirty();
-            sender.addChatMessage(new ChatComponentText("Delegated movement command of " + company.name + " to " + company.temporaryControllerName
+            data.recordCompanyDelegationAudit(
+                delegationNow, "DELEGATED", company,
+                actor, player.getCommandSenderName(),
+                targetId, target.getCommandSenderName(), "");
+            data.markDirty();            sender.addChatMessage(new ChatComponentText("Delegated movement command of " + company.name + " to " + company.temporaryControllerName
                 + ". Ownership and population sources remain unchanged."));
             return;
         }
@@ -1221,9 +1232,16 @@ public class KOMECommandTroops extends CommandBase {
                     }
                 }
             } else {
+                if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
+                        && company.temporaryController != null) {
+                    data.recordCompanyDelegationAudit(
+                        System.currentTimeMillis(), "REVOKED_MANUAL", company,
+                        actor, player.getCommandSenderName(),
+                        company.temporaryController, company.temporaryControllerName,
+                        "Reclaimed by native authority");
+                }
                 company.clearTemporaryController("Reclaimed by native authority");
-            }
-            KOMEArmyMovementOrder order = data.armyMovements.get(company.movementOrderId);
+            }            KOMEArmyMovementOrder order = data.armyMovements.get(company.movementOrderId);
             if (order != null && KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)) {
                 haltForAccessLoss(data, order, System.currentTimeMillis(), "Temporary command reclaimed by native authority.");
             } else if (order != null && order.isMoving()) {
@@ -2923,10 +2941,14 @@ public class KOMECommandTroops extends CommandBase {
                         ? "Canonical company delegation is no longer valid"
                         : reason;
                 }
+                data.recordCompanyDelegationAudit(
+                    nowMillis, "REVOKED_AUTOMATIC", company,
+                    null, "",
+                    company.temporaryController, company.temporaryControllerName,
+                    revocation);
                 company.clearTemporaryController(revocation);
                 data.markDirty();
-                continue;
-            }
+                continue;            }
             String controllerFaction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(company.temporaryController));
             if (controllerFaction.length() > 0
                     && new KOMEAllianceAuthority(data).canControlTemporaryCompany(company, company.temporaryController).allowed) {
@@ -4083,9 +4105,13 @@ public class KOMECommandTroops extends CommandBase {
             }
         } else if (temporary && KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
                 && !canUseDelegatedCompanyControl(data, company, owner)) {
+            data.recordCompanyDelegationAudit(
+                System.currentTimeMillis(), "REVOKED_AUTOMATIC", company,
+                null, "",
+                company.temporaryController, company.temporaryControllerName,
+                "Canonical company delegation is no longer valid");
             company.clearTemporaryController("Canonical company delegation is no longer valid");
-            data.markDirty();
-            throw new WrongUsageException("Temporary command expired because canonical company delegation is no longer valid.");
+            data.markDirty();            throw new WrongUsageException("Temporary command expired because canonical company delegation is no longer valid.");
         }
         if (company.isMoving()) {
             throw new WrongUsageException(company.name + " is already moving.");

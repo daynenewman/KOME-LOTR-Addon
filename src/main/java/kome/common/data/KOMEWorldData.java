@@ -65,6 +65,7 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<UUID, NBTTagCompound> pledgeReleaseQuarantine = new HashMap<UUID, NBTTagCompound>();
     public final Map<UUID, String> pledgeReleaseLastResults = new HashMap<UUID, String>();
     public final List<String> pledgeReleaseAudit = new ArrayList<String>();
+    public final List<String> companyDelegationAudit = new ArrayList<String>();
     public final Map<String, Integer> allianceRequirementOverrides = new HashMap<String, Integer>();
     public final Map<String, Integer> allianceQuotaWeightOverrides = new HashMap<String, Integer>();
     public final Map<String, Integer> allianceQuotaMaximumOverrides = new HashMap<String, Integer>();
@@ -272,6 +273,31 @@ public class KOMEWorldData extends WorldSavedData {
         return Math.max(0, getFactionEffectivePopulationSummary(faction).offensiveTotal);
     }
 
+    public void recordCompanyDelegationAudit(long nowMillis, String action, KOMEArmyCompany company,
+            UUID actor, String actorName, UUID controller, String controllerName, String reason) {
+        String companyId = company == null || company.id == null ? "" : company.id;
+        String nativeFaction = company == null ? "" : KOMEWartimeStewardshipService.nativeFaction(company);
+        UUID owner = company == null ? null : company.owner;
+        String entry = Math.max(0L, nowMillis)
+            + "|action=" + companyAuditValue(action)
+            + "|company=" + companyAuditValue(companyId)
+            + "|native=" + companyAuditValue(nativeFaction)
+            + "|owner=" + (owner == null ? "" : owner.toString())
+            + "|actor=" + (actor == null ? "" : actor.toString())
+            + "|actorName=" + companyAuditValue(actorName)
+            + "|controller=" + (controller == null ? "" : controller.toString())
+            + "|controllerName=" + companyAuditValue(controllerName)
+            + "|reason=" + companyAuditValue(reason);
+        companyDelegationAudit.add(entry);
+        while (companyDelegationAudit.size() > 250) {
+            companyDelegationAudit.remove(0);
+        }
+        markDirty();
+    }
+
+    private static String companyAuditValue(String value) {
+        return value == null ? "" : value.replace('|', ' ').replace('\n', ' ').replace('\r', ' ').trim();
+    }
     public void recordAllianceAdminAction(String actor, String action) {
         String entry = System.currentTimeMillis() + "|" + (actor == null ? "" : actor.replace('|', ' ')) + "|"
             + (action == null ? "" : action.replace('|', ' '));
@@ -2305,6 +2331,7 @@ public class KOMEWorldData extends WorldSavedData {
         pledgeReleaseQuarantine.clear();
         pledgeReleaseLastResults.clear();
         pledgeReleaseAudit.clear();
+        companyDelegationAudit.clear();
         allianceRequirementOverrides.clear();
         allianceQuotaWeightOverrides.clear();
         allianceQuotaMaximumOverrides.clear();
@@ -2460,6 +2487,13 @@ public class KOMEWorldData extends WorldSavedData {
             if (entry.length() > 0) pledgeReleaseAudit.add(entry);
         }
 
+        NBTTagList companyDelegationAuditList = nbt.getTagList("CompanyDelegationAudit", 10);
+        for (int i = 0; i < companyDelegationAuditList.tagCount() && companyDelegationAudit.size() < 250; i++) {
+            String entry = companyDelegationAuditList.getCompoundTagAt(i).getString("Entry");
+            if (entry.length() > 0) {
+                companyDelegationAudit.add(entry);
+            }
+        }
         NBTTagList kingList = nbt.getTagList("FactionKings", 10);
         for (int i = 0; i < kingList.tagCount(); i++) {
             NBTTagCompound entry = kingList.getCompoundTagAt(i);
@@ -3195,6 +3229,16 @@ public class KOMEWorldData extends WorldSavedData {
         }
         nbt.setTag("PledgeReleaseAudit", releaseAuditList);
 
+        NBTTagList companyDelegationAuditList = new NBTTagList();
+        for (String entry : companyDelegationAudit) {
+            if (entry == null || entry.length() == 0) {
+                continue;
+            }
+            NBTTagCompound value = new NBTTagCompound();
+            value.setString("Entry", entry);
+            companyDelegationAuditList.appendTag(value);
+        }
+        nbt.setTag("CompanyDelegationAudit", companyDelegationAuditList);
         NBTTagList adminMarkerList = new NBTTagList();
         for (UUID playerId : adminUnitMapMarkerOptOuts) {
             if (playerId != null) {

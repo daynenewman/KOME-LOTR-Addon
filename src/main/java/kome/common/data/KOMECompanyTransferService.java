@@ -107,7 +107,14 @@ public final class KOMECompanyTransferService {
         }
 
         UUID formerOwner = company.owner;
-        for (KOMEHiredUnitRecord record : records) {
+        if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
+                && company.temporaryController != null) {
+            data.recordCompanyDelegationAudit(
+                nowMillis, "REVOKED_TRANSFER", company,
+                recipient, recipientName,
+                company.temporaryController, company.temporaryControllerName,
+                "Permanent company transfer completed");
+        }        for (KOMEHiredUnitRecord record : records) {
             record.owner = recipient;
             record.controller = recipient;
             record.companyAssignedBy = recipient;
