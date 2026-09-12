@@ -6,9 +6,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.EnumChatFormatting;
 
-import com.lotrcharactercreation.network.ModNetwork;
 import com.lotrcharactercreation.race.PlayerRaceData;
-import com.lotrcharactercreation.trait.RaceTraitService;
 
 public class CommandLotrCreation extends CommandBase {
 
@@ -42,7 +40,13 @@ public class CommandLotrCreation extends CommandBase {
         }
 
         if (arguments[0].equalsIgnoreCase("complete")) {
-            PlayerRaceData.setCharacterCreationComplete(player, true);
+            ChatComponentText error = new ChatComponentText(
+                "Unsafe direct completion is disabled. Complete Character Creation normally or use "
+                    + "/kome character recreate <player>.");
+            error.getChatStyle()
+                .setColor(EnumChatFormatting.RED);
+            sender.addChatMessage(error);
+            return;
         } else if (arguments[0].equalsIgnoreCase("reset")) {
             ChatComponentText error = new ChatComponentText(
                 "Unsafe reset is disabled. Use /kome character recreate <player>.");
@@ -54,10 +58,6 @@ public class CommandLotrCreation extends CommandBase {
             sendUsageError(sender);
             return;
         }
-
-        RaceTraitService.refreshDerivedAttributes(player);
-        ModNetwork.sendPlayerAppearanceToTrackingAndSelf(player);
-        reportStatus(sender, player);
     }
 
     private static void reportStatus(ICommandSender sender, EntityPlayerMP player) {

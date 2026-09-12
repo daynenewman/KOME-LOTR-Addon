@@ -95,6 +95,33 @@ public class CharacterRecreationContractTest {
     }
 
     @Test
+    public void legacyDirectCompletionIsDisabledWithoutMutatingCharacterState() throws Exception {
+        String legacyCommand = source("main/java/com/lotrcharactercreation/command/CommandLotrCreation.java");
+        int completeBranch = legacyCommand.indexOf("arguments[0].equalsIgnoreCase(\"complete\")");
+        int resetBranch = legacyCommand.indexOf("arguments[0].equalsIgnoreCase(\"reset\")", completeBranch);
+        String completeBody = legacyCommand.substring(completeBranch, resetBranch);
+
+        assertTrue(legacyCommand.contains("return 2;"));
+        assertTrue(completeBody.contains("Unsafe direct completion is disabled"));
+        assertTrue(completeBody.contains("Complete Character Creation normally"));
+        assertTrue(completeBody.contains("/kome character recreate <player>"));
+        assertTrue(completeBody.contains("return;"));
+        assertFalse(completeBody.contains("PlayerRaceData.set"));
+        assertFalse(completeBody.contains("StartingFactionApplication"));
+        assertFalse(completeBody.contains("StartingWaypointApplication"));
+        assertFalse(completeBody.contains("LOTRLevelData"));
+        assertFalse(completeBody.contains("ModNetwork"));
+        assertFalse(completeBody.contains("RaceTraitService"));
+
+        assertFalse(legacyCommand.contains("setCharacterCreationComplete"));
+        assertFalse(legacyCommand.contains("setRaceSelectionComplete"));
+        assertFalse(legacyCommand.contains("setFactionSelectionComplete"));
+        assertFalse(legacyCommand.contains("setStartingFactionApplied"));
+        assertFalse(legacyCommand.contains("setStartingWaypointApplied"));
+        assertFalse(legacyCommand.contains("setCharacterEditAuthorized"));
+    }
+
+    @Test
     public void recreationServiceHasNoClientLotrOrOneTimeApplicationDependency() throws Exception {
         String service = source("main/java/com/lotrcharactercreation/creation/CharacterRecreationService.java");
 
