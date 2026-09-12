@@ -52,26 +52,42 @@ public class KOMEProgressionTitles {
 
     private static Rank getRank(EntityPlayerMP player, KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression) {
         FactionRankKey faction = getFactionRankKey(player, progression);
-        boolean kingEligible = isGroupComplete(progression, "prince_king");
-        if (data.reconcilePlayerKingship(faction.key, playerID, player.getCommandSenderName(), kingEligible)) {
+        String rankName = resolveRankName(data, playerID, progression, faction.key);
+        if ("King".equals(rankName)) {
             return new Rank(TEAM_PREFIX + "king", "[King] ");
         }
-        if (kingEligible) {
+        if ("Prince".equals(rankName)) {
             return new Rank(TEAM_PREFIX + "prince", "[Prince] ");
         }
-        if (isGroupComplete(progression, "lord")) {
-            return new Rank(TEAM_PREFIX + "prince", "[Prince] ");
-        }
-        if (isGroupComplete(progression, "knight")) {
+        if ("Lord".equals(rankName)) {
             return new Rank(TEAM_PREFIX + "lord", "[Lord] ");
         }
-        if (isGroupComplete(progression, "serf")) {
+        if ("Knight".equals(rankName)) {
             return new Rank(TEAM_PREFIX + "knight", "[Knight] ");
         }
-        if (isGroupComplete(progression, "wanderer")) {
+        if ("Serf".equals(rankName)) {
             return new Rank(TEAM_PREFIX + "serf", "[Serf] ");
         }
         return new Rank(TEAM_PREFIX + "wander", "[Wanderer] ");
+    }
+
+    static String resolveRankName(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {
+        if (data != null && data.isFactionKing(factionKey, playerID)) {
+            return "King";
+        }
+        if (isGroupComplete(progression, "prince_king") || isGroupComplete(progression, "lord")) {
+            return "Prince";
+        }
+        if (isGroupComplete(progression, "knight")) {
+            return "Lord";
+        }
+        if (isGroupComplete(progression, "serf")) {
+            return "Knight";
+        }
+        if (isGroupComplete(progression, "wanderer")) {
+            return "Serf";
+        }
+        return "Wanderer";
     }
 
     private static boolean isGroupComplete(KOMEPlayerProgression progression, String group) {

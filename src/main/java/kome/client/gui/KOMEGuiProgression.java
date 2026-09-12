@@ -20,7 +20,7 @@ import java.util.Set;
 
 public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private static final String[] GROUPS = new String[] {"baseline", "wanderer", "serf", "knight", "lord", "prince_king"};
-    private static final String[] GROUP_NAMES = new String[] {"Permissions", "Wanderer", "Serf", "Knight", "Lord", "Prince / King"};
+    private static final String[] GROUP_NAMES = new String[] {"Permissions", "Wanderer", "Serf", "Knight", "Lord", "Prince"};
     private static String playerName = "";
     private static Set completed = new HashSet();
     private static Map assignments = new HashMap();
@@ -79,7 +79,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         drawCenteredString("KOME Progression", guiLeft + xSize / 2, guiTop - 30, 16777215);
         String owner = playerName == null || playerName.length() == 0 ? "Loading..." : playerName;
         drawCenteredString(owner + " - " + totalComplete + "/" + KOMEProgressionAchievement.ALL.size(), guiLeft + xSize / 2, guiTop - 18, 12632256);
-        drawCenteredString(GROUP_NAMES[currentGroup] + " (" + complete + "/" + groupAchievements.size() + ")", guiLeft + xSize / 2, guiTop + 28, 8019267);
+        drawCenteredString(displayNameForGroup(GROUPS[currentGroup]) + " (" + complete + "/" + groupAchievements.size() + ")", guiLeft + xSize / 2, guiTop + 28, 8019267);
 
         super.drawScreen(mouseX, mouseY, partialTicks);
 
@@ -87,6 +87,15 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         drawAchievements(groupAchievements);
         drawScrollbar(groupAchievements.size());
         drawAchievementTooltip(mouseX, mouseY, groupAchievements);
+    }
+
+    static String displayNameForGroup(String group) {
+        for (int i = 0; i < GROUPS.length; i++) {
+            if (GROUPS[i].equals(group)) {
+                return GROUP_NAMES[i];
+            }
+        }
+        return "";
     }
 
     @Override

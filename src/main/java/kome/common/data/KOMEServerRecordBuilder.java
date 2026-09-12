@@ -145,9 +145,12 @@ public class KOMEServerRecordBuilder {
             + ", Active Population " + active + ", Daily Population Rate " + rate;
     }
 
-    private static String getRank(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {
+    static String getRank(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {
+        if (data.isFactionKing(factionKey, playerID)) {
+            return "King";
+        }
         if (isGroupComplete(progression, "prince_king")) {
-            return data.isFactionKing(factionKey, playerID) ? "King" : "Prince";
+            return "Prince";
         }
         if (isGroupComplete(progression, "lord")) {
             return "Prince";
