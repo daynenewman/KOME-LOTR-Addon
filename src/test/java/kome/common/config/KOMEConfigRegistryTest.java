@@ -86,6 +86,23 @@ public class KOMEConfigRegistryTest {
         invalid(KOMEConfigRegistry.POPULATION_CATEGORY, KOMEConfigRegistry.UNIT_POPULATION_COST_OVERRIDES, "lotr.troll=0");
     }
 
+    @Test public void warInactivityAndBondSettingsAreTypedAndSafeByDefault() throws Exception {
+        File file=configFile(); write(file,"season","warInactivityDurationMillis","5000"); write(file,"season","warBondsEnabled","true"); write(file,"season","attackerWarBond","7"); write(file,"season","participationWarBond","3"); KOMEConfigRegistry.load(file);
+        assertEquals(5000,KOMEConfigRegistry.season().getWarInactivityDurationMillis().getAsInt()); assertTrue(KOMEConfigRegistry.season().isWarBondsEnabled()); assertEquals(7,KOMEConfigRegistry.season().getAttackerWarBond()); assertEquals(3,KOMEConfigRegistry.season().getParticipationWarBond());
+        invalid("season","attackerWarBond","-1"); invalid("season","participationWarBond","-1"); invalid("season","warBondsEnabled","sometimes"); KOMEConfigRegistry.load(configFile());
+    }
+
+    @Test public void gearRulesUseStableItemIdsAndValidateFactionLists() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.GEAR_CATEGORY, KOMEConfigRegistry.GEAR_RESTRICTION_RULES,
+                "future~example:legend~baseline.faction_gear~baseline.faction_armor~gondolin|lindon~true~false");
+        KOMEConfigRegistry.load(file);
+        KOMEConfigRegistry.GearRuleSetting rule = KOMEConfigRegistry.gear().getRulesByItemId().get("example:legend");
+        assertEquals("future", rule.getCategory()); assertTrue(rule.getPermittedFactions().contains("gondolin"));
+        invalid(KOMEConfigRegistry.GEAR_CATEGORY, KOMEConfigRegistry.GEAR_RESTRICTION_RULES,
+                "future~example:legend~-~-~gondolin|gondolin~true~false");
+    }
+
     @Test
     public void zeroHoursFailWithKeyAndValue() throws Exception {
         invalid(KOMEConfigRegistry.POPULATION_CATEGORY,

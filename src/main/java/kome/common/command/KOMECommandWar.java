@@ -49,8 +49,9 @@ public class KOMECommandWar extends CommandBase {
                 sender.addChatMessage(new ChatComponentText("Those factions already oppose each other in " + display(existing) + "; no duplicate war was created."));
                 return;
             }
-            KOMEWar war = KOMEWarService.createWar(data, first, second, join(args, 3), sender.getCommandSenderName(), now);
-            if (war == null) throw new WrongUsageException("Could not create the war record.");
+            KOMEWarService.CreationResult created=KOMEWarService.createWarResult(data, first, second, join(args, 3), sender.getCommandSenderName(), now);
+            if (created.war == null) throw new WrongUsageException(created.reason);
+            KOMEWar war=created.war;
             refresh(data, "War created");
             sender.addChatMessage(new ChatComponentText("Created " + display(war) + ": " + side(war, 1) + " versus " + side(war, 2) + "."));
             warnContradictions(sender, data, first, second);
@@ -79,6 +80,9 @@ public class KOMECommandWar extends CommandBase {
             sender.addChatMessage(new ChatComponentText(war.sideTwoName + ": " + join(new ArrayList<String>(war.sideTwoFactions))));
             sender.addChatMessage(new ChatComponentText("Tile events: " + war.tileCaptureHistory.size() + ", stewardship records: "
                 + war.stewardshipAuthorizations.size() + ", admin events: " + war.administrativeHistory.size() + "."));
+            long threshold=kome.common.config.KOMEConfigRegistry.season().getWarInactivityDurationMillis().isPresent()?kome.common.config.KOMEConfigRegistry.season().getWarInactivityDurationMillis().getAsInt():-1L;
+            sender.addChatMessage(new ChatComponentText("Last hostile pressure="+war.lastActivePressureAtMillis+", inactivity threshold="+(threshold<0?"TBD":threshold)+", eligible="+(threshold>=0&&KOMEWarService.isInactivityEligible(war,now,threshold))+"; bonds="+kome.common.config.KOMEConfigRegistry.season().isWarBondsEnabled()+" (no funding provider installed)."));
+            for(KOMEWar.BondEscrow escrow:war.bondEscrows)sender.addChatMessage(new ChatComponentText("Bond: "+escrow.faction+" "+escrow.role+" "+escrow.amount+" "+escrow.status));
             for (KOMEWar.MembershipRecord membership : war.membershipHistory) {
                 sender.addChatMessage(new ChatComponentText("Membership: " + KOMEAlliance.displayFactionName(membership.faction)
                     + " side " + membership.side + " via " + membership.source
@@ -177,6 +181,7 @@ public class KOMECommandWar extends CommandBase {
             int existingSide = war.sideOf(faction);
             if (existingSide != 0) throw new WrongUsageException(existingSide == side
                 ? "That faction is already on this side." : "That faction is on the other side; use /war side move explicitly.");
+            if(side==1){KOMEWarService.AuthorizationDecision bond=KOMEWarService.postParticipationBond(war,faction,"OFFENSIVE_PARTICIPATION",now);if(!bond.allowed)throw new WrongUsageException(bond.reason);}
             war.addFaction(side, faction);
             war.recordMembership(faction, side, "MANUAL", "", sender.getCommandSenderName(), now);
             audit(war, sender, "SIDE_ADD", faction + " to " + side, now);

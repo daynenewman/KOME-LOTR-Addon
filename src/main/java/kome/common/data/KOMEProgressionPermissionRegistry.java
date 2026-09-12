@@ -25,7 +25,7 @@ public final class KOMEProgressionPermissionRegistry {
         gate(gates,"baseline.npc_trade","NPC trading","KOMEEvents container gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.pledge","Pledging to a lord","KOMEProgressionLords",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.pouches","Pouch use","KOMEEvents interaction/container gate",Status.CANONICAL_ENFORCED);
-        gate(gates,"baseline.stonework","Stone tools","KOMEEvents crafting gate",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.stonework","Stone tools","KOMEGearRestrictionService action/crafting gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.fast_travel","Fast travel","KOMEWaypointAccessService",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.take_waypoints","Hostile waypoint/tile capture","KOMEPacketConquestClaim",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.reclaim_waypoints","Faction waypoint/tile reclaim","KOMEPacketConquestClaim",Status.CANONICAL_ENFORCED);
@@ -34,10 +34,12 @@ public final class KOMEProgressionPermissionRegistry {
         gate(gates,"baseline.fellowship","LOTR fellowship API","No addon action site",Status.CANONICAL_HANDOFF);
         gate(gates,"baseline.redstone","Redstone use","No addon action site",Status.CANONICAL_HANDOFF);
         gate(gates,"baseline.protective_banners","Protective banners","No addon action site",Status.CANONICAL_HANDOFF);
-        gate(gates,"baseline.faction_gear","Faction gear","KOM-35 gear enforcement handoff",Status.CANONICAL_HANDOFF);
-        gate(gates,"baseline.faction_armor","Faction armor","KOM-35 gear enforcement handoff",Status.CANONICAL_HANDOFF);
-        gate(gates,"baseline.non_faction_gear","Non-faction gear","KOM-35 gear enforcement handoff",Status.CANONICAL_HANDOFF);
-        gate(gates,"baseline.non_faction_armor","Non-faction armor","KOM-35 gear enforcement handoff",Status.CANONICAL_HANDOFF);
+        gate(gates,"baseline.faction_gear","Faction gear","KOMEGearRestrictionService action gate",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.faction_armor","Faction armor","KOMEGearRestrictionService armor gate",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.non_faction_gear","Non-faction gear","KOMEGearRestrictionService action gate",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.non_faction_armor","Non-faction armor","KOMEGearRestrictionService armor gate",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.mithril_gear","Mithril gear","KOMEGearRestrictionService action/armor gate",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.utumno_gear","Utumno gear","KOMEGearRestrictionService action/armor gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.free_war","War-season context","Informational: war lifecycle is canonical service/season driven",Status.INFORMATIONAL);
         GATES=Collections.unmodifiableMap(gates);
     }

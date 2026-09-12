@@ -24,6 +24,12 @@ public class KOMEProgressionPermissions {
     public static final String TAKE_WAYPOINTS = "baseline.take_waypoints";
     public static final String RECLAIM_WAYPOINTS = "baseline.reclaim_waypoints";
     public static final String FAST_TRAVEL = "baseline.fast_travel";
+    public static final String FACTION_GEAR = "baseline.faction_gear";
+    public static final String FACTION_ARMOR = "baseline.faction_armor";
+    public static final String NON_FACTION_GEAR = "baseline.non_faction_gear";
+    public static final String NON_FACTION_ARMOR = "baseline.non_faction_armor";
+    public static final String MITHRIL_GEAR = "baseline.mithril_gear";
+    public static final String UTUMNO_GEAR = "baseline.utumno_gear";
 
     public static boolean has(EntityPlayer player, String permissionID) {
         if (player == null || permissionID == null) {

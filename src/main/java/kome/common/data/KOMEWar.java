@@ -30,6 +30,8 @@ public class KOMEWar {
     public long endingAtMillis;
     public long endedAtMillis;
     public long lastUpdatedAtMillis;
+    /** Canonical persisted hostile-pressure time; never derived from restart time. */
+    public long lastActivePressureAtMillis;
     public String endingReason = "";
     public boolean cancelled;
     public final List<TileCaptureEvent> tileCaptureHistory = new ArrayList<TileCaptureEvent>();
@@ -37,6 +39,7 @@ public class KOMEWar {
     public final List<MembershipRecord> membershipHistory = new ArrayList<MembershipRecord>();
     public final List<MilitarySupportEnrollment> militarySupportEnrollments = new ArrayList<MilitarySupportEnrollment>();
     public final List<StewardshipAuthorization> stewardshipAuthorizations = new ArrayList<StewardshipAuthorization>();
+    public final List<BondEscrow> bondEscrows = new ArrayList<BondEscrow>();
 
     public boolean isActive() {
         return ACTIVE.equals(status);
@@ -202,6 +205,7 @@ public class KOMEWar {
         nbt.setLong("EndingAtMillis", endingAtMillis);
         nbt.setLong("EndedAtMillis", endedAtMillis);
         nbt.setLong("LastUpdatedAtMillis", lastUpdatedAtMillis);
+        nbt.setLong("LastActivePressureAtMillis", lastActivePressureAtMillis);
         nbt.setString("EndingReason", safe(endingReason));
         nbt.setBoolean("Cancelled", cancelled);
         NBTTagList captures = new NBTTagList();
@@ -221,6 +225,7 @@ public class KOMEWar {
             authorizations.appendTag(authorization.writeToNBT());
         }
         nbt.setTag("StewardshipAuthorizations", authorizations);
+        NBTTagList escrow=new NBTTagList(); for(BondEscrow e:bondEscrows) escrow.appendTag(e.writeToNBT()); nbt.setTag("BondEscrows",escrow);
         return nbt;
     }
 
@@ -249,6 +254,7 @@ public class KOMEWar {
         endingAtMillis = Math.max(0L, nbt.getLong("EndingAtMillis"));
         endedAtMillis = Math.max(0L, nbt.getLong("EndedAtMillis"));
         lastUpdatedAtMillis = Math.max(createdAtMillis, nbt.getLong("LastUpdatedAtMillis"));
+        lastActivePressureAtMillis = Math.max(createdAtMillis, nbt.getLong("LastActivePressureAtMillis"));
         endingReason = nbt.getString("EndingReason");
         cancelled = nbt.getBoolean("Cancelled");
         tileCaptureHistory.clear();
@@ -292,6 +298,7 @@ public class KOMEWar {
             authorization.readFromNBT(authorizations.getCompoundTagAt(i));
             if (authorization.companyId.length() > 0) stewardshipAuthorizations.add(authorization);
         }
+        bondEscrows.clear(); NBTTagList escrow=nbt.getTagList("BondEscrows",10); for(int i=0;i<escrow.tagCount();i++){BondEscrow e=new BondEscrow();e.readFromNBT(escrow.getCompoundTagAt(i));if(e.amount>=0)bondEscrows.add(e);}
     }
 
     private static NBTTagList writeStrings(Set<String> values) {
@@ -333,6 +340,10 @@ public class KOMEWar {
         catch (IllegalArgumentException ignored) { return null; }
     }
 
+    public static class BondEscrow { public String faction="",role="",status="HELD"; public int amount; public long postedAtMillis,resolvedAtMillis;
+        NBTTagCompound writeToNBT(){NBTTagCompound n=new NBTTagCompound();n.setString("Faction",faction);n.setString("Role",role);n.setString("Status",status);n.setInteger("Amount",amount);n.setLong("Posted",postedAtMillis);n.setLong("Resolved",resolvedAtMillis);return n;}
+        void readFromNBT(NBTTagCompound n){faction=KOMEAlliance.normalizeFactionKey(n.getString("Faction"));role=safe(n.getString("Role"));status=safe(n.getString("Status"));amount=Math.max(0,n.getInteger("Amount"));postedAtMillis=Math.max(0,n.getLong("Posted"));resolvedAtMillis=Math.max(0,n.getLong("Resolved"));}
+    }
     public static class TileCaptureEvent {
         public String tileId = "";
         public String formerOwner = "";

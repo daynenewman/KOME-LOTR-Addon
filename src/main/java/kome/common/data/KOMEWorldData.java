@@ -52,6 +52,8 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId = new HashMap<>();
     public final Map<String, KOMEConquestRouteEdge> routeEdges = new HashMap<>();
     public final Map<String, KOMEPlayerBuild> builds = new HashMap<String, KOMEPlayerBuild>();
+    /** Explicit future-construction grants; Build provenance is deliberately stored separately. */
+    public final Map<String, KOMEForeignConstructionPermission> foreignConstructionPermissions = new HashMap<String, KOMEForeignConstructionPermission>();
     public final Map<String, KOMEAlliance> alliances = new HashMap<>();
     /** KOM-13 canonical bilateral diplomacy; legacy alliances remain separate compatibility state. */
     public final Map<String, KOMEDiplomacyRecord> canonicalDiplomacyRecords = new HashMap<String, KOMEDiplomacyRecord>();
@@ -2294,6 +2296,7 @@ public class KOMEWorldData extends WorldSavedData {
         tileWaypointLinksByTileId.clear();
         routeEdges.clear();
         builds.clear();
+        foreignConstructionPermissions.clear();
         alliances.clear();
         canonicalDiplomacyRecords.clear();
         recoveredLegacyTradePostIds.clear();
@@ -2540,6 +2543,11 @@ public class KOMEWorldData extends WorldSavedData {
             } catch (IllegalArgumentException ignored) {
                 safeAllianceInfo("[KOME] Discarded stale Build record without a valid BuildType.");
             }
+        }
+        NBTTagList foreignConstructionList = nbt.getTagList("ForeignConstructionPermissions", 10);
+        for (int i = 0; i < foreignConstructionList.tagCount(); i++) {
+            KOMEForeignConstructionPermission permission = new KOMEForeignConstructionPermission();
+            if (permission.readFromNBT(foreignConstructionList.getCompoundTagAt(i))) foreignConstructionPermissions.put(permission.key(), permission);
         }
         if (savedBuildSchema < BUILD_DATA_SCHEMA_VERSION) {
             safeAllianceInfo("[KOME] Build schema " + savedBuildSchema + " -> " + BUILD_DATA_SCHEMA_VERSION
@@ -3261,6 +3269,10 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
         nbt.setTag("Builds", buildList);
+
+        NBTTagList foreignConstructionList = new NBTTagList();
+        for (KOMEForeignConstructionPermission permission : foreignConstructionPermissions.values()) if (permission != null) foreignConstructionList.appendTag(permission.writeToNBT());
+        nbt.setTag("ForeignConstructionPermissions", foreignConstructionList);
 
         NBTTagList allocationList = new NBTTagList();
         for (KOMEPlayerTilePopulationAllocation allocation : populationAllocations.values()) {

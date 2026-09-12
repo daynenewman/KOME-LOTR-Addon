@@ -6,6 +6,8 @@ import kome.common.data.KOMEBuildContribution;
 import kome.common.data.KOMEHalfHourService;
 import kome.common.data.KOMEBuildService;
 import kome.common.data.KOMEPlayerBuild;
+import kome.common.data.KOMEForeignConstructionPermission;
+import kome.common.data.KOMEForeignConstructionService;
 import kome.common.data.KOMEBuildType;
 import kome.common.data.KOMETilePopulation;
 import kome.common.data.KOMEWorldData;
@@ -27,7 +29,7 @@ public class KOMECommandBuild extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/build list [tile] | inspect <id> | reassign <id> <onlinePlayer> | remove <id> | sethours <id> <normal|defensive> <hours>";
+        return "/build grants <tile> | grant <tile> <faction> | revoke <tile> <faction> | list [tile] | inspect <id> | reassign <id> <onlinePlayer> | remove <id> | sethours <id> <normal|defensive> <hours>";
     }
 
     @Override
@@ -40,6 +42,22 @@ public class KOMECommandBuild extends CommandBase {
         if (args.length == 0) throw new WrongUsageException(getCommandUsage(sender));
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
+        if ("grants".equals(action) && args.length == 2) {
+            List<KOMEForeignConstructionPermission> grants = KOMEForeignConstructionService.currentForTile(data, args[1]);
+            sender.addChatMessage(new ChatComponentText("Foreign construction grants: " + grants.size()));
+            for (KOMEForeignConstructionPermission grant : grants) sender.addChatMessage(new ChatComponentText(KOMEAlliance.displayFactionName(grant.granteeFaction) + " granted by " + KOMEAlliance.displayFactionName(grant.grantingFaction)));
+            return;
+        }
+        if (("grant".equals(action) || "revoke".equals(action)) && args.length == 3) {
+            if (!(sender instanceof EntityPlayerMP)) throw new WrongUsageException("Only a recognized ruler may manage construction grants.");
+            EntityPlayerMP player = (EntityPlayerMP) sender;
+            KOMEForeignConstructionService.Decision decision = "grant".equals(action)
+                ? KOMEForeignConstructionService.grant(data, args[1], KOMEReflection.getEntityUUID(player), args[2], System.currentTimeMillis())
+                : KOMEForeignConstructionService.revoke(data, args[1], KOMEReflection.getEntityUUID(player), args[2]);
+            if (!decision.allowed) throw new WrongUsageException(decision.reason);
+            sender.addChatMessage(new ChatComponentText("grant".equals(action) ? "Construction permission granted." : "Construction permission revoked for future Builds."));
+            return;
+        }
         if ("list".equals(action)) {
             String tile = args.length > 1 ? args[1] : "";
             List<KOMEPlayerBuild> builds = tile.length() == 0

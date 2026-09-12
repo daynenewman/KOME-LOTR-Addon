@@ -11,7 +11,7 @@ import java.util.OptionalInt;
 public final class KOMEConfigInspection {
     private static final String[] CATEGORIES = {
             "dailyBatch", "population", "movement", "battle", "muster", "siege",
-            "battleSupport", "encirclement", "season"
+            "battleSupport", "encirclement", "season", "gear"
     };
 
     private KOMEConfigInspection() {
@@ -106,6 +106,9 @@ public final class KOMEConfigInspection {
             KOMEConfigRegistry.SeasonSettings s = KOMEConfigRegistry.season();
             add(values, category, "minimumWarSeasonLengthDays", s.getMinimumWarSeasonLengthDays());
             add(values, category, "automaticFinaleEnabled", s.isAutomaticFinaleEnabled());
+            add(values,category,"warInactivityDurationMillis",s.getWarInactivityDurationMillis()); add(values,category,"warBondsEnabled",s.isWarBondsEnabled()); add(values,category,"attackerWarBond",s.getAttackerWarBond()); add(values,category,"participationWarBond",s.getParticipationWarBond());
+        } else if ("gear".equals(category)) {
+            add(values, category, "restrictionRules", KOMEConfigRegistry.gear().getRulesByItemId());
         }
         return values;
     }
