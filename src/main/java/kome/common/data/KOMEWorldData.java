@@ -68,6 +68,8 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<UUID, String> pledgeReleaseLastResults = new HashMap<UUID, String>();
     public final List<String> pledgeReleaseAudit = new ArrayList<String>();
     public final List<String> companyDelegationAudit = new ArrayList<String>();
+    /** Cross-domain bounded audit stream; specialized histories remain authoritative for their domains. */
+    public final List<KOMEAuditEntry> centralAudit = new ArrayList<KOMEAuditEntry>();
     public final Map<String, Integer> allianceRequirementOverrides = new HashMap<String, Integer>();
     public final Map<String, Integer> allianceQuotaWeightOverrides = new HashMap<String, Integer>();
     public final Map<String, Integer> allianceQuotaMaximumOverrides = new HashMap<String, Integer>();
@@ -296,7 +298,34 @@ public class KOMEWorldData extends WorldSavedData {
         while (companyDelegationAudit.size() > 250) {
             companyDelegationAudit.remove(0);
         }
+        String details = "stewardship=" + stewardshipFingerprint(company, controller);
+        boolean duplicateRevalidation = false;
+        if ("STEWARDSHIP_REVALIDATED".equals(action)) {
+            for (int i = centralAudit.size() - 1; i >= 0; i--) {
+                KOMEAuditEntry previous = centralAudit.get(i);
+                if (!"COMPANY".equals(previous.domain) || !companyId.equals(previous.subject)) continue;
+                if (action.equals(previous.action)) { duplicateRevalidation = details.equals(previous.details); break; }
+                if ("STEWARDSHIP_GRANTED".equals(previous.action) || "STEWARDSHIP_REVOKED".equals(previous.action)
+                        || "STEWARDSHIP_DEMOBILIZED".equals(previous.action)) break;
+            }
+        }
+        if (!duplicateRevalidation) KOMEAuditService.record(this, nowMillis, "COMPANY", action, actor == null ? "" : actor.toString(),
+            companyId, reason, details);
         markDirty();
+    }
+
+    private static String safeAudit(String value) { return value == null ? "" : value.replace('|', ' ').replace('\n', ' ').replace('\r', ' ').trim(); }
+
+    private static String stewardshipFingerprint(KOMEArmyCompany company, UUID controller) {
+        String nativeFaction = company == null ? "" : KOMEWartimeStewardshipService.nativeFaction(company);
+        String authority = company == null || company.controllerAuthority == null ? "" : company.controllerAuthority;
+        List<String> wars = new ArrayList<String>();
+        if (company != null) wars.addAll(company.authorizedWarIds);
+        Collections.sort(wars);
+        String withdrawal = company == null || company.withdrawalState == null ? "" : company.withdrawalState;
+        return safeAudit(nativeFaction) + ";controller=" + (controller == null ? "" : controller.toString())
+            + ";authority=" + safeAudit(authority) + ";wars=" + safeAudit(wars.toString())
+            + ";withdrawal=" + safeAudit(withdrawal);
     }
 
     private static String companyAuditValue(String value) {
@@ -336,22 +365,48 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public void updateMovementHistory(KOMEArmyMovementOrder order, String status) {
+        updateMovementHistory(order, status, true);
+    }
+
+    public void syncMovementHistory(KOMEArmyMovementOrder order, String status) {
+        updateMovementHistory(order, status, false);
+    }
+
+    private void updateMovementHistory(KOMEArmyMovementOrder order, String status, boolean audit) {
+        if (order == null || order.id == null || order.id.length() == 0) return;
+        boolean firstSnapshot = !movementHistory.containsKey(order.id);
         KOMEMovementHistoryRecord record = getOrCreateMovementHistory(order);
         if (record == null) {
             return;
         }
+        String previousStatus = record.status;
         record.updateFromOrder(order, status);
+        if (audit && status != null && (firstSnapshot || !status.equals(previousStatus))) {
+            String failure = order.pendingSpawnReason == null || order.pendingSpawnReason.length() == 0
+                ? (order.lastSpawnFailureDetails == null ? "" : order.lastSpawnFailureDetails) : order.pendingSpawnReason;
+            KOMEAuditService.record(this, System.currentTimeMillis(), "MOVEMENT", status, order.owner == null ? "" : order.owner.toString(),
+                order.id, "Movement status transitioned", "company=" + order.companyId + ";accessLoss="
+                    + (order.accessLossReason == null ? "" : order.accessLossReason) + ";failure=" + failure);
+        }
         captureRouteSpecialEdges(record);
         pruneMovementHistoryForFaction(record.faction);
         markDirty();
     }
 
     public void markMovementHistoryStopped(KOMEArmyMovementOrder order, UUID stoppedByUuid, String stoppedByName, long nowMillis) {
+        if (order == null || order.id == null || order.id.length() == 0) return;
+        boolean firstSnapshot = !movementHistory.containsKey(order.id);
         KOMEMovementHistoryRecord record = getOrCreateMovementHistory(order);
         if (record == null) {
             return;
         }
+        String previousStatus = record.status;
         record.updateFromOrder(order, KOMEMovementHistoryRecord.STOPPED);
+        if (firstSnapshot || !KOMEMovementHistoryRecord.STOPPED.equals(previousStatus)) {
+            KOMEAuditService.record(this, nowMillis, "MOVEMENT", KOMEMovementHistoryRecord.STOPPED,
+                order.owner == null ? "" : order.owner.toString(), order.id, "Movement status transitioned",
+                "company=" + order.companyId + ";accessLoss=" + (order.accessLossReason == null ? "" : order.accessLossReason));
+        }
         record.stoppedAtMillis = nowMillis;
         record.stoppedByUuid = stoppedByUuid;
         record.stoppedByName = stoppedByName == null ? "" : stoppedByName;
@@ -1431,6 +1486,10 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
         reconcileClaimantAllocation(tile);
+        if (!previousOwner.equals(currentOwner)) {
+            KOMEAuditService.record(this, worldTime, "TILE", "OWNERSHIP_CHANGE", playerId == null ? "" : playerId.toString(),
+                tile.id, "Tile ownership changed", previousOwner + " -> " + currentOwner);
+        }
         markDirty();
     }
 
@@ -2309,6 +2368,7 @@ public class KOMEWorldData extends WorldSavedData {
         pledgeReleaseLastResults.clear();
         pledgeReleaseAudit.clear();
         companyDelegationAudit.clear();
+        centralAudit.clear();
         allianceRequirementOverrides.clear();
         allianceQuotaWeightOverrides.clear();
         allianceQuotaMaximumOverrides.clear();
@@ -2366,6 +2426,7 @@ public class KOMEWorldData extends WorldSavedData {
                 allianceAdminAudit.add(entry);
             }
         }
+        KOMEAuditService.readFromNBT(this, nbt);
         conquestDefaultsInitialized = nbt.hasKey("ConquestDefaultsInitialized") && nbt.getBoolean("ConquestDefaultsInitialized");
         if (movementDailyResetTime == null || movementDailyResetTime.length() == 0) {
             movementDailyResetTime = "20:00";
@@ -3073,6 +3134,7 @@ public class KOMEWorldData extends WorldSavedData {
         NBTTagCompound warSeasonTag = new NBTTagCompound();
         warSeason.writeToNBT(warSeasonTag);
         nbt.setTag("WarSeason", warSeasonTag);
+        KOMEAuditService.writeToNBT(this, nbt);
         nbt.setInteger("NextBuildSequence", Math.max(1, nextBuildSequence));
         nbt.setInteger("AllianceStageThreeRequiredHalfHours", Math.max(1, allianceStageThreeRequiredHalfHours));
         nbt.setString("AllianceDifficulty", KOMEAllianceRequirements.normalizeDifficulty(allianceDifficulty));

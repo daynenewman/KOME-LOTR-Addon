@@ -280,6 +280,8 @@ public final class KOMEWartimeStewardshipService {
             // Never copy a stale temporary controller. Revalidation owns revocation,
             // withdrawal, and cleanup when the authorization is no longer legal.
             if (!revalidateCompany(data, company, nowMillis, "Defensive stewardship repair revalidation")) continue;
+            int companyLinksBefore = linked;
+            int companyControllersBefore = controllers;
             for (java.util.UUID unitId : new ArrayList<java.util.UUID>(company.units)) {
                 KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
                 if (record == null || !(KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)
@@ -298,9 +300,11 @@ public final class KOMEWartimeStewardshipService {
                     controllers++;
                 }
             }
-            data.recordCompanyDelegationAudit(nowMillis, "STEWARDSHIP_DEFENSE_RECONCILED", company, null, "",
-                company.temporaryController, company.temporaryControllerName,
-                "Canonical defensive unit/company links reconciled");
+            if (linked > companyLinksBefore || controllers > companyControllersBefore) {
+                data.recordCompanyDelegationAudit(nowMillis, "STEWARDSHIP_DEFENSE_RECONCILED", company, null, "",
+                    company.temporaryController, company.temporaryControllerName,
+                    "Canonical defensive unit/company links reconciled");
+            }
         }
         if (linked > 0 || controllers > 0) data.markDirty();
         return RepairResult.allow(linked, controllers);

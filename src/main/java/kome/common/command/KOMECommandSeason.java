@@ -43,6 +43,11 @@ public final class KOMECommandSeason extends CommandBase {
             else throw new WrongUsageException(getCommandUsage(sender));
         }
         if (!result.allowed) throw new WrongUsageException(result.reason);
+        kome.common.data.KOMEAuditService.record(data, now, "SEASON", action.toUpperCase(java.util.Locale.ROOT),
+            sender.getCommandSenderName(), "season:" + data.warSeason.seasonId,
+            "Season transition completed", data.warSeason.phase.name());
+        if ("finale".equals(action)) kome.common.data.KOMENotificationService.timeSensitive(
+            "Season " + data.warSeason.seasonId + " entered Finale.");
         data.recordAllianceAdminAction("season", action + " by " + sender.getCommandSenderName());
         data.markDirty();
         sender.addChatMessage(new ChatComponentText("Season " + data.warSeason.seasonId + " is now " + data.warSeason.phase + "."));

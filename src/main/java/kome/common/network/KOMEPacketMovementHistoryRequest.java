@@ -68,7 +68,7 @@ public class KOMEPacketMovementHistoryRequest implements IMessage {
             }
             for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
                 if (order != null && order.id != null && order.id.length() > 0) {
-                    data.updateMovementHistory(order, order.isPendingSpawn() ? KOMEMovementHistoryRecord.FAILED
+                    data.syncMovementHistory(order, order.isPendingSpawn() ? KOMEMovementHistoryRecord.FAILED
                         : order.isMoving() ? KOMEMovementHistoryRecord.ACTIVE
                         : KOMEMovementHistoryRecord.ARRIVED.equals(order.status) ? KOMEMovementHistoryRecord.ARRIVED
                         : KOMEArmyMovementOrder.STOPPED.equals(order.status) ? KOMEMovementHistoryRecord.STOPPED : null);

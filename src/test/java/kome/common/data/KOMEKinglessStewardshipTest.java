@@ -49,7 +49,9 @@ public class KOMEKinglessStewardshipTest {
         assertEquals("rohan", company.nativeFaction);
         assertEquals("rohan", unit.populationOwningFaction);
         assertEquals(1, KOMEWartimeStewardshipService.reconcileDefensiveUnits(data, "rohan", 12L).repairedLinks);
+        int centralAfterFirstRepair = data.centralAudit.size();
         assertEquals(0, KOMEWartimeStewardshipService.reconcileDefensiveUnits(data, "rohan", 13L).repairedLinks);
+        assertEquals(centralAfterFirstRepair, data.centralAudit.size());
         assertEquals(grantsAfterAuthorization, countAudits(data, "action=STEWARDSHIP_GRANTED"));
         war.removeFaction("gondor");
         assertFalse(KOMEWartimeStewardshipService.revalidateCompany(data, company, 14L, "membership removed"));

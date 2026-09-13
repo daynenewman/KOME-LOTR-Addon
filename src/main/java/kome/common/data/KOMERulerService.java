@@ -52,11 +52,15 @@ public final class KOMERulerService {
         if (existing == null) {
             data.writeFactionKingRecord(key, playerID, cleanName);
             data.onFactionKingGained(key, now);
+            KOMEAuditService.record(data, now, "RULER", "ASSIGN", playerID.toString(), key,
+                "Recognized ruler assigned", cleanName);
             data.markDirty();
             return true;
         }
         if (!cleanName.isEmpty() && !cleanName.equals(data.readFactionKingName(key))) {
             data.writeFactionKingRecord(key, playerID, cleanName);
+            KOMEAuditService.record(data, now, "RULER", "RENAME", playerID.toString(), key,
+                "Recognized ruler name updated", cleanName);
             data.markDirty();
             changed = true;
         }
@@ -131,6 +135,8 @@ public final class KOMERulerService {
             return false;
         }
         data.onFactionKingLost(key, now);
+        KOMEAuditService.record(data, now, "RULER", "REMOVE", "", key,
+            "Recognized ruler removed", "");
         data.markDirty();
         return true;
     }

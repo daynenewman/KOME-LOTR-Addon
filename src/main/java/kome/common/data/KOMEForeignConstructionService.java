@@ -21,13 +21,19 @@ public final class KOMEForeignConstructionService {
         if (grantee.length() == 0 || owner.equals(grantee)) return Decision.deny("Choose a different pledged faction for a foreign construction grant.");
         if (!KOMERulerAuthorization.canActAsRuler(data, owner, actor)) return Decision.deny("Only the recognized ruler of this tile's controlling faction may grant construction permission.");
         KOMEForeignConstructionPermission record = new KOMEForeignConstructionPermission(); record.tileId = tile.id; record.grantingFaction = owner; record.granteeFaction = grantee; record.grantedBy = actor; record.grantedAtMillis = Math.max(0L, now);
-        data.foreignConstructionPermissions.put(record.key(), record); data.markDirty(); return Decision.allow();
+        data.foreignConstructionPermissions.put(record.key(), record);
+        KOMEAuditService.record(data, now, "BUILD", "CONSTRUCTION_GRANT", actor == null ? "" : actor.toString(),
+            record.key(), "Foreign construction permission granted", grantee);
+        data.markDirty(); return Decision.allow();
     }
     public static Decision revoke(KOMEWorldData data, String tileId, UUID actor, String granteeFaction) {
         KOMEConquestTile tile = tile(data, tileId); if (tile == null) return Decision.deny("The selected conquest tile is not claimed.");
         String owner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()), grantee = KOMEAlliance.normalizeFactionKey(granteeFaction);
         if (!KOMERulerAuthorization.canActAsRuler(data, owner, actor)) return Decision.deny("Only the recognized ruler of this tile's controlling faction may revoke construction permission.");
         if (data.foreignConstructionPermissions.remove(KOMEForeignConstructionPermission.key(tile.id, owner, grantee)) == null) return Decision.deny("That faction has no current construction permission for this tile.");
+        KOMEAuditService.record(data, System.currentTimeMillis(), "BUILD", "CONSTRUCTION_REVOKE",
+            actor == null ? "" : actor.toString(), KOMEForeignConstructionPermission.key(tile.id, owner, grantee),
+            "Foreign construction permission revoked for future builds", grantee);
         data.markDirty(); return Decision.allow();
     }
     public static Decision canConstruct(KOMEWorldData data, String tileId, UUID builder, String builderFaction) {

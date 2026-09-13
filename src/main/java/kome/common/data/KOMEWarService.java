@@ -32,7 +32,10 @@ public final class KOMEWarService {
         KOMEWar war = createWarInternal(data, first, second, name, actor, now, true);
         if(war!=null && bond>0){KOMEWar.BondEscrow e=new KOMEWar.BondEscrow();e.faction=KOMEAlliance.normalizeFactionKey(first);e.role="ATTACKER_DECLARATION";e.amount=bond;e.postedAtMillis=Math.max(0L,now);war.bondEscrows.add(e);}
         if (war != null) recordFirstLegalConflict(data, now);
-        return war==null?CreationResult.deny("Could not create the war record."):CreationResult.ok(war);
+        if (war == null) return CreationResult.deny("Could not create the war record.");
+        KOMEAuditService.record(data, now, "WAR", "CREATE", actor, war.id,
+            "War created", first + " opposed to " + second);
+        return CreationResult.ok(war);
     }
     public static final class CreationResult { public final KOMEWar war; public final String reason; private CreationResult(KOMEWar w,String r){war=w;reason=r;} static CreationResult ok(KOMEWar w){return new CreationResult(w,"");} static CreationResult deny(String r){return new CreationResult(null,r);} }
     public static AuthorizationDecision declarationBondDecision(String attacker){int bond=KOMEConfigRegistry.season().isWarBondsEnabled()?KOMEConfigRegistry.season().getAttackerWarBond():0;if(bond<=0)return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());if(bondFundingProvider==null)return AuthorizationDecision.deny("War bonds require a funding provider; none is installed.");return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());}
@@ -96,6 +99,8 @@ public final class KOMEWarService {
             recordFirstLegalConflict(data, now);
             recordHostilePressure(data, war, now, "HOSTILE_CAPTURE");
             war.addTileCapture(tileId, former, next, claimant, claimantName, now, claimMethod);
+            KOMEAuditService.record(data, now, "TILE", "HOSTILE_CAPTURE", claimant == null ? "" : claimant.toString(),
+                tileId, "Hostile tile capture recorded", former + " -> " + next);
             reconcileAutomaticMilitarySupport(data, now, "Capture updated active war");
             KOMEMovementAccessService.revalidateAll(data, now);
             KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
@@ -112,11 +117,40 @@ public final class KOMEWarService {
         war.lastActivePressureAtMillis = timestamp;
         war.lastUpdatedAtMillis = Math.max(war.lastUpdatedAtMillis, timestamp);
         war.addAdministrativeEvent("system", "ACTIVE_PRESSURE", source == null ? "" : source, timestamp);
+        KOMEAuditService.record(data, timestamp, "WAR", "HOSTILE_PRESSURE", "system", war.id,
+            "Hostile pressure refreshed", source == null ? "" : source);
         data.markDirty(); return true;
     }
 
     public static boolean isInactivityEligible(KOMEWar war, long now, long thresholdMillis) {
         return war != null && war.isActive() && thresholdMillis >= 0L && Math.max(0L, now) - war.lastActivePressureAtMillis >= thresholdMillis;
+    }
+
+    /** Repairs only deterministic war-record corruption; ambiguous side conflicts fail closed. */
+    public static RepairResult repairConsistency(KOMEWorldData data, KOMEWar war, long now) {
+        return repairConsistency(data, war, now, "system");
+    }
+
+    public static RepairResult repairConsistency(KOMEWorldData data, KOMEWar war, long now, String actor) {
+        if (data == null || war == null) return RepairResult.denied("World and war records are required.");
+        java.util.Set<String> one = new java.util.LinkedHashSet<String>();
+        java.util.Set<String> two = new java.util.LinkedHashSet<String>();
+        int originalOneValid = 0, originalTwoValid = 0;
+        boolean spellingChanged = false;
+        for (String faction : war.sideOneFactions) if (KOMEAlliance.normalizeFactionKey(faction).length() > 0) { String normalized = KOMEAlliance.normalizeFactionKey(faction); one.add(normalized); originalOneValid++; spellingChanged |= !normalized.equals(faction); }
+        for (String faction : war.sideTwoFactions) if (KOMEAlliance.normalizeFactionKey(faction).length() > 0) { String normalized = KOMEAlliance.normalizeFactionKey(faction); two.add(normalized); originalTwoValid++; spellingChanged |= !normalized.equals(faction); }
+        for (String faction : one) if (two.contains(faction)) return RepairResult.denied("Faction " + faction + " is recorded on both war sides; operator resolution is required.");
+        boolean changed = spellingChanged || originalOneValid != one.size() || originalTwoValid != two.size()
+            || originalOneValid != war.sideOneFactions.size() || originalTwoValid != war.sideTwoFactions.size();
+        if (changed) { war.sideOneFactions.clear(); war.sideOneFactions.addAll(one); war.sideTwoFactions.clear(); war.sideTwoFactions.addAll(two); war.lastUpdatedAtMillis = Math.max(war.lastUpdatedAtMillis, now); data.markDirty(); KOMEAuditService.record(data, now, "WAR", "REPAIR", actor == null || actor.trim().length() == 0 ? "system" : actor.trim(), war.id, "Normalized deterministic war side records", ""); }
+        return RepairResult.allowed(changed, changed ? "War side records normalized." : "War side records are already consistent.");
+    }
+
+    public static final class RepairResult {
+        public final boolean allowed; public final boolean changed; public final String reason;
+        private RepairResult(boolean allowed, boolean changed, String reason) { this.allowed = allowed; this.changed = changed; this.reason = reason; }
+        static RepairResult denied(String reason) { return new RepairResult(false, false, reason); }
+        static RepairResult allowed(boolean changed, String reason) { return new RepairResult(true, changed, reason); }
     }
     public static boolean isInactivityEligible(KOMEWar war, long now) {
         return KOMEConfigRegistry.season().getWarInactivityDurationMillis().isPresent()

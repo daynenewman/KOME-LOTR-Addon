@@ -114,6 +114,9 @@ public final class KOMEBuildService {
         }
         build.contributions.add(contribution);
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
+        if (contribution.isApproved()) KOMEAuditService.record(data, nowMillis, "BUILD", "APPROVE", contributor == null ? "" : contributor.toString(),
+            build.id, "Manager contribution approved immediately", "contribution=" + contribution.id + ";approvedHalfHoursDelta="
+                + contribution.totalHalfHours() + ";populationFaction=" + build.populationFaction + ";tile=" + build.tileId);
         data.markDirty();
         return contribution;
     }
@@ -128,12 +131,19 @@ public final class KOMEBuildService {
         if (!admin && !isManager(build, manager)) return Decision.deny("Only the current Build manager may review submissions.");
         KOMEBuildContribution contribution = build == null ? null : build.getContribution(contributionId);
         if (contribution == null || !contribution.isPending()) return Decision.deny("That contribution is not pending.");
+        int beforeHours = build.approvedHalfHours();
         contribution.status = approve ? KOMEBuildContribution.APPROVED : KOMEBuildContribution.REJECTED;
         contribution.decidedAtMillis = Math.max(0L, nowMillis);
         contribution.decidedByUuid = manager;
         contribution.decidedByName = safe(managerName);
         contribution.decisionReason = safe(reason);
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
+        String auditReason = contribution.decisionReason.length() == 0
+            ? (approve ? "Build contribution approved" : "Build contribution rejected") : contribution.decisionReason;
+        KOMEAuditService.record(data, nowMillis, "BUILD", approve ? "APPROVE" : "REJECT",
+            manager == null ? "" : manager.toString(), build.id, auditReason,
+            "contribution=" + contribution.id + ";approvedHalfHoursDelta=" + (build.approvedHalfHours() - beforeHours)
+                + ";populationFaction=" + build.populationFaction + ";tile=" + build.tileId);
         data.markDirty();
         return Decision.allow();
     }
@@ -148,12 +158,17 @@ public final class KOMEBuildService {
         if (!admin && !isManager(build, manager)) return Decision.deny("Only the current Build manager may remove approved hours.");
         KOMEBuildContribution contribution = build == null ? null : build.getContribution(contributionId);
         if (contribution == null || !contribution.isApproved()) return Decision.deny("That contribution is not active and approved.");
+        int beforeHours = build.approvedHalfHours();
         contribution.status = KOMEBuildContribution.REMOVED;
         contribution.decidedAtMillis = Math.max(0L, nowMillis);
         contribution.decidedByUuid = manager;
         contribution.decidedByName = safe(managerName);
         contribution.decisionReason = safe(reason);
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
+        String auditReason = contribution.decisionReason.length() == 0 ? "Approved Build contribution removed" : contribution.decisionReason;
+        KOMEAuditService.record(data, nowMillis, "BUILD", "APPROVE_REMOVE", manager == null ? "" : manager.toString(), build.id,
+            auditReason, "contribution=" + contribution.id + ";approvedHalfHoursDelta=" + (build.approvedHalfHours() - beforeHours)
+                + ";populationFaction=" + build.populationFaction + ";tile=" + build.tileId);
         data.markDirty();
         return Decision.allow();
     }
@@ -335,6 +350,7 @@ public final class KOMEBuildService {
 
     private static void softDelete(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
             String actorName, String reason, long nowMillis) {
+        int removedHours = build == null ? 0 : build.approvedHalfHours();
         for (KOMEBuildContribution contribution : build.contributions) {
             if (contribution == null || contribution.isRemoved()
                     || KOMEBuildContribution.REJECTED.equals(contribution.status)) continue;
@@ -352,6 +368,9 @@ public final class KOMEBuildService {
         build.deletedByName = safe(actorName);
         build.deletionReason = safe(reason);
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
+        KOMEAuditService.record(data, nowMillis, "BUILD", "DELETE", actor == null ? "" : actor.toString(), build.id,
+            safe(reason), "approvedHalfHoursRemoved=" + removedHours + ";populationFaction=" + build.populationFaction
+                + ";tile=" + build.tileId);
         data.markDirty();
     }
 
