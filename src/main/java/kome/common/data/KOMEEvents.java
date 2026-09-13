@@ -551,7 +551,7 @@ public class KOMEEvents {
             if (!allowed) {
                 denyAlliedHire(owner, npc, isFarmhand
                     ? "Stage 1 Cooperation is required to hire a farmhand from " + KOMEAlliance.displayFactionName(unitFaction) + "."
-                    : "Allied combat hiring is limited to a recognized Stage 4 king exercising valid kingless wartime authority.");
+                    : "Allied combat hiring requires a recognized supporting ruler with valid kingless wartime stewardship authority.");
                 return;
             }
         }
@@ -577,6 +577,8 @@ public class KOMEEvents {
             record.controller = info.getHiringPlayerUUID();
             record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
             data.hiredUnits.put(entityID, record);
+            KOMEAuditService.record(data, System.currentTimeMillis(), "UNIT", "HIRE", record.sourcePlayer == null ? "" : record.sourcePlayer.toString(),
+                entityID.toString(), "Farmhand hired", "farmhand=true");
             data.markDirty();
             return;
         }
@@ -631,6 +633,8 @@ public class KOMEEvents {
             throw failure;
         }
         data.markDirty();
+        KOMEAuditService.record(data, System.currentTimeMillis(), "UNIT", "HIRE", hiringPlayer == null ? "" : hiringPlayer.toString(),
+            entityID.toString(), "Combat unit hired", "populationCost=" + populationCost);
         data.syncConquestTiles();
         owner.addChatMessage(new ChatComponentText(record.unitName + " recruited at " + originTile
             + " using " + populationCost + " " + KOMEAlliance.displayFactionName(ownerFaction) + " population."));

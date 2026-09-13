@@ -135,6 +135,8 @@ public final class KOMEDiplomacyService {
             actor == null ? "" : actor.toString();
 
         data.markDirty();
+        KOMEAuditService.record(data, now, "DIPLOMACY", "REQUEST", actor == null ? "" : actor.toString(),
+            record.key(), "Diplomacy relation request created", target.key);
         return Result.ok(record);
     }
 
@@ -173,6 +175,8 @@ public final class KOMEDiplomacyService {
             actor == null ? "" : actor.toString();
 
         data.markDirty();
+        KOMEAuditService.record(data, now, "DIPLOMACY", "ACCEPT", actor == null ? "" : actor.toString(),
+            record.key(), "Diplomacy relation changed", record.relation.key);
         KOMEMovementAccessService.revalidateAll(data, now);
         return Result.ok(record);
     }

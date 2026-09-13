@@ -678,11 +678,12 @@ public class KOMEAllianceSystemsTest {
     @Test
     public void wartimeStewardshipIsDormantInPeaceAndTargetsOnlyOpposingSide() {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEAlliance alliance = data.getAlliance("gondor", "rohan", true);
-        alliance.requestTrack(KOMEAlliance.MILITARY, "test", 0L, false);
-        alliance.setTier(KOMEAlliance.MILITARY, 3, "test", 0L);
+        KOMEDiplomacyRecord diplomacy = new KOMEDiplomacyRecord("gondor", "rohan");
+        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
+        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
         assertFalse(KOMEWartimeStewardshipService.isAuthorized(data, "rohan", "gondor"));
         KOMEWar war = KOMEWarService.createWar(data, "gondor", "rhudel", "", "tester", 100L);
+        assertTrue(war.addFaction(1, "rohan"));
         assertTrue(war.sameSide("gondor", "rohan"));
         assertTrue(KOMEWartimeStewardshipService.isAuthorized(data, "rohan", "gondor"));
         assertTrue(KOMEWarService.authorizedOpponents(data, "rohan", "gondor").contains("rhudel"));
@@ -798,9 +799,9 @@ public class KOMEAllianceSystemsTest {
     @Test
     public void stewardshipSupportsMultipleWarsAndRevokesOnSideChangeOrKingReturn() {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEAlliance alliance = data.getAlliance("rohan", "gondor", true);
-        alliance.requestTrack(KOMEAlliance.MILITARY, "test", 0L, false);
-        alliance.setTier(KOMEAlliance.MILITARY, 3, "test", 0L);
+        KOMEDiplomacyRecord diplomacy = new KOMEDiplomacyRecord("rohan", "gondor");
+        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
+        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
         UUID controller = crown(data, "gondor", "Supporting King");
         KOMEWar east = KOMEWarService.createWar(data, "gondor", "rhudel", "East", "tester", 1L);
         assertTrue(east.addFaction(1, "rohan"));
@@ -831,10 +832,11 @@ public class KOMEAllianceSystemsTest {
     @Test
     public void stewardshipMovementUsesNativeIdentityAndOnlyAuthorizedOpponents() {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEAlliance alliance = data.getAlliance("rohan", "gondor", true);
-        alliance.requestTrack(KOMEAlliance.MILITARY, "test", 0L, false);
-        alliance.setTier(KOMEAlliance.MILITARY, 3, "test", 0L);
+        KOMEDiplomacyRecord diplomacy = new KOMEDiplomacyRecord("rohan", "gondor");
+        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
+        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
         KOMEWar war = KOMEWarService.createWar(data, "gondor", "rhudel", "", "tester", 1L);
+        assertTrue(war.addFaction(1, "rohan"));
         assertTrue(war.sameSide("gondor", "rohan"));
         KOMEArmyCompany company = new KOMEArmyCompany();
         company.faction = "rohan";
@@ -875,24 +877,20 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void automaticMilitarySupportEnrollmentIsGenericIdempotentAndProvenanced() {
+    public void stageFourDoesNotAutomaticallyEnrollMilitarySupport() {
         KOMEWorldData data = new KOMEWorldData("test");
         establishMilitaryT3(data, "native_alpha", "support_beta");
         UUID supportingKing = crown(data, "support_beta", "Supporting King");
 
         KOMEWar war = KOMEWarService.createWar(data, "native_alpha", "opponent_gamma", "", "test", 1L);
         assertNotNull(war);
-        assertEquals(war.sideOf("native_alpha"), war.sideOf("support_beta"));
-        KOMEWar.MilitarySupportEnrollment enrollment = war.supportEnrollment("native_alpha", "support_beta", false);
-        assertNotNull(enrollment);
-        assertEquals("ACTIVE", enrollment.state);
-        assertEquals(supportingKing, enrollment.authorizedKing);
-        assertEquals(1, activeMembershipCount(war, "support_beta", "AUTOMATIC_MILITARY_T3_SUPPORT"));
+        assertEquals(0, war.sideOf("support_beta"));
+        assertNull(war.supportEnrollment("native_alpha", "support_beta", false));
 
         KOMEWarService.reconcileAutomaticMilitarySupport(data, 2L, "restart pass one");
         KOMEWarService.reconcileAutomaticMilitarySupport(data, 3L, "restart pass two");
-        assertEquals(1, activeMembershipCount(war, "support_beta", "AUTOMATIC_MILITARY_T3_SUPPORT"));
-        assertEquals(3, war.sideOneFactions.size() + war.sideTwoFactions.size());
+        assertEquals(0, war.sideOf("support_beta"));
+        assertEquals(2, war.sideOneFactions.size() + war.sideTwoFactions.size());
 
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
@@ -901,8 +899,8 @@ public class KOMEAllianceSystemsTest {
         KOMEWar restored = restarted.wars.get(war.id);
         assertNotNull(restored);
         KOMEWarService.reconcileAutomaticMilitarySupport(restarted, 4L, "cold restart reconciliation");
-        assertEquals(1, activeMembershipCount(restored, "support_beta", "AUTOMATIC_MILITARY_T3_SUPPORT"));
-        assertEquals(3, restored.sideOneFactions.size() + restored.sideTwoFactions.size());
+        assertEquals(0, restored.sideOf("support_beta"));
+        assertEquals(2, restored.sideOneFactions.size() + restored.sideTwoFactions.size());
     }
 
     @Test
@@ -915,9 +913,7 @@ public class KOMEAllianceSystemsTest {
         assertNotNull(war);
         assertTrue(war.opposes("native_delta", "support_epsilon"));
         KOMEWar.MilitarySupportEnrollment enrollment = war.supportEnrollment("native_delta", "support_epsilon", false);
-        assertNotNull(enrollment);
-        assertEquals("CONTRADICTION", enrollment.state);
-        assertTrue(enrollment.reason.contains("opposing side"));
+        assertNull(enrollment);
         assertEquals(0, activeMembershipCount(war, "support_epsilon", "AUTOMATIC_MILITARY_T3_SUPPORT"));
         assertFalse(KOMEWarService.supportingKingDecision(data, "native_delta", "support_epsilon",
             data.getFactionKingId("support_epsilon")).allowed);
@@ -931,6 +927,7 @@ public class KOMEAllianceSystemsTest {
         UUID ordinaryMember = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(ordinaryMember, "support_eta");
         KOMEWar war = KOMEWarService.createWar(data, "native_zeta", "opponent_theta", "", "test", 1L);
+        assertTrue(war.addFaction(1, "support_eta"));
 
         assertFalse(KOMEWarService.supportingKingDecision(data, "native_zeta", "support_eta", ordinaryMember).allowed);
         assertTrue(KOMEWarService.supportingKingDecision(data, "native_zeta", "support_eta", originalKing).allowed);
@@ -952,12 +949,12 @@ public class KOMEAllianceSystemsTest {
         assertNull(company.temporaryController);
         assertEquals(KOMEArmyCompany.AUTHORITY_STEWARDSHIP, company.controllerAuthority);
         assertEquals(war.sideOf("native_zeta"), war.sideOf("support_eta"));
-        assertEquals("DORMANT", war.supportEnrollment("native_zeta", "support_eta", false).state);
+        assertNull(war.supportEnrollment("native_zeta", "support_eta", false));
 
         UUID replacementKing = crown(data, "support_eta", "Second King");
         assertEquals(replacementKing, company.temporaryController);
         assertTrue(KOMEWarService.supportingKingDecision(data, "native_zeta", "support_eta", replacementKing).allowed);
-        assertEquals("ACTIVE", war.supportEnrollment("native_zeta", "support_eta", false).state);
+        assertTrue(KOMEWarService.supportingKingDecision(data, "native_zeta", "support_eta", replacementKing).allowed);
     }
 
     @Test
@@ -966,6 +963,7 @@ public class KOMEAllianceSystemsTest {
         establishMilitaryT3(data, "native_iota", "support_kappa");
         UUID supportingKing = crown(data, "support_kappa", "Supporting King");
         KOMEWar war = KOMEWarService.createWar(data, "native_iota", "opponent_lambda", "", "test", 1L);
+        assertTrue(war.addFaction(1, "support_kappa"));
         KOMEArmyCompany company = new KOMEArmyCompany();
         company.id = "native-return-company";
         company.owner = UUID.randomUUID();
@@ -981,8 +979,7 @@ public class KOMEAllianceSystemsTest {
         assertNull(company.temporaryController);
         assertTrue(data.armyCompanies.containsKey(company.id));
         assertEquals(war.sideOf("native_iota"), war.sideOf("support_kappa"));
-        assertEquals("DORMANT", war.supportEnrollment("native_iota", "support_kappa", false).state);
-        assertTrue(war.supportEnrollment("native_iota", "support_kappa", false).reason.contains("native faction has"));
+        assertNull(war.supportEnrollment("native_iota", "support_kappa", false));
         assertFalse(KOMEWarService.supportingKingDecision(data, "native_iota", "support_kappa", supportingKing).allowed);
     }
 
@@ -993,6 +990,8 @@ public class KOMEAllianceSystemsTest {
         UUID king = crown(data, "support_nu", "Supporting King");
         KOMEWar first = KOMEWarService.createWar(data, "native_mu", "opponent_xi", "First", "test", 1L);
         KOMEWar second = KOMEWarService.createWar(data, "native_mu", "opponent_omicron", "Second", "test", 2L);
+        assertTrue(first.addFaction(1, "support_nu"));
+        assertTrue(second.addFaction(1, "support_nu"));
         KOMEArmyCompany company = new KOMEArmyCompany();
         company.id = "overlap-company";
         company.faction = "native_mu";
@@ -1288,6 +1287,9 @@ public class KOMEAllianceSystemsTest {
         KOMEAlliance alliance = data.getAlliance(first, second, true);
         alliance.requestTrack(KOMEAlliance.MILITARY, "test", 0L, false);
         alliance.setTier(KOMEAlliance.MILITARY, 3, "test", 1L);
+        KOMEDiplomacyRecord diplomacy = new KOMEDiplomacyRecord(first, second);
+        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
+        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
         return alliance;
     }
 

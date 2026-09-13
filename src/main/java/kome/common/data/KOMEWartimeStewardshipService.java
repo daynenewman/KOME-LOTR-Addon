@@ -59,22 +59,38 @@ public final class KOMEWartimeStewardshipService {
 
     public static void authorizeCompany(KOMEWorldData data, KOMEArmyCompany company, String controllerFaction,
             String reason, long nowMillis) {
+        authorizeCompany(data, company, controllerFaction, reason, nowMillis, true);
+    }
+
+    private static void authorizeCompany(KOMEWorldData data, KOMEArmyCompany company, String controllerFaction,
+            String reason, long nowMillis, boolean auditRevalidation) {
         if (data == null || company == null) return;
         String nativeFaction = nativeFaction(company);
         KOMEWarService.AuthorizationDecision decision = KOMEWarService.supportingKingDecision(data,
             nativeFaction, controllerFaction, company.temporaryController);
         if (!decision.allowed) return;
         List<KOMEWar> wars = decision.wars;
+        UUID previousController = company.temporaryController;
+        List<String> previousWars = new ArrayList<String>(company.authorizedWarIds);
+        boolean previouslyAuthorized = !previousWars.isEmpty();
         company.nativeFaction = nativeFaction;
         company.authorizedWarIds.clear();
         for (KOMEWar war : wars) {
             company.authorizedWarIds.add(war.id);
             upsertAuthorization(war, company, controllerFaction, nowMillis);
         }
-        company.authorizationReason = reason == null ? "Same-side active war and Stage 4" : reason;
+        company.authorizationReason = reason == null ? "Friends-or-better diplomacy and same-side active war" : reason;
         company.stewardshipCreated = company.stewardshipCreated || hasStewardshipUnits(data, company);
         company.stewardshipReservation = reservation(data, company);
         company.withdrawalState = KOMEArmyCompany.CLEANUP_NONE;
+        boolean materiallyChanged = (previousController == null
+                ? company.temporaryController != null
+                : !previousController.equals(company.temporaryController))
+            || !previousWars.equals(company.authorizedWarIds);
+        if (auditRevalidation && (!previouslyAuthorized || materiallyChanged)) {
+            data.recordCompanyDelegationAudit(nowMillis, "STEWARDSHIP_GRANTED", company, null, "",
+                company.temporaryController, company.temporaryControllerName, company.authorizationReason);
+        }
         data.markDirty();
     }
 
@@ -95,7 +111,9 @@ public final class KOMEWartimeStewardshipService {
         KOMEWarService.AuthorizationDecision decision = KOMEWarService.supportingKingDecision(data,
             nativeFaction, controllerFaction, company.temporaryController);
         if (decision.allowed) {
-            authorizeCompany(data, company, controllerFaction, reason, nowMillis);
+            authorizeCompany(data, company, controllerFaction, reason, nowMillis, true);
+            data.recordCompanyDelegationAudit(nowMillis, "STEWARDSHIP_REVALIDATED", company, null, "",
+                company.temporaryController, company.temporaryControllerName, reason);
             return true;
         }
         company.temporaryController = null;
@@ -122,6 +140,8 @@ public final class KOMEWartimeStewardshipService {
             company.clearTemporaryController(company.delegationRevocationReason);
         }
         markAuthorizationStates(data, company.id, "REVOKED", company.delegationRevocationReason, nowMillis);
+        data.recordCompanyDelegationAudit(nowMillis, "STEWARDSHIP_REVOKED", company, null, "", null, "",
+            company.delegationRevocationReason);
         data.markDirty();
         return false;
     }
@@ -213,6 +233,8 @@ public final class KOMEWartimeStewardshipService {
         if (company.units.isEmpty()) data.armyCompanies.remove(company.id);
         markAuthorizationStates(data, company.id, pending > 0 ? "PENDING_ENTITY_REMOVAL" : "DEMOBILIZED",
             "Stewardship company demobilized", nowMillis);
+        data.recordCompanyDelegationAudit(nowMillis, "STEWARDSHIP_DEMOBILIZED", company, null, "", null, "",
+            pending > 0 ? "Pending loaded-entity removal" : "Safe-tile demobilization");
         if (removed > 0) data.markDirty();
         return removed;
     }
@@ -237,6 +259,73 @@ public final class KOMEWartimeStewardshipService {
         String nativeFaction = KOMEAlliance.normalizeFactionKey(company == null ? "" : company.nativeFaction);
         return nativeFaction.length() == 0 && company != null
             ? KOMEAlliance.normalizeFactionKey(company.faction) : nativeFaction;
+    }
+
+    /**
+     * Repairs only canonical record-to-company links for an existing kingless faction's
+     * defensive companies. It deliberately never changes faction, owner, funding source,
+     * or equipment: those remain native-unit provenance.  Runtime entity equipment is
+     * reconciled by the existing company load/rebuild path.
+     */
+    public static RepairResult reconcileDefensiveUnits(KOMEWorldData data, String faction, long nowMillis) {
+        String nativeFaction = KOMEAlliance.normalizeFactionKey(faction);
+        if (data == null || nativeFaction.length() == 0) return RepairResult.deny("A native faction is required.");
+        if (data.hasFactionKing(nativeFaction)) return RepairResult.deny("The faction has a recognized ruler; kingless defensive stewardship is not active.");
+        int linked = 0;
+        int controllers = 0;
+        for (KOMEArmyCompany company : data.armyCompanies.values()) {
+            if (company == null || !nativeFaction.equals(nativeFaction(company))
+                    || !KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
+                    || !hasStewardshipUnits(data, company)) continue;
+            // Never copy a stale temporary controller. Revalidation owns revocation,
+            // withdrawal, and cleanup when the authorization is no longer legal.
+            if (!revalidateCompany(data, company, nowMillis, "Defensive stewardship repair revalidation")) continue;
+            int companyLinksBefore = linked;
+            int companyControllersBefore = controllers;
+            for (java.util.UUID unitId : new ArrayList<java.util.UUID>(company.units)) {
+                KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
+                if (record == null || !(KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)
+                        || "MILITARY_T3_STEWARDSHIP".equals(record.benefitSource))) continue;
+                if (!company.id.equals(record.companyId)) {
+                    record.companyId = company.id;
+                    record.companyName = company.name;
+                    linked++;
+                }
+                if (KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
+                        && company.temporaryController != null
+                        && (!company.temporaryController.equals(record.controller)
+                        || !company.controllerAuthority.equals(record.controllerAuthority))) {
+                    record.controller = company.temporaryController;
+                    record.controllerAuthority = company.controllerAuthority;
+                    controllers++;
+                }
+            }
+            if (linked > companyLinksBefore || controllers > companyControllersBefore) {
+                data.recordCompanyDelegationAudit(nowMillis, "STEWARDSHIP_DEFENSE_RECONCILED", company, null, "",
+                    company.temporaryController, company.temporaryControllerName,
+                    "Canonical defensive unit/company links reconciled");
+            }
+        }
+        if (linked > 0 || controllers > 0) data.markDirty();
+        return RepairResult.allow(linked, controllers);
+    }
+
+    public static final class RepairResult {
+        public final boolean allowed;
+        public final String reason;
+        public final int repairedLinks;
+        public final int repairedControllers;
+
+        private RepairResult(boolean allowed, String reason, int repairedLinks, int repairedControllers) {
+            this.allowed = allowed;
+            this.reason = reason == null ? "" : reason;
+            this.repairedLinks = repairedLinks;
+            this.repairedControllers = repairedControllers;
+        }
+        public static RepairResult deny(String reason) { return new RepairResult(false, reason, 0, 0); }
+        public static RepairResult allow(int links, int controllers) {
+            return new RepairResult(true, "Defensive records reconciled without changing native ownership.", links, controllers);
+        }
     }
 
     private static boolean hasStewardshipUnits(KOMEWorldData data, KOMEArmyCompany company) {

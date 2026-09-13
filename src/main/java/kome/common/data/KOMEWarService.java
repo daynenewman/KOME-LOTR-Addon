@@ -32,7 +32,10 @@ public final class KOMEWarService {
         KOMEWar war = createWarInternal(data, first, second, name, actor, now, true);
         if(war!=null && bond>0){KOMEWar.BondEscrow e=new KOMEWar.BondEscrow();e.faction=KOMEAlliance.normalizeFactionKey(first);e.role="ATTACKER_DECLARATION";e.amount=bond;e.postedAtMillis=Math.max(0L,now);war.bondEscrows.add(e);}
         if (war != null) recordFirstLegalConflict(data, now);
-        return war==null?CreationResult.deny("Could not create the war record."):CreationResult.ok(war);
+        if (war == null) return CreationResult.deny("Could not create the war record.");
+        KOMEAuditService.record(data, now, "WAR", "CREATE", actor, war.id,
+            "War created", first + " opposed to " + second);
+        return CreationResult.ok(war);
     }
     public static final class CreationResult { public final KOMEWar war; public final String reason; private CreationResult(KOMEWar w,String r){war=w;reason=r;} static CreationResult ok(KOMEWar w){return new CreationResult(w,"");} static CreationResult deny(String r){return new CreationResult(null,r);} }
     public static AuthorizationDecision declarationBondDecision(String attacker){int bond=KOMEConfigRegistry.season().isWarBondsEnabled()?KOMEConfigRegistry.season().getAttackerWarBond():0;if(bond<=0)return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());if(bondFundingProvider==null)return AuthorizationDecision.deny("War bonds require a funding provider; none is installed.");return AuthorizationDecision.allow(Collections.<KOMEWar>emptyList());}
@@ -96,6 +99,8 @@ public final class KOMEWarService {
             recordFirstLegalConflict(data, now);
             recordHostilePressure(data, war, now, "HOSTILE_CAPTURE");
             war.addTileCapture(tileId, former, next, claimant, claimantName, now, claimMethod);
+            KOMEAuditService.record(data, now, "TILE", "HOSTILE_CAPTURE", claimant == null ? "" : claimant.toString(),
+                tileId, "Hostile tile capture recorded", former + " -> " + next);
             reconcileAutomaticMilitarySupport(data, now, "Capture updated active war");
             KOMEMovementAccessService.revalidateAll(data, now);
             KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
@@ -112,11 +117,40 @@ public final class KOMEWarService {
         war.lastActivePressureAtMillis = timestamp;
         war.lastUpdatedAtMillis = Math.max(war.lastUpdatedAtMillis, timestamp);
         war.addAdministrativeEvent("system", "ACTIVE_PRESSURE", source == null ? "" : source, timestamp);
+        KOMEAuditService.record(data, timestamp, "WAR", "HOSTILE_PRESSURE", "system", war.id,
+            "Hostile pressure refreshed", source == null ? "" : source);
         data.markDirty(); return true;
     }
 
     public static boolean isInactivityEligible(KOMEWar war, long now, long thresholdMillis) {
         return war != null && war.isActive() && thresholdMillis >= 0L && Math.max(0L, now) - war.lastActivePressureAtMillis >= thresholdMillis;
+    }
+
+    /** Repairs only deterministic war-record corruption; ambiguous side conflicts fail closed. */
+    public static RepairResult repairConsistency(KOMEWorldData data, KOMEWar war, long now) {
+        return repairConsistency(data, war, now, "system");
+    }
+
+    public static RepairResult repairConsistency(KOMEWorldData data, KOMEWar war, long now, String actor) {
+        if (data == null || war == null) return RepairResult.denied("World and war records are required.");
+        java.util.Set<String> one = new java.util.LinkedHashSet<String>();
+        java.util.Set<String> two = new java.util.LinkedHashSet<String>();
+        int originalOneValid = 0, originalTwoValid = 0;
+        boolean spellingChanged = false;
+        for (String faction : war.sideOneFactions) if (KOMEAlliance.normalizeFactionKey(faction).length() > 0) { String normalized = KOMEAlliance.normalizeFactionKey(faction); one.add(normalized); originalOneValid++; spellingChanged |= !normalized.equals(faction); }
+        for (String faction : war.sideTwoFactions) if (KOMEAlliance.normalizeFactionKey(faction).length() > 0) { String normalized = KOMEAlliance.normalizeFactionKey(faction); two.add(normalized); originalTwoValid++; spellingChanged |= !normalized.equals(faction); }
+        for (String faction : one) if (two.contains(faction)) return RepairResult.denied("Faction " + faction + " is recorded on both war sides; operator resolution is required.");
+        boolean changed = spellingChanged || originalOneValid != one.size() || originalTwoValid != two.size()
+            || originalOneValid != war.sideOneFactions.size() || originalTwoValid != war.sideTwoFactions.size();
+        if (changed) { war.sideOneFactions.clear(); war.sideOneFactions.addAll(one); war.sideTwoFactions.clear(); war.sideTwoFactions.addAll(two); war.lastUpdatedAtMillis = Math.max(war.lastUpdatedAtMillis, now); data.markDirty(); KOMEAuditService.record(data, now, "WAR", "REPAIR", actor == null || actor.trim().length() == 0 ? "system" : actor.trim(), war.id, "Normalized deterministic war side records", ""); }
+        return RepairResult.allowed(changed, changed ? "War side records normalized." : "War side records are already consistent.");
+    }
+
+    public static final class RepairResult {
+        public final boolean allowed; public final boolean changed; public final String reason;
+        private RepairResult(boolean allowed, boolean changed, String reason) { this.allowed = allowed; this.changed = changed; this.reason = reason; }
+        static RepairResult denied(String reason) { return new RepairResult(false, false, reason); }
+        static RepairResult allowed(boolean changed, String reason) { return new RepairResult(true, changed, reason); }
     }
     public static boolean isInactivityEligible(KOMEWar war, long now) {
         return KOMEConfigRegistry.season().getWarInactivityDurationMillis().isPresent()
@@ -142,9 +176,11 @@ public final class KOMEWarService {
         List<KOMEWar> result = new ArrayList<KOMEWar>();
         if (data == null || data.hasFactionKing(nativeFaction)) return result;
         if (findActiveOpposition(data, nativeFaction, controllerFaction) != null) return result;
-        KOMEAlliance alliance = data.getAlliance(nativeFaction, controllerFaction, false);
-        if (alliance == null || alliance.getRelationshipStatus() != KOMEAllianceTrackStatus.ACTIVE
-                || new KOMEAllianceAuthority(data).getEffectiveStage(controllerFaction, nativeFaction) < 4) {
+        // KOM-31: stewardship is a wartime defensive authority, not an alliance-progression reward.
+        // Friends is the minimum canonical diplomacy relationship; the supporting faction must
+        // also already be an explicit member of the native faction's active war side.
+        if (!KOMEDiplomacyService.relationAtLeast(data, nativeFaction, controllerFaction,
+                KOMEDiplomacyRelation.FRIENDS)) {
             return result;
         }
         for (KOMEWar war : sortedWars(data)) {
@@ -169,19 +205,19 @@ public final class KOMEWarService {
             return AuthorizationDecision.deny("The supporting faction is directly opposed to the native faction in an active war.");
         List<KOMEWar> wars = authorizedSameSideWars(data, nativeKey, supportingKey);
         if (wars.isEmpty())
-            return AuthorizationDecision.deny("No active same-side war and directional Stage 4 Military Partnership authorize stewardship.");
+            return AuthorizationDecision.deny("Stewardship requires Friends-or-better diplomacy and an active war with both factions on the same side.");
         return AuthorizationDecision.allow(wars);
     }
 
-    /** Idempotently enrolls every eligible Stage 4 supporter on each kingless native side. */
+    /**
+     * Revalidates the historical support records without manufacturing war membership.
+     * A supporting faction must now join a war through its canonical war-membership path;
+     * Stage 4 progression never grants or auto-enrols stewardship authority.
+     */
     public static boolean reconcileAutomaticMilitarySupport(KOMEWorldData data, long now, String reason) {
         if (data == null) return false;
         boolean changed = false;
-        boolean added;
-        int passes = 0;
-        do {
-            added = false;
-            for (KOMEWar war : sortedWars(data)) {
+        for (KOMEWar war : sortedWars(data)) {
                 for (KOMEWar.MilitarySupportEnrollment enrollment : war.militarySupportEnrollments) {
                     int nativeSide = war.sideOf(enrollment.nativeFaction);
                     int supportingSide = war.sideOf(enrollment.supportingFaction);
@@ -200,77 +236,16 @@ public final class KOMEWarService {
                     } else if (data.hasFactionKing(enrollment.nativeFaction)) {
                         changed |= updateEnrollment(enrollment, "DORMANT", null, "",
                             "The native faction has a recognized king; kingless Wartime Stewardship is dormant", nativeSide, now);
-                    } else if (!hasDirectionalStageFour(data, enrollment.nativeFaction, enrollment.supportingFaction)) {
+                    } else if (!KOMEDiplomacyService.relationAtLeast(data, enrollment.nativeFaction,
+                            enrollment.supportingFaction, KOMEDiplomacyRelation.FRIENDS)) {
                         changed |= updateEnrollment(enrollment, "DORMANT", null, "",
-                            "Directional Stage 4 Military Partnership is not active", nativeSide, now);
+                            "Friends-or-better canonical diplomacy is not active", nativeSide, now);
                     }
                 }
-                if (!war.isActive()) continue;
-                Set<String> members = new HashSet<String>();
-                members.addAll(war.sideOneFactions);
-                members.addAll(war.sideTwoFactions);
-                for (String nativeFaction : members) {
-                    int nativeSide = war.sideOf(nativeFaction);
-                    if (nativeSide == 0 || data.hasFactionKing(nativeFaction)) continue;
-                    for (KOMEAlliance alliance : data.alliances.values()) {
-                        if (alliance == null || !alliance.involves(nativeFaction)) continue;
-                        String supportingFaction = alliance.getOtherFaction(nativeFaction);
-                        if (!hasDirectionalStageFour(data, nativeFaction, supportingFaction)) continue;
-                        int supportingSide = war.sideOf(supportingFaction);
-                        KOMEWar.MilitarySupportEnrollment enrollment = war.supportEnrollment(nativeFaction, supportingFaction, true);
-                        String previousState = enrollment.state;
-                        if (supportingSide == 0 && "OPERATOR_REMOVED".equals(previousState)) {
-                            changed |= updateEnrollment(enrollment, "OPERATOR_REMOVED", null, "",
-                                "Automatic support membership was explicitly removed by an operator", nativeSide, now);
-                            continue;
-                        }
-                        if (supportingSide > 0 && supportingSide != nativeSide) {
-                            changed |= updateEnrollment(enrollment, "CONTRADICTION", null, "",
-                                "Supporting faction is already on the opposing side; operator resolution is required", nativeSide, now);
-                            if (!"CONTRADICTION".equals(previousState)) war.addAdministrativeEvent("system", "MILITARY_T3_CONTRADICTION",
-                                supportingFaction + " opposes native " + nativeFaction + "; not moved", now);
-                        } else {
-                            if (supportingSide == 0) {
-                                war.addFaction(nativeSide, supportingFaction);
-                                war.recordMembership(supportingFaction, nativeSide, "AUTOMATIC_MILITARY_T3_SUPPORT", nativeFaction, "system", now);
-                                war.addAdministrativeEvent("system", "MILITARY_T3_AUTO_ENROLL",
-                                    supportingFaction + " joined side " + nativeSide + " for kingless native " + nativeFaction, now);
-                                added = true;
-                                changed = true;
-                            }
-                            UUID king = data.getFactionKingId(supportingFaction);
-                            if (king == null) {
-                                changed |= updateEnrollment(enrollment, "DORMANT", null, "",
-                                    "Supporting faction has no recognized king", nativeSide, now);
-                            } else if (!supportingFaction.equals(KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(king)))) {
-                                changed |= updateEnrollment(enrollment, "DORMANT", null, "",
-                                    "Recognized supporting king is not actually pledged to the supporting faction", nativeSide, now);
-                            } else if (findActiveOpposition(data, nativeFaction, supportingFaction) != null) {
-                                changed |= updateEnrollment(enrollment, "CONTRADICTION", null, "",
-                                "Direct active opposition overrides Stage 4 authority", nativeSide, now);
-                            } else {
-                                changed |= updateEnrollment(enrollment, "ACTIVE", king,
-                                    data.getFactionKingName(supportingFaction),
-                                    "Recognized pledged supporting king; active same-side war and directional Stage 4", nativeSide, now);
-                            }
-                        }
-                    }
-                }
-            }
-        } while (added && ++passes < Math.max(4, data.alliances.size() + 1));
-        scanStageFour(data, now);
+        }
+        KOMEWartimeStewardshipService.revalidateAll(data, now, reason);
         if (changed) data.markDirty();
         return changed;
-    }
-
-    private static void scanStageFour(KOMEWorldData data, long now) {
-        KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, now);
-    }
-
-    private static boolean hasDirectionalStageFour(KOMEWorldData data, String nativeFaction, String supportingFaction) {
-        KOMEAlliance alliance = data == null ? null : data.getAlliance(nativeFaction, supportingFaction, false);
-        return alliance != null && alliance.getRelationshipStatus() == KOMEAllianceTrackStatus.ACTIVE
-            && new KOMEAllianceAuthority(data).getEffectiveStage(supportingFaction, nativeFaction) >= 4;
     }
 
     private static boolean updateEnrollment(KOMEWar.MilitarySupportEnrollment enrollment, String state,
