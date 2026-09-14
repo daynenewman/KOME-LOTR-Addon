@@ -88,8 +88,8 @@ public class KOMEBaseIsolationTest {
         String allianceGui = read(main.resolve("kome/client/gui/KOMEGuiAllianceUnified.java"));
         assertTrue(warCommand.contains("list [active|ending|ended|all]"));
         assertTrue(warCommand.contains("\"ending\".equals(filter) && !war.isEnding()"));
-        assertTrue(packetHandler.contains("KOMEPacketAllianceAction.Handler.class"));
-        assertTrue(packetHandler.contains("KOMEPacketTroopGuiAction.Handler.class"));
+        assertTrue(packetHandler.contains("new ServerThreadHandler<KOMEPacketAllianceAction>(new KOMEPacketAllianceAction.Handler()) {}"));
+        assertTrue(packetHandler.contains("new ServerThreadHandler<KOMEPacketTroopGuiAction>(new KOMEPacketTroopGuiAction.Handler()) {}"));
         assertTrue(actionPacket.contains("new KOMECommandAlliance().processCommand(player, command)"));
         assertTrue(actionPacket.contains("KOMEAllianceRecordBuilder.build(data, player)"));
         assertFalse(actionPacket.contains("new KOMECommandTroops().processCommand(player, new String[] {\"companies\"})"));

@@ -74,7 +74,7 @@ import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.world.BlockEvent;
-import net.minecraftforge.event.world.WorldEvent;
+import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 
 import java.util.ArrayList;
@@ -106,18 +106,13 @@ public class KOMEEvents {
         populationPayoutRuntime.resetSession();
     }
 
-    /** Startup runs once per authoritative loaded world; client load events never mutate world data. */
-    @SubscribeEvent
-    public void onWorldLoad(WorldEvent.Load event) {
-        if (event == null || event.world == null || KOMEReflection.isRemote(event.world)) return;
-        populationPayoutRuntime.onStartup(KOMEWorldData.get(event.world), Instant.now());
-    }
-
     @SubscribeEvent
     public void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.player instanceof EntityPlayerMP) {
-            KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
-            KOMECommandTroops.removeStaleMovingEntities(data, KOMEReflection.getWorld(event.player));
+            World world = KOMEReflection.getWorld(event.player);
+            KOMEWorldData data = KOMEWorldData.get(world);
+            KOMECommandTroops.removeStaleMovingEntities(data, world);
+            data.rebuildArmyCompaniesForPlayer(world, KOMEReflection.getEntityUUID(event.player));
             data.rememberPlayerName(KOMEReflection.getEntityUUID(event.player), event.player.getCommandSenderName());
             KOMEPledgeReleaseService.observePledge(data, (EntityPlayerMP) event.player,
                 getActualPledgeFactionKey(event.player), System.currentTimeMillis());
@@ -157,6 +152,23 @@ public class KOMEEvents {
 
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.START) {
+            MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
+            if (server == null || server.worldServers == null) {
+                return;
+            }
+            Instant now = Instant.now();
+            for (WorldServer world : server.worldServers) {
+                if (world == null || KOMEReflection.isRemote(world)) {
+                    continue;
+                }
+                KOMEWorldData data = KOMEWorldData.get(world);
+                data.initializeIntegratedWorld();
+                populationPayoutRuntime.onStartup(data, now);
+            }
+            KOMEPacketHandler.runPendingServerTasks();
+            return;
+        }
         if (event.phase != TickEvent.Phase.END) {
             return;
         }

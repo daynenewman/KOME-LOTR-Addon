@@ -28,6 +28,9 @@ import java.util.UUID;
 
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
+    public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
+    /** Integrated schema 2 starts from the current dev state; schema 1 belongs to an incompatible KOM-54 layout. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 2;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
@@ -98,6 +101,9 @@ public class KOMEWorldData extends WorldSavedData {
     public static final int MAX_MOVEMENT_HISTORY_PER_FACTION = 250;
     private boolean conquestDefaultsInitialized;
     private boolean allianceRelationsNeedReapply;
+    private boolean integratedRootInitialized;
+    private boolean writeBlocked;
+    private String loadFailureReason = "";
 
     public KOMEWorldData() {
         super(DATA_NAME);
@@ -120,6 +126,53 @@ public class KOMEWorldData extends WorldSavedData {
         return data;
     }
 
+    /**
+     * Runs once from the authoritative server-tick START lifecycle after worlds and MapStorage exist.
+     * Access through {@link #get(World)} deliberately does not invoke this method.
+     */
+    public synchronized boolean initializeIntegratedWorld() {
+        ensureWritable();
+        if (integratedRootInitialized) {
+            return false;
+        }
+        applyWaypointDefaults(!conquestDefaultsInitialized);
+        integratedRootInitialized = true;
+        super.markDirty();
+        return true;
+    }
+
+    public boolean isIntegratedRootInitialized() {
+        return integratedRootInitialized;
+    }
+
+    public boolean isWriteBlocked() {
+        return writeBlocked;
+    }
+
+    public String getLoadFailureReason() {
+        return loadFailureReason;
+    }
+
+    @Override
+    public void markDirty() {
+        ensureWritable();
+        super.markDirty();
+    }
+
+    private void ensureWritable() {
+        if (writeBlocked) {
+            throw new IllegalStateException("KOME world data is write-blocked after a failed schema load: "
+                + loadFailureReason);
+        }
+    }
+
+    private void failUnsupportedRootSchema(String reason) {
+        writeBlocked = true;
+        loadFailureReason = reason == null ? "Unsupported KOME world-data schema." : reason;
+        safeSchemaError(loadFailureReason);
+        throw new IllegalStateException(loadFailureReason);
+    }
+
     public KOMEPlayerPopulation getPopulation(UUID player) {
         KOMEPlayerPopulation pop = populations.get(player);
         if (pop == null) {
@@ -127,6 +180,10 @@ public class KOMEWorldData extends WorldSavedData {
             populations.put(player, pop);
         }
         return pop;
+    }
+
+    public KOMEPlayerPopulation getPopulationIfPresent(UUID player) {
+        return populations.get(player);
     }
 
     /** Controlled creation for world-data internals and deterministic tests. */
@@ -500,6 +557,10 @@ public class KOMEWorldData extends WorldSavedData {
         }
         ensureDefaultArrivalPoint(tile);
         return tile;
+    }
+
+    public KOMEConquestTile getConquestTileIfPresent(String tileId) {
+        return conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
     }
 
     public KOMETileWaypoint getTileWaypoint(String tileId, String type) {
@@ -1287,7 +1348,8 @@ public class KOMEWorldData extends WorldSavedData {
         }
         KOMEPlayerTilePopulationAllocation allocation = getAllocation(tile, faction, playerId);
         boolean hasAllocation = allocation != null && (allocation.offensiveAllocated > 0 || allocation.defensiveAllocated > 0);
-        return hasAllocation || getPopulation(playerId).getCombinedTotal() > 0;
+        KOMEPlayerPopulation population = getPopulationIfPresent(playerId);
+        return hasAllocation || population != null && population.getCombinedTotal() > 0;
     }
 
     public boolean setActiveRecruitmentTile(UUID playerId, String factionKey, String tileId) {
@@ -2333,6 +2395,26 @@ public class KOMEWorldData extends WorldSavedData {
 
     @Override
     public void readFromNBT(NBTTagCompound nbt) {
+        if (writeBlocked) {
+            ensureWritable();
+        }
+        if (nbt == null) {
+            failUnsupportedRootSchema("KOME world data could not be loaded because its root tag is missing.");
+        }
+        if (nbt.hasNoTags()) {
+            integratedRootInitialized = false;
+            return;
+        }
+        if (!nbt.hasKey(KOME_DATA_SCHEMA_KEY)) {
+            failUnsupportedRootSchema("KOME world data is non-empty but has no " + KOME_DATA_SCHEMA_KEY
+                + " marker. Development-world migration is intentionally disabled.");
+        }
+        int savedRootSchema = nbt.getInteger(KOME_DATA_SCHEMA_KEY);
+        if (savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
+            failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema + "; expected "
+                + KOME_DATA_SCHEMA_VERSION + ". Development-world migration is intentionally disabled.");
+        }
+        integratedRootInitialized = true;
         boolean migratedPopulationData = false;
         int savedAllianceSchema = nbt.hasKey("AllianceDataSchemaVersion") ? nbt.getInteger("AllianceDataSchemaVersion") : 0;
         int savedBuildSchema = nbt.hasKey("BuildDataSchemaVersion") ? nbt.getInteger("BuildDataSchemaVersion") : 0;
@@ -3119,6 +3201,8 @@ public class KOMEWorldData extends WorldSavedData {
 
     @Override
     public void writeToNBT(NBTTagCompound nbt) {
+        ensureWritable();
+        nbt.setInteger(KOME_DATA_SCHEMA_KEY, KOME_DATA_SCHEMA_VERSION);
         nbt.removeTag("TradeProduceSlotsMaximum");
         nbt.removeTag("AllianceProduceSlots");
         nbt.setInteger("AllianceDataSchemaVersion", ALLIANCE_DATA_SCHEMA_VERSION);
@@ -3460,6 +3544,14 @@ public class KOMEWorldData extends WorldSavedData {
             kingList.appendTag(king);
         }
         nbt.setTag("FactionKings", kingList);
+    }
+
+    private static void safeSchemaError(String message) {
+        try {
+            FMLLog.severe("%s", message);
+        } catch (Throwable ignored) {
+            System.err.println(message);
+        }
     }
 
     static ItemRecovery recoverTradePostStacks(KOMELegacyTradePostRecord post, KOMEAllianceFactionLedger ledger) {

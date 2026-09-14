@@ -158,6 +158,7 @@ public class KOMEFactionPopulationTest {
     @Test
     public void negativePersistedFactionPopulationIsRejected() {
         NBTTagCompound saved = new NBTTagCompound();
+        saved.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         NBTTagList entries = new NBTTagList();
         NBTTagCompound entry = new NBTTagCompound();
         entry.setString("Faction", "gondor");

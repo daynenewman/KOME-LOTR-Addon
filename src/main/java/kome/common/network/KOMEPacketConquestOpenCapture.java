@@ -66,13 +66,15 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             return;
         }
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEConquestTile tile = data.getConquestTile(tileId);
+        KOMEConquestTile tile = data.getConquestTileIfPresent(tileId);
+        if (tile == null) {
+            return;
+        }
         String viewerFaction = KOMEAlliance.normalizeFactionKey(getPlayerFaction(data, player));
         String ownerFaction = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
         String pendingToFaction = KOMEAlliance.normalizeFactionKey(tile.pendingTransferToFaction);
         java.util.UUID viewerId = KOMEReflection.getEntityUUID(player);
         boolean canEditPopulation = canEditPopulation(data, player, tile);
-        data.rebuildArmyCompaniesForPlayer(KOMEReflection.getWorld(player), viewerId);
         TroopSummary summary = summarizeTroops(data, ownerFaction, tileId, viewerId);
         boolean canMoveTroops = hasControllableCompanyAtTile(data, viewerId, viewerFaction, tileId, player.canCommandSenderUseCommand(2, "troops"));
         int offensiveTotal = data.getEffectiveUsablePopulation(tileId, ownerFaction, KOMEPopulationType.OFFENSIVE);

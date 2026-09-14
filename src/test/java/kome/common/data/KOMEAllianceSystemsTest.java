@@ -154,6 +154,7 @@ public class KOMEAllianceSystemsTest {
         legacyUnit.setInteger("CaptainPopulationReservation", 50);
 
         NBTTagCompound root = new NBTTagCompound();
+        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         root.setInteger("AllianceDataSchemaVersion", 2);
         net.minecraft.nbt.NBTTagList units = new net.minecraft.nbt.NBTTagList();
         units.appendTag(legacyUnit);
@@ -204,6 +205,7 @@ public class KOMEAllianceSystemsTest {
         net.minecraft.nbt.NBTTagList legacyAlliances = new net.minecraft.nbt.NBTTagList();
         legacyAlliances.appendTag(legacyAlliance);
         NBTTagCompound legacyRoot = new NBTTagCompound();
+        legacyRoot.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         legacyRoot.setInteger("AllianceDataSchemaVersion", 2);
         legacyRoot.setTag("Alliances", legacyAlliances);
         KOMEWorldData migrated = new KOMEWorldData("test");
@@ -268,6 +270,7 @@ public class KOMEAllianceSystemsTest {
         farmhand.cost = 1;
 
         NBTTagCompound root = new NBTTagCompound();
+        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         root.setInteger("AllianceDataSchemaVersion", 2);
         net.minecraft.nbt.NBTTagList posts = new net.minecraft.nbt.NBTTagList();
         posts.appendTag(postNbt);
@@ -489,6 +492,7 @@ public class KOMEAllianceSystemsTest {
         net.minecraft.nbt.NBTTagList posts = new net.minecraft.nbt.NBTTagList();
         posts.appendTag(legacyTradePost(post.id, post.operatingFaction, post.hostFaction));
         NBTTagCompound root = new NBTTagCompound();
+        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         root.setInteger("AllianceDataSchemaVersion", 4);
         root.setTag("AllianceTradePosts", posts);
         KOMEWorldData migrated = new KOMEWorldData("test");
@@ -789,6 +793,7 @@ public class KOMEAllianceSystemsTest {
         assertFalse(KOMEConquestTileDefaults.getKnownTileIds().isEmpty());
         KOMEWorldData data = new KOMEWorldData("test");
         data.readFromNBT(new NBTTagCompound());
+        data.initializeIntegratedWorld();
         String first = KOMEConquestTileDefaults.getKnownTileIds().iterator().next();
         assertTrue(data.conquestTiles.containsKey(KOMEConquestTile.normalizeId(first)));
         NBTTagCompound saved = new NBTTagCompound();

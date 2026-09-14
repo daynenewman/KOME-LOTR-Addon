@@ -110,6 +110,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
+        KOMEPacketHandler.clearPendingServerTasks();
         proxy.resetServerSessionState();
         KOMEAllianceGuiHandler.resetSessionState();
 
@@ -129,6 +130,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
+        KOMEPacketHandler.clearPendingServerTasks();
         lotrMoreMobs.serverStopping(event);
     }
 }

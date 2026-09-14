@@ -65,7 +65,7 @@ public class KOMEPopulationPayoutProcessorTest {
     }
 
     @Test public void invalidPersistedRemaindersAreDiscardedDeterministically() {
-        KOMEWorldData data=new KOMEWorldData("x"); NBTTagCompound nbt=new NBTTagCompound(); nbt.setBoolean("PopulationPayoutInitialized",true); NBTTagList list=new NBTTagList();
+        KOMEWorldData data=new KOMEWorldData("x"); NBTTagCompound nbt=new NBTTagCompound(); nbt.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,KOMEWorldData.KOME_DATA_SCHEMA_VERSION); nbt.setBoolean("PopulationPayoutInitialized",true); NBTTagList list=new NBTTagList();
         for(long value:new long[]{-1L,KOMEPopulationRate.SCALE}) { NBTTagCompound e=new NBTTagCompound();e.setString("Faction","gondor");e.setLong("RemainderUnits",value);list.appendTag(e); } nbt.setTag("PopulationPayoutRemainders",list); data.readFromNBT(nbt);
         assertTrue(data.populationPayoutRemainders.isEmpty());
     }

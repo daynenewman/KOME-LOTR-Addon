@@ -379,6 +379,7 @@ public class KOMERedesignSystemsTest {
 
     @Test public void worldLoadDiscardsStaleBuildWithoutType() {
         NBTTagCompound saved = new NBTTagCompound();
+        saved.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         NBTTagList builds = new NBTTagList();
         NBTTagCompound stale = new NBTTagCompound();
         stale.setString("Id", "B-stale");
