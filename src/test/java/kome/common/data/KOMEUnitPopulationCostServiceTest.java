@@ -20,12 +20,22 @@ public class KOMEUnitPopulationCostServiceTest {
         assertEquals(35, KOMEUnitPopulationCostService.calculate("lotr.guard", 35, false, false, overrides));
     }
     @Test public void bankedHireAndLevelIncreaseSpendPermanentlyAndRejectUnaffordableIncrease() {
-        KOMEWorldData data = new KOMEWorldData("cost"); data.grantFactionPopulation("gondor", 60);
-        KOMEHiredUnitRecord unit = unit(30); KOMEPopulationService.recordCombatHirePayment(unit, "gondor");
-        assertTrue(KOMEPopulationService.tryDebitCombatHire(data, "gondor", 30)); assertEquals(30, KOMEPopulationService.getAvailablePopulation(data,"gondor"));
-        assertEquals(15, KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, unit, 45)); assertEquals(15, KOMEPopulationService.getAvailablePopulation(data,"gondor"));
-        assertEquals(-1, KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, unit, 70)); assertEquals(15, KOMEPopulationService.getAvailablePopulation(data,"gondor"));
-        assertEquals(0, KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, unit, 20)); assertEquals(20, unit.cost); assertEquals(45, unit.populationSpent); assertEquals(15, KOMEPopulationService.getAvailablePopulation(data,"gondor"));
+        KOMEWorldData data = new KOMEWorldData("cost"); data.grantFactionPopulation("gondor", 75);
+        KOMEHiredUnitRecord unit = unit(25); KOMEPopulationService.recordCombatHirePayment(unit, "gondor");
+        assertTrue(KOMEPopulationService.tryDebitCombatHire(data, "gondor", 25)); assertEquals(50, KOMEPopulationService.getAvailablePopulation(data,"gondor"));
+        assertEquals(15, KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, unit, 40)); assertEquals(35, KOMEPopulationService.getAvailablePopulation(data,"gondor"));
+        assertEquals(0, KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, unit, 30)); assertEquals(30, unit.cost); assertEquals(40, unit.populationSpent);
+        assertEquals(0, KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, unit, 35)); assertEquals(35, unit.cost); assertEquals(40, unit.populationSpent);
+        assertEquals(10, KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, unit, 50)); assertEquals(25, KOMEPopulationService.getAvailablePopulation(data,"gondor")); assertEquals(50, unit.populationSpent);
+        assertEquals(-1, KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, unit, 76)); assertEquals(25, KOMEPopulationService.getAvailablePopulation(data,"gondor")); assertEquals(50, unit.populationSpent);
+    }
+
+    @Test public void wholeCostConversionIsExactForConfiguredOverrideAndMountedCost() {
+        assertEquals(214748364700L, KOMEPopulationService.wholeToCenti(Integer.MAX_VALUE));
+        Map<String,Integer> overrides = new HashMap<String,Integer>(); overrides.put("lotr.rider", Integer.valueOf(73));
+        int configured = KOMEUnitPopulationCostService.calculate("LOTR.RIDER", 25, true, false, overrides);
+        assertEquals(73, configured);
+        assertEquals(7300L, KOMEPopulationService.wholeToCenti(configured));
     }
     @Test public void deathDismissalAndRestartDoNotRefundRecordedBankPayment() {
         KOMEWorldData data = new KOMEWorldData("cost"); data.grantFactionPopulation("gondor", 30);

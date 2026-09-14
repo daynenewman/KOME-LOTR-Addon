@@ -75,19 +75,23 @@ public class KOMEAllianceSystemsTest {
         data.conquestTiles.put(tile.id, tile);
         KOMETilePopulation pool = data.getOrCreateTilePopulationPool(tile.id, "rohan");
         pool.offensiveTotal = 100;
+        data.grantFactionPopulation("rohan", 100);
         assertEquals(100, data.getKinglessStewardshipAvailable("rohan"));
         KOMEPlayerTilePopulationAllocation allocation = data.getOrCreateAllocation(tile.id, "rohan", UUID.randomUUID(), "Rider");
         allocation.offensiveAllocated = 20;
-        assertEquals(80, data.getKinglessStewardshipAvailable("rohan"));
+        assertEquals(100, data.getKinglessStewardshipAvailable("rohan"));
         KOMEHiredUnitRecord reserved = new KOMEHiredUnitRecord();
         reserved.entity = UUID.randomUUID();
         reserved.owner = UUID.randomUUID();
         reserved.cost = 10;
+        reserved.populationSpent = 10;
         reserved.benefitSource = "MILITARY_T3_STEWARDSHIP";
         reserved.populationOwningFaction = "rohan";
         data.hiredUnits.put(reserved.entity, reserved);
+        assertTrue(KOMEPopulationService.trySpend(data, "rohan", 10));
         pool.offensiveUsed = 10;
-        assertEquals(70, data.getKinglessStewardshipAvailable("rohan"));
+        assertEquals(90, data.getKinglessStewardshipAvailable("rohan"));
+        assertEquals(100, data.getKinglessStewardshipGlobalCap("rohan"));
     }
 
     @Test
@@ -100,7 +104,8 @@ public class KOMEAllianceSystemsTest {
         data.getOrCreateTilePopulationPool(tile.id, "gondor").offensiveTotal = 100;
         KOMEPlayerTilePopulationAllocation allocation = data.getOrCreateAllocation(tile.id, "rohan", UUID.randomUUID(), "Rider");
         allocation.offensiveAllocated = 20;
-        // Only the 100 native-source population is eligible; the 20 allocation remains excluded.
+        data.grantFactionPopulation("rohan", 80);
+        // Historical tile pools and allocations do not control canonical stewardship funding.
         assertEquals(80, data.getKinglessStewardshipAvailable("rohan"));
     }
 
@@ -155,6 +160,7 @@ public class KOMEAllianceSystemsTest {
 
         NBTTagCompound root = new NBTTagCompound();
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        root.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         root.setInteger("AllianceDataSchemaVersion", 2);
         net.minecraft.nbt.NBTTagList units = new net.minecraft.nbt.NBTTagList();
         units.appendTag(legacyUnit);
@@ -206,6 +212,7 @@ public class KOMEAllianceSystemsTest {
         legacyAlliances.appendTag(legacyAlliance);
         NBTTagCompound legacyRoot = new NBTTagCompound();
         legacyRoot.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        legacyRoot.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         legacyRoot.setInteger("AllianceDataSchemaVersion", 2);
         legacyRoot.setTag("Alliances", legacyAlliances);
         KOMEWorldData migrated = new KOMEWorldData("test");
@@ -271,6 +278,7 @@ public class KOMEAllianceSystemsTest {
 
         NBTTagCompound root = new NBTTagCompound();
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        root.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         root.setInteger("AllianceDataSchemaVersion", 2);
         net.minecraft.nbt.NBTTagList posts = new net.minecraft.nbt.NBTTagList();
         posts.appendTag(postNbt);
@@ -283,7 +291,7 @@ public class KOMEAllianceSystemsTest {
         migrated.readFromNBT(root);
         assertTrue(migrated.recoveredLegacyTradePostIds.contains(postId));
         assertTrue(migrated.hiredUnits.get(farmhand.entity).farmhand);
-        assertEquals(1, migrated.hiredUnits.get(farmhand.entity).cost);
+        assertEquals(0, migrated.hiredUnits.get(farmhand.entity).cost);
         assertEquals(1, migrated.getFarmhandsUsed(owner));
 
         NBTTagCompound saved = new NBTTagCompound();
@@ -293,7 +301,7 @@ public class KOMEAllianceSystemsTest {
         KOMEWorldData reloaded = new KOMEWorldData("test");
         reloaded.readFromNBT(saved);
         assertEquals(1, reloaded.getFarmhandsUsed(owner));
-        assertEquals(1, reloaded.hiredUnits.get(farmhand.entity).cost);
+        assertEquals(0, reloaded.hiredUnits.get(farmhand.entity).cost);
     }
 
     @Test
@@ -493,6 +501,7 @@ public class KOMEAllianceSystemsTest {
         posts.appendTag(legacyTradePost(post.id, post.operatingFaction, post.hostFaction));
         NBTTagCompound root = new NBTTagCompound();
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        root.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         root.setInteger("AllianceDataSchemaVersion", 4);
         root.setTag("AllianceTradePosts", posts);
         KOMEWorldData migrated = new KOMEWorldData("test");
@@ -863,10 +872,12 @@ public class KOMEAllianceSystemsTest {
         data.conquestTiles.put(tile.id, tile);
         KOMETilePopulation pool = data.getOrCreateTilePopulationPool(tile.id, "rohan");
         pool.offensiveTotal = 100;
+        data.grantFactionPopulation("rohan", 40);
         for (int i = 0; i < 2; i++) {
             KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
             record.entity = UUID.randomUUID();
             record.cost = 30;
+            record.populationSpent = 30;
             record.sourceType = KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION;
             record.benefitSource = "MILITARY_T3_STEWARDSHIP";
             record.populationOwningFaction = "rohan";
@@ -877,8 +888,7 @@ public class KOMEAllianceSystemsTest {
         assertEquals(60, data.getKinglessStewardshipReserved("rohan"));
         assertEquals(100, data.getKinglessStewardshipGlobalCap("rohan"));
         assertEquals(40, data.getKinglessStewardshipAvailable("rohan"));
-        assertNull(data.findKinglessStewardshipPool("rohan", 41));
-        assertSame(pool, data.findKinglessStewardshipPool("rohan", 40));
+        // The retained tile selector is compatibility-only and not part of this total.
     }
 
     @Test
@@ -1069,8 +1079,8 @@ public class KOMEAllianceSystemsTest {
             100L, "test unpledge");
         assertEquals(1, first.unitsReleased);
         assertEquals(1, first.companiesRemoved);
-        assertEquals(25, first.offensiveReturned);
-        assertEquals(0, population.offensiveUsed);
+        assertEquals(0, first.offensiveReturned);
+        assertEquals(25, population.offensiveUsed);
         KOMEPledgeReleaseTombstone tombstone = data.pledgeReleaseTombstones.get(unit.entity);
         assertNotNull(tombstone);
         assertTrue(tombstone.populationReturned);
@@ -1078,7 +1088,7 @@ public class KOMEAllianceSystemsTest {
         assertFalse(data.hiredUnits.containsKey(unit.entity));
 
         KOMEPledgeReleaseService.release(data, player, "Rider", "gondor", "", 101L, "idempotence retry");
-        assertEquals(0, population.offensiveUsed);
+        assertEquals(25, population.offensiveUsed);
         assertTrue(tombstone.populationReturned);
     }
 
@@ -1224,12 +1234,12 @@ public class KOMEAllianceSystemsTest {
         assertEquals("rohan", result.newFaction);
         assertEquals(1, result.movementsCancelled);
         assertEquals(1, result.snapshotUnitsRemoved);
-        assertEquals(0, pool.offensiveUsed);
-        assertNull(data.getAllocation(tile.id, "gondor", player));
+        assertEquals(25, pool.offensiveUsed);
+        assertNotNull(data.getAllocation(tile.id, "gondor", player));
         assertTrue(data.pledgeReleaseTombstones.get(moving.entity).entityRemoved);
         assertTrue(data.pledgeReleaseTombstones.get(moving.entity).populationReturned);
-        assertTrue(data.pledgeReleaseTombstones.get(ambiguous.entity).quarantined);
-        assertTrue(data.pledgeReleaseQuarantine.containsKey(ambiguous.entity));
+        assertFalse(data.pledgeReleaseTombstones.get(ambiguous.entity).quarantined);
+        assertFalse(data.pledgeReleaseQuarantine.containsKey(ambiguous.entity));
     }
 
     @Test
@@ -1274,6 +1284,7 @@ public class KOMEAllianceSystemsTest {
         unit.sourceType = sourceType;
         unit.type = KOMEPopulationType.OFFENSIVE;
         unit.cost = cost;
+        unit.populationSpent = cost;
         return unit;
     }
 

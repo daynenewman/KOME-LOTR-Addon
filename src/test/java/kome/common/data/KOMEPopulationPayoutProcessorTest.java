@@ -58,14 +58,14 @@ public class KOMEPopulationPayoutProcessorTest {
     }
 
     @Test public void overflowFailsBeforeAnyFactionMutation() {
-        KOMEWorldData data = world("gondor",20); add(data,"rohan",KOMEBuildType.NORMAL,20); KOMEPopulationService.grant(data,"rohan",Integer.MAX_VALUE);
+        KOMEWorldData data = world("gondor",20); add(data,"rohan",KOMEBuildType.NORMAL,20); data.setFactionPopulationCenti("rohan",Long.MAX_VALUE);
         Instant now=Instant.parse("2026-01-10T18:00:00Z"); KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data,now); Instant due=KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis)); long prior=data.lastPopulationPayoutBoundaryMillis;
         KOMEPopulationPayoutProcessor.Result result=KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data,due);
-        assertFalse(result.success); assertEquals(0,KOMEPopulationService.getAvailablePopulation(data,"gondor")); assertEquals(Integer.MAX_VALUE,KOMEPopulationService.getAvailablePopulation(data,"rohan")); assertEquals(prior,data.lastPopulationPayoutBoundaryMillis);
+        assertFalse(result.success); assertEquals(0,KOMEPopulationService.getAvailablePopulation(data,"gondor")); assertEquals(Long.MAX_VALUE,KOMEPopulationService.getAvailablePopulationCenti(data,"rohan")); assertEquals(prior,data.lastPopulationPayoutBoundaryMillis);
     }
 
     @Test public void invalidPersistedRemaindersAreDiscardedDeterministically() {
-        KOMEWorldData data=new KOMEWorldData("x"); NBTTagCompound nbt=new NBTTagCompound(); nbt.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,KOMEWorldData.KOME_DATA_SCHEMA_VERSION); nbt.setBoolean("PopulationPayoutInitialized",true); NBTTagList list=new NBTTagList();
+        KOMEWorldData data=new KOMEWorldData("x"); NBTTagCompound nbt=new NBTTagCompound(); nbt.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,KOMEWorldData.KOME_DATA_SCHEMA_VERSION); nbt.setInteger("FactionPopulationDataSchemaVersion",KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION); nbt.setBoolean("PopulationPayoutInitialized",true); NBTTagList list=new NBTTagList();
         for(long value:new long[]{-1L,KOMEPopulationRate.SCALE}) { NBTTagCompound e=new NBTTagCompound();e.setString("Faction","gondor");e.setLong("RemainderUnits",value);list.appendTag(e); } nbt.setTag("PopulationPayoutRemainders",list); data.readFromNBT(nbt);
         assertTrue(data.populationPayoutRemainders.isEmpty());
     }

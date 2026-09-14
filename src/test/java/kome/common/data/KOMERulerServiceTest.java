@@ -92,6 +92,7 @@ public class KOMERulerServiceTest {
         KOMEWorldData invalid = new KOMEWorldData("test");
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        nbt.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         NBTTagList kings = new NBTTagList();
         NBTTagCompound entry = new NBTTagCompound();
         entry.setString("Faction", "gondor");
@@ -127,6 +128,7 @@ public class KOMERulerServiceTest {
         KOMEWorldData data = new KOMEWorldData("test");
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        nbt.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         NBTTagList kings = new NBTTagList();
         NBTTagCompound entry = new NBTTagCompound();
         entry.setString("Faction", "gondor");

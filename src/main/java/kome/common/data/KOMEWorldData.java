@@ -36,10 +36,10 @@ public class KOMEWorldData extends WorldSavedData {
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
     public static final int BUILD_DATA_SCHEMA_VERSION = 1;
     public static final int POPULATION_DATA_SCHEMA_VERSION = 2;
-    public static final int FACTION_POPULATION_DATA_SCHEMA_VERSION = 1;
+    public static final int FACTION_POPULATION_DATA_SCHEMA_VERSION = 2;
 
     public final Map<UUID, KOMEPlayerPopulation> populations = new HashMap<>();
-    /** Canonical future-facing faction population banks; legacy ledgers remain separate for now. */
+    /** Authoritative faction-wide spendable population banks; legacy ledgers are non-authoritative. */
     public final Map<String, KOMEFactionPopulation> factionPopulations = new HashMap<String, KOMEFactionPopulation>();
     /** KOM-7 payout state; rate remains derived from Builds and configuration. */
     public boolean populationPayoutInitialized;
@@ -201,28 +201,28 @@ public class KOMEWorldData extends WorldSavedData {
         return factionPopulations.get(normalizeFactionPopulationKey(faction));
     }
 
-    public boolean trySpendFactionPopulation(String faction, int amount) {
+    boolean trySpendFactionPopulationCenti(String faction, long amountCenti) {
         String normalizedFaction = normalizeFactionPopulationKey(faction);
-        if (amount < 0) {
-            throw new IllegalArgumentException("Population spend must not be negative: " + amount);
+        if (amountCenti < 0L) {
+            throw new IllegalArgumentException("Population spend must not be negative: " + amountCenti);
         }
         KOMEFactionPopulation population = factionPopulations.get(normalizedFaction);
         if (population == null) {
-            return amount == 0;
+            return amountCenti == 0L;
         }
-        boolean spent = population.trySpend(amount);
-        if (spent && amount > 0) {
+        boolean spent = population.trySpendCenti(amountCenti);
+        if (spent && amountCenti > 0L) {
             markDirty();
         }
         return spent;
     }
 
-    public void grantFactionPopulation(String faction, int amount) {
+    void grantFactionPopulationCenti(String faction, long amountCenti) {
         String normalizedFaction = normalizeFactionPopulationKey(faction);
-        if (amount < 0) {
-            throw new IllegalArgumentException("Population grant must not be negative: " + amount);
+        if (amountCenti < 0L) {
+            throw new IllegalArgumentException("Population grant must not be negative: " + amountCenti);
         }
-        if (amount == 0) {
+        if (amountCenti == 0L) {
             return;
         }
         KOMEFactionPopulation population = factionPopulations.get(normalizedFaction);
@@ -230,27 +230,32 @@ public class KOMEWorldData extends WorldSavedData {
             population = new KOMEFactionPopulation();
             factionPopulations.put(normalizedFaction, population);
         }
-        population.grant(amount);
+        population.grantCenti(amountCenti);
         markDirty();
     }
 
-    public void setFactionPopulation(String faction, int amount) {
+    void setFactionPopulationCenti(String faction, long amountCenti) {
         String normalizedFaction = normalizeFactionPopulationKey(faction);
-        if (amount < 0) {
-            throw new IllegalArgumentException("Available population must not be negative: " + amount);
+        if (amountCenti < 0L) {
+            throw new IllegalArgumentException("Available centi-population must not be negative: " + amountCenti);
         }
         KOMEFactionPopulation population = factionPopulations.get(normalizedFaction);
         if (population == null) {
-            if (amount == 0) {
+            if (amountCenti == 0L) {
                 return;
             }
             population = new KOMEFactionPopulation();
             factionPopulations.put(normalizedFaction, population);
         }
-        if (population.getAvailablePopulation() != amount) {
-            population.setAvailablePopulation(amount);
+        if (population.getAvailablePopulationCenti() != amountCenti) {
+            population.setAvailablePopulationCenti(amountCenti);
             markDirty();
         }
+    }
+
+    /** Whole-unit compatibility boundary for current payout/tests; canonical storage is centi-population. */
+    void grantFactionPopulation(String faction, int amount) {
+        grantFactionPopulationCenti(faction, KOMEPopulationService.wholeToCenti(amount));
     }
 
     private static String normalizeFactionPopulationKey(String faction) {
@@ -1200,12 +1205,12 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public int getKinglessStewardshipAvailable(String factionKey) {
-        return Math.max(0, getKinglessStewardshipGlobalCap(factionKey) - getKinglessStewardshipReserved(factionKey));
+        return KOMEPopulationService.getAvailablePopulation(this, factionKey);
     }
 
     public int getKinglessStewardshipGlobalCap(String factionKey) {
         int reserved = getKinglessStewardshipReserved(factionKey);
-        return Math.max(0, getKinglessStewardshipUnallocated(factionKey) + reserved);
+        return saturatedAdd(getKinglessStewardshipAvailable(factionKey), reserved);
     }
 
     public int getKinglessStewardshipReserved(String factionKey) {
@@ -1214,37 +1219,18 @@ public class KOMEWorldData extends WorldSavedData {
         for (KOMEHiredUnitRecord record : hiredUnits.values()) {
             if (record != null && "MILITARY_T3_STEWARDSHIP".equals(record.benefitSource)
                     && faction.equals(normalizeFactionKey(record.populationOwningFaction))) {
-                reserved += Math.max(0, record.cost);
+                reserved = saturatedAdd(reserved, Math.max(0, record.populationSpent));
             }
         }
         return reserved;
     }
 
     public int getKinglessStewardshipUnallocated(String factionKey) {
-        String faction = normalizeFactionKey(factionKey);
-        int unallocated = 0;
-        for (KOMEConquestTile tile : conquestTiles.values()) {
-            if (tile == null || !tile.isClaimed() || !faction.equals(normalizeFactionKey(tile.currentRulingFaction()))) {
-                continue;
-            }
-            int effectiveTotal = 0;
-            int effectiveUsed = 0;
-            for (KOMETilePopulation pool : getTilePopulationPools(tile.id)) {
-                // Wartime stewardship may mobilize only population native to the kingless
-                // faction. Captured/foreign source pools retain their ordinary partial-control
-                // rules but are deliberately outside the stewardship allowance.
-                if (!faction.equals(normalizeFactionKey(pool.sourceFaction))) continue;
-                effectiveTotal += pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, faction);
-                effectiveUsed += pool.getUsed(KOMEPopulationType.OFFENSIVE);
-            }
-            int allocated = getTotalAllocated(tile.id, faction, KOMEPopulationType.OFFENSIVE);
-            int allocatedUsed = getTotalAllocationUsed(tile.id, faction, KOMEPopulationType.OFFENSIVE);
-            int unspentAllocation = Math.max(0, allocated - allocatedUsed);
-            unallocated += Math.max(0, effectiveTotal - effectiveUsed - unspentAllocation);
-        }
-        return unallocated;
+        return getKinglessStewardshipAvailable(factionKey);
     }
 
+    /** Legacy tile-pool selector retained for compatibility only; canonical stewardship never calls it. */
+    @Deprecated
     public KOMETilePopulation findKinglessStewardshipPool(String factionKey, int amount) {
         String faction = normalizeFactionKey(factionKey);
         List<String> ids = new ArrayList<String>(conquestTiles.keySet());
@@ -1633,7 +1619,7 @@ public class KOMEWorldData extends WorldSavedData {
             ? Math.max(0, population.nativeDefensiveTotal) : Math.max(0, population.nativeOffensiveTotal);
     }
 
-    /** Releases only legacy population ledgers after an ordinary unit removal. */
+    /** Compatibility hook: ordinary removal never refunds permanently-spent combat population. */
     public boolean releasePopulationForOrdinaryUnitRemoval(KOMEHiredUnitRecord record) {
         if (record == null) return false;
         // Successful canonical combat hires are permanently spent. Legacy records are no
@@ -2158,16 +2144,22 @@ public class KOMEWorldData extends WorldSavedData {
         String sourceTile = KOMEConquestTile.normalizeId(record.sourceTileId);
         if (sourceTile.length() == 0) sourceTile = KOMEConquestTile.normalizeId(record.currentTile);
         if (sourceTile.length() == 0) return null;
-        KOMEArmyCompany company = findHiringCompany(record.owner, sourceTile);
+        String companyFaction = companyFaction(record);
+        KOMEArmyCompany company = findHiringCompany(record.owner, sourceTile, companyFaction);
         if (company == null) {
             String id = hiringCompanyId(record.owner, sourceTile);
+            if (armyCompanies.containsKey(id)) {
+                String suffix = companyFaction.length() == 0 ? "unknown" : companyFaction.toLowerCase(java.util.Locale.ROOT);
+                id = id + "_" + suffix;
+                int collision = 2;
+                while (armyCompanies.containsKey(id)) id = hiringCompanyId(record.owner, sourceTile) + "_" + suffix + "_" + collision++;
+            }
             company = new KOMEArmyCompany();
             company.id = id;
             company.owner = record.owner;
             company.ownerName = ownerName == null || ownerName.length() == 0
                 ? safePlayerName(record.owner) : ownerName;
-            company.faction = "MILITARY_T3_STEWARDSHIP".equals(record.benefitSource)
-                ? normalizeFactionKey(record.unitFaction) : normalizeFactionKey(getPlayerFactionKey(record.owner));
+            company.faction = companyFaction;
             company.nativeFaction = company.faction;
             company.sourceTileId = sourceTile;
             company.currentTile = KOMEConquestTile.normalizeId(record.currentTile);
@@ -2236,13 +2228,15 @@ public class KOMEWorldData extends WorldSavedData {
         return "HC_" + owner.toString().replace("-", "") + "_" + KOMEConquestTile.normalizeId(sourceTile);
     }
 
-    private KOMEArmyCompany findHiringCompany(UUID owner, String sourceTile) {
+    private KOMEArmyCompany findHiringCompany(UUID owner, String sourceTile, String faction) {
         String tile = KOMEConquestTile.normalizeId(sourceTile);
+        String normalizedFaction = normalizeFactionKey(faction);
         KOMEArmyCompany result = null;
         for (KOMEArmyCompany candidate : armyCompanies.values()) {
             if (candidate == null || owner == null || !owner.equals(candidate.owner)
                     || !KOMEArmyCompany.SOURCE_AUTO_UNIT_ASSIGNMENT.equals(candidate.source)
-                    || !tile.equals(KOMEConquestTile.normalizeId(candidate.sourceTileId))) continue;
+                    || !tile.equals(KOMEConquestTile.normalizeId(candidate.sourceTileId))
+                    || !normalizedFaction.equals(normalizeFactionKey(candidate.faction))) continue;
             if (result == null || candidate.createdAtMillis < result.createdAtMillis
                     || candidate.createdAtMillis == result.createdAtMillis
                         && candidate.id.compareTo(result.id) < 0) {
@@ -2250,6 +2244,11 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
         return result;
+    }
+
+    private String companyFaction(KOMEHiredUnitRecord record) {
+        return "MILITARY_T3_STEWARDSHIP".equals(record.benefitSource)
+            ? normalizeFactionKey(record.unitFaction) : normalizeFactionKey(getPlayerFactionKey(record.owner));
     }
 
     private String defaultHiringCompanyName(String sourceTile) {
@@ -2419,6 +2418,7 @@ public class KOMEWorldData extends WorldSavedData {
         int savedAllianceSchema = nbt.hasKey("AllianceDataSchemaVersion") ? nbt.getInteger("AllianceDataSchemaVersion") : 0;
         int savedBuildSchema = nbt.hasKey("BuildDataSchemaVersion") ? nbt.getInteger("BuildDataSchemaVersion") : 0;
         int savedPopulationSchema = nbt.hasKey("PopulationDataSchemaVersion") ? nbt.getInteger("PopulationDataSchemaVersion") : 0;
+        validateFactionPopulationSchema(nbt);
         int removedCaptainDesignations = 0;
         int returnedCaptainPopulation = 0;
         int removedPostFarmerReservations = 0;
@@ -2533,7 +2533,7 @@ public class KOMEWorldData extends WorldSavedData {
                 continue;
             }
             KOMEFactionPopulation population = new KOMEFactionPopulation();
-            population.setAvailablePopulation(entry.getInteger("AvailablePopulation"));
+            population.setAvailablePopulationCenti(entry.getLong("AvailablePopulationCenti"));
             factionPopulations.put(faction, population);
         }
         NBTTagList payoutRemainders = nbt.getTagList("PopulationPayoutRemainders", 10);
@@ -3292,7 +3292,7 @@ public class KOMEWorldData extends WorldSavedData {
             }
             NBTTagCompound entry = new NBTTagCompound();
             entry.setString("Faction", KOMEAlliance.normalizeFactionKey(faction));
-            entry.setInteger("AvailablePopulation", population.getAvailablePopulation());
+            entry.setLong("AvailablePopulationCenti", population.getAvailablePopulationCenti());
             factionPopulationList.appendTag(entry);
         }
         nbt.setTag("FactionPopulations", factionPopulationList);
@@ -3551,6 +3551,37 @@ public class KOMEWorldData extends WorldSavedData {
             FMLLog.severe("%s", message);
         } catch (Throwable ignored) {
             System.err.println(message);
+        }
+    }
+
+    private void validateFactionPopulationSchema(NBTTagCompound nbt) {
+        if (!nbt.hasKey("FactionPopulationDataSchemaVersion")
+                || nbt.getInteger("FactionPopulationDataSchemaVersion") != FACTION_POPULATION_DATA_SCHEMA_VERSION) {
+            int found = nbt.hasKey("FactionPopulationDataSchemaVersion")
+                ? nbt.getInteger("FactionPopulationDataSchemaVersion") : 0;
+            failUnsupportedRootSchema("Unsupported faction-population schema " + found + "; expected "
+                + FACTION_POPULATION_DATA_SCHEMA_VERSION + ". Integer-bank migration is intentionally disabled.");
+        }
+        NBTTagList entries = nbt.getTagList("FactionPopulations", 10);
+        Set<String> factions = new HashSet<String>();
+        for (int i = 0; i < entries.tagCount(); i++) {
+            NBTTagCompound entry = entries.getCompoundTagAt(i);
+            String faction = KOMEAlliance.normalizeFactionKey(entry.getString("Faction"));
+            if (faction.length() == 0) {
+                failUnsupportedRootSchema("Invalid faction-population record at index " + i + ": faction is blank.");
+            }
+            if (!factions.add(faction)) {
+                failUnsupportedRootSchema("Invalid faction-population record at index " + i
+                    + ": duplicate faction " + faction + ".");
+            }
+            if (!entry.hasKey("AvailablePopulationCenti", 4)) {
+                failUnsupportedRootSchema("Invalid faction-population record at index " + i + " for " + faction
+                    + ": AvailablePopulationCenti must be a long.");
+            }
+            if (entry.getLong("AvailablePopulationCenti") < 0L) {
+                failUnsupportedRootSchema("Invalid faction-population record at index " + i + " for " + faction
+                    + ": AvailablePopulationCenti must not be negative.");
+            }
         }
     }
 

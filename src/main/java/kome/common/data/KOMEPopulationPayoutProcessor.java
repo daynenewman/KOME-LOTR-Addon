@@ -65,14 +65,28 @@ public final class KOMEPopulationPayoutProcessor {
             long prior = data.populationPayoutRemainders.containsKey(e.getKey()) ? data.populationPayoutRemainders.get(e.getKey()).longValue() : 0L;
             long accrued = prior > Long.MAX_VALUE - e.getValue().getFixedUnitsPerDay() ? Long.MAX_VALUE : prior + e.getValue().getFixedUnitsPerDay();
             long whole = accrued / KOMEPopulationRate.SCALE, remainder = accrued % KOMEPopulationRate.SCALE;
-            int bank = KOMEPopulationService.getAvailablePopulation(data, e.getKey());
+            long bankCenti = KOMEPopulationService.getAvailablePopulationCenti(data, e.getKey());
             long grant = whole, blocked = 0L;
-            if (cap && bank < capValue && grant > capValue - bank) { blocked = grant - (capValue - bank); grant = capValue - bank; }
-            else if (cap && bank >= capValue) { blocked = grant; grant = 0L; }
-            if (grant > Integer.MAX_VALUE || grant > Integer.MAX_VALUE - bank) return new Result(Collections.<FactionResult>emptyList(), false, false, "population bank overflow at " + e.getKey());
+            long capCenti = KOMEPopulationService.wholeToCenti(capValue);
+            if (cap) {
+                long roomWhole = bankCenti >= capCenti ? 0L : (capCenti - bankCenti) / KOMEPopulationService.CENTI_PER_POPULATION;
+                if (grant > roomWhole) { blocked = grant - roomWhole; grant = roomWhole; }
+            }
+            if (grant > Integer.MAX_VALUE) return new Result(Collections.<FactionResult>emptyList(), false, false, "population bank overflow at " + e.getKey());
+            try {
+                Math.addExact(bankCenti, Math.multiplyExact(grant, KOMEPopulationService.CENTI_PER_POPULATION));
+            } catch (ArithmeticException overflow) {
+                return new Result(Collections.<FactionResult>emptyList(), false, false, "population bank overflow at " + e.getKey());
+            }
             plan.add(new FactionResult(e.getKey(), e.getValue().getFixedUnitsPerDay(), prior, whole, (int) grant, remainder, blocked));
         }
-        for (FactionResult row : plan) { if (row.granted > 0) data.grantFactionPopulation(row.faction, row.granted); if (row.remainder == 0L) data.populationPayoutRemainders.remove(row.faction); else data.populationPayoutRemainders.put(row.faction, Long.valueOf(row.remainder)); }
+        for (FactionResult row : plan) {
+            // Checkpoint E will produce centi payouts directly; this preserves the
+            // current whole-unit scheduler behind one checked compatibility boundary.
+            if (row.granted > 0) KOMEPopulationService.grant(data, row.faction, row.granted);
+            if (row.remainder == 0L) data.populationPayoutRemainders.remove(row.faction);
+            else data.populationPayoutRemainders.put(row.faction, Long.valueOf(row.remainder));
+        }
         data.lastPopulationPayoutBoundaryMillis = boundary.toEpochMilli(); data.markDirty(); return new Result(plan, false, false, "processed");
     }
     public static final class FactionResult { public final String faction; public final long rate, priorRemainder, generated, remainder, capBlocked; public final int granted; FactionResult(String f,long r,long p,long g,int a,long n,long b){faction=f;rate=r;priorRemainder=p;generated=g;granted=a;remainder=n;capBlocked=b;} }

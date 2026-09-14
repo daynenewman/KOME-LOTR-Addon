@@ -1340,23 +1340,20 @@ public class KOMECommandTroops extends CommandBase {
             order.status = KOMEArmyMovementOrder.CANCELLED;
             order.stopped = true;
             order.accessChoice = "NATIVE_DISBAND";
-            order.accessLossReason = "Disbanded by native authority; population returned to recorded sources.";
+            order.accessLossReason = "Disbanded by native authority; combat population remains permanently spent.";
         }
-        int returned = 0;
         for (UUID unitId : unitIds) {
             KOMEHiredUnitRecord record = data.hiredUnits.remove(unitId);
             if (record == null) continue;
-            if (data.releasePopulationForOrdinaryUnitRemoval(record)) {
-                returned += Math.max(0, record.cost);
-            }
+            data.releasePopulationForOrdinaryUnitRemoval(record);
             Entity entity = loaded.get(unitId);
             if (entity != null) KOMEReflection.setDead(entity);
         }
         data.armyCompanies.remove(company.id);
         data.markDirty();
         data.syncConquestTiles();
-        sender.addChatMessage(new ChatComponentText("Disbanded stewardship company " + company.name + " and returned " + returned
-            + " population to its recorded native sources."));
+        sender.addChatMessage(new ChatComponentText("Disbanded stewardship company " + company.name
+            + "; combat population remains permanently spent."));
     }
 
     private void listCompany(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, World world, String companyId) {

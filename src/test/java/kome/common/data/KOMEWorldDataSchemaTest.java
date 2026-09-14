@@ -199,7 +199,7 @@ public class KOMEWorldDataSchemaTest {
         assertEquals(17, restored.movementSecondsPerTileOverride);
         assertEquals(9, restored.nextWarSequence);
         assertEquals(11, restored.nextBuildSequence);
-        assertEquals(42, restored.getFactionPopulationIfPresent("gondor").getAvailablePopulation());
+        assertEquals(4200L, restored.getFactionPopulationIfPresent("gondor").getAvailablePopulationCenti());
         assertEquals(123456789L, restored.lastPopulationPayoutBoundaryMillis);
         assertEquals(Long.valueOf(7L), restored.populationPayoutRemainders.get("gondor"));
         assertEquals(KOMEWarSeasonState.Phase.WAR, restored.warSeason.phase);

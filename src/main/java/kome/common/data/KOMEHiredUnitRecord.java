@@ -55,6 +55,7 @@ public class KOMEHiredUnitRecord {
     public String populationOwningFaction = "";
     public String controllerAuthority = "";
     public String stewardshipWarIds = "";
+    /** Compatibility field: true means cleanup handled funding; canonical population is never refunded. */
     public boolean populationReturned;
     public String releaseState = "";
     public NBTTagCompound movingEntityData;
@@ -117,6 +118,11 @@ public class KOMEHiredUnitRecord {
         releaseState = nbt.getString("ReleaseState");
         movingEntityData = nbt.hasKey("MovingEntityData", 10) ? nbt.getCompoundTag("MovingEntityData") : null;
         stationedEntityData = nbt.hasKey("StationedEntityData", 10) ? nbt.getCompoundTag("StationedEntityData") : null;
+        if (farmhand) {
+            cost = 0;
+            baseCost = 0;
+            populationSpent = 0;
+        }
     }
 
     public NBTTagCompound writeToNBT() {
@@ -172,7 +178,8 @@ public class KOMEHiredUnitRecord {
     }
 
     public boolean isFactionPopulationBankFunded() {
-        return SOURCE_FACTION_POPULATION_BANK.equals(sourceType);
+        return SOURCE_FACTION_POPULATION_BANK.equals(sourceType)
+            || SOURCE_STEWARDSHIP_RESERVATION.equals(sourceType);
     }
 
     public boolean isMoving() {
