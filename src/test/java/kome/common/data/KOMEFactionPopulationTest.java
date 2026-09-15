@@ -165,6 +165,8 @@ public class KOMEFactionPopulationTest {
     public void negativePersistedFactionPopulationIsRejected() {
         NBTTagCompound saved = new NBTTagCompound();
         saved.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        saved.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        saved.setTag("Builds", new net.minecraft.nbt.NBTTagList());
         saved.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         NBTTagList entries = new NBTTagList();
         NBTTagCompound entry = new NBTTagCompound();
@@ -300,6 +302,8 @@ public class KOMEFactionPopulationTest {
     private static NBTTagCompound canonicalRoot() {
         NBTTagCompound saved = new NBTTagCompound();
         saved.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        saved.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        saved.setTag("Builds", new net.minecraft.nbt.NBTTagList());
         return saved;
     }
 

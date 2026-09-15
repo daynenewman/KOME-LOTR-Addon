@@ -485,7 +485,7 @@ public class KOMEPopulationConfigFoundationTest {
         KOMEPlayerBuild build = new KOMEPlayerBuild(); build.id = id; build.tileId = tile.id;
         build.populationFaction = "gondor"; build.type = KOMEBuildType.NORMAL; build.active = true;
         KOMEBuildContribution contribution = new KOMEBuildContribution(); contribution.id = "H-" + id;
-        contribution.halfHours = halfHours; contribution.status = KOMEBuildContribution.APPROVED;
+        contribution.centiHours = Math.multiplyExact((long) halfHours, 50L); contribution.status = KOMEBuildContribution.APPROVED;
         build.contributions.add(contribution); data.builds.put(build.id, build); return build;
     }
 

@@ -160,6 +160,8 @@ public class KOMEAllianceSystemsTest {
 
         NBTTagCompound root = new NBTTagCompound();
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        root.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        root.setTag("Builds", new net.minecraft.nbt.NBTTagList());
         root.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         root.setInteger("AllianceDataSchemaVersion", 2);
         net.minecraft.nbt.NBTTagList units = new net.minecraft.nbt.NBTTagList();
@@ -212,6 +214,8 @@ public class KOMEAllianceSystemsTest {
         legacyAlliances.appendTag(legacyAlliance);
         NBTTagCompound legacyRoot = new NBTTagCompound();
         legacyRoot.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        legacyRoot.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        legacyRoot.setTag("Builds", new net.minecraft.nbt.NBTTagList());
         legacyRoot.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         legacyRoot.setInteger("AllianceDataSchemaVersion", 2);
         legacyRoot.setTag("Alliances", legacyAlliances);
@@ -278,6 +282,8 @@ public class KOMEAllianceSystemsTest {
 
         NBTTagCompound root = new NBTTagCompound();
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        root.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        root.setTag("Builds", new net.minecraft.nbt.NBTTagList());
         root.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         root.setInteger("AllianceDataSchemaVersion", 2);
         net.minecraft.nbt.NBTTagList posts = new net.minecraft.nbt.NBTTagList();
@@ -501,6 +507,8 @@ public class KOMEAllianceSystemsTest {
         posts.appendTag(legacyTradePost(post.id, post.operatingFaction, post.hostFaction));
         NBTTagCompound root = new NBTTagCompound();
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        root.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        root.setTag("Builds", new net.minecraft.nbt.NBTTagList());
         root.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         root.setInteger("AllianceDataSchemaVersion", 4);
         root.setTag("AllianceTradePosts", posts);
@@ -1190,7 +1198,7 @@ public class KOMEAllianceSystemsTest {
 
         assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
         assertEquals(25, reserve.offensiveUsed);
-        assertEquals(0, build.approvedHalfHours());
+        assertEquals(0, build.approvedCentiHours());
     }
 
     @Test

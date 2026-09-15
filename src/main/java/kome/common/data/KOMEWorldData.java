@@ -34,7 +34,7 @@ public class KOMEWorldData extends WorldSavedData {
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
-    public static final int BUILD_DATA_SCHEMA_VERSION = 1;
+    public static final int BUILD_DATA_SCHEMA_VERSION = KOMEPlayerBuild.DATA_SCHEMA_VERSION;
     public static final int POPULATION_DATA_SCHEMA_VERSION = 2;
     public static final int FACTION_POPULATION_DATA_SCHEMA_VERSION = 2;
 
@@ -96,7 +96,7 @@ public class KOMEWorldData extends WorldSavedData {
     /** The sole persisted campaign-season authority; population and unit records remain separate. */
     public final KOMEWarSeasonState warSeason = new KOMEWarSeasonState();
     public int nextBuildSequence = 1;
-    public int allianceStageThreeRequiredHalfHours = KOMEHalfHourService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
+    public int allianceStageThreeRequiredHalfHours = KOMEAllianceProgressionService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
     public String allianceDifficulty = KOMEAllianceRequirements.STANDARD;
     public static final int MAX_MOVEMENT_HISTORY_PER_FACTION = 250;
     private boolean conquestDefaultsInitialized;
@@ -2413,12 +2413,13 @@ public class KOMEWorldData extends WorldSavedData {
             failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema + "; expected "
                 + KOME_DATA_SCHEMA_VERSION + ". Development-world migration is intentionally disabled.");
         }
-        integratedRootInitialized = true;
         boolean migratedPopulationData = false;
         int savedAllianceSchema = nbt.hasKey("AllianceDataSchemaVersion") ? nbt.getInteger("AllianceDataSchemaVersion") : 0;
-        int savedBuildSchema = nbt.hasKey("BuildDataSchemaVersion") ? nbt.getInteger("BuildDataSchemaVersion") : 0;
         int savedPopulationSchema = nbt.hasKey("PopulationDataSchemaVersion") ? nbt.getInteger("PopulationDataSchemaVersion") : 0;
         validateFactionPopulationSchema(nbt);
+        // Validate every Build before publishing any loaded state or clearing current collections.
+        Map<String, KOMEPlayerBuild> loadedBuilds = readCanonicalBuilds(nbt);
+        integratedRootInitialized = true;
         int removedCaptainDesignations = 0;
         int returnedCaptainPopulation = 0;
         int removedPostFarmerReservations = 0;
@@ -2474,7 +2475,7 @@ public class KOMEWorldData extends WorldSavedData {
         nextBuildSequence = nbt.hasKey("NextBuildSequence") ? Math.max(1, nbt.getInteger("NextBuildSequence")) : 1;
         allianceStageThreeRequiredHalfHours = nbt.hasKey("AllianceStageThreeRequiredHalfHours")
             ? Math.max(1, nbt.getInteger("AllianceStageThreeRequiredHalfHours"))
-            : KOMEHalfHourService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
+            : KOMEAllianceProgressionService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
         allianceDifficulty = KOMEAllianceRequirements.normalizeDifficulty(nbt.getString("AllianceDifficulty"));
         NBTTagList requirementConfig = nbt.getTagList("AllianceRequirementOverrides", 10);
         for (int i = 0; i < requirementConfig.tagCount(); i++) {
@@ -2675,26 +2676,11 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
-        NBTTagList buildList = nbt.getTagList("Builds", 10);
-        for (int i = 0; i < buildList.tagCount(); i++) {
-            KOMEPlayerBuild build = new KOMEPlayerBuild();
-            try {
-                build.readFromNBT(buildList.getCompoundTagAt(i));
-                if (build.id.length() > 0 && build.tileId.length() > 0 && build.populationFaction.length() > 0) {
-                    builds.put(build.id, build);
-                }
-            } catch (IllegalArgumentException ignored) {
-                safeAllianceInfo("[KOME] Discarded stale Build record without a valid BuildType.");
-            }
-        }
+        builds.putAll(loadedBuilds);
         NBTTagList foreignConstructionList = nbt.getTagList("ForeignConstructionPermissions", 10);
         for (int i = 0; i < foreignConstructionList.tagCount(); i++) {
             KOMEForeignConstructionPermission permission = new KOMEForeignConstructionPermission();
             if (permission.readFromNBT(foreignConstructionList.getCompoundTagAt(i))) foreignConstructionPermissions.put(permission.key(), permission);
-        }
-        if (savedBuildSchema < BUILD_DATA_SCHEMA_VERSION) {
-            safeAllianceInfo("[KOME] Build schema " + savedBuildSchema + " -> " + BUILD_DATA_SCHEMA_VERSION
-                + ": initialized persistent Build collection without converting legacy population.");
         }
         if (savedPopulationSchema < POPULATION_DATA_SCHEMA_VERSION) {
             safeAllianceInfo("[KOME] Population schema " + savedPopulationSchema + " -> "
@@ -3552,6 +3538,38 @@ public class KOMEWorldData extends WorldSavedData {
         } catch (Throwable ignored) {
             System.err.println(message);
         }
+    }
+
+    private Map<String, KOMEPlayerBuild> readCanonicalBuilds(NBTTagCompound nbt) {
+        if (!nbt.hasKey("BuildDataSchemaVersion", 3)
+                || nbt.getInteger("BuildDataSchemaVersion") != BUILD_DATA_SCHEMA_VERSION) {
+            failUnsupportedRootSchema("Unsupported BuildDataSchemaVersion; expected " + BUILD_DATA_SCHEMA_VERSION
+                + ". Pre-Checkpoint D development worlds require reset; Build migration is disabled.");
+        }
+        Map<String, KOMEPlayerBuild> loaded = new HashMap<String, KOMEPlayerBuild>();
+        if (!nbt.hasKey("Builds", 9)) {
+            failUnsupportedRootSchema("Canonical Builds list is missing or malformed.");
+        }
+        NBTTagList records = nbt.getTagList("Builds", 10);
+        if (((NBTTagList) nbt.getTag("Builds")).tagCount() != records.tagCount()) {
+            failUnsupportedRootSchema("Canonical Builds list must contain compound records.");
+        }
+        for (int i = 0; i < records.tagCount(); i++) {
+            NBTTagCompound record = records.getCompoundTagAt(i);
+            try {
+                KOMEPlayerBuild build = new KOMEPlayerBuild();
+                build.readFromNBT(record);
+                if (build.id.trim().isEmpty() || build.tileId.isEmpty() || build.populationFaction.isEmpty()) {
+                    throw new IllegalArgumentException("Build ID, tile and population faction are required.");
+                }
+                if (loaded.containsKey(build.id)) throw new IllegalArgumentException("Duplicate Build ID.");
+                loaded.put(build.id, build);
+            } catch (RuntimeException invalid) {
+                failUnsupportedRootSchema("Invalid Build record at index " + i + " (ID="
+                    + record.getString("Id") + "): " + invalid.getMessage());
+            }
+        }
+        return loaded;
     }
 
     private void validateFactionPopulationSchema(NBTTagCompound nbt) {

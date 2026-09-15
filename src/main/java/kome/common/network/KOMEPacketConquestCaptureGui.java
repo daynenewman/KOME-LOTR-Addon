@@ -310,7 +310,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         public double y;
         public double z;
         public String buildType = "";
-        public int approvedHalfHours;
+        public long approvedCentiHours;
         public int pendingCount;
         public String status = "";
         public boolean canManage;
@@ -330,7 +330,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             y = buf.readDouble();
             z = buf.readDouble();
             buildType = ByteBufUtils.readUTF8String(buf);
-            approvedHalfHours = buf.readInt();
+            approvedCentiHours = buf.readLong();
             pendingCount = buf.readInt();
             status = ByteBufUtils.readUTF8String(buf);
             canManage = buf.readBoolean();
@@ -357,7 +357,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             buf.writeDouble(y);
             buf.writeDouble(z);
             ByteBufUtils.writeUTF8String(buf, safe(buildType));
-            buf.writeInt(approvedHalfHours);
+            buf.writeLong(approvedCentiHours);
             buf.writeInt(pendingCount);
             ByteBufUtils.writeUTF8String(buf, safe(status));
             buf.writeBoolean(canManage);
@@ -373,14 +373,14 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         public String id = "";
         public String player = "";
         public String faction = "";
-        public int halfHours;
+        public long centiHours;
         public String status = "";
 
         void read(ByteBuf buf) {
             id = ByteBufUtils.readUTF8String(buf);
             player = ByteBufUtils.readUTF8String(buf);
             faction = ByteBufUtils.readUTF8String(buf);
-            halfHours = buf.readInt();
+            centiHours = buf.readLong();
             status = ByteBufUtils.readUTF8String(buf);
         }
 
@@ -388,7 +388,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             ByteBufUtils.writeUTF8String(buf, safe(id));
             ByteBufUtils.writeUTF8String(buf, safe(player));
             ByteBufUtils.writeUTF8String(buf, safe(faction));
-            buf.writeInt(halfHours);
+            buf.writeLong(centiHours);
             ByteBufUtils.writeUTF8String(buf, safe(status));
         }
     }

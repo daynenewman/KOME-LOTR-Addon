@@ -146,53 +146,59 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             EntityPlayerMP player, KOMEConquestTile tile, String viewerFaction, String controller, java.util.UUID viewerId) {
         boolean admin = player.canCommandSenderUseCommand(2, "build");
         for (KOMEPlayerBuild build : KOMEBuildService.buildsInTile(data, tile.id, false)) {
-            KOMEPacketConquestCaptureGui.BuildView view = new KOMEPacketConquestCaptureGui.BuildView();
-            view.id = build.id;
-            view.name = build.displayName;
-            view.populationFaction = build.populationFaction;
-            view.builder = build.builderName;
-            view.manager = build.managerName;
-            view.dimension = build.dimension;
-            view.x = build.x;
-            view.y = build.y;
-            view.z = build.z;
-            view.buildType = build.type.key;
-            view.approvedHalfHours = build.approvedHalfHours();
-            view.pendingCount = build.pendingCount();
-            view.status = buildStatus(data, viewerFaction, controller, build.populationFaction);
-            view.canManage = admin || KOMEBuildService.isManager(build, viewerId);
-            KOMEBuildService.Decision delete = KOMEBuildService.canDeleteBuild(
-                data, build, viewerId, admin);
-            KOMEBuildService.Decision destroy = KOMEBuildService.canDestroyEnemyBuild(
-                data, build, viewerId, viewerFaction, admin);
-            view.canDestroy = destroy.allowed;
-            if (delete.allowed) {
-                view.destroyMode = "delete";
-            } else if (destroy.allowed) {
-                view.destroyMode = "destroy";
-            } else if (view.canManage) {
-                view.destroyMode = "delete";
-                view.destroyReason = delete.reason;
-            } else {
-                view.destroyMode = "destroy";
-                view.destroyReason = destroy.reason;
-            }
-            for (KOMEBuildContribution contribution : build.sortedContributions()) {
-                KOMEPacketConquestCaptureGui.ContributionView contributionView =
-                    new KOMEPacketConquestCaptureGui.ContributionView();
-                contributionView.id = contribution.id;
-                contributionView.player = contribution.contributorName;
-                contributionView.faction = contribution.contributorFaction;
-                contributionView.halfHours = contribution.halfHours;
-                contributionView.status = contribution.status;
-                view.contributions.add(contributionView);
-            }
-            packet.builds.add(view);
+            packet.builds.add(projectBuild(data, build, viewerFaction, controller, viewerId, admin));
         }
         packet.viewerDimension = player.worldObj.provider.dimensionId;
         packet.viewerX = player.posX;
         packet.viewerY = player.posY;
         packet.viewerZ = player.posZ;
+    }
+
+    /** Read-only Build projection; permission checks and exact time remain server-owned. */
+    static KOMEPacketConquestCaptureGui.BuildView projectBuild(KOMEWorldData data, KOMEPlayerBuild build,
+            String viewerFaction, String controller, java.util.UUID viewerId, boolean admin) {
+        KOMEPacketConquestCaptureGui.BuildView view = new KOMEPacketConquestCaptureGui.BuildView();
+        view.id = build.id;
+        view.name = build.displayName;
+        view.populationFaction = build.populationFaction;
+        view.builder = build.builderName;
+        view.manager = build.managerName;
+        view.dimension = build.dimension;
+        view.x = build.x;
+        view.y = build.y;
+        view.z = build.z;
+        view.buildType = build.type.key;
+        view.approvedCentiHours = build.approvedCentiHours();
+        view.pendingCount = build.pendingCount();
+        view.status = buildStatus(data, viewerFaction, controller, build.populationFaction);
+        view.canManage = admin || KOMEBuildService.isManager(build, viewerId);
+        KOMEBuildService.Decision delete = KOMEBuildService.canDeleteBuild(
+            data, build, viewerId, admin);
+        KOMEBuildService.Decision destroy = KOMEBuildService.canDestroyEnemyBuild(
+            data, build, viewerId, viewerFaction, admin);
+        view.canDestroy = destroy.allowed;
+        if (delete.allowed) {
+            view.destroyMode = "delete";
+        } else if (destroy.allowed) {
+            view.destroyMode = "destroy";
+        } else if (view.canManage) {
+            view.destroyMode = "delete";
+            view.destroyReason = delete.reason;
+        } else {
+            view.destroyMode = "destroy";
+            view.destroyReason = destroy.reason;
+        }
+        for (KOMEBuildContribution contribution : build.sortedContributions()) {
+            KOMEPacketConquestCaptureGui.ContributionView contributionView =
+                new KOMEPacketConquestCaptureGui.ContributionView();
+            contributionView.id = contribution.id;
+            contributionView.player = contribution.contributorName;
+            contributionView.faction = contribution.contributorFaction;
+            contributionView.centiHours = contribution.centiHours;
+            contributionView.status = contribution.status;
+            view.contributions.add(contributionView);
+        }
+        return view;
     }
 
     private static String buildStatus(KOMEWorldData data, String viewerFaction, String controller, String buildOwner) {

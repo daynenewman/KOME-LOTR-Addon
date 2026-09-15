@@ -99,7 +99,7 @@ public class KOMECommandPopulation extends CommandBase {
             if (requested.length() > 0 && !requested.equals(row.populationFaction)) continue;
             sender.addChatMessage(new ChatComponentText("Build " + row.buildId + " " + row.displayName + " tile " + row.tileId
                     + " " + row.populationFaction + " -> " + (row.currentController.length() == 0 ? "UNCONTROLLED" : row.currentController)
-                    + ": approved " + (row.approvedHalfHours / 2) + "h, original " + row.originalRate.formatPerDay()
+                    + ": approved " + (kome.common.data.KOMEBuildTime.formatHours(row.approvedCentiHours)) + "h, original " + row.originalRate.formatPerDay()
                     + " x" + row.multiplier + ", " + row.status + ", current " + row.currentRate.formatPerDay()));
         }
     }

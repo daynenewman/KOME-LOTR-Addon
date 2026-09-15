@@ -4,7 +4,7 @@ import kome.client.KOMEConquestMapOverlay;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
-import kome.common.data.KOMEHalfHourService;
+import kome.common.data.KOMEBuildTime;
 import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEPopulationGraph;
 import kome.common.network.KOMEPacketConquestClaim;
@@ -166,7 +166,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private int poolScroll;
     private int contributionScroll;
     private int populationOwnerIndex;
-    private int editHalfHours;
+    private long editCentiHours;
     private KOMEBuildType editBuildType = KOMEBuildType.NORMAL;
     private GuiTextField buildNameField;
     private GuiTextField buildHoursField;
@@ -485,7 +485,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         buildHoursField = new GuiTextField(fontRendererObj, left + 25, y + 1,
             Math.max(26, groupW - 50), 16);
-        buildHoursField.setMaxStringLength(12);
+        buildHoursField.setMaxStringLength(32);
         syncHourFields();
     }
 
@@ -618,7 +618,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         if (button.id == ID_BUILD_NEW) {
             buildMode = BUILD_MODE_CREATE;
-            editHalfHours = 0;
+            editCentiHours = 0;
             editBuildType = KOMEBuildType.NORMAL;
             populationOwnerIndex = clamp(populationOwnerIndex, 0, Math.max(0, selectablePopulationOwners.size() - 1));
             initGui();
@@ -631,7 +631,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         if (button.id == ID_BUILD_CONTRIBUTE) {
             buildMode = BUILD_MODE_CONTRIBUTE;
-            editHalfHours = 0;
+            editCentiHours = 0;
             KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
             if (selected != null) editBuildType = KOMEBuildType.forKey(selected.buildType);
             initGui();
@@ -644,12 +644,13 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         if (button.id == ID_BUILD_OFF_MINUS || button.id == ID_BUILD_OFF_PLUS) {
             if (!normalizeHourFields()) return true;
-            if (button.id == ID_BUILD_OFF_MINUS) {
-                editHalfHours = KOMEHalfHourService.adjustHalfHours(editHalfHours, -1);
-            } else {
-                editHalfHours = KOMEHalfHourService.adjustHalfHours(editHalfHours, 1);
+            try {
+                editCentiHours = KOMEBuildTime.adjustHours(editCentiHours,
+                    (button.id == ID_BUILD_OFF_MINUS ? -1L : 1L) * (KOMEBuildTime.CENTI_HOURS_PER_HOUR / 2L));
+                syncHourFields();
+            } catch (IllegalArgumentException invalid) {
+                buildHoursValidation = invalid.getMessage();
             }
-            syncHourFields();
         }
         else if (button.id == ID_BUILD_DEF_MINUS && buildMode == BUILD_MODE_CREATE) editBuildType = KOMEBuildType.NORMAL;
         else if (button.id == ID_BUILD_DEF_PLUS && buildMode == BUILD_MODE_CREATE) editBuildType = KOMEBuildType.DEFENSIVE;
@@ -662,7 +663,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         } else if (button.id == ID_BUILD_SUBMIT_CONTRIBUTION) {
             if (!normalizeHourFields()) return true;
             KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
-            if (selected != null && editHalfHours > 0) {
+            if (selected != null && editCentiHours >= 0) {
                 sendBuildAction("contribute", selected.id, "", "", "");
             }
         } else if (button.id == ID_BUILD_SUBMIT_RENAME) {
@@ -679,8 +680,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                     (enemyDestruction
                         ? "As the eligible homeland controller king, you are destroying a hostile faction's Build. "
                         : "As this Build's manager or an administrator, you are permanently deleting the managed Build. ")
-                        + "This removes its active hours, generated population, progression credit, pending submissions, and map marker. "
-                        + "The server will reject the action if population remains committed or allocated.",
+                        + "This removes its active hours, future population generation, progression credit, pending submissions, and map marker. "
+                        + "Previously spent combat population is not returned.",
                     "Destroy Build");
             }
         } else if (button.id >= ID_BUILD_APPROVE_BASE && button.id < ID_BUILD_APPROVE_BASE + 100) {
@@ -706,7 +707,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private void sendBuildAction(String action, String buildId, String contributionId, String text, String owner) {
         KOMEPacketHandler.network.sendToServer(new KOMEPacketBuildAction(action, tileId, buildId,
-            contributionId, text, owner, editBuildType.key, editHalfHours,
+            contributionId, text, owner, editBuildType.key, editCentiHours,
             viewerDimension, viewerWorldX, viewerWorldY, viewerWorldZ));
     }
 
@@ -720,7 +721,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private void syncHourFields() {
         if (buildHoursField != null) {
-            buildHoursField.setText(KOMEHalfHourService.displayHours(editHalfHours));
+            buildHoursField.setText(KOMEBuildTime.formatHours(editCentiHours));
         }
         buildHoursValidation = "";
     }
@@ -728,7 +729,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private boolean updateHoursFromFields(boolean normalize) {
         if (buildHoursField == null) return true;
         try {
-            editHalfHours = KOMEHalfHourService.parseHalfHours(buildHoursField.getText());
+            editCentiHours = KOMEBuildTime.parseHours(buildHoursField.getText());
             buildHoursValidation = "";
             if (normalize) syncHourFields();
             return true;
@@ -945,7 +946,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                 KOMEGuiTheme.drawFactionBadge(fontRendererObj, build.populationFaction, build.status,
                     x + w - 210, cardY + 4, 112);
                 fontRendererObj.drawString("Type " + build.buildType + "   Approved Hours "
-                    + displayHalfHours(build.approvedHalfHours),
+                    + KOMEBuildTime.formatHours(build.approvedCentiHours),
                     x + 18, cardY + 22, KOMEGuiTheme.COLOR_TEXT);
                 fontRendererObj.drawString("Manager: " + safeName(build.manager, "Unassigned")
                     + "   Pending: " + build.pendingCount + "   At " + coord(build.x) + ", "
@@ -1003,13 +1004,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                     + coord(viewerWorldZ) + "   Dimension: " + viewerDimension, w - 146),
                 x + 126, y + 102, KOMEGuiTheme.COLOR_TEXT);
         } else {
-            KOMEGuiTheme.drawWarningBanner(fontRendererObj, selected != null && selected.canManage
-                    ? "Immediate Manager Contribution" : "Manager Approval Required",
-                selected != null && selected.canManage
-                    ? "Your hours apply immediately because you manage this Build."
-                    : "Your submission remains Pending and creates no population or alliance credit until the current manager approves it.",
-                x + 16, y + 37, w - 32,
-                selected != null && selected.canManage ? KOMEGuiTheme.Status.ACTIVE : KOMEGuiTheme.Status.WARNING);
+            KOMEGuiTheme.drawWarningBanner(fontRendererObj, "Build Review",
+                "Current-manager submissions are approved immediately; other submissions remain Pending until reviewed.",
+                x + 16, y + 37, w - 32, KOMEGuiTheme.Status.WARNING);
         }
         fontRendererObj.drawString((creating ? "Build Type: " + editBuildType.key : "Build Type: "
             + (selected == null ? "" : selected.buildType)) + "   Hours", x + 20, controlsY - 13,
@@ -1019,7 +1016,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                 w - 40, KOMEGuiTheme.COLOR_BAD);
         }
         KOMEGuiTheme.drawWarningBanner(fontRendererObj, "Canonical Build Hours",
-            "Approved half-hours are stored exactly. " + (creating ? "The builder receives contribution credit; " + (selectablePopulationOwners.isEmpty()
+            "Approved Build hours are stored exactly to one hundredth. " + (creating ? "The builder receives contribution credit; " + (selectablePopulationOwners.isEmpty()
                     ? "no owner is eligible." : factionName((String) selectablePopulationOwners.get(populationOwnerIndex)))
                     + " permanently owns the generated population." : "Contribution credit follows your current faction; population ownership does not change."),
             x + 16, y + (creating ? 164 : 157), w - 32, KOMEGuiTheme.Status.NEUTRAL);
@@ -1039,7 +1036,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             x + 20, y + 56, KOMEGuiTheme.COLOR_TEXT_MUTED);
         KOMEGuiTheme.drawCard(x + 12, y + 74, w - 24, 42, false);
         fontRendererObj.drawString("Type: " + build.buildType, x + 20, y + 82, KOMEGuiTheme.COLOR_GOLD);
-        fontRendererObj.drawString("Approved Hours: " + displayHalfHours(build.approvedHalfHours), x + 20, y + 98,
+        fontRendererObj.drawString("Approved Hours: " + KOMEBuildTime.formatHours(build.approvedCentiHours), x + 20, y + 98,
             KOMEGuiTheme.COLOR_TEXT);
         KOMEGuiTheme.drawDivider(x + 12, y + 147, w - 24);
         fontRendererObj.drawString("Contribution Audit", x + 16, y + 156, KOMEGuiTheme.COLOR_BORDER_RED);
@@ -1060,7 +1057,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             int color = "APPROVED".equals(contribution.status) ? KOMEGuiTheme.COLOR_GOOD
                 : "PENDING".equals(contribution.status) ? KOMEGuiTheme.COLOR_WARN : KOMEGuiTheme.COLOR_BAD;
             fontRendererObj.drawString(contribution.player + " / " + factionName(contribution.faction)
-                + "   Hours " + displayHalfHours(contribution.halfHours), x + 18, cardY + 7,
+                + "   Hours " + KOMEBuildTime.formatHours(contribution.centiHours), x + 18, cardY + 7,
                 KOMEGuiTheme.COLOR_TEXT);
             fontRendererObj.drawString(contribution.status, x + 18, cardY + 20, color);
         }
@@ -1236,11 +1233,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private String tileDisplayName() {
         return lotrWaypointDisplayName.length() > 0 ? lotrWaypointDisplayName + " (" + tileId + ")" : tileId;
-    }
-
-    private static String displayHalfHours(int halfHours) {
-        int safe = Math.max(0, halfHours);
-        return safe % 2 == 0 ? Integer.toString(safe / 2) : safe / 2 + ".5";
     }
 
     private static String safeName(String value, String fallback) {

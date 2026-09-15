@@ -65,7 +65,7 @@ public class KOMEPopulationPayoutProcessorTest {
     }
 
     @Test public void invalidPersistedRemaindersAreDiscardedDeterministically() {
-        KOMEWorldData data=new KOMEWorldData("x"); NBTTagCompound nbt=new NBTTagCompound(); nbt.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,KOMEWorldData.KOME_DATA_SCHEMA_VERSION); nbt.setInteger("FactionPopulationDataSchemaVersion",KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION); nbt.setBoolean("PopulationPayoutInitialized",true); NBTTagList list=new NBTTagList();
+        KOMEWorldData data=new KOMEWorldData("x"); NBTTagCompound nbt=new NBTTagCompound(); nbt.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,KOMEWorldData.KOME_DATA_SCHEMA_VERSION); nbt.setInteger("BuildDataSchemaVersion",KOMEWorldData.BUILD_DATA_SCHEMA_VERSION); nbt.setTag("Builds",new net.minecraft.nbt.NBTTagList()); nbt.setInteger("FactionPopulationDataSchemaVersion",KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION); nbt.setBoolean("PopulationPayoutInitialized",true); NBTTagList list=new NBTTagList();
         for(long value:new long[]{-1L,KOMEPopulationRate.SCALE}) { NBTTagCompound e=new NBTTagCompound();e.setString("Faction","gondor");e.setLong("RemainderUnits",value);list.appendTag(e); } nbt.setTag("PopulationPayoutRemainders",list); data.readFromNBT(nbt);
         assertTrue(data.populationPayoutRemainders.isEmpty());
     }
@@ -136,9 +136,9 @@ public class KOMEPopulationPayoutProcessorTest {
 
     @Test public void payoutDoesNotMutateBuildOrContributionState() {
         KOMEWorldData data=world("gondor",20); KOMEPlayerBuild build=data.builds.get("B-gondor"); KOMEBuildContribution contribution=build.contributions.get(0);
-        KOMEBuildType type=build.type; boolean active=build.active; String faction=build.populationFaction; int count=build.contributions.size(); int halfHours=contribution.halfHours; String status=contribution.status;
+        KOMEBuildType type=build.type; boolean active=build.active; String faction=build.populationFaction; int count=build.contributions.size(); long centiHours=contribution.centiHours; String status=contribution.status;
         Instant due=initializeAndNext(data); KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data,due);
-        assertEquals(type,build.type); assertEquals(active,build.active); assertEquals(faction,build.populationFaction); assertEquals(count,build.contributions.size()); assertEquals(halfHours,contribution.halfHours); assertEquals(status,contribution.status);
+        assertEquals(type,build.type); assertEquals(active,build.active); assertEquals(faction,build.populationFaction); assertEquals(count,build.contributions.size()); assertEquals(centiHours,contribution.centiHours); assertEquals(status,contribution.status);
     }
 
     @Test public void enabledCapPreventsOtherwiseOverflowingGrantWithoutFailure() throws Exception {
@@ -167,7 +167,7 @@ public class KOMEPopulationPayoutProcessorTest {
     }
 
     private static KOMEWorldData world(String faction,int halfHours){KOMEWorldData d=new KOMEWorldData("payout");d.warSeason.recordLegalConflict(0L, -1L);add(d,faction,KOMEBuildType.NORMAL,halfHours);return d;}
-    private static void add(KOMEWorldData d,String faction,KOMEBuildType type,int hours){String tile="T-"+faction;KOMEConquestTile t=new KOMEConquestTile(tile);t.claim(faction,0L);d.conquestTiles.put(t.id,t);KOMEPlayerBuild b=new KOMEPlayerBuild();b.id="B-"+faction;b.tileId=t.id;b.populationFaction=faction;b.type=type;b.active=true;KOMEBuildContribution c=new KOMEBuildContribution();c.id="H";c.halfHours=hours;c.status=KOMEBuildContribution.APPROVED;b.contributions.add(c);d.builds.put(b.id,b);}
+    private static void add(KOMEWorldData d,String faction,KOMEBuildType type,int hours){String tile="T-"+faction;KOMEConquestTile t=new KOMEConquestTile(tile);t.claim(faction,0L);d.conquestTiles.put(t.id,t);KOMEPlayerBuild b=new KOMEPlayerBuild();b.id="B-"+faction;b.tileId=t.id;b.populationFaction=faction;b.type=type;b.active=true;KOMEBuildContribution c=new KOMEBuildContribution();c.id="H";c.centiHours=Math.multiplyExact((long) hours, 50L);c.status=KOMEBuildContribution.APPROVED;b.contributions.add(c);d.builds.put(b.id,b);}
     private static Instant initializeAndNext(KOMEWorldData data){KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data,Instant.parse("2026-01-10T02:00:00Z"));return KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis));}
     private interface Checked { void run() throws Exception; }
     private static void withPopulationSettings(boolean catchUp,boolean cap,Integer capValue,int hours,Checked body) throws Exception {

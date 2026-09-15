@@ -1,6 +1,6 @@
 # Population configuration — Integration Checkpoint C
 
-`KOMEConfigRegistry` owns the settings in `config/kome.cfg`. No standalone population configuration class or independent reader is used. This document describes the configuration foundation on the integration branch; later checkpoints own Build hours, actual fractional payouts, and packet/UI conversion.
+`KOMEConfigRegistry` owns the settings in `config/kome.cfg`. No standalone population configuration class or independent reader is used. This document describes the configuration foundation on the integration branch; Checkpoint D now supplies precise Build hours; later checkpoints own actual fractional payouts and general population packet/UI conversion.
 
 ## Keys and units
 
@@ -45,9 +45,9 @@ Before world binding, outcomes are written to the server log. After binding, the
 
 ## Exact current consumers and temporary boundaries
 
-Approved Build time still uses the existing half-hour representation. With `H` approved half-hours, `C` configured centi-hours per population point, `M` multiplier basis points, and rate scale `S = 1,000,000`, the exact rate numerator is `H * 100 * S * M` and denominator is `2 * C * 10,000`. Native Builds use `M = 10,000`; captured Builds use the configured basis points. `BigInteger` arithmetic supports the entire validated configuration range without intermediate overflow or floating-point conversion. Positive half-up rounding occurs only at final fixed-rate conversion. Contributions are combined before faction-total rounding. The existing saturation of an informational fixed rate at `Long.MAX_VALUE` is retained; authoritative bank mutations remain checked.
+Checkpoint D stores approved Build time as centi-hours. With `A` approved centi-hours, `C` configured centi-hours per population point, `M` multiplier basis points, and rate scale `S = 1,000,000`, the exact rate numerator is `A * S * M` and denominator is `C * 10,000`. Native Builds use `M = 10,000`; captured Builds use the configured basis points. `BigInteger` arithmetic supports the entire validated configuration range without intermediate overflow or floating-point conversion. Positive half-up rounding occurs only at final fixed-rate conversion. Contributions are combined before faction-total rounding. The existing saturation of an informational fixed rate at `Long.MAX_VALUE` is retained; authoritative bank mutations remain checked.
 
-For example, 20 approved half-hours with `10.50` hours per point yields 952381 fixed rate units (0.952381 population/day); the default captured multiplier yields 476190 units. Current payout processing retains its existing whole-point grants and fractional rate remainder. A configuration accepted as ready can be used immediately by rate, contribution, command/server-record, and payout paths.
+For example, 1,000 approved centi-hours (10.00 hours) with `10.50` hours per point yields 952381 fixed rate units (0.952381 population/day); the default captured multiplier yields 476190 units. Current payout processing retains its existing whole-point grants and fractional rate remainder. A configuration accepted as ready can be used immediately by rate, contribution, command/server-record, and payout paths.
 
 The payout cap compares `getPopulationCapCenti()` directly against the centi bank. Only complete whole-population grants fitting in the exact remaining room are issued: a bank of 23.50 under a 24.50 cap can receive 1; a bank of 24.00 cannot. The configured cap is never floored or clamped to int range. An already-full bank receives nothing; disabling the cap ignores its configured amount. Existing transactional payout overflow checks remain: an unrepresentable grant or balance fails the batch without partially applying it.
 
@@ -59,4 +59,4 @@ Three legacy projections remain temporarily, with no production callers:
 
 Structural tests prohibit calls to these legacy projections anywhere in KOME production source. Whole-unit payout/remainder scheduling, season gating, offline catch-up, and movement ordering remain unchanged. Unit override maps and the current unit cost calculator, including its mounted surcharge, are untouched. War, season, diplomacy, movement, siege, and feature defaults are preserved.
 
-Checkpoint D owns precise Build storage/lifecycle. Checkpoint E owns centi-payout and scheduler reconciliation; neither is activated by these consumer-safety corrections.
+See [Checkpoint D Build model](KOME_PRECISE_BUILDS.md) for storage, review, and development-world reset requirements. Checkpoint E still owns centi-payout and scheduler reconciliation; neither is activated by the precise Build-time conversion.

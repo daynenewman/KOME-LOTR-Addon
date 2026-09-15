@@ -29,7 +29,7 @@ public final class KOMEPopulationRateService {
             // The row's control policy chooses the weight; never sum already-rounded row rates.
             long multiplier = "NATIVE".equals(row.status) ? KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE
                     : settings.getCapturedBuildMultiplierBasisPoints();
-            BigInteger source = rateNumerator(row.approvedHalfHours, multiplier);
+            BigInteger source = rateNumerator(row.approvedCentiHours, multiplier);
             BigInteger old = sourceUnits.get(row.receivingFaction);
             sourceUnits.put(row.receivingFaction, (old == null ? BigInteger.ZERO : old).add(source));
         }
@@ -51,7 +51,7 @@ public final class KOMEPopulationRateService {
             String faction = KOMEAlliance.normalizeFactionKey(build.populationFaction);
             KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(KOMEConquestTile.normalizeId(build.tileId));
             String controller = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
-            int approved = build.approvedHalfHours();
+            long approved = build.approvedCentiHours();
             KOMEPopulationRate original = fixedRate(rateNumerator(approved, KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE), denominator);
             String status = "UNCONTROLLED", receiving = "", multiplier = "0";
             long multiplierBasisPoints = 0L;
@@ -70,21 +70,21 @@ public final class KOMEPopulationRateService {
         return Collections.unmodifiableList(result);
     }
 
-    /** Whole-hour helper retained for existing callers/tests; the runtime reads centi-hours directly. */
-    static KOMEPopulationRate rate(long halfHours, int hoursPerPopulationPoint) {
-        long centiHours = Math.multiplyExact((long) Math.max(1, hoursPerPopulationPoint), KOMEConfigRegistry.POPULATION_HOURS_SCALE);
-        return fixedRate(rateNumerator(halfHours, KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE), rateDenominator(centiHours));
+    /** Exact Build/config centi-hour rate, also used by focused conversion tests. */
+    static KOMEPopulationRate rate(long approvedCentiHours, long centiHoursPerPoint) {
+        return fixedRate(rateNumerator(approvedCentiHours, KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE),
+                rateDenominator(centiHoursPerPoint));
     }
 
-    /** Fixed units = halfHours * 100 * SCALE * basisPoints / (2 * centiHours * 10,000). */
-    private static BigInteger rateNumerator(long halfHours, long basisPoints) {
-        return BigInteger.valueOf(Math.max(0L, halfHours)).multiply(BigInteger.valueOf(KOMEConfigRegistry.POPULATION_HOURS_SCALE))
+    /** Fixed units = approved centi-hours * SCALE * basis points / (configured centi-hours * 10,000). */
+    private static BigInteger rateNumerator(long approvedCentiHours, long basisPoints) {
+        return BigInteger.valueOf(KOMEBuildTime.requireNonnegative(approvedCentiHours))
                 .multiply(BigInteger.valueOf(KOMEPopulationRate.SCALE)).multiply(BigInteger.valueOf(basisPoints));
     }
 
     private static BigInteger rateDenominator(long centiHours) {
         if (centiHours <= 0L) throw new IllegalArgumentException("Population centi-hours must be positive");
-        return BigInteger.valueOf(centiHours).multiply(BigInteger.valueOf(2L))
+        return BigInteger.valueOf(centiHours)
                 .multiply(BigInteger.valueOf(KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE));
     }
 

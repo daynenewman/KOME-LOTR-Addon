@@ -9,11 +9,11 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationRateServiceTest {
-    @Test public void fixedRatesUseExactHalfHourSource() {
-        assertEquals(1_000_000L, KOMEPopulationRateService.rate(20, 10).getFixedUnitsPerDay());
-        assertEquals(500_000L, KOMEPopulationRateService.rate(10, 10).getFixedUnitsPerDay());
-        assertEquals(50_000L, KOMEPopulationRateService.rate(1, 10).getFixedUnitsPerDay());
-        assertEquals(500_000L, KOMEPopulationRateService.rate(20, 20).getFixedUnitsPerDay());
+    @Test public void fixedRatesPreservePriorHalfHourValuesExactly() {
+        assertEquals(1_000_000L, KOMEPopulationRateService.rate(1000L, 1000L).getFixedUnitsPerDay());
+        assertEquals(500_000L, KOMEPopulationRateService.rate(500L, 1000L).getFixedUnitsPerDay());
+        assertEquals(50_000L, KOMEPopulationRateService.rate(50L, 1000L).getFixedUnitsPerDay());
+        assertEquals(500_000L, KOMEPopulationRateService.rate(1000L, 2000L).getFixedUnitsPerDay());
     }
 
     @Test public void nativeNormalBuildsAndDefensiveBuildsRemainSeparated() {
@@ -64,7 +64,7 @@ public class KOMEPopulationRateServiceTest {
     private static KOMEPlayerBuild build(KOMEWorldData data, String id, String faction, KOMEBuildType type, int hours) {
         KOMEPlayerBuild build = new KOMEPlayerBuild(); build.id = id; build.tileId = "T1"; build.populationFaction = faction;
         build.type = type; build.active = true; KOMEBuildContribution c = new KOMEBuildContribution();
-        c.id = "H" + id; c.halfHours = hours; c.status = KOMEBuildContribution.APPROVED; build.contributions.add(c);
+        c.id = "H" + id; c.centiHours = Math.multiplyExact((long) hours, 50L); c.status = KOMEBuildContribution.APPROVED; build.contributions.add(c);
         data.builds.put(id, build); return build;
     }
 }

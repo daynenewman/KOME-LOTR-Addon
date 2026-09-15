@@ -249,8 +249,7 @@ public class KOMEPacketConquestData implements IMessage {
             }
             NBTTagList buildList = message.data.getTagList("BuildMarkers", 10);
             for (int i = 0; i < buildList.tagCount(); i++) {
-                KOMEPlayerBuild build = new KOMEPlayerBuild();
-                build.readFromNBT(buildList.getCompoundTagAt(i));
+                KOMEPlayerBuild build = readBuildMarkerTag(buildList.getCompoundTagAt(i));
                 if (build.id.length() > 0 && build.active && build.markerVisible) {
                     KOMEClientData.INSTANCE.builds.put(build.id, build);
                 }
@@ -262,9 +261,10 @@ public class KOMEPacketConquestData implements IMessage {
         }
     }
 
-    private static NBTTagCompound buildMarkerTag(KOMEPlayerBuild build) {
+    static NBTTagCompound buildMarkerTag(KOMEPlayerBuild build) {
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Id", build.id);
+        nbt.setString("BuildType", build.type.key);
         nbt.setString("DisplayName", build.displayName);
         nbt.setString("TileId", build.tileId);
         nbt.setInteger("Dimension", build.dimension);
@@ -276,6 +276,24 @@ public class KOMEPacketConquestData implements IMessage {
         nbt.setBoolean("MarkerVisible", true);
         nbt.setString("MarkerLabel", build.markerLabel);
         return nbt;
+    }
+
+    /** Marker-only projection. Never deserialize a partial marker through the strict persistence reader. */
+    static KOMEPlayerBuild readBuildMarkerTag(NBTTagCompound nbt) {
+        KOMEPlayerBuild marker = new KOMEPlayerBuild();
+        marker.id = nbt.getString("Id");
+        marker.type = kome.common.data.KOMEBuildType.forKey(nbt.getString("BuildType"));
+        marker.displayName = nbt.getString("DisplayName");
+        marker.tileId = nbt.getString("TileId");
+        marker.dimension = nbt.getInteger("Dimension");
+        marker.x = nbt.getDouble("X");
+        marker.y = nbt.getDouble("Y");
+        marker.z = nbt.getDouble("Z");
+        marker.populationFaction = nbt.getString("PopulationFaction");
+        marker.active = nbt.getBoolean("Active");
+        marker.markerVisible = nbt.getBoolean("MarkerVisible");
+        marker.markerLabel = nbt.getString("MarkerLabel");
+        return marker;
     }
 
     private static Map<String, KOMETileTroopSummary> buildTroopSummaries(KOMEWorldData worldData) {

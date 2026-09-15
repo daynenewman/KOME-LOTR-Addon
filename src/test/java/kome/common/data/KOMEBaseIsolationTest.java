@@ -117,7 +117,8 @@ public class KOMEBaseIsolationTest {
         assertTrue(build.contains("if (\"list\".equals(action))"));
         assertTrue(build.contains("if (\"inspect\".equals(action)"));
         assertTrue(build.contains("Only administrators may modify Build records or configuration."));
-        assertEquals(3, occurrences(build, "requireStaff(sender);"));
+        assertEquals(4, occurrences(build, "requireStaff(sender);"));
+        assertTrue(build.contains("if (\"adjust\".equals(action) && args.length >= 4) {\n            requireStaff(sender);"));
 
         assertTrue(war.contains("if (\"list\".equals(action))"));
         assertTrue(war.contains("if (\"status\".equals(action))"));

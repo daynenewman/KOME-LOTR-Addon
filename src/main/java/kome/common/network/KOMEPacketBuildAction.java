@@ -26,7 +26,7 @@ public class KOMEPacketBuildAction implements IMessage {
     public String text = "";
     public String populationFaction = "";
     public String buildType = "";
-    public int halfHours;
+    public long centiHours;
     public int dimension;
     public double x;
     public double y;
@@ -36,7 +36,7 @@ public class KOMEPacketBuildAction implements IMessage {
     }
 
     public KOMEPacketBuildAction(String action, String tileId, String buildId, String contributionId,
-            String text, String populationFaction, String buildType, int halfHours,
+            String text, String populationFaction, String buildType, long centiHours,
             int dimension, double x, double y, double z) {
         this.action = safe(action);
         this.tileId = safe(tileId);
@@ -45,7 +45,7 @@ public class KOMEPacketBuildAction implements IMessage {
         this.text = safe(text);
         this.populationFaction = safe(populationFaction);
         this.buildType = safe(buildType);
-        this.halfHours = halfHours;
+        this.centiHours = centiHours;
         this.dimension = dimension;
         this.x = x;
         this.y = y;
@@ -61,7 +61,7 @@ public class KOMEPacketBuildAction implements IMessage {
         text = ByteBufUtils.readUTF8String(buf);
         populationFaction = ByteBufUtils.readUTF8String(buf);
         buildType = ByteBufUtils.readUTF8String(buf);
-        halfHours = buf.readInt();
+        centiHours = buf.readLong();
         dimension = buf.readInt();
         x = buf.readDouble();
         y = buf.readDouble();
@@ -77,7 +77,7 @@ public class KOMEPacketBuildAction implements IMessage {
         ByteBufUtils.writeUTF8String(buf, safe(text));
         ByteBufUtils.writeUTF8String(buf, safe(populationFaction));
         ByteBufUtils.writeUTF8String(buf, safe(buildType));
-        buf.writeInt(halfHours);
+        buf.writeLong(centiHours);
         buf.writeInt(dimension);
         buf.writeDouble(x);
         buf.writeDouble(y);
@@ -105,7 +105,7 @@ public class KOMEPacketBuildAction implements IMessage {
                     }
                     KOMEBuildService.create(data, message.text, tile, message.dimension, message.x, message.y,
                         message.z, actorId, actorName, actorFaction, message.populationFaction,
-                        KOMEBuildType.forKey(message.buildType), message.halfHours, System.currentTimeMillis());
+                        KOMEBuildType.forKey(message.buildType), message.centiHours, System.currentTimeMillis());
                 } else {
                     KOMEPlayerBuild build = data.getBuild(message.buildId);
                     if (build == null || !tile.equals(build.tileId)) throw new IllegalArgumentException("Unknown Build in this tile.");
@@ -113,7 +113,7 @@ public class KOMEPacketBuildAction implements IMessage {
                         if (message.buildType.length() > 0 && build.type != KOMEBuildType.forKey(message.buildType)) {
                             throw new IllegalArgumentException("Submitted Build type does not match the existing Build.");
                         }
-                        KOMEBuildService.addSubmission(data, build, actorId, actorName, actorFaction, message.halfHours,
+                        KOMEBuildService.addSubmission(data, build, actorId, actorName, actorFaction, message.centiHours,
                             KOMEBuildService.isManager(build, actorId), System.currentTimeMillis());
                     } else if ("approve".equals(action) || "reject".equals(action)) {
                         require(KOMEBuildService.decideSubmission(data, build, message.contributionId,

@@ -231,7 +231,7 @@ public final class KOMEGuiVisualCaptureController {
             build.manager = build.populationFaction.equals("gondor") ? "Steward Ecthelion" : "King Eomer";
             build.dimension = 0; build.x = 1810D + i * 4D; build.y = 71D; build.z = -950D + i * 3D;
             build.buildType = i % 2 == 0 ? "DEFENSIVE" : "NORMAL";
-            build.approvedHalfHours = 8 + i;
+            build.approvedCentiHours = (8L + i) * 50L;
             build.pendingCount = i % 3; build.status = i % 3 == 0 ? "Friendly" : "Owned";
             build.canManage = true;
             build.destroyMode = "delete";
