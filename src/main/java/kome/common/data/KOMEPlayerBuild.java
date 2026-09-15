@@ -37,6 +37,10 @@ public class KOMEPlayerBuild {
     public String markerLabel = "";
     public KOMEBuildType type;
     public final List<KOMEBuildContribution> contributions = new ArrayList<KOMEBuildContribution>();
+    /** Accounting links only; tactical siege geometry and live gate state are intentionally separate. */
+    private final List<KOMEDefensiveGateRecord> defensiveGateRecords = new ArrayList<KOMEDefensiveGateRecord>();
+    /** Highest G-number ever allocated within this Build. It never decreases or becomes global. */
+    private long defensiveGateRecordSequence;
 
     /** Approved canonical construction hours; only NORMAL produces a future population rate. */
     public int approvedHalfHours() {
@@ -81,6 +85,67 @@ public class KOMEPlayerBuild {
             }
         }
         return null;
+    }
+
+    public KOMEDefensiveGateRecord getDefensiveGateRecord(String recordId) {
+        String key = recordId == null ? "" : recordId.trim();
+        for (KOMEDefensiveGateRecord record : defensiveGateRecords) {
+            if (record != null && key.equals(record.id)) return record;
+        }
+        return null;
+    }
+
+    public List<KOMEDefensiveGateRecord> getDefensiveGateRecords() {
+        return Collections.unmodifiableList(defensiveGateRecords);
+    }
+
+    public long getDefensiveGateRecordSequence() {
+        return defensiveGateRecordSequence;
+    }
+
+    /**
+     * Reserved for an authoritative same-package service that atomically creates a real linkage.
+     * Merely allocating an ID burns it intentionally so historical IDs can never be reused.
+     */
+    String allocateDefensiveGateRecordId() {
+        if (!isDefensive()) {
+            throw new IllegalStateException("Only a DEFENSIVE Build may allocate defensive gate record IDs.");
+        }
+        if (defensiveGateRecordSequence == Long.MAX_VALUE) {
+            throw new IllegalStateException("Defensive gate record ID sequence is exhausted for Build " + safe(id) + ".");
+        }
+        String candidate;
+        do {
+            defensiveGateRecordSequence++;
+            candidate = "G" + defensiveGateRecordSequence;
+            if (defensiveGateRecordSequence == Long.MAX_VALUE
+                    && getDefensiveGateRecord(candidate) != null) {
+                throw new IllegalStateException("Defensive gate record ID sequence is exhausted for Build " + safe(id) + ".");
+            }
+        } while (getDefensiveGateRecord(candidate) != null);
+        return candidate;
+    }
+
+    /** Same-package persistence/service hook; callers remain responsible for dirty marking and audit. */
+    void addDefensiveGateRecord(KOMEDefensiveGateRecord record) {
+        if (!isDefensive()) {
+            throw new IllegalStateException("Only a DEFENSIVE Build may own defensive gate records.");
+        }
+        if (record == null || safe(record.id).trim().length() == 0) {
+            throw new IllegalArgumentException("Defensive gate record ID is required.");
+        }
+        record.id = record.id.trim();
+        if (getDefensiveGateRecord(record.id) != null) {
+            throw new IllegalArgumentException("Duplicate defensive gate record ID " + record.id + ".");
+        }
+        defensiveGateRecords.add(record);
+        repairDefensiveGateRecordSequence(record.id);
+    }
+
+    /** Same-package persistence/service hook; deleting a record never decreases the high-water value. */
+    boolean removeDefensiveGateRecord(String recordId) {
+        KOMEDefensiveGateRecord record = getDefensiveGateRecord(recordId);
+        return record != null && defensiveGateRecords.remove(record);
     }
 
     public Map<String, Integer> activeHalfHoursByFaction() {
@@ -151,6 +216,16 @@ public class KOMEPlayerBuild {
             }
         }
         nbt.setTag("Contributions", contributionList);
+        NBTTagList defensiveGateList = new NBTTagList();
+        if (isDefensive()) {
+            nbt.setLong("DefensiveGateRecordSequence", Math.max(0L, defensiveGateRecordSequence));
+            for (KOMEDefensiveGateRecord record : defensiveGateRecords) {
+                if (record != null && record.id != null && record.id.trim().length() > 0) {
+                    defensiveGateList.appendTag(record.writeToNBT());
+                }
+            }
+        }
+        nbt.setTag("DefensiveGateRecords", defensiveGateList);
         return nbt;
     }
 
@@ -186,6 +261,38 @@ public class KOMEPlayerBuild {
             contribution.readFromNBT(contributionList.getCompoundTagAt(i));
             if (contribution.id.length() > 0) contributions.add(contribution);
         }
+        defensiveGateRecords.clear();
+        defensiveGateRecordSequence = isDefensive()
+            ? Math.max(0L, nbt.getLong("DefensiveGateRecordSequence")) : 0L;
+        if (isDefensive()) {
+            NBTTagList defensiveGateList = nbt.getTagList("DefensiveGateRecords", 10);
+            for (int i = 0; i < defensiveGateList.tagCount(); i++) {
+                KOMEDefensiveGateRecord record = new KOMEDefensiveGateRecord();
+                record.readFromNBT(defensiveGateList.getCompoundTagAt(i));
+                if (record.id.length() > 0 && getDefensiveGateRecord(record.id) == null) {
+                    addDefensiveGateRecord(record);
+                }
+            }
+        }
+    }
+
+    private void repairDefensiveGateRecordSequence(String recordId) {
+        long suffix = validDefensiveGateRecordSuffix(recordId);
+        if (suffix > defensiveGateRecordSequence) defensiveGateRecordSequence = suffix;
+    }
+
+    private static long validDefensiveGateRecordSuffix(String recordId) {
+        String value = safe(recordId).trim();
+        if (value.length() < 2 || value.charAt(0) != 'G' || value.charAt(1) == '0') return 0L;
+        long suffix = 0L;
+        for (int i = 1; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c < '0' || c > '9') return 0L;
+            int digit = c - '0';
+            if (suffix > (Long.MAX_VALUE - digit) / 10L) return 0L;
+            suffix = suffix * 10L + digit;
+        }
+        return suffix;
     }
 
     public static String sanitizeName(String value) {

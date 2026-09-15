@@ -326,7 +326,7 @@ public final class KOMEConfigRegistry {
     private static SiegeSettings readSiege(Configuration c) {
         OptionalDouble gateHpPerApprovedHour = parseOptionalPositiveDouble(
                 GATE_HP_PER_APPROVED_HOUR,
-                value(c, SIEGE_CATEGORY, GATE_HP_PER_APPROVED_HOUR, "TBD"));
+                value(c, SIEGE_CATEGORY, GATE_HP_PER_APPROVED_HOUR, "100"));
         int supportMinimum = positive(SIEGE_CATEGORY,
                 NORMAL_SEGMENT_SUPPORT_MINIMUM_TROOPS,
                 value(c, SIEGE_CATEGORY, NORMAL_SEGMENT_SUPPORT_MINIMUM_TROOPS, "1"));

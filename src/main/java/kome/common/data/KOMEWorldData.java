@@ -31,7 +31,7 @@ public class KOMEWorldData extends WorldSavedData {
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
-    public static final int BUILD_DATA_SCHEMA_VERSION = 1;
+    public static final int BUILD_DATA_SCHEMA_VERSION = 2;
     public static final int POPULATION_DATA_SCHEMA_VERSION = 2;
     public static final int FACTION_POPULATION_DATA_SCHEMA_VERSION = 1;
 
@@ -2597,7 +2597,13 @@ public class KOMEWorldData extends WorldSavedData {
         for (int i = 0; i < buildList.tagCount(); i++) {
             KOMEPlayerBuild build = new KOMEPlayerBuild();
             try {
-                build.readFromNBT(buildList.getCompoundTagAt(i));
+                NBTTagCompound savedBuild = buildList.getCompoundTagAt(i);
+                build.readFromNBT(savedBuild);
+                int discardedGateCount = savedBuild.getTagList("DefensiveGateRecords", 10).tagCount();
+                if (build.isNormal() && discardedGateCount > 0) {
+                    safeAllianceWarning("[KOME] Build " + build.id + " discarded "
+                        + discardedGateCount + " defensive gate record(s) because the Build is NORMAL.");
+                }
                 if (build.id.length() > 0 && build.tileId.length() > 0 && build.populationFaction.length() > 0) {
                     builds.put(build.id, build);
                 }
@@ -2612,7 +2618,7 @@ public class KOMEWorldData extends WorldSavedData {
         }
         if (savedBuildSchema < BUILD_DATA_SCHEMA_VERSION) {
             safeAllianceInfo("[KOME] Build schema " + savedBuildSchema + " -> " + BUILD_DATA_SCHEMA_VERSION
-                + ": initialized persistent Build collection without converting legacy population.");
+                + ": initialized missing defensive gate records and parent-local ID sequences without converting legacy population.");
         }
         if (savedPopulationSchema < POPULATION_DATA_SCHEMA_VERSION) {
             safeAllianceInfo("[KOME] Population schema " + savedPopulationSchema + " -> "

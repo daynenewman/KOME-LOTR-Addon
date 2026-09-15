@@ -38,10 +38,10 @@ public class KOMEConfigChangeGuardTest {
         File change=config(); write(change,"population","populationCapValue","100"); write(change,"siege","gateHpPerApprovedHour","2.5"); write(change,"movement","footOrMixedTilesPerDay","2"); write(change,"movement","fullyMountedTilesPerDay","3");
         KOMEConfigChangeSet diff=KOMEConfigChangeSet.compare(old,KOMEConfigRegistry.readValidated(change));
         assertEquals(4,diff.getEntries().size()); assertEquals("movement",diff.getEntries().get(0).getCategory());
-        assertEntry(diff,"population","populationCapValue","TBD","100"); assertEntry(diff,"siege","gateHpPerApprovedHour","TBD","2.5");
+        assertEntry(diff,"population","populationCapValue","TBD","100"); assertEntry(diff,"siege","gateHpPerApprovedHour","100.0","2.5");
         try { diff.getEntries().clear(); fail(); } catch (UnsupportedOperationException expected) { }
         File equivalent=config(); write(equivalent,"population","capturedBuildMultiplier","0.50"); assertTrue(KOMEConfigChangeSet.compare(old,KOMEConfigRegistry.readValidated(equivalent)).isEmpty());
-        KOMEConfigRegistry.ValidatedConfig concrete=KOMEConfigRegistry.readValidated(change); assertEntry(KOMEConfigChangeSet.compare(concrete,old),"population","populationCapValue","100","TBD"); assertEntry(KOMEConfigChangeSet.compare(concrete,old),"siege","gateHpPerApprovedHour","2.5","TBD");
+        KOMEConfigRegistry.ValidatedConfig concrete=KOMEConfigRegistry.readValidated(change); assertEntry(KOMEConfigChangeSet.compare(concrete,old),"population","populationCapValue","100","TBD"); assertEntry(KOMEConfigChangeSet.compare(concrete,old),"siege","gateHpPerApprovedHour","2.5","100.0");
     }
 
     @Test public void guardsAndApplyAreAtomic() throws Exception {

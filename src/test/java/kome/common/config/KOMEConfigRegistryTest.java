@@ -51,7 +51,8 @@ public class KOMEConfigRegistryTest {
         assertEquals(24, KOMEConfigRegistry.muster().getArrivalDelayHours());
         assertEquals(KOMEConfigRegistry.EncircledCapitalArrivalPolicy.TBD,
                 KOMEConfigRegistry.muster().getEncircledCapitalArrivalPolicy());
-        assertFalse(KOMEConfigRegistry.siege().getGateHpPerApprovedHour().isPresent());
+        assertTrue(KOMEConfigRegistry.siege().getGateHpPerApprovedHour().isPresent());
+        assertEquals(100.0D, KOMEConfigRegistry.siege().getGateHpPerApprovedHour().getAsDouble(), 0.0D);
         assertEquals(1, KOMEConfigRegistry.siege().getNormalSegmentSupportMinimumTroops());
         assertEquals(15, KOMEConfigRegistry.siege().getSupportFallbackGraceSeconds());
         assertEquals(KOMEConfigRegistry.PreBreachRepair.TBD,
