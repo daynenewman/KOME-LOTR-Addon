@@ -4,7 +4,7 @@ import org.junit.Test;
 import kome.common.config.KOMEConfigRegistry;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.UUID;
 import static org.junit.Assert.*;
 
@@ -46,8 +46,8 @@ public class KOMEPopulationRateServiceTest {
     @Test public void configuredCapturedMultiplierChangesImmediately() throws Exception {
         KOMEWorldData data=data(); build(data,"B","gondor",KOMEBuildType.NORMAL,20); data.conquestTiles.get("T1").claim("rohan",0L);
         KOMEConfigRegistry.ValidatedConfig config=KOMEConfigRegistry.currentValidated(); Field field=KOMEConfigRegistry.ValidatedConfig.class.getDeclaredField("population"); field.setAccessible(true); Object prior=field.get(config); KOMEConfigRegistry.PopulationSettings old=(KOMEConfigRegistry.PopulationSettings)prior;
-        Constructor<KOMEConfigRegistry.PopulationSettings> c=KOMEConfigRegistry.PopulationSettings.class.getDeclaredConstructor(int.class,double.class,boolean.class,boolean.class,OptionalInt.class,boolean.class); c.setAccessible(true);
-        try { field.set(config,c.newInstance(old.getHoursPerPopulationPoint(),0.25D,old.isOfflinePopulationCatchUp(),old.isPopulationCapEnabled(),old.getPopulationCapValue(),old.isEncirclementPopulationSuppressionEnabled())); assertEquals(250_000L,KOMEPopulationService.getDailyPopulationRate(data,"rohan").getFixedUnitsPerDay()); }
+        Constructor<KOMEConfigRegistry.PopulationSettings> c=KOMEConfigRegistry.PopulationSettings.class.getDeclaredConstructor(long.class,long.class,boolean.class,boolean.class,OptionalLong.class,boolean.class); c.setAccessible(true);
+        try { field.set(config,c.newInstance(old.getHoursPerPopulationPointCentiHours(),2500L,old.isOfflinePopulationCatchUp(),old.isPopulationCapEnabled(),old.getPopulationCapCenti(),old.isEncirclementPopulationSuppressionEnabled())); assertEquals(250_000L,KOMEPopulationService.getDailyPopulationRate(data,"rohan").getFixedUnitsPerDay()); }
         finally { field.set(config,prior); }
     }
 

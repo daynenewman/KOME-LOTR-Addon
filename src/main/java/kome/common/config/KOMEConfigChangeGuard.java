@@ -15,6 +15,19 @@ public final class KOMEConfigChangeGuard {
                 "An in-progress daily transaction must use one coherent configuration snapshot",
                 Collections.<String>emptyList());
         List<String> blocking = new ArrayList<String>();
+        if (KOMEConfigRegistry.isWorldConfigurationLocked()) {
+            for (KOMEConfigChangeSet.Entry entry : changes.getEntries()) {
+                String key = entry.getCanonicalKey();
+                if ("population.hoursPerPopulationPoint".equals(key)
+                        || "population.capturedBuildMultiplier".equals(key)
+                        || "population.populationCapEnabled".equals(key)
+                        || "population.populationCapValue".equals(key)
+                        || "dailyBatch.timezone".equals(key)
+                        || "dailyBatch.localTime".equals(key)) blocking.add(key);
+            }
+            if (!blocking.isEmpty()) return ChangeDecision.deferred(
+                    "Population generation and campaign clock settings require restart after world initialization", blocking);
+        }
         if (activity.isActiveSiegeInProgress()) {
             Collection<String> locked = activity.getActiveSiegeLockedConfigKeys();
             for (KOMEConfigChangeSet.Entry entry : changes.getEntries()) {

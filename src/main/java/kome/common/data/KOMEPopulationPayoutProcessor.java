@@ -59,16 +59,17 @@ public final class KOMEPopulationPayoutProcessor {
         }
         Map<String,KOMEPopulationRate> rates = new TreeMap<String,KOMEPopulationRate>(KOMEPopulationService.getAllDailyPopulationRates(data));
         List<FactionResult> plan = new ArrayList<FactionResult>();
-        boolean cap = KOMEConfigRegistry.population().isPopulationCapEnabled();
-        int capValue = KOMEConfigRegistry.population().getPopulationCapValue().orElse(Integer.MAX_VALUE);
+        KOMEConfigRegistry.PopulationSettings settings = KOMEConfigRegistry.population();
+        boolean cap = settings.isPopulationCapEnabled();
+        long capCenti = cap ? settings.getPopulationCapCenti().getAsLong() : 0L;
         for (Map.Entry<String,KOMEPopulationRate> e : rates.entrySet()) {
             long prior = data.populationPayoutRemainders.containsKey(e.getKey()) ? data.populationPayoutRemainders.get(e.getKey()).longValue() : 0L;
             long accrued = prior > Long.MAX_VALUE - e.getValue().getFixedUnitsPerDay() ? Long.MAX_VALUE : prior + e.getValue().getFixedUnitsPerDay();
             long whole = accrued / KOMEPopulationRate.SCALE, remainder = accrued % KOMEPopulationRate.SCALE;
             long bankCenti = KOMEPopulationService.getAvailablePopulationCenti(data, e.getKey());
             long grant = whole, blocked = 0L;
-            long capCenti = KOMEPopulationService.wholeToCenti(capValue);
             if (cap) {
+                // Floor only the number of whole grants that fit, never the configured cap.
                 long roomWhole = bankCenti >= capCenti ? 0L : (capCenti - bankCenti) / KOMEPopulationService.CENTI_PER_POPULATION;
                 if (grant > roomWhole) { blocked = grant - roomWhole; grant = roomWhole; }
             }

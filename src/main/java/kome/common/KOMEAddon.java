@@ -10,6 +10,7 @@ import cpw.mods.fml.common.event.FMLModIdMappingEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
+import cpw.mods.fml.common.event.FMLServerStoppedEvent;
 import cpw.mods.fml.common.event.FMLServerStoppingEvent;
 import cpw.mods.fml.common.network.NetworkRegistry;
 import kome.common.command.KOMECommandAlliance;
@@ -131,6 +132,12 @@ public class KOMEAddon {
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
         KOMEPacketHandler.clearPendingServerTasks();
+        KOMEConfigRegistry.onServerStop();
         lotrMoreMobs.serverStopping(event);
+    }
+
+    @Mod.EventHandler
+    public void serverStopped(FMLServerStoppedEvent event) {
+        KOMEConfigRegistry.onServerStop();
     }
 }

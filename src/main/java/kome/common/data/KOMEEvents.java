@@ -164,6 +164,7 @@ public class KOMEEvents {
                 }
                 KOMEWorldData data = KOMEWorldData.get(world);
                 data.initializeIntegratedWorld();
+                kome.common.config.KOMEConfigRegistry.onWorldInitialized(data);
                 populationPayoutRuntime.onStartup(data, now);
             }
             KOMEPacketHandler.runPendingServerTasks();

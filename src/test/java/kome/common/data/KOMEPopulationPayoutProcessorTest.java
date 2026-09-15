@@ -8,7 +8,7 @@ import org.junit.Test;
 import java.time.Instant;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.util.OptionalInt;
+import java.util.OptionalLong;
 import static org.junit.Assert.*;
 
 /** Deterministic KOM-7 Slice-2 payout regression coverage; no runtime clock is used. */
@@ -172,9 +172,9 @@ public class KOMEPopulationPayoutProcessorTest {
     private interface Checked { void run() throws Exception; }
     private static void withPopulationSettings(boolean catchUp,boolean cap,Integer capValue,int hours,Checked body) throws Exception {
         KOMEConfigRegistry.ValidatedConfig config=KOMEConfigRegistry.currentValidated(); Field field=KOMEConfigRegistry.ValidatedConfig.class.getDeclaredField("population"); field.setAccessible(true); Object prior=field.get(config);
-        Constructor<KOMEConfigRegistry.PopulationSettings> constructor=KOMEConfigRegistry.PopulationSettings.class.getDeclaredConstructor(int.class,double.class,boolean.class,boolean.class,OptionalInt.class,boolean.class); constructor.setAccessible(true);
+        Constructor<KOMEConfigRegistry.PopulationSettings> constructor=KOMEConfigRegistry.PopulationSettings.class.getDeclaredConstructor(long.class,long.class,boolean.class,boolean.class,OptionalLong.class,boolean.class); constructor.setAccessible(true);
         KOMEConfigRegistry.PopulationSettings old=(KOMEConfigRegistry.PopulationSettings)prior;
-        try { field.set(config,constructor.newInstance(hours,old.getCapturedBuildMultiplier(),catchUp,cap,capValue==null?OptionalInt.empty():OptionalInt.of(capValue.intValue()),old.isEncirclementPopulationSuppressionEnabled())); body.run(); }
+        try { field.set(config,constructor.newInstance(Math.multiplyExact((long)hours,KOMEConfigRegistry.POPULATION_HOURS_SCALE),old.getCapturedBuildMultiplierBasisPoints(),catchUp,cap,capValue==null?OptionalLong.empty():OptionalLong.of(Math.multiplyExact(capValue.longValue(),KOMEConfigRegistry.POPULATION_CAP_SCALE)),old.isEncirclementPopulationSuppressionEnabled())); body.run(); }
         finally { field.set(config,prior); }
     }
 }
