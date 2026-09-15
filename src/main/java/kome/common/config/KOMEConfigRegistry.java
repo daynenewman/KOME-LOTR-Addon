@@ -162,6 +162,12 @@ public final class KOMEConfigRegistry {
     }
 
     public static boolean isReady() { return current.validationComplete; }
+    /** One validated immutable snapshot for a complete server-thread transaction. */
+    public static ValidatedConfig requireReadySnapshot() {
+        ValidatedConfig snapshot = current;
+        if (!snapshot.validationComplete) throw new IllegalStateException("KOME configuration is not ready: " + lastApplyStatus);
+        return snapshot;
+    }
     public static String getLastApplyStatus() { return lastApplyStatus; }
     public static synchronized boolean isWorldConfigurationLocked() { return initializedWorld != null; }
 

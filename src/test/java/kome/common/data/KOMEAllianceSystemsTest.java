@@ -159,6 +159,7 @@ public class KOMEAllianceSystemsTest {
         legacyUnit.setInteger("CaptainPopulationReservation", 50);
 
         NBTTagCompound root = new NBTTagCompound();
+        new KOMEWorldData("canonical-fixture").writeToNBT(root);
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         root.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         root.setTag("Builds", new net.minecraft.nbt.NBTTagList());
@@ -213,6 +214,7 @@ public class KOMEAllianceSystemsTest {
         net.minecraft.nbt.NBTTagList legacyAlliances = new net.minecraft.nbt.NBTTagList();
         legacyAlliances.appendTag(legacyAlliance);
         NBTTagCompound legacyRoot = new NBTTagCompound();
+        new KOMEWorldData("canonical-fixture").writeToNBT(legacyRoot);
         legacyRoot.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         legacyRoot.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         legacyRoot.setTag("Builds", new net.minecraft.nbt.NBTTagList());
@@ -281,6 +283,7 @@ public class KOMEAllianceSystemsTest {
         farmhand.cost = 1;
 
         NBTTagCompound root = new NBTTagCompound();
+        new KOMEWorldData("canonical-fixture").writeToNBT(root);
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         root.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         root.setTag("Builds", new net.minecraft.nbt.NBTTagList());
@@ -506,6 +509,7 @@ public class KOMEAllianceSystemsTest {
         net.minecraft.nbt.NBTTagList posts = new net.minecraft.nbt.NBTTagList();
         posts.appendTag(legacyTradePost(post.id, post.operatingFaction, post.hostFaction));
         NBTTagCompound root = new NBTTagCompound();
+        new KOMEWorldData("canonical-fixture").writeToNBT(root);
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         root.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         root.setTag("Builds", new net.minecraft.nbt.NBTTagList());

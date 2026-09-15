@@ -2,7 +2,6 @@ package kome.common.data;
 
 import kome.common.config.KOMEConfigRegistry;
 import java.math.BigInteger;
-import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -21,20 +20,27 @@ public final class KOMEPopulationRateService {
 
     /** Sorted faction map. Exact native/captured source units are summed before one conversion. */
     public static Map<String, KOMEPopulationRate> getAllDailyPopulationRates(KOMEWorldData data) {
-        KOMEConfigRegistry.PopulationSettings settings = KOMEConfigRegistry.population();
+        Map<String, KOMEPopulationRate> result = new LinkedHashMap<String, KOMEPopulationRate>();
+        for (Map.Entry<String, BigInteger> entry : getExactDailyPopulationRates(data, KOMEConfigRegistry.population()).entrySet()) {
+            result.put(entry.getKey(), displayRate(entry.getValue()));
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    /** Unsaturated fixed-rate units; the sole faction aggregation used by payouts and displays. */
+    public static Map<String, BigInteger> getExactDailyPopulationRates(KOMEWorldData data,
+            KOMEConfigRegistry.PopulationSettings settings) {
         BigInteger denominator = rateDenominator(settings.getHoursPerPopulationPointCentiHours());
         Map<String, BigInteger> sourceUnits = new TreeMap<String, BigInteger>();
         for (KOMEPopulationRateContribution row : getPopulationRateContributions(data, settings)) {
             if (row.receivingFaction.length() == 0) continue;
-            // The row's control policy chooses the weight; never sum already-rounded row rates.
-            long multiplier = "NATIVE".equals(row.status) ? KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE
-                    : settings.getCapturedBuildMultiplierBasisPoints();
-            BigInteger source = rateNumerator(row.approvedCentiHours, multiplier);
+            // Control already selected the exact weight; status/text are presentation only.
+            BigInteger source = rateNumerator(row.approvedCentiHours, row.multiplierBasisPoints);
             BigInteger old = sourceUnits.get(row.receivingFaction);
             sourceUnits.put(row.receivingFaction, (old == null ? BigInteger.ZERO : old).add(source));
         }
-        Map<String, KOMEPopulationRate> result = new LinkedHashMap<String, KOMEPopulationRate>();
-        for (Map.Entry<String, BigInteger> entry : sourceUnits.entrySet()) result.put(entry.getKey(), fixedRate(entry.getValue(), denominator));
+        Map<String, BigInteger> result = new LinkedHashMap<String, BigInteger>();
+        for (Map.Entry<String, BigInteger> entry : sourceUnits.entrySet()) result.put(entry.getKey(), roundedUnits(entry.getValue(), denominator));
         return Collections.unmodifiableMap(result);
     }
 
@@ -50,22 +56,20 @@ public final class KOMEPopulationRateService {
         for (KOMEPlayerBuild build : KOMEBuildService.activeNormalBuilds(data)) {
             String faction = KOMEAlliance.normalizeFactionKey(build.populationFaction);
             KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(KOMEConquestTile.normalizeId(build.tileId));
-            String controller = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+            String controller = tile == null ? "" : tile.projectRulingFaction();
             long approved = build.approvedCentiHours();
             KOMEPopulationRate original = fixedRate(rateNumerator(approved, KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE), denominator);
-            String status = "UNCONTROLLED", receiving = "", multiplier = "0";
+            String status = "UNCONTROLLED", receiving = "";
             long multiplierBasisPoints = 0L;
             if (controller.length() > 0 && faction.length() > 0 && faction.equals(controller)) {
-                status = "NATIVE"; receiving = faction; multiplier = "1";
+                status = "NATIVE"; receiving = faction;
                 multiplierBasisPoints = KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE;
             } else if (controller.length() > 0 && faction.length() > 0) {
                 status = "CAPTURED"; receiving = controller;
                 multiplierBasisPoints = settings.getCapturedBuildMultiplierBasisPoints();
-                multiplier = BigDecimal.valueOf(multiplierBasisPoints)
-                        .divide(BigDecimal.valueOf(KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE)).stripTrailingZeros().toPlainString();
             }
             result.add(new KOMEPopulationRateContribution(build.id, build.displayName, build.tileId, faction, controller,
-                receiving, approved, original, fixedRate(rateNumerator(approved, multiplierBasisPoints), denominator), status, multiplier));
+                receiving, approved, original, fixedRate(rateNumerator(approved, multiplierBasisPoints), denominator), status, multiplierBasisPoints));
         }
         return Collections.unmodifiableList(result);
     }
@@ -90,7 +94,14 @@ public final class KOMEPopulationRateService {
 
     /** Positive half-up at the final conversion only; preserve existing derived-rate saturation. */
     private static KOMEPopulationRate fixedRate(BigInteger numerator, BigInteger denominator) {
-        BigInteger rounded = numerator.add(denominator.shiftRight(1)).divide(denominator);
+        return displayRate(roundedUnits(numerator, denominator));
+    }
+
+    private static BigInteger roundedUnits(BigInteger numerator, BigInteger denominator) {
+        return numerator.add(denominator.shiftRight(1)).divide(denominator);
+    }
+
+    private static KOMEPopulationRate displayRate(BigInteger rounded) {
         return new KOMEPopulationRate(rounded.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0 ? Long.MAX_VALUE : rounded.longValue());
     }
 }

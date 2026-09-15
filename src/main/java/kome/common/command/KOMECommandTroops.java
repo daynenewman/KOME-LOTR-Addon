@@ -57,7 +57,6 @@ import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraftforge.common.ForgeChunkManager;
 
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.Comparator;
 import java.util.Collections;
 import java.util.HashMap;
@@ -67,7 +66,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.UUID;
 
 public class KOMECommandTroops extends CommandBase {
@@ -1431,7 +1429,7 @@ public class KOMECommandTroops extends CommandBase {
                     + " seconds per tile."));
             } else {
                 sender.addChatMessage(new ChatComponentText("Movement timing: Normal daily reset at "
-                    + data.movementDailyResetTime + " " + data.movementDailyResetTimezone
+                    + kome.common.config.KOMEConfigRegistry.dailyBatch().getLocalTime() + " " + kome.common.config.KOMEConfigRegistry.dailyBatch().getTimezone()
                     + ". Mounted-only 2 tiles/reset, ground or mixed 1 tile/reset."));
             }
             sender.addChatMessage(new ChatComponentText("Movement step delay: " + data.movementStepDelaySeconds
@@ -1462,25 +1460,15 @@ public class KOMECommandTroops extends CommandBase {
         }
         if ("daily".equalsIgnoreCase(args[1])) {
             if (args.length == 3 && "get".equalsIgnoreCase(args[2])) {
-                sender.addChatMessage(new ChatComponentText("Movement daily reset: " + data.movementDailyResetTime
-                    + " " + data.movementDailyResetTimezone + "."));
+                sender.addChatMessage(new ChatComponentText("Movement daily reset: " + kome.common.config.KOMEConfigRegistry.dailyBatch().getLocalTime()
+                    + " " + kome.common.config.KOMEConfigRegistry.dailyBatch().getTimezone() + "."));
                 return;
             }
             if (args.length == 5 && "set".equalsIgnoreCase(args[2])) {
                 if (!sender.canCommandSenderUseCommand(2, getCommandName())) {
                     throw new WrongUsageException("Only operators can change troop movement daily timing.");
                 }
-                int minuteOfDay = parseDailyResetMinute(args[3]);
-                if (minuteOfDay < 0) {
-                    throw new WrongUsageException("Daily reset time must be HH:mm, for example 20:00.");
-                }
-                TimeZone timezone = TimeZone.getTimeZone(args[4]);
-                data.movementDailyResetTime = args[3];
-                data.movementDailyResetTimezone = timezone.getID();
-                data.markDirty();
-                sender.addChatMessage(new ChatComponentText("Movement daily reset set to " + data.movementDailyResetTime
-                    + " " + data.movementDailyResetTimezone + "."));
-                return;
+                throw new WrongUsageException("Daily timing is owned by kome.cfg dailyBatch.localTime/timezone. Change the configuration and restart the server.");
             }
             throw new WrongUsageException("/troops movetime daily <get|set HH:mm timezone>");
         }
@@ -2422,7 +2410,7 @@ public class KOMECommandTroops extends CommandBase {
         if (!firstStepArrival.valid) {
             throw new WrongUsageException(firstStepArrival.failureReason);
         }
-        KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
+        KOMEArmyMovementOrder order = KOMEArmyMovementOrder.newRoute(company.getTilesPerDay());
         order.id = nextOrderId(data);
         order.companyId = company.id;
         order.companyName = company.name;
@@ -2512,6 +2500,7 @@ public class KOMECommandTroops extends CommandBase {
             company.status = KOMEArmyCompany.MOVING;
             company.movementOrderId = order.id;
             company.updatedAtMillis = System.currentTimeMillis();
+            order.tryDepart(isDailyMovementMode(data), () -> true);
             data.armyMovements.put(order.id, order);
             data.recordMovementStarted(order);
             data.markDirty();
@@ -2806,8 +2795,6 @@ public class KOMECommandTroops extends CommandBase {
                         order.nextStepAvailableMillis = nowMillis + cooldown;
                         order.nextStepDepartureMillis = order.nextStepAvailableMillis;
                         order.arrivalMillis = order.nextStepAvailableMillis;
-                        order.nextDailyStepMillis = data != null && data.movementSecondsPerTileOverride <= 0
-                            && data.movementTotalSecondsOverride <= 0 ? order.nextStepAvailableMillis : order.nextDailyStepMillis;
                         if (company != null) {
                             company.status = KOMEArmyCompany.MOVING;
                             company.movementOrderId = order.id;
@@ -2863,9 +2850,7 @@ public class KOMECommandTroops extends CommandBase {
                 changed = true;
                 continue;
             }
-            if (isDailyMovementMode(data)) {
-                order.dailyStepsRemaining = Math.max(order.dailyStepsRemaining, Math.max(0, order.tilesPerDay - 1));
-            }
+            if (isDailyMovementMode(data) && order.dailyStepsRemaining <= 0) continue;
             World orderWorld = worldForOrder(world, order);
             if (orderWorld == null) {
                 changed |= markStepDepartureBlocked(order, "DEPARTURE_DIMENSION_UNAVAILABLE",
@@ -2907,10 +2892,10 @@ public class KOMECommandTroops extends CommandBase {
                 if (!ready) {
                     continue;
                 }
-                for (Entity entity : physicalEntities) {
-                    removeMovementEntityTree(orderWorld, entity);
-                }
-                if (scheduleNextRouteStep(data, order, orderWorld, nowMillis)) {
+                if (order.tryDepart(isDailyMovementMode(data), () -> scheduleNextRouteStep(data, order, orderWorld, nowMillis))) {
+                    for (Entity entity : physicalEntities) {
+                        removeMovementEntityTree(orderWorld, entity);
+                    }
                     KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
                     if (company != null) {
                         company.status = KOMEArmyCompany.MOVING;
@@ -2919,6 +2904,8 @@ public class KOMECommandTroops extends CommandBase {
                     }
                     data.updateMovementHistory(order, KOMEMovementHistoryRecord.ACTIVE);
                     changed = true;
+                } else {
+                    changed = true; // persist the blocked departure diagnostic; allowance is unchanged
                 }
             } finally {
                 releaseTemporaryArrivalChunk(ticket);
@@ -3032,11 +3019,13 @@ public class KOMECommandTroops extends CommandBase {
 
     private static boolean scheduleNextRouteStep(KOMEWorldData data, KOMEArmyMovementOrder order, World world, long nowMillis) {
         if (order == null || order.routeTiles.size() < 2) {
+            if (order != null) markStepDepartureBlocked(order, "INVALID_ROUTE", "No route step is available", nowMillis);
             return false;
         }
         int finalIndex = order.routeTiles.size() - 1;
         int originIndex = Math.max(0, Math.min(order.currentRouteIndex, finalIndex));
         if (originIndex >= finalIndex) {
+            markStepDepartureBlocked(order, "INVALID_ROUTE_INDEX", "No next route step is available", nowMillis);
             return false;
         }
         int nextIndex = originIndex + 1;
@@ -3048,7 +3037,7 @@ public class KOMECommandTroops extends CommandBase {
         }
         SpawnTarget target = requireArrivalTarget(data, world, destination);
         if (!target.valid) {
-            markPendingSpawn(order, failureCode(target.failureReason), target.failureReason, nowMillis);
+            markStepDepartureBlocked(order, failureCode(target.failureReason), target.failureReason, nowMillis);
             return false;
         }
         order.currentStepOriginTile = origin;
@@ -4990,7 +4979,6 @@ public class KOMECommandTroops extends CommandBase {
 
     private static long nextStepCooldownMillis(KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis) {
         if (order != null && isDailyMovementMode(data) && order.dailyStepsRemaining > 0) {
-            order.dailyStepsRemaining--;
             return 0L;
         }
         return getStepCooldownMillis(data, order, nowMillis);
@@ -5005,43 +4993,46 @@ public class KOMECommandTroops extends CommandBase {
     }
 
     private static long dailyResetAfter(KOMEWorldData data, long nowMillis, int resetCount) {
-        TimeZone timezone = TimeZone.getTimeZone(data == null || data.movementDailyResetTimezone == null
-            || data.movementDailyResetTimezone.length() == 0 ? "America/Chicago" : data.movementDailyResetTimezone);
-        int minuteOfDay = parseDailyResetMinute(data == null ? "20:00" : data.movementDailyResetTime);
-        if (minuteOfDay < 0) {
-            minuteOfDay = 20 * 60;
-        }
-        Calendar calendar = Calendar.getInstance(timezone);
-        calendar.setTimeInMillis(nowMillis);
-        calendar.set(Calendar.HOUR_OF_DAY, minuteOfDay / 60);
-        calendar.set(Calendar.MINUTE, minuteOfDay % 60);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        if (calendar.getTimeInMillis() <= nowMillis) {
-            calendar.add(Calendar.DAY_OF_YEAR, 1);
-        }
-        calendar.add(Calendar.DAY_OF_YEAR, Math.max(1, resetCount) - 1);
-        return calendar.getTimeInMillis();
+        kome.common.data.KOMEDailyBoundary schedule = kome.common.data.KOMEDailyBoundary.from(
+                kome.common.config.KOMEConfigRegistry.requireReadySnapshot().getDailyBatch());
+        java.time.Instant next = schedule.nextBoundary(schedule.latestBoundaryAtOrBefore(java.time.Instant.ofEpochMilli(nowMillis)));
+        for (int i = 1; i < Math.max(1, resetCount); i++) next = schedule.nextBoundary(next);
+        return next.toEpochMilli();
     }
 
-    private static int parseDailyResetMinute(String value) {
-        if (value == null) {
-            return -1;
-        }
-        String[] parts = value.trim().split(":");
-        if (parts.length != 2) {
-            return -1;
-        }
-        try {
-            int hour = Integer.parseInt(parts[0]);
-            int minute = Integer.parseInt(parts[1]);
-            if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-                return -1;
+    /** Startup rebases reset instants without granting historical movement allowance. */
+    public static void anchorMovementSchedule(KOMEWorldData data, long nowMillis) {
+        if (!isDailyMovementMode(data)) return;
+        long next = nextDailyResetMillis(data, nowMillis);
+        boolean changed = false;
+        for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
+            if (order == null || !order.isMoving()) continue;
+            if (order.nextDailyStepMillis != next) {
+                order.nextDailyStepMillis = next;
+                changed = true;
             }
-            return hour * 60 + minute;
-        } catch (NumberFormatException e) {
-            return -1;
+            if (order.dailyStepsRemaining == 0 && KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)) {
+                order.nextStepAvailableMillis = next;
+                order.nextStepDepartureMillis = next;
+                changed = true;
+            }
         }
+        if (changed) data.markDirty();
+    }
+
+    /** One observed daily reset, never an offline replay or a retry/status refresh. */
+    public static void resetDailyMovementAllowances(KOMEWorldData data, long nowMillis) {
+        if (!isDailyMovementMode(data) || data.armyMovements.isEmpty()) return;
+        long next = nextDailyResetMillis(data, nowMillis);
+        boolean changed = false;
+        for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
+            if (order == null || !order.isMoving() || order.nextDailyStepMillis <= 0L
+                    || nowMillis < order.nextDailyStepMillis) continue;
+            order.dailyStepsRemaining = order.tilesPerDay;
+            order.nextDailyStepMillis = next;
+            changed = true;
+        }
+        if (changed) data.markDirty();
     }
 
     private String movementScheduleMode(KOMEWorldData data) {

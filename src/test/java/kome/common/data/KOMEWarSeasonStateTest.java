@@ -39,12 +39,17 @@ public class KOMEWarSeasonStateTest {
         assertEquals(KOMEWarSeasonState.Phase.FINALE, restored.warSeason.phase); assertEquals(actor, restored.warSeason.finaleTriggerActor); assertEquals("Aragorn", restored.warSeason.finaleTriggerActorName);
         assertEquals(100L, restored.warSeason.finaleTriggerTimeMillis); assertEquals(17, KOMEPopulationService.getAvailablePopulation(restored, "gondor")); assertTrue(restored.hiredUnits.containsKey(unitId));
     }
-    @Test public void payoutIsFrozenOutsideWarAndFinale() {
-        KOMEWorldData data = new KOMEWorldData("season"); data.populationPayoutInitialized = true; data.lastPopulationPayoutBoundaryMillis = 0L;
-        KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data, Instant.ofEpochMilli(1000L)); assertEquals(0, data.factionPopulations.size());
+    @Test public void payoutIsFrozenOutsideWarAndFinale() throws Exception {
+        try (KOMEPopulationTestConfig config = new KOMEPopulationTestConfig()) {
+        KOMEWorldData data = new KOMEWorldData("season");
+        assertTrue(KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data, Instant.ofEpochMilli(1000L)).success);
+        Instant due = KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis));
+        assertTrue(KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data, due).success);
+        assertEquals(due.toEpochMilli(), data.lastPopulationPayoutBoundaryMillis); assertEquals(0, data.factionPopulations.size());
         data.warSeason.recordLegalConflict(1000L, -1L); assertTrue(data.warSeason.isPopulationPayoutEnabled());
         assertTrue(data.warSeason.triggerFinale(UUID.randomUUID(), "king", true, 1000L).allowed == false); // TBD duration blocks Finale, but War payout remains enabled
         assertTrue(data.warSeason.beginPreWar(1000L).allowed == false);
+        }
     }
     @Test public void repairProvidesAdministrativeRecovery() {
         KOMEWarSeasonState s = new KOMEWarSeasonState(); assertTrue(s.repair(KOMEWarSeasonState.Phase.RESET, 5L).allowed);

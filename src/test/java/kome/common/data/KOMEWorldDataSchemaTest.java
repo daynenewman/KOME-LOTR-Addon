@@ -25,7 +25,7 @@ public class KOMEWorldDataSchemaTest {
         "KOMEDataSchemaVersion", "AllianceDataSchemaVersion", "BuildDataSchemaVersion",
         "PopulationDataSchemaVersion", "FactionPopulationDataSchemaVersion", "ProgressionEnabled",
         "MovementSecondsPerTileOverride", "MovementTotalSecondsOverride", "MovementStepDelaySeconds",
-        "MovementDailyResetTime", "MovementDailyResetTimezone", "NextWarSequence", "NextBuildSequence",
+        "PopulationPayoutDataSchemaVersion", "PopulationPayoutTimezone", "PopulationPayoutLocalTime", "NextWarSequence", "NextBuildSequence",
         "WarSeason", "CentralAudit", "AllianceRequirementOverrides", "AllianceQuotaItemOverrides",
         "AllianceAdminAudit", "AllianceMigrationQuarantine", "ConquestDefaultsInitialized", "Populations",
         "FactionPopulations", "PopulationPayoutInitialized", "LastPopulationPayoutBoundaryMillis",
@@ -167,7 +167,9 @@ public class KOMEWorldDataSchemaTest {
         source.nextWarSequence = 9;
         source.nextBuildSequence = 11;
         source.populationPayoutInitialized = true;
-        source.lastPopulationPayoutBoundaryMillis = 123456789L;
+        source.populationPayoutTimezone = "America/Chicago";
+        source.populationPayoutLocalTime = "20:00";
+        source.lastPopulationPayoutBoundaryMillis = java.time.Instant.parse("2026-01-10T02:00:00Z").toEpochMilli();
         source.populationPayoutRemainders.put("gondor", Long.valueOf(7L));
         source.grantFactionPopulation("gondor", 42);
         source.warSeason.phase = KOMEWarSeasonState.Phase.WAR;
@@ -200,7 +202,9 @@ public class KOMEWorldDataSchemaTest {
         assertEquals(9, restored.nextWarSequence);
         assertEquals(11, restored.nextBuildSequence);
         assertEquals(4200L, restored.getFactionPopulationIfPresent("gondor").getAvailablePopulationCenti());
-        assertEquals(123456789L, restored.lastPopulationPayoutBoundaryMillis);
+        assertEquals(source.lastPopulationPayoutBoundaryMillis, restored.lastPopulationPayoutBoundaryMillis);
+        assertEquals("America/Chicago@20:00", restored.populationPayoutSchedule().signature());
+        assertEquals(KOMEWorldData.POPULATION_PAYOUT_DATA_SCHEMA_VERSION, first.getInteger("PopulationPayoutDataSchemaVersion"));
         assertEquals(Long.valueOf(7L), restored.populationPayoutRemainders.get("gondor"));
         assertEquals(KOMEWarSeasonState.Phase.WAR, restored.warSeason.phase);
         assertEquals(KOMEDiplomacyRelation.FRIENDS,

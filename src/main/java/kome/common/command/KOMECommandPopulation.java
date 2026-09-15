@@ -88,7 +88,7 @@ public class KOMECommandPopulation extends CommandBase {
         throw new WrongUsageException(getCommandUsage(sender));
     }
 
-    /** Canonical Build-rate audit; captured rows remain visible at zero pending KOM-9. */
+    /** Canonical Build-rate audit plus operator-only persisted payout diagnostics. */
     private void sendRateAudit(ICommandSender sender, String[] args) {
         if (args.length > 2) throw new WrongUsageException("/population rate [faction]");
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
@@ -101,6 +101,10 @@ public class KOMECommandPopulation extends CommandBase {
                     + " " + row.populationFaction + " -> " + (row.currentController.length() == 0 ? "UNCONTROLLED" : row.currentController)
                     + ": approved " + (kome.common.data.KOMEBuildTime.formatHours(row.approvedCentiHours)) + "h, original " + row.originalRate.formatPerDay()
                     + " x" + row.multiplier + ", " + row.status + ", current " + row.currentRate.formatPerDay()));
+        }
+        if (sender.canCommandSenderUseCommand(2, getCommandName())) {
+            for (String line : kome.common.data.KOMEPopulationPayoutProcessor.inspection(data))
+                sender.addChatMessage(new ChatComponentText(line));
         }
     }
 

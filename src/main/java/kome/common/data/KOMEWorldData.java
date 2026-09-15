@@ -37,6 +37,7 @@ public class KOMEWorldData extends WorldSavedData {
     public static final int BUILD_DATA_SCHEMA_VERSION = KOMEPlayerBuild.DATA_SCHEMA_VERSION;
     public static final int POPULATION_DATA_SCHEMA_VERSION = 2;
     public static final int FACTION_POPULATION_DATA_SCHEMA_VERSION = 2;
+    public static final int POPULATION_PAYOUT_DATA_SCHEMA_VERSION = 1;
 
     public final Map<UUID, KOMEPlayerPopulation> populations = new HashMap<>();
     /** Authoritative faction-wide spendable population banks; legacy ledgers are non-authoritative. */
@@ -44,6 +45,10 @@ public class KOMEWorldData extends WorldSavedData {
     /** KOM-7 payout state; rate remains derived from Builds and configuration. */
     public boolean populationPayoutInitialized;
     public long lastPopulationPayoutBoundaryMillis = -1L;
+    public String populationPayoutTimezone = "";
+    public String populationPayoutLocalTime = "";
+    /** Transient failed-plan diagnostic, never a cursor or a readiness authority. */
+    public String populationPayoutLastFailure = "";
     public final Map<String, Long> populationPayoutRemainders = new HashMap<String, Long>();
     public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
@@ -90,8 +95,6 @@ public class KOMEWorldData extends WorldSavedData {
     public int movementSecondsPerTileOverride;
     public int movementTotalSecondsOverride;
     public int movementStepDelaySeconds = 5;
-    public String movementDailyResetTime = "20:00";
-    public String movementDailyResetTimezone = "America/Chicago";
     public int nextWarSequence = 1;
     /** The sole persisted campaign-season authority; population and unit records remain separate. */
     public final KOMEWarSeasonState warSeason = new KOMEWarSeasonState();
@@ -159,10 +162,48 @@ public class KOMEWorldData extends WorldSavedData {
         super.markDirty();
     }
 
-    private void ensureWritable() {
+    void ensureWritable() {
         if (writeBlocked) {
             throw new IllegalStateException("KOME world data is write-blocked after a failed schema load: "
                 + loadFailureReason);
+        }
+    }
+
+    /**
+     * Server-thread publication of one preflighted payout transition, including its audit.
+     * Not a filesystem transaction. Rollback bypasses overridable WorldData mutation hooks.
+     */
+    final void publishPopulationPayout(Runnable publication) {
+        ensureWritable();
+        Map<String, KOMEFactionPopulation> banks = new HashMap<String, KOMEFactionPopulation>(factionPopulations);
+        Map<String, Long> balances = new HashMap<String, Long>();
+        for (Map.Entry<String, KOMEFactionPopulation> entry : banks.entrySet())
+            balances.put(entry.getKey(), entry.getValue().getAvailablePopulationCenti());
+        Map<String, Long> remainders = new HashMap<String, Long>(populationPayoutRemainders);
+        List<KOMEAuditEntry> audit = new ArrayList<KOMEAuditEntry>(centralAudit);
+        boolean initialized = populationPayoutInitialized;
+        long cursor = lastPopulationPayoutBoundaryMillis;
+        String timezone = populationPayoutTimezone, localTime = populationPayoutLocalTime;
+        boolean dirty = super.isDirty();
+        try {
+            publication.run();
+            markDirty();
+        } catch (RuntimeException failure) {
+            // KOMEFactionPopulation is final; these captured, validated balances cannot fail its setter.
+            for (Map.Entry<String, KOMEFactionPopulation> entry : banks.entrySet())
+                entry.getValue().setAvailablePopulationCenti(balances.get(entry.getKey()));
+            factionPopulations.clear();
+            factionPopulations.putAll(banks);
+            populationPayoutRemainders.clear();
+            populationPayoutRemainders.putAll(remainders);
+            populationPayoutInitialized = initialized;
+            lastPopulationPayoutBoundaryMillis = cursor;
+            populationPayoutTimezone = timezone;
+            populationPayoutLocalTime = localTime;
+            centralAudit.clear();
+            centralAudit.addAll(audit); // includes entries trimmed from the front by a failed append
+            super.setDirty(dirty);
+            throw failure;
         }
     }
 
@@ -2419,6 +2460,7 @@ public class KOMEWorldData extends WorldSavedData {
         validateFactionPopulationSchema(nbt);
         // Validate every Build before publishing any loaded state or clearing current collections.
         Map<String, KOMEPlayerBuild> loadedBuilds = readCanonicalBuilds(nbt);
+        Map<String, Long> loadedRemainders = readCanonicalPayoutState(nbt);
         integratedRootInitialized = true;
         int removedCaptainDesignations = 0;
         int returnedCaptainPopulation = 0;
@@ -2428,6 +2470,10 @@ public class KOMEWorldData extends WorldSavedData {
         populationPayoutInitialized = nbt.getBoolean("PopulationPayoutInitialized");
         lastPopulationPayoutBoundaryMillis = populationPayoutInitialized ? nbt.getLong("LastPopulationPayoutBoundaryMillis") : -1L;
         populationPayoutRemainders.clear();
+        populationPayoutRemainders.putAll(loadedRemainders);
+        populationPayoutTimezone = nbt.getString("PopulationPayoutTimezone");
+        populationPayoutLocalTime = nbt.getString("PopulationPayoutLocalTime");
+        populationPayoutLastFailure = "";
         progressions.clear();
         hiredUnits.clear();
         conquestTiles.clear();
@@ -2468,8 +2514,6 @@ public class KOMEWorldData extends WorldSavedData {
         movementSecondsPerTileOverride = Math.max(0, nbt.getInteger("MovementSecondsPerTileOverride"));
         movementTotalSecondsOverride = Math.max(0, nbt.getInteger("MovementTotalSecondsOverride"));
         movementStepDelaySeconds = nbt.hasKey("MovementStepDelaySeconds") ? Math.max(0, nbt.getInteger("MovementStepDelaySeconds")) : 5;
-        movementDailyResetTime = nbt.hasKey("MovementDailyResetTime") ? nbt.getString("MovementDailyResetTime") : "20:00";
-        movementDailyResetTimezone = nbt.hasKey("MovementDailyResetTimezone") ? nbt.getString("MovementDailyResetTimezone") : "America/Chicago";
         nextWarSequence = nbt.hasKey("NextWarSequence") ? Math.max(1, nbt.getInteger("NextWarSequence")) : 1;
         warSeason.readFromNBT(nbt.getCompoundTag("WarSeason"));
         nextBuildSequence = nbt.hasKey("NextBuildSequence") ? Math.max(1, nbt.getInteger("NextBuildSequence")) : 1;
@@ -2511,12 +2555,6 @@ public class KOMEWorldData extends WorldSavedData {
         }
         KOMEAuditService.readFromNBT(this, nbt);
         conquestDefaultsInitialized = nbt.hasKey("ConquestDefaultsInitialized") && nbt.getBoolean("ConquestDefaultsInitialized");
-        if (movementDailyResetTime == null || movementDailyResetTime.length() == 0) {
-            movementDailyResetTime = "20:00";
-        }
-        if (movementDailyResetTimezone == null || movementDailyResetTimezone.length() == 0) {
-            movementDailyResetTimezone = "America/Chicago";
-        }
 
         NBTTagList popList = nbt.getTagList("Populations", 10);
         for (int i = 0; i < popList.tagCount(); i++) {
@@ -2536,15 +2574,6 @@ public class KOMEWorldData extends WorldSavedData {
             KOMEFactionPopulation population = new KOMEFactionPopulation();
             population.setAvailablePopulationCenti(entry.getLong("AvailablePopulationCenti"));
             factionPopulations.put(faction, population);
-        }
-        NBTTagList payoutRemainders = nbt.getTagList("PopulationPayoutRemainders", 10);
-        for (int i = 0; i < payoutRemainders.tagCount(); i++) {
-            NBTTagCompound entry = payoutRemainders.getCompoundTagAt(i);
-            String faction = KOMEAlliance.normalizeFactionKey(entry.getString("Faction"));
-            long remainder = entry.getLong("RemainderUnits");
-            if (faction.length() > 0 && remainder > 0L && remainder < KOMEPopulationRate.SCALE) {
-                populationPayoutRemainders.put(faction, Long.valueOf(remainder));
-            }
         }
         NBTTagList diplomacyList = nbt.getTagList("CanonicalDiplomacyRecords", 10);
         for (int i = 0; i < diplomacyList.tagCount(); i++) {
@@ -3188,6 +3217,7 @@ public class KOMEWorldData extends WorldSavedData {
     @Override
     public void writeToNBT(NBTTagCompound nbt) {
         ensureWritable();
+        validatePopulationPayoutState(); // reject before touching the destination tag
         nbt.setInteger(KOME_DATA_SCHEMA_KEY, KOME_DATA_SCHEMA_VERSION);
         nbt.removeTag("TradeProduceSlotsMaximum");
         nbt.removeTag("AllianceProduceSlots");
@@ -3198,8 +3228,6 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.setInteger("MovementSecondsPerTileOverride", Math.max(0, movementSecondsPerTileOverride));
         nbt.setInteger("MovementTotalSecondsOverride", Math.max(0, movementTotalSecondsOverride));
         nbt.setInteger("MovementStepDelaySeconds", Math.max(0, movementStepDelaySeconds));
-        nbt.setString("MovementDailyResetTime", movementDailyResetTime == null ? "20:00" : movementDailyResetTime);
-        nbt.setString("MovementDailyResetTimezone", movementDailyResetTimezone == null ? "America/Chicago" : movementDailyResetTimezone);
         nbt.setInteger("NextWarSequence", Math.max(1, nextWarSequence));
         NBTTagCompound warSeasonTag = new NBTTagCompound();
         warSeason.writeToNBT(warSeasonTag);
@@ -3282,14 +3310,17 @@ public class KOMEWorldData extends WorldSavedData {
             factionPopulationList.appendTag(entry);
         }
         nbt.setTag("FactionPopulations", factionPopulationList);
+        nbt.setInteger("PopulationPayoutDataSchemaVersion", POPULATION_PAYOUT_DATA_SCHEMA_VERSION);
         nbt.setBoolean("PopulationPayoutInitialized", populationPayoutInitialized);
+        nbt.setString("PopulationPayoutTimezone", populationPayoutTimezone);
+        nbt.setString("PopulationPayoutLocalTime", populationPayoutLocalTime);
         nbt.setLong("LastPopulationPayoutBoundaryMillis", populationPayoutInitialized ? lastPopulationPayoutBoundaryMillis : -1L);
         NBTTagList payoutRemainders = new NBTTagList();
         List<String> remainderFactions = new ArrayList<String>(populationPayoutRemainders.keySet());
         Collections.sort(remainderFactions);
         for (String faction : remainderFactions) {
             Long remainder = populationPayoutRemainders.get(faction);
-            if (remainder == null || remainder.longValue() <= 0L || remainder.longValue() >= KOMEPopulationRate.SCALE) continue;
+            if (remainder.longValue() == 0L) continue;
             NBTTagCompound entry = new NBTTagCompound(); entry.setString("Faction", faction); entry.setLong("RemainderUnits", remainder.longValue()); payoutRemainders.appendTag(entry);
         }
         nbt.setTag("PopulationPayoutRemainders", payoutRemainders);
@@ -3538,6 +3569,68 @@ public class KOMEWorldData extends WorldSavedData {
         } catch (Throwable ignored) {
             System.err.println(message);
         }
+    }
+
+    public KOMEDailyBoundary populationPayoutSchedule() {
+        return KOMEDailyBoundary.persisted(populationPayoutTimezone, populationPayoutLocalTime);
+    }
+
+    void validatePopulationPayoutState() {
+        validatePayoutIdentity(populationPayoutInitialized, lastPopulationPayoutBoundaryMillis,
+                populationPayoutTimezone, populationPayoutLocalTime, populationPayoutRemainders);
+    }
+
+    private static void validatePayoutIdentity(boolean initialized, long cursor, String timezone,
+            String time, Map<String, Long> remainders) {
+        if (!initialized) {
+            if (cursor != -1L || !"".equals(timezone) || !"".equals(time) || !remainders.isEmpty())
+                throw new IllegalArgumentException("Uninitialized payout state must have an empty schedule/remainder and cursor -1");
+        } else {
+            KOMEDailyBoundary schedule = KOMEDailyBoundary.persisted(timezone, time);
+            java.time.Instant boundary = java.time.Instant.ofEpochMilli(cursor);
+            if (!schedule.latestBoundaryAtOrBefore(boundary).equals(boundary))
+                throw new IllegalArgumentException("Payout cursor is not a boundary of its persisted schedule");
+            schedule.nextBoundary(boundary).toEpochMilli();
+        }
+        for (Map.Entry<String, Long> entry : remainders.entrySet()) {
+            String faction = entry.getKey();
+            if (faction == null || faction.isEmpty() || !faction.equals(KOMEAlliance.normalizeFactionKey(faction)))
+                throw new IllegalArgumentException("Payout remainder requires a canonical nonblank faction");
+            Long units = entry.getValue();
+            if (units == null || units < 0L || units >= KOMEPopulationPayoutProcessor.RATE_UNITS_PER_CENTI)
+                throw new IllegalArgumentException("Payout RemainderUnits out of sub-centi range for " + faction + ": " + units);
+        }
+    }
+
+    private Map<String, Long> readCanonicalPayoutState(NBTTagCompound nbt) {
+        Map<String, Long> loaded = new HashMap<String, Long>();
+        try {
+            if (!nbt.hasKey("PopulationPayoutDataSchemaVersion", 3)
+                    || nbt.getInteger("PopulationPayoutDataSchemaVersion") != POPULATION_PAYOUT_DATA_SCHEMA_VERSION)
+                throw new IllegalArgumentException("Unsupported or missing PopulationPayoutDataSchemaVersion; expected "
+                        + POPULATION_PAYOUT_DATA_SCHEMA_VERSION + ". Pre-Checkpoint E development worlds require reset; no migration.");
+            if (!nbt.hasKey("PopulationPayoutInitialized", 1) || !nbt.hasKey("LastPopulationPayoutBoundaryMillis", 4)
+                    || !nbt.hasKey("PopulationPayoutTimezone", 8) || !nbt.hasKey("PopulationPayoutLocalTime", 8)
+                    || !nbt.hasKey("PopulationPayoutRemainders", 9))
+                throw new IllegalArgumentException("Canonical payout identity/cursor/remainder fields are missing or wrong NBT type");
+            NBTTagList records = nbt.getTagList("PopulationPayoutRemainders", 10);
+            if (((NBTTagList) nbt.getTag("PopulationPayoutRemainders")).tagCount() != records.tagCount())
+                throw new IllegalArgumentException("Payout remainders must contain compound records");
+            for (int i = 0; i < records.tagCount(); i++) {
+                NBTTagCompound entry = records.getCompoundTagAt(i);
+                if (!entry.hasKey("Faction", 8) || !entry.hasKey("RemainderUnits", 4))
+                    throw new IllegalArgumentException("Malformed payout remainder at index " + i);
+                String faction = entry.getString("Faction");
+                if (loaded.containsKey(faction)) throw new IllegalArgumentException("Duplicate payout remainder faction " + faction);
+                loaded.put(faction, entry.getLong("RemainderUnits"));
+            }
+            validatePayoutIdentity(nbt.getBoolean("PopulationPayoutInitialized"), nbt.getLong("LastPopulationPayoutBoundaryMillis"),
+                    nbt.getString("PopulationPayoutTimezone"), nbt.getString("PopulationPayoutLocalTime"), loaded);
+            loaded.values().removeAll(Collections.singleton(Long.valueOf(0L)));
+        } catch (RuntimeException invalid) {
+            failUnsupportedRootSchema("Invalid population payout state: " + invalid.getMessage());
+        }
+        return loaded;
     }
 
     private Map<String, KOMEPlayerBuild> readCanonicalBuilds(NBTTagCompound nbt) {

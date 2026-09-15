@@ -9,6 +9,57 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationRateServiceTest {
+    @Test public void exactRatesProjectDivergentOwnershipWithoutRepairingRawFields() throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            for (String[] raw : new String[][] {{"  Gondor ", " ROHAN "}, {" \t", " ROHAN "}, {null, " ROHAN "}}) {
+                KOMEWorldData data = data();
+                KOMEPlayerBuild build = build(data, "B", "gondor", KOMEBuildType.NORMAL, 20);
+                KOMEConquestTile tile = data.conquestTiles.get("T1");
+                tile.currentRulingFaction = raw[0]; tile.ownerFaction = raw[1];
+                data.setDirty(false);
+                boolean nativeControl = raw[0] != null && raw[0].trim().equals("Gondor");
+                String receiver = nativeControl ? "gondor" : "rohan";
+                assertEquals(receiver, tile.projectRulingFaction());
+                assertEquals(java.math.BigInteger.valueOf(nativeControl ? 1_000_000L : 500_000L),
+                        KOMEPopulationRateService.getExactDailyPopulationRates(data, KOMEConfigRegistry.population()).get(receiver));
+                // Never serialize the tile: writeToNBT itself repairs compatibility fields.
+                assertEquals(raw[0], tile.currentRulingFaction); assertEquals(raw[1], tile.ownerFaction);
+                assertEquals(1000L, build.contributions.get(0).centiHours);
+                assertEquals(KOMEBuildContribution.APPROVED, build.contributions.get(0).status);
+                assertTrue(build.auditHistory().isEmpty()); assertTrue(data.centralAudit.isEmpty());
+                assertTrue(data.factionPopulations.isEmpty()); assertTrue(data.populationPayoutRemainders.isEmpty());
+                assertFalse(data.populationPayoutInitialized); assertEquals(-1L, data.lastPopulationPayoutBoundaryMillis);
+                assertEquals("", data.populationPayoutTimezone); assertEquals("", data.populationPayoutLocalTime);
+                assertFalse(data.isDirty());
+            }
+        }
+    }
+
+    @Test public void resolvedBasisPointsDriveBothAttributionAndExactAggregation() throws Exception {
+        try (KOMEPopulationTestConfig config = new KOMEPopulationTestConfig()) {
+            String[] configured = {"0.5000", "0", "1.0000", "0.0125"};
+            long[] weights = {5000L, 0L, 10000L, 125L};
+            String[] displayed = {"0.5", "0", "1", "0.0125"};
+            for (int i = 0; i < configured.length; i++) {
+                config.set("population.capturedBuildMultiplier", configured[i]);
+                for (boolean captured : new boolean[] {false, true}) {
+                    KOMEWorldData data = data(); build(data, "B", "gondor", KOMEBuildType.NORMAL, 20);
+                    String receiver = captured ? "rohan" : "gondor";
+                    data.conquestTiles.get("T1").claim(receiver, 0L);
+                    KOMEPopulationRateContribution row = KOMEPopulationRateService.getPopulationRateContributions(data).get(0);
+                    long weight = captured ? weights[i] : 10000L;
+                    assertEquals(weight, row.multiplierBasisPoints);
+                    assertEquals(captured ? displayed[i] : "1", row.multiplier);
+                    assertEquals(captured ? "CAPTURED" : "NATIVE", row.status);
+                    assertEquals(receiver, row.receivingFaction);
+                    assertEquals(weight * 100L, row.currentRate.getFixedUnitsPerDay());
+                    assertEquals(java.math.BigInteger.valueOf(weight * 100L),
+                            KOMEPopulationRateService.getExactDailyPopulationRates(data, KOMEConfigRegistry.population()).get(receiver));
+                }
+            }
+        }
+    }
+
     @Test public void fixedRatesPreservePriorHalfHourValuesExactly() {
         assertEquals(1_000_000L, KOMEPopulationRateService.rate(1000L, 1000L).getFixedUnitsPerDay());
         assertEquals(500_000L, KOMEPopulationRateService.rate(500L, 1000L).getFixedUnitsPerDay());

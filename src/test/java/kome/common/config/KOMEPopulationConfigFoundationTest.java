@@ -328,10 +328,10 @@ public class KOMEPopulationConfigFoundationTest {
             assertEquals(expectedRates[i], KOMEPopulationService.getPopulationRateContributions(data).get(0).currentRate.getFixedUnitsPerDay());
             KOMEPopulationPayoutProcessor.Result result = payOneBoundary(data);
             assertTrue(hours[i], result.success);
-            assertEquals(expectedRates[i], result.factions.get(0).rate);
-            long expectedBank = expectedRates[i] / KOMEPopulationRate.SCALE * KOMEPopulationService.CENTI_PER_POPULATION;
+            assertEquals(java.math.BigInteger.valueOf(expectedRates[i]), result.factions.get(0).exactRateUnits);
+            long expectedBank = expectedRates[i] / KOMEPopulationPayoutProcessor.RATE_UNITS_PER_CENTI;
             assertEquals(expectedBank, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
-            assertEquals(expectedRates[i] % KOMEPopulationRate.SCALE,
+            assertEquals(expectedRates[i] % KOMEPopulationPayoutProcessor.RATE_UNITS_PER_CENTI,
                     data.populationPayoutRemainders.containsKey("gondor") ? data.populationPayoutRemainders.get("gondor").longValue() : 0L);
             Instant boundary = Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis);
             assertTrue(new KOMEPopulationPayoutRuntime().onStartup(data, boundary).success);
@@ -355,7 +355,7 @@ public class KOMEPopulationConfigFoundationTest {
                 assertEquals(expected[h][i], KOMEPopulationRateService.getAllDailyPopulationRates(data).get("rohan").getFixedUnitsPerDay());
                 KOMEPopulationPayoutProcessor.Result payout = payOneBoundary(data);
                 assertTrue(payout.success);
-                assertEquals(expected[h][i], payout.factions.get(0).rate);
+                assertEquals(java.math.BigInteger.valueOf(expected[h][i]), payout.factions.get(0).exactRateUnits);
                 assertEquals(0L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
                 for (KOMEConquestTile tile : data.conquestTiles.values()) tile.claim("gondor", 0L);
                 assertEquals(h == 0 ? 1000000L : 952381L,
@@ -373,7 +373,7 @@ public class KOMEPopulationConfigFoundationTest {
             assertEquals(5L, row.currentRate.getFixedUnitsPerDay());
         // 3 * (100 / 21) millionths rounds to 14, not the sum of three rounded rows (15).
         assertEquals(14L, KOMEPopulationService.getDailyPopulationRate(data, "rohan").getFixedUnitsPerDay());
-        assertEquals(14L, payOneBoundary(data).factions.get(0).remainder);
+        assertEquals(14L, payOneBoundary(data).factions.get(0).nextRemainderUnits);
         put(f, "population", "hoursPerPopulationPoint", "0.16"); KOMEConfigRegistry.load(f);
         // 0.5 / 0.16 * 0.0001 * SCALE = 312.5: a final exact tie rounds up.
         assertEquals(313L, KOMEPopulationService.getDailyPopulationRate(productionWorld(1, "rohan"), "rohan").getFixedUnitsPerDay());
@@ -389,38 +389,38 @@ public class KOMEPopulationConfigFoundationTest {
         runtime.onStartup(data, Instant.parse("2026-01-10T02:00:00Z"));
         NBTTagCompound before = new NBTTagCompound(); data.writeToNBT(before);
         Instant due = KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis));
-        // The existing whole-int grant limit reports failure atomically, without a tick exception.
-        assertFalse(runtime.onLiveCheck(data, due).success);
-        NBTTagCompound after = new NBTTagCompound(); data.writeToNBT(after); assertEquals(before, after);
+        // Checkpoint E grants the exact representable centi amount without the former int ceiling.
+        assertTrue(runtime.onLiveCheck(data, due).success);
+        assertEquals(10737418235000L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         put(f, "population", "hoursPerPopulationPoint", "92233720368547758.07");
         KOMEConfigRegistry.load(f);
         assertEquals(0L, KOMEPopulationService.getDailyPopulationRate(data, "gondor").getFixedUnitsPerDay());
         assertTrue(runtime.onLiveCheck(data, due).success);
     }
 
-    @Test public void exactCentiCapAllowsOnlyWholeGrantsThatFit() throws Exception {
+    @Test public void exactCentiCapFillsFractionalRoom() throws Exception {
         File f = file(); put(f, "population", "populationCapEnabled", "true");
         put(f, "population", "populationCapValue", "24.50"); KOMEConfigRegistry.load(f);
         long[] banks = {2350L, 2400L, 2450L, 2500L};
-        long[] expected = {2450L, 2400L, 2450L, 2500L};
+        long[] expected = {2450L, 2450L, 2450L, 2500L};
         for (int i = 0; i < banks.length; i++) {
             KOMEWorldData data = productionWorld(20, "gondor");
             KOMEPopulationService.grantCenti(data, "gondor", banks[i]);
             KOMEPopulationPayoutProcessor.Result payout = payOneBoundary(data);
             assertTrue(payout.success);
             assertEquals(expected[i], KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
-            assertEquals(i == 0 ? 1 : 0, payout.factions.get(0).granted);
-            assertEquals(i == 0 ? 0L : 1L, payout.factions.get(0).capBlocked);
+            assertEquals(expected[i] - banks[i], payout.factions.get(0).grantedCenti);
+            assertEquals(java.math.BigInteger.valueOf(100L - (expected[i] - banks[i])), payout.factions.get(0).blockedCenti);
         }
         put(f, "population", "populationCapValue", "0.01"); KOMEConfigRegistry.load(f);
-        assertEquals(0, payOneBoundary(productionWorld(20, "gondor")).factions.get(0).granted);
+        assertEquals(1L, payOneBoundary(productionWorld(20, "gondor")).factions.get(0).grantedCenti);
     }
 
     @Test public void disabledFractionalCapsDoNotLimitPayouts() throws Exception {
         File f = file(); put(f, "population", "populationCapValue", "0.01"); KOMEConfigRegistry.load(f);
         KOMEWorldData data = productionWorld(20, "gondor");
         KOMEPopulationService.grantCenti(data, "gondor", 2350L);
-        assertEquals(1, payOneBoundary(data).factions.get(0).granted);
+        assertEquals(100L, payOneBoundary(data).factions.get(0).grantedCenti);
         assertEquals(2450L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
     }
 
@@ -430,9 +430,9 @@ public class KOMEPopulationConfigFoundationTest {
         for (long bank : new long[]{214748364700L, Long.MAX_VALUE - 100L, Long.MAX_VALUE - 99L, Long.MAX_VALUE}) {
             KOMEWorldData data = productionWorld(20, "gondor"); KOMEPopulationService.grantCenti(data, "gondor", bank);
             KOMEPopulationPayoutProcessor.Result result = payOneBoundary(data);
-            int grant = bank <= Long.MAX_VALUE - 100L ? 1 : 0;
-            assertTrue(result.success); assertEquals(grant, result.factions.get(0).granted);
-            assertEquals(bank + grant * 100L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+            long grant = Math.min(100L, Long.MAX_VALUE - bank);
+            assertTrue(result.success); assertEquals(grant, result.factions.get(0).grantedCenti);
+            assertEquals(bank + grant, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         }
         put(f, "population", "populationCapEnabled", "false"); KOMEConfigRegistry.load(f);
         KOMEWorldData overflow = productionWorld(20, "gondor");

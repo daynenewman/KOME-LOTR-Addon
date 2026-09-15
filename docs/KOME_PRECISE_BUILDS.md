@@ -41,4 +41,4 @@ For approved centi-hours A, configured centi-hours per point C, multiplier basis
 
 Identity, tile, original builder faction, population-owning faction, current tile-controller resolution and exact review records remain available for future per-Build attribution. No KOM-71 Pending Build Hours, bottleneck, Rate Ceiling, development allocation or recruitment unlocking state is introduced.
 
-Checkpoint E still owns centi-payout and scheduler reconciliation. Existing whole-unit payout/remainders, season gating, offline catch-up, DST, cursor persistence and movement ordering are untouched. This checkpoint does not implement defensive segments, gate-health formulas, siege, unit-cost or diplomacy changes.
+Checkpoint E now consumes the exact unsaturated faction rate for centi-payouts and reconciles the shared daily scheduler; see [population configuration and payouts](KOME_POPULATION_CONFIGURATION.md). These changes do not alter the Checkpoint D Build lifecycle or manager auto-approval. Defensive segments, gate-health formulas, siege, unit-cost and diplomacy changes remain outside this work.

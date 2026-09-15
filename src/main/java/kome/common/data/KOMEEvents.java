@@ -104,6 +104,8 @@ public class KOMEEvents {
         automaticWaypointLinkCheckMillis = 0L;
         automaticWaypointLinksEnsured = false;
         populationPayoutRuntime.resetSession();
+        nextMovementArrivalCheckMillis = 0L;
+        nextLiveUnitMarkerSyncMillis = 0L;
     }
 
     @SubscribeEvent
@@ -152,6 +154,7 @@ public class KOMEEvents {
 
     @SubscribeEvent
     public void onServerTick(TickEvent.ServerTickEvent event) {
+        if (event.phase != TickEvent.Phase.START) return;
         if (event.phase == TickEvent.Phase.START) {
             MinecraftServer server = FMLCommonHandler.instance().getMinecraftServerInstance();
             if (server == null || server.worldServers == null) {
@@ -168,10 +171,6 @@ public class KOMEEvents {
                 populationPayoutRuntime.onStartup(data, now);
             }
             KOMEPacketHandler.runPendingServerTasks();
-            return;
-        }
-        if (event.phase != TickEvent.Phase.END) {
-            return;
         }
         long now = System.currentTimeMillis();
         if (now < nextMovementArrivalCheckMillis) {
@@ -203,21 +202,29 @@ public class KOMEEvents {
                 automaticWaypointLinksEnsured = true;
             }
         }
+        java.util.Set<KOMEWorldData> processed = java.util.Collections.newSetFromMap(
+                new java.util.IdentityHashMap<KOMEWorldData, Boolean>());
         for (WorldServer world : server.worldServers) {
             if (world == null || KOMEReflection.isRemote(world)) {
                 continue;
             }
             KOMEWorldData data = KOMEWorldData.get(world);
-            populationPayoutRuntime.onLiveCheck(data, Instant.ofEpochMilli(now));
+            if (!processed.add(data) || !populationPayoutRuntime.hasStarted(data)) continue;
             data.reconcileAllianceLifecycle(now, world.getTotalWorldTime());
-
-            if (!data.armyMovements.isEmpty()) {
-                KOMECommandTroops.processMovementTick(data, world, now);
-            }
+            processCampaignTick(data, world, now, populationPayoutRuntime);
             for (KOMEArmyCompany company : new ArrayList<KOMEArmyCompany>(data.armyCompanies.values())) {
                 KOMEWartimeStewardshipService.demobilizeIfSafe(data, company, world, now);
             }
         }
+    }
+
+    /** Called once per canonical data instance at START: observed movement precedes the due payout. */
+    public static KOMEPopulationPayoutProcessor.Result processCampaignTick(KOMEWorldData data, World world,
+            long nowMillis, KOMEPopulationPayoutRuntime runtime) {
+        if (!runtime.hasStarted(data)) return runtime.onStartup(data, Instant.ofEpochMilli(nowMillis));
+        KOMECommandTroops.resetDailyMovementAllowances(data, nowMillis);
+        KOMECommandTroops.processMovementTick(data, world, nowMillis);
+        return runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
     }
 
     private void ensureAutomaticWaypointLinks(MinecraftServer server) {

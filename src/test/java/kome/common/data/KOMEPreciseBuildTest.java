@@ -360,17 +360,19 @@ public class KOMEPreciseBuildTest {
         }
     }
 
-    @Test public void duePayoutConsumesPreciseBuildRatesWithoutActivatingCentiPayouts() {
+    @Test public void duePayoutConsumesPreciseBuildRatesAsCentiPopulation() throws Exception {
+        try (KOMEPopulationTestConfig config = new KOMEPopulationTestConfig()) {
         KOMEWorldData data = world(); data.warSeason.recordLegalConflict(0L, -1L);
         KOMEPlayerBuild normal = create(data, KOMEBuildType.NORMAL, 1025L); approve(data, normal, normal.contributions.get(0));
         KOMEPlayerBuild defensive = create(data, KOMEBuildType.DEFENSIVE, 2450L); approve(data, defensive, defensive.contributions.get(0));
         KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data, Instant.parse("2026-01-10T18:00:00Z"));
         Instant due = KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(data.lastPopulationPayoutBoundaryMillis));
         assertTrue(KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data, due).success);
-        assertEquals(100L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
-        assertEquals(Long.valueOf(25000L), data.populationPayoutRemainders.get("gondor"));
+        assertEquals(102L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+        assertEquals(Long.valueOf(5000L), data.populationPayoutRemainders.get("gondor"));
         assertTrue(KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data, due).success);
-        assertEquals(100L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+        assertEquals(102L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+        }
     }
 
     @Test public void commandAndGuiUseExactServiceBoundaries() throws Exception {
