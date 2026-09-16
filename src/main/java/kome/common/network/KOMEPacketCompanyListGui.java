@@ -34,33 +34,39 @@ public class KOMEPacketCompanyListGui implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        tileId = ByteBufUtils.readUTF8String(buf);
-        tileDisplayName = ByteBufUtils.readUTF8String(buf);
+        KOMEPopulationWire.readHeader(buf);
+        tileId = KOMEPopulationWire.readText(buf);
+        tileDisplayName = KOMEPopulationWire.readText(buf);
         canCreate = buf.readBoolean();
-        int count = buf.readInt();
+        int count = KOMEPopulationWire.count(buf.readInt());
         companies.clear();
         for (int i = 0; i < count; i++) {
             KOMECompanyGuiEntry entry = new KOMECompanyGuiEntry();
             entry.fromBytes(buf);
             companies.add(entry);
         }
+        KOMEPopulationWire.requireFullyRead(buf);
     }
 
     @Override
-    public void toBytes(ByteBuf buf) {
-        ByteBufUtils.writeUTF8String(buf, tileId);
-        ByteBufUtils.writeUTF8String(buf, tileDisplayName);
-        buf.writeBoolean(canCreate);
-        buf.writeInt(companies.size());
-        for (KOMECompanyGuiEntry entry : companies) {
-            entry.toBytes(buf);
-        }
+    public void toBytes(ByteBuf output) {
+        KOMEPopulationWire.writePacket(output, buf -> {
+            KOMEPopulationWire.writeHeader(buf);
+            KOMEPopulationWire.writeText(buf, tileId);
+            KOMEPopulationWire.writeText(buf, tileDisplayName);
+            buf.writeBoolean(canCreate);
+            buf.writeInt(KOMEPopulationWire.count(companies.size()));
+            for (KOMECompanyGuiEntry entry : companies) {
+                entry.toBytes(buf);
+            }
+        });
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketCompanyListGui, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketCompanyListGui message, MessageContext ctx) {
-            KOMEAddon.proxy.displayCompanyListGui(message.tileId, message.tileDisplayName, message.companies, message.canCreate);
+            final KOMEPacketCompanyListGui snapshot = KOMEPopulationWire.copyForPublication(message, KOMEPacketCompanyListGui::new);
+            KOMEAddon.proxy.enqueueClientTask(() -> KOMEAddon.proxy.displayCompanyListGui(snapshot.tileId, snapshot.tileDisplayName, snapshot.companies, snapshot.canCreate));
             return null;
         }
     }

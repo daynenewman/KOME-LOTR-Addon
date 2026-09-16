@@ -167,6 +167,7 @@ public class KOMEEvents {
                 }
                 KOMEWorldData data = KOMEWorldData.get(world);
                 data.initializeIntegratedWorld();
+                data.reconcileHiredUnitMovementLinks();
                 kome.common.config.KOMEConfigRegistry.onWorldInitialized(data);
                 populationPayoutRuntime.onStartup(data, now);
             }
@@ -250,7 +251,7 @@ public class KOMEEvents {
                 return;
             }
             KOMEHiredUnitRecord movingRecord = data.hiredUnits.get(KOMEReflection.getEntityUUID(event.entity));
-            if (movingRecord != null && movingRecord.isMoving()) {
+            if (data.isVirtualMovingHiredUnit(movingRecord)) {
                 if (KOMECommandTroops.isArrivalSpawnInProgress(data, movingRecord)) {
                     return;
                 }
@@ -775,22 +776,16 @@ public class KOMEEvents {
             String faction = KOMEAlliance.normalizeFactionKey(record.populationOwningFaction);
             owner.addChatMessage(new ChatComponentText(getUnitName(npc) + " cannot level up: needs " + extraCost
                 + " more population from " + KOMEAlliance.displayFactionName(faction) + ", available "
-                + KOMEPopulationService.getAvailablePopulation(data, faction) + "."));
+                + KOMEPopulationProjection.formatCenti(KOMEPopulationService.getAvailablePopulationCenti(data, faction)) + "."));
         }
     }
 
     private void releaseIfTracked(LOTREntityNPC npc) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
         UUID entityId = KOMEReflection.getEntityUUID(npc);
-        KOMEHiredUnitRecord record = data.hiredUnits.get(entityId);
-        if (record == null) {
-            return;
-        }
-        if (record.isMoving()) {
-            return;
-        }
-        data.hiredUnits.remove(entityId);
-        data.removeUnitFromCompany(record);
+        KOMEHiredUnitRecord record = data.removeTerminatedHiredUnit(entityId,
+            npc.isEntityAlive() ? "Unit dismissed" : "Unit died");
+        if (record == null) return;
         EntityPlayer owner = KOMEReflection.getWorld(npc).func_152378_a(record.owner);
         if (record.farmhand) {
             if (owner != null) {

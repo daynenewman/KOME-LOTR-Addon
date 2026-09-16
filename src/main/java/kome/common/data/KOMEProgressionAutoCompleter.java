@@ -55,7 +55,7 @@ public class KOMEProgressionAutoCompleter {
         changed += grantIf(progression, "knight.faction_1", hasAssignedFactionAlignment(lotrData, progression.getAssignment("knight.faction_1")));
         changed += grantIf(progression, "knight.faction_2", hasAssignedFactionAlignment(lotrData, progression.getAssignment("knight.faction_2")));
 
-        changed += grantIf(progression, "lord.early_beginnings", data.getPopulation(playerID).getCombinedTotal() >= 200);
+        changed += applyPopulationProgression(data, progression, data.getPlayerFactionKey(playerID));
         changed += grantIf(progression, "lord.alignment_3000", hasAnyAlignmentAtLeast(lotrData, 3000.0f));
         changed += grantIf(progression, "lord.global_alignment", hasEveryPlayableAlignmentAtLeastAbsolute(lotrData, 250.0f));
         changed += grantIf(progression, "lord.fluttering_by", hasAchievement(lotrData, LOTRAchievement.catchButterfly));
@@ -74,6 +74,15 @@ public class KOMEProgressionAutoCompleter {
             }
         }
         return changed;
+    }
+
+    public static boolean meetsPopulationThreshold(KOMEWorldData data, String faction) {
+        return KOMEPopulationService.getRepresentedPopulationCenti(data, faction)
+                .compareTo(java.math.BigInteger.valueOf(KOMEPopulationService.wholeToCenti(200))) >= 0;
+    }
+
+    public static int applyPopulationProgression(KOMEWorldData data, KOMEPlayerProgression progression, String faction) {
+        return grantIf(progression, "lord.early_beginnings", meetsPopulationThreshold(data, faction));
     }
 
     public static int applyUnlocks(KOMEPlayerProgression progression) {

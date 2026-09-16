@@ -3,6 +3,7 @@ package kome.common.data;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.math.BigInteger;
 
 /** Canonical faction-bank mutations plus informational active-population projections. */
 public final class KOMEPopulationService {
@@ -33,7 +34,7 @@ public final class KOMEPopulationService {
         data.grantFactionPopulationCenti(faction, amountCenti);
     }
 
-    /** Whole-unit compatibility projection for current int packet/UI fields. Fractions are display-only until Checkpoint F. */
+    /** Retired whole-unit inspection adapter. Live F projections and eligibility never use it. */
     public static int getAvailablePopulation(KOMEWorldData data, String faction) {
         return centiToWholeFloorSaturated(getAvailablePopulationCenti(data, faction));
     }
@@ -86,26 +87,69 @@ public final class KOMEPopulationService {
     }
 
     /**
-     * Active population is informational only. Callers must provide records known
-     * to be living: hired records alone do not persist an authoritative liveness flag.
+     * Active population is informational only. Supply canonical hired-index members:
+     * membership, not an entity query or a separate liveness flag, owns their lifecycle.
      */
     public static long getActivePopulationCenti(String faction, Collection<KOMEHiredUnitRecord> livingRecords) {
-        String normalizedFaction = KOMEAlliance.normalizeFactionKey(faction);
-        if (normalizedFaction.length() == 0 || livingRecords == null) {
-            return 0L;
-        }
-        long totalCenti = 0L;
-        for (KOMEHiredUnitRecord record : livingRecords) {
-            if (record == null || record.farmhand || !normalizedFaction.equals(populationFaction(record))) {
-                continue;
-            }
-            long investedCenti = wholeToCenti(Math.max(0, record.populationSpent));
-            totalCenti = saturatingAdd(totalCenti, investedCenti);
-        }
-        return totalCenti;
+        // Compatibility-only saturation, never used by canonical projections or eligibility.
+        return getExactActivePopulationCenti(faction, livingRecords).min(BigInteger.valueOf(Long.MAX_VALUE)).longValueExact();
     }
 
-    /** Whole-unit compatibility projection for current packet/UI fields. */
+    /**
+     * The hired-unit index retains living units including virtual movement/unloaded units.
+     * Death, dismissal and completed cleanup remove them from that index. Reading it never
+     * performs reconciliation or treats an unloaded unit as dead.
+     */
+    public static BigInteger getActivePopulationCenti(KOMEWorldData data, String faction) {
+        return getExactActivePopulationCenti(faction, livingRecords(data));
+    }
+
+    /**
+     * Membership in the persisted hired-unit index is the lifecycle authority. Entity loading,
+     * server availability and movement flags cannot change this read-only projection.
+     * Terminal events remove records; server START resolves invalid movement links.
+     */
+    public static java.util.List<KOMEHiredUnitRecord> livingRecords(KOMEWorldData data) {
+        java.util.List<KOMEHiredUnitRecord> living = new java.util.ArrayList<KOMEHiredUnitRecord>();
+        for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
+            if (record != null) living.add(record);
+        }
+        return java.util.Collections.unmodifiableList(living);
+    }
+
+    public static long getInvestmentCenti(KOMEHiredUnitRecord record) {
+        return record == null || record.farmhand ? 0L : wholeToCenti(record.populationSpent);
+    }
+
+    public static BigInteger getCompanyInvestmentCenti(KOMEWorldData data, KOMEArmyCompany company) {
+        BigInteger total = BigInteger.ZERO;
+        java.util.Set<java.util.UUID> members = new java.util.HashSet<java.util.UUID>(company.units);
+        for (KOMEHiredUnitRecord record : livingRecords(data)) {
+            if (members.contains(record.entity)) total = total.add(BigInteger.valueOf(getInvestmentCenti(record)));
+        }
+        return total;
+    }
+
+    public static BigInteger getExactActivePopulationCenti(String faction,
+            Collection<KOMEHiredUnitRecord> livingRecords) {
+        String normalized = KOMEAlliance.normalizeFactionKey(faction);
+        BigInteger total = BigInteger.ZERO;
+        if (normalized.isEmpty() || livingRecords == null) return total;
+        for (KOMEHiredUnitRecord record : livingRecords) {
+            if (record != null && !record.farmhand && normalized.equals(populationFaction(record))) {
+                total = total.add(BigInteger.valueOf(getInvestmentCenti(record)));
+            }
+        }
+        return total;
+    }
+
+    public static BigInteger getRepresentedPopulationCenti(KOMEWorldData data, String faction) {
+        String normalized = KOMEAlliance.normalizeFactionKey(faction);
+        return getActivePopulationCenti(data, normalized).add(BigInteger.valueOf(normalized.isEmpty()
+                ? 0L : getAvailablePopulationCenti(data, normalized)));
+    }
+
+    /** Whole-unit informational compatibility projection. Never use for eligibility. */
     public static int getActivePopulation(String faction, Collection<KOMEHiredUnitRecord> livingRecords) {
         return centiToWholeFloorSaturated(getActivePopulationCenti(faction, livingRecords));
     }
@@ -120,7 +164,8 @@ public final class KOMEPopulationService {
         return KOMEPopulationRateService.getPopulationRateContributions(data);
     }
 
-    private static String populationFaction(KOMEHiredUnitRecord record) {
+    /** Stable provenance, never the owner's current pledge or a tile's current controller. */
+    public static String populationFaction(KOMEHiredUnitRecord record) {
         String owningFaction = KOMEAlliance.normalizeFactionKey(record.populationOwningFaction);
         return owningFaction.length() > 0 ? owningFaction : KOMEAlliance.normalizeFactionKey(record.sourceFaction);
     }
@@ -135,10 +180,6 @@ public final class KOMEPopulationService {
     private static int centiToWholeFloorSaturated(long centi) {
         long whole = centi / CENTI_PER_POPULATION;
         return whole > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) whole;
-    }
-
-    private static long saturatingAdd(long left, long right) {
-        return left > Long.MAX_VALUE - right ? Long.MAX_VALUE : left + right;
     }
 
     public static final class CombatHireDebit {

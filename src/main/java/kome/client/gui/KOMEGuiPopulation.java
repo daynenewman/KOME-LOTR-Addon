@@ -206,11 +206,13 @@ public class KOMEGuiPopulation extends GuiScreen {
             drawEmptyState(x + 24, cy, w - 48, "No faction population data found.");
             return;
         }
-        KOMEGuiTheme.drawSubPanel(x + 24, cy, w - 48, 92);
+        KOMEGuiTheme.drawSubPanel(x + 24, cy, w - 48, 132);
         fontRendererObj.drawString("Canonical Faction Population", x + 36, cy + 12, KOMEGuiTheme.COLOR_BORDER_RED);
-        fontRendererObj.drawString("Available Population: " + data.availablePopulation, x + 36, cy + 34, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("Active Population: " + data.activePopulation, x + 36, cy + 52, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("Daily Population Rate: " + new kome.common.data.KOMEPopulationRate(data.dailyPopulationRateUnits).formatPerDay(), x + 36, cy + 70, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Available Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(data.population.availablePopulationCenti), x + 36, cy + 34, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Active Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(data.population.activePopulationCenti), x + 36, cy + 52, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Daily Population Rate: " + kome.common.data.KOMEPopulationProjection.formatRate(data.population.dailyRateUnits), x + 36, cy + 70, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Population cap: " + (data.population.capEnabled ? kome.common.data.KOMEPopulationProjection.formatCenti(data.population.capCenti) : "disabled (uncapped)"), x + 36, cy + 88, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Farmhands: 0.00 population, excluded. Combat investment is permanent.", x + 36, cy + 106, KOMEGuiTheme.COLOR_TEXT_MUTED);
     }
 
     private void drawCapacityCard(int x, int y, int width, int height, String title, int offUsed, int offTotal, int offAvail, int defUsed, int defTotal, int defAvail, boolean farmhands, int farmUsed, int farmTotal) {
@@ -256,30 +258,11 @@ public class KOMEGuiPopulation extends GuiScreen {
     }
 
     private void drawPlayerRow(int x, int y, int width, KOMEPacketPopulationGui.CapacityBreakdown row, int mouseX, int mouseY) {
-        row.sanitize();
         KOMEGuiTheme.drawCard(x, y, width, playerRowHeight() - 6, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, playerRowHeight() - 6));
-        int total = row.offensiveTotal + row.defensiveTotal;
-        int used = row.offensiveUsed + row.defensiveUsed;
-        int available = row.offensiveAvailable + row.defensiveAvailable;
-        String name = row.unallocated ? "Unallocated" : row.playerName;
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, name, 142), x + 10, y + 7, row.unallocated ? KOMEGuiTheme.COLOR_TEXT_MUTED : KOMEGuiTheme.COLOR_BORDER_RED);
-        if (row.unallocated) {
-            fontRendererObj.drawString("Total: " + available + " / " + total, x + 164, y + 7, KOMEGuiTheme.COLOR_TEXT);
-            fontRendererObj.drawString("Offensive: " + row.offensiveAvailable + " / " + row.offensiveTotal, x + 164, y + 22, KOMEGuiTheme.COLOR_TEXT);
-            fontRendererObj.drawString("Defensive: " + row.defensiveAvailable + " / " + row.defensiveTotal, x + 164, y + 36, KOMEGuiTheme.COLOR_TEXT);
-        } else {
-            fontRendererObj.drawString("Total: " + used + " / " + total + "     available " + available, x + 164, y + 7, KOMEGuiTheme.COLOR_TEXT);
-            fontRendererObj.drawString("Offensive: " + row.offensiveUsed + " / " + row.offensiveTotal + "     available " + row.offensiveAvailable, x + 164, y + 22, KOMEGuiTheme.COLOR_TEXT);
-            fontRendererObj.drawString("Defensive: " + row.defensiveUsed + " / " + row.defensiveTotal + "     available " + row.defensiveAvailable, x + 164, y + 36, KOMEGuiTheme.COLOR_TEXT);
-        }
-        drawStackedCapacityBar(x + 164, y + 53, 266, 8, row.offensiveUsed, row.offensiveAvailable, row.defensiveUsed, row.defensiveAvailable);
-        if (!row.unallocated) {
-            drawMiniButton(x + width - 202, y + 47, 44, "View", mouseX, mouseY);
-            if (data.canManageAllocations && row.canManage) {
-                drawMiniButton(x + width - 152, y + 47, 62, "Allocate", mouseX, mouseY);
-                drawMiniButton(x + width - 84, y + 47, 58, "Reclaim", mouseX, mouseY);
-            }
-        }
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, row.playerName, 142), x + 10, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString("Active Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(row.activePopulationCenti), x + 164, y + 7, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Faction-funded living combat investment; no personal bank.", x + 164, y + 23, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        drawMiniButton(x + width - 202, y + 47, 44, "View", mouseX, mouseY);
     }
 
     private void drawTilesTab(int x, int y, int w, int h, int mouseX, int mouseY) {
@@ -304,14 +287,12 @@ public class KOMEGuiPopulation extends GuiScreen {
     }
 
     private void drawTileRow(int x, int y, int width, KOMEPacketPopulationGui.TileBreakdown row, int mouseX, int mouseY) {
-        row.sanitize();
         KOMEGuiTheme.drawCard(x, y, width, tileRowHeight() - 6, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, tileRowHeight() - 6));
-        String title = tileTitle(row);
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, title, 260), x + 10, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
+        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, tileTitle(row), 150), x + 10, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
         fontRendererObj.drawString("Ruler: " + row.ownerFaction, x + 10, y + 22, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        fontRendererObj.drawString("Offensive: total " + row.offensiveTotal + "     allocated " + row.offensiveAllocated + "     unallocated " + row.offensiveUnallocated, x + 162, y + 8, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("Defensive: total " + row.defensiveTotal + "     allocated " + row.defensiveAllocated + "     unallocated " + row.defensiveUnallocated, x + 162, y + 23, KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("Farmhands: " + row.farmhandUsed + " / " + row.farmhandTotal, x + 162, y + 38, KOMEGuiTheme.COLOR_TEXT_MUTED);
+        fontRendererObj.drawString("Faction Available: " + kome.common.data.KOMEPopulationProjection.formatCenti(row.population.availablePopulationCenti), x + 162, y + 8, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Faction Active: " + kome.common.data.KOMEPopulationProjection.formatCenti(row.population.activePopulationCenti), x + 162, y + 23, KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString("Faction daily rate: " + kome.common.data.KOMEPopulationProjection.formatRate(row.population.dailyRateUnits), x + 162, y + 38, KOMEGuiTheme.COLOR_TEXT_MUTED);
         drawMiniButton(x + width - 74, y + 18, 58, "Manage", mouseX, mouseY);
     }
 

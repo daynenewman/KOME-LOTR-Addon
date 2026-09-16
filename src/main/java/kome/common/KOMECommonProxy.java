@@ -53,6 +53,14 @@ public class KOMECommonProxy {
     public void displayPopulationUnitsGui(String playerName, String filterTile, java.util.List units, int armyUsed, int armyTotal, int farmhandsUsed, int farmhandsLimit) {
     }
 
+    /** Common packet handlers cross this proxy boundary without loading client classes. */
+    public void enqueueClientTask(Runnable task) {
+        throw new IllegalStateException("Client publication is unavailable on the dedicated server");
+    }
+
+    public void displayPopulationUnitsGui(kome.common.network.KOMEPacketPopulationUnitsGui message) {
+    }
+
     public void displayCompanyListGui(String tileId, java.util.List companies, boolean canCreate) {
     }
 

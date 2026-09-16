@@ -46,14 +46,19 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        tileId = ByteBufUtils.readUTF8String(buf);
-        focusBuildId = ByteBufUtils.readUTF8String(buf);
+        KOMEPopulationWire.readHeader(buf);
+        tileId = KOMEPopulationWire.readText(buf);
+        focusBuildId = KOMEPopulationWire.readText(buf);
+        KOMEPopulationWire.requireFullyRead(buf);
     }
 
     @Override
-    public void toBytes(ByteBuf buf) {
-        ByteBufUtils.writeUTF8String(buf, tileId);
-        ByteBufUtils.writeUTF8String(buf, focusBuildId == null ? "" : focusBuildId);
+    public void toBytes(ByteBuf output) {
+        KOMEPopulationWire.writePacket(output, buf -> {
+            KOMEPopulationWire.writeHeader(buf);
+            KOMEPopulationWire.writeText(buf, tileId);
+            KOMEPopulationWire.writeText(buf, focusBuildId == null ? "" : focusBuildId);
+        });
     }
 
     public static void sendTileCommand(EntityPlayerMP player, String requestedTileId) {
@@ -71,53 +76,28 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             return;
         }
         String viewerFaction = KOMEAlliance.normalizeFactionKey(getPlayerFaction(data, player));
-        String ownerFaction = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+        String ownerFaction = KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
         String pendingToFaction = KOMEAlliance.normalizeFactionKey(tile.pendingTransferToFaction);
         java.util.UUID viewerId = KOMEReflection.getEntityUUID(player);
         boolean canEditPopulation = canEditPopulation(data, player, tile);
         TroopSummary summary = summarizeTroops(data, ownerFaction, tileId, viewerId);
         boolean canMoveTroops = hasControllableCompanyAtTile(data, viewerId, viewerFaction, tileId, player.canCommandSenderUseCommand(2, "troops"));
-        int offensiveTotal = data.getEffectiveUsablePopulation(tileId, ownerFaction, KOMEPopulationType.OFFENSIVE);
-        int offensiveUsed = data.getEffectiveUsedPopulation(tileId, ownerFaction, KOMEPopulationType.OFFENSIVE);
-        int defensiveTotal = data.getEffectiveUsablePopulation(tileId, ownerFaction, KOMEPopulationType.DEFENSIVE);
-        int defensiveUsed = data.getEffectiveUsedPopulation(tileId, ownerFaction, KOMEPopulationType.DEFENSIVE);
-        int farmhandTotal = 0;
-        int farmhandUsed = 0;
-        for (KOMETilePopulation population : data.getTilePopulationPools(tileId)) {
-            boolean ownerPool = KOMEAlliance.normalizeFactionKey(population.sourceFaction).equals(ownerFaction);
-            farmhandTotal += ownerPool ? population.farmhandTotal : population.farmhandTotal / 2;
-            farmhandUsed += Math.min(population.farmhandUsed, ownerPool ? population.farmhandTotal : population.farmhandTotal / 2);
-        }
+        int offensiveTotal = 0, offensiveUsed = 0, defensiveTotal = 0, defensiveUsed = 0;
+        int farmhandTotal = 0, farmhandUsed = 0; // Retired pool wire slots, never canonical.
         boolean canClaim = viewerFaction.length() > 0 && !viewerFaction.equals(ownerFaction);
         boolean ownerKing = KOMERulerAuthorization.canActAsRuler(data, ownerFaction, KOMEReflection.getEntityUUID(player));
-        boolean canTransfer = tile.isClaimed() && viewerFaction.equals(ownerFaction) && ownerKing;
+        boolean canTransfer = !tile.projectRulingFaction().isEmpty() && viewerFaction.equals(ownerFaction) && ownerKing;
         boolean canAccept = tile.hasPendingTransfer() && viewerFaction.equals(pendingToFaction) && KOMERulerAuthorization.canActAsRuler(data, pendingToFaction, KOMEReflection.getEntityUUID(player));
         boolean canCancel = tile.hasPendingTransfer() && viewerFaction.equals(ownerFaction) && ownerKing;
-        int offensiveAllocated = data.getTotalAllocated(tileId, ownerFaction, KOMEPopulationType.OFFENSIVE);
-        int defensiveAllocated = data.getTotalAllocated(tileId, ownerFaction, KOMEPopulationType.DEFENSIVE);
-        KOMEPlayerTilePopulationAllocation myAllocation = data.getAllocation(tileId, ownerFaction, viewerId);
+        int offensiveAllocated = 0;
+        int defensiveAllocated = 0;
+        KOMEPlayerTilePopulationAllocation myAllocation = null;
         String activeRecruitmentTile = data.getActiveRecruitmentTile(viewerId, viewerFaction);
         boolean canSetRecruitmentTile = data.canUseRecruitmentTile(viewerId, viewerFaction, tileId);
         KOMETileWaypointLink waypointLink = data.getTileWaypointLink(tileId);
         StringBuilder allocationSummary = new StringBuilder();
-        java.util.List<KOMEPlayerTilePopulationAllocation> allocations = data.getAllocationsForTile(tileId, ownerFaction);
-        int shownAllocations = 0;
-        for (KOMEPlayerTilePopulationAllocation allocation : allocations) {
-            if (shownAllocations >= 2) {
-                break;
-            }
-            if (allocationSummary.length() > 0) {
-                allocationSummary.append("; ");
-            }
-            allocationSummary.append(allocation.playerName.length() == 0 ? "Player" : allocation.playerName)
-                .append(" O ").append(allocation.offensiveUsed).append("/").append(allocation.offensiveAllocated)
-                .append(" D ").append(allocation.defensiveUsed).append("/").append(allocation.defensiveAllocated);
-            shownAllocations++;
-        }
-        if (allocations.size() > shownAllocations) {
-            allocationSummary.append("; +").append(allocations.size() - shownAllocations).append(" more");
-        }
-        KOMEPacketConquestCaptureGui packet = new KOMEPacketConquestCaptureGui(tile.id, ownerFaction, tile.pendingTransferFromFaction, tile.pendingTransferToFaction, viewerFaction, summary.offensivePop, summary.defensivePop, summary.mountedPop, summary.groundPop, summary.incomingPop, summary.outgoingPop, summary.incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAccept, canCancel, canMoveTroops, canEditPopulation, offensiveAllocated, defensiveAllocated, myAllocation == null ? 0 : myAllocation.offensiveAllocated, myAllocation == null ? 0 : myAllocation.offensiveUsed, myAllocation == null ? 0 : myAllocation.defensiveAllocated, myAllocation == null ? 0 : myAllocation.defensiveUsed, tile.claimedByName, allocationSummary.toString(), data.hasFactionKing(ownerFaction), summary.myOffensivePop, summary.myDefensivePop, summary.myMountedPop, summary.myGroundPop, activeRecruitmentTile, canSetRecruitmentTile, waypointLink == null ? "" : waypointLink.lotrWaypointKey, waypointLink == null ? "" : waypointLink.displayName(), waypointLink == null ? "" : waypointLink.waypointRegion, tile.waypointLevel, tile.currentRulingFaction(), tile.defaultRulingFaction, tile.mapRegion);
+        KOMEPacketConquestCaptureGui packet = new KOMEPacketConquestCaptureGui(tile.id, ownerFaction, tile.pendingTransferFromFaction, tile.pendingTransferToFaction, viewerFaction, summary.offensivePop, summary.defensivePop, summary.mountedPop, summary.groundPop, summary.incomingPop, summary.outgoingPop, summary.incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAccept, canCancel, canMoveTroops, canEditPopulation, offensiveAllocated, defensiveAllocated, myAllocation == null ? 0 : myAllocation.offensiveAllocated, myAllocation == null ? 0 : myAllocation.offensiveUsed, myAllocation == null ? 0 : myAllocation.defensiveAllocated, myAllocation == null ? 0 : myAllocation.defensiveUsed, tile.claimedByName, allocationSummary.toString(), data.hasFactionKing(ownerFaction), summary.myOffensivePop, summary.myDefensivePop, summary.myMountedPop, summary.myGroundPop, activeRecruitmentTile, canSetRecruitmentTile, waypointLink == null ? "" : waypointLink.lotrWaypointKey, waypointLink == null ? "" : waypointLink.displayName(), waypointLink == null ? "" : waypointLink.waypointRegion, tile.waypointLevel, tile.projectRulingFaction(), tile.defaultRulingFaction, tile.mapRegion);
+        packet.population = kome.common.data.KOMEPopulationProjection.of(data, ownerFaction);
         populateBuildAndPoolViews(packet, data, player, tile, viewerFaction, ownerFaction, viewerId);
         packet.focusBuildId = focusBuildId == null ? "" : focusBuildId;
         if (canClaim && ownerFaction.length() > 0) {
@@ -228,12 +208,12 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
     }
     public static boolean canEditPopulation(KOMEWorldData data, EntityPlayerMP player, KOMEConquestTile tile) {
         if (player.canCommandSenderUseCommand(2, "population")) {
-            return tile != null && tile.isClaimed();
+            return tile != null && !tile.projectRulingFaction().isEmpty();
         }
-        if (tile == null || !tile.isClaimed()) {
+        if (tile == null || tile.projectRulingFaction().isEmpty()) {
             return false;
         }
-        return KOMERulerAuthorization.canActAsRuler(data, tile.currentRulingFaction(), KOMEReflection.getEntityUUID(player));
+        return KOMERulerAuthorization.canActAsRuler(data, tile.projectRulingFaction(), KOMEReflection.getEntityUUID(player));
     }
 
     private static String getPlayerFaction(KOMEWorldData data, EntityPlayerMP player) {

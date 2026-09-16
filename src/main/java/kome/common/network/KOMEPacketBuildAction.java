@@ -54,34 +54,39 @@ public class KOMEPacketBuildAction implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        action = ByteBufUtils.readUTF8String(buf);
-        tileId = ByteBufUtils.readUTF8String(buf);
-        buildId = ByteBufUtils.readUTF8String(buf);
-        contributionId = ByteBufUtils.readUTF8String(buf);
-        text = ByteBufUtils.readUTF8String(buf);
-        populationFaction = ByteBufUtils.readUTF8String(buf);
-        buildType = ByteBufUtils.readUTF8String(buf);
+        KOMEPopulationWire.readHeader(buf);
+        action = KOMEPopulationWire.readText(buf);
+        tileId = KOMEPopulationWire.readText(buf);
+        buildId = KOMEPopulationWire.readText(buf);
+        contributionId = KOMEPopulationWire.readText(buf);
+        text = KOMEPopulationWire.readText(buf);
+        populationFaction = KOMEPopulationWire.readText(buf);
+        buildType = KOMEPopulationWire.readText(buf);
         centiHours = buf.readLong();
         dimension = buf.readInt();
         x = buf.readDouble();
         y = buf.readDouble();
         z = buf.readDouble();
+        KOMEPopulationWire.requireFullyRead(buf);
     }
 
     @Override
-    public void toBytes(ByteBuf buf) {
-        ByteBufUtils.writeUTF8String(buf, safe(action));
-        ByteBufUtils.writeUTF8String(buf, safe(tileId));
-        ByteBufUtils.writeUTF8String(buf, safe(buildId));
-        ByteBufUtils.writeUTF8String(buf, safe(contributionId));
-        ByteBufUtils.writeUTF8String(buf, safe(text));
-        ByteBufUtils.writeUTF8String(buf, safe(populationFaction));
-        ByteBufUtils.writeUTF8String(buf, safe(buildType));
-        buf.writeLong(centiHours);
-        buf.writeInt(dimension);
-        buf.writeDouble(x);
-        buf.writeDouble(y);
-        buf.writeDouble(z);
+    public void toBytes(ByteBuf output) {
+        KOMEPopulationWire.writePacket(output, buf -> {
+            KOMEPopulationWire.writeHeader(buf);
+            KOMEPopulationWire.writeText(buf, safe(action));
+            KOMEPopulationWire.writeText(buf, safe(tileId));
+            KOMEPopulationWire.writeText(buf, safe(buildId));
+            KOMEPopulationWire.writeText(buf, safe(contributionId));
+            KOMEPopulationWire.writeText(buf, safe(text));
+            KOMEPopulationWire.writeText(buf, safe(populationFaction));
+            KOMEPopulationWire.writeText(buf, safe(buildType));
+            buf.writeLong(centiHours);
+            buf.writeInt(dimension);
+            buf.writeDouble(x);
+            buf.writeDouble(y);
+            buf.writeDouble(z);
+        });
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketBuildAction, IMessage> {

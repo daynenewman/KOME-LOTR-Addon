@@ -58,7 +58,7 @@ public final class KOMEPopulationRateService {
             KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(KOMEConquestTile.normalizeId(build.tileId));
             String controller = tile == null ? "" : tile.projectRulingFaction();
             long approved = build.approvedCentiHours();
-            KOMEPopulationRate original = fixedRate(rateNumerator(approved, KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE), denominator);
+            BigInteger original = roundedUnits(rateNumerator(approved, KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE), denominator);
             String status = "UNCONTROLLED", receiving = "";
             long multiplierBasisPoints = 0L;
             if (controller.length() > 0 && faction.length() > 0 && faction.equals(controller)) {
@@ -69,7 +69,7 @@ public final class KOMEPopulationRateService {
                 multiplierBasisPoints = settings.getCapturedBuildMultiplierBasisPoints();
             }
             result.add(new KOMEPopulationRateContribution(build.id, build.displayName, build.tileId, faction, controller,
-                receiving, approved, original, fixedRate(rateNumerator(approved, multiplierBasisPoints), denominator), status, multiplierBasisPoints));
+                receiving, approved, original, roundedUnits(rateNumerator(approved, multiplierBasisPoints), denominator), status, multiplierBasisPoints));
         }
         return Collections.unmodifiableList(result);
     }

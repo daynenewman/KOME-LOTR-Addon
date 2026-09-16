@@ -11,13 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KOMEPacketPopulationGui implements IMessage {
+    public kome.common.data.KOMEPopulationProjection population = new kome.common.data.KOMEPopulationProjection(
+            "", 0L, java.math.BigInteger.ZERO, java.math.BigInteger.ZERO, false, 0L);
     public String playerName = "";
     public String viewerFaction = "";
-    /** Canonical player-facing population projection. */
-    public int availablePopulation;
-    public int activePopulation;
-    /** Fixed-point canonical daily rate, one million units per population/day. */
-    public long dailyPopulationRateUnits;
     public boolean canManageAllocations;
 
     // Legacy names retained for older constructors/client references.
@@ -152,11 +149,10 @@ public class KOMEPacketPopulationGui implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        playerName = ByteBufUtils.readUTF8String(buf);
-        viewerFaction = ByteBufUtils.readUTF8String(buf);
-        availablePopulation = buf.readInt();
-        activePopulation = buf.readInt();
-        dailyPopulationRateUnits = buf.readLong();
+        KOMEPopulationWire.readHeader(buf);
+        population = KOMEPopulationWire.readProjection(buf);
+        playerName = KOMEPopulationWire.readText(buf);
+        viewerFaction = KOMEPopulationWire.readText(buf);
         canManageAllocations = buf.readBoolean();
         offensiveTotal = buf.readInt();
         offensiveUsed = buf.readInt();
@@ -175,7 +171,7 @@ public class KOMEPacketPopulationGui implements IMessage {
         allocatedOffensiveUsed = buf.readInt();
         allocatedDefensive = buf.readInt();
         allocatedDefensiveUsed = buf.readInt();
-        allocationSummary = ByteBufUtils.readUTF8String(buf);
+        allocationSummary = KOMEPopulationWire.readText(buf);
         combinedOffensiveTotal = buf.readInt();
         combinedOffensiveUsed = buf.readInt();
         combinedOffensiveAvailable = buf.readInt();
@@ -218,85 +214,84 @@ public class KOMEPacketPopulationGui implements IMessage {
         }
         tileBreakdowns = readTileList(buf);
         sanitizeTopLevel();
+        KOMEPopulationWire.requireFullyRead(buf);
     }
 
     @Override
-    public void toBytes(ByteBuf buf) {
-        sanitizeTopLevel();
-        ByteBufUtils.writeUTF8String(buf, playerName);
-        ByteBufUtils.writeUTF8String(buf, viewerFaction);
-        buf.writeInt(availablePopulation);
-        buf.writeInt(activePopulation);
-        buf.writeLong(dailyPopulationRateUnits);
-        buf.writeBoolean(canManageAllocations);
-        buf.writeInt(offensiveTotal);
-        buf.writeInt(offensiveUsed);
-        buf.writeInt(defensiveTotal);
-        buf.writeInt(defensiveUsed);
-        buf.writeInt(farmhandsUsed);
-        buf.writeInt(farmhandsLimit);
-        buf.writeInt(armyUsed);
-        buf.writeInt(armyTotal);
-        buf.writeInt(tileOffensiveTotal);
-        buf.writeInt(tileOffensiveUsed);
-        buf.writeInt(tileDefensiveTotal);
-        buf.writeInt(tileDefensiveUsed);
-        buf.writeInt(controlledTiles);
-        buf.writeInt(allocatedOffensive);
-        buf.writeInt(allocatedOffensiveUsed);
-        buf.writeInt(allocatedDefensive);
-        buf.writeInt(allocatedDefensiveUsed);
-        ByteBufUtils.writeUTF8String(buf, allocationSummary);
-        buf.writeInt(combinedOffensiveTotal);
-        buf.writeInt(combinedOffensiveUsed);
-        buf.writeInt(combinedOffensiveAvailable);
-        buf.writeInt(combinedDefensiveTotal);
-        buf.writeInt(combinedDefensiveUsed);
-        buf.writeInt(combinedDefensiveAvailable);
+    public void toBytes(ByteBuf output) {
+        KOMEPopulationWire.writePacket(output, buf -> {
+            KOMEPopulationWire.writeHeader(buf);
+            KOMEPopulationWire.writeProjection(buf, population);
+            sanitizeTopLevel();
+            KOMEPopulationWire.writeText(buf, playerName);
+            KOMEPopulationWire.writeText(buf, viewerFaction);
+            buf.writeBoolean(canManageAllocations);
+            buf.writeInt(offensiveTotal);
+            buf.writeInt(offensiveUsed);
+            buf.writeInt(defensiveTotal);
+            buf.writeInt(defensiveUsed);
+            buf.writeInt(farmhandsUsed);
+            buf.writeInt(farmhandsLimit);
+            buf.writeInt(armyUsed);
+            buf.writeInt(armyTotal);
+            buf.writeInt(tileOffensiveTotal);
+            buf.writeInt(tileOffensiveUsed);
+            buf.writeInt(tileDefensiveTotal);
+            buf.writeInt(tileDefensiveUsed);
+            buf.writeInt(controlledTiles);
+            buf.writeInt(allocatedOffensive);
+            buf.writeInt(allocatedOffensiveUsed);
+            buf.writeInt(allocatedDefensive);
+            buf.writeInt(allocatedDefensiveUsed);
+            KOMEPopulationWire.writeText(buf, allocationSummary);
+            buf.writeInt(combinedOffensiveTotal);
+            buf.writeInt(combinedOffensiveUsed);
+            buf.writeInt(combinedOffensiveAvailable);
+            buf.writeInt(combinedDefensiveTotal);
+            buf.writeInt(combinedDefensiveUsed);
+            buf.writeInt(combinedDefensiveAvailable);
 
-        buf.writeInt(personalReserveOffensiveTotal);
-        buf.writeInt(personalReserveOffensiveUsed);
-        buf.writeInt(personalReserveOffensiveAvailable);
-        buf.writeInt(personalReserveDefensiveTotal);
-        buf.writeInt(personalReserveDefensiveUsed);
-        buf.writeInt(personalReserveDefensiveAvailable);
-        buf.writeInt(assignedTileOffensiveTotal);
-        buf.writeInt(assignedTileOffensiveUsed);
-        buf.writeInt(assignedTileOffensiveAvailable);
-        buf.writeInt(assignedTileDefensiveTotal);
-        buf.writeInt(assignedTileDefensiveUsed);
-        buf.writeInt(assignedTileDefensiveAvailable);
-        buf.writeInt(viewerTotalOffensiveTotal);
-        buf.writeInt(viewerTotalOffensiveUsed);
-        buf.writeInt(viewerTotalOffensiveAvailable);
-        buf.writeInt(viewerTotalDefensiveTotal);
-        buf.writeInt(viewerTotalDefensiveUsed);
-        buf.writeInt(viewerTotalDefensiveAvailable);
-        buf.writeInt(factionControlledTileCount);
-        buf.writeInt(factionOffensiveTotal);
-        buf.writeInt(factionOffensiveUsed);
-        buf.writeInt(factionOffensiveAvailable);
-        buf.writeInt(factionDefensiveTotal);
-        buf.writeInt(factionDefensiveUsed);
-        buf.writeInt(factionDefensiveAvailable);
-        buf.writeInt(factionFarmhandUsed);
-        buf.writeInt(factionFarmhandTotal);
+            buf.writeInt(personalReserveOffensiveTotal);
+            buf.writeInt(personalReserveOffensiveUsed);
+            buf.writeInt(personalReserveOffensiveAvailable);
+            buf.writeInt(personalReserveDefensiveTotal);
+            buf.writeInt(personalReserveDefensiveUsed);
+            buf.writeInt(personalReserveDefensiveAvailable);
+            buf.writeInt(assignedTileOffensiveTotal);
+            buf.writeInt(assignedTileOffensiveUsed);
+            buf.writeInt(assignedTileOffensiveAvailable);
+            buf.writeInt(assignedTileDefensiveTotal);
+            buf.writeInt(assignedTileDefensiveUsed);
+            buf.writeInt(assignedTileDefensiveAvailable);
+            buf.writeInt(viewerTotalOffensiveTotal);
+            buf.writeInt(viewerTotalOffensiveUsed);
+            buf.writeInt(viewerTotalOffensiveAvailable);
+            buf.writeInt(viewerTotalDefensiveTotal);
+            buf.writeInt(viewerTotalDefensiveUsed);
+            buf.writeInt(viewerTotalDefensiveAvailable);
+            buf.writeInt(factionControlledTileCount);
+            buf.writeInt(factionOffensiveTotal);
+            buf.writeInt(factionOffensiveUsed);
+            buf.writeInt(factionOffensiveAvailable);
+            buf.writeInt(factionDefensiveTotal);
+            buf.writeInt(factionDefensiveUsed);
+            buf.writeInt(factionDefensiveAvailable);
+            buf.writeInt(factionFarmhandUsed);
+            buf.writeInt(factionFarmhandTotal);
 
-        writeCapacityList(buf, playerBreakdowns);
-        boolean hasUnallocated = unallocatedBreakdown != null && unallocatedBreakdown.hasAny();
-        buf.writeBoolean(hasUnallocated);
-        if (hasUnallocated) {
-            unallocatedBreakdown.toBytes(buf);
-        }
-        writeTileList(buf, tileBreakdowns);
+            writeCapacityList(buf, playerBreakdowns);
+            boolean hasUnallocated = unallocatedBreakdown != null && unallocatedBreakdown.hasAny();
+            buf.writeBoolean(hasUnallocated);
+            if (hasUnallocated) {
+                unallocatedBreakdown.toBytes(buf);
+            }
+            writeTileList(buf, tileBreakdowns);
+        });
     }
 
     public void sanitizeTopLevel() {
         playerName = safe(playerName);
         viewerFaction = safe(viewerFaction);
-        availablePopulation = Math.max(0, availablePopulation);
-        activePopulation = Math.max(0, activePopulation);
-        dailyPopulationRateUnits = Math.max(0L, dailyPopulationRateUnits);
         allocationSummary = safe(allocationSummary);
         offensiveTotal = Math.max(0, offensiveTotal);
         offensiveUsed = clamp(offensiveUsed, 0, offensiveTotal);
@@ -341,7 +336,7 @@ public class KOMEPacketPopulationGui implements IMessage {
 
     private static List readCapacityList(ByteBuf buf) {
         List result = new ArrayList();
-        int count = Math.max(0, Math.min(256, buf.readInt()));
+        int count = KOMEPopulationWire.count(buf.readInt());
         for (int i = 0; i < count; i++) {
             CapacityBreakdown row = new CapacityBreakdown();
             row.fromBytes(buf);
@@ -351,7 +346,7 @@ public class KOMEPacketPopulationGui implements IMessage {
     }
 
     private static void writeCapacityList(ByteBuf buf, List rows) {
-        int count = rows == null ? 0 : Math.min(256, rows.size());
+        int count = rows == null ? 0 : KOMEPopulationWire.count(rows.size());
         buf.writeInt(count);
         for (int i = 0; i < count; i++) {
             Object object = rows.get(i);
@@ -362,7 +357,7 @@ public class KOMEPacketPopulationGui implements IMessage {
 
     private static List readTileList(ByteBuf buf) {
         List result = new ArrayList();
-        int count = Math.max(0, Math.min(512, buf.readInt()));
+        int count = KOMEPopulationWire.count(buf.readInt());
         for (int i = 0; i < count; i++) {
             TileBreakdown row = new TileBreakdown();
             row.fromBytes(buf);
@@ -372,7 +367,7 @@ public class KOMEPacketPopulationGui implements IMessage {
     }
 
     private static void writeTileList(ByteBuf buf, List rows) {
-        int count = rows == null ? 0 : Math.min(512, rows.size());
+        int count = rows == null ? 0 : KOMEPopulationWire.count(rows.size());
         buf.writeInt(count);
         for (int i = 0; i < count; i++) {
             Object object = rows.get(i);
@@ -382,6 +377,7 @@ public class KOMEPacketPopulationGui implements IMessage {
     }
 
     public static class CapacityBreakdown {
+        public java.math.BigInteger activePopulationCenti = java.math.BigInteger.ZERO;
         public String playerName = "";
         public String playerUuid = "";
         public boolean unallocated;
@@ -417,8 +413,9 @@ public class KOMEPacketPopulationGui implements IMessage {
         }
 
         public void fromBytes(ByteBuf buf) {
-            playerName = ByteBufUtils.readUTF8String(buf);
-            playerUuid = ByteBufUtils.readUTF8String(buf);
+            activePopulationCenti = KOMEPopulationWire.readExact(buf);
+            playerName = KOMEPopulationWire.readText(buf);
+            playerUuid = KOMEPopulationWire.readText(buf);
             unallocated = buf.readBoolean();
             canManage = buf.readBoolean();
             offensiveTotal = buf.readInt();
@@ -435,9 +432,10 @@ public class KOMEPacketPopulationGui implements IMessage {
         }
 
         public void toBytes(ByteBuf buf) {
+            KOMEPopulationWire.writeExact(buf, activePopulationCenti);
             sanitize();
-            ByteBufUtils.writeUTF8String(buf, playerName);
-            ByteBufUtils.writeUTF8String(buf, playerUuid);
+            KOMEPopulationWire.writeText(buf, playerName);
+            KOMEPopulationWire.writeText(buf, playerUuid);
             buf.writeBoolean(unallocated);
             buf.writeBoolean(canManage);
             buf.writeInt(offensiveTotal);
@@ -454,6 +452,8 @@ public class KOMEPacketPopulationGui implements IMessage {
     }
 
     public static class TileBreakdown {
+        public kome.common.data.KOMEPopulationProjection population = new kome.common.data.KOMEPopulationProjection(
+                "", 0L, java.math.BigInteger.ZERO, java.math.BigInteger.ZERO, false, 0L);
         public String tileId = "";
         public String tileDisplayName = "";
         public String ownerFaction = "";
@@ -481,9 +481,10 @@ public class KOMEPacketPopulationGui implements IMessage {
         }
 
         public void fromBytes(ByteBuf buf) {
-            tileId = ByteBufUtils.readUTF8String(buf);
-            tileDisplayName = ByteBufUtils.readUTF8String(buf);
-            ownerFaction = ByteBufUtils.readUTF8String(buf);
+            population = KOMEPopulationWire.readProjection(buf);
+            tileId = KOMEPopulationWire.readText(buf);
+            tileDisplayName = KOMEPopulationWire.readText(buf);
+            ownerFaction = KOMEPopulationWire.readText(buf);
             offensiveTotal = buf.readInt();
             offensiveAllocated = buf.readInt();
             offensiveUnallocated = buf.readInt();
@@ -496,10 +497,11 @@ public class KOMEPacketPopulationGui implements IMessage {
         }
 
         public void toBytes(ByteBuf buf) {
+            KOMEPopulationWire.writeProjection(buf, population);
             sanitize();
-            ByteBufUtils.writeUTF8String(buf, tileId);
-            ByteBufUtils.writeUTF8String(buf, tileDisplayName);
-            ByteBufUtils.writeUTF8String(buf, ownerFaction);
+            KOMEPopulationWire.writeText(buf, tileId);
+            KOMEPopulationWire.writeText(buf, tileDisplayName);
+            KOMEPopulationWire.writeText(buf, ownerFaction);
             buf.writeInt(offensiveTotal);
             buf.writeInt(offensiveAllocated);
             buf.writeInt(offensiveUnallocated);
@@ -522,7 +524,8 @@ public class KOMEPacketPopulationGui implements IMessage {
     public static class Handler implements IMessageHandler<KOMEPacketPopulationGui, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketPopulationGui message, MessageContext ctx) {
-            KOMEAddon.proxy.displayPopulationGui(message);
+            final KOMEPacketPopulationGui snapshot = KOMEPopulationWire.copyForPublication(message, KOMEPacketPopulationGui::new);
+            KOMEAddon.proxy.enqueueClientTask(() -> KOMEAddon.proxy.displayPopulationGui(snapshot));
             return null;
         }
     }

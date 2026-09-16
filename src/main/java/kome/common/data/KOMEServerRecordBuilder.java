@@ -138,11 +138,7 @@ public class KOMEServerRecordBuilder {
     }
 
     private static String getPopulationSummary(KOMEWorldData data, String faction) {
-        int available = KOMEPopulationService.getAvailablePopulation(data, faction);
-        int active = KOMEPopulationService.getActivePopulation(faction, data.hiredUnits.values());
-        String rate = KOMEPopulationService.getDailyPopulationRate(data, faction).formatPerDay();
-        return "Faction " + displayFaction(faction) + ", Available Population " + available
-            + ", Active Population " + active + ", Daily Population Rate " + rate;
+        return KOMEPopulationProjection.of(data, faction).summary();
     }
 
     static String getRank(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {
@@ -193,7 +189,7 @@ public class KOMEServerRecordBuilder {
     private static TileSummary getConquestTiles(KOMEWorldData data, String factionKey) {
         TileSummary summary = new TileSummary();
         for (KOMEConquestTile tile : data.conquestTiles.values()) {
-            if (tile.isClaimed() && factionMatches(tile.currentRulingFaction(), factionKey)) {
+            if (!tile.projectRulingFaction().isEmpty() && factionMatches(tile.projectRulingFaction(), factionKey)) {
                 summary.count++;
                 KOMETileWaypointLink waypoint = data.getTileWaypointLink(tile.id);
                 String waypointName = waypoint == null ? "" : safeRecordLabel(waypoint.displayName());
@@ -301,7 +297,7 @@ public class KOMEServerRecordBuilder {
     private static int getClaimedTileCount(KOMEWorldData data) {
         int count = 0;
         for (KOMEConquestTile tile : data.conquestTiles.values()) {
-            if (tile.isClaimed()) {
+            if (!tile.projectRulingFaction().isEmpty()) {
                 count++;
             }
         }

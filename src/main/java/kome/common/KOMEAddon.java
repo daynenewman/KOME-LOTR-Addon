@@ -33,7 +33,7 @@ import java.util.List;
 @Mod(
         modid = KOMEAddon.MODID,
         name = "Kings of Middle-earth Server Addon",
-        version = "1.0.8",
+        version = kome.common.network.KOMEPopulationWire.VERSION,
         dependencies = "required-after:lotr",
         guiFactory =
                 "com.enovak.lotrmoremobs.client.config."
@@ -42,6 +42,12 @@ import java.util.List;
 
 public class KOMEAddon {
     public static final String MODID = "kome";
+
+    @cpw.mods.fml.common.network.NetworkCheckHandler
+    public boolean acceptsRemoteKome(java.util.Map<String, String> remoteVersions,
+            cpw.mods.fml.relauncher.Side remoteSide) {
+        return kome.common.network.KOMEPopulationWire.accepts(remoteVersions.get(MODID));
+    }
 
     private final LOTRCharacterCreation characterCreation = new LOTRCharacterCreation();
     private final Main lotrMoreMobs = new Main();

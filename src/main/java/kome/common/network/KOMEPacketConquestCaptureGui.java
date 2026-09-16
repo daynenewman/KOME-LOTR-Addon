@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KOMEPacketConquestCaptureGui implements IMessage {
+    public kome.common.data.KOMEPopulationProjection population = new kome.common.data.KOMEPopulationProjection(
+            "", 0L, java.math.BigInteger.ZERO, java.math.BigInteger.ZERO, false, 0L);
     public String tileId;
     public String ownerFaction;
     public String pendingFromFaction;
@@ -154,11 +156,13 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        tileId = ByteBufUtils.readUTF8String(buf);
-        ownerFaction = ByteBufUtils.readUTF8String(buf);
-        pendingFromFaction = ByteBufUtils.readUTF8String(buf);
-        pendingToFaction = ByteBufUtils.readUTF8String(buf);
-        viewerFaction = ByteBufUtils.readUTF8String(buf);
+        KOMEPopulationWire.readHeader(buf);
+        population = KOMEPopulationWire.readProjection(buf);
+        tileId = KOMEPopulationWire.readText(buf);
+        ownerFaction = KOMEPopulationWire.readText(buf);
+        pendingFromFaction = KOMEPopulationWire.readText(buf);
+        pendingToFaction = KOMEPopulationWire.readText(buf);
+        viewerFaction = KOMEPopulationWire.readText(buf);
         offensivePop = buf.readInt();
         defensivePop = buf.readInt();
         mountedPop = buf.readInt();
@@ -184,117 +188,123 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         myOffensiveUsed = buf.readInt();
         myDefensiveAllocated = buf.readInt();
         myDefensiveUsed = buf.readInt();
-        claimantName = ByteBufUtils.readUTF8String(buf);
-        allocationSummary = ByteBufUtils.readUTF8String(buf);
+        claimantName = KOMEPopulationWire.readText(buf);
+        allocationSummary = KOMEPopulationWire.readText(buf);
         ownerHasKing = buf.readBoolean();
         myOffensivePop = buf.readInt();
         myDefensivePop = buf.readInt();
         myMountedPop = buf.readInt();
         myGroundPop = buf.readInt();
-        activeRecruitmentTile = ByteBufUtils.readUTF8String(buf);
+        activeRecruitmentTile = KOMEPopulationWire.readText(buf);
         canSetRecruitmentTile = buf.readBoolean();
-        lotrWaypointKey = ByteBufUtils.readUTF8String(buf);
-        lotrWaypointDisplayName = ByteBufUtils.readUTF8String(buf);
-        lotrWaypointRegion = ByteBufUtils.readUTF8String(buf);
+        lotrWaypointKey = KOMEPopulationWire.readText(buf);
+        lotrWaypointDisplayName = KOMEPopulationWire.readText(buf);
+        lotrWaypointRegion = KOMEPopulationWire.readText(buf);
         waypointLevel = buf.readInt();
-        currentRulingFaction = ByteBufUtils.readUTF8String(buf);
-        defaultRulingFaction = ByteBufUtils.readUTF8String(buf);
-        mapRegion = ByteBufUtils.readUTF8String(buf);
+        currentRulingFaction = KOMEPopulationWire.readText(buf);
+        defaultRulingFaction = KOMEPopulationWire.readText(buf);
+        mapRegion = KOMEPopulationWire.readText(buf);
         claimConfirmationArmed = buf.readBoolean();
-        claimWarning = ByteBufUtils.readUTF8String(buf);
-        claimWarDestination = ByteBufUtils.readUTF8String(buf);
+        claimWarning = KOMEPopulationWire.readText(buf);
+        claimWarDestination = KOMEPopulationWire.readText(buf);
         builds.clear();
-        int buildCount = Math.max(0, Math.min(2048, buf.readInt()));
+        int buildCount = KOMEPopulationWire.count(buf.readInt());
         for (int i = 0; i < buildCount; i++) {
             BuildView view = new BuildView();
             view.read(buf);
             builds.add(view);
         }
         populationPools.clear();
-        int poolCount = Math.max(0, Math.min(512, buf.readInt()));
+        int poolCount = KOMEPopulationWire.count(buf.readInt());
         for (int i = 0; i < poolCount; i++) {
             PopulationPoolView view = new PopulationPoolView();
             view.read(buf);
             populationPools.add(view);
         }
         selectablePopulationOwners.clear();
-        int ownerCount = Math.max(0, Math.min(256, buf.readInt()));
-        for (int i = 0; i < ownerCount; i++) selectablePopulationOwners.add(ByteBufUtils.readUTF8String(buf));
+        int ownerCount = KOMEPopulationWire.count(buf.readInt());
+        for (int i = 0; i < ownerCount; i++) selectablePopulationOwners.add(KOMEPopulationWire.readText(buf));
         viewerDimension = buf.readInt();
         viewerX = buf.readDouble();
         viewerY = buf.readDouble();
         viewerZ = buf.readDouble();
-        focusBuildId = ByteBufUtils.readUTF8String(buf);
+        focusBuildId = KOMEPopulationWire.readText(buf);
+        KOMEPopulationWire.requireFullyRead(buf);
     }
 
     @Override
-    public void toBytes(ByteBuf buf) {
-        ByteBufUtils.writeUTF8String(buf, tileId);
-        ByteBufUtils.writeUTF8String(buf, ownerFaction);
-        ByteBufUtils.writeUTF8String(buf, pendingFromFaction);
-        ByteBufUtils.writeUTF8String(buf, pendingToFaction);
-        ByteBufUtils.writeUTF8String(buf, viewerFaction);
-        buf.writeInt(offensivePop);
-        buf.writeInt(defensivePop);
-        buf.writeInt(mountedPop);
-        buf.writeInt(groundPop);
-        buf.writeInt(incomingPop);
-        buf.writeInt(outgoingPop);
-        buf.writeLong(incomingEtaMillis);
-        buf.writeInt(offensiveTotal);
-        buf.writeInt(offensiveUsed);
-        buf.writeInt(defensiveTotal);
-        buf.writeInt(defensiveUsed);
-        buf.writeInt(farmhandTotal);
-        buf.writeInt(farmhandUsed);
-        buf.writeBoolean(canClaim);
-        buf.writeBoolean(canTransfer);
-        buf.writeBoolean(canAcceptTransfer);
-        buf.writeBoolean(canCancelTransfer);
-        buf.writeBoolean(canMoveTroops);
-        buf.writeBoolean(canEditPopulation);
-        buf.writeInt(offensiveAllocated);
-        buf.writeInt(defensiveAllocated);
-        buf.writeInt(myOffensiveAllocated);
-        buf.writeInt(myOffensiveUsed);
-        buf.writeInt(myDefensiveAllocated);
-        buf.writeInt(myDefensiveUsed);
-        ByteBufUtils.writeUTF8String(buf, claimantName);
-        ByteBufUtils.writeUTF8String(buf, allocationSummary);
-        buf.writeBoolean(ownerHasKing);
-        buf.writeInt(myOffensivePop);
-        buf.writeInt(myDefensivePop);
-        buf.writeInt(myMountedPop);
-        buf.writeInt(myGroundPop);
-        ByteBufUtils.writeUTF8String(buf, activeRecruitmentTile);
-        buf.writeBoolean(canSetRecruitmentTile);
-        ByteBufUtils.writeUTF8String(buf, lotrWaypointKey);
-        ByteBufUtils.writeUTF8String(buf, lotrWaypointDisplayName);
-        ByteBufUtils.writeUTF8String(buf, lotrWaypointRegion);
-        buf.writeInt(waypointLevel);
-        ByteBufUtils.writeUTF8String(buf, currentRulingFaction);
-        ByteBufUtils.writeUTF8String(buf, defaultRulingFaction);
-        ByteBufUtils.writeUTF8String(buf, mapRegion);
-        buf.writeBoolean(claimConfirmationArmed);
-        ByteBufUtils.writeUTF8String(buf, claimWarning == null ? "" : claimWarning);
-        ByteBufUtils.writeUTF8String(buf, claimWarDestination == null ? "" : claimWarDestination);
-        buf.writeInt(builds.size());
-        for (BuildView view : builds) view.write(buf);
-        buf.writeInt(populationPools.size());
-        for (PopulationPoolView view : populationPools) view.write(buf);
-        buf.writeInt(selectablePopulationOwners.size());
-        for (String owner : selectablePopulationOwners) ByteBufUtils.writeUTF8String(buf, owner == null ? "" : owner);
-        buf.writeInt(viewerDimension);
-        buf.writeDouble(viewerX);
-        buf.writeDouble(viewerY);
-        buf.writeDouble(viewerZ);
-        ByteBufUtils.writeUTF8String(buf, focusBuildId == null ? "" : focusBuildId);
+    public void toBytes(ByteBuf output) {
+        KOMEPopulationWire.writePacket(output, buf -> {
+            KOMEPopulationWire.writeHeader(buf);
+            KOMEPopulationWire.writeProjection(buf, population);
+            KOMEPopulationWire.writeText(buf, tileId);
+            KOMEPopulationWire.writeText(buf, ownerFaction);
+            KOMEPopulationWire.writeText(buf, pendingFromFaction);
+            KOMEPopulationWire.writeText(buf, pendingToFaction);
+            KOMEPopulationWire.writeText(buf, viewerFaction);
+            buf.writeInt(offensivePop);
+            buf.writeInt(defensivePop);
+            buf.writeInt(mountedPop);
+            buf.writeInt(groundPop);
+            buf.writeInt(incomingPop);
+            buf.writeInt(outgoingPop);
+            buf.writeLong(incomingEtaMillis);
+            buf.writeInt(offensiveTotal);
+            buf.writeInt(offensiveUsed);
+            buf.writeInt(defensiveTotal);
+            buf.writeInt(defensiveUsed);
+            buf.writeInt(farmhandTotal);
+            buf.writeInt(farmhandUsed);
+            buf.writeBoolean(canClaim);
+            buf.writeBoolean(canTransfer);
+            buf.writeBoolean(canAcceptTransfer);
+            buf.writeBoolean(canCancelTransfer);
+            buf.writeBoolean(canMoveTroops);
+            buf.writeBoolean(canEditPopulation);
+            buf.writeInt(offensiveAllocated);
+            buf.writeInt(defensiveAllocated);
+            buf.writeInt(myOffensiveAllocated);
+            buf.writeInt(myOffensiveUsed);
+            buf.writeInt(myDefensiveAllocated);
+            buf.writeInt(myDefensiveUsed);
+            KOMEPopulationWire.writeText(buf, claimantName);
+            KOMEPopulationWire.writeText(buf, allocationSummary);
+            buf.writeBoolean(ownerHasKing);
+            buf.writeInt(myOffensivePop);
+            buf.writeInt(myDefensivePop);
+            buf.writeInt(myMountedPop);
+            buf.writeInt(myGroundPop);
+            KOMEPopulationWire.writeText(buf, activeRecruitmentTile);
+            buf.writeBoolean(canSetRecruitmentTile);
+            KOMEPopulationWire.writeText(buf, lotrWaypointKey);
+            KOMEPopulationWire.writeText(buf, lotrWaypointDisplayName);
+            KOMEPopulationWire.writeText(buf, lotrWaypointRegion);
+            buf.writeInt(waypointLevel);
+            KOMEPopulationWire.writeText(buf, currentRulingFaction);
+            KOMEPopulationWire.writeText(buf, defaultRulingFaction);
+            KOMEPopulationWire.writeText(buf, mapRegion);
+            buf.writeBoolean(claimConfirmationArmed);
+            KOMEPopulationWire.writeText(buf, claimWarning == null ? "" : claimWarning);
+            KOMEPopulationWire.writeText(buf, claimWarDestination == null ? "" : claimWarDestination);
+            buf.writeInt(KOMEPopulationWire.count(builds.size()));
+            for (BuildView view : builds) view.write(buf);
+            buf.writeInt(KOMEPopulationWire.count(populationPools.size()));
+            for (PopulationPoolView view : populationPools) view.write(buf);
+            buf.writeInt(KOMEPopulationWire.count(selectablePopulationOwners.size()));
+            for (String owner : selectablePopulationOwners) KOMEPopulationWire.writeText(buf, owner == null ? "" : owner);
+            buf.writeInt(viewerDimension);
+            buf.writeDouble(viewerX);
+            buf.writeDouble(viewerY);
+            buf.writeDouble(viewerZ);
+            KOMEPopulationWire.writeText(buf, focusBuildId == null ? "" : focusBuildId);
+        });
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketConquestCaptureGui, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketConquestCaptureGui message, MessageContext ctx) {
-            KOMEAddon.proxy.displayConquestCaptureGui(message);
+            final KOMEPacketConquestCaptureGui snapshot = KOMEPopulationWire.copyForPublication(message, KOMEPacketConquestCaptureGui::new);
+            KOMEAddon.proxy.enqueueClientTask(() -> KOMEAddon.proxy.displayConquestCaptureGui(snapshot));
             return null;
         }
     }
@@ -320,25 +330,25 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         public final List<ContributionView> contributions = new ArrayList<ContributionView>();
 
         void read(ByteBuf buf) {
-            id = ByteBufUtils.readUTF8String(buf);
-            name = ByteBufUtils.readUTF8String(buf);
-            populationFaction = ByteBufUtils.readUTF8String(buf);
-            builder = ByteBufUtils.readUTF8String(buf);
-            manager = ByteBufUtils.readUTF8String(buf);
+            id = KOMEPopulationWire.readText(buf);
+            name = KOMEPopulationWire.readText(buf);
+            populationFaction = KOMEPopulationWire.readText(buf);
+            builder = KOMEPopulationWire.readText(buf);
+            manager = KOMEPopulationWire.readText(buf);
             dimension = buf.readInt();
             x = buf.readDouble();
             y = buf.readDouble();
             z = buf.readDouble();
-            buildType = ByteBufUtils.readUTF8String(buf);
-            approvedCentiHours = buf.readLong();
-            pendingCount = buf.readInt();
-            status = ByteBufUtils.readUTF8String(buf);
+            buildType = kome.common.data.KOMEBuildType.forKey(KOMEPopulationWire.readText(buf)).key;
+            approvedCentiHours = KOMEPopulationWire.nonnegative(buf.readLong());
+            pendingCount = (int) KOMEPopulationWire.nonnegative(buf.readInt());
+            status = KOMEPopulationWire.readText(buf);
             canManage = buf.readBoolean();
             canDestroy = buf.readBoolean();
-            destroyMode = ByteBufUtils.readUTF8String(buf);
-            destroyReason = ByteBufUtils.readUTF8String(buf);
+            destroyMode = KOMEPopulationWire.readText(buf);
+            destroyReason = KOMEPopulationWire.readText(buf);
             contributions.clear();
-            int count = Math.max(0, Math.min(4096, buf.readInt()));
+            int count = KOMEPopulationWire.count(buf.readInt());
             for (int i = 0; i < count; i++) {
                 ContributionView contribution = new ContributionView();
                 contribution.read(buf);
@@ -347,24 +357,24 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         }
 
         void write(ByteBuf buf) {
-            ByteBufUtils.writeUTF8String(buf, safe(id));
-            ByteBufUtils.writeUTF8String(buf, safe(name));
-            ByteBufUtils.writeUTF8String(buf, safe(populationFaction));
-            ByteBufUtils.writeUTF8String(buf, safe(builder));
-            ByteBufUtils.writeUTF8String(buf, safe(manager));
+            KOMEPopulationWire.writeText(buf, safe(id));
+            KOMEPopulationWire.writeText(buf, safe(name));
+            KOMEPopulationWire.writeText(buf, safe(populationFaction));
+            KOMEPopulationWire.writeText(buf, safe(builder));
+            KOMEPopulationWire.writeText(buf, safe(manager));
             buf.writeInt(dimension);
             buf.writeDouble(x);
             buf.writeDouble(y);
             buf.writeDouble(z);
-            ByteBufUtils.writeUTF8String(buf, safe(buildType));
-            buf.writeLong(approvedCentiHours);
-            buf.writeInt(pendingCount);
-            ByteBufUtils.writeUTF8String(buf, safe(status));
+            KOMEPopulationWire.writeText(buf, kome.common.data.KOMEBuildType.forKey(buildType).key);
+            buf.writeLong(KOMEPopulationWire.nonnegative(approvedCentiHours));
+            buf.writeInt((int) KOMEPopulationWire.nonnegative(pendingCount));
+            KOMEPopulationWire.writeText(buf, safe(status));
             buf.writeBoolean(canManage);
             buf.writeBoolean(canDestroy);
-            ByteBufUtils.writeUTF8String(buf, safe(destroyMode));
-            ByteBufUtils.writeUTF8String(buf, safe(destroyReason));
-            buf.writeInt(contributions.size());
+            KOMEPopulationWire.writeText(buf, safe(destroyMode));
+            KOMEPopulationWire.writeText(buf, safe(destroyReason));
+            buf.writeInt(KOMEPopulationWire.count(contributions.size()));
             for (ContributionView contribution : contributions) contribution.write(buf);
         }
     }
@@ -374,22 +384,22 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         public String player = "";
         public String faction = "";
         public long centiHours;
-        public String status = "";
+        public String status = kome.common.data.KOMEBuildContribution.PENDING;
 
         void read(ByteBuf buf) {
-            id = ByteBufUtils.readUTF8String(buf);
-            player = ByteBufUtils.readUTF8String(buf);
-            faction = ByteBufUtils.readUTF8String(buf);
-            centiHours = buf.readLong();
-            status = ByteBufUtils.readUTF8String(buf);
+            id = KOMEPopulationWire.readText(buf);
+            player = KOMEPopulationWire.readText(buf);
+            faction = KOMEPopulationWire.readText(buf);
+            centiHours = KOMEPopulationWire.nonnegative(buf.readLong());
+            status = kome.common.data.KOMEBuildContribution.normalizeStatus(KOMEPopulationWire.readText(buf));
         }
 
         void write(ByteBuf buf) {
-            ByteBufUtils.writeUTF8String(buf, safe(id));
-            ByteBufUtils.writeUTF8String(buf, safe(player));
-            ByteBufUtils.writeUTF8String(buf, safe(faction));
-            buf.writeLong(centiHours);
-            ByteBufUtils.writeUTF8String(buf, safe(status));
+            KOMEPopulationWire.writeText(buf, safe(id));
+            KOMEPopulationWire.writeText(buf, safe(player));
+            KOMEPopulationWire.writeText(buf, safe(faction));
+            buf.writeLong(KOMEPopulationWire.nonnegative(centiHours));
+            KOMEPopulationWire.writeText(buf, kome.common.data.KOMEBuildContribution.normalizeStatus(status));
         }
     }
 
@@ -407,7 +417,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         public int usedDefensive;
 
         void read(ByteBuf buf) {
-            faction = ByteBufUtils.readUTF8String(buf);
+            faction = KOMEPopulationWire.readText(buf);
             nativeOffensive = buf.readInt();
             nativeDefensive = buf.readInt();
             buildOffensive = buf.readInt();
@@ -421,7 +431,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         }
 
         void write(ByteBuf buf) {
-            ByteBufUtils.writeUTF8String(buf, safe(faction));
+            KOMEPopulationWire.writeText(buf, safe(faction));
             buf.writeInt(nativeOffensive);
             buf.writeInt(nativeDefensive);
             buf.writeInt(buildOffensive);

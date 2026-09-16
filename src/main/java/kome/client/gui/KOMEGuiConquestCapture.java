@@ -188,6 +188,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             message.lotrWaypointKey, message.lotrWaypointDisplayName, message.lotrWaypointRegion, message.waypointLevel,
             message.currentRulingFaction, message.defaultRulingFaction, message.mapRegion);
         claimConfirmationArmed = message.claimConfirmationArmed;
+        population = message.population;
         claimWarning = safe(message.claimWarning);
         claimWarDestination = safe(message.claimWarDestination);
         buildViews.addAll(message.builds);
@@ -292,7 +293,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
     void setVisualTestState(int tab, int mode, int selectedIndex) {
-        activeTab = clamp(tab, 0, 2);
+        activeTab = clamp(tab, 0, 1);
         buildMode = clamp(mode, BUILD_MODE_LIST, BUILD_MODE_RENAME);
         selectedBuildIndex = selectedIndex;
         claimConfirmationArmed = false;
@@ -330,19 +331,13 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             return;
         }
         if (isOwnedByPledge()) {
-            int contentY = panelY + CONTENT_Y_OFFSET;
-            int colW = (panelW - PANEL_MARGIN * 2 - CARD_GAP) / 2;
-            int rowH = Math.max(112, (actionTop - contentY - CARD_GAP) / 2);
-            GuiButton recruitment = new KOMEGuiButton(ID_SET_RECRUITMENT_TILE, panelX + PANEL_MARGIN + 10, contentY + rowH - 25, colW - 20, 18,
+            GuiButton recruitment = new KOMEGuiButton(ID_SET_RECRUITMENT_TILE, panelX + PANEL_MARGIN, actionTop + 10, 180, 18,
                 tileId.equals(activeRecruitmentTile) ? "Active Recruitment Tile" : "Use as Recruitment Tile");
             recruitment.enabled = canSetRecruitmentTile && !tileId.equals(activeRecruitmentTile);
             buttonList.add(recruitment);
         }
-        int contentY = panelY + CONTENT_Y_OFFSET;
-        int colW = (panelW - PANEL_MARGIN * 2 - CARD_GAP) / 2;
-        int rowH = Math.max(112, (actionTop - contentY - CARD_GAP) / 2);
-        buttonList.add(new KOMEGuiButton(ID_VIEW_UNITS, panelX + PANEL_MARGIN + colW - 92,
-            contentY + rowH + CARD_GAP + 5, 82, 18, "View Units"));
+        buttonList.add(new KOMEGuiButton(ID_VIEW_UNITS, panelX + panelW - PANEL_MARGIN - 82,
+            actionTop + 10, 82, 18, "View Units"));
         int startX = panelX + PANEL_MARGIN;
         int gap = ACTION_BUTTON_GAP;
         int buttonCount = hasPendingTransfer() ? 5 : 4;
@@ -371,9 +366,11 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private void addTabButtons() {
         int x = panelX + PANEL_MARGIN;
         int y = panelY + 59;
-        int width = Math.max(62, panelW - PANEL_MARGIN * 2);
+        int width = Math.max(62, (panelW - PANEL_MARGIN * 2 - CARD_GAP) / 2);
         KOMEGuiButton builds = KOMEGuiButton.tab(ID_TAB_BUILDS, x, y, width, "Builds", activeTab == 0);
         buttonList.add(builds);
+        buttonList.add(KOMEGuiButton.tab(ID_TAB_POPULATION, x + width + CARD_GAP, y,
+            width, "Canonical Population", activeTab == 1));
     }
 
     private void initBuildControls() {
@@ -588,10 +585,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         } else if (button.id == ID_CANCEL_TRANSFER_MODE) {
             transferMode = false;
             initGui();
-        } else if (button.id == ID_ADD_OFFENSIVE || button.id == ID_REMOVE_OFFENSIVE || button.id == ID_ADD_DEFENSIVE || button.id == ID_REMOVE_DEFENSIVE) {
-            sendPopulationUpdate(button.id);
-        } else if (button.id >= ID_ALLOCATE_OFFENSIVE && button.id <= ID_UNALLOCATE_DEFENSIVE) {
-            sendAllocationUpdate(button.id);
         } else if (button.id == ID_SET_RECRUITMENT_TILE) {
             KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction("recruit", "", "", tileId));
             KOMEConquestMapOverlay.openPreservedMap();
@@ -601,7 +594,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
     private boolean handleBuildAndTabAction(GuiButton button) {
-        if (button.id >= ID_TAB_BUILDS && button.id <= ID_TAB_ALLOCATIONS) {
+        if (button.id == ID_TAB_BUILDS || button.id == ID_TAB_POPULATION) {
             activeTab = button.id - ID_TAB_BUILDS;
             buildMode = BUILD_MODE_LIST;
             transferMode = false;
@@ -761,8 +754,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             drawBuildTab(logicalMouseX, logicalMouseY);
         } else if (activeTab == 1) {
             drawPopulationPoolTab(logicalMouseX, logicalMouseY);
-        } else {
-            drawCards(logicalMouseX, logicalMouseY);
         }
         if (populationAmountField != null) {
             populationAmountField.drawTextBox();
@@ -1069,81 +1060,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private void drawPopulationPoolTab(int mouseX, int mouseY) {
         populationHoverTooltip = "";
-        int x = panelX + PANEL_MARGIN;
-        int y = panelY + CONTENT_Y_OFFSET;
-        int w = panelW - PANEL_MARGIN * 2;
-        int bottom = panelY + panelH - 40;
-        KOMEGuiTheme.drawSubPanel(x, y, w, Math.max(40, bottom - y));
-        int physical = 0;
-        int usable = 0;
-        int used = 0;
-        int available = 0;
-        for (Object object : populationPoolViews) {
-            KOMEPacketConquestCaptureGui.PopulationPoolView pool =
-                (KOMEPacketConquestCaptureGui.PopulationPoolView) object;
-            KOMEPopulationGraph.Segments offensive = KOMEPopulationGraph.segments(
-                pool.physicalOffensive, pool.usableOffensive, pool.usedOffensive);
-            KOMEPopulationGraph.Segments defensive = KOMEPopulationGraph.segments(
-                pool.physicalDefensive, pool.usableDefensive, pool.usedDefensive);
-            physical = KOMEPopulationGraph.saturatingAdd(physical,
-                KOMEPopulationGraph.saturatingAdd(offensive.physical, defensive.physical));
-            usable = KOMEPopulationGraph.saturatingAdd(usable,
-                KOMEPopulationGraph.saturatingAdd(offensive.usable, defensive.usable));
-            used = KOMEPopulationGraph.saturatingAdd(used,
-                KOMEPopulationGraph.saturatingAdd(offensive.used, defensive.used));
-            available = KOMEPopulationGraph.saturatingAdd(available,
-                KOMEPopulationGraph.saturatingAdd(offensive.available, defensive.available));
-        }
-        KOMEGuiTheme.drawSectionTitle(fontRendererObj, "Faction-owned Population Pools", x + 12, y + 9, w - 24);
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
-            "Physical " + physical + "   Usable " + usable + "   Used " + used + "   Available " + available,
-            w - 32), x + 16, y + 28, KOMEGuiTheme.COLOR_TEXT);
-        drawPopulationLegend(x + 16, y + 42, w - 32);
-        if (populationPoolViews.isEmpty()) {
-            fontRendererObj.drawString("No population pools are recorded in this tile.", x + 18, y + 66,
-                KOMEGuiTheme.COLOR_TEXT_MUTED);
-            return;
-        }
-        int visible = poolVisibleRows();
-        int viewportY = y + 57;
-        int viewportH = Math.max(24, bottom - viewportY - 5);
-        KOMEGuiTheme.enableScissor(mc, x + 7, viewportY, w - 14, viewportH, renderScale);
-        for (int row = 0; row < visible && poolScroll + row < populationPoolViews.size(); row++) {
-            KOMEPacketConquestCaptureGui.PopulationPoolView pool =
-                (KOMEPacketConquestCaptureGui.PopulationPoolView) populationPoolViews.get(poolScroll + row);
-            int cardY = y + 60 + row * POPULATION_POOL_ROW_HEIGHT;
-            int cardW = w - 18;
-            KOMEGuiTheme.drawCard(x + 9, cardY, cardW, 98,
-                KOMEGuiTheme.isHovered(mouseX, mouseY, x + 9, cardY, cardW, 98));
-            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
-                factionName(pool.faction), Math.max(70, cardW / 2 - 16)),
-                x + 18, cardY + 7, KOMEGuiTheme.COLOR_BORDER_RED);
-            boolean controllerOwned = KOMEAlliance.normalizeFactionKey(pool.faction).equals(
-                KOMEAlliance.normalizeFactionKey(currentRulingFaction.length() == 0
-                    ? ownerFaction : currentRulingFaction));
-            int poolPhysical = KOMEPopulationGraph.saturatingAdd(
-                pool.physicalOffensive, pool.physicalDefensive);
-            int poolUsable = KOMEPopulationGraph.saturatingAdd(
-                pool.usableOffensive, pool.usableDefensive);
-            String access = KOMEPopulationGraph.accessLabel(controllerOwned, poolPhysical, poolUsable);
-            fontRendererObj.drawString(access, x + w - 18 - fontRendererObj.getStringWidth(access), cardY + 7,
-                access.startsWith("100") ? KOMEGuiTheme.COLOR_GOOD
-                    : access.startsWith("50") ? KOMEGuiTheme.COLOR_WARN : KOMEGuiTheme.COLOR_BAD);
-            String sources = "Base O " + pool.nativeOffensive + " / D " + pool.nativeDefensive
-                + "   Build O " + pool.buildOffensive + " / D " + pool.buildDefensive;
-            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, sources, cardW - 18),
-                x + 18, cardY + 21, KOMEGuiTheme.COLOR_TEXT_MUTED);
-            if (KOMEGuiTheme.isHovered(mouseX, mouseY, x + 16, cardY + 18, cardW - 14, 12)) {
-                populationHoverTooltip =
-                    "Base Population is population already assigned to this tile and is not generated by a Build.";
-            }
-            drawPopulationPoolGraph("Offensive", pool.physicalOffensive, pool.usableOffensive,
-                pool.usedOffensive, x + 18, cardY + 35, cardW - 18, mouseX, mouseY);
-            drawPopulationPoolGraph("Defensive", pool.physicalDefensive, pool.usableDefensive,
-                pool.usedDefensive, x + 18, cardY + 63, cardW - 18, mouseX, mouseY);
-        }
-        KOMEGuiTheme.disableScissor();
-        drawSimpleScrollbar(x + w - 7, viewportY, viewportH, poolScroll, populationPoolViews.size(), visible);
+        drawPopulationCard(panelX + PANEL_MARGIN, panelY + CONTENT_Y_OFFSET,
+                panelW - PANEL_MARGIN * 2, 160, mouseX, mouseY);
     }
 
     private void drawPopulationLegend(int x, int y, int width) {
@@ -1277,29 +1195,20 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         line(x, lineY, "Recruitment", activeRecruitmentTile.length() == 0 ? "Automatic selection" : activeRecruitmentTile, w);
     }
 
+    private kome.common.data.KOMEPopulationProjection population = new kome.common.data.KOMEPopulationProjection(
+            "", 0L, java.math.BigInteger.ZERO, java.math.BigInteger.ZERO, false, 0L);
+
     private void drawPopulationCard(int x, int y, int w, int h, int mouseX, int mouseY) {
         KOMEGuiTheme.drawCard(x, y, w, h, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, w, h));
-        title("Tile Population", x, y, w);
-        if (!hasPopulationData()) {
-            KOMEGuiTheme.drawWrappedText(fontRendererObj, "Tile population data unavailable.", x + 8, y + CARD_CONTENT_Y_OFFSET, w - 16, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        } else {
-            int offAvail = Math.max(0, offensiveTotal - offensiveUsed);
-            int defAvail = Math.max(0, defensiveTotal - defensiveUsed);
-            line(x, y + CARD_CONTENT_Y_OFFSET, "Offensive", offensiveUsed + "/" + offensiveTotal + " used, " + offAvail + " available", w);
-            KOMEGuiTheme.drawProgressBar(fontRendererObj, x + 10, y + CARD_CONTENT_Y_OFFSET + 15, w - 20, 10, ratio(offensiveUsed, offensiveTotal), KOMEGuiTheme.COLOR_GOOD, "");
-            line(x, y + CARD_CONTENT_Y_OFFSET + 31, "Defensive", defensiveUsed + "/" + defensiveTotal + " used, " + defAvail + " available", w);
-            KOMEGuiTheme.drawProgressBar(fontRendererObj, x + 10, y + CARD_CONTENT_Y_OFFSET + 46, w - 20, 10, ratio(defensiveUsed, defensiveTotal), KOMEGuiTheme.COLOR_WARN, "");
-            if (farmhandTotal > 0 || farmhandUsed > 0) {
-                line(x, y + CARD_CONTENT_Y_OFFSET + 61, "Farmhands", farmhandUsed + "/" + farmhandTotal, w);
-            }
-        }
-        if (populationAmountField != null) {
-            int labelY = controlLabelY(y, h);
-            fontRendererObj.drawString("Amount", x + 12, labelY, KOMEGuiTheme.COLOR_TEXT_MUTED);
-            if (!canEditPopulation) {
-                fontRendererObj.drawString("View only", x + w - 66, labelY, KOMEGuiTheme.COLOR_TEXT_DISABLED);
-            }
-        }
+        title("Controlling Faction Population", x, y, w);
+        int lineY = y + CARD_CONTENT_Y_OFFSET;
+        lineY = line(x, lineY, "Available Population", kome.common.data.KOMEPopulationProjection.formatCenti(population.availablePopulationCenti), w);
+        lineY = line(x, lineY, "Active Population", kome.common.data.KOMEPopulationProjection.formatCenti(population.activePopulationCenti), w);
+        lineY = line(x, lineY, "Total represented population", kome.common.data.KOMEPopulationProjection.formatCenti(population.representedPopulationCenti), w);
+        lineY = line(x, lineY, "Daily rate", kome.common.data.KOMEPopulationProjection.formatRate(population.dailyRateUnits), w);
+        lineY = line(x, lineY, "Cap", population.capEnabled ? kome.common.data.KOMEPopulationProjection.formatCenti(population.capCenti) : "Uncapped", w);
+        lineY = line(x, lineY, "Permanent unit investment", "Active above; farmhands excluded", w);
+        line(x, lineY, "Tactical strength", offensivePop + " offensive / " + defensivePop + " defensive (not a bank)", w);
     }
 
     private void drawStationedCard(int x, int y, int w, int h, int mouseX, int mouseY) {
@@ -1462,7 +1371,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             if (tileId.equals(activeRecruitmentTile)) {
                 return "This is already your active recruitment tile.";
             }
-            return "You need an allocation here or player reserve population to use this tile for recruitment.";
+            return "Your faction needs positive Available + Active Population to use this controlled tile for recruitment.";
         }
         if (id == ID_CLAIM) {
             return hasViewerFaction() ? "This tile is already controlled by your faction." : "Pledge to a faction before claiming tiles.";

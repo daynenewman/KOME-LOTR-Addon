@@ -94,13 +94,13 @@ public class KOMECommandPopulation extends CommandBase {
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         String requested = args.length == 2 ? KOMEAlliance.normalizeFactionKey(args[1]) : "";
         if (requested.length() > 0) sender.addChatMessage(new ChatComponentText("Faction " + displayFaction(requested)
-                + " Daily Population Rate: " + kome.common.data.KOMEPopulationService.getDailyPopulationRate(data, requested).formatPerDay()));
+                + " Daily Population Rate: " + kome.common.data.KOMEPopulationProjection.formatRate(kome.common.data.KOMEPopulationProjection.of(data, requested).dailyRateUnits)));
         for (kome.common.data.KOMEPopulationRateContribution row : kome.common.data.KOMEPopulationService.getPopulationRateContributions(data)) {
             if (requested.length() > 0 && !requested.equals(row.populationFaction)) continue;
             sender.addChatMessage(new ChatComponentText("Build " + row.buildId + " " + row.displayName + " tile " + row.tileId
                     + " " + row.populationFaction + " -> " + (row.currentController.length() == 0 ? "UNCONTROLLED" : row.currentController)
-                    + ": approved " + (kome.common.data.KOMEBuildTime.formatHours(row.approvedCentiHours)) + "h, original " + row.originalRate.formatPerDay()
-                    + " x" + row.multiplier + ", " + row.status + ", current " + row.currentRate.formatPerDay()));
+                    + ": approved " + (kome.common.data.KOMEBuildTime.formatHours(row.approvedCentiHours)) + "h, original " + row.formatOriginalRate()
+                    + " x" + row.multiplier + ", " + row.status + ", current " + row.formatCurrentRate()));
         }
         if (sender.canCommandSenderUseCommand(2, getCommandName())) {
             for (String line : kome.common.data.KOMEPopulationPayoutProcessor.inspection(data))
@@ -144,57 +144,18 @@ public class KOMECommandPopulation extends CommandBase {
     }
 
     private void sendTileStatus(ICommandSender sender, String[] args) {
-        if (args.length != 2) {
-            throw new WrongUsageException("/population tile <tileId>");
-        }
-        String tileId = KOMEConquestTile.normalizeId(args[1]);
+        if (args.length != 2) throw new WrongUsageException("/population tile <tileId>");
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
+        String tileId = KOMEConquestTile.normalizeId(args[1]);
         KOMEConquestTile tile = data.conquestTiles.get(tileId);
-        String faction = tile != null ? tile.currentRulingFaction() : "";
-        List<KOMETilePopulation> pools = data.getTilePopulationPools(tileId);
-        if (pools.isEmpty()) {
-            sender.addChatMessage(new ChatComponentText("Tile " + tileId + " population: no tile population recorded. Owner: " + (faction.length() == 0 ? "None" : displayFaction(faction))));
-            return;
-        }
-        sender.addChatMessage(new ChatComponentText("Tile " + tileId + " owner: " + (faction.length() == 0 ? "None" : displayFaction(faction))));
-        if (faction.length() > 0) {
-            int offTotal = data.getEffectiveUsablePopulation(tileId, faction, KOMEPopulationType.OFFENSIVE);
-            int offUsed = data.getEffectiveUsedPopulation(tileId, faction, KOMEPopulationType.OFFENSIVE);
-            int defTotal = data.getEffectiveUsablePopulation(tileId, faction, KOMEPopulationType.DEFENSIVE);
-            int defUsed = data.getEffectiveUsedPopulation(tileId, faction, KOMEPopulationType.DEFENSIVE);
-            int offAllocated = data.getTotalAllocated(tileId, faction, KOMEPopulationType.OFFENSIVE);
-            int defAllocated = data.getTotalAllocated(tileId, faction, KOMEPopulationType.DEFENSIVE);
-            sender.addChatMessage(new ChatComponentText("Owner effective: Offensive " + offUsed + "/" + offTotal + " used, available " + Math.max(0, offTotal - offUsed)));
-            sender.addChatMessage(new ChatComponentText("Owner effective: Defensive " + defUsed + "/" + defTotal + " used, available " + Math.max(0, defTotal - defUsed)));
-            sender.addChatMessage(new ChatComponentText("Allocations: Offensive " + offAllocated + " allocated, " + Math.max(0, offTotal - offAllocated) + " unallocated; Defensive " + defAllocated + " allocated, " + Math.max(0, defTotal - defAllocated) + " unallocated."));
-            if (!data.hasFactionKing(faction) && tile != null && tile.claimedByUuid != null) {
-                sender.addChatMessage(new ChatComponentText("No king: tile population is assigned to claimant " + (tile.claimedByName.length() == 0 ? tile.claimedByUuid.toString() : tile.claimedByName) + "."));
-            }
-        }
-        for (KOMETilePopulation population : pools) {
-            boolean ownerPool = KOMEAlliance.normalizeFactionKey(population.sourceFaction).equals(KOMEAlliance.normalizeFactionKey(faction));
-            String access = ownerPool ? "100%" : "50% captured";
-            sender.addChatMessage(new ChatComponentText("Source " + displayFaction(population.sourceFaction) + " (" + access + "): Off " + population.offensiveUsed + "/" + population.offensiveTotal + ", Def " + population.defensiveUsed + "/" + population.defensiveTotal));
-        }
+        sender.addChatMessage(new ChatComponentText("Tile " + tileId + ": " + kome.common.data.KOMEPopulationProjection.of(
+                data, tile == null ? "" : tile.projectRulingFaction()).summary()));
     }
 
     private void sendFactionStatus(ICommandSender sender, String[] args) {
-        if (args.length != 2) {
-            throw new WrongUsageException("/population faction <faction>");
-        }
-        KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
-        String faction = args[1];
-        KOMEWorldData.EffectivePopulationSummary summary = data.getFactionEffectivePopulationSummary(faction);
-        int reserveOffensiveTotal = data.getFactionPlayerReserveTotal(faction, KOMEPopulationType.OFFENSIVE);
-        int reserveOffensiveUsed = data.getFactionPlayerReserveUsed(faction, KOMEPopulationType.OFFENSIVE);
-        int reserveDefensiveTotal = data.getFactionPlayerReserveTotal(faction, KOMEPopulationType.DEFENSIVE);
-        int reserveDefensiveUsed = data.getFactionPlayerReserveUsed(faction, KOMEPopulationType.DEFENSIVE);
-        sender.addChatMessage(new ChatComponentText("Faction " + displayFaction(faction) + " population across " + data.getFactionControlledTileCount(faction) + " controlled tiles:"));
-        sender.addChatMessage(new ChatComponentText("Tile effective offensive: " + summary.offensiveUsed + "/" + summary.offensiveTotal + " used, available " + summary.getOffensiveAvailable()));
-        sender.addChatMessage(new ChatComponentText("Tile effective defensive: " + summary.defensiveUsed + "/" + summary.defensiveTotal + " used, available " + summary.getDefensiveAvailable()));
-        sender.addChatMessage(new ChatComponentText("Player reserve offensive: " + reserveOffensiveUsed + "/" + reserveOffensiveTotal + " used, available " + Math.max(0, reserveOffensiveTotal - reserveOffensiveUsed)));
-        sender.addChatMessage(new ChatComponentText("Player reserve defensive: " + reserveDefensiveUsed + "/" + reserveDefensiveTotal + " used, available " + Math.max(0, reserveDefensiveTotal - reserveDefensiveUsed)));
-        sender.addChatMessage(new ChatComponentText("Combined available: Offensive " + (summary.getOffensiveAvailable() + Math.max(0, reserveOffensiveTotal - reserveOffensiveUsed)) + ", Defensive " + (summary.getDefensiveAvailable() + Math.max(0, reserveDefensiveTotal - reserveDefensiveUsed))));
+        if (args.length != 2) throw new WrongUsageException("/population faction <faction>");
+        sender.addChatMessage(new ChatComponentText(kome.common.data.KOMEPopulationProjection.of(
+                KOMEWorldData.get(sender.getEntityWorld()), args[1]).summary()));
     }
 
     private void sendAllocationStatus(ICommandSender sender, String[] args) {
@@ -283,118 +244,50 @@ public class KOMECommandPopulation extends CommandBase {
     private void sendStatus(ICommandSender sender, EntityPlayerMP player, boolean gui) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         UUID playerID = KOMEReflection.getEntityUUID(player);
-        data.removeInactiveLoadedHiredUnits(KOMEReflection.getWorld(player), playerID);
-        KOMEPlayerPopulation pop = data.getPopulation(playerID);
-        int farmhandsUsed = data.getFarmhandsUsed(playerID);
-        int farmhandsLimit = data.getFarmhandLimit(playerID);
-        int offensiveUsed = pop.getUsed(KOMEPopulationType.OFFENSIVE);
-        int defensiveUsed = pop.getUsed(KOMEPopulationType.DEFENSIVE);
         String faction = data.getPlayerFactionKey(playerID);
-        KOMEWorldData.EffectivePopulationSummary tile = data.getFactionEffectivePopulationSummary(faction);
-        int allocatedOffensive = 0;
-        int allocatedOffensiveUsed = 0;
-        int allocatedDefensive = 0;
-        int allocatedDefensiveUsed = 0;
-        StringBuilder allocationSummary = new StringBuilder();
-        List<KOMEPlayerTilePopulationAllocation> playerAllocations = new ArrayList<KOMEPlayerTilePopulationAllocation>();
-        for (KOMEPlayerTilePopulationAllocation allocation : data.getAllocationsForFaction(faction)) {
-            if (playerID.equals(allocation.playerUuid)) {
-                playerAllocations.add(allocation);
-                allocatedOffensive += allocation.offensiveAllocated;
-                allocatedOffensiveUsed += allocation.offensiveUsed;
-                allocatedDefensive += allocation.defensiveAllocated;
-                allocatedDefensiveUsed += allocation.defensiveUsed;
-            }
-        }
-        final String activeRecruitmentTile = data.getActiveRecruitmentTile(playerID, faction);
-        Collections.sort(playerAllocations, new java.util.Comparator<KOMEPlayerTilePopulationAllocation>() {
-            @Override
-            public int compare(KOMEPlayerTilePopulationAllocation first, KOMEPlayerTilePopulationAllocation second) {
-                boolean firstActive = first.tileId.equals(activeRecruitmentTile);
-                boolean secondActive = second.tileId.equals(activeRecruitmentTile);
-                if (firstActive != secondActive) {
-                    return firstActive ? -1 : 1;
-                }
-                return first.tileId.compareTo(second.tileId);
-            }
-        });
-        int shownAllocations = 0;
-        for (KOMEPlayerTilePopulationAllocation allocation : playerAllocations) {
-            if (shownAllocations >= 2) {
-                break;
-            }
-            if (allocationSummary.length() > 0) {
-                allocationSummary.append("; ");
-            }
-            if (allocation.tileId.equals(activeRecruitmentTile)) {
-                allocationSummary.append("Active ");
-            }
-            allocationSummary.append(allocation.tileId)
-                .append(" O ").append(allocation.offensiveUsed).append("/").append(allocation.offensiveAllocated)
-                .append(" D ").append(allocation.defensiveUsed).append("/").append(allocation.defensiveAllocated);
-            shownAllocations++;
-        }
-        if (playerAllocations.size() > shownAllocations) {
-            allocationSummary.append("; +").append(playerAllocations.size() - shownAllocations).append(" more");
-        }
-        int armyUsed = offensiveUsed + defensiveUsed + allocatedOffensiveUsed + allocatedDefensiveUsed;
-        int armyTotal = pop.getCombinedTotal() + allocatedOffensive + allocatedDefensive;
+        kome.common.data.KOMEPopulationProjection projection = kome.common.data.KOMEPopulationProjection.of(data, faction);
         if (gui && sender instanceof EntityPlayerMP) {
-            EntityPlayerMP viewer = (EntityPlayerMP) sender;
-            boolean canManageAllocations = viewer.canCommandSenderUseCommand(2, getCommandName())
-                || KOMERulerAuthorization.canActAsRuler(data, faction, KOMEReflection.getEntityUUID(viewer));
-            List capacityRows = buildFactionMilitaryCapacityRows(data, faction, canManageAllocations);
-            KOMEPacketPopulationGui.CapacityBreakdown unallocated = buildUnallocatedCapacityRow(data, faction, tile);
-            int factionOffensiveTotal = data.getFactionPlayerReserveTotal(faction, KOMEPopulationType.OFFENSIVE) + tile.offensiveTotal;
-            int factionOffensiveUsed = data.getFactionPlayerReserveUsed(faction, KOMEPopulationType.OFFENSIVE) + tile.offensiveUsed;
-            int factionDefensiveTotal = data.getFactionPlayerReserveTotal(faction, KOMEPopulationType.DEFENSIVE) + tile.defensiveTotal;
-            int factionDefensiveUsed = data.getFactionPlayerReserveUsed(faction, KOMEPopulationType.DEFENSIVE) + tile.defensiveUsed;
-            factionOffensiveUsed = clamp(factionOffensiveUsed, 0, factionOffensiveTotal);
-            factionDefensiveUsed = clamp(factionDefensiveUsed, 0, factionDefensiveTotal);
-            KOMEPacketPopulationGui packet = new KOMEPacketPopulationGui(player.getCommandSenderName(), pop.offensiveTotal, offensiveUsed, pop.defensiveTotal, defensiveUsed, farmhandsUsed, farmhandsLimit, armyUsed, armyTotal, tile.offensiveTotal, tile.offensiveUsed, tile.defensiveTotal, tile.defensiveUsed, data.getFactionControlledTileCount(faction), allocatedOffensive, allocatedOffensiveUsed, allocatedDefensive, allocatedDefensiveUsed, allocationSummary.toString(), canManageAllocations, factionOffensiveTotal, factionOffensiveUsed, Math.max(0, factionOffensiveTotal - factionOffensiveUsed), factionDefensiveTotal, factionDefensiveUsed, Math.max(0, factionDefensiveTotal - factionDefensiveUsed), capacityRows, unallocated);
-            packet.viewerFaction = displayFaction(faction);
-            packet.availablePopulation = kome.common.data.KOMEPopulationService.getAvailablePopulation(data, faction);
-            packet.activePopulation = kome.common.data.KOMEPopulationService.getActivePopulation(faction, data.hiredUnits.values());
-            packet.dailyPopulationRateUnits = kome.common.data.KOMEPopulationService.getDailyPopulationRate(data, faction).getFixedUnitsPerDay();
-            packet.canManageAllocations = canManageAllocations;
-            packet.personalReserveOffensiveTotal = pop.offensiveTotal;
-            packet.personalReserveOffensiveUsed = offensiveUsed;
-            packet.personalReserveOffensiveAvailable = Math.max(0, pop.offensiveTotal - offensiveUsed);
-            packet.personalReserveDefensiveTotal = pop.defensiveTotal;
-            packet.personalReserveDefensiveUsed = defensiveUsed;
-            packet.personalReserveDefensiveAvailable = Math.max(0, pop.defensiveTotal - defensiveUsed);
-            packet.assignedTileOffensiveTotal = allocatedOffensive;
-            packet.assignedTileOffensiveUsed = allocatedOffensiveUsed;
-            packet.assignedTileOffensiveAvailable = Math.max(0, allocatedOffensive - allocatedOffensiveUsed);
-            packet.assignedTileDefensiveTotal = allocatedDefensive;
-            packet.assignedTileDefensiveUsed = allocatedDefensiveUsed;
-            packet.assignedTileDefensiveAvailable = Math.max(0, allocatedDefensive - allocatedDefensiveUsed);
-            packet.viewerTotalOffensiveTotal = pop.offensiveTotal + allocatedOffensive;
-            packet.viewerTotalOffensiveUsed = clamp(offensiveUsed + allocatedOffensiveUsed, 0, packet.viewerTotalOffensiveTotal);
-            packet.viewerTotalOffensiveAvailable = Math.max(0, packet.viewerTotalOffensiveTotal - packet.viewerTotalOffensiveUsed);
-            packet.viewerTotalDefensiveTotal = pop.defensiveTotal + allocatedDefensive;
-            packet.viewerTotalDefensiveUsed = clamp(defensiveUsed + allocatedDefensiveUsed, 0, packet.viewerTotalDefensiveTotal);
-            packet.viewerTotalDefensiveAvailable = Math.max(0, packet.viewerTotalDefensiveTotal - packet.viewerTotalDefensiveUsed);
-            packet.factionControlledTileCount = data.getFactionControlledTileCount(faction);
-            packet.factionOffensiveTotal = factionOffensiveTotal;
-            packet.factionOffensiveUsed = factionOffensiveUsed;
-            packet.factionOffensiveAvailable = Math.max(0, factionOffensiveTotal - factionOffensiveUsed);
-            packet.factionDefensiveTotal = factionDefensiveTotal;
-            packet.factionDefensiveUsed = factionDefensiveUsed;
-            packet.factionDefensiveAvailable = Math.max(0, factionDefensiveTotal - factionDefensiveUsed);
-            packet.factionFarmhandUsed = getFactionFarmhandsUsed(data, faction);
-            packet.factionFarmhandTotal = getFactionFarmhandTotal(data, faction);
-            packet.playerBreakdowns = capacityRows;
-            packet.unallocatedBreakdown = unallocated;
-            packet.tileBreakdowns = buildFactionTileCapacityRows(data, faction);
-            packet.sanitizeTopLevel();
-            KOMEPacketHandler.network.sendTo(packet, viewer);
-            return;
+            KOMEPacketPopulationGui packet = new KOMEPacketPopulationGui();
+            packet.playerName = player.getCommandSenderName();
+            packet.viewerFaction = faction;
+            packet.population = projection;
+            packet.canManageAllocations = ((EntityPlayerMP) sender).canCommandSenderUseCommand(2, getCommandName())
+                || KOMERulerAuthorization.canActAsRuler(data, faction, KOMEReflection.getEntityUUID((EntityPlayerMP) sender));
+            java.util.Map<String, KOMEPacketPopulationGui.CapacityBreakdown> players =
+                new java.util.TreeMap<String, KOMEPacketPopulationGui.CapacityBreakdown>();
+            for (KOMEHiredUnitRecord record : kome.common.data.KOMEPopulationService.livingRecords(data)) {
+                if (record == null || record.farmhand || record.owner == null
+                        || !faction.equals(kome.common.data.KOMEPopulationService.populationFaction(record))) continue;
+                String id = record.owner.toString();
+                KOMEPacketPopulationGui.CapacityBreakdown row = players.get(id);
+                if (row == null) {
+                    row = new KOMEPacketPopulationGui.CapacityBreakdown();
+                    row.playerUuid = id;
+                    row.playerName = getStoredPlayerName(data, record.owner);
+                    players.put(id, row);
+                }
+                row.activePopulationCenti = row.activePopulationCenti.add(java.math.BigInteger.valueOf(
+                    kome.common.data.KOMEPopulationService.getInvestmentCenti(record)));
+            }
+            packet.playerBreakdowns.addAll(players.values());
+            java.util.List<String> tiles = new java.util.ArrayList<String>(data.conquestTiles.keySet());
+            java.util.Collections.sort(tiles);
+            for (String tileId : tiles) {
+                KOMEConquestTile tile = data.conquestTiles.get(tileId);
+                if (tile == null || faction.isEmpty() || !faction.equals(tile.projectRulingFaction())) continue;
+                KOMEPacketPopulationGui.TileBreakdown row = new KOMEPacketPopulationGui.TileBreakdown();
+                row.tileId = tileId;
+                row.ownerFaction = faction;
+                KOMETileWaypointLink link = data.getTileWaypointLink(tileId);
+                row.tileDisplayName = link == null ? tileId : link.displayName();
+                row.population = projection;
+                packet.tileBreakdowns.add(row);
+            }
+            KOMEPacketHandler.network.sendTo(packet, (EntityPlayerMP) sender);
+        } else {
+            sender.addChatMessage(new ChatComponentText(projection.summary()));
+            sender.addChatMessage(new ChatComponentText("Farmhands: 0.00 population; excluded from Active Population. Combat investment is permanently spent."));
         }
-        sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " player reserve: Offensive " + offensiveUsed + "/" + pop.offensiveTotal + " used, Defensive " + defensiveUsed + "/" + pop.defensiveTotal + " used."));
-        sender.addChatMessage(new ChatComponentText("My tile allocations: Offensive " + allocatedOffensiveUsed + "/" + allocatedOffensive + " used, Defensive " + allocatedDefensiveUsed + "/" + allocatedDefensive + " used."));
-        sender.addChatMessage(new ChatComponentText("Faction tile effective: Offensive " + tile.offensiveUsed + "/" + tile.offensiveTotal + " used, Defensive " + tile.defensiveUsed + "/" + tile.defensiveTotal + " used across " + data.getFactionControlledTileCount(faction) + " controlled tiles."));
-        sender.addChatMessage(new ChatComponentText("Next hire type: " + pop.hireType.key + ". Farmhands: " + farmhandsUsed + "/" + farmhandsLimit + " used."));
     }
 
     private List buildFactionMilitaryCapacityRows(KOMEWorldData data, String faction, boolean canManageRows) {
@@ -572,25 +465,10 @@ public class KOMECommandPopulation extends CommandBase {
     private void sendUnitBreakdown(ICommandSender sender, EntityPlayerMP player, String filterTile) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         UUID playerID = KOMEReflection.getEntityUUID(player);
-        data.removeInactiveLoadedHiredUnits(KOMEReflection.getWorld(player), playerID);
-        KOMEPlayerPopulation pop = data.getPopulation(playerID);
         int farmhandsUsed = data.getFarmhandsUsed(playerID);
-        int farmhandsLimit = data.getFarmhandLimit(playerID);
-        int offensiveUsed = data.getArmyPopulationUsed(playerID, KOMEPopulationType.OFFENSIVE);
-        int defensiveUsed = data.getArmyPopulationUsed(playerID, KOMEPopulationType.DEFENSIVE);
-        int armyUsed = offensiveUsed + defensiveUsed;
         String faction = data.getPlayerFactionKey(playerID);
-        int allocatedTotal = 0;
-        for (KOMEPlayerTilePopulationAllocation allocation : data.getAllocationsForFaction(faction)) {
-            if (playerID.equals(allocation.playerUuid)) {
-                allocatedTotal += allocation.offensiveAllocated + allocation.defensiveAllocated;
-            }
-        }
-        int armyTotal = pop.getCombinedTotal() + allocatedTotal;
         List units = new ArrayList();
-        for (Object object : data.hiredUnits.entrySet()) {
-            Map.Entry entry = (Map.Entry) object;
-            KOMEHiredUnitRecord record = (KOMEHiredUnitRecord) entry.getValue();
+        for (KOMEHiredUnitRecord record : kome.common.data.KOMEPopulationService.livingRecords(data)) {
             if (!playerID.equals(record.owner)) {
                 continue;
             }
@@ -612,7 +490,7 @@ public class KOMECommandPopulation extends CommandBase {
             }
         });
         if (sender instanceof EntityPlayerMP) {
-            KOMEPacketHandler.network.sendTo(new KOMEPacketPopulationUnitsGui(player.getCommandSenderName(), filterTile, units, armyUsed, armyTotal, farmhandsUsed, farmhandsLimit), (EntityPlayerMP) sender);
+            KOMEPacketHandler.network.sendTo(new KOMEPacketPopulationUnitsGui(player.getCommandSenderName(), filterTile, units, kome.common.data.KOMEPopulationProjection.of(data, faction), farmhandsUsed), (EntityPlayerMP) sender);
             return;
         }
         sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " tracked units:"));
@@ -623,7 +501,8 @@ public class KOMECommandPopulation extends CommandBase {
                 KOMEUnitGuiEntry unit = (KOMEUnitGuiEntry) object;
                 sender.addChatMessage(new ChatComponentText(unit.unitName + ": current " + tileLabel(unit.currentTile)
                     + ", hired from " + ("PLAYER_RESERVE".equals(unit.sourceType) ? "Player Reserve" : tileLabel(unit.sourceTile))
-                    + ", " + unit.populationType + " cost " + unit.populationCost + ", " + unit.movementStatus + "."));
+                    + ", permanently invested " + kome.common.data.KOMEPopulationProjection.formatCenti(unit.populationSpentCenti)
+                    + (unit.farmhand ? " (farmhand: excluded)" : " (no refund)") + ", " + unit.movementStatus + "."));
             }
         }
     }
@@ -634,13 +513,14 @@ public class KOMECommandPopulation extends CommandBase {
         unit.unitName = record.farmhand ? getFarmhandDisplayName(record) : getUnitDisplayName(record);
         unit.ownerName = knownPlayerName(data, record.owner);
         String ownerFaction = data.getPlayerFactionKey(record.owner);
-        unit.factionName = displayFaction(ownerFaction);
+        unit.factionName = displayFaction(kome.common.data.KOMEPopulationService.populationFaction(record));
         unit.populationType = record.farmhand ? "Farmhand" : record.type == KOMEPopulationType.DEFENSIVE ? "Defensive" : "Offensive";
         unit.populationCost = record.farmhand ? 0 : Math.max(0, record.cost);
+        unit.populationSpentCenti = kome.common.data.KOMEPopulationService.getInvestmentCenti(record);
         unit.farmhand = record.farmhand;
         unit.mounted = record.mounted;
         unit.currentTile = KOMEConquestTile.normalizeId(record.currentTile);
-        unit.sourceType = record.isPlayerReserveFunded() ? KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE : KOMEHiredUnitRecord.SOURCE_TILE_POOL;
+        unit.sourceType = record.sourceType;
         unit.sourceTile = KOMEConquestTile.normalizeId(record.sourceTileId);
         unit.sourceFaction = displayFaction(record.sourceFaction);
         unit.sourcePlayer = knownPlayerName(data, record.sourcePlayer == null ? record.owner : record.sourcePlayer);
@@ -678,7 +558,7 @@ public class KOMECommandPopulation extends CommandBase {
         } else if (record.farmhand) {
             unit.canMove = false;
             unit.cannotMoveReason = "Farmhands are not military units";
-            unit.releasesTo = "Player farmhand capacity";
+            unit.releasesTo = "0.00 population; excluded";
         } else if (record.type == KOMEPopulationType.DEFENSIVE) {
             unit.canMove = false;
             unit.cannotMoveReason = "Defensive units cannot move";
@@ -695,13 +575,7 @@ public class KOMECommandPopulation extends CommandBase {
             unit.canMove = true;
         }
 
-        if (!record.farmhand) {
-            if (record.isPlayerReserveFunded()) {
-                unit.releasesTo = unit.sourcePlayer + " player reserve";
-            } else {
-                unit.releasesTo = tileLabel(unit.sourceTile) + " " + unit.sourceFaction + " pool";
-            }
-        }
+        if (!record.farmhand) unit.releasesTo = "No refund (permanently spent)";
         return unit;
     }
 
@@ -745,34 +619,9 @@ public class KOMECommandPopulation extends CommandBase {
 
     @Override
     public java.util.List addTabCompletionOptions(ICommandSender sender, String[] args) {
-        if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "get", "gui", "units", "hiretype", "set", "add", "remove", "addtile", "removetile", "tile", "faction", "allocations", "allocate", "unallocate");
-        }
-        if (args.length == 2 && "hiretype".equalsIgnoreCase(args[0])) {
-            List completions = new ArrayList();
-            completions.add("offensive");
-            completions.add("defensive");
-            String[] usernames = MinecraftServer.getServer().getAllUsernames();
-            for (String username : usernames) {
-                completions.add(username);
-            }
-            return getListOfStringsFromIterableMatchingLastWord(args, completions);
-        }
-        if (args.length == 3 && "hiretype".equalsIgnoreCase(args[0])) {
-            return getListOfStringsMatchingLastWord(args, "offensive", "defensive");
-        }
-        if (args.length == 3 && ("allocate".equalsIgnoreCase(args[0]) || "unallocate".equalsIgnoreCase(args[0]))) {
+        if (args.length == 1) return getListOfStringsMatchingLastWord(args, "get", "gui", "units", "tile", "faction", "rate");
+        if (args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "gui".equalsIgnoreCase(args[0]) || "units".equalsIgnoreCase(args[0])))
             return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());
-        }
-        if (args.length == 4 && ("allocate".equalsIgnoreCase(args[0]) || "unallocate".equalsIgnoreCase(args[0]))) {
-            return getListOfStringsMatchingLastWord(args, "offensive", "defensive");
-        }
-        if (args.length == 3 && ("addtile".equalsIgnoreCase(args[0]) || "removetile".equalsIgnoreCase(args[0]))) {
-            return getListOfStringsMatchingLastWord(args, "offensive", "defensive");
-        }
-        if (args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "gui".equalsIgnoreCase(args[0]) || "units".equalsIgnoreCase(args[0]) || "set".equalsIgnoreCase(args[0]) || "add".equalsIgnoreCase(args[0]) || "remove".equalsIgnoreCase(args[0]))) {
-            return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());
-        }
         return null;
     }
 

@@ -330,10 +330,13 @@ public class KOMEPopulationPayoutProcessorTest {
         NBTTagCompound before = data.builds.get("B-gondor").writeToNBT(); pay(data, initializeAndNext(data));
         assertEquals(before, data.builds.get("B-gondor").writeToNBT());
         kome.common.network.KOMEPacketPopulationGui sent = new kome.common.network.KOMEPacketPopulationGui();
-        sent.viewerFaction = "gondor"; sent.availablePopulation = 4; sent.activePopulation = 2; sent.dailyPopulationRateUnits = 50000L;
+        sent.viewerFaction = "gondor";
+        sent.population = new KOMEPopulationProjection("gondor", 400L, BigInteger.valueOf(200L), BigInteger.valueOf(50000L), false, 0L);
         io.netty.buffer.ByteBuf bytes = io.netty.buffer.Unpooled.buffer(); sent.toBytes(bytes);
         kome.common.network.KOMEPacketPopulationGui received = new kome.common.network.KOMEPacketPopulationGui(); received.fromBytes(bytes);
-        assertEquals(4, received.availablePopulation); assertEquals(2, received.activePopulation); assertEquals(50000L, received.dailyPopulationRateUnits);
+        assertEquals(400L, received.population.availablePopulationCenti);
+        assertEquals(BigInteger.valueOf(200L), received.population.activePopulationCenti);
+        assertEquals(BigInteger.valueOf(50000L), received.population.dailyRateUnits);
     }
 
     @Test public void authoritativePathHasNoLegacyOrFloatingArithmetic() throws Exception {

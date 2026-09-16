@@ -19,6 +19,7 @@ import net.minecraftforge.common.MinecraftForge;
 import java.util.List;
 
 public class KOMEClientProxy extends KOMECommonProxy {
+    private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue();
     public KOMEClientProxy() {
         super(new ClientProxy());
         com.enovak.lotrmoremobs.Main.proxy =
@@ -32,6 +33,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @Override
     public void init() {
         super.init();
+        FMLCommonHandler.instance().bus().register(clientTasks);
         MinecraftForge.EVENT_BUS.register(new KOMEChatSanitizer());
         MinecraftForge.EVENT_BUS.register(new KOMEProgressionMenuOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
@@ -52,12 +54,17 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
-        resetClientSessionState();
+        clientTasks.resetSession(true, this::resetClientSessionState);
     }
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
-        resetClientSessionState();
+        clientTasks.resetSession(false, this::resetClientSessionState);
+    }
+
+    @Override
+    public void enqueueClientTask(Runnable task) {
+        clientTasks.enqueue(task);
     }
 
     private void resetClientSessionState() {
@@ -83,6 +90,11 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @Override
     public void displayPopulationUnitsGui(String playerName, String filterTile, List units, int armyUsed, int armyTotal, int farmhandsUsed, int farmhandsLimit) {
         KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiPopulationUnits(playerName, filterTile, units, armyUsed, armyTotal, farmhandsUsed, farmhandsLimit));
+    }
+
+    @Override
+    public void displayPopulationUnitsGui(kome.common.network.KOMEPacketPopulationUnitsGui message) {
+        KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiPopulationUnits(message));
     }
 
     @Override

@@ -1370,13 +1370,12 @@ public class KOMEWorldData extends WorldSavedData {
     public boolean canUseRecruitmentTile(UUID playerId, String factionKey, String tileId) {
         String faction = KOMEAlliance.normalizeFactionKey(factionKey);
         String tile = KOMEConquestTile.normalizeId(tileId);
-        if (playerId == null || !isFactionControlledTile(tile, faction)) {
+        KOMEConquestTile controlled = conquestTiles.get(tile);
+        if (playerId == null || faction.isEmpty() || controlled == null
+                || !faction.equals(controlled.projectRulingFaction())) {
             return false;
         }
-        KOMEPlayerTilePopulationAllocation allocation = getAllocation(tile, faction, playerId);
-        boolean hasAllocation = allocation != null && (allocation.offensiveAllocated > 0 || allocation.defensiveAllocated > 0);
-        KOMEPlayerPopulation population = getPopulationIfPresent(playerId);
-        return hasAllocation || population != null && population.getCombinedTotal() > 0;
+        return KOMEPopulationService.getRepresentedPopulationCenti(this, faction).signum() > 0;
     }
 
     public boolean setActiveRecruitmentTile(UUID playerId, String factionKey, String tileId) {
@@ -1412,7 +1411,7 @@ public class KOMEWorldData extends WorldSavedData {
         String tileKey = KOMEConquestTile.normalizeId(tileId);
         String faction = KOMEAlliance.normalizeFactionKey(factionKey);
         KOMEConquestTile tile = conquestTiles.get(tileKey);
-        return tile != null && tile.isClaimed() && canFactionUseMilitaryPassage(faction, tile.currentRulingFaction());
+        return tile != null && !tile.projectRulingFaction().isEmpty() && canFactionUseMilitaryPassage(faction, tile.projectRulingFaction());
     }
 
     public KOMEPlayerTilePopulationAllocation getAllocation(String tileId, String faction, UUID playerId) {
@@ -2055,6 +2054,65 @@ public class KOMEWorldData extends WorldSavedData {
         return count;
     }
 
+    /** A movement label alone never authorizes preserving a physically removed unit. */
+    public boolean hasValidHiredUnitMovementLink(KOMEHiredUnitRecord record) {
+        if (record == null || !record.isMoving()) return false;
+        KOMEArmyMovementOrder order = armyMovements.get(record.movementOrderId);
+        return order != null && record.movementOrderId.equals(order.id) && order.isMoving()
+            && order.units.contains(record.entity)
+            && java.util.Objects.equals(record.companyId, order.companyId);
+    }
+
+    public boolean isVirtualMovingHiredUnit(KOMEHiredUnitRecord record) {
+        return hasValidHiredUnitMovementLink(record) && record.movingEntityData != null;
+    }
+
+    /** Server START lifecycle repair, never invoked by an accessor or projection. */
+    public int reconcileHiredUnitMovementLinks() {
+        ensureWritable();
+        int repaired = 0;
+        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
+            if (record == null || !record.isMoving() || hasValidHiredUnitMovementLink(record)) continue;
+            String invalidOrder = record.movementOrderId;
+            // Preserve the unit and its last saved entity for existing stationary recovery.
+            // Missing movement metadata is not proof of a death and must not expire a record.
+            if (record.movingEntityData != null) {
+                if (record.stationedEntityData == null)
+                    record.stationedEntityData = (NBTTagCompound) record.movingEntityData.copy();
+                record.movingEntityData = null;
+            }
+            record.movementOrderId = "";
+            KOMEArmyCompany company = armyCompanies.get(record.companyId);
+            if (company != null && invalidOrder.equals(company.movementOrderId)) {
+                KOMEArmyMovementOrder order = armyMovements.get(invalidOrder);
+                if (order == null || !order.isMoving() || !company.id.equals(order.companyId)) {
+                    company.movementOrderId = "";
+                    company.status = KOMEArmyCompany.STATIONED;
+                }
+            }
+            KOMEAuditService.record(this, System.currentTimeMillis(), "UNIT", "INVALID_MOVEMENT_LINK", "",
+                String.valueOf(record.entity), "Cleared invalid movement link; investment unchanged", invalidOrder);
+            repaired++;
+        }
+        if (repaired > 0) markDirty();
+        return repaired;
+    }
+
+    /** Authoritative death/dismissal cleanup. Deliberate virtual despawns are not terminal. */
+    public KOMEHiredUnitRecord removeTerminatedHiredUnit(UUID entityId, String reason) {
+        ensureWritable();
+        KOMEHiredUnitRecord record = hiredUnits.get(entityId);
+        if (record == null || isVirtualMovingHiredUnit(record)) return null;
+        hiredUnits.remove(entityId);
+        KOMEArmyMovementOrder order = armyMovements.get(record.movementOrderId);
+        if (order != null && order.isMoving()) order.units.remove(entityId);
+        removeUnitFromCompany(record);
+        KOMEAuditService.record(this, System.currentTimeMillis(), "UNIT", "REMOVED", "",
+            String.valueOf(entityId), reason, "Population remains permanently spent");
+        markDirty();
+        return record;
+    }
+
     public void removeInactiveLoadedHiredUnits(World world, UUID owner) {
         Set<UUID> inactiveUnits = new HashSet<>();
         for (Object object : world.loadedEntityList) {
@@ -2067,17 +2125,15 @@ public class KOMEWorldData extends WorldSavedData {
             if (record == null || owner != null && !owner.equals(record.owner)) {
                 continue;
             }
-            if (record.isMoving()) {
+            if (isVirtualMovingHiredUnit(record)) {
                 continue;
             }
-            if (!npc.isEntityAlive() || !npc.hiredNPCInfo.isActive) {
+            if (!npc.isEntityAlive() || npc.hiredNPCInfo == null || !npc.hiredNPCInfo.isActive) {
                 inactiveUnits.add(entityID);
             }
         }
         for (UUID entityID : inactiveUnits) {
-            KOMEHiredUnitRecord record = hiredUnits.remove(entityID);
-            removeUnitFromCompany(record);
-            releasePopulationForOrdinaryUnitRemoval(record);
+            removeTerminatedHiredUnit(entityID, "Loaded unit is dead or dismissed");
         }
         if (!inactiveUnits.isEmpty()) {
             markDirty();

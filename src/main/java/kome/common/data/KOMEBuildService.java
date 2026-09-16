@@ -69,8 +69,8 @@ public final class KOMEBuildService {
         String player = KOMEAlliance.normalizeFactionKey(playerFaction);
         String owner = KOMEAlliance.normalizeFactionKey(populationFaction);
         KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
-        if (data == null || tile == null || !tile.isClaimed()) return Decision.deny("The selected conquest tile is not claimed.");
-        String controller = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+        if (data == null || tile == null || tile.projectRulingFaction().isEmpty()) return Decision.deny("The selected conquest tile is not claimed.");
+        String controller = KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
         KOMEForeignConstructionService.Decision construction = KOMEForeignConstructionService.canConstruct(data, tile.id, builder, player);
         if (!construction.allowed) return Decision.deny(construction.reason);
         if (owner.length() == 0) return Decision.deny("Choose a population-owning faction.");
@@ -85,10 +85,10 @@ public final class KOMEBuildService {
         List<String> result = new ArrayList<String>();
         String player = KOMEAlliance.normalizeFactionKey(playerFaction);
         KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
-        if (player.length() == 0 || tile == null || !tile.isClaimed()) return result;
+        if (player.length() == 0 || tile == null || tile.projectRulingFaction().isEmpty()) return result;
         if (!canPlace(data, player, tile.id, player).allowed) return result;
         result.add(player);
-        String controller = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+        String controller = KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
         for (String candidate : KOMEAlliance.allFactionKeys()) {
             String owner = KOMEAlliance.normalizeFactionKey(candidate);
             if (owner.length() == 0 || result.contains(owner)) continue;
@@ -316,7 +316,7 @@ public final class KOMEBuildService {
             String actorFaction, boolean admin) {
         if (data == null || build == null || !build.active) return Decision.deny("The Build is not active.");
         KOMEConquestTile tile = data.conquestTiles.get(build.tileId);
-        String controller = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+        String controller = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
         String defaultOwner = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.defaultRulingFaction);
         String acting = KOMEAlliance.normalizeFactionKey(actorFaction);
         if (!admin && (!acting.equals(controller) || !KOMERulerAuthorization.canActAsRuler(data, controller, actor))) {
