@@ -45,31 +45,6 @@ public class KOMERedesignSystemsTest {
         }
     }
 
-    @Test public void populationGraphSegmentsPreservePhysicalCapacity() {
-        KOMEPopulationGraph.Segments segments = KOMEPopulationGraph.segments(100, 50, 20);
-        assertEquals(100, segments.physical);
-        assertEquals(20, segments.used);
-        assertEquals(30, segments.available);
-        assertEquals(50, segments.inaccessible);
-    }
-
-    @Test public void populationGraphHandlesControllerForeignAndZeroPools() {
-        assertEquals("100% Controller-Owned Access", KOMEPopulationGraph.accessLabel(true, 100, 100));
-        assertEquals("50% Captured Access", KOMEPopulationGraph.accessLabel(false, 100, 50));
-        assertEquals("0% Owner Access While Occupied", KOMEPopulationGraph.accessLabel(false, 1, 0));
-        KOMEPopulationGraph.Segments zero = KOMEPopulationGraph.segments(0, 0, 0);
-        assertEquals(0, zero.used + zero.available + zero.inaccessible);
-    }
-
-    @Test public void populationGraphClampsInvalidAndOverflowingPresentationTotals() {
-        KOMEPopulationGraph.Segments segments = KOMEPopulationGraph.segments(10, 50, 99);
-        assertEquals(10, segments.used);
-        assertEquals(0, segments.available);
-        assertEquals(0, segments.inaccessible);
-        assertEquals(Integer.MAX_VALUE,
-            KOMEPopulationGraph.saturatingAdd(Integer.MAX_VALUE - 2, 10));
-    }
-
     @Test public void ownControlledTileAllowsBuildPlacement() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         assertTrue(KOMEBuildService.canPlace(data, "gondor", "T100", "gondor").allowed);
@@ -200,32 +175,6 @@ public class KOMERedesignSystemsTest {
         KOMEPlayerBuild build = build(data, "gondor", 4, 0);
         assertTrue(KOMEBuildService.deleteBuild(data, build, build.managerUuid,
             build.managerName, false, "delete", 40L).allowed);
-    }
-
-    @Test public void buildDeletionDoesNotDependOnFormerAllocationCapacity() {
-        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
-        KOMEPlayerBuild build = build(data, "gondor", 4, 0);
-        KOMEPlayerTilePopulationAllocation allocation = data.getOrCreateAllocation(
-            "T100", "gondor", UUID.randomUUID(), "Player");
-        allocation.offensiveAllocated = 20;
-        KOMEBuildService.Decision decision = KOMEBuildService.deleteBuild(data, build,
-            build.managerUuid, build.managerName, false, "delete", 40L);
-        assertTrue(decision.allowed);
-        assertFalse(build.active);
-    }
-
-    @Test public void nativeCapacityMayCoverBuildDeletionWithoutOrphaningAllocation() {
-        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
-        KOMETilePopulation pool = data.getOrCreateTilePopulationPool("T100", "gondor");
-        pool.nativeOffensiveTotal = pool.offensiveTotal = 50;
-        pool.nativeBaselineInitialized = true;
-        KOMEPlayerBuild build = build(data, "gondor", 4, 0);
-        KOMEPlayerTilePopulationAllocation allocation = data.getOrCreateAllocation(
-            "T100", "gondor", UUID.randomUUID(), "Player");
-        allocation.offensiveAllocated = 20;
-        assertTrue(KOMEBuildService.deleteBuild(data, build,
-            build.managerUuid, build.managerName, false, "delete", 40L).allowed);
-        assertEquals(50, pool.offensiveTotal);
     }
 
     @Test public void managerTransfersToPopulationFactionKing() {
@@ -386,6 +335,7 @@ public class KOMERedesignSystemsTest {
         saved.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         saved.setTag("Builds", new net.minecraft.nbt.NBTTagList());
         saved.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
+        saved.setTag("FactionPopulations", new NBTTagList());
         NBTTagList builds = new NBTTagList();
         NBTTagCompound stale = new NBTTagCompound();
         stale.setString("Id", "B-stale");
@@ -400,12 +350,12 @@ public class KOMERedesignSystemsTest {
         assertNull(data.getBuild("B-stale"));
     }
 
-    @Test public void normalRateIsExactAndDefensiveRateIsZero() {
+    @Test public void normalRateIsExactAndDefensiveRateIsZero() throws Exception {
         KOMEPlayerBuild normal = new KOMEPlayerBuild();
         normal.type = KOMEBuildType.NORMAL;
         normal.contributions.add(approved("gondor", 20));
-        assertEquals(1_000_000L, KOMEPopulationRateService.rate(normal.approvedCentiHours(), 1000L).getFixedUnitsPerDay());
-        assertEquals(0L, KOMEPopulationRateService.rate(normal.approvedCentiHours(), (long) Integer.MAX_VALUE * 100L).getFixedUnitsPerDay());
+        assertEquals(1_000_000L, KOMEPopulationTestConfig.rateFromApprovedCentiHours(normal.approvedCentiHours(), 1000L).longValueExact());
+        assertEquals(0L, KOMEPopulationTestConfig.rateFromApprovedCentiHours(normal.approvedCentiHours(), (long) Integer.MAX_VALUE * 100L).longValueExact());
         KOMEPlayerBuild defensive = new KOMEPlayerBuild();
         defensive.type = KOMEBuildType.DEFENSIVE;
         defensive.contributions.add(approved("gondor", 20));
@@ -423,13 +373,13 @@ public class KOMERedesignSystemsTest {
         assertEquals(java.util.Collections.singletonList(defensive), KOMEBuildService.activeDefensiveBuilds(data));
         assertTrue(KOMEBuildService.decideSubmission(data, normal, normal.contributions.get(0).id,
             normal.managerUuid, "Builder", true, "Reviewed", 11L).allowed);
-        assertEquals(400_000L, KOMEPopulationService.getDailyPopulationRate(data, "gondor").getFixedUnitsPerDay());
+        assertEquals(400_000L, kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
         assertEquals(300L, defensive.approvedCentiHours());
     }
 
     @Test public void buildMutationsNeverChangeFactionAvailablePopulation() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
-        data.grantFactionPopulation("gondor", 91);
+        data.grantFactionPopulationCenti("gondor", 9100L);
         UUID manager = UUID.randomUUID();
         KOMEPlayerBuild build = KOMEBuildService.create(data, "Build", "T100", 0, 0, 64, 0,
             manager, "Manager", "gondor", "gondor", KOMEBuildType.NORMAL, 100L, 10L);
@@ -440,7 +390,7 @@ public class KOMERedesignSystemsTest {
         assertTrue(KOMEBuildService.removeApprovedContribution(data, build, pending.id, manager, "Manager",
             "removed", 40L).allowed);
         assertTrue(KOMEBuildService.deleteBuild(data, build, manager, "Manager", false, "deleted", 50L).allowed);
-        assertEquals(91, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(9100L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -448,60 +398,6 @@ public class KOMERedesignSystemsTest {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEBuildService.create(data, "Build", "T100", 0, 0, 64, 0, UUID.randomUUID(), "Builder",
             "gondor", "gondor", null, 1, 10L);
-    }
-
-    @Test public void ownPopulationPoolIsUsableAtOneHundredPercent() {
-        KOMETilePopulation pool = pool("T100", "gondor", 100, 20);
-        assertEquals(100, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
-        assertEquals(80, pool.getEffectiveAvailable(KOMEPopulationType.OFFENSIVE, "gondor"));
-    }
-
-    @Test public void foreignPopulationPoolIsUsableAtFiftyPercent() {
-        KOMETilePopulation pool = pool("T100", "rohan", 100, 20);
-        assertEquals(50, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
-        assertEquals(30, pool.getEffectiveAvailable(KOMEPopulationType.OFFENSIVE, "gondor"));
-    }
-
-    @Test public void populationOwnerHasNoUseWhileNotController() {
-        KOMETilePopulation pool = pool("T100", "gondor", 100, 0);
-        assertEquals(50, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "mordor"));
-        assertNotEquals(100, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "mordor"));
-    }
-
-    @Test public void reclaimRestoresFullUseWithoutChangingOwnership() {
-        KOMETilePopulation pool = pool("T100", "gondor", 100, 0);
-        assertEquals(50, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "mordor"));
-        assertEquals(100, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
-        assertEquals("gondor", pool.sourceFaction);
-    }
-
-    @Test public void seasonalResetPreservesForeignPoolProvenance() {
-        KOMEWorldData data = dataWithTile("T100", "gondor", "mordor");
-        KOMETilePopulation gondor = data.getOrCreateTilePopulationPool("T100", "gondor");
-        gondor.nativeOffensiveTotal = gondor.offensiveTotal = 50;
-        gondor.nativeBaselineInitialized = true;
-        KOMETilePopulation mordor = data.getOrCreateTilePopulationPool("T100", "mordor");
-        mordor.nativeOffensiveTotal = mordor.offensiveTotal = 40;
-        mordor.nativeBaselineInitialized = true;
-        data.resetConquestOwnershipToDefaults(20L);
-        assertNotNull(data.getTilePopulationPool("T100", "gondor"));
-        assertNotNull(data.getTilePopulationPool("T100", "mordor"));
-        assertEquals(50, gondor.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
-        assertEquals(20, mordor.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, "gondor"));
-    }
-
-    @Test public void buildHoursDoNotMutateLegacyTilePopulation() {
-        KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
-        KOMETilePopulation gondor = data.getOrCreateTilePopulationPool("T100", "gondor");
-        gondor.nativeOffensiveTotal = gondor.offensiveTotal = 50;
-        gondor.nativeBaselineInitialized = true;
-        build(data, "gondor", 10, 0);
-        KOMEPlayerBuild rohanBuild = manualBuild(data, "rohan");
-        rohanBuild.contributions.add(approved("gondor", 8));
-        assertEquals(50, data.getNativePopulationTotal("T100", "gondor", KOMEPopulationType.OFFENSIVE));
-        assertEquals(50, data.getTilePopulationPool("T100", "gondor").offensiveTotal);
-        assertNull(data.getTilePopulationPool("T100", "rohan"));
-        assertEquals(50, data.getEffectiveUsablePopulation("T100", "gondor", KOMEPopulationType.OFFENSIVE));
     }
 
     @Test public void hiredUnitsHaveNoBuildFundingReference() {
@@ -756,13 +652,6 @@ public class KOMERedesignSystemsTest {
         build.updatedAtMillis = 1L;
         data.builds.put(build.id, build);
         return build;
-    }
-
-    private static KOMETilePopulation pool(String tile, String owner, int total, int used) {
-        KOMETilePopulation pool = new KOMETilePopulation(tile, owner);
-        pool.offensiveTotal = total;
-        pool.offensiveUsed = used;
-        return pool;
     }
 
     private static void setFaction(KOMEWorldData data, UUID owner, String faction) {

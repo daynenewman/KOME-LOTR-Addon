@@ -48,10 +48,6 @@ public class KOMECompanyGuiEntry {
     public String intendedDestinationTile = "";
     public String retreatBlockedReason = "";
     public boolean canDisband;
-    public int stewardshipUnallocated;
-    public int stewardshipGlobalCap;
-    public int stewardshipReserved;
-    public int stewardshipAvailable;
 
     public void fromBytes(ByteBuf buf) {
         investedPopulationCenti = KOMEPopulationWire.readExact(buf);
@@ -97,10 +93,6 @@ public class KOMECompanyGuiEntry {
         intendedDestinationTile = read(buf);
         retreatBlockedReason = read(buf);
         canDisband = buf.readBoolean();
-        stewardshipUnallocated = buf.readInt();
-        stewardshipGlobalCap = buf.readInt();
-        stewardshipReserved = buf.readInt();
-        stewardshipAvailable = buf.readInt();
     }
 
     public void toBytes(ByteBuf buf) {
@@ -147,10 +139,6 @@ public class KOMECompanyGuiEntry {
         write(buf, intendedDestinationTile);
         write(buf, retreatBlockedReason);
         buf.writeBoolean(canDisband);
-        buf.writeInt(stewardshipUnallocated);
-        buf.writeInt(stewardshipGlobalCap);
-        buf.writeInt(stewardshipReserved);
-        buf.writeInt(stewardshipAvailable);
     }
 
     private static String read(ByteBuf buf) {

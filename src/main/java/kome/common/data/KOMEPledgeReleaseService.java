@@ -189,7 +189,6 @@ public final class KOMEPledgeReleaseService {
                 result.companiesRemoved++;
             }
         }
-        closeStaleAllocations(data, player, former);
         data.activeRecruitmentTiles.remove(KOMEWorldData.recruitmentTileKey(former, player));
         KOMECommandTroops.revalidateTemporaryControllers(data, nowMillis, "Player pledge changed");
         result.summary = summary(playerName, result);
@@ -315,19 +314,6 @@ public final class KOMEPledgeReleaseService {
         String spawning = KOMEAlliance.normalizeFactionKey(record.spawningFaction);
         String unitFaction = KOMEAlliance.normalizeFactionKey(record.unitFaction);
         return former.equals(source) || former.equals(spawning) || source.length() == 0 && former.equals(unitFaction);
-    }
-
-    private static void closeStaleAllocations(KOMEWorldData data, UUID player, String formerFaction) {
-        for (String key : new ArrayList<String>(data.populationAllocations.keySet())) {
-            KOMEPlayerTilePopulationAllocation allocation = data.populationAllocations.get(key);
-            if (allocation == null || !player.equals(allocation.playerUuid)
-                    || !formerFaction.equals(KOMEAlliance.normalizeFactionKey(allocation.faction))) continue;
-            if (allocation.offensiveUsed == 0 && allocation.defensiveUsed == 0) data.populationAllocations.remove(key);
-            else {
-                allocation.setAllocated(KOMEPopulationType.OFFENSIVE, allocation.offensiveUsed);
-                allocation.setAllocated(KOMEPopulationType.DEFENSIVE, allocation.defensiveUsed);
-            }
-        }
     }
 
     private static Entity findLoadedEntity(UUID id) {

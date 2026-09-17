@@ -30,7 +30,7 @@ public class KOMEHiredUnitRecord {
     public UUID sourcePlayer;
     public String sourceTileId = "";
     public String sourceFaction = "";
-    /** Empty means native/legacy population; otherwise identifies the Build that funded this unit. */
+    /** Historical allocation provenance for audit/cleanup only; never a spendable balance. */
     public String allocationTileId = "";
     public String allocationFaction = "";
     public UUID allocationPlayer;
@@ -42,16 +42,13 @@ public class KOMEHiredUnitRecord {
     public UUID companyAssignedBy;
     public String companyAssignedByName = "";
     public String movementOrderId = "";
-    /** Faction that supplied the NPC class; population ownership remains in sourceFaction. */
+    /** Faction that supplied the NPC class; funding attribution is resolved by populationFaction. */
     public String unitFaction = "";
     public String alliancePair = "";
     public String benefitSource = "";
     public String spawningFaction = "";
     public UUID controller;
-    /** Migration-only schema-2 fields; cleared after their exact population source is released. */
-    public boolean legacyAllianceCaptain;
-    public boolean legacyCaptainSuspended;
-    public int legacyCaptainPopulationReservation;
+    /** Stable native funding faction for permanent investment; never a separate balance. */
     public String populationOwningFaction = "";
     public String controllerAuthority = "";
     public String stewardshipWarIds = "";
@@ -108,9 +105,6 @@ public class KOMEHiredUnitRecord {
         spawningFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("SpawningFaction"));
         String savedController = nbt.getString("Controller");
         controller = savedController.length() == 0 ? owner : UUID.fromString(savedController);
-        legacyAllianceCaptain = nbt.getBoolean("AllianceCaptain");
-        legacyCaptainSuspended = nbt.getBoolean("CaptainSuspended");
-        legacyCaptainPopulationReservation = Math.max(0, nbt.getInteger("CaptainPopulationReservation"));
         populationOwningFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("PopulationOwningFaction"));
         controllerAuthority = nbt.getString("ControllerAuthority");
         stewardshipWarIds = nbt.getString("StewardshipWarIds");

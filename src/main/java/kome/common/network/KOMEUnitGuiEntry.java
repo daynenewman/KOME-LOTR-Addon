@@ -26,7 +26,6 @@ public class KOMEUnitGuiEntry {
     public long etaMillis;
     public boolean canMove;
     public String cannotMoveReason = "";
-    public String releasesTo = "";
     public int levelCap;
     public String companyId = "";
     public String companyName = "";
@@ -56,7 +55,6 @@ public class KOMEUnitGuiEntry {
         etaMillis = buf.readLong();
         canMove = buf.readBoolean();
         cannotMoveReason = read(buf);
-        releasesTo = read(buf);
         levelCap = buf.readInt();
         companyId = read(buf);
         companyName = read(buf);
@@ -89,7 +87,6 @@ public class KOMEUnitGuiEntry {
         buf.writeLong(etaMillis);
         buf.writeBoolean(canMove);
         write(buf, cannotMoveReason);
-        write(buf, releasesTo);
         buf.writeInt(levelCap);
         write(buf, companyId);
         write(buf, companyName);

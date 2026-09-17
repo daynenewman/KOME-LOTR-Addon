@@ -29,18 +29,16 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Integrated schema 2 starts from the current dev state; schema 1 belongs to an incompatible KOM-54 layout. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 2;
+    /** Schema 3 retires development-era player, tile and allocation population ledgers. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 3;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
     public static final int BUILD_DATA_SCHEMA_VERSION = KOMEPlayerBuild.DATA_SCHEMA_VERSION;
-    public static final int POPULATION_DATA_SCHEMA_VERSION = 2;
     public static final int FACTION_POPULATION_DATA_SCHEMA_VERSION = 2;
     public static final int POPULATION_PAYOUT_DATA_SCHEMA_VERSION = 1;
 
-    public final Map<UUID, KOMEPlayerPopulation> populations = new HashMap<>();
-    /** Authoritative faction-wide spendable population banks; legacy ledgers are non-authoritative. */
+    /** The sole authoritative faction-wide spendable population banks. */
     public final Map<String, KOMEFactionPopulation> factionPopulations = new HashMap<String, KOMEFactionPopulation>();
     /** KOM-7 payout state; rate remains derived from Builds and configuration. */
     public boolean populationPayoutInitialized;
@@ -53,8 +51,6 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
-    public final Map<String, KOMETilePopulation> tilePopulations = new HashMap<>();
-    public final Map<String, KOMEPlayerTilePopulationAllocation> populationAllocations = new HashMap<>();
     public final Map<String, String> activeRecruitmentTiles = new HashMap<>();
     public final Map<String, KOMETileWaypoint> tileWaypoints = new HashMap<>();
     public final Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId = new HashMap<>();
@@ -107,6 +103,8 @@ public class KOMEWorldData extends WorldSavedData {
     private boolean integratedRootInitialized;
     private boolean writeBlocked;
     private String loadFailureReason = "";
+    /** Candidate-only diagnostic context; never gameplay state or persisted data. */
+    private String loadSection = "root";
 
     public KOMEWorldData() {
         super(DATA_NAME);
@@ -214,19 +212,6 @@ public class KOMEWorldData extends WorldSavedData {
         throw new IllegalStateException(loadFailureReason);
     }
 
-    public KOMEPlayerPopulation getPopulation(UUID player) {
-        KOMEPlayerPopulation pop = populations.get(player);
-        if (pop == null) {
-            pop = new KOMEPlayerPopulation();
-            populations.put(player, pop);
-        }
-        return pop;
-    }
-
-    public KOMEPlayerPopulation getPopulationIfPresent(UUID player) {
-        return populations.get(player);
-    }
-
     /** Controlled creation for world-data internals and deterministic tests. */
     public KOMEFactionPopulation getFactionPopulation(String faction) {
         String normalizedFaction = normalizeFactionPopulationKey(faction);
@@ -292,11 +277,6 @@ public class KOMEWorldData extends WorldSavedData {
             population.setAvailablePopulationCenti(amountCenti);
             markDirty();
         }
-    }
-
-    /** Whole-unit compatibility boundary for current payout/tests; canonical storage is centi-population. */
-    void grantFactionPopulation(String faction, int amount) {
-        grantFactionPopulationCenti(faction, KOMEPopulationService.wholeToCenti(amount));
     }
 
     private static String normalizeFactionPopulationKey(String faction) {
@@ -376,10 +356,6 @@ public class KOMEWorldData extends WorldSavedData {
 
     private static String normalizeQuotaKey(String key) {
         return key == null ? "" : key.trim().toLowerCase(java.util.Locale.ROOT);
-    }
-
-    public int getFactionEffectiveOffensiveCapacity(String faction) {
-        return Math.max(0, getFactionEffectivePopulationSummary(faction).offensiveTotal);
     }
 
     public void recordCompanyDelegationAudit(long nowMillis, String action, KOMEArmyCompany company,
@@ -846,7 +822,6 @@ public class KOMEWorldData extends WorldSavedData {
                 changed++;
             }
         }
-        preserveResetTilePopulationValue(resetTiles);
         conquestDefaultsInitialized = true;
         if (changed > 0) {
             KOMEMovementAccessService.revalidateAll(this, System.currentTimeMillis());
@@ -854,21 +829,6 @@ public class KOMEWorldData extends WorldSavedData {
         markDirty();
         syncConquestTiles();
         return changed;
-    }
-
-    private void preserveResetTilePopulationValue(Set<String> resetTiles) {
-        if (resetTiles == null || resetTiles.isEmpty()) {
-            return;
-        }
-        // Ownership reset changes access, never provenance.  Every existing native/Build pool
-        // remains keyed to its source faction so the new controller receives the deterministic
-        // 100% (own) or 50% (foreign) effective amount without merging or erasing history.
-        for (KOMETilePopulation population : tilePopulations.values()) {
-            if (population == null || !resetTiles.contains(KOMEConquestTile.normalizeId(population.tileId))) continue;
-            population.offensiveUsed = Math.min(Math.max(0, population.offensiveUsed), Math.max(0, population.offensiveTotal));
-            population.defensiveUsed = Math.min(Math.max(0, population.defensiveUsed), Math.max(0, population.defensiveTotal));
-            population.farmhandUsed = Math.min(Math.max(0, population.farmhandUsed), Math.max(0, population.farmhandTotal));
-        }
     }
 
     public List<String> buildConquestBalanceReportLines() {
@@ -1102,115 +1062,6 @@ public class KOMEWorldData extends WorldSavedData {
         markDirty();
     }
 
-    public KOMETilePopulation getTilePopulation(String tileId) {
-        KOMEConquestTile tile = getConquestTile(tileId);
-        return getOrCreateTilePopulationPool(tileId, tile.currentRulingFaction());
-    }
-
-    public List<KOMETilePopulation> getTilePopulationPools(String tileId) {
-        String normalizedTile = KOMEConquestTile.normalizeId(tileId);
-        List<KOMETilePopulation> pools = new ArrayList<KOMETilePopulation>();
-        for (KOMETilePopulation population : tilePopulations.values()) {
-            if (population != null && normalizedTile.equals(KOMEConquestTile.normalizeId(population.tileId))) {
-                pools.add(population);
-            }
-        }
-        Collections.sort(pools, new java.util.Comparator<KOMETilePopulation>() {
-            @Override
-            public int compare(KOMETilePopulation first, KOMETilePopulation second) {
-                return KOMEAlliance.normalizeFactionKey(first.sourceFaction).compareTo(KOMEAlliance.normalizeFactionKey(second.sourceFaction));
-            }
-        });
-        return pools;
-    }
-
-    public KOMETilePopulation getTilePopulationPool(String tileId, String sourceFaction) {
-        return tilePopulations.get(tilePopulationKey(tileId, sourceFaction));
-    }
-
-    public KOMETilePopulation getOrCreateTilePopulationPool(String tileId, String sourceFaction) {
-        String normalizedTile = KOMEConquestTile.normalizeId(tileId);
-        String normalizedFaction = KOMEAlliance.normalizeFactionKey(sourceFaction);
-        String key = tilePopulationKey(normalizedTile, normalizedFaction);
-        KOMETilePopulation population = tilePopulations.get(key);
-        if (population == null) {
-            population = new KOMETilePopulation(normalizedTile, normalizedFaction);
-            tilePopulations.put(key, population);
-        }
-        return population;
-    }
-
-    public int getEffectiveUsablePopulation(String tileId, String controllingFaction, KOMEPopulationType type) {
-        int total = 0;
-        for (KOMETilePopulation population : getTilePopulationPools(tileId)) {
-            total += population.getEffectiveTotal(type, controllingFaction);
-        }
-        return total;
-    }
-
-    public int getEffectiveUsedPopulation(String tileId, String controllingFaction, KOMEPopulationType type) {
-        int used = 0;
-        for (KOMETilePopulation population : getTilePopulationPools(tileId)) {
-            used += Math.min(population.getUsed(type), population.getEffectiveTotal(type, controllingFaction));
-        }
-        return used;
-    }
-
-    public int getEffectiveAvailablePopulation(String tileId, String controllingFaction, KOMEPopulationType type) {
-        int available = 0;
-        for (KOMETilePopulation population : getTilePopulationPools(tileId)) {
-            available += population.getEffectiveAvailable(type, controllingFaction);
-        }
-        return available;
-    }
-
-    public int getEffectiveUsableOffensive(String tileId, String controllingFaction) {
-        return getEffectiveUsablePopulation(tileId, controllingFaction, KOMEPopulationType.OFFENSIVE);
-    }
-
-    public int getEffectiveUsableDefensive(String tileId, String controllingFaction) {
-        return getEffectiveUsablePopulation(tileId, controllingFaction, KOMEPopulationType.DEFENSIVE);
-    }
-
-    public int getEffectiveAvailableOffensive(String tileId, String controllingFaction) {
-        return getEffectiveAvailablePopulation(tileId, controllingFaction, KOMEPopulationType.OFFENSIVE);
-    }
-
-    public int getEffectiveAvailableDefensive(String tileId, String controllingFaction) {
-        return getEffectiveAvailablePopulation(tileId, controllingFaction, KOMEPopulationType.DEFENSIVE);
-    }
-
-    public EffectivePopulationSummary getFactionEffectivePopulationSummary(String factionKey) {
-        EffectivePopulationSummary summary = new EffectivePopulationSummary();
-        summary.offensiveTotal = getFactionTilePopulationTotal(factionKey, KOMEPopulationType.OFFENSIVE);
-        summary.offensiveUsed = getFactionTilePopulationUsed(factionKey, KOMEPopulationType.OFFENSIVE);
-        summary.defensiveTotal = getFactionTilePopulationTotal(factionKey, KOMEPopulationType.DEFENSIVE);
-        summary.defensiveUsed = getFactionTilePopulationUsed(factionKey, KOMEPopulationType.DEFENSIVE);
-        return summary;
-    }
-
-    public int getFactionTilePopulationTotal(String factionKey, KOMEPopulationType type) {
-        String key = KOMEAlliance.normalizeFactionKey(factionKey);
-        int total = 0;
-        for (KOMEConquestTile tile : conquestTiles.values()) {
-            if (tile != null && tile.isClaimed() && key.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
-                total += getEffectiveUsablePopulation(tile.id, key, type);
-            }
-        }
-        return total;
-    }
-
-    public int getFactionTilePopulationUsed(String factionKey, KOMEPopulationType type) {
-        String key = KOMEAlliance.normalizeFactionKey(factionKey);
-        int used = 0;
-        for (KOMEConquestTile tile : conquestTiles.values()) {
-            if (tile != null && tile.isClaimed() && key.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
-                used += getEffectiveUsedPopulation(tile.id, key, type);
-            }
-        }
-        return used;
-    }
-
     public int getFactionControlledTileCount(String factionKey) {
         String key = KOMEAlliance.normalizeFactionKey(factionKey);
         int count = 0;
@@ -1220,139 +1071,6 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
         return count;
-    }
-
-    public KOMETilePopulation findFactionTileWithPopulation(String factionKey, KOMEPopulationType type, int amount) {
-        String key = KOMEAlliance.normalizeFactionKey(factionKey);
-        List<String> tileIds = new ArrayList<String>(conquestTiles.keySet());
-        Collections.sort(tileIds);
-        for (String tileId : tileIds) {
-            KOMEConquestTile tile = conquestTiles.get(tileId);
-            if (tile == null || !tile.isClaimed() || !key.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
-                continue;
-            }
-            List<KOMETilePopulation> pools = getTilePopulationPools(tileId);
-            KOMETilePopulation ownPool = getTilePopulationPool(tileId, key);
-            if (ownPool != null && ownPool.getEffectiveAvailable(type, key) >= amount) {
-                return ownPool;
-            }
-            for (KOMETilePopulation population : pools) {
-                if (population != ownPool && population.getEffectiveAvailable(type, key) >= amount) {
-                    return population;
-                }
-            }
-        }
-        return null;
-    }
-
-    public int getKinglessStewardshipAvailable(String factionKey) {
-        return KOMEPopulationService.getAvailablePopulation(this, factionKey);
-    }
-
-    public int getKinglessStewardshipGlobalCap(String factionKey) {
-        int reserved = getKinglessStewardshipReserved(factionKey);
-        return saturatedAdd(getKinglessStewardshipAvailable(factionKey), reserved);
-    }
-
-    public int getKinglessStewardshipReserved(String factionKey) {
-        String faction = normalizeFactionKey(factionKey);
-        int reserved = 0;
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (record != null && "MILITARY_T3_STEWARDSHIP".equals(record.benefitSource)
-                    && faction.equals(normalizeFactionKey(record.populationOwningFaction))) {
-                reserved = saturatedAdd(reserved, Math.max(0, record.populationSpent));
-            }
-        }
-        return reserved;
-    }
-
-    public int getKinglessStewardshipUnallocated(String factionKey) {
-        return getKinglessStewardshipAvailable(factionKey);
-    }
-
-    /** Legacy tile-pool selector retained for compatibility only; canonical stewardship never calls it. */
-    @Deprecated
-    public KOMETilePopulation findKinglessStewardshipPool(String factionKey, int amount) {
-        String faction = normalizeFactionKey(factionKey);
-        List<String> ids = new ArrayList<String>(conquestTiles.keySet());
-        Collections.sort(ids);
-        for (String id : ids) {
-            KOMEConquestTile tile = conquestTiles.get(id);
-            if (tile == null || !tile.isClaimed() || !faction.equals(normalizeFactionKey(tile.currentRulingFaction()))) {
-                continue;
-            }
-            int allocated = getTotalAllocated(id, faction, KOMEPopulationType.OFFENSIVE);
-            int allocatedUsed = getTotalAllocationUsed(id, faction, KOMEPopulationType.OFFENSIVE);
-            int unspentAllocation = Math.max(0, allocated - allocatedUsed);
-            for (KOMETilePopulation pool : getTilePopulationPools(id)) {
-                if (!faction.equals(normalizeFactionKey(pool.sourceFaction))) continue;
-                int available = Math.max(0, pool.getEffectiveTotal(KOMEPopulationType.OFFENSIVE, faction)
-                    - pool.getUsed(KOMEPopulationType.OFFENSIVE));
-                int excluded = Math.min(available, unspentAllocation);
-                unspentAllocation -= excluded;
-                if (available - excluded >= amount) {
-                    return pool;
-                }
-            }
-        }
-        return null;
-    }
-
-    private int getTotalAllocationUsed(String tileId, String faction, KOMEPopulationType type) {
-        int used = 0;
-        for (KOMEPlayerTilePopulationAllocation allocation : getAllocationsForTile(tileId, faction)) {
-            used += allocation.getUsed(type);
-        }
-        return used;
-    }
-
-    public KOMETilePopulation findPlayerAllocatedTileWithPopulation(String factionKey, UUID playerId, KOMEPopulationType type, int amount) {
-        String faction = KOMEAlliance.normalizeFactionKey(factionKey);
-        List<String> tileIds = new ArrayList<String>(conquestTiles.keySet());
-        Collections.sort(tileIds);
-        for (String tileId : tileIds) {
-            KOMEConquestTile tile = conquestTiles.get(tileId);
-            if (tile == null || !tile.isClaimed() || !faction.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
-                continue;
-            }
-            KOMEPlayerTilePopulationAllocation allocation = getAllocation(tileId, faction, playerId);
-            if (allocation == null || allocation.getAvailable(type) < amount) {
-                continue;
-            }
-            KOMETilePopulation ownPool = getTilePopulationPool(tileId, faction);
-            if (ownPool != null && ownPool.getEffectiveAvailable(type, faction) >= amount) {
-                return ownPool;
-            }
-            for (KOMETilePopulation population : getTilePopulationPools(tileId)) {
-                if (population != ownPool && population.getEffectiveAvailable(type, faction) >= amount) {
-                    return population;
-                }
-            }
-        }
-        return null;
-    }
-
-    public KOMETilePopulation findPlayerAllocatedPopulationInTile(String tileId, String factionKey, UUID playerId, KOMEPopulationType type, int amount) {
-        String tileKey = KOMEConquestTile.normalizeId(tileId);
-        String faction = KOMEAlliance.normalizeFactionKey(factionKey);
-        KOMEConquestTile tile = conquestTiles.get(tileKey);
-        if (tile == null || !tile.isClaimed() || !faction.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
-            return null;
-        }
-        KOMEPlayerTilePopulationAllocation allocation = getAllocation(tileKey, faction, playerId);
-        if (allocation == null || allocation.getAvailable(type) < amount) {
-            return null;
-        }
-        KOMETilePopulation ownPool = getTilePopulationPool(tileKey, faction);
-        if (ownPool != null && ownPool.getEffectiveAvailable(type, faction) >= amount) {
-            return ownPool;
-        }
-        for (KOMETilePopulation population : getTilePopulationPools(tileKey)) {
-            if (population != ownPool && population.getEffectiveAvailable(type, faction) >= amount) {
-                return population;
-            }
-        }
-        return null;
     }
 
     public String getActiveRecruitmentTile(UUID playerId, String factionKey) {
@@ -1414,150 +1132,6 @@ public class KOMEWorldData extends WorldSavedData {
         return tile != null && !tile.projectRulingFaction().isEmpty() && canFactionUseMilitaryPassage(faction, tile.projectRulingFaction());
     }
 
-    public KOMEPlayerTilePopulationAllocation getAllocation(String tileId, String faction, UUID playerId) {
-        if (playerId == null) {
-            return null;
-        }
-        return populationAllocations.get(populationAllocationKey(tileId, faction, playerId));
-    }
-
-    public KOMEPlayerTilePopulationAllocation getOrCreateAllocation(String tileId, String faction, UUID playerId, String playerName) {
-        String key = populationAllocationKey(tileId, faction, playerId);
-        KOMEPlayerTilePopulationAllocation allocation = populationAllocations.get(key);
-        if (allocation == null) {
-            allocation = new KOMEPlayerTilePopulationAllocation();
-            allocation.tileId = KOMEConquestTile.normalizeId(tileId);
-            allocation.faction = KOMEAlliance.normalizeFactionKey(faction);
-            allocation.playerUuid = playerId;
-            populationAllocations.put(key, allocation);
-        }
-        if (playerName != null && playerName.trim().length() > 0) {
-            allocation.playerName = playerName;
-        }
-        return allocation;
-    }
-
-    public List<KOMEPlayerTilePopulationAllocation> getAllocationsForTile(String tileId, String faction) {
-        String normalizedTile = KOMEConquestTile.normalizeId(tileId);
-        String normalizedFaction = KOMEAlliance.normalizeFactionKey(faction);
-        List<KOMEPlayerTilePopulationAllocation> result = new ArrayList<KOMEPlayerTilePopulationAllocation>();
-        for (KOMEPlayerTilePopulationAllocation allocation : populationAllocations.values()) {
-            if (allocation != null && normalizedTile.equals(allocation.tileId) && normalizedFaction.equals(allocation.faction)) {
-                result.add(allocation);
-            }
-        }
-        Collections.sort(result, new java.util.Comparator<KOMEPlayerTilePopulationAllocation>() {
-            @Override
-            public int compare(KOMEPlayerTilePopulationAllocation first, KOMEPlayerTilePopulationAllocation second) {
-                return first.playerName.compareToIgnoreCase(second.playerName);
-            }
-        });
-        return result;
-    }
-
-    public List<KOMEPlayerTilePopulationAllocation> getAllocationsForFaction(String faction) {
-        String normalizedFaction = KOMEAlliance.normalizeFactionKey(faction);
-        List<KOMEPlayerTilePopulationAllocation> result = new ArrayList<KOMEPlayerTilePopulationAllocation>();
-        for (KOMEPlayerTilePopulationAllocation allocation : populationAllocations.values()) {
-            KOMEConquestTile tile = allocation == null ? null : conquestTiles.get(allocation.tileId);
-            if (allocation != null && normalizedFaction.equals(allocation.faction) && tile != null
-                    && normalizedFaction.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
-                result.add(allocation);
-            }
-        }
-        return result;
-    }
-
-    public int getTotalAllocated(String tileId, String faction, KOMEPopulationType type) {
-        int total = 0;
-        for (KOMEPlayerTilePopulationAllocation allocation : getAllocationsForTile(tileId, faction)) {
-            total += allocation.getAllocated(type);
-        }
-        return total;
-    }
-
-    public int getPlayerAllocatedAvailable(String tileId, String faction, UUID playerId, KOMEPopulationType type) {
-        KOMEConquestTile tile = conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
-        if (tile == null || !KOMEAlliance.normalizeFactionKey(faction).equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
-            return 0;
-        }
-        KOMEPlayerTilePopulationAllocation allocation = getAllocation(tileId, faction, playerId);
-        return allocation == null ? 0 : allocation.getAvailable(type);
-    }
-
-    public boolean allocatePopulation(String tileId, String faction, UUID playerId, String playerName, KOMEPopulationType type, int amount) {
-        if (amount <= 0 || playerId == null) {
-            return false;
-        }
-        KOMEConquestTile tile = conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
-        String normalizedFaction = KOMEAlliance.normalizeFactionKey(faction);
-        if (tile == null || !normalizedFaction.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
-            return false;
-        }
-        int effectiveTotal = getEffectiveUsablePopulation(tile.id, normalizedFaction, type);
-        if (getTotalAllocated(tile.id, normalizedFaction, type) + amount > effectiveTotal) {
-            return false;
-        }
-        KOMEPlayerTilePopulationAllocation allocation = getOrCreateAllocation(tile.id, normalizedFaction, playerId, playerName);
-        allocation.setAllocated(type, allocation.getAllocated(type) + amount);
-        markDirty();
-        return true;
-    }
-
-    public boolean unallocatePopulation(String tileId, String faction, UUID playerId, KOMEPopulationType type, int amount) {
-        KOMEPlayerTilePopulationAllocation allocation = getAllocation(tileId, faction, playerId);
-        if (allocation == null || amount <= 0) {
-            return false;
-        }
-        int next = allocation.getAllocated(type) - amount;
-        if (next < allocation.getUsed(type)) {
-            return false;
-        }
-        allocation.setAllocated(type, next);
-        markDirty();
-        return true;
-    }
-
-    public boolean consumeAllocationForHire(KOMEHiredUnitRecord record) {
-        if (record == null || record.isPlayerReserveFunded() || record.allocationPlayer == null) {
-            return false;
-        }
-        KOMEPlayerTilePopulationAllocation allocation = getAllocation(record.allocationTileId, record.allocationFaction, record.allocationPlayer);
-        return allocation != null && allocation.tryUse(record.type, record.cost);
-    }
-
-    public void releaseAllocationUsed(KOMEHiredUnitRecord record) {
-        if (record == null || record.allocationPlayer == null) {
-            return;
-        }
-        KOMEPlayerTilePopulationAllocation allocation = getAllocation(record.allocationTileId, record.allocationFaction, record.allocationPlayer);
-        if (allocation != null) {
-            allocation.release(record.type, record.cost);
-        }
-    }
-
-    public void reconcileClaimantAllocation(KOMEConquestTile tile) {
-        if (tile == null || !tile.isClaimed() || hasFactionKing(tile.currentRulingFaction()) || tile.claimedByUuid == null) {
-            return;
-        }
-        String faction = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
-        KOMEPlayerTilePopulationAllocation allocation = getOrCreateAllocation(tile.id, faction, tile.claimedByUuid, tile.claimedByName);
-        int otherOffensive = 0;
-        int otherDefensive = 0;
-        for (KOMEPlayerTilePopulationAllocation other : getAllocationsForTile(tile.id, faction)) {
-            if (other.playerUuid.equals(tile.claimedByUuid)) {
-                continue;
-            }
-            other.setAllocated(KOMEPopulationType.OFFENSIVE, other.offensiveUsed);
-            other.setAllocated(KOMEPopulationType.DEFENSIVE, other.defensiveUsed);
-            otherOffensive += other.offensiveAllocated;
-            otherDefensive += other.defensiveAllocated;
-        }
-        allocation.setAllocated(KOMEPopulationType.OFFENSIVE, Math.max(0, getEffectiveUsablePopulation(tile.id, faction, KOMEPopulationType.OFFENSIVE) - otherOffensive));
-        allocation.setAllocated(KOMEPopulationType.DEFENSIVE, Math.max(0, getEffectiveUsablePopulation(tile.id, faction, KOMEPopulationType.DEFENSIVE) - otherDefensive));
-        markDirty();
-    }
-
     public void claimTile(KOMEConquestTile tile, String faction, long worldTime, UUID playerId, String playerName) {
         if (tile == null) {
             return;
@@ -1567,13 +1141,6 @@ public class KOMEWorldData extends WorldSavedData {
         tile.claim(faction, worldTime, playerId, playerName);
         ensureDefaultArrivalPoint(tile);
         String currentOwner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
-        if (!previousOwner.equals(currentOwner)) {
-            for (KOMEPlayerTilePopulationAllocation allocation : getAllocationsForTile(tile.id, currentOwner)) {
-                allocation.setAllocated(KOMEPopulationType.OFFENSIVE, allocation.offensiveUsed);
-                allocation.setAllocated(KOMEPopulationType.DEFENSIVE, allocation.defensiveUsed);
-            }
-        }
-        reconcileClaimantAllocation(tile);
         if (!previousOwner.equals(currentOwner)) {
             KOMEAuditService.record(this, worldTime, "TILE", "OWNERSHIP_CHANGE", playerId == null ? "" : playerId.toString(),
                 tile.id, "Tile ownership changed", previousOwner + " -> " + currentOwner);
@@ -1592,42 +1159,6 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
         return "";
-    }
-
-    public boolean adjustTilePopulationTotal(String tileId, KOMEPopulationType type, int delta) {
-        if (type == null || delta == 0) {
-            return false;
-        }
-        KOMEConquestTile tile = getConquestTile(tileId);
-        if (!tile.isClaimed()) {
-            return false;
-        }
-        String rulingFaction = tile.currentRulingFaction();
-        KOMETilePopulation population = getOrCreateTilePopulationPool(tileId, rulingFaction);
-        int currentTotal = population.getTotal(type);
-        int used = population.getUsed(type);
-        int minimumTotal = used;
-        if (hasFactionKing(rulingFaction)) {
-            int effectiveTotal = getEffectiveUsablePopulation(tile.id, rulingFaction, type);
-            int allocatedTotal = getTotalAllocated(tile.id, rulingFaction, type);
-            int unallocated = Math.max(0, effectiveTotal - allocatedTotal);
-            minimumTotal = Math.max(minimumTotal, currentTotal - unallocated);
-        }
-        int nextTotal = Math.max(minimumTotal, currentTotal + delta);
-        if (nextTotal == currentTotal) {
-            return false;
-        }
-        population.setTotal(type, nextTotal);
-        int nativeTotal = Math.max(0, nextTotal);
-        if (type == KOMEPopulationType.DEFENSIVE) {
-            population.nativeDefensiveTotal = nativeTotal;
-        } else {
-            population.nativeOffensiveTotal = nativeTotal;
-        }
-        population.nativeBaselineInitialized = true;
-        reconcileClaimantAllocation(tile);
-        markDirty();
-        return true;
     }
 
     public String nextBuildId() {
@@ -1652,30 +1183,10 @@ public class KOMEWorldData extends WorldSavedData {
         return builds.get(buildId == null ? "" : buildId.trim().toUpperCase(java.util.Locale.ROOT));
     }
 
-    public int getNativePopulationTotal(String tileId, String populationFaction, KOMEPopulationType type) {
-        KOMETilePopulation population = getTilePopulationPool(tileId, populationFaction);
-        if (population == null) return 0;
-        return type == KOMEPopulationType.DEFENSIVE
-            ? Math.max(0, population.nativeDefensiveTotal) : Math.max(0, population.nativeOffensiveTotal);
-    }
-
-    /** Compatibility hook: ordinary removal never refunds permanently-spent combat population. */
-    public boolean releasePopulationForOrdinaryUnitRemoval(KOMEHiredUnitRecord record) {
-        if (record == null) return false;
-        // Successful canonical combat hires are permanently spent. Legacy records are no
-        // longer accepted as a runtime funding authority and receive no synthetic refund.
-        return false;
-    }
-
     public void reconcileBuildManagers() {
         for (KOMEPlayerBuild build : builds.values()) {
             KOMEBuildService.reconcileManager(this, build);
         }
-    }
-
-    private static int saturatedAdd(int left, int right) {
-        long value = (long) Math.max(0, left) + Math.max(0, right);
-        return value > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) value;
     }
 
     public KOMEAlliance getAlliance(String factionA, String factionB, boolean create) {
@@ -1889,66 +1400,6 @@ public class KOMEWorldData extends WorldSavedData {
         return false;
     }
 
-    public int getFactionFarmerPop(String factionKey) {
-        String key = normalizeFactionKey(factionKey);
-        if (key.length() == 0) {
-            return 0;
-        }
-        int total = 0;
-        for (Map.Entry<UUID, KOMEPlayerPopulation> entry : populations.entrySet()) {
-            UUID playerID = entry.getKey();
-            KOMEPlayerProgression progression = progressions.get(playerID);
-            boolean member = progression != null && key.equals(normalizeFactionKey(progression.getPledgedLordFaction()));
-            if (!member && playerID != null && playerID.equals(kingsByFaction.get(key))) {
-                member = true;
-            }
-            if (member && entry.getValue() != null) {
-                total += entry.getValue().getFarmhandLimit() * 25;
-            }
-        }
-        return Math.max(0, total);
-    }
-
-    /** Legacy split-ledger total retained temporarily while KOM-6 migrates consumers. */
-    public int getLegacyFactionPopulationTotal(String factionKey) {
-        String key = normalizeFactionKey(factionKey);
-        if (key.length() == 0) {
-            return 0;
-        }
-        int total = 0;
-        for (Map.Entry<UUID, KOMEPlayerPopulation> entry : populations.entrySet()) {
-            UUID playerID = entry.getKey();
-            KOMEPlayerProgression progression = progressions.get(playerID);
-            boolean member = progression != null && key.equals(normalizeFactionKey(progression.getPledgedLordFaction()));
-            if (!member && playerID != null && playerID.equals(kingsByFaction.get(key))) {
-                member = true;
-            }
-            if (member && entry.getValue() != null) {
-                total += entry.getValue().getCombinedTotal();
-            }
-        }
-        return Math.max(0, total);
-    }
-
-    public int getFarmhandLimit(UUID owner) {
-        // Farmhands have no KOME population-derived hiring capacity.
-        return -1;
-    }
-
-    public int getPlayerTilePopulationAllocated(UUID owner) {
-        if (owner == null) {
-            return 0;
-        }
-        int allocated = 0;
-        String faction = getPlayerFactionKey(owner);
-        for (KOMEPlayerTilePopulationAllocation allocation : getAllocationsForFaction(faction)) {
-            if (owner.equals(allocation.playerUuid)) {
-                allocated += allocation.offensiveAllocated + allocation.defensiveAllocated;
-            }
-        }
-        return allocated;
-    }
-
     public String getPlayerFactionKey(UUID playerID) {
         // Once a player's real LOTR pledge has been observed, it is the authoritative
         // membership value, including an explicitly unpledged empty value. Progression-lord
@@ -1988,66 +1439,6 @@ public class KOMEWorldData extends WorldSavedData {
         int count = 0;
         for (KOMEHiredUnitRecord record : hiredUnits.values()) {
             if (record.farmhand && owner.equals(record.owner)) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    public int getArmyPopulationUsed(UUID owner) {
-        return getArmyPopulationUsed(owner, null);
-    }
-
-    public int getArmyPopulationUsed(UUID owner, KOMEPopulationType type) {
-        int used = 0;
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (!record.farmhand && owner.equals(record.owner) && (type == null || record.type == type)) {
-                used += Math.max(0, record.cost);
-            }
-        }
-        return used;
-    }
-
-    public int getPlayerReservePopulationUsed(UUID owner, KOMEPopulationType type) {
-        int used = 0;
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (record == null || record.farmhand || !record.isPlayerReserveFunded()) {
-                continue;
-            }
-            UUID sourcePlayer = record.sourcePlayer == null ? record.owner : record.sourcePlayer;
-            if (owner.equals(sourcePlayer) && (type == null || record.type == type)) {
-                used += Math.max(0, record.cost);
-            }
-        }
-        return used;
-    }
-
-    public int getFactionPlayerReserveTotal(String factionKey, KOMEPopulationType type) {
-        String key = normalizeFactionKey(factionKey);
-        int total = 0;
-        for (Map.Entry<UUID, KOMEPlayerPopulation> entry : populations.entrySet()) {
-            if (key.equals(getPlayerFactionKey(entry.getKey())) && entry.getValue() != null) {
-                total += entry.getValue().getTotal(type);
-            }
-        }
-        return total;
-    }
-
-    public int getFactionPlayerReserveUsed(String factionKey, KOMEPopulationType type) {
-        String key = normalizeFactionKey(factionKey);
-        int used = 0;
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (record != null && record.isPlayerReserveFunded() && key.equals(normalizeFactionKey(record.sourceFaction)) && (type == null || record.type == type)) {
-                used += Math.max(0, record.cost);
-            }
-        }
-        return used;
-    }
-
-    public int getTrackedUnitCount(UUID owner, boolean farmhands) {
-        int count = 0;
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (record.farmhand == farmhands && owner.equals(record.owner)) {
                 count++;
             }
         }
@@ -2430,34 +1821,8 @@ public class KOMEWorldData extends WorldSavedData {
         }
     }
 
-    public KOMETilePopulation getFundingPool(KOMEHiredUnitRecord record) {
-        if (record == null) {
-            return null;
-        }
-        String sourceTile = record.sourceTileId == null || record.sourceTileId.length() == 0 ? record.currentTile : record.sourceTileId;
-        String sourceFaction = record.sourceFaction;
-        if (sourceFaction == null || sourceFaction.length() == 0) {
-            KOMEConquestTile tile = conquestTiles.get(KOMEConquestTile.normalizeId(sourceTile));
-            sourceFaction = tile == null ? "" : tile.currentRulingFaction();
-        }
-        KOMETilePopulation population = getTilePopulationPool(sourceTile, sourceFaction);
-        if (population != null) {
-            return population;
-        }
-        List<KOMETilePopulation> pools = getTilePopulationPools(sourceTile);
-        return pools.size() == 1 ? pools.get(0) : null;
-    }
-
-    public static String tilePopulationKey(String tileId, String sourceFaction) {
-        return KOMEConquestTile.normalizeId(tileId) + "|" + KOMEAlliance.normalizeFactionKey(sourceFaction);
-    }
-
     public static String tileWaypointKey(String tileId, String type) {
         return KOMEConquestTile.normalizeId(tileId) + "|" + KOMETileWaypoint.normalizeType(type);
-    }
-
-    public static String populationAllocationKey(String tileId, String faction, UUID playerId) {
-        return KOMEConquestTile.normalizeId(tileId) + "|" + KOMEAlliance.normalizeFactionKey(faction) + "|" + (playerId == null ? "" : playerId.toString());
     }
 
     public static String recruitmentTileKey(String faction, UUID playerId) {
@@ -2474,23 +1839,31 @@ public class KOMEWorldData extends WorldSavedData {
         }
     }
 
-    public static class EffectivePopulationSummary {
-        public int offensiveTotal;
-        public int offensiveUsed;
-        public int defensiveTotal;
-        public int defensiveUsed;
-
-        public int getOffensiveAvailable() {
-            return Math.max(0, offensiveTotal - offensiveUsed);
+    @Override
+    public synchronized void readFromNBT(NBTTagCompound nbt) {
+        ensureWritable();
+        KOMEWorldData candidate = new KOMEWorldData(DATA_NAME);
+        try {
+            // Preserve the existing empty-root lifecycle: defaults are installed only at START tick.
+            if (nbt != null && nbt.hasNoTags()) {
+                integratedRootInitialized = false;
+                return;
+            }
+            // Readers may retain nested tags. Neither candidate reconciliation nor later gameplay
+            // may share mutable NBT with the caller's persisted source.
+            candidate.readCandidateFromNBT(nbt == null ? null : (NBTTagCompound) nbt.copy());
+        } catch (RuntimeException invalid) {
+            writeBlocked = true;
+            loadFailureReason = "Invalid KOME world data in " + candidate.loadSection + ": "
+                + invalid.getMessage();
+            safeSchemaError(loadFailureReason);
+            throw new IllegalStateException(loadFailureReason, invalid);
         }
-
-        public int getDefensiveAvailable() {
-            return Math.max(0, defensiveTotal - defensiveUsed);
-        }
+        publishLoadedState(candidate);
     }
 
-    @Override
-    public void readFromNBT(NBTTagCompound nbt) {
+    /** Unregistered, short-lived candidate; all existing recovery/reconciliation runs here. */
+    private void readCandidateFromNBT(NBTTagCompound nbt) {
         if (writeBlocked) {
             ensureWritable();
         }
@@ -2508,20 +1881,25 @@ public class KOMEWorldData extends WorldSavedData {
         int savedRootSchema = nbt.getInteger(KOME_DATA_SCHEMA_KEY);
         if (savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
             failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema + "; expected "
-                + KOME_DATA_SCHEMA_VERSION + ". Development-world migration is intentionally disabled.");
+                + KOME_DATA_SCHEMA_VERSION + ". Reset this development world; migration is intentionally disabled.");
         }
-        boolean migratedPopulationData = false;
+        for (String retired : new String[] {"Populations", "TilePopulations", "PopulationAllocations", "PopulationDataSchemaVersion"}) {
+            if (nbt.hasKey(retired)) {
+                failUnsupportedRootSchema("Retired population data " + retired
+                    + " is incompatible with KOME schema " + KOME_DATA_SCHEMA_VERSION
+                    + ". Reset this development world; no population migration is supported.");
+            }
+        }
+        boolean loadedStateReconciled = false;
         int savedAllianceSchema = nbt.hasKey("AllianceDataSchemaVersion") ? nbt.getInteger("AllianceDataSchemaVersion") : 0;
-        int savedPopulationSchema = nbt.hasKey("PopulationDataSchemaVersion") ? nbt.getInteger("PopulationDataSchemaVersion") : 0;
-        validateFactionPopulationSchema(nbt);
+        loadSection = "FactionPopulations";
+        Map<String, KOMEFactionPopulation> loadedPopulations = readCanonicalFactionPopulations(nbt);
         // Validate every Build before publishing any loaded state or clearing current collections.
+        loadSection = "Builds";
         Map<String, KOMEPlayerBuild> loadedBuilds = readCanonicalBuilds(nbt);
+        loadSection = "PopulationPayout";
         Map<String, Long> loadedRemainders = readCanonicalPayoutState(nbt);
         integratedRootInitialized = true;
-        int removedCaptainDesignations = 0;
-        int returnedCaptainPopulation = 0;
-        int removedPostFarmerReservations = 0;
-        populations.clear();
         factionPopulations.clear();
         populationPayoutInitialized = nbt.getBoolean("PopulationPayoutInitialized");
         lastPopulationPayoutBoundaryMillis = populationPayoutInitialized ? nbt.getLong("LastPopulationPayoutBoundaryMillis") : -1L;
@@ -2533,8 +1911,6 @@ public class KOMEWorldData extends WorldSavedData {
         progressions.clear();
         hiredUnits.clear();
         conquestTiles.clear();
-        tilePopulations.clear();
-        populationAllocations.clear();
         activeRecruitmentTiles.clear();
         tileWaypoints.clear();
         tileWaypointLinksByTileId.clear();
@@ -2571,22 +1947,27 @@ public class KOMEWorldData extends WorldSavedData {
         movementTotalSecondsOverride = Math.max(0, nbt.getInteger("MovementTotalSecondsOverride"));
         movementStepDelaySeconds = nbt.hasKey("MovementStepDelaySeconds") ? Math.max(0, nbt.getInteger("MovementStepDelaySeconds")) : 5;
         nextWarSequence = nbt.hasKey("NextWarSequence") ? Math.max(1, nbt.getInteger("NextWarSequence")) : 1;
+        loadSection = "WarSeason";
         warSeason.readFromNBT(nbt.getCompoundTag("WarSeason"));
         nextBuildSequence = nbt.hasKey("NextBuildSequence") ? Math.max(1, nbt.getInteger("NextBuildSequence")) : 1;
         allianceStageThreeRequiredHalfHours = nbt.hasKey("AllianceStageThreeRequiredHalfHours")
             ? Math.max(1, nbt.getInteger("AllianceStageThreeRequiredHalfHours"))
             : KOMEAllianceProgressionService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
         allianceDifficulty = KOMEAllianceRequirements.normalizeDifficulty(nbt.getString("AllianceDifficulty"));
+        loadSection = "AllianceRequirementOverrides";
         NBTTagList requirementConfig = nbt.getTagList("AllianceRequirementOverrides", 10);
         for (int i = 0; i < requirementConfig.tagCount(); i++) {
+            loadSection = "AllianceRequirementOverrides[" + i + "]";
             NBTTagCompound entry = requirementConfig.getCompoundTagAt(i);
             String key = entry.getString("Key");
             if (key.length() > 0) {
                 allianceRequirementOverrides.put(key, Integer.valueOf(Math.max(0, entry.getInteger("Value"))));
             }
         }
+        loadSection = "AllianceQuotaItemOverrides";
         NBTTagList quotaItemConfig = nbt.getTagList("AllianceQuotaItemOverrides", 10);
         for (int i = 0; i < quotaItemConfig.tagCount(); i++) {
+            loadSection = "AllianceQuotaItemOverrides[" + i + "]";
             NBTTagCompound entry = quotaItemConfig.getCompoundTagAt(i);
             String key = normalizeQuotaKey(entry.getString("Key"));
             if (key.length() == 0) {
@@ -2602,6 +1983,7 @@ public class KOMEWorldData extends WorldSavedData {
                 allianceQuotaEnabledOverrides.put(key, Boolean.valueOf(entry.getBoolean("Enabled")));
             }
         }
+        loadSection = "AllianceAdminAudit";
         NBTTagList adminAuditList = nbt.getTagList("AllianceAdminAudit", 10);
         for (int i = 0; i < adminAuditList.tagCount() && allianceAdminAudit.size() < 200; i++) {
             String entry = adminAuditList.getCompoundTagAt(i).getString("Entry");
@@ -2609,44 +1991,34 @@ public class KOMEWorldData extends WorldSavedData {
                 allianceAdminAudit.add(entry);
             }
         }
+        loadSection = "CentralAudit";
         KOMEAuditService.readFromNBT(this, nbt);
         conquestDefaultsInitialized = nbt.hasKey("ConquestDefaultsInitialized") && nbt.getBoolean("ConquestDefaultsInitialized");
 
-        NBTTagList popList = nbt.getTagList("Populations", 10);
-        for (int i = 0; i < popList.tagCount(); i++) {
-            NBTTagCompound entry = popList.getCompoundTagAt(i);
-            KOMEPlayerPopulation pop = new KOMEPlayerPopulation();
-            pop.readFromNBT(entry);
-            populations.put(UUID.fromString(entry.getString("Player")), pop);
-        }
+        factionPopulations.putAll(loadedPopulations);
 
-        NBTTagList factionPopulationList = nbt.getTagList("FactionPopulations", 10);
-        for (int i = 0; i < factionPopulationList.tagCount(); i++) {
-            NBTTagCompound entry = factionPopulationList.getCompoundTagAt(i);
-            String faction = KOMEAlliance.normalizeFactionKey(entry.getString("Faction"));
-            if (faction.length() == 0) {
-                continue;
-            }
-            KOMEFactionPopulation population = new KOMEFactionPopulation();
-            population.setAvailablePopulationCenti(entry.getLong("AvailablePopulationCenti"));
-            factionPopulations.put(faction, population);
-        }
+        loadSection = "CanonicalDiplomacyRecords";
         NBTTagList diplomacyList = nbt.getTagList("CanonicalDiplomacyRecords", 10);
         for (int i = 0; i < diplomacyList.tagCount(); i++) {
+            loadSection = "CanonicalDiplomacyRecords[" + i + "]";
             try { KOMEDiplomacyRecord record = KOMEDiplomacyRecord.readFromNBT(diplomacyList.getCompoundTagAt(i)); canonicalDiplomacyRecords.put(record.key(), record); }
             catch (IllegalArgumentException ignored) { }
         }
 
+        loadSection = "Progressions";
         NBTTagList progressionList = nbt.getTagList("Progressions", 10);
         for (int i = 0; i < progressionList.tagCount(); i++) {
+            loadSection = "Progressions[" + i + "]";
             NBTTagCompound entry = progressionList.getCompoundTagAt(i);
             KOMEPlayerProgression progression = new KOMEPlayerProgression();
             progression.readFromNBT(entry);
             progressions.put(UUID.fromString(entry.getString("Player")), progression);
         }
 
+        loadSection = "PlayerNames";
         NBTTagList playerNameList = nbt.getTagList("PlayerNames", 10);
         for (int i = 0; i < playerNameList.tagCount(); i++) {
+            loadSection = "PlayerNames[" + i + "]";
             NBTTagCompound entry = playerNameList.getCompoundTagAt(i);
             String player = entry.getString("Player");
             String name = entry.getString("Name");
@@ -2655,8 +2027,10 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
+        loadSection = "LastKnownPlayerFactions";
         NBTTagList knownFactionList = nbt.getTagList("LastKnownPlayerFactions", 10);
         for (int i = 0; i < knownFactionList.tagCount(); i++) {
+            loadSection = "LastKnownPlayerFactions[" + i + "]";
             NBTTagCompound entry = knownFactionList.getCompoundTagAt(i);
             try {
                 UUID player = UUID.fromString(entry.getString("Player"));
@@ -2664,14 +2038,18 @@ public class KOMEWorldData extends WorldSavedData {
             } catch (IllegalArgumentException ignored) {
             }
         }
+        loadSection = "PledgeReleaseTombstones";
         NBTTagList tombstoneList = nbt.getTagList("PledgeReleaseTombstones", 10);
         for (int i = 0; i < tombstoneList.tagCount(); i++) {
+            loadSection = "PledgeReleaseTombstones[" + i + "]";
             KOMEPledgeReleaseTombstone tombstone = new KOMEPledgeReleaseTombstone();
             tombstone.readFromNBT(tombstoneList.getCompoundTagAt(i));
             if (tombstone.unitUuid != null) pledgeReleaseTombstones.put(tombstone.unitUuid, tombstone);
         }
+        loadSection = "PledgeReleaseQuarantine";
         NBTTagList releaseQuarantineList = nbt.getTagList("PledgeReleaseQuarantine", 10);
         for (int i = 0; i < releaseQuarantineList.tagCount(); i++) {
+            loadSection = "PledgeReleaseQuarantine[" + i + "]";
             NBTTagCompound entry = releaseQuarantineList.getCompoundTagAt(i);
             try {
                 UUID unit = UUID.fromString(entry.getString("Unit"));
@@ -2679,8 +2057,10 @@ public class KOMEWorldData extends WorldSavedData {
             } catch (IllegalArgumentException ignored) {
             }
         }
+        loadSection = "PledgeReleaseLastResults";
         NBTTagList releaseResultList = nbt.getTagList("PledgeReleaseLastResults", 10);
         for (int i = 0; i < releaseResultList.tagCount(); i++) {
+            loadSection = "PledgeReleaseLastResults[" + i + "]";
             NBTTagCompound entry = releaseResultList.getCompoundTagAt(i);
             try {
                 UUID player = UUID.fromString(entry.getString("Player"));
@@ -2688,12 +2068,14 @@ public class KOMEWorldData extends WorldSavedData {
             } catch (IllegalArgumentException ignored) {
             }
         }
+        loadSection = "PledgeReleaseAudit";
         NBTTagList releaseAuditList = nbt.getTagList("PledgeReleaseAudit", 10);
         for (int i = 0; i < releaseAuditList.tagCount() && pledgeReleaseAudit.size() < 250; i++) {
             String entry = releaseAuditList.getCompoundTagAt(i).getString("Entry");
             if (entry.length() > 0) pledgeReleaseAudit.add(entry);
         }
 
+        loadSection = "CompanyDelegationAudit";
         NBTTagList companyDelegationAuditList = nbt.getTagList("CompanyDelegationAudit", 10);
         for (int i = 0; i < companyDelegationAuditList.tagCount() && companyDelegationAudit.size() < 250; i++) {
             String entry = companyDelegationAuditList.getCompoundTagAt(i).getString("Entry");
@@ -2701,8 +2083,10 @@ public class KOMEWorldData extends WorldSavedData {
                 companyDelegationAudit.add(entry);
             }
         }
+        loadSection = "FactionKings";
         NBTTagList kingList = nbt.getTagList("FactionKings", 10);
         for (int i = 0; i < kingList.tagCount(); i++) {
+            loadSection = "FactionKings[" + i + "]";
             NBTTagCompound entry = kingList.getCompoundTagAt(i);
             String faction = normalizeFactionKey(entry.getString("Faction"));
             String player = entry.getString("Player");
@@ -2716,23 +2100,29 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
+        loadSection = "AdminUnitMapMarkerOptOuts";
         NBTTagList adminMarkerList = nbt.getTagList("AdminUnitMapMarkerOptOuts", 10);
         for (int i = 0; i < adminMarkerList.tagCount(); i++) {
+            loadSection = "AdminUnitMapMarkerOptOuts[" + i + "]";
             String player = adminMarkerList.getCompoundTagAt(i).getString("Player");
             if (player.length() > 0) {
                 adminUnitMapMarkerOptOuts.add(UUID.fromString(player));
             }
         }
 
+        loadSection = "HiredUnits";
         NBTTagList hiredList = nbt.getTagList("HiredUnits", 10);
         for (int i = 0; i < hiredList.tagCount(); i++) {
+            loadSection = "HiredUnits[" + i + "]";
             KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
             record.readFromNBT(hiredList.getCompoundTagAt(i));
             hiredUnits.put(record.entity, record);
         }
 
+        loadSection = "ConquestTiles";
         NBTTagList conquestList = nbt.getTagList("ConquestTiles", 10);
         for (int i = 0; i < conquestList.tagCount(); i++) {
+            loadSection = "ConquestTiles[" + i + "]";
             KOMEConquestTile tile = new KOMEConquestTile("");
             tile.readFromNBT(conquestList.getCompoundTagAt(i));
             if (!tile.id.isEmpty()) {
@@ -2740,50 +2130,18 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
-        NBTTagList tilePopulationList = nbt.getTagList("TilePopulations", 10);
-        for (int i = 0; i < tilePopulationList.tagCount(); i++) {
-            NBTTagCompound savedPopulation = tilePopulationList.getCompoundTagAt(i);
-            KOMETilePopulation population = new KOMETilePopulation();
-            population.readFromNBT(savedPopulation);
-            if (population.tileId.length() > 0) {
-                if (!savedPopulation.hasKey("SourceFaction")) {
-                    KOMEConquestTile tile = conquestTiles.get(population.tileId);
-                    String rulingFaction = tile == null ? "" : tile.currentRulingFaction();
-                    if (rulingFaction.length() > 0) {
-                        population.sourceFaction = KOMEAlliance.normalizeFactionKey(rulingFaction);
-                    } else {
-                        population.sourceFaction = KOMEAlliance.normalizeFactionKey(population.faction);
-                    }
-                    population.faction = population.sourceFaction;
-                    migratedPopulationData = true;
-                }
-                tilePopulations.put(tilePopulationKey(population.tileId, population.sourceFaction), population);
-            }
-        }
-
         builds.putAll(loadedBuilds);
+        loadSection = "ForeignConstructionPermissions";
         NBTTagList foreignConstructionList = nbt.getTagList("ForeignConstructionPermissions", 10);
         for (int i = 0; i < foreignConstructionList.tagCount(); i++) {
+            loadSection = "ForeignConstructionPermissions[" + i + "]";
             KOMEForeignConstructionPermission permission = new KOMEForeignConstructionPermission();
             if (permission.readFromNBT(foreignConstructionList.getCompoundTagAt(i))) foreignConstructionPermissions.put(permission.key(), permission);
         }
-        if (savedPopulationSchema < POPULATION_DATA_SCHEMA_VERSION) {
-            safeAllianceInfo("[KOME] Population schema " + savedPopulationSchema + " -> "
-                + POPULATION_DATA_SCHEMA_VERSION + ": preserved legacy totals as native faction pools.");
-            migratedPopulationData = true;
-        }
-
-        NBTTagList allocationList = nbt.getTagList("PopulationAllocations", 10);
-        for (int i = 0; i < allocationList.tagCount(); i++) {
-            KOMEPlayerTilePopulationAllocation allocation = new KOMEPlayerTilePopulationAllocation();
-            allocation.readFromNBT(allocationList.getCompoundTagAt(i));
-            if (allocation.playerUuid != null && allocation.tileId.length() > 0 && allocation.faction.length() > 0) {
-                populationAllocations.put(populationAllocationKey(allocation.tileId, allocation.faction, allocation.playerUuid), allocation);
-            }
-        }
-
+        loadSection = "ActiveRecruitmentTiles";
         NBTTagList recruitmentTileList = nbt.getTagList("ActiveRecruitmentTiles", 10);
         for (int i = 0; i < recruitmentTileList.tagCount(); i++) {
+            loadSection = "ActiveRecruitmentTiles[" + i + "]";
             NBTTagCompound entry = recruitmentTileList.getCompoundTagAt(i);
             String faction = KOMEAlliance.normalizeFactionKey(entry.getString("Faction"));
             String player = entry.getString("Player");
@@ -2793,8 +2151,10 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
+        loadSection = "TileWaypoints";
         NBTTagList waypointList = nbt.getTagList("TileWaypoints", 10);
         for (int i = 0; i < waypointList.tagCount(); i++) {
+            loadSection = "TileWaypoints[" + i + "]";
             KOMETileWaypoint waypoint = new KOMETileWaypoint();
             waypoint.readFromNBT(waypointList.getCompoundTagAt(i));
             if (waypoint.tileId.length() > 0) {
@@ -2806,12 +2166,14 @@ public class KOMEWorldData extends WorldSavedData {
                 KOMETileWaypoint waypoint = new KOMETileWaypoint(tile.id, KOMETileWaypoint.RALLY);
                 waypoint.set(tile.anchorDimension, tile.anchorX, tile.anchorY, tile.anchorZ, "Legacy anchor", false);
                 tileWaypoints.put(tileWaypointKey(tile.id, KOMETileWaypoint.RALLY), waypoint);
-                migratedPopulationData = true;
+                loadedStateReconciled = true;
             }
         }
 
+        loadSection = "TileWaypointLinks";
         NBTTagList tileWaypointLinkList = nbt.getTagList("TileWaypointLinks", 10);
         for (int i = 0; i < tileWaypointLinkList.tagCount(); i++) {
+            loadSection = "TileWaypointLinks[" + i + "]";
             KOMETileWaypointLink link = new KOMETileWaypointLink();
             link.readFromNBT(tileWaypointLinkList.getCompoundTagAt(i));
             if (link.tileId.length() > 0 && link.lotrWaypointKey.length() > 0) {
@@ -2819,8 +2181,10 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
+        loadSection = "RouteEdges";
         NBTTagList routeEdgeList = nbt.getTagList("RouteEdges", 10);
         for (int i = 0; i < routeEdgeList.tagCount(); i++) {
+            loadSection = "RouteEdges[" + i + "]";
             KOMEConquestRouteEdge edge = new KOMEConquestRouteEdge();
             edge.readFromNBT(routeEdgeList.getCompoundTagAt(i));
             if (edge.fromTile.length() > 0 && edge.toTile.length() > 0 && !edge.fromTile.equals(edge.toTile)) {
@@ -2828,138 +2192,38 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (record == null || record.farmhand) {
-                continue;
-            }
-            if (record.sourceTileId == null || record.sourceTileId.length() == 0) {
-                record.sourceTileId = KOMEConquestTile.normalizeId(record.currentTile);
-                migratedPopulationData = true;
-            }
-            if (record.sourceFaction == null || record.sourceFaction.length() == 0) {
-                List<KOMETilePopulation> sourcePools = getTilePopulationPools(record.sourceTileId);
-                KOMEConquestTile sourceTile = conquestTiles.get(record.sourceTileId);
-                String owner = sourceTile == null ? "" : KOMEAlliance.normalizeFactionKey(sourceTile.currentRulingFaction());
-                KOMETilePopulation ownerPool = getTilePopulationPool(record.sourceTileId, owner);
-                if (ownerPool != null) {
-                    record.sourceFaction = ownerPool.sourceFaction;
-                } else if (sourcePools.size() == 1) {
-                    record.sourceFaction = sourcePools.get(0).sourceFaction;
-                }
-                migratedPopulationData = true;
-            }
-            if (!KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE.equals(record.sourceType)
-                    && !KOMEHiredUnitRecord.SOURCE_TILE_POOL.equals(record.sourceType)
-                    && !KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION.equals(record.sourceType)
-                    && !KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)
-                    && !KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK.equals(record.sourceType)
-                    && !KOMEHiredUnitRecord.SOURCE_OTHER_LEGACY.equals(record.sourceType)) {
-                record.sourceType = KOMEHiredUnitRecord.SOURCE_OTHER_LEGACY;
-                migratedPopulationData = true;
-            }
-            if (record.sourcePlayer == null) {
-                record.sourcePlayer = record.owner;
-            }
-            if (record.sourceType.equals(KOMEHiredUnitRecord.SOURCE_TILE_POOL) && getFundingPool(record) == null) {
-                record.sourceType = KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE;
-                migratedPopulationData = true;
-            }
-            if (record.sourceType.equals(KOMEHiredUnitRecord.SOURCE_TILE_POOL) && record.allocationPlayer == null) {
-                KOMEConquestTile sourceTile = conquestTiles.get(KOMEConquestTile.normalizeId(record.sourceTileId));
-                String playerFaction = getPlayerFactionKey(record.owner);
-                if (sourceTile != null && KOMEAlliance.normalizeFactionKey(sourceTile.currentRulingFaction()).equals(KOMEAlliance.normalizeFactionKey(playerFaction))) {
-                    record.allocationTileId = sourceTile.id;
-                    record.allocationFaction = KOMEAlliance.normalizeFactionKey(sourceTile.currentRulingFaction());
-                    record.allocationPlayer = record.owner;
-                    migratedPopulationData = true;
-                }
-            }
-            if (record.allocationPlayer != null && KOMEHiredUnitRecord.SOURCE_TILE_POOL.equals(record.sourceType)) {
-                record.sourceType = KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION;
-                migratedPopulationData = true;
-            }
-            if ("MILITARY_T3_STEWARDSHIP".equals(record.benefitSource)
-                    && !record.isPlayerReserveFunded() && getFundingPool(record) != null) {
-                record.sourceType = KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION;
-                migratedPopulationData = true;
-            }
-        }
+        loadSection = "Build manager reconciliation";
         reconcileBuildManagers();
-
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (record == null || !record.legacyAllianceCaptain && record.legacyCaptainPopulationReservation <= 0) {
-                continue;
-            }
-            int returned = Math.min(Math.max(0, record.cost), Math.max(0, record.legacyCaptainPopulationReservation));
-            if (returned > 0 && !record.isPlayerReserveFunded()) {
-                KOMETilePopulation pool = getFundingPool(record);
-                if (pool != null) {
-                    pool.release(KOMEPopulationType.OFFENSIVE, returned);
-                }
-            }
-            record.cost = Math.max(0, record.cost - returned);
-            returnedCaptainPopulation += returned;
-            removedCaptainDesignations++;
-            record.legacyAllianceCaptain = false;
-            record.legacyCaptainSuspended = false;
-            record.legacyCaptainPopulationReservation = 0;
-            if ("MILITARY_T4_CAPTAIN".equals(record.benefitSource)) {
-                record.benefitSource = "";
-            }
-            migratedPopulationData = true;
-        }
-
-        for (Map.Entry<UUID, KOMEPlayerPopulation> entry : populations.entrySet()) {
-            entry.getValue().setUsed(KOMEPopulationType.OFFENSIVE, getPlayerReservePopulationUsed(entry.getKey(), KOMEPopulationType.OFFENSIVE));
-            entry.getValue().setUsed(KOMEPopulationType.DEFENSIVE, getPlayerReservePopulationUsed(entry.getKey(), KOMEPopulationType.DEFENSIVE));
-        }
-
-        for (KOMEPlayerTilePopulationAllocation allocation : populationAllocations.values()) {
-            allocation.release(KOMEPopulationType.OFFENSIVE, allocation.offensiveUsed);
-            allocation.release(KOMEPopulationType.DEFENSIVE, allocation.defensiveUsed);
-        }
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (record != null && !record.farmhand && !record.isPlayerReserveFunded() && record.allocationPlayer != null) {
-                KOMEPlayerTilePopulationAllocation allocation = getOrCreateAllocation(record.allocationTileId, record.allocationFaction, record.allocationPlayer, playerNames.get(record.allocationPlayer));
-                allocation.setAllocated(record.type, Math.max(allocation.getAllocated(record.type), allocation.getUsed(record.type) + record.cost));
-                allocation.addUsed(record.type, record.cost);
-            }
-        }
-
-        for (KOMEConquestTile tile : conquestTiles.values()) {
-            if (tile != null && tile.isClaimed() && !hasFactionKing(tile.currentRulingFaction()) && tile.claimedByUuid == null) {
-                List<KOMEPlayerTilePopulationAllocation> allocations = getAllocationsForTile(tile.id, tile.currentRulingFaction());
-                if (allocations.size() == 1) {
-                    KOMEPlayerTilePopulationAllocation allocation = allocations.get(0);
-                    tile.claimedByUuid = allocation.playerUuid;
-                    tile.claimedByName = allocation.playerName;
-                    migratedPopulationData = true;
-                }
-            }
-            reconcileClaimantAllocation(tile);
-        }
 
         int allianceLoaded = 0;
         int allianceMerged = 0;
         int allianceDuplicate = 0;
         int allianceQuarantined = 0;
         Set<String> seenAllianceTags = new HashSet<String>();
+        loadSection = "AllianceMigrationQuarantine";
         NBTTagList previousQuarantine = nbt.getTagList("AllianceMigrationQuarantine", 10);
         for (int i = 0; i < previousQuarantine.tagCount(); i++) {
+            loadSection = "AllianceMigrationQuarantine[" + i + "]";
             quarantinedAllianceRecords.add((NBTTagCompound) previousQuarantine.getCompoundTagAt(i).copy());
         }
 
+        loadSection = "RecoveredLegacyTradePostIds";
         NBTTagList recoveredPostIds = nbt.getTagList("RecoveredLegacyTradePostIds", 10);
         for (int i = 0; i < recoveredPostIds.tagCount(); i++) {
+            loadSection = "RecoveredLegacyTradePostIds[" + i + "]";
             String id = recoveredPostIds.getCompoundTagAt(i).getString("Id");
             if (id.length() > 0) recoveredLegacyTradePostIds.add(id);
         }
+        loadSection = "TradePostMigrationQuarantine";
         NBTTagList previousPostQuarantine = nbt.getTagList("TradePostMigrationQuarantine", 10);
         for (int i = 0; i < previousPostQuarantine.tagCount(); i++) {
+            loadSection = "TradePostMigrationQuarantine[" + i + "]";
             quarantinedTradePostRecords.add((NBTTagCompound) previousPostQuarantine.getCompoundTagAt(i).copy());
         }
+        loadSection = "Alliances";
         NBTTagList allianceList = nbt.getTagList("Alliances", 10);
         for (int i = 0; i < allianceList.tagCount(); i++) {
+            loadSection = "Alliances[" + i + "]";
             NBTTagCompound savedAlliance = allianceList.getCompoundTagAt(i);
             String fingerprint = savedAlliance.toString();
             if (!seenAllianceTags.add(fingerprint)) {
@@ -2987,7 +2251,7 @@ public class KOMEWorldData extends WorldSavedData {
                     existing.mergeFrom(alliance, true);
                     allianceMerged++;
                 }
-            } catch (Throwable problem) {
+            } catch (RuntimeException problem) {
                 quarantinedAllianceRecords.add((NBTTagCompound) savedAlliance.copy());
                 allianceQuarantined++;
                 safeAllianceWarning("[KOME] Quarantined malformed alliance record " + i + ": " + problem.toString());
@@ -3021,11 +2285,13 @@ public class KOMEWorldData extends WorldSavedData {
                 + " quarantined=" + allianceQuarantined + " pairs=" + alliances.size());
         }
 
+        loadSection = "AllianceTradePosts";
         NBTTagList tradePostList = nbt.getTagList("AllianceTradePosts", 10);
         int recoveredPostCount = 0;
         int recoveredPostStacks = 0;
         int recoveredPostItems = 0;
         for (int i = 0; i < tradePostList.tagCount(); i++) {
+            loadSection = "AllianceTradePosts[" + i + "]";
             NBTTagCompound savedPost = tradePostList.getCompoundTagAt(i);
             KOMELegacyTradePostRecord post = new KOMELegacyTradePostRecord();
             post.readFromNBT(savedPost);
@@ -3033,8 +2299,7 @@ public class KOMEWorldData extends WorldSavedData {
                     && !post.operatingFaction.equals(post.hostFaction)) {
                 if (post.legacyFarmerReservation) {
                     post.legacyFarmerReservation = false;
-                    removedPostFarmerReservations++;
-                    migratedPopulationData = true;
+                    loadedStateReconciled = true;
                 }
                 if (!recoveredLegacyTradePostIds.contains(post.id)) {
                     KOMEAlliance recoveryAlliance = getAlliance(post.operatingFaction, post.hostFaction, true);
@@ -3059,20 +2324,24 @@ public class KOMEWorldData extends WorldSavedData {
                 + " recoveredStacks=" + recoveredPostStacks + " recoveredItems=" + recoveredPostItems
                 + " quarantined=" + quarantinedTradePostRecords.size()
                 + ". Goods are in the operating faction's alliance-ledger recovery storage.");
-            migratedPopulationData = true;
+            loadedStateReconciled = true;
         }
 
+        loadSection = "Wars";
         NBTTagList warList = nbt.getTagList("Wars", 10);
         for (int i = 0; i < warList.tagCount(); i++) {
+            loadSection = "Wars[" + i + "]";
             KOMEWar war = new KOMEWar();
             war.readFromNBT(warList.getCompoundTagAt(i));
             if (war.id.length() > 0 && !war.sideOneFactions.isEmpty() && !war.sideTwoFactions.isEmpty()) {
                 wars.put(war.id, war);
             }
         }
+        loadSection = "ConquestClaimConfirmations";
         NBTTagList confirmationList = nbt.getTagList("ConquestClaimConfirmations", 10);
         long confirmationNow = System.currentTimeMillis();
         for (int i = 0; i < confirmationList.tagCount(); i++) {
+            loadSection = "ConquestClaimConfirmations[" + i + "]";
             KOMEClaimConfirmation confirmation = new KOMEClaimConfirmation();
             confirmation.readFromNBT(confirmationList.getCompoundTagAt(i));
             if (confirmation.player != null && confirmation.tileId.length() > 0
@@ -3085,11 +2354,13 @@ public class KOMEWorldData extends WorldSavedData {
         // pending stack in the existing alliance-ledger recovery storage. The tags are
         // deliberately never written again, so a save followed by any number of cold
         // restarts cannot duplicate the recovered item.
+        loadSection = "AllianceProduceSlots";
         NBTTagList retiredProduceSlots = nbt.getTagList("AllianceProduceSlots", 10);
         int retiredProduceRecords = retiredProduceSlots.tagCount();
         int recoveredProduceStacks = 0;
         int quarantinedProduceRecords = 0;
         for (int i = 0; i < retiredProduceSlots.tagCount(); i++) {
+            loadSection = "AllianceProduceSlots[" + i + "]";
             NBTTagCompound retired = retiredProduceSlots.getCompoundTagAt(i);
             net.minecraft.item.ItemStack pending = retired.hasKey("CurrentPendingProduct", 10)
                 ? net.minecraft.item.ItemStack.loadItemStackFromNBT(retired.getCompoundTag("CurrentPendingProduct")) : null;
@@ -3109,16 +2380,12 @@ public class KOMEWorldData extends WorldSavedData {
             safeAllianceInfo("[KOME] Removed provisional Produce runtime records=" + retiredProduceRecords
                 + " recoveredPendingStacks=" + recoveredProduceStacks + " quarantined=" + quarantinedProduceRecords
                 + ". No Produce runtime state will be saved.");
-            migratedPopulationData = true;
+            loadedStateReconciled = true;
         }
-        if (savedAllianceSchema < 3 || removedCaptainDesignations > 0 || removedPostFarmerReservations > 0) {
-            safeAllianceInfo("[KOME] Alliance schema-3 cleanup: militaryT4Clamped=true captainDesignationsCleared="
-                + removedCaptainDesignations + " captainPopulationReturned=" + returnedCaptainPopulation
-                + " tradePostFarmerReservationsCleared=" + removedPostFarmerReservations);
-        }
-
+        loadSection = "ArmyMovements";
         NBTTagList movementList = nbt.getTagList("ArmyMovements", 10);
         for (int i = 0; i < movementList.tagCount(); i++) {
+            loadSection = "ArmyMovements[" + i + "]";
             KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
             order.readFromNBT(movementList.getCompoundTagAt(i));
             if (order.id.length() > 0) {
@@ -3126,8 +2393,10 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
+        loadSection = "MovementHistory";
         NBTTagList historyList = nbt.getTagList("MovementHistory", 10);
         for (int i = 0; i < historyList.tagCount(); i++) {
+            loadSection = "MovementHistory[" + i + "]";
             KOMEMovementHistoryRecord record = new KOMEMovementHistoryRecord();
             record.readFromNBT(historyList.getCompoundTagAt(i));
             if (record.historyId.length() > 0) {
@@ -3135,14 +2404,17 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
+        loadSection = "ArmyCompanies";
         NBTTagList companyList = nbt.getTagList("ArmyCompanies", 10);
         for (int i = 0; i < companyList.tagCount(); i++) {
+            loadSection = "ArmyCompanies[" + i + "]";
             KOMEArmyCompany company = new KOMEArmyCompany();
             company.readFromNBT(companyList.getCompoundTagAt(i));
             if (company.id.length() > 0 && company.owner != null) {
                 armyCompanies.put(company.id, company);
             }
         }
+        loadSection = "Company membership reconciliation";
         for (KOMEArmyCompany company : armyCompanies.values()) {
             List<UUID> missingUnits = new ArrayList<UUID>();
             for (UUID unitId : company.units) {
@@ -3159,24 +2431,26 @@ public class KOMEWorldData extends WorldSavedData {
             if (record != null && record.companyId != null && record.companyId.length() > 0
                     && !armyCompanies.containsKey(record.companyId)) {
                 record.companyId = "";
-                migratedPopulationData = true;
+                loadedStateReconciled = true;
             }
         }
 
         if (savedAllianceSchema < 5) {
             safeAllianceInfo("[KOME] Alliance schema-5 migration: coalition wars initialized without inferred history; "
                 + "peacetime kingless stewardship revoked; Trade Posts recovered to ledgers; pledge-release tracking enabled.");
-            migratedPopulationData = true;
+            loadedStateReconciled = true;
         }
 
+        loadSection = "Conquest and waypoint reconciliation";
         if (pruneRetiredConquestTileData()) {
-            migratedPopulationData = true;
+            loadedStateReconciled = true;
         }
 
         if (applyWaypointDefaults(!conquestDefaultsInitialized)) {
-            migratedPopulationData = true;
+            loadedStateReconciled = true;
         }
 
+        loadSection = "War, stewardship and movement restart reconciliation";
         long restartRevalidationNow = System.currentTimeMillis();
         KOMEWarService.reconcileAutomaticMilitarySupport(this, restartRevalidationNow, "World load reconciliation");
         KOMEWartimeStewardshipService.revalidateAll(this, restartRevalidationNow,
@@ -3184,9 +2458,119 @@ public class KOMEWorldData extends WorldSavedData {
         KOMECommandTroops.revalidateTemporaryControllers(this, restartRevalidationNow, "Restart authorization revalidation");
         KOMEMovementAccessService.revalidateAll(this, restartRevalidationNow);
 
-        if (migratedPopulationData || migratedAllianceData) {
+        if (loadedStateReconciled || migratedAllianceData) {
             markDirty();
         }
+    }
+
+    /**
+     * Publishes an entirely parsed/reconciled candidate on the server thread. The final,
+     * concrete HashMap/HashSet/ArrayList containers keep their identities for existing callers.
+     * Keys are Strings/UUIDs; this phase invokes no readers, services, validation or overridable
+     * mutation hooks. Allocation failures (JVM Errors) are not recoverable load rejections.
+     * This is coherent in-memory publication, not a crash-durable filesystem transaction.
+     */
+    private void publishLoadedState(KOMEWorldData candidate) {
+        factionPopulations.clear();
+        factionPopulations.putAll(candidate.factionPopulations);
+        populationPayoutRemainders.clear();
+        populationPayoutRemainders.putAll(candidate.populationPayoutRemainders);
+        progressions.clear();
+        progressions.putAll(candidate.progressions);
+        hiredUnits.clear();
+        hiredUnits.putAll(candidate.hiredUnits);
+        conquestTiles.clear();
+        conquestTiles.putAll(candidate.conquestTiles);
+        activeRecruitmentTiles.clear();
+        activeRecruitmentTiles.putAll(candidate.activeRecruitmentTiles);
+        tileWaypoints.clear();
+        tileWaypoints.putAll(candidate.tileWaypoints);
+        tileWaypointLinksByTileId.clear();
+        tileWaypointLinksByTileId.putAll(candidate.tileWaypointLinksByTileId);
+        routeEdges.clear();
+        routeEdges.putAll(candidate.routeEdges);
+        builds.clear();
+        builds.putAll(candidate.builds);
+        foreignConstructionPermissions.clear();
+        foreignConstructionPermissions.putAll(candidate.foreignConstructionPermissions);
+        alliances.clear();
+        alliances.putAll(candidate.alliances);
+        canonicalDiplomacyRecords.clear();
+        canonicalDiplomacyRecords.putAll(candidate.canonicalDiplomacyRecords);
+        recoveredLegacyTradePostIds.clear();
+        recoveredLegacyTradePostIds.addAll(candidate.recoveredLegacyTradePostIds);
+        quarantinedTradePostRecords.clear();
+        quarantinedTradePostRecords.addAll(candidate.quarantinedTradePostRecords);
+        wars.clear();
+        wars.putAll(candidate.wars);
+        conquestClaimConfirmations.clear();
+        conquestClaimConfirmations.putAll(candidate.conquestClaimConfirmations);
+        lastKnownPlayerFactions.clear();
+        lastKnownPlayerFactions.putAll(candidate.lastKnownPlayerFactions);
+        pledgeReleaseTombstones.clear();
+        pledgeReleaseTombstones.putAll(candidate.pledgeReleaseTombstones);
+        pledgeReleaseQuarantine.clear();
+        pledgeReleaseQuarantine.putAll(candidate.pledgeReleaseQuarantine);
+        pledgeReleaseLastResults.clear();
+        pledgeReleaseLastResults.putAll(candidate.pledgeReleaseLastResults);
+        pledgeReleaseAudit.clear();
+        pledgeReleaseAudit.addAll(candidate.pledgeReleaseAudit);
+        companyDelegationAudit.clear();
+        companyDelegationAudit.addAll(candidate.companyDelegationAudit);
+        centralAudit.clear();
+        centralAudit.addAll(candidate.centralAudit);
+        allianceRequirementOverrides.clear();
+        allianceRequirementOverrides.putAll(candidate.allianceRequirementOverrides);
+        allianceQuotaWeightOverrides.clear();
+        allianceQuotaWeightOverrides.putAll(candidate.allianceQuotaWeightOverrides);
+        allianceQuotaMaximumOverrides.clear();
+        allianceQuotaMaximumOverrides.putAll(candidate.allianceQuotaMaximumOverrides);
+        allianceQuotaEnabledOverrides.clear();
+        allianceQuotaEnabledOverrides.putAll(candidate.allianceQuotaEnabledOverrides);
+        allianceAdminAudit.clear();
+        allianceAdminAudit.addAll(candidate.allianceAdminAudit);
+        quarantinedAllianceRecords.clear();
+        quarantinedAllianceRecords.addAll(candidate.quarantinedAllianceRecords);
+        armyMovements.clear();
+        armyMovements.putAll(candidate.armyMovements);
+        armyCompanies.clear();
+        armyCompanies.putAll(candidate.armyCompanies);
+        movementHistory.clear();
+        movementHistory.putAll(candidate.movementHistory);
+        playerNames.clear();
+        playerNames.putAll(candidate.playerNames);
+        adminUnitMapMarkerOptOuts.clear();
+        adminUnitMapMarkerOptOuts.addAll(candidate.adminUnitMapMarkerOptOuts);
+        kingsByFaction.clear();
+        kingsByFaction.putAll(candidate.kingsByFaction);
+        kingNamesByFaction.clear();
+        kingNamesByFaction.putAll(candidate.kingNamesByFaction);
+        populationPayoutInitialized = candidate.populationPayoutInitialized;
+        lastPopulationPayoutBoundaryMillis = candidate.lastPopulationPayoutBoundaryMillis;
+        populationPayoutTimezone = candidate.populationPayoutTimezone;
+        populationPayoutLocalTime = candidate.populationPayoutLocalTime;
+        populationPayoutLastFailure = candidate.populationPayoutLastFailure;
+        progressionEnabled = candidate.progressionEnabled;
+        movementSecondsPerTileOverride = candidate.movementSecondsPerTileOverride;
+        movementTotalSecondsOverride = candidate.movementTotalSecondsOverride;
+        movementStepDelaySeconds = candidate.movementStepDelaySeconds;
+        nextWarSequence = candidate.nextWarSequence;
+        nextBuildSequence = candidate.nextBuildSequence;
+        allianceStageThreeRequiredHalfHours = candidate.allianceStageThreeRequiredHalfHours;
+        allianceDifficulty = candidate.allianceDifficulty;
+        conquestDefaultsInitialized = candidate.conquestDefaultsInitialized;
+        allianceRelationsNeedReapply = candidate.allianceRelationsNeedReapply;
+        integratedRootInitialized = candidate.integratedRootInitialized;
+        warSeason.seasonId = candidate.warSeason.seasonId;
+        warSeason.phase = candidate.warSeason.phase;
+        warSeason.minimumWarEndMillis = candidate.warSeason.minimumWarEndMillis;
+        warSeason.finaleTriggerActor = candidate.warSeason.finaleTriggerActor;
+        warSeason.finaleTriggerActorName = candidate.warSeason.finaleTriggerActorName;
+        warSeason.finaleTriggerTimeMillis = candidate.warSeason.finaleTriggerTimeMillis;
+        warSeason.finaleEndTimeMillis = candidate.warSeason.finaleEndTimeMillis;
+        warSeason.resetStatus = candidate.warSeason.resetStatus;
+        // Existing dirty state is never lost; successful reconciliation may require a save.
+        super.setDirty(super.isDirty() || candidate.isDirty());
     }
 
     /** Migration-only helper retained so pending items from the retired provisional records are never discarded. */
@@ -3205,7 +2589,7 @@ public class KOMEWorldData extends WorldSavedData {
     private static void safeAllianceWarning(String message) {
         try {
             FMLLog.warning("%s", message);
-        } catch (Throwable ignored) {
+        } catch (RuntimeException ignored) {
             System.err.println(message);
         }
     }
@@ -3213,7 +2597,7 @@ public class KOMEWorldData extends WorldSavedData {
     private static void safeAllianceInfo(String message) {
         try {
             FMLLog.info("%s", message);
-        } catch (Throwable ignored) {
+        } catch (RuntimeException ignored) {
             System.out.println(message);
         }
     }
@@ -3223,20 +2607,6 @@ public class KOMEWorldData extends WorldSavedData {
         for (String tileId : new ArrayList<String>(conquestTiles.keySet())) {
             if (KOMEConquestTileDefaults.isRetiredTile(tileId)) {
                 conquestTiles.remove(tileId);
-                changed = true;
-            }
-        }
-        for (String key : new ArrayList<String>(tilePopulations.keySet())) {
-            KOMETilePopulation population = tilePopulations.get(key);
-            if (population != null && KOMEConquestTileDefaults.isRetiredTile(population.tileId)) {
-                tilePopulations.remove(key);
-                changed = true;
-            }
-        }
-        for (String key : new ArrayList<String>(populationAllocations.keySet())) {
-            KOMEPlayerTilePopulationAllocation allocation = populationAllocations.get(key);
-            if (allocation != null && KOMEConquestTileDefaults.isRetiredTile(allocation.tileId)) {
-                populationAllocations.remove(key);
                 changed = true;
             }
         }
@@ -3279,7 +2649,6 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.removeTag("AllianceProduceSlots");
         nbt.setInteger("AllianceDataSchemaVersion", ALLIANCE_DATA_SCHEMA_VERSION);
         nbt.setInteger("BuildDataSchemaVersion", BUILD_DATA_SCHEMA_VERSION);
-        nbt.setInteger("PopulationDataSchemaVersion", POPULATION_DATA_SCHEMA_VERSION);
         nbt.setBoolean("ProgressionEnabled", progressionEnabled);
         nbt.setInteger("MovementSecondsPerTileOverride", Math.max(0, movementSecondsPerTileOverride));
         nbt.setInteger("MovementTotalSecondsOverride", Math.max(0, movementTotalSecondsOverride));
@@ -3342,14 +2711,6 @@ public class KOMEWorldData extends WorldSavedData {
         }
         nbt.setTag("AllianceAdminAudit", adminAuditList);
         nbt.setBoolean("ConquestDefaultsInitialized", conquestDefaultsInitialized);
-
-        NBTTagList popList = new NBTTagList();
-        for (Map.Entry<UUID, KOMEPlayerPopulation> entry : populations.entrySet()) {
-            NBTTagCompound pop = entry.getValue().writeToNBT();
-            pop.setString("Player", entry.getKey().toString());
-            popList.appendTag(pop);
-        }
-        nbt.setTag("Populations", popList);
 
         nbt.setInteger("FactionPopulationDataSchemaVersion", FACTION_POPULATION_DATA_SCHEMA_VERSION);
         NBTTagList factionPopulationList = new NBTTagList();
@@ -3473,14 +2834,6 @@ public class KOMEWorldData extends WorldSavedData {
         }
         nbt.setTag("ConquestTiles", conquestList);
 
-        NBTTagList tilePopulationList = new NBTTagList();
-        for (KOMETilePopulation population : tilePopulations.values()) {
-            if (population != null && population.tileId != null && population.tileId.length() > 0) {
-                tilePopulationList.appendTag(population.writeToNBT());
-            }
-        }
-        nbt.setTag("TilePopulations", tilePopulationList);
-
         NBTTagList buildList = new NBTTagList();
         for (KOMEPlayerBuild build : builds.values()) {
             if (build != null && build.id != null && build.id.length() > 0) {
@@ -3492,14 +2845,6 @@ public class KOMEWorldData extends WorldSavedData {
         NBTTagList foreignConstructionList = new NBTTagList();
         for (KOMEForeignConstructionPermission permission : foreignConstructionPermissions.values()) if (permission != null) foreignConstructionList.appendTag(permission.writeToNBT());
         nbt.setTag("ForeignConstructionPermissions", foreignConstructionList);
-
-        NBTTagList allocationList = new NBTTagList();
-        for (KOMEPlayerTilePopulationAllocation allocation : populationAllocations.values()) {
-            if (allocation != null && allocation.playerUuid != null) {
-                allocationList.appendTag(allocation.writeToNBT());
-            }
-        }
-        nbt.setTag("PopulationAllocations", allocationList);
 
         NBTTagList recruitmentTileList = new NBTTagList();
         for (Map.Entry<String, String> entry : activeRecruitmentTiles.entrySet()) {
@@ -3622,7 +2967,7 @@ public class KOMEWorldData extends WorldSavedData {
     private static void safeSchemaError(String message) {
         try {
             FMLLog.severe("%s", message);
-        } catch (Throwable ignored) {
+        } catch (RuntimeException ignored) {
             System.err.println(message);
         }
     }
@@ -3721,23 +3066,37 @@ public class KOMEWorldData extends WorldSavedData {
         return loaded;
     }
 
-    private void validateFactionPopulationSchema(NBTTagCompound nbt) {
-        if (!nbt.hasKey("FactionPopulationDataSchemaVersion")
+    /** Strict, single-pass bank parsing: NBT's typed getters alone silently accept missing/wrong tags. */
+    private Map<String, KOMEFactionPopulation> readCanonicalFactionPopulations(NBTTagCompound nbt) {
+        if (!nbt.hasKey("FactionPopulationDataSchemaVersion", 3)
                 || nbt.getInteger("FactionPopulationDataSchemaVersion") != FACTION_POPULATION_DATA_SCHEMA_VERSION) {
             int found = nbt.hasKey("FactionPopulationDataSchemaVersion")
                 ? nbt.getInteger("FactionPopulationDataSchemaVersion") : 0;
             failUnsupportedRootSchema("Unsupported faction-population schema " + found + "; expected "
                 + FACTION_POPULATION_DATA_SCHEMA_VERSION + ". Integer-bank migration is intentionally disabled.");
         }
-        NBTTagList entries = nbt.getTagList("FactionPopulations", 10);
-        Set<String> factions = new HashSet<String>();
+        if (!nbt.hasKey("FactionPopulations", 9)) {
+            failUnsupportedRootSchema("FactionPopulations must be an NBT list.");
+        }
+        NBTTagList entries = (NBTTagList) nbt.getTag("FactionPopulations");
+        // An ordinary empty NBTTagList has element type END (0); an explicitly compound
+        // empty list is also valid. No other declared element type is canonical.
+        int elementType = entries.func_150303_d();
+        if (elementType != 10 && (elementType != 0 || entries.tagCount() > 0)) {
+            failUnsupportedRootSchema("FactionPopulations must contain compound records.");
+        }
+        Map<String, KOMEFactionPopulation> loaded = new HashMap<String, KOMEFactionPopulation>();
         for (int i = 0; i < entries.tagCount(); i++) {
+            loadSection = "FactionPopulations[" + i + "]";
             NBTTagCompound entry = entries.getCompoundTagAt(i);
+            if (!entry.hasKey("Faction", 8)) {
+                failUnsupportedRootSchema("Invalid faction-population record at index " + i + ": Faction must be a string.");
+            }
             String faction = KOMEAlliance.normalizeFactionKey(entry.getString("Faction"));
             if (faction.length() == 0) {
                 failUnsupportedRootSchema("Invalid faction-population record at index " + i + ": faction is blank.");
             }
-            if (!factions.add(faction)) {
+            if (loaded.containsKey(faction)) {
                 failUnsupportedRootSchema("Invalid faction-population record at index " + i
                     + ": duplicate faction " + faction + ".");
             }
@@ -3745,11 +3104,16 @@ public class KOMEWorldData extends WorldSavedData {
                 failUnsupportedRootSchema("Invalid faction-population record at index " + i + " for " + faction
                     + ": AvailablePopulationCenti must be a long.");
             }
-            if (entry.getLong("AvailablePopulationCenti") < 0L) {
+            long balance = entry.getLong("AvailablePopulationCenti");
+            if (balance < 0L) {
                 failUnsupportedRootSchema("Invalid faction-population record at index " + i + " for " + faction
                     + ": AvailablePopulationCenti must not be negative.");
             }
+            KOMEFactionPopulation population = new KOMEFactionPopulation();
+            population.setAvailablePopulationCenti(balance);
+            loaded.put(faction, population);
         }
+        return loaded;
     }
 
     static ItemRecovery recoverTradePostStacks(KOMELegacyTradePostRecord post, KOMEAllianceFactionLedger ledger) {

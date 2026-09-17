@@ -44,21 +44,15 @@ Existing `/kome config`, `/kome config population`, and `/kome config dailyBatch
 
 Before world binding, outcomes are written to the server log. After binding, the existing bounded central audit records CONFIG/WORLD_BOUND, CONFIG/ACCEPTED, CONFIG/REJECTED, or CONFIG/DEFERRED entries. Accepted entries identify changed keys and effective population values; validation failures identify the failing key and requirement. No complete configuration file or unrelated raw values are logged. Existing `/kome audit` remains the audit inspection path. No reload command is added.
 
-## Exact current consumers and temporary boundaries
+## Exact current consumers
 
-Checkpoint D stores approved Build time as centi-hours. With `A` approved centi-hours, `C` configured centi-hours per population point, `M` multiplier basis points, and rate scale `S = 1,000,000`, the exact rate numerator is `A * S * M` and denominator is `C * 10,000`. Native Builds use `M = 10,000`; captured Builds use the configured basis points. `BigInteger` arithmetic supports the entire validated configuration range without intermediate overflow or floating-point conversion. Positive half-up rounding occurs only at final fixed-rate conversion. Contributions are combined before faction-total rounding. The existing saturation of an informational fixed rate at `Long.MAX_VALUE` is retained; authoritative bank mutations remain checked.
+Checkpoint D stores approved Build time as centi-hours. With `A` approved centi-hours, `C` configured centi-hours per population point, `M` multiplier basis points, and rate scale `S = 1,000,000`, the exact rate numerator is `A * S * M` and denominator is `C * 10,000`. Native Builds use `M = 10,000`; captured Builds use the configured basis points. `BigInteger` arithmetic supports the entire validated configuration range without intermediate overflow or floating-point conversion. Positive half-up rounding occurs only at final fixed-rate conversion. Contributions are combined before faction-total rounding. Checkpoint G removes the saturated informational-rate adapter; projections and payout both consume exact BigInteger results. Authoritative bank mutations remain checked.
 
-For example, 1,000 approved centi-hours (10.00 hours) with `10.50` hours per point yields 952381 fixed rate units (0.952381 population/day); the default captured multiplier yields 476190 units. Payout uses the unsaturated `BigInteger` faction result, not the informational `long` projection. A configuration accepted as ready can be used immediately by rate, contribution, command/server-record, and payout paths.
+For example, 1,000 approved centi-hours (10.00 hours) with `10.50` hours per point yields 952381 fixed rate units (0.952381 population/day); the default captured multiplier yields 476190 units. Payout and inspection use the same unsaturated `BigInteger` faction result. A configuration accepted as ready can be used immediately by rate, contribution, command/server-record, and payout paths.
 
 The payout cap compares `getPopulationCapCenti()` directly against the centi bank. Grants fill exact remaining room: a bank of 24.00 under a 24.50 cap can receive 0.50. The configured cap is never floored or clamped to int range. An already-full bank receives nothing; disabling the cap ignores its configured amount. Cap-blocked whole centi-population is discarded, never stored as future debt; an earned sub-centi remainder survives. An unrepresentable grant or balance fails that entire boundary before any faction, remainder, cursor, audit, or dirty-state mutation.
 
-Three legacy projections remain temporarily, with no production callers:
-
-- `getHoursPerPopulationPoint()` requires an exact whole int and throws for fractional or out-of-int-range values. All production rate paths instead use `getHoursPerPopulationPointCentiHours()`.
-- `getCapturedBuildMultiplier()` produces a compatibility-only double. All production calculations instead use `getCapturedBuildMultiplierBasisPoints()`.
-- `getPopulationCapValue()` floors/bounds a compatibility-only int projection. Payout enforcement instead uses the exact optional centi cap.
-
-Structural tests prohibit calls to these legacy projections anywhere in KOME production source. Payout no longer calls whole-unit grant APIs. Unit override maps and the current unit cost calculator, including its mounted surcharge, are untouched. War, season, diplomacy, siege, and feature defaults are preserved.
+Checkpoint G deletes `getHoursPerPopulationPoint()`, `getCapturedBuildMultiplier()` and `getPopulationCapValue()`. The retained APIs are `getHoursPerPopulationPointCentiHours()`, `getCapturedBuildMultiplierBasisPoints()` and `getPopulationCapCenti()`. Structural tests prohibit the retired accessors anywhere in KOME production source. Payout no longer calls whole-unit grant APIs. Unit override maps and the current unit cost calculator, including its mounted surcharge, are untouched. War, season, diplomacy, siege, and feature defaults are preserved.
 
 ## Exact centi accrual and atomic boundaries
 
@@ -74,9 +68,9 @@ Console logging is best effort only after the logical commit. A console failure 
 
 ## Persistence and development-world reset
 
-The integrated root stays `KOMEDataSchemaVersion=2`; Build and faction schemas remain unchanged. Payout state now requires `PopulationPayoutDataSchemaVersion=1`, `PopulationPayoutInitialized` (boolean), `LastPopulationPayoutBoundaryMillis` (long), `PopulationPayoutTimezone` / `PopulationPayoutLocalTime` (strings), and `PopulationPayoutRemainders` (compound list of canonical `Faction` and long `RemainderUnits`). Uninitialized state has cursor -1, empty schedule strings and no remainders. Initialized cursors must identify an actual boundary under their persisted schedule.
+Checkpoint G advances the integrated root to `KOMEDataSchemaVersion=3` to retire the player/tile/allocation ledger sections; see [retirement and reset policy](KOME_LEGACY_POPULATION_RETIREMENT.md). Build and faction nested schemas remain unchanged. Payout state now requires `PopulationPayoutDataSchemaVersion=1`, `PopulationPayoutInitialized` (boolean), `LastPopulationPayoutBoundaryMillis` (long), `PopulationPayoutTimezone` / `PopulationPayoutLocalTime` (strings), and `PopulationPayoutRemainders` (compound list of canonical `Faction` and long `RemainderUnits`). Uninitialized state has cursor -1, empty schedule strings and no remainders. Initialized cursors must identify an actual boundary under their persisted schedule.
 
-**Pre-Checkpoint E development worlds require reset, including worlds with no Builds.** Missing/incompatible payout schema, malformed schedules/cursors, duplicate or invalid faction entries, or out-of-range remainders fail closed before world collections publish. Existing root write blocking prevents saving over rejected data. No conversion, old-schedule guessing, or development-save migration is provided.
+**Pre-Checkpoint G development worlds require reset, including worlds with no Builds.** The Checkpoint E payout schema requirements also remain enforced. Missing/incompatible payout schema, malformed schedules/cursors, duplicate or invalid faction entries, or out-of-range remainders fail closed before world collections publish. Existing root write blocking prevents saving over rejected data. No conversion, old-schedule guessing, or development-save migration is provided.
 
 ## Shared schedule, startup and season rules
 

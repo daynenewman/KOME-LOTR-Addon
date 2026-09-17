@@ -27,6 +27,23 @@ public final class KOMEPopulationTestConfig implements AutoCloseable {
         config.save();
         KOMEConfigRegistry.load(file);
     }
+    /** Exercises the real Build/config/rate path, not the retired saturated adapter. */
+    public static java.math.BigInteger rateFromApprovedCentiHours(long amount, long configuredHours) throws Exception {
+        try (KOMEPopulationTestConfig config = new KOMEPopulationTestConfig()) {
+            config.set("population.hoursPerPopulationPoint", java.math.BigDecimal.valueOf(configuredHours, 2).toPlainString());
+            KOMEWorldData data = new KOMEWorldData("rate");
+            KOMEConquestTile tile = new KOMEConquestTile("T100");
+            tile.claim("gondor", 0L); data.conquestTiles.put(tile.id, tile);
+            KOMEPlayerBuild build = new KOMEPlayerBuild();
+            build.id = "B"; build.type = KOMEBuildType.NORMAL; build.tileId = tile.id;
+            build.populationFaction = "gondor"; build.active = true;
+            KOMEBuildContribution contribution = new KOMEBuildContribution();
+            contribution.id = "H"; contribution.centiHours = amount; contribution.status = KOMEBuildContribution.APPROVED;
+            build.contributions.add(contribution); data.builds.put(build.id, build);
+            return KOMEPopulationRateService.getExactDailyPopulationRates(data, KOMEConfigRegistry.population()).get("gondor");
+        }
+    }
+
     @Override public void close() throws Exception {
         KOMEConfigRegistry.onServerStop();
         Field current = KOMEConfigRegistry.class.getDeclaredField("current");

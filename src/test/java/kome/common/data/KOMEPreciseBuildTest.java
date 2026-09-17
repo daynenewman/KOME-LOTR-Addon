@@ -230,16 +230,16 @@ public class KOMEPreciseBuildTest {
         data.conquestTiles.get("T100").claim("rohan", 20L);
         NBTTagCompound initial = saved(data);
         String builds = initial.getTag("Builds").toString();
-        long expectedRate = rate(data, "rohan");
+        BigInteger expectedRate = KOMEPopulationProjection.of(data, "rohan").dailyRateUnits;
         for (int i = 0; i < 3; i++) {
             KOMEWorldData loaded = new KOMEWorldData("reload"); loaded.readFromNBT(saved(data));
             assertEquals(builds, saved(loaded).getTag("Builds").toString());
-            assertEquals(expectedRate, rate(loaded, "rohan"));
+            assertEquals(expectedRate, KOMEPopulationProjection.of(loaded, "rohan").dailyRateUnits);
             assertEquals("rohan", loaded.conquestTiles.get("T100").currentRulingFaction());
             data = loaded;
         }
         assertEquals(2, initial.getInteger("BuildDataSchemaVersion"));
-        assertEquals(2, initial.getInteger("KOMEDataSchemaVersion"));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, initial.getInteger("KOMEDataSchemaVersion"));
         assertEquals(2, initial.getInteger("FactionPopulationDataSchemaVersion"));
         for (KOMEPlayerBuild build : data.builds.values()) {
             NBTTagCompound contribution = build.writeToNBT().getTagList("Contributions", 10).getCompoundTagAt(0);
@@ -325,8 +325,8 @@ public class KOMEPreciseBuildTest {
                     assertEquals(expected(total, configHours, multiplier), rate(data, "rohan"));
                     assertEquals(3, KOMEPopulationService.getPopulationRateContributions(data).size());
                     for (KOMEPopulationRateContribution row : KOMEPopulationService.getPopulationRateContributions(data)) {
-                        assertEquals(expected(BigInteger.valueOf(row.approvedCentiHours), configHours, multiplier), row.currentRate.getFixedUnitsPerDay());
-                        assertEquals(expected(BigInteger.valueOf(row.approvedCentiHours), configHours, 10000L), row.originalRate.getFixedUnitsPerDay());
+                        assertEquals(expected(BigInteger.valueOf(row.approvedCentiHours), configHours, multiplier), row.currentRateUnits.longValueExact());
+                        assertEquals(expected(BigInteger.valueOf(row.approvedCentiHours), configHours, 10000L), row.originalRateUnits.longValueExact());
                     }
                     data.conquestTiles.get("T100").claim("gondor", 40L);
                     assertEquals(expected(total, configHours, 10000L), rate(data, "gondor"));
@@ -345,17 +345,17 @@ public class KOMEPreciseBuildTest {
             data.conquestTiles.get("T100").claim("rohan", 30L);
             // Each row is exactly 0.5 fixed units and rounds up to 1. The aggregate is 1, not 2.
             for (KOMEPopulationRateContribution row : KOMEPopulationService.getPopulationRateContributions(data))
-                assertEquals(1L, row.currentRate.getFixedUnitsPerDay());
-            assertEquals(1L, KOMEPopulationService.getAllDailyPopulationRates(data).get("rohan").getFixedUnitsPerDay());
+                assertEquals(1L, row.currentRateUnits.longValueExact());
+            assertEquals(1L, KOMEPopulationRateService.getExactDailyPopulationRates(data, kome.common.config.KOMEConfigRegistry.population()).get("rohan").longValueExact());
         });
     }
 
-    @Test public void oldHalfHourRepresentableRatesAreUnchanged() {
+    @Test public void oldHalfHourRepresentableRatesAreUnchanged() throws Exception {
         for (long halfHours : new long[] {0L, 1L, 3L, 20L, Integer.MAX_VALUE}) {
             for (long config : new long[] {1L, 1000L, 1050L, Long.MAX_VALUE}) {
                 long amount = Math.multiplyExact(halfHours, 50L);
                 assertEquals(expected(BigInteger.valueOf(amount), config, 10000L),
-                    KOMEPopulationRateService.rate(amount, config).getFixedUnitsPerDay());
+                    KOMEPopulationTestConfig.rateFromApprovedCentiHours(amount, config).longValueExact());
             }
         }
     }
@@ -416,14 +416,14 @@ public class KOMEPreciseBuildTest {
             "Builder", true, "Reviewed", 20L).allowed);
     }
     private static String last(KOMEPlayerBuild build) { return build.auditHistory().get(build.auditHistory().size() - 1); }
-    private static long rate(KOMEWorldData data, String faction) { return KOMEPopulationService.getDailyPopulationRate(data, faction).getFixedUnitsPerDay(); }
+    private static long rate(KOMEWorldData data, String faction) { return kome.common.data.KOMEPopulationProjection.of(data, faction).dailyRateUnits.longValueExact(); }
     private static NBTTagCompound saved(KOMEWorldData data) { NBTTagCompound tag = new NBTTagCompound(); data.writeToNBT(tag); return tag; }
     private static void rejects(Runnable action) { try { action.run(); fail("Expected invalid Build input"); } catch (IllegalArgumentException expected) { assertNotNull(expected.getMessage()); } }
     private static void blocked(Runnable action) { try { action.run(); fail("Expected write-blocked schema"); } catch (IllegalStateException expected) { assertNotNull(expected.getMessage()); } }
     private static long expected(BigInteger amount, long config, long multiplier) {
         BigInteger denominator = BigInteger.valueOf(config).multiply(BigInteger.valueOf(10000L));
         BigInteger numerator = amount.multiply(BigInteger.valueOf(KOMEPopulationRate.SCALE)).multiply(BigInteger.valueOf(multiplier));
-        return numerator.add(denominator.divide(BigInteger.valueOf(2L))).divide(denominator).min(BigInteger.valueOf(Long.MAX_VALUE)).longValueExact();
+        return numerator.add(denominator.divide(BigInteger.valueOf(2L))).divide(denominator).longValueExact();
     }
     private static void withSettings(long hours, long multiplier, Runnable action) throws Exception {
         KOMEConfigRegistry.ValidatedConfig config = KOMEConfigRegistry.currentValidated();

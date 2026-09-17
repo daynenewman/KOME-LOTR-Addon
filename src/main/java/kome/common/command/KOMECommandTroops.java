@@ -655,10 +655,9 @@ public class KOMECommandTroops extends CommandBase {
         if (sourcePlayer == null || sourcePlayer.length() == 0) {
             sourcePlayer = found.sourcePlayer == null ? ownerName : found.sourcePlayer.toString().substring(0, 8);
         }
-        String source = found.isPlayerReserveFunded() ? "Player Reserve / " + sourcePlayer
-            : "Tile " + KOMEConquestTile.normalizeId(found.sourceTileId) + " / " + displayFaction(found.sourceFaction);
-        String releases = found.isPlayerReserveFunded() ? sourcePlayer + " player reserve"
-            : "Tile " + KOMEConquestTile.normalizeId(found.sourceTileId) + " " + displayFaction(found.sourceFaction) + " pool";
+        String source = found.sourceType + " / funding faction "
+            + displayFaction(kome.common.data.KOMEPopulationService.populationFaction(found))
+            + " / source player " + sourcePlayer + " / tile " + KOMEConquestTile.normalizeId(found.sourceTileId);
         sender.addChatMessage(new ChatComponentText((found.unitName == null || found.unitName.length() == 0 ? found.entity.toString().substring(0, 8) : found.unitName)
             + " [" + found.entity + "]"));
         sender.addChatMessage(new ChatComponentText("Owner: " + ownerName + " / " + displayFaction(data.getPlayerFactionKey(found.owner))
@@ -686,7 +685,7 @@ public class KOMECommandTroops extends CommandBase {
             sender.addChatMessage(new ChatComponentText("Company: Unassigned."));
         }
         if (found.allocationTileId != null && found.allocationTileId.length() > 0) {
-            sender.addChatMessage(new ChatComponentText("Allocation: " + found.allocationTileId + " / "
+            sender.addChatMessage(new ChatComponentText("Historical allocation provenance: " + found.allocationTileId + " / "
                 + displayFaction(found.allocationFaction) + " / " + (found.allocationPlayer == null ? "Unknown player" : found.allocationPlayer) + "."));
         }
         KOMEArmyMovementOrder order = found.movementOrderId == null ? null : data.armyMovements.get(found.movementOrderId);
@@ -1007,8 +1006,8 @@ public class KOMECommandTroops extends CommandBase {
         if (order != null) {
             sender.addChatMessage(new ChatComponentText("Last attempted physical spawn: " + formatOrderAttemptLocation(order) + "."));
         }
-        sender.addChatMessage(new ChatComponentText("Funding: " + (record.isPlayerReserveFunded() ? "Player Reserve" : "Tile " + record.sourceTileId)
-            + ", source faction " + displayFaction(record.sourceFaction) + "."));
+        sender.addChatMessage(new ChatComponentText("Funding faction: " + displayFaction(kome.common.data.KOMEPopulationService.populationFaction(record))
+            + ", source " + record.sourceType + ", source tile " + record.sourceTileId + "."));
     }
 
     private void listCompanies(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, UUID owner, String tile) {
@@ -1340,7 +1339,6 @@ public class KOMECommandTroops extends CommandBase {
         for (UUID unitId : unitIds) {
             KOMEHiredUnitRecord record = data.hiredUnits.remove(unitId);
             if (record == null) continue;
-            data.releasePopulationForOrdinaryUnitRemoval(record);
             Entity entity = loaded.get(unitId);
             if (entity != null) KOMEReflection.setDead(entity);
         }
@@ -5074,8 +5072,9 @@ public class KOMECommandTroops extends CommandBase {
         String faction = data.getPlayerFactionKey(record.owner);
         String role = record.type == KOMEPopulationType.DEFENSIVE ? "Defensive (immobile)"
             : record.mounted ? "Offensive mounted" : "Offensive ground";
-        String source = record.isPlayerReserveFunded() ? "Player Reserve"
-            : "Tile " + KOMEConquestTile.normalizeId(record.sourceTileId) + " / " + displayFaction(record.sourceFaction);
+        String source = displayFaction(kome.common.data.KOMEPopulationService.populationFaction(record))
+            + " / " + (record.isPlayerReserveFunded() ? "Historical PLAYER_RESERVE source" : record.sourceType)
+            + " / source tile " + KOMEConquestTile.normalizeId(record.sourceTileId);
         String name = record.unitName == null || record.unitName.trim().length() == 0
             ? record.entity.toString().substring(0, 8) : record.unitName;
         return name + " - " + ownerName + " / " + displayFaction(faction) + " / " + role + " / cost " + record.cost

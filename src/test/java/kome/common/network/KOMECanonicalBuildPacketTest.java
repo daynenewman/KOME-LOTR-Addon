@@ -64,7 +64,7 @@ public class KOMECanonicalBuildPacketTest {
         assertEquals(1L, view.contributions.get(1).centiHours);
         assertEquals("PENDING", view.contributions.get(1).status);
         assertEquals("DEFENSIVE", view.buildType); assertEquals(1, view.pendingCount);
-        KOMEPacketConquestCaptureGui packet = new KOMEPacketConquestCaptureGui("T100", "gondor", "", ""); packet.builds.add(view);
+        KOMEPacketConquestCaptureGui packet = new KOMEPacketConquestCaptureGui(); packet.tileId = "T100"; packet.ownerFaction = "gondor"; packet.builds.add(view);
         ByteBuf bytes = Unpooled.buffer(); packet.toBytes(bytes);
         KOMEPacketConquestCaptureGui read = new KOMEPacketConquestCaptureGui(); read.fromBytes(bytes);
         assertEquals(Long.MAX_VALUE, read.builds.get(0).approvedCentiHours);

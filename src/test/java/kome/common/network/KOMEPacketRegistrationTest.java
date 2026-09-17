@@ -24,9 +24,36 @@ import static org.junit.Assert.*;
 /** Forge names pipeline entries after handler runtime classes, independently of packet IDs. */
 public class KOMEPacketRegistrationTest {
     private static final Set<Integer> EXPECTED_DISCRIMINATORS = new HashSet<Integer>(Arrays.asList(
-        0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+        0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
         25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36
     ));
+
+    @Test public void retiredIdsStayHolesAndEveryRetainedClassKeepsItsIdAndSide() throws Exception {
+        String registry = source("src/main/java/kome/common/network/KOMEPacketHandler.java");
+        String[] entries = {
+            "PopulationGui:0:CLIENT", "PopulationUnitsGui:3:CLIENT", "ConquestCaptureGui:5:CLIENT",
+            "ConquestClaim:6:SERVER", "ConquestOpenCapture:7:SERVER", "ProgressionData:9:CLIENT",
+            "QuotaLedger:10:CLIENT", "ServerRecordRequest:11:SERVER", "ServerRecordData:12:CLIENT",
+            "ConquestData:13:CLIENT", "UnitCapRequest:14:SERVER", "UnitCapUpdate:15:SERVER",
+            "UnitCapSync:16:CLIENT", "AllianceRequest:17:SERVER", "AllianceData:18:CLIENT",
+            "ConquestTransfer:19:SERVER", "LordMenu:20:CLIENT", "LordAction:21:SERVER",
+            "LordHighlight:22:CLIENT", "CompanyListGui:25:CLIENT", "CompanyMoveConfirmGui:26:CLIENT",
+            "CompanyMovePreviewResult:27:CLIENT", "MovementHistoryRequest:28:SERVER",
+            "MovementHistoryData:29:CLIENT", "UnitMapMarkers:30:CLIENT", "WaypointTravelRequest:31:SERVER",
+            "AllianceAction:32:SERVER", "PledgeDepartureRequest:33:SERVER", "PledgeDepartureData:34:CLIENT",
+            "TroopGuiAction:35:SERVER", "BuildAction:36:SERVER"
+        };
+        for (String entry : entries) {
+            String[] parts = entry.split(":");
+            assertTrue(entry, registry.contains("KOMEPacket" + parts[0] + ".class, " + parts[1] + ", Side." + parts[2]));
+        }
+        for (String retired : new String[] {"KOMEPacketTilePopulationUpdate", "KOMEPacketTileAllocationUpdate"}) {
+            assertFalse(registry.contains(retired));
+            assertFalse(Files.exists(Paths.get("src/main/java/kome/common/network/" + retired + ".java")));
+        }
+        assertFalse(registry.contains(".class, 23,"));
+        assertFalse(registry.contains(".class, 24,"));
+    }
 
     @After
     public void clearQueue() {
@@ -58,9 +85,9 @@ public class KOMEPacketRegistrationTest {
             }
         }
 
-        assertEquals(33, registrations);
+        assertEquals(31, registrations);
         assertEquals(EXPECTED_DISCRIMINATORS, discriminators);
-        assertEquals(16, serverRegistrations);
+        assertEquals(14, serverRegistrations);
 
         EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
         Set<String> handlerNames = new HashSet<String>();

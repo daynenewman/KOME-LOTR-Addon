@@ -7,7 +7,7 @@ import kome.common.data.KOMEPopulationProjection;
 
 /** Shared exact projection codec and one matching-artifact protocol identity. */
 public final class KOMEPopulationWire {
-    public static final String VERSION = "1.0.8-integration-f1";
+    public static final String VERSION = "1.0.8-integration-g1";
     public static final int MAX_DECIMAL_DIGITS = 64;
     public static final int MAX_ROWS = 4096;
     public static final int MAX_TEXT_BYTES = 4096;

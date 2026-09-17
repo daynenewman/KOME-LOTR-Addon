@@ -17,7 +17,7 @@ public class KOMEFactionPopulationTest {
         KOMEWorldData data = new KOMEWorldData("test");
 
         KOMEFactionPopulation first = data.getFactionPopulation(" Gondor ");
-        data.grantFactionPopulation(" Gondor ", 12);
+        data.grantFactionPopulationCenti(" Gondor ", 1200L);
 
         assertEquals(1200L, data.getFactionPopulation("gondor").getAvailablePopulationCenti());
         assertTrue(first == data.getFactionPopulation("GONDOR"));
@@ -26,11 +26,11 @@ public class KOMEFactionPopulationTest {
     @Test
     public void factionsHaveIndependentBalances() {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEPopulationService.grant(data, "gondor", 10);
-        KOMEPopulationService.grant(data, "rohan", 20);
+        KOMEPopulationService.grantCenti(data, "gondor", 1000L);
+        KOMEPopulationService.grantCenti(data, "rohan", 2000L);
 
-        assertEquals(10, KOMEPopulationService.getAvailablePopulation(data, "GONDOR"));
-        assertEquals(20, KOMEPopulationService.getAvailablePopulation(data, "rohan"));
+        assertEquals(1000L, KOMEPopulationService.getAvailablePopulationCenti(data, "GONDOR"));
+        assertEquals(2000L, KOMEPopulationService.getAvailablePopulationCenti(data, "rohan"));
     }
 
     @Test
@@ -92,26 +92,9 @@ public class KOMEFactionPopulationTest {
     }
 
     @Test
-    public void legacySplitPopulationDoesNotCreateFactionBalances() {
-        KOMEWorldData data = new KOMEWorldData("test");
-        KOMEPlayerPopulation legacy = data.getPopulation(java.util.UUID.randomUUID());
-        legacy.offensiveTotal = 80;
-        legacy.defensiveTotal = 20;
-
-        NBTTagCompound saved = new NBTTagCompound();
-        data.writeToNBT(saved);
-        KOMEWorldData restored = new KOMEWorldData("test");
-        restored.readFromNBT(saved);
-
-        assertTrue(restored.factionPopulations.isEmpty());
-        assertEquals(0, KOMEPopulationService.getAvailablePopulation(restored, "gondor"));
-        assertTrue(restored.factionPopulations.isEmpty());
-    }
-
-    @Test
     public void activePopulationUsesProvidedLivingRecordsOnlyAndDoesNotTouchBank() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.grantFactionPopulation("gondor", 50);
+        data.grantFactionPopulationCenti("gondor", 5000L);
 
         KOMEHiredUnitRecord gondor = combatRecord("gondor", 12);
         KOMEHiredUnitRecord fallbackFaction = combatRecord("", 8);
@@ -120,7 +103,7 @@ public class KOMEFactionPopulationTest {
         farmhand.farmhand = true;
         KOMEHiredUnitRecord otherFaction = combatRecord("rohan", 25);
 
-        assertEquals(20, KOMEPopulationService.getActivePopulation("GONDOR",
+        assertEquals(java.math.BigInteger.valueOf(2000L), KOMEPopulationService.getExactActivePopulationCenti("GONDOR",
             Arrays.asList(gondor, fallbackFaction, farmhand, otherFaction)));
         assertEquals(5000L, data.getFactionPopulation("gondor").getAvailablePopulationCenti());
     }
@@ -129,7 +112,7 @@ public class KOMEFactionPopulationTest {
     public void readOnlyAvailablePopulationDoesNotCreateAnEmptyBank() {
         KOMEWorldData data = new KOMEWorldData("test");
 
-        assertEquals(0, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(0L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertTrue(data.factionPopulations.isEmpty());
         assertFalse(data.isDirty());
     }
@@ -138,27 +121,27 @@ public class KOMEFactionPopulationTest {
     public void authoritativeMutationsDirtyOnlyWhenTheyChangeStateAndPersist() {
         KOMEWorldData data = new KOMEWorldData("test");
 
-        assertTrue(KOMEPopulationService.trySpend(data, "gondor", 0));
-        KOMEPopulationService.grant(data, "gondor", 0);
+        assertTrue(KOMEPopulationService.trySpendCenti(data, "gondor", 0L));
+        KOMEPopulationService.grantCenti(data, "gondor", 0L);
         assertTrue(data.factionPopulations.isEmpty());
         assertFalse(data.isDirty());
 
-        KOMEPopulationService.grant(data, "gondor", 10);
+        KOMEPopulationService.grantCenti(data, "gondor", 1000L);
         assertTrue(data.isDirty());
         data.setDirty(false);
 
-        assertFalse(KOMEPopulationService.trySpend(data, "gondor", 11));
-        assertEquals(10, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertFalse(KOMEPopulationService.trySpendCenti(data, "gondor", 1100L));
+        assertEquals(1000L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertFalse(data.isDirty());
 
-        assertTrue(KOMEPopulationService.trySpend(data, "gondor", 4));
+        assertTrue(KOMEPopulationService.trySpendCenti(data, "gondor", 400L));
         assertTrue(data.isDirty());
 
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
         KOMEWorldData restored = new KOMEWorldData("test");
         restored.readFromNBT(saved);
-        assertEquals(6, KOMEPopulationService.getAvailablePopulation(restored, "gondor"));
+        assertEquals(600L, KOMEPopulationService.getAvailablePopulationCenti(restored, "gondor"));
     }
 
     @Test
@@ -247,11 +230,11 @@ public class KOMEFactionPopulationTest {
     }
 
     @Test
-    public void activePopulationSaturatesAtIntegerMaximum() {
+    public void activePopulationRemainsExactAboveIntegerMaximum() {
         KOMEHiredUnitRecord first = combatRecord("gondor", Integer.MAX_VALUE);
         KOMEHiredUnitRecord second = combatRecord("gondor", 1);
 
-        assertEquals(Integer.MAX_VALUE, KOMEPopulationService.getActivePopulation("gondor",
+        assertEquals(java.math.BigInteger.valueOf(214748364800L), KOMEPopulationService.getExactActivePopulationCenti("gondor",
             Arrays.asList(first, second)));
     }
 

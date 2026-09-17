@@ -834,32 +834,12 @@ public final class KOMEConfigRegistry {
         public String formatCapturedBuildMultiplier() { return formatScaled(capturedBuildMultiplierBasisPoints, 4); }
         public String formatPopulationCap() { return populationCapCenti.isPresent() ? formatScaled(populationCapCenti.getAsLong(), 2) : "TBD"; }
 
-        /** Legacy whole-int projection; no production rate or payout consumer uses this accessor. */
-        @Deprecated public int getHoursPerPopulationPoint() {
-            if (hoursPerPopulationPointCentiHours % POPULATION_HOURS_SCALE != 0L) {
-                throw new IllegalStateException("Whole-hour compatibility projection requires exact integral hours");
-            }
-            return Math.toIntExact(hoursPerPopulationPointCentiHours / POPULATION_HOURS_SCALE);
-        }
-
-        /** Legacy projection only; active population calculations use exact basis points. */
-        @Deprecated public double getCapturedBuildMultiplier() {
-            return (double) capturedBuildMultiplierBasisPoints / CAPTURED_MULTIPLIER_SCALE;
-        }
-
         public boolean isOfflinePopulationCatchUp() {
             return offlinePopulationCatchUp;
         }
 
         public boolean isPopulationCapEnabled() {
             return populationCapEnabled;
-        }
-
-        /** Legacy whole-int projection only; active payout enforcement uses the exact centi cap. */
-        @Deprecated public OptionalInt getPopulationCapValue() {
-            if (!populationCapCenti.isPresent()) return OptionalInt.empty();
-            long whole = populationCapCenti.getAsLong() / POPULATION_CAP_SCALE;
-            return OptionalInt.of((int) Math.min(Integer.MAX_VALUE, whole));
         }
 
         public boolean isEncirclementPopulationSuppressionEnabled() {

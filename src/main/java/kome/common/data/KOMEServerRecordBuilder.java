@@ -22,7 +22,6 @@ public class KOMEServerRecordBuilder {
         Set<UUID> playerIDs = new HashSet<>();
         playerIDs.addAll(data.playerNames.keySet());
         playerIDs.addAll(data.progressions.keySet());
-        playerIDs.addAll(data.populations.keySet());
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
             if (record.owner != null) {
                 playerIDs.add(record.owner);

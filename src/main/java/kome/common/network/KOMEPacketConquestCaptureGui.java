@@ -24,26 +24,13 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
     public int incomingPop;
     public int outgoingPop;
     public long incomingEtaMillis;
-    public int offensiveTotal;
-    public int offensiveUsed;
-    public int defensiveTotal;
-    public int defensiveUsed;
-    public int farmhandTotal;
-    public int farmhandUsed;
     public boolean canClaim;
     public boolean canTransfer;
     public boolean canAcceptTransfer;
     public boolean canCancelTransfer;
     public boolean canMoveTroops;
-    public boolean canEditPopulation;
-    public int offensiveAllocated;
-    public int defensiveAllocated;
-    public int myOffensiveAllocated;
-    public int myOffensiveUsed;
-    public int myDefensiveAllocated;
-    public int myDefensiveUsed;
+    public boolean canInspectWaypoint;
     public String claimantName = "";
-    public String allocationSummary = "";
     public boolean ownerHasKing;
     public int myOffensivePop;
     public int myDefensivePop;
@@ -62,7 +49,6 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
     public String claimWarning = "";
     public String claimWarDestination = "";
     public final List<BuildView> builds = new ArrayList<BuildView>();
-    public final List<PopulationPoolView> populationPools = new ArrayList<PopulationPoolView>();
     public final List<String> selectablePopulationOwners = new ArrayList<String>();
     public int viewerDimension;
     public double viewerX;
@@ -71,87 +57,6 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
     public String focusBuildId = "";
 
     public KOMEPacketConquestCaptureGui() {
-    }
-
-    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, "", 0, 0, 0, 0, 0, 0, 0L);
-    }
-
-    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, "", offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis);
-    }
-
-    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, 0, 0, 0, 0, 0, 0, false, false, false, false, offensivePop > 0, false, 0, 0, 0, 0, 0, 0, "", "", false, 0, 0, 0, 0, "", false, "", "", "");
-    }
-
-    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAcceptTransfer, canCancelTransfer, canMoveTroops, false, 0, 0, 0, 0, 0, 0, "", "", false, 0, 0, 0, 0, "", false, "", "", "");
-    }
-
-    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops, boolean canEditPopulation) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAcceptTransfer, canCancelTransfer, canMoveTroops, canEditPopulation, 0, 0, 0, 0, 0, 0, "", "", false, 0, 0, 0, 0, "", false, "", "", "");
-    }
-
-    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops, boolean canEditPopulation, int offensiveAllocated, int defensiveAllocated, int myOffensiveAllocated, int myOffensiveUsed, int myDefensiveAllocated, int myDefensiveUsed, String claimantName, String allocationSummary, boolean ownerHasKing) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAcceptTransfer, canCancelTransfer, canMoveTroops, canEditPopulation, offensiveAllocated, defensiveAllocated, myOffensiveAllocated, myOffensiveUsed, myDefensiveAllocated, myDefensiveUsed, claimantName, allocationSummary, ownerHasKing, 0, 0, 0, 0, "", false, "", "", "");
-    }
-
-    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops, boolean canEditPopulation, int offensiveAllocated, int defensiveAllocated, int myOffensiveAllocated, int myOffensiveUsed, int myDefensiveAllocated, int myDefensiveUsed, String claimantName, String allocationSummary, boolean ownerHasKing, int myOffensivePop, int myDefensivePop, int myMountedPop, int myGroundPop, String activeRecruitmentTile, boolean canSetRecruitmentTile) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAcceptTransfer, canCancelTransfer, canMoveTroops, canEditPopulation, offensiveAllocated, defensiveAllocated, myOffensiveAllocated, myOffensiveUsed, myDefensiveAllocated, myDefensiveUsed, claimantName, allocationSummary, ownerHasKing, myOffensivePop, myDefensivePop, myMountedPop, myGroundPop, activeRecruitmentTile, canSetRecruitmentTile, "", "", "");
-    }
-
-    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops, boolean canEditPopulation, int offensiveAllocated, int defensiveAllocated, int myOffensiveAllocated, int myOffensiveUsed, int myDefensiveAllocated, int myDefensiveUsed, String claimantName, String allocationSummary, boolean ownerHasKing, int myOffensivePop, int myDefensivePop, int myMountedPop, int myGroundPop, String activeRecruitmentTile, boolean canSetRecruitmentTile, String lotrWaypointKey, String lotrWaypointDisplayName, String lotrWaypointRegion) {
-        this.tileId = tileId;
-        this.ownerFaction = ownerFaction;
-        this.pendingFromFaction = pendingFromFaction;
-        this.pendingToFaction = pendingToFaction;
-        this.viewerFaction = viewerFaction;
-        this.offensivePop = offensivePop;
-        this.defensivePop = defensivePop;
-        this.mountedPop = mountedPop;
-        this.groundPop = groundPop;
-        this.incomingPop = incomingPop;
-        this.outgoingPop = outgoingPop;
-        this.incomingEtaMillis = incomingEtaMillis;
-        this.offensiveTotal = offensiveTotal;
-        this.offensiveUsed = offensiveUsed;
-        this.defensiveTotal = defensiveTotal;
-        this.defensiveUsed = defensiveUsed;
-        this.farmhandTotal = farmhandTotal;
-        this.farmhandUsed = farmhandUsed;
-        this.canClaim = canClaim;
-        this.canTransfer = canTransfer;
-        this.canAcceptTransfer = canAcceptTransfer;
-        this.canCancelTransfer = canCancelTransfer;
-        this.canMoveTroops = canMoveTroops;
-        this.canEditPopulation = canEditPopulation;
-        this.offensiveAllocated = offensiveAllocated;
-        this.defensiveAllocated = defensiveAllocated;
-        this.myOffensiveAllocated = myOffensiveAllocated;
-        this.myOffensiveUsed = myOffensiveUsed;
-        this.myDefensiveAllocated = myDefensiveAllocated;
-        this.myDefensiveUsed = myDefensiveUsed;
-        this.claimantName = claimantName == null ? "" : claimantName;
-        this.allocationSummary = allocationSummary == null ? "" : allocationSummary;
-        this.ownerHasKing = ownerHasKing;
-        this.myOffensivePop = myOffensivePop;
-        this.myDefensivePop = myDefensivePop;
-        this.myMountedPop = myMountedPop;
-        this.myGroundPop = myGroundPop;
-        this.activeRecruitmentTile = activeRecruitmentTile == null ? "" : activeRecruitmentTile;
-        this.canSetRecruitmentTile = canSetRecruitmentTile;
-        this.lotrWaypointKey = lotrWaypointKey == null ? "" : lotrWaypointKey;
-        this.lotrWaypointDisplayName = lotrWaypointDisplayName == null ? "" : lotrWaypointDisplayName;
-        this.lotrWaypointRegion = lotrWaypointRegion == null ? "" : lotrWaypointRegion;
-    }
-
-    public KOMEPacketConquestCaptureGui(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops, boolean canEditPopulation, int offensiveAllocated, int defensiveAllocated, int myOffensiveAllocated, int myOffensiveUsed, int myDefensiveAllocated, int myDefensiveUsed, String claimantName, String allocationSummary, boolean ownerHasKing, int myOffensivePop, int myDefensivePop, int myMountedPop, int myGroundPop, String activeRecruitmentTile, boolean canSetRecruitmentTile, String lotrWaypointKey, String lotrWaypointDisplayName, String lotrWaypointRegion, int waypointLevel, String currentRulingFaction, String defaultRulingFaction, String mapRegion) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAcceptTransfer, canCancelTransfer, canMoveTroops, canEditPopulation, offensiveAllocated, defensiveAllocated, myOffensiveAllocated, myOffensiveUsed, myDefensiveAllocated, myDefensiveUsed, claimantName, allocationSummary, ownerHasKing, myOffensivePop, myDefensivePop, myMountedPop, myGroundPop, activeRecruitmentTile, canSetRecruitmentTile, lotrWaypointKey, lotrWaypointDisplayName, lotrWaypointRegion);
-        this.waypointLevel = waypointLevel;
-        this.currentRulingFaction = currentRulingFaction == null ? "" : currentRulingFaction;
-        this.defaultRulingFaction = defaultRulingFaction == null ? "" : defaultRulingFaction;
-        this.mapRegion = mapRegion == null ? "" : mapRegion;
     }
 
     @Override
@@ -170,26 +75,13 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         incomingPop = buf.readInt();
         outgoingPop = buf.readInt();
         incomingEtaMillis = buf.readLong();
-        offensiveTotal = buf.readInt();
-        offensiveUsed = buf.readInt();
-        defensiveTotal = buf.readInt();
-        defensiveUsed = buf.readInt();
-        farmhandTotal = buf.readInt();
-        farmhandUsed = buf.readInt();
         canClaim = buf.readBoolean();
         canTransfer = buf.readBoolean();
         canAcceptTransfer = buf.readBoolean();
         canCancelTransfer = buf.readBoolean();
         canMoveTroops = buf.readBoolean();
-        canEditPopulation = buf.readBoolean();
-        offensiveAllocated = buf.readInt();
-        defensiveAllocated = buf.readInt();
-        myOffensiveAllocated = buf.readInt();
-        myOffensiveUsed = buf.readInt();
-        myDefensiveAllocated = buf.readInt();
-        myDefensiveUsed = buf.readInt();
+        canInspectWaypoint = buf.readBoolean();
         claimantName = KOMEPopulationWire.readText(buf);
-        allocationSummary = KOMEPopulationWire.readText(buf);
         ownerHasKing = buf.readBoolean();
         myOffensivePop = buf.readInt();
         myDefensivePop = buf.readInt();
@@ -213,13 +105,6 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             BuildView view = new BuildView();
             view.read(buf);
             builds.add(view);
-        }
-        populationPools.clear();
-        int poolCount = KOMEPopulationWire.count(buf.readInt());
-        for (int i = 0; i < poolCount; i++) {
-            PopulationPoolView view = new PopulationPoolView();
-            view.read(buf);
-            populationPools.add(view);
         }
         selectablePopulationOwners.clear();
         int ownerCount = KOMEPopulationWire.count(buf.readInt());
@@ -249,26 +134,13 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             buf.writeInt(incomingPop);
             buf.writeInt(outgoingPop);
             buf.writeLong(incomingEtaMillis);
-            buf.writeInt(offensiveTotal);
-            buf.writeInt(offensiveUsed);
-            buf.writeInt(defensiveTotal);
-            buf.writeInt(defensiveUsed);
-            buf.writeInt(farmhandTotal);
-            buf.writeInt(farmhandUsed);
             buf.writeBoolean(canClaim);
             buf.writeBoolean(canTransfer);
             buf.writeBoolean(canAcceptTransfer);
             buf.writeBoolean(canCancelTransfer);
             buf.writeBoolean(canMoveTroops);
-            buf.writeBoolean(canEditPopulation);
-            buf.writeInt(offensiveAllocated);
-            buf.writeInt(defensiveAllocated);
-            buf.writeInt(myOffensiveAllocated);
-            buf.writeInt(myOffensiveUsed);
-            buf.writeInt(myDefensiveAllocated);
-            buf.writeInt(myDefensiveUsed);
+            buf.writeBoolean(canInspectWaypoint);
             KOMEPopulationWire.writeText(buf, claimantName);
-            KOMEPopulationWire.writeText(buf, allocationSummary);
             buf.writeBoolean(ownerHasKing);
             buf.writeInt(myOffensivePop);
             buf.writeInt(myDefensivePop);
@@ -288,8 +160,6 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             KOMEPopulationWire.writeText(buf, claimWarDestination == null ? "" : claimWarDestination);
             buf.writeInt(KOMEPopulationWire.count(builds.size()));
             for (BuildView view : builds) view.write(buf);
-            buf.writeInt(KOMEPopulationWire.count(populationPools.size()));
-            for (PopulationPoolView view : populationPools) view.write(buf);
             buf.writeInt(KOMEPopulationWire.count(selectablePopulationOwners.size()));
             for (String owner : selectablePopulationOwners) KOMEPopulationWire.writeText(buf, owner == null ? "" : owner);
             buf.writeInt(viewerDimension);
@@ -403,47 +273,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         }
     }
 
-    public static class PopulationPoolView {
-        public String faction = "";
-        public int nativeOffensive;
-        public int nativeDefensive;
-        public int buildOffensive;
-        public int buildDefensive;
-        public int physicalOffensive;
-        public int physicalDefensive;
-        public int usableOffensive;
-        public int usableDefensive;
-        public int usedOffensive;
-        public int usedDefensive;
 
-        void read(ByteBuf buf) {
-            faction = KOMEPopulationWire.readText(buf);
-            nativeOffensive = buf.readInt();
-            nativeDefensive = buf.readInt();
-            buildOffensive = buf.readInt();
-            buildDefensive = buf.readInt();
-            physicalOffensive = buf.readInt();
-            physicalDefensive = buf.readInt();
-            usableOffensive = buf.readInt();
-            usableDefensive = buf.readInt();
-            usedOffensive = buf.readInt();
-            usedDefensive = buf.readInt();
-        }
-
-        void write(ByteBuf buf) {
-            KOMEPopulationWire.writeText(buf, safe(faction));
-            buf.writeInt(nativeOffensive);
-            buf.writeInt(nativeDefensive);
-            buf.writeInt(buildOffensive);
-            buf.writeInt(buildDefensive);
-            buf.writeInt(physicalOffensive);
-            buf.writeInt(physicalDefensive);
-            buf.writeInt(usableOffensive);
-            buf.writeInt(usableDefensive);
-            buf.writeInt(usedOffensive);
-            buf.writeInt(usedDefensive);
-        }
-    }
 
     private static String safe(String value) {
         return value == null ? "" : value;

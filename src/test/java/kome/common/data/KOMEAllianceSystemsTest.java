@@ -68,48 +68,6 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void stewardshipCapIsGlobalAndExcludesAllocations() {
-        KOMEWorldData data = new KOMEWorldData("test");
-        KOMEConquestTile tile = new KOMEConquestTile("T002");
-        tile.claim("rohan", 0L);
-        data.conquestTiles.put(tile.id, tile);
-        KOMETilePopulation pool = data.getOrCreateTilePopulationPool(tile.id, "rohan");
-        pool.offensiveTotal = 100;
-        data.grantFactionPopulation("rohan", 100);
-        assertEquals(100, data.getKinglessStewardshipAvailable("rohan"));
-        KOMEPlayerTilePopulationAllocation allocation = data.getOrCreateAllocation(tile.id, "rohan", UUID.randomUUID(), "Rider");
-        allocation.offensiveAllocated = 20;
-        assertEquals(100, data.getKinglessStewardshipAvailable("rohan"));
-        KOMEHiredUnitRecord reserved = new KOMEHiredUnitRecord();
-        reserved.entity = UUID.randomUUID();
-        reserved.owner = UUID.randomUUID();
-        reserved.cost = 10;
-        reserved.populationSpent = 10;
-        reserved.benefitSource = "MILITARY_T3_STEWARDSHIP";
-        reserved.populationOwningFaction = "rohan";
-        data.hiredUnits.put(reserved.entity, reserved);
-        assertTrue(KOMEPopulationService.trySpend(data, "rohan", 10));
-        pool.offensiveUsed = 10;
-        assertEquals(90, data.getKinglessStewardshipAvailable("rohan"));
-        assertEquals(100, data.getKinglessStewardshipGlobalCap("rohan"));
-    }
-
-    @Test
-    public void stewardshipExcludesCapturedHistoricalPoolsAndPlayerAllocations() {
-        KOMEWorldData data = new KOMEWorldData("test");
-        KOMEConquestTile tile = new KOMEConquestTile("T003");
-        tile.claim("rohan", 0L);
-        data.conquestTiles.put(tile.id, tile);
-        data.getOrCreateTilePopulationPool(tile.id, "rohan").offensiveTotal = 100;
-        data.getOrCreateTilePopulationPool(tile.id, "gondor").offensiveTotal = 100;
-        KOMEPlayerTilePopulationAllocation allocation = data.getOrCreateAllocation(tile.id, "rohan", UUID.randomUUID(), "Rider");
-        allocation.offensiveAllocated = 20;
-        data.grantFactionPopulation("rohan", 80);
-        // Historical tile pools and allocations do not control canonical stewardship funding.
-        assertEquals(80, data.getKinglessStewardshipAvailable("rohan"));
-    }
-
-    @Test
     public void movementAndCompanyAuthorityRoundTrip() {
         KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
         order.id = "MOVE-1";
@@ -138,60 +96,6 @@ public class KOMEAllianceSystemsTest {
         assertEquals(KOMEArmyCompany.AGGRESSIVE, restored.tendency);
         assertEquals(company.temporaryController, restored.temporaryController);
         assertEquals(KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE, restored.controllerAuthority);
-    }
-
-    @Test
-    public void legacyCaptainMigrationReturnsExactPlayerReservationAndKeepsNpc() {
-        UUID owner = UUID.randomUUID();
-        KOMEHiredUnitRecord source = new KOMEHiredUnitRecord();
-        source.entity = UUID.randomUUID();
-        source.owner = owner;
-        source.sourcePlayer = owner;
-        source.sourceType = KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE;
-        source.cost = 75;
-        source.alliancePair = KOMEAlliance.pairKey("gondor", "rohan");
-        source.spawningFaction = "gondor";
-        source.unitFaction = "rohan";
-        source.benefitSource = "MILITARY_T4_CAPTAIN";
-        NBTTagCompound legacyUnit = source.writeToNBT();
-        legacyUnit.setBoolean("AllianceCaptain", true);
-        legacyUnit.setBoolean("CaptainSuspended", true);
-        legacyUnit.setInteger("CaptainPopulationReservation", 50);
-
-        NBTTagCompound root = new NBTTagCompound();
-        new KOMEWorldData("canonical-fixture").writeToNBT(root);
-        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
-        root.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
-        root.setTag("Builds", new net.minecraft.nbt.NBTTagList());
-        root.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
-        root.setInteger("AllianceDataSchemaVersion", 2);
-        net.minecraft.nbt.NBTTagList units = new net.minecraft.nbt.NBTTagList();
-        units.appendTag(legacyUnit);
-        root.setTag("HiredUnits", units);
-        KOMEPlayerPopulation population = new KOMEPlayerPopulation();
-        population.offensiveTotal = 100;
-        population.offensiveUsed = 75;
-        NBTTagCompound populationNbt = population.writeToNBT();
-        populationNbt.setString("Player", owner.toString());
-        net.minecraft.nbt.NBTTagList populations = new net.minecraft.nbt.NBTTagList();
-        populations.appendTag(populationNbt);
-        root.setTag("Populations", populations);
-
-        KOMEWorldData loaded = new KOMEWorldData("test");
-        loaded.readFromNBT(root);
-        KOMEHiredUnitRecord migrated = loaded.hiredUnits.get(source.entity);
-        assertNotNull(migrated);
-        assertEquals(25, migrated.cost);
-        assertFalse(migrated.legacyAllianceCaptain);
-        assertFalse(migrated.legacyCaptainSuspended);
-        assertEquals(0, migrated.legacyCaptainPopulationReservation);
-        assertEquals("", migrated.benefitSource);
-        assertEquals(25, loaded.getPopulation(owner).offensiveUsed);
-        NBTTagCompound saved = new NBTTagCompound();
-        loaded.writeToNBT(saved);
-        String savedText = saved.toString();
-        assertFalse(savedText.contains("AllianceCaptain"));
-        assertFalse(savedText.contains("CaptainPopulationReservation"));
     }
 
     @Test
@@ -723,9 +627,6 @@ public class KOMEAllianceSystemsTest {
         UUID owner = UUID.randomUUID();
         UUID recipient = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(recipient, "gondor");
-        data.getPopulation(owner).offensiveTotal = 50;
-        data.getPopulation(owner).offensiveUsed = 25;
-        data.getPopulation(recipient).offensiveTotal = 50;
         KOMEHiredUnitRecord unit = new KOMEHiredUnitRecord();
         unit.entity = UUID.randomUUID(); unit.owner = owner; unit.sourcePlayer = owner;
         unit.sourceType = KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE; unit.sourceFaction = "gondor";
@@ -740,8 +641,6 @@ public class KOMEAllianceSystemsTest {
         assertEquals(owner, unit.owner);
         assertEquals("gondor", company.nativeFaction);
         assertEquals("gondor", unit.sourceFaction);
-        assertEquals(25, data.getPopulation(owner).offensiveUsed);
-        assertEquals(0, data.getPopulation(recipient).offensiveUsed);
     }
 
     @Test
@@ -874,33 +773,6 @@ public class KOMEAllianceSystemsTest {
         assertFalse(KOMEWartimeStewardshipService.canEnter(data, company, "mordor", false));
         war.status = KOMEWar.ENDING;
         assertFalse(KOMEWartimeStewardshipService.canEnter(data, company, "rhudel", false));
-    }
-
-    @Test
-    public void stewardshipReservationsShareOneHundredPercentNativePoolAcrossControllers() {
-        KOMEWorldData data = new KOMEWorldData("test");
-        KOMEConquestTile tile = new KOMEConquestTile("T400");
-        tile.claim("rohan", 0L);
-        data.conquestTiles.put(tile.id, tile);
-        KOMETilePopulation pool = data.getOrCreateTilePopulationPool(tile.id, "rohan");
-        pool.offensiveTotal = 100;
-        data.grantFactionPopulation("rohan", 40);
-        for (int i = 0; i < 2; i++) {
-            KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
-            record.entity = UUID.randomUUID();
-            record.cost = 30;
-            record.populationSpent = 30;
-            record.sourceType = KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION;
-            record.benefitSource = "MILITARY_T3_STEWARDSHIP";
-            record.populationOwningFaction = "rohan";
-            record.controller = UUID.randomUUID();
-            data.hiredUnits.put(record.entity, record);
-        }
-        pool.offensiveUsed = 60;
-        assertEquals(60, data.getKinglessStewardshipReserved("rohan"));
-        assertEquals(100, data.getKinglessStewardshipGlobalCap("rohan"));
-        assertEquals(40, data.getKinglessStewardshipAvailable("rohan"));
-        // The retained tile selector is compatibility-only and not part of this total.
     }
 
     @Test
@@ -1049,9 +921,6 @@ public class KOMEAllianceSystemsTest {
         UUID owner = UUID.randomUUID();
         UUID recipient = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(recipient, "gondor");
-        data.getPopulation(owner).offensiveTotal = 50;
-        data.getPopulation(owner).offensiveUsed = 0;
-        data.getPopulation(recipient).offensiveTotal = 50;
         KOMEHiredUnitRecord unit = new KOMEHiredUnitRecord();
         unit.entity = UUID.randomUUID();
         unit.owner = owner;
@@ -1072,16 +941,12 @@ public class KOMEAllianceSystemsTest {
         assertFalse(KOMECompanyTransferService.accept(data, company, recipient, "New", 11L).success);
         assertEquals(owner, company.owner);
         assertEquals(owner, unit.owner);
-        assertEquals(0, data.getPopulation(recipient).offensiveUsed);
     }
 
     @Test
-    public void pledgeReleaseReturnsReserveOnceAndLeavesPersistentUnloadedTombstone() {
+    public void pledgeReleaseNeverRefundsHistoricalFundingAndLeavesPersistentUnloadedTombstone() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID player = UUID.randomUUID();
-        KOMEPlayerPopulation population = data.getPopulation(player);
-        population.offensiveTotal = 50;
-        population.offensiveUsed = 25;
         KOMEHiredUnitRecord unit = ownedUnit(player, "gondor", KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE, 25);
         unit.sourcePlayer = player;
         KOMEArmyCompany company = company("release-company", player, unit);
@@ -1092,7 +957,6 @@ public class KOMEAllianceSystemsTest {
         assertEquals(1, first.unitsReleased);
         assertEquals(1, first.companiesRemoved);
         assertEquals(0, first.offensiveReturned);
-        assertEquals(25, population.offensiveUsed);
         KOMEPledgeReleaseTombstone tombstone = data.pledgeReleaseTombstones.get(unit.entity);
         assertNotNull(tombstone);
         assertTrue(tombstone.populationReturned);
@@ -1100,7 +964,6 @@ public class KOMEAllianceSystemsTest {
         assertFalse(data.hiredUnits.containsKey(unit.entity));
 
         KOMEPledgeReleaseService.release(data, player, "Rider", "gondor", "", 101L, "idempotence retry");
-        assertEquals(25, population.offensiveUsed);
         assertTrue(tombstone.populationReturned);
     }
 
@@ -1108,9 +971,7 @@ public class KOMEAllianceSystemsTest {
     public void pledgeReleaseHandlesFactionBankUnitWithoutRefundOrQuarantine() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID player = UUID.randomUUID();
-        data.grantFactionPopulation("gondor", 75);
-        KOMEPlayerPopulation reserve = data.getPopulation(player);
-        reserve.offensiveTotal = 50;
+        data.grantFactionPopulationCenti("gondor", 7500L);
         KOMEHiredUnitRecord unit = ownedUnit(player, "gondor",
             KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
         KOMEArmyCompany company = company("faction-bank-release", player, unit);
@@ -1122,8 +983,7 @@ public class KOMEAllianceSystemsTest {
 
         assertEquals(1, result.unitsReleased);
         assertEquals(0, result.quarantined);
-        assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
-        assertEquals(0, reserve.offensiveUsed);
+        assertEquals(7500L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertFalse(data.hiredUnits.containsKey(unit.entity));
         KOMEPledgeReleaseTombstone tombstone = data.pledgeReleaseTombstones.get(unit.entity);
         assertTrue(tombstone.populationReturned);
@@ -1137,7 +997,7 @@ public class KOMEAllianceSystemsTest {
         UUID owner = UUID.randomUUID();
         UUID recipient = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(recipient, "gondor");
-        data.grantFactionPopulation("gondor", 75);
+        data.grantFactionPopulationCenti("gondor", 7500L);
         KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
             KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
         NBTTagCompound snapshot = new NBTTagCompound();
@@ -1151,7 +1011,7 @@ public class KOMEAllianceSystemsTest {
         KOMECompanyTransferService.Result result = KOMECompanyTransferService.accept(data, company, recipient, "New", 11L);
 
         assertTrue(result.success);
-        assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(7500L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertEquals("gondor", unit.populationOwningFaction);
         assertEquals(KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, unit.sourceType);
         assertEquals(recipient, company.owner);
@@ -1166,7 +1026,7 @@ public class KOMEAllianceSystemsTest {
         UUID owner = UUID.randomUUID();
         UUID recipient = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(recipient, "rohan");
-        data.grantFactionPopulation("gondor", 75);
+        data.grantFactionPopulationCenti("gondor", 7500L);
         KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
             KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
         KOMEArmyCompany company = company("faction-bank-wrong-faction", owner, unit);
@@ -1176,7 +1036,7 @@ public class KOMEAllianceSystemsTest {
 
         assertFalse(result.success);
         assertTrue(result.message.contains("not currently pledged"));
-        assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(7500L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertEquals(owner, company.owner);
         assertEquals(owner, unit.owner);
         assertEquals(KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, unit.sourceType);
@@ -1187,10 +1047,7 @@ public class KOMEAllianceSystemsTest {
     public void factionBankOrdinaryAndInactiveCleanupCannotReleaseAnyPopulationLedger() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID owner = UUID.randomUUID();
-        data.grantFactionPopulation("gondor", 75);
-        KOMEPlayerPopulation reserve = data.getPopulation(owner);
-        reserve.offensiveTotal = 50;
-        reserve.offensiveUsed = 25;
+        data.grantFactionPopulationCenti("gondor", 7500L);
         KOMEPlayerBuild build = new KOMEPlayerBuild();
         build.id = "BANK-BUILD";
         build.type = KOMEBuildType.NORMAL;
@@ -1198,26 +1055,20 @@ public class KOMEAllianceSystemsTest {
         KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
             KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
 
-        assertFalse(data.releasePopulationForOrdinaryUnitRemoval(unit));
+        data.hiredUnits.put(unit.entity, unit);
+        assertSame(unit, data.removeTerminatedHiredUnit(unit.entity, "Unit removed"));
 
-        assertEquals(75, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
-        assertEquals(25, reserve.offensiveUsed);
+        assertEquals(7500L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertEquals(0, build.approvedCentiHours());
     }
 
     @Test
-    public void pledgeReleaseCancelsSnapshotsReconcilesAllocationAndQuarantinesUnknownSources() {
+    public void pledgeReleaseCancelsSnapshotsAndKeepsHistoricalFundingProvenance() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID player = UUID.randomUUID();
         KOMEConquestTile tile = new KOMEConquestTile("T500");
         tile.claim("gondor", 0L);
         data.conquestTiles.put(tile.id, tile);
-        KOMETilePopulation pool = data.getOrCreateTilePopulationPool(tile.id, "gondor");
-        pool.offensiveTotal = 50;
-        pool.offensiveUsed = 25;
-        KOMEPlayerTilePopulationAllocation allocation = data.getOrCreateAllocation(tile.id, "gondor", player, "Rider");
-        allocation.offensiveAllocated = 25;
-        allocation.offensiveUsed = 25;
 
         KOMEHiredUnitRecord moving = ownedUnit(player, "gondor", KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION, 25);
         moving.sourceTileId = tile.id;
@@ -1246,8 +1097,6 @@ public class KOMEAllianceSystemsTest {
         assertEquals("rohan", result.newFaction);
         assertEquals(1, result.movementsCancelled);
         assertEquals(1, result.snapshotUnitsRemoved);
-        assertEquals(25, pool.offensiveUsed);
-        assertNotNull(data.getAllocation(tile.id, "gondor", player));
         assertTrue(data.pledgeReleaseTombstones.get(moving.entity).entityRemoved);
         assertTrue(data.pledgeReleaseTombstones.get(moving.entity).populationReturned);
         assertFalse(data.pledgeReleaseTombstones.get(ambiguous.entity).quarantined);

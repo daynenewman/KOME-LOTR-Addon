@@ -84,7 +84,7 @@ public class KOMEPopulationPayoutProcessorTest {
         KOMEWorldData data = world("gondor", 1L);
         KOMEPlayerBuild second = add(data, "second", KOMEBuildType.NORMAL, 1L);
         second.populationFaction = "gondor"; data.conquestTiles.get("T-SECOND").claim("gondor", 0L);
-        assertEquals(6667L, KOMEPopulationService.getDailyPopulationRate(data, "gondor").getFixedUnitsPerDay());
+        assertEquals(6667L, kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
         Instant due = initializeAndNext(data);
         pay(data, due); pay(data, KOMEPopulationPayoutProcessor.nextBoundary(due));
         assertEquals(1L, bank(data, "gondor")); assertEquals(3334L, remainder(data, "gondor"));
@@ -93,7 +93,7 @@ public class KOMEPopulationPayoutProcessorTest {
     @Test public void exactUnsaturatedRateFeedsPayoutWithoutUnderpaying() {
         config.set("population.hoursPerPopulationPoint", "0.01");
         KOMEWorldData data = world("gondor", 10_000_000_000_000L);
-        assertEquals(Long.MAX_VALUE, KOMEPopulationService.getDailyPopulationRate(data, "gondor").getFixedUnitsPerDay());
+        assertEquals(new BigInteger("10000000000000000000"), kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits);
         Map<String, BigInteger> exact = KOMEPopulationRateService.getExactDailyPopulationRates(data, KOMEConfigRegistry.population());
         assertEquals(new BigInteger("10000000000000000000"), exact.get("gondor"));
         pay(data, initializeAndNext(data));
@@ -346,7 +346,7 @@ public class KOMEPopulationPayoutProcessorTest {
             assertFalse(forbidden, payout.contains(forbidden));
         String rates = text("src/main/java/kome/common/data/KOMEPopulationRateService.java");
         assertFalse(rates.contains("double ")); assertFalse(rates.contains("float "));
-        assertTrue(rates.contains("getExactDailyPopulationRates(data, KOMEConfigRegistry.population())"));
+        assertTrue(rates.contains("public static Map<String, BigInteger> getExactDailyPopulationRates("));
         assertFalse(java.nio.file.Files.exists(java.nio.file.Paths.get("src/main/java/kome/common/data/KOMEHalfHourService.java")));
     }
 

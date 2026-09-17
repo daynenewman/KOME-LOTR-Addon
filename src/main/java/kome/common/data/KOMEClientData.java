@@ -12,12 +12,9 @@ public class KOMEClientData extends KOMEWorldData {
     }
 
     public void resetClientState() {
-        populations.clear();
         progressions.clear();
         hiredUnits.clear();
         conquestTiles.clear();
-        tilePopulations.clear();
-        populationAllocations.clear();
         activeRecruitmentTiles.clear();
         tileWaypointLinksByTileId.clear();
         routeEdges.clear();

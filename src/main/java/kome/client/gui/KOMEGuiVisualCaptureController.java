@@ -207,11 +207,9 @@ public final class KOMEGuiVisualCaptureController {
         data.tileId = "amon_sul"; data.ownerFaction = "rohan"; data.viewerFaction = "gondor";
         data.offensivePop = 184; data.defensivePop = 96; data.mountedPop = 122; data.groundPop = 62;
         data.incomingPop = 42; data.outgoingPop = 18; data.incomingEtaMillis = 5400000L;
-        data.offensiveTotal = 420; data.offensiveUsed = 214; data.defensiveTotal = 260; data.defensiveUsed = 96;
-        data.farmhandTotal = 48; data.farmhandUsed = 22; data.canClaim = true; data.canTransfer = false;
-        data.canMoveTroops = true; data.offensiveAllocated = 240; data.defensiveAllocated = 150;
-        data.myOffensiveAllocated = 120; data.myOffensiveUsed = 84; data.myDefensiveAllocated = 70; data.myDefensiveUsed = 36;
-        data.claimantName = "Steward Ecthelion"; data.allocationSummary = "Gondor 120/70; Rohan 120/80"; data.ownerHasKing = true;
+        data.canClaim = true; data.canTransfer = false;
+        data.canMoveTroops = true;
+        data.claimantName = "Steward Ecthelion"; data.ownerHasKing = true;
         data.myOffensivePop = 84; data.myDefensivePop = 36; data.myMountedPop = 62; data.myGroundPop = 22;
         data.activeRecruitmentTile = "minas_tirith"; data.lotrWaypointKey = "amonSul"; data.lotrWaypointDisplayName = "Amon Sul";
         data.lotrWaypointRegion = "Eriador"; data.waypointLevel = 2; data.currentRulingFaction = "rohan";
@@ -241,16 +239,8 @@ public final class KOMEGuiVisualCaptureController {
             }
             data.builds.add(build);
         }
-        KOMEPacketConquestCaptureGui.PopulationPoolView gondor = new KOMEPacketConquestCaptureGui.PopulationPoolView();
-        gondor.faction = "gondor"; gondor.nativeOffensive = 50; gondor.nativeDefensive = 25;
-        gondor.buildOffensive = 180; gondor.buildDefensive = 90; gondor.physicalOffensive = 230;
-        gondor.physicalDefensive = 115; gondor.usableOffensive = 115; gondor.usableDefensive = 57;
-        gondor.usedOffensive = 84; gondor.usedDefensive = 36; data.populationPools.add(gondor);
-        KOMEPacketConquestCaptureGui.PopulationPoolView rohan = new KOMEPacketConquestCaptureGui.PopulationPoolView();
-        rohan.faction = "rohan"; rohan.buildOffensive = 120; rohan.buildDefensive = 60;
-        rohan.physicalOffensive = 120; rohan.physicalDefensive = 60; rohan.usableOffensive = 120;
-        rohan.usableDefensive = 60; rohan.usedOffensive = 42; rohan.usedDefensive = 18;
-        data.populationPools.add(rohan);
+        data.population = new kome.common.data.KOMEPopulationProjection("rohan", 2450L,
+            java.math.BigInteger.valueOf(12000L), java.math.BigInteger.valueOf(1250000L), false, 0L);
         KOMEGuiConquestCapture gui = new KOMEGuiConquestCapture(data);
         if (tab >= 0) gui.setVisualTestState(tab, mode, selectedIndex);
         return gui;

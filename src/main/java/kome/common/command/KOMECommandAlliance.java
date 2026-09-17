@@ -10,8 +10,6 @@ import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEConquestTileDefaults;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEPopulationType;
-import kome.common.data.KOMEPlayerTilePopulationAllocation;
-import kome.common.data.KOMETilePopulation;
 import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMERulerAuthorization;
 import kome.common.data.KOMEDiplomacyService;

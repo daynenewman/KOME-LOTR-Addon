@@ -106,8 +106,7 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketLordMenu.Handler.class, KOMEPacketLordMenu.class, 20, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketLordAction>(new KOMEPacketLordAction.Handler()) {}, KOMEPacketLordAction.class, 21, Side.SERVER);
         network.registerMessage(KOMEPacketLordHighlight.Handler.class, KOMEPacketLordHighlight.class, 22, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketTilePopulationUpdate>(new KOMEPacketTilePopulationUpdate.Handler()) {}, KOMEPacketTilePopulationUpdate.class, 23, Side.SERVER);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketTileAllocationUpdate>(new KOMEPacketTileAllocationUpdate.Handler()) {}, KOMEPacketTileAllocationUpdate.class, 24, Side.SERVER);
+        // IDs 23 and 24 are retired population/allocation mutation packets; do not reuse.
         network.registerMessage(KOMEPacketCompanyListGui.Handler.class, KOMEPacketCompanyListGui.class, 25, Side.CLIENT);
         network.registerMessage(KOMEPacketCompanyMoveConfirmGui.Handler.class, KOMEPacketCompanyMoveConfirmGui.class, 26, Side.CLIENT);
         network.registerMessage(KOMEPacketCompanyMovePreviewResult.Handler.class, KOMEPacketCompanyMovePreviewResult.class, 27, Side.CLIENT);

@@ -17,17 +17,18 @@ public class KOMEPopulationPermanentSpendTest {
     @Test
     public void activePopulationUsesLivingHighWaterAndRemovalNeverCreditsTheBank() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.grantFactionPopulation("gondor", 100);
+        data.grantFactionPopulationCenti("gondor", 10000L);
         KOMEHiredUnitRecord living = combat("gondor", 30, 45);
         KOMEHiredUnitRecord second = combat("gondor", 20, 20);
 
-        assertEquals(6500L, KOMEPopulationService.getActivePopulationCenti("gondor",
+        assertEquals(java.math.BigInteger.valueOf(6500L), KOMEPopulationService.getExactActivePopulationCenti("gondor",
             Arrays.asList(living, second)));
-        assertEquals(4500L, KOMEPopulationService.getActivePopulationCenti("gondor",
+        assertEquals(java.math.BigInteger.valueOf(4500L), KOMEPopulationService.getExactActivePopulationCenti("gondor",
             Collections.singletonList(living)));
 
         long before = KOMEPopulationService.getAvailablePopulationCenti(data, "gondor");
-        assertFalse(data.releasePopulationForOrdinaryUnitRemoval(second));
+        data.hiredUnits.put(second.entity, second);
+        assertSame(second, data.removeTerminatedHiredUnit(second.entity, "Unit removed"));
         assertEquals(before, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
     }
 
@@ -42,7 +43,7 @@ public class KOMEPopulationPermanentSpendTest {
         assertEquals(0, restored.cost);
         assertEquals(0, restored.baseCost);
         assertEquals(0, restored.populationSpent);
-        assertEquals(0L, KOMEPopulationService.getActivePopulationCenti("gondor",
+        assertEquals(java.math.BigInteger.valueOf(0L), KOMEPopulationService.getExactActivePopulationCenti("gondor",
             Collections.singletonList(restored)));
         KOMEWorldData data = new KOMEWorldData("test");
         assertEquals(0, KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, restored, 250));
@@ -52,8 +53,8 @@ public class KOMEPopulationPermanentSpendTest {
     @Test
     public void stewardshipDebitsNativeFactionAndDemobilizationDoesNotRefundEitherFaction() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.grantFactionPopulation("rohan", 50);
-        data.grantFactionPopulation("gondor", 50);
+        data.grantFactionPopulationCenti("rohan", 5000L);
+        data.grantFactionPopulationCenti("gondor", 5000L);
         KOMEHiredUnitRecord record = combat("", 25, 25);
         KOMEPopulationService.recordStewardshipCombatHirePayment(record, "rohan");
         KOMEPopulationService.CombatHireDebit debit = KOMEPopulationService.beginCombatHireDebit(data, "rohan", 25);
@@ -81,7 +82,7 @@ public class KOMEPopulationPermanentSpendTest {
         UUID owner = UUID.randomUUID();
         UUID recipient = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(recipient, "gondor");
-        data.grantFactionPopulation("gondor", 24);
+        data.grantFactionPopulationCenti("gondor", 2400L);
         KOMEHiredUnitRecord record = combat("gondor", 20, 40);
         record.owner = owner;
         record.sourcePlayer = owner;

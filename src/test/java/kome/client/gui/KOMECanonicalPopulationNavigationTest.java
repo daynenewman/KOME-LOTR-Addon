@@ -28,7 +28,7 @@ public class KOMECanonicalPopulationNavigationTest {
     @Test public void selectedTabRendersOnlyCanonicalPopulationOrExistingBuildContent() throws Exception {
         String source = source(); String draw = section(source, "public void drawScreen(", "protected void keyTyped(");
         assertTrue(draw.contains("activeTab == 0")); assertTrue(draw.contains("drawBuildTab("));
-        assertTrue(draw.contains("activeTab == 1")); assertTrue(draw.contains("drawPopulationPoolTab("));
+        assertTrue(draw.contains("activeTab == 1")); assertTrue(draw.contains("drawCanonicalPopulationTab("));
         assertFalse(draw.contains("drawCards("));
         String card = section(source, "private void drawPopulationCard(", "private void drawStationedCard(");
         for (String label : new String[] {"Available Population", "Active Population", "Total represented population", "Permanent unit investment", "Tactical strength"})

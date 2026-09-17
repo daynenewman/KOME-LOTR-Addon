@@ -177,29 +177,17 @@ public class KOMEPopulationConfigFoundationTest {
                 KOMEConfigRegistry.readValidated(f)).isEmpty());
     }
 
-    @Test public void capFlagPreservesConfiguredCentiValueAndCompatibility() throws Exception {
+    @Test public void capFlagPreservesConfiguredCentiValue() throws Exception {
         File f = file(); put(f, "population", "populationCapValue", "24.50");
         KOMEConfigRegistry.load(f);
         assertFalse(KOMEConfigRegistry.population().isPopulationCapEnabled());
         assertEquals(2450L, KOMEConfigRegistry.population().getPopulationCapCenti().getAsLong());
-        assertEquals(24, KOMEConfigRegistry.population().getPopulationCapValue().getAsInt());
         put(f, "population", "populationCapEnabled", "true"); KOMEConfigRegistry.load(f);
         assertTrue(KOMEConfigRegistry.population().isPopulationCapEnabled());
         assertEquals(2450L, KOMEConfigRegistry.population().getPopulationCapCenti().getAsLong());
         f = file(); put(f, "population", "populationCapEnabled", "true");
         try { KOMEConfigRegistry.load(f); fail(); }
         catch (KOMEConfigValidationException expected) { assertTrue(expected.getMessage().contains("must be configured")); }
-    }
-
-    @Test public void wholeHourCompatibilityIsExactAndDoesNotTruncateNewValues() throws Exception {
-        assertEquals(10, KOMEConfigRegistry.population().getHoursPerPopulationPoint());
-        assertEquals(0.5D, KOMEConfigRegistry.population().getCapturedBuildMultiplier(), 0.0D);
-        File f = file(); put(f, "population", "hoursPerPopulationPoint", "24.50"); KOMEConfigRegistry.load(f);
-        try { KOMEConfigRegistry.population().getHoursPerPopulationPoint(); fail("No fractional truncation"); }
-        catch (IllegalStateException expected) { assertTrue(expected.getMessage().contains("compatibility projection")); }
-        f = file(); put(f, "population", "hoursPerPopulationPoint", "2147483648"); KOMEConfigRegistry.load(f);
-        try { KOMEConfigRegistry.population().getHoursPerPopulationPoint(); fail("No int overflow"); }
-        catch (ArithmeticException expected) { }
     }
 
     @Test public void initializedWorldGuardsEveryGenerationAndClockKeyAtomically() throws Exception {
@@ -288,7 +276,7 @@ public class KOMEPopulationConfigFoundationTest {
         assertFalse(population.contains("private final double"));
         assertFalse(population.contains("private final float"));
         assertFalse(population.contains("static volatile"));
-        assertTrue(population.contains("Math.toIntExact"));
+        assertFalse(population.contains("getHoursPerPopulationPoint()"));
         String rate = source("src/main/java/kome/common/data/KOMEPopulationRateService.java");
         String payout = source("src/main/java/kome/common/data/KOMEPopulationPayoutProcessor.java");
         assertTrue(rate.contains("getHoursPerPopulationPointCentiHours()"));
@@ -317,15 +305,15 @@ public class KOMEPopulationConfigFoundationTest {
             KOMEWorldData data = productionWorld(20, "gondor");
             data.initializeIntegratedWorld();
             KOMEConfigRegistry.onWorldInitialized(data);
-            Map<String, KOMEPopulationRate> rates = KOMEPopulationRateService.getAllDailyPopulationRates(data);
-            assertEquals(hours[i], expectedRates[i], rates.get("gondor").getFixedUnitsPerDay());
+            Map<String, java.math.BigInteger> rates = KOMEPopulationRateService.getExactDailyPopulationRates(data, kome.common.config.KOMEConfigRegistry.population());
+            assertEquals(hours[i], expectedRates[i], rates.get("gondor").longValueExact());
             List<KOMEPopulationRateContribution> rows = KOMEPopulationRateService.getPopulationRateContributions(data);
             assertEquals(1, rows.size());
-            assertEquals(expectedRates[i], rows.get(0).originalRate.getFixedUnitsPerDay());
-            assertEquals(expectedRates[i], rows.get(0).currentRate.getFixedUnitsPerDay());
+            assertEquals(expectedRates[i], rows.get(0).originalRateUnits.longValueExact());
+            assertEquals(expectedRates[i], rows.get(0).currentRateUnits.longValueExact());
             // Command, GUI and server-record paths use these same production service entry points.
-            assertEquals(expectedRates[i], KOMEPopulationService.getDailyPopulationRate(data, "gondor").getFixedUnitsPerDay());
-            assertEquals(expectedRates[i], KOMEPopulationService.getPopulationRateContributions(data).get(0).currentRate.getFixedUnitsPerDay());
+            assertEquals(expectedRates[i], kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
+            assertEquals(expectedRates[i], KOMEPopulationService.getPopulationRateContributions(data).get(0).currentRateUnits.longValueExact());
             KOMEPopulationPayoutProcessor.Result result = payOneBoundary(data);
             assertTrue(hours[i], result.success);
             assertEquals(java.math.BigInteger.valueOf(expectedRates[i]), result.factions.get(0).exactRateUnits);
@@ -351,15 +339,15 @@ public class KOMEPopulationConfigFoundationTest {
                 KOMEWorldData data = productionWorld(20, "rohan");
                 KOMEPopulationRateContribution row = KOMEPopulationRateService.getPopulationRateContributions(data).get(0);
                 assertEquals("CAPTURED", row.status);
-                assertEquals(expected[h][i], row.currentRate.getFixedUnitsPerDay());
-                assertEquals(expected[h][i], KOMEPopulationRateService.getAllDailyPopulationRates(data).get("rohan").getFixedUnitsPerDay());
+                assertEquals(expected[h][i], row.currentRateUnits.longValueExact());
+                assertEquals(expected[h][i], KOMEPopulationRateService.getExactDailyPopulationRates(data, kome.common.config.KOMEConfigRegistry.population()).get("rohan").longValueExact());
                 KOMEPopulationPayoutProcessor.Result payout = payOneBoundary(data);
                 assertTrue(payout.success);
                 assertEquals(java.math.BigInteger.valueOf(expected[h][i]), payout.factions.get(0).exactRateUnits);
                 assertEquals(0L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
                 for (KOMEConquestTile tile : data.conquestTiles.values()) tile.claim("gondor", 0L);
                 assertEquals(h == 0 ? 1000000L : 952381L,
-                        KOMEPopulationService.getDailyPopulationRate(data, "gondor").getFixedUnitsPerDay());
+                        kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
             }
         }
     }
@@ -370,13 +358,13 @@ public class KOMEPopulationConfigFoundationTest {
         KOMEWorldData data = productionWorld(1, "rohan");
         addProductionBuild(data, "second", 1, "rohan"); addProductionBuild(data, "third", 1, "rohan");
         for (KOMEPopulationRateContribution row : KOMEPopulationService.getPopulationRateContributions(data))
-            assertEquals(5L, row.currentRate.getFixedUnitsPerDay());
+            assertEquals(5L, row.currentRateUnits.longValueExact());
         // 3 * (100 / 21) millionths rounds to 14, not the sum of three rounded rows (15).
-        assertEquals(14L, KOMEPopulationService.getDailyPopulationRate(data, "rohan").getFixedUnitsPerDay());
+        assertEquals(14L, kome.common.data.KOMEPopulationProjection.of(data, "rohan").dailyRateUnits.longValueExact());
         assertEquals(14L, payOneBoundary(data).factions.get(0).nextRemainderUnits);
         put(f, "population", "hoursPerPopulationPoint", "0.16"); KOMEConfigRegistry.load(f);
         // 0.5 / 0.16 * 0.0001 * SCALE = 312.5: a final exact tie rounds up.
-        assertEquals(313L, KOMEPopulationService.getDailyPopulationRate(productionWorld(1, "rohan"), "rohan").getFixedUnitsPerDay());
+        assertEquals(313L, kome.common.data.KOMEPopulationProjection.of(productionWorld(1, "rohan"), "rohan").dailyRateUnits.longValueExact());
     }
 
     @Test public void extremeApprovedTimeAndValidHoursHaveNoIntermediateOverflow() throws Exception {
@@ -384,7 +372,7 @@ public class KOMEPopulationConfigFoundationTest {
         KOMEConfigRegistry.load(f);
         KOMEWorldData data = productionWorld(Integer.MAX_VALUE, "gondor");
         assertEquals(107374182350000000L,
-                KOMEPopulationService.getDailyPopulationRate(data, "gondor").getFixedUnitsPerDay());
+                kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
         KOMEPopulationPayoutRuntime runtime = new KOMEPopulationPayoutRuntime();
         runtime.onStartup(data, Instant.parse("2026-01-10T02:00:00Z"));
         NBTTagCompound before = new NBTTagCompound(); data.writeToNBT(before);
@@ -394,7 +382,7 @@ public class KOMEPopulationConfigFoundationTest {
         assertEquals(10737418235000L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         put(f, "population", "hoursPerPopulationPoint", "92233720368547758.07");
         KOMEConfigRegistry.load(f);
-        assertEquals(0L, KOMEPopulationService.getDailyPopulationRate(data, "gondor").getFixedUnitsPerDay());
+        assertEquals(0L, kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
         assertTrue(runtime.onLiveCheck(data, due).success);
     }
 

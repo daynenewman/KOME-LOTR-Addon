@@ -2,7 +2,6 @@ package kome.common.data;
 
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
 import java.math.BigInteger;
 
 /** Canonical faction-bank mutations plus informational active-population projections. */
@@ -34,24 +33,9 @@ public final class KOMEPopulationService {
         data.grantFactionPopulationCenti(faction, amountCenti);
     }
 
-    /** Retired whole-unit inspection adapter. Live F projections and eligibility never use it. */
-    public static int getAvailablePopulation(KOMEWorldData data, String faction) {
-        return centiToWholeFloorSaturated(getAvailablePopulationCenti(data, faction));
-    }
-
-    /** Whole-unit gameplay compatibility boundary; canonical mutation remains centi-based. */
-    public static boolean trySpend(KOMEWorldData data, String faction, int amount) {
-        return trySpendCenti(data, faction, wholeToCenti(amount));
-    }
-
-    /** Whole-unit payout/admin compatibility boundary; canonical mutation remains centi-based. */
-    public static void grant(KOMEWorldData data, String faction, int amount) {
-        grantCenti(data, faction, wholeToCenti(amount));
-    }
-
     /** Debits the one canonical faction bank for a new combat hire. */
     public static boolean tryDebitCombatHire(KOMEWorldData data, String faction, int amount) {
-        return trySpend(data, faction, amount);
+        return trySpendCenti(data, faction, wholeToCenti(amount));
     }
 
     /** Begins an atomic hire debit. Only this token can roll back its still-uncommitted debit. */
@@ -84,15 +68,6 @@ public final class KOMEPopulationService {
     public static void recordStewardshipCombatHirePayment(KOMEHiredUnitRecord record, String nativeFaction) {
         recordCombatHirePayment(record, nativeFaction);
         record.sourceType = KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION;
-    }
-
-    /**
-     * Active population is informational only. Supply canonical hired-index members:
-     * membership, not an entity query or a separate liveness flag, owns their lifecycle.
-     */
-    public static long getActivePopulationCenti(String faction, Collection<KOMEHiredUnitRecord> livingRecords) {
-        // Compatibility-only saturation, never used by canonical projections or eligibility.
-        return getExactActivePopulationCenti(faction, livingRecords).min(BigInteger.valueOf(Long.MAX_VALUE)).longValueExact();
     }
 
     /**
@@ -149,17 +124,6 @@ public final class KOMEPopulationService {
                 ? 0L : getAvailablePopulationCenti(data, normalized)));
     }
 
-    /** Whole-unit informational compatibility projection. Never use for eligibility. */
-    public static int getActivePopulation(String faction, Collection<KOMEHiredUnitRecord> livingRecords) {
-        return centiToWholeFloorSaturated(getActivePopulationCenti(faction, livingRecords));
-    }
-
-    public static KOMEPopulationRate getDailyPopulationRate(KOMEWorldData data, String faction) {
-        return KOMEPopulationRateService.getDailyPopulationRate(data, faction);
-    }
-    public static Map<String, KOMEPopulationRate> getAllDailyPopulationRates(KOMEWorldData data) {
-        return KOMEPopulationRateService.getAllDailyPopulationRates(data);
-    }
     public static List<KOMEPopulationRateContribution> getPopulationRateContributions(KOMEWorldData data) {
         return KOMEPopulationRateService.getPopulationRateContributions(data);
     }
@@ -175,11 +139,6 @@ public final class KOMEPopulationService {
             throw new IllegalArgumentException("Population must not be negative: " + wholePopulation);
         }
         return Math.multiplyExact((long) wholePopulation, CENTI_PER_POPULATION);
-    }
-
-    private static int centiToWholeFloorSaturated(long centi) {
-        long whole = centi / CENTI_PER_POPULATION;
-        return whole > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) whole;
     }
 
     public static final class CombatHireDebit {

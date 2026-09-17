@@ -789,10 +789,9 @@ public class KOMEEvents {
         EntityPlayer owner = KOMEReflection.getWorld(npc).func_152378_a(record.owner);
         if (record.farmhand) {
             if (owner != null) {
-                owner.addChatMessage(new ChatComponentText("Farmhand slot freed: " + data.getFarmhandsUsed(record.owner) + "/" + data.getFarmhandLimit(record.owner) + " used"));
+                owner.addChatMessage(new ChatComponentText("Farmhand removed: " + data.getFarmhandsUsed(record.owner) + " remaining (zero population cost)"));
             }
         } else {
-            data.releasePopulationForOrdinaryUnitRemoval(record);
             if (owner != null) {
                 owner.addChatMessage(new ChatComponentText("Combat unit removed; its " + record.populationSpent
                     + " population remains permanently spent."));

@@ -1,6 +1,5 @@
 package kome.common.network;
 
-import cpw.mods.fml.common.network.ByteBufUtils;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
@@ -16,28 +15,18 @@ public class KOMEPacketPopulationUnitsGui implements IMessage {
     public String playerName;
     public String filterTile;
     public List units = new ArrayList();
-    public int armyUsed;
-    public int armyTotal;
     public int farmhandsUsed;
-    public int farmhandsLimit;
 
     public KOMEPacketPopulationUnitsGui() {
     }
 
     public KOMEPacketPopulationUnitsGui(String playerName, String filterTile, List units,
             kome.common.data.KOMEPopulationProjection population, int farmhandsUsed) {
-        this(playerName, filterTile, units, 0, 0, farmhandsUsed, -1);
-        this.population = population;
-    }
-
-    public KOMEPacketPopulationUnitsGui(String playerName, String filterTile, List units, int armyUsed, int armyTotal, int farmhandsUsed, int farmhandsLimit) {
         this.playerName = playerName;
         this.filterTile = filterTile;
         this.units = units;
-        this.armyUsed = armyUsed;
-        this.armyTotal = armyTotal;
+        this.population = population;
         this.farmhandsUsed = farmhandsUsed;
-        this.farmhandsLimit = farmhandsLimit;
     }
 
     @Override
@@ -46,10 +35,7 @@ public class KOMEPacketPopulationUnitsGui implements IMessage {
         population = KOMEPopulationWire.readProjection(buf);
         playerName = KOMEPopulationWire.readText(buf);
         filterTile = KOMEPopulationWire.readText(buf);
-        armyUsed = buf.readInt();
-        armyTotal = buf.readInt();
         farmhandsUsed = buf.readInt();
-        farmhandsLimit = buf.readInt();
         int count = KOMEPopulationWire.count(buf.readInt());
         units = new ArrayList();
         for (int i = 0; i < count; i++) {
@@ -67,10 +53,7 @@ public class KOMEPacketPopulationUnitsGui implements IMessage {
             KOMEPopulationWire.writeProjection(buf, population);
             KOMEPopulationWire.writeText(buf, playerName);
             KOMEPopulationWire.writeText(buf, filterTile == null ? "" : filterTile);
-            buf.writeInt(armyUsed);
-            buf.writeInt(armyTotal);
             buf.writeInt(farmhandsUsed);
-            buf.writeInt(farmhandsLimit);
             buf.writeInt(KOMEPopulationWire.count(units.size()));
             for (Object object : units) {
                 ((KOMEUnitGuiEntry) object).toBytes(buf);

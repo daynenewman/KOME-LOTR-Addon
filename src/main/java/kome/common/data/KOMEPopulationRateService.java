@@ -13,20 +13,6 @@ import java.util.TreeMap;
 public final class KOMEPopulationRateService {
     private KOMEPopulationRateService() { }
 
-    public static KOMEPopulationRate getDailyPopulationRate(KOMEWorldData data, String faction) {
-        KOMEPopulationRate rate = getAllDailyPopulationRates(data).get(KOMEAlliance.normalizeFactionKey(faction));
-        return rate == null ? KOMEPopulationRate.ZERO : rate;
-    }
-
-    /** Sorted faction map. Exact native/captured source units are summed before one conversion. */
-    public static Map<String, KOMEPopulationRate> getAllDailyPopulationRates(KOMEWorldData data) {
-        Map<String, KOMEPopulationRate> result = new LinkedHashMap<String, KOMEPopulationRate>();
-        for (Map.Entry<String, BigInteger> entry : getExactDailyPopulationRates(data, KOMEConfigRegistry.population()).entrySet()) {
-            result.put(entry.getKey(), displayRate(entry.getValue()));
-        }
-        return Collections.unmodifiableMap(result);
-    }
-
     /** Unsaturated fixed-rate units; the sole faction aggregation used by payouts and displays. */
     public static Map<String, BigInteger> getExactDailyPopulationRates(KOMEWorldData data,
             KOMEConfigRegistry.PopulationSettings settings) {
@@ -74,12 +60,6 @@ public final class KOMEPopulationRateService {
         return Collections.unmodifiableList(result);
     }
 
-    /** Exact Build/config centi-hour rate, also used by focused conversion tests. */
-    static KOMEPopulationRate rate(long approvedCentiHours, long centiHoursPerPoint) {
-        return fixedRate(rateNumerator(approvedCentiHours, KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE),
-                rateDenominator(centiHoursPerPoint));
-    }
-
     /** Fixed units = approved centi-hours * SCALE * basis points / (configured centi-hours * 10,000). */
     private static BigInteger rateNumerator(long approvedCentiHours, long basisPoints) {
         return BigInteger.valueOf(KOMEBuildTime.requireNonnegative(approvedCentiHours))
@@ -92,16 +72,8 @@ public final class KOMEPopulationRateService {
                 .multiply(BigInteger.valueOf(KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE));
     }
 
-    /** Positive half-up at the final conversion only; preserve existing derived-rate saturation. */
-    private static KOMEPopulationRate fixedRate(BigInteger numerator, BigInteger denominator) {
-        return displayRate(roundedUnits(numerator, denominator));
-    }
-
     private static BigInteger roundedUnits(BigInteger numerator, BigInteger denominator) {
         return numerator.add(denominator.shiftRight(1)).divide(denominator);
     }
 
-    private static KOMEPopulationRate displayRate(BigInteger rounded) {
-        return new KOMEPopulationRate(rounded.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0 ? Long.MAX_VALUE : rounded.longValue());
-    }
 }

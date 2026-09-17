@@ -17,7 +17,10 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
             "", 0L, java.math.BigInteger.ZERO, java.math.BigInteger.ZERO, false, 0L);
 
     public KOMEGuiPopulationUnits(kome.common.network.KOMEPacketPopulationUnitsGui message) {
-        this(message.playerName, message.filterTile, message.units, 0, 0, message.farmhandsUsed, -1);
+        playerName = message.playerName == null ? "" : message.playerName;
+        tileFilter = KOMEConquestTile.normalizeId(message.filterTile);
+        units = message.units == null ? new ArrayList() : message.units;
+        farmhandsUsed = message.farmhandsUsed;
         population = message.population;
     }
     private static final int PANEL_WIDTH = 720;
@@ -42,23 +45,10 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
     private final String playerName;
     private final String tileFilter;
     private final List units;
-    private final int armyUsed;
-    private final int armyTotal;
     private final int farmhandsUsed;
-    private final int farmhandsLimit;
     private int filter;
     private int scroll;
     private int selectedIndex;
-
-    public KOMEGuiPopulationUnits(String playerName, String tileFilter, List units, int armyUsed, int armyTotal, int farmhandsUsed, int farmhandsLimit) {
-        this.playerName = playerName == null ? "" : playerName;
-        this.tileFilter = KOMEConquestTile.normalizeId(tileFilter);
-        this.units = units == null ? new ArrayList() : units;
-        this.armyUsed = armyUsed;
-        this.armyTotal = armyTotal;
-        this.farmhandsUsed = farmhandsUsed;
-        this.farmhandsLimit = farmhandsLimit;
-    }
 
     @Override
     public void initGui() {
@@ -221,7 +211,7 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
         boolean inTransit = "Moving".equals(unit.movementStatus) || "Pending Spawn".equals(unit.movementStatus);
         detailLine(x, y + 24, width, inTransit ? "Current Location" : "Current Tile",
             inTransit ? "In transit to " + tileLabel(unit.destinationTile) : tileLabel(unit.currentTile));
-        String hiredFrom = "PLAYER_RESERVE".equals(unit.sourceType) ? "Player Reserve" : tileLabel(unit.sourceTile);
+        String hiredFrom = "PLAYER_RESERVE".equals(unit.sourceType) ? "Historical PLAYER_RESERVE source" : tileLabel(unit.sourceTile);
         detailLine(x, y + 38, width, "Hired From", hiredFrom);
         if (inTransit || "Arrival Pending".equals(unit.movementStatus)) {
             detailLine(x, y + 52, width, "Origin / Destination", tileLabel(unit.currentTile) + " -> " + tileLabel(unit.destinationTile));

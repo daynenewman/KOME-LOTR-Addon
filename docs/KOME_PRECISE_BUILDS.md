@@ -4,9 +4,9 @@
 
 Each contribution has one authoritative nonnegative `long centiHours`: 100 centi-hours equals 1.00 hour. Only `APPROVED` contributions enter the derived, checked Build total. There is no separately writable approved-total cache, half-hour authority, or population-rate cache.
 
-The integrated root remains `KOMEDataSchemaVersion=2`; faction population remains independently versioned at 2. Build collection `BuildDataSchemaVersion` advances from 1 to 2, and each Build carries `BuildSchemaVersion=2`. Contribution time is exclusively `CentiHours` (NBT long). Required fields, explicit NORMAL/DEFENSIVE type, status, duplicate IDs, and aggregate bounds are validated.
+Checkpoint G advances the integrated root to `KOMEDataSchemaVersion=3`; faction population remains independently versioned at 2. Build collection `BuildDataSchemaVersion` advances from 1 to 2, and each Build carries `BuildSchemaVersion=2`. Contribution time is exclusively `CentiHours` (NBT long). Required fields, explicit NORMAL/DEFENSIVE type, status, duplicate IDs, and aggregate bounds are validated.
 
-Development worlds created before Checkpoint D require reset. No conversion from `HalfHours`, missing schema, or old Build contribution splits is provided. Do not open a world you need to preserve with this development schema. Unsupported or malformed Build records fail visibly through the existing root write-block mechanism before any loaded collection becomes active. Errors name the offending index and Build ID; initialization and saving remain blocked. Unrelated dev state and independently versioned systems are preserved.
+Development worlds created before Checkpoint G require reset; see [legacy retirement and reset policy](KOME_LEGACY_POPULATION_RETIREMENT.md). The Checkpoint D Build-format requirements remain unchanged. No conversion from `HalfHours`, missing schema, or old Build contribution splits is provided. Do not open a world you need to preserve with this development schema. Unsupported or malformed Build records fail visibly through the existing root write-block mechanism before any loaded collection becomes active. Errors name the offending index and Build ID; initialization and saving remain blocked. Unrelated dev state and independently versioned systems are preserved.
 
 ## Input and review
 
@@ -31,13 +31,13 @@ The existing Tile Command registration/contribution form accepts exact decimal h
 
 `/build inspect <id>` shows type, exact approved/proposed hours, status, reviewer/reason and lifecycle history. Existing staff-only `/build sethours <id> <normal|defensive> <hours>` repairs the exact total by retiring prior approved records without erasing their amounts and appending the reviewed replacement. It does not change type. New staff-only `/build adjust <id> <contribution> <hours> [reason]` adjusts one review amount through the same service. Manager reassignment is now audited.
 
-Build action packets carry `long centiHours`; Tile Command Build/contribution views carry `long approvedCentiHours` / `long centiHours`. These wire fields replace int half-hours symmetrically. **Client and server must run the same Checkpoint D build; old packet payloads are incompatible.** Discriminators, queue ownership and unrelated population packets are unchanged. Map marker tags explicitly include BuildType and have a separate marker decoder, not the strict full-record persistence reader.
+Build action packets carry `long centiHours`; Tile Command Build/contribution views carry `long approvedCentiHours` / `long centiHours`. These wire fields replace int half-hours symmetrically. **Client and server must run matching G1 artifacts; old packet payloads are incompatible.** G preserves the Build fields, retained discriminator IDs and queue ownership; it removes only retired population DTO slots/packets. Map marker tags explicitly include BuildType and have a separate marker decoder, not the strict full-record persistence reader.
 
 The alliance Stage-3 threshold's existing persisted half-hour setting is not Build storage. Its adapter converts the unchanged threshold exactly to centi-hours; partner contributions use exact approved centi-hours. No progression requirement or threshold changes.
 
 ## Derived population rate and deferred work
 
-For approved centi-hours A, configured centi-hours per point C, multiplier basis points M and fixed rate scale S, the rate is positive-half-up(A × S × M / (C × 10,000)). BigInteger arithmetic aggregates exact numerators before final faction rounding. Native M is 10,000; capture M comes from the sole KOMEConfigRegistry. Informational-rate saturation is retained; bank arithmetic is unchanged.
+For approved centi-hours A, configured centi-hours per point C, multiplier basis points M and fixed rate scale S, the rate is positive-half-up(A × S × M / (C × 10,000)). BigInteger arithmetic aggregates exact numerators before final faction rounding. Native M is 10,000; capture M comes from the sole KOMEConfigRegistry. Checkpoint G removes the saturated informational adapter; both rate inspection and payouts consume exact BigInteger values. Bank arithmetic is unchanged.
 
 Identity, tile, original builder faction, population-owning faction, current tile-controller resolution and exact review records remain available for future per-Build attribution. No KOM-71 Pending Build Hours, bottleneck, Rate Ceiling, development allocation or recruitment unlocking state is introduced.
 

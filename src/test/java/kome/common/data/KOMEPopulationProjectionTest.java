@@ -70,8 +70,6 @@ public class KOMEPopulationProjectionTest {
         KOMEConquestTile tile = new KOMEConquestTile("T1");
         tile.currentRulingFaction = " Gondor "; tile.ownerFaction = " ROHAN ";
         data.conquestTiles.put(tile.id, tile);
-        data.getPopulation(player).offensiveTotal = Integer.MAX_VALUE;
-        data.getOrCreateAllocation("T1", "gondor", player, "Tester").offensiveAllocated = Integer.MAX_VALUE;
         data.setDirty(false);
         assertFalse(data.canUseRecruitmentTile(player, "gondor", "T1"));
         data.grantFactionPopulationCenti("gondor", 1L); data.setDirty(false);
@@ -160,12 +158,9 @@ public class KOMEPopulationProjectionTest {
         }
     }
 
-    @Test public void legacyLedgersCannotChangeProjectionEligibilityOrFundHire() {
+    @Test public void emptyCanonicalBankCannotUnlockProgressionRecruitmentOrHire() {
         KOMEWorldData data = new KOMEWorldData("legacy"); UUID player = UUID.randomUUID();
         KOMEConquestTile tile = new KOMEConquestTile("T100"); tile.claim("gondor", 0L); data.conquestTiles.put(tile.id, tile);
-        data.getPopulation(player).offensiveTotal = Integer.MAX_VALUE;
-        data.getOrCreateTilePopulationPool(tile.id, "gondor").offensiveTotal = Integer.MAX_VALUE;
-        data.getOrCreateAllocation(tile.id, "gondor", player, "Player").offensiveAllocated = Integer.MAX_VALUE;
         data.setDirty(false);
         assertEquals(0L, KOMEPopulationProjection.of(data, "gondor").availablePopulationCenti);
         assertEquals(BigInteger.ZERO, KOMEPopulationProjection.of(data, "gondor").activePopulationCenti);
@@ -189,7 +184,6 @@ public class KOMEPopulationProjectionTest {
         unitRow.setAccessible(true);
         kome.common.network.KOMEUnitGuiEntry row = (kome.common.network.KOMEUnitGuiEntry) unitRow.invoke(new kome.common.command.KOMECommandPopulation(), data, record);
         assertEquals(4000L, row.populationSpentCenti); assertEquals(25, row.populationCost);
-        assertEquals("No refund (permanently spent)", row.releasesTo);
         NBTTagCompound after = new NBTTagCompound(); data.writeToNBT(after);
         assertEquals(before.toString(), after.toString()); assertFalse(data.isDirty());
     }

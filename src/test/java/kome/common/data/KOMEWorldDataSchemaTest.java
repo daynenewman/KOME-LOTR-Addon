@@ -23,17 +23,17 @@ import static org.junit.Assert.*;
 public class KOMEWorldDataSchemaTest {
     private static final Set<String> REQUIRED_CURRENT_DEV_ROOT_TAGS = new HashSet<String>(Arrays.asList(
         "KOMEDataSchemaVersion", "AllianceDataSchemaVersion", "BuildDataSchemaVersion",
-        "PopulationDataSchemaVersion", "FactionPopulationDataSchemaVersion", "ProgressionEnabled",
+        "FactionPopulationDataSchemaVersion", "ProgressionEnabled",
         "MovementSecondsPerTileOverride", "MovementTotalSecondsOverride", "MovementStepDelaySeconds",
         "PopulationPayoutDataSchemaVersion", "PopulationPayoutTimezone", "PopulationPayoutLocalTime", "NextWarSequence", "NextBuildSequence",
         "WarSeason", "CentralAudit", "AllianceRequirementOverrides", "AllianceQuotaItemOverrides",
-        "AllianceAdminAudit", "AllianceMigrationQuarantine", "ConquestDefaultsInitialized", "Populations",
+        "AllianceAdminAudit", "AllianceMigrationQuarantine", "ConquestDefaultsInitialized",
         "FactionPopulations", "PopulationPayoutInitialized", "LastPopulationPayoutBoundaryMillis",
         "PopulationPayoutRemainders", "CanonicalDiplomacyRecords", "Progressions", "PlayerNames",
         "LastKnownPlayerFactions", "PledgeReleaseTombstones", "PledgeReleaseQuarantine",
         "PledgeReleaseLastResults", "PledgeReleaseAudit", "CompanyDelegationAudit",
-        "AdminUnitMapMarkerOptOuts", "HiredUnits", "ConquestTiles", "TilePopulations", "Builds",
-        "ForeignConstructionPermissions", "PopulationAllocations", "ActiveRecruitmentTiles", "TileWaypoints",
+        "AdminUnitMapMarkerOptOuts", "HiredUnits", "ConquestTiles", "Builds",
+        "ForeignConstructionPermissions", "ActiveRecruitmentTiles", "TileWaypoints",
         "TileWaypointLinks", "RouteEdges", "Alliances", "RecoveredLegacyTradePostIds",
         "TradePostMigrationQuarantine", "Wars", "ConquestClaimConfirmations", "ArmyMovements",
         "MovementHistory", "ArmyCompanies", "FactionKings"
@@ -60,7 +60,7 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
         assertEquals("KOMEDataSchemaVersion", KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        assertEquals(2, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(3, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
             saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
     }
@@ -128,7 +128,7 @@ public class KOMEWorldDataSchemaTest {
 
         IllegalStateException failure = expectReadFailure(data, unsupported);
         assertTrue(failure.getMessage().contains("schema 1"));
-        assertTrue(failure.getMessage().contains("expected 2"));
+        assertTrue(failure.getMessage().contains("expected 3"));
         assertTrue(data.isWriteBlocked());
         assertFalse(data.isDirty());
         assertTrue(data.conquestTiles.isEmpty());
@@ -171,7 +171,7 @@ public class KOMEWorldDataSchemaTest {
         source.populationPayoutLocalTime = "20:00";
         source.lastPopulationPayoutBoundaryMillis = java.time.Instant.parse("2026-01-10T02:00:00Z").toEpochMilli();
         source.populationPayoutRemainders.put("gondor", Long.valueOf(7L));
-        source.grantFactionPopulation("gondor", 42);
+        source.grantFactionPopulationCenti("gondor", 4200L);
         source.warSeason.phase = KOMEWarSeasonState.Phase.WAR;
         KOMEDiplomacyRecord diplomacy = new KOMEDiplomacyRecord("gondor", "rohan");
         diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
@@ -190,8 +190,7 @@ public class KOMEWorldDataSchemaTest {
         assertEquals(KOMEWorldData.ALLIANCE_DATA_SCHEMA_VERSION,
             first.getInteger("AllianceDataSchemaVersion"));
         assertEquals(KOMEWorldData.BUILD_DATA_SCHEMA_VERSION, first.getInteger("BuildDataSchemaVersion"));
-        assertEquals(KOMEWorldData.POPULATION_DATA_SCHEMA_VERSION,
-            first.getInteger("PopulationDataSchemaVersion"));
+        assertFalse(first.hasKey("PopulationDataSchemaVersion"));
         assertEquals(KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION,
             first.getInteger("FactionPopulationDataSchemaVersion"));
 
@@ -233,7 +232,6 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound before = new NBTTagCompound();
         data.writeToNBT(before);
         int tileCount = data.conquestTiles.size();
-        int playerPopulationCount = data.populations.size();
 
         assertSame(tile, data.getConquestTileIfPresent("T999"));
         assertNull(data.getConquestTileIfPresent("T998"));
@@ -242,14 +240,13 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound after = new NBTTagCompound();
         data.writeToNBT(after);
         assertEquals(tileCount, data.conquestTiles.size());
-        assertEquals(playerPopulationCount, data.populations.size());
         assertFalse(data.isDirty());
         assertEquals(before.toString(), after.toString());
 
         String packet = read(Paths.get(
             "src/main/java/kome/common/network/KOMEPacketConquestOpenCapture.java"));
         String projection = between(packet, "public static void sendTileCommand(EntityPlayerMP player, String requestedTileId, String focusBuildId)",
-            "private static void populateBuildAndPoolViews");
+            "private static void populateBuildViews");
         assertTrue(projection.contains("getConquestTileIfPresent"));
         assertFalse(projection.contains("rebuildArmyCompaniesForPlayer"));
         assertFalse(projection.contains("getConquestTile(tileId)"));
