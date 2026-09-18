@@ -19,8 +19,9 @@ public final class KOMEConfigInspection {
 
     public static List<EffectiveValue> getAllEffectiveValues() {
         List<EffectiveValue> values = new ArrayList<EffectiveValue>();
+        KOMEConfigRegistry.ValidatedConfig snapshot = KOMEConfigRegistry.currentValidated();
         for (String category : CATEGORIES) {
-            values.addAll(valuesFor(category));
+            values.addAll(valuesFor(category, snapshot));
         }
         Collections.sort(values, ORDER);
         return Collections.unmodifiableList(values);
@@ -32,7 +33,7 @@ public final class KOMEConfigInspection {
         }
         for (String supported : CATEGORIES) {
             if (supported.equalsIgnoreCase(category)) {
-                List<EffectiveValue> values = valuesFor(supported);
+                List<EffectiveValue> values = valuesFor(supported, KOMEConfigRegistry.currentValidated());
                 Collections.sort(values, ORDER);
                 return Collections.unmodifiableList(values);
             }
@@ -46,38 +47,43 @@ public final class KOMEConfigInspection {
         return Collections.unmodifiableList(result);
     }
 
-    private static List<EffectiveValue> valuesFor(String category) {
+    private static List<EffectiveValue> valuesFor(String category, KOMEConfigRegistry.ValidatedConfig snapshot) {
         List<EffectiveValue> values = new ArrayList<EffectiveValue>();
         if ("dailyBatch".equals(category)) {
-            KOMEConfigRegistry.DailyBatchSettings settings = KOMEConfigRegistry.dailyBatch();
+            KOMEConfigRegistry.DailyBatchSettings settings = snapshot.getDailyBatch();
             add(values, category, "localTime", settings.getLocalTime());
             add(values, category, "timezone", settings.getTimezone());
         } else if ("population".equals(category)) {
-            KOMEConfigRegistry.PopulationSettings s = KOMEConfigRegistry.population();
-            add(values, category, "hoursPerPopulationPoint", s.getHoursPerPopulationPoint());
-            add(values, category, "capturedBuildMultiplier", s.getCapturedBuildMultiplier());
+            KOMEConfigRegistry.PopulationSettings s = snapshot.getPopulation();
+            add(values, category, "hoursPerPopulationPoint", s.formatHoursPerPopulationPoint());
+            add(values, category, "capturedBuildMultiplier", s.formatCapturedBuildMultiplier());
             add(values, category, "offlinePopulationCatchUp", s.isOfflinePopulationCatchUp());
             add(values, category, "populationCapEnabled", s.isPopulationCapEnabled());
-            add(values, category, "populationCapValue", s.getPopulationCapValue());
+            add(values, category, "populationCapValue", s.formatPopulationCap());
+            add(values, category, "populationCapCenti", s.getPopulationCapCenti().isPresent()
+                    ? Long.toString(s.getPopulationCapCenti().getAsLong()) : "TBD");
+            add(values, category, "registryReady", KOMEConfigRegistry.isReady());
+            add(values, category, "worldConfigurationLocked", KOMEConfigRegistry.isWorldConfigurationLocked());
+            add(values, category, "lastApplyStatus", KOMEConfigRegistry.getLastApplyStatus());
             add(values, category, "encirclementPopulationSuppressionEnabled", s.isEncirclementPopulationSuppressionEnabled());
             add(values, category, "unitPopulationCostOverrides", s.getUnitPopulationCostOverrides());
         } else if ("movement".equals(category)) {
-            KOMEConfigRegistry.MovementSettings s = KOMEConfigRegistry.movement();
+            KOMEConfigRegistry.MovementSettings s = snapshot.getMovement();
             add(values, category, "footOrMixedTilesPerDay", s.getFootOrMixedTilesPerDay());
             add(values, category, "fullyMountedTilesPerDay", s.getFullyMountedTilesPerDay());
         } else if ("battle".equals(category)) {
-            KOMEConfigRegistry.BattleSettings s = KOMEConfigRegistry.battle();
+            KOMEConfigRegistry.BattleSettings s = snapshot.getBattle();
             add(values, category, "responseLevel1Minutes", s.getResponseLevel1Minutes());
             add(values, category, "responseLevel2Minutes", s.getResponseLevel2Minutes());
             add(values, category, "responseLevel3Minutes", s.getResponseLevel3Minutes());
         } else if ("muster".equals(category)) {
-            KOMEConfigRegistry.MusterSettings s = KOMEConfigRegistry.muster();
+            KOMEConfigRegistry.MusterSettings s = snapshot.getMuster();
             add(values, category, "threatDistanceTiles", s.getThreatDistanceTiles());
             add(values, category, "budgetDailyPopulationMultiplier", s.getBudgetDailyPopulationMultiplier());
             add(values, category, "arrivalDelayHours", s.getArrivalDelayHours());
             add(values, category, "encircledCapitalArrivalPolicy", s.getEncircledCapitalArrivalPolicy());
         } else if ("siege".equals(category)) {
-            KOMEConfigRegistry.SiegeSettings s = KOMEConfigRegistry.siege();
+            KOMEConfigRegistry.SiegeSettings s = snapshot.getSiege();
             add(values, category, "gateHpPerApprovedHour", s.getGateHpPerApprovedHour());
             add(values, category, "normalSegmentSupportMinimumTroops", s.getNormalSegmentSupportMinimumTroops());
             add(values, category, "supportFallbackGraceSeconds", s.getSupportFallbackGraceSeconds());
@@ -86,7 +92,7 @@ public final class KOMEConfigInspection {
             add(values, category, "exteriorMarginBlocks", s.getExteriorMarginBlocks());
             add(values, category, "activeSiegeCheckInWindowMinutes", s.getActiveSiegeCheckInWindowMinutes());
         } else if ("battleSupport".equals(category)) {
-            KOMEConfigRegistry.BattleSupportSettings s = KOMEConfigRegistry.battleSupport();
+            KOMEConfigRegistry.BattleSupportSettings s = snapshot.getBattleSupport();
             add(values, category, "mode", s.getMode());
             add(values, category, "fullDamageDistanceBlocks", s.getFullDamageDistanceBlocks());
             add(values, category, "halfDamageDistanceBlocks", s.getHalfDamageDistanceBlocks());
@@ -98,17 +104,17 @@ public final class KOMEConfigInspection {
             add(values, category, "hardFallbackDistanceBlocks", s.getHardFallbackDistanceBlocks());
             add(values, category, "openBattleRadiusBlocks", s.getOpenBattleRadiusBlocks());
         } else if ("encirclement".equals(category)) {
-            KOMEConfigRegistry.EncirclementSettings s = KOMEConfigRegistry.encirclement();
+            KOMEConfigRegistry.EncirclementSettings s = snapshot.getEncirclement();
             add(values, category, "starvationGraceDays", s.getStarvationGraceDays());
             add(values, category, "announcedAssaultNoticeHours", s.getAnnouncedAssaultNoticeHours());
             add(values, category, "offlineStarvationCatchUp", s.isOfflineStarvationCatchUp());
         } else if ("season".equals(category)) {
-            KOMEConfigRegistry.SeasonSettings s = KOMEConfigRegistry.season();
+            KOMEConfigRegistry.SeasonSettings s = snapshot.getSeason();
             add(values, category, "minimumWarSeasonLengthDays", s.getMinimumWarSeasonLengthDays());
             add(values, category, "automaticFinaleEnabled", s.isAutomaticFinaleEnabled());
             add(values,category,"warInactivityDurationMillis",s.getWarInactivityDurationMillis()); add(values,category,"warBondsEnabled",s.isWarBondsEnabled()); add(values,category,"attackerWarBond",s.getAttackerWarBond()); add(values,category,"participationWarBond",s.getParticipationWarBond());
         } else if ("gear".equals(category)) {
-            add(values, category, "restrictionRules", KOMEConfigRegistry.gear().getRulesByItemId());
+            add(values, category, "restrictionRules", snapshot.getGear().getRulesByItemId());
         }
         return values;
     }

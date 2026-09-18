@@ -1,5 +1,7 @@
 package kome.common.data;
 
+import java.math.BigInteger;
+
 /**
  * Directional four-stage alliance progression.
  *
@@ -7,6 +9,8 @@ package kome.common.data;
  * explicitly claim the next stage.
  */
 public final class KOMEAllianceProgressionService {
+    // Existing persisted alliance threshold remains in half-hours; it is not Build storage.
+    public static final int DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS = 20;
     public static final String ALLIED_TRADES = "allied.trades";
     public static final String ELIGIBLE_KILLS = "military.kills";
     public static final String OFFENSIVE_CAPACITY_MAX = "military.population.max";
@@ -94,8 +98,8 @@ public final class KOMEAllianceProgressionService {
         if (targetStage <= 2) return true;
         String partner = alliance.getOtherFaction(actingFaction);
         if (targetStage == 3) {
-            int approved = KOMEBuildService.approvedHalfHoursForPartner(data, actingFaction, partner);
-            return approved >= Math.max(1, data.allianceStageThreeRequiredHalfHours);
+            BigInteger approved = KOMEBuildService.approvedCentiHoursForPartner(data, actingFaction, partner);
+            return approved.compareTo(BigInteger.valueOf(requiredCentiHours(data))) >= 0;
         }
         KOMEAllianceStageProgress progress = alliance.getStageProgress(actingFaction);
         return progress != null && progress.qualifyingDeploymentAtMillis > 0L
@@ -106,11 +110,11 @@ public final class KOMEAllianceProgressionService {
             String actingFaction, int targetStage) {
         if (targetStage <= 2) return "No additional fixed milestone.";
         if (targetStage == 3) {
-            int current = KOMEBuildService.approvedHalfHoursForPartner(data, actingFaction,
+            BigInteger current = KOMEBuildService.approvedCentiHoursForPartner(data, actingFaction,
                 alliance.getOtherFaction(actingFaction));
-            return "Stage 3 requires " + KOMEHalfHourService.displayHours(data.allianceStageThreeRequiredHalfHours)
+            return "Stage 3 requires " + KOMEBuildTime.formatHours(requiredCentiHours(data))
                 + " approved Build hours for the partner; current "
-                + KOMEHalfHourService.displayHours(current) + ".";
+                + KOMEBuildTime.formatHours(current) + ".";
         }
         return "Stage 4 requires a new qualifying company deployment in partner-controlled land during an active shared defensive war.";
     }
@@ -170,6 +174,11 @@ public final class KOMEAllianceProgressionService {
             }
         }
         return changed;
+    }
+
+    private static long requiredCentiHours(KOMEWorldData data) {
+        return Math.multiplyExact((long) Math.max(1, data.allianceStageThreeRequiredHalfHours),
+                KOMEBuildTime.CENTI_HOURS_PER_HOUR / 2L);
     }
 
     private static boolean hasValidLivingUnit(KOMEWorldData data, KOMEArmyCompany company, String faction) {

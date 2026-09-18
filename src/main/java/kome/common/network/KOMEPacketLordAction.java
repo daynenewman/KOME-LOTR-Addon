@@ -43,15 +43,19 @@ public class KOMEPacketLordAction implements IMessage {
         @Override
         public IMessage onMessage(KOMEPacketLordAction message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
+            if (message.action != PLEDGE && message.action != OFFERINGS) {
+                player.addChatMessage(new ChatComponentText("Unknown lord action."));
+                return null;
+            }
             Entity entity = KOMEReflection.getWorld(player).getEntityByID(message.entityId);
             if (!(entity instanceof LOTRHireableBase) || !KOMEProgressionLords.isPledgeLord((LOTRHireableBase) entity) || player.getDistanceSqToEntity(entity) > 64.0D) {
                 player.addChatMessage(new ChatComponentText("That lord is no longer close enough."));
                 return null;
             }
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+            KOMEPlayerProgression progression = data.progressions.get(KOMEReflection.getEntityUUID(player));
             if (message.action == OFFERINGS) {
-                if (!KOMEProgressionLords.isPledgedLord(entity, progression)) {
+                if (progression == null || !KOMEProgressionLords.isPledgedLord(entity, progression)) {
                     player.addChatMessage(new ChatComponentText("You can only open offerings for your pledged lord."));
                     return null;
                 }

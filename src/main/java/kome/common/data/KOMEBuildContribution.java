@@ -5,10 +5,8 @@ import net.minecraft.nbt.NBTTagCompound;
 import java.util.UUID;
 
 /**
- * One immutable submission to a Build. Approval state may change, while the submitted
- * hours and contributor identity remain an audit record.
- *
- * Hours are stored as half-hour units so invalid fractions cannot enter persistence.
+ * One Build contribution. Its reviewed duration has one centi-hour authority;
+ * the Build lifecycle audit records submission and adjustment amounts.
  */
 public class KOMEBuildContribution {
     public static final String PENDING = "PENDING";
@@ -20,8 +18,8 @@ public class KOMEBuildContribution {
     public UUID contributorUuid;
     public String contributorName = "";
     public String contributorFaction = "";
-    /** Canonical single contribution duration, in half-hour units. */
-    public int halfHours;
+    /** Canonical contribution duration: 100 centi-hours = 1.00 hour. */
+    public long centiHours;
     public String status = PENDING;
     public long submittedAtMillis;
     public long decidedAtMillis;
@@ -29,8 +27,8 @@ public class KOMEBuildContribution {
     public String decidedByName = "";
     public String decisionReason = "";
 
-    public int totalHalfHours() {
-        return Math.max(0, halfHours);
+    public long totalCentiHours() {
+        return KOMEBuildTime.requireNonnegative(centiHours);
     }
 
     public boolean isPending() {
@@ -46,12 +44,13 @@ public class KOMEBuildContribution {
     }
 
     public NBTTagCompound writeToNBT() {
+        validate();
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Id", safe(id));
         nbt.setString("ContributorUuid", contributorUuid == null ? "" : contributorUuid.toString());
         nbt.setString("ContributorName", safe(contributorName));
         nbt.setString("ContributorFaction", KOMEAlliance.normalizeFactionKey(contributorFaction));
-        nbt.setInteger("HalfHours", Math.max(0, halfHours));
+        nbt.setLong("CentiHours", centiHours);
         nbt.setString("Status", normalizeStatus(status));
         nbt.setLong("SubmittedAtMillis", Math.max(0L, submittedAtMillis));
         nbt.setLong("DecidedAtMillis", Math.max(0L, decidedAtMillis));
@@ -62,12 +61,26 @@ public class KOMEBuildContribution {
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
+        if (!nbt.hasKey("CentiHours", 4) || nbt.hasKey("HalfHours")
+                || nbt.hasKey("OffensiveHalfHours") || nbt.hasKey("DefensiveHalfHours")) {
+            throw new IllegalArgumentException("Contribution requires canonical long CentiHours; development Builds require reset.");
+        }
+        KOMEPlayerBuild.requireFields(nbt, 8, "Id", "ContributorUuid", "ContributorName", "ContributorFaction",
+            "Status", "DecidedByUuid", "DecidedByName", "DecisionReason");
+        KOMEPlayerBuild.requireFields(nbt, 4, "SubmittedAtMillis", "DecidedAtMillis");
+        for (String key : new String[] {"ContributorUuid", "DecidedByUuid"}) {
+            if (!nbt.getString(key).isEmpty()) UUID.fromString(nbt.getString(key));
+        }
+        long savedHours = KOMEBuildTime.requireNonnegative(nbt.getLong("CentiHours"));
+        if (!nbt.hasKey("Status", 8)) throw new IllegalArgumentException("Contribution Status is required.");
+        String savedStatus = normalizeStatus(nbt.getString("Status"));
+        if (nbt.getString("Id").trim().isEmpty()) throw new IllegalArgumentException("Contribution Id is required.");
         id = safe(nbt.getString("Id"));
         contributorUuid = parseUuid(nbt.getString("ContributorUuid"));
         contributorName = safe(nbt.getString("ContributorName"));
         contributorFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("ContributorFaction"));
-        halfHours = Math.max(0, nbt.getInteger("HalfHours"));
-        status = normalizeStatus(nbt.getString("Status"));
+        centiHours = savedHours;
+        status = savedStatus;
         submittedAtMillis = Math.max(0L, nbt.getLong("SubmittedAtMillis"));
         decidedAtMillis = Math.max(0L, nbt.getLong("DecidedAtMillis"));
         decidedByUuid = parseUuid(nbt.getString("DecidedByUuid"));
@@ -76,10 +89,16 @@ public class KOMEBuildContribution {
     }
 
     public static String normalizeStatus(String value) {
-        if (APPROVED.equals(value) || REJECTED.equals(value) || REMOVED.equals(value)) {
+        if (PENDING.equals(value) || APPROVED.equals(value) || REJECTED.equals(value) || REMOVED.equals(value)) {
             return value;
         }
-        return PENDING;
+        throw new IllegalArgumentException("Invalid Build contribution status: " + value);
+    }
+
+    public void validate() {
+        if (id == null || id.trim().isEmpty()) throw new IllegalArgumentException("Contribution Id is required.");
+        totalCentiHours();
+        normalizeStatus(status);
     }
 
     private static UUID parseUuid(String value) {

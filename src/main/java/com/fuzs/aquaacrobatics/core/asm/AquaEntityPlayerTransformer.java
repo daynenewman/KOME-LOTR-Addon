@@ -2,8 +2,6 @@ package com.fuzs.aquaacrobatics.core.asm;
 
 import net.minecraft.launchwrapper.IClassTransformer;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
@@ -118,41 +116,39 @@ public final class AquaEntityPlayerTransformer implements IClassTransformer {
         if (!ENTITY_PLAYER.equals(transformedName)) return basicClass;
         if (basicClass == null) throw new IllegalStateException("Aqua EntityPlayer transformer received null bytecode");
 
-        ClassNode classNode = new ClassNode();
-        new ClassReader(basicClass).accept(classNode, 0);
-        this.addResizeableInterface(classNode);
-        this.addStateHolder(classNode);
-        this.verifyStateHolder(classNode);
-        this.addSizeFacades(classNode);
-        this.verifySizeFacades(classNode);
-        this.addResizeFacades(classNode);
-        this.verifyResizeFacades(classNode);
-        this.addPresentationFacades(classNode);
-        this.verifyPresentationFacades(classNode);
-        this.addDataWatcherPlumbing(classNode);
-        this.verifyDataWatcherPlumbing(classNode);
-        this.addCompatibilityFacades(classNode);
-        this.verifyCompatibilityFacades(classNode);
-        this.addWaterStatePlumbing(classNode);
-        this.verifyWaterStatePlumbing(classNode);
-        this.addLifecycleSleepPlumbing(classNode);
-        this.verifyLifecycleSleepPlumbing(classNode);
-        this.addVanillaEyeHeightBridge(classNode);
-        this.verifyVanillaEyeHeightBridge(classNode);
-        this.addLegacyBobBridge(classNode);
-        this.verifyLegacyBobBridge(classNode);
-        this.addSwimTravelPlumbing(classNode);
-        this.verifySwimTravelPlumbing(classNode);
-        // Add this after every other constructor augmentation so the Phase 2M
-        // metadata bridge remains immediately before the constructor RETURN.
-        this.addSizeMetadataPlumbing(classNode);
-        this.verifySizeMetadataPlumbing(classNode);
-        this.verifyResizeableInterface(classNode);
-        this.insertPostTickBridges(classNode, name, transformedName);
+        final ClassNode classNode = AquaAsmMappings.read("AquaEntityPlayerTransformer", transformedName, basicClass);
+        return AquaAsmMappings.finish("AquaEntityPlayerTransformer", classNode, () -> {
+            this.addResizeableInterface(classNode);
+            this.addStateHolder(classNode);
+            this.verifyStateHolder(classNode);
+            this.addSizeFacades(classNode);
+            this.verifySizeFacades(classNode);
+            this.addResizeFacades(classNode);
+            this.verifyResizeFacades(classNode);
+            this.addPresentationFacades(classNode);
+            this.verifyPresentationFacades(classNode);
+            this.addDataWatcherPlumbing(classNode);
+            this.verifyDataWatcherPlumbing(classNode);
+            this.addCompatibilityFacades(classNode);
+            this.verifyCompatibilityFacades(classNode);
+            this.addWaterStatePlumbing(classNode);
+            this.verifyWaterStatePlumbing(classNode);
+            this.addLifecycleSleepPlumbing(classNode);
+            this.verifyLifecycleSleepPlumbing(classNode);
+            this.addVanillaEyeHeightBridge(classNode);
+            this.verifyVanillaEyeHeightBridge(classNode);
+            this.addLegacyBobBridge(classNode);
+            this.verifyLegacyBobBridge(classNode);
+            this.addSwimTravelPlumbing(classNode);
+            this.verifySwimTravelPlumbing(classNode);
+            // Add this after every other constructor augmentation so the Phase 2M
+            // metadata bridge remains immediately before the constructor RETURN.
+            this.addSizeMetadataPlumbing(classNode);
+            this.verifySizeMetadataPlumbing(classNode);
+            this.verifyResizeableInterface(classNode);
+            this.insertPostTickBridges(classNode, name, transformedName);
 
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        classNode.accept(writer);
-        return writer.toByteArray();
+        });
     }
 
     /**
@@ -183,7 +179,7 @@ public final class AquaEntityPlayerTransformer implements IClassTransformer {
                 InsnList poseHook = new InsnList();
                 poseHook.add(new VarInsnNode(Opcodes.ALOAD, 0));
                 // The post-tick invocation descriptor contains EntityPlayer in its
-                // current namespace (MCP in dev, notch at runtime), so reuse it.
+                // current namespace (MCP/SRG in the supported Forge chain, raw before remapping), so reuse it.
                 poseHook.add(new MethodInsnNode(
                     Opcodes.INVOKESTATIC,
                     HOOK_OWNER,
@@ -339,8 +335,8 @@ public final class AquaEntityPlayerTransformer implements IClassTransformer {
         classNode.methods.add(this.createWaterLogicGetter(playerDescriptor, GET_WATER_VISION, "()F"));
         // Forge's runtime deobfuscation uses SRG member names. Do not infer a member
         // namespace from the ClassNode superclass: class and member namespaces can differ.
-        classNode.methods.add(this.createSwimmingGetter(classNode.name, playerDescriptor, com.fuzs.aquaacrobatics.core.AquaAcrobaticsCore.isDevEnv() ? "getFlag" : GET_FLAG_SRG));
-        classNode.methods.add(this.createSwimmingSetter(classNode.name, com.fuzs.aquaacrobatics.core.AquaAcrobaticsCore.isDevEnv() ? "setFlag" : SET_FLAG_SRG));
+        classNode.methods.add(this.createSwimmingGetter(classNode.name, playerDescriptor, AquaAsmMappings.member(classNode.name, "getFlag", GET_FLAG_SRG, "g")));
+        classNode.methods.add(this.createSwimmingSetter(classNode.name, AquaAsmMappings.member(classNode.name, "setFlag", SET_FLAG_SRG, "a")));
     }
 
     private MethodNode createWaterStateUpdate(String superName, String playerDescriptor, String onEntityUpdate) {
@@ -482,16 +478,13 @@ public final class AquaEntityPlayerTransformer implements IClassTransformer {
     }
 
     private String getDataWatcherCallbackName(ClassNode classNode) {
-        return "net/minecraft/entity/EntityLivingBase".equals(classNode.superName)
-            ? DATA_WATCHER_CALLBACK_SRG
-            : DATA_WATCHER_CALLBACK_NOTCH;
+        return AquaAsmMappings.member(classNode.name, DATA_WATCHER_CALLBACK_SRG,
+            DATA_WATCHER_CALLBACK_SRG, DATA_WATCHER_CALLBACK_NOTCH);
     }
 
     private String getOnEntityUpdateName(ClassNode classNode) {
         // runClient uses MCP/deobfuscated members; production uses Forge SRG members.
-        return com.fuzs.aquaacrobatics.core.AquaAcrobaticsCore.isDevEnv()
-            ? ON_ENTITY_UPDATE_MCP
-            : ON_ENTITY_UPDATE_SRG;
+        return AquaAsmMappings.member(classNode.name, ON_ENTITY_UPDATE_MCP, ON_ENTITY_UPDATE_SRG, "C");
     }
 
     private void requireMissingMethod(ClassNode classNode, String name, String descriptor) {
@@ -934,14 +927,11 @@ public final class AquaEntityPlayerTransformer implements IClassTransformer {
     }
 
     /**
-     * This is an observed-class-shape selection, not a superclass-name
-     * namespace heuristic: the raw 1.7.10 class is yz with inherited bc,
-     * while recompiled development bytecode exposes isJumping.
+     * Member namespace follows Forge injectData, independently of readable class names.
+     * EntityPlayer inherits EntityLivingBase.isJumping / field_70703_bu / bc.
      */
     private String getJumpingFieldName(String playerOwner) {
-        if ("yz".equals(playerOwner)) return JUMPING_FIELD_NOTCH;
-        if ("net/minecraft/entity/player/EntityPlayer".equals(playerOwner)) return JUMPING_FIELD_MCP;
-        throw new IllegalStateException("Aqua EntityPlayer has unsupported jump-access owner " + playerOwner);
+        return AquaAsmMappings.member(playerOwner, JUMPING_FIELD_MCP, "field_70703_bu", JUMPING_FIELD_NOTCH);
     }
 
     /** Phase 2K: owns the read-only presentation API while shared Java owns its semantics. */
@@ -1324,9 +1314,9 @@ public final class AquaEntityPlayerTransformer implements IClassTransformer {
 
                 if (!(instruction instanceof MethodInsnNode)) continue;
                 MethodInsnNode invocation = (MethodInsnNode) instruction;
-                if (IS_SWIMMING.equals(method.name) && (com.fuzs.aquaacrobatics.core.AquaAcrobaticsCore.isDevEnv() ? "getFlag" : GET_FLAG_SRG).equals(invocation.name)
+                if (IS_SWIMMING.equals(method.name) && (AquaAsmMappings.member(classNode.name, "getFlag", GET_FLAG_SRG, "g")).equals(invocation.name)
                     && "(I)Z".equals(invocation.desc)) ++flagGetterCalls;
-                if (SET_SWIMMING.equals(method.name) && (com.fuzs.aquaacrobatics.core.AquaAcrobaticsCore.isDevEnv() ? "setFlag" : SET_FLAG_SRG).equals(invocation.name)
+                if (SET_SWIMMING.equals(method.name) && (AquaAsmMappings.member(classNode.name, "setFlag", SET_FLAG_SRG, "a")).equals(invocation.name)
                     && "(IZ)V".equals(invocation.desc)) ++flagSetterCalls;
             }
         }

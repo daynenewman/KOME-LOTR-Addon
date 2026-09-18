@@ -190,10 +190,8 @@ public class KOMEGuiCompanyList extends GuiScreen {
             x + 22, y + 43, KOMEGuiTheme.COLOR_TEXT);
         KOMECompanyGuiEntry selectedCompany = selectedCompany();
         String authoritySummary = selectedCompany == null
-            ? "Select a company to inspect owner, temporary authority, tendency, and stewardship capacity."
-            : "Stewardship for " + selectedCompany.faction + ": unallocated " + selectedCompany.stewardshipUnallocated
-                + " | global 100% eligible cap " + selectedCompany.stewardshipGlobalCap + " | reserved " + selectedCompany.stewardshipReserved
-                + " | available " + selectedCompany.stewardshipAvailable;
+            ? "Select a company to inspect owner, temporary authority, tendency, and faction population."
+            : selectedCompany.populationProjection.summary();
         String recoverySummary = KOMECompanyRecoveryPresentation.haltedRecoverySummary(selectedCompany);
         String recoveryActions = selectedCompany == null || selectedCompany.accessLossReason.length() == 0
             ? ""
@@ -228,7 +226,7 @@ public class KOMEGuiCompanyList extends GuiScreen {
             int statusWidth = fontRendererObj.getStringWidth(status);
             int labelWidth = Math.max(90, PANEL_WIDTH - 76 - statusWidth - 10);
             fontRendererObj.drawString(fontRendererObj.trimStringToWidth(companyLabel, labelWidth), x + 34, cardY + 7, KOMEGuiTheme.COLOR_TEXT);
-            String composition = company.unitCount + " units | " + company.population + " pop | Mounted "
+            String composition = company.unitCount + " units | " + kome.common.data.KOMEPopulationProjection.formatCenti(company.investedPopulationCenti) + " invested | Tactical mounted "
                 + company.mountedPopulation + " | Ground " + company.groundPopulation;
             fontRendererObj.drawString(composition, x + 34, cardY + 21, KOMEGuiTheme.COLOR_TEXT_MUTED);
             String controller = "Native " + company.nativeFaction + " | Owner " + company.ownerName + " | Controller " + company.controllerName + " (" + company.controllerAuthority

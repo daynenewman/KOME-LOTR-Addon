@@ -201,17 +201,7 @@ public final class KOMEWartimeStewardshipService {
                 tombstone.createdTimestamp = nowMillis;
                 data.pledgeReleaseTombstones.put(unitId, tombstone);
             }
-            if (!tombstone.populationReturned) {
-                KOMETilePopulation pool = data.getFundingPool(record);
-                if (pool == null) {
-                    tombstone.quarantined = true;
-                    data.pledgeReleaseQuarantine.put(unitId, record.writeToNBT());
-                } else {
-                    pool.release(record.type, record.cost);
-                    tombstone.populationReturned = true;
-                    record.populationReturned = true;
-                }
-            }
+            markDemobilizedPopulationPermanentlySpent(record, tombstone);
             Entity entity = findLoaded(world, unitId);
             if (entity != null) {
                 KOMEReflection.setDead(entity);
@@ -237,6 +227,15 @@ public final class KOMEWartimeStewardshipService {
             pending > 0 ? "Pending loaded-entity removal" : "Safe-tile demobilization");
         if (removed > 0) data.markDirty();
         return removed;
+    }
+
+    static void markDemobilizedPopulationPermanentlySpent(KOMEHiredUnitRecord record,
+            KOMEPledgeReleaseTombstone tombstone) {
+        // Population was permanently spent from the native faction bank when hired.
+        // The historical flag means funding cleanup is resolved, not refunded.
+        tombstone.populationReturned = true;
+        record.populationReturned = true;
+        record.releaseState = "STEWARDSHIP_DEMOBILIZED_PERMANENTLY_SPENT";
     }
 
     private static Entity findLoaded(World world, java.util.UUID unitId) {
@@ -341,9 +340,14 @@ public final class KOMEWartimeStewardshipService {
         for (java.util.UUID unitId : company.units) {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
             if (record != null && KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)
-                    && !record.populationReturned) result += Math.max(0, record.cost);
+                    && !record.populationReturned) result = saturatedAdd(result, Math.max(0, record.populationSpent));
         }
         return result;
+    }
+
+    private static int saturatedAdd(int left, int right) {
+        long value = (long) left + right;
+        return value > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) value;
     }
 
     private static void upsertAuthorization(KOMEWar war, KOMEArmyCompany company, String controllerFaction, long nowMillis) {

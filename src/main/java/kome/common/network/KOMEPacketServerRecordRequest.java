@@ -21,7 +21,8 @@ public class KOMEPacketServerRecordRequest implements IMessage {
         @Override
         public IMessage onMessage(KOMEPacketServerRecordRequest message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
-            KOMEPacketServerRecordData.sendChunked(KOMEServerRecordBuilder.build(KOMEReflection.getWorld(player)), player);
+            KOMEPacketServerRecordData.sendChunked(KOMEServerRecordBuilder.build(KOMEReflection.getWorld(player),
+                player.canCommandSenderUseCommand(2, "kome")), player);
             return null;
         }
     }

@@ -5,37 +5,38 @@ package kome.common.data;
  * or defensive subdivision and no population cap.
  */
 public final class KOMEFactionPopulation {
-    private int availablePopulation;
+    private long availablePopulationCenti;
 
-    public int getAvailablePopulation() {
-        return availablePopulation;
+    public long getAvailablePopulationCenti() {
+        return availablePopulationCenti;
     }
 
-    boolean trySpend(int amount) {
-        if (amount < 0) {
-            throw new IllegalArgumentException("Population spend must not be negative: " + amount);
+    boolean trySpendCenti(long amountCenti) {
+        if (amountCenti < 0L) {
+            throw new IllegalArgumentException("Population spend must not be negative: " + amountCenti);
         }
-        if (amount > availablePopulation) {
+        if (amountCenti > availablePopulationCenti) {
             return false;
         }
-        availablePopulation -= amount;
+        availablePopulationCenti = Math.subtractExact(availablePopulationCenti, amountCenti);
         return true;
     }
 
-    void grant(int amount) {
-        if (amount < 0) {
-            throw new IllegalArgumentException("Population grant must not be negative: " + amount);
+    void grantCenti(long amountCenti) {
+        if (amountCenti < 0L) {
+            throw new IllegalArgumentException("Population grant must not be negative: " + amountCenti);
         }
-        if (amount > Integer.MAX_VALUE - availablePopulation) {
-            throw new ArithmeticException("Population grant overflows available population: " + amount);
+        try {
+            availablePopulationCenti = Math.addExact(availablePopulationCenti, amountCenti);
+        } catch (ArithmeticException overflow) {
+            throw new ArithmeticException("Population grant overflows available centi-population: " + amountCenti);
         }
-        availablePopulation += amount;
     }
 
-    void setAvailablePopulation(int amount) {
-        if (amount < 0) {
-            throw new IllegalArgumentException("Available population must not be negative: " + amount);
+    void setAvailablePopulationCenti(long amountCenti) {
+        if (amountCenti < 0L) {
+            throw new IllegalArgumentException("Available centi-population must not be negative: " + amountCenti);
         }
-        availablePopulation = amount;
+        availablePopulationCenti = amountCenti;
     }
 }

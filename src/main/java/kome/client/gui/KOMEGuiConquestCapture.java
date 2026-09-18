@@ -4,17 +4,14 @@ import kome.client.KOMEConquestMapOverlay;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
-import kome.common.data.KOMEHalfHourService;
+import kome.common.data.KOMEBuildTime;
 import kome.common.data.KOMEClientData;
-import kome.common.data.KOMEPopulationGraph;
 import kome.common.network.KOMEPacketConquestClaim;
 import kome.common.network.KOMEPacketConquestCaptureGui;
 import kome.common.network.KOMEPacketBuildAction;
 import kome.common.data.KOMEBuildType;
 import kome.common.network.KOMEPacketConquestTransfer;
 import kome.common.network.KOMEPacketHandler;
-import kome.common.network.KOMEPacketTilePopulationUpdate;
-import kome.common.network.KOMEPacketTileAllocationUpdate;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
@@ -47,19 +44,10 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private static final int ID_CANCEL_OFFER = 7;
     private static final int ID_MOVE = 8;
     private static final int ID_CANCEL_TRANSFER_MODE = 9;
-    private static final int ID_ADD_OFFENSIVE = 10;
-    private static final int ID_REMOVE_OFFENSIVE = 11;
-    private static final int ID_ADD_DEFENSIVE = 12;
-    private static final int ID_REMOVE_DEFENSIVE = 13;
-    private static final int ID_ALLOCATE_OFFENSIVE = 14;
-    private static final int ID_UNALLOCATE_OFFENSIVE = 15;
-    private static final int ID_ALLOCATE_DEFENSIVE = 16;
-    private static final int ID_UNALLOCATE_DEFENSIVE = 17;
     private static final int ID_SET_RECRUITMENT_TILE = 18;
     private static final int ID_VIEW_UNITS = 19;
     private static final int ID_TAB_BUILDS = 20;
     private static final int ID_TAB_POPULATION = 21;
-    private static final int ID_TAB_ALLOCATIONS = 22;
     private static final int ID_BUILD_NEW = 23;
     private static final int ID_BUILD_LIST = 24;
     private static final int ID_BUILD_CONTRIBUTE = 25;
@@ -83,10 +71,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private static final int BUILD_MODE_CREATE = 2;
     private static final int BUILD_MODE_CONTRIBUTE = 3;
     private static final int BUILD_MODE_RENAME = 4;
-    private static final int POPULATION_POOL_ROW_HEIGHT = 104;
-    private static final int COLOR_POOL_USED = 0xFF8E2F2F;
-    private static final int COLOR_POOL_AVAILABLE = 0xFFD6A04A;
-    private static final int COLOR_POOL_INACCESSIBLE = 0xFF57504A;
 
     private final String tileId;
     private final String ownerFaction;
@@ -100,26 +84,13 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private final int incomingPop;
     private final int outgoingPop;
     private final long incomingEtaMillis;
-    private final int offensiveTotal;
-    private final int offensiveUsed;
-    private final int defensiveTotal;
-    private final int defensiveUsed;
-    private final int farmhandTotal;
-    private final int farmhandUsed;
     private final boolean canClaim;
     private final boolean canTransfer;
     private final boolean canAcceptTransfer;
     private final boolean canCancelTransfer;
     private final boolean canMoveTroops;
-    private final boolean canEditPopulation;
-    private final int offensiveAllocated;
-    private final int defensiveAllocated;
-    private final int myOffensiveAllocated;
-    private final int myOffensiveUsed;
-    private final int myDefensiveAllocated;
-    private final int myDefensiveUsed;
+    private final boolean canInspectWaypoint;
     private final String claimantName;
-    private final String allocationSummary;
     private final boolean ownerHasKing;
     private final int myOffensivePop;
     private final int myDefensivePop;
@@ -140,9 +111,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private final List transferFactions = new ArrayList();
     private int transferIndex;
     private boolean transferMode;
-    private GuiTextField populationAmountField;
-    private GuiTextField allocationPlayerField;
-    private GuiTextField allocationAmountField;
     private int panelX;
     private int panelY;
     private int panelW;
@@ -153,7 +121,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private final KOMEGuiConfirmationDialog confirmation = new KOMEGuiConfirmationDialog();
     private boolean confirmationDismissed;
     private final List buildViews = new ArrayList();
-    private final List populationPoolViews = new ArrayList();
     private final List selectablePopulationOwners = new ArrayList();
     private int viewerDimension;
     private double viewerWorldX;
@@ -163,35 +130,55 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private int buildMode;
     private int selectedBuildIndex = -1;
     private int buildScroll;
-    private int poolScroll;
     private int contributionScroll;
     private int populationOwnerIndex;
-    private int editHalfHours;
+    private long editCentiHours;
     private KOMEBuildType editBuildType = KOMEBuildType.NORMAL;
     private GuiTextField buildNameField;
     private GuiTextField buildHoursField;
     private String buildHoursValidation = "";
-    private String populationHoverTooltip = "";
     private String pendingDestructiveBuildAction = "";
     private String pendingDestructiveBuildId = "";
 
     public KOMEGuiConquestCapture(KOMEPacketConquestCaptureGui message) {
-        this(message.tileId, message.ownerFaction, message.pendingFromFaction, message.pendingToFaction,
-            message.viewerFaction, message.offensivePop, message.defensivePop, message.mountedPop, message.groundPop,
-            message.incomingPop, message.outgoingPop, message.incomingEtaMillis, message.offensiveTotal, message.offensiveUsed,
-            message.defensiveTotal, message.defensiveUsed, message.farmhandTotal, message.farmhandUsed, message.canClaim,
-            message.canTransfer, message.canAcceptTransfer, message.canCancelTransfer, message.canMoveTroops,
-            message.canEditPopulation, message.offensiveAllocated, message.defensiveAllocated, message.myOffensiveAllocated,
-            message.myOffensiveUsed, message.myDefensiveAllocated, message.myDefensiveUsed, message.claimantName,
-            message.allocationSummary, message.ownerHasKing, message.myOffensivePop, message.myDefensivePop,
-            message.myMountedPop, message.myGroundPop, message.activeRecruitmentTile, message.canSetRecruitmentTile,
-            message.lotrWaypointKey, message.lotrWaypointDisplayName, message.lotrWaypointRegion, message.waypointLevel,
-            message.currentRulingFaction, message.defaultRulingFaction, message.mapRegion);
+        this.tileId = safe(message.tileId);
+        this.ownerFaction = safe(message.ownerFaction);
+        this.pendingFromFaction = safe(message.pendingFromFaction);
+        this.pendingToFaction = safe(message.pendingToFaction);
+        this.viewerFaction = safe(message.viewerFaction);
+        this.offensivePop = Math.max(0, message.offensivePop);
+        this.defensivePop = Math.max(0, message.defensivePop);
+        this.mountedPop = Math.max(0, message.mountedPop);
+        this.groundPop = Math.max(0, message.groundPop);
+        this.incomingPop = Math.max(0, message.incomingPop);
+        this.outgoingPop = Math.max(0, message.outgoingPop);
+        this.incomingEtaMillis = message.incomingEtaMillis;
+        this.canClaim = message.canClaim;
+        this.canTransfer = message.canTransfer;
+        this.canAcceptTransfer = message.canAcceptTransfer;
+        this.canCancelTransfer = message.canCancelTransfer;
+        this.canMoveTroops = message.canMoveTroops;
+        this.canInspectWaypoint = message.canInspectWaypoint;
+        this.claimantName = safe(message.claimantName);
+        this.ownerHasKing = message.ownerHasKing;
+        this.myOffensivePop = Math.max(0, message.myOffensivePop);
+        this.myDefensivePop = Math.max(0, message.myDefensivePop);
+        this.myMountedPop = Math.max(0, message.myMountedPop);
+        this.myGroundPop = Math.max(0, message.myGroundPop);
+        this.activeRecruitmentTile = safe(message.activeRecruitmentTile);
+        this.canSetRecruitmentTile = message.canSetRecruitmentTile;
+        this.lotrWaypointKey = safe(message.lotrWaypointKey);
+        this.lotrWaypointDisplayName = safe(message.lotrWaypointDisplayName);
+        this.lotrWaypointRegion = safe(message.lotrWaypointRegion);
+        this.waypointLevel = message.waypointLevel;
+        this.currentRulingFaction = safe(message.currentRulingFaction);
+        this.defaultRulingFaction = safe(message.defaultRulingFaction);
+        this.mapRegion = safe(message.mapRegion);
         claimConfirmationArmed = message.claimConfirmationArmed;
+        population = message.population;
         claimWarning = safe(message.claimWarning);
         claimWarDestination = safe(message.claimWarDestination);
         buildViews.addAll(message.builds);
-        populationPoolViews.addAll(message.populationPools);
         selectablePopulationOwners.addAll(message.selectablePopulationOwners);
         viewerDimension = message.viewerDimension;
         viewerWorldX = message.viewerX;
@@ -210,89 +197,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
     }
 
-    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, "", 0, 0, 0, 0, 0, 0, 0L);
-    }
-
-    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, "", offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis);
-    }
-
-    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, 0, 0, 0, 0, 0, 0, hasFaction(viewerFaction) && !safe(viewerFaction).equals(safe(ownerFaction)), safe(viewerFaction).equals(safe(ownerFaction)), hasFaction(viewerFaction) && safe(viewerFaction).equals(safe(pendingToFaction)), hasFaction(viewerFaction) && safe(viewerFaction).equals(safe(ownerFaction)) && hasPending(pendingFromFaction, pendingToFaction), offensivePop > 0, false, 0, 0, 0, 0, 0, 0, "", "", false);
-    }
-
-    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAcceptTransfer, canCancelTransfer, canMoveTroops, false, 0, 0, 0, 0, 0, 0, "", "", false);
-    }
-
-    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops, boolean canEditPopulation) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAcceptTransfer, canCancelTransfer, canMoveTroops, canEditPopulation, 0, 0, 0, 0, 0, 0, "", "", false);
-    }
-
-    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops, boolean canEditPopulation, int offensiveAllocated, int defensiveAllocated, int myOffensiveAllocated, int myOffensiveUsed, int myDefensiveAllocated, int myDefensiveUsed, String claimantName, String allocationSummary, boolean ownerHasKing) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAcceptTransfer, canCancelTransfer, canMoveTroops, canEditPopulation, offensiveAllocated, defensiveAllocated, myOffensiveAllocated, myOffensiveUsed, myDefensiveAllocated, myDefensiveUsed, claimantName, allocationSummary, ownerHasKing, 0, 0, 0, 0, "", false);
-    }
-
-    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops, boolean canEditPopulation, int offensiveAllocated, int defensiveAllocated, int myOffensiveAllocated, int myOffensiveUsed, int myDefensiveAllocated, int myDefensiveUsed, String claimantName, String allocationSummary, boolean ownerHasKing, int myOffensivePop, int myDefensivePop, int myMountedPop, int myGroundPop, String activeRecruitmentTile, boolean canSetRecruitmentTile) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAcceptTransfer, canCancelTransfer, canMoveTroops, canEditPopulation, offensiveAllocated, defensiveAllocated, myOffensiveAllocated, myOffensiveUsed, myDefensiveAllocated, myDefensiveUsed, claimantName, allocationSummary, ownerHasKing, myOffensivePop, myDefensivePop, myMountedPop, myGroundPop, activeRecruitmentTile, canSetRecruitmentTile, "", "", "");
-    }
-
-    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops, boolean canEditPopulation, int offensiveAllocated, int defensiveAllocated, int myOffensiveAllocated, int myOffensiveUsed, int myDefensiveAllocated, int myDefensiveUsed, String claimantName, String allocationSummary, boolean ownerHasKing, int myOffensivePop, int myDefensivePop, int myMountedPop, int myGroundPop, String activeRecruitmentTile, boolean canSetRecruitmentTile, String lotrWaypointKey, String lotrWaypointDisplayName, String lotrWaypointRegion) {
-        this.tileId = safe(tileId);
-        this.ownerFaction = safe(ownerFaction);
-        this.pendingFromFaction = safe(pendingFromFaction);
-        this.pendingToFaction = safe(pendingToFaction);
-        this.viewerFaction = safe(viewerFaction);
-        this.offensivePop = Math.max(0, offensivePop);
-        this.defensivePop = Math.max(0, defensivePop);
-        this.mountedPop = Math.max(0, mountedPop);
-        this.groundPop = Math.max(0, groundPop);
-        this.incomingPop = Math.max(0, incomingPop);
-        this.outgoingPop = Math.max(0, outgoingPop);
-        this.incomingEtaMillis = incomingEtaMillis;
-        this.offensiveTotal = Math.max(0, offensiveTotal);
-        this.offensiveUsed = Math.max(0, offensiveUsed);
-        this.defensiveTotal = Math.max(0, defensiveTotal);
-        this.defensiveUsed = Math.max(0, defensiveUsed);
-        this.farmhandTotal = Math.max(0, farmhandTotal);
-        this.farmhandUsed = Math.max(0, farmhandUsed);
-        this.canClaim = canClaim;
-        this.canTransfer = canTransfer;
-        this.canAcceptTransfer = canAcceptTransfer;
-        this.canCancelTransfer = canCancelTransfer;
-        this.canMoveTroops = canMoveTroops;
-        this.canEditPopulation = canEditPopulation;
-        this.offensiveAllocated = Math.max(0, offensiveAllocated);
-        this.defensiveAllocated = Math.max(0, defensiveAllocated);
-        this.myOffensiveAllocated = Math.max(0, myOffensiveAllocated);
-        this.myOffensiveUsed = Math.max(0, myOffensiveUsed);
-        this.myDefensiveAllocated = Math.max(0, myDefensiveAllocated);
-        this.myDefensiveUsed = Math.max(0, myDefensiveUsed);
-        this.claimantName = safe(claimantName);
-        this.allocationSummary = safe(allocationSummary);
-        this.ownerHasKing = ownerHasKing;
-        this.myOffensivePop = Math.max(0, myOffensivePop);
-        this.myDefensivePop = Math.max(0, myDefensivePop);
-        this.myMountedPop = Math.max(0, myMountedPop);
-        this.myGroundPop = Math.max(0, myGroundPop);
-        this.activeRecruitmentTile = safe(activeRecruitmentTile);
-        this.canSetRecruitmentTile = canSetRecruitmentTile;
-        this.lotrWaypointKey = safe(lotrWaypointKey);
-        this.lotrWaypointDisplayName = safe(lotrWaypointDisplayName);
-        this.lotrWaypointRegion = safe(lotrWaypointRegion);
-    }
-
-    public KOMEGuiConquestCapture(String tileId, String ownerFaction, String pendingFromFaction, String pendingToFaction, String viewerFaction, int offensivePop, int defensivePop, int mountedPop, int groundPop, int incomingPop, int outgoingPop, long incomingEtaMillis, int offensiveTotal, int offensiveUsed, int defensiveTotal, int defensiveUsed, int farmhandTotal, int farmhandUsed, boolean canClaim, boolean canTransfer, boolean canAcceptTransfer, boolean canCancelTransfer, boolean canMoveTroops, boolean canEditPopulation, int offensiveAllocated, int defensiveAllocated, int myOffensiveAllocated, int myOffensiveUsed, int myDefensiveAllocated, int myDefensiveUsed, String claimantName, String allocationSummary, boolean ownerHasKing, int myOffensivePop, int myDefensivePop, int myMountedPop, int myGroundPop, String activeRecruitmentTile, boolean canSetRecruitmentTile, String lotrWaypointKey, String lotrWaypointDisplayName, String lotrWaypointRegion, int waypointLevel, String currentRulingFaction, String defaultRulingFaction, String mapRegion) {
-        this(tileId, ownerFaction, pendingFromFaction, pendingToFaction, viewerFaction, offensivePop, defensivePop, mountedPop, groundPop, incomingPop, outgoingPop, incomingEtaMillis, offensiveTotal, offensiveUsed, defensiveTotal, defensiveUsed, farmhandTotal, farmhandUsed, canClaim, canTransfer, canAcceptTransfer, canCancelTransfer, canMoveTroops, canEditPopulation, offensiveAllocated, defensiveAllocated, myOffensiveAllocated, myOffensiveUsed, myDefensiveAllocated, myDefensiveUsed, claimantName, allocationSummary, ownerHasKing, myOffensivePop, myDefensivePop, myMountedPop, myGroundPop, activeRecruitmentTile, canSetRecruitmentTile, lotrWaypointKey, lotrWaypointDisplayName, lotrWaypointRegion);
-        this.waypointLevel = waypointLevel;
-        this.currentRulingFaction = safe(currentRulingFaction);
-        this.defaultRulingFaction = safe(defaultRulingFaction);
-        this.mapRegion = safe(mapRegion);
-    }
-
     void setVisualTestState(int tab, int mode, int selectedIndex) {
-        activeTab = clamp(tab, 0, 2);
+        activeTab = clamp(tab, 0, 1);
         buildMode = clamp(mode, BUILD_MODE_LIST, BUILD_MODE_RENAME);
         selectedBuildIndex = selectedIndex;
         claimConfirmationArmed = false;
@@ -304,9 +210,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         buildTransferFactions();
         computeLayout();
         buttonList.clear();
-        populationAmountField = null;
-        allocationPlayerField = null;
-        allocationAmountField = null;
         buildNameField = null;
         buildHoursField = null;
         addTabButtons();
@@ -330,19 +233,13 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             return;
         }
         if (isOwnedByPledge()) {
-            int contentY = panelY + CONTENT_Y_OFFSET;
-            int colW = (panelW - PANEL_MARGIN * 2 - CARD_GAP) / 2;
-            int rowH = Math.max(112, (actionTop - contentY - CARD_GAP) / 2);
-            GuiButton recruitment = new KOMEGuiButton(ID_SET_RECRUITMENT_TILE, panelX + PANEL_MARGIN + 10, contentY + rowH - 25, colW - 20, 18,
+            GuiButton recruitment = new KOMEGuiButton(ID_SET_RECRUITMENT_TILE, panelX + PANEL_MARGIN, actionTop + 10, 180, 18,
                 tileId.equals(activeRecruitmentTile) ? "Active Recruitment Tile" : "Use as Recruitment Tile");
             recruitment.enabled = canSetRecruitmentTile && !tileId.equals(activeRecruitmentTile);
             buttonList.add(recruitment);
         }
-        int contentY = panelY + CONTENT_Y_OFFSET;
-        int colW = (panelW - PANEL_MARGIN * 2 - CARD_GAP) / 2;
-        int rowH = Math.max(112, (actionTop - contentY - CARD_GAP) / 2);
-        buttonList.add(new KOMEGuiButton(ID_VIEW_UNITS, panelX + PANEL_MARGIN + colW - 92,
-            contentY + rowH + CARD_GAP + 5, 82, 18, "View Units"));
+        buttonList.add(new KOMEGuiButton(ID_VIEW_UNITS, panelX + panelW - PANEL_MARGIN - 82,
+            actionTop + 10, 82, 18, "View Units"));
         int startX = panelX + PANEL_MARGIN;
         int gap = ACTION_BUTTON_GAP;
         int buttonCount = hasPendingTransfer() ? 5 : 4;
@@ -371,9 +268,11 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private void addTabButtons() {
         int x = panelX + PANEL_MARGIN;
         int y = panelY + 59;
-        int width = Math.max(62, panelW - PANEL_MARGIN * 2);
+        int width = Math.max(62, (panelW - PANEL_MARGIN * 2 - CARD_GAP) / 2);
         KOMEGuiButton builds = KOMEGuiButton.tab(ID_TAB_BUILDS, x, y, width, "Builds", activeTab == 0);
         buttonList.add(builds);
+        buttonList.add(KOMEGuiButton.tab(ID_TAB_POPULATION, x + width + CARD_GAP, y,
+            width, "Canonical Population", activeTab == 1));
     }
 
     private void initBuildControls() {
@@ -466,14 +365,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
     }
 
-    private void initPopulationPoolControls() {
-        int footerY = panelY + panelH - 32;
-        buttonList.add(new KOMEGuiButton(ID_BACK, panelX + PANEL_MARGIN, footerY, 104, 22, "Back to Map"));
-        buttonList.add(new KOMEGuiButton(ID_VIEW_UNITS, panelX + panelW - PANEL_MARGIN - 112, footerY,
-            112, 22, "View Units"));
-        poolScroll = clamp(poolScroll, 0, Math.max(0, populationPoolViews.size() - poolVisibleRows()));
-    }
-
     private void addHourControls(int x, int w, int y) {
         int groupW = Math.max(76, w - 40);
         int left = x + 20;
@@ -485,70 +376,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         buildHoursField = new GuiTextField(fontRendererObj, left + 25, y + 1,
             Math.max(26, groupW - 50), 16);
-        buildHoursField.setMaxStringLength(12);
+        buildHoursField.setMaxStringLength(32);
         syncHourFields();
-    }
-
-    private void addAllocationControls() {
-        int margin = PANEL_MARGIN;
-        int gap = CARD_GAP;
-        int contentY = panelY + CONTENT_Y_OFFSET;
-        int actionTop = panelY + panelH - ACTION_AREA_HEIGHT;
-        int colW = (panelW - margin * 2 - gap) / 2;
-        int rowH = Math.max(112, (actionTop - contentY - gap) / 2);
-        int x = panelX + margin + colW + gap;
-        int y = contentY + rowH + gap;
-        int controlsY = controlRowY(y, rowH);
-        allocationPlayerField = new GuiTextField(fontRendererObj, x + 10, controlsY + 1, 90, 16);
-        allocationPlayerField.setText(mc.thePlayer == null ? "" : mc.thePlayer.getCommandSenderName());
-        allocationAmountField = new GuiTextField(fontRendererObj, x + 104, controlsY + 1, 38, 16);
-        allocationAmountField.setText("25");
-        int buttonX = x + 147;
-        int buttonW = Math.max(38, (colW - 157 - 12) / 4);
-        int buttonGap = 3;
-        GuiButton addOff = new KOMEGuiButton(ID_ALLOCATE_OFFENSIVE, buttonX, controlsY, buttonW, 18, "+Off");
-        GuiButton removeOff = new KOMEGuiButton(ID_UNALLOCATE_OFFENSIVE, buttonX + (buttonW + buttonGap), controlsY, buttonW, 18, "-Off");
-        GuiButton addDef = new KOMEGuiButton(ID_ALLOCATE_DEFENSIVE, buttonX + (buttonW + buttonGap) * 2, controlsY, buttonW, 18, "+Def");
-        GuiButton removeDef = new KOMEGuiButton(ID_UNALLOCATE_DEFENSIVE, buttonX + (buttonW + buttonGap) * 3, controlsY, buttonW, 18, "-Def");
-        addOff.enabled = canEditPopulation;
-        removeOff.enabled = canEditPopulation;
-        addDef.enabled = canEditPopulation;
-        removeDef.enabled = canEditPopulation;
-        buttonList.add(addOff);
-        buttonList.add(removeOff);
-        buttonList.add(addDef);
-        buttonList.add(removeDef);
-    }
-
-    private void addPopulationControls() {
-        int margin = PANEL_MARGIN;
-        int gap = CARD_GAP;
-        int contentY = panelY + CONTENT_Y_OFFSET;
-        int actionTop = panelY + panelH - ACTION_AREA_HEIGHT;
-        int colW = (panelW - margin * 2 - gap) / 2;
-        int rowH = Math.max(112, (actionTop - contentY - gap) / 2);
-        int x = panelX + margin + colW + gap;
-        int y = contentY;
-        int controlGap = 5;
-        int controlY = controlRowY(y, rowH);
-        int amountW = 48;
-        int buttonStartX = x + 12 + amountW + 12;
-        int buttonW = Math.max(42, (x + colW - 12 - buttonStartX - controlGap * 3) / 4);
-        populationAmountField = new GuiTextField(fontRendererObj, x + 12, controlY + 1, amountW, 16);
-        populationAmountField.setText("25");
-        populationAmountField.setMaxStringLength(5);
-        GuiButton addOff = new KOMEGuiButton(ID_ADD_OFFENSIVE, buttonStartX, controlY, buttonW, 18, "+Off");
-        GuiButton removeOff = new KOMEGuiButton(ID_REMOVE_OFFENSIVE, buttonStartX + (buttonW + controlGap), controlY, buttonW, 18, "-Off");
-        GuiButton addDef = new KOMEGuiButton(ID_ADD_DEFENSIVE, buttonStartX + (buttonW + controlGap) * 2, controlY, buttonW, 18, "+Def");
-        GuiButton removeDef = new KOMEGuiButton(ID_REMOVE_DEFENSIVE, buttonStartX + (buttonW + controlGap) * 3, controlY, buttonW, 18, "-Def");
-        addOff.enabled = canEditPopulation;
-        removeOff.enabled = canEditPopulation;
-        addDef.enabled = canEditPopulation;
-        removeDef.enabled = canEditPopulation;
-        buttonList.add(addOff);
-        buttonList.add(removeOff);
-        buttonList.add(addDef);
-        buttonList.add(removeDef);
     }
 
     @Override
@@ -588,10 +417,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         } else if (button.id == ID_CANCEL_TRANSFER_MODE) {
             transferMode = false;
             initGui();
-        } else if (button.id == ID_ADD_OFFENSIVE || button.id == ID_REMOVE_OFFENSIVE || button.id == ID_ADD_DEFENSIVE || button.id == ID_REMOVE_DEFENSIVE) {
-            sendPopulationUpdate(button.id);
-        } else if (button.id >= ID_ALLOCATE_OFFENSIVE && button.id <= ID_UNALLOCATE_DEFENSIVE) {
-            sendAllocationUpdate(button.id);
         } else if (button.id == ID_SET_RECRUITMENT_TILE) {
             KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction("recruit", "", "", tileId));
             KOMEConquestMapOverlay.openPreservedMap();
@@ -601,7 +426,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
     private boolean handleBuildAndTabAction(GuiButton button) {
-        if (button.id >= ID_TAB_BUILDS && button.id <= ID_TAB_ALLOCATIONS) {
+        if (button.id == ID_TAB_BUILDS || button.id == ID_TAB_POPULATION) {
             activeTab = button.id - ID_TAB_BUILDS;
             buildMode = BUILD_MODE_LIST;
             transferMode = false;
@@ -618,7 +443,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         if (button.id == ID_BUILD_NEW) {
             buildMode = BUILD_MODE_CREATE;
-            editHalfHours = 0;
+            editCentiHours = 0;
             editBuildType = KOMEBuildType.NORMAL;
             populationOwnerIndex = clamp(populationOwnerIndex, 0, Math.max(0, selectablePopulationOwners.size() - 1));
             initGui();
@@ -631,7 +456,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         if (button.id == ID_BUILD_CONTRIBUTE) {
             buildMode = BUILD_MODE_CONTRIBUTE;
-            editHalfHours = 0;
+            editCentiHours = 0;
             KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
             if (selected != null) editBuildType = KOMEBuildType.forKey(selected.buildType);
             initGui();
@@ -644,12 +469,13 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         if (button.id == ID_BUILD_OFF_MINUS || button.id == ID_BUILD_OFF_PLUS) {
             if (!normalizeHourFields()) return true;
-            if (button.id == ID_BUILD_OFF_MINUS) {
-                editHalfHours = KOMEHalfHourService.adjustHalfHours(editHalfHours, -1);
-            } else {
-                editHalfHours = KOMEHalfHourService.adjustHalfHours(editHalfHours, 1);
+            try {
+                editCentiHours = KOMEBuildTime.adjustHours(editCentiHours,
+                    (button.id == ID_BUILD_OFF_MINUS ? -1L : 1L) * (KOMEBuildTime.CENTI_HOURS_PER_HOUR / 2L));
+                syncHourFields();
+            } catch (IllegalArgumentException invalid) {
+                buildHoursValidation = invalid.getMessage();
             }
-            syncHourFields();
         }
         else if (button.id == ID_BUILD_DEF_MINUS && buildMode == BUILD_MODE_CREATE) editBuildType = KOMEBuildType.NORMAL;
         else if (button.id == ID_BUILD_DEF_PLUS && buildMode == BUILD_MODE_CREATE) editBuildType = KOMEBuildType.DEFENSIVE;
@@ -662,7 +488,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         } else if (button.id == ID_BUILD_SUBMIT_CONTRIBUTION) {
             if (!normalizeHourFields()) return true;
             KOMEPacketConquestCaptureGui.BuildView selected = selectedBuild();
-            if (selected != null && editHalfHours > 0) {
+            if (selected != null && editCentiHours >= 0) {
                 sendBuildAction("contribute", selected.id, "", "", "");
             }
         } else if (button.id == ID_BUILD_SUBMIT_RENAME) {
@@ -679,8 +505,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                     (enemyDestruction
                         ? "As the eligible homeland controller king, you are destroying a hostile faction's Build. "
                         : "As this Build's manager or an administrator, you are permanently deleting the managed Build. ")
-                        + "This removes its active hours, generated population, progression credit, pending submissions, and map marker. "
-                        + "The server will reject the action if population remains committed or allocated.",
+                        + "This removes its active hours, future population generation, progression credit, pending submissions, and map marker. "
+                        + "Previously spent combat population is not returned.",
                     "Destroy Build");
             }
         } else if (button.id >= ID_BUILD_APPROVE_BASE && button.id < ID_BUILD_APPROVE_BASE + 100) {
@@ -706,7 +532,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private void sendBuildAction(String action, String buildId, String contributionId, String text, String owner) {
         KOMEPacketHandler.network.sendToServer(new KOMEPacketBuildAction(action, tileId, buildId,
-            contributionId, text, owner, editBuildType.key, editHalfHours,
+            contributionId, text, owner, editBuildType.key, editCentiHours,
             viewerDimension, viewerWorldX, viewerWorldY, viewerWorldZ));
     }
 
@@ -720,7 +546,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private void syncHourFields() {
         if (buildHoursField != null) {
-            buildHoursField.setText(KOMEHalfHourService.displayHours(editHalfHours));
+            buildHoursField.setText(KOMEBuildTime.formatHours(editCentiHours));
         }
         buildHoursValidation = "";
     }
@@ -728,7 +554,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private boolean updateHoursFromFields(boolean normalize) {
         if (buildHoursField == null) return true;
         try {
-            editHalfHours = KOMEHalfHourService.parseHalfHours(buildHoursField.getText());
+            editCentiHours = KOMEBuildTime.parseHours(buildHoursField.getText());
             buildHoursValidation = "";
             if (normalize) syncHourFields();
             return true;
@@ -759,28 +585,13 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (activeTab == 0) {
             drawBuildTab(logicalMouseX, logicalMouseY);
         } else if (activeTab == 1) {
-            drawPopulationPoolTab(logicalMouseX, logicalMouseY);
-        } else {
-            drawCards(logicalMouseX, logicalMouseY);
-        }
-        if (populationAmountField != null) {
-            populationAmountField.drawTextBox();
-        }
-        if (allocationPlayerField != null) {
-            allocationPlayerField.drawTextBox();
-            allocationAmountField.drawTextBox();
+            drawCanonicalPopulationTab(logicalMouseX, logicalMouseY);
         }
         if (buildNameField != null) buildNameField.drawTextBox();
         if (buildHoursField != null) {
             buildHoursField.drawTextBox();
         }
         super.drawScreen(logicalMouseX, logicalMouseY, partialTicks);
-        if (populationHoverTooltip.length() > 0) {
-            List lines = new ArrayList();
-            lines.add(populationHoverTooltip);
-            KOMEGuiTheme.drawTooltip(fontRendererObj, lines, logicalMouseX, logicalMouseY,
-                logicalWidth, logicalHeight);
-        }
         drawDisabledTooltip(logicalMouseX, logicalMouseY);
         confirmation.draw(fontRendererObj, logicalWidth, logicalHeight, logicalMouseX, logicalMouseY);
         GL11.glPopMatrix();
@@ -804,12 +615,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                 updateHoursFromFields(false);
                 return;
             }
-        }
-        if (populationAmountField != null && populationAmountField.textboxKeyTyped(c, key)) {
-            return;
-        }
-        if (allocationPlayerField != null && (allocationPlayerField.textboxKeyTyped(c, key) || allocationAmountField.textboxKeyTyped(c, key))) {
-            return;
         }
         if (buildNameField != null && buildNameField.textboxKeyTyped(c, key)) return;
         super.keyTyped(c, key);
@@ -842,13 +647,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         }
         boolean hoursFocused = buildHoursField != null && buildHoursField.isFocused();
         super.mouseClicked(mouseX, mouseY, button);
-        if (populationAmountField != null) {
-            populationAmountField.mouseClicked(mouseX, mouseY, button);
-        }
-        if (allocationPlayerField != null) {
-            allocationPlayerField.mouseClicked(mouseX, mouseY, button);
-            allocationAmountField.mouseClicked(mouseX, mouseY, button);
-        }
         if (buildNameField != null) buildNameField.mouseClicked(mouseX, mouseY, button);
         if (buildHoursField != null) {
             buildHoursField.mouseClicked(mouseX, mouseY, button);
@@ -860,9 +658,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     @Override
     public void updateScreen() {
-        if (populationAmountField != null) populationAmountField.updateCursorCounter();
-        if (allocationPlayerField != null) allocationPlayerField.updateCursorCounter();
-        if (allocationAmountField != null) allocationAmountField.updateCursorCounter();
         if (buildNameField != null) buildNameField.updateCursorCounter();
         if (buildHoursField != null) buildHoursField.updateCursorCounter();
         super.updateScreen();
@@ -882,8 +677,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             contributionScroll = clamp(contributionScroll + delta, 0,
                 Math.max(0, selected == null ? 0 : selected.contributions.size() - contributionVisibleRows()));
             initGui();
-        } else if (activeTab == 1) {
-            poolScroll = clamp(poolScroll + delta, 0, Math.max(0, populationPoolViews.size() - poolVisibleRows()));
         }
     }
 
@@ -945,7 +738,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                 KOMEGuiTheme.drawFactionBadge(fontRendererObj, build.populationFaction, build.status,
                     x + w - 210, cardY + 4, 112);
                 fontRendererObj.drawString("Type " + build.buildType + "   Approved Hours "
-                    + displayHalfHours(build.approvedHalfHours),
+                    + KOMEBuildTime.formatHours(build.approvedCentiHours),
                     x + 18, cardY + 22, KOMEGuiTheme.COLOR_TEXT);
                 fontRendererObj.drawString("Manager: " + safeName(build.manager, "Unassigned")
                     + "   Pending: " + build.pendingCount + "   At " + coord(build.x) + ", "
@@ -1003,13 +796,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                     + coord(viewerWorldZ) + "   Dimension: " + viewerDimension, w - 146),
                 x + 126, y + 102, KOMEGuiTheme.COLOR_TEXT);
         } else {
-            KOMEGuiTheme.drawWarningBanner(fontRendererObj, selected != null && selected.canManage
-                    ? "Immediate Manager Contribution" : "Manager Approval Required",
-                selected != null && selected.canManage
-                    ? "Your hours apply immediately because you manage this Build."
-                    : "Your submission remains Pending and creates no population or alliance credit until the current manager approves it.",
-                x + 16, y + 37, w - 32,
-                selected != null && selected.canManage ? KOMEGuiTheme.Status.ACTIVE : KOMEGuiTheme.Status.WARNING);
+            KOMEGuiTheme.drawWarningBanner(fontRendererObj, "Build Review",
+                "Current-manager submissions are approved immediately; other submissions remain Pending until reviewed.",
+                x + 16, y + 37, w - 32, KOMEGuiTheme.Status.WARNING);
         }
         fontRendererObj.drawString((creating ? "Build Type: " + editBuildType.key : "Build Type: "
             + (selected == null ? "" : selected.buildType)) + "   Hours", x + 20, controlsY - 13,
@@ -1019,7 +808,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                 w - 40, KOMEGuiTheme.COLOR_BAD);
         }
         KOMEGuiTheme.drawWarningBanner(fontRendererObj, "Canonical Build Hours",
-            "Approved half-hours are stored exactly. " + (creating ? "The builder receives contribution credit; " + (selectablePopulationOwners.isEmpty()
+            "Approved Build hours are stored exactly to one hundredth. " + (creating ? "The builder receives contribution credit; " + (selectablePopulationOwners.isEmpty()
                     ? "no owner is eligible." : factionName((String) selectablePopulationOwners.get(populationOwnerIndex)))
                     + " permanently owns the generated population." : "Contribution credit follows your current faction; population ownership does not change."),
             x + 16, y + (creating ? 164 : 157), w - 32, KOMEGuiTheme.Status.NEUTRAL);
@@ -1039,7 +828,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             x + 20, y + 56, KOMEGuiTheme.COLOR_TEXT_MUTED);
         KOMEGuiTheme.drawCard(x + 12, y + 74, w - 24, 42, false);
         fontRendererObj.drawString("Type: " + build.buildType, x + 20, y + 82, KOMEGuiTheme.COLOR_GOLD);
-        fontRendererObj.drawString("Approved Hours: " + displayHalfHours(build.approvedHalfHours), x + 20, y + 98,
+        fontRendererObj.drawString("Approved Hours: " + KOMEBuildTime.formatHours(build.approvedCentiHours), x + 20, y + 98,
             KOMEGuiTheme.COLOR_TEXT);
         KOMEGuiTheme.drawDivider(x + 12, y + 147, w - 24);
         fontRendererObj.drawString("Contribution Audit", x + 16, y + 156, KOMEGuiTheme.COLOR_BORDER_RED);
@@ -1060,7 +849,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             int color = "APPROVED".equals(contribution.status) ? KOMEGuiTheme.COLOR_GOOD
                 : "PENDING".equals(contribution.status) ? KOMEGuiTheme.COLOR_WARN : KOMEGuiTheme.COLOR_BAD;
             fontRendererObj.drawString(contribution.player + " / " + factionName(contribution.faction)
-                + "   Hours " + displayHalfHours(contribution.halfHours), x + 18, cardY + 7,
+                + "   Hours " + KOMEBuildTime.formatHours(contribution.centiHours), x + 18, cardY + 7,
                 KOMEGuiTheme.COLOR_TEXT);
             fontRendererObj.drawString(contribution.status, x + 18, cardY + 20, color);
         }
@@ -1070,129 +859,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
 
-    private void drawPopulationPoolTab(int mouseX, int mouseY) {
-        populationHoverTooltip = "";
-        int x = panelX + PANEL_MARGIN;
-        int y = panelY + CONTENT_Y_OFFSET;
-        int w = panelW - PANEL_MARGIN * 2;
-        int bottom = panelY + panelH - 40;
-        KOMEGuiTheme.drawSubPanel(x, y, w, Math.max(40, bottom - y));
-        int physical = 0;
-        int usable = 0;
-        int used = 0;
-        int available = 0;
-        for (Object object : populationPoolViews) {
-            KOMEPacketConquestCaptureGui.PopulationPoolView pool =
-                (KOMEPacketConquestCaptureGui.PopulationPoolView) object;
-            KOMEPopulationGraph.Segments offensive = KOMEPopulationGraph.segments(
-                pool.physicalOffensive, pool.usableOffensive, pool.usedOffensive);
-            KOMEPopulationGraph.Segments defensive = KOMEPopulationGraph.segments(
-                pool.physicalDefensive, pool.usableDefensive, pool.usedDefensive);
-            physical = KOMEPopulationGraph.saturatingAdd(physical,
-                KOMEPopulationGraph.saturatingAdd(offensive.physical, defensive.physical));
-            usable = KOMEPopulationGraph.saturatingAdd(usable,
-                KOMEPopulationGraph.saturatingAdd(offensive.usable, defensive.usable));
-            used = KOMEPopulationGraph.saturatingAdd(used,
-                KOMEPopulationGraph.saturatingAdd(offensive.used, defensive.used));
-            available = KOMEPopulationGraph.saturatingAdd(available,
-                KOMEPopulationGraph.saturatingAdd(offensive.available, defensive.available));
-        }
-        KOMEGuiTheme.drawSectionTitle(fontRendererObj, "Faction-owned Population Pools", x + 12, y + 9, w - 24);
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
-            "Physical " + physical + "   Usable " + usable + "   Used " + used + "   Available " + available,
-            w - 32), x + 16, y + 28, KOMEGuiTheme.COLOR_TEXT);
-        drawPopulationLegend(x + 16, y + 42, w - 32);
-        if (populationPoolViews.isEmpty()) {
-            fontRendererObj.drawString("No population pools are recorded in this tile.", x + 18, y + 66,
-                KOMEGuiTheme.COLOR_TEXT_MUTED);
-            return;
-        }
-        int visible = poolVisibleRows();
-        int viewportY = y + 57;
-        int viewportH = Math.max(24, bottom - viewportY - 5);
-        KOMEGuiTheme.enableScissor(mc, x + 7, viewportY, w - 14, viewportH, renderScale);
-        for (int row = 0; row < visible && poolScroll + row < populationPoolViews.size(); row++) {
-            KOMEPacketConquestCaptureGui.PopulationPoolView pool =
-                (KOMEPacketConquestCaptureGui.PopulationPoolView) populationPoolViews.get(poolScroll + row);
-            int cardY = y + 60 + row * POPULATION_POOL_ROW_HEIGHT;
-            int cardW = w - 18;
-            KOMEGuiTheme.drawCard(x + 9, cardY, cardW, 98,
-                KOMEGuiTheme.isHovered(mouseX, mouseY, x + 9, cardY, cardW, 98));
-            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
-                factionName(pool.faction), Math.max(70, cardW / 2 - 16)),
-                x + 18, cardY + 7, KOMEGuiTheme.COLOR_BORDER_RED);
-            boolean controllerOwned = KOMEAlliance.normalizeFactionKey(pool.faction).equals(
-                KOMEAlliance.normalizeFactionKey(currentRulingFaction.length() == 0
-                    ? ownerFaction : currentRulingFaction));
-            int poolPhysical = KOMEPopulationGraph.saturatingAdd(
-                pool.physicalOffensive, pool.physicalDefensive);
-            int poolUsable = KOMEPopulationGraph.saturatingAdd(
-                pool.usableOffensive, pool.usableDefensive);
-            String access = KOMEPopulationGraph.accessLabel(controllerOwned, poolPhysical, poolUsable);
-            fontRendererObj.drawString(access, x + w - 18 - fontRendererObj.getStringWidth(access), cardY + 7,
-                access.startsWith("100") ? KOMEGuiTheme.COLOR_GOOD
-                    : access.startsWith("50") ? KOMEGuiTheme.COLOR_WARN : KOMEGuiTheme.COLOR_BAD);
-            String sources = "Base O " + pool.nativeOffensive + " / D " + pool.nativeDefensive
-                + "   Build O " + pool.buildOffensive + " / D " + pool.buildDefensive;
-            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, sources, cardW - 18),
-                x + 18, cardY + 21, KOMEGuiTheme.COLOR_TEXT_MUTED);
-            if (KOMEGuiTheme.isHovered(mouseX, mouseY, x + 16, cardY + 18, cardW - 14, 12)) {
-                populationHoverTooltip =
-                    "Base Population is population already assigned to this tile and is not generated by a Build.";
-            }
-            drawPopulationPoolGraph("Offensive", pool.physicalOffensive, pool.usableOffensive,
-                pool.usedOffensive, x + 18, cardY + 35, cardW - 18, mouseX, mouseY);
-            drawPopulationPoolGraph("Defensive", pool.physicalDefensive, pool.usableDefensive,
-                pool.usedDefensive, x + 18, cardY + 63, cardW - 18, mouseX, mouseY);
-        }
-        KOMEGuiTheme.disableScissor();
-        drawSimpleScrollbar(x + w - 7, viewportY, viewportH, poolScroll, populationPoolViews.size(), visible);
-    }
-
-    private void drawPopulationLegend(int x, int y, int width) {
-        drawRect(x, y + 2, x + 7, y + 9, COLOR_POOL_USED);
-        fontRendererObj.drawString("Used", x + 10, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        drawRect(x + 48, y + 2, x + 55, y + 9, COLOR_POOL_AVAILABLE);
-        fontRendererObj.drawString("Available", x + 58, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        drawRect(x + 124, y + 2, x + 131, y + 9, COLOR_POOL_INACCESSIBLE);
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
-            "Inaccessible", Math.max(20, width - 134)),
-            x + 134, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
-    }
-
-    private void drawPopulationPoolGraph(String label, int physical, int usable, int used,
-            int x, int y, int width, int mouseX, int mouseY) {
-        KOMEPopulationGraph.Segments values = KOMEPopulationGraph.segments(physical, usable, used);
-        String numbers = label + ": Physical " + values.physical + " | Usable " + values.usable
-            + " | Used " + values.used + " | Available " + values.available;
-        fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, numbers, width),
-            x, y, KOMEGuiTheme.COLOR_TEXT);
-        int barY = y + 12;
-        int barH = 9;
-        KOMEGuiTheme.drawBorderedRect(x, barY, width, barH,
-            KOMEGuiTheme.COLOR_BORDER_DARK, 0xFF3A2A1B);
-        int innerW = Math.max(0, width - 2);
-        if (values.physical > 0 && innerW > 0) {
-            int usedEnd = (int) ((long) innerW * values.used / values.physical);
-            int availableEnd = (int) ((long) innerW
-                * (values.used + values.available) / values.physical);
-            drawPoolSegment(x + 1, barY + 1, usedEnd, barH - 2, COLOR_POOL_USED);
-            drawPoolSegment(x + 1 + usedEnd, barY + 1, availableEnd - usedEnd,
-                barH - 2, COLOR_POOL_AVAILABLE);
-            drawPoolSegment(x + 1 + availableEnd, barY + 1, innerW - availableEnd,
-                barH - 2, COLOR_POOL_INACCESSIBLE);
-        }
-        if (KOMEGuiTheme.isHovered(mouseX, mouseY, x, barY, width, barH)) {
-            populationHoverTooltip = label + ": Used " + values.used + " | Available "
-                + values.available + " | Inaccessible " + values.inaccessible
-                + " | Physical " + values.physical;
-        }
-    }
-
-    private void drawPoolSegment(int x, int y, int width, int height, int color) {
-        if (width <= 0 || height <= 0) return;
-        drawRect(x, y, x + width, y + height, color);
-        drawRect(x, y, x + width, y + Math.min(2, height), 0x22FFFFFF);
+    private void drawCanonicalPopulationTab(int mouseX, int mouseY) {
+        drawPopulationCard(panelX + PANEL_MARGIN, panelY + CONTENT_Y_OFFSET,
+                panelW - PANEL_MARGIN * 2, 160, mouseX, mouseY);
     }
 
     private void drawSimpleScrollbar(int x, int y, int height, int offset, int total, int visible) {
@@ -1206,10 +875,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private int buildVisibleRows() {
         return Math.max(1, (panelH - CONTENT_Y_OFFSET - 48) / 58);
-    }
-
-    private int poolVisibleRows() {
-        return Math.max(1, (panelH - 190) / POPULATION_POOL_ROW_HEIGHT);
     }
 
     private int contributionVisibleRows() {
@@ -1238,33 +903,12 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         return lotrWaypointDisplayName.length() > 0 ? lotrWaypointDisplayName + " (" + tileId + ")" : tileId;
     }
 
-    private static String displayHalfHours(int halfHours) {
-        int safe = Math.max(0, halfHours);
-        return safe % 2 == 0 ? Integer.toString(safe / 2) : safe / 2 + ".5";
-    }
-
     private static String safeName(String value, String fallback) {
         return value == null || value.length() == 0 ? fallback : value;
     }
 
     private static int coord(double value) {
         return (int) Math.floor(value);
-    }
-
-    private void drawCards(int mouseX, int mouseY) {
-        int margin = PANEL_MARGIN;
-        int gap = CARD_GAP;
-        int contentY = panelY + CONTENT_Y_OFFSET;
-        int actionTop = panelY + panelH - ACTION_AREA_HEIGHT;
-        int colW = (panelW - margin * 2 - gap) / 2;
-        int leftX = panelX + margin;
-        int rightX = leftX + colW + gap;
-        int rowH = Math.max(112, (actionTop - contentY - gap) / 2);
-        drawStatusCard(leftX, contentY, colW, rowH, mouseX, mouseY);
-        drawPopulationCard(rightX, contentY, colW, rowH, mouseX, mouseY);
-        drawStationedCard(leftX, contentY + rowH + gap, colW, rowH, mouseX, mouseY);
-        drawMovementCard(rightX, contentY + rowH + gap, colW, rowH, mouseX, mouseY);
-        drawActionCard(panelX + margin, actionTop, panelW - margin * 2, ACTION_AREA_HEIGHT - 14, mouseX, mouseY);
     }
 
     private void drawStatusCard(int x, int y, int w, int h, int mouseX, int mouseY) {
@@ -1285,29 +929,20 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         line(x, lineY, "Recruitment", activeRecruitmentTile.length() == 0 ? "Automatic selection" : activeRecruitmentTile, w);
     }
 
+    private kome.common.data.KOMEPopulationProjection population = new kome.common.data.KOMEPopulationProjection(
+            "", 0L, java.math.BigInteger.ZERO, java.math.BigInteger.ZERO, false, 0L);
+
     private void drawPopulationCard(int x, int y, int w, int h, int mouseX, int mouseY) {
         KOMEGuiTheme.drawCard(x, y, w, h, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, w, h));
-        title("Tile Population", x, y, w);
-        if (!hasPopulationData()) {
-            KOMEGuiTheme.drawWrappedText(fontRendererObj, "Tile population data unavailable.", x + 8, y + CARD_CONTENT_Y_OFFSET, w - 16, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        } else {
-            int offAvail = Math.max(0, offensiveTotal - offensiveUsed);
-            int defAvail = Math.max(0, defensiveTotal - defensiveUsed);
-            line(x, y + CARD_CONTENT_Y_OFFSET, "Offensive", offensiveUsed + "/" + offensiveTotal + " used, " + offAvail + " available", w);
-            KOMEGuiTheme.drawProgressBar(fontRendererObj, x + 10, y + CARD_CONTENT_Y_OFFSET + 15, w - 20, 10, ratio(offensiveUsed, offensiveTotal), KOMEGuiTheme.COLOR_GOOD, "");
-            line(x, y + CARD_CONTENT_Y_OFFSET + 31, "Defensive", defensiveUsed + "/" + defensiveTotal + " used, " + defAvail + " available", w);
-            KOMEGuiTheme.drawProgressBar(fontRendererObj, x + 10, y + CARD_CONTENT_Y_OFFSET + 46, w - 20, 10, ratio(defensiveUsed, defensiveTotal), KOMEGuiTheme.COLOR_WARN, "");
-            if (farmhandTotal > 0 || farmhandUsed > 0) {
-                line(x, y + CARD_CONTENT_Y_OFFSET + 61, "Farmhands", farmhandUsed + "/" + farmhandTotal, w);
-            }
-        }
-        if (populationAmountField != null) {
-            int labelY = controlLabelY(y, h);
-            fontRendererObj.drawString("Amount", x + 12, labelY, KOMEGuiTheme.COLOR_TEXT_MUTED);
-            if (!canEditPopulation) {
-                fontRendererObj.drawString("View only", x + w - 66, labelY, KOMEGuiTheme.COLOR_TEXT_DISABLED);
-            }
-        }
+        title("Controlling Faction Population", x, y, w);
+        int lineY = y + CARD_CONTENT_Y_OFFSET;
+        lineY = line(x, lineY, "Available Population", kome.common.data.KOMEPopulationProjection.formatCenti(population.availablePopulationCenti), w);
+        lineY = line(x, lineY, "Active Population", kome.common.data.KOMEPopulationProjection.formatCenti(population.activePopulationCenti), w);
+        lineY = line(x, lineY, "Total represented population", kome.common.data.KOMEPopulationProjection.formatCenti(population.representedPopulationCenti), w);
+        lineY = line(x, lineY, "Daily rate", kome.common.data.KOMEPopulationProjection.formatRate(population.dailyRateUnits), w);
+        lineY = line(x, lineY, "Cap", population.capEnabled ? kome.common.data.KOMEPopulationProjection.formatCenti(population.capCenti) : "Uncapped", w);
+        lineY = line(x, lineY, "Permanent unit investment", "Active above; farmhands excluded", w);
+        line(x, lineY, "Tactical strength", offensivePop + " offensive / " + defensivePop + " defensive (not a bank)", w);
     }
 
     private void drawStationedCard(int x, int y, int w, int h, int mouseX, int mouseY) {
@@ -1365,41 +1000,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         String company = first.companyName == null || first.companyName.length() == 0 ? "Company" : first.companyName;
         return company + ": " + total + " pop / " + first.units.size() + " units" + direction + otherTile + ", ETA "
             + formatDuration(earliest == Long.MAX_VALUE ? 0L : earliest) + extra;
-    }
-
-    private void drawMovementCard(int x, int y, int w, int h, int mouseX, int mouseY) {
-        KOMEGuiTheme.drawCard(x, y, w, h, KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, w, h));
-        title("Population Allocation", x, y, w);
-        int lineY = y + CARD_CONTENT_Y_OFFSET;
-        lineY = line(x, lineY, "Offensive", offensiveAllocated + " allocated, " + Math.max(0, offensiveTotal - offensiveAllocated) + " unallocated", w);
-        lineY = line(x, lineY, "Defensive", defensiveAllocated + " allocated, " + Math.max(0, defensiveTotal - defensiveAllocated) + " unallocated", w);
-        lineY = line(x, lineY, "My Offensive", myOffensiveUsed + "/" + myOffensiveAllocated + " used, " + Math.max(0, myOffensiveAllocated - myOffensiveUsed) + " available", w);
-        lineY = line(x, lineY, "My Defensive", myDefensiveUsed + "/" + myDefensiveAllocated + " used, " + Math.max(0, myDefensiveAllocated - myDefensiveUsed) + " available", w);
-        if (!ownerHasKing && claimantName.length() > 0) {
-            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, "No king: tile population assigned to " + claimantName, w - 20), x + 10, lineY + 1, KOMEGuiTheme.COLOR_WARN);
-            lineY += 12;
-        }
-        if (allocationSummary.length() > 0) {
-            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, allocationSummary, w - 20), x + 10, lineY + 1, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        }
-        if (allocationPlayerField != null) {
-            fontRendererObj.drawString(canEditPopulation ? "Player / amount" : "Allocation management requires king/admin", x + 10, controlLabelY(y, h), canEditPopulation ? KOMEGuiTheme.COLOR_TEXT_MUTED : KOMEGuiTheme.COLOR_TEXT_DISABLED);
-        }
-        if (canEditPopulation) {
-            String arrival = "Arrival Point: stand there and run /troops arrival set " + tileId;
-            int arrivalY = Math.max(lineY + 2, controlLabelY(y, h) - 12);
-            if (arrivalY + 8 < controlLabelY(y, h)) {
-                fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, arrival, w - 20), x + 10, arrivalY, KOMEGuiTheme.COLOR_TEXT_MUTED);
-            }
-        }
-    }
-
-    private static int controlRowY(int y, int h) {
-        return y + h - CARD_CONTROL_BOTTOM_PADDING - CARD_CONTROL_HEIGHT;
-    }
-
-    private static int controlLabelY(int y, int h) {
-        return controlRowY(y, h) - CARD_CONTROL_LABEL_GAP;
     }
 
     private void drawActionCard(int x, int y, int w, int h, int mouseX, int mouseY) {
@@ -1460,17 +1060,11 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
     private String disabledReason(int id) {
-        if (id == ID_ADD_OFFENSIVE || id == ID_REMOVE_OFFENSIVE || id == ID_ADD_DEFENSIVE || id == ID_REMOVE_DEFENSIVE) {
-            return "Only admins or the owning faction's king can edit tile population.";
-        }
-        if (id >= ID_ALLOCATE_OFFENSIVE && id <= ID_UNALLOCATE_DEFENSIVE) {
-            return "Only admins or the owning faction's king can manage allocations.";
-        }
         if (id == ID_SET_RECRUITMENT_TILE) {
             if (tileId.equals(activeRecruitmentTile)) {
                 return "This is already your active recruitment tile.";
             }
-            return "You need an allocation here or player reserve population to use this tile for recruitment.";
+            return "Your faction needs positive Available + Active Population to use this controlled tile for recruitment.";
         }
         if (id == ID_CLAIM) {
             return hasViewerFaction() ? "This tile is already controlled by your faction." : "Pledge to a faction before claiming tiles.";
@@ -1500,48 +1094,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         return "This action is not available.";
     }
 
-    private void sendPopulationUpdate(int buttonId) {
-        int amount = parseAmount();
-        if (amount <= 0) {
-            return;
-        }
-        boolean defensive = buttonId == ID_ADD_DEFENSIVE || buttonId == ID_REMOVE_DEFENSIVE;
-        boolean add = buttonId == ID_ADD_OFFENSIVE || buttonId == ID_ADD_DEFENSIVE;
-        KOMEPacketHandler.network.sendToServer(new KOMEPacketTilePopulationUpdate(tileId, defensive ? "defensive" : "offensive", amount, add));
-    }
-
-    private int parseAmount() {
-        if (populationAmountField == null) {
-            return 0;
-        }
-        try {
-            return Math.max(0, Integer.parseInt(populationAmountField.getText().trim()));
-        } catch (NumberFormatException e) {
-            populationAmountField.setText("1");
-            return 1;
-        }
-    }
-
-    private void sendAllocationUpdate(int buttonId) {
-        if (allocationPlayerField == null || allocationAmountField == null) {
-            return;
-        }
-        int amount;
-        try {
-            amount = Math.max(0, Integer.parseInt(allocationAmountField.getText().trim()));
-        } catch (NumberFormatException e) {
-            allocationAmountField.setText("1");
-            amount = 1;
-        }
-        String player = allocationPlayerField.getText().trim();
-        if (amount <= 0 || player.length() == 0) {
-            return;
-        }
-        boolean defensive = buttonId == ID_ALLOCATE_DEFENSIVE || buttonId == ID_UNALLOCATE_DEFENSIVE;
-        boolean add = buttonId == ID_ALLOCATE_OFFENSIVE || buttonId == ID_ALLOCATE_DEFENSIVE;
-        KOMEPacketHandler.network.sendToServer(new KOMEPacketTileAllocationUpdate(tileId, player, defensive ? "defensive" : "offensive", amount, add));
-    }
-
     private boolean hasViewerFaction() {
         return viewerFaction.length() > 0;
     }
@@ -1554,16 +1106,12 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         return hasPending(pendingFromFaction, pendingToFaction);
     }
 
-    private boolean hasPopulationData() {
-        return offensiveTotal > 0 || offensiveUsed > 0 || defensiveTotal > 0 || defensiveUsed > 0 || farmhandTotal > 0 || farmhandUsed > 0;
-    }
-
     private String lotrWaypointLabel() {
         if (lotrWaypointDisplayName.length() == 0 && lotrWaypointKey.length() == 0) {
             return "Missing";
         }
         String display = lotrWaypointDisplayName.length() == 0 ? lotrWaypointKey : lotrWaypointDisplayName;
-        if (canEditPopulation && lotrWaypointKey.length() > 0) {
+        if (canInspectWaypoint && lotrWaypointKey.length() > 0) {
             String suffix = lotrWaypointRegion.length() == 0 ? lotrWaypointKey : lotrWaypointKey + " / " + lotrWaypointRegion;
             return display + " (" + suffix + ")";
         }
@@ -1644,10 +1192,6 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     private static boolean hasPending(String from, String to) {
         return from != null && from.length() > 0 && to != null && to.length() > 0;
-    }
-
-    private static float ratio(int used, int total) {
-        return total <= 0 ? 0.0f : used / (float) total;
     }
 
     private static String formatDuration(long millis) {

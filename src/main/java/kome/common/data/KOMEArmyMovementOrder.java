@@ -100,6 +100,23 @@ public class KOMEArmyMovementOrder {
     public long accessLostAtMillis;
     public String accessChoice = "";
 
+    /** Only creation grants the initial allowance. Persistence and status changes never call this. */
+    public static KOMEArmyMovementOrder newRoute(int tilesPerDay) {
+        if (tilesPerDay <= 0) throw new IllegalArgumentException("Movement allowance must be positive");
+        KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
+        order.tilesPerDay = tilesPerDay;
+        order.dailyStepsRemaining = tilesPerDay;
+        return order;
+    }
+
+    /** Departure must commit before its allowance is consumed. Blocked/retry paths keep the budget. */
+    public boolean tryDepart(boolean dailyMode, java.util.function.BooleanSupplier departure) {
+        if (dailyMode && dailyStepsRemaining <= 0) return false;
+        if (!departure.getAsBoolean()) return false;
+        if (dailyMode) dailyStepsRemaining--;
+        return true;
+    }
+
     public boolean isMoving() {
         return MOVING.equals(status) || PENDING_SPAWN.equals(status) || SPAWNING.equals(status)
             || SPAWN_BLOCKED.equals(status) || WAITING_NEXT_STEP.equals(status)

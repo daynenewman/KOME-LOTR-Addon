@@ -55,7 +55,7 @@ public class KOMEPacketMovementHistoryRequest implements IMessage {
             boolean all = message.allFactions;
             if (all && !admin) {
                 player.addChatMessage(new ChatComponentText("Only admins can view all faction troop movement records."));
-                all = false;
+                return null;
             }
             if (!all) {
                 if (requestedFaction.length() == 0) {
@@ -63,17 +63,10 @@ public class KOMEPacketMovementHistoryRequest implements IMessage {
                 }
                 if (!admin && !requestedFaction.equals(viewerFaction)) {
                     player.addChatMessage(new ChatComponentText("You can only view your own faction's troop movement records."));
-                    requestedFaction = viewerFaction;
+                    return null;
                 }
             }
-            for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
-                if (order != null && order.id != null && order.id.length() > 0) {
-                    data.syncMovementHistory(order, order.isPendingSpawn() ? KOMEMovementHistoryRecord.FAILED
-                        : order.isMoving() ? KOMEMovementHistoryRecord.ACTIVE
-                        : KOMEMovementHistoryRecord.ARRIVED.equals(order.status) ? KOMEMovementHistoryRecord.ARRIVED
-                        : KOMEArmyMovementOrder.STOPPED.equals(order.status) ? KOMEMovementHistoryRecord.STOPPED : null);
-                }
-            }
+            // Read the history maintained by movement lifecycle writes, without reconciling it.
             List<KOMEMovementHistoryRecord> records = new ArrayList<KOMEMovementHistoryRecord>();
             for (KOMEMovementHistoryRecord record : data.movementHistory.values()) {
                 if (record == null) {

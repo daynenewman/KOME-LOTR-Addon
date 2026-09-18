@@ -14,7 +14,6 @@ import kome.common.data.KOMERulerService;
 import kome.common.data.KOMETileOwnershipDefaults;
 import kome.common.data.KOMEWaypointDefaults;
 import kome.common.network.KOMEPacketUnitMapMarkers;
-import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -26,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class KOMECommandKome extends CommandBase {
+public class KOMECommandKome extends KOMEPublicCommand {
     @Override
     public String getCommandName() {
         return "kome";
@@ -34,6 +33,7 @@ public class KOMECommandKome extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
+        if (!hasStaffPermission(sender)) return "/kome [gui|help|tile <tileId>]";
         return "/kome character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
@@ -44,6 +44,22 @@ public class KOMECommandKome extends CommandBase {
 
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
+        if (args.length == 0 || args.length == 1 && "gui".equalsIgnoreCase(args[0])) {
+            if (sender instanceof EntityPlayerMP) openOverview((EntityPlayerMP) sender);
+            else sendPublicHelp(sender);
+            return;
+        }
+        if (args.length == 1 && "help".equalsIgnoreCase(args[0])) {
+            sendPublicHelp(sender);
+            if (hasStaffPermission(sender)) sender.addChatMessage(new ChatComponentText(getCommandUsage(sender)));
+            return;
+        }
+        if (args.length == 2 && "tile".equalsIgnoreCase(args[0])) {
+            kome.common.network.KOMEPacketConquestOpenCapture.sendTileCommand(getCommandSenderAsPlayer(sender), args[1]);
+            return;
+        }
+        // Remaining root functions are administrative. Reject before accessing world state.
+        requireStaff(sender);
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         if (args.length >= 1 && "audit".equalsIgnoreCase(args[0])) {
             requireStaff(sender);
@@ -197,9 +213,14 @@ public class KOMECommandKome extends CommandBase {
 
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
+        if (!hasStaffPermission(sender)) {
+            return args.length == 1 ? getListOfStringsMatchingLastWord(args, "gui", "help", "tile")
+                : java.util.Collections.emptyList();
+        }
         if (args.length == 1) {
             return getListOfStringsMatchingLastWord(
                 args,
+                "gui", "help", "tile",
                 "character",
                 "config",
                 "conquest",
@@ -253,6 +274,18 @@ public class KOMECommandKome extends CommandBase {
             return getListOfStringsMatchingLastWord(args, "on", "off", "status");
         }
         return null;
+    }
+
+    protected void openOverview(EntityPlayerMP player) {
+        // Existing G1 response opens Population, whose Tiles/Menu/Units buttons reach public screens.
+        new KOMECommandPopulation().processCommand(player, new String[] {"gui"});
+    }
+
+    private void sendPublicHelp(ICommandSender sender) {
+        sender.addChatMessage(new ChatComponentText("/kome gui - Population overview; Tiles opens the conquest map."));
+        sender.addChatMessage(new ChatComponentText("/kome tile <tileId> - Tile Command (Builds / Canonical Population)."));
+        sender.addChatMessage(new ChatComponentText("Public commands: /population, /conquest list|get, /build list|inspect, /troops, /progression, /alliance, /war list|status, /season status."));
+        sender.addChatMessage(new ChatComponentText("The LOTR menu also opens Progression, Server Records and Alliances. Gameplay actions still require their normal permissions."));
     }
 
     private void requireStaff(ICommandSender sender) {

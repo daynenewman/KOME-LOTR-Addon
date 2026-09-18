@@ -10,6 +10,7 @@ public class KOMEUnitGuiEntry {
     public String factionName = "";
     public String populationType = "";
     public int populationCost;
+    public long populationSpentCenti;
     public boolean farmhand;
     public boolean mounted;
     public String currentTile = "";
@@ -25,7 +26,6 @@ public class KOMEUnitGuiEntry {
     public long etaMillis;
     public boolean canMove;
     public String cannotMoveReason = "";
-    public String releasesTo = "";
     public int levelCap;
     public String companyId = "";
     public String companyName = "";
@@ -39,6 +39,7 @@ public class KOMEUnitGuiEntry {
         factionName = read(buf);
         populationType = read(buf);
         populationCost = buf.readInt();
+        populationSpentCenti = KOMEPopulationWire.nonnegative(buf.readLong());
         farmhand = buf.readBoolean();
         mounted = buf.readBoolean();
         currentTile = read(buf);
@@ -54,21 +55,23 @@ public class KOMEUnitGuiEntry {
         etaMillis = buf.readLong();
         canMove = buf.readBoolean();
         cannotMoveReason = read(buf);
-        releasesTo = read(buf);
         levelCap = buf.readInt();
         companyId = read(buf);
         companyName = read(buf);
         companyStatus = read(buf);
         haltedProtected = buf.readBoolean();
+        validatePopulation();
     }
 
     public void toBytes(ByteBuf buf) {
+        validatePopulation();
         write(buf, entityId);
         write(buf, unitName);
         write(buf, ownerName);
         write(buf, factionName);
         write(buf, populationType);
         buf.writeInt(populationCost);
+        buf.writeLong(KOMEPopulationWire.nonnegative(populationSpentCenti));
         buf.writeBoolean(farmhand);
         buf.writeBoolean(mounted);
         write(buf, currentTile);
@@ -84,7 +87,6 @@ public class KOMEUnitGuiEntry {
         buf.writeLong(etaMillis);
         buf.writeBoolean(canMove);
         write(buf, cannotMoveReason);
-        write(buf, releasesTo);
         buf.writeInt(levelCap);
         write(buf, companyId);
         write(buf, companyName);
@@ -92,11 +94,18 @@ public class KOMEUnitGuiEntry {
         buf.writeBoolean(haltedProtected);
     }
 
+    private void validatePopulation() {
+        KOMEPopulationWire.nonnegative(populationCost);
+        KOMEPopulationWire.nonnegative(populationSpentCenti);
+        if (farmhand && (populationCost != 0 || populationSpentCenti != 0L))
+            throw new IllegalArgumentException("Farmhand population must be zero");
+    }
+
     private static String read(ByteBuf buf) {
-        return ByteBufUtils.readUTF8String(buf);
+        return KOMEPopulationWire.readText(buf);
     }
 
     private static void write(ByteBuf buf, String value) {
-        ByteBufUtils.writeUTF8String(buf, value == null ? "" : value);
+        KOMEPopulationWire.writeText(buf, value == null ? "" : value);
     }
 }

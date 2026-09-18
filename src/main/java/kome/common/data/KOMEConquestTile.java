@@ -108,6 +108,12 @@ public class KOMEConquestTile {
         return currentRulingFaction;
     }
 
+    /** Read-only compatibility projection; never repairs either ownership field. */
+    public String projectRulingFaction() {
+        String current = KOMEAlliance.normalizeFactionKey(currentRulingFaction);
+        return current.length() > 0 ? current : KOMEAlliance.normalizeFactionKey(ownerFaction);
+    }
+
     public void setAnchor(int dimension, double x, double y, double z) {
         anchorDimension = dimension;
         anchorX = x;
@@ -138,14 +144,19 @@ public class KOMEConquestTile {
     }
 
     public NBTTagCompound writeToNBT() {
+        syncCurrentFromLegacy();
+        return projectToNBT();
+    }
+
+    /** Same DTO keys, without the persistence compatibility repair. */
+    public NBTTagCompound projectToNBT() {
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Id", normalizeId(id));
-        syncCurrentFromLegacy();
         nbt.setInteger("WaypointLevel", waypointLevel);
         nbt.setString("DefaultRulingFaction", KOMEAlliance.normalizeFactionKey(defaultRulingFaction));
-        nbt.setString("CurrentRulingFaction", KOMEAlliance.normalizeFactionKey(currentRulingFaction));
+        nbt.setString("CurrentRulingFaction", projectRulingFaction());
         nbt.setString("MapRegion", valueOrBlank(mapRegion));
-        nbt.setString("OwnerFaction", KOMEAlliance.normalizeFactionKey(currentRulingFaction));
+        nbt.setString("OwnerFaction", projectRulingFaction());
         nbt.setString("PendingTransferFromFaction", KOMEAlliance.normalizeFactionKey(pendingTransferFromFaction));
         nbt.setString("PendingTransferToFaction", KOMEAlliance.normalizeFactionKey(pendingTransferToFaction));
         nbt.setLong("ClaimedWorldTime", claimedWorldTime);

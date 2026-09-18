@@ -44,7 +44,9 @@ public class KOMEProgressionPermissions {
             return true;
         }
         UUID playerID = KOMEReflection.getEntityUUID(player);
-        return data.getProgression(playerID).isCompleted(permission);
+        KOMEPlayerProgression progression = data.progressions.get(playerID);
+        // Permission reads must not create a record, including on a denied forged request.
+        return permission.defaultUnlocked || progression != null && progression.isCompleted(permission);
     }
 
     public static boolean require(EntityPlayer player, String permissionID) {

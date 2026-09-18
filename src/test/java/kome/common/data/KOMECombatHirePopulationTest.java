@@ -14,13 +14,13 @@ public class KOMECombatHirePopulationTest {
     @Test
     public void fundedCombatHireDebitsThePayingFactionExactlyOnceAndRecordsIt() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.grantFactionPopulation("gondor", 30);
+        data.grantFactionPopulationCenti("gondor", 3000L);
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
 
         assertTrue(KOMEPopulationService.tryDebitCombatHire(data, "GONDOR", 12));
         KOMEPopulationService.recordCombatHirePayment(record, "GONDOR");
 
-        assertEquals(18, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(1800L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertEquals(KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, record.sourceType);
         assertEquals("gondor", record.populationOwningFaction);
         assertEquals("gondor", record.sourceFaction);
@@ -30,7 +30,7 @@ public class KOMECombatHirePopulationTest {
         data.writeToNBT(saved);
         KOMEWorldData restored = new KOMEWorldData("test");
         restored.readFromNBT(saved);
-        assertEquals(18, KOMEPopulationService.getAvailablePopulation(restored, "gondor"));
+        assertEquals(1800L, KOMEPopulationService.getAvailablePopulationCenti(restored, "gondor"));
     }
 
     @Test
@@ -55,52 +55,73 @@ public class KOMECombatHirePopulationTest {
     @Test
     public void insufficientFactionPopulationDoesNotMutateOrCreateAnotherDebit() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.grantFactionPopulation("gondor", 5);
+        data.grantFactionPopulationCenti("gondor", 500L);
         data.setDirty(false);
 
         assertFalse(KOMEPopulationService.tryDebitCombatHire(data, "gondor", 6));
-        assertEquals(5, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(500L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertFalse(data.isDirty());
     }
 
     @Test
-    public void offensiveAndDefensiveLegacySelectionsUseTheSameFactionBank() {
+    public void consecutiveCombatDebitsUseTheSameFactionBank() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.grantFactionPopulation("gondor", 20);
-        KOMEPlayerPopulation legacySelector = data.getPopulation(java.util.UUID.randomUUID());
+        data.grantFactionPopulationCenti("gondor", 2000L);
 
-        legacySelector.hireType = KOMEPopulationType.OFFENSIVE;
         assertTrue(KOMEPopulationService.tryDebitCombatHire(data, "gondor", 5));
-        legacySelector.hireType = KOMEPopulationType.DEFENSIVE;
         assertTrue(KOMEPopulationService.tryDebitCombatHire(data, "gondor", 5));
 
-        assertEquals(10, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(1000L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
     }
 
     @Test
     public void factionBankDebitNeedsNoTileAllocationOrBuildCapacity() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.grantFactionPopulation("gondor", 9);
+        data.grantFactionPopulationCenti("gondor", 900L);
 
-        assertTrue(data.tilePopulations.isEmpty());
-        assertTrue(data.populationAllocations.isEmpty());
         assertTrue(data.builds.isEmpty());
         assertTrue(KOMEPopulationService.tryDebitCombatHire(data, "gondor", 9));
-        assertEquals(0, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(0L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
     }
 
     @Test
-    public void factionsCannotSpendEachOthersBalancesAndRollbackRestoresOnlyPayer() {
+    public void failedHireRollbackRestoresExactlyItsOwnDebitAndCannotBeReused() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.grantFactionPopulation("gondor", 10);
-        data.grantFactionPopulation("rohan", 3);
+        data.grantFactionPopulationCenti("gondor", 1000L);
+        data.grantFactionPopulationCenti("rohan", 300L);
 
-        assertFalse(KOMEPopulationService.tryDebitCombatHire(data, "rohan", 4));
-        assertTrue(KOMEPopulationService.tryDebitCombatHire(data, "gondor", 6));
-        KOMEPopulationService.rollbackCombatHireDebit(data, "gondor", 6);
+        assertTrue(KOMEPopulationService.beginCombatHireDebit(data, "rohan", 4) == null);
+        KOMEPopulationService.CombatHireDebit debit = KOMEPopulationService.beginCombatHireDebit(data, "gondor", 6);
+        assertTrue(debit != null);
+        assertEquals(400L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+        debit.rollback();
 
-        assertEquals(10, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
-        assertEquals(3, KOMEPopulationService.getAvailablePopulation(data, "rohan"));
+        assertEquals(1000L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+        assertEquals(300L, KOMEPopulationService.getAvailablePopulationCenti(data, "rohan"));
+        try {
+            debit.rollback();
+            org.junit.Assert.fail("A completed rollback token must not be reusable");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage().contains("already closed"));
+        }
+    }
+
+    @Test
+    public void committedHireCannotUseRollbackAndFailureBeforeDebitChangesNothing() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        data.grantFactionPopulationCenti("gondor", 1000L);
+        KOMEPopulationService.CombatHireDebit debit = KOMEPopulationService.beginCombatHireDebit(data, "gondor", 6);
+        assertTrue(debit != null);
+        debit.commit();
+        try {
+            debit.rollback();
+            org.junit.Assert.fail("A committed hire must not be refundable");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage().contains("already closed"));
+        }
+        assertEquals(400L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+        assertTrue(KOMEPopulationService.beginCombatHireDebit(data, "gondor", 5) == null);
+        assertEquals(400L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
     }
 
     @Test
@@ -108,6 +129,8 @@ public class KOMECombatHirePopulationTest {
         KOMEHiredUnitRecord farmhand = new KOMEHiredUnitRecord();
         farmhand.farmhand = true;
         farmhand.cost = 0;
+        farmhand.baseCost = 0;
+        farmhand.populationSpent = 0;
 
         assertEquals(0, farmhand.cost);
         assertFalse(farmhand.isFactionPopulationBankFunded());

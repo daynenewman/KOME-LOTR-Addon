@@ -64,7 +64,7 @@ public final class KOMEMovementAccessService {
 
     public static String movementAccessReason(KOMEWorldData data, KOMEArmyMovementOrder order, String destination) {
         KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(destination);
-        String owner = tile == null ? "unknown" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+        String owner = tile == null ? "unknown" : KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
         return "Military passage lost before entering " + destination + " (owner "
             + KOMEAlliance.displayFactionName(owner) + ").";
     }
@@ -112,10 +112,10 @@ public final class KOMEMovementAccessService {
             String tileId, boolean retreat) {
         String tileKey = KOMEConquestTile.normalizeId(tileId);
         KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(tileKey);
-        if (tile == null || !tile.isClaimed()) {
+        if (tile == null || tile.projectRulingFaction().isEmpty()) {
             return false;
         }
-        String owner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+        String owner = KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
         String faction = KOMEAlliance.normalizeFactionKey(order == null ? "" : order.ownerFaction);
         KOMEArmyCompany company = order == null ? null : data.armyCompanies.get(order.companyId);
         if (owner.equals(faction) || data.canFactionUseMilitaryPassage(faction, owner)
@@ -162,13 +162,13 @@ public final class KOMEMovementAccessService {
             : KOMEWartimeStewardshipService.nativeFaction(company);
         for (int i = currentIndex - 1; i >= 0; i--) {
             KOMEConquestTile tile = data.conquestTiles.get(KOMEConquestTile.normalizeId(traveled.get(i)));
-            if (tile != null && nativeFaction.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
+            if (tile != null && nativeFaction.equals(KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction()))) {
                 return i;
             }
         }
         for (int i = currentIndex - 1; i >= 0; i--) {
             KOMEConquestTile tile = data.conquestTiles.get(KOMEConquestTile.normalizeId(traveled.get(i)));
-            String owner = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+            String owner = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
             if (owner.length() > 0 && data.canFactionUseMilitaryPassage(nativeFaction, owner)
                     && isTileStandableForOrder(data, order, traveled.get(i), false)) {
                 return i;

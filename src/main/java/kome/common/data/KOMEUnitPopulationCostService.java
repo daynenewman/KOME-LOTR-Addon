@@ -26,11 +26,20 @@ public final class KOMEUnitPopulationCostService {
 
     public static int reconcileBankedUnitCost(KOMEWorldData data, KOMEHiredUnitRecord record,
             int calculatedCost) {
-        if (data == null || record == null || record.farmhand) return 0;
+        if (data == null || record == null) return 0;
+        if (record.farmhand) {
+            record.cost = 0;
+            record.baseCost = 0;
+            record.populationSpent = 0;
+            return 0;
+        }
         int desired = Math.max(1, calculatedCost);
         int spent = Math.max(Math.max(0, record.populationSpent), Math.max(0, record.cost));
         int extra = Math.max(0, desired - spent);
-        if (extra > 0 && !KOMEPopulationService.tryDebitCombatHire(data, record.populationOwningFaction, extra)) return -1;
+        if (extra > 0) {
+            KOMEPopulationService.wholeToCenti(extra);
+            if (!KOMEPopulationService.tryDebitCombatHire(data, record.populationOwningFaction, extra)) return -1;
+        }
         record.cost = desired;
         record.populationSpent = Math.max(spent, desired);
         return extra;
