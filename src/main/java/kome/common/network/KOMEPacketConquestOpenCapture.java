@@ -66,11 +66,13 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
     public static void sendTileCommand(EntityPlayerMP player, String requestedTileId, String focusBuildId) {
         String tileId = KOMEConquestTile.normalizeId(requestedTileId);
         if (tileId.isEmpty() || !KOMEConquestTile.isCanonicalTileId(tileId)) {
+            player.addChatMessage(new net.minecraft.util.ChatComponentText("Invalid conquest tile."));
             return;
         }
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEConquestTile tile = data.getConquestTileIfPresent(tileId);
+        KOMEConquestTile tile = data.getPublicConquestTile(tileId);
         if (tile == null) {
+            player.addChatMessage(new net.minecraft.util.ChatComponentText("Unknown or unavailable conquest tile."));
             return;
         }
         String viewerFaction = KOMEAlliance.normalizeFactionKey(getPlayerFaction(data, player));
@@ -80,7 +82,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         boolean canInspectWaypoint = canInspectWaypoint(data, player, tile);
         TroopSummary summary = summarizeTroops(data, ownerFaction, tileId, viewerId);
         boolean canMoveTroops = hasControllableCompanyAtTile(data, viewerId, viewerFaction, tileId, player.canCommandSenderUseCommand(2, "troops"));
-        boolean canClaim = viewerFaction.length() > 0 && !viewerFaction.equals(ownerFaction);
+        boolean canClaim = viewerFaction.length() > 0 && !viewerFaction.equals(ownerFaction)
+            && kome.common.data.KOMEProgressionPermissions.has(player, kome.common.data.KOMEProgressionPermissions.TAKE_WAYPOINTS);
         boolean ownerKing = KOMERulerAuthorization.canActAsRuler(data, ownerFaction, KOMEReflection.getEntityUUID(player));
         boolean canTransfer = !tile.projectRulingFaction().isEmpty() && viewerFaction.equals(ownerFaction) && ownerKing;
         boolean canAccept = tile.hasPendingTransfer() && viewerFaction.equals(pendingToFaction) && KOMERulerAuthorization.canActAsRuler(data, pendingToFaction, KOMEReflection.getEntityUUID(player));

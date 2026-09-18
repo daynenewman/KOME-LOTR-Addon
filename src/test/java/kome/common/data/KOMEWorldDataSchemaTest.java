@@ -247,7 +247,12 @@ public class KOMEWorldDataSchemaTest {
             "src/main/java/kome/common/network/KOMEPacketConquestOpenCapture.java"));
         String projection = between(packet, "public static void sendTileCommand(EntityPlayerMP player, String requestedTileId, String focusBuildId)",
             "private static void populateBuildViews");
-        assertTrue(projection.contains("getConquestTileIfPresent"));
+        assertTrue(projection.contains("getPublicConquestTile"));
+        String worldSource = read(Paths.get("src/main/java/kome/common/data/KOMEWorldData.java"));
+        String publicLookup = between(worldSource, "public KOMEConquestTile getPublicConquestTile(",
+            "public KOMETileWaypoint getTileWaypoint(");
+        assertTrue(publicLookup.contains("getConquestTileIfPresent"));
+        assertFalse(publicLookup.contains("markDirty"));
         assertFalse(projection.contains("rebuildArmyCompaniesForPlayer"));
         assertFalse(projection.contains("getConquestTile(tileId)"));
     }
@@ -287,6 +292,6 @@ public class KOMEWorldDataSchemaTest {
 
     private static String read(Path path) throws Exception {
         assertTrue("Missing source: " + path, Files.isRegularFile(path));
-        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8);
+        return new String(Files.readAllBytes(path), StandardCharsets.UTF_8).replace("\r\n", "\n");
     }
 }

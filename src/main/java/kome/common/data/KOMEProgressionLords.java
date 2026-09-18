@@ -49,8 +49,8 @@ public class KOMEProgressionLords {
 
     public static void openOfferings(EntityPlayerMP player) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-        if (!progression.hasPledgedLord()) {
+        KOMEPlayerProgression progression = data.progressions.get(KOMEReflection.getEntityUUID(player));
+        if (progression == null || !progression.hasPledgedLord()) {
             throw new WrongUsageException("Pledge to a lord first.");
         }
         KOMEProgressionQuotas.processDeposits(progression);
@@ -62,14 +62,13 @@ public class KOMEProgressionLords {
 
     public static void highlightPledgedLord(EntityPlayerMP player) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+        KOMEPlayerProgression progression = data.progressionForInspection(KOMEReflection.getEntityUUID(player));
         if (!progression.hasPledgedLord()) {
             throw new WrongUsageException("Pledge to a lord first.");
         }
         Entity loaded = findLoadedPledgedLord(player, progression);
         if (loaded != null) {
-            progression.setPledgedLordLocation(KOMEReflection.getWorld(player).provider.dimensionId, loaded.posX, loaded.posY, loaded.posZ);
-            data.markDirty();
+            // Location inspection is a projection; pledging owns the persisted fallback location.
             KOMEPacketHandler.network.sendTo(new KOMEPacketLordHighlight(loaded.getEntityId(), progression.getPledgedLordDisplay(), loaded.posX, loaded.posY, loaded.posZ), player);
             player.addChatMessage(new ChatComponentText("Highlighted " + progression.getPledgedLordDisplay() + "."));
             return;

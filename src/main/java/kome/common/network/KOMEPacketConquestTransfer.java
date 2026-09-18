@@ -56,6 +56,10 @@ public class KOMEPacketConquestTransfer implements IMessage {
         @Override
         public IMessage onMessage(KOMEPacketConquestTransfer message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
+            if (!OFFER.equals(message.action) && !ACCEPT.equals(message.action) && !CANCEL.equals(message.action)) {
+                player.addChatMessage(new ChatComponentText("Unknown conquest transfer action."));
+                return null;
+            }
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
             String pledge = KOMEAlliance.normalizeFactionKey(getPlayerFaction(data, player));
             if (pledge.length() == 0) {
@@ -67,12 +71,12 @@ public class KOMEPacketConquestTransfer implements IMessage {
                 player.addChatMessage(new ChatComponentText("Invalid conquest tile."));
                 return null;
             }
-            KOMEConquestTile tile = data.getConquestTile(tileId);
-            if (!tile.isClaimed()) {
+            KOMEConquestTile tile = data.getPublicConquestTile(tileId);
+            if (tile == null || tile.projectRulingFaction().isEmpty()) {
                 player.addChatMessage(new ChatComponentText("Tile " + tileId + " is unclaimed."));
                 return null;
             }
-            String rulingFaction = tile.currentRulingFaction();
+            String rulingFaction = tile.projectRulingFaction();
             if (ACCEPT.equals(message.action)) {
                 acceptTransfer(player, pledge, data, tile);
                 return null;

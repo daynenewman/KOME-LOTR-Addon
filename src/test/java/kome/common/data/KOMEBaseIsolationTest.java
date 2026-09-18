@@ -117,13 +117,15 @@ public class KOMEBaseIsolationTest {
         assertTrue(build.contains("if (\"list\".equals(action))"));
         assertTrue(build.contains("if (\"inspect\".equals(action)"));
         assertTrue(build.contains("Only administrators may modify Build records or configuration."));
-        assertEquals(4, occurrences(build, "requireStaff(sender);"));
+        assertEquals(5, occurrences(build, "requireStaff(sender);")); // includes pre-world-access guard
+        assertTrue(build.contains("extends KOMEPublicCommand"));
         assertTrue(build.contains("if (\"adjust\".equals(action) && args.length >= 4) {\n            requireStaff(sender);"));
 
         assertTrue(war.contains("if (\"list\".equals(action))"));
         assertTrue(war.contains("if (\"status\".equals(action))"));
         assertTrue(war.contains("Only administrators may modify war records."));
-        assertEquals(4, occurrences(war, "requireStaff(sender);"));
+        assertEquals(5, occurrences(war, "requireStaff(sender);")); // includes pre-world-access guard
+        assertTrue(war.contains("extends KOMEPublicCommand"));
     }
 
     private static String sha256(Path path) throws Exception {

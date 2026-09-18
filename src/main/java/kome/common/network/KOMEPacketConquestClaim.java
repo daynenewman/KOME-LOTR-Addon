@@ -52,8 +52,12 @@ public class KOMEPacketConquestClaim implements IMessage {
                 player.addChatMessage(new ChatComponentText("Invalid conquest tile."));
                 return null;
             }
-            KOMEConquestTile tile = data.getConquestTile(tileId);
-            String priorOwner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+            KOMEConquestTile tile = data.getPublicConquestTile(tileId);
+            if (tile == null) {
+                player.addChatMessage(new ChatComponentText("Unknown or unavailable conquest tile."));
+                return null;
+            }
+            String priorOwner = tile.projectRulingFaction();
             String permission = pledge.equals(priorOwner) ? KOMEProgressionPermissions.RECLAIM_WAYPOINTS
                 : KOMEProgressionPermissions.TAKE_WAYPOINTS;
             if (!KOMEProgressionPermissions.require(player, permission)) return null;

@@ -8,20 +8,24 @@ import kome.common.data.KOMEWar;
 import kome.common.data.KOMEWarSeasonState;
 import kome.common.data.KOMEWarService;
 import kome.common.data.KOMEWorldData;
-import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ChatComponentText;
 
 /** Player-facing season status and explicit Finale action; lifecycle repair remains staff-only. */
-public final class KOMECommandSeason extends CommandBase {
+public final class KOMECommandSeason extends KOMEPublicCommand {
     public String getCommandName() { return "season"; }
-    public String getCommandUsage(ICommandSender sender) { return "/season status | finale | prewar | reset | complete-reset | repair <maintenance|pre_war|war|finale|reset>"; }
+    public String getCommandUsage(ICommandSender sender) {
+        return isStaff(sender) ? "/season status | finale | prewar | reset | complete-reset | repair <maintenance|pre_war|war|finale|reset>"
+            : "/season status | finale (eligible ruler only)";
+    }
     public int getRequiredPermissionLevel() { return 0; }
 
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length != 1 && args.length != 2) throw new WrongUsageException(getCommandUsage(sender));
+        if (!"status".equalsIgnoreCase(args[0]) && !"finale".equalsIgnoreCase(args[0])) requireStaff(sender);
+        if ("finale".equalsIgnoreCase(args[0])) getCommandSenderAsPlayer(sender);
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
         long now = System.currentTimeMillis();
@@ -52,6 +56,13 @@ public final class KOMECommandSeason extends CommandBase {
         data.markDirty();
         sender.addChatMessage(new ChatComponentText("Season " + data.warSeason.seasonId + " is now " + data.warSeason.phase + "."));
         status(sender, data, now);
+    }
+
+    @Override
+    public java.util.List addTabCompletionOptions(ICommandSender sender, String[] args) {
+        if (args.length != 1) return java.util.Collections.emptyList();
+        return isStaff(sender) ? getListOfStringsMatchingLastWord(args, "status", "finale", "prewar", "reset", "complete-reset", "repair")
+            : getListOfStringsMatchingLastWord(args, "status", "finale");
     }
 
     private static KOMEWarSeasonState.TransitionResult repair(KOMEWorldData data, String value, long now) {

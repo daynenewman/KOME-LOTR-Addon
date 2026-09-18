@@ -296,6 +296,12 @@ public class KOMEWorldData extends WorldSavedData {
         return progression;
     }
 
+    /** Read-only callers may inspect defaults without publishing a new authoritative record. */
+    public KOMEPlayerProgression progressionForInspection(UUID player) {
+        KOMEPlayerProgression existing = progressions.get(player);
+        return existing == null ? new KOMEPlayerProgression() : existing;
+    }
+
     public int getAllianceItemStackEquivalents(String type, int tier) {
         return requirementBase(type, tier, "items", KOMEAllianceRequirements.standardItemStackEquivalents(type, tier));
     }
@@ -583,6 +589,14 @@ public class KOMEWorldData extends WorldSavedData {
 
     public KOMEConquestTile getConquestTileIfPresent(String tileId) {
         return conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
+    }
+
+    /** Public selection uses existing map metadata, never creates tiles or resolves world coordinates. */
+    public KOMEConquestTile getPublicConquestTile(String tileId) {
+        String id = KOMEConquestTile.normalizeId(tileId);
+        if (!KOMEConquestTile.isCanonicalTileId(id) || KOMEConquestTileDefaults.isRetiredTile(id)
+                || !KOMEConquestTileDefaults.getKnownTileIds().contains(id)) return null;
+        return getConquestTileIfPresent(id);
     }
 
     public KOMETileWaypoint getTileWaypoint(String tileId, String type) {
@@ -1122,7 +1136,7 @@ public class KOMEWorldData extends WorldSavedData {
         String tileKey = KOMEConquestTile.normalizeId(tileId);
         String faction = KOMEAlliance.normalizeFactionKey(factionKey);
         KOMEConquestTile tile = conquestTiles.get(tileKey);
-        return tile != null && tile.isClaimed() && faction.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()));
+        return tile != null && !faction.isEmpty() && faction.equals(tile.projectRulingFaction());
     }
 
     public boolean canFactionStandOnTile(String tileId, String factionKey) {

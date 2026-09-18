@@ -15,7 +15,6 @@ import kome.common.network.KOMEUnitGuiEntry;
 import kome.common.KOMEReflection;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
-import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -31,7 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-public class KOMECommandPopulation extends CommandBase {
+public class KOMECommandPopulation extends KOMEPublicCommand {
     @Override
     public String getCommandName() {
         return "population";
@@ -39,6 +38,7 @@ public class KOMECommandPopulation extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
+        if (!isStaff(sender)) return "/population get | gui | units | tile <tile> | faction <faction> | rate [faction] (player details are self-only)";
         return "/population get [player] | gui [player] | units [player] [tile] | tile <tile> | faction <faction> | rate [faction]";
     }
 
@@ -53,7 +53,8 @@ public class KOMECommandPopulation extends CommandBase {
             throw new WrongUsageException(getCommandUsage(sender));
         }
         if ("get".equalsIgnoreCase(args[0]) || "gui".equalsIgnoreCase(args[0])) {
-            EntityPlayerMP player = args.length >= 2 ? getPlayer(sender, args[1]) : getCommandSenderAsPlayer(sender);
+            if (args.length > 2) throw new WrongUsageException(getCommandUsage(sender));
+            EntityPlayerMP player = privateInspectionTarget(sender, args.length == 2 ? args[1] : null);
             sendStatus(sender, player, "gui".equalsIgnoreCase(args[0]));
             return;
         }
@@ -61,7 +62,7 @@ public class KOMECommandPopulation extends CommandBase {
             if (args.length > 3) {
                 throw new WrongUsageException("/population units [player] [tile]");
             }
-            EntityPlayerMP player = args.length >= 2 ? getPlayer(sender, args[1]) : getCommandSenderAsPlayer(sender);
+            EntityPlayerMP player = privateInspectionTarget(sender, args.length >= 2 ? args[1] : null);
             String filterTile = args.length >= 3 ? KOMEConquestTile.normalizeId(args[2]) : "";
             if (filterTile.length() > 0 && !KOMEConquestTile.isCanonicalTileId(filterTile)) {
                 throw new WrongUsageException("Invalid conquest tile: " + args[2]);
@@ -108,9 +109,10 @@ public class KOMECommandPopulation extends CommandBase {
         if (args.length != 2) throw new WrongUsageException("/population tile <tileId>");
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         String tileId = KOMEConquestTile.normalizeId(args[1]);
-        KOMEConquestTile tile = data.conquestTiles.get(tileId);
+        KOMEConquestTile tile = data.getPublicConquestTile(tileId);
+        if (tile == null) throw new WrongUsageException("Unknown or unavailable public tile: " + tileId);
         sender.addChatMessage(new ChatComponentText("Tile " + tileId + ": " + kome.common.data.KOMEPopulationProjection.of(
-                data, tile == null ? "" : tile.projectRulingFaction()).summary()));
+                data, tile.projectRulingFaction()).summary()));
     }
 
     private void sendFactionStatus(ICommandSender sender, String[] args) {
@@ -149,7 +151,7 @@ public class KOMECommandPopulation extends CommandBase {
             java.util.List<String> tiles = new java.util.ArrayList<String>(data.conquestTiles.keySet());
             java.util.Collections.sort(tiles);
             for (String tileId : tiles) {
-                KOMEConquestTile tile = data.conquestTiles.get(tileId);
+                KOMEConquestTile tile = data.getPublicConquestTile(tileId);
                 if (tile == null || faction.isEmpty() || !faction.equals(tile.projectRulingFaction())) continue;
                 KOMEPacketPopulationGui.TileBreakdown row = new KOMEPacketPopulationGui.TileBreakdown();
                 row.tileId = tileId;
@@ -173,6 +175,8 @@ public class KOMECommandPopulation extends CommandBase {
 
     private void sendUnitBreakdown(ICommandSender sender, EntityPlayerMP player, String filterTile) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+        if (!filterTile.isEmpty() && data.getPublicConquestTile(filterTile) == null)
+            throw new WrongUsageException("Unknown or unavailable public tile: " + filterTile);
         UUID playerID = KOMEReflection.getEntityUUID(player);
         int farmhandsUsed = data.getFarmhandsUsed(playerID);
         String faction = data.getPlayerFactionKey(playerID);
@@ -328,7 +332,8 @@ public class KOMECommandPopulation extends CommandBase {
     public java.util.List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length == 1) return getListOfStringsMatchingLastWord(args, "get", "gui", "units", "tile", "faction", "rate");
         if (args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "gui".equalsIgnoreCase(args[0]) || "units".equalsIgnoreCase(args[0])))
-            return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());
+            return isStaff(sender) ? getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames())
+                : Collections.emptyList();
         return null;
     }
 

@@ -21,7 +21,6 @@ import kome.common.network.KOMEPacketHandler;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.item.ItemStack;
@@ -32,7 +31,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
-public class KOMECommandAlliance extends CommandBase {
+public class KOMECommandAlliance extends KOMEPublicCommand {
     @Override
     public String getCommandName() {
         return "alliance";
@@ -52,6 +51,11 @@ public class KOMECommandAlliance extends CommandBase {
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length < 1) {
             throw new WrongUsageException(getCommandUsage(sender));
+        }
+        String action = args[0].toLowerCase(java.util.Locale.ROOT);
+        if (java.util.Arrays.asList("request", "accept", "goods", "storage", "claimgoods", "claim").contains(action)
+                || !isStaff(sender) && java.util.Arrays.asList("list", "get", "cancel").contains(action)) {
+            getCommandSenderAsPlayer(sender);
         }
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         if ("config".equalsIgnoreCase(args[0])
@@ -288,6 +292,7 @@ public class KOMECommandAlliance extends CommandBase {
             }
 
             faction = viewerFaction;
+            if (faction.length() == 0) throw new WrongUsageException("Pledge to a faction before inspecting its diplomacy.");
         }
 
         List<String> lines = new ArrayList<String>();

@@ -10,7 +10,6 @@ import kome.common.data.KOMEProgressionTaskGenerator;
 import kome.common.data.KOMEProgressionTitles;
 import kome.common.data.KOMEWorldData;
 import lotr.common.entity.npc.LOTRHireableBase;
-import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -22,7 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class KOMECommandProgression extends CommandBase {
+public class KOMECommandProgression extends KOMEPublicCommand {
     private static final String[] GROUPS = new String[] {"baseline", "wanderer", "serf", "knight", "lord", "prince_king"};
 
     @Override
@@ -32,6 +31,7 @@ public class KOMECommandProgression extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
+        if (!isStaff(sender)) return "/progression status | get | list <group> | pledge | findlord | offerings | complete/uncomplete <id> | roll <id> (details are self-only)";
         return "/progression status | enable | disable | get [player] | list [player] <group> | pledge | findlord | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | reset <player>";
     }
 
@@ -62,7 +62,8 @@ public class KOMECommandProgression extends CommandBase {
             return;
         }
         if ("get".equalsIgnoreCase(args[0])) {
-            EntityPlayerMP player = args.length >= 2 ? getPlayer(sender, args[1]) : getCommandSenderAsPlayer(sender);
+            if (args.length > 2) throw new WrongUsageException(getCommandUsage(sender));
+            EntityPlayerMP player = privateInspectionTarget(sender, args.length == 2 ? args[1] : null);
             sendSummary(sender, player);
             return;
         }
@@ -105,10 +106,11 @@ public class KOMECommandProgression extends CommandBase {
             EntityPlayerMP player = getCommandSenderAsPlayer(sender);
             KOMEProgressionAchievement achievement = getSelfCompletableAchievement(args[1]);
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+            KOMEPlayerProgression progression = data.progressionForInspection(KOMEReflection.getEntityUUID(player));
             if (!KOMEProgressionPermissionRegistry.canComplete(progression, achievement)) {
                 throw new WrongUsageException("Cannot complete " + achievement.title + ":" + KOMEProgressionPermissionRegistry.prerequisiteText(achievement).trim());
             }
+            progression = data.getProgression(KOMEReflection.getEntityUUID(player));
             boolean changed = progression.grant(achievement.id);
             changed = KOMEProgressionAutoCompleter.applyUnlocks(progression) > 0 || changed;
             data.markDirty();
@@ -237,14 +239,15 @@ public class KOMECommandProgression extends CommandBase {
 
     private void sendSummary(ICommandSender sender, EntityPlayerMP player) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+        KOMEPlayerProgression progression = data.progressionForInspection(KOMEReflection.getEntityUUID(player));
         sender.addChatMessage(new ChatComponentText("Progression restrictions: " + (data.isProgressionEnabled() ? "enabled" : "disabled")));
         sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " progression: " + progression.getCompletedCount(null) + "/" + progression.getTotalCount(null) + " complete"));
         sender.addChatMessage(new ChatComponentText("Pledged lord: " + progression.getPledgedLordDisplay()));
         for (String group : GROUPS) {
             sender.addChatMessage(new ChatComponentText(group + ": " + progression.getCompletedCount(group) + "/" + progression.getTotalCount(group)));
         }
-        sender.addChatMessage(new ChatComponentText("Use /progression list " + player.getCommandSenderName() + " <group> to see achievement IDs."));
+        sender.addChatMessage(new ChatComponentText("Use /progression list "
+            + (isStaff(sender) ? player.getCommandSenderName() + " " : "") + "<group> to see achievement IDs."));
     }
 
     private void syncProgression(EntityPlayerMP player, KOMEPlayerProgression progression) {
@@ -259,7 +262,7 @@ public class KOMECommandProgression extends CommandBase {
             player = getCommandSenderAsPlayer(sender);
             group = args[1];
         } else if (args.length == 3) {
-            player = getPlayer(sender, args[1]);
+            player = privateInspectionTarget(sender, args[1]);
             group = args[2];
         } else {
             throw new WrongUsageException(getCommandUsage(sender));
@@ -269,7 +272,7 @@ public class KOMECommandProgression extends CommandBase {
         }
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         UUID playerID = KOMEReflection.getEntityUUID(player);
-        KOMEPlayerProgression progression = data.getProgression(playerID);
+        KOMEPlayerProgression progression = data.progressionForInspection(playerID);
         sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " " + group + ": " + progression.getCompletedCount(group) + "/" + progression.getTotalCount(group)));
         for (KOMEProgressionAchievement achievement : KOMEProgressionAchievement.forGroup(group)) {
             String mark = progression.isCompleted(achievement) ? "[x] " : "[ ] ";
@@ -284,10 +287,7 @@ public class KOMECommandProgression extends CommandBase {
     }
 
     private World getSenderWorld(ICommandSender sender) {
-        if (sender instanceof EntityPlayerMP) {
-            return KOMEReflection.getWorld((EntityPlayerMP) sender);
-        }
-        return MinecraftServer.getServer().worldServers[0];
+        return sender.getEntityWorld();
     }
 
     private KOMEProgressionAchievement getSelfCompletableAchievement(String id) {
@@ -311,6 +311,14 @@ public class KOMECommandProgression extends CommandBase {
 
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
+        if (!isStaff(sender)) {
+            if (args.length == 1) return getListOfStringsMatchingLastWord(args, "status", "get", "list", "pledge", "findlord", "offerings", "complete", "uncomplete", "roll");
+            if (args.length > 0 && "get".equalsIgnoreCase(args[0])) return java.util.Collections.emptyList();
+            if (args.length > 0 && "list".equalsIgnoreCase(args[0])) return args.length == 2
+                ? getListOfStringsMatchingLastWord(args, GROUPS) : java.util.Collections.emptyList();
+            if (args.length > 0 && java.util.Arrays.asList("enable", "disable", "reroll", "grant", "revoke", "grantall", "reset")
+                    .contains(args[0].toLowerCase(java.util.Locale.ROOT))) return java.util.Collections.emptyList();
+        }
         if (args.length == 1) {
             return getListOfStringsMatchingLastWord(args, "status", "enable", "disable", "get", "list", "pledge", "findlord", "offerings", "complete", "uncomplete", "roll", "reroll", "grant", "revoke", "grantall", "reset");
         }

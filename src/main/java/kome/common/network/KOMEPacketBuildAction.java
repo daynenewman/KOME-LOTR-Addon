@@ -101,6 +101,7 @@ public class KOMEPacketBuildAction implements IMessage {
             String action = safe(message.action).toLowerCase(java.util.Locale.ROOT);
             String tile = kome.common.data.KOMEConquestTile.normalizeId(message.tileId);
             try {
+                if (data.getPublicConquestTile(tile) == null) throw new IllegalArgumentException("Unknown or unavailable conquest tile.");
                 if ("create".equals(action)) {
                     KOMEBuildService.Decision coordinates = KOMEBuildService.validateCoordinates(
                         tile, message.x, message.y, message.z);
@@ -140,6 +141,7 @@ public class KOMEPacketBuildAction implements IMessage {
                 }
             } catch (RuntimeException error) {
                 player.addChatMessage(new ChatComponentText("Build action rejected: " + error.getMessage()));
+                return null;
             }
             data.syncConquestTiles(player);
             String focus = "delete".equals(action) || "destroy".equals(action) ? "" : safe(message.buildId);

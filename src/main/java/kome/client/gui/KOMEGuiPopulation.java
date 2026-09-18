@@ -158,7 +158,7 @@ public class KOMEGuiPopulation extends GuiScreen {
         fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, row.playerName, 142), x + 10, y + 7, KOMEGuiTheme.COLOR_BORDER_RED);
         fontRendererObj.drawString("Active Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(row.activePopulationCenti), x + 164, y + 7, KOMEGuiTheme.COLOR_TEXT);
         fontRendererObj.drawString("Faction-funded living combat investment; no personal bank.", x + 164, y + 23, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        drawMiniButton(x + width - 202, y + 47, 44, "View", mouseX, mouseY);
+        if (canInspectPlayer(row.playerName)) drawMiniButton(x + width - 202, y + 47, 44, "View", mouseX, mouseY);
     }
 
     private void drawTilesTab(int x, int y, int w, int h, int mouseX, int mouseY) {
@@ -212,7 +212,7 @@ public class KOMEGuiPopulation extends GuiScreen {
         for (int i = 0; i < visiblePlayerRows() + 1 && playerScroll + i < rows.size(); i++) {
             KOMEPacketPopulationGui.PlayerInvestment row = (KOMEPacketPopulationGui.PlayerInvestment) rows.get(playerScroll + i);
             int rowY = y + i * playerRowHeight();
-            if (KOMEGuiTheme.isHovered(mouseX, mouseY, x + width - 202, rowY + 47, 44, 16)) {
+            if (canInspectPlayer(row.playerName) && KOMEGuiTheme.isHovered(mouseX, mouseY, x + width - 202, rowY + 47, 44, 16)) {
                 KOMEMinecraftClient.sendChat("/population units " + row.playerName);
                 KOMEMinecraftClient.closePlayerScreen();
                 return true;
@@ -241,6 +241,12 @@ public class KOMEGuiPopulation extends GuiScreen {
     }
 
     private List getPlayerRows() { return data.playerBreakdowns; }
+
+    private boolean canInspectPlayer(String name) {
+        // Affordance only: the server command independently verifies self/operator authority.
+        return kome.common.data.KOMEClientData.INSTANCE.clientViewerIsAdmin
+            || KOMEMinecraftClient.playerName().equalsIgnoreCase(name);
+    }
 
     private void drawMiniButton(int x, int y, int width, String label, int mouseX, int mouseY) {
         boolean hovered = KOMEGuiTheme.isHovered(mouseX, mouseY, x, y, width, 16);

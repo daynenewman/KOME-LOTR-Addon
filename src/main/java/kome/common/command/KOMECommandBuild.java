@@ -10,7 +10,6 @@ import kome.common.data.KOMEForeignConstructionPermission;
 import kome.common.data.KOMEForeignConstructionService;
 import kome.common.data.KOMEBuildType;
 import kome.common.data.KOMEWorldData;
-import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -20,7 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 /** Existing Build inspection and authorized repair surface; hours are exact decimals. */
-public class KOMECommandBuild extends CommandBase {
+public class KOMECommandBuild extends KOMEPublicCommand {
     @Override
     public String getCommandName() {
         return "build";
@@ -28,6 +27,7 @@ public class KOMECommandBuild extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
+        if (!isStaff(sender)) return "/build list [tile] | inspect <buildId> | grants <tile> | grant/revoke <tile> <faction> (ruler only); submit and review through Tile Command";
         return "/build grants <tile> | grant <tile> <faction> | revoke <tile> <faction> | list [tile] | inspect <id> | reassign <id> <onlinePlayer> | remove <id> | sethours <id> <normal|defensive> <hours> | adjust <id> <contribution> <hours> [reason] (decimal hours, at most two places)";
     }
 
@@ -39,9 +39,13 @@ public class KOMECommandBuild extends CommandBase {
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length == 0) throw new WrongUsageException(getCommandUsage(sender));
+        if ("reassign".equalsIgnoreCase(args[0]) || "remove".equalsIgnoreCase(args[0])
+                || "sethours".equalsIgnoreCase(args[0]) || "adjust".equalsIgnoreCase(args[0])) requireStaff(sender);
+        if ("grant".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0])) getCommandSenderAsPlayer(sender);
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
         if ("grants".equals(action) && args.length == 2) {
+            requirePublicTile(data, args[1]);
             List<KOMEForeignConstructionPermission> grants = KOMEForeignConstructionService.currentForTile(data, args[1]);
             sender.addChatMessage(new ChatComponentText("Foreign construction grants: " + grants.size()));
             for (KOMEForeignConstructionPermission grant : grants) sender.addChatMessage(new ChatComponentText(KOMEAlliance.displayFactionName(grant.granteeFaction) + " granted by " + KOMEAlliance.displayFactionName(grant.grantingFaction)));
@@ -59,12 +63,18 @@ public class KOMECommandBuild extends CommandBase {
         }
         if ("list".equals(action)) {
             String tile = args.length > 1 ? args[1] : "";
+            if (tile.length() > 0) requirePublicTile(data, tile);
             List<KOMEPlayerBuild> builds = tile.length() == 0
                 ? new java.util.ArrayList<KOMEPlayerBuild>(data.builds.values())
                 : KOMEBuildService.buildsInTile(data, tile, true);
+            java.util.Iterator<KOMEPlayerBuild> visible = builds.iterator();
+            while (visible.hasNext()) {
+                KOMEPlayerBuild build = visible.next();
+                if (build == null || data.getPublicConquestTile(build.tileId) == null) visible.remove();
+            }
             sender.addChatMessage(new ChatComponentText("Build records: " + builds.size()));
             for (KOMEPlayerBuild build : builds) {
-                if (build != null) sender.addChatMessage(new ChatComponentText(summary(data, build)));
+                sender.addChatMessage(new ChatComponentText(summary(data, build)));
             }
             return;
         }
@@ -72,6 +82,7 @@ public class KOMECommandBuild extends CommandBase {
         KOMEPlayerBuild build = data.getBuild(args[1]);
         if (build == null) throw new WrongUsageException("Unknown Build ID: " + args[1]);
         if ("inspect".equals(action) && args.length == 2) {
+            requirePublicTile(data, build.tileId);
             sender.addChatMessage(new ChatComponentText(summary(data, build)));
             sender.addChatMessage(new ChatComponentText("Builder=" + build.builderName + " manager="
                 + (build.managerName.length() == 0 ? "unassigned" : build.managerName) + " coordinates="
@@ -83,7 +94,7 @@ public class KOMECommandBuild extends CommandBase {
                     + " hours=" + KOMEBuildTime.formatHours(contribution.centiHours) + " reviewer="
                     + contribution.decidedByName + " reason=" + contribution.decisionReason));
             }
-            for (String entry : build.auditHistory()) sender.addChatMessage(new ChatComponentText(entry));
+            if (isStaff(sender)) for (String entry : build.auditHistory()) sender.addChatMessage(new ChatComponentText(entry));
             return;
         }
         if ("reassign".equals(action) && args.length == 3) {
@@ -134,6 +145,19 @@ public class KOMECommandBuild extends CommandBase {
 
     private static UUID actorId(ICommandSender sender) {
         return sender instanceof EntityPlayerMP ? KOMEReflection.getEntityUUID((EntityPlayerMP) sender) : null;
+    }
+
+    @Override
+    public java.util.List addTabCompletionOptions(ICommandSender sender, String[] args) {
+        if (args.length != 1) return java.util.Collections.emptyList();
+        return isStaff(sender)
+            ? getListOfStringsMatchingLastWord(args, "list", "inspect", "grants", "grant", "revoke", "reassign", "remove", "sethours", "adjust")
+            : getListOfStringsMatchingLastWord(args, "list", "inspect", "grants", "grant", "revoke");
+    }
+
+    private static void requirePublicTile(KOMEWorldData data, String tile) {
+        if (data.getPublicConquestTile(tile) == null)
+            throw new WrongUsageException("Unknown or unavailable public tile: " + tile);
     }
 
     private void requireStaff(ICommandSender sender) {
