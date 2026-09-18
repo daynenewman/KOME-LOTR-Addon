@@ -50,6 +50,7 @@ public class AquaModelPoseTest {
         @Override protected synchronized Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
             boolean local = name.equals("net.minecraft.client.model.ModelBiped")
                 || name.equals("com.fuzs.aquaacrobatics.client.model.AquaModelBipedLogic")
+                || name.startsWith("com.fuzs.aquaacrobatics.client.model.AquaLotrSpecialArmorPoseBridge")
                 || name.startsWith("com.lotrcharactercreation.client.model.")
                 || name.startsWith("lotr.client.model.");
             if (!local) return super.loadClass(name, resolve);
