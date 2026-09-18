@@ -3,6 +3,8 @@ package com.fuzs.aquaacrobatics.core.asm;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -96,16 +98,16 @@ public class AquaLotrSpecialArmorTransformerTest {
             byte[] transformedArmorModels = transform(
                 AquaClientEntityTransformer.LOTR_ARMOR_MODELS, armorModels);
             assertEquals(1, associationHookCount(transformedArmorModels));
-            assertEquals(1, associationHookCount(transform(
-                AquaClientEntityTransformer.LOTR_ARMOR_MODELS, transformedArmorModels)));
+            assertAlreadyTransformedRejected(
+                AquaClientEntityTransformer.LOTR_ARMOR_MODELS, transformedArmorModels);
 
             byte[] headPlate = readEntry(zip, HEAD_PLATE_ENTRY);
             assertEquals("9d5b5187d204cc472a96daed8491c182352be82d7ee467dec0ffe0d0ef8b1daf",
                 sha256(headPlate));
             byte[] transformedHeadPlate = transform(AquaClientEntityTransformer.LOTR_HEAD_PLATE, headPlate);
             assertEquals(1, poseHookCount(transformedHeadPlate));
-            assertEquals(1, poseHookCount(transform(
-                AquaClientEntityTransformer.LOTR_HEAD_PLATE, transformedHeadPlate)));
+            assertAlreadyTransformedRejected(
+                AquaClientEntityTransformer.LOTR_HEAD_PLATE, transformedHeadPlate);
         } finally {
             zip.close();
         }
@@ -181,6 +183,15 @@ public class AquaLotrSpecialArmorTransformerTest {
 
     private static byte[] transform(String transformedName, byte[] original) {
         return new AquaClientEntityTransformer().transform(transformedName, transformedName, original);
+    }
+
+    private static void assertAlreadyTransformedRejected(String transformedName, byte[] transformed) {
+        try {
+            transform(transformedName, transformed);
+            fail("second application accepted for " + transformedName);
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("already transformed"));
+        }
     }
 
     private static int associationHookCount(byte[] bytes) {

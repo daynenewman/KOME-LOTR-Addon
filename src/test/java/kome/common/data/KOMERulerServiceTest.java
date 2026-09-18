@@ -91,6 +91,11 @@ public class KOMERulerServiceTest {
 
         KOMEWorldData invalid = new KOMEWorldData("test");
         NBTTagCompound nbt = new NBTTagCompound();
+        new KOMEWorldData("canonical-fixture").writeToNBT(nbt);
+        nbt.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        nbt.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        nbt.setTag("Builds", new net.minecraft.nbt.NBTTagList());
+        nbt.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         NBTTagList kings = new NBTTagList();
         NBTTagCompound entry = new NBTTagCompound();
         entry.setString("Faction", "gondor");
@@ -125,6 +130,11 @@ public class KOMERulerServiceTest {
     public void invalidPersistedUuidDoesNotCreateRuler() {
         KOMEWorldData data = new KOMEWorldData("test");
         NBTTagCompound nbt = new NBTTagCompound();
+        new KOMEWorldData("canonical-fixture").writeToNBT(nbt);
+        nbt.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        nbt.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        nbt.setTag("Builds", new net.minecraft.nbt.NBTTagList());
+        nbt.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         NBTTagList kings = new NBTTagList();
         NBTTagCompound entry = new NBTTagCompound();
         entry.setString("Faction", "gondor");

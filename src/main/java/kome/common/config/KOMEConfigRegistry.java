@@ -2,6 +2,7 @@ package kome.common.config;
 
 
 import java.io.File;
+import java.math.BigDecimal;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -9,12 +10,15 @@ import java.time.format.DateTimeParseException;
 import java.time.format.ResolverStyle;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
+import java.util.OptionalLong;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import net.minecraftforge.common.config.Configuration;
 import kome.common.data.KOMEProgressionAchievement;
+import kome.common.data.KOMEAuditService;
+import kome.common.data.KOMEWorldData;
 
 /** Canonical, typed KOME configuration values. */
 public final class KOMEConfigRegistry {
@@ -83,29 +87,52 @@ public final class KOMEConfigRegistry {
 
     private static final String DEFAULT_LOCAL_TIME = "20:00";
     private static final String DEFAULT_TIMEZONE = "America/Chicago";
+    /** 100 centi-hours = 1 approved Build hour. */
+    public static final long POPULATION_HOURS_SCALE = 100L;
+    /** 10,000 basis points = a multiplier of 1.00 (100 percent). */
+    public static final long CAPTURED_MULTIPLIER_SCALE = 10_000L;
+    /** Population cap uses the canonical bank's hundredths, not rate millionths. */
+    public static final long POPULATION_CAP_SCALE = 100L;
     private static final DateTimeFormatter DAILY_TIME_FORMAT =
             DateTimeFormatter.ofPattern("HH:mm")
                     .withResolverStyle(ResolverStyle.STRICT);
 
     private static volatile ValidatedConfig current = new ValidatedConfig(
             new DailyBatchSettings(LocalTime.parse(DEFAULT_LOCAL_TIME), ZoneId.of(DEFAULT_TIMEZONE)),
-            new PopulationSettings(10, 0.50D, true, false, OptionalInt.empty(), false),
+            new PopulationSettings(1000L, 5000L, true, false, OptionalLong.empty(), false),
             new MovementSettings(1, 2), new BattleSettings(20, 35, 50),
             new MusterSettings(2, 21, 24, EncircledCapitalArrivalPolicy.TBD),
             new SiegeSettings(OptionalDouble.empty(), 1, 15, PreBreachRepair.TBD, false, 192, OptionalInt.empty()),
             new BattleSupportSettings(BattleSupportMode.CURVE, 32, 48, 64, 70, 0.50D, 0.10D, 0.01D, 48, 192),
             new EncirclementSettings(10, 48, false), new SeasonSettings(OptionalInt.empty(), false, OptionalInt.empty(), false, 0, 0),
-            new GearSettings(Collections.<String, GearRuleSetting>emptyMap()));
+            new GearSettings(Collections.<String, GearRuleSetting>emptyMap()), false);
+
+    // Diagnostic only: readiness is derived from the single active snapshot.
+    private static volatile String lastApplyStatus = "NOT_LOADED: bootstrap defaults only";
+    // Existing world lifecycle is the source of the guard, not a second readiness flag.
+    private static KOMEWorldData initializedWorld;
+    private static final RuntimeActivity STARTUP_ACTIVITY = new RuntimeActivity() {
+        public boolean isDailyTransactionInProgress() { return false; }
+        public boolean isActiveSiegeInProgress() { return false; }
+        public java.util.Collection<String> getActiveSiegeLockedConfigKeys() { return Collections.emptyList(); }
+    };
 
     private KOMEConfigRegistry() {
     }
 
     public static synchronized void load(File file) {
         Configuration configuration = new Configuration(file);
-        configuration.load();
-        publish(readValidated(configuration));
-        if (configuration.hasChanged()) {
-            configuration.save();
+        try {
+            configuration.load();
+            ValidatedConfig candidate = readValidated(configuration);
+            ConfigApplyResult result = applyValidated(candidate, STARTUP_ACTIVITY);
+            if (!result.getDecision().isAllowed()) {
+                throw new IllegalStateException(lastApplyStatus);
+            }
+            if (configuration.hasChanged()) configuration.save();
+        } catch (KOMEConfigValidationException invalid) {
+            recordAttempt("REJECTED", invalid.getKey() + ": " + invalid.getRequirement());
+            throw invalid;
         }
     }
 
@@ -117,12 +144,65 @@ public final class KOMEConfigRegistry {
 
     public static synchronized ConfigApplyResult applyValidated(ValidatedConfig candidate,
             RuntimeActivity activity) {
+        if (candidate == null || !candidate.validationComplete || activity == null) {
+            recordAttempt("REJECTED", "A completely validated candidate and runtime activity are required");
+            throw new IllegalArgumentException(lastApplyStatus);
+        }
         KOMEConfigChangeSet changes = KOMEConfigChangeSet.compare(currentValidated(), candidate);
         ChangeDecision decision = KOMEConfigChangeGuard.evaluate(changes, activity);
         if (decision.isAllowed()) {
             publish(candidate);
         }
+        java.util.List<String> changedKeys = new java.util.ArrayList<String>();
+        for (KOMEConfigChangeSet.Entry change : changes.getEntries()) changedKeys.add(change.getCanonicalKey());
+        recordAttempt(decision.isAllowed() ? "ACCEPTED" : "DEFERRED",
+                decision.isAllowed() ? "changedKeys=" + changedKeys + "; " + populationSummary(candidate)
+                        : decision.getReasons() + " keys=" + decision.getBlockingKeys());
         return new ConfigApplyResult(changes, decision);
+    }
+
+    public static boolean isReady() { return current.validationComplete; }
+    /** One validated immutable snapshot for a complete server-thread transaction. */
+    public static ValidatedConfig requireReadySnapshot() {
+        ValidatedConfig snapshot = current;
+        if (!snapshot.validationComplete) throw new IllegalStateException("KOME configuration is not ready: " + lastApplyStatus);
+        return snapshot;
+    }
+    public static String getLastApplyStatus() { return lastApplyStatus; }
+    public static synchronized boolean isWorldConfigurationLocked() { return initializedWorld != null; }
+
+    /** Called after Checkpoint A initialization, before startup population processing. */
+    public static synchronized void onWorldInitialized(KOMEWorldData data) {
+        if (data == null || !data.isIntegratedRootInitialized() || data.isWriteBlocked()) {
+            throw new IllegalStateException("Configuration requires successfully initialized world data");
+        }
+        if (!isReady()) throw new IllegalStateException("KOME configuration is not ready: " + lastApplyStatus);
+        if (initializedWorld == null) {
+            initializedWorld = data;
+            KOMEAuditService.record(data, System.currentTimeMillis(), "CONFIG", "WORLD_BOUND", "SERVER",
+                    "kome.cfg", "Validated configuration bound to initialized world", populationSummary(current));
+        }
+    }
+
+    public static synchronized void onServerStop() { initializedWorld = null; }
+
+    private static void recordAttempt(String action, String details) {
+        lastApplyStatus = action + ": " + details;
+        // Startup has no WorldSavedData; the same outcome remains visible in the server log.
+        System.out.println("[KOME CONFIG] " + lastApplyStatus);
+        if (initializedWorld != null) KOMEAuditService.record(initializedWorld, System.currentTimeMillis(),
+                "CONFIG", action, "SERVER", "kome.cfg", "Configuration " + action.toLowerCase(java.util.Locale.ROOT), details);
+    }
+
+    private static String populationSummary(ValidatedConfig config) {
+        PopulationSettings p = config.getPopulation();
+        return "active population.hoursPerPopulationPoint=" + p.formatHoursPerPopulationPoint()
+                + ", population.capturedBuildMultiplier=" + p.formatCapturedBuildMultiplier()
+                + ", population.populationCapEnabled=" + p.isPopulationCapEnabled()
+                + ", population.populationCapValue=" + p.formatPopulationCap()
+                + ", population.populationCapCenti=" + (p.getPopulationCapCenti().isPresent()
+                        ? Long.toString(p.getPopulationCapCenti().getAsLong()) : "TBD")
+                + ", dailyBatch.timezone=" + config.getDailyBatch().getTimezone();
     }
 
     private static ValidatedConfig readValidated(Configuration configuration) {
@@ -231,17 +311,18 @@ public final class KOMEConfigRegistry {
     }
 
     private static PopulationSettings readPopulation(Configuration c) {
-        int hours = positive(POPULATION_CATEGORY, HOURS_PER_POPULATION_POINT,
-                value(c, POPULATION_CATEGORY, HOURS_PER_POPULATION_POINT, "10"));
-        double multiplier = multiplier(value(c, POPULATION_CATEGORY,
-                CAPTURED_BUILD_MULTIPLIER, "0.5"));
+        long hours = exactDecimal(POPULATION_CATEGORY, HOURS_PER_POPULATION_POINT,
+                value(c, POPULATION_CATEGORY, HOURS_PER_POPULATION_POINT, "10"), 2, 1L, Long.MAX_VALUE);
+        long multiplier = exactDecimal(POPULATION_CATEGORY, CAPTURED_BUILD_MULTIPLIER,
+                value(c, POPULATION_CATEGORY, CAPTURED_BUILD_MULTIPLIER, "0.5"), 4, 0L, CAPTURED_MULTIPLIER_SCALE);
         boolean catchUp = bool(POPULATION_CATEGORY, OFFLINE_POPULATION_CATCH_UP,
                 value(c, POPULATION_CATEGORY, OFFLINE_POPULATION_CATCH_UP, "true"));
         boolean cap = bool(POPULATION_CATEGORY, POPULATION_CAP_ENABLED,
                 value(c, POPULATION_CATEGORY, POPULATION_CAP_ENABLED, "false"));
         String capValue = value(c, POPULATION_CATEGORY, POPULATION_CAP_VALUE, "TBD");
-        OptionalInt populationCapValue = parseOptionalPositiveInt(POPULATION_CATEGORY,
-                POPULATION_CAP_VALUE, capValue);
+        OptionalLong populationCapValue = "TBD".equals(capValue) ? OptionalLong.empty()
+                : OptionalLong.of(exactDecimal(POPULATION_CATEGORY, POPULATION_CAP_VALUE,
+                        capValue, 2, 1L, Long.MAX_VALUE));
         if (cap && !populationCapValue.isPresent()) {
             throw invalid(POPULATION_CATEGORY, POPULATION_CAP_VALUE, capValue,
                     "must be configured when populationCapEnabled is true");
@@ -527,17 +608,27 @@ public final class KOMEConfigRegistry {
         }
     }
 
-    private static double multiplier(String value) {
-        try {
-            double result = Double.parseDouble(value);
-            if (!Double.isNaN(result) && !Double.isInfinite(result)
-                    && result >= 0.0D && result <= 1.0D) {
-                return result;
-            }
-        } catch (NumberFormatException ignored) {
+    /** Exact decimal notation only; neither exponents nor rounding are accepted. */
+    static long exactDecimal(String category, String key, String raw, int decimalPlaces,
+            long minimum, long maximum) {
+        String value = raw == null ? "" : raw.trim();
+        if (!value.matches("-?[0-9]+(?:\\.[0-9]{1," + decimalPlaces + "})?")) {
+            throw invalid(category, key, raw, "must be an ordinary decimal with at most "
+                    + decimalPlaces + " decimal places (no exponent, NaN or infinity)");
         }
-        throw invalid(POPULATION_CATEGORY, CAPTURED_BUILD_MULTIPLIER, value,
-                "must be between 0.0 and 1.0");
+        try {
+            long scaled = new BigDecimal(value).movePointRight(decimalPlaces).longValueExact();
+            if (scaled < minimum || scaled > maximum) throw invalid(category, key, raw,
+                    "must be between " + formatScaled(minimum, decimalPlaces) + " and " + formatScaled(maximum, decimalPlaces));
+            return scaled;
+        } catch (ArithmeticException overflow) {
+            throw invalid(category, key, raw, "overflows the signed long fixed-point representation");
+        }
+    }
+
+    static String formatScaled(long value, int decimalPlaces) {
+        BigDecimal decimal = BigDecimal.valueOf(value, decimalPlaces).stripTrailingZeros();
+        return decimal.setScale(Math.max(2, decimal.scale())).toPlainString();
     }
 
     private static LocalTime parseDailyTime(String value) {
@@ -553,14 +644,14 @@ public final class KOMEConfigRegistry {
 
     private static ZoneId parseTimezone(String value) {
         try {
-            if (!ZoneId.getAvailableZoneIds().contains(value)) {
+            if (!value.contains("/") || !ZoneId.getAvailableZoneIds().contains(value)) {
                 throw invalid(DAILY_BATCH_CATEGORY, TIMEZONE, value,
-                        "must be a recognized IANA timezone");
+                        "must be a region-based IANA timezone, such as America/Chicago; abbreviations and offsets are unsupported");
             }
             return ZoneId.of(value);
         } catch (RuntimeException ignored) {
             throw invalid(DAILY_BATCH_CATEGORY, TIMEZONE, value,
-                    "must be a recognized IANA timezone");
+                    "must be a region-based IANA timezone, such as America/Chicago; abbreviations and offsets are unsupported");
         }
     }
 
@@ -599,6 +690,7 @@ public final class KOMEConfigRegistry {
     }
 
     public static final class ValidatedConfig {
+        private final boolean validationComplete;
         private final DailyBatchSettings dailyBatch;
         private final PopulationSettings population;
         private final MovementSettings movement;
@@ -614,6 +706,13 @@ public final class KOMEConfigRegistry {
                 MovementSettings movement, BattleSettings battle, MusterSettings muster,
                 SiegeSettings siege, BattleSupportSettings battleSupport,
                 EncirclementSettings encirclement, SeasonSettings season, GearSettings gear) {
+            this(dailyBatch, population, movement, battle, muster, siege, battleSupport, encirclement, season, gear, true);
+        }
+        private ValidatedConfig(DailyBatchSettings dailyBatch, PopulationSettings population,
+                MovementSettings movement, BattleSettings battle, MusterSettings muster,
+                SiegeSettings siege, BattleSupportSettings battleSupport,
+                EncirclementSettings encirclement, SeasonSettings season, GearSettings gear, boolean validationComplete) {
+            this.validationComplete = validationComplete;
             this.dailyBatch = dailyBatch; this.population = population; this.movement = movement;
             this.battle = battle; this.muster = muster; this.siege = siege;
             this.battleSupport = battleSupport; this.encirclement = encirclement;
@@ -703,38 +802,37 @@ public final class KOMEConfigRegistry {
     }
 
     public static final class PopulationSettings {
-        private final int hoursPerPopulationPoint;
-        private final double capturedBuildMultiplier;
+        private final long hoursPerPopulationPointCentiHours;
+        private final long capturedBuildMultiplierBasisPoints;
         private final boolean offlinePopulationCatchUp;
         private final boolean populationCapEnabled;
-        private final OptionalInt populationCapValue;
+        private final OptionalLong populationCapCenti;
         private final boolean encirclementPopulationSuppressionEnabled;
         private final Map<String, Integer> unitPopulationCostOverrides;
 
-        private PopulationSettings(int hours, double multiplier, boolean catchUp,
-                boolean cap, OptionalInt populationCapValue, boolean suppression) {
+        private PopulationSettings(long hours, long multiplier, boolean catchUp,
+                boolean cap, OptionalLong populationCapValue, boolean suppression) {
             this(hours, multiplier, catchUp, cap, populationCapValue, suppression,
                     Collections.<String, Integer>emptyMap());
         }
-        private PopulationSettings(int hours, double multiplier, boolean catchUp,
-                boolean cap, OptionalInt populationCapValue, boolean suppression,
+        private PopulationSettings(long hours, long multiplier, boolean catchUp,
+                boolean cap, OptionalLong populationCapValue, boolean suppression,
                 Map<String, Integer> overrides) {
-            hoursPerPopulationPoint = hours;
-            capturedBuildMultiplier = multiplier;
+            hoursPerPopulationPointCentiHours = hours;
+            capturedBuildMultiplierBasisPoints = multiplier;
             offlinePopulationCatchUp = catchUp;
             populationCapEnabled = cap;
-            this.populationCapValue = populationCapValue;
+            this.populationCapCenti = populationCapValue;
             encirclementPopulationSuppressionEnabled = suppression;
             unitPopulationCostOverrides = Collections.unmodifiableMap(new LinkedHashMap<String, Integer>(overrides));
         }
 
-        public int getHoursPerPopulationPoint() {
-            return hoursPerPopulationPoint;
-        }
-
-        public double getCapturedBuildMultiplier() {
-            return capturedBuildMultiplier;
-        }
+        public long getHoursPerPopulationPointCentiHours() { return hoursPerPopulationPointCentiHours; }
+        public long getCapturedBuildMultiplierBasisPoints() { return capturedBuildMultiplierBasisPoints; }
+        public OptionalLong getPopulationCapCenti() { return populationCapCenti; }
+        public String formatHoursPerPopulationPoint() { return formatScaled(hoursPerPopulationPointCentiHours, 2); }
+        public String formatCapturedBuildMultiplier() { return formatScaled(capturedBuildMultiplierBasisPoints, 4); }
+        public String formatPopulationCap() { return populationCapCenti.isPresent() ? formatScaled(populationCapCenti.getAsLong(), 2) : "TBD"; }
 
         public boolean isOfflinePopulationCatchUp() {
             return offlinePopulationCatchUp;
@@ -742,10 +840,6 @@ public final class KOMEConfigRegistry {
 
         public boolean isPopulationCapEnabled() {
             return populationCapEnabled;
-        }
-
-        public OptionalInt getPopulationCapValue() {
-            return populationCapValue;
         }
 
         public boolean isEncirclementPopulationSuppressionEnabled() {

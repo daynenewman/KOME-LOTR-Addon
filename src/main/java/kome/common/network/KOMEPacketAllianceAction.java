@@ -71,8 +71,10 @@ public class KOMEPacketAllianceAction implements IMessage {
                 }
             } catch (CommandException error) {
                 player.addChatMessage(new ChatComponentText("Alliance action rejected: " + error.getMessage()));
+                return null;
             } catch (RuntimeException error) {
                 player.addChatMessage(new ChatComponentText("Alliance action rejected: " + error.getMessage()));
+                return null;
             }
             KOMEPacketHandler.network.sendTo(new KOMEPacketAllianceData(KOMEAllianceRecordBuilder.build(data, player)), player);
             return null;

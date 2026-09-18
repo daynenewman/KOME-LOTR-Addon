@@ -34,7 +34,8 @@ public final class AquaModelBipedLogic {
     }
     public static void post(ModelBiped m,float limb,float amount,float age,float yaw,float pitch,float scale,Entity e) {
         AquaLotrSpecialArmorPoseBridge.clearPoseAuthority(m);
-        if(!ClientServerGameplayState.useModernPlayerAnimations()){
+        if(!ClientServerGameplayState.useModernPlayerAnimations() || !(e instanceof IPlayerResizeable)
+            || FirstPersonArmRenderContext.isActive()){
             ((IModelBipedSwimming)m).setSwimAnimation(0);
             return;
         }
@@ -58,12 +59,20 @@ public final class AquaModelBipedLogic {
      * both dev and raw-obfuscated 1.7.10 environments.
      */
     public static void postCharacterCreation(Object model,float limb,float amount,float age,float yaw,float pitch,float scale,Object entity) {
-        if(!(model instanceof ModelBiped)||!(entity instanceof EntityPlayer)) return;
+        if(!(model instanceof ModelBiped)) return;
 
         ModelBiped m=(ModelBiped)model;
+        if (!(entity instanceof EntityPlayer) || !(entity instanceof IPlayerResizeable)
+            || FirstPersonArmRenderContext.isActive()) {
+            ((IModelBipedSwimming)m).setSwimAnimation(0);
+            return;
+        }
         EntityPlayer player=(EntityPlayer)entity;
         AquaLotrSpecialArmorPoseBridge.clearPoseAuthority(m);
-        if(!(player instanceof IPlayerResizeable)||!CharacterCreationIntegration.hasCharacterCreationRace(player)) return;
+        if(!CharacterCreationIntegration.hasCharacterCreationRace(player)) {
+            ((IModelBipedSwimming)m).setSwimAnimation(0);
+            return;
+        }
 
         if(!ClientServerGameplayState.useModernPlayerAnimations()){
             ((IModelBipedSwimming)m).setSwimAnimation(0);
@@ -112,7 +121,11 @@ public final class AquaModelBipedLogic {
         m.bipedRightLeg.rotateAngleX=MathHelperNew.lerp(s,m.bipedRightLeg.rotateAngleX,.3F*MathHelper.cos(limb*.33333334F));
     }
 
-    public static void living(ModelBiped m,EntityLivingBase e,float a,float b,float partial){if(!ClientServerGameplayState.useModernPlayerAnimations()){((IModelBipedSwimming)m).setSwimAnimation(0);return;}if(e instanceof IPlayerResizeable)((IModelBipedSwimming)m).setSwimAnimation(((IPlayerResizeable)e).getSwimAnimation(partial));}
+    public static void living(ModelBiped m,EntityLivingBase e,float a,float b,float partial){
+        float swim = ClientServerGameplayState.useModernPlayerAnimations() && e instanceof IPlayerResizeable
+            ? ((IPlayerResizeable)e).getSwimAnimation(partial) : 0F;
+        ((IModelBipedSwimming)m).setSwimAnimation(swim);
+    }
     private static boolean isCharacterCreationModel(ModelBiped model){String name=model.getClass().getName();return name.startsWith("com.lotrcharactercreation.client.model.");}
     static boolean isCharacterCreationManModel(Object model){return model!=null&&CHARACTER_CREATION_MAN_MODEL.equals(model.getClass().getName());}
     static void applyCharacterCreationManPose(ModelBiped model,Object entity,Pose pose){if(FirstPersonArmRenderContext.isActive()||!isCharacterCreationManModel(model))return;AquaLotrSpecialArmorPoseBridge.applyBodyPoseAndRecordAuthority(model,entity,pose);}

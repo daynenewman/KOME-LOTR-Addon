@@ -13,6 +13,7 @@ import lotr.client.model.LOTRModelElf;
 public class PlayerElfModelAdapter extends LOTRModelElf {
 
     private final ModelRenderer playerChest;
+    private final PlayerModelArms playerArms = new PlayerModelArms(this);
 
     public PlayerElfModelAdapter() {
         super();
@@ -45,6 +46,7 @@ public class PlayerElfModelAdapter extends LOTRModelElf {
     }
 
     private void resetPlayerLegState() {
+        playerArms.restore(this);
         bipedRightLeg.rotateAngleY = 0.0F;
         bipedRightLeg.rotateAngleZ = 0.0F;
         bipedLeftLeg.rotateAngleY = 0.0F;

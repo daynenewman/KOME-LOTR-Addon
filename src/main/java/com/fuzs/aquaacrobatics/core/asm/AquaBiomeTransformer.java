@@ -1,3 +1,39 @@
 package com.fuzs.aquaacrobatics.core.asm;
-import net.minecraft.launchwrapper.IClassTransformer;import org.objectweb.asm.ClassReader;import org.objectweb.asm.ClassWriter;import org.objectweb.asm.Opcodes;import org.objectweb.asm.tree.AbstractInsnNode;import org.objectweb.asm.tree.ClassNode;import org.objectweb.asm.tree.InsnList;import org.objectweb.asm.tree.InsnNode;import org.objectweb.asm.tree.MethodInsnNode;import org.objectweb.asm.tree.MethodNode;import org.objectweb.asm.tree.VarInsnNode;
-public final class AquaBiomeTransformer implements IClassTransformer{private static final String T="net.minecraft.world.biome.BiomeGenBase",L="com/fuzs/aquaacrobatics/biome/AquaBiomeLogic";public byte[] transform(String n,String t,byte[] b){if(!T.equals(t))return b;ClassNode c=new ClassNode();new ClassReader(b).accept(c,0);MethodNode w=null;for(MethodNode m:c.methods)if("getWaterColorMultiplier".equals(m.name)&&"()I".equals(m.desc)){if(w!=null)throw new IllegalStateException("ambiguous water color");w=m;}if(w==null)throw new IllegalStateException("missing Forge water color");AbstractInsnNode z=null;for(AbstractInsnNode i=w.instructions.getFirst();i!=null;i=i.getNext())if(i.getOpcode()==Opcodes.IRETURN){if(z!=null)throw new IllegalStateException("ambiguous water-color return");z=i;}if(z==null)throw new IllegalStateException("missing water-color return");InsnList x=new InsnList();x.add(new VarInsnNode(Opcodes.ALOAD,0));x.add(new InsnNode(Opcodes.SWAP));x.add(new MethodInsnNode(Opcodes.INVOKESTATIC,L,"c","(L"+c.name+";I)I",false));w.instructions.insertBefore(z,x);MethodNode f=new MethodNode(Opcodes.ACC_PUBLIC,"aqua$waterColorMultiplier","()I",null,null);f.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));f.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));f.instructions.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL,c.name,"getWaterColorMultiplier","()I",false));f.instructions.add(new MethodInsnNode(Opcodes.INVOKESTATIC,L,"c","(L"+c.name+";I)I",false));f.instructions.add(new InsnNode(Opcodes.IRETURN));c.methods.add(f);ClassWriter q=new ClassWriter(ClassWriter.COMPUTE_MAXS);c.accept(q);return q.toByteArray();}}
+
+import net.minecraft.launchwrapper.IClassTransformer;
+import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.tree.*;
+
+/** getWaterColorMultiplier is Forge-added and is not renamed in production. */
+public final class AquaBiomeTransformer implements IClassTransformer {
+    private static final String TARGET = "net.minecraft.world.biome.BiomeGenBase";
+    private static final String LOGIC = "com/fuzs/aquaacrobatics/biome/AquaBiomeLogic";
+
+    public byte[] transform(String name, String transformedName, byte[] bytes) {
+        if (!TARGET.equals(transformedName)) return bytes;
+        final ClassNode node = AquaAsmMappings.read("AquaBiomeTransformer", transformedName, bytes);
+        return AquaAsmMappings.finish("AquaBiomeTransformer", node, () -> {
+            MethodNode water = AquaAsmMappings.method("AquaBiomeTransformer", node, "()I", "getWaterColorMultiplier");
+            AbstractInsnNode tail = null;
+            int returns = 0;
+            for (AbstractInsnNode i = water.instructions.getFirst(); i != null; i = i.getNext()) {
+                if (i.getOpcode() == Opcodes.IRETURN) { tail = i; returns++; }
+            }
+            if (returns != 1) throw new IllegalStateException("getWaterColorMultiplier()I expected IRETURN matches=1, found=" + returns);
+            InsnList bridge = new InsnList();
+            bridge.add(new VarInsnNode(Opcodes.ALOAD, 0));
+            bridge.add(new InsnNode(Opcodes.SWAP));
+            bridge.add(new MethodInsnNode(Opcodes.INVOKESTATIC, LOGIC, "c", "(L" + node.name + ";I)I", false));
+            water.instructions.insertBefore(tail, bridge);
+            for (MethodNode m : node.methods) if (m.name.equals("aqua$waterColorMultiplier"))
+                throw new IllegalStateException("aqua$waterColorMultiplier()I already exists");
+            MethodNode facade = new MethodNode(Opcodes.ACC_PUBLIC, "aqua$waterColorMultiplier", "()I", null, null);
+            facade.instructions.add(new VarInsnNode(Opcodes.ALOAD, 0));
+            facade.instructions.add(new VarInsnNode(Opcodes.ALOAD, 0));
+            facade.instructions.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, node.name, "getWaterColorMultiplier", "()I", false));
+            facade.instructions.add(new MethodInsnNode(Opcodes.INVOKESTATIC, LOGIC, "c", "(L" + node.name + ";I)I", false));
+            facade.instructions.add(new InsnNode(Opcodes.IRETURN));
+            node.methods.add(facade);
+        });
+    }
+}

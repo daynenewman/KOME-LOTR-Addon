@@ -17,58 +17,58 @@ public class KOMEFactionPopulationTest {
         KOMEWorldData data = new KOMEWorldData("test");
 
         KOMEFactionPopulation first = data.getFactionPopulation(" Gondor ");
-        data.grantFactionPopulation(" Gondor ", 12);
+        data.grantFactionPopulationCenti(" Gondor ", 1200L);
 
-        assertEquals(12, data.getFactionPopulation("gondor").getAvailablePopulation());
+        assertEquals(1200L, data.getFactionPopulation("gondor").getAvailablePopulationCenti());
         assertTrue(first == data.getFactionPopulation("GONDOR"));
     }
 
     @Test
     public void factionsHaveIndependentBalances() {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEPopulationService.grant(data, "gondor", 10);
-        KOMEPopulationService.grant(data, "rohan", 20);
+        KOMEPopulationService.grantCenti(data, "gondor", 1000L);
+        KOMEPopulationService.grantCenti(data, "rohan", 2000L);
 
-        assertEquals(10, KOMEPopulationService.getAvailablePopulation(data, "GONDOR"));
-        assertEquals(20, KOMEPopulationService.getAvailablePopulation(data, "rohan"));
+        assertEquals(1000L, KOMEPopulationService.getAvailablePopulationCenti(data, "GONDOR"));
+        assertEquals(2000L, KOMEPopulationService.getAvailablePopulationCenti(data, "rohan"));
     }
 
     @Test
     public void spendGrantAndInputRulesAreExplicit() {
         KOMEFactionPopulation population = new KOMEFactionPopulation();
-        population.grant(10);
+        population.grantCenti(1000L);
 
-        assertTrue(population.trySpend(7));
-        assertEquals(3, population.getAvailablePopulation());
-        assertFalse(population.trySpend(4));
-        assertEquals(3, population.getAvailablePopulation());
-        assertTrue(population.trySpend(0));
-        assertEquals(3, population.getAvailablePopulation());
+        assertTrue(population.trySpendCenti(700L));
+        assertEquals(300L, population.getAvailablePopulationCenti());
+        assertFalse(population.trySpendCenti(400L));
+        assertEquals(300L, population.getAvailablePopulationCenti());
+        assertTrue(population.trySpendCenti(0L));
+        assertEquals(300L, population.getAvailablePopulationCenti());
 
         assertRejectedSpend(population, -1);
         assertRejectedGrant(population, -1);
-        assertEquals(3, population.getAvailablePopulation());
+        assertEquals(300L, population.getAvailablePopulationCenti());
     }
 
     @Test
     public void grantOverflowFailsWithoutMutation() {
         KOMEFactionPopulation population = new KOMEFactionPopulation();
-        population.setAvailablePopulation(Integer.MAX_VALUE);
+        population.setAvailablePopulationCenti(Long.MAX_VALUE);
 
         try {
-            population.grant(1);
+            population.grantCenti(1L);
             fail("Expected an overflowing population grant to fail");
         } catch (ArithmeticException expected) {
             assertTrue(expected.getMessage().contains("overflows"));
         }
-        assertEquals(Integer.MAX_VALUE, population.getAvailablePopulation());
+        assertEquals(Long.MAX_VALUE, population.getAvailablePopulationCenti());
     }
 
     @Test
     public void factionPopulationPersistenceRoundTripsInDeterministicOrder() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.grantFactionPopulation("rohan", 7);
-        data.grantFactionPopulation("gondor", 13);
+        data.grantFactionPopulationCenti("rohan", 725L);
+        data.grantFactionPopulationCenti("gondor", 1350L);
 
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
@@ -81,31 +81,20 @@ public class KOMEFactionPopulationTest {
 
         KOMEWorldData restored = new KOMEWorldData("test");
         restored.readFromNBT(saved);
-        assertEquals(13, restored.getFactionPopulation("GONDOR").getAvailablePopulation());
-        assertEquals(7, restored.getFactionPopulation("rohan").getAvailablePopulation());
-    }
-
-    @Test
-    public void legacySplitPopulationDoesNotCreateFactionBalances() {
-        KOMEWorldData data = new KOMEWorldData("test");
-        KOMEPlayerPopulation legacy = data.getPopulation(java.util.UUID.randomUUID());
-        legacy.offensiveTotal = 80;
-        legacy.defensiveTotal = 20;
-
-        NBTTagCompound saved = new NBTTagCompound();
-        data.writeToNBT(saved);
-        KOMEWorldData restored = new KOMEWorldData("test");
-        restored.readFromNBT(saved);
-
-        assertTrue(restored.factionPopulations.isEmpty());
-        assertEquals(0, KOMEPopulationService.getAvailablePopulation(restored, "gondor"));
-        assertTrue(restored.factionPopulations.isEmpty());
+        for (int i = 0; i < 3; i++) {
+            assertEquals(1350L, restored.getFactionPopulation("GONDOR").getAvailablePopulationCenti());
+            assertEquals(725L, restored.getFactionPopulation("rohan").getAvailablePopulationCenti());
+            NBTTagCompound roundTrip = new NBTTagCompound();
+            restored.writeToNBT(roundTrip);
+            restored = new KOMEWorldData("test-" + i);
+            restored.readFromNBT(roundTrip);
+        }
     }
 
     @Test
     public void activePopulationUsesProvidedLivingRecordsOnlyAndDoesNotTouchBank() {
         KOMEWorldData data = new KOMEWorldData("test");
-        data.grantFactionPopulation("gondor", 50);
+        data.grantFactionPopulationCenti("gondor", 5000L);
 
         KOMEHiredUnitRecord gondor = combatRecord("gondor", 12);
         KOMEHiredUnitRecord fallbackFaction = combatRecord("", 8);
@@ -114,16 +103,16 @@ public class KOMEFactionPopulationTest {
         farmhand.farmhand = true;
         KOMEHiredUnitRecord otherFaction = combatRecord("rohan", 25);
 
-        assertEquals(20, KOMEPopulationService.getActivePopulation("GONDOR",
+        assertEquals(java.math.BigInteger.valueOf(2000L), KOMEPopulationService.getExactActivePopulationCenti("GONDOR",
             Arrays.asList(gondor, fallbackFaction, farmhand, otherFaction)));
-        assertEquals(50, data.getFactionPopulation("gondor").getAvailablePopulation());
+        assertEquals(5000L, data.getFactionPopulation("gondor").getAvailablePopulationCenti());
     }
 
     @Test
     public void readOnlyAvailablePopulationDoesNotCreateAnEmptyBank() {
         KOMEWorldData data = new KOMEWorldData("test");
 
-        assertEquals(0, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertEquals(0L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertTrue(data.factionPopulations.isEmpty());
         assertFalse(data.isDirty());
     }
@@ -132,53 +121,120 @@ public class KOMEFactionPopulationTest {
     public void authoritativeMutationsDirtyOnlyWhenTheyChangeStateAndPersist() {
         KOMEWorldData data = new KOMEWorldData("test");
 
-        assertTrue(KOMEPopulationService.trySpend(data, "gondor", 0));
-        KOMEPopulationService.grant(data, "gondor", 0);
+        assertTrue(KOMEPopulationService.trySpendCenti(data, "gondor", 0L));
+        KOMEPopulationService.grantCenti(data, "gondor", 0L);
         assertTrue(data.factionPopulations.isEmpty());
         assertFalse(data.isDirty());
 
-        KOMEPopulationService.grant(data, "gondor", 10);
+        KOMEPopulationService.grantCenti(data, "gondor", 1000L);
         assertTrue(data.isDirty());
         data.setDirty(false);
 
-        assertFalse(KOMEPopulationService.trySpend(data, "gondor", 11));
-        assertEquals(10, KOMEPopulationService.getAvailablePopulation(data, "gondor"));
+        assertFalse(KOMEPopulationService.trySpendCenti(data, "gondor", 1100L));
+        assertEquals(1000L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertFalse(data.isDirty());
 
-        assertTrue(KOMEPopulationService.trySpend(data, "gondor", 4));
+        assertTrue(KOMEPopulationService.trySpendCenti(data, "gondor", 400L));
         assertTrue(data.isDirty());
 
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
         KOMEWorldData restored = new KOMEWorldData("test");
         restored.readFromNBT(saved);
-        assertEquals(6, KOMEPopulationService.getAvailablePopulation(restored, "gondor"));
+        assertEquals(600L, KOMEPopulationService.getAvailablePopulationCenti(restored, "gondor"));
     }
 
     @Test
     public void negativePersistedFactionPopulationIsRejected() {
         NBTTagCompound saved = new NBTTagCompound();
+        saved.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        saved.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        saved.setTag("Builds", new net.minecraft.nbt.NBTTagList());
+        saved.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
         NBTTagList entries = new NBTTagList();
         NBTTagCompound entry = new NBTTagCompound();
         entry.setString("Faction", "gondor");
-        entry.setInteger("AvailablePopulation", -1);
+        entry.setLong("AvailablePopulationCenti", -1L);
         entries.appendTag(entry);
         saved.setTag("FactionPopulations", entries);
 
         try {
             new KOMEWorldData("test").readFromNBT(saved);
             fail("Expected negative canonical faction population to be rejected");
-        } catch (IllegalArgumentException expected) {
-            assertTrue(expected.getMessage().contains("Available population"));
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage().contains("AvailablePopulationCenti"));
         }
     }
 
     @Test
-    public void activePopulationSaturatesAtIntegerMaximum() {
+    public void canonicalCentiApiPreservesHundredthsAndRejectsInvalidMutationAtomically() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        assertEquals(0L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+
+        KOMEPopulationService.grantCenti(data, "gondor", 1L);
+        KOMEPopulationService.grantCenti(data, "gondor", 2449L);
+        assertEquals(2450L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+        assertTrue(KOMEPopulationService.trySpendCenti(data, "gondor", 2450L));
+        assertEquals(0L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+
+        KOMEPopulationService.grantCenti(data, "gondor", 2450L);
+        data.setDirty(false);
+        assertFalse(KOMEPopulationService.trySpendCenti(data, "gondor", 2451L));
+        assertEquals(2450L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+        assertFalse(data.isDirty());
+        assertRejectedServiceSpend(data, -1L);
+        assertRejectedServiceGrant(data, -1L);
+        assertEquals(2450L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+    }
+
+    @Test
+    public void canonicalGrantOverflowFailsWithoutMutation() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        data.setFactionPopulationCenti("gondor", Long.MAX_VALUE);
+        data.setDirty(false);
+        try {
+            KOMEPopulationService.grantCenti(data, "gondor", 1L);
+            fail("Expected canonical population overflow");
+        } catch (ArithmeticException expected) {
+            assertTrue(expected.getMessage().contains("overflows"));
+        }
+        assertEquals(Long.MAX_VALUE, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+        assertFalse(data.isDirty());
+    }
+
+    @Test
+    public void nestedFactionPopulationSchemaAndLongCentiFieldAreRequired() {
+        NBTTagCompound missingSchema = canonicalRoot();
+        NBTTagList entries = new NBTTagList();
+        NBTTagCompound entry = new NBTTagCompound();
+        entry.setString("Faction", "gondor");
+        entry.setLong("AvailablePopulationCenti", 100L);
+        entries.appendTag(entry);
+        missingSchema.setTag("FactionPopulations", entries);
+        assertUnsupported(missingSchema, "Unsupported faction-population schema 0");
+
+        NBTTagCompound oldSchema = canonicalRoot();
+        oldSchema.setInteger("FactionPopulationDataSchemaVersion", 1);
+        oldSchema.setTag("FactionPopulations", entries);
+        assertUnsupported(oldSchema, "Unsupported faction-population schema");
+
+        NBTTagCompound wrongType = canonicalRoot();
+        wrongType.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
+        NBTTagList wrongEntries = new NBTTagList();
+        NBTTagCompound wrongEntry = new NBTTagCompound();
+        wrongEntry.setString("Faction", "gondor");
+        wrongEntry.setInteger("AvailablePopulationCenti", 100);
+        wrongEntries.appendTag(wrongEntry);
+        wrongType.setTag("FactionPopulations", wrongEntries);
+        assertUnsupported(wrongType, "must be a long");
+    }
+
+    @Test
+    public void activePopulationRemainsExactAboveIntegerMaximum() {
         KOMEHiredUnitRecord first = combatRecord("gondor", Integer.MAX_VALUE);
         KOMEHiredUnitRecord second = combatRecord("gondor", 1);
 
-        assertEquals(Integer.MAX_VALUE, KOMEPopulationService.getActivePopulation("gondor",
+        assertEquals(java.math.BigInteger.valueOf(214748364800L), KOMEPopulationService.getExactActivePopulationCenti("gondor",
             Arrays.asList(first, second)));
     }
 
@@ -186,24 +242,64 @@ public class KOMEFactionPopulationTest {
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
         record.populationOwningFaction = faction;
         record.cost = cost;
+        record.populationSpent = cost;
         return record;
     }
 
-    private static void assertRejectedSpend(KOMEFactionPopulation population, int amount) {
+    private static void assertRejectedSpend(KOMEFactionPopulation population, long amount) {
         try {
-            population.trySpend(amount);
+            population.trySpendCenti(amount);
             fail("Expected negative spend to fail");
         } catch (IllegalArgumentException expected) {
             assertTrue(expected.getMessage().contains("negative"));
         }
     }
 
-    private static void assertRejectedGrant(KOMEFactionPopulation population, int amount) {
+    private static void assertRejectedGrant(KOMEFactionPopulation population, long amount) {
         try {
-            population.grant(amount);
+            population.grantCenti(amount);
             fail("Expected negative grant to fail");
         } catch (IllegalArgumentException expected) {
             assertTrue(expected.getMessage().contains("negative"));
         }
+    }
+
+    private static void assertRejectedServiceSpend(KOMEWorldData data, long amount) {
+        try {
+            KOMEPopulationService.trySpendCenti(data, "gondor", amount);
+            fail("Expected negative spend to fail");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("negative"));
+        }
+    }
+
+    private static void assertRejectedServiceGrant(KOMEWorldData data, long amount) {
+        try {
+            KOMEPopulationService.grantCenti(data, "gondor", amount);
+            fail("Expected negative grant to fail");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("negative"));
+        }
+    }
+
+    private static NBTTagCompound canonicalRoot() {
+        NBTTagCompound saved = new NBTTagCompound();
+        saved.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        saved.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        saved.setTag("Builds", new net.minecraft.nbt.NBTTagList());
+        return saved;
+    }
+
+    private static void assertUnsupported(NBTTagCompound saved, String messagePart) {
+        KOMEWorldData data = new KOMEWorldData("test");
+        try {
+            data.readFromNBT(saved);
+            fail("Expected unsupported faction population data to fail closed");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage().contains(messagePart));
+        }
+        assertTrue(data.isWriteBlocked());
+        assertFalse(data.isDirty());
+        assertTrue(data.factionPopulations.isEmpty());
     }
 }

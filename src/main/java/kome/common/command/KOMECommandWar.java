@@ -7,7 +7,6 @@ import kome.common.data.KOMEWar;
 import kome.common.data.KOMEWarService;
 import kome.common.data.KOMEWartimeStewardshipService;
 import kome.common.data.KOMEWorldData;
-import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.util.ChatComponentText;
@@ -16,7 +15,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Operator-managed coalition war lifecycle. */
-public class KOMECommandWar extends CommandBase {
+public class KOMECommandWar extends KOMEPublicCommand {
     @Override
     public String getCommandName() {
         return "war";
@@ -24,6 +23,7 @@ public class KOMECommandWar extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
+        if (!isStaff(sender)) return "/war status <warId> | list [active|ending|ended|all]";
         return "/war create <factionA> <factionB> [name] | rename <warId> <name> | side <rename|add|remove|move> ... | status <warId> | list [active|ending|ended|all] | end|finalize|cancel <warId> [reason]";
     }
 
@@ -35,6 +35,7 @@ public class KOMECommandWar extends CommandBase {
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length == 0) throw new WrongUsageException(getCommandUsage(sender));
+        if (!"status".equalsIgnoreCase(args[0]) && !"list".equalsIgnoreCase(args[0])) requireStaff(sender);
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
         long now = System.currentTimeMillis();
@@ -66,7 +67,7 @@ public class KOMECommandWar extends CommandBase {
             for (KOMEWar war : KOMEWarService.sortedWars(data)) {
                 if ("active".equals(filter) && !war.isActive() || "ending".equals(filter) && !war.isEnding()
                         || "ended".equals(filter) && !war.isEnded()) continue;
-                sender.addChatMessage(new ChatComponentText(summary(war)));
+                sender.addChatMessage(new ChatComponentText(isStaff(sender) ? summary(war) : publicSummary(war)));
                 shown++;
             }
             if (shown == 0) sender.addChatMessage(new ChatComponentText("No " + filter + " war records."));
@@ -75,6 +76,12 @@ public class KOMECommandWar extends CommandBase {
         if ("status".equals(action)) {
             if (args.length != 2) throw new WrongUsageException("/war status <warId>");
             KOMEWar war = war(data, args[1]);
+            if (!isStaff(sender)) {
+                sender.addChatMessage(new ChatComponentText(publicSummary(war)));
+                sender.addChatMessage(new ChatComponentText("Started: " + war.createdAtMillis
+                    + "; ending: " + war.endingAtMillis + "; ended: " + war.endedAtMillis + "."));
+                return;
+            }
             sender.addChatMessage(new ChatComponentText(summary(war)));
             sender.addChatMessage(new ChatComponentText(war.sideOneName + ": " + join(new ArrayList<String>(war.sideOneFactions))));
             sender.addChatMessage(new ChatComponentText(war.sideTwoName + ": " + join(new ArrayList<String>(war.sideTwoFactions))));
@@ -155,6 +162,13 @@ public class KOMECommandWar extends CommandBase {
             return;
         }
         throw new WrongUsageException(getCommandUsage(sender));
+    }
+
+    @Override
+    public List addTabCompletionOptions(ICommandSender sender, String[] args) {
+        if (args.length != 1) return java.util.Collections.emptyList();
+        return isStaff(sender) ? getListOfStringsMatchingLastWord(args, "status", "list", "create", "rename", "side", "end", "finalize", "cancel")
+            : getListOfStringsMatchingLastWord(args, "status", "list");
     }
 
     private void requireStaff(ICommandSender sender) {
@@ -296,6 +310,17 @@ public class KOMECommandWar extends CommandBase {
             : "latest tile " + war.tileCaptureHistory.get(war.tileCaptureHistory.size() - 1).tileId;
         return display(war) + " - " + war.status + ": " + side(war, 1) + " vs " + side(war, 2)
             + "; " + latest + "; stewardship " + war.stewardshipAuthorizations.size() + ".";
+    }
+
+    private static String publicSummary(KOMEWar war) {
+        // Free-form ending/support reasons are operator notes, not player-facing messages.
+        return publicText(display(war)) + " - " + publicText(war.status) + ": "
+            + publicText(side(war, 1)) + " vs " + publicText(side(war, 2))
+            + "; tile captures: " + war.tileCaptureHistory.size() + ".";
+    }
+
+    private static String publicText(String value) {
+        return value == null ? "" : value.replaceAll("\u00a7.", "").replaceAll("[\\p{Cntrl}]", " ");
     }
 
     private static List<String> contradictions(KOMEWorldData data, KOMEWar war) {

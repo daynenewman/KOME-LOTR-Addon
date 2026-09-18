@@ -18,11 +18,13 @@ public class KOMEForeignConstructionServiceTest {
     @Test public void permissionsPersistAndRevocationDoesNotAlterExistingBuild() {
         KOMEWorldData data = data(); UUID ruler = UUID.randomUUID(), builder = UUID.randomUUID(); KOMERulerService.assignRuler(data,"rohan",ruler,"Ruler");
         assertTrue(KOMEForeignConstructionService.grant(data,"T100",ruler,"gondor",4L).allowed);
-        KOMEPlayerBuild build = KOMEBuildService.create(data,"Foreign Hall","T100",0,0,64,0,builder,"Builder","gondor","gondor",KOMEBuildType.NORMAL,2,5L);
+        KOMEPlayerBuild build = KOMEBuildService.create(data,"Foreign Hall","T100",0,0,64,0,builder,"Builder","gondor","gondor",KOMEBuildType.NORMAL,100L,5L);
+        assertTrue(KOMEBuildService.decideSubmission(data, build, build.contributions.get(0).id,
+            builder, "Builder", true, "Reviewed", 6L).allowed);
         NBTTagCompound tag = new NBTTagCompound(); data.writeToNBT(tag); KOMEWorldData restored = new KOMEWorldData("restored"); restored.readFromNBT(tag);
         assertEquals(1,restored.foreignConstructionPermissions.size()); assertNotNull(restored.getBuild(build.id));
         assertTrue(KOMEForeignConstructionService.revoke(restored,"T100",ruler,"gondor").allowed);
-        assertNotNull(restored.getBuild(build.id)); assertEquals(2,restored.getBuild(build.id).approvedHalfHours()); assertEquals("gondor",restored.getBuild(build.id).populationFaction);
+        assertNotNull(restored.getBuild(build.id)); assertEquals(100L,restored.getBuild(build.id).approvedCentiHours()); assertEquals("gondor",restored.getBuild(build.id).populationFaction);
     }
     @Test public void oldDiplomacyDoesNotBypassGrant() {
         KOMEWorldData data=data(); UUID ruler=UUID.randomUUID(); KOMERulerService.assignRuler(data,"rohan",ruler,"Ruler");

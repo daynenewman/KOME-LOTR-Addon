@@ -2,8 +2,6 @@ package com.fuzs.aquaacrobatics.core.asm;
 
 import net.minecraft.launchwrapper.IClassTransformer;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
@@ -21,7 +19,7 @@ import org.objectweb.asm.tree.FrameNode;
 /**
  * Client-target router intentionally free of client Minecraft class references.
  * It is safe to instantiate on dedicated servers because it transforms only the
- * client-only EntityOtherPlayerMP transformed name.
+ * explicit client-only transformed names.
  */
 public final class AquaClientEntityTransformer implements IClassTransformer {
 
@@ -86,55 +84,52 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
             throw new IllegalStateException("Aqua client transformer received null bytecode for " + transformedName);
         }
 
-        ClassNode classNode = new ClassNode();
-        new ClassReader(basicClass).accept(classNode, 0);
-        if (ENTITY_OTHER_PLAYER.equals(transformedName)) {
-            this.addRemotePlayerPresentationBridge(classNode);
-            this.verifyRemotePlayerPresentationBridge(classNode);
-        } else if (ITEM_RENDERER.equals(transformedName)) {
-            this.addWarpedWaterOverlayAlphaBridge(classNode);
-            this.verifyWarpedWaterOverlayAlphaBridge(classNode);
-        } else if(ENTITY_PLAYER_SP.equals(transformedName)) {
-            this.addMovementStorageAccess(classNode);
-            this.addClientPlayerPushOutHooks(classNode);
-        } else if(CLIENT_PLAYER.equals(transformedName)) {
-            this.addClientPlayerMethods(classNode);
-        } else if(RENDER_BOAT.equals(transformedName)) {
-            this.addBoatBridge(classNode);
-        } else if(MODEL_BIPED.equals(transformedName)) {
-            this.addModelBiped(classNode);
-        } else if(RENDER_PLAYER.equals(transformedName)) {
-            this.addRenderPlayer(classNode);
-        } else if(LOTR_ARMOR_MODELS.equals(transformedName)) {
-            this.addLotrSpecialArmorAssociationBridge(classNode);
-            this.verifyLotrSpecialArmorAssociationBridge(classNode);
-        } else if(LOTR_HEAD_PLATE.equals(transformedName)) {
-            this.addLotrHeadPlatePoseBridge(classNode);
-            this.verifyLotrHeadPlatePoseBridge(classNode);
-        } else if(CHARACTER_CREATION_RENDERER.equals(transformedName)) {
-            this.addCharacterCreationRendererLightingBridge(classNode);
-            this.verifyCharacterCreationRendererLightingBridge(classNode);
-        } else if(this.isCharacterCreationModelAdapter(transformedName)) {
-            this.addCharacterCreationModelPost(classNode);
-        } else if(ENTITY_RENDERER.equals(transformedName)) {
-            this.addCameraBridge(classNode);
-            this.addCameraCollisionBridge(classNode);
-            this.verifyCameraBridge(classNode);
-            this.verifyCameraCollisionBridge(classNode);
-        }
+        final ClassNode classNode = AquaAsmMappings.read("AquaClientEntityTransformer", transformedName, basicClass);
+        return AquaAsmMappings.finish("AquaClientEntityTransformer", classNode, () -> {
+            if (ENTITY_OTHER_PLAYER.equals(transformedName)) {
+                this.addRemotePlayerPresentationBridge(classNode);
+                this.verifyRemotePlayerPresentationBridge(classNode);
+            } else if (ITEM_RENDERER.equals(transformedName)) {
+                this.addWarpedWaterOverlayAlphaBridge(classNode);
+                this.verifyWarpedWaterOverlayAlphaBridge(classNode);
+            } else if(ENTITY_PLAYER_SP.equals(transformedName)) {
+                this.addMovementStorageAccess(classNode);
+                this.addClientPlayerPushOutHooks(classNode);
+            } else if(CLIENT_PLAYER.equals(transformedName)) {
+                this.addClientPlayerMethods(classNode);
+            } else if(RENDER_BOAT.equals(transformedName)) {
+                this.addBoatBridge(classNode);
+            } else if(MODEL_BIPED.equals(transformedName)) {
+                this.addModelBiped(classNode);
+            } else if(RENDER_PLAYER.equals(transformedName)) {
+                this.addRenderPlayer(classNode);
+            } else if(LOTR_ARMOR_MODELS.equals(transformedName)) {
+                this.addLotrSpecialArmorAssociationBridge(classNode);
+                this.verifyLotrSpecialArmorAssociationBridge(classNode);
+            } else if(LOTR_HEAD_PLATE.equals(transformedName)) {
+                this.addLotrHeadPlatePoseBridge(classNode);
+                this.verifyLotrHeadPlatePoseBridge(classNode);
+            } else if(CHARACTER_CREATION_RENDERER.equals(transformedName)) {
+                this.addCharacterCreationRendererLightingBridge(classNode);
+                this.verifyCharacterCreationRendererLightingBridge(classNode);
+            } else if(this.isCharacterCreationModelAdapter(transformedName)) {
+                this.addCharacterCreationModelPost(classNode);
+            } else if(ENTITY_RENDERER.equals(transformedName)) {
+                this.addCameraBridge(classNode);
+                this.addCameraCollisionBridge(classNode);
+                this.verifyCameraBridge(classNode);
+                this.verifyCameraCollisionBridge(classNode);
+            }
 
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        classNode.accept(writer);
-        byte[] result = writer.toByteArray();
-        return result;
+        });
     }
 
     private void addLotrSpecialArmorAssociationBridge(ClassNode classNode) {
         MethodNode target = this.findLotrSpecialArmorSelector(classNode);
         int existing = this.countBridgeCalls(target, ASSOCIATE_SPECIAL_ARMOR);
-        if (existing == 1) return;
         if (existing != 0) {
-            throw new IllegalStateException("LOTR special armor selector has duplicate Aqua association bridges");
+            throw new IllegalStateException(
+                "LOTR special armor selector expected no existing Aqua association bridge, found " + existing);
         }
 
         int copyCalls = 0;
@@ -207,9 +202,9 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
     private void addLotrHeadPlatePoseBridge(ClassNode classNode) {
         MethodNode render = this.findLotrHeadPlateRender(classNode);
         int existing = this.countBridgeCalls(render, APPLY_AFTER_LOTR_ANGLES);
-        if (existing == 1) return;
         if (existing != 0) {
-            throw new IllegalStateException("LOTR head plate has duplicate Aqua pose bridges");
+            throw new IllegalStateException(
+                "LOTR head plate expected no existing Aqua pose bridge, found " + existing);
         }
 
         MethodInsnNode angleCall = null;
@@ -473,8 +468,10 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
         }
     }
 
-    private MethodNode findMethod(ClassNode c,String desc,String... names){MethodNode r=null;for(MethodNode m:c.methods){if(!m.desc.equals(desc))continue;boolean ok=false;for(String n:names)if(n.equals(m.name))ok=true;if(!ok)continue;if(r!=null)throw new IllegalStateException("Ambiguous Aqua client target "+desc);r=m;}if(r==null)throw new IllegalStateException("Missing Aqua client target "+desc);return r;}
-    private void addClientPlayerPushOutHooks(ClassNode c){MethodNode m=findMethod(c,"(DDD)Z","func_145771_j","j");LabelNode continueOriginal=new LabelNode();InsnList h=new InsnList();h.add(new VarInsnNode(Opcodes.ALOAD,0));h.add(new VarInsnNode(Opcodes.DLOAD,1));h.add(new VarInsnNode(Opcodes.DLOAD,5));h.add(new MethodInsnNode(Opcodes.INVOKESTATIC,PLAYER_MOVEMENT_POLICY,"handleExactPlayerBlockCollision","(L"+c.name+";DD)Z",false));h.add(new JumpInsnNode(Opcodes.IFEQ,continueOriginal));h.add(new InsnNode(Opcodes.ICONST_0));h.add(new InsnNode(Opcodes.IRETURN));h.add(continueOriginal);
+    private MethodNode findMethod(ClassNode c, String desc, String... names) {
+        return AquaAsmMappings.method("AquaClientEntityTransformer", c, desc, names);
+    }
+    private void addClientPlayerPushOutHooks(ClassNode c){MethodNode m=findMethod(c,"(DDD)Z","pushOutOfBlocks","func_145771_j","j");LabelNode continueOriginal=new LabelNode();InsnList h=new InsnList();h.add(new VarInsnNode(Opcodes.ALOAD,0));h.add(new VarInsnNode(Opcodes.DLOAD,1));h.add(new VarInsnNode(Opcodes.DLOAD,5));h.add(new MethodInsnNode(Opcodes.INVOKESTATIC,PLAYER_MOVEMENT_POLICY,"handleExactPlayerBlockCollision","(L"+c.name+";DD)Z",false));h.add(new JumpInsnNode(Opcodes.IFEQ,continueOriginal));h.add(new InsnNode(Opcodes.ICONST_0));h.add(new InsnNode(Opcodes.IRETURN));h.add(continueOriginal);
         h.add(new FrameNode(Opcodes.F_SAME, 0, null, 0, null));
         m.instructions.insert(h);MethodInsnNode round=null;for(AbstractInsnNode i=m.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode){MethodInsnNode x=(MethodInsnNode)i;if("java/lang/Math".equals(x.owner)&&"round".equals(x.name)&&"(F)I".equals(x.desc)){if(round!=null)throw new IllegalStateException("Ambiguous EntityPlayerSP Math.round redirect");round=x;}}if(round==null)throw new IllegalStateException("Missing EntityPlayerSP Math.round redirect");round.setOpcode(Opcodes.INVOKESTATIC);round.owner=PLAYER_MOVEMENT_POLICY;round.name="roundPlayerBlockCollisionOffset";round.itf=false;MethodNode action=findMethod(
         c,
@@ -495,14 +492,14 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
     private String viewEntityDesc(ClassNode c){return "blt".equals(c.name)?"sv":"net/minecraft/entity/EntityLivingBase";} private void verifyCameraBridge(ClassNode c){MethodNode camera=findMethod(c,"(F)V","orientCamera","func_78467_g","h");int bridges=0;for(AbstractInsnNode i=camera.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode&&CAMERA_RENDER_LOGIC.equals(((MethodInsnNode)i).owner)){MethodInsnNode x=(MethodInsnNode)i;if(!"getCameraHeight".equals(x.name)||!("(L"+viewEntityDesc(c)+";FF)F").equals(x.desc))throw new IllegalStateException("unexpected EntityRenderer camera bridge");AbstractInsnNode p=i.getPrevious(),p2=p==null?null:p.getPrevious(),p3=p2==null?null:p2.getPrevious(),n=i.getNext();if(!(p instanceof VarInsnNode)||p.getOpcode()!=Opcodes.FLOAD||((VarInsnNode)p).var!=3||!(p2 instanceof VarInsnNode)||p2.getOpcode()!=Opcodes.FLOAD||((VarInsnNode)p2).var!=1||!(p3 instanceof VarInsnNode)||p3.getOpcode()!=Opcodes.ALOAD||((VarInsnNode)p3).var!=2||!(n instanceof VarInsnNode)||n.getOpcode()!=Opcodes.FSTORE||((VarInsnNode)n).var!=3)throw new IllegalStateException("invalid EntityRenderer camera bridge locals");bridges++;}if(bridges!=1)throw new IllegalStateException("EntityRenderer camera bridge verification failed: "+bridges);}
     private void absent(ClassNode c,String n,String d){for(MethodNode m:c.methods)if(m.name.equals(n)&&m.desc.equals(d))throw new IllegalStateException("Aqua client method collision "+n+d);}
     private void addModelBiped(ClassNode c){if(c.interfaces.contains(MODEL_INTERFACE))throw new IllegalStateException("Duplicate ModelBiped interface");c.interfaces.add(MODEL_INTERFACE);c.fields.add(new FieldNode(Opcodes.ACC_PUBLIC,"swimAnimation","F",null,null)); absent(c,"setSwimAnimation","(F)V");MethodNode set=new MethodNode(Opcodes.ACC_PUBLIC,"setSwimAnimation","(F)V",null,null);set.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));set.instructions.add(new VarInsnNode(Opcodes.FLOAD,1));set.instructions.add(new FieldInsnNode(Opcodes.PUTFIELD,c.name,"swimAnimation","F"));set.instructions.add(new InsnNode(Opcodes.RETURN));c.methods.add(set); absent(c,"getSwimAnimation","()F");MethodNode get=new MethodNode(Opcodes.ACC_PUBLIC,"getSwimAnimation","()F",null,null);get.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));get.instructions.add(new FieldInsnNode(Opcodes.GETFIELD,c.name,"swimAnimation","F"));get.instructions.add(new InsnNode(Opcodes.FRETURN));c.methods.add(get);
-      MethodNode render=findMethod(c,"(L"+entityDesc(c)+";FFFFFF)V","render","func_78088_a","a");MethodInsnNode call=null;for(AbstractInsnNode i=render.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode&&((MethodInsnNode)i).name.equals("setRotationAngles")||i instanceof MethodInsnNode&&((MethodInsnNode)i).name.equals("func_78087_a")||i instanceof MethodInsnNode&&((MethodInsnNode)i).name.equals("a")){MethodInsnNode x=(MethodInsnNode)i;if(x.desc.endsWith(")V")&&x.desc.contains("FFFFFF")){if(call!=null)throw new IllegalStateException("multiple biped render angle calls");call=x;}}if(call==null)throw new IllegalStateException("missing biped render angle call");call.setOpcode(Opcodes.INVOKESTATIC);call.owner=MODEL_LOGIC;call.name="render";call.desc="(L"+c.name+";"+call.desc.substring(1);call.itf=false;
+      MethodNode render=findMethod(c,"(L"+entityDesc(c)+";FFFFFF)V","render","func_78088_a","a");MethodInsnNode call=null;for(AbstractInsnNode i=render.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode&&((MethodInsnNode)i).name.equals("setRotationAngles")||i instanceof MethodInsnNode&&((MethodInsnNode)i).name.equals("func_78087_a")||i instanceof MethodInsnNode&&((MethodInsnNode)i).name.equals("a")){MethodInsnNode x=(MethodInsnNode)i;if(x.getOpcode()==Opcodes.INVOKEVIRTUAL&&x.owner.equals(c.name)&&x.desc.equals("(FFFFFFL"+entityDesc(c)+";)V")){if(call!=null)throw new IllegalStateException("multiple biped render angle calls");call=x;}}if(call==null)throw new IllegalStateException("missing biped render angle call");call.setOpcode(Opcodes.INVOKESTATIC);call.owner=MODEL_LOGIC;call.name="render";call.desc="(L"+c.name+";"+call.desc.substring(1);call.itf=false;
       MethodNode angles=findMethod(c,"(FFFFFFL"+entityDesc(c)+";)V","setRotationAngles","func_78087_a","a");FieldInsnNode on=null;for(AbstractInsnNode i=angles.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof FieldInsnNode&&i.getOpcode()==Opcodes.GETFIELD&&"F".equals(((FieldInsnNode)i).desc)&&("onGround".equals(((FieldInsnNode)i).name)||"field_78095_p".equals(((FieldInsnNode)i).name)||"p".equals(((FieldInsnNode)i).name))){on=(FieldInsnNode)i;break;}if(on==null)throw new IllegalStateException("missing biped onGround ordinal 0");InsnList pre=new InsnList();pre.add(new VarInsnNode(Opcodes.ALOAD,0));for(int x=1;x<=6;x++)pre.add(new VarInsnNode(Opcodes.FLOAD,x));pre.add(new VarInsnNode(Opcodes.ALOAD,7));pre.add(new MethodInsnNode(Opcodes.INVOKESTATIC,MODEL_LOGIC,"pre","(L"+c.name+";FFFFFFL"+entityDesc(c)+";)V",false));angles.instructions.insertBefore(on,pre);for(AbstractInsnNode i=angles.instructions.getFirst();i!=null;i=i.getNext())if(i.getOpcode()==Opcodes.RETURN){InsnList post=new InsnList();post.add(new VarInsnNode(Opcodes.ALOAD,0));for(int x=1;x<=6;x++)post.add(new VarInsnNode(Opcodes.FLOAD,x));post.add(new VarInsnNode(Opcodes.ALOAD,7));post.add(new MethodInsnNode(Opcodes.INVOKESTATIC,MODEL_LOGIC,"post","(L"+c.name+";FFFFFFL"+entityDesc(c)+";)V",false));angles.instructions.insertBefore(i,post);}
-      String livingName = "bhm".equals(c.name) ? "func_78086_a" : "setLivingAnimations"; MethodNode living=new MethodNode(Opcodes.ACC_PUBLIC,livingName,"(L"+livingDesc(c)+";FFF)V",null,null);living.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));living.instructions.add(new VarInsnNode(Opcodes.ALOAD,1));living.instructions.add(new VarInsnNode(Opcodes.FLOAD,2));living.instructions.add(new VarInsnNode(Opcodes.FLOAD,3));living.instructions.add(new VarInsnNode(Opcodes.FLOAD,4));living.instructions.add(new MethodInsnNode(Opcodes.INVOKESTATIC,MODEL_LOGIC,"living","(L"+c.name+";L"+livingDesc(c)+";FFF)V",false));living.instructions.add(new InsnNode(Opcodes.RETURN));c.methods.add(living);verifyModel(c);}
+      String livingName = AquaAsmMappings.member(c.name, "setLivingAnimations", "func_78086_a", "a"); absent(c, livingName, "(L"+livingDesc(c)+";FFF)V"); MethodNode living=new MethodNode(Opcodes.ACC_PUBLIC,livingName,"(L"+livingDesc(c)+";FFF)V",null,null);living.instructions.add(new VarInsnNode(Opcodes.ALOAD,0));living.instructions.add(new VarInsnNode(Opcodes.ALOAD,1));living.instructions.add(new VarInsnNode(Opcodes.FLOAD,2));living.instructions.add(new VarInsnNode(Opcodes.FLOAD,3));living.instructions.add(new VarInsnNode(Opcodes.FLOAD,4));living.instructions.add(new MethodInsnNode(Opcodes.INVOKESTATIC,MODEL_LOGIC,"living","(L"+c.name+";L"+livingDesc(c)+";FFF)V",false));living.instructions.add(new InsnNode(Opcodes.RETURN));c.methods.add(living);verifyModel(c);}
     private String entityDesc(ClassNode c){return "bhm".equals(c.name)?"sa":"net/minecraft/entity/Entity";} private String livingDesc(ClassNode c){return "bhm".equals(c.name)?"sv":"net/minecraft/entity/EntityLivingBase";}
-    private void verifyModel(ClassNode c){int iface=0,set=0,get=0,living=0;String livingName="bhm".equals(c.name)?"func_78086_a":"setLivingAnimations";String livingDesc="(L"+livingDesc(c)+";FFF)V";for(String x:c.interfaces)if(MODEL_INTERFACE.equals(x))iface++;for(MethodNode m:c.methods){if(m.name.equals("setSwimAnimation")&&m.desc.equals("(F)V"))set++;if(m.name.equals("getSwimAnimation")&&m.desc.equals("()F"))get++;if(m.name.equals(livingName)&&m.desc.equals(livingDesc))living++;}if(iface!=1||set!=1||get!=1||living!=1)throw new IllegalStateException("ModelBiped verification failed: iface="+iface+", set="+set+", get="+get+", living="+living);}
+    private void verifyModel(ClassNode c){int iface=0,set=0,get=0,living=0;String livingName=AquaAsmMappings.member(c.name, "setLivingAnimations", "func_78086_a", "a");String livingDesc="(L"+livingDesc(c)+";FFF)V";for(String x:c.interfaces)if(MODEL_INTERFACE.equals(x))iface++;for(MethodNode m:c.methods){if(m.name.equals("setSwimAnimation")&&m.desc.equals("(F)V"))set++;if(m.name.equals("getSwimAnimation")&&m.desc.equals("()F"))get++;if(m.name.equals(livingName)&&m.desc.equals(livingDesc))living++;}if(iface!=1||set!=1||get!=1||living!=1)throw new IllegalStateException("ModelBiped verification failed: iface="+iface+", set="+set+", get="+get+", living="+living);}
     private void addRenderPlayer(ClassNode c){
-      MethodNode arm=findMethod(c,"(L"+("bop".equals(c.name)?"yz":"net/minecraft/entity/player/EntityPlayer")+";)V","renderFirstPersonArm","func_76986_a","a"); MethodInsnNode angle=null;for(AbstractInsnNode i=arm.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode){MethodInsnNode x=(MethodInsnNode)i;if((x.name.equals("setRotationAngles")||x.name.equals("func_78087_a")||x.name.equals("a"))&&x.desc.contains("FFFFFF")){if(angle!=null)throw new IllegalStateException("ambiguous first person angles");angle=x;}}if(angle==null)throw new IllegalStateException("missing first person angles");String modelOwner=angle.owner;angle.setOpcode(Opcodes.INVOKESTATIC);angle.owner=RENDER_PLAYER_LOGIC;angle.name="firstPersonAngles";angle.desc="(L"+modelOwner+";"+angle.desc.substring(1);angle.itf=false;
-      String player=("bop".equals(c.name)?"blg":"net/minecraft/client/entity/AbstractClientPlayer"); MethodNode render=findMethod(c,"(L"+player+";DDDFF)V","doRender","func_76986_a","a"); MethodInsnNode superRender=null;for(AbstractInsnNode i=render.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode){MethodInsnNode x=(MethodInsnNode)i;if((x.name.equals("doRender")||x.name.equals("func_76986_a")||x.name.equals("a"))&&x.desc.endsWith("DDDFF)V")&&x.desc.startsWith("(L")){if(superRender!=null)throw new IllegalStateException("ambiguous RenderPlayer super doRender");superRender=x;}}if(superRender==null)throw new IllegalStateException("missing RenderPlayer super doRender"); int l=render.maxLocals;render.maxLocals+=10;InsnList offset=new InsnList();offset.add(new VarInsnNode(Opcodes.FSTORE,l+9));offset.add(new VarInsnNode(Opcodes.FSTORE,l+8));offset.add(new VarInsnNode(Opcodes.DSTORE,l+6));offset.add(new VarInsnNode(Opcodes.DSTORE,l+4));offset.add(new VarInsnNode(Opcodes.DSTORE,l+2));offset.add(new VarInsnNode(Opcodes.ASTORE,l+1));offset.add(new VarInsnNode(Opcodes.ASTORE,l));offset.add(new VarInsnNode(Opcodes.ALOAD,l+1));offset.add(new VarInsnNode(Opcodes.DLOAD,l+4));offset.add(new MethodInsnNode(Opcodes.INVOKESTATIC,RENDER_PLAYER_LOGIC,"crouchingY","(L"+player+";D)D",false));offset.add(new VarInsnNode(Opcodes.DSTORE,l+4));offset.add(new VarInsnNode(Opcodes.ALOAD,l));offset.add(new VarInsnNode(Opcodes.ALOAD,l+1));offset.add(new VarInsnNode(Opcodes.DLOAD,l+2));offset.add(new VarInsnNode(Opcodes.DLOAD,l+4));offset.add(new VarInsnNode(Opcodes.DLOAD,l+6));offset.add(new VarInsnNode(Opcodes.FLOAD,l+8));offset.add(new VarInsnNode(Opcodes.FLOAD,l+9));render.instructions.insertBefore(superRender,offset);
+      MethodNode arm=findMethod(c,"(L"+("bop".equals(c.name)?"yz":"net/minecraft/entity/player/EntityPlayer")+";)V","renderFirstPersonArm","func_82441_a","a"); MethodInsnNode angle=null;for(AbstractInsnNode i=arm.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode){MethodInsnNode x=(MethodInsnNode)i;if((x.name.equals("setRotationAngles")||x.name.equals("func_78087_a")||x.name.equals("a"))&&x.getOpcode()==Opcodes.INVOKEVIRTUAL&&x.owner.equals(AquaAsmMappings.type(c.name,"net/minecraft/client/model/ModelBiped","bhm"))&&x.desc.equals("(FFFFFFL"+AquaAsmMappings.type(c.name,"net/minecraft/entity/Entity","sa")+";)V")){if(angle!=null)throw new IllegalStateException("ambiguous first person angles");angle=x;}}if(angle==null)throw new IllegalStateException("renderFirstPersonArm/func_82441_a/a: expected ModelBiped.setRotationAngles/func_78087_a/a(FFFFFFLEntity;)V INVOKEVIRTUAL, matches=0");String modelOwner=angle.owner;angle.setOpcode(Opcodes.INVOKESTATIC);angle.owner=RENDER_PLAYER_LOGIC;angle.name="firstPersonAngles";angle.desc="(L"+modelOwner+";"+angle.desc.substring(1);angle.itf=false;
+      String player=("bop".equals(c.name)?"blg":"net/minecraft/client/entity/AbstractClientPlayer"); MethodNode render=findMethod(c,"(L"+player+";DDDFF)V","doRender","func_76986_a","a"); MethodInsnNode superRender=null;for(AbstractInsnNode i=render.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode){MethodInsnNode x=(MethodInsnNode)i;if((x.name.equals("doRender")||x.name.equals("func_76986_a")||x.name.equals("a"))&&x.getOpcode()==Opcodes.INVOKESPECIAL&&x.owner.equals(c.superName)&&x.desc.equals("(L"+AquaAsmMappings.type(c.name,"net/minecraft/entity/EntityLivingBase","sv")+";DDDFF)V")){if(superRender!=null)throw new IllegalStateException("ambiguous RenderPlayer super doRender");superRender=x;}}if(superRender==null)throw new IllegalStateException("missing RenderPlayer super doRender"); int l=render.maxLocals;render.maxLocals+=10;InsnList offset=new InsnList();offset.add(new VarInsnNode(Opcodes.FSTORE,l+9));offset.add(new VarInsnNode(Opcodes.FSTORE,l+8));offset.add(new VarInsnNode(Opcodes.DSTORE,l+6));offset.add(new VarInsnNode(Opcodes.DSTORE,l+4));offset.add(new VarInsnNode(Opcodes.DSTORE,l+2));offset.add(new VarInsnNode(Opcodes.ASTORE,l+1));offset.add(new VarInsnNode(Opcodes.ASTORE,l));offset.add(new VarInsnNode(Opcodes.ALOAD,l+1));offset.add(new VarInsnNode(Opcodes.DLOAD,l+4));offset.add(new MethodInsnNode(Opcodes.INVOKESTATIC,RENDER_PLAYER_LOGIC,"crouchingY","(L"+player+";D)D",false));offset.add(new VarInsnNode(Opcodes.DSTORE,l+4));offset.add(new VarInsnNode(Opcodes.ALOAD,l));offset.add(new VarInsnNode(Opcodes.ALOAD,l+1));offset.add(new VarInsnNode(Opcodes.DLOAD,l+2));offset.add(new VarInsnNode(Opcodes.DLOAD,l+4));offset.add(new VarInsnNode(Opcodes.DLOAD,l+6));offset.add(new VarInsnNode(Opcodes.FLOAD,l+8));offset.add(new VarInsnNode(Opcodes.FLOAD,l+9));render.instructions.insertBefore(superRender,offset);
       MethodNode rotate=findMethod(c,"(L"+player+";FFF)V","rotateCorpse","func_77043_a","a");for(AbstractInsnNode i=rotate.instructions.getFirst();i!=null;i=i.getNext())if(i.getOpcode()==Opcodes.RETURN){InsnList h=new InsnList();h.add(new VarInsnNode(Opcodes.ALOAD,1));h.add(new VarInsnNode(Opcodes.FLOAD,2));h.add(new VarInsnNode(Opcodes.FLOAD,3));h.add(new VarInsnNode(Opcodes.FLOAD,4));h.add(new MethodInsnNode(Opcodes.INVOKESTATIC,RENDER_PLAYER_LOGIC,"rotations","(L"+player+";FFF)V",false));rotate.instructions.insertBefore(i,h);} verifyRenderPlayer(c);
     }
     private void verifyRenderPlayer(ClassNode c){int b=0;for(MethodNode m:c.methods)for(AbstractInsnNode i=m.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode&&RENDER_PLAYER_LOGIC.equals(((MethodInsnNode)i).owner))b++;if(b!=3)throw new IllegalStateException("RenderPlayer verification failed");}

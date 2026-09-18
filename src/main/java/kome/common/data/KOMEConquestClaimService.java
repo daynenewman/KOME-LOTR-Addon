@@ -19,7 +19,7 @@ public final class KOMEConquestClaimService {
             return result;
         }
         String nextOwner = KOMEAlliance.normalizeFactionKey(claimantFaction);
-        String previousOwner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+        String previousOwner = tile.projectRulingFaction();
         if (nextOwner.length() == 0) {
             result.message = "You must be pledged to a faction to claim conquest tiles.";
             return result;

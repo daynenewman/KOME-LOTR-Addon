@@ -10,7 +10,6 @@ import kome.common.data.KOMEWorldData;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
 import lotr.common.world.map.LOTRWaypoint;
-import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -22,7 +21,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-public class KOMECommandConquest extends CommandBase {
+public class KOMECommandConquest extends KOMEPublicCommand {
     @Override
     public String getCommandName() {
         return "conquest";
@@ -30,6 +29,7 @@ public class KOMECommandConquest extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
+        if (!isStaff(sender)) return "/conquest list | get <tile> | transfer <tile> <faction> | accept <tile> | cancelTransfer <tile> (ruler actions); capture via Tile Command";
         return "/conquest get <tile> | claim <tile> <faction|none> | transfer <tile> <faction> | accept <tile> | cancelTransfer <tile> | clear <tile> | clearAll | reset | list | waypoint <list|link|unlink|get|nearest|autolink|autolinkall> ... | purgeLegacy";
     }
 
@@ -44,6 +44,11 @@ public class KOMECommandConquest extends CommandBase {
             throw new WrongUsageException(getCommandUsage(sender));
         }
 
+        if (isAdministrativeAction(args[0])) requireStaff(sender);
+        if (!isStaff(sender) && ("transfer".equalsIgnoreCase(args[0]) || "trade".equalsIgnoreCase(args[0])
+                || "accept".equalsIgnoreCase(args[0]) || "cancelTransfer".equalsIgnoreCase(args[0])
+                || "canceltrade".equalsIgnoreCase(args[0])))
+            getCommandSenderAsPlayer(sender);
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         if ("list".equalsIgnoreCase(args[0])) {
             listTiles(sender, data);
@@ -86,11 +91,11 @@ public class KOMECommandConquest extends CommandBase {
         }
 
         if ("get".equalsIgnoreCase(args[0])) {
-            KOMEConquestTile tile = data.conquestTiles.get(tileId);
+            KOMEConquestTile tile = data.getPublicConquestTile(tileId);
             if (tile == null) {
                 sender.addChatMessage(new ChatComponentText(tileId + ": no conquest tile record."));
             } else {
-                String current = tile.currentRulingFaction();
+                String current = tile.projectRulingFaction();
                 String defaultFaction = KOMEAlliance.normalizeFactionKey(tile.defaultRulingFaction);
                 sender.addChatMessage(new ChatComponentText(tileId + ": current ruling faction="
                     + displayFaction(current) + ", default ruling faction="
@@ -150,11 +155,11 @@ public class KOMECommandConquest extends CommandBase {
             if (faction.isEmpty()) {
                 throw new WrongUsageException("Transfer faction cannot be none.");
             }
-            KOMEConquestTile tile = data.getConquestTile(tileId);
-            if (!tile.isClaimed()) {
+            KOMEConquestTile tile = requirePublicTile(data, tileId);
+            if (tile.projectRulingFaction().isEmpty()) {
                 throw new WrongUsageException("Tile " + tileId + " is unclaimed.");
             }
-            String currentOwner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
+            String currentOwner = tile.projectRulingFaction();
             if (faction.equals(currentOwner)) {
                 throw new WrongUsageException("That tile is already owned by " + displayFaction(faction) + ".");
             }
@@ -167,7 +172,7 @@ public class KOMECommandConquest extends CommandBase {
         }
 
         if ("accept".equalsIgnoreCase(args[0])) {
-            KOMEConquestTile tile = data.getConquestTile(tileId);
+            KOMEConquestTile tile = requirePublicTile(data, tileId);
             requireTransferAcceptPermission(sender, data, tile);
             String faction = tile.pendingTransferToFaction;
             EntityPlayerMP claimant = sender instanceof EntityPlayerMP ? (EntityPlayerMP) sender : null;
@@ -180,7 +185,7 @@ public class KOMECommandConquest extends CommandBase {
         }
 
         if ("cancelTransfer".equalsIgnoreCase(args[0]) || "canceltrade".equalsIgnoreCase(args[0])) {
-            KOMEConquestTile tile = data.getConquestTile(tileId);
+            KOMEConquestTile tile = requirePublicTile(data, tileId);
             requireTransferCancelPermission(sender, tile);
             tile.clearPendingTransfer();
             data.markDirty();
@@ -194,6 +199,10 @@ public class KOMECommandConquest extends CommandBase {
 
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
+        if (!isStaff(sender)) {
+            if (args.length == 1) return getListOfStringsMatchingLastWord(args, "get", "list", "transfer", "trade", "accept", "cancelTransfer");
+            if (args.length > 0 && isAdministrativeAction(args[0])) return Collections.emptyList();
+        }
         if (args.length == 1) {
             return getListOfStringsMatchingLastWord(args, "get", "claim", "transfer", "trade", "accept", "cancelTransfer", "clear", "clearAll", "reset", "list", "waypoint", "purgeLegacy");
         }
@@ -469,14 +478,14 @@ public class KOMECommandConquest extends CommandBase {
         int count = 0;
         StringBuilder line = new StringBuilder("Claimed tiles: ");
         for (String id : ids) {
-            KOMEConquestTile tile = data.conquestTiles.get(id);
-            if (tile == null || !tile.isClaimed()) {
+            KOMEConquestTile tile = data.getPublicConquestTile(id);
+            if (tile == null || tile.projectRulingFaction().isEmpty()) {
                 continue;
             }
             if (count > 0) {
                 line.append(", ");
             }
-            line.append(id).append("=").append(displayFaction(tile.currentRulingFaction()));
+            line.append(id).append("=").append(displayFaction(tile.projectRulingFaction()));
             count++;
             if (count >= 12) {
                 line.append("...");
@@ -542,19 +551,25 @@ public class KOMECommandConquest extends CommandBase {
         return value == null || value.length() == 0 ? "None" : value;
     }
 
+    private static KOMEConquestTile requirePublicTile(KOMEWorldData data, String tileId) {
+        KOMEConquestTile tile = data.getPublicConquestTile(tileId);
+        if (tile == null) throw new WrongUsageException("Unknown or unavailable conquest tile.");
+        return tile;
+    }
+
+    private static boolean isAdministrativeAction(String action) {
+        return "claim".equalsIgnoreCase(action) || "clear".equalsIgnoreCase(action)
+            || "clearAll".equalsIgnoreCase(action) || "reset".equalsIgnoreCase(action)
+            || "purgeLegacy".equalsIgnoreCase(action) || "waypoint".equalsIgnoreCase(action);
+    }
+
     private void requireClaimPermission(ICommandSender sender, KOMEWorldData data, String faction) {
-        if (sender.canCommandSenderUseCommand(2, getCommandName())) {
-            return;
-        }
-        EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-        String pledgedFaction = KOMEAlliance.normalizeFactionKey(getPlayerFaction(data, player));
-        if (pledgedFaction.isEmpty() || faction.isEmpty() || !pledgedFaction.equals(faction)) {
-            throw new WrongUsageException("You can only claim conquest tiles for your pledged faction.");
-        }
+        // This command directly sets ownership, bypassing the normal capture/confirmation service.
+        requireStaff(sender);
     }
 
     private void requireTransferOfferPermission(ICommandSender sender, KOMEWorldData data, KOMEConquestTile tile, String targetFaction) {
-        String rulingFaction = tile.currentRulingFaction();
+        String rulingFaction = tile.projectRulingFaction();
         if (!data.hasFactionKing(rulingFaction) || !data.hasFactionKing(targetFaction)) {
             throw new WrongUsageException("Tile trades require real player kings for both factions.");
         }

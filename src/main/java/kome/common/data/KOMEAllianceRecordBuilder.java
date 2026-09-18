@@ -91,8 +91,8 @@ public class KOMEAllianceRecordBuilder {
             return pledge;
         }
         KOMEPlayerProgression progression =
-            data.getProgression(kome.common.KOMEReflection.getEntityUUID(viewer));
-        return findFaction(progression.getPledgedLordFaction());
+            data.progressions.get(kome.common.KOMEReflection.getEntityUUID(viewer));
+        return findFaction(progression == null ? "" : progression.getPledgedLordFaction());
     }
 
     private static boolean isViewerKing(KOMEWorldData data, EntityPlayer viewer, String factionKey) {

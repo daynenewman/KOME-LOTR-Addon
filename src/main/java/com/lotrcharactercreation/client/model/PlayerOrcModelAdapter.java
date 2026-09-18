@@ -13,6 +13,8 @@ import lotr.client.model.LOTRModelOrc;
 @SideOnly(Side.CLIENT)
 public class PlayerOrcModelAdapter extends LOTRModelOrc {
 
+    private final PlayerModelArms playerArms = new PlayerModelArms(this);
+
     public PlayerOrcModelAdapter() {
         super();
     }
@@ -35,6 +37,7 @@ public class PlayerOrcModelAdapter extends LOTRModelOrc {
     }
 
     private void resetPlayerLimbState() {
+        playerArms.restore(this);
         bipedRightArm.rotateAngleY = 0.0F;
         bipedRightArm.rotateAngleZ = 0.0F;
         bipedLeftArm.rotateAngleY = 0.0F;

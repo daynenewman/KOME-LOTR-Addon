@@ -818,12 +818,9 @@ public class KOMEConquestMapOverlay {
         KOMETileWaypointLink waypointLink = (KOMETileWaypointLink) KOMEClientData.INSTANCE.tileWaypointLinksByTileId.get(tileId);
         lines.add("LOTR Waypoint: " + (waypointLink == null ? "Missing" : waypointLink.displayName()));
         if (summary != null) {
-            if (summary.offensiveTotal > 0 || summary.offensiveUsed > 0) {
-                lines.add("Offensive: " + summary.offensiveUsed + "/" + summary.offensiveTotal + " used, " + Math.max(0, summary.offensiveTotal - summary.offensiveUsed) + " free");
-            }
-            if (summary.defensiveTotal > 0 || summary.defensiveUsed > 0) {
-                lines.add("Defensive: " + summary.defensiveUsed + "/" + summary.defensiveTotal + " used, " + Math.max(0, summary.defensiveTotal - summary.defensiveUsed) + " free");
-            }
+            lines.add("Faction Available Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(summary.population.availablePopulationCenti));
+            lines.add("Faction Active Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(summary.population.activePopulationCenti));
+            lines.add("Faction Daily Population Rate: " + kome.common.data.KOMEPopulationProjection.formatRate(summary.population.dailyRateUnits));
             if (summary.stationedOffensivePop > 0 || summary.stationedMountedPop > 0 || summary.stationedDefensivePop > 0) {
                 lines.add("Stationed: Off " + summary.stationedOffensivePop + ", Mounted " + summary.stationedMountedPop + ", Def " + summary.stationedDefensivePop);
             }
@@ -1044,7 +1041,7 @@ public class KOMEConquestMapOverlay {
         List<String> lines = new ArrayList<String>();
         lines.add(marker.companyName == null || marker.companyName.length() == 0 ? "Company" : marker.companyName);
         lines.add("Loaded units: " + marker.unitCount);
-        lines.add("Population: " + marker.population + (marker.mounted ? " mounted" : " mixed/ground"));
+        lines.add("Tactical strength: " + marker.population + (marker.mounted ? " mounted" : " mixed/ground"));
         lines.add(marker.haltedProtected ? "Halted: Protected / Inactive" : "Active: Vulnerable / Combat-capable");
         String stationedTile = markerStationedTile(marker);
         if (stationedTile.length() > 0) {
