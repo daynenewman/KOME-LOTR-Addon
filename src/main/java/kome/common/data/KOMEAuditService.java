@@ -18,8 +18,15 @@ public final class KOMEAuditService {
         if (data == null) return null;
         KOMEAuditEntry entry = new KOMEAuditEntry(timestamp, domain, action, actor, subject, reason, details);
         if (entry.action.length() == 0 || entry.reason.length() == 0) return null;
+        appendPrepared(data, entry);
+        return entry;
+    }
+    /** Payouts prepare immutable details before publication; append remains part of their transaction. */
+    static void appendPrepared(KOMEWorldData data, KOMEAuditEntry entry) {
+        if (data == null || entry == null || entry.action.length() == 0 || entry.reason.length() == 0)
+            throw new IllegalArgumentException("A valid prepared audit entry and world data are required");
         data.centralAudit.add(entry); while (data.centralAudit.size() > MAX_ENTRIES) data.centralAudit.remove(0);
-        data.markDirty(); return entry;
+        data.markDirty();
     }
     public static List<KOMEAuditEntry> entries(KOMEWorldData data) {
         return data == null ? Collections.<KOMEAuditEntry>emptyList()

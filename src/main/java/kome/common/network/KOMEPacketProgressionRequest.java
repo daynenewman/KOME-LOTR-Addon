@@ -27,7 +27,7 @@ public class KOMEPacketProgressionRequest implements IMessage {
         public IMessage onMessage(KOMEPacketProgressionRequest message, MessageContext ctx) {
             EntityPlayerMP player = ctx.getServerHandler().playerEntity;
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+            KOMEPlayerProgression progression = data.progressionForInspection(KOMEReflection.getEntityUUID(player));
             List completed = new ArrayList();
             for (KOMEProgressionAchievement achievement : KOMEProgressionAchievement.ALL) {
                 if (progression.isCompleted(achievement)) {

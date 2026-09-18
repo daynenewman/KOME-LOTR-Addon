@@ -88,8 +88,8 @@ public class KOMEBaseIsolationTest {
         String allianceGui = read(main.resolve("kome/client/gui/KOMEGuiAllianceUnified.java"));
         assertTrue(warCommand.contains("list [active|ending|ended|all]"));
         assertTrue(warCommand.contains("\"ending\".equals(filter) && !war.isEnding()"));
-        assertTrue(packetHandler.contains("KOMEPacketAllianceAction.Handler.class"));
-        assertTrue(packetHandler.contains("KOMEPacketTroopGuiAction.Handler.class"));
+        assertTrue(packetHandler.contains("new ServerThreadHandler<KOMEPacketAllianceAction>(new KOMEPacketAllianceAction.Handler()) {}"));
+        assertTrue(packetHandler.contains("new ServerThreadHandler<KOMEPacketTroopGuiAction>(new KOMEPacketTroopGuiAction.Handler()) {}"));
         assertTrue(actionPacket.contains("new KOMECommandAlliance().processCommand(player, command)"));
         assertTrue(actionPacket.contains("KOMEAllianceRecordBuilder.build(data, player)"));
         assertFalse(actionPacket.contains("new KOMECommandTroops().processCommand(player, new String[] {\"companies\"})"));
@@ -117,12 +117,15 @@ public class KOMEBaseIsolationTest {
         assertTrue(build.contains("if (\"list\".equals(action))"));
         assertTrue(build.contains("if (\"inspect\".equals(action)"));
         assertTrue(build.contains("Only administrators may modify Build records or configuration."));
-        assertEquals(3, occurrences(build, "requireStaff(sender);"));
+        assertEquals(5, occurrences(build, "requireStaff(sender);")); // includes pre-world-access guard
+        assertTrue(build.contains("extends KOMEPublicCommand"));
+        assertTrue(build.contains("if (\"adjust\".equals(action) && args.length >= 4) {\n            requireStaff(sender);"));
 
         assertTrue(war.contains("if (\"list\".equals(action))"));
         assertTrue(war.contains("if (\"status\".equals(action))"));
         assertTrue(war.contains("Only administrators may modify war records."));
-        assertEquals(4, occurrences(war, "requireStaff(sender);"));
+        assertEquals(5, occurrences(war, "requireStaff(sender);")); // includes pre-world-access guard
+        assertTrue(war.contains("extends KOMEPublicCommand"));
     }
 
     private static String sha256(Path path) throws Exception {

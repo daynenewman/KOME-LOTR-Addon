@@ -3,6 +3,8 @@ package kome.common.data;
 import net.minecraft.nbt.NBTTagCompound;
 
 public class KOMETileTroopSummary {
+    public KOMEPopulationProjection population = new KOMEPopulationProjection("", 0L,
+            java.math.BigInteger.ZERO, java.math.BigInteger.ZERO, false, 0L);
     public String tileId = "";
     public String ownerFaction = "";
     public int offensiveTotal;
@@ -25,11 +27,12 @@ public class KOMETileTroopSummary {
     }
 
     public boolean hasAnyPopulation() {
-        return hasAnyTroops() || offensiveTotal > 0 || offensiveUsed > 0 || defensiveTotal > 0 || defensiveUsed > 0 || farmhandTotal > 0 || farmhandUsed > 0;
+        return hasAnyTroops() || !population.faction.isEmpty();
     }
 
     public NBTTagCompound writeToNBT() {
         NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setTag("FactionPopulationProjection", kome.common.network.KOMEPopulationWire.projectionTag(population));
         nbt.setString("Tile", KOMEConquestTile.normalizeId(tileId));
         nbt.setString("OwnerFaction", ownerFaction == null ? "" : ownerFaction);
         nbt.setInteger("OffensiveTotal", offensiveTotal);
@@ -50,6 +53,7 @@ public class KOMETileTroopSummary {
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
+        population = kome.common.network.KOMEPopulationWire.projectionFromTag(nbt.getCompoundTag("FactionPopulationProjection"));
         tileId = KOMEConquestTile.normalizeId(nbt.getString("Tile"));
         ownerFaction = nbt.getString("OwnerFaction");
         offensiveTotal = nbt.getInteger("OffensiveTotal");

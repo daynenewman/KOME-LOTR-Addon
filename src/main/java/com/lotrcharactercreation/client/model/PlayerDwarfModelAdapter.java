@@ -13,6 +13,7 @@ import lotr.client.model.LOTRModelDwarf;
 public class PlayerDwarfModelAdapter extends LOTRModelDwarf {
 
     private final ModelRenderer playerChest;
+    private final PlayerModelArms playerArms = new PlayerModelArms(this);
 
     public PlayerDwarfModelAdapter() {
         super(0.0F, 64, 64);
@@ -45,6 +46,7 @@ public class PlayerDwarfModelAdapter extends LOTRModelDwarf {
     }
 
     private void resetPlayerLegState() {
+        playerArms.restore(this);
         bipedRightLeg.rotateAngleY = 0.0F;
         bipedRightLeg.rotateAngleZ = 0.0F;
         bipedLeftLeg.rotateAngleY = 0.0F;

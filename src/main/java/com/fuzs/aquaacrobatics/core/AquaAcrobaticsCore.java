@@ -21,6 +21,9 @@ public class AquaAcrobaticsCore implements IFMLLoadingPlugin {
     private static Boolean isDevEnv;
 
     public static boolean isDevEnv() {
+        if (isDevEnv == null) {
+            throw new IllegalStateException("Aqua mapping environment not initialized by Forge injectData");
+        }
         return isDevEnv;
     }
     @Override

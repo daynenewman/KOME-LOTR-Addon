@@ -13,6 +13,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class KOMEGuiPopulationUnits extends GuiScreen {
+    private kome.common.data.KOMEPopulationProjection population = new kome.common.data.KOMEPopulationProjection(
+            "", 0L, java.math.BigInteger.ZERO, java.math.BigInteger.ZERO, false, 0L);
+
+    public KOMEGuiPopulationUnits(kome.common.network.KOMEPacketPopulationUnitsGui message) {
+        playerName = message.playerName == null ? "" : message.playerName;
+        tileFilter = KOMEConquestTile.normalizeId(message.filterTile);
+        units = message.units == null ? new ArrayList() : message.units;
+        farmhandsUsed = message.farmhandsUsed;
+        population = message.population;
+    }
     private static final int PANEL_WIDTH = 720;
     private static final int PANEL_HEIGHT = 420;
     private static final int MARGIN = 18;
@@ -35,23 +45,10 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
     private final String playerName;
     private final String tileFilter;
     private final List units;
-    private final int armyUsed;
-    private final int armyTotal;
     private final int farmhandsUsed;
-    private final int farmhandsLimit;
     private int filter;
     private int scroll;
     private int selectedIndex;
-
-    public KOMEGuiPopulationUnits(String playerName, String tileFilter, List units, int armyUsed, int armyTotal, int farmhandsUsed, int farmhandsLimit) {
-        this.playerName = playerName == null ? "" : playerName;
-        this.tileFilter = KOMEConquestTile.normalizeId(tileFilter);
-        this.units = units == null ? new ArrayList() : units;
-        this.armyUsed = armyUsed;
-        this.armyTotal = armyTotal;
-        this.farmhandsUsed = farmhandsUsed;
-        this.farmhandsLimit = farmhandsLimit;
-    }
 
     @Override
     public void initGui() {
@@ -146,7 +143,9 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
         KOMEGuiTheme.drawHeader(fontRendererObj, "Unit Command", x + 128, y + 12, panelW - 256);
         String context = tileFilter.length() > 0 ? "Stationed at Tile " + tileFilter : playerName + "'s hired units";
         fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, context, 210), x + MARGIN, y + 20, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        String capacity = "Military " + armyUsed + "/" + armyTotal + "   Farmhands " + farmhandsUsed + (farmhandsLimit < 0 ? " (unlimited)" : "/" + farmhandsLimit);
+        String capacity = "Available " + kome.common.data.KOMEPopulationProjection.formatCenti(population.availablePopulationCenti)
+                + "   Active " + kome.common.data.KOMEPopulationProjection.formatCenti(population.activePopulationCenti)
+                + "   Farmhands: 0.00 population";
         fontRendererObj.drawString(capacity, x + panelW - MARGIN - fontRendererObj.getStringWidth(capacity), y + 32, KOMEGuiTheme.COLOR_TEXT_MUTED);
 
         int contentY = y + 78;
@@ -212,7 +211,7 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
         boolean inTransit = "Moving".equals(unit.movementStatus) || "Pending Spawn".equals(unit.movementStatus);
         detailLine(x, y + 24, width, inTransit ? "Current Location" : "Current Tile",
             inTransit ? "In transit to " + tileLabel(unit.destinationTile) : tileLabel(unit.currentTile));
-        String hiredFrom = "PLAYER_RESERVE".equals(unit.sourceType) ? "Player Reserve" : tileLabel(unit.sourceTile);
+        String hiredFrom = "PLAYER_RESERVE".equals(unit.sourceType) ? "Historical PLAYER_RESERVE source" : tileLabel(unit.sourceTile);
         detailLine(x, y + 38, width, "Hired From", hiredFrom);
         if (inTransit || "Arrival Pending".equals(unit.movementStatus)) {
             detailLine(x, y + 52, width, "Origin / Destination", tileLabel(unit.currentTile) + " -> " + tileLabel(unit.destinationTile));
@@ -226,11 +225,10 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
         KOMEGuiTheme.drawCard(x, y, width, height, false);
         KOMEGuiTheme.drawSectionTitle(fontRendererObj, "Population", x + 10, y + 8, width - 20);
         detailLine(x, y + 24, width, "Population Type", unit.populationType);
-        detailLine(x, y + 38, width, "Population Cost", unit.farmhand ? "Farmhand capacity" : String.valueOf(unit.populationCost));
-        detailLine(x, y + 52, width, "Funding Source", "PLAYER_RESERVE".equals(unit.sourceType) ? "Player Reserve" : "Faction Tile Population");
-        String allocation = unit.allocationTile.length() > 0 ? "Yes - " + tileLabel(unit.allocationTile) : "No";
-        detailLine(x, y + 66, width, "Allocation Used", allocation);
-        detailLine(x, y + 80, width, "Releases To", unit.releasesTo);
+        detailLine(x, y + 38, width, "Permanent investment", unit.farmhand ? "0.00 (excluded)" : kome.common.data.KOMEPopulationProjection.formatCenti(unit.populationSpentCenti));
+        detailLine(x, y + 52, width, "Funding provenance", unit.farmhand ? "None (free)" : unit.sourceType);
+        detailLine(x, y + 66, width, "Funding faction", unit.farmhand ? "Not applicable" : unit.sourceFaction);
+        detailLine(x, y + 80, width, "Population on removal", unit.farmhand ? "0.00 (excluded)" : "No refund");
     }
 
     private void drawMovementCard(KOMEUnitGuiEntry unit, int x, int y, int width, int height) {

@@ -16,6 +16,7 @@ public class KOMEPledgeReleaseTombstone {
     public KOMEPopulationType populationType = KOMEPopulationType.OFFENSIVE;
     public int populationAmount;
     public String releaseReason = "";
+    /** Compatibility field: true means funding cleanup is resolved, not that canonical population was refunded. */
     public boolean populationReturned;
     public boolean entityRemoved;
     public boolean quarantined;

@@ -12,26 +12,34 @@ public final class KOMEPopulationPayoutRuntime {
     private String lastFailure = "";
     private long lastFailureLogMillis;
 
-    public KOMEPopulationPayoutRuntime() { this(new FailureReporter() { public void report(String message) { System.err.println("[KOME] population payout failed; boundary remains retryable: " + message); } }); }
+    public KOMEPopulationPayoutRuntime() { this(new FailureReporter() { public void report(String message) { System.err.println("[KOME] population transition rejected; uncommitted work remains retryable: " + message); } }); }
     KOMEPopulationPayoutRuntime(FailureReporter reporter) { failureReporter = reporter == null ? new FailureReporter() { public void report(String message) { } } : reporter; }
 
     public KOMEPopulationPayoutProcessor.Result onStartup(KOMEWorldData data, Instant now) {
-        if (data == null || now == null || !started.add(data)) return null;
-        return report(KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data, now), now);
+        if (data == null || now == null || started.contains(data)) return null;
+        KOMEPopulationPayoutProcessor.Result result = report(KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data, now), now);
+        if (result.success) {
+            // Population catch-up does not replenish missed movement days.
+            kome.common.command.KOMECommandTroops.anchorMovementSchedule(data, now.toEpochMilli());
+            started.add(data);
+        }
+        return result;
     }
 
     public KOMEPopulationPayoutProcessor.Result onLiveCheck(KOMEWorldData data, Instant now) {
         if (data == null || now == null) return null;
+        if (!started.contains(data)) return onStartup(data, now);
         return report(KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data, now), now);
     }
 
     public void resetSession() { started.clear(); lastFailure = ""; lastFailureLogMillis = 0L; }
+    public boolean hasStarted(KOMEWorldData data) { return started.contains(data); }
 
     private KOMEPopulationPayoutProcessor.Result report(KOMEPopulationPayoutProcessor.Result result, Instant now) {
         if (result != null && !result.success) {
             String failure = result.message + "@" + result.factions.size();
             if (!failure.equals(lastFailure) || now.toEpochMilli() - lastFailureLogMillis >= 60000L) {
-                try { failureReporter.report(result.message); } catch (RuntimeException ignored) { }
+                try { failureReporter.report(result.message + "; prior committed transitions retained=" + result.committedTransitions); } catch (RuntimeException ignored) { }
                 lastFailure = failure; lastFailureLogMillis = now.toEpochMilli();
             }
         } else if (result != null && result.success) lastFailure = "";

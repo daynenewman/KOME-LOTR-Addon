@@ -18,11 +18,14 @@ import java.util.UUID;
 
 public class KOMEServerRecordBuilder {
     public static List build(World world) {
+        return build(world, false);
+    }
+
+    public static List build(World world, boolean includeAdministrativeHistory) {
         KOMEWorldData data = KOMEWorldData.get(world);
         Set<UUID> playerIDs = new HashSet<>();
         playerIDs.addAll(data.playerNames.keySet());
         playerIDs.addAll(data.progressions.keySet());
-        playerIDs.addAll(data.populations.keySet());
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
             if (record.owner != null) {
                 playerIDs.add(record.owner);
@@ -43,16 +46,16 @@ public class KOMEServerRecordBuilder {
         List lines = new ArrayList();
         lines.add(join("SUMMARY", String.valueOf(records.size()), String.valueOf(getClaimedTileCount(data)), String.valueOf(data.wars.size())));
         for (PlayerRecord record : records) {
-            addPlayerLine(lines, data, world, record);
+            addPlayerLine(lines, data, world, record, includeAdministrativeHistory);
         }
         if (records.isEmpty()) {
             lines.add(join("EMPTY", "No player records have been saved yet."));
         }
-        for (KOMEWar war : KOMEWarService.sortedWars(data)) addWarLine(lines, data, war);
+        for (KOMEWar war : KOMEWarService.sortedWars(data)) addWarLine(lines, data, war, includeAdministrativeHistory);
         return lines;
     }
 
-    private static void addWarLine(List lines, KOMEWorldData data, KOMEWar war) {
+    private static void addWarLine(List lines, KOMEWorldData data, KOMEWar war, boolean includeAdministrativeHistory) {
         KOMEWar.TileCaptureEvent latest = war.tileCaptureHistory.isEmpty() ? null
             : war.tileCaptureHistory.get(war.tileCaptureHistory.size() - 1);
         String latestCapture = latest == null ? "No tile captures" : latest.tileId + ": "
@@ -62,32 +65,34 @@ public class KOMEServerRecordBuilder {
         int pending = 0;
         List<String> coordinators = new ArrayList<String>();
         List<String> reservations = new ArrayList<String>();
-        for (KOMEWar.StewardshipAuthorization authorization : war.stewardshipAuthorizations) {
+        if (includeAdministrativeHistory) for (KOMEWar.StewardshipAuthorization authorization : war.stewardshipAuthorizations) {
             if ("ACTIVE".equals(authorization.state)) activeCompanies++;
             if (!"ACTIVE".equals(authorization.state) && !"DEMOBILIZED".equals(authorization.state)) pending++;
             coordinators.add(authorization.controllerName + " (" + displayFaction(authorization.controllerFaction) + ")");
             reservations.add(authorization.companyId + "=" + authorization.reservation + " [" + authorization.state + "]");
         }
         List<String> warnings = new ArrayList<String>();
-        for (String faction : war.sideOneFactions) warnings.addAll(KOMEWarService.contradictoryMemberships(data, faction));
-        for (String faction : war.sideTwoFactions) warnings.addAll(KOMEWarService.contradictoryMemberships(data, faction));
+        if (includeAdministrativeHistory) {
+            for (String faction : war.sideOneFactions) warnings.addAll(KOMEWarService.contradictoryMemberships(data, faction));
+            for (String faction : war.sideTwoFactions) warnings.addAll(KOMEWarService.contradictoryMemberships(data, faction));
+        }
         List<String> captures = new ArrayList<String>();
         for (KOMEWar.TileCaptureEvent event : war.tileCaptureHistory) {
             captures.add(event.tileId + " " + displayFaction(event.formerOwner) + " -> " + displayFaction(event.newOwner)
                 + " by " + event.claimantName + " @ " + event.timestamp);
         }
         List<String> administration = new ArrayList<String>();
-        for (KOMEWar.AdministrativeEvent event : war.administrativeHistory) {
+        if (includeAdministrativeHistory) for (KOMEWar.AdministrativeEvent event : war.administrativeHistory) {
             administration.add(event.action + " by " + event.actor + ": " + event.detail + " @ " + event.timestamp);
         }
         List<String> memberships = new ArrayList<String>();
-        for (KOMEWar.MembershipRecord membership : war.membershipHistory) {
+        if (includeAdministrativeHistory) for (KOMEWar.MembershipRecord membership : war.membershipHistory) {
             memberships.add(displayFaction(membership.faction) + " side " + membership.side + " [" + membership.source + "]"
                 + (membership.nativeFaction.length() == 0 ? "" : " for native " + displayFaction(membership.nativeFaction))
                 + (membership.active ? " active" : " ended: " + membership.endReason));
         }
         List<String> supportEnrollments = new ArrayList<String>();
-        for (KOMEWar.MilitarySupportEnrollment enrollment : war.militarySupportEnrollments) {
+        if (includeAdministrativeHistory) for (KOMEWar.MilitarySupportEnrollment enrollment : war.militarySupportEnrollments) {
             supportEnrollments.add(displayFaction(enrollment.supportingFaction) + " supporting "
                 + displayFaction(enrollment.nativeFaction) + " [" + enrollment.state + "] king="
                 + (enrollment.authorizedKingName.length() == 0 ? "none" : enrollment.authorizedKingName + "/" + enrollment.authorizedKing)
@@ -96,11 +101,16 @@ public class KOMEServerRecordBuilder {
         }
         lines.add(join("WAR", war.id, war.displayName.length() == 0 ? war.id : war.displayName, war.status,
             war.sideOneName, displayFactions(war.sideOneFactions), war.sideTwoName, displayFactions(war.sideTwoFactions),
-            String.valueOf(war.createdAtMillis), latestCapture, String.valueOf(activeCompanies),
-            warnings.isEmpty() ? "None" : joinNames(warnings), joinNames(captures), joinNames(coordinators),
-            joinNames(reservations), String.valueOf(pending), joinNames(administration), war.endingReason,
-            String.valueOf(war.endingAtMillis), String.valueOf(war.endedAtMillis), joinNames(memberships),
-            joinNames(supportEnrollments)));
+            String.valueOf(war.createdAtMillis), latestCapture, includeAdministrativeHistory ? String.valueOf(activeCompanies) : "Operator-only",
+            includeAdministrativeHistory ? (warnings.isEmpty() ? "None" : joinNames(warnings)) : "Operator-only",
+            joinNames(captures), includeAdministrativeHistory ? joinNames(coordinators) : "Operator-only",
+            includeAdministrativeHistory ? joinNames(reservations) : "Operator-only",
+            includeAdministrativeHistory ? String.valueOf(pending) : "Operator-only",
+            includeAdministrativeHistory ? joinNames(administration) : "Operator-only",
+            includeAdministrativeHistory ? war.endingReason : "Operator-only",
+            String.valueOf(war.endingAtMillis), String.valueOf(war.endedAtMillis),
+            includeAdministrativeHistory ? joinNames(memberships) : "Operator-only",
+            includeAdministrativeHistory ? joinNames(supportEnrollments) : "Operator-only"));
     }
 
     private static String displayFactions(Set<String> factions) {
@@ -110,7 +120,7 @@ public class KOMEServerRecordBuilder {
         return joinNames(names);
     }
 
-    private static void addPlayerLine(List lines, KOMEWorldData data, World world, PlayerRecord record) {
+    private static void addPlayerLine(List lines, KOMEWorldData data, World world, PlayerRecord record, boolean operator) {
         KOMEPlayerProgression progression = data.progressions.get(record.id);
         FactionInfo faction = getFactionInfo(data, world, record.id, progression);
         TileSummary tiles = getConquestTiles(data, faction.key);
@@ -123,7 +133,7 @@ public class KOMEServerRecordBuilder {
             getRank(data, record.id, progression, faction.key),
             getProgressionSummary(progression),
             getPopulationSummary(data, faction.key),
-            progression == null ? "No pledged lord" : progression.getPledgedLordDisplay(),
+            operator ? (progression == null ? "No pledged lord" : progression.getPledgedLordDisplay()) : "Private",
             getDiplomacySummary(data, faction.key),
             String.valueOf(tiles.count),
             joinNames(tiles.names)
@@ -138,11 +148,7 @@ public class KOMEServerRecordBuilder {
     }
 
     private static String getPopulationSummary(KOMEWorldData data, String faction) {
-        int available = KOMEPopulationService.getAvailablePopulation(data, faction);
-        int active = KOMEPopulationService.getActivePopulation(faction, data.hiredUnits.values());
-        String rate = KOMEPopulationService.getDailyPopulationRate(data, faction).formatPerDay();
-        return "Faction " + displayFaction(faction) + ", Available Population " + available
-            + ", Active Population " + active + ", Daily Population Rate " + rate;
+        return KOMEPopulationProjection.of(data, faction).summary();
     }
 
     static String getRank(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {
@@ -193,7 +199,7 @@ public class KOMEServerRecordBuilder {
     private static TileSummary getConquestTiles(KOMEWorldData data, String factionKey) {
         TileSummary summary = new TileSummary();
         for (KOMEConquestTile tile : data.conquestTiles.values()) {
-            if (tile.isClaimed() && factionMatches(tile.currentRulingFaction(), factionKey)) {
+            if (!tile.projectRulingFaction().isEmpty() && factionMatches(tile.projectRulingFaction(), factionKey)) {
                 summary.count++;
                 KOMETileWaypointLink waypoint = data.getTileWaypointLink(tile.id);
                 String waypointName = waypoint == null ? "" : safeRecordLabel(waypoint.displayName());
@@ -301,7 +307,7 @@ public class KOMEServerRecordBuilder {
     private static int getClaimedTileCount(KOMEWorldData data) {
         int count = 0;
         for (KOMEConquestTile tile : data.conquestTiles.values()) {
-            if (tile.isClaimed()) {
+            if (!tile.projectRulingFaction().isEmpty()) {
                 count++;
             }
         }

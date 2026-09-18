@@ -293,8 +293,8 @@ public class KOMEAllianceInventory implements IInventory {
         LOTRFaction faction = LOTRLevelData.getData(viewer).getPledgeFaction();
         String viewerFaction = faction == null ? "" : faction.codeName();
         if (viewerFaction.length() == 0) {
-            KOMEPlayerProgression progression = data.getProgression(kome.common.KOMEReflection.getEntityUUID(viewer));
-            viewerFaction = progression.getPledgedLordFaction();
+            KOMEPlayerProgression progression = data.progressions.get(kome.common.KOMEReflection.getEntityUUID(viewer));
+            viewerFaction = progression == null ? "" : progression.getPledgedLordFaction();
         }
         return KOMEAlliance.normalizeFactionKey(viewerFaction);
     }
@@ -307,8 +307,8 @@ public class KOMEAllianceInventory implements IInventory {
         if (faction != null) {
             return KOMEAlliance.displayFactionName(faction.codeName());
         }
-        KOMEPlayerProgression progression = data.getProgression(kome.common.KOMEReflection.getEntityUUID(viewer));
-        return KOMEAlliance.displayFactionName(progression.getPledgedLordFaction());
+        KOMEPlayerProgression progression = data.progressions.get(kome.common.KOMEReflection.getEntityUUID(viewer));
+        return KOMEAlliance.displayFactionName(progression == null ? "" : progression.getPledgedLordFaction());
     }
 
     private String getClaimSummary() {

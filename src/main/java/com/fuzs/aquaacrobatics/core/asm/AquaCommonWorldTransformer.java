@@ -5,8 +5,6 @@ import java.util.List;
 
 import net.minecraft.launchwrapper.IClassTransformer;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -57,7 +55,8 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
     private static final String RAY_TRACE_SRG = "func_72933_a";
     private static final String RAY_TRACE_NOTCH = "a";
     private static final String SET_BLOCK_MCP = "setBlock";
-    private static final String SET_BLOCK_SRG = "func_147465_d";
+    // Four-argument overload; func_147465_d is the distinct six-argument overload.
+    private static final String SET_BLOCK_SRG = "func_147449_b";
     private static final String SET_BLOCK_NOTCH = "b";
     private static final String POS_X_MCP = "posX";
     private static final String POS_X_SRG = "field_70165_t";
@@ -75,26 +74,24 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
             throw new IllegalStateException("Aqua common world transformer received null bytecode for " + transformedName);
         }
 
-        ClassNode classNode = new ClassNode();
-        new ClassReader(basicClass).accept(classNode, 0);
-        if (ENTITY.equals(transformedName)) {
-            this.transformEntity(classNode);
-        } else if (ENTITY_LIVING_BASE.equals(transformedName)) {
-            this.transformLivingBase(classNode);
-        } else if (ENTITY_THROWABLE.equals(transformedName)) {
-            this.transformThrowable(classNode);
-        } else if (ENTITY_ITEM.equals(transformedName)) {
-            this.transformItem(classNode);
-        } else if (BLOCK_LIQUID.equals(transformedName)) {
-            this.transformLiquid(classNode);
-        } else if (ENTITY_BOAT.equals(transformedName)) {
-            this.transformBoat(classNode);
-        } else {
-            this.transformGrassLike(classNode, BLOCK_GRASS.equals(transformedName));
-        }
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        classNode.accept(writer);
-        return writer.toByteArray();
+        final ClassNode classNode = AquaAsmMappings.read("AquaCommonWorldTransformer", transformedName, basicClass);
+        return AquaAsmMappings.finish("AquaCommonWorldTransformer", classNode, () -> {
+            if (ENTITY.equals(transformedName)) {
+                this.transformEntity(classNode);
+            } else if (ENTITY_LIVING_BASE.equals(transformedName)) {
+                this.transformLivingBase(classNode);
+            } else if (ENTITY_THROWABLE.equals(transformedName)) {
+                this.transformThrowable(classNode);
+            } else if (ENTITY_ITEM.equals(transformedName)) {
+                this.transformItem(classNode);
+            } else if (BLOCK_LIQUID.equals(transformedName)) {
+                this.transformLiquid(classNode);
+            } else if (ENTITY_BOAT.equals(transformedName)) {
+                this.transformBoat(classNode);
+            } else {
+                this.transformGrassLike(classNode, BLOCK_GRASS.equals(transformedName));
+            }
+        });
     }
 
     private void transformLivingBase(ClassNode classNode) {
@@ -122,23 +119,11 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
 
     // Verified dev/SRG/raw forms: isJumping / field_70703_bu / sv.bc.
     private String livingJumpFieldName(ClassNode classNode) {
-        if (ENTITY_LIVING_BASE.replace('.', '/').equals(classNode.name)) return "isJumping";
-        if ("sv".equals(classNode.name)) return "bc";
-        return "field_70703_bu";
+        return AquaAsmMappings.member(classNode.name, "isJumping", "field_70703_bu", "bc");
     }
 
     private MethodNode findLivingMethod(ClassNode classNode, String descriptor, String... names) {
-        MethodNode result = null;
-        for (MethodNode method : classNode.methods) {
-            if (!descriptor.equals(method.desc)) continue;
-            boolean matched = false;
-            for (String name : names) if (name.equals(method.name)) matched = true;
-            if (!matched) continue;
-            if (result != null) throw new IllegalStateException("Aqua EntityLivingBase found multiple target methods for " + descriptor);
-            result = method;
-        }
-        if (result == null) throw new IllegalStateException("Aqua EntityLivingBase could not find target method " + descriptor);
-        return result;
+        return AquaAsmMappings.method("AquaCommonWorldTransformer", classNode, descriptor, names);
     }
 
     private void replaceLivingWaterCheck(ClassNode classNode, MethodNode entityUpdate) {
@@ -146,7 +131,8 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
         for (AbstractInsnNode instruction = entityUpdate.instructions.getFirst(); instruction != null; instruction = instruction.getNext()) {
             if (!(instruction instanceof MethodInsnNode)) continue;
             MethodInsnNode call = (MethodInsnNode) instruction;
-            if (call.getOpcode() != Opcodes.INVOKEVIRTUAL || !("(" + this.livingMaterialDescriptor(classNode) + ")Z").equals(call.desc)
+            if (call.getOpcode() != Opcodes.INVOKEVIRTUAL || !isEntityOwner(classNode, call.owner)
+                    || !("(" + this.livingMaterialDescriptor(classNode) + ")Z").equals(call.desc)
                     || !("isInsideOfMaterial".equals(call.name) || "func_70055_a".equals(call.name)
                     || "a".equals(call.name))) continue;
             if (target != null) throw new IllegalStateException("Aqua EntityLivingBase found multiple water-material checks");
@@ -170,7 +156,7 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
         for (AbstractInsnNode instruction = entityUpdate.instructions.getFirst(); instruction != null; instruction = instruction.getNext()) {
             if (!(instruction instanceof MethodInsnNode)) continue;
             MethodInsnNode call = (MethodInsnNode) instruction;
-            if (call.getOpcode() != Opcodes.INVOKEVIRTUAL || !"(I)V".equals(call.desc)
+            if (call.getOpcode() != Opcodes.INVOKEVIRTUAL || !isEntityOwner(classNode, call.owner) || !"(I)V".equals(call.desc)
                     || !("setAir".equals(call.name) || "func_70050_g".equals(call.name) || "h".equals(call.name))) continue;
             targets.add(call);
         }
@@ -191,7 +177,7 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
         for (AbstractInsnNode instruction = movement.instructions.getFirst(); instruction != null; instruction = instruction.getNext()) {
             if (!(instruction instanceof FieldInsnNode)) continue;
             FieldInsnNode field = (FieldInsnNode) instruction;
-            if (field.getOpcode() == Opcodes.GETFIELD && "Z".equals(field.desc)
+            if (field.getOpcode() == Opcodes.GETFIELD && isEntityOwner(classNode, field.owner) && "Z".equals(field.desc)
                     && ("isCollidedHorizontally".equals(field.name) || "field_70123_F".equals(field.name) || "E".equals(field.name))) fields.add(field);
         }
         if (fields.size() < 2) throw new IllegalStateException("Aqua EntityLivingBase could not find ordinal-1 horizontal collision read");
@@ -226,7 +212,7 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
         classNode.interfaces.add(BUBBLE_INTERACTABLE);
         this.addEntityBubbleBridge(classNode, "onEnterBubbleColumn");
         this.addEntityBubbleBridge(classNode, "onEnterBubbleColumnWithAirAbove");
-        MethodNode water = this.findEntityMethod(classNode, "()Z", "handleWaterMovement", "func_70090_H", "N");
+        MethodNode water = this.findEntityMethod(classNode, "()Z", "handleWaterMovement", "func_70072_I", "N");
         this.replaceWaterMovementConstant(classNode, water);
         MethodNode movement = this.findEntityMethod(classNode, "(DDD)V", "moveEntity", "func_70091_d", "d");
         this.addClimbingBlockBridge(movement);
@@ -249,17 +235,7 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
     }
 
     private MethodNode findEntityMethod(ClassNode classNode, String descriptor, String... names) {
-        MethodNode result = null;
-        for (MethodNode method : classNode.methods) {
-            if (!descriptor.equals(method.desc)) continue;
-            boolean matched = false;
-            for (String name : names) if (name.equals(method.name)) matched = true;
-            if (!matched) continue;
-            if (result != null) throw new IllegalStateException("Aqua Entity found multiple target methods for " + descriptor);
-            result = method;
-        }
-        if (result == null) throw new IllegalStateException("Aqua Entity could not find target method " + descriptor);
-        return result;
+        return AquaAsmMappings.method("AquaCommonWorldTransformer", classNode, descriptor, names);
     }
 
     private void replaceWaterMovementConstant(ClassNode classNode, MethodNode water) {
@@ -270,7 +246,23 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
             if (target != null) throw new IllegalStateException("Aqua Entity found multiple water Y constants");
             target = (LdcInsnNode) instruction;
         }
-        if (target == null) throw new IllegalStateException("Aqua Entity could not find water Y constant");
+        if (target == null) throw new IllegalStateException("handleWaterMovement/func_70072_I/N()Z: "
+            + "expected one -0.4000000059604645D water Y constant in " + water.name + water.desc + ", matches=0");
+        AbstractInsnNode before = opcodeBefore(target);
+        AbstractInsnNode after = opcodeAfter(target);
+        AbstractInsnNode invocation = opcodeAfter(after);
+        String box = AquaAsmMappings.type(classNode.name, "net/minecraft/util/AxisAlignedBB", "azt");
+        if (before == null || before.getOpcode() != Opcodes.DCONST_0 || after == null
+            || after.getOpcode() != Opcodes.DCONST_0 || !(invocation instanceof MethodInsnNode)) {
+            throw new IllegalStateException("handleWaterMovement/func_70072_I/N()Z: invalid water AABB argument shape");
+        }
+        MethodInsnNode expand = (MethodInsnNode) invocation;
+        if (expand.getOpcode() != Opcodes.INVOKEVIRTUAL || !box.equals(expand.owner)
+            || !("(DDD)L" + box + ";").equals(expand.desc)
+            || !("expand".equals(expand.name) || "func_72314_b".equals(expand.name) || "b".equals(expand.name))) {
+            throw new IllegalStateException("handleWaterMovement/func_70072_I/N()Z: expected " + box
+                + ".expand/func_72314_b/b(DDD)L" + box + "; INVOKEVIRTUAL");
+        }
         InsnList bridge = new InsnList();
         bridge.add(new VarInsnNode(Opcodes.ALOAD, 0));
         bridge.add(new LdcInsnNode(-0.4000000059604645D));
@@ -291,7 +283,8 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
             if (!(instruction instanceof MethodInsnNode)) continue;
             MethodInsnNode invocation = (MethodInsnNode) instruction;
             Type[] arguments = Type.getArgumentTypes(invocation.desc);
-            if (arguments.length != 3 || arguments[0].getSort() != Type.INT || arguments[1].getSort() != Type.INT
+            if (invocation.getOpcode() != Opcodes.INVOKEVIRTUAL || !isWorldOwner(invocation.owner)
+                    || arguments.length != 3 || arguments[0].getSort() != Type.INT || arguments[1].getSort() != Type.INT
                     || arguments[2].getSort() != Type.INT || Type.getReturnType(invocation.desc).getSort() != Type.OBJECT
                     || !("getBlock".equals(invocation.name) || "func_147439_a".equals(invocation.name) || "a".equals(invocation.name))) continue;
             AbstractInsnNode next = invocation.getNext();
@@ -317,6 +310,16 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
                 "getFakeClimbingBlock",
                 "(" + blockDescriptor + ")" + blockDescriptor,
                 false));
+    }
+
+    private static AbstractInsnNode opcodeBefore(AbstractInsnNode node) {
+        do { node = node == null ? null : node.getPrevious(); } while (node != null && node.getOpcode() < 0);
+        return node;
+    }
+
+    private static AbstractInsnNode opcodeAfter(AbstractInsnNode node) {
+        do { node = node == null ? null : node.getNext(); } while (node != null && node.getOpcode() < 0);
+        return node;
     }
 
     private void verifyEntity(ClassNode classNode, MethodNode water, MethodNode movement) {
@@ -374,17 +377,13 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
         classNode.methods.add(splash);
     }
 
-    // Forge dev sees MCP; production sees raw. The SRG alternatives document the complete mapping.
+    // Production has readable class names but SRG members after FMLDeobfTweaker.
     private String boatRandName(ClassNode classNode) {
-        if ("net/minecraft/entity/item/EntityBoat".equals(classNode.name)) return "rand"; // field_70146_Z / raw Z
-        if ("xi".equals(classNode.name)) return "Z"; // MCP rand / SRG field_70146_Z
-        return "field_70146_Z";
+        return AquaAsmMappings.member(classNode.name, "rand", "field_70146_Z", "Z");
     }
 
     private String boatSplashSoundName(ClassNode classNode) {
-        if ("net/minecraft/entity/item/EntityBoat".equals(classNode.name)) return "getSplashSound"; // func_145777_O / raw O
-        if ("xi".equals(classNode.name)) return "O"; // MCP getSplashSound / SRG func_145777_O
-        return "func_145777_O";
+        return AquaAsmMappings.member(classNode.name, "getSplashSound", "func_145777_O", "O");
     }
 
     private void addBoatBridge(ClassNode classNode, String name, String descriptor, String helperName) {
@@ -410,7 +409,7 @@ public final class AquaCommonWorldTransformer implements IClassTransformer {
              instruction = instruction.getNext()) {
             if (!(instruction instanceof MethodInsnNode)) continue;
             MethodInsnNode invocation = (MethodInsnNode) instruction;
-            if (invocation.getOpcode() == Opcodes.INVOKEVIRTUAL && "(FF)V".equals(invocation.desc)
+            if (invocation.getOpcode() == Opcodes.INVOKEVIRTUAL && isEntityOwner(classNode, invocation.owner) && "(FF)V".equals(invocation.desc)
                     && ("setRotation".equals(invocation.name) || "func_70101_b".equals(invocation.name)
                     || "b".equals(invocation.name))) rotations.add(invocation);
         }
@@ -599,17 +598,8 @@ method.instructions.add(new VarInsnNode(Opcodes.ALOAD, 0));
     }
 
     private MethodNode findSingleOnUpdate(ClassNode classNode) {
-        MethodNode result = null;
-        for (MethodNode method : classNode.methods) {
-            if (!"()V".equals(method.desc) || !(ON_UPDATE_MCP.equals(method.name) || ON_UPDATE_SRG.equals(method.name)
-                    || ON_UPDATE_NOTCH.equals(method.name))) continue;
-            if (result != null) {
-                throw new IllegalStateException("Aqua EntityThrowable found multiple onUpdate candidates");
-            }
-            result = method;
-        }
-        if (result == null) throw new IllegalStateException("Aqua EntityThrowable could not find onUpdate()V");
-        return result;
+        return AquaAsmMappings.method("AquaCommonWorldTransformer", classNode, "()V",
+            ON_UPDATE_MCP, ON_UPDATE_SRG, ON_UPDATE_NOTCH);
     }
 
     private void replaceRayTrace(ClassNode classNode, MethodNode onUpdate) {
@@ -668,7 +658,7 @@ method.instructions.add(new VarInsnNode(Opcodes.ALOAD, 0));
        hook.add(new MethodInsnNode(
         Opcodes.INVOKEVIRTUAL,
         classNode.name,
-        "func_145775_I",
+        AquaAsmMappings.member(classNode.name, "func_145775_I", "func_145775_I", "I"),
         "()V",
         false));
 hook.add(skip);
@@ -701,7 +691,8 @@ onUpdate.instructions.insert(posXWrite, hook);
             if (!(instruction instanceof MethodInsnNode)) continue;
             MethodInsnNode invocation = (MethodInsnNode) instruction;
             if (THROWABLE_LOGIC.equals(invocation.owner) && "rayTraceThroughLiquid".equals(invocation.name)) ++rayHelpers;
-            if (classNode.name.equals(invocation.owner) && "func_145775_I".equals(invocation.name)
+            if (classNode.name.equals(invocation.owner) && AquaAsmMappings.member(classNode.name,
+                    "func_145775_I", "func_145775_I", "I").equals(invocation.name)
                     && "()V".equals(invocation.desc)) ++collisionCalls;
         }
         if (rayHelpers != 1 || collisionCalls != 1) {
@@ -718,19 +709,9 @@ onUpdate.instructions.insert(posXWrite, hook);
     }
 
     private MethodNode findSingleUpdateTick(ClassNode classNode) {
-        MethodNode result = null;
-        for (MethodNode method : classNode.methods) {
-            Type[] arguments = Type.getArgumentTypes(method.desc);
-            if (!(UPDATE_TICK_MCP.equals(method.name) || UPDATE_TICK_SRG.equals(method.name)
-                    || UPDATE_TICK_NOTCH.equals(method.name)) || Type.getReturnType(method.desc).getSort() != Type.VOID
-                    || arguments.length != 5 || arguments[0].getSort() != Type.OBJECT || arguments[1].getSort() != Type.INT
-                    || arguments[2].getSort() != Type.INT || arguments[3].getSort() != Type.INT
-                    || arguments[4].getSort() != Type.OBJECT) continue;
-            if (result != null) throw new IllegalStateException("Aqua grass-like block found multiple updateTick candidates");
-            result = method;
-        }
-        if (result == null) throw new IllegalStateException("Aqua grass-like block could not find updateTick(World,III,Random)V");
-        return result;
+        return AquaAsmMappings.method("AquaCommonWorldTransformer", classNode,
+            "(L" + AquaAsmMappings.type(classNode.name, WORLD_MCP, WORLD_NOTCH) + ";IIILjava/util/Random;)V",
+            UPDATE_TICK_MCP, UPDATE_TICK_SRG, UPDATE_TICK_NOTCH);
     }
 
     private void addGrassHeadBridge(MethodNode updateTick, String helper) {
@@ -777,6 +758,10 @@ updateTick.instructions.insert(bridge);
         target.name = "setBlockUnlessCoveredByLiquid";
         target.desc = "(L" + worldOwner + ";" + target.desc.substring(1);
         target.itf = false;
+    }
+
+    private boolean isEntityOwner(ClassNode target, String owner) {
+        return target.name.equals(owner) || AquaAsmMappings.type(target.name, "net/minecraft/entity/Entity", "sa").equals(owner);
     }
 
     private boolean isWorldOwner(String owner) {

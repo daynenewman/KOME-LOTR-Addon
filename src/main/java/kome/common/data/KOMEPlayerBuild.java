@@ -2,6 +2,7 @@ package kome.common.data;
 
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import net.minecraft.nbt.NBTTagString;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -13,6 +14,9 @@ import java.util.UUID;
 
 /** Persistent player-created construction project and its contribution audit. */
 public class KOMEPlayerBuild {
+    /** Schema 3 combines KOM-54 precise Builds with KOM-10 defensive gate records. */
+    public static final int DATA_SCHEMA_VERSION = 3;
+    public static final int MAX_AUDIT_ENTRIES = 250;
     public String id = "";
     public String displayName = "";
     public String tileId = "";
@@ -37,34 +41,47 @@ public class KOMEPlayerBuild {
     public String markerLabel = "";
     public KOMEBuildType type;
     public final List<KOMEBuildContribution> contributions = new ArrayList<KOMEBuildContribution>();
+    private final List<String> auditHistory = new ArrayList<String>();
     /** Accounting links only; tactical siege geometry and live gate state are intentionally separate. */
     private final List<KOMEDefensiveGateRecord> defensiveGateRecords = new ArrayList<KOMEDefensiveGateRecord>();
     /** Highest G-number ever allocated within this Build. It never decreases or becomes global. */
     private long defensiveGateRecordSequence;
 
     /** Approved canonical construction hours; only NORMAL produces a future population rate. */
-    public int approvedHalfHours() {
-        int result = 0;
+    public long approvedCentiHours() {
+        long result = 0L;
         for (KOMEBuildContribution contribution : contributions) {
             if (contribution != null && contribution.isApproved()) {
-                result = saturatedAdd(result, contribution.totalHalfHours());
+                result = KOMEBuildTime.add(result, contribution.totalCentiHours());
             }
         }
-        return Math.max(0, result);
+        return result;
     }
 
     public boolean isNormal() { return type == KOMEBuildType.NORMAL; }
     public boolean isDefensive() { return type == KOMEBuildType.DEFENSIVE; }
 
-    /** Exact rational rate: numerator half-hours, denominator 2 * configured hours per point. */
-    public long[] originalPopulationRate(int hoursPerPopulationPoint) {
-        long denominator = Math.multiplyExact(2L, Math.max(1L, (long) hoursPerPopulationPoint));
-        return isNormal() ? new long[] { approvedHalfHours(), denominator }
-            : new long[] { 0L, 1L };
+    /** Canonical downstream source for KOM-10; NORMAL Builds never supply defensive hours. */
+    public long approvedDefensiveCentiHours() { return active && isDefensive() ? approvedCentiHours() : 0L; }
+
+    public List<String> auditHistory() { return Collections.unmodifiableList(auditHistory); }
+
+    public void appendAudit(String entry) {
+        if (entry == null || entry.isEmpty()) throw new IllegalArgumentException("Build audit entry is required.");
+        auditHistory.add(entry);
+        if (auditHistory.size() > MAX_AUDIT_ENTRIES) auditHistory.subList(0, auditHistory.size() - MAX_AUDIT_ENTRIES).clear();
     }
 
-    /** Canonical downstream source for KOM-10; NORMAL Builds never supply defensive hours. */
-    public int approvedDefensiveHalfHours() { return isDefensive() ? approvedHalfHours() : 0; }
+    public void validateContributions() {
+        if (type == null) throw new IllegalArgumentException("Build type is required.");
+        java.util.Set<String> ids = new java.util.HashSet<String>();
+        for (KOMEBuildContribution contribution : contributions) {
+            if (contribution == null) throw new IllegalArgumentException("Null Build contribution.");
+            contribution.validate();
+            if (!ids.add(contribution.id)) throw new IllegalArgumentException("Duplicate contribution Id: " + contribution.id);
+        }
+        approvedCentiHours();
+    }
 
 
     public int pendingCount() {
@@ -148,24 +165,26 @@ public class KOMEPlayerBuild {
         return record != null && defensiveGateRecords.remove(record);
     }
 
-    public Map<String, Integer> activeHalfHoursByFaction() {
-        Map<String, Integer> result = new HashMap<String, Integer>();
+    public Map<String, Long> activeCentiHoursByFaction() {
+        Map<String, Long> result = new HashMap<String, Long>();
+        if (!active) return result;
         for (KOMEBuildContribution contribution : contributions) {
             if (contribution == null || !contribution.isApproved()) continue;
             String faction = KOMEAlliance.normalizeFactionKey(contribution.contributorFaction);
-            Integer current = result.get(faction);
-            result.put(faction, Integer.valueOf((current == null ? 0 : current.intValue()) + contribution.totalHalfHours()));
+            Long current = result.get(faction);
+            result.put(faction, KOMEBuildTime.add(current == null ? 0L : current, contribution.totalCentiHours()));
         }
         return result;
     }
 
-    public Map<UUID, Integer> activeHalfHoursByPlayer() {
-        Map<UUID, Integer> result = new HashMap<UUID, Integer>();
+    public Map<UUID, Long> activeCentiHoursByPlayer() {
+        Map<UUID, Long> result = new HashMap<UUID, Long>();
+        if (!active) return result;
         for (KOMEBuildContribution contribution : contributions) {
             if (contribution == null || !contribution.isApproved() || contribution.contributorUuid == null) continue;
-            Integer current = result.get(contribution.contributorUuid);
+            Long current = result.get(contribution.contributorUuid);
             result.put(contribution.contributorUuid,
-                Integer.valueOf((current == null ? 0 : current.intValue()) + contribution.totalHalfHours()));
+                KOMEBuildTime.add(current == null ? 0L : current, contribution.totalCentiHours()));
         }
         return result;
     }
@@ -184,7 +203,10 @@ public class KOMEPlayerBuild {
     }
 
     public NBTTagCompound writeToNBT() {
+        validateContributions();
+        validateDefensiveGateRecords();
         NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setInteger("BuildSchemaVersion", DATA_SCHEMA_VERSION);
         nbt.setString("Id", safe(id));
         nbt.setString("DisplayName", sanitizeName(displayName));
         nbt.setString("TileId", KOMEConquestTile.normalizeId(tileId));
@@ -216,13 +238,14 @@ public class KOMEPlayerBuild {
             }
         }
         nbt.setTag("Contributions", contributionList);
+        NBTTagList audit = new NBTTagList();
+        for (String entry : auditHistory) audit.appendTag(new NBTTagString(entry));
+        nbt.setTag("AuditHistory", audit);
+        nbt.setLong("DefensiveGateRecordSequence", defensiveGateRecordSequence);
         NBTTagList defensiveGateList = new NBTTagList();
         if (isDefensive()) {
-            nbt.setLong("DefensiveGateRecordSequence", Math.max(0L, defensiveGateRecordSequence));
             for (KOMEDefensiveGateRecord record : defensiveGateRecords) {
-                if (record != null && record.id != null && record.id.trim().length() > 0) {
-                    defensiveGateList.appendTag(record.writeToNBT());
-                }
+                defensiveGateList.appendTag(record.writeToNBT());
             }
         }
         nbt.setTag("DefensiveGateRecords", defensiveGateList);
@@ -230,6 +253,76 @@ public class KOMEPlayerBuild {
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
+        if (!nbt.hasKey("BuildSchemaVersion", 3) || nbt.getInteger("BuildSchemaVersion") != DATA_SCHEMA_VERSION) {
+            throw new IllegalArgumentException("Unsupported BuildSchemaVersion; expected " + DATA_SCHEMA_VERSION + ". Development Builds require reset.");
+        }
+        requireFields(nbt, 8, "Id", "DisplayName", "TileId", "BuildType", "BuilderUuid", "BuilderName",
+            "ManagerUuid", "ManagerName", "PopulationFaction", "OriginalBuilderFaction",
+            "DeletedByUuid", "DeletedByName", "DeletionReason", "MarkerLabel");
+        requireFields(nbt, 3, "Dimension");
+        requireFields(nbt, 6, "X", "Y", "Z");
+        requireFields(nbt, 4, "CreatedAtMillis", "UpdatedAtMillis", "DeletedAtMillis");
+        requireFields(nbt, 1, "Active", "MarkerVisible");
+        for (String key : new String[] {"BuilderUuid", "ManagerUuid", "DeletedByUuid"}) {
+            if (!nbt.getString(key).isEmpty()) UUID.fromString(nbt.getString(key));
+        }
+        if (!nbt.hasKey("BuildType", 8)) throw new IllegalArgumentException("Build is missing BuildType.");
+        KOMEBuildType savedType = KOMEBuildType.forKey(nbt.getString("BuildType"));
+        if (!nbt.hasKey("Contributions", 9) || !nbt.hasKey("AuditHistory", 9)
+                || !nbt.hasKey("DefensiveGateRecords", 9)) {
+            throw new IllegalArgumentException(
+                "Build Contributions, AuditHistory and DefensiveGateRecords are required.");
+        }
+        requireFields(nbt, 4, "DefensiveGateRecordSequence");
+        NBTTagList contributionList = nbt.getTagList("Contributions", 10);
+        if (((NBTTagList) nbt.getTag("Contributions")).tagCount() != contributionList.tagCount()) {
+            throw new IllegalArgumentException("Build Contributions must contain compound records.");
+        }
+        List<KOMEBuildContribution> loaded = new ArrayList<KOMEBuildContribution>();
+        java.util.Set<String> ids = new java.util.HashSet<String>();
+        long approved = 0L;
+        for (int i = 0; i < contributionList.tagCount(); i++) {
+            KOMEBuildContribution contribution = new KOMEBuildContribution();
+            contribution.readFromNBT(contributionList.getCompoundTagAt(i));
+            if (!ids.add(contribution.id)) throw new IllegalArgumentException("Duplicate contribution Id: " + contribution.id);
+            if (contribution.isApproved()) approved = KOMEBuildTime.add(approved, contribution.totalCentiHours());
+            loaded.add(contribution);
+        }
+        NBTTagList savedAudit = nbt.getTagList("AuditHistory", 8);
+        if (((NBTTagList) nbt.getTag("AuditHistory")).tagCount() != savedAudit.tagCount()) {
+            throw new IllegalArgumentException("Build AuditHistory must contain strings.");
+        }
+        long savedGateSequence = nbt.getLong("DefensiveGateRecordSequence");
+        if (savedGateSequence < 0L) {
+            throw new IllegalArgumentException("Defensive gate record sequence must not be negative.");
+        }
+        NBTTagList savedGateRecords = nbt.getTagList("DefensiveGateRecords", 10);
+        if (((NBTTagList) nbt.getTag("DefensiveGateRecords")).tagCount() != savedGateRecords.tagCount()) {
+            throw new IllegalArgumentException("Build DefensiveGateRecords must contain compound records.");
+        }
+        List<KOMEDefensiveGateRecord> loadedGateRecords = new ArrayList<KOMEDefensiveGateRecord>();
+        java.util.Set<String> gateIds = new java.util.HashSet<String>();
+        long highestGateSuffix = 0L;
+        for (int i = 0; i < savedGateRecords.tagCount(); i++) {
+            KOMEDefensiveGateRecord record = new KOMEDefensiveGateRecord();
+            record.readFromNBT(savedGateRecords.getCompoundTagAt(i));
+            record.id = safe(record.id).trim();
+            if (record.id.length() == 0) {
+                throw new IllegalArgumentException("Defensive gate record ID is required at index " + i + ".");
+            }
+            if (!gateIds.add(record.id)) {
+                throw new IllegalArgumentException("Duplicate defensive gate record ID " + record.id + ".");
+            }
+            highestGateSuffix = Math.max(highestGateSuffix, validDefensiveGateRecordSuffix(record.id));
+            loadedGateRecords.add(record);
+        }
+        if (savedType != KOMEBuildType.DEFENSIVE
+                && (savedGateSequence != 0L || !loadedGateRecords.isEmpty())) {
+            throw new IllegalArgumentException("Only a DEFENSIVE Build may persist defensive gate records.");
+        }
+        if (savedGateSequence < highestGateSuffix) {
+            throw new IllegalArgumentException("Defensive gate record sequence is below an existing gate ID.");
+        }
         id = safe(nbt.getString("Id"));
         displayName = sanitizeName(nbt.getString("DisplayName"));
         tileId = KOMEConquestTile.normalizeId(nbt.getString("TileId"));
@@ -245,34 +338,48 @@ public class KOMEPlayerBuild {
         originalBuilderFaction = KOMEAlliance.normalizeFactionKey(nbt.getString("OriginalBuilderFaction"));
         createdAtMillis = Math.max(0L, nbt.getLong("CreatedAtMillis"));
         updatedAtMillis = Math.max(0L, nbt.getLong("UpdatedAtMillis"));
-        active = !nbt.hasKey("Active") || nbt.getBoolean("Active");
+        active = nbt.getBoolean("Active");
         deletedAtMillis = Math.max(0L, nbt.getLong("DeletedAtMillis"));
         deletedByUuid = parseUuid(nbt.getString("DeletedByUuid"));
         deletedByName = safe(nbt.getString("DeletedByName"));
         deletionReason = safe(nbt.getString("DeletionReason"));
-        markerVisible = !nbt.hasKey("MarkerVisible") || nbt.getBoolean("MarkerVisible");
+        markerVisible = nbt.getBoolean("MarkerVisible");
         markerLabel = sanitizeName(nbt.getString("MarkerLabel"));
-        if (!nbt.hasKey("BuildType")) throw new IllegalArgumentException("Build is missing BuildType.");
-        type = KOMEBuildType.forKey(nbt.getString("BuildType"));
+        type = savedType;
         contributions.clear();
-        NBTTagList contributionList = nbt.getTagList("Contributions", 10);
-        for (int i = 0; i < contributionList.tagCount(); i++) {
-            KOMEBuildContribution contribution = new KOMEBuildContribution();
-            contribution.readFromNBT(contributionList.getCompoundTagAt(i));
-            if (contribution.id.length() > 0) contributions.add(contribution);
-        }
+        contributions.addAll(loaded);
+        auditHistory.clear();
+        for (int i = Math.max(0, savedAudit.tagCount() - MAX_AUDIT_ENTRIES); i < savedAudit.tagCount(); i++)
+            auditHistory.add(savedAudit.getStringTagAt(i));
         defensiveGateRecords.clear();
-        defensiveGateRecordSequence = isDefensive()
-            ? Math.max(0L, nbt.getLong("DefensiveGateRecordSequence")) : 0L;
-        if (isDefensive()) {
-            NBTTagList defensiveGateList = nbt.getTagList("DefensiveGateRecords", 10);
-            for (int i = 0; i < defensiveGateList.tagCount(); i++) {
-                KOMEDefensiveGateRecord record = new KOMEDefensiveGateRecord();
-                record.readFromNBT(defensiveGateList.getCompoundTagAt(i));
-                if (record.id.length() > 0 && getDefensiveGateRecord(record.id) == null) {
-                    addDefensiveGateRecord(record);
-                }
+        defensiveGateRecords.addAll(loadedGateRecords);
+        defensiveGateRecordSequence = savedType == KOMEBuildType.DEFENSIVE ? savedGateSequence : 0L;
+    }
+
+    private void validateDefensiveGateRecords() {
+        if (defensiveGateRecordSequence < 0L) {
+            throw new IllegalArgumentException("Defensive gate record sequence must not be negative.");
+        }
+        if (!isDefensive()) {
+            if (defensiveGateRecordSequence != 0L || !defensiveGateRecords.isEmpty()) {
+                throw new IllegalArgumentException("Only a DEFENSIVE Build may persist defensive gate records.");
             }
+            return;
+        }
+        java.util.Set<String> ids = new java.util.HashSet<String>();
+        long highestSuffix = 0L;
+        for (KOMEDefensiveGateRecord record : defensiveGateRecords) {
+            if (record == null || safe(record.id).trim().length() == 0) {
+                throw new IllegalArgumentException("Defensive gate record ID is required.");
+            }
+            record.id = record.id.trim();
+            if (!ids.add(record.id)) {
+                throw new IllegalArgumentException("Duplicate defensive gate record ID " + record.id + ".");
+            }
+            highestSuffix = Math.max(highestSuffix, validDefensiveGateRecordSuffix(record.id));
+        }
+        if (defensiveGateRecordSequence < highestSuffix) {
+            throw new IllegalArgumentException("Defensive gate record sequence is below an existing gate ID.");
         }
     }
 
@@ -295,6 +402,11 @@ public class KOMEPlayerBuild {
         return suffix;
     }
 
+    static void requireFields(NBTTagCompound nbt, int type, String... keys) {
+        for (String key : keys) if (!nbt.hasKey(key, type))
+            throw new IllegalArgumentException("Canonical Build field missing or wrong NBT type: " + key);
+    }
+
     public static String sanitizeName(String value) {
         String source = safe(value).trim();
         StringBuilder out = new StringBuilder();
@@ -314,11 +426,6 @@ public class KOMEPlayerBuild {
         } catch (IllegalArgumentException ignored) {
             return null;
         }
-    }
-
-    private static int saturatedAdd(int left, int right) {
-        long total = (long) Math.max(0, left) + Math.max(0, right);
-        return total > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) total;
     }
 
     private static String safe(String value) {

@@ -137,6 +137,7 @@ public class KOMECommandTroopsMovementTest {
         order.accessChoice = "PENDING";
         order.accessLossReason = "Canonical Allies passage was revoked.";
         order.accessLostAtMillis = 600L;
+        order.dailyStepsRemaining = 1;
         order.currentTile = "T001";
         order.nextTile = "T002";
         order.currentStepOriginTile = "T001";
@@ -173,6 +174,7 @@ public class KOMECommandTroopsMovementTest {
         assertEquals(700L, order.nextStepDepartureMillis);
         assertEquals(701L, order.nextStepAvailableMillis);
         assertEquals(702L, order.arrivalMillis);
+        assertEquals(1, order.dailyStepsRemaining);
     }
 
     @Test
@@ -197,6 +199,7 @@ public class KOMECommandTroopsMovementTest {
         relation.relation = KOMEDiplomacyRelation.ALLIES;
         data.canonicalDiplomacyRecords.put(relation.key(), relation);
 
+        order.dailyStepsRemaining = 1;
         new KOMECommandTroops().resumeAccessHaltedRoute(commandSender(), data, order, 800L);
 
         assertEquals(KOMEArmyMovementOrder.WAITING_NEXT_STEP, order.status);
@@ -210,6 +213,7 @@ public class KOMECommandTroopsMovementTest {
         assertEquals(1, order.traveledRouteTiles.size());
         assertEquals(800L, order.nextStepDepartureMillis);
         assertEquals(800L, order.nextStepAvailableMillis);
+        assertEquals(1, order.dailyStepsRemaining);
     }
 
     @Test
@@ -534,7 +538,9 @@ public class KOMECommandTroopsMovementTest {
         assertFalse(KOMEMovementAccessService.isMovementStepAuthorized(data, order, "T003", "T004", false));
 
         data.armyMovements.put(order.id, order);
+        order.dailyStepsRemaining = 1;
         new KOMECommandTroops().beginRetreat(commandSender(), data, order, 1500L);
+        assertEquals(1, order.dailyStepsRemaining);
         assertEquals(KOMEArmyMovementOrder.WAITING_NEXT_STEP, order.status);
         assertEquals("T001", order.destinationTile);
         assertEquals(KOMEMovementHistoryRecord.ACTIVE, data.movementHistory.get(order.id).status);

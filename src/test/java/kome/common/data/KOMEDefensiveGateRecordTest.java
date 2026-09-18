@@ -40,24 +40,17 @@ public class KOMEDefensiveGateRecordTest {
         normal.addDefensiveGateRecord(record);
     }
 
-    @Test public void normalBuildWorldLoadDiscardsInjectedDefensiveGateRecords() {
+    @Test public void normalBuildRejectsInjectedDefensiveGateRecords() {
         KOMEPlayerBuild defensive = build(KOMEBuildType.DEFENSIVE);
         addRecord(defensive);
         NBTTagCompound savedBuild = defensive.writeToNBT();
         savedBuild.setString("BuildType", "NORMAL");
-        NBTTagList builds = new NBTTagList();
-        builds.appendTag(savedBuild);
-        NBTTagCompound worldNbt = new NBTTagCompound();
-        worldNbt.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
-        worldNbt.setTag("Builds", builds);
-
-        KOMEWorldData restoredData = new KOMEWorldData("test");
-        restoredData.readFromNBT(worldNbt);
-        KOMEPlayerBuild restored = restoredData.getBuild(defensive.id);
-        assertNotNull(restored);
-        assertTrue(restored.isNormal());
-        assertTrue(restored.getDefensiveGateRecords().isEmpty());
-        assertEquals(0L, restored.getDefensiveGateRecordSequence());
+        try {
+            new KOMEPlayerBuild().readFromNBT(savedBuild);
+            fail("Expected a NORMAL Build with defensive gate data to fail closed");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("DEFENSIVE"));
+        }
     }
 
     @Test public void gateRecordIdsAllocateMonotonically() {
@@ -100,7 +93,7 @@ public class KOMEDefensiveGateRecordTest {
         assertEquals("G3", addRecord(restored).id);
     }
 
-    @Test public void existingLargeSuffixRepairsMissingSequenceUpward() {
+    @Test public void missingCanonicalSequenceIsNotMigrated() {
         NBTTagCompound nbt = build(KOMEBuildType.DEFENSIVE).writeToNBT();
         nbt.removeTag("DefensiveGateRecordSequence");
         NBTTagList records = new NBTTagList();
@@ -108,10 +101,12 @@ public class KOMEDefensiveGateRecordTest {
         records.appendTag(recordNbt("G2"));
         nbt.setTag("DefensiveGateRecords", records);
 
-        KOMEPlayerBuild restored = new KOMEPlayerBuild();
-        restored.readFromNBT(nbt);
-        assertEquals(10L, restored.getDefensiveGateRecordSequence());
-        assertEquals("G11", addRecord(restored).id);
+        try {
+            new KOMEPlayerBuild().readFromNBT(nbt);
+            fail("Expected missing canonical gate sequence to fail closed");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("DefensiveGateRecordSequence"));
+        }
     }
 
     @Test public void malformedIdsDoNotLowerOrCorruptPersistedSequence() {

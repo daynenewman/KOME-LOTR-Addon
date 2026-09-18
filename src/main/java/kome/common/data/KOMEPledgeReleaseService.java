@@ -168,22 +168,10 @@ public final class KOMEPledgeReleaseService {
             if (record.farmhand) {
                 tombstone.populationReturned = true;
                 result.farmhandsReleased++;
-            } else if (record.isFactionPopulationBankFunded()) {
-                // Canonical faction-bank population was permanently spent at hire.
-                // Mark this bookkeeping complete without reviving any legacy source.
-                markPermanentlySpentPopulationHandled(record, tombstone);
-            } else if (KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)) {
-                // Native population remains committed until native demobilization, never because a controller leaves.
-                tombstone.quarantined = true;
-                data.pledgeReleaseQuarantine.put(record.entity, record.writeToNBT());
-                result.quarantined++;
-            } else if (returnPopulation(data, record, tombstone)) {
-                if (record.type == KOMEPopulationType.DEFENSIVE) result.defensiveReturned += Math.max(0, record.cost);
-                else result.offensiveReturned += Math.max(0, record.cost);
             } else {
-                tombstone.quarantined = true;
-                data.pledgeReleaseQuarantine.put(record.entity, record.writeToNBT());
-                result.quarantined++;
+                // Combat population is permanently spent. This completes cleanup for
+                // canonical and historical provenance without crediting any bank or ledger.
+                markPermanentlySpentPopulationHandled(record, tombstone);
             }
             if (tombstone.complete() && tombstone.completedTimestamp <= 0L) tombstone.completedTimestamp = nowMillis;
             data.removeUnitFromCompany(record);
@@ -201,7 +189,6 @@ public final class KOMEPledgeReleaseService {
                 result.companiesRemoved++;
             }
         }
-        closeStaleAllocations(data, player, former);
         data.activeRecruitmentTiles.remove(KOMEWorldData.recruitmentTileKey(former, player));
         KOMECommandTroops.revalidateTemporaryControllers(data, nowMillis, "Player pledge changed");
         result.summary = summary(playerName, result);
@@ -254,7 +241,7 @@ public final class KOMEPledgeReleaseService {
         data.markDirty();
         Result result = new Result();
         result.changed = true;
-        result.summary = "Resolved " + unit + " as " + value + ". PopulationReturned=" + tombstone.populationReturned
+        result.summary = "Resolved " + unit + " as " + value + ". FundingCleanupResolved=" + tombstone.populationReturned
             + ", quarantined=" + tombstone.quarantined + ".";
         return result;
     }
@@ -307,36 +294,6 @@ public final class KOMEPledgeReleaseService {
         return tombstone;
     }
 
-    private static boolean returnPopulation(KOMEWorldData data, KOMEHiredUnitRecord record,
-            KOMEPledgeReleaseTombstone tombstone) {
-        if (tombstone.populationReturned || record.populationReturned) {
-            tombstone.populationReturned = true;
-            return true;
-        }
-        int amount = Math.max(0, record.cost);
-        if (KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE.equals(record.sourceType)) {
-            UUID source = record.sourcePlayer == null ? record.owner : record.sourcePlayer;
-            if (source == null) return false;
-            data.getPopulation(source).release(record.type, amount);
-        } else if (KOMEHiredUnitRecord.SOURCE_TILE_ALLOCATION.equals(record.sourceType)) {
-            KOMETilePopulation pool = data.getFundingPool(record);
-            UUID allocationPlayer = record.allocationPlayer == null ? record.owner : record.allocationPlayer;
-            KOMEPlayerTilePopulationAllocation allocation = data.getAllocation(record.allocationTileId,
-                record.allocationFaction, allocationPlayer);
-            if (pool == null || allocation == null) return false;
-            pool.release(record.type, amount);
-            allocation.release(record.type, amount);
-        } else if (KOMEHiredUnitRecord.SOURCE_TILE_POOL.equals(record.sourceType)) {
-            KOMETilePopulation pool = data.getFundingPool(record);
-            if (pool == null) return false;
-            pool.release(record.type, amount);
-        } else return false;
-        record.populationReturned = true;
-        record.releaseState = "PLEDGE_RELEASED";
-        tombstone.populationReturned = true;
-        return true;
-    }
-
     private static void markPermanentlySpentPopulationHandled(KOMEHiredUnitRecord record,
             KOMEPledgeReleaseTombstone tombstone) {
         record.populationReturned = true;
@@ -347,23 +304,16 @@ public final class KOMEPledgeReleaseService {
     private static boolean isOwnedFormerFactionUnit(KOMEHiredUnitRecord record, UUID player, String formerFaction) {
         if (record == null || !player.equals(record.owner)) return false;
         String former = KOMEAlliance.normalizeFactionKey(formerFaction);
+        if (KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)
+                || "MILITARY_T3_STEWARDSHIP".equals(record.benefitSource)) {
+            // The supporting ruler controls but does not own native stewardship forces.
+            // Controller pledge cleanup revokes authority and starts native withdrawal.
+            return false;
+        }
         String source = KOMEAlliance.normalizeFactionKey(record.sourceFaction);
         String spawning = KOMEAlliance.normalizeFactionKey(record.spawningFaction);
         String unitFaction = KOMEAlliance.normalizeFactionKey(record.unitFaction);
         return former.equals(source) || former.equals(spawning) || source.length() == 0 && former.equals(unitFaction);
-    }
-
-    private static void closeStaleAllocations(KOMEWorldData data, UUID player, String formerFaction) {
-        for (String key : new ArrayList<String>(data.populationAllocations.keySet())) {
-            KOMEPlayerTilePopulationAllocation allocation = data.populationAllocations.get(key);
-            if (allocation == null || !player.equals(allocation.playerUuid)
-                    || !formerFaction.equals(KOMEAlliance.normalizeFactionKey(allocation.faction))) continue;
-            if (allocation.offensiveUsed == 0 && allocation.defensiveUsed == 0) data.populationAllocations.remove(key);
-            else {
-                allocation.setAllocated(KOMEPopulationType.OFFENSIVE, allocation.offensiveUsed);
-                allocation.setAllocated(KOMEPopulationType.DEFENSIVE, allocation.defensiveUsed);
-            }
-        }
     }
 
     private static Entity findLoadedEntity(UUID id) {
@@ -391,8 +341,8 @@ public final class KOMEPledgeReleaseService {
 
     private static String summary(String playerName, Result result) {
         return "Pledge cleanup for " + safe(playerName) + ": released " + result.unitsReleased + " units, removed "
-            + result.companiesRemoved + " empty companies, cancelled " + result.movementsCancelled + " movements, returned "
-            + result.offensiveReturned + " offensive and " + result.defensiveReturned + " defensive population; pending unloaded="
+            + result.companiesRemoved + " empty companies, cancelled " + result.movementsCancelled
+            + " movements; combat population remains permanently spent; pending unloaded="
             + result.pendingUnloaded + ", quarantined=" + result.quarantined + ", temporary authorities revoked="
             + result.temporaryAuthoritiesRevoked + ".";
     }
@@ -436,8 +386,8 @@ public final class KOMEPledgeReleaseService {
 
         public String describe(String playerName) {
             return "Leaving " + KOMEAlliance.displayFactionName(formerFaction) + " will release " + units + " hired units in "
-                + companies + " companies and return up to " + offensivePopulation + " offensive/" + defensivePopulation
-                + " defensive population to recorded sources. Active movements=" + movements + ", transfer offers="
+                + companies + " companies. Their " + offensivePopulation + " offensive/" + defensivePopulation
+                + " defensive combat population remains permanently spent. Active movements=" + movements + ", transfer offers="
                 + transferOffers + ", farmhands=" + farmhands + ", funding=" + fundingSources
                 + ". Transfer any companies you wish to preserve before continuing.";
         }
@@ -456,6 +406,7 @@ public final class KOMEPledgeReleaseService {
         public int farmhandsReleased;
         public int companiesRemoved;
         public int movementsCancelled;
+        /** Compatibility result fields retained for callers; canonical cleanup always leaves these zero. */
         public int offensiveReturned;
         public int defensiveReturned;
         public int quarantined;

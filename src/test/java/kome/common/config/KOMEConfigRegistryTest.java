@@ -34,11 +34,11 @@ public class KOMEConfigRegistryTest {
         KOMEConfigRegistry.PopulationSettings population = KOMEConfigRegistry.population();
         assertEquals(LocalTime.of(20, 0), dailyBatch.getLocalTime());
         assertEquals(ZoneId.of("America/Chicago"), dailyBatch.getTimezone());
-        assertEquals(10, population.getHoursPerPopulationPoint());
-        assertEquals(0.50D, population.getCapturedBuildMultiplier(), 0.0D);
+        assertEquals(1000L, population.getHoursPerPopulationPointCentiHours());
+        assertEquals(5000L, population.getCapturedBuildMultiplierBasisPoints());
         assertTrue(population.isOfflinePopulationCatchUp());
         assertEquals(false, population.isPopulationCapEnabled());
-        assertFalse(population.getPopulationCapValue().isPresent());
+        assertFalse(population.getPopulationCapCenti().isPresent());
         assertEquals(false, population.isEncirclementPopulationSuppressionEnabled());
         assertTrue(population.getUnitPopulationCostOverrides().isEmpty());
         assertEquals(1, KOMEConfigRegistry.movement().getFootOrMixedTilesPerDay());
@@ -130,12 +130,12 @@ public class KOMEConfigRegistryTest {
 
     @Test
     public void capturedMultiplierBoundariesAreAccepted() throws Exception {
-        assertEquals(0.0D, load(KOMEConfigRegistry.POPULATION_CATEGORY,
+        assertEquals(0L, load(KOMEConfigRegistry.POPULATION_CATEGORY,
                 KOMEConfigRegistry.CAPTURED_BUILD_MULTIPLIER, "0.0")
-                .getCapturedBuildMultiplier(), 0.0D);
-        assertEquals(1.0D, load(KOMEConfigRegistry.POPULATION_CATEGORY,
+                .getCapturedBuildMultiplierBasisPoints());
+        assertEquals(10000L, load(KOMEConfigRegistry.POPULATION_CATEGORY,
                 KOMEConfigRegistry.CAPTURED_BUILD_MULTIPLIER, "1.0")
-                .getCapturedBuildMultiplier(), 0.0D);
+                .getCapturedBuildMultiplierBasisPoints());
     }
     @Test
     public void dailyTimeWithSecondsFailsWithKeyAndValue() throws Exception {
@@ -463,8 +463,7 @@ public class KOMEConfigRegistryTest {
                 KOMEConfigRegistry.POPULATION_CAP_VALUE, "250");
         KOMEConfigRegistry.load(disabledFile);
         assertFalse(KOMEConfigRegistry.population().isPopulationCapEnabled());
-        assertEquals(250, KOMEConfigRegistry.population().getPopulationCapValue()
-                .getAsInt());
+        assertEquals(25000L, KOMEConfigRegistry.population().getPopulationCapCenti().getAsLong());
 
         File enabledFile = configFile();
         write(enabledFile, KOMEConfigRegistry.POPULATION_CATEGORY,
@@ -473,8 +472,7 @@ public class KOMEConfigRegistryTest {
                 KOMEConfigRegistry.POPULATION_CAP_VALUE, "250");
         KOMEConfigRegistry.load(enabledFile);
         assertTrue(KOMEConfigRegistry.population().isPopulationCapEnabled());
-        assertEquals(250, KOMEConfigRegistry.population().getPopulationCapValue()
-                .getAsInt());
+        assertEquals(25000L, KOMEConfigRegistry.population().getPopulationCapCenti().getAsLong());
 
         populationCapEnabledWithoutValueFails();
         invalid(KOMEConfigRegistry.POPULATION_CATEGORY,

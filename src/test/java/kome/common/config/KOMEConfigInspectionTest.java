@@ -44,8 +44,10 @@ public class KOMEConfigInspectionTest {
         }
         assertEquals(new HashSet<String>(Arrays.asList("dailyBatch", "population", "movement",
                 "battle", "muster", "siege", "battleSupport", "encirclement", "season", "gear")), categories);
-        assertEquals(expectedDefaults().keySet(), keys);
-        assertEquals(expectedDefaults(), valuesByName(values));
+        Map<String, String> expected = expectedDefaults();
+        expected.put("population.lastApplyStatus", KOMEConfigRegistry.getLastApplyStatus());
+        assertEquals(expected.keySet(), keys);
+        assertEquals(expected, valuesByName(values));
     }
 
     @Test public void typedCustomValuesAndNotRawStaleFileAreInspected() throws Exception {
@@ -55,7 +57,7 @@ public class KOMEConfigInspectionTest {
         KOMEConfigRegistry.load(file);
         write(file, "population", "populationCapValue", "999");
         List<KOMEConfigInspection.EffectiveValue> values = KOMEConfigInspection.getAllEffectiveValues();
-        assertValue(values, "population.populationCapValue", "250");
+        assertValue(values, "population.populationCapValue", "250.00");
         assertValue(values, "siege.gateHpPerApprovedHour", "4.5");
     }
 
@@ -85,7 +87,8 @@ public class KOMEConfigInspectionTest {
     private static Map<String, String> expectedDefaults() {
         String[] entries = {
                 "dailyBatch.localTime=20:00", "dailyBatch.timezone=America/Chicago",
-                "population.hoursPerPopulationPoint=10", "population.capturedBuildMultiplier=0.5",
+                "population.hoursPerPopulationPoint=10.00", "population.capturedBuildMultiplier=0.50",
+                "population.populationCapCenti=TBD", "population.registryReady=true", "population.worldConfigurationLocked=false",
                 "population.offlinePopulationCatchUp=true", "population.populationCapEnabled=false",
                 "population.populationCapValue=TBD", "population.encirclementPopulationSuppressionEnabled=false",
                 "population.unitPopulationCostOverrides={}",

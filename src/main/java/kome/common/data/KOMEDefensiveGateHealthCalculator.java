@@ -66,8 +66,8 @@ public final class KOMEDefensiveGateHealthCalculator {
             return Result.automaticUnavailable(Status.INVALID_DIMENSIONS, gateRecord);
         }
 
-        BigDecimal approvedHours = BigDecimal.valueOf(parentBuild.approvedDefensiveHalfHours())
-            .divide(BigDecimal.valueOf(2L));
+        BigDecimal approvedHours = BigDecimal.valueOf(parentBuild.approvedDefensiveCentiHours())
+            .divide(BigDecimal.valueOf(KOMEBuildTime.CENTI_HOURS_PER_HOUR));
         BigDecimal calculatedMaxHp = approvedHours
             .multiply(BigDecimal.valueOf(hpPerHour))
             .multiply(BigDecimal.valueOf(sizeMultiplier))

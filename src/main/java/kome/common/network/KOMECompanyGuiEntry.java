@@ -4,6 +4,9 @@ import io.netty.buffer.ByteBuf;
 import cpw.mods.fml.common.network.ByteBufUtils;
 
 public class KOMECompanyGuiEntry {
+    public java.math.BigInteger investedPopulationCenti = java.math.BigInteger.ZERO;
+    public kome.common.data.KOMEPopulationProjection populationProjection = new kome.common.data.KOMEPopulationProjection(
+            "", 0L, java.math.BigInteger.ZERO, java.math.BigInteger.ZERO, false, 0L);
     public String id = "";
     public String name = "";
     public String tile = "";
@@ -45,12 +48,10 @@ public class KOMECompanyGuiEntry {
     public String intendedDestinationTile = "";
     public String retreatBlockedReason = "";
     public boolean canDisband;
-    public int stewardshipUnallocated;
-    public int stewardshipGlobalCap;
-    public int stewardshipReserved;
-    public int stewardshipAvailable;
 
     public void fromBytes(ByteBuf buf) {
+        investedPopulationCenti = KOMEPopulationWire.readExact(buf);
+        populationProjection = KOMEPopulationWire.readProjection(buf);
         id = read(buf);
         name = read(buf);
         tile = read(buf);
@@ -92,13 +93,11 @@ public class KOMECompanyGuiEntry {
         intendedDestinationTile = read(buf);
         retreatBlockedReason = read(buf);
         canDisband = buf.readBoolean();
-        stewardshipUnallocated = buf.readInt();
-        stewardshipGlobalCap = buf.readInt();
-        stewardshipReserved = buf.readInt();
-        stewardshipAvailable = buf.readInt();
     }
 
     public void toBytes(ByteBuf buf) {
+        KOMEPopulationWire.writeExact(buf, investedPopulationCenti);
+        KOMEPopulationWire.writeProjection(buf, populationProjection);
         write(buf, id);
         write(buf, name);
         write(buf, tile);
@@ -140,17 +139,13 @@ public class KOMECompanyGuiEntry {
         write(buf, intendedDestinationTile);
         write(buf, retreatBlockedReason);
         buf.writeBoolean(canDisband);
-        buf.writeInt(stewardshipUnallocated);
-        buf.writeInt(stewardshipGlobalCap);
-        buf.writeInt(stewardshipReserved);
-        buf.writeInt(stewardshipAvailable);
     }
 
     private static String read(ByteBuf buf) {
-        return ByteBufUtils.readUTF8String(buf);
+        return KOMEPopulationWire.readText(buf);
     }
 
     private static void write(ByteBuf buf, String value) {
-        ByteBufUtils.writeUTF8String(buf, value == null ? "" : value);
+        KOMEPopulationWire.writeText(buf, value == null ? "" : value);
     }
 }

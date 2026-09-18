@@ -20,6 +20,7 @@ public class PlayerHobbitModelAdapter extends LOTRModelHobbit {
     private static final float VANILLA_ARM_PIVOT_Y = 2.0F;
 
     private final ModelRenderer playerChest;
+    private final PlayerModelArms playerArms = new PlayerModelArms(this);
 
     public PlayerHobbitModelAdapter() {
         super(0.0F, 64, 64);
@@ -70,6 +71,7 @@ public class PlayerHobbitModelAdapter extends LOTRModelHobbit {
     }
 
     private void resetPlayerLegState() {
+        playerArms.restore(this);
         bipedRightLeg.rotateAngleY = 0.0F;
         bipedRightLeg.rotateAngleZ = 0.0F;
         bipedLeftLeg.rotateAngleY = 0.0F;
