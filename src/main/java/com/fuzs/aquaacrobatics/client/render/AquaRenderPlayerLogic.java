@@ -6,6 +6,7 @@ import net.minecraft.client.model.ModelBiped;
 import net.minecraft.entity.Entity;
 import com.fuzs.aquaacrobatics.client.model.FirstPersonArmRenderContext;
 import com.fuzs.aquaacrobatics.client.model.IModelBipedSwimming;
+import com.fuzs.aquaacrobatics.client.model.AquaLotrSpecialArmorPoseBridge;
 import com.fuzs.aquaacrobatics.client.model.AquaPlayerRenderLogic;
 import com.fuzs.aquaacrobatics.entity.Pose;
 import com.fuzs.aquaacrobatics.entity.player.IPlayerResizeable;
@@ -17,6 +18,7 @@ public final class AquaRenderPlayerLogic { private AquaRenderPlayerLogic(){}
  public static void resetFirstPerson(ModelBiped m){((IModelBipedSwimming)m).setSwimAnimation(0);}
  public static void firstPersonAngles(ModelBiped m,float a,float b,float c,float d,float e,float f,Entity g){resetFirstPerson(m);FirstPersonArmRenderContext.push();try{m.setRotationAngles(a,b,c,d,e,f,g);}finally{FirstPersonArmRenderContext.pop();}}
  public static double crouchingY(AbstractClientPlayer p,double original){
+  AquaLotrSpecialArmorPoseBridge.beginPlayerRender(p);
   if(!ClientServerGameplayState.useModernPlayerAnimations())return original;
   // Character Creation temporarily changes the local player's yOffset for its
   // racial camera. Remove only the extra Aqua pose contribution so the normal

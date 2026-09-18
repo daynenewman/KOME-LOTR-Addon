@@ -17,10 +17,14 @@ import com.fuzs.aquaacrobatics.util.math.MathHelperNew;
 
 /** Exact former ModelBipedMixin animation and pose policy. */
 public final class AquaModelBipedLogic {
+    private static final String CHARACTER_CREATION_MAN_MODEL =
+        "com.lotrcharactercreation.client.model.PlayerManModelAdapter";
+
     private AquaModelBipedLogic() {}
     public static void render(ModelBiped m,float a,float b,float c,float d,float pitch,float f,Entity e) {
         if(ClientServerGameplayState.useModernPlayerAnimations()&&e instanceof IPlayerResizeable) { boolean elytra=EFRIntegration.getTicksElytraFlying((EntityPlayer)e)>4; boolean swim=((IPlayerResizeable)e).isActuallySwimming(); float s=((IModelBipedSwimming)m).getSwimAnimation(); if(!elytra&&s>0) pitch=rotLerp(s,m.bipedHead.rotateAngleX,swim?-(float)Math.PI/4F:pitch*(float)Math.PI/180F)/.017453292F; }
         m.setRotationAngles(a,b,c,d,pitch,f,e);
+        AquaLotrSpecialArmorPoseBridge.applyAfterLotrAngles(m,e);
     }
     public static void pre(ModelBiped m,float limb,float amount,float age,float yaw,float pitch,float scale,Entity e) {
         boolean modern=ClientServerGameplayState.useModernPlayerAnimations();
@@ -29,21 +33,20 @@ public final class AquaModelBipedLogic {
         if(living instanceof EntityPlayer&&((EntityPlayer)living).getHeldItem()!=null&&((EntityPlayer)living).getItemInUseCount()>0){EntityPlayer player=(EntityPlayer)living;ItemStack stack=living.getHeldItem(); if(stack!=null&&(stack.getItemUseAction()==EnumAction.eat||stack.getItemUseAction()==EnumAction.drink)){float partial=age-(float)Math.floor(age),count=player.getItemInUseCount()-partial+1F,ratio=count/(float)stack.getMaxItemUseDuration(),x=1F-(float)Math.pow(ratio,27D); if(ratio<.8F)x+=MathHelper.abs(MathHelper.cos(count/4F*(float)Math.PI)*.1F); m.bipedRightArm.rotateAngleX=x*(m.bipedRightArm.rotateAngleX*.5F-(float)Math.PI*4F/10F);m.bipedRightArm.rotateAngleY=x*(float)Math.PI/6F*-1F;m.bipedLeftArm.rotateAngleX=x*(m.bipedLeftArm.rotateAngleX*.5F-(float)Math.PI*4F/10F);m.bipedLeftArm.rotateAngleY=x*(float)Math.PI/6F;}}
     }
     public static void post(ModelBiped m,float limb,float amount,float age,float yaw,float pitch,float scale,Entity e) {
+        AquaLotrSpecialArmorPoseBridge.clearPoseAuthority(m);
         if(!ClientServerGameplayState.useModernPlayerAnimations()){
             ((IModelBipedSwimming)m).setSwimAnimation(0);
             return;
         }
 
-        // LOTR Character Creation adapters call into LOTRModel* classes after the
-        // transformed ModelBiped method. Those subclasses can overwrite the arm/leg
-        // rotations Aqua just applied, so their final swimming pose is applied by a
-        // second, adapter-level ASM hook after the complete LOTR model method returns.
+        // LOTR Character Creation adapters replace ModelBiped's angle method. Their
+        // final swimming animation, plus Man's modern pose pivots, are handled by a
+        // second adapter-level hook after the complete LOTR calculation returns.
         if(isCharacterCreationModel(m)) return;
 
         if(!FirstPersonArmRenderContext.isActive()&&e instanceof EntityPlayer&&e instanceof IPlayerResizeable) {
-            AquaPlayerRenderLogic.applyPosePivots(
-                ((IPlayerResizeable)e).getPose(),
-                m.bipedHead,m.bipedHeadwear,m.bipedBody,m.bipedRightArm,m.bipedLeftArm,m.bipedRightLeg,m.bipedLeftLeg);
+            Pose pose=((IPlayerResizeable)e).getPose();
+            AquaLotrSpecialArmorPoseBridge.applyBodyPoseAndRecordAuthority(m,e,pose);
         }
 
         applySwimmingAnimation(m,limb,((IModelBipedSwimming)m).getSwimAnimation());
@@ -59,12 +62,15 @@ public final class AquaModelBipedLogic {
 
         ModelBiped m=(ModelBiped)model;
         EntityPlayer player=(EntityPlayer)entity;
+        AquaLotrSpecialArmorPoseBridge.clearPoseAuthority(m);
         if(!(player instanceof IPlayerResizeable)||!CharacterCreationIntegration.hasCharacterCreationRace(player)) return;
 
         if(!ClientServerGameplayState.useModernPlayerAnimations()){
             ((IModelBipedSwimming)m).setSwimAnimation(0);
             return;
         }
+
+        applyCharacterCreationManPose(m,player,((IPlayerResizeable)player).getPose());
 
         // Do not rely on LOTRModel* calling ModelBiped#setLivingAnimations: custom
         // adapters may override that inheritance path. Derive the same interpolated
@@ -108,5 +114,7 @@ public final class AquaModelBipedLogic {
 
     public static void living(ModelBiped m,EntityLivingBase e,float a,float b,float partial){if(!ClientServerGameplayState.useModernPlayerAnimations()){((IModelBipedSwimming)m).setSwimAnimation(0);return;}if(e instanceof IPlayerResizeable)((IModelBipedSwimming)m).setSwimAnimation(((IPlayerResizeable)e).getSwimAnimation(partial));}
     private static boolean isCharacterCreationModel(ModelBiped model){String name=model.getClass().getName();return name.startsWith("com.lotrcharactercreation.client.model.");}
+    static boolean isCharacterCreationManModel(Object model){return model!=null&&CHARACTER_CREATION_MAN_MODEL.equals(model.getClass().getName());}
+    static void applyCharacterCreationManPose(ModelBiped model,Object entity,Pose pose){if(FirstPersonArmRenderContext.isActive()||!isCharacterCreationManModel(model))return;AquaLotrSpecialArmorPoseBridge.applyBodyPoseAndRecordAuthority(model,entity,pose);}
     private static float arm(float x){return -65F*x+x*x;} private static float rotLerp(float a,float max,float target){float f=(target-max)%((float)Math.PI*2F);if(f<-(float)Math.PI)f+=(float)Math.PI*2F;if(f>=(float)Math.PI)f-=(float)Math.PI*2F;return max+a*f;}
 }

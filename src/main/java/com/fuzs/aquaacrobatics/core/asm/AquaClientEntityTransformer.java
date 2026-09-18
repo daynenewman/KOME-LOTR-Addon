@@ -39,6 +39,8 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
     private static final String RENDER_BOAT = "net.minecraft.client.renderer.entity.RenderBoat";
     private static final String MODEL_BIPED = "net.minecraft.client.model.ModelBiped";
     private static final String RENDER_PLAYER = "net.minecraft.client.renderer.entity.RenderPlayer";
+    static final String LOTR_ARMOR_MODELS = "lotr.client.model.LOTRArmorModels";
+    static final String LOTR_HEAD_PLATE = "lotr.client.model.LOTRModelHeadPlate";
     private static final String ENTITY_RENDERER = "net.minecraft.client.renderer.EntityRenderer";
     private static final String CHARACTER_CREATION_RENDERER =
         "com.lotrcharactercreation.client.render.RacePlayerRenderer";
@@ -50,6 +52,10 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
     private static final String WATER_OVERLAY_RENDER_LOGIC =
         "com/fuzs/aquaacrobatics/client/render/AquaWaterOverlayRenderLogic";
     private static final String MODEL_LOGIC = "com/fuzs/aquaacrobatics/client/model/AquaModelBipedLogic";
+    static final String LOTR_ARMOR_POSE_BRIDGE =
+        "com/fuzs/aquaacrobatics/client/model/AquaLotrSpecialArmorPoseBridge";
+    static final String ASSOCIATE_SPECIAL_ARMOR = "associateSpecialArmor";
+    static final String APPLY_AFTER_LOTR_ANGLES = "applyAfterLotrAngles";
     private static final String MODEL_INTERFACE = "com/fuzs/aquaacrobatics/client/model/IModelBipedSwimming";
     private static final String RENDER_PLAYER_LOGIC = "com/fuzs/aquaacrobatics/client/render/AquaRenderPlayerLogic";
     private static final String PLAYER_LIGHTING_LOGIC = "com/fuzs/aquaacrobatics/client/render/AquaPlayerLightingLogic";
@@ -73,6 +79,7 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
             && !CLIENT_PLAYER.equals(transformedName) && !ENTITY_PLAYER_SP.equals(transformedName)
             && !RENDER_BOAT.equals(transformedName) && !MODEL_BIPED.equals(transformedName)
             && !RENDER_PLAYER.equals(transformedName) && !ENTITY_RENDERER.equals(transformedName)
+            && !LOTR_ARMOR_MODELS.equals(transformedName) && !LOTR_HEAD_PLATE.equals(transformedName)
             && !CHARACTER_CREATION_RENDERER.equals(transformedName)
             && !this.isCharacterCreationModelAdapter(transformedName)) return basicClass;
         if (basicClass == null) {
@@ -98,6 +105,12 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
             this.addModelBiped(classNode);
         } else if(RENDER_PLAYER.equals(transformedName)) {
             this.addRenderPlayer(classNode);
+        } else if(LOTR_ARMOR_MODELS.equals(transformedName)) {
+            this.addLotrSpecialArmorAssociationBridge(classNode);
+            this.verifyLotrSpecialArmorAssociationBridge(classNode);
+        } else if(LOTR_HEAD_PLATE.equals(transformedName)) {
+            this.addLotrHeadPlatePoseBridge(classNode);
+            this.verifyLotrHeadPlatePoseBridge(classNode);
         } else if(CHARACTER_CREATION_RENDERER.equals(transformedName)) {
             this.addCharacterCreationRendererLightingBridge(classNode);
             this.verifyCharacterCreationRendererLightingBridge(classNode);
@@ -113,6 +126,160 @@ public final class AquaClientEntityTransformer implements IClassTransformer {
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         classNode.accept(writer);
         byte[] result = writer.toByteArray();
+        return result;
+    }
+
+    private void addLotrSpecialArmorAssociationBridge(ClassNode classNode) {
+        MethodNode target = this.findLotrSpecialArmorSelector(classNode);
+        int existing = this.countBridgeCalls(target, ASSOCIATE_SPECIAL_ARMOR);
+        if (existing == 1) return;
+        if (existing != 0) {
+            throw new IllegalStateException("LOTR special armor selector has duplicate Aqua association bridges");
+        }
+
+        int copyCalls = 0;
+        int slotSetupCalls = 0;
+        AbstractInsnNode successfulReturn = null;
+        for (AbstractInsnNode instruction = target.instructions.getFirst(); instruction != null;
+            instruction = instruction.getNext()) {
+
+            if (instruction instanceof MethodInsnNode) {
+                MethodInsnNode call = (MethodInsnNode) instruction;
+                if (classNode.name.equals(call.owner) && "copyModelRotations".equals(call.name)) ++copyCalls;
+                if (classNode.name.equals(call.owner) && "setupArmorForSlot".equals(call.name)) ++slotSetupCalls;
+            }
+            if (instruction.getOpcode() != Opcodes.ARETURN) continue;
+            AbstractInsnNode previous = previousOpcode(instruction);
+            if (!(previous instanceof VarInsnNode) || previous.getOpcode() != Opcodes.ALOAD
+                || ((VarInsnNode) previous).var <= 4) continue;
+            if (successfulReturn != null) {
+                throw new IllegalStateException("LOTR special armor selector has multiple successful returns");
+            }
+            successfulReturn = instruction;
+        }
+
+        if (copyCalls != 1 || slotSetupCalls != 1 || successfulReturn == null) {
+            throw new IllegalStateException(
+                "LOTR v36.15 special armor selector fingerprint mismatch: copy=" + copyCalls
+                    + ", slotSetup=" + slotSetupCalls + ", successfulReturn=" + (successfulReturn != null));
+        }
+
+        InsnList association = new InsnList();
+        association.add(new InsnNode(Opcodes.DUP));
+        association.add(new VarInsnNode(Opcodes.ALOAD, 4));
+        association.add(new MethodInsnNode(
+            Opcodes.INVOKESTATIC,
+            LOTR_ARMOR_POSE_BRIDGE,
+            ASSOCIATE_SPECIAL_ARMOR,
+            "(Ljava/lang/Object;Ljava/lang/Object;)V",
+            false));
+        target.instructions.insertBefore(successfulReturn, association);
+    }
+
+    private MethodNode findLotrSpecialArmorSelector(ClassNode classNode) {
+        MethodNode result = null;
+        for (MethodNode method : classNode.methods) {
+            if (!"getSpecialArmorModel".equals(method.name)) continue;
+            org.objectweb.asm.Type[] args = org.objectweb.asm.Type.getArgumentTypes(method.desc);
+            org.objectweb.asm.Type returnType = org.objectweb.asm.Type.getReturnType(method.desc);
+            if (args.length != 4 || args[0].getSort() != org.objectweb.asm.Type.OBJECT
+                || args[1].getSort() != org.objectweb.asm.Type.INT
+                || args[2].getSort() != org.objectweb.asm.Type.OBJECT
+                || args[3].getSort() != org.objectweb.asm.Type.OBJECT
+                || returnType.getSort() != org.objectweb.asm.Type.OBJECT) continue;
+            if (result != null) throw new IllegalStateException("ambiguous LOTR special armor selector");
+            result = method;
+        }
+        if (result == null) {
+            throw new IllegalStateException("LOTR v36.15 getSpecialArmorModel fingerprint was not found");
+        }
+        return result;
+    }
+
+    private void verifyLotrSpecialArmorAssociationBridge(ClassNode classNode) {
+        MethodNode target = this.findLotrSpecialArmorSelector(classNode);
+        int bridges = this.countBridgeCalls(target, ASSOCIATE_SPECIAL_ARMOR);
+        if (bridges != 1) {
+            throw new IllegalStateException("LOTR special armor association verification failed: " + bridges);
+        }
+    }
+
+    private void addLotrHeadPlatePoseBridge(ClassNode classNode) {
+        MethodNode render = this.findLotrHeadPlateRender(classNode);
+        int existing = this.countBridgeCalls(render, APPLY_AFTER_LOTR_ANGLES);
+        if (existing == 1) return;
+        if (existing != 0) {
+            throw new IllegalStateException("LOTR head plate has duplicate Aqua pose bridges");
+        }
+
+        MethodInsnNode angleCall = null;
+        for (AbstractInsnNode instruction = render.instructions.getFirst(); instruction != null;
+            instruction = instruction.getNext()) {
+
+            if (!(instruction instanceof MethodInsnNode)) continue;
+            MethodInsnNode call = (MethodInsnNode) instruction;
+            if (!("setRotationAngles".equals(call.name) || "func_78087_a".equals(call.name)
+                || "a".equals(call.name))) continue;
+            org.objectweb.asm.Type[] args = org.objectweb.asm.Type.getArgumentTypes(call.desc);
+            if (args.length != 7 || org.objectweb.asm.Type.getReturnType(call.desc).getSort() != org.objectweb.asm.Type.VOID
+                || args[6].getSort() != org.objectweb.asm.Type.OBJECT) continue;
+            boolean sixFloats = true;
+            for (int i = 0; i < 6; ++i) sixFloats &= args[i].getSort() == org.objectweb.asm.Type.FLOAT;
+            if (!sixFloats) continue;
+            if (angleCall != null) throw new IllegalStateException("ambiguous LOTR head plate angle call");
+            angleCall = call;
+        }
+        if (angleCall == null) {
+            throw new IllegalStateException("LOTR v36.15 head plate angle-call fingerprint was not found");
+        }
+
+        InsnList correction = new InsnList();
+        correction.add(new VarInsnNode(Opcodes.ALOAD, 0));
+        correction.add(new VarInsnNode(Opcodes.ALOAD, 1));
+        correction.add(new MethodInsnNode(
+            Opcodes.INVOKESTATIC,
+            LOTR_ARMOR_POSE_BRIDGE,
+            APPLY_AFTER_LOTR_ANGLES,
+            "(Ljava/lang/Object;Ljava/lang/Object;)V",
+            false));
+        render.instructions.insert(angleCall, correction);
+    }
+
+    private MethodNode findLotrHeadPlateRender(ClassNode classNode) {
+        MethodNode result = null;
+        for (MethodNode method : classNode.methods) {
+            if (!("render".equals(method.name) || "func_78088_a".equals(method.name) || "a".equals(method.name))) continue;
+            org.objectweb.asm.Type[] args = org.objectweb.asm.Type.getArgumentTypes(method.desc);
+            if (args.length != 7 || args[0].getSort() != org.objectweb.asm.Type.OBJECT
+                || org.objectweb.asm.Type.getReturnType(method.desc).getSort() != org.objectweb.asm.Type.VOID) continue;
+            boolean sixFloats = true;
+            for (int i = 1; i < 7; ++i) sixFloats &= args[i].getSort() == org.objectweb.asm.Type.FLOAT;
+            if (!sixFloats) continue;
+            if (result != null) throw new IllegalStateException("ambiguous LOTR head plate render method");
+            result = method;
+        }
+        if (result == null) throw new IllegalStateException("LOTR v36.15 head plate render fingerprint was not found");
+        return result;
+    }
+
+    private void verifyLotrHeadPlatePoseBridge(ClassNode classNode) {
+        MethodNode render = this.findLotrHeadPlateRender(classNode);
+        int bridges = this.countBridgeCalls(render, APPLY_AFTER_LOTR_ANGLES);
+        if (bridges != 1) {
+            throw new IllegalStateException("LOTR head plate pose bridge verification failed: " + bridges);
+        }
+    }
+
+    private int countBridgeCalls(MethodNode method, String name) {
+        int result = 0;
+        for (AbstractInsnNode instruction = method.instructions.getFirst(); instruction != null;
+            instruction = instruction.getNext()) {
+            if (!(instruction instanceof MethodInsnNode)) continue;
+            MethodInsnNode call = (MethodInsnNode) instruction;
+            if (LOTR_ARMOR_POSE_BRIDGE.equals(call.owner) && name.equals(call.name)
+                && "(Ljava/lang/Object;Ljava/lang/Object;)V".equals(call.desc)
+                && call.getOpcode() == Opcodes.INVOKESTATIC) ++result;
+        }
         return result;
     }
 
