@@ -29,7 +29,8 @@ public final class AquaModelBipedLogic {
         if(living instanceof EntityPlayer&&((EntityPlayer)living).getHeldItem()!=null&&((EntityPlayer)living).getItemInUseCount()>0){EntityPlayer player=(EntityPlayer)living;ItemStack stack=living.getHeldItem(); if(stack!=null&&(stack.getItemUseAction()==EnumAction.eat||stack.getItemUseAction()==EnumAction.drink)){float partial=age-(float)Math.floor(age),count=player.getItemInUseCount()-partial+1F,ratio=count/(float)stack.getMaxItemUseDuration(),x=1F-(float)Math.pow(ratio,27D); if(ratio<.8F)x+=MathHelper.abs(MathHelper.cos(count/4F*(float)Math.PI)*.1F); m.bipedRightArm.rotateAngleX=x*(m.bipedRightArm.rotateAngleX*.5F-(float)Math.PI*4F/10F);m.bipedRightArm.rotateAngleY=x*(float)Math.PI/6F*-1F;m.bipedLeftArm.rotateAngleX=x*(m.bipedLeftArm.rotateAngleX*.5F-(float)Math.PI*4F/10F);m.bipedLeftArm.rotateAngleY=x*(float)Math.PI/6F;}}
     }
     public static void post(ModelBiped m,float limb,float amount,float age,float yaw,float pitch,float scale,Entity e) {
-        if(!ClientServerGameplayState.useModernPlayerAnimations()){
+        if(!ClientServerGameplayState.useModernPlayerAnimations() || !(e instanceof IPlayerResizeable)
+            || FirstPersonArmRenderContext.isActive()){
             ((IModelBipedSwimming)m).setSwimAnimation(0);
             return;
         }
@@ -55,11 +56,19 @@ public final class AquaModelBipedLogic {
      * both dev and raw-obfuscated 1.7.10 environments.
      */
     public static void postCharacterCreation(Object model,float limb,float amount,float age,float yaw,float pitch,float scale,Object entity) {
-        if(!(model instanceof ModelBiped)||!(entity instanceof EntityPlayer)) return;
+        if(!(model instanceof ModelBiped)) return;
 
         ModelBiped m=(ModelBiped)model;
+        if (!(entity instanceof EntityPlayer) || !(entity instanceof IPlayerResizeable)
+            || FirstPersonArmRenderContext.isActive()) {
+            ((IModelBipedSwimming)m).setSwimAnimation(0);
+            return;
+        }
         EntityPlayer player=(EntityPlayer)entity;
-        if(!(player instanceof IPlayerResizeable)||!CharacterCreationIntegration.hasCharacterCreationRace(player)) return;
+        if(!CharacterCreationIntegration.hasCharacterCreationRace(player)) {
+            ((IModelBipedSwimming)m).setSwimAnimation(0);
+            return;
+        }
 
         if(!ClientServerGameplayState.useModernPlayerAnimations()){
             ((IModelBipedSwimming)m).setSwimAnimation(0);
@@ -106,7 +115,11 @@ public final class AquaModelBipedLogic {
         m.bipedRightLeg.rotateAngleX=MathHelperNew.lerp(s,m.bipedRightLeg.rotateAngleX,.3F*MathHelper.cos(limb*.33333334F));
     }
 
-    public static void living(ModelBiped m,EntityLivingBase e,float a,float b,float partial){if(!ClientServerGameplayState.useModernPlayerAnimations()){((IModelBipedSwimming)m).setSwimAnimation(0);return;}if(e instanceof IPlayerResizeable)((IModelBipedSwimming)m).setSwimAnimation(((IPlayerResizeable)e).getSwimAnimation(partial));}
+    public static void living(ModelBiped m,EntityLivingBase e,float a,float b,float partial){
+        float swim = ClientServerGameplayState.useModernPlayerAnimations() && e instanceof IPlayerResizeable
+            ? ((IPlayerResizeable)e).getSwimAnimation(partial) : 0F;
+        ((IModelBipedSwimming)m).setSwimAnimation(swim);
+    }
     private static boolean isCharacterCreationModel(ModelBiped model){String name=model.getClass().getName();return name.startsWith("com.lotrcharactercreation.client.model.");}
     private static float arm(float x){return -65F*x+x*x;} private static float rotLerp(float a,float max,float target){float f=(target-max)%((float)Math.PI*2F);if(f<-(float)Math.PI)f+=(float)Math.PI*2F;if(f>=(float)Math.PI)f-=(float)Math.PI*2F;return max+a*f;}
 }

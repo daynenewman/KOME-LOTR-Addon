@@ -1,8 +1,6 @@
 package com.fuzs.aquaacrobatics.core.asm;
 
 import net.minecraft.launchwrapper.IClassTransformer;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
@@ -25,35 +23,35 @@ public final class AquaServerPlayerTransformer implements IClassTransformer {
     @Override
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
         if (!ENTITY_PLAYER_MP.equals(transformedName)) return basicClass;
-        ClassNode classNode = new ClassNode();
-        new ClassReader(basicClass).accept(classNode, 0);
-        addEyeHeightBridges(classNode);
-        addResizeRepair(classNode);
-        MethodNode death = findMethod(classNode, "onDeath", "func_70645_a", "a");
-        int returns = 0;
-        for (AbstractInsnNode instruction = death.instructions.getFirst(); instruction != null;
-            instruction = instruction.getNext()) {
-            if (instruction.getOpcode() != Opcodes.RETURN) continue;
-            InsnList bridge = new InsnList();
-            bridge.add(new VarInsnNode(Opcodes.ALOAD, 0));
-            bridge.add(new MethodInsnNode(Opcodes.INVOKESTATIC, LIFECYCLE, "onDeath",
-                "(L" + classNode.name + ";)V", false));
-            death.instructions.insertBefore(instruction, bridge);
-            returns++;
-        }
-        if (returns == 0) throw new IllegalStateException("Missing EntityPlayerMP onDeath return");
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        classNode.accept(writer);
-        return writer.toByteArray();
+        final ClassNode classNode = AquaAsmMappings.read("AquaServerPlayerTransformer", transformedName, basicClass);
+        return AquaAsmMappings.finish("AquaServerPlayerTransformer", classNode, () -> {
+            addEyeHeightBridges(classNode);
+            addResizeRepair(classNode);
+            MethodNode death = AquaAsmMappings.method("AquaServerPlayerTransformer", classNode,
+                "(L" + AquaAsmMappings.type(classNode.name, "net/minecraft/util/DamageSource", "ro") + ";)V",
+                "onDeath", "func_70645_a", "a");
+            int returns = 0;
+            for (AbstractInsnNode instruction = death.instructions.getFirst(); instruction != null;
+                instruction = instruction.getNext()) {
+                if (instruction.getOpcode() != Opcodes.RETURN) continue;
+                InsnList bridge = new InsnList();
+                bridge.add(new VarInsnNode(Opcodes.ALOAD, 0));
+                bridge.add(new MethodInsnNode(Opcodes.INVOKESTATIC, LIFECYCLE, "onDeath",
+                    "(L" + classNode.name + ";)V", false));
+                death.instructions.insertBefore(instruction, bridge);
+                returns++;
+            }
+            if (returns == 0) throw new IllegalStateException("Missing EntityPlayerMP onDeath return");
+        });
     }
 
     private void addResizeRepair(ClassNode classNode) {
         MethodNode update = findExact(classNode, "h", "()V", "onUpdate", "func_70071_h_");
         int returns = 0;
-        String width = "mw".equals(classNode.name) ? "field_70130_N" : "width";
-        String height = "mw".equals(classNode.name) ? "field_70131_O" : "height";
-        String entityOwner = "mw".equals(classNode.name) ? "yz" : "net/minecraft/entity/Entity";
-        String setSize = "mw".equals(classNode.name) ? "a" : "setSize";
+        String width = AquaAsmMappings.member(classNode.name, "width", "field_70130_N", "M");
+        String height = AquaAsmMappings.member(classNode.name, "height", "field_70131_O", "N");
+        String entityOwner = AquaAsmMappings.type(classNode.name, "net/minecraft/entity/Entity", "sa");
+        String setSize = AquaAsmMappings.member(classNode.name, "setSize", "func_70105_a", "a");
         for (AbstractInsnNode instruction = update.instructions.getFirst(); instruction != null;
             instruction = instruction.getNext()) {
             if (instruction.getOpcode() != Opcodes.RETURN) continue;
@@ -134,31 +132,9 @@ public final class AquaServerPlayerTransformer implements IClassTransformer {
     }
 
     private MethodNode findExact(ClassNode classNode, String name, String descriptor, String... alternatives) {
-        MethodNode result = null;
-        for (MethodNode method : classNode.methods) {
-            if (!descriptor.equals(method.desc)) continue;
-            boolean match = name.equals(method.name);
-            for (String alternative : alternatives) match |= alternative.equals(method.name);
-            if (match) {
-                if (result != null) throw new IllegalStateException("Ambiguous EntityPlayerMP eye-height method");
-                result = method;
-            }
-        }
-        if (result == null) throw new IllegalStateException("Missing EntityPlayerMP eye-height method");
-        return result;
-    }
-
-    private MethodNode findMethod(ClassNode classNode, String... names) {
-        MethodNode result = null;
-        for (MethodNode method : classNode.methods) {
-            if (!method.desc.startsWith("(L") || !method.desc.endsWith(")V")) continue;
-            for (String name : names) if (name.equals(method.name)
-                && (!"a".equals(name) || "(Lro;)V".equals(method.desc))) {
-                if (result != null) throw new IllegalStateException("Ambiguous EntityPlayerMP onDeath");
-                result = method;
-            }
-        }
-        if (result == null) throw new IllegalStateException("Missing EntityPlayerMP onDeath");
-        return result;
+        String[] names = new String[alternatives.length + 1];
+        names[0] = name;
+        System.arraycopy(alternatives, 0, names, 1, alternatives.length);
+        return AquaAsmMappings.method("AquaServerPlayerTransformer", classNode, descriptor, names);
     }
 }

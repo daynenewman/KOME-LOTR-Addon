@@ -18,6 +18,7 @@ import lotr.client.model.LOTRModelHuman;
 public class PlayerManModelAdapter extends LOTRModelHuman {
 
     private final ModelRenderer playerChest;
+    private final PlayerModelArms playerArms = new PlayerModelArms(this);
 
     public PlayerManModelAdapter() {
         super();
@@ -58,6 +59,7 @@ public class PlayerManModelAdapter extends LOTRModelHuman {
     }
 
     private void resetPlayerLimbState() {
+        playerArms.restore(this);
         bipedRightArm.rotateAngleY = 0.0F;
         bipedRightArm.rotateAngleZ = 0.0F;
         bipedLeftArm.rotateAngleY = 0.0F;

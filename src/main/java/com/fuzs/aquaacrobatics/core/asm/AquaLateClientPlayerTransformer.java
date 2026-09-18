@@ -2,8 +2,6 @@ package com.fuzs.aquaacrobatics.core.asm;
 
 import cpw.mods.fml.relauncher.IFMLLoadingPlugin;
 import net.minecraft.launchwrapper.IClassTransformer;
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
@@ -26,14 +24,12 @@ public final class AquaLateClientPlayerTransformer implements IClassTransformer 
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
         if (!ENTITY_PLAYER_SP.equals(transformedName)) return basicClass;
         if (basicClass == null) throw new IllegalStateException("Missing EntityPlayerSP bytecode");
-        ClassNode classNode = new ClassNode();
-        new ClassReader(basicClass).accept(classNode, 0);
-        addLivingUpdateHead(classNode);
-        addPreTravelSprintSuppression(classNode);
-        addLivingUpdateTail(classNode);
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-        classNode.accept(writer);
-        return writer.toByteArray();
+        final ClassNode classNode = AquaAsmMappings.read("AquaLateClientPlayerTransformer", transformedName, basicClass);
+        return AquaAsmMappings.finish("AquaLateClientPlayerTransformer", classNode, () -> {
+            addLivingUpdateHead(classNode);
+            addPreTravelSprintSuppression(classNode);
+            addLivingUpdateTail(classNode);
+        });
     }
 
     private void addLivingUpdateTail(ClassNode classNode) {
@@ -79,7 +75,7 @@ public final class AquaLateClientPlayerTransformer implements IClassTransformer 
             MethodInsnNode call = (MethodInsnNode) instruction;
             if ("()V".equals(call.desc) && ("onLivingUpdate".equals(call.name)
                 || "func_70636_d".equals(call.name) || "e".equals(call.name))
-                && !classNode.name.equals(call.owner)) {
+                && call.getOpcode() == Opcodes.INVOKESPECIAL && classNode.superName.equals(call.owner)) {
                 if (superCall != null) {
                     throw new IllegalStateException("Ambiguous late EntityPlayerSP onLivingUpdate call");
                 }
@@ -100,15 +96,8 @@ public final class AquaLateClientPlayerTransformer implements IClassTransformer 
     }
 
     private MethodNode findLivingUpdate(ClassNode classNode) {
-        MethodNode result = null;
-        for (MethodNode method : classNode.methods) {
-            if (!"()V".equals(method.desc) || !("onLivingUpdate".equals(method.name)
-                || "func_70636_d".equals(method.name) || "e".equals(method.name))) continue;
-            if (result != null) throw new IllegalStateException("Ambiguous EntityPlayerSP onLivingUpdate");
-            result = method;
-        }
-        if (result == null) throw new IllegalStateException("Missing EntityPlayerSP onLivingUpdate");
-        return result;
+        return AquaAsmMappings.method("AquaLateClientPlayerTransformer", classNode, "()V",
+            "onLivingUpdate", "func_70636_d", "e");
     }
 
     private AbstractInsnNode previousMeaningful(AbstractInsnNode instruction) {
