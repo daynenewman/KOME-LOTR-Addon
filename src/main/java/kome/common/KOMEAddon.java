@@ -108,6 +108,9 @@ public class KOMEAddon {
     public void postInit(FMLPostInitializationEvent event) {
         lotrMoreMobs.postInit(event);
         aquaAcrobatics.onPostInit(event);
+        if (!kome.common.data.KOMETileWorldResolver.INSTANCE.reloadBundled()) {
+            System.err.println("[KOME] " + kome.common.data.KOMETileWorldResolver.INSTANCE.loadDiagnostic());
+        }
     }
 
     @Mod.EventHandler

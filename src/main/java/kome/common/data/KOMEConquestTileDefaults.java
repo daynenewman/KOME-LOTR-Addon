@@ -5,9 +5,8 @@ import lotr.common.world.genlayer.LOTRGenLayerWorld;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -39,7 +38,6 @@ public class KOMEConquestTileDefaults {
     private static final int EXPLICIT_BRIDGE_TILE_PAIR_SEARCH_RADIUS = 40;
     private static final Map<String, TileCenter> tileCenters = new HashMap<String, TileCenter>();
     private static final Map<String, Set<String>> tileAdjacency = new HashMap<String, Set<String>>();
-    private static final Set<String> knownTileIds = new HashSet<String>();
     private static final Map<String, EdgeStats> automaticEdgeStats = new HashMap<String, EdgeStats>();
     private static final Map<String, EdgeStats> bridgeResolverEdgeStats = new HashMap<String, EdgeStats>();
     private static final String[][] EXPLICIT_OPEN_EDGES = new String[][] {
@@ -84,8 +82,7 @@ public class KOMEConquestTileDefaults {
         {"T054", "T062"}
     };
     private static final Set<String> RETIRED_TILE_IDS = new HashSet<String>();
-    private static Map<Integer, String> cachedIdsByColor;
-    private static BufferedImage cachedTileIdImage;
+    private static Map<Integer, String> canonicalIdsByColor;
     private static boolean loaded;
 
     public static TileCenter getTileCenter(String tileId) {
@@ -93,53 +90,13 @@ public class KOMEConquestTileDefaults {
         return tileCenters.get(KOMEConquestTile.normalizeId(tileId));
     }
 
-    public static String getTileIdAtMapPosition(double mapX, double mapZ) {
-        ensureLoaded();
-        try {
-            if (cachedIdsByColor == null || cachedTileIdImage == null || !LOTRGenLayerWorld.loadedBiomeImage()) {
-                return "";
-            }
-            int x = (int) Math.round(mapX * cachedTileIdImage.getWidth() / (double) LOTRGenLayerWorld.imageWidth);
-            int y = (int) Math.round(mapZ * cachedTileIdImage.getHeight() / (double) LOTRGenLayerWorld.imageHeight);
-            return getNearestTileIdAtPixel(cachedIdsByColor, cachedTileIdImage, x, y, 8);
-        } catch (Throwable ignored) {
-            return "";
-        }
+    /** Compatibility for callers already holding a LOTR map position; gaps stay empty. */
+    public static String getTileIdAtMapPosition(int dimension, double mapX, double mapZ) {
+        return KOMETileWorldResolver.INSTANCE.resolveMapPosition(dimension, mapX, mapZ).tileId;
     }
 
-    private static String getNearestTileIdAtPixel(Map<Integer, String> idsByColor, BufferedImage image, int x, int y, int radius) {
-        if (idsByColor == null || image == null || image.getWidth() <= 0 || image.getHeight() <= 0) {
-            return "";
-        }
-        int clampedX = Math.max(0, Math.min(image.getWidth() - 1, x));
-        int clampedY = Math.max(0, Math.min(image.getHeight() - 1, y));
-        String exact = tileIdAtPixel(idsByColor, image, clampedX, clampedY);
-        if (exact.length() > 0) {
-            return exact;
-        }
-        for (int distance = 1; distance <= radius; distance++) {
-            for (int sampleY = Math.max(0, clampedY - distance); sampleY <= Math.min(image.getHeight() - 1, clampedY + distance); sampleY++) {
-                for (int sampleX = Math.max(0, clampedX - distance); sampleX <= Math.min(image.getWidth() - 1, clampedX + distance); sampleX++) {
-                    if (Math.abs(sampleX - clampedX) != distance && Math.abs(sampleY - clampedY) != distance) {
-                        continue;
-                    }
-                    String found = tileIdAtPixel(idsByColor, image, sampleX, sampleY);
-                    if (found.length() > 0) {
-                        return found;
-                    }
-                }
-            }
-        }
-        return "";
-    }
-
-    private static String tileIdAtPixel(Map<Integer, String> idsByColor, BufferedImage image, int x, int y) {
-        int argb = image.getRGB(x, y);
-        if ((argb >>> 24) <= 24) {
-            return "";
-        }
-        String tileId = idsByColor.get(argb & 0xFFFFFF);
-        return tileId == null ? "" : KOMEConquestTile.normalizeId(tileId);
+    public static KOMETileResolution resolveWorldCoordinates(int dimension, int worldX, int worldZ) {
+        return KOMETileWorldResolver.INSTANCE.resolve(dimension, worldX, worldZ);
     }
 
     public static Set<String> getAdjacentTiles(String tileId) {
@@ -149,12 +106,21 @@ public class KOMEConquestTileDefaults {
     }
 
     public static Set<String> getKnownTileIds() {
-        ensureLoaded();
-        Set<String> ids = new HashSet<String>(tileCenters.keySet());
-        ids.addAll(tileAdjacency.keySet());
-        ids.addAll(knownTileIds);
-        ids.removeAll(RETIRED_TILE_IDS);
-        return ids;
+        return new HashSet<String>(getTileIdsByColor().values());
+    }
+
+    /** Sole packaged tile-ID authority, independent of center/adjacency or biome initialization. */
+    public static synchronized Map<Integer, String> getTileIdsByColor() {
+        if (canonicalIdsByColor == null) {
+            try { canonicalIdsByColor = loadTileIds(); }
+            catch (IOException e) { throw new IllegalStateException("Invalid conquest tile identity resource", e); }
+        }
+        return canonicalIdsByColor;
+    }
+
+    public static Set<String> getRetiredTileIds() {
+        ensureRetiredTilesLoaded();
+        return new HashSet<String>(RETIRED_TILE_IDS);
     }
 
     public static boolean isRetiredTile(String tileId) {
@@ -250,11 +216,7 @@ public class KOMEConquestTileDefaults {
         }
         loaded = true;
         try {
-            Map<Integer, String> idsByColor = loadTileIds();
-            for (String tileId : idsByColor.values()) {
-                String normalized = KOMEConquestTile.normalizeId(tileId);
-                if (normalized.length() > 0) knownTileIds.add(normalized);
-            }
+            Map<Integer, String> idsByColor = getTileIdsByColor();
             InputStream input = KOMEConquestTileDefaults.class.getClassLoader().getResourceAsStream(TILE_ID_MASK);
             if (input == null) {
                 return;
@@ -268,8 +230,6 @@ public class KOMEConquestTileDefaults {
             if (image == null) {
                 return;
             }
-            cachedIdsByColor = idsByColor;
-            cachedTileIdImage = image;
             int[] overlayPixels = loadImagePixels(MAP_OVERLAY, widthOf(image), heightOf(image));
             int[] roadPixels = loadImagePixels(MAP_ROADS, widthOf(image), heightOf(image));
             int[] bridgeMarkerPixels = loadImagePixels(MAP_BRIDGE_MARKERS, widthOf(image), heightOf(image));
@@ -352,7 +312,7 @@ public class KOMEConquestTileDefaults {
         }
     }
 
-    private static void ensureRetiredTilesLoaded() {
+    private static synchronized void ensureRetiredTilesLoaded() {
         if (RETIRED_TILE_IDS.isEmpty()) {
             RETIRED_TILE_IDS.add("T045");
             RETIRED_TILE_IDS.add("T327");
@@ -980,40 +940,14 @@ public class KOMEConquestTileDefaults {
         bSet.add(a);
     }
 
-    private static Map<Integer, String> loadTileIds() throws Exception {
+    private static Map<Integer, String> loadTileIds() throws IOException {
         Map<Integer, String> idsByColor = new HashMap<Integer, String>();
-        InputStream input = KOMEConquestTileDefaults.class.getClassLoader().getResourceAsStream(TILE_ID_MAP);
-        if (input == null) {
-            return idsByColor;
-        }
-        BufferedReader reader = new BufferedReader(new InputStreamReader(input, "UTF-8"));
-        try {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                line = line.trim();
-                if (line.length() == 0 || line.startsWith("#")) {
-                    continue;
-                }
-                int equals = line.indexOf('=');
-                if (equals <= 0 || equals >= line.length() - 1) {
-                    continue;
-                }
-                String[] rgb = line.substring(0, equals).split(",");
-                if (rgb.length != 3) {
-                    continue;
-                }
-                int red = Integer.parseInt(rgb[0].trim());
-                int green = Integer.parseInt(rgb[1].trim());
-                int blue = Integer.parseInt(rgb[2].trim());
-                String tileId = KOMEConquestTile.normalizeId(line.substring(equals + 1));
-                if (!isRetiredTile(tileId)) {
-                    idsByColor.put(red << 16 | green << 8 | blue, tileId);
-                }
+        try (InputStream input = KOMEConquestTileDefaults.class.getClassLoader().getResourceAsStream(TILE_ID_MAP)) {
+            for (Map.Entry<Integer, String> entry : KOMETileRasterSnapshot.readMapping(input).entrySet()) {
+                if (!isRetiredTile(entry.getValue())) idsByColor.put(entry.getKey(), entry.getValue());
             }
-        } finally {
-            reader.close();
         }
-        return idsByColor;
+        return Collections.unmodifiableMap(idsByColor);
     }
 
     public static class TileCenter {

@@ -156,6 +156,9 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         for (KOMEPlayerBuild build : KOMEBuildService.buildsInTile(data, tile.id, false)) {
             packet.builds.add(projectBuild(data, build, viewerFaction, controller, viewerId, admin));
         }
+        packet.selectablePopulationOwners.clear();
+        packet.selectablePopulationOwners.addAll(
+            KOMEBuildService.selectablePopulationOwners(data, viewerFaction, tile.id));
         packet.viewerDimension = player.worldObj.provider.dimensionId;
         packet.viewerX = player.posX;
         packet.viewerY = player.posY;

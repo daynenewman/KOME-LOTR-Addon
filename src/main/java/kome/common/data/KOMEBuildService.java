@@ -1,7 +1,6 @@
 package kome.common.data;
 
 import lotr.common.fac.LOTRFactionRelations;
-import lotr.common.world.genlayer.LOTRGenLayerWorld;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,6 +23,8 @@ public final class KOMEBuildService {
         if (type == null) throw new IllegalArgumentException("Build type is required.");
         KOMEBuildTime.requireNonnegative(centiHours);
         requireWritable(data);
+        Decision coordinates = validateCoordinates(tileId, dimension, x, y, z);
+        if (!coordinates.allowed) throw new IllegalArgumentException(coordinates.reason);
         Decision placement = canPlace(data, builder, builderFaction, tileId, populationFaction);
         if (!placement.allowed) throw new IllegalArgumentException(placement.reason);
         KOMEPlayerBuild build = new KOMEPlayerBuild();
@@ -442,19 +443,20 @@ public final class KOMEBuildService {
         return Decision.allow();
     }
 
-    public static String tileAtWorldCoordinates(double worldX, double worldZ) {
-        double mapX = worldX / LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originX;
-        double mapZ = worldZ / LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originZ;
-        return KOMEConquestTile.normalizeId(KOMEConquestTileDefaults.getTileIdAtMapPosition(mapX, mapZ));
+    public static KOMETileResolution tileAtWorldCoordinates(int dimension, double worldX, double worldZ) {
+        return KOMETileWorldResolver.INSTANCE.resolveWorldPosition(dimension, worldX, worldZ);
     }
 
-    public static Decision validateCoordinates(String expectedTile, double x, double y, double z) {
+    public static Decision validateCoordinates(String expectedTile, int dimension, double x, double y, double z) {
         if (Double.isNaN(x) || Double.isNaN(y) || Double.isNaN(z)
                 || Double.isInfinite(x) || Double.isInfinite(y) || Double.isInfinite(z)) {
             return Decision.deny("Build coordinates must be finite.");
         }
-        String actualTile = tileAtWorldCoordinates(x, z);
-        return KOMEConquestTile.normalizeId(expectedTile).equals(actualTile)
+        KOMETileResolution resolved = tileAtWorldCoordinates(dimension, x, z);
+        if (resolved.status != KOMETileResolution.Status.RESOLVED) {
+            return Decision.deny("Build coordinate rejected: " + resolved);
+        }
+        return KOMEConquestTile.normalizeId(expectedTile).equals(resolved.tileId)
             ? Decision.allow() : Decision.deny("The selected coordinates are not inside the confirmed conquest tile.");
     }
 

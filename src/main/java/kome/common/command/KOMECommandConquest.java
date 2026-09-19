@@ -30,7 +30,7 @@ public class KOMECommandConquest extends KOMEPublicCommand {
     @Override
     public String getCommandUsage(ICommandSender sender) {
         if (!isStaff(sender)) return "/conquest list | get <tile> | transfer <tile> <faction> | accept <tile> | cancelTransfer <tile> (ruler actions); capture via Tile Command";
-        return "/conquest get <tile> | claim <tile> <faction|none> | transfer <tile> <faction> | accept <tile> | cancelTransfer <tile> | clear <tile> | clearAll | reset | list | waypoint <list|link|unlink|get|nearest|autolink|autolinkall> ... | purgeLegacy";
+        return "/conquest resolve <dimension> <worldX> <worldZ> | get <tile> | claim <tile> <faction|none> | transfer <tile> <faction> | accept <tile> | cancelTransfer <tile> | clear <tile> | clearAll | reset | list | waypoint <list|link|unlink|get|nearest|autolink|autolinkall> ... | purgeLegacy";
     }
 
     @Override
@@ -44,6 +44,18 @@ public class KOMECommandConquest extends KOMEPublicCommand {
             throw new WrongUsageException(getCommandUsage(sender));
         }
 
+        // Inspection must not even load/create WorldData records.
+        if ("resolve".equalsIgnoreCase(args[0])) {
+            requireStaff(sender);
+            if (args.length != 4) throw new WrongUsageException("/conquest resolve <dimension> <worldX> <worldZ>");
+            try {
+                sender.addChatMessage(new ChatComponentText(kome.common.data.KOMETileWorldResolver.INSTANCE.resolve(
+                    Integer.parseInt(args[1]), Integer.parseInt(args[2]), Integer.parseInt(args[3])).toString()));
+            } catch (NumberFormatException e) {
+                throw new WrongUsageException("Dimension and world X/Z must be signed 32-bit integers.");
+            }
+            return;
+        }
         if (isAdministrativeAction(args[0])) requireStaff(sender);
         if (!isStaff(sender) && ("transfer".equalsIgnoreCase(args[0]) || "trade".equalsIgnoreCase(args[0])
                 || "accept".equalsIgnoreCase(args[0]) || "cancelTransfer".equalsIgnoreCase(args[0])
@@ -204,7 +216,7 @@ public class KOMECommandConquest extends KOMEPublicCommand {
             if (args.length > 0 && isAdministrativeAction(args[0])) return Collections.emptyList();
         }
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "get", "claim", "transfer", "trade", "accept", "cancelTransfer", "clear", "clearAll", "reset", "list", "waypoint", "purgeLegacy");
+            return getListOfStringsMatchingLastWord(args, "resolve", "get", "claim", "transfer", "trade", "accept", "cancelTransfer", "clear", "clearAll", "reset", "list", "waypoint", "purgeLegacy");
         }
         if (args.length == 2 && "waypoint".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, "list", "link", "unlink", "get", "nearest", "autolink", "autolinkall");
@@ -402,7 +414,8 @@ public class KOMECommandConquest extends KOMEPublicCommand {
             if (waypoint == null || waypoint.isHidden()) {
                 continue;
             }
-            String waypointTile = KOMEConquestTileDefaults.getTileIdAtMapPosition(waypoint.getX(), waypoint.getY());
+            String waypointTile = KOMEConquestTileDefaults.getTileIdAtMapPosition(
+                lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID, waypoint.getX(), waypoint.getY());
             if (!KOMEConquestTile.normalizeId(tileId).equals(waypointTile)) {
                 continue;
             }
@@ -558,7 +571,7 @@ public class KOMECommandConquest extends KOMEPublicCommand {
     }
 
     private static boolean isAdministrativeAction(String action) {
-        return "claim".equalsIgnoreCase(action) || "clear".equalsIgnoreCase(action)
+        return "resolve".equalsIgnoreCase(action) || "claim".equalsIgnoreCase(action) || "clear".equalsIgnoreCase(action)
             || "clearAll".equalsIgnoreCase(action) || "reset".equalsIgnoreCase(action)
             || "purgeLegacy".equalsIgnoreCase(action) || "waypoint".equalsIgnoreCase(action);
     }

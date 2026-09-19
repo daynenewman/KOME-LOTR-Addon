@@ -707,7 +707,8 @@ public class KOMEWorldData extends WorldSavedData {
             if (waypoint == null || waypoint.isHidden() || usedWaypointKeys.contains(waypoint.getCodeName())) {
                 continue;
             }
-            String tileId = KOMEConquestTileDefaults.getTileIdAtMapPosition(waypoint.getX(), waypoint.getY());
+            String tileId = KOMEConquestTileDefaults.getTileIdAtMapPosition(
+                lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID, waypoint.getX(), waypoint.getY());
             if (tileId.length() == 0 || preservedManual.containsKey(tileId)) {
                 continue;
             }
