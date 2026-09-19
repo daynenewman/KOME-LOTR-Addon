@@ -14,7 +14,8 @@ import java.util.UUID;
 
 /** Persistent player-created construction project and its contribution audit. */
 public class KOMEPlayerBuild {
-    public static final int DATA_SCHEMA_VERSION = 2;
+    /** Schema 3 combines KOM-54 precise Builds with KOM-10 defensive gate records. */
+    public static final int DATA_SCHEMA_VERSION = 3;
     public static final int MAX_AUDIT_ENTRIES = 250;
     public String id = "";
     public String displayName = "";
@@ -41,6 +42,10 @@ public class KOMEPlayerBuild {
     public KOMEBuildType type;
     public final List<KOMEBuildContribution> contributions = new ArrayList<KOMEBuildContribution>();
     private final List<String> auditHistory = new ArrayList<String>();
+    /** Accounting links only; tactical siege geometry and live gate state are intentionally separate. */
+    private final List<KOMEDefensiveGateRecord> defensiveGateRecords = new ArrayList<KOMEDefensiveGateRecord>();
+    /** Highest G-number ever allocated within this Build. It never decreases or becomes global. */
+    private long defensiveGateRecordSequence;
 
     /** Approved canonical construction hours; only NORMAL produces a future population rate. */
     public long approvedCentiHours() {
@@ -99,6 +104,74 @@ public class KOMEPlayerBuild {
         return null;
     }
 
+    public KOMEDefensiveGateRecord getDefensiveGateRecord(String recordId) {
+        String key = recordId == null ? "" : recordId.trim();
+        for (KOMEDefensiveGateRecord record : defensiveGateRecords) {
+            if (record != null && key.equals(record.id)) return record;
+        }
+        return null;
+    }
+
+    public List<KOMEDefensiveGateRecord> getDefensiveGateRecords() {
+        return Collections.unmodifiableList(defensiveGateRecords);
+    }
+
+    public long getDefensiveGateRecordSequence() {
+        return defensiveGateRecordSequence;
+    }
+
+    /**
+     * Reserved for an authoritative same-package service that atomically creates a real linkage.
+     * Merely allocating an ID burns it intentionally so historical IDs can never be reused.
+     */
+    String allocateDefensiveGateRecordId() {
+        if (!isDefensive()) {
+            throw new IllegalStateException("Only a DEFENSIVE Build may allocate defensive gate record IDs.");
+        }
+        if (defensiveGateRecordSequence == Long.MAX_VALUE) {
+            throw new IllegalStateException("Defensive gate record ID sequence is exhausted for Build " + safe(id) + ".");
+        }
+        String candidate;
+        do {
+            defensiveGateRecordSequence++;
+            candidate = "G" + defensiveGateRecordSequence;
+            if (defensiveGateRecordSequence == Long.MAX_VALUE
+                    && getDefensiveGateRecord(candidate) != null) {
+                throw new IllegalStateException("Defensive gate record ID sequence is exhausted for Build " + safe(id) + ".");
+            }
+        } while (getDefensiveGateRecord(candidate) != null);
+        return candidate;
+    }
+
+    /** Same-package persistence/service hook; callers remain responsible for dirty marking and audit. */
+    void addDefensiveGateRecord(KOMEDefensiveGateRecord record) {
+        if (!isDefensive()) {
+            throw new IllegalStateException("Only a DEFENSIVE Build may own defensive gate records.");
+        }
+        if (record == null || safe(record.id).trim().length() == 0) {
+            throw new IllegalArgumentException("Defensive gate record ID is required.");
+        }
+        record.id = record.id.trim();
+        if (getDefensiveGateRecord(record.id) != null) {
+            throw new IllegalArgumentException("Duplicate defensive gate record ID " + record.id + ".");
+        }
+        defensiveGateRecords.add(record);
+        repairDefensiveGateRecordSequence(record.id);
+    }
+
+    /** Same-package persistence/service hook; deleting a record never decreases the high-water value. */
+    boolean removeDefensiveGateRecord(String recordId) {
+        KOMEDefensiveGateRecord record = getDefensiveGateRecord(recordId);
+        return record != null && defensiveGateRecords.remove(record);
+    }
+
+    /** Lifecycle hook for deactivation/reclassification; intentionally preserves the G# high-water. */
+    int clearDefensiveGateRecords() {
+        int removed = defensiveGateRecords.size();
+        defensiveGateRecords.clear();
+        return removed;
+    }
+
     public Map<String, Long> activeCentiHoursByFaction() {
         Map<String, Long> result = new HashMap<String, Long>();
         if (!active) return result;
@@ -138,6 +211,7 @@ public class KOMEPlayerBuild {
 
     public NBTTagCompound writeToNBT() {
         validateContributions();
+        validateDefensiveGateRecords();
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setInteger("BuildSchemaVersion", DATA_SCHEMA_VERSION);
         nbt.setString("Id", safe(id));
@@ -174,6 +248,14 @@ public class KOMEPlayerBuild {
         NBTTagList audit = new NBTTagList();
         for (String entry : auditHistory) audit.appendTag(new NBTTagString(entry));
         nbt.setTag("AuditHistory", audit);
+        nbt.setLong("DefensiveGateRecordSequence", defensiveGateRecordSequence);
+        NBTTagList defensiveGateList = new NBTTagList();
+        if (isDefensive()) {
+            for (KOMEDefensiveGateRecord record : defensiveGateRecords) {
+                defensiveGateList.appendTag(record.writeToNBT());
+            }
+        }
+        nbt.setTag("DefensiveGateRecords", defensiveGateList);
         return nbt;
     }
 
@@ -193,9 +275,12 @@ public class KOMEPlayerBuild {
         }
         if (!nbt.hasKey("BuildType", 8)) throw new IllegalArgumentException("Build is missing BuildType.");
         KOMEBuildType savedType = KOMEBuildType.forKey(nbt.getString("BuildType"));
-        if (!nbt.hasKey("Contributions", 9) || !nbt.hasKey("AuditHistory", 9)) {
-            throw new IllegalArgumentException("Build Contributions and AuditHistory are required.");
+        if (!nbt.hasKey("Contributions", 9) || !nbt.hasKey("AuditHistory", 9)
+                || !nbt.hasKey("DefensiveGateRecords", 9)) {
+            throw new IllegalArgumentException(
+                "Build Contributions, AuditHistory and DefensiveGateRecords are required.");
         }
+        requireFields(nbt, 4, "DefensiveGateRecordSequence");
         NBTTagList contributionList = nbt.getTagList("Contributions", 10);
         if (((NBTTagList) nbt.getTag("Contributions")).tagCount() != contributionList.tagCount()) {
             throw new IllegalArgumentException("Build Contributions must contain compound records.");
@@ -213,6 +298,37 @@ public class KOMEPlayerBuild {
         NBTTagList savedAudit = nbt.getTagList("AuditHistory", 8);
         if (((NBTTagList) nbt.getTag("AuditHistory")).tagCount() != savedAudit.tagCount()) {
             throw new IllegalArgumentException("Build AuditHistory must contain strings.");
+        }
+        long savedGateSequence = nbt.getLong("DefensiveGateRecordSequence");
+        if (savedGateSequence < 0L) {
+            throw new IllegalArgumentException("Defensive gate record sequence must not be negative.");
+        }
+        NBTTagList savedGateRecords = nbt.getTagList("DefensiveGateRecords", 10);
+        if (((NBTTagList) nbt.getTag("DefensiveGateRecords")).tagCount() != savedGateRecords.tagCount()) {
+            throw new IllegalArgumentException("Build DefensiveGateRecords must contain compound records.");
+        }
+        List<KOMEDefensiveGateRecord> loadedGateRecords = new ArrayList<KOMEDefensiveGateRecord>();
+        java.util.Set<String> gateIds = new java.util.HashSet<String>();
+        long highestGateSuffix = 0L;
+        for (int i = 0; i < savedGateRecords.tagCount(); i++) {
+            KOMEDefensiveGateRecord record = new KOMEDefensiveGateRecord();
+            record.readFromNBT(savedGateRecords.getCompoundTagAt(i));
+            record.id = safe(record.id).trim();
+            if (record.id.length() == 0) {
+                throw new IllegalArgumentException("Defensive gate record ID is required at index " + i + ".");
+            }
+            if (!gateIds.add(record.id)) {
+                throw new IllegalArgumentException("Duplicate defensive gate record ID " + record.id + ".");
+            }
+            highestGateSuffix = Math.max(highestGateSuffix, validDefensiveGateRecordSuffix(record.id));
+            loadedGateRecords.add(record);
+        }
+        if (savedType != KOMEBuildType.DEFENSIVE
+                && (savedGateSequence != 0L || !loadedGateRecords.isEmpty())) {
+            throw new IllegalArgumentException("Only a DEFENSIVE Build may persist defensive gate records.");
+        }
+        if (savedGateSequence < highestGateSuffix) {
+            throw new IllegalArgumentException("Defensive gate record sequence is below an existing gate ID.");
         }
         id = safe(nbt.getString("Id"));
         displayName = sanitizeName(nbt.getString("DisplayName"));
@@ -242,6 +358,55 @@ public class KOMEPlayerBuild {
         auditHistory.clear();
         for (int i = Math.max(0, savedAudit.tagCount() - MAX_AUDIT_ENTRIES); i < savedAudit.tagCount(); i++)
             auditHistory.add(savedAudit.getStringTagAt(i));
+        defensiveGateRecords.clear();
+        defensiveGateRecords.addAll(loadedGateRecords);
+        defensiveGateRecordSequence = savedType == KOMEBuildType.DEFENSIVE ? savedGateSequence : 0L;
+    }
+
+    private void validateDefensiveGateRecords() {
+        if (defensiveGateRecordSequence < 0L) {
+            throw new IllegalArgumentException("Defensive gate record sequence must not be negative.");
+        }
+        if (!isDefensive()) {
+            if (defensiveGateRecordSequence != 0L || !defensiveGateRecords.isEmpty()) {
+                throw new IllegalArgumentException("Only a DEFENSIVE Build may persist defensive gate records.");
+            }
+            return;
+        }
+        java.util.Set<String> ids = new java.util.HashSet<String>();
+        long highestSuffix = 0L;
+        for (KOMEDefensiveGateRecord record : defensiveGateRecords) {
+            if (record == null || safe(record.id).trim().length() == 0) {
+                throw new IllegalArgumentException("Defensive gate record ID is required.");
+            }
+            record.id = record.id.trim();
+            if (!ids.add(record.id)) {
+                throw new IllegalArgumentException("Duplicate defensive gate record ID " + record.id + ".");
+            }
+            highestSuffix = Math.max(highestSuffix, validDefensiveGateRecordSuffix(record.id));
+        }
+        if (defensiveGateRecordSequence < highestSuffix) {
+            throw new IllegalArgumentException("Defensive gate record sequence is below an existing gate ID.");
+        }
+    }
+
+    private void repairDefensiveGateRecordSequence(String recordId) {
+        long suffix = validDefensiveGateRecordSuffix(recordId);
+        if (suffix > defensiveGateRecordSequence) defensiveGateRecordSequence = suffix;
+    }
+
+    private static long validDefensiveGateRecordSuffix(String recordId) {
+        String value = safe(recordId).trim();
+        if (value.length() < 2 || value.charAt(0) != 'G' || value.charAt(1) == '0') return 0L;
+        long suffix = 0L;
+        for (int i = 1; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c < '0' || c > '9') return 0L;
+            int digit = c - '0';
+            if (suffix > (Long.MAX_VALUE - digit) / 10L) return 0L;
+            suffix = suffix * 10L + digit;
+        }
+        return suffix;
     }
 
     static void requireFields(NBTTagCompound nbt, int type, String... keys) {

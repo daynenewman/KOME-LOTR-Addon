@@ -19,6 +19,7 @@ import net.minecraftforge.common.config.Configuration;
 import kome.common.data.KOMEProgressionAchievement;
 import kome.common.data.KOMEAuditService;
 import kome.common.data.KOMEWorldData;
+import kome.common.data.KOMEGateSizeCalculator;
 
 /** Canonical, typed KOME configuration values. */
 public final class KOMEConfigRegistry {
@@ -57,6 +58,12 @@ public final class KOMEConfigRegistry {
     public static final String ENCIRCLED_CAPITAL_ARRIVAL_POLICY =
             "encircledCapitalArrivalPolicy";
     public static final String GATE_HP_PER_APPROVED_HOUR = "gateHpPerApprovedHour";
+    public static final String GATE_BASELINE_WIDTH = "gateBaselineWidth";
+    public static final String GATE_BASELINE_HEIGHT = "gateBaselineHeight";
+    public static final String GATE_FULL_BONUS_WIDTH = "gateFullBonusWidth";
+    public static final String GATE_FULL_BONUS_HEIGHT = "gateFullBonusHeight";
+    public static final String GATE_MAX_SIZE_MULTIPLIER = "gateMaxSizeMultiplier";
+    public static final String GATE_SIZE_CURVE_EXPONENT = "gateSizeCurveExponent";
     public static final String NORMAL_SEGMENT_SUPPORT_MINIMUM_TROOPS =
             "normalSegmentSupportMinimumTroops";
     public static final String SUPPORT_FALLBACK_GRACE_SECONDS =
@@ -102,7 +109,8 @@ public final class KOMEConfigRegistry {
             new PopulationSettings(1000L, 5000L, true, false, OptionalLong.empty(), false),
             new MovementSettings(1, 2), new BattleSettings(20, 35, 50),
             new MusterSettings(2, 21, 24, EncircledCapitalArrivalPolicy.TBD),
-            new SiegeSettings(OptionalDouble.empty(), 1, 15, PreBreachRepair.TBD, false, 192, OptionalInt.empty()),
+            new SiegeSettings(OptionalDouble.empty(), KOMEGateSizeCalculator.Parameters.defaults(),
+                1, 15, PreBreachRepair.TBD, false, 192, OptionalInt.empty()),
             new BattleSupportSettings(BattleSupportMode.CURVE, 32, 48, 64, 70, 0.50D, 0.10D, 0.01D, 48, 192),
             new EncirclementSettings(10, 48, false), new SeasonSettings(OptionalInt.empty(), false, OptionalInt.empty(), false, 0, 0),
             new GearSettings(Collections.<String, GearRuleSetting>emptyMap()), false);
@@ -407,7 +415,32 @@ public final class KOMEConfigRegistry {
     private static SiegeSettings readSiege(Configuration c) {
         OptionalDouble gateHpPerApprovedHour = parseOptionalPositiveDouble(
                 GATE_HP_PER_APPROVED_HOUR,
-                value(c, SIEGE_CATEGORY, GATE_HP_PER_APPROVED_HOUR, "TBD"));
+                value(c, SIEGE_CATEGORY, GATE_HP_PER_APPROVED_HOUR, "100"));
+        int baselineWidth = positive(SIEGE_CATEGORY, GATE_BASELINE_WIDTH,
+                value(c, SIEGE_CATEGORY, GATE_BASELINE_WIDTH,
+                    Integer.toString(KOMEGateSizeCalculator.BASELINE_WIDTH)));
+        int baselineHeight = positive(SIEGE_CATEGORY, GATE_BASELINE_HEIGHT,
+                value(c, SIEGE_CATEGORY, GATE_BASELINE_HEIGHT,
+                    Integer.toString(KOMEGateSizeCalculator.BASELINE_HEIGHT)));
+        String fullBonusWidthValue = value(c, SIEGE_CATEGORY, GATE_FULL_BONUS_WIDTH,
+                Integer.toString(KOMEGateSizeCalculator.MAXIMUM_TARGET_WIDTH));
+        int fullBonusWidth = positive(SIEGE_CATEGORY, GATE_FULL_BONUS_WIDTH, fullBonusWidthValue);
+        requireGreater(SIEGE_CATEGORY, GATE_FULL_BONUS_WIDTH, fullBonusWidthValue,
+                fullBonusWidth, baselineWidth, GATE_BASELINE_WIDTH);
+        String fullBonusHeightValue = value(c, SIEGE_CATEGORY, GATE_FULL_BONUS_HEIGHT,
+                Integer.toString(KOMEGateSizeCalculator.MAXIMUM_TARGET_HEIGHT));
+        int fullBonusHeight = positive(SIEGE_CATEGORY, GATE_FULL_BONUS_HEIGHT, fullBonusHeightValue);
+        requireGreater(SIEGE_CATEGORY, GATE_FULL_BONUS_HEIGHT, fullBonusHeightValue,
+                fullBonusHeight, baselineHeight, GATE_BASELINE_HEIGHT);
+        double maxSizeMultiplier = finiteAtLeast(SIEGE_CATEGORY, GATE_MAX_SIZE_MULTIPLIER,
+                value(c, SIEGE_CATEGORY, GATE_MAX_SIZE_MULTIPLIER,
+                    Double.toString(KOMEGateSizeCalculator.MAXIMUM_MULTIPLIER)), 1.0D);
+        double curveExponent = finitePositive(SIEGE_CATEGORY, GATE_SIZE_CURVE_EXPONENT,
+                value(c, SIEGE_CATEGORY, GATE_SIZE_CURVE_EXPONENT,
+                    Double.toString(KOMEGateSizeCalculator.LARGE_GATE_EXPONENT)));
+        KOMEGateSizeCalculator.Parameters sizeParameters = new KOMEGateSizeCalculator.Parameters(
+                baselineWidth, baselineHeight, fullBonusWidth, fullBonusHeight,
+                maxSizeMultiplier, curveExponent);
         int supportMinimum = positive(SIEGE_CATEGORY,
                 NORMAL_SEGMENT_SUPPORT_MINIMUM_TROOPS,
                 value(c, SIEGE_CATEGORY, NORMAL_SEGMENT_SUPPORT_MINIMUM_TROOPS, "1"));
@@ -424,7 +457,7 @@ public final class KOMEConfigRegistry {
         OptionalInt checkInWindow = parseOptionalPositiveInt(SIEGE_CATEGORY,
                 ACTIVE_SIEGE_CHECK_IN_WINDOW_MINUTES,
                 value(c, SIEGE_CATEGORY, ACTIVE_SIEGE_CHECK_IN_WINDOW_MINUTES, "TBD"));
-        return new SiegeSettings(gateHpPerApprovedHour, supportMinimum, fallbackGrace,
+        return new SiegeSettings(gateHpPerApprovedHour, sizeParameters, supportMinimum, fallbackGrace,
                 preBreachRepair, postBreachRepairEnabled, exteriorMargin, checkInWindow);
     }
 
@@ -582,6 +615,24 @@ public final class KOMEConfigRegistry {
         } catch (NumberFormatException ignored) {
         }
         throw invalid(category, key, value, "must be a finite number between 0.0 and 1.0");
+    }
+
+    private static double finitePositive(String category, String key, String value) {
+        try {
+            double result = Double.parseDouble(value);
+            if (!Double.isNaN(result) && !Double.isInfinite(result) && result > 0.0D) return result;
+        } catch (NumberFormatException ignored) {
+        }
+        throw invalid(category, key, value, "must be a finite number greater than 0");
+    }
+
+    private static double finiteAtLeast(String category, String key, String value, double minimum) {
+        try {
+            double result = Double.parseDouble(value);
+            if (!Double.isNaN(result) && !Double.isInfinite(result) && result >= minimum) return result;
+        } catch (NumberFormatException ignored) {
+        }
+        throw invalid(category, key, value, "must be a finite number greater than or equal to " + minimum);
     }
 
     private static void requireGreater(String category, String key, String value,
@@ -942,6 +993,7 @@ public final class KOMEConfigRegistry {
 
     public static final class SiegeSettings {
         private final OptionalDouble gateHpPerApprovedHour;
+        private final KOMEGateSizeCalculator.Parameters gateSizeParameters;
         private final int normalSegmentSupportMinimumTroops;
         private final int supportFallbackGraceSeconds;
         private final PreBreachRepair preBreachRepair;
@@ -950,11 +1002,13 @@ public final class KOMEConfigRegistry {
         private final OptionalInt activeSiegeCheckInWindowMinutes;
 
         private SiegeSettings(OptionalDouble gateHpPerApprovedHour,
+                KOMEGateSizeCalculator.Parameters gateSizeParameters,
                 int normalSegmentSupportMinimumTroops,
                 int supportFallbackGraceSeconds, PreBreachRepair preBreachRepair,
                 boolean postBreachRepairEnabled, int exteriorMarginBlocks,
                 OptionalInt activeSiegeCheckInWindowMinutes) {
             this.gateHpPerApprovedHour = gateHpPerApprovedHour;
+            this.gateSizeParameters = gateSizeParameters;
             this.normalSegmentSupportMinimumTroops = normalSegmentSupportMinimumTroops;
             this.supportFallbackGraceSeconds = supportFallbackGraceSeconds;
             this.preBreachRepair = preBreachRepair;
@@ -966,6 +1020,17 @@ public final class KOMEConfigRegistry {
         public OptionalDouble getGateHpPerApprovedHour() {
             return gateHpPerApprovedHour;
         }
+
+        public KOMEGateSizeCalculator.Parameters getGateSizeParameters() {
+            return gateSizeParameters;
+        }
+
+        public int getGateBaselineWidth() { return gateSizeParameters.getBaselineWidth(); }
+        public int getGateBaselineHeight() { return gateSizeParameters.getBaselineHeight(); }
+        public int getGateFullBonusWidth() { return gateSizeParameters.getFullBonusWidth(); }
+        public int getGateFullBonusHeight() { return gateSizeParameters.getFullBonusHeight(); }
+        public double getGateMaxSizeMultiplier() { return gateSizeParameters.getMaxSizeMultiplier(); }
+        public double getGateSizeCurveExponent() { return gateSizeParameters.getCurveExponent(); }
 
         public int getNormalSegmentSupportMinimumTroops() {
             return normalSegmentSupportMinimumTroops;

@@ -38,10 +38,10 @@ public class KOMEConfigChangeGuardTest {
         File change=config(); write(change,"population","populationCapValue","100"); write(change,"siege","gateHpPerApprovedHour","2.5"); write(change,"movement","footOrMixedTilesPerDay","2"); write(change,"movement","fullyMountedTilesPerDay","3");
         KOMEConfigChangeSet diff=KOMEConfigChangeSet.compare(old,KOMEConfigRegistry.readValidated(change));
         assertEquals(4,diff.getEntries().size()); assertEquals("movement",diff.getEntries().get(0).getCategory());
-        assertEntry(diff,"population","populationCapValue","TBD","100.00"); assertEntry(diff,"siege","gateHpPerApprovedHour","TBD","2.5");
+        assertEntry(diff,"population","populationCapValue","TBD","100.00"); assertEntry(diff,"siege","gateHpPerApprovedHour","100.0","2.5");
         try { diff.getEntries().clear(); fail(); } catch (UnsupportedOperationException expected) { }
         File equivalent=config(); write(equivalent,"population","capturedBuildMultiplier","0.50"); assertTrue(KOMEConfigChangeSet.compare(old,KOMEConfigRegistry.readValidated(equivalent)).isEmpty());
-        KOMEConfigRegistry.ValidatedConfig concrete=KOMEConfigRegistry.readValidated(change); assertEntry(KOMEConfigChangeSet.compare(concrete,old),"population","populationCapValue","100.00","TBD"); assertEntry(KOMEConfigChangeSet.compare(concrete,old),"siege","gateHpPerApprovedHour","2.5","TBD");
+        KOMEConfigRegistry.ValidatedConfig concrete=KOMEConfigRegistry.readValidated(change); assertEntry(KOMEConfigChangeSet.compare(concrete,old),"population","populationCapValue","100.00","TBD"); assertEntry(KOMEConfigChangeSet.compare(concrete,old),"siege","gateHpPerApprovedHour","2.5","100.0");
     }
 
     @Test public void guardsAndApplyAreAtomic() throws Exception {
@@ -63,6 +63,21 @@ public class KOMEConfigChangeGuardTest {
         assertEntry(KOMEConfigChangeSet.compare(candidate,KOMEConfigRegistry.currentValidated()),"siege","activeSiegeCheckInWindowMinutes","45","TBD");
         try { File bad=config(); write(bad,"siege","activeSiegeCheckInWindowMinutes","0"); KOMEConfigRegistry.readValidated(bad); fail(); } catch (KOMEConfigValidationException expected) { }
         try { File bad=config(); write(bad,"siege","activeSiegeCheckInWindowMinutes","-1"); KOMEConfigRegistry.readValidated(bad); fail(); } catch (KOMEConfigValidationException expected) { }
+    }
+
+    @Test public void gateSizeBalanceKeysParticipateInCanonicalConfigDiffs() throws Exception {
+        File base=config(); KOMEConfigRegistry.load(base);
+        File candidate=config();
+        write(candidate,"siege","gateBaselineWidth","2");
+        write(candidate,"siege","gateFullBonusWidth","8");
+        write(candidate,"siege","gateMaxSizeMultiplier","2.5");
+        write(candidate,"siege","gateSizeCurveExponent","0.5");
+        KOMEConfigChangeSet diff=KOMEConfigChangeSet.compare(
+            KOMEConfigRegistry.currentValidated(),KOMEConfigRegistry.readValidated(candidate));
+        assertEntry(diff,"siege","gateBaselineWidth","5","2");
+        assertEntry(diff,"siege","gateFullBonusWidth","12","8");
+        assertEntry(diff,"siege","gateMaxSizeMultiplier","1.5","2.5");
+        assertEntry(diff,"siege","gateSizeCurveExponent","0.75","0.5");
     }
 
     @Test public void siegeLocksAreExactSortedAndImmutable() throws Exception {

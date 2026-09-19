@@ -22,7 +22,8 @@ public class KOMECanonicalPopulationNavigationTest {
         assertTrue(actions.contains("activeTab = button.id - ID_TAB_BUILDS")); assertTrue(actions.contains("initGui();"));
         assertFalse(actions.contains("sendPopulationUpdate(")); assertFalse(actions.contains("sendAllocationUpdate("));
         assertFalse(init.contains("initPopulationControls(")); assertFalse(init.contains("initAllocationControls("));
-        assertTrue(source.contains("create.enabled = !selectablePopulationOwners.isEmpty()"));
+        assertTrue(source.contains(
+            "create.enabled = KOMEBuildCreatePresentation.canCreateBuild(selectablePopulationOwners)"));
     }
 
     @Test public void selectedTabRendersOnlyCanonicalPopulationOrExistingBuildContent() throws Exception {

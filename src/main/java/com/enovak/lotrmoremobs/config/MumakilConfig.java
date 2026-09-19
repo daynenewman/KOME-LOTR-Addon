@@ -48,11 +48,11 @@ public final class MumakilConfig {
     private static final boolean DEFAULT_ENABLE_PICKUP_FILTER = true;
     private static final boolean DEFAULT_MORTAL_GANDALF = false;
     private static final boolean DEFAULT_ENABLE_SIEGE_GATES = true;
-    private static final int DEFAULT_GATE_HEALTH = 1000;
+    private static final int DEFAULT_GATE_HEALTH = 200;
     private static final boolean DEFAULT_ENABLE_SIEGE_GATE_BREACH_NPC_RALLY =
             true;
     private static final boolean DEFAULT_ENABLE_BATTLE_RAMS = true;
-    private static final int DEFAULT_RAM_SIEGE_DAMAGE = 100;
+    private static final int DEFAULT_RAM_SIEGE_DAMAGE = 20;
     private static final int DEFAULT_RAM_CARRIER_RESPAWN_DELAY_SECONDS = 30;
     private static final boolean DEFAULT_MODERN_PLAYER_ANIMATIONS = true;
     private static final boolean DEFAULT_NPC_BOMBER_BLOCK_DAMAGE = true;
@@ -569,7 +569,7 @@ public final class MumakilConfig {
                 MIN_GATE_HEALTH,
                 MAX_GATE_HEALTH,
                 "Maximum health assigned to newly created Siege Gates. Existing "
-                        + "gates keep their saved maximum health. Default: 1000. "
+                        + "gates keep their saved maximum health. Default: 200. "
                         + "Restart required: No.",
                 "config.lotrmoremobs.defaultGateHealth"
         );
@@ -627,7 +627,7 @@ public final class MumakilConfig {
                 MIN_RAM_DAMAGE,
                 MAX_RAM_DAMAGE,
                 "Siege damage dealt to a gate by each successful Battle Ram "
-                        + "impact. Default: 100. Restart required: No.",
+                        + "impact. Default: 20. Restart required: No.",
                 "config.lotrmoremobs.ramDamagePerImpact"
         );
         ramCarrierRespawnDelaySeconds = configuration.getInt(

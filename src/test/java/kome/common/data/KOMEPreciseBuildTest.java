@@ -238,7 +238,7 @@ public class KOMEPreciseBuildTest {
             assertEquals("rohan", loaded.conquestTiles.get("T100").currentRulingFaction());
             data = loaded;
         }
-        assertEquals(2, initial.getInteger("BuildDataSchemaVersion"));
+        assertEquals(KOMEPlayerBuild.DATA_SCHEMA_VERSION, initial.getInteger("BuildDataSchemaVersion"));
         assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, initial.getInteger("KOMEDataSchemaVersion"));
         assertEquals(2, initial.getInteger("FactionPopulationDataSchemaVersion"));
         for (KOMEPlayerBuild build : data.builds.values()) {
@@ -291,7 +291,8 @@ public class KOMEPreciseBuildTest {
     @Test public void oldDevelopmentAndOverflowingBuildSchemaAreNotMigrated() {
         KOMEWorldData source = world(); KOMEPlayerBuild build = create(source, KOMEBuildType.NORMAL, Long.MAX_VALUE);
         approve(source, build, build.contributions.get(0));
-        NBTTagCompound old = saved(source); old.setInteger("BuildDataSchemaVersion", 1);
+        NBTTagCompound old = saved(source);
+        old.setInteger("BuildDataSchemaVersion", KOMEPlayerBuild.DATA_SCHEMA_VERSION - 1);
         blocked(() -> new KOMEWorldData("old").readFromNBT(old));
         NBTTagCompound record = build.writeToNBT();
         KOMEBuildContribution excess = new KOMEBuildContribution(); excess.id = "excess";
@@ -303,7 +304,7 @@ public class KOMEPreciseBuildTest {
     @Test public void emptyWorldHasCurrentEmptyBuildSchema() {
         KOMEWorldData empty = new KOMEWorldData("fresh");
         empty.initializeIntegratedWorld(); NBTTagCompound tag = saved(empty);
-        assertEquals(2, tag.getInteger("BuildDataSchemaVersion"));
+        assertEquals(KOMEPlayerBuild.DATA_SCHEMA_VERSION, tag.getInteger("BuildDataSchemaVersion"));
         assertEquals(0, tag.getTagList("Builds", 10).tagCount());
         KOMEWorldData loaded = new KOMEWorldData("loaded"); loaded.readFromNBT(tag);
         assertTrue(loaded.builds.isEmpty()); assertFalse(loaded.initializeIntegratedWorld());

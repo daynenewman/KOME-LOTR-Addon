@@ -51,7 +51,14 @@ public class KOMEConfigRegistryTest {
         assertEquals(24, KOMEConfigRegistry.muster().getArrivalDelayHours());
         assertEquals(KOMEConfigRegistry.EncircledCapitalArrivalPolicy.TBD,
                 KOMEConfigRegistry.muster().getEncircledCapitalArrivalPolicy());
-        assertFalse(KOMEConfigRegistry.siege().getGateHpPerApprovedHour().isPresent());
+        assertTrue(KOMEConfigRegistry.siege().getGateHpPerApprovedHour().isPresent());
+        assertEquals(100.0D, KOMEConfigRegistry.siege().getGateHpPerApprovedHour().getAsDouble(), 0.0D);
+        assertEquals(5, KOMEConfigRegistry.siege().getGateBaselineWidth());
+        assertEquals(5, KOMEConfigRegistry.siege().getGateBaselineHeight());
+        assertEquals(12, KOMEConfigRegistry.siege().getGateFullBonusWidth());
+        assertEquals(12, KOMEConfigRegistry.siege().getGateFullBonusHeight());
+        assertEquals(1.5D, KOMEConfigRegistry.siege().getGateMaxSizeMultiplier(), 0.0D);
+        assertEquals(0.75D, KOMEConfigRegistry.siege().getGateSizeCurveExponent(), 0.0D);
         assertEquals(1, KOMEConfigRegistry.siege().getNormalSegmentSupportMinimumTroops());
         assertEquals(15, KOMEConfigRegistry.siege().getSupportFallbackGraceSeconds());
         assertEquals(KOMEConfigRegistry.PreBreachRepair.TBD,
@@ -275,6 +282,33 @@ public class KOMEConfigRegistryTest {
                 KOMEConfigRegistry.GATE_HP_PER_APPROVED_HOUR, "Infinity");
         invalid(KOMEConfigRegistry.SIEGE_CATEGORY,
                 KOMEConfigRegistry.GATE_HP_PER_APPROVED_HOUR, "unknown");
+    }
+
+    @Test public void customGateSizeBalanceLoadsAndInvalidValuesFailSafely() throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_BASELINE_WIDTH, "2");
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_BASELINE_HEIGHT, "3");
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_FULL_BONUS_WIDTH, "8");
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_FULL_BONUS_HEIGHT, "10");
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_MAX_SIZE_MULTIPLIER, "2.5");
+        write(file, KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_SIZE_CURVE_EXPONENT, "0.5");
+        KOMEConfigRegistry.load(file);
+        assertEquals(2, KOMEConfigRegistry.siege().getGateBaselineWidth());
+        assertEquals(3, KOMEConfigRegistry.siege().getGateBaselineHeight());
+        assertEquals(8, KOMEConfigRegistry.siege().getGateFullBonusWidth());
+        assertEquals(10, KOMEConfigRegistry.siege().getGateFullBonusHeight());
+        assertEquals(2.5D, KOMEConfigRegistry.siege().getGateMaxSizeMultiplier(), 0.0D);
+        assertEquals(0.5D, KOMEConfigRegistry.siege().getGateSizeCurveExponent(), 0.0D);
+
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_BASELINE_WIDTH, "0");
+        invalid(new String[][] {
+            {KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_BASELINE_WIDTH, "3"},
+            {KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_FULL_BONUS_WIDTH, "3"}},
+            KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_FULL_BONUS_WIDTH, "3");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_MAX_SIZE_MULTIPLIER, "0.9");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_MAX_SIZE_MULTIPLIER, "NaN");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_SIZE_CURVE_EXPONENT, "0");
+        invalid(KOMEConfigRegistry.SIEGE_CATEGORY, KOMEConfigRegistry.GATE_SIZE_CURVE_EXPONENT, "Infinity");
     }
 
     @Test

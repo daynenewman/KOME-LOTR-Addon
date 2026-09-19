@@ -85,6 +85,12 @@ public final class KOMEConfigInspection {
         } else if ("siege".equals(category)) {
             KOMEConfigRegistry.SiegeSettings s = snapshot.getSiege();
             add(values, category, "gateHpPerApprovedHour", s.getGateHpPerApprovedHour());
+            add(values, category, "gateBaselineWidth", s.getGateBaselineWidth());
+            add(values, category, "gateBaselineHeight", s.getGateBaselineHeight());
+            add(values, category, "gateFullBonusWidth", s.getGateFullBonusWidth());
+            add(values, category, "gateFullBonusHeight", s.getGateFullBonusHeight());
+            add(values, category, "gateMaxSizeMultiplier", s.getGateMaxSizeMultiplier());
+            add(values, category, "gateSizeCurveExponent", s.getGateSizeCurveExponent());
             add(values, category, "normalSegmentSupportMinimumTroops", s.getNormalSegmentSupportMinimumTroops());
             add(values, category, "supportFallbackGraceSeconds", s.getSupportFallbackGraceSeconds());
             add(values, category, "preBreachRepair", s.getPreBreachRepair());
