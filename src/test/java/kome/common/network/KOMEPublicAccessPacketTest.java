@@ -237,7 +237,7 @@ public class KOMEPublicAccessPacketTest {
         assertTrue(registration.contains("KOMEPacketBuildAction.class, 36, Side.SERVER"));
         assertTrue(registration.contains("IDs 23 and 24 are retired"));
         assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.8-integration-g1"));
-        assertEquals(3, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(4, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
 
     private static String source(String path) throws Exception {

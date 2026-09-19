@@ -105,6 +105,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private String currentRulingFaction = "";
     private String defaultRulingFaction = "";
     private String mapRegion = "";
+    private final List capitalFactions = new ArrayList();
     private boolean claimConfirmationArmed;
     private String claimWarning = "";
     private String claimWarDestination = "";
@@ -174,6 +175,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         this.currentRulingFaction = safe(message.currentRulingFaction);
         this.defaultRulingFaction = safe(message.defaultRulingFaction);
         this.mapRegion = safe(message.mapRegion);
+        this.capitalFactions.addAll(message.capitalFactions);
         claimConfirmationArmed = message.claimConfirmationArmed;
         population = message.population;
         claimWarning = safe(message.claimWarning);
@@ -706,6 +708,16 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         fontRendererObj.drawString("Ruler: " + KOMEGuiTheme.trimToWidth(fontRendererObj, rulingFactionLabel(currentRulingFaction.length() == 0 ? ownerFaction : currentRulingFaction), ownerW - 42), ownerX, y, KOMEGuiTheme.COLOR_TEXT_MUTED);
         String viewer = "Your Faction: " + (hasViewerFaction() ? factionName(viewerFaction) : "No faction");
         fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, viewer, viewerW), viewerX, y, hasViewerFaction() ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_BAD);
+        if (!capitalFactions.isEmpty()) {
+            StringBuilder capital = new StringBuilder("Capital of: ");
+            for (int i = 0; i < capitalFactions.size(); i++) {
+                if (i > 0) capital.append(", ");
+                capital.append(factionName(String.valueOf(capitalFactions.get(i))));
+            }
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj,
+                capital.toString(), panelW - PANEL_MARGIN * 2), leftX, y + 12,
+                KOMEGuiTheme.COLOR_WARN);
+        }
     }
 
     private void drawBuildTab(int mouseX, int mouseY) {

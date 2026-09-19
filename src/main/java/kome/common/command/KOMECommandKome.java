@@ -7,6 +7,8 @@ import com.lotrcharactercreation.network.ModNetwork;
 import kome.common.KOMEReflection;
 import kome.common.config.KOMEConfigInspection;
 import kome.common.data.KOMEAlliance;
+import kome.common.data.KOMEFactionCapitalRecord;
+import kome.common.data.KOMEFactionCapitalService;
 import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMEWar;
 import kome.common.data.KOMEAuditService;
@@ -19,6 +21,7 @@ import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.world.World;
 import lotr.common.fac.LOTRFaction;
 
 import java.util.ArrayList;
@@ -34,7 +37,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
     @Override
     public String getCommandUsage(ICommandSender sender) {
         if (!hasStaffPermission(sender)) return "/kome [gui|help|tile <tileId>]";
-        return "/kome character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
+        return "/kome capital <list|get faction|relocate faction here> | character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
     @Override
@@ -61,6 +64,10 @@ public class KOMECommandKome extends KOMEPublicCommand {
         // Remaining root functions are administrative. Reject before accessing world state.
         requireStaff(sender);
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
+        if (args.length >= 2 && "capital".equalsIgnoreCase(args[0])) {
+            processCapital(sender, args, data);
+            return;
+        }
         if (args.length >= 1 && "audit".equalsIgnoreCase(args[0])) {
             requireStaff(sender);
             if (args.length == 2 && "summary".equalsIgnoreCase(args[1])) {
@@ -226,10 +233,20 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 "conquest",
                 "waypointdefaults",
                 "adminmarkers",
+                "capital",
                 "ruler",
                 "audit",
                 "repair");
         }
+        if (args.length == 2 && "capital".equalsIgnoreCase(args[0]))
+            return getListOfStringsMatchingLastWord(args, "list", "get", "relocate");
+        if (args.length == 3 && "capital".equalsIgnoreCase(args[0])
+                && ("get".equalsIgnoreCase(args[1])
+                    || "relocate".equalsIgnoreCase(args[1])))
+            return getListOfStringsMatchingLastWord(args, factionSuggestions());
+        if (args.length == 4 && "capital".equalsIgnoreCase(args[0])
+                && "relocate".equalsIgnoreCase(args[1]))
+            return getListOfStringsMatchingLastWord(args, "here");
         if (args.length == 2 && "audit".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "list", "summary");
         if (args.length == 2 && "repair".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "stewardship", "war");
         if (args.length == 3 && "repair".equalsIgnoreCase(args[0]) && "stewardship".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, factionSuggestions());
@@ -296,6 +313,62 @@ public class KOMECommandKome extends KOMEPublicCommand {
 
     boolean hasStaffPermission(ICommandSender sender) {
         return sender != null && sender.canCommandSenderUseCommand(2, getCommandName());
+    }
+
+    private void processCapital(ICommandSender sender, String[] args, KOMEWorldData data) {
+        if (args.length == 2 && "list".equalsIgnoreCase(args[1])) {
+            for (String faction : KOMEAlliance.allFactionKeys()) {
+                KOMEFactionCapitalRecord record =
+                    KOMEFactionCapitalService.getCapital(data, faction);
+                sender.addChatMessage(new ChatComponentText(formatCapital(data, record)));
+            }
+            return;
+        }
+        if (args.length == 3 && "get".equalsIgnoreCase(args[1])) {
+            String faction = resolveSupportedFaction(args[2]);
+            KOMEFactionCapitalRecord record =
+                KOMEFactionCapitalService.getCapital(data, faction);
+            if (record == null) throw new WrongUsageException(
+                "Authoritative capital is missing for " + faction + ".");
+            sender.addChatMessage(new ChatComponentText(formatCapital(data, record)));
+            return;
+        }
+        if (args.length == 4 && "relocate".equalsIgnoreCase(args[1])
+                && "here".equalsIgnoreCase(args[3])) {
+            if (!(sender instanceof EntityPlayerMP))
+                throw new WrongUsageException("Capital relocation here requires an in-world operator.");
+            String faction = resolveSupportedFaction(args[2]);
+            KOMEFactionCapitalService.RelocationResult result =
+                KOMEFactionCapitalService.relocateHere(data, (EntityPlayerMP) sender,
+                    faction, System.currentTimeMillis());
+            if (!result.success) throw new WrongUsageException(result.reason);
+            sender.addChatMessage(new ChatComponentText("Relocated "
+                + KOMEAlliance.displayFactionName(faction) + " capital from "
+                + result.oldRecord.getCapitalTileId() + " to "
+                + result.newRecord.getCapitalTileId() + " at "
+                + coordinates(result.newRecord) + "."));
+            return;
+        }
+        throw new WrongUsageException(
+            "/kome capital <list|get <faction>|relocate <faction> here>");
+    }
+
+    private String formatCapital(KOMEWorldData data, KOMEFactionCapitalRecord record) {
+        if (record == null) return "Missing capital record.";
+        MinecraftServer server = MinecraftServer.getServer();
+        World world = server == null ? null
+            : server.worldServerForDimension(record.getDeploymentDimensionId());
+        return record.getFactionId() + " (" + KOMEAlliance.displayFactionName(
+            record.getFactionId()) + "): tile=" + record.getCapitalTileId()
+            + ";anchor=" + coordinates(record) + ";source=" + record.getSource()
+            + ";actor=" + record.getActor() + ";readiness="
+            + KOMEFactionCapitalService.readiness(data, record.getFactionId(), world);
+    }
+
+    private String coordinates(KOMEFactionCapitalRecord record) {
+        return "dim " + record.getDeploymentDimensionId() + " / "
+            + record.getDeploymentX() + ", " + record.getDeploymentY()
+            + ", " + record.getDeploymentZ();
     }
 
     private void processRuler(ICommandSender sender, String[] args) {

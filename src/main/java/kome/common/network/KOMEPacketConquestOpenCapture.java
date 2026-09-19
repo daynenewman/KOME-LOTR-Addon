@@ -125,6 +125,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         packet.currentRulingFaction = tile.projectRulingFaction();
         packet.defaultRulingFaction = tile.defaultRulingFaction;
         packet.mapRegion = tile.mapRegion;
+        packet.capitalFactions.addAll(
+            kome.common.data.KOMEFactionCapitalService.getCapitalFactionsForTile(data, tile.id));
         packet.population = kome.common.data.KOMEPopulationProjection.of(data, ownerFaction);
         populateSelectablePopulationOwners(packet, data, viewerFaction, tile);
         populateBuildViews(packet, data, player, tile, viewerFaction, ownerFaction, viewerId);

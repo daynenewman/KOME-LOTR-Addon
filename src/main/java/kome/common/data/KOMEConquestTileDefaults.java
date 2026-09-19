@@ -96,11 +96,15 @@ public class KOMEConquestTileDefaults {
     public static String getTileIdAtMapPosition(double mapX, double mapZ) {
         ensureLoaded();
         try {
-            if (cachedIdsByColor == null || cachedTileIdImage == null || !LOTRGenLayerWorld.loadedBiomeImage()) {
+            if (cachedIdsByColor == null || cachedTileIdImage == null) {
                 return "";
             }
-            int x = (int) Math.round(mapX * cachedTileIdImage.getWidth() / (double) LOTRGenLayerWorld.imageWidth);
-            int y = (int) Math.round(mapZ * cachedTileIdImage.getHeight() / (double) LOTRGenLayerWorld.imageHeight);
+            int mapWidth = LOTRGenLayerWorld.imageWidth > 0
+                ? LOTRGenLayerWorld.imageWidth : cachedTileIdImage.getWidth();
+            int mapHeight = LOTRGenLayerWorld.imageHeight > 0
+                ? LOTRGenLayerWorld.imageHeight : cachedTileIdImage.getHeight();
+            int x = (int) Math.round(mapX * cachedTileIdImage.getWidth() / (double) mapWidth);
+            int y = (int) Math.round(mapZ * cachedTileIdImage.getHeight() / (double) mapHeight);
             return getNearestTileIdAtPixel(cachedIdsByColor, cachedTileIdImage, x, y, 8);
         } catch (Throwable ignored) {
             return "";
@@ -273,9 +277,6 @@ public class KOMEConquestTileDefaults {
             int[] overlayPixels = loadImagePixels(MAP_OVERLAY, widthOf(image), heightOf(image));
             int[] roadPixels = loadImagePixels(MAP_ROADS, widthOf(image), heightOf(image));
             int[] bridgeMarkerPixels = loadImagePixels(MAP_BRIDGE_MARKERS, widthOf(image), heightOf(image));
-            if (!LOTRGenLayerWorld.loadedBiomeImage()) {
-                new LOTRGenLayerWorld();
-            }
             if (LOTRGenLayerWorld.imageWidth <= 0 || LOTRGenLayerWorld.imageHeight <= 0) {
                 return;
             }

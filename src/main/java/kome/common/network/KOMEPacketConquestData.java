@@ -11,6 +11,8 @@ import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
 import kome.common.data.KOMEConquestRouteEdge;
 import kome.common.data.KOMEConquestTile;
+import kome.common.data.KOMEFactionCapitalRecord;
+import kome.common.data.KOMEFactionCapitalService;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEPopulationType;
 import kome.common.data.KOMEPlayerBuild;
@@ -43,6 +45,17 @@ public class KOMEPacketConquestData implements IMessage {
             }
         }
         data.setTag("ConquestTiles", list);
+        NBTTagList capitalList = new NBTTagList();
+        for (String faction : KOMEAlliance.allFactionKeys()) {
+            KOMEFactionCapitalRecord capital =
+                KOMEFactionCapitalService.getCapital(worldData, faction);
+            if (capital == null) continue;
+            NBTTagCompound summary = new NBTTagCompound();
+            summary.setString("Faction", faction);
+            summary.setString("Tile", capital.getCapitalTileId());
+            capitalList.appendTag(summary);
+        }
+        data.setTag("FactionCapitals", capitalList);
         NBTTagList movementList = new NBTTagList();
         for (KOMEArmyMovementOrder order : worldData.armyMovements.values()) {
             if (order != null && order.isMoving()) {
@@ -119,6 +132,16 @@ public class KOMEPacketConquestData implements IMessage {
                 tileTags.add(tile.projectToNBT());
             }
         }
+        List capitalTags = new ArrayList();
+        for (String faction : KOMEAlliance.allFactionKeys()) {
+            KOMEFactionCapitalRecord capital =
+                KOMEFactionCapitalService.getCapital(worldData, faction);
+            if (capital == null) continue;
+            NBTTagCompound summary = new NBTTagCompound();
+            summary.setString("Faction", faction);
+            summary.setString("Tile", capital.getCapitalTileId());
+            capitalTags.add(summary);
+        }
 
         List movementTags = new ArrayList();
         for (KOMEArmyMovementOrder order : worldData.armyMovements.values()) {
@@ -157,7 +180,8 @@ public class KOMEPacketConquestData implements IMessage {
             if (build != null && build.active && build.markerVisible) buildMarkerTags.add(buildMarkerTag(build));
         }
 
-        int total = tileTags.size() + movementTags.size() + companyTags.size() + troopTags.size()
+        int total = tileTags.size() + capitalTags.size() + movementTags.size()
+            + companyTags.size() + troopTags.size()
             + routeEdgeTags.size() + waypointLinkTags.size() + buildMarkerTags.size();
         if (total == 0) {
             KOMEPacketHandler.network.sendTo(new KOMEPacketConquestData(new NBTTagCompound(), true, true), player);
@@ -165,7 +189,8 @@ public class KOMEPacketConquestData implements IMessage {
         }
 
         boolean first = true;
-        first = sendListChunks(player, "ConquestTiles", tileTags, first, movementTags.isEmpty() && companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
+        first = sendListChunks(player, "ConquestTiles", tileTags, first, capitalTags.isEmpty() && movementTags.isEmpty() && companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
+        first = sendListChunks(player, "FactionCapitals", capitalTags, first, movementTags.isEmpty() && companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
         first = sendListChunks(player, "ArmyMovements", movementTags, first, companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
         first = sendListChunks(player, "ArmyCompanies", companyTags, first, troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
         first = sendListChunks(player, "TroopSummaries", troopTags, first, routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
@@ -204,6 +229,16 @@ public class KOMEPacketConquestData implements IMessage {
             Map<String, KOMEConquestRouteEdge> routeEdges = new HashMap<String, KOMEConquestRouteEdge>();
             Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId = new HashMap<String, KOMETileWaypointLink>();
             Map<String, KOMEPlayerBuild> builds = new HashMap<String, KOMEPlayerBuild>();
+            Map<String, String> capitalTilesByFaction = new HashMap<String, String>();
+            NBTTagList capitalList = KOMEPopulationWire.compoundRows(snapshot.data, "FactionCapitals");
+            for (int i = 0; i < KOMEPopulationWire.count(capitalList.tagCount()); i++) {
+                NBTTagCompound row = capitalList.getCompoundTagAt(i);
+                String faction = KOMEAlliance.normalizeFactionKey(row.getString("Faction"));
+                String tile = KOMEConquestTile.normalizeId(row.getString("Tile"));
+                if (KOMEAlliance.allFactionKeys().contains(faction)
+                        && KOMEConquestTile.isCanonicalTileId(tile))
+                    capitalTilesByFaction.put(faction, tile);
+            }
             NBTTagList companyList = KOMEPopulationWire.compoundRows(snapshot.data, "ArmyCompanies");
             for (int i = 0; i < KOMEPopulationWire.count(companyList.tagCount()); i++) {
                 KOMEArmyCompany company = new KOMEArmyCompany();
@@ -264,6 +299,8 @@ public class KOMEPacketConquestData implements IMessage {
                 KOMEClientData.INSTANCE.armyCompanies.putAll(armyCompanies);
                 if (snapshot.reset) KOMEClientData.INSTANCE.conquestTiles.clear();
                 KOMEClientData.INSTANCE.conquestTiles.putAll(conquestTiles);
+                if (snapshot.reset) KOMEClientData.INSTANCE.capitalTilesByFaction.clear();
+                KOMEClientData.INSTANCE.capitalTilesByFaction.putAll(capitalTilesByFaction);
                 if (snapshot.reset) KOMEClientData.INSTANCE.armyMovements.clear();
                 KOMEClientData.INSTANCE.armyMovements.putAll(armyMovements);
                 if (snapshot.reset) KOMEClientData.INSTANCE.troopSummaries.clear();

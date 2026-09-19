@@ -29,17 +29,22 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 3 retires development-era player, tile and allocation population ledgers. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 3;
+    /** Schema 4 adds mandatory authoritative faction capitals; no development migration exists. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 4;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
     public static final int BUILD_DATA_SCHEMA_VERSION = KOMEPlayerBuild.DATA_SCHEMA_VERSION;
     public static final int FACTION_POPULATION_DATA_SCHEMA_VERSION = 2;
     public static final int POPULATION_PAYOUT_DATA_SCHEMA_VERSION = 1;
+    public static final int FACTION_CAPITAL_DATA_SCHEMA_VERSION =
+        KOMEFactionCapitalRecord.DATA_SCHEMA_VERSION;
 
     /** The sole authoritative faction-wide spendable population banks. */
     public final Map<String, KOMEFactionPopulation> factionPopulations = new HashMap<String, KOMEFactionPopulation>();
+    /** Package-private authority; normal readers and all mutations go through KOMEFactionCapitalService. */
+    final Map<String, KOMEFactionCapitalRecord> factionCapitals =
+        new HashMap<String, KOMEFactionCapitalRecord>();
     /** KOM-7 payout state; rate remains derived from Builds and configuration. */
     public boolean populationPayoutInitialized;
     public long lastPopulationPayoutBoundaryMillis = -1L;
@@ -131,12 +136,29 @@ public class KOMEWorldData extends WorldSavedData {
      * Runs once from the authoritative server-tick START lifecycle after worlds and MapStorage exist.
      * Access through {@link #get(World)} deliberately does not invoke this method.
      */
-    public synchronized boolean initializeIntegratedWorld() {
+    public synchronized boolean initializeIntegratedWorld(World world) {
         ensureWritable();
         if (integratedRootInitialized) {
             return false;
         }
+        Map<String, KOMEFactionCapitalRecord> prepared =
+            KOMEFactionCapitalService.prepareFreshDefaults(world, System.currentTimeMillis());
         applyWaypointDefaults(!conquestDefaultsInitialized);
+        KOMEFactionCapitalService.initializeFresh(this, prepared);
+        integratedRootInitialized = true;
+        super.markDirty();
+        return true;
+    }
+
+    /**
+     * Metadata-only unit-test lifecycle. Production callers must provide the live World so
+     * capital Y and standing safety are resolved from terrain.
+     */
+    public synchronized boolean initializeIntegratedWorld() {
+        ensureWritable();
+        if (integratedRootInitialized) return false;
+        applyWaypointDefaults(!conquestDefaultsInitialized);
+        KOMEFactionCapitalService.initializeMetadataFixture(this);
         integratedRootInitialized = true;
         super.markDirty();
         return true;
@@ -164,6 +186,31 @@ public class KOMEWorldData extends WorldSavedData {
         if (writeBlocked) {
             throw new IllegalStateException("KOME world data is write-blocked after a failed schema load: "
                 + loadFailureReason);
+        }
+    }
+
+    /** Atomic in-memory publication for a complete capital map plus its central audit rows. */
+    synchronized final void publishFactionCapitals(
+            Map<String, KOMEFactionCapitalRecord> replacement, List<KOMEAuditEntry> audits) {
+        ensureWritable();
+        Map<String, KOMEFactionCapitalRecord> old =
+            new HashMap<String, KOMEFactionCapitalRecord>(factionCapitals);
+        List<KOMEAuditEntry> oldAudit = new ArrayList<KOMEAuditEntry>(centralAudit);
+        boolean dirty = super.isDirty();
+        try {
+            factionCapitals.clear();
+            factionCapitals.putAll(replacement);
+            if (audits != null) {
+                for (KOMEAuditEntry audit : audits) KOMEAuditService.appendPrepared(this, audit);
+            }
+            markDirty();
+        } catch (RuntimeException failure) {
+            factionCapitals.clear();
+            factionCapitals.putAll(old);
+            centralAudit.clear();
+            centralAudit.addAll(oldAudit);
+            super.setDirty(dirty);
+            throw failure;
         }
     }
 
@@ -1876,6 +1923,36 @@ public class KOMEWorldData extends WorldSavedData {
         publishLoadedState(candidate);
     }
 
+    private Map<String, KOMEFactionCapitalRecord> readCanonicalFactionCapitals(
+            NBTTagCompound nbt) {
+        if (!nbt.hasKey("FactionCapitalDataSchemaVersion")
+                || nbt.getInteger("FactionCapitalDataSchemaVersion")
+                    != FACTION_CAPITAL_DATA_SCHEMA_VERSION)
+            throw new IllegalArgumentException("Missing or unsupported faction-capital sub-schema.");
+        if (!nbt.hasKey("FactionCapitals"))
+            throw new IllegalArgumentException("Mandatory faction-capital section is missing.");
+        Map<String, KOMEFactionCapitalRecord> loaded =
+            new HashMap<String, KOMEFactionCapitalRecord>();
+        NBTTagList list = nbt.getTagList("FactionCapitals", 10);
+        for (int i = 0; i < list.tagCount(); i++) {
+            loadSection = "FactionCapitals[" + i + "]";
+            NBTTagCompound row = list.getCompoundTagAt(i);
+            if (!row.hasKey("Key") || !row.hasKey("Record"))
+                throw new IllegalArgumentException("Capital row is missing map key or record.");
+            String rawKey = row.getString("Key");
+            String key = KOMEAlliance.normalizeFactionKey(rawKey);
+            if (!rawKey.equals(key))
+                throw new IllegalArgumentException("Capital map key is noncanonical: " + rawKey);
+            KOMEFactionCapitalRecord record =
+                KOMEFactionCapitalRecord.readFromNBT(row.getCompoundTag("Record"));
+            if (!key.equals(record.getFactionId()))
+                throw new IllegalArgumentException("Capital map key does not match record faction.");
+            if (loaded.put(key, record) != null)
+                throw new IllegalArgumentException("Duplicate faction capital: " + key);
+        }
+        return KOMEFactionCapitalService.validateCompleteSet(loaded);
+    }
+
     /** Unregistered, short-lived candidate; all existing recovery/reconciliation runs here. */
     private void readCandidateFromNBT(NBTTagCompound nbt) {
         if (writeBlocked) {
@@ -1913,7 +1990,12 @@ public class KOMEWorldData extends WorldSavedData {
         Map<String, KOMEPlayerBuild> loadedBuilds = readCanonicalBuilds(nbt);
         loadSection = "PopulationPayout";
         Map<String, Long> loadedRemainders = readCanonicalPayoutState(nbt);
+        loadSection = "FactionCapitals";
+        Map<String, KOMEFactionCapitalRecord> loadedCapitals =
+            readCanonicalFactionCapitals(nbt);
         integratedRootInitialized = true;
+        factionCapitals.clear();
+        factionCapitals.putAll(loadedCapitals);
         factionPopulations.clear();
         populationPayoutInitialized = nbt.getBoolean("PopulationPayoutInitialized");
         lastPopulationPayoutBoundaryMillis = populationPayoutInitialized ? nbt.getLong("LastPopulationPayoutBoundaryMillis") : -1L;
@@ -2485,6 +2567,8 @@ public class KOMEWorldData extends WorldSavedData {
      * This is coherent in-memory publication, not a crash-durable filesystem transaction.
      */
     private void publishLoadedState(KOMEWorldData candidate) {
+        factionCapitals.clear();
+        factionCapitals.putAll(candidate.factionCapitals);
         factionPopulations.clear();
         factionPopulations.putAll(candidate.factionPopulations);
         populationPayoutRemainders.clear();
@@ -2658,11 +2742,25 @@ public class KOMEWorldData extends WorldSavedData {
     public void writeToNBT(NBTTagCompound nbt) {
         ensureWritable();
         validatePopulationPayoutState(); // reject before touching the destination tag
+        Map<String, KOMEFactionCapitalRecord> capitalsForWrite =
+            factionCapitals.isEmpty() && !integratedRootInitialized
+                ? KOMEFactionCapitalDefaults.metadataFixture(0L)
+                : KOMEFactionCapitalService.validateCompleteSet(factionCapitals);
         nbt.setInteger(KOME_DATA_SCHEMA_KEY, KOME_DATA_SCHEMA_VERSION);
         nbt.removeTag("TradeProduceSlotsMaximum");
         nbt.removeTag("AllianceProduceSlots");
         nbt.setInteger("AllianceDataSchemaVersion", ALLIANCE_DATA_SCHEMA_VERSION);
         nbt.setInteger("BuildDataSchemaVersion", BUILD_DATA_SCHEMA_VERSION);
+        nbt.setInteger("FactionCapitalDataSchemaVersion",
+            FACTION_CAPITAL_DATA_SCHEMA_VERSION);
+        NBTTagList capitalList = new NBTTagList();
+        for (String faction : KOMEAlliance.allFactionKeys()) {
+            NBTTagCompound row = new NBTTagCompound();
+            row.setString("Key", faction);
+            row.setTag("Record", capitalsForWrite.get(faction).writeToNBT());
+            capitalList.appendTag(row);
+        }
+        nbt.setTag("FactionCapitals", capitalList);
         nbt.setBoolean("ProgressionEnabled", progressionEnabled);
         nbt.setInteger("MovementSecondsPerTileOverride", Math.max(0, movementSecondsPerTileOverride));
         nbt.setInteger("MovementTotalSecondsOverride", Math.max(0, movementTotalSecondsOverride));

@@ -815,6 +815,11 @@ public class KOMEConquestMapOverlay {
         if (owner.length() > 0) {
             lines.add("Current Ruling Faction: " + KOMEAlliance.displayFactionName(owner));
         }
+        for (Map.Entry<String, String> capital
+                : KOMEClientData.INSTANCE.capitalTilesByFaction.entrySet()) {
+            if (tileId.equals(KOMEConquestTile.normalizeId(capital.getValue())))
+                lines.add("Capital of: " + KOMEAlliance.displayFactionName(capital.getKey()));
+        }
         KOMETileWaypointLink waypointLink = (KOMETileWaypointLink) KOMEClientData.INSTANCE.tileWaypointLinksByTileId.get(tileId);
         lines.add("LOTR Waypoint: " + (waypointLink == null ? "Missing" : waypointLink.displayName()));
         if (summary != null) {
