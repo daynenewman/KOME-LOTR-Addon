@@ -4,6 +4,9 @@ public class KOMEClientData extends KOMEWorldData {
     public static final KOMEClientData INSTANCE = new KOMEClientData();
     public final java.util.Map<String, KOMETileTroopSummary> troopSummaries = new java.util.HashMap<String, KOMETileTroopSummary>();
     public final java.util.List<KOMEUnitMapMarker> unitMapMarkers = new java.util.ArrayList<KOMEUnitMapMarker>();
+    /** Public projection only: faction -> capital tile. Exact deployment anchors remain server-only. */
+    public final java.util.Map<String, String> capitalTilesByFaction =
+        new java.util.HashMap<String, String>();
     public int conquestRevision;
     public boolean clientViewerIsAdmin;
 
@@ -15,6 +18,7 @@ public class KOMEClientData extends KOMEWorldData {
         progressions.clear();
         hiredUnits.clear();
         conquestTiles.clear();
+        capitalTilesByFaction.clear();
         activeRecruitmentTiles.clear();
         tileWaypointLinksByTileId.clear();
         routeEdges.clear();

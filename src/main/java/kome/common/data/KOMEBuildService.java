@@ -443,8 +443,11 @@ public final class KOMEBuildService {
     }
 
     public static String tileAtWorldCoordinates(double worldX, double worldZ) {
-        double mapX = worldX / LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originX;
-        double mapZ = worldZ / LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originZ;
+        double scale = LOTRGenLayerWorld.scale > 0 ? LOTRGenLayerWorld.scale : 128.0D;
+        double originX = LOTRGenLayerWorld.imageWidth > 0 ? LOTRGenLayerWorld.originX : 809.5D;
+        double originZ = LOTRGenLayerWorld.imageHeight > 0 ? LOTRGenLayerWorld.originZ : 729.5D;
+        double mapX = worldX / scale + originX;
+        double mapZ = worldZ / scale + originZ;
         return KOMEConquestTile.normalizeId(KOMEConquestTileDefaults.getTileIdAtMapPosition(mapX, mapZ));
     }
 

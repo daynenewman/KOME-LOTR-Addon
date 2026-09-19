@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 public class KOMEWorldDataSchemaTest {
     private static final Set<String> REQUIRED_CURRENT_DEV_ROOT_TAGS = new HashSet<String>(Arrays.asList(
         "KOMEDataSchemaVersion", "AllianceDataSchemaVersion", "BuildDataSchemaVersion",
+        "FactionCapitalDataSchemaVersion", "FactionCapitals",
         "FactionPopulationDataSchemaVersion", "ProgressionEnabled",
         "MovementSecondsPerTileOverride", "MovementTotalSecondsOverride", "MovementStepDelaySeconds",
         "PopulationPayoutDataSchemaVersion", "PopulationPayoutTimezone", "PopulationPayoutLocalTime", "NextWarSequence", "NextBuildSequence",
@@ -60,7 +61,7 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
         assertEquals("KOMEDataSchemaVersion", KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        assertEquals(3, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(4, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
             saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
     }
@@ -128,7 +129,7 @@ public class KOMEWorldDataSchemaTest {
 
         IllegalStateException failure = expectReadFailure(data, unsupported);
         assertTrue(failure.getMessage().contains("schema 1"));
-        assertTrue(failure.getMessage().contains("expected 3"));
+        assertTrue(failure.getMessage().contains("expected 4"));
         assertTrue(data.isWriteBlocked());
         assertFalse(data.isDirty());
         assertTrue(data.conquestTiles.isEmpty());

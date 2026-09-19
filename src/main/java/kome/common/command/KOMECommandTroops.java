@@ -3381,24 +3381,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private static boolean ensureChunkLoaded(World world, int x, int z) {
-        if (world == null) {
-            return false;
-        }
-        int chunkX = x >> 4;
-        int chunkZ = z >> 4;
-        try {
-            IChunkProvider provider = world.getChunkProvider();
-            if (provider != null && !provider.chunkExists(chunkX, chunkZ)) {
-                Chunk chunk = provider.provideChunk(chunkX, chunkZ);
-                if (chunk == null) {
-                    return false;
-                }
-            }
-            world.getChunkFromChunkCoords(chunkX, chunkZ);
-        } catch (Throwable ignored) {
-            return false;
-        }
-        return world.blockExists(x, 64, z);
+        return kome.common.data.KOMEStrategicDeploymentResolver
+            .ensureChunkAvailable(world, x, z);
     }
 
     private static boolean markPendingSpawn(KOMEArmyMovementOrder order, String code, String reason, long nowMillis) {

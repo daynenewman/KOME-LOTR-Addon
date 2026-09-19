@@ -45,6 +45,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
     public String currentRulingFaction = "";
     public String defaultRulingFaction = "";
     public String mapRegion = "";
+    public final List<String> capitalFactions = new ArrayList<String>();
     public boolean claimConfirmationArmed;
     public String claimWarning = "";
     public String claimWarDestination = "";
@@ -96,6 +97,10 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         currentRulingFaction = KOMEPopulationWire.readText(buf);
         defaultRulingFaction = KOMEPopulationWire.readText(buf);
         mapRegion = KOMEPopulationWire.readText(buf);
+        capitalFactions.clear();
+        int capitalCount = KOMEPopulationWire.count(buf.readInt());
+        for (int i = 0; i < capitalCount; i++)
+            capitalFactions.add(KOMEPopulationWire.readText(buf));
         claimConfirmationArmed = buf.readBoolean();
         claimWarning = KOMEPopulationWire.readText(buf);
         claimWarDestination = KOMEPopulationWire.readText(buf);
@@ -155,6 +160,9 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             KOMEPopulationWire.writeText(buf, currentRulingFaction);
             KOMEPopulationWire.writeText(buf, defaultRulingFaction);
             KOMEPopulationWire.writeText(buf, mapRegion);
+            buf.writeInt(KOMEPopulationWire.count(capitalFactions.size()));
+            for (String faction : capitalFactions)
+                KOMEPopulationWire.writeText(buf, faction == null ? "" : faction);
             buf.writeBoolean(claimConfirmationArmed);
             KOMEPopulationWire.writeText(buf, claimWarning == null ? "" : claimWarning);
             KOMEPopulationWire.writeText(buf, claimWarDestination == null ? "" : claimWarDestination);
