@@ -282,7 +282,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (buildMode == BUILD_MODE_LIST) {
             GuiButton create = new KOMEGuiButton(ID_BUILD_NEW, panelX + panelW - PANEL_MARGIN - 132, footerY,
                 132, 22, "Create Build");
-            create.enabled = !selectablePopulationOwners.isEmpty();
+            create.enabled = KOMEBuildCreatePresentation.canCreateBuild(selectablePopulationOwners);
             buttonList.add(create);
             int visible = buildVisibleRows();
             buildScroll = clamp(buildScroll, 0, Math.max(0, buildViews.size() - visible));

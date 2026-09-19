@@ -165,6 +165,13 @@ public class KOMEPlayerBuild {
         return record != null && defensiveGateRecords.remove(record);
     }
 
+    /** Lifecycle hook for deactivation/reclassification; intentionally preserves the G# high-water. */
+    int clearDefensiveGateRecords() {
+        int removed = defensiveGateRecords.size();
+        defensiveGateRecords.clear();
+        return removed;
+    }
+
     public Map<String, Long> activeCentiHoursByFaction() {
         Map<String, Long> result = new HashMap<String, Long>();
         if (!active) return result;

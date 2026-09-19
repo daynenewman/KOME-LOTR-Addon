@@ -483,7 +483,8 @@ public final class KOMEBuildService {
     private static void softDelete(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
             String actorName, String reason, long nowMillis) {
         requireActive(data, build);
-        long removedHours = build.approvedCentiHours();
+        long removedCentiHours = build.approvedCentiHours();
+        int removedGateLinks = build.clearDefensiveGateRecords();
         for (KOMEBuildContribution contribution : build.contributions) {
             if (contribution == null || contribution.isRemoved()
                     || KOMEBuildContribution.REJECTED.equals(contribution.status)) continue;
@@ -501,7 +502,9 @@ public final class KOMEBuildService {
         build.deletedByName = safe(actorName);
         build.deletionReason = safe(reason);
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
-        audit(data, build, "DELETE", actor, actorName, reason, "approvedCentiHoursRemoved=" + removedHours, nowMillis);
+        audit(data, build, "DELETE", actor, actorName, reason,
+            "approvedCentiHoursRemoved=" + removedCentiHours
+                + ";defensiveGateLinksRemoved=" + removedGateLinks, nowMillis);
     }
 
 

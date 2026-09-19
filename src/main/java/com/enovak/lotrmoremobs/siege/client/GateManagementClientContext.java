@@ -2,6 +2,7 @@ package com.enovak.lotrmoremobs.siege.client;
 
 import com.enovak.lotrmoremobs.siege.client.gui.GuiGateManagement;
 import com.enovak.lotrmoremobs.siege.network.GateManagementOpenPacket;
+import com.enovak.lotrmoremobs.siege.management.KOMEGateManagementSnapshot;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -20,8 +21,9 @@ public final class GateManagementClientContext {
     private static boolean canManage;
     private static boolean canManagePlayerAccess;
     private static boolean canAdminister;
+    private static KOMEGateManagementSnapshot komeSnapshot;
 
-    private static boolean active;
+    private static final Session SESSION = new Session();
 
     private static final Map<UUID, String> accessNames =
             new HashMap<UUID, String>();
@@ -90,6 +92,7 @@ public final class GateManagementClientContext {
 
         canAdminister =
                 packet.canAdminister();
+        komeSnapshot = packet.getKomeSnapshot();
 
         if (!matchingAccessSnapshot) {
             accessNames.clear();
@@ -104,8 +107,7 @@ public final class GateManagementClientContext {
 
         GateFinalizedInspectionClientContext.clear();
 
-        active =
-                true;
+        SESSION.open();
 
         minecraft.displayGuiScreen(
                 new GuiGateManagement(
@@ -125,7 +127,7 @@ public final class GateManagementClientContext {
          * Ignore access snapshots belonging to another gate while this
          * management screen is active.
          */
-        if (active
+        if (SESSION.isActive()
                 && (packetDimension
                 != dimensionId
                 || x != controllerX
@@ -184,8 +186,21 @@ public final class GateManagementClientContext {
     }
 
     public static void clear() {
-        active =
-                false;
+        SESSION.clear();
+        clearState();
+    }
+
+    /** A stale GUI may only close the exact management-context generation it owns. */
+    public static boolean clearIfOwned(long ownedGeneration) {
+        if (!SESSION.clearIfOwned(ownedGeneration)) {
+            return false;
+        }
+        clearState();
+        return true;
+    }
+
+    private static void clearState() {
+        komeSnapshot = null;
 
         accessNames.clear();
 
@@ -196,7 +211,15 @@ public final class GateManagementClientContext {
     }
 
     public static boolean isActive() {
-        return active;
+        return SESSION.isActive();
+    }
+
+    public static long getGeneration() {
+        return SESSION.getGeneration();
+    }
+
+    public static boolean isCurrentGeneration(long ownedGeneration) {
+        return SESSION.isOwnedBy(ownedGeneration);
     }
 
     public static int getDimensionId() {
@@ -225,5 +248,43 @@ public final class GateManagementClientContext {
 
     public static boolean canAdminister() {
         return canAdminister;
+    }
+
+    public static KOMEGateManagementSnapshot getKomeSnapshot() { return komeSnapshot; }
+
+    /** Package-visible deterministic token model used by the client lifecycle tests. */
+    static final class Session {
+        private long generation;
+        private boolean active;
+
+        long open() {
+            active = true;
+            return ++generation;
+        }
+
+        void clear() {
+            active = false;
+            ++generation;
+        }
+
+        boolean clearIfOwned(long ownedGeneration) {
+            if (!isOwnedBy(ownedGeneration)) {
+                return false;
+            }
+            clear();
+            return true;
+        }
+
+        boolean isOwnedBy(long ownedGeneration) {
+            return active && generation == ownedGeneration;
+        }
+
+        boolean isActive() {
+            return active;
+        }
+
+        long getGeneration() {
+            return generation;
+        }
     }
 }

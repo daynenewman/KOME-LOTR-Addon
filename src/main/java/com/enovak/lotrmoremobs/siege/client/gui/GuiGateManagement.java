@@ -10,6 +10,7 @@ import com.enovak.lotrmoremobs.siege.gate.GateHinge;
 import com.enovak.lotrmoremobs.siege.gate.GateControlMode;
 import com.enovak.lotrmoremobs.siege.gate.GateLeaf;
 import com.enovak.lotrmoremobs.siege.management.FinalizedGateSnapshot;
+import com.enovak.lotrmoremobs.siege.management.KOMEGateManagementSnapshot;
 import com.enovak.lotrmoremobs.siege.network.GateManagementActionPacket;
 import com.enovak.lotrmoremobs.siege.network.GateEditStartPacket;
 import com.enovak.lotrmoremobs.siege.network.GateEditCancelPacket;
@@ -60,6 +61,16 @@ public class GuiGateManagement extends GuiScreen {
     private static final int PLAYER_ACCESS_BUTTON = 42;
     private static final int CONTROLLER_APPEARANCE_BUTTON = 43;
     private static final int GATE_CONTROL_MODE_BUTTON = 44;
+    private static final int KOME_PAGE_BUTTON = 45;
+    private static final int KOME_BACK_BUTTON = 46;
+    private static final int KOME_UNLINK_BUTTON = 47;
+    private static final int KOME_REFRESH_BUTTON = 48;
+    private static final int KOME_CONFIRM_BUTTON = 49;
+    private static final int KOME_PREVIOUS_BUTTON = 50;
+    private static final int KOME_NEXT_BUTTON = 51;
+    private static final int KOME_LINK_BUTTON_BASE = KOMEGateActionButtonIds.LINK_BASE;
+    private static final int KOME_RELINK_BUTTON_BASE = KOMEGateActionButtonIds.RELINK_BASE;
+    private static final int KOME_OPTIONS_PER_PAGE = 5;
     private static final int BUILD_TIP_WIDGET_ID = -2000;
 
     private static final ResourceLocation COIN_TEXTURE =
@@ -74,6 +85,10 @@ public class GuiGateManagement extends GuiScreen {
     private GuiTextField maxHealthField;
     private String selectedFactionName = "";
     private boolean structurePage;
+    private boolean komePage;
+    private int komeOptionPage;
+    private GuiTextField komeWidthField;
+    private GuiTextField komeHeightField;
     private FinalizedGateSnapshot structureSnapshot;
     private GateStructureInspectionViewModel structureViewModel;
     private int selectedStructureLayer;
@@ -83,11 +98,14 @@ public class GuiGateManagement extends GuiScreen {
     private boolean leavingForPlayerAccess;
     private boolean leavingForAppearancePicker;
     private GuiGateBuildTipWidget buildTipWidget;
+    private final long contextGeneration;
 
     public GuiGateManagement() {
+        this(false);
     }
 
     public GuiGateManagement(boolean openStructurePage) {
+        contextGeneration = GateManagementClientContext.getGeneration();
         structurePage = openStructurePage;
     }
 
@@ -100,6 +118,10 @@ public class GuiGateManagement extends GuiScreen {
             initStructurePage();
             return;
         }
+        if (komePage) {
+            initKomePage();
+            return;
+        }
 
         TileEntitySiegeGate gate =
                 getGate();
@@ -110,7 +132,7 @@ public class GuiGateManagement extends GuiScreen {
         int top =
                 Math.max(
                         8,
-                        height / 2 - 125
+                        height / 2 - 140
                 );
 
         /*
@@ -202,10 +224,10 @@ public class GuiGateManagement extends GuiScreen {
          * [ appearance icon ] [ Access & Roles ] [ Edit Gate ]
          */
         int actionRowX =
-                centerX - 123;
+                centerX - 140;
 
         int actionRowY =
-                top + 142;
+                top + 170;
 
         buttonList.add(
                 new GuiGateAppearanceButton(
@@ -220,7 +242,7 @@ public class GuiGateManagement extends GuiScreen {
                         PLAYER_ACCESS_BUTTON,
                         actionRowX + 26,
                         actionRowY,
-                        128,
+                        92,
                         20,
                         "Access & Roles"
                 )
@@ -229,13 +251,17 @@ public class GuiGateManagement extends GuiScreen {
         buttonList.add(
                 new GuiButton(
                         STRUCTURE_BUTTON,
-                        actionRowX + 160,
+                        actionRowX + 124,
                         actionRowY,
-                        86,
+                        70,
                         20,
                         "Edit Gate"
                 )
         );
+
+        KOMEGateManagementSnapshot kome = GateManagementClientContext.getKomeSnapshot();
+        buttonList.add(new GuiButton(KOME_PAGE_BUTTON, actionRowX + 200, actionRowY,
+            80, 20, kome != null && kome.isLinked() ? "KOME Details" : "KOME Link"));
 
         /*
          * Repair is one full-width stateful control instead of a button plus
@@ -245,7 +271,7 @@ public class GuiGateManagement extends GuiScreen {
                 new GuiGateRepairButton(
                         BEGIN_REPAIR_BUTTON,
                         centerX - 90,
-                        top + 176,
+                        top + 198,
                         180,
                         20,
                         "Repair Gate"
@@ -256,7 +282,7 @@ public class GuiGateManagement extends GuiScreen {
                 new GuiButton(
                         CLOSE_BUTTON,
                         centerX - 45,
-                        top + 216,
+                        top + 230,
                         90,
                         20,
                         "Close"
@@ -269,6 +295,63 @@ public class GuiGateManagement extends GuiScreen {
             GuiButton button
     ) {
         if (!button.enabled) {
+            return;
+        }
+
+        if (button.id == KOME_PAGE_BUTTON) {
+            if (GateManagementClientContext.canAdminister()) {
+                komePage = true;
+                komeOptionPage = 0;
+                initGui();
+            }
+            return;
+        } else if (button.id == KOME_BACK_BUTTON) {
+            komePage = false;
+            initGui();
+            return;
+        } else if (button.id == KOME_PREVIOUS_BUTTON) {
+            if (komeOptionPage > 0) --komeOptionPage;
+            initGui();
+            return;
+        } else if (button.id == KOME_NEXT_BUTTON) {
+            ++komeOptionPage;
+            initGui();
+            return;
+        } else if (button.id == KOME_UNLINK_BUTTON) {
+            KOMEGateManagementSnapshot snapshot = GateManagementClientContext.getKomeSnapshot();
+            if (snapshot != null) sendAction(GateManagementActionPacket.KOME_UNLINK, 0,
+                snapshot.getBuildId() + "|" + snapshot.getRecordId());
+            return;
+        } else if (button.id == KOME_REFRESH_BUTTON) {
+            KOMEGateManagementSnapshot snapshot = GateManagementClientContext.getKomeSnapshot();
+            if (snapshot != null) sendAction(GateManagementActionPacket.KOME_REFRESH, 0,
+                snapshot.getBuildId() + "|" + snapshot.getRecordId());
+            return;
+        } else if (button.id == KOME_CONFIRM_BUTTON) {
+            KOMEGateManagementSnapshot snapshot = GateManagementClientContext.getKomeSnapshot();
+            if (snapshot != null && komeWidthField != null && komeHeightField != null) {
+                sendAction(GateManagementActionPacket.KOME_CONFIRM_DIMENSIONS, 0,
+                    snapshot.getBuildId() + "|" + snapshot.getRecordId() + "|"
+                        + parseInteger(komeWidthField.getText()) + "|"
+                        + parseInteger(komeHeightField.getText()));
+            }
+            return;
+        } else if (isKomeLinkButtonId(button.id)) {
+            KOMEGateManagementSnapshot snapshot = GateManagementClientContext.getKomeSnapshot();
+            int index = button.id - KOME_LINK_BUTTON_BASE;
+            if (snapshot != null && index >= 0 && index < snapshot.getEligibleBuilds().size()) {
+                sendAction(GateManagementActionPacket.KOME_LINK, 0,
+                    snapshot.getEligibleBuilds().get(index).getBuildId());
+            }
+            return;
+        } else if (isKomeRelinkButtonId(button.id)) {
+            KOMEGateManagementSnapshot snapshot = GateManagementClientContext.getKomeSnapshot();
+            int index = button.id - KOME_RELINK_BUTTON_BASE;
+            if (snapshot != null && index >= 0 && index < snapshot.getRelinkOptions().size()) {
+                KOMEGateManagementSnapshot.RelinkOption option = snapshot.getRelinkOptions().get(index);
+                sendAction(GateManagementActionPacket.KOME_RELINK, 0,
+                    option.getBuildId() + "|" + option.getRecordId());
+            }
             return;
         }
 
@@ -574,6 +657,14 @@ public class GuiGateManagement extends GuiScreen {
     ) {
         drawDefaultBackground();
 
+        if (komePage) {
+            drawKomePage();
+            super.drawScreen(mouseX, mouseY, partialTicks);
+            if (komeWidthField != null) komeWidthField.drawTextBox();
+            if (komeHeightField != null) komeHeightField.drawTextBox();
+            return;
+        }
+
         if (structurePage) {
             drawStructurePage(
                     mouseX,
@@ -603,7 +694,7 @@ public class GuiGateManagement extends GuiScreen {
         int top =
                 Math.max(
                         8,
-                        height / 2 - 125
+                        height / 2 - 140
                 );
 
         if (gate == null
@@ -726,6 +817,19 @@ public class GuiGateManagement extends GuiScreen {
                 top + 132
         );
 
+        KOMEGateManagementSnapshot kome = GateManagementClientContext.getKomeSnapshot();
+        if (kome != null) {
+            drawCenteredString(fontRendererObj,
+                "KOME Defensive Build: " + (kome.isLinked()
+                    ? displayKomeBuild(kome.getBuildName(), kome.getBuildId()) : "Not Linked"),
+                centerX, top + 139, 0xCCCCCC);
+            drawCenteredString(fontRendererObj, "Gate Size: " + kome.getGateSizeLabel(),
+                centerX, top + 150, 0xBBBBBB);
+            drawCenteredString(fontRendererObj,
+                (kome.isLinked() ? "Projected Max HP: " : "Max HP: ")
+                    + kome.getProjectedMaxHpLabel(), centerX, top + 161, 0xBBBBBB);
+        }
+
         List<String> selectableFactions =
                 getSelectableFactionNames();
 
@@ -774,6 +878,8 @@ public class GuiGateManagement extends GuiScreen {
                 CONTROLLER_APPEARANCE_BUTTON,
                 canManage
         );
+
+        setButtonEnabled(KOME_PAGE_BUTTON, GateManagementClientContext.canAdminister());
 
         nameField.setEnabled(
                 canManage
@@ -830,6 +936,12 @@ public class GuiGateManagement extends GuiScreen {
     public void updateScreen() {
         super.updateScreen();
 
+        if (komePage) {
+            if (komeWidthField != null) komeWidthField.updateCursorCounter();
+            if (komeHeightField != null) komeHeightField.updateCursorCounter();
+            return;
+        }
+
         if (waitingForEditStart
                 && GateEditClientContext
                 .isActive()) {
@@ -883,6 +995,17 @@ public class GuiGateManagement extends GuiScreen {
             char typedChar,
             int keyCode
     ) {
+        if (komePage) {
+            if (keyCode == org.lwjgl.input.Keyboard.KEY_ESCAPE) {
+                komePage = false;
+                initGui();
+                return;
+            }
+            if ((komeWidthField != null && komeWidthField.textboxKeyTyped(typedChar, keyCode))
+                    || (komeHeightField != null && komeHeightField.textboxKeyTyped(typedChar, keyCode))) return;
+            super.keyTyped(typedChar, keyCode);
+            return;
+        }
         /*
          * ESC while EDIT_EXISTING is open means "discard changes".
          *
@@ -1042,6 +1165,12 @@ public class GuiGateManagement extends GuiScreen {
             int mouseY,
             int mouseButton
     ) {
+        if (komePage) {
+            if (komeWidthField != null) komeWidthField.mouseClicked(mouseX, mouseY, mouseButton);
+            if (komeHeightField != null) komeHeightField.mouseClicked(mouseX, mouseY, mouseButton);
+            super.mouseClicked(mouseX, mouseY, mouseButton);
+            return;
+        }
         if (structurePage) {
             super.mouseClicked(
                     mouseX,
@@ -1091,7 +1220,17 @@ public class GuiGateManagement extends GuiScreen {
 
     @Override
     public void onGuiClosed() {
-        if (!structurePage) {
+        /*
+         * displayGuiScreen closes the previous screen after a replacement packet has already
+         * installed its newer context. A stale screen must not commit fields or clear state
+         * belonging to that newer authoritative generation.
+         */
+        if (!GateManagementClientContext.isCurrentGeneration(contextGeneration)) {
+            super.onGuiClosed();
+            return;
+        }
+
+        if (!structurePage && !komePage) {
             commitNameField();
 
             commitMaxHealthField();
@@ -1126,7 +1265,7 @@ public class GuiGateManagement extends GuiScreen {
             }
 
             GateManagementClientContext
-                    .clear();
+                    .clearIfOwned(contextGeneration);
 
             super.onGuiClosed();
 
@@ -1137,7 +1276,7 @@ public class GuiGateManagement extends GuiScreen {
                 .clear();
 
         GateManagementClientContext
-                .clear();
+                .clearIfOwned(contextGeneration);
 
         super.onGuiClosed();
     }
@@ -1359,6 +1498,143 @@ public class GuiGateManagement extends GuiScreen {
                         "Commit Edit"
                 )
         );
+    }
+
+    static boolean isKomeLinkButtonId(int id) {
+        return KOMEGateActionButtonIds.isLink(id);
+    }
+
+    static boolean isKomeRelinkButtonId(int id) {
+        return KOMEGateActionButtonIds.isRelink(id);
+    }
+
+    private void initKomePage() {
+        nameField = null;
+        maxHealthField = null;
+        komeWidthField = null;
+        komeHeightField = null;
+        int centerX = width / 2;
+        int top = Math.max(8, height / 2 - 120);
+        KOMEGateManagementSnapshot snapshot = GateManagementClientContext.getKomeSnapshot();
+        if (snapshot == null) {
+            buttonList.add(new GuiButton(KOME_BACK_BUTTON, centerX - 55, top + 190,
+                110, 20, "Back"));
+            return;
+        }
+
+        if (snapshot.isLinked()) {
+            buttonList.add(new GuiButton(KOME_UNLINK_BUTTON, centerX - 104, top + 72,
+                100, 20, "Unlink"));
+            if (!snapshot.isRelinkRequired()) {
+                buttonList.add(new GuiButton(KOME_REFRESH_BUTTON, centerX + 4, top + 72,
+                    100, 20, "Reinspect"));
+            }
+            if (snapshot.needsDimensionConfirmation()) {
+                komeWidthField = createField(centerX - 82, top + 108, 64, 3,
+                    Integer.toString(Math.max(1, snapshot.getSuggestedWidth())));
+                komeHeightField = createField(centerX + 18, top + 108, 64, 3,
+                    Integer.toString(Math.max(1, snapshot.getSuggestedHeight())));
+                buttonList.add(new GuiButton(KOME_CONFIRM_BUTTON, centerX - 90, top + 136,
+                    180, 20, "Confirm Effective Size"));
+            }
+        }
+
+        List<KOMEGateManagementSnapshot.BuildOption> builds = snapshot.isLinked()
+            ? java.util.Collections.<KOMEGateManagementSnapshot.BuildOption>emptyList()
+            : snapshot.getEligibleBuilds();
+        List<KOMEGateManagementSnapshot.RelinkOption> relinks =
+            snapshot.isLinked() && !snapshot.isRelinkRequired()
+                ? java.util.Collections.<KOMEGateManagementSnapshot.RelinkOption>emptyList()
+                : snapshot.getRelinkOptions();
+        int total = builds.size() + relinks.size();
+        int maxPage = total == 0 ? 0 : (total - 1) / KOME_OPTIONS_PER_PAGE;
+        komeOptionPage = Math.max(0, Math.min(komeOptionPage, maxPage));
+        int start = komeOptionPage * KOME_OPTIONS_PER_PAGE;
+        int listTop = snapshot.isLinked() ? top + 102 : top + 68;
+        for (int slot = 0; slot < KOME_OPTIONS_PER_PAGE && start + slot < total; slot++) {
+            int combinedIndex = start + slot;
+            String label;
+            int id;
+            if (combinedIndex < builds.size()) {
+                label = builds.get(combinedIndex).getLabel();
+                id = KOME_LINK_BUTTON_BASE + combinedIndex;
+            } else {
+                int relinkIndex = combinedIndex - builds.size();
+                label = relinks.get(relinkIndex).getLabel();
+                id = KOME_RELINK_BUTTON_BASE + relinkIndex;
+            }
+            label = fontRendererObj.trimStringToWidth(label, 306);
+            buttonList.add(new GuiButton(id, centerX - 160,
+                listTop + slot * 24, 320, 20, label));
+        }
+        if (total > KOME_OPTIONS_PER_PAGE) {
+            buttonList.add(new GuiButton(KOME_PREVIOUS_BUTTON, centerX - 106, top + 190,
+                100, 20, "Previous"));
+            buttonList.add(new GuiButton(KOME_NEXT_BUTTON, centerX + 6, top + 190,
+                100, 20, "Next"));
+            getButton(KOME_PREVIOUS_BUTTON).enabled = komeOptionPage > 0;
+            getButton(KOME_NEXT_BUTTON).enabled = komeOptionPage < maxPage;
+        }
+        buttonList.add(new GuiButton(KOME_BACK_BUTTON, centerX - 55, top + 216,
+            110, 20, "Back"));
+    }
+
+    private void drawKomePage() {
+        int centerX = width / 2;
+        int top = Math.max(8, height / 2 - 120);
+        KOMEGateManagementSnapshot snapshot = GateManagementClientContext.getKomeSnapshot();
+        drawCenteredString(fontRendererObj, "KOME Defensive Build Link", centerX, top,
+            0xFFFFFF);
+        if (snapshot == null) {
+            drawCenteredString(fontRendererObj, "KOME gate information is unavailable.",
+                centerX, top + 32, 0xFF7777);
+            return;
+        }
+        if (snapshot.isLinked()) {
+            drawCenteredString(fontRendererObj,
+                "Build: " + displayKomeBuild(snapshot.getBuildName(), snapshot.getBuildId())
+                    + "   Record: " + snapshot.getRecordId(), centerX, top + 18, 0xCCCCCC);
+            drawCenteredString(fontRendererObj,
+                snapshot.isRelinkRequired() ? "Physical Gate: Relink required"
+                    : "Gate Size: " + snapshot.getGateSizeLabel(),
+                centerX, top + 32, snapshot.isRelinkRequired() ? 0xFFAA55 : 0xBBBBBB);
+            drawCenteredString(fontRendererObj,
+                "Projected Max HP: " + snapshot.getProjectedMaxHpLabel(),
+                centerX, top + 46, 0xBBBBBB);
+            if (snapshot.needsDimensionConfirmation()) {
+                drawCenteredString(fontRendererObj,
+                    "Automatic geometry is not trustworthy; confirm effective integers.",
+                    centerX, top + 96, 0xFFCC55);
+                drawString(fontRendererObj, "Width", centerX - 120, top + 114, 0xBBBBBB);
+                drawString(fontRendererObj, "Height", centerX - 15, top + 114, 0xBBBBBB);
+            } else if (snapshot.isRelinkRequired()) {
+                drawCenteredString(fontRendererObj, "Select the broken logical record below.",
+                    centerX, top + 90, 0xBBBBBB);
+            }
+        } else if (snapshot.isRelinkRequired()) {
+            drawCenteredString(fontRendererObj, "Physical Gate: Relink required",
+                centerX, top + 18, 0xFFAA55);
+            drawCenteredString(fontRendererObj, "Select the broken logical record below.",
+                centerX, top + 32, 0xBBBBBB);
+            drawCenteredString(fontRendererObj, "Max HP: Unavailable — relink required",
+                centerX, top + 46, 0xBBBBBB);
+        } else {
+            drawCenteredString(fontRendererObj, "KOME Defensive Build: Not Linked",
+                centerX, top + 18, 0xCCCCCC);
+            drawCenteredString(fontRendererObj, "Gate Size: " + snapshot.getGateSizeLabel(),
+                centerX, top + 32, 0xBBBBBB);
+            drawCenteredString(fontRendererObj, "Max HP: " + snapshot.getProjectedMaxHpLabel(),
+                centerX, top + 46, 0xBBBBBB);
+            drawCenteredString(fontRendererObj,
+                "Select any active DEFENSIVE Build, or a broken record to Relink.",
+                centerX, top + 56, 0x999999);
+        }
+    }
+
+    private static String displayKomeBuild(String name, String id) {
+        String safeName = name == null || name.trim().isEmpty() ? "Unnamed Build" : name.trim();
+        String safeId = id == null ? "" : id.trim();
+        return safeId.length() == 0 ? safeName : safeName + " (" + safeId + ")";
     }
 
     private void drawBuildTipTooltip(

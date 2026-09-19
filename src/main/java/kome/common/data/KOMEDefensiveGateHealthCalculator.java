@@ -28,6 +28,13 @@ public final class KOMEDefensiveGateHealthCalculator {
      */
     public static Result calculate(KOMEPlayerBuild parentBuild, String gateRecordId,
             OptionalDouble gateHpPerApprovedHour) {
+        return calculate(parentBuild, gateRecordId, gateHpPerApprovedHour,
+            KOMEGateSizeCalculator.Parameters.defaults());
+    }
+
+    public static Result calculate(KOMEPlayerBuild parentBuild, String gateRecordId,
+            OptionalDouble gateHpPerApprovedHour,
+            KOMEGateSizeCalculator.Parameters sizeParameters) {
         if (parentBuild == null || !parentBuild.isDefensive()) {
             return Result.automaticUnavailable(Status.NOT_DEFENSIVE_BUILD, null);
         }
@@ -61,22 +68,39 @@ public final class KOMEDefensiveGateHealthCalculator {
 
         final double sizeMultiplier;
         try {
-            sizeMultiplier = KOMEGateSizeCalculator.multiplier(width, height);
+            sizeMultiplier = KOMEGateSizeCalculator.multiplier(width, height, sizeParameters);
         } catch (IllegalArgumentException ignored) {
             return Result.automaticUnavailable(Status.INVALID_DIMENSIONS, gateRecord);
         }
 
-        BigDecimal approvedHours = BigDecimal.valueOf(parentBuild.approvedDefensiveCentiHours())
-            .divide(BigDecimal.valueOf(KOMEBuildTime.CENTI_HOURS_PER_HOUR));
-        BigDecimal calculatedMaxHp = approvedHours
-            .multiply(BigDecimal.valueOf(hpPerHour))
-            .multiply(BigDecimal.valueOf(sizeMultiplier))
-            .stripTrailingZeros();
+        BigDecimal calculatedMaxHp = calculateAutomaticMaxHp(
+            parentBuild.approvedDefensiveCentiHours(), hpPerHour, sizeMultiplier);
         boolean overridden = gateRecord.hasAdminMaxHpOverride();
         BigDecimal effectiveMaxHp = overridden
             ? BigDecimal.valueOf(gateRecord.adminMaxHpOverride.intValue()) : calculatedMaxHp;
         return Result.available(calculatedMaxHp, effectiveMaxHp, sizeMultiplier, width, height,
             gateRecord.effectiveDimensionProvenance(), overridden);
+    }
+
+    /** Pure shared projection used by concise selection UI without creating a placeholder record. */
+    public static BigDecimal calculateAutomaticMaxHp(long approvedDefensiveCentiHours,
+            double hpPerApprovedHour, int width, int height,
+            KOMEGateSizeCalculator.Parameters sizeParameters) {
+        if (Double.isNaN(hpPerApprovedHour) || Double.isInfinite(hpPerApprovedHour)
+                || hpPerApprovedHour <= 0.0D) {
+            throw new IllegalArgumentException("HP per approved hour must be finite and positive.");
+        }
+        double sizeMultiplier = KOMEGateSizeCalculator.multiplier(width, height, sizeParameters);
+        return calculateAutomaticMaxHp(approvedDefensiveCentiHours, hpPerApprovedHour, sizeMultiplier);
+    }
+
+    private static BigDecimal calculateAutomaticMaxHp(long approvedDefensiveCentiHours,
+            double hpPerApprovedHour, double sizeMultiplier) {
+        BigDecimal approvedHours = BigDecimal.valueOf(
+            KOMEBuildTime.requireNonnegative(approvedDefensiveCentiHours))
+            .divide(BigDecimal.valueOf(KOMEBuildTime.CENTI_HOURS_PER_HOUR));
+        return approvedHours.multiply(BigDecimal.valueOf(hpPerApprovedHour))
+            .multiply(BigDecimal.valueOf(sizeMultiplier)).stripTrailingZeros();
     }
 
     /** Immutable result that keeps Phase 1 free of integer rounding and physical-gate limits. */

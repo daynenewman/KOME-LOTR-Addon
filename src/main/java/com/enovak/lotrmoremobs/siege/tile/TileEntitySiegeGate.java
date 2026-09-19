@@ -58,7 +58,7 @@ import net.minecraft.init.Blocks;
 
 public class TileEntitySiegeGate extends TileEntity {
 
-    public static final int DEFAULT_MAX_HEALTH = 1000;
+    public static final int DEFAULT_MAX_HEALTH = 200;
     public static final int REPAIR_HP_PER_COIN = 10;
     public static final int REPAIR_HEALTH_PER_SECOND = 5;
     public static final int REPAIR_TICKS_PER_HEALTH =
@@ -144,6 +144,8 @@ public class TileEntitySiegeGate extends TileEntity {
             "GateStateStartTick";
     private static final String NBT_CURRENT_HEALTH = "CurrentHealth";
     private static final String NBT_MAX_HEALTH = "MaxHealth";
+    private static final String NBT_KOME_HEALTH_INITIALIZED =
+            "KOMEHealthInitialized";
     private static final String NBT_REPAIR_ACTIVE = "RepairActive";
     private static final String NBT_REPAIR_PURCHASED_HEALTH =
             "RepairPurchasedHealth";
@@ -207,6 +209,7 @@ public class TileEntitySiegeGate extends TileEntity {
     private boolean gateStateTimingPresent;
     private int currentHealth = getConfiguredDefaultMaxHealth();
     private int maxHealth = getConfiguredDefaultMaxHealth();
+    private boolean komeHealthInitialized;
     private boolean repairActive;
     private int repairPurchasedHealth;
     private int repairAppliedHealth;
@@ -342,6 +345,10 @@ public class TileEntitySiegeGate extends TileEntity {
         nbt.setLong(NBT_GATE_STATE_START_TICK, gateStateStartTick);
         nbt.setInteger(NBT_CURRENT_HEALTH, currentHealth);
         nbt.setInteger(NBT_MAX_HEALTH, maxHealth);
+        nbt.setBoolean(
+                NBT_KOME_HEALTH_INITIALIZED,
+                komeHealthInitialized
+        );
         writeRepairStateToNBT(nbt);
         writeAccessStateToNBT(nbt);
         writeControllerAppearanceToNBT(nbt);
@@ -369,6 +376,9 @@ public class TileEntitySiegeGate extends TileEntity {
                 ? nbt.getLong(NBT_GATE_STATE_START_TICK)
                 : 0L;
         readHealthFromNBT(nbt);
+        komeHealthInitialized = nbt.getBoolean(
+                NBT_KOME_HEALTH_INITIALIZED
+        );
         readRepairStateFromNBT(nbt);
         readAccessStateFromNBT(nbt);
         readControllerAppearanceFromNBT(nbt);
@@ -2032,6 +2042,75 @@ public class TileEntitySiegeGate extends TileEntity {
         );
 
         return true;
+    }
+
+    /**
+     * Server-side KOME health application for a validated link or relink. The physical gate's
+     * persistent marker permits a full heal only on its first-ever KOME initialization.
+     */
+    public boolean canInitializeKomeLinkedHealth(
+            int requestedMaxHealth
+    ) {
+        return worldObj != null
+                && !worldObj.isRemote
+                && isFinalized()
+                && !persistentOwnershipSuspended
+                && !isPersistentGateMutationLocked()
+                && gateState != GateState.BREACHED
+                && currentHealth > 0
+                && requestedMaxHealth >= 1
+                && requestedMaxHealth <= MAX_HEALTH_OVERRIDE;
+    }
+
+    public boolean initializeKomeLinkedHealth(
+            int requestedMaxHealth
+    ) {
+        if (!canInitializeKomeLinkedHealth(
+                requestedMaxHealth
+        )) {
+            return false;
+        }
+
+        applyKomeLinkedHealthState(
+                requestedMaxHealth
+        );
+
+        markDirty();
+
+        worldObj.markBlockForUpdate(
+                xCoord,
+                yCoord,
+                zCoord
+        );
+
+        SiegeNetwork.syncGateHealth(
+                this
+        );
+
+        SiegeNetwork.syncGateRepair(
+                this
+        );
+
+        return true;
+    }
+
+    private void applyKomeLinkedHealthState(
+            int requestedMaxHealth
+    ) {
+        boolean firstInitialization = !komeHealthInitialized;
+        maxHealth = requestedMaxHealth;
+        currentHealth = firstInitialization
+                ? requestedMaxHealth
+                : Math.min(currentHealth, requestedMaxHealth);
+        komeHealthInitialized = true;
+
+        if (firstInitialization && repairActive) {
+            clearRepairState();
+        }
+    }
+
+    public boolean isKomeHealthInitialized() {
+        return komeHealthInitialized;
     }
 
     public void applySynchronizedAccessState(

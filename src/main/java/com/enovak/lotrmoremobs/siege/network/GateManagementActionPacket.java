@@ -52,6 +52,11 @@ public class GateManagementActionPacket
 
     /* value: 0 = Automatic, 1 = Locked Closed, 2 = Held Open. */
     public static final int SET_GATE_CONTROL_MODE = 13;
+    public static final int KOME_LINK = 14;
+    public static final int KOME_UNLINK = 15;
+    public static final int KOME_REFRESH = 16;
+    public static final int KOME_RELINK = 17;
+    public static final int KOME_CONFIRM_DIMENSIONS = 18;
 
     public static final int ACCESS_LEVEL_ACCESS = 0;
     public static final int ACCESS_LEVEL_EDITOR = 1;
@@ -235,7 +240,12 @@ public class GateManagementActionPacket
                 || action
                 == SET_FACTION_ACCESS
                 || action
-                == SET_GATE_CONTROL_MODE;
+                == SET_GATE_CONTROL_MODE
+                || action == KOME_LINK
+                || action == KOME_UNLINK
+                || action == KOME_REFRESH
+                || action == KOME_RELINK
+                || action == KOME_CONFIRM_DIMENSIONS;
     }
 
     public static boolean isCoalescibleUpdate(
@@ -355,6 +365,12 @@ public class GateManagementActionPacket
 
             maximumLength =
                     MAX_BLOCK_REGISTRY_NAME_LENGTH;
+
+        } else if (action == KOME_LINK || action == KOME_UNLINK
+                || action == KOME_REFRESH || action == KOME_RELINK
+                || action == KOME_CONFIRM_DIMENSIONS) {
+
+            maximumLength = 192;
 
         } else {
             maximumLength =

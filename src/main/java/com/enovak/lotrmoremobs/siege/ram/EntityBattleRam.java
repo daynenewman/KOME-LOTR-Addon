@@ -45,7 +45,7 @@ public class EntityBattleRam extends net.minecraft.entity.EntityCreature
     private static final int COMMANDER_TELEPORT_VERTICAL_SEARCH = 2;
     public static final int CREW_SLOT_COUNT = 10;
     public static final int CREW_RESPAWN_DELAY_TICKS = 600;
-    public static final int RAM_SIEGE_DAMAGE = 100;
+    public static final int RAM_SIEGE_DAMAGE = 20;
     public static final int ATTACK_INTERVAL_TICKS = 60;
     public static final int ATTACK_IMPACT_TICK = 30;
 

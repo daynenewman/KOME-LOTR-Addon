@@ -14,8 +14,8 @@ import static org.junit.Assert.assertTrue;
 public class KOMEDefensiveGateHealthCalculatorTest {
     @Test public void everyNestedGateUsesFullParentApprovedHourBaseIndependently() {
         KOMEPlayerBuild build = defensiveBuild(10000L);
-        KOMEDefensiveGateRecord first = addAutomaticGate(build, 3, 4);
-        KOMEDefensiveGateRecord second = addAutomaticGate(build, 3, 4);
+        KOMEDefensiveGateRecord first = addAutomaticGate(build, 5, 5);
+        KOMEDefensiveGateRecord second = addAutomaticGate(build, 5, 5);
 
         KOMEDefensiveGateHealthCalculator.Result firstResult = calculate(build, first, 84.0D);
         KOMEDefensiveGateHealthCalculator.Result secondResult = calculate(build, second, 84.0D);
@@ -30,25 +30,25 @@ public class KOMEDefensiveGateHealthCalculatorTest {
 
     @Test public void approvedPlaytestDefaultProducesCanonicalSizeExamples() {
         KOMEPlayerBuild build = defensiveBuild(10000L);
-        assertDecimalEquals("10000", calculate(build, addAutomaticGate(build, 3, 4), 100.0D)
+        assertDecimalEquals("10000", calculate(build, addAutomaticGate(build, 5, 5), 100.0D)
             .getCalculatedMaxHp());
-        assertDecimalEquals("5000", calculate(build, addAutomaticGate(build, 2, 3), 100.0D)
+        assertDecimalEquals("4800", calculate(build, addAutomaticGate(build, 3, 4), 100.0D)
             .getCalculatedMaxHp());
-        assertDecimalEquals("20000", calculate(build, addAutomaticGate(build, 9, 11), 100.0D)
+        assertDecimalEquals("15000", calculate(build, addAutomaticGate(build, 12, 12), 100.0D)
             .getCalculatedMaxHp());
     }
 
     @Test public void approvedCentiHoursAreConvertedToRealHoursExactly() {
         KOMEPlayerBuild build = defensiveBuild(150L);
         KOMEDefensiveGateHealthCalculator.Result result =
-            calculate(build, addAutomaticGate(build, 3, 4), 10.0D);
+            calculate(build, addAutomaticGate(build, 5, 5), 10.0D);
         assertTrue(result.isCalculatedMaxHpAvailable());
         assertDecimalEquals("15", result.getCalculatedMaxHp());
     }
 
     @Test public void missingConfiguredRateStillMakesAutomaticAndEffectiveUnavailableWithoutOverride() {
         KOMEPlayerBuild build = defensiveBuild(1000L);
-        KOMEDefensiveGateRecord gate = addAutomaticGate(build, 3, 4);
+        KOMEDefensiveGateRecord gate = addAutomaticGate(build, 5, 5);
         KOMEDefensiveGateHealthCalculator.Result result = KOMEDefensiveGateHealthCalculator.calculate(
             build, gate.id, OptionalDouble.empty());
         assertFalse(result.isCalculatedMaxHpAvailable());
@@ -62,7 +62,7 @@ public class KOMEDefensiveGateHealthCalculatorTest {
         for (double invalid : new double[] {0.0D, -1.0D, Double.NaN,
                 Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
             KOMEPlayerBuild build = defensiveBuild(1000L);
-            KOMEDefensiveGateRecord gate = addAutomaticGate(build, 3, 4);
+            KOMEDefensiveGateRecord gate = addAutomaticGate(build, 5, 5);
             KOMEDefensiveGateHealthCalculator.Result result = calculate(build, gate, invalid);
             assertFalse(result.isCalculatedMaxHpAvailable());
             assertFalse(result.isEffectiveMaxHpAvailable());
@@ -79,7 +79,7 @@ public class KOMEDefensiveGateHealthCalculatorTest {
             missingResult.getStatus());
 
         KOMEPlayerBuild invalidBuild = defensiveBuild(1000L);
-        KOMEDefensiveGateRecord invalid = addAutomaticGate(invalidBuild, 3, 4);
+        KOMEDefensiveGateRecord invalid = addAutomaticGate(invalidBuild, 5, 5);
         invalid.detectedWidth = -1;
         KOMEDefensiveGateHealthCalculator.Result invalidResult = calculate(invalidBuild, invalid, 10.0D);
         assertEquals(KOMEDefensiveGateHealthCalculator.Status.INVALID_DIMENSIONS,
@@ -88,7 +88,7 @@ public class KOMEDefensiveGateHealthCalculatorTest {
 
     @Test public void resultSeparatesCalculatedAndOverriddenEffectiveMaxHp() {
         KOMEPlayerBuild build = defensiveBuild(10000L);
-        KOMEDefensiveGateRecord gate = addAutomaticGate(build, 3, 4);
+        KOMEDefensiveGateRecord gate = addAutomaticGate(build, 5, 5);
         gate.setAdminMaxHpOverride(10000, null, "Admin", 10L, "Reviewed value");
         KOMEDefensiveGateHealthCalculator.Result result = calculate(build, gate, 84.0D);
         assertTrue(result.isCalculatedMaxHpAvailable());
@@ -100,7 +100,7 @@ public class KOMEDefensiveGateHealthCalculatorTest {
 
     @Test public void overrideSuppliesEffectiveHpWhenConfiguredRateIsMissing() {
         KOMEPlayerBuild build = defensiveBuild(10000L);
-        KOMEDefensiveGateRecord gate = addAutomaticGate(build, 3, 4);
+        KOMEDefensiveGateRecord gate = addAutomaticGate(build, 5, 5);
         gate.setAdminMaxHpOverride(5000, null, "Admin", 10L, "Temporary value");
         KOMEDefensiveGateHealthCalculator.Result result = KOMEDefensiveGateHealthCalculator.calculate(
             build, gate.id, OptionalDouble.empty());
@@ -128,7 +128,7 @@ public class KOMEDefensiveGateHealthCalculatorTest {
 
     @Test public void overrideSuppliesEffectiveHpWhenAutomaticGeometryIsInvalid() {
         KOMEPlayerBuild build = defensiveBuild(10000L);
-        KOMEDefensiveGateRecord gate = addAutomaticGate(build, 3, 4);
+        KOMEDefensiveGateRecord gate = addAutomaticGate(build, 5, 5);
         gate.detectedProjectedArea = 11;
         gate.setAdminMaxHpOverride(5000, null, "Admin", 10L, "Temporary value");
         KOMEDefensiveGateHealthCalculator.Result result = calculate(build, gate, 100.0D);
@@ -141,7 +141,7 @@ public class KOMEDefensiveGateHealthCalculatorTest {
 
     @Test public void clearingOverrideRestoresAutomaticEffectiveResult() {
         KOMEPlayerBuild build = defensiveBuild(10000L);
-        KOMEDefensiveGateRecord gate = addAutomaticGate(build, 3, 4);
+        KOMEDefensiveGateRecord gate = addAutomaticGate(build, 5, 5);
         gate.setAdminMaxHpOverride(5000, null, "Admin", 10L, "Temporary value");
         gate.clearAdminMaxHpOverride(11L);
         KOMEDefensiveGateHealthCalculator.Result result = calculate(build, gate, 100.0D);
@@ -181,7 +181,7 @@ public class KOMEDefensiveGateHealthCalculatorTest {
 
     @Test public void calculationRejectsARecordIdThatIsNotNestedUnderParent() {
         KOMEPlayerBuild build = defensiveBuild(1000L);
-        addAutomaticGate(build, 3, 4);
+        addAutomaticGate(build, 5, 5);
         KOMEDefensiveGateRecord detached = new KOMEDefensiveGateRecord();
         detached.id = "G999";
         detached.setAdminMaxHpOverride(5000, null, "Admin", 10L, "Detached");

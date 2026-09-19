@@ -26,6 +26,11 @@ public class MumakilConfigTest {
         assertEquals(20, MumakilConfig.ramSiegeDamage);
     }
 
+    @Test public void baselineSiegeGateHealthDefaultsToTwoHundred() throws Exception {
+        MumakilConfig.load(configFile());
+        assertEquals(200, MumakilConfig.defaultGateHealth);
+    }
+
     @Test public void baselineRamDamageRemainsConfigurable() throws Exception {
         File file = configFile();
         Configuration configuration = new Configuration(file);
@@ -36,6 +41,18 @@ public class MumakilConfigTest {
 
         MumakilConfig.load(file);
         assertEquals(37, MumakilConfig.ramSiegeDamage);
+    }
+
+    @Test public void explicitExistingGateHealthIsNotOverwrittenByNewDefault() throws Exception {
+        File file = configFile();
+        Configuration configuration = new Configuration(file);
+        configuration.load();
+        configuration.get(MumakilConfig.CATEGORY_SIEGE_GATES,
+            "defaultGateHealth", 200).set(1000);
+        configuration.save();
+
+        MumakilConfig.load(file);
+        assertEquals(1000, MumakilConfig.defaultGateHealth);
     }
 
     private File configFile() throws Exception {

@@ -48,7 +48,7 @@ public final class MumakilConfig {
     private static final boolean DEFAULT_ENABLE_PICKUP_FILTER = true;
     private static final boolean DEFAULT_MORTAL_GANDALF = false;
     private static final boolean DEFAULT_ENABLE_SIEGE_GATES = true;
-    private static final int DEFAULT_GATE_HEALTH = 1000;
+    private static final int DEFAULT_GATE_HEALTH = 200;
     private static final boolean DEFAULT_ENABLE_SIEGE_GATE_BREACH_NPC_RALLY =
             true;
     private static final boolean DEFAULT_ENABLE_BATTLE_RAMS = true;
@@ -569,7 +569,7 @@ public final class MumakilConfig {
                 MIN_GATE_HEALTH,
                 MAX_GATE_HEALTH,
                 "Maximum health assigned to newly created Siege Gates. Existing "
-                        + "gates keep their saved maximum health. Default: 1000. "
+                        + "gates keep their saved maximum health. Default: 200. "
                         + "Restart required: No.",
                 "config.lotrmoremobs.defaultGateHealth"
         );

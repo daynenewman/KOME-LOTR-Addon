@@ -126,6 +126,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         packet.defaultRulingFaction = tile.defaultRulingFaction;
         packet.mapRegion = tile.mapRegion;
         packet.population = kome.common.data.KOMEPopulationProjection.of(data, ownerFaction);
+        populateSelectablePopulationOwners(packet, data, viewerFaction, tile);
         populateBuildViews(packet, data, player, tile, viewerFaction, ownerFaction, viewerId);
         packet.focusBuildId = focusBuildId == null ? "" : focusBuildId;
         if (canClaim && ownerFaction.length() > 0) {
@@ -148,6 +149,12 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
                 : "This claim will append a tile-capture event to " + (existingWar.displayName.length() == 0 ? existingWar.id : existingWar.displayName + " (" + existingWar.id + ")") + ".";
         }
         KOMEPacketHandler.network.sendTo(packet, player);
+    }
+
+    static void populateSelectablePopulationOwners(KOMEPacketConquestCaptureGui packet,
+            KOMEWorldData data, String viewerFaction, KOMEConquestTile tile) {
+        packet.selectablePopulationOwners.addAll(
+            KOMEBuildService.selectablePopulationOwners(data, viewerFaction, tile.id));
     }
 
     private static void populateBuildViews(KOMEPacketConquestCaptureGui packet, KOMEWorldData data,

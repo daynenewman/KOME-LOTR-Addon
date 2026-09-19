@@ -7,6 +7,7 @@ import com.enovak.lotrmoremobs.siege.network.GateManagementOpenPacket;
 import com.enovak.lotrmoremobs.siege.network.SiegeNetwork;
 import com.enovak.lotrmoremobs.siege.network.SiegeRequestLimiter;
 import com.enovak.lotrmoremobs.siege.management.GateInspectionSessionManager;
+import com.enovak.lotrmoremobs.siege.management.KOMEGateManagementSnapshot;
 import com.enovak.lotrmoremobs.siege.gate.GateControlMode;
 import com.enovak.lotrmoremobs.siege.edit.GateEditSession;
 import com.enovak.lotrmoremobs.siege.edit.GateEditSessionManager;
@@ -15,14 +16,31 @@ import com.enovak.lotrmoremobs.siege.network.GateEditPreflightSnapshotPacket;
 import com.enovak.lotrmoremobs.siege.tile.TileEntitySiegeGate;
 import com.mojang.authlib.GameProfile;
 import java.util.ArrayDeque;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.UUID;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.world.WorldServer;
+import net.minecraftforge.common.DimensionManager;
+import kome.common.data.KOMEBuildService;
+import kome.common.config.KOMEConfigRegistry;
+import kome.common.data.KOMEDefensiveGateHealthCalculator;
+import kome.common.data.KOMEDefensiveGateLinkService;
+import kome.common.data.KOMEDefensiveGateRecord;
+import kome.common.data.KOMEGateSizeCalculator;
+import kome.common.data.KOMEPhysicalGateInspection;
+import kome.common.data.KOMEPlayerBuild;
+import kome.common.data.KOMEWorldData;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public final class GateManagementManager {
 
@@ -57,6 +75,18 @@ public final class GateManagementManager {
         SiegeNetwork.syncGateHealth(controller);
         SiegeNetwork.syncGateRepair(controller);
         SiegeNetwork.syncGateAccess(controller);
+        boolean canAdminister = GateAccess.isAdministrativePlayer(player);
+        KOMEWorldData komeData = KOMEWorldData.get(player.worldObj);
+        KOMEPhysicalGateInspection.Result inspection =
+                KOMEPhysicalGateInspection.inspect(controller);
+        if (canAdminister) {
+            refreshSamePhysicalGateIfNeeded(komeData, inspection, player);
+        }
+        KOMEGateManagementSnapshot komeSnapshot = KOMEGateManagementSnapshot.create(
+                komeData, inspection, TileEntitySiegeGate.getConfiguredDefaultMaxHealth(),
+                canAdminister ? findBrokenRecords(komeData) : Collections
+                    .<KOMEGateManagementSnapshot.BrokenRecord>emptyList(),
+                canAdminister);
         Main.network.sendTo(
                 new GateManagementOpenPacket(
                         player.dimension,
@@ -65,7 +95,8 @@ public final class GateManagementManager {
                         controller.zCoord,
                         controller.canManage(player),
                         controller.canManagePlayerAccess(player),
-                        GateAccess.isAdministrativePlayer(player)
+                        canAdminister,
+                        komeSnapshot
                 ),
                 player
         );
@@ -216,6 +247,11 @@ public final class GateManagementManager {
                     "Gate update in progress."
             );
 
+            return;
+        }
+
+        if (isKomeAction(request.action)) {
+            processKomeAction(request, player, gate);
             return;
         }
 
@@ -590,7 +626,241 @@ public final class GateManagementManager {
 
     private static boolean isSingleTransitionAction(int action) {
         return action == GateManagementActionPacket.BEGIN_REPAIR
-                || action == GateManagementActionPacket.CLAIM_OWNERLESS;
+                || action == GateManagementActionPacket.CLAIM_OWNERLESS
+                || isKomeAction(action);
+    }
+
+    private static boolean isKomeAction(int action) {
+        return action == GateManagementActionPacket.KOME_LINK
+            || action == GateManagementActionPacket.KOME_UNLINK
+            || action == GateManagementActionPacket.KOME_REFRESH
+            || action == GateManagementActionPacket.KOME_RELINK
+            || action == GateManagementActionPacket.KOME_CONFIRM_DIMENSIONS;
+    }
+
+    private static void processKomeAction(PendingAction request, EntityPlayerMP player,
+            TileEntitySiegeGate gate) {
+        if (!GateAccess.isAdministrativePlayer(player)) {
+            sendMessage(player, "Only a Creative player or server operator may change KOME gate links.");
+            return;
+        }
+        KOMEWorldData data = KOMEWorldData.get(player.worldObj);
+        String[] fields = request.text.split("\\|", -1);
+        KOMEPlayerBuild build = fields.length == 0 ? null : data.getBuild(fields[0]);
+        String recordId = fields.length > 1 ? fields[1] : "";
+        long now = System.currentTimeMillis();
+        KOMEDefensiveGateLinkService.OperationResult result;
+        // Unlink is a purely logical administrative recovery operation. It must remain
+        // available when the old controller is destroyed, unloaded, quarantined, or invalid.
+        if (request.action == GateManagementActionPacket.KOME_UNLINK) {
+            result = KOMEDefensiveGateLinkService.unlink(data, build, recordId,
+                player.getUniqueID(), player.getCommandSenderName(), true, now);
+            if (!result.isSuccessful()) {
+                sendMessage(player, "KOME gate update failed: " + result.getMessage());
+                return;
+            }
+            sendMessage(player, "KOME defensive gate association updated.");
+            open(player, gate);
+            return;
+        }
+        KOMEPhysicalGateInspection.Result inspection = KOMEPhysicalGateInspection.inspect(gate);
+        if (!inspection.isLinkable()) {
+            sendMessage(player, "KOME link failed: " + inspection.getDiagnostic());
+            return;
+        }
+        if (request.action == GateManagementActionPacket.KOME_LINK) {
+            KOMEDefensiveGateLinkService.OperationResult validation =
+                KOMEDefensiveGateLinkService.validateNewLink(data, build, inspection, true);
+            if (!validation.isSuccessful()) {
+                sendMessage(player, "KOME gate update failed: " + validation.getMessage());
+                return;
+            }
+            KOMEConfigRegistry.SiegeSettings siege =
+                KOMEConfigRegistry.requireReadySnapshot().getSiege();
+            InitialLinkHealth initialHealth = calculateInitialLinkHealth(build, inspection,
+                siege.getGateHpPerApprovedHour(), siege.getGateSizeParameters());
+            if (!initialHealth.isAvailable()) {
+                sendMessage(player, "KOME link failed: " + initialHealth.getMessage());
+                return;
+            }
+            final int initialMaxHp = initialHealth.getMaxHp();
+            result = KOMEDefensiveGateLinkService.linkAndInitializePhysicalHealth(data,
+                build, inspection, player.getUniqueID(), player.getCommandSenderName(), true,
+                now, new KOMEDefensiveGateLinkService.PhysicalHealthApplication() {
+                    public boolean canApply() {
+                        return gate.canInitializeKomeLinkedHealth(initialMaxHp);
+                    }
+
+                    public boolean apply() {
+                        return gate.initializeKomeLinkedHealth(initialMaxHp);
+                    }
+                });
+        } else {
+            KOMEDefensiveGateRecord record = build == null ? null
+                : build.getDefensiveGateRecord(recordId);
+            if (request.action != GateManagementActionPacket.KOME_RELINK
+                    && (record == null || !inspection.getGateUuid().equals(record.getGateUuid()))) {
+                sendMessage(player, "That KOME gate record is not linked to this physical gate.");
+                return;
+            }
+            if (request.action == GateManagementActionPacket.KOME_REFRESH) {
+                result = KOMEDefensiveGateLinkService.refresh(data, build, recordId, inspection,
+                    player.getUniqueID(), player.getCommandSenderName(), true, now);
+            } else if (request.action == GateManagementActionPacket.KOME_RELINK) {
+                KOMEConfigRegistry.SiegeSettings siege =
+                    KOMEConfigRegistry.requireReadySnapshot().getSiege();
+                InitialLinkHealth relinkHealth = calculateInitialLinkHealth(build, inspection,
+                    siege.getGateHpPerApprovedHour(), siege.getGateSizeParameters());
+                if (!relinkHealth.isAvailable()) {
+                    sendMessage(player, "KOME relink failed: " + relinkHealth.getMessage());
+                    return;
+                }
+                final int relinkMaxHp = relinkHealth.getMaxHp();
+                result = KOMEDefensiveGateLinkService.relinkAndApplyPhysicalHealth(data, build,
+                    recordId, inspection, isBrokenBinding(record), player.getUniqueID(),
+                    player.getCommandSenderName(), true, now,
+                    new KOMEDefensiveGateLinkService.PhysicalHealthApplication() {
+                        public boolean canApply() {
+                            return gate.canInitializeKomeLinkedHealth(relinkMaxHp);
+                        }
+
+                        public boolean apply() {
+                            return gate.initializeKomeLinkedHealth(relinkMaxHp);
+                        }
+                    });
+            } else {
+                int width = fields.length > 2 ? parsePositiveInt(fields[2]) : 0;
+                int height = fields.length > 3 ? parsePositiveInt(fields[3]) : 0;
+                result = KOMEDefensiveGateLinkService.confirmDimensions(data, build, recordId,
+                    inspection, width, height, player.getUniqueID(),
+                    player.getCommandSenderName(), true, now);
+            }
+        }
+        if (!result.isSuccessful()) {
+            sendMessage(player, "KOME gate update failed: " + result.getMessage());
+            return;
+        }
+        sendMessage(player, "KOME defensive gate association updated.");
+        open(player, gate);
+    }
+
+    static InitialLinkHealth calculateInitialLinkHealth(KOMEPlayerBuild build,
+            KOMEPhysicalGateInspection.Result inspection, OptionalDouble hpPerApprovedHour,
+            KOMEGateSizeCalculator.Parameters sizeParameters) {
+        if (hpPerApprovedHour == null || !hpPerApprovedHour.isPresent()) {
+            return InitialLinkHealth.unavailable(
+                "siege.gateHpPerApprovedHour is unavailable/TBD; KOME physical health cannot be applied.");
+        }
+        if (inspection == null || !inspection.isLinkable()
+                || inspection.getStatus()
+                    != KOMEDefensiveGateRecord.DimensionDetectionStatus.RELIABLE) {
+            return InitialLinkHealth.unavailable(
+                "reliable physical gate dimensions are required before KOME can apply health.");
+        }
+        if (build == null || !build.active || !build.isDefensive()) {
+            return InitialLinkHealth.unavailable(
+                "an active DEFENSIVE Build is required to calculate KOME gate health.");
+        }
+        try {
+            BigDecimal calculated = KOMEDefensiveGateHealthCalculator.calculateAutomaticMaxHp(
+                build.approvedDefensiveCentiHours(), hpPerApprovedHour.getAsDouble(),
+                inspection.getDetectedWidth(), inspection.getDetectedHeight(), sizeParameters);
+            int physicalMaxHp = calculated.setScale(0, RoundingMode.HALF_UP).intValueExact();
+            if (physicalMaxHp < 1 || physicalMaxHp > TileEntitySiegeGate.MAX_HEALTH_OVERRIDE) {
+                return InitialLinkHealth.unavailable(
+                    "calculated KOME gate health is outside the physical gate range 1-"
+                        + TileEntitySiegeGate.MAX_HEALTH_OVERRIDE + ".");
+            }
+            return InitialLinkHealth.available(physicalMaxHp);
+        } catch (RuntimeException invalid) {
+            return InitialLinkHealth.unavailable(
+                "KOME gate health could not be calculated from the approved hours and gate dimensions.");
+        }
+    }
+
+    static final class InitialLinkHealth {
+        private final int maxHp;
+        private final String message;
+
+        private InitialLinkHealth(int maxHp, String message) {
+            this.maxHp = maxHp;
+            this.message = message == null ? "" : message;
+        }
+
+        static InitialLinkHealth available(int maxHp) {
+            return new InitialLinkHealth(maxHp, "");
+        }
+
+        static InitialLinkHealth unavailable(String message) {
+            return new InitialLinkHealth(0, message);
+        }
+
+        boolean isAvailable() { return maxHp > 0; }
+        int getMaxHp() { return maxHp; }
+        String getMessage() { return message; }
+    }
+
+    private static int parsePositiveInt(String value) {
+        try {
+            int parsed = Integer.parseInt(value);
+            return parsed > 0 ? parsed : 0;
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    private static void refreshSamePhysicalGateIfNeeded(KOMEWorldData data,
+            KOMEPhysicalGateInspection.Result inspection, EntityPlayerMP player) {
+        if (data == null || inspection == null || !inspection.isLinkable()) return;
+        KOMEDefensiveGateLinkService.ActiveLink link =
+            KOMEDefensiveGateLinkService.findActiveLinkByPhysicalGateUuid(data,
+                inspection.getGateUuid());
+        if (link == null || !KOMEDefensiveGateLinkService.isSamePhysicalController(
+                link.getRecord(), inspection) || metadataMatches(link.getRecord(), inspection)) return;
+        KOMEDefensiveGateLinkService.refresh(data, link.getParent(), link.getRecord().getId(),
+            inspection, player.getUniqueID(), player.getCommandSenderName(), true,
+            System.currentTimeMillis());
+    }
+
+    private static boolean metadataMatches(KOMEDefensiveGateRecord record,
+            KOMEPhysicalGateInspection.Result inspection) {
+        return record.getCapturedStructureRevision() == inspection.getStructureRevision()
+            && record.getDetectedOrientation().equals(inspection.getOrientation())
+            && record.getDetectedWidth() == inspection.getDetectedWidth()
+            && record.getDetectedHeight() == inspection.getDetectedHeight()
+            && record.getDetectedProjectedArea() == inspection.getProjectedArea()
+            && record.getDimensionDetectionStatus() == inspection.getStatus();
+    }
+
+    private static List<KOMEGateManagementSnapshot.BrokenRecord> findBrokenRecords(
+            KOMEWorldData data) {
+        List<KOMEGateManagementSnapshot.BrokenRecord> result =
+            new ArrayList<KOMEGateManagementSnapshot.BrokenRecord>();
+        for (KOMEPlayerBuild build : KOMEBuildService.activeDefensiveBuilds(data)) {
+            for (KOMEDefensiveGateRecord record : build.getDefensiveGateRecords()) {
+                if (record != null && isBrokenBinding(record)) {
+                    result.add(new KOMEGateManagementSnapshot.BrokenRecord(build, record));
+                }
+            }
+        }
+        return result;
+    }
+
+    /** A loaded missing/replaced/broken controller proves Relink eligibility; unloaded chunks do not. */
+    private static boolean isBrokenBinding(KOMEDefensiveGateRecord record) {
+        if (record == null || !record.hasPhysicalBinding()) return true;
+        WorldServer world = DimensionManager.getWorld(record.getGateDimension().intValue());
+        if (world == null || !world.blockExists(record.getControllerX().intValue(),
+                record.getControllerY().intValue(), record.getControllerZ().intValue())) return false;
+        TileEntity tile = world.getTileEntity(record.getControllerX().intValue(),
+            record.getControllerY().intValue(), record.getControllerZ().intValue());
+        if (!(tile instanceof TileEntitySiegeGate)) return true;
+        TileEntitySiegeGate gate = (TileEntitySiegeGate) tile;
+        if (gate.isInvalid() || !gate.isFinalized() || gate.isGateStructureQuarantined()
+                || gate.getExistingGateUuid() == null
+                || !gate.getExistingGateUuid().equals(record.getGateUuid())) return true;
+        if (gate.isPersistentGateMutationLocked()) return false;
+        return !KOMEPhysicalGateInspection.inspect(gate).isLinkable();
     }
 
     private static boolean hasEquivalentActionLocked(
