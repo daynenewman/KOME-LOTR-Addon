@@ -25,6 +25,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private static String playerName = "";
     private static Set completed = new HashSet();
     private static Map assignments = new HashMap();
+    private static String canonicalSummary="", contextualFindLabel="";
 
     private GuiButton buttonCategoryPrev;
     private GuiButton buttonCategoryNext;
@@ -43,6 +44,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         completed = new HashSet(completedIds);
         assignments = assignmentMap == null ? new HashMap() : new HashMap(assignmentMap);
     }
+    public static void updateProgressionData(String name,List completedIds,Map assignmentMap,String summary,String find){updateProgressionData(name,completedIds,assignmentMap);canonicalSummary=summary==null?"":summary;contextualFindLabel=find==null?"":find;}
 
     public static void resetData() {
         playerName = "";
@@ -88,6 +90,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         drawAchievements(groupAchievements);
         drawScrollbar(groupAchievements.size());
         drawAchievementTooltip(mouseX, mouseY, groupAchievements);
+        String[] summaryLines=canonicalSummary.split("\\n");for(int i=0;i<summaryLines.length&&i<3;i++)mc.fontRenderer.drawString(trimToWidth(summaryLines[i],196),guiLeft+12,guiTop+ySize-36+i*9,5652783);
     }
 
     static String displayNameForGroup(String group) {
@@ -123,8 +126,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         buttonList.add(buttonCategoryPrev);
         buttonCategoryNext = new GuiButton(1, guiLeft + 187, guiTop + 9, 20, 20, ">");
         buttonList.add(buttonCategoryNext);
-        buttonFindLord = new LOTRGuiButtonRedBook(2, guiLeft + 68, guiTop + ySize + 4, 84, 20, "Find Lord");
-        buttonList.add(buttonFindLord);
+        buttonFindLord = new LOTRGuiButtonRedBook(2, guiLeft + 68, guiTop + ySize + 4, 84, 20, contextualFindLabel.length()==0?"Find Lord":contextualFindLabel);buttonFindLord.visible=contextualFindLabel.length()!=0;buttonList.add(buttonFindLord);
     }
 
     @Override

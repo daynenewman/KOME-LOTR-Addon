@@ -63,6 +63,11 @@ public class KOMEProgressionLords {
     public static void highlightPledgedLord(EntityPlayerMP player) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         KOMEPlayerProgression progression = data.progressionForInspection(KOMEReflection.getEntityUUID(player));
+        if (progression.getSerfKnightProgression().getProspectiveLiege().isSet()) { highlightCanonical(player, progression.getSerfKnightProgression().getProspectiveLiege(), "prospective liege"); return; }
+        if (progression.getCanonicalRank() == KOMEProgressionRank.SERF && progression.getSerfKnightProgression().getSerfdomMaster().isSet()) {
+            KOMESerfdomMasterService.highlightMaster(player, data);
+            return;
+        }
         if (!progression.hasPledgedLord()) {
             throw new WrongUsageException("Pledge to a lord first.");
         }
@@ -126,6 +131,7 @@ public class KOMEProgressionLords {
     public static boolean isPledgeLord(LOTRHireableBase hireable) {
         return isCombatUnitHiringNpc(hireable);
     }
+    private static void highlightCanonical(EntityPlayerMP player,KOMEProgressionNpcRef ref,String role){Entity loaded=null;for(Object o:KOMEReflection.getWorld(player).loadedEntityList)if(o instanceof Entity&&ref.entityUuid.equals(KOMEReflection.getEntityUUID((Entity)o))){loaded=(Entity)o;break;}if(loaded!=null){KOMEPacketHandler.network.sendTo(new KOMEPacketLordHighlight(loaded.getEntityId(),ref.displayName,loaded.posX,loaded.posY,loaded.posZ),player);player.addChatMessage(new ChatComponentText("Highlighted your "+role+"."));return;}if(ref.dimension!=KOMEReflection.getWorld(player).provider.dimensionId){player.addChatMessage(new ChatComponentText("Your "+role+" is recorded in another dimension."));return;}KOMEPacketHandler.network.sendTo(new KOMEPacketLordHighlight(-1,ref.displayName,ref.x,ref.y,ref.z),player);player.addChatMessage(new ChatComponentText("Your "+role+" is not loaded nearby. Highlighting last known location."));}
 
     /** Shared noble-hiring predicate: farmer-only traders are never noble lieges. */
     public static boolean isCombatUnitHiringNpc(LOTRHireableBase hireable) {

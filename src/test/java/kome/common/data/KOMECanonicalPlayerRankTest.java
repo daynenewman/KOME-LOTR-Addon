@@ -59,7 +59,7 @@ public class KOMECanonicalPlayerRankTest {
         assertFalse(KOMESerfdomMasterService.validate(KOMEProgressionRank.SERF,"","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
         String gui = new String(Files.readAllBytes(Paths.get("src/main/java/kome/client/gui/KOMEGuiSerfdomMaster.java")), StandardCharsets.UTF_8);
         assertFalse(gui.contains("KOMEEntityHighlightOverlay"));
-        assertTrue(gui.contains("KOMEPacketSerfdomMasterAction.HIGHLIGHT"));
+        assertFalse(gui.contains("Highlight master"));
     }
 
     @Test public void dutyOrchestrationRequiresCurrentMasterUuidAndUsesCanonicalCadence() {
@@ -76,5 +76,8 @@ public class KOMECanonicalPlayerRankTest {
         assertFalse(KOMESerfdomMasterService.requestDuty(state, master, 10L).success);
         assertTrue(KOMESerfdomMasterService.requestDuty(state, master, 11L).success);
         assertTrue(state.getDuty(KOMESerfKnightDutyType.PROFESSION).isAssigned());
+    }
+    @Test public void voluntaryDepartureResetsOnlyRelationshipScopedProgressWithoutCadencePenalty() {
+        KOMESerfKnightProgression state=new KOMESerfKnightProgression();KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","rohan",0,0,0,0);assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master).success);assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROVISIONING,null,20L).success);assertEquals(20L,state.getLastAssignmentEpochDay());assertTrue(KOMESerfKnightService.leaveSerfdomMaster(state).success);assertFalse(state.getSerfdomMaster().isSet());assertFalse(state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isAssigned());assertFalse(state.isMasterReplacementRequired());assertEquals(20L,state.getLastAssignmentEpochDay());assertTrue(KOMESerfKnightService.setSerfdomMaster(state,new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"New","rohan",0,0,0,0)).success);assertFalse(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROVISIONING,null,20L).success);assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROVISIONING,null,21L).success);
     }
 }
