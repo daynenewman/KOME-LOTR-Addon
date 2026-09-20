@@ -19,14 +19,39 @@ public class KOMEProgressionAchievement {
     public final String title;
     public final String requirement;
     public final boolean defaultUnlocked;
+    /** Null for legacy definitions until they are intentionally migrated into the canonical tree. */
+    public final String branch;
+    public final KOMEProgressionRank rank;
+    public final int tier;
+    public final KOMEProgressionCompletionMode completionMode;
+    public final String rewardId;
 
     private KOMEProgressionAchievement(String id, String group, String category, String title, String requirement, boolean defaultUnlocked) {
+        this(id, group, category, title, requirement, defaultUnlocked, null, null, 0, null, null);
+    }
+
+    private KOMEProgressionAchievement(String id, String group, String category, String title, String requirement, boolean defaultUnlocked,
+            String branch, KOMEProgressionRank rank, int tier, KOMEProgressionCompletionMode completionMode, String rewardId) {
         this.id = id;
         this.group = group;
         this.category = category;
         this.title = title;
         this.requirement = requirement;
         this.defaultUnlocked = defaultUnlocked;
+        this.branch = branch;
+        this.rank = rank;
+        this.tier = tier;
+        this.completionMode = completionMode;
+        this.rewardId = rewardId;
+    }
+
+    /** Creates an opt-in canonical definition without changing the legacy achievement registry. */
+    public static KOMEProgressionAchievement canonical(String id, String title, String requirement, String branchId,
+            KOMEProgressionRank rank, int tier, KOMEProgressionCompletionMode completionMode, String rewardId) {
+        KOMEProgressionBranch registeredBranch = KOMEProgressionBranch.forId(branchId);
+        validateCanonicalMetadata(id, registeredBranch, rank, tier, completionMode);
+        return new KOMEProgressionAchievement(id, "", "", title, requirement, false, registeredBranch.id, rank, tier,
+                completionMode, rewardId);
     }
 
     public static KOMEProgressionAchievement forID(String id) {
@@ -173,7 +198,7 @@ public class KOMEProgressionAchievement {
         a(list, "prince_king.master_smith", "prince_king", "Advancement", "Master Smith", "Complete the assigned random task.");
         Map<String, KOMEProgressionAchievement> byID = new HashMap<>();
         for (KOMEProgressionAchievement achievement : list) {
-            byID.put(achievement.id, achievement);
+            if (byID.put(achievement.id, achievement) != null) throw new IllegalStateException("Duplicate progression achievement id: " + achievement.id);
         }
         auto(
             "wanderer.expert_traveler", "wanderer.dangerous_business", "wanderer.travel_30km", "wanderer.find_serf_lord",
@@ -187,5 +212,35 @@ public class KOMEProgressionAchievement {
         );
         ALL = Collections.unmodifiableList(list);
         BY_ID = Collections.unmodifiableMap(byID);
+        validateSchema();
+    }
+
+    private static void validateSchema() {
+        KOMEProgressionRank.validateSchema();
+        KOMEProgressionBranch.validateSchema();
+        validateCanonicalDefinitions(ALL);
+    }
+
+    /** Validates a future canonical definition set before it is installed by a later progression slice. */
+    public static void validateCanonicalDefinitions(Iterable<KOMEProgressionAchievement> definitions) {
+        if (definitions == null) throw new IllegalArgumentException("Missing canonical progression definitions");
+        KOMEProgressionBranch.validateSchema();
+        Set<String> canonicalIds = new HashSet<String>();
+        for (KOMEProgressionAchievement achievement : definitions) {
+            if (achievement == null) throw new IllegalArgumentException("Null canonical progression definition");
+            if (achievement.branch != null || achievement.rank != null || achievement.completionMode != null) {
+                KOMEProgressionBranch registeredBranch = KOMEProgressionBranch.forId(achievement.branch);
+                validateCanonicalMetadata(achievement.id, registeredBranch, achievement.rank, achievement.tier,
+                        achievement.completionMode);
+                if (!canonicalIds.add(achievement.id)) throw new IllegalStateException("Duplicate canonical progression id: " + achievement.id);
+            }
+        }
+    }
+
+    private static void validateCanonicalMetadata(String id, KOMEProgressionBranch branch, KOMEProgressionRank rank, int tier,
+            KOMEProgressionCompletionMode completionMode) {
+        if (id == null || id.trim().length() == 0 || branch == null || rank == null || tier <= 0 || completionMode == null) {
+            throw new IllegalArgumentException("Invalid canonical progression achievement metadata");
+        }
     }
 }
