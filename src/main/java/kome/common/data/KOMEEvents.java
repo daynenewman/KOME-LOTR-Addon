@@ -296,15 +296,8 @@ public class KOMEEvents {
         if (event.entityPlayer.isSneaking() && event.target instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.target;
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-            if (progression.getCanonicalRank() == KOMEProgressionRank.SERF && KOMEProgressionNpcRankService.isValidFactionNpc(npc)
-                    && KOMEProgressionNpcRankService.effectiveRank(data, npc) == KOMEProgressionNpcRank.UNRANKED) {
-                KOMESerfdomMasterService.Result eligibility = KOMESerfdomMasterService.validate(player, data, npc, false);
-                if (!eligibility.success) {
-                    player.addChatMessage(new net.minecraft.util.ChatComponentText(eligibility.reason));
-                    event.setCanceled(true);
-                    return;
-                }
+            KOMESerfdomMasterService.Result eligibility = KOMESerfdomMasterService.validate(player, data, npc, false);
+            if (eligibility.success) {
                 KOMEPacketSerfdomMasterAction.sendMenu(player, npc);
                 event.setCanceled(true);
                 return;

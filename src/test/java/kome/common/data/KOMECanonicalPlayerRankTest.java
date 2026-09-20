@@ -1,6 +1,9 @@
 package kome.common.data;
 
 import java.util.UUID;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import net.minecraft.nbt.NBTTagCompound;
 import org.junit.Test;
 import static org.junit.Assert.*;
@@ -48,6 +51,15 @@ public class KOMECanonicalPlayerRankTest {
         for(KOMEProgressionNpcRank rank:new KOMEProgressionNpcRank[]{KOMEProgressionNpcRank.LORD,KOMEProgressionNpcRank.PRINCE,KOMEProgressionNpcRank.KING}) assertFalse(KOMESerfdomMasterService.validate(KOMEProgressionRank.SERF,"rohan","rohan",rank,true).success);
         assertFalse(KOMESerfdomMasterService.validate(KOMEProgressionRank.SERF,"rohan","gondor",KOMEProgressionNpcRank.UNRANKED,true).success);
         assertFalse(KOMESerfdomMasterService.validate(KOMEProgressionRank.SERF,"","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
+    }
+
+    @Test public void serfdomRoutingUsesFullEligibilityAndGuiHasNoLocalHighlightAuthority() throws Exception {
+        assertTrue(KOMESerfdomMasterService.validate(KOMEProgressionRank.SERF,"rohan","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
+        assertFalse(KOMESerfdomMasterService.validate(KOMEProgressionRank.SERF,"rohan","gondor",KOMEProgressionNpcRank.UNRANKED,true).success);
+        assertFalse(KOMESerfdomMasterService.validate(KOMEProgressionRank.SERF,"","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
+        String gui = new String(Files.readAllBytes(Paths.get("src/main/java/kome/client/gui/KOMEGuiSerfdomMaster.java")), StandardCharsets.UTF_8);
+        assertFalse(gui.contains("KOMEEntityHighlightOverlay"));
+        assertTrue(gui.contains("KOMEPacketSerfdomMasterAction.HIGHLIGHT"));
     }
 
     @Test public void dutyOrchestrationRequiresCurrentMasterUuidAndUsesCanonicalCadence() {
