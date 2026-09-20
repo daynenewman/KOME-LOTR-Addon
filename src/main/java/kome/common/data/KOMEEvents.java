@@ -510,6 +510,19 @@ public class KOMEEvents {
             }
             releaseIfTracked(npc);
             releaseLinkedInactiveUnits(npc);
+            KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
+            UUID deadId = KOMEReflection.getEntityUUID(npc);
+            Entity source = event.source == null ? null : event.source.getEntity();
+            UUID killer = source instanceof EntityPlayer ? KOMEReflection.getEntityUUID(source) : null;
+            boolean changed = false;
+            for (Map.Entry<UUID, KOMEPlayerProgression> entry : data.progressions.entrySet()) {
+                changed |= KOMESerfKnightService.handleNpcDeath(entry.getValue().getSerfKnightProgression(), deadId.toString(),
+                    killer != null && killer.equals(entry.getKey()), KOMESerfKnightService.calendarDayNow());
+            }
+            changed |= KOMEProgressionNpcSuccessionService.invalidatePrinceDeath(data, deadId);
+            changed |= KOMEProgressionNpcSuccessionService.handleKingDeath(data, deadId) != null
+                || data.progressionNpcRoyalRestorations.containsKey(deadId);
+            if (changed) data.markDirty();
         }
     }
 

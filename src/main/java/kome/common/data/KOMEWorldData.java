@@ -56,6 +56,7 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
     /** Explicit PRINCE/KING NPC rank authority; LORD and UNRANKED remain live-derived. */
     final Map<UUID, KOMEProgressionNpcRankRecord> progressionNpcRanks = new HashMap<UUID, KOMEProgressionNpcRankRecord>();
+    final Map<UUID, KOMEProgressionNpcRoyalRestoration> progressionNpcRoyalRestorations = new HashMap<UUID, KOMEProgressionNpcRoyalRestoration>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
     public final Map<String, String> activeRecruitmentTiles = new HashMap<>();
@@ -2014,6 +2015,7 @@ public class KOMEWorldData extends WorldSavedData {
         populationPayoutLastFailure = "";
         progressions.clear();
         progressionNpcRanks.clear();
+        progressionNpcRoyalRestorations.clear();
         hiredUnits.clear();
         conquestTiles.clear();
         activeRecruitmentTiles.clear();
@@ -2235,6 +2237,9 @@ public class KOMEWorldData extends WorldSavedData {
         for (KOMEProgressionNpcRankRecord record : npcRankCandidates.values()) {
             if (record.rank != KOMEProgressionNpcRank.KING || !conflictingNpcKingFactions.contains(record.factionKey)) progressionNpcRanks.put(record.npcUuid, record);
         }
+        loadSection = "ProgressionNpcRoyalRestorations";
+        NBTTagList royalRestorationList = nbt.getTagList("ProgressionNpcRoyalRestorations", 10);
+        for (int i = 0; i < royalRestorationList.tagCount(); i++) { KOMEProgressionNpcRoyalRestoration restoration=KOMEProgressionNpcRoyalRestoration.readFromNBT(royalRestorationList.getCompoundTagAt(i),this); if(restoration!=null&&!progressionNpcRoyalRestorations.containsKey(restoration.formerKingUuid)) progressionNpcRoyalRestorations.put(restoration.formerKingUuid,restoration); else loadedStateReconciled=true; }
 
         loadSection = "AdminUnitMapMarkerOptOuts";
         NBTTagList adminMarkerList = nbt.getTagList("AdminUnitMapMarkerOptOuts", 10);
@@ -2617,6 +2622,8 @@ public class KOMEWorldData extends WorldSavedData {
         progressions.putAll(candidate.progressions);
         progressionNpcRanks.clear();
         progressionNpcRanks.putAll(candidate.progressionNpcRanks);
+        progressionNpcRoyalRestorations.clear();
+        progressionNpcRoyalRestorations.putAll(candidate.progressionNpcRoyalRestorations);
         hiredUnits.clear();
         hiredUnits.putAll(candidate.hiredUnits);
         conquestTiles.clear();
@@ -2917,6 +2924,9 @@ public class KOMEWorldData extends WorldSavedData {
             if (record != null) progressionNpcRankList.appendTag(record.writeToNBT());
         }
         nbt.setTag("ProgressionNpcRanks", progressionNpcRankList);
+        NBTTagList royalRestorationList = new NBTTagList();
+        for (KOMEProgressionNpcRoyalRestoration restoration : progressionNpcRoyalRestorations.values()) if(restoration!=null) royalRestorationList.appendTag(restoration.writeToNBT());
+        nbt.setTag("ProgressionNpcRoyalRestorations", royalRestorationList);
 
         NBTTagList playerNameList = new NBTTagList();
         for (Map.Entry<UUID, String> entry : playerNames.entrySet()) {
