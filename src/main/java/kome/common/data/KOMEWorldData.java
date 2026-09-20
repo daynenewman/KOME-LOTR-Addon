@@ -696,42 +696,31 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
-        Map<String, WaypointCandidate> candidatesByTile = new HashMap<String, WaypointCandidate>();
+        Map<String, LOTRWaypoint> candidatesByTile = new HashMap<String, LOTRWaypoint>();
         Set<String> usedWaypointKeys = new HashSet<String>();
         for (KOMETileWaypointLink manual : preservedManual.values()) {
             if (manual != null && manual.lotrWaypointKey != null && manual.lotrWaypointKey.length() > 0) {
                 usedWaypointKeys.add(manual.lotrWaypointKey);
             }
         }
-        for (LOTRWaypoint waypoint : LOTRWaypoint.values()) {
-            if (waypoint == null || waypoint.isHidden() || usedWaypointKeys.contains(waypoint.getCodeName())) {
-                continue;
-            }
-            String tileId = KOMEConquestTileDefaults.getTileIdAtMapPosition(
-                lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID, waypoint.getX(), waypoint.getY());
-            if (tileId.length() == 0 || preservedManual.containsKey(tileId)) {
-                continue;
-            }
-            KOMEConquestTileDefaults.TileCenter center = KOMEConquestTileDefaults.getTileCenter(tileId);
-            double distance = 0.0D;
-            if (center != null) {
-                double dx = waypoint.getXCoord() - center.x;
-                double dz = waypoint.getZCoord() - center.z;
-                distance = dx * dx + dz * dz;
-            }
-            WaypointCandidate existing = candidatesByTile.get(tileId);
-            if (existing == null || distance < existing.distanceSq) {
-                candidatesByTile.put(tileId, new WaypointCandidate(waypoint, distance));
+        KOMETileGameplayDefaults defaults = KOMETileGameplayDefaults.get();
+        for (String tileId : defaults.waypointTiles()) {
+            if (preservedManual.containsKey(tileId)) continue;
+            for (String key : defaults.waypointCandidates(tileId)) {
+                if (usedWaypointKeys.contains(key)) continue;
+                LOTRWaypoint waypoint = LOTRWaypoint.waypointForName(key);
+                candidatesByTile.put(tileId, waypoint);
+                break;
             }
         }
 
         Map<String, KOMETileWaypointLink> desiredLinks = new HashMap<String, KOMETileWaypointLink>();
         desiredLinks.putAll(preservedManual);
-        for (Map.Entry<String, WaypointCandidate> entry : candidatesByTile.entrySet()) {
+        for (Map.Entry<String, LOTRWaypoint> entry : candidatesByTile.entrySet()) {
             if (desiredLinks.containsKey(entry.getKey())) {
                 continue;
             }
-            KOMETileWaypointLink link = new KOMETileWaypointLink(entry.getKey(), entry.getValue().waypoint, null, "Automatic LOTR waypoint",
+            KOMETileWaypointLink link = new KOMETileWaypointLink(entry.getKey(), entry.getValue(), null, "Automatic LOTR waypoint",
                 KOMETileWaypointLink.SOURCE_AUTO_DEFAULT, false);
             desiredLinks.put(entry.getKey(), link);
         }
@@ -1004,7 +993,7 @@ public class KOMEWorldData extends WorldSavedData {
         if (tile == null || !KOMEConquestTile.isCanonicalTileId(tile.id)) {
             return;
         }
-        KOMEConquestTileDefaults.TileCenter center = KOMEConquestTileDefaults.getTileCenter(tile.id);
+        KOMETileGameplayDefaults.Point center = KOMETileGameplayDefaults.get().getArrivalDefault(tile.id);
         if (center == null) {
             return;
         }
@@ -1022,11 +1011,11 @@ public class KOMEWorldData extends WorldSavedData {
                 return;
             }
         }
-        tile.setAnchor(center.dimensionId, center.x, center.y, center.z);
-        setTileWaypoint(tile.id, KOMETileWaypoint.RALLY, center.dimensionId, center.x, center.y, center.z, "Auto tile center", false);
+        tile.setAnchor(center.dimensionId(), center.x, center.y, center.z);
+        setTileWaypoint(tile.id, KOMETileWaypoint.RALLY, center.dimensionId(), center.x, center.y, center.z, "Auto tile center", false);
     }
 
-    private boolean ensureDefaultArrivalPointFromLinkedWaypoint(KOMEConquestTile tile, KOMEConquestTileDefaults.TileCenter center) {
+    private boolean ensureDefaultArrivalPointFromLinkedWaypoint(KOMEConquestTile tile, KOMETileGameplayDefaults.Point center) {
         KOMETileWaypoint existing = getTileWaypoint(tile.id, KOMETileWaypoint.RALLY);
         if (existing != null && existing.manualOverride) {
             syncTileAnchor(tile, existing.dimensionId, existing.x, existing.y, existing.z);
@@ -1038,13 +1027,13 @@ public class KOMEWorldData extends WorldSavedData {
         }
         double x = link.waypointWorldX;
         double z = link.waypointWorldZ;
-        int dimensionId = link.dimensionId == 0 ? center.dimensionId : link.dimensionId;
+        int dimensionId = link.dimensionId == 0 ? center.dimensionId() : link.dimensionId;
         LOTRWaypoint waypoint = link.resolveWaypoint();
         if (waypoint != null) {
             x = waypoint.getXCoord();
             z = waypoint.getZCoord();
             if (dimensionId == 0) {
-                dimensionId = center.dimensionId;
+                dimensionId = center.dimensionId();
             }
         }
         if (Math.abs(x) < 0.001D && Math.abs(z) < 0.001D) {
@@ -1842,16 +1831,6 @@ public class KOMEWorldData extends WorldSavedData {
 
     public static String recruitmentTileKey(String faction, UUID playerId) {
         return KOMEAlliance.normalizeFactionKey(faction) + "|" + (playerId == null ? "" : playerId.toString());
-    }
-
-    private static class WaypointCandidate {
-        final LOTRWaypoint waypoint;
-        final double distanceSq;
-
-        WaypointCandidate(LOTRWaypoint waypoint, double distanceSq) {
-            this.waypoint = waypoint;
-            this.distanceSq = distanceSq;
-        }
     }
 
     @Override

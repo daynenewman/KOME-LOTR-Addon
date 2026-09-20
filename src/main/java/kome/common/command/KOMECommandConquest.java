@@ -404,30 +404,8 @@ public class KOMECommandConquest extends KOMEPublicCommand {
     }
 
     private static LOTRWaypoint automaticWaypointForTile(String tileId) {
-        KOMEConquestTileDefaults.TileCenter center = KOMEConquestTileDefaults.getTileCenter(tileId);
-        if (center == null) {
-            return null;
-        }
-        LOTRWaypoint best = null;
-        double bestDistance = Double.MAX_VALUE;
-        for (LOTRWaypoint waypoint : LOTRWaypoint.values()) {
-            if (waypoint == null || waypoint.isHidden()) {
-                continue;
-            }
-            String waypointTile = KOMEConquestTileDefaults.getTileIdAtMapPosition(
-                lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID, waypoint.getX(), waypoint.getY());
-            if (!KOMEConquestTile.normalizeId(tileId).equals(waypointTile)) {
-                continue;
-            }
-            double dx = waypoint.getXCoord() - center.x;
-            double dz = waypoint.getZCoord() - center.z;
-            double distance = dx * dx + dz * dz;
-            if (distance < bestDistance) {
-                bestDistance = distance;
-                best = waypoint;
-            }
-        }
-        return best;
+        java.util.List<String> candidates = kome.common.data.KOMETileGameplayDefaults.get().waypointCandidates(tileId);
+        return candidates.isEmpty() ? null : LOTRWaypoint.waypointForName(candidates.get(0));
     }
 
     private static UUID senderUuid(ICommandSender sender) {

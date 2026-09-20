@@ -1,5 +1,232 @@
 # Tile world-resolution foundation
 
+## Local milestone checkpoint and limited acceptance - 2026-09-20
+
+The user reports **"it works"** for the tested Rhun **T401 -> T442** crossing
+at X=237248.5 across Z=87296 in Middle-earth. This records acceptance of that
+boundary only, not full-map coverage or completion of remaining manual checks.
+See [checkpoint scope, reproducibility and outstanding checks](tile-milestone-checkpoint-20260920/README.md).
+The previous low-memory/client-launch notes below are historical: the user later
+connected and tested that crossing. No runtime refresh was performed for this checkpoint.
+
+
+## Current installed combined geography - 2026-09-20
+
+The approved final **4,915-cell** candidate is now installed locally and in the
+isolated client/server profiles. Mask SHA-256:
+`ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7`.
+All 621 IDs / 622 components, protected water/gaps, pre-V2 territory, pilot
+assignments and 6,055 gameplay expectations are preserved. No gameplay-resource
+or runtime lookup change; all excluded proposals remain excluded.
+
+Latest clean build: **814 discovered / 812 passed / two existing symlink skips /
+zero failures or errors**. Matching production JAR SHA-256:
+`a4a46b6e5f588f8266faf8b512f527afc5485a780f3c43b5cac100989a52485e`.
+The final stopped save had 1,515 inspected coordinates and **zero membership
+changes**; B1-B4 remain T132. Ten dedicated-server console checks passed on
+127.0.0.1:57858, online-mode=true, Middle-earth 100; operators remain empty.
+Prism has the matching artifact but launch is pending at its Low free memory
+prompt. No visual acceptance or automatic teleport is claimed.
+
+See [installation evidence and exact manual checklist](combined-geography-install-20260920/README.md),
+including verified backups and the safe Rhun crossing at X=237248.5, Y=70,
+Z=87295.5 -> 87296.5 (T401 -> T442). Older hashes/results below are historical.
+
+
+## Authoritative map-border candidate: 2026-09-20
+
+The local, uncommitted renderer now derives single shared cell-edge borders from
+the installed immutable raster. Static border artwork and full-cell edge tinting
+are no longer drawn. Gap/outer-edge strokes stay on assigned territory; hovered
+tiles retain a pale fill and one gold outline. Existing C overlay control, labels,
+markers, privacy, exact resolver selection and all gameplay data remain unchanged.
+The shared GUI transform handles pan/zoom and resized map rectangles; collapsed
+rectangles are skipped. This does not fix the separate native maximize/framebuffer
+issue. No new setting, server tracking, packet or world-space border was added.
+
+Primitive runs are cached per snapshot, cleared on disconnect/resource reload or
+unavailable geometry, and culled to visible grid lines. Final measured cache payload
+is 2.47 MiB; extraction was 117 ms after decode/copy on Java 8 / Windows 11. At the
+measured 1200x700 viewport, visible border quads ranged from 239 (zoom 8) to 68,726
+(zoom 0.25). These measurements do not establish live performance or visual layout.
+
+Reviewed clean test/build: **813 discovered, 811 passed, two existing Windows
+symlink skips, zero failed/errored**. Dedicated-server dependency isolation, existing
+HUD/Build/public-access behavior and gameplay parity passed automated checks.
+Candidate `build/libs/KOME-LOTR-Addon-1.0.8.jar` SHA-256:
+`cfd32d8df548cbecf5b081619a3350346445ca797cfb7f5878964b64e09edec1`.
+The mask remains `46af1f42854c4c12b7f9ce69b3aad7ad4513340b000631f62514937debf0dbed`.
+No validation installation was refreshed/restarted. The prior completed rejection
+comparison below was reverified from its full NBT evidence, not assumed from counts.
+
+Follow-up review fixed legacy TextureManager retention using five stable released
+slots, restored texture-pass GL color/binding/blend state, and bounded Tessellator
+batches to 2,047 quads to avoid repeated buffer growth/shrink. Geometry is unchanged.
+The native LOTR marker transform truncates odd viewport centers; terrain and KOME
+hover retain fractional centers. Live rendering remains pending. See the
+[severity-ranked review and tests](tile-border-rendering-20260920/REVIEW.md).
+
+See [border implementation, costs, previews and manual checklist](tile-border-rendering-20260920/README.md).
+First review the [T171/T132 offline before/after](tile-border-rendering-20260920/land-before-after.png).
+After separately authorizing matching-artifact installation, check border/hover at
+multiple zooms, the X=18816/Z=2112 HUD crossing, protected R1 width, gold selection,
+labels/markers, GUI scaling, edge-drag resize and resource reload/reconnect. Live
+GL rendering and the unrelated existing movement-override/active-leg acceptance
+remain pending. Offline previews are not live-game acceptance.
+
+
+## Manual acceptance update: 2026-09-19
+
+This update supersedes earlier pending statements only for the specific checks
+below. It does not claim map-wide visual acceptance or complete release sign-off.
+The gameplay-separation/V2 candidate was subsequently installed in the isolated
+profiles; the earlier integration-stage statements below that runtime was not
+refreshed describe that earlier stage.
+
+- **Direct T171 -> T132 transition: PASS, user-observed at one location.**
+  The prepared boundary was X=18816 at Z=2112 (dimension 100), with T171 west
+  and T132 east. This is one tested crossing, not full V2 geographic acceptance.
+- **Cancel/Escape: PASS per user observation; no Build was added.** No separate
+  instrumented before/after capture was taken around cancellation itself.
+- **Invalid-coordinate submission: PASS.** The non-operator `_Danye_` was
+  positioned at (34944.5,98,640.5) in dimension 100, protected gap (1083,735).
+  The read-only form coordinates come from the player-position snapshot when
+  Tile Command opens. T132 / Dunedain was selected; the production authorization
+  service independently returned `canPlace=true`, owners `[dunedain]`, and
+  progression inspection showed 96/96 (Build creation has no separate progression
+  gate). The client log at 22:18:28 America/Chicago records:
+  `Build action rejected: Build coordinate rejected: IN_BOUNDS_GAP dimension=100 world=34944,640 mask=1083,735 (Exact cell is a gap)`.
+- **Creation-state preservation: PASS, full-content comparison.** The live
+  server-thread snapshot at approximately 22:21:34 exactly equals the pre-test
+  parsed KOME snapshot across every serialized field. B1-B4 have identical
+  complete records, including all four contributions and 12 per-Build audit
+  entries. All 21 central audit entries are identical, in content and order.
+  NextBuildSequence remains 5: no Build ID was consumed. No Build named
+  `V2 gap rejection test` exists. Population, payout, progression, permissions,
+  and every other serialized KOME section are unchanged. Dunedain available/active
+  population and daily rate remain zero. The operator list remains empty.
+
+Baseline evidence:
+`C:\Users\dayne\Documents\KOME-Validation\tile-resolution-20260918-200409-d095d7\gap-build-pretest-20260919-220720`.
+Post-test `comparison.json`, full `after-kome.json`, `live-after.txt.nbt`, live
+projection/dirty readings, and client rejection log are under sibling directory
+`gap-build-posttest-20260919-222133`. Baseline copied-file SHA-256 values were
+reverified before comparison. The diagnostic reuses the existing server-task
+queue and production read/serialization methods; it writes only external evidence,
+without a world save, world edit, state repair, packet submission, or restart.
+
+Dirty was false before and after both diagnostic reads. This is not continuous
+instrumentation and cannot prove it was never transiently set between snapshots.
+No packet trace was captured to prove absence of every success-style refresh;
+source review shows the rejection returns before those refreshes. The client log
+independently confirms the actual spatial rejection. Player position changed
+between checks, which is separate from Build state; no KOME background/tick/audit
+changes needed to be excluded from the comparison. No test suite was rerun.
+
+No blocker was found in this manual rejection check. Remaining release acceptance
+includes representative V2 junction/river-edge visual checks and live routing plus
+save/reload with non-empty manual overrides and stored active movement legs. The
+existing disposable restart test had no such records and cannot cover them.
+
+
+## Current authority after gameplay separation and approved V2 integration
+
+The zero-extra-buffer V2 mask is installed **in this worktree only**, after the
+original gameplay baseline passed production-path parity. Runtime profiles have
+not been refreshed. Installed PNG SHA-256:
+`46af1f42854c4c12b7f9ce69b3aad7ad4513340b000631f62514937debf0dbed`.
+It adds exactly 93,103 manifest-listed cells to the pilot baseline
+`a5cd6cf91b3fc1b662cffffde36a250a6e6687bcb8b2b7cd9aa06809b944b866`.
+All previously assigned pixels, including all 95 pilot assignments, are unchanged.
+
+**Geography:** the existing raster and canonical ID/color mapping still determine
+world position, current-tile HUD, new Build spatial validation, hover/selection,
+and geometry-derived visual centroids. Exact floor sampling, the configured
+Middle-earth dimension, typed gaps/outside/failure states, immutable snapshots,
+and read-only O(1) containment are unchanged. There is no nearest-tile fallback.
+
+**Gameplay:** `KOMETileGameplayDefaults` now loads explicit immutable baseline
+resources for 1,319 connections/types, 621 routing references and separate arrival
+defaults, 271 ordered waypoint candidates (269 default selections), and 377 route
+markers (58 bridge, 319 river). No gameplay graph, route type, destination, or
+waypoint association is recomputed from the installed raster. Existing WorldData
+manual overrides retain precedence; saved records, movement orders, initialization
+order, delayed waypoint linking, and existing refresh thresholds are preserved.
+Routing points retain the original round-trip doubles; they are not geographic
+centroids or a second tile-location authority. The client already has its own
+geometry-derived visual centroids, which remain unchanged in implementation.
+
+The four `assets/kome/config/kome_tile_*.csv` gameplay resources use schema version
+1 and an explicit checksum/revision manifest, `kome_tile_gameplay_manifest.properties`.
+All data validates before atomic publication. `KOMEAddon.postInit` validates it
+before worlds initialize: malformed, missing, oversized, mixed-version/checksum,
+or structurally inconsistent data throws an actionable initialization error.
+There is no empty-default or geographic-inference fallback. No schema/protocol
+version, packet, dependency, or world migration was added.
+
+Nineteen original arrival means are explicitly annotated as legacy out-of-tile
+compatibility data. They are retained, not silently rejected or relocated. Eight
+have no automatic waypoint alternative: T242, T290, T395, T397, T447, T573, T634,
+T638. Five of those old points remain outside their own tile under V2: T242, T395,
+T397, T447, T573. This task does not establish safe terrain heights or repair those
+destinations. Future destination changes need explicit review and containment plus
+in-world safety checks; routing-reference changes must be reviewed separately.
+
+Provenance, exact file scope, original production-path expectations, current test
+results and reproduction commands are recorded in
+[the implementation evidence](gameplay-separation-implementation-20260919/README.md).
+The manual exporter uses only pinned original baseline captures, never the current
+mask, and normal Gradle builds do not run it. To intentionally edit gameplay,
+change the reviewed connection/type, point, candidate, or marker rows; update their
+checksum manifest and revision; validate the intentional behavioral diff. Existing
+authorized `/troops route`, arrival/waypoint and `/conquest waypoint link/unlink`
+overrides remain the world-local mechanism. Do not make geometry-authoring tools
+rewrite gameplay tables or persisted defaults automatically.
+
+Validation on the separated implementation: pre-install parity gate **60/60**;
+installed focused suites **203/203**; final clean test/build **791 discovered,
+789 passed, two existing Windows symbolic-link skips, zero failed/errored**.
+Production JAR `build/libs/KOME-LOTR-Addon-1.0.8.jar` SHA-256:
+`479cca8f5463a65921eb51bae0bf0db0a1947bb054fc7cd29078cb1c199fa5b6`.
+The full 6,055-row original production-path golden output is identical under both
+baseline and V2 resource loaders. Thus the 77 formerly inferred extra connections
+and 15 route flips do not enter gameplay defaults. This is automated evidence,
+not a new live-server, visual, or multiplayer acceptance claim.
+
+### Current geographic limitations and manual checks
+
+The zero-buffer policy adds no inferred bank margin. Mapped water and conflicting
+map evidence remain unassigned. Broad/shore/ice/unknown regions, detached nearest
+assignments, and T423's disconnected geography remain as documented by V2. Exact
+mapped-water connectivity is preserved; closing land seams can change paths through
+the larger unassigned-space graph. Map colors do not prove generated riverbanks.
+
+All 14 junction cells excluded from the original *pilot-only* approval are now
+covered by the separately approved V2 manifest, including assignments to T171.
+Historical pilot statements below that these cells remain gaps, that the entire
+R1 rectangle is unchanged, or that gameplay data is mask-derived describe earlier
+checkpoints. The R1 probe at (1083,735) remains a gap; the wider area's approved land
+cells follow V2. Protected (2291,58) stays a gap and (2292,58) stays T001.
+
+No isolated runtime was stopped, refreshed or restarted in this step. After a
+separately authorized matching-JAR refresh, verify:
+
+1. Staff console: `conquest resolve 100 21119 -384` => T149 and
+   `conquest resolve 100 21120 -384` => T132 (replace 100 with configured dimension).
+   At safe terrain height, cross world X=21120 at Z=-383.5 as a non-operator;
+   expect the direct HUD transition. The prior user observation covered only one
+   pilot location, not map-wide acceptance.
+2. Staff console: `conquest resolve 100 189568 -86016` => IN_BOUNDS_GAP;
+   `conquest resolve 100 189696 -86016` => T001. Check ordinary land junctions and
+   river-adjacent geography visually; do not assume HUD success proves river banks.
+3. Staff route inspection: `/troops route edge T041 T042` must remain river/blocked.
+   Compare established routes and explicit manual bridge/blocked overrides, then
+   save/restart a copied test world and check current movement-leg destinations.
+4. Retain manual Build cancellation and invalid-coordinate rejection checks.
+   Existing Builds must remain untouched. Do not accept a new destination merely
+   because it is a raster centroid; review legacy exceptions separately.
+
+
 ## Authority and scope
 
 The approved policy for this checkpoint is exact raster-cell sampling. The packaged
@@ -733,3 +960,314 @@ reconciled tile/Build work as well as this audit's changes):
 ?? src/test/java/kome/common/data/KOMETileTestResources.java
 ?? src/test/java/kome/common/data/KOMETileWorldResolverTest.java
 ```
+
+
+## Current-tile HUD follow-up (2026-09-19)
+
+### Foundation checkpoint and outstanding acceptance
+
+Local foundation commit: `04726458229057706e83b059e98e009f9aa4ac7e`
+(`Checkpoint exact tile world resolution and Build interaction fixes`).
+All 29 candidate source paths and the production JAR matched the saved audit
+manifest/hash before staging. The staged blobs were checked against those files,
+the staged diff and whitespace were reviewed, and only that foundation/Build/test/
+documentation scope was committed. No resize changes or generated/runtime files
+were present in that inventory. The old suite was not rerun merely to repeat
+unchanged evidence. Earlier "uncommitted" statements above describe their dated
+historical checkpoints; this section records the subsequent local commit.
+
+The foundation's live invalid-coordinate Build rejection, form cancellation and
+exact visual boundary acceptance remain pending. Earlier server checks and the
+user's successful Build creation remain historical evidence, not HUD validation.
+No isolated runtime was started or artifacts installed for this follow-up.
+
+### Behavior and controls
+
+The HUD is enabled by default. In Minecraft, open **Options -> Controls -> KOME ->
+Toggle current tile HUD** and assign an unused key or mouse button. It starts
+unbound because the installed mods and user-rebound controls cannot establish a
+universally conflict-free default. Press it during gameplay to toggle visibility;
+the new value is saved immediately.
+
+Client preference: `config/kome-client.cfg`, category `hud`,
+`B:showCurrentTile=true`. Set it to `false` with the client closed to start hidden.
+Restart after manually editing the file. This is a local Forge configuration file,
+not a server rule, world field or synchronized setting. Key assignments retain
+Minecraft's normal Controls/options persistence.
+
+| Geographic state | Display |
+| --- | --- |
+| Resolved and named | Tile ID plus the existing localized place name |
+| Resolved without a name or before metadata arrives | Tile ID alone |
+| In-bounds gap | No tile |
+| Outside coverage | Outside mapped area |
+| Configured Middle-earth with no valid snapshot, or invalid numeric position | Tile unavailable |
+| Other dimensions | Hidden, including when the resolver is unavailable |
+
+Names reuse existing `KOMEClientData.tileWaypointLinksByTileId` metadata and
+`KOMETileWaypointLink.displayName()`, as the conquest map does. There is no
+independent canonical tile-name registry. Unknown waypoint keys/untranslated keys
+are not invented names; an existing display-name fallback is used, otherwise only
+the ID. Arrival/replacement/removal of metadata, changed language and resource
+reload invalidate the cached label. No ownership or population data is displayed,
+no metadata request packet is added, and lookup does not create client records.
+
+The overlay is one parchment-colored line with a translucent dark background,
+at scaled GUI coordinates (6,76), capped at 200 pixels and the left half of the
+screen; long names are ellipsized. This reserves the default LOTR top alignment/
+boss/invasion area and right-side compass, and stays above lower-left racial
+meters and the hotbar. It uses the existing KOME theme and Minecraft GUI scaling.
+It hides with F1, F3, player list, any open screen (including chat/pause/death/map),
+missing player/world, dead player, or insufficient vertical room. Custom LOTR HUD
+offsets/other mods still require visual collision checking; tests do not prove
+layout. No window-resize behavior was changed.
+
+### Implementation and lifecycle
+
+- `KOMECurrentTileHud` is constructed only by `KOMEClientProxy`. FML client END
+  tick resolves the local player's actual world-provider dimension and posX/posZ
+  through `KOMETileWorldResolver.INSTANCE.resolveWorldPosition` once per tick.
+  There is no duplicated transform, per-position cache, entity scan or new server
+  tracking. Tracking continues while display is toggled off, so re-enabling is current.
+- Tracking/text preparation and Forge Post-ALL overlay rendering are separate.
+  Rendering never resolves, loads resources or sends packets. Display text is
+  rebuilt only when its state/ID/name metadata/language changes; width fitting is
+  cached until text, font, resource reload or GUI width changes. GL state is restored.
+- World/player identity checks suppress old-world rendering immediately between
+  ticks. Missing world/player, mismatched world reference, death or replacement
+  clears sampled state. The next valid tick handles respawn, movement, teleport and
+  dimension transfer without an indefinitely stale location.
+- FML connection events immediately close a volatile visibility gate. The existing
+  `KOMEClientTaskQueue` performs clearing/activation on the client thread.
+  Connection generation checks prevent an older in-flight reset callback from
+  reactivating a newer disconnected session. Only connection transitions lock;
+  neither per-tick lookup nor rendering takes a lock.
+- No-snapshot failure clears prior tile text on the next tick and displays the
+  unavailable message without logging each tick. A rejected replacement that
+  preserves a valid snapshot retains the foundation's last-valid-snapshot behavior.
+  A successfully replaced snapshot is used on the next tick without moving.
+- English UI strings live in `assets/kome/lang/en_US.lang`; normal Minecraft
+  fallback applies to other languages until translations are supplied. LOTR's
+  existing localized waypoint names remain available.
+
+Only client proxy wiring, two new client classes, localization, HUD tests, and this
+document change after the checkpoint. Common geometry, ownership, Build rules,
+packets, schema, protocol and all excluded gameplay systems remain unchanged.
+
+### Manual HUD acceptance
+
+After the HUD candidate is installed in matching isolated profiles using the
+established stopped-world backup procedure (installation is recorded below):
+
+1. Join the isolated test server in Middle-earth. At the existing Weathertop test
+   position X=24128,Z=-832 expect `T132 - Weathertop` when its existing name metadata
+   is available, otherwise `T132`. Check readability at small/normal window sizes
+   and each GUI scale, with LOTR compass/alignment and racial meters enabled.
+2. Assign **Toggle current tile HUD** in Controls -> KOME. Toggle off/on, restart
+   the client, and confirm the preference and binding persist. Verify F1, F3,
+   player list, pause/chat/map screens hide it and closing them restores it.
+3. Staff console, after verifying safe terrain/height, can position the player
+   across X=189696,Z=-86016: X=189695 is the gap, X=189696 is T001. Expect
+   `No tile` then `T001`, with no nearest assignment. X=89599/89600,Z=103936
+   changes T444 to T454. Existing `conquest resolve <dimension> <X> <Z>` console
+   checks independently inspect those cells without granting operator status.
+4. Check outside coverage (for example X=-103681,Z=0), unsupported dimensions,
+   respawn, disconnect to menu and reconnect to another world. Expect the explicit
+   outside message or hidden HUD, never a label carried from the previous world.
+   Confirm death/loading clears and return to Middle-earth repopulates correctly.
+5. Retain the separate foundation manual Build/cancellation checks above. HUD
+   success does not validate Build rejection or movement/capture rules.
+
+The follow-up review and runtime installation are recorded below. Visual acceptance remains pending.
+
+### HUD validation evidence
+
+- `compileJava`: passed against the existing Java 8 / Forge 1.7.10 target.
+- Focused HUD/session/isolation selection: 24/24 passed. Broader HUD, queue, tile,
+  client-adapter, Build interaction and public packet selection: 87/87 passed.
+  Final nullable-name regression: HUD suite 15/15 passed.
+- `./gradlew.bat clean test build --no-daemon --console=plain`: BUILD SUCCESSFUL,
+  774 discovered, 772 passed, 2 skipped, 0 failed, 0 errored. Both skips remain
+  the existing custom-skin symbolic-link tests when Windows symlink creation is
+  unavailable. The real-resource full raster audit and dedicated-server-denying-
+  client-classloader resolver test also passed in this run.
+- Production reobfuscated candidate: `build/libs/KOME-LOTR-Addon-1.0.8.jar`.
+  SHA-256: `4207234ABEFD742482FCE7249D17EF23E0210D716F364951BC8BD22320286CAC`.
+  Its archive contains the HUD/config classes and the KOME language resource.
+  At the time of that build, neither isolated runtime profile had been refreshed; see the later installation evidence below.
+- Tests execute the production tick handler, real keybinding press queue, actual
+  client-proxy connection callbacks/client task queue, Forge preference save/reload,
+  real raster resolver and existing name metadata. Synthetic replacement geometry
+  uses existing tile IDs strictly inside test fixtures. They do not open a native
+  window or prove visual layout, mouse interaction, a real teleport or live join.
+- Staged index empty; final HUD inventory is two modified paths (client proxy and
+  this document) and four untracked files (HUD, client config, English localization,
+  HUD tests). Whitespace/conflict-marker checks cover all six files. Pre-existing
+  foundation source hashes, except this intentionally extended document, still
+  match the saved validation manifest. No resize or runtime data was modified.
+- Branch `dayne/tile-world-resolution-dev` is one local commit ahead and zero behind
+  the locally recorded `origin/dev`; no fetch/push/merge was performed in this pass.
+  HEAD is foundation checkpoint `04726458229057706e83b059e98e009f9aa4ac7e`.
+
+### HUD review and isolated installation - 2026-09-19
+
+Reviewed all six uncommitted HUD paths against foundation checkpoint
+`04726458229057706e83b059e98e009f9aa4ac7e`. No confirmed implementation defect
+required a code change. Reviewed immediate connection visibility gating, queued
+session clearing and generation protection, world/player replacement and death,
+exact common resolver delegation, persisted Forge client configuration and key
+registration, cached scaled overlay placement, and client-only registration.
+The fixed scaled location avoids default LOTR HUD elements; custom offsets,
+actual readability and GUI-scale combinations still require visual acceptance.
+
+The three changed/new production Java files and English resource match the built
+sources archive. The production JAR hash still matches the successful build above;
+existing XML results are 774 discovered, 772 passed, two skipped, zero failures or
+errors. No tests or build were repeated because executable source was unchanged.
+Only this document was updated during the review.
+
+Both isolated client and server were already stopped. Before replacing their JARs,
+96 world/configuration/profile/artifact/log files were copied and SHA-256 verified,
+then source hashes and inventory were rechecked for concurrent changes. Recovery:
+`C:\Users\dayne\Documents\KOME-Validation\tile-resolution-20260918-200409-d095d7\backups\before-hud-review-20260919T184154Z`.
+The backup contains `manifest.json`. Non-artifact bytes, including progression,
+world, settings and empty `ops.json`, were verified unchanged before startup.
+
+Installed `build/libs/KOME-LOTR-Addon-1.0.8.jar` into the existing isolated server
+and matching Prism profile. Both installed SHA-256 hashes equal:
+`4207234ABEFD742482FCE7249D17EF23E0210D716F364951BC8BD22320286CAC`.
+Dedicated-server startup completed; the observed listener is `127.0.0.1:57858`,
+`online-mode=true`, configured Middle-earth dimension 100. No resolver validation,
+HUD client-classloading or linkage failure was observed. The legacy unsigned-FML
+signature warning and existing unknown-waypoint defaults warnings remain.
+
+Read-only console checks on this artifact:
+- `conquest resolve 100 189568 -86016`: IN_BOUNDS_GAP, mask (2291,58).
+- `conquest resolve 100 189696 -86016`: RESOLVED T001, mask (2292,58).
+- `conquest resolve 0 189696 -86016`: UNSUPPORTED_DIMENSION.
+- `conquest resolve 100 24128 -832`: RESOLVED T132, mask (998,723).
+- `build list T132` / `build inspect B4`: existing B1-B4 retained; B4 remains the
+  user's Dunedain Build with one approved contribution and the existing audit.
+
+Prism launch was requested for instance `tile-resolution-20260918-200409-d095d7`
+and the loopback server. Launch stopped at its low-free-memory prompt: maximum
+4096 MiB versus 2615 MiB available at inspection. No memory settings were changed,
+no warning was accepted, and no account was selected. Client Java had not started.
+First action: free memory by closing unneeded applications before proceeding with
+Prism's pending launch. Then select an account if requested and join the isolated
+server. At the existing Weathertop position, check the small T132/name HUD using the
+manual checklist above. No multiplayer, HUD visual or interactive acceptance is
+claimed by this review or dedicated-server console evidence.
+
+
+### Approved Weathertop geometry pilot - 2026-09-19
+
+The user approved the exact 95-cell proposal, including all ten formerly provisional
+T149 ties. Production mask baseline SHA-256 was verified before editing:
+`3ee80b95947f99ca4bdc355c0acf3dc832d41e964b5fe54e880f35665068e6d1`.
+Only the original RGBA values listed in
+[the approved manifest](weathertop-seam-candidate-20260919/edit-manifest.csv)
+were replaced. The result matches the independently reviewed candidate byte-for-byte:
+`a5cd6cf91b3fc1b662cffffde36a250a6e6687bcb8b2b7cd9aa06809b944b866`.
+52 cells now belong to T149 (including ten approved ties), and 43 to T132.
+All other pixels, existing assigned territory, mapping, dimensions and transform
+are unchanged. This is a limited resource-authoring pilot, not runtime nearest-tile
+assignment. Runtime resolver, HUD, authorization and Build behavior are unchanged.
+
+The 14 excluded junction cells remain gaps pending a separate geographic decision.
+R1 is entirely unchanged, including its river-colored and adjacent land-colored gaps.
+The known gap (2291,58) remains unassigned; (2292,58) remains T001. The original
+proposal's connectivity validation applies because production now exactly equals
+that candidate: no tile fragments are added, the sole new cardinal contact is
+T149/T132, and all 791 gap components remain. No gap classification, movement rule,
+visible border renderer or persisted-Build migration was introduced.
+
+The gap-audit and proposal directories are preserved as historical pre-pilot evidence.
+Their reports' references to an unchanged production mask and uninstalled proposal
+refer to that earlier stage. Their scripts deliberately pin the old baseline;
+do not rerun them against the new production mask or overwrite their evidence.
+The original mask is retained at
+`src/test/resources/kome/tile/weathertop-pilot/before.png`, with copies of the
+approved cell list and excluded junction list. `KOMEWeathertopPilotTest` asserts
+the entire production image differs only at those 95 cells, tests every approved
+cell through the production resolver, checks fractional world/map boundaries,
+and verifies excluded junctions and protected controls. Production HUD tick and
+Build service tests cover the corrected boundary and atomic wrong-tile rejection.
+
+Before editing, all 978 existing repository files were hashed; existing changed
+files and the original mask were copied and verified in:
+`C:\Users\dayne\Documents\KOME-Recovery\before-weathertop-pilot-20260919T200502Z`.
+
+#### Exact boundary for manual acceptance
+
+The reviewed interface between mask (974,727) and (975,727) is **world X=21120**,
+with Z in [-384,-256), in the configured Middle-earth dimension. At Z=-383.5:
+X=21119.5 and the nearest representable double below 21120 resolve T149;
+X=21120 exactly, its nearest representable successor, and X=21120.5 resolve T132.
+These are fixed independent world control points, not approximate map clicks.
+Staff console can verify `conquest resolve 100 21119 -384` (T149) and
+`conquest resolve 100 21120 -384` (T132). An actual non-operator walk east across
+that interface must change the HUD directly from T149 to T132 without `No tile`.
+Names are shown only when the existing tile-name metadata provides them.
+Safe terrain height and runtime installation results are recorded below.
+
+
+#### Pilot validation and isolated installation
+
+- Focused geometry/HUD/Build/public-access tests: **106 discovered, 106 passed**,
+  zero skipped, failed or errored. Final `clean test build`: **780 discovered,
+  778 passed, two skipped**, zero failed or errored; BUILD SUCCESSFUL (1m26s).
+  Skips are the existing Windows symbolic-link tests in
+  `CustomSkinLibraryFoundationTest` and `ClientCustomSkinCacheTest`.
+- Complete raster audit: 3,973,964 assigned cells, zero unknown colors/IDs,
+  791 gap components (790 enclosed), unchanged disconnected T423 and 46 singleton
+  islands. It checks every cell against production resolution. XML results and
+  the complete post-pilot audit are copied into the recovery directory above.
+- Production artifact: `build/libs/KOME-LOTR-Addon-1.0.8.jar`.
+  SHA-256: `18866049db7a4a3c27dbf7eeae479647313395421fd2ff0c5f48cd22a2735aff`.
+  Comparing unpacked entries against the previously installed HUD JAR shows only
+  `assets/kome/map/reset_conquest_tile_ids.png` differs. No runtime code changed.
+- The actual existing client and server processes were identified and shut down
+  gracefully; the server saved players and all worlds. `_Danye_` was still operator
+  from the preceding explicit operator request, so the console command
+  `deop _Danye_` restored non-operator status for this requested validation.
+  `ops.json` is now empty. No progression or authorization bypass was introduced.
+- Stopped-world/profile backup:
+  `C:\Users\dayne\Documents\KOME-Validation\tile-resolution-20260918-200409-d095d7\backups\before-weathertop-pilot-20260919T201204Z`.
+  All **101 files**, including **35 world files**, were SHA-256 verified and source
+  inventory rechecked. Non-artifact bytes, including world, progression, configuration
+  and operator state, were verified unchanged before restart. Prism's actual game
+  directory is `minecraft`, not `.minecraft`; the copy precondition caught this
+  before any client replacement and the correct client files were backed up first.
+- Both installed JARs match the new production SHA-256 above. Server listener
+  verified **127.0.0.1:57858**, `online-mode=true`, configured Middle-earth ID **100**.
+  Startup completed with no new resource-validation, linkage or client-classloading
+  failure. Existing FML signature, waypoint-default and LOTR transformer warnings
+  remain; startup logged one brief can't-keep-up warning. The previous running
+  artifact also logged failure of LOTR's external player-details DNS endpoint;
+  this pilot does not alter that service.
+- New-artifact console checks passed: corrected T149/T132 at world (21119,-384)
+  and (21120,-384); protected gap (189568,-86016), T001 (189696,-86016), R1
+  (34944,640), junction gaps (18048,-2432) and (18816,1024), and dimension 0
+  unsupported at (21120,-384). `build list T132` / `build inspect B4` confirm B1-B4
+  remain, including B4's existing contribution and audit. No persisted Build was
+  moved, deleted or spatially revalidated by this correction.
+- Matching Prism profile launch is pending at **Low free memory**: maximum 4096 MiB,
+  free 3006 MiB at inspection. No warning was accepted or memory setting changed;
+  no account was selected. Close unneeded applications, then retry launch in Prism
+  and select your account if requested. No current-candidate visual acceptance is claimed.
+
+The exact non-operator crossing test is: in Middle-earth, at **Z=-383.5**, walk east
+from **X=21119.5 (T149)** to **X=21120.5 (T132)** and back. The HUD must change
+at **X=21120**, without an intervening `No tile`. These X/Z controls were verified
+through both the automated production path and dedicated console. The two target
+chunks were not present in the saved region at inspection, so a safe surface Y
+cannot yet be verified from that save. Staff must check terrain before teleporting;
+do not assume the earlier Weathertop Y coordinate applies to this location.
+
+First return action: close unneeded applications and retry the prepared Prism
+launch. Once connected, arrange staff positioning at the verified X/Z interface
+with a checked surface height; perform the east/west crossing as a non-operator.
+The 14 endpoint/junction gaps remain a separate pending approval decision, so
+encountering `No tile` there is expected. Live invalid-coordinate Build rejection
+and cancellation acceptance remain pending from the foundation checklist.

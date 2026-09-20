@@ -34,6 +34,33 @@ public class KOMETileBuildValidationTest {
         assertTrue(data.isDirty()); assertEquals(25L, build.approvedCentiHours());
     }
 
+    @Test public void approvedPilotAllowsMatchingBuildsAndRejectsWrongSideWithoutMutation() {
+        KOMEWorldData data = new KOMEWorldData("weathertop-pilot");
+        for (String id : new String[] {"T149", "T132"}) {
+            KOMEConquestTile tile = new KOMEConquestTile(id); tile.claim("dunedain", 0L);
+            data.conquestTiles.put(id, tile);
+        }
+        double[] positions = {Math.nextDown(21120D), 21120D};
+        String[] ids = {"T149", "T132"};
+        for (int i = 0; i < positions.length; i++) {
+            KOMEPlayerBuild build = KOMEBuildService.create(data, "Pilot", ids[i], KOMETileTestResources.dimension(),
+                positions[i], 64D, -383.5, UUID.randomUUID(), "Builder", "dunedain", "dunedain",
+                KOMEBuildType.NORMAL, 25L, 10L);
+            assertEquals(ids[i], build.tileId); assertEquals(positions[i], build.x, 0);
+        }
+        String before = saved(data); data.setDirty(false);
+        int audit = data.centralAudit.size();
+        try {
+            KOMEBuildService.create(data, "Wrong side", "T149", KOMETileTestResources.dimension(),
+                21120D, 64D, -383.5, UUID.randomUUID(), "Builder", "dunedain", "dunedain",
+                KOMEBuildType.NORMAL, 25L, 10L);
+            fail("T132 coordinate must not create a T149 Build");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage().contains("confirmed conquest tile"));
+        }
+        assertEquals(before, saved(data)); assertEquals(audit, data.centralAudit.size()); assertFalse(data.isDirty());
+    }
+
     @Test public void allSpatialRejectionsAreAtomicIncludingAuditCountersAndExistingBuilds() {
         KOMEWorldData data = world();
         int dimension = KOMETileTestResources.dimension();

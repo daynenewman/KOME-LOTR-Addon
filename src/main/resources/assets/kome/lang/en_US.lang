@@ -1,0 +1,5 @@
+key.categories.kome=KOME
+key.kome.currentTileHud=Toggle current tile HUD
+kome.hud.tile.gap=No tile
+kome.hud.tile.outside=Outside mapped area
+kome.hud.tile.unavailable=Tile unavailable

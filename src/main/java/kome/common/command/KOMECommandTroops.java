@@ -4482,8 +4482,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private double routeCenterDistanceSq(String tileId, String goalTileId) {
-        KOMEConquestTileDefaults.TileCenter tile = KOMEConquestTileDefaults.getTileCenter(tileId);
-        KOMEConquestTileDefaults.TileCenter goal = KOMEConquestTileDefaults.getTileCenter(goalTileId);
+        kome.common.data.KOMETileGameplayDefaults.Point tile = kome.common.data.KOMETileGameplayDefaults.get().getRouteReference(tileId);
+        kome.common.data.KOMETileGameplayDefaults.Point goal = kome.common.data.KOMETileGameplayDefaults.get().getRouteReference(goalTileId);
         if (tile == null || goal == null) {
             return Double.MAX_VALUE;
         }
