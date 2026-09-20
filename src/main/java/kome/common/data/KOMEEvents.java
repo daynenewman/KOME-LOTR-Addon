@@ -11,6 +11,7 @@ import kome.common.command.KOMECommandTroops;
 import kome.common.network.KOMEPacketAllianceData;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketLordMenu;
+import kome.common.network.KOMEPacketSerfdomMasterAction;
 import kome.common.network.KOMEPacketUnitMapMarkers;
 import lotr.common.LOTRLevelData;
 import lotr.common.LOTRPlayerData;
@@ -288,6 +289,23 @@ public class KOMEEvents {
                 KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
                 LOTRFaction faction = lord.getFaction();
                 KOMEPacketHandler.network.sendTo(new KOMEPacketLordMenu(event.target.getEntityId(), lord.getNPCName(), faction == null ? "" : faction.factionName(), isPledgedLord(event.target, progression)), player);
+                event.setCanceled(true);
+                return;
+            }
+        }
+        if (event.entityPlayer.isSneaking() && event.target instanceof LOTREntityNPC) {
+            LOTREntityNPC npc = (LOTREntityNPC) event.target;
+            KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
+            KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+            if (progression.getCanonicalRank() == KOMEProgressionRank.SERF && KOMEProgressionNpcRankService.isValidFactionNpc(npc)
+                    && KOMEProgressionNpcRankService.effectiveRank(data, npc) == KOMEProgressionNpcRank.UNRANKED) {
+                KOMESerfdomMasterService.Result eligibility = KOMESerfdomMasterService.validate(player, data, npc, false);
+                if (!eligibility.success) {
+                    player.addChatMessage(new net.minecraft.util.ChatComponentText(eligibility.reason));
+                    event.setCanceled(true);
+                    return;
+                }
+                KOMEPacketSerfdomMasterAction.sendMenu(player, npc);
                 event.setCanceled(true);
                 return;
             }

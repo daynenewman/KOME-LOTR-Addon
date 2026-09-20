@@ -129,6 +129,11 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     }
 
     @Override
+    public void displaySerfdomMasterMenu(int entityId, String masterName, String factionName, int mode, String dutyStatus) {
+        KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiSerfdomMaster(entityId, masterName, factionName, mode, dutyStatus));
+    }
+
+    @Override
     public void updateProgressionData(String playerName, List completed) {
         KOMEGuiProgression.updateProgressionData(playerName, completed);
     }

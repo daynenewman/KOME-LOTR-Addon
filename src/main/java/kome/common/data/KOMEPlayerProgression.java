@@ -17,6 +17,8 @@ public class KOMEPlayerProgression {
     private final Map<String, Integer> quotaDelivered = new HashMap<>();
     private final ItemStack[] offerings = new ItemStack[OFFERING_SLOTS];
     private final KOMESerfKnightProgression serfKnightProgression = new KOMESerfKnightProgression();
+    /** Revised-progression authority; intentionally independent of legacy achievement groups. */
+    private KOMEProgressionRank canonicalRank = KOMEProgressionRank.WANDERER;
     private String pledgedLordID = "";
     private String pledgedLordName = "";
     private String pledgedLordFaction = "";
@@ -45,6 +47,7 @@ public class KOMEPlayerProgression {
         quotaDelivered.clear();
         clearOfferings();
         serfKnightProgression.reset();
+        canonicalRank = KOMEProgressionRank.WANDERER;
         pledgedLordID = "";
         pledgedLordName = "";
         pledgedLordFaction = "";
@@ -133,6 +136,8 @@ public class KOMEPlayerProgression {
 
     /** Canonical Serf-to-Knight state, deliberately separate from the legacy pledged-lord fields. */
     public KOMESerfKnightProgression getSerfKnightProgression() { return serfKnightProgression; }
+    public KOMEProgressionRank getCanonicalRank() { return canonicalRank; }
+    void setCanonicalRank(KOMEProgressionRank rank) { canonicalRank = rank == null ? KOMEProgressionRank.WANDERER : rank; }
 
     public ItemStack getOffering(int slot) {
         return slot >= 0 && slot < offerings.length ? offerings[slot] : null;
@@ -228,6 +233,8 @@ public class KOMEPlayerProgression {
         pledgedLordX = nbt.getDouble("PledgedLordX");
         pledgedLordY = nbt.getDouble("PledgedLordY");
         pledgedLordZ = nbt.getDouble("PledgedLordZ");
+        KOMEProgressionRank loadedRank = KOMEProgressionRank.forKey(nbt.getString("CanonicalRank"));
+        canonicalRank = loadedRank == null ? KOMEProgressionRank.WANDERER : loadedRank;
         serfKnightProgression.readFromNBT(nbt.hasKey("SerfKnightProgression", 10) ? nbt.getCompoundTag("SerfKnightProgression") : null);
         clearOfferings();
         NBTTagList offeringList = nbt.getTagList("Offerings", 10);
@@ -270,6 +277,7 @@ public class KOMEPlayerProgression {
         nbt.setDouble("PledgedLordX", pledgedLordX);
         nbt.setDouble("PledgedLordY", pledgedLordY);
         nbt.setDouble("PledgedLordZ", pledgedLordZ);
+        nbt.setString("CanonicalRank", canonicalRank.key);
         nbt.setTag("SerfKnightProgression", serfKnightProgression.writeToNBT());
         NBTTagList offeringList = new NBTTagList();
         for (int i = 0; i < offerings.length; i++) {

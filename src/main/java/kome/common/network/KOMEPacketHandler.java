@@ -119,5 +119,7 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketPledgeDepartureData.Handler.class, KOMEPacketPledgeDepartureData.class, 34, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketTroopGuiAction>(new KOMEPacketTroopGuiAction.Handler()) {}, KOMEPacketTroopGuiAction.class, 35, Side.SERVER);
         network.registerMessage(new ServerThreadHandler<KOMEPacketBuildAction>(new KOMEPacketBuildAction.Handler()) {}, KOMEPacketBuildAction.class, 36, Side.SERVER);
+        network.registerMessage(KOMEPacketSerfdomMasterMenu.Handler.class, KOMEPacketSerfdomMasterMenu.class, 37, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketSerfdomMasterAction>(new KOMEPacketSerfdomMasterAction.Handler()) {}, KOMEPacketSerfdomMasterAction.class, 38, Side.SERVER);
     }
 }

@@ -25,7 +25,7 @@ import static org.junit.Assert.*;
 public class KOMEPacketRegistrationTest {
     private static final Set<Integer> EXPECTED_DISCRIMINATORS = new HashSet<Integer>(Arrays.asList(
         0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38
     ));
 
     @Test public void retiredIdsStayHolesAndEveryRetainedClassKeepsItsIdAndSide() throws Exception {
@@ -41,7 +41,8 @@ public class KOMEPacketRegistrationTest {
             "CompanyMovePreviewResult:27:CLIENT", "MovementHistoryRequest:28:SERVER",
             "MovementHistoryData:29:CLIENT", "UnitMapMarkers:30:CLIENT", "WaypointTravelRequest:31:SERVER",
             "AllianceAction:32:SERVER", "PledgeDepartureRequest:33:SERVER", "PledgeDepartureData:34:CLIENT",
-            "TroopGuiAction:35:SERVER", "BuildAction:36:SERVER"
+            "TroopGuiAction:35:SERVER", "BuildAction:36:SERVER", "SerfdomMasterMenu:37:CLIENT",
+            "SerfdomMasterAction:38:SERVER"
         };
         for (String entry : entries) {
             String[] parts = entry.split(":");
@@ -85,9 +86,9 @@ public class KOMEPacketRegistrationTest {
             }
         }
 
-        assertEquals(31, registrations);
+        assertEquals(33, registrations);
         assertEquals(EXPECTED_DISCRIMINATORS, discriminators);
-        assertEquals(14, serverRegistrations);
+        assertEquals(15, serverRegistrations);
 
         EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
         Set<String> handlerNames = new HashSet<String>();

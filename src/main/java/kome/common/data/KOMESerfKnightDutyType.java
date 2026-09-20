@@ -1,9 +1,9 @@
 package kome.common.data;
 
 public enum KOMESerfKnightDutyType {
-    PROVISIONING("provisioning"), PROFESSION("profession"), COURIER("courier");
-    public final String key;
-    KOMESerfKnightDutyType(String key) { this.key = key; }
+    PROVISIONING("provisioning", "Provisioning"), PROFESSION("profession", "Profession"), COURIER("courier", "Courier");
+    public final String key, displayName;
+    KOMESerfKnightDutyType(String key, String displayName) { this.key = key; this.displayName=displayName; }
     public static KOMESerfKnightDutyType forKey(String key) {
         if (key == null) return null;
         for (KOMESerfKnightDutyType type : values()) if (type.key.equalsIgnoreCase(key)) return type;

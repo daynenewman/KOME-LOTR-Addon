@@ -71,6 +71,9 @@ public class KOMECommonProxy {
     public void displayLordMenu(int entityId, String lordName, String factionName, boolean currentLord) {
     }
 
+    public void displaySerfdomMasterMenu(int entityId, String masterName, String factionName, int mode, String dutyStatus) {
+    }
+
     public void updateProgressionData(String playerName, java.util.List completed) {
     }
 

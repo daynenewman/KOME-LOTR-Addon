@@ -1,0 +1,16 @@
+package kome.client.gui;
+
+import kome.client.KOMEEntityHighlightOverlay;
+import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketSerfdomMasterAction;
+import lotr.client.gui.LOTRGuiMenuBase;
+import net.minecraft.client.gui.GuiButton;
+
+/** Separate presentation for canonical Serfdom Master work; it never reuses the Lord menu. */
+public class KOMEGuiSerfdomMaster extends LOTRGuiMenuBase {
+    private final int entityId, mode; private final String masterName, factionName, dutyStatus;
+    public KOMEGuiSerfdomMaster(int entityId,String masterName,String factionName,int mode,String dutyStatus){this.entityId=entityId;this.masterName=masterName==null||masterName.length()==0?"This master":masterName;this.factionName=factionName==null?"":factionName;this.mode=mode;this.dutyStatus=dutyStatus==null?"":dutyStatus;}
+    public void initGui(){xSize=230;ySize=170;super.initGui();buttonList.clear();buttonMenuReturn=null;int center=width/2;if(mode==0||mode==2)buttonList.add(KOMEGuiButton.wide(0,center-72,guiTop+112,"Serve this master"));else if(mode==1){buttonList.add(KOMEGuiButton.wide(1,center-72,guiTop+100,"Request today's duty"));buttonList.add(KOMEGuiButton.wide(2,center-72,guiTop+124,"View current duty"));buttonList.add(KOMEGuiButton.wide(3,center-72,guiTop+148,"Highlight master"));}}
+    public void drawScreen(int mouseX,int mouseY,float partialTicks){drawDefaultBackground();KOMEGuiTheme.drawMainPanel(guiLeft,guiTop,xSize,ySize);KOMEGuiTheme.drawHeader(fontRendererObj,"Serfdom Master",guiLeft+10,guiTop+10,xSize-20);int cardX=guiLeft+18,cardY=guiTop+40,cardW=xSize-36;KOMEGuiTheme.drawCard(cardX,cardY,cardW,43,KOMEGuiTheme.isHovered(mouseX,mouseY,cardX,cardY,cardW,43));drawCenteredString(fontRendererObj,KOMEGuiTheme.trimToWidth(fontRendererObj,masterName,cardW-12),width/2,cardY+7,KOMEGuiTheme.COLOR_BORDER_RED);drawCenteredString(fontRendererObj,KOMEGuiTheme.trimToWidth(fontRendererObj,factionName.length()==0?"No faction":factionName,cardW-12),width/2,cardY+18,KOMEGuiTheme.COLOR_TEXT_MUTED);String status=mode==1?"Your Serfdom Master":mode==2?"Replacement Master Required":mode==3?"You already serve another master":"Available Serfdom Master";drawCenteredString(fontRendererObj,KOMEGuiTheme.trimToWidth(fontRendererObj,status,xSize-20),width/2,guiTop+88,KOMEGuiTheme.COLOR_TEXT_MUTED);drawCenteredString(fontRendererObj,KOMEGuiTheme.trimToWidth(fontRendererObj,dutyStatus,xSize-20),width/2,guiTop+97,KOMEGuiTheme.COLOR_TEXT_MUTED);super.drawScreen(mouseX,mouseY,partialTicks);}
+    public void actionPerformed(GuiButton button){if(!button.enabled)return;if(button.id==0){KOMEPacketHandler.network.sendToServer(new KOMEPacketSerfdomMasterAction(entityId,KOMEPacketSerfdomMasterAction.SERVE));mc.displayGuiScreen(null);}else if(button.id==1)KOMEPacketHandler.network.sendToServer(new KOMEPacketSerfdomMasterAction(entityId,KOMEPacketSerfdomMasterAction.REQUEST_DUTY));else if(button.id==2)KOMEPacketHandler.network.sendToServer(new KOMEPacketSerfdomMasterAction(entityId,KOMEPacketSerfdomMasterAction.VIEW_DUTY));else if(button.id==3){KOMEPacketHandler.network.sendToServer(new KOMEPacketSerfdomMasterAction(entityId,KOMEPacketSerfdomMasterAction.HIGHLIGHT));KOMEEntityHighlightOverlay.highlight(entityId,masterName);mc.displayGuiScreen(null);}}
+}
