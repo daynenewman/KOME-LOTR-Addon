@@ -16,6 +16,7 @@ public class KOMEPlayerProgression {
     private final Map<String, String> assignments = new HashMap<>();
     private final Map<String, Integer> quotaDelivered = new HashMap<>();
     private final ItemStack[] offerings = new ItemStack[OFFERING_SLOTS];
+    private final KOMESerfKnightProgression serfKnightProgression = new KOMESerfKnightProgression();
     private String pledgedLordID = "";
     private String pledgedLordName = "";
     private String pledgedLordFaction = "";
@@ -43,6 +44,7 @@ public class KOMEPlayerProgression {
         assignments.clear();
         quotaDelivered.clear();
         clearOfferings();
+        serfKnightProgression.reset();
         pledgedLordID = "";
         pledgedLordName = "";
         pledgedLordFaction = "";
@@ -128,6 +130,9 @@ public class KOMEPlayerProgression {
         }
         return pledgedLordFaction == null || pledgedLordFaction.trim().isEmpty() ? pledgedLordName : pledgedLordName + " of " + pledgedLordFaction;
     }
+
+    /** Canonical Serf-to-Knight state, deliberately separate from the legacy pledged-lord fields. */
+    public KOMESerfKnightProgression getSerfKnightProgression() { return serfKnightProgression; }
 
     public ItemStack getOffering(int slot) {
         return slot >= 0 && slot < offerings.length ? offerings[slot] : null;
@@ -223,6 +228,7 @@ public class KOMEPlayerProgression {
         pledgedLordX = nbt.getDouble("PledgedLordX");
         pledgedLordY = nbt.getDouble("PledgedLordY");
         pledgedLordZ = nbt.getDouble("PledgedLordZ");
+        serfKnightProgression.readFromNBT(nbt.hasKey("SerfKnightProgression", 10) ? nbt.getCompoundTag("SerfKnightProgression") : null);
         clearOfferings();
         NBTTagList offeringList = nbt.getTagList("Offerings", 10);
         for (int i = 0; i < offeringList.tagCount(); i++) {
@@ -264,6 +270,7 @@ public class KOMEPlayerProgression {
         nbt.setDouble("PledgedLordX", pledgedLordX);
         nbt.setDouble("PledgedLordY", pledgedLordY);
         nbt.setDouble("PledgedLordZ", pledgedLordZ);
+        nbt.setTag("SerfKnightProgression", serfKnightProgression.writeToNBT());
         NBTTagList offeringList = new NBTTagList();
         for (int i = 0; i < offerings.length; i++) {
             if (offerings[i] != null) {
