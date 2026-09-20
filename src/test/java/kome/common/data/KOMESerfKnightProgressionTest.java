@@ -11,8 +11,9 @@ public class KOMESerfKnightProgressionTest {
         return new KOMEProgressionNpcRef(UUID.randomUUID().toString(), name, faction, 100, 1.5D, 64.0D, -2.5D);
     }
     private static void assignAndCompleteDuties(KOMESerfKnightProgression state) {
+        long day = 10L;
         for (KOMESerfKnightDutyType type : KOMESerfKnightDutyType.values()) {
-            assertTrue(KOMESerfKnightService.assignDuty(state, type).success);
+            assertTrue(KOMESerfKnightService.assignDuty(state, type, null, day++).success);
             assertTrue(KOMESerfKnightService.completeDuty(state, type).success);
         }
     }
@@ -20,7 +21,7 @@ public class KOMESerfKnightProgressionTest {
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state, npc("Master", "rohan")).success);
         assignAndCompleteDuties(state);
         assertTrue(KOMESerfKnightService.setProspectiveLiege(state, npc("Liege", "rohan")).success);
-        assertTrue(KOMESerfKnightService.assignTrial(state, new Random(4L)).success);
+        assertTrue(KOMESerfKnightService.assignTrial(state, new Random(4L), 20L).success);
         assertTrue(KOMESerfKnightService.completeTrial(state).success);
         assertTrue(KOMESerfKnightService.recordPartingGift(state).success);
     }
@@ -37,7 +38,7 @@ public class KOMESerfKnightProgressionTest {
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state, master).success);
         assignAndCompleteDuties(state);
         assertTrue(KOMESerfKnightService.setProspectiveLiege(state, liege).success);
-        String assigned = KOMESerfKnightService.assignTrial(state, new Random(1L)).trialId;
+        String assigned = KOMESerfKnightService.assignTrial(state, new Random(1L), 20L).trialId;
         assertTrue(KOMESerfKnightService.completeTrial(state).success);
         assertTrue(KOMESerfKnightService.recordPartingGift(state).success);
         KOMEPlayerProgression restored = new KOMEPlayerProgression(); restored.readFromNBT(player.writeToNBT());
@@ -54,13 +55,14 @@ public class KOMESerfKnightProgressionTest {
         KOMESerfKnightProgression state = new KOMESerfKnightProgression();
         assertFalse(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROVISIONING).success);
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state, npc("Master", "rohan")).success);
-        assertTrue(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROVISIONING).success);
+        assertTrue(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROVISIONING, null, 10L).success);
         assertTrue(KOMESerfKnightService.completeDuty(state, KOMESerfKnightDutyType.PROVISIONING).success);
         assertTrue(KOMESerfKnightService.completeDuty(state, KOMESerfKnightDutyType.PROVISIONING).success);
         assertFalse(KOMESerfKnightService.allDutiesComplete(state));
         assertFalse(KOMESerfKnightService.setProspectiveLiege(state, npc("Liege", "rohan")).success);
         assertFalse(KOMESerfKnightService.assignTrial(state, new Random(0L)).success);
-        for (KOMESerfKnightDutyType type : new KOMESerfKnightDutyType[] {KOMESerfKnightDutyType.PROFESSION, KOMESerfKnightDutyType.COURIER}) { assertTrue(KOMESerfKnightService.assignDuty(state, type).success); assertTrue(KOMESerfKnightService.completeDuty(state, type).success); }
+        long day = 11L;
+        for (KOMESerfKnightDutyType type : new KOMESerfKnightDutyType[] {KOMESerfKnightDutyType.PROFESSION, KOMESerfKnightDutyType.COURIER}) { assertTrue(KOMESerfKnightService.assignDuty(state, type, null, day++).success); assertTrue(KOMESerfKnightService.completeDuty(state, type).success); }
         assertTrue(KOMESerfKnightService.allDutiesComplete(state));
     }
 
@@ -71,10 +73,10 @@ public class KOMESerfKnightProgressionTest {
         assertTrue(KOMESerfKnightService.setSerfdomMaster(first, npc("Master", "rohan")).success); assignAndCompleteDuties(first);
         assertFalse(KOMESerfKnightService.assignTrial(first, new Random(2L)).success);
         assertTrue(KOMESerfKnightService.setProspectiveLiege(first, npc("Liege", "rohan")).success);
-        String selected = KOMESerfKnightService.assignTrial(first, new Random(2L)).trialId;
+        String selected = KOMESerfKnightService.assignTrial(first, new Random(2L), 20L).trialId;
         KOMESerfKnightProgression second = new KOMESerfKnightProgression(); assertTrue(KOMESerfKnightService.setSerfdomMaster(second, npc("Master2", "rohan")).success); assignAndCompleteDuties(second); assertTrue(KOMESerfKnightService.setProspectiveLiege(second, npc("Liege2", "rohan")).success);
-        assertEquals(selected, KOMESerfKnightService.assignTrial(second, new Random(2L)).trialId);
-        assertFalse(KOMESerfKnightService.assignTrial(first, new Random(3L)).success);
+        assertEquals(selected, KOMESerfKnightService.assignTrial(second, new Random(2L), 20L).trialId);
+        assertFalse(KOMESerfKnightService.assignTrial(first, new Random(3L), 21L).success);
     }
 
     @Test public void promotionUsesLivePositiveAlignmentAndAllRequirements() {
@@ -85,7 +87,7 @@ public class KOMESerfKnightProgressionTest {
         assertFalse(KOMESerfKnightService.canPromote(state, 150));
         assertTrue(KOMESerfKnightService.setProspectiveLiege(state, npc("Liege", "rohan")).success);
         assertFalse(KOMESerfKnightService.canPromote(state, 150));
-        assertTrue(KOMESerfKnightService.assignTrial(state, new Random(4L)).success);
+        assertTrue(KOMESerfKnightService.assignTrial(state, new Random(4L), 20L).success);
         assertFalse(KOMESerfKnightService.canPromote(state, 150));
         assertTrue(KOMESerfKnightService.completeTrial(state).success);
         assertFalse(KOMESerfKnightService.canPromote(state, 150));
@@ -115,7 +117,7 @@ public class KOMESerfKnightProgressionTest {
         KOMEProgressionNpcRef normalized = npc("Master", "ROHAN"); assertEquals("rohan", normalized.factionKey);
         KOMESerfKnightProgression state = new KOMESerfKnightProgression(); assertTrue(KOMESerfKnightService.setSerfdomMaster(state, normalized).success);
         NBTTagCompound data = new NBTTagCompound(); data.setString("Future", "original");
-        assertTrue(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROVISIONING, data).success);
+        assertTrue(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROVISIONING, data, 10L).success);
         data.setString("Future", "mutated"); assertEquals("original", state.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData().getString("Future"));
         NBTTagCompound read = state.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData(); read.setString("Future", "mutated again");
         assertEquals("original", state.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData().getString("Future"));

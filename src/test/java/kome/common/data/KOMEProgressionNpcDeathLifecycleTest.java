@@ -10,14 +10,15 @@ import static org.junit.Assert.*;
 public class KOMEProgressionNpcDeathLifecycleTest {
     private static KOMEProgressionNpcRef ref(String name) { return new KOMEProgressionNpcRef(UUID.randomUUID().toString(),name,"rohan",0,0,0,0); }
     private static void master(KOMESerfKnightProgression state, KOMEProgressionNpcRef master) { assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master).success); }
-    private static void duties(KOMESerfKnightProgression state) { for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()){assertTrue(KOMESerfKnightService.assignDuty(state,type).success);assertTrue(KOMESerfKnightService.completeDuty(state,type).success);} }
-    private static void liegeTrial(KOMESerfKnightProgression state,KOMEProgressionNpcRef liege,boolean complete){assertTrue(KOMESerfKnightService.setProspectiveLiege(state,liege).success);assertTrue(KOMESerfKnightService.assignTrial(state,new Random(1)).success);if(complete)assertTrue(KOMESerfKnightService.completeTrial(state).success);}
+    private static void duties(KOMESerfKnightProgression state) { long day=10L; for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()){assertTrue(KOMESerfKnightService.assignDuty(state,type,null,day++).success);assertTrue(KOMESerfKnightService.completeDuty(state,type).success);} }
+    private static void liegeTrial(KOMESerfKnightProgression state,KOMEProgressionNpcRef liege,boolean complete){assertTrue(KOMESerfKnightService.setProspectiveLiege(state,liege).success);assertTrue(KOMESerfKnightService.assignTrial(state,new Random(1),20L).success);if(complete)assertTrue(KOMESerfKnightService.completeTrial(state).success);}
 
     @Test public void normalMasterDeathCancelsAllUnfinishedDutiesAndAllowsReplacement() {
         KOMESerfKnightProgression state=new KOMESerfKnightProgression(); KOMEProgressionNpcRef old=ref("old"); master(state,old);
-        assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROVISIONING).success);assertTrue(KOMESerfKnightService.completeDuty(state,KOMESerfKnightDutyType.PROVISIONING).success);
-        assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROFESSION).success);
-        assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.COURIER).success);
+        assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROVISIONING,null,10L).success);assertTrue(KOMESerfKnightService.completeDuty(state,KOMESerfKnightDutyType.PROVISIONING).success);
+        // Simulate a pre-2D/corrupt state: death cleanup must cancel every unfinished duty.
+        state.assignDuty(KOMESerfKnightDutyType.PROFESSION,null);
+        state.assignDuty(KOMESerfKnightDutyType.COURIER,null);
         assertTrue(KOMESerfKnightService.handleNpcDeath(state,old.entityUuid,false,10));
         assertTrue(state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isCompleted());assertFalse(state.getDuty(KOMESerfKnightDutyType.PROFESSION).isAssigned());assertFalse(state.getDuty(KOMESerfKnightDutyType.COURIER).isAssigned());assertTrue(state.isMasterReplacementRequired());assertFalse(state.getSerfdomMaster().isSet());
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,ref("replacement")).success);

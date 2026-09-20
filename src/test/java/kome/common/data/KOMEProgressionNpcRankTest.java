@@ -58,7 +58,8 @@ public class KOMEProgressionNpcRankTest {
     @Test public void rankAwareSerfKnightSelectionRequiresExactRanks() {
         KOMESerfKnightProgression state=new KOMESerfKnightProgression(); KOMEProgressionNpcRef master=ref("master"), liege=ref("liege");
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master,KOMEProgressionNpcRank.UNRANKED,true).success);
-        for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()) { assertTrue(KOMESerfKnightService.assignDuty(state,type).success); assertTrue(KOMESerfKnightService.completeDuty(state,type).success); }
+        long day=10L;
+        for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()) { assertTrue(KOMESerfKnightService.assignDuty(state,type,null,day++).success); assertTrue(KOMESerfKnightService.completeDuty(state,type).success); }
         assertFalse(KOMESerfKnightService.setProspectiveLiege(state,liege,KOMEProgressionNpcRank.UNRANKED,true).success);
         assertFalse(KOMESerfKnightService.setProspectiveLiege(state,liege,KOMEProgressionNpcRank.PRINCE,true).success);
         assertFalse(KOMESerfKnightService.setProspectiveLiege(state,liege,KOMEProgressionNpcRank.KING,true).success);
