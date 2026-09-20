@@ -124,17 +124,35 @@ public class KOMEProgressionLords {
     }
 
     public static boolean isPledgeLord(LOTRHireableBase hireable) {
+        return isCombatUnitHiringNpc(hireable);
+    }
+
+    /** Shared noble-hiring predicate: farmer-only traders are never noble lieges. */
+    public static boolean isCombatUnitHiringNpc(LOTRHireableBase hireable) {
+        return isCombatUnitHiringNpc((Object) hireable);
+    }
+
+    /** Supports base LOTR NPC references as well as the narrower hireable interaction type. */
+    public static boolean isCombatUnitHiringNpc(LOTREntityNPC npc) {
+        return isCombatUnitHiringNpc((Object) npc);
+    }
+
+    private static boolean isCombatUnitHiringNpc(Object hireable) {
         if (hireable instanceof LOTRUnitTradeable) {
+            if (((LOTRUnitTradeable) hireable).getUnits() == null) return false;
             LOTRUnitTradeEntry[] entries = ((LOTRUnitTradeable) hireable).getUnits().tradeEntries;
             if (entries != null) {
+                boolean hasEntry = false;
                 for (LOTRUnitTradeEntry entry : entries) {
+                    hasEntry |= entry != null;
                     if (entry != null && entry.task != LOTRHiredNPCInfo.Task.FARMER) {
                         return true;
                     }
                 }
+                if (hasEntry) return false;
             }
         }
-        String className = hireable.getClass().getSimpleName().toLowerCase();
+        String className = hireable == null ? "" : hireable.getClass().getSimpleName().toLowerCase();
         return className.contains("captain") || className.contains("commander") || className.contains("lord") || className.contains("warlord") || className.contains("chieftain");
     }
 

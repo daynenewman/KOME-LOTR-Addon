@@ -37,7 +37,7 @@ public class KOMEWorldDataSchemaTest {
         "ForeignConstructionPermissions", "ActiveRecruitmentTiles", "TileWaypoints",
         "TileWaypointLinks", "RouteEdges", "Alliances", "RecoveredLegacyTradePostIds",
         "TradePostMigrationQuarantine", "Wars", "ConquestClaimConfirmations", "ArmyMovements",
-        "MovementHistory", "ArmyCompanies", "FactionKings"
+        "MovementHistory", "ArmyCompanies", "FactionKings", "ProgressionNpcRanks"
     ));
 
     @Test

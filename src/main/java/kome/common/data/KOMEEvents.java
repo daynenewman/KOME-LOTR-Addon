@@ -262,6 +262,7 @@ public class KOMEEvents {
             }
             handleHiredUnit((LOTREntityNPC) event.entity);
             enforceNpcEquipment((LOTREntityNPC) event.entity);
+            KOMEProgressionNpcRankService.applyPersistenceProtection(data, (LOTREntityNPC) event.entity);
         }
     }
 
