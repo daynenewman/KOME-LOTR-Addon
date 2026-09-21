@@ -29,6 +29,10 @@ public final class KOMEProgressionNpcSpeech {
     public static void sameDay(EntityPlayerMP player, LOTREntityNPC master) {
         say(player, master, "You have done enough for today. Return tomorrow, and I may have more work for you.");
     }
+    public static void assignCourier(EntityPlayerMP player, LOTREntityNPC master) { say(player,master,"I have a message that must be carried. Take this to one of our people beyond these parts, and return when it is delivered."); }
+    public static void replaceCourierMessage(EntityPlayerMP player, LOTREntityNPC master) { say(player,master,"You've lost it? Take another, and mind it this time."); }
+    public static void receiveCourier(EntityPlayerMP player, LOTREntityNPC recipient, String masterName) { say(player,recipient,"I'll see that this is received. Tell "+masterName+" the message reached its destination."); }
+    public static void completeCourier(EntityPlayerMP player, LOTREntityNPC master) { say(player,master,"Good. You carried out my word and returned as you were told. You have done well."); }
 
     public static void viewDuty(EntityPlayerMP player, LOTREntityNPC master, KOMESerfKnightProgression state) {
         if (state != null && "provisioning".equals(state.getActiveAssignmentKind())) say(player, master, "I am still waiting on those provisions.");

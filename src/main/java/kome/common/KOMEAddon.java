@@ -27,6 +27,8 @@ import kome.common.gui.KOMEAllianceGuiHandler;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.data.KOMEProgressionOfferBridge;
 import net.minecraftforge.common.ForgeChunkManager;
+import cpw.mods.fml.common.registry.GameRegistry;
+import net.minecraft.item.Item;
 
 import java.io.File;
 import java.util.List;
@@ -62,9 +64,14 @@ public class KOMEAddon {
             serverSide = "kome.common.KOMECommonProxy"
     )
     public static KOMECommonProxy proxy;
+    public static Item sealedMessage;
+    public static Item sealedParcel;
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        sealedMessage = new kome.common.item.KOMEItemSealedMessage();
+        GameRegistry.registerItem(sealedMessage, "sealedMessage");
+        sealedParcel = new kome.common.item.KOMEItemSealedParcel(); GameRegistry.registerItem(sealedParcel, "sealedParcel");
         KOMEProgressionOfferBridge.registerQuestType();
         KOMEConfigRegistry.load(new File(event.getModConfigurationDirectory(), "kome.cfg"));
         characterCreation.commonPreInitialize(event);

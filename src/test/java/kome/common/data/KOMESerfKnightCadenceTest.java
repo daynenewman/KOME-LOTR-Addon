@@ -64,11 +64,11 @@ public class KOMESerfKnightCadenceTest {
 
     @Test public void dutiesUseOneDailySlotWithoutBankingAndExposeOrderedNextDuty() {
         KOMESerfKnightProgression state = new KOMESerfKnightProgression(); master(state);
-        assertEquals(KOMESerfKnightDutyType.PROVISIONING, KOMESerfKnightService.nextDuty(state));
+        assertNotNull(KOMESerfKnightService.chooseAvailableDuty(state,new Random(1)));
         assertTrue(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROVISIONING, null, 10L).success);
         assertEquals(10L, state.getLastAssignmentEpochDay());
         assertTrue(KOMESerfKnightService.completeDuty(state, KOMESerfKnightDutyType.PROVISIONING).success);
-        assertEquals(KOMESerfKnightDutyType.PROFESSION, KOMESerfKnightService.nextDuty(state));
+        assertNotEquals(KOMESerfKnightDutyType.PROVISIONING, KOMESerfKnightService.chooseAvailableDuty(state,new Random(1)));
         assertFalse(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROFESSION, null, 10L).success);
         assertTrue(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROFESSION, null, 11L).success);
         assertTrue(KOMESerfKnightService.completeDuty(state, KOMESerfKnightDutyType.PROFESSION).success);

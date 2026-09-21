@@ -308,6 +308,16 @@ public class KOMEEvents {
                 event.setCanceled(true);
                 return;
             }
+            if (progression.getCanonicalRank() == KOMEProgressionRank.SERF && "courier".equals(state.getActiveAssignmentKind())) {
+                KOMESerfCourierAssignment courier=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
+                if (courier != null && KOMECourierService.validRecipient(player,npc,courier,state.getSerfdomMaster()) && KOMECourierService.hasMessage(player,courier,state.getSerfdomMaster())) {
+                    if (KOMECourierService.removeMessage(player,courier,state.getSerfdomMaster())) {
+                        courier.recipient=KOMEProgressionNpcRankService.referenceOf(npc);courier.stage=KOMESerfCourierAssignment.Stage.DELIVERED;
+                        state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER,courier.writeToNBT());data.markDirty();player.inventoryContainer.detectAndSendChanges();KOMEProgressionAutoCompleter.syncPlayer(player,progression);
+                        KOMEProgressionNpcSpeech.receiveCourier(player,npc,state.getSerfdomMaster().displayName);event.setCanceled(true);return;
+                    }
+                }
+            }
         }
         if (event.target instanceof LOTREntityNPC && !KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.MINIQUESTS)) {
             LOTREntityNPC npc = (LOTREntityNPC) event.target;

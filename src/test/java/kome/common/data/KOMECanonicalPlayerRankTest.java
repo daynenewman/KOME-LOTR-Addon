@@ -70,14 +70,14 @@ public class KOMECanonicalPlayerRankTest {
         KOMEProgressionNpcRef other = new KOMEProgressionNpcRef(UUID.randomUUID().toString(), "Other", "rohan", 0, 0, 0, 0);
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state, master).success);
         assertTrue(KOMESerfdomMasterService.requestDuty(state, master, 10L, new net.minecraft.nbt.NBTTagCompound(), new java.util.Random(1L)).success);
-        assertTrue(state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isAssigned());
+        assertTrue(state.hasActiveAssignment());
         assertEquals(10L, state.getLastAssignmentEpochDay());
         assertFalse(KOMESerfdomMasterService.requestDuty(state, other, 10L).success);
         assertFalse(KOMESerfdomMasterService.requestDuty(state, master, 10L).success);
-        assertTrue(KOMESerfKnightService.completeDuty(state, KOMESerfKnightDutyType.PROVISIONING).success);
+        assertTrue(KOMESerfKnightService.completeDuty(state, KOMESerfKnightDutyType.forKey(state.getActiveAssignmentKind())).success);
         assertFalse(KOMESerfdomMasterService.requestDuty(state, master, 10L).success);
         assertTrue(KOMESerfdomMasterService.requestDuty(state, master, 11L).success);
-        assertTrue(state.getDuty(KOMESerfKnightDutyType.PROFESSION).isAssigned());
+        assertTrue(state.hasActiveAssignment());
     }
     @Test public void voluntaryDepartureResetsOnlyRelationshipScopedProgressWithoutCadencePenalty() {
         KOMESerfKnightProgression state=new KOMESerfKnightProgression();KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","rohan",0,0,0,0);assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master).success);assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROVISIONING,null,20L).success);assertEquals(20L,state.getLastAssignmentEpochDay());assertTrue(KOMESerfKnightService.leaveSerfdomMaster(state).success);assertFalse(state.getSerfdomMaster().isSet());assertFalse(state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isAssigned());assertFalse(state.isMasterReplacementRequired());assertEquals(20L,state.getLastAssignmentEpochDay());assertTrue(KOMESerfKnightService.setSerfdomMaster(state,new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"New","rohan",0,0,0,0)).success);assertFalse(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROVISIONING,null,20L).success);assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROVISIONING,null,21L).success);
