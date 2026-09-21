@@ -51,11 +51,15 @@ public final class KOMESerfdomMasterService {
         data.markDirty(); return ok();
     }
     /** Identity/cadence orchestration only; assignment mutation remains in KOMESerfKnightService. */
-    public static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay) {
+    public static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay) {return requestDuty(state,clickedMaster,calendarDay,new java.util.Random());}
+    static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay,java.util.Random random) {return requestDuty(state,clickedMaster,calendarDay,null,random);}
+    static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay,net.minecraft.nbt.NBTTagCompound suppliedProvisioningData,java.util.Random random) {
         if(state==null || clickedMaster==null || !clickedMaster.isSet()) return reject("A valid Serfdom Master is required.");
         if(!state.getSerfdomMaster().hasSameIdentity(clickedMaster)) return reject("You may only request duties from your current Serfdom Master.");
         KOMESerfKnightDutyType next=KOMESerfKnightService.nextDuty(state); if(next==null)return reject("All Serfdom duties are already complete.");
-        KOMESerfKnightService.Result result=KOMESerfKnightService.assignDuty(state,next,null,calendarDay);
+        if(!KOMESerfKnightService.mayIssueAssignment(state,calendarDay))return reject("You have already received a progression task today. Return later for another assignment.");
+        net.minecraft.nbt.NBTTagCompound data=next==KOMESerfKnightDutyType.PROVISIONING?(suppliedProvisioningData==null?KOMESerfProvisioningAssignment.generate(clickedMaster.factionKey,random).writeToNBT():(net.minecraft.nbt.NBTTagCompound)suppliedProvisioningData.copy()):null;
+        KOMESerfKnightService.Result result=KOMESerfKnightService.assignDuty(state,next,data,calendarDay);
         if(!result.success)return reject(result.reason);
         return ok();
     }

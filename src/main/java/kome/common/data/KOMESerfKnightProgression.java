@@ -56,6 +56,7 @@ public final class KOMESerfKnightProgression {
     void setSerfdomMaster(KOMEProgressionNpcRef value) { serfdomMaster = value; masterReplacementRequired=false; }
     void setProspectiveLiege(KOMEProgressionNpcRef value) { prospectiveLiege = value; liegeReplacementRequired=false; }
     void assignDuty(KOMESerfKnightDutyType type, NBTTagCompound data) { duties.get(type).assign(data); }
+    public void setDutyAssignmentData(KOMESerfKnightDutyType type, NBTTagCompound data) { if(type!=null && duties.get(type).assigned) duties.get(type).assignmentData=data==null?null:(NBTTagCompound)data.copy(); }
     void completeDuty(KOMESerfKnightDutyType type) { duties.get(type).complete(); }
     void setTrial(String id) { trialId = id; trialCompleted = false; }
     void setTrialCompleted() { trialCompleted = true; }

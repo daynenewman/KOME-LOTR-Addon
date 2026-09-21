@@ -67,7 +67,7 @@ public class KOMECanonicalPlayerRankTest {
         KOMEProgressionNpcRef master = new KOMEProgressionNpcRef(UUID.randomUUID().toString(), "Master", "rohan", 0, 0, 0, 0);
         KOMEProgressionNpcRef other = new KOMEProgressionNpcRef(UUID.randomUUID().toString(), "Other", "rohan", 0, 0, 0, 0);
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state, master).success);
-        assertTrue(KOMESerfdomMasterService.requestDuty(state, master, 10L).success);
+        assertTrue(KOMESerfdomMasterService.requestDuty(state, master, 10L, new net.minecraft.nbt.NBTTagCompound(), new java.util.Random(1L)).success);
         assertTrue(state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isAssigned());
         assertEquals(10L, state.getLastAssignmentEpochDay());
         assertFalse(KOMESerfdomMasterService.requestDuty(state, other, 10L).success);
