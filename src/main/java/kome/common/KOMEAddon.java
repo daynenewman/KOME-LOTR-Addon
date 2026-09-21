@@ -25,6 +25,7 @@ import kome.common.command.KOMECommandWar;
 import kome.common.config.KOMEConfigRegistry;
 import kome.common.gui.KOMEAllianceGuiHandler;
 import kome.common.network.KOMEPacketHandler;
+import kome.common.data.KOMEProgressionOfferBridge;
 import net.minecraftforge.common.ForgeChunkManager;
 
 import java.io.File;
@@ -64,6 +65,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        KOMEProgressionOfferBridge.registerQuestType();
         KOMEConfigRegistry.load(new File(event.getModConfigurationDirectory(), "kome.cfg"));
         characterCreation.commonPreInitialize(event);
         lotrMoreMobs.preInit(event);

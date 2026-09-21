@@ -2,6 +2,7 @@ package kome.integration;
 
 import kome.core.KOMECorePlugin;
 import kome.core.KOMEWaypointTransformer;
+import kome.core.KOMEProgressionOfferTransformer;
 import net.minecraft.entity.player.EntityPlayer;
 import org.junit.Test;
 
@@ -401,6 +402,7 @@ public class CharacterCreationIsolationTest {
         assertArrayEquals(
             new String[] {
                 KOMEWaypointTransformer.class.getName(),
+                KOMEProgressionOfferTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),

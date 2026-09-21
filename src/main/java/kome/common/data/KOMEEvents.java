@@ -273,6 +273,11 @@ public class KOMEEvents {
             return;
         }
         EntityPlayerMP player = (EntityPlayerMP) event.entityPlayer;
+        if (event.target instanceof LOTREntityNPC) {
+            KOMEProgressionOfferBridge.ensureSerfdomOffer(player, (LOTREntityNPC) event.target);
+            LOTREntityNPC offerNpc = (LOTREntityNPC) event.target;
+            if (offerNpc.questInfo != null && KOMEProgressionOfferBridge.isExternalOffer(offerNpc.questInfo.getOfferFor(player))) return;
+        }
         if (isMountEntity(event.target) && !KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.MOUNTS)) {
             event.setCanceled(true);
             return;
@@ -282,38 +287,31 @@ public class KOMEEvents {
             event.setCanceled(true);
             return;
         }
-        if (event.entityPlayer.isSneaking() && event.target instanceof LOTRHireableBase) {
-            LOTRHireableBase lord = (LOTRHireableBase) event.target;
-            if (isPledgeLord(lord)) {
-                KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-                KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-                LOTRFaction faction = lord.getFaction();
-                KOMEPacketHandler.network.sendTo(new KOMEPacketLordMenu(event.target.getEntityId(), lord.getNPCName(), faction == null ? "" : faction.factionName(), isPledgedLord(event.target, progression)), player);
-                event.setCanceled(true);
-                return;
-            }
-        }
-        if (event.entityPlayer.isSneaking() && event.target instanceof LOTREntityNPC) {
+        if (event.target instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.target;
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
             KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
             KOMESerfKnightProgression state = progression.getSerfKnightProgression();
             KOMEProgressionNpcRef clicked = KOMEProgressionNpcRankService.referenceOf(npc);
             boolean currentMaster = state.getSerfdomMaster().hasSameIdentity(clicked);
+            boolean currentLiege = state.getProspectiveLiege().hasSameIdentity(clicked);
             KOMESerfdomMasterService.Result eligibility = currentMaster
                 ? KOMESerfdomMasterService.validateCurrentMasterInteraction(player, data, npc, false)
-                : !state.getSerfdomMaster().isSet()
-                    ? KOMESerfdomMasterService.validateMasterSelection(player, data, npc, false)
-                    : null;
+                : null;
             if (eligibility != null && eligibility.success) {
-                KOMEPacketSerfdomMasterAction.sendMenu(player, npc);
+                kome.common.network.KOMEPacketRelationshipAction.sendHub(player, npc, kome.common.network.KOMEPacketRelationshipAction.MASTER);
+                event.setCanceled(true);
+                return;
+            }
+            if (currentLiege && progression.getCanonicalRank() == KOMEProgressionRank.SERF) {
+                kome.common.network.KOMEPacketRelationshipAction.sendHub(player, npc, kome.common.network.KOMEPacketRelationshipAction.LIEGE);
                 event.setCanceled(true);
                 return;
             }
         }
         if (event.target instanceof LOTREntityNPC && !KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.MINIQUESTS)) {
             LOTREntityNPC npc = (LOTREntityNPC) event.target;
-            if (npc.questInfo != null && npc.questInfo.canOfferQuestsTo(player) && npc.questInfo.getOfferFor(player) != null) {
+            if (npc.questInfo != null && npc.questInfo.canOfferQuestsTo(player) && npc.questInfo.getOfferFor(player) != null && !KOMEProgressionOfferBridge.isExternalOffer(npc.questInfo.getOfferFor(player))) {
                 KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.MINIQUESTS);
                 event.setCanceled(true);
                 return;

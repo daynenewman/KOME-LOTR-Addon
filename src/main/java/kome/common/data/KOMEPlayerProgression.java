@@ -11,6 +11,11 @@ import java.util.Map;
 import java.util.Set;
 
 public class KOMEPlayerProgression {
+    /** Short-lived per-NPC decline ledger; entries are pruned when a new server day is observed. */
+    private final java.util.Map<String, Long> serfdomOfferDeclines = new java.util.HashMap<String, Long>();
+    public boolean declinedSerfdomOfferToday(String npcId, long day) { pruneSerfdomOfferDeclines(day); Long value=serfdomOfferDeclines.get(npcId); return value != null && value.longValue()==day; }
+    public void declineSerfdomOffer(String npcId, long day) { if(npcId!=null&&npcId.length()!=0){pruneSerfdomOfferDeclines(day);serfdomOfferDeclines.put(npcId,Long.valueOf(day));} }
+    private void pruneSerfdomOfferDeclines(long day) { java.util.Iterator<java.util.Map.Entry<String,Long>> it=serfdomOfferDeclines.entrySet().iterator();while(it.hasNext())if(it.next().getValue().longValue()!=day)it.remove(); }
     public static final int OFFERING_SLOTS = 54;
     private final Set<String> completed = new HashSet<>();
     private final Map<String, String> assignments = new HashMap<>();
@@ -200,6 +205,7 @@ public class KOMEPlayerProgression {
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
+        serfdomOfferDeclines.clear(); long now=KOMESerfKnightService.calendarDayNow(); NBTTagList declined=nbt.getTagList("SerfdomOfferDeclines",10);for(int i=0;i<declined.tagCount();i++){NBTTagCompound e=declined.getCompoundTagAt(i);if(e.getLong("Day")==now)serfdomOfferDeclines.put(e.getString("NPC"),Long.valueOf(now));}
         completed.clear();
         assignments.clear();
         quotaDelivered.clear();
@@ -248,6 +254,7 @@ public class KOMEPlayerProgression {
     }
 
     public NBTTagCompound writeToNBT() {
+        pruneSerfdomOfferDeclines(KOMESerfKnightService.calendarDayNow());
         NBTTagCompound nbt = new NBTTagCompound();
         NBTTagList list = new NBTTagList();
         for (String id : completed) {
@@ -279,6 +286,7 @@ public class KOMEPlayerProgression {
         nbt.setDouble("PledgedLordZ", pledgedLordZ);
         nbt.setString("CanonicalRank", canonicalRank.key);
         nbt.setTag("SerfKnightProgression", serfKnightProgression.writeToNBT());
+        NBTTagList declined=new NBTTagList();for(java.util.Map.Entry<String,Long> e:serfdomOfferDeclines.entrySet()){NBTTagCompound row=new NBTTagCompound();row.setString("NPC",e.getKey());row.setLong("Day",e.getValue().longValue());declined.appendTag(row);}nbt.setTag("SerfdomOfferDeclines",declined);
         NBTTagList offeringList = new NBTTagList();
         for (int i = 0; i < offerings.length; i++) {
             if (offerings[i] != null) {

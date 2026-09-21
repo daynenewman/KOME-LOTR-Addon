@@ -35,7 +35,7 @@ public final class KOMESerfdomMasterService {
         return validateRuntime(player,data,npc,requireRange,true);
     }
     private static Result validateRuntime(EntityPlayerMP player, KOMEWorldData data, LOTREntityNPC npc, boolean requireRange, boolean currentInteraction) {
-        if(player == null || data == null || npc == null) return reject("A valid Serfdom Master is required.");
+        if(player == null || data == null || npc == null || !npc.isEntityAlive() || npc.isChild()) return reject("A valid adult Serfdom Master is required.");
         if(requireRange && player.getDistanceSqToEntity(npc)>64.0D) return reject("That Serfdom Master is no longer close enough.");
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
         LOTRFaction faction=npc.getFaction();
