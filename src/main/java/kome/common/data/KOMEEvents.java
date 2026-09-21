@@ -275,6 +275,7 @@ public class KOMEEvents {
         EntityPlayerMP player = (EntityPlayerMP) event.entityPlayer;
         if (event.target instanceof LOTREntityNPC) {
             KOMEProgressionOfferBridge.ensureSerfdomOffer(player, (LOTREntityNPC) event.target);
+            KOMEProgressionOfferBridge.ensureLiegeOffer(player, (LOTREntityNPC) event.target);
             LOTREntityNPC offerNpc = (LOTREntityNPC) event.target;
             if (offerNpc.questInfo != null && KOMEProgressionOfferBridge.isExternalOffer(offerNpc.questInfo.getOfferFor(player))) return;
         }

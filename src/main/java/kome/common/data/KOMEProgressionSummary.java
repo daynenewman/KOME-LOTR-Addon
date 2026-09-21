@@ -1,16 +1,88 @@
 package kome.common.data;
+
 /** Read-only canonical progression-book projection. */
 public final class KOMEProgressionSummary {
     private KOMEProgressionSummary() {}
-    public static String text(KOMEPlayerProgression p) {return text(p,"");}
-    public static String text(KOMEPlayerProgression p,boolean hasPlayablePledge) {return text(p,hasPlayablePledge?"Pledged Faction":"");}
-    public static String text(KOMEPlayerProgression p,String pledgeName) {KOMESerfKnightProgression s=p.getSerfKnightProgression();String r="Rank: "+p.getCanonicalRank().displayName;if(p.getCanonicalRank()==KOMEProgressionRank.WANDERER){boolean pledged=pledgeName!=null&&pledgeName.trim().length()!=0;return r+"\nPledge: "+(pledged?pledgeName:"None")+"\nNext: "+(pledged?"Find a Serfdom Master":"Pledge to a faction");}if(p.getCanonicalRank()!=KOMEProgressionRank.SERF)return r;if(!s.getSerfdomMaster().isSet())return r+"\nSerfdom Master: None\nNext: Find a Serfdom Master";String base=r+"\nSerfdom Master: "+s.getSerfdomMaster().displayName;if("courier".equals(s.getActiveAssignmentKind())){KOMESerfCourierAssignment a=KOMESerfCourierAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());if(a!=null)return base+"\nCurrent Duty: Courier\nMessage: "+(a.stage==KOMESerfCourierAssignment.Stage.DELIVERED?"Delivered\nNext: Report to your Master":"Undelivered\nRecipient: Find a member of "+a.masterFactionKey+" beyond your Master's lands");}if("provisioning".equals(s.getActiveAssignmentKind())){KOMESerfProvisioningAssignment a=KOMESerfProvisioningAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData());if(a!=null){String q=base+"\nCurrent Duty: Provisioning";for(KOMESerfProvisioningAssignment.Requirement food:a.foods)q+="\n"+food.displayName+": "+food.delivered+" / "+food.required;return q+"\n"+a.drink.displayName+" in "+vesselName(a.drink.vessel)+": "+a.drink.delivered+" / "+a.drink.required;}}if("profession".equals(s.getActiveAssignmentKind())){KOMESerfProfessionAssignment a=KOMESerfProfessionAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.PROFESSION).getAssignmentData());if(a!=null)return professionText(base,a);}if("trial".equals(s.getActiveAssignmentKind()))return base+"\nProspective Liege: "+s.getProspectiveLiege().displayName+"\nCurrent Trial: "+s.getTrialId()+"\nNext: Complete your Trial";if(s.getActiveAssignmentKind().length()!=0)return base+"\nCurrent Duty: "+s.getActiveAssignmentKind()+"\nNext: Complete your duty";if(s.isTrialCompleted()&&!s.hasPartingGift())return base+"\nNext: Return to your Master";if(KOMESerfKnightService.allDutiesComplete(s)&&!s.getProspectiveLiege().isSet())return base+"\nNext: Find a Lord";return base+"\nNext: Speak with your Master";}
-    static String professionText(String base,KOMESerfProfessionAssignment assignment){String q=base+"\nCurrent Duty: Profession\nMaster's Trade: "+assignment.tradeDisplayName;for(KOMESerfProfessionAssignment.Requirement material:assignment.requirements)q+="\n"+material.displayName+": "+material.delivered+" / "+material.required;return q;}
-    private static String vesselName(String value){return value==null?"":value.toLowerCase().replace('_',' ');}
-    public static String findLabel(KOMEPlayerProgression p) {String type=findRelationshipType(p);if("master".equals(type))return "Find Master";if("liege".equals(type))return "Find Liege";KOMESerfKnightProgression s=p.getSerfKnightProgression();return !s.getSerfdomMaster().isSet()&&!s.getProspectiveLiege().isSet()&&p.hasPledgedLord()?"Find Lord":"";}
-    public static String leaveRelationshipType(KOMEPlayerProgression p) {if(p.getCanonicalRank()!=KOMEProgressionRank.SERF)return "";KOMESerfKnightProgression s=p.getSerfKnightProgression();return s.getPhase()==KOMESerfKnightPhase.TRIAL_ASSIGNED&&s.getProspectiveLiege().isSet()?"liege":s.getSerfdomMaster().isSet()?"master":"";}
-    public static String leaveRelationshipLabel(KOMEPlayerProgression p) {String type=leaveRelationshipType(p);return "master".equals(type)?"Leave Master":"liege".equals(type)?"Leave Liege":"";}
-    public static String leaveRelationshipName(KOMEPlayerProgression p) {KOMESerfKnightProgression s=p.getSerfKnightProgression();String type=leaveRelationshipType(p);return "master".equals(type)?s.getSerfdomMaster().displayName:"liege".equals(type)?s.getProspectiveLiege().displayName:"";}
+
+    public static String text(KOMEPlayerProgression p) { return text(p, ""); }
+    public static String text(KOMEPlayerProgression p, boolean hasPlayablePledge) { return text(p, hasPlayablePledge ? "Pledged Faction" : ""); }
+
+    public static String text(KOMEPlayerProgression p, String pledgeName) {
+        KOMESerfKnightProgression s = p.getSerfKnightProgression();
+        String rank = "Rank: " + p.getCanonicalRank().displayName;
+        if (p.getCanonicalRank() == KOMEProgressionRank.WANDERER) {
+            boolean pledged = pledgeName != null && pledgeName.trim().length() != 0;
+            return rank + "\nPledge: " + (pledged ? pledgeName : "None") + "\nNext: " + (pledged ? "Find a Serfdom Master" : "Pledge to a faction");
+        }
+        if (p.getCanonicalRank() != KOMEProgressionRank.SERF) return rank;
+        if (!s.getSerfdomMaster().isSet()) return rank + "\nSerfdom Master: None\nNext: Find a Serfdom Master";
+
+        String base = rank + "\nSerfdom Master: " + s.getSerfdomMaster().displayName;
+        if (s.getProspectiveLiege().isSet() && s.getTrialId().length() == 0) return base + "\nProspective Liege: " + s.getProspectiveLiege().displayName + "\nNext: Speak with your Liege";
+        if ("courier".equals(s.getActiveAssignmentKind())) {
+            KOMESerfCourierAssignment a = KOMESerfCourierAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
+            if (a != null) return base + "\nCurrent Duty: Courier\nMessage: " + (a.stage == KOMESerfCourierAssignment.Stage.DELIVERED ? "Delivered\nNext: Report to your Master" : "Undelivered\nRecipient: Find a member of " + a.masterFactionKey + " beyond your Master's lands");
+        }
+        if ("provisioning".equals(s.getActiveAssignmentKind())) {
+            KOMESerfProvisioningAssignment a = KOMESerfProvisioningAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData());
+            if (a != null) {
+                String q = base + "\nCurrent Duty: Provisioning";
+                for (KOMESerfProvisioningAssignment.Requirement food : a.foods) q += "\n" + food.displayName + ": " + food.delivered + " / " + food.required;
+                return q + "\n" + a.drink.displayName + " in " + vesselName(a.drink.vessel) + ": " + a.drink.delivered + " / " + a.drink.required;
+            }
+        }
+        if ("profession".equals(s.getActiveAssignmentKind())) {
+            KOMESerfProfessionAssignment a = KOMESerfProfessionAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.PROFESSION).getAssignmentData());
+            if (a != null) return professionText(base, a);
+        }
+        if ("trial".equals(s.getActiveAssignmentKind())) return base + "\nProspective Liege: " + s.getProspectiveLiege().displayName + "\nCurrent Trial: " + s.getTrialId() + "\nNext: Complete your Trial";
+        if (s.getActiveAssignmentKind().length() != 0) return base + "\nCurrent Duty: " + s.getActiveAssignmentKind() + "\nNext: Complete your duty";
+        if (s.isTrialCompleted() && !s.hasPartingGift()) return base + "\nNext: Return to your Master";
+        if (KOMESerfKnightService.allDutiesComplete(s) && !s.getProspectiveLiege().isSet()) return base + "\nNext: Find a Lord";
+        return base + "\nNext: Speak with your Master";
+    }
+
+    static String professionText(String base, KOMESerfProfessionAssignment assignment) {
+        String q = base + "\nCurrent Duty: Profession\nMaster's Trade: " + assignment.tradeDisplayName;
+        for (KOMESerfProfessionAssignment.Requirement material : assignment.requirements) q += "\n" + material.displayName + ": " + material.delivered + " / " + material.required;
+        return q;
+    }
+
+    private static String vesselName(String value) { return value == null ? "" : value.toLowerCase().replace('_', ' '); }
+
+    public static String findLabel(KOMEPlayerProgression p) {
+        String type = findRelationshipType(p);
+        if ("master".equals(type)) return "Find Master";
+        if ("liege".equals(type)) return "Find Liege";
+        KOMESerfKnightProgression s = p.getSerfKnightProgression();
+        return !s.getSerfdomMaster().isSet() && !s.getProspectiveLiege().isSet() && p.hasPledgedLord() ? "Find Lord" : "";
+    }
+
+    public static String leaveRelationshipType(KOMEPlayerProgression p) {
+        if (p.getCanonicalRank() != KOMEProgressionRank.SERF) return "";
+        KOMESerfKnightProgression s = p.getSerfKnightProgression();
+        return s.getProspectiveLiege().isSet() && (s.getTrialId().length() == 0 || s.getPhase() == KOMESerfKnightPhase.TRIAL_ASSIGNED) ? "liege" : s.getSerfdomMaster().isSet() ? "master" : "";
+    }
+
+    public static String leaveRelationshipLabel(KOMEPlayerProgression p) {
+        String type = leaveRelationshipType(p);
+        return "master".equals(type) ? "Leave Master" : "liege".equals(type) ? "Leave Liege" : "";
+    }
+
+    public static String leaveRelationshipName(KOMEPlayerProgression p) {
+        KOMESerfKnightProgression s = p.getSerfKnightProgression();
+        String type = leaveRelationshipType(p);
+        return "master".equals(type) ? s.getSerfdomMaster().displayName : "liege".equals(type) ? s.getProspectiveLiege().displayName : "";
+    }
+
     /** Selects only the relationship relevant to the current canonical phase. */
-    private static String findRelationshipType(KOMEPlayerProgression p) {if(p.getCanonicalRank()!=KOMEProgressionRank.SERF)return "";KOMESerfKnightProgression s=p.getSerfKnightProgression();KOMESerfKnightPhase phase=s.getPhase();if((phase==KOMESerfKnightPhase.SERFDOM_DUTIES||phase==KOMESerfKnightPhase.PARTING_GIFT_PENDING)&&s.getSerfdomMaster().isSet())return "master";if(phase==KOMESerfKnightPhase.TRIAL_ASSIGNED&&s.getProspectiveLiege().isSet())return "liege";return "";}
+    private static String findRelationshipType(KOMEPlayerProgression p) {
+        if (p.getCanonicalRank() != KOMEProgressionRank.SERF) return "";
+        KOMESerfKnightProgression s = p.getSerfKnightProgression();
+        if (s.getProspectiveLiege().isSet() && s.getTrialId().length() == 0) return "liege";
+        KOMESerfKnightPhase phase = s.getPhase();
+        if ((phase == KOMESerfKnightPhase.SERFDOM_DUTIES || phase == KOMESerfKnightPhase.PARTING_GIFT_PENDING) && s.getSerfdomMaster().isSet()) return "master";
+        if (phase == KOMESerfKnightPhase.TRIAL_ASSIGNED && s.getProspectiveLiege().isSet()) return "liege";
+        return "";
+    }
 }

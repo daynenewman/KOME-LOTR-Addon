@@ -118,6 +118,8 @@ public class KOMESerfKnightProgressionTest {
         assignAndCompleteDuties(state);
         assertEquals("", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Master", KOMEProgressionSummary.leaveRelationshipLabel(player));
         assertTrue(KOMESerfKnightService.setProspectiveLiege(state, npc("Liege", "rohan")).success);
+        assertEquals("Find Liege", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Liege", KOMEProgressionSummary.leaveRelationshipLabel(player));
+        assertTrue(KOMEProgressionSummary.text(player).contains("Next: Speak with your Liege"));
         assertTrue(KOMESerfKnightService.assignTrial(state, new Random(1L), 20L).success);
         assertEquals("Find Liege", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Liege", KOMEProgressionSummary.leaveRelationshipLabel(player));
         assertTrue(KOMESerfKnightService.completeTrial(state).success);

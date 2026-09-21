@@ -31,6 +31,7 @@ public final class KOMEProgressionOfferBridge {
             Method method = LOTRMiniQuest.class.getDeclaredMethod("registerQuestType", String.class, Class.class);
             method.setAccessible(true);
             method.invoke(null, KOMESerfdomOfferQuest.TYPE, KOMESerfdomOfferQuest.class);
+            method.invoke(null, KOMELiegeOfferQuest.TYPE, KOMELiegeOfferQuest.class);
             registered = true;
         } catch (Exception e) {
             throw new IllegalStateException("Unable to register KOME Serfdom miniquest type", e);
@@ -46,10 +47,18 @@ public final class KOMEProgressionOfferBridge {
         return Math.floorMod(value, OFFER_DENOMINATOR) == 0;
     }
 
-    public static boolean isExternalOffer(LOTRMiniQuest offer) { return offer instanceof KOMESerfdomOfferQuest; }
+    public static final int LIEGE_OFFER_DENOMINATOR=2;
+    private static final long LIEGE_OFFER_SALT=0x6c69656765L;
+    public static boolean isLiegeSelected(UUID player, UUID npc, long window) {
+        if (player == null || npc == null) return false;
+        long value=player.getMostSignificantBits()^Long.rotateLeft(player.getLeastSignificantBits(),11)^npc.getMostSignificantBits()^Long.rotateLeft(npc.getLeastSignificantBits(),29)^window^LIEGE_OFFER_SALT;
+        value^=value>>>33; value*=0xff51afd7ed558ccdL; value^=value>>>33;
+        return Math.floorMod(value,LIEGE_OFFER_DENOMINATOR)==0;
+    }
+    public static boolean isExternalOffer(LOTRMiniQuest offer) { return offer instanceof KOMESerfdomOfferQuest || offer instanceof KOMELiegeOfferQuest; }
     public static boolean canOffer(LOTREntityQuestInfo info, EntityPlayer player) {
         LOTRMiniQuest offer = info == null || player == null ? null : info.getOfferFor(player);
-        return offer instanceof KOMESerfdomOfferQuest && isOfferActive((KOMESerfdomOfferQuest) offer, player, npc(info));
+        return offer instanceof KOMESerfdomOfferQuest && isOfferActive((KOMESerfdomOfferQuest) offer, player, npc(info)) || offer instanceof KOMELiegeOfferQuest && liegeActive((KOMELiegeOfferQuest)offer,player,npc(info));
     }
 
     /** Creates only a deterministic player-specific opportunity. Called as an NPC becomes relevant. */
@@ -67,6 +76,7 @@ public final class KOMEProgressionOfferBridge {
         npc.questInfo.sendData(player);
         return true;
     }
+    public static boolean ensureLiegeOffer(EntityPlayerMP player,LOTREntityNPC npc){if(player==null||npc==null||npc.questInfo==null||!liegePlayer(player)||!liegeNpc(player,npc))return false;LOTRMiniQuest current=npc.questInfo.getOfferFor(player);long w=opportunityWindow(KOMESerfKnightService.calendarDayNow());if(current instanceof KOMELiegeOfferQuest){if(!((KOMELiegeOfferQuest)current).expired(w))return true;npc.questInfo.clearPlayerSpecificOffer(player);npc.questInfo.sendData(player);}else if(current!=null)return false;KOMEPlayerProgression progression=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID());if(progression.declinedSerfdomOfferToday("liege:"+npc.getUniqueID(),KOMESerfKnightService.calendarDayNow()))return false;if(!isLiegeSelected(player.getUniqueID(),npc.getUniqueID(),w))return false;npc.questInfo.setPlayerSpecificOffer(player,new KOMELiegeOfferQuest(LOTRLevelData.getData(player),npc,w,"You have served well enough to come this far. If you seek advancement, I may have use for one who can prove their worth."));npc.questInfo.sendData(player);return true;}
 
     public static boolean handleInteraction(LOTREntityQuestInfo info, EntityPlayer player) {
         if (!(player instanceof EntityPlayerMP) || !canOffer(info, player)) return false;
@@ -83,7 +93,8 @@ public final class KOMEProgressionOfferBridge {
     public static boolean handleResponse(LOTREntityQuestInfo info, EntityPlayer player, boolean accepted) {
         LOTREntityNPC npc = npc(info);
         LOTRMiniQuest candidate = info == null || player == null ? null : info.getOfferFor(player);
-        if (!(candidate instanceof KOMESerfdomOfferQuest) || npc == null) return false;
+        if (!isExternalOffer(candidate) || npc == null) return false;
+        if(candidate instanceof KOMELiegeOfferQuest){info.removeOpenOfferPlayer(player);if(accepted&&player instanceof EntityPlayerMP&&liegeActive((KOMELiegeOfferQuest)candidate,player,npc)&&player.getDistanceSqToEntity(npc)<=64){EntityPlayerMP mp=(EntityPlayerMP)player;KOMEWorldData d=KOMEWorldData.get(mp.worldObj);KOMEPlayerProgression q=d.getProgression(mp.getUniqueID());if(KOMESerfKnightService.selectProspectiveLiege(q.getSerfKnightProgression(),d,npc).success){info.clearPlayerSpecificOffer(mp);d.markDirty();KOMEProgressionAutoCompleter.syncPlayer(mp,q);KOMEProgressionNpcSpeech.say(mp,npc,"Very well. You will serve under me. When the time comes, I will see what you are made of.");}}else if(!accepted){KOMEWorldData d=KOMEWorldData.get(player.worldObj);d.getProgression(player.getUniqueID()).declineSerfdomOffer("liege:"+npc.getUniqueID(),KOMESerfKnightService.calendarDayNow());d.markDirty();info.clearPlayerSpecificOffer(player);if(player instanceof EntityPlayerMP)info.sendData((EntityPlayerMP)player);}return true;}
         KOMESerfdomOfferQuest offer = (KOMESerfdomOfferQuest) candidate;
         info.removeOpenOfferPlayer(player);
         if (!accepted) { KOMEWorldData data=KOMEWorldData.get(player.worldObj);data.getProgression(player.getUniqueID()).declineSerfdomOffer(npc.getUniqueID().toString(),KOMESerfKnightService.calendarDayNow());data.markDirty();info.clearPlayerSpecificOffer(player); info.sendData((EntityPlayerMP) player); return true; }
@@ -122,6 +133,9 @@ public final class KOMEProgressionOfferBridge {
         return pledge != null && pledge == npc.getFaction()
             && KOMEProgressionNpcRankService.effectiveRank(KOMEWorldData.get(npc.worldObj), npc) == KOMEProgressionNpcRank.UNRANKED;
     }
+    private static boolean liegePlayer(EntityPlayer p){if(p==null||LOTRLevelData.getData(p).getPledgeFaction()==null||!LOTRLevelData.getData(p).getPledgeFaction().isPlayableAlignmentFaction())return false;KOMEPlayerProgression q=KOMEWorldData.get(p.worldObj).getProgression(p.getUniqueID());KOMESerfKnightProgression s=q.getSerfKnightProgression();return q.getCanonicalRank()==KOMEProgressionRank.SERF&&s.getSerfdomMaster().isSet()&&KOMESerfKnightService.allDutiesComplete(s)&&!s.getProspectiveLiege().isSet()&&!s.hasActiveAssignment()&&!s.isLockedOut(KOMESerfKnightService.calendarDayNow());}
+    private static boolean liegeNpc(EntityPlayer p,LOTREntityNPC n){return n!=null&&n.isEntityAlive()&&!n.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(n)&&n.getFaction()==LOTRLevelData.getData(p).getPledgeFaction()&&KOMEProgressionLords.isCombatUnitHiringNpc(n)&&KOMEProgressionNpcRankService.effectiveRank(KOMEWorldData.get(n.worldObj),n)==KOMEProgressionNpcRank.LORD&&n.hiredNPCInfo!=null&&!n.hiredNPCInfo.isActive;}
+    private static boolean liegeActive(KOMELiegeOfferQuest o,EntityPlayer p,LOTREntityNPC n){return o!=null&&!o.expired(opportunityWindow(KOMESerfKnightService.calendarDayNow()))&&liegePlayer(p)&&liegeNpc(p,n);}
     private static String storyFor(LOTREntityNPC npc) {
         String type = npc.getClass().getSimpleName().toLowerCase();
         if (type.contains("smith")) return "There is more work at my forge than I can manage alone. If you mean to earn your place here, I could use another pair of hands.";
