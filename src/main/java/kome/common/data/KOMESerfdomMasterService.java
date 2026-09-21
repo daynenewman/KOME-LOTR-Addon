@@ -56,20 +56,23 @@ public final class KOMESerfdomMasterService {
     public static Result requestDuty(EntityPlayerMP player,KOMEWorldData data,LOTREntityNPC npc) {
         Result validation=validateCurrentMasterInteraction(player,data,npc,true); if(!validation.success)return validation;
         KOMESerfKnightProgression state=data.getProgression(KOMEReflection.getEntityUUID(player)).getSerfKnightProgression();
-        Result request=requestDuty(state,KOMEProgressionNpcRankService.referenceOf(npc),KOMESerfKnightService.calendarDayNow());
+        KOMESerfKnightDutyType next=KOMESerfKnightService.nextDuty(state);java.util.Random random=new java.util.Random();net.minecraft.nbt.NBTTagCompound assignmentData=null;
+        if(next==KOMESerfKnightDutyType.PROVISIONING)assignmentData=KOMESerfProvisioningAssignment.generate(npc.getFaction().codeName(),random).writeToNBT();
+        else if(next==KOMESerfKnightDutyType.PROFESSION)assignmentData=KOMESerfProfessionAssignment.generate(KOMESerfProfessionClassifier.classify(npc),npc.getFaction().codeName(),random).writeToNBT();
+        Result request=requestDuty(state,KOMEProgressionNpcRankService.referenceOf(npc),KOMESerfKnightService.calendarDayNow(),assignmentData,random);
         if(!request.success)return request;
         data.markDirty(); return ok();
     }
     /** Identity/cadence orchestration only; assignment mutation remains in KOMESerfKnightService. */
     static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay) {return requestDuty(state,clickedMaster,calendarDay,new java.util.Random());}
-    static Result requestDuty(KOMEPlayerProgression progression,KOMEProgressionNpcRef clickedMaster,long calendarDay,net.minecraft.nbt.NBTTagCompound suppliedProvisioningData,java.util.Random random) {if(progression==null||progression.getCanonicalRank()!=KOMEProgressionRank.SERF)return reject("Canonical Serf rank is required.");return requestDuty(progression.getSerfKnightProgression(),clickedMaster,calendarDay,suppliedProvisioningData,random);}
+    static Result requestDuty(KOMEPlayerProgression progression,KOMEProgressionNpcRef clickedMaster,long calendarDay,net.minecraft.nbt.NBTTagCompound suppliedAssignmentData,java.util.Random random) {if(progression==null||progression.getCanonicalRank()!=KOMEProgressionRank.SERF)return reject("Canonical Serf rank is required.");return requestDuty(progression.getSerfKnightProgression(),clickedMaster,calendarDay,suppliedAssignmentData,random);}
     static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay,java.util.Random random) {return requestDuty(state,clickedMaster,calendarDay,null,random);}
-    static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay,net.minecraft.nbt.NBTTagCompound suppliedProvisioningData,java.util.Random random) {
+    static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay,net.minecraft.nbt.NBTTagCompound suppliedAssignmentData,java.util.Random random) {
         if(state==null || clickedMaster==null || !clickedMaster.isSet()) return reject("A valid Serfdom Master is required.");
         if(!state.getSerfdomMaster().hasSameIdentity(clickedMaster)) return reject("You may only request duties from your current Serfdom Master.");
         KOMESerfKnightDutyType next=KOMESerfKnightService.nextDuty(state); if(next==null)return reject("All Serfdom duties are already complete.");
         if(!KOMESerfKnightService.mayIssueAssignment(state,calendarDay))return reject("You have already received a progression task today. Return later for another assignment.");
-        net.minecraft.nbt.NBTTagCompound data=next==KOMESerfKnightDutyType.PROVISIONING?(suppliedProvisioningData==null?KOMESerfProvisioningAssignment.generate(clickedMaster.factionKey,random).writeToNBT():(net.minecraft.nbt.NBTTagCompound)suppliedProvisioningData.copy()):null;
+        net.minecraft.nbt.NBTTagCompound data=null;if(next==KOMESerfKnightDutyType.PROVISIONING)data=suppliedAssignmentData==null?KOMESerfProvisioningAssignment.generate(clickedMaster.factionKey,random).writeToNBT():(net.minecraft.nbt.NBTTagCompound)suppliedAssignmentData.copy();else if(next==KOMESerfKnightDutyType.PROFESSION&&suppliedAssignmentData!=null)data=(net.minecraft.nbt.NBTTagCompound)suppliedAssignmentData.copy();
         KOMESerfKnightService.Result result=KOMESerfKnightService.assignDuty(state,next,data,calendarDay);
         if(!result.success)return reject(result.reason);
         return ok();
