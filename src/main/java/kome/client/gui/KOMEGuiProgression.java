@@ -98,7 +98,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
         drawAchievements(groupAchievements);
         drawScrollbar(groupAchievements.size());
         drawAchievementTooltip(mouseX, mouseY, groupAchievements);
-        String[] summaryLines=canonicalSummary.split("\\n");int maxSummaryLines=canonicalSummary.contains("Current Duty: Provisioning")?6:3;int summaryY=guiTop+ySize-maxSummaryLines*9-9;for(int i=0;i<summaryLines.length&&i<maxSummaryLines;i++)mc.fontRenderer.drawString(trimToWidth(summaryLines[i],196),guiLeft+12,summaryY+i*9,5652783);
+        String[] summaryLines=canonicalSummary.split("\\n");int maxSummaryLines=Math.min(summaryLines.length,7);int summaryY=guiTop+ySize-maxSummaryLines*9-9;for(int i=0;i<maxSummaryLines;i++)mc.fontRenderer.drawString(trimToWidth(summaryLines[i],196),guiLeft+12,summaryY+i*9,5652783);
     }
 
     static String displayNameForGroup(String group) {

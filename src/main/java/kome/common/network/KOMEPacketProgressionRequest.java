@@ -9,6 +9,8 @@ import kome.common.data.KOMEPlayerProgression;
 import kome.common.data.KOMEProgressionAchievement;
 import kome.common.data.KOMEProgressionSummary;
 import kome.common.data.KOMEWorldData;
+import lotr.common.LOTRLevelData;
+import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.player.EntityPlayerMP;
 
 import java.util.ArrayList;
@@ -35,7 +37,8 @@ public class KOMEPacketProgressionRequest implements IMessage {
                     completed.add(achievement.id);
                 }
             }
-            KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression)), player);
+            LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();String pledgeName=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.factionName():"";
+            KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression,pledgeName), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression)), player);
             return null;
         }
     }

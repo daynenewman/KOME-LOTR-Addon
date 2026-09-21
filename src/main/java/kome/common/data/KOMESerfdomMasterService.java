@@ -14,17 +14,27 @@ import net.minecraft.world.World;
 
 /** Runtime validation boundary for canonical Serfdom Master interaction. */
 public final class KOMESerfdomMasterService {
-    public static final class Result { public final boolean success; public final String reason; private Result(boolean success,String reason){this.success=success;this.reason=reason;} }
+    public static final class Result { public final boolean success, enteredSerfdom; public final String reason; private Result(boolean success,String reason,boolean enteredSerfdom){this.success=success;this.reason=reason;this.enteredSerfdom=enteredSerfdom;} }
     private KOMESerfdomMasterService() { }
-    private static Result ok(){return new Result(true,"");} private static Result reject(String value){return new Result(false,value);}
-    public static Result validate(KOMEProgressionRank playerRank, String pledgeKey, String npcFactionKey, KOMEProgressionNpcRank npcRank, boolean validNpc) {
-        if(playerRank != KOMEProgressionRank.SERF) return reject("Canonical Serf rank is required.");
+    private static Result ok(){return new Result(true,"",false);} private static Result entered(){return new Result(true,"",true);} private static Result reject(String value){return new Result(false,value,false);}
+    public static Result validateMasterSelection(KOMEProgressionRank playerRank, String pledgeKey, String npcFactionKey, KOMEProgressionNpcRank npcRank, boolean validNpc) {
+        if(playerRank != KOMEProgressionRank.WANDERER && playerRank != KOMEProgressionRank.SERF) return reject("Only a Wanderer or Serf may choose a Serfdom Master.");
         if(!validNpc || npcRank != KOMEProgressionNpcRank.UNRANKED) return reject("That NPC is not an eligible Serfdom Master.");
         if(pledgeKey == null || pledgeKey.trim().length()==0) return reject("You must pledge to a playable faction before serving a Serfdom Master.");
         if(npcFactionKey == null || !pledgeKey.trim().equalsIgnoreCase(npcFactionKey.trim())) return reject("A Serfdom Master must belong to your pledged faction.");
         return ok();
     }
-    public static Result validate(EntityPlayerMP player, KOMEWorldData data, LOTREntityNPC npc, boolean requireRange) {
+    public static Result validateCurrentMasterInteraction(KOMEProgressionRank playerRank, String pledgeKey, String npcFactionKey, KOMEProgressionNpcRank npcRank, boolean validNpc) {
+        if(playerRank != KOMEProgressionRank.SERF) return reject("Canonical Serf rank is required.");
+        return validateMasterSelection(playerRank,pledgeKey,npcFactionKey,npcRank,validNpc);
+    }
+    public static Result validateMasterSelection(EntityPlayerMP player, KOMEWorldData data, LOTREntityNPC npc, boolean requireRange) {
+        return validateRuntime(player,data,npc,requireRange,false);
+    }
+    public static Result validateCurrentMasterInteraction(EntityPlayerMP player, KOMEWorldData data, LOTREntityNPC npc, boolean requireRange) {
+        return validateRuntime(player,data,npc,requireRange,true);
+    }
+    private static Result validateRuntime(EntityPlayerMP player, KOMEWorldData data, LOTREntityNPC npc, boolean requireRange, boolean currentInteraction) {
         if(player == null || data == null || npc == null) return reject("A valid Serfdom Master is required.");
         if(requireRange && player.getDistanceSqToEntity(npc)>64.0D) return reject("That Serfdom Master is no longer close enough.");
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
@@ -32,26 +42,27 @@ public final class KOMESerfdomMasterService {
         String pledgeKey=pledge==null || !pledge.isPlayableAlignmentFaction()?"":pledge.codeName();
         String factionKey=faction==null?"":faction.codeName();
         KOMEPlayerProgression progression=data.getProgression(KOMEReflection.getEntityUUID(player));
-        return validate(progression.getCanonicalRank(),pledgeKey,factionKey,KOMEProgressionNpcRankService.effectiveRank(data,npc),KOMEProgressionNpcRankService.isValidFactionNpc(npc));
+        return currentInteraction?validateCurrentMasterInteraction(progression.getCanonicalRank(),pledgeKey,factionKey,KOMEProgressionNpcRankService.effectiveRank(data,npc),KOMEProgressionNpcRankService.isValidFactionNpc(npc)):validateMasterSelection(progression.getCanonicalRank(),pledgeKey,factionKey,KOMEProgressionNpcRankService.effectiveRank(data,npc),KOMEProgressionNpcRankService.isValidFactionNpc(npc));
     }
     public static Result serve(EntityPlayerMP player, KOMEWorldData data, LOTREntityNPC npc) {
-        Result validation=validate(player,data,npc,true); if(!validation.success)return validation;
-        KOMESerfKnightProgression state=data.getProgression(KOMEReflection.getEntityUUID(player)).getSerfKnightProgression();
+        Result validation=validateMasterSelection(player,data,npc,true); if(!validation.success)return validation;
+        UUID playerId=KOMEReflection.getEntityUUID(player);KOMEPlayerProgression progression=data.getProgression(playerId);KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         if(!KOMESerfKnightService.canSelectReplacement(state,KOMESerfKnightService.calendarDayNow())) return reject("Progression assignments are locked after betrayal.");
-        if(state.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))) return ok();
+        if(state.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))) return KOMECanonicalRankService.enterSerfdom(data,playerId)?entered():ok();
         KOMESerfKnightService.Result result=KOMESerfKnightService.selectSerfdomMaster(state,data,npc);
         if(!result.success)return reject(result.reason);
-        data.markDirty(); return ok();
+        boolean promoted=KOMECanonicalRankService.enterSerfdom(data,playerId);data.markDirty(); return promoted?entered():ok();
     }
     public static Result requestDuty(EntityPlayerMP player,KOMEWorldData data,LOTREntityNPC npc) {
-        Result validation=validate(player,data,npc,true); if(!validation.success)return validation;
+        Result validation=validateCurrentMasterInteraction(player,data,npc,true); if(!validation.success)return validation;
         KOMESerfKnightProgression state=data.getProgression(KOMEReflection.getEntityUUID(player)).getSerfKnightProgression();
         Result request=requestDuty(state,KOMEProgressionNpcRankService.referenceOf(npc),KOMESerfKnightService.calendarDayNow());
         if(!request.success)return request;
         data.markDirty(); return ok();
     }
     /** Identity/cadence orchestration only; assignment mutation remains in KOMESerfKnightService. */
-    public static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay) {return requestDuty(state,clickedMaster,calendarDay,new java.util.Random());}
+    static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay) {return requestDuty(state,clickedMaster,calendarDay,new java.util.Random());}
+    static Result requestDuty(KOMEPlayerProgression progression,KOMEProgressionNpcRef clickedMaster,long calendarDay,net.minecraft.nbt.NBTTagCompound suppliedProvisioningData,java.util.Random random) {if(progression==null||progression.getCanonicalRank()!=KOMEProgressionRank.SERF)return reject("Canonical Serf rank is required.");return requestDuty(progression.getSerfKnightProgression(),clickedMaster,calendarDay,suppliedProvisioningData,random);}
     static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay,java.util.Random random) {return requestDuty(state,clickedMaster,calendarDay,null,random);}
     static Result requestDuty(KOMESerfKnightProgression state,KOMEProgressionNpcRef clickedMaster,long calendarDay,net.minecraft.nbt.NBTTagCompound suppliedProvisioningData,java.util.Random random) {
         if(state==null || clickedMaster==null || !clickedMaster.isSet()) return reject("A valid Serfdom Master is required.");

@@ -296,8 +296,16 @@ public class KOMEEvents {
         if (event.entityPlayer.isSneaking() && event.target instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.target;
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            KOMESerfdomMasterService.Result eligibility = KOMESerfdomMasterService.validate(player, data, npc, false);
-            if (eligibility.success) {
+            KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+            KOMESerfKnightProgression state = progression.getSerfKnightProgression();
+            KOMEProgressionNpcRef clicked = KOMEProgressionNpcRankService.referenceOf(npc);
+            boolean currentMaster = state.getSerfdomMaster().hasSameIdentity(clicked);
+            KOMESerfdomMasterService.Result eligibility = currentMaster
+                ? KOMESerfdomMasterService.validateCurrentMasterInteraction(player, data, npc, false)
+                : !state.getSerfdomMaster().isSet()
+                    ? KOMESerfdomMasterService.validateMasterSelection(player, data, npc, false)
+                    : null;
+            if (eligibility != null && eligibility.success) {
                 KOMEPacketSerfdomMasterAction.sendMenu(player, npc);
                 event.setCanceled(true);
                 return;
