@@ -7,6 +7,7 @@ import io.netty.buffer.ByteBuf;
 import kome.common.KOMEReflection;
 import kome.common.data.KOMEPlayerProgression;
 import kome.common.data.KOMEProgressionAchievement;
+import kome.common.data.KOMEProgressionSummary;
 import kome.common.data.KOMEWorldData;
 import net.minecraft.entity.player.EntityPlayerMP;
 
@@ -34,7 +35,7 @@ public class KOMEPacketProgressionRequest implements IMessage {
                     completed.add(achievement.id);
                 }
             }
-            KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed), player);
+            KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression)), player);
             return null;
         }
     }

@@ -16,7 +16,7 @@ public class KOMEPacketProgressionData implements IMessage {
     public String playerName;
     public List completed = new ArrayList();
     public Map assignments = new HashMap();
-    public String canonicalSummary="", findLabel="";
+    public String canonicalSummary="", findLabel="", leaveRelationshipType="", leaveRelationshipLabel="", leaveRelationshipName="";
 
     public KOMEPacketProgressionData() {
     }
@@ -30,7 +30,7 @@ public class KOMEPacketProgressionData implements IMessage {
         this.completed = completed;
         this.assignments = assignments;
     }
-    public KOMEPacketProgressionData(String playerName,List completed,Map assignments,String summary,String find){this(playerName,completed,assignments);canonicalSummary=summary;findLabel=find;}
+    public KOMEPacketProgressionData(String playerName,List completed,Map assignments,String summary,String find,String leaveType,String leaveLabel,String leaveName){this(playerName,completed,assignments);canonicalSummary=summary;findLabel=find;leaveRelationshipType=leaveType;leaveRelationshipLabel=leaveLabel;leaveRelationshipName=leaveName;}
 
     @Override
     public void fromBytes(ByteBuf buf) {
@@ -45,7 +45,7 @@ public class KOMEPacketProgressionData implements IMessage {
         for (int i = 0; i < assignmentCount; i++) {
             assignments.put(ByteBufUtils.readUTF8String(buf), ByteBufUtils.readUTF8String(buf));
         }
-        canonicalSummary=ByteBufUtils.readUTF8String(buf);findLabel=ByteBufUtils.readUTF8String(buf);
+        canonicalSummary=ByteBufUtils.readUTF8String(buf);findLabel=ByteBufUtils.readUTF8String(buf);leaveRelationshipType=ByteBufUtils.readUTF8String(buf);leaveRelationshipLabel=ByteBufUtils.readUTF8String(buf);leaveRelationshipName=ByteBufUtils.readUTF8String(buf);
     }
 
     @Override
@@ -61,13 +61,13 @@ public class KOMEPacketProgressionData implements IMessage {
             ByteBufUtils.writeUTF8String(buf, String.valueOf(entry.getKey()));
             ByteBufUtils.writeUTF8String(buf, String.valueOf(entry.getValue()));
         }
-        ByteBufUtils.writeUTF8String(buf,canonicalSummary);ByteBufUtils.writeUTF8String(buf,findLabel);
+        ByteBufUtils.writeUTF8String(buf,canonicalSummary);ByteBufUtils.writeUTF8String(buf,findLabel);ByteBufUtils.writeUTF8String(buf,leaveRelationshipType);ByteBufUtils.writeUTF8String(buf,leaveRelationshipLabel);ByteBufUtils.writeUTF8String(buf,leaveRelationshipName);
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketProgressionData, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketProgressionData message, MessageContext ctx) {
-            KOMEAddon.proxy.updateProgressionData(message.playerName, message.completed, message.assignments, message.canonicalSummary, message.findLabel);
+            KOMEAddon.proxy.updateProgressionData(message.playerName, message.completed, message.assignments, message.canonicalSummary, message.findLabel, message.leaveRelationshipType, message.leaveRelationshipLabel, message.leaveRelationshipName);
             return null;
         }
     }

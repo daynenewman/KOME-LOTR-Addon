@@ -80,7 +80,7 @@ public class KOMECommonProxy {
     public void updateProgressionData(String playerName, java.util.List completed, java.util.Map assignments) {
         updateProgressionData(playerName, completed);
     }
-    public void updateProgressionData(String playerName, java.util.List completed, java.util.Map assignments, String summary, String findLabel) { updateProgressionData(playerName, completed, assignments); }
+    public void updateProgressionData(String playerName, java.util.List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName) { updateProgressionData(playerName, completed, assignments); }
 
     public void updateQuotaLedger(java.util.List lines) {
     }

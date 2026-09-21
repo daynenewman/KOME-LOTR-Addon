@@ -142,7 +142,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void updateProgressionData(String playerName, List completed, java.util.Map assignments) {
         KOMEGuiProgression.updateProgressionData(playerName, completed, assignments);
     }
-    @Override public void updateProgressionData(String playerName, List completed, java.util.Map assignments, String summary, String findLabel) { KOMEGuiProgression.updateProgressionData(playerName, completed, assignments, summary, findLabel); }
+    @Override public void updateProgressionData(String playerName, List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName) { KOMEGuiProgression.updateProgressionData(playerName, completed, assignments, summary, findLabel, leaveType, leaveLabel, leaveName); }
 
     @Override
     public void updateQuotaLedger(List lines) {

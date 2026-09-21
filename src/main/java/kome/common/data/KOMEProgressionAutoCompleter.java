@@ -140,7 +140,7 @@ public class KOMEProgressionAutoCompleter {
                 completed.add(achievement.id);
             }
         }
-        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression), KOMEProgressionSummary.findLabel(progression)), player);
+        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression)), player);
     }
 
     private static int grantAfter(KOMEPlayerProgression progression, String requiredID, String... unlockedIDs) {

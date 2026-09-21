@@ -126,6 +126,20 @@ public class KOMEPacketRegistrationTest {
     }
 
     @Test
+    public void relationshipDeparturePacketIsActionOnlyAndUsesTheServerThreadWrapper() throws Exception {
+        String packet = source("src/main/java/kome/common/network/KOMEPacketProgressionRelationshipAction.java");
+        String registry = source("src/main/java/kome/common/network/KOMEPacketHandler.java");
+        assertTrue(packet.contains("public int action"));
+        assertFalse(packet.contains("masterName"));
+        assertFalse(packet.contains("liegeName"));
+        assertTrue(packet.contains("m.action==LEAVE_MASTER?KOMESerfKnightService.leaveSerfdomMaster"));
+        assertTrue(packet.contains("m.action==LEAVE_LIEGE?KOMESerfKnightService.leaveProspectiveLiege"));
+        assertTrue(packet.contains("r==null||!r.success"));
+        assertTrue(registry.contains("new ServerThreadHandler<KOMEPacketProgressionRelationshipAction>(new KOMEPacketProgressionRelationshipAction.Handler()) {}"));
+        assertTrue(registry.contains("KOMEPacketProgressionRelationshipAction.class, 39, Side.SERVER"));
+    }
+
+    @Test
     public void drainUsesASnapshotAndReportsFailuresWithoutBlockingLaterTasks() {
         final AtomicInteger calls = new AtomicInteger();
         KOMEPacketHandler.enqueueServerTask(new Runnable() {

@@ -3,11 +3,15 @@ package kome.client.gui;
 import kome.client.KOMEMinecraftClient;
 import kome.common.data.KOMEProgressionAchievement;
 import kome.common.data.KOMEProgressionPermissionRegistry;
+import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketProgressionRelationshipAction;
 import lotr.client.gui.LOTRGuiAchievements;
 import lotr.client.gui.LOTRGuiButtonRedBook;
 import lotr.client.gui.LOTRGuiMenuBase;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
+import net.minecraft.client.gui.GuiYesNo;
+import net.minecraft.client.gui.GuiYesNoCallback;
 import net.minecraft.client.renderer.RenderHelper;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
@@ -19,17 +23,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class KOMEGuiProgression extends LOTRGuiMenuBase {
+public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallback {
     private static final String[] GROUPS = new String[] {"baseline", "wanderer", "serf", "knight", "lord", "prince_king"};
     private static final String[] GROUP_NAMES = new String[] {"Permissions", "Wanderer", "Serf", "Knight", "Lord", "Prince"};
     private static String playerName = "";
     private static Set completed = new HashSet();
     private static Map assignments = new HashMap();
-    private static String canonicalSummary="", contextualFindLabel="";
+    private static String canonicalSummary="", contextualFindLabel="", leaveRelationshipType="", leaveRelationshipLabel="", leaveRelationshipName="";
 
     private GuiButton buttonCategoryPrev;
     private GuiButton buttonCategoryNext;
     private GuiButton buttonFindLord;
+    private GuiButton buttonLeaveRelationship;
     private int currentGroup;
     private int scroll;
     private boolean isScrolling;
@@ -44,12 +49,13 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         completed = new HashSet(completedIds);
         assignments = assignmentMap == null ? new HashMap() : new HashMap(assignmentMap);
     }
-    public static void updateProgressionData(String name,List completedIds,Map assignmentMap,String summary,String find){updateProgressionData(name,completedIds,assignmentMap);canonicalSummary=summary==null?"":summary;contextualFindLabel=find==null?"":find;}
+    public static void updateProgressionData(String name,List completedIds,Map assignmentMap,String summary,String find,String leaveType,String leaveLabel,String leaveName){updateProgressionData(name,completedIds,assignmentMap);canonicalSummary=summary==null?"":summary;contextualFindLabel=find==null?"":find;leaveRelationshipType=leaveType==null?"":leaveType;leaveRelationshipLabel=leaveLabel==null?"":leaveLabel;leaveRelationshipName=leaveName==null?"":leaveName;}
 
     public static void resetData() {
         playerName = "";
         completed = new HashSet();
         assignments = new HashMap();
+        canonicalSummary = contextualFindLabel = leaveRelationshipType = leaveRelationshipLabel = leaveRelationshipName = "";
     }
 
     @Override
@@ -62,6 +68,8 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
             } else if (button == buttonFindLord) {
                 KOMEMinecraftClient.sendChat("/progression findlord");
                 mc.displayGuiScreen(null);
+            } else if (button == buttonLeaveRelationship) {
+                openLeaveConfirmation();
             } else {
                 super.actionPerformed(button);
             }
@@ -126,7 +134,22 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         buttonList.add(buttonCategoryPrev);
         buttonCategoryNext = new GuiButton(1, guiLeft + 187, guiTop + 9, 20, 20, ">");
         buttonList.add(buttonCategoryNext);
-        buttonFindLord = new LOTRGuiButtonRedBook(2, guiLeft + 68, guiTop + ySize + 4, 84, 20, contextualFindLabel.length()==0?"Find Lord":contextualFindLabel);buttonFindLord.visible=contextualFindLabel.length()!=0;buttonList.add(buttonFindLord);
+        buttonFindLord = new LOTRGuiButtonRedBook(2, guiLeft + 24, guiTop + ySize + 4, 82, 20, contextualFindLabel.length()==0?"Find Lord":contextualFindLabel);buttonFindLord.visible=contextualFindLabel.length()!=0;buttonList.add(buttonFindLord);
+        buttonLeaveRelationship = new LOTRGuiButtonRedBook(3, guiLeft + 114, guiTop + ySize + 4, 82, 20, leaveRelationshipLabel);buttonLeaveRelationship.visible=leaveRelationshipLabel.length()!=0;buttonList.add(buttonLeaveRelationship);
+    }
+
+    private void openLeaveConfirmation() {
+        int action = "master".equals(leaveRelationshipType) ? KOMEPacketProgressionRelationshipAction.LEAVE_MASTER : "liege".equals(leaveRelationshipType) ? KOMEPacketProgressionRelationshipAction.LEAVE_LIEGE : -1;
+        if (action < 0) return;
+        String title = "Leave " + (leaveRelationshipName.length() == 0 ? (action == KOMEPacketProgressionRelationshipAction.LEAVE_MASTER ? "Master" : "Liege") : leaveRelationshipName) + "?";
+        String warning = action == KOMEPacketProgressionRelationshipAction.LEAVE_MASTER ? "Serfdom duties and liege, Trial, and gift progress will be lost. Rank unchanged. Cannot undo." : "Trial progress for this liege will be lost. Master and Serfdom duties remain. Rank unchanged. Cannot undo.";
+        mc.displayGuiScreen(new GuiYesNo(this, title, warning, "Leave", "Cancel", action));
+    }
+
+    @Override
+    public void confirmClicked(boolean result, int id) {
+        if (result && (id == KOMEPacketProgressionRelationshipAction.LEAVE_MASTER || id == KOMEPacketProgressionRelationshipAction.LEAVE_LIEGE)) KOMEPacketHandler.network.sendToServer(new KOMEPacketProgressionRelationshipAction(id));
+        mc.displayGuiScreen(this);
     }
 
     @Override

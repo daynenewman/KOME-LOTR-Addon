@@ -110,6 +110,22 @@ public class KOMESerfKnightProgressionTest {
         restored.reset(); assertFalse(restored.getSerfKnightProgression().getSerfdomMaster().isSet()); assertEquals(KOMESerfKnightPhase.SERFDOM_DUTIES, restored.getSerfKnightProgression().getPhase());
     }
 
+    @Test public void relationshipPresentationFollowsCanonicalPhaseAndLegacyIsOnlyFallback() {
+        KOMEPlayerProgression player = new KOMEPlayerProgression(); player.setCanonicalRank(KOMEProgressionRank.SERF); player.setPledgedLord("legacy", "Legacy", "rohan");
+        KOMESerfKnightProgression state = player.getSerfKnightProgression();
+        assertTrue(KOMESerfKnightService.setSerfdomMaster(state, npc("Master", "rohan")).success);
+        assertEquals("Find Master", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Master", KOMEProgressionSummary.leaveRelationshipLabel(player));
+        assignAndCompleteDuties(state);
+        assertEquals("", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Master", KOMEProgressionSummary.leaveRelationshipLabel(player));
+        assertTrue(KOMESerfKnightService.setProspectiveLiege(state, npc("Liege", "rohan")).success);
+        assertTrue(KOMESerfKnightService.assignTrial(state, new Random(1L), 20L).success);
+        assertEquals("Find Liege", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Liege", KOMEProgressionSummary.leaveRelationshipLabel(player));
+        assertTrue(KOMESerfKnightService.completeTrial(state).success);
+        assertEquals("Find Master", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Master", KOMEProgressionSummary.leaveRelationshipLabel(player));
+        assertTrue(KOMESerfKnightService.leaveSerfdomMaster(state).success);
+        assertEquals("Find Lord", KOMEProgressionSummary.findLabel(player)); assertEquals("", KOMEProgressionSummary.leaveRelationshipLabel(player));
+    }
+
     @Test public void npcIdentityAndAssignmentDataAreValidatedAndDefensive() {
         try { new KOMEProgressionNpcRef("not-a-uuid", "Bad", "ROHAN", 0, 0, 0, 0); fail(); } catch (IllegalArgumentException expected) { }
         NBTTagCompound malformed = new NBTTagCompound(); malformed.setString("EntityUUID", "not-a-uuid"); malformed.setString("Name", "Bad");
