@@ -11,6 +11,9 @@ import static org.junit.Assert.assertTrue;
 
 /** Deterministic coverage for the faction-bank portion of a new combat-hire transaction. */
 public class KOMECombatHirePopulationTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test
     public void fundedCombatHireDebitsThePayingFactionExactlyOnceAndRecordsIt() {
         KOMEWorldData data = new KOMEWorldData("test");

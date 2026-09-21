@@ -129,6 +129,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private double viewerWorldZ;
     private int activeTab;
     private int buildMode;
+    private boolean dispatchingMouseClick;
+    private boolean guiRebuildRequested;
     private int selectedBuildIndex = -1;
     private int buildScroll;
     private int contributionScroll;
@@ -209,6 +211,12 @@ public class KOMEGuiConquestCapture extends GuiScreen {
 
     @Override
     public void initGui() {
+        // GuiScreen walks the live button list for the entire press. Do not expose
+        // replacement controls (notably Confirm Build) to that same event.
+        if (dispatchingMouseClick) {
+            guiRebuildRequested = true;
+            return;
+        }
         buildTransferFactions();
         computeLayout();
         buttonList.clear();
@@ -648,7 +656,16 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             return;
         }
         boolean hoursFocused = buildHoursField != null && buildHoursField.isFocused();
-        super.mouseClicked(mouseX, mouseY, button);
+        dispatchingMouseClick = true;
+        try {
+            super.mouseClicked(mouseX, mouseY, button);
+        } finally {
+            dispatchingMouseClick = false;
+            if (guiRebuildRequested) {
+                guiRebuildRequested = false;
+                initGui();
+            }
+        }
         if (buildNameField != null) buildNameField.mouseClicked(mouseX, mouseY, button);
         if (buildHoursField != null) {
             buildHoursField.mouseClicked(mouseX, mouseY, button);

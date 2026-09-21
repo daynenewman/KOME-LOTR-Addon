@@ -1,0 +1,14 @@
+# Trailing tabs in the two TSV captures encode empty final columns; retain their schema.
+# These versioned/checksummed datasets must retain exact bytes across checkouts.
+src/main/resources/assets/kome/config/kome_tile_* -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+src/test/resources/kome/tile/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/gameplay-separation-implementation-20260919/original-derived.tsv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/gameplay-separation-implementation-20260919/original-KOMEConquestTileDefaults.java.txt -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/tile-gameplay-separation-20260919/waypoint-containment.tsv -text whitespace=-blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/tile-gameplay-separation-20260919/legacy-center-exceptions.tsv -text whitespace=-blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/weathertop-seam-candidate-20260919/edit-manifest.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/land-seam-candidate-v2-20260919/edit-manifest-buffer0.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/v2-geography-review-20260920/edit-manifest.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/tile-cleanup-geography-20260920/edit-manifest.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/final-combined-geography-20260920/edit-manifest.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+docs/final-combined-geography-20260920/expected-cells.tsv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

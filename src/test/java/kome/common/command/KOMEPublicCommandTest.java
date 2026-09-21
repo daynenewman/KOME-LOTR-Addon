@@ -14,6 +14,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEPublicCommandTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry = new kome.common.data.KOMETileTestResources();
     private static ICommand[] commands() {
         return new ICommand[] {new KOMECommandKome(), new KOMECommandPopulation(), new KOMECommandConquest(),
             new KOMECommandBuild(), new KOMECommandTroops(), new KOMECommandProgression(),
@@ -52,6 +53,7 @@ public class KOMEPublicCommandTest {
         deny(new KOMECommandKome(), nonOperator, "repair", "war", "W1");
         deny(new KOMECommandKome(), nonOperator, "ruler", "assign", "gondor", "Someone");
         deny(new KOMECommandKome(), nonOperator, "conquest", "reset");
+        deny(new KOMECommandConquest(), nonOperator, "resolve", "100", "189696", "-86016");
         for (String action : new String[] {"claim", "clear", "clearAll", "reset", "purgeLegacy", "waypoint"})
             deny(new KOMECommandConquest(), nonOperator, action, "T001", "gondor");
         for (String action : new String[] {"reassign", "remove", "sethours", "adjust"})
@@ -89,6 +91,11 @@ public class KOMEPublicCommandTest {
         assertContains(new KOMECommandKome(), player, "gui", true);
         assertContains(new KOMECommandKome(), player, "audit", false);
         assertContains(new KOMECommandKome(), op, "audit", true);
+        assertContains(new KOMECommandConquest(), player, "resolve", false);
+        assertContains(new KOMECommandConquest(), op, "resolve", true);
+        assertFalse(new KOMECommandConquest().getCommandUsage(player).contains("resolve"));
+        assertTrue(new KOMECommandConquest().getCommandUsage(op).contains("resolve"));
+        assertTrue(new KOMECommandConquest().addTabCompletionOptions(player, new String[] {"resolve", ""}).isEmpty());
         assertContains(new KOMECommandConquest(), player, "claim", false);
         assertContains(new KOMECommandConquest(), op, "claim", true);
         assertContains(new KOMECommandProgression(), player, "grant", false);
@@ -104,6 +111,23 @@ public class KOMEPublicCommandTest {
         assertTrue(new KOMECommandTroops().addTabCompletionOptions(player, new String[] {"movement", ""}).contains("resume"));
         assertFalse(new KOMECommandTroops().addTabCompletionOptions(player, new String[] {"movement", ""}).contains("advance"));
         assertTrue(new KOMECommandKome().addTabCompletionOptions(player, new String[] {"ruler", ""}).isEmpty());
+    }
+
+    @Test public void staffCoordinateInspectionResolvesWithoutAnyWorldAccess() {
+        List<String> messages = new ArrayList<String>();
+        ICommandSender staff = console(messages, true); // getEntityWorld throws even for authorized inspection.
+        KOMECommandConquest command = new KOMECommandConquest();
+        String dimension = Integer.toString(kome.common.data.KOMETileTestResources.dimension());
+        command.processCommand(staff, new String[] {"resolve", dimension, "189568", "-86016"});
+        assertTrue(messages.get(0), messages.get(0).contains("IN_BOUNDS_GAP"));
+        command.processCommand(staff, new String[] {"resolve", dimension, "189696", "-86016"});
+        assertTrue(messages.get(1), messages.get(1).contains("RESOLVED"));
+        assertTrue(messages.get(1), messages.get(1).contains("tile=T001"));
+        command.processCommand(staff, new String[] {"resolve", dimension, "-103681", "-86016"});
+        assertTrue(messages.get(2), messages.get(2).contains("OUTSIDE_MASK"));
+        deny(command, staff, "resolve", dimension, "2147483648", "0");
+        deny(command, staff, "resolve", dimension);
+        assertEquals(3, messages.size());
     }
 
     private static void assertContains(ICommand command, ICommandSender sender, String word, boolean expected) {

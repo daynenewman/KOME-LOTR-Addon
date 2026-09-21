@@ -108,6 +108,11 @@ public class KOMEAddon {
     public void postInit(FMLPostInitializationEvent event) {
         lotrMoreMobs.postInit(event);
         aquaAcrobatics.onPostInit(event);
+        // Validate the entire gameplay dataset before worlds can initialize; never infer a replacement graph.
+        kome.common.data.KOMETileGameplayDefaults.get();
+        if (!kome.common.data.KOMETileWorldResolver.INSTANCE.reloadBundled()) {
+            System.err.println("[KOME] " + kome.common.data.KOMETileWorldResolver.INSTANCE.loadDiagnostic());
+        }
     }
 
     @Mod.EventHandler
