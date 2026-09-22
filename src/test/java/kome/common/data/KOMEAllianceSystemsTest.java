@@ -9,6 +9,9 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMEAllianceSystemsTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test
     public void legacyTradePostReaderCarriesOnlyMigrationOwnershipAndFarmerFlag() {
         NBTTagCompound legacy = legacyTradePost("TP-TEST", "gondor", "rohan");

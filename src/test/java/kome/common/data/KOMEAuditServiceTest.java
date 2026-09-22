@@ -6,6 +6,9 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 public class KOMEAuditServiceTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test public void boundedStructuredAuditPersistsAndSummarizesDeterministically() {
         KOMEWorldData data = new KOMEWorldData("test");
         for (int i = 0; i < KOMEAuditService.MAX_ENTRIES + 3; i++)

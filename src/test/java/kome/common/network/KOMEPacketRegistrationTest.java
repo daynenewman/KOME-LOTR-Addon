@@ -23,6 +23,9 @@ import static org.junit.Assert.*;
 
 /** Forge names pipeline entries after handler runtime classes, independently of packet IDs. */
 public class KOMEPacketRegistrationTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final Set<Integer> EXPECTED_DISCRIMINATORS = new HashSet<Integer>(Arrays.asList(
         0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
         25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36

@@ -18,6 +18,9 @@ import static org.junit.Assert.*;
 
 /** Exercises the actual exact Build -> rate -> boundary -> bank/persistence pipeline. */
 public class KOMEPopulationPayoutProcessorTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private KOMEPopulationTestConfig config;
     private static final Instant START = Instant.parse("2026-01-10T18:00:00Z");
     @Before public void setup() throws Exception { config = new KOMEPopulationTestConfig(); }

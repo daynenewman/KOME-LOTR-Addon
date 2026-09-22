@@ -21,6 +21,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.*;
 
 public class KOMEWorldDataSchemaTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final Set<String> REQUIRED_CURRENT_DEV_ROOT_TAGS = new HashSet<String>(Arrays.asList(
         "KOMEDataSchemaVersion", "AllianceDataSchemaVersion", "BuildDataSchemaVersion",
         "FactionCapitalDataSchemaVersion", "FactionCapitals",

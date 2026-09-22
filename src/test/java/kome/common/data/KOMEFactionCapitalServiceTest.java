@@ -15,6 +15,9 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public class KOMEFactionCapitalServiceTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final List<String> EXPECTED = Arrays.asList(
         "hobbit", "bree", "dunedain", "bluemountains", "highelves", "gundabad",
         "angmar", "woodelf", "dolguldur", "dale", "durinsfolk", "lothlorien",

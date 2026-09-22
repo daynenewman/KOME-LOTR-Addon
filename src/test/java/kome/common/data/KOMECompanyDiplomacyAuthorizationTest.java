@@ -9,6 +9,9 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMECompanyDiplomacyAuthorizationTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test
     public void militaryPassageUsesCanonicalAlliesAndActiveWarVeto() {
         KOMEWorldData data = new KOMEWorldData("test");

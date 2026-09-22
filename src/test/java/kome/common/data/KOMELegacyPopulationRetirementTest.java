@@ -19,6 +19,9 @@ import static org.junit.Assert.*;
 
 /** G retirement gates. Codec/threading and live lifecycle tests remain in their existing suites. */
 public class KOMELegacyPopulationRetirementTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final String[] RETIRED_TAGS = {
         "Populations", "TilePopulations", "PopulationAllocations", "PopulationDataSchemaVersion"
     };

@@ -1,0 +1,913 @@
+mask_x,mask_y,world_x_min,world_z_min,world_x_max_exclusive,world_z_max_exclusive,previous_rgba,proposed_tile_id,support,width_cells,biome,rationale,prior_nearest_distance_squared,prior_nearest_ties,previous_proposal,patch,category
+654,480,-19968,-32000,-19840,-31872,0/0/0/0,T033,V,7,blueMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+652,481,-20224,-31872,-20096,-31744,0/0/0/0,T033,D+,3,blueMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+654,481,-19968,-31872,-19840,-31744,0/0/0/0,T033,V,7,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+650,482,-20480,-31744,-20352,-31616,0/0/0/0,T033,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+651,482,-20352,-31744,-20224,-31616,0/0/0/0,T033,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+652,482,-20224,-31744,-20096,-31616,0/0/0/0,T033,D+,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T033,1,ordinary_land
+653,482,-20096,-31744,-19968,-31616,0/0/0/0,T033,D+,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T033,1,ordinary_land
+654,482,-19968,-31744,-19840,-31616,0/0/0/0,T033,D-+V,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+651,483,-20352,-31616,-20224,-31488,0/0/0/0,T033,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+652,483,-20224,-31616,-20096,-31488,0/0/0/0,T033,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T033,1,ordinary_land
+653,483,-20096,-31616,-19968,-31488,0/0/0/0,T033,D++D-,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T033,1,ordinary_land
+654,483,-19968,-31616,-19840,-31488,0/0/0/0,T033,D++D-+V,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+650,484,-20480,-31488,-20352,-31360,0/0/0/0,T033,D++H,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+651,484,-20352,-31488,-20224,-31360,0/0/0/0,T033,D++H,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T033,1,ordinary_land
+652,484,-20224,-31488,-20096,-31360,0/0/0/0,T033,D++D-+H,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T033,1,ordinary_land
+653,484,-20096,-31488,-19968,-31360,0/0/0/0,T035,D++D-+H,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T035,1,ordinary_land
+654,484,-19968,-31488,-19840,-31360,0/0/0/0,T035,D++D-+H+V,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T035,1,ordinary_land
+651,485,-20352,-31360,-20224,-31232,0/0/0/0,T033,D++D-+H,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+652,485,-20224,-31360,-20096,-31232,0/0/0/0,T033,D++D-+H,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T033,1,ordinary_land
+653,485,-20096,-31360,-19968,-31232,0/0/0/0,T035,D++D-+H,4,blueMountains,no nearby map transition,4,,T035,1,ordinary_land
+654,485,-19968,-31360,-19840,-31232,0/0/0/0,T035,D++H+V,4,blueMountains,no nearby map transition,1,,T035,1,ordinary_land
+650,486,-20480,-31232,-20352,-31104,0/0/0/0,T033,D++D-+H+V,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,1,ordinary_land
+651,486,-20352,-31232,-20224,-31104,0/0/0/0,T033,D++D-+H,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T033,1,ordinary_land
+652,486,-20224,-31232,-20096,-31104,0/0/0/0,T035,D++D-+H,5,blueMountains,no nearby map transition,5,T033|T035,T035,1,ordinary_land
+653,486,-20096,-31232,-19968,-31104,0/0/0/0,T035,D++H,3,blueMountains,no nearby map transition,2,,T035,1,ordinary_land
+654,486,-19968,-31232,-19840,-31104,0/0/0/0,T035,D++H+V,5,blueMountains,no nearby map transition,1,,T035,1,ordinary_land
+650,487,-20480,-31104,-20352,-30976,0/0/0/0,T035,D++D-+V,3,blueMountains,no nearby map transition,1,,T035,1,ordinary_land
+651,487,-20352,-31104,-20224,-30976,0/0/0/0,T035,D++D-,4,blueMountains,no nearby map transition,4,,T035,1,ordinary_land
+652,487,-20224,-31104,-20096,-30976,0/0/0/0,T035,D+,3,blueMountains,no nearby map transition,4,,T035,1,ordinary_land
+653,487,-20096,-31104,-19968,-30976,0/0/0/0,T035,D+,5,blueMountains,no nearby map transition,1,,T035,1,ordinary_land
+650,488,-20480,-30976,-20352,-30848,0/0/0/0,T035,D-+V,5,blueMountains,no nearby map transition,1,,T035,1,ordinary_land
+651,488,-20352,-30976,-20224,-30848,0/0/0/0,T035,D+,3,blueMountains,no nearby map transition,4,,T035,1,ordinary_land
+652,488,-20224,-30976,-20096,-30848,0/0/0/0,T035,D+,4,blueMountains,no nearby map transition,4,,T035,1,ordinary_land
+653,488,-20096,-30976,-19968,-30848,0/0/0/0,T035,D+,3,blueMountains,no nearby map transition,2,,T035,1,ordinary_land
+654,488,-19968,-30976,-19840,-30848,0/0/0/0,T035,D+,5,blueMountains,no nearby map transition,1,,T035,1,ordinary_land
+650,489,-20480,-30848,-20352,-30720,0/0/0/0,T035,V,5,blueMountains,no nearby map transition,1,,T035,1,ordinary_land
+652,489,-20224,-30848,-20096,-30720,0/0/0/0,T035,D+,3,blueMountains,no nearby map transition,1,,T035,1,ordinary_land
+653,489,-20096,-30848,-19968,-30720,0/0/0/0,T035,D+,4,blueMountains,no nearby map transition,1,,T035,1,ordinary_land
+650,490,-20480,-30720,-20352,-30592,0/0/0/0,T035,V,5,blueMountains,no nearby map transition,1,,T035,1,ordinary_land
+667,483,-18304,-31616,-18176,-31488,0/0/0/0,T035,D+,5,blueMountains,no nearby map transition,1,,T035,2,ordinary_land
+641,485,-21632,-31360,-21504,-31232,0/0/0/0,T033,D+,5,blueMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,3,ordinary_land
+642,485,-21504,-31360,-21376,-31232,0/0/0/0,T033,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,3,ordinary_land
+643,485,-21376,-31360,-21248,-31232,0/0/0/0,T033,D+,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,3,ordinary_land
+641,486,-21632,-31232,-21504,-31104,0/0/0/0,T033,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T033,3,ordinary_land
+642,486,-21504,-31232,-21376,-31104,0/0/0/0,T033,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T033,3,ordinary_land
+643,486,-21376,-31232,-21248,-31104,0/0/0/0,T033,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T033,3,ordinary_land
+644,486,-21248,-31232,-21120,-31104,0/0/0/0,T033,D+,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T033,3,ordinary_land
+642,487,-21504,-31104,-21376,-30976,0/0/0/0,T033,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T033,3,ordinary_land
+643,487,-21376,-31104,-21248,-30976,0/0/0/0,T033,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T033,3,ordinary_land
+644,487,-21248,-31104,-21120,-30976,0/0/0/0,T033,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T033,3,ordinary_land
+645,487,-21120,-31104,-20992,-30976,0/0/0/0,T033,D+,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T033,3,ordinary_land
+643,488,-21376,-30976,-21248,-30848,0/0/0/0,T035,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T035,3,ordinary_land
+644,488,-21248,-30976,-21120,-30848,0/0/0/0,T035,D+,5,blueMountains,no nearby map transition,4,,T035,3,ordinary_land
+645,488,-21120,-30976,-20992,-30848,0/0/0/0,T035,D+,4,blueMountains,no nearby map transition,1,,T035,3,ordinary_land
+644,489,-21248,-30848,-21120,-30720,0/0/0/0,T035,D+,5,blueMountains,no nearby map transition,4,,T035,3,ordinary_land
+645,489,-21120,-30848,-20992,-30720,0/0/0/0,T035,D+,5,blueMountains,no nearby map transition,1,,T035,3,ordinary_land
+645,490,-21120,-30720,-20992,-30592,0/0/0/0,T035,D+,5,blueMountains,no nearby map transition,1,,T035,3,ordinary_land
+627,505,-23424,-28800,-23296,-28672,0/0/0/0,T035,D-,2,blueMountains,no nearby map transition,2,,T035,6,ordinary_land
+627,506,-23424,-28672,-23296,-28544,0/0/0/0,T035,D-+H,2,blueMountains,no nearby map transition,1,,T035,6,ordinary_land
+637,506,-22144,-28672,-22016,-28544,0/0/0/0,T050,V,4,blueMountains,no nearby map transition,4,,T050,7,ordinary_land
+638,506,-22016,-28672,-21888,-28544,0/0/0/0,T050,V,4,blueMountains,no nearby map transition,4,,T050,7,ordinary_land
+634,507,-22528,-28544,-22400,-28416,0/0/0/0,T050,D++V,3,blueMountains,no nearby map transition,4,T035|T050,T050,7,ordinary_land
+635,507,-22400,-28544,-22272,-28416,0/0/0/0,T050,D++V,3,blueMountains,no nearby map transition,4,,T050,7,ordinary_land
+636,507,-22272,-28544,-22144,-28416,0/0/0/0,T050,D++V,2,blueMountains,no nearby map transition,2,,T050,7,ordinary_land
+637,507,-22144,-28544,-22016,-28416,0/0/0/0,T050,D++V,3,blueMountains,no nearby map transition,1,,T050,7,ordinary_land
+638,507,-22016,-28544,-21888,-28416,0/0/0/0,T050,V,4,blueMountains,no nearby map transition,1,,T050,7,ordinary_land
+628,508,-23296,-28416,-23168,-28288,0/0/0/0,T035,junction,0,blueMountains,no nearby map transition,1,,T035,7,ordinary_land
+629,508,-23168,-28416,-23040,-28288,0/0/0/0,T035,junction,3,blueMountains,no nearby map transition,1,,T035,7,ordinary_land
+633,508,-22656,-28416,-22528,-28288,0/0/0/0,T050,D++V,2,blueMountains,no nearby map transition,2,,T050,7,ordinary_land
+634,508,-22528,-28416,-22400,-28288,0/0/0/0,T050,D++V,2,blueMountains,no nearby map transition,1,,T050,7,ordinary_land
+635,508,-22400,-28416,-22272,-28288,0/0/0/0,T050,D++V,3,blueMountains,no nearby map transition,1,,T050,7,ordinary_land
+636,508,-22272,-28416,-22144,-28288,0/0/0/0,T050,D++V,3,blueMountains,no nearby map transition,1,,T050,7,ordinary_land
+628,509,-23296,-28288,-23168,-28160,0/0/0/0,T035,junction,4,blueMountains,no nearby map transition,4,,T035,7,ordinary_land
+629,509,-23168,-28288,-23040,-28160,0/0/0/0,T035,junction,7,blueMountains,no nearby map transition,4,,T035,7,ordinary_land
+630,509,-23040,-28288,-22912,-28160,0/0/0/0,T050,D++H+V,3,blueMountains,no nearby map transition,4,T035|T050,T050,7,ordinary_land
+631,509,-22912,-28288,-22784,-28160,0/0/0/0,T050,D++H+V,3,blueMountains,no nearby map transition,4,T035|T050,T050,7,ordinary_land
+632,509,-22784,-28288,-22656,-28160,0/0/0/0,T050,D++H+V,2,blueMountains,no nearby map transition,2,,T050,7,ordinary_land
+633,509,-22656,-28288,-22528,-28160,0/0/0/0,T050,D++H+V,2,blueMountains,no nearby map transition,1,,T050,7,ordinary_land
+628,510,-23296,-28160,-23168,-28032,0/0/0/0,T050,junction,3,blueMountains,no nearby map transition,5,,T050,7,ordinary_land
+629,510,-23168,-28160,-23040,-28032,0/0/0/0,T050,junction,4,blueMountains,no nearby map transition,2,,T050,7,ordinary_land
+630,510,-23040,-28160,-22912,-28032,0/0/0/0,T050,H+V,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T050,7,ordinary_land
+631,510,-22912,-28160,-22784,-28032,0/0/0/0,T050,D++H+V,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T050,7,ordinary_land
+632,510,-22784,-28160,-22656,-28032,0/0/0/0,T050,D++H+V,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T050,7,ordinary_land
+628,511,-23296,-28032,-23168,-27904,0/0/0/0,T050,D++H,4,blueMountains,no nearby map transition,4,,T050,7,ordinary_land
+629,511,-23168,-28032,-23040,-27904,0/0/0/0,T050,D++H+V,3,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T050,7,ordinary_land
+627,512,-23424,-27904,-23296,-27776,0/0/0/0,T050,D+,5,blueMountains,no nearby map transition,9,,T050,7,ordinary_land
+628,512,-23296,-27904,-23168,-27776,0/0/0/0,T050,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T050,7,ordinary_land
+629,512,-23168,-27904,-23040,-27776,0/0/0/0,T050,D++V,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T050,7,ordinary_land
+627,513,-23424,-27776,-23296,-27648,0/0/0/0,T050,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T050,7,ordinary_land
+628,513,-23296,-27776,-23168,-27648,0/0/0/0,T050,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T050,7,ordinary_land
+629,513,-23168,-27776,-23040,-27648,0/0/0/0,T050,D++V,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T050,7,ordinary_land
+628,514,-23296,-27648,-23168,-27520,0/0/0/0,T050,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T050,7,ordinary_land
+629,514,-23168,-27648,-23040,-27520,0/0/0/0,T050,D++V,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T050,7,ordinary_land
+589,514,-28288,-27648,-28160,-27520,0/0/0/0,T042,D+,5,blueMountains,no nearby map transition,1,,T042,8,ordinary_land
+593,518,-27776,-27136,-27648,-27008,0/0/0/0,T042,D+,5,blueMountains,no nearby map transition,1,,T042,9,ordinary_land
+585,522,-28800,-26624,-28672,-26496,0/0/0/0,T042,D-,3,blueMountains,no nearby map transition,1,,T042,11,ordinary_land
+586,522,-28672,-26624,-28544,-26496,0/0/0/0,T042,D-,4,blueMountains,no nearby map transition,2,,T042,11,ordinary_land
+585,523,-28800,-26496,-28672,-26368,0/0/0/0,T042,D-,4,blueMountains,no nearby map transition,2,,T042,11,ordinary_land
+586,523,-28672,-26496,-28544,-26368,0/0/0/0,T042,D-,4,blueMountains,no nearby map transition,1,,T042,11,ordinary_land
+600,536,-26880,-24832,-26752,-24704,0/0/0/0,T042,D-,5,blueMountains,no nearby map transition,1,,T042,13,ordinary_land
+599,537,-27008,-24704,-26880,-24576,0/0/0/0,T042,D-,5,blueMountains,no nearby map transition,5,,T042,13,ordinary_land
+600,537,-26880,-24704,-26752,-24576,0/0/0/0,T042,D-,4,blueMountains,no nearby map transition,2,,T042,13,ordinary_land
+601,537,-26752,-24704,-26624,-24576,0/0/0/0,T042,D-,4,blueMountains,no nearby map transition,1,,T042,13,ordinary_land
+598,538,-27136,-24576,-27008,-24448,0/0/0/0,T042,D-,5,blueMountains,no nearby map transition,9,,T042,13,ordinary_land
+599,538,-27008,-24576,-26880,-24448,0/0/0/0,T042,D-,4,blueMountains,no nearby map transition,8,,T042,13,ordinary_land
+600,538,-26880,-24576,-26752,-24448,0/0/0/0,T042,D-,4,blueMountains,no nearby map transition,4,,T042,13,ordinary_land
+597,539,-27264,-24448,-27136,-24320,0/0/0/0,T076,D-,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T076,13,ordinary_land
+598,539,-27136,-24448,-27008,-24320,0/0/0/0,T042,D-,4,blueMountains,no nearby map transition,4,,T042,13,ordinary_land
+599,539,-27008,-24448,-26880,-24320,0/0/0/0,T042,D-,4,blueMountains,no nearby map transition,4,,T042,13,ordinary_land
+596,540,-27392,-24320,-27264,-24192,0/0/0/0,T076,D-,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T076,13,ordinary_land
+597,540,-27264,-24320,-27136,-24192,0/0/0/0,T076,D-,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T076,13,ordinary_land
+598,540,-27136,-24320,-27008,-24192,0/0/0/0,T042,D-,4,blueMountains,no nearby map transition,1,,T042,13,ordinary_land
+598,547,-27136,-23424,-27008,-23296,0/0/0/0,T042,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T042,14,ordinary_land
+602,551,-26624,-22912,-26496,-22784,0/0/0/0,T042,D+,5,blueMountains,no nearby map transition,1,,T042,15,ordinary_land
+1483,564,86144,-21248,86272,-21120,0/0/0/0,T054,D+,5,tundra,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T054,16,ordinary_land
+1484,564,86272,-21248,86400,-21120,0/0/0/0,T054,D+,4,tundra,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T054,16,ordinary_land
+1484,565,86272,-21120,86400,-20992,0/0/0/0,T054,D+,5,greyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T054,16,ordinary_land
+1485,565,86400,-21120,86528,-20992,0/0/0/0,T054,D+,4,greyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T054,16,ordinary_land
+1485,566,86400,-20992,86528,-20864,0/0/0/0,T054,D+,5,greyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T054,16,ordinary_land
+1486,566,86528,-20992,86656,-20864,0/0/0/0,T054,D+,4,greyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T054,16,ordinary_land
+1486,567,86528,-20864,86656,-20736,0/0/0/0,T054,D+,5,greyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T054,16,ordinary_land
+1487,567,86656,-20864,86784,-20736,0/0/0/0,T054,D+,4,greyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T054,16,ordinary_land
+1487,568,86656,-20736,86784,-20608,0/0/0/0,T062,D+,5,greyMountains,no nearby map transition,1,,T062,16,ordinary_land
+1116,590,39168,-17920,39296,-17792,0/0/0/0,T063,D-+H,3,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T063,18,supported_biome_transition
+1117,590,39296,-17920,39424,-17792,0/0/0/0,T063,D-+H,4,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T057,18,supported_biome_transition
+1118,590,39424,-17920,39552,-17792,0/0/0/0,T063,D-+H,5,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T057,18,supported_biome_transition
+1119,590,39552,-17920,39680,-17792,0/0/0/0,T063,H,8,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T057,18,supported_biome_transition
+1120,590,39680,-17920,39808,-17792,0/0/0/0,T063,H,8,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T057,18,supported_biome_transition
+1121,590,39808,-17920,39936,-17792,0/0/0/0,T063,H,8,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T057,18,supported_biome_transition
+1122,590,39936,-17920,40064,-17792,0/0/0/0,T057,H,8,angmar,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T057,18,supported_biome_transition
+1123,590,40064,-17920,40192,-17792,0/0/0/0,T057,H,8,angmar,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T057,18,supported_biome_transition
+1115,591,39040,-17792,39168,-17664,0/0/0/0,T063,D-,3,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T063,18,supported_biome_transition
+1116,591,39168,-17792,39296,-17664,0/0/0/0,T063,D-,4,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,2,,T063,18,supported_biome_transition
+1117,591,39296,-17792,39424,-17664,0/0/0/0,T063,D-,5,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,4,,T057,18,supported_biome_transition
+1114,592,38912,-17664,39040,-17536,0/0/0/0,T063,D-+V,3,mistyMountains,no nearby map transition,1,,T063,18,ordinary_land
+1115,592,39040,-17664,39168,-17536,0/0/0/0,T063,D-,4,mistyMountains,no nearby map transition,2,,T063,18,ordinary_land
+1116,592,39168,-17664,39296,-17536,0/0/0/0,T063,D-,5,mistyMountains,no nearby map transition,5,,T063,18,ordinary_land
+1114,593,38912,-17536,39040,-17408,0/0/0/0,T063,D-+V,4,mistyMountains,no nearby map transition,1,,T063,18,ordinary_land
+1115,593,39040,-17536,39168,-17408,0/0/0/0,T063,D-,5,mistyMountains,no nearby map transition,4,,T063,18,ordinary_land
+1114,594,38912,-17408,39040,-17280,0/0/0/0,T063,D-+V,5,mistyMountains,no nearby map transition,1,,T063,18,ordinary_land
+1114,595,38912,-17280,39040,-17152,0/0/0/0,T063,V,8,mistyMountains,no nearby map transition,1,,T063,18,ordinary_land
+1114,596,38912,-17152,39040,-17024,0/0/0/0,T063,V,8,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T063,18,ordinary_land
+1114,597,38912,-17024,39040,-16896,0/0/0/0,T063,V,8,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T063,18,ordinary_land
+621,609,-24192,-15488,-24064,-15360,0/0/0/0,T070,V,8,blueMountains,no nearby map transition,1,,T070,19,ordinary_land
+621,610,-24192,-15360,-24064,-15232,0/0/0/0,T070,V,8,blueMountains,no nearby map transition,1,,T070,19,ordinary_land
+621,611,-24192,-15232,-24064,-15104,0/0/0/0,T070,V,8,blueMountains,no nearby map transition,1,,T070,19,ordinary_land
+621,612,-24192,-15104,-24064,-14976,0/0/0/0,T070,V,8,blueMountains,no nearby map transition,1,,T070,19,ordinary_land
+621,613,-24192,-14976,-24064,-14848,0/0/0/0,T070,V,8,blueMountains,no nearby map transition,1,,T070,19,ordinary_land
+621,614,-24192,-14848,-24064,-14720,0/0/0/0,T070,V,8,blueMountains,no nearby map transition,1,,T070,19,ordinary_land
+621,615,-24192,-14720,-24064,-14592,0/0/0/0,T070,D-+V,5,blueMountains,no nearby map transition,1,T070|T089,T070,19,ordinary_land
+620,616,-24320,-14592,-24192,-14464,0/0/0/0,T089,D-,5,blueMountains,no nearby map transition,1,,T089,22,ordinary_land
+619,617,-24448,-14464,-24320,-14336,0/0/0/0,T089,D-,5,blueMountains,no nearby map transition,1,,T089,23,ordinary_land
+618,618,-24576,-14336,-24448,-14208,0/0/0/0,T089,D-,5,blueMountains,no nearby map transition,1,,T089,24,ordinary_land
+624,618,-23808,-14336,-23680,-14208,0/0/0/0,T070,junction,1,blueMountains,no nearby map transition,1,T070|T096,T070,25,ordinary_land
+617,619,-24704,-14208,-24576,-14080,0/0/0/0,T089,D-,5,blueMountains,no nearby map transition,1,,T089,26,ordinary_land
+620,624,-24320,-13568,-24192,-13440,0/0/0/0,T096,D++H+V,1,blueMountains,no nearby map transition,1,,T096,27,ordinary_land
+619,625,-24448,-13440,-24320,-13312,0/0/0/0,T096,D++H,2,blueMountains,no nearby map transition,2,,T096,27,ordinary_land
+620,625,-24320,-13440,-24192,-13312,0/0/0/0,T096,D++H+V,2,blueMountains,no nearby map transition,1,,T096,27,ordinary_land
+632,630,-22784,-12800,-22656,-12672,0/0/0/0,T096,H,8,blueMountains,no nearby map transition,1,,T096,28,ordinary_land
+633,630,-22656,-12800,-22528,-12672,0/0/0/0,T096,H,8,blueMountains,no nearby map transition,4,,T096,28,ordinary_land
+634,630,-22528,-12800,-22400,-12672,0/0/0/0,T096,H,8,blueMountains,no nearby map transition,5,,T096,28,ordinary_land
+635,630,-22400,-12800,-22272,-12672,0/0/0/0,T096,H,8,blueMountains,no nearby map transition,8,,T096,28,ordinary_land
+636,630,-22272,-12800,-22144,-12672,0/0/0/0,T096,H,8,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",10,T096|T101,T096,28,ordinary_land
+637,630,-22144,-12800,-22016,-12672,0/0/0/0,T101,H,8,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T101,28,ordinary_land
+638,630,-22016,-12800,-21888,-12672,0/0/0/0,T101,H,8,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T101,28,ordinary_land
+639,630,-21888,-12800,-21760,-12672,0/0/0/0,T101,H,8,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T101,28,ordinary_land
+633,631,-22656,-12672,-22528,-12544,0/0/0/0,T096,H,7,blueMountains,no nearby map transition,1,,T096,28,ordinary_land
+634,631,-22528,-12672,-22400,-12544,0/0/0/0,T096,H,7,blueMountains,no nearby map transition,2,,T096,28,ordinary_land
+635,631,-22400,-12672,-22272,-12544,0/0/0/0,T096,H,7,blueMountains,no nearby map transition,4,,T096,28,ordinary_land
+636,631,-22272,-12672,-22144,-12544,0/0/0/0,T096,H,7,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T096,28,ordinary_land
+637,631,-22144,-12672,-22016,-12544,0/0/0/0,T101,H,7,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T101,28,ordinary_land
+638,631,-22016,-12672,-21888,-12544,0/0/0/0,T101,H,7,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T101,28,ordinary_land
+636,654,-22272,-9728,-22144,-9600,0/0/0/0,T108,D+,3,blueMountains,no nearby map transition,2,,T108,34,ordinary_land
+637,654,-22144,-9728,-22016,-9600,0/0/0/0,T108,junction,4,blueMountains,no nearby map transition,4,,T108,34,ordinary_land
+636,655,-22272,-9600,-22144,-9472,0/0/0/0,T108,D++H,2,blueMountains,no nearby map transition,1,,T108,34,ordinary_land
+637,655,-22144,-9600,-22016,-9472,0/0/0/0,T108,junction,3,blueMountains,no nearby map transition,1,,T108,34,ordinary_land
+1425,662,78720,-8704,78848,-8576,0/0/0/0,T111,V,8,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T100,37,supported_biome_transition
+1425,663,78720,-8576,78848,-8448,0/0/0/0,T111,V,8,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,2,,T100,37,supported_biome_transition
+1426,663,78848,-8576,78976,-8448,0/0/0/0,T111,V,5,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,T100|T111,T111,37,supported_biome_transition
+1425,664,78720,-8448,78848,-8320,0/0/0/0,T111,V,8,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,5,T100|T111,T111,37,supported_biome_transition
+1426,664,78848,-8448,78976,-8320,0/0/0/0,T111,V,5,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,2,,T111,37,supported_biome_transition
+1425,665,78720,-8320,78848,-8192,0/0/0/0,T111,V,8,mirkwoodMountains,no nearby map transition,8,,T111,37,ordinary_land
+1426,665,78848,-8320,78976,-8192,0/0/0/0,T111,V,5,mirkwoodMountains,no nearby map transition,5,,T111,37,ordinary_land
+1425,666,78720,-8192,78848,-8064,0/0/0/0,T111,V,8,mirkwoodMountains,no nearby map transition,5,,T111,37,ordinary_land
+1426,666,78848,-8192,78976,-8064,0/0/0/0,T111,V,5,mirkwoodMountains,no nearby map transition,4,,T111,37,ordinary_land
+1425,667,78720,-8064,78848,-7936,0/0/0/0,T111,V,8,mirkwoodMountains,no nearby map transition,2,,T111,37,ordinary_land
+1426,667,78848,-8064,78976,-7936,0/0/0/0,T111,V,5,mirkwoodMountains,no nearby map transition,1,,T111,37,ordinary_land
+1425,668,78720,-7936,78848,-7808,0/0/0/0,T111,V,8,mirkwoodMountains,no nearby map transition,1,,T111,37,ordinary_land
+1425,669,78720,-7808,78848,-7680,0/0/0/0,T111,V,8,mirkwoodMountains,no nearby map transition,1,,T111,37,ordinary_land
+1454,666,82432,-8192,82560,-8064,0/0/0/0,T100,D+,4,mirkwoodCorrupted,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T100,38,supported_biome_transition
+1455,667,82560,-8064,82688,-7936,0/0/0/0,T100,D+,4,mirkwoodCorrupted,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T100,40,supported_biome_transition
+1457,669,82816,-7808,82944,-7680,0/0/0/0,T120,D+,4,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,T100|T120,T100,42,supported_biome_transition
+1422,674,78336,-7168,78464,-7040,0/0/0/0,T111,D-,5,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,2,,T111,47,supported_biome_transition
+1416,675,77568,-7040,77696,-6912,0/0/0/0,T128,H,7,mirkwoodCorrupted,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,47,supported_biome_transition
+1417,675,77696,-7040,77824,-6912,0/0/0/0,T128,H,7,mirkwoodCorrupted,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,47,supported_biome_transition
+1418,675,77824,-7040,77952,-6912,0/0/0/0,T128,H,7,mirkwoodCorrupted,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,47,supported_biome_transition
+1419,675,77952,-7040,78080,-6912,0/0/0/0,T111,H,7,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,2,,T128,47,supported_biome_transition
+1420,675,78080,-7040,78208,-6912,0/0/0/0,T111,H,7,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,5,,T128,47,supported_biome_transition
+1421,675,78208,-7040,78336,-6912,0/0/0/0,T111,D-+H,5,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,2,,T128,47,supported_biome_transition
+1422,675,78336,-7040,78464,-6912,0/0/0/0,T111,H,7,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,T111|T128,T111,47,supported_biome_transition
+1426,674,78848,-7168,78976,-7040,0/0/0/0,T111,D-,4,mirkwoodMountains,no nearby map transition,1,,T111,48,ordinary_land
+1425,675,78720,-7040,78848,-6912,0/0/0/0,T111,D-,4,mirkwoodMountains,no nearby map transition,1,,T111,48,ordinary_land
+1426,675,78848,-7040,78976,-6912,0/0/0/0,T111,D-,3,mirkwoodMountains,no nearby map transition,1,,T111,48,ordinary_land
+1424,676,78592,-6912,78720,-6784,0/0/0/0,T111,D-+H+V,2,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,T111|T128,T128,48,supported_biome_transition
+1425,676,78720,-6912,78848,-6784,0/0/0/0,T111,D-+H,3,mirkwoodMountains,no nearby map transition,2,,T111,48,ordinary_land
+1426,676,78848,-6912,78976,-6784,0/0/0/0,T111,D-+H,2,mirkwoodMountains,no nearby map transition,1,,T111,48,ordinary_land
+1423,677,78464,-6784,78592,-6656,0/0/0/0,T111,D-+H,4,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,48,supported_biome_transition
+1424,677,78592,-6784,78720,-6656,0/0/0/0,T111,D++D-+H+V,1,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,48,supported_biome_transition
+1425,677,78720,-6784,78848,-6656,0/0/0/0,T111,D-+H,2,mirkwoodMountains,no nearby map transition,1,,T111,48,ordinary_land
+1426,677,78848,-6784,78976,-6656,0/0/0/0,T111,H,4,mirkwoodMountains,no nearby map transition,1,,T111,48,ordinary_land
+1434,674,79872,-7168,80000,-7040,0/0/0/0,T111,D+,2,mirkwoodMountains,no nearby map transition,1,,T111,49,ordinary_land
+1420,680,78080,-6400,78208,-6272,0/0/0/0,T128,H,7,mirkwoodCorrupted,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,51,supported_biome_transition
+1421,680,78208,-6400,78336,-6272,0/0/0/0,T128,H,7,mirkwoodCorrupted,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,51,supported_biome_transition
+1422,680,78336,-6400,78464,-6272,0/0/0/0,T111,H,7,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,51,supported_biome_transition
+1423,680,78464,-6400,78592,-6272,0/0/0/0,T111,H,7,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,51,supported_biome_transition
+1424,680,78592,-6400,78720,-6272,0/0/0/0,T111,D-+H,5,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,51,supported_biome_transition
+1425,680,78720,-6400,78848,-6272,0/0/0/0,T111,H+V,2,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T111,51,supported_biome_transition
+1426,680,78848,-6400,78976,-6272,0/0/0/0,T111,D++D-+H+V,1,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,T111|T128,T111,51,supported_biome_transition
+1423,681,78464,-6272,78592,-6144,0/0/0/0,T111,D-,5,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,4,,T128,51,supported_biome_transition
+1425,681,78720,-6272,78848,-6144,0/0/0/0,T111,D-+V,2,mirkwoodMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,51,supported_biome_transition
+1424,682,78592,-6144,78720,-6016,0/0/0/0,T128,D-,4,mirkwoodCorrupted,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,53,supported_biome_transition
+1423,683,78464,-6016,78592,-5888,0/0/0/0,T128,D-,4,mirkwoodCorrupted,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T128,54,supported_biome_transition
+1212,699,51456,-3968,51584,-3840,0/0/0/0,T133,H,8,mistyMountains,no nearby map transition,2,,T133,56,ordinary_land
+1213,699,51584,-3968,51712,-3840,0/0/0/0,T133,H,8,mistyMountains,no nearby map transition,1,T127|T133,T133,56,ordinary_land
+1212,700,51456,-3840,51584,-3712,0/0/0/0,T133,H,7,mistyMountains,no nearby map transition,1,,T133,56,ordinary_land
+1227,699,53376,-3968,53504,-3840,0/0/0/0,T127,D+,5,mistyMountains,no nearby map transition,1,,T127,57,ordinary_land
+1228,700,53504,-3840,53632,-3712,0/0/0/0,T133,D++H,5,mistyMountains,no nearby map transition,1,T127|T133,T133,58,ordinary_land
+1229,700,53632,-3840,53760,-3712,0/0/0/0,T133,H,8,mistyMountains,no nearby map transition,2,,T133,58,ordinary_land
+1230,700,53760,-3840,53888,-3712,0/0/0/0,T133,H,8,mistyMountains,no nearby map transition,5,,T133,58,ordinary_land
+1231,700,53888,-3840,54016,-3712,0/0/0/0,T133,H,8,mistyMountains,no nearby map transition,8,,T133,58,ordinary_land
+1232,700,54016,-3840,54144,-3712,0/0/0/0,T133,H,8,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,8,,T174,58,supported_biome_transition
+1233,700,54144,-3840,54272,-3712,0/0/0/0,T133,H,8,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,5,,T174,58,supported_biome_transition
+1234,700,54272,-3840,54400,-3712,0/0/0/0,T133,H,8,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,2,,T174,58,supported_biome_transition
+1235,700,54400,-3840,54528,-3712,0/0/0/0,T174,H,8,mistyMountainsFoothills,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T174,58,supported_biome_transition
+1229,701,53632,-3712,53760,-3584,0/0/0/0,T133,D++H,5,mistyMountains,no nearby map transition,1,,T133,58,ordinary_land
+1230,701,53760,-3712,53888,-3584,0/0/0/0,T133,H,6,mistyMountains,no nearby map transition,2,,T133,58,ordinary_land
+1231,701,53888,-3712,54016,-3584,0/0/0/0,T133,H,6,mistyMountains,no nearby map transition,5,,T133,58,ordinary_land
+1232,701,54016,-3712,54144,-3584,0/0/0/0,T133,H,6,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,5,T133|T174,T174,58,supported_biome_transition
+1233,701,54144,-3712,54272,-3584,0/0/0/0,T133,H,6,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,2,,T174,58,supported_biome_transition
+1234,701,54272,-3712,54400,-3584,0/0/0/0,T133,H,6,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T174,58,supported_biome_transition
+1230,702,53760,-3584,53888,-3456,0/0/0/0,T133,D++H,4,mistyMountains,no nearby map transition,1,,T133,58,ordinary_land
+1231,702,53888,-3584,54016,-3456,0/0/0/0,T133,H,4,mistyMountains,no nearby map transition,2,,T133,58,ordinary_land
+1232,702,54016,-3584,54144,-3456,0/0/0/0,T133,H,4,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,2,,T133,58,supported_biome_transition
+1233,702,54144,-3584,54272,-3456,0/0/0/0,T133,H,4,mistyMountains,four or more consistent original boundary edges on connected map transition; same-biome reach,1,T133|T174,T174,58,supported_biome_transition
+1231,703,53888,-3456,54016,-3328,0/0/0/0,T133,D+,5,mistyMountains,no nearby map transition,1,,T133,58,ordinary_land
+1204,708,50432,-2816,50560,-2688,0/0/0/0,T141,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T141,59,ordinary_land
+1205,708,50560,-2816,50688,-2688,0/0/0/0,T133,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T133,59,ordinary_land
+1203,709,50304,-2688,50432,-2560,0/0/0/0,T141,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T141,59,ordinary_land
+1204,709,50432,-2688,50560,-2560,0/0/0/0,T141,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T141,59,ordinary_land
+1241,714,55168,-2048,55296,-1920,0/0/0/0,T174,D+,5,mistyMountainsFoothills,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T174,64,supported_biome_transition
+1157,806,44416,9728,44544,9856,0/0/0/0,T188,D-,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T188,68,ordinary_land
+1158,806,44544,9728,44672,9856,0/0/0/0,T188,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T188,68,ordinary_land
+1156,807,44288,9856,44416,9984,0/0/0/0,T188,D-,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T188,68,ordinary_land
+1157,807,44416,9856,44544,9984,0/0/0/0,T188,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T188,68,ordinary_land
+1155,808,44160,9984,44288,10112,0/0/0/0,T188,D-,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T188,68,ordinary_land
+1156,808,44288,9984,44416,10112,0/0/0/0,T188,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T188,68,ordinary_land
+1154,809,44032,10112,44160,10240,0/0/0/0,T188,D-,4,mistyMountains,no nearby map transition,1,,T188,68,ordinary_land
+1155,809,44160,10112,44288,10240,0/0/0/0,T188,D-,5,mistyMountains,no nearby map transition,4,,T188,68,ordinary_land
+1154,810,44032,10240,44160,10368,0/0/0/0,T218,D-,5,mistyMountains,no nearby map transition,1,,T218,68,ordinary_land
+753,826,-7296,12288,-7168,12416,0/0/0/0,T205,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T205,69,ordinary_land
+754,826,-7168,12288,-7040,12416,0/0/0/0,T205,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T205,69,ordinary_land
+754,827,-7168,12416,-7040,12544,0/0/0/0,T205,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T205,69,ordinary_land
+755,827,-7040,12416,-6912,12544,0/0/0/0,T205,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T205,69,ordinary_land
+755,828,-7040,12544,-6912,12672,0/0/0/0,T205,D+,5,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T205,69,ordinary_land
+756,828,-6912,12544,-6784,12672,0/0/0/0,T205,D+,4,blueMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T205,69,ordinary_land
+756,829,-6912,12672,-6784,12800,0/0/0/0,T205,D+,5,blueMountains,no nearby map transition,4,,T205,69,ordinary_land
+757,829,-6784,12672,-6656,12800,0/0/0/0,T205,D+,4,blueMountains,no nearby map transition,1,,T205,69,ordinary_land
+757,830,-6784,12800,-6656,12928,0/0/0/0,T230,D+,5,blueMountains,no nearby map transition,1,,T230,69,ordinary_land
+1158,835,44544,13440,44672,13568,0/0/0/0,T218,D+,5,eregion,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T218,70,ordinary_land
+1158,836,44544,13568,44672,13696,0/0/0/0,T218,D+,4,eregion,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T218,70,ordinary_land
+1159,836,44672,13568,44800,13696,0/0/0/0,T218,D+,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T218,70,ordinary_land
+1159,837,44672,13696,44800,13824,0/0/0/0,T218,D+,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T218,70,ordinary_land
+1160,837,44800,13696,44928,13824,0/0/0/0,T218,D+,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T218,70,ordinary_land
+1160,838,44800,13824,44928,13952,0/0/0/0,T218,D+,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T218,70,ordinary_land
+1161,838,44928,13824,45056,13952,0/0/0/0,T218,D+,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T218,70,ordinary_land
+1161,839,44928,13952,45056,14080,0/0/0/0,T218,D++H,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T218|T220,T218,70,ordinary_land
+1162,839,45056,13952,45184,14080,0/0/0/0,T220,D++H,5,mistyMountains,no nearby map transition,1,,T220,70,ordinary_land
+1163,839,45184,13952,45312,14080,0/0/0/0,T220,H,6,mistyMountains,no nearby map transition,1,,T220,70,ordinary_land
+1164,839,45312,13952,45440,14080,0/0/0/0,T220,H,6,mistyMountains,no nearby map transition,1,,T220,70,ordinary_land
+1165,839,45440,13952,45568,14080,0/0/0/0,T220,H,6,mistyMountains,no nearby map transition,1,,T220,70,ordinary_land
+1166,839,45568,13952,45696,14080,0/0/0/0,T220,H,6,mistyMountains,no nearby map transition,1,,T220,70,ordinary_land
+1187,837,48256,13696,48384,13824,0/0/0/0,T231,D-,5,mistyMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,71,ordinary_land
+1186,838,48128,13824,48256,13952,0/0/0/0,T231,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T231,71,ordinary_land
+1187,838,48256,13824,48384,13952,0/0/0/0,T231,D-,4,mistyMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,71,ordinary_land
+1185,839,48000,13952,48128,14080,0/0/0/0,T231,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T231,71,ordinary_land
+1186,839,48128,13952,48256,14080,0/0/0/0,T231,D-,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T231,71,ordinary_land
+1187,839,48256,13952,48384,14080,0/0/0/0,T231,D-,3,mistyMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,71,ordinary_land
+1184,840,47872,14080,48000,14208,0/0/0/0,T220,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T220,71,ordinary_land
+1185,840,48000,14080,48128,14208,0/0/0/0,T231,D-,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T231,71,ordinary_land
+1186,840,48128,14080,48256,14208,0/0/0/0,T231,D-,3,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T231,71,ordinary_land
+1183,841,47744,14208,47872,14336,0/0/0/0,T220,D-,5,mistyMountains,no nearby map transition,1,,T220,71,ordinary_land
+1184,841,47872,14208,48000,14336,0/0/0/0,T220,D-,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T220,71,ordinary_land
+1185,841,48000,14208,48128,14336,0/0/0/0,T231,D-,3,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,71,ordinary_land
+1181,844,47488,14592,47616,14720,0/0/0/0,T220,D++V,5,mistyMountains,no nearby map transition,1,,T220,72,ordinary_land
+1183,844,47744,14592,47872,14720,0/0/0/0,T220,D++H+V,4,mistyMountains,no nearby map transition,1,,T220,72,ordinary_land
+1184,844,47872,14592,48000,14720,0/0/0/0,T220,D++D-+H+V,4,mistyMountains,no nearby map transition,1,,T220,72,ordinary_land
+1185,844,48000,14592,48128,14720,0/0/0/0,T231,junction,3,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,72,ordinary_land
+1186,844,48128,14592,48256,14720,0/0/0/0,T231,junction,2,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,72,ordinary_land
+1187,844,48256,14592,48384,14720,0/0/0/0,T231,junction,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,72,ordinary_land
+1181,845,47488,14720,47616,14848,0/0/0/0,T220,D++H+V,5,mistyMountains,no nearby map transition,1,,T220,72,ordinary_land
+1182,845,47616,14720,47744,14848,0/0/0/0,T220,junction,5,mistyMountains,no nearby map transition,1,,T220,72,ordinary_land
+1183,845,47744,14720,47872,14848,0/0/0/0,T220,junction,3,mistyMountains,no nearby map transition,2,,T220,72,ordinary_land
+1184,845,47872,14720,48000,14848,0/0/0/0,T220,junction,4,mistyMountains,no nearby map transition,4,,T220,72,ordinary_land
+1185,845,48000,14720,48128,14848,0/0/0/0,T231,junction,4,mistyMountains,no nearby map transition,4,,T231,72,ordinary_land
+1186,845,48128,14720,48256,14848,0/0/0/0,T231,junction,3,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T231,72,ordinary_land
+1187,845,48256,14720,48384,14848,0/0/0/0,T231,junction,2,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,72,ordinary_land
+1181,846,47488,14848,47616,14976,0/0/0/0,T220,D++H+V,4,mistyMountains,no nearby map transition,1,,T220,72,ordinary_land
+1182,846,47616,14848,47744,14976,0/0/0/0,T220,junction,4,mistyMountains,no nearby map transition,4,,T220,72,ordinary_land
+1183,846,47744,14848,47872,14976,0/0/0/0,T220,junction,5,mistyMountains,no nearby map transition,5,,T220,72,ordinary_land
+1184,846,47872,14848,48000,14976,0/0/0/0,T223,junction,3,mistyMountains,no nearby map transition,8,T220|T223,T223,72,ordinary_land
+1185,846,48000,14848,48128,14976,0/0/0/0,T223,junction,4,mistyMountains,no nearby map transition,5,,T223,72,ordinary_land
+1186,846,48128,14848,48256,14976,0/0/0/0,T223,junction,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T223,72,ordinary_land
+1187,846,48256,14848,48384,14976,0/0/0/0,T223,junction,3,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T223,72,ordinary_land
+1181,847,47488,14976,47616,15104,0/0/0/0,T220,D++D-+H+V,4,mistyMountains,no nearby map transition,1,,T220,72,ordinary_land
+1182,847,47616,14976,47744,15104,0/0/0/0,T220,junction,4,mistyMountains,no nearby map transition,4,,T220,72,ordinary_land
+1183,847,47744,14976,47872,15104,0/0/0/0,T220,junction,5,mistyMountains,no nearby map transition,9,,T220,72,ordinary_land
+1184,847,47872,14976,48000,15104,0/0/0/0,T223,D++H+V,5,mistyMountains,no nearby map transition,5,,T223,72,ordinary_land
+1185,847,48000,14976,48128,15104,0/0/0/0,T223,junction,3,mistyMountains,no nearby map transition,2,,T223,72,ordinary_land
+1186,847,48128,14976,48256,15104,0/0/0/0,T223,D++H+V,4,mistyMountains,no nearby map transition,1,,T223,72,ordinary_land
+1187,847,48256,14976,48384,15104,0/0/0/0,T223,D++H+V,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T223,72,ordinary_land
+1183,848,47744,15104,47872,15232,0/0/0/0,T223,junction,4,mistyMountains,no nearby map transition,8,,T223,72,ordinary_land
+1184,848,47872,15104,48000,15232,0/0/0/0,T223,D++H+V,5,mistyMountains,no nearby map transition,4,,T223,72,ordinary_land
+1185,848,48000,15104,48128,15232,0/0/0/0,T223,D++H+V,5,mistyMountains,no nearby map transition,1,,T223,72,ordinary_land
+1184,849,47872,15232,48000,15360,0/0/0/0,T223,D++H+V,4,mistyMountains,no nearby map transition,2,,T223,72,ordinary_land
+1185,849,48000,15232,48128,15360,0/0/0/0,T223,D++D-+H+V,3,mistyMountains,no nearby map transition,1,,T223,72,ordinary_land
+1157,848,44416,15104,44544,15232,0/0/0/0,T218,D+,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T218,73,ordinary_land
+1158,848,44544,15104,44672,15232,0/0/0/0,T218,D+,5,mistyMountains,no nearby map transition,1,,T218,73,ordinary_land
+1159,848,44672,15104,44800,15232,0/0/0/0,T220,D+,4,mistyMountains,no nearby map transition,1,,T220,73,ordinary_land
+1161,848,44928,15104,45056,15232,0/0/0/0,T220,V,8,mistyMountains,no nearby map transition,1,,T220,73,ordinary_land
+1158,849,44544,15232,44672,15360,0/0/0/0,T218,D+,5,mistyMountains,no nearby map transition,4,,T218,73,ordinary_land
+1159,849,44672,15232,44800,15360,0/0/0/0,T220,D+,5,mistyMountains,no nearby map transition,4,,T220,73,ordinary_land
+1160,849,44800,15232,44928,15360,0/0/0/0,T220,D+,4,mistyMountains,no nearby map transition,4,,T220,73,ordinary_land
+1161,849,44928,15232,45056,15360,0/0/0/0,T220,V,8,mistyMountains,no nearby map transition,1,,T220,73,ordinary_land
+1159,850,44672,15360,44800,15488,0/0/0/0,T220,D+,5,mistyMountains,no nearby map transition,9,,T220,73,ordinary_land
+1160,850,44800,15360,44928,15488,0/0/0/0,T220,D+,5,mistyMountains,no nearby map transition,5,,T220,73,ordinary_land
+1161,850,44928,15360,45056,15488,0/0/0/0,T220,D++V,4,mistyMountains,no nearby map transition,2,,T220,73,ordinary_land
+1160,851,44800,15488,44928,15616,0/0/0/0,T220,D+,5,mistyMountains,no nearby map transition,8,,T220,73,ordinary_land
+1161,851,44928,15488,45056,15616,0/0/0/0,T220,D++V,5,mistyMountains,no nearby map transition,4,,T220,73,ordinary_land
+1162,851,45056,15488,45184,15616,0/0/0/0,T220,D+,4,mistyMountains,no nearby map transition,1,,T220,73,ordinary_land
+1161,852,44928,15616,45056,15744,0/0/0/0,T220,D++V,5,mistyMountains,no nearby map transition,2,,T220,73,ordinary_land
+1162,852,45056,15616,45184,15744,0/0/0/0,T220,D+,5,mistyMountains,no nearby map transition,1,,T220,73,ordinary_land
+1161,853,44928,15744,45056,15872,0/0/0/0,T220,V,8,mistyMountains,no nearby map transition,1,,T220,73,ordinary_land
+1161,854,44928,15872,45056,16000,0/0/0/0,T220,V,8,mistyMountains,no nearby map transition,1,,T220,73,ordinary_land
+1161,855,44928,16000,45056,16128,0/0/0/0,T232,V,8,mistyMountains,no nearby map transition,1,,T232,73,ordinary_land
+1164,854,45312,15872,45440,16000,0/0/0/0,T220,junction,2,mistyMountains,no nearby map transition,1,,T220,74,ordinary_land
+1165,854,45440,15872,45568,16000,0/0/0/0,T220,junction,2,mistyMountains,no nearby map transition,1,,T220,74,ordinary_land
+1166,854,45568,15872,45696,16000,0/0/0/0,T220,junction,2,mistyMountains,no nearby map transition,1,T220|T233,T220,74,ordinary_land
+1164,855,45312,16000,45440,16128,0/0/0/0,T220,junction,2,mistyMountains,no nearby map transition,1,T220|T232,T220,74,ordinary_land
+1165,855,45440,16000,45568,16128,0/0/0/0,T232,junction,2,mistyMountains,no nearby map transition,2,T232|T233,T232,74,ordinary_land
+1166,855,45568,16000,45696,16128,0/0/0/0,T233,junction,2,mistyMountains,no nearby map transition,1,,T233,74,ordinary_land
+1165,856,45440,16128,45568,16256,0/0/0/0,T232,junction,1,mistyMountains,no nearby map transition,1,T232|T233,T232,74,ordinary_land
+1196,857,49408,16256,49536,16384,0/0/0/0,T223,D-,5,mistyMountains,no nearby map transition,1,,T223,75,ordinary_land
+1197,857,49536,16256,49664,16384,0/0/0/0,T231,D+,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,75,ordinary_land
+1190,859,48640,16512,48768,16640,0/0/0/0,T223,D-+V,1,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T223,76,ordinary_land
+1190,860,48640,16640,48768,16768,0/0/0/0,T233,D-+H+V,1,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T223|T233,T233,76,ordinary_land
+1190,861,48640,16768,48768,16896,0/0/0/0,T233,D-+H+V,1,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T223|T233,T233,76,ordinary_land
+1190,862,48640,16896,48768,17024,0/0/0/0,T233,D-+V,1,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T233,76,ordinary_land
+1190,863,48640,17024,48768,17152,0/0/0/0,T233,V,7,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T233,76,ordinary_land
+1192,861,48896,16768,49024,16896,0/0/0/0,T223,D++D-,5,mistyMountains,no nearby map transition,1,,T223,77,ordinary_land
+1192,862,48896,16896,49024,17024,0/0/0/0,T233,D+,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T233,77,ordinary_land
+1193,862,49024,16896,49152,17024,0/0/0/0,T233,D+,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T233,77,ordinary_land
+1193,863,49024,17024,49152,17152,0/0/0/0,T233,D+,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T233,77,ordinary_land
+1194,863,49152,17024,49280,17152,0/0/0/0,T233,junction,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T233,77,ordinary_land
+1199,863,49792,17024,49920,17152,0/0/0/0,T231,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T231,77,ordinary_land
+1192,864,48896,17152,49024,17280,0/0/0/0,T233,H,8,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T233,77,ordinary_land
+1193,864,49024,17152,49152,17280,0/0/0/0,T233,H,8,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T233,77,ordinary_land
+1194,864,49152,17152,49280,17280,0/0/0/0,T233,junction,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T233,77,ordinary_land
+1195,864,49280,17152,49408,17280,0/0/0/0,T233,D++H,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T233,77,ordinary_land
+1196,864,49408,17152,49536,17280,0/0/0/0,T233,H,8,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T233,77,ordinary_land
+1197,864,49536,17152,49664,17280,0/0/0/0,T231,H,8,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T231,77,ordinary_land
+1198,864,49664,17152,49792,17280,0/0/0/0,T231,D-+H,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T231,77,ordinary_land
+1199,864,49792,17152,49920,17280,0/0/0/0,T231,H,8,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,77,ordinary_land
+1193,865,49024,17280,49152,17408,0/0/0/0,T233,H,7,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T233,77,ordinary_land
+1194,865,49152,17280,49280,17408,0/0/0/0,T233,H,7,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T233,77,ordinary_land
+1195,865,49280,17280,49408,17408,0/0/0/0,T233,D++H,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T233,77,ordinary_land
+1196,865,49408,17280,49536,17408,0/0/0/0,T233,D++H,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T233,77,ordinary_land
+1197,865,49536,17280,49664,17408,0/0/0/0,T231,D-+H,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,77,ordinary_land
+1198,865,49664,17280,49792,17408,0/0/0/0,T231,H,7,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,77,ordinary_land
+1201,861,50048,16768,50176,16896,0/0/0/0,T231,D++D-,5,mistyMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T231,78,ordinary_land
+1147,865,43136,17280,43264,17408,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,13,,T232,79,ordinary_land
+1148,865,43264,17280,43392,17408,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,10,,T232,79,ordinary_land
+1149,865,43392,17280,43520,17408,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,5,,T232,79,ordinary_land
+1150,865,43520,17280,43648,17408,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,2,,T232,79,ordinary_land
+1151,865,43648,17280,43776,17408,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,1,,T232,79,ordinary_land
+1146,866,43008,17408,43136,17536,0/0/0/0,T239,junction,5,mistyMountains,no nearby map transition,8,,T239,79,ordinary_land
+1147,866,43136,17408,43264,17536,0/0/0/0,T232,D++H,5,mistyMountains,no nearby map transition,8,,T232,79,ordinary_land
+1148,866,43264,17408,43392,17536,0/0/0/0,T232,H,7,mistyMountains,no nearby map transition,5,,T232,79,ordinary_land
+1149,866,43392,17408,43520,17536,0/0/0/0,T232,H,7,mistyMountains,no nearby map transition,4,,T232,79,ordinary_land
+1150,866,43520,17408,43648,17536,0/0/0/0,T232,H,7,mistyMountains,no nearby map transition,1,,T232,79,ordinary_land
+1145,867,42880,17536,43008,17664,0/0/0/0,T239,junction,8,mistyMountains,no nearby map transition,2,,T239,79,ordinary_land
+1146,867,43008,17536,43136,17664,0/0/0/0,T239,junction,4,mistyMountains,no nearby map transition,5,,T239,79,ordinary_land
+1147,867,43136,17536,43264,17664,0/0/0/0,T232,D++H,5,mistyMountains,no nearby map transition,5,,T232,79,ordinary_land
+1148,867,43264,17536,43392,17664,0/0/0/0,T232,D++H,5,mistyMountains,no nearby map transition,2,,T232,79,ordinary_land
+1149,867,43392,17536,43520,17664,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,1,,T232,79,ordinary_land
+1150,867,43520,17536,43648,17664,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,2,,T232,79,ordinary_land
+1151,867,43648,17536,43776,17664,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,1,,T232,79,ordinary_land
+1145,868,42880,17664,43008,17792,0/0/0/0,T239,junction,3,mistyMountains,no nearby map transition,1,,T239,79,ordinary_land
+1146,868,43008,17664,43136,17792,0/0/0/0,T239,junction,4,mistyMountains,no nearby map transition,2,,T239,79,ordinary_land
+1147,868,43136,17664,43264,17792,0/0/0/0,T232,D++H,4,mistyMountains,no nearby map transition,2,,T232,79,ordinary_land
+1148,868,43264,17664,43392,17792,0/0/0/0,T232,D++H,4,mistyMountains,no nearby map transition,1,,T232,79,ordinary_land
+1146,869,43008,17792,43136,17920,0/0/0/0,T239,junction,2,mistyMountains,no nearby map transition,1,,T239,79,ordinary_land
+1147,869,43136,17792,43264,17920,0/0/0/0,T232,H,2,mistyMountains,no nearby map transition,1,T232|T239,T232,79,ordinary_land
+1163,868,45184,17664,45312,17792,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,1,,T232,80,ordinary_land
+1164,868,45312,17664,45440,17792,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,1,,T232,80,ordinary_land
+1165,868,45440,17664,45568,17792,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,1,,T232,80,ordinary_land
+1166,868,45568,17664,45696,17792,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,1,,T232,80,ordinary_land
+1167,868,45696,17664,45824,17792,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,1,,T232,80,ordinary_land
+1168,868,45824,17664,45952,17792,0/0/0/0,T232,H,8,mistyMountains,no nearby map transition,1,,T232,80,ordinary_land
+1084,1009,35072,35712,35200,35840,0/0/0/0,T299,D+,4,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T299,94,ordinary_land
+1987,1017,150656,36736,150784,36864,0/0/0/0,T302,D-,3,rhunLandSteppe,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T302,97,supported_biome_transition
+1987,1019,150656,36992,150784,37120,0/0/0/0,T302,H,4,rhunLandSteppe,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T302,99,supported_biome_transition
+1136,1043,41728,40064,41856,40192,0/0/0/0,T311,junction,5,mistyMountains,no nearby map transition,2,,T311,103,ordinary_land
+1135,1044,41600,40192,41728,40320,0/0/0/0,T311,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T311,103,ordinary_land
+1136,1044,41728,40192,41856,40320,0/0/0/0,T311,junction,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T311,103,ordinary_land
+1134,1045,41472,40320,41600,40448,0/0/0/0,T311,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T311,103,ordinary_land
+1135,1045,41600,40320,41728,40448,0/0/0/0,T311,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T311,103,ordinary_land
+1134,1046,41472,40448,41600,40576,0/0/0/0,T311,D-,5,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T311,103,ordinary_land
+1138,1046,41984,40448,42112,40576,0/0/0/0,T311,junction,1,mistyMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T309|T311,T311,104,ordinary_land
+1340,1122,67840,50176,67968,50304,0/0/0/0,T339,D-,5,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T339,111,ordinary_land
+1339,1123,67712,50304,67840,50432,0/0/0/0,T339,D-,5,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T339,112,ordinary_land
+1338,1124,67584,50432,67712,50560,0/0/0/0,T343,D-,5,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T339|T343,T343,113,ordinary_land
+1337,1125,67456,50560,67584,50688,0/0/0/0,T343,D-,5,emynMuil,no nearby map transition,1,,T343,114,ordinary_land
+1360,1126,70400,50688,70528,50816,0/0/0/0,T339,D+,5,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T339,115,ordinary_land
+1369,1126,71552,50688,71680,50816,0/0/0/0,T340,D-,5,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T340,116,ordinary_land
+1368,1127,71424,50816,71552,50944,0/0/0/0,T340,D-,5,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T340,116,ordinary_land
+1369,1127,71552,50816,71680,50944,0/0/0/0,T340,D-,4,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T340,116,ordinary_land
+1362,1128,70656,50944,70784,51072,0/0/0/0,T351,D++H,5,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T339|T351,T351,116,ordinary_land
+1369,1128,71552,50944,71680,51072,0/0/0/0,T340,junction,8,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T340,116,ordinary_land
+1369,1129,71552,51072,71680,51200,0/0/0/0,T340,H,7,deadMarshes,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T340,116,supported_biome_transition
+1364,1130,70912,51200,71040,51328,0/0/0/0,T351,junction,3,nindalf,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T351,116,supported_biome_transition
+1365,1130,71040,51200,71168,51328,0/0/0/0,T351,D-+H,3,nindalf,four or more consistent original boundary edges on connected map transition; same-biome reach,1,,T351,116,supported_biome_transition
+1366,1130,71168,51200,71296,51328,0/0/0/0,T340,D-+H,3,deadMarshes,four or more consistent original boundary edges on connected map transition; same-biome reach,1,T340|T351,T340,116,supported_biome_transition
+1361,1127,70528,50816,70656,50944,0/0/0/0,T339,D+,5,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T339,117,ordinary_land
+1844,1130,132352,51200,132480,51328,0/0/0/0,T338,V,5,rhunLandSteppe,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T338,118,ordinary_land
+1845,1130,132480,51200,132608,51328,0/0/0/0,T338,V,7,rhunLandSteppe,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T338,118,ordinary_land
+1846,1130,132608,51200,132736,51328,0/0/0/0,T338,V,8,rhunLandSteppe,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T338,118,ordinary_land
+1845,1131,132480,51328,132608,51456,0/0/0/0,T338,V,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T338,118,ordinary_land
+1846,1131,132608,51328,132736,51456,0/0/0/0,T338,V,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T338,118,ordinary_land
+1847,1131,132736,51328,132864,51456,0/0/0/0,T338,D-,4,rhunLandSteppe,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T338,118,ordinary_land
+1845,1132,132480,51456,132608,51584,0/0/0/0,T338,V,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T338,118,ordinary_land
+1846,1132,132608,51456,132736,51584,0/0/0/0,T338,D-+V,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T338,118,ordinary_land
+1845,1133,132480,51584,132608,51712,0/0/0/0,T338,D++D-+V,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T338,118,ordinary_land
+1846,1133,132608,51584,132736,51712,0/0/0/0,T338,D-+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T338,118,ordinary_land
+1847,1133,132736,51584,132864,51712,0/0/0/0,T338,D-+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T338,118,ordinary_land
+1845,1134,132480,51712,132608,51840,0/0/0/0,T355,D++D-+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T355,118,ordinary_land
+1846,1134,132608,51712,132736,51840,0/0/0/0,T338,D++D-+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T338,118,ordinary_land
+1847,1134,132736,51712,132864,51840,0/0/0/0,T338,D-+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T338,118,ordinary_land
+1845,1135,132480,51840,132608,51968,0/0/0/0,T355,D++D-+H+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T355,118,ordinary_land
+1846,1135,132608,51840,132736,51968,0/0/0/0,T355,D++D-+H+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,T338|T355,T355,118,ordinary_land
+1847,1135,132736,51840,132864,51968,0/0/0/0,T338,D++D-+H+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T338,118,ordinary_land
+1845,1136,132480,51968,132608,52096,0/0/0/0,T355,D-+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T355,118,ordinary_land
+1846,1136,132608,51968,132736,52096,0/0/0/0,T355,D++D-+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T355,118,ordinary_land
+1847,1136,132736,51968,132864,52096,0/0/0/0,T355,D++D-+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T355,118,ordinary_land
+1846,1137,132608,52096,132736,52224,0/0/0/0,T355,D-+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T355,118,ordinary_land
+1847,1137,132736,52096,132864,52224,0/0/0/0,T355,D++V,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T355,118,ordinary_land
+1847,1138,132736,52224,132864,52352,0/0/0/0,T355,V,6,easternDesolation,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T355,118,ordinary_land
+1496,1133,87808,51584,87936,51712,0/0/0/0,T326,D-,3,dagorlad,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T326,121,ordinary_land
+1495,1134,87680,51712,87808,51840,0/0/0/0,T326,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T326,121,ordinary_land
+1496,1134,87808,51712,87936,51840,0/0/0/0,T326,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T326,121,ordinary_land
+1497,1134,87936,51712,88064,51840,0/0/0/0,T326,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T326,121,ordinary_land
+1498,1134,88064,51712,88192,51840,0/0/0/0,T326,D-,5,dagorlad,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T326,121,ordinary_land
+1494,1135,87552,51840,87680,51968,0/0/0/0,T326,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T326,121,ordinary_land
+1495,1135,87680,51840,87808,51968,0/0/0/0,T326,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T326,121,ordinary_land
+1496,1135,87808,51840,87936,51968,0/0/0/0,T326,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T326,121,ordinary_land
+1497,1135,87936,51840,88064,51968,0/0/0/0,T326,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T326,121,ordinary_land
+1494,1136,87552,51968,87680,52096,0/0/0/0,T346,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T346,121,ordinary_land
+1495,1136,87680,51968,87808,52096,0/0/0/0,T346,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T346,121,ordinary_land
+1496,1136,87808,51968,87936,52096,0/0/0/0,T346,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T346,121,ordinary_land
+1494,1137,87552,52096,87680,52224,0/0/0/0,T346,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T346,121,ordinary_land
+1495,1137,87680,52096,87808,52224,0/0/0/0,T346,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T346,121,ordinary_land
+1494,1138,87552,52224,87680,52352,0/0/0/0,T346,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T346,121,ordinary_land
+1341,1134,67968,51712,68096,51840,0/0/0/0,T339,junction,1,emynMuil,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T339,122,ordinary_land
+1491,1134,87168,51712,87296,51840,0/0/0/0,T326,D-+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T326,123,ordinary_land
+1490,1135,87040,51840,87168,51968,0/0/0/0,T346,D-+H+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T326|T346,T346,123,ordinary_land
+1491,1135,87168,51840,87296,51968,0/0/0/0,T326,D++D-+H+V,1,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T326,123,ordinary_land
+1490,1136,87040,51968,87168,52096,0/0/0/0,T346,D-+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T346,123,ordinary_land
+1491,1136,87168,51968,87296,52096,0/0/0/0,T346,D-+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T346,123,ordinary_land
+1490,1137,87040,52096,87168,52224,0/0/0/0,T346,D-+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T346,123,ordinary_land
+1491,1137,87168,52096,87296,52224,0/0/0/0,T346,V,6,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T346,123,ordinary_land
+1490,1138,87040,52224,87168,52352,0/0/0/0,T346,V,4,udun,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T346,123,ordinary_land
+1491,1138,87168,52224,87296,52352,0/0/0/0,T346,V,6,udun,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T346,123,ordinary_land
+1491,1139,87168,52352,87296,52480,0/0/0/0,T346,V,6,udun,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T346,123,ordinary_land
+1853,1138,133504,52224,133632,52352,0/0/0/0,T355,junction,0,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T355,124,ordinary_land
+1170,1148,46080,53504,46208,53632,0/0/0/0,T347,V,8,whiteMountains,no nearby map transition,4,,T347,126,ordinary_land
+1171,1148,46208,53504,46336,53632,0/0/0/0,T347,V,6,whiteMountains,no nearby map transition,1,,T347,126,ordinary_land
+1170,1149,46080,53632,46208,53760,0/0/0/0,T347,V,8,whiteMountains,no nearby map transition,4,,T347,126,ordinary_land
+1458,1146,82944,53248,83072,53376,0/0/0/0,T326,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T326,127,ordinary_land
+1463,1155,83584,54400,83712,54528,0/0/0/0,T356,D-,5,mordorMountains,no nearby map transition,1,,T356,133,ordinary_land
+1462,1156,83456,54528,83584,54656,0/0/0/0,T356,D-,5,mordorMountains,no nearby map transition,1,,T356,134,ordinary_land
+1503,1161,88704,55168,88832,55296,0/0/0/0,T357,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T357,135,ordinary_land
+1503,1162,88704,55296,88832,55424,0/0/0/0,T357,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T357,135,ordinary_land
+1504,1162,88832,55296,88960,55424,0/0/0/0,T357,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T357,135,ordinary_land
+1504,1163,88832,55424,88960,55552,0/0/0/0,T357,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T357,135,ordinary_land
+1505,1163,88960,55424,89088,55552,0/0/0/0,T357,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T357,135,ordinary_land
+1461,1157,83328,54656,83456,54784,0/0/0/0,T356,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,136,ordinary_land
+1460,1162,83200,55296,83328,55424,0/0/0/0,T356,H,6,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,137,ordinary_land
+1461,1162,83328,55296,83456,55424,0/0/0/0,T356,H,6,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,137,ordinary_land
+1462,1162,83456,55296,83584,55424,0/0/0/0,T356,H,6,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,137,ordinary_land
+1463,1162,83584,55296,83712,55424,0/0/0/0,T356,H,6,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,137,ordinary_land
+1473,1163,84864,55424,84992,55552,0/0/0/0,T356,D-+H,4,mordorMountains,no nearby map transition,1,,T356,138,ordinary_land
+1472,1164,84736,55552,84864,55680,0/0/0/0,T356,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,138,ordinary_land
+1473,1164,84864,55552,84992,55680,0/0/0/0,T356,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T356,138,ordinary_land
+1474,1164,84992,55552,85120,55680,0/0/0/0,T356,D-,5,mordorMountains,no nearby map transition,5,,T356,138,ordinary_land
+1471,1165,84608,55680,84736,55808,0/0/0/0,T356,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,138,ordinary_land
+1472,1165,84736,55680,84864,55808,0/0/0/0,T356,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T356,138,ordinary_land
+1473,1165,84864,55680,84992,55808,0/0/0/0,T356,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T356,138,ordinary_land
+1471,1166,84608,55808,84736,55936,0/0/0/0,T356,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,138,ordinary_land
+1472,1166,84736,55808,84864,55936,0/0/0/0,T356,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T356,138,ordinary_land
+1482,1170,86016,56320,86144,56448,0/0/0/0,T357,D-,5,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T357,139,ordinary_land
+1480,1200,85760,60160,85888,60288,0/0/0/0,T356,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,145,ordinary_land
+1481,1200,85888,60160,86016,60288,0/0/0/0,T356,D++D-+H,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,145,ordinary_land
+1482,1200,86016,60160,86144,60288,0/0/0/0,T357,D++D-+H+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T357,145,ordinary_land
+1483,1200,86144,60160,86272,60288,0/0/0/0,T357,D-+H+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T357,145,ordinary_land
+1484,1200,86272,60160,86400,60288,0/0/0/0,T357,D-+H,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T357,145,ordinary_land
+1485,1200,86400,60160,86528,60288,0/0/0/0,T357,D-+H,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T357,145,ordinary_land
+1486,1200,86528,60160,86656,60288,0/0/0/0,T357,D-+H,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T357,145,ordinary_land
+1487,1200,86656,60160,86784,60288,0/0/0/0,T357,H,8,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T357,145,ordinary_land
+1480,1201,85760,60288,85888,60416,0/0/0/0,T356,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T356,145,ordinary_land
+1481,1201,85888,60288,86016,60416,0/0/0/0,T356,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T356,145,ordinary_land
+1482,1201,86016,60288,86144,60416,0/0/0/0,T357,D++D-+V,3,mordorMountains,no nearby map transition,4,T356|T357,T357,145,ordinary_land
+1483,1201,86144,60288,86272,60416,0/0/0/0,T357,D++D-+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,T356|T357,T357,145,ordinary_land
+1484,1201,86272,60288,86400,60416,0/0/0/0,T357,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T357,145,ordinary_land
+1485,1201,86400,60288,86528,60416,0/0/0/0,T357,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T357,145,ordinary_land
+1479,1202,85632,60416,85760,60544,0/0/0/0,T356,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,145,ordinary_land
+1480,1202,85760,60416,85888,60544,0/0/0/0,T356,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,145,ordinary_land
+1481,1202,85888,60416,86016,60544,0/0/0/0,T356,D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T356,145,ordinary_land
+1482,1202,86016,60416,86144,60544,0/0/0/0,T356,D-+V,3,mordorMountains,no nearby map transition,1,,T356,145,ordinary_land
+1483,1202,86144,60416,86272,60544,0/0/0/0,T356,D++D-+V,3,mordorMountains,no nearby map transition,1,,T356,145,ordinary_land
+1484,1202,86272,60416,86400,60544,0/0/0/0,T357,D++D-,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T357,145,ordinary_land
+1684,1216,111872,62208,112000,62336,0/0/0/0,T363,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T363,146,ordinary_land
+1685,1216,112000,62208,112128,62336,0/0/0/0,T363,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T363,146,ordinary_land
+1685,1217,112000,62336,112128,62464,0/0/0/0,T363,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T363,146,ordinary_land
+1686,1217,112128,62336,112256,62464,0/0/0/0,T363,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T363,146,ordinary_land
+1686,1218,112128,62464,112256,62592,0/0/0/0,T363,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T363,146,ordinary_land
+1687,1218,112256,62464,112384,62592,0/0/0/0,T363,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T363,146,ordinary_land
+1687,1219,112256,62592,112384,62720,0/0/0/0,T363,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T363,146,ordinary_land
+1688,1219,112384,62592,112512,62720,0/0/0/0,T363,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T363,146,ordinary_land
+1681,1220,111488,62720,111616,62848,0/0/0/0,T363,H,8,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T363,146,ordinary_land
+1682,1220,111616,62720,111744,62848,0/0/0/0,T363,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T363,146,ordinary_land
+1683,1220,111744,62720,111872,62848,0/0/0/0,T363,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T363,146,ordinary_land
+1684,1220,111872,62720,112000,62848,0/0/0/0,T363,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",10,,T363,146,ordinary_land
+1685,1220,112000,62720,112128,62848,0/0/0/0,T364,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",16,,T364,146,ordinary_land
+1686,1220,112128,62720,112256,62848,0/0/0/0,T364,H,8,mordorMountains,no nearby map transition,9,,T364,146,ordinary_land
+1687,1220,112256,62720,112384,62848,0/0/0/0,T364,H,8,mordorMountains,no nearby map transition,4,,T364,146,ordinary_land
+1688,1220,112384,62720,112512,62848,0/0/0/0,T364,D++H,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,146,ordinary_land
+1691,1216,112768,62208,112896,62336,0/0/0/0,T363,D++D-+H+V,2,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T363,147,ordinary_land
+1692,1216,112896,62208,113024,62336,0/0/0/0,T364,D++D-+H,2,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1690,1217,112640,62336,112768,62464,0/0/0/0,T363,D++D-+H+V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T363,147,ordinary_land
+1691,1217,112768,62336,112896,62464,0/0/0/0,T363,D++D-+H+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T363,147,ordinary_land
+1692,1217,112896,62336,113024,62464,0/0/0/0,T364,D++H,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T364,147,ordinary_land
+1693,1217,113024,62336,113152,62464,0/0/0/0,T364,D++H,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1694,1217,113152,62336,113280,62464,0/0/0/0,T364,H,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1695,1217,113280,62336,113408,62464,0/0/0/0,T364,H,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1696,1217,113408,62336,113536,62464,0/0/0/0,T364,H,7,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1690,1218,112640,62464,112768,62592,0/0/0/0,T363,D++D-+H+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T363,147,ordinary_land
+1691,1218,112768,62464,112896,62592,0/0/0/0,T363,D++H+V,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T363,147,ordinary_land
+1692,1218,112896,62464,113024,62592,0/0/0/0,T364,D++H,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T364,147,ordinary_land
+1693,1218,113024,62464,113152,62592,0/0/0/0,T364,D++H,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T364,147,ordinary_land
+1694,1218,113152,62464,113280,62592,0/0/0/0,T364,D++H,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T364,147,ordinary_land
+1695,1218,113280,62464,113408,62592,0/0/0/0,T364,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T364,147,ordinary_land
+1696,1218,113408,62464,113536,62592,0/0/0/0,T364,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T364,147,ordinary_land
+1697,1218,113536,62464,113664,62592,0/0/0/0,T364,H,8,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1690,1219,112640,62592,112768,62720,0/0/0/0,T363,D++H+V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T363,147,ordinary_land
+1691,1219,112768,62592,112896,62720,0/0/0/0,T363,D++H+V,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T363,147,ordinary_land
+1692,1219,112896,62592,113024,62720,0/0/0/0,T364,D++H,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,T363|T364,T364,147,ordinary_land
+1693,1219,113024,62592,113152,62720,0/0/0/0,T364,D++H,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T364,147,ordinary_land
+1694,1219,113152,62592,113280,62720,0/0/0/0,T364,D++H,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T364,147,ordinary_land
+1695,1219,113280,62592,113408,62720,0/0/0/0,T364,D++H,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T364,147,ordinary_land
+1696,1219,113408,62592,113536,62720,0/0/0/0,T364,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1697,1219,113536,62592,113664,62720,0/0/0/0,T364,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1690,1220,112640,62720,112768,62848,0/0/0/0,T364,D++V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1691,1220,112768,62720,112896,62848,0/0/0/0,T364,D++V,3,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T364,147,ordinary_land
+1692,1220,112896,62720,113024,62848,0/0/0/0,T364,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T364,147,ordinary_land
+1693,1220,113024,62720,113152,62848,0/0/0/0,T364,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T364,147,ordinary_land
+1694,1220,113152,62720,113280,62848,0/0/0/0,T364,D+,4,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T364,147,ordinary_land
+1695,1220,113280,62720,113408,62848,0/0/0/0,T364,D+,5,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1690,1221,112640,62848,112768,62976,0/0/0/0,T364,V,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1691,1221,112768,62848,112896,62976,0/0/0/0,T364,D++V,2,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T364,147,ordinary_land
+1692,1221,112896,62848,113024,62976,0/0/0/0,T364,D+,3,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1693,1221,113024,62848,113152,62976,0/0/0/0,T364,D+,4,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1694,1221,113152,62848,113280,62976,0/0/0/0,T364,D+,5,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1690,1222,112640,62976,112768,63104,0/0/0/0,T364,V,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1691,1222,112768,62976,112896,63104,0/0/0/0,T364,V,8,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1690,1223,112640,63104,112768,63232,0/0/0/0,T364,V,7,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1691,1223,112768,63104,112896,63232,0/0/0/0,T364,V,8,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,147,ordinary_land
+1681,1223,111488,63104,111616,63232,0/0/0/0,T363,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T363,148,ordinary_land
+1682,1223,111616,63104,111744,63232,0/0/0/0,T363,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T363,148,ordinary_land
+1683,1223,111744,63104,111872,63232,0/0/0/0,T363,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T363,148,ordinary_land
+1684,1223,111872,63104,112000,63232,0/0/0/0,T363,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T363,148,ordinary_land
+1685,1223,112000,63104,112128,63232,0/0/0/0,T364,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",13,T363|T364,T364,148,ordinary_land
+1686,1223,112128,63104,112256,63232,0/0/0/0,T364,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T364,148,ordinary_land
+1687,1223,112256,63104,112384,63232,0/0/0/0,T364,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T364,148,ordinary_land
+1688,1223,112384,63104,112512,63232,0/0/0/0,T364,H,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,148,ordinary_land
+1682,1224,111616,63232,111744,63360,0/0/0/0,T363,H,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T363,148,ordinary_land
+1683,1224,111744,63232,111872,63360,0/0/0/0,T363,H,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T363,148,ordinary_land
+1684,1224,111872,63232,112000,63360,0/0/0/0,T364,H,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,T363|T364,T364,148,ordinary_land
+1685,1224,112000,63232,112128,63360,0/0/0/0,T364,H,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T364,148,ordinary_land
+1686,1224,112128,63232,112256,63360,0/0/0/0,T364,H,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T364,148,ordinary_land
+1687,1224,112256,63232,112384,63360,0/0/0/0,T364,H,7,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T364,148,ordinary_land
+1688,1224,112384,63232,112512,63360,0/0/0/0,T364,H,7,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,148,ordinary_land
+1683,1225,111744,63360,111872,63488,0/0/0/0,T364,H,6,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T363|T364,T364,148,ordinary_land
+1684,1225,111872,63360,112000,63488,0/0/0/0,T364,H,6,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T364,148,ordinary_land
+1685,1225,112000,63360,112128,63488,0/0/0/0,T364,H,6,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T364,148,ordinary_land
+1686,1225,112128,63360,112256,63488,0/0/0/0,T364,H,6,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T364,148,ordinary_land
+1687,1225,112256,63360,112384,63488,0/0/0/0,T364,H,6,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,148,ordinary_land
+1688,1225,112384,63360,112512,63488,0/0/0/0,T364,H,6,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,148,ordinary_land
+1674,1233,110592,64384,110720,64512,0/0/0/0,T364,V,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",10,,T364,152,ordinary_land
+1674,1234,110592,64512,110720,64640,0/0/0/0,T364,V,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T364,152,ordinary_land
+1674,1235,110592,64640,110720,64768,0/0/0/0,T364,V,8,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T364,152,ordinary_land
+1674,1236,110592,64768,110720,64896,0/0/0/0,T364,V,8,mordor,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T364,152,ordinary_land
+1649,1247,107392,66176,107520,66304,0/0/0/0,T399,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T399,155,ordinary_land
+1292,1271,61696,69248,61824,69376,0/0/0/0,T404,junction,5,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T404,156,ordinary_land
+1292,1272,61696,69376,61824,69504,0/0/0/0,T404,junction,4,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T404,156,ordinary_land
+1293,1272,61824,69376,61952,69504,0/0/0/0,T404,D++H,5,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T404,156,ordinary_land
+1294,1272,61952,69376,62080,69504,0/0/0/0,T404,H,6,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T404,156,ordinary_land
+1295,1272,62080,69376,62208,69504,0/0/0/0,T411,H,6,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T411,156,ordinary_land
+1296,1272,62208,69376,62336,69504,0/0/0/0,T411,H,6,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T411,156,ordinary_land
+1297,1272,62336,69376,62464,69504,0/0/0/0,T411,H,6,whiteMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T411,156,ordinary_land
+1293,1273,61824,69504,61952,69632,0/0/0/0,T404,D++H,4,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T404,156,ordinary_land
+1294,1273,61952,69504,62080,69632,0/0/0/0,T404,D++H,4,whiteMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T404,156,ordinary_land
+1295,1273,62080,69504,62208,69632,0/0/0/0,T411,H,4,whiteMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T411,156,ordinary_land
+1296,1273,62208,69504,62336,69632,0/0/0/0,T411,H,4,whiteMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T411,156,ordinary_land
+2560,1311,224000,74368,224128,74496,0/0/0/0,T432,V,8,redMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T432,158,ordinary_land
+2560,1312,224000,74496,224128,74624,0/0/0/0,T432,V,8,redMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T432,158,ordinary_land
+2560,1313,224000,74624,224128,74752,0/0/0/0,T432,V,8,redMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T432,158,ordinary_land
+2560,1314,224000,74752,224128,74880,0/0/0/0,T432,V,8,redMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T432,158,ordinary_land
+2560,1315,224000,74880,224128,75008,0/0/0/0,T432,V,8,redMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T401|T432,T432,158,ordinary_land
+866,1312,7168,74496,7296,74624,0/0/0/0,T360,V,7,whiteMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T360,159,ordinary_land
+867,1312,7296,74496,7424,74624,0/0/0/0,T360,V,8,whiteMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T360,159,ordinary_land
+866,1313,7168,74624,7296,74752,0/0/0/0,T360,V,7,whiteMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T360,159,ordinary_land
+867,1313,7296,74624,7424,74752,0/0/0/0,T360,V,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T360,159,ordinary_land
+866,1314,7168,74752,7296,74880,0/0/0/0,T360,V,7,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T360,159,ordinary_land
+867,1314,7296,74752,7424,74880,0/0/0/0,T360,V,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T360,159,ordinary_land
+866,1315,7168,74880,7296,75008,0/0/0/0,T360,V,7,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T360,159,ordinary_land
+867,1315,7296,74880,7424,75008,0/0/0/0,T360,V,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T360,159,ordinary_land
+866,1316,7168,75008,7296,75136,0/0/0/0,T360,V,7,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T360,159,ordinary_land
+867,1316,7296,75008,7424,75136,0/0/0/0,T360,V,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T360,159,ordinary_land
+866,1317,7168,75136,7296,75264,0/0/0/0,T360,V,7,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T360,159,ordinary_land
+867,1317,7296,75136,7424,75264,0/0/0/0,T360,V,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,T360|T419,T360,159,ordinary_land
+866,1318,7168,75264,7296,75392,0/0/0/0,T360,H+V,7,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T360|T419,T360,159,ordinary_land
+867,1318,7296,75264,7424,75392,0/0/0/0,T419,H+V,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T419,159,ordinary_land
+868,1318,7424,75264,7552,75392,0/0/0/0,T419,H,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T419,159,ordinary_land
+869,1318,7552,75264,7680,75392,0/0/0/0,T419,H,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T419,159,ordinary_land
+870,1318,7680,75264,7808,75392,0/0/0/0,T419,H,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T419,159,ordinary_land
+871,1318,7808,75264,7936,75392,0/0/0/0,T419,H,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T419,159,ordinary_land
+872,1318,7936,75264,8064,75392,0/0/0/0,T419,H,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T419,159,ordinary_land
+873,1318,8064,75264,8192,75392,0/0/0/0,T419,H,8,whiteMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T419,159,ordinary_land
+867,1319,7296,75392,7424,75520,0/0/0/0,T419,V,8,whiteMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T419,159,ordinary_land
+2556,1314,223488,74752,223616,74880,0/0/0/0,T432,D+,4,redMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T432,160,ordinary_land
+2557,1315,223616,74880,223744,75008,0/0/0/0,T432,D+,4,redMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T432,161,ordinary_land
+1892,1316,138496,75008,138624,75136,0/0/0/0,T400,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T400,162,ordinary_land
+1893,1316,138624,75008,138752,75136,0/0/0/0,T400,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T400,162,ordinary_land
+1893,1317,138624,75136,138752,75264,0/0/0/0,T400,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T400,162,ordinary_land
+1894,1317,138752,75136,138880,75264,0/0/0/0,T400,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T400,162,ordinary_land
+1894,1318,138752,75264,138880,75392,0/0/0/0,T400,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T400,162,ordinary_land
+1895,1318,138880,75264,139008,75392,0/0/0/0,T400,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T400,162,ordinary_land
+1895,1319,138880,75392,139008,75520,0/0/0/0,T400,D+,5,mordorMountains,no nearby map transition,4,,T400,162,ordinary_land
+1896,1319,139008,75392,139136,75520,0/0/0/0,T400,D+,4,mordorMountains,no nearby map transition,1,,T400,162,ordinary_land
+1896,1320,139008,75520,139136,75648,0/0/0/0,T420,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T420,162,ordinary_land
+2558,1316,223744,75008,223872,75136,0/0/0/0,T401,D++H,1,redMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T401|T432,T401,163,ordinary_land
+2559,1317,223872,75136,224000,75264,0/0/0/0,T401,D++H,1,redMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T401|T432,T401,164,ordinary_land
+1481,1387,85888,84096,86016,84224,0/0/0/0,T435,D-,4,mordorMountains,no nearby map transition,1,,T435,165,ordinary_land
+1482,1387,86016,84096,86144,84224,0/0/0/0,T654,D-,5,mordorMountains,no nearby map transition,1,,T654,165,ordinary_land
+1481,1388,85888,84224,86016,84352,0/0/0/0,T435,D-,5,mordorMountains,no nearby map transition,4,,T435,165,ordinary_land
+2763,1392,249984,84736,250112,84864,0/0/0/0,T401,D+,5,windMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T401,166,ordinary_land
+2763,1393,249984,84864,250112,84992,0/0/0/0,T401,D+,4,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T401,166,ordinary_land
+2764,1393,250112,84864,250240,84992,0/0/0/0,T401,D+,5,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T401,166,ordinary_land
+2764,1394,250112,84992,250240,85120,0/0/0/0,T401,D+,4,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T401,166,ordinary_land
+2765,1394,250240,84992,250368,85120,0/0/0/0,T401,D+,5,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T401,166,ordinary_land
+1596,1421,100608,88448,100736,88576,0/0/0/0,T654,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T654,167,ordinary_land
+1576,1422,98048,88576,98176,88704,0/0/0/0,T654,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T654,168,ordinary_land
+1577,1422,98176,88576,98304,88704,0/0/0/0,T654,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T654,168,ordinary_land
+1575,1423,97920,88704,98048,88832,0/0/0/0,T654,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T654,168,ordinary_land
+1576,1423,98048,88704,98176,88832,0/0/0/0,T654,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T654,168,ordinary_land
+1574,1424,97792,88832,97920,88960,0/0/0/0,T654,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T654,168,ordinary_land
+1575,1424,97920,88832,98048,88960,0/0/0/0,T654,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T654,168,ordinary_land
+1573,1425,97664,88960,97792,89088,0/0/0/0,T654,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T654,168,ordinary_land
+1574,1425,97792,88960,97920,89088,0/0/0/0,T654,D-,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T654,168,ordinary_land
+1573,1426,97664,89088,97792,89216,0/0/0/0,T444,D-,5,mordorMountains,no nearby map transition,1,,T444,168,ordinary_land
+1579,1422,98432,88576,98560,88704,0/0/0/0,T654,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T654,169,ordinary_land
+1580,1422,98560,88576,98688,88704,0/0/0/0,T654,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T654,169,ordinary_land
+1580,1423,98560,88704,98688,88832,0/0/0/0,T654,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T654,169,ordinary_land
+1581,1423,98688,88704,98816,88832,0/0/0/0,T654,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T654,169,ordinary_land
+1581,1424,98688,88832,98816,88960,0/0/0/0,T654,D+,5,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T654,169,ordinary_land
+1582,1424,98816,88832,98944,88960,0/0/0/0,T654,D+,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T654,169,ordinary_land
+1582,1425,98816,88960,98944,89088,0/0/0/0,T654,D+,5,mordorMountains,no nearby map transition,4,,T654,169,ordinary_land
+1583,1425,98944,88960,99072,89088,0/0/0/0,T654,D+,4,mordorMountains,no nearby map transition,1,,T654,169,ordinary_land
+1583,1426,98944,89088,99072,89216,0/0/0/0,T444,D+,5,mordorMountains,no nearby map transition,1,,T444,169,ordinary_land
+1592,1425,100096,88960,100224,89088,0/0/0/0,T654,D-,5,mordorMountains,no nearby map transition,1,,T654,170,ordinary_land
+1555,1426,95360,89088,95488,89216,0/0/0/0,T444,D-,4,mordorMountains,no nearby map transition,1,,T444,171,ordinary_land
+1552,1429,94976,89472,95104,89600,0/0/0/0,T444,D-,4,mordorMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T444,172,ordinary_land
+2657,1517,236416,100736,236544,100864,0/0/0/0,T451,D+,5,rhunForest,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T451,173,ordinary_land
+2360,1719,198400,126592,198528,126720,0/0/0/0,T468,H,8,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T468,181,ordinary_land
+2361,1719,198528,126592,198656,126720,0/0/0/0,T468,H,8,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T468,181,ordinary_land
+2362,1719,198656,126592,198784,126720,0/0/0/0,T468,H,8,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T468,181,ordinary_land
+2363,1719,198784,126592,198912,126720,0/0/0/0,T471,H,8,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T471,181,ordinary_land
+2364,1719,198912,126592,199040,126720,0/0/0/0,T471,H,8,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T471,181,ordinary_land
+2365,1719,199040,126592,199168,126720,0/0/0/0,T471,H,8,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T471,181,ordinary_land
+2366,1719,199168,126592,199296,126720,0/0/0/0,T471,H,8,windMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T471,181,ordinary_land
+2367,1719,199296,126592,199424,126720,0/0/0/0,T471,H,8,windMountainsFoothills,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T471,181,ordinary_land
+942,1885,16896,147840,17024,147968,0/0/0/0,T488,D+,5,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T488,186,ordinary_land
+943,1885,17024,147840,17152,147968,0/0/0/0,T488,D+,4,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T488,186,ordinary_land
+944,1885,17152,147840,17280,147968,0/0/0/0,T488,D+,3,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T488,186,ordinary_land
+943,1886,17024,147968,17152,148096,0/0/0/0,T488,D+,5,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T488,186,ordinary_land
+944,1886,17152,147968,17280,148096,0/0/0/0,T488,D+,4,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T488,186,ordinary_land
+945,1886,17280,147968,17408,148096,0/0/0/0,T488,D+,3,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T488,186,ordinary_land
+944,1887,17152,148096,17280,148224,0/0/0/0,T488,D+,5,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T488,186,ordinary_land
+945,1887,17280,148096,17408,148224,0/0/0/0,T488,D+,4,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T488,186,ordinary_land
+946,1887,17408,148096,17536,148224,0/0/0/0,T488,D+,3,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T488,186,ordinary_land
+945,1888,17280,148224,17408,148352,0/0/0/0,T487,D+,5,haradMountains,no nearby map transition,4,,T487,186,ordinary_land
+946,1888,17408,148224,17536,148352,0/0/0/0,T487,D+,4,haradMountains,no nearby map transition,1,,T487,186,ordinary_land
+946,1889,17408,148352,17536,148480,0/0/0/0,T487,D+,5,haradMountains,no nearby map transition,1,,T487,186,ordinary_land
+892,2361,10496,208768,10624,208896,0/0/0/0,T542,V,8,haradMountains,no nearby map transition,1,,T542,189,ordinary_land
+892,2362,10496,208896,10624,209024,0/0/0/0,T542,V,8,haradMountains,no nearby map transition,1,,T542,189,ordinary_land
+1550,2523,94720,229504,94848,229632,0/0/0/0,T550,D+,5,farHaradArid,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T550,197,ordinary_land
+1551,2523,94848,229504,94976,229632,0/0/0/0,T550,D+,4,farHaradArid,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T550,197,ordinary_land
+1551,2524,94848,229632,94976,229760,0/0/0/0,T550,D+,5,farHaradVolcano,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T550,197,ordinary_land
+1552,2524,94976,229632,95104,229760,0/0/0/0,T550,D+,4,farHaradVolcano,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T550,197,ordinary_land
+1552,2525,94976,229760,95104,229888,0/0/0/0,T550,D+,5,farHaradVolcano,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T550,197,ordinary_land
+1553,2525,95104,229760,95232,229888,0/0/0/0,T550,D+,4,farHaradVolcano,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T550,197,ordinary_land
+1553,2526,95104,229888,95232,230016,0/0/0/0,T550,D+,5,farHaradVolcano,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T550,197,ordinary_land
+1554,2526,95232,229888,95360,230016,0/0/0/0,T550,D+,4,farHaradVolcano,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T550,197,ordinary_land
+1554,2527,95232,230016,95360,230144,0/0/0/0,T556,D+,5,farHaradVolcano,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T556,197,ordinary_land
+1100,2572,37120,235776,37248,235904,0/0/0/0,T563,D-,5,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T563,200,ordinary_land
+1101,2572,37248,235776,37376,235904,0/0/0/0,T552,D-+V,5,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T552,200,ordinary_land
+1102,2572,37376,235776,37504,235904,0/0/0/0,T552,D-+V,4,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T552,200,ordinary_land
+1103,2572,37504,235776,37632,235904,0/0/0/0,T552,D-,4,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T552,200,ordinary_land
+1099,2573,36992,235904,37120,236032,0/0/0/0,T563,D-,5,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T563,200,ordinary_land
+1100,2573,37120,235904,37248,236032,0/0/0/0,T563,D-,5,haradMountains,no nearby map transition,4,,T563,200,ordinary_land
+1101,2573,37248,235904,37376,236032,0/0/0/0,T552,D-+V,4,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T552,200,ordinary_land
+1102,2573,37376,235904,37504,236032,0/0/0/0,T552,D-+V,4,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T552,200,ordinary_land
+1098,2574,36864,236032,36992,236160,0/0/0/0,T563,D-,5,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T563,200,ordinary_land
+1099,2574,36992,236032,37120,236160,0/0/0/0,T563,D-,5,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T563,200,ordinary_land
+1100,2574,37120,236032,37248,236160,0/0/0/0,T563,D-,4,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T563,200,ordinary_land
+1101,2574,37248,236032,37376,236160,0/0/0/0,T552,D-+V,4,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T552,200,ordinary_land
+1102,2574,37376,236032,37504,236160,0/0/0/0,T552,V,7,haradMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T552,200,ordinary_land
+1010,2586,25600,237568,25728,237696,0/0/0/0,T562,D++H,5,haradMountains,no nearby map transition,1,T560|T562,T562,204,ordinary_land
+1011,2586,25728,237568,25856,237696,0/0/0/0,T562,H,7,haradMountains,no nearby map transition,2,,T562,204,ordinary_land
+1012,2586,25856,237568,25984,237696,0/0/0/0,T562,H,7,haradMountains,no nearby map transition,4,,T562,204,ordinary_land
+1013,2586,25984,237568,26112,237696,0/0/0/0,T562,H,7,haradMountains,no nearby map transition,4,,T562,204,ordinary_land
+1014,2586,26112,237568,26240,237696,0/0/0/0,T562,H,7,haradMountains,no nearby map transition,4,,T562,204,ordinary_land
+1015,2586,26240,237568,26368,237696,0/0/0/0,T562,H,7,haradMountains,no nearby map transition,2,,T562,204,ordinary_land
+1016,2586,26368,237568,26496,237696,0/0/0/0,T562,H,7,haradMountains,no nearby map transition,1,,T562,204,ordinary_land
+1011,2587,25728,237696,25856,237824,0/0/0/0,T562,D+,5,haradMountains,no nearby map transition,1,,T562,204,ordinary_land
+1114,2647,38912,245376,39040,245504,0/0/0/0,T568,D-+V,4,haradMountains,no nearby map transition,1,,T568,205,ordinary_land
+1115,2647,39040,245376,39168,245504,0/0/0/0,T568,D-,4,haradMountains,no nearby map transition,4,,T568,205,ordinary_land
+1114,2648,38912,245504,39040,245632,0/0/0/0,T577,D-+V,4,haradMountains,no nearby map transition,1,,T577,205,ordinary_land
+1115,2648,39040,245504,39168,245632,0/0/0/0,T577,D-,4,haradMountains,no nearby map transition,4,,T577,205,ordinary_land
+1116,2648,39168,245504,39296,245632,0/0/0/0,T577,D-,5,haradMountains,no nearby map transition,9,,T577,205,ordinary_land
+1115,2649,39040,245632,39168,245760,0/0/0/0,T577,D-,5,haradMountains,no nearby map transition,4,,T577,205,ordinary_land
+1125,2653,40320,246144,40448,246272,0/0/0/0,T568,D-+V,4,haradMountains,no nearby map transition,1,T568|T577,T568,206,ordinary_land
+1253,2765,56704,260480,56832,260608,0/0/0/0,T579,H,8,farHaradJungleMountains,no nearby map transition,9,,T579,211,ordinary_land
+1254,2765,56832,260480,56960,260608,0/0/0/0,T579,D-+H,5,farHaradJungleMountains,no nearby map transition,4,,T579,211,ordinary_land
+1255,2765,56960,260480,57088,260608,0/0/0/0,T579,D-+H,5,farHaradJungleMountains,no nearby map transition,1,,T579,211,ordinary_land
+1465,2807,83840,265856,83968,265984,0/0/0/0,T582,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,212,ordinary_land
+1466,2807,83968,265856,84096,265984,0/0/0/0,T582,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,212,ordinary_land
+1467,2807,84096,265856,84224,265984,0/0/0/0,T582,D+,3,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,212,ordinary_land
+1468,2807,84224,265856,84352,265984,0/0/0/0,T582,D++V,2,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,212,ordinary_land
+1469,2807,84352,265856,84480,265984,0/0/0/0,T584,D++V,1,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T584,212,ordinary_land
+1466,2808,83968,265984,84096,266112,0/0/0/0,T582,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,212,ordinary_land
+1467,2808,84096,265984,84224,266112,0/0/0/0,T582,junction,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,212,ordinary_land
+1468,2808,84224,265984,84352,266112,0/0/0/0,T584,junction,3,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,T582|T584,T584,212,ordinary_land
+1469,2808,84352,265984,84480,266112,0/0/0/0,T584,junction,2,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T584,212,ordinary_land
+1467,2809,84096,266112,84224,266240,0/0/0/0,T584,junction,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,T582|T584,T584,212,ordinary_land
+1468,2809,84224,266112,84352,266240,0/0/0/0,T584,junction,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T584,212,ordinary_land
+1469,2809,84352,266112,84480,266240,0/0/0/0,T584,junction,3,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T584,212,ordinary_land
+1468,2810,84224,266240,84352,266368,0/0/0/0,T584,D++V,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T584,212,ordinary_land
+1469,2810,84352,266240,84480,266368,0/0/0/0,T584,D++V,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T584,212,ordinary_land
+1468,2811,84224,266368,84352,266496,0/0/0/0,T588,V,8,farHaradJungleMountains,no nearby map transition,4,,T588,212,ordinary_land
+1469,2811,84352,266368,84480,266496,0/0/0/0,T588,D++D-+V,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T588,212,ordinary_land
+1468,2812,84224,266496,84352,266624,0/0/0/0,T588,D-+V,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T588,212,ordinary_land
+1469,2812,84352,266496,84480,266624,0/0/0/0,T588,V,8,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T588,212,ordinary_land
+1467,2813,84096,266624,84224,266752,0/0/0/0,T588,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T588,212,ordinary_land
+1468,2813,84224,266624,84352,266752,0/0/0/0,T588,V,8,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T588,212,ordinary_land
+1469,2813,84352,266624,84480,266752,0/0/0/0,T588,V,8,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T588,212,ordinary_land
+1468,2814,84224,266752,84352,266880,0/0/0/0,T588,V,8,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T588,212,ordinary_land
+1469,2814,84352,266752,84480,266880,0/0/0/0,T588,V,8,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T588,212,ordinary_land
+1536,2810,92928,266240,93056,266368,0/0/0/0,T584,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T584,213,ordinary_land
+1450,2811,81920,266368,82048,266496,0/0/0/0,T582,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,214,ordinary_land
+1535,2811,92800,266368,92928,266496,0/0/0/0,T584,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T584,215,ordinary_land
+1449,2812,81792,266496,81920,266624,0/0/0/0,T582,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,216,ordinary_land
+1534,2812,92672,266496,92800,266624,0/0/0/0,T584,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T584,217,ordinary_land
+1423,2813,78464,266624,78592,266752,0/0/0/0,T582,D+,5,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,218,ordinary_land
+1424,2813,78592,266624,78720,266752,0/0/0/0,T582,D+,4,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,218,ordinary_land
+1424,2814,78592,266752,78720,266880,0/0/0/0,T582,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,218,ordinary_land
+1425,2814,78720,266752,78848,266880,0/0/0/0,T582,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,218,ordinary_land
+1425,2815,78720,266880,78848,267008,0/0/0/0,T582,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T582,218,ordinary_land
+1426,2815,78848,266880,78976,267008,0/0/0/0,T582,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,218,ordinary_land
+1426,2816,78848,267008,78976,267136,0/0/0/0,T582,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,218,ordinary_land
+1427,2816,78976,267008,79104,267136,0/0/0/0,T582,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,218,ordinary_land
+1427,2817,78976,267136,79104,267264,0/0/0/0,T591,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,218,ordinary_land
+1437,2813,80256,266624,80384,266752,0/0/0/0,T582,D+,5,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,219,ordinary_land
+1438,2813,80384,266624,80512,266752,0/0/0/0,T582,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,219,ordinary_land
+1439,2813,80512,266624,80640,266752,0/0/0/0,T582,D+,3,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T582,219,ordinary_land
+1438,2814,80384,266752,80512,266880,0/0/0/0,T582,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,219,ordinary_land
+1439,2814,80512,266752,80640,266880,0/0/0/0,T582,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T582,219,ordinary_land
+1440,2814,80640,266752,80768,266880,0/0/0/0,T582,D+,3,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,219,ordinary_land
+1439,2815,80512,266880,80640,267008,0/0/0/0,T582,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T582,219,ordinary_land
+1440,2815,80640,266880,80768,267008,0/0/0/0,T582,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,219,ordinary_land
+1441,2815,80768,266880,80896,267008,0/0/0/0,T582,D+,3,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,219,ordinary_land
+1436,2816,80128,267008,80256,267136,0/0/0/0,T582,D++H,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,219,ordinary_land
+1437,2816,80256,267008,80384,267136,0/0/0/0,T582,H,6,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,219,ordinary_land
+1438,2816,80384,267008,80512,267136,0/0/0/0,T582,H,6,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T582,219,ordinary_land
+1439,2816,80512,267008,80640,267136,0/0/0/0,T591,H,6,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T591,219,ordinary_land
+1440,2816,80640,267008,80768,267136,0/0/0/0,T591,D++H,5,farHaradJungleMountains,no nearby map transition,4,,T591,219,ordinary_land
+1441,2816,80768,267008,80896,267136,0/0/0/0,T591,D++H,4,farHaradJungleMountains,no nearby map transition,1,,T591,219,ordinary_land
+1436,2817,80128,267136,80256,267264,0/0/0/0,T582,D++H,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,219,ordinary_land
+1437,2817,80256,267136,80384,267264,0/0/0/0,T582,D++H,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,219,ordinary_land
+1438,2817,80384,267136,80512,267264,0/0/0/0,T582,H,6,farHaradJungleMountains,no nearby map transition,9,,T582,219,ordinary_land
+1439,2817,80512,267136,80640,267264,0/0/0/0,T591,H,6,farHaradJungleMountains,no nearby map transition,9,,T591,219,ordinary_land
+1440,2817,80640,267136,80768,267264,0/0/0/0,T591,H,6,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T591,219,ordinary_land
+1441,2817,80768,267136,80896,267264,0/0/0/0,T591,D++H,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,219,ordinary_land
+1436,2818,80128,267264,80256,267392,0/0/0/0,T591,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,219,ordinary_land
+1437,2818,80256,267264,80384,267392,0/0/0/0,T591,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T591,219,ordinary_land
+1438,2818,80384,267264,80512,267392,0/0/0/0,T591,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T591,219,ordinary_land
+1437,2819,80256,267392,80384,267520,0/0/0/0,T591,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T591,219,ordinary_land
+1438,2819,80384,267392,80512,267520,0/0/0/0,T591,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T591,219,ordinary_land
+1439,2819,80512,267392,80640,267520,0/0/0/0,T591,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T591,219,ordinary_land
+1438,2820,80384,267520,80512,267648,0/0/0/0,T591,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T591,219,ordinary_land
+1439,2820,80512,267520,80640,267648,0/0/0/0,T591,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T591,219,ordinary_land
+1440,2820,80640,267520,80768,267648,0/0/0/0,T591,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T591,219,ordinary_land
+1439,2821,80512,267648,80640,267776,0/0/0/0,T591,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,219,ordinary_land
+1440,2821,80640,267648,80768,267776,0/0/0/0,T591,D+,5,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,219,ordinary_land
+1518,2813,90624,266624,90752,266752,0/0/0/0,T584,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T584,220,ordinary_land
+1517,2814,90496,266752,90624,266880,0/0/0/0,T584,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T584,220,ordinary_land
+1518,2814,90624,266752,90752,266880,0/0/0/0,T584,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T584,220,ordinary_land
+1519,2814,90752,266752,90880,266880,0/0/0/0,T584,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T584,220,ordinary_land
+1518,2815,90624,266880,90752,267008,0/0/0/0,T584,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T584,220,ordinary_land
+1519,2815,90752,266880,90880,267008,0/0/0/0,T584,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",8,,T584,220,ordinary_land
+1520,2815,90880,266880,91008,267008,0/0/0/0,T584,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T584,220,ordinary_land
+1519,2816,90752,267008,90880,267136,0/0/0/0,T584,D+,5,farHaradJungleMountains,no nearby map transition,9,,T584,220,ordinary_land
+1520,2816,90880,267008,91008,267136,0/0/0/0,T584,D+,4,farHaradJungleMountains,no nearby map transition,4,,T584,220,ordinary_land
+1521,2816,91008,267008,91136,267136,0/0/0/0,T584,D+,4,farHaradJungleMountains,no nearby map transition,1,,T584,220,ordinary_land
+1520,2817,90880,267136,91008,267264,0/0/0/0,T588,D+,5,farHaradJungleMountains,no nearby map transition,4,,T588,220,ordinary_land
+1521,2817,91008,267136,91136,267264,0/0/0/0,T588,D+,4,farHaradJungleMountains,no nearby map transition,1,,T588,220,ordinary_land
+1521,2818,91008,267264,91136,267392,0/0/0/0,T588,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T588,220,ordinary_land
+1532,2814,92416,266752,92544,266880,0/0/0/0,T584,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T584,221,ordinary_land
+1415,2815,77440,266880,77568,267008,0/0/0/0,T582,D-,3,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,222,ordinary_land
+1416,2815,77568,266880,77696,267008,0/0/0/0,T582,D-,4,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,222,ordinary_land
+1417,2815,77696,266880,77824,267008,0/0/0/0,T582,D-,5,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,222,ordinary_land
+1414,2816,77312,267008,77440,267136,0/0/0/0,T582,D-,3,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,222,ordinary_land
+1415,2816,77440,267008,77568,267136,0/0/0/0,T582,D-,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,222,ordinary_land
+1416,2816,77568,267008,77696,267136,0/0/0/0,T582,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,222,ordinary_land
+1413,2817,77184,267136,77312,267264,0/0/0/0,T582,D-,3,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T582,222,ordinary_land
+1414,2817,77312,267136,77440,267264,0/0/0/0,T582,D-,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T582,222,ordinary_land
+1415,2817,77440,267136,77568,267264,0/0/0/0,T582,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T582,222,ordinary_land
+1413,2818,77184,267264,77312,267392,0/0/0/0,T591,D-,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,222,ordinary_land
+1414,2818,77312,267264,77440,267392,0/0/0/0,T591,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T591,222,ordinary_land
+1413,2819,77184,267392,77312,267520,0/0/0/0,T591,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,222,ordinary_land
+1446,2815,81408,266880,81536,267008,0/0/0/0,T582,D-,5,farHaradJungleMountains,no nearby map transition,1,,T582,223,ordinary_land
+1446,2816,81408,267008,81536,267136,0/0/0/0,T591,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,223,ordinary_land
+1465,2815,83840,266880,83968,267008,0/0/0/0,T588,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T588,224,ordinary_land
+1508,2818,89344,267264,89472,267392,0/0/0/0,T584,D-,4,farHaradJungleMountains,no nearby map transition,1,,T584,225,ordinary_land
+1509,2818,89472,267264,89600,267392,0/0/0/0,T584,D-,5,farHaradJungleMountains,no nearby map transition,4,,T584,225,ordinary_land
+1508,2819,89344,267392,89472,267520,0/0/0/0,T588,D-,5,farHaradJungleMountains,no nearby map transition,1,,T588,225,ordinary_land
+1554,2817,95232,267136,95360,267264,0/0/0/0,T583,V,7,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T583,226,ordinary_land
+1554,2818,95232,267264,95360,267392,0/0/0/0,T583,V,7,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T583,226,ordinary_land
+1554,2819,95232,267392,95360,267520,0/0/0/0,T583,V,7,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T583,226,ordinary_land
+1554,2820,95232,267520,95360,267648,0/0/0/0,T583,V,7,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T583,226,ordinary_land
+1554,2821,95232,267648,95360,267776,0/0/0/0,T583,V,7,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",5,,T583,226,ordinary_land
+1555,2821,95360,267648,95488,267776,0/0/0/0,T583,D-,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T583,226,ordinary_land
+1556,2821,95488,267648,95616,267776,0/0/0/0,T583,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T583,226,ordinary_land
+1554,2822,95232,267776,95360,267904,0/0/0/0,T583,D-+V,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T583,226,ordinary_land
+1555,2822,95360,267776,95488,267904,0/0/0/0,T583,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T583,226,ordinary_land
+1553,2823,95104,267904,95232,268032,0/0/0/0,T588,D-,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T588,226,ordinary_land
+1554,2823,95232,267904,95360,268032,0/0/0/0,T583,D-+V,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T583|T588,T583,226,ordinary_land
+1552,2824,94976,268032,95104,268160,0/0/0/0,T588,D-,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T588,226,ordinary_land
+1553,2824,95104,268032,95232,268160,0/0/0/0,T588,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T588,226,ordinary_land
+1552,2825,94976,268160,95104,268288,0/0/0/0,T588,D-,5,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T588,226,ordinary_land
+1450,2820,81920,267520,82048,267648,0/0/0/0,T591,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,227,ordinary_land
+1453,2832,82304,269056,82432,269184,0/0/0/0,T591,H,2,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,230,ordinary_land
+1454,2832,82432,269056,82560,269184,0/0/0/0,T591,D++D-+H,1,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T588|T591,T591,230,ordinary_land
+1453,2833,82304,269184,82432,269312,0/0/0/0,T591,D-,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,230,ordinary_land
+1452,2834,82176,269312,82304,269440,0/0/0/0,T591,D-,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,232,ordinary_land
+1451,2835,82048,269440,82176,269568,0/0/0/0,T591,D-,4,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T591,233,ordinary_land
+1289,3048,61312,296704,61440,296832,0/0/0/0,T598,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T598,234,ordinary_land
+1290,3048,61440,296704,61568,296832,0/0/0/0,T598,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T598,234,ordinary_land
+1290,3049,61440,296832,61568,296960,0/0/0/0,T598,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T598,234,ordinary_land
+1291,3049,61568,296832,61696,296960,0/0/0/0,T598,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T598,234,ordinary_land
+1291,3050,61568,296960,61696,297088,0/0/0/0,T598,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T598,234,ordinary_land
+1292,3050,61696,296960,61824,297088,0/0/0/0,T598,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T598,234,ordinary_land
+1292,3051,61696,297088,61824,297216,0/0/0/0,T598,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",2,,T598,234,ordinary_land
+1293,3051,61824,297088,61952,297216,0/0/0/0,T598,D++V,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T598,234,ordinary_land
+1293,3052,61824,297216,61952,297344,0/0/0/0,T596,D++V,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T596,234,ordinary_land
+1293,3053,61824,297344,61952,297472,0/0/0/0,T596,V,7,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T596,234,ordinary_land
+1293,3054,61824,297472,61952,297600,0/0/0/0,T596,V,7,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T596,234,ordinary_land
+1293,3055,61824,297600,61952,297728,0/0/0/0,T596,V,7,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T596,234,ordinary_land
+1293,3056,61824,297728,61952,297856,0/0/0/0,T596,V,7,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T596,234,ordinary_land
+1255,3137,56960,308096,57088,308224,0/0/0/0,T612,D+,5,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T612,243,ordinary_land
+1255,3138,56960,308224,57088,308352,0/0/0/0,T612,D+,4,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T612,243,ordinary_land
+1256,3138,57088,308224,57216,308352,0/0/0/0,T612,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T612,243,ordinary_land
+1255,3139,56960,308352,57088,308480,0/0/0/0,T612,D+,3,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T612,243,ordinary_land
+1256,3139,57088,308352,57216,308480,0/0/0/0,T612,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T612,243,ordinary_land
+1257,3139,57216,308352,57344,308480,0/0/0/0,T612,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",9,,T612,243,ordinary_land
+1256,3140,57088,308480,57216,308608,0/0/0/0,T612,D+,3,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T612,243,ordinary_land
+1257,3140,57216,308480,57344,308608,0/0/0/0,T612,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T612,243,ordinary_land
+1258,3140,57344,308480,57472,308608,0/0/0/0,T610,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",4,,T610,243,ordinary_land
+1257,3141,57216,308608,57344,308736,0/0/0/0,T612,D+,3,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T612,243,ordinary_land
+1258,3141,57344,308608,57472,308736,0/0/0/0,T610,D+,4,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T610,243,ordinary_land
+1259,3141,57472,308608,57600,308736,0/0/0/0,T610,D+,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T610,243,ordinary_land
+1281,3197,60288,315776,60416,315904,0/0/0/0,T610,D-+H,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,T610|T612,T610,244,ordinary_land
+1282,3197,60416,315776,60544,315904,0/0/0/0,T610,H,8,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T610,244,ordinary_land
+1283,3197,60544,315776,60672,315904,0/0/0/0,T610,H,8,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T610,244,ordinary_land
+1284,3197,60672,315776,60800,315904,0/0/0/0,T610,H,8,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T610,244,ordinary_land
+1285,3197,60800,315776,60928,315904,0/0/0/0,T610,H,8,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T610,244,ordinary_land
+1286,3197,60928,315776,61056,315904,0/0/0/0,T610,H,8,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T610,244,ordinary_land
+1287,3197,61056,315776,61184,315904,0/0/0/0,T610,H,8,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T610,244,ordinary_land
+1288,3197,61184,315776,61312,315904,0/0/0/0,T610,H,8,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T610,244,ordinary_land
+1280,3198,60160,315904,60288,316032,0/0/0/0,T612,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T612,245,ordinary_land
+1279,3199,60032,316032,60160,316160,0/0/0/0,T612,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T612,246,ordinary_land
+1278,3200,59904,316160,60032,316288,0/0/0/0,T612,D-,5,farHaradJungleMountains,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T612,247,ordinary_land
+1277,3201,59776,316288,59904,316416,0/0/0/0,T612,D-,5,farHaradJungle,"transition demonstrably crosses existing tile interiors, not the tile boundary",1,,T612,248,ordinary_land

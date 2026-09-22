@@ -9,6 +9,9 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMERulerServiceTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test
     public void assignsFirstRulerWithoutProgressionEligibility() {
         KOMEWorldData data = new KOMEWorldData("test");

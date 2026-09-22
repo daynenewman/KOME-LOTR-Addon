@@ -12,6 +12,7 @@ import java.util.UUID;
 
 /** Wire-format regression tests for the canonical Build UI boundary. */
 public class KOMECanonicalBuildPacketTest {
+    @org.junit.Rule public final KOMETileTestResources tileGeometry = new KOMETileTestResources();
     @Test public void buildActionRoundTripHasOneTypeAndHoursValue() {
         KOMEPacketBuildAction sent = new KOMEPacketBuildAction("create", "T1", "", "", "Build",
             "gondor", "DEFENSIVE", Long.MAX_VALUE, 0, 1D, 2D, 3D);
@@ -52,7 +53,8 @@ public class KOMECanonicalBuildPacketTest {
         KOMEWorldData data = new KOMEWorldData("projection");
         KOMEConquestTile tile = new KOMEConquestTile("T100"); tile.claim("gondor", 0L);
         data.conquestTiles.put(tile.id, tile);
-        KOMEPlayerBuild build = KOMEBuildService.create(data, "Hall", tile.id, 0, 1D, 64D, 3D,
+        KOMEPlayerBuild build = KOMEBuildService.create(data, "Hall", tile.id, KOMETileTestResources.dimension(),
+            KOMETileTestResources.x() + 1, 64D, KOMETileTestResources.z() + 3,
             UUID.randomUUID(), "Builder", "gondor", "gondor", KOMEBuildType.DEFENSIVE, Long.MAX_VALUE, 10L);
         assertTrue(KOMEBuildService.decideSubmission(data, build, build.contributions.get(0).id,
             build.managerUuid, "Builder", true, "Approved", 20L).allowed);
@@ -94,7 +96,8 @@ public class KOMECanonicalBuildPacketTest {
             } catch (IllegalArgumentException expected) { assertTrue(data.builds.isEmpty()); assertFalse(data.isDirty()); }
         }
         try {
-            KOMEBuildService.create(data, "Hall", "T100", 0, 0D, 64D, 0D, UUID.randomUUID(), "Builder",
+            KOMEBuildService.create(data, "Hall", "T100", KOMETileTestResources.dimension(),
+            KOMETileTestResources.x(), 64D, KOMETileTestResources.z(), UUID.randomUUID(), "Builder",
                 "gondor", "gondor", KOMEBuildType.NORMAL, -1L, 1L);
             fail("Negative packet time must be rejected");
         } catch (IllegalArgumentException expected) { assertTrue(data.builds.isEmpty()); assertFalse(data.isDirty()); }
