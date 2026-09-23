@@ -19,7 +19,8 @@ import net.minecraftforge.common.MinecraftForge;
 import java.util.List;
 
 public class KOMEClientProxy extends KOMECommonProxy {
-    private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue();
+    private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue(
+            () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
     private KOMECurrentTileHud currentTileHud;
     public KOMEClientProxy() {
         super(new ClientProxy());

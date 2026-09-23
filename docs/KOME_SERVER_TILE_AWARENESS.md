@@ -373,3 +373,46 @@ Pending isolated live checks (no existing runtime was changed):
 4. Measure with real loaded units and a real KOM-46 consumer before claiming
    multiplayer or broad performance acceptance. Geographic/uncapturable
    classification remains separate and does not block typed tracking.
+
+
+## Disposable hire validation: client publication fix (2026-09-22)
+
+The first actual player hire succeeded: native Angmar Hillman UUID
+`3a96f11b-3bb6-42c9-ada3-a1cd9e7a781d` was admitted through normal LOTR/KOME
+hiring, charged 20 Angmar population and initialized by the production tracker.
+The observer saw movement followed by CHUNK_UNLOADED removal after the player
+connection closed. Removal queries exposed NOT_TRACKED, with no current location.
+This is genuine hire initialization/unload evidence; reloading, respawn and broader
+hire lifecycle acceptance remain pending.
+
+The client then disconnected with a reproducible failure outside the tracker:
+`RejectedExecutionException: KOME client task queue is full; newest task rejected`,
+from `KOMEPacketConquestData.Handler.onMessage`. This was the first packet failure;
+later "client is disconnected" errors were secondary. The server remained running.
+The packet/queue code predates the KOM-60 checkpoint. No tracker client packet exists.
+
+Forge 1.7.10's actual stack dispatched the conquest chunks on the Client thread
+through Minecraft's network pump. Deferring each chunk until the next START tick
+unnecessarily accumulated a burst beyond the bounded 128-task queue. Client-owned
+publication now uses Minecraft's verified `func_152345_ab()` thread check: drain
+older queued/reset work before enqueueing, then drain the new work when already
+on that thread. Off-thread work retains the same 128-task bound and START-tick
+handoff. Reentrant publication waits for a subsequent drain, preserving bounded
+execution and preventing recursive draining. Disconnected work remains rejected.
+There is no larger/unbounded queue, silent conquest-chunk drop, protocol change,
+server behavior change, or alteration to hiring/ownership/population rules.
+
+Regressions exercise the actual conquest packet handler with 512 chunks delivered
+between ticks, preserving reset/all rows/completion; full older FIFO work before
+client publication; disconnect/reconnect clearing; and reentrant drain suppression.
+Existing off-thread bounds/deep-copy/failure isolation checks remain intact.
+Validation and the replacement artifact identity are recorded in the disposable
+validation report; interactive acceptance requires reconnecting with the rebuilt
+client and observing the existing hire. Do not create duplicate hires as a retry.
+
+Fix validation: 57 focused tests passed; clean test/build passed with 988 discovered,
+986 passed, two existing Windows symlink skips, zero failures/errors.
+Replacement production JAR SHA-256: `c4cf486d6fe7328c355b731718f22e4260f7eae561d6d45a2cfea3baa5a12645`.
+The reviewed tracker source and installed geometry are unchanged. Live reconnect
+with the corrected client remains pending; original failed-hire logs and stopped-world
+backup are retained in the disposable validation directory.

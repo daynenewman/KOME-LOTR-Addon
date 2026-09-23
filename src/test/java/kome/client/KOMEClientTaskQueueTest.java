@@ -119,6 +119,7 @@ public class KOMEClientTaskQueueTest {
         assertFalse(source("common/KOMEAddon.java").contains("new KOMEClientTaskQueue"));
         String client = source("client/KOMEClientProxy.java");
         assertTrue(client.contains("bus().register(clientTasks)"));
+        assertTrue(client.contains("Minecraft.getMinecraft().func_152345_ab()"));
         assertTrue(client.contains("ClientDisconnectionFromServerEvent"));
         assertTrue(client.contains("clientTasks.resetSession(false, this::resetClientSessionState)"));
         for (String name : new String[] {"PopulationGui", "PopulationUnitsGui", "ConquestCaptureGui", "ConquestData", "CompanyListGui"}) {
@@ -126,6 +127,63 @@ public class KOMEClientTaskQueueTest {
             assertTrue(packet.contains("copyForPublication(")); assertTrue(packet.contains("enqueueClientTask("));
             assertFalse(packet.contains("displayGuiScreen("));
         }
+    }
+
+    @Test public void clientThreadConquestBurstDoesNotOverflowOrLoseResetAndCompletion() throws Exception {
+        RecordingProxy proxy = proxy(); Thread clientThread = Thread.currentThread();
+        proxy.queue = new KOMEClientTaskQueue(() -> Thread.currentThread() == clientThread);
+        KOMECommonProxy previous = KOMEAddon.proxy; KOMEAddon.proxy = proxy;
+        KOMEClientData client = KOMEClientData.INSTANCE;
+        List<Map> maps = Arrays.<Map>asList(client.armyCompanies, client.conquestTiles, client.capitalTilesByFaction,
+                client.armyMovements, client.troopSummaries, client.routeEdges, client.tileWaypointLinksByTileId, client.builds);
+        List<Map> saved = new ArrayList<Map>(); for (Map map : maps) saved.add(new HashMap(map));
+        int revision = client.conquestRevision;
+        try {
+            proxy.queue.resetSession(true, () -> client.conquestTiles.clear());
+            // Same production handler and reset/continuation/complete sequence as a hire-triggered sync.
+            // Four queue capacities between ticks would disconnect the previous implementation.
+            int count = KOMEClientTaskQueue.MAX_PENDING_TASKS * 4;
+            for (int i = 0; i < count; i++) {
+                KOMEPacketConquestData packet = new KOMEPacketConquestData();
+                packet.reset = i == 0; packet.complete = i == count - 1;
+                KOMEConquestTile tile = new KOMEConquestTile("T" + (i + 1)); tile.claim("angmar", 0L);
+                row(packet, "ConquestTiles", tile.projectToNBT());
+                new KOMEPacketConquestData.Handler().onMessage(packet, null);
+                assertEquals(0, proxy.queue.pendingTasks());
+                assertEquals(revision + (packet.complete ? 1 : 0), client.conquestRevision);
+            }
+            assertEquals(count, client.conquestTiles.size());
+            assertTrue(client.conquestTiles.containsKey("T1"));
+            assertTrue(client.conquestTiles.containsKey("T" + count));
+        } finally {
+            for (int i = 0; i < maps.size(); i++) { maps.get(i).clear(); maps.get(i).putAll(saved.get(i)); }
+            client.conquestRevision = revision; KOMEAddon.proxy = previous;
+        }
+    }
+
+    @Test public void clientDispatchPreservesOlderWorkAndBoundsOffThreadIngress() throws Exception {
+        Thread clientThread = Thread.currentThread();
+        KOMEClientTaskQueue queue = new KOMEClientTaskQueue(() -> Thread.currentThread() == clientThread);
+        List<Integer> calls = new ArrayList<Integer>();
+        queue.resetSession(true, () -> calls.add(0)); queue.drain();
+        onNetwork(() -> { for (int i = 0; i < KOMEClientTaskQueue.MAX_PENDING_TASKS; i++) queue.enqueue(() -> calls.add(1)); });
+        assertEquals(1, calls.size());
+        queue.enqueue(() -> calls.add(2));
+        assertEquals(KOMEClientTaskQueue.MAX_PENDING_TASKS + 2, calls.size());
+        assertEquals(Integer.valueOf(0), calls.get(0)); assertEquals(Integer.valueOf(2), calls.get(calls.size() - 1));
+        assertEquals(0, queue.pendingTasks());
+        queue.resetSession(false, () -> calls.add(3)); queue.drain();
+        try { queue.enqueue(() -> calls.add(99)); fail("Disconnected work must not run"); } catch (RejectedExecutionException expected) { }
+        queue.resetSession(true, () -> calls.add(4)); queue.enqueue(() -> calls.add(5));
+        assertEquals(Arrays.asList(3, 4, 5), calls.subList(calls.size() - 3, calls.size()));
+    }
+
+    @Test public void immediateDispatchDoesNotRecursivelyDrainTasksCreatedByTasks() {
+        KOMEClientTaskQueue queue = new KOMEClientTaskQueue(() -> true);
+        List<Integer> calls = new ArrayList<Integer>(); queue.resetSession(true, () -> {}); queue.drain();
+        queue.enqueue(() -> { calls.add(1); queue.enqueue(() -> calls.add(2)); assertEquals(0, queue.drain()); });
+        assertEquals(Collections.singletonList(1), calls); assertEquals(1, queue.pendingTasks());
+        queue.drain(); assertEquals(Arrays.asList(1, 2), calls);
     }
 
     private static KOMEClientTaskQueue connected() { KOMEClientTaskQueue queue = new KOMEClientTaskQueue(); queue.resetSession(true, () -> {}); queue.drain(); return queue; }
