@@ -9,6 +9,7 @@ import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLModIdMappingEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import cpw.mods.fml.common.event.FMLServerAboutToStartEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.event.FMLServerStoppedEvent;
 import cpw.mods.fml.common.event.FMLServerStoppingEvent;
@@ -121,6 +122,11 @@ public class KOMEAddon {
     }
 
     @Mod.EventHandler
+    public void serverAboutToStart(FMLServerAboutToStartEvent event) {
+        kome.common.data.KOMEServerTileAwareness.INSTANCE.startSession();
+    }
+
+    @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
         KOMEPacketHandler.clearPendingServerTasks();
         proxy.resetServerSessionState();
@@ -142,6 +148,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
+        kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();
         KOMEPacketHandler.clearPendingServerTasks();
         KOMEConfigRegistry.onServerStop();
         lotrMoreMobs.serverStopping(event);
@@ -149,6 +156,8 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopped(FMLServerStoppedEvent event) {
+        // Also covers failed startup/crash paths that skip serverStopping. Idempotent.
+        kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();
         KOMEConfigRegistry.onServerStop();
     }
 }
