@@ -33,6 +33,9 @@ public class KOMEPacketConquestData implements IMessage {
     public NBTTagCompound data = new NBTTagCompound();
     public boolean reset;
     public boolean complete = true;
+    // Receiver-owned copy: public packet fields can be changed by callers after decode.
+    // Never exposed or mutated; handlers materialize independent records before queuing.
+    private KOMEPacketConquestData decodedPublication;
 
     public KOMEPacketConquestData() {
     }
@@ -106,12 +109,21 @@ public class KOMEPacketConquestData implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
+        decodedPublication = null;
         KOMEPopulationWire.readHeader(buf);
         reset = buf.readBoolean();
         complete = buf.readBoolean();
         data = KOMEPopulationWire.readNbt(buf);
         if (data == null) throw new IllegalArgumentException("Missing conquest packet data");
         KOMEPopulationWire.requireFullyRead(buf);
+        decodedPublication = new KOMEPacketConquestData((NBTTagCompound) data.copy(), reset, complete);
+    }
+
+    /** Wire-decoded packets have already passed all envelope and text validation. */
+    private KOMEPacketConquestData copyForPublication() {
+        if (decodedPublication != null) return decodedPublication;
+        // Preserve validation for locally constructed/direct-handler packets as well.
+        return KOMEPopulationWire.copyForPublication(this, KOMEPacketConquestData::new);
     }
 
     @Override
@@ -221,7 +233,7 @@ public class KOMEPacketConquestData implements IMessage {
     public static class Handler implements IMessageHandler<KOMEPacketConquestData, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketConquestData message, MessageContext ctx) {
-            final KOMEPacketConquestData snapshot = KOMEPopulationWire.copyForPublication(message, KOMEPacketConquestData::new);
+            final KOMEPacketConquestData snapshot = message.copyForPublication();
             Map<String, KOMEArmyCompany> armyCompanies = new HashMap<String, KOMEArmyCompany>();
             Map<String, KOMEConquestTile> conquestTiles = new HashMap<String, KOMEConquestTile>();
             Map<String, KOMEArmyMovementOrder> armyMovements = new HashMap<String, KOMEArmyMovementOrder>();

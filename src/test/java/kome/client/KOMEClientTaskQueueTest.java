@@ -148,7 +148,10 @@ public class KOMEClientTaskQueueTest {
                 packet.reset = i == 0; packet.complete = i == count - 1;
                 KOMEConquestTile tile = new KOMEConquestTile("T" + (i + 1)); tile.claim("angmar", 0L);
                 row(packet, "ConquestTiles", tile.projectToNBT());
-                new KOMEPacketConquestData.Handler().onMessage(packet, null);
+                io.netty.buffer.ByteBuf wire=io.netty.buffer.Unpooled.buffer();
+                KOMEPacketConquestData received=new KOMEPacketConquestData();
+                try {packet.toBytes(wire);received.fromBytes(wire);}finally{wire.release();}
+                new KOMEPacketConquestData.Handler().onMessage(received, null);
                 assertEquals(0, proxy.queue.pendingTasks());
                 assertEquals(revision + (packet.complete ? 1 : 0), client.conquestRevision);
             }
@@ -184,6 +187,36 @@ public class KOMEClientTaskQueueTest {
         queue.enqueue(() -> { calls.add(1); queue.enqueue(() -> calls.add(2)); assertEquals(0, queue.drain()); });
         assertEquals(Collections.singletonList(1), calls); assertEquals(1, queue.pendingTasks());
         queue.drain(); assertEquals(Arrays.asList(1, 2), calls);
+    }
+
+    @Test public void decodedConquestHandoffAvoidsReencodingAndIsolatesPublicMutation() throws Exception {
+        RecordingProxy proxy = proxy(); KOMECommonProxy previous=KOMEAddon.proxy; KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE; Map saved=new HashMap(client.conquestTiles);
+        int revision=client.conquestRevision;
+        try {
+            for(String owner : Arrays.asList("angmar","gondor")) {
+                KOMEPacketConquestData source=new KOMEPacketConquestData();
+                KOMEConquestTile tile=new KOMEConquestTile("T001");tile.claim(owner,0L);
+                row(source,"ConquestTiles",tile.projectToNBT());
+                // Reset=false preserves unrelated maps. Decode through the actual wire reader.
+                io.netty.buffer.ByteBuf bytes=io.netty.buffer.Unpooled.buffer();
+                KOMEPacketConquestData decoded=new KOMEPacketConquestData(){
+                    @Override public void toBytes(io.netty.buffer.ByteBuf b){throw new AssertionError("decoded packet reencoded");}
+                };
+                try {source.toBytes(bytes);decoded.fromBytes(bytes);}finally{bytes.release();}
+                decoded.data.setString("ConquestTiles","mutated after decode");decoded.complete=false;decoded.reset=true;
+                onNetwork(() -> new KOMEPacketConquestData.Handler().onMessage(decoded,null));
+                assertEquals(1,proxy.queue.pendingTasks());
+                proxy.queue.drain();
+                assertEquals(owner,((KOMEConquestTile)client.conquestTiles.get("T001")).projectRulingFaction());
+            }
+            // Both snapshots were materialized off-thread and published in order.
+        } finally {
+            proxy.queue.drain();
+            assertEquals("gondor",((KOMEConquestTile)client.conquestTiles.get("T001")).projectRulingFaction());
+            assertEquals(revision+2,client.conquestRevision);
+            client.conquestTiles.clear();client.conquestTiles.putAll(saved);client.conquestRevision=revision;KOMEAddon.proxy=previous;
+        }
     }
 
     private static KOMEClientTaskQueue connected() { KOMEClientTaskQueue queue = new KOMEClientTaskQueue(); queue.resetSession(true, () -> {}); queue.drain(); return queue; }

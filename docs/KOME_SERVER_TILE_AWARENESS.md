@@ -413,6 +413,109 @@ client and observing the existing hire. Do not create duplicate hires as a retry
 Fix validation: 57 focused tests passed; clean test/build passed with 988 discovered,
 986 passed, two existing Windows symlink skips, zero failures/errors.
 Replacement production JAR SHA-256: `c4cf486d6fe7328c355b731718f22e4260f7eae561d6d45a2cfea3baa5a12645`.
-The reviewed tracker source and installed geometry are unchanged. Live reconnect
-with the corrected client remains pending; original failed-hire logs and stopped-world
-backup are retained in the disposable validation directory.
+The reviewed tracker source and installed geometry are unchanged. Live reconnect with the corrected client passed at the tested location; original
+failed-hire logs and stopped-world backup are retained in the disposable validation directory.
+
+
+## Separate conquest-map performance correction (2026-09-23)
+
+Actual eligible hire Brodda (UUID `3a96f11b-3bb6-42c9-ada3-a1cd9e7a781d`)
+and player `_Danye_` reloaded in T442 on disposable cycle 4. Both initial callbacks
+queried AVAILABLE with matching session/incarnation/sample tokens. After 2,820 ticks
+there were still only two initialization events; within-tile hire motion was not
+reported as a transition. The player then crossed T442 -> T401 at tick 8448,
+Z 87296.48798860183 -> 87295.78866675834. Brodda followed at tick 8500,
+Z 87296.07643927682 -> 87295.78094259379. Each emitted one POSITION_CHANGED event
+with a fresh matching callback query. This is physical observation acceptance at
+one boundary, not company policy, strategic arrival, or general performance acceptance.
+
+The user reported slow map rendering. Six live thread samples showed active costs
+in conquest NBT publication copying and ownership-texture rebuilding; those samples
+alone do not establish their relative impact. Bounded method timings subsequently
+measured the same stationary map view (posX 2663.5493, posY 1412.1355, zoom 8).
+
+The claim texture previously invalidated on every completed conquest revision,
+even if only troops, population, routes, or identical ownership were refreshed.
+The renderer now compares exact effective mask-color -> faction-RGB maps at revision
+changes (O(number of visible tile records), not a second raster scan). It rebuilds
+and uploads the full texture only when those render inputs change. Only known IDs
+in the existing client projection contribute colors; removed visibility/claims
+clear the corresponding fill. Ownership reads use the pure compatibility projection.
+Geometry replacement/failure, resource reload, and client session clearing invalidate
+both texture and color cache. A failed upload is not cached as successful. No hash-only
+fingerprint, ignored update, new geometry authority, or gameplay change is introduced.
+
+`KOMEPacketConquestData.fromBytes` retains a private defensive copy only after complete
+wire validation, separate from its publicly mutable packet fields. The handler reads
+that private snapshot and materializes independently owned records before enqueueing.
+This removes a redundant encode/compress/decompress/validate cycle from real incoming
+packets. Locally constructed packets still use full codec validation. The bounded FIFO,
+client-thread dispatch, reset/completion ordering, disconnect handling and the separate
+queue-overflow fix remain unchanged. Protocol bytes and limits are unchanged.
+
+Focused regressions cover repeated identical colors, actual color/visibility changes,
+failed uploads, reconnect/resource/geometry cache clearing, public known-ID filtering,
+decoded message mutation isolation, and the actual decoded 512-chunk production handler
+burst. Existing malformed-packet, public-access, border, thread and queue-bound tests
+remain required. No tests or instrumentation replace live visual acceptance.
+
+Temporary measurement instrumentation is confined to the disposable environment's
+`map-performance` directory, outside production source/JARs. The same three method
+probes time ownership texture rebuilds, typed conquest handler calls, and Minecraft
+frame-loop wall time. Frame-loop time includes update/render/wait work; it is not GPU
+render time or a portable FPS benchmark. Handler timings exclude `fromBytes` in both
+versions; the overall frame measure includes decoding. Observer and timer overhead
+must be consistent, and refresh volume must be reported alongside timing.
+
+### Validation and measured result
+
+73 focused tests passed. Final clean test/build: **993 discovered, 991 passed,
+2 existing Windows symlink skips, 0 failures/errors**. The skipped methods are
+`CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported` and
+`ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported`.
+Production JAR SHA-256:
+`70271acc79e627be6696e16d5485ec9ba7358baf4ae3a542fce806a628f205bc`.
+
+| Instrumented stationary map measurement | Before | After |
+|---|---:|---:|
+| Summed frame-loop wall time | 76.27 s | 117.04 s |
+| Completed frame-loop samples | 577 | 14,046 |
+| Ownership texture rebuilds | 578 | 0 |
+| Typed conquest handler calls | 33,682 | 51,502 |
+| Handler calls / summed frame-loop second | 441.60 | 440.04 |
+| Mean handler time (excluding decode) | 0.982 ms | 0.0622 ms |
+| Median frame-loop time | 135.59 ms | 8.47 ms |
+| 95th percentile frame-loop time | 156.94 ms | 10.03 ms |
+
+The after view exactly matched posX/posY/zoom of the baseline. A first after sample
+at zoom 1 was excluded; the matched comparison uses zoom 8. Windows differ in length;
+reported rates are normalized by summed frame-loop wall time, not an assumed FPS.
+A method in flight at measurement boundaries can make rebuild count differ slightly
+from completed frame samples. The initial new-client texture upload precedes the
+after measurement; zero means no unnecessary repeat uploads, not no initial texture.
+This is measured local improvement under comparable refresh activity, with the same
+method timers and server tracker observer. It is not proof of all hardware, zooms,
+GPU performance or multiplayer loads. No production instrumentation was installed.
+
+Orderly disposable shutdown produced SERVER_STOP removals for the real player and
+hire; callback queries returned SERVER_STOPPED without an observation. Post-stop
+inspection found zero entries/listeners/notifications and inactive subscription.
+The stopped-world/config backup was SHA-256 verified (117 files) before replacement.
+Cycle 5 started successfully on `127.0.0.1:54190`, online-mode true, empty operator
+list, with identical client/server JAR hashes. Prism reconnected successfully.
+A normal post-restart save retained Build, progression, faction population, capital,
+route, waypoint-link and movement sections exactly. Brodda's identity, ownership,
+source, company, cost and 20-population payment are identical. Only his loaded entity
+position/rotation and the company's UpdatedAtMillis differed in those records;
+no membership or destination change was made by this correction.
+
+Evidence and temporary diagnostic sources are outside the repository at
+`C:/Users/dayne/Documents/KOME-Validation/kom60-20260923T004907Z-65b1ff/map-performance/`:
+`comparison.json`, raw start/stop reports, `build.json`, `restart-preservation.json`,
+`restart-differences.json`, and `stopped-backup/manifest.json`. Source recovery is
+under `recovery/`; these are local evidence, not build dependencies.
+
+Remaining manual acceptance: pan/zoom and hover normally, inspect ownership colors,
+and repeat after reconnect/resource reload. Automated color-change tests are not a
+live ownership-change visual check. Player respawn and remaining KOM-46 availability/
+publication checks remain separate; neither issue is complete and the dependency stays.

@@ -81,6 +81,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static KOMEMapBorders mapBorders;
     private static int[] tileMaskPixels;
     private static int renderedClaimRevision = -1;
+    private static final ClaimTextureState claimTextureState = new ClaimTextureState();
     private static DynamicTexture claimedTexture;
     private static DynamicTexture desertShadeTexture;
     private static DynamicTexture labelTexture;
@@ -463,6 +464,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         tileColorsById.clear();
         tileCentersById.clear();
         renderedClaimRevision = -1;
+        claimTextureState.clear();
     }
 
     @Override
@@ -723,25 +725,44 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             return;
         }
         if (renderedClaimRevision != KOMEClientData.INSTANCE.conquestRevision) {
-            rebuildClaimedTexture();
+            claimTextureState.update(effectiveClaimColors(), KOMEConquestMapOverlay::rebuildClaimedTexture);
+            renderedClaimRevision = KOMEClientData.INSTANCE.conquestRevision;
         }
         drawMapTexture(map, claimedTextureLocation, 1.0f);
     }
 
-    private static void rebuildClaimedTexture() {
-        int[] textureData = claimedTexture.getTextureData();
-        Arrays.fill(textureData, 0);
+    /** Only the already public client tile projection can contribute ownership colors. */
+    static Map<Integer, Integer> effectiveClaimColors() {
         Map<Integer, Integer> claimedColors = new HashMap<>();
         for (Object object : KOMEClientData.INSTANCE.conquestTiles.values()) {
             KOMEConquestTile tile = (KOMEConquestTile) object;
-            if (tile == null || !tile.isClaimed()) {
+            if (tile == null || tile.projectRulingFaction().isEmpty()) {
                 continue;
             }
             Integer maskColor = tileColorsById.get(KOMEConquestTile.normalizeId(tile.id));
             if (maskColor != null) {
-                claimedColors.put(maskColor, factionArgb(tile.currentRulingFaction()));
+                claimedColors.put(maskColor, factionArgb(tile.projectRulingFaction()));
             }
         }
+        return claimedColors;
+    }
+
+    /** Exact small-map comparison, never a geometry scan or a hash-only decision. */
+    static final class ClaimTextureState {
+        private Map<Integer, Integer> rendered;
+        boolean update(Map<Integer, Integer> colors, java.util.function.Consumer<Map<Integer, Integer>> rebuild) {
+            if (rendered != null && rendered.equals(colors)) return false;
+            Map<Integer, Integer> snapshot = java.util.Collections.unmodifiableMap(new HashMap<>(colors));
+            rebuild.accept(snapshot);
+            rendered = snapshot; // Do not cache a failed upload.
+            return true;
+        }
+        void clear() { rendered = null; }
+    }
+
+    private static void rebuildClaimedTexture(Map<Integer, Integer> claimedColors) {
+        int[] textureData = claimedTexture.getTextureData();
+        Arrays.fill(textureData, 0);
         for (int i = 0; i < tileMaskPixels.length; i++) {
             int maskColor = tileMaskPixels[i] & 0xFFFFFF;
             Integer factionColor = claimedColors.get(maskColor);
@@ -750,7 +771,6 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             }
         }
         claimedTexture.updateDynamicTexture();
-        renderedClaimRevision = KOMEClientData.INSTANCE.conquestRevision;
     }
 
     private static int factionArgb(String factionName) {
