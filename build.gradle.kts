@@ -23,6 +23,11 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 }
 
+// Exercise the real legacy GuiScreen event path without adding a graphics dependency version.
+configurations.named("testRuntimeOnly") {
+    extendsFrom(configurations.getByName("lwjgl2Classpath"))
+}
+
 sourceSets.named("main") {
     output.setResourcesDir(java.classesDirectory.get().asFile)
 }

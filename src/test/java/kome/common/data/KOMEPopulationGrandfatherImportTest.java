@@ -8,11 +8,14 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationGrandfatherImportTest {
+    @org.junit.Rule public final KOMETileTestResources tileGeometry = new KOMETileTestResources();
+
     @Test public void authorizedImportCreatesFullyDevelopedCanonicalBuildOnly() {
         KOMEWorldData data = world(); UUID admin = UUID.randomUUID();
         KOMEPlayerBuild build = KOMEBuildService.importGrandfatheredNormal(data, true,
-            "Old City", "T388", LOTRDimension.MIDDLE_EARTH.dimensionID,
-            78016.5D, 80.0D, 66240.5D, admin, "Operator", "gondor", 8000L, 10L);
+            "Old City", "T100", KOMETileTestResources.dimension(),
+            KOMETileTestResources.x(), 80.0D, KOMETileTestResources.z(),
+            admin, "Operator", "gondor", 8000L, 10L);
         assertEquals(KOMEBuildType.NORMAL, build.type);
         assertEquals(8000L, build.approvedCentiHours());
         assertEquals(8000L, build.developedNativeCentiHours);
@@ -40,20 +43,23 @@ public class KOMEPopulationGrandfatherImportTest {
         assertEquals(audits, data.centralAudit.size());
 
         try {
-            KOMEBuildService.importGrandfatheredNormal(data, true, "Old City", "T388",
-                LOTRDimension.MIDDLE_EARTH.dimensionID, 78016.5D, 80D, 66240.5D,
+            KOMEBuildService.importGrandfatheredNormal(data, true, "Old City", "T100",
+                KOMETileTestResources.dimension(), KOMETileTestResources.x(), 80D,
+                KOMETileTestResources.z(),
                 admin, "Operator", "gondor", 0L, 10L);
             fail("Expected zero-hour rejection");
         } catch (IllegalArgumentException expected) { assertTrue(expected.getMessage().contains("positive")); }
         try {
-            KOMEBuildService.importGrandfatheredNormal(data, true, "Old City", "T388",
-                LOTRDimension.MIDDLE_EARTH.dimensionID, 78016.5D, 80D, 66240.5D,
+            KOMEBuildService.importGrandfatheredNormal(data, true, "Old City", "T100",
+                KOMETileTestResources.dimension(), KOMETileTestResources.x(), 80D,
+                KOMETileTestResources.z(),
                 admin, "Operator", "wanderer", 8000L, 10L);
             fail("Expected unsupported-faction rejection");
         } catch (IllegalArgumentException expected) { assertTrue(expected.getMessage().contains("unsupported")); }
         try {
             KOMEBuildService.importGrandfatheredNormal(data, true, "Old City", "T999999",
-                LOTRDimension.MIDDLE_EARTH.dimensionID, 78016.5D, 80D, 66240.5D,
+                KOMETileTestResources.dimension(), KOMETileTestResources.x(), 80D,
+                KOMETileTestResources.z(),
                 admin, "Operator", "gondor", 8000L, 10L);
             fail("Expected unknown-tile rejection");
         } catch (IllegalArgumentException expected) { assertTrue(expected.getMessage().contains("unknown")); }
@@ -81,7 +87,7 @@ public class KOMEPopulationGrandfatherImportTest {
 
     private static KOMEWorldData world() {
         KOMEWorldData data = new KOMEWorldData("grandfather");
-        KOMEConquestTile tile = new KOMEConquestTile("T388");
+        KOMEConquestTile tile = new KOMEConquestTile("T100");
         tile.defaultRulingFaction = "gondor"; tile.claim("gondor", 0L);
         data.conquestTiles.put(tile.id, tile); return data;
     }

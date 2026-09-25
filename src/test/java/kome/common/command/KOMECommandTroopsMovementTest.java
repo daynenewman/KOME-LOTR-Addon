@@ -28,6 +28,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class KOMECommandTroopsMovementTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test
     public void queuedAccessLossHaltsWithoutChangingStrategicProgress() {
         KOMEWorldData data = new KOMEWorldData("test");

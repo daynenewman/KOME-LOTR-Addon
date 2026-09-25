@@ -13,6 +13,9 @@ import kome.common.data.KOMEPlayerBuild;
 import kome.common.data.KOMEUnitMapMarker;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMETileTroopSummary;
+import kome.common.data.KOMETileRasterSnapshot;
+import kome.common.data.KOMETileResolution;
+import kome.common.data.KOMETileWorldResolver;
 import kome.client.gui.KOMEGuiTheme;
 import kome.common.network.KOMEPacketCompanyMoveConfirmGui;
 import kome.common.network.KOMEPacketCompanyMovePreviewResult;
@@ -27,6 +30,9 @@ import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.client.renderer.texture.ITextureObject;
+import net.minecraft.client.renderer.texture.TextureManager;
+import net.minecraft.client.resources.IResourceManager;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.GuiScreenEvent;
 import org.lwjgl.input.Keyboard;
@@ -35,9 +41,7 @@ import org.lwjgl.opengl.GL11;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.BufferedReader;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,18 +49,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class KOMEConquestMapOverlay {
-    private static final ResourceLocation TILE_ID_MASK = new ResourceLocation("kome:map/reset_conquest_tile_ids.png");
-    private static final ResourceLocation TILE_ID_MAP = new ResourceLocation("kome:map/reset_conquest_tile_ids.txt");
-    private static final ResourceLocation BORDER_GUIDE = new ResourceLocation("kome:map/reset_conquest_borders_thin.png");
+public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IResourceManagerReloadListener {
     private static final ResourceLocation DESERT_SHADE = new ResourceLocation("kome:map/reset_conquest_desert_shade.png");
     private static final ResourceLocation LABELS = new ResourceLocation("kome:map/reset_conquest_labels.png");
     private static final ResourceLocation TROOP_MARKER_ART = new ResourceLocation("kome:textures/gui/troopsicon.png");
     private static final ResourceLocation BRIDGE_MARKER_ART = new ResourceLocation("kome:textures/gui/bridge.png");
-    private static final int HIGHLIGHT_FILL_COLOR = 0x22FFF060;
-    private static final int HIGHLIGHT_EDGE_COLOR = 0xEEFFE04A;
     private static final int CLAIM_FILL_ALPHA = 0x88;
-    private static final int CLAIM_EDGE_ALPHA = 0xCC;
     private static final int TROOP_MARKER_WIDTH = 9;
     private static final int TROOP_MARKER_HEIGHT = 15;
     private static final int LIVE_COMPANY_MARKER_WIDTH = 11;
@@ -77,20 +75,18 @@ public class KOMEConquestMapOverlay {
     private static final int TOGGLE_BUTTON_TOP_MARGIN = 28;
     private static final int TOGGLE_BUTTON_RIGHT_MARGIN = 8;
     private static final boolean SHOW_AUTOMATIC_BRIDGE_DEBUG = true;
-    private static BufferedImage tileMaskImage;
+    private static KOMETileRasterSnapshot tileRaster;
+    private static KOMETileRasterSnapshot failedRaster;
+    private static final KOMEMapBorders.Cache borderCache = new KOMEMapBorders.Cache();
+    private static KOMEMapBorders mapBorders;
     private static int[] tileMaskPixels;
-    private static int highlightedTileColor;
     private static int renderedClaimRevision = -1;
-    private static DynamicTexture highlightTexture;
     private static DynamicTexture claimedTexture;
-    private static DynamicTexture borderGuideTexture;
     private static DynamicTexture desertShadeTexture;
     private static DynamicTexture labelTexture;
     private static DynamicTexture troopMarkerTexture;
     private static DynamicTexture bridgeMarkerTexture;
-    private static ResourceLocation highlightTextureLocation;
     private static ResourceLocation claimedTextureLocation;
-    private static ResourceLocation borderGuideTextureLocation;
     private static ResourceLocation desertShadeTextureLocation;
     private static ResourceLocation labelTextureLocation;
     private static ResourceLocation troopMarkerTextureLocation;
@@ -197,6 +193,7 @@ public class KOMEConquestMapOverlay {
         resetDestinationSelection();
         activeMapInstance = null;
         hasSavedMapViewport = false;
+        clearTileGeometry();
     }
 
     public static void openPreservedMap() {
@@ -230,13 +227,14 @@ public class KOMEConquestMapOverlay {
             return;
         }
 
+        if (!ensureTileMaskLoaded()) return;
         int tileColor = getHoveredTileColor(map, event.mouseX, event.mouseY);
         drawClaimedTexture(map);
         drawMapTexture(map, getDesertShadeTextureLocation(), 1.0f);
         if (tileColor != 0) {
             drawHighlightTexture(map, tileColor);
         }
-        drawMapTexture(map, getBorderGuideTextureLocation(), 1.0f);
+        drawGeometry(map, tileColor, false);
         drawMapTexture(map, getLabelTextureLocation(), 1.0f);
         drawActiveMovementRoutes(map);
         drawRoutePreview(map);
@@ -308,7 +306,6 @@ public class KOMEConquestMapOverlay {
                     clearRoutePreview();
                 } else if (!isChoosingDestination() && isOverConquestToggleButton(map, mouseX, mouseY)) {
                     showConquestTiles = !showConquestTiles;
-                    clearHighlightTexture();
                 } else if (!isChoosingDestination() && isOverRiverBlockToggleButton(map, mouseX, mouseY)) {
                     showRiverBlockMarkers = !showRiverBlockMarkers;
                 } else if (!isChoosingDestination() && isOverBridgeToggleButton(map, mouseX, mouseY)) {
@@ -360,28 +357,13 @@ public class KOMEConquestMapOverlay {
     }
 
     private static int getHoveredTileColor(LOTRGuiMap map, int mouseX, int mouseY) {
-        int mapXMin = mapInt("mapXMin");
-        int mapXMax = mapInt("mapXMax");
-        int mapYMin = mapInt("mapYMin");
-        int mapYMax = mapInt("mapYMax");
-        int mapWidth = mapInt("mapWidth");
-        int mapHeight = mapInt("mapHeight");
-        double zoomScale = mapNumber(map, "zoomScale");
-        if (mouseX < mapXMin || mouseX >= mapXMax || mouseY < mapYMin || mouseY >= mapYMax) {
-            return 0;
-        }
-        if (!ensureTileMaskLoaded()) {
-            return 0;
-        }
-        int mapX = (int) Math.floor(mapNumber(map, "posX") + (mouseX - mapXMin - mapWidth / 2.0) / zoomScale);
-        int mapY = (int) Math.floor(mapNumber(map, "posY") + (mouseY - mapYMin - mapHeight / 2.0) / zoomScale);
-        int imageX = mapX * tileMaskImage.getWidth() / LOTRGenLayerWorld.imageWidth;
-        int imageY = mapY * tileMaskImage.getHeight() / LOTRGenLayerWorld.imageHeight;
-        if (imageX < 0 || imageY < 0 || imageX >= tileMaskImage.getWidth() || imageY >= tileMaskImage.getHeight()) {
-            return 0;
-        }
-        int color = tileMaskPixels[imageY * tileMaskImage.getWidth() + imageX];
-        return isClaimableColor(color) ? (color & 0xFFFFFF) : 0;
+        KOMEMapViewport view = viewport(map);
+        if (!view.contains(mouseX, mouseY) || !ensureTileMaskLoaded()) return 0;
+        double mapX = view.mapX(mouseX);
+        double mapY = view.mapY(mouseY);
+        KOMETileResolution resolved = tileAtMapPosition(LOTRDimension.MIDDLE_EARTH.dimensionID, mapX, mapY);
+        Integer color = tileColorsById.get(resolved.tileId);
+        return color == null ? 0 : color;
     }
 
     private static void updateMapViewportState(GuiScreen screen) {
@@ -445,32 +427,78 @@ public class KOMEConquestMapOverlay {
     }
 
     private static boolean ensureTileMaskLoaded() {
-        if (tileMaskImage != null) {
-            return true;
-        }
+        KOMETileRasterSnapshot current = KOMETileWorldResolver.INSTANCE.snapshot().orElse(null);
+        if (current == null) { clearTileGeometry(); return false; }
+        if (tileRaster == current) return true;
+        if (failedRaster == current) return false;
+        clearTileGeometry();
         try {
-            InputStream input = KOMEMinecraftClient.resourceManager().getResource(TILE_ID_MASK).getInputStream();
-            tileMaskImage = ImageIO.read(input);
-            input.close();
-        tileMaskPixels = new int[tileMaskImage.getWidth() * tileMaskImage.getHeight()];
-        tileMaskImage.getRGB(0, 0, tileMaskImage.getWidth(), tileMaskImage.getHeight(), tileMaskPixels, 0, tileMaskImage.getWidth());
-        loadTileIdMap();
-        computeTileCenters();
-            highlightTexture = new DynamicTexture(tileMaskImage.getWidth(), tileMaskImage.getHeight());
-            highlightTextureLocation = KOMEMinecraftClient.textureManager().getDynamicTextureLocation("kome_conquest_hover", highlightTexture);
-            claimedTexture = new DynamicTexture(tileMaskImage.getWidth(), tileMaskImage.getHeight());
-            claimedTextureLocation = KOMEMinecraftClient.textureManager().getDynamicTextureLocation("kome_conquest_claimed", claimedTexture);
+            tileMaskPixels = current.copyArgbPixels();
+            mapBorders = borderCache.get(current, tileMaskPixels);
+            claimedTexture = new DynamicTexture(current.width, current.height);
+            claimedTextureLocation = registerMapTexture(KOMEMinecraftClient.textureManager(), "kome_conquest_claimed", claimedTexture);
+            tileIdsByColor.putAll(current.idsByColor());
+            tileColorsById.putAll(current.colorsById());
+            computeTileCenters(current.width, current.height);
+            tileRaster = current;
             return true;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
+            clearTileGeometry();
+            failedRaster = current; // Retry only a new snapshot or explicit resource reload, not every frame.
+            cpw.mods.fml.common.FMLLog.warning("KOME map geometry unavailable: %s", e.toString());
             return false;
         }
     }
 
-    private static ResourceLocation getBorderGuideTextureLocation() {
-        if (borderGuideTextureLocation == null) {
-            borderGuideTextureLocation = loadDynamicTexture("kome_conquest_borders", BORDER_GUIDE);
-        }
-        return borderGuideTextureLocation;
+    private static void clearTileGeometry() {
+        releaseMapTexture(claimedTextureLocation, claimedTexture);
+        claimedTextureLocation = null;
+        claimedTexture = null;
+        tileRaster = null;
+        failedRaster = null;
+        tileMaskPixels = null;
+        mapBorders = null;
+        borderCache.clear();
+        tileIdsByColor.clear();
+        tileColorsById.clear();
+        tileCentersById.clear();
+        renderedClaimRevision = -1;
+    }
+
+    @Override
+    public void onResourceManagerReload(net.minecraft.client.resources.IResourceManager resources) {
+        clearTileGeometry();
+        releaseMapTexture(desertShadeTextureLocation, desertShadeTexture);
+        releaseMapTexture(labelTextureLocation, labelTexture);
+        releaseMapTexture(troopMarkerTextureLocation, troopMarkerTexture);
+        releaseMapTexture(bridgeMarkerTextureLocation, bridgeMarkerTexture);
+        desertShadeTextureLocation = labelTextureLocation = troopMarkerTextureLocation = bridgeMarkerTextureLocation = null;
+        desertShadeTexture = labelTexture = troopMarkerTexture = bridgeMarkerTexture = null;
+        // Bundled authoritative geometry is not replaced by client resource packs.
+    }
+
+    // 1.7.10 TextureManager.deleteTexture leaves its object (and pixel array) registered.
+    // Reuse five bounded slots and replace released objects with a pixel-free sentinel.
+    private static final ITextureObject RELEASED_MAP_TEXTURE = new ITextureObject() {
+        @Override public void loadTexture(IResourceManager resources) { }
+        @Override public int getGlTextureId() { return 0; }
+    };
+
+    static ResourceLocation registerMapTexture(TextureManager manager, String name, DynamicTexture texture) {
+        ResourceLocation location = new ResourceLocation("kome:dynamic/" + name);
+        manager.loadTexture(location, texture);
+        return location;
+    }
+
+    private static void releaseMapTexture(ResourceLocation location, DynamicTexture texture) {
+        if (location == null && texture == null) return;
+        releaseMapTexture(KOMEMinecraftClient.textureManager(), location, texture);
+    }
+
+    static void releaseMapTexture(TextureManager manager, ResourceLocation location, DynamicTexture texture) {
+        // Also handles allocation/upload failure before a location was registered.
+        if (texture != null) texture.deleteGlTexture();
+        if (location != null) manager.loadTexture(location, RELEASED_MAP_TEXTURE);
     }
 
     private static ResourceLocation getDesertShadeTextureLocation() {
@@ -512,14 +540,12 @@ public class KOMEConquestMapOverlay {
             DynamicTexture texture = new DynamicTexture(image.getWidth(), image.getHeight());
             image.getRGB(0, 0, image.getWidth(), image.getHeight(), texture.getTextureData(), 0, image.getWidth());
             texture.updateDynamicTexture();
-            if (resource == BORDER_GUIDE) {
-                borderGuideTexture = texture;
-            } else if (resource == DESERT_SHADE) {
+            if (resource == DESERT_SHADE) {
                 desertShadeTexture = texture;
             } else if (resource == LABELS) {
                 labelTexture = texture;
             }
-            return KOMEMinecraftClient.textureManager().getDynamicTextureLocation(name, texture);
+            return registerMapTexture(KOMEMinecraftClient.textureManager(), name, texture);
         } catch (Exception e) {
             return null;
         }
@@ -553,7 +579,7 @@ public class KOMEConquestMapOverlay {
             } else {
                 bridgeMarkerTexture = texture;
             }
-            return KOMEMinecraftClient.textureManager().getDynamicTextureLocation(name, texture);
+            return registerMapTexture(KOMEMinecraftClient.textureManager(), name, texture);
         } catch (Exception e) {
             return null;
         }
@@ -592,44 +618,8 @@ public class KOMEConquestMapOverlay {
         return red >= 222 && green >= 222 && blue >= 222 && spread <= 18;
     }
 
-    private static void loadTileIdMap() throws Exception {
-        tileIdsByColor.clear();
-        tileColorsById.clear();
-        tileCentersById.clear();
-        InputStream input = KOMEMinecraftClient.resourceManager().getResource(TILE_ID_MAP).getInputStream();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(input, "UTF-8"));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            line = line.trim();
-            if (line.length() == 0 || line.startsWith("#")) {
-                continue;
-            }
-            int equals = line.indexOf('=');
-            if (equals <= 0 || equals >= line.length() - 1) {
-                continue;
-            }
-            String[] rgb = line.substring(0, equals).split(",");
-            if (rgb.length != 3) {
-                continue;
-            }
-            int red = Integer.parseInt(rgb[0].trim());
-            int green = Integer.parseInt(rgb[1].trim());
-            int blue = Integer.parseInt(rgb[2].trim());
-            int color = red << 16 | green << 8 | blue;
-            String tileId = KOMEConquestTile.normalizeId(line.substring(equals + 1));
-            if (KOMEConquestTileDefaults.isRetiredTile(tileId)) {
-                continue;
-            }
-            tileIdsByColor.put(color, tileId);
-            tileColorsById.put(tileId, color);
-        }
-        reader.close();
-    }
-
-    private static void computeTileCenters() {
+    private static void computeTileCenters(int width, int height) {
         Map<Integer, long[]> totals = new HashMap<Integer, long[]>();
-        int width = tileMaskImage.getWidth();
-        int height = tileMaskImage.getHeight();
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 int argb = tileMaskPixels[y * width + x];
@@ -741,8 +731,6 @@ public class KOMEConquestMapOverlay {
     private static void rebuildClaimedTexture() {
         int[] textureData = claimedTexture.getTextureData();
         Arrays.fill(textureData, 0);
-        int width = tileMaskImage.getWidth();
-        int height = tileMaskImage.getHeight();
         Map<Integer, Integer> claimedColors = new HashMap<>();
         for (Object object : KOMEClientData.INSTANCE.conquestTiles.values()) {
             KOMEConquestTile tile = (KOMEConquestTile) object;
@@ -758,8 +746,7 @@ public class KOMEConquestMapOverlay {
             int maskColor = tileMaskPixels[i] & 0xFFFFFF;
             Integer factionColor = claimedColors.get(maskColor);
             if (factionColor != null && (tileMaskPixels[i] >>> 24) > 24) {
-                int alpha = isTileEdge(i, maskColor, width, height) ? CLAIM_EDGE_ALPHA : CLAIM_FILL_ALPHA;
-                textureData[i] = alpha << 24 | factionColor.intValue();
+                textureData[i] = CLAIM_FILL_ALPHA << 24 | factionColor.intValue();
             }
         }
         claimedTexture.updateDynamicTexture();
@@ -777,29 +764,51 @@ public class KOMEConquestMapOverlay {
     }
 
     private static void drawHighlightTexture(LOTRGuiMap map, int tileColor) {
-        if (tileColor != highlightedTileColor) {
-            int[] textureData = highlightTexture.getTextureData();
-            Arrays.fill(textureData, 0);
-            int width = tileMaskImage.getWidth();
-            int height = tileMaskImage.getHeight();
-            for (int i = 0; i < tileMaskPixels.length; i++) {
-                if ((tileMaskPixels[i] & 0xFFFFFF) == tileColor && (tileMaskPixels[i] >>> 24) > 24) {
-                    textureData[i] = isTileEdge(i, tileColor, width, height) ? HIGHLIGHT_EDGE_COLOR : HIGHLIGHT_FILL_COLOR;
-                }
-            }
-            highlightTexture.updateDynamicTexture();
-            highlightedTileColor = tileColor;
-        }
-
-        drawMapTexture(map, highlightTextureLocation, 1.0f);
+        drawGeometry(map, tileColor, true);
     }
 
-    private static void clearHighlightTexture() {
-        highlightedTileColor = 0;
-        if (highlightTexture != null) {
-            Arrays.fill(highlightTexture.getTextureData(), 0);
-            highlightTexture.updateDynamicTexture();
+    /** Keep batches below the legacy Tessellator's grow/shrink threshold (32 ints per quad). */
+    static final class GeometryBatch implements KOMEMapBorders.QuadSink {
+        static final int MAX_QUADS = (0x10000 - 32) / 32;
+        private final Tessellator tess;
+        private int quads;
+        GeometryBatch(Tessellator tess) { this.tess = tess; }
+        @Override public void quad(double x0, double y0, double x1, double y1, int argb) {
+            if (quads == MAX_QUADS) finish();
+            if (quads == 0) tess.startDrawingQuads();
+            tess.setColorRGBA_I(argb & 0xFFFFFF, argb >>> 24);
+            tess.addVertex(x0, y1, 0); tess.addVertex(x1, y1, 0);
+            tess.addVertex(x1, y0, 0); tess.addVertex(x0, y0, 0);
+            quads++;
         }
+        void finish() {
+            if (quads == 0) return;
+            tess.draw();
+            quads = 0;
+        }
+    }
+
+    private static void drawGeometry(LOTRGuiMap map, int hoverColor, boolean fill) {
+        if (mapBorders == null) return;
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_CURRENT_BIT);
+        try {
+            GL11.glDisable(GL11.GL_TEXTURE_2D);
+            GL11.glDisable(GL11.GL_LIGHTING);
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GeometryBatch batch = new GeometryBatch(Tessellator.instance);
+            if (fill) mapBorders.drawHighlight(viewport(map), hoverColor, batch);
+            else mapBorders.drawBorders(viewport(map), hoverColor, batch);
+            batch.finish();
+        } finally {
+            GL11.glPopAttrib();
+        }
+    }
+
+    static KOMEMapViewport viewport(LOTRGuiMap map) {
+        return new KOMEMapViewport(mapInt("mapXMin"), mapInt("mapYMin"), mapInt("mapXMax"), mapInt("mapYMax"),
+            mapNumber(map, "posX"), mapNumber(map, "posY"), mapNumber(map, "zoomScale"));
     }
 
     private static void drawTileTooltip(LOTRGuiMap map, int tileColor, int mouseX, int mouseY) {
@@ -1023,23 +1032,12 @@ public class KOMEConquestMapOverlay {
         return value == null ? 0 : value.intValue();
     }
 
-    private static String tileIdAtWorld(double worldX, double worldZ) {
-        if (!ensureTileMaskLoaded()) {
-            return "";
-        }
-        double mapX = worldX / LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originX;
-        double mapY = worldZ / LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originZ;
-        int imageX = (int) Math.floor(mapX * tileMaskImage.getWidth() / LOTRGenLayerWorld.imageWidth);
-        int imageY = (int) Math.floor(mapY * tileMaskImage.getHeight() / LOTRGenLayerWorld.imageHeight);
-        if (imageX < 0 || imageY < 0 || imageX >= tileMaskImage.getWidth() || imageY >= tileMaskImage.getHeight()) {
-            return "";
-        }
-        int color = tileMaskPixels[imageY * tileMaskImage.getWidth() + imageX];
-        if (!isClaimableColor(color)) {
-            return "";
-        }
-        String tileId = tileIdsByColor.get(Integer.valueOf(color & 0xFFFFFF));
-        return tileId == null ? "" : KOMEConquestTile.normalizeId(tileId);
+    static KOMETileResolution tileAtWorld(int dimension, double worldX, double worldZ) {
+        return KOMETileWorldResolver.INSTANCE.resolveWorldPosition(dimension, worldX, worldZ);
+    }
+
+    static KOMETileResolution tileAtMapPosition(int dimension, double mapX, double mapY) {
+        return KOMETileWorldResolver.INSTANCE.resolveMapPosition(dimension, mapX, mapY);
     }
 
     private static List<String> liveUnitTooltip(KOMEUnitMapMarker marker) {
@@ -1052,7 +1050,7 @@ public class KOMEConquestMapOverlay {
         if (stationedTile.length() > 0) {
             lines.add("Stationed tile: " + stationedTile);
         }
-        String positionTile = tileIdAtWorld(marker.x, marker.z);
+        String positionTile = tileAtWorld(marker.dimensionId, marker.x, marker.z).tileId;
         if (positionTile.length() > 0 && stationedTile.length() > 0 && !positionTile.equals(stationedTile)) {
             lines.add("Position tile: " + positionTile);
         }
@@ -1551,12 +1549,12 @@ public class KOMEConquestMapOverlay {
     }
 
     private static int mapScreenX(LOTRGuiMap map, int imageX) {
-        double mapX = imageX * (double) LOTRGenLayerWorld.imageWidth / tileMaskImage.getWidth();
+        double mapX = imageX * (double) LOTRGenLayerWorld.imageWidth / tileRaster.width;
         return (int) Math.round(mapInt("mapXMin") + mapInt("mapWidth") / 2.0 + (mapX - mapNumber(map, "posX")) * mapNumber(map, "zoomScale"));
     }
 
     private static int mapScreenY(LOTRGuiMap map, int imageY) {
-        double mapY = imageY * (double) LOTRGenLayerWorld.imageHeight / tileMaskImage.getHeight();
+        double mapY = imageY * (double) LOTRGenLayerWorld.imageHeight / tileRaster.height;
         return (int) Math.round(mapInt("mapYMin") + mapInt("mapHeight") / 2.0 + (mapY - mapNumber(map, "posY")) * mapNumber(map, "zoomScale"));
     }
 
@@ -1672,62 +1670,44 @@ public class KOMEConquestMapOverlay {
         if (texture == null) {
             return;
         }
-        int mapWidth = mapInt("mapWidth");
-        int mapHeight = mapInt("mapHeight");
-        int mapXMin = mapInt("mapXMin");
-        int mapXMax = mapInt("mapXMax");
-        int mapYMin = mapInt("mapYMin");
-        int mapYMax = mapInt("mapYMax");
-        double zoomScale = mapNumber(map, "zoomScale");
-        double posX = mapNumber(map, "posX");
-        double posY = mapNumber(map, "posY");
-        double mapScaleX = mapWidth / zoomScale;
-        double mapScaleY = mapHeight / zoomScale;
-        double minU = (posX - mapScaleX / 2.0f) / LOTRGenLayerWorld.imageWidth;
-        double maxU = (posX + mapScaleX / 2.0f) / LOTRGenLayerWorld.imageWidth;
-        double minV = (posY - mapScaleY / 2.0f) / LOTRGenLayerWorld.imageHeight;
-        double maxV = (posY + mapScaleY / 2.0f) / LOTRGenLayerWorld.imageHeight;
+        KOMEMapViewport view = viewport(map);
+        // Clip in GUI space, then invert the SAME transform used by borders and hit-testing.
+        double x0 = Math.max(view.left, view.screenX(0));
+        double x1 = Math.min(view.right, view.screenX(tileRaster.transform.mapWidth));
+        double y0 = Math.max(view.top, view.screenY(0));
+        double y1 = Math.min(view.bottom, view.screenY(tileRaster.transform.mapHeight));
+        if (x1 <= x0 || y1 <= y0) return;
+        double minU = view.mapX(x0) / tileRaster.transform.mapWidth;
+        double maxU = view.mapX(x1) / tileRaster.transform.mapWidth;
+        double minV = view.mapY(y0) / tileRaster.transform.mapHeight;
+        double maxV = view.mapY(y1) / tileRaster.transform.mapHeight;
 
-        int x0 = mapXMin;
-        int x1 = mapXMax;
-        int y0 = mapYMin;
-        int y1 = mapYMax;
-        if (minU < 0.0) {
-            x0 = mapXMin + (int) Math.round((0.0 - minU) * LOTRGenLayerWorld.imageWidth * zoomScale);
-            minU = 0.0;
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_CURRENT_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_TEXTURE_BIT);
+        try {
+            GL11.glEnable(GL11.GL_TEXTURE_2D);
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GL11.glColor4f(1.0f, 1.0f, 1.0f, alpha);
+            KOMEMinecraftClient.textureManager().bindTexture(texture);
+            Tessellator tess = Tessellator.instance;
+            tess.startDrawingQuads();
+            tess.addVertexWithUV(x0, y1, 0.0, minU, maxV);
+            tess.addVertexWithUV(x1, y1, 0.0, maxU, maxV);
+            tess.addVertexWithUV(x1, y0, 0.0, maxU, minV);
+            tess.addVertexWithUV(x0, y0, 0.0, minU, minV);
+            tess.draw();
+        } finally {
+            GL11.glPopAttrib();
         }
-        if (maxU > 1.0) {
-            x1 = mapXMax - (int) Math.round((maxU - 1.0) * LOTRGenLayerWorld.imageWidth * zoomScale);
-            maxU = 1.0;
-        }
-        if (minV < 0.0) {
-            y0 = mapYMin + (int) Math.round((0.0 - minV) * LOTRGenLayerWorld.imageHeight * zoomScale);
-            minV = 0.0;
-        }
-        if (maxV > 1.0) {
-            y1 = mapYMax - (int) Math.round((maxV - 1.0) * LOTRGenLayerWorld.imageHeight * zoomScale);
-            maxV = 1.0;
-        }
-        if (x1 <= x0 || y1 <= y0) {
-            return;
-        }
-
-        GL11.glPushAttrib(GL11.GL_ENABLE_BIT);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glColor4f(1.0f, 1.0f, 1.0f, alpha);
-        KOMEMinecraftClient.textureManager().bindTexture(texture);
-        Tessellator tess = Tessellator.instance;
-        tess.startDrawingQuads();
-        tess.addVertexWithUV(x0, y1, 0.0, minU, maxV);
-        tess.addVertexWithUV(x1, y1, 0.0, maxU, maxV);
-        tess.addVertexWithUV(x1, y0, 0.0, maxU, minV);
-        tess.addVertexWithUV(x0, y0, 0.0, minU, minV);
-        tess.draw();
-        GL11.glPopAttrib();
     }
 
     private static boolean shouldSkipMap(LOTRGuiMap map) {
-        return mapBoolean(map, "isConquestGrid") || mapBoolean(map, "hasOverlay") || mapNumber(map, "zoomScale") <= 0.0D;
+        double zoom = mapNumber(map, "zoomScale");
+        // A minimized/tiny window can briefly have no drawable map rectangle.
+        return mapBoolean(map, "isConquestGrid") || mapBoolean(map, "hasOverlay")
+            || !Double.isFinite(zoom) || zoom <= 0.0D
+            || !Double.isFinite(mapNumber(map, "posX")) || !Double.isFinite(mapNumber(map, "posY"))
+            || mapInt("mapXMax") <= mapInt("mapXMin") || mapInt("mapYMax") <= mapInt("mapYMin");
     }
 
     private static boolean mapBoolean(LOTRGuiMap map, String name) {
@@ -1774,13 +1754,4 @@ public class KOMEConquestMapOverlay {
         return field;
     }
 
-    private static boolean isTileEdge(int index, int tileColor, int width, int height) {
-        int x = index % width;
-        int y = index / width;
-        return x == 0 || x == width - 1 || y == 0 || y == height - 1
-                || (tileMaskPixels[index - 1] & 0xFFFFFF) != tileColor
-                || (tileMaskPixels[index + 1] & 0xFFFFFF) != tileColor
-                || (tileMaskPixels[index - width] & 0xFFFFFF) != tileColor
-                || (tileMaskPixels[index + width] & 0xFFFFFF) != tileColor;
-    }
 }

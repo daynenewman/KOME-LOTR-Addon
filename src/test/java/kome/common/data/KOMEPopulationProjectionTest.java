@@ -7,6 +7,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationProjectionTest {
+    @org.junit.Rule public final KOMETileTestResources tileGeometry = new KOMETileTestResources();
     @Test public void formatsEveryCentiWithoutRoundingOrNarrowing() {
         long[] values = {0L, 1L, 50L, 100L, 2450L, Long.MAX_VALUE};
         String[] text = {"0.00", "0.01", "0.50", "1.00", "24.50", "92233720368547758.07"};
@@ -105,7 +106,9 @@ public class KOMEPopulationProjectionTest {
             KOMEWorldData data = new KOMEWorldData("projection");
             KOMEConquestTile tile = new KOMEConquestTile("T100"); tile.claim("gondor", 0L);
             data.conquestTiles.put(tile.id, tile);
-            KOMEPlayerBuild build = KOMEBuildService.create(data, "Hall", tile.id, 0, 0D, 64D, 0D, UUID.randomUUID(), "Builder",
+            KOMEPlayerBuild build = KOMEBuildService.create(data, "Hall", tile.id,
+                    KOMETileTestResources.dimension(), KOMETileTestResources.x(), 64D,
+                    KOMETileTestResources.z(), UUID.randomUUID(), "Builder",
                     "gondor", "gondor", KOMEBuildType.NORMAL, Long.MAX_VALUE, 1L);
             build.developedNativeCentiHours = Long.MAX_VALUE;
             BigInteger expected = BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.valueOf(KOMEPopulationRate.SCALE));

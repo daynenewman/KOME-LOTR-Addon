@@ -10,6 +10,8 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMEHiredUnitLiveUpdateServiceTest {
+    @org.junit.Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
+
     @Test public void unchangedLoadedUnitDoesNotDirtyOrPublishEveryTick() {
         CountingWorldData data = dataWithPopulation();
         KOMEHiredUnitRecord record = unit(data, 20);

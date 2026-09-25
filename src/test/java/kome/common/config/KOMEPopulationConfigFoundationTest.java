@@ -39,6 +39,9 @@ import java.util.stream.Stream;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationConfigFoundationTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Rule public final TemporaryFolder temporary = new TemporaryFolder();
     private KOMEConfigRegistry.ValidatedConfig original;
     private static final KOMEConfigRegistry.RuntimeActivity IDLE = new KOMEConfigRegistry.RuntimeActivity() {

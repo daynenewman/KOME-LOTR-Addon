@@ -16,6 +16,9 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMECampaignBoundaryMovementTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final Instant START = Instant.parse("2026-01-10T12:00:00Z");
     private static final Instant DUE = Instant.parse("2026-01-11T02:00:00Z");
 

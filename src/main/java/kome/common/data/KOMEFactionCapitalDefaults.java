@@ -153,8 +153,12 @@ public final class KOMEFactionCapitalDefaults {
             if (waypoint == null || waypoint.isHidden())
                 throw new IllegalArgumentException("Unavailable LOTR waypoint " + waypointKey
                     + " for " + factionId + ".");
-            String tile = KOMEBuildService.tileAtWorldCoordinates(
-                waypoint.getXCoord(), waypoint.getZCoord());
+            KOMETileResolution location = KOMEBuildService.tileAtWorldCoordinates(
+                LOTRDimension.MIDDLE_EARTH.dimensionID, waypoint.getXCoord(), waypoint.getZCoord());
+            if (location.status != KOMETileResolution.Status.RESOLVED)
+                throw new IllegalArgumentException("Capital " + factionId + " waypoint "
+                    + waypointKey + " has no resolved tile: " + location);
+            String tile = location.tileId;
             if (!expectedTileId.equals(tile))
                 throw new IllegalArgumentException("Capital " + factionId + " waypoint "
                     + waypointKey + " resolves to " + tile + ", expected " + expectedTileId + ".");

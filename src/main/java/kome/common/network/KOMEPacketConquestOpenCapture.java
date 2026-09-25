@@ -133,7 +133,6 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         packet.capitalFactions.addAll(
             kome.common.data.KOMEFactionCapitalService.getCapitalFactionsForTile(data, tile.id));
         packet.population = kome.common.data.KOMEPopulationProjection.of(data, ownerFaction);
-        populateSelectablePopulationOwners(packet, data, viewerFaction, tile);
         populateBuildViews(packet, data, player, tile, viewerFaction, ownerFaction, viewerId);
         packet.focusBuildId = focusBuildId == null ? "" : focusBuildId;
         if (canClaim && ownerFaction.length() > 0) {
@@ -160,6 +159,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
 
     static void populateSelectablePopulationOwners(KOMEPacketConquestCaptureGui packet,
             KOMEWorldData data, String viewerFaction, KOMEConquestTile tile) {
+        packet.selectablePopulationOwners.clear();
         packet.selectablePopulationOwners.addAll(
             KOMEBuildService.selectablePopulationOwners(data, viewerFaction, tile.id));
     }
@@ -170,6 +170,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         for (KOMEPlayerBuild build : KOMEBuildService.buildsInTile(data, tile.id, false)) {
             packet.builds.add(projectBuild(data, build, viewerFaction, controller, viewerId, admin));
         }
+        populateSelectablePopulationOwners(packet, data, viewerFaction, tile);
         packet.viewerDimension = player.worldObj.provider.dimensionId;
         packet.viewerX = player.posX;
         packet.viewerY = player.posY;

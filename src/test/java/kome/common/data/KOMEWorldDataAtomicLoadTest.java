@@ -15,6 +15,9 @@ import static org.junit.Assert.*;
 
 /** Behavioral load transactions. Reflection below observes raw state only; production uses no reflection. */
 public class KOMEWorldDataAtomicLoadTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final UUID PLAYER = UUID.fromString("10000000-0000-0000-0000-000000000001");
     private static final UUID UNIT = UUID.fromString("20000000-0000-0000-0000-000000000001");
 

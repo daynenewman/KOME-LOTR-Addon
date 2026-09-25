@@ -29,8 +29,10 @@ public final class KOMEStrategicDeploymentResolver {
         if (!KOMEConquestTile.isCanonicalTileId(tile) || KOMEConquestTileDefaults.isRetiredTile(tile)
                 || !KOMEConquestTileDefaults.getKnownTileIds().contains(tile))
             return Validation.invalid("Capital tile is unknown, malformed, or retired: " + tile);
-        String actual = KOMEBuildService.tileAtWorldCoordinates(x, z);
-        if (!tile.equals(actual))
+        KOMETileResolution location = KOMEBuildService.tileAtWorldCoordinates(dimensionId, x, z);
+        if (location.status != KOMETileResolution.Status.RESOLVED)
+            return Validation.invalid("Capital deployment has no resolved tile: " + location);
+        if (!tile.equals(location.tileId))
             return Validation.invalid("Capital deployment X/Z is not inside capital tile " + tile + ".");
         return Validation.valid(new Anchor(dimensionId, x, y, z));
     }
@@ -65,8 +67,16 @@ public final class KOMEStrategicDeploymentResolver {
                 for (int dx = -radius; dx <= radius; dx++) {
                     if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
                     int x = originX + dx, z = originZ + dz;
-                    if (!tile.equals(KOMEBuildService.tileAtWorldCoordinates(x + 0.5D, z + 0.5D)))
-                        continue;
+                    KOMETileResolution location = KOMEBuildService.tileAtWorldCoordinates(
+                        world.provider.dimensionId, x + 0.5D, z + 0.5D);
+                    if (location.status == KOMETileResolution.Status.INVALID_SNAPSHOT
+                            || location.status == KOMETileResolution.Status.UNSUPPORTED_DIMENSION
+                            || location.status == KOMETileResolution.Status.INVALID_COORDINATE)
+                        return Validation.invalid("Capital deployment location unavailable: " + location);
+                    // Gaps/outside cells cannot be anchors; the existing safe-placement search
+                    // may continue, but every accepted position must itself resolve to this tile.
+                    if (location.status != KOMETileResolution.Status.RESOLVED
+                            || !tile.equals(location.tileId)) continue;
                     if (!ensureChunkAvailable(world, x, z)) continue;
                     int liveY;
                     try {
@@ -117,8 +127,15 @@ public final class KOMEStrategicDeploymentResolver {
                 for (int dx = -radius; dx <= radius && anchors.size() < unitCount; dx++) {
                     if (Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
                     int x = originX + dx, z = originZ + dz;
-                    if (!tile.equals(KOMEBuildService.tileAtWorldCoordinates(
-                            x + 0.5D, z + 0.5D)) || !ensureChunkAvailable(world, x, z)) continue;
+                    KOMETileResolution location = KOMEBuildService.tileAtWorldCoordinates(
+                        world.provider.dimensionId, x + 0.5D, z + 0.5D);
+                    if (location.status == KOMETileResolution.Status.INVALID_SNAPSHOT
+                            || location.status == KOMETileResolution.Status.UNSUPPORTED_DIMENSION
+                            || location.status == KOMETileResolution.Status.INVALID_COORDINATE)
+                        return Formation.invalid("Capital formation location unavailable: " + location);
+                    if (location.status != KOMETileResolution.Status.RESOLVED
+                            || !tile.equals(location.tileId)
+                            || !ensureChunkAvailable(world, x, z)) continue;
                     int liveY;
                     try { liveY = LOTRMod.getTrueTopBlock(world, x, z); }
                     catch (Throwable unavailable) { continue; }

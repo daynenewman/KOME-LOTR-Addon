@@ -11,6 +11,7 @@ import static org.junit.Assert.*;
 
 /** Cross-system regression coverage for Builds, split population, companies, and stage milestones. */
 public class KOMERedesignSystemsTest {
+    @org.junit.Rule public final KOMETileTestResources tileGeometry = new KOMETileTestResources();
     @Test public void hundredthAndQuarterHoursAreExact() {
         assertEquals(1L, KOMEBuildTime.parseHours("0.01"));
         assertEquals(10L, KOMEBuildTime.parseHours("0.10"));
@@ -96,7 +97,8 @@ public class KOMERedesignSystemsTest {
     @Test public void originalManagerContributionApprovesImmediately() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         UUID builder = UUID.randomUUID();
-        KOMEPlayerBuild build = KOMEBuildService.create(data, "Citadel", "T100", 0, 0, 64, 0,
+        KOMEPlayerBuild build = KOMEBuildService.create(data, "Citadel", "T100", KOMETileTestResources.dimension(),
+            KOMETileTestResources.x(), 64D, KOMETileTestResources.z(),
             builder, "Builder", "gondor", "gondor", KOMEBuildType.NORMAL, 100L, 10L);
         assertEquals(100L, build.approvedCentiHours());
         assertTrue(build.isNormal());
@@ -366,9 +368,11 @@ public class KOMERedesignSystemsTest {
 
     @Test public void downstreamBuildQueriesSeparateNormalAndDefensive() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
-        KOMEPlayerBuild normal = KOMEBuildService.create(data, "Normal", "T100", 0, 0, 64, 0,
+        KOMEPlayerBuild normal = KOMEBuildService.create(data, "Normal", "T100", KOMETileTestResources.dimension(),
+            KOMETileTestResources.x(), 64D, KOMETileTestResources.z(),
             UUID.randomUUID(), "Builder", "gondor", "gondor", KOMEBuildType.NORMAL, 400L, 10L);
-        KOMEPlayerBuild defensive = KOMEBuildService.create(data, "Defensive", "T100", 0, 0, 64, 0,
+        KOMEPlayerBuild defensive = KOMEBuildService.create(data, "Defensive", "T100", KOMETileTestResources.dimension(),
+            KOMETileTestResources.x(), 64D, KOMETileTestResources.z(),
             UUID.randomUUID(), "Builder", "gondor", "gondor", KOMEBuildType.DEFENSIVE, 300L, 10L);
         assertEquals(java.util.Collections.singletonList(normal), KOMEBuildService.activeNormalBuilds(data));
         assertEquals(java.util.Collections.singletonList(defensive), KOMEBuildService.activeDefensiveBuilds(data));
@@ -383,7 +387,8 @@ public class KOMERedesignSystemsTest {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         data.grantFactionPopulationCenti("gondor", 9100L);
         UUID manager = UUID.randomUUID();
-        KOMEPlayerBuild build = KOMEBuildService.create(data, "Build", "T100", 0, 0, 64, 0,
+        KOMEPlayerBuild build = KOMEBuildService.create(data, "Build", "T100", KOMETileTestResources.dimension(),
+            KOMETileTestResources.x(), 64D, KOMETileTestResources.z(),
             manager, "Manager", "gondor", "gondor", KOMEBuildType.NORMAL, 100L, 10L);
         KOMEBuildContribution pending = KOMEBuildService.addSubmission(data, build, UUID.randomUUID(),
             "Helper", "gondor", 150L, false, 20L);
@@ -398,7 +403,8 @@ public class KOMERedesignSystemsTest {
     @Test(expected = IllegalArgumentException.class)
     public void canonicalCreationRejectsMissingType() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
-        KOMEBuildService.create(data, "Build", "T100", 0, 0, 64, 0, UUID.randomUUID(), "Builder",
+        KOMEBuildService.create(data, "Build", "T100", KOMETileTestResources.dimension(),
+            KOMETileTestResources.x(), 64D, KOMETileTestResources.z(), UUID.randomUUID(), "Builder",
             "gondor", "gondor", null, 1, 10L);
     }
 
@@ -632,7 +638,8 @@ public class KOMERedesignSystemsTest {
     private static KOMEPlayerBuild build(KOMEWorldData data, String populationFaction, int off, int def) {
         if (off <= 0 && def <= 0) return manualBuild(data, populationFaction);
         UUID builder = UUID.randomUUID();
-        KOMEPlayerBuild build = KOMEBuildService.create(data, "Build", "T100", 0, 0, 64, 0,
+        KOMEPlayerBuild build = KOMEBuildService.create(data, "Build", "T100", KOMETileTestResources.dimension(),
+            KOMETileTestResources.x(), 64D, KOMETileTestResources.z(),
             builder, "Builder", "gondor", populationFaction,
             off > 0 ? KOMEBuildType.NORMAL : KOMEBuildType.DEFENSIVE, (off > 0 ? (long) off : def) * 50L, 10L);
         assertTrue(KOMEBuildService.decideSubmission(data, build, build.contributions.get(0).id,

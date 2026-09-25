@@ -8,25 +8,27 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMERecruitmentLocationServiceTest {
+    @org.junit.Rule public final KOMETileTestResources tileGeometry = new KOMETileTestResources();
+
     @Test public void controlledDefaultCapitalBypassesOnlyRateThreshold() throws Exception {
         try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
             KOMEWorldData data = world();
-            addTile(data, "T388", "gondor", "gondor");
-            data.factionCapitals.put("gondor", new KOMEFactionCapitalRecord("gondor", "T388",
-                lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID,
-                78016.5D, 80.0D, 66240.5D, 1L, "TEST", "SERVER"));
+            addTile(data, "T100", "gondor", "gondor");
+            data.factionCapitals.put("gondor", new KOMEFactionCapitalRecord("gondor", "T100",
+                KOMETileTestResources.dimension(), KOMETileTestResources.x(), 80.0D,
+                KOMETileTestResources.z(), 1L, "TEST", "SERVER"));
             KOMERecruitmentLocationService.Decision capital =
-                KOMERecruitmentLocationService.evaluate(data, " Gondor ", "t388");
+                KOMERecruitmentLocationService.evaluate(data, " Gondor ", "t100");
             assertTrue(capital.legal); assertTrue(capital.capital);
             assertEquals(0L, capital.effectiveRateUnits.longValueExact());
 
-            data.conquestTiles.get("T388").claim("mordor", 2L);
-            assertFalse(KOMERecruitmentLocationService.evaluate(data, "gondor", "T388").legal);
+            data.conquestTiles.get("T100").claim("mordor", 2L);
+            assertFalse(KOMERecruitmentLocationService.evaluate(data, "gondor", "T100").legal);
 
-            data.conquestTiles.get("T388").defaultRulingFaction = "rohan";
-            data.conquestTiles.get("T388").claim("gondor", 3L);
+            data.conquestTiles.get("T100").defaultRulingFaction = "rohan";
+            data.conquestTiles.get("T100").claim("gondor", 3L);
             KOMERecruitmentLocationService.Decision relocated =
-                KOMERecruitmentLocationService.evaluate(data, "gondor", "T388");
+                KOMERecruitmentLocationService.evaluate(data, "gondor", "T100");
             assertTrue(relocated.capital); assertFalse(relocated.legal);
             assertTrue(relocated.reason.contains("default territory"));
         }

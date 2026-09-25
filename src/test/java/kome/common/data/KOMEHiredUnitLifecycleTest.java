@@ -18,6 +18,9 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEHiredUnitLifecycleTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test public void projectionIsIdenticalWithLoadedDeadEntityUnloadedWorldAndNoServer() throws Exception {
         KOMEWorldData data = data();
         KOMEHiredUnitRecord record = unit(data);

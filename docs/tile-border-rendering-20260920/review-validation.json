@@ -1,0 +1,28 @@
+{
+  "counts": {
+    "tests": 813,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 2,
+    "passed": 811
+  },
+  "skipped_tests": [
+    "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported",
+    "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported"
+  ],
+  "focused": {
+    "tests": 27,
+    "passed": 27,
+    "skipped": 0,
+    "failed": 0
+  },
+  "clean_build": "BUILD SUCCESSFUL in 1m 11s",
+  "jar": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\KOME-LOTR-Addon-Tile-Resolution-Dev\\build\\libs\\KOME-LOTR-Addon-1.0.8.jar",
+  "sha256": "cfd32d8df548cbecf5b081619a3350346445ca797cfb7f5878964b64e09edec1",
+  "mask_sha256": "46af1f42854c4c12b7f9ce69b3aad7ad4513340b000631f62514937debf0dbed",
+  "packaged_gameplay_and_mask_match_source": true,
+  "preview_quads_unchanged": true,
+  "java8_bytecode": true,
+  "live_validation": false,
+  "runtime_refreshed": false
+}

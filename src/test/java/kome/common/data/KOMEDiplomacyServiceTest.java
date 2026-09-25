@@ -6,6 +6,9 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMEDiplomacyServiceTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test public void absentPairsAreNeutralWithoutCreatingState() {
         KOMEWorldData data=new KOMEWorldData("d");
         assertEquals(KOMEDiplomacyRelation.NEUTRAL,KOMEDiplomacyService.getRelation(data,"Gondor","Rohan"));

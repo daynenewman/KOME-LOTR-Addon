@@ -11,6 +11,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class KOMEBuildOwnerSelectionTest {
+    @org.junit.Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
     @Test public void gondorViewerCanSelectGondorOnGondorControlledClaimedTile() {
         KOMEWorldData data = dataWithClaimedTile("T388", "gondor");
 
@@ -34,8 +35,12 @@ public class KOMEBuildOwnerSelectionTest {
     @Test public void forgedIneligiblePopulationOwnerIsRejectedAtCanonicalCreateBoundary() {
         KOMEWorldData data = dataWithClaimedTile("T388", "gondor");
 
+        // Verified Minas Tirith/T388 position: authorization, not spatial failure, is under test.
+        assertTrue(KOMEBuildService.validateCoordinates("T388", KOMETileTestResources.dimension(),
+            78016.5D, 64D, 66240.5D).allowed);
         try {
-            KOMEBuildService.create(data, "Forged Build", "t388", 0, 0D, 64D, 0D,
+            KOMEBuildService.create(data, "Forged Build", "t388", KOMETileTestResources.dimension(),
+                78016.5D, 64D, 66240.5D,
                 UUID.randomUUID(), "Builder", "gondor", "mordor",
                 KOMEBuildType.NORMAL, 100L, 1L);
             fail("Expected the canonical Build service to reject an ineligible population owner");

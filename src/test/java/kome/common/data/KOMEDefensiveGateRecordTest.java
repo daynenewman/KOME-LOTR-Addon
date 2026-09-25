@@ -14,6 +14,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class KOMEDefensiveGateRecordTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test public void defensiveBuildCanPersistWithZeroGateRecords() {
         KOMEPlayerBuild build = build(KOMEBuildType.DEFENSIVE);
         KOMEPlayerBuild restored = new KOMEPlayerBuild();
