@@ -34,6 +34,10 @@ public class KOMECanonicalBuildPacketTest {
         sent.id = "B1";
         sent.buildType = "NORMAL";
         sent.approvedCentiHours = 2147483648L;
+        sent.developedNativeCentiHours = 2147483000L;
+        sent.pendingNativeCentiHours = 648L;
+        sent.currentRateUnits = java.math.BigInteger.valueOf(987654321L);
+        sent.currentMultiplier = "0.5000";
         KOMEPacketConquestCaptureGui.ContributionView contribution = new KOMEPacketConquestCaptureGui.ContributionView();
         contribution.id = "H1";
         contribution.centiHours = 1L;
@@ -44,6 +48,10 @@ public class KOMECanonicalBuildPacketTest {
         read.read(bytes);
         assertEquals("NORMAL", read.buildType);
         assertEquals(2147483648L, read.approvedCentiHours);
+        assertEquals(2147483000L, read.developedNativeCentiHours);
+        assertEquals(648L, read.pendingNativeCentiHours);
+        assertEquals(java.math.BigInteger.valueOf(987654321L), read.currentRateUnits);
+        assertEquals("0.5000", read.currentMultiplier);
         assertEquals(1L, read.contributions.get(0).centiHours);
         assertEquals(0, bytes.readableBytes());
         bytes.release();

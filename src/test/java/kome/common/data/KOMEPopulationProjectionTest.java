@@ -64,15 +64,19 @@ public class KOMEPopulationProjectionTest {
         assertTrue(KOMEProgressionAutoCompleter.meetsPopulationThreshold(data, "gondor"));
     }
 
-    @Test public void recruitmentIsPositiveCanonicalPopulationAndReadOnlyControlProjection() {
+    @Test public void recruitmentUsesDevelopedDefaultTileRateNotAvailableOrActivePopulation() {
         KOMEWorldData data = new KOMEWorldData("projection");
         UUID player = UUID.randomUUID();
         KOMEConquestTile tile = new KOMEConquestTile("T1");
+        tile.defaultRulingFaction = "gondor";
         tile.currentRulingFaction = " Gondor "; tile.ownerFaction = " ROHAN ";
         data.conquestTiles.put(tile.id, tile);
         data.setDirty(false);
         assertFalse(data.canUseRecruitmentTile(player, "gondor", "T1"));
         data.grantFactionPopulationCenti("gondor", 1L); data.setDirty(false);
+        assertFalse(data.canUseRecruitmentTile(player, "gondor", "T1"));
+        KOMEPlayerBuild build = developedBuild("B", "T1", "gondor", 5000L);
+        data.builds.put(build.id, build);
         assertTrue(data.canUseRecruitmentTile(player, "gondor", "T1"));
         assertEquals(1L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertEquals(" Gondor ", tile.currentRulingFaction); assertEquals(" ROHAN ", tile.ownerFaction);
@@ -81,7 +85,7 @@ public class KOMEPopulationProjectionTest {
         assertTrue(data.setActiveRecruitmentTile(player, "gondor", "T1"));
         assertEquals("T1", data.getActiveRecruitmentTile(player, "gondor"));
         assertTrue(KOMEPopulationService.trySpendCenti(data, "gondor", 1L));
-        assertEquals("", data.getActiveRecruitmentTile(player, "gondor"));
+        assertEquals("T1", data.getActiveRecruitmentTile(player, "gondor"));
         unit(data, "gondor", 1);
         assertEquals("T1", data.getActiveRecruitmentTile(player, "gondor"));
     }
@@ -101,8 +105,9 @@ public class KOMEPopulationProjectionTest {
             KOMEWorldData data = new KOMEWorldData("projection");
             KOMEConquestTile tile = new KOMEConquestTile("T100"); tile.claim("gondor", 0L);
             data.conquestTiles.put(tile.id, tile);
-            KOMEBuildService.create(data, "Hall", tile.id, 0, 0D, 64D, 0D, UUID.randomUUID(), "Builder",
+            KOMEPlayerBuild build = KOMEBuildService.create(data, "Hall", tile.id, 0, 0D, 64D, 0D, UUID.randomUUID(), "Builder",
                     "gondor", "gondor", KOMEBuildType.NORMAL, Long.MAX_VALUE, 1L);
+            build.developedNativeCentiHours = Long.MAX_VALUE;
             BigInteger expected = BigInteger.valueOf(Long.MAX_VALUE).multiply(BigInteger.valueOf(KOMEPopulationRate.SCALE));
             assertEquals(expected, KOMEPopulationProjection.of(data, "gondor").dailyRateUnits);
             KOMEPopulationRateContribution row = KOMEPopulationRateService.getPopulationRateContributions(data).get(0);
@@ -142,8 +147,10 @@ public class KOMEPopulationProjectionTest {
     @Test public void eligibilityAndExactProjectionsSurviveThreeWorldRoundTrips() {
         KOMEWorldData data = new KOMEWorldData("roundtrip");
         UUID player = UUID.randomUUID();
-        KOMEConquestTile tile = new KOMEConquestTile("T100"); tile.claim("gondor", 0L);
+        KOMEConquestTile tile = new KOMEConquestTile("T388"); tile.defaultRulingFaction = "gondor"; tile.claim("gondor", 0L);
         data.conquestTiles.put(tile.id, tile);
+        KOMEPlayerBuild recruitment = developedBuild("B", tile.id, "gondor", 5000L);
+        data.builds.put(recruitment.id, recruitment);
         data.grantFactionPopulationCenti("gondor", 2450L); unit(data, "gondor", 200);
         assertTrue(data.setActiveRecruitmentTile(player, "gondor", tile.id));
         for (int i = 0; i < 3; i++) {
@@ -195,5 +202,16 @@ public class KOMEPopulationProjectionTest {
         unit.populationSpent = investment; unit.cost = investment;
         data.hiredUnits.put(unit.entity, unit);
         return unit;
+    }
+
+    private static KOMEPlayerBuild developedBuild(String id, String tile, String faction, long hours) {
+        KOMEPlayerBuild build = new KOMEPlayerBuild(); build.id = id; build.tileId = tile;
+        build.populationFaction = faction; build.originalBuilderFaction = faction;
+        build.type = KOMEBuildType.NORMAL; build.active = true;
+        KOMEBuildContribution contribution = new KOMEBuildContribution();
+        contribution.id = "H-" + id; contribution.centiHours = hours;
+        contribution.status = KOMEBuildContribution.APPROVED;
+        build.contributions.add(contribution); build.developedNativeCentiHours = hours;
+        return build;
     }
 }

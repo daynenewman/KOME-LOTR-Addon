@@ -5,7 +5,6 @@ import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
-import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
@@ -218,6 +217,41 @@ public class KOMEPacketConquestData implements IMessage {
         return first;
     }
 
+    /** Fully validated data from one ordered wire chunk; never mutates client state directly. */
+    public static final class PublicationChunk {
+        public final boolean reset;
+        public final boolean complete;
+        public final Map<String, KOMEArmyCompany> armyCompanies;
+        public final Map<String, KOMEConquestTile> conquestTiles;
+        public final Map<String, KOMEArmyMovementOrder> armyMovements;
+        public final Map<String, KOMETileTroopSummary> troopSummaries;
+        public final Map<String, KOMEConquestRouteEdge> routeEdges;
+        public final Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId;
+        public final Map<String, KOMEPlayerBuild> builds;
+        public final Map<String, String> capitalTilesByFaction;
+
+        private PublicationChunk(boolean reset, boolean complete,
+                Map<String, KOMEArmyCompany> armyCompanies,
+                Map<String, KOMEConquestTile> conquestTiles,
+                Map<String, KOMEArmyMovementOrder> armyMovements,
+                Map<String, KOMETileTroopSummary> troopSummaries,
+                Map<String, KOMEConquestRouteEdge> routeEdges,
+                Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId,
+                Map<String, KOMEPlayerBuild> builds,
+                Map<String, String> capitalTilesByFaction) {
+            this.reset = reset;
+            this.complete = complete;
+            this.armyCompanies = armyCompanies;
+            this.conquestTiles = conquestTiles;
+            this.armyMovements = armyMovements;
+            this.troopSummaries = troopSummaries;
+            this.routeEdges = routeEdges;
+            this.tileWaypointLinksByTileId = tileWaypointLinksByTileId;
+            this.builds = builds;
+            this.capitalTilesByFaction = capitalTilesByFaction;
+        }
+    }
+
     public static class Handler implements IMessageHandler<KOMEPacketConquestData, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketConquestData message, MessageContext ctx) {
@@ -294,27 +328,10 @@ public class KOMEPacketConquestData implements IMessage {
                     builds.put(build.id, build);
                 }
             }
-            kome.common.KOMEAddon.proxy.enqueueClientTask(() -> {
-                if (snapshot.reset) KOMEClientData.INSTANCE.armyCompanies.clear();
-                KOMEClientData.INSTANCE.armyCompanies.putAll(armyCompanies);
-                if (snapshot.reset) KOMEClientData.INSTANCE.conquestTiles.clear();
-                KOMEClientData.INSTANCE.conquestTiles.putAll(conquestTiles);
-                if (snapshot.reset) KOMEClientData.INSTANCE.capitalTilesByFaction.clear();
-                KOMEClientData.INSTANCE.capitalTilesByFaction.putAll(capitalTilesByFaction);
-                if (snapshot.reset) KOMEClientData.INSTANCE.armyMovements.clear();
-                KOMEClientData.INSTANCE.armyMovements.putAll(armyMovements);
-                if (snapshot.reset) KOMEClientData.INSTANCE.troopSummaries.clear();
-                KOMEClientData.INSTANCE.troopSummaries.putAll(troopSummaries);
-                if (snapshot.reset) KOMEClientData.INSTANCE.routeEdges.clear();
-                KOMEClientData.INSTANCE.routeEdges.putAll(routeEdges);
-                if (snapshot.reset) KOMEClientData.INSTANCE.tileWaypointLinksByTileId.clear();
-                KOMEClientData.INSTANCE.tileWaypointLinksByTileId.putAll(tileWaypointLinksByTileId);
-                if (snapshot.reset) KOMEClientData.INSTANCE.builds.clear();
-                KOMEClientData.INSTANCE.builds.putAll(builds);
-                if (snapshot.complete) {
-                    KOMEClientData.INSTANCE.conquestRevision++;
-                }
-            });
+            kome.common.KOMEAddon.proxy.acceptConquestSnapshotChunk(new PublicationChunk(
+                snapshot.reset, snapshot.complete, armyCompanies, conquestTiles,
+                armyMovements, troopSummaries, routeEdges, tileWaypointLinksByTileId,
+                builds, capitalTilesByFaction));
             return null;
         }
     }

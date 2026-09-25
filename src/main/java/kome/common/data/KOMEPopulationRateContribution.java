@@ -7,12 +7,16 @@ import kome.common.config.KOMEConfigRegistry;
 /** Derived audit row; not persisted because Build data, ownership, and config are authoritative. */
 public final class KOMEPopulationRateContribution {
     public final String buildId, displayName, tileId, populationFaction, currentController, receivingFaction, status, multiplier;
-    public final long approvedCentiHours, multiplierBasisPoints;
-    public final BigInteger originalRateUnits, currentRateUnits;
+    public final long approvedCentiHours, developedNativeCentiHours,
+        pendingNativeCentiHours, multiplierBasisPoints;
+    public final BigInteger nativeDevelopedRateUnits, originalRateUnits, currentRateUnits;
     public KOMEPopulationRateContribution(String buildId, String displayName, String tileId, String populationFaction,
-            String currentController, String receivingFaction, long approvedCentiHours, BigInteger originalRateUnits,
+            String currentController, String receivingFaction, long approvedCentiHours,
+            long developedNativeCentiHours, long pendingNativeCentiHours, BigInteger originalRateUnits,
             BigInteger currentRateUnits, String status, long multiplierBasisPoints) {
-        if (approvedCentiHours < 0L || originalRateUnits == null || currentRateUnits == null
+        if (approvedCentiHours < 0L || developedNativeCentiHours < 0L
+                || pendingNativeCentiHours < 0L || developedNativeCentiHours > approvedCentiHours
+                || originalRateUnits == null || currentRateUnits == null
                 || originalRateUnits.signum() < 0 || currentRateUnits.signum() < 0)
             throw new IllegalArgumentException("Population time and rates must be nonnegative");
         if (multiplierBasisPoints < 0L || multiplierBasisPoints > KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE)
@@ -20,6 +24,9 @@ public final class KOMEPopulationRateContribution {
         this.buildId = buildId; this.displayName = displayName; this.tileId = tileId;
         this.populationFaction = populationFaction; this.currentController = currentController; this.receivingFaction = receivingFaction;
         this.approvedCentiHours = approvedCentiHours;
+        this.developedNativeCentiHours = developedNativeCentiHours;
+        this.pendingNativeCentiHours = pendingNativeCentiHours;
+        this.nativeDevelopedRateUnits = originalRateUnits;
         this.originalRateUnits = originalRateUnits; this.currentRateUnits = currentRateUnits;
         this.status = status; this.multiplierBasisPoints = multiplierBasisPoints;
         this.multiplier = BigDecimal.valueOf(multiplierBasisPoints)

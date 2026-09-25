@@ -20,6 +20,8 @@ import java.util.List;
 
 public class KOMEClientProxy extends KOMECommonProxy {
     private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue();
+    private final KOMEConquestSnapshotPublisher conquestSnapshots =
+        new KOMEConquestSnapshotPublisher(clientTasks);
     public KOMEClientProxy() {
         super(new ClientProxy());
         com.enovak.lotrmoremobs.Main.proxy =
@@ -54,17 +56,25 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        conquestSnapshots.resetSession();
         clientTasks.resetSession(true, this::resetClientSessionState);
     }
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        conquestSnapshots.resetSession();
         clientTasks.resetSession(false, this::resetClientSessionState);
     }
 
     @Override
     public void enqueueClientTask(Runnable task) {
         clientTasks.enqueue(task);
+    }
+
+    @Override
+    public void acceptConquestSnapshotChunk(
+            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk) {
+        conquestSnapshots.accept(chunk);
     }
 
     private void resetClientSessionState() {

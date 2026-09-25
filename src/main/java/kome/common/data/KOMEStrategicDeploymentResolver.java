@@ -38,8 +38,18 @@ public final class KOMEStrategicDeploymentResolver {
     /** Finds a safe point near a live position without leaving the designated strategic tile. */
     public static Validation resolveAround(World world, String expectedTile, double preferredX,
             double preferredY, double preferredZ, int maximumRadius) {
+        return resolveAround(world, expectedTile, preferredX, preferredY, preferredZ,
+            maximumRadius, 0.6D, 1.8D);
+    }
+
+    public static Validation resolveAround(World world, String expectedTile, double preferredX,
+            double preferredY, double preferredZ, int maximumRadius,
+            double requiredWidth, double requiredHeight) {
         if (!finite(preferredX) || !finite(preferredY) || !finite(preferredZ))
             return Validation.invalid("Capital deployment coordinates must be finite.");
+        if (!finite(requiredWidth) || !finite(requiredHeight)
+                || requiredWidth <= 0.0D || requiredHeight <= 0.0D)
+            return Validation.invalid("Deployment clearance dimensions must be finite and positive.");
         if (world == null || world.provider == null
                 || world.provider.dimensionId != LOTRDimension.MIDDLE_EARTH.dimensionID)
             return Validation.invalid("The live Middle-earth world is unavailable.");
@@ -66,13 +76,15 @@ public final class KOMEStrategicDeploymentResolver {
                     }
                     if (radius == 0) {
                         int requestedY = MathHelper.floor_double(preferredY);
-                        if (isSafeStandingAnchor(world, x, requestedY, z))
+                        if (isSafeStandingAnchor(world, x, requestedY, z,
+                                requiredWidth, requiredHeight))
                             return Validation.valid(new Anchor(world.provider.dimensionId,
                                 x + 0.5D, requestedY, z + 0.5D));
                     }
                     for (int offset = -1; offset <= 2; offset++) {
                         int y = liveY + offset;
-                        if (isSafeStandingAnchor(world, x, y, z))
+                        if (isSafeStandingAnchor(world, x, y, z,
+                                requiredWidth, requiredHeight))
                             return Validation.valid(new Anchor(world.provider.dimensionId,
                                 x + 0.5D, y, z + 0.5D));
                     }
@@ -161,13 +173,32 @@ public final class KOMEStrategicDeploymentResolver {
     }
 
     private static boolean isSafeStandingAnchor(World world, int x, int y, int z) {
-        if (world == null || y < 1 || y + 2 >= world.getActualHeight()
+        return isSafeStandingAnchor(world, x, y, z, 0.6D, 1.8D);
+    }
+
+    static boolean isSafeStandingAnchor(World world, int x, int y, int z,
+            double requiredWidth, double requiredHeight) {
+        if (world == null || !finite(requiredWidth) || !finite(requiredHeight)
+                || requiredWidth <= 0.0D || requiredHeight <= 0.0D
+                || y < 1 || y + requiredHeight > world.getActualHeight()
                 || !world.blockExists(x, y, z)) return false;
-        Block ground = world.getBlock(x, y - 1, z);
-        if (ground == null || ground.getMaterial().isLiquid()
-                || ground.getCollisionBoundingBoxFromPool(world, x, y - 1, z) == null) return false;
-        AxisAlignedBB body = AxisAlignedBB.getBoundingBox(x + 0.2D, y, z + 0.2D,
-            x + 0.8D, y + 1.8D, z + 0.8D);
+        double halfWidth = requiredWidth / 2.0D;
+        AxisAlignedBB body = AxisAlignedBB.getBoundingBox(
+            x + 0.5D - halfWidth, y, z + 0.5D - halfWidth,
+            x + 0.5D + halfWidth, y + requiredHeight, z + 0.5D + halfWidth);
+        int minimumX = MathHelper.floor_double(body.minX);
+        int maximumX = MathHelper.floor_double(body.maxX - 1.0E-7D);
+        int minimumZ = MathHelper.floor_double(body.minZ);
+        int maximumZ = MathHelper.floor_double(body.maxZ - 1.0E-7D);
+        for (int supportX = minimumX; supportX <= maximumX; supportX++) {
+            for (int supportZ = minimumZ; supportZ <= maximumZ; supportZ++) {
+                if (!ensureChunkAvailable(world, supportX, supportZ)) return false;
+                Block ground = world.getBlock(supportX, y - 1, supportZ);
+                if (ground == null || ground.getMaterial().isLiquid()
+                        || ground.getCollisionBoundingBoxFromPool(
+                            world, supportX, y - 1, supportZ) == null) return false;
+            }
+        }
         try {
             return world.getCollidingBoundingBoxes(null, body).isEmpty();
         } catch (Throwable invalidGeometry) {

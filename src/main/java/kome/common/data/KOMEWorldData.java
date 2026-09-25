@@ -29,14 +29,16 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 4 adds mandatory authoritative faction capitals; no development migration exists. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 4;
+    /** Schema 5 adds mandatory KOM-71 population-development authority. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 5;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
     public static final int BUILD_DATA_SCHEMA_VERSION = KOMEPlayerBuild.DATA_SCHEMA_VERSION;
     public static final int FACTION_POPULATION_DATA_SCHEMA_VERSION = 2;
     public static final int POPULATION_PAYOUT_DATA_SCHEMA_VERSION = 1;
+    public static final int POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION =
+        KOMEPopulationDevelopmentState.DATA_SCHEMA_VERSION;
     public static final int FACTION_CAPITAL_DATA_SCHEMA_VERSION =
         KOMEFactionCapitalRecord.DATA_SCHEMA_VERSION;
 
@@ -53,6 +55,9 @@ public class KOMEWorldData extends WorldSavedData {
     /** Transient failed-plan diagnostic, never a cursor or a readiness authority. */
     public String populationPayoutLastFailure = "";
     public final Map<String, Long> populationPayoutRemainders = new HashMap<String, Long>();
+    /** Mandatory global Rate Ceiling/live-boundary state; rates themselves remain derived. */
+    public final KOMEPopulationDevelopmentState populationDevelopment =
+        new KOMEPopulationDevelopmentState();
     public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
@@ -247,6 +252,42 @@ public class KOMEWorldData extends WorldSavedData {
             populationPayoutLocalTime = localTime;
             centralAudit.clear();
             centralAudit.addAll(audit); // includes entries trimmed from the front by a failed append
+            super.setDirty(dirty);
+            throw failure;
+        }
+    }
+
+    /** Atomic in-memory publication for one development anchor/boundary. */
+    final void publishPopulationDevelopment(Runnable publication) {
+        ensureWritable();
+        KOMEPopulationDevelopmentState prior = populationDevelopment.copy();
+        Map<String, Long> developed = new HashMap<String, Long>();
+        Map<String, Long> updated = new HashMap<String, Long>();
+        Map<String, List<String>> histories = new HashMap<String, List<String>>();
+        for (Map.Entry<String, KOMEPlayerBuild> entry : builds.entrySet()) {
+            KOMEPlayerBuild build = entry.getValue();
+            if (build == null) continue;
+            developed.put(entry.getKey(), Long.valueOf(build.developedNativeCentiHours));
+            updated.put(entry.getKey(), Long.valueOf(build.updatedAtMillis));
+            histories.put(entry.getKey(), new ArrayList<String>(build.auditHistory()));
+        }
+        List<KOMEAuditEntry> audit = new ArrayList<KOMEAuditEntry>(centralAudit);
+        boolean dirty = super.isDirty();
+        try {
+            publication.run();
+            populationDevelopment.validate();
+            markDirty();
+        } catch (RuntimeException failure) {
+            populationDevelopment.copyFrom(prior);
+            for (Map.Entry<String, Long> entry : developed.entrySet()) {
+                KOMEPlayerBuild build = builds.get(entry.getKey());
+                if (build == null) continue;
+                build.developedNativeCentiHours = entry.getValue().longValue();
+                build.updatedAtMillis = updated.get(entry.getKey()).longValue();
+                build.replaceAuditHistory(histories.get(entry.getKey()));
+            }
+            centralAudit.clear();
+            centralAudit.addAll(audit);
             super.setDirty(dirty);
             throw failure;
         }
@@ -1147,14 +1188,8 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public boolean canUseRecruitmentTile(UUID playerId, String factionKey, String tileId) {
-        String faction = KOMEAlliance.normalizeFactionKey(factionKey);
-        String tile = KOMEConquestTile.normalizeId(tileId);
-        KOMEConquestTile controlled = conquestTiles.get(tile);
-        if (playerId == null || faction.isEmpty() || controlled == null
-                || !faction.equals(controlled.projectRulingFaction())) {
-            return false;
-        }
-        return KOMEPopulationService.getRepresentedPopulationCenti(this, faction).signum() > 0;
+        return playerId != null && KOMERecruitmentLocationService.evaluate(
+            this, factionKey, tileId).legal;
     }
 
     public boolean setActiveRecruitmentTile(UUID playerId, String factionKey, String tileId) {
@@ -1209,17 +1244,10 @@ public class KOMEWorldData extends WorldSavedData {
         markDirty();
     }
 
-    public String findFactionControlledTile(String factionKey) {
-        String key = KOMEAlliance.normalizeFactionKey(factionKey);
-        List<String> tileIds = new ArrayList<String>(conquestTiles.keySet());
-        Collections.sort(tileIds);
-        for (String tileId : tileIds) {
-            KOMEConquestTile tile = conquestTiles.get(tileId);
-            if (tile != null && tile.isClaimed() && key.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
-                return KOMEConquestTile.normalizeId(tile.id);
-            }
-        }
-        return "";
+    /** Explicit valid selection, otherwise the first lexicographically legal recruitment tile. */
+    public String resolveRecruitmentTile(UUID playerId, String factionKey) {
+        return KOMERecruitmentLocationService.resolveSelectedOrDefault(
+            this, playerId, factionKey).tileId;
     }
 
     public String nextBuildId() {
@@ -1768,6 +1796,15 @@ public class KOMEWorldData extends WorldSavedData {
         company.updatedAtMillis = System.currentTimeMillis();
     }
 
+    /** Refreshes cached company totals after a live unit's visible cost/category changed. */
+    void refreshCompanyCompositionFor(KOMEHiredUnitRecord record) {
+        if (record == null || record.companyId == null || record.companyId.length() == 0) return;
+        KOMEArmyCompany company = armyCompanies.get(record.companyId);
+        if (company != null && company.units.contains(record.entity)) {
+            recalculateCompanyComposition(company);
+        }
+    }
+
     private String safePlayerName(UUID owner) {
         String name = playerNames.get(owner);
         return name == null ? "" : name;
@@ -1990,6 +2027,9 @@ public class KOMEWorldData extends WorldSavedData {
         Map<String, KOMEPlayerBuild> loadedBuilds = readCanonicalBuilds(nbt);
         loadSection = "PopulationPayout";
         Map<String, Long> loadedRemainders = readCanonicalPayoutState(nbt);
+        loadSection = "PopulationDevelopment";
+        KOMEPopulationDevelopmentState loadedDevelopment =
+            readCanonicalPopulationDevelopmentState(nbt);
         loadSection = "FactionCapitals";
         Map<String, KOMEFactionCapitalRecord> loadedCapitals =
             readCanonicalFactionCapitals(nbt);
@@ -2004,6 +2044,7 @@ public class KOMEWorldData extends WorldSavedData {
         populationPayoutTimezone = nbt.getString("PopulationPayoutTimezone");
         populationPayoutLocalTime = nbt.getString("PopulationPayoutLocalTime");
         populationPayoutLastFailure = "";
+        populationDevelopment.copyFrom(loadedDevelopment);
         progressions.clear();
         hiredUnits.clear();
         conquestTiles.clear();
@@ -2648,6 +2689,7 @@ public class KOMEWorldData extends WorldSavedData {
         populationPayoutTimezone = candidate.populationPayoutTimezone;
         populationPayoutLocalTime = candidate.populationPayoutLocalTime;
         populationPayoutLastFailure = candidate.populationPayoutLastFailure;
+        populationDevelopment.copyFrom(candidate.populationDevelopment);
         progressionEnabled = candidate.progressionEnabled;
         movementSecondsPerTileOverride = candidate.movementSecondsPerTileOverride;
         movementTotalSecondsOverride = candidate.movementTotalSecondsOverride;
@@ -2742,6 +2784,7 @@ public class KOMEWorldData extends WorldSavedData {
     public void writeToNBT(NBTTagCompound nbt) {
         ensureWritable();
         validatePopulationPayoutState(); // reject before touching the destination tag
+        populationDevelopment.validate();
         Map<String, KOMEFactionCapitalRecord> capitalsForWrite =
             factionCapitals.isEmpty() && !integratedRootInitialized
                 ? KOMEFactionCapitalDefaults.metadataFixture(0L)
@@ -2751,6 +2794,9 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.removeTag("AllianceProduceSlots");
         nbt.setInteger("AllianceDataSchemaVersion", ALLIANCE_DATA_SCHEMA_VERSION);
         nbt.setInteger("BuildDataSchemaVersion", BUILD_DATA_SCHEMA_VERSION);
+        nbt.setInteger("PopulationDevelopmentDataSchemaVersion",
+            POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION);
+        nbt.setTag("PopulationDevelopment", populationDevelopment.writeToNBT());
         nbt.setInteger("FactionCapitalDataSchemaVersion",
             FACTION_CAPITAL_DATA_SCHEMA_VERSION);
         NBTTagList capitalList = new NBTTagList();
@@ -3144,6 +3190,26 @@ public class KOMEWorldData extends WorldSavedData {
             failUnsupportedRootSchema("Invalid population payout state: " + invalid.getMessage());
         }
         return loaded;
+    }
+
+    private KOMEPopulationDevelopmentState readCanonicalPopulationDevelopmentState(
+            NBTTagCompound nbt) {
+        if (!nbt.hasKey("PopulationDevelopmentDataSchemaVersion", 3)
+                || nbt.getInteger("PopulationDevelopmentDataSchemaVersion")
+                    != POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION)
+            failUnsupportedRootSchema("Unsupported or missing PopulationDevelopmentDataSchemaVersion; expected "
+                + POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION
+                + ". Schema-4 development worlds require reset; no migration.");
+        if (!nbt.hasKey("PopulationDevelopment", 10))
+            failUnsupportedRootSchema("Mandatory PopulationDevelopment section is missing or malformed.");
+        try {
+            return KOMEPopulationDevelopmentState.readFromNBT(
+                nbt.getCompoundTag("PopulationDevelopment"));
+        } catch (RuntimeException invalid) {
+            failUnsupportedRootSchema("Invalid population development state: "
+                + invalid.getMessage());
+            throw invalid;
+        }
     }
 
     private Map<String, KOMEPlayerBuild> readCanonicalBuilds(NBTTagCompound nbt) {

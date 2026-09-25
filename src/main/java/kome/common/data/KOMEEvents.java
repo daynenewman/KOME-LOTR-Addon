@@ -260,7 +260,9 @@ public class KOMEEvents {
                 event.setCanceled(true);
                 return;
             }
-            handleHiredUnit((LOTREntityNPC) event.entity);
+            // World.spawnEntityInWorld chooses the insertion chunk before this event.
+            // Recruitment may relocate across a chunk boundary, so registration is
+            // deliberately deferred to the first server LivingUpdate after insertion.
             enforceNpcEquipment((LOTREntityNPC) event.entity);
         }
     }
@@ -424,9 +426,14 @@ public class KOMEEvents {
                 return;
             }
             if (npc.hiredNPCInfo.isActive) {
+                KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
+                UUID entityId = KOMEReflection.getEntityUUID(npc);
+                boolean wasTracked = data.hiredUnits.containsKey(entityId);
                 handleHiredUnit(npc);
-                KOMEUnitLevelCapHooks.enforceCap(npc);
-                updateTrackedPopulationCost(npc);
+                if (npc.isEntityAlive() && data.hiredUnits.containsKey(entityId)) {
+                    KOMEUnitLevelCapHooks.enforceCap(npc);
+                    updateTrackedPopulationCost(npc, !wasTracked);
+                }
             } else {
                 releaseIfTracked(npc);
             }
@@ -524,11 +531,6 @@ public class KOMEEvents {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
         UUID entityID = KOMEReflection.getEntityUUID(npc);
         if (data.hiredUnits.containsKey(entityID)) {
-            KOMEHiredUnitRecord existing = data.hiredUnits.get(entityID);
-            if (existing != null && !existing.isMoving()) {
-                existing.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
-                data.markDirty();
-            }
             return;
         }
         EntityPlayer owner = info.getHiringPlayer();
@@ -538,7 +540,7 @@ public class KOMEEvents {
         if (!KOMEProgressionPermissions.has(owner, KOMEProgressionPermissions.HIRE_UNITS)) {
             int refund = refundDeniedHire(owner, npc);
             KOMEProgressionPermissions.deny(owner, "You have not unlocked Hire Units yet" + (refund > 0 ? ". Refunded " + refund + " coins." : "."));
-            KOMEReflection.setDead(npc);
+            discardDeniedHireEntityTree(npc);
             return;
         }
         String ownerFaction = getPlayerFactionKey(owner, data);
@@ -546,7 +548,7 @@ public class KOMEEvents {
             int refund = refundDeniedHire(owner, npc);
             KOMEProgressionPermissions.deny(owner, "A current pledged faction is required to spend population."
                 + (refund > 0 ? " Refunded " + refund + " coins." : ""));
-            KOMEReflection.setDead(npc);
+            discardDeniedHireEntityTree(npc);
             return;
         }
         LOTRFaction npcFaction = npc.getFaction();
@@ -583,8 +585,10 @@ public class KOMEEvents {
             record.sourceFaction = KOMEAlliance.normalizeFactionKey(ownerFaction);
             record.sourcePlayer = info.getHiringPlayerUUID();
             record.sourceType = KOMEHiredUnitRecord.SOURCE_PLAYER_RESERVE;
-            record.sourceTileId = data.getActiveRecruitmentTile(info.getHiringPlayerUUID(), ownerFaction);
-            record.currentTile = record.sourceTileId.length() > 0 ? record.sourceTileId : data.findFactionControlledTile(ownerFaction);
+            // Farmhands remain outside combat population/recruitment qualification, but their
+            // strategic record must never invent an arbitrary controlled-tile origin.
+            record.sourceTileId = data.resolveRecruitmentTile(info.getHiringPlayerUUID(), ownerFaction);
+            record.currentTile = record.sourceTileId;
             record.alliancePair = alliancePair;
             // Persisted identifier retained so existing hired-unit records remain compatible.
             record.benefitSource = alliedHire ? "CIVIL_T2_FARMHAND" : "";
@@ -605,17 +609,27 @@ public class KOMEEvents {
         int populationCost = KOMEUnitPopulationCostService.calculate(unitEntityId, healthCost, mounted, false);
         UUID hiringPlayer = info.getHiringPlayerUUID();
         String payingFaction = stewardshipHire ? unitFaction : ownerFaction;
-        String activeRecruitmentTile = stewardshipHire ? "" : data.getActiveRecruitmentTile(hiringPlayer, ownerFaction);
-        String originTile = activeRecruitmentTile.length() > 0 ? activeRecruitmentTile
-            : data.findFactionControlledTile(payingFaction);
+        String originTile = data.resolveRecruitmentTile(hiringPlayer, payingFaction);
         if (originTile.length() == 0) {
             int refund = refundDeniedHire(owner, npc);
-            KOMEProgressionPermissions.deny(owner, "No controlled source tile is available for "
+            KOMEProgressionPermissions.deny(owner, "No legal recruitment tile is available for "
                 + KOMEAlliance.displayFactionName(payingFaction) + "."
                 + (refund > 0 ? " Refunded " + refund + " coins." : ""));
-            KOMEReflection.setDead(npc);
+            discardDeniedHireEntityTree(npc);
             return;
         }
+        KOMEStrategicDeploymentResolver.Validation placement =
+            KOMERecruitmentDeploymentService.resolve(data, KOMEReflection.getWorld(npc),
+                payingFaction, originTile, npc);
+        if (!placement.valid) {
+            int refund = refundDeniedHire(owner, npc);
+            KOMEProgressionPermissions.deny(owner, "Recruitment at " + originTile
+                + " could not find a safe same-tile deployment: " + placement.reason
+                + (refund > 0 ? " Refunded " + refund + " coins." : ""));
+            discardDeniedHireEntityTree(npc);
+            return;
+        }
+        positionEntityTree(npc, placement.anchor.x, placement.anchor.y, placement.anchor.z);
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
         record.entity = entityID;
         record.owner = info.getHiringPlayerUUID();
@@ -641,7 +655,6 @@ public class KOMEEvents {
         record.controllerAuthority = stewardshipHire
             ? KOMEArmyCompany.AUTHORITY_STEWARDSHIP : KOMEArmyCompany.AUTHORITY_NATIVE;
         record.stewardshipWarIds = "";
-        record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
         KOMEPopulationService.CombatHireDebit debit = KOMEPopulationService.beginCombatHireDebit(data,
             payingFaction, populationCost);
         if (debit == null) {
@@ -649,7 +662,7 @@ public class KOMEEvents {
             KOMEProgressionPermissions.deny(owner, "Not enough available population for "
                 + KOMEAlliance.displayFactionName(payingFaction) + ". Required: " + populationCost + "."
                 + (refund > 0 ? " Refunded " + refund + " coins." : ""));
-            KOMEReflection.setDead(npc);
+            discardDeniedHireEntityTree(npc);
             return;
         }
         KOMEArmyCompany assignedCompany = null;
@@ -680,8 +693,16 @@ public class KOMEEvents {
                 data.armyCompanies.remove(assignedCompany.id);
             }
             debit.rollback();
-            throw failure;
+            int refund = refundDeniedHire(owner, npc);
+            KOMEProgressionPermissions.deny(owner,
+                "Recruitment could not be committed at " + originTile + ": "
+                    + cleanFailure(failure)
+                    + (refund > 0 ? " Refunded " + refund + " coins." : ""));
+            discardDeniedHireEntityTree(npc);
+            return;
         }
+        initializeSuccessfulCombatHireAsHalted(npc);
+        record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
         data.markDirty();
         KOMEAuditService.record(data, System.currentTimeMillis(), "UNIT", "HIRE", hiringPlayer == null ? "" : hiringPlayer.toString(),
             entityID.toString(), "Combat unit hired", "populationCost=" + populationCost);
@@ -690,10 +711,35 @@ public class KOMEEvents {
             + " using " + populationCost + " " + KOMEAlliance.displayFactionName(payingFaction) + " population."));
     }
 
+    static void positionEntityTree(Entity entity, double x, double y, double z) {
+        if (entity == null) return;
+        entity.setLocationAndAngles(x, y, z, entity.rotationYaw, entity.rotationPitch);
+        positionEntityTree(KOMEReflection.getRidingEntity(entity), x, y, z);
+    }
+
+    static void initializeSuccessfulCombatHireAsHalted(LOTREntityNPC npc) {
+        if (npc != null && npc.hiredNPCInfo != null) {
+            npc.hiredNPCInfo.halt();
+        }
+    }
+
+    static void discardDeniedHireEntityTree(Entity entity) {
+        if (entity == null) return;
+        Entity ridingEntity = KOMEReflection.getRidingEntity(entity);
+        discardDeniedHireEntityTree(ridingEntity);
+        KOMEReflection.setDead(entity);
+    }
+
+    private static String cleanFailure(RuntimeException failure) {
+        String message = failure == null ? "unknown transaction failure" : failure.getMessage();
+        if (message == null || message.trim().length() == 0) return "transaction failure";
+        return KOMEFactionCapitalRecord.clean(message);
+    }
+
     private void denyAlliedHire(EntityPlayer owner, LOTREntityNPC npc, String reason) {
         int refund = refundDeniedHire(owner, npc);
         KOMEProgressionPermissions.deny(owner, reason + (refund > 0 ? " Refunded " + refund + " coins." : ""));
-        KOMEReflection.setDead(npc);
+        discardDeniedHireEntityTree(npc);
     }
 
     private void enforceMiniQuestPermission(EntityPlayerMP player) {
@@ -726,37 +772,32 @@ public class KOMEEvents {
         KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.MOUNTS);
     }
 
-    private void updateTrackedPopulationCost(LOTREntityNPC npc) {
+    private void updateTrackedPopulationCost(final LOTREntityNPC npc, boolean skipSnapshot) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
         KOMEHiredUnitRecord record = data.hiredUnits.get(KOMEReflection.getEntityUUID(npc));
-        if (record == null || record.farmhand) {
-            return;
-        }
-        record.unitName = getUnitName(npc);
-        record.mounted = record.mounted || isMountedUnit(npc, null);
-        if (!record.isMoving()) {
-            record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
-        }
-        if (record.level <= 0) {
-            record.level = Math.max(1, npc.hiredNPCInfo.xpLevel);
-        }
+        if (record == null) return;
+        boolean mounted = record.mounted || isMountedUnit(npc, null);
         int healthCost = getHealthPopulationCost(npc);
-        if (record.unitEntityId == null || record.unitEntityId.length() == 0) record.unitEntityId = getUnitEntityId(npc);
-        int currentCost = KOMEUnitPopulationCostService.calculate(record.unitEntityId, healthCost, record.mounted, false);
-        if (record.isFactionPopulationBankFunded()) {
-            int extra = KOMEUnitPopulationCostService.reconcileBankedUnitCost(data, record, currentCost);
-            if (extra < 0) {
-                denyLevelUpForPopulation(npc, data, record, Math.max(0, currentCost - Math.max(record.populationSpent, record.cost)));
-                return;
-            }
-            record.level = Math.max(1, npc.hiredNPCInfo.xpLevel);
-            record.baseCost = healthCost;
-            data.markDirty();
-            data.syncConquestTiles();
-            return;
+        String unitEntityId = record.unitEntityId == null || record.unitEntityId.length() == 0
+            ? getUnitEntityId(npc) : record.unitEntityId;
+        int currentCost = KOMEUnitPopulationCostService.calculate(
+            unitEntityId, healthCost, mounted, record.farmhand);
+        KOMEHiredUnitLiveUpdateService.Observation observation =
+            new KOMEHiredUnitLiveUpdateService.Observation(
+                record.farmhand ? getFarmhandName(npc) : getUnitName(npc),
+                unitEntityId, npc.hiredNPCInfo.xpLevel, healthCost, mounted, currentCost);
+        KOMEHiredUnitLiveUpdateService.Result result =
+            KOMEHiredUnitLiveUpdateService.update(data, record, observation,
+                KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(npc)),
+                skipSnapshot, new KOMEHiredUnitLiveUpdateService.SnapshotSupplier() {
+                    @Override
+                    public net.minecraft.nbt.NBTTagCompound snapshot() {
+                        return KOMEEntitySnapshots.snapshot(npc);
+                    }
+                });
+        if (result.rejected) {
+            denyLevelUpForPopulation(npc, data, record, result.requiredExtra);
         }
-        // Unsupported legacy funding records are not allowed to mutate retired
-        // player/tile ledgers. Fresh canonical hires always take the branch above.
     }
 
     private void denyLevelUpForPopulation(LOTREntityNPC npc, KOMEWorldData data, KOMEHiredUnitRecord record, int extraCost) {

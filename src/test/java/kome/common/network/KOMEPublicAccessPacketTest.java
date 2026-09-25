@@ -138,11 +138,24 @@ public class KOMEPublicAccessPacketTest {
         f.data.setProgressionEnabled(true); f.data.setDirty(false);
         new KOMEPacketConquestClaim.Handler().onMessage(new KOMEPacketConquestClaim(tile.id), f.context);
         assertEquals(" ROHAN ", tile.currentRulingFaction); assertEquals("gondor", tile.ownerFaction);
+        assertTrue(f.player.messages.toString().contains("Take Waypoints"));
+        assertFalse(f.player.messages.toString().contains("already controlled"));
         assertTrue(f.data.progressions.isEmpty()); assertTrue(f.data.conquestClaimConfirmations.isEmpty());
         assertFalse(KOMEForeignConstructionService.grant(f.data, tile.id, f.player.id, "gondor", 1L).allowed);
         assertFalse(KOMEForeignConstructionService.canConstruct(f.data, tile.id, f.player.id, "gondor").allowed);
         assertEquals(" ROHAN ", tile.currentRulingFaction); assertEquals("gondor", tile.ownerFaction);
         assertFalse(f.data.isDirty()); assertTrue(f.data.centralAudit.isEmpty());
+    }
+
+    @Test public void ownedTileDenialIsTheOnlyClaimPathThatSaysAlreadyControlled() {
+        f.data.setProgressionEnabled(false);
+        f.player.messages.clear();
+        new KOMEPacketConquestClaim.Handler().onMessage(
+            new KOMEPacketConquestClaim(tile.id), f.context);
+        assertTrue(f.player.messages.toString().contains(
+            "already controlled by your faction"));
+        assertEquals("gondor", tile.projectRulingFaction());
+        assertTrue(f.data.centralAudit.isEmpty());
     }
 
     @Test public void forgedTransferAndHistoryAuthorityDoNotMutateOrPublish() {
@@ -236,8 +249,8 @@ public class KOMEPublicAccessPacketTest {
         assertTrue(registration.contains("KOMEPacketConquestOpenCapture.class, 7, Side.SERVER"));
         assertTrue(registration.contains("KOMEPacketBuildAction.class, 36, Side.SERVER"));
         assertTrue(registration.contains("IDs 23 and 24 are retired"));
-        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.8-integration-g1"));
-        assertEquals(4, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.8-integration-g2"));
+        assertEquals(5, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
 
     private static String source(String path) throws Exception {

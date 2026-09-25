@@ -59,6 +59,66 @@ public final class KOMEBuildService {
         return build;
     }
 
+    /** Explicit operator-only import of a pre-KOME physical Normal Build. */
+    public static KOMEPlayerBuild importGrandfatheredNormal(KOMEWorldData data,
+            boolean authorizedAdmin, String name, String tileId, int dimension,
+            double x, double y, double z, UUID actor, String actorName,
+            String populationFaction, long approvedCentiHours, long nowMillis) {
+        if (!authorizedAdmin) throw new IllegalArgumentException(
+            "Only administrators may import pre-KOME Builds.");
+        requireWritable(data);
+        KOMEBuildTime.requireNonnegative(approvedCentiHours);
+        if (approvedCentiHours == 0L) throw new IllegalArgumentException(
+            "Imported approved hours must be positive.");
+        String faction = KOMEAlliance.normalizeFactionKey(populationFaction);
+        if (!KOMEAlliance.allFactionKeys().contains(faction))
+            throw new IllegalArgumentException("Imported Build faction is unsupported.");
+        String tileKey = KOMEConquestTile.normalizeId(tileId);
+        KOMEConquestTile tile = data.conquestTiles.get(tileKey);
+        if (tile == null || KOMEConquestTileDefaults.isRetiredTile(tileKey))
+            throw new IllegalArgumentException("Imported Build tile is unknown or retired.");
+        if (dimension != lotr.common.LOTRDimension.MIDDLE_EARTH.dimensionID
+                || !tileKey.equals(tileAtWorldCoordinates(x, z)))
+            throw new IllegalArgumentException("Imported Build position is not inside its canonical tile.");
+        if (Double.isNaN(x) || Double.isInfinite(x) || Double.isNaN(y)
+                || Double.isInfinite(y) || Double.isNaN(z) || Double.isInfinite(z))
+            throw new IllegalArgumentException("Imported Build coordinates must be finite.");
+        String sanitizedName = KOMEPlayerBuild.sanitizeName(name);
+        KOMEPlayerBuild build = new KOMEPlayerBuild();
+        build.id = data.nextBuildId();
+        build.displayName = sanitizedName;
+        build.markerLabel = build.displayName;
+        build.tileId = tileKey; build.dimension = dimension;
+        build.x = x; build.y = y; build.z = z;
+        build.builderUuid = actor; build.managerUuid = actor;
+        build.builderName = safe(actorName); build.managerName = safe(actorName);
+        build.populationFaction = faction; build.originalBuilderFaction = faction;
+        build.type = KOMEBuildType.NORMAL;
+        build.createdAtMillis = Math.max(0L, nowMillis);
+        build.updatedAtMillis = build.createdAtMillis;
+        KOMEBuildContribution imported = new KOMEBuildContribution();
+        imported.id = data.nextBuildContributionId(build);
+        imported.contributorUuid = actor;
+        imported.contributorName = safe(actorName);
+        imported.contributorFaction = faction;
+        imported.centiHours = approvedCentiHours;
+        imported.status = KOMEBuildContribution.APPROVED;
+        imported.submittedAtMillis = build.createdAtMillis;
+        imported.decidedAtMillis = build.createdAtMillis;
+        imported.decidedByUuid = actor;
+        imported.decidedByName = safe(actorName);
+        imported.decisionReason = "Explicit pre-KOME grandfather import";
+        build.contributions.add(imported);
+        build.developedNativeCentiHours = approvedCentiHours;
+        build.validateContributions();
+        data.builds.put(build.id, build);
+        audit(data, build, "GRANDFATHER_IMPORT", actor, actorName,
+            imported.decisionReason, "contribution=" + imported.id
+                + ";developedHours=" + KOMEBuildTime.formatHours(approvedCentiHours),
+            nowMillis);
+        return build;
+    }
+
     public static Decision canPlace(KOMEWorldData data, String playerFaction, String tileId,
             String populationFaction) {
         return canPlace(data, null, playerFaction, tileId, populationFaction);
@@ -195,6 +255,8 @@ public final class KOMEBuildService {
         contribution.decidedByUuid = actor;
         contribution.decidedByName = safe(name);
         contribution.decisionReason = safe(reason).isEmpty() ? "Build contribution " + action.toLowerCase(java.util.Locale.ROOT) : safe(reason);
+        KOMEPopulationDevelopmentService.clampDevelopedToApproved(data, build,
+            actor, name, nowMillis);
         audit(data, build, action, actor, name, contribution.decisionReason,
                 "contribution=" + contribution.id + ";status=" + target
                 + ";priorHours=" + KOMEBuildTime.formatHours(priorHours)
@@ -246,6 +308,8 @@ public final class KOMEBuildService {
             contribution.decisionReason = "Superseded by " + repair.id;
         }
         build.contributions.add(repair);
+        KOMEPopulationDevelopmentService.clampDevelopedToApproved(data, build,
+            actor, actorName, nowMillis);
         auditContribution(data, build, repair, "ADJUST_TOTAL", actor, actorName, repair.decisionReason, before, nowMillis);
         return Decision.allow();
     }
@@ -491,8 +555,10 @@ public final class KOMEBuildService {
         for (KOMEBuildContribution contribution : build.contributions) {
             if (contribution == null || contribution.isRemoved()
                     || KOMEBuildContribution.REJECTED.equals(contribution.status)) continue;
-            contribution.status = contribution.isPending()
-                ? KOMEBuildContribution.REJECTED : KOMEBuildContribution.REMOVED;
+            // Approved history remains approved on an inactive Build so the exact
+            // developed<=approved invariant and grandfather provenance survive deletion.
+            if (contribution.isApproved()) continue;
+            contribution.status = KOMEBuildContribution.REJECTED;
             contribution.decidedAtMillis = Math.max(0L, nowMillis);
             contribution.decidedByUuid = actor;
             contribution.decidedByName = safe(actorName);
@@ -506,7 +572,7 @@ public final class KOMEBuildService {
         build.deletionReason = safe(reason);
         build.updatedAtMillis = Math.max(build.updatedAtMillis, nowMillis);
         audit(data, build, "DELETE", actor, actorName, reason,
-            "approvedCentiHoursRemoved=" + removedCentiHours
+            "approvedCentiHoursDeactivated=" + removedCentiHours
                 + ";defensiveGateLinksRemoved=" + removedGateLinks, nowMillis);
     }
 

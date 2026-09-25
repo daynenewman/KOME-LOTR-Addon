@@ -1,6 +1,7 @@
 package kome.client;
 
 import cpw.mods.fml.common.gameevent.TickEvent;
+import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import java.lang.reflect.Field;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -10,6 +11,7 @@ import java.util.*;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 import kome.common.KOMEAddon;
+import kome.common.KOMEAccessFixture;
 import kome.common.KOMECommonProxy;
 import kome.common.data.*;
 import kome.common.network.*;
@@ -43,6 +45,19 @@ public class KOMEClientTaskQueueTest {
         assertEquals(Arrays.asList(0, 4, 5), calls);
     }
 
+    @Test public void latestPublicationReplacesPendingValueAndDisconnectedSessionIgnoresIt() {
+        KOMEClientTaskQueue queue = connected(); List<Integer> calls = new ArrayList<Integer>();
+        assertTrue(queue.enqueueLatest("snapshot", () -> calls.add(1)));
+        assertTrue(queue.enqueueLatest("snapshot", () -> calls.add(2)));
+        assertEquals(1, queue.pendingTasks());
+        queue.drain(); assertEquals(Arrays.asList(2), calls);
+
+        assertTrue(queue.enqueueLatest("snapshot", () -> calls.add(3)));
+        queue.resetSession(false, () -> calls.add(4));
+        assertFalse(queue.enqueueLatest("snapshot", () -> calls.add(5)));
+        queue.drain(); assertEquals(Arrays.asList(2, 4), calls);
+    }
+
     @Test public void fourGuiHandlersDeepCopyAndOnlyDisplayOnClientDrain() throws Exception {
         RecordingProxy proxy = proxy(); KOMECommonProxy previous = KOMEAddon.proxy; KOMEAddon.proxy = proxy;
         try {
@@ -69,10 +84,10 @@ public class KOMEClientTaskQueueTest {
         KOMEClientData client = KOMEClientData.INSTANCE;
         List<Map> maps = Arrays.<Map>asList(client.armyCompanies, client.conquestTiles, client.armyMovements,
                 client.troopSummaries, client.routeEdges, client.tileWaypointLinksByTileId, client.builds);
-        List<Map> saved = new ArrayList<Map>(); for (Map map : maps) saved.add(new HashMap(map));
+        SavedClientState saved = new SavedClientState();
         int revision = client.conquestRevision;
         try {
-            for (Map map : maps) map.clear();
+            saved.clear();
             KOMEPacketConquestData packet = new KOMEPacketConquestData(); packet.reset = true; packet.complete = true;
             KOMEArmyCompany company = new KOMEArmyCompany(); company.id = "C1";
             row(packet, "ArmyCompanies", company.writeToNBT());
@@ -95,9 +110,123 @@ public class KOMEClientTaskQueueTest {
             for (Map map : maps) assertEquals(1, map.size()); assertEquals(revision + 1, client.conquestRevision);
             assertEquals(2450L, client.troopSummaries.get("T1").population.availablePopulationCenti);
         } finally {
-            for (int i = 0; i < maps.size(); i++) { maps.get(i).clear(); maps.get(i).putAll(saved.get(i)); }
-            client.conquestRevision = revision; KOMEAddon.proxy = previous;
+            saved.restore(); KOMEAddon.proxy = previous;
         }
+    }
+
+    @Test public void resetIntermediateCompletePublishesAtomicallyAndNewResetReplacesIncompleteGeneration() throws Exception {
+        RecordingProxy proxy = proxy(); KOMECommonProxy previous = KOMEAddon.proxy; KOMEAddon.proxy = proxy;
+        SavedClientState saved = new SavedClientState(); KOMEClientData client = KOMEClientData.INSTANCE;
+        int revision = client.conquestRevision;
+        try {
+            saved.clear();
+            KOMEConquestTile sentinel = new KOMEConquestTile("T9000"); sentinel.claim("rohan", 0L);
+            client.conquestTiles.put(sentinel.id, sentinel);
+
+            onNetwork(() -> new KOMEPacketConquestData.Handler().onMessage(tilePacket("T1", false, true), null));
+            assertEquals(0, proxy.queue.pendingTasks());
+            onNetwork(() -> {
+                new KOMEPacketConquestData.Handler().onMessage(tilePacket("T10", true, false), null);
+                new KOMEPacketConquestData.Handler().onMessage(tilePacket("T11", false, false), null);
+                new KOMEPacketConquestData.Handler().onMessage(tilePacket("T20", true, false), null);
+                new KOMEPacketConquestData.Handler().onMessage(tilePacket("T21", false, true), null);
+            });
+            assertEquals(1, proxy.queue.pendingTasks());
+            assertSame(sentinel, client.conquestTiles.get(sentinel.id));
+            assertEquals(revision, client.conquestRevision);
+            proxy.queue.drain();
+            assertEquals(new HashSet<String>(Arrays.asList("T20", "T21")), client.conquestTiles.keySet());
+            assertFalse(client.conquestTiles.containsKey("T10"));
+            assertFalse(client.conquestTiles.containsKey("T11"));
+            assertEquals(revision + 1, client.conquestRevision);
+        } finally { saved.restore(); KOMEAddon.proxy = previous; }
+    }
+
+    @Test public void rapidCompletedRefreshesCoalescePastOldQueueLimitAndPublishLatestOnly() throws Exception {
+        RecordingProxy proxy = proxy(); KOMECommonProxy previous = KOMEAddon.proxy; KOMEAddon.proxy = proxy;
+        SavedClientState saved = new SavedClientState(); KOMEClientData client = KOMEClientData.INSTANCE;
+        int revision = client.conquestRevision;
+        try {
+            saved.clear();
+            onNetwork(() -> {
+                for (int i = 0; i < KOMEClientTaskQueue.MAX_PENDING_TASKS + 72; i++)
+                    new KOMEPacketConquestData.Handler().onMessage(tilePacket("T" + (1000 + i), true, true), null);
+            });
+            assertEquals(1, proxy.queue.pendingTasks());
+            assertEquals(revision, client.conquestRevision);
+            proxy.queue.drain();
+            assertEquals(Collections.singleton("T1199"), client.conquestTiles.keySet());
+            assertEquals(revision + 1, client.conquestRevision);
+        } finally { saved.restore(); KOMEAddon.proxy = previous; }
+    }
+
+    @Test public void realChunkerCanExceedOldTaskBoundButPublishesOneCompleteSnapshot() throws Exception {
+        KOMEAccessFixture fixture = new KOMEAccessFixture();
+        RecordingProxy proxy = proxy(); KOMECommonProxy previousProxy = KOMEAddon.proxy;
+        cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper previousNetwork = KOMEPacketHandler.network;
+        SavedClientState saved = new SavedClientState(); KOMEClientData client = KOMEClientData.INSTANCE;
+        int revision = client.conquestRevision;
+        try {
+            saved.clear(); KOMEAddon.proxy = proxy; KOMEPacketHandler.network = fixture.network;
+            KOMEWorldData data = new KOMEWorldData("large-conquest-snapshot");
+            for (int i = 0; i < 3100; i++) {
+                KOMEConquestTile tile = new KOMEConquestTile("T" + (10000 + i));
+                tile.claim("gondor", i); data.conquestTiles.put(tile.id, tile);
+            }
+            KOMEPacketConquestData.sendChunked(data, fixture.player);
+            assertTrue(fixture.network.messages.size() > KOMEClientTaskQueue.MAX_PENDING_TASKS);
+            int resets = 0, completes = 0;
+            for (IMessage value : fixture.network.messages) {
+                KOMEPacketConquestData packet = (KOMEPacketConquestData) value;
+                if (packet.reset) resets++;
+                if (packet.complete) completes++;
+            }
+            assertEquals(1, resets); assertEquals(1, completes);
+
+            onNetwork(() -> {
+                for (IMessage value : fixture.network.messages)
+                    new KOMEPacketConquestData.Handler().onMessage((KOMEPacketConquestData) value, null);
+            });
+            assertEquals(1, proxy.queue.pendingTasks());
+            assertTrue(client.conquestTiles.isEmpty()); assertEquals(revision, client.conquestRevision);
+            proxy.queue.drain();
+            assertEquals(3100, client.conquestTiles.size());
+            assertEquals(3100, client.troopSummaries.size());
+            assertEquals(revision + 1, client.conquestRevision);
+        } finally {
+            saved.restore(); KOMEAddon.proxy = previousProxy; KOMEPacketHandler.network = previousNetwork;
+        }
+    }
+
+    @Test public void disconnectIgnoresInFlightPacketsAndReconnectRequiresFreshResetSnapshot() throws Exception {
+        RecordingProxy proxy = proxy(); KOMECommonProxy previous = KOMEAddon.proxy; KOMEAddon.proxy = proxy;
+        SavedClientState saved = new SavedClientState(); KOMEClientData client = KOMEClientData.INSTANCE;
+        int revision = client.conquestRevision;
+        try {
+            saved.clear();
+            KOMEConquestTile sentinel = new KOMEConquestTile("T9000"); sentinel.claim("rohan", 0L);
+            client.conquestTiles.put(sentinel.id, sentinel);
+            onNetwork(() -> new KOMEPacketConquestData.Handler().onMessage(tilePacket("T1", true, false), null));
+
+            proxy.resetSession(false, () -> {});
+            onNetwork(() -> {
+                new KOMEPacketConquestData.Handler().onMessage(tilePacket("T2", false, true), null);
+                new KOMEPacketConquestData.Handler().onMessage(tilePacket("T3", true, true), null);
+            });
+            assertEquals(1, proxy.queue.pendingTasks());
+            proxy.queue.drain(); assertSame(sentinel, client.conquestTiles.get(sentinel.id));
+            assertEquals(revision, client.conquestRevision);
+
+            proxy.resetSession(true, () -> {});
+            onNetwork(() -> {
+                new KOMEPacketConquestData.Handler().onMessage(tilePacket("T4", false, true), null);
+                new KOMEPacketConquestData.Handler().onMessage(tilePacket("T5", true, true), null);
+            });
+            assertEquals(2, proxy.queue.pendingTasks());
+            proxy.queue.drain();
+            assertEquals(Collections.singleton("T5"), client.conquestTiles.keySet());
+            assertEquals(revision + 1, client.conquestRevision);
+        } finally { saved.restore(); KOMEAddon.proxy = previous; }
     }
 
     @Test public void invalidGuiAndLaterConquestRowsEnqueueNothing() throws Exception {
@@ -121,17 +250,56 @@ public class KOMEClientTaskQueueTest {
         assertTrue(client.contains("bus().register(clientTasks)"));
         assertTrue(client.contains("ClientDisconnectionFromServerEvent"));
         assertTrue(client.contains("clientTasks.resetSession(false, this::resetClientSessionState)"));
-        for (String name : new String[] {"PopulationGui", "PopulationUnitsGui", "ConquestCaptureGui", "ConquestData", "CompanyListGui"}) {
+        assertTrue(client.contains("conquestSnapshots.resetSession()"));
+        String clientData = source("common/data/KOMEClientData.java");
+        String reset = clientData.substring(clientData.indexOf("public void resetClientState()"));
+        assertFalse(reset.contains("conquestRevision++"));
+        for (String name : new String[] {"PopulationGui", "PopulationUnitsGui", "ConquestCaptureGui", "CompanyListGui"}) {
             String packet = source("common/network/KOMEPacket" + name + ".java");
             assertTrue(packet.contains("copyForPublication(")); assertTrue(packet.contains("enqueueClientTask("));
             assertFalse(packet.contains("displayGuiScreen("));
         }
+        String conquest = source("common/network/KOMEPacketConquestData.java");
+        assertTrue(conquest.contains("copyForPublication("));
+        assertTrue(conquest.contains("acceptConquestSnapshotChunk("));
+        assertFalse(conquest.contains("enqueueClientTask("));
     }
 
     private static KOMEClientTaskQueue connected() { KOMEClientTaskQueue queue = new KOMEClientTaskQueue(); queue.resetSession(true, () -> {}); queue.drain(); return queue; }
+    private static KOMEPacketConquestData tilePacket(String tileId, boolean reset, boolean complete) {
+        KOMEPacketConquestData packet = new KOMEPacketConquestData();
+        packet.reset = reset; packet.complete = complete;
+        KOMEConquestTile tile = new KOMEConquestTile(tileId); tile.claim("gondor", 0L);
+        row(packet, "ConquestTiles", tile.projectToNBT()); return packet;
+    }
     private static void row(KOMEPacketConquestData packet, String key, NBTTagCompound value) {
         NBTTagList list = new NBTTagList(); list.appendTag(value); packet.data.setTag(key, list);
     }
+
+    private static final class SavedClientState {
+        private final KOMEClientData client = KOMEClientData.INSTANCE;
+        private final List<Map> maps = Arrays.<Map>asList(client.armyCompanies, client.conquestTiles,
+            client.capitalTilesByFaction, client.armyMovements, client.troopSummaries,
+            client.routeEdges, client.tileWaypointLinksByTileId, client.builds);
+        private final List<Map> values = new ArrayList<Map>();
+        private final int revision = client.conquestRevision;
+
+        private SavedClientState() {
+            for (Map map : maps) values.add(new HashMap(map));
+        }
+
+        private void clear() {
+            for (Map map : maps) map.clear();
+        }
+
+        private void restore() {
+            for (int i = 0; i < maps.size(); i++) {
+                maps.get(i).clear(); maps.get(i).putAll(values.get(i));
+            }
+            client.conquestRevision = revision;
+        }
+    }
+
     private static void onNetwork(Runnable action) throws Exception {
         AtomicReference<Throwable> failure = new AtomicReference<Throwable>();
         Thread network = new Thread(() -> { try { action.run(); } catch (Throwable error) { failure.set(error); } }, "simulated-Netty");
@@ -142,11 +310,19 @@ public class KOMEClientTaskQueueTest {
         // Do not initialize the three imported mods merely to observe GUI dispatch.
         Class<?> unsafe = Class.forName("sun.misc.Unsafe"); Field singleton = unsafe.getDeclaredField("theUnsafe"); singleton.setAccessible(true);
         RecordingProxy proxy = (RecordingProxy) unsafe.getMethod("allocateInstance", Class.class).invoke(singleton.get(null), RecordingProxy.class);
-        proxy.queue = connected(); proxy.calls = new ArrayList<String>(); proxy.threads = new ArrayList<Thread>(); return proxy;
+        proxy.queue = connected(); proxy.snapshots = new KOMEConquestSnapshotPublisher(proxy.queue);
+        proxy.calls = new ArrayList<String>(); proxy.threads = new ArrayList<Thread>(); return proxy;
     }
     private static class RecordingProxy extends KOMECommonProxy {
-        KOMEClientTaskQueue queue; List<String> calls; List<Thread> threads;
+        KOMEClientTaskQueue queue; KOMEConquestSnapshotPublisher snapshots;
+        List<String> calls; List<Thread> threads;
         @Override public void enqueueClientTask(Runnable task) { queue.enqueue(task); }
+        @Override public void acceptConquestSnapshotChunk(KOMEPacketConquestData.PublicationChunk chunk) {
+            snapshots.accept(chunk);
+        }
+        void resetSession(boolean connected, Runnable reset) {
+            snapshots.resetSession(); queue.resetSession(connected, reset);
+        }
         private void display(String call) { calls.add(call); threads.add(Thread.currentThread()); }
         @Override public void displayPopulationGui(KOMEPacketPopulationGui packet) { display("population:" + packet.playerName); }
         @Override public void displayPopulationUnitsGui(KOMEPacketPopulationUnitsGui packet) { display("units:" + packet.playerName); }

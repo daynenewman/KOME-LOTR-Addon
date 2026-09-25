@@ -48,6 +48,11 @@ public class KOMECommonProxy {
         throw new IllegalStateException("Client publication is unavailable on the dedicated server");
     }
 
+    public void acceptConquestSnapshotChunk(
+            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk) {
+        throw new IllegalStateException("Client conquest publication is unavailable on the dedicated server");
+    }
+
     public void displayPopulationGui(kome.common.network.KOMEPacketPopulationGui message) { }
     public void displayPopulationUnitsGui(kome.common.network.KOMEPacketPopulationUnitsGui message) { }
     public void displayConquestCaptureGui(kome.common.network.KOMEPacketConquestCaptureGui message) { }

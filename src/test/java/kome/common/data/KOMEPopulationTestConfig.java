@@ -39,7 +39,8 @@ public final class KOMEPopulationTestConfig implements AutoCloseable {
             build.populationFaction = "gondor"; build.active = true;
             KOMEBuildContribution contribution = new KOMEBuildContribution();
             contribution.id = "H"; contribution.centiHours = amount; contribution.status = KOMEBuildContribution.APPROVED;
-            build.contributions.add(contribution); data.builds.put(build.id, build);
+            build.contributions.add(contribution); build.developedNativeCentiHours = amount;
+            data.builds.put(build.id, build);
             return KOMEPopulationRateService.getExactDailyPopulationRates(data, KOMEConfigRegistry.population()).get("gondor");
         }
     }

@@ -36,6 +36,5 @@ public class KOMEClientData extends KOMEWorldData {
         unitMapMarkers.clear();
         allianceDifficulty = KOMEAllianceRequirements.STANDARD;
         clientViewerIsAdmin = false;
-        conquestRevision++;
     }
 }
