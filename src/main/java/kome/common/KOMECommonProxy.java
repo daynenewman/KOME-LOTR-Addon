@@ -73,6 +73,7 @@ public class KOMECommonProxy {
 
     public void displaySerfdomMasterMenu(int entityId, String masterName, String factionName, int mode, String dutyStatus) {
     }
+    public void displaySerfdomMasterMenu(int entityId,String masterName,String factionName,int mode,String dutyStatus,boolean canRequestDuty,boolean hasActiveDuty){displaySerfdomMasterMenu(entityId,masterName,factionName,mode,dutyStatus);}
     public void displayRelationshipHub(int entityId, int relationship, String npcName, String factionName) {
     }
 
@@ -83,6 +84,7 @@ public class KOMECommonProxy {
         updateProgressionData(playerName, completed);
     }
     public void updateProgressionData(String playerName, java.util.List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName) { updateProgressionData(playerName, completed, assignments); }
+    public void updateProgressionData(String playerName, java.util.List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName, kome.common.data.KOMEProgressionRankSummary ranks) { updateProgressionData(playerName, completed, assignments, summary, findLabel, leaveType, leaveLabel, leaveName); }
 
     public void updateQuotaLedger(java.util.List lines) {
     }
@@ -95,6 +97,9 @@ public class KOMECommonProxy {
     }
 
     public void updateAllianceData(java.util.List lines) {
+    }
+
+    public void updateVisualMarkers(java.util.List<kome.common.data.KOMEVisualMarker> markers) {
     }
 
     public void displayPledgeDeparture(kome.common.network.KOMEPacketPledgeDepartureData message) {

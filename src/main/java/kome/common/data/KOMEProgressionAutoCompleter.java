@@ -42,9 +42,11 @@ public class KOMEProgressionAutoCompleter {
         changed += grantIf(progression, "wanderer.travel_30km", hasAchievement(lotrData, LOTRAchievement.travel30));
         changed += grantIf(progression, "wanderer.find_serf_lord", progression.hasPledgedLord());
 
+        LOTRFaction pledge = lotrData.getPledgeFaction();
+        changed += reconcilePledgeDuties(progression, pledge);
+
         changed += grantIf(progression, "serf.quest_seeker", lotrData.getCompletedMiniQuestsTotal() >= 5);
         changed += grantIf(progression, "serf.alignment_100", hasAnyAlignmentAtLeast(lotrData, 100.0f));
-        changed += grantIf(progression, "serf.pledge", lotrData.getPledgeFaction() != null);
         changed += grantIf(progression, "serf.defeat_invasion", hasAchievement(lotrData, LOTRAchievement.defeatInvasion));
         changed += grantIf(progression, "serf.brewing", hasAchievement(lotrData, LOTRAchievement.brewDrinkInBarrel));
 
@@ -83,6 +85,32 @@ public class KOMEProgressionAutoCompleter {
 
     public static int applyPopulationProgression(KOMEWorldData data, KOMEPlayerProgression progression, String faction) {
         return grantIf(progression, "lord.early_beginnings", meetsPopulationThreshold(data, faction));
+    }
+
+    /** The durable LOTR commitment state used by the baseline faction-pledge duty. */
+    public static boolean hasValidFactionCommitment(LOTRFaction pledge) {
+        return pledge != null && pledge.isPlayableAlignmentFaction();
+    }
+
+    /**
+     * Uses LOTR's live pledge as the source of truth for the later Serf pledge duty.
+     * Once a Serfdom Master is recorded, the pledge must be to that master's faction.
+     */
+    static boolean hasValidSerfPledge(KOMEPlayerProgression progression, LOTRFaction pledge) {
+        if (!hasValidFactionCommitment(pledge)) return false;
+        if (progression == null) return false;
+        KOMEProgressionNpcRef master = progression.getSerfKnightProgression().getSerfdomMaster();
+        return !master.isSet() || KOMEAlliance.normalizeFactionKey(pledge.codeName()).equals(master.factionKey);
+    }
+
+    /** Reconciles both historical pledge Duties through their ordinary grant route. */
+    static int reconcilePledgeDuties(KOMEPlayerProgression progression, LOTRFaction pledge) {
+        return grantIf(progression, "baseline.pledge", hasValidFactionCommitment(pledge))
+            + reconcileSerfPledge(progression, pledge);
+    }
+
+    static int reconcileSerfPledge(KOMEPlayerProgression progression, LOTRFaction pledge) {
+        return grantIf(progression, "serf.pledge", hasValidSerfPledge(progression, pledge));
     }
 
     public static int applyUnlocks(KOMEPlayerProgression progression) {
@@ -141,7 +169,9 @@ public class KOMEProgressionAutoCompleter {
             }
         }
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();String pledgeName=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.factionName():"";
-        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression,pledgeName), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression)), player);
+        double alignment=pledge==null?0D:LOTRLevelData.getData(player).getAlignment(pledge);
+        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression,pledgeName), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression), KOMEProgressionRankSummary.project(progression,alignment)), player);
+        KOMEVisualLocationService.syncIfChanged(player, progression, false);
     }
 
     private static int grantAfter(KOMEPlayerProgression progression, String requiredID, String... unlockedIDs) {

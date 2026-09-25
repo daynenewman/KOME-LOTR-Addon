@@ -121,8 +121,9 @@ public class KOMEPacketHandler {
         network.registerMessage(new ServerThreadHandler<KOMEPacketBuildAction>(new KOMEPacketBuildAction.Handler()) {}, KOMEPacketBuildAction.class, 36, Side.SERVER);
         network.registerMessage(KOMEPacketSerfdomMasterMenu.Handler.class, KOMEPacketSerfdomMasterMenu.class, 37, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketSerfdomMasterAction>(new KOMEPacketSerfdomMasterAction.Handler()) {}, KOMEPacketSerfdomMasterAction.class, 38, Side.SERVER);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketProgressionRelationshipAction>(new KOMEPacketProgressionRelationshipAction.Handler()) {}, KOMEPacketProgressionRelationshipAction.class, 39, Side.SERVER);
+        // ID 39 retired: relationship departure now requires the nearby NPC relationship route.
         network.registerMessage(KOMEPacketRelationshipHub.Handler.class, KOMEPacketRelationshipHub.class, 40, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketRelationshipAction>(new KOMEPacketRelationshipAction.Handler()) {}, KOMEPacketRelationshipAction.class, 41, Side.SERVER);
+        network.registerMessage(KOMEPacketVisualMarkers.Handler.class, KOMEPacketVisualMarkers.class, 42, Side.CLIENT);
     }
 }

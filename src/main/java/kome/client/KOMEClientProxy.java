@@ -75,6 +75,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         KOMEGuiServerRecords.resetData();
         KOMEUnitCapClientState.reset();
         KOMEConquestMapOverlay.resetClientMapState();
+        KOMEVisualMarkerClientState.clear();
     }
 
     @Override
@@ -132,6 +133,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void displaySerfdomMasterMenu(int entityId, String masterName, String factionName, int mode, String dutyStatus) {
         KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiSerfdomMaster(entityId, masterName, factionName, mode, dutyStatus));
     }
+    @Override public void displaySerfdomMasterMenu(int entityId,String masterName,String factionName,int mode,String dutyStatus,boolean canRequestDuty,boolean hasActiveDuty){KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiSerfdomMaster(entityId,masterName,factionName,mode,dutyStatus,canRequestDuty,hasActiveDuty));}
     @Override public void displayRelationshipHub(int entityId, int relationship, String npcName, String factionName) {
         KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiRelationshipHub(entityId, relationship, npcName, factionName));
     }
@@ -146,6 +148,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         KOMEGuiProgression.updateProgressionData(playerName, completed, assignments);
     }
     @Override public void updateProgressionData(String playerName, List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName) { KOMEGuiProgression.updateProgressionData(playerName, completed, assignments, summary, findLabel, leaveType, leaveLabel, leaveName); }
+    @Override public void updateProgressionData(String playerName, List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName, kome.common.data.KOMEProgressionRankSummary ranks) { KOMEGuiProgression.updateProgressionData(playerName, completed, assignments, summary, findLabel, leaveType, leaveLabel, leaveName, ranks); }
 
     @Override
     public void updateQuotaLedger(List lines) {
@@ -166,6 +169,11 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void updateAllianceData(List lines) {
         updateClientAllianceCache(lines);
         KOMEGuiAllianceUnified.update(lines);
+    }
+
+    @Override
+    public void updateVisualMarkers(List<kome.common.data.KOMEVisualMarker> markers) {
+        KOMEVisualMarkerClientState.update(markers);
     }
 
     @Override

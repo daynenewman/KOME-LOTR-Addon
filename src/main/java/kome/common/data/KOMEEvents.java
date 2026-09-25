@@ -65,6 +65,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.MathHelper;
 import net.minecraftforge.event.entity.EntityJoinWorldEvent;
+import net.minecraftforge.event.entity.player.EntityItemPickupEvent;
 import net.minecraftforge.event.entity.player.EntityInteractEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.entity.player.PlayerOpenContainerEvent;
@@ -74,6 +75,7 @@ import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
+import net.minecraftforge.event.entity.living.LivingSpawnEvent;
 import net.minecraftforge.event.world.BlockEvent;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
@@ -86,6 +88,12 @@ import java.util.Map;
 import java.time.Instant;
 
 public class KOMEEvents {
+    /** Forge's periodic despawn event and LOTR's canDespawn veto cover both native paths. */
+    @SubscribeEvent(priority=EventPriority.LOWEST)
+    public void onProgressionNpcAllowDespawn(LivingSpawnEvent.AllowDespawn event){
+        if(event.entityLiving instanceof LOTREntityNPC&&KOMEProgressionNpcRoles.preventDespawn((LOTREntityNPC)event.entityLiving))
+            event.setResult(Event.Result.DENY);
+    }
     public static int defaultUnitCost = 25;
     private final Map<UUID, Integer> lastCoinValues = new HashMap<>();
     private final Map<UUID, int[]> lastCoinCounts = new HashMap<>();
@@ -107,6 +115,7 @@ public class KOMEEvents {
         populationPayoutRuntime.resetSession();
         nextMovementArrivalCheckMillis = 0L;
         nextLiveUnitMarkerSyncMillis = 0L;
+        KOMEVisualLocationService.resetSession();
     }
 
     @SubscribeEvent
@@ -131,6 +140,8 @@ public class KOMEEvents {
     @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         KOMEAllianceRecordBuilder.clearOperatorView(event.player);
+        if (event.player instanceof EntityPlayerMP) KOMESerfKnightCadenceOverride.clear(((EntityPlayerMP)event.player).getUniqueID());
+        if (event.player instanceof EntityPlayerMP) KOMEVisualLocationService.clearPlayer(KOMEReflection.getEntityUUID(event.player));
     }
 
     @SubscribeEvent
@@ -141,16 +152,29 @@ public class KOMEEvents {
                 KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
                 KOMEPledgeReleaseService.observePledge(data, (EntityPlayerMP) event.player,
                     getActualPledgeFactionKey(event.player), System.currentTimeMillis());
-                enforceMiniQuestPermission((EntityPlayerMP) event.player);
                 enforceMountPermission((EntityPlayerMP) event.player);
                 enforceEquippedGear(event.player);
+                KOMESerfKnightEscortService.tickPlayer((EntityPlayerMP) event.player);
+                KOMESerfKnightRecoveryService.tickPlayer((EntityPlayerMP) event.player);
+                KOMESerfKnightDefenseService.tickPlayer((EntityPlayerMP) event.player);
+                KOMECourierService.tickPlayer((EntityPlayerMP) event.player);
+                KOMEProgressionOfferBridge.refreshNearbySerfdomOffers((EntityPlayerMP) event.player);
             }
             if (event.player instanceof EntityPlayerMP && KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(event.player)) % 100L == 0L) {
                 KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
                 KOMEProgressionTitles.updatePlayerTitle((EntityPlayerMP) event.player);
+                KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
+                KOMEVisualLocationService.refreshAndSync((EntityPlayerMP)event.player, data,
+                    data.getProgression(KOMEReflection.getEntityUUID(event.player)), false);
             }
             cacheCoinValue(event.player);
         }
+    }
+
+    @SubscribeEvent
+    public void onRecoveryItemPickup(EntityItemPickupEvent event) {
+        if (!KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityPlayer)) && event.entityPlayer instanceof EntityPlayerMP)
+            KOMESerfKnightRecoveryService.onPickup((EntityPlayerMP) event.entityPlayer, event.item.getEntityItem());
     }
 
     @SubscribeEvent
@@ -247,6 +271,11 @@ public class KOMEEvents {
     public void onEntityJoinWorld(EntityJoinWorldEvent event) {
         if (!KOMEReflection.isRemote(event.world) && event.entity instanceof LOTREntityNPC) {
             KOMEWorldData data = KOMEWorldData.get(event.world);
+            if (KOMECourierRecipientSpawner.duplicateOwned((LOTREntityNPC)event.entity)) {
+                event.setCanceled(true);
+                return;
+            }
+            KOMECourierRecipientSpawner.reconcileMarkerOnLoad(data,(LOTREntityNPC)event.entity);
             if (KOMEPledgeReleaseService.interceptReleasedEntity(data, event.entity, System.currentTimeMillis())) {
                 event.setCanceled(true);
                 return;
@@ -263,7 +292,7 @@ public class KOMEEvents {
             }
             handleHiredUnit((LOTREntityNPC) event.entity);
             enforceNpcEquipment((LOTREntityNPC) event.entity);
-            KOMEProgressionNpcRankService.applyPersistenceProtection(data, (LOTREntityNPC) event.entity);
+            // Role protection is projected from canonical state when world data loads.
         }
     }
 
@@ -309,23 +338,9 @@ public class KOMEEvents {
                 event.setCanceled(true);
                 return;
             }
-            if (progression.getCanonicalRank() == KOMEProgressionRank.SERF && "courier".equals(state.getActiveAssignmentKind())) {
-                KOMESerfCourierAssignment courier=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-                if (courier != null && KOMECourierService.validRecipient(player,npc,courier,state.getSerfdomMaster()) && KOMECourierService.hasMessage(player,courier,state.getSerfdomMaster())) {
-                    if (KOMECourierService.removeMessage(player,courier,state.getSerfdomMaster())) {
-                        courier.recipient=KOMEProgressionNpcRankService.referenceOf(npc);courier.stage=KOMESerfCourierAssignment.Stage.DELIVERED;
-                        state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER,courier.writeToNBT());data.markDirty();player.inventoryContainer.detectAndSendChanges();KOMEProgressionAutoCompleter.syncPlayer(player,progression);
-                        KOMEProgressionNpcSpeech.receiveCourier(player,npc,state.getSerfdomMaster().displayName);event.setCanceled(true);return;
-                    }
-                }
-            }
-        }
-        if (event.target instanceof LOTREntityNPC && !KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.MINIQUESTS)) {
-            LOTREntityNPC npc = (LOTREntityNPC) event.target;
-            if (npc.questInfo != null && npc.questInfo.canOfferQuestsTo(player) && npc.questInfo.getOfferFor(player) != null && !KOMEProgressionOfferBridge.isExternalOffer(npc.questInfo.getOfferFor(player))) {
-                KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.MINIQUESTS);
-                event.setCanceled(true);
-                return;
+            if (KOMECourierService.deliverToRecipient(player,data,npc)) {
+                KOMEProgressionNpcSpeech.receiveCourier(player,npc,state.getSerfdomMaster().displayName);
+                event.setCanceled(true);return;
             }
         }
         if (!(event.target instanceof LOTRTradeable)) {
@@ -540,6 +555,9 @@ public class KOMEEvents {
             releaseLinkedInactiveUnits(npc);
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
             UUID deadId = KOMEReflection.getEntityUUID(npc);
+            KOMESerfKnightEscortService.handleTargetDeath(data, deadId.toString());
+            KOMESerfKnightDefenseService.handleNpcDeath(data, deadId.toString());
+            KOMECourierService.handleRecipientDeath(data, deadId.toString(), KOMEReflection.getWorld(npc));
             Entity source = event.source == null ? null : event.source.getEntity();
             UUID killer = source instanceof EntityPlayer ? KOMEReflection.getEntityUUID(source) : null;
             boolean changed = false;
@@ -547,6 +565,7 @@ public class KOMEEvents {
                 changed |= KOMESerfKnightService.handleNpcDeath(entry.getValue().getSerfKnightProgression(), deadId.toString(),
                     killer != null && killer.equals(entry.getKey()), KOMESerfKnightService.calendarDayNow());
             }
+            if (changed) KOMEProgressionNpcRoles.rebuild(data);
             changed |= KOMEProgressionNpcSuccessionService.invalidatePrinceDeath(data, deadId);
             changed |= KOMEProgressionNpcSuccessionService.handleKingDeath(data, deadId) != null
                 || data.progressionNpcRoyalRestorations.containsKey(deadId);
@@ -736,24 +755,6 @@ public class KOMEEvents {
         int refund = refundDeniedHire(owner, npc);
         KOMEProgressionPermissions.deny(owner, reason + (refund > 0 ? " Refunded " + refund + " coins." : ""));
         KOMEReflection.setDead(npc);
-    }
-
-    private void enforceMiniQuestPermission(EntityPlayerMP player) {
-        if (KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.MINIQUESTS)) {
-            return;
-        }
-        LOTRPlayerData lotrData = LOTRLevelData.getData(player);
-        List active = new ArrayList(lotrData.getActiveMiniQuests());
-        if (active.isEmpty()) {
-            return;
-        }
-        for (Object object : active) {
-            if (object instanceof LOTRMiniQuest) {
-                lotrData.removeMiniQuest((LOTRMiniQuest) object, false);
-            }
-        }
-        lotrData.setTrackingMiniQuestID(null);
-        KOMEProgressionPermissions.deny(player, "You have not unlocked NPC Mini-Quests yet. Active mini-quest removed.");
     }
 
     private void enforceMountPermission(EntityPlayerMP player) {

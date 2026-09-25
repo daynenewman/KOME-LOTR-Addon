@@ -15,13 +15,45 @@ public final class KOMESerfdomOfferQuest extends LOTRMiniQuest {
 
     public KOMESerfdomOfferQuest(LOTRPlayerData playerData) { super(playerData); }
 
-    public KOMESerfdomOfferQuest(LOTRPlayerData playerData, LOTREntityNPC npc, long window, String story) {
+    private KOMESerfdomOfferQuest(LOTRPlayerData playerData, LOTREntityNPC npc, long window, String story, LOTRMiniQuest nativeTemplate) {
         super(playerData);
         opportunityWindow = window;
         this.story = story == null ? "" : story;
+        copyNativePresentation(nativeTemplate);
         setNPCInfo(npc);
         quoteStart = this.story;
     }
+
+    /**
+     * Native miniquests are created through a factory which initializes the inherited
+     * speech-bank and quote fields before they are serialized. KOME offers are not in
+     * that factory, so borrow the NPC's valid native presentation template instead.
+     */
+    public static KOMESerfdomOfferQuest create(LOTRPlayerData playerData, LOTREntityNPC npc, long window, String story) {
+        if (npc == null || story == null || story.trim().length() == 0) return null;
+        LOTRMiniQuest template = npc.createMiniQuest();
+        if (!hasNativePresentation(template)) return null;
+        return new KOMESerfdomOfferQuest(playerData, npc, window, story, template);
+    }
+
+    private void copyNativePresentation(LOTRMiniQuest template) {
+        questGroup = template.questGroup;
+        speechBankStart = template.speechBankStart;
+        speechBankProgress = template.speechBankProgress;
+        speechBankComplete = template.speechBankComplete;
+        speechBankTooMany = template.speechBankTooMany;
+        quoteComplete = template.quoteComplete;
+        quotesStages.addAll(template.quotesStages);
+    }
+
+    private static boolean hasNativePresentation(LOTRMiniQuest quest) {
+        return quest != null && quest.questGroup != null && nonEmpty(quest.speechBankStart)
+            && nonEmpty(quest.speechBankProgress) && nonEmpty(quest.speechBankComplete)
+            && nonEmpty(quest.speechBankTooMany) && nonEmpty(quest.quoteStart)
+            && nonEmpty(quest.quoteComplete);
+    }
+
+    private static boolean nonEmpty(String value) { return value != null && value.length() != 0; }
 
     public long getOpportunityWindow() { return opportunityWindow; }
     public boolean isExpired(long currentWindow) { return currentWindow != opportunityWindow; }

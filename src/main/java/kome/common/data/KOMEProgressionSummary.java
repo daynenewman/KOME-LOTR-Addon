@@ -21,7 +21,7 @@ public final class KOMEProgressionSummary {
         if (s.getProspectiveLiege().isSet() && s.getTrialId().length() == 0) return base + "\nProspective Liege: " + s.getProspectiveLiege().displayName + "\nNext: Speak with your Liege";
         if ("courier".equals(s.getActiveAssignmentKind())) {
             KOMESerfCourierAssignment a = KOMESerfCourierAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-            if (a != null) return base + "\nCurrent Duty: Courier\nMessage: " + (a.stage == KOMESerfCourierAssignment.Stage.DELIVERED ? "Delivered\nNext: Report to your Master" : "Undelivered\nRecipient: Find a member of " + a.masterFactionKey + " beyond your Master's lands");
+            if (a != null) return base + "\nCurrent Duty: Courier\nMessage: " + (a.stage == KOMESerfCourierAssignment.Stage.DELIVERED ? "Delivered\nNext: Report to your Master" : "Undelivered\nDestination: " + a.destinationName + (a.recipient.isSet() ? "\nRecipient: " + a.recipient.displayName : "\nRecipient: Find them there"));
         }
         if ("provisioning".equals(s.getActiveAssignmentKind())) {
             KOMESerfProvisioningAssignment a = KOMESerfProvisioningAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData());
@@ -35,9 +35,18 @@ public final class KOMEProgressionSummary {
             KOMESerfProfessionAssignment a = KOMESerfProfessionAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.PROFESSION).getAssignmentData());
             if (a != null) return professionText(base, a);
         }
-        if ("trial".equals(s.getActiveAssignmentKind())) return base + "\nProspective Liege: " + s.getProspectiveLiege().displayName + "\nCurrent Trial: " + s.getTrialId() + "\nNext: Complete your Trial";
+        if ("trial".equals(s.getActiveAssignmentKind())) {
+            KOMESerfKnightTrial trial=KOMESerfKnightTrial.forId(s.getTrialId());
+            String objective=trial==null?"Complete your Trial":trial.description;
+            KOMESerfKnightTrialAssignment assignment=s.getTrialAssignment();
+            if(assignment!=null&&assignment.stage==KOMESerfKnightTrialAssignment.Stage.FAILED) return base + "\nProspective Liege: " + s.getProspectiveLiege().displayName + "\nTrial of Knighthood: " + (trial==null?"Trial":trial.displayName) + "\nObjective: This trial is lost. Seek a new liege.";
+            if(assignment!=null&&"escort".equals(assignment.trialId)) objective=assignment.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED?"Meet your charge at your Liege's side":assignment.stage==KOMESerfKnightTrialAssignment.Stage.FAILED?"Your charge was lost": "See your charge safely through the journey";
+            if(assignment!=null&&"recovery".equals(assignment.trialId)) objective=assignment.data.getBoolean("RecoveryRetrieved")?"Return the recovered item to your Liege":"Recover the lost item";
+            if(assignment!=null&&"defense".equals(assignment.trialId)) objective=assignment.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED?"Defend your people from the attack":KOMESerfKnightDefenseService.allDead(assignment)?"Return to your Liege":"Defeat the remaining attackers";
+            return base + "\nProspective Liege: " + s.getProspectiveLiege().displayName + "\nTrial of Knighthood: " + (trial==null?"Trial":trial.displayName) + "\nObjective: " + objective;
+        }
         if (s.getActiveAssignmentKind().length() != 0) return base + "\nCurrent Duty: " + s.getActiveAssignmentKind() + "\nNext: Complete your duty";
-        if (s.isTrialCompleted() && !s.hasPartingGift()) return base + "\nNext: Return to your Master";
+        if (s.isTrialCompleted() && !s.hasPartingGift()) return base + "\nNext: Return to your Master for a parting gift";
         if (KOMESerfKnightService.allDutiesComplete(s) && !s.getProspectiveLiege().isSet()) return base + "\nNext: Find a Lord";
         return base + "\nNext: Speak with your Master";
     }
@@ -51,11 +60,7 @@ public final class KOMEProgressionSummary {
     private static String vesselName(String value) { return value == null ? "" : value.toLowerCase().replace('_', ' '); }
 
     public static String findLabel(KOMEPlayerProgression p) {
-        String type = findRelationshipType(p);
-        if ("master".equals(type)) return "Find Master";
-        if ("liege".equals(type)) return "Find Liege";
-        KOMESerfKnightProgression s = p.getSerfKnightProgression();
-        return !s.getSerfdomMaster().isSet() && !s.getProspectiveLiege().isSet() && p.hasPledgedLord() ? "Find Lord" : "";
+        return "";
     }
 
     public static String leaveRelationshipType(KOMEPlayerProgression p) {
@@ -75,14 +80,4 @@ public final class KOMEProgressionSummary {
         return "master".equals(type) ? s.getSerfdomMaster().displayName : "liege".equals(type) ? s.getProspectiveLiege().displayName : "";
     }
 
-    /** Selects only the relationship relevant to the current canonical phase. */
-    private static String findRelationshipType(KOMEPlayerProgression p) {
-        if (p.getCanonicalRank() != KOMEProgressionRank.SERF) return "";
-        KOMESerfKnightProgression s = p.getSerfKnightProgression();
-        if (s.getProspectiveLiege().isSet() && s.getTrialId().length() == 0) return "liege";
-        KOMESerfKnightPhase phase = s.getPhase();
-        if ((phase == KOMESerfKnightPhase.SERFDOM_DUTIES || phase == KOMESerfKnightPhase.PARTING_GIFT_PENDING) && s.getSerfdomMaster().isSet()) return "master";
-        if (phase == KOMESerfKnightPhase.TRIAL_ASSIGNED && s.getProspectiveLiege().isSet()) return "liege";
-        return "";
-    }
 }

@@ -56,6 +56,7 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
     /** Explicit PRINCE/KING NPC rank authority; LORD and UNRANKED remain live-derived. */
     final Map<UUID, KOMEProgressionNpcRankRecord> progressionNpcRanks = new HashMap<UUID, KOMEProgressionNpcRankRecord>();
+    final Map<UUID, java.util.Set<KOMEProgressionNpcRoleLease>> progressionNpcRoleLeases = new HashMap<UUID, java.util.Set<KOMEProgressionNpcRoleLease>>();
     final Map<UUID, KOMEProgressionNpcRoyalRestoration> progressionNpcRoyalRestorations = new HashMap<UUID, KOMEProgressionNpcRoyalRestoration>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
@@ -1916,6 +1917,7 @@ public class KOMEWorldData extends WorldSavedData {
             // Readers may retain nested tags. Neither candidate reconciliation nor later gameplay
             // may share mutable NBT with the caller's persisted source.
             candidate.readCandidateFromNBT(nbt == null ? null : (NBTTagCompound) nbt.copy());
+            KOMEProgressionNpcRoles.rebuild(candidate);
         } catch (RuntimeException invalid) {
             writeBlocked = true;
             loadFailureReason = "Invalid KOME world data in " + candidate.loadSection + ": "
@@ -2622,6 +2624,8 @@ public class KOMEWorldData extends WorldSavedData {
         progressions.putAll(candidate.progressions);
         progressionNpcRanks.clear();
         progressionNpcRanks.putAll(candidate.progressionNpcRanks);
+        progressionNpcRoleLeases.clear();
+        progressionNpcRoleLeases.putAll(candidate.progressionNpcRoleLeases);
         progressionNpcRoyalRestorations.clear();
         progressionNpcRoyalRestorations.putAll(candidate.progressionNpcRoyalRestorations);
         hiredUnits.clear();

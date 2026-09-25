@@ -108,7 +108,7 @@ public class KOMEProgressionAchievement {
         a(list, "baseline.house_waypoints", "baseline", "Travel", "Home and Custom Waypoints", "Own a house and make custom waypoints.");
         a(list, "baseline.farming", "baseline", "Food & Drink", "Farming", "Grow crops, have livestock, and fish.");
         a(list, "baseline.npc_trade", "baseline", "Other", "NPC Trade", "Trade with NPCs.");
-        a(list, "baseline.miniquests", "baseline", "Other", "NPC Mini-Quests", "Accept and complete NPC mini-quests.");
+        a(list, "baseline.miniquests", "baseline", "Other", "NPC Mini-Quests", "Legacy milestone; LOTR mini-quests are always available under LOTR rules.");
         a(list, "baseline.non_faction_gear", "baseline", "Crafting & Gear", "Non-Faction Gear", "Make non-faction gear.");
         a(list, "baseline.non_faction_armor", "baseline", "Crafting & Gear", "Non-Faction Armor", "Wear non-faction armor.");
         a(list, "baseline.brewing", "baseline", "Food & Drink", "Brewing", "Brew beverages.");
@@ -143,7 +143,7 @@ public class KOMEProgressionAchievement {
         a(list, "wanderer.hoe_agreement", "wanderer", "Selling into Serfdom", "Hoe Agreement", "Place a hoe on your lord's weapon holder.");
 
         a(list, "serf.bartering", "serf", "Advancement", "Bartering", "Complete the assigned random task.");
-        a(list, "serf.quest_seeker", "serf", "Advancement", "Quest Seeker", "Finish 5 mini-quests for NPCs found in your lord's house.");
+        a(list, "serf.quest_seeker", "serf", "Advancement", "Quest Seeker", "Complete 5 native LOTR mini-quests for NPCs.");
         a(list, "serf.smithery", "serf", "Advancement", "Smithery", "Craft 5 unique metal gear pieces near an allied NPC that sells weapons, armor, or tools.");
         a(list, "serf.brewing", "serf", "Advancement", "Mmm... Good Stuff", "Complete the assigned random task.");
         a(list, "serf.non_faction_armor", "serf", "Advancement", "This Feels Better", "Complete the assigned random task.");

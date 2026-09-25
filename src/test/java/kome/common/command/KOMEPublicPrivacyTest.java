@@ -181,17 +181,12 @@ public class KOMEPublicPrivacyTest {
         assertTrue(new KOMECommandPopulation().addTabCompletionOptions(f.player, new String[] {"units", ""}).contains("OtherTester"));
     }
 
-    @Test public void loadedLordHighlightDoesNotRewriteSavedLocation() {
-        KOMEPlayerProgression progression = f.data.getProgression(f.player.id);
-        progression.setPledgedLord(other.player.id.toString(), "Lord", "gondor");
-        progression.setPledgedLordLocation(0, 1, 2, 3);
-        NBTTagCompound before = progression.writeToNBT();
-        other.player.posX = 30; other.player.posY = 40; other.player.posZ = 50;
-        f.world.loadedEntityList.add(other.player); // locator only requires the recorded entity UUID
-        new KOMECommandProgression().processCommand(f.player, new String[] {"findlord"});
-        assertTrue(f.network.messages.get(0) instanceof KOMEPacketLordHighlight);
-        assertEquals(before, progression.writeToNBT());
-        assertReadState();
+    @Test public void progressionCommandExposesNoManualRelationshipLocator() {
+        KOMECommandProgression command = new KOMECommandProgression();
+        assertFalse(command.getCommandUsage(f.player).contains("findlord"));
+        assertFalse(command.addTabCompletionOptions(f.player, new String[] {"find"}).contains("findlord"));
+        assertDenied(command, f.player, "findlord");
+        assertDenied(command, f.player, "highlightlord");
     }
 
     @Test public void publicTilePopulationRejectsUnknownRetiredAndAbsentWithoutRepair() {

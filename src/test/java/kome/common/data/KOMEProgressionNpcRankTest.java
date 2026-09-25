@@ -70,6 +70,7 @@ public class KOMEProgressionNpcRankTest {
     @Test public void protectionAuthorityIsDerivedFromRelationshipsAndElevatedRecords() {
         KOMEWorldData data=new KOMEWorldData("npcs"); UUID player=UUID.randomUUID(), master=UUID.randomUUID(), prince=UUID.randomUUID();
         assertTrue(KOMESerfKnightService.setSerfdomMaster(data.getProgression(player).getSerfKnightProgression(),new KOMEProgressionNpcRef(master.toString(),"Master","rohan",0,0,0,0)).success);
+        KOMEProgressionNpcRoles.syncPlayer(data,player);
         assertTrue(KOMEProgressionNpcRankService.isProgressionReferenced(data,master));
         assertTrue(KOMEProgressionNpcRankService.shouldPreventNaturalDespawn(data,master));
         assertFalse(KOMEProgressionNpcRankService.shouldPreventNaturalDespawn(data,UUID.randomUUID()));

@@ -33,8 +33,8 @@ public class KOMECommandProgression extends KOMEPublicCommand {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        if (!isStaff(sender)) return "/progression status | get | list <group> | pledge | findlord | offerings | complete/uncomplete <id> | roll <id> (details are self-only)";
-        return "/progression status | enable | disable | get [player] | list [player] <group> | pledge | findlord | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | setrank <player> <rank> | reset <player>";
+        if (!isStaff(sender)) return "/progression status | get | list <group> | pledge | offerings | complete/uncomplete <id> | roll <id> (details are self-only)";
+        return "/progression status | enable | disable | get [player] | list [player] <group> | pledge | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | setrank <player> <rank> | reset <player>";
     }
 
     @Override
@@ -91,14 +91,6 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             }
             EntityPlayerMP player = getCommandSenderAsPlayer(sender);
             KOMEProgressionLords.openOfferings(player);
-            return;
-        }
-        if ("findlord".equalsIgnoreCase(args[0]) || "highlightlord".equalsIgnoreCase(args[0])) {
-            if (args.length != 1) {
-                throw new WrongUsageException(getCommandUsage(sender));
-            }
-            EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-            KOMEProgressionLords.highlightPledgedLord(player);
             return;
         }
         if ("complete".equalsIgnoreCase(args[0])) {
@@ -327,7 +319,7 @@ public class KOMECommandProgression extends KOMEPublicCommand {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (!isStaff(sender)) {
-            if (args.length == 1) return getListOfStringsMatchingLastWord(args, "status", "get", "list", "pledge", "findlord", "offerings", "complete", "uncomplete", "roll");
+            if (args.length == 1) return getListOfStringsMatchingLastWord(args, "status", "get", "list", "pledge", "offerings", "complete", "uncomplete", "roll");
             if (args.length > 0 && "get".equalsIgnoreCase(args[0])) return java.util.Collections.emptyList();
             if (args.length > 0 && "list".equalsIgnoreCase(args[0])) return args.length == 2
                 ? getListOfStringsMatchingLastWord(args, GROUPS) : java.util.Collections.emptyList();
@@ -335,7 +327,7 @@ public class KOMECommandProgression extends KOMEPublicCommand {
                     .contains(args[0].toLowerCase(java.util.Locale.ROOT))) return java.util.Collections.emptyList();
         }
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "status", "enable", "disable", "get", "list", "pledge", "findlord", "offerings", "complete", "uncomplete", "roll", "reroll", "grant", "revoke", "grantall", "setrank", "reset");
+            return getListOfStringsMatchingLastWord(args, "status", "enable", "disable", "get", "list", "pledge", "offerings", "complete", "uncomplete", "roll", "reroll", "grant", "revoke", "grantall", "setrank", "reset");
         }
         if (args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "grant".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "grantall".equalsIgnoreCase(args[0]) || "setrank".equalsIgnoreCase(args[0]) || "reset".equalsIgnoreCase(args[0]) || "reroll".equalsIgnoreCase(args[0]))) {
             return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());

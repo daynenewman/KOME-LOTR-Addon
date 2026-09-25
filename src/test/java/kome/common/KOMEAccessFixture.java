@@ -94,11 +94,23 @@ public final class KOMEAccessFixture {
     }
 
     public static final class TestWorld extends World {
+        private static final net.minecraft.block.Block TEST_GROUND=new net.minecraft.block.Block(net.minecraft.block.material.Material.ground){};
+        private static final net.minecraft.block.Block TEST_AIR=new net.minecraft.block.Block(net.minecraft.block.material.Material.air){};
+        public long testWorldTime;
+        public boolean flatTerrain,spawnSucceeds;
+        public IChunkProvider testChunkProvider;
         private TestWorld() { super((ISaveHandler) null, "test", (WorldProvider) null, (WorldSettings) null, (Profiler) null); }
         @Override protected IChunkProvider createChunkProvider() { return null; }
+        @Override public IChunkProvider getChunkProvider(){return testChunkProvider==null?super.getChunkProvider():testChunkProvider;}
+        @Override public int getTopSolidOrLiquidBlock(int x,int z){return flatTerrain?65:super.getTopSolidOrLiquidBlock(x,z);}
+        @Override public net.minecraft.block.Block getBlock(int x,int y,int z){return flatTerrain?(y==64?TEST_GROUND:TEST_AIR):super.getBlock(x,y,z);}
+        @Override public boolean isAirBlock(int x,int y,int z){return flatTerrain?y>64:super.isAirBlock(x,y,z);}
+        @Override public java.util.List getCollidingBoundingBoxes(Entity entity,net.minecraft.util.AxisAlignedBB box){return flatTerrain?new ArrayList():super.getCollidingBoundingBoxes(entity,box);}
+        @Override public boolean checkNoEntityCollision(net.minecraft.util.AxisAlignedBB box,Entity entity){return flatTerrain||super.checkNoEntityCollision(box,entity);}
+        @Override public boolean spawnEntityInWorld(Entity entity){if(!flatTerrain)return super.spawnEntityInWorld(entity);if(spawnSucceeds)loadedEntityList.add(entity);return spawnSucceeds;}
         @Override protected int func_152379_p() { return 0; }
         @Override public Entity getEntityByID(int id) { return null; }
-        @Override public long getTotalWorldTime() { return 0L; }
+        @Override public long getTotalWorldTime() { return testWorldTime; }
         @Override public EntityPlayer func_152378_a(UUID id) {
             for (Object value : playerEntities) if (((EntityPlayer) value).getUniqueID().equals(id)) return (EntityPlayer) value;
             return null;

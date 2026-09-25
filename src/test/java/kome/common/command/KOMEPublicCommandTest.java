@@ -49,6 +49,8 @@ public class KOMEPublicCommandTest {
         ICommandSender nonOperator = console(new ArrayList<String>(), false);
         deny(new KOMECommandKome(), nonOperator, "config");
         deny(new KOMECommandKome(), nonOperator, "audit", "list");
+        deny(new KOMECommandKome(), nonOperator, "progression", "relationship", "force", "serf");
+        deny(new KOMECommandKome(), nonOperator, "progression", "relationship", "clear");
         deny(new KOMECommandKome(), nonOperator, "repair", "war", "W1");
         deny(new KOMECommandKome(), nonOperator, "ruler", "assign", "gondor", "Someone");
         deny(new KOMECommandKome(), nonOperator, "conquest", "reset");

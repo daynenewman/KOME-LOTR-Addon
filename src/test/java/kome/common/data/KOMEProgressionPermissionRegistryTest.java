@@ -39,4 +39,11 @@ public class KOMEProgressionPermissionRegistryTest {
         KOMEPlayerProgression p=new KOMEPlayerProgression(); p.grant("wanderer.expert_traveler"); NBTTagCompound tag=p.writeToNBT(); KOMEPlayerProgression restored=new KOMEPlayerProgression(); restored.readFromNBT(tag);
         assertTrue(restored.isCompleted(KOMEProgressionAchievement.forID("wanderer.expert_traveler")));
     }
+    @Test public void legacyMiniquestMilestoneLoadsButIsNotAnEnforcedGate() {
+        KOMEPlayerProgression player=new KOMEPlayerProgression();player.grant("baseline.miniquests");
+        KOMEPlayerProgression loaded=new KOMEPlayerProgression();loaded.readFromNBT(player.writeToNBT());
+        assertTrue(loaded.isCompleted(KOMEProgressionAchievement.forID("baseline.miniquests")));
+        assertEquals(KOMEProgressionPermissionRegistry.Status.INFORMATIONAL,
+            KOMEProgressionPermissionRegistry.gate("baseline.miniquests").status);
+    }
 }

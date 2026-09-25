@@ -7,6 +7,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMESerfKnightProgressionTest {
+    private static Random fixed(final int value) { return new Random() { @Override public int nextInt(int bound) { return value % bound; } }; }
     private static KOMEProgressionNpcRef npc(String name, String faction) {
         return new KOMEProgressionNpcRef(UUID.randomUUID().toString(), name, faction, 100, 1.5D, 64.0D, -2.5D);
     }
@@ -114,18 +115,18 @@ public class KOMESerfKnightProgressionTest {
         KOMEPlayerProgression player = new KOMEPlayerProgression(); player.setCanonicalRank(KOMEProgressionRank.SERF); player.setPledgedLord("legacy", "Legacy", "rohan");
         KOMESerfKnightProgression state = player.getSerfKnightProgression();
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state, npc("Master", "rohan")).success);
-        assertEquals("Find Master", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Master", KOMEProgressionSummary.leaveRelationshipLabel(player));
+        assertEquals("", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Master", KOMEProgressionSummary.leaveRelationshipLabel(player));
         assignAndCompleteDuties(state);
         assertEquals("", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Master", KOMEProgressionSummary.leaveRelationshipLabel(player));
         assertTrue(KOMESerfKnightService.setProspectiveLiege(state, npc("Liege", "rohan")).success);
-        assertEquals("Find Liege", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Liege", KOMEProgressionSummary.leaveRelationshipLabel(player));
+        assertEquals("", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Liege", KOMEProgressionSummary.leaveRelationshipLabel(player));
         assertTrue(KOMEProgressionSummary.text(player).contains("Next: Speak with your Liege"));
         assertTrue(KOMESerfKnightService.assignTrial(state, new Random(1L), 20L).success);
-        assertEquals("Find Liege", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Liege", KOMEProgressionSummary.leaveRelationshipLabel(player));
+        assertEquals("", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Liege", KOMEProgressionSummary.leaveRelationshipLabel(player));
         assertTrue(KOMESerfKnightService.completeTrial(state).success);
-        assertEquals("Find Master", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Master", KOMEProgressionSummary.leaveRelationshipLabel(player));
+        assertEquals("", KOMEProgressionSummary.findLabel(player)); assertEquals("Leave Master", KOMEProgressionSummary.leaveRelationshipLabel(player));
         assertTrue(KOMESerfKnightService.leaveSerfdomMaster(state).success);
-        assertEquals("Find Lord", KOMEProgressionSummary.findLabel(player)); assertEquals("", KOMEProgressionSummary.leaveRelationshipLabel(player));
+        assertEquals("", KOMEProgressionSummary.findLabel(player)); assertEquals("", KOMEProgressionSummary.leaveRelationshipLabel(player));
     }
 
     @Test public void npcIdentityAndAssignmentDataAreValidatedAndDefensive() {
@@ -152,5 +153,45 @@ public class KOMESerfKnightProgressionTest {
         KOMESerfKnightProgression promoted = new KOMESerfKnightProgression(); readyForKnight(promoted); assertTrue(KOMESerfKnightService.markPromoted(promoted, 150).success);
         KOMESerfKnightProgression restored = new KOMESerfKnightProgression(); restored.readFromNBT(promoted.writeToNBT());
         assertTrue(restored.isPromoted()); assertEquals(KOMESerfKnightPhase.COMPLETE, restored.getPhase()); assertFalse(KOMESerfKnightService.canPromote(restored, 150));
+    }
+
+    @Test public void trialAssignmentPersistsTokenStoryAndFutureDataWithoutRerolling() {
+        KOMESerfKnightProgression state=new KOMESerfKnightProgression(); assertTrue(KOMESerfKnightService.setSerfdomMaster(state,npc("Master","rohan")).success); assignAndCompleteDuties(state);
+        KOMEProgressionNpcRef liege=npc("Liege","rohan"); assertTrue(KOMESerfKnightService.setProspectiveLiege(state,liege).success);
+        assertTrue(KOMESerfKnightService.assignTrial(state,fixed(1),20L).success); KOMESerfKnightTrialAssignment assigned=state.getTrialAssignment();
+        assertEquals("recovery",assigned.trialId); assertEquals(20L,assigned.assignedEpochDay); assertEquals(KOMESerfKnightTrialAssignment.Stage.ASSIGNED,assigned.stage); assertTrue(assigned.assignmentToken.length()>0);
+        assertFalse(KOMESerfKnightService.assignTrial(state,fixed(2),21L).success);
+        NBTTagCompound saved=state.writeToNBT(); KOMESerfKnightProgression loaded=new KOMESerfKnightProgression(); loaded.readFromNBT(saved);
+        assertEquals(assigned.trialId,loaded.getTrialAssignment().trialId); assertEquals(assigned.assignmentToken,loaded.getTrialAssignment().assignmentToken); assertEquals(assigned.storyVariant,loaded.getTrialAssignment().storyVariant); assertEquals(assigned.assignedEpochDay,loaded.getTrialAssignment().assignedEpochDay); assertEquals(assigned.liege.entityUuid,loaded.getTrialAssignment().liege.entityUuid);
+    }
+
+    @Test public void injectedRandomCanAssignEveryRegisteredTrial() {
+        for(int choice=0;choice<3;choice++) { KOMESerfKnightProgression state=new KOMESerfKnightProgression(); assertTrue(KOMESerfKnightService.setSerfdomMaster(state,npc("Master","rohan")).success); assignAndCompleteDuties(state); assertTrue(KOMESerfKnightService.setProspectiveLiege(state,npc("Liege","rohan")).success); assertTrue(KOMESerfKnightService.assignTrial(state,fixed(choice),30L).success); assertEquals(KOMESerfKnightTrial.all().get(choice).id,state.getTrialId()); }
+    }
+
+    @Test public void trialIdOnlySaveReconcilesToOneSafeAssignmentAndSummaryUsesDisplayName() {
+        KOMESerfKnightProgression state=new KOMESerfKnightProgression(); KOMEProgressionNpcRef master=npc("Master","rohan"); assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master).success); assignAndCompleteDuties(state); assertTrue(KOMESerfKnightService.setProspectiveLiege(state,npc("Liege","rohan")).success); state.setTrial("escort");
+        NBTTagCompound old=state.writeToNBT(); old.removeTag("TrialAssignment"); KOMESerfKnightProgression loaded=new KOMESerfKnightProgression(); loaded.readFromNBT(old); assertEquals("escort",loaded.getTrialId()); assertNotNull(loaded.getTrialAssignment());
+        KOMEPlayerProgression player=new KOMEPlayerProgression(); player.setCanonicalRank(KOMEProgressionRank.SERF); player.getSerfKnightProgression().readFromNBT(loaded.writeToNBT()); String summary=KOMEProgressionSummary.text(player); assertTrue(summary.contains("Trial of Knighthood: Escort")); assertFalse(summary.contains("Current Trial: escort"));
+    }
+
+    @Test public void trialPayloadRoundTripsAndFollowsLiegeLifecycle() {
+        KOMESerfKnightProgression state=new KOMESerfKnightProgression(); assertTrue(KOMESerfKnightService.setSerfdomMaster(state,npc("Master","rohan")).success); assignAndCompleteDuties(state); KOMEProgressionNpcRef liege=npc("Liege","rohan"); assertTrue(KOMESerfKnightService.setProspectiveLiege(state,liege).success);
+        NBTTagCompound future=new NBTTagCompound(); future.setString("FutureKey","FutureValue"); KOMESerfKnightTrialAssignment first=KOMESerfKnightTrialAssignment.create(KOMESerfKnightTrial.forId("defense"),liege,25L,1); state.setTrial(new KOMESerfKnightTrialAssignment(first.trialId,first.assignmentToken,first.liege,first.factionKey,first.assignedEpochDay,first.stage,first.storyVariant,future));
+        KOMESerfKnightProgression loaded=new KOMESerfKnightProgression(); loaded.readFromNBT(state.writeToNBT()); assertEquals("FutureValue",loaded.getTrialAssignment().data.getString("FutureKey")); assertTrue(KOMESerfKnightService.leaveProspectiveLiege(loaded).success); assertNull(loaded.getTrialAssignment());
+        assertTrue(KOMESerfKnightService.setProspectiveLiege(state,liege).success); assertTrue(KOMESerfKnightService.completeTrial(state).success); assertTrue(KOMESerfKnightService.handleNpcDeath(state,liege.entityUuid,false,26L)); assertNotNull(state.getTrialAssignment());
+    }
+
+    @Test public void escortEncounterDataIsStableAndUsesObservableTravel() {
+        KOMEProgressionNpcRef liege=npc("Liege","rohan"), charge=npc("Charge","rohan"); KOMESerfKnightTrialAssignment seed=KOMESerfKnightTrialAssignment.create(KOMESerfKnightTrial.forId("escort"),liege,30L,0);
+        NBTTagCompound encounter=KOMESerfKnightEscortService.createEncounterData(charge,0,10D,-5D); KOMESerfKnightTrialAssignment active=seed.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,encounter);
+        KOMESerfKnightTrialAssignment loaded=KOMESerfKnightTrialAssignment.readFromNBT(active.writeToNBT()); assertEquals(seed.assignmentToken,loaded.assignmentToken); assertEquals(charge.entityUuid,KOMEProgressionNpcRef.readFromNBT(loaded.data.getCompoundTag("EscortTarget")).entityUuid); assertEquals(10D,loaded.data.getDouble("EscortOriginX"),0D); assertEquals(-5D,loaded.data.getDouble("EscortOriginZ"),0D);
+        assertFalse(KOMESerfKnightEscortService.hasReachedDestination(255D,0D)); assertTrue(KOMESerfKnightEscortService.hasReachedDestination(256D,0D)); assertTrue(KOMESerfKnightEscortService.hasReachedDestination(200D,200D));
+    }
+
+    @Test public void trialSpeechVariantsAndFailedPresentationAreStableAndHumanReadable() {
+        KOMEProgressionNpcRef liege=npc("Liege","rohan"); KOMESerfKnightTrialAssignment first=KOMESerfKnightTrialAssignment.create(KOMESerfKnightTrial.forId("recovery"),liege,30L,0), second=KOMESerfKnightTrialAssignment.create(KOMESerfKnightTrial.forId("recovery"),liege,30L,1);
+        assertEquals(KOMESerfKnightService.trialSpeech(first),KOMESerfKnightService.trialSpeech(KOMESerfKnightTrialAssignment.readFromNBT(first.writeToNBT())));assertNotEquals(KOMESerfKnightService.trialSpeech(first),KOMESerfKnightService.trialSpeech(second));
+        KOMEPlayerProgression player=new KOMEPlayerProgression();player.setCanonicalRank(KOMEProgressionRank.SERF);KOMESerfKnightProgression state=player.getSerfKnightProgression();assertTrue(KOMESerfKnightService.setSerfdomMaster(state,npc("Master","rohan")).success);assignAndCompleteDuties(state);assertTrue(KOMESerfKnightService.setProspectiveLiege(state,liege).success);state.setTrial(first.withStage(KOMESerfKnightTrialAssignment.Stage.FAILED,null));String summary=KOMEProgressionSummary.text(player);assertTrue(summary.contains("This trial is lost. Seek a new liege."));assertFalse(summary.contains(first.assignmentToken));
     }
 }

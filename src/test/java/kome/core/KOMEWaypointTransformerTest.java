@@ -25,6 +25,9 @@ public class KOMEWaypointTransformerTest {
         assertArrayEquals(new String[] {
                 KOMEWaypointTransformer.class.getName(),
                 KOMEProgressionOfferTransformer.class.getName(),
+                KOMEProgressionOfferGuiTransformer.class.getName(),
+                KOMEVisualLocationTransformer.class.getName(),
+                KOMEProgressionNpcDespawnTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),

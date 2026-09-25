@@ -25,7 +25,7 @@ import static org.junit.Assert.*;
 public class KOMEPacketRegistrationTest {
     private static final Set<Integer> EXPECTED_DISCRIMINATORS = new HashSet<Integer>(Arrays.asList(
         0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 40, 41, 42
     ));
 
     @Test public void retiredIdsStayHolesAndEveryRetainedClassKeepsItsIdAndSide() throws Exception {
@@ -42,7 +42,7 @@ public class KOMEPacketRegistrationTest {
             "MovementHistoryData:29:CLIENT", "UnitMapMarkers:30:CLIENT", "WaypointTravelRequest:31:SERVER",
             "AllianceAction:32:SERVER", "PledgeDepartureRequest:33:SERVER", "PledgeDepartureData:34:CLIENT",
             "TroopGuiAction:35:SERVER", "BuildAction:36:SERVER", "SerfdomMasterMenu:37:CLIENT",
-            "SerfdomMasterAction:38:SERVER", "ProgressionRelationshipAction:39:SERVER", "RelationshipHub:40:CLIENT", "RelationshipAction:41:SERVER"
+            "SerfdomMasterAction:38:SERVER", "RelationshipHub:40:CLIENT", "RelationshipAction:41:SERVER", "VisualMarkers:42:CLIENT"
         };
         for (String entry : entries) {
             String[] parts = entry.split(":");
@@ -88,7 +88,7 @@ public class KOMEPacketRegistrationTest {
 
         assertEquals(36, registrations);
         assertEquals(EXPECTED_DISCRIMINATORS, discriminators);
-        assertEquals(17, serverRegistrations);
+        assertEquals(16, serverRegistrations);
 
         EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
         Set<String> handlerNames = new HashSet<String>();
@@ -126,17 +126,23 @@ public class KOMEPacketRegistrationTest {
     }
 
     @Test
-    public void relationshipDeparturePacketIsActionOnlyAndUsesTheServerThreadWrapper() throws Exception {
-        String packet = source("src/main/java/kome/common/network/KOMEPacketProgressionRelationshipAction.java");
+    public void relationshipDepartureRequiresNearbyIdentityMatchedNpcPacket() throws Exception {
+        String packet = source("src/main/java/kome/common/network/KOMEPacketRelationshipAction.java");
         String registry = source("src/main/java/kome/common/network/KOMEPacketHandler.java");
-        assertTrue(packet.contains("public int action"));
-        assertFalse(packet.contains("masterName"));
-        assertFalse(packet.contains("liegeName"));
-        assertTrue(packet.contains("m.action==LEAVE_MASTER?KOMESerfKnightService.leaveSerfdomMaster"));
-        assertTrue(packet.contains("m.action==LEAVE_LIEGE?KOMESerfKnightService.leaveProspectiveLiege"));
-        assertTrue(packet.contains("r==null||!r.success"));
-        assertTrue(registry.contains("new ServerThreadHandler<KOMEPacketProgressionRelationshipAction>(new KOMEPacketProgressionRelationshipAction.Handler()) {}"));
-        assertTrue(registry.contains("KOMEPacketProgressionRelationshipAction.class, 39, Side.SERVER"));
+        assertTrue(packet.contains("p.getDistanceSqToEntity(e)>64"));
+        assertTrue(packet.contains("if(!exact)"));
+        assertTrue(packet.contains("m.action==LEAVE"));
+        assertTrue(packet.contains("KOMESerfKnightService.leaveSerfdomMaster"));
+        assertTrue(packet.contains("KOMESerfKnightService.leaveProspectiveLiege"));
+        assertFalse(registry.contains("KOMEPacketProgressionRelationshipAction.class"));
+        assertFalse(registry.contains(".class, 39,"));
+    }
+
+    @Test public void visualMarkersAreOneWayAndPublishedOnTheClientThread() throws Exception {
+        String packet = source("src/main/java/kome/common/network/KOMEPacketVisualMarkers.java");
+        assertTrue(packet.contains("KOMEAddon.proxy.enqueueClientTask"));
+        assertTrue(packet.contains("KOMEAddon.proxy.updateVisualMarkers(snapshot)"));
+        assertFalse(packet.contains("sendToServer"));
     }
 
     @Test

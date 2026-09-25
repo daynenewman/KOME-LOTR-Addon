@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import net.minecraft.nbt.NBTTagCompound;
+import lotr.common.fac.LOTRFaction;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -62,6 +63,8 @@ public class KOMECanonicalPlayerRankTest {
         String gui = new String(Files.readAllBytes(Paths.get("src/main/java/kome/client/gui/KOMEGuiSerfdomMaster.java")), StandardCharsets.UTF_8);
         assertFalse(gui.contains("KOMEEntityHighlightOverlay"));
         assertFalse(gui.contains("Highlight master"));
+        assertTrue(gui.contains("if(mode==1&&hasActiveDuty)"));
+        assertTrue(gui.contains("View current duty"));
     }
 
     @Test public void dutyOrchestrationRequiresCurrentMasterUuidAndUsesCanonicalCadence() {
@@ -96,6 +99,65 @@ public class KOMECanonicalPlayerRankTest {
 
     @Test public void summaryDistinguishesPledgeEntryAndPermanentSerfReplacementGuidance() {
         KOMEPlayerProgression player=new KOMEPlayerProgression();String unpledged=KOMEProgressionSummary.text(player,"");assertTrue(unpledged.contains("Pledge: None"));assertTrue(unpledged.contains("Next: Pledge to a faction"));String pledged=KOMEProgressionSummary.text(player,"Rohan");assertTrue(pledged.contains("Pledge: Rohan"));assertTrue(pledged.contains("Next: Find a Serfdom Master"));player.setCanonicalRank(KOMEProgressionRank.SERF);String serf=KOMEProgressionSummary.text(player,"Rohan");assertTrue(serf.contains("Rank: Serf"));assertTrue(serf.contains("Serfdom Master: None"));assertTrue(serf.contains("Next: Find a Serfdom Master"));assertFalse(serf.contains("Sneak-right-click"));
+    }
+
+    @Test public void factionSelectionPledgeReconcilesBothCanonicalPledgeDutiesWithoutKomeEvent() throws Exception {
+        KOMEPlayerProgression player = new KOMEPlayerProgression();
+        for (KOMEProgressionAchievement achievement : KOMEProgressionAchievement.forGroup("wanderer")) player.grant(achievement.id);
+        KOMEProgressionNpcRef master = new KOMEProgressionNpcRef(UUID.randomUUID().toString(), "Master", "gondor", 0, 0, 0, 0);
+        assertTrue(KOMESerfKnightService.setSerfdomMaster(player.getSerfKnightProgression(), master).success);
+        assertTrue(KOMEProgressionAutoCompleter.hasValidFactionCommitment(LOTRFaction.GONDOR));
+        assertTrue(KOMEProgressionAutoCompleter.hasValidSerfPledge(player, LOTRFaction.GONDOR));
+        assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
+        assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
+        assertEquals(2, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
+        assertEquals(0, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
+        assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
+        assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
+        assertTrue(KOMEProgressionSummary.text(player, "Gondor").contains("Next: Find a Serfdom Master"));
+        assertFalse(KOMEProgressionAutoCompleter.hasValidSerfPledge(player, null));
+        assertFalse(KOMEProgressionAutoCompleter.hasValidSerfPledge(player, LOTRFaction.ROHAN));
+        NBTTagCompound saved = player.writeToNBT();
+        KOMEPlayerProgression restored = new KOMEPlayerProgression();
+        restored.readFromNBT(saved);
+        assertTrue(restored.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
+        assertTrue(restored.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
+        assertFalse(restored.grant("serf.pledge"));
+        String creation = new String(Files.readAllBytes(Paths.get("src/main/java/com/lotrcharactercreation/faction/StartingFactionApplication.java")), StandardCharsets.UTF_8);
+        assertTrue(creation.contains("lotrData.setPledgeFaction(selectedPledge)"));
+    }
+
+    @Test public void unpledgedSerfPledgeDutyRemainsIncompleteAndUsesNoCharacterCreationCompatibility() throws Exception {
+        KOMEPlayerProgression player = new KOMEPlayerProgression();
+        for (KOMEProgressionAchievement achievement : KOMEProgressionAchievement.forGroup("wanderer")) player.grant(achievement.id);
+        assertEquals(0, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, null));
+        assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
+        assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
+        String source = new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionAutoCompleter.java")), StandardCharsets.UTF_8);
+        assertTrue(source.contains("LOTRLevelData.getData(player).getPledgeFaction()"));
+        assertFalse(source.contains("lotrcharactercreation"));
+    }
+
+    @Test public void firstBookReconciliationCompletesTheBaselinePledgeBeforeSerfPrerequisites() {
+        KOMEPlayerProgression player = new KOMEPlayerProgression();
+        assertEquals(1, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
+        assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
+        assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
+    }
+
+    @Test public void wrongMasterFactionCompletesOnlyTheGeneralFactionCommitmentDuty() {
+        KOMEPlayerProgression player = new KOMEPlayerProgression();
+        for (KOMEProgressionAchievement achievement : KOMEProgressionAchievement.forGroup("wanderer")) player.grant(achievement.id);
+        assertTrue(KOMESerfKnightService.setSerfdomMaster(player.getSerfKnightProgression(), new KOMEProgressionNpcRef(UUID.randomUUID().toString(), "Master", "gondor", 0, 0, 0, 0)).success);
+        assertEquals(1, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.ROHAN));
+        assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
+        assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
+    }
+
+    @Test public void progressionBookRequestRunsCanonicalReconciliationBeforeProjection() throws Exception {
+        String source = new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/network/KOMEPacketProgressionRequest.java")), StandardCharsets.UTF_8);
+        assertTrue(source.contains("KOMEProgressionAutoCompleter.runForPlayer(player, false)"));
+        assertTrue(source.contains("data.progressions.containsKey(KOMEReflection.getEntityUUID(player))"));
     }
 
     @Test public void interactionRoutingPreservesLordPriorityAndDoesNotOfferReplacementOverActiveMaster() throws Exception {

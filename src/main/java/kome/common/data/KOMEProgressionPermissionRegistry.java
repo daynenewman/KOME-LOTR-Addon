@@ -20,7 +20,7 @@ public final class KOMEProgressionPermissionRegistry {
         gate(gates,"baseline.farming","Farming","KOMEEvents interaction/use gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.fire","Fire and light","KOMEEvents place/use gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.meat","Meat consumption","KOMEEvents item-use gate",Status.CANONICAL_ENFORCED);
-        gate(gates,"baseline.miniquests","NPC mini-quests","KOMEEvents interaction gate",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.miniquests","Legacy mini-quest milestone","No gameplay gate",Status.INFORMATIONAL);
         gate(gates,"baseline.mounts","Mount use","KOMEEvents mount gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.npc_trade","NPC trading","KOMEEvents container gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.pledge","Pledging to a lord","KOMEProgressionLords",Status.CANONICAL_ENFORCED);

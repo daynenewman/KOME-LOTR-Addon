@@ -3,15 +3,12 @@ package kome.client.gui;
 import kome.client.KOMEMinecraftClient;
 import kome.common.data.KOMEProgressionAchievement;
 import kome.common.data.KOMEProgressionPermissionRegistry;
-import kome.common.network.KOMEPacketHandler;
-import kome.common.network.KOMEPacketProgressionRelationshipAction;
+import kome.common.data.KOMEProgressionRankSummary;
 import lotr.client.gui.LOTRGuiAchievements;
-import lotr.client.gui.LOTRGuiButtonRedBook;
 import lotr.client.gui.LOTRGuiMenuBase;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.gui.GuiYesNo;
-import net.minecraft.client.gui.GuiYesNoCallback;
 import net.minecraft.client.renderer.RenderHelper;
 import org.lwjgl.input.Mouse;
 import org.lwjgl.opengl.GL11;
@@ -23,39 +20,129 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallback {
+public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private static final String[] GROUPS = new String[] {"baseline", "wanderer", "serf", "knight", "lord", "prince_king"};
     private static final String[] GROUP_NAMES = new String[] {"Permissions", "Wanderer", "Serf", "Knight", "Lord", "Prince"};
+    // --- Layout constants (panel-relative: add to guiLeft/guiTop) ---
+    private static final int LIST_TOP = 47;
+    private static final int ROW_HEIGHT = 50;
+    private static final int SCROLLBAR_X = 201;
+    private static final int SCROLLBAR_HIT_WIDTH = 12;
+    private static final int SCROLLBAR_THUMB_HEIGHT = 17;
+    private static final int LIST_SCROLLBAR_Y = 48;
+    private static final int LIST_SCROLLBAR_HEIGHT = 200;
+    private static final int RANK_CONTENT_TOP = 54;
+    private static final int RANK_CONTENT_BOTTOM_MARGIN = 8;
+    private static final int SUMMARY_LINE_HEIGHT = 9;
+    private static final int SUMMARY_MAX_LINES = 7;
+    private static final int SUMMARY_BOTTOM_PADDING = 9;
+    private static final int SUMMARY_DIVIDER_GAP_ABOVE = 5;
+    private static final int SUMMARY_DIVIDER_GAP_BELOW = 7;
+
     private static String playerName = "";
-    private static Set completed = new HashSet();
-    private static Map assignments = new HashMap();
-    private static String canonicalSummary="", contextualFindLabel="", leaveRelationshipType="", leaveRelationshipLabel="", leaveRelationshipName="";
+    private static Set<String> completed = new HashSet<String>();
+    private static Map<String, String> assignments = new HashMap<String, String>();
+    private static String canonicalSummary = "";
+    private static KOMEProgressionRankSummary rankSummary = KOMEProgressionRankSummary.EMPTY;
+    private static int snapshotWorldIdentity;
+    private enum View { ADVANCEMENTS, RANKS }
+    private static View lastSelectedView=View.ADVANCEMENTS;
 
     private GuiButton buttonCategoryPrev;
     private GuiButton buttonCategoryNext;
-    private GuiButton buttonFindLord;
-    private GuiButton buttonLeaveRelationship;
+    private KOMEGuiButton buttonAdvancements;
+    private KOMEGuiButton buttonRanks;
     private int currentGroup;
     private int scroll;
+    private int rankScroll;
     private boolean isScrolling;
     private boolean wasMouseDown;
+    private final boolean focusDuty;
+    private boolean dutyFocusApplied;
+    private View view;
+
+    public KOMEGuiProgression(){this(false);}
+    private KOMEGuiProgression(boolean focusDuty){this.focusDuty=focusDuty;view=focusDuty?View.RANKS:lastSelectedView;if(focusDuty)lastSelectedView=View.RANKS;}
+    public static KOMEGuiProgression dutyView(){return new KOMEGuiProgression(true);}
 
     public static void updateProgressionData(String name, List completedIds) {
         updateProgressionData(name, completedIds, new HashMap());
     }
 
     public static void updateProgressionData(String name, List completedIds, Map assignmentMap) {
-        playerName = name;
-        completed = new HashSet(completedIds);
-        assignments = assignmentMap == null ? new HashMap() : new HashMap(assignmentMap);
+        playerName = name == null ? "" : name;
+        Minecraft minecraft = Minecraft.getMinecraft();
+        snapshotWorldIdentity = minecraft.theWorld == null ? 0 : System.identityHashCode(minecraft.theWorld);
+
+        Set<String> normalizedCompleted = new HashSet<String>();
+        if (completedIds != null) {
+            for (Object id : completedIds) {
+                if (id != null) {
+                    normalizedCompleted.add(String.valueOf(id));
+                }
+            }
+        }
+        completed = normalizedCompleted;
+
+        Map<String, String> normalizedAssignments = new HashMap<String, String>();
+        if (assignmentMap != null) {
+            for (Object keyObject : assignmentMap.keySet()) {
+                if (keyObject == null) {
+                    continue;
+                }
+                Object valueObject = assignmentMap.get(keyObject);
+                normalizedAssignments.put(
+                        String.valueOf(keyObject),
+                        valueObject == null ? "" : String.valueOf(valueObject)
+                );
+            }
+        }
+        assignments = normalizedAssignments;
     }
-    public static void updateProgressionData(String name,List completedIds,Map assignmentMap,String summary,String find,String leaveType,String leaveLabel,String leaveName){updateProgressionData(name,completedIds,assignmentMap);canonicalSummary=summary==null?"":summary;contextualFindLabel=find==null?"":find;leaveRelationshipType=leaveType==null?"":leaveType;leaveRelationshipLabel=leaveLabel==null?"":leaveLabel;leaveRelationshipName=leaveName==null?"":leaveName;}
+
+    /**
+     * Compatibility overload retained for existing packet/proxy callers.
+     * Find/leave data is no longer owned or rendered by this screen.
+     */
+    public static void updateProgressionData(
+            String name,
+            List completedIds,
+            Map assignmentMap,
+            String summary,
+            String find,
+            String leaveType,
+            String leaveLabel,
+            String leaveName
+    ) {
+        updateProgressionData(name, completedIds, assignmentMap);
+        canonicalSummary = summary == null ? "" : summary;
+    }
+
+    /**
+     * Compatibility overload retained for existing packet/proxy callers.
+     */
+    public static void updateProgressionData(
+            String name,
+            List completedIds,
+            Map assignmentMap,
+            String summary,
+            String find,
+            String leaveType,
+            String leaveLabel,
+            String leaveName,
+            KOMEProgressionRankSummary ranks
+    ) {
+        updateProgressionData(name, completedIds, assignmentMap, summary, find, leaveType, leaveLabel, leaveName);
+        rankSummary = ranks == null ? KOMEProgressionRankSummary.EMPTY : ranks;
+    }
 
     public static void resetData() {
         playerName = "";
-        completed = new HashSet();
-        assignments = new HashMap();
-        canonicalSummary = contextualFindLabel = leaveRelationshipType = leaveRelationshipLabel = leaveRelationshipName = "";
+        completed = new HashSet<String>();
+        assignments = new HashMap<String, String>();
+        canonicalSummary = "";
+        rankSummary = KOMEProgressionRankSummary.EMPTY;
+        snapshotWorldIdentity = 0;
     }
 
     @Override
@@ -65,11 +152,10 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
                 prevGroup();
             } else if (button == buttonCategoryNext) {
                 nextGroup();
-            } else if (button == buttonFindLord) {
-                KOMEMinecraftClient.sendChat("/progression findlord");
-                mc.displayGuiScreen(null);
-            } else if (button == buttonLeaveRelationship) {
-                openLeaveConfirmation();
+            } else if (button == buttonAdvancements) {
+                selectView(View.ADVANCEMENTS);
+            } else if (button == buttonRanks) {
+                selectView(View.RANKS);
             } else {
                 super.actionPerformed(button);
             }
@@ -78,27 +164,24 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        updateScrollbarDrag(mouseX, mouseY);
+        if (view == View.ADVANCEMENTS) {
+            updateScrollbarDrag(mouseX, mouseY);
+        } else {
+            updateRankScrollbarDrag(mouseX, mouseY);
+        }
         drawDefaultBackground();
         GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
         mc.getTextureManager().bindTexture(LOTRGuiAchievements.pageTexture);
         drawTexturedModalRect(guiLeft, guiTop, 0, 0, xSize, ySize);
 
-        List groupAchievements = getGroupAchievements();
-        int complete = getCompleteCount(groupAchievements);
         int totalComplete = getCompleteCount(getVisibleAchievements());
         drawCenteredString("KOME Progression", guiLeft + xSize / 2, guiTop - 30, 16777215);
         String owner = playerName == null || playerName.length() == 0 ? "Loading..." : playerName;
-        drawCenteredString(owner + " - " + totalComplete + "/" + KOMEProgressionAchievement.ALL.size(), guiLeft + xSize / 2, guiTop - 18, 12632256);
-        drawCenteredString(displayNameForGroup(GROUPS[currentGroup]) + " (" + complete + "/" + groupAchievements.size() + ")", guiLeft + xSize / 2, guiTop + 28, 8019267);
-
+        drawCenteredString(view==View.ADVANCEMENTS?owner + " - " + totalComplete + "/" + KOMEProgressionAchievement.ALL.size():owner, guiLeft + xSize / 2, guiTop - 18, 12632256);
+        if(view==View.ADVANCEMENTS)drawAdvancements();
+        else drawRanks();
         super.drawScreen(mouseX, mouseY, partialTicks);
-
-        drawCategoryBar();
-        drawAchievements(groupAchievements);
-        drawScrollbar(groupAchievements.size());
-        drawAchievementTooltip(mouseX, mouseY, groupAchievements);
-        String[] summaryLines=canonicalSummary.split("\\n");int maxSummaryLines=Math.min(summaryLines.length,7);int summaryY=guiTop+ySize-maxSummaryLines*9-9;for(int i=0;i<maxSummaryLines;i++)mc.fontRenderer.drawString(trimToWidth(summaryLines[i],196),guiLeft+12,summaryY+i*9,5652783);
+        if(view==View.ADVANCEMENTS)drawAchievementTooltip(mouseX, mouseY, getGroupAchievements());
     }
 
     static String displayNameForGroup(String group) {
@@ -117,6 +200,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
         if (wheel == 0) {
             return;
         }
+        if(view==View.RANKS){int max=maxRankScroll();rankScroll=Math.max(0,Math.min(max,rankScroll+(wheel>0?-12:12)));return;}
         int maxScroll = Math.max(0, getGroupAchievements().size() - getVisibleRows());
         if (wheel > 0) {
             scroll = Math.max(0, scroll - 1);
@@ -130,54 +214,43 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
         xSize = 220;
         ySize = 256;
         super.initGui();
+        clearStaleDataForCurrentPlayer();
         buttonCategoryPrev = new GuiButton(0, guiLeft + 13, guiTop + 9, 20, 20, "<");
         buttonList.add(buttonCategoryPrev);
         buttonCategoryNext = new GuiButton(1, guiLeft + 187, guiTop + 9, 20, 20, ">");
         buttonList.add(buttonCategoryNext);
-        buttonFindLord = new LOTRGuiButtonRedBook(2, guiLeft + 24, guiTop + ySize + 4, 82, 20, contextualFindLabel.length()==0?"Find Lord":contextualFindLabel);buttonFindLord.visible=contextualFindLabel.length()!=0;buttonList.add(buttonFindLord);
-        buttonLeaveRelationship = new LOTRGuiButtonRedBook(3, guiLeft + 114, guiTop + ySize + 4, 82, 20, leaveRelationshipLabel);buttonLeaveRelationship.visible=leaveRelationshipLabel.length()!=0;buttonList.add(buttonLeaveRelationship);
-    }
-
-    private void openLeaveConfirmation() {
-        int action = "master".equals(leaveRelationshipType) ? KOMEPacketProgressionRelationshipAction.LEAVE_MASTER : "liege".equals(leaveRelationshipType) ? KOMEPacketProgressionRelationshipAction.LEAVE_LIEGE : -1;
-        if (action < 0) return;
-        String title = "Leave " + (leaveRelationshipName.length() == 0 ? (action == KOMEPacketProgressionRelationshipAction.LEAVE_MASTER ? "Master" : "Liege") : leaveRelationshipName) + "?";
-        String warning = action == KOMEPacketProgressionRelationshipAction.LEAVE_MASTER ? "Serfdom duties and liege, Trial, and gift progress will be lost. Rank unchanged. Cannot undo." : "Trial progress for this liege will be lost. Master and Serfdom duties remain. Rank unchanged. Cannot undo.";
-        mc.displayGuiScreen(new GuiYesNo(this, title, warning, "Leave", "Cancel", action));
-    }
-
-    @Override
-    public void confirmClicked(boolean result, int id) {
-        if (result && (id == KOMEPacketProgressionRelationshipAction.LEAVE_MASTER || id == KOMEPacketProgressionRelationshipAction.LEAVE_LIEGE)) KOMEPacketHandler.network.sendToServer(new KOMEPacketProgressionRelationshipAction(id));
-        mc.displayGuiScreen(this);
+        buttonAdvancements=(KOMEGuiButton)new KOMEGuiButton(20,guiLeft+11,guiTop+29,97,18,"Advancements").setStyle(KOMEGuiButton.Style.TAB);
+        buttonRanks=(KOMEGuiButton)new KOMEGuiButton(21,guiLeft+112,guiTop+29,97,18,"Ranks").setStyle(KOMEGuiButton.Style.TAB);
+        buttonList.add(buttonAdvancements);buttonList.add(buttonRanks);
+        refreshViewButtons();
     }
 
     @Override
     protected void mouseClicked(int mouseX, int mouseY, int button) {
         super.mouseClicked(mouseX, mouseY, button);
-        if (button != 0) {
+        if (button != 0 || view != View.ADVANCEMENTS) {
             return;
         }
-        List groupAchievements = getGroupAchievements();
+
+        List<KOMEProgressionAchievement> groupAchievements = getGroupAchievements();
         for (int i = 0; i < getVisibleRows() && scroll + i < groupAchievements.size(); i++) {
-            KOMEProgressionAchievement achievement = (KOMEProgressionAchievement) groupAchievements.get(scroll + i);
-            int offset = 47 + getRowHeight() * i;
+            KOMEProgressionAchievement achievement = groupAchievements.get(scroll + i);
+            int offset = LIST_TOP + getRowHeight() * i;
             int x0 = guiLeft + 174;
             int y0 = guiTop + offset + 27;
-            if (mouseX >= x0 && mouseX < x0 + 24 && mouseY >= y0 && mouseY < y0 + 16 && canUseActionButton(achievement)) {
-                if (isComplete(achievement)) {
-                    KOMEMinecraftClient.sendChat("/progression uncomplete " + achievement.id);
-                } else if (needsRoll(achievement)) {
-                    KOMEMinecraftClient.sendChat("/progression roll " + achievement.id);
-                } else {
-                    KOMEMinecraftClient.sendChat("/progression complete " + achievement.id);
-                }
+
+            // The production progression GUI never exposes manual complete/uncomplete actions.
+            // Only legitimate assignment rolling remains interactive here.
+            if (mouseX >= x0 && mouseX < x0 + 24
+                    && mouseY >= y0 && mouseY < y0 + 16
+                    && needsRoll(achievement)) {
+                KOMEMinecraftClient.sendChat("/progression roll " + achievement.id);
                 return;
             }
         }
     }
 
-    private void drawAchievements(List groupAchievements) {
+    private void drawAchievements(List<KOMEProgressionAchievement> groupAchievements) {
         RenderHelper.enableGUIStandardItemLighting();
         GL11.glDisable(2896);
         GL11.glEnable(32826);
@@ -188,9 +261,9 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
             return;
         }
         for (int i = 0; i < rows && scroll + i < groupAchievements.size(); i++) {
-            KOMEProgressionAchievement achievement = (KOMEProgressionAchievement) groupAchievements.get(scroll + i);
+            KOMEProgressionAchievement achievement = groupAchievements.get(scroll + i);
             boolean done = isComplete(achievement);
-            int offset = 47 + getRowHeight() * i;
+            int offset = LIST_TOP + getRowHeight() * i;
             GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
             mc.getTextureManager().bindTexture(LOTRGuiAchievements.iconsTexture);
             drawTexturedModalRect(guiLeft + 9, guiTop + offset, 0, done ? 0 : 50, 190, 50);
@@ -200,7 +273,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
             mc.fontRenderer.drawString(title, guiLeft + 33, guiTop + offset + 5, color);
             String requirement = getRequirementText(achievement);
             drawLimitedSplitString(requirement, guiLeft + 12, guiTop + offset + 23, 160, 2, color);
-            drawManualButton(achievement, guiLeft + 174, guiTop + offset + 27, done);
+            drawRollButton(achievement, guiLeft + 174, guiTop + offset + 27);
             if (done) {
                 mc.getTextureManager().bindTexture(LOTRGuiAchievements.iconsTexture);
                 drawTexturedModalRect(guiLeft + 179, guiTop + offset + 2, 190, 17, 16, 16);
@@ -268,37 +341,166 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
         drawTexturedModalRect(catScrollX, catScrollY, 0, 110, 152, 10);
     }
 
-    private void drawScrollbar(int size) {
-        int scrollBarX0 = guiLeft + 201;
-        int scrollBarY0 = guiTop + 48;
-        mc.getTextureManager().bindTexture(LOTRGuiAchievements.iconsTexture);
-        if (size > getVisibleRows()) {
-            int maxScroll = Math.max(1, size - getVisibleRows());
-            int offset = (int) (scroll / (float) maxScroll * 181.0f);
-            drawTexturedModalRect(scrollBarX0, scrollBarY0 + offset, 190, 0, 10, 17);
-        } else {
-            drawTexturedModalRect(scrollBarX0, scrollBarY0, 200, 0, 10, 17);
-        }
+    private void drawAdvancements(){
+        List<KOMEProgressionAchievement> groupAchievements=getGroupAchievements();int complete=getCompleteCount(groupAchievements);
+        drawCenteredString(displayNameForGroup(GROUPS[currentGroup])+" ("+complete+"/"+groupAchievements.size()+")",guiLeft+xSize/2,guiTop+1,8019267);
+        drawCategoryBar();
+        drawAchievements(groupAchievements);
+        drawScrollbar(groupAchievements.size());
+        drawSummary();
     }
 
-    private void drawManualButton(KOMEProgressionAchievement achievement, int x, int y, boolean done) {
-        if (!canUseActionButton(achievement)) {
+    private void drawSummary() {
+        int lines = getSummaryLineCount();
+        if (lines == 0) {
             return;
         }
-        int fill = done ? 0xFF7B4B3D : needsRoll(achievement) ? 0xFF6E4F24 : 0xFF5E713D;
+        int summaryHeight = getSummaryHeight();
+        int summaryY = guiTop + ySize - summaryHeight;
+        KOMEGuiTheme.drawDivider(guiLeft + 12, summaryY - SUMMARY_DIVIDER_GAP_BELOW, 196);
+        String[] summaryLines = canonicalSummary.split("\\n");
+        for (int i = 0; i < lines; i++) {
+            mc.fontRenderer.drawString(trimToWidth(summaryLines[i], 196), guiLeft + 12, summaryY + i * SUMMARY_LINE_HEIGHT, 5652783);
+        }
+    }
+
+    private void drawRanks(){
+        drawRankLadder();
+        int max=maxRankScroll();if(focusDuty&&!dutyFocusApplied&&rankSummary.hasActivity()){rankScroll=max;dutyFocusApplied=true;}rankScroll=Math.max(0,Math.min(max,rankScroll));
+        int contentTop=guiTop+RANK_CONTENT_TOP,contentBottom=guiTop+ySize-RANK_CONTENT_BOTTOM_MARGIN;
+        KOMEGuiTheme.enableScissor(mc,guiLeft+7,contentTop,xSize-14,contentBottom-contentTop);
+        int y=contentTop-rankScroll;
+        mc.fontRenderer.drawString(rankSummary.promotionTitle,guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=14;
+        for(KOMEProgressionRankSummary.Requirement requirement:rankSummary.requirements){drawRankRequirement(requirement,y);y+=26;}
+        if(rankSummary.hasActivity()){
+            y+=5;KOMEGuiTheme.drawDivider(guiLeft+12,y,196);y+=7;
+            mc.fontRenderer.drawString(rankSummary.activityHeading,guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=13;
+            mc.fontRenderer.drawString(rankSummary.activityTitle,guiLeft+17,y,5652783);y+=12;
+            List<String> lines=mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184);
+            for(Object line:lines){mc.fontRenderer.drawString(String.valueOf(line),guiLeft+17,y,8019267);y+=10;}
+        }
+        KOMEGuiTheme.disableScissor();
+        if(max>0)drawRankScrollbar(max);
+    }
+
+    private void drawRankLadder(){
+        int y=guiTop+10;String[] names=KOMEProgressionRankSummary.LADDER;
+        int[] centers={guiLeft+31,guiLeft+83,guiLeft+137,guiLeft+190};
+        for(int i=0;i<names.length;i++){
+            String name=names[i];int color=name.equals(rankSummary.currentRank)?0xFF7B2024:name.equals(rankSummary.nextRank)?0xFF9A6A20:ladderIndex(name)<ladderIndex(rankSummary.currentRank)?8019267:5652783;
+            String label=name.equals(rankSummary.currentRank)?name.toUpperCase():name.equals(rankSummary.nextRank)?name.toUpperCase():name;
+            mc.fontRenderer.drawString(label,centers[i]-mc.fontRenderer.getStringWidth(label)/2,y,color);
+            if(i<names.length-1)mc.fontRenderer.drawString("\u2192",(centers[i]+centers[i+1])/2-3,y,8019267);
+        }
+    }
+
+    private void drawRankRequirement(KOMEProgressionRankSummary.Requirement requirement,int y){
+        mc.getTextureManager().bindTexture(LOTRGuiAchievements.iconsTexture);
+        drawTexturedModalRect(guiLeft+9,y,0,requirement.complete?0:50,190,24);
+        if(requirement.complete)drawTexturedModalRect(guiLeft+13,y+4,190,17,16,16);
+        else {Gui.drawRect(guiLeft+16,y+7,guiLeft+25,y+16,0xFF5A171A);Gui.drawRect(guiLeft+17,y+8,guiLeft+24,y+15,0x55FFFFFF);}
+        int color=requirement.complete?8019267:5652783;
+        String quota=requirement.current+" / "+requirement.required;
+        int quotaX=guiLeft+193-mc.fontRenderer.getStringWidth(quota);
+        mc.fontRenderer.drawString(trimToWidth(requirement.label,Math.max(20,quotaX-guiLeft-37)),guiLeft+32,y+8,color);
+        mc.fontRenderer.drawString(quota,quotaX,y+8,color);
+    }
+
+    private int rankContentHeight(){
+        int height=14+rankSummary.requirements.size()*26;
+        if(rankSummary.hasActivity()){int lines=mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184).size();height+=37+lines*10;}
+        return height;
+    }
+
+    private int maxRankScroll(){
+        int visibleHeight = ySize - RANK_CONTENT_BOTTOM_MARGIN - RANK_CONTENT_TOP;
+        return Math.max(0, rankContentHeight() - visibleHeight);
+    }
+
+    private void drawRankScrollbar(int max) {
+        int x = guiLeft + SCROLLBAR_X;
+        int y = guiTop + RANK_CONTENT_TOP;
+        int trackHeight = ySize - RANK_CONTENT_BOTTOM_MARGIN - RANK_CONTENT_TOP;
+        int travel = trackHeight - SCROLLBAR_THUMB_HEIGHT;
+        mc.getTextureManager().bindTexture(LOTRGuiAchievements.iconsTexture);
+        int offset = Math.round(rankScroll / (float) max * travel);
+        drawTexturedModalRect(x, y + offset, 190, 0, 10, SCROLLBAR_THUMB_HEIGHT);
+    }
+
+    private void updateRankScrollbarDrag(int mouseX, int mouseY) {
+        boolean isMouseDown = Mouse.isButtonDown(0);
+        int max = maxRankScroll();
+        int scrollBarX0 = guiLeft + SCROLLBAR_X;
+        int scrollBarX1 = scrollBarX0 + SCROLLBAR_HIT_WIDTH;
+        int scrollBarY0 = guiTop + RANK_CONTENT_TOP;
+        int trackHeight = ySize - RANK_CONTENT_BOTTOM_MARGIN - RANK_CONTENT_TOP;
+        int scrollBarY1 = scrollBarY0 + trackHeight;
+        if (!wasMouseDown && isMouseDown && max > 0 && mouseX >= scrollBarX0 && mouseX < scrollBarX1 && mouseY >= scrollBarY0 && mouseY < scrollBarY1) {
+            isScrolling = true;
+        }
+        if (!isMouseDown) {
+            isScrolling = false;
+        }
+        wasMouseDown = isMouseDown;
+        if (isScrolling) {
+            int travel = trackHeight - SCROLLBAR_THUMB_HEIGHT;
+            float fraction = (mouseY - scrollBarY0 - SCROLLBAR_THUMB_HEIGHT / 2.0f) / travel;
+            fraction = Math.max(0.0f, Math.min(1.0f, fraction));
+            rankScroll = Math.round(fraction * max);
+        }
+    }
+
+    private static int ladderIndex(String name) {
+        for (int i = 0; i < KOMEProgressionRankSummary.LADDER.length; i++) {
+            if (KOMEProgressionRankSummary.LADDER[i].equals(name)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private void selectView(View selected) {
+        view = selected;
+        lastSelectedView = selected;
+        scroll = 0;
+        rankScroll = 0;
+        isScrolling = false;
+        refreshViewButtons();
+    }
+
+    private void refreshViewButtons() {
+        boolean advancements = view == View.ADVANCEMENTS;
+        buttonCategoryPrev.visible = buttonCategoryPrev.enabled = advancements;
+        buttonCategoryNext.visible = buttonCategoryNext.enabled = advancements;
+        buttonAdvancements.setSelected(advancements);
+        buttonRanks.setSelected(!advancements);
+    }
+
+    private void drawScrollbar(int size) {
+        int scrollBarX0 = guiLeft + SCROLLBAR_X;
+        int scrollBarY0 = guiTop + LIST_SCROLLBAR_Y;
+        mc.getTextureManager().bindTexture(LOTRGuiAchievements.iconsTexture);
+        int rows = getVisibleRows();
+        if (size > rows) {
+            int maxScroll = Math.max(1, size - rows);
+            int travel = LIST_SCROLLBAR_HEIGHT - SCROLLBAR_THUMB_HEIGHT;
+            int offset = Math.round(scroll / (float) maxScroll * travel);
+            drawTexturedModalRect(scrollBarX0, scrollBarY0 + offset, 190, 0, 10, SCROLLBAR_THUMB_HEIGHT);
+        } else {
+            drawTexturedModalRect(scrollBarX0, scrollBarY0, 200, 0, 10, SCROLLBAR_THUMB_HEIGHT);
+        }
+    }
+
+    private void drawRollButton(KOMEProgressionAchievement achievement, int x, int y) {
+        if (!needsRoll(achievement)) {
+            return;
+        }
+
         Gui.drawRect(x, y, x + 24, y + 16, 0xFF2B2117);
-        Gui.drawRect(x + 1, y + 1, x + 23, y + 15, fill);
-        String text = done ? "X" : needsRoll(achievement) ? "Roll" : "+";
+        Gui.drawRect(x + 1, y + 1, x + 23, y + 15, 0xFF6E4F24);
+        String text = "Roll";
         int textX = x + (24 - mc.fontRenderer.getStringWidth(text)) / 2;
         mc.fontRenderer.drawString(text, textX, y + 4, 0xFFE8D9AA);
-    }
-
-    private boolean canUseActionButton(KOMEProgressionAchievement achievement) {
-        return canUseManualButton(achievement) || needsRoll(achievement);
-    }
-
-    private boolean canUseManualButton(KOMEProgressionAchievement achievement) {
-        return achievement != null && !"baseline".equals(achievement.group) && !achievement.defaultUnlocked && !KOMEProgressionAchievement.isAutoManaged(achievement.id);
     }
 
     private boolean needsRoll(KOMEProgressionAchievement achievement) {
@@ -311,11 +513,11 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
         }
         String id = achievement.id;
         return achievement.requirement.toLowerCase().contains("random task")
-            || id.startsWith("serf.food_quota")
-            || "serf.drink_quota".equals(id)
-            || id.startsWith("knight.drop_quota")
-            || id.startsWith("knight.faction_")
-            || "lord.fell_beast".equals(id);
+                || id.startsWith("serf.food_quota")
+                || "serf.drink_quota".equals(id)
+                || id.startsWith("knight.drop_quota")
+                || id.startsWith("knight.faction_")
+                || "lord.fell_beast".equals(id);
     }
 
     private String getRequirementText(KOMEProgressionAchievement achievement) {
@@ -324,12 +526,12 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
     }
 
     private String getAssignment(KOMEProgressionAchievement achievement) {
-        Object value = assignments.get(achievement.id);
-        return value == null ? "" : String.valueOf(value);
+        String value = assignments.get(achievement.id);
+        return value == null ? "" : value;
     }
 
     private void drawLimitedSplitString(String text, int x, int y, int width, int maxLines, int color) {
-        List lines = mc.fontRenderer.listFormattedStringToWidth(text, width);
+        List<String> lines = mc.fontRenderer.listFormattedStringToWidth(text, width);
         for (int i = 0; i < lines.size() && i < maxLines; i++) {
             String line = String.valueOf(lines.get(i));
             if (i == maxLines - 1 && lines.size() > maxLines) {
@@ -350,22 +552,18 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
         return text + suffix;
     }
 
-    private void drawAchievementTooltip(int mouseX, int mouseY, List groupAchievements) {
+    private void drawAchievementTooltip(int mouseX, int mouseY, List<KOMEProgressionAchievement> groupAchievements) {
         for (int i = 0; i < getVisibleRows() && scroll + i < groupAchievements.size(); i++) {
-            KOMEProgressionAchievement achievement = (KOMEProgressionAchievement) groupAchievements.get(scroll + i);
-            int offset = 47 + getRowHeight() * i;
+            KOMEProgressionAchievement achievement = groupAchievements.get(scroll + i);
+            int offset = LIST_TOP + getRowHeight() * i;
             int x0 = guiLeft + 9;
             int y0 = guiTop + offset;
             if (mouseX >= x0 && mouseX < x0 + 190 && mouseY >= y0 && mouseY < y0 + 50) {
-                List lines = new ArrayList();
+                List<String> lines = new ArrayList<String>();
                 lines.add(achievement.title);
                 lines.addAll(mc.fontRenderer.listFormattedStringToWidth(getRequirementText(achievement), 220));
-                if (isComplete(achievement) && canUseManualButton(achievement)) {
-                    lines.add("Click X to remove completion.");
-                } else if (needsRoll(achievement)) {
+                if (needsRoll(achievement)) {
                     lines.add("Click Roll to generate this assignment.");
-                } else if (canUseManualButton(achievement)) {
-                    lines.add("Click + to mark complete.");
                 }
                 func_146283_a(lines, mouseX, mouseY);
                 return;
@@ -377,10 +575,10 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
         boolean isMouseDown = Mouse.isButtonDown(0);
         int size = getGroupAchievements().size();
         int maxScroll = Math.max(0, size - getVisibleRows());
-        int scrollBarX0 = guiLeft + 201;
-        int scrollBarX1 = scrollBarX0 + 12;
-        int scrollBarY0 = guiTop + 48;
-        int scrollBarY1 = scrollBarY0 + 200;
+        int scrollBarX0 = guiLeft + SCROLLBAR_X;
+        int scrollBarX1 = scrollBarX0 + SCROLLBAR_HIT_WIDTH;
+        int scrollBarY0 = guiTop + LIST_SCROLLBAR_Y;
+        int scrollBarY1 = scrollBarY0 + LIST_SCROLLBAR_HEIGHT;
         if (!wasMouseDown && isMouseDown && maxScroll > 0 && mouseX >= scrollBarX0 && mouseX < scrollBarX1 && mouseY >= scrollBarY0 && mouseY < scrollBarY1) {
             isScrolling = true;
         }
@@ -389,7 +587,8 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
         }
         wasMouseDown = isMouseDown;
         if (isScrolling) {
-            float currentScroll = (mouseY - scrollBarY0 - 8.5f) / (scrollBarY1 - scrollBarY0 - 17.0f);
+            int travel = LIST_SCROLLBAR_HEIGHT - SCROLLBAR_THUMB_HEIGHT;
+            float currentScroll = (mouseY - scrollBarY0 - SCROLLBAR_THUMB_HEIGHT / 2.0f) / travel;
             currentScroll = Math.max(0.0f, Math.min(1.0f, currentScroll));
             scroll = Math.round(currentScroll * maxScroll);
         }
@@ -414,12 +613,14 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
         }
     }
 
-    private List getGroupAchievements() {
+    @SuppressWarnings("unchecked")
+    private List<KOMEProgressionAchievement> getGroupAchievements() {
         return KOMEProgressionAchievement.forGroup(GROUPS[currentGroup]);
     }
 
-    private List getVisibleAchievements() {
-        List list = new ArrayList();
+    @SuppressWarnings("unchecked")
+    private List<KOMEProgressionAchievement> getVisibleAchievements() {
+        List<KOMEProgressionAchievement> list = new ArrayList<KOMEProgressionAchievement>();
         for (String group : GROUPS) {
             list.addAll(KOMEProgressionAchievement.forGroup(group));
         }
@@ -427,25 +628,65 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase implements GuiYesNoCallb
     }
 
     private int getVisibleRows() {
-        return 4;
+        int lines = getSummaryLineCount();
+        int reserved = lines == 0 ? 0 : getSummaryHeight() + SUMMARY_DIVIDER_GAP_ABOVE + SUMMARY_DIVIDER_GAP_BELOW;
+        int available = ySize - LIST_TOP - reserved;
+        return Math.max(1, available / ROW_HEIGHT);
+    }
+
+    private int getSummaryLineCount() {
+        if (canonicalSummary == null || canonicalSummary.length() == 0) {
+            return 0;
+        }
+        return Math.min(canonicalSummary.split("\\n").length, SUMMARY_MAX_LINES);
+    }
+
+    private int getSummaryHeight() {
+        int lines = getSummaryLineCount();
+        return lines == 0 ? 0 : lines * SUMMARY_LINE_HEIGHT + SUMMARY_BOTTOM_PADDING;
     }
 
     private int getRowHeight() {
-        return 50;
+        return ROW_HEIGHT;
     }
 
     private boolean isComplete(KOMEProgressionAchievement achievement) {
         return achievement.defaultUnlocked || completed.contains(achievement.id);
     }
 
-    private int getCompleteCount(List achievements) {
+    private int getCompleteCount(List<KOMEProgressionAchievement> achievements) {
         int count = 0;
-        for (Object object : achievements) {
-            if (isComplete((KOMEProgressionAchievement) object)) {
+        for (KOMEProgressionAchievement achievement : achievements) {
+            if (isComplete(achievement)) {
                 count++;
             }
         }
         return count;
+    }
+
+    /**
+     * Defensive fallback for missed logout/world-change cleanup. The authoritative packet will
+     * repopulate the snapshot after opening the GUI.
+     */
+    private void clearStaleDataForCurrentPlayer() {
+        if (mc == null || mc.thePlayer == null) {
+            return;
+        }
+
+        int currentWorldIdentity = mc.theWorld == null ? 0 : System.identityHashCode(mc.theWorld);
+        boolean wrongWorld = snapshotWorldIdentity != 0
+                && currentWorldIdentity != 0
+                && snapshotWorldIdentity != currentWorldIdentity;
+
+        String currentPlayerName = mc.thePlayer.getCommandSenderName();
+        boolean wrongPlayer = playerName != null
+                && playerName.length() > 0
+                && currentPlayerName != null
+                && !currentPlayerName.equals(playerName);
+
+        if (wrongWorld || wrongPlayer) {
+            resetData();
+        }
     }
 
     private void nextGroup() {
