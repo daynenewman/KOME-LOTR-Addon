@@ -62,8 +62,9 @@ public final class KOMESerfdomMasterService {
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         if(progression.getCanonicalRank()!=KOMEProgressionRank.SERF||state.isPromoted()||state.hasPartingGift())return reject("Knighthood has already been conferred or is unavailable.");
         if(!state.getSerfdomMaster().hasSameIdentity(clickedMaster))return reject("Return to your own Serfdom Master.");
-        if(pledgeKey==null||!pledgeKey.equals(state.getSerfdomMaster().factionKey)
-            ||!pledgeKey.equals(state.getProspectiveLiege().factionKey))return reject("Your current faction pledge must match your Master and Liege.");
+        LOTRFaction pledgedFaction=KOMEProgressionFactionResolver.resolve(pledgeKey);
+        if(pledgedFaction==null||!KOMEProgressionFactionResolver.matches(state.getSerfdomMaster().factionKey,pledgedFaction)
+            ||!KOMEProgressionFactionResolver.matches(state.getProspectiveLiege().factionKey,pledgedFaction))return reject("Your current faction pledge must match your Master and Liege.");
         if(!KOMESerfKnightService.allDutiesComplete(state)||!state.isTrialCompleted()
             ||state.getTrialAssignment()==null||!state.getTrialAssignment().isValidFor(state.getTrialId(),state.getProspectiveLiege()))
             return reject("Complete your Serfdom duties and your Liege's trial first.");

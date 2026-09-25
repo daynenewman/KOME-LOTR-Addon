@@ -100,7 +100,7 @@ public class KOMEProgressionAutoCompleter {
         if (!hasValidFactionCommitment(pledge)) return false;
         if (progression == null) return false;
         KOMEProgressionNpcRef master = progression.getSerfKnightProgression().getSerfdomMaster();
-        return !master.isSet() || KOMEAlliance.normalizeFactionKey(pledge.codeName()).equals(master.factionKey);
+        return !master.isSet() || KOMEProgressionFactionResolver.matches(master.factionKey,pledge);
     }
 
     /** Reconciles both historical pledge Duties through their ordinary grant route. */

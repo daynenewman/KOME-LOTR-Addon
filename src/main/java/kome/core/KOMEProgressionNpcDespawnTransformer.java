@@ -13,13 +13,14 @@ public final class KOMEProgressionNpcDespawnTransformer implements IClassTransfo
     @Override public byte[] transform(String name,String transformedName,byte[] bytes){
         if(bytes==null||!TARGET.equals(transformedName))return bytes;
         ClassNode node=new ClassNode();new ClassReader(bytes).accept(node,0);
-        for(MethodNode method:node.methods)if("canDespawn".equals(method.name)&&"()Z".equals(method.desc)){
+        // The development class is MCP named; the shipped LOTR jar uses the SRG name.
+        for(MethodNode method:node.methods)if(("canDespawn".equals(method.name)||"func_70692_ba".equals(method.name))&&"()Z".equals(method.desc)){
             for(AbstractInsnNode i=method.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode&&BRIDGE.equals(((MethodInsnNode)i).owner))return bytes;
             InsnList hook=new InsnList();LabelNode nativePath=new LabelNode();
             hook.add(new VarInsnNode(Opcodes.ALOAD,0));hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC,BRIDGE,"preventDespawn","(Llotr/common/entity/npc/LOTREntityNPC;)Z",false));
             hook.add(new JumpInsnNode(Opcodes.IFEQ,nativePath));hook.add(new InsnNode(Opcodes.ICONST_0));hook.add(new InsnNode(Opcodes.IRETURN));hook.add(nativePath);
             method.instructions.insert(hook);ClassWriter writer=new ClassWriter(ClassWriter.COMPUTE_MAXS);node.accept(writer);return writer.toByteArray();
         }
-        throw new IllegalStateException("LOTR v36.15 NPC canDespawn fingerprint changed");
+        throw new IllegalStateException("LOTR v36.15 NPC canDespawn/func_70692_ba fingerprint changed");
     }
 }

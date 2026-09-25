@@ -63,7 +63,7 @@ public class KOMEPacketRelationshipAction implements IMessage {
             KOMESerfKnightProgression s=progression.getSerfKnightProgression();
             return progression.getCanonicalRank()==KOMEProgressionRank.SERF&&s.getSerfdomMaster().isSet()&&KOMESerfKnightService.allDutiesComplete(s)&&(!s.hasActiveAssignment()||s.getTrialId().length()!=0)&&
                 !s.isLockedOut(KOMESerfKnightService.calendarDayNow())&&LOTRLevelData.getData(p).getPledgeFaction()!=null&&LOTRLevelData.getData(p).getPledgeFaction()==n.getFaction()&&
-                s.getSerfdomMaster().factionKey.equals(n.getFaction().codeName())&&!n.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(n)&&KOMEProgressionLords.isCombatUnitHiringNpc(n)&&
+                KOMEProgressionFactionResolver.matches(s.getSerfdomMaster().factionKey,n.getFaction())&&!n.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(n)&&KOMEProgressionLords.isCombatUnitHiringNpc(n)&&
                 KOMEProgressionNpcRankService.effectiveRank(data,n)==KOMEProgressionNpcRank.LORD&&n.hiredNPCInfo!=null&&!n.hiredNPCInfo.isActive;
         }
     }

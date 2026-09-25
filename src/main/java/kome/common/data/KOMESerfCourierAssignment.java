@@ -113,7 +113,7 @@ public final class KOMESerfCourierAssignment {
     private void setDestination(String key,String name,String faction,double dx,double dz){destinationKey=safe(key);destinationName=safe(name);destinationFactionKey=safe(faction);destinationX=dx;destinationZ=dz;}
     private static String safe(String s){return s==null?"":s;}
     private static boolean farEnough(LOTRWaypoint w,double x,double z){double dx=w.getXCoord()-x,dz=w.getZCoord()-z;return dx*dx+dz*dz>=MIN_COURIER_DISTANCE*(double)MIN_COURIER_DISTANCE;}
-    private static LOTRFaction faction(String key){if(key!=null)for(LOTRFaction f:LOTRFaction.values())if(key.equalsIgnoreCase(f.codeName()))return f;return null;}
+    private static LOTRFaction faction(String key){return KOMEProgressionFactionResolver.resolve(key);}
     private static LOTRWaypoint waypoint(String key){if(key!=null)for(LOTRWaypoint w:LOTRWaypoint.values())if(key.equals(w.getCodeName()))return w;return null;}
     public boolean valid(){return masterFactionKey.length()>0&&token.length()>0&&stage!=null&&minimumDistance>0&&destinationKey.length()>0&&destinationName.length()>0&&destinationFactionKey.length()>0&&storyVariant>=0&&storyVariant<5;}
     public boolean atDestination(int dim,double px,double pz,double radius){double dx=px-destinationX,dz=pz-destinationZ;return dim==dimension&&dx*dx+dz*dz<=radius*radius;}

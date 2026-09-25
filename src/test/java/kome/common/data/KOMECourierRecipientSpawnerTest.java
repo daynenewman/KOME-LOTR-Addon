@@ -43,6 +43,36 @@ public class KOMECourierRecipientSpawnerTest {
         assignment.recipientDeaths++;
         assertNotEquals(first,KOMECourierRecipientSpawner.recipientId(assignment));
     }
+    @Test public void safeSearchNeverProbesUnloadedNeighborChunks() throws Exception {
+        KOMEAccessFixture fixture=new KOMEAccessFixture();fixture.world.isRemote=true;fixture.world.rand=new Random(9);fixture.world.flatTerrain=true;
+        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","gondor",0,1000,64,1000);
+        KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.create(master,lotr.common.world.map.LOTRWaypoint.MINAS_TIRITH);
+        final int chunkX=((int)assignment.destinationX)>>4,chunkZ=((int)assignment.destinationZ)>>4;
+        fixture.world.testChunkProvider=(IChunkProvider)java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class[]{IChunkProvider.class},
+            (proxy,method,args)->"chunkExists".equals(method.getName())?((Integer)args[0]).intValue()==chunkX&&((Integer)args[1]).intValue()==chunkZ:method.getReturnType()==boolean.class?false:null);
+        fixture.player.posX=assignment.destinationX;fixture.player.posZ=assignment.destinationZ;
+        assertNull(KOMECourierRecipientSpawner.safeLoadedPosition(fixture.world,fixture.player,assignment,new LOTREntityGondorMan(fixture.world)));
+        assertEquals("unloaded columns must never reach terrain access",0,fixture.world.terrainProbes);
+    }
+    @Test public void oldLowercaseDorwinionAssignmentPassesFactionGuardAndSpawns() throws Exception {
+        KOMEAccessFixture fixture=new KOMEAccessFixture();fixture.world.isRemote=true;fixture.world.rand=new Random(11);
+        fixture.world.flatTerrain=true;fixture.world.spawnSucceeds=true;
+        fixture.world.testChunkProvider=(IChunkProvider)java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class[]{IChunkProvider.class},
+            (proxy,method,args)->"chunkExists".equals(method.getName())?true:method.getReturnType()==boolean.class?false:null);
+        KOMECourierGeographyTest.TestBiome biome=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestBiome.class);
+        biome.npcSpawnList=KOMEAccessFixture.allocate(NativeList.class);
+        KOMECourierGeographyTest.TestManager manager=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestManager.class);
+        manager.biome=biome;fixture.world.provider.worldChunkMgr=manager;
+        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","dorwinion",0,1000,64,1000);
+        KOMESerfCourierAssignment current=KOMESerfCourierAssignment.create(master,lotr.common.world.map.LOTRWaypoint.DORWINION_COURT);
+        net.minecraft.nbt.NBTTagCompound old=current.writeToNBT();old.setInteger("Version",5);old.setString("DestinationFactionKey","dorwinion");
+        KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.readFromNBT(old);
+        fixture.player.posX=assignment.destinationX;fixture.player.posZ=assignment.destinationZ;
+        LOTREntityNPC spawned=KOMECourierRecipientSpawner.spawn(fixture.player,assignment);
+        assertNotNull("lowercase saved Dorwinion must reach native recipient creation",spawned);
+        assertSame(LOTRFaction.DORWINION,spawned.getFaction());
+        assertEquals(assignment.token,spawned.getEntityData().getString(KOMECourierRecipientSpawner.TOKEN));
+    }
     @Test public void playableFactionsHaveAtLeastOneNativeIndependentRecipientClass() throws Exception {
         KOMEAccessFixture fixture=new KOMEAccessFixture();fixture.world.rand=new Random(4);fixture.world.isRemote=true;
         KOMECourierGeographyTest.TestBiome biome=kome.common.KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestBiome.class);
@@ -88,9 +118,12 @@ public class KOMECourierRecipientSpawnerTest {
         assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.COURIER,assignment.writeToNBT(),10L).success);
         fixture.player.inventory.mainInventory[0]=KOMECourierService.message(assignment,fixture.player,master);
         fixture.player.inventory.mainInventory[1]=KOMECourierService.message(assignment,fixture.player,master);
+        assertEquals("",KOMEVisualLocationService.markersFor(progression).get(1).entityUuid);
+        fixture.world.testWorldTime=100L;fixture.player.ticksExisted=7; // World and player clocks differ after login.
         cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper previous=kome.common.network.KOMEPacketHandler.network;
         try{kome.common.network.KOMEPacketHandler.network=fixture.network;
             KOMECourierService.tickPlayer(fixture.player);
+            assertEquals("arrival must bind despite player tick phase",1,fixture.world.loadedEntityList.size());
             KOMESerfCourierAssignment bound=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
             assertEquals(npc.getUniqueID().toString(),bound.recipient.entityUuid);
             int books=0;for(net.minecraft.item.ItemStack stack:fixture.player.inventory.mainInventory)if(KOMECourierService.matching(stack,bound,fixture.player.id,master))books++;

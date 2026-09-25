@@ -12,9 +12,12 @@ import net.minecraft.block.Block;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.BiomeGenBase;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /** Creates one ordinary native LOTR recipient when the destination is naturally loaded. */
 final class KOMECourierRecipientSpawner {
+    private static final Logger LOGGER=LogManager.getLogger("KOMECourier");
     static final String TOKEN="KOMECourierRecipientToken";
     private static final int SEARCH_ATTEMPTS=64;
     private static final String[] TRADERS={
@@ -63,27 +66,35 @@ final class KOMECourierRecipientSpawner {
     static LOTREntityNPC spawn(EntityPlayerMP player,KOMESerfCourierAssignment assignment){
         World world=player.worldObj;
         int cx=(int)Math.floor(assignment.destinationX),cz=(int)Math.floor(assignment.destinationZ);
-        if(world.getChunkProvider()==null||!world.getChunkProvider().chunkExists(cx>>4,cz>>4))return null;
+        if(world.getChunkProvider()==null||!world.getChunkProvider().chunkExists(cx>>4,cz>>4)){
+            if(LOGGER.isDebugEnabled())LOGGER.debug("Courier spawn pending token={} destination chunk=({}, {}) unloaded",assignment.token,cx>>4,cz>>4);
+            return null;
+        }
         BiomeGenBase base=world.getWorldChunkManager().getBiomeGenAt(cx,cz);
-        if(!(base instanceof LOTRBiome))return null;
-        LOTRFaction faction=LOTRFaction.forName(assignment.destinationFactionKey);
-        if(faction==null)return null;
+        if(!(base instanceof LOTRBiome)){
+            if(LOGGER.isDebugEnabled())LOGGER.debug("Courier spawn pending token={} biome={}",assignment.token,base);
+            return null;
+        }
+        LOTRFaction faction=KOMEProgressionFactionResolver.resolve(assignment.destinationFactionKey);
+        if(faction==null){if(LOGGER.isDebugEnabled())LOGGER.debug("Courier spawn pending token={} unknown faction={}",assignment.token,assignment.destinationFactionKey);return null;}
         List<Class<? extends LOTREntityNPC>> types=eligibleClasses(world,(LOTRBiome)base,faction);
-        if(types.isEmpty())return null;
+        if(types.isEmpty()){if(LOGGER.isDebugEnabled())LOGGER.debug("Courier spawn pending token={} no native class for faction={} biome={}",assignment.token,faction,base);return null;}
         Random random=new Random(assignment.token.hashCode()*31L+0x4b4f4d45L);
         int first=random.nextInt(types.size());Set<Class<? extends LOTREntityNPC>> attempted=new HashSet<Class<? extends LOTREntityNPC>>();
         for(int i=0;i<types.size();i++){
             Class<? extends LOTREntityNPC> type=types.get((first+i)%types.size());if(!attempted.add(type))continue;
-            LOTREntityNPC npc=create(world,type,faction);if(npc==null)continue;
+            LOTREntityNPC npc=create(world,type,faction,true);if(npc==null){if(LOGGER.isDebugEnabled())LOGGER.debug("Courier class rejected token={} class={} construction/faction",assignment.token,type.getName());continue;}
+            if(LOGGER.isDebugEnabled())LOGGER.debug("Courier class constructed token={} class={}",assignment.token,type.getName());
             double[] position=safeLoadedPosition(world,player,assignment,npc);if(position==null)return null;
             npc.setLocationAndAngles(position[0],position[1],position[2],random.nextFloat()*360F,0F);
             npc.spawnRidingHorse=false;
-            try{npc.onSpawnWithEgg(null);npc.onArtificalSpawn();}catch(RuntimeException nativeInitializationFailed){continue;}
+            try{npc.onSpawnWithEgg(null);npc.onArtificalSpawn();}catch(RuntimeException nativeInitializationFailed){if(LOGGER.isDebugEnabled())LOGGER.debug("Courier native initialization failed token={} class={}",assignment.token,type.getName(),nativeInitializationFailed);continue;}
             if(npc.ridingEntity!=null||npc.bossInfo!=null||npc.isTraderEscort||npc.isChild()
-                    ||npc.hiredNPCInfo==null||npc.hiredNPCInfo.isActive||npc.getFaction()!=faction)continue;
+                    ||npc.hiredNPCInfo==null||npc.hiredNPCInfo.isActive||npc.getFaction()!=faction){if(LOGGER.isDebugEnabled())LOGGER.debug("Courier native class unsafe after initialization token={} class={}",assignment.token,type.getName());continue;}
             npc.getEntityData().setString(TOKEN,assignment.token);
             npc.setUniqueID(recipientId(assignment));
-            if(!world.spawnEntityInWorld(npc))return null;
+            if(!world.spawnEntityInWorld(npc)){if(LOGGER.isDebugEnabled())LOGGER.debug("Courier spawnEntityInWorld rejected token={} class={} uuid={} chunk=({}, {})",assignment.token,type.getName(),npc.getUniqueID(),((int)Math.floor(npc.posX))>>4,((int)Math.floor(npc.posZ))>>4);return null;}
+            if(LOGGER.isDebugEnabled())LOGGER.debug("Courier spawned token={} class={} uuid={} at=({}, {}, {})",assignment.token,type.getName(),npc.getUniqueID(),npc.posX,npc.posY,npc.posZ);
             return npc;
         }
         return null;
@@ -119,24 +130,33 @@ final class KOMECourierRecipientSpawner {
         else if(name.contains("captain")||KOMEProgressionLords.isCombatUnitHiringNpc(sample))captains.put(type.getName(),type);
         else ordinary.put(type.getName(),type);
     }
-    private static LOTREntityNPC create(World world,Class<? extends LOTREntityNPC> type,LOTRFaction faction){try{LOTREntityNPC npc=type.getConstructor(World.class).newInstance(world);return npc.getFaction()==faction?npc:null;}catch(Exception ignored){return null;}}
+    private static LOTREntityNPC create(World world,Class<? extends LOTREntityNPC> type,LOTRFaction faction){return create(world,type,faction,false);}
+    private static LOTREntityNPC create(World world,Class<? extends LOTREntityNPC> type,LOTRFaction faction,boolean reportFailure){
+        try{LOTREntityNPC npc=type.getConstructor(World.class).newInstance(world);return npc.getFaction()==faction?npc:null;}
+        catch(Exception failure){if(reportFailure&&LOGGER.isDebugEnabled())LOGGER.debug("Courier constructor exception class={}",type.getName(),failure);return null;}
+    }
     static double[] safeLoadedPosition(World world,EntityPlayerMP player,KOMESerfCourierAssignment assignment,LOTREntityNPC npc){
         // A failed search tries different loaded columns next time without changing the destination.
         Random random=new Random(assignment.token.hashCode()*131L+17L+(world.getTotalWorldTime()/100L)*104729L);
         int cx=(int)Math.floor(assignment.destinationX),cz=(int)Math.floor(assignment.destinationZ);
+        int[] rejected=new int[5]; // unloaded/edge, too close, height, surface, collision
         for(int i=0;i<SEARCH_ATTEMPTS;i++){
             double angle=random.nextDouble()*Math.PI*2D, distance=24D+random.nextDouble()*72D;
             int x=cx+(int)Math.round(Math.cos(angle)*distance),z=cz+(int)Math.round(Math.sin(angle)*distance);
-            if((x&15)>13||(z&15)>13||!world.getChunkProvider().chunkExists(x>>4,z>>4))continue;
-            double dx=x-player.posX,dz=z-player.posZ;if(dx*dx+dz*dz<48D*48D)continue;
+            // Keep collision and standing-space probes inside this loaded chunk too.
+            if((x&15)<2||(x&15)>13||(z&15)<2||(z&15)>13
+                    ||!world.getChunkProvider().chunkExists(x>>4,z>>4)){rejected[0]++;continue;}
+            double dx=x-player.posX,dz=z-player.posZ;if(dx*dx+dz*dz<48D*48D){rejected[1]++;continue;}
             int y=world.getTopSolidOrLiquidBlock(x,z);
-            if(y<2||y>world.getActualHeight()-3)continue;
+            if(y<2||y>world.getActualHeight()-3){rejected[2]++;continue;}
             Block floor=world.getBlock(x,y-1,z);
-            if(floor==null||!floor.getMaterial().isSolid()||!floor.isOpaqueCube()||floor.getMaterial().isLiquid()||!world.isAirBlock(x,y,z)||!world.isAirBlock(x,y+1,z))continue;
+            if(floor==null||!floor.getMaterial().isSolid()||!floor.isOpaqueCube()||floor.getMaterial().isLiquid()||!world.isAirBlock(x,y,z)||!world.isAirBlock(x,y+1,z)){rejected[3]++;continue;}
             npc.setLocationAndAngles(x+0.5D,y,z+0.5D,0F,0F);
-            if(!world.getCollidingBoundingBoxes(npc,npc.boundingBox).isEmpty()||!world.checkNoEntityCollision(npc.boundingBox,npc))continue;
+            if(!world.getCollidingBoundingBoxes(npc,npc.boundingBox).isEmpty()||!world.checkNoEntityCollision(npc.boundingBox,npc)){rejected[4]++;continue;}
+            if(LOGGER.isDebugEnabled())LOGGER.debug("Courier safe site token={} tested={} rejected=[unloaded/edge:{}, near:{}, height:{}, surface:{}, collision:{}] at=({}, {}, {})",assignment.token,i+1,rejected[0],rejected[1],rejected[2],rejected[3],rejected[4],x,y,z);
             return new double[]{x+0.5D,y,z+0.5D};
         }
+        if(LOGGER.isDebugEnabled())LOGGER.debug("Courier no safe site token={} tested={} rejected=[unloaded/edge:{}, near:{}, height:{}, surface:{}, collision:{}]",assignment.token,SEARCH_ATTEMPTS,rejected[0],rejected[1],rejected[2],rejected[3],rejected[4]);
         return null;
     }
 }

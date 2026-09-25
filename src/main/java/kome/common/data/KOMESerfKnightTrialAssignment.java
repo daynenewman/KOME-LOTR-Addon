@@ -22,7 +22,7 @@ public final class KOMESerfKnightTrialAssignment {
     }
     public boolean isValidFor(String canonicalTrial, KOMEProgressionNpcRef canonicalLiege) {
         try { UUID.fromString(assignmentToken); } catch (Exception e) { return false; }
-        return KOMESerfKnightTrial.forId(trialId)!=null && trialId.equals(canonicalTrial) && liege.isSet() && canonicalLiege!=null && canonicalLiege.hasSameIdentity(liege) && factionKey.length()!=0 && assignedEpochDay>=0L;
+        return KOMESerfKnightTrial.forId(trialId)!=null && trialId.equals(canonicalTrial) && liege.isSet() && canonicalLiege!=null && canonicalLiege.hasSameIdentity(liege) && KOMEProgressionFactionResolver.resolve(factionKey)!=null && KOMEProgressionFactionResolver.resolve(factionKey)==KOMEProgressionFactionResolver.resolve(liege.factionKey) && assignedEpochDay>=0L;
     }
     public KOMESerfKnightTrialAssignment withStage(Stage value, NBTTagCompound futureData) { return new KOMESerfKnightTrialAssignment(trialId,assignmentToken,liege,factionKey,assignedEpochDay,value,storyVariant,futureData==null?data:futureData); }
     public NBTTagCompound writeToNBT() {

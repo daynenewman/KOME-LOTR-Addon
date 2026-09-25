@@ -11,9 +11,12 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 /** Server-only destination resolution, dispatch identity, and delivery validation. */
 public final class KOMECourierService {
+    private static final Logger LOGGER=LogManager.getLogger("KOMECourier");
     private static final String TAG="KOMECourier";
     static final double ARRIVAL_RADIUS=192D,SETTLEMENT_RADIUS=256D;
     private KOMECourierService(){}
@@ -26,11 +29,11 @@ public final class KOMECourierService {
         pages.appendTag(new NBTTagString(dispatchText(a,master)));root.setTag("pages",pages);book.setTagCompound(root);return book;
     }
 
-    static String dispatchTitle(KOMESerfCourierAssignment a){LOTRFaction f=LOTRFaction.forName(a.destinationFactionKey);return f==null?"Sealed Dispatch":f.factionName()+" Dispatch";}
+    static String dispatchTitle(KOMESerfCourierAssignment a){LOTRFaction f=KOMEProgressionFactionResolver.resolve(a.destinationFactionKey);return f==null?"Sealed Dispatch":f.factionName()+" Dispatch";}
     static String dispatchText(KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){
         String recipient=a.recipient.isSet()?a.recipient.displayName:"The appointed recipient";
         String body=story(a.storyVariant,a.destinationFactionKey,a.destinationName);
-        LOTRFaction faction=LOTRFaction.forName(a.destinationFactionKey);String factionName=faction==null?a.destinationFactionKey:faction.factionName();
+        LOTRFaction faction=KOMEProgressionFactionResolver.resolve(a.destinationFactionKey);String factionName=faction==null?a.destinationFactionKey:faction.factionName();
         return recipient+",\n\n"+body+"\n\nFor "+factionName+".\n— "+master.displayName+"\n\nCarry this sealed letter to "+recipient+" at "+a.destinationName+".";
     }
     private static String story(int variant,String faction,String destination){
@@ -81,11 +84,13 @@ public final class KOMECourierService {
         ItemStack current=message(a,owner,master);if(first>=0)p.inventory.mainInventory[first]=current;else p.inventory.addItemStackToInventory(current);p.inventoryContainer.detectAndSendChanges();
     }
 
-    public static boolean validRecipient(EntityPlayerMP p,LOTREntityNPC n,KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){return eligible(n,a,master)&&a.stage==KOMESerfCourierAssignment.Stage.OUTBOUND&&a.recipient.isSet()&&a.recipient.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n))&&LOTRLevelData.getData(p).getPledgeFaction()!=null&&a.masterFactionKey.equalsIgnoreCase(LOTRLevelData.getData(p).getPledgeFaction().codeName())&&p.getDistanceSqToEntity(n)<=64D;}
-    private static boolean eligible(LOTREntityNPC n,KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){return n!=null&&n.isEntityAlive()&&!n.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(n)&&n.hiredNPCInfo!=null&&!n.hiredNPCInfo.isActive&&n.bossInfo==null&&!n.isTraderEscort&&!master.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n))&&a.destinationFactionKey.equalsIgnoreCase(n.getFaction().codeName())&&a.atDestination(n.worldObj.provider.dimensionId,n.posX,n.posZ,SETTLEMENT_RADIUS);}
+    public static boolean validRecipient(EntityPlayerMP p,LOTREntityNPC n,KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){return eligible(n,a,master)&&a.stage==KOMESerfCourierAssignment.Stage.OUTBOUND&&a.recipient.isSet()&&a.recipient.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n))&&KOMEProgressionFactionResolver.matches(a.masterFactionKey,LOTRLevelData.getData(p).getPledgeFaction())&&p.getDistanceSqToEntity(n)<=64D;}
+    private static boolean eligible(LOTREntityNPC n,KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){return n!=null&&n.isEntityAlive()&&!n.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(n)&&n.hiredNPCInfo!=null&&!n.hiredNPCInfo.isActive&&n.bossInfo==null&&!n.isTraderEscort&&!master.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n))&&KOMEProgressionFactionResolver.matches(a.destinationFactionKey,n.getFaction())&&a.atDestination(n.worldObj.provider.dimensionId,n.posX,n.posZ,SETTLEMENT_RADIUS);}
 
     public static void tickPlayer(EntityPlayerMP p){
-        if(p==null||p.worldObj.isRemote||p.ticksExisted%100!=0)return;
+        // KOMEEvents already calls this on world-time multiples of 20. Player age has an
+        // independent phase after login, so combining the two clocks can suppress every call.
+        if(p==null||p.worldObj.isRemote||p.worldObj.getTotalWorldTime()%100L!=0L)return;
         KOMEWorldData world=KOMEWorldData.get(p.worldObj);
         KOMEPlayerProgression progression=world.getProgression(p.getUniqueID());
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
@@ -101,11 +106,13 @@ public final class KOMECourierService {
             persist(world,p,progression,state,a);refreshDispatch(p,a,state.getSerfdomMaster());
         }
         if(!a.atDestination(p.dimension,p.posX,p.posZ,ARRIVAL_RADIUS)||p.worldObj.getTotalWorldTime()<a.nextRecipientWorldTime)return;
+        if(LOGGER.isDebugEnabled())LOGGER.debug("Courier arrival token={} dimension={} destination=({}, {}) player=({}, {})",a.token,a.dimension,a.destinationX,a.destinationZ,p.posX,p.posZ);
         LOTREntityNPC recipient=KOMECourierRecipientSpawner.findOwned(p.worldObj,a.token);
         if(recipient==null)recipient=KOMECourierRecipientSpawner.spawn(p,a);
         if(recipient==null)return; // Unsafe or unloaded terrain: wait here, never reroute.
         a.recipient=KOMEProgressionNpcRankService.referenceOf(recipient);
         persist(world,p,progression,state,a);refreshDispatch(p,a,state.getSerfdomMaster());
+        if(LOGGER.isDebugEnabled())LOGGER.debug("Courier bound token={} recipient={} class={} stage={} lease={}",a.token,a.recipient.entityUuid,recipient.getClass().getName(),a.stage,KOMEProgressionNpcRoles.protects(world,recipient.getUniqueID()));
     }    private static LOTREntityNPC loadedRecipient(EntityPlayerMP player,String id){for(Object value:player.worldObj.loadedEntityList)if(value instanceof LOTREntityNPC&&id.equals(((LOTREntityNPC)value).getUniqueID().toString()))return (LOTREntityNPC)value;return null;}
     private static void persist(KOMEWorldData world,EntityPlayerMP p,KOMEPlayerProgression progression,KOMESerfKnightProgression state,KOMESerfCourierAssignment a){state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER,a.writeToNBT());KOMEProgressionNpcRoles.syncPlayer(world,p.getUniqueID());world.markDirty();KOMEProgressionAutoCompleter.syncPlayer(p,progression);}
 

@@ -98,11 +98,12 @@ public final class KOMEAccessFixture {
         private static final net.minecraft.block.Block TEST_AIR=new net.minecraft.block.Block(net.minecraft.block.material.Material.air){};
         public long testWorldTime;
         public boolean flatTerrain,spawnSucceeds;
+        public int terrainProbes;
         public IChunkProvider testChunkProvider;
         private TestWorld() { super((ISaveHandler) null, "test", (WorldProvider) null, (WorldSettings) null, (Profiler) null); }
         @Override protected IChunkProvider createChunkProvider() { return null; }
         @Override public IChunkProvider getChunkProvider(){return testChunkProvider==null?super.getChunkProvider():testChunkProvider;}
-        @Override public int getTopSolidOrLiquidBlock(int x,int z){return flatTerrain?65:super.getTopSolidOrLiquidBlock(x,z);}
+        @Override public int getTopSolidOrLiquidBlock(int x,int z){terrainProbes++;return flatTerrain?65:super.getTopSolidOrLiquidBlock(x,z);}
         @Override public net.minecraft.block.Block getBlock(int x,int y,int z){return flatTerrain?(y==64?TEST_GROUND:TEST_AIR):super.getBlock(x,y,z);}
         @Override public boolean isAirBlock(int x,int y,int z){return flatTerrain?y>64:super.isAirBlock(x,y,z);}
         @Override public java.util.List getCollidingBoundingBoxes(Entity entity,net.minecraft.util.AxisAlignedBB box){return flatTerrain?new ArrayList():super.getCollidingBoundingBoxes(entity,box);}
