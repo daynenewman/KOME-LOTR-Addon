@@ -519,3 +519,112 @@ Remaining manual acceptance: pan/zoom and hover normally, inspect ownership colo
 and repeat after reconnect/resource reload. Automated color-change tests are not a
 live ownership-change visual check. Player respawn and remaining KOM-46 availability/
 publication checks remain separate; neither issue is complete and the dependency stays.
+
+
+## Interactive map follow-up - 2026-09-25
+
+The user rejected the previous visual check: hover worked, but panning felt slow
+and colors appeared to change. The earlier stationary measurement is not interactive
+acceptance. KOM-60/KOM-46 remain open and unpublished; KOM-74 tracks synchronization
+volume separately. This correction is separate from tracker and queue-overflow work.
+
+Confirmed rendering defect: a complete conquest batch could be followed by the reset
+chunk of the next batch before a frame consumed its revision. The renderer then read
+partially populated mutable tile rows. A production handler/queue regression reproduced
+missing/recolored inputs before the fix. KOMEClientData now publishes an immutable,
+render-only tile-ID/owner projection on completion, before advancing the revision;
+the overlay consumes that completed projection. Reset/disconnect clears it. It contains
+only the existing public projection and is not an ownership authority. Actual completed
+ownership changes, removals, resource reload, geometry changes and reconnect still
+invalidate correctly. No packets are discarded or reordered, and queue bounds remain.
+
+A second measured cost was temporary allocation in strict text validation and faction
+normalization. validateText now counts UTF-8 bytes and validates surrogate pairs without
+allocating/encoding a throwaway buffer. Wire encoding is unchanged. Canonical lowercase
+ASCII faction keys skip NFD/regex work; noncanonical input uses the same normalization
+and alias rules with precompiled patterns. Tests compare the actual wire encoder for
+all BMP code units and size/surrogate boundaries, and compare legacy faction behavior
+for aliases, Unicode and US/Turkish locales. No protocol or faction policy changed.
+
+The live diagnosis did NOT reproduce ownership texture corruption: before pan, after
+pan away/return, and after zoom out/return, effective colors matched uploaded colors,
+whole CPU/GPU ownership texture CRCs matched (1040711219), and zero pixels differed.
+Texture ID/size and active texture unit remained stable, with no GL error. Captures
+show expected yellow hover fill/outline. The packet interleaving reproduction establishes
+a real defect, but does not prove it explains every color change reported by the user.
+No speculative GL, border, geometry or gameplay-default alteration was made.
+
+Validation: 122 focused tests passed. One clean test/build discovered 997 tests:
+995 passed, two existing Windows symlink skips, zero failures/errors. Skips are the
+same two methods listed above. Production JAR SHA-256:
+`a63d0116f2479be21be17b27aadc296d18b14a1eb3a1793aebdd4dfdd184f280`.
+
+Diagnostic sources, JFR recordings, screenshots, raw timings, source recovery,
+116-file SHA-256 verified stopped-world/config backup, build counts and saved-state
+comparison are outside the repository at
+`C:/Users/dayne/Documents/KOME-Validation/kom60-20260923T004907Z-65b1ff/interactive-map-20260925/`.
+They are temporary instrumentation, not dependencies of the production artifact.
+Cycle 6 uses matching client/server artifacts, loopback port 54190, online mode and
+empty ops. Startup completed; the existing unrelated LOTR playerdetails API DNS failure
+was logged after connection, without a disconnect. Save comparison retained Builds,
+progression, population, capitals, routes, waypoint links, movement records and Brodda's
+identity/authority/20-population payment. Observed changes were only loaded hire X/Z,
+X/Z motion and rotation, and company UpdatedAtMillis. Server stop cleared observations
+and subscriptions; real player and hire reload initialized successfully after restart.
+
+
+### Matched interactive evidence and remaining limits
+
+Both accepted runs used the live client at **3840x2054**, GUI scale unchanged, map
+center (2663.5493,1412.1355), zoom 1, centered hover, the same 80x40-map-pixel
+pan loop and zoomPower 0 -> -3 -> 0, identical temporary method timers/JFR and
+server observer. Each recording lasted about 29 seconds. The first after-run
+(`after-hover`) launched at 854x480 and is explicitly excluded; the comparison
+uses `before-hover` versus `after-matched`. `compare_interactive.py` requires all
+six framebuffer images to match the original render size and all effective/uploaded
+color maps and GPU/CPU texture checks to agree.
+
+| Matched metric | Before | After |
+|---|---:|---:|
+| Pan median / p95 frame-loop time | 8.50 / 10.07 ms | 8.36 / 9.51 ms |
+| Zoom median / p95 frame-loop time | 8.61 / 23.98 ms | 8.50 / 21.47 ms |
+| Client-thread allocation, complete window | 477.34 MB/s | 197.90 MB/s |
+| JVM GC time, complete window | 41 ms | 72 ms |
+| Pan mean border CPU time per draw | 0.279 ms | 0.279 ms |
+| Zoom mean border CPU time per draw | 0.993 ms | 0.989 ms |
+| Pan mean ownership draw/cache time | 0.076 ms | 0.037 ms |
+| Zoom mean ownership draw/cache time | 0.097 ms | 0.041 ms |
+| Pan mean conquest handler / decode | 0.073 / 0.173 ms | 0.044 / 0.099 ms |
+| Zoom mean conquest handler / decode | 0.074 / 0.182 ms | 0.041 / 0.095 ms |
+| Pan / zoom repeat ownership texture builds | 0 / 0 | 0 / 0 |
+| Pan conquest packets per frame-loop second | 437.84 | 440.08 |
+
+Mean full overlay time during zoom was 4.91 -> 4.81 ms; native LOTR map draw was
+1.54 -> 1.56 ms. These nested method timings overlap and must not be added as
+independent frame-budget slices. Border extraction/rendering cost did not materially
+improve and was not altered. Zoom still has frame spikes. Panning in this scripted
+path was already near the 120 FPS cap; this does not fully reproduce the reported
+physical dragging latency. Allocation decreased, but this short window's GC time
+increased; it is not evidence of a GC-pause improvement. Screenshots/GPU readbacks
+are excluded from frame timings but contribute allocation and GC overhead in both
+runs. JFR identifies active costs, not precise causal percentages. No broad low-end,
+all-region, or multiplayer-performance acceptance is claimed.
+
+The ownership texture ID differs across client restart (expected), stays constant
+within each run, and never diverges from CPU contents. No hover/selection styling
+was removed. The entire installed mask still hashes to
+`ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7`;
+explicit gameplay defaults and tracker sources are unchanged.
+
+Live retest, still pending user acceptance:
+1. Open the map, move the pointer away from a chosen tile, pan away and back at the
+   same zoom. Its ownership color should remain stable; yellow hover emphasis may
+   follow the pointer normally.
+2. Drag and zoom through several regions, checking responsiveness, borders and hover.
+   Report the region/zoom if a slow view remains; the measured zoom spikes are not
+   declared resolved by the narrower allocation fixes.
+3. Close/reopen, then reconnect and confirm ownership colors return correctly.
+
+KOM-74 retains the roughly 440-packet/second follow-up. The visual check remains
+pending, neither KOM-60 nor KOM-46 is complete, and the dependency/publication gate
+is unchanged. No push or PR is part of this correction.

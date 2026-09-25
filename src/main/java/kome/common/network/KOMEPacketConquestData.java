@@ -324,7 +324,7 @@ public class KOMEPacketConquestData implements IMessage {
                 if (snapshot.reset) KOMEClientData.INSTANCE.builds.clear();
                 KOMEClientData.INSTANCE.builds.putAll(builds);
                 if (snapshot.complete) {
-                    KOMEClientData.INSTANCE.conquestRevision++;
+                    KOMEClientData.INSTANCE.completeConquestUpdate();
                 }
             });
             return null;

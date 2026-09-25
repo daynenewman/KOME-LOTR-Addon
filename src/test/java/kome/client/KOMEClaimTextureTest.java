@@ -59,6 +59,7 @@ public class KOMEClaimTextureTest {
             ids.clear();ids.put("T001",1);ids.put("T002",2);client.conquestTiles.clear();
             KOMEConquestTile visible=new KOMEConquestTile("T001");visible.claim("angmar",0L);
             client.conquestTiles.put(visible.id,visible);
+            client.completeConquestUpdate();
             Map<Integer,Integer> first=KOMEConquestMapOverlay.effectiveClaimColors();
             assertEquals(1,first.size());
             client.conquestRevision++; // Other conquest summaries must not alter colors.
@@ -67,9 +68,9 @@ public class KOMEClaimTextureTest {
             client.conquestTiles.put(unknown.id,unknown);
             client.conquestTiles.put("T002",new KOMEConquestTile("T002"));
             assertEquals(first,KOMEConquestMapOverlay.effectiveClaimColors());
-            visible.claim("gondor",0L);assertNotEquals(first,KOMEConquestMapOverlay.effectiveClaimColors());
-            client.conquestTiles.remove("T001");assertTrue(KOMEConquestMapOverlay.effectiveClaimColors().isEmpty());
-        } finally {client.conquestTiles.clear();client.conquestTiles.putAll(saved);ids.clear();ids.putAll(savedIds);client.conquestRevision=revision;}
+            visible.claim("gondor",0L);client.completeConquestUpdate();assertNotEquals(first,KOMEConquestMapOverlay.effectiveClaimColors());
+            client.conquestTiles.remove("T001");client.completeConquestUpdate();assertTrue(KOMEConquestMapOverlay.effectiveClaimColors().isEmpty());
+        } finally {client.conquestTiles.clear();client.conquestTiles.putAll(saved);client.completeConquestUpdate();ids.clear();ids.putAll(savedIds);client.conquestRevision=revision;}
     }
     private static Field field(String name)throws Exception {Field f=KOMEConquestMapOverlay.class.getDeclaredField(name);f.setAccessible(true);return f;}
 }

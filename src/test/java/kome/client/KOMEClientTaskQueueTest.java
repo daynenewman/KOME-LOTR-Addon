@@ -219,6 +219,29 @@ public class KOMEClientTaskQueueTest {
         }
     }
 
+    @Test public void completedOwnershipColorsSurviveFollowingPartialResetUntilCompletion() throws Exception {
+        RecordingProxy proxy=proxy();KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE;Map saved=new HashMap(client.conquestTiles);int revision=client.conquestRevision;
+        Field colorField=KOMEConquestMapOverlay.class.getDeclaredField("tileColorsById");colorField.setAccessible(true);
+        Map colors=(Map)colorField.get(null);Map oldColors=new HashMap(colors);
+        try {
+            colors.clear();colors.put("T001",1);colors.put("T002",2);
+            KOMEPacketConquestData full=new KOMEPacketConquestData();full.reset=true;
+            NBTTagList rows=new NBTTagList();
+            for(String id:Arrays.asList("T001","T002")){KOMEConquestTile tile=new KOMEConquestTile(id);tile.claim("angmar",0);rows.appendTag(tile.projectToNBT());}
+            full.data.setTag("ConquestTiles",rows);new KOMEPacketConquestData.Handler().onMessage(full,null);proxy.queue.drain();
+            Map<Integer,Integer> completed=KOMEConquestMapOverlay.effectiveClaimColors();assertEquals(2,completed.size());
+            KOMEPacketConquestData partial=new KOMEPacketConquestData();partial.reset=true;partial.complete=false;
+            KOMEConquestTile one=new KOMEConquestTile("T002");one.claim("gondor",0);row(partial,"ConquestTiles",one.projectToNBT());
+            new KOMEPacketConquestData.Handler().onMessage(partial,null);proxy.queue.drain();
+            // Renderer may run after completion N but before completion N+1. Do not read the partial batch.
+            assertEquals(completed,KOMEConquestMapOverlay.effectiveClaimColors());
+            new KOMEPacketConquestData.Handler().onMessage(new KOMEPacketConquestData(),null);proxy.queue.drain();
+            Map<Integer,Integer> next=KOMEConquestMapOverlay.effectiveClaimColors();assertEquals(1,next.size());
+            assertFalse(next.containsKey(1));assertNotEquals(completed.get(2),next.get(2));
+        }finally{client.conquestTiles.clear();client.conquestTiles.putAll(saved);client.completeConquestUpdate();client.conquestRevision=revision;colors.clear();colors.putAll(oldColors);KOMEAddon.proxy=previous;}
+    }
+
     private static KOMEClientTaskQueue connected() { KOMEClientTaskQueue queue = new KOMEClientTaskQueue(); queue.resetSession(true, () -> {}); queue.drain(); return queue; }
     private static void row(KOMEPacketConquestData packet, String key, NBTTagCompound value) {
         NBTTagList list = new NBTTagList(); list.appendTag(value); packet.data.setTag(key, list);

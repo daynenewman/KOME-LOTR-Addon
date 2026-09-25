@@ -734,15 +734,9 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     /** Only the already public client tile projection can contribute ownership colors. */
     static Map<Integer, Integer> effectiveClaimColors() {
         Map<Integer, Integer> claimedColors = new HashMap<>();
-        for (Object object : KOMEClientData.INSTANCE.conquestTiles.values()) {
-            KOMEConquestTile tile = (KOMEConquestTile) object;
-            if (tile == null || tile.projectRulingFaction().isEmpty()) {
-                continue;
-            }
-            Integer maskColor = tileColorsById.get(KOMEConquestTile.normalizeId(tile.id));
-            if (maskColor != null) {
-                claimedColors.put(maskColor, factionArgb(tile.projectRulingFaction()));
-            }
+        for (Map.Entry<String, String> tile : KOMEClientData.INSTANCE.conquestRenderOwners().entrySet()) {
+            Integer maskColor = tileColorsById.get(tile.getKey());
+            if (maskColor != null) claimedColors.put(maskColor, factionArgb(tile.getValue()));
         }
         return claimedColors;
     }
