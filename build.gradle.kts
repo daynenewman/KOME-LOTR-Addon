@@ -44,12 +44,6 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.named<Jar>("jar") {
     archiveBaseName.set("KOME-LOTR-Addon")
-    manifest {
-        attributes[
-            "FMLCorePlugin"
-        ] = "kome.core.KOMECorePlugin"
-        attributes["FMLCorePluginContainsFMLMod"] = "true"
-    }
 }
 
 extra["modVersion"] = "1.0.8"

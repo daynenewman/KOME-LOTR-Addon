@@ -28,7 +28,7 @@ public class KOMECommandBuild extends KOMEPublicCommand {
     @Override
     public String getCommandUsage(ICommandSender sender) {
         if (!isStaff(sender)) return "/build list [tile] | inspect <buildId> | grants <tile> | grant/revoke <tile> <faction> (ruler only); submit and review through Tile Command";
-        return "/build grants <tile> | grant <tile> <faction> | revoke <tile> <faction> | list [tile] | inspect <id> | reassign <id> <onlinePlayer> | remove <id> | sethours <id> <normal|defensive> <hours> | adjust <id> <contribution> <hours> [reason] (decimal hours, at most two places)";
+        return "/build grants <tile> | grant <tile> <faction> | revoke <tile> <faction> | list [tile] | inspect <id> | import <tile> <faction> <hours> [name] | reassign <id> <onlinePlayer> | remove <id> | sethours <id> <normal|defensive> <hours> | adjust <id> <contribution> <hours> [reason]";
     }
 
     @Override
@@ -40,7 +40,8 @@ public class KOMECommandBuild extends KOMEPublicCommand {
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length == 0) throw new WrongUsageException(getCommandUsage(sender));
         if ("reassign".equalsIgnoreCase(args[0]) || "remove".equalsIgnoreCase(args[0])
-                || "sethours".equalsIgnoreCase(args[0]) || "adjust".equalsIgnoreCase(args[0])) requireStaff(sender);
+                || "sethours".equalsIgnoreCase(args[0]) || "adjust".equalsIgnoreCase(args[0])
+                || "import".equalsIgnoreCase(args[0])) requireStaff(sender);
         if ("grant".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0])) getCommandSenderAsPlayer(sender);
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
@@ -78,6 +79,29 @@ public class KOMECommandBuild extends KOMEPublicCommand {
             }
             return;
         }
+        if ("import".equals(action) && args.length >= 4) {
+            EntityPlayerMP player = getCommandSenderAsPlayer(sender);
+            StringBuilder name = new StringBuilder();
+            for (int i = 4; i < args.length; i++) {
+                if (name.length() > 0) name.append(' ');
+                name.append(args[i]);
+            }
+            long hours;
+            try { hours = KOMEBuildTime.parseHours(args[3]); }
+            catch (IllegalArgumentException invalid) {
+                throw new WrongUsageException(invalid.getMessage());
+            }
+            KOMEPlayerBuild imported = KOMEBuildService.importGrandfatheredNormal(
+                data, true, name.length() == 0 ? "Imported " + args[1] : name.toString(),
+                args[1], player.dimension, player.posX, player.posY, player.posZ,
+                actorId(sender), sender.getCommandSenderName(), args[2], hours,
+                System.currentTimeMillis());
+            data.syncConquestTiles();
+            sender.addChatMessage(new ChatComponentText("Imported " + imported.id
+                + " with " + KOMEBuildTime.formatHours(imported.approvedCentiHours())
+                + " approved and developed hours."));
+            return;
+        }
         if (args.length < 2) throw new WrongUsageException(getCommandUsage(sender));
         KOMEPlayerBuild build = data.getBuild(args[1]);
         if (build == null) throw new WrongUsageException("Unknown Build ID: " + args[1]);
@@ -112,6 +136,7 @@ public class KOMECommandBuild extends KOMEPublicCommand {
             KOMEBuildService.Decision decision = KOMEBuildService.deleteBuild(data, build, actorId(sender),
                 sender.getCommandSenderName(), true, "Administrative repair removal", System.currentTimeMillis());
             if (!decision.allowed) throw new WrongUsageException(decision.reason);
+            data.syncConquestTiles();
             sender.addChatMessage(new ChatComponentText("Removed Build " + build.id + "."));
             return;
         }
@@ -122,6 +147,7 @@ public class KOMECommandBuild extends KOMEPublicCommand {
             KOMEBuildService.Decision decision = KOMEBuildService.setApprovedHours(data, build, actorId(sender),
                 sender.getCommandSenderName(), true, args[3], System.currentTimeMillis());
             if (!decision.allowed) throw new WrongUsageException(decision.reason);
+            data.syncConquestTiles();
             sender.addChatMessage(new ChatComponentText("Set " + build.id + " " + type.key + " hours to "
                 + KOMEBuildTime.formatHours(build.approvedCentiHours()) + "."));
             return;
@@ -136,6 +162,7 @@ public class KOMECommandBuild extends KOMEPublicCommand {
             KOMEBuildService.Decision decision = KOMEBuildService.adjustSubmission(data, build, args[2], actorId(sender),
                 sender.getCommandSenderName(), true, args[3], reason.toString(), System.currentTimeMillis());
             if (!decision.allowed) throw new WrongUsageException(decision.reason);
+            data.syncConquestTiles();
             sender.addChatMessage(new ChatComponentText("Adjusted " + args[2] + " to "
                 + KOMEBuildTime.formatHours(build.getContribution(args[2]).centiHours) + " hours."));
             return;
@@ -151,7 +178,7 @@ public class KOMECommandBuild extends KOMEPublicCommand {
     public java.util.List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length != 1) return java.util.Collections.emptyList();
         return isStaff(sender)
-            ? getListOfStringsMatchingLastWord(args, "list", "inspect", "grants", "grant", "revoke", "reassign", "remove", "sethours", "adjust")
+            ? getListOfStringsMatchingLastWord(args, "list", "inspect", "grants", "grant", "revoke", "import", "reassign", "remove", "sethours", "adjust")
             : getListOfStringsMatchingLastWord(args, "list", "inspect", "grants", "grant", "revoke");
     }
 
@@ -167,10 +194,21 @@ public class KOMECommandBuild extends KOMEPublicCommand {
     }
 
     private static String summary(KOMEWorldData data, KOMEPlayerBuild build) {
+        kome.common.data.KOMEPopulationRateContribution projected = null;
+        for (kome.common.data.KOMEPopulationRateContribution row
+                : kome.common.data.KOMEPopulationRateService.getPopulationRateContributions(data)) {
+            if (build.id.equals(row.buildId)) { projected = row; break; }
+        }
+        String production = projected == null ? "inactive; current 0/day"
+            : projected.status + " x" + projected.multiplier + "; current "
+                + projected.formatCurrentRate();
         return build.id + " [" + (build.active ? "active" : "deleted") + "] " + build.displayName
             + " tile=" + build.tileId + " owner=" + KOMEAlliance.displayFactionName(build.populationFaction)
-            + " type=" + build.type.key + " hours="
-            + KOMEBuildTime.formatHours(build.approvedCentiHours());
+            + " type=" + build.type.key + " approved/developed/pending="
+            + KOMEBuildTime.formatHours(build.approvedCentiHours()) + "/"
+            + KOMEBuildTime.formatHours(build.developedNativeCentiHours) + "/"
+            + KOMEBuildTime.formatHours(build.pendingNativeCentiHours())
+            + " hours; " + production;
     }
 
     private static KOMEBuildType parseType(String value) {

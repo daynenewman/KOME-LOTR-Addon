@@ -5,6 +5,9 @@ import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEPopulationType;
+import kome.common.data.KOMEPopulationService;
+import kome.common.data.KOMEPopulationProjection;
+import kome.common.data.KOMEAuditService;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMERulerAuthorization;
@@ -39,7 +42,7 @@ public class KOMECommandPopulation extends KOMEPublicCommand {
     @Override
     public String getCommandUsage(ICommandSender sender) {
         if (!isStaff(sender)) return "/population get | gui | units | tile <tile> | faction <faction> | rate [faction] (player details are self-only)";
-        return "/population get [player] | gui [player] | units [player] [tile] | tile <tile> | faction <faction> | rate [faction]";
+        return "/population get [player] | gui [player] | units [player] [tile] | tile <tile> | faction <faction> | rate [faction] | grant <faction> <amount>";
     }
 
     @Override
@@ -82,7 +85,64 @@ public class KOMECommandPopulation extends KOMEPublicCommand {
             sendRateAudit(sender, args);
             return;
         }
+        if ("grant".equalsIgnoreCase(args[0])) {
+            grantPopulation(sender, args);
+            return;
+        }
         throw new WrongUsageException(getCommandUsage(sender));
+    }
+
+    private void grantPopulation(ICommandSender sender, String[] args) {
+        if (!isStaff(sender)) {
+            throw new WrongUsageException("Only operators may grant Available Population.");
+        }
+        if (args.length != 3) {
+            throw new WrongUsageException("/population grant <faction> <amount>");
+        }
+        LOTRFaction resolved = KOMEAlliance.findLotrFaction(args[1]);
+        if (resolved == null || !resolved.isPlayableAlignmentFaction()) {
+            throw new WrongUsageException("Unsupported playable faction: " + args[1]);
+        }
+        String faction = KOMEAlliance.normalizeFactionKey(resolved.codeName());
+        if (!KOMEAlliance.allFactionKeys().contains(faction)) {
+            throw new WrongUsageException("Unsupported playable faction: " + args[1]);
+        }
+        long amountCenti = parsePositivePopulationCenti(args[2]);
+        KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
+        try {
+            KOMEPopulationService.grantCenti(data, faction, amountCenti);
+        } catch (ArithmeticException overflow) {
+            throw new WrongUsageException("Population grant would overflow the faction's Available Population.");
+        }
+        long resulting = KOMEPopulationService.getAvailablePopulationCenti(data, faction);
+        String actor = sender instanceof EntityPlayerMP
+            ? KOMEReflection.getEntityUUID((EntityPlayerMP) sender).toString()
+            : sender.getCommandSenderName();
+        KOMEAuditService.record(data, System.currentTimeMillis(), "POPULATION",
+            "ADMIN_GRANT", actor, faction, "Administrative population grant",
+            "faction=" + faction + ";grantedCenti=" + amountCenti
+                + ";availableCenti=" + resulting);
+        data.syncConquestTiles();
+        sender.addChatMessage(new ChatComponentText("Granted "
+            + KOMEPopulationProjection.formatCenti(amountCenti) + " Available Population to "
+            + displayFaction(faction) + "; resulting Available Population: "
+            + KOMEPopulationProjection.formatCenti(resulting) + "."));
+    }
+
+    private static long parsePositivePopulationCenti(String value) {
+        String text = value == null ? "" : value.trim();
+        if (!text.matches("[0-9]+(?:\\.[0-9]{1,2})?")) {
+            throw new WrongUsageException("Population amount must be a positive exact number with at most two decimal places.");
+        }
+        try {
+            long result = new java.math.BigDecimal(text).movePointRight(2).longValueExact();
+            if (result <= 0L) {
+                throw new WrongUsageException("Population amount must be greater than zero.");
+            }
+            return result;
+        } catch (ArithmeticException invalid) {
+            throw new WrongUsageException("Population amount is too large.");
+        }
     }
 
     /** Canonical Build-rate audit plus operator-only persisted payout diagnostics. */
@@ -93,14 +153,23 @@ public class KOMECommandPopulation extends KOMEPublicCommand {
         if (requested.length() > 0) sender.addChatMessage(new ChatComponentText("Faction " + displayFaction(requested)
                 + " Daily Population Rate: " + kome.common.data.KOMEPopulationProjection.formatRate(kome.common.data.KOMEPopulationProjection.of(data, requested).dailyRateUnits)));
         for (kome.common.data.KOMEPopulationRateContribution row : kome.common.data.KOMEPopulationService.getPopulationRateContributions(data)) {
-            if (requested.length() > 0 && !requested.equals(row.populationFaction)) continue;
+            if (requested.length() > 0 && !requested.equals(row.populationFaction)
+                    && !requested.equals(row.receivingFaction)) continue;
             sender.addChatMessage(new ChatComponentText("Build " + row.buildId + " " + row.displayName + " tile " + row.tileId
                     + " " + row.populationFaction + " -> " + (row.currentController.length() == 0 ? "UNCONTROLLED" : row.currentController)
-                    + ": approved " + (kome.common.data.KOMEBuildTime.formatHours(row.approvedCentiHours)) + "h, original " + row.formatOriginalRate()
-                    + " x" + row.multiplier + ", " + row.status + ", current " + row.formatCurrentRate()));
+                    + ": approved/developed/pending "
+                    + kome.common.data.KOMEBuildTime.formatHours(row.approvedCentiHours) + "/"
+                    + kome.common.data.KOMEBuildTime.formatHours(row.developedNativeCentiHours) + "/"
+                    + kome.common.data.KOMEBuildTime.formatHours(row.pendingNativeCentiHours)
+                    + "h, native capacity (diagnostic only) " + row.formatOriginalRate()
+                    + " x" + row.multiplier + ", " + row.status + ", current recipient "
+                    + (row.receivingFaction.length() == 0 ? "NONE" : row.receivingFaction)
+                    + ", current contribution " + row.formatCurrentRate()));
         }
         if (sender.canCommandSenderUseCommand(2, getCommandName())) {
             for (String line : kome.common.data.KOMEPopulationPayoutProcessor.inspection(data))
+                sender.addChatMessage(new ChatComponentText(line));
+            for (String line : kome.common.data.KOMEPopulationDevelopmentService.inspection(data))
                 sender.addChatMessage(new ChatComponentText(line));
         }
     }
@@ -330,10 +399,15 @@ public class KOMECommandPopulation extends KOMEPublicCommand {
 
     @Override
     public java.util.List addTabCompletionOptions(ICommandSender sender, String[] args) {
-        if (args.length == 1) return getListOfStringsMatchingLastWord(args, "get", "gui", "units", "tile", "faction", "rate");
+        if (args.length == 1) return isStaff(sender)
+            ? getListOfStringsMatchingLastWord(args, "get", "gui", "units", "tile", "faction", "rate", "grant")
+            : getListOfStringsMatchingLastWord(args, "get", "gui", "units", "tile", "faction", "rate");
         if (args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "gui".equalsIgnoreCase(args[0]) || "units".equalsIgnoreCase(args[0])))
             return isStaff(sender) ? getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames())
                 : Collections.emptyList();
+        if (args.length == 2 && "grant".equalsIgnoreCase(args[0]) && isStaff(sender))
+            return getListOfStringsMatchingLastWord(args,
+                KOMEAlliance.allFactionKeys().toArray(new String[KOMEAlliance.allFactionKeys().size()]));
         return null;
     }
 

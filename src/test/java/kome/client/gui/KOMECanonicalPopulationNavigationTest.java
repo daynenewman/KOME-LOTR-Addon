@@ -36,7 +36,32 @@ public class KOMECanonicalPopulationNavigationTest {
             assertTrue(label, card.contains("\"" + label + "\""));
         for (String field : new String[] {"population.availablePopulationCenti", "population.activePopulationCenti", "population.representedPopulationCenti", "population.dailyRateUnits", "population.capCenti"})
             assertTrue(field, card.contains(field));
+        assertTrue(card.contains("\"Faction Daily Rate\""));
+        assertFalse(card.contains("\"Daily rate\""));
         assertFalse(card.contains("getAvailablePopulation(")); assertFalse(card.contains("sendToServer("));
+    }
+
+    @Test public void populationTileManageClosesSourceBeforeOpeningServerAuthoritativeTileGui() throws Exception {
+        String population = new String(Files.readAllBytes(Paths.get(
+            "src/main/java/kome/client/gui/KOMEGuiPopulation.java")), StandardCharsets.UTF_8);
+        String manage = section(population, "private boolean handleTileRowClick(",
+            "private List getPlayerRows()");
+        int request = manage.indexOf("sendToServer(new KOMEPacketConquestOpenCapture(row.tileId))");
+        int close = manage.indexOf("KOMEMinecraftClient.closePlayerScreen()");
+        assertTrue(request >= 0);
+        assertTrue(close > request);
+    }
+
+    @Test public void disabledClaimReasonChecksActualOwnershipBeforePermissionDenial() throws Exception {
+        String source = source();
+        String reason = section(source, "private String disabledReason(int id)",
+            "private boolean hasViewerFaction()");
+        int pledge = reason.indexOf("!hasViewerFaction()");
+        int owned = reason.indexOf("isOwnedByPledge()");
+        int authorization = reason.indexOf("Take Waypoints");
+        assertTrue(pledge >= 0);
+        assertTrue(owned > pledge);
+        assertTrue(authorization > owned);
     }
 
     private static String section(String text, String from, String to) {

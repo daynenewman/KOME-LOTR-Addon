@@ -2557,11 +2557,15 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             return;
         }
         String tile = parseTile(value);
-        if (!data.isFactionControlledTile(tile, faction)) {
-            throw new WrongUsageException("Your faction does not control " + tile + ".");
-        }
+        kome.common.data.KOMERecruitmentLocationService.Decision legality =
+            kome.common.data.KOMERecruitmentLocationService.evaluate(data, faction, tile);
         if (!data.setActiveRecruitmentTile(owner, faction, tile)) {
-            throw new WrongUsageException("Your faction needs positive Available + Active Population to use " + tile + " as a recruitment origin.");
+            throw new WrongUsageException("Cannot recruit from " + tile + ": "
+                + legality.reason + " Current developed rate "
+                + kome.common.data.KOMEPopulationProjection.formatRate(
+                    legality.effectiveRateUnits) + "/day; required "
+                + kome.common.data.KOMEPopulationProjection.formatRate(
+                    legality.thresholdUnits) + "/day.");
         }
         sender.addChatMessage(new ChatComponentText("Active recruitment tile set to " + tile + ". New hires will prefer this tile."));
     }

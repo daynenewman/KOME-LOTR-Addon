@@ -97,7 +97,8 @@ public class KOMECampaignBoundaryMovementTest {
             build.populationFaction = "rohan"; build.type = KOMEBuildType.NORMAL;
             KOMEBuildContribution hours = new KOMEBuildContribution(); hours.id = "hours";
             hours.centiHours = 1000L; hours.status = KOMEBuildContribution.APPROVED;
-            build.contributions.add(hours); data.builds.put(build.id, build);
+            build.contributions.add(hours); build.developedNativeCentiHours = 1000L;
+            data.builds.put(build.id, build);
             KOMEPopulationPayoutRuntime runtime = new KOMEPopulationPayoutRuntime();
             assertTrue(runtime.onStartup(data, START).success);
             assertTrue(KOMEEvents.processCampaignTick(data, world(), DUE.toEpochMilli(), runtime).success);

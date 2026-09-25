@@ -145,6 +145,8 @@ public class KOMECurrentTileHudTest {
         KOMEClientProxy proxy = KOMEAccessFixture.allocate(KOMEClientProxy.class);
         KOMEClientTaskQueue queue = new KOMEClientTaskQueue();
         field(KOMEClientProxy.class, "clientTasks").set(proxy, queue);
+        field(KOMEClientProxy.class, "conquestSnapshots").set(proxy,
+            new KOMEConquestSnapshotPublisher(queue));
         field(KOMEClientProxy.class, "currentTileHud").set(proxy, hud);
         proxy.onClientDisconnect(null);
         assertFalse(hud.visible()); assertNull(hud.location()); assertEquals("", hud.label());

@@ -282,7 +282,7 @@ public class KOMERedesignSystemsTest {
         assertEquals(3, KOMEBuildService.buildsInTile(data, "T100", false).size());
     }
 
-    @Test public void deletionReversesApprovedAndPendingContributionStatuses() {
+    @Test public void deletionRetainsApprovedHistoryRejectsPendingAndStopsProduction() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 2, 0);
         KOMEBuildContribution approved = build.contributions.get(0);
@@ -290,10 +290,11 @@ public class KOMERedesignSystemsTest {
             "Helper", "rohan", 50L, false, 20L);
         assertTrue(KOMEBuildService.deleteBuild(data, build, build.managerUuid,
             build.managerName, false, "delete", 40L).allowed);
-        assertTrue(approved.isRemoved());
+        assertTrue(approved.isApproved());
         assertEquals(KOMEBuildContribution.REJECTED, pending.status);
-        assertTrue(build.activeCentiHoursByPlayer().isEmpty());
-        assertTrue(build.activeCentiHoursByFaction().isEmpty());
+        assertEquals(100L, build.approvedCentiHours());
+        assertFalse(build.active);
+        assertEquals(0L, KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
     }
 
     @Test public void buildAndContributionPersistenceRoundTrip() {
@@ -377,7 +378,8 @@ public class KOMERedesignSystemsTest {
         assertEquals(java.util.Collections.singletonList(defensive), KOMEBuildService.activeDefensiveBuilds(data));
         assertTrue(KOMEBuildService.decideSubmission(data, normal, normal.contributions.get(0).id,
             normal.managerUuid, "Builder", true, "Reviewed", 11L).allowed);
-        assertEquals(400_000L, kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
+        assertEquals(400L, normal.pendingNativeCentiHours());
+        assertEquals(0L, kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
         assertEquals(300L, defensive.approvedCentiHours());
     }
 

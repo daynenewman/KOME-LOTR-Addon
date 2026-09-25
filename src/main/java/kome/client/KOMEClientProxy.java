@@ -20,6 +20,8 @@ import java.util.List;
 
 public class KOMEClientProxy extends KOMECommonProxy {
     private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue();
+    private final KOMEConquestSnapshotPublisher conquestSnapshots =
+        new KOMEConquestSnapshotPublisher(clientTasks);
     private KOMECurrentTileHud currentTileHud;
     public KOMEClientProxy() {
         super(new ClientProxy());
@@ -65,6 +67,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        conquestSnapshots.resetSession();
         final long tileSession = currentTileHud == null ? 0L : currentTileHud.suspendSession();
         clientTasks.resetSession(true, () -> {
             resetClientSessionState();
@@ -74,6 +77,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        conquestSnapshots.resetSession();
         if (currentTileHud != null) currentTileHud.suspendSession();
         clientTasks.resetSession(false, this::resetClientSessionState);
     }
@@ -81,6 +85,12 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @Override
     public void enqueueClientTask(Runnable task) {
         clientTasks.enqueue(task);
+    }
+
+    @Override
+    public void acceptConquestSnapshotChunk(
+            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk) {
+        conquestSnapshots.accept(chunk);
     }
 
     private void resetClientSessionState() {

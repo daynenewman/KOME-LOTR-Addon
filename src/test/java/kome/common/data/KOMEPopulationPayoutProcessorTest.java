@@ -65,8 +65,12 @@ public class KOMEPopulationPayoutProcessorTest {
         KOMEWorldData data = world("gondor", 500L);
         add(data, "rohan", KOMEBuildType.NORMAL, 1000L);
         add(data, "mordor", KOMEBuildType.DEFENSIVE, Long.MAX_VALUE);
-        add(data, "pending", KOMEBuildType.NORMAL, 1000L).contributions.get(0).status = KOMEBuildContribution.PENDING;
-        add(data, "rejected", KOMEBuildType.NORMAL, 1000L).contributions.get(0).status = KOMEBuildContribution.REJECTED;
+        KOMEPlayerBuild pending = add(data, "pending", KOMEBuildType.NORMAL, 1000L);
+        pending.contributions.get(0).status = KOMEBuildContribution.PENDING;
+        pending.developedNativeCentiHours = 0L;
+        KOMEPlayerBuild rejected = add(data, "rejected", KOMEBuildType.NORMAL, 1000L);
+        rejected.contributions.get(0).status = KOMEBuildContribution.REJECTED;
+        rejected.developedNativeCentiHours = 0L;
         add(data, "inactive", KOMEBuildType.NORMAL, 1000L).active = false;
         add(data, "zero", KOMEBuildType.NORMAL, 0L);
         data.conquestTiles.get("T-ROHAN").claim("gondor", 0L);
@@ -156,6 +160,7 @@ public class KOMEPopulationPayoutProcessorTest {
         assertEquals(1L, bank(data, "gondor")); assertEquals(5000L, remainder(data, "gondor"));
         KOMEPopulationService.trySpendCenti(data, "gondor", 1L);
         data.builds.get("B-gondor").contributions.get(0).centiHours = 5L;
+        data.builds.get("B-gondor").developedNativeCentiHours = 5L;
         pay(data, KOMEPopulationPayoutProcessor.nextBoundary(first));
         assertEquals(1L, bank(data, "gondor")); assertEquals(0L, remainder(data, "gondor"));
     }
@@ -247,11 +252,20 @@ public class KOMEPopulationPayoutProcessorTest {
         KOMEWorldData data = world("gondor", 10L);
         Instant due = initializeAndNext(data); KOMEPopulationService.grantCenti(data, "gondor", Long.MAX_VALUE);
         config.set("dailyBatch.localTime", "09:15");
-        NBTTagCompound before = save(data);
+        long bankBefore = bank(data, "gondor");
+        long payoutCursorBefore = data.lastPopulationPayoutBoundaryMillis;
+        String payoutTimeBefore = data.populationPayoutLocalTime;
+        java.util.Map<String, Long> remaindersBefore =
+            new java.util.HashMap<String, Long>(data.populationPayoutRemainders);
         KOMEPopulationPayoutRuntime runtime = new KOMEPopulationPayoutRuntime();
         assertFalse(runtime.onStartup(data, due).success); assertFalse(runtime.hasStarted(data));
-        assertEquals(before, save(data));
-        assertFalse(runtime.onLiveCheck(data, due).success); assertEquals(before, save(data));
+        assertEquals(bankBefore, bank(data, "gondor"));
+        assertEquals(payoutCursorBefore, data.lastPopulationPayoutBoundaryMillis);
+        assertEquals(payoutTimeBefore, data.populationPayoutLocalTime);
+        assertEquals(remaindersBefore, data.populationPayoutRemainders);
+        NBTTagCompound afterDevelopmentAnchor = save(data);
+        assertFalse(runtime.onLiveCheck(data, due).success);
+        assertEquals(afterDevelopmentAnchor, save(data));
         KOMEPopulationService.trySpendCenti(data, "gondor", 1L);
         assertTrue(runtime.onLiveCheck(data, due).success); assertTrue(runtime.hasStarted(data));
         assertEquals("09:15", data.populationPayoutLocalTime);
@@ -460,7 +474,8 @@ public class KOMEPopulationPayoutProcessorTest {
             DirtyFailureData data = failureWorld();
             Instant due = initializeAndNext(data); data.setDirty(false);
             config.set("dailyBatch.localTime", "09:15");
-            data.arm(catchUp ? 5 : 4, true, () -> assertEquals("RECONCILED", lastAction(data)));
+            // Runtime first commits the independent population-development startup anchor.
+            data.arm(catchUp ? 6 : 5, true, () -> assertEquals("RECONCILED", lastAction(data)));
             java.util.List<String> failures = new java.util.ArrayList<String>();
             KOMEPopulationPayoutRuntime runtime = new KOMEPopulationPayoutRuntime(failures::add);
             KOMEPopulationPayoutProcessor.Result failed = runtime.onStartup(data, due);
@@ -635,7 +650,9 @@ public class KOMEPopulationPayoutProcessorTest {
         KOMEPlayerBuild build = new KOMEPlayerBuild(); build.id = "B-" + faction; build.tileId = tile.id;
         build.populationFaction = faction; build.type = type;
         KOMEBuildContribution contribution = new KOMEBuildContribution(); contribution.id = "H"; contribution.centiHours = centiHours;
-        contribution.status = KOMEBuildContribution.APPROVED; build.contributions.add(contribution); data.builds.put(build.id, build); return build;
+        contribution.status = KOMEBuildContribution.APPROVED; build.contributions.add(contribution);
+        if (type == KOMEBuildType.NORMAL) build.developedNativeCentiHours = centiHours;
+        data.builds.put(build.id, build); return build;
     }
     static Instant initializeAndNext(KOMEWorldData data) {
         assertTrue(KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data, START).success);
