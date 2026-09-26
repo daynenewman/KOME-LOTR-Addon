@@ -41,7 +41,7 @@ public class KOMEPopulationRefreshWiringTest {
 
         String world = source("src/main/java/kome/common/data/KOMEWorldData.java");
         assertTrue(world.contains("server.getConfigurationManager().playerEntityList"));
-        assertTrue(world.contains("KOMEPacketConquestData.sendChunked(this, (EntityPlayerMP) player)"));
+        assertTrue(world.contains("KOMEPacketConquestData.sendIfChanged(this, (EntityPlayerMP) player)"));
     }
 
     @Test public void multiClientAuthoritativeRefreshKeepsIndependentCompleteGenerations() throws Exception {

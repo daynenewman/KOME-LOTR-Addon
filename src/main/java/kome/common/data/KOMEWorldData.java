@@ -1877,7 +1877,7 @@ public class KOMEWorldData extends WorldSavedData {
         }
         if (server == null || server.getConfigurationManager() == null) return;
         for (Object player : server.getConfigurationManager().playerEntityList) {
-            KOMEPacketConquestData.sendChunked(this, (EntityPlayerMP) player);
+            KOMEPacketConquestData.sendIfChanged(this, (EntityPlayerMP) player);
         }
     }
 

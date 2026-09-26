@@ -150,6 +150,7 @@ public class KOMEAddon {
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();
+        kome.common.network.KOMEPacketConquestData.clearSentSnapshots();
         KOMEPacketHandler.clearPendingServerTasks();
         KOMEConfigRegistry.onServerStop();
         lotrMoreMobs.serverStopping(event);
@@ -159,6 +160,7 @@ public class KOMEAddon {
     public void serverStopped(FMLServerStoppedEvent event) {
         // Also covers failed startup/crash paths that skip serverStopping. Idempotent.
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();
+        kome.common.network.KOMEPacketConquestData.clearSentSnapshots();
         KOMEConfigRegistry.onServerStop();
     }
 }
