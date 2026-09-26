@@ -34,7 +34,7 @@ public final class KOMECourierService {
         String recipient=a.recipient.isSet()?a.recipient.displayName:"The appointed recipient";
         String body=story(a.storyVariant,a.destinationFactionKey,a.destinationName);
         LOTRFaction faction=KOMEProgressionFactionResolver.resolve(a.destinationFactionKey);String factionName=faction==null?a.destinationFactionKey:faction.factionName();
-        return recipient+",\n\n"+body+"\n\nFor "+factionName+".\n— "+master.displayName+"\n\nCarry this sealed letter to "+recipient+" at "+a.destinationName+".";
+        return recipient+",\n\n"+body+"\n\nFor "+factionName+".\n— "+master.displayName+"\n\nCarry this sealed letter to "+recipient+" within "+a.destinationName+".";
     }
     private static String story(int variant,String faction,String destination){
         String f=faction==null?"":faction.toLowerCase();boolean rohan=f.contains("rohan");boolean evil=f.contains("mordor")||f.contains("orc")||f.contains("uruk");boolean dwarf=f.contains("dwarf");boolean elf=f.contains("elf")||f.contains("lothlorien");
