@@ -17,31 +17,11 @@ import java.util.List;
 
 public class KOMEProgressionLords {
     public static boolean pledgeToLord(EntityPlayerMP player, LOTRHireableBase lord) {
-        if (player == null || lord == null || !(lord instanceof Entity) || !isPledgeLord(lord)) {
-            throw new WrongUsageException("Choose a captain or unit-trading lord.");
+        if(player!=null) {
+            player.addChatMessage(new ChatComponentText(
+                "Legacy pledged-lord selection is retired. Use canonical Master and Liege relationships instead."));
         }
-        if (!KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.PLEDGE)) {
-            return false;
-        }
-        Entity entity = (Entity) lord;
-        if (player.getDistanceSqToEntity(entity) > 64.0D) {
-            throw new WrongUsageException("Stand within 8 blocks of the lord you want to pledge to.");
-        }
-        LOTRFaction faction = lord.getFaction();
-        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-        progression.setPledgedLord(String.valueOf(KOMEReflection.getEntityUUID(entity)), lord.getNPCName(), faction == null ? "" : faction.factionName());
-        progression.setPledgedLordLocation(KOMEReflection.getWorld(player).provider.dimensionId, entity.posX, entity.posY, entity.posZ);
-        boolean changed = progression.grant("wanderer.find_serf_lord");
-        changed = KOMEProgressionAutoCompleter.applyUnlocks(progression) > 0 || changed;
-        data.markDirty();
-        KOMEProgressionAutoCompleter.syncPlayer(player, progression);
-        KOMEProgressionTitles.updatePlayerTitle(player);
-        player.addChatMessage(new ChatComponentText("Pledged loyalty to " + progression.getPledgedLordDisplay() + ". Bring your quotas to this lord."));
-        if (changed) {
-            player.addChatMessage(new ChatComponentText("Completed: Pledge to a Lord"));
-        }
-        return true;
+        return false;
     }
 
     public static void openOfferings(EntityPlayerMP player) {

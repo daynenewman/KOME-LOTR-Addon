@@ -11,6 +11,8 @@ import kome.common.data.KOMEProgressionTitles;
 import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMECanonicalRankService;
 import kome.common.data.KOMEProgressionRank;
+import kome.common.data.KOMEProgressionEncounterCleanup;
+import kome.common.data.KOMEProgressionNpcRoles;
 import lotr.common.entity.npc.LOTRHireableBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
@@ -33,8 +35,8 @@ public class KOMECommandProgression extends KOMEPublicCommand {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        if (!isStaff(sender)) return "/progression status | get | list <group> | pledge | offerings | complete/uncomplete <id> | roll <id> (details are self-only)";
-        return "/progression status | enable | disable | get [player] | list [player] <group> | pledge | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | setrank <player> <rank> | reset <player>";
+        if (!isStaff(sender)) return "/progression status | get | list <group> | offerings | complete/uncomplete <id> | roll <id> (details are self-only)";
+        return "/progression status | enable | disable | get [player] | list [player] <group> | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | setrank <player> <rank> | reset <player>";
     }
 
     @Override
@@ -74,16 +76,8 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             return;
         }
         if ("pledge".equalsIgnoreCase(args[0])) {
-            if (args.length != 1) {
-                throw new WrongUsageException(getCommandUsage(sender));
-            }
-            EntityPlayerMP player = getCommandSenderAsPlayer(sender);
-            LOTRHireableBase lord = KOMEProgressionLords.findNearbyPledgeLord(player);
-            if (lord == null) {
-                throw new WrongUsageException("Stand within 8 blocks of a captain or unit-trading lord, or shift-click one to open the lord menu.");
-            }
-            KOMEProgressionLords.pledgeToLord(player, lord);
-            return;
+            throw new WrongUsageException(
+                "Legacy pledged-lord selection is retired. Use canonical Master and Liege relationships instead.");
         }
         if ("offerings".equalsIgnoreCase(args[0]) || "lordinv".equalsIgnoreCase(args[0]) || "quota".equalsIgnoreCase(args[0])) {
             if (args.length != 1) {
@@ -211,8 +205,8 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             }
             data.markDirty();
             syncProgression(player, progression);
-            sender.addChatMessage(new ChatComponentText("Granted all progression to " + player.getCommandSenderName() + " (" + changed + " newly completed)."));
-            player.addChatMessage(new ChatComponentText("All KOME progression steps have been granted by an admin."));
+            sender.addChatMessage(new ChatComponentText("Granted all legacy achievement progression to " + player.getCommandSenderName() + " (" + changed + " newly completed)."));
+            player.addChatMessage(new ChatComponentText("All legacy KOME achievement steps have been granted by an admin."));
             return;
         }
         if ("setrank".equalsIgnoreCase(args[0])) {
@@ -222,7 +216,10 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             KOMEProgressionRank rank = KOMEProgressionRank.forKey(args[2]);
             if (rank == null) throw new WrongUsageException("Unknown canonical rank. Use wanderer, serf, knight, lord, or prince.");
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            boolean changed = KOMECanonicalRankService.setCanonicalRank(data, KOMEReflection.getEntityUUID(player), rank);
+            UUID playerId=KOMEReflection.getEntityUUID(player);
+            boolean changed = KOMECanonicalRankService.overrideCanonicalRank(data, player, rank);
+            KOMEProgressionNpcRoles.syncPlayer(data,playerId);
+            syncProgression(player,data.getProgression(playerId));
             sender.addChatMessage(new ChatComponentText((changed ? "Set " : "Already ") + player.getCommandSenderName() + " canonical rank to " + rank.displayName + "."));
             player.addChatMessage(new ChatComponentText("Your canonical progression rank is now " + rank.displayName + "."));
             return;
@@ -234,9 +231,13 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             }
             EntityPlayerMP player = getPlayer(sender, args[1]);
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            data.getProgression(KOMEReflection.getEntityUUID(player)).reset();
+            UUID playerId=KOMEReflection.getEntityUUID(player);
+            KOMEPlayerProgression progression=data.getProgression(playerId);
+            KOMEProgressionEncounterCleanup.cleanup(player,progression);
+            progression.reset();
+            KOMEProgressionNpcRoles.syncPlayer(data,playerId);
             data.markDirty();
-            syncProgression(player, data.getProgression(KOMEReflection.getEntityUUID(player)));
+            syncProgression(player,progression);
             sender.addChatMessage(new ChatComponentText("Reset progression for " + player.getCommandSenderName() + ". Default baseline unlocks still apply."));
             return;
         }
@@ -248,7 +249,7 @@ public class KOMECommandProgression extends KOMEPublicCommand {
         KOMEPlayerProgression progression = data.progressionForInspection(KOMEReflection.getEntityUUID(player));
         sender.addChatMessage(new ChatComponentText("Progression restrictions: " + (data.isProgressionEnabled() ? "enabled" : "disabled")));
         sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " progression: " + progression.getCompletedCount(null) + "/" + progression.getTotalCount(null) + " complete"));
-        sender.addChatMessage(new ChatComponentText("Pledged lord: " + progression.getPledgedLordDisplay()));
+        sender.addChatMessage(new ChatComponentText("Legacy pledged lord: " + progression.getPledgedLordDisplay()));
         sender.addChatMessage(new ChatComponentText("Canonical rank: " + progression.getCanonicalRank().displayName));
         for (String group : GROUPS) {
             sender.addChatMessage(new ChatComponentText(group + ": " + progression.getCompletedCount(group) + "/" + progression.getTotalCount(group)));
@@ -319,7 +320,7 @@ public class KOMECommandProgression extends KOMEPublicCommand {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (!isStaff(sender)) {
-            if (args.length == 1) return getListOfStringsMatchingLastWord(args, "status", "get", "list", "pledge", "offerings", "complete", "uncomplete", "roll");
+            if (args.length == 1) return getListOfStringsMatchingLastWord(args, "status", "get", "list", "offerings", "complete", "uncomplete", "roll");
             if (args.length > 0 && "get".equalsIgnoreCase(args[0])) return java.util.Collections.emptyList();
             if (args.length > 0 && "list".equalsIgnoreCase(args[0])) return args.length == 2
                 ? getListOfStringsMatchingLastWord(args, GROUPS) : java.util.Collections.emptyList();
@@ -327,7 +328,7 @@ public class KOMECommandProgression extends KOMEPublicCommand {
                     .contains(args[0].toLowerCase(java.util.Locale.ROOT))) return java.util.Collections.emptyList();
         }
         if (args.length == 1) {
-            return getListOfStringsMatchingLastWord(args, "status", "enable", "disable", "get", "list", "pledge", "offerings", "complete", "uncomplete", "roll", "reroll", "grant", "revoke", "grantall", "setrank", "reset");
+            return getListOfStringsMatchingLastWord(args, "status", "enable", "disable", "get", "list", "offerings", "complete", "uncomplete", "roll", "reroll", "grant", "revoke", "grantall", "setrank", "reset");
         }
         if (args.length == 2 && ("get".equalsIgnoreCase(args[0]) || "grant".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0]) || "grantall".equalsIgnoreCase(args[0]) || "setrank".equalsIgnoreCase(args[0]) || "reset".equalsIgnoreCase(args[0]) || "reroll".equalsIgnoreCase(args[0]))) {
             return getListOfStringsMatchingLastWord(args, MinecraftServer.getServer().getAllUsernames());

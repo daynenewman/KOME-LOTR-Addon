@@ -18,6 +18,8 @@ import kome.common.data.KOMEWaypointDefaults;
 import kome.common.data.KOMEPlayerProgression;
 import kome.common.data.KOMEProgressionNpcRankService;
 import kome.common.data.KOMEProgressionNpcRef;
+import kome.common.data.KOMEProgressionEncounterCleanup;
+import kome.common.data.KOMESerfKnightProgression;
 import kome.common.data.KOMESerfKnightDefenseService;
 import kome.common.data.KOMESerfKnightEscortService;
 import kome.common.data.KOMESerfKnightRecoveryService;
@@ -339,8 +341,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
         if (npc == null) throw new WrongUsageException("Look at a valid living LOTR faction NPC within 8 blocks.");
         KOMEWorldData data = KOMEWorldData.get(player.worldObj);
         KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-        KOMESerfKnightTrialAssignment oldAssignment = progression.getSerfKnightProgression().getTrialAssignment();
-        cleanupRelationshipEncounter(player, oldAssignment);
+        KOMEProgressionEncounterCleanup.cleanup(player,progression);
         KOMEProgressionNpcRef target = KOMEProgressionNpcRankService.referenceOf(npc);
         KOMESerfKnightRelationshipService.Result result = KOMESerfKnightRelationshipService.force(data, KOMEReflection.getEntityUUID(player), target, level);
         if (!result.success) throw new WrongUsageException(result.reason);
@@ -356,21 +357,18 @@ public class KOMECommandKome extends KOMEPublicCommand {
         if (npc == null) throw new WrongUsageException("Look at a valid living LOTR faction NPC within 8 blocks.");
         KOMEWorldData data = KOMEWorldData.get(player.worldObj);
         KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-        KOMESerfKnightTrialAssignment assignment = progression.getSerfKnightProgression().getTrialAssignment();
-        KOMESerfKnightRelationshipService.Result result = KOMESerfKnightRelationshipService.clear(data, KOMEReflection.getEntityUUID(player), KOMEReflection.getEntityUUID(npc).toString());
+        String targetedId=KOMEReflection.getEntityUUID(npc).toString();
+        KOMESerfKnightProgression relationshipState=progression.getSerfKnightProgression();
+        boolean related=targetedId.equals(relationshipState.getSerfdomMaster().entityUuid)
+            ||targetedId.equals(relationshipState.getProspectiveLiege().entityUuid);
+        if(!related)throw new WrongUsageException("The targeted NPC has no relationship to clear.");
+        KOMEProgressionEncounterCleanup.cleanup(player,progression);
+        KOMESerfKnightRelationshipService.Result result = KOMESerfKnightRelationshipService.clear(data, KOMEReflection.getEntityUUID(player), targetedId);
         if (!result.success) throw new WrongUsageException(result.reason);
-        cleanupRelationshipEncounter(player, assignment);
         kome.common.data.KOMEProgressionAutoCompleter.syncPlayer(player, progression);
         sender.addChatMessage(new ChatComponentText("Cleared relationship with targeted NPC."));
     }
-
-    private static void cleanupRelationshipEncounter(EntityPlayerMP player, KOMESerfKnightTrialAssignment assignment) {
-        KOMESerfKnightEscortService.cleanup(player, assignment);
-        KOMESerfKnightRecoveryService.cleanup(player, assignment);
-        KOMESerfKnightDefenseService.cleanup(player, assignment);
-    }
-
-    /** Server-side eight-block line-of-sight target selection; never trusts a client entity id. */
+/** Server-side eight-block line-of-sight target selection; never trusts a client entity id. */
     private static LOTREntityNPC targetedNpc(EntityPlayerMP player) {
         if (player == null || player.worldObj == null || player.boundingBox == null) return null;
         Vec3 start = Vec3.createVectorHelper(player.posX, player.posY + player.getEyeHeight(), player.posZ);

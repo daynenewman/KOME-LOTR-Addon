@@ -132,6 +132,9 @@ public class KOMEEvents {
                 getActualPledgeFactionKey(event.player), System.currentTimeMillis());
             data.syncConquestTiles((EntityPlayerMP) event.player);
             sendAllianceRefresh((EntityPlayerMP) event.player, data);
+            KOMEProgressionInventoryReconciler.reconcile(
+                (EntityPlayerMP)event.player,
+                data.getProgression(KOMEReflection.getEntityUUID(event.player)));
             KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
             KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP) event.player, data.getProgression(KOMEReflection.getEntityUUID(event.player)));
             KOMEProgressionTitles.updatePlayerTitle((EntityPlayerMP) event.player);
@@ -163,9 +166,12 @@ public class KOMEEvents {
                 KOMEProgressionOfferBridge.refreshNearbySerfdomOffers((EntityPlayerMP) event.player);
             }
             if (event.player instanceof EntityPlayerMP && KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(event.player)) % 100L == 0L) {
+                KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
+                KOMEProgressionInventoryReconciler.reconcile(
+                    (EntityPlayerMP)event.player,
+                    data.getProgression(KOMEReflection.getEntityUUID(event.player)));
                 KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
                 KOMEProgressionTitles.updatePlayerTitle((EntityPlayerMP) event.player);
-                KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
                 KOMEVisualLocationService.refreshAndSync((EntityPlayerMP)event.player, data,
                     data.getProgression(KOMEReflection.getEntityUUID(event.player)), false);
             }
@@ -175,8 +181,13 @@ public class KOMEEvents {
 
     @SubscribeEvent
     public void onRecoveryItemPickup(EntityItemPickupEvent event) {
-        if (!KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityPlayer)) && event.entityPlayer instanceof EntityPlayerMP)
-            KOMESerfKnightRecoveryService.onPickup((EntityPlayerMP) event.entityPlayer, event.item.getEntityItem());
+        if (KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityPlayer)) || !(event.entityPlayer instanceof EntityPlayerMP)) return;
+        EntityPlayerMP player = (EntityPlayerMP) event.entityPlayer;
+        if (!KOMESerfKnightRecoveryService.canPickup(event.item.getEntityItem(), player.getUniqueID())) {
+            event.setCanceled(true);
+            return;
+        }
+        KOMESerfKnightRecoveryService.onPickup(player, event.item.getEntityItem());
     }
 
     @SubscribeEvent
@@ -345,7 +356,7 @@ public class KOMEEvents {
                 event.setCanceled(true);
                 return;
             }
-            if (currentLiege && progression.getCanonicalRank() == KOMEProgressionRank.SERF) {
+            if (currentLiege && progression.getCanonicalRank().order >= KOMEProgressionRank.SERF.order) {
                 kome.common.network.KOMEPacketRelationshipAction.sendHub(player, npc, kome.common.network.KOMEPacketRelationshipAction.LIEGE);
                 event.setCanceled(true);
                 return;
@@ -603,7 +614,15 @@ public class KOMEEvents {
             UUID killer = source instanceof EntityPlayer ? KOMEReflection.getEntityUUID(source) : null;
             boolean changed = false;
             for (Map.Entry<UUID, KOMEPlayerProgression> entry : data.progressions.entrySet()) {
-                changed |= KOMESerfKnightService.handleNpcDeath(entry.getValue().getSerfKnightProgression(), deadId.toString(),
+                KOMEPlayerProgression progression=entry.getValue();
+                KOMESerfKnightProgression state=progression.getSerfKnightProgression();
+                boolean relationshipDeath=deadId.toString().equals(state.getSerfdomMaster().entityUuid)
+                    ||deadId.toString().equals(state.getProspectiveLiege().entityUuid);
+                boolean failedEncounter=state.getTrialAssignment()!=null
+                    &&state.getTrialAssignment().stage==KOMESerfKnightTrialAssignment.Stage.FAILED;
+                if(relationshipDeath||failedEncounter)
+                    KOMEProgressionEncounterCleanup.cleanup(KOMEReflection.getWorld(npc),entry.getKey(),progression);
+                changed |= KOMESerfKnightService.handleNpcDeath(state,deadId.toString(),
                     killer != null && killer.equals(entry.getKey()), KOMESerfKnightService.calendarDayNow());
             }
             if (changed) KOMEProgressionNpcRoles.rebuild(data);

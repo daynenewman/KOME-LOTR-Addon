@@ -17,7 +17,7 @@ public class KOMEPacketRelationshipAction implements IMessage {
     public KOMEPacketRelationshipAction(int i,int r,int a){entityId=i;relationship=r;action=a;}
     public void fromBytes(ByteBuf b){entityId=b.readInt();relationship=b.readByte();action=b.readByte();}
     public void toBytes(ByteBuf b){b.writeInt(entityId);b.writeByte(relationship);b.writeByte(action);}
-    public static void sendHub(EntityPlayerMP p,LOTREntityNPC n,int r){KOMEPacketHandler.network.sendTo(new KOMEPacketRelationshipHub(n.getEntityId(),r,n.getNPCName(),n.getFaction()==null?"":n.getFaction().factionName()),p);}
+    public static void sendHub(EntityPlayerMP p,LOTREntityNPC n,int r){KOMEPlayerProgression progression=KOMEWorldData.get(p.worldObj).getProgression(p.getUniqueID());boolean allowService=r==MASTER||progression.getCanonicalRank()==KOMEProgressionRank.SERF;KOMEPacketHandler.network.sendTo(new KOMEPacketRelationshipHub(n.getEntityId(),r,n.getNPCName(),n.getFaction()==null?"":n.getFaction().factionName(),allowService),p);}
 
     public static class Handler implements IMessageHandler<KOMEPacketRelationshipAction,IMessage> {
         public IMessage onMessage(KOMEPacketRelationshipAction m,MessageContext c) {
@@ -31,10 +31,9 @@ public class KOMEPacketRelationshipAction implements IMessage {
             boolean exact=m.relationship==MASTER?s.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n)):s.getProspectiveLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n));
             if(!exact){p.addChatMessage(new ChatComponentText("That is not your current relationship NPC."));return null;}
             if(m.action==LEAVE){
-                KOMESerfKnightTrialAssignment assignment=s.getTrialAssignment();
-                KOMESerfKnightService.Result result=m.relationship==MASTER?KOMESerfKnightService.leaveSerfdomMaster(s):KOMESerfKnightService.leaveProspectiveLiege(s);
+                KOMEProgressionEncounterCleanup.cleanup(p,progression);
+                KOMESerfKnightService.Result result=m.relationship==MASTER?KOMESerfKnightService.leaveSerfdomMaster(s):KOMESerfKnightService.leaveProspectiveLiege(progression);
                 if(!result.success){p.addChatMessage(new ChatComponentText(result.reason));return null;}
-                KOMESerfKnightEscortService.cleanup(p,assignment);KOMESerfKnightRecoveryService.cleanup(p,assignment);KOMESerfKnightDefenseService.cleanup(p,assignment);
                 KOMEProgressionNpcRoles.syncPlayer(data,p.getUniqueID());
                 data.markDirty();KOMEProgressionAutoCompleter.syncPlayer(p,progression);
                 p.addChatMessage(new ChatComponentText(m.relationship==MASTER?"You are no longer serving your Serfdom Master.":"You are no longer pledged to your prospective liege."));return null;
@@ -42,6 +41,10 @@ public class KOMEPacketRelationshipAction implements IMessage {
             if(m.action==TALK){n.interactFirst(p);return null;}
             if(m.action!=SERVICE){p.addChatMessage(new ChatComponentText("Unknown relationship action."));return null;}
             if(m.relationship==MASTER){KOMEPacketSerfdomMasterAction.sendMenu(p,n);return null;}
+            if(progression.getCanonicalRank()!=KOMEProgressionRank.SERF){
+                p.addChatMessage(new ChatComponentText("Liege service is only available during Serfdom."));
+                return null;
+            }
             if(!validLiegeService(p,progression,data,n)){p.addChatMessage(new ChatComponentText("That prospective liege relationship is no longer valid."));return null;}
             if(s.getTrialId().length()!=0){
                 if("recovery".equals(s.getTrialId())) {

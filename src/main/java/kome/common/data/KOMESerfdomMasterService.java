@@ -74,8 +74,10 @@ public final class KOMESerfdomMasterService {
         KOMESerfKnightService.Result promotion=KOMESerfKnightService.markPromoted(state,alignment);
         if(!promotion.success)throw new IllegalStateException("Validated parting gift could not complete knighthood: "+promotion.reason);
         KOMECanonicalRankService.setCanonicalRank(data,playerId,KOMEProgressionRank.KNIGHT);
+        state.retireSerfdomMasterAfterPromotion();
         progression.grant("serf.title_knight");
         KOMEProgressionAutoCompleter.applyUnlocks(progression);
+        KOMEProgressionNpcRoles.syncPlayer(data,playerId);
         data.markDirty();
         return ok();
     }

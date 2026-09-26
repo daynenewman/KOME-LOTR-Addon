@@ -124,6 +124,40 @@ public final class KOMESerfKnightRecoveryService {
             markerX, 0.0D, markerZ);
     }
 
+    static boolean isRecoveryTagged(ItemStack stack) {
+        return stack!=null
+            &&stack.hasTagCompound()
+            &&stack.getTagCompound().hasKey(ITEM_TAG,10);
+    }
+
+    static boolean activeInventoryItem(
+            ItemStack stack,
+            KOMEPlayerProgression progression,
+            UUID owner) {
+        if(!isRecoveryTagged(stack)||progression==null||owner==null)return false;
+
+        NBTTagCompound tag=
+            stack.getTagCompound().getCompoundTag(ITEM_TAG);
+
+        KOMESerfKnightProgression state=
+            progression.getSerfKnightProgression();
+
+        KOMESerfKnightTrialAssignment assignment=
+            state.getTrialAssignment();
+
+        return isRecovery(assignment)
+            &&!state.isTrialCompleted()
+            &&assignment.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE
+            &&owner.toString().equals(tag.getString(ITEM_OWNER))
+            &&assignment.assignmentToken.equals(tag.getString(ITEM_TOKEN));
+    }
+
+    static boolean canPickup(ItemStack stack,UUID picker) {
+        if(stack==null||picker==null||!stack.hasTagCompound()||!stack.getTagCompound().hasKey(ITEM_TAG,10))return true;
+        NBTTagCompound tag=stack.getTagCompound().getCompoundTag(ITEM_TAG);
+        try{return picker.equals(UUID.fromString(tag.getString(ITEM_OWNER)));}
+        catch(Exception ignored){return false;}
+    }
     static ItemStack assignedStack(KOMESerfKnightTrialAssignment assignment,UUID owner) {
         ItemStack stack=new ItemStack(Items.gold_ingot); NBTTagCompound root=new NBTTagCompound(), tag=new NBTTagCompound();
         tag.setString(ITEM_TOKEN,assignment.assignmentToken); tag.setString(ITEM_OWNER,owner.toString()); root.setTag(ITEM_TAG,tag); stack.setTagCompound(root); return stack;
@@ -137,9 +171,33 @@ public final class KOMESerfKnightRecoveryService {
     static boolean consumeAssignedStack(ItemStack[] inventory,KOMESerfKnightTrialAssignment assignment,UUID owner) {
         if(inventory==null)return false; for(int i=0;i<inventory.length;i++)if(isAssignedTo(inventory[i],assignment,owner)){inventory[i].stackSize--;if(inventory[i].stackSize<=0)inventory[i]=null;return true;} return false;
     }
-    static boolean isRecovery(KOMESerfKnightTrialAssignment assignment) { return assignment!=null&&"recovery".equals(assignment.trialId); }
-    /** Removes only the still-uncollected, exact assigned object when its canonical trial is abandoned. */
-    public static void cleanup(EntityPlayerMP player,KOMESerfKnightTrialAssignment assignment){if(player==null||!isRecovery(assignment)||!assignment.data.hasKey(DATA_OBJECT))return;String id=assignment.data.getString(DATA_OBJECT);for(Object value:player.worldObj.loadedEntityList)if(value instanceof EntityItem&&id.equals(((EntityItem)value).getUniqueID().toString())&&isAssignedTo(((EntityItem)value).getEntityItem(),assignment,player.getUniqueID()))((EntityItem)value).setDead();}
+    static boolean isRecovery(KOMESerfKnightTrialAssignment assignment) { return assignment!=null&&"recovery".equals(assignment.trialId); }    /** Removes the exact assignment object from the loaded world and owning player's inventory. */
+    public static void cleanup(EntityPlayerMP player,KOMESerfKnightTrialAssignment assignment){
+        if(player==null||!isRecovery(assignment))return;
+        cleanup(player.worldObj,player.getUniqueID(),assignment);
+        if(cleanupInventory(player.inventory.mainInventory,assignment,player.getUniqueID())>0)
+            player.inventoryContainer.detectAndSendChanges();
+    }
+    static void cleanup(World world,UUID owner,KOMESerfKnightTrialAssignment assignment){
+        if(world==null||owner==null||!isRecovery(assignment)||!assignment.data.hasKey(DATA_OBJECT))return;
+        String id=assignment.data.getString(DATA_OBJECT);
+        for(Object value:world.loadedEntityList)
+            if(value instanceof EntityItem
+                    &&id.equals(((EntityItem)value).getUniqueID().toString())
+                    &&isAssignedTo(((EntityItem)value).getEntityItem(),assignment,owner))
+                ((EntityItem)value).setDead();
+    }
+    static int cleanupInventory(ItemStack[] inventory,KOMESerfKnightTrialAssignment assignment,UUID owner){
+        if(inventory==null||owner==null||!isRecovery(assignment))return 0;
+        int removed=0;
+        for(int i=0;i<inventory.length;i++){
+            if(isAssignedTo(inventory[i],assignment,owner)){
+                inventory[i]=null;
+                removed++;
+            }
+        }
+        return removed;
+    }
     public static boolean reconcileLoadedItem(KOMEWorldData world,EntityItem item){
         if(world==null||item==null)return false;
 

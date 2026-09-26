@@ -39,6 +39,17 @@ public final class KOMESerfKnightService {
     public static boolean canPromote(KOMESerfKnightProgression state, double currentFactionAlignment) { return promotionReason(state, currentFactionAlignment).length()==0; }
     public static Result leaveSerfdomMaster(KOMESerfKnightProgression state) { if(state==null||!state.getSerfdomMaster().isSet())return reject("No Serfdom Master relationship exists.");state.leaveSerfdomMaster();return ok(); }
     public static Result leaveProspectiveLiege(KOMESerfKnightProgression state) { if(state==null||!state.getProspectiveLiege().isSet())return reject("No prospective liege relationship exists.");state.leaveProspectiveLiege();return ok(); }
+    public static Result leaveProspectiveLiege(KOMEPlayerProgression progression) {
+        if(progression==null)return reject("Missing player progression.");
+        KOMESerfKnightProgression state=progression.getSerfKnightProgression();
+        if(!state.getProspectiveLiege().isSet())return reject("No prospective liege relationship exists.");
+        if(progression.getCanonicalRank()==KOMEProgressionRank.SERF)return leaveProspectiveLiege(state);
+        if(progression.getCanonicalRank().order>=KOMEProgressionRank.KNIGHT.order){
+            state.releaseProspectiveLiegeAfterPromotion();
+            return ok();
+        }
+        return reject("That liege relationship cannot be left at the current rank.");
+    }
     public static String promotionReason(KOMESerfKnightProgression state, double currentFactionAlignment) { if(state==null) return "Missing Serf-to-Knight state."; if(state.isPromoted()) return "Knight promotion is already complete."; if(currentFactionAlignment < REQUIRED_ALIGNMENT) return "Requires at least 150 positive faction alignment."; if(!allDutiesComplete(state)) return "All Serfdom duties must be complete."; if(state.getTrialId().length()==0) return "A Trial of Knighthood is required."; if(!state.isTrialCompleted()) return "The Trial of Knighthood must be complete."; if(!state.hasPartingGift()) return "The Serfdom Master parting gift is required."; return ""; }
     public static Result markPromoted(KOMESerfKnightProgression state, double currentFactionAlignment) { if(state != null && state.isPromoted()) return ok(); String reason=promotionReason(state,currentFactionAlignment); if(reason.length()!=0) return reject(reason); state.setPromoted(); return ok(); }
     public static long calendarDayNow() { return KOMEProgressionCalendar.currentEpochDay(); }

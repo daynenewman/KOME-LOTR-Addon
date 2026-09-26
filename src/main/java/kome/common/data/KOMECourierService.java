@@ -11,6 +11,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
+import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -49,6 +50,32 @@ public final class KOMECourierService {
 
     public static boolean matching(ItemStack s,KOMESerfCourierAssignment a,EntityPlayerMP p,KOMEProgressionNpcRef m){return matching(s,a,KOMEReflection.getEntityUUID(p),m);}
     static boolean matching(ItemStack s,KOMESerfCourierAssignment a,UUID owner,KOMEProgressionNpcRef m){return identityMatch(s,a,owner,m)&&a.destinationKey.equals(s.getTagCompound().getCompoundTag(TAG).getString("Destination"));}
+
+    static boolean isCourierTagged(ItemStack stack){
+        return stack!=null
+            &&stack.hasTagCompound()
+            &&stack.getTagCompound().hasKey(TAG,10);
+    }
+
+    static boolean activeInventoryDispatch(
+            ItemStack stack,
+            KOMEPlayerProgression progression,
+            UUID owner){
+        if(!isCourierTagged(stack)||progression==null||owner==null)return false;
+
+        KOMESerfKnightProgression state=
+            progression.getSerfKnightProgression();
+
+        if(!"courier".equals(state.getActiveAssignmentKind()))return false;
+
+        KOMESerfCourierAssignment assignment=
+            KOMESerfCourierAssignment.readFromNBT(
+                state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
+
+        return assignment!=null
+            &&assignment.stage==KOMESerfCourierAssignment.Stage.OUTBOUND
+            &&matching(stack,assignment,owner,state.getSerfdomMaster());
+    }
     private static boolean identityMatch(ItemStack s,KOMESerfCourierAssignment a,UUID owner,KOMEProgressionNpcRef m){if(s==null||a==null||owner==null||m==null||s.getItem()!=Items.written_book||!s.hasTagCompound()||!s.getTagCompound().hasKey(TAG,10))return false;NBTTagCompound t=s.getTagCompound().getCompoundTag(TAG);return a.valid()&&a.token.equals(t.getString("Assignment"))&&owner.toString().equals(t.getString("Owner"))&&m.entityUuid.equals(t.getString("Master"));}
     public static boolean hasMessage(EntityPlayerMP p,KOMESerfCourierAssignment a,KOMEProgressionNpcRef m){for(ItemStack s:p.inventory.mainInventory)if(matching(s,a,p,m))return true;return false;}
     public static boolean removeMessage(EntityPlayerMP p,KOMESerfCourierAssignment a,KOMEProgressionNpcRef m){for(int i=0;i<p.inventory.mainInventory.length;i++)if(matching(p.inventory.mainInventory[i],a,p,m)){p.inventory.mainInventory[i]=null;return true;}return false;}
@@ -87,6 +114,30 @@ public final class KOMECourierService {
     public static boolean validRecipient(EntityPlayerMP p,LOTREntityNPC n,KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){return eligible(n,a,master)&&a.stage==KOMESerfCourierAssignment.Stage.OUTBOUND&&a.recipient.isSet()&&a.recipient.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n))&&KOMEProgressionFactionResolver.matches(a.masterFactionKey,LOTRLevelData.getData(p).getPledgeFaction())&&p.getDistanceSqToEntity(n)<=64D;}
     private static boolean eligible(LOTREntityNPC n,KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){return n!=null&&n.isEntityAlive()&&!n.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(n)&&n.hiredNPCInfo!=null&&!n.hiredNPCInfo.isActive&&n.bossInfo==null&&!n.isTraderEscort&&!master.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n))&&KOMEProgressionFactionResolver.matches(a.destinationFactionKey,n.getFaction())&&a.atDestination(n.worldObj.provider.dimensionId,n.posX,n.posZ,SETTLEMENT_RADIUS);}
 
+    static void cleanup(World world,KOMESerfCourierAssignment assignment){
+        if(world==null||assignment==null)return;
+        LOTREntityNPC recipient=KOMECourierRecipientSpawner.findOwned(world,assignment.token);
+        if(recipient!=null)KOMECourierRecipientSpawner.retire(recipient,assignment.token);
+    }
+
+    static int cleanupInventory(EntityPlayerMP player,KOMESerfCourierAssignment assignment,KOMEProgressionNpcRef master){
+        if(player==null||assignment==null||master==null)return 0;
+        int removed=0;UUID owner=KOMEReflection.getEntityUUID(player);
+        for(int i=0;i<player.inventory.mainInventory.length;i++){
+            if(identityMatch(player.inventory.mainInventory[i],assignment,owner,master)){
+                player.inventory.mainInventory[i]=null;
+                removed++;
+            }
+        }
+        if(removed>0)player.inventoryContainer.detectAndSendChanges();
+        return removed;
+    }
+
+    public static void cleanup(EntityPlayerMP player,KOMESerfCourierAssignment assignment,KOMEProgressionNpcRef master){
+        if(player==null||assignment==null)return;
+        cleanup(player.worldObj,assignment);
+        cleanupInventory(player,assignment,master);
+    }
     public static void tickPlayer(EntityPlayerMP p){
         // KOMEEvents already calls this on world-time multiples of 20. Player age has an
         // independent phase after login, so combining the two clocks can suppress every call.
@@ -101,8 +152,11 @@ public final class KOMECourierService {
             LOTREntityNPC bound=loadedRecipient(p,a.recipient.entityUuid);
             if(bound==null)return; // Unload is not death.
             if(eligible(bound,a,state.getSerfdomMaster()))return;
-            // A loaded, genuinely invalid bound entity cannot keep the duty stuck.
+            // Retire this generation before selecting a replacement so it cannot be rebound.
+            KOMECourierRecipientSpawner.retire(bound,a.token);
             a.recipient=KOMEProgressionNpcRef.EMPTY;
+            a.recipientDeaths=Math.min(100,a.recipientDeaths+1);
+            a.nextRecipientWorldTime=p.worldObj.getTotalWorldTime()+replacementDelay(a.recipientDeaths);
             persist(world,p,progression,state,a);refreshDispatch(p,a,state.getSerfdomMaster());
         }
         if(!a.atDestination(p.dimension,p.posX,p.posZ,ARRIVAL_RADIUS)||p.worldObj.getTotalWorldTime()<a.nextRecipientWorldTime)return;

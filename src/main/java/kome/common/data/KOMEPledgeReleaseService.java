@@ -34,6 +34,7 @@ public final class KOMEPledgeReleaseService {
             String migrationBaseline = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(playerId));
             data.lastKnownPlayerFactions.put(playerId, current);
             if (migrationBaseline.length() > 0 && !migrationBaseline.equals(current)) {
+                KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);
                 return release(data, playerId, player.getCommandSenderName(), migrationBaseline, current,
                     nowMillis, "Schema-5 initial pledge reconciliation");
             }
@@ -43,6 +44,7 @@ public final class KOMEPledgeReleaseService {
         String former = KOMEAlliance.normalizeFactionKey(data.lastKnownPlayerFactions.get(playerId));
         if (former.equals(current)) return Result.noop("Pledge unchanged.");
         data.lastKnownPlayerFactions.put(playerId, current);
+        KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);
         if (former.length() == 0) {
             data.markDirty();
             return Result.noop("New pledge recorded.");

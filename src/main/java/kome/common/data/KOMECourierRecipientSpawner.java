@@ -48,6 +48,9 @@ final class KOMECourierRecipientSpawner {
     static boolean isActiveGeneratedRecipient(LOTREntityNPC npc){
         return npc!=null&&npc.getEntityData().getString(TOKEN).length()>0;
     }
+    static void retire(LOTREntityNPC npc,String token){
+        if(npc!=null&&token!=null&&token.equals(npc.getEntityData().getString(TOKEN)))npc.getEntityData().removeTag(TOKEN);
+    }
     static UUID recipientId(KOMESerfCourierAssignment assignment){return UUID.nameUUIDFromBytes(("KOME:courier:"+assignment.token+":"+assignment.recipientDeaths).getBytes(StandardCharsets.UTF_8));}
     static boolean duplicateOwned(LOTREntityNPC joining){
         String token=joining.getEntityData().getString(TOKEN);if(token.length()==0)return false;
@@ -62,7 +65,8 @@ final class KOMECourierRecipientSpawner {
             KOMESerfKnightProgression state=progression.getSerfKnightProgression();
             if(!"courier".equals(state.getActiveAssignmentKind()))continue;
             KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-            if(assignment!=null&&assignment.stage==KOMESerfCourierAssignment.Stage.OUTBOUND&&token.equals(assignment.token))return;
+            if(assignment!=null&&assignment.stage==KOMESerfCourierAssignment.Stage.OUTBOUND
+                    &&token.equals(assignment.token)&&recipientId(assignment).equals(npc.getUniqueID()))return;
         }
         npc.getEntityData().removeTag(TOKEN);
     }

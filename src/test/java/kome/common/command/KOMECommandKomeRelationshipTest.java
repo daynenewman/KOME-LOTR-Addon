@@ -18,9 +18,7 @@ public class KOMECommandKomeRelationshipTest {
         assertTrue(source.contains("KOMESerfKnightRelationshipService.clear"));
         assertTrue(source.contains("targetedNpc(EntityPlayerMP player)"));
         assertTrue(source.contains("getEntitiesWithinAABBExcludingEntity"));
-        assertTrue(source.contains("KOMESerfKnightEscortService.cleanup"));
-        assertTrue(source.contains("KOMESerfKnightRecoveryService.cleanup"));
-        assertTrue(source.contains("KOMESerfKnightDefenseService.cleanup"));
+        assertTrue(source.contains("KOMEProgressionEncounterCleanup.cleanup"));
     }
     @Test public void exactVanillaCommandTokensReachRelationshipDispatchBeforeTargetValidation() throws Exception {
         KOMEAccessFixture fixture=new KOMEAccessFixture(); fixture.player.operator=true; KOMECommandKome command=new KOMECommandKome();

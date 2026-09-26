@@ -70,6 +70,16 @@ public final class KOMESerfKnightProgression {
     void setTrialCompleted() { trialCompleted = true; }
     void setPartingGiftReceived() { partingGiftReceived = true; }
     void setPromoted() { promoted = true; }
+    void retireSerfdomMasterAfterPromotion() {
+        serfdomMaster=KOMEProgressionNpcRef.EMPTY;
+        deceasedMaster=KOMEProgressionNpcRef.EMPTY;
+        masterReplacementRequired=false;
+    }
+    void releaseProspectiveLiegeAfterPromotion() {
+        prospectiveLiege=KOMEProgressionNpcRef.EMPTY;
+        deceasedLiege=KOMEProgressionNpcRef.EMPTY;
+        liegeReplacementRequired=false;
+    }
     void setLastAssignmentEpochDay(long day) { lastAssignmentEpochDay=day; }
     void lockoutUntil(long day) { betrayalLockoutUntilDay=Math.max(betrayalLockoutUntilDay,day); }
     void handleMasterDeath(boolean betrayal) { deceasedMaster=serfdomMaster; serfdomMaster=KOMEProgressionNpcRef.EMPTY; masterReplacementRequired=true; if(betrayal) { for(Duty duty:duties.values()) duty.clear(); prospectiveLiege=KOMEProgressionNpcRef.EMPTY; trialId=""; trialAssignment=null; trialCompleted=false; partingGiftReceived=false; liegeReplacementRequired=true; } else for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()) { Duty duty=duties.get(type); if(duty.assigned&&!duty.completed)duty.cancel(); } }

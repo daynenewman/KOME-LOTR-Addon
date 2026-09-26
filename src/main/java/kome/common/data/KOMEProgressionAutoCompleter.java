@@ -40,7 +40,7 @@ public class KOMEProgressionAutoCompleter {
         changed += grantIf(progression, "wanderer.expert_traveler", hasAchievement(lotrData, LOTRAchievement.travel10));
         changed += grantIf(progression, "wanderer.dangerous_business", hasAchievement(lotrData, LOTRAchievement.travel20));
         changed += grantIf(progression, "wanderer.travel_30km", hasAchievement(lotrData, LOTRAchievement.travel30));
-        changed += grantIf(progression, "wanderer.find_serf_lord", progression.hasPledgedLord());
+        changed += grantIf(progression, "wanderer.find_serf_lord", progression.getCanonicalRank().order>=KOMEProgressionRank.SERF.order);
 
         LOTRFaction pledge = lotrData.getPledgeFaction();
         changed += reconcilePledgeDuties(progression, pledge);
@@ -122,6 +122,7 @@ public class KOMEProgressionAutoCompleter {
         changed += grantAfter(progression, "wanderer.learn_to_cook", "baseline.cooking");
         changed += grantAfter(progression, "wanderer.smoke_drink", "baseline.alcohol_pipeweed");
         changed += grantAfter(progression, "wanderer.find_serf_lord", "baseline.hunting", "baseline.house_waypoints", "baseline.farming");
+
 
         changed += grantAfter(progression, "serf.bartering", "baseline.npc_trade");
         changed += grantAfter(progression, "serf.quest_seeker", "baseline.miniquests");

@@ -31,7 +31,7 @@ public final class KOMESerfKnightDefenseService {
         data.setBoolean(ACTIVATED,true); data.setBoolean(PARTICIPATED,false); data.setTag(OBJECTIVE,KOMEProgressionNpcRankService.referenceOf(objective).writeToNBT()); data.setString(ENEMY_FACTION,invasion.invasionFaction.codeName());
         NBTTagList ids=new NBTTagList(); for(LOTREntityNPC attacker:attackers){NBTTagCompound id=new NBTTagCompound();id.setString("Id",attacker.getUniqueID().toString());ids.appendTag(id);} data.setTag(ENEMIES,ids); data.setTag(DEAD,new NBTTagList());
         state.updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)); KOMEWorldData worldData=KOMEWorldData.get(player.worldObj);KOMEProgressionNpcRoles.syncPlayer(worldData,player.getUniqueID()); worldData.markDirty();
-        for(int i=0;i<attackers.size();i++) { LOTREntityNPC attacker=attackers.get(i); placeAttacker(attacker,objective,i,assignment); attacker.setAttackTarget(objective,true); if(!player.worldObj.spawnEntityInWorld(attacker)){fail(state,worldData);return false;} KOMEProgressionEncounterMarker.mark(attacker,KOMEProgressionEncounterMarker.DEFENSE,player.getUniqueID(),assignment.assignmentToken); }
+        for(int i=0;i<attackers.size();i++) { LOTREntityNPC attacker=attackers.get(i); placeAttacker(attacker,objective,i,assignment); attacker.setAttackTarget(objective,true); if(!player.worldObj.spawnEntityInWorld(attacker)){fail(state,worldData);cleanup(player,state.getTrialAssignment());return false;} KOMEProgressionEncounterMarker.mark(attacker,KOMEProgressionEncounterMarker.DEFENSE,player.getUniqueID(),assignment.assignmentToken); }
         return true;
     }
 
@@ -64,15 +64,25 @@ public final class KOMESerfKnightDefenseService {
             NBTTagCompound data=(NBTTagCompound)assignment.data.copy(); NBTTagList dead=data.getTagList(DEAD,10); NBTTagCompound entry=new NBTTagCompound(); entry.setString("Id",uuid); dead.appendTag(entry); data.setTag(DEAD,dead); state.updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)); world.markDirty();
         }
     }
-    /** Stop coordinating known attackers on abandonment without deleting ordinary LOTR NPCs. */
+
+    /** Defense attackers are KOME-created encounter entities and are removed when the encounter ends. */
     public static void cleanup(EntityPlayerMP player,KOMESerfKnightTrialAssignment assignment){
-        if(player==null||!isDefense(assignment))return;
+        if(player==null)return;
+        cleanup(player.worldObj,player.getUniqueID(),assignment);
+    }
+    static void cleanup(World world,UUID owner,KOMESerfKnightTrialAssignment assignment){
+        if(world==null||owner==null||!isDefense(assignment))return;
         for(String id:enemyIds(assignment)){
-            Entity entity=findLoaded(player.worldObj,id);
+            Entity entity=findLoaded(world,id);
             if(entity instanceof LOTREntityNPC){
                 LOTREntityNPC npc=(LOTREntityNPC)entity;
-                if(matchesBinding(npc,assignment))npc.setAttackTarget(null,false);
-                KOMEProgressionEncounterMarker.clear(npc);
+                KOMEProgressionEncounterMarker.Marker marker=KOMEProgressionEncounterMarker.read(npc);
+                if(marker!=null
+                        &&KOMEProgressionEncounterMarker.DEFENSE.equals(marker.kind)
+                        &&owner.equals(marker.owner)
+                        &&assignment.assignmentToken.equals(marker.token)){
+                    npc.setDead();
+                }
             }
         }
     }
@@ -98,8 +108,7 @@ public final class KOMESerfKnightDefenseService {
 
         if(active)return;
 
-        npc.setAttackTarget(null,false);
-        KOMEProgressionEncounterMarker.clear(npc);
+        npc.setDead();
     }
     static boolean isDefense(KOMESerfKnightTrialAssignment assignment){return assignment!=null&&"defense".equals(assignment.trialId);}
     static boolean hostile(LOTRFaction defender,LOTRFaction attacker){return defender!=null&&attacker!=null&&(defender.isBadRelation(attacker)||attacker.isBadRelation(defender));}

@@ -75,6 +75,9 @@ public class KOMECommonProxy {
     }
     public void displaySerfdomMasterMenu(int entityId,String masterName,String factionName,int mode,String dutyStatus,boolean canRequestDuty,boolean hasActiveDuty){displaySerfdomMasterMenu(entityId,masterName,factionName,mode,dutyStatus);}
     public void displayRelationshipHub(int entityId, int relationship, String npcName, String factionName) {
+        displayRelationshipHub(entityId, relationship, npcName, factionName, true);
+    }
+    public void displayRelationshipHub(int entityId, int relationship, String npcName, String factionName, boolean allowService) {
     }
 
     public void updateProgressionData(String playerName, java.util.List completed) {

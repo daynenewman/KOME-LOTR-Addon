@@ -29,7 +29,7 @@ public class KOMEGuiProgressionTest {
         assertTrue(packet.contains("p.getDistanceSqToEntity(e)>64"));
         assertTrue(packet.contains("KOMESerfKnightService.leaveSerfdomMaster"));
         assertTrue(packet.contains("KOMESerfKnightService.leaveProspectiveLiege"));
-        assertTrue(packet.contains("KOMESerfKnightEscortService.cleanup"));
+        assertTrue(packet.contains("KOMEProgressionEncounterCleanup.cleanup"));
     }
 
     @Test public void masterLayoutIsMeasuredAndDutyViewTargetsRanks() throws Exception {

@@ -104,6 +104,16 @@ public class KOMEPlayerProgression {
         pledgedLordZ = z;
     }
 
+    public void clearPledgedLord() {
+        pledgedLordID = "";
+        pledgedLordName = "";
+        pledgedLordFaction = "";
+        pledgedLordDimension = 0;
+        pledgedLordX = 0.0D;
+        pledgedLordY = 0.0D;
+        pledgedLordZ = 0.0D;
+    }
+
     public boolean hasPledgedLord() {
         return pledgedLordName != null && !pledgedLordName.trim().isEmpty();
     }

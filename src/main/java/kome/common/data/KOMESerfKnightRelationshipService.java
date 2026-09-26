@@ -61,13 +61,14 @@ public final class KOMESerfKnightRelationshipService {
     /** Uses the ordinary canonical leave methods; caller owns world encounter cleanup. */
     public static Result clear(KOMEWorldData data, UUID playerId, String targetedNpcId) {
         if (data == null || playerId == null) return reject("Missing player progression.");
-        KOMESerfKnightProgression state = data.getProgression(playerId).getSerfKnightProgression();
+        KOMEPlayerProgression progression = data.getProgression(playerId);
+        KOMESerfKnightProgression state = progression.getSerfKnightProgression();
         boolean master = state.getSerfdomMaster().isSet() && state.getSerfdomMaster().entityUuid.equals(targetedNpcId);
         boolean liege = state.getProspectiveLiege().isSet() && state.getProspectiveLiege().entityUuid.equals(targetedNpcId);
         if (!master && !liege) return reject("The targeted NPC has no relationship to clear.");
         KOMESerfKnightService.Result result = master
             ? KOMESerfKnightService.leaveSerfdomMaster(state)
-            : KOMESerfKnightService.leaveProspectiveLiege(state);
+            : KOMESerfKnightService.leaveProspectiveLiege(progression);
         if (!result.success) return reject(result.reason);
         KOMEProgressionNpcRoles.syncPlayer(data,playerId);
         data.markDirty();

@@ -22,6 +22,24 @@ public class KOMESerfKnightRecoveryServiceTest {
         assertTrue(KOMESerfKnightRecoveryService.isAssignedTo(stack,assignment,owner));
     }
 
+    @Test public void activeRecoveryObjectCanOnlyBePickedUpByItsOwner() {
+        KOMESerfKnightTrialAssignment assignment=assignment(); UUID owner=UUID.randomUUID();
+        ItemStack stack=KOMESerfKnightRecoveryService.assignedStack(assignment,owner);
+        assertTrue(KOMESerfKnightRecoveryService.canPickup(stack,owner));
+        assertFalse(KOMESerfKnightRecoveryService.canPickup(stack,UUID.randomUUID()));
+        assertTrue(KOMESerfKnightRecoveryService.canPickup(new ItemStack(Items.gold_ingot),UUID.randomUUID()));
+    }
+    @Test public void cleanupInventoryRemovesOnlyExactRecoveryObject() {
+        KOMESerfKnightTrialAssignment assignment=assignment();
+        UUID owner=UUID.randomUUID();
+        ItemStack[] inventory=new ItemStack[]{
+            KOMESerfKnightRecoveryService.assignedStack(assignment,owner),
+            new ItemStack(Items.gold_ingot)
+        };
+        assertEquals(1,KOMESerfKnightRecoveryService.cleanupInventory(inventory,assignment,owner));
+        assertNull(inventory[0]);
+        assertNotNull(inventory[1]);
+    }
     @Test public void ordinaryDuplicateOrWrongOwnerCannotSatisfyRecovery() {
         KOMESerfKnightTrialAssignment assignment=assignment(); UUID owner=UUID.randomUUID();
         assertFalse(KOMESerfKnightRecoveryService.isAssignedTo(new ItemStack(Items.gold_ingot),assignment,owner));

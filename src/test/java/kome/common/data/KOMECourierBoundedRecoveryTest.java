@@ -38,6 +38,7 @@ public class KOMECourierBoundedRecoveryTest {
         TestNpc npc=KOMEAccessFixture.allocate(TestNpc.class);npc.id=UUID.randomUUID();npc.setUniqueID(npc.id);
         npc.worldObj=fixture.world;npc.posX=assignment.destinationX;npc.posZ=assignment.destinationZ;
         npc.hiredNPCInfo=new LOTRHiredNPCInfo(npc);npc.hiredNPCInfo.isActive=true;
+        npc.getEntityData().setString(KOMECourierRecipientSpawner.TOKEN,assignment.token);
         assignment.recipient=new KOMEProgressionNpcRef(npc.id.toString(),"Recipient","rohan",fixture.player.dimension,npc.posX,64,npc.posZ);
         assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.COURIER,assignment.writeToNBT(),10L).success);
         fixture.player.inventory.mainInventory[0]=KOMECourierService.message(assignment,fixture.player,master);
@@ -48,8 +49,12 @@ public class KOMECourierBoundedRecoveryTest {
             assertTrue("unloaded is inconclusive",active(state).recipient.isSet());
             fixture.world.loadedEntityList.add(npc);
             KOMECourierService.tickPlayer(fixture.player);
-            assertFalse("loaded invalid recipient must be released",active(state).recipient.isSet());
-            assertEquals(assignment.token,active(state).token);
+            KOMESerfCourierAssignment retired=active(state);
+            assertFalse("loaded invalid recipient must be released",retired.recipient.isSet());
+            assertEquals(assignment.token,retired.token);
+            assertEquals(1,retired.recipientDeaths);
+            assertTrue(retired.nextRecipientWorldTime>fixture.world.getTotalWorldTime());
+            assertFalse("retired generation marker must be removed",npc.getEntityData().hasKey(KOMECourierRecipientSpawner.TOKEN));
         } finally {KOMEPacketHandler.network=previous;}
     }
 

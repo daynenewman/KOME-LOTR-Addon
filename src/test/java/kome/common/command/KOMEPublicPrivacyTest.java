@@ -114,7 +114,7 @@ public class KOMEPublicPrivacyTest {
         KOMECommandProgression command = new KOMECommandProgression();
         command.processCommand(f.player, new String[] {"get"});
         command.processCommand(f.player, new String[] {"list", "baseline"});
-        assertTrue(f.player.messages.toString().contains("Pledged lord: None"));
+        assertTrue(f.player.messages.toString().contains("Legacy pledged lord: None"));
         assertTrue(f.player.messages.toString().contains("[x]"));
         assertTrue(f.data.progressions.isEmpty());
         assertTrue(f.network.messages.isEmpty());

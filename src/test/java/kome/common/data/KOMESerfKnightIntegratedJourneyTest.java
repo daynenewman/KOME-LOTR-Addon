@@ -46,6 +46,7 @@ public class KOMESerfKnightIntegratedJourneyTest {
         assertTrue(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"rohan",150D).success);
         assertTrue(state.hasPartingGift());assertTrue(state.isPromoted());
         assertEquals(KOMEProgressionRank.KNIGHT,progression.getCanonicalRank());
+        assertFalse("The former Serfdom Master is no longer an active relationship after Knighthood",state.getSerfdomMaster().isSet());
         assertTrue(state.getProspectiveLiege().hasSameIdentity(liege));
         assertTrue(KOMESerfKnightService.allDutiesComplete(state));
         assertTrue(progression.isCompleted(KOMEProgressionAchievement.forID("serf.title_knight")));
@@ -54,6 +55,7 @@ public class KOMESerfKnightIntegratedJourneyTest {
         KOMEPlayerProgression reloaded=new KOMEPlayerProgression();reloaded.readFromNBT(progression.writeToNBT());
         assertEquals(KOMEProgressionRank.KNIGHT,reloaded.getCanonicalRank());
         assertTrue(reloaded.getSerfKnightProgression().hasPartingGift());
+        assertFalse(reloaded.getSerfKnightProgression().getSerfdomMaster().isSet());
         assertTrue(reloaded.getSerfKnightProgression().getProspectiveLiege().hasSameIdentity(liege));
     }
 
