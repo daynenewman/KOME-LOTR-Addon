@@ -248,6 +248,7 @@ public class KOMEClientTaskQueueTest {
         assertFalse(source("common/KOMEAddon.java").contains("new KOMEClientTaskQueue"));
         String client = source("client/KOMEClientProxy.java");
         assertTrue(client.contains("bus().register(clientTasks)"));
+        assertTrue(client.contains("Minecraft.getMinecraft().func_152345_ab()"));
         assertTrue(client.contains("ClientDisconnectionFromServerEvent"));
         assertTrue(client.contains("clientTasks.resetSession(false, this::resetClientSessionState)"));
         assertTrue(client.contains("conquestSnapshots.resetSession()"));
@@ -263,6 +264,120 @@ public class KOMEClientTaskQueueTest {
         assertTrue(conquest.contains("copyForPublication("));
         assertTrue(conquest.contains("acceptConquestSnapshotChunk("));
         assertFalse(conquest.contains("enqueueClientTask("));
+    }
+
+    @Test public void clientThreadConquestBurstDoesNotOverflowOrLoseResetAndCompletion() throws Exception {
+        RecordingProxy proxy = proxy(); Thread clientThread = Thread.currentThread();
+        proxy.queue = new KOMEClientTaskQueue(() -> Thread.currentThread() == clientThread);
+        proxy.snapshots = new KOMEConquestSnapshotPublisher(proxy.queue);
+        KOMECommonProxy previous = KOMEAddon.proxy; KOMEAddon.proxy = proxy;
+        KOMEClientData client = KOMEClientData.INSTANCE;
+        List<Map> maps = Arrays.<Map>asList(client.armyCompanies, client.conquestTiles, client.capitalTilesByFaction,
+                client.armyMovements, client.troopSummaries, client.routeEdges, client.tileWaypointLinksByTileId, client.builds);
+        List<Map> saved = new ArrayList<Map>(); for (Map map : maps) saved.add(new HashMap(map));
+        int revision = client.conquestRevision;
+        try {
+            proxy.queue.resetSession(true, () -> client.conquestTiles.clear()); proxy.queue.drain();
+            // Same production handler and reset/continuation/complete sequence as a hire-triggered sync.
+            // Four queue capacities between ticks would disconnect the previous implementation.
+            int count = KOMEClientTaskQueue.MAX_PENDING_TASKS * 4;
+            for (int i = 0; i < count; i++) {
+                KOMEPacketConquestData packet = new KOMEPacketConquestData();
+                packet.reset = i == 0; packet.complete = i == count - 1;
+                KOMEConquestTile tile = new KOMEConquestTile("T" + (i + 1)); tile.claim("angmar", 0L);
+                row(packet, "ConquestTiles", tile.projectToNBT());
+                io.netty.buffer.ByteBuf wire=io.netty.buffer.Unpooled.buffer();
+                KOMEPacketConquestData received=new KOMEPacketConquestData();
+                try {packet.toBytes(wire);received.fromBytes(wire);}finally{wire.release();}
+                new KOMEPacketConquestData.Handler().onMessage(received, null);
+                assertEquals(0, proxy.queue.pendingTasks());
+                assertEquals(revision + (packet.complete ? 1 : 0), client.conquestRevision);
+            }
+            assertEquals(count, client.conquestTiles.size());
+            assertTrue(client.conquestTiles.containsKey("T1"));
+            assertTrue(client.conquestTiles.containsKey("T" + count));
+        } finally {
+            for (int i = 0; i < maps.size(); i++) { maps.get(i).clear(); maps.get(i).putAll(saved.get(i)); }
+            client.conquestRevision = revision; KOMEAddon.proxy = previous;
+        }
+    }
+
+    @Test public void clientDispatchPreservesOlderWorkAndBoundsOffThreadIngress() throws Exception {
+        Thread clientThread = Thread.currentThread();
+        KOMEClientTaskQueue queue = new KOMEClientTaskQueue(() -> Thread.currentThread() == clientThread);
+        List<Integer> calls = new ArrayList<Integer>();
+        queue.resetSession(true, () -> calls.add(0)); queue.drain();
+        onNetwork(() -> { for (int i = 0; i < KOMEClientTaskQueue.MAX_PENDING_TASKS; i++) queue.enqueue(() -> calls.add(1)); });
+        assertEquals(1, calls.size());
+        queue.enqueue(() -> calls.add(2));
+        assertEquals(KOMEClientTaskQueue.MAX_PENDING_TASKS + 2, calls.size());
+        assertEquals(Integer.valueOf(0), calls.get(0)); assertEquals(Integer.valueOf(2), calls.get(calls.size() - 1));
+        assertEquals(0, queue.pendingTasks());
+        queue.resetSession(false, () -> calls.add(3)); queue.drain();
+        try { queue.enqueue(() -> calls.add(99)); fail("Disconnected work must not run"); } catch (RejectedExecutionException expected) { }
+        queue.resetSession(true, () -> calls.add(4)); queue.enqueue(() -> calls.add(5));
+        assertEquals(Arrays.asList(3, 4, 5), calls.subList(calls.size() - 3, calls.size()));
+    }
+
+    @Test public void immediateDispatchDoesNotRecursivelyDrainTasksCreatedByTasks() {
+        KOMEClientTaskQueue queue = new KOMEClientTaskQueue(() -> true);
+        List<Integer> calls = new ArrayList<Integer>(); queue.resetSession(true, () -> {}); queue.drain();
+        queue.enqueue(() -> { calls.add(1); queue.enqueue(() -> calls.add(2)); assertEquals(0, queue.drain()); });
+        assertEquals(Collections.singletonList(1), calls); assertEquals(1, queue.pendingTasks());
+        queue.drain(); assertEquals(Arrays.asList(1, 2), calls);
+    }
+
+    @Test public void decodedConquestHandoffAvoidsReencodingAndIsolatesPublicMutation() throws Exception {
+        RecordingProxy proxy = proxy(); KOMECommonProxy previous=KOMEAddon.proxy; KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE; Map saved=new HashMap(client.conquestTiles);
+        int revision=client.conquestRevision;
+        try {
+            for(String owner : Arrays.asList("angmar","gondor")) {
+                KOMEPacketConquestData source=new KOMEPacketConquestData(); source.reset=true;
+                KOMEConquestTile tile=new KOMEConquestTile("T001");tile.claim(owner,0L);
+                row(source,"ConquestTiles",tile.projectToNBT());
+                // Initialize a full generation as required by dev; decode through the actual wire reader.
+                io.netty.buffer.ByteBuf bytes=io.netty.buffer.Unpooled.buffer();
+                KOMEPacketConquestData decoded=new KOMEPacketConquestData(){
+                    @Override public void toBytes(io.netty.buffer.ByteBuf b){throw new AssertionError("decoded packet reencoded");}
+                };
+                try {source.toBytes(bytes);decoded.fromBytes(bytes);}finally{bytes.release();}
+                decoded.data.setString("ConquestTiles","mutated after decode");decoded.complete=false;decoded.reset=true;
+                onNetwork(() -> new KOMEPacketConquestData.Handler().onMessage(decoded,null));
+                assertEquals(1,proxy.queue.pendingTasks());
+                proxy.queue.drain();
+                assertEquals(owner,((KOMEConquestTile)client.conquestTiles.get("T001")).projectRulingFaction());
+            }
+            // Both snapshots were materialized off-thread and published in order.
+        } finally {
+            proxy.queue.drain();
+            assertEquals("gondor",((KOMEConquestTile)client.conquestTiles.get("T001")).projectRulingFaction());
+            assertEquals(revision+2,client.conquestRevision);
+            client.conquestTiles.clear();client.conquestTiles.putAll(saved);client.conquestRevision=revision;KOMEAddon.proxy=previous;
+        }
+    }
+
+    @Test public void completedOwnershipColorsSurviveFollowingPartialResetUntilCompletion() throws Exception {
+        RecordingProxy proxy=proxy();KOMECommonProxy previous=KOMEAddon.proxy;KOMEAddon.proxy=proxy;
+        KOMEClientData client=KOMEClientData.INSTANCE;Map saved=new HashMap(client.conquestTiles);int revision=client.conquestRevision;
+        Field colorField=KOMEConquestMapOverlay.class.getDeclaredField("tileColorsById");colorField.setAccessible(true);
+        Map colors=(Map)colorField.get(null);Map oldColors=new HashMap(colors);
+        try {
+            colors.clear();colors.put("T001",1);colors.put("T002",2);
+            KOMEPacketConquestData full=new KOMEPacketConquestData();full.reset=true;
+            NBTTagList rows=new NBTTagList();
+            for(String id:Arrays.asList("T001","T002")){KOMEConquestTile tile=new KOMEConquestTile(id);tile.claim("angmar",0);rows.appendTag(tile.projectToNBT());}
+            full.data.setTag("ConquestTiles",rows);new KOMEPacketConquestData.Handler().onMessage(full,null);proxy.queue.drain();
+            Map<Integer,Integer> completed=KOMEConquestMapOverlay.effectiveClaimColors();assertEquals(2,completed.size());
+            KOMEPacketConquestData partial=new KOMEPacketConquestData();partial.reset=true;partial.complete=false;
+            KOMEConquestTile one=new KOMEConquestTile("T002");one.claim("gondor",0);row(partial,"ConquestTiles",one.projectToNBT());
+            new KOMEPacketConquestData.Handler().onMessage(partial,null);proxy.queue.drain();
+            // Renderer may run after completion N but before completion N+1. Do not read the partial batch.
+            assertEquals(completed,KOMEConquestMapOverlay.effectiveClaimColors());
+            new KOMEPacketConquestData.Handler().onMessage(new KOMEPacketConquestData(),null);proxy.queue.drain();
+            Map<Integer,Integer> next=KOMEConquestMapOverlay.effectiveClaimColors();assertEquals(1,next.size());
+            assertFalse(next.containsKey(1));assertNotEquals(completed.get(2),next.get(2));
+        }finally{client.conquestTiles.clear();client.conquestTiles.putAll(saved);client.completeConquestUpdate();client.conquestRevision=revision;colors.clear();colors.putAll(oldColors);KOMEAddon.proxy=previous;}
     }
 
     private static KOMEClientTaskQueue connected() { KOMEClientTaskQueue queue = new KOMEClientTaskQueue(); queue.resetSession(true, () -> {}); queue.drain(); return queue; }
