@@ -1,9 +1,12 @@
 package kome.client.gui;
 
 import kome.client.KOMEMinecraftClient;
+import kome.common.data.KOMEFactionProgressionTitles;
 import kome.common.data.KOMEProgressionAchievement;
 import kome.common.data.KOMEProgressionPermissionRegistry;
 import kome.common.data.KOMEProgressionRankSummary;
+import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketProgressionRequest;
 import lotr.client.gui.LOTRGuiAchievements;
 import lotr.client.gui.LOTRGuiMenuBase;
 import net.minecraft.client.Minecraft;
@@ -223,6 +226,9 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         buttonRanks=(KOMEGuiButton)new KOMEGuiButton(21,guiLeft+112,guiTop+29,97,18,"Ranks").setStyle(KOMEGuiButton.Style.TAB);
         buttonList.add(buttonAdvancements);buttonList.add(buttonRanks);
         refreshViewButtons();
+        if (KOMEPacketHandler.network != null) {
+            KOMEPacketHandler.network.sendToServer(new KOMEPacketProgressionRequest());
+        }
     }
 
     @Override
@@ -384,13 +390,17 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     }
 
     private void drawRankLadder(){
-        int y=guiTop+10;String[] names=KOMEProgressionRankSummary.LADDER;
+        int y=guiTop+10;String[] names=KOMEFactionProgressionTitles.ladder(rankSummary.factionKey);
         int[] centers={guiLeft+31,guiLeft+83,guiLeft+137,guiLeft+190};
         for(int i=0;i<names.length;i++){
             String name=names[i];int color=name.equals(rankSummary.currentRank)?0xFF7B2024:name.equals(rankSummary.nextRank)?0xFF9A6A20:ladderIndex(name)<ladderIndex(rankSummary.currentRank)?8019267:5652783;
             String label=name.equals(rankSummary.currentRank)?name.toUpperCase():name.equals(rankSummary.nextRank)?name.toUpperCase():name;
-            mc.fontRenderer.drawString(label,centers[i]-mc.fontRenderer.getStringWidth(label)/2,y,color);
-            if(i<names.length-1)mc.fontRenderer.drawString("\u2192",(centers[i]+centers[i+1])/2-3,y,8019267);
+            List<String> labelLines=mc.fontRenderer.listFormattedStringToWidth(label,48);
+            for(int line=0;line<labelLines.size()&&line<3;line++){
+                String part=labelLines.get(line);
+                mc.fontRenderer.drawString(part,centers[i]-mc.fontRenderer.getStringWidth(part)/2,y+line*9,color);
+            }
+            if(i<names.length-1)mc.fontRenderer.drawString("\u2192",(centers[i]+centers[i+1])/2-3,y+9,8019267);
         }
     }
 
@@ -450,9 +460,10 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         }
     }
 
-    private static int ladderIndex(String name) {
-        for (int i = 0; i < KOMEProgressionRankSummary.LADDER.length; i++) {
-            if (KOMEProgressionRankSummary.LADDER[i].equals(name)) {
+    private int ladderIndex(String name) {
+        String[] ladder = KOMEFactionProgressionTitles.ladder(rankSummary.factionKey);
+        for (int i = 0; i < ladder.length; i++) {
+            if (ladder[i].equals(name)) {
                 return i;
             }
         }

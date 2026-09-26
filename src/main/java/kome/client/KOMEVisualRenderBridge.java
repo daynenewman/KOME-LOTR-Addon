@@ -2,9 +2,9 @@ package kome.client;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import kome.common.data.KOMEProgressionVisualItems;
 import kome.common.data.KOMEVisualMarker;
 import lotr.common.LOTRLevelData;
-import lotr.common.LOTRMod;
 import lotr.common.entity.npc.LOTREntityNPC;
 import lotr.client.LOTRSpeechClient;
 import net.minecraft.client.Minecraft;
@@ -46,20 +46,25 @@ public final class KOMEVisualRenderBridge {
     }
 
     static KOMEVisualMarker overheadFor(String entityUuid,int dimension) {
-        KOMEVisualMarker courier=null;
+        KOMEVisualMarker relationship=null, courier=null;
         for(KOMEVisualMarker marker:KOMEVisualMarkerClientState.markers())
             if(marker.dimension==dimension&&marker.entityUuid.equals(entityUuid)) {
-                if(marker.isRelationship())return marker;
+                if(marker.role==KOMEVisualMarker.Role.RULER)return marker;
+                if(marker.isRelationship()&&relationship==null)relationship=marker;
                 if(marker.role==KOMEVisualMarker.Role.COURIER)courier=marker;
             }
-        return courier;
+        return relationship!=null?relationship:courier;
     }
 
     static KOMEVisualMarker relationshipFor(String entityUuid, int dimension) {
+        KOMEVisualMarker relationship=null;
         for (KOMEVisualMarker marker : KOMEVisualMarkerClientState.markers())
             if (marker.isRelationship() && marker.dimension == dimension
-                    && marker.entityUuid.equals(entityUuid)) return marker;
-        return null;
+                    && marker.entityUuid.equals(entityUuid)) {
+                if(marker.role==KOMEVisualMarker.Role.RULER)return marker;
+                if(relationship==null)relationship=marker;
+            }
+        return relationship;
     }
 
     static float speechDisplacement(LOTREntityNPC npc) {
@@ -143,10 +148,14 @@ public final class KOMEVisualRenderBridge {
     }
 
     static ItemStack icon(KOMEVisualMarker.Role role) {
-        if (role == KOMEVisualMarker.Role.SERFDOM_MASTER) return new ItemStack(Items.iron_hoe);
-        if (role == KOMEVisualMarker.Role.KNIGHT_LIEGE) return new ItemStack(Items.iron_sword);
-        if (role == KOMEVisualMarker.Role.LORD_LIEGE) return new ItemStack(LOTRMod.commandHorn);
-        return role == KOMEVisualMarker.Role.COURIER ? new ItemStack(Items.paper) : null;
+        if (role == KOMEVisualMarker.Role.RULER)
+            return new ItemStack(KOMEProgressionVisualItems.RULER);
+        if (role == KOMEVisualMarker.Role.SERFDOM_MASTER
+                || role == KOMEVisualMarker.Role.KNIGHT_LIEGE
+                || role == KOMEVisualMarker.Role.LORD_LIEGE)
+            return new ItemStack(KOMEProgressionVisualItems.RELATIONSHIP);
+        if (role == KOMEVisualMarker.Role.COURIER) return new ItemStack(Items.paper);
+        return role == KOMEVisualMarker.Role.RECOVERY_SEARCH ? new ItemStack(Items.gold_ingot) : null;
     }
 
     private static RenderItem itemRenderer() { return ItemRendererHolder.INSTANCE; }

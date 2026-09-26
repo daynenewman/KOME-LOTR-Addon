@@ -63,8 +63,8 @@ public final class KOMEProgressionOfferBridge {
 
     /** Creates player-specific native offers before interaction, allowing LOTR's own quest icon path to render them. */
     public static void refreshNearbySerfdomOffers(EntityPlayerMP player) {
-        if (player == null || player.worldObj == null) return;
-        for (Object value : player.worldObj.loadedEntityList) if (value instanceof LOTREntityNPC) {
+        if (player == null || player.worldObj == null || player.boundingBox == null || !eligiblePlayer(player)) return;
+        for (Object value : player.worldObj.getEntitiesWithinAABB(LOTREntityNPC.class, player.boundingBox.expand(32.0D, 32.0D, 32.0D))) {
             LOTREntityNPC npc = (LOTREntityNPC) value;
             if (player.getDistanceSqToEntity(npc) <= 1024.0D) ensureSerfdomOffer(player, npc);
         }

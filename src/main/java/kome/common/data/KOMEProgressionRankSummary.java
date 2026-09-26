@@ -23,6 +23,7 @@ public final class KOMEProgressionRankSummary {
         }
     }
 
+    public final String factionKey;
     public final String currentRank, nextRank, promotionTitle;
     public final List<Requirement> requirements;
     public final String activityHeading, activityTitle, activityObjective;
@@ -30,6 +31,13 @@ public final class KOMEProgressionRankSummary {
     public KOMEProgressionRankSummary(String currentRank, String nextRank, String promotionTitle,
             List<Requirement> requirements, String activityHeading, String activityTitle,
             String activityObjective) {
+        this("", currentRank, nextRank, promotionTitle, requirements, activityHeading, activityTitle, activityObjective);
+    }
+
+    public KOMEProgressionRankSummary(String factionKey, String currentRank, String nextRank, String promotionTitle,
+            List<Requirement> requirements, String activityHeading, String activityTitle,
+            String activityObjective) {
+        this.factionKey = safe(factionKey);
         this.currentRank = safe(currentRank);
         this.nextRank = safe(nextRank);
         this.promotionTitle = safe(promotionTitle);
@@ -46,6 +54,11 @@ public final class KOMEProgressionRankSummary {
 
     public static KOMEProgressionRankSummary project(KOMEPlayerProgression progression,
             double pledgedFactionAlignment) {
+        return project(progression, pledgedFactionAlignment, "");
+    }
+
+    public static KOMEProgressionRankSummary project(KOMEPlayerProgression progression,
+            double pledgedFactionAlignment, String factionKey) {
         if (progression == null) return EMPTY;
         KOMEProgressionRank rank = progression.getCanonicalRank();
         KOMEProgressionRank next = next(rank);
@@ -94,9 +107,10 @@ public final class KOMEProgressionRankSummary {
             }
         }
 
-        String nextName = next == null ? "" : next.displayName;
+        String currentName = KOMEFactionProgressionTitles.title(factionKey, rank);
+        String nextName = next == null ? "" : KOMEFactionProgressionTitles.title(factionKey, next);
         String promotion = next == null ? "Highest Rank" : "Requirements for " + nextName;
-        return new KOMEProgressionRankSummary(rank.displayName, nextName, promotion, requirements,
+        return new KOMEProgressionRankSummary(factionKey, currentName, nextName, promotion, requirements,
             heading, title, objective);
     }
 
@@ -104,11 +118,7 @@ public final class KOMEProgressionRankSummary {
         KOMESerfProvisioningAssignment assignment = KOMESerfProvisioningAssignment.readFromNBT(
             state.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData());
         if (assignment == null) return "Bring the requested provisions to your Master.";
-        String text = "Bring to your Master: ";
-        for (KOMESerfProvisioningAssignment.Requirement food : assignment.foods)
-            text = appendQuota(text, food.displayName, food.delivered, food.required);
-        return appendQuota(text, assignment.drink.displayName, assignment.drink.delivered,
-            assignment.drink.required) + ".";
+        return "Bring to your Master: " + assignment.progressList("; ") + ".";
     }
 
     private static String professionObjective(KOMESerfKnightProgression state) {

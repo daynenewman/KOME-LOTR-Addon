@@ -36,7 +36,7 @@ public class KOMEProgressionOfferBridgeTest {
     @Test public void nativeQuestInfoOfferRefreshPrecedesInteractionWithoutReplacingExistingOffers() throws Exception {
         String bridge=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionOfferBridge.java")),StandardCharsets.UTF_8);
         String events=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEEvents.java")),StandardCharsets.UTF_8);
-        assertTrue(events.contains("refreshNearbySerfdomOffers"));assertTrue(bridge.contains("getDistanceSqToEntity(npc) <= 1024.0D"));assertTrue(bridge.contains("else if (current != null) return false"));assertTrue(bridge.contains("npc.questInfo.setPlayerSpecificOffer"));assertTrue(bridge.contains("npc.questInfo.sendData"));
+        assertTrue(events.contains("refreshNearbySerfdomOffers"));assertTrue(bridge.contains("!eligiblePlayer(player)"));assertTrue(bridge.contains("getEntitiesWithinAABB(LOTREntityNPC.class"));assertFalse(bridge.contains("for (Object value : player.worldObj.loadedEntityList)"));assertTrue(bridge.contains("getDistanceSqToEntity(npc) <= 1024.0D"));assertTrue(bridge.contains("else if (current != null) return false"));assertTrue(bridge.contains("npc.questInfo.setPlayerSpecificOffer"));assertTrue(bridge.contains("npc.questInfo.sendData"));
     }
     @Test public void liegeOfferAndRelationshipRoutesRetainTheirCanonicalGuards() throws Exception {
         String bridge=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionOfferBridge.java")),StandardCharsets.UTF_8);

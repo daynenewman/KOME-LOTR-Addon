@@ -8,8 +8,12 @@ public final class KOMEProgressionSummary {
     public static String text(KOMEPlayerProgression p, boolean hasPlayablePledge) { return text(p, hasPlayablePledge ? "Pledged Faction" : ""); }
 
     public static String text(KOMEPlayerProgression p, String pledgeName) {
+        return text(p, pledgeName, "");
+    }
+
+    public static String text(KOMEPlayerProgression p, String pledgeName, String pledgeKey) {
         KOMESerfKnightProgression s = p.getSerfKnightProgression();
-        String rank = "Rank: " + p.getCanonicalRank().displayName;
+        String rank = "Rank: " + KOMEFactionProgressionTitles.title(pledgeKey, p.getCanonicalRank());
         if (p.getCanonicalRank() == KOMEProgressionRank.WANDERER) {
             boolean pledged = pledgeName != null && pledgeName.trim().length() != 0;
             return rank + "\nPledge: " + (pledged ? pledgeName : "None") + "\nNext: " + (pledged ? "Find a Serfdom Master" : "Pledge to a faction");
@@ -26,9 +30,7 @@ public final class KOMEProgressionSummary {
         if ("provisioning".equals(s.getActiveAssignmentKind())) {
             KOMESerfProvisioningAssignment a = KOMESerfProvisioningAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData());
             if (a != null) {
-                String q = base + "\nCurrent Duty: Provisioning";
-                for (KOMESerfProvisioningAssignment.Requirement food : a.foods) q += "\n" + food.displayName + ": " + food.delivered + " / " + food.required;
-                return q + "\n" + a.drink.displayName + " in " + vesselName(a.drink.vessel) + ": " + a.drink.delivered + " / " + a.drink.required;
+                return base + "\nCurrent Duty: Provisioning\n" + a.progressList("\n");
             }
         }
         if ("profession".equals(s.getActiveAssignmentKind())) {
@@ -57,7 +59,6 @@ public final class KOMEProgressionSummary {
         return q;
     }
 
-    private static String vesselName(String value) { return value == null ? "" : value.toLowerCase().replace('_', ' '); }
 
     public static String findLabel(KOMEPlayerProgression p) {
         return "";

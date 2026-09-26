@@ -2,7 +2,7 @@ package kome.client;
 
 import java.util.Arrays;
 import kome.common.data.KOMEVisualMarker;
-import lotr.common.LOTRMod;
+import kome.common.data.KOMEProgressionVisualItems;
 import net.minecraft.init.Items;
 import org.junit.After;
 import org.junit.Test;
@@ -20,11 +20,23 @@ public class KOMEVisualRenderBridgeTest {
         assertNull(KOMEVisualRenderBridge.relationshipFor("npc-one", 0));
     }
 
-    @Test public void nativeItemMappingsMatchRelationshipRoles() {
-        assertEquals(Items.iron_hoe, KOMEVisualRenderBridge.icon(KOMEVisualMarker.Role.SERFDOM_MASTER).getItem());
-        assertEquals(Items.iron_sword, KOMEVisualRenderBridge.icon(KOMEVisualMarker.Role.KNIGHT_LIEGE).getItem());
-        assertEquals(LOTRMod.commandHorn, KOMEVisualRenderBridge.icon(KOMEVisualMarker.Role.LORD_LIEGE).getItem());
+    @Test public void customItemMappingsMatchProgressionRoles() {
+        assertEquals(KOMEProgressionVisualItems.RELATIONSHIP, KOMEVisualRenderBridge.icon(KOMEVisualMarker.Role.SERFDOM_MASTER).getItem());
+        assertEquals(KOMEProgressionVisualItems.RELATIONSHIP, KOMEVisualRenderBridge.icon(KOMEVisualMarker.Role.KNIGHT_LIEGE).getItem());
+        assertEquals(KOMEProgressionVisualItems.RELATIONSHIP, KOMEVisualRenderBridge.icon(KOMEVisualMarker.Role.LORD_LIEGE).getItem());
+        assertEquals(KOMEProgressionVisualItems.RULER, KOMEVisualRenderBridge.icon(KOMEVisualMarker.Role.RULER).getItem());
         assertEquals(Items.paper, KOMEVisualRenderBridge.icon(KOMEVisualMarker.Role.COURIER).getItem());
+        assertEquals(Items.gold_ingot, KOMEVisualRenderBridge.icon(KOMEVisualMarker.Role.RECOVERY_SEARCH).getItem());
+    }
+
+    @Test public void rulerMarkerOverridesRelationshipMarkerForSameNpc() {
+        KOMEVisualMarker relationship = new KOMEVisualMarker(KOMEVisualMarker.Role.SERFDOM_MASTER,
+            "npc-one", "Master", "Serfdom Master", 100, 1, 2, 3);
+        KOMEVisualMarker ruler = new KOMEVisualMarker(KOMEVisualMarker.Role.RULER,
+            "npc-one", "King", "Ruler", 100, 1, 2, 3);
+        KOMEVisualMarkerClientState.update(Arrays.asList(relationship, ruler));
+        assertSame(ruler, KOMEVisualRenderBridge.overheadFor("npc-one", 100));
+        assertSame(ruler, KOMEVisualRenderBridge.relationshipFor("npc-one", 100));
     }
 
     @Test public void boundCourierRecipientIsAnOverheadPaperTarget() {

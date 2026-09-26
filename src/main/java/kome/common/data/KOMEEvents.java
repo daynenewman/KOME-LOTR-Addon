@@ -521,6 +521,22 @@ public class KOMEEvents {
         }
     }
 
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onDefenseParticipation(LivingHurtEvent event) {
+        if (event.entityLiving == null || event.ammount <= 0.0F || KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving))) {
+            return;
+        }
+        Entity source = event.source == null ? null : event.source.getEntity();
+        if (!(source instanceof EntityPlayer) || !(event.entityLiving instanceof LOTREntityNPC)) {
+            return;
+        }
+        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.entityLiving));
+        KOMESerfKnightDefenseService.notePlayerParticipation(
+            data,
+            KOMEReflection.getEntityUUID(source),
+            KOMEReflection.getEntityUUID(event.entityLiving).toString());
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onLivingSetAttackTarget(LivingSetAttackTargetEvent event) {
         if (KOMEHaltedUnitProtection.isApplyingInactiveState()) {

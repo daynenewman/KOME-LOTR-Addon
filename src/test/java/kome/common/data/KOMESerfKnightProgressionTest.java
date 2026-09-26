@@ -172,6 +172,7 @@ public class KOMESerfKnightProgressionTest {
     @Test public void trialIdOnlySaveReconcilesToOneSafeAssignmentAndSummaryUsesDisplayName() {
         KOMESerfKnightProgression state=new KOMESerfKnightProgression(); KOMEProgressionNpcRef master=npc("Master","rohan"); assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master).success); assignAndCompleteDuties(state); assertTrue(KOMESerfKnightService.setProspectiveLiege(state,npc("Liege","rohan")).success); state.setTrial("escort");
         NBTTagCompound old=state.writeToNBT(); old.removeTag("TrialAssignment"); KOMESerfKnightProgression loaded=new KOMESerfKnightProgression(); loaded.readFromNBT(old); assertEquals("escort",loaded.getTrialId()); assertNotNull(loaded.getTrialAssignment());
+        KOMESerfKnightProgression loadedAgain=new KOMESerfKnightProgression(); loadedAgain.readFromNBT(old); assertEquals(loaded.getTrialAssignment().assignmentToken,loadedAgain.getTrialAssignment().assignmentToken);
         KOMEPlayerProgression player=new KOMEPlayerProgression(); player.setCanonicalRank(KOMEProgressionRank.SERF); player.getSerfKnightProgression().readFromNBT(loaded.writeToNBT()); String summary=KOMEProgressionSummary.text(player); assertTrue(summary.contains("Trial of Knighthood: Escort")); assertFalse(summary.contains("Current Trial: escort"));
     }
 

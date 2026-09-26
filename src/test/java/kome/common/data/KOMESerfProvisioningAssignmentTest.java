@@ -11,6 +11,9 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import lotr.common.item.LOTRItemMug;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -39,6 +42,37 @@ public class KOMESerfProvisioningAssignmentTest {
 
     @Test public void approvedVesselsAreFactionSafe(){List<String> good=KOMESerfProvisioningCatalog.vesselsForFaction("rohan"),evil=KOMESerfProvisioningCatalog.vesselsForFaction("mordor");for(String basic:new String[]{"SKIN","BOTTLE","GOBLET_WOOD","MUG","HORN","GOBLET_COPPER"}){assertTrue(good.contains(basic));assertTrue(evil.contains(basic));}assertTrue(good.contains("GLASS"));assertFalse(good.contains("SKULL"));assertTrue(evil.contains("SKULL"));assertFalse(evil.contains("GLASS"));for(String luxury:new String[]{"MUG_CLAY","GOBLET_SILVER","GOBLET_GOLD","HORN_GOLD"}){assertFalse(good.contains(luxury));assertFalse(evil.contains(luxury));}}
 
-    @Test public void fallbackAndPresentationIntegrationRemainWired() throws Exception {assertTrue(foods().size()>=3);String summary=source("src/main/java/kome/common/data/KOMEProgressionSummary.java");assertTrue(summary.contains("Current Duty: Provisioning"));assertTrue(summary.contains("food.delivered"));assertTrue(summary.contains("a.drink.vessel"));String gui=source("src/main/java/kome/client/gui/KOMEGuiSerfdomMaster.java");assertTrue(gui.contains("Deliver provisions"));assertFalse(gui.contains("Highlight master"));String packet=source("src/main/java/kome/common/network/KOMEPacketSerfdomMasterAction.java");assertTrue(packet.contains("KOMESerfProvisioningService.deliver"));assertTrue(packet.contains("completeDuty(progression,active)"));assertTrue(packet.contains("detectAndSendChanges"));}
+    @Test public void nativeDrinkMetadataMatchesRequestedVesselAndPotency() {
+        LOTRItemMug ale=new LOTRItemMug(1F);int id=Item.getIdFromItem(ale);
+        KOMESerfProvisioningAssignment.Requirement r=new KOMESerfProvisioningAssignment.Requirement("ale",id,0,2,0,"Ale","BOTTLE",true,3);
+        ItemStack stack=new ItemStack(ale,2,0);LOTRItemMug.setVessel(stack,LOTRItemMug.Vessel.BOTTLE,true);LOTRItemMug.setStrengthMeta(stack,3);
+        assertEquals(LOTRItemMug.Vessel.BOTTLE,LOTRItemMug.getVessel(stack));assertEquals(3,LOTRItemMug.getStrengthMeta(stack));
+        assertTrue(KOMESerfProvisioningService.matches(stack,r));
+        assertTrue(r.description().contains("Bottle"));assertTrue(r.description().contains("Strong"));assertTrue(r.description().contains("Ale"));
+        LOTRItemMug.setStrengthMeta(stack,1);assertFalse(KOMESerfProvisioningService.matches(stack,r));
+        LOTRItemMug.setStrengthMeta(stack,3);LOTRItemMug.setVessel(stack,LOTRItemMug.Vessel.MUG,true);assertFalse(KOMESerfProvisioningService.matches(stack,r));
+        assertEquals(2,r.required);assertEquals(0,r.delivered);
+    }
+
+    @Test public void nativeNonbrewableDrinkHasNoFakePotency() {
+        LOTRItemMug juice=new LOTRItemMug(true,false);int id=Item.getIdFromItem(juice);
+        KOMESerfProvisioningAssignment.Requirement r=new KOMESerfProvisioningAssignment.Requirement("juice",id,0,1,0,"Apple Juice","GOBLET_WOOD",true,-1);
+        ItemStack stack=new ItemStack(juice,1,0);LOTRItemMug.setVessel(stack,LOTRItemMug.Vessel.GOBLET_WOOD,true);
+        assertTrue(KOMESerfProvisioningService.matches(stack,r));
+        assertFalse(r.description().contains("Strong"));assertFalse(r.description().contains("Moderate"));
+        LOTRItemMug.setVessel(stack,LOTRItemMug.Vessel.MUG,true);assertFalse(KOMESerfProvisioningService.matches(stack,r));
+    }
+
+    @Test public void legacyDrinkRemainsBroadAndStaysBroadAfterSave() {
+        NBTTagCompound old=generate(8).writeToNBT();old.removeTag("RequirementVersion");
+        KOMESerfProvisioningAssignment legacy=KOMESerfProvisioningAssignment.readFromNBT(old,resolver());
+        assertNotNull(legacy);assertEquals("",legacy.drink.vessel);assertEquals(-1,legacy.drink.strength);
+        assertTrue(KOMESerfProvisioningService.matchesIdentity(new KOMESerfProvisioningService.StackView(legacy.drink.itemId,803,1,"BOTTLE",3),legacy.drink));
+        assertTrue(legacy.drink.description().contains("any vessel or strength"));
+        KOMESerfProvisioningAssignment again=KOMESerfProvisioningAssignment.readFromNBT(legacy.writeToNBT(),resolver());
+        assertNotNull(again);assertEquals("",again.drink.vessel);assertTrue(again.drink.description().contains("any vessel or strength"));
+    }
+
+    @Test public void fallbackAndPresentationIntegrationRemainWired() throws Exception {assertTrue(foods().size()>=3);String summary=source("src/main/java/kome/common/data/KOMEProgressionSummary.java");assertTrue(summary.contains("Current Duty: Provisioning"));assertTrue(summary.contains("a.progressList"));String ranks=source("src/main/java/kome/common/data/KOMEProgressionRankSummary.java");assertTrue(ranks.contains("assignment.progressList"));String gui=source("src/main/java/kome/client/gui/KOMEGuiSerfdomMaster.java");assertTrue(gui.contains("Deliver provisions"));assertFalse(gui.contains("Highlight master"));String packet=source("src/main/java/kome/common/network/KOMEPacketSerfdomMasterAction.java");assertTrue(packet.contains("a.progressList"));assertTrue(packet.contains("KOMESerfProvisioningService.deliver"));assertTrue(packet.contains("completeDuty(progression,active)"));assertTrue(packet.contains("detectAndSendChanges"));}
     private static String source(String path)throws Exception{return new String(Files.readAllBytes(Paths.get(path)),StandardCharsets.UTF_8);}
 }

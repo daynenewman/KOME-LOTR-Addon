@@ -25,6 +25,27 @@ public class KOMESerfKnightDefenseServiceTest {
         KOMESerfKnightTrialAssignment seed=assigned();NBTTagCompound data=new NBTTagCompound();NBTTagList enemies=new NBTTagList(),dead=new NBTTagList();String first=UUID.randomUUID().toString(),second=UUID.randomUUID().toString();append(enemies,first);append(enemies,second);append(dead,UUID.randomUUID().toString());data.setTag(KOMESerfKnightDefenseService.ENEMIES,enemies);data.setTag(KOMESerfKnightDefenseService.DEAD,dead);KOMESerfKnightTrialAssignment active=seed.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data);assertFalse(KOMESerfKnightDefenseService.allDead(active));append(dead,first);data.setTag(KOMESerfKnightDefenseService.DEAD,dead);assertFalse(KOMESerfKnightDefenseService.allDead(seed.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)));append(dead,second);data.setTag(KOMESerfKnightDefenseService.DEAD,dead);assertTrue(KOMESerfKnightDefenseService.allDead(seed.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)));
     }
 
+    @Test public void defenseRequiresOwningPlayerParticipationBeforeCompletion(){
+        KOMEWorldData world=new KOMEWorldData("defense-participation"); UUID player=UUID.randomUUID(); KOMEPlayerProgression progression=world.getProgression(player);
+        KOMESerfKnightTrialAssignment seed=assigned(); NBTTagCompound data=new NBTTagCompound(); NBTTagList enemies=new NBTTagList(); String attacker=UUID.randomUUID().toString(); append(enemies,attacker); data.setTag(KOMESerfKnightDefenseService.ENEMIES,enemies); data.setTag(KOMESerfKnightDefenseService.DEAD,new NBTTagList());
+        KOMESerfKnightTrialAssignment active=seed.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data); progression.getSerfKnightProgression().setTrial(active);
+        assertFalse(KOMESerfKnightDefenseService.hasParticipation(active));
+        assertFalse(KOMESerfKnightDefenseService.notePlayerParticipation(world,player,UUID.randomUUID().toString()));
+        assertTrue(KOMESerfKnightDefenseService.notePlayerParticipation(world,player,attacker));
+        assertTrue(KOMESerfKnightDefenseService.hasParticipation(progression.getSerfKnightProgression().getTrialAssignment()));
+        assertFalse(KOMESerfKnightDefenseService.notePlayerParticipation(world,player,attacker));
+    }
+
+    @Test public void defenseParticipationUsesActualPositivePlayerDamageEvent() throws Exception {
+        String events=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEEvents.java")),StandardCharsets.UTF_8);
+        String defense=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMESerfKnightDefenseService.java")),StandardCharsets.UTF_8);
+        assertTrue(events.contains("public void onDefenseParticipation(LivingHurtEvent event)"));
+        assertTrue(events.contains("event.ammount <= 0.0F"));
+        assertTrue(events.contains("source instanceof EntityPlayer"));
+        assertTrue(events.contains("KOMESerfKnightDefenseService.notePlayerParticipation"));
+        assertTrue(defense.contains("allDead(assignment)&&!hasParticipation(assignment)"));
+    }
+
     @Test public void nativeHostilityAndCombatSeamsAreUsedWithoutCustomAi() throws Exception {
         String source=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMESerfKnightDefenseService.java")),StandardCharsets.UTF_8);assertTrue(source.contains("defender.isBadRelation(attacker)||attacker.isBadRelation(defender)"));assertTrue(source.contains("invasion.invasionMobs"));assertTrue(source.contains("getEntityClass()"));assertTrue(source.contains("onArtificalSpawn()"));assertTrue(source.contains("setAttackTarget(objective,true)"));assertTrue(source.contains("markTrialObjectiveComplete(state)"));assertFalse(source.contains("state.setTrialCompleted("));
     }

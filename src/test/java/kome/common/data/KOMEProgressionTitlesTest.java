@@ -14,6 +14,7 @@ public class KOMEProgressionTitlesTest {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID player = UUID.randomUUID();
         KOMEPlayerProgression progression = complete(data, player, "prince_king");
+        progression.setCanonicalRank(KOMEProgressionRank.PRINCE);
 
         assertEquals("Prince", KOMEProgressionTitles.resolveRankName(data, player, progression, FACTION));
         assertFalse(data.hasFactionKing(FACTION));
@@ -25,6 +26,7 @@ public class KOMEProgressionTitlesTest {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID player = UUID.randomUUID();
         KOMEPlayerProgression progression = complete(data, player, "prince_king");
+        progression.setCanonicalRank(KOMEProgressionRank.PRINCE);
 
         assertEquals("Prince", KOMEProgressionTitles.resolveRankName(data, player, progression, FACTION));
         assertEquals("Prince", KOMEProgressionTitles.resolveRankName(data, player, progression, FACTION));
@@ -38,6 +40,7 @@ public class KOMEProgressionTitlesTest {
         UUID endgame = UUID.randomUUID();
         UUID ruler = UUID.randomUUID();
         KOMEPlayerProgression endgameProgression = complete(data, endgame, "prince_king");
+        endgameProgression.setCanonicalRank(KOMEProgressionRank.PRINCE);
 
         assertTrue(KOMERulerService.assignRuler(data, FACTION, ruler, "Ruler"));
         assertEquals("Prince", KOMEProgressionTitles.resolveRankName(data, endgame, endgameProgression, FACTION));
@@ -67,18 +70,39 @@ public class KOMEProgressionTitlesTest {
         for (KOMEProgressionAchievement achievement : KOMEProgressionAchievement.forGroup("prince_king")) {
             progression.grant(achievement.id);
         }
+        progression.setCanonicalRank(KOMEProgressionRank.PRINCE);
         assertTrue(progression.isCompleted(finalAchievement));
         assertEquals("Prince", KOMEProgressionTitles.resolveRankName(data, player, progression, FACTION));
         assertTrue(progression.isCompleted(finalAchievement));
     }
 
     @Test
-    public void serverRecordsUsePrinceForFinalProgressionWithoutRulership() {
+    public void serverRecordsUseFactionSpecificFinalTitleWithoutRulership() {
+        KOMEWorldData data = new KOMEWorldData("test");
+        UUID player = UUID.randomUUID();
+        KOMEPlayerProgression progression = complete(data, player, "prince_king");
+        progression.setCanonicalRank(KOMEProgressionRank.PRINCE);
+
+        assertEquals("Lord", KOMEServerRecordBuilder.getRank(data, player, progression, FACTION));
+    }
+
+    @Test
+    public void legacyGroupCompletionDoesNotOverrideCanonicalRank() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID player = UUID.randomUUID();
         KOMEPlayerProgression progression = complete(data, player, "prince_king");
 
-        assertEquals("Prince", KOMEServerRecordBuilder.getRank(data, player, progression, FACTION));
+        assertEquals(KOMEProgressionRank.WANDERER, progression.getCanonicalRank());
+        assertEquals("Wanderer", KOMEProgressionTitles.resolveRankName(data, player, progression, FACTION));
+        assertEquals("Wanderer", KOMEServerRecordBuilder.getRank(data, player, progression, FACTION));
+    }
+
+    @Test
+    public void onlyKomeOwnedScoreboardTeamsMayBeReplaced() {
+        assertTrue(KOMEProgressionTitles.isKomeOwnedTeam("kome_serf"));
+        assertTrue(KOMEProgressionTitles.isKomeOwnedTeam("kome_prince"));
+        assertFalse(KOMEProgressionTitles.isKomeOwnedTeam("red_team"));
+        assertFalse(KOMEProgressionTitles.isKomeOwnedTeam(null));
     }
 
     private static KOMEPlayerProgression complete(KOMEWorldData data, UUID player, String group) {
@@ -89,3 +113,4 @@ public class KOMEProgressionTitlesTest {
         return progression;
     }
 }
+

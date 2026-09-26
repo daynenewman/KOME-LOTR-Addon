@@ -125,5 +125,6 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketRelationshipHub.Handler.class, KOMEPacketRelationshipHub.class, 40, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketRelationshipAction>(new KOMEPacketRelationshipAction.Handler()) {}, KOMEPacketRelationshipAction.class, 41, Side.SERVER);
         network.registerMessage(KOMEPacketVisualMarkers.Handler.class, KOMEPacketVisualMarkers.class, 42, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketProgressionRequest>(new KOMEPacketProgressionRequest.Handler()) {}, KOMEPacketProgressionRequest.class, 43, Side.SERVER);
     }
 }

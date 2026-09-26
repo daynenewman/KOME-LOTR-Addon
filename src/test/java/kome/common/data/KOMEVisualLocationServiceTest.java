@@ -133,6 +133,40 @@ public class KOMEVisualLocationServiceTest {
             KOMEVisualLocationService.signature(KOMEVisualLocationService.markersFor(loaded)));
     }
 
+    @Test public void recoveryTrialShowsApproximateMapSearchMarkerUntilRetrieved() {
+        KOMEPlayerProgression player = new KOMEPlayerProgression();
+        player.setCanonicalRank(KOMEProgressionRank.SERF);
+        KOMESerfKnightProgression state = player.getSerfKnightProgression();
+        state.setSerfdomMaster(npc("Aldor", 10, 20));
+        KOMEProgressionNpcRef liege = npc("Hurin", 30, 40);
+        state.setProspectiveLiege(liege);
+        KOMESerfKnightTrialAssignment base = KOMESerfKnightTrialAssignment.create(
+            KOMESerfKnightTrial.forId("recovery"), liege, 20L, 0);
+        NBTTagCompound data = new NBTTagCompound();
+        data.setBoolean(KOMESerfKnightRecoveryService.DATA_SITE_CREATED, true);
+        data.setInteger(KOMESerfKnightRecoveryService.DATA_DIMENSION, LOTRDimension.MIDDLE_EARTH.dimensionID);
+        data.setInteger(KOMESerfKnightRecoveryService.DATA_X, 160);
+        data.setInteger(KOMESerfKnightRecoveryService.DATA_Y, 64);
+        data.setInteger(KOMESerfKnightRecoveryService.DATA_Z, 220);
+        state.setTrial(base.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE, data));
+
+        List<KOMEVisualMarker> markers = KOMEVisualLocationService.markersFor(player);
+        KOMEVisualMarker search = null;
+        for (KOMEVisualMarker marker : markers) if (marker.role == KOMEVisualMarker.Role.RECOVERY_SEARCH) search = marker;
+        assertNotNull(search);
+        assertEquals("Lost Object", search.title);
+        assertEquals("Search the surrounding area", search.subtitle);
+        double dx = search.x - 160.0D, dz = search.z - 220.0D;
+        double distance = Math.sqrt(dx * dx + dz * dz);
+        assertTrue(distance >= 23.9D && distance <= 39.1D);
+
+        data.setBoolean(KOMESerfKnightRecoveryService.DATA_RETRIEVED, true);
+        state.updateTrialAssignment(base.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE, data));
+        markers = KOMEVisualLocationService.markersFor(player);
+        for (KOMEVisualMarker marker : markers)
+            assertNotEquals(KOMEVisualMarker.Role.RECOVERY_SEARCH, marker.role);
+    }
+
     public static final class TestNpc extends LOTREntityRohirrimWarrior {
         UUID id;
         String name;
@@ -141,4 +175,13 @@ public class KOMEVisualLocationServiceTest {
         @Override public String getNPCName() { return name; }
         @Override public LOTRFaction getFaction() { return LOTRFaction.ROHAN; }
     }
+    @Test public void courierAssignmentIsParsedOncePerLocationRefreshRatherThanOncePerNpc() throws Exception {
+        String source=new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get("src/main/java/kome/common/data/KOMEVisualLocationService.java")),java.nio.charset.Charset.forName("UTF-8"));
+        int method=source.indexOf("public static boolean refreshLoadedLocations");
+        int loop=source.indexOf("for (Object value : player.worldObj.loadedEntityList)",method);
+        int parse=source.indexOf("KOMESerfCourierAssignment.readFromNBT",method);
+        assertTrue(method>=0&&parse>method&&loop>parse);
+        assertEquals(parse,source.lastIndexOf("KOMESerfCourierAssignment.readFromNBT",loop));
+    }
+
 }

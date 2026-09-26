@@ -49,10 +49,11 @@ public class KOMEPacketProgressionData implements IMessage {
             assignments.put(ByteBufUtils.readUTF8String(buf), ByteBufUtils.readUTF8String(buf));
         }
         canonicalSummary=ByteBufUtils.readUTF8String(buf);findLabel=ByteBufUtils.readUTF8String(buf);leaveRelationshipType=ByteBufUtils.readUTF8String(buf);leaveRelationshipLabel=ByteBufUtils.readUTF8String(buf);leaveRelationshipName=ByteBufUtils.readUTF8String(buf);
+        String factionKey=ByteBufUtils.readUTF8String(buf);
         String current=ByteBufUtils.readUTF8String(buf),next=ByteBufUtils.readUTF8String(buf),promotion=ByteBufUtils.readUTF8String(buf);
         int requirementCount=buf.readInt();List requirements=new ArrayList();
         for(int i=0;i<requirementCount;i++)requirements.add(new KOMEProgressionRankSummary.Requirement(ByteBufUtils.readUTF8String(buf),buf.readInt(),buf.readInt(),buf.readBoolean()));
-        rankSummary=new KOMEProgressionRankSummary(current,next,promotion,requirements,ByteBufUtils.readUTF8String(buf),ByteBufUtils.readUTF8String(buf),ByteBufUtils.readUTF8String(buf));
+        rankSummary=new KOMEProgressionRankSummary(factionKey,current,next,promotion,requirements,ByteBufUtils.readUTF8String(buf),ByteBufUtils.readUTF8String(buf),ByteBufUtils.readUTF8String(buf));
     }
 
     @Override
@@ -70,7 +71,7 @@ public class KOMEPacketProgressionData implements IMessage {
         }
         ByteBufUtils.writeUTF8String(buf,canonicalSummary);ByteBufUtils.writeUTF8String(buf,findLabel);ByteBufUtils.writeUTF8String(buf,leaveRelationshipType);ByteBufUtils.writeUTF8String(buf,leaveRelationshipLabel);ByteBufUtils.writeUTF8String(buf,leaveRelationshipName);
         KOMEProgressionRankSummary ranks=rankSummary==null?KOMEProgressionRankSummary.EMPTY:rankSummary;
-        ByteBufUtils.writeUTF8String(buf,ranks.currentRank);ByteBufUtils.writeUTF8String(buf,ranks.nextRank);ByteBufUtils.writeUTF8String(buf,ranks.promotionTitle);buf.writeInt(ranks.requirements.size());
+        ByteBufUtils.writeUTF8String(buf,ranks.factionKey);ByteBufUtils.writeUTF8String(buf,ranks.currentRank);ByteBufUtils.writeUTF8String(buf,ranks.nextRank);ByteBufUtils.writeUTF8String(buf,ranks.promotionTitle);buf.writeInt(ranks.requirements.size());
         for(KOMEProgressionRankSummary.Requirement requirement:ranks.requirements){ByteBufUtils.writeUTF8String(buf,requirement.label);buf.writeInt(requirement.current);buf.writeInt(requirement.required);buf.writeBoolean(requirement.complete);}
         ByteBufUtils.writeUTF8String(buf,ranks.activityHeading);ByteBufUtils.writeUTF8String(buf,ranks.activityTitle);ByteBufUtils.writeUTF8String(buf,ranks.activityObjective);
     }

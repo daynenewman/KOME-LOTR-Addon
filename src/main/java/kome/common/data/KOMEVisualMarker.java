@@ -6,7 +6,9 @@ public final class KOMEVisualMarker {
         SERFDOM_MASTER("serfdom_master", "Serfdom Master"),
         KNIGHT_LIEGE("knight_liege", "Liege"),
         LORD_LIEGE("lord_liege", "Liege"),
-        COURIER("courier", "Courier Destination");
+        RULER("ruler", "Ruler"),
+        COURIER("courier", "Courier Destination"),
+        RECOVERY_SEARCH("recovery_search", "Recovery Search");
 
         public final String key, label;
         Role(String key, String label) { this.key = key; this.label = label; }
@@ -34,7 +36,10 @@ public final class KOMEVisualMarker {
         this.z = z;
     }
 
-    public boolean isRelationship() { return role != Role.COURIER; }
+    public boolean isRelationship() {
+        return role == Role.SERFDOM_MASTER || role == Role.KNIGHT_LIEGE
+            || role == Role.LORD_LIEGE || role == Role.RULER;
+    }
     public String signature() {
         return role.key + '|' + entityUuid + '|' + title + '|' + subtitle + '|'
             + dimension + '|' + x + '|' + y + '|' + z;

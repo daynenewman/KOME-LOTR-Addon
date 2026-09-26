@@ -57,8 +57,10 @@ public final class KOMESerfKnightRecoveryService {
         if(player==null||player.worldObj.isRemote)return;
         KOMEWorldData world=KOMEWorldData.get(player.worldObj); KOMEPlayerProgression progression=world.getProgression(player.getUniqueID());
         KOMESerfKnightTrialAssignment assignment=progression.getSerfKnightProgression().getTrialAssignment();
-        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE||assignment.data.getBoolean(DATA_RETRIEVED))return;
-        int slot=findAssignedStack(player,assignment); if(slot>=0) onPickup(player,player.inventory.mainInventory[slot]);
+        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE)return;
+        int slot=findAssignedStack(player,assignment);
+        if(slot>=0){ if(!assignment.data.getBoolean(DATA_RETRIEVED)) onPickup(player,player.inventory.mainInventory[slot]); return; }
+        if(!assignment.data.getBoolean(DATA_RETRIEVED)) ensureRecoveryObject(player,progression,assignment);
     }
 
     /** Called only from the validated Liege Service interaction. */
@@ -66,13 +68,60 @@ public final class KOMESerfKnightRecoveryService {
         if(player==null||progression==null||liege==null)return false;
         KOMESerfKnightProgression state=progression.getSerfKnightProgression(); KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment();
         if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE||!assignment.data.getBoolean(DATA_RETRIEVED)||!state.getProspectiveLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
-        int slot=findAssignedStack(player,assignment); if(slot<0)return false;
-        if(!consumeAssignedStack(player.inventory.mainInventory,assignment,player.getUniqueID()))return false;
+        int slot=findAssignedStack(player,assignment);
+        // Retrieval is the canonical proof. Consume the physical object when it is still present,
+        // but never permanently soft-lock a player who already recovered it and later lost it.
+        if(slot>=0&&!consumeAssignedStack(player.inventory.mainInventory,assignment,player.getUniqueID()))return false;
         if(KOMESerfKnightService.markTrialObjectiveComplete(state).success) {
             KOMEWorldData.get(player.worldObj).markDirty(); player.inventoryContainer.detectAndSendChanges();
             KOMEProgressionAutoCompleter.syncPlayer(player,progression); KOMEProgressionNpcSpeech.say(player,liege,"You have returned what was lost. You have shown the care I require of a knight."); return true;
         }
         return false;
+    }
+
+
+    /**
+     * Recreates an uncollected recovery object only when the player has naturally returned near
+     * the persisted site and that chunk is already loaded. This never force-loads terrain.
+     */
+    private static void ensureRecoveryObject(EntityPlayerMP player,KOMEPlayerProgression progression,KOMESerfKnightTrialAssignment assignment) {
+        if(player.worldObj.getTotalWorldTime()%40L!=0L||!assignment.data.getBoolean(DATA_SITE_CREATED))return;
+        if(assignment.data.getInteger(DATA_DIMENSION)!=player.worldObj.provider.dimensionId)return;
+        int x=assignment.data.getInteger(DATA_X), y=assignment.data.getInteger(DATA_Y), z=assignment.data.getInteger(DATA_Z);
+        double dx=player.posX-(x+0.5D), dy=player.posY-(y+0.5D), dz=player.posZ-(z+0.5D);
+        if(dx*dx+dy*dy+dz*dz>4096D||!player.worldObj.getChunkProvider().chunkExists(x>>4,z>>4))return;
+        for(Object value:player.worldObj.loadedEntityList)
+            if(value instanceof EntityItem&&isAssignedTo(((EntityItem)value).getEntityItem(),assignment,player.getUniqueID()))return;
+        int spawnY=y;
+        if(spawnY<=1||spawnY>=player.worldObj.getActualHeight()-2||!player.worldObj.isAirBlock(x,spawnY,z))
+            spawnY=player.worldObj.getTopSolidOrLiquidBlock(x,z);
+        if(spawnY<=1||spawnY>=player.worldObj.getActualHeight()-2||!player.worldObj.isAirBlock(x,spawnY,z))return;
+        EntityItem replacement=new EntityItem(player.worldObj,x+0.5D,spawnY+0.2D,z+0.5D,assignedStack(assignment,player.getUniqueID()));
+        replacement.delayBeforeCanPickup=0; replacement.lifespan=Integer.MAX_VALUE;
+        if(!player.worldObj.spawnEntityInWorld(replacement))return;
+        NBTTagCompound data=(NBTTagCompound)assignment.data.copy();
+        data.setInteger(DATA_Y,spawnY); data.setString(DATA_OBJECT,replacement.getUniqueID().toString());
+        progression.getSerfKnightProgression().updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data));
+        KOMEWorldData.get(player.worldObj).markDirty();
+    }
+
+
+    /**
+     * Returns a deliberately approximate map target for an active, unretrieved recovery object.
+     * The marker is offset from the real persisted site so the map guides a search rather than
+     * revealing the exact dropped-item position.
+     */
+    static KOMEVisualMarker searchMarker(KOMESerfKnightTrialAssignment assignment) {
+        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE
+                ||!assignment.data.getBoolean(DATA_SITE_CREATED)||assignment.data.getBoolean(DATA_RETRIEVED))return null;
+        int x=assignment.data.getInteger(DATA_X), z=assignment.data.getInteger(DATA_Z);
+        int hash=assignment.assignmentToken==null?0:assignment.assignmentToken.hashCode();
+        int radius=24+((hash>>>4)&15);
+        double angle=((hash&0x7fffffff)%6283)/1000D;
+        double markerX=x+Math.cos(angle)*radius, markerZ=z+Math.sin(angle)*radius;
+        return new KOMEVisualMarker(KOMEVisualMarker.Role.RECOVERY_SEARCH, "",
+            "Lost Object", "Search the surrounding area", assignment.data.getInteger(DATA_DIMENSION),
+            markerX, 0.0D, markerZ);
     }
 
     static ItemStack assignedStack(KOMESerfKnightTrialAssignment assignment,UUID owner) {

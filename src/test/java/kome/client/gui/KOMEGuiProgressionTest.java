@@ -52,6 +52,12 @@ public class KOMEGuiProgressionTest {
         assertTrue(source.contains("selectView(View.ADVANCEMENTS)"));assertTrue(source.contains("selectView(View.RANKS)"));
     }
 
+    @Test public void openingProgressionRequestsFreshServerSnapshot() throws Exception {
+        String source=new String(Files.readAllBytes(Paths.get("src/main/java/kome/client/gui/KOMEGuiProgression.java")),Charset.forName("UTF-8"));
+        assertTrue(source.contains("new KOMEPacketProgressionRequest()"));
+        assertTrue(source.contains("KOMEPacketHandler.network.sendToServer"));
+    }
+
     @Test public void rankLayoutIsContentMeasuredAndOnlyScrollsOverflow() throws Exception {
         String source=new String(Files.readAllBytes(Paths.get("src/main/java/kome/client/gui/KOMEGuiProgression.java")),Charset.forName("UTF-8"));
         assertTrue(source.contains("rankSummary.requirements.size()*26"));

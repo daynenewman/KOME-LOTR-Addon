@@ -19,10 +19,14 @@ public final class KOMEVisualLocationService {
     private KOMEVisualLocationService() { }
 
     public static List<KOMEVisualMarker> markersFor(KOMEPlayerProgression progression) {
+        return markersFor(progression, null);
+    }
+
+    static List<KOMEVisualMarker> markersFor(KOMEPlayerProgression progression, KOMEWorldData worldData) {
         List<KOMEVisualMarker> markers = new ArrayList<KOMEVisualMarker>();
         if (progression == null) return markers;
         KOMESerfKnightProgression state = progression.getSerfKnightProgression();
-        KOMEVisualMarker relationship = relationshipMarker(progression, state);
+        KOMEVisualMarker relationship = relationshipMarker(progression, state, worldData);
         if (relationship != null) markers.add(relationship);
         if ("courier".equals(state.getActiveAssignmentKind())) {
             KOMESerfCourierAssignment courier = KOMESerfCourierAssignment.readFromNBT(
@@ -38,11 +42,13 @@ public final class KOMEVisualLocationService {
                         courier.destinationX, 0.0D, courier.destinationZ));
             }
         }
+        KOMEVisualMarker recovery = KOMESerfKnightRecoveryService.searchMarker(state.getTrialAssignment());
+        if (recovery != null) markers.add(recovery);
         return markers;
     }
 
     private static KOMEVisualMarker relationshipMarker(KOMEPlayerProgression progression,
-            KOMESerfKnightProgression state) {
+            KOMESerfKnightProgression state, KOMEWorldData worldData) {
         KOMEProgressionRank rank = progression.getCanonicalRank();
         KOMEProgressionNpcRef ref;
         KOMEVisualMarker.Role role;
@@ -61,7 +67,18 @@ public final class KOMEVisualLocationService {
             ref = state.getSerfdomMaster();
             role = KOMEVisualMarker.Role.SERFDOM_MASTER;
         }
+        if (ref.isSet() && isActiveRuler(worldData, ref)) role = KOMEVisualMarker.Role.RULER;
         return ref.isSet() ? relationship(role, ref) : null;
+    }
+
+    private static boolean isActiveRuler(KOMEWorldData worldData, KOMEProgressionNpcRef ref) {
+        if (worldData == null || ref == null || !ref.isSet()) return false;
+        try {
+            return KOMEProgressionNpcRankService.isActivePoliticalNpcKing(
+                worldData, UUID.fromString(ref.entityUuid));
+        } catch (IllegalArgumentException invalidUuid) {
+            return false;
+        }
     }
 
     private static KOMEVisualMarker relationship(KOMEVisualMarker.Role role, KOMEProgressionNpcRef ref) {
@@ -74,6 +91,9 @@ public final class KOMEVisualLocationService {
             KOMEPlayerProgression progression) {
         if (player == null || data == null || progression == null) return false;
         KOMESerfKnightProgression state = progression.getSerfKnightProgression();
+        KOMESerfCourierAssignment courier = "courier".equals(state.getActiveAssignmentKind())
+            ? KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData())
+            : null;
         boolean changed = false;
         for (Object value : player.worldObj.loadedEntityList) {
             if (!(value instanceof LOTREntityNPC)) continue;
@@ -89,15 +109,11 @@ public final class KOMEVisualLocationService {
                 state.updateProspectiveLiegeLocation(KOMEProgressionNpcRankService.referenceOf(npc));
                 changed = true;
             }
-            if ("courier".equals(state.getActiveAssignmentKind())) {
-                KOMESerfCourierAssignment courier = KOMESerfCourierAssignment.readFromNBT(
-                    state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-                if (courier != null && id.equals(courier.recipient.entityUuid)
-                        && materiallyChanged(courier.recipient, npc)) {
-                    courier.recipient = KOMEProgressionNpcRankService.referenceOf(npc);
-                    state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER, courier.writeToNBT());
-                    changed = true;
-                }
+            if (courier != null && id.equals(courier.recipient.entityUuid)
+                    && materiallyChanged(courier.recipient, npc)) {
+                courier.recipient = KOMEProgressionNpcRankService.referenceOf(npc);
+                state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER, courier.writeToNBT());
+                changed = true;
             }
         }
         if (changed) data.markDirty();
@@ -114,12 +130,17 @@ public final class KOMEVisualLocationService {
     public static void refreshAndSync(EntityPlayerMP player, KOMEWorldData data,
             KOMEPlayerProgression progression, boolean force) {
         refreshLoadedLocations(player, data, progression);
-        syncIfChanged(player, progression, force);
+        syncIfChanged(player, data, progression, force);
     }
 
     public static void syncIfChanged(EntityPlayerMP player, KOMEPlayerProgression progression, boolean force) {
+        syncIfChanged(player, player == null ? null : KOMEWorldData.get(player.worldObj), progression, force);
+    }
+
+    static void syncIfChanged(EntityPlayerMP player, KOMEWorldData worldData,
+            KOMEPlayerProgression progression, boolean force) {
         if (player == null || progression == null || KOMEPacketHandler.network == null) return;
-        List<KOMEVisualMarker> markers = markersFor(progression);
+        List<KOMEVisualMarker> markers = markersFor(progression, worldData);
         String signature = signature(markers);
         UUID playerId = KOMEReflection.getEntityUUID(player);
         if (!force && signature.equals(LAST_SENT.get(playerId))) return;

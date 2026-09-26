@@ -1,6 +1,8 @@
 package kome.common.data;
 
+import java.nio.charset.StandardCharsets;
 import java.util.EnumMap;
+import java.util.UUID;
 import net.minecraft.nbt.NBTTagCompound;
 
 /** Persistent, domain-only state for the revised Serf-to-Knight path. */
@@ -92,9 +94,16 @@ public final class KOMESerfKnightProgression {
         if (!allDutiesComplete()) { prospectiveLiege=KOMEProgressionNpcRef.EMPTY; trialId=""; trialAssignment=null; trialCompleted=false; partingGiftReceived=false; promoted=false; return; }
         if (!prospectiveLiege.isSet() && !trialCompleted) { trialId=""; trialAssignment=null; trialCompleted=false; partingGiftReceived=false; promoted=false; return; }
         if (KOMESerfKnightTrial.forId(trialId) == null) { trialId=""; trialAssignment=null; trialCompleted=false; partingGiftReceived=false; promoted=false; return; }
-        if(trialAssignment==null && !trialCompleted) trialAssignment=new KOMESerfKnightTrialAssignment(trialId,java.util.UUID.randomUUID().toString(),prospectiveLiege,prospectiveLiege.factionKey,Math.max(0L,lastAssignmentEpochDay),KOMESerfKnightTrialAssignment.Stage.ASSIGNED,0,new NBTTagCompound());
+        if(trialAssignment==null && !trialCompleted) trialAssignment=new KOMESerfKnightTrialAssignment(trialId,legacyTrialAssignmentToken(),prospectiveLiege,prospectiveLiege.factionKey,Math.max(0L,lastAssignmentEpochDay),KOMESerfKnightTrialAssignment.Stage.ASSIGNED,0,new NBTTagCompound());
         if(trialAssignment!=null&&!trialAssignment.isValidFor(trialId,prospectiveLiege)&&!trialCompleted){trialId="";trialAssignment=null;trialCompleted=false;partingGiftReceived=false;promoted=false;return;}
         if (!trialCompleted) { partingGiftReceived=false; promoted=false; return; }
         if (!partingGiftReceived) promoted=false;
+    }
+
+    private String legacyTrialAssignmentToken() {
+        String seed = "kome:legacy-serf-knight-trial:v1|" + trialId + "|"
+            + prospectiveLiege.entityUuid + "|" + prospectiveLiege.factionKey + "|"
+            + Math.max(0L, lastAssignmentEpochDay);
+        return UUID.nameUUIDFromBytes(seed.getBytes(StandardCharsets.UTF_8)).toString();
     }
 }

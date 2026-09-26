@@ -21,6 +21,16 @@ public class KOMEProgressionRankSummaryTest {
         assertRequirement(summary,3,"Master's Parting Gift",0,1,false);
     }
 
+    @Test public void factionSpecificTitlesAreProjectedWithoutChangingCanonicalRank() {
+        KOMEPlayerProgression player=serf();
+        KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(player,149D,"ROHAN");
+        assertEquals(KOMEProgressionRank.SERF,player.getCanonicalRank());
+        assertEquals("rohan",KOMEAlliance.normalizeFactionKey(summary.factionKey));
+        assertEquals("Eorling-at-Arms",summary.currentRank);
+        assertEquals("Rider of Rohan",summary.nextRank);
+        assertEquals("Requirements for Rider of Rohan",summary.promotionTitle);
+    }
+
     @Test public void noAssignmentHasNoFakePanelAndActiveDutyIsHumanReadable() {
         KOMEPlayerProgression player=serf();KOMESerfKnightProgression state=player.getSerfKnightProgression();
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,npc("Master")).success);

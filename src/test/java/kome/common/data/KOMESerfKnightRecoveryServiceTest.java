@@ -68,4 +68,27 @@ public class KOMESerfKnightRecoveryServiceTest {
         String source=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMESerfKnightRecoveryService.java")),StandardCharsets.UTF_8);
         assertTrue(source.contains("dropped.lifespan=Integer.MAX_VALUE"));
     }
+
+    @Test public void searchMarkerIsApproximateAndDisappearsAfterRetrieval() {
+        KOMESerfKnightTrialAssignment base=assignment(); NBTTagCompound data=new NBTTagCompound();
+        data.setBoolean(KOMESerfKnightRecoveryService.DATA_SITE_CREATED,true); data.setInteger(KOMESerfKnightRecoveryService.DATA_DIMENSION,100); data.setInteger(KOMESerfKnightRecoveryService.DATA_X,120); data.setInteger(KOMESerfKnightRecoveryService.DATA_Y,70); data.setInteger(KOMESerfKnightRecoveryService.DATA_Z,-120);
+        KOMESerfKnightTrialAssignment active=base.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data);
+        KOMEVisualMarker marker=KOMESerfKnightRecoveryService.searchMarker(active); assertNotNull(marker); assertEquals(KOMEVisualMarker.Role.RECOVERY_SEARCH,marker.role);
+        double dx=marker.x-120D,dz=marker.z+120D,distance=Math.sqrt(dx*dx+dz*dz); assertTrue(distance>=23.9D&&distance<=39.1D);
+        data.setBoolean(KOMESerfKnightRecoveryService.DATA_RETRIEVED,true); assertNull(KOMESerfKnightRecoveryService.searchMarker(base.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)));
+    }
+
+    @Test public void lostRecoveryObjectHasBoundedNoForceLoadRecovery() throws Exception {
+        String source=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMESerfKnightRecoveryService.java")),StandardCharsets.UTF_8);
+        assertTrue(source.contains("ensureRecoveryObject(player,progression,assignment)"));
+        assertTrue(source.contains("getChunkProvider().chunkExists"));
+        assertTrue(source.contains("dx*dx+dy*dy+dz*dz>4096D"));
+        assertTrue(source.contains("replacement.lifespan=Integer.MAX_VALUE"));
+    }
+
+    @Test public void retrievedStateCannotBeSoftLockedByLaterPhysicalItemLoss() throws Exception {
+        String source=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMESerfKnightRecoveryService.java")),StandardCharsets.UTF_8);
+        assertTrue(source.contains("Retrieval is the canonical proof"));
+        assertFalse(source.contains("int slot=findAssignedStack(player,assignment); if(slot<0)return false;"));
+    }
 }

@@ -26,6 +26,7 @@ import kome.common.config.KOMEConfigRegistry;
 import kome.common.gui.KOMEAllianceGuiHandler;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.data.KOMEProgressionOfferBridge;
+import kome.common.data.KOMEProgressionVisualItems;
 import net.minecraftforge.common.ForgeChunkManager;
 import cpw.mods.fml.common.registry.GameRegistry;
 import net.minecraft.item.Item;
@@ -69,6 +70,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        KOMEProgressionVisualItems.register();
         sealedMessage = new kome.common.item.KOMEItemSealedMessage();
         GameRegistry.registerItem(sealedMessage, "sealedMessage");
         sealedParcel = new kome.common.item.KOMEItemSealedParcel(); GameRegistry.registerItem(sealedParcel, "sealedParcel");
