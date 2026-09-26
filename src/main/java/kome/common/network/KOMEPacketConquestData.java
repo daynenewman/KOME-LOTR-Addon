@@ -233,7 +233,7 @@ public class KOMEPacketConquestData implements IMessage {
     public static class Handler implements IMessageHandler<KOMEPacketConquestData, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketConquestData message, MessageContext ctx) {
-            final long populationGeneration = KOMEClientData.INSTANCE.conquestPopulationGeneration();
+            final long tooltipGeneration = KOMEClientData.INSTANCE.conquestTooltipGeneration();
             final KOMEPacketConquestData snapshot = message.copyForPublication();
             Map<String, KOMEArmyCompany> armyCompanies = new HashMap<String, KOMEArmyCompany>();
             Map<String, KOMEConquestTile> conquestTiles = new HashMap<String, KOMEConquestTile>();
@@ -316,12 +316,10 @@ public class KOMEPacketConquestData implements IMessage {
                 KOMEClientData.INSTANCE.capitalTilesByFaction.putAll(capitalTilesByFaction);
                 if (snapshot.reset) KOMEClientData.INSTANCE.armyMovements.clear();
                 KOMEClientData.INSTANCE.armyMovements.putAll(armyMovements);
-                KOMEClientData.INSTANCE.applyConquestPopulation(
-                    populationGeneration, snapshot.reset, snapshot.complete, troopSummaries);
+                KOMEClientData.INSTANCE.applyConquestTooltip(
+                    tooltipGeneration, snapshot.reset, snapshot.complete, troopSummaries, tileWaypointLinksByTileId);
                 if (snapshot.reset) KOMEClientData.INSTANCE.routeEdges.clear();
                 KOMEClientData.INSTANCE.routeEdges.putAll(routeEdges);
-                if (snapshot.reset) KOMEClientData.INSTANCE.tileWaypointLinksByTileId.clear();
-                KOMEClientData.INSTANCE.tileWaypointLinksByTileId.putAll(tileWaypointLinksByTileId);
                 if (snapshot.reset) KOMEClientData.INSTANCE.builds.clear();
                 KOMEClientData.INSTANCE.builds.putAll(builds);
                 if (snapshot.complete) {

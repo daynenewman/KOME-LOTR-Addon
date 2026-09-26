@@ -97,18 +97,55 @@ public class KOMEConquestPopulationRefreshTest {
         try {
             kome.common.network.KOMEPacketHandler.network=fixture.network;
             for(int i=1;i<=60;i++){String id=String.format(java.util.Locale.ROOT,"T%03d",i);KOMEConquestTile tile=new KOMEConquestTile(id);tile.claim("gondor",0);fixture.data.conquestTiles.put(id,tile);}
+            fixture.data.tileWaypointLinksByTileId.put("T001",waypoint("Old waypoint"));
             KOMEPopulationService.grantCenti(fixture.data,"gondor",2500);
             KOMEPacketConquestData.sendChunked(fixture.data,fixture.player);
             for(cpw.mods.fml.common.network.simpleimpl.IMessage p:fixture.network.messages)send((KOMEPacketConquestData)p);
-            assertPopulation(2500);fixture.network.messages.clear();KOMEPopulationService.grantCenti(fixture.data,"gondor",100);
+            assertPopulation(2500);assertWaypoint("Old waypoint");fixture.data.tileWaypointLinksByTileId.put("T001",waypoint("New waypoint"));fixture.network.messages.clear();KOMEPopulationService.grantCenti(fixture.data,"gondor",100);
             KOMEPacketConquestData.sendChunked(fixture.data,fixture.player);assertTrue(fixture.network.messages.size()>2);
-            for(cpw.mods.fml.common.network.simpleimpl.IMessage p:fixture.network.messages){KOMEPacketConquestData packet=(KOMEPacketConquestData)p;send(packet);assertPopulation(packet.complete?2600:2500);}
+            for(cpw.mods.fml.common.network.simpleimpl.IMessage p:fixture.network.messages){KOMEPacketConquestData packet=(KOMEPacketConquestData)p;send(packet);assertPopulation(packet.complete?2600:2500);assertWaypoint(packet.complete?"New waypoint":"Old waypoint");}
             // Removing the public source projection is replacement, not permission to retain old values.
-            fixture.network.messages.clear();fixture.data.conquestTiles.clear();KOMEPacketConquestData.sendChunked(fixture.data,fixture.player);
+            fixture.network.messages.clear();fixture.data.conquestTiles.clear();fixture.data.tileWaypointLinksByTileId.clear();KOMEPacketConquestData.sendChunked(fixture.data,fixture.player);
             for(cpw.mods.fml.common.network.simpleimpl.IMessage p:fixture.network.messages)send((KOMEPacketConquestData)p);
-            assertTrue(lines().isEmpty());
+            assertTrue(lines().isEmpty());assertTrue(client.tileWaypointLinksByTileId.isEmpty());
         } finally {kome.common.network.KOMEPacketHandler.network=old;}
     }
+    @Test public void waypointStaysPublishedAcrossPartialSnapshotsAndChangesOnlyAtCompletion() {
+        send(waypointPacket(true,true,"Old waypoint"));
+        for(int i=0;i<25;i++) {
+            send(packet(true,false)); assertWaypoint("Old waypoint");
+            send(waypointPacket(false,false,"Old waypoint")); assertWaypoint("Old waypoint");
+            send(packet(false,true)); assertWaypoint("Old waypoint");
+        }
+        send(packet(true,false));send(waypointPacket(false,false,"New waypoint"));
+        assertWaypoint("Old waypoint");send(packet(false,true));assertWaypoint("New waypoint");
+    }
+    @Test public void waypointOmissionIsOnlyRemovalInACompletedReplacement() {
+        send(waypointPacket(true,true,"Old waypoint"));send(packet(false,true));assertWaypoint("Old waypoint");
+        send(packet(true,false));assertWaypoint("Old waypoint");send(packet(false,true));
+        assertFalse(client.tileWaypointLinksByTileId.containsKey("T001"));
+        send(waypointPacket(true,false,"Abandoned waypoint"));send(packet(true,false));send(packet(false,true));
+        assertTrue(client.tileWaypointLinksByTileId.isEmpty());
+    }
+    @Test public void waypointWorldUnloadAndReconnectDiscardPublishedPendingAndQueuedOldLinks() throws Exception {
+        send(waypointPacket(true,true,"Old waypoint"));send(waypointPacket(true,false,"Pending waypoint"));
+        new KOMEPacketConquestData.Handler().onMessage(waypointPacket(true,true,"Queued waypoint"),null);
+        KOMEClientProxy lifecycle=KOMEAccessFixture.allocate(KOMEClientProxy.class);
+        net.minecraft.world.World remote=KOMEAccessFixture.allocate(KOMEAccessFixture.TestWorld.class);
+        java.lang.reflect.Field flag=net.minecraft.world.World.class.getDeclaredField("isRemote");flag.setAccessible(true);flag.setBoolean(remote,true);
+        lifecycle.onClientWorldUnload(new net.minecraftforge.event.world.WorldEvent.Unload(remote));
+        assertTrue(client.tileWaypointLinksByTileId.isEmpty());proxy.queue.drain();assertTrue(client.tileWaypointLinksByTileId.isEmpty());
+        send(waypointPacket(false,true,"Old tail"));assertTrue(client.tileWaypointLinksByTileId.isEmpty());
+        send(waypointPacket(true,true,"New world"));assertWaypoint("New world");
+        java.lang.reflect.Field queue=KOMEClientProxy.class.getDeclaredField("clientTasks");queue.setAccessible(true);queue.set(lifecycle,proxy.queue);
+        send(waypointPacket(true,false,"Pending disconnect"));lifecycle.onClientDisconnect(null);proxy.queue.drain();
+        assertTrue(client.tileWaypointLinksByTileId.isEmpty());lifecycle.onClientConnect(null);proxy.queue.drain();
+        send(waypointPacket(false,true,"Old connection"));assertTrue(client.tileWaypointLinksByTileId.isEmpty());
+        send(waypointPacket(true,true,"New connection"));assertWaypoint("New connection");
+    }
+    private KOMETileWaypointLink waypoint(String name) {KOMETileWaypointLink link=new KOMETileWaypointLink();link.tileId="T001";link.lotrWaypointKey="test_waypoint";link.waypointDisplayName=name;return link;}
+    private KOMEPacketConquestData waypointPacket(boolean reset,boolean complete,String name) {KOMEPacketConquestData p=packet(reset,complete);NBTTagList list=new NBTTagList();list.appendTag(waypoint(name).writeToNBT());p.data.setTag("TileWaypointLinks",list);return p;}
+    private void assertWaypoint(String name) {KOMETileWaypointLink link=client.tileWaypointLinksByTileId.get("T001");assertNotNull("Published waypoint vanished",link);assertEquals(name,link.displayName());}
     private List<String> lines(){List<String> lines=new ArrayList<>();KOMEConquestMapOverlay.appendPopulationTooltip(lines,client.troopSummaries.get("T001"));return lines;}
     private void assertPopulation(long value){assertNotNull("Published hover population vanished",client.troopSummaries.get("T001"));assertEquals(value,client.troopSummaries.get("T001").population.availablePopulationCenti);}
     private KOMETileTroopSummary summary(String faction,long available){KOMETileTroopSummary s=new KOMETileTroopSummary();s.tileId="T001";s.ownerFaction=faction;s.population=new KOMEPopulationProjection(faction,available,BigInteger.ZERO,BigInteger.ZERO,false,0);return s;}

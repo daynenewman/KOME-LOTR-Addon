@@ -82,7 +82,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @SubscribeEvent
     public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
         if (event.world != null && event.world.isRemote) {
-            KOMEClientData.INSTANCE.clearConquestPopulation();
+            KOMEClientData.INSTANCE.clearConquestTooltip();
         }
     }
 

@@ -713,3 +713,64 @@ and confirm all three faction population lines stay visible; then close/reopen t
 map and reconnect once. Check colors, borders and hover normally. No push/PR or
 KOM-46 dependency removal is authorized by these instrumented results. KOM-74
 retains the separate synchronization-traffic follow-up.
+
+## Waypoint hover publication correction (2026-09-26)
+
+The user confirms population rows stay visible with de364ec, but reports linked
+LOTR waypoint names flickering to `Missing`. This is population-specific acceptance,
+not complete map acceptance. The same defect remained in a separate section:
+`KOMEPacketConquestData.Handler` cleared live waypoint links at `reset`, while the
+server sends `TileWaypointLinks` near the end of the multi-chunk snapshot.
+The hover renderer and selected-tile panel directly read that incomplete map.
+
+The existing population assembler is now `applyConquestTooltip`, with waypoint rows
+included in the same client-thread completed-snapshot publication and generation
+lifecycle. `clearConquestTooltip` clears both published and pending maps on world
+unload/disconnect. The server still owns waypoint associations. No name is invented,
+no timer is added, and rendering/geometry/packet formats are unchanged. Non-reset
+omission leaves links intact; omission from a completed reset removes links. The
+existing decoder still accepts only nonblank tile/key rows: there is no newly
+invented per-row deletion protocol. Changed links publish at completion, and old
+world/connection tails cannot resurrect links. This correction does not claim that
+all other conquest sections are atomically published.
+
+Three additional tests cover repeated partial waypoint updates/name changes,
+completed removal/abandoned batches, and actual world-unload/disconnect/reconnect
+hooks with pending/queued old links. The existing real server chunk-builder test
+also checks population and waypoint publication together, including removal. Four
+tests failed against de364ec before the production change. Focused packet, queue,
+privacy and waypoint checks: **70 passed**. One clean test/build: **1,009 discovered,
+1,007 passed, two existing Windows symlink skips, zero failures/errors**.
+
+A 15-second live linked-tile baseline at T325 showed `Grimslade` alternating with
+`Missing`: 955 missing of 1,669 actual hover draws over 301 completed refreshes.
+An earlier capture at T304 is excluded from this defect comparison: the server
+has no waypoint association for T304, so `Missing` there is correct. Diagnostic
+sources and raw data, source recovery, build evidence and the verified 116-file
+stopped-world/configuration backup are outside the repository in the existing
+KOM60 disposable runtime's `waypoint-hover-20260926` directory.
+Matching installed production client/server SHA-256:
+`a7b2530cc4eb89fdc995687efb1b6b5ffca70639390ae6796ab71667dc3fbe1f`.
+Only the disposable profiles were refreshed after graceful save/stop. KOM-74 retains
+the separate refresh-traffic optimization; no push or PR follows from these checks.
+
+After refresh, the actual T325 hover renderer produced **1,503 draws, zero missing
+links and zero `Missing` lines over 349 completed refreshes in 15 seconds**;
+`Grimslade` remained the only observed name. This is instrumented live evidence,
+not user visual acceptance. The client was subsequently relaunched to remove all
+temporary observation hooks. The server remains online-mode, loopback-only at
+127.0.0.1:54190; startup/reconnect succeeded, with the pre-existing unrelated LOTR
+playerdetails DNS failure still logged.
+
+Post-refresh saved comparison preserved Builds, progression, faction balances,
+waypoint associations, routing/movement records and Brodda's identity/payment.
+Differences were normal hire rotation, company UpdatedAtMillis, and one expected
+CONFIG/WORLD_BOUND restart audit entry; the prior audit remained intact. Empty ops
+and configuration values were retained, with only regenerated timestamp comments
+in server/splash properties. Built source hashes and backup hashes were reverified.
+
+Next manual check: hover over a tile with a waypoint for 20 seconds. Its waypoint
+name and population rows should remain steady. Tiles without links should still
+show `Missing`. Then close/reopen the map and reconnect once; no prior-session
+waypoint should leak into the new view. KOM-60/KOM-46 remain open with the existing
+dependency, and overall map acceptance remains pending.
