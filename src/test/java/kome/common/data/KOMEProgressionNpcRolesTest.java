@@ -69,4 +69,25 @@ public class KOMEProgressionNpcRolesTest {
         assertFalse(KOMEProgressionNpcRoles.preventDespawn(npc));
         assertTrue("KOME must never clear persistence owned by another feature",npc.isNPCPersistent);
     }
-}
+
+    @Test public void existingProgressionLeaseBlocksReuseUntilReleased(){
+        KOMEWorldData world=new KOMEWorldData("roles");
+        UUID player=UUID.randomUUID(),npc=UUID.randomUUID();
+
+        assertTrue(KOMEProgressionNpcRoles.availableForNewRole(world,npc));
+        assertFalse(KOMEProgressionNpcRoles.availableForNewRole(null,npc));
+        assertFalse(KOMEProgressionNpcRoles.availableForNewRole(world,null));
+
+        KOMESerfKnightProgression state=world.getProgression(player).getSerfKnightProgression();
+        state.setSerfdomMaster(ref(npc));
+        KOMEProgressionNpcRoles.syncPlayer(world,player);
+
+        assertTrue(KOMEProgressionNpcRoles.protects(world,npc));
+        assertFalse(KOMEProgressionNpcRoles.availableForNewRole(world,npc));
+
+        state.leaveSerfdomMaster();
+        KOMEProgressionNpcRoles.syncPlayer(world,player);
+
+        assertFalse(KOMEProgressionNpcRoles.protects(world,npc));
+        assertTrue(KOMEProgressionNpcRoles.availableForNewRole(world,npc));
+    }}

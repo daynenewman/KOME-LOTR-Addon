@@ -140,6 +140,49 @@ public final class KOMESerfKnightRecoveryService {
     static boolean isRecovery(KOMESerfKnightTrialAssignment assignment) { return assignment!=null&&"recovery".equals(assignment.trialId); }
     /** Removes only the still-uncollected, exact assigned object when its canonical trial is abandoned. */
     public static void cleanup(EntityPlayerMP player,KOMESerfKnightTrialAssignment assignment){if(player==null||!isRecovery(assignment)||!assignment.data.hasKey(DATA_OBJECT))return;String id=assignment.data.getString(DATA_OBJECT);for(Object value:player.worldObj.loadedEntityList)if(value instanceof EntityItem&&id.equals(((EntityItem)value).getUniqueID().toString())&&isAssignedTo(((EntityItem)value).getEntityItem(),assignment,player.getUniqueID()))((EntityItem)value).setDead();}
+    public static boolean reconcileLoadedItem(KOMEWorldData world,EntityItem item){
+        if(world==null||item==null)return false;
+
+        ItemStack stack=item.getEntityItem();
+        if(stack==null
+                ||!stack.hasTagCompound()
+                ||!stack.getTagCompound().hasKey(ITEM_TAG,10)){
+            return false;
+        }
+
+        NBTTagCompound tag=stack.getTagCompound().getCompoundTag(ITEM_TAG);
+        String ownerText=tag.getString(ITEM_OWNER);
+        String token=tag.getString(ITEM_TOKEN);
+
+        UUID owner;
+        try{
+            owner=UUID.fromString(ownerText);
+        }catch(Exception ignored){
+            item.setDead();
+            return true;
+        }
+
+        KOMEPlayerProgression progression=world.progressions.get(owner);
+        boolean active=false;
+
+        if(progression!=null){
+            KOMESerfKnightTrialAssignment assignment=
+                progression.getSerfKnightProgression().getTrialAssignment();
+
+            if(isRecovery(assignment)
+                    &&assignment.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE
+                    &&token.equals(assignment.assignmentToken)
+                    &&!assignment.data.getBoolean(DATA_RETRIEVED)){
+                String expected=assignment.data.getString(DATA_OBJECT);
+                active=expected.length()==0||expected.equals(item.getUniqueID().toString());
+            }
+        }
+
+        if(active)return false;
+
+        item.setDead();
+        return true;
+    }
     private static void fail(KOMESerfKnightProgression state,KOMEWorldData world) { KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment(); if(assignment!=null){state.updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.FAILED,null));world.markDirty();} }
     private static Site findSite(World world,LOTREntityNPC liege,String token) {
         if(world==null||world.provider.dimensionId!=liege.worldObj.provider.dimensionId||world.provider.dimensionId==-1)return null;

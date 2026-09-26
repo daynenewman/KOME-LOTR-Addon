@@ -37,6 +37,7 @@ import net.minecraft.block.Block;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
 import net.minecraft.entity.passive.EntityAnimal;
@@ -269,6 +270,14 @@ public class KOMEEvents {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onEntityJoinWorld(EntityJoinWorldEvent event) {
+        if (!KOMEReflection.isRemote(event.world) && event.entity instanceof EntityItem) {
+            KOMEWorldData data = KOMEWorldData.get(event.world);
+            if (KOMESerfKnightRecoveryService.reconcileLoadedItem(data, (EntityItem) event.entity)) {
+                event.setCanceled(true);
+                return;
+            }
+        }
+
         if (!KOMEReflection.isRemote(event.world) && event.entity instanceof LOTREntityNPC) {
             KOMEWorldData data = KOMEWorldData.get(event.world);
             if (KOMECourierRecipientSpawner.duplicateOwned((LOTREntityNPC)event.entity)) {
@@ -276,6 +285,8 @@ public class KOMEEvents {
                 return;
             }
             KOMECourierRecipientSpawner.reconcileMarkerOnLoad(data,(LOTREntityNPC)event.entity);
+            KOMESerfKnightEscortService.reconcileLoadedNpc(data,(LOTREntityNPC)event.entity);
+            KOMESerfKnightDefenseService.reconcileLoadedNpc(data,(LOTREntityNPC)event.entity);
             if (KOMEPledgeReleaseService.interceptReleasedEntity(data, event.entity, System.currentTimeMillis())) {
                 event.setCanceled(true);
                 return;

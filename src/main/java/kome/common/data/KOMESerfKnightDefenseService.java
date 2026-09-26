@@ -31,7 +31,7 @@ public final class KOMESerfKnightDefenseService {
         data.setBoolean(ACTIVATED,true); data.setBoolean(PARTICIPATED,false); data.setTag(OBJECTIVE,KOMEProgressionNpcRankService.referenceOf(objective).writeToNBT()); data.setString(ENEMY_FACTION,invasion.invasionFaction.codeName());
         NBTTagList ids=new NBTTagList(); for(LOTREntityNPC attacker:attackers){NBTTagCompound id=new NBTTagCompound();id.setString("Id",attacker.getUniqueID().toString());ids.appendTag(id);} data.setTag(ENEMIES,ids); data.setTag(DEAD,new NBTTagList());
         state.updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)); KOMEWorldData worldData=KOMEWorldData.get(player.worldObj);KOMEProgressionNpcRoles.syncPlayer(worldData,player.getUniqueID()); worldData.markDirty();
-        for(int i=0;i<attackers.size();i++) { LOTREntityNPC attacker=attackers.get(i); placeAttacker(attacker,objective,i,assignment); attacker.setAttackTarget(objective,true); if(!player.worldObj.spawnEntityInWorld(attacker)){fail(state,worldData);return false;} }
+        for(int i=0;i<attackers.size();i++) { LOTREntityNPC attacker=attackers.get(i); placeAttacker(attacker,objective,i,assignment); attacker.setAttackTarget(objective,true); if(!player.worldObj.spawnEntityInWorld(attacker)){fail(state,worldData);return false;} KOMEProgressionEncounterMarker.mark(attacker,KOMEProgressionEncounterMarker.DEFENSE,player.getUniqueID(),assignment.assignmentToken); }
         return true;
     }
 
@@ -65,13 +65,47 @@ public final class KOMESerfKnightDefenseService {
         }
     }
     /** Stop coordinating known attackers on abandonment without deleting ordinary LOTR NPCs. */
-    public static void cleanup(EntityPlayerMP player,KOMESerfKnightTrialAssignment assignment){if(player==null||!isDefense(assignment))return;for(String id:enemyIds(assignment)){Entity entity=findLoaded(player.worldObj,id);if(entity instanceof LOTREntityNPC&&matchesBinding((LOTREntityNPC)entity,assignment))((LOTREntityNPC)entity).setAttackTarget(null,false);}}
+    public static void cleanup(EntityPlayerMP player,KOMESerfKnightTrialAssignment assignment){
+        if(player==null||!isDefense(assignment))return;
+        for(String id:enemyIds(assignment)){
+            Entity entity=findLoaded(player.worldObj,id);
+            if(entity instanceof LOTREntityNPC){
+                LOTREntityNPC npc=(LOTREntityNPC)entity;
+                if(matchesBinding(npc,assignment))npc.setAttackTarget(null,false);
+                KOMEProgressionEncounterMarker.clear(npc);
+            }
+        }
+    }
 
+    public static void reconcileLoadedNpc(KOMEWorldData world,LOTREntityNPC npc){
+        KOMEProgressionEncounterMarker.Marker marker=KOMEProgressionEncounterMarker.read(npc);
+        if(marker==null||!KOMEProgressionEncounterMarker.DEFENSE.equals(marker.kind))return;
+
+        boolean active=false;
+        if(world!=null){
+            KOMEPlayerProgression progression=world.progressions.get(marker.owner);
+            if(progression!=null){
+                KOMESerfKnightTrialAssignment assignment=
+                    progression.getSerfKnightProgression().getTrialAssignment();
+
+                active=isDefense(assignment)
+                    &&assignment.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE
+                    &&marker.token.equals(assignment.assignmentToken)
+                    &&enemyIds(assignment).contains(npc.getUniqueID().toString())
+                    &&matchesBinding(npc,assignment);
+            }
+        }
+
+        if(active)return;
+
+        npc.setAttackTarget(null,false);
+        KOMEProgressionEncounterMarker.clear(npc);
+    }
     static boolean isDefense(KOMESerfKnightTrialAssignment assignment){return assignment!=null&&"defense".equals(assignment.trialId);}
     static boolean hostile(LOTRFaction defender,LOTRFaction attacker){return defender!=null&&attacker!=null&&(defender.isBadRelation(attacker)||attacker.isBadRelation(defender));}
     static LOTRInvasions chooseHostileInvasion(LOTRFaction defender,String token){List<LOTRInvasions> choices=new ArrayList<LOTRInvasions>();for(LOTRInvasions invasion:LOTRInvasions.values())if(invasion.invasionFaction!=null&&hostile(defender,invasion.invasionFaction)&&invasion.invasionMobs!=null&&!invasion.invasionMobs.isEmpty())choices.add(invasion);return choices.isEmpty()?null:choices.get(Math.floorMod(token==null?0:token.hashCode(),choices.size()));}
     private static LOTREntityNPC createNativeAttacker(World world,LOTRInvasions invasion,int index,String token){try{Object entry=invasion.invasionMobs.get(Math.floorMod((token==null?0:token.hashCode())+index,invasion.invasionMobs.size()));Class type=((LOTRInvasions.InvasionSpawnEntry)entry).getEntityClass();LOTREntityNPC npc=(LOTREntityNPC)type.getConstructor(World.class).newInstance(world);npc.onArtificalSpawn();npc.func_110163_bv();return npc;}catch(Exception ignored){return null;}}
-    private static LOTREntityNPC findObjective(EntityPlayerMP player,KOMESerfKnightProgression state,LOTREntityNPC liege){LOTRFaction faction=liege.getFaction();for(Object value:player.worldObj.loadedEntityList)if(value instanceof LOTREntityNPC){LOTREntityNPC npc=(LOTREntityNPC)value;double distance=liege.getDistanceSqToEntity(npc);if(npc!=liege&&!state.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))&&npc.isEntityAlive()&&!npc.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(npc)&&npc.getFaction()==faction&&distance>=MIN_OBJECTIVE_DISTANCE_SQ&&distance<=MAX_OBJECTIVE_DISTANCE_SQ&&npc.hiredNPCInfo!=null&&!npc.hiredNPCInfo.isActive)return npc;}return null;}
+    private static LOTREntityNPC findObjective(EntityPlayerMP player,KOMESerfKnightProgression state,LOTREntityNPC liege){LOTRFaction faction=liege.getFaction();for(Object value:player.worldObj.loadedEntityList)if(value instanceof LOTREntityNPC){LOTREntityNPC npc=(LOTREntityNPC)value;double distance=liege.getDistanceSqToEntity(npc);if(npc!=liege&&!state.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))&&KOMEProgressionNpcRoles.availableForNewRole(KOMEWorldData.get(player.worldObj),npc.getUniqueID())&&npc.isEntityAlive()&&!npc.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(npc)&&npc.getFaction()==faction&&distance>=MIN_OBJECTIVE_DISTANCE_SQ&&distance<=MAX_OBJECTIVE_DISTANCE_SQ&&npc.hiredNPCInfo!=null&&!npc.hiredNPCInfo.isActive)return npc;}return null;}
     private static void placeAttacker(LOTREntityNPC attacker,LOTREntityNPC objective,int index,KOMESerfKnightTrialAssignment assignment){double angle=((assignment.assignmentToken.hashCode()+index*211)&0x7fffffff)%6283/1000D;double distance=MIN_SPAWN_DISTANCE+(index%(MAX_SPAWN_DISTANCE-MIN_SPAWN_DISTANCE+1));int x=(int)Math.floor(objective.posX+Math.cos(angle)*distance),z=(int)Math.floor(objective.posZ+Math.sin(angle)*distance),y=attacker.worldObj.getTopSolidOrLiquidBlock(x,z);attacker.setLocationAndAngles(x+0.5D,y,z+0.5D,attacker.worldObj.rand.nextFloat()*360F,0F);}
     private static KOMEProgressionNpcRef objective(KOMESerfKnightTrialAssignment assignment){return assignment.data.hasKey(OBJECTIVE,10)?KOMEProgressionNpcRef.readFromNBT(assignment.data.getCompoundTag(OBJECTIVE)):KOMEProgressionNpcRef.EMPTY;}
     private static boolean matchesBinding(LOTREntityNPC attacker,KOMESerfKnightTrialAssignment assignment){return attacker!=null&&assignment!=null&&attacker.getFaction()!=null&&assignment.data.getString(ENEMY_FACTION).equals(attacker.getFaction().codeName());}

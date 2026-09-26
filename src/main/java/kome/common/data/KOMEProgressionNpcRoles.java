@@ -45,5 +45,6 @@ public final class KOMEProgressionNpcRoles {
         catch(IllegalArgumentException ignored) { }
     }
     public static boolean protects(KOMEWorldData world,UUID npc){Set<KOMEProgressionNpcRoleLease> roles=world==null||npc==null?null:world.progressionNpcRoleLeases.get(npc);return roles!=null&&!roles.isEmpty();}
+    public static boolean availableForNewRole(KOMEWorldData world,UUID npc){return world!=null&&npc!=null&&!protects(world,npc);}
     public static boolean preventDespawn(LOTREntityNPC npc){return npc!=null&&!npc.worldObj.isRemote&&protects(KOMEWorldData.get(npc.worldObj),KOMEReflection.getEntityUUID(npc));}
 }
