@@ -128,8 +128,8 @@ public final class KOMEConquestClaimService {
             return first
                 + " These factions are currently "
                 + relation.displayName
-                + ". The conquest will begin or record a war, but it will not automatically "
-                + "change the accepted diplomacy relation. Click Claim again within 30 seconds "
+                + ". The conquest will begin or record a war and set their LOTR relation "
+                + "to Mortal Enemy. Click Claim again within 30 seconds "
                 + "to continue.";
         }
 

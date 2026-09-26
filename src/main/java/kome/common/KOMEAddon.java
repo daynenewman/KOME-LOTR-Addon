@@ -122,6 +122,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
+        kome.core.KOMEWaypointTransformer.requireNativeRequestGuardInstalled();
         KOMEPacketHandler.clearPendingServerTasks();
         proxy.resetServerSessionState();
         KOMEAllianceGuiHandler.resetSessionState();

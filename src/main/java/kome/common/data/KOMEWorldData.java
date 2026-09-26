@@ -109,7 +109,6 @@ public class KOMEWorldData extends WorldSavedData {
     public String allianceDifficulty = KOMEAllianceRequirements.STANDARD;
     public static final int MAX_MOVEMENT_HISTORY_PER_FACTION = 250;
     private boolean conquestDefaultsInitialized;
-    private boolean allianceRelationsNeedReapply;
     private boolean integratedRootInitialized;
     private boolean writeBlocked;
     private String loadFailureReason = "";
@@ -1470,10 +1469,6 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public boolean reconcileAllianceLifecycle(long nowMillis, long worldTime) {
-        if (allianceRelationsNeedReapply) {
-            KOMEDiplomacyService.reapplyLotrProjection(this);
-            allianceRelationsNeedReapply = false;
-        }
         // Schema 7 deliberately has no king-loss or contribution grace lifecycle.  Losing or
         // gaining a king preserves every directional stage and unlocked benefit.
         return false;
@@ -2391,7 +2386,6 @@ public class KOMEWorldData extends WorldSavedData {
                 }
             }
         }
-        allianceRelationsNeedReapply = true;
         boolean quotaValidationChanged = KOMEAllianceQuotaPool.validateExistingRequirements(this);
         boolean migratedAllianceData = savedAllianceSchema != ALLIANCE_DATA_SCHEMA_VERSION
             || allianceMerged > 0 || allianceDuplicate > 0 || allianceQuarantined > 0;
@@ -2679,7 +2673,6 @@ public class KOMEWorldData extends WorldSavedData {
         allianceStageThreeRequiredHalfHours = candidate.allianceStageThreeRequiredHalfHours;
         allianceDifficulty = candidate.allianceDifficulty;
         conquestDefaultsInitialized = candidate.conquestDefaultsInitialized;
-        allianceRelationsNeedReapply = candidate.allianceRelationsNeedReapply;
         integratedRootInitialized = candidate.integratedRootInitialized;
         warSeason.seasonId = candidate.warSeason.seasonId;
         warSeason.phase = candidate.warSeason.phase;

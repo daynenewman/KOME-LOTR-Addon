@@ -76,7 +76,12 @@ public class KOMEAllianceAuthority {
     }
 
     private boolean isDirectlyHostile(String first, String second) {
-        return data != null && KOMEWarService.findActiveOpposition(data, first, second) != null;
+        if (data != null && KOMEWarService.findActiveOpposition(data, first, second) != null) {
+            return true;
+        }
+        LOTRFactionRelations.Relation relation = getCurrentRelation(first, second);
+        return relation == LOTRFactionRelations.Relation.ENEMY
+            || relation == LOTRFactionRelations.Relation.MORTAL_ENEMY;
     }
 
     public String getPlayerFaction(EntityPlayerMP player) {
@@ -103,6 +108,12 @@ public class KOMEAllianceAuthority {
             return LOTRFactionRelations.Relation.NEUTRAL;
         }
         return LOTRFactionRelations.getRelations(first, second);
+    }
+
+    public static boolean hasAuthoritativePair(String firstFaction, String secondFaction) {
+        LOTRFaction first = KOMEAlliance.findLotrFaction(firstFaction);
+        LOTRFaction second = KOMEAlliance.findLotrFaction(secondFaction);
+        return first != null && second != null && first != second;
     }
 
     public static class Decision {

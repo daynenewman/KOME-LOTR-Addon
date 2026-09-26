@@ -7,6 +7,7 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.InsnNode;
+import org.objectweb.asm.tree.JumpInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -44,8 +45,26 @@ public class KOMEWaypointTransformerTest {
         KOMEWaypointTransformer transformer = new KOMEWaypointTransformer();
         byte[] transformed = transformer.transform("lotr.common.LOTRPlayerData", KOMEWaypointTransformer.TARGET_CLASS, original);
         assertEquals(1, hookCount(transformed));
+        assertGuardDominatesEveryFastTravelCall(transformed);
+        assertTrue(KOMEWaypointTransformer.isFinalTravelGuardInstalled());
         assertArrayEquals(transformed,
             transformer.transform("lotr.common.LOTRPlayerData", KOMEWaypointTransformer.TARGET_CLASS, transformed));
+    }
+
+    @Test
+    public void nativeLotrRequestDenialReturnsBeforeTargetAssignment() throws Exception {
+        byte[] original = readResource(
+            "/lotr/common/network/LOTRPacketFastTravel$Handler.class");
+        KOMEWaypointTransformer transformer = new KOMEWaypointTransformer();
+        byte[] transformed = transformer.transform(
+            KOMEWaypointTransformer.REQUEST_TARGET_CLASS,
+            KOMEWaypointTransformer.REQUEST_TARGET_CLASS, original);
+        assertEquals(1, requestHookCount(transformed));
+        assertRequestGateDominatesUnlockAndTargetAssignment(transformed);
+        assertTrue(KOMEWaypointTransformer.isNativeRequestGuardInstalled());
+        assertArrayEquals(transformed, transformer.transform(
+            KOMEWaypointTransformer.REQUEST_TARGET_CLASS,
+            KOMEWaypointTransformer.REQUEST_TARGET_CLASS, transformed));
     }
 
     @Test(expected = IllegalStateException.class)
@@ -87,6 +106,15 @@ public class KOMEWaypointTransformerTest {
             assertEquals(expectedClassHash, sha256(original));
             assertEquals(1, hookCount(new KOMEWaypointTransformer().transform(
                 "lotr.common.LOTRPlayerData", KOMEWaypointTransformer.TARGET_CLASS, original)));
+            ZipEntry requestEntry = zip.getEntry(
+                "lotr/common/network/LOTRPacketFastTravel$Handler.class");
+            assertNotNull(requestEntry);
+            byte[] requestOriginal = readStream(zip.getInputStream(requestEntry));
+            assertEquals(1, requestHookCount(
+                new KOMEWaypointTransformer().transform(
+                    KOMEWaypointTransformer.REQUEST_TARGET_CLASS,
+                    KOMEWaypointTransformer.REQUEST_TARGET_CLASS,
+                    requestOriginal)));
         } finally {
             zip.close();
         }
@@ -108,6 +136,182 @@ public class KOMEWaypointTransformerTest {
             }
         }
         return count;
+    }
+
+    @Test
+    public void declaredDevDependencyHasExactRuntimeFingerprintsAndDescriptors() throws Exception {
+        File jar = new File("libs/LOTRMod v36.15.jar");
+        assertTrue("Declared LOTR v36.15 dev dependency is missing", jar.isFile());
+        ZipFile zip = new ZipFile(jar);
+        try {
+            byte[] playerData = readEntry(zip, "lotr/common/LOTRPlayerData.class");
+            byte[] requestHandler = readEntry(
+                zip, "lotr/common/network/LOTRPacketFastTravel$Handler.class");
+            assertEquals(
+                "67b3303bf84d66fee4f5284c0e34d630817a1c366f7a592aab3455edc6df439e",
+                sha256(playerData));
+            assertEquals(
+                "03c613c6b67e3875c7d43e2a985b8c698032b49708e61e31e54d30de8bfe4552",
+                sha256(requestHandler));
+            assertMethodPresent(playerData,
+                KOMEWaypointTransformer.TARGET_METHOD,
+                KOMEWaypointTransformer.TARGET_DESC);
+            assertMethodPresent(requestHandler,
+                KOMEWaypointTransformer.REQUEST_TARGET_METHOD,
+                KOMEWaypointTransformer.REQUEST_TARGET_DESC);
+
+            KOMEWaypointTransformer transformer = new KOMEWaypointTransformer();
+            byte[] transformedPlayer = transformer.transform(
+                KOMEWaypointTransformer.TARGET_CLASS,
+                KOMEWaypointTransformer.TARGET_CLASS, playerData);
+            byte[] transformedRequest = transformer.transform(
+                KOMEWaypointTransformer.REQUEST_TARGET_CLASS,
+                KOMEWaypointTransformer.REQUEST_TARGET_CLASS, requestHandler);
+            assertGuardDominatesEveryFastTravelCall(transformedPlayer);
+            assertRequestGateDominatesUnlockAndTargetAssignment(transformedRequest);
+        } finally {
+            zip.close();
+        }
+    }
+
+    private static int requestHookCount(byte[] bytes) {
+        ClassNode node = new ClassNode();
+        new ClassReader(bytes).accept(node, 0);
+        int count = 0;
+        for (MethodNode method : node.methods) {
+            for (AbstractInsnNode instruction = method.instructions.getFirst();
+                    instruction != null; instruction = instruction.getNext()) {
+                if (instruction instanceof MethodInsnNode) {
+                    MethodInsnNode call = (MethodInsnNode) instruction;
+                    if (KOMEWaypointTransformer.HOOK_OWNER.equals(call.owner)
+                            && KOMEWaypointTransformer.REQUEST_HOOK_NAME.equals(call.name)
+                            && KOMEWaypointTransformer.REQUEST_HOOK_DESC.equals(call.desc)) {
+                        count++;
+                    }
+                }
+            }
+        }
+        return count;
+    }
+
+    private static void assertGuardDominatesEveryFastTravelCall(byte[] bytes) {
+        ClassNode node = new ClassNode();
+        new ClassReader(bytes).accept(node, 0);
+        int allFastTravelCalls = 0;
+        for (MethodNode method : node.methods) {
+            int index = 0;
+            int hookIndex = -1;
+            for (AbstractInsnNode instruction = method.instructions.getFirst();
+                    instruction != null; instruction = instruction.getNext(), index++) {
+                if (!(instruction instanceof MethodInsnNode)) {
+                    continue;
+                }
+                MethodInsnNode call = (MethodInsnNode) instruction;
+                if (KOMEWaypointTransformer.HOOK_OWNER.equals(call.owner)
+                        && KOMEWaypointTransformer.HOOK_NAME.equals(call.name)) {
+                    hookIndex = index;
+                    AbstractInsnNode branch = nextExecutable(instruction);
+                    assertNotNull(branch);
+                    assertEquals(Opcodes.IFNE, branch.getOpcode());
+                    AbstractInsnNode denial = nextExecutable(branch);
+                    assertNotNull(denial);
+                    assertEquals("A false final guard must return without teleporting",
+                        Opcodes.RETURN, denial.getOpcode());
+                }
+                if ("lotr/common/LOTRPlayerData".equals(call.owner)
+                        && "fastTravelTo".equals(call.name)
+                        && "(Llotr/common/world/map/LOTRAbstractWaypoint;)V".equals(call.desc)) {
+                    allFastTravelCalls++;
+                    assertEquals(KOMEWaypointTransformer.TARGET_METHOD, method.name);
+                    assertEquals(KOMEWaypointTransformer.TARGET_DESC, method.desc);
+                    assertTrue("Final KOME guard must execute before fastTravelTo",
+                        hookIndex >= 0 && hookIndex < index);
+                }
+            }
+        }
+        assertEquals("Every LOTRPlayerData fastTravelTo path must be known and guarded",
+            1, allFastTravelCalls);
+    }
+
+    private static void assertRequestGateDominatesUnlockAndTargetAssignment(byte[] bytes) {
+        ClassNode node = new ClassNode();
+        new ClassReader(bytes).accept(node, 0);
+        for (MethodNode method : node.methods) {
+            if (!KOMEWaypointTransformer.REQUEST_TARGET_METHOD.equals(method.name)
+                    || !KOMEWaypointTransformer.REQUEST_TARGET_DESC.equals(method.desc)) {
+                continue;
+            }
+            int index = 0;
+            int hookIndex = -1;
+            int permittedLabelIndex = -1;
+            int unlockChecks = 0;
+            int targetAssignments = 0;
+            for (AbstractInsnNode instruction = method.instructions.getFirst();
+                    instruction != null; instruction = instruction.getNext(), index++) {
+                if (!(instruction instanceof MethodInsnNode)) {
+                    continue;
+                }
+                MethodInsnNode call = (MethodInsnNode) instruction;
+                if (KOMEWaypointTransformer.HOOK_OWNER.equals(call.owner)
+                        && KOMEWaypointTransformer.REQUEST_HOOK_NAME.equals(call.name)) {
+                    hookIndex = index;
+                    AbstractInsnNode branch = nextExecutable(instruction);
+                    assertEquals(Opcodes.IFNE, branch.getOpcode());
+                    permittedLabelIndex = method.instructions.indexOf(
+                        ((JumpInsnNode) branch).label);
+                    assertEquals(Opcodes.ACONST_NULL,
+                        nextExecutable(branch).getOpcode());
+                    assertEquals(Opcodes.ARETURN,
+                        nextExecutable(nextExecutable(branch)).getOpcode());
+                }
+                if ("lotr/common/world/map/LOTRAbstractWaypoint".equals(call.owner)
+                        && "hasPlayerUnlocked".equals(call.name)) {
+                    unlockChecks++;
+                    assertTrue(
+                        "KOME request gate must execute before native unlock/target assignment",
+                        hookIndex >= 0 && hookIndex < index);
+                }
+                if ("lotr/common/LOTRPlayerData".equals(call.owner)
+                        && "setTargetFTWaypoint".equals(call.name)
+                        && "(Llotr/common/world/map/LOTRAbstractWaypoint;)V".equals(call.desc)) {
+                    targetAssignments++;
+                    assertTrue("KOME request gate must execute before target assignment",
+                        hookIndex >= 0 && hookIndex < index);
+                    assertTrue("Only the allowed branch may reach target assignment",
+                        permittedLabelIndex > hookIndex && permittedLabelIndex < index);
+                }
+            }
+            assertEquals(1, unlockChecks);
+            assertEquals(1, targetAssignments);
+            return;
+        }
+        fail("Transformed native fast-travel request handler was not found");
+    }
+
+    private static byte[] readEntry(ZipFile zip, String name) throws Exception {
+        ZipEntry entry = zip.getEntry(name);
+        assertNotNull(name, entry);
+        return readStream(zip.getInputStream(entry));
+    }
+
+    private static void assertMethodPresent(byte[] bytes, String name, String desc) {
+        ClassNode node = new ClassNode();
+        new ClassReader(bytes).accept(node, 0);
+        int matches = 0;
+        for (MethodNode method : node.methods) {
+            if (name.equals(method.name) && desc.equals(method.desc)) {
+                matches++;
+            }
+        }
+        assertEquals(name + desc, 1, matches);
+    }
+
+    private static AbstractInsnNode nextExecutable(AbstractInsnNode instruction) {
+        AbstractInsnNode next = instruction == null ? null : instruction.getNext();
+        while (next != null && next.getOpcode() < 0) {
+            next = next.getNext();
+        }
+        return next;
     }
 
     private static byte[] readResource(String name) throws Exception {

@@ -1,7 +1,10 @@
 package kome.common.data;
 
 import kome.common.command.KOMECommandTroops;
+import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.nbt.NBTTagCompound;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -12,36 +15,45 @@ public class KOMECompanyDiplomacyAuthorizationTest {
     @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
         new kome.common.data.KOMETileTestResources();
 
+    @Before
+    @After
+    public void resetPassageRelation() {
+        LOTRFactionRelations.overrideRelations(
+            KOMEAlliance.findLotrFaction("gondor"),
+            KOMEAlliance.findLotrFaction("rohan"),
+            LOTRFactionRelations.Relation.NEUTRAL);
+    }
+
     @Test
     public void militaryPassageUsesCanonicalAlliesAndActiveWarVeto() {
         KOMEWorldData data = new KOMEWorldData("test");
-        UUID gondorKing = crown(data, "gondor_test", "Gondor King");
-        UUID rohanKing = crown(data, "rohan_test", "Rohan King");
+        UUID gondorKing = crown(data, "gondor", "Gondor King");
+        UUID rohanKing = crown(data, "rohan", "Rohan King");
 
         assertFalse(KOMECompanyDiplomacyAuthorization
-            .canUseMilitaryPassage(data, "gondor_test", "rohan_test").allowed);
+            .canUseMilitaryPassage(data, "gondor", "rohan").allowed);
 
         increaseRelation(
-            data, "gondor_test", "rohan_test",
+            data, "gondor", "rohan",
             KOMEDiplomacyRelation.FRIENDS, gondorKing, rohanKing, 10L);
 
         assertFalse(KOMECompanyDiplomacyAuthorization
-            .canUseMilitaryPassage(data, "gondor_test", "rohan_test").allowed);
+            .canUseMilitaryPassage(data, "gondor", "rohan").allowed);
 
         increaseRelation(
-            data, "gondor_test", "rohan_test",
+            data, "gondor", "rohan",
             KOMEDiplomacyRelation.ALLIES, gondorKing, rohanKing, 20L);
 
         assertTrue(KOMECompanyDiplomacyAuthorization
-            .canUseMilitaryPassage(data, "gondor_test", "rohan_test").allowed);
+            .canUseMilitaryPassage(data, "gondor", "rohan").allowed);
         assertTrue(KOMECompanyDiplomacyAuthorization
-            .canUseMilitaryPassage(data, "gondor_test", "gondor_test").allowed);
+            .canUseMilitaryPassage(data, "gondor", "gondor").allowed);
 
         assertNotNull(KOMEWarService.createWar(
-            data, "gondor_test", "rohan_test", "Test War", "test", 30L));
+            data, "gondor", "rohan", "Test War", "test", 30L));
 
         assertFalse(KOMECompanyDiplomacyAuthorization
-            .canUseMilitaryPassage(data, "gondor_test", "rohan_test").allowed);
+            .canUseMilitaryPassage(data, "gondor", "rohan").allowed);
     }
 
     @Test
@@ -91,27 +103,27 @@ public class KOMECompanyDiplomacyAuthorizationTest {
     @Test
     public void worldDataPassageBoundaryUsesCanonicalDiplomacy() {
         KOMEWorldData data = new KOMEWorldData("test");
-        UUID gondorKing = crown(data, "gondor_test", "Gondor King");
-        UUID rohanKing = crown(data, "rohan_test", "Rohan King");
+        UUID gondorKing = crown(data, "gondor", "Gondor King");
+        UUID rohanKing = crown(data, "rohan", "Rohan King");
 
-        assertFalse(data.canFactionUseMilitaryPassage("gondor_test", "rohan_test"));
+        assertFalse(data.canFactionUseMilitaryPassage("gondor", "rohan"));
 
         increaseRelation(
-            data, "gondor_test", "rohan_test",
+            data, "gondor", "rohan",
             KOMEDiplomacyRelation.FRIENDS, gondorKing, rohanKing, 10L);
 
-        assertFalse(data.canFactionUseMilitaryPassage("gondor_test", "rohan_test"));
+        assertFalse(data.canFactionUseMilitaryPassage("gondor", "rohan"));
 
         increaseRelation(
-            data, "gondor_test", "rohan_test",
+            data, "gondor", "rohan",
             KOMEDiplomacyRelation.ALLIES, gondorKing, rohanKing, 20L);
 
-        assertTrue(data.canFactionUseMilitaryPassage("gondor_test", "rohan_test"));
+        assertTrue(data.canFactionUseMilitaryPassage("gondor", "rohan"));
 
         assertNotNull(KOMEWarService.createWar(
-            data, "gondor_test", "rohan_test", "Test War", "test", 30L));
+            data, "gondor", "rohan", "Test War", "test", 30L));
 
-        assertFalse(data.canFactionUseMilitaryPassage("gondor_test", "rohan_test"));
+        assertFalse(data.canFactionUseMilitaryPassage("gondor", "rohan"));
     }
     @Test
     public void delegatedControlRevalidationUsesCanonicalHostilityAndPreservesNativeIdentity() {
