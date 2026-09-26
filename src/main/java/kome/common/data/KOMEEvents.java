@@ -72,6 +72,7 @@ import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.event.entity.player.PlayerOpenContainerEvent;
 import net.minecraftforge.event.entity.player.PlayerUseItemEvent;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
+import net.minecraftforge.event.entity.living.LivingDropsEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
@@ -567,6 +568,19 @@ public class KOMEEvents {
             }
         }
     }
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onLivingDrops(LivingDropsEvent event) {
+        if (KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving))
+                || !(event.entityLiving instanceof LOTREntityNPC)) {
+            return;
+        }
+
+        LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
+        if (KOMECourierRecipientSpawner.isActiveGeneratedRecipient(npc)) {
+            event.drops.clear();
+        }
+    }
+
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onLivingDeath(LivingDeathEvent event) {

@@ -45,6 +45,9 @@ final class KOMECourierRecipientSpawner {
         for(Object value:world.loadedEntityList)if(value instanceof LOTREntityNPC){LOTREntityNPC npc=(LOTREntityNPC)value;if(npc.isEntityAlive()&&token.equals(npc.getEntityData().getString(TOKEN)))return npc;}
         return null;
     }
+    static boolean isActiveGeneratedRecipient(LOTREntityNPC npc){
+        return npc!=null&&npc.getEntityData().getString(TOKEN).length()>0;
+    }
     static UUID recipientId(KOMESerfCourierAssignment assignment){return UUID.nameUUIDFromBytes(("KOME:courier:"+assignment.token+":"+assignment.recipientDeaths).getBytes(StandardCharsets.UTF_8));}
     static boolean duplicateOwned(LOTREntityNPC joining){
         String token=joining.getEntityData().getString(TOKEN);if(token.length()==0)return false;
