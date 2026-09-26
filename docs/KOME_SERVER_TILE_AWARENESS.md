@@ -628,3 +628,88 @@ Live retest, still pending user acceptance:
 KOM-74 retains the roughly 440-packet/second follow-up. The visual check remains
 pending, neither KOM-60 nor KOM-46 is complete, and the dependency/publication gate
 is unchanged. No push or PR is part of this correction.
+
+## Population hover publication correction (2026-09-26)
+
+The user reported population rows disappearing during stationary hover on dad6374.
+This failed visual check supersedes any assumption of complete map acceptance.
+The server sends one replacement conquest snapshot as ordered section chunks:
+`reset` begins the snapshot and `complete` ends it. Empty sections are omitted.
+Population rows are complete records, not field patches. The old handler cleared
+live `troopSummaries` at the first chunk, before later population chunks arrived.
+The live tooltip therefore observed absence during otherwise unchanged refreshes.
+This clearing behavior predates dad6374; the ownership optimization did not make
+population publication atomic. Approximately 20 full refreshes/second expose the
+race; changing that traffic remains KOM-74, not part of this fix.
+
+`KOMEClientData.applyConquestPopulation` now assembles rows on the client thread
+and publishes only at `complete`. The previous completed projection remains visible
+while a replacement is incomplete. Omitted sections in ordinary chunks do not clear
+it; omission from a completed reset snapshot does. An addressed empty row explicitly
+removes the tile. Known faction zero remains 0.00; a tactical-only row with no public
+faction projection renders no invented faction values. Malformed missing projection
+fields remain rejected by the existing strict decoder. No wire/schema change, timer,
+server authorization change, or suppression of meaningful packets is introduced.
+
+Population projections in this packet are public faction information, not a
+viewer-private population permission channel. A completed withdrawal replaces/removes
+old values rather than retaining them. Existing public-access tests remain green.
+Client world unload and connection lifecycle clear published and pending projections;
+a generation token drops previously queued work, and a new reset is required before
+accepting remaining chunks after a clear. Queue ordering, bounds, immutable packet
+handoff and the earlier overflow fix are retained. Other conquest sections are not
+made atomic by this narrow fix.
+
+Regression coverage exercises the actual server chunk builder, wire codec, handler,
+client queue, connection/world lifecycle hooks and production tooltip formatter:
+repeated partial refreshes; real population updates and zero; omitted versus addressed
+clear; completed withdrawal/tactical-only data; malformed rows; replacement batches;
+queued old-world work; disconnect/reconnect. The pre-fix test failed with
+`Published hover population vanished`. Focused validation passed 82 tests. One clean
+`test build` discovered 1,006 tests: **1,004 passed, two skipped, zero failures/errors**.
+Both skips are the existing unsupported Windows symlink cases in custom-skin tests.
+All built source hashes were rechecked before the local checkpoint.
+
+### Disposable runtime evidence
+
+The stopped world/configuration and old artifacts were copied and SHA-256 verified
+(116 files) before replacement. Evidence, diagnostic sources, backup and raw captures:
+`C:/Users/dayne/Documents/KOME-Validation/kom60-20260923T004907Z-65b1ff/population-hover-20260926/`.
+Matching server/client production JAR SHA-256:
+`83aad48c0b9784511ba8a14bc81ed22d95d401f85162217ffbec64610611ac1d`.
+The unchanged mask remains
+`ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7`.
+
+Temporary external instrumentation sampled the actual hover renderer, population
+lines and incoming packet flags; it is not in the production commit or artifact.
+The initial moving-hover capture is excluded from the stationary comparison.
+
+| 15-second capture | Hover frames | Missing summaries | Completed refreshes | Missing population-line sets |
+|---|---:|---:|---:|---:|
+| Before, stationary T325 | 1,795 | 70 | 301 | Not instrumented |
+| After, stationary T325 | 1,629 | 0 | 346 | 0 / 1,629 |
+| After, T024 with real bank change | 1,797 | 0 | 300 | 0 / 1,797 |
+
+T325 showed Rohan population 0.00 throughout. For T024, a guarded disposable-only
+server-thread diagnostic called the existing population service to grant exactly
+100 centi-population to the already-existing Angmar bank, then spent precisely that
+amount to restore its original zero balance. The actual hover lines changed
+**0.00 -> 1.00 -> 0.00**, while active population stayed **20.00**. No player teleport
+or additional hire was performed. Map focus used resolver-verified tile anchors.
+These observations prove the measured render inputs remained complete and refreshed;
+they are not a claim of user visual acceptance or an FPS benchmark.
+
+After restoration and save-all, saved comparison retained Builds, progression,
+population balances, routing and movement data, and Brodda's identity/authority/
+20-population payment. Differences were only Brodda's ordinary X/Z/rotation,
+company UpdatedAtMillis, and one normal CONFIG/WORLD_BOUND restart audit entry;
+all prior audit entries remained intact. Configuration values and empty ops remained
+unchanged (server/splash properties regenerated timestamp comments only). Cycle 8
+listens at **127.0.0.1:54190**, online mode enabled. Startup and connection succeeded;
+the existing unrelated LOTR playerdetails API DNS failure remains in the log.
+
+Manual acceptance remains open: hold the pointer over an owned tile for 20 seconds
+and confirm all three faction population lines stay visible; then close/reopen the
+map and reconnect once. Check colors, borders and hover normally. No push/PR or
+KOM-46 dependency removal is authorized by these instrumented results. KOM-74
+retains the separate synchronization-traffic follow-up.

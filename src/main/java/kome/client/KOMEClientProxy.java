@@ -79,6 +79,13 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         clientTasks.resetSession(false, this::resetClientSessionState);
     }
 
+    @SubscribeEvent
+    public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+        if (event.world != null && event.world.isRemote) {
+            KOMEClientData.INSTANCE.clearConquestPopulation();
+        }
+    }
+
     @Override
     public void enqueueClientTask(Runnable task) {
         clientTasks.enqueue(task);

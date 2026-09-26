@@ -25,6 +25,44 @@ public class KOMEClientData extends KOMEWorldData {
         conquestRevision++;
     }
 
+    // Client-thread batch assembly. Never expose a partially received population section.
+    private java.util.Map<String, KOMETileTroopSummary> pendingTroopSummaries;
+    private volatile long populationGeneration;
+    private boolean populationRequiresReset;
+
+    public long conquestPopulationGeneration() { return populationGeneration; }
+
+    /** reset begins replacement; absent sections in other chunks are not empty replacements. */
+    public void applyConquestPopulation(long generation, boolean reset, boolean complete,
+            java.util.Map<String, KOMETileTroopSummary> rows) {
+        if (generation != populationGeneration) return; // Queued work from the previous world/session.
+        if (reset) {
+            pendingTroopSummaries = new java.util.HashMap<String, KOMETileTroopSummary>();
+            populationRequiresReset = false;
+        } else if (populationRequiresReset) {
+            return; // A tail from an abandoned batch cannot initialize a new world.
+        } else if (pendingTroopSummaries == null) {
+            pendingTroopSummaries = new java.util.HashMap<String, KOMETileTroopSummary>(troopSummaries);
+        }
+        for (KOMETileTroopSummary row : rows.values()) {
+            // Rows are complete records, not field patches. An explicit empty row removes that tile.
+            if (row.hasAnyPopulation()) pendingTroopSummaries.put(row.tileId, row);
+            else pendingTroopSummaries.remove(row.tileId);
+        }
+        if (complete) {
+            troopSummaries.clear();
+            troopSummaries.putAll(pendingTroopSummaries);
+            pendingTroopSummaries = null;
+        }
+    }
+
+    public void clearConquestPopulation() {
+        populationGeneration++;
+        pendingTroopSummaries = null;
+        populationRequiresReset = true;
+        troopSummaries.clear();
+    }
+
     public boolean clientViewerIsAdmin;
 
     private KOMEClientData() {
@@ -50,7 +88,7 @@ public class KOMEClientData extends KOMEWorldData {
         armyCompanies.clear();
         playerNames.clear();
         clearFactionKingRecords();
-        troopSummaries.clear();
+        clearConquestPopulation();
         unitMapMarkers.clear();
         allianceDifficulty = KOMEAllianceRequirements.STANDARD;
         clientViewerIsAdmin = false;

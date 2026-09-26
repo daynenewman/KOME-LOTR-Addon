@@ -825,6 +825,23 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             mapNumber(map, "posX"), mapNumber(map, "posY"), mapNumber(map, "zoomScale"));
     }
 
+    /** Used by the live hover renderer; a missing public projection is not a known zero. */
+    static void appendPopulationTooltip(List<String> lines, KOMETileTroopSummary summary) {
+        if (summary != null) {
+            if (!summary.population.faction.isEmpty()) {
+                lines.add("Faction Available Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(summary.population.availablePopulationCenti));
+                lines.add("Faction Active Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(summary.population.activePopulationCenti));
+                lines.add("Faction Daily Population Rate: " + kome.common.data.KOMEPopulationProjection.formatRate(summary.population.dailyRateUnits));
+            }
+            if (summary.stationedOffensivePop > 0 || summary.stationedMountedPop > 0 || summary.stationedDefensivePop > 0) {
+                lines.add("Stationed: Off " + summary.stationedOffensivePop + ", Mounted " + summary.stationedMountedPop + ", Def " + summary.stationedDefensivePop);
+            }
+            if (summary.movingPop > 0 || summary.incomingPop > 0) {
+                lines.add("Moving: Out " + summary.movingPop + ", In " + summary.incomingPop);
+            }
+        }
+    }
+
     private static void drawTileTooltip(LOTRGuiMap map, int tileColor, int mouseX, int mouseY) {
         String tileId = tileIdsByColor.get(tileColor);
         if (tileId == null) {
@@ -845,17 +862,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         }
         KOMETileWaypointLink waypointLink = (KOMETileWaypointLink) KOMEClientData.INSTANCE.tileWaypointLinksByTileId.get(tileId);
         lines.add("LOTR Waypoint: " + (waypointLink == null ? "Missing" : waypointLink.displayName()));
-        if (summary != null) {
-            lines.add("Faction Available Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(summary.population.availablePopulationCenti));
-            lines.add("Faction Active Population: " + kome.common.data.KOMEPopulationProjection.formatCenti(summary.population.activePopulationCenti));
-            lines.add("Faction Daily Population Rate: " + kome.common.data.KOMEPopulationProjection.formatRate(summary.population.dailyRateUnits));
-            if (summary.stationedOffensivePop > 0 || summary.stationedMountedPop > 0 || summary.stationedDefensivePop > 0) {
-                lines.add("Stationed: Off " + summary.stationedOffensivePop + ", Mounted " + summary.stationedMountedPop + ", Def " + summary.stationedDefensivePop);
-            }
-            if (summary.movingPop > 0 || summary.incomingPop > 0) {
-                lines.add("Moving: Out " + summary.movingPop + ", In " + summary.incomingPop);
-            }
-        }
+        appendPopulationTooltip(lines, summary);
         String movementText = getMovementTooltip(tileId);
         if (movementText.length() > 0) {
             lines.add(movementText);

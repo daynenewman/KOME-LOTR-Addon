@@ -233,6 +233,7 @@ public class KOMEPacketConquestData implements IMessage {
     public static class Handler implements IMessageHandler<KOMEPacketConquestData, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketConquestData message, MessageContext ctx) {
+            final long populationGeneration = KOMEClientData.INSTANCE.conquestPopulationGeneration();
             final KOMEPacketConquestData snapshot = message.copyForPublication();
             Map<String, KOMEArmyCompany> armyCompanies = new HashMap<String, KOMEArmyCompany>();
             Map<String, KOMEConquestTile> conquestTiles = new HashMap<String, KOMEConquestTile>();
@@ -279,7 +280,7 @@ public class KOMEPacketConquestData implements IMessage {
             for (int i = 0; i < KOMEPopulationWire.count(troopList.tagCount()); i++) {
                 KOMETileTroopSummary summary = new KOMETileTroopSummary();
                 summary.readFromNBT(troopList.getCompoundTagAt(i));
-                if (summary.tileId.length() > 0 && summary.hasAnyPopulation()) {
+                if (summary.tileId.length() > 0) {
                     troopSummaries.put(summary.tileId, summary);
                 }
             }
@@ -315,8 +316,8 @@ public class KOMEPacketConquestData implements IMessage {
                 KOMEClientData.INSTANCE.capitalTilesByFaction.putAll(capitalTilesByFaction);
                 if (snapshot.reset) KOMEClientData.INSTANCE.armyMovements.clear();
                 KOMEClientData.INSTANCE.armyMovements.putAll(armyMovements);
-                if (snapshot.reset) KOMEClientData.INSTANCE.troopSummaries.clear();
-                KOMEClientData.INSTANCE.troopSummaries.putAll(troopSummaries);
+                KOMEClientData.INSTANCE.applyConquestPopulation(
+                    populationGeneration, snapshot.reset, snapshot.complete, troopSummaries);
                 if (snapshot.reset) KOMEClientData.INSTANCE.routeEdges.clear();
                 KOMEClientData.INSTANCE.routeEdges.putAll(routeEdges);
                 if (snapshot.reset) KOMEClientData.INSTANCE.tileWaypointLinksByTileId.clear();
