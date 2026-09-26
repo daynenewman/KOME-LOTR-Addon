@@ -100,6 +100,10 @@ public class KOMEBaseIsolationTest {
         assertTrue(allianceGui.contains("DIPLOMACY_RELATION"));
         assertFalse(allianceGui.contains("KOMEGuiConfirmation"));
         assertFalse(allianceGui.contains("sendChat(\"/troops"));
+        assertTrue(allianceGui.contains("new KOMEPacketAllianceRequest(false)"));
+        assertFalse(allianceGui.contains("/alliance list"));
+        assertEquals("Open and Refresh must both request an authoritative snapshot",
+            2, occurrences(allianceGui, "requestData();"));
         assertTrue(troopPacket.contains("Unknown troop GUI action"));
         assertTrue(troopPacket.contains("Troop action rejected:"));
     }

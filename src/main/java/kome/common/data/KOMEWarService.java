@@ -25,7 +25,11 @@ public final class KOMEWarService {
         return createWarResult(data,first,second,name,actor,now).war;
     }
     public static CreationResult createWarResult(KOMEWorldData data,String first,String second,String name,String actor,long now) {
-        KOMEWar existing=findActiveOpposition(data,first,second); if(existing!=null)return CreationResult.ok(existing);
+        KOMEWar existing=findActiveOpposition(data,first,second);
+        if(existing!=null){
+            KOMEDiplomacyService.applyWarDeclaration(data,first,second,actor,now);
+            return CreationResult.ok(existing);
+        }
         int bond=KOMEConfigRegistry.season().isWarBondsEnabled()?KOMEConfigRegistry.season().getAttackerWarBond():0;
         if(bond>0 && bondFundingProvider==null) return CreationResult.deny("War bonds require a funding provider; none is installed.");
         if(bond>0){KOMEWarBondFundingProvider.Result paid=bondFundingProvider.debit(first,bond,"war-declaration");if(!paid.success)return CreationResult.deny("War bond funding failed: "+paid.reason);}
@@ -71,6 +75,7 @@ public final class KOMEWarService {
         war.recordMembership(a, 1, "MANUAL", "", actor, now);
         war.recordMembership(b, 2, "MANUAL", "", actor, now);
         data.wars.put(war.id, war);
+        KOMEDiplomacyService.applyWarDeclaration(data, a, b, actor, now);
         reconcileAutomaticMilitarySupport(data, now, "War created");
         if (revalidateMovement) {
             KOMEMovementAccessService.revalidateAll(data, now);
@@ -94,6 +99,8 @@ public final class KOMEWarService {
                 war.recordMembership(next, 1, "CAPTURE", "", claimantName, now);
                 war.recordMembership(former, 2, "CAPTURE", "", claimantName, now);
             }
+        } else {
+            KOMEDiplomacyService.applyWarDeclaration(data, next, former, claimantName, now);
         }
         if (war != null) {
             recordFirstLegalConflict(data, now);
@@ -177,7 +184,7 @@ public final class KOMEWarService {
         if (data == null || data.hasFactionKing(nativeFaction)) return result;
         if (findActiveOpposition(data, nativeFaction, controllerFaction) != null) return result;
         // KOM-31: stewardship is a wartime defensive authority, not an alliance-progression reward.
-        // Friends is the minimum canonical diplomacy relationship; the supporting faction must
+        // Friend is the minimum LOTR relation for kingless stewardship; the supporting faction must
         // also already be an explicit member of the native faction's active war side.
         if (!KOMEDiplomacyService.relationAtLeast(data, nativeFaction, controllerFaction,
                 KOMEDiplomacyRelation.FRIENDS)) {
@@ -239,7 +246,7 @@ public final class KOMEWarService {
                     } else if (!KOMEDiplomacyService.relationAtLeast(data, enrollment.nativeFaction,
                             enrollment.supportingFaction, KOMEDiplomacyRelation.FRIENDS)) {
                         changed |= updateEnrollment(enrollment, "DORMANT", null, "",
-                            "Friends-or-better canonical diplomacy is not active", nativeSide, now);
+                            "Friend-or-better LOTR diplomacy is not active", nativeSide, now);
                     }
                 }
         }
@@ -344,6 +351,128 @@ public final class KOMEWarService {
                 KOMEDiplomacyRelation.FRIENDS)
             || !findActiveSameSide(data, first, second).isEmpty();
     }
+
+    /**
+     * Ends only the direct active belligerence affected by an accepted improvement.
+     * The compact coalition model cannot retain two factions on opposing sides while
+     * declaring that pair peaceful, so a multi-faction war withdraws one of the pair
+     * while preserving non-empty opposing sides and the remaining war record.
+     */
+    public static boolean reconcileDirectPeace(KOMEWorldData data, String requester,
+            String receiver, long now, String reason) {
+        if (data == null) return false;
+        String first = KOMEAlliance.normalizeFactionKey(requester);
+        String second = KOMEAlliance.normalizeFactionKey(receiver);
+        if (first.length() == 0 || second.length() == 0 || first.equals(second)) return false;
+        boolean changed = false;
+        String detail = reason == null ? "Direct diplomatic peace accepted" : reason;
+        for (KOMEWar war : sortedWars(data)) {
+            if (!war.isActive() || !war.opposes(first, second)) continue;
+            int firstSide = war.sideOf(first);
+            int secondSide = war.sideOf(second);
+            int firstSize = war.getSide(firstSide).size();
+            int secondSize = war.getSide(secondSide).size();
+            if (firstSize == 1 && secondSize == 1) {
+                war.status = KOMEWar.ENDED;
+                war.endingAtMillis = Math.max(0L, now);
+                war.endedAtMillis = Math.max(0L, now);
+                war.endingReason = detail;
+                for (String faction : new ArrayList<String>(war.sideOneFactions)) {
+                    war.endMembership(faction, detail, now);
+                }
+                for (String faction : new ArrayList<String>(war.sideTwoFactions)) {
+                    war.endMembership(faction, detail, now);
+                }
+                war.addAdministrativeEvent("system", "DIRECT_PEACE", detail, now);
+                war.lastUpdatedAtMillis = Math.max(war.lastUpdatedAtMillis, now);
+                changed = true;
+                continue;
+            }
+
+            String withdrawing;
+            if (firstSize > 1) {
+                withdrawing = first;
+            } else if (secondSize > 1) {
+                withdrawing = second;
+            } else {
+                continue;
+            }
+            war.removeFaction(withdrawing);
+            war.endMembership(withdrawing, detail, now);
+            war.addAdministrativeEvent("system", "DIRECT_PEACE_WITHDRAWAL",
+                withdrawing + ": " + detail, now);
+            war.lastUpdatedAtMillis = Math.max(war.lastUpdatedAtMillis, now);
+            changed = true;
+        }
+        if (changed) {
+            reconcileAutomaticMilitarySupport(data, now, detail);
+            KOMEAuditService.record(data, now, "WAR", "DIRECT_PEACE", "system",
+                KOMEDiplomacyRecord.pairKey(first, second),
+                "Accepted diplomacy reconciled direct belligerence", detail);
+            data.markDirty();
+        }
+        return changed;
+    }
+
+    /**
+     * Removes only membership with explicit allied-support provenance when its
+     * sponsor/supporter pair is no longer Ally. Companies are left untouched.
+     */
+    public static boolean reconcileDiplomacyLoss(KOMEWorldData data, String first,
+            String second, KOMEDiplomacyRelation relation, long now) {
+        if (data == null || relation == null
+                || relation.rank() >= KOMEDiplomacyRelation.ALLIES.rank()) return false;
+        String a = KOMEAlliance.normalizeFactionKey(first);
+        String b = KOMEAlliance.normalizeFactionKey(second);
+        boolean changed = false;
+        for (KOMEWar war : sortedWars(data)) {
+            if (!war.isActive()) continue;
+            changed |= removeAlliedSupportMembership(war, a, b, now);
+            changed |= removeAlliedSupportMembership(war, b, a, now);
+        }
+        if (changed) {
+            data.markDirty();
+            KOMEAuditService.record(data, now, "WAR", "SUPPORT_WITHDRAWAL", "system",
+                KOMEDiplomacyRecord.pairKey(a, b),
+                "Ally loss removed allied-support war membership", relation.key);
+        }
+        return changed;
+    }
+
+    private static boolean removeAlliedSupportMembership(KOMEWar war, String sponsor,
+            String supporter, long now) {
+        int sponsorSide = war.sideOf(sponsor);
+        int supporterSide = war.sideOf(supporter);
+        if (sponsorSide == 0 || supporterSide != sponsorSide) return false;
+
+        boolean supported = false;
+        for (KOMEWar.MilitarySupportEnrollment enrollment : war.militarySupportEnrollments) {
+            if (sponsor.equals(enrollment.nativeFaction)
+                    && supporter.equals(enrollment.supportingFaction)) {
+                supported = true;
+                enrollment.state = "DORMANT";
+                enrollment.authorizedKing = null;
+                enrollment.authorizedKingName = "";
+                enrollment.reason = "Ally relation with sponsor was lost";
+                enrollment.updatedAtMillis = Math.max(0L, now);
+            }
+        }
+        for (KOMEWar.MembershipRecord membership : war.membershipHistory) {
+            if (membership.active && supporter.equals(membership.faction)
+                    && sponsor.equals(membership.nativeFaction)) {
+                supported = true;
+            }
+        }
+        if (!supported || war.getSide(supporterSide).size() <= 1) return false;
+
+        war.removeFaction(supporter);
+        war.endMembership(supporter, "Ally relation with sponsor was lost", now);
+        war.addAdministrativeEvent("system", "SUPPORT_WITHDRAWAL",
+            supporter + " no longer supports " + sponsor + " after Ally loss", now);
+        war.lastUpdatedAtMillis = Math.max(war.lastUpdatedAtMillis, now);
+        return true;
+    }
+
     public static List<String> contradictoryMemberships(KOMEWorldData data, String faction) {
         List<String> result = new ArrayList<String>();
         if (data == null) return result;

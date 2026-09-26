@@ -1,6 +1,9 @@
 package kome.common.data;
 
+import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.nbt.NBTTagCompound;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -9,6 +12,13 @@ import static org.junit.Assert.*;
 
 /** KOM-31: kingless stewardship is a temporary controller authority, never ownership transfer. */
 public class KOMEKinglessStewardshipTest {
+    @Before
+    @After
+    public void resetRelations() {
+        setRelation("rohan", "gondor", LOTRFactionRelations.Relation.NEUTRAL);
+        setRelation("rohan", "mordor", LOTRFactionRelations.Relation.NEUTRAL);
+    }
+
     @Test public void friendsSameSideWarAllowsRecognizedSupportingRulerWithoutStageFour() {
         KOMEWorldData data = worldWithFriends("rohan", "gondor");
         UUID king = crown(data, "gondor");
@@ -100,10 +110,13 @@ public class KOMEKinglessStewardshipTest {
 
     private static KOMEWorldData worldWithFriends(String first, String second) {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEDiplomacyRecord record = new KOMEDiplomacyRecord(first, second);
-        record.relation = KOMEDiplomacyRelation.FRIENDS;
-        data.canonicalDiplomacyRecords.put(record.key(), record);
+        setRelation(first, second, LOTRFactionRelations.Relation.FRIEND);
         return data;
+    }
+    private static void setRelation(String first, String second,
+            LOTRFactionRelations.Relation relation) {
+        LOTRFactionRelations.overrideRelations(
+            KOMEAlliance.findLotrFaction(first), KOMEAlliance.findLotrFaction(second), relation);
     }
     private static UUID crown(KOMEWorldData data, String faction) {
         UUID id = UUID.randomUUID(); data.lastKnownPlayerFactions.put(id, faction);

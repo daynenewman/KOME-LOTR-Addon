@@ -1,17 +1,18 @@
 package kome.client.gui;
 
-import kome.client.KOMEMinecraftClient;
 import kome.common.network.KOMEPacketAllianceAction;
+import kome.common.network.KOMEPacketAllianceRequest;
 import kome.common.network.KOMEPacketHandler;
 import lotr.client.gui.LOTRGuiMenu;
 import lotr.client.gui.LOTRGuiMenuBase;
 import net.minecraft.client.gui.GuiButton;
+import org.lwjgl.input.Mouse;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Canonical Neutral / Friends / Allies diplomacy screen.
+ * Five-rung diplomacy screen backed by the current LOTR faction relation table.
  *
  * Server records remain authoritative. This screen only exposes actions that
  * the latest server snapshot marks as available; every action is revalidated
@@ -24,16 +25,23 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
     private static final int REQUEST_ALLIES = 8;
     private static final int ACCEPT = 20;
     private static final int CANCEL = 21;
+    private static final int WORSEN = 22;
+    private static final int LIST_TOP = 94;
+    private static final int ROW_HEIGHT = 11;
+    private static final int LIST_FOOTER_HEIGHT = 34;
 
     private static final List<String[]> relations = new ArrayList<String[]>();
     private static final List<String[]> options = new ArrayList<String[]>();
 
     private static String viewerFaction = "";
     private static String viewerName = "";
+    private static boolean viewerIsKing;
     private static String summary = "Diplomacy: 0";
 
-    private int selectedRelationIndex = -1;
-    private int selectedOptionIndex = -1;
+    private final KOMEAllianceListNavigation relationNavigation =
+        new KOMEAllianceListNavigation();
+    private final KOMEAllianceListNavigation optionNavigation =
+        new KOMEAllianceListNavigation();
 
     public static void update(List lines) {
         relations.clear();
@@ -49,6 +57,7 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
             if (parts.length > 0 && "VIEWER".equals(parts[0])) {
                 viewerFaction = parts.length > 1 ? parts[1] : "";
                 viewerName = parts.length > 2 ? parts[2] : "";
+                viewerIsKing = parts.length > 3 && "1".equals(parts[3]);
             } else if (parts.length > 1 && "SUMMARY".equals(parts[0])) {
                 summary = "Diplomacy: " + parts[1];
             } else if (parts.length >= 13 && "DIPLOMACY_RELATION".equals(parts[0])) {
@@ -64,6 +73,7 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
         options.clear();
         viewerFaction = "";
         viewerName = "";
+        viewerIsKing = false;
         summary = "Diplomacy: 0";
     }
 
@@ -74,8 +84,8 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
         buttonList.add(new KOMEGuiButton(MENU, 8, 8, 76, 20, "Menu"));
         buttonList.add(new KOMEGuiButton(REFRESH, 90, 8, 76, 20, "Refresh"));
 
-        int buttonWidth = Math.max(72, Math.min(112, (width - 50) / 4));
-        int totalWidth = buttonWidth * 4 + 18;
+        int buttonWidth = Math.max(64, Math.min(104, (width - 56) / 5));
+        int totalWidth = buttonWidth * 5 + 24;
         int startX = Math.max(8, (width - totalWidth) / 2);
         int y = 34;
 
@@ -87,9 +97,12 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
             ACCEPT, startX + (buttonWidth + 6) * 2, y, buttonWidth, 20, "Accept"));
         buttonList.add(new KOMEGuiButton(
             CANCEL, startX + (buttonWidth + 6) * 3, y, buttonWidth, 20, "Cancel Request"));
+        buttonList.add(new KOMEGuiButton(
+            WORSEN, startX + (buttonWidth + 6) * 4, y, buttonWidth, 20, "Worsen 1 Step"));
 
         normalizeSelections();
         updateButtonStates();
+        requestData();
     }
 
     @Override
@@ -115,6 +128,8 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
             send("accept", relation[7], relation[8], "");
         } else if (button.id == CANCEL && canCancel(relation)) {
             send("cancel", relation[7], relation[8], "");
+        } else if (button.id == WORSEN && canWorsen(relation)) {
+            send("break", viewerFaction, otherFaction(relation), "");
         }
     }
 
@@ -126,44 +141,56 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
             return;
         }
 
-        int top = 94;
-        int rowHeight = 11;
         int gap = 12;
         int columnWidth = Math.max(120, (width - 52) / 2);
         int leftX = 20;
         int rightX = leftX + columnWidth + gap;
+        int visibleRows = visibleRows();
+        int listHeight = visibleRows * ROW_HEIGHT;
 
-        if (mouseX >= leftX && mouseX < leftX + columnWidth) {
-            int row = (mouseY - top) / rowHeight;
-
-            if (mouseY >= top
-                    && row >= 0
-                    && row < relations.size()
-                    && mouseY < top + relations.size() * rowHeight) {
-                selectedRelationIndex = row;
+        if (inside(mouseX, mouseY, leftX, LIST_TOP, columnWidth, listHeight)) {
+            int row = (mouseY - LIST_TOP) / ROW_HEIGHT;
+            if (relationNavigation.selectVisibleRow(row, relations.size(), visibleRows)) {
                 updateButtonStates();
             }
         }
 
-        if (mouseX >= rightX && mouseX < rightX + columnWidth) {
-            int row = (mouseY - top) / rowHeight;
-
-            if (mouseY >= top
-                    && row >= 0
-                    && row < options.size()
-                    && mouseY < top + options.size() * rowHeight) {
-                selectedOptionIndex = row;
+        if (inside(mouseX, mouseY, rightX, LIST_TOP, columnWidth, listHeight)) {
+            int row = (mouseY - LIST_TOP) / ROW_HEIGHT;
+            if (optionNavigation.selectVisibleRow(row, options.size(), visibleRows)) {
                 updateButtonStates();
             }
         }
     }
 
     @Override
-    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
-        drawDefaultBackground();
+    public void handleMouseInput() {
+        super.handleMouseInput();
+        int wheel = Mouse.getEventDWheel();
+        if (wheel == 0 || mc == null || mc.displayWidth <= 0 || mc.displayHeight <= 0) {
+            return;
+        }
+        int mouseX = Mouse.getEventX() * width / mc.displayWidth;
+        int mouseY = height - Mouse.getEventY() * height / mc.displayHeight - 1;
+        int gap = 12;
+        int columnWidth = Math.max(120, (width - 52) / 2);
+        int leftX = 20;
+        int rightX = leftX + columnWidth + gap;
+        int visibleRows = visibleRows();
+        int listHeight = visibleRows * ROW_HEIGHT;
 
+        if (inside(mouseX, mouseY, leftX, LIST_TOP, columnWidth, listHeight)) {
+            relationNavigation.wheel(wheel, relations.size(), visibleRows);
+        } else if (inside(mouseX, mouseY, rightX, LIST_TOP, columnWidth, listHeight)) {
+            optionNavigation.wheel(wheel, options.size(), visibleRows);
+        }
+    }
+
+    @Override
+    public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         normalizeSelections();
         updateButtonStates();
+        drawDefaultBackground();
 
         drawCenteredString(fontRendererObj, summary, width / 2, 62, 0xFFFFFF);
 
@@ -177,96 +204,75 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
                 0xCCCCCC);
         }
 
-        int top = 94;
-        int rowHeight = 11;
         int gap = 12;
         int columnWidth = Math.max(120, (width - 52) / 2);
         int leftX = 20;
         int rightX = leftX + columnWidth + gap;
+        int visibleRows = visibleRows();
+        int listHeight = visibleRows * ROW_HEIGHT;
 
-        drawString(fontRendererObj, "Current Relations", leftX, top - 12, 0xE0C060);
-        drawString(fontRendererObj, "Request Diplomacy", rightX, top - 12, 0xE0C060);
+        drawString(fontRendererObj,
+            listHeader("Current Relations", relationNavigation, relations.size(), visibleRows),
+            leftX, LIST_TOP - 12, 0xE0C060);
+        drawString(fontRendererObj,
+            listHeader("Request Diplomacy", optionNavigation, options.size(), visibleRows),
+            rightX, LIST_TOP - 12, 0xE0C060);
 
-        for (int i = 0; i < relations.size(); i++) {
-            int y = top + i * rowHeight;
+        for (int row = 0; row < visibleRows
+                && relationNavigation.getScroll() + row < relations.size(); row++) {
+            int i = relationNavigation.getScroll() + row;
+            int y = LIST_TOP + row * ROW_HEIGHT;
             String[] relation = relations.get(i);
 
-            if (i == selectedRelationIndex) {
+            if (i == relationNavigation.getSelected()) {
                 drawRect(
                     leftX - 2,
                     y - 1,
-                    leftX + columnWidth,
+                    leftX + columnWidth - 5,
                     y + 9,
                     0x553F6A8A);
             }
 
-            String text =
-                displayFaction(relation[2])
-                    + " / "
-                    + displayFaction(relation[3])
-                    + " - "
-                    + displayRelation(relation[4]);
-
-            if ("1".equals(relation[5])) {
-                text +=
-                    " | Pending "
-                        + displayRelation(relation[6])
-                        + " ("
-                        + displayFaction(relation[7])
-                        + " -> "
-                        + displayFaction(relation[8])
-                        + ")";
-            }
+            String text = relationText(relation);
 
             drawString(
                 fontRendererObj,
-                fontRendererObj.trimStringToWidth(text, columnWidth - 6),
+                fontRendererObj.trimStringToWidth(text, columnWidth - 12),
                 leftX,
                 y,
-                i == selectedRelationIndex ? 0xFFFFFF : 0xDDDDDD);
+                i == relationNavigation.getSelected() ? 0xFFFFFF : 0xDDDDDD);
         }
 
-        for (int i = 0; i < options.size(); i++) {
-            int y = top + i * rowHeight;
+        for (int row = 0; row < visibleRows
+                && optionNavigation.getScroll() + row < options.size(); row++) {
+            int i = optionNavigation.getScroll() + row;
+            int y = LIST_TOP + row * ROW_HEIGHT;
             String[] option = options.get(i);
 
-            if (i == selectedOptionIndex) {
+            if (i == optionNavigation.getSelected()) {
                 drawRect(
                     rightX - 2,
                     y - 1,
-                    rightX + columnWidth,
+                    rightX + columnWidth - 5,
                     y + 9,
                     0x553F6A8A);
             }
 
-            String text =
-                option[2]
-                    + " - Current: "
-                    + displayRelation(option[3]);
-
-            if (option[7].length() > 0) {
-                text += " | " + option[7];
-            }
+            String text = optionText(option);
 
             drawString(
                 fontRendererObj,
-                fontRendererObj.trimStringToWidth(text, columnWidth - 6),
+                fontRendererObj.trimStringToWidth(text, columnWidth - 12),
                 rightX,
                 y,
-                i == selectedOptionIndex ? 0xFFFFFF : 0xCCCCCC);
+                i == optionNavigation.getSelected() ? 0xFFFFFF : 0xCCCCCC);
         }
 
-        String[] selectedRelation = selectedRelation();
-        if (selectedRelation != null
-                && !"neutral".equalsIgnoreCase(selectedRelation[4])
-                && !"1".equals(selectedRelation[5])) {
-            drawCenteredString(
-                fontRendererObj,
-                "Accepted relation downgrade policy is not configured.",
-                width / 2,
-                height - 18,
-                0xAAAAAA);
-        }
+        drawScrollbar(leftX + columnWidth - 5, LIST_TOP, listHeight,
+            relations.size(), visibleRows, relationNavigation.getScroll());
+        drawScrollbar(rightX + columnWidth - 5, LIST_TOP, listHeight,
+            options.size(), visibleRows, optionNavigation.getScroll());
+        drawSelectionFooter(leftX, rightX, columnWidth, LIST_TOP + listHeight + 3);
 
         super.drawScreen(mouseX, mouseY, partialTicks);
     }
@@ -290,6 +296,8 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
                 button.enabled = canAccept(relation);
             } else if (button.id == CANCEL) {
                 button.enabled = canCancel(relation);
+            } else if (button.id == WORSEN) {
+                button.enabled = canWorsen(relation);
             }
         }
     }
@@ -326,30 +334,107 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
             && relation[8].length() > 0;
     }
 
+    private boolean canWorsen(String[] relation) {
+        return relation != null
+            && relation.length >= 13
+            && viewerIsKing
+            && (viewerFaction.equals(relation[2]) || viewerFaction.equals(relation[3]))
+            && !"mortal_enemy".equalsIgnoreCase(relation[4]);
+    }
+
+    private String otherFaction(String[] relation) {
+        if (relation == null || relation.length < 4) {
+            return "";
+        }
+        return viewerFaction.equals(relation[2]) ? relation[3] : relation[2];
+    }
+
     private String[] selectedRelation() {
-        return selectedRelationIndex >= 0 && selectedRelationIndex < relations.size()
-            ? relations.get(selectedRelationIndex)
+        int selected = relationNavigation.getSelected();
+        return selected >= 0 && selected < relations.size()
+            ? relations.get(selected)
             : null;
     }
 
     private String[] selectedOption() {
-        return selectedOptionIndex >= 0 && selectedOptionIndex < options.size()
-            ? options.get(selectedOptionIndex)
+        int selected = optionNavigation.getSelected();
+        return selected >= 0 && selected < options.size()
+            ? options.get(selected)
             : null;
     }
 
     private void normalizeSelections() {
-        if (relations.isEmpty()) {
-            selectedRelationIndex = -1;
-        } else if (selectedRelationIndex < 0 || selectedRelationIndex >= relations.size()) {
-            selectedRelationIndex = 0;
-        }
+        int visibleRows = visibleRows();
+        relationNavigation.normalize(relations.size(), visibleRows);
+        optionNavigation.normalize(options.size(), visibleRows);
+    }
 
-        if (options.isEmpty()) {
-            selectedOptionIndex = -1;
-        } else if (selectedOptionIndex < 0 || selectedOptionIndex >= options.size()) {
-            selectedOptionIndex = 0;
+    private int visibleRows() {
+        return KOMEAllianceListNavigation.visibleRows(
+            height, LIST_TOP, LIST_FOOTER_HEIGHT, ROW_HEIGHT);
+    }
+
+    private boolean inside(int mouseX, int mouseY, int x, int y, int w, int h) {
+        return mouseX >= x && mouseX < x + w && mouseY >= y && mouseY < y + h;
+    }
+
+    private String listHeader(String label, KOMEAllianceListNavigation navigation,
+            int size, int visibleRows) {
+        if (size <= 0) {
+            return label + " (0)";
         }
+        int first = navigation.getScroll() + 1;
+        int last = Math.min(size, navigation.getScroll() + visibleRows);
+        return label + " (" + first + "-" + last + "/" + size + ")";
+    }
+
+    private String relationText(String[] relation) {
+        if (relation == null || relation.length < 13) {
+            return "";
+        }
+        String text = displayFaction(relation[2]) + " / " + displayFaction(relation[3])
+            + " - " + displayRelation(relation[4]);
+        if ("1".equals(relation[5])) {
+            text += " | Pending " + displayRelation(relation[6]) + " ("
+                + displayFaction(relation[7]) + " -> " + displayFaction(relation[8]) + ")";
+        }
+        return text;
+    }
+
+    private String optionText(String[] option) {
+        if (option == null || option.length < 8) {
+            return "";
+        }
+        String text = option[2] + " - Current: " + displayRelation(option[3]);
+        return option[7].length() > 0 ? text + " | " + option[7] : text;
+    }
+
+    private void drawSelectionFooter(int leftX, int rightX, int columnWidth, int y) {
+        String[] relation = selectedRelation();
+        String[] option = selectedOption();
+        String relationLine = relation == null ? "Selected: none" : "Selected: " + relationText(relation);
+        String optionLine = option == null ? "Selected: none" : "Selected: " + optionText(option);
+        drawString(fontRendererObj,
+            fontRendererObj.trimStringToWidth(relationLine, columnWidth - 6),
+            leftX, y, 0xBBBBBB);
+        drawString(fontRendererObj,
+            fontRendererObj.trimStringToWidth(optionLine, columnWidth - 6),
+            rightX, y, 0xBBBBBB);
+        drawString(fontRendererObj,
+            fontRendererObj.trimStringToWidth(
+                "Mouse wheel over either list to scroll.", columnWidth - 6),
+            leftX, y + 11, 0x888888);
+    }
+
+    private void drawScrollbar(int x, int y, int height, int size, int visibleRows, int scroll) {
+        int max = Math.max(0, size - visibleRows);
+        if (max <= 0 || height <= 0) {
+            return;
+        }
+        drawRect(x, y, x + 3, y + height, 0x88202020);
+        int handleHeight = Math.max(10, height * visibleRows / Math.max(visibleRows, size));
+        int handleY = y + (height - handleHeight) * scroll / max;
+        drawRect(x, handleY, x + 3, handleY + handleHeight, 0xFFE0C060);
     }
 
     private String displayFaction(String key) {
@@ -371,12 +456,20 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
     }
 
     private String displayRelation(String key) {
+        if ("mortal_enemy".equalsIgnoreCase(key)) {
+            return "Mortal Enemy";
+        }
+
+        if ("enemy".equalsIgnoreCase(key)) {
+            return "Enemy";
+        }
+
         if ("friends".equalsIgnoreCase(key)) {
-            return "Friends";
+            return "Friend";
         }
 
         if ("allies".equalsIgnoreCase(key)) {
-            return "Allies";
+            return "Ally";
         }
 
         return "Neutral";
@@ -389,7 +482,8 @@ public class KOMEGuiAllianceUnified extends LOTRGuiMenuBase {
 
     private void requestData() {
         if (mc != null && mc.thePlayer != null) {
-            KOMEMinecraftClient.sendChat("/alliance list");
+            KOMEPacketHandler.network.sendToServer(
+                new KOMEPacketAllianceRequest(false));
         }
     }
 

@@ -14,9 +14,12 @@ import kome.common.data.KOMEWarService;
 import kome.common.network.KOMECompanyGuiEntry;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.nbt.NBTTagCompound;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.lang.reflect.Proxy;
@@ -30,6 +33,15 @@ import static org.junit.Assert.assertTrue;
 public class KOMECommandTroopsMovementTest {
     @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
         new kome.common.data.KOMETileTestResources();
+
+    @Before
+    @After
+    public void resetDiplomacy() {
+        LOTRFactionRelations.overrideRelations(
+            kome.common.data.KOMEAlliance.findLotrFaction("gondor"),
+            kome.common.data.KOMEAlliance.findLotrFaction("rohan"),
+            LOTRFactionRelations.Relation.NEUTRAL);
+    }
 
     @Test
     public void queuedAccessLossHaltsWithoutChangingStrategicProgress() {
@@ -198,9 +210,7 @@ public class KOMECommandTroopsMovementTest {
         order.traveledRouteTiles.add("T001");
         claim(data, "T001", "gondor");
         claim(data, "T002", "rohan");
-        KOMEDiplomacyRecord relation = new KOMEDiplomacyRecord("gondor", "rohan");
-        relation.relation = KOMEDiplomacyRelation.ALLIES;
-        data.canonicalDiplomacyRecords.put(relation.key(), relation);
+        setRelation(data, KOMEDiplomacyRelation.ALLIES);
 
         order.dailyStepsRemaining = 1;
         new KOMECommandTroops().resumeAccessHaltedRoute(commandSender(), data, order, 800L);
@@ -763,9 +773,10 @@ public class KOMECommandTroopsMovementTest {
     private static void setRelation(KOMEWorldData data, KOMEDiplomacyRelation relation) {
         claim(data, "T001", "gondor");
         claim(data, "T002", "rohan");
-        KOMEDiplomacyRecord record = new KOMEDiplomacyRecord("gondor", "rohan");
-        record.relation = relation;
-        data.canonicalDiplomacyRecords.put(record.key(), record);
+        LOTRFactionRelations.overrideRelations(
+            kome.common.data.KOMEAlliance.findLotrFaction("gondor"),
+            kome.common.data.KOMEAlliance.findLotrFaction("rohan"),
+            relation.toLotrRelation());
     }
 
     private static ICommandSender commandSender() {

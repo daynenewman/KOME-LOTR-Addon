@@ -1,7 +1,10 @@
 package kome.common.data;
 
+import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
@@ -12,6 +15,15 @@ import static org.junit.Assert.*;
 /** Cross-system regression coverage for Builds, split population, companies, and stage milestones. */
 public class KOMERedesignSystemsTest {
     @org.junit.Rule public final KOMETileTestResources tileGeometry = new KOMETileTestResources();
+
+    @Before
+    @After
+    public void resetRelations() {
+        setLotrRelation("gondor", "rohan", KOMEDiplomacyRelation.NEUTRAL);
+        setLotrRelation("gondor", "bree", KOMEDiplomacyRelation.NEUTRAL);
+        setLotrRelation("rohan", "bree", KOMEDiplomacyRelation.NEUTRAL);
+        setLotrRelation("gondor", "mordor", KOMEDiplomacyRelation.NEUTRAL);
+    }
     @Test public void hundredthAndQuarterHoursAreExact() {
         assertEquals(1L, KOMEBuildTime.parseHours("0.01"));
         assertEquals(10L, KOMEBuildTime.parseHours("0.10"));
@@ -702,10 +714,14 @@ public class KOMERedesignSystemsTest {
             String first,
             String second,
             KOMEDiplomacyRelation relation) {
-        KOMEDiplomacyRecord record = new KOMEDiplomacyRecord(first, second);
-        record.relation = relation;
-        record.updatedAt = 1L;
-        data.canonicalDiplomacyRecords.put(record.key(), record);
+        setLotrRelation(first, second, relation);
+    }
+    private static void setLotrRelation(String first, String second,
+            KOMEDiplomacyRelation relation) {
+        LOTRFactionRelations.overrideRelations(
+            KOMEAlliance.findLotrFaction(first),
+            KOMEAlliance.findLotrFaction(second),
+            relation.toLotrRelation());
     }
     private static KOMEAlliance establishSharedStage(KOMEWorldData data, String first, String second, int stage) {
         KOMEAlliance alliance = data.getAlliance(first, second, true);

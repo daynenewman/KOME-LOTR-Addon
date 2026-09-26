@@ -25,7 +25,7 @@ public final class KOMECompanyDiplomacyAuthorization {
             return Decision.deny("Active war blocks military passage.");
         }
         if (!KOMEDiplomacyService.areAllies(data, moving, owner)) {
-            return Decision.deny("Military passage requires canonical Allies.");
+            return Decision.deny("Military passage requires an actual LOTR Ally relation.");
         }
         return Decision.allow();
     }
