@@ -88,6 +88,9 @@ public class KOMEConfigInspectionTest {
         String[] entries = {
                 "dailyBatch.localTime=20:00", "dailyBatch.timezone=America/Chicago",
                 "population.hoursPerPopulationPoint=10.00", "population.capturedBuildMultiplier=0.50",
+                "population.bottleneckRatePerActiveServerDay=0.10",
+                "population.pauseRateCeilingWhenNoPendingHours=true",
+                "population.recruitmentTileActiveRateThreshold=5.00",
                 "population.populationCapCenti=TBD", "population.registryReady=true", "population.worldConfigurationLocked=false",
                 "population.offlinePopulationCatchUp=true", "population.populationCapEnabled=false",
                 "population.populationCapValue=TBD", "population.encirclementPopulationSuppressionEnabled=false",

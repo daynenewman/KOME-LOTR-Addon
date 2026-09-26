@@ -89,7 +89,9 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         boolean canAccept = tile.hasPendingTransfer() && viewerFaction.equals(pendingToFaction) && KOMERulerAuthorization.canActAsRuler(data, pendingToFaction, KOMEReflection.getEntityUUID(player));
         boolean canCancel = tile.hasPendingTransfer() && viewerFaction.equals(ownerFaction) && ownerKing;
         String activeRecruitmentTile = data.getActiveRecruitmentTile(viewerId, viewerFaction);
-        boolean canSetRecruitmentTile = data.canUseRecruitmentTile(viewerId, viewerFaction, tileId);
+        kome.common.data.KOMERecruitmentLocationService.Decision recruitment =
+            kome.common.data.KOMERecruitmentLocationService.evaluate(data, viewerFaction, tileId);
+        boolean canSetRecruitmentTile = recruitment.legal;
         KOMETileWaypointLink waypointLink = data.getTileWaypointLink(tileId);
         KOMEPacketConquestCaptureGui packet = new KOMEPacketConquestCaptureGui();
         packet.tileId = tile.id;
@@ -118,6 +120,9 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         packet.ownerHasKing = data.hasFactionKing(ownerFaction);
         packet.activeRecruitmentTile = activeRecruitmentTile;
         packet.canSetRecruitmentTile = canSetRecruitmentTile;
+        packet.recruitmentLegalityReason = recruitment.reason;
+        packet.recruitmentEffectiveRateUnits = recruitment.effectiveRateUnits;
+        packet.recruitmentThresholdUnits = recruitment.thresholdUnits;
         packet.lotrWaypointKey = waypointLink == null ? "" : waypointLink.lotrWaypointKey;
         packet.lotrWaypointDisplayName = waypointLink == null ? "" : waypointLink.displayName();
         packet.lotrWaypointRegion = waypointLink == null ? "" : waypointLink.waypointRegion;
@@ -187,6 +192,16 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         view.z = build.z;
         view.buildType = build.type.key;
         view.approvedCentiHours = build.approvedCentiHours();
+        view.developedNativeCentiHours = build.developedNativeCentiHours;
+        view.pendingNativeCentiHours = build.pendingNativeCentiHours();
+        for (kome.common.data.KOMEPopulationRateContribution row
+                : kome.common.data.KOMEPopulationRateService.getPopulationRateContributions(data)) {
+            if (build.id.equals(row.buildId)) {
+                view.currentRateUnits = row.currentRateUnits;
+                view.currentMultiplier = row.multiplier;
+                break;
+            }
+        }
         view.pendingCount = build.pendingCount();
         view.status = buildStatus(data, viewerFaction, controller, build.populationFaction);
         view.canManage = admin || KOMEBuildService.isManager(build, viewerId);

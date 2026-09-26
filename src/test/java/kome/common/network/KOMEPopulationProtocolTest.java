@@ -16,8 +16,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationProtocolTest {
-    @Test public void g1PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.8-integration-g1", KOMEPopulationWire.VERSION);
+    @Test public void g2PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
+        assertEquals("1.0.8-integration-g2", KOMEPopulationWire.VERSION);
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();
@@ -45,21 +45,33 @@ public class KOMEPopulationProtocolTest {
         capture.incomingPop = 12; capture.outgoingPop = 9; capture.incomingEtaMillis = 123456789L;
         capture.myOffensivePop = 60; capture.myDefensivePop = 5; capture.myMountedPop = 40; capture.myGroundPop = 20;
         capture.canInspectWaypoint = true; capture.canMoveTroops = true; capture.canSetRecruitmentTile = true;
-        capture.activeRecruitmentTile = "T100"; capture.lotrWaypointKey = "testWaypoint";
+        capture.activeRecruitmentTile = "T100";
+        capture.recruitmentLegalityReason = "Developed tile rate meets the recruitment threshold.";
+        capture.recruitmentEffectiveRateUnits = BigInteger.valueOf(5000000L);
+        capture.recruitmentThresholdUnits = BigInteger.valueOf(5000000L);
+        capture.lotrWaypointKey = "testWaypoint";
         capture.selectablePopulationOwners.add("gondor");
         KOMEPacketConquestCaptureGui.BuildView build = new KOMEPacketConquestCaptureGui.BuildView();
-        build.id = "B1"; build.buildType = "DEFENSIVE"; build.approvedCentiHours = 2450L; capture.builds.add(build);
+        build.id = "B1"; build.buildType = "NORMAL"; build.approvedCentiHours = 2450L;
+        build.developedNativeCentiHours = 2000L; build.pendingNativeCentiHours = 450L;
+        build.currentRateUnits = BigInteger.valueOf(2000000L); build.currentMultiplier = "1.0000";
+        capture.builds.add(build);
         bytes = Unpooled.buffer();
         try {
             capture.toBytes(bytes); KOMEPacketConquestCaptureGui read = new KOMEPacketConquestCaptureGui(); read.fromBytes(bytes);
             for (String field : new String[] {"offensivePop", "defensivePop", "mountedPop", "groundPop",
                     "incomingPop", "outgoingPop", "incomingEtaMillis", "myOffensivePop", "myDefensivePop",
                     "myMountedPop", "myGroundPop", "canInspectWaypoint", "canMoveTroops", "canSetRecruitmentTile",
-                    "activeRecruitmentTile", "lotrWaypointKey"})
+                    "activeRecruitmentTile", "recruitmentLegalityReason", "recruitmentEffectiveRateUnits",
+                    "recruitmentThresholdUnits", "lotrWaypointKey"})
                 assertEquals(field, field(capture, field), field(read, field));
             assertEquals(capture.selectablePopulationOwners, read.selectablePopulationOwners);
             assertEquals(2450L, read.builds.get(0).approvedCentiHours);
-            assertEquals("DEFENSIVE", read.builds.get(0).buildType);
+            assertEquals(2000L, read.builds.get(0).developedNativeCentiHours);
+            assertEquals(450L, read.builds.get(0).pendingNativeCentiHours);
+            assertEquals(BigInteger.valueOf(2000000L), read.builds.get(0).currentRateUnits);
+            assertEquals("1.0000", read.builds.get(0).currentMultiplier);
+            assertEquals("NORMAL", read.builds.get(0).buildType);
             assertProjection(capture.population, read.population); assertEquals(0, bytes.readableBytes());
         } finally { bytes.release(); }
     }
@@ -120,11 +132,12 @@ public class KOMEPopulationProtocolTest {
 
     @Test public void oldProtocolFailsClosedBeforePopulationDecode() {
         assertTrue(KOMEPopulationWire.accepts(KOMEPopulationWire.VERSION));
+        assertFalse(KOMEPopulationWire.accepts("1.0.8-integration-g1"));
         assertFalse(KOMEPopulationWire.accepts("1.0.8")); assertFalse(KOMEPopulationWire.accepts(null));
         assertEquals(KOMEPopulationWire.VERSION, KOMEAddon.class.getAnnotation(Mod.class).version());
         ByteBuf bytes = Unpooled.buffer();
         try {
-            KOMEPopulationWire.writeText(bytes, "old-client"); bytes.writeInt(25);
+            KOMEPopulationWire.writeText(bytes, "1.0.8-integration-g1"); bytes.writeInt(25);
             try { new KOMEPacketPopulationGui().fromBytes(bytes); fail("old payload"); }
             catch (IllegalArgumentException expected) { assertTrue(expected.getMessage().contains("protocol mismatch")); }
         } finally { bytes.release(); }
@@ -240,7 +253,7 @@ public class KOMEPopulationProtocolTest {
         KOMEAddon addon = new KOMEAddon();
         for (Side side : new Side[] {Side.CLIENT, Side.SERVER}) {
             assertTrue(addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", KOMEPopulationWire.VERSION), side));
-            for (String version : new String[] {"1.0.8", "unknown", "1.0.8-integration-f1", "1.0.8-integration-g2"})
+            for (String version : new String[] {"1.0.8", "unknown", "1.0.8-integration-f1", "1.0.8-integration-g1"})
                 assertFalse(addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", version), side));
             assertFalse(addon.acceptsRemoteKome(java.util.Collections.<String, String>emptyMap(), side));
         }

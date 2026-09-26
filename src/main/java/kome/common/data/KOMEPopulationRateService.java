@@ -16,12 +16,15 @@ public final class KOMEPopulationRateService {
     /** Unsaturated fixed-rate units; the sole faction aggregation used by payouts and displays. */
     public static Map<String, BigInteger> getExactDailyPopulationRates(KOMEWorldData data,
             KOMEConfigRegistry.PopulationSettings settings) {
+        if (data != null)
+            KOMEPopulationDevelopmentService.requireCompatibleSettings(data, settings);
         BigInteger denominator = rateDenominator(settings.getHoursPerPopulationPointCentiHours());
         Map<String, BigInteger> sourceUnits = new TreeMap<String, BigInteger>();
         for (KOMEPopulationRateContribution row : getPopulationRateContributions(data, settings)) {
             if (row.receivingFaction.length() == 0) continue;
             // Control already selected the exact weight; status/text are presentation only.
-            BigInteger source = rateNumerator(row.approvedCentiHours, row.multiplierBasisPoints);
+            BigInteger source = rateNumerator(row.developedNativeCentiHours,
+                    row.multiplierBasisPoints);
             BigInteger old = sourceUnits.get(row.receivingFaction);
             sourceUnits.put(row.receivingFaction, (old == null ? BigInteger.ZERO : old).add(source));
         }
@@ -35,8 +38,10 @@ public final class KOMEPopulationRateService {
         return getPopulationRateContributions(data, KOMEConfigRegistry.population());
     }
 
-    private static List<KOMEPopulationRateContribution> getPopulationRateContributions(KOMEWorldData data,
+    public static List<KOMEPopulationRateContribution> getPopulationRateContributions(KOMEWorldData data,
             KOMEConfigRegistry.PopulationSettings settings) {
+        if (data != null)
+            KOMEPopulationDevelopmentService.requireCompatibleSettings(data, settings);
         BigInteger denominator = rateDenominator(settings.getHoursPerPopulationPointCentiHours());
         List<KOMEPopulationRateContribution> result = new ArrayList<KOMEPopulationRateContribution>();
         for (KOMEPlayerBuild build : KOMEBuildService.activeNormalBuilds(data)) {
@@ -44,7 +49,10 @@ public final class KOMEPopulationRateService {
             KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(KOMEConquestTile.normalizeId(build.tileId));
             String controller = tile == null ? "" : tile.projectRulingFaction();
             long approved = build.approvedCentiHours();
-            BigInteger original = roundedUnits(rateNumerator(approved, KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE), denominator);
+            long developed = build.developedNativeCentiHours();
+            long pending = build.pendingNativeCentiHours();
+            BigInteger original = roundedUnits(rateNumerator(developed,
+                KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE), denominator);
             String status = "UNCONTROLLED", receiving = "";
             long multiplierBasisPoints = 0L;
             if (controller.length() > 0 && faction.length() > 0 && faction.equals(controller)) {
@@ -55,12 +63,75 @@ public final class KOMEPopulationRateService {
                 multiplierBasisPoints = settings.getCapturedBuildMultiplierBasisPoints();
             }
             result.add(new KOMEPopulationRateContribution(build.id, build.displayName, build.tileId, faction, controller,
-                receiving, approved, original, roundedUnits(rateNumerator(approved, multiplierBasisPoints), denominator), status, multiplierBasisPoints));
+                receiving, approved, developed, pending, original,
+                roundedUnits(rateNumerator(developed, multiplierBasisPoints), denominator),
+                status, multiplierBasisPoints));
         }
         return Collections.unmodifiableList(result);
     }
 
-    /** Fixed units = approved centi-hours * SCALE * basis points / (configured centi-hours * 10,000). */
+    /** Exact rounded native rate for a developed centi-hour allocation. */
+    public static BigInteger rateUnitsForDevelopedCentiHours(long developedCentiHours,
+            KOMEConfigRegistry.PopulationSettings settings) {
+        BigInteger denominator = rateDenominator(
+            settings.getHoursPerPopulationPointCentiHours());
+        return roundedUnits(rateNumerator(developedCentiHours,
+            KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE), denominator);
+    }
+
+    /** Current native-only rates; captured contributions deliberately do not affect ceiling comparison. */
+    public static Map<String, BigInteger> getExactNativeDevelopedRates(KOMEWorldData data,
+            KOMEConfigRegistry.PopulationSettings settings) {
+        Map<String, BigInteger> numerators = new TreeMap<String, BigInteger>();
+        for (KOMEPopulationRateContribution row : getPopulationRateContributions(data, settings)) {
+            if (!"NATIVE".equals(row.status) || row.receivingFaction.length() == 0) continue;
+            BigInteger old = numerators.get(row.receivingFaction);
+            BigInteger value = rateNumerator(row.developedNativeCentiHours,
+                KOMEConfigRegistry.CAPTURED_MULTIPLIER_SCALE);
+            numerators.put(row.receivingFaction,
+                (old == null ? BigInteger.ZERO : old).add(value));
+        }
+        BigInteger denominator = rateDenominator(
+            settings.getHoursPerPopulationPointCentiHours());
+        Map<String, BigInteger> result = new LinkedHashMap<String, BigInteger>();
+        for (Map.Entry<String, BigInteger> entry : numerators.entrySet())
+            result.put(entry.getKey(), roundedUnits(entry.getValue(), denominator));
+        return Collections.unmodifiableMap(result);
+    }
+
+    /** Exact current production grouped by strategic tile and receiving faction. */
+    public static Map<String, Map<String, BigInteger>> getExactTilePopulationRates(
+            KOMEWorldData data, KOMEConfigRegistry.PopulationSettings settings) {
+        Map<String, Map<String, BigInteger>> numerators =
+            new TreeMap<String, Map<String, BigInteger>>();
+        for (KOMEPopulationRateContribution row : getPopulationRateContributions(data, settings)) {
+            if (row.receivingFaction.length() == 0) continue;
+            String tile = KOMEConquestTile.normalizeId(row.tileId);
+            Map<String, BigInteger> byFaction = numerators.get(tile);
+            if (byFaction == null) {
+                byFaction = new TreeMap<String, BigInteger>();
+                numerators.put(tile, byFaction);
+            }
+            BigInteger old = byFaction.get(row.receivingFaction);
+            BigInteger value = rateNumerator(row.developedNativeCentiHours,
+                row.multiplierBasisPoints);
+            byFaction.put(row.receivingFaction,
+                (old == null ? BigInteger.ZERO : old).add(value));
+        }
+        BigInteger denominator = rateDenominator(
+            settings.getHoursPerPopulationPointCentiHours());
+        Map<String, Map<String, BigInteger>> result =
+            new LinkedHashMap<String, Map<String, BigInteger>>();
+        for (Map.Entry<String, Map<String, BigInteger>> tile : numerators.entrySet()) {
+            Map<String, BigInteger> rates = new LinkedHashMap<String, BigInteger>();
+            for (Map.Entry<String, BigInteger> faction : tile.getValue().entrySet())
+                rates.put(faction.getKey(), roundedUnits(faction.getValue(), denominator));
+            result.put(tile.getKey(), Collections.unmodifiableMap(rates));
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    /** Fixed units = developed centi-hours * SCALE * basis points / (configured centi-hours * 10,000). */
     private static BigInteger rateNumerator(long approvedCentiHours, long basisPoints) {
         return BigInteger.valueOf(KOMEBuildTime.requireNonnegative(approvedCentiHours))
                 .multiply(BigInteger.valueOf(KOMEPopulationRate.SCALE)).multiply(BigInteger.valueOf(basisPoints));

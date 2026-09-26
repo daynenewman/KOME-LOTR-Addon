@@ -98,6 +98,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private final int myGroundPop;
     private final String activeRecruitmentTile;
     private final boolean canSetRecruitmentTile;
+    private final String recruitmentLegalityReason;
+    private final java.math.BigInteger recruitmentEffectiveRateUnits;
+    private final java.math.BigInteger recruitmentThresholdUnits;
     private final String lotrWaypointKey;
     private final String lotrWaypointDisplayName;
     private final String lotrWaypointRegion;
@@ -170,6 +173,11 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         this.myGroundPop = Math.max(0, message.myGroundPop);
         this.activeRecruitmentTile = safe(message.activeRecruitmentTile);
         this.canSetRecruitmentTile = message.canSetRecruitmentTile;
+        this.recruitmentLegalityReason = safe(message.recruitmentLegalityReason);
+        this.recruitmentEffectiveRateUnits = message.recruitmentEffectiveRateUnits == null
+            ? java.math.BigInteger.ZERO : message.recruitmentEffectiveRateUnits;
+        this.recruitmentThresholdUnits = message.recruitmentThresholdUnits == null
+            ? java.math.BigInteger.ZERO : message.recruitmentThresholdUnits;
         this.lotrWaypointKey = safe(message.lotrWaypointKey);
         this.lotrWaypointDisplayName = safe(message.lotrWaypointDisplayName);
         this.lotrWaypointRegion = safe(message.lotrWaypointRegion);
@@ -766,11 +774,14 @@ public class KOMEGuiConquestCapture extends GuiScreen {
                     KOMEGuiTheme.COLOR_BORDER_RED);
                 KOMEGuiTheme.drawFactionBadge(fontRendererObj, build.populationFaction, build.status,
                     x + w - 210, cardY + 4, 112);
-                fontRendererObj.drawString("Type " + build.buildType + "   Approved Hours "
-                    + KOMEBuildTime.formatHours(build.approvedCentiHours),
+                fontRendererObj.drawString("Type " + build.buildType + "   Approved/Developed/Pending "
+                    + KOMEBuildTime.formatHours(build.approvedCentiHours) + "/"
+                    + KOMEBuildTime.formatHours(build.developedNativeCentiHours) + "/"
+                    + KOMEBuildTime.formatHours(build.pendingNativeCentiHours) + "h",
                     x + 18, cardY + 22, KOMEGuiTheme.COLOR_TEXT);
                 fontRendererObj.drawString("Manager: " + safeName(build.manager, "Unassigned")
-                    + "   Pending: " + build.pendingCount + "   At " + coord(build.x) + ", "
+                    + "   Production " + kome.common.data.KOMEPopulationProjection.formatRate(build.currentRateUnits)
+                    + " x" + build.currentMultiplier + "   At " + coord(build.x) + ", "
                     + coord(build.y) + ", " + coord(build.z),
                     x + 18, cardY + 36, KOMEGuiTheme.COLOR_TEXT_MUTED);
             }
@@ -857,7 +868,12 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             x + 20, y + 56, KOMEGuiTheme.COLOR_TEXT_MUTED);
         KOMEGuiTheme.drawCard(x + 12, y + 74, w - 24, 42, false);
         fontRendererObj.drawString("Type: " + build.buildType, x + 20, y + 82, KOMEGuiTheme.COLOR_GOLD);
-        fontRendererObj.drawString("Approved Hours: " + KOMEBuildTime.formatHours(build.approvedCentiHours), x + 20, y + 98,
+        fontRendererObj.drawString("Hours approved/developed/pending: "
+            + KOMEBuildTime.formatHours(build.approvedCentiHours) + " / "
+            + KOMEBuildTime.formatHours(build.developedNativeCentiHours) + " / "
+            + KOMEBuildTime.formatHours(build.pendingNativeCentiHours)
+            + "   Production: " + kome.common.data.KOMEPopulationProjection.formatRate(build.currentRateUnits)
+            + " x" + build.currentMultiplier, x + 20, y + 98,
             KOMEGuiTheme.COLOR_TEXT);
         KOMEGuiTheme.drawDivider(x + 12, y + 147, w - 24);
         fontRendererObj.drawString("Contribution Audit", x + 16, y + 156, KOMEGuiTheme.COLOR_BORDER_RED);
@@ -955,7 +971,19 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         } else {
             lineY = line(x, lineY, "Transfer", "No pending offer", w);
         }
-        line(x, lineY, "Recruitment", activeRecruitmentTile.length() == 0 ? "Automatic selection" : activeRecruitmentTile, w);
+        lineY = line(x, lineY, "Recruitment", activeRecruitmentTile.length() == 0 ? "Automatic selection" : activeRecruitmentTile, w);
+        String readiness = canSetRecruitmentTile && isViewerCapitalTile()
+            ? "Legal: controlled canonical capital (rate threshold bypassed)"
+            : (canSetRecruitmentTile ? "Legal: " : "Illegal: ")
+                + kome.common.data.KOMEPopulationProjection.formatRate(recruitmentEffectiveRateUnits)
+                + " / " + kome.common.data.KOMEPopulationProjection.formatRate(recruitmentThresholdUnits);
+        line(x, lineY, "Recruitment Readiness", readiness, w);
+    }
+
+    private boolean isViewerCapitalTile() {
+        for (Object faction : capitalFactions)
+            if (viewerFaction.equalsIgnoreCase(safe(String.valueOf(faction)))) return true;
+        return false;
     }
 
     private kome.common.data.KOMEPopulationProjection population = new kome.common.data.KOMEPopulationProjection(
@@ -968,7 +996,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         lineY = line(x, lineY, "Available Population", kome.common.data.KOMEPopulationProjection.formatCenti(population.availablePopulationCenti), w);
         lineY = line(x, lineY, "Active Population", kome.common.data.KOMEPopulationProjection.formatCenti(population.activePopulationCenti), w);
         lineY = line(x, lineY, "Total represented population", kome.common.data.KOMEPopulationProjection.formatCenti(population.representedPopulationCenti), w);
-        lineY = line(x, lineY, "Daily rate", kome.common.data.KOMEPopulationProjection.formatRate(population.dailyRateUnits), w);
+        lineY = line(x, lineY, "Faction Daily Rate", kome.common.data.KOMEPopulationProjection.formatRate(population.dailyRateUnits), w);
         lineY = line(x, lineY, "Cap", population.capEnabled ? kome.common.data.KOMEPopulationProjection.formatCenti(population.capCenti) : "Uncapped", w);
         lineY = line(x, lineY, "Permanent unit investment", "Active above; farmhands excluded", w);
         line(x, lineY, "Tactical strength", offensivePop + " offensive / " + defensivePop + " defensive (not a bank)", w);
@@ -1093,10 +1121,14 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             if (tileId.equals(activeRecruitmentTile)) {
                 return "This is already your active recruitment tile.";
             }
-            return "Your faction needs positive Available + Active Population to use this controlled tile for recruitment.";
+            return recruitmentLegalityReason.length() == 0
+                ? "This tile is not currently a legal recruitment location."
+                : recruitmentLegalityReason;
         }
         if (id == ID_CLAIM) {
-            return hasViewerFaction() ? "This tile is already controlled by your faction." : "Pledge to a faction before claiming tiles.";
+            if (!hasViewerFaction()) return "Pledge to a faction before claiming tiles.";
+            if (isOwnedByPledge()) return "This tile is already controlled by your faction.";
+            return "You have not unlocked Take Waypoints yet.";
         }
         if (id == ID_TRANSFER_MODE || id == ID_TRANSFER) {
             if (!isOwnedByPledge()) {

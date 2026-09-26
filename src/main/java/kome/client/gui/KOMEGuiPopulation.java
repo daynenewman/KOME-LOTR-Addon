@@ -234,6 +234,7 @@ public class KOMEGuiPopulation extends GuiScreen {
             int rowY = y + i * tileRowHeight();
             if (KOMEGuiTheme.isHovered(mouseX, mouseY, x + width - 74, rowY + 18, 58, 16)) {
                 KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(row.tileId));
+                KOMEMinecraftClient.closePlayerScreen();
                 return true;
             }
         }

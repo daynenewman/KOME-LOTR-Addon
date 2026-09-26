@@ -19,7 +19,7 @@ public class KOMEConquestPopulationRefreshTest {
     private KOMEClientData client;
     @Before public void setup() throws Exception {
         previous=KOMEAddon.proxy; proxy=KOMEAccessFixture.allocate(TestProxy.class);
-        proxy.queue=new KOMEClientTaskQueue(); proxy.queue.resetSession(true, () -> {}); proxy.queue.drain();
+        proxy.queue=new KOMEClientTaskQueue(); proxy.snapshots=new KOMEConquestSnapshotPublisher(proxy.queue); proxy.queue.resetSession(true, () -> {}); proxy.queue.drain();
         KOMEAddon.proxy=proxy; client=KOMEClientData.INSTANCE; client.resetClientState();
     }
     @After public void cleanup(){client.resetClientState();KOMEAddon.proxy=previous;}
@@ -75,6 +75,7 @@ public class KOMEConquestPopulationRefreshTest {
         send(packet(true,true,summary("gondor",2500)));send(packet(true,false,summary("gondor",9999)));
         new KOMEPacketConquestData.Handler().onMessage(packet(true,true,summary("gondor",8888)),null);
         KOMEClientProxy lifecycle=KOMEAccessFixture.allocate(KOMEClientProxy.class);
+        java.lang.reflect.Field publisher=KOMEClientProxy.class.getDeclaredField("conquestSnapshots");publisher.setAccessible(true);publisher.set(lifecycle,proxy.snapshots);
         net.minecraft.world.World remote=KOMEAccessFixture.allocate(KOMEAccessFixture.TestWorld.class);
         java.lang.reflect.Field flag=net.minecraft.world.World.class.getDeclaredField("isRemote");flag.setAccessible(true);flag.setBoolean(remote,true);
         lifecycle.onClientWorldUnload(new net.minecraftforge.event.world.WorldEvent.Unload(remote));
@@ -85,6 +86,7 @@ public class KOMEConquestPopulationRefreshTest {
     @Test public void productionDisconnectReconnectDropsPendingAndOldSessionData() throws Exception {
         send(packet(true,true,summary("gondor",2500)));send(packet(true,false,summary("gondor",9999)));
         KOMEClientProxy lifecycle=KOMEAccessFixture.allocate(KOMEClientProxy.class);
+        java.lang.reflect.Field publisher=KOMEClientProxy.class.getDeclaredField("conquestSnapshots");publisher.setAccessible(true);publisher.set(lifecycle,proxy.snapshots);
         java.lang.reflect.Field queue=KOMEClientProxy.class.getDeclaredField("clientTasks");queue.setAccessible(true);queue.set(lifecycle,proxy.queue);
         lifecycle.onClientDisconnect(null);proxy.queue.drain();assertTrue(lines().isEmpty());
         lifecycle.onClientConnect(null);proxy.queue.drain();assertTrue(lines().isEmpty());
@@ -131,6 +133,7 @@ public class KOMEConquestPopulationRefreshTest {
         send(waypointPacket(true,true,"Old waypoint"));send(waypointPacket(true,false,"Pending waypoint"));
         new KOMEPacketConquestData.Handler().onMessage(waypointPacket(true,true,"Queued waypoint"),null);
         KOMEClientProxy lifecycle=KOMEAccessFixture.allocate(KOMEClientProxy.class);
+        java.lang.reflect.Field publisher=KOMEClientProxy.class.getDeclaredField("conquestSnapshots");publisher.setAccessible(true);publisher.set(lifecycle,proxy.snapshots);
         net.minecraft.world.World remote=KOMEAccessFixture.allocate(KOMEAccessFixture.TestWorld.class);
         java.lang.reflect.Field flag=net.minecraft.world.World.class.getDeclaredField("isRemote");flag.setAccessible(true);flag.setBoolean(remote,true);
         lifecycle.onClientWorldUnload(new net.minecraftforge.event.world.WorldEvent.Unload(remote));
@@ -151,5 +154,5 @@ public class KOMEConquestPopulationRefreshTest {
     private KOMETileTroopSummary summary(String faction,long available){KOMETileTroopSummary s=new KOMETileTroopSummary();s.tileId="T001";s.ownerFaction=faction;s.population=new KOMEPopulationProjection(faction,available,BigInteger.ZERO,BigInteger.ZERO,false,0);return s;}
     private KOMEPacketConquestData packet(boolean reset,boolean complete,KOMETileTroopSummary... rows){KOMEPacketConquestData p=new KOMEPacketConquestData();p.reset=reset;p.complete=complete;if(rows.length>0){NBTTagList list=new NBTTagList();for(KOMETileTroopSummary s:rows)list.appendTag(s.writeToNBT());p.data.setTag("TroopSummaries",list);}return p;}
     private void send(KOMEPacketConquestData p){ByteBuf b=Unpooled.buffer();try{p.toBytes(b);KOMEPacketConquestData decoded=new KOMEPacketConquestData();decoded.fromBytes(b);new KOMEPacketConquestData.Handler().onMessage(decoded,null);}finally{b.release();}proxy.queue.drain();}
-    public static class TestProxy extends KOMECommonProxy {KOMEClientTaskQueue queue;@Override public void enqueueClientTask(Runnable task){queue.enqueue(task);}}
+    public static class TestProxy extends KOMECommonProxy {KOMEClientTaskQueue queue;KOMEConquestSnapshotPublisher snapshots;@Override public void enqueueClientTask(Runnable task){queue.enqueue(task);}@Override public void acceptConquestSnapshotChunk(KOMEPacketConquestData.PublicationChunk chunk){snapshots.accept(chunk);}}
 }

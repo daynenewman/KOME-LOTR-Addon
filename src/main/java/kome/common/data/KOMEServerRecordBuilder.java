@@ -248,7 +248,8 @@ public class KOMEServerRecordBuilder {
                 "To "
                     + displayFaction(partner)
                     + ": "
-                    + record.relation.displayName;
+                    + KOMEDiplomacyService.getRelation(
+                        data, record.factionA, record.factionB).displayName;
 
             if (record.pendingTarget != null) {
                 line +=

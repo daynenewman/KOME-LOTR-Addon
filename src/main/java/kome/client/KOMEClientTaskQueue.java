@@ -3,6 +3,8 @@ package kome.client;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
 import java.util.ArrayDeque;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Queue;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
@@ -16,6 +18,7 @@ public final class KOMEClientTaskQueue {
     private static final Logger LOGGER = LogManager.getLogger("KOMEClientTaskQueue");
     private final Object lock = new Object();
     private final Queue<Runnable> tasks = new ArrayDeque<Runnable>();
+    private final Map<Object, LatestTask> latestTasks = new HashMap<Object, LatestTask>();
     private boolean connected;
     private final BooleanSupplier onClientThread;
     // Only read/written by the draining client thread; off-thread enqueue never reads it.
@@ -42,12 +45,40 @@ public final class KOMEClientTaskQueue {
         if (immediate) drain();
     }
 
+    /**
+     * Keeps at most one pending task for a publication stream. A newer complete
+     * authoritative value replaces the older value without changing its queue
+     * position. Disconnected sessions deliberately ignore late network work.
+     */
+    public boolean enqueueLatest(Object key, Runnable task) {
+        if (key == null) throw new IllegalArgumentException("Client task key is required");
+        if (task == null) throw new IllegalArgumentException("Client task is required");
+        boolean immediate = onClientThread.getAsBoolean() && !draining;
+        if (immediate) drain(); // Preserve older reset/GUI work before direct publication.
+        synchronized (lock) {
+            if (!connected) return false;
+            LatestTask pending = latestTasks.get(key);
+            if (pending != null) {
+                pending.task = task;
+            } else {
+                if (tasks.size() >= MAX_PENDING_TASKS)
+                    throw new RejectedExecutionException("KOME client task queue is full; newest task rejected");
+                LatestTask latest = new LatestTask(key, task);
+                latestTasks.put(key, latest);
+                tasks.add(latest);
+            }
+        }
+        if (immediate) drain();
+        return true;
+    }
+
     /** Discards the previous connection's work; reset itself runs on the client thread. */
     public void resetSession(boolean connected, Runnable reset) {
         if (reset == null) throw new IllegalArgumentException("Client reset is required");
         synchronized (lock) {
             this.connected = connected;
             tasks.clear();
+            latestTasks.clear();
             tasks.add(reset);
         }
     }
@@ -82,6 +113,26 @@ public final class KOMEClientTaskQueue {
             return executed;
         } finally {
             draining = false;
+        }
+    }
+
+    private final class LatestTask implements Runnable {
+        private final Object key;
+        private Runnable task;
+
+        private LatestTask(Object key, Runnable task) {
+            this.key = key;
+            this.task = task;
+        }
+
+        @Override
+        public void run() {
+            Runnable publication;
+            synchronized (lock) {
+                if (latestTasks.get(key) == this) latestTasks.remove(key);
+                publication = task;
+            }
+            publication.run();
         }
     }
 }

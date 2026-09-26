@@ -1,5 +1,21 @@
 # KOM-60 server tile awareness / KOM-46 handoff
 
+## Publication review (2026-09-26)
+
+The user reports the population-menu flicker is fixed. This is specific acceptance
+of that symptom, not complete visual, waypoint, lifecycle or multiplayer coverage.
+Current dev reconciliation and validation are recorded in
+[KOM60 integration review](KOM60_INTEGRATION_REVIEW_20260926.md).
+The historical entries below retain their original evidence and artifact identities;
+old "no push" and local-only statements describe those earlier checkpoints.
+
+The combined implementation uses dev's `KOMEConquestSnapshotPublisher` for all
+conquest sections. It retains completed ownership colours, population/waypoint
+publication and generation invalidation without a second tooltip batch assembler.
+The server observation API, sampling/event contract and tracker code are unchanged.
+Dev's protocol and save requirements apply; the older disposable client/world is
+not upgraded or used as evidence of this combined runtime.
+
 ## Status and scope (2026-09-21)
 
 Implementation branch: `dayne/kom-60-server-tile-awareness`, from freshly fetched

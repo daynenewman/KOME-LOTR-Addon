@@ -2359,7 +2359,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             return route.failureReason;
         }
         return "No legal route to this tile. Destination is not reachable through your claimed "
-            + displayFaction(company.faction) + " tiles or partner tiles unlocked by canonical Allies passage.";
+            + displayFaction(company.faction) + " tiles or partner tiles unlocked by an actual LOTR Ally relation.";
     }
 
     private List<RouteBlocker> sortedRouteBlockers(RouteResult route) {
@@ -2557,11 +2557,15 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             return;
         }
         String tile = parseTile(value);
-        if (!data.isFactionControlledTile(tile, faction)) {
-            throw new WrongUsageException("Your faction does not control " + tile + ".");
-        }
+        kome.common.data.KOMERecruitmentLocationService.Decision legality =
+            kome.common.data.KOMERecruitmentLocationService.evaluate(data, faction, tile);
         if (!data.setActiveRecruitmentTile(owner, faction, tile)) {
-            throw new WrongUsageException("Your faction needs positive Available + Active Population to use " + tile + " as a recruitment origin.");
+            throw new WrongUsageException("Cannot recruit from " + tile + ": "
+                + legality.reason + " Current developed rate "
+                + kome.common.data.KOMEPopulationProjection.formatRate(
+                    legality.effectiveRateUnits) + "/day; required "
+                + kome.common.data.KOMEPopulationProjection.formatRate(
+                    legality.thresholdUnits) + "/day.");
         }
         sender.addChatMessage(new ChatComponentText("Active recruitment tile set to " + tile + ". New hires will prefer this tile."));
     }
@@ -4252,7 +4256,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
         throw new WrongUsageException(role + " tile " + normalizedTile + " is owned by " + displayFaction(owner)
             + " (" + emptyKey(owner) + "), and " + displayFaction(companyFaction) + " (" + emptyKey(companyFaction)
-            + ") has no canonical Allies passage there.");
+            + ") has no LOTR Ally passage there.");
     }
 
     private String companyStandBlockReason(KOMEWorldData data, KOMEArmyCompany company, String tileId) {
@@ -4269,7 +4273,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (owner.equals(companyFaction) || data.canFactionUseMilitaryPassage(companyFaction, owner)) {
             return "";
         }
-        return displayFaction(companyFaction) + " has no canonical Allies passage through " + displayFaction(owner);
+        return displayFaction(companyFaction) + " has no LOTR Ally passage through " + displayFaction(owner);
     }
 
     private static void refreshCompany(KOMEWorldData data, KOMEArmyCompany company) {
@@ -4379,7 +4383,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 && (company == null || !KOMEWartimeStewardshipService.canEnter(data, company, originOwner, false))) {
             result.failureReason = "Origin tile " + start + " is owned by " + displayFaction(originOwner)
                 + " (" + emptyKey(originOwner) + "), but moving faction is " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") and has no canonical Allies passage there.";
+                + " (" + emptyKey(faction) + ") and has no LOTR Ally passage there.";
             return result;
         }
         String destinationBlock = routeTileBlockReason(data, goal, faction, true, company);
@@ -4508,7 +4512,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         StringBuilder message = new StringBuilder();
         message.append("No legal route from ").append(start).append(" to ").append(goal).append(".");
         message.append(" Destination ").append(goal).append(" was not reachable through claimed ")
-            .append(displayFaction(faction)).append(" tiles or partner tiles unlocked by canonical Allies passage.");
+            .append(displayFaction(faction)).append(" tiles or partner tiles unlocked by an actual LOTR Ally relation.");
         if (visited == null || visited.size() <= 1) {
             message.append(" The origin has no legal outgoing route steps.");
         }
@@ -4582,7 +4586,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (destination) {
             return "Enemy tile attack movement is not implemented yet. Destination tile " + tileKey + " is owned by "
                 + displayFaction(owner) + " (" + emptyKey(owner) + "), and " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") has no canonical Allies passage.";
+                + " (" + emptyKey(faction) + ") has no LOTR Ally passage.";
         }
         return "Tile " + tileKey + " is controlled by " + displayFaction(owner) + " and no military passage permission exists.";
     }

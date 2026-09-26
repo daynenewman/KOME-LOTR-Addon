@@ -30,8 +30,8 @@ Canonical bank increases remain exact daily payout publication and the scoped in
 ## Eligibility
 
 - `lord.early_beginnings` keeps its existing 200-population threshold, now comparing exact represented population against checked 20,000 centi. Other progression entries, completion semantics and alliance progression are unchanged.
-- Recruitment keeps controlled-tile plus positive population eligibility. The legacy positive allocation/reserve source is replaced with positive represented faction population: zero fails; one cent succeeds. It does not spend population or make an unaffordable hire affordable.
-- Active recruitment tile choice remains persisted by player/faction. Eligibility is recalculated on every query, not cached or persisted as another counter. An ineligible saved choice is not deleted; it can become valid again when canonical conditions hold.
+- Recruitment eligibility is now the KOM-71 server predicate: canonical default territory, current faction control, and either authoritative capital identity or the configured developed tile-rate threshold. Available Population and population invested in hired units do not classify a location.
+- Active recruitment tile choice remains persisted by player/faction. Eligibility is recalculated on every query, not cached or persisted as another counter. An ineligible saved choice is bypassed by the deterministic first legal tile until it becomes valid again or is cleared.
 - Canonical getters do not create faction/player/tile pools, reconcile companies, repair ownership, dirty data or audit. Inspection uses `projectRulingFaction` and `projectToNBT` rather than ownership-repairing accessors. Mutation services keep their existing lifecycle responsibilities.
 
 ## Wire contract and deployment

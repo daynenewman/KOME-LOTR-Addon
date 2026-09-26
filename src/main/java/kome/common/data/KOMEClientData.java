@@ -25,51 +25,9 @@ public class KOMEClientData extends KOMEWorldData {
         conquestRevision++;
     }
 
-    // Client-thread batch assembly. Never expose a partially received population or waypoint section.
-    private java.util.Map<String, KOMETileTroopSummary> pendingTroopSummaries;
-    private java.util.Map<String, KOMETileWaypointLink> pendingWaypointLinks;
-    private volatile long tooltipGeneration;
-    private boolean tooltipRequiresReset;
-
-    public long conquestTooltipGeneration() { return tooltipGeneration; }
-
-    /** reset begins replacement; absent sections in other chunks are not empty replacements. */
-    public void applyConquestTooltip(long generation, boolean reset, boolean complete,
-            java.util.Map<String, KOMETileTroopSummary> rows,
-            java.util.Map<String, KOMETileWaypointLink> waypointRows) {
-        if (generation != tooltipGeneration) return; // Queued work from the previous world/session.
-        if (reset) {
-            pendingTroopSummaries = new java.util.HashMap<String, KOMETileTroopSummary>();
-            pendingWaypointLinks = new java.util.HashMap<String, KOMETileWaypointLink>();
-            tooltipRequiresReset = false;
-        } else if (tooltipRequiresReset) {
-            return; // A tail from an abandoned batch cannot initialize a new world.
-        } else if (pendingTroopSummaries == null) {
-            pendingTroopSummaries = new java.util.HashMap<String, KOMETileTroopSummary>(troopSummaries);
-            pendingWaypointLinks = new java.util.HashMap<String, KOMETileWaypointLink>(tileWaypointLinksByTileId);
-        }
-        for (KOMETileTroopSummary row : rows.values()) {
-            // Rows are complete records, not field patches. An explicit empty row removes that tile.
-            if (row.hasAnyPopulation()) pendingTroopSummaries.put(row.tileId, row);
-            else pendingTroopSummaries.remove(row.tileId);
-        }
-        pendingWaypointLinks.putAll(waypointRows);
-        if (complete) {
-            troopSummaries.clear();
-            troopSummaries.putAll(pendingTroopSummaries);
-            tileWaypointLinksByTileId.clear();
-            tileWaypointLinksByTileId.putAll(pendingWaypointLinks);
-            pendingTroopSummaries = null;
-            pendingWaypointLinks = null;
-        }
-    }
-
+    /** Client-thread clearing; the client publisher owns pending batches and session tokens. */
     public void clearConquestTooltip() {
-        tooltipGeneration++;
-        pendingTroopSummaries = null;
-        pendingWaypointLinks = null;
         tileWaypointLinksByTileId.clear();
-        tooltipRequiresReset = true;
         troopSummaries.clear();
     }
 
@@ -101,6 +59,5 @@ public class KOMEClientData extends KOMEWorldData {
         unitMapMarkers.clear();
         allianceDifficulty = KOMEAllianceRequirements.STANDARD;
         clientViewerIsAdmin = false;
-        conquestRevision++;
     }
 }

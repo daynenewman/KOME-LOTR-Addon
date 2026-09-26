@@ -97,14 +97,99 @@ public class KOMEPopulationRateServiceTest {
     @Test public void configuredCapturedMultiplierChangesImmediately() throws Exception {
         KOMEWorldData data=data(); build(data,"B","gondor",KOMEBuildType.NORMAL,20); data.conquestTiles.get("T1").claim("rohan",0L);
         KOMEConfigRegistry.ValidatedConfig config=KOMEConfigRegistry.currentValidated(); Field field=KOMEConfigRegistry.ValidatedConfig.class.getDeclaredField("population"); field.setAccessible(true); Object prior=field.get(config); KOMEConfigRegistry.PopulationSettings old=(KOMEConfigRegistry.PopulationSettings)prior;
-        Constructor<KOMEConfigRegistry.PopulationSettings> c=KOMEConfigRegistry.PopulationSettings.class.getDeclaredConstructor(long.class,long.class,boolean.class,boolean.class,OptionalLong.class,boolean.class); c.setAccessible(true);
-        try { field.set(config,c.newInstance(old.getHoursPerPopulationPointCentiHours(),2500L,old.isOfflinePopulationCatchUp(),old.isPopulationCapEnabled(),old.getPopulationCapCenti(),old.isEncirclementPopulationSuppressionEnabled())); assertEquals(250_000L,kome.common.data.KOMEPopulationProjection.of(data, "rohan").dailyRateUnits.longValueExact()); }
+        Constructor<KOMEConfigRegistry.PopulationSettings> c=KOMEConfigRegistry.PopulationSettings.class.getDeclaredConstructor(long.class,long.class,long.class,long.class,boolean.class,boolean.class,boolean.class,OptionalLong.class,boolean.class); c.setAccessible(true);
+        try { field.set(config,c.newInstance(old.getHoursPerPopulationPointCentiHours(),2500L,
+            old.getBottleneckRateUnitsPerActiveServerDay(), old.getRecruitmentTileActiveRateThresholdUnits(),
+            old.isOfflinePopulationCatchUp(), old.isPauseRateCeilingWhenNoPendingHours(),
+            old.isPopulationCapEnabled(),old.getPopulationCapCenti(),old.isEncirclementPopulationSuppressionEnabled())); assertEquals(250_000L,kome.common.data.KOMEPopulationProjection.of(data, "rohan").dailyRateUnits.longValueExact()); }
         finally { field.set(config,prior); }
     }
 
     @Test public void uncontrolledBuildRetainsOriginalButProducesNothing() {
         KOMEWorldData data=data(); KOMEPlayerBuild b=build(data,"B","gondor",KOMEBuildType.NORMAL,20); b.tileId="missing"; KOMEPopulationRateContribution row=KOMEPopulationService.getPopulationRateContributions(data).get(0);
         assertEquals("UNCONTROLLED",row.status); assertEquals(1_000_000L,row.originalRateUnits.longValueExact()); assertEquals(0L,row.currentRateUnits.longValueExact()); assertTrue(row.receivingFaction.length()==0);
+    }
+
+    @Test public void mixedNativeAndCapturedBuildsHaveExactlyOneCurrentRecipientAcrossTransfers() {
+        KOMEWorldData data = data();
+        build(data, "B-MORDOR", "mordor", KOMEBuildType.NORMAL, 100);
+        build(data, "B-GONDOR", "gondor", KOMEBuildType.NORMAL, 100);
+        data.conquestTiles.get("T1").claim("mordor", 1L);
+
+        assertCurrentRates(data, "mordor", 7_500_000L, "gondor", 0L, "rohan", 0L);
+        assertExclusiveRecipients(data, "mordor", "mordor");
+        assertRow(data, "B-MORDOR", "NATIVE", "mordor", 5_000_000L);
+        assertRow(data, "B-GONDOR", "CAPTURED", "mordor", 2_500_000L);
+
+        // Native -> foreign capture replaces the old totals; it never layers new
+        // recipients on top of cached/native production.
+        data.conquestTiles.get("T1").claim("gondor", 2L);
+        assertCurrentRates(data, "gondor", 7_500_000L, "mordor", 0L, "rohan", 0L);
+        assertExclusiveRecipients(data, "gondor", "gondor");
+        assertRow(data, "B-MORDOR", "CAPTURED", "gondor", 2_500_000L);
+        assertRow(data, "B-GONDOR", "NATIVE", "gondor", 5_000_000L);
+
+        // Foreign -> different foreign redirects the same developed capacity.
+        data.conquestTiles.get("T1").claim("rohan", 3L);
+        assertCurrentRates(data, "rohan", 5_000_000L, "gondor", 0L, "mordor", 0L);
+        assertExclusiveRecipients(data, "rohan", "rohan");
+        assertRow(data, "B-MORDOR", "CAPTURED", "rohan", 2_500_000L);
+        assertRow(data, "B-GONDOR", "CAPTURED", "rohan", 2_500_000L);
+
+        // Native recapture restores only the native controller's current total.
+        data.conquestTiles.get("T1").claim("mordor", 4L);
+        assertCurrentRates(data, "mordor", 7_500_000L, "gondor", 0L, "rohan", 0L);
+
+        KOMEPlayerBuild uncontrolled = build(data, "B-UNCONTROLLED", "gondor",
+            KOMEBuildType.NORMAL, 100);
+        uncontrolled.tileId = "T-MISSING";
+        assertRow(data, "B-UNCONTROLLED", "UNCONTROLLED", "", 0L);
+        assertCurrentRates(data, "mordor", 7_500_000L, "gondor", 0L, "rohan", 0L);
+    }
+
+    private static void assertCurrentRates(KOMEWorldData data,
+            String first, long firstUnits, String second, long secondUnits,
+            String third, long thirdUnits) {
+        assertEquals(firstUnits, KOMEPopulationProjection.of(data, first).dailyRateUnits.longValueExact());
+        assertEquals(secondUnits, KOMEPopulationProjection.of(data, second).dailyRateUnits.longValueExact());
+        assertEquals(thirdUnits, KOMEPopulationProjection.of(data, third).dailyRateUnits.longValueExact());
+        java.util.Map<String, java.math.BigInteger> rates =
+            KOMEPopulationRateService.getExactDailyPopulationRates(
+                data, kome.common.config.KOMEConfigRegistry.population());
+        assertEquals(firstUnits, rate(rates, first));
+        assertEquals(secondUnits, rate(rates, second));
+        assertEquals(thirdUnits, rate(rates, third));
+    }
+
+    private static long rate(java.util.Map<String, java.math.BigInteger> rates, String faction) {
+        java.math.BigInteger value = rates.get(faction);
+        return value == null ? 0L : value.longValueExact();
+    }
+
+    private static void assertExclusiveRecipients(KOMEWorldData data,
+            String firstExpected, String secondExpected) {
+        java.util.List<KOMEPopulationRateContribution> rows =
+            KOMEPopulationRateService.getPopulationRateContributions(data);
+        assertEquals(2, rows.size());
+        assertEquals(firstExpected, rows.get(0).receivingFaction);
+        assertEquals(secondExpected, rows.get(1).receivingFaction);
+        java.util.Set<String> buildIds = new java.util.HashSet<String>();
+        for (KOMEPopulationRateContribution row : rows) {
+            assertTrue("duplicate contribution for " + row.buildId, buildIds.add(row.buildId));
+        }
+    }
+
+    private static void assertRow(KOMEWorldData data, String buildId, String status,
+            String recipient, long currentUnits) {
+        for (KOMEPopulationRateContribution row
+                : KOMEPopulationRateService.getPopulationRateContributions(data)) {
+            if (!buildId.equals(row.buildId)) continue;
+            assertEquals(status, row.status);
+            assertEquals(recipient, row.receivingFaction);
+            assertEquals(currentUnits, row.currentRateUnits.longValueExact());
+            return;
+        }
+        fail("Missing contribution row " + buildId);
     }
 
     private static KOMEWorldData data() {
@@ -116,6 +201,7 @@ public class KOMEPopulationRateServiceTest {
         KOMEPlayerBuild build = new KOMEPlayerBuild(); build.id = id; build.tileId = "T1"; build.populationFaction = faction;
         build.type = type; build.active = true; KOMEBuildContribution c = new KOMEBuildContribution();
         c.id = "H" + id; c.centiHours = Math.multiplyExact((long) hours, 50L); c.status = KOMEBuildContribution.APPROVED; build.contributions.add(c);
+        if (type == KOMEBuildType.NORMAL) build.developedNativeCentiHours = c.centiHours;
         data.builds.put(id, build); return build;
     }
 }

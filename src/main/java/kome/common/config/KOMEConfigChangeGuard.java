@@ -20,6 +20,9 @@ public final class KOMEConfigChangeGuard {
                 String key = entry.getCanonicalKey();
                 if ("population.hoursPerPopulationPoint".equals(key)
                         || "population.capturedBuildMultiplier".equals(key)
+                        || "population.bottleneckRatePerActiveServerDay".equals(key)
+                        || "population.pauseRateCeilingWhenNoPendingHours".equals(key)
+                        || "population.recruitmentTileActiveRateThreshold".equals(key)
                         || "population.populationCapEnabled".equals(key)
                         || "population.populationCapValue".equals(key)
                         || "dailyBatch.timezone".equals(key)

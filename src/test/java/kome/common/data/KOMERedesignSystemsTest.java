@@ -1,7 +1,10 @@
 package kome.common.data;
 
+import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
@@ -12,6 +15,15 @@ import static org.junit.Assert.*;
 /** Cross-system regression coverage for Builds, split population, companies, and stage milestones. */
 public class KOMERedesignSystemsTest {
     @org.junit.Rule public final KOMETileTestResources tileGeometry = new KOMETileTestResources();
+
+    @Before
+    @After
+    public void resetRelations() {
+        setLotrRelation("gondor", "rohan", KOMEDiplomacyRelation.NEUTRAL);
+        setLotrRelation("gondor", "bree", KOMEDiplomacyRelation.NEUTRAL);
+        setLotrRelation("rohan", "bree", KOMEDiplomacyRelation.NEUTRAL);
+        setLotrRelation("gondor", "mordor", KOMEDiplomacyRelation.NEUTRAL);
+    }
     @Test public void hundredthAndQuarterHoursAreExact() {
         assertEquals(1L, KOMEBuildTime.parseHours("0.01"));
         assertEquals(10L, KOMEBuildTime.parseHours("0.10"));
@@ -282,7 +294,7 @@ public class KOMERedesignSystemsTest {
         assertEquals(3, KOMEBuildService.buildsInTile(data, "T100", false).size());
     }
 
-    @Test public void deletionReversesApprovedAndPendingContributionStatuses() {
+    @Test public void deletionRetainsApprovedHistoryRejectsPendingAndStopsProduction() {
         KOMEWorldData data = dataWithTile("T100", "gondor", "gondor");
         KOMEPlayerBuild build = build(data, "gondor", 2, 0);
         KOMEBuildContribution approved = build.contributions.get(0);
@@ -290,10 +302,11 @@ public class KOMERedesignSystemsTest {
             "Helper", "rohan", 50L, false, 20L);
         assertTrue(KOMEBuildService.deleteBuild(data, build, build.managerUuid,
             build.managerName, false, "delete", 40L).allowed);
-        assertTrue(approved.isRemoved());
+        assertTrue(approved.isApproved());
         assertEquals(KOMEBuildContribution.REJECTED, pending.status);
-        assertTrue(build.activeCentiHoursByPlayer().isEmpty());
-        assertTrue(build.activeCentiHoursByFaction().isEmpty());
+        assertEquals(100L, build.approvedCentiHours());
+        assertFalse(build.active);
+        assertEquals(0L, KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
     }
 
     @Test public void buildAndContributionPersistenceRoundTrip() {
@@ -377,7 +390,8 @@ public class KOMERedesignSystemsTest {
         assertEquals(java.util.Collections.singletonList(defensive), KOMEBuildService.activeDefensiveBuilds(data));
         assertTrue(KOMEBuildService.decideSubmission(data, normal, normal.contributions.get(0).id,
             normal.managerUuid, "Builder", true, "Reviewed", 11L).allowed);
-        assertEquals(400_000L, kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
+        assertEquals(400L, normal.pendingNativeCentiHours());
+        assertEquals(0L, kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
         assertEquals(300L, defensive.approvedCentiHours());
     }
 
@@ -700,10 +714,14 @@ public class KOMERedesignSystemsTest {
             String first,
             String second,
             KOMEDiplomacyRelation relation) {
-        KOMEDiplomacyRecord record = new KOMEDiplomacyRecord(first, second);
-        record.relation = relation;
-        record.updatedAt = 1L;
-        data.canonicalDiplomacyRecords.put(record.key(), record);
+        setLotrRelation(first, second, relation);
+    }
+    private static void setLotrRelation(String first, String second,
+            KOMEDiplomacyRelation relation) {
+        LOTRFactionRelations.overrideRelations(
+            KOMEAlliance.findLotrFaction(first),
+            KOMEAlliance.findLotrFaction(second),
+            relation.toLotrRelation());
     }
     private static KOMEAlliance establishSharedStage(KOMEWorldData data, String first, String second, int stage) {
         KOMEAlliance alliance = data.getAlliance(first, second, true);

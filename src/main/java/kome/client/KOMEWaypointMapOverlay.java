@@ -64,8 +64,7 @@ public final class KOMEWaypointMapOverlay {
         boolean nativeUnlocked = waypoint.hasPlayerUnlocked(minecraft.thePlayer);
         boolean progression = KOMEWaypointAccessService.hasNativeProgression(minecraft.thePlayer, waypoint);
         KOMEWaypointAccessService.Decision decision = KOMEWaypointAccessService.evaluatePlayer(minecraft.thePlayer, waypoint, progression);
-        if (decision.state == KOMEWaypointAccessService.State.DISABLED
-                || decision.state == KOMEWaypointAccessService.State.UNMAPPED) {
+        if (decision.state == KOMEWaypointAccessService.State.DISABLED) {
             return;
         }
         if (!decision.territoryAllowed) {
@@ -73,6 +72,10 @@ public final class KOMEWaypointMapOverlay {
             return;
         }
         if (!progression || nativeUnlocked) {
+            return;
+        }
+        if (decision.state == KOMEWaypointAccessService.State.UNMAPPED
+                && decision.waypointFaction.length() == 0) {
             return;
         }
         LOTRPlayerData playerData = LOTRLevelData.getData(minecraft.thePlayer);
@@ -119,7 +122,12 @@ public final class KOMEWaypointMapOverlay {
 
     private void drawDecision(int screenWidth, KOMEWaypointAccessService.Decision decision) {
         FontRenderer font = Minecraft.getMinecraft().fontRenderer;
-        String owner = decision.tileOwner.length() == 0 ? "Unclaimed" : KOMEAlliance.displayFactionName(decision.tileOwner);
+        String owner = decision.tileOwner.length() == 0
+            ? "Unclaimed / unmapped" : KOMEAlliance.displayFactionName(decision.tileOwner);
+        String waypointFaction = decision.waypointFaction.length() == 0
+            ? "None" : KOMEAlliance.displayFactionName(decision.waypointFaction);
+        String diplomaticOwner = decision.diplomaticOwner.length() == 0
+            ? "None" : KOMEAlliance.displayFactionName(decision.diplomaticOwner);
         String state;
         int color;
         switch (decision.state) {
@@ -127,8 +135,12 @@ public final class KOMEWaypointMapOverlay {
                 state = "OWN TERRITORY";
                 color = 0xFF55FF55;
                 break;
-            case ALLY:
-                state = "ALLIED TERRITORY";
+            case DIPLOMATIC:
+                state = "FOREIGN ACCESS";
+                color = 0xFF55AAFF;
+                break;
+            case NATIVE_FALLBACK:
+                state = "NATIVE FALLBACK";
                 color = 0xFF55AAFF;
                 break;
             case UNCLAIMED:
@@ -139,16 +151,13 @@ public final class KOMEWaypointMapOverlay {
                 state = "ACCESS DENIED";
                 color = 0xFFFF5555;
                 break;
-            case BYPASS:
-                state = "ADMIN BYPASS";
-                color = 0xFFFFAA00;
-                break;
             default:
                 state = "NATIVE LOTR RULES";
                 color = 0xFFAAAAAA;
                 break;
         }
-        String line1 = "KOME destination: " + state + " | Owner: " + owner;
+        String line1 = "KOME destination: " + state + " | Diplomatic owner: "
+            + diplomaticOwner + " | Native: " + waypointFaction + " | Territory: " + owner;
         String line2 = decision.reason;
         int width = Math.min(screenWidth - 16, Math.max(font.getStringWidth(line1), font.getStringWidth(line2)) + 12);
         int x = (screenWidth - width) / 2;

@@ -63,13 +63,29 @@ public class KOMEAllianceModelTest {
         KOMEConquestTile tile = new KOMEConquestTile("T001");
         tile.claim("mordor", 0L);
         data.conquestTiles.put(tile.id, tile);
+        lotr.common.fac.LOTRFaction gondor = KOMEAlliance.findLotrFaction("gondor");
+        lotr.common.fac.LOTRFaction mordor = KOMEAlliance.findLotrFaction("mordor");
+        LOTRFactionRelations.Relation before =
+            LOTRFactionRelations.getRelations(gondor, mordor);
+        try {
+            LOTRFactionRelations.overrideRelations(
+                gondor, mordor, LOTRFactionRelations.Relation.ENEMY);
+            KOMEWaypointAccessService.Decision denied =
+                KOMEWaypointAccessService.evaluateResolvedTile(
+                    data, UUID.randomUUID(), "gondor", false, tile.id, true);
+            assertFalse(denied.finalAllowed);
+            assertEquals(KOMEWaypointAccessService.State.DENIED, denied.state);
 
-        KOMEWaypointAccessService.Decision decision =
-            KOMEWaypointAccessService.evaluateResolvedTile(
-                data, UUID.randomUUID(), "gondor", false, tile.id, true);
-
-        assertFalse(decision.finalAllowed);
-        assertEquals(KOMEWaypointAccessService.State.DENIED, decision.state);
+            LOTRFactionRelations.overrideRelations(
+                gondor, mordor, LOTRFactionRelations.Relation.NEUTRAL);
+            KOMEWaypointAccessService.Decision allowed =
+                KOMEWaypointAccessService.evaluateResolvedTile(
+                    data, UUID.randomUUID(), "gondor", false, tile.id, true);
+            assertTrue(allowed.finalAllowed);
+            assertEquals(KOMEWaypointAccessService.State.DIPLOMATIC, allowed.state);
+        } finally {
+            LOTRFactionRelations.overrideRelations(gondor, mordor, before);
+        }
     }
     @Test public void stageTwoMerchantEntitlementPersistsAcrossBreak() {
         KOMEAlliance alliance = active("gondor", "rohan");
