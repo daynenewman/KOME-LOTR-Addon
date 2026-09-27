@@ -1,5 +1,24 @@
 # KOM-74 conquest synchronization
 
+## Review status (2026-09-27)
+
+Prepared as a synchronization-only review on
+`review/kom-74-conquest-sync-20260927`, based on validated checkpoint
+`343c135431867df1dff8b757221e9a9e58b4f161`. Freshly fetched `origin/dev` remains
+`38713a4a2559b0e80d6b96756cf47adcebb80200`; no reconciliation is required.
+Production source, resources, tests and measurement tools are identical to that
+checkpoint. Only documentation/evidence is added here. Reuse the 1,105 passing
+tests, two existing symlink skips, 72 focused tests and final 16-test source-sync
+rerun; no unchanged full build was repeated. The dated sections below describe
+historical checkpoints; this section and the final review checks supersede their
+pending-state wording.
+
+KOM-77 map-opening work is excluded from this review. It is preserved locally on
+`dayne/kom-77-map-opening`: run-cache commit `c147e1914b59f47595e5c33448c53d2eb2b85695`
+and pixel-conversion checkpoint `01c171ded13b16b48cbe224c984df9b77a5bc334`.
+The user accepts the remaining first-opening pause as non-blocking and deferred
+further optimization. That does not establish complete visual acceptance.
+
 ## Scope and source of the redundant work
 
 Baseline: `origin/dev` at `38713a4a2559b0e80d6b96756cf47adcebb80200`.
@@ -213,3 +232,129 @@ No established runtime/world, other worktree, prior audit or protected stash was
 modified. Nothing was pushed, merged, published as a PR, or deployed to the shared
 server. The local checkpoint includes only this scoped implementation, tests,
 measurement tool/results and this report.
+
+
+## Connected idle observation (2026-09-26, after checkpoint)
+
+`_Danye_` connected to the matching KOM74 profile/server, non-operator. A
+synchronized 30-second capture kept the same map position (1057.5039,825.5039)
+and zoom1.0. It recorded **zero conquest requests/chunks/handler calls** and
+**29 unit-marker updates /116 encoded bytes**. Actual encrypted stream totals
+matched at sender/receiver: **33,835 server-to-client bytes** and **27,406
+client-to-server bytes** across all game traffic. These exclude TCP/IP headers
+and retransmissions; Netty buffer calls are not packet counts. Client marker
+decode/handler wall costs totaled0.1581/0.0824ms; game-loop median/p95 were
+13.30/15.06ms, including frame pacing and instrumentation. No ownership-texture
+rebuild occurred. This is an idle observation, not before/after FPS acceptance.
+
+A subsequent read-only refresh-request experiment was interrupted by a bandit
+killing the player: the capture began on the death screen and ended on chat.
+It is excluded from stationary-map comparisons. No forced-reference comparison,
+meaningful gameplay-change test or visual acceptance is claimed. The ten
+probe-issued requests did not change the sampled dirty flag; that does not
+establish absence of unrelated background mutations. No permissions, progression
+or gameplay records were edited by the observer.
+
+Both processes' original method bodies were restored and verified to contain no
+observer calls. No restart/artifact replacement was needed. External raw evidence,
+observer source, cleanup verification and caveats are retained in
+`KOME-Validation/kom74-20260926T215215Z-9fc9b2/live-sync/README.md`.
+The earlier native-measurement limitation above now remains only for the matched
+active/forced-reference comparison. Arrange a safe player location before the
+next stationary capture. KOM-74 remains In Progress.
+
+
+## Sheltered stationary live comparison (2026-09-26)
+
+Player _Danye_ stayed in Middle-earth at 21276.5,66,19564.5, non-operator.
+Read-only inspection before capture found health20, hurtTime0, enclosed solid
+floor/walls/roof and no entities within the checked 8-block horizontal/4-block
+vertical box. This is a point-in-time safety observation, not invulnerability.
+All three synchronized 15-second captures started and ended on LOTRGuiMap at
+posX1057.5039,posY826.5039,zoom1.0. Same client/server artifact and instrumentation.
+
+| Measurement (15 seconds) | Idle | 10 conditional requests, 1 Hz | 10 forced full requests, 1 Hz |
+|---|---:|---:|---:|
+| Conquest encoded/decoded chunks and handler calls | 0 | 0 | 210 |
+| Conquest payload bytes | 0 | 0 | 324,260 |
+| Native encrypted stream server-to-client bytes | 18,851 | 17,990 | 345,442 |
+| Native encrypted stream client-to-server bytes | 13,698 | 13,533 | 13,606 |
+| Source send-method cumulative wall time (ms) | 0 | 19.924 | 191.4222 |
+| Client conquest decode/handler cumulative wall time (ms) | 0/0 | 0/0 | 29.3917/19.913 |
+| Ownership texture rebuilds | 0 | 0 | 0 |
+| Game-loop median/p95 (ms) | 13.2863/15.1014 | 13.4168/15.3323 | 13.3336/15.2945 |
+| Overlay cumulative wall time / calls | 6352.3515ms/1117 | 6299.192ms/1102 | 6295.4487ms/1109 |
+
+Native byte totals match sender and receiver exactly; they include ALL Minecraft
+traffic, excluding TCP/IP overhead, ACKs and retransmissions. Buffer call counts
+are not packet counts. Source timings include nested codec work; do not add them
+to codec totals. Frames include pacing and observer overhead. Overlay timing
+uses the verified production onDrawMap method in this capture. Marker updates
+remain 15/14/15 respectively (60/56/60 encoded bytes).
+
+This comparison exercises the current production conditional path versus its
+forced full-publication path, not an old binary before/after benchmark. It
+isolates redundant-refresh suppression without editing world records. No FPS
+improvement was demonstrated. Real-change live update latency, visual acceptance
+and reconnect/dimension checks remain pending; controlled meaningful-change
+measurements and automated tests are documented above. Sampled dirty flags were
+false before/after all 20 diagnostic requests, not proof they never changed
+between samples. No ownership, population, progression, Build or permission
+mutations were requested. Operator list remains empty.
+
+Original method bodies restored in both processes and bytecode verified with
+zero temporary counter calls (6 server/8 client classes); inactive transformer
+registration remains until process exit. No restart or artifact replacement.
+External reproducible observer source, raw start/end readings, request records,
+cleanup verification and file hashes: disposable live-sync-sheltered directory.
+KOM-74 remains In Progress; KOM-46 relations unchanged.
+
+## Final targeted review checks (2026-09-27)
+
+**Reconnect initialization:** existing actual-client traces from
+`first-map-open-after/candidate-final.tsv` show three distinct disconnect/connect
+cycles, client session clearing, and a completed `Snapshot.publish` on the client
+thread before each map opening (4.625, 4.921 and 2.153 seconds before opening).
+These confirm initialization delivery, not every visual or private-data scenario.
+No redundant reconnect was requested.
+
+**Meaningful live delivery:** one bounded diagnostic sent a changed public owner
+from a detached copy through production `sendIfChanged`, the real Forge/Netty
+connection and the normal client publication path. The sole disposable player
+was _Danye_. T132 progressed from dunedain to gondor in client state and back to
+dunedain after a forced canonical refresh; the same detached object was used for
+baseline, changed and repeated requests. All four client observations retained
+330 published ownership rows and 269 waypoint links. This tests live meaningful
+payload delivery, not an actual gameplay ownership mutation or visual acceptance.
+No saved record, canonical owner, permission or progression value was edited.
+The canonical public projection remained exactly equal at all four server-thread
+checks; sampled dirty flags were false (not proof about unsampled background
+activity). Detached references were cleared after restoration. No transformer,
+listener, worker or periodic diagnostic was installed by this check.
+
+The running disposable artifact includes separate KOM-77 rendering work. To
+establish applicability, all 406 common and relevant client proxy/queue/snapshot
+class files were compared byte-for-byte with the preserved KOM-74 artifact:
+zero differences. The KOM-74 production JAR hash remains
+`eab9872461259a89a22baa4fd0f8bb43848f836e64b0933f0d80a4a216a3f130`;
+the running disposable JAR is
+`c45c9e41bcb8d06e9bce3e482fc6b7dd08afbf572d217f0ee20f51a0a940d825`.
+No claim is made that the full two JARs are identical. Archived full test XML was
+recounted: 1,107 discovered, 1,105 passed, two skipped, zero failures/errors.
+Archive SHA-256: `a4f278fc077b1fe5c6fab9dfffdaa99c9edde1d2a1c5a7c771de780f0e300ee1`.
+
+Reproducible local diagnostics and hash evidence:
+`KOME-Validation/kom74-20260926T215215Z-9fc9b2/review-delivery/`.
+`DeliveryCheck.java` contains process/profile/player guards, server/client-thread
+scheduling and detached-state construction. `validation.json` records relevant
+class parity, XML counts and trace hashes. The compiled diagnostic stays outside
+production artifacts and this PR.
+
+Remaining checks: broad multi-player/privacy acceptance, live respawn/dimension
+visual checks, and an ordinary authorized gameplay mutation followed by visual
+confirmation. Automated respawn/dimension, permissions, removals/zero values,
+ordering, failure and queue-bound coverage remains applicable. No general FPS,
+first-opening, or per-change latency improvement is claimed. The demonstrated
+benefit is elimination of redundant complete publications under the documented
+workloads. No runtime restart/replacement, saved-world mutation, geography or
+schema change was needed for review preparation; existing runtimes remain intact.
