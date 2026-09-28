@@ -187,6 +187,8 @@ public class KOMEConquestSyncTest {
     }
     public static final class FailingNetwork extends SimpleNetworkWrapper {
         private FailingNetwork(){super("unused");}
-        @Override public void sendTo(IMessage message,EntityPlayerMP player){throw new IllegalStateException("test dispatch failure");}
+        @Override public net.minecraft.network.Packet getPacketFrom(IMessage message) {
+            throw new IllegalStateException("test dispatch failure");
+        }
     }
 }

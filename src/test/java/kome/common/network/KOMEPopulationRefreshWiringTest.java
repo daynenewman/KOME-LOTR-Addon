@@ -119,6 +119,9 @@ public class KOMEPopulationRefreshWiringTest {
         private List<IMessage> messages;
         private List<EntityPlayerMP> recipients;
         private RecipientNetwork() { super("unused"); }
+        @Override public net.minecraft.network.Packet getPacketFrom(IMessage message) {
+            return new KOMEAccessFixture.RecordedPacket(message);
+        }
         @Override public void sendTo(IMessage message, EntityPlayerMP recipient) {
             messages.add(message); recipients.add(recipient);
         }

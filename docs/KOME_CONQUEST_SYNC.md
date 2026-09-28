@@ -1,6 +1,63 @@
 # KOM-74 conquest synchronization
 
-## Review status (2026-09-27)
+## Dispatch-failure correction (2026-09-28)
+
+PR #13 review at `52c7fa94` exposed a recovery hole: Forge's void `sendTo`
+returns after initiating a write and hides its failed future. Furthermore its
+embedded outbound handler reports handoff success before the underlying
+connection write completes. The original direct-throw mock did not cover either
+boundary. A partial snapshot could therefore become the cached baseline and
+suppress an unchanged retry indefinitely.
+
+Conquest chunks now use the same registered Forge encoder (`getPacketFrom`),
+then `NetworkManager.scheduleOutboundPacket` with a write-outcome listener.
+This preserves packet discriminator 13, byte encoding, connection ordering and
+normal Forge/Netty processing. Missing/closed connections are not queued by this
+sender; they mark that publication unsuccessful. Synchronous encoding/dispatch
+exceptions leave no baseline. No other packet sender is changed.
+
+Each publication owns one transport receipt with a monotonic atomic failure bit.
+Only the server thread reads/writes recipient cache entries. Netty callbacks
+only flag their own receipt, without consulting the cache or retaining the
+player, WorldData, connection or session. Replacing/forgetting a cache entry
+retires its receipt. Thus delayed failures/successes cannot invalidate or rescue
+a newer publication, a reconnected player or a new server session.
+
+An identical request may coalesce while writes are pending. Once any failed or
+cancelled write is observed, the next request sends a full reset/continuation/
+completion sequence, even if the data is unchanged or has reverted. No retry
+is initiated by a callback: there is no timer, worker, extra task queue or
+unbounded retry loop. The 256-recipient limit and lifecycle clearing remain.
+
+The guarantee is **observed outbound-write failure permits a subsequent request
+to retry**. Successful Netty writes do not prove client receipt, decoding, queued
+publication or visual application. Client queue rejection still requires an
+explicit resync/reconnect; this is not an application-acknowledgement protocol.
+
+The original failing final-chunk scenario is retained in
+`KOMEConquestDispatchFailureReviewTest`, using the real Forge codec and Minecraft
+NetworkManager with an embedded connection and injected write-promise failures.
+Eleven regressions cover first/middle/final failures, asynchronous current and
+older outcomes, unchanged/reverted data, same-UUID reconnect, same-player new
+connection, server reset, pending/success deduplication and closed connections.
+These are injected automated failures, not claimed live outages. Existing inert
+fixtures and the opt-in TCP measurement transport were adapted to the new send
+entry point without weakening their assertions or changing workload semantics.
+
+Focused sender, ordered publication, population/waypoint and lifecycle suites:
+**58 passed, zero failures/errors/skips**. Final clean test/build result is
+**1,118 discovered, 1,116 passed, two existing Windows custom-skin symlink
+skips, zero failures/errors**. An incremental build after duplicate-import
+cleanup also passed and the packaged source matches the reviewed source.
+Production artifact: `build/libs/KOME-LOTR-Addon-1.0.8.jar`, SHA-256
+`46fc0186b57faafa05ac2d5458576157847b4dd9c1550e71b564fa0a6d75a3bc`.
+No runtime was refreshed. Broad multiplayer/
+privacy acceptance, live respawn/dimension visual checks, and ordinary authorized
+mutation plus visual confirmation remain pending. KOM-77 remains excluded and
+non-blocking. Historical traffic measurements below were made before this
+listener correction and are not new performance measurements of this artifact.
+
+## Review status (2026-09-27; before dispatch correction)
 
 Prepared as a synchronization-only review on
 `review/kom-74-conquest-sync-20260927`, based on validated checkpoint
@@ -63,11 +120,9 @@ its eligibility rules, or its cadence.
   resynchronization APIs. Respawn and dimension-change hooks use them because
   client world unload resets the incoming accumulator. Login uses the conditional
   path after reconciliation; a new connection always gets its initial baseline.
-- Failed synchronous dispatch discards the sent baseline so the next request
-  starts with a complete reset. As before, dispatch is not a client application
-  acknowledgement. Network failure requires reconnection; exceptional client
-  queue overload remains logged, with explicit resynchronization/reconnection
-  available. This task adds no acknowledgement protocol or retry timer.
+- Dispatch outcomes and recovery follow the 2026-09-28 contract above. A failed
+  write permits a subsequent full retry; successful writes are not client
+  application acknowledgements. No retry timer or wire protocol is added.
 - All source projection/cache work runs on the existing server-thread call paths.
   No worker, additional periodic scan, debounce latency, or client packet is added.
 

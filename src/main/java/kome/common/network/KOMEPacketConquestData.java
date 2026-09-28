@@ -5,6 +5,8 @@ import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
@@ -22,6 +24,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.network.NetHandlerPlayServer;
+import net.minecraft.network.Packet;
 import net.minecraft.world.World;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -29,6 +32,7 @@ import net.minecraft.nbt.NBTTagList;
 import java.util.IdentityHashMap;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class KOMEPacketConquestData implements IMessage {
     private static final int MAX_ENTRIES_PER_PACKET = 48;
@@ -166,22 +170,24 @@ public class KOMEPacketConquestData implements IMessage {
         SentSnapshot previous = SENT.get(player);
         LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
         boolean operator = player.canCommandSenderUseCommand(2, "conquest");
-        if (!force && previous != null && previous.matches(worldData, player, pledge, operator)
+        if (!force && previous != null && !previous.dispatch.failed.get()
+                && previous.matches(worldData, player, pledge, operator)
                 && previous.data.equals(projection)) return;
 
         // A failed/partial dispatch must retry a complete reset, even if data later reverts.
         SENT.remove(player);
-        sendProjection(projection, player);
+        SentSnapshot publication = new SentSnapshot(worldData, player, pledge, operator, projection);
+        sendProjection(projection, publication);
         if (SENT.size() >= MAX_RECIPIENTS) SENT.remove(SENT.keySet().iterator().next());
-        SENT.put(player, new SentSnapshot(worldData, player, pledge, operator, projection));
+        SENT.put(player, publication);
     }
 
-    private static void sendProjection(NBTTagCompound projection, EntityPlayerMP player) {
+    private static void sendProjection(NBTTagCompound projection, SentSnapshot publication) {
         int lastSection = -1;
         for (int i = 0; i < SECTIONS.length; i++)
             if (projection.getTagList(SECTIONS[i], 10).tagCount() > 0) lastSection = i;
         if (lastSection < 0) {
-            KOMEPacketHandler.network.sendTo(new KOMEPacketConquestData(new NBTTagCompound(), true, true), player);
+            dispatch(new KOMEPacketConquestData(new NBTTagCompound(), true, true), publication);
             return;
         }
         boolean first = true;
@@ -193,14 +199,40 @@ public class KOMEPacketConquestData implements IMessage {
                 for (int i = start; i < end; i++) chunkList.appendTag(rows.getCompoundTagAt(i).copy());
                 NBTTagCompound chunk = new NBTTagCompound();
                 chunk.setTag(SECTIONS[section], chunkList);
-                KOMEPacketHandler.network.sendTo(new KOMEPacketConquestData(chunk, first,
-                    section == lastSection && end == rows.tagCount()), player);
+                dispatch(new KOMEPacketConquestData(chunk, first,
+                    section == lastSection && end == rows.tagCount()), publication);
                 first = false;
             }
         }
     }
 
+    /** Use Forge's encoder, but observe the real connection write, not its embedded handoff. */
+    private static void dispatch(KOMEPacketConquestData packet, SentSnapshot publication) {
+        NetHandlerPlayServer connection = publication.connection;
+        if (connection == null || connection.netManager == null || !connection.netManager.isChannelOpen()) {
+            publication.dispatch.failed.set(true);
+            return;
+        }
+        Packet encoded = KOMEPacketHandler.network.getPacketFrom(packet);
+        if (encoded == null) throw new IllegalStateException("Conquest packet encoding produced no packet");
+        connection.netManager.scheduleOutboundPacket(encoded, publication.dispatch);
+    }
+
+    /**
+     * Transport-only receipt: callbacks never access recipients, sessions or the server-owned map.
+     * A receipt belongs to exactly one publication. Retired receipts cannot affect newer entries.
+     * Pending identical requests coalesce; any observed failure permits the next request to retry.
+     * Successful writes are NOT acknowledgements of client decoding/application.
+     */
+    private static final class DispatchReceipt implements GenericFutureListener<Future<? super Void>> {
+        private final AtomicBoolean failed = new AtomicBoolean();
+        @Override public void operationComplete(Future<? super Void> future) {
+            if (!future.isSuccess()) failed.set(true);
+        }
+    }
+
     private static final class SentSnapshot {
+        private final DispatchReceipt dispatch = new DispatchReceipt();
         private final KOMEWorldData worldData;
         private final World world;
         private final NetHandlerPlayServer connection;

@@ -86,6 +86,9 @@ public final class KOMEConquestSyncMeasurement {
         volatile Throwable failure; volatile long received,completed,decodeNanos,handlerNanos;
         long sent,payload,streamBytes,encodeNanos;
         private Transport(){super("unused");}
+        @Override public net.minecraft.network.Packet getPacketFrom(IMessage message) {
+            return new KOMEAccessFixture.RecordedPacket(message);
+        }
         void start() throws Exception {
             listen=new ServerSocket(0,1,InetAddress.getLoopbackAddress());
             sender=new Socket(InetAddress.getLoopbackAddress(),listen.getLocalPort());

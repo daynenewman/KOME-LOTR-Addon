@@ -16,6 +16,11 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.network.INetHandler;
+import net.minecraft.network.NetworkManager;
+import net.minecraft.network.Packet;
+import net.minecraft.network.PacketBuffer;
+import io.netty.util.concurrent.GenericFutureListener;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import net.minecraft.network.NetHandlerPlayServer;
 import net.minecraft.profiler.Profiler;
 import net.minecraft.util.IChatComponent;
@@ -53,6 +58,9 @@ public final class KOMEAccessFixture {
         network.messages = new ArrayList<IMessage>();
         NetHandlerPlayServer handler = allocate(NetHandlerPlayServer.class);
         handler.playerEntity = player;
+        RecordingManager manager = new RecordingManager(); manager.recipient = player;
+        set(NetHandlerPlayServer.class, handler, "netManager", manager);
+        player.playerNetServerHandler = handler;
         Constructor<MessageContext> constructor = MessageContext.class.getDeclaredConstructor(INetHandler.class, Side.class);
         constructor.setAccessible(true);
         context = constructor.newInstance(handler, Side.SERVER);
@@ -91,6 +99,28 @@ public final class KOMEAccessFixture {
         public List<IMessage> messages;
         private RecordingNetwork() { super("unused"); }
         @Override public void sendTo(IMessage message, EntityPlayerMP recipient) { messages.add(message); }
+        @Override public Packet getPacketFrom(IMessage message) { return new RecordedPacket(message); }
+    }
+
+    /** Inert analogue of getPacketFrom + NetworkManager, preserving recipient-aware test recording. */
+    public static final class RecordedPacket extends Packet {
+        final IMessage message;
+        public RecordedPacket(IMessage message) { this.message = message; }
+        @Override public void readPacketData(PacketBuffer buffer) { throw new UnsupportedOperationException(); }
+        @Override public void writePacketData(PacketBuffer buffer) { throw new UnsupportedOperationException(); }
+        @Override public void processPacket(INetHandler handler) { throw new UnsupportedOperationException(); }
+    }
+    private static final class RecordingManager extends NetworkManager {
+        EntityPlayerMP recipient;
+        RecordingManager() { super(false); }
+        @Override public boolean isChannelOpen() { return true; }
+        @Override public void scheduleOutboundPacket(Packet packet, GenericFutureListener... listeners) {
+            kome.common.network.KOMEPacketHandler.network.sendTo(((RecordedPacket) packet).message, recipient);
+            for (GenericFutureListener listener : listeners) {
+                try { listener.operationComplete(ImmediateEventExecutor.INSTANCE.newSucceededFuture(null)); }
+                catch (Exception error) { throw new AssertionError(error); }
+            }
+        }
     }
 
     public static final class TestWorld extends World {
