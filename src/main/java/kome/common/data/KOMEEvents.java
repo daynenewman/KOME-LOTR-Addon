@@ -10,6 +10,7 @@ import kome.common.KOMEReflection;
 import kome.common.command.KOMECommandTroops;
 import kome.common.network.KOMEPacketAllianceData;
 import kome.common.network.KOMEPacketHandler;
+import kome.common.network.KOMEPacketConquestData;
 import kome.common.network.KOMEPacketLordMenu;
 import kome.common.network.KOMEPacketUnitMapMarkers;
 import lotr.common.LOTRLevelData;
@@ -97,6 +98,7 @@ public class KOMEEvents {
     private final KOMEPopulationPayoutRuntime populationPayoutRuntime = new KOMEPopulationPayoutRuntime();
 
     public void resetSessionState() {
+        KOMEPacketConquestData.clearSentSnapshots();
         lastCoinValues.clear();
         lastCoinCounts.clear();
         lastStoneCraftDenials.clear();
@@ -118,7 +120,7 @@ public class KOMEEvents {
             data.rememberPlayerName(KOMEReflection.getEntityUUID(event.player), event.player.getCommandSenderName());
             KOMEPledgeReleaseService.observePledge(data, (EntityPlayerMP) event.player,
                 getActualPledgeFactionKey(event.player), System.currentTimeMillis());
-            data.syncConquestTiles((EntityPlayerMP) event.player);
+            KOMEPacketConquestData.sendIfChanged(data, (EntityPlayerMP) event.player);
             sendAllianceRefresh((EntityPlayerMP) event.player, data);
             KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
             KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP) event.player, data.getProgression(KOMEReflection.getEntityUUID(event.player)));
@@ -130,6 +132,23 @@ public class KOMEEvents {
     @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         KOMEAllianceRecordBuilder.clearOperatorView(event.player);
+        if (event.player instanceof EntityPlayerMP)
+            KOMEPacketConquestData.forgetRecipient((EntityPlayerMP) event.player);
+    }
+
+    @SubscribeEvent
+    public void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        resyncConquestAfterWorldChange(event.player);
+    }
+
+    @SubscribeEvent
+    public void onPlayerChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        resyncConquestAfterWorldChange(event.player);
+    }
+
+    private void resyncConquestAfterWorldChange(EntityPlayer player) {
+        if (player instanceof EntityPlayerMP)
+            KOMEWorldData.get(KOMEReflection.getWorld(player)).syncConquestTiles((EntityPlayerMP) player);
     }
 
     @SubscribeEvent
@@ -232,11 +251,14 @@ public class KOMEEvents {
         if (server == null || server.worldServers == null) {
             return;
         }
+        java.util.Set<KOMEWorldData> processed = java.util.Collections.newSetFromMap(
+            new java.util.IdentityHashMap<KOMEWorldData, Boolean>());
         for (WorldServer world : server.worldServers) {
             if (world == null || KOMEReflection.isRemote(world)) {
                 continue;
             }
             KOMEWorldData data = KOMEWorldData.get(world);
+            if (!processed.add(data)) continue;
             data.ensureAutomaticTileWaypointLinks();
             data.syncConquestTiles();
         }

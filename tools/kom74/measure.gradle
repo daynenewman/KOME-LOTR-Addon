@@ -1,0 +1,23 @@
+// Opt-in only. Use an external git-show copy of the old packet source for a matched baseline.
+allprojects {
+    def oldSource = project.findProperty('measurementBaselineSource')
+    if (oldSource) {
+        tasks.register('compileConquestSyncBaseline', JavaCompile) {
+            dependsOn tasks.named('classes')
+            source = files(oldSource)
+            classpath = sourceSets.test.compileClasspath + sourceSets.main.output
+            destinationDirectory = layout.buildDirectory.dir('kom74-baseline-classes')
+            sourceCompatibility = '1.8'
+            targetCompatibility = '1.8'
+            options.encoding = 'UTF-8'
+        }
+    }
+    tasks.register('measureConquestSync', JavaExec) {
+        dependsOn tasks.named('testClasses')
+        if (oldSource) dependsOn tasks.named('compileConquestSyncBaseline')
+        classpath = (oldSource ? files(layout.buildDirectory.dir('kom74-baseline-classes')) : files()) + sourceSets.test.runtimeClasspath
+        mainClass = 'kome.client.KOMEConquestSyncMeasurement'
+        args project.findProperty('measurementWorld'), project.findProperty('measurementOutput')
+        maxHeapSize = '768m'
+    }
+}
