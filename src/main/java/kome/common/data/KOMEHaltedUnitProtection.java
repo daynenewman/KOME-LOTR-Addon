@@ -31,7 +31,9 @@ public final class KOMEHaltedUnitProtection {
     }
 
     public static void onHornHalted(LOTREntityNPC npc) {
-        applyInactiveState(npc);
+        if (isActiveHiredWarrior(npc)) {
+            applyInactiveState(npc);
+        }
     }
 
     public static void onHornReady(LOTREntityNPC npc) {
@@ -42,7 +44,7 @@ public final class KOMEHaltedUnitProtection {
     }
 
     public static boolean isProtectedRecord(KOMEWorldData data, World world, KOMEHiredUnitRecord record) {
-        if (record == null || record.farmhand) {
+        if (!KOMEHiredUnitClassification.isCampaignUnit(record) || record.farmhand) {
             return false;
         }
         EntityLivingBase live = world == null ? null : findLiveEntity(world, record.entity);
@@ -117,7 +119,9 @@ public final class KOMEHaltedUnitProtection {
                 || !npc.hiredNPCInfo.isActive || npc.hiredNPCInfo.getTask() != LOTRHiredNPCInfo.Task.WARRIOR) {
             return false;
         }
-        return true;
+        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
+        return KOMEHiredUnitClassification.isCampaignUnit(
+            data, KOMEReflection.getEntityUUID(npc));
     }
 
     private static EntityLivingBase findLiveEntity(World world, UUID uuid) {
@@ -149,7 +153,7 @@ public final class KOMEHaltedUnitProtection {
         }
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
         KOMEHiredUnitRecord record = data.hiredUnits.get(KOMEReflection.getEntityUUID(npc));
-        if (record != null && !record.isMoving()) {
+        if (KOMEHiredUnitClassification.isCampaignUnit(record) && !record.isMoving()) {
             record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
             data.markDirty();
         }

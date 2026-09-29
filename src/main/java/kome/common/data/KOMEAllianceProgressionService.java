@@ -186,7 +186,8 @@ public final class KOMEAllianceProgressionService {
         String expectedFaction = KOMEAlliance.normalizeFactionKey(faction);
         for (java.util.UUID unitId : company.units) {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
-            if (record != null && !record.populationReturned && !record.farmhand
+            if (KOMEHiredUnitClassification.isCampaignUnit(record)
+                    && !record.populationReturned && !record.farmhand
                     && record.type == KOMEPopulationType.OFFENSIVE
                     && company.owner.equals(record.owner)
                     && expectedFaction.equals(KOMEAlliance.normalizeFactionKey(record.unitFaction))) {

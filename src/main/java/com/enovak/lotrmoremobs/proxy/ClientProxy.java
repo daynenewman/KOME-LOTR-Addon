@@ -339,12 +339,9 @@ public class ClientProxy extends CommonProxy {
          * Keep their pledge-navigation helper independent of either master
          * feature switch.
          */
-        if (MumakilConfig.enableMumakil
-                || MumakilConfig.enableBattleRams) {
-            MinecraftForge.EVENT_BUS.register(
-                    new UnitTradePledgeNavigationHandler()
-            );
-        }
+        MinecraftForge.EVENT_BUS.register(
+                new UnitTradePledgeNavigationHandler()
+        );
 
         if (MumakilConfig.enableItemPickupFilter) {
             FMLCommonHandler.instance().bus().register(

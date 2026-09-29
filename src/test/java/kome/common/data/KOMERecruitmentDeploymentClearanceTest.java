@@ -35,6 +35,35 @@ public class KOMERecruitmentDeploymentClearanceTest {
             footprint.height, 0.00001D);
     }
 
+    @Test public void unlinkedNativeMountIsIncludedBeforeLotrHireLinksRider() throws Exception {
+        TestEntity rider = entity(0.6F, 1.8F);
+        TestEntity mount = entity(1.4F, 1.6F);
+
+        KOMERecruitmentDeploymentService.Footprint footprint =
+            KOMERecruitmentDeploymentService.footprint(rider, mount);
+
+        assertEquals(1.4D, footprint.width, 0.00001D);
+        assertEquals(mount.getMountedYOffset() + rider.height,
+            footprint.height, 0.00001D);
+    }
+
+    @Test public void campaignDeploymentPositionsUnspawnedRiderAndMountTogether()
+            throws Exception {
+        TestEntity rider = entity(0.6F, 1.8F);
+        TestEntity mount = entity(1.4F, 1.6F);
+        KOMEStrategicDeploymentResolver.Anchor anchor =
+            new KOMEStrategicDeploymentResolver.Anchor(100, 12.5D, 70.0D, -8.5D);
+
+        KOMENativeTraderCampaignRecruitment.positionCandidateAtDeployment(
+            rider, mount, anchor);
+
+        for (Entity part : new Entity[] {rider, mount}) {
+            assertEquals(anchor.x, part.posX, 0.0D);
+            assertEquals(anchor.y, part.posY, 0.0D);
+            assertEquals(anchor.z, part.posZ, 0.0D);
+        }
+    }
+
     @Test public void mountHeightAndWidthCanRejectSpaceSafeForHumanoid() throws Exception {
         ClearanceWorld world = KOMEAccessFixture.allocate(ClearanceWorld.class);
         world.maximumClearY = 66.0D;

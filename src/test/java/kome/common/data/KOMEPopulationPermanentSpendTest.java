@@ -84,6 +84,7 @@ public class KOMEPopulationPermanentSpendTest {
         data.lastKnownPlayerFactions.put(recipient, "gondor");
         data.grantFactionPopulationCenti("gondor", 2400L);
         KOMEHiredUnitRecord record = combat("gondor", 20, 40);
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
         record.owner = owner;
         record.sourcePlayer = owner;
         record.sourceFaction = "gondor";

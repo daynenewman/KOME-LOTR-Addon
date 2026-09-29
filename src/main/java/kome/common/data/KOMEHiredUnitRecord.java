@@ -14,6 +14,7 @@ public class KOMEHiredUnitRecord {
 
     public UUID entity;
     public UUID owner;
+    private KOMEHiredUnitClass unitClass = KOMEHiredUnitClass.ORDINARY;
     public KOMEPopulationType type = KOMEPopulationType.OFFENSIVE;
     public int cost = 25;
     public int baseCost = 25;
@@ -61,6 +62,7 @@ public class KOMEHiredUnitRecord {
     public void readFromNBT(NBTTagCompound nbt) {
         entity = UUID.fromString(nbt.getString("Entity"));
         owner = UUID.fromString(nbt.getString("Owner"));
+        unitClass = KOMEHiredUnitClass.fromPersistedValue(nbt.getString("UnitClass"));
         KOMEPopulationType readType = KOMEPopulationType.forName(nbt.getString("Type"));
         type = readType == null ? KOMEPopulationType.OFFENSIVE : readType;
         cost = nbt.getInteger("Cost");
@@ -123,6 +125,7 @@ public class KOMEHiredUnitRecord {
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Entity", entity.toString());
         nbt.setString("Owner", owner.toString());
+        nbt.setString("UnitClass", persistedUnitClass().name());
         nbt.setString("Type", type.key);
         nbt.setInteger("Cost", cost);
         nbt.setInteger("BaseCost", baseCost);
@@ -169,6 +172,16 @@ public class KOMEHiredUnitRecord {
 
     public boolean isPlayerReserveFunded() {
         return SOURCE_PLAYER_RESERVE.equals(sourceType);
+    }
+
+    KOMEHiredUnitClass persistedUnitClass() {
+        return unitClass == KOMEHiredUnitClass.CAMPAIGN
+            ? KOMEHiredUnitClass.CAMPAIGN : KOMEHiredUnitClass.ORDINARY;
+    }
+
+    void assignPersistedUnitClass(KOMEHiredUnitClass value) {
+        unitClass = value == KOMEHiredUnitClass.CAMPAIGN
+            ? KOMEHiredUnitClass.CAMPAIGN : KOMEHiredUnitClass.ORDINARY;
     }
 
     public boolean isFactionPopulationBankFunded() {

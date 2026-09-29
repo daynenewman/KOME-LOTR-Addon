@@ -3,6 +3,9 @@ package com.enovak.lotrmoremobs.client.gui;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.lang.reflect.Field;
+import kome.common.network.KOMEPacketCampaignHire;
+import kome.common.network.KOMEPacketHandler;
 import lotr.client.LOTRClientProxy;
 import lotr.client.gui.LOTRGuiFactions;
 import lotr.client.gui.LOTRGuiUnitTrade;
@@ -21,6 +24,7 @@ import lotr.common.inventory.LOTRSlotAlignmentReward;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.client.gui.GuiTextField;
 import net.minecraft.client.renderer.OpenGlHelper;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.entity.RenderItem;
@@ -42,6 +46,12 @@ public final class LOTRGuiUnitTradePledgeNavigation
     private static final ResourceLocation UNIT_TRADE_TEXTURE =
             new ResourceLocation("lotr:gui/npc/unit_trade.png");
     private static final int PLEDGE_NAVIGATION_BUTTON_ID = 0x4D554D;
+    private static final int CAMPAIGN_HIRE_BUTTON_ID = 0x4B4F4D;
+    private static final int CAMPAIGN_X = 132;
+    private static final int CAMPAIGN_Y = 143;
+    private static final int CAMPAIGN_WIDTH = 82;
+    private static final int CAMPAIGN_HEIGHT = 20;
+    private static Field nativeSquadronField;
     private static final int PLEDGE_X = 64;
     private static final int PLEDGE_TEXT_X = 83;
     private static final int PLEDGE_Y = 101;
@@ -70,6 +80,7 @@ public final class LOTRGuiUnitTradePledgeNavigation
     private final LOTRFaction traderFaction;
     private int currentTradeEntryIndex;
     private PledgeNavigationButton pledgeButton;
+    private GuiButton campaignHireButton;
 
     public LOTRGuiUnitTradePledgeNavigation(
             EntityPlayer player,
@@ -91,7 +102,17 @@ public final class LOTRGuiUnitTradePledgeNavigation
                 this.guiTop + PLEDGE_Y
         );
         this.buttonList.add(this.pledgeButton);
+        this.campaignHireButton = new GuiButton(
+                CAMPAIGN_HIRE_BUTTON_ID,
+                this.guiLeft + CAMPAIGN_X,
+                this.guiTop + CAMPAIGN_Y,
+                CAMPAIGN_WIDTH,
+                CAMPAIGN_HEIGHT,
+                StatCollector.translateToLocal("kome.unitTrade.campaignHire")
+        );
+        this.buttonList.add(this.campaignHireButton);
         this.updatePledgeButton();
+        this.updateCampaignHireButton();
     }
 
     @Override
@@ -101,11 +122,39 @@ public final class LOTRGuiUnitTradePledgeNavigation
             float partialTicks
     ) {
         this.updatePledgeButton();
+        this.updateCampaignHireButton();
         super.drawScreen(mouseX, mouseY, partialTicks);
+        if (this.campaignHireButton != null
+                && this.campaignHireButton.visible
+                && mouseX >= this.campaignHireButton.xPosition
+                && mouseX < this.campaignHireButton.xPosition + this.campaignHireButton.width
+                && mouseY >= this.campaignHireButton.yPosition
+                && mouseY < this.campaignHireButton.yPosition + this.campaignHireButton.height) {
+            String key = this.campaignHireButton.enabled
+                    ? "kome.unitTrade.campaignHint"
+                    : "kome.unitTrade.campaignNativeUnavailable";
+            this.func_146283_a(
+                    this.fontRendererObj.listFormattedStringToWidth(
+                            StatCollector.translateToLocal(key), 190),
+                    mouseX,
+                    mouseY
+            );
+        }
     }
 
     @Override
     protected void actionPerformed(GuiButton button) {
+        if (button == this.campaignHireButton
+                && button.enabled && button.visible) {
+            int traderEntityId = this.unitTrader instanceof net.minecraft.entity.Entity
+                    ? ((net.minecraft.entity.Entity)this.unitTrader).getEntityId() : -1;
+            KOMEPacketHandler.network.sendToServer(new KOMEPacketCampaignHire(
+                    traderEntityId,
+                    this.currentTradeEntryIndex,
+                    this.currentSquadron()
+            ));
+            return;
+        }
         if (button == this.pledgeButton
                 && button.enabled
                 && button.visible) {
@@ -497,6 +546,34 @@ public final class LOTRGuiUnitTradePledgeNavigation
                         this.pledgeButton.displayString
                 ) + 2
         );
+    }
+
+    private void updateCampaignHireButton() {
+        if (this.campaignHireButton == null) return;
+        LOTRUnitTradeEntry trade = this.currentTrade();
+        this.campaignHireButton.xPosition = this.guiLeft + CAMPAIGN_X;
+        this.campaignHireButton.yPosition = this.guiTop + CAMPAIGN_Y;
+        this.campaignHireButton.visible = trade.task
+                == lotr.common.entity.npc.LOTRHiredNPCInfo.Task.WARRIOR
+                && kome.common.data.KOMENativeTraderCampaignRecruitment
+                        .supportsDirectCampaignHire(trade);
+        this.campaignHireButton.enabled = this.campaignHireButton.visible
+                && trade.hasRequiredCostAndAlignment(this.mc.thePlayer, this.unitTrader);
+    }
+
+    private String currentSquadron() {
+        try {
+            if (nativeSquadronField == null) {
+                nativeSquadronField = lotr.client.gui.LOTRGuiHireBase.class
+                        .getDeclaredField("squadronNameField");
+                nativeSquadronField.setAccessible(true);
+            }
+            Object field = nativeSquadronField.get(this);
+            return field instanceof GuiTextField
+                    ? ((GuiTextField)field).getText() : "";
+        } catch (ReflectiveOperationException ignored) {
+            return "";
+        }
     }
 
     private LOTRUnitTradeEntry currentTrade() {

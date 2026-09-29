@@ -1008,6 +1008,7 @@ public class KOMEAllianceSystemsTest {
         data.grantFactionPopulationCenti("gondor", 7500L);
         KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
             KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(unit);
         NBTTagCompound snapshot = new NBTTagCompound();
         snapshot.setTag("HiredNPCInfo", new NBTTagCompound());
         unit.stationedEntityData = snapshot;

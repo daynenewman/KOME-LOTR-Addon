@@ -685,6 +685,7 @@ public class KOMERedesignSystemsTest {
         KOMEHiredUnitRecord unit = new KOMEHiredUnitRecord();
         unit.entity = UUID.randomUUID();
         unit.owner = owner;
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(unit);
         unit.unitFaction = faction;
         unit.sourceFaction = faction;
         unit.sourceTileId = tile;

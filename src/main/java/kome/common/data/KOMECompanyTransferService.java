@@ -54,6 +54,7 @@ public final class KOMECompanyTransferService {
         for (UUID unitId : company.units) {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
             if (record == null || !company.owner.equals(record.owner)) return Result.failure("Transfer rejected: a company unit record is missing or has a different owner.");
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)) return Result.failure("Transfer rejected: an ordinary unit cannot belong to a campaign company.");
             if (record.isMoving()) return Result.failure("Transfer rejected: unit " + unitId + " is crossing a movement boundary.");
             if (!record.isFactionPopulationBankFunded()) {
                 return Result.failure("Transfer rejected: unit " + unitId + " does not use canonical faction-bank provenance.");

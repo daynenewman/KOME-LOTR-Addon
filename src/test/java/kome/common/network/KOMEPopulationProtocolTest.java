@@ -17,7 +17,7 @@ import static org.junit.Assert.*;
 
 public class KOMEPopulationProtocolTest {
     @Test public void g2PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.8-integration-g2", KOMEPopulationWire.VERSION);
+        assertEquals("1.0.9-integration-g2", KOMEPopulationWire.VERSION);
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();
@@ -115,7 +115,8 @@ public class KOMEPopulationProtocolTest {
             assertProjection(company.populationProjection, read.companies.get(0).populationProjection);
             assertEquals(0, bytes.readableBytes());
         } finally { bytes.release(); }
-        KOMEUnitGuiEntry combat = new KOMEUnitGuiEntry(); combat.populationCost = 25; combat.populationSpentCenti = 4000L;
+        KOMEUnitGuiEntry combat = new KOMEUnitGuiEntry(); combat.entityId = "12345678-1234-1234-1234-123456789abc";
+        combat.populationCost = 25; combat.populationSpentCenti = 4000L;
         KOMEUnitGuiEntry farmhand = new KOMEUnitGuiEntry(); farmhand.farmhand = true;
         KOMEPacketPopulationUnitsGui units = new KOMEPacketPopulationUnitsGui("Tester", "T1",
                 java.util.Arrays.asList(combat, farmhand), projection(1L), 1);
@@ -124,6 +125,7 @@ public class KOMEPopulationProtocolTest {
             units.toBytes(bytes); KOMEPacketPopulationUnitsGui read = new KOMEPacketPopulationUnitsGui(); read.fromBytes(bytes);
             assertProjection(units.population, read.population);
             assertEquals(1, read.farmhandsUsed);
+            assertEquals(combat.entityId, ((KOMEUnitGuiEntry) read.units.get(0)).entityId);
             assertEquals(4000L, ((KOMEUnitGuiEntry) read.units.get(0)).populationSpentCenti);
             assertEquals(0L, ((KOMEUnitGuiEntry) read.units.get(1)).populationSpentCenti);
             assertEquals(0, bytes.readableBytes());
