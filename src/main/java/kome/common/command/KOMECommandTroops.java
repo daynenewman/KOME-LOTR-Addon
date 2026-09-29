@@ -4,6 +4,8 @@ import kome.common.KOMEReflection;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
 import kome.common.data.KOMECompanyDiplomacyAuthorization;
+import kome.common.data.KOMECompanyCoherenceService;
+import kome.common.data.KOMECompanyReconciliationService;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceAuthority;
 import kome.common.data.KOMEAllianceProgressionService;
@@ -187,7 +189,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             return;
         }
         if ("createcompany".equalsIgnoreCase(args[0])) {
-            throw new WrongUsageException("Manual company creation was retired. Each combat hire automatically joins the owner's persistent hiring-tile company.");
+            throw new WrongUsageException("Manual company creation is retired. Campaign Hire uses canonical local Campaign Detachment admission.");
         }
         if ("snapshotcompany".equalsIgnoreCase(args[0])) {
             if (args.length != 2) {
@@ -690,6 +692,13 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             sender.addChatMessage(new ChatComponentText("Company: "
                 + (company == null ? found.companyId : company.name + " (" + company.id + ")")
                 + (company != null && company.isMoving() ? " / Moving" : " / Stationed") + "."));
+            if (company != null) {
+                KOMECompanyCoherenceService.Assessment coherence =
+                    KOMECompanyCoherenceService.INSTANCE.assess(data, company);
+                for (String line : formatUnitDetachmentCoherence(coherence, found.entity)) {
+                    sender.addChatMessage(new ChatComponentText(line));
+                }
+            }
             KOMEArmyMovementOrder lastArrival = findLastArrivedOrderForCompany(data, found.companyId);
             if (lastArrival != null) {
                 sender.addChatMessage(new ChatComponentText("Last company arrival: " + lastArrival.destinationTile
@@ -718,6 +727,98 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         String uuid = record == null || record.entity == null ? "unknown" : record.entity.toString();
         return "UUID: " + uuid + ". Class: "
             + KOMEHiredUnitClassification.getUnitClass(record).name() + ".";
+    }
+
+    static List<String> formatCompanyCoherence(
+            KOMECompanyCoherenceService.Assessment assessment) {
+        List<String> lines = new ArrayList<String>();
+        lines.add("Campaign Detachment coherence: " + assessment.status
+            + ". Strategic tile: " + diagnosticValue(assessment.strategicTile) + ".");
+        lines.add("Physical confirmation: " + assessment.physicallyConfirmedMembers
+            + " confirmed, " + assessment.physicallyUnknownMembers + " unknown, "
+            + assessment.physicallyContradictoryMembers + " contradictory.");
+        lines.add(formatCoherenceRoute(assessment));
+        if (assessment.routeOrderExists
+                && !assessment.atomicTransitionProcessingIdentifiable) {
+            lines.add("Transition precision: stationed-between-hops is explicit; "
+                + "atomic hop processing has no separate persistent flag.");
+        }
+        if (assessment.issues.isEmpty()) {
+            lines.add("Coherence issues: none.");
+            return lines;
+        }
+        lines.add("Coherence issues: " + assessment.issues.size() + ".");
+        int limit = Math.min(4, assessment.issues.size());
+        for (int i = 0; i < limit; i++) {
+            KOMECompanyCoherenceService.Issue issue = assessment.issues.get(i);
+            lines.add(" - [" + issue.code + "] " + issue.detail);
+        }
+        if (assessment.issues.size() > limit) {
+            lines.add(" - ... " + (assessment.issues.size() - limit)
+                + " additional issue(s).");
+        }
+        return lines;
+    }
+
+    static String formatCompanyReconciliation(
+            KOMECompanyReconciliationService.Result result) {
+        if (result == null) return "no result.";
+        return "retained " + result.retainedMemberships
+            + "; record links repaired " + result.recordLinksRepaired
+            + "; company links repaired " + result.companyLinksRepaired
+            + "; stale/duplicate references removed "
+                + result.duplicateMembershipsRemoved
+            + "; ambiguous units left unassigned "
+                + result.ambiguousUnitsUnassigned
+            + "; invalid members removed " + result.invalidMembersRemoved
+            + "; empty detachments removed " + result.emptyCompaniesRemoved
+            + "; totals recomputed " + result.totalsRecomputed
+            + "; movement links repaired " + result.movementLinksRepaired
+            + "; movement conflicts retained for diagnosis "
+                + result.movementConflicts
+            + "; incoherent detachments " + result.incoherentCompanies
+            + "; physical contradictions " + result.physicalContradictions
+            + "; unknown physical members " + result.unknownPhysicalMembers
+            + ".";
+    }
+
+    private static String formatCoherenceRoute(
+            KOMECompanyCoherenceService.Assessment assessment) {
+        if (!assessment.routeOrderExists) {
+            return "Route: none. Movement phase: " + assessment.movementPhase + ".";
+        }
+        return "Route: " + assessment.routeOrderStatus + " / order "
+            + diagnosticValue(assessment.movementOrderId) + "; current "
+            + diagnosticValue(assessment.routeCurrentTile) + ", next "
+            + diagnosticValue(assessment.routeNextTile) + ", final "
+            + diagnosticValue(assessment.routeFinalTile) + ". Movement phase: "
+            + assessment.movementPhase + ".";
+    }
+
+    static List<String> formatUnitDetachmentCoherence(
+            KOMECompanyCoherenceService.Assessment assessment, UUID entityId) {
+        List<String> lines = new ArrayList<String>();
+        KOMECompanyCoherenceService.MemberAssessment member = assessment.member(entityId);
+        if (member == null) {
+            lines.add("Detachment coherence: " + assessment.status + "; record points to "
+                + assessment.companyId + " but the UUID is absent from its stored member list.");
+            return lines;
+        }
+        String physical = member.physicalTile.length() > 0
+            ? member.physicalTile : member.physicalAvailability
+                + (member.physicalResolutionStatus == null ? ""
+                    : "/" + member.physicalResolutionStatus);
+        lines.add("Detachment coherence: " + assessment.status + "; Campaign Detachment "
+            + assessment.companyId + "; strategic tile "
+            + diagnosticValue(assessment.strategicTile) + "; physical "
+            + diagnosticValue(physical) + "; unit agreement "
+            + member.physicalAgreement + ".");
+        if (assessment.routeOrderExists) lines.add(formatCoherenceRoute(assessment));
+        return lines;
+    }
+
+    private static String diagnosticValue(String value) {
+        return value == null || value.length() == 0 ? "none" : value;
     }
 
     private void listMoving(ICommandSender sender, KOMEWorldData data, World world, UUID owner) {
@@ -1109,9 +1210,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             }
         });
         if (sender instanceof EntityPlayerMP) {
-            boolean canCreate = admin && tile.length() > 0 && hasUnassignedOffensiveUnits(data, owner, tile)
-                && data.canFactionStandOnTile(tile, playerFaction);
-            KOMEPacketHandler.network.sendTo(new KOMEPacketCompanyListGui(tile, companyTileDisplayName(data, tile), entries, canCreate), player);
+            KOMEPacketHandler.network.sendTo(new KOMEPacketCompanyListGui(
+                tile, companyTileDisplayName(data, tile), entries, false), player);
             return;
         }
         sender.addChatMessage(new ChatComponentText("Companies" + (tile.length() == 0 ? "" : " at " + tile) + ": " + entries.size()));
@@ -1132,11 +1232,17 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 if (!admin) {
                     throw new WrongUsageException("Only operators can rebuild all troop companies.");
                 }
-                data.rebuildArmyCompanies(KOMEReflection.getWorld(player));
-                sender.addChatMessage(new ChatComponentText("Rebuilt all auto-tracked companies from LOTR Unit Overview company assignments."));
+                KOMECompanyReconciliationService.Result result =
+                    data.rebuildArmyCompanies(KOMEReflection.getWorld(player));
+                sender.addChatMessage(new ChatComponentText(
+                    "Canonical Campaign Detachment reconciliation (all): "
+                        + formatCompanyReconciliation(result)));
             } else {
-                data.rebuildArmyCompaniesForPlayer(KOMEReflection.getWorld(player), owner);
-                sender.addChatMessage(new ChatComponentText("Rebuilt your auto-tracked companies from LOTR Unit Overview company assignments."));
+                KOMECompanyReconciliationService.Result result =
+                    data.rebuildArmyCompaniesForPlayer(KOMEReflection.getWorld(player), owner);
+                sender.addChatMessage(new ChatComponentText(
+                    "Canonical Campaign Detachment reconciliation (yours): "
+                        + formatCompanyReconciliation(result)));
             }
             return;
         }
@@ -1376,8 +1482,11 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         sender.addChatMessage(new ChatComponentText(company.id + " - " + company.name + " / " + company.ownerName
             + " / " + displayFaction(company.faction)));
         sender.addChatMessage(new ChatComponentText("Source: "
-            + (KOMEArmyCompany.SOURCE_LOTR_COMPANY_ASSIGNMENT.equals(company.source) ? "LOTR Unit Overview company assignment" : company.source)
-            + ". LOTR company value: " + (company.lotrCompanyValue == null || company.lotrCompanyValue.length() == 0 ? "none" : company.lotrCompanyValue) + "."));
+            + (KOMEArmyCompany.SOURCE_LOTR_COMPANY_ASSIGNMENT.equals(company.source)
+                ? "legacy LOTR company-assignment tag (non-authoritative)" : company.source)
+            + ". Native LOTR squadron metadata: "
+            + (company.lotrCompanyValue == null || company.lotrCompanyValue.length() == 0
+                ? "none" : company.lotrCompanyValue) + " (non-authoritative)."));
         KOMEConquestTile currentTile = data.getConquestTileIfPresent(company.currentTile);
         String tileOwner = currentTile == null ? "" : currentTile.projectRulingFaction();
         String relation = tileOwner.length() == 0 ? "unclaimed/unknown"
@@ -1392,6 +1501,11 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             + " permanently invested; tactical mounted " + company.mountedPopulation + ", ground "
             + company.groundPopulation + ", speed " + company.getTilesPerDay() + " tile(s)/day."));
         sender.addChatMessage(new ChatComponentText("Status: " + (company.isMoving() ? "Moving / " + company.movementOrderId : "Stationed") + "."));
+        KOMECompanyCoherenceService.Assessment coherence =
+            KOMECompanyCoherenceService.INSTANCE.assess(data, company);
+        for (String line : formatCompanyCoherence(coherence)) {
+            sender.addChatMessage(new ChatComponentText(line));
+        }
         sender.addChatMessage(new ChatComponentText(kome.common.data.KOMEPopulationProjection.of(data,
             KOMEWartimeStewardshipService.nativeFaction(company)).summary()));
         sender.addChatMessage(new ChatComponentText("Authority: owner " + company.ownerName + ", controller "
@@ -2181,58 +2295,6 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             text.append(waypoint == null ? "missing" : waypoint.manualOverride ? "manual" : "legacy");
         }
         return text.toString();
-    }
-
-    private void createCompany(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, UUID owner, String tile, String requestedName) {
-        String faction = getPlayerFaction(data, player);
-        requireFactionStandableTile(data, faction, tile, "Company origin");
-        KOMEArmyCompany company = new KOMEArmyCompany();
-        company.id = nextCompanyId(data);
-        company.owner = owner;
-        company.ownerName = player.getCommandSenderName();
-        company.faction = faction;
-        company.name = requestedName.length() == 0 ? "Company " + company.id : requestedName;
-        company.source = KOMEArmyCompany.SOURCE_MANUAL_LEGACY;
-        company.currentTile = tile;
-        company.createdAtMillis = System.currentTimeMillis();
-        company.updatedAtMillis = company.createdAtMillis;
-        ForgeChunkManager.Ticket originTicket = acquireTemporaryTileChunk(data, KOMEReflection.getWorld(player), tile, company.createdAtMillis);
-        int snapshotsSaved = 0;
-        for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
-                    || record.entity == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE
-                    || !owner.equals(record.owner) || !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
-                    || record.isMoving() || record.companyId != null && record.companyId.length() > 0) {
-                continue;
-            }
-            record.companyId = company.id;
-            record.companyName = KOMEHiredUnitRecord.normalizeCompanyName(company.name);
-            record.companyAssignedAtMillis = company.createdAtMillis;
-            record.companyAssignedBy = owner;
-            record.companyAssignedByName = player.getCommandSenderName();
-            Entity entity = findLoadedEntity(KOMEReflection.getWorld(player), record.entity);
-            if (!(entity instanceof LOTREntityNPC) || !entity.isEntityAlive()) {
-                entity = reconcileLoadedStationedUnit(data, KOMEReflection.getWorld(player), company, record);
-            }
-            if (entity instanceof LOTREntityNPC && entity.isEntityAlive()) {
-                record.stationedEntityData = KOMEEntitySnapshots.snapshot(entity);
-                if (record.stationedEntityData != null) {
-                    snapshotsSaved++;
-                }
-            }
-            company.units.add(record.entity);
-        }
-        releaseTemporaryArrivalChunk(originTicket);
-        refreshCompany(data, company);
-        if (company.units.isEmpty()) {
-            throw new WrongUsageException("No unassigned offensive units are stationed at " + tile + ".");
-        }
-        data.armyCompanies.put(company.id, company);
-        data.markDirty();
-        data.syncConquestTiles();
-        sender.addChatMessage(new ChatComponentText("Created " + company.name + " (" + company.id + ") from "
-            + company.units.size() + " offensive units at " + tile + ". Saved stationary data for "
-            + snapshotsSaved + "/" + company.units.size() + " units."));
     }
 
     private void snapshotCompany(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, UUID owner, String companyId) {
@@ -4120,9 +4182,6 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (!company.id.equals(record.companyId)) {
             return unit + " is assigned to company " + record.companyId + " instead of " + company.id + ".";
         }
-        if (!KOMEWorldData.normalizeLotrCompanyValue(company.lotrCompanyValue).equals(KOMEWorldData.normalizeLotrCompanyValue(record.lotrCompanyValue))) {
-            return unit + " no longer matches the LOTR Unit Overview company column.";
-        }
         if (company.owner == null || !company.owner.equals(record.owner)) {
             return unit + " is owned by a different player than company " + company.id + ".";
         }
@@ -4340,19 +4399,6 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (!company.isMoving() && !mixedTiles && sharedTile.length() > 0) {
             company.currentTile = sharedTile;
         }
-    }
-
-    private boolean hasUnassignedOffensiveUnits(KOMEWorldData data, UUID owner, String tile) {
-        for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (KOMEHiredUnitClassification.isCampaignUnit(record)
-                    && owner.equals(record.owner) && !record.farmhand
-                    && record.type == KOMEPopulationType.OFFENSIVE && !record.isMoving()
-                    && tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
-                    && (record.companyId == null || record.companyId.length() == 0)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private int countMounted(List<KOMEHiredUnitRecord> records) {
@@ -4881,15 +4927,6 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             KOMETileWaypoint.ENTRY_EAST,
             KOMETileWaypoint.ENTRY_WEST
         };
-    }
-
-    private String nextCompanyId(KOMEWorldData data) {
-        int next = data.armyCompanies.size() + 1;
-        String id;
-        do {
-            id = "C" + next++;
-        } while (data.armyCompanies.containsKey(id));
-        return id;
     }
 
     private String joinName(String[] args, int start) {

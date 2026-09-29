@@ -92,6 +92,8 @@ public class KOMEWorldData extends WorldSavedData {
     public final List<NBTTagCompound> quarantinedAllianceRecords = new ArrayList<NBTTagCompound>();
     public final Map<String, KOMEArmyMovementOrder> armyMovements = new HashMap<>();
     public final Map<String, KOMEArmyCompany> armyCompanies = new HashMap<>();
+    /** Next never-reused canonical Campaign Detachment identity (C1, C2, ...). */
+    long nextCompanySequence = 1L;
     public final Map<String, KOMEMovementHistoryRecord> movementHistory = new HashMap<>();
     public final Map<UUID, String> playerNames = new HashMap<>();
     private final Set<UUID> adminUnitMapMarkerOptOuts = new HashSet<UUID>();
@@ -1248,6 +1250,46 @@ public class KOMEWorldData extends WorldSavedData {
         return id;
     }
 
+    /** Server-authoritative monotonic allocator. Consumed IDs are never rolled back. */
+    synchronized String nextCampaignCompanyId() {
+        ensureWritable();
+        long sequence = reconcileNextCompanySequence(nextCompanySequence);
+        while (sequence < Long.MAX_VALUE) {
+            String id = "C" + sequence;
+            sequence++;
+            if (!armyCompanies.containsKey(id)) {
+                nextCompanySequence = sequence;
+                markDirty();
+                return id;
+            }
+        }
+        throw new IllegalStateException("Campaign Detachment ID sequence is exhausted.");
+    }
+
+    private long reconcileNextCompanySequence(long persisted) {
+        long required = 1L;
+        for (String id : armyCompanies.keySet()) {
+            long sequence = canonicalCompanySequence(id);
+            if (sequence < required) continue;
+            if (sequence == Long.MAX_VALUE) return Long.MAX_VALUE;
+            required = sequence + 1L;
+        }
+        return Math.max(Math.max(1L, persisted), required);
+    }
+
+    private static long canonicalCompanySequence(String id) {
+        if (id == null || id.length() < 2 || !id.startsWith("C")) return -1L;
+        for (int i = 1; i < id.length(); i++) {
+            if (!Character.isDigit(id.charAt(i))) return -1L;
+        }
+        try {
+            long sequence = Long.parseLong(id.substring(1));
+            return sequence > 0L ? sequence : -1L;
+        } catch (NumberFormatException invalid) {
+            return -1L;
+        }
+    }
+
     public String nextBuildContributionId(KOMEPlayerBuild build) {
         int next = build == null ? 1 : build.contributions.size() + 1;
         String id;
@@ -1624,22 +1666,22 @@ public class KOMEWorldData extends WorldSavedData {
         record.companyId = "";
     }
 
-    public void rebuildArmyCompaniesForPlayer(UUID owner) {
-        rebuildArmyCompanies(owner);
+    public KOMECompanyReconciliationService.Result rebuildArmyCompaniesForPlayer(UUID owner) {
+        return rebuildArmyCompanies(owner);
     }
 
-    public void rebuildArmyCompaniesForPlayer(World world, UUID owner) {
+    public KOMECompanyReconciliationService.Result rebuildArmyCompaniesForPlayer(World world, UUID owner) {
         syncLoadedLotrCompanyAssignments(world, owner);
-        rebuildArmyCompanies(owner);
+        return rebuildArmyCompanies(owner);
     }
 
-    public void rebuildArmyCompanies() {
-        rebuildArmyCompanies((UUID) null);
+    public KOMECompanyReconciliationService.Result rebuildArmyCompanies() {
+        return rebuildArmyCompanies((UUID) null);
     }
 
-    public void rebuildArmyCompanies(World world) {
+    public KOMECompanyReconciliationService.Result rebuildArmyCompanies(World world) {
         syncLoadedLotrCompanyAssignments(world, null);
-        rebuildArmyCompanies((UUID) null);
+        return rebuildArmyCompanies((UUID) null);
     }
 
     public void syncLoadedLotrCompanyAssignments(World world, UUID onlyOwner) {
@@ -1662,17 +1704,11 @@ public class KOMEWorldData extends WorldSavedData {
             if (!KOMEHiredUnitClassification.isCampaignUnit(record)) {
                 continue;
             }
-            KOMEArmyCompany assignedCompany = record.companyId == null ? null : armyCompanies.get(record.companyId);
-            if (assignedCompany != null && KOMEArmyCompany.SOURCE_AUTO_UNIT_ASSIGNMENT.equals(assignedCompany.source)) {
-                continue;
-            }
             String lotrCompany = normalizeLotrCompanyValue(npc.hiredNPCInfo.getSquadron());
             if (!lotrCompany.equals(record.lotrCompanyValue == null ? "" : record.lotrCompanyValue)) {
+                // Native LOTR squadron is metadata only. It never changes KOME
+                // Campaign Detachment identity, naming, or membership.
                 record.lotrCompanyValue = lotrCompany;
-                record.companyName = lotrCompany;
-                if (!record.isMoving()) {
-                    record.companyId = "";
-                }
                 changed = true;
             }
         }
@@ -1681,88 +1717,19 @@ public class KOMEWorldData extends WorldSavedData {
         }
     }
 
-    private void rebuildArmyCompanies(UUID onlyOwner) {
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (!isEligibleForAutoCompany(record) || onlyOwner != null && !onlyOwner.equals(record.owner)) continue;
-            KOMEArmyCompany existing = record.companyId == null ? null : armyCompanies.get(record.companyId);
-            if (existing != null && (existing.isMoving()
-                    || KOMEArmyCompany.SOURCE_AUTO_UNIT_ASSIGNMENT.equals(existing.source))) {
-                if (!existing.units.contains(record.entity)) existing.units.add(record.entity);
-                continue;
-            }
-            assignUnitToHiringTileCompany(record, record.companyAssignedByName);
-        }
-        for (KOMEArmyCompany company : armyCompanies.values()) {
-            if (company == null || onlyOwner != null && !onlyOwner.equals(company.owner)) continue;
-            recalculateCompanyComposition(company);
-        }
-        markDirty();
+    private KOMECompanyReconciliationService.Result rebuildArmyCompanies(UUID onlyOwner) {
+        KOMECompanyReconciliationService.Result result =
+            KOMECompanyReconciliationService.INSTANCE.reconcile(this, onlyOwner);
         syncConquestTiles();
+        return result;
     }
 
-    public KOMEArmyCompany assignUnitToHiringTileCompany(KOMEHiredUnitRecord record, String ownerName) {
-        if (record == null) return null;
-        String sourceTile = KOMEConquestTile.normalizeId(record.sourceTileId);
-        if (sourceTile.length() == 0) sourceTile = KOMEConquestTile.normalizeId(record.currentTile);
-        return assignUnitToCampaignCompany(record, ownerName, sourceTile, false);
-    }
-
-    /** Package-scoped entry for an explicit, preflighted campaign recruitment transaction. */
+    /** Package-scoped facade retained as the Campaign Hire transaction seam. */
     KOMEArmyCompany assignUnitToCampaignCompanyAtTile(KOMEHiredUnitRecord record, String ownerName, String strategicTile) {
-        return assignUnitToCampaignCompany(record, ownerName, strategicTile, true);
-    }
-
-    private KOMEArmyCompany assignUnitToCampaignCompany(KOMEHiredUnitRecord record, String ownerName,
-            String strategicTile, boolean requireStationedAtStrategicTile) {
-        if (!isEligibleForAutoCompany(record) || record.owner == null) return null;
-        String sourceTile = KOMEConquestTile.normalizeId(strategicTile);
-        if (sourceTile.length() == 0) return null;
-        // This service is the authoritative completion point for campaign company admission.
-        // Keeping the record before recomputing prevents a newly assigned live unit from
-        // being mistaken for a stale company member when callers have not inserted it yet.
-        hiredUnits.put(record.entity, record);
-        String companyFaction = companyFaction(record);
-        KOMEArmyCompany company = findHiringCompany(record.owner, sourceTile, companyFaction);
-        if (company != null && requireStationedAtStrategicTile
-                && (company.isMoving()
-                    || !sourceTile.equals(KOMEConquestTile.normalizeId(company.currentTile)))) {
-            return null;
-        }
-        if (company == null) {
-            String id = hiringCompanyId(record.owner, sourceTile);
-            if (armyCompanies.containsKey(id)) {
-                String suffix = companyFaction.length() == 0 ? "unknown" : companyFaction.toLowerCase(java.util.Locale.ROOT);
-                id = id + "_" + suffix;
-                int collision = 2;
-                while (armyCompanies.containsKey(id)) id = hiringCompanyId(record.owner, sourceTile) + "_" + suffix + "_" + collision++;
-            }
-            company = new KOMEArmyCompany();
-            company.id = id;
-            company.owner = record.owner;
-            company.ownerName = ownerName == null || ownerName.length() == 0
-                ? safePlayerName(record.owner) : ownerName;
-            company.faction = companyFaction;
-            company.nativeFaction = company.faction;
-            company.sourceTileId = sourceTile;
-            company.currentTile = KOMEConquestTile.normalizeId(record.currentTile);
-            if (company.currentTile.length() == 0) company.currentTile = sourceTile;
-            company.name = defaultHiringCompanyName(sourceTile);
-            company.lotrCompanyValue = company.name;
-            company.source = KOMEArmyCompany.SOURCE_AUTO_UNIT_ASSIGNMENT;
-            company.status = KOMEArmyCompany.STATIONED;
-            company.createdAtMillis = System.currentTimeMillis();
-            company.updatedAtMillis = company.createdAtMillis;
-            armyCompanies.put(id, company);
-        }
-        if (!company.units.contains(record.entity)) company.units.add(record.entity);
-        record.companyId = company.id;
-        record.companyName = company.name;
-        record.companyAssignedAtMillis = System.currentTimeMillis();
-        record.companyAssignedBy = record.owner;
-        record.companyAssignedByName = company.ownerName;
-        recalculateCompanyComposition(company);
-        markDirty();
-        return company;
+        KOMECampaignCompanyAdmissionService.Result result =
+            KOMECampaignCompanyAdmissionService.INSTANCE.admit(
+                this, record, ownerName, strategicTile);
+        return result.success ? result.company : null;
     }
 
     public boolean renameHiringCompany(String companyId, UUID actor, String requestedName) {
@@ -1771,7 +1738,6 @@ public class KOMEWorldData extends WorldSavedData {
         String name = KOMEHiredUnitRecord.normalizeCompanyName(requestedName);
         if (name.length() == 0) return false;
         company.name = name;
-        company.lotrCompanyValue = name;
         company.updatedAtMillis = System.currentTimeMillis();
         for (UUID unitId : company.units) {
             KOMEHiredUnitRecord record = hiredUnits.get(unitId);
@@ -1805,6 +1771,10 @@ public class KOMEWorldData extends WorldSavedData {
         company.updatedAtMillis = System.currentTimeMillis();
     }
 
+    void recalculateCampaignCompanyComposition(KOMEArmyCompany company) {
+        recalculateCompanyComposition(company);
+    }
+
     /** Refreshes cached company totals after a live unit's visible cost/category changed. */
     void refreshCompanyCompositionFor(KOMEHiredUnitRecord record) {
         if (record == null || record.companyId == null || record.companyId.length() == 0) return;
@@ -1814,83 +1784,24 @@ public class KOMEWorldData extends WorldSavedData {
         }
     }
 
-    private String safePlayerName(UUID owner) {
+    String safePlayerName(UUID owner) {
         String name = playerNames.get(owner);
         return name == null ? "" : name;
     }
 
-    private static String hiringCompanyId(UUID owner, String sourceTile) {
-        return "HC_" + owner.toString().replace("-", "") + "_" + KOMEConquestTile.normalizeId(sourceTile);
-    }
-
-    private KOMEArmyCompany findHiringCompany(UUID owner, String sourceTile, String faction) {
-        String tile = KOMEConquestTile.normalizeId(sourceTile);
-        String normalizedFaction = normalizeFactionKey(faction);
-        KOMEArmyCompany result = null;
-        for (KOMEArmyCompany candidate : armyCompanies.values()) {
-            if (candidate == null || owner == null || !owner.equals(candidate.owner)
-                    || !KOMEArmyCompany.SOURCE_AUTO_UNIT_ASSIGNMENT.equals(candidate.source)
-                    || !tile.equals(KOMEConquestTile.normalizeId(candidate.sourceTileId))
-                    || !normalizedFaction.equals(normalizeFactionKey(candidate.faction))) continue;
-            if (result == null || candidate.createdAtMillis < result.createdAtMillis
-                    || candidate.createdAtMillis == result.createdAtMillis
-                        && candidate.id.compareTo(result.id) < 0) {
-                result = candidate;
-            }
-        }
-        return result;
-    }
-
-    private String companyFaction(KOMEHiredUnitRecord record) {
+    String resolveCampaignCompanyFaction(KOMEHiredUnitRecord record) {
         return "MILITARY_T3_STEWARDSHIP".equals(record.benefitSource)
             ? normalizeFactionKey(record.unitFaction) : normalizeFactionKey(getPlayerFactionKey(record.owner));
     }
 
-    private String defaultHiringCompanyName(String sourceTile) {
+    String defaultCampaignCompanyName(String sourceTile) {
         KOMETileWaypointLink link = getTileWaypointLink(sourceTile);
         String place = link == null ? "" : link.displayName();
         return (place.length() == 0 ? KOMEConquestTile.normalizeId(sourceTile) : place) + " Company";
     }
 
-    private static boolean isEligibleForAutoCompany(KOMEHiredUnitRecord record) {
-        return KOMEHiredUnitClassification.isCampaignUnit(record)
-            && record.entity != null && !record.farmhand
-            && record.type == KOMEPopulationType.OFFENSIVE && !record.isMoving();
-    }
-
-    private static String companyGroupKey(UUID owner, String faction, String name, String tile) {
-        return (owner == null ? "" : owner.toString()) + "|" + normalizeFactionKey(faction) + "|"
-            + KOMEConquestTile.normalizeId(tile) + "|" + normalizeLotrCompanyValue(name).toLowerCase();
-    }
-
     public static String normalizeLotrCompanyValue(String value) {
         return KOMEHiredUnitRecord.normalizeCompanyName(value);
-    }
-
-    private static String companyDisplayName(String value) {
-        String name = normalizeLotrCompanyValue(value);
-        if (name.length() == 0) {
-            return "Company";
-        }
-        for (int i = 0; i < name.length(); i++) {
-            if (!Character.isDigit(name.charAt(i))) {
-                return name;
-            }
-        }
-        return "Company " + name;
-    }
-
-    private String autoCompanyId(String key, UUID owner, String tile) {
-        String ownerPart = owner == null ? "none" : owner.toString().substring(0, 8);
-        String base = "AC_" + ownerPart + "_" + KOMEConquestTile.normalizeId(tile) + "_" + Integer.toHexString(key.hashCode());
-        if (!armyCompanies.containsKey(base)) {
-            return base;
-        }
-        int i = 2;
-        while (armyCompanies.containsKey(base + "_" + i)) {
-            i++;
-        }
-        return base + "_" + i;
     }
 
     public void syncConquestTiles() {
@@ -2087,6 +1998,8 @@ public class KOMEWorldData extends WorldSavedData {
         loadSection = "WarSeason";
         warSeason.readFromNBT(nbt.getCompoundTag("WarSeason"));
         nextBuildSequence = nbt.hasKey("NextBuildSequence") ? Math.max(1, nbt.getInteger("NextBuildSequence")) : 1;
+        nextCompanySequence = nbt.hasKey("NextCompanySequence")
+            ? Math.max(1L, nbt.getLong("NextCompanySequence")) : 1L;
         allianceStageThreeRequiredHalfHours = nbt.hasKey("AllianceStageThreeRequiredHalfHours")
             ? Math.max(1, nbt.getInteger("AllianceStageThreeRequiredHalfHours"))
             : KOMEAllianceProgressionService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
@@ -2550,38 +2463,16 @@ public class KOMEWorldData extends WorldSavedData {
                 armyCompanies.put(company.id, company);
             }
         }
+        long reconciledCompanySequence = reconcileNextCompanySequence(nextCompanySequence);
+        if (!nbt.hasKey("NextCompanySequence")
+                || reconciledCompanySequence != nextCompanySequence) {
+            nextCompanySequence = reconciledCompanySequence;
+            loadedStateReconciled = true;
+        }
         loadSection = "Company membership reconciliation";
-        for (KOMEArmyCompany company : armyCompanies.values()) {
-            List<UUID> missingUnits = new ArrayList<UUID>();
-            for (UUID unitId : company.units) {
-                KOMEHiredUnitRecord record = hiredUnits.get(unitId);
-                if (!KOMEHiredUnitClassification.isCampaignUnit(record)
-                        || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
-                    missingUnits.add(unitId);
-                } else {
-                    record.companyId = company.id;
-                }
-            }
-            company.units.removeAll(missingUnits);
-            if (!missingUnits.isEmpty()) {
-                loadedStateReconciled = true;
-                recalculateCompanyComposition(company);
-            }
-        }
-        for (KOMEHiredUnitRecord record : hiredUnits.values()) {
-            if (!KOMEHiredUnitClassification.isCampaignUnit(record)) {
-                if (record.companyId != null && record.companyId.length() > 0) {
-                    record.companyId = "";
-                    loadedStateReconciled = true;
-                }
-                continue;
-            }
-            if (record != null && record.companyId != null && record.companyId.length() > 0
-                    && !armyCompanies.containsKey(record.companyId)) {
-                record.companyId = "";
-                loadedStateReconciled = true;
-            }
-        }
+        KOMECompanyReconciliationService.Result companyReconciliation =
+            KOMECompanyReconciliationService.INSTANCE.reconcile(this);
+        loadedStateReconciled |= companyReconciliation.changed();
 
         if (savedAllianceSchema < 5) {
             safeAllianceInfo("[KOME] Alliance schema-5 migration: coalition wars initialized without inferred history; "
@@ -2707,6 +2598,7 @@ public class KOMEWorldData extends WorldSavedData {
         movementStepDelaySeconds = candidate.movementStepDelaySeconds;
         nextWarSequence = candidate.nextWarSequence;
         nextBuildSequence = candidate.nextBuildSequence;
+        nextCompanySequence = candidate.nextCompanySequence;
         allianceStageThreeRequiredHalfHours = candidate.allianceStageThreeRequiredHalfHours;
         allianceDifficulty = candidate.allianceDifficulty;
         conquestDefaultsInitialized = candidate.conquestDefaultsInitialized;
@@ -2827,6 +2719,7 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.setTag("WarSeason", warSeasonTag);
         KOMEAuditService.writeToNBT(this, nbt);
         nbt.setInteger("NextBuildSequence", Math.max(1, nextBuildSequence));
+        nbt.setLong("NextCompanySequence", Math.max(1L, nextCompanySequence));
         nbt.setInteger("AllianceStageThreeRequiredHalfHours", Math.max(1, allianceStageThreeRequiredHalfHours));
         nbt.setString("AllianceDifficulty", KOMEAllianceRequirements.normalizeDifficulty(allianceDifficulty));
         nbt.removeTag("WaypointRestrictionEnabled");

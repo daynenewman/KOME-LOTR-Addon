@@ -41,6 +41,9 @@ public class KOMECampaignRecruitmentServiceTest {
             assertTrue(KOMEHiredUnitClassification.isCampaignUnit(record));
             assertSame(record, data.hiredUnits.get(record.entity));
             assertNotNull(data.armyCompanies.get(record.companyId));
+            assertEquals("C1", record.companyId);
+            assertEquals(KOMEArmyCompany.SOURCE_CAMPAIGN_RECRUITMENT,
+                data.armyCompanies.get(record.companyId).source);
             assertEquals(TILE, record.currentTile);
             assertNotNull(record.stationedEntityData);
             assertEquals(before - 2500L,
@@ -161,6 +164,34 @@ public class KOMECampaignRecruitmentServiceTest {
         }
     }
 
+    @Test public void campaignHireUsesCanonicalLocalAdmissionNotSourceOrNativeSquadron()
+            throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            KOMEWorldData data = legalCapitalWorld();
+            KOMEHiredUnitRecord record = record(data);
+            record.sourceTileId = "T900";
+            record.lotrCompanyValue = "Native Beta";
+            KOMEArmyCompany local = existingLocalCompany(data, record.owner);
+            long before = KOMEPopulationService.getAvailablePopulationCenti(data, "gondor");
+            FakeEffect effect = new FakeEffect(record, 17, false);
+
+            KOMECampaignRecruitmentService.Result result = recruit(
+                request(record.owner, KOMECampaignRecruitmentService.SourceKind.NATIVE_TRADER),
+                prepared(data, record, effect));
+
+            assertTrue(result.reason, result.success);
+            assertEquals(local.id, result.companyId);
+            assertEquals(local.id, record.companyId);
+            assertEquals(2, local.units.size());
+            assertEquals("T900", record.sourceTileId);
+            assertEquals("Native Beta", record.lotrCompanyValue);
+            assertEquals(1, effect.coinCharges);
+            assertEquals(before - 2500L,
+                KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
+            assertEquals(1L, data.nextCompanySequence);
+        }
+    }
+
     @Test public void noSelectionUsesSortedLegalDefaultAndStaleSelectionRevalidates()
             throws Exception {
         try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
@@ -268,6 +299,11 @@ public class KOMECampaignRecruitmentServiceTest {
             assertEquals(KOMECampaignRecruitmentService.Code.NATIVE_HIRE_FAILED, failedSpawn.code);
             assertFalse(spawnFailure.hiredUnits.containsKey(second.entity));
             assertTrue(spawnFailure.armyCompanies.isEmpty());
+            assertEquals("", second.companyId);
+            assertEquals("", second.companyName);
+            assertEquals(0L, second.companyAssignedAtMillis);
+            assertNull(second.companyAssignedBy);
+            assertEquals(2L, spawnFailure.nextCompanySequence);
             assertEquals(100, secondEffect.coins);
             assertEquals(beforeSpawn,
                 KOMEPopulationService.getAvailablePopulationCenti(spawnFailure, "gondor"));
@@ -373,6 +409,31 @@ public class KOMECampaignRecruitmentServiceTest {
         record.unitFaction = "gondor"; record.unitName = "Guard";
         data.lastKnownPlayerFactions.put(record.owner, "gondor");
         return record;
+    }
+
+    private static KOMEArmyCompany existingLocalCompany(KOMEWorldData data,
+            UUID owner) {
+        KOMEHiredUnitRecord member = new KOMEHiredUnitRecord();
+        member.entity = UUID.randomUUID(); member.owner = owner;
+        member.sourcePlayer = owner; member.sourceTileId = "T800";
+        member.currentTile = TILE; member.companyId = "C9";
+        member.type = KOMEPopulationType.OFFENSIVE;
+        member.cost = member.baseCost = member.populationSpent = 25;
+        member.populationOwningFaction = member.sourceFaction = "gondor";
+        member.unitFaction = "gondor"; member.lotrCompanyValue = "Native Alpha";
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(member);
+        data.hiredUnits.put(member.entity, member);
+
+        KOMEArmyCompany company = new KOMEArmyCompany();
+        company.id = member.companyId; company.owner = owner; company.ownerName = "Owner";
+        company.faction = company.nativeFaction = "gondor";
+        company.currentTile = TILE; company.sourceTileId = "T800";
+        company.lotrCompanyValue = "Native Alpha";
+        company.status = KOMEArmyCompany.STATIONED;
+        company.units.add(member.entity);
+        company.totalPopulation = company.groundPopulation = 25;
+        data.armyCompanies.put(company.id, company);
+        return company;
     }
 
     private static KOMEWorldData legalCapitalWorld() {
