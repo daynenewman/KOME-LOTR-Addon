@@ -1,5 +1,15 @@
 # Tile world-resolution foundation
 
+## Server physical tile awareness - 2026-09-21
+
+The KOM-60 follow-up adds transient server-thread observations and transition
+notifications for players and relevant loaded hires, using the same typed exact
+resolver. It leaves the HUD, geometry, gameplay defaults and persisted strategic
+state unchanged. See [KOM-46 API handoff and validation](KOME_SERVER_TILE_AWARENESS.md)
+for query/subscription examples, lifecycle clearing and explicit freshness rules.
+The earlier validation and runtime results below remain evidence for their stated
+checkpoints; they are not live acceptance of this new server tracker.
+
 ## Reconciled current-dev candidate - 2026-09-20
 
 Tile checkpoint `d90197650f7749b300f9fdb580e0c00681b658b5` is reconciled with
@@ -828,8 +838,9 @@ is X=81..3099, Y=58..3829; the rectangle itself does not imply tile coverage.
 
 ### Position callers, bounds and performance contract
 
-For an existing server-side player or unit, no new adapter or location cache is
-needed. Once its current world exists, the common-side call is:
+For a one-off server-side player or unit query, the direct resolver remains sufficient.
+For lifecycle-aware observations and transitions, use the server API documented
+above. Once the entity's current world exists, the direct common-side call is:
 
 ```java
 KOMETileResolution location = KOMETileWorldResolver.INSTANCE.resolveWorldPosition(
@@ -841,7 +852,8 @@ transfer. Tests use actual EntityPlayerMP and LOTREntityGondorSoldier fields; th
 exercise lookup with changed positions, not the engine's teleport procedure.
 Only RESOLVED exposes a tile ID. This is geographic identity, not ownership,
 capturability, traversal eligibility, stored company station, or a Build's tile.
-No movement, combat, capture or per-tick location infrastructure was added.
+That foundation checkpoint added no movement, combat, capture or per-tick
+location infrastructure. The later server-awareness follow-up is documented above.
 
 For the shipped transform, the mask's half-open world extent is
 X=[-103680,305920), Z=[-93440,418560). Cells increase toward positive world X/Z;
@@ -854,7 +866,7 @@ post-initialization. Geometry/configuration replacement must explicitly reload,
 not mutate a published transform. Client and server still require matching assets
 and configured dimension; no handshake/protocol change was introduced.
 
-The integer hot path captures one volatile State, performs checked long arithmetic
+The integer hot path captures one volatile ReadView, performs checked long arithmetic
 and indexes one cell/palette entry. It does no I/O, decoding, tile scans, mutable
 ownership reads, locking or persistent writes. The double/map compatibility paths
 use bounded BigDecimal conversion and allocate temporary values plus the result;

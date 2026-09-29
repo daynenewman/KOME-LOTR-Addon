@@ -87,9 +87,24 @@ public final class KOMEPopulationWire {
         }
     }
 
+    /** Same strict UTF-8 contract as writeText, without allocating a throwaway encoded buffer. */
     public static void validateText(String value) {
-        ByteBuf encoded = io.netty.buffer.Unpooled.buffer(32, MAX_TEXT_BYTES + 2);
-        try { writeText(encoded, value); } finally { encoded.release(); }
+        if (value == null) return; // writeText publishes null as the empty string.
+        if (value.length() > MAX_TEXT_BYTES) throw new IllegalArgumentException("KOME string is too long");
+        int bytes = 0;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c < 0x80) bytes++;
+            else if (c < 0x800) bytes += 2;
+            else if (Character.isHighSurrogate(c)) {
+                if (++i >= value.length() || !Character.isLowSurrogate(value.charAt(i)))
+                    throw new IllegalArgumentException("Invalid KOME UTF-8");
+                bytes += 4;
+            } else if (Character.isLowSurrogate(c)) {
+                throw new IllegalArgumentException("Invalid KOME UTF-8");
+            } else bytes += 3;
+            if (bytes > MAX_TEXT_BYTES) throw new IllegalArgumentException("KOME string is too long");
+        }
     }
 
     /** The same signed-short GZIP envelope used by Forge 1.7.10 ByteBufUtils.writeTag. */

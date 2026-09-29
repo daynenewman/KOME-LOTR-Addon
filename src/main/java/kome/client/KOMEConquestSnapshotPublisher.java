@@ -22,6 +22,8 @@ public final class KOMEConquestSnapshotPublisher {
 
     private final KOMEClientTaskQueue tasks;
     private Accumulator incoming;
+    private Snapshot lastComplete;
+    private long generation;
 
     public KOMEConquestSnapshotPublisher(KOMEClientTaskQueue tasks) {
         if (tasks == null) throw new IllegalArgumentException("Client task queue is required");
@@ -31,19 +33,32 @@ public final class KOMEConquestSnapshotPublisher {
     /** Drops an incomplete snapshot from the previous connection. */
     public synchronized void resetSession() {
         incoming = null;
+        lastComplete = null;
+        generation++;
     }
 
     public synchronized void accept(KOMEPacketConquestData.PublicationChunk chunk) {
         if (chunk == null) throw new IllegalArgumentException("Conquest snapshot chunk is required");
         if (chunk.reset) incoming = new Accumulator();
-        if (incoming == null) return;
+        if (incoming == null) {
+            // Continuations cannot initialize a session; after a completed baseline, retain
+            // the existing non-reset delta contract without coalescing incomplete state.
+            if (lastComplete == null) return;
+            incoming = new Accumulator(lastComplete);
+        }
         incoming.add(chunk);
         if (!chunk.complete) return;
 
         Snapshot completed = incoming.complete();
         incoming = null;
+        lastComplete = completed;
+        final long publicationGeneration = generation;
         try {
-            tasks.enqueueLatest(PUBLICATION_KEY, completed::publish);
+            tasks.enqueueLatest(PUBLICATION_KEY, () -> {
+                synchronized (KOMEConquestSnapshotPublisher.this) {
+                    if (publicationGeneration == generation) completed.publish();
+                }
+            });
         } catch (RejectedExecutionException full) {
             // A queue overload must never escape a Forge packet handler. Normal
             // conquest traffic cannot reach this path because it occupies one
@@ -62,11 +77,27 @@ public final class KOMEConquestSnapshotPublisher {
         private final Map<String, KOMEPlayerBuild> builds = new HashMap<String, KOMEPlayerBuild>();
         private final Map<String, String> capitalTiles = new HashMap<String, String>();
 
+        private Accumulator() { }
+
+        private Accumulator(Snapshot base) {
+            armyCompanies.putAll(base.armyCompanies);
+            conquestTiles.putAll(base.conquestTiles);
+            armyMovements.putAll(base.armyMovements);
+            troopSummaries.putAll(base.troopSummaries);
+            routeEdges.putAll(base.routeEdges);
+            waypointLinks.putAll(base.waypointLinks);
+            builds.putAll(base.builds);
+            capitalTiles.putAll(base.capitalTiles);
+        }
+
         private void add(KOMEPacketConquestData.PublicationChunk chunk) {
             armyCompanies.putAll(chunk.armyCompanies);
             conquestTiles.putAll(chunk.conquestTiles);
             armyMovements.putAll(chunk.armyMovements);
-            troopSummaries.putAll(chunk.troopSummaries);
+            for (KOMETileTroopSummary row : chunk.troopSummaries.values()) {
+                if (row.hasAnyPopulation()) troopSummaries.put(row.tileId, row);
+                else troopSummaries.remove(row.tileId);
+            }
             routeEdges.putAll(chunk.routeEdges);
             waypointLinks.putAll(chunk.tileWaypointLinksByTileId);
             builds.putAll(chunk.builds);
@@ -125,7 +156,7 @@ public final class KOMEConquestSnapshotPublisher {
             data.tileWaypointLinksByTileId.putAll(waypointLinks);
             data.builds.clear();
             data.builds.putAll(builds);
-            data.conquestRevision++;
+            data.completeConquestUpdate();
         }
     }
 }

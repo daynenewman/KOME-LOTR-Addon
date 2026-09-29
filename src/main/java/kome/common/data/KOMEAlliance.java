@@ -677,9 +677,21 @@ public class KOMEAlliance {
         return normalizeFactionKey(senderFaction) + ">" + normalizeFactionKey(receiverFaction);
     }
 
+    private static final java.util.regex.Pattern MARKS = java.util.regex.Pattern.compile("\\p{M}");
+    private static final java.util.regex.Pattern NON_KEY = java.util.regex.Pattern.compile("[^a-z0-9]");
+
     public static String normalizeFactionKey(String value) {
-        String normalized = value == null ? "" : Normalizer.normalize(value, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
-        String key = normalized.toLowerCase().replaceAll("[^a-z0-9]", "");
+        String key = value == null ? "" : value;
+        // Canonical ASCII keys need no normalization or regex allocation. Alias rules still run below.
+        boolean canonical = true;
+        for (int i = 0; i < key.length(); i++) {
+            char c = key.charAt(i);
+            if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9'))) { canonical = false; break; }
+        }
+        if (!canonical) {
+            String normalized = MARKS.matcher(Normalizer.normalize(key, Normalizer.Form.NFD)).replaceAll("");
+            key = NON_KEY.matcher(normalized.toLowerCase()).replaceAll("");
+        }
         if ("".equals(key) || "none".equals(key) || "neutral".equals(key) || "neutralzone".equals(key)
                 || "unclaimed".equals(key) || "unaligned".equals(key)) {
             return "";
