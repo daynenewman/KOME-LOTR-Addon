@@ -9,6 +9,7 @@ import kome.common.KOMEReflection;
 import kome.common.data.KOMEArmyCompany;
 import kome.common.data.KOMEClientData;
 import kome.common.data.KOMEHaltedUnitProtection;
+import kome.common.data.KOMEHiredUnitClassification;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEUnitMapMarker;
 import kome.common.data.KOMEWorldData;
@@ -92,14 +93,14 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
                 LOTREntityNPC npc = (LOTREntityNPC) object;
                 UUID entityId = KOMEReflection.getEntityUUID(npc);
                 KOMEHiredUnitRecord record = data.hiredUnits.get(entityId);
-                if (record == null || record.farmhand || record.isMoving() || record.companyId == null || record.companyId.length() == 0
-                        || !admin && !viewer.equals(record.owner)) {
+                if (!isStrategicMarkerRecord(record, viewer, admin)) {
                     continue;
                 }
                 String key = record.companyId;
                 CompanyMarkerBuilder builder = (CompanyMarkerBuilder) companyMarkers.get(key);
                 if (builder == null) {
-                    builder = new CompanyMarkerBuilder(world.provider.dimensionId, key, data.armyCompanies.get(record.companyId));
+                    builder = new CompanyMarkerBuilder(world.provider.dimensionId, key,
+                        data.armyCompanies.get(record.companyId), data);
                     companyMarkers.put(key, builder);
                 }
                 builder.add(npc, record);
@@ -115,10 +116,18 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
         return markers;
     }
 
+    static boolean isStrategicMarkerRecord(KOMEHiredUnitRecord record, UUID viewer, boolean admin) {
+        return KOMEHiredUnitClassification.isCampaignUnit(record)
+            && !record.farmhand && !record.isMoving()
+            && record.companyId != null && record.companyId.length() > 0
+            && (admin || viewer != null && viewer.equals(record.owner));
+    }
+
     private static class CompanyMarkerBuilder {
         private final int dimensionId;
         private final String companyId;
         private final KOMEArmyCompany company;
+        private final int campaignPopulation;
         private double weightedX;
         private double weightedY;
         private double weightedZ;
@@ -130,10 +139,13 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
         private String fallbackName = "";
         private String fallbackTile = "";
 
-        CompanyMarkerBuilder(int dimensionId, String companyId, KOMEArmyCompany company) {
+        CompanyMarkerBuilder(int dimensionId, String companyId, KOMEArmyCompany company,
+                KOMEWorldData data) {
             this.dimensionId = dimensionId;
             this.companyId = companyId == null ? "" : companyId;
             this.company = company;
+            this.campaignPopulation = company == null ? 0
+                : kome.common.data.KOMECampaignUnitTotals.of(data, company.units).population;
         }
 
         void add(LOTREntityNPC npc, KOMEHiredUnitRecord record) {
@@ -177,7 +189,7 @@ public class KOMEPacketUnitMapMarkers implements IMessage {
             marker.x = weightedX / weight;
             marker.y = weightedY / weight;
             marker.z = weightedZ / weight;
-            marker.population = company == null || company.totalPopulation <= 0 ? loadedPopulation : company.totalPopulation;
+            marker.population = campaignPopulation <= 0 ? loadedPopulation : campaignPopulation;
             marker.mounted = mountedUnits > 0 && mountedUnits == unitCount;
             marker.haltedProtected = allHaltedProtected;
             return marker;

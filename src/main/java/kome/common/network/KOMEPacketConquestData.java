@@ -424,7 +424,8 @@ public class KOMEPacketConquestData implements IMessage {
             summary.population = populations.get(rulingFaction);
         }
         for (KOMEHiredUnitRecord record : worldData.hiredUnits.values()) {
-            if (record == null || record.currentTile == null || record.currentTile.length() == 0 || record.farmhand) {
+            if (!kome.common.data.KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.currentTile == null || record.currentTile.length() == 0 || record.farmhand) {
                 continue;
             }
             String tile = KOMEConquestTile.normalizeId(record.currentTile);
@@ -447,18 +448,23 @@ public class KOMEPacketConquestData implements IMessage {
             if (order == null || !order.isMoving()) {
                 continue;
             }
+            kome.common.data.KOMECampaignUnitTotals campaign =
+                kome.common.data.KOMECampaignUnitTotals.of(worldData, order.units);
+            if (campaign.unitCount == 0) {
+                continue;
+            }
             if (KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)) {
                 KOMETileTroopSummary waiting = getSummary(summaries, activeStepOrigin(order));
-                waiting.stationedPop += order.population;
-                waiting.stationedOffensivePop += order.population;
-                waiting.stationedMountedPop += order.mountedPopulation;
+                waiting.stationedPop += campaign.population;
+                waiting.stationedOffensivePop += campaign.population;
+                waiting.stationedMountedPop += campaign.mountedPopulation;
                 continue;
             }
             KOMETileTroopSummary destination = getSummary(summaries, activeStepDestination(order));
-            destination.incomingPop += order.population;
+            destination.incomingPop += campaign.population;
             destination.incomingMovementCount++;
             KOMETileTroopSummary origin = getSummary(summaries, activeStepOrigin(order));
-            origin.movingPop += order.population;
+            origin.movingPop += campaign.population;
             origin.outgoingMovementCount++;
         }
         return summaries;

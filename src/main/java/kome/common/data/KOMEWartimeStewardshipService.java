@@ -184,7 +184,8 @@ public final class KOMEWartimeStewardshipService {
         int pending = 0;
         for (java.util.UUID unitId : new ArrayList<java.util.UUID>(company.units)) {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
-            if (record == null || !KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)) continue;
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || !KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)) continue;
             KOMEPledgeReleaseTombstone tombstone = data.pledgeReleaseTombstones.get(unitId);
             if (tombstone == null) {
                 tombstone = new KOMEPledgeReleaseTombstone();
@@ -283,7 +284,8 @@ public final class KOMEWartimeStewardshipService {
             int companyControllersBefore = controllers;
             for (java.util.UUID unitId : new ArrayList<java.util.UUID>(company.units)) {
                 KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
-                if (record == null || !(KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)
+                if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                        || !(KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)
                         || "MILITARY_T3_STEWARDSHIP".equals(record.benefitSource))) continue;
                 if (!company.id.equals(record.companyId)) {
                     record.companyId = company.id;
@@ -330,7 +332,8 @@ public final class KOMEWartimeStewardshipService {
     private static boolean hasStewardshipUnits(KOMEWorldData data, KOMEArmyCompany company) {
         for (java.util.UUID unitId : company.units) {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
-            if (record != null && KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)) return true;
+            if (KOMEHiredUnitClassification.isCampaignUnit(record)
+                    && KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)) return true;
         }
         return false;
     }
@@ -339,7 +342,8 @@ public final class KOMEWartimeStewardshipService {
         int result = 0;
         for (java.util.UUID unitId : company.units) {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
-            if (record != null && KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)
+            if (KOMEHiredUnitClassification.isCampaignUnit(record)
+                    && KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION.equals(record.sourceType)
                     && !record.populationReturned) result = saturatedAdd(result, Math.max(0, record.populationSpent));
         }
         return result;

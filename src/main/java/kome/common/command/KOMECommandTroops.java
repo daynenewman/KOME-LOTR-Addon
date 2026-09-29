@@ -13,6 +13,7 @@ import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEConquestTileDefaults;
 import kome.common.data.KOMEEntitySnapshots;
 import kome.common.data.KOMEHaltedUnitProtection;
+import kome.common.data.KOMEHiredUnitClassification;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEMovementHistoryRecord;
 import kome.common.data.KOMEMovementAccessService;
@@ -330,7 +331,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         int movingUnits = 0;
         List<String> details = new ArrayList<String>();
         for (KOMEHiredUnitRecord record : new ArrayList<KOMEHiredUnitRecord>(data.hiredUnits.values())) {
-            if (record == null || record.farmhand || !owner.equals(record.owner)) {
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.farmhand || !owner.equals(record.owner)) {
                 continue;
             }
             if (tile.length() > 0 && !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))) {
@@ -377,7 +379,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         int ground = 0;
         List<String> stationedIds = new ArrayList<String>();
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record == null || !admin && !viewer.equals(record.owner) || record.farmhand || !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || !admin && !viewer.equals(record.owner) || record.farmhand || !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
                     || record.movementOrderId != null && record.movementOrderId.length() > 0) {
                 continue;
             }
@@ -670,6 +673,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             + " / source player " + sourcePlayer + " / tile " + KOMEConquestTile.normalizeId(found.sourceTileId);
         sender.addChatMessage(new ChatComponentText((found.unitName == null || found.unitName.length() == 0 ? found.entity.toString().substring(0, 8) : found.unitName)
             + " [" + found.entity + "]"));
+        sender.addChatMessage(new ChatComponentText(formatUnitIdentity(found)));
         sender.addChatMessage(new ChatComponentText("Owner: " + ownerName + " / " + displayFaction(data.getPlayerFactionKey(found.owner))
             + ". Type: " + role + ". Population cost: " + (found.farmhand ? "0.00 (free)" : kome.common.data.KOMEPopulationProjection.formatCenti(kome.common.data.KOMEPopulationService.wholeToCenti(found.cost)))
             + ". Permanent investment: " + kome.common.data.KOMEPopulationProjection.formatCenti(kome.common.data.KOMEPopulationService.getInvestmentCenti(found)) + "."));
@@ -708,6 +712,12 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             sender.addChatMessage(new ChatComponentText("Movement: Stationed."
                 + (found.type == KOMEPopulationType.DEFENSIVE ? " Defensive units cannot move." : "")));
         }
+    }
+
+    static String formatUnitIdentity(KOMEHiredUnitRecord record) {
+        String uuid = record == null || record.entity == null ? "unknown" : record.entity.toString();
+        return "UUID: " + uuid + ". Class: "
+            + KOMEHiredUnitClassification.getUnitClass(record).name() + ".";
     }
 
     private void listMoving(ICommandSender sender, KOMEWorldData data, World world, UUID owner) {
@@ -2189,7 +2199,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         ForgeChunkManager.Ticket originTicket = acquireTemporaryTileChunk(data, KOMEReflection.getWorld(player), tile, company.createdAtMillis);
         int snapshotsSaved = 0;
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record == null || record.entity == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.entity == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE
                     || !owner.equals(record.owner) || !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
                     || record.isMoving() || record.companyId != null && record.companyId.length() > 0) {
                 continue;
@@ -2579,7 +2590,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         int pop = 0;
         int alreadyStationed = 0;
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record == null || record.farmhand || !owner.equals(record.owner)) {
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.farmhand || !owner.equals(record.owner)) {
                 continue;
             }
             if (record.movementOrderId != null && record.movementOrderId.length() > 0) {
@@ -4096,6 +4108,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             return "a tracked unit record is missing.";
         }
         String unit = displayUnitId(record);
+        if (!KOMEHiredUnitClassification.isCampaignUnit(record)) {
+            return unit + " is ordinary; only campaign units can move strategically.";
+        }
         if (record.farmhand) {
             return unit + " is a farmhand; farmhands cannot move in companies.";
         }
@@ -4163,6 +4178,16 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     private boolean companyHasPresenceAtTile(KOMEWorldData data, KOMEArmyCompany company, String tileId) {
         String tile = KOMEConquestTile.normalizeId(tileId);
         if (company == null || tile.length() == 0) {
+            return false;
+        }
+        boolean hasCampaignUnit = false;
+        for (UUID unitId : company.units) {
+            if (KOMEHiredUnitClassification.isCampaignUnit(data, unitId)) {
+                hasCampaignUnit = true;
+                break;
+            }
+        }
+        if (!hasCampaignUnit) {
             return false;
         }
         if (tile.equals(KOMEConquestTile.normalizeId(company.currentTile))) {
@@ -4288,7 +4313,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         boolean mixedTiles = false;
         for (UUID unitId : company.units) {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
-            if (record == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
                 missing.add(unitId);
                 continue;
             }
@@ -4318,7 +4344,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
 
     private boolean hasUnassignedOffensiveUnits(KOMEWorldData data, UUID owner, String tile) {
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record != null && owner.equals(record.owner) && !record.farmhand
+            if (KOMEHiredUnitClassification.isCampaignUnit(record)
+                    && owner.equals(record.owner) && !record.farmhand
                     && record.type == KOMEPopulationType.OFFENSIVE && !record.isMoving()
                     && tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
                     && (record.companyId == null || record.companyId.length() == 0)) {

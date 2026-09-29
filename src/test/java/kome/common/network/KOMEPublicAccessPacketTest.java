@@ -351,7 +351,7 @@ public class KOMEPublicAccessPacketTest {
         assertTrue(registration.contains("KOMEPacketConquestOpenCapture.class, 7, Side.SERVER"));
         assertTrue(registration.contains("KOMEPacketBuildAction.class, 36, Side.SERVER"));
         assertTrue(registration.contains("IDs 23 and 24 are retired"));
-        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.8-integration-g2"));
+        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g2"));
         assertEquals(5, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
 

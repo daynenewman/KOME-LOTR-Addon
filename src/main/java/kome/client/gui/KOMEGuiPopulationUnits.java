@@ -49,6 +49,7 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
     private int filter;
     private int scroll;
     private int selectedIndex;
+    private String hoveredUnitId = "";
 
     @Override
     public void initGui() {
@@ -150,11 +151,15 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
 
         int contentY = y + 78;
         int contentH = panelH - 78 - MARGIN - ACTION_HEIGHT - 10;
+        hoveredUnitId = "";
         drawUnitList(x + MARGIN, contentY, LIST_WIDTH, contentH, mouseX, mouseY);
         int detailX = x + MARGIN + LIST_WIDTH + GAP;
         drawDetails(detailX, contentY, panelW - MARGIN * 2 - LIST_WIDTH - GAP, contentH);
         updateMoveButton();
         super.drawScreen(mouseX, mouseY, partialTicks);
+        if (hoveredUnitId.length() > 0) {
+            func_146283_a(java.util.Collections.singletonList("UUID: " + hoveredUnitId), mouseX, mouseY);
+        }
     }
 
     private void drawUnitList(int x, int y, int width, int height, int mouseX, int mouseY) {
@@ -178,10 +183,19 @@ public class KOMEGuiPopulationUnits extends GuiScreen {
                 "Moving".equals(status) || "Pending Spawn".equals(status) ? KOMEGuiTheme.COLOR_WARN : KOMEGuiTheme.COLOR_GOOD);
             String badges = unit.populationType + "  |  " + (unit.mounted ? "Mounted" : unit.farmhand ? "Worker" : "Ground");
             fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, badges, width - 34), x + 15, rowY + 21, KOMEGuiTheme.COLOR_TEXT);
-            fontRendererObj.drawString(tileLabel(unit.currentTile), x + 15, rowY + 33, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            String locationAndId = tileLabel(unit.currentTile) + "  |  ID " + shortUnitId(unit.entityId);
+            fontRendererObj.drawString(KOMEGuiTheme.trimToWidth(fontRendererObj, locationAndId, width - 34), x + 15, rowY + 33, KOMEGuiTheme.COLOR_TEXT_MUTED);
+            if (hover) {
+                hoveredUnitId = unit.entityId == null ? "" : unit.entityId;
+            }
         }
         KOMEGuiTheme.disableScissor();
         drawScrollbar(x + width - 10, y + 7, height - 14, visible.size());
+    }
+
+    static String shortUnitId(String entityId) {
+        String value = entityId == null ? "" : entityId.trim();
+        return value.length() <= 8 ? value : value.substring(0, 8);
     }
 
     private void drawDetails(int x, int y, int width, int height) {

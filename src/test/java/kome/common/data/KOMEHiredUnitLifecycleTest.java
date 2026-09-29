@@ -134,6 +134,7 @@ public class KOMEHiredUnitLifecycleTest {
     }
     private static KOMEHiredUnitRecord unit(KOMEWorldData data) {
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord(); record.entity = UUID.randomUUID(); record.owner = UUID.randomUUID();
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
         record.populationOwningFaction = "gondor"; record.sourceFaction = "gondor";
         record.populationSpent = 40; record.cost = 25; record.companyId = "C1";
         data.hiredUnits.put(record.entity, record); return record;
