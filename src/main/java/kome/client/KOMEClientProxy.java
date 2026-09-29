@@ -19,7 +19,8 @@ import net.minecraftforge.common.MinecraftForge;
 import java.util.List;
 
 public class KOMEClientProxy extends KOMECommonProxy {
-    private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue();
+    private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue(
+            () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
         new KOMEConquestSnapshotPublisher(clientTasks);
     private KOMECurrentTileHud currentTileHud;
@@ -80,6 +81,14 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         conquestSnapshots.resetSession();
         if (currentTileHud != null) currentTileHud.suspendSession();
         clientTasks.resetSession(false, this::resetClientSessionState);
+    }
+
+    @SubscribeEvent
+    public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+        if (event.world != null && event.world.isRemote) {
+            conquestSnapshots.resetSession();
+            KOMEClientData.INSTANCE.clearConquestTooltip();
+        }
     }
 
     @Override

@@ -20,17 +20,17 @@ public final class KOMETileWorldResolver {
     public static final KOMETileWorldResolver INSTANCE = new KOMETileWorldResolver();
     static final String MASK = "assets/kome/map/reset_conquest_tile_ids.png";
     static final String MAPPING = "assets/kome/map/reset_conquest_tile_ids.txt";
-    private volatile State state = new State(null, "Tile raster has not been initialized");
+    private volatile ReadView state = new ReadView(null, "Tile raster has not been initialized");
 
     // Only INSTANCE is constructed by production code; package access supports isolated service tests.
     KOMETileWorldResolver() { }
 
     public KOMETileResolution resolve(int dimension, int worldX, int worldZ) {
-        State captured = state;
+        ReadView captured = state;
         return resolve(captured, dimension, worldX, worldZ);
     }
 
-    private static KOMETileResolution resolve(State captured, int dimension, int x, int z) {
+    private static KOMETileResolution resolve(ReadView captured, int dimension, int x, int z) {
         return captured.snapshot == null
             ? KOMETileResolution.unavailable(KOMETileResolution.Status.INVALID_SNAPSHOT, dimension, x, z, captured.diagnostic)
             : captured.snapshot.resolve(dimension, x, z);
@@ -38,17 +38,12 @@ public final class KOMETileWorldResolver {
 
     /** Existing entity/packet doubles are floored once to their integer block, without rewriting stored positions. */
     public KOMETileResolution resolveWorldPosition(int dimension, double x, double z) {
-        State captured = state;
-        try {
-            return resolve(captured, dimension, block(x), block(z));
-        } catch (IllegalArgumentException | ArithmeticException e) {
-            return invalidCoordinate(dimension, e);
-        }
+        return state.resolveWorldPosition(dimension, x, z);
     }
 
     /** UI/LOTR map-position compatibility boundary. All world-to-mask decisions remain in the snapshot. */
     public KOMETileResolution resolveMapPosition(int dimension, double mapX, double mapY) {
-        State captured = state;
+        ReadView captured = state;
         if (captured.snapshot == null) {
             // Without a transform, a supplied map point has no known world coordinate.
             return new KOMETileResolution(KOMETileResolution.Status.INVALID_SNAPSHOT, dimension,
@@ -84,7 +79,7 @@ public final class KOMETileWorldResolver {
     public String loadDiagnostic() { return state.diagnostic; }
 
     /** Explicit future invalidation; callers must load a new validated snapshot before activation. */
-    public synchronized void invalidate() { state = new State(null, "Tile raster explicitly invalidated; reload required"); }
+    public synchronized void invalidate() { state = new ReadView(null, "Tile raster explicitly invalidated; reload required"); }
 
     /** Candidate construction completes before the single volatile publication. Readers never take this lock. */
     synchronized boolean reload(InputStream image, InputStream mapping, KOMETileRasterSnapshot.Transform transform,
@@ -93,14 +88,14 @@ public final class KOMETileWorldResolver {
             publish(KOMETileRasterSnapshot.load(image, mapping, transform, knownIds, retiredIds));
             return true;
         } catch (IOException | IllegalArgumentException | ArithmeticException | IllegalStateException e) {
-            state = new State(state.snapshot, "Tile raster load rejected: " + e.getMessage());
+            state = new ReadView(state.snapshot, "Tile raster load rejected: " + e.getMessage());
             return false;
         }
     }
 
     synchronized void publish(KOMETileRasterSnapshot snapshot) {
         if (snapshot == null) throw new IllegalArgumentException("Cannot publish a null tile raster");
-        state = new State(snapshot, "Validated tile raster " + snapshot.width + "x" + snapshot.height);
+        state = new ReadView(snapshot, "Validated tile raster " + snapshot.width + "x" + snapshot.height);
     }
 
     /** Bundled common resources only: resource packs cannot redefine server tile geometry. */
@@ -120,7 +115,7 @@ public final class KOMETileWorldResolver {
             return reload(mask, mapping, transform, KOMEConquestTileDefaults.getKnownTileIds(),
                 KOMEConquestTileDefaults.getRetiredTileIds());
         } catch (IOException | IllegalArgumentException | ArithmeticException | IllegalStateException e) {
-            state = new State(state.snapshot, "Tile raster load rejected: " + e.getMessage());
+            state = new ReadView(state.snapshot, "Tile raster load rejected: " + e.getMessage());
             return false;
         }
     }
@@ -141,12 +136,24 @@ public final class KOMETileWorldResolver {
         }
     }
 
-    private static final class State {
+    /** Immutable captured publication. Identity changes on publication/invalidation/load failure. */
+    public ReadView readView() { return state; }
+
+    public static final class ReadView {
         final KOMETileRasterSnapshot snapshot;
         final String diagnostic;
-        State(KOMETileRasterSnapshot snapshot, String diagnostic) {
+        private ReadView(KOMETileRasterSnapshot snapshot, String diagnostic) {
             this.snapshot = snapshot;
             this.diagnostic = diagnostic;
+        }
+
+        /** Exact existing conversion against this captured view, even if a replacement publishes concurrently. */
+        public KOMETileResolution resolveWorldPosition(int dimension, double x, double z) {
+            try {
+                return resolve(this, dimension, block(x), block(z));
+            } catch (IllegalArgumentException | ArithmeticException e) {
+                return invalidCoordinate(dimension, e);
+            }
         }
     }
 }

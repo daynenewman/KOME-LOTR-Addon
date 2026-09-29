@@ -3,3 +3,6 @@ key.kome.currentTileHud=Toggle current tile HUD
 kome.hud.tile.gap=No tile
 kome.hud.tile.outside=Outside mapped area
 kome.hud.tile.unavailable=Tile unavailable
+kome.unitTrade.campaignHire=Campaign Hire
+kome.unitTrade.campaignHint=Hire this native unit directly for KOME campaign service. The server verifies campaign location, price, population, and eligibility.
+kome.unitTrade.campaignNativeUnavailable=Native coin, alignment, or pledge requirements are not currently met.

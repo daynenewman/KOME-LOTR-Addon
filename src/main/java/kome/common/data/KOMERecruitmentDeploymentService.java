@@ -20,6 +20,12 @@ public final class KOMERecruitmentDeploymentService {
 
     public static KOMEStrategicDeploymentResolver.Validation resolve(KOMEWorldData data,
             World world, String faction, String tileId, Entity hiredEntity) {
+        return resolve(data, world, faction, tileId, hiredEntity, null);
+    }
+
+    public static KOMEStrategicDeploymentResolver.Validation resolve(KOMEWorldData data,
+            World world, String faction, String tileId, Entity hiredEntity,
+            Entity hiredMount) {
         String factionKey = KOMEAlliance.normalizeFactionKey(faction);
         String tileKey = KOMEConquestTile.normalizeId(tileId);
         KOMERecruitmentLocationService.Decision legality =
@@ -64,7 +70,7 @@ public final class KOMERecruitmentDeploymentService {
         }
         Footprint footprint;
         try {
-            footprint = footprint(hiredEntity);
+            footprint = footprint(hiredEntity, hiredMount);
         } catch (IllegalArgumentException invalidEntityTree) {
             return KOMEStrategicDeploymentResolver.Validation.invalid(
                 invalidEntityTree.getMessage());
@@ -85,6 +91,24 @@ public final class KOMERecruitmentDeploymentService {
             riderToBase.add(current);
             current = KOMEReflection.getRidingEntity(current);
         }
+        return footprint(riderToBase);
+    }
+
+    static Footprint footprint(Entity rider, Entity explicitMount) {
+        if (explicitMount == null) return footprint(rider);
+        if (rider == null || rider == explicitMount)
+            throw new IllegalArgumentException("Mounted recruitment entity tree is invalid.");
+        Entity currentMount = KOMEReflection.getRidingEntity(rider);
+        if (currentMount != null) {
+            if (currentMount != explicitMount)
+                throw new IllegalArgumentException("Mounted recruitment candidate has a different native mount.");
+            return footprint(rider);
+        }
+        if (KOMEReflection.getRidingEntity(explicitMount) != null)
+            throw new IllegalArgumentException("Mounted recruitment mount is already riding another entity.");
+        List<Entity> riderToBase = new ArrayList<Entity>();
+        riderToBase.add(rider);
+        riderToBase.add(explicitMount);
         return footprint(riderToBase);
     }
 

@@ -6,6 +6,8 @@ import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Objects;
+import java.util.function.BooleanSupplier;
 import java.util.concurrent.RejectedExecutionException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,15 +20,29 @@ public final class KOMEClientTaskQueue {
     private final Queue<Runnable> tasks = new ArrayDeque<Runnable>();
     private final Map<Object, LatestTask> latestTasks = new HashMap<Object, LatestTask>();
     private boolean connected;
+    private final BooleanSupplier onClientThread;
+    // Only read/written by the draining client thread; off-thread enqueue never reads it.
+    private boolean draining;
+
+    public KOMEClientTaskQueue() { this(() -> false); }
+
+    KOMEClientTaskQueue(BooleanSupplier onClientThread) {
+        this.onClientThread = Objects.requireNonNull(onClientThread, "Client thread check");
+    }
 
     public void enqueue(Runnable task) {
         if (task == null) throw new IllegalArgumentException("Client task is required");
+        // Forge 1.7.10 often dispatches FML packets from Minecraft's network pump on the
+        // client thread. Do not retain a whole conquest snapshot until the following tick.
+        boolean immediate = onClientThread.getAsBoolean() && !draining;
+        if (immediate) drain(); // Older queued/reset work must precede this publication.
         synchronized (lock) {
             if (!connected) throw new RejectedExecutionException("KOME client is disconnected");
             if (tasks.size() >= MAX_PENDING_TASKS)
                 throw new RejectedExecutionException("KOME client task queue is full; newest task rejected");
             tasks.add(task);
         }
+        if (immediate) drain();
     }
 
     /**
@@ -37,20 +53,23 @@ public final class KOMEClientTaskQueue {
     public boolean enqueueLatest(Object key, Runnable task) {
         if (key == null) throw new IllegalArgumentException("Client task key is required");
         if (task == null) throw new IllegalArgumentException("Client task is required");
+        boolean immediate = onClientThread.getAsBoolean() && !draining;
+        if (immediate) drain(); // Preserve older reset/GUI work before direct publication.
         synchronized (lock) {
             if (!connected) return false;
             LatestTask pending = latestTasks.get(key);
             if (pending != null) {
                 pending.task = task;
-                return true;
+            } else {
+                if (tasks.size() >= MAX_PENDING_TASKS)
+                    throw new RejectedExecutionException("KOME client task queue is full; newest task rejected");
+                LatestTask latest = new LatestTask(key, task);
+                latestTasks.put(key, latest);
+                tasks.add(latest);
             }
-            if (tasks.size() >= MAX_PENDING_TASKS)
-                throw new RejectedExecutionException("KOME client task queue is full; newest task rejected");
-            LatestTask latest = new LatestTask(key, task);
-            latestTasks.put(key, latest);
-            tasks.add(latest);
-            return true;
         }
+        if (immediate) drain();
+        return true;
     }
 
     /** Discards the previous connection's work; reset itself runs on the client thread. */
@@ -73,22 +92,28 @@ public final class KOMEClientTaskQueue {
         if (event.phase == TickEvent.Phase.START) drain();
     }
 
-    /** Snapshot bound: tasks enqueued by a running task wait for a later tick. */
+    /** Snapshot bound: tasks enqueued by a running task wait for a later drain. */
     public int drain() {
-        int remaining = pendingTasks();
-        int executed = 0;
-        while (remaining-- > 0) {
-            Runnable task;
-            synchronized (lock) { task = tasks.poll(); }
-            if (task == null) break;
-            try {
-                task.run();
-            } catch (RuntimeException failure) {
-                LOGGER.error("KOME client publication task failed", failure);
+        if (draining) return 0;
+        draining = true;
+        try {
+            int remaining = pendingTasks();
+            int executed = 0;
+            while (remaining-- > 0) {
+                Runnable task;
+                synchronized (lock) { task = tasks.poll(); }
+                if (task == null) break;
+                try {
+                    task.run();
+                } catch (RuntimeException failure) {
+                    LOGGER.error("KOME client publication task failed", failure);
+                }
+                executed++;
             }
-            executed++;
+            return executed;
+        } finally {
+            draining = false;
         }
-        return executed;
     }
 
     private final class LatestTask implements Runnable {

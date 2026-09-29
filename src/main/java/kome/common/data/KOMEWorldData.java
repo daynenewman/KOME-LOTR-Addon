@@ -1521,7 +1521,7 @@ public class KOMEWorldData extends WorldSavedData {
 
     /** A movement label alone never authorizes preserving a physically removed unit. */
     public boolean hasValidHiredUnitMovementLink(KOMEHiredUnitRecord record) {
-        if (record == null || !record.isMoving()) return false;
+        if (!KOMEHiredUnitClassification.isCampaignUnit(record) || !record.isMoving()) return false;
         KOMEArmyMovementOrder order = armyMovements.get(record.movementOrderId);
         return order != null && record.movementOrderId.equals(order.id) && order.isMoving()
             && order.units.contains(record.entity)
@@ -1659,6 +1659,9 @@ public class KOMEWorldData extends WorldSavedData {
             if (record == null || onlyOwner != null && !onlyOwner.equals(record.owner)) {
                 continue;
             }
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)) {
+                continue;
+            }
             KOMEArmyCompany assignedCompany = record.companyId == null ? null : armyCompanies.get(record.companyId);
             if (assignedCompany != null && KOMEArmyCompany.SOURCE_AUTO_UNIT_ASSIGNMENT.equals(assignedCompany.source)) {
                 continue;
@@ -1698,16 +1701,33 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public KOMEArmyCompany assignUnitToHiringTileCompany(KOMEHiredUnitRecord record, String ownerName) {
+        if (record == null) return null;
+        String sourceTile = KOMEConquestTile.normalizeId(record.sourceTileId);
+        if (sourceTile.length() == 0) sourceTile = KOMEConquestTile.normalizeId(record.currentTile);
+        return assignUnitToCampaignCompany(record, ownerName, sourceTile, false);
+    }
+
+    /** Package-scoped entry for an explicit, preflighted campaign recruitment transaction. */
+    KOMEArmyCompany assignUnitToCampaignCompanyAtTile(KOMEHiredUnitRecord record, String ownerName, String strategicTile) {
+        return assignUnitToCampaignCompany(record, ownerName, strategicTile, true);
+    }
+
+    private KOMEArmyCompany assignUnitToCampaignCompany(KOMEHiredUnitRecord record, String ownerName,
+            String strategicTile, boolean requireStationedAtStrategicTile) {
         if (!isEligibleForAutoCompany(record) || record.owner == null) return null;
-        // This service is the authoritative completion point for a successful hire.
+        String sourceTile = KOMEConquestTile.normalizeId(strategicTile);
+        if (sourceTile.length() == 0) return null;
+        // This service is the authoritative completion point for campaign company admission.
         // Keeping the record before recomputing prevents a newly assigned live unit from
         // being mistaken for a stale company member when callers have not inserted it yet.
         hiredUnits.put(record.entity, record);
-        String sourceTile = KOMEConquestTile.normalizeId(record.sourceTileId);
-        if (sourceTile.length() == 0) sourceTile = KOMEConquestTile.normalizeId(record.currentTile);
-        if (sourceTile.length() == 0) return null;
         String companyFaction = companyFaction(record);
         KOMEArmyCompany company = findHiringCompany(record.owner, sourceTile, companyFaction);
+        if (company != null && requireStationedAtStrategicTile
+                && (company.isMoving()
+                    || !sourceTile.equals(KOMEConquestTile.normalizeId(company.currentTile)))) {
+            return null;
+        }
         if (company == null) {
             String id = hiringCompanyId(record.owner, sourceTile);
             if (armyCompanies.containsKey(id)) {
@@ -1768,8 +1788,12 @@ public class KOMEWorldData extends WorldSavedData {
         List<UUID> missing = new ArrayList<UUID>();
         for (UUID unitId : company.units) {
             KOMEHiredUnitRecord record = hiredUnits.get(unitId);
-            if (record == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
                 missing.add(unitId);
+                if (record != null && company.id.equals(record.companyId)) {
+                    record.companyId = "";
+                }
                 continue;
             }
             int cost = Math.max(0, record.cost);
@@ -1829,7 +1853,8 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     private static boolean isEligibleForAutoCompany(KOMEHiredUnitRecord record) {
-        return record != null && record.entity != null && !record.farmhand
+        return KOMEHiredUnitClassification.isCampaignUnit(record)
+            && record.entity != null && !record.farmhand
             && record.type == KOMEPopulationType.OFFENSIVE && !record.isMoving();
     }
 
@@ -1877,7 +1902,7 @@ public class KOMEWorldData extends WorldSavedData {
         }
         if (server == null || server.getConfigurationManager() == null) return;
         for (Object player : server.getConfigurationManager().playerEntityList) {
-            KOMEPacketConquestData.sendChunked(this, (EntityPlayerMP) player);
+            KOMEPacketConquestData.sendIfChanged(this, (EntityPlayerMP) player);
         }
     }
 
@@ -2530,15 +2555,27 @@ public class KOMEWorldData extends WorldSavedData {
             List<UUID> missingUnits = new ArrayList<UUID>();
             for (UUID unitId : company.units) {
                 KOMEHiredUnitRecord record = hiredUnits.get(unitId);
-                if (record == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
+                if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                        || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
                     missingUnits.add(unitId);
                 } else {
                     record.companyId = company.id;
                 }
             }
             company.units.removeAll(missingUnits);
+            if (!missingUnits.isEmpty()) {
+                loadedStateReconciled = true;
+                recalculateCompanyComposition(company);
+            }
         }
         for (KOMEHiredUnitRecord record : hiredUnits.values()) {
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)) {
+                if (record.companyId != null && record.companyId.length() > 0) {
+                    record.companyId = "";
+                    loadedStateReconciled = true;
+                }
+                continue;
+            }
             if (record != null && record.companyId != null && record.companyId.length() > 0
                     && !armyCompanies.containsKey(record.companyId)) {
                 record.companyId = "";

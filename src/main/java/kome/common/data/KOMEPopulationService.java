@@ -100,7 +100,8 @@ public final class KOMEPopulationService {
         BigInteger total = BigInteger.ZERO;
         java.util.Set<java.util.UUID> members = new java.util.HashSet<java.util.UUID>(company.units);
         for (KOMEHiredUnitRecord record : livingRecords(data)) {
-            if (members.contains(record.entity)) total = total.add(BigInteger.valueOf(getInvestmentCenti(record)));
+            if (members.contains(record.entity) && KOMEHiredUnitClassification.isCampaignUnit(record))
+                total = total.add(BigInteger.valueOf(getInvestmentCenti(record)));
         }
         return total;
     }

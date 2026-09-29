@@ -471,7 +471,10 @@ public class KOMEPopulationConfigFoundationTest {
         assertEquals(oldAuditSize, first.centralAudit.size());
 
         String addon = source("src/main/java/kome/common/KOMEAddon.java").replace("\r", "");
-        assertTrue(addon.contains("@Mod.EventHandler\n    public void serverStopped(FMLServerStoppedEvent event) {\n        KOMEConfigRegistry.onServerStop();\n    }"));
+        assertTrue(addon.contains("@Mod.EventHandler\n    public void serverStopped(FMLServerStoppedEvent event)"));
+        // Exercise production cleanup; other session owners may legitimately clean up here too.
+        kome.common.KOMEAccessFixture.allocate(kome.common.KOMEAddon.class).serverStopped(null);
+        assertFalse(KOMEConfigRegistry.isWorldConfigurationLocked());
         String stopping = addon.substring(addon.indexOf("public void serverStopping(FMLServerStoppingEvent event)"));
         stopping = stopping.substring(0, stopping.indexOf("\n    }"));
         assertTrue(stopping.contains("KOMEConfigRegistry.onServerStop();"));

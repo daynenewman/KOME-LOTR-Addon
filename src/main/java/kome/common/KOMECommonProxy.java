@@ -34,6 +34,9 @@ public class KOMECommonProxy {
         events = new KOMEEvents();
         MinecraftForge.EVENT_BUS.register(events);
         FMLCommonHandler.instance().bus().register(events);
+        kome.common.data.KOMETileAwarenessEvents tileAwareness = new kome.common.data.KOMETileAwarenessEvents();
+        MinecraftForge.EVENT_BUS.register(tileAwareness);
+        FMLCommonHandler.instance().bus().register(tileAwareness);
     }
 
     public void resetServerSessionState() {

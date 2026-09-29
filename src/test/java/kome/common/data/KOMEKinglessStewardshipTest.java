@@ -49,6 +49,7 @@ public class KOMEKinglessStewardshipTest {
         war.addFaction(1, "gondor");
         KOMEArmyCompany company = company("c", "rohan", king);
         KOMEHiredUnitRecord unit = new KOMEHiredUnitRecord();
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(unit);
         unit.entity = UUID.randomUUID(); unit.owner = UUID.randomUUID(); unit.sourceFaction = "rohan";
         unit.populationOwningFaction = "rohan"; unit.unitFaction = "rohan"; unit.companyId = "wrong";
         unit.sourceType = KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION;
@@ -76,6 +77,7 @@ public class KOMEKinglessStewardshipTest {
         data.lastKnownPlayerFactions.put(stale, "gondor");
         KOMEArmyCompany company = company("stale", "rohan", stale);
         KOMEHiredUnitRecord unit = new KOMEHiredUnitRecord();
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(unit);
         unit.entity = UUID.randomUUID(); unit.unitFaction = "rohan";
         unit.sourceType = KOMEHiredUnitRecord.SOURCE_STEWARDSHIP_RESERVATION;
         unit.benefitSource = "MILITARY_T3_STEWARDSHIP";
@@ -96,6 +98,7 @@ public class KOMEKinglessStewardshipTest {
         war.addFaction(1, "gondor");
         KOMEArmyCompany company = company("c", "rohan", king);
         KOMEHiredUnitRecord unit = new KOMEHiredUnitRecord();
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(unit);
         unit.entity = UUID.randomUUID(); unit.owner = UUID.randomUUID(); unit.unitFaction = "rohan";
         unit.sourceFaction = "rohan"; unit.companyId = company.id; company.units.add(unit.entity);
         data.hiredUnits.put(unit.entity, unit); data.armyCompanies.put(company.id, company);

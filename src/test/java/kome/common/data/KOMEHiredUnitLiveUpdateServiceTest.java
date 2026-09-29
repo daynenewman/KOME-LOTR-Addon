@@ -165,6 +165,7 @@ public class KOMEHiredUnitLiveUpdateServiceTest {
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
         record.entity = UUID.randomUUID();
         record.owner = UUID.randomUUID();
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
         record.sourcePlayer = record.owner;
         record.unitName = "Guard";
         record.unitEntityId = "test.guard";

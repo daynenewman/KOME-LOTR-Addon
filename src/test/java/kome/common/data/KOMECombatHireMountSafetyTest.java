@@ -39,27 +39,28 @@ public class KOMECombatHireMountSafetyTest {
         }
     }
 
-    @Test public void recruitmentCommitIsDeferredUntilPostJoinUpdateAndHaltFollowsCommit()
+    @Test public void nativeHireRegistrationIsDeferredAndHasNoCampaignSideEffects()
             throws Exception {
         String source = new String(Files.readAllBytes(Paths.get(
             "src/main/java/kome/common/data/KOMEEvents.java")), StandardCharsets.UTF_8);
         String join = between(source, "public void onEntityJoinWorld", "public void onEntityInteract");
         String update = between(source, "public void onLivingUpdate", "public void onLivingAttack");
-        String hire = between(source, "private void handleHiredUnit", "static void positionEntityTree");
+        String hire = between(source, "LOTRUnitTradeEntry trade = getMatchingTrade", "static void positionEntityTree");
 
         assertFalse(join.contains("handleHiredUnit("));
         assertTrue(update.contains("handleHiredUnit(npc)"));
-        int committed = hire.indexOf("debit.commit();");
-        int halted = hire.indexOf("initializeSuccessfulCombatHireAsHalted(npc);", committed);
-        int snapshot = hire.indexOf(
-            "record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);", halted);
-        assertTrue(committed >= 0 && halted > committed);
-        assertTrue(snapshot > halted);
-        String haltHelper = between(source,
-            "static void initializeSuccessfulCombatHireAsHalted",
-            "static void discardDeniedHireEntityTree");
-        assertTrue(haltHelper.contains("npc.hiredNPCInfo.halt();"));
-        assertFalse(haltHelper.contains(".ready();"));
+        assertEquals(1, occurrences(hire,
+            "KOMENativeHireRegistrationService.registerOrdinaryCombatHire("));
+        assertTrue(source.indexOf("isSecondaryHiredMount(npc, info)")
+            < source.indexOf("KOMEUnitPopulationCostService.calculate("));
+        assertTrue(hire.contains("record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);"));
+        assertFalse(hire.contains("resolveRecruitmentTile("));
+        assertFalse(hire.contains("KOMERecruitmentDeploymentService"));
+        assertFalse(hire.contains("positionEntityTree(npc"));
+        assertFalse(hire.contains("assignUnitToHiringTileCompany"));
+        assertFalse(hire.contains("record.currentTile ="));
+        assertFalse(hire.contains(".halt();"));
+        assertFalse(hire.contains("setHiringPlayer("));
     }
 
     @Test public void deferredCrossChunkPlacementKeepsMountedTreeCoherent() throws Exception {
@@ -84,9 +85,12 @@ public class KOMECombatHireMountSafetyTest {
         String source = new String(Files.readAllBytes(Paths.get(
             "src/main/java/kome/common/data/KOMEEvents.java")), StandardCharsets.UTF_8);
         assertFalse(source.contains("KOMEReflection.setDead(npc)"));
-        assertEquals(7, occurrences(source, "discardDeniedHireEntityTree(npc)"));
+        assertEquals(5, occurrences(source, "discardDeniedHireEntityTree(npc)"));
         assertTrue(source.contains("catch (RuntimeException failure)"));
-        assertTrue(source.contains("debit.rollback();"));
+        String transaction = new String(Files.readAllBytes(Paths.get(
+            "src/main/java/kome/common/data/KOMENativeHireRegistrationService.java")), StandardCharsets.UTF_8);
+        assertTrue(transaction.contains("debit.rollback();"));
+        assertTrue(transaction.contains("KOMEHiredUnitRecord existing"));
     }
 
     private static TestEntity entity(float width, float height) throws Exception {
