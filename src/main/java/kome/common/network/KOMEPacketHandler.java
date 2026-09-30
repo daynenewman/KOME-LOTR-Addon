@@ -119,13 +119,15 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketPledgeDepartureData.Handler.class, KOMEPacketPledgeDepartureData.class, 34, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketTroopGuiAction>(new KOMEPacketTroopGuiAction.Handler()) {}, KOMEPacketTroopGuiAction.class, 35, Side.SERVER);
         network.registerMessage(new ServerThreadHandler<KOMEPacketBuildAction>(new KOMEPacketBuildAction.Handler()) {}, KOMEPacketBuildAction.class, 36, Side.SERVER);
-        network.registerMessage(KOMEPacketSerfdomMasterMenu.Handler.class, KOMEPacketSerfdomMasterMenu.class, 37, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketSerfdomMasterAction>(new KOMEPacketSerfdomMasterAction.Handler()) {}, KOMEPacketSerfdomMasterAction.class, 38, Side.SERVER);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketProgressionRelationshipAction>(new KOMEPacketProgressionRelationshipAction.Handler()) {}, KOMEPacketProgressionRelationshipAction.class, 39, Side.SERVER);
-        network.registerMessage(KOMEPacketRelationshipHub.Handler.class, KOMEPacketRelationshipHub.class, 40, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketRelationshipAction>(new KOMEPacketRelationshipAction.Handler()) {}, KOMEPacketRelationshipAction.class, 41, Side.SERVER);
-        network.registerMessage(KOMEPacketVisualMarkers.Handler.class, KOMEPacketVisualMarkers.class, 42, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketProgressionRequest>(new KOMEPacketProgressionRequest.Handler()) {}, KOMEPacketProgressionRequest.class, 43, Side.SERVER);
-        network.registerMessage(KOMEPacketProgressionTracker.Handler.class, KOMEPacketProgressionTracker.class, 44, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketCampaignHire>(new KOMEPacketCampaignHire.Handler()) {}, KOMEPacketCampaignHire.class, 37, Side.SERVER);
+
+        network.registerMessage(KOMEPacketSerfdomMasterMenu.Handler.class, KOMEPacketSerfdomMasterMenu.class, 38, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketSerfdomMasterAction>(new KOMEPacketSerfdomMasterAction.Handler()) {}, KOMEPacketSerfdomMasterAction.class, 39, Side.SERVER);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketProgressionRelationshipAction>(new KOMEPacketProgressionRelationshipAction.Handler()) {}, KOMEPacketProgressionRelationshipAction.class, 40, Side.SERVER);
+        network.registerMessage(KOMEPacketRelationshipHub.Handler.class, KOMEPacketRelationshipHub.class, 41, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketRelationshipAction>(new KOMEPacketRelationshipAction.Handler()) {}, KOMEPacketRelationshipAction.class, 42, Side.SERVER);
+        network.registerMessage(KOMEPacketVisualMarkers.Handler.class, KOMEPacketVisualMarkers.class, 43, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketProgressionRequest>(new KOMEPacketProgressionRequest.Handler()) {}, KOMEPacketProgressionRequest.class, 44, Side.SERVER);
+        network.registerMessage(KOMEPacketProgressionTracker.Handler.class, KOMEPacketProgressionTracker.class, 45, Side.CLIENT);
     }
 }

@@ -15,6 +15,9 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public class KOMEFactionCapitalServiceTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final List<String> EXPECTED = Arrays.asList(
         "hobbit", "bree", "dunedain", "bluemountains", "highelves", "gundabad",
         "angmar", "woodelf", "dolguldur", "dale", "durinsfolk", "lothlorien",
@@ -82,11 +85,11 @@ public class KOMEFactionCapitalServiceTest {
         }
     }
 
-    @Test public void schemaFourRoundTripsCompleteCapitalAuthority() {
+    @Test public void schemaFiveRoundTripsCompleteCapitalAuthority() {
         KOMEWorldData source = initialized();
         NBTTagCompound saved = new NBTTagCompound();
         source.writeToNBT(saved);
-        assertEquals(4, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(5, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(1, saved.getInteger("FactionCapitalDataSchemaVersion"));
         assertEquals(24, saved.getTagList("FactionCapitals", 10).tagCount());
         KOMEWorldData restored = new KOMEWorldData("restored");

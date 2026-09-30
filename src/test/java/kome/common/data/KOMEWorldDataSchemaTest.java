@@ -21,8 +21,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.junit.Assert.*;
 
 public class KOMEWorldDataSchemaTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final Set<String> REQUIRED_CURRENT_DEV_ROOT_TAGS = new HashSet<String>(Arrays.asList(
         "KOMEDataSchemaVersion", "AllianceDataSchemaVersion", "BuildDataSchemaVersion",
+        "PopulationDevelopmentDataSchemaVersion", "PopulationDevelopment",
         "FactionCapitalDataSchemaVersion", "FactionCapitals",
         "FactionPopulationDataSchemaVersion", "ProgressionEnabled",
         "MovementSecondsPerTileOverride", "MovementTotalSecondsOverride", "MovementStepDelaySeconds",
@@ -61,7 +65,9 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
         assertEquals("KOMEDataSchemaVersion", KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        assertEquals(4, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(5, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(4, KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
+        assertEquals(1, KOMEWorldData.POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION);
         assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
             saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
     }
@@ -129,7 +135,7 @@ public class KOMEWorldDataSchemaTest {
 
         IllegalStateException failure = expectReadFailure(data, unsupported);
         assertTrue(failure.getMessage().contains("schema 1"));
-        assertTrue(failure.getMessage().contains("expected 4"));
+        assertTrue(failure.getMessage().contains("expected 5"));
         assertTrue(data.isWriteBlocked());
         assertFalse(data.isDirty());
         assertTrue(data.conquestTiles.isEmpty());

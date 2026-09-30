@@ -1,0 +1,12 @@
+Baseline commit: 38713a4a2559b0e80d6b96756cf47adcebb80200
+Baseline packet source SHA-256: b5ac491dc527824afa8c7ceba737b2059fa827e0650c92930b05c27b99e389e0
+Fixture SHA-256: c200e9a9b54479a589fd0a1edb7fb51a6550b86b491e1f05563fee6301286450
+JVM: Java 17.0.19; heap 768m; one recipient; no graphics; harness framing, not Forge wire bytes.
+
+BEFORE
+phase=idle requests=100 actualChanges=0 packets=2100 handlerCalls=2100 payloadBytes=3242200 tcpStreamBytes=3250600 completedSnapshots=100 elapsedNs=1536340200 serverThreadCpuNs=1359375000 encodeNs=1317827200 clientDecodeNs=329468800 clientHandlerPublishNs=112896100 maxRequestThroughPublicationNs=42191200 meanChangedRequestThroughPublicationNs=0 maxChangedRequestThroughPublicationNs=0
+phase=active requests=100 actualChanges=10 packets=2100 handlerCalls=2100 payloadBytes=3243010 tcpStreamBytes=3251410 completedSnapshots=100 elapsedNs=1353805700 serverThreadCpuNs=1265625000 encodeNs=1185093100 clientDecodeNs=309036300 clientHandlerPublishNs=96724500 maxRequestThroughPublicationNs=16322800 meanChangedRequestThroughPublicationNs=13467230 maxChangedRequestThroughPublicationNs=14216300
+
+AFTER
+phase=idle requests=100 actualChanges=0 packets=0 handlerCalls=0 payloadBytes=0 tcpStreamBytes=0 completedSnapshots=0 elapsedNs=180748300 serverThreadCpuNs=187500000 encodeNs=0 clientDecodeNs=0 clientHandlerPublishNs=0 maxRequestThroughPublicationNs=4659400 meanChangedRequestThroughPublicationNs=0 maxChangedRequestThroughPublicationNs=0
+phase=active requests=100 actualChanges=10 packets=210 handlerCalls=210 payloadBytes=324301 tcpStreamBytes=325141 completedSnapshots=10 elapsedNs=313862800 serverThreadCpuNs=296875000 encodeNs=142474800 clientDecodeNs=45271400 clientHandlerPublishNs=13720100 maxRequestThroughPublicationNs=26201000 meanChangedRequestThroughPublicationNs=17987290 maxChangedRequestThroughPublicationNs=26201000

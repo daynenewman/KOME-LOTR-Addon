@@ -38,6 +38,9 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
     public int myGroundPop;
     public String activeRecruitmentTile = "";
     public boolean canSetRecruitmentTile;
+    public String recruitmentLegalityReason = "";
+    public java.math.BigInteger recruitmentEffectiveRateUnits = java.math.BigInteger.ZERO;
+    public java.math.BigInteger recruitmentThresholdUnits = java.math.BigInteger.ZERO;
     public String lotrWaypointKey = "";
     public String lotrWaypointDisplayName = "";
     public String lotrWaypointRegion = "";
@@ -90,6 +93,9 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         myGroundPop = buf.readInt();
         activeRecruitmentTile = KOMEPopulationWire.readText(buf);
         canSetRecruitmentTile = buf.readBoolean();
+        recruitmentLegalityReason = KOMEPopulationWire.readText(buf);
+        recruitmentEffectiveRateUnits = KOMEPopulationWire.readExact(buf);
+        recruitmentThresholdUnits = KOMEPopulationWire.readExact(buf);
         lotrWaypointKey = KOMEPopulationWire.readText(buf);
         lotrWaypointDisplayName = KOMEPopulationWire.readText(buf);
         lotrWaypointRegion = KOMEPopulationWire.readText(buf);
@@ -153,6 +159,9 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             buf.writeInt(myGroundPop);
             KOMEPopulationWire.writeText(buf, activeRecruitmentTile);
             buf.writeBoolean(canSetRecruitmentTile);
+            KOMEPopulationWire.writeText(buf, recruitmentLegalityReason);
+            KOMEPopulationWire.writeExact(buf, recruitmentEffectiveRateUnits);
+            KOMEPopulationWire.writeExact(buf, recruitmentThresholdUnits);
             KOMEPopulationWire.writeText(buf, lotrWaypointKey);
             KOMEPopulationWire.writeText(buf, lotrWaypointDisplayName);
             KOMEPopulationWire.writeText(buf, lotrWaypointRegion);
@@ -199,6 +208,10 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         public double z;
         public String buildType = "";
         public long approvedCentiHours;
+        public long developedNativeCentiHours;
+        public long pendingNativeCentiHours;
+        public java.math.BigInteger currentRateUnits = java.math.BigInteger.ZERO;
+        public String currentMultiplier = "0";
         public int pendingCount;
         public String status = "";
         public boolean canManage;
@@ -219,6 +232,10 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             z = buf.readDouble();
             buildType = kome.common.data.KOMEBuildType.forKey(KOMEPopulationWire.readText(buf)).key;
             approvedCentiHours = KOMEPopulationWire.nonnegative(buf.readLong());
+            developedNativeCentiHours = KOMEPopulationWire.nonnegative(buf.readLong());
+            pendingNativeCentiHours = KOMEPopulationWire.nonnegative(buf.readLong());
+            currentRateUnits = KOMEPopulationWire.readExact(buf);
+            currentMultiplier = KOMEPopulationWire.readText(buf);
             pendingCount = (int) KOMEPopulationWire.nonnegative(buf.readInt());
             status = KOMEPopulationWire.readText(buf);
             canManage = buf.readBoolean();
@@ -246,6 +263,10 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             buf.writeDouble(z);
             KOMEPopulationWire.writeText(buf, kome.common.data.KOMEBuildType.forKey(buildType).key);
             buf.writeLong(KOMEPopulationWire.nonnegative(approvedCentiHours));
+            buf.writeLong(KOMEPopulationWire.nonnegative(developedNativeCentiHours));
+            buf.writeLong(KOMEPopulationWire.nonnegative(pendingNativeCentiHours));
+            KOMEPopulationWire.writeExact(buf, currentRateUnits);
+            KOMEPopulationWire.writeText(buf, safe(currentMultiplier));
             buf.writeInt((int) KOMEPopulationWire.nonnegative(pendingCount));
             KOMEPopulationWire.writeText(buf, safe(status));
             buf.writeBoolean(canManage);

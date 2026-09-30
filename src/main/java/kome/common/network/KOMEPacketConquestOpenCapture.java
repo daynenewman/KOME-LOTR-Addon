@@ -89,7 +89,9 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         boolean canAccept = tile.hasPendingTransfer() && viewerFaction.equals(pendingToFaction) && KOMERulerAuthorization.canActAsRuler(data, pendingToFaction, KOMEReflection.getEntityUUID(player));
         boolean canCancel = tile.hasPendingTransfer() && viewerFaction.equals(ownerFaction) && ownerKing;
         String activeRecruitmentTile = data.getActiveRecruitmentTile(viewerId, viewerFaction);
-        boolean canSetRecruitmentTile = data.canUseRecruitmentTile(viewerId, viewerFaction, tileId);
+        kome.common.data.KOMERecruitmentLocationService.Decision recruitment =
+            kome.common.data.KOMERecruitmentLocationService.evaluate(data, viewerFaction, tileId);
+        boolean canSetRecruitmentTile = recruitment.legal;
         KOMETileWaypointLink waypointLink = data.getTileWaypointLink(tileId);
         KOMEPacketConquestCaptureGui packet = new KOMEPacketConquestCaptureGui();
         packet.tileId = tile.id;
@@ -118,6 +120,9 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         packet.ownerHasKing = data.hasFactionKing(ownerFaction);
         packet.activeRecruitmentTile = activeRecruitmentTile;
         packet.canSetRecruitmentTile = canSetRecruitmentTile;
+        packet.recruitmentLegalityReason = recruitment.reason;
+        packet.recruitmentEffectiveRateUnits = recruitment.effectiveRateUnits;
+        packet.recruitmentThresholdUnits = recruitment.thresholdUnits;
         packet.lotrWaypointKey = waypointLink == null ? "" : waypointLink.lotrWaypointKey;
         packet.lotrWaypointDisplayName = waypointLink == null ? "" : waypointLink.displayName();
         packet.lotrWaypointRegion = waypointLink == null ? "" : waypointLink.waypointRegion;
@@ -128,7 +133,6 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         packet.capitalFactions.addAll(
             kome.common.data.KOMEFactionCapitalService.getCapitalFactionsForTile(data, tile.id));
         packet.population = kome.common.data.KOMEPopulationProjection.of(data, ownerFaction);
-        populateSelectablePopulationOwners(packet, data, viewerFaction, tile);
         populateBuildViews(packet, data, player, tile, viewerFaction, ownerFaction, viewerId);
         packet.focusBuildId = focusBuildId == null ? "" : focusBuildId;
         if (canClaim && ownerFaction.length() > 0) {
@@ -155,6 +159,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
 
     static void populateSelectablePopulationOwners(KOMEPacketConquestCaptureGui packet,
             KOMEWorldData data, String viewerFaction, KOMEConquestTile tile) {
+        packet.selectablePopulationOwners.clear();
         packet.selectablePopulationOwners.addAll(
             KOMEBuildService.selectablePopulationOwners(data, viewerFaction, tile.id));
     }
@@ -165,6 +170,7 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         for (KOMEPlayerBuild build : KOMEBuildService.buildsInTile(data, tile.id, false)) {
             packet.builds.add(projectBuild(data, build, viewerFaction, controller, viewerId, admin));
         }
+        populateSelectablePopulationOwners(packet, data, viewerFaction, tile);
         packet.viewerDimension = player.worldObj.provider.dimensionId;
         packet.viewerX = player.posX;
         packet.viewerY = player.posY;
@@ -186,6 +192,16 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         view.z = build.z;
         view.buildType = build.type.key;
         view.approvedCentiHours = build.approvedCentiHours();
+        view.developedNativeCentiHours = build.developedNativeCentiHours;
+        view.pendingNativeCentiHours = build.pendingNativeCentiHours();
+        for (kome.common.data.KOMEPopulationRateContribution row
+                : kome.common.data.KOMEPopulationRateService.getPopulationRateContributions(data)) {
+            if (build.id.equals(row.buildId)) {
+                view.currentRateUnits = row.currentRateUnits;
+                view.currentMultiplier = row.multiplier;
+                break;
+            }
+        }
         view.pendingCount = build.pendingCount();
         view.status = buildStatus(data, viewerFaction, controller, build.populationFaction);
         view.canManage = admin || KOMEBuildService.isManager(build, viewerId);
@@ -261,7 +277,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
     private static TroopSummary summarizeTroops(KOMEWorldData data, String ownerFaction, String tileId, java.util.UUID viewerId) {
         TroopSummary summary = new TroopSummary();
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record == null || !tileId.equals(KOMEConquestTile.normalizeId(record.currentTile))) {
+            if (!kome.common.data.KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || !tileId.equals(KOMEConquestTile.normalizeId(record.currentTile))) {
                 continue;
             }
             if (record.movementOrderId != null && record.movementOrderId.length() > 0) {
@@ -303,22 +320,27 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             if (order == null || !order.isMoving()) {
                 continue;
             }
+            kome.common.data.KOMECampaignUnitTotals campaign =
+                kome.common.data.KOMECampaignUnitTotals.of(data, order.units);
+            if (campaign.unitCount == 0) {
+                continue;
+            }
             if (!kome.common.data.KOMEAlliance.normalizeFactionKey(ownerFaction).equals(kome.common.data.KOMEAlliance.normalizeFactionKey(order.ownerFaction))) {
                 continue;
             }
             if (KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)) {
                 if (tileId.equals(activeStepOrigin(order))) {
-                    summary.offensivePop += order.population;
-                    summary.mountedPop += order.mountedPopulation;
-                    summary.groundPop += order.groundPopulation;
+                    summary.offensivePop += campaign.population;
+                    summary.mountedPop += campaign.mountedPopulation;
+                    summary.groundPop += campaign.groundPopulation;
                 }
                 continue;
             }
             if (tileId.equals(activeStepOrigin(order))) {
-                summary.outgoingPop += order.population;
+                summary.outgoingPop += campaign.population;
             }
             if (tileId.equals(activeStepDestination(order))) {
-                summary.incomingPop += order.population;
+                summary.incomingPop += campaign.population;
                 eta = Math.min(eta, order.getRemainingMillis(now));
             }
         }
@@ -339,7 +361,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
             }
         }
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record != null && viewerId.equals(record.owner) && !record.farmhand
+            if (kome.common.data.KOMEHiredUnitClassification.isCampaignUnit(record)
+                    && viewerId.equals(record.owner) && !record.farmhand
                     && record.type == KOMEPopulationType.OFFENSIVE && !record.isMoving()
                     && tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
                     && record.lotrCompanyValue != null && record.lotrCompanyValue.length() > 0) {
@@ -348,7 +371,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         }
         if (admin && data.canFactionStandOnTile(tile, viewerFaction)) {
             for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-                if (record != null && viewerId.equals(record.owner) && !record.farmhand
+                if (kome.common.data.KOMEHiredUnitClassification.isCampaignUnit(record)
+                        && viewerId.equals(record.owner) && !record.farmhand
                         && record.type == KOMEPopulationType.OFFENSIVE && !record.isMoving()
                         && tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
                         && (record.companyId == null || record.companyId.length() == 0)) {
@@ -361,6 +385,16 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
 
     private static boolean companyHasPresenceAtTile(KOMEWorldData data, kome.common.data.KOMEArmyCompany company, String tileId) {
         String tile = KOMEConquestTile.normalizeId(tileId);
+        boolean hasCampaignUnit = false;
+        for (java.util.UUID unitId : company.units) {
+            if (kome.common.data.KOMEHiredUnitClassification.isCampaignUnit(data, unitId)) {
+                hasCampaignUnit = true;
+                break;
+            }
+        }
+        if (!hasCampaignUnit) {
+            return false;
+        }
         if (tile.equals(KOMEConquestTile.normalizeId(company.currentTile))) {
             return true;
         }
@@ -371,7 +405,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         }
         for (java.util.UUID unitId : company.units) {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
-            if (record != null && tile.equals(KOMEConquestTile.normalizeId(record.currentTile))) {
+            if (kome.common.data.KOMEHiredUnitClassification.isCampaignUnit(record)
+                    && tile.equals(KOMEConquestTile.normalizeId(record.currentTile))) {
                 return true;
             }
         }

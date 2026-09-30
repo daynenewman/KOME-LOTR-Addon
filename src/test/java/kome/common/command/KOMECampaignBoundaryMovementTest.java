@@ -16,6 +16,9 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMECampaignBoundaryMovementTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final Instant START = Instant.parse("2026-01-10T12:00:00Z");
     private static final Instant DUE = Instant.parse("2026-01-11T02:00:00Z");
 
@@ -94,7 +97,8 @@ public class KOMECampaignBoundaryMovementTest {
             build.populationFaction = "rohan"; build.type = KOMEBuildType.NORMAL;
             KOMEBuildContribution hours = new KOMEBuildContribution(); hours.id = "hours";
             hours.centiHours = 1000L; hours.status = KOMEBuildContribution.APPROVED;
-            build.contributions.add(hours); data.builds.put(build.id, build);
+            build.contributions.add(hours); build.developedNativeCentiHours = 1000L;
+            data.builds.put(build.id, build);
             KOMEPopulationPayoutRuntime runtime = new KOMEPopulationPayoutRuntime();
             assertTrue(runtime.onStartup(data, START).success);
             assertTrue(KOMEEvents.processCampaignTick(data, world(), DUE.toEpochMilli(), runtime).success);

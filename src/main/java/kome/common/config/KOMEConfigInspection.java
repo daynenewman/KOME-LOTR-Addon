@@ -57,6 +57,12 @@ public final class KOMEConfigInspection {
             KOMEConfigRegistry.PopulationSettings s = snapshot.getPopulation();
             add(values, category, "hoursPerPopulationPoint", s.formatHoursPerPopulationPoint());
             add(values, category, "capturedBuildMultiplier", s.formatCapturedBuildMultiplier());
+            add(values, category, "bottleneckRatePerActiveServerDay",
+                    s.formatBottleneckRatePerActiveServerDay());
+            add(values, category, "pauseRateCeilingWhenNoPendingHours",
+                    s.isPauseRateCeilingWhenNoPendingHours());
+            add(values, category, "recruitmentTileActiveRateThreshold",
+                    s.formatRecruitmentTileActiveRateThreshold());
             add(values, category, "offlinePopulationCatchUp", s.isOfflinePopulationCatchUp());
             add(values, category, "populationCapEnabled", s.isPopulationCapEnabled());
             add(values, category, "populationCapValue", s.formatPopulationCap());

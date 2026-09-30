@@ -19,6 +19,9 @@ import static org.junit.Assert.*;
 
 /** G retirement gates. Codec/threading and live lifecycle tests remain in their existing suites. */
 public class KOMELegacyPopulationRetirementTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final String[] RETIRED_TAGS = {
         "Populations", "TilePopulations", "PopulationAllocations", "PopulationDataSchemaVersion"
     };
@@ -63,7 +66,7 @@ public class KOMELegacyPopulationRetirementTest {
                 NBTTagCompound tag = new NBTTagCompound(); data.writeToNBT(tag);
                 for (String key : RETIRED_TAGS) assertFalse(key, tag.hasKey(key));
                 assertFalse(tag.hasKey("ActivePopulationCenti")); assertFalse(tag.hasKey("RepresentedPopulationCenti"));
-                assertEquals(4, tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+                assertEquals(5, tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
                 assertEquals(2, tag.getInteger("FactionPopulationDataSchemaVersion"));
                 KOMEWorldData restored = new KOMEWorldData("restart"); restored.readFromNBT(tag); data = restored;
             }

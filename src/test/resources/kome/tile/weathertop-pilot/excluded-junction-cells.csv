@@ -1,0 +1,15 @@
+mask_x,mask_y,reason,nearby_other_ids,background_rgb
+951,711,other-tile junction guard,T171,#82A84A
+949,712,other-tile junction guard,T116;T171,#82A84A
+950,712,other-tile junction guard,T171,#82A84A
+951,712,other-tile junction guard,T171,#5B9357
+949,713,other-tile junction guard,T116;T171,#82A84A
+950,713,other-tile junction guard,T171,#82A84A
+951,713,other-tile junction guard,T171,#5B9357
+949,714,other-tile junction guard,T116;T171,#82A84A
+950,714,other-tile junction guard,T171,#5B9357
+949,715,other-tile junction guard,T171,#5B9357
+949,716,other-tile junction guard,T171,#5B9357
+949,717,other-tile junction guard,T171,#5B9357
+957,738,other-tile junction guard,T171,#82A84A
+958,738,other-tile junction guard,T171,#82A84A

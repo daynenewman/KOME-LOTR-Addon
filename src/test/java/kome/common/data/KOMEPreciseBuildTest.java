@@ -23,6 +23,7 @@ import static org.junit.Assert.*;
 
 /** Checkpoint D production service/persistence regressions, without a client or live clock. */
 public class KOMEPreciseBuildTest {
+    @org.junit.Rule public final KOMETileTestResources tileGeometry = new KOMETileTestResources();
     @Test public void ordinaryDecimalInputAndFormattingAreExactAtEveryBoundary() {
         String[] inputs = {"0", "0.01", "0.50", "1", "1.00", "10.25", "24.50", "92233720368547758.07"};
         long[] expected = {0L, 1L, 50L, 100L, 100L, 1025L, 2450L, Long.MAX_VALUE};
@@ -158,10 +159,10 @@ public class KOMEPreciseBuildTest {
         KOMEBuildContribution pending = KOMEBuildService.addSubmission(data, build, nonManager,
             "Helper", "gondor", 2450L, true, 30L);
         assertTrue(pending.isPending()); assertEquals(25L, build.approvedCentiHours());
-        assertEquals(25_000L, rate(data, "gondor"));
+        assertEquals(0L, rate(data, "gondor"));
         assertTrue(KOMEBuildService.decideSubmission(data, build, pending.id, build.managerUuid,
             "Builder", true, "Reviewed", 40L).allowed);
-        assertEquals(2475L, build.approvedCentiHours()); assertEquals(2_475_000L, rate(data, "gondor"));
+        assertEquals(2475L, build.approvedCentiHours()); assertEquals(0L, rate(data, "gondor"));
     }
 
     @Test public void failedRegistrationIsAtomicAndZeroSubmissionIsValid() {
@@ -211,7 +212,8 @@ public class KOMEPreciseBuildTest {
             build.managerUuid, "Builder", false, "Rejected", 30L).allowed);
         KOMEBuildContribution replacement = KOMEBuildService.addSubmission(data, build, build.managerUuid,
             "Builder", "gondor", 25L, true, 40L);
-        assertTrue(replacement.isApproved()); assertEquals(25_000L, rate(data, "gondor"));
+        assertTrue(replacement.isApproved()); assertEquals(25L, build.pendingNativeCentiHours());
+        assertEquals(0L, rate(data, "gondor"));
         String autoApproved = saved(data).toString(); approve(data, build, replacement);
         assertEquals(autoApproved, saved(data).toString());
         assertTrue(KOMEBuildService.deleteBuild(data, build, build.managerUuid, "Builder", false, "Delete", 50L).allowed);
@@ -380,7 +382,8 @@ public class KOMEPreciseBuildTest {
         KOMEWorldData data = world(); KOMEPlayerBuild build = create(data, KOMEBuildType.NORMAL, 2450L);
         approve(data, build, build.contributions.get(0));
         Method summary = KOMECommandBuild.class.getDeclaredMethod("summary", KOMEWorldData.class, KOMEPlayerBuild.class);
-        summary.setAccessible(true); assertTrue(((String) summary.invoke(null, data, build)).contains("hours=24.50"));
+        summary.setAccessible(true); assertTrue(((String) summary.invoke(null, data, build))
+            .contains("approved/developed/pending=24.50/24.50/0.00"));
         String command = read("command/KOMECommandBuild.java");
         assertTrue(command.contains("KOMEBuildService.adjustSubmission"));
         assertTrue(command.contains("KOMEBuildService.setApprovedHours"));
@@ -405,8 +408,10 @@ public class KOMEPreciseBuildTest {
         tile.claim("gondor", 0L); data.conquestTiles.put(tile.id, tile); return data;
     }
     private static KOMEPlayerBuild create(KOMEWorldData data, KOMEBuildType type, long amount) {
-        KOMEPlayerBuild build = KOMEBuildService.create(data, "Hall", "T100", 0, 0D, 64D, 0D,
+        KOMEPlayerBuild build = KOMEBuildService.create(data, "Hall", "T100", KOMETileTestResources.dimension(),
+            KOMETileTestResources.x(), 64D, KOMETileTestResources.z(),
             UUID.randomUUID(), "Builder", "gondor", "gondor", type, amount, 10L);
+        if (type == KOMEBuildType.NORMAL) build.developedNativeCentiHours = amount;
         KOMEPlayerProgression progression = new KOMEPlayerProgression();
         progression.setPledgedLord("lord", "Lord", "gondor");
         data.progressions.put(build.managerUuid, progression);
@@ -431,9 +436,13 @@ public class KOMEPreciseBuildTest {
         Field field = KOMEConfigRegistry.ValidatedConfig.class.getDeclaredField("population"); field.setAccessible(true);
         Object original = field.get(config);
         Constructor<KOMEConfigRegistry.PopulationSettings> constructor = KOMEConfigRegistry.PopulationSettings.class
-            .getDeclaredConstructor(long.class, long.class, boolean.class, boolean.class, OptionalLong.class, boolean.class);
+            .getDeclaredConstructor(long.class, long.class, long.class, long.class,
+                boolean.class, boolean.class, boolean.class, OptionalLong.class, boolean.class);
         constructor.setAccessible(true);
-        try { field.set(config, constructor.newInstance(hours, multiplier, true, false, OptionalLong.empty(), false)); action.run(); }
+        KOMEConfigRegistry.PopulationSettings old = (KOMEConfigRegistry.PopulationSettings) original;
+        try { field.set(config, constructor.newInstance(hours, multiplier,
+            old.getBottleneckRateUnitsPerActiveServerDay(), old.getRecruitmentTileActiveRateThresholdUnits(),
+            true, old.isPauseRateCeilingWhenNoPendingHours(), false, OptionalLong.empty(), false)); action.run(); }
         finally { field.set(config, original); }
     }
     private static String read(String path) throws Exception {

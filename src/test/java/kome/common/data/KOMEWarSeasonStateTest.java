@@ -8,6 +8,9 @@ import static org.junit.Assert.*;
 
 /** Deterministic campaign state coverage: every time is supplied by the test. */
 public class KOMEWarSeasonStateTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test public void initialAndLegalLifecycleAreExplicit() {
         KOMEWarSeasonState s = new KOMEWarSeasonState();
         assertEquals(KOMEWarSeasonState.Phase.MAINTENANCE, s.phase); assertFalse(s.isPopulationPayoutEnabled());

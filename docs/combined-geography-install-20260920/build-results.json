@@ -1,0 +1,23 @@
+{
+  "tests": {
+    "tests": 814,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 2,
+    "passed": 812,
+    "skip_details": [
+      {
+        "test": "symbolicLinkSkinIsRejectedWhenSupported",
+        "reason": "JUnit assumption"
+      },
+      {
+        "test": "symbolicLinkAtHashPathIsNeverAcceptedWhenSupported",
+        "reason": "JUnit assumption"
+      }
+    ]
+  },
+  "jar": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\KOME-LOTR-Addon-Tile-Resolution-Dev\\build\\libs\\KOME-LOTR-Addon-1.0.8.jar",
+  "jar_sha256": "a4a46b6e5f588f8266faf8b512f527afc5485a780f3c43b5cac100989a52485e",
+  "mask_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+  "gameplay_defaults_packaged_unchanged": true
+}

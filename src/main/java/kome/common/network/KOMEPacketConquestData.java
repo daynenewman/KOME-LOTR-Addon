@@ -5,7 +5,8 @@ import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
 import io.netty.buffer.ByteBuf;
-import kome.common.data.KOMEClientData;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
@@ -19,13 +20,19 @@ import kome.common.data.KOMEPlayerBuild;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMETileTroopSummary;
 import kome.common.data.KOMEWorldData;
+import net.minecraft.entity.player.EntityPlayerMP;
+import lotr.common.LOTRLevelData;
+import lotr.common.fac.LOTRFaction;
+import net.minecraft.network.NetHandlerPlayServer;
+import net.minecraft.network.Packet;
+import net.minecraft.world.World;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
 
-import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class KOMEPacketConquestData implements IMessage {
     private static final int MAX_ENTRIES_PER_PACKET = 48;
@@ -33,6 +40,9 @@ public class KOMEPacketConquestData implements IMessage {
     public NBTTagCompound data = new NBTTagCompound();
     public boolean reset;
     public boolean complete = true;
+    // Receiver-owned copy: public packet fields can be changed by callers after decode.
+    // Never exposed or mutated; handlers materialize independent records before queuing.
+    private KOMEPacketConquestData decodedPublication;
 
     public KOMEPacketConquestData() {
     }
@@ -106,12 +116,21 @@ public class KOMEPacketConquestData implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
+        decodedPublication = null;
         KOMEPopulationWire.readHeader(buf);
         reset = buf.readBoolean();
         complete = buf.readBoolean();
         data = KOMEPopulationWire.readNbt(buf);
         if (data == null) throw new IllegalArgumentException("Missing conquest packet data");
         KOMEPopulationWire.requireFullyRead(buf);
+        decodedPublication = new KOMEPacketConquestData((NBTTagCompound) data.copy(), reset, complete);
+    }
+
+    /** Wire-decoded packets have already passed all envelope and text validation. */
+    private KOMEPacketConquestData copyForPublication() {
+        if (decodedPublication != null) return decodedPublication;
+        // Preserve validation for locally constructed/direct-handler packets as well.
+        return KOMEPopulationWire.copyForPublication(this, KOMEPacketConquestData::new);
     }
 
     @Override
@@ -125,103 +144,158 @@ public class KOMEPacketConquestData implements IMessage {
         });
     }
 
-    public static void sendChunked(KOMEWorldData worldData, net.minecraft.entity.player.EntityPlayerMP player) {
-        List tileTags = new ArrayList();
-        for (KOMEConquestTile tile : worldData.conquestTiles.values()) {
-            if (!tile.projectRulingFaction().isEmpty()) {
-                tileTags.add(tile.projectToNBT());
-            }
-        }
-        List capitalTags = new ArrayList();
-        for (String faction : KOMEAlliance.allFactionKeys()) {
-            KOMEFactionCapitalRecord capital =
-                KOMEFactionCapitalService.getCapital(worldData, faction);
-            if (capital == null) continue;
-            NBTTagCompound summary = new NBTTagCompound();
-            summary.setString("Faction", faction);
-            summary.setString("Tile", capital.getCapitalTileId());
-            capitalTags.add(summary);
-        }
+    private static final String[] SECTIONS = {"ConquestTiles", "FactionCapitals", "ArmyMovements",
+        "ArmyCompanies", "TroopSummaries", "RouteEdges", "TileWaypointLinks", "BuildMarkers"};
+    // Player equality is entity-ID based: use object identity across reconnect/respawn.
+    // Server-thread owned; eviction only causes an extra full publication, never lost updates.
+    private static final int MAX_RECIPIENTS = 256;
+    private static final Map<EntityPlayerMP, SentSnapshot> SENT =
+        new IdentityHashMap<EntityPlayerMP, SentSnapshot>();
 
-        List movementTags = new ArrayList();
-        for (KOMEArmyMovementOrder order : worldData.armyMovements.values()) {
-            if (order != null && order.isMoving()) {
-                movementTags.add(order.writeToNBT());
-            }
-        }
-
-        List companyTags = new ArrayList();
-        for (KOMEArmyCompany company : worldData.armyCompanies.values()) {
-            if (company != null) {
-                companyTags.add(company.writeToNBT());
-            }
-        }
-
-        List troopTags = new ArrayList();
-        for (KOMETileTroopSummary summary : buildTroopSummaries(worldData).values()) {
-            if (summary.hasAnyPopulation()) {
-                troopTags.add(summary.writeToNBT());
-            }
-        }
-        List routeEdgeTags = new ArrayList();
-        for (KOMEConquestRouteEdge edge : worldData.routeEdges.values()) {
-            if (edge != null) {
-                routeEdgeTags.add(edge.writeToNBT());
-            }
-        }
-        List waypointLinkTags = new ArrayList();
-        for (KOMETileWaypointLink link : worldData.tileWaypointLinksByTileId.values()) {
-            if (link != null && link.tileId.length() > 0 && link.lotrWaypointKey.length() > 0) {
-                waypointLinkTags.add(link.writeToNBT());
-            }
-        }
-        List buildMarkerTags = new ArrayList();
-        for (KOMEPlayerBuild build : worldData.builds.values()) {
-            if (build != null && build.active && build.markerVisible) buildMarkerTags.add(buildMarkerTag(build));
-        }
-
-        int total = tileTags.size() + capitalTags.size() + movementTags.size()
-            + companyTags.size() + troopTags.size()
-            + routeEdgeTags.size() + waypointLinkTags.size() + buildMarkerTags.size();
-        if (total == 0) {
-            KOMEPacketHandler.network.sendTo(new KOMEPacketConquestData(new NBTTagCompound(), true, true), player);
-            return;
-        }
-
-        boolean first = true;
-        first = sendListChunks(player, "ConquestTiles", tileTags, first, capitalTags.isEmpty() && movementTags.isEmpty() && companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
-        first = sendListChunks(player, "FactionCapitals", capitalTags, first, movementTags.isEmpty() && companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
-        first = sendListChunks(player, "ArmyMovements", movementTags, first, companyTags.isEmpty() && troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
-        first = sendListChunks(player, "ArmyCompanies", companyTags, first, troopTags.isEmpty() && routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
-        first = sendListChunks(player, "TroopSummaries", troopTags, first, routeEdgeTags.isEmpty() && waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
-        first = sendListChunks(player, "RouteEdges", routeEdgeTags, first, waypointLinkTags.isEmpty() && buildMarkerTags.isEmpty());
-        first = sendListChunks(player, "TileWaypointLinks", waypointLinkTags, first, buildMarkerTags.isEmpty());
-        sendListChunks(player, "BuildMarkers", buildMarkerTags, first, true);
+    /** Explicit resynchronization, including client world/session replacement. */
+    public static void sendChunked(KOMEWorldData worldData, EntityPlayerMP player) {
+        send(worldData, player, true);
     }
 
-    private static boolean sendListChunks(net.minecraft.entity.player.EntityPlayerMP player, String key, List tags, boolean first, boolean finalSection) {
-        if (tags.isEmpty()) {
-            return first;
+    /** Broadcast path: compare the public projection, not dirty flags or mutable world records. */
+    public static void sendIfChanged(KOMEWorldData worldData, EntityPlayerMP player) {
+        send(worldData, player, false);
+    }
+
+    public static void forgetRecipient(EntityPlayerMP player) { SENT.remove(player); }
+    public static void clearSentSnapshots() { SENT.clear(); }
+
+    private static void send(KOMEWorldData worldData, EntityPlayerMP player, boolean force) {
+        NBTTagCompound projection = new KOMEPacketConquestData(worldData).data;
+        SentSnapshot previous = SENT.get(player);
+        LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
+        boolean operator = player.canCommandSenderUseCommand(2, "conquest");
+        if (!force && previous != null && !previous.dispatch.failed.get()
+                && previous.matches(worldData, player, pledge, operator)
+                && previous.data.equals(projection)) return;
+
+        // A failed/partial dispatch must retry a complete reset, even if data later reverts.
+        SENT.remove(player);
+        SentSnapshot publication = new SentSnapshot(worldData, player, pledge, operator, projection);
+        sendProjection(projection, publication);
+        if (SENT.size() >= MAX_RECIPIENTS) SENT.remove(SENT.keySet().iterator().next());
+        SENT.put(player, publication);
+    }
+
+    private static void sendProjection(NBTTagCompound projection, SentSnapshot publication) {
+        int lastSection = -1;
+        for (int i = 0; i < SECTIONS.length; i++)
+            if (projection.getTagList(SECTIONS[i], 10).tagCount() > 0) lastSection = i;
+        if (lastSection < 0) {
+            dispatch(new KOMEPacketConquestData(new NBTTagCompound(), true, true), publication);
+            return;
         }
-        for (int start = 0; start < tags.size(); start += MAX_ENTRIES_PER_PACKET) {
-            int end = Math.min(tags.size(), start + MAX_ENTRIES_PER_PACKET);
-            NBTTagCompound chunkData = new NBTTagCompound();
-            NBTTagList chunkList = new NBTTagList();
-            for (int i = start; i < end; i++) {
-                chunkList.appendTag((NBTTagCompound) tags.get(i));
+        boolean first = true;
+        for (int section = 0; section <= lastSection; section++) {
+            NBTTagList rows = projection.getTagList(SECTIONS[section], 10);
+            for (int start = 0; start < rows.tagCount(); start += MAX_ENTRIES_PER_PACKET) {
+                int end = Math.min(rows.tagCount(), start + MAX_ENTRIES_PER_PACKET);
+                NBTTagList chunkList = new NBTTagList();
+                for (int i = start; i < end; i++) chunkList.appendTag(rows.getCompoundTagAt(i).copy());
+                NBTTagCompound chunk = new NBTTagCompound();
+                chunk.setTag(SECTIONS[section], chunkList);
+                dispatch(new KOMEPacketConquestData(chunk, first,
+                    section == lastSection && end == rows.tagCount()), publication);
+                first = false;
             }
-            chunkData.setTag(key, chunkList);
-            boolean complete = finalSection && end >= tags.size();
-            KOMEPacketHandler.network.sendTo(new KOMEPacketConquestData(chunkData, first, complete), player);
-            first = false;
         }
-        return first;
+    }
+
+    /** Use Forge's encoder, but observe the real connection write, not its embedded handoff. */
+    private static void dispatch(KOMEPacketConquestData packet, SentSnapshot publication) {
+        NetHandlerPlayServer connection = publication.connection;
+        if (connection == null || connection.netManager == null || !connection.netManager.isChannelOpen()) {
+            publication.dispatch.failed.set(true);
+            return;
+        }
+        Packet encoded = KOMEPacketHandler.network.getPacketFrom(packet);
+        if (encoded == null) throw new IllegalStateException("Conquest packet encoding produced no packet");
+        connection.netManager.scheduleOutboundPacket(encoded, publication.dispatch);
+    }
+
+    /**
+     * Transport-only receipt: callbacks never access recipients, sessions or the server-owned map.
+     * A receipt belongs to exactly one publication. Retired receipts cannot affect newer entries.
+     * Pending identical requests coalesce; any observed failure permits the next request to retry.
+     * Successful writes are NOT acknowledgements of client decoding/application.
+     */
+    private static final class DispatchReceipt implements GenericFutureListener<Future<? super Void>> {
+        private final AtomicBoolean failed = new AtomicBoolean();
+        @Override public void operationComplete(Future<? super Void> future) {
+            if (!future.isSuccess()) failed.set(true);
+        }
+    }
+
+    private static final class SentSnapshot {
+        private final DispatchReceipt dispatch = new DispatchReceipt();
+        private final KOMEWorldData worldData;
+        private final World world;
+        private final NetHandlerPlayServer connection;
+        private final LOTRFaction pledge;
+        private final int dimension;
+        private final boolean operator;
+        private final NBTTagCompound data;
+
+        private SentSnapshot(KOMEWorldData worldData, EntityPlayerMP player,
+                LOTRFaction pledge, boolean operator, NBTTagCompound data) {
+            this.worldData = worldData; this.world = player.worldObj;
+            this.connection = player.playerNetServerHandler; this.dimension = player.dimension;
+            this.pledge = pledge; this.operator = operator;
+            this.data = data; // Detached projection; chunks receive their own copies.
+        }
+
+        private boolean matches(KOMEWorldData worldData, EntityPlayerMP player,
+                LOTRFaction pledge, boolean operator) {
+            return this.worldData == worldData && world == player.worldObj
+                && connection == player.playerNetServerHandler && dimension == player.dimension
+                && this.pledge == pledge && this.operator == operator;
+        }
+    }
+
+    /** Fully validated data from one ordered wire chunk; never mutates client state directly. */
+    public static final class PublicationChunk {
+        public final boolean reset;
+        public final boolean complete;
+        public final Map<String, KOMEArmyCompany> armyCompanies;
+        public final Map<String, KOMEConquestTile> conquestTiles;
+        public final Map<String, KOMEArmyMovementOrder> armyMovements;
+        public final Map<String, KOMETileTroopSummary> troopSummaries;
+        public final Map<String, KOMEConquestRouteEdge> routeEdges;
+        public final Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId;
+        public final Map<String, KOMEPlayerBuild> builds;
+        public final Map<String, String> capitalTilesByFaction;
+
+        private PublicationChunk(boolean reset, boolean complete,
+                Map<String, KOMEArmyCompany> armyCompanies,
+                Map<String, KOMEConquestTile> conquestTiles,
+                Map<String, KOMEArmyMovementOrder> armyMovements,
+                Map<String, KOMETileTroopSummary> troopSummaries,
+                Map<String, KOMEConquestRouteEdge> routeEdges,
+                Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId,
+                Map<String, KOMEPlayerBuild> builds,
+                Map<String, String> capitalTilesByFaction) {
+            this.reset = reset;
+            this.complete = complete;
+            this.armyCompanies = armyCompanies;
+            this.conquestTiles = conquestTiles;
+            this.armyMovements = armyMovements;
+            this.troopSummaries = troopSummaries;
+            this.routeEdges = routeEdges;
+            this.tileWaypointLinksByTileId = tileWaypointLinksByTileId;
+            this.builds = builds;
+            this.capitalTilesByFaction = capitalTilesByFaction;
+        }
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketConquestData, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketConquestData message, MessageContext ctx) {
-            final KOMEPacketConquestData snapshot = KOMEPopulationWire.copyForPublication(message, KOMEPacketConquestData::new);
+            final KOMEPacketConquestData snapshot = message.copyForPublication();
             Map<String, KOMEArmyCompany> armyCompanies = new HashMap<String, KOMEArmyCompany>();
             Map<String, KOMEConquestTile> conquestTiles = new HashMap<String, KOMEConquestTile>();
             Map<String, KOMEArmyMovementOrder> armyMovements = new HashMap<String, KOMEArmyMovementOrder>();
@@ -267,7 +341,7 @@ public class KOMEPacketConquestData implements IMessage {
             for (int i = 0; i < KOMEPopulationWire.count(troopList.tagCount()); i++) {
                 KOMETileTroopSummary summary = new KOMETileTroopSummary();
                 summary.readFromNBT(troopList.getCompoundTagAt(i));
-                if (summary.tileId.length() > 0 && summary.hasAnyPopulation()) {
+                if (summary.tileId.length() > 0) {
                     troopSummaries.put(summary.tileId, summary);
                 }
             }
@@ -294,27 +368,10 @@ public class KOMEPacketConquestData implements IMessage {
                     builds.put(build.id, build);
                 }
             }
-            kome.common.KOMEAddon.proxy.enqueueClientTask(() -> {
-                if (snapshot.reset) KOMEClientData.INSTANCE.armyCompanies.clear();
-                KOMEClientData.INSTANCE.armyCompanies.putAll(armyCompanies);
-                if (snapshot.reset) KOMEClientData.INSTANCE.conquestTiles.clear();
-                KOMEClientData.INSTANCE.conquestTiles.putAll(conquestTiles);
-                if (snapshot.reset) KOMEClientData.INSTANCE.capitalTilesByFaction.clear();
-                KOMEClientData.INSTANCE.capitalTilesByFaction.putAll(capitalTilesByFaction);
-                if (snapshot.reset) KOMEClientData.INSTANCE.armyMovements.clear();
-                KOMEClientData.INSTANCE.armyMovements.putAll(armyMovements);
-                if (snapshot.reset) KOMEClientData.INSTANCE.troopSummaries.clear();
-                KOMEClientData.INSTANCE.troopSummaries.putAll(troopSummaries);
-                if (snapshot.reset) KOMEClientData.INSTANCE.routeEdges.clear();
-                KOMEClientData.INSTANCE.routeEdges.putAll(routeEdges);
-                if (snapshot.reset) KOMEClientData.INSTANCE.tileWaypointLinksByTileId.clear();
-                KOMEClientData.INSTANCE.tileWaypointLinksByTileId.putAll(tileWaypointLinksByTileId);
-                if (snapshot.reset) KOMEClientData.INSTANCE.builds.clear();
-                KOMEClientData.INSTANCE.builds.putAll(builds);
-                if (snapshot.complete) {
-                    KOMEClientData.INSTANCE.conquestRevision++;
-                }
-            });
+            kome.common.KOMEAddon.proxy.acceptConquestSnapshotChunk(new PublicationChunk(
+                snapshot.reset, snapshot.complete, armyCompanies, conquestTiles,
+                armyMovements, troopSummaries, routeEdges, tileWaypointLinksByTileId,
+                builds, capitalTilesByFaction));
             return null;
         }
     }
@@ -367,7 +424,8 @@ public class KOMEPacketConquestData implements IMessage {
             summary.population = populations.get(rulingFaction);
         }
         for (KOMEHiredUnitRecord record : worldData.hiredUnits.values()) {
-            if (record == null || record.currentTile == null || record.currentTile.length() == 0 || record.farmhand) {
+            if (!kome.common.data.KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.currentTile == null || record.currentTile.length() == 0 || record.farmhand) {
                 continue;
             }
             String tile = KOMEConquestTile.normalizeId(record.currentTile);
@@ -390,18 +448,23 @@ public class KOMEPacketConquestData implements IMessage {
             if (order == null || !order.isMoving()) {
                 continue;
             }
+            kome.common.data.KOMECampaignUnitTotals campaign =
+                kome.common.data.KOMECampaignUnitTotals.of(worldData, order.units);
+            if (campaign.unitCount == 0) {
+                continue;
+            }
             if (KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)) {
                 KOMETileTroopSummary waiting = getSummary(summaries, activeStepOrigin(order));
-                waiting.stationedPop += order.population;
-                waiting.stationedOffensivePop += order.population;
-                waiting.stationedMountedPop += order.mountedPopulation;
+                waiting.stationedPop += campaign.population;
+                waiting.stationedOffensivePop += campaign.population;
+                waiting.stationedMountedPop += campaign.mountedPopulation;
                 continue;
             }
             KOMETileTroopSummary destination = getSummary(summaries, activeStepDestination(order));
-            destination.incomingPop += order.population;
+            destination.incomingPop += campaign.population;
             destination.incomingMovementCount++;
             KOMETileTroopSummary origin = getSummary(summaries, activeStepOrigin(order));
-            origin.movingPop += order.population;
+            origin.movingPop += campaign.population;
             origin.outgoingMovementCount++;
         }
         return summaries;

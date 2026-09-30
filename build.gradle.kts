@@ -23,6 +23,11 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 }
 
+// Exercise the real legacy GuiScreen event path without adding a graphics dependency version.
+configurations.named("testRuntimeOnly") {
+    extendsFrom(configurations.getByName("lwjgl2Classpath"))
+}
+
 sourceSets.named("main") {
     output.setResourcesDir(java.classesDirectory.get().asFile)
 }
@@ -39,12 +44,6 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.named<Jar>("jar") {
     archiveBaseName.set("KOME-LOTR-Addon")
-    manifest {
-        attributes[
-            "FMLCorePlugin"
-        ] = "kome.core.KOMECorePlugin"
-        attributes["FMLCorePluginContainsFMLMod"] = "true"
-    }
 }
 
 extra["modVersion"] = "1.0.8"

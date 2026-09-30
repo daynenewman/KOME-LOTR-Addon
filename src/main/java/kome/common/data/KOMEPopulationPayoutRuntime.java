@@ -17,6 +17,9 @@ public final class KOMEPopulationPayoutRuntime {
 
     public KOMEPopulationPayoutProcessor.Result onStartup(KOMEWorldData data, Instant now) {
         if (data == null || now == null || started.contains(data)) return null;
+        KOMEPopulationDevelopmentService.Result development =
+            KOMEPopulationDevelopmentService.initializeOrSkipStartup(data, now);
+        if (!development.success) return developmentFailure(development, now);
         KOMEPopulationPayoutProcessor.Result result = report(KOMEPopulationPayoutProcessor.initializeOrProcessStartup(data, now), now);
         if (result.success) {
             // Population catch-up does not replenish missed movement days.
@@ -29,11 +32,24 @@ public final class KOMEPopulationPayoutRuntime {
     public KOMEPopulationPayoutProcessor.Result onLiveCheck(KOMEWorldData data, Instant now) {
         if (data == null || now == null) return null;
         if (!started.contains(data)) return onStartup(data, now);
+        KOMEPopulationDevelopmentService.Result development =
+            KOMEPopulationDevelopmentService.processLiveDueBoundaries(data, now);
+        if (!development.success) return developmentFailure(development, now);
         return report(KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data, now), now);
     }
 
     public void resetSession() { started.clear(); lastFailure = ""; lastFailureLogMillis = 0L; }
     public boolean hasStarted(KOMEWorldData data) { return started.contains(data); }
+
+    private KOMEPopulationPayoutProcessor.Result developmentFailure(
+            KOMEPopulationDevelopmentService.Result failure, Instant now) {
+        KOMEPopulationPayoutProcessor.Result result =
+            new KOMEPopulationPayoutProcessor.Result(
+                java.util.Collections.<KOMEPopulationPayoutProcessor.FactionResult>emptyList(),
+                0L, 0L, false, false, false,
+                "Population development rejected: " + failure.message);
+        return report(result, now);
+    }
 
     private KOMEPopulationPayoutProcessor.Result report(KOMEPopulationPayoutProcessor.Result result, Instant now) {
         if (result != null && !result.success) {

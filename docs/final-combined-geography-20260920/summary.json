@@ -1,0 +1,21 @@
+{
+  "source_sha256": "46af1f42854c4c12b7f9ce69b3aad7ad4513340b000631f62514937debf0dbed",
+  "candidate_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+  "manifest_sha256": "72a21e60160994b9054e37eb3db4ce7d30ecb55152c7c0c61d9a365779dfa6f4",
+  "correction_input_sha256": "d41787a87c5da0e6844eac3beeba21f2e71fd0a103db147a962f642f0ded9bcb",
+  "gap_input_sha256": "ae2ec37230ba10bb735bc45feb2680c54592906117fd7ecb408b7208c068551f",
+  "edits": 4915,
+  "corrections": 4003,
+  "gap_fills": 912,
+  "input_overlaps": 0,
+  "active_ids": 621,
+  "components_before": 622,
+  "components_after": 622,
+  "component_bijection": true,
+  "protected_geography_unchanged": true,
+  "pre_v2_assigned_preserved": 3973964,
+  "pilot_cells_preserved": 95,
+  "excluded_proposals_unchanged": true,
+  "current_gap_cells": 8732933,
+  "final_gap_cells": 8732021
+}

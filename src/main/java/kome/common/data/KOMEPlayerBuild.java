@@ -14,8 +14,8 @@ import java.util.UUID;
 
 /** Persistent player-created construction project and its contribution audit. */
 public class KOMEPlayerBuild {
-    /** Schema 3 combines KOM-54 precise Builds with KOM-10 defensive gate records. */
-    public static final int DATA_SCHEMA_VERSION = 3;
+    /** Schema 4 adds KOM-71 exact developed native hours for Normal Builds. */
+    public static final int DATA_SCHEMA_VERSION = 4;
     public static final int MAX_AUDIT_ENTRIES = 250;
     public String id = "";
     public String displayName = "";
@@ -40,6 +40,8 @@ public class KOMEPlayerBuild {
     public boolean markerVisible = true;
     public String markerLabel = "";
     public KOMEBuildType type;
+    /** Approved native construction already admitted through the KOM-71 bottleneck. */
+    public long developedNativeCentiHours;
     public final List<KOMEBuildContribution> contributions = new ArrayList<KOMEBuildContribution>();
     private final List<String> auditHistory = new ArrayList<String>();
     /** Accounting links only; tactical siege geometry and live gate state are intentionally separate. */
@@ -61,10 +63,24 @@ public class KOMEPlayerBuild {
     public boolean isNormal() { return type == KOMEBuildType.NORMAL; }
     public boolean isDefensive() { return type == KOMEBuildType.DEFENSIVE; }
 
+    public long developedNativeCentiHours() { return developedNativeCentiHours; }
+
+    /** Derived only: approved contribution history remains the approved-hours authority. */
+    public long pendingNativeCentiHours() {
+        if (!isNormal()) return 0L;
+        return Math.max(0L, approvedCentiHours() - developedNativeCentiHours);
+    }
+
     /** Canonical downstream source for KOM-10; NORMAL Builds never supply defensive hours. */
     public long approvedDefensiveCentiHours() { return active && isDefensive() ? approvedCentiHours() : 0L; }
 
     public List<String> auditHistory() { return Collections.unmodifiableList(auditHistory); }
+
+    /** Rollback-only same-package hook used by atomic world-data publication. */
+    void replaceAuditHistory(List<String> entries) {
+        auditHistory.clear();
+        if (entries != null) auditHistory.addAll(entries);
+    }
 
     public void appendAudit(String entry) {
         if (entry == null || entry.isEmpty()) throw new IllegalArgumentException("Build audit entry is required.");
@@ -80,7 +96,16 @@ public class KOMEPlayerBuild {
             contribution.validate();
             if (!ids.add(contribution.id)) throw new IllegalArgumentException("Duplicate contribution Id: " + contribution.id);
         }
-        approvedCentiHours();
+        long approved = approvedCentiHours();
+        if (developedNativeCentiHours < 0L) {
+            throw new IllegalArgumentException("Developed native Build hours must not be negative.");
+        }
+        if (isDefensive() && developedNativeCentiHours != 0L) {
+            throw new IllegalArgumentException("Defensive Builds cannot persist developed native population hours.");
+        }
+        if (isNormal() && developedNativeCentiHours > approved) {
+            throw new IllegalArgumentException("Developed native Build hours exceed approved hours.");
+        }
     }
 
 
@@ -238,6 +263,7 @@ public class KOMEPlayerBuild {
         nbt.setString("MarkerLabel", sanitizeName(markerLabel));
         if (type == null) throw new IllegalStateException("Build type is required.");
         nbt.setString("BuildType", type.key);
+        nbt.setLong("DevelopedNativeCentiHours", developedNativeCentiHours);
         NBTTagList contributionList = new NBTTagList();
         for (KOMEBuildContribution contribution : contributions) {
             if (contribution != null && contribution.id != null && contribution.id.length() > 0) {
@@ -268,13 +294,19 @@ public class KOMEPlayerBuild {
             "DeletedByUuid", "DeletedByName", "DeletionReason", "MarkerLabel");
         requireFields(nbt, 3, "Dimension");
         requireFields(nbt, 6, "X", "Y", "Z");
-        requireFields(nbt, 4, "CreatedAtMillis", "UpdatedAtMillis", "DeletedAtMillis");
+        requireFields(nbt, 4, "CreatedAtMillis", "UpdatedAtMillis", "DeletedAtMillis",
+            "DevelopedNativeCentiHours");
         requireFields(nbt, 1, "Active", "MarkerVisible");
         for (String key : new String[] {"BuilderUuid", "ManagerUuid", "DeletedByUuid"}) {
             if (!nbt.getString(key).isEmpty()) UUID.fromString(nbt.getString(key));
         }
         if (!nbt.hasKey("BuildType", 8)) throw new IllegalArgumentException("Build is missing BuildType.");
         KOMEBuildType savedType = KOMEBuildType.forKey(nbt.getString("BuildType"));
+        long savedDevelopedNativeCentiHours = nbt.getLong("DevelopedNativeCentiHours");
+        if (savedDevelopedNativeCentiHours < 0L
+                || savedType == KOMEBuildType.DEFENSIVE && savedDevelopedNativeCentiHours != 0L) {
+            throw new IllegalArgumentException("Invalid developed native Build hours.");
+        }
         if (!nbt.hasKey("Contributions", 9) || !nbt.hasKey("AuditHistory", 9)
                 || !nbt.hasKey("DefensiveGateRecords", 9)) {
             throw new IllegalArgumentException(
@@ -294,6 +326,9 @@ public class KOMEPlayerBuild {
             if (!ids.add(contribution.id)) throw new IllegalArgumentException("Duplicate contribution Id: " + contribution.id);
             if (contribution.isApproved()) approved = KOMEBuildTime.add(approved, contribution.totalCentiHours());
             loaded.add(contribution);
+        }
+        if (savedType == KOMEBuildType.NORMAL && savedDevelopedNativeCentiHours > approved) {
+            throw new IllegalArgumentException("Developed native Build hours exceed approved hours.");
         }
         NBTTagList savedAudit = nbt.getTagList("AuditHistory", 8);
         if (((NBTTagList) nbt.getTag("AuditHistory")).tagCount() != savedAudit.tagCount()) {
@@ -353,6 +388,7 @@ public class KOMEPlayerBuild {
         markerVisible = nbt.getBoolean("MarkerVisible");
         markerLabel = sanitizeName(nbt.getString("MarkerLabel"));
         type = savedType;
+        developedNativeCentiHours = savedDevelopedNativeCentiHours;
         contributions.clear();
         contributions.addAll(loaded);
         auditHistory.clear();

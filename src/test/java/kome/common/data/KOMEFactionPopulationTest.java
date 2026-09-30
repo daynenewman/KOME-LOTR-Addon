@@ -12,6 +12,9 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 public class KOMEFactionPopulationTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test
     public void factionKeysNormalizeAndShareOneBank() {
         KOMEWorldData data = new KOMEWorldData("test");

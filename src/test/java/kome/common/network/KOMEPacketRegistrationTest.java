@@ -23,9 +23,12 @@ import static org.junit.Assert.*;
 
 /** Forge names pipeline entries after handler runtime classes, independently of packet IDs. */
 public class KOMEPacketRegistrationTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final Set<Integer> EXPECTED_DISCRIMINATORS = new HashSet<Integer>(Arrays.asList(
         0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45
     ));
 
     @Test public void retiredIdsStayHolesAndEveryRetainedClassKeepsItsIdAndSide() throws Exception {
@@ -41,9 +44,11 @@ public class KOMEPacketRegistrationTest {
             "CompanyMovePreviewResult:27:CLIENT", "MovementHistoryRequest:28:SERVER",
             "MovementHistoryData:29:CLIENT", "UnitMapMarkers:30:CLIENT", "WaypointTravelRequest:31:SERVER",
             "AllianceAction:32:SERVER", "PledgeDepartureRequest:33:SERVER", "PledgeDepartureData:34:CLIENT",
-            "TroopGuiAction:35:SERVER", "BuildAction:36:SERVER", "SerfdomMasterMenu:37:CLIENT",
-            "SerfdomMasterAction:38:SERVER", "ProgressionRelationshipAction:39:SERVER", "RelationshipHub:40:CLIENT", "RelationshipAction:41:SERVER", "VisualMarkers:42:CLIENT",
-            "ProgressionRequest:43:SERVER", "ProgressionTracker:44:CLIENT"
+            "TroopGuiAction:35:SERVER", "BuildAction:36:SERVER", "CampaignHire:37:SERVER",
+            "SerfdomMasterMenu:38:CLIENT", "SerfdomMasterAction:39:SERVER",
+            "ProgressionRelationshipAction:40:SERVER", "RelationshipHub:41:CLIENT",
+            "RelationshipAction:42:SERVER", "VisualMarkers:43:CLIENT",
+            "ProgressionRequest:44:SERVER", "ProgressionTracker:45:CLIENT"
         };
         for (String entry : entries) {
             String[] parts = entry.split(":");
@@ -87,9 +92,9 @@ public class KOMEPacketRegistrationTest {
             }
         }
 
-        assertEquals(39, registrations);
+        assertEquals(40, registrations);
         assertEquals(EXPECTED_DISCRIMINATORS, discriminators);
-        assertEquals(18, serverRegistrations);
+        assertEquals(19, serverRegistrations);
 
         EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
         Set<String> handlerNames = new HashSet<String>();
@@ -138,7 +143,7 @@ public class KOMEPacketRegistrationTest {
         assertTrue(packet.contains("state.getProspectiveLiege().isSet()"));
 
         assertTrue(registry.contains("KOMEPacketProgressionRelationshipAction.class"));
-        assertTrue(registry.contains(".class, 39, Side.SERVER"));
+        assertTrue(registry.contains("KOMEPacketProgressionRelationshipAction.class, 40, Side.SERVER"));
     }
 
     @Test public void visualMarkersAreOneWayAndPublishedOnTheClientThread() throws Exception {

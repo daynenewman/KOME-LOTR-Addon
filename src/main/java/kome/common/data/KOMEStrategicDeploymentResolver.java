@@ -29,8 +29,10 @@ public final class KOMEStrategicDeploymentResolver {
         if (!KOMEConquestTile.isCanonicalTileId(tile) || KOMEConquestTileDefaults.isRetiredTile(tile)
                 || !KOMEConquestTileDefaults.getKnownTileIds().contains(tile))
             return Validation.invalid("Capital tile is unknown, malformed, or retired: " + tile);
-        String actual = KOMEBuildService.tileAtWorldCoordinates(x, z);
-        if (!tile.equals(actual))
+        KOMETileResolution location = KOMEBuildService.tileAtWorldCoordinates(dimensionId, x, z);
+        if (location.status != KOMETileResolution.Status.RESOLVED)
+            return Validation.invalid("Capital deployment has no resolved tile: " + location);
+        if (!tile.equals(location.tileId))
             return Validation.invalid("Capital deployment X/Z is not inside capital tile " + tile + ".");
         return Validation.valid(new Anchor(dimensionId, x, y, z));
     }
@@ -38,8 +40,18 @@ public final class KOMEStrategicDeploymentResolver {
     /** Finds a safe point near a live position without leaving the designated strategic tile. */
     public static Validation resolveAround(World world, String expectedTile, double preferredX,
             double preferredY, double preferredZ, int maximumRadius) {
+        return resolveAround(world, expectedTile, preferredX, preferredY, preferredZ,
+            maximumRadius, 0.6D, 1.8D);
+    }
+
+    public static Validation resolveAround(World world, String expectedTile, double preferredX,
+            double preferredY, double preferredZ, int maximumRadius,
+            double requiredWidth, double requiredHeight) {
         if (!finite(preferredX) || !finite(preferredY) || !finite(preferredZ))
             return Validation.invalid("Capital deployment coordinates must be finite.");
+        if (!finite(requiredWidth) || !finite(requiredHeight)
+                || requiredWidth <= 0.0D || requiredHeight <= 0.0D)
+            return Validation.invalid("Deployment clearance dimensions must be finite and positive.");
         if (world == null || world.provider == null
                 || world.provider.dimensionId != LOTRDimension.MIDDLE_EARTH.dimensionID)
             return Validation.invalid("The live Middle-earth world is unavailable.");
@@ -55,8 +67,16 @@ public final class KOMEStrategicDeploymentResolver {
                 for (int dx = -radius; dx <= radius; dx++) {
                     if (radius > 0 && Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
                     int x = originX + dx, z = originZ + dz;
-                    if (!tile.equals(KOMEBuildService.tileAtWorldCoordinates(x + 0.5D, z + 0.5D)))
-                        continue;
+                    KOMETileResolution location = KOMEBuildService.tileAtWorldCoordinates(
+                        world.provider.dimensionId, x + 0.5D, z + 0.5D);
+                    if (location.status == KOMETileResolution.Status.INVALID_SNAPSHOT
+                            || location.status == KOMETileResolution.Status.UNSUPPORTED_DIMENSION
+                            || location.status == KOMETileResolution.Status.INVALID_COORDINATE)
+                        return Validation.invalid("Capital deployment location unavailable: " + location);
+                    // Gaps/outside cells cannot be anchors; the existing safe-placement search
+                    // may continue, but every accepted position must itself resolve to this tile.
+                    if (location.status != KOMETileResolution.Status.RESOLVED
+                            || !tile.equals(location.tileId)) continue;
                     if (!ensureChunkAvailable(world, x, z)) continue;
                     int liveY;
                     try {
@@ -66,13 +86,15 @@ public final class KOMEStrategicDeploymentResolver {
                     }
                     if (radius == 0) {
                         int requestedY = MathHelper.floor_double(preferredY);
-                        if (isSafeStandingAnchor(world, x, requestedY, z))
+                        if (isSafeStandingAnchor(world, x, requestedY, z,
+                                requiredWidth, requiredHeight))
                             return Validation.valid(new Anchor(world.provider.dimensionId,
                                 x + 0.5D, requestedY, z + 0.5D));
                     }
                     for (int offset = -1; offset <= 2; offset++) {
                         int y = liveY + offset;
-                        if (isSafeStandingAnchor(world, x, y, z))
+                        if (isSafeStandingAnchor(world, x, y, z,
+                                requiredWidth, requiredHeight))
                             return Validation.valid(new Anchor(world.provider.dimensionId,
                                 x + 0.5D, y, z + 0.5D));
                     }
@@ -105,8 +127,15 @@ public final class KOMEStrategicDeploymentResolver {
                 for (int dx = -radius; dx <= radius && anchors.size() < unitCount; dx++) {
                     if (Math.abs(dx) != radius && Math.abs(dz) != radius) continue;
                     int x = originX + dx, z = originZ + dz;
-                    if (!tile.equals(KOMEBuildService.tileAtWorldCoordinates(
-                            x + 0.5D, z + 0.5D)) || !ensureChunkAvailable(world, x, z)) continue;
+                    KOMETileResolution location = KOMEBuildService.tileAtWorldCoordinates(
+                        world.provider.dimensionId, x + 0.5D, z + 0.5D);
+                    if (location.status == KOMETileResolution.Status.INVALID_SNAPSHOT
+                            || location.status == KOMETileResolution.Status.UNSUPPORTED_DIMENSION
+                            || location.status == KOMETileResolution.Status.INVALID_COORDINATE)
+                        return Formation.invalid("Capital formation location unavailable: " + location);
+                    if (location.status != KOMETileResolution.Status.RESOLVED
+                            || !tile.equals(location.tileId)
+                            || !ensureChunkAvailable(world, x, z)) continue;
                     int liveY;
                     try { liveY = LOTRMod.getTrueTopBlock(world, x, z); }
                     catch (Throwable unavailable) { continue; }
@@ -161,13 +190,32 @@ public final class KOMEStrategicDeploymentResolver {
     }
 
     private static boolean isSafeStandingAnchor(World world, int x, int y, int z) {
-        if (world == null || y < 1 || y + 2 >= world.getActualHeight()
+        return isSafeStandingAnchor(world, x, y, z, 0.6D, 1.8D);
+    }
+
+    static boolean isSafeStandingAnchor(World world, int x, int y, int z,
+            double requiredWidth, double requiredHeight) {
+        if (world == null || !finite(requiredWidth) || !finite(requiredHeight)
+                || requiredWidth <= 0.0D || requiredHeight <= 0.0D
+                || y < 1 || y + requiredHeight > world.getActualHeight()
                 || !world.blockExists(x, y, z)) return false;
-        Block ground = world.getBlock(x, y - 1, z);
-        if (ground == null || ground.getMaterial().isLiquid()
-                || ground.getCollisionBoundingBoxFromPool(world, x, y - 1, z) == null) return false;
-        AxisAlignedBB body = AxisAlignedBB.getBoundingBox(x + 0.2D, y, z + 0.2D,
-            x + 0.8D, y + 1.8D, z + 0.8D);
+        double halfWidth = requiredWidth / 2.0D;
+        AxisAlignedBB body = AxisAlignedBB.getBoundingBox(
+            x + 0.5D - halfWidth, y, z + 0.5D - halfWidth,
+            x + 0.5D + halfWidth, y + requiredHeight, z + 0.5D + halfWidth);
+        int minimumX = MathHelper.floor_double(body.minX);
+        int maximumX = MathHelper.floor_double(body.maxX - 1.0E-7D);
+        int minimumZ = MathHelper.floor_double(body.minZ);
+        int maximumZ = MathHelper.floor_double(body.maxZ - 1.0E-7D);
+        for (int supportX = minimumX; supportX <= maximumX; supportX++) {
+            for (int supportZ = minimumZ; supportZ <= maximumZ; supportZ++) {
+                if (!ensureChunkAvailable(world, supportX, supportZ)) return false;
+                Block ground = world.getBlock(supportX, y - 1, supportZ);
+                if (ground == null || ground.getMaterial().isLiquid()
+                        || ground.getCollisionBoundingBoxFromPool(
+                            world, supportX, y - 1, supportZ) == null) return false;
+            }
+        }
         try {
             return world.getCollidingBoundingBoxes(null, body).isEmpty();
         } catch (Throwable invalidGeometry) {

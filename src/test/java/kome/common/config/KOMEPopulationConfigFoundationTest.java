@@ -39,6 +39,9 @@ import java.util.stream.Stream;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationConfigFoundationTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Rule public final TemporaryFolder temporary = new TemporaryFolder();
     private KOMEConfigRegistry.ValidatedConfig original;
     private static final KOMEConfigRegistry.RuntimeActivity IDLE = new KOMEConfigRegistry.RuntimeActivity() {
@@ -252,7 +255,9 @@ public class KOMEPopulationConfigFoundationTest {
         KOMEConfigRegistry.ValidatedConfig v = KOMEConfigRegistry.currentValidated();
         Constructor<?> bootstrapConstructor = null;
         for (Constructor<?> constructor : KOMEConfigRegistry.ValidatedConfig.class.getDeclaredConstructors())
-            if (constructor.getParameterTypes().length == 11) bootstrapConstructor = constructor;
+            if (constructor.getParameterTypes().length == 11
+                    && constructor.getParameterTypes()[10] == Boolean.TYPE)
+                bootstrapConstructor = constructor;
         assertNotNull(bootstrapConstructor);
         bootstrapConstructor.setAccessible(true);
         Object bootstrap = bootstrapConstructor.newInstance(v.getDailyBatch(), v.getPopulation(), v.getMovement(),
@@ -382,8 +387,15 @@ public class KOMEPopulationConfigFoundationTest {
         assertEquals(10737418235000L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         put(f, "population", "hoursPerPopulationPoint", "92233720368547758.07");
         KOMEConfigRegistry.load(f);
-        assertEquals(0L, kome.common.data.KOMEPopulationProjection.of(data, "gondor").dailyRateUnits.longValueExact());
-        assertTrue(runtime.onLiveCheck(data, due).success);
+        try {
+            kome.common.data.KOMEPopulationProjection.of(data, "gondor");
+            fail("Initialized development must reject hours-per-point reinterpretation");
+        } catch (IllegalStateException expected) {
+            assertTrue(expected.getMessage().contains("locked"));
+        }
+        assertEquals(0L, kome.common.data.KOMEPopulationProjection.of(
+            productionWorld(20, "gondor"), "gondor").dailyRateUnits.longValueExact());
+        assertFalse(runtime.onLiveCheck(data, due).success);
     }
 
     @Test public void exactCentiCapFillsFractionalRoom() throws Exception {
@@ -428,11 +440,17 @@ public class KOMEPopulationConfigFoundationTest {
         KOMEPopulationService.grantCenti(overflow, "rohan", Long.MAX_VALUE - 50L);
         KOMEPopulationPayoutRuntime runtime = new KOMEPopulationPayoutRuntime();
         runtime.onStartup(overflow, Instant.parse("2026-01-10T02:00:00Z"));
-        NBTTagCompound before = new NBTTagCompound(); overflow.writeToNBT(before);
+        long bankBefore = KOMEPopulationService.getAvailablePopulationCenti(overflow, "rohan");
+        long payoutBoundaryBefore = overflow.lastPopulationPayoutBoundaryMillis;
+        java.util.Map<String, Long> remaindersBefore =
+            new java.util.HashMap<String, Long>(overflow.populationPayoutRemainders);
         Instant due = KOMEPopulationPayoutProcessor.nextBoundary(Instant.ofEpochMilli(overflow.lastPopulationPayoutBoundaryMillis));
         assertFalse(runtime.onLiveCheck(overflow, due).success);
-        NBTTagCompound after = new NBTTagCompound(); overflow.writeToNBT(after);
-        assertEquals(before, after); // No faction grant, remainder or boundary commits on failure.
+        assertEquals(bankBefore, KOMEPopulationService.getAvailablePopulationCenti(overflow, "rohan"));
+        assertEquals(payoutBoundaryBefore, overflow.lastPopulationPayoutBoundaryMillis);
+        assertEquals(remaindersBefore, overflow.populationPayoutRemainders);
+        // Development is a separate live-boundary system and may commit its own cursor/audit.
+        assertEquals(due.toEpochMilli(), overflow.populationDevelopment.getLastLiveBoundaryMillis());
     }
 
     @Test public void configurationStopCleanupIsIdempotentAndAllowsNewWorldBinding() throws Exception {
@@ -453,7 +471,10 @@ public class KOMEPopulationConfigFoundationTest {
         assertEquals(oldAuditSize, first.centralAudit.size());
 
         String addon = source("src/main/java/kome/common/KOMEAddon.java").replace("\r", "");
-        assertTrue(addon.contains("@Mod.EventHandler\n    public void serverStopped(FMLServerStoppedEvent event) {\n        KOMEConfigRegistry.onServerStop();\n    }"));
+        assertTrue(addon.contains("@Mod.EventHandler\n    public void serverStopped(FMLServerStoppedEvent event)"));
+        // Exercise production cleanup; other session owners may legitimately clean up here too.
+        kome.common.KOMEAccessFixture.allocate(kome.common.KOMEAddon.class).serverStopped(null);
+        assertFalse(KOMEConfigRegistry.isWorldConfigurationLocked());
         String stopping = addon.substring(addon.indexOf("public void serverStopping(FMLServerStoppingEvent event)"));
         stopping = stopping.substring(0, stopping.indexOf("\n    }"));
         assertTrue(stopping.contains("KOMEConfigRegistry.onServerStop();"));
@@ -474,7 +495,8 @@ public class KOMEPopulationConfigFoundationTest {
         build.populationFaction = "gondor"; build.type = KOMEBuildType.NORMAL; build.active = true;
         KOMEBuildContribution contribution = new KOMEBuildContribution(); contribution.id = "H-" + id;
         contribution.centiHours = Math.multiplyExact((long) halfHours, 50L); contribution.status = KOMEBuildContribution.APPROVED;
-        build.contributions.add(contribution); data.builds.put(build.id, build); return build;
+        build.contributions.add(contribution); build.developedNativeCentiHours = contribution.centiHours;
+        data.builds.put(build.id, build); return build;
     }
 
     private KOMEPopulationPayoutProcessor.Result payOneBoundary(KOMEWorldData data) {

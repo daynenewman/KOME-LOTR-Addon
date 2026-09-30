@@ -15,6 +15,9 @@ import static org.junit.Assert.*;
 
 /** Behavioral load transactions. Reflection below observes raw state only; production uses no reflection. */
 public class KOMEWorldDataAtomicLoadTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     private static final UUID PLAYER = UUID.fromString("10000000-0000-0000-0000-000000000001");
     private static final UUID UNIT = UUID.fromString("20000000-0000-0000-0000-000000000001");
 
@@ -172,7 +175,7 @@ public class KOMEWorldDataAtomicLoadTest {
         assertFalse(buildReconciled.centralAudit.isEmpty());
     }
 
-    @Test public void schemaFourSaveSurvivesThreeRealRoundTripsAndDoesNotAliasSourceNBT() throws Exception {
+    @Test public void schemaFiveSaveSurvivesThreeRealRoundTripsAndDoesNotAliasSourceNBT() throws Exception {
         KOMEWorldData data = populated();
         data.hiredUnits.get(UNIT).stationedEntityData = new NBTTagCompound();
         data.hiredUnits.get(UNIT).stationedEntityData.setString("Sentinel", "original");
@@ -181,7 +184,7 @@ public class KOMEWorldDataAtomicLoadTest {
             NBTTagCompound original = (NBTTagCompound) saved.copy();
             KOMEWorldData loaded = new KOMEWorldData("restart"); loaded.readFromNBT(saved);
             assertEquals(original, saved);
-            assertEquals(4, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(5, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             assertEquals(2450L, loaded.getFactionPopulationIfPresent("gondor").getAvailablePopulationCenti());
             assertEquals(Long.valueOf(17L), loaded.populationPayoutRemainders.get("gondor"));
             assertEquals(data.lastPopulationPayoutBoundaryMillis, loaded.lastPopulationPayoutBoundaryMillis);

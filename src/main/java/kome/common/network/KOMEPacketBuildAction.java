@@ -103,9 +103,6 @@ public class KOMEPacketBuildAction implements IMessage {
             try {
                 if (data.getPublicConquestTile(tile) == null) throw new IllegalArgumentException("Unknown or unavailable conquest tile.");
                 if ("create".equals(action)) {
-                    KOMEBuildService.Decision coordinates = KOMEBuildService.validateCoordinates(
-                        tile, message.x, message.y, message.z);
-                    if (!coordinates.allowed) throw new IllegalArgumentException(coordinates.reason);
                     if (message.dimension != player.worldObj.provider.dimensionId) {
                         throw new IllegalArgumentException("The selected Build dimension is not the player's current dimension.");
                     }
@@ -143,7 +140,9 @@ public class KOMEPacketBuildAction implements IMessage {
                 player.addChatMessage(new ChatComponentText("Build action rejected: " + error.getMessage()));
                 return null;
             }
-            data.syncConquestTiles(player);
+            // Build state changes alter authoritative population-rate projections for
+            // every viewer, not only the player who performed the action.
+            data.syncConquestTiles();
             String focus = "delete".equals(action) || "destroy".equals(action) ? "" : safe(message.buildId);
             KOMEPacketConquestOpenCapture.sendTileCommand(player, tile, focus);
             return null;

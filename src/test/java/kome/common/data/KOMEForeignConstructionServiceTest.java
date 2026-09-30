@@ -6,6 +6,7 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEForeignConstructionServiceTest {
+    @org.junit.Rule public final KOMETileTestResources tileGeometry = new KOMETileTestResources();
     @Test public void rulerGrantRevokeAndPlacementAreExplicit() {
         KOMEWorldData data = data(); UUID ruler = UUID.randomUUID(); KOMERulerService.assignRuler(data, "rohan", ruler, "Ruler");
         assertFalse(KOMEForeignConstructionService.canConstruct(data, "T100", UUID.randomUUID(), "gondor").allowed);
@@ -18,7 +19,8 @@ public class KOMEForeignConstructionServiceTest {
     @Test public void permissionsPersistAndRevocationDoesNotAlterExistingBuild() {
         KOMEWorldData data = data(); UUID ruler = UUID.randomUUID(), builder = UUID.randomUUID(); KOMERulerService.assignRuler(data,"rohan",ruler,"Ruler");
         assertTrue(KOMEForeignConstructionService.grant(data,"T100",ruler,"gondor",4L).allowed);
-        KOMEPlayerBuild build = KOMEBuildService.create(data,"Foreign Hall","T100",0,0,64,0,builder,"Builder","gondor","gondor",KOMEBuildType.NORMAL,100L,5L);
+        KOMEPlayerBuild build = KOMEBuildService.create(data,"Foreign Hall","T100", KOMETileTestResources.dimension(),
+            KOMETileTestResources.x(), 64D, KOMETileTestResources.z(),builder,"Builder","gondor","gondor",KOMEBuildType.NORMAL,100L,5L);
         assertTrue(KOMEBuildService.decideSubmission(data, build, build.contributions.get(0).id,
             builder, "Builder", true, "Reviewed", 6L).allowed);
         NBTTagCompound tag = new NBTTagCompound(); data.writeToNBT(tag); KOMEWorldData restored = new KOMEWorldData("restored"); restored.readFromNBT(tag);

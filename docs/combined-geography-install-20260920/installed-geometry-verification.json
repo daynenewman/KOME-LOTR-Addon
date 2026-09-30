@@ -1,0 +1,12 @@
+{
+  "mask_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+  "manifest_sha256": "72a21e60160994b9054e37eb3db4ce7d30ecb55152c7c0c61d9a365779dfa6f4",
+  "edits": 4915,
+  "active_tile_ids": 621,
+  "components": 622,
+  "original_component_bijection": true,
+  "water_and_protected_gaps_preserved": true,
+  "pre_v2_territory_preserved": true,
+  "pilot_preserved": true,
+  "gameplay_resource_hashes_unchanged": true
+}

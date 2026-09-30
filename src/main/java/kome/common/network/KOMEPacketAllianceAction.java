@@ -60,7 +60,10 @@ public class KOMEPacketAllianceAction implements IMessage {
             try {
                 String[] command;
                 if ("request".equals(action)) command = new String[] {action, first, second, targetRelation};
-                else if ("accept".equals(action) || "cancel".equals(action)) command = new String[] {action, first, second};
+                else if ("accept".equals(action) || "cancel".equals(action)
+                        || "break".equals(action) || "revoke".equals(action)) {
+                    command = new String[] {action, first, second};
+                }
                 else {
                     throw new IllegalArgumentException("Unknown alliance GUI action.");
                 }

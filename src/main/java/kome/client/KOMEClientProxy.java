@@ -19,7 +19,11 @@ import net.minecraftforge.common.MinecraftForge;
 import java.util.List;
 
 public class KOMEClientProxy extends KOMECommonProxy {
-    private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue();
+    private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue(
+            () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
+    private final KOMEConquestSnapshotPublisher conquestSnapshots =
+        new KOMEConquestSnapshotPublisher(clientTasks);
+    private KOMECurrentTileHud currentTileHud;
     private final KOMEProgressionTrackerOverlay progressionTrackerOverlay =
         new KOMEProgressionTrackerOverlay();
     public KOMEClientProxy() {
@@ -36,6 +40,14 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void init() {
         super.init();
         FMLCommonHandler.instance().bus().register(clientTasks);
+        KOMEClientConfig clientConfig = new KOMEClientConfig(new java.io.File(
+            cpw.mods.fml.common.Loader.instance().getConfigDir(), "kome-client.cfg"));
+        currentTileHud = new KOMECurrentTileHud(net.minecraft.client.Minecraft.getMinecraft(), clientConfig);
+        cpw.mods.fml.client.registry.ClientRegistry.registerKeyBinding(currentTileHud.toggle);
+        ((net.minecraft.client.resources.IReloadableResourceManager)
+            net.minecraft.client.Minecraft.getMinecraft().getResourceManager()).registerReloadListener(currentTileHud);
+        FMLCommonHandler.instance().bus().register(currentTileHud);
+        MinecraftForge.EVENT_BUS.register(currentTileHud);
         MinecraftForge.EVENT_BUS.register(new KOMEChatSanitizer());
         MinecraftForge.EVENT_BUS.register(new KOMEProgressionMenuOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
@@ -48,6 +60,8 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         FMLCommonHandler.instance().bus().register(waypointMapOverlay);
         MinecraftForge.EVENT_BUS.register(this);
         KOMEConquestMapOverlay conquestMapOverlay = new KOMEConquestMapOverlay();
+        ((net.minecraft.client.resources.IReloadableResourceManager)
+            net.minecraft.client.Minecraft.getMinecraft().getResourceManager()).registerReloadListener(conquestMapOverlay);
         FMLCommonHandler.instance().bus().register(conquestMapOverlay);
         MinecraftForge.EVENT_BUS.register(conquestMapOverlay);
         FMLCommonHandler.instance().bus().register(this);
@@ -58,12 +72,27 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
-        clientTasks.resetSession(true, this::resetClientSessionState);
+        conquestSnapshots.resetSession();
+        final long tileSession = currentTileHud == null ? 0L : currentTileHud.suspendSession();
+        clientTasks.resetSession(true, () -> {
+            resetClientSessionState();
+            if (currentTileHud != null) currentTileHud.startSession(tileSession);
+        });
     }
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        conquestSnapshots.resetSession();
+        if (currentTileHud != null) currentTileHud.suspendSession();
         clientTasks.resetSession(false, this::resetClientSessionState);
+    }
+
+    @SubscribeEvent
+    public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+        if (event.world != null && event.world.isRemote) {
+            conquestSnapshots.resetSession();
+            KOMEClientData.INSTANCE.clearConquestTooltip();
+        }
     }
 
     @Override
@@ -71,7 +100,14 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         clientTasks.enqueue(task);
     }
 
+    @Override
+    public void acceptConquestSnapshotChunk(
+            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk) {
+        conquestSnapshots.accept(chunk);
+    }
+
     private void resetClientSessionState() {
+        if (currentTileHud != null) currentTileHud.clear();
         KOMEClientData.INSTANCE.resetClientState();
         KOMEQuotaLedgerOverlay.reset();
         KOMEGuiAllianceUnified.resetData();

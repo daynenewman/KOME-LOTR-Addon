@@ -147,7 +147,11 @@ public final class KOMEFactionCapitalService {
         if (world == null || world.provider == null
                 || world.provider.dimensionId != LOTRDimension.MIDDLE_EARTH.dimensionID)
             return RelocationResult.failure("Stand in the live Middle-earth dimension to relocate a capital.");
-        String tile = KOMEBuildService.tileAtWorldCoordinates(actor.posX, actor.posZ);
+        KOMETileResolution location = KOMEBuildService.tileAtWorldCoordinates(
+            world.provider.dimensionId, actor.posX, actor.posZ);
+        if (location.status != KOMETileResolution.Status.RESOLVED)
+            return RelocationResult.failure("Current position has no resolved tile: " + location);
+        String tile = location.tileId;
         if (!KOMEConquestTile.isCanonicalTileId(tile)
                 || KOMEConquestTileDefaults.isRetiredTile(tile)
                 || !KOMEConquestTileDefaults.getKnownTileIds().contains(tile))

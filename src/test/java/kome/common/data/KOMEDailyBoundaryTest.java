@@ -9,6 +9,9 @@ import java.util.TimeZone;
 import static org.junit.Assert.*;
 
 public class KOMEDailyBoundaryTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
     @Test public void springGapUsesFirstValidInstantNotShiftedMinutes() {
         assertBoundary("America/Chicago", "02:30", "2026-03-08", "2026-03-08T08:00:00Z");
         assertBoundary("Australia/Lord_Howe", "02:15", "2026-10-04", "2026-10-03T15:30:00Z");

@@ -13,6 +13,7 @@ import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEConquestTileDefaults;
 import kome.common.data.KOMEEntitySnapshots;
 import kome.common.data.KOMEHaltedUnitProtection;
+import kome.common.data.KOMEHiredUnitClassification;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEMovementHistoryRecord;
 import kome.common.data.KOMEMovementAccessService;
@@ -330,7 +331,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         int movingUnits = 0;
         List<String> details = new ArrayList<String>();
         for (KOMEHiredUnitRecord record : new ArrayList<KOMEHiredUnitRecord>(data.hiredUnits.values())) {
-            if (record == null || record.farmhand || !owner.equals(record.owner)) {
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.farmhand || !owner.equals(record.owner)) {
                 continue;
             }
             if (tile.length() > 0 && !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))) {
@@ -377,7 +379,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         int ground = 0;
         List<String> stationedIds = new ArrayList<String>();
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record == null || !admin && !viewer.equals(record.owner) || record.farmhand || !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || !admin && !viewer.equals(record.owner) || record.farmhand || !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
                     || record.movementOrderId != null && record.movementOrderId.length() > 0) {
                 continue;
             }
@@ -670,6 +673,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             + " / source player " + sourcePlayer + " / tile " + KOMEConquestTile.normalizeId(found.sourceTileId);
         sender.addChatMessage(new ChatComponentText((found.unitName == null || found.unitName.length() == 0 ? found.entity.toString().substring(0, 8) : found.unitName)
             + " [" + found.entity + "]"));
+        sender.addChatMessage(new ChatComponentText(formatUnitIdentity(found)));
         sender.addChatMessage(new ChatComponentText("Owner: " + ownerName + " / " + displayFaction(data.getPlayerFactionKey(found.owner))
             + ". Type: " + role + ". Population cost: " + (found.farmhand ? "0.00 (free)" : kome.common.data.KOMEPopulationProjection.formatCenti(kome.common.data.KOMEPopulationService.wholeToCenti(found.cost)))
             + ". Permanent investment: " + kome.common.data.KOMEPopulationProjection.formatCenti(kome.common.data.KOMEPopulationService.getInvestmentCenti(found)) + "."));
@@ -708,6 +712,12 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             sender.addChatMessage(new ChatComponentText("Movement: Stationed."
                 + (found.type == KOMEPopulationType.DEFENSIVE ? " Defensive units cannot move." : "")));
         }
+    }
+
+    static String formatUnitIdentity(KOMEHiredUnitRecord record) {
+        String uuid = record == null || record.entity == null ? "unknown" : record.entity.toString();
+        return "UUID: " + uuid + ". Class: "
+            + KOMEHiredUnitClassification.getUnitClass(record).name() + ".";
     }
 
     private void listMoving(ICommandSender sender, KOMEWorldData data, World world, UUID owner) {
@@ -2189,7 +2199,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         ForgeChunkManager.Ticket originTicket = acquireTemporaryTileChunk(data, KOMEReflection.getWorld(player), tile, company.createdAtMillis);
         int snapshotsSaved = 0;
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record == null || record.entity == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.entity == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE
                     || !owner.equals(record.owner) || !tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
                     || record.isMoving() || record.companyId != null && record.companyId.length() > 0) {
                 continue;
@@ -2359,7 +2370,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             return route.failureReason;
         }
         return "No legal route to this tile. Destination is not reachable through your claimed "
-            + displayFaction(company.faction) + " tiles or partner tiles unlocked by canonical Allies passage.";
+            + displayFaction(company.faction) + " tiles or partner tiles unlocked by an actual LOTR Ally relation.";
     }
 
     private List<RouteBlocker> sortedRouteBlockers(RouteResult route) {
@@ -2557,11 +2568,15 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             return;
         }
         String tile = parseTile(value);
-        if (!data.isFactionControlledTile(tile, faction)) {
-            throw new WrongUsageException("Your faction does not control " + tile + ".");
-        }
+        kome.common.data.KOMERecruitmentLocationService.Decision legality =
+            kome.common.data.KOMERecruitmentLocationService.evaluate(data, faction, tile);
         if (!data.setActiveRecruitmentTile(owner, faction, tile)) {
-            throw new WrongUsageException("Your faction needs positive Available + Active Population to use " + tile + " as a recruitment origin.");
+            throw new WrongUsageException("Cannot recruit from " + tile + ": "
+                + legality.reason + " Current developed rate "
+                + kome.common.data.KOMEPopulationProjection.formatRate(
+                    legality.effectiveRateUnits) + "/day; required "
+                + kome.common.data.KOMEPopulationProjection.formatRate(
+                    legality.thresholdUnits) + "/day.");
         }
         sender.addChatMessage(new ChatComponentText("Active recruitment tile set to " + tile + ". New hires will prefer this tile."));
     }
@@ -2575,7 +2590,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         int pop = 0;
         int alreadyStationed = 0;
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record == null || record.farmhand || !owner.equals(record.owner)) {
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.farmhand || !owner.equals(record.owner)) {
                 continue;
             }
             if (record.movementOrderId != null && record.movementOrderId.length() > 0) {
@@ -4092,6 +4108,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             return "a tracked unit record is missing.";
         }
         String unit = displayUnitId(record);
+        if (!KOMEHiredUnitClassification.isCampaignUnit(record)) {
+            return unit + " is ordinary; only campaign units can move strategically.";
+        }
         if (record.farmhand) {
             return unit + " is a farmhand; farmhands cannot move in companies.";
         }
@@ -4159,6 +4178,16 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     private boolean companyHasPresenceAtTile(KOMEWorldData data, KOMEArmyCompany company, String tileId) {
         String tile = KOMEConquestTile.normalizeId(tileId);
         if (company == null || tile.length() == 0) {
+            return false;
+        }
+        boolean hasCampaignUnit = false;
+        for (UUID unitId : company.units) {
+            if (KOMEHiredUnitClassification.isCampaignUnit(data, unitId)) {
+                hasCampaignUnit = true;
+                break;
+            }
+        }
+        if (!hasCampaignUnit) {
             return false;
         }
         if (tile.equals(KOMEConquestTile.normalizeId(company.currentTile))) {
@@ -4252,7 +4281,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
         throw new WrongUsageException(role + " tile " + normalizedTile + " is owned by " + displayFaction(owner)
             + " (" + emptyKey(owner) + "), and " + displayFaction(companyFaction) + " (" + emptyKey(companyFaction)
-            + ") has no canonical Allies passage there.");
+            + ") has no LOTR Ally passage there.");
     }
 
     private String companyStandBlockReason(KOMEWorldData data, KOMEArmyCompany company, String tileId) {
@@ -4269,7 +4298,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (owner.equals(companyFaction) || data.canFactionUseMilitaryPassage(companyFaction, owner)) {
             return "";
         }
-        return displayFaction(companyFaction) + " has no canonical Allies passage through " + displayFaction(owner);
+        return displayFaction(companyFaction) + " has no LOTR Ally passage through " + displayFaction(owner);
     }
 
     private static void refreshCompany(KOMEWorldData data, KOMEArmyCompany company) {
@@ -4284,7 +4313,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         boolean mixedTiles = false;
         for (UUID unitId : company.units) {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
-            if (record == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
                 missing.add(unitId);
                 continue;
             }
@@ -4314,7 +4344,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
 
     private boolean hasUnassignedOffensiveUnits(KOMEWorldData data, UUID owner, String tile) {
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (record != null && owner.equals(record.owner) && !record.farmhand
+            if (KOMEHiredUnitClassification.isCampaignUnit(record)
+                    && owner.equals(record.owner) && !record.farmhand
                     && record.type == KOMEPopulationType.OFFENSIVE && !record.isMoving()
                     && tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
                     && (record.companyId == null || record.companyId.length() == 0)) {
@@ -4379,7 +4410,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 && (company == null || !KOMEWartimeStewardshipService.canEnter(data, company, originOwner, false))) {
             result.failureReason = "Origin tile " + start + " is owned by " + displayFaction(originOwner)
                 + " (" + emptyKey(originOwner) + "), but moving faction is " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") and has no canonical Allies passage there.";
+                + " (" + emptyKey(faction) + ") and has no LOTR Ally passage there.";
             return result;
         }
         String destinationBlock = routeTileBlockReason(data, goal, faction, true, company);
@@ -4466,8 +4497,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private double routeCenterDistanceSq(String tileId, String goalTileId) {
-        KOMEConquestTileDefaults.TileCenter tile = KOMEConquestTileDefaults.getTileCenter(tileId);
-        KOMEConquestTileDefaults.TileCenter goal = KOMEConquestTileDefaults.getTileCenter(goalTileId);
+        kome.common.data.KOMETileGameplayDefaults.Point tile = kome.common.data.KOMETileGameplayDefaults.get().getRouteReference(tileId);
+        kome.common.data.KOMETileGameplayDefaults.Point goal = kome.common.data.KOMETileGameplayDefaults.get().getRouteReference(goalTileId);
         if (tile == null || goal == null) {
             return Double.MAX_VALUE;
         }
@@ -4508,7 +4539,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         StringBuilder message = new StringBuilder();
         message.append("No legal route from ").append(start).append(" to ").append(goal).append(".");
         message.append(" Destination ").append(goal).append(" was not reachable through claimed ")
-            .append(displayFaction(faction)).append(" tiles or partner tiles unlocked by canonical Allies passage.");
+            .append(displayFaction(faction)).append(" tiles or partner tiles unlocked by an actual LOTR Ally relation.");
         if (visited == null || visited.size() <= 1) {
             message.append(" The origin has no legal outgoing route steps.");
         }
@@ -4582,7 +4613,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (destination) {
             return "Enemy tile attack movement is not implemented yet. Destination tile " + tileKey + " is owned by "
                 + displayFaction(owner) + " (" + emptyKey(owner) + "), and " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") has no canonical Allies passage.";
+                + " (" + emptyKey(faction) + ") has no LOTR Ally passage.";
         }
         return "Tile " + tileKey + " is controlled by " + displayFaction(owner) + " and no military passage permission exists.";
     }

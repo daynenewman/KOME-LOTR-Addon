@@ -15,6 +15,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 public class KOMEDefensiveGateLinkServiceTest {
+    @org.junit.Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
     @Test public void atomicLinkAcceptsAnyDefensiveBuildAndAllocatesExactlyOneRecord() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEPlayerBuild build = addBuild(data, "B1", KOMEBuildType.DEFENSIVE, 900, 5000);

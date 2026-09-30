@@ -29,14 +29,16 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 4 adds mandatory authoritative faction capitals; no development migration exists. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 4;
+    /** Schema 5 adds mandatory KOM-71 population-development authority. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 5;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
     public static final int BUILD_DATA_SCHEMA_VERSION = KOMEPlayerBuild.DATA_SCHEMA_VERSION;
     public static final int FACTION_POPULATION_DATA_SCHEMA_VERSION = 2;
     public static final int POPULATION_PAYOUT_DATA_SCHEMA_VERSION = 1;
+    public static final int POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION =
+        KOMEPopulationDevelopmentState.DATA_SCHEMA_VERSION;
     public static final int FACTION_CAPITAL_DATA_SCHEMA_VERSION =
         KOMEFactionCapitalRecord.DATA_SCHEMA_VERSION;
 
@@ -53,6 +55,9 @@ public class KOMEWorldData extends WorldSavedData {
     /** Transient failed-plan diagnostic, never a cursor or a readiness authority. */
     public String populationPayoutLastFailure = "";
     public final Map<String, Long> populationPayoutRemainders = new HashMap<String, Long>();
+    /** Mandatory global Rate Ceiling/live-boundary state; rates themselves remain derived. */
+    public final KOMEPopulationDevelopmentState populationDevelopment =
+        new KOMEPopulationDevelopmentState();
     public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
     /** Explicit PRINCE/KING NPC rank authority; LORD and UNRANKED remain live-derived. */
     final Map<UUID, KOMEProgressionNpcRankRecord> progressionNpcRanks = new HashMap<UUID, KOMEProgressionNpcRankRecord>();
@@ -108,7 +113,6 @@ public class KOMEWorldData extends WorldSavedData {
     public String allianceDifficulty = KOMEAllianceRequirements.STANDARD;
     public static final int MAX_MOVEMENT_HISTORY_PER_FACTION = 250;
     private boolean conquestDefaultsInitialized;
-    private boolean allianceRelationsNeedReapply;
     private boolean integratedRootInitialized;
     private boolean writeBlocked;
     private String loadFailureReason = "";
@@ -251,6 +255,42 @@ public class KOMEWorldData extends WorldSavedData {
             populationPayoutLocalTime = localTime;
             centralAudit.clear();
             centralAudit.addAll(audit); // includes entries trimmed from the front by a failed append
+            super.setDirty(dirty);
+            throw failure;
+        }
+    }
+
+    /** Atomic in-memory publication for one development anchor/boundary. */
+    final void publishPopulationDevelopment(Runnable publication) {
+        ensureWritable();
+        KOMEPopulationDevelopmentState prior = populationDevelopment.copy();
+        Map<String, Long> developed = new HashMap<String, Long>();
+        Map<String, Long> updated = new HashMap<String, Long>();
+        Map<String, List<String>> histories = new HashMap<String, List<String>>();
+        for (Map.Entry<String, KOMEPlayerBuild> entry : builds.entrySet()) {
+            KOMEPlayerBuild build = entry.getValue();
+            if (build == null) continue;
+            developed.put(entry.getKey(), Long.valueOf(build.developedNativeCentiHours));
+            updated.put(entry.getKey(), Long.valueOf(build.updatedAtMillis));
+            histories.put(entry.getKey(), new ArrayList<String>(build.auditHistory()));
+        }
+        List<KOMEAuditEntry> audit = new ArrayList<KOMEAuditEntry>(centralAudit);
+        boolean dirty = super.isDirty();
+        try {
+            publication.run();
+            populationDevelopment.validate();
+            markDirty();
+        } catch (RuntimeException failure) {
+            populationDevelopment.copyFrom(prior);
+            for (Map.Entry<String, Long> entry : developed.entrySet()) {
+                KOMEPlayerBuild build = builds.get(entry.getKey());
+                if (build == null) continue;
+                build.developedNativeCentiHours = entry.getValue().longValue();
+                build.updatedAtMillis = updated.get(entry.getKey()).longValue();
+                build.replaceAuditHistory(histories.get(entry.getKey()));
+            }
+            centralAudit.clear();
+            centralAudit.addAll(audit);
             super.setDirty(dirty);
             throw failure;
         }
@@ -747,41 +787,31 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
 
-        Map<String, WaypointCandidate> candidatesByTile = new HashMap<String, WaypointCandidate>();
+        Map<String, LOTRWaypoint> candidatesByTile = new HashMap<String, LOTRWaypoint>();
         Set<String> usedWaypointKeys = new HashSet<String>();
         for (KOMETileWaypointLink manual : preservedManual.values()) {
             if (manual != null && manual.lotrWaypointKey != null && manual.lotrWaypointKey.length() > 0) {
                 usedWaypointKeys.add(manual.lotrWaypointKey);
             }
         }
-        for (LOTRWaypoint waypoint : LOTRWaypoint.values()) {
-            if (waypoint == null || waypoint.isHidden() || usedWaypointKeys.contains(waypoint.getCodeName())) {
-                continue;
-            }
-            String tileId = KOMEConquestTileDefaults.getTileIdAtMapPosition(waypoint.getX(), waypoint.getY());
-            if (tileId.length() == 0 || preservedManual.containsKey(tileId)) {
-                continue;
-            }
-            KOMEConquestTileDefaults.TileCenter center = KOMEConquestTileDefaults.getTileCenter(tileId);
-            double distance = 0.0D;
-            if (center != null) {
-                double dx = waypoint.getXCoord() - center.x;
-                double dz = waypoint.getZCoord() - center.z;
-                distance = dx * dx + dz * dz;
-            }
-            WaypointCandidate existing = candidatesByTile.get(tileId);
-            if (existing == null || distance < existing.distanceSq) {
-                candidatesByTile.put(tileId, new WaypointCandidate(waypoint, distance));
+        KOMETileGameplayDefaults defaults = KOMETileGameplayDefaults.get();
+        for (String tileId : defaults.waypointTiles()) {
+            if (preservedManual.containsKey(tileId)) continue;
+            for (String key : defaults.waypointCandidates(tileId)) {
+                if (usedWaypointKeys.contains(key)) continue;
+                LOTRWaypoint waypoint = LOTRWaypoint.waypointForName(key);
+                candidatesByTile.put(tileId, waypoint);
+                break;
             }
         }
 
         Map<String, KOMETileWaypointLink> desiredLinks = new HashMap<String, KOMETileWaypointLink>();
         desiredLinks.putAll(preservedManual);
-        for (Map.Entry<String, WaypointCandidate> entry : candidatesByTile.entrySet()) {
+        for (Map.Entry<String, LOTRWaypoint> entry : candidatesByTile.entrySet()) {
             if (desiredLinks.containsKey(entry.getKey())) {
                 continue;
             }
-            KOMETileWaypointLink link = new KOMETileWaypointLink(entry.getKey(), entry.getValue().waypoint, null, "Automatic LOTR waypoint",
+            KOMETileWaypointLink link = new KOMETileWaypointLink(entry.getKey(), entry.getValue(), null, "Automatic LOTR waypoint",
                 KOMETileWaypointLink.SOURCE_AUTO_DEFAULT, false);
             desiredLinks.put(entry.getKey(), link);
         }
@@ -1054,7 +1084,7 @@ public class KOMEWorldData extends WorldSavedData {
         if (tile == null || !KOMEConquestTile.isCanonicalTileId(tile.id)) {
             return;
         }
-        KOMEConquestTileDefaults.TileCenter center = KOMEConquestTileDefaults.getTileCenter(tile.id);
+        KOMETileGameplayDefaults.Point center = KOMETileGameplayDefaults.get().getArrivalDefault(tile.id);
         if (center == null) {
             return;
         }
@@ -1072,11 +1102,11 @@ public class KOMEWorldData extends WorldSavedData {
                 return;
             }
         }
-        tile.setAnchor(center.dimensionId, center.x, center.y, center.z);
-        setTileWaypoint(tile.id, KOMETileWaypoint.RALLY, center.dimensionId, center.x, center.y, center.z, "Auto tile center", false);
+        tile.setAnchor(center.dimensionId(), center.x, center.y, center.z);
+        setTileWaypoint(tile.id, KOMETileWaypoint.RALLY, center.dimensionId(), center.x, center.y, center.z, "Auto tile center", false);
     }
 
-    private boolean ensureDefaultArrivalPointFromLinkedWaypoint(KOMEConquestTile tile, KOMEConquestTileDefaults.TileCenter center) {
+    private boolean ensureDefaultArrivalPointFromLinkedWaypoint(KOMEConquestTile tile, KOMETileGameplayDefaults.Point center) {
         KOMETileWaypoint existing = getTileWaypoint(tile.id, KOMETileWaypoint.RALLY);
         if (existing != null && existing.manualOverride) {
             syncTileAnchor(tile, existing.dimensionId, existing.x, existing.y, existing.z);
@@ -1088,13 +1118,13 @@ public class KOMEWorldData extends WorldSavedData {
         }
         double x = link.waypointWorldX;
         double z = link.waypointWorldZ;
-        int dimensionId = link.dimensionId == 0 ? center.dimensionId : link.dimensionId;
+        int dimensionId = link.dimensionId == 0 ? center.dimensionId() : link.dimensionId;
         LOTRWaypoint waypoint = link.resolveWaypoint();
         if (waypoint != null) {
             x = waypoint.getXCoord();
             z = waypoint.getZCoord();
             if (dimensionId == 0) {
-                dimensionId = center.dimensionId;
+                dimensionId = center.dimensionId();
             }
         }
         if (Math.abs(x) < 0.001D && Math.abs(z) < 0.001D) {
@@ -1151,14 +1181,8 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public boolean canUseRecruitmentTile(UUID playerId, String factionKey, String tileId) {
-        String faction = KOMEAlliance.normalizeFactionKey(factionKey);
-        String tile = KOMEConquestTile.normalizeId(tileId);
-        KOMEConquestTile controlled = conquestTiles.get(tile);
-        if (playerId == null || faction.isEmpty() || controlled == null
-                || !faction.equals(controlled.projectRulingFaction())) {
-            return false;
-        }
-        return KOMEPopulationService.getRepresentedPopulationCenti(this, faction).signum() > 0;
+        return playerId != null && KOMERecruitmentLocationService.evaluate(
+            this, factionKey, tileId).legal;
     }
 
     public boolean setActiveRecruitmentTile(UUID playerId, String factionKey, String tileId) {
@@ -1213,17 +1237,10 @@ public class KOMEWorldData extends WorldSavedData {
         markDirty();
     }
 
-    public String findFactionControlledTile(String factionKey) {
-        String key = KOMEAlliance.normalizeFactionKey(factionKey);
-        List<String> tileIds = new ArrayList<String>(conquestTiles.keySet());
-        Collections.sort(tileIds);
-        for (String tileId : tileIds) {
-            KOMEConquestTile tile = conquestTiles.get(tileId);
-            if (tile != null && tile.isClaimed() && key.equals(KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction()))) {
-                return KOMEConquestTile.normalizeId(tile.id);
-            }
-        }
-        return "";
+    /** Explicit valid selection, otherwise the first lexicographically legal recruitment tile. */
+    public String resolveRecruitmentTile(UUID playerId, String factionKey) {
+        return KOMERecruitmentLocationService.resolveSelectedOrDefault(
+            this, playerId, factionKey).tileId;
     }
 
     public String nextBuildId() {
@@ -1456,10 +1473,6 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public boolean reconcileAllianceLifecycle(long nowMillis, long worldTime) {
-        if (allianceRelationsNeedReapply) {
-            KOMEDiplomacyService.reapplyLotrProjection(this);
-            allianceRelationsNeedReapply = false;
-        }
         // Schema 7 deliberately has no king-loss or contribution grace lifecycle.  Losing or
         // gaining a king preserves every directional stage and unlocked benefit.
         return false;
@@ -1512,7 +1525,7 @@ public class KOMEWorldData extends WorldSavedData {
 
     /** A movement label alone never authorizes preserving a physically removed unit. */
     public boolean hasValidHiredUnitMovementLink(KOMEHiredUnitRecord record) {
-        if (record == null || !record.isMoving()) return false;
+        if (!KOMEHiredUnitClassification.isCampaignUnit(record) || !record.isMoving()) return false;
         KOMEArmyMovementOrder order = armyMovements.get(record.movementOrderId);
         return order != null && record.movementOrderId.equals(order.id) && order.isMoving()
             && order.units.contains(record.entity)
@@ -1650,6 +1663,9 @@ public class KOMEWorldData extends WorldSavedData {
             if (record == null || onlyOwner != null && !onlyOwner.equals(record.owner)) {
                 continue;
             }
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)) {
+                continue;
+            }
             KOMEArmyCompany assignedCompany = record.companyId == null ? null : armyCompanies.get(record.companyId);
             if (assignedCompany != null && KOMEArmyCompany.SOURCE_AUTO_UNIT_ASSIGNMENT.equals(assignedCompany.source)) {
                 continue;
@@ -1689,16 +1705,33 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     public KOMEArmyCompany assignUnitToHiringTileCompany(KOMEHiredUnitRecord record, String ownerName) {
+        if (record == null) return null;
+        String sourceTile = KOMEConquestTile.normalizeId(record.sourceTileId);
+        if (sourceTile.length() == 0) sourceTile = KOMEConquestTile.normalizeId(record.currentTile);
+        return assignUnitToCampaignCompany(record, ownerName, sourceTile, false);
+    }
+
+    /** Package-scoped entry for an explicit, preflighted campaign recruitment transaction. */
+    KOMEArmyCompany assignUnitToCampaignCompanyAtTile(KOMEHiredUnitRecord record, String ownerName, String strategicTile) {
+        return assignUnitToCampaignCompany(record, ownerName, strategicTile, true);
+    }
+
+    private KOMEArmyCompany assignUnitToCampaignCompany(KOMEHiredUnitRecord record, String ownerName,
+            String strategicTile, boolean requireStationedAtStrategicTile) {
         if (!isEligibleForAutoCompany(record) || record.owner == null) return null;
-        // This service is the authoritative completion point for a successful hire.
+        String sourceTile = KOMEConquestTile.normalizeId(strategicTile);
+        if (sourceTile.length() == 0) return null;
+        // This service is the authoritative completion point for campaign company admission.
         // Keeping the record before recomputing prevents a newly assigned live unit from
         // being mistaken for a stale company member when callers have not inserted it yet.
         hiredUnits.put(record.entity, record);
-        String sourceTile = KOMEConquestTile.normalizeId(record.sourceTileId);
-        if (sourceTile.length() == 0) sourceTile = KOMEConquestTile.normalizeId(record.currentTile);
-        if (sourceTile.length() == 0) return null;
         String companyFaction = companyFaction(record);
         KOMEArmyCompany company = findHiringCompany(record.owner, sourceTile, companyFaction);
+        if (company != null && requireStationedAtStrategicTile
+                && (company.isMoving()
+                    || !sourceTile.equals(KOMEConquestTile.normalizeId(company.currentTile)))) {
+            return null;
+        }
         if (company == null) {
             String id = hiringCompanyId(record.owner, sourceTile);
             if (armyCompanies.containsKey(id)) {
@@ -1759,8 +1792,12 @@ public class KOMEWorldData extends WorldSavedData {
         List<UUID> missing = new ArrayList<UUID>();
         for (UUID unitId : company.units) {
             KOMEHiredUnitRecord record = hiredUnits.get(unitId);
-            if (record == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                    || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
                 missing.add(unitId);
+                if (record != null && company.id.equals(record.companyId)) {
+                    record.companyId = "";
+                }
                 continue;
             }
             int cost = Math.max(0, record.cost);
@@ -1770,6 +1807,15 @@ public class KOMEWorldData extends WorldSavedData {
         }
         company.units.removeAll(missing);
         company.updatedAtMillis = System.currentTimeMillis();
+    }
+
+    /** Refreshes cached company totals after a live unit's visible cost/category changed. */
+    void refreshCompanyCompositionFor(KOMEHiredUnitRecord record) {
+        if (record == null || record.companyId == null || record.companyId.length() == 0) return;
+        KOMEArmyCompany company = armyCompanies.get(record.companyId);
+        if (company != null && company.units.contains(record.entity)) {
+            recalculateCompanyComposition(company);
+        }
     }
 
     private String safePlayerName(UUID owner) {
@@ -1811,7 +1857,8 @@ public class KOMEWorldData extends WorldSavedData {
     }
 
     private static boolean isEligibleForAutoCompany(KOMEHiredUnitRecord record) {
-        return record != null && record.entity != null && !record.farmhand
+        return KOMEHiredUnitClassification.isCampaignUnit(record)
+            && record.entity != null && !record.farmhand
             && record.type == KOMEPopulationType.OFFENSIVE && !record.isMoving();
     }
 
@@ -1859,7 +1906,7 @@ public class KOMEWorldData extends WorldSavedData {
         }
         if (server == null || server.getConfigurationManager() == null) return;
         for (Object player : server.getConfigurationManager().playerEntityList) {
-            KOMEPacketConquestData.sendChunked(this, (EntityPlayerMP) player);
+            KOMEPacketConquestData.sendIfChanged(this, (EntityPlayerMP) player);
         }
     }
 
@@ -1892,16 +1939,6 @@ public class KOMEWorldData extends WorldSavedData {
 
     public static String recruitmentTileKey(String faction, UUID playerId) {
         return KOMEAlliance.normalizeFactionKey(faction) + "|" + (playerId == null ? "" : playerId.toString());
-    }
-
-    private static class WaypointCandidate {
-        final LOTRWaypoint waypoint;
-        final double distanceSq;
-
-        WaypointCandidate(LOTRWaypoint waypoint, double distanceSq) {
-            this.waypoint = waypoint;
-            this.distanceSq = distanceSq;
-        }
     }
 
     @Override
@@ -2001,6 +2038,9 @@ public class KOMEWorldData extends WorldSavedData {
         Map<String, KOMEPlayerBuild> loadedBuilds = readCanonicalBuilds(nbt);
         loadSection = "PopulationPayout";
         Map<String, Long> loadedRemainders = readCanonicalPayoutState(nbt);
+        loadSection = "PopulationDevelopment";
+        KOMEPopulationDevelopmentState loadedDevelopment =
+            readCanonicalPopulationDevelopmentState(nbt);
         loadSection = "FactionCapitals";
         Map<String, KOMEFactionCapitalRecord> loadedCapitals =
             readCanonicalFactionCapitals(nbt);
@@ -2015,6 +2055,7 @@ public class KOMEWorldData extends WorldSavedData {
         populationPayoutTimezone = nbt.getString("PopulationPayoutTimezone");
         populationPayoutLocalTime = nbt.getString("PopulationPayoutLocalTime");
         populationPayoutLastFailure = "";
+        populationDevelopment.copyFrom(loadedDevelopment);
         progressions.clear();
         progressionNpcRanks.clear();
         progressionNpcRoyalRestorations.clear();
@@ -2417,7 +2458,6 @@ public class KOMEWorldData extends WorldSavedData {
                 }
             }
         }
-        allianceRelationsNeedReapply = true;
         boolean quotaValidationChanged = KOMEAllianceQuotaPool.validateExistingRequirements(this);
         boolean migratedAllianceData = savedAllianceSchema != ALLIANCE_DATA_SCHEMA_VERSION
             || allianceMerged > 0 || allianceDuplicate > 0 || allianceQuarantined > 0;
@@ -2562,15 +2602,27 @@ public class KOMEWorldData extends WorldSavedData {
             List<UUID> missingUnits = new ArrayList<UUID>();
             for (UUID unitId : company.units) {
                 KOMEHiredUnitRecord record = hiredUnits.get(unitId);
-                if (record == null || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
+                if (!KOMEHiredUnitClassification.isCampaignUnit(record)
+                        || record.farmhand || record.type != KOMEPopulationType.OFFENSIVE) {
                     missingUnits.add(unitId);
                 } else {
                     record.companyId = company.id;
                 }
             }
             company.units.removeAll(missingUnits);
+            if (!missingUnits.isEmpty()) {
+                loadedStateReconciled = true;
+                recalculateCompanyComposition(company);
+            }
         }
         for (KOMEHiredUnitRecord record : hiredUnits.values()) {
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record)) {
+                if (record.companyId != null && record.companyId.length() > 0) {
+                    record.companyId = "";
+                    loadedStateReconciled = true;
+                }
+                continue;
+            }
             if (record != null && record.companyId != null && record.companyId.length() > 0
                     && !armyCompanies.containsKey(record.companyId)) {
                 record.companyId = "";
@@ -2701,6 +2753,7 @@ public class KOMEWorldData extends WorldSavedData {
         populationPayoutTimezone = candidate.populationPayoutTimezone;
         populationPayoutLocalTime = candidate.populationPayoutLocalTime;
         populationPayoutLastFailure = candidate.populationPayoutLastFailure;
+        populationDevelopment.copyFrom(candidate.populationDevelopment);
         progressionEnabled = candidate.progressionEnabled;
         movementSecondsPerTileOverride = candidate.movementSecondsPerTileOverride;
         movementTotalSecondsOverride = candidate.movementTotalSecondsOverride;
@@ -2710,7 +2763,6 @@ public class KOMEWorldData extends WorldSavedData {
         allianceStageThreeRequiredHalfHours = candidate.allianceStageThreeRequiredHalfHours;
         allianceDifficulty = candidate.allianceDifficulty;
         conquestDefaultsInitialized = candidate.conquestDefaultsInitialized;
-        allianceRelationsNeedReapply = candidate.allianceRelationsNeedReapply;
         integratedRootInitialized = candidate.integratedRootInitialized;
         warSeason.seasonId = candidate.warSeason.seasonId;
         warSeason.phase = candidate.warSeason.phase;
@@ -2795,6 +2847,7 @@ public class KOMEWorldData extends WorldSavedData {
     public void writeToNBT(NBTTagCompound nbt) {
         ensureWritable();
         validatePopulationPayoutState(); // reject before touching the destination tag
+        populationDevelopment.validate();
         Map<String, KOMEFactionCapitalRecord> capitalsForWrite =
             factionCapitals.isEmpty() && !integratedRootInitialized
                 ? KOMEFactionCapitalDefaults.metadataFixture(0L)
@@ -2804,6 +2857,9 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.removeTag("AllianceProduceSlots");
         nbt.setInteger("AllianceDataSchemaVersion", ALLIANCE_DATA_SCHEMA_VERSION);
         nbt.setInteger("BuildDataSchemaVersion", BUILD_DATA_SCHEMA_VERSION);
+        nbt.setInteger("PopulationDevelopmentDataSchemaVersion",
+            POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION);
+        nbt.setTag("PopulationDevelopment", populationDevelopment.writeToNBT());
         nbt.setInteger("FactionCapitalDataSchemaVersion",
             FACTION_CAPITAL_DATA_SCHEMA_VERSION);
         NBTTagList capitalList = new NBTTagList();
@@ -3209,6 +3265,26 @@ public class KOMEWorldData extends WorldSavedData {
             failUnsupportedRootSchema("Invalid population payout state: " + invalid.getMessage());
         }
         return loaded;
+    }
+
+    private KOMEPopulationDevelopmentState readCanonicalPopulationDevelopmentState(
+            NBTTagCompound nbt) {
+        if (!nbt.hasKey("PopulationDevelopmentDataSchemaVersion", 3)
+                || nbt.getInteger("PopulationDevelopmentDataSchemaVersion")
+                    != POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION)
+            failUnsupportedRootSchema("Unsupported or missing PopulationDevelopmentDataSchemaVersion; expected "
+                + POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION
+                + ". Schema-4 development worlds require reset; no migration.");
+        if (!nbt.hasKey("PopulationDevelopment", 10))
+            failUnsupportedRootSchema("Mandatory PopulationDevelopment section is missing or malformed.");
+        try {
+            return KOMEPopulationDevelopmentState.readFromNBT(
+                nbt.getCompoundTag("PopulationDevelopment"));
+        } catch (RuntimeException invalid) {
+            failUnsupportedRootSchema("Invalid population development state: "
+                + invalid.getMessage());
+            throw invalid;
+        }
     }
 
     private Map<String, KOMEPlayerBuild> readCanonicalBuilds(NBTTagCompound nbt) {

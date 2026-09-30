@@ -12,6 +12,7 @@ import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEPopulationType;
 import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMERulerAuthorization;
+import kome.common.data.KOMEDiplomacyRelation;
 import kome.common.data.KOMEDiplomacyService;
 import kome.common.data.KOMEWarService;
 import kome.common.data.KOMEWartimeStewardshipService;
@@ -39,7 +40,7 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/alliance list [faction] | get <factionA> <factionB> | request <from> <to> <friends|allies> | accept <from> <to> | cancel <from> <to>";
+        return "/alliance list [faction] | get <factionA> <factionB> | request <from> <to> <enemy|neutral|friends|allies> | accept <from> <to> | cancel <from> <to> | break|revoke <actingFaction> <otherFaction> [mortal_enemy|enemy|neutral|friends]";
     }
 
     @Override
@@ -53,7 +54,7 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
             throw new WrongUsageException(getCommandUsage(sender));
         }
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
-        if (java.util.Arrays.asList("request", "accept", "goods", "storage", "claimgoods", "claim").contains(action)
+        if (java.util.Arrays.asList("request", "accept", "break", "revoke", "goods", "storage", "claimgoods", "claim").contains(action)
                 || !isStaff(sender) && java.util.Arrays.asList("list", "get", "cancel").contains(action)) {
             getCommandSenderAsPlayer(sender);
         }
@@ -85,7 +86,7 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
             }
             String senderFaction = parseFaction(args[1]);
             String receiverFaction = parseFaction(args[2]);
-            kome.common.data.KOMEDiplomacyRelation target = kome.common.data.KOMEDiplomacyRelation.parse(args[3]); EntityPlayerMP actor=sender instanceof EntityPlayerMP?(EntityPlayerMP)sender:null;
+            KOMEDiplomacyRelation target = KOMEDiplomacyRelation.parse(args[3]); EntityPlayerMP actor=sender instanceof EntityPlayerMP?(EntityPlayerMP)sender:null;
             KOMEDiplomacyService.Result result=KOMEDiplomacyService.requestIncrease(data,senderFaction,receiverFaction,target,actor==null?null:kome.common.KOMEReflection.getEntityUUID(actor),System.currentTimeMillis()); if(!result.accepted)throw new WrongUsageException(result.reason); sender.addChatMessage(new ChatComponentText("Diplomacy request sent: "+target.displayName+"."));
             return;
         }
@@ -95,13 +96,38 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
             }
             String senderFaction = parseFaction(args[1]);
             String receiverFaction = parseFaction(args[2]);
-            EntityPlayerMP actor=sender instanceof EntityPlayerMP?(EntityPlayerMP)sender:null; UUID acceptor=actor==null?null:kome.common.KOMEReflection.getEntityUUID(actor); KOMEDiplomacyService.Result result=KOMEDiplomacyService.acceptPendingIncrease(data,receiverFaction,senderFaction,acceptor,System.currentTimeMillis()); if(!result.accepted)throw new WrongUsageException(result.reason); KOMEDiplomacyService.projectLotrRelation(data,senderFaction,receiverFaction); sender.addChatMessage(new ChatComponentText("Diplomacy relation accepted."));
+            EntityPlayerMP actor=sender instanceof EntityPlayerMP?(EntityPlayerMP)sender:null; UUID acceptor=actor==null?null:kome.common.KOMEReflection.getEntityUUID(actor); KOMEDiplomacyService.Result result=KOMEDiplomacyService.acceptPendingIncrease(data,receiverFaction,senderFaction,acceptor,System.currentTimeMillis()); if(!result.accepted)throw new WrongUsageException(result.reason); sender.addChatMessage(new ChatComponentText("Diplomacy relation accepted: "+result.record.relation.displayName+"."));
             return;
         }
         if ("cancel".equalsIgnoreCase(args[0])) { if(args.length!=3)throw new WrongUsageException(getCommandUsage(sender)); EntityPlayerMP actor=sender instanceof EntityPlayerMP?(EntityPlayerMP)sender:null; KOMEDiplomacyService.Result result=KOMEDiplomacyService.cancelPendingRequest(data,parseFaction(args[1]),parseFaction(args[2]),actor==null?null:kome.common.KOMEReflection.getEntityUUID(actor),sender.canCommandSenderUseCommand(2,getCommandName())); if(!result.accepted)throw new WrongUsageException(result.reason); sender.addChatMessage(new ChatComponentText("Diplomacy request cancelled.")); return; }
         if ("break".equalsIgnoreCase(args[0]) || "revoke".equalsIgnoreCase(args[0])) {
-            throw new WrongUsageException(
-                "Accepted relation downgrade policy is not configured.");
+            if (args.length != 3 && args.length != 4) {
+                throw new WrongUsageException(getCommandUsage(sender));
+            }
+            String actingFaction = parseFaction(args[1]);
+            String otherFaction = parseFaction(args[2]);
+            KOMEDiplomacyRelation current =
+                KOMEDiplomacyService.getRelation(data, actingFaction, otherFaction);
+            KOMEDiplomacyRelation target = args.length == 4
+                ? KOMEDiplomacyRelation.parse(args[3])
+                : current.oneStepWorse();
+            if (target == null) {
+                throw new WrongUsageException(
+                    "Relation is already Mortal Enemy and cannot be worsened.");
+            }
+            EntityPlayerMP actor = sender instanceof EntityPlayerMP
+                ? (EntityPlayerMP) sender : null;
+            KOMEDiplomacyService.Result result = KOMEDiplomacyService.worsenRelation(
+                data, actingFaction, otherFaction, target,
+                actor == null ? null : kome.common.KOMEReflection.getEntityUUID(actor),
+                System.currentTimeMillis());
+            if (!result.accepted) {
+                throw new WrongUsageException(result.reason);
+            }
+            sender.addChatMessage(new ChatComponentText(
+                "Diplomacy relation worsened immediately: "
+                    + current.displayName + " -> " + target.displayName + "."));
+            return;
         }
         if ("goods".equalsIgnoreCase(args[0]) || "storage".equalsIgnoreCase(args[0])) {
             if (args.length != 3) {
@@ -166,6 +192,8 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
                 "request",
                 "accept",
                 "cancel",
+                "break",
+                "revoke",
                 "goods",
                 "claimGoods",
                 "get",
@@ -176,6 +204,8 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
                 && ("request".equalsIgnoreCase(args[0])
                 || "accept".equalsIgnoreCase(args[0])
                 || "cancel".equalsIgnoreCase(args[0])
+                || "break".equalsIgnoreCase(args[0])
+                || "revoke".equalsIgnoreCase(args[0])
                 || "goods".equalsIgnoreCase(args[0])
                 || "claimGoods".equalsIgnoreCase(args[0])
                 || "get".equalsIgnoreCase(args[0]))) {
@@ -195,8 +225,16 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
         if (args.length == 4 && "request".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(
                 args,
+                "enemy",
+                "neutral",
                 "friends",
                 "allies");
+        }
+
+        if (args.length == 4 && ("break".equalsIgnoreCase(args[0])
+                || "revoke".equalsIgnoreCase(args[0]))) {
+            return getListOfStringsMatchingLastWord(
+                args, "mortal_enemy", "enemy", "neutral", "friends");
         }
 
         return null;
@@ -206,6 +244,8 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
             return "request".equalsIgnoreCase(args[0])
                 || "accept".equalsIgnoreCase(args[0])
                 || "cancel".equalsIgnoreCase(args[0])
+                || "break".equalsIgnoreCase(args[0])
+                || "revoke".equalsIgnoreCase(args[0])
                 || "goods".equalsIgnoreCase(args[0])
                 || "claimGoods".equalsIgnoreCase(args[0])
                 || "claim".equalsIgnoreCase(args[0])
@@ -217,6 +257,8 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
             return "request".equalsIgnoreCase(args[0])
                 || "accept".equalsIgnoreCase(args[0])
                 || "cancel".equalsIgnoreCase(args[0])
+                || "break".equalsIgnoreCase(args[0])
+                || "revoke".equalsIgnoreCase(args[0])
                 || "goods".equalsIgnoreCase(args[0])
                 || "claimGoods".equalsIgnoreCase(args[0])
                 || "claim".equalsIgnoreCase(args[0])
@@ -315,7 +357,8 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
                     + " <-> "
                     + displayFaction(record.factionB)
                     + ": "
-                    + record.relation.displayName;
+                    + KOMEDiplomacyService.getRelation(
+                        data, record.factionA, record.factionB).displayName;
 
             if (record.pendingTarget != null) {
                 line +=
@@ -392,7 +435,8 @@ public class KOMECommandAlliance extends KOMEPublicCommand {
                 + " <-> "
                 + displayFaction(record.factionB)
                 + ": "
-                + record.relation.displayName;
+                + KOMEDiplomacyService.getRelation(
+                    data, record.factionA, record.factionB).displayName;
 
         if (record.pendingTarget != null) {
             line +=

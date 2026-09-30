@@ -40,6 +40,12 @@ public final class KOMEConfigRegistry {
     public static final String HOURS_PER_POPULATION_POINT = "hoursPerPopulationPoint";
     public static final String CAPTURED_BUILD_MULTIPLIER = "capturedBuildMultiplier";
     public static final String OFFLINE_POPULATION_CATCH_UP = "offlinePopulationCatchUp";
+    public static final String BOTTLENECK_RATE_PER_ACTIVE_SERVER_DAY =
+            "bottleneckRatePerActiveServerDay";
+    public static final String PAUSE_RATE_CEILING_WHEN_NO_PENDING_HOURS =
+            "pauseRateCeilingWhenNoPendingHours";
+    public static final String RECRUITMENT_TILE_ACTIVE_RATE_THRESHOLD =
+            "recruitmentTileActiveRateThreshold";
     public static final String POPULATION_CAP_ENABLED = "populationCapEnabled";
     public static final String POPULATION_CAP_VALUE = "populationCapValue";
     public static final String ENCIRCLEMENT_POPULATION_SUPPRESSION_ENABLED =
@@ -106,7 +112,8 @@ public final class KOMEConfigRegistry {
 
     private static volatile ValidatedConfig current = new ValidatedConfig(
             new DailyBatchSettings(LocalTime.parse(DEFAULT_LOCAL_TIME), ZoneId.of(DEFAULT_TIMEZONE)),
-            new PopulationSettings(1000L, 5000L, true, false, OptionalLong.empty(), false),
+            new PopulationSettings(1000L, 5000L, 100_000L, 5_000_000L,
+                true, true, false, OptionalLong.empty(), false),
             new MovementSettings(1, 2), new BattleSettings(20, 35, 50),
             new MusterSettings(2, 21, 24, EncircledCapitalArrivalPolicy.TBD),
             new SiegeSettings(OptionalDouble.empty(), KOMEGateSizeCalculator.Parameters.defaults(),
@@ -206,6 +213,12 @@ public final class KOMEConfigRegistry {
         PopulationSettings p = config.getPopulation();
         return "active population.hoursPerPopulationPoint=" + p.formatHoursPerPopulationPoint()
                 + ", population.capturedBuildMultiplier=" + p.formatCapturedBuildMultiplier()
+                + ", population.bottleneckRatePerActiveServerDay="
+                + p.formatBottleneckRatePerActiveServerDay()
+                + ", population.pauseRateCeilingWhenNoPendingHours="
+                + p.isPauseRateCeilingWhenNoPendingHours()
+                + ", population.recruitmentTileActiveRateThreshold="
+                + p.formatRecruitmentTileActiveRateThreshold()
                 + ", population.populationCapEnabled=" + p.isPopulationCapEnabled()
                 + ", population.populationCapValue=" + p.formatPopulationCap()
                 + ", population.populationCapCenti=" + (p.getPopulationCapCenti().isPresent()
@@ -323,8 +336,19 @@ public final class KOMEConfigRegistry {
                 value(c, POPULATION_CATEGORY, HOURS_PER_POPULATION_POINT, "10"), 2, 1L, Long.MAX_VALUE);
         long multiplier = exactDecimal(POPULATION_CATEGORY, CAPTURED_BUILD_MULTIPLIER,
                 value(c, POPULATION_CATEGORY, CAPTURED_BUILD_MULTIPLIER, "0.5"), 4, 0L, CAPTURED_MULTIPLIER_SCALE);
+        long bottleneck = exactDecimal(POPULATION_CATEGORY, BOTTLENECK_RATE_PER_ACTIVE_SERVER_DAY,
+                value(c, POPULATION_CATEGORY, BOTTLENECK_RATE_PER_ACTIVE_SERVER_DAY, "0.1"),
+                6, 1L, Long.MAX_VALUE);
+        long recruitmentThreshold = exactDecimal(POPULATION_CATEGORY,
+                RECRUITMENT_TILE_ACTIVE_RATE_THRESHOLD,
+                value(c, POPULATION_CATEGORY, RECRUITMENT_TILE_ACTIVE_RATE_THRESHOLD, "5"),
+                6, 1L, Long.MAX_VALUE);
         boolean catchUp = bool(POPULATION_CATEGORY, OFFLINE_POPULATION_CATCH_UP,
                 value(c, POPULATION_CATEGORY, OFFLINE_POPULATION_CATCH_UP, "true"));
+        boolean pauseCeiling = bool(POPULATION_CATEGORY,
+                PAUSE_RATE_CEILING_WHEN_NO_PENDING_HOURS,
+                value(c, POPULATION_CATEGORY,
+                    PAUSE_RATE_CEILING_WHEN_NO_PENDING_HOURS, "true"));
         boolean cap = bool(POPULATION_CATEGORY, POPULATION_CAP_ENABLED,
                 value(c, POPULATION_CATEGORY, POPULATION_CAP_ENABLED, "false"));
         String capValue = value(c, POPULATION_CATEGORY, POPULATION_CAP_VALUE, "TBD");
@@ -339,8 +363,9 @@ public final class KOMEConfigRegistry {
                 ENCIRCLEMENT_POPULATION_SUPPRESSION_ENABLED,
                 value(c, POPULATION_CATEGORY,
                         ENCIRCLEMENT_POPULATION_SUPPRESSION_ENABLED, "false"));
-        return new PopulationSettings(hours, multiplier, catchUp, cap, populationCapValue,
-                suppression, parseUnitPopulationOverrides(value(c, POPULATION_CATEGORY,
+        return new PopulationSettings(hours, multiplier, bottleneck, recruitmentThreshold,
+                catchUp, pauseCeiling, cap, populationCapValue, suppression,
+                parseUnitPopulationOverrides(value(c, POPULATION_CATEGORY,
                         UNIT_POPULATION_COST_OVERRIDES, "")));
     }
 
@@ -855,23 +880,32 @@ public final class KOMEConfigRegistry {
     public static final class PopulationSettings {
         private final long hoursPerPopulationPointCentiHours;
         private final long capturedBuildMultiplierBasisPoints;
+        private final long bottleneckRateUnitsPerActiveServerDay;
+        private final long recruitmentTileActiveRateThresholdUnits;
         private final boolean offlinePopulationCatchUp;
+        private final boolean pauseRateCeilingWhenNoPendingHours;
         private final boolean populationCapEnabled;
         private final OptionalLong populationCapCenti;
         private final boolean encirclementPopulationSuppressionEnabled;
         private final Map<String, Integer> unitPopulationCostOverrides;
 
-        private PopulationSettings(long hours, long multiplier, boolean catchUp,
+        private PopulationSettings(long hours, long multiplier, long bottleneck,
+                long recruitmentThreshold, boolean catchUp, boolean pauseCeiling,
                 boolean cap, OptionalLong populationCapValue, boolean suppression) {
-            this(hours, multiplier, catchUp, cap, populationCapValue, suppression,
+            this(hours, multiplier, bottleneck, recruitmentThreshold, catchUp,
+                    pauseCeiling, cap, populationCapValue, suppression,
                     Collections.<String, Integer>emptyMap());
         }
-        private PopulationSettings(long hours, long multiplier, boolean catchUp,
+        private PopulationSettings(long hours, long multiplier, long bottleneck,
+                long recruitmentThreshold, boolean catchUp, boolean pauseCeiling,
                 boolean cap, OptionalLong populationCapValue, boolean suppression,
                 Map<String, Integer> overrides) {
             hoursPerPopulationPointCentiHours = hours;
             capturedBuildMultiplierBasisPoints = multiplier;
+            bottleneckRateUnitsPerActiveServerDay = bottleneck;
+            recruitmentTileActiveRateThresholdUnits = recruitmentThreshold;
             offlinePopulationCatchUp = catchUp;
+            pauseRateCeilingWhenNoPendingHours = pauseCeiling;
             populationCapEnabled = cap;
             this.populationCapCenti = populationCapValue;
             encirclementPopulationSuppressionEnabled = suppression;
@@ -880,13 +914,25 @@ public final class KOMEConfigRegistry {
 
         public long getHoursPerPopulationPointCentiHours() { return hoursPerPopulationPointCentiHours; }
         public long getCapturedBuildMultiplierBasisPoints() { return capturedBuildMultiplierBasisPoints; }
+        public long getBottleneckRateUnitsPerActiveServerDay() { return bottleneckRateUnitsPerActiveServerDay; }
+        public long getRecruitmentTileActiveRateThresholdUnits() { return recruitmentTileActiveRateThresholdUnits; }
         public OptionalLong getPopulationCapCenti() { return populationCapCenti; }
         public String formatHoursPerPopulationPoint() { return formatScaled(hoursPerPopulationPointCentiHours, 2); }
         public String formatCapturedBuildMultiplier() { return formatScaled(capturedBuildMultiplierBasisPoints, 4); }
+        public String formatBottleneckRatePerActiveServerDay() {
+            return formatScaled(bottleneckRateUnitsPerActiveServerDay, 6);
+        }
+        public String formatRecruitmentTileActiveRateThreshold() {
+            return formatScaled(recruitmentTileActiveRateThresholdUnits, 6);
+        }
         public String formatPopulationCap() { return populationCapCenti.isPresent() ? formatScaled(populationCapCenti.getAsLong(), 2) : "TBD"; }
 
         public boolean isOfflinePopulationCatchUp() {
             return offlinePopulationCatchUp;
+        }
+
+        public boolean isPauseRateCeilingWhenNoPendingHours() {
+            return pauseRateCeilingWhenNoPendingHours;
         }
 
         public boolean isPopulationCapEnabled() {

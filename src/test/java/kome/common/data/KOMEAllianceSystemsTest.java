@@ -1,7 +1,10 @@
 package kome.common.data;
 
+import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.util.UUID;
@@ -9,6 +12,19 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMEAllianceSystemsTest {
+    @org.junit.Rule public final kome.common.data.KOMETileTestResources geometry =
+        new kome.common.data.KOMETileTestResources();
+
+    @Before
+    @After
+    public void resetAuthoritativeRelations() {
+        setLotrRelation("gondor", "rohan", KOMEDiplomacyRelation.NEUTRAL);
+        setLotrRelation("gondor", "mordor", KOMEDiplomacyRelation.NEUTRAL);
+        setLotrRelation("gondor", "rhudel", KOMEDiplomacyRelation.NEUTRAL);
+        setLotrRelation("rohan", "mordor", KOMEDiplomacyRelation.NEUTRAL);
+        setLotrRelation("rohan", "rhudel", KOMEDiplomacyRelation.NEUTRAL);
+    }
+
     @Test
     public void legacyTradePostReaderCarriesOnlyMigrationOwnershipAndFarmerFlag() {
         NBTTagCompound legacy = legacyTradePost("TP-TEST", "gondor", "rohan");
@@ -272,7 +288,8 @@ public class KOMEAllianceSystemsTest {
         }
         assertFalse(config);
         assertFalse(requirement);
-        assertEquals(0, relationships);
+        int factionCount = KOMEAlliance.allFactionKeys().size();
+        assertEquals(factionCount * (factionCount - 1) / 2, relationships);
     }
 
     @Test
@@ -375,6 +392,10 @@ public class KOMEAllianceSystemsTest {
         assertFalse(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
         alliance.setFactionStage("gondor", 1, "test", 0L, 1L);
         assertTrue(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
+        setLotrRelation("gondor", "rohan", KOMEDiplomacyRelation.ENEMIES);
+        assertFalse(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
+        setLotrRelation("gondor", "rohan", KOMEDiplomacyRelation.NEUTRAL);
+        assertTrue(authority.canFactionHireAlliedFarmhand("gondor", "rohan"));
         alliance.setFactionStage("gondor", 2, "test", 0L, 2L);
         assertTrue(alliance.hasProduceMerchantSlot("gondor"));
     }
@@ -448,11 +469,10 @@ public class KOMEAllianceSystemsTest {
             String[] parts = line.split("\\t", -1);
             if (parts.length < 5 || !"DIPLOMACY_RELATION".equals(parts[0])) continue;
             stageRecords++;
-            assertEquals("gondor", parts[2]);
-            assertEquals("rohan", parts[3]);
             assertEquals("neutral", parts[4]);
         }
-        assertEquals(0, stageRecords);
+        int factionCount = KOMEAlliance.allFactionKeys().size();
+        assertEquals(factionCount * (factionCount - 1) / 2, stageRecords);
     }
 
     @Test
@@ -495,10 +515,7 @@ public class KOMEAllianceSystemsTest {
     public void alliedClaimRequiresFreshSecondServerConfirmationWithoutBreakingDiplomacy() {
         KOMEWorldData data = new KOMEWorldData("test");
 
-        KOMEDiplomacyRecord diplomacy =
-            new KOMEDiplomacyRecord("gondor", "rohan");
-        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
-        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+        setLotrRelation("gondor", "rohan", KOMEDiplomacyRelation.FRIENDS);
 
         KOMEConquestTile tile = new KOMEConquestTile("T200");
         tile.claim("rohan", 0L);
@@ -536,17 +553,14 @@ public class KOMEAllianceSystemsTest {
         assertNotNull(second.war);
         assertTrue(second.war.opposes("gondor", "rohan"));
         assertEquals(
-            KOMEDiplomacyRelation.FRIENDS,
+            KOMEDiplomacyRelation.MORTAL_ENEMIES,
             KOMEDiplomacyService.getRelation(data, "gondor", "rohan"));
     }
     @Test
     public void alliedClaimConfirmationExpiresAndOwnerMutationInvalidatesIt() {
         KOMEWorldData data = new KOMEWorldData("test");
 
-        KOMEDiplomacyRecord diplomacy =
-            new KOMEDiplomacyRecord("gondor", "rohan");
-        diplomacy.relation = KOMEDiplomacyRelation.ALLIES;
-        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+        setLotrRelation("gondor", "rohan", KOMEDiplomacyRelation.ALLIES);
 
         KOMEConquestTile tile = new KOMEConquestTile("T201");
         tile.claim("rohan", 0L);
@@ -607,9 +621,7 @@ public class KOMEAllianceSystemsTest {
     @Test
     public void wartimeStewardshipIsDormantInPeaceAndTargetsOnlyOpposingSide() {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEDiplomacyRecord diplomacy = new KOMEDiplomacyRecord("gondor", "rohan");
-        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
-        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+        setLotrRelation("gondor", "rohan", KOMEDiplomacyRelation.FRIENDS);
         assertFalse(KOMEWartimeStewardshipService.isAuthorized(data, "rohan", "gondor"));
         KOMEWar war = KOMEWarService.createWar(data, "gondor", "rhudel", "", "tester", 100L);
         assertTrue(war.addFaction(1, "rohan"));
@@ -724,9 +736,7 @@ public class KOMEAllianceSystemsTest {
     @Test
     public void stewardshipSupportsMultipleWarsAndRevokesOnSideChangeOrKingReturn() {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEDiplomacyRecord diplomacy = new KOMEDiplomacyRecord("rohan", "gondor");
-        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
-        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+        setLotrRelation("rohan", "gondor", KOMEDiplomacyRelation.FRIENDS);
         UUID controller = crown(data, "gondor", "Supporting King");
         KOMEWar east = KOMEWarService.createWar(data, "gondor", "rhudel", "East", "tester", 1L);
         assertTrue(east.addFaction(1, "rohan"));
@@ -757,9 +767,7 @@ public class KOMEAllianceSystemsTest {
     @Test
     public void stewardshipMovementUsesNativeIdentityAndOnlyAuthorizedOpponents() {
         KOMEWorldData data = new KOMEWorldData("test");
-        KOMEDiplomacyRecord diplomacy = new KOMEDiplomacyRecord("rohan", "gondor");
-        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
-        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+        setLotrRelation("rohan", "gondor", KOMEDiplomacyRelation.FRIENDS);
         KOMEWar war = KOMEWarService.createWar(data, "gondor", "rhudel", "", "tester", 1L);
         assertTrue(war.addFaction(1, "rohan"));
         assertTrue(war.sameSide("gondor", "rohan"));
@@ -821,39 +829,39 @@ public class KOMEAllianceSystemsTest {
     @Test
     public void stewardshipIsKingOnlyAndSupportingKingReplacementReauthorizesWithoutChangingCoalition() {
         KOMEWorldData data = new KOMEWorldData("test");
-        establishMilitaryT3(data, "native_zeta", "support_eta");
-        UUID originalKing = crown(data, "support_eta", "First King");
+        establishMilitaryT3(data, "rohan", "gondor");
+        UUID originalKing = crown(data, "gondor", "First King");
         UUID ordinaryMember = UUID.randomUUID();
-        data.lastKnownPlayerFactions.put(ordinaryMember, "support_eta");
-        KOMEWar war = KOMEWarService.createWar(data, "native_zeta", "opponent_theta", "", "test", 1L);
-        assertTrue(war.addFaction(1, "support_eta"));
+        data.lastKnownPlayerFactions.put(ordinaryMember, "gondor");
+        KOMEWar war = KOMEWarService.createWar(data, "rohan", "mordor", "", "test", 1L);
+        assertTrue(war.addFaction(1, "gondor"));
 
-        assertFalse(KOMEWarService.supportingKingDecision(data, "native_zeta", "support_eta", ordinaryMember).allowed);
-        assertTrue(KOMEWarService.supportingKingDecision(data, "native_zeta", "support_eta", originalKing).allowed);
+        assertFalse(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", ordinaryMember).allowed);
+        assertTrue(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", originalKing).allowed);
 
         KOMEArmyCompany company = new KOMEArmyCompany();
         company.id = "replacement-company";
-        company.faction = "native_zeta";
-        company.nativeFaction = "native_zeta";
+        company.faction = "rohan";
+        company.nativeFaction = "rohan";
         company.temporaryController = originalKing;
         company.temporaryControllerName = "First King";
         company.controllerAuthority = KOMEArmyCompany.AUTHORITY_STEWARDSHIP;
         company.stewardshipCreated = true;
         data.armyCompanies.put(company.id, company);
-        KOMEWartimeStewardshipService.authorizeCompany(data, company, "support_eta", "test", 2L);
+        KOMEWartimeStewardshipService.authorizeCompany(data, company, "gondor", "test", 2L);
         assertTrue(company.authorizedWarIds.contains(war.id));
 
         data.lastKnownPlayerFactions.put(originalKing, "");
         KOMERulerService.removeRulerHeldBy(data, originalKing);
         assertNull(company.temporaryController);
         assertEquals(KOMEArmyCompany.AUTHORITY_STEWARDSHIP, company.controllerAuthority);
-        assertEquals(war.sideOf("native_zeta"), war.sideOf("support_eta"));
-        assertNull(war.supportEnrollment("native_zeta", "support_eta", false));
+        assertEquals(war.sideOf("rohan"), war.sideOf("gondor"));
+        assertNull(war.supportEnrollment("rohan", "gondor", false));
 
-        UUID replacementKing = crown(data, "support_eta", "Second King");
+        UUID replacementKing = crown(data, "gondor", "Second King");
         assertEquals(replacementKing, company.temporaryController);
-        assertTrue(KOMEWarService.supportingKingDecision(data, "native_zeta", "support_eta", replacementKing).allowed);
-        assertTrue(KOMEWarService.supportingKingDecision(data, "native_zeta", "support_eta", replacementKing).allowed);
+        assertTrue(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", replacementKing).allowed);
+        assertTrue(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", replacementKing).allowed);
     }
 
     @Test
@@ -885,34 +893,34 @@ public class KOMEAllianceSystemsTest {
     @Test
     public void overlappingWarEndRetainsOtherAuthorizationAndOpponentUnion() {
         KOMEWorldData data = new KOMEWorldData("test");
-        establishMilitaryT3(data, "native_mu", "support_nu");
-        UUID king = crown(data, "support_nu", "Supporting King");
-        KOMEWar first = KOMEWarService.createWar(data, "native_mu", "opponent_xi", "First", "test", 1L);
-        KOMEWar second = KOMEWarService.createWar(data, "native_mu", "opponent_omicron", "Second", "test", 2L);
-        assertTrue(first.addFaction(1, "support_nu"));
-        assertTrue(second.addFaction(1, "support_nu"));
+        establishMilitaryT3(data, "rohan", "gondor");
+        UUID king = crown(data, "gondor", "Supporting King");
+        KOMEWar first = KOMEWarService.createWar(data, "rohan", "mordor", "First", "test", 1L);
+        KOMEWar second = KOMEWarService.createWar(data, "rohan", "rhudel", "Second", "test", 2L);
+        assertTrue(first.addFaction(1, "gondor"));
+        assertTrue(second.addFaction(1, "gondor"));
         KOMEArmyCompany company = new KOMEArmyCompany();
         company.id = "overlap-company";
-        company.faction = "native_mu";
-        company.nativeFaction = "native_mu";
+        company.faction = "rohan";
+        company.nativeFaction = "rohan";
         company.temporaryController = king;
         company.controllerAuthority = KOMEArmyCompany.AUTHORITY_STEWARDSHIP;
         data.armyCompanies.put(company.id, company);
-        KOMEWartimeStewardshipService.authorizeCompany(data, company, "support_nu", "test", 3L);
+        KOMEWartimeStewardshipService.authorizeCompany(data, company, "gondor", "test", 3L);
         assertEquals(2, company.authorizedWarIds.size());
         assertTrue(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
-            KOMEAlliance.normalizeFactionKey("opponent_xi")));
+            KOMEAlliance.normalizeFactionKey("mordor")));
         assertTrue(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
-            KOMEAlliance.normalizeFactionKey("opponent_omicron")));
+            KOMEAlliance.normalizeFactionKey("rhudel")));
 
         first.status = KOMEWar.ENDING;
         assertTrue(KOMEWartimeStewardshipService.revalidateCompany(data, company, 4L, "first war ending"));
         assertEquals(1, company.authorizedWarIds.size());
         assertTrue(company.authorizedWarIds.contains(second.id));
         assertFalse(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
-            KOMEAlliance.normalizeFactionKey("opponent_xi")));
+            KOMEAlliance.normalizeFactionKey("mordor")));
         assertTrue(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
-            KOMEAlliance.normalizeFactionKey("opponent_omicron")));
+            KOMEAlliance.normalizeFactionKey("rhudel")));
     }
 
     @Test
@@ -1000,6 +1008,7 @@ public class KOMEAllianceSystemsTest {
         data.grantFactionPopulationCenti("gondor", 7500L);
         KOMEHiredUnitRecord unit = ownedUnit(owner, "gondor",
             KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK, 25);
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(unit);
         NBTTagCompound snapshot = new NBTTagCompound();
         snapshot.setTag("HiredNPCInfo", new NBTTagCompound());
         unit.stationedEntityData = snapshot;
@@ -1164,10 +1173,21 @@ public class KOMEAllianceSystemsTest {
         KOMEAlliance alliance = data.getAlliance(first, second, true);
         alliance.requestTrack(KOMEAlliance.MILITARY, "test", 0L, false);
         alliance.setTier(KOMEAlliance.MILITARY, 3, "test", 1L);
-        KOMEDiplomacyRecord diplomacy = new KOMEDiplomacyRecord(first, second);
-        diplomacy.relation = KOMEDiplomacyRelation.FRIENDS;
-        data.canonicalDiplomacyRecords.put(diplomacy.key(), diplomacy);
+        if (KOMEAllianceAuthority.hasAuthoritativePair(first, second)) {
+            setLotrRelation(first, second, KOMEDiplomacyRelation.FRIENDS);
+        }
         return alliance;
+    }
+
+    private static void setLotrRelation(String first, String second,
+            KOMEDiplomacyRelation relation) {
+        if (!KOMEAllianceAuthority.hasAuthoritativePair(first, second)) {
+            return;
+        }
+        LOTRFactionRelations.overrideRelations(
+            KOMEAlliance.findLotrFaction(first),
+            KOMEAlliance.findLotrFaction(second),
+            relation.toLotrRelation());
     }
 
     private static UUID crown(KOMEWorldData data, String faction, String name) {

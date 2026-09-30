@@ -1,0 +1,18 @@
+{
+  "tests": 1091,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 4,
+  "passed": 1087,
+  "skips": [
+    "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported",
+    "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported",
+    "kome.core.KOMEWaypointTransformerTest.configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms",
+    "kome.core.KOMEWaypointTransformerTest.configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms"
+  ],
+  "jarSha256": "2fff9fbced22dbb308a5e451c888ca5d386d1025e559008c30eda44c5f2f0c11",
+  "sourceHashInventorySha256": "5bedde4f9f1616839a4e94a09515b59a9ef3ac11e9de19cdfe7ab35cab925f43",
+  "reviewedDev": "fcabe500d80771a7e2ee5f90e709e4f4a90b8a88",
+  "originalKom60": "31f8fb26fb12ccc198813c6356acb4c3e063985a",
+  "focusedPassed": 67
+}

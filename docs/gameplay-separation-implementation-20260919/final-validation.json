@@ -1,0 +1,48 @@
+{
+  "tests": {
+    "discovered": 791,
+    "skipped": 2,
+    "failed": 0,
+    "errored": 0,
+    "passed": 789
+  },
+  "skips": [
+    {
+      "class": "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest",
+      "test": "symbolicLinkSkinIsRejectedWhenSupported",
+      "detail": {}
+    },
+    {
+      "class": "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest",
+      "test": "symbolicLinkAtHashPathIsNeverAcceptedWhenSupported",
+      "detail": {}
+    }
+  ],
+  "artifact": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\KOME-LOTR-Addon-Tile-Resolution-Dev\\build\\libs\\KOME-LOTR-Addon-1.0.8.jar",
+  "artifact_sha256": "479cca8f5463a65921eb51bae0bf0db0a1947bb054fc7cd29078cb1c199fa5b6",
+  "packaged_resource_hashes_verified": 7,
+  "mask_sha256": "46af1f42854c4c12b7f9ce69b3aad7ad4513340b000631f62514937debf0dbed",
+  "preexisting_files_verified": 1108,
+  "unchanged_preexisting_files": 1100,
+  "intentionally_changed_preexisting_files": [
+    "docs/KOME_TILE_WORLD_RESOLUTION.md",
+    "src/main/java/kome/common/KOMEAddon.java",
+    "src/main/java/kome/common/command/KOMECommandConquest.java",
+    "src/main/java/kome/common/command/KOMECommandTroops.java",
+    "src/main/java/kome/common/data/KOMEConquestTileDefaults.java",
+    "src/main/java/kome/common/data/KOMEWorldData.java",
+    "src/main/resources/assets/kome/map/reset_conquest_tile_ids.png",
+    "src/test/java/kome/common/data/KOMEWeathertopPilotTest.java"
+  ],
+  "whitespace_errors": [],
+  "head": "04726458229057706e83b059e98e009f9aa4ac7e",
+  "branch": "dayne/tile-world-resolution-dev",
+  "index_empty": true,
+  "protected_stash_present": true,
+  "runtime_refreshed": false,
+  "git_status": {
+    "modified_tracked": 9,
+    "untracked_paths": 217,
+    "index_empty": true
+  }
+}

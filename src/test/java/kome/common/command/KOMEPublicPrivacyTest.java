@@ -214,6 +214,9 @@ public class KOMEPublicPrivacyTest {
     @Test public void troopReadsCannotBypassUnitPrivacyAndDoNotRepairOwnership() {
         KOMECommandTroops troops = new KOMECommandTroops();
         assertDenied(troops, f.player, "unit", otherUnit.entity.toString());
+        troops.processCommand(f.player, new String[] {"unit", ownUnit.entity.toString()});
+        assertTrue(f.player.messages.toString().contains("UUID: " + ownUnit.entity));
+        assertTrue(f.player.messages.toString().contains("Class: CAMPAIGN"));
         troops.processCommand(f.player, new String[] {"tile", tile.id});
         assertTrue(f.player.messages.toString().contains("Own warrior"));
         assertFalse(f.player.messages.toString().contains("Private warrior"));
@@ -331,6 +334,9 @@ public class KOMEPublicPrivacyTest {
         record.entity = UUID.randomUUID(); record.owner = owner; record.unitName = name;
         record.populationOwningFaction = "gondor"; record.cost = 25; record.populationSpent = 25;
         record.currentTile = tile.id; record.sourceTileId = tile.id;
+        net.minecraft.nbt.NBTTagCompound campaign = record.writeToNBT();
+        campaign.setString("UnitClass", "CAMPAIGN");
+        record.readFromNBT(campaign);
         f.data.hiredUnits.put(record.entity, record);
         return record;
     }

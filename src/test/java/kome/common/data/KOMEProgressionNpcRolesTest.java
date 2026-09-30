@@ -6,6 +6,9 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEProgressionNpcRolesTest {
+    @org.junit.Rule
+    public final KOMETileTestResources geometry =
+        new KOMETileTestResources();
     private static KOMEProgressionNpcRef ref(UUID id){return new KOMEProgressionNpcRef(id.toString(),"Aldor","rohan",0,100,64,100);}
 
     @Test public void simultaneousMasterAndLiegeRolesReleaseIndependently(){

@@ -53,10 +53,78 @@ public class KOMEAllianceRecordBuilder {
         return buildCanonical(data, viewer);
     }
     private static List buildCanonical(KOMEWorldData data, EntityPlayer viewer) {
-        List lines=new ArrayList(); String viewerFactionKey=getViewerFactionKey(data,viewer); boolean operator=viewer==null||viewer.canCommandSenderUseCommand(2,"alliance");
-        lines.add("SUMMARY\t"+data.canonicalDiplomacyRecords.size()); lines.add("VIEWER\t"+viewerFactionKey+"\t"+getViewerFactionName(data,viewer)+"\t"+flag(isViewerKing(data,viewer,viewerFactionKey))+"\t"+flag(data.hasFactionKing(viewerFactionKey))+"\t"+flag(operator)+"\t"+flag(operator));
-        for(KOMEDiplomacyRecord record:KOMEDiplomacyService.records(data).values()) { if(!operator&&!record.factionA.equals(viewerFactionKey)&&!record.factionB.equals(viewerFactionKey))continue; boolean canAccept=viewer!=null&&record.pendingTarget!=null&&KOMERulerAuthorization.canActAsRuler(data, record.receivingFaction,kome.common.KOMEReflection.getEntityUUID(viewer)); boolean canCancel=record.pendingTarget!=null&&(operator||(viewer!=null&&KOMERulerAuthorization.canActAsRuler(data, record.requestingFaction,kome.common.KOMEReflection.getEntityUUID(viewer)))); lines.add("DIPLOMACY_RELATION\t"+record.key()+"\t"+record.factionA+"\t"+record.factionB+"\t"+record.relation.key+"\t"+flag(record.pendingTarget!=null)+"\t"+(record.pendingTarget==null?"":record.pendingTarget.key)+"\t"+record.requestingFaction+"\t"+record.receivingFaction+"\t"+flag(canAccept)+"\t"+flag(canCancel)+"\t"+record.lastUpdatedBy+"\t"+record.updatedAt); }
-        if(viewer!=null) for(LOTRFaction faction:LOTRFaction.values()) if(faction!=null&&faction.isPlayableAlignmentFaction()){String key=KOMEAlliance.normalizeFactionKey(faction.codeName());if(!key.equals(viewerFactionKey)){KOMEDiplomacyRelation current=KOMEDiplomacyService.getRelation(data,viewerFactionKey,key);boolean receiver=data.hasFactionKing(key);lines.add("DIPLOMACY_REQUEST_OPTION\t"+key+"\t"+displayFaction(key)+"\t"+current.key+"\t"+flag(receiver)+"\t"+flag(receiver&&current.rank()<KOMEDiplomacyRelation.FRIENDS.rank())+"\t"+flag(receiver&&current.rank()<KOMEDiplomacyRelation.ALLIES.rank())+"\t"+(receiver?"":"That faction has no recognized King to accept diplomacy."));}}
+        List lines = new ArrayList();
+        List relationLines = new ArrayList();
+        String viewerFactionKey = getViewerFactionKey(data, viewer);
+        boolean operator = viewer == null || viewer.canCommandSenderUseCommand(2, "alliance");
+        List<String> factions = KOMEAlliance.allFactionKeys();
+
+        for (int i = 0; i < factions.size(); i++) {
+            for (int j = i + 1; j < factions.size(); j++) {
+                String first = factions.get(i);
+                String second = factions.get(j);
+                if (!operator && !first.equals(viewerFactionKey) && !second.equals(viewerFactionKey)) {
+                    continue;
+                }
+                String pairKey = KOMEDiplomacyRecord.pairKey(first, second);
+                KOMEDiplomacyRecord record = data.canonicalDiplomacyRecords.get(pairKey);
+                boolean pending = record != null && record.pendingTarget != null;
+                boolean canAccept = viewer != null && pending
+                    && KOMERulerAuthorization.canActAsRuler(
+                        data, record.receivingFaction,
+                        kome.common.KOMEReflection.getEntityUUID(viewer));
+                boolean canCancel = pending && (operator || viewer != null
+                    && KOMERulerAuthorization.canActAsRuler(
+                        data, record.requestingFaction,
+                        kome.common.KOMEReflection.getEntityUUID(viewer)));
+                KOMEDiplomacyRelation current =
+                    KOMEDiplomacyService.getRelation(data, first, second);
+                relationLines.add(
+                    "DIPLOMACY_RELATION\t" + pairKey
+                        + "\t" + first
+                        + "\t" + second
+                        + "\t" + current.key
+                        + "\t" + flag(pending)
+                        + "\t" + (pending ? record.pendingTarget.key : "")
+                        + "\t" + (pending ? record.requestingFaction : "")
+                        + "\t" + (pending ? record.receivingFaction : "")
+                        + "\t" + flag(canAccept)
+                        + "\t" + flag(canCancel)
+                        + "\t" + (record == null ? "" : record.lastUpdatedBy)
+                        + "\t" + (record == null ? 0L : record.updatedAt));
+            }
+        }
+
+        lines.add("SUMMARY\t" + relationLines.size());
+        lines.add("VIEWER\t" + viewerFactionKey + "\t" + getViewerFactionName(data, viewer)
+            + "\t" + flag(isViewerKing(data, viewer, viewerFactionKey))
+            + "\t" + flag(data.hasFactionKing(viewerFactionKey))
+            + "\t" + flag(operator) + "\t" + flag(operator));
+        lines.addAll(relationLines);
+
+        if (viewer != null && viewerFactionKey.length() > 0) {
+            for (String key : factions) {
+                if (key.equals(viewerFactionKey)) {
+                    continue;
+                }
+                KOMEDiplomacyRelation current =
+                    KOMEDiplomacyService.getRelation(data, viewerFactionKey, key);
+                KOMEDiplomacyRecord record = data.canonicalDiplomacyRecords.get(
+                    KOMEDiplomacyRecord.pairKey(viewerFactionKey, key));
+                boolean receiver = data.hasFactionKing(key);
+                boolean available = receiver && (record == null || record.pendingTarget == null);
+                lines.add("DIPLOMACY_REQUEST_OPTION\t" + key
+                    + "\t" + displayFaction(key)
+                    + "\t" + current.key
+                    + "\t" + flag(receiver)
+                    + "\t" + flag(available
+                        && current.rank() < KOMEDiplomacyRelation.FRIENDS.rank())
+                    + "\t" + flag(available
+                        && current.rank() < KOMEDiplomacyRelation.ALLIES.rank())
+                    + "\t" + (receiver ? (available ? "" : "A request is already pending.")
+                        : "That faction has no recognized King to accept diplomacy."));
+            }
+        }
         return lines;
     }
 

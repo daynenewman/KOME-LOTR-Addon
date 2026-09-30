@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "baseline_mask_sha256": "a5cd6cf91b3fc1b662cffffde36a250a6e6687bcb8b2b7cd9aa06809b944b866",
+  "inputs": {
+    "src\\test\\resources\\kome\\tile\\gameplay-baseline\\mask.png": "a5cd6cf91b3fc1b662cffffde36a250a6e6687bcb8b2b7cd9aa06809b944b866",
+    "docs\\gameplay-separation-implementation-20260919\\original-derived.tsv": "97f31e11e33705df4eb7b4c10c355d3741b042401225c7b00edde78a8fb88efb",
+    "docs\\gameplay-separation-implementation-20260919\\original-KOMEConquestTileDefaults.java.txt": "f77920023fdf14d0fb8690b4d6ef9b3b4cdcb00f097f6cd3ea3f401e9bc1f682",
+    "docs\\tile-gameplay-separation-20260919\\waypoint-containment.tsv": "7ce6fe306894a1d64392b6ce569d1e604442b2c04c7dabf3e1db96debb460d7a"
+  },
+  "outputs": {
+    "kome_tile_route_defaults.csv": {
+      "rows": 1319,
+      "sha256": "4b6ba308d288bf0148aeafdd2b808c5097962d9b152a269141af1430ea6870e2"
+    },
+    "kome_tile_gameplay_points.csv": {
+      "rows": 621,
+      "sha256": "e787eb404eb23f3786653051c868e75530ab708239f084d43e9a4535a1794176"
+    },
+    "kome_tile_route_markers.csv": {
+      "rows": 377,
+      "sha256": "d1093ca5a9c3718c1626f7dcb926e03a20e711457e4ced53aba8f545d53ffc8f"
+    },
+    "kome_tile_waypoint_candidates.csv": {
+      "rows": 271,
+      "sha256": "e496a608e54fb16ab74bfcecbc91779dbf5ebce436c5c7160754d028345fb5ee"
+    }
+  },
+  "note": "Original production including 95-cell pilot; no V1/V2 defaults. Logical Middle-earth dimension is configured at runtime. Not a build-generation step."
+}

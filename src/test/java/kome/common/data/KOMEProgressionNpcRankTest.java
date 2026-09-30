@@ -7,6 +7,9 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEProgressionNpcRankTest {
+    @org.junit.Rule
+    public final KOMETileTestResources geometry =
+        new KOMETileTestResources();
     @Test public void rankAndRelationshipPolicyAreExactAndSeparate() {
         assertTrue(KOMEProgressionNpcRank.UNRANKED.order < KOMEProgressionNpcRank.LORD.order);
         assertTrue(KOMEProgressionNpcRank.LORD.order < KOMEProgressionNpcRank.PRINCE.order);

@@ -8,6 +8,9 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEProgressionNpcDeathLifecycleTest {
+    @org.junit.Rule
+    public final KOMETileTestResources geometry =
+        new KOMETileTestResources();
     private static KOMEProgressionNpcRef ref(String name) { return new KOMEProgressionNpcRef(UUID.randomUUID().toString(),name,"rohan",0,0,0,0); }
     private static void master(KOMESerfKnightProgression state, KOMEProgressionNpcRef master) { assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master).success); }
     private static void duties(KOMESerfKnightProgression state) { long day=10L; for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()){assertTrue(KOMESerfKnightService.assignDuty(state,type,null,day++).success);assertTrue(KOMESerfKnightService.completeDuty(state,type).success);} }

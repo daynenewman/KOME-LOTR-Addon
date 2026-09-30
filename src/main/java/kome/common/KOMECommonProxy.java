@@ -34,6 +34,9 @@ public class KOMECommonProxy {
         events = new KOMEEvents();
         MinecraftForge.EVENT_BUS.register(events);
         FMLCommonHandler.instance().bus().register(events);
+        kome.common.data.KOMETileAwarenessEvents tileAwareness = new kome.common.data.KOMETileAwarenessEvents();
+        MinecraftForge.EVENT_BUS.register(tileAwareness);
+        FMLCommonHandler.instance().bus().register(tileAwareness);
     }
 
     public void resetServerSessionState() {
@@ -46,6 +49,11 @@ public class KOMECommonProxy {
     /** Common packet handlers cross this proxy boundary without loading client classes. */
     public void enqueueClientTask(Runnable task) {
         throw new IllegalStateException("Client publication is unavailable on the dedicated server");
+    }
+
+    public void acceptConquestSnapshotChunk(
+            kome.common.network.KOMEPacketConquestData.PublicationChunk chunk) {
+        throw new IllegalStateException("Client conquest publication is unavailable on the dedicated server");
     }
 
     public void displayPopulationGui(kome.common.network.KOMEPacketPopulationGui message) { }
