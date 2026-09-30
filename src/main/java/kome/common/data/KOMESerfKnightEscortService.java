@@ -93,6 +93,13 @@ public final class KOMESerfKnightEscortService {
     private static void fail(KOMESerfKnightProgression state,KOMESerfKnightTrialAssignment assignment,KOMEWorldData world){state.updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.FAILED,null));KOMEProgressionNpcRoles.rebuild(world);world.markDirty();}
     static NBTTagCompound createEncounterData(KOMEProgressionNpcRef target,int dimension,double x,double z){NBTTagCompound data=new NBTTagCompound();data.setTag(TARGET,target.writeToNBT());data.setInteger(ORIGIN_DIM,dimension);data.setDouble(ORIGIN_X,x);data.setDouble(ORIGIN_Z,z);return data;}
     static boolean hasReachedDestination(double horizontalX,double horizontalZ){return horizontalX*horizontalX+horizontalZ*horizontalZ>=MIN_ESCORT_DISTANCE*MIN_ESCORT_DISTANCE;}
+    static int trackerDistance(EntityPlayerMP player,KOMESerfKnightTrialAssignment assignment){
+        if(player==null||assignment==null||!"escort".equals(assignment.trialId))return 0;
+        Entity entity=findLoaded(player,target(assignment).entityUuid);
+        if(!(entity instanceof LOTREntityNPC))return 0;
+        double dx=entity.posX-assignment.data.getDouble(ORIGIN_X),dz=entity.posZ-assignment.data.getDouble(ORIGIN_Z);
+        return Math.min(MIN_ESCORT_DISTANCE,(int)Math.floor(Math.sqrt(dx*dx+dz*dz)));
+    }
     private static KOMEProgressionNpcRef target(KOMESerfKnightTrialAssignment assignment){return assignment.data.hasKey(TARGET,10)?KOMEProgressionNpcRef.readFromNBT(assignment.data.getCompoundTag(TARGET)):KOMEProgressionNpcRef.EMPTY;}
     static boolean sameEntityId(String uuid,java.util.UUID entityUuid){return uuid!=null&&entityUuid!=null&&uuid.equals(entityUuid.toString());}
     private static Entity findLoaded(EntityPlayerMP player,String uuid){return player==null?null:findLoaded(player.worldObj,uuid);}

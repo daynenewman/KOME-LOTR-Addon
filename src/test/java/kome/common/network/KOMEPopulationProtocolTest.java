@@ -17,7 +17,7 @@ import static org.junit.Assert.*;
 
 public class KOMEPopulationProtocolTest {
     @Test public void g1PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.8-integration-g1", KOMEPopulationWire.VERSION);
+        assertEquals("1.0.8-integration-g2", KOMEPopulationWire.VERSION);
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();
@@ -240,7 +240,7 @@ public class KOMEPopulationProtocolTest {
         KOMEAddon addon = new KOMEAddon();
         for (Side side : new Side[] {Side.CLIENT, Side.SERVER}) {
             assertTrue(addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", KOMEPopulationWire.VERSION), side));
-            for (String version : new String[] {"1.0.8", "unknown", "1.0.8-integration-f1", "1.0.8-integration-g2"})
+            for (String version : new String[] {"1.0.8", "unknown", "1.0.8-integration-f1", "1.0.8-integration-g1"})
                 assertFalse(addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", version), side));
             assertFalse(addon.acceptsRemoteKome(java.util.Collections.<String, String>emptyMap(), side));
         }

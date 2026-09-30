@@ -174,6 +174,7 @@ public class KOMEProgressionAutoCompleter {
         String pledgeKey=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.codeName():"";
         KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression,pledgeName,pledgeKey), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression), KOMEProgressionRankSummary.project(progression,alignment,pledgeKey)), player);
         KOMEVisualLocationService.syncIfChanged(player, progression, false);
+        KOMEProgressionTrackerService.syncIfChanged(player, KOMEWorldData.get(player.worldObj), false);
     }
 
     private static int grantAfter(KOMEPlayerProgression progression, String requiredID, String... unlockedIDs) {

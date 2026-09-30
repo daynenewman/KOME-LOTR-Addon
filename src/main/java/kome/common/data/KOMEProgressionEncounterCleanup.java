@@ -33,7 +33,11 @@ public final class KOMEProgressionEncounterCleanup {
         if("courier".equals(state.getActiveAssignmentKind())) {
             courier=KOMESerfCourierAssignment.readFromNBT(
                 state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-            if(courier!=null)KOMECourierService.cleanup(world,courier);
+            if(courier!=null)KOMECourierService.cleanup(
+                world,
+                courier,
+                owner,
+                state.getSerfdomMaster());
         }
 
         EntityPlayer live=world.func_152378_a(owner);

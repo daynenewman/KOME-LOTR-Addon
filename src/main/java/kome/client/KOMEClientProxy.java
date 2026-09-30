@@ -20,6 +20,8 @@ import java.util.List;
 
 public class KOMEClientProxy extends KOMECommonProxy {
     private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue();
+    private final KOMEProgressionTrackerOverlay progressionTrackerOverlay =
+        new KOMEProgressionTrackerOverlay();
     public KOMEClientProxy() {
         super(new ClientProxy());
         com.enovak.lotrmoremobs.Main.proxy =
@@ -39,6 +41,8 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEUnitOverviewCapOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEEntityHighlightOverlay());
+        MinecraftForge.EVENT_BUS.register(progressionTrackerOverlay);
+        FMLCommonHandler.instance().bus().register(progressionTrackerOverlay);
         KOMEWaypointMapOverlay waypointMapOverlay = new KOMEWaypointMapOverlay();
         MinecraftForge.EVENT_BUS.register(waypointMapOverlay);
         FMLCommonHandler.instance().bus().register(waypointMapOverlay);
@@ -76,6 +80,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         KOMEUnitCapClientState.reset();
         KOMEConquestMapOverlay.resetClientMapState();
         KOMEVisualMarkerClientState.clear();
+        progressionTrackerOverlay.resetSession();
     }
 
     @Override
@@ -177,6 +182,12 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @Override
     public void updateVisualMarkers(List<kome.common.data.KOMEVisualMarker> markers) {
         KOMEVisualMarkerClientState.update(markers);
+    }
+
+    @Override
+    public void updateProgressionTracker(
+            kome.common.data.KOMEProgressionTrackerSnapshot snapshot) {
+        progressionTrackerOverlay.update(snapshot);
     }
 
     @Override

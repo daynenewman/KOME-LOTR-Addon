@@ -18,18 +18,18 @@ public class KOMEGuiProgressionTest {
     }
 
     @Test
-    public void relationshipDepartureExistsOnlyAtRelationshipNpc() throws Exception {
+    public void relationshipDepartureLivesInProgressionFooter() throws Exception {
         String progression = new String(Files.readAllBytes(Paths.get("src/main/java/kome/client/gui/KOMEGuiProgression.java")), Charset.forName("UTF-8"));
-        String hub = new String(Files.readAllBytes(Paths.get("src/main/java/kome/client/gui/KOMEGuiRelationshipHub.java")), Charset.forName("UTF-8"));
-        String packet = new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/network/KOMEPacketRelationshipAction.java")), Charset.forName("UTF-8"));
-        assertFalse(progression.contains("buttonLeaveRelationship"));
-        assertFalse(progression.contains("KOMEPacketProgressionRelationshipAction"));
-        assertTrue(hub.contains("\"Leave Master\":\"Leave Liege\""));
-        assertTrue(hub.contains("KOMEPacketRelationshipAction.LEAVE"));
-        assertTrue(packet.contains("p.getDistanceSqToEntity(e)>64"));
+        String packet = new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/network/KOMEPacketProgressionRelationshipAction.java")), Charset.forName("UTF-8"));
+
+        assertTrue(progression.contains("buttonLeaveRelationship"));
+        assertTrue(progression.contains("KOMEPacketProgressionRelationshipAction"));
+        assertTrue(progression.contains("KOMEGuiButton.Style.DESTRUCTIVE"));
+        assertTrue(progression.contains("relationshipFooterHeight()"));
+
+        assertTrue(packet.contains("KOMEProgressionEncounterCleanup.cleanup"));
         assertTrue(packet.contains("KOMESerfKnightService.leaveSerfdomMaster"));
         assertTrue(packet.contains("KOMESerfKnightService.leaveProspectiveLiege"));
-        assertTrue(packet.contains("KOMEProgressionEncounterCleanup.cleanup"));
     }
 
     @Test public void masterLayoutIsMeasuredAndDutyViewTargetsRanks() throws Exception {

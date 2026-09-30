@@ -7,6 +7,7 @@ import kome.common.data.KOMEProgressionPermissionRegistry;
 import kome.common.data.KOMEProgressionRankSummary;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketProgressionRequest;
+import kome.common.network.KOMEPacketProgressionRelationshipAction;
 import lotr.client.gui.LOTRGuiAchievements;
 import lotr.client.gui.LOTRGuiMenuBase;
 import net.minecraft.client.Minecraft;
@@ -46,6 +47,9 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private static Set<String> completed = new HashSet<String>();
     private static Map<String, String> assignments = new HashMap<String, String>();
     private static String canonicalSummary = "";
+    private static String leaveRelationshipType = "";
+    private static String leaveRelationshipLabel = "";
+    private static String leaveRelationshipName = "";
     private static KOMEProgressionRankSummary rankSummary = KOMEProgressionRankSummary.EMPTY;
     private static int snapshotWorldIdentity;
     private enum View { ADVANCEMENTS, RANKS }
@@ -55,6 +59,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private GuiButton buttonCategoryNext;
     private KOMEGuiButton buttonAdvancements;
     private KOMEGuiButton buttonRanks;
+    private KOMEGuiButton buttonLeaveRelationship;
     private int currentGroup;
     private int scroll;
     private int rankScroll;
@@ -104,8 +109,8 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     }
 
     /**
-     * Compatibility overload retained for existing packet/proxy callers.
-     * Find/leave data is no longer owned or rendered by this screen.
+     * Server-authored progression-book projection, including the one rare
+     * relationship-management action kept outside ordinary NPC interaction.
      */
     public static void updateProgressionData(
             String name,
@@ -119,6 +124,9 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     ) {
         updateProgressionData(name, completedIds, assignmentMap);
         canonicalSummary = summary == null ? "" : summary;
+        leaveRelationshipType = leaveType == null ? "" : leaveType;
+        leaveRelationshipLabel = leaveLabel == null ? "" : leaveLabel;
+        leaveRelationshipName = leaveName == null ? "" : leaveName;
     }
 
     /**
@@ -144,6 +152,9 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         completed = new HashSet<String>();
         assignments = new HashMap<String, String>();
         canonicalSummary = "";
+        leaveRelationshipType = "";
+        leaveRelationshipLabel = "";
+        leaveRelationshipName = "";
         rankSummary = KOMEProgressionRankSummary.EMPTY;
         snapshotWorldIdentity = 0;
     }
@@ -151,7 +162,20 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     @Override
     public void actionPerformed(GuiButton button) {
         if (button.enabled) {
-            if (button == buttonCategoryPrev) {
+            if (button == buttonLeaveRelationship) {
+                int action = "master".equals(leaveRelationshipType)
+                    ? KOMEPacketProgressionRelationshipAction.LEAVE_MASTER
+                    : "liege".equals(leaveRelationshipType)
+                        ? KOMEPacketProgressionRelationshipAction.LEAVE_LIEGE
+                        : -1;
+
+                if (action >= 0 && KOMEPacketHandler.network != null) {
+                    buttonLeaveRelationship.enabled = false;
+                    KOMEPacketHandler.network.sendToServer(
+                        new KOMEPacketProgressionRelationshipAction(action));
+                }
+                return;
+            } else if (button == buttonCategoryPrev) {
                 prevGroup();
             } else if (button == buttonCategoryNext) {
                 nextGroup();
@@ -167,6 +191,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        refreshRelationshipButton();
         if (view == View.ADVANCEMENTS) {
             updateScrollbarDrag(mouseX, mouseY);
         } else {
@@ -225,7 +250,21 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         buttonAdvancements=(KOMEGuiButton)new KOMEGuiButton(20,guiLeft+11,guiTop+29,97,18,"Advancements").setStyle(KOMEGuiButton.Style.TAB);
         buttonRanks=(KOMEGuiButton)new KOMEGuiButton(21,guiLeft+112,guiTop+29,97,18,"Ranks").setStyle(KOMEGuiButton.Style.TAB);
         buttonList.add(buttonAdvancements);buttonList.add(buttonRanks);
+
+        buttonLeaveRelationship =
+            (KOMEGuiButton)new KOMEGuiButton(
+                22,
+                guiLeft + 52,
+                guiTop + ySize - 22,
+                116,
+                18,
+                ""
+            ).setStyle(KOMEGuiButton.Style.DESTRUCTIVE);
+
+        buttonList.add(buttonLeaveRelationship);
+
         refreshViewButtons();
+        refreshRelationshipButton();
         if (KOMEPacketHandler.network != null) {
             KOMEPacketHandler.network.sendToServer(new KOMEPacketProgressionRequest());
         }
@@ -362,7 +401,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
             return;
         }
         int summaryHeight = getSummaryHeight();
-        int summaryY = guiTop + ySize - summaryHeight;
+        int summaryY = guiTop + ySize - relationshipFooterHeight() - summaryHeight;
         KOMEGuiTheme.drawDivider(guiLeft + 12, summaryY - SUMMARY_DIVIDER_GAP_BELOW, 196);
         String[] summaryLines = canonicalSummary.split("\\n");
         for (int i = 0; i < lines; i++) {
@@ -373,7 +412,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private void drawRanks(){
         drawRankLadder();
         int max=maxRankScroll();if(focusDuty&&!dutyFocusApplied&&rankSummary.hasActivity()){rankScroll=max;dutyFocusApplied=true;}rankScroll=Math.max(0,Math.min(max,rankScroll));
-        int contentTop=guiTop+RANK_CONTENT_TOP,contentBottom=guiTop+ySize-RANK_CONTENT_BOTTOM_MARGIN;
+        int contentTop=guiTop+RANK_CONTENT_TOP,contentBottom=guiTop+ySize-RANK_CONTENT_BOTTOM_MARGIN-relationshipFooterHeight();
         KOMEGuiTheme.enableScissor(mc,guiLeft+7,contentTop,xSize-14,contentBottom-contentTop);
         int y=contentTop-rankScroll;
         mc.fontRenderer.drawString(rankSummary.promotionTitle,guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=14;
@@ -423,14 +462,14 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     }
 
     private int maxRankScroll(){
-        int visibleHeight = ySize - RANK_CONTENT_BOTTOM_MARGIN - RANK_CONTENT_TOP;
+        int visibleHeight = ySize - RANK_CONTENT_BOTTOM_MARGIN - RANK_CONTENT_TOP - relationshipFooterHeight();
         return Math.max(0, rankContentHeight() - visibleHeight);
     }
 
     private void drawRankScrollbar(int max) {
         int x = guiLeft + SCROLLBAR_X;
         int y = guiTop + RANK_CONTENT_TOP;
-        int trackHeight = ySize - RANK_CONTENT_BOTTOM_MARGIN - RANK_CONTENT_TOP;
+        int trackHeight = ySize - RANK_CONTENT_BOTTOM_MARGIN - RANK_CONTENT_TOP - relationshipFooterHeight();
         int travel = trackHeight - SCROLLBAR_THUMB_HEIGHT;
         mc.getTextureManager().bindTexture(LOTRGuiAchievements.iconsTexture);
         int offset = Math.round(rankScroll / (float) max * travel);
@@ -443,7 +482,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         int scrollBarX0 = guiLeft + SCROLLBAR_X;
         int scrollBarX1 = scrollBarX0 + SCROLLBAR_HIT_WIDTH;
         int scrollBarY0 = guiTop + RANK_CONTENT_TOP;
-        int trackHeight = ySize - RANK_CONTENT_BOTTOM_MARGIN - RANK_CONTENT_TOP;
+        int trackHeight = ySize - RANK_CONTENT_BOTTOM_MARGIN - RANK_CONTENT_TOP - relationshipFooterHeight();
         int scrollBarY1 = scrollBarY0 + trackHeight;
         if (!wasMouseDown && isMouseDown && max > 0 && mouseX >= scrollBarX0 && mouseX < scrollBarX1 && mouseY >= scrollBarY0 && mouseY < scrollBarY1) {
             isScrolling = true;
@@ -494,7 +533,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         int rows = getVisibleRows();
         if (size > rows) {
             int maxScroll = Math.max(1, size - rows);
-            int travel = LIST_SCROLLBAR_HEIGHT - SCROLLBAR_THUMB_HEIGHT;
+            int travel = getListScrollbarHeight() - SCROLLBAR_THUMB_HEIGHT;
             int offset = Math.round(scroll / (float) maxScroll * travel);
             drawTexturedModalRect(scrollBarX0, scrollBarY0 + offset, 190, 0, 10, SCROLLBAR_THUMB_HEIGHT);
         } else {
@@ -589,7 +628,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         int scrollBarX0 = guiLeft + SCROLLBAR_X;
         int scrollBarX1 = scrollBarX0 + SCROLLBAR_HIT_WIDTH;
         int scrollBarY0 = guiTop + LIST_SCROLLBAR_Y;
-        int scrollBarY1 = scrollBarY0 + LIST_SCROLLBAR_HEIGHT;
+        int scrollBarY1 = scrollBarY0 + getListScrollbarHeight();
         if (!wasMouseDown && isMouseDown && maxScroll > 0 && mouseX >= scrollBarX0 && mouseX < scrollBarX1 && mouseY >= scrollBarY0 && mouseY < scrollBarY1) {
             isScrolling = true;
         }
@@ -598,7 +637,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         }
         wasMouseDown = isMouseDown;
         if (isScrolling) {
-            int travel = LIST_SCROLLBAR_HEIGHT - SCROLLBAR_THUMB_HEIGHT;
+            int travel = getListScrollbarHeight() - SCROLLBAR_THUMB_HEIGHT;
             float currentScroll = (mouseY - scrollBarY0 - SCROLLBAR_THUMB_HEIGHT / 2.0f) / travel;
             currentScroll = Math.max(0.0f, Math.min(1.0f, currentScroll));
             scroll = Math.round(currentScroll * maxScroll);
@@ -641,6 +680,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private int getVisibleRows() {
         int lines = getSummaryLineCount();
         int reserved = lines == 0 ? 0 : getSummaryHeight() + SUMMARY_DIVIDER_GAP_ABOVE + SUMMARY_DIVIDER_GAP_BELOW;
+        reserved += relationshipFooterHeight();
         int available = ySize - LIST_TOP - reserved;
         return Math.max(1, available / ROW_HEIGHT);
     }
@@ -657,6 +697,41 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         return lines == 0 ? 0 : lines * SUMMARY_LINE_HEIGHT + SUMMARY_BOTTOM_PADDING;
     }
 
+    private int relationshipFooterHeight() {
+        return leaveRelationshipLabel == null
+            || leaveRelationshipLabel.length() == 0
+            ? 0
+            : 26;
+    }
+
+    private int getListScrollbarHeight() {
+        return Math.max(
+            SCROLLBAR_THUMB_HEIGHT,
+            LIST_SCROLLBAR_HEIGHT - relationshipFooterHeight()
+        );
+    }
+
+    private void refreshRelationshipButton() {
+        if (buttonLeaveRelationship == null) {
+            return;
+        }
+
+        boolean visible =
+            leaveRelationshipLabel != null
+                && leaveRelationshipLabel.length() != 0
+                && ("master".equals(leaveRelationshipType)
+                    || "liege".equals(leaveRelationshipType));
+
+        buttonLeaveRelationship.visible = visible;
+
+        if (visible) {
+            buttonLeaveRelationship.displayString =
+                leaveRelationshipLabel;
+        } else {
+            buttonLeaveRelationship.enabled = true;
+            buttonLeaveRelationship.displayString = "";
+        }
+    }
     private int getRowHeight() {
         return ROW_HEIGHT;
     }

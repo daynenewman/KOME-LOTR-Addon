@@ -118,6 +118,7 @@ public class KOMEEvents {
         nextMovementArrivalCheckMillis = 0L;
         nextLiveUnitMarkerSyncMillis = 0L;
         KOMEVisualLocationService.resetSession();
+        KOMEProgressionTrackerService.resetSession();
     }
 
     @SubscribeEvent
@@ -147,6 +148,7 @@ public class KOMEEvents {
         KOMEAllianceRecordBuilder.clearOperatorView(event.player);
         if (event.player instanceof EntityPlayerMP) KOMESerfKnightCadenceOverride.clear(((EntityPlayerMP)event.player).getUniqueID());
         if (event.player instanceof EntityPlayerMP) KOMEVisualLocationService.clearPlayer(KOMEReflection.getEntityUUID(event.player));
+        if (event.player instanceof EntityPlayerMP) KOMEProgressionTrackerService.clearPlayer(KOMEReflection.getEntityUUID(event.player));
     }
 
     @SubscribeEvent
@@ -164,6 +166,7 @@ public class KOMEEvents {
                 KOMESerfKnightDefenseService.tickPlayer((EntityPlayerMP) event.player);
                 KOMECourierService.tickPlayer((EntityPlayerMP) event.player);
                 KOMEProgressionOfferBridge.refreshNearbySerfdomOffers((EntityPlayerMP) event.player);
+                KOMEProgressionTrackerService.syncIfChanged((EntityPlayerMP)event.player,data,false);
             }
             if (event.player instanceof EntityPlayerMP && KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(event.player)) % 100L == 0L) {
                 KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
@@ -183,6 +186,10 @@ public class KOMEEvents {
     public void onRecoveryItemPickup(EntityItemPickupEvent event) {
         if (KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityPlayer)) || !(event.entityPlayer instanceof EntityPlayerMP)) return;
         EntityPlayerMP player = (EntityPlayerMP) event.entityPlayer;
+        if (!KOMECourierService.canPickup(event.item.getEntityItem(), player.getUniqueID())) {
+            event.setCanceled(true);
+            return;
+        }
         if (!KOMESerfKnightRecoveryService.canPickup(event.item.getEntityItem(), player.getUniqueID())) {
             event.setCanceled(true);
             return;
@@ -348,16 +355,8 @@ public class KOMEEvents {
             KOMEProgressionNpcRef clicked = KOMEProgressionNpcRankService.referenceOf(npc);
             boolean currentMaster = state.getSerfdomMaster().hasSameIdentity(clicked);
             boolean currentLiege = state.getProspectiveLiege().hasSameIdentity(clicked);
-            KOMESerfdomMasterService.Result eligibility = currentMaster
-                ? KOMESerfdomMasterService.validateCurrentMasterInteraction(player, data, npc, false)
-                : null;
-            if (eligibility != null && eligibility.success) {
-                kome.common.network.KOMEPacketRelationshipAction.sendHub(player, npc, kome.common.network.KOMEPacketRelationshipAction.MASTER);
-                event.setCanceled(true);
-                return;
-            }
-            if (currentLiege && progression.getCanonicalRank().order >= KOMEProgressionRank.SERF.order) {
-                kome.common.network.KOMEPacketRelationshipAction.sendHub(player, npc, kome.common.network.KOMEPacketRelationshipAction.LIEGE);
+            if ((currentMaster || currentLiege)
+                    && KOMEProgressionNpcInteractionService.interact(player, data, npc)) {
                 event.setCanceled(true);
                 return;
             }

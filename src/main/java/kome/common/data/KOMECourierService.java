@@ -6,6 +6,7 @@ import lotr.common.LOTRLevelData;
 import lotr.common.entity.npc.LOTREntityNPC;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.entity.item.EntityItem;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NBTTagCompound;
@@ -23,6 +24,58 @@ public final class KOMECourierService {
     private KOMECourierService(){}
 
     public static ItemStack message(KOMESerfCourierAssignment a,EntityPlayerMP p,KOMEProgressionNpcRef master){return message(a,KOMEReflection.getEntityUUID(p),master);}
+    public static EntityItem dropMessageFromMaster(
+            EntityPlayerMP player,
+            LOTREntityNPC masterNpc,
+            KOMESerfCourierAssignment assignment,
+            KOMEProgressionNpcRef master) {
+        if(player==null||masterNpc==null||assignment==null||master==null)return null;
+        return masterNpc.entityDropItem(
+            message(assignment,player,master),
+            0.5F);
+    }
+
+    public static boolean canPickup(
+            ItemStack stack,
+            UUID picker) {
+        if(!isCourierTagged(stack))return true;
+        if(picker==null)return false;
+
+        NBTTagCompound courier=
+            stack.getTagCompound()
+                .getCompoundTag(TAG);
+
+        return picker.toString()
+            .equals(courier.getString("Owner"));
+    }
+
+    public static boolean hasDispatch(
+            EntityPlayerMP player,
+            KOMESerfCourierAssignment assignment,
+            KOMEProgressionNpcRef master) {
+        if(player==null||assignment==null||master==null)return false;
+
+        if(hasMessage(player,assignment,master))return true;
+
+        UUID owner=KOMEReflection.getEntityUUID(player);
+
+        for(Object value:player.worldObj.loadedEntityList) {
+            if(!(value instanceof EntityItem))continue;
+
+            EntityItem entity=(EntityItem)value;
+
+            if(!entity.isDead
+                    &&identityMatch(
+                        entity.getEntityItem(),
+                        assignment,
+                        owner,
+                        master)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
     static ItemStack message(KOMESerfCourierAssignment a,UUID player,KOMEProgressionNpcRef master){
         ItemStack book=new ItemStack(Items.written_book);NBTTagCompound root=new NBTTagCompound(),hidden=new NBTTagCompound();
         hidden.setString("Assignment",a.token);hidden.setString("Owner",player.toString());hidden.setString("Master",master.entityUuid);hidden.setString("Destination",a.destinationKey);root.setTag(TAG,hidden);
@@ -120,6 +173,46 @@ public final class KOMECourierService {
         if(recipient!=null)KOMECourierRecipientSpawner.retire(recipient,assignment.token);
     }
 
+    static int cleanupWorldDispatches(
+            World world,
+            KOMESerfCourierAssignment assignment,
+            UUID owner,
+            KOMEProgressionNpcRef master) {
+        if(world==null||assignment==null||owner==null||master==null)return 0;
+
+        int removed=0;
+
+        for(Object value:world.loadedEntityList) {
+            if(!(value instanceof EntityItem))continue;
+
+            EntityItem entity=(EntityItem)value;
+
+            if(!entity.isDead
+                    &&identityMatch(
+                        entity.getEntityItem(),
+                        assignment,
+                        owner,
+                        master)) {
+                entity.setDead();
+                removed++;
+            }
+        }
+
+        return removed;
+    }
+
+    static void cleanup(
+            World world,
+            KOMESerfCourierAssignment assignment,
+            UUID owner,
+            KOMEProgressionNpcRef master) {
+        cleanup(world,assignment);
+        cleanupWorldDispatches(
+            world,
+            assignment,
+            owner,
+            master);
+    }
     static int cleanupInventory(EntityPlayerMP player,KOMESerfCourierAssignment assignment,KOMEProgressionNpcRef master){
         if(player==null||assignment==null||master==null)return 0;
         int removed=0;UUID owner=KOMEReflection.getEntityUUID(player);
@@ -135,7 +228,11 @@ public final class KOMECourierService {
 
     public static void cleanup(EntityPlayerMP player,KOMESerfCourierAssignment assignment,KOMEProgressionNpcRef master){
         if(player==null||assignment==null)return;
-        cleanup(player.worldObj,assignment);
+        cleanup(
+            player.worldObj,
+            assignment,
+            KOMEReflection.getEntityUUID(player),
+            master);
         cleanupInventory(player,assignment,master);
     }
     public static void tickPlayer(EntityPlayerMP p){

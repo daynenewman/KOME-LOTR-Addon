@@ -65,9 +65,18 @@ public final class KOMEProgressionSummary {
     }
 
     public static String leaveRelationshipType(KOMEPlayerProgression p) {
-        if (p.getCanonicalRank() != KOMEProgressionRank.SERF) return "";
+        if (p.getCanonicalRank().order < KOMEProgressionRank.SERF.order) return "";
         KOMESerfKnightProgression s = p.getSerfKnightProgression();
-        return s.getProspectiveLiege().isSet() && (s.getTrialId().length() == 0 || s.getPhase() == KOMESerfKnightPhase.TRIAL_ASSIGNED) ? "liege" : s.getSerfdomMaster().isSet() ? "master" : "";
+
+        if (p.getCanonicalRank().order >= KOMEProgressionRank.KNIGHT.order) {
+            return s.getProspectiveLiege().isSet() ? "liege" : "";
+        }
+
+        return s.getProspectiveLiege().isSet()
+            && (s.getTrialId().length() == 0
+                || s.getPhase() == KOMESerfKnightPhase.TRIAL_ASSIGNED)
+            ? "liege"
+            : s.getSerfdomMaster().isSet() ? "master" : "";
     }
 
     public static String leaveRelationshipLabel(KOMEPlayerProgression p) {

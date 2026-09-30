@@ -105,6 +105,9 @@ public class KOMECommonProxy {
     public void updateVisualMarkers(java.util.List<kome.common.data.KOMEVisualMarker> markers) {
     }
 
+    public void updateProgressionTracker(kome.common.data.KOMEProgressionTrackerSnapshot snapshot) {
+    }
+
     public void displayPledgeDeparture(kome.common.network.KOMEPacketPledgeDepartureData message) {
     }
 

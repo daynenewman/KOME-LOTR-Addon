@@ -160,8 +160,27 @@ public class KOMECanonicalPlayerRankTest {
         assertTrue(source.contains("data.progressions.containsKey(KOMEReflection.getEntityUUID(player))"));
     }
 
-    @Test public void interactionRoutingPreservesLordPriorityAndDoesNotOfferReplacementOverActiveMaster() throws Exception {
-        String events=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEEvents.java")),StandardCharsets.UTF_8);int offer=events.indexOf("isExternalOffer");int master=events.indexOf("boolean currentMaster");int liege=events.indexOf("boolean currentLiege");assertTrue(offer>=0&&master>offer&&liege>master);assertTrue(events.contains("KOMEProgressionOfferBridge.ensureSerfdomOffer"));assertFalse(events.contains("event.entityPlayer.isSneaking() && event.target instanceof LOTREntityNPC"));assertTrue(events.contains("KOMEPacketRelationshipAction.sendHub"));String hub=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/network/KOMEPacketRelationshipAction.java")),StandardCharsets.UTF_8);assertTrue(hub.contains("n.interactFirst(p)"));assertTrue(hub.contains("KOMEPacketSerfdomMasterAction.sendMenu(p,n)"));assertTrue(hub.contains("getProspectiveLiege().hasSameIdentity"));String bridge=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionOfferBridge.java")),StandardCharsets.UTF_8);assertTrue(bridge.contains("!progression.getSerfKnightProgression().getSerfdomMaster().isSet()"));assertTrue(bridge.contains("KOMEProgressionAutoCompleter.syncPlayer"));
+    @Test public void interactionRoutingPreservesLordPriorityAndUsesDirectWorldActions() throws Exception {
+        String events=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEEvents.java")),StandardCharsets.UTF_8);
+        int offer=events.indexOf("isExternalOffer");
+        int master=events.indexOf("boolean currentMaster");
+        int liege=events.indexOf("boolean currentLiege");
+
+        assertTrue(offer>=0&&master>offer&&liege>master);
+        assertTrue(events.contains("KOMEProgressionOfferBridge.ensureSerfdomOffer"));
+        assertFalse(events.contains("event.entityPlayer.isSneaking() && event.target instanceof LOTREntityNPC"));
+        assertTrue(events.contains("KOMEProgressionNpcInteractionService.interact"));
+        assertFalse(events.contains("KOMEPacketRelationshipAction.sendHub"));
+
+        String direct=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionNpcInteractionService.java")),StandardCharsets.UTF_8);
+        assertTrue(direct.contains("interactMaster"));
+        assertTrue(direct.contains("interactLiege"));
+        assertTrue(direct.contains("KOMESerfdomMasterService.requestDuty"));
+        assertTrue(direct.contains("KOMESerfKnightService.assignTrial"));
+
+        String bridge=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionOfferBridge.java")),StandardCharsets.UTF_8);
+        assertTrue(bridge.contains("!progression.getSerfKnightProgression().getSerfdomMaster().isSet()"));
+        assertTrue(bridge.contains("KOMEProgressionAutoCompleter.syncPlayer"));
     }
 
     @Test public void masterDialogueUsesNativeLotrSpeechWhileTechnicalFailuresRemainSystemFeedback() throws Exception {
