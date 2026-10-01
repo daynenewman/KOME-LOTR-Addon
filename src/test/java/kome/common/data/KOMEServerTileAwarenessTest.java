@@ -500,12 +500,12 @@ public class KOMEServerTileAwarenessTest {
     }
     public static class Unit extends LOTREntityGondorSoldier {
         boolean alive;
-        private Unit() { super(null); }
+        protected Unit() { super(null); }
         @Override public boolean isEntityAlive() { return alive && !isDead; }
     }
     public static class TestWorld extends WorldServer {
         Map<Integer, Entity> entities;
-        private TestWorld() { super(null, null, "", 0, null, null); }
+        protected TestWorld() { super(null, null, "", 0, null, null); }
         @Override public Entity getEntityByID(int id) { return entities.get(id); }
     }
 }

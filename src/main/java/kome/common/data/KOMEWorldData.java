@@ -1773,6 +1773,16 @@ public class KOMEWorldData extends WorldSavedData {
 
     void recalculateCampaignCompanyComposition(KOMEArmyCompany company) {
         recalculateCompanyComposition(company);
+        // Unit recruitment provenance is authoritative; this field is only a derived summary.
+        String source = null;
+        boolean mixed = false;
+        for (UUID unitId : company.units) {
+            KOMEHiredUnitRecord record = hiredUnits.get(unitId);
+            String memberSource = KOMEConquestTile.normalizeId(record == null ? "" : record.sourceTileId);
+            if (source == null) source = memberSource;
+            else if (!source.equals(memberSource)) mixed = true;
+        }
+        company.sourceTileId = mixed || source == null ? "" : source;
     }
 
     /** Refreshes cached company totals after a live unit's visible cost/category changed. */

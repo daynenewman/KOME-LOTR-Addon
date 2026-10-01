@@ -23,7 +23,7 @@ public class KOMEArmyCompany {
     public String name = "";
     public String lotrCompanyValue = "";
     public String currentTile = "";
-    /** Recruitment provenance only; never a strategic grouping or identity key. */
+    /** Derived shared recruitment provenance; empty for mixed/unknown sources, never grouping authority. */
     public String sourceTileId = "";
     public final List<UUID> units = new ArrayList<UUID>();
     public int totalPopulation;
@@ -144,7 +144,7 @@ public class KOMEArmyCompany {
         lotrCompanyValue = nbt.getString("LotrCompanyValue");
         currentTile = KOMEConquestTile.normalizeId(nbt.getString("CurrentTile"));
         sourceTileId = KOMEConquestTile.normalizeId(nbt.getString("SourceTileId"));
-        if (sourceTileId.length() == 0) sourceTileId = currentTile;
+        if (!nbt.hasKey("SourceTileId")) sourceTileId = currentTile;
         totalPopulation = Math.max(0, nbt.getInteger("TotalPopulation"));
         mountedPopulation = Math.max(0, nbt.getInteger("MountedPopulation"));
         groundPopulation = Math.max(0, nbt.getInteger("GroundPopulation"));

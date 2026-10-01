@@ -37,6 +37,10 @@ public class KOMECompanyReorganizationServiceTest {
         assertNotNull(child);
         assertEquals("T100", parent.currentTile);
         assertEquals("T100", child.currentTile);
+        assertEquals("T900", parent.sourceTileId);
+        assertEquals("", child.sourceTileId);
+        KOMEArmyCompany restoredChild = new KOMEArmyCompany(); restoredChild.readFromNBT(child.writeToNBT());
+        assertEquals("", restoredChild.sourceTileId);
         assertEquals(f.owner, child.owner);
         assertEquals("gondor", child.faction);
         assertEquals("gondor", child.nativeFaction);
@@ -254,6 +258,9 @@ public class KOMECompanyReorganizationServiceTest {
         assertEquals("T901", second.sourceTileId);
         assertEquals("Alpha", first.lotrCompanyValue);
         assertEquals("Beta", second.lotrCompanyValue);
+        assertEquals("", survivor.sourceTileId);
+        KOMEArmyCompany restoredSurvivor = new KOMEArmyCompany(); restoredSurvivor.readFromNBT(survivor.writeToNBT());
+        assertEquals("", restoredSurvivor.sourceTileId);
         assertEquals(30, survivor.totalPopulation);
         assertEquals(20, survivor.mountedPopulation);
         assertEquals(10, survivor.groundPopulation);

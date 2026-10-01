@@ -2767,6 +2767,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     continue;
                 }
                 boolean finalStep = isFinalStep(order);
+                // Join events only discover the newly spawned entities. Confinement samples at
+                // server END, after this synchronous operation commits every record AND company
+                // tile. SPAWNING / WAITING_NEXT_STEP are never physical-crossing exemptions.
                 for (SpawnAttempt attempt : verifiedSpawns) {
                     KOMEHiredUnitRecord record = attempt.record;
                     UUID unitId = attempt.oldId;
@@ -3842,11 +3845,71 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private static double[] findSafeSpawn(World world, Entity entity, SpawnTarget target, int unitIndex) {
+        return findSafeSpawn(world, entity, target, unitIndex, "", null);
+    }
+
+    /** Canonical station origin first, then the bounded strategic arrival search with live safety. */
+    public static double[] findSafeConfinementPosition(KOMEWorldData data, Entity entity, String tile,
+            kome.common.data.KOMETileWorldResolver.ReadView view) {
+        World world = entity.worldObj;
+        SpawnTarget target = resolveConfinementStationTarget(data, world, tile);
+        if (!target.valid) return null;
+        kome.common.data.KOMETileResolution origin = view.resolveWorldPosition(
+            world.provider.dimensionId, target.x, target.z);
+        if (origin.status == kome.common.data.KOMETileResolution.Status.RESOLVED
+                && tile.equals(origin.tileId) && isSafeConfinementPosition(entity, target.x, target.y, target.z))
+            return new double[] {target.x, target.y, target.z};
+        double x = entity.posX, y = entity.posY, z = entity.posZ;
+        try {
+            return findSafeSpawn(world, entity, target, 0, tile, view);
+        } finally {
+            entity.setLocationAndAngles(x, y, z, entity.rotationYaw, entity.rotationPitch);
+        }
+    }
+
+    /**
+     * Station-origin policy boundary. V1 uses the same canonical arrival waypoint/legacy
+     * physical anchor as strategic movement. Future deployment-area priorities belong here;
+     * neither the confinement referee nor strategic unit/company identity needs to change.
+     */
+    private static SpawnTarget resolveConfinementStationTarget(KOMEWorldData data, World world, String tile) {
+        return requireArrivalTarget(data, world, tile);
+    }
+
+    public static boolean isSafeConfinementPosition(Entity entity, double x, double y, double z) {
+        World world = entity.worldObj;
+        if (!Double.isFinite(x) || !Double.isFinite(y) || !Double.isFinite(z) || y < 1 || y > 254)
+            return false;
+        int bx = MathHelper.floor_double(x), by = MathHelper.floor_double(y), bz = MathHelper.floor_double(z);
+        if (!world.blockExists(bx, by, bz) || world.getBlock(bx, by - 1, bz) == null
+                || !world.getBlock(bx, by - 1, bz).isSideSolid(
+                world, bx, by - 1, bz, net.minecraftforge.common.util.ForgeDirection.UP)) return false;
+        Entity body = entity;
+        for (int depth = 0; body != null && depth < 8; depth++) {
+            if (body.boundingBox == null) return false;
+            net.minecraft.util.AxisAlignedBB box = body.boundingBox.getOffsetBoundingBox(
+                x - body.posX, y - body.posY, z - body.posZ);
+            if (!world.checkChunksExist(MathHelper.floor_double(box.minX), by, MathHelper.floor_double(box.minZ),
+                    MathHelper.floor_double(box.maxX), by, MathHelper.floor_double(box.maxZ))
+                    || !world.getCollidingBoundingBoxes(body, box).isEmpty() || world.isAnyLiquid(box)) return false;
+            body = KOMEReflection.getRidingEntity(body);
+        }
+        return body == null;
+    }
+
+    private static double[] findSafeSpawn(World world, Entity entity, SpawnTarget target, int unitIndex, String confinedTile,
+            kome.common.data.KOMETileWorldResolver.ReadView view) {
         for (int attempt = 0; attempt < 48; attempt++) {
             double angle = (unitIndex + attempt) * 2.399963229728653D;
             double radius = 1.5D + (attempt / 4) * 2.0D;
             int x = MathHelper.floor_double(target.x + Math.cos(angle) * radius);
             int z = MathHelper.floor_double(target.z + Math.sin(angle) * radius);
+            if (confinedTile.length() > 0) {
+                kome.common.data.KOMETileResolution location = view.resolveWorldPosition(
+                    world.provider.dimensionId, x + 0.5D, z + 0.5D);
+                if (location.status != kome.common.data.KOMETileResolution.Status.RESOLVED
+                        || !confinedTile.equals(location.tileId)) continue;
+            }
             if (!ensureChunkLoaded(world, x, z) || !world.blockExists(x, 64, z)) {
                 continue;
             }
@@ -3857,7 +3920,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     continue;
                 }
                 entity.setLocationAndAngles(x + 0.5D, spawnY, z + 0.5D, entity.rotationYaw, entity.rotationPitch);
-                if (entity.boundingBox != null && world.getCollidingBoundingBoxes(entity, entity.boundingBox).isEmpty()) {
+                if (confinedTile.length() > 0 ? isSafeConfinementPosition(entity, x + 0.5D, spawnY, z + 0.5D)
+                        : entity.boundingBox != null && world.getCollidingBoundingBoxes(entity, entity.boundingBox).isEmpty()) {
                     return new double[] {x + 0.5D, spawnY, z + 0.5D};
                 }
             }
