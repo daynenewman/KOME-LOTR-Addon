@@ -1,6 +1,6 @@
 package kome.common.siege;
 
-/** Typed Connection endpoint: a Normal Segment or the one conceptual Exterior. */
+/** Typed local Connection endpoint: a Normal Segment or the containing complex's conceptual Exterior. */
 public final class KOMESiegeAreaRef implements Comparable<KOMESiegeAreaRef> {
     public enum Type { EXTERIOR, NORMAL }
     private static final KOMESiegeAreaRef EXTERIOR_REF=new KOMESiegeAreaRef(Type.EXTERIOR,"");

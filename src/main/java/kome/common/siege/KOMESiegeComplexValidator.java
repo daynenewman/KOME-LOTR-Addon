@@ -20,7 +20,7 @@ public final class KOMESiegeComplexValidator {
     public KOMEValidationResult validate(KOMESiegeComplex complex){
         if(complex==null)throw new IllegalArgumentException("A Siege Complex is required.");
         List<KOMEValidationIssue> issues=new ArrayList<KOMEValidationIssue>();
-        if(complex.getRevision()<0)add(issues,KOMEValidationCode.INVALID_COMPLEX_REVISION,"Revision cannot be negative.",complex.getTileId());
+        if(complex.getRevision()<0)add(issues,KOMEValidationCode.INVALID_COMPLEX_REVISION,"Revision cannot be negative.",complex.getComplexId());
         Map<String,KOMENormalSegment> normals=new TreeMap<String,KOMENormalSegment>();
         Map<String,KOMEWallZone> walls=new TreeMap<String,KOMEWallZone>();
         Map<String,KOMETransitionZone> transitions=new TreeMap<String,KOMETransitionZone>();

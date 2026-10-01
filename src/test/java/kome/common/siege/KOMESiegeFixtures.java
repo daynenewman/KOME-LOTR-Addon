@@ -28,7 +28,7 @@ final class KOMESiegeFixtures {
     static KOMESiegeComplex complex(Collection<KOMENormalSegment> normals,Collection<KOMEWallZone> walls,
             Collection<KOMETransitionZone> transitions,Collection<KOMEExteriorDeploymentArea> exteriors,
             Collection<KOMESiegeConnection> connections){
-        return new KOMESiegeComplex("t277",0,0,normals,walls,transitions,exteriors,connections);
+        return new KOMESiegeComplex("FIXTURE-COMPLEX","t277",0,0,normals,walls,transitions,exteriors,connections);
     }
     static <T> Collection<T> none(){return Collections.emptyList();}
 }

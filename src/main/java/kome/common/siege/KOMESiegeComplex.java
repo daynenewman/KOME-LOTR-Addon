@@ -7,8 +7,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
-/** Immutable tactical geometry definition keyed conceptually by canonical conquest tile ID. */
+/**
+ * Immutable tactical geometry definition with a stable, caller-supplied complex identity.
+ * The tile ID identifies its associated location; multiple complexes may share that tile.
+ * Zone IDs, Connection IDs, references and Exterior are local to this containing complex.
+ */
 public final class KOMESiegeComplex {
+    private final String complexId;
     private final String tileId;
     private final int dimensionId;
     private final long revision;
@@ -18,10 +23,11 @@ public final class KOMESiegeComplex {
     private final List<KOMEExteriorDeploymentArea> exteriorDeploymentAreas;
     private final List<KOMESiegeConnection> connections;
 
-    public KOMESiegeComplex(String tileId,int dimensionId,long revision,
+    public KOMESiegeComplex(String complexId,String tileId,int dimensionId,long revision,
             Collection<KOMENormalSegment> normals,Collection<KOMEWallZone> walls,
             Collection<KOMETransitionZone> transitions,Collection<KOMEExteriorDeploymentArea> exteriorAreas,
             Collection<KOMESiegeConnection> connections){
+        this.complexId=KOMESiegeIds.complex(complexId);
         this.tileId=KOMESiegeIds.tile(tileId);this.dimensionId=dimensionId;this.revision=revision;
         normalSegments=copy(normals);wallZones=copy(walls);transitionZones=copy(transitions);
         exteriorDeploymentAreas=copy(exteriorAreas);this.connections=copy(connections);
@@ -31,6 +37,8 @@ public final class KOMESiegeComplex {
         if(result.contains(null))throw new IllegalArgumentException("Siege Complex collections cannot contain null.");
         return Collections.unmodifiableList(result);
     }
+    /** Opaque identity retained across definition revisions, independent of tile and dimension. */
+    public String getComplexId(){return complexId;}
     public String getTileId(){return tileId;} public int getDimensionId(){return dimensionId;}
     public long getRevision(){return revision;}
     public List<KOMENormalSegment> getNormalSegments(){return normalSegments;}
@@ -51,12 +59,12 @@ public final class KOMESiegeComplex {
     public KOMEExteriorDeploymentArea findExteriorDeploymentArea(String id){
         String key=KOMESiegeIds.id(id);for(KOMEExteriorDeploymentArea item:exteriorDeploymentAreas)if(item.getId().equals(key))return item;return null;
     }
-    /** Stronghold footprint is Normal Segments plus Wall Zones only. */
+    /** Complex-local Stronghold footprint is Normal Segments plus Wall Zones only. */
     public Set<String> getStrongholdZoneIds(){
         TreeSet<String> ids=new TreeSet<String>();for(KOMENormalSegment item:normalSegments)ids.add(item.getId());
         for(KOMEWallZone item:wallZones)ids.add(item.getId());return Collections.unmodifiableSet(ids);
     }
-    /** Explicit Connection graph only; Wall accessibility never contributes adjacency. */
+    /** This complex's explicit Connection graph only; Wall accessibility never contributes adjacency. */
     public Set<String> getAdjacentNormalSegmentIds(String normalId){
         String key=KOMESiegeIds.id(normalId);TreeSet<String> result=new TreeSet<String>();
         for(KOMESiegeConnection c:connections){
@@ -68,6 +76,7 @@ public final class KOMESiegeComplex {
         }
         return Collections.unmodifiableSet(result);
     }
+    /** Resolves a local endpoint, including Exterior, only within this complex. */
     public List<KOMESiegeConnection> getConnectionsFor(KOMESiegeAreaRef endpoint){
         List<KOMESiegeConnection> result=new ArrayList<KOMESiegeConnection>();
         for(KOMESiegeConnection connection:connections)if(connection.connects(endpoint))result.add(connection);
