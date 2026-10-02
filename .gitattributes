@@ -12,3 +12,6 @@ docs/v2-geography-review-20260920/edit-manifest.csv -text whitespace=blank-at-eo
 docs/tile-cleanup-geography-20260920/edit-manifest.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 docs/final-combined-geography-20260920/edit-manifest.csv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
 docs/final-combined-geography-20260920/expected-cells.tsv -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+
+# Coordinate review evidence: preserve exported CSV bytes for checksum reproducibility.
+docs/tile-geography-review-20261002/*.csv -text

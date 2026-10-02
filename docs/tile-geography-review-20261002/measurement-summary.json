@@ -1,0 +1,102 @@
+{
+  "host_cpu": "AMD Ryzen 5 7600X 6-Core Processor",
+  "host_ram_bytes": 16331325440,
+  "java": "21.0.8 OpenJDK 64-Bit Server VM",
+  "heap_limit_bytes": 536870912,
+  "trials": 5,
+  "measurements": {
+    "bundledReloadMs": {
+      "median": 325.9372,
+      "min": 314.9141,
+      "max": 360.1475
+    },
+    "worldIntegerNsPerLookup": {
+      "median": 19.363998,
+      "min": 17.3144,
+      "max": 19.693
+    },
+    "worldDoubleNsPerLookup": {
+      "median": 115.8006,
+      "min": 111.033002,
+      "max": 145.238202
+    },
+    "classifiedNsPerLookup": {
+      "median": 11.5968,
+      "min": 9.8206,
+      "max": 26.8694
+    },
+    "tracking100_0MsPerTick": {
+      "median": 0.0050115,
+      "min": 0.002544,
+      "max": 0.008259
+    },
+    "tracking100_1MsPerTick": {
+      "median": 0.021981,
+      "min": 0.014121,
+      "max": 0.072278
+    },
+    "tracking100_2MsPerTick": {
+      "median": 0.034563,
+      "min": 0.027415,
+      "max": 0.038313995
+    },
+    "tracking2000_0MsPerTick": {
+      "median": 0.0568285,
+      "min": 0.0496635,
+      "max": 0.060228505
+    },
+    "tracking2000_1MsPerTick": {
+      "median": 0.2694755,
+      "min": 0.2373805,
+      "max": 0.374128
+    },
+    "tracking2000_2MsPerTick": {
+      "median": 0.383487,
+      "min": 0.3707335,
+      "max": 0.42361
+    },
+    "borderExtractionMs": {
+      "median": 108.511301,
+      "min": 97.912399,
+      "max": 242.7158
+    },
+    "headlessDrawMs gui=854x480 zoom=0.15": {
+      "median": 0.722481505,
+      "min": 0.708986495,
+      "max": 0.745037505
+    },
+    "headlessDrawMs gui=854x480 zoom=1.0": {
+      "median": 0.043694495,
+      "min": 0.040074505,
+      "max": 0.0460025
+    },
+    "headlessDrawMs gui=854x480 zoom=8.0": {
+      "median": 0.0026205,
+      "min": 0.002489,
+      "max": 0.004543
+    },
+    "headlessDrawMs gui=1920x1080 zoom=0.15": {
+      "median": 0.7863575,
+      "min": 0.773729,
+      "max": 0.828164
+    },
+    "headlessDrawMs gui=1920x1080 zoom=1.0": {
+      "median": 0.1775145,
+      "min": 0.172058995,
+      "max": 0.191362005
+    },
+    "headlessDrawMs gui=1920x1080 zoom=8.0": {
+      "median": 0.0089675,
+      "min": 0.007579495,
+      "max": 0.009981505
+    }
+  },
+  "limitations": [
+    "Current host only, not representative low-spec",
+    "Inert players/hires; excludes AI, world generation, network and game server tick scheduling",
+    "Headless CPU quads only, excludes GL/GPU and actual FPS",
+    "Reload after warm initial load, not cold-process loading",
+    "Approximate post-GC process heap includes runtime/class state; primitive array bytes are exact",
+    "Fixed-cell exclusion benchmark is a synthetic fixture, not an approved geography classification"
+  ]
+}

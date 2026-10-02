@@ -1,0 +1,34 @@
+{
+  "note": "Read-only extraction from preserved historical worktree; concerns are not approved classifications. No source writes. Compact records committed for reproduction.",
+  "sources": [
+    {
+      "source": "v2-geography-review-20260920/cell-review.csv",
+      "sha256": "ef28dd7b6c500596b77122cf7633e2209ad39a9b7e5729ca1b9297803fd5077f",
+      "bytes": 212449646
+    },
+    {
+      "source": "v2-geography-review-20260920/withheld-manifest.csv",
+      "sha256": "a51da3241b8197038fce4cb8364807da86a475f02bb7af64a14dcf93100b98ba",
+      "bytes": 102244
+    },
+    {
+      "source": "tile-cleanup-geography-20260920/cell-audit.csv",
+      "sha256": "eb213752fcc7a1969c8525deeb59e908a75e4a79cdd580a07eadf8ebb2c131a6",
+      "bytes": 223232
+    },
+    {
+      "source": "tile-cleanup-geography-20260920/assigned-transfer-proposal.csv",
+      "sha256": "3157342c7e016e5b9a47035a934584de2e5d118f92f76ff2a9b18a53e561f26e",
+      "bytes": 8028
+    }
+  ],
+  "groups": {
+    "uncertain_v2": 25919,
+    "withheld_transfer": 48,
+    "withheld_gap": 691,
+    "blocked55": 55,
+    "optional_shape": 1,
+    "protected_junction": 14,
+    "protected_control": 3
+  }
+}
