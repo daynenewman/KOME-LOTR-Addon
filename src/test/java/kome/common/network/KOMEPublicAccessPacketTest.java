@@ -339,7 +339,7 @@ public class KOMEPublicAccessPacketTest {
         assertFalse(f.data.isDirty()); assertTrue(f.network.messages.isEmpty());
     }
 
-    @Test public void existingGuiAndProtocolBoundariesRemainPublicAndUnchanged() throws Exception {
+    @Test public void existingGuiAccessAndPacketIdentitiesRemainPublic() throws Exception {
         String population = source("kome/client/gui/KOMEGuiPopulation.java");
         assertTrue(population.contains("KOMEConquestMapOverlay.openPreservedMap()"));
         String menu = source("kome/client/KOMEProgressionMenuOverlay.java");
@@ -351,7 +351,7 @@ public class KOMEPublicAccessPacketTest {
         assertTrue(registration.contains("KOMEPacketConquestOpenCapture.class, 7, Side.SERVER"));
         assertTrue(registration.contains("KOMEPacketBuildAction.class, 36, Side.SERVER"));
         assertTrue(registration.contains("IDs 23 and 24 are retired"));
-        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g2"));
+        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g3"));
         assertEquals(5, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
 

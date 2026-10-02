@@ -25,6 +25,7 @@ public class KOMEWaypointTransformerTest {
     public void corePluginRegistersKomeAndLotrMoreMobsTransformers() {
         assertArrayEquals(new String[] {
                 KOMEWaypointTransformer.class.getName(),
+                KOMEPublicWaypointTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),
@@ -83,7 +84,7 @@ public class KOMEWaypointTransformerTest {
 
     @Test
     public void configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms() throws Exception {
-        File jar = new File("../LOTR-Test-Server/mods/LOTRMod v36.15.jar");
+        File jar = externalJar("LOTRMod v36.15.jar");
         org.junit.Assume.assumeTrue("Configured build LOTR v36.15 jar is unavailable", jar.isFile());
         assertExternalJarTransforms(jar,
             "d495524e27358296fbc584756d9ce3edefb1ad3836d96955473d6876edfb2321");
@@ -91,10 +92,17 @@ public class KOMEWaypointTransformerTest {
 
     @Test
     public void configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms() throws Exception {
-        File jar = new File("../LOTR-Test-Server/mods/LOTRMod v36.15.jar.original");
+        File jar = externalJar("LOTRMod v36.15.jar.original");
         org.junit.Assume.assumeTrue("Configured production LOTR v36.15 jar is unavailable", jar.isFile());
         assertExternalJarTransforms(jar,
             "67b3303bf84d66fee4f5284c0e34d630817a1c366f7a592aab3455edc6df439e");
+    }
+
+    private static File externalJar(String name) {
+        String configured=System.getenv("KOME_LOTR_VALIDATION_DIRECTORY");
+        File input=new File(configured==null?"../LOTR-Test-Server/mods":configured,name);
+        if(configured!=null) assertTrue("Explicit LOTR validation jar is missing: "+input,input.isFile());
+        return input;
     }
 
     private static void assertExternalJarTransforms(File jar, String expectedClassHash) throws Exception {

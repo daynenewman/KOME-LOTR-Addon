@@ -78,6 +78,19 @@ public final class KOMEAccessFixture {
         return type.cast(unsafe.getMethod("allocateInstance", Class.class).invoke(singleton.get(null), type));
     }
 
+    /** Real FML lifecycle event with an inert native handler; no socket or live client. */
+    public static cpw.mods.fml.common.network.FMLNetworkEvent.ClientConnectedToServerEvent clientConnected() throws Exception {
+        NetworkManager manager = new NetworkManager(false);
+        manager.setNetHandler(allocate(net.minecraft.client.network.NetHandlerPlayClient.class));
+        return new cpw.mods.fml.common.network.FMLNetworkEvent.ClientConnectedToServerEvent(manager, "MODDED");
+    }
+
+    public static cpw.mods.fml.common.network.FMLNetworkEvent.ClientDisconnectionFromServerEvent clientDisconnected() throws Exception {
+        NetworkManager manager = new NetworkManager(false);
+        manager.setNetHandler(allocate(net.minecraft.client.network.NetHandlerPlayClient.class));
+        return new cpw.mods.fml.common.network.FMLNetworkEvent.ClientDisconnectionFromServerEvent(manager);
+    }
+
     private static void set(Class<?> type, Object target, String name, Object value) throws Exception {
         Field field = type.getDeclaredField(name); field.setAccessible(true); field.set(target, value);
     }

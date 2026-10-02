@@ -120,5 +120,6 @@ public class KOMEPacketHandler {
         network.registerMessage(new ServerThreadHandler<KOMEPacketTroopGuiAction>(new KOMEPacketTroopGuiAction.Handler()) {}, KOMEPacketTroopGuiAction.class, 35, Side.SERVER);
         network.registerMessage(new ServerThreadHandler<KOMEPacketBuildAction>(new KOMEPacketBuildAction.Handler()) {}, KOMEPacketBuildAction.class, 36, Side.SERVER);
         network.registerMessage(new ServerThreadHandler<KOMEPacketCampaignHire>(new KOMEPacketCampaignHire.Handler()) {}, KOMEPacketCampaignHire.class, 37, Side.SERVER);
+        network.registerMessage(KOMEPacketPublicWaypoints.Handler.class, KOMEPacketPublicWaypoints.class, 38, Side.CLIENT);
     }
 }
