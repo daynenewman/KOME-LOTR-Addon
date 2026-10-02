@@ -105,6 +105,12 @@ public class KOMETileGameplayDefaultsTest {
             try(URLClassLoader loader=new URLClassLoader(classpath(),ClassLoader.getSystemClassLoader().getParent()){
                 @Override public InputStream getResourceAsStream(String path){
                     if(path.equals("assets/kome/map/reset_conquest_tile_ids.png"))try{return Files.newInputStream(Paths.get(mask));}catch(IOException e){throw new IllegalStateException(e);}
+                    if(path.equals("assets/kome/map/tile_exclusions.tsv"))try{
+                        // The historical mask needs its own explicitly empty fixture annotations.
+                        String metadata="schema=1\nwidth=3200\nheight=4000\nmask_sha256="
+                            +KOMETileExclusions.sha256(Files.readAllBytes(Paths.get(mask)))+"\n";
+                        return new ByteArrayInputStream(metadata.getBytes(StandardCharsets.UTF_8));
+                    }catch(IOException e){throw new IllegalStateException(e);}
                     return super.getResourceAsStream(path);
                 }
             }){

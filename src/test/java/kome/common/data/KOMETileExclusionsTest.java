@@ -98,6 +98,27 @@ public class KOMETileExclusionsTest {
         } catch (IOException expected) { assertNotNull(expected.getMessage()); }
     }
 
+    @Test public void zonePaletteLimitAndOverlongReasonRejectBeforeCellPublication() throws Exception {
+        StringBuilder records = new StringBuilder();
+        for (int z = 0; z < 65536; z++) records.append("zone\tz").append(z).append("\triver\tfixture\n");
+        try { load(records.toString()); fail("Zone palette overflow accepted"); }
+        catch (IOException expected) { assertTrue(expected.getMessage().contains("zone")); }
+        char[] reason = new char[257]; Arrays.fill(reason, 'x');
+        try { load("zone\tz\triver\t" + new String(reason) + "\nrun\t0\t1\t2\tz\n"); fail("Reason limit"); }
+        catch (IOException expected) { assertTrue(expected.getMessage().contains("zone")); }
+    }
+
+    @Test public void classifiedNegativeCoordinatesRespectFractionalCellBoundaries() throws Exception {
+        byte[] image = image(); KOMETileWorldResolver r = new KOMETileWorldResolver();
+        assertTrue(r.reload(new ByteArrayInputStream(image), text(MAPPING), text(header(image) + zones()),
+            new KOMETileRasterSnapshot.Transform(173, 2, 1, 128, 4, 1), IDS, Collections.<String>emptySet()));
+        assertEquals("T001", r.resolveWorldPosition(173, Math.nextDown(-128D), -1).tileId);
+        assertEquals("river-a", r.resolveWorldPosition(173, -128D, -1).exclusion().get().id);
+        assertEquals("river-a", r.resolveWorldPosition(173, Math.nextDown(0D), -1).exclusion().get().id);
+        assertEquals("river-b", r.resolveWorldPosition(173, 0D, -1).exclusion().get().id);
+        assertEquals(IN_BOUNDS_GAP, r.resolveWorldPosition(173, 128D, -1).status);
+    }
+
     @Test public void retiredCellsAreUnknownUntilExplicitlyAnnotated() throws Exception {
         byte[] image = bytes(png(4, 1, 0xFF000001, 0xFF000002, 0, 0));
         KOMETileRasterSnapshot s = KOMETileRasterSnapshot.load(new ByteArrayInputStream(image), text(MAPPING),
