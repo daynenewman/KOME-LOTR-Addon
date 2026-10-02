@@ -35,13 +35,17 @@ public class KOMEPacketHandler {
         ServerSession captured = session;
         if (captured == null || context == null || context.side != Side.SERVER) return null;
         NetHandlerPlayServer connection = context.getServerHandler();
-        if (connection == null || connection.playerEntity == null) return null;
-        return new Requester(captured, connection, connection.playerEntity);
+        EntityPlayerMP player = connection == null ? null : connection.playerEntity;
+        if (player == null) return null;
+        return new Requester(captured, connection, player);
     }
     /** Admission reads only connection identity; registration/world access stays on the server thread. */
     public static boolean enqueueServerTask(MessageContext context, Runnable task) {
+        return enqueueServerTask(captureRequester(context), task);
+    }
+    /** Share one captured identity across the queue fence and the caller's immutable intent. */
+    public static boolean enqueueServerTask(Requester requester, Runnable task) {
         if (task == null) throw new IllegalArgumentException("Server packet task required");
-        Requester requester = captureRequester(context);
         if (requester == null) return false;
         return SERVER_TASKS.offer(requester.session.generation, requester.connection,
             () -> { if (requester.isCurrent()) task.run(); },
@@ -70,8 +74,9 @@ public class KOMEPacketHandler {
             this.session = session; this.connection = connection; this.player = player;
         }
         public boolean isCurrent() {
+            if (KOMEPacketHandler.session != session) return false;
             session.requireServerThread();
-            if (KOMEPacketHandler.session != session || MinecraftServer.getServer() != session.server
+            if (MinecraftServer.getServer() != session.server
                 || connection.playerEntity != player || player.playerNetServerHandler != connection
                 || connection.netManager == null || !connection.netManager.isChannelOpen()
                 || player.worldObj == null || player.worldObj.isRemote || player.isDead
@@ -123,7 +128,7 @@ public class KOMEPacketHandler {
         public IMessage onMessage(final T message, final MessageContext context) {
             final Requester requester = captureRequester(context);
             if (requester == null) return null;
-            enqueueServerTask(context, () -> {
+            enqueueServerTask(requester, () -> {
                 if (!requester.isCurrent()) return;
                 IMessage reply = delegate.onMessage(message, context);
                 if (reply != null && requester.isCurrent()) network.sendTo(reply, requester.player);

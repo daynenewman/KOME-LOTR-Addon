@@ -56,7 +56,7 @@ public class KOMEPublicWaypointIntegrationTest {
         assertEquals(r.id,((KOMEPublicWaypointAdapter)nativeData.target).view.record.id);
         nativeData.target=null; request(target); fixture.data.publicWaypoints.remove(fixture.data,r.id,"console",101);
         KOMEPacketHandler.runPendingServerTasks(); assertNull(nativeData.target);
-        assertFalse(KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context));
+        assertTrue(KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context));
     }
     @Test public void requestCompletionAndCancellationStayFifoOnOneConnection() {
         KOMEPublicWaypointAdapter target=adapter(create()); request(target);
@@ -65,7 +65,7 @@ public class KOMEPublicWaypointIntegrationTest {
         KOMEPublicWaypointBridge.handleBounce(fixture.context);
         while(KOMEPacketHandler.runPendingServerTasks()>0) { }
         assertEquals(2,nativeData.bounces);
-        assertEquals(target.view.record.id,nativeData.completedTargets.get(0).view.record.id);
+        assertEquals(target.view.record.id,((KOMEPublicWaypointAdapter)nativeData.completedTargets.get(0)).view.record.id);
         assertNull(nativeData.completedTargets.get(1)); assertNull(nativeData.target);
     }
     @Test public void disconnectedNativeRequestAndCompletionDoNotExecute() {
@@ -83,6 +83,40 @@ public class KOMEPublicWaypointIntegrationTest {
         });
         while(KOMEPacketHandler.runPendingServerTasks()>0) { }
         assertNull(nativeData.target); assertEquals(0,nativeData.bounces);
+    }
+    @Test public void publicAndOrdinaryNativeRequestsShareFifoAndOriginalNativeValidation(){
+        nativeData.region=true;KOMEPublicWaypointAdapter target=adapter(create());
+        request(target);assertTrue(KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context));
+        assertNull(nativeData.target);while(KOMEPacketHandler.runPendingServerTasks()>0) { }
+        assertSame(LOTRWaypoint.HOBBITON,nativeData.target);
+        nativeData.target=null;KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context);request(target);
+        while(KOMEPacketHandler.runPendingServerTasks()>0) { }
+        assertTrue(nativeData.target instanceof KOMEPublicWaypointAdapter);
+        nativeData.target=null;nativeData.region=false;
+        KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context);
+        while(KOMEPacketHandler.runPendingServerTasks()>0) { }
+        assertNull(nativeData.target);
+    }
+    @Test public void ordinaryNativeRequestDisconnectIsSkippedAndReplayMarkerIsRemoved()throws Exception{
+        nativeData.region=true;KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context);
+        fixture.player.connected=false;while(KOMEPacketHandler.runPendingServerTasks()>0) { }assertNull(nativeData.target);
+        fixture.player.connected=true;KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context);
+        while(KOMEPacketHandler.runPendingServerTasks()>0) { }assertSame(LOTRWaypoint.HOBBITON,nativeData.target);
+        Field replay=KOMEPublicWaypointBridge.class.getDeclaredField("NATIVE_REQUEST_REPLAY");replay.setAccessible(true);
+        assertNull(((ThreadLocal)replay.get(null)).get());
+    }
+    @Test public void nativeReplayBypassesOnlyExecutingContextAndIsClearedAfterFailure()throws Exception{
+        Field replayField=KOMEPublicWaypointBridge.class.getDeclaredField("NATIVE_REQUEST_REPLAY");replayField.setAccessible(true);
+        ThreadLocal<cpw.mods.fml.common.network.simpleimpl.MessageContext> replay=(ThreadLocal)replayField.get(null);
+        replay.set(fixture.context);
+        try {assertFalse(KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context));}
+        finally {replay.remove();}
+        nativeData.region=true;nativeData.failNativeRequest=true;
+        KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context);
+        while(KOMEPacketHandler.runPendingServerTasks()>0) { }assertNull(nativeData.target);assertNull(replay.get());
+        nativeData.failNativeRequest=false;
+        KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context);
+        while(KOMEPacketHandler.runPendingServerTasks()>0) { }assertSame(LOTRWaypoint.HOBBITON,nativeData.target);assertNull(replay.get());
     }
     @Test public void nativeCompletionIsQueuedAndRunsSameNativeReceivePath(){
         assertTrue(KOMEPublicWaypointBridge.handleBounce(fixture.context)); assertEquals(0,nativeData.bounces);
@@ -172,15 +206,15 @@ public class KOMEPublicWaypointIntegrationTest {
         } finally { if(previous==null)KOMEClientData.INSTANCE.conquestTiles.remove(r.tileId);else KOMEClientData.INSTANCE.conquestTiles.put(r.tileId,previous); }
     }
     static class NativeData extends LOTRPlayerData {
-        final EntityPlayer player; LOTRAbstractWaypoint target; int elapsed=1000,bounces; boolean combat,region;
-        final List<KOMEPublicWaypointAdapter> completedTargets=new ArrayList<KOMEPublicWaypointAdapter>();
+        final EntityPlayer player; LOTRAbstractWaypoint target; int elapsed=1000,bounces; boolean combat,region,failNativeRequest;
+        final List<LOTRAbstractWaypoint> completedTargets=new ArrayList<LOTRAbstractWaypoint>();
         NativeData(EntityPlayer player){super(player.getUniqueID());this.player=player;}
         @Override public boolean isFTRegionUnlocked(LOTRWaypoint.Region value){return region;}
-        @Override public boolean canFastTravel(){return !combat;}
+        @Override public boolean canFastTravel(){if(failNativeRequest)throw new IllegalStateException("expected native replay failure");return !combat;}
         @Override public int getTimeSinceFT(){return elapsed;}
         @Override public int getWaypointFTTime(LOTRAbstractWaypoint point,EntityPlayer p){return 100;}
         @Override public LOTRAbstractWaypoint getTargetFTWaypoint(){return target;}
         @Override public void setTargetFTWaypoint(LOTRAbstractWaypoint value){target=value;}
-        @Override public void receiveFTBouncePacket(){bounces++;completedTargets.add((KOMEPublicWaypointAdapter)target);}
+        @Override public void receiveFTBouncePacket(){bounces++;completedTargets.add(target);}
     }
 }

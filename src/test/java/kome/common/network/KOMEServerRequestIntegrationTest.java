@@ -25,6 +25,18 @@ public class KOMEServerRequestIntegrationTest {
             calls.incrementAndGet();a.data.setDirty(true);return reply?new KOMEPacketServerRecordRequest(0L):null;
         });
     }
+    @Test public void capturedRequesterCannotBeReboundBetweenCaptureAndAdmission(){
+        KOMEPacketHandler.Requester original=KOMEPacketHandler.captureRequester(a.context);
+        AtomicInteger calls=new AtomicInteger();a.context.getServerHandler().playerEntity=b.player;
+        b.player.playerNetServerHandler=a.context.getServerHandler();server.players.remove(a.player);
+        assertTrue(KOMEPacketHandler.enqueueServerTask(original,calls::incrementAndGet));flush();assertEquals(0,calls.get());
+        assertTrue(KOMEPacketHandler.enqueueServerTask(a.context,calls::incrementAndGet));flush();assertEquals(1,calls.get());
+    }
+    @Test public void capturedOldSessionCannotAdmitIntoRestartedQueue(){
+        KOMEPacketHandler.Requester original=KOMEPacketHandler.captureRequester(a.context);
+        KOMEPacketHandler.startServerSession(server.server);AtomicInteger calls=new AtomicInteger();
+        assertFalse(KOMEPacketHandler.enqueueServerTask(original,calls::incrementAndGet));assertFalse(original.isCurrent());flush();assertEquals(0,calls.get());
+    }
     @Test public void disconnectedQueuedMutationAndReplyAreSkipped(){
         AtomicInteger calls=new AtomicInteger();a.data.setDirty(false);mutation(calls,true).onMessage(new KOMEPacketServerRecordRequest(0L),a.context);
         a.player.connected=false;flush();assertEquals(0,calls.get());assertFalse(a.data.isDirty());assertTrue(a.network.messages.isEmpty());

@@ -1,0 +1,1020 @@
+{
+  "command": "gradlew.bat clean test build --no-daemon --console=plain",
+  "transcript": "clean-gate-reviewed-head.txt",
+  "totals": {
+    "tests": 1262,
+    "skipped": 2,
+    "failures": 0,
+    "errors": 0,
+    "passed": 1260
+  },
+  "skips": [
+    {
+      "test": "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported",
+      "reason": {}
+    },
+    {
+      "test": "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported",
+      "reason": {}
+    }
+  ],
+  "classes": [
+    {
+      "name": "com.enovak.lotrmoremobs.config.MumakilConfigTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.enovak.lotrmoremobs.siege.client.GateManagementClientContextSessionTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.enovak.lotrmoremobs.siege.client.gui.GuiGateManagementButtonIdTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.enovak.lotrmoremobs.siege.network.GateManagementKOMEProtocolTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.enovak.lotrmoremobs.siege.repair.GateManagementKOMEInitialHealthTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.enovak.lotrmoremobs.siege.tile.TileEntitySiegeGateKOMEHealthTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.fuzs.aquaacrobatics.client.model.AquaLotrSpecialArmorPoseBridgeTest",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.fuzs.aquaacrobatics.core.asm.AquaLotrSpecialArmorTransformerTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.fuzs.aquaacrobatics.core.asm.AquaModelPoseTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.fuzs.aquaacrobatics.core.asm.AquaProductionMappingsTest",
+      "tests": "17",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest",
+      "tests": "18",
+      "skipped": "1",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.CharacterCreationLegacyCompatibilityTest",
+      "tests": "21",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.CharacterCreationRuntimeContractTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.CharacterRecreationContractTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.appearance.ClientAppearanceTextureResolverTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest",
+      "tests": "12",
+      "skipped": "1",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.appearance.ClientCustomSkinLifecycleContractTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.appearance.ClientCustomSkinTransferTest",
+      "tests": "9",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.appearance.ClientExternalTextureStateTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.render.RacePlayerRendererTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.faction.CharacterCreationAlignmentSyncTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.faction.CharacterCreationPledgeMigrationTest",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.network.CustomSkinManifestProtocolTest",
+      "tests": "14",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.network.CustomSkinPhase7ContractTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "com.lotrcharactercreation.network.LegacyC2SNetworkHardeningTest",
+      "tests": "9",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.gui.KOMEAllianceListNavigationTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.gui.KOMECanonicalPopulationNavigationTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiBuildInteractionTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiCompanyListTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiConquestCaptureBuildEnablementTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiPopulationUnitsObservabilityTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiProgressionTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiScrollPanelTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiServerRecordsPresentationTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.KOMEClaimTextureTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.KOMEClientTaskQueueTest",
+      "tests": "16",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.KOMEConquestPopulationRefreshTest",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.KOMECurrentTileHudTest",
+      "tests": "17",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.KOMEMapBordersTest",
+      "tests": "17",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.KOMEMapRenderLifecycleTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.client.KOMETileClientAdapterTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.command.KOMECampaignBoundaryMovementTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.command.KOMECommandKomeRulerTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.command.KOMECommandPopulationGrantTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.command.KOMECommandTroopsMovementTest",
+      "tests": "26",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.command.KOMEPublicCommandTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.command.KOMEPublicPrivacyTest",
+      "tests": "14",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.command.KOMEUnitInspectionObservabilityTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.config.KOMECampaignReadinessValidatorTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.config.KOMEConfigChangeGuardTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.config.KOMEConfigInspectionTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.config.KOMEConfigRegistryTest",
+      "tests": "37",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.config.KOMENetworkConfigTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.config.KOMEPopulationConfigFoundationTest",
+      "tests": "20",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEAllianceModelTest",
+      "tests": "17",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEAllianceSystemsTest",
+      "tests": "45",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEAuditServiceTest",
+      "tests": "11",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEBaseIsolationTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEBuildOwnerSelectionTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMECampaignHaltedUnitProtectionTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMECampaignRecruitmentArchitectureTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMECampaignRecruitmentServiceTest",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMECapitalTileIntegrationTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMECombatHireMountSafetyTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMECombatHirePopulationTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMECompanyDiplomacyAuthorizationTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEDailyBoundaryTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEDefensiveGateHealthCalculatorTest",
+      "tests": "16",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEDefensiveGateLinkServiceTest",
+      "tests": "20",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEDefensiveGateRecordTest",
+      "tests": "20",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEDiplomacyServiceTest",
+      "tests": "17",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEFactionCapitalServiceTest",
+      "tests": "11",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEFactionPopulationTest",
+      "tests": "13",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEForeignConstructionServiceTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEGateManagementSnapshotTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEGateSizeCalculatorTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEGearRestrictionServiceTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEHiredUnitClassificationTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEHiredUnitCompanyAdmissionTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEHiredUnitLifecycleTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEHiredUnitLiveUpdateServiceTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEKinglessStewardshipTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMELegacyPopulationRetirementTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMENativeHireRegistrationServiceTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPhysicalGateInspectionTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationDevelopmentServiceTest",
+      "tests": "13",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationGrandfatherImportTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationPayoutProcessorTest",
+      "tests": "28",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationPermanentSpendTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationProjectionTest",
+      "tests": "12",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationRateServiceTest",
+      "tests": "9",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPreciseBuildTest",
+      "tests": "19",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEProgressionPermissionRegistryTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEProgressionTitlesTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPublicWaypointIntegrationTest",
+      "tests": "16",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPublicWaypointRegistryTest",
+      "tests": "13",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMERecruitmentDeploymentClearanceTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMERecruitmentLocationServiceTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMERedesignSystemsTest",
+      "tests": "56",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMERulerAuthorizationTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMERulerServiceTest",
+      "tests": "11",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEServerTileAwarenessIsolationTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEServerTileAwarenessTest",
+      "tests": "31",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileBuildValidationTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileExclusionsTest",
+      "tests": "11",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileGameplayDefaultsTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileGameplayParityTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileGeographyAcceptanceTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileRasterSnapshotTest",
+      "tests": "10",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileResolverIsolationTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileResourceAuditTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileWorldResolverTest",
+      "tests": "13",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEUnitPopulationCostServiceTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEV2GeometryTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEWarBondServiceTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEWarInactivityTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEWarSeasonStateTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEWaypointAccessServiceTest",
+      "tests": "18",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEWaypointWorkflowTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEWeathertopPilotTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEWorldDataAtomicLoadTest",
+      "tests": "14",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEWorldDataSchemaTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMECampaignStrategicConsumerTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMECanonicalBuildPacketTest",
+      "tests": "4",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEConquestDispatchFailureReviewTest",
+      "tests": "11",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEConquestSyncTest",
+      "tests": "16",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEMapHotPathParityTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEPacketCampaignHireTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEPacketConquestOwnerSelectionTest",
+      "tests": "2",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEPacketRegistrationTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEPopulationProtocolTest",
+      "tests": "18",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEPopulationRefreshWiringTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEPublicAccessPacketTest",
+      "tests": "25",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEPublicWaypointSyncTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEServerQueueLoadMeasurementTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEServerRecordCooldownTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEServerRequestIntegrationTest",
+      "tests": "20",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEServerTaskQueueTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.core.KOMECoremodConfigurationTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.core.KOMEPublicWaypointTransformerTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.core.KOMEWaypointTransformerTest",
+      "tests": "7",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.integration.CharacterCreationIsolationTest",
+      "tests": "19",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    }
+  ],
+  "release_sha256": "019a1cf4fc9cb0f20d17022a921d3f3947cc4928141c7973618635418c851cb0",
+  "addon_only": true,
+  "validation_directory": "C:/Users/dayne/OneDrive/Desktop/The-Lord-of-the-Rings-main/LOTR-Test-Server/mods"
+}
