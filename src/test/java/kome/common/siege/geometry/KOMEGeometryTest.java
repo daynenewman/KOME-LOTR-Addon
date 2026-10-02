@@ -73,6 +73,52 @@ public class KOMEGeometryTest {
         assertTrue(KOMEGeometryPredicates.polygonsHaveInteriorOverlap(first,same));
         assertTrue(KOMEGeometryPredicates.polygonsHaveInteriorOverlap(first,partial));
     }
+    @Test public void inscribedDiamondHasInteriorOverlapDespiteAllVerticesBeingOnBoundary(){
+        KOMEPolygon outer=square(0,0,10,10),diamond=KOMEPolygon.of(p(5,0),p(10,5),p(5,10),p(0,5));
+        for(KOMEXZPoint vertex:diamond.getVertices())assertEquals(KOMEPointClassification.BOUNDARY,outer.classify(vertex));
+        assertOverlapForAllOrientations(outer,diamond,true);
+        assertContainmentForAllOrientations(outer,diamond,true);
+        assertFalse(KOMEGeometryPredicates.polygonContainsPolygon(diamond,outer));
+    }
+    @Test public void rectangleAcrossConcaveNotchIsNotContainedDespiteBoundaryVertices(){
+        KOMEPolygon outer=uShape(),bridge=square(2,2,6,6);
+        for(KOMEXZPoint vertex:bridge.getVertices())assertEquals(KOMEPointClassification.BOUNDARY,outer.classify(vertex));
+        assertContainmentForAllOrientations(outer,bridge,false);
+        assertOverlapForAllOrientations(outer,bridge,false);
+        assertTrue(KOMEGeometryPredicates.polygonsTouchOrOverlap(outer,bridge));
+    }
+    @Test public void containmentChecksEveryEdgeIntervalRatherThanOnlyWholeEdgeMidpoints(){
+        KOMEPolygon outer=KOMEPolygon.of(p(0,0),p(12,0),p(12,8),p(10,8),p(10,6),p(10,2),p(8,2),
+            p(8,6),p(8,8),p(4,8),p(4,6),p(4,2),p(2,2),p(2,6),p(2,8),p(0,8));
+        KOMEPolygon bridge=square(2,2,10,6);
+        assertTrue(KOMEPolygonValidator.validate(outer,"outer").isValid());
+        for(KOMEXZPoint vertex:bridge.getVertices())assertEquals(KOMEPointClassification.BOUNDARY,outer.classify(vertex));
+        assertEquals(KOMEPointClassification.INTERIOR,outer.classify(p(6,4)));
+        assertContainmentForAllOrientations(outer,bridge,false);
+        assertOverlapForAllOrientations(outer,bridge,true);
+    }
+    @Test public void concaveContainedPolygonAndBoundaryOnlyContactsKeepTheirSemantics(){
+        KOMEPolygon outer=uShape(),base=square(0,0,8,2);
+        assertContainmentForAllOrientations(outer,base,true);
+        assertOverlapForAllOrientations(outer,base,true);
+        KOMEPolygon left=square(0,0,10,10),edge=square(10,2,12,8),vertex=square(10,10,12,12);
+        assertOverlapForAllOrientations(left,edge,false);
+        assertOverlapForAllOrientations(left,vertex,false);
+        assertTrue(KOMEGeometryPredicates.polygonsTouchOrOverlap(left,edge));
+        assertTrue(KOMEGeometryPredicates.polygonsTouchOrOverlap(left,vertex));
+        assertContainmentForAllOrientations(left,left,true);
+        assertContainmentForAllOrientations(left,edge,false);
+    }
+    @Test public void edgeSamplingIsExactForHalfGridPointsAndExtremeIntegerCoordinates(){
+        KOMEPolygon small=square(0,0,2,2),smallDiamond=KOMEPolygon.of(p(1,0),p(2,1),p(1,2),p(0,1));
+        assertOverlapForAllOrientations(small,smallDiamond,true);
+        assertContainmentForAllOrientations(small,smallDiamond,true);
+        KOMEPolygon outer=square(Integer.MIN_VALUE,Integer.MIN_VALUE,Integer.MAX_VALUE,Integer.MAX_VALUE);
+        KOMEPolygon diamond=KOMEPolygon.of(p(0,Integer.MIN_VALUE),p(Integer.MAX_VALUE,0),
+            p(0,Integer.MAX_VALUE),p(Integer.MIN_VALUE,0));
+        assertOverlapForAllOrientations(outer,diamond,true);
+        assertContainmentForAllOrientations(outer,diamond,true);
+    }
     @Test public void polygonDefensivelyCopiesItsVertexList(){
         List<KOMEXZPoint> source=new ArrayList<KOMEXZPoint>(Arrays.asList(p(0,0),p(5,0),p(0,5)));
         KOMEPolygon polygon=new KOMEPolygon(source);source.clear();assertEquals(3,polygon.size());
@@ -82,6 +128,23 @@ public class KOMEGeometryTest {
         KOMEValidationResult result=KOMEPolygonValidator.validate(polygon,"test");assertFalse(result.isValid());assertTrue(result.hasCode(code));
     }
     private static KOMEXZPoint p(int x,int z){return new KOMEXZPoint(x,z);}
+    private static KOMEPolygon uShape(){
+        return KOMEPolygon.of(p(0,0),p(8,0),p(8,8),p(6,8),p(6,2),p(2,2),p(2,8),p(0,8));
+    }
+    private static KOMEPolygon reversed(KOMEPolygon polygon){
+        List<KOMEXZPoint> points=new ArrayList<KOMEXZPoint>(polygon.getVertices());
+        Collections.reverse(points);return new KOMEPolygon(points);
+    }
+    private static void assertOverlapForAllOrientations(KOMEPolygon a,KOMEPolygon b,boolean expected){
+        for(KOMEPolygon first:Arrays.asList(a,reversed(a)))for(KOMEPolygon second:Arrays.asList(b,reversed(b))){
+            assertEquals(expected,KOMEGeometryPredicates.polygonsHaveInteriorOverlap(first,second));
+            assertEquals(expected,KOMEGeometryPredicates.polygonsHaveInteriorOverlap(second,first));
+        }
+    }
+    private static void assertContainmentForAllOrientations(KOMEPolygon outer,KOMEPolygon inner,boolean expected){
+        for(KOMEPolygon first:Arrays.asList(outer,reversed(outer)))for(KOMEPolygon second:Arrays.asList(inner,reversed(inner)))
+            assertEquals(expected,KOMEGeometryPredicates.polygonContainsPolygon(first,second));
+    }
     private static KOMEPolygon square(int minX,int minZ,int maxX,int maxZ){
         return KOMEPolygon.of(p(minX,minZ),p(maxX,minZ),p(maxX,maxZ),p(minX,maxZ));
     }

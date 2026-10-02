@@ -1,12 +1,14 @@
 package kome.common.siege;
 
 import kome.common.siege.geometry.KOMEGeometryPredicates;
+import kome.common.siege.geometry.KOMEPolygonPrism;
 import kome.common.siege.geometry.KOMEPolygonValidator;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
-import java.util.TreeMap;
+import java.util.Set;
 
 /** Pure editor helper. Successful endpoints must still be persisted explicitly. */
 public final class KOMEConnectionEndpointInference {
@@ -17,7 +19,9 @@ public final class KOMEConnectionEndpointInference {
         NO_ENDPOINT_CANDIDATES,
         EXTERIOR_NOT_ESTABLISHED,
         TOO_MANY_NORMAL_ENDPOINTS,
-        AMBIGUOUS_CORRIDOR
+        AMBIGUOUS_CORRIDOR,
+        INVALID_NORMAL_GEOMETRY,
+        DUPLICATE_NORMAL_ID
     }
     private KOMEConnectionEndpointInference() {}
 
@@ -27,6 +31,20 @@ public final class KOMEConnectionEndpointInference {
         if(!transition.getPrism().hasValidYRange()
                 ||!KOMEPolygonValidator.validate(transition.getPrism().getPolygon(),transition.getId()).isValid())
             return Result.failure(Status.INVALID_TRANSITION_GEOMETRY);
+        // Even a distant duplicate makes an inferred local endpoint ID ambiguous.
+        Set<String> normalIds=new HashSet<String>();
+        for(KOMENormalSegment normal:complex.getNormalSegments())
+            if(!normalIds.add(normal.getId()))return Result.failure(Status.DUPLICATE_NORMAL_ID);
+        // Validate every potentially relevant normal before any exact intersection checks.
+        // Whole-complex validation still diagnoses malformed geometry skipped here.
+        List<KOMENormalSegment> relevant=new ArrayList<KOMENormalSegment>();
+        for(KOMENormalSegment normal:complex.getNormalSegments()){
+            if(!mayAffectTransition(normal.getPrism(),transition.getPrism()))continue;
+            if(!normal.getPrism().hasValidYRange()
+                    ||!KOMEPolygonValidator.validate(normal.getPrism().getPolygon(),normal.getId()).isValid())
+                return Result.failure(Status.INVALID_NORMAL_GEOMETRY);
+            relevant.add(normal);
+        }
         for(KOMETransitionZone other:complex.getTransitionZones())
             if(other!=transition&&KOMEGeometryPredicates.prismsHaveInteriorOverlap(transition.getPrism(),other.getPrism()))
                 return Result.failure(Status.AMBIGUOUS_CORRIDOR);
@@ -34,11 +52,10 @@ public final class KOMEConnectionEndpointInference {
             if(KOMEGeometryPredicates.prismsHaveInteriorOverlap(transition.getPrism(),wall.getPrism()))
                 return Result.failure(Status.AMBIGUOUS_CORRIDOR);
 
-        TreeMap<String,KOMENormalSegment> unique=new TreeMap<String,KOMENormalSegment>();
-        for(KOMENormalSegment normal:complex.getNormalSegments())
+        List<KOMENormalSegment> candidates=new ArrayList<KOMENormalSegment>();
+        for(KOMENormalSegment normal:relevant)
             if(KOMEGeometryPredicates.prismsTouchOrOverlap(transition.getPrism(),normal.getPrism()))
-                unique.put(normal.getId(),normal);
-        List<KOMENormalSegment> candidates=new ArrayList<KOMENormalSegment>(unique.values());
+                candidates.add(normal);
         Collections.sort(candidates,new Comparator<KOMENormalSegment>(){
             public int compare(KOMENormalSegment a,KOMENormalSegment b){return a.getId().compareTo(b.getId());}
         });
@@ -50,6 +67,16 @@ public final class KOMEConnectionEndpointInference {
         if(KOMEGeometryPredicates.prismContainsPrism(only.getPrism(),transition.getPrism()))
             return Result.failure(Status.EXTERIOR_NOT_ESTABLISHED);
         return Result.success(KOMESiegeAreaRef.exterior(),KOMESiegeAreaRef.normal(only.getId()));
+    }
+
+    /** Only reliable closed bounds can establish separation; the transition is already validated. */
+    private static boolean mayAffectTransition(KOMEPolygonPrism normal,KOMEPolygonPrism transition){
+        if(!normal.getPolygon().hasBounds())return true;
+        if(normal.getMaxX()<transition.getMinX()||normal.getMinX()>transition.getMaxX()
+                ||normal.getMaxZ()<transition.getMinZ()||normal.getMinZ()>transition.getMaxZ())return false;
+        // Malformed heights cannot prove Y separation; equality remains boundary contact.
+        return !normal.hasValidYRange()||normal.getMaxYExclusive()>=transition.getMinYInclusive()
+            &&normal.getMinYInclusive()<=transition.getMaxYExclusive();
     }
 
     public static final class Result {

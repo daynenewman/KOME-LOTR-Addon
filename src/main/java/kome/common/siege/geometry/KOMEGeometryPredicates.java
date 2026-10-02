@@ -2,8 +2,9 @@ package kome.common.siege.geometry;
 
 import java.math.BigInteger;
 import java.util.List;
+import java.util.TreeSet;
 
-/** Exact integer predicates for authored tactical geometry. */
+/** Exact predicates for authored integer X/Z geometry; validate malformed polygons separately. */
 public final class KOMEGeometryPredicates {
     public enum SegmentIntersection { NONE, TOUCH, PROPER, COLLINEAR_OVERLAP }
     private KOMEGeometryPredicates() {}
@@ -57,10 +58,12 @@ public final class KOMEGeometryPredicates {
             if(hit==SegmentIntersection.PROPER)return true;
             if(hit==SegmentIntersection.COLLINEAR_OVERLAP&&areaA!=0&&areaB!=0&&sameInteriorSide(a1,a2,b1,b2,areaA,areaB))return true;
         }
-        return anyContained(av,b,true)||anyContained(bv,a,true);
+        return anyContained(av,b,true)||anyContained(bv,a,true)
+            ||hasEdgeIntervalClassified(a,b,KOMEPointClassification.INTERIOR)
+            ||hasEdgeIntervalClassified(b,a,KOMEPointClassification.INTERIOR);
     }
 
-    /** Closed polygon containment used by endpoint inference. */
+    /** Closed containment of simple polygons, including their edges and interiors. */
     public static boolean polygonContainsPolygon(KOMEPolygon outer,KOMEPolygon inner){
         if(!outer.hasBounds()||!inner.hasBounds()||inner.getMinX()<outer.getMinX()||inner.getMaxX()>outer.getMaxX()
                 ||inner.getMinZ()<outer.getMinZ()||inner.getMaxZ()>outer.getMaxZ())return false;
@@ -68,7 +71,7 @@ public final class KOMEGeometryPredicates {
         List<KOMEXZPoint> a=outer.getVertices(),b=inner.getVertices();
         for(int i=0;i<a.size();i++)for(int j=0;j<b.size();j++)
             if(segmentIntersection(a.get(i),a.get((i+1)%a.size()),b.get(j),b.get((j+1)%b.size()))==SegmentIntersection.PROPER)return false;
-        return true;
+        return !hasEdgeIntervalClassified(inner,outer,KOMEPointClassification.OUTSIDE);
     }
 
     public static boolean prismsHaveInteriorOverlap(KOMEPolygonPrism a,KOMEPolygonPrism b){
@@ -96,6 +99,44 @@ public final class KOMEGeometryPredicates {
         for(KOMEXZPoint point:points){KOMEPointClassification c=polygon.classify(point);
             if(c==KOMEPointClassification.INTERIOR||!strict&&c==KOMEPointClassification.BOUNDARY)return true;}
         return false;
+    }
+    /**
+     * Called after proper crossings have been handled. Remaining boundary contacts occur at
+     * integer vertices; between consecutive contacts an open edge interval has one classification.
+     * Splitting at every contact is necessary when an edge traverses several concave notches.
+     */
+    private static boolean hasEdgeIntervalClassified(KOMEPolygon source,KOMEPolygon target,KOMEPointClassification wanted){
+        List<KOMEXZPoint> vertices=source.getVertices();
+        for(int i=0;i<vertices.size();i++){
+            KOMEXZPoint start=vertices.get(i),end=vertices.get((i+1)%vertices.size());
+            TreeSet<KOMEXZPoint> cuts=new TreeSet<KOMEXZPoint>();cuts.add(start);cuts.add(end);
+            for(KOMEXZPoint point:target.getVertices())if(isOnSegment(start,end,point))cuts.add(point);
+            KOMEXZPoint previous=null;
+            for(KOMEXZPoint point:cuts){
+                if(previous!=null&&classifyMidpoint(target,previous,point)==wanted)return true;
+                previous=point;
+            }
+        }
+        return false;
+    }
+    /** Exact winding classification at a possibly half-grid midpoint, represented by doubled coordinates. */
+    private static KOMEPointClassification classifyMidpoint(KOMEPolygon polygon,KOMEXZPoint first,KOMEXZPoint second){
+        long xTwice=(long)first.getX()+second.getX(),zTwice=(long)first.getZ()+second.getZ();
+        if(polygon.size()<3||!polygon.hasBounds()||xTwice<2L*polygon.getMinX()||xTwice>2L*polygon.getMaxX()
+                ||zTwice<2L*polygon.getMinZ()||zTwice>2L*polygon.getMaxZ())return KOMEPointClassification.OUTSIDE;
+        int winding=0;List<KOMEXZPoint> vertices=polygon.getVertices();
+        for(int i=0;i<vertices.size();i++){
+            KOMEXZPoint a=vertices.get(i),b=vertices.get((i+1)%vertices.size());
+            BigInteger dx=BigInteger.valueOf((long)b.getX()-a.getX()),dz=BigInteger.valueOf((long)b.getZ()-a.getZ());
+            BigInteger px=BigInteger.valueOf(xTwice-2L*a.getX()),pz=BigInteger.valueOf(zTwice-2L*a.getZ());
+            int orientation=dx.multiply(pz).subtract(dz.multiply(px)).signum();
+            if(orientation==0&&xTwice>=2L*Math.min(a.getX(),b.getX())&&xTwice<=2L*Math.max(a.getX(),b.getX())
+                    &&zTwice>=2L*Math.min(a.getZ(),b.getZ())&&zTwice<=2L*Math.max(a.getZ(),b.getZ()))
+                return KOMEPointClassification.BOUNDARY;
+            if(2L*a.getZ()<=zTwice){if(2L*b.getZ()>zTwice&&orientation>0)winding++;}
+            else if(2L*b.getZ()<=zTwice&&orientation<0)winding--;
+        }
+        return winding==0?KOMEPointClassification.OUTSIDE:KOMEPointClassification.INTERIOR;
     }
     private static boolean sameInteriorSide(KOMEXZPoint a1,KOMEXZPoint a2,KOMEXZPoint b1,KOMEXZPoint b2,int areaA,int areaB){
         BigInteger ax=BigInteger.valueOf((long)a2.getX()-a1.getX()),az=BigInteger.valueOf((long)a2.getZ()-a1.getZ());
