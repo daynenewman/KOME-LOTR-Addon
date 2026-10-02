@@ -1,0 +1,6 @@
+# KOM-58: no geographic classification is approved. Every existing gap remains unknown.
+# Add explicit reviewed zones and cell runs only; see docs/tile-geography-review-20261002/README.md.
+schema=1
+width=3200
+height=4000
+mask_sha256=ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7

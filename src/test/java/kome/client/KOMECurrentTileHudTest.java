@@ -290,6 +290,28 @@ public class KOMECurrentTileHudTest {
         link.lotrWaypointKey = null; link.waypointDisplayName = null;
         tick(); assertEquals("T132", hud.label());
     }
+    @Test public void classifiedZoneLabelsRefreshAcrossZoneAndMetadataChanges() throws Exception {
+        BufferedImage image = new BufferedImage(3, 1, BufferedImage.TYPE_INT_ARGB);
+        image.setRGB(0, 0, 0xFF010203);
+        ByteArrayOutputStream png = new ByteArrayOutputStream(); ImageIO.write(image, "png", png);
+        byte[] bytes = png.toByteArray(); StringBuilder hash = new StringBuilder();
+        for (byte b : java.security.MessageDigest.getInstance("SHA-256").digest(bytes)) hash.append(String.format("%02x", b & 255));
+        String header = "schema=1\nwidth=3\nheight=1\nmask_sha256=" + hash + "\n";
+        String zones = "zone\ta\triver\tFixture A\nzone\tb\triver\tFixture B\nrun\t0\t1\t2\ta\nrun\t0\t2\t3\tb\n";
+        for (String definitions : new String[] {zones, zones.replace("zone\tb\triver", "zone\tb\tbridge")}) {
+            publish(KOMETileRasterSnapshot.load(new ByteArrayInputStream(bytes),
+                new ByteArrayInputStream("1,2,3=T001\n".getBytes(StandardCharsets.UTF_8)),
+                new ByteArrayInputStream((header + definitions).getBytes(StandardCharsets.UTF_8)),
+                new KOMETileRasterSnapshot.Transform(KOMETileTestResources.dimension(), 1, 1, 128, 3, 1),
+                KOMEConquestTileDefaults.getKnownTileIds(), Collections.<String>emptySet()));
+            if (!definitions.equals(zones)) { tick(); assertEquals("Excluded: bridge (b)", hud.label()); }
+            move(0, -1); tick(); assertEquals("Excluded: river (a)", hud.label());
+            move(128, -1); tick(); assertEquals(definitions.equals(zones) ? "Excluded: river (b)" : "Excluded: bridge (b)", hud.label());
+        }
+        move(-1, -1); tick(); assertEquals("T001", hud.label());
+        move(256, -1); tick(); assertEquals(I18n.format("kome.hud.tile.outside"), hud.label());
+    }
+
     private void tick() { hud.onClientTick(new TickEvent.ClientTickEvent(TickEvent.Phase.END)); }
     private void move(double x, double z) { client.thePlayer.posX = x; client.thePlayer.posZ = z; }
     private static WorldClient world(int dimension) throws Exception {

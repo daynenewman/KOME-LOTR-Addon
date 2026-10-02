@@ -272,7 +272,8 @@ public final class KOMEServerTileAwareness {
     }
 
     private static boolean sameLocation(KOMETileResolution a, KOMETileResolution b) {
-        return a.status == b.status && a.dimension == b.dimension && a.tileId.equals(b.tileId);
+        return a.status == b.status && a.dimension == b.dimension && a.tileId.equals(b.tileId)
+            && a.exclusion().equals(b.exclusion());
     }
 
     private static boolean isFailure(KOMETileResolution result) {
