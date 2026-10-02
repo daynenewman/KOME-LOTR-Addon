@@ -1,102 +1,437 @@
 {
-  "host_cpu": "AMD Ryzen 5 7600X 6-Core Processor",
   "host_ram_bytes": 16331325440,
+  "host_cpu": "AMD Ryzen 5 7600X 6-Core Processor             ",
   "java": "21.0.8 OpenJDK 64-Bit Server VM",
   "heap_limit_bytes": 536870912,
   "trials": 5,
+  "generator": "verify-evidence.py measure",
+  "transcript_sha256": "def2f416a16671a97f3fcc74b24845409ca7d8b5376dfc769d6b011e20f605cf",
   "measurements": {
     "bundledReloadMs": {
-      "median": 325.9372,
-      "min": 314.9141,
-      "max": 360.1475
+      "trials": [
+        350.611099,
+        322.9044,
+        319.281899,
+        309.6396,
+        321.3034
+      ],
+      "median": 321.3034,
+      "min": 309.6396,
+      "max": 350.611099
     },
     "worldIntegerNsPerLookup": {
-      "median": 19.363998,
-      "min": 17.3144,
-      "max": 19.693
+      "trials": [
+        23.3852,
+        15.983198,
+        18.035002,
+        18.303402,
+        17.597798
+      ],
+      "median": 18.035002,
+      "min": 15.983198,
+      "max": 23.3852
     },
     "worldDoubleNsPerLookup": {
-      "median": 115.8006,
-      "min": 111.033002,
-      "max": 145.238202
+      "trials": [
+        143.845,
+        110.636802,
+        110.2408,
+        109.581,
+        113.299798
+      ],
+      "median": 110.636802,
+      "min": 109.581,
+      "max": 143.845
     },
-    "classifiedNsPerLookup": {
-      "median": 11.5968,
-      "min": 9.8206,
-      "max": 26.8694
+    "populatedMetadataParseMs": {
+      "trials": [
+        244.652901,
+        25.023399,
+        22.9795,
+        17.4731,
+        32.5724
+      ],
+      "median": 25.023399,
+      "min": 17.4731,
+      "max": 244.652901
+    },
+    "populatedSnapshotLoadMs": {
+      "trials": [
+        336.673201,
+        331.915599,
+        328.486501,
+        337.395701,
+        347.7972
+      ],
+      "median": 336.673201,
+      "min": 328.486501,
+      "max": 347.7972
+    },
+    "populatedIntegerNsPerLookup": {
+      "trials": [
+        22.4956,
+        25.941998,
+        21.3028,
+        20.9736,
+        21.2928
+      ],
+      "median": 21.3028,
+      "min": 20.9736,
+      "max": 25.941998
+    },
+    "populatedDoubleNsPerLookup": {
+      "trials": [
+        112.7894,
+        109.967,
+        111.5614,
+        114.406198,
+        112.137002
+      ],
+      "median": 112.137002,
+      "min": 109.967,
+      "max": 114.406198
     },
     "tracking100_0MsPerTick": {
-      "median": 0.0050115,
-      "min": 0.002544,
-      "max": 0.008259
+      "trials": [
+        0.009052,
+        0.0064855,
+        0.006591,
+        0.005082,
+        0.003945995
+      ],
+      "median": 0.0064855,
+      "min": 0.003945995,
+      "max": 0.009052
     },
     "tracking100_1MsPerTick": {
-      "median": 0.021981,
-      "min": 0.014121,
-      "max": 0.072278
+      "trials": [
+        0.071410995,
+        0.040089505,
+        0.021672995,
+        0.014793005,
+        0.011189
+      ],
+      "median": 0.021672995,
+      "min": 0.011189,
+      "max": 0.071410995
     },
     "tracking100_2MsPerTick": {
-      "median": 0.034563,
-      "min": 0.027415,
-      "max": 0.038313995
+      "trials": [
+        0.027270995,
+        0.018332,
+        0.018569005,
+        0.027611495,
+        0.034337505
+      ],
+      "median": 0.027270995,
+      "min": 0.018332,
+      "max": 0.034337505
     },
     "tracking2000_0MsPerTick": {
-      "median": 0.0568285,
-      "min": 0.0496635,
-      "max": 0.060228505
+      "trials": [
+        0.051962005,
+        0.058179,
+        0.0602395,
+        0.051881,
+        0.045465
+      ],
+      "median": 0.051962005,
+      "min": 0.045465,
+      "max": 0.0602395
     },
     "tracking2000_1MsPerTick": {
-      "median": 0.2694755,
-      "min": 0.2373805,
-      "max": 0.374128
+      "trials": [
+        0.282858505,
+        0.227536,
+        0.201867,
+        0.232436995,
+        0.228977505
+      ],
+      "median": 0.228977505,
+      "min": 0.201867,
+      "max": 0.282858505
     },
     "tracking2000_2MsPerTick": {
-      "median": 0.383487,
-      "min": 0.3707335,
-      "max": 0.42361
+      "trials": [
+        0.2955735,
+        0.290395,
+        0.2858155,
+        0.2688875,
+        0.2700085
+      ],
+      "median": 0.2858155,
+      "min": 0.2688875,
+      "max": 0.2955735
     },
     "borderExtractionMs": {
-      "median": 108.511301,
-      "min": 97.912399,
-      "max": 242.7158
+      "trials": [
+        142.2962,
+        150.0744,
+        98.3826,
+        100.165201,
+        103.7125
+      ],
+      "median": 103.7125,
+      "min": 98.3826,
+      "max": 150.0744
     },
     "headlessDrawMs gui=854x480 zoom=0.15": {
-      "median": 0.722481505,
-      "min": 0.708986495,
-      "max": 0.745037505
+      "trials": [
+        0.698173,
+        0.693663,
+        0.6924955,
+        0.692617,
+        0.6791175
+      ],
+      "median": 0.692617,
+      "min": 0.6791175,
+      "max": 0.698173
     },
     "headlessDrawMs gui=854x480 zoom=1.0": {
-      "median": 0.043694495,
-      "min": 0.040074505,
-      "max": 0.0460025
+      "trials": [
+        0.035737,
+        0.0395555,
+        0.038484,
+        0.039155,
+        0.0361165
+      ],
+      "median": 0.038484,
+      "min": 0.035737,
+      "max": 0.0395555
     },
     "headlessDrawMs gui=854x480 zoom=8.0": {
-      "median": 0.0026205,
-      "min": 0.002489,
-      "max": 0.004543
+      "trials": [
+        0.0028805,
+        0.002507005,
+        0.002763,
+        0.003646,
+        0.002523
+      ],
+      "median": 0.002763,
+      "min": 0.002507005,
+      "max": 0.003646
     },
     "headlessDrawMs gui=1920x1080 zoom=0.15": {
-      "median": 0.7863575,
-      "min": 0.773729,
-      "max": 0.828164
+      "trials": [
+        0.770416,
+        0.761225,
+        0.779389505,
+        0.7634325,
+        0.7453615
+      ],
+      "median": 0.7634325,
+      "min": 0.7453615,
+      "max": 0.779389505
     },
     "headlessDrawMs gui=1920x1080 zoom=1.0": {
-      "median": 0.1775145,
-      "min": 0.172058995,
-      "max": 0.191362005
+      "trials": [
+        0.154195,
+        0.1622195,
+        0.1568655,
+        0.15846,
+        0.1623105
+      ],
+      "median": 0.15846,
+      "min": 0.154195,
+      "max": 0.1623105
     },
     "headlessDrawMs gui=1920x1080 zoom=8.0": {
-      "median": 0.0089675,
-      "min": 0.007579495,
-      "max": 0.009981505
+      "trials": [
+        0.0061105,
+        0.009065,
+        0.008388495,
+        0.0052705,
+        0.005795005
+      ],
+      "median": 0.0061105,
+      "min": 0.0052705,
+      "max": 0.009065
     }
   },
+  "workload_counters": [
+    {
+      "record": "MEMORY",
+      "values": {
+        "rasterCellBytes": 51200000,
+        "exclusionIndexBytes": 0,
+        "zones": 0,
+        "classifiedCells": 0,
+        "heapUsedApprox": 58757736
+      }
+    },
+    {
+      "record": "POPULATED_FIXTURE",
+      "values": {
+        "metadataBytes": 755402,
+        "runs": 29165,
+        "cells": 8732021,
+        "productionUnchanged": true
+      }
+    },
+    {
+      "record": "POPULATED_MEMORY",
+      "values": {
+        "rasterCellBytes": 51200000,
+        "exclusionIndexBytes": 25600000,
+        "zones": 1,
+        "classifiedCells": 8732021,
+        "retainedRasterSnapshots": 2,
+        "heapUsedApprox": 135539160
+      }
+    },
+    {
+      "record": "POPULATED_COVERAGE",
+      "values": {
+        "positions": 8192,
+        "classifiedPositions": 5573
+      }
+    },
+    {
+      "record": "TRACK",
+      "values": {
+        "entities": 100,
+        "players": 5,
+        "mode": 0,
+        "trials": 5,
+        "ticksPerTrial": 200,
+        "lookups": 0,
+        "transitions": 0
+      }
+    },
+    {
+      "record": "TRACK",
+      "values": {
+        "entities": 100,
+        "players": 5,
+        "mode": 1,
+        "trials": 5,
+        "ticksPerTrial": 200,
+        "lookups": 100000,
+        "transitions": 0
+      }
+    },
+    {
+      "record": "TRACK",
+      "values": {
+        "entities": 100,
+        "players": 5,
+        "mode": 2,
+        "trials": 5,
+        "ticksPerTrial": 200,
+        "lookups": 100000,
+        "transitions": 100000
+      }
+    },
+    {
+      "record": "TRACK",
+      "values": {
+        "entities": 2000,
+        "players": 100,
+        "mode": 0,
+        "trials": 5,
+        "ticksPerTrial": 200,
+        "lookups": 0,
+        "transitions": 0
+      }
+    },
+    {
+      "record": "TRACK",
+      "values": {
+        "entities": 2000,
+        "players": 100,
+        "mode": 1,
+        "trials": 5,
+        "ticksPerTrial": 200,
+        "lookups": 2000000,
+        "transitions": 0
+      }
+    },
+    {
+      "record": "TRACK",
+      "values": {
+        "entities": 2000,
+        "players": 100,
+        "mode": 2,
+        "trials": 5,
+        "ticksPerTrial": 200,
+        "lookups": 2000000,
+        "transitions": 2000000
+      }
+    },
+    {
+      "record": "BORDER_CACHE",
+      "values": {
+        "primitiveBytes": 2609460,
+        "edgeRuns": 99816,
+        "fillRuns": 60474
+      }
+    },
+    {
+      "record": "DRAW",
+      "values": {
+        "quadsPerFrameAvg": 90004.0,
+        "excludesGL": true,
+        "excludesFPS": true
+      }
+    },
+    {
+      "record": "DRAW",
+      "values": {
+        "quadsPerFrameAvg": 5036.3,
+        "excludesGL": true,
+        "excludesFPS": true
+      }
+    },
+    {
+      "record": "DRAW",
+      "values": {
+        "quadsPerFrameAvg": 128.95,
+        "excludesGL": true,
+        "excludesFPS": true
+      }
+    },
+    {
+      "record": "DRAW",
+      "values": {
+        "quadsPerFrameAvg": 100154.0,
+        "excludesGL": true,
+        "excludesFPS": true
+      }
+    },
+    {
+      "record": "DRAW",
+      "values": {
+        "quadsPerFrameAvg": 19709.2,
+        "excludesGL": true,
+        "excludesFPS": true
+      }
+    },
+    {
+      "record": "DRAW",
+      "values": {
+        "quadsPerFrameAvg": 506.35,
+        "excludesGL": true,
+        "excludesFPS": true
+      }
+    },
+    {
+      "record": "LIMITS",
+      "values": {
+        "syntheticCurrentHostOnly": true,
+        "liveServerTicks": false,
+        "clientFps": false,
+        "lowSpec": false,
+        "sink": 806707446
+      }
+    }
+  ],
   "limitations": [
-    "Current host only, not representative low-spec",
-    "Inert players/hires; excludes AI, world generation, network and game server tick scheduling",
-    "Headless CPU quads only, excludes GL/GPU and actual FPS",
-    "Reload after warm initial load, not cold-process loading",
-    "Approximate post-GC process heap includes runtime/class state; primitive array bytes are exact",
-    "Fixed-cell exclusion benchmark is a synthetic fixture, not an approved geography classification"
+    "Current host only; not representative low-spec or a performance threshold",
+    "Inert players/hires; excludes AI, chunk generation, network and game scheduling",
+    "Headless CPU geometry; excludes GL/GPU, actual FPS and cold first-opening",
+    "Mixed lookup trials cycle through the same seeded 8192 spatial samples; JIT/cache effects apply",
+    "Populated fixture classifies all canonical gaps only for measurement; no production geographic decision",
+    "Populated post-GC heap includes both original and synthetic raster snapshots and runtime/class state",
+    "Metadata parse trials include first populated-parser JIT; not a worst-case 4 MiB/many-zone bound"
   ]
 }

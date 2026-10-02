@@ -1,5 +1,5 @@
 {
-  "note": "Read-only extraction from preserved historical worktree; concerns are not approved classifications. No source writes. Compact records committed for reproduction.",
+  "note": "Read-only extraction from preserved historical worktree. Checkout HEAD is context only for these untracked source files; SHA-256 pins their content. Concerns are not approved classifications. verify-evidence.py provenance rechecks hashes and exact compact rows; no source writes.",
   "sources": [
     {
       "source": "v2-geography-review-20260920/cell-review.csv",
@@ -30,5 +30,28 @@
     "optional_shape": 1,
     "protected_junction": 14,
     "protected_control": 3
-  }
+  },
+  "source_worktree_absolute": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\KOME-LOTR-Addon-Tile-Resolution-Dev",
+  "source_docs_root_absolute": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\KOME-LOTR-Addon-Tile-Resolution-Dev\\docs",
+  "source_worktree_head": "d90197650f7749b300f9fdb580e0c00681b658b5",
+  "source_files_are_untracked": true,
+  "extraction_rules": {
+    "uncertain_v2": "category in river_bank_uncertainty, unanchored_or_conflicting_transition, context_sensitive_uncertainty",
+    "withheld_transfer": "all rows of withheld-manifest.csv",
+    "withheld_gap": "cell-audit.csv final_tile empty",
+    "blocked55": "all rows of assigned-transfer-proposal.csv",
+    "optional_shape": "separate documented (974,727) pending transfer",
+    "protected_junction": "all committed excluded-junction-cells.csv rows",
+    "protected_control": "documented (2291,58), (2292,58), (1083,735)"
+  },
+  "authority_sources": [
+    {
+      "source": "docs/tile-milestone-checkpoint-20260920/README.md",
+      "sha256": "c03619354af7ba854407225b0645e3e9cbb9e6008084ac2803a5c22eb5e52acf"
+    },
+    {
+      "source": "src/test/resources/kome/tile/weathertop-pilot/excluded-junction-cells.csv",
+      "sha256": "960cacd8ea6f0620be2aff01a7210c8d60cea8943c5102a07deac9a4b99f4c86"
+    }
+  ]
 }

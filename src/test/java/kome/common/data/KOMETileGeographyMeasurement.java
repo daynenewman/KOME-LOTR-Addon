@@ -44,28 +44,76 @@ public final class KOMETileGeographyMeasurement {
             for (int i = 0; i < TRIALS; i++) { long start = System.nanoTime(); runLookups(resolver, d, xs, zs, doubles); times[i] = System.nanoTime() - start; }
             report(doubles ? "worldDoubleNsPerLookup" : "worldIntegerNsPerLookup", times, LOOKUPS);
         }
-        // Synthetic classified full-size index worst case: no production classification or geometry edit.
-        KOMETileRasterSnapshot synthetic;
-        try (InputStream image = KOMETileGeographyMeasurement.class.getClassLoader().getResourceAsStream(KOMETileWorldResolver.MASK);
-                InputStream mapping = KOMETileGeographyMeasurement.class.getClassLoader().getResourceAsStream(KOMETileWorldResolver.MAPPING)) {
-            byte[] bytes = KOMETileExclusions.readBounded(image, 64 * 1024 * 1024, "fixture mask");
-            String metadata = "schema=1\nwidth=" + s.width + "\nheight=" + s.height + "\nmask_sha256=" + KOMETileExclusions.sha256(bytes)
-                + "\nzone\tfixture\triver\tSynthetic benchmark only\nrun\t58\t2291\t2292\tfixture\n";
-            synthetic = KOMETileRasterSnapshot.load(new java.io.ByteArrayInputStream(bytes), mapping,
-                KOMETileRasterSnapshotTest.text(metadata), s.transform, KOMEConquestTileDefaults.getKnownTileIds(), KOMEConquestTileDefaults.getRetiredTileIds());
-        }
-        System.out.println("SYNTHETIC_EXCLUSION indexBytes=" + synthetic.exclusions.cellIndexBytes() + " cells=1 productionUnchanged=true");
+        // Fixture-only annotation of all canonical gaps; never writes production resources.
+        KOMETileRasterSnapshot synthetic = populatedFixture(s);
         resolver.publish(synthetic);
-        long[] classified = new long[TRIALS];
-        for (int i = 0; i < TRIALS; i++) {
-            long start = System.nanoTime(); long total = 0;
-            for (int n = 0; n < LOOKUPS; n++) total += resolver.resolve(d, 189568, -86016).status.ordinal();
-            sink = total; classified[i] = System.nanoTime() - start;
+        System.gc(); Thread.sleep(50);
+        System.out.println("POPULATED_MEMORY rasterCellBytes=" + (4L * synthetic.width * synthetic.height)
+            + " exclusionIndexBytes=" + synthetic.exclusions.cellIndexBytes() + " zones=" + synthetic.exclusions.zoneCount()
+            + " classifiedCells=" + synthetic.exclusions.classifiedCells + " retainedRasterSnapshots=2 heapUsedApprox="
+            + ManagementFactory.getMemoryMXBean().getHeapMemoryUsage().getUsed());
+        int classifiedPositions = 0;
+        for (int n = 0; n < xs.length; n++)
+            if (resolver.resolve(d, xs[n], zs[n]).status == KOMETileResolution.Status.CLASSIFIED_EXCLUSION) classifiedPositions++;
+        if (classifiedPositions == 0 || classifiedPositions == xs.length) throw new AssertionError("Fixture must sample mixed cells");
+        System.out.println("POPULATED_COVERAGE positions=" + xs.length + " classifiedPositions=" + classifiedPositions);
+        for (boolean doubles : new boolean[] {false, true}) {
+            for (int i = 0; i < 3; i++) runLookups(resolver, d, xs, zs, doubles);
+            long[] times = new long[TRIALS];
+            for (int i = 0; i < TRIALS; i++) {
+                long start = System.nanoTime(); runLookups(resolver, d, xs, zs, doubles); times[i] = System.nanoTime() - start;
+            }
+            report(doubles ? "populatedDoubleNsPerLookup" : "populatedIntegerNsPerLookup", times, LOOKUPS);
         }
-        report("classifiedNsPerLookup", classified, LOOKUPS); resolver.publish(s);
+        resolver.publish(s); synthetic = null;
         for (int count : new int[] {100, 2000}) measureTracking(resolver, count);
         kome.client.KOMEMapGeometryMeasurement.measure(s);
         System.out.println("LIMITS syntheticCurrentHostOnly=true liveServerTicks=false clientFps=false lowSpec=false sink=" + sink);
+    }
+    private static KOMETileRasterSnapshot populatedFixture(KOMETileRasterSnapshot geometry) throws Exception {
+        byte[] image, mapping;
+        try (InputStream input = KOMETileGeographyMeasurement.class.getClassLoader().getResourceAsStream(KOMETileWorldResolver.MASK);
+                InputStream ids = KOMETileGeographyMeasurement.class.getClassLoader().getResourceAsStream(KOMETileWorldResolver.MAPPING)) {
+            image = KOMETileExclusions.readBounded(input, 64 * 1024 * 1024, "fixture mask");
+            mapping = KOMETileExclusions.readBounded(ids, 1024 * 1024, "fixture mapping");
+        }
+        String hash = KOMETileExclusions.sha256(image);
+        StringBuilder metadata = new StringBuilder("schema=1\nwidth=" + geometry.width + "\nheight=" + geometry.height
+            + "\nmask_sha256=" + hash + "\nzone\tfixture\tbenchmark-only\tSynthetic canonical gaps; not approved geography\n");
+        int[] tileChecks = geometry.copyArgbPixels(); int runs = 0, gaps = 0;
+        for (int y = 0; y < geometry.height; y++) {
+            for (int x = 0; x < geometry.width;) {
+                int index = y * geometry.width + x;
+                if ((tileChecks[index] >>> 24) > 24) { tileChecks[index] = 1; x++; continue; }
+                int first = x;
+                while (x < geometry.width && (tileChecks[y * geometry.width + x] >>> 24) <= 24) {
+                    tileChecks[y * geometry.width + x] = 0; x++; gaps++;
+                }
+                metadata.append("run\t").append(y).append('\t').append(first).append('\t').append(x).append("\tfixture\n"); runs++;
+            }
+        }
+        byte[] annotations = metadata.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        System.out.println("POPULATED_FIXTURE metadataBytes=" + annotations.length + " runs=" + runs + " cells=" + gaps + " productionUnchanged=true");
+        long[] parse = new long[TRIALS], loads = new long[TRIALS]; KOMETileRasterSnapshot result = null;
+        for (int i = 0; i < TRIALS; i++) {
+            System.gc(); Thread.sleep(50); long start = System.nanoTime();
+            KOMETileExclusions exclusions = KOMETileExclusions.load(new java.io.ByteArrayInputStream(annotations), hash,
+                geometry.width, geometry.height, tileChecks);
+            parse[i] = System.nanoTime() - start;
+            if (exclusions.classifiedCells != gaps) throw new AssertionError("Incomplete fixture");
+            sink = exclusions.classifiedCells;
+        }
+        report("populatedMetadataParseMs", parse, 1000000D);
+        for (int i = 0; i < TRIALS; i++) {
+            result = null; System.gc(); Thread.sleep(50); long start = System.nanoTime();
+            result = KOMETileRasterSnapshot.load(new java.io.ByteArrayInputStream(image), new java.io.ByteArrayInputStream(mapping),
+                new java.io.ByteArrayInputStream(annotations), geometry.transform,
+                KOMEConquestTileDefaults.getKnownTileIds(), KOMEConquestTileDefaults.getRetiredTileIds());
+            loads[i] = System.nanoTime() - start;
+            if (result.exclusions.classifiedCells != gaps) throw new AssertionError("Incomplete snapshot");
+        }
+        report("populatedSnapshotLoadMs", loads, 1000000D);
+        return result;
     }
     private static void runLookups(KOMETileWorldResolver r, int d, int[] xs, int[] zs, boolean doubles) {
         long total = 0;

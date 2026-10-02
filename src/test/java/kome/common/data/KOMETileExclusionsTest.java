@@ -142,6 +142,44 @@ public class KOMETileExclusionsTest {
         assertEquals(CLASSIFIED_EXCLUSION, old.resolveWorldPosition(173, 0, -1).status);
     }
 
+    @Test public void bundledMissingOrMalformedMetadataFailsInitiallyAndRetainsLastValidSnapshot() throws Exception {
+        final AtomicReference<byte[]> bundled = new AtomicReference<byte[]>();
+        byte[] good;
+        try (java.io.InputStream input = getClass().getClassLoader().getResourceAsStream(KOMETileWorldResolver.EXCLUSIONS)) {
+            good = KOMETileExclusions.readBounded(input, 4 * 1024 * 1024, "fixture metadata");
+        }
+        byte[] malformed = "schema=2\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        try (java.net.URLClassLoader loader = new java.net.URLClassLoader(KOMETileGameplayDefaultsTest.classpath(),
+                ClassLoader.getSystemClassLoader().getParent()) {
+            @Override public java.io.InputStream getResourceAsStream(String path) {
+                if (path.equals(KOMETileWorldResolver.EXCLUSIONS)) {
+                    byte[] value = bundled.get();
+                    return value == null ? null : new ByteArrayInputStream(value);
+                }
+                return super.getResourceAsStream(path);
+            }
+        }) {
+            Class<?> type = loader.loadClass("kome.common.data.KOMETileWorldResolver");
+            Object resolver = type.getField("INSTANCE").get(null);
+            java.lang.reflect.Method reload = type.getMethod("reloadBundled"), snapshot = type.getMethod("snapshot");
+            for (byte[] invalid : new byte[][] {null, malformed}) {
+                bundled.set(invalid); assertEquals(Boolean.FALSE, reload.invoke(resolver));
+                assertFalse(((java.util.Optional<?>) snapshot.invoke(resolver)).isPresent());
+                assertTrue(type.getMethod("loadDiagnostic").invoke(resolver).toString().contains("rejected"));
+            }
+            bundled.set(good); assertEquals(Boolean.TRUE, reload.invoke(resolver));
+            Object before = ((java.util.Optional<?>) snapshot.invoke(resolver)).get();
+            for (byte[] invalid : new byte[][] {null, malformed}) {
+                bundled.set(invalid); assertEquals(Boolean.FALSE, reload.invoke(resolver));
+                assertSame(before, ((java.util.Optional<?>) snapshot.invoke(resolver)).get());
+                String diagnostic = type.getMethod("loadDiagnostic").invoke(resolver).toString();
+                assertTrue(diagnostic, diagnostic.contains(invalid == null ? "Missing tile exclusion" : "mismatch"));
+            }
+            bundled.set(good); assertEquals(Boolean.TRUE, reload.invoke(resolver));
+            assertNotSame(before, ((java.util.Optional<?>) snapshot.invoke(resolver)).get());
+        }
+    }
+
     @Test public void concurrentReadersSeeCompleteGeometryAndClassificationPair() throws Exception {
         KOMETileWorldResolver r = new KOMETileWorldResolver();
         KOMETileRasterSnapshot a = load(zones()), b = load(""); r.publish(a);

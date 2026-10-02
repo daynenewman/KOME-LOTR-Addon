@@ -16,11 +16,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 /** Validated cell annotations owned by one raster snapshot, never a competing border authority. */
 public final class KOMETileExclusions {
     private static final int MAX_BYTES = 4 * 1024 * 1024;
     private static final int MAX_ZONES = 65535;
+    private static final Pattern KEY = Pattern.compile("[a-z][a-z0-9_.-]{0,63}");
+    private static final Pattern COORDINATE = Pattern.compile("0|[1-9][0-9]{0,9}");
     private final char[] cells; // Allocated only when at least one cell is explicitly classified.
     private final Zone[] zones;
     public final int classifiedCells;
@@ -98,7 +101,7 @@ public final class KOMETileExclusions {
             String[] parts = lines.get(n).split("\t", -1);
             if (parts.length == 4 && parts[0].equals("zone") && !runsStarted) {
                 String id = parts[1], type = parts[2], reason = parts[3];
-                if (!id.matches("[a-z][a-z0-9_.-]{0,63}") || !type.matches("[a-z][a-z0-9_.-]{0,63}")
+                if (!KEY.matcher(id).matches() || !KEY.matcher(type).matches()
                         || reason.trim().isEmpty() || reason.length() > 256
                         || reason.chars().anyMatch(c -> Character.isISOControl(c))
                         || indices.containsKey(id) || indices.size() >= MAX_ZONES)
@@ -127,7 +130,7 @@ public final class KOMETileExclusions {
             "Validated exclusions: zones=" + (zones.size() - 1) + " cells=" + classified);
     }
     private static int number(String value) throws IOException {
-        if (!value.matches("0|[1-9][0-9]{0,9}")) throw new IOException("Invalid exclusion coordinate: " + value);
+        if (!COORDINATE.matcher(value).matches()) throw new IOException("Invalid exclusion coordinate: " + value);
         try { return Integer.parseInt(value); }
         catch (NumberFormatException e) { throw new IOException("Exclusion coordinate overflow", e); }
     }

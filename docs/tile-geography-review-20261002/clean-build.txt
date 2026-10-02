@@ -1,5 +1,5 @@
 To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
-Daemon will be stopped at the end of the build
+Daemon will be stopped at the end of the build 
 
 > Configure project :
 You might want to check out './gradlew :faq' if your build fails.
@@ -30,11 +30,11 @@ Using cached decompiled jar from C:\Users\dayne\.gradle\caches\retro_futura_grad
 
 > Task :cleanupDecompSrgJar
 Fixup stage 1 - applying FF patches
-  Stage 1 took 1401 ms
+  Stage 1 took 1263 ms
 Fixup stage 2 - applying MCP patches
-  Stage 2 took 44 ms
+  Stage 2 took 43 ms
 Fixup stage 3 - applying MCP cleanup
-  Stage 3 took 1096 ms
+  Stage 3 took 920 ms
 Saving the fixed-up jar
 
 > Task :patchDecompiledJar
@@ -93,5 +93,5 @@ Note: Recompile with -Xlint:unchecked for details.
 > Task :check
 > Task :build
 
-BUILD SUCCESSFUL in 1m 25s
+BUILD SUCCESSFUL in 1m 27s
 26 actionable tasks: 25 executed, 1 up-to-date

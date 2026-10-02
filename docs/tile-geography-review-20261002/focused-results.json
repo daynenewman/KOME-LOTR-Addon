@@ -1,44 +1,48 @@
-[
-  {
-    "name": "kome.client.KOMECurrentTileHudTest",
-    "tests": "17",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "kome.common.data.KOMEServerTileAwarenessIsolationTest",
-    "tests": "3",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "kome.common.data.KOMEServerTileAwarenessTest",
-    "tests": "31",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "kome.common.data.KOMETileExclusionsTest",
-    "tests": "8",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "kome.common.data.KOMETileRasterSnapshotTest",
-    "tests": "10",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  },
-  {
-    "name": "kome.common.data.KOMETileWorldResolverTest",
-    "tests": "13",
-    "failures": "0",
-    "errors": "0",
-    "skipped": "0"
-  }
-]
+{
+  "run_label": "Initial KOM-58 focused checkpoint before two additional exclusion tests; historical, superseded by build-results.json",
+  "passed": 82,
+  "suites": [
+    {
+      "name": "kome.client.KOMECurrentTileHudTest",
+      "tests": "17",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEServerTileAwarenessIsolationTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEServerTileAwarenessTest",
+      "tests": "31",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileExclusionsTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileRasterSnapshotTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    {
+      "name": "kome.common.data.KOMETileWorldResolverTest",
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  ]
+}

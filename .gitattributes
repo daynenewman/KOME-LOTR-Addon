@@ -15,3 +15,9 @@ docs/final-combined-geography-20260920/expected-cells.tsv -text whitespace=blank
 
 # Coordinate review evidence: preserve exported CSV bytes for checksum reproducibility.
 docs/tile-geography-review-20261002/*.csv -text whitespace=cr-at-eol
+
+# The annotation header pins the raw canonical PNG bytes.
+src/main/resources/assets/kome/map/*.png -text
+
+# Preserve complete captured transcript lines without editing harmless terminal whitespace.
+docs/tile-geography-review-20261002/*.txt -text whitespace=-blank-at-eol,-blank-at-eof,cr-at-eol
