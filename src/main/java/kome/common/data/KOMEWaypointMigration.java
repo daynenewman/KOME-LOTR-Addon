@@ -106,4 +106,3 @@ public final class KOMEWaypointMigration {
         return data.publicWaypoints.importLegacy(data,chosen,actor,now);
     }
 }
-
