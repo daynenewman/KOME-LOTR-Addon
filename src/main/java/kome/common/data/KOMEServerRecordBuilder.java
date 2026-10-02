@@ -110,7 +110,8 @@ public class KOMEServerRecordBuilder {
             includeAdministrativeHistory ? war.endingReason : "Operator-only",
             String.valueOf(war.endingAtMillis), String.valueOf(war.endedAtMillis),
             includeAdministrativeHistory ? joinNames(memberships) : "Operator-only",
-            includeAdministrativeHistory ? joinNames(supportEnrollments) : "Operator-only"));
+            includeAdministrativeHistory ? joinNames(supportEnrollments) : "Operator-only",
+            KOMEFactionDefeatService.inspectWar(data, war)));
     }
 
     private static String displayFactions(Set<String> factions) {

@@ -249,7 +249,9 @@ public class KOMEEvents {
         if (!runtime.hasStarted(data)) return runtime.onStartup(data, Instant.ofEpochMilli(nowMillis));
         KOMECommandTroops.resetDailyMovementAllowances(data, nowMillis);
         KOMECommandTroops.processMovementTick(data, world, nowMillis);
-        return runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
+        KOMEPopulationPayoutProcessor.Result result = runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
+        if (result != null && result.success) KOMEFactionDefeatService.reconcile(data, nowMillis);
+        return result;
     }
 
     private void ensureAutomaticWaypointLinks(MinecraftServer server) {

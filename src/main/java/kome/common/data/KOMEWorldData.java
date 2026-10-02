@@ -196,6 +196,24 @@ public class KOMEWorldData extends WorldSavedData {
         }
     }
 
+    /** Publish campaign outcome and its audit together; a failed dirty/audit hook is retryable. */
+    synchronized final boolean publishFactionDefeat(String faction, long now, KOMEAuditEntry audit) {
+        ensureWritable();
+        if (warSeason.isFactionDefeated(faction)) return false;
+        List<KOMEAuditEntry> oldAudit = new ArrayList<KOMEAuditEntry>(centralAudit);
+        boolean dirty = super.isDirty();
+        try {
+            warSeason.factionDefeats.put(faction, Long.valueOf(now));
+            KOMEAuditService.appendPrepared(this, audit);
+            return true;
+        } catch (RuntimeException failure) {
+            warSeason.factionDefeats.remove(faction);
+            centralAudit.clear(); centralAudit.addAll(oldAudit);
+            super.setDirty(dirty);
+            throw failure;
+        }
+    }
+
     /** Atomic in-memory publication for a complete capital map plus its central audit rows. */
     synchronized final void publishFactionCapitals(
             Map<String, KOMEFactionCapitalRecord> replacement, List<KOMEAuditEntry> audits) {
@@ -2629,6 +2647,8 @@ public class KOMEWorldData extends WorldSavedData {
         warSeason.finaleTriggerTimeMillis = candidate.warSeason.finaleTriggerTimeMillis;
         warSeason.finaleEndTimeMillis = candidate.warSeason.finaleEndTimeMillis;
         warSeason.resetStatus = candidate.warSeason.resetStatus;
+        warSeason.factionDefeats.clear();
+        warSeason.factionDefeats.putAll(candidate.warSeason.factionDefeats);
         // Existing dirty state is never lost; successful reconciliation may require a save.
         super.setDirty(super.isDirty() || candidate.isDirty());
     }
