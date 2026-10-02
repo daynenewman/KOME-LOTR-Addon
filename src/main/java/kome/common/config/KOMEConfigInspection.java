@@ -11,7 +11,7 @@ import java.util.OptionalInt;
 public final class KOMEConfigInspection {
     private static final String[] CATEGORIES = {
             "dailyBatch", "population", "movement", "battle", "muster", "siege",
-            "battleSupport", "encirclement", "season", "gear"
+            "battleSupport", "encirclement", "season", "gear", "network"
     };
 
     private KOMEConfigInspection() {
@@ -49,7 +49,9 @@ public final class KOMEConfigInspection {
 
     private static List<EffectiveValue> valuesFor(String category, KOMEConfigRegistry.ValidatedConfig snapshot) {
         List<EffectiveValue> values = new ArrayList<EffectiveValue>();
-        if ("dailyBatch".equals(category)) {
+        if ("network".equals(category)) {
+            add(values, category, "serverRecordCooldownMillis", snapshot.getNetwork().getServerRecordCooldownMillis());
+        } else if ("dailyBatch".equals(category)) {
             KOMEConfigRegistry.DailyBatchSettings settings = snapshot.getDailyBatch();
             add(values, category, "localTime", settings.getLocalTime());
             add(values, category, "timezone", settings.getTimezone());

@@ -1,0 +1,94 @@
+{
+  "totals": {
+    "tests": 142,
+    "skipped": 0,
+    "failures": 0,
+    "errors": 0
+  },
+  "classes": [
+    {
+      "name": "kome.common.config.KOMEConfigChangeGuardTest",
+      "tests": "6",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.config.KOMEConfigInspectionTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.config.KOMEConfigRegistryTest",
+      "tests": "37",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.config.KOMENetworkConfigTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.config.KOMEPopulationConfigFoundationTest",
+      "tests": "20",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.data.KOMEPublicWaypointIntegrationTest",
+      "tests": "13",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEPacketRegistrationTest",
+      "tests": "5",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEPublicAccessPacketTest",
+      "tests": "25",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEServerQueueLoadMeasurementTest",
+      "tests": "1",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEServerRecordCooldownTest",
+      "tests": "3",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEServerRequestIntegrationTest",
+      "tests": "18",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    },
+    {
+      "name": "kome.common.network.KOMEServerTaskQueueTest",
+      "tests": "8",
+      "skipped": "0",
+      "failures": "0",
+      "errors": "0"
+    }
+  ]
+}

@@ -133,6 +133,7 @@ public class KOMEEvents {
 
     @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.player instanceof EntityPlayerMP) KOMEPacketHandler.forgetRequester((EntityPlayerMP) event.player);
         if(event.player instanceof EntityPlayerMP) kome.common.network.KOMEPublicWaypointSync.forget((EntityPlayerMP)event.player);
         KOMEAllianceRecordBuilder.clearOperatorView(event.player);
         if (event.player instanceof EntityPlayerMP)

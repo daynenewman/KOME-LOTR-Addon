@@ -1,0 +1,97 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build
+
+> Configure project :
+gradleTokenModId is deprecated! The field will no longer be generated.
+gradleTokenModGroup is deprecated! The field will no longer be generated.
+gradleTokenModName is deprecated! The field will no longer be generated.
+You might want to check out './gradlew :faq' if your build fails.
+
+> Task :clean
+> Task :extractDependencyATs SKIPPED
+> Task :generateForgeSrgMappings SKIPPED
+> Task :downloadVanillaJars SKIPPED
+> Task :mergeVanillaSidedJars
+
+> Task :deobfuscateMergedJarToSrg
+Applying SpecialSource
+Loading 2 AccessTransformers
+Loading AccessTransformer C:\Users\dayne\.gradle\caches\minecraft\net\minecraftforge\forge\1.7.10-10.13.4.1614-1.7.10\unpacked\src\main\resources\fml_at.cfg
+Loading AccessTransformer C:\Users\dayne\.gradle\caches\minecraft\net\minecraftforge\forge\1.7.10-10.13.4.1614-1.7.10\unpacked\src\main\resources\forge_at.cfg
+INFO: merging AccessMap net/minecraft/item/ItemBlock/field_150939_a from AccessChange(clear=0, set=0, vis=1) with AccessChange(clear=0, set=0, vis=1)
+Renamed 0 AT entries
+Applying Exceptor
+Cleaning up generated debuginfo
+
+> Task :downloadFernflower SKIPPED
+
+> Task :decompileSrgJar
+Using cached decompiled jar from C:\Users\dayne\.gradle\caches\retro_futura_gradle\fernflower-cache\f857d0a5dc440e9576a099ffe2dcf0f57f62ec6a9a90cdd7e8a27d4573e0504b-d7c8f511b6ac02d696f5028c8d563b8c8a60d7d1e6d6cb52a2a8ea1c44e9ec3a.jar
+
+> Task :cleanupDecompSrgJar
+Fixup stage 1 - applying FF patches
+  Stage 1 took 1396 ms
+Fixup stage 2 - applying MCP patches
+  Stage 2 took 67 ms
+Fixup stage 3 - applying MCP cleanup
+  Stage 3 took 1017 ms
+Saving the fixed-up jar
+
+> Task :patchDecompiledJar
+Patching sources: 2 patch archives, 2 injection directories
+Applied 311 patches
+
+> Task :applySourceAccessTransformers
+Applying access transformers: [C:\Users\dayne\.codex\worktrees\kom70-server-queue\KOME-LOTR-Addon\src\main\resources\META-INF\lotrcharactercreation_at.cfg]
+
+> Task :remapDecompiledJar
+Applied 0 missing generics
+
+> Task :decompressDecompiledSources
+
+> Task :compilePatchedMcJava
+Note: Some input files use or override a deprecated API.
+Note: Recompile with -Xlint:deprecation for details.
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :processPatchedMcResources
+> Task :patchedMcClasses
+> Task :compileApiJava NO-SOURCE
+> Task :processApiResources NO-SOURCE
+> Task :apiClasses UP-TO-DATE
+> Task :injectTags
+> Task :compileInjectedTagsJava
+> Task :extractNatives2 UP-TO-DATE
+> Task :createMcLauncherFiles
+> Task :compileMcLauncherJava
+> Task :processInjectedTagsResources NO-SOURCE
+> Task :injectedTagsClasses
+> Task :processMcLauncherResources NO-SOURCE
+> Task :mcLauncherClasses
+
+> Task :compileJava
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :processResources
+> Task :classes
+> Task :jar
+> Task :sourcesJar
+
+> Task :compileTestJava
+Note: Some input files use unchecked or unsafe operations.
+Note: Recompile with -Xlint:unchecked for details.
+
+> Task :processTestResources
+> Task :testClasses
+> Task :test
+> Task :packageMcLauncher
+> Task :packagePatchedMc
+> Task :reobfJar
+> Task :assemble
+> Task :check
+> Task :build
+
+BUILD SUCCESSFUL in 1m 29s
+26 actionable tasks: 25 executed, 1 up-to-date

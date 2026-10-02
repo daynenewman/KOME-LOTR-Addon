@@ -49,7 +49,7 @@ public final class KOMEAccessFixture {
         world.playerEntities = new ArrayList();
         set(World.class, world, "worldScoreboard", new net.minecraft.scoreboard.Scoreboard());
         player = allocate(Player.class);
-        player.id = UUID.randomUUID();
+        player.id = UUID.randomUUID(); player.connected = true;
         set(Entity.class, player, "entityUniqueID", player.id);
         player.messages = new ArrayList<String>();
         player.worldObj = world;
@@ -99,6 +99,7 @@ public final class KOMEAccessFixture {
         public UUID id;
         public String name;
         public boolean operator;
+        public boolean connected = true;
         public List<String> messages;
         private Player() { super(null, null, null, null); }
         @Override public UUID getUniqueID() { return id; }
@@ -126,7 +127,7 @@ public final class KOMEAccessFixture {
     private static final class RecordingManager extends NetworkManager {
         EntityPlayerMP recipient;
         RecordingManager() { super(false); }
-        @Override public boolean isChannelOpen() { return true; }
+        @Override public boolean isChannelOpen() { return ((Player)recipient).connected; }
         @Override public void scheduleOutboundPacket(Packet packet, GenericFutureListener... listeners) {
             kome.common.network.KOMEPacketHandler.network.sendTo(((RecordedPacket) packet).message, recipient);
             for (GenericFutureListener listener : listeners) {

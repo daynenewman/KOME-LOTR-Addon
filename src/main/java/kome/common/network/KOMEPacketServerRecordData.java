@@ -53,12 +53,19 @@ public class KOMEPacketServerRecordData implements IMessage {
     }
 
     public static void sendChunked(List allLines, net.minecraft.entity.player.EntityPlayerMP player) {
+        sendChunked(allLines, player, () -> true);
+    }
+
+    static void sendChunked(List allLines, net.minecraft.entity.player.EntityPlayerMP player,
+            java.util.function.BooleanSupplier currentRequester) {
+        if (!currentRequester.getAsBoolean()) return;
         List safeLines = allLines == null ? new ArrayList() : allLines;
         if (safeLines.isEmpty()) {
             KOMEPacketHandler.network.sendTo(new KOMEPacketServerRecordData(safeLines, true, true), player);
             return;
         }
         for (int start = 0; start < safeLines.size(); start += MAX_LINES_PER_PACKET) {
+            if (!currentRequester.getAsBoolean()) return;
             int end = Math.min(safeLines.size(), start + MAX_LINES_PER_PACKET);
             List chunk = new ArrayList(safeLines.subList(start, end));
             KOMEPacketHandler.network.sendTo(new KOMEPacketServerRecordData(chunk, start == 0, end >= safeLines.size()), player);

@@ -1,0 +1,260 @@
+[15:43:11] [main/INFO] [LaunchWrapper]: Loading tweak class name cpw.mods.fml.common.launcher.FMLServerTweaker
+[15:43:11] [main/INFO] [LaunchWrapper]: Using primary tweak class name cpw.mods.fml.common.launcher.FMLServerTweaker
+[15:43:11] [main/INFO] [LaunchWrapper]: Calling tweak class cpw.mods.fml.common.launcher.FMLServerTweaker
+[15:43:11] [main/INFO] [FML]: Forge Mod Loader version 7.99.40.1614 for Minecraft 1.7.10 loading
+[15:43:11] [main/INFO] [FML]: Java is OpenJDK 64-Bit Server VM, version 1.8.0_482, running on Windows 11:amd64:10.0, installed at C:\Users\dayne\OneDrive\Desktop\The-Lord-of-the-Rings-main\LOTR-Test-Server\java8\jre
+[15:43:11] [main/INFO] [STDOUT]: [io.gitlab.dwarfyassassin.lotrucp.core.UCPCoreMod:<clinit>:23]: LOTR-UCP: Found core mod.
+[15:43:11] [main/INFO] [LaunchWrapper]: Loading tweak class name cpw.mods.fml.common.launcher.FMLInjectionAndSortingTweaker
+[15:43:11] [main/INFO] [LaunchWrapper]: Loading tweak class name cpw.mods.fml.common.launcher.FMLDeobfTweaker
+[15:43:11] [main/INFO] [LaunchWrapper]: Calling tweak class cpw.mods.fml.common.launcher.FMLInjectionAndSortingTweaker
+[15:43:11] [main/INFO] [LaunchWrapper]: Calling tweak class cpw.mods.fml.common.launcher.FMLInjectionAndSortingTweaker
+[15:43:11] [main/INFO] [LaunchWrapper]: Calling tweak class cpw.mods.fml.relauncher.CoreModManager$FMLPluginWrapper
+[15:43:12] [main/ERROR] [FML]: FML appears to be missing any signature data. This is not a good thing
+[15:43:12] [main/INFO] [LaunchWrapper]: Calling tweak class cpw.mods.fml.relauncher.CoreModManager$FMLPluginWrapper
+[15:43:12] [main/INFO] [LaunchWrapper]: Calling tweak class cpw.mods.fml.common.launcher.FMLDeobfTweaker
+[15:43:12] [main/INFO] [LaunchWrapper]: Calling tweak class cpw.mods.fml.relauncher.CoreModManager$FMLPluginWrapper
+[15:43:13] [main/INFO] [LaunchWrapper]: Calling tweak class cpw.mods.fml.relauncher.CoreModManager$FMLPluginWrapper
+[15:43:13] [main/INFO] [STDOUT]: [kome.core.KOMECorePlugin:getASMTransformerClass:18]: [KOME] Registered waypoint, LOTRMoreMobs, and Aqua Acrobatics transformers.
+[15:43:13] [main/INFO] [STDOUT]: [kome.core.KOMECorePlugin:getASMTransformerClass:18]: [KOME] Registered waypoint, LOTRMoreMobs, and Aqua Acrobatics transformers.
+[15:43:13] [main/INFO] [LaunchWrapper]: Loading tweak class name cpw.mods.fml.common.launcher.TerminalTweaker
+[15:43:13] [main/INFO] [LaunchWrapper]: Calling tweak class cpw.mods.fml.common.launcher.TerminalTweaker
+[15:43:13] [main/INFO] [STDOUT]: [com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer:transform:134]: [LOTRMoreMobs] Installed projectile transparency for LOTR respawn markers in func_94576_a(Lnet/minecraft/entity/Entity;Lnet/minecraft/util/AxisAlignedBB;Lnet/minecraft/command/IEntitySelector;)Ljava/util/List;
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchEntityPlayer:958]: LOTRCore: Patched method func_71043_e
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchEntityLivingBase:1030]: LOTRCore: Patched method func_70645_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchEntityLivingBase:1005]: LOTRCore: Patched method func_70658_aO
+[15:43:13] [main/INFO] [LaunchWrapper]: Launching wrapped minecraft {net.minecraft.server.MinecraftServer}
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockStone:274]: LOTRCore: Added method func_149673_e
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockStone:306]: LOTRCore: Added method func_149691_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockGrass:342]: LOTRCore: Patched method func_149674_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockDirt:397]: LOTRCore: Patched method func_149692_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockDirt:412]: LOTRCore: Patched method func_149644_j
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockDirt:446]: LOTRCore: Patched method func_149643_k
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockDirt:383]: LOTRCore: Patched method <clinit>
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockStaticLiquid:484]: LOTRCore: Patched method func_149674_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockPistonBase:856]: LOTRCore: Patched method func_149696_a 1 times
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockPistonBase:856]: LOTRCore: Patched method func_150077_h 1 times
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockPistonBase:856]: LOTRCore: Patched method func_150079_i 1 times
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockFire:557]: LOTRCore: Patched method func_149674_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockFire:594]: LOTRCore: Patched method tryCatchFire
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockFence:635]: LOTRCore: Patched method func_149826_e
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockFence:649]: LOTRCore: Patched method func_149825_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockTrapdoor:757]: LOTRCore: Patched method func_149645_b
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockTrapdoor:729]: LOTRCore: Patched method func_149707_d
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockTrapdoor:743]: LOTRCore: Patched method func_150119_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockCauldron:887]: LOTRCore: Patched method func_149645_b
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockWall:793]: LOTRCore: Patched method func_150091_e
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchBlockAnvil:927]: LOTRCore: Added method func_149668_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchPotionDamage:1857]: LOTRCore: Patched method func_111183_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchEntityMinecart:1229]: LOTRCore: Patched method func_145821_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchItemStack:1771]: LOTRCore: Patched method func_96631_a
+[15:43:13] [main/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchEntityHorse:1092]: LOTRCore: Patched method func_70612_e
+[15:43:14] [Server thread/INFO]: Starting minecraft server version 1.7.10
+[15:43:14] [Server thread/INFO] [MinecraftForge]: Attempting early MinecraftForge initialization
+[15:43:14] [Server thread/INFO] [FML]: MinecraftForge v10.13.4.1614 Initialized
+[15:43:14] [Server thread/INFO] [FML]: Replaced 183 ore recipies
+[15:43:14] [Server thread/INFO] [MinecraftForge]: Completed early MinecraftForge initialization
+[15:43:14] [Server thread/INFO] [LOTR-UCP]: Running patcher FML for cpw.mods.fml.common.LoadController
+[15:43:14] [Server thread/INFO] [LOTR-UCP]: Patched the FML load controller.
+[15:43:14] [Server thread/INFO] [LOTR-UCP]: Ran all active patches.
+[15:43:14] [Server thread/INFO] [FML]: Found 0 mods from the command line. Injecting into mod discoverer
+[15:43:14] [Server thread/INFO] [FML]: Searching C:\Users\dayne\.codex\worktrees\kom70-server-queue\KOME-LOTR-Addon\run-server-production-verification-kom70-20261002\mods for mods
+[15:43:15] [Server thread/INFO] [FML]: Forge Mod Loader has identified 6 mods to load
+[15:43:15] [Server thread/INFO] [LOTR-UCP]: Loaded 0 mod patches.
+[15:43:15] [Server thread/INFO] [FML]: Attempting connection with missing mods [mcp, FML, Forge, geckolib3, kome, lotr] at CLIENT
+[15:43:15] [Server thread/INFO] [FML]: Attempting connection with missing mods [mcp, FML, Forge, geckolib3, kome, lotr] at SERVER
+[15:43:15] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchFMLNetworkHandler:2038]: LOTRCore: Patched method getEntitySpawningPacket
+[15:43:15] [Server thread/INFO] [FML]: Processing ObjectHolder annotations
+[15:43:15] [Server thread/INFO] [FML]: Found 341 ObjectHolder annotations
+[15:43:15] [Server thread/INFO] [FML]: Identifying ItemStackHolder annotations
+[15:43:15] [Server thread/INFO] [FML]: Found 0 ItemStackHolder annotations
+[15:43:15] [Server thread/INFO] [FML]: Configured a dormant chunk cache size of 0
+[15:43:15] [Server thread/INFO]: LOTR: Found logger
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: com.google.gson.JsonSyntaxException: java.lang.IllegalStateException: Expected BEGIN_OBJECT but was STRING at line 1 column 1
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: 	at com.google.gson.Gson.fromJson(Gson.java:815)
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: 	at com.google.gson.Gson.fromJson(Gson.java:768)
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: 	at com.google.gson.Gson.fromJson(Gson.java:717)
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: 	at com.google.gson.Gson.fromJson(Gson.java:689)
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: 	at net.minecraftforge.common.ForgeVersion$1.run(ForgeVersion.java:94)
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: Caused by: java.lang.IllegalStateException: Expected BEGIN_OBJECT but was STRING at line 1 column 1
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: 	at com.google.gson.stream.JsonReader.beginObject(JsonReader.java:374)
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: 	at com.google.gson.internal.bind.MapTypeAdapterFactory$Adapter.read(MapTypeAdapterFactory.java:183)
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: 	at com.google.gson.internal.bind.MapTypeAdapterFactory$Adapter.read(MapTypeAdapterFactory.java:145)
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: 	at com.google.gson.Gson.fromJson(Gson.java:803)
+[15:43:15] [Forge Version Check/INFO] [STDERR]: [java.lang.Throwable$WrappedPrintStream:println:749]: 	... 4 more
+[15:43:16] [Server thread/INFO] [STDOUT]: [kome.core.KOMEWaypointTransformer:transformNativeRequestHandler:176]: [KOME] Secured LOTRPacketFastTravel.Handler with the authoritative waypoint gate.
+[15:43:16] [Server thread/INFO]: LOTR: Registered 144 packet types
+[15:43:16] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchEntityLightningBolt:1130]: LOTRCore: Patched method <init>
+[15:43:16] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchEntityLightningBolt:1176]: LOTRCore: Patched method <init>: 2 instances of World.setBlock()
+[15:43:16] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchEntityLightningBolt:1176]: LOTRCore: Patched method func_70071_h_: 1 instances of World.setBlock()
+[15:43:16] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer:transform:89]: [LOTRMoreMobs] Installed Mortal Gandalf damage compatibility in func_70097_a(Lnet/minecraft/util/DamageSource;F)Z
+[15:43:17] [Server thread/INFO] [STDOUT]: [kome.common.config.KOMEConfigRegistry:recordAttempt:209]: [KOME CONFIG] ACCEPTED: changedKeys=[network.serverRecordCooldownMillis, siege.gateHpPerApprovedHour]; active population.hoursPerPopulationPoint=10.00, population.capturedBuildMultiplier=0.50, population.bottleneckRatePerActiveServerDay=0.10, population.pauseRateCeilingWhenNoPendingHours=true, population.recruitmentTileActiveRateThreshold=5.00, population.populationCapEnabled=false, population.populationCapValue=TBD, population.populationCapCenti=TBD, dailyBatch.timezone=America/Chicago
+[15:43:17] [Server thread/INFO] [kome]: LOTR Character Creation custom skin root: C:\Users\dayne\.codex\worktrees\kom70-server-queue\KOME-LOTR-Addon\run-server-production-verification-kom70-20261002\config\lotrcharactercreation\custom_skins
+[15:43:17] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.config.MumakilConfig:printSummary:806]: [LOTRMoreMobs] Addon config: mumakil=true naturalMumak=true spawnWeight=8 herd=3-5 breakTrees=true pickupFilter=true mortalGandalf=false siegeGates=true defaultGateHealth=200 battleRams=true ramDamage=20 carrierRespawnSeconds=30 modernAnimations=true npcBomberBlockDamage=true
+[15:43:17] [Server thread/INFO] [FML]: Applying holder lookups
+[15:43:17] [Server thread/INFO] [FML]: Holder lookups applied
+[15:43:17] [Server thread/INFO] [FML]: Injecting itemstacks
+[15:43:17] [Server thread/INFO] [FML]: Itemstack injection complete
+[15:43:17] [Server thread/INFO]: Loading properties
+[15:43:17] [Server thread/INFO]: Default game type: SURVIVAL
+[15:43:17] [Server thread/INFO]: Generating keypair
+[15:43:17] [Server thread/INFO]: Starting Minecraft server on 127.0.0.1:25593
+[15:43:17] [Server thread/WARN]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[15:43:17] [Server thread/WARN]: The server will make no attempt to authenticate usernames. Beware.
+[15:43:17] [Server thread/WARN]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[15:43:17] [Server thread/WARN]: To change this, set "online-mode" to "true" in the server.properties file.
+[15:43:18] [Server thread/INFO]: LOTRLore: Category ruins has loaded 13 lore texts, of which 5 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category shire has loaded 20 lore texts, of which 11 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category bree has loaded 14 lore texts, of which 12 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category blue_mountains has loaded 8 lore texts, of which 5 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category lindon has loaded 11 lore texts, of which 10 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category eriador has loaded 14 lore texts, of which 14 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category rivendell has loaded 24 lore texts, of which 22 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category eregion has loaded 7 lore texts, of which 6 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category dunland has loaded 6 lore texts, of which 5 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category gundabad has loaded 4 lore texts, of which 4 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category angmar has loaded 5 lore texts, of which 5 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category woodland_realm has loaded 4 lore texts, of which 4 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category dol_guldur has loaded 4 lore texts, of which 4 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category dale has loaded 14 lore texts, of which 12 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category durins_folk has loaded 13 lore texts, of which 6 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category lothlorien has loaded 10 lore texts, of which 10 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category rohan has loaded 5 lore texts, of which 2 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category isengard has loaded 4 lore texts, of which 3 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category gondor has loaded 21 lore texts, of which 16 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category mordor has loaded 6 lore texts, of which 6 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category dorwinion has loaded 7 lore texts, of which 5 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category rhun has loaded 9 lore texts, of which 5 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category harnennor has loaded 12 lore texts, of which 9 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category southron has loaded 16 lore texts, of which 14 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category umbar has loaded 18 lore texts, of which 16 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category nomad has loaded 8 lore texts, of which 5 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category gulf has loaded 9 lore texts, of which 7 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category far_harad has loaded 0 lore texts, of which 0 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category far_harad_jungle has loaded 0 lore texts, of which 0 rewardable
+[15:43:18] [Server thread/INFO]: LOTRLore: Category half_troll has loaded 0 lore texts, of which 0 rewardable
+[15:43:18] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchDoorInteract:1563]: LOTRCore: Patched method func_151503_a
+[15:43:18] [Server thread/INFO] [FML]: LOTRRoads: Creating roads (reticulating splines)
+[15:43:19] [Server thread/INFO] [FML]: LOTRRoads: Created roads in 1.5081868s
+[15:43:19] [Server thread/INFO] [FML]: LOTRRoads: roads=225, points=1861893, dbEntries=6684, dbPoints=16762221
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.hiring.MumakilUnitTradeInjector:inject:36]: [LOTRMoreMobs] Added Mumak with Howdah to Near Harad Warlord unit trades.
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.trade.MumakilItemTradeInjector:inject:195]: [LOTRMoreMobs] Ensured southern Mumakil material trades: hunters sell raw shank=12 and tusk=45; butchers sell raw/cooked shank=8/12; goldsmiths buy tusk=25; blacksmiths buy tusk=20; Moredain sells raw shank=8 and buys tusk=18; Half-Troll Scavenger buys tusk=12 only.
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.hiring.BattleRamUnitTradeInjector:inject:104]: [LOTRMoreMobs] Added faction Battle Rams to unit hiring rosters.
+[15:43:20] [Server thread/INFO] [FML]: Injecting itemstacks
+[15:43:20] [Server thread/INFO] [FML]: Itemstack injection complete
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.recipe.MumakilHowdahRecipeRegistry:register:71]: [LOTRMoreMobs] Ensured Mumak howdah recipe in Near Harad and Gulf Harad tables (nearAdded=true, gulfAdded=true, beamBlocks=14).
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=harondor biomeId=28 biomeName=harondor biomeClass=lotr.common.world.biome.LOTRBiomeGenHarondor eligible=true
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=harondor biomeId=28 biomeName=harondor biomeClass=lotr.common.world.biome.LOTRBiomeGenHarondor
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=nearHarad biomeId=96 biomeName=nearHarad biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHarad eligible=false
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=farHarad biomeId=97 biomeName=farHarad biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradSavannah
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=umbar biomeId=99 biomeName=umbar biomeClass=lotr.common.world.biome.LOTRBiomeGenUmbar eligible=true
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=umbar biomeId=99 biomeName=umbar biomeClass=lotr.common.world.biome.LOTRBiomeGenUmbar
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=umbarHills biomeId=101 biomeName=umbarHills biomeClass=lotr.common.world.biome.LOTRBiomeGenUmbar eligible=true
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=umbarHills biomeId=101 biomeName=umbarHills biomeClass=lotr.common.world.biome.LOTRBiomeGenUmbar
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=nearHaradHills biomeId=102 biomeName=nearHaradHills biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradHills eligible=false
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=farHaradForest biomeId=105 biomeName=farHaradForest biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradForest
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=nearHaradFertile biomeId=106 biomeName=nearHaradFertile biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradFertile eligible=true
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=nearHaradFertile biomeId=106 biomeName=nearHaradFertile biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradFertile
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=umbarForest biomeId=108 biomeName=umbarForest biomeClass=lotr.common.world.biome.LOTRBiomeGenUmbarForest eligible=true
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=umbarForest biomeId=108 biomeName=umbarForest biomeClass=lotr.common.world.biome.LOTRBiomeGenUmbarForest
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=gulfHarad biomeId=111 biomeName=gulfHarad biomeClass=lotr.common.world.biome.LOTRBiomeGenGulfHarad
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=nearHaradSemiDesert biomeId=120 biomeName=nearHaradSemiDesert biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradSemiDesert eligible=true
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=nearHaradSemiDesert biomeId=120 biomeName=nearHaradSemiDesert biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradSemiDesert
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=farHaradArid biomeId=121 biomeName=farHaradArid biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradArid
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=farHaradAridHills biomeId=122 biomeName=farHaradAridHills biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradArid
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=farHaradBushland biomeId=125 biomeName=farHaradBushland biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradBushland
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=farHaradBushlandHills biomeId=126 biomeName=farHaradBushlandHills biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradBushland
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=farHaradMangrove biomeId=127 biomeName=farHaradMangrove biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradMangrove
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=nearHaradFertileForest biomeId=128 biomeName=nearHaradFertileForest biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradFertileForest eligible=true
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=nearHaradFertileForest biomeId=128 biomeName=nearHaradFertileForest biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradFertileForest
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=nearHaradRedDesert biomeId=133 biomeName=nearHaradRedDesert biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradRed eligible=false
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=gulfHaradForest biomeId=142 biomeName=gulfHaradForest biomeClass=lotr.common.world.biome.LOTRBiomeGenGulfHaradForest
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=farHaradCoast biomeId=145 biomeName=farHaradCoast biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradCoast
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=nearHaradRiverbank biomeId=146 biomeName=nearHaradRiverbank biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradRiverbank eligible=true
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=nearHaradRiverbank biomeId=146 biomeName=nearHaradRiverbank biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradRiverbank
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:222]: [LOTRMoreMobs] Southern biome field: source=nearHaradOasis biomeId=149 biomeName=nearHaradOasis biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradOasis eligible=true
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=nearHaradOasis biomeId=149 biomeName=nearHaradOasis biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradOasis
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:collectEligibleRegionBiomes:254]: [LOTRMoreMobs] Matched Mumakil region biome: source=harnedor biomeId=151 biomeName=harnedor biomeClass=lotr.common.world.biome.LOTRBiomeGenHarnedor
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=28 biomeName=harondor biomeClass=lotr.common.world.biome.LOTRBiomeGenHarondor weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=97 biomeName=farHarad biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradSavannah weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=99 biomeName=umbar biomeClass=lotr.common.world.biome.LOTRBiomeGenUmbar weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=101 biomeName=umbarHills biomeClass=lotr.common.world.biome.LOTRBiomeGenUmbar weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=105 biomeName=farHaradForest biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradForest weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=106 biomeName=nearHaradFertile biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradFertile weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=108 biomeName=umbarForest biomeClass=lotr.common.world.biome.LOTRBiomeGenUmbarForest weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=111 biomeName=gulfHarad biomeClass=lotr.common.world.biome.LOTRBiomeGenGulfHarad weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=120 biomeName=nearHaradSemiDesert biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradSemiDesert weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=121 biomeName=farHaradArid biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradArid weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=122 biomeName=farHaradAridHills biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradArid weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=125 biomeName=farHaradBushland biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradBushland weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=126 biomeName=farHaradBushlandHills biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradBushland weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=127 biomeName=farHaradMangrove biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradMangrove weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=128 biomeName=nearHaradFertileForest biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradFertileForest weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=142 biomeName=gulfHaradForest biomeClass=lotr.common.world.biome.LOTRBiomeGenGulfHaradForest weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=145 biomeName=farHaradCoast biomeClass=lotr.common.world.biome.LOTRBiomeGenFarHaradCoast weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=146 biomeName=nearHaradRiverbank biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradRiverbank weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=149 biomeName=nearHaradOasis biomeClass=lotr.common.world.biome.LOTRBiomeGenNearHaradOasis weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:114]: [LOTRMoreMobs] Natural Mumakil spawning enabled: biomeId=151 biomeName=harnedor biomeClass=lotr.common.world.biome.LOTRBiomeGenHarnedor weight=8 group=3-5
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilNaturalSpawnRegistry:register:138]: [LOTRMoreMobs] Natural Mumakil region registration complete. Eligible biome objects=20
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilWarFormationSpawnRegistry:register:60]: [LOTRMoreMobs] Mumak war-formation NPC spawning: homeTrigger=native-unit-replacement conquestTrigger=LOTR-conquest-unit-replacement invasionTrigger=invasion-unit-replacement sharedPipeline=true homeChance=1/50 conquestBaseChance=1/100 conquestMinimumDenominator=1/50 conquestThreshold=>=500.0 invasionChance=1/40 conquestEnabled=true invasionEnabled=true oldConquestBootstrapInjection=removed
+[15:43:20] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilInvasionFormationRegistry:register:33]: [LOTRMoreMobs] Mumak invasion per-unit replacement: eligibleInvasions=3 names=NEAR_HARAD_CORSAIR,NEAR_HARAD_COAST,NEAR_HARAD_HARNEDOR enabled=true chance=1/40 limit=unlimited weightedBootstrap=false budget=33
+[15:43:20] [Server thread/INFO] [FML]: Forge Mod Loader has successfully loaded 6 mods
+[15:43:20] [Server thread/INFO]: Preparing level "queue-fixture"
+[15:43:20] [Server thread/INFO] [FML]: Injecting existing block and item data into this server instance
+[15:43:20] [Server thread/INFO] [FML]: Applying holder lookups
+[15:43:20] [Server thread/INFO] [FML]: Holder lookups applied
+[15:43:20] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchSpawnerAnimals:1384]: LOTRCore: Patched method func_77192_a
+[15:43:20] [Server thread/INFO] [FML]: Loading dimension 0 (queue-fixture) (net.minecraft.server.dedicated.DedicatedServer@1ad831d)
+[15:43:20] [Server thread/INFO] [FML]: Loading dimension 101 (queue-fixture) (net.minecraft.server.dedicated.DedicatedServer@1ad831d)
+[15:43:21] [Server thread/INFO] [FML]: Loading dimension 100 (queue-fixture) (net.minecraft.server.dedicated.DedicatedServer@1ad831d)
+[15:43:21] [Server thread/INFO] [FML]: Loading dimension 1 (queue-fixture) (net.minecraft.server.dedicated.DedicatedServer@1ad831d)
+[15:43:21] [Server thread/INFO] [FML]: Loading dimension -1 (queue-fixture) (net.minecraft.server.dedicated.DedicatedServer@1ad831d)
+[15:43:21] [Server thread/INFO]: Preparing start region for level 0
+[15:43:21] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer:transform:80]: [LOTRMoreMobs] Installed generic Siege Gate AI sight context in func_75522_a(Lnet/minecraft/entity/Entity;)Z
+[15:43:21] [Server thread/INFO]: Done (0.646s)! For help, type "help" or "?"
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.core.KOMEWaypointTransformer:transformPlayerData:99]: [KOME] Secured LOTRPlayerData.receiveFTBouncePacket with the final waypoint gate.
+[15:43:21] [Server thread/INFO] [kome]: Published custom skin library revision 1 with 0 external preset(s), 0 bytes, digest 7b884ef138fc2017c5a2ab1bbe0ff97ee6689b1edfabb08fdb4c6341ec96919a; rejected 0 invalid path(s)/file(s)
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: dol_guldur_captial.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: minas_tirith_captial.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: orthanc_capital.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: sapper_s_grove.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: shagrat_s_tomb.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: minas_morgul_capital.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: meneltarma.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: south_eriador_c.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: the_pits.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: munbelik_capital.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: edoras_capital.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: dal_minthruil_capital.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: ellythir.
+[15:43:21] [Server thread/INFO] [STDOUT]: [kome.common.data.KOMEWaypointDefaults:warn:264]: [KOME] Unknown waypoint name/key in defaults file: enduil_s_gate.
+[15:43:21] [Server thread/INFO] [FML]: LOTR: Loaded 0 conquest zones
+[15:43:21] [Server thread/INFO] [FML]: LOTR: Successfully replaced world info in Utumno
+[15:43:21] [Server thread/INFO] [FML]: LOTR: Successfully replaced world info in MiddleEarth
+[15:43:21] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchPathFinder:1454]: WARNING! WARNING! THIS OPCODE SHOULD HAVE BEEN IF_ACMPEQ!
+[15:43:21] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchPathFinder:1455]: WARNING! INSTEAD IT WAS 166
+[15:43:21] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchPathFinder:1458]: WARNING! Opcode is IF_ACMPNE instead of expected IF_ACMPEQ, so setting it to IFEQ instead of IFNE
+[15:43:21] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchPathFinder:1459]: WARNING! Hopefully this works...
+[15:43:21] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchPathFinder:1507]: LOTRCore: Patched method func_82565_a
+[15:43:21] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.coremod.PathFinderGatePartTransformer:transform:114]: [LOTRMoreMobs] Installed Siege Gate AI path classification in func_82565_a(Lnet/minecraft/entity/Entity;IIILnet/minecraft/pathfinding/PathPoint;ZZZ)I
+[15:43:23] [Server thread/INFO]: network.serverRecordCooldownMillis=3500
+[15:43:24] [Server thread/INFO]: No entries on page 0; total=0
+[15:43:24] [Server thread/INFO]: Saving...
+[15:43:24] [Server thread/INFO]: Saved the world
+[15:43:27] [Server thread/INFO]: Stopping the server
+[15:43:27] [Server thread/INFO]: Stopping server
+[15:43:27] [Server thread/INFO]: Saving players
+[15:43:27] [Server thread/INFO]: Saving worlds
+[15:43:27] [Server thread/INFO]: Saving chunks for level 'queue-fixture'/Overworld
+[15:43:27] [Server thread/INFO]: Saving chunks for level 'queue-fixture'/Nether
+[15:43:27] [Server thread/INFO]: Saving chunks for level 'queue-fixture'/The End
+[15:43:27] [Server thread/INFO]: Saving chunks for level 'queue-fixture'/Utumno
+[15:43:27] [Server thread/INFO]: Saving chunks for level 'queue-fixture'/MiddleEarth
+[15:43:27] [Server thread/INFO] [FML]: Unloading LOTR biome variants in Utumno
+[15:43:27] [Server thread/INFO] [FML]: Unloading LOTR biome variants in MiddleEarth
+[15:43:27] [Server thread/INFO] [FML]: Unloading dimension 0
+[15:43:27] [Server thread/INFO] [FML]: Unloading dimension -1
+[15:43:27] [Server thread/INFO] [FML]: Unloading dimension 1
+[15:43:27] [Server thread/INFO] [FML]: Unloading dimension 101
+[15:43:27] [Server thread/INFO] [FML]: Unloading dimension 100
+[15:43:27] [Server thread/INFO] [FML]: Applying holder lookups
+[15:43:27] [Server thread/INFO] [FML]: Holder lookups applied

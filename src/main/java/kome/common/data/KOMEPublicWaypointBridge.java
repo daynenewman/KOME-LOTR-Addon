@@ -8,12 +8,13 @@ import lotr.common.world.map.*;
 import lotr.common.network.LOTRPacketFastTravel;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
-import net.minecraft.network.NetHandlerPlayServer;
 import net.minecraft.util.ChatComponentText;
 
-/** Addon hooks compose presentation and recognize only the reserved public request namespace. */
+/** Presentation hooks and server-queued native/public travel; public policy uses only the reserved namespace. */
 public final class KOMEPublicWaypointBridge {
     private KOMEPublicWaypointBridge(){ }
+    // Re-enter the transformed original handler only on the executing server thread.
+    private static final ThreadLocal<MessageContext> NATIVE_REQUEST_REPLAY=new ThreadLocal<MessageContext>();
     public static List<LOTRAbstractWaypoint> compose(List<LOTRAbstractWaypoint> nativePoints,LOTRPlayerData data) {
         if(!LOTRMod.proxy.isClient()) return nativePoints;
         return compose(nativePoints,data.getPlayerUUID(),KOMEPublicWaypointClientState.INSTANCE.snapshot());
@@ -57,6 +58,7 @@ public final class KOMEPublicWaypointBridge {
     }
     /** Capture immutable intent on the network thread; all approval/policy/native mutations run at server tick START. */
     public static boolean handleRequest(LOTRPacketFastTravel packet,MessageContext context) {
+        if(NATIVE_REQUEST_REPLAY.get()==context && context!=null) return false;
         // The deployed v36.15 jar keeps packet fields private. Use its exact public wire API.
         io.netty.buffer.ByteBuf intent=io.netty.buffer.Unpooled.buffer(22,22);
         final int wire; final boolean custom; final UUID owner;
@@ -65,12 +67,25 @@ public final class KOMEPublicWaypointBridge {
             owner=intent.readBoolean()?new UUID(intent.readLong(),intent.readLong()):null;
             if(intent.isReadable()) throw new IllegalArgumentException("Unexpected native travel wire shape");
         } finally { intent.release(); }
-        if(!KOMEPublicWaypointAdapter.NAMESPACE.equals(owner)) return false;
-        final NetHandlerPlayServer connection=context.getServerHandler();
-        final EntityPlayerMP player=connection.playerEntity;
-        KOMEPacketHandler.enqueueServerTask(()->{
-            if(player==null || player.playerNetServerHandler!=connection || connection.netManager==null
-                    || !connection.netManager.isChannelOpen() || player.worldObj==null || player.worldObj.isRemote) return;
+        final KOMEPacketHandler.Requester requester=KOMEPacketHandler.captureRequester(context);
+        if(requester==null) return true;
+        final EntityPlayerMP player=requester.player;
+        KOMEPacketHandler.enqueueServerTask(requester,()->{
+            if(!requester.isCurrent()) return;
+            if(!KOMEPublicWaypointAdapter.NAMESPACE.equals(owner)) {
+                // Preserve the exact native body and its existing KOME guard, with immutable wire intent.
+                io.netty.buffer.ByteBuf bytes=io.netty.buffer.Unpooled.buffer(22,22);
+                LOTRPacketFastTravel nativeIntent=new LOTRPacketFastTravel();
+                try {
+                    bytes.writeBoolean(custom);bytes.writeInt(wire);bytes.writeBoolean(owner!=null);
+                    if(owner!=null){bytes.writeLong(owner.getMostSignificantBits());bytes.writeLong(owner.getLeastSignificantBits());}
+                    nativeIntent.fromBytes(bytes);
+                } finally {bytes.release();}
+                NATIVE_REQUEST_REPLAY.set(context);
+                try {new LOTRPacketFastTravel.Handler().onMessage(nativeIntent,context);}
+                finally {NATIVE_REQUEST_REPLAY.remove();}
+                return;
+            }
             if(!custom || wire>=0) { deny(player,"Invalid public waypoint identity."); return; }
             KOMEWorldData data=KOMEWorldData.get(player.worldObj);
             KOMEPublicWaypointRegistry.View view=null;
@@ -84,10 +99,11 @@ public final class KOMEPublicWaypointBridge {
     }
     /** Keep the native completion path and final guard, but execute completion on the authoritative server tick. */
     public static boolean handleBounce(MessageContext context) {
-        final NetHandlerPlayServer connection=context.getServerHandler(); final EntityPlayerMP player=connection.playerEntity;
-        KOMEPacketHandler.enqueueServerTask(()->{
-            if(player==null || player.playerNetServerHandler!=connection || connection.netManager==null
-                    || !connection.netManager.isChannelOpen() || player.worldObj==null || player.worldObj.isRemote) return;
+        final KOMEPacketHandler.Requester requester=KOMEPacketHandler.captureRequester(context);
+        if(requester==null) return true;
+        final EntityPlayerMP player=requester.player;
+        KOMEPacketHandler.enqueueServerTask(requester,()->{
+            if(!requester.isCurrent()) return;
             LOTRLevelData.getData(player).receiveFTBouncePacket();
         });
         return true;
