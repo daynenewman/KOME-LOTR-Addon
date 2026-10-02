@@ -20,7 +20,8 @@ import static org.junit.Assert.*;
 public class KOMEPublicWaypointIntegrationTest {
     @Rule public final KOMETileTestResources geometry=new KOMETileTestResources();
     KOMEAccessFixture fixture; NativeData nativeData; Map<UUID,LOTRPlayerData> playerMap; LOTRPlayerData previous;
-    LOTRCommonProxy previousProxy; boolean travelConfig; Field serverField; Object previousServer;
+    kome.common.KOMETestServerSession serverSession;
+    LOTRCommonProxy previousProxy; boolean travelConfig;
     @Before public void before()throws Exception {
         previousProxy=LOTRMod.proxy; LOTRMod.proxy=KOMEAccessFixture.allocate(LOTRCommonProxy.class);
         fixture=new KOMEAccessFixture(); fixture.data.initializeIntegratedWorld(); fixture.data.setProgressionEnabled(false);
@@ -29,14 +30,11 @@ public class KOMEPublicWaypointIntegrationTest {
         Field map=LOTRLevelData.class.getDeclaredField("playerDataMap"); map.setAccessible(true); playerMap=(Map<UUID,LOTRPlayerData>)map.get(null);
         nativeData=new NativeData(fixture.player); previous=playerMap.put(fixture.player.id,nativeData);
         travelConfig=LOTRConfig.enableFastTravel; LOTRConfig.enableFastTravel=true; KOMEPacketHandler.clearPendingServerTasks();
-        for(Field f:MinecraftServer.class.getDeclaredFields()) if(Modifier.isStatic(f.getModifiers()) && f.getType()==MinecraftServer.class) serverField=f;
-        serverField.setAccessible(true); previousServer=serverField.get(null);
-        MinecraftServer server=KOMEAccessFixture.allocate(DedicatedServer.class); WorldServer world=KOMEAccessFixture.allocate(WorldServer.class);
-        world.playerEntities=new ArrayList(); world.playerEntities.add(fixture.player); server.worldServers=new WorldServer[]{world}; serverField.set(null,server);
+        serverSession = new kome.common.KOMETestServerSession(fixture);
     }
     @After public void after()throws Exception {
         if(previous==null)playerMap.remove(fixture.player.id);else playerMap.put(fixture.player.id,previous);
-        LOTRMod.proxy=previousProxy; LOTRConfig.enableFastTravel=travelConfig; serverField.set(null,previousServer); KOMEPacketHandler.clearPendingServerTasks();
+        LOTRMod.proxy=previousProxy; LOTRConfig.enableFastTravel=travelConfig; serverSession.close(); KOMEPacketHandler.clearPendingServerTasks();
         KOMEPublicWaypointClientState.INSTANCE.start(null);
     }
     KOMEPublicWaypoint create(){return fixture.data.publicWaypoints.approve(fixture.data,"Public",fixture.player.dimension,
@@ -59,6 +57,32 @@ public class KOMEPublicWaypointIntegrationTest {
         nativeData.target=null; request(target); fixture.data.publicWaypoints.remove(fixture.data,r.id,"console",101);
         KOMEPacketHandler.runPendingServerTasks(); assertNull(nativeData.target);
         assertFalse(KOMEPublicWaypointBridge.handleRequest(new LOTRPacketFastTravel(LOTRWaypoint.HOBBITON),fixture.context));
+    }
+    @Test public void requestCompletionAndCancellationStayFifoOnOneConnection() {
+        KOMEPublicWaypointAdapter target=adapter(create()); request(target);
+        KOMEPublicWaypointBridge.handleBounce(fixture.context);
+        KOMEPacketHandler.enqueueServerTask(fixture.context,()->nativeData.setTargetFTWaypoint(null));
+        KOMEPublicWaypointBridge.handleBounce(fixture.context);
+        while(KOMEPacketHandler.runPendingServerTasks()>0) { }
+        assertEquals(2,nativeData.bounces);
+        assertEquals(target.view.record.id,nativeData.completedTargets.get(0).view.record.id);
+        assertNull(nativeData.completedTargets.get(1)); assertNull(nativeData.target);
+    }
+    @Test public void disconnectedNativeRequestAndCompletionDoNotExecute() {
+        request(adapter(create())); KOMEPublicWaypointBridge.handleBounce(fixture.context);
+        serverSession.players.clear();
+        while(KOMEPacketHandler.runPendingServerTasks()>0) { }
+        assertNull(nativeData.target); assertEquals(0,nativeData.bounces); assertTrue(fixture.player.messages.isEmpty());
+    }
+    @Test public void changedApprovalBeforeQueuedCompletionCancelsFinalTravel() {
+        KOMEPublicWaypoint r=create(); request(adapter(r));
+        while(KOMEPacketHandler.runPendingServerTasks()>0) { }
+        fixture.data.publicWaypoints.remove(fixture.data,r.id,"console",102);
+        KOMEPacketHandler.enqueueServerTask(fixture.context,()->{
+            if(KOMEWaypointAccessService.allowFinalTravel(nativeData)) nativeData.receiveFTBouncePacket();
+        });
+        while(KOMEPacketHandler.runPendingServerTasks()>0) { }
+        assertNull(nativeData.target); assertEquals(0,nativeData.bounces);
     }
     @Test public void nativeCompletionIsQueuedAndRunsSameNativeReceivePath(){
         assertTrue(KOMEPublicWaypointBridge.handleBounce(fixture.context)); assertEquals(0,nativeData.bounces);
@@ -149,6 +173,7 @@ public class KOMEPublicWaypointIntegrationTest {
     }
     static class NativeData extends LOTRPlayerData {
         final EntityPlayer player; LOTRAbstractWaypoint target; int elapsed=1000,bounces; boolean combat,region;
+        final List<KOMEPublicWaypointAdapter> completedTargets=new ArrayList<KOMEPublicWaypointAdapter>();
         NativeData(EntityPlayer player){super(player.getUniqueID());this.player=player;}
         @Override public boolean isFTRegionUnlocked(LOTRWaypoint.Region value){return region;}
         @Override public boolean canFastTravel(){return !combat;}
@@ -156,6 +181,6 @@ public class KOMEPublicWaypointIntegrationTest {
         @Override public int getWaypointFTTime(LOTRAbstractWaypoint point,EntityPlayer p){return 100;}
         @Override public LOTRAbstractWaypoint getTargetFTWaypoint(){return target;}
         @Override public void setTargetFTWaypoint(LOTRAbstractWaypoint value){target=value;}
-        @Override public void receiveFTBouncePacket(){bounces++;}
+        @Override public void receiveFTBouncePacket(){bounces++;completedTargets.add((KOMEPublicWaypointAdapter)target);}
     }
 }

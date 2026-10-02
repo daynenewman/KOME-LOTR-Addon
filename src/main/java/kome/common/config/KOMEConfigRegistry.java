@@ -33,6 +33,8 @@ public final class KOMEConfigRegistry {
     public static final String ENCIRCLEMENT_CATEGORY = "encirclement";
     public static final String SEASON_CATEGORY = "season";
     public static final String GEAR_CATEGORY = "gear";
+    public static final String NETWORK_CATEGORY = "network";
+    public static final String SERVER_RECORD_COOLDOWN_MILLIS = "serverRecordCooldownMillis";
     /** Semicolon-separated category~itemId~gearPermission~armorPermission~factions~npcAllowed~bossExclusive rules. */
     public static final String GEAR_RESTRICTION_RULES = "restrictionRules";
     public static final String LOCAL_TIME = "localTime";
@@ -120,7 +122,7 @@ public final class KOMEConfigRegistry {
                 1, 15, PreBreachRepair.TBD, false, 192, OptionalInt.empty()),
             new BattleSupportSettings(BattleSupportMode.CURVE, 32, 48, 64, 70, 0.50D, 0.10D, 0.01D, 48, 192),
             new EncirclementSettings(10, 48, false), new SeasonSettings(OptionalInt.empty(), false, OptionalInt.empty(), false, 0, 0),
-            new GearSettings(Collections.<String, GearRuleSetting>emptyMap()), false);
+            new GearSettings(Collections.<String, GearRuleSetting>emptyMap()), new NetworkSettings(2000), false);
 
     // Diagnostic only: readiness is derived from the single active snapshot.
     private static volatile String lastApplyStatus = "NOT_LOADED: bootstrap defaults only";
@@ -230,7 +232,7 @@ public final class KOMEConfigRegistry {
         return new ValidatedConfig(readDailyBatch(configuration), readPopulation(configuration),
                 readMovement(configuration), readBattle(configuration), readMuster(configuration),
                 readSiege(configuration), readBattleSupport(configuration),
-                readEncirclement(configuration), readSeason(configuration), readGear(configuration));
+                readEncirclement(configuration), readSeason(configuration), readGear(configuration), readNetwork(configuration));
     }
 
     private static void publish(ValidatedConfig config) {
@@ -275,6 +277,15 @@ public final class KOMEConfigRegistry {
 
     public static SeasonSettings season() {
         return current.getSeason();
+    }
+
+    public static NetworkSettings network() { return current.getNetwork(); }
+
+    private static NetworkSettings readNetwork(Configuration c) {
+        String raw = value(c, NETWORK_CATEGORY, SERVER_RECORD_COOLDOWN_MILLIS, "2000");
+        int millis = positive(NETWORK_CATEGORY, SERVER_RECORD_COOLDOWN_MILLIS, raw);
+        if (millis > 60000) throw invalid(NETWORK_CATEGORY, SERVER_RECORD_COOLDOWN_MILLIS, raw, "must be an integer from 1 to 60000 milliseconds");
+        return new NetworkSettings(millis);
     }
 
     public static GearSettings gear() {
@@ -777,23 +788,24 @@ public final class KOMEConfigRegistry {
         private final EncirclementSettings encirclement;
         private final SeasonSettings season;
         private final GearSettings gear;
+        private final NetworkSettings network;
 
         private ValidatedConfig(DailyBatchSettings dailyBatch, PopulationSettings population,
                 MovementSettings movement, BattleSettings battle, MusterSettings muster,
                 SiegeSettings siege, BattleSupportSettings battleSupport,
-                EncirclementSettings encirclement, SeasonSettings season, GearSettings gear) {
-            this(dailyBatch, population, movement, battle, muster, siege, battleSupport, encirclement, season, gear, true);
+                EncirclementSettings encirclement, SeasonSettings season, GearSettings gear, NetworkSettings network) {
+            this(dailyBatch, population, movement, battle, muster, siege, battleSupport, encirclement, season, gear, network, true);
         }
         private ValidatedConfig(DailyBatchSettings dailyBatch, PopulationSettings population,
                 MovementSettings movement, BattleSettings battle, MusterSettings muster,
                 SiegeSettings siege, BattleSupportSettings battleSupport,
-                EncirclementSettings encirclement, SeasonSettings season, GearSettings gear, boolean validationComplete) {
+                EncirclementSettings encirclement, SeasonSettings season, GearSettings gear, NetworkSettings network, boolean validationComplete) {
             this.validationComplete = validationComplete;
             this.dailyBatch = dailyBatch; this.population = population; this.movement = movement;
             this.battle = battle; this.muster = muster; this.siege = siege;
             this.battleSupport = battleSupport; this.encirclement = encirclement;
             this.season = season;
-            this.gear = gear;
+            this.gear = gear; this.network = network;
         }
         public DailyBatchSettings getDailyBatch() { return dailyBatch; }
         public PopulationSettings getPopulation() { return population; }
@@ -805,6 +817,13 @@ public final class KOMEConfigRegistry {
         public EncirclementSettings getEncirclement() { return encirclement; }
         public SeasonSettings getSeason() { return season; }
         public GearSettings getGear() { return gear; }
+        public NetworkSettings getNetwork() { return network; }
+    }
+
+    public static final class NetworkSettings {
+        private final int serverRecordCooldownMillis;
+        private NetworkSettings(int millis) { serverRecordCooldownMillis = millis; }
+        public int getServerRecordCooldownMillis() { return serverRecordCooldownMillis; }
     }
 
     /** Immutable, validated overrides for the central legendary-gear registry. */

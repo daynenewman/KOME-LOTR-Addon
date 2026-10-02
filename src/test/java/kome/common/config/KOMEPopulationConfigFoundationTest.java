@@ -255,14 +255,14 @@ public class KOMEPopulationConfigFoundationTest {
         KOMEConfigRegistry.ValidatedConfig v = KOMEConfigRegistry.currentValidated();
         Constructor<?> bootstrapConstructor = null;
         for (Constructor<?> constructor : KOMEConfigRegistry.ValidatedConfig.class.getDeclaredConstructors())
-            if (constructor.getParameterTypes().length == 11
-                    && constructor.getParameterTypes()[10] == Boolean.TYPE)
+            if (constructor.getParameterTypes().length == 12
+                    && constructor.getParameterTypes()[11] == Boolean.TYPE)
                 bootstrapConstructor = constructor;
         assertNotNull(bootstrapConstructor);
         bootstrapConstructor.setAccessible(true);
         Object bootstrap = bootstrapConstructor.newInstance(v.getDailyBatch(), v.getPopulation(), v.getMovement(),
                 v.getBattle(), v.getMuster(), v.getSiege(), v.getBattleSupport(), v.getEncirclement(),
-                v.getSeason(), v.getGear(), false);
+                v.getSeason(), v.getGear(), v.getNetwork(), false);
         Field active = KOMEConfigRegistry.class.getDeclaredField("current");
         active.setAccessible(true); active.set(null, bootstrap);
         assertFalse(KOMEConfigRegistry.isReady());

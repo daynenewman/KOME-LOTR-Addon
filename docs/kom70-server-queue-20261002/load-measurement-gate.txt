@@ -37,22 +37,10 @@ gradleTokenModName is deprecated! The field will no longer be generated.
 > Task :compileJava UP-TO-DATE
 > Task :processResources UP-TO-DATE
 > Task :classes UP-TO-DATE
-> Task :compileTestJava UP-TO-DATE
+> Task :compileTestJava
 > Task :processTestResources UP-TO-DATE
-> Task :testClasses UP-TO-DATE
+> Task :testClasses
+> Task :test
 
-> Task :kom70BaselineProbeCompile
-warning: [options] source value 8 is obsolete and will be removed in a future release
-warning: [options] target value 8 is obsolete and will be removed in a future release
-warning: [options] To suppress warnings about obsolete options, use -Xlint:-options.
-3 warnings
-
-> Task :kom70BaselineProbe
-source_head=170d887; baseline only; inert counter callbacks; no gameplay/TPS claim
-offered=100 pending_before=100 one_tick_attempts=100 callbacks=100 admission_ms=0.260 drain_ms=0.088
-offered=1024 pending_before=1024 one_tick_attempts=1024 callbacks=1024 admission_ms=0.773 drain_ms=0.463
-offered=10000 pending_before=10000 one_tick_attempts=10000 callbacks=10000 admission_ms=0.836 drain_ms=0.911
-offered=100000 pending_before=100000 one_tick_attempts=100000 callbacks=100000 admission_ms=2.249 drain_ms=3.933
-
-BUILD SUCCESSFUL in 7s
-14 actionable tasks: 2 executed, 12 up-to-date
+BUILD SUCCESSFUL in 10s
+13 actionable tasks: 2 executed, 11 up-to-date

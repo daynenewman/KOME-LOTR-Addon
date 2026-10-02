@@ -68,7 +68,7 @@ public final class KOMEPublicWaypointBridge {
         if(!KOMEPublicWaypointAdapter.NAMESPACE.equals(owner)) return false;
         final NetHandlerPlayServer connection=context.getServerHandler();
         final EntityPlayerMP player=connection.playerEntity;
-        KOMEPacketHandler.enqueueServerTask(()->{
+        KOMEPacketHandler.enqueueServerTask(context,()->{
             if(player==null || player.playerNetServerHandler!=connection || connection.netManager==null
                     || !connection.netManager.isChannelOpen() || player.worldObj==null || player.worldObj.isRemote) return;
             if(!custom || wire>=0) { deny(player,"Invalid public waypoint identity."); return; }
@@ -85,7 +85,7 @@ public final class KOMEPublicWaypointBridge {
     /** Keep the native completion path and final guard, but execute completion on the authoritative server tick. */
     public static boolean handleBounce(MessageContext context) {
         final NetHandlerPlayServer connection=context.getServerHandler(); final EntityPlayerMP player=connection.playerEntity;
-        KOMEPacketHandler.enqueueServerTask(()->{
+        KOMEPacketHandler.enqueueServerTask(context,()->{
             if(player==null || player.playerNetServerHandler!=connection || connection.netManager==null
                     || !connection.netManager.isChannelOpen() || player.worldObj==null || player.worldObj.isRemote) return;
             LOTRLevelData.getData(player).receiveFTBouncePacket();

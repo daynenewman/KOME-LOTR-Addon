@@ -21,6 +21,7 @@ import static org.junit.Assert.*;
 public class KOMEPublicAccessPacketTest {
     @org.junit.Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
     private KOMEAccessFixture f;
+    private kome.common.KOMETestServerSession serverSession;
     private SimpleNetworkWrapper previous;
     private KOMEConquestTile tile;
 
@@ -34,10 +35,12 @@ public class KOMEPublicAccessPacketTest {
         f.world.provider.dimensionId = KOMETileTestResources.dimension();
         f.data.conquestTiles.put(tile.id, tile);
         f.pledge(LOTRFaction.GONDOR);
+        serverSession = new kome.common.KOMETestServerSession(f);
         f.data.setDirty(false);
     }
 
-    @After public void cleanup() {
+    @After public void cleanup() throws Exception {
+        if (serverSession != null) serverSession.close();
         KOMEPacketHandler.clearPendingServerTasks();
         KOMEPacketHandler.network = previous;
     }

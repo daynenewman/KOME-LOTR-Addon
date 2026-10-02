@@ -9,37 +9,86 @@ import cpw.mods.fml.relauncher.Side;
 import kome.common.KOMEAddon;
 import org.apache.logging.log4j.Level;
 
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.network.NetHandlerPlayServer;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.ChatComponentText;
 
 public class KOMEPacketHandler {
     public static SimpleNetworkWrapper network;
-    private static final Queue<Runnable> SERVER_TASKS = new ConcurrentLinkedQueue<Runnable>();
+    public static final int MAX_PENDING_SERVER_TASKS = 1024;
+    public static final int MAX_PENDING_PER_CONNECTION = 32;
+    public static final int MAX_SERVER_TASKS_PER_TICK = 64;
+    public static final long SERVER_TASK_TICK_BUDGET_NANOS = 2_000_000L;
+    private static final KOMEServerTaskQueue SERVER_TASKS = new KOMEServerTaskQueue(
+        MAX_PENDING_SERVER_TASKS, MAX_PENDING_PER_CONNECTION, MAX_SERVER_TASKS_PER_TICK, SERVER_TASK_TICK_BUDGET_NANOS);
+    static final KOMEServerRecordCooldown SERVER_RECORD_COOLDOWNS = new KOMEServerRecordCooldown(1024);
+    private static volatile ServerSession session;
 
-    public static void enqueueServerTask(Runnable task) {
-        if (task == null) {
-            throw new IllegalArgumentException("Server packet task is required.");
-        }
-        SERVER_TASKS.add(task);
+    /** Called on the server thread after native guards succeed, before accepting player intents. */
+    public static void startServerSession(MinecraftServer server) {
+        if (server == null) throw new IllegalArgumentException("Server required");
+        clearPendingServerTasks();
+        session = new ServerSession(server, Thread.currentThread(), SERVER_TASKS.open());
     }
-
-    /** Drains only the queue snapshot present at the start of this server tick. */
+    public static Requester captureRequester(MessageContext context) {
+        ServerSession captured = session;
+        if (captured == null || context == null || context.side != Side.SERVER) return null;
+        NetHandlerPlayServer connection = context.getServerHandler();
+        if (connection == null || connection.playerEntity == null) return null;
+        return new Requester(captured, connection, connection.playerEntity);
+    }
+    /** Admission reads only connection identity; registration/world access stays on the server thread. */
+    public static boolean enqueueServerTask(MessageContext context, Runnable task) {
+        if (task == null) throw new IllegalArgumentException("Server packet task required");
+        Requester requester = captureRequester(context);
+        if (requester == null) return false;
+        return SERVER_TASKS.offer(requester.session.generation, requester.connection,
+            () -> { if (requester.isCurrent()) task.run(); },
+            () -> { if (requester.isCurrent()) requester.player.addChatMessage(new ChatComponentText(
+                "KOME server busy: newest request dropped; retry after pending requests finish.")); })
+            == KOMEServerTaskQueue.Admission.ACCEPTED;
+    }
+    /** Tick-start snapshot, round-robin lanes, count limit and soft elapsed-time budget. */
     public static int runPendingServerTasks() {
-        int remaining = SERVER_TASKS.size();
-        int processed = 0;
-        while (remaining-- > 0) {
-            Runnable task = SERVER_TASKS.poll();
-            if (task == null) {
-                break;
-            }
-            processed++;
-            try {
-                task.run();
-            } catch (RuntimeException error) {
-                reportServerTaskFailure(error);
-            }
+        ServerSession current = session;
+        if (current == null) return 0;
+        current.requireServerThread();
+        return SERVER_TASKS.drain(KOMEPacketHandler::reportServerTaskFailure, System::nanoTime);
+    }
+    public static void forgetRequester(EntityPlayerMP player) {
+        ServerSession current = session;
+        if (current != null) current.requireServerThread();
+        SERVER_TASKS.forget(player.playerNetServerHandler);
+        SERVER_RECORD_COOLDOWNS.forget(player.playerNetServerHandler);
+    }
+    public static final class Requester {
+        private final ServerSession session;
+        final NetHandlerPlayServer connection;
+        public final EntityPlayerMP player;
+        private Requester(ServerSession session, NetHandlerPlayServer connection, EntityPlayerMP player) {
+            this.session = session; this.connection = connection; this.player = player;
         }
-        return processed;
+        public boolean isCurrent() {
+            session.requireServerThread();
+            if (KOMEPacketHandler.session != session || MinecraftServer.getServer() != session.server
+                || connection.playerEntity != player || player.playerNetServerHandler != connection
+                || connection.netManager == null || !connection.netManager.isChannelOpen()
+                || player.worldObj == null || player.worldObj.isRemote || player.isDead
+                || session.server.getConfigurationManager() == null) return false;
+            for (Object registered : session.server.getConfigurationManager().playerEntityList)
+                if (registered == player) return true;
+            return false;
+        }
+    }
+    private static final class ServerSession {
+        final MinecraftServer server; final Thread owner; final long generation;
+        ServerSession(MinecraftServer server, Thread owner, long generation) {
+            this.server = server; this.owner = owner; this.generation = generation;
+        }
+        void requireServerThread() {
+            if (Thread.currentThread() != owner) throw new IllegalStateException("KOME task execution requires server thread");
+        }
     }
 
     private static void reportServerTaskFailure(RuntimeException error) {
@@ -52,12 +101,12 @@ public class KOMEPacketHandler {
     }
 
     public static void clearPendingServerTasks() {
-        SERVER_TASKS.clear();
+        session = null;
+        SERVER_TASKS.close();
+        SERVER_RECORD_COOLDOWNS.clear();
     }
 
-    static int pendingServerTaskCount() {
-        return SERVER_TASKS.size();
-    }
+    static int pendingServerTaskCount() { return SERVER_TASKS.pending(); }
 
     /** Forge 1.7.10 has no MinecraftServer task scheduler; delegates run at ServerTick START. */
     public static class ServerThreadHandler<T extends IMessage> implements IMessageHandler<T, IMessage> {
@@ -72,14 +121,12 @@ public class KOMEPacketHandler {
 
         @Override
         public IMessage onMessage(final T message, final MessageContext context) {
-            enqueueServerTask(new Runnable() {
-                @Override
-                public void run() {
-                    IMessage reply = delegate.onMessage(message, context);
-                    if (reply != null) {
-                        network.sendTo(reply, context.getServerHandler().playerEntity);
-                    }
-                }
+            final Requester requester = captureRequester(context);
+            if (requester == null) return null;
+            enqueueServerTask(context, () -> {
+                if (!requester.isCurrent()) return;
+                IMessage reply = delegate.onMessage(message, context);
+                if (reply != null && requester.isCurrent()) network.sendTo(reply, requester.player);
             });
             return null;
         }
