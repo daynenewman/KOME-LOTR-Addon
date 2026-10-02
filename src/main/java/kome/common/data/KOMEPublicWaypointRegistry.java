@@ -31,6 +31,19 @@ public final class KOMEPublicWaypointRegistry {
     }
     public List<NBTTagCompound> history() { return copyRows(history); }
     public List<NBTTagCompound> quarantine() { return copyRows(quarantine); }
+    /** Bounded reason-only inspection avoids copying the retained original NBT evidence. */
+    public List<String> quarantineReasons(UUID id, int limit) {
+        if (id == null || limit < 1 || limit > 20)
+            throw new IllegalArgumentException("Quarantine reason sample must have 1-20 rows");
+        List<String> result = new ArrayList<String>();
+        for (NBTTagCompound row : quarantine) {
+            if (id.toString().equals(row.getCompoundTag("Original").getString("Id"))) {
+                result.add(row.getString("Section") + ": " + row.getString("Reason"));
+                if (result.size() == limit) break;
+            }
+        }
+        return Collections.unmodifiableList(result);
+    }
     public Map<String, UUID> cutoverIdentities() {
         return cutoverRead;
     }
@@ -207,6 +220,19 @@ public final class KOMEPublicWaypointRegistry {
         prepareAudit(actor, now, "REMOVE", id, r.writeToNBT(), null, "Removed destination");
         records.remove(id); revision++; data.markDirty();
         // Explicit cutover aliases survive removal: a deleted public destination must not reappear as a legacy copy.
+    }
+
+    /** Repair a public link from unchanged coordinates; native/cutover provenance is excluded. */
+    KOMEPublicWaypoint repairPublicLink(KOMEWorldData data, UUID id, String actor, long now) {
+        KOMEPublicWaypoint before = requireRecord(id);
+        if (before.source != KOMEPublicWaypoint.Source.PUBLIC)
+            throw new IllegalArgumentException("Only public waypoint links can be repaired");
+        String tile = resolveTile(data, before.dimension, before.x, before.z);
+        KOMEPublicWaypoint occupant = forTile(tile);
+        if (tile.equals(before.tileId) || occupant != null && !occupant.id.equals(id))
+            throw new IllegalArgumentException("Link is valid or destination tile is occupied");
+        return replace(data, before, before.changed(tile, before.name, before.dimension,
+            before.x, before.y, before.z, before.level, now), actor, now, "REPAIR_LINK");
     }
     private KOMEPublicWaypoint replace(KOMEWorldData data, KOMEPublicWaypoint before,
             KOMEPublicWaypoint after, String actor, long now, String action) {

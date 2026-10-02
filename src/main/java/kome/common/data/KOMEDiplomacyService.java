@@ -279,6 +279,24 @@ public final class KOMEDiplomacyService {
         record.requestedAt = 0L;
     }
 
+    /** A repair removes obsolete consent only; it never overrides LOTR relations. */
+    static boolean repairObsoletePending(KOMEWorldData data, String first, String second,
+            String actor, long now) {
+        data.ensureWritable();
+        if (!KOMEAllianceAuthority.hasAuthoritativePair(first, second)) return false;
+        KOMEDiplomacyRecord record = data.canonicalDiplomacyRecords.get(
+            KOMEDiplomacyRecord.pairKey(first, second));
+        KOMEDiplomacyRelation current = getRelation(data, first, second);
+        if (record == null || record.pendingTarget == null
+                || record.pendingTarget.rank() > current.rank()) return false;
+        clearPending(record);
+        record.relation = current;
+        record.updatedAt = now;
+        record.lastUpdatedBy = actor;
+        data.markDirty();
+        return true;
+    }
+
     private static void discardStalePending(KOMEWorldData data,
             KOMEDiplomacyRecord record, KOMEDiplomacyRelation current,
             UUID actor, long now, String reason) {
