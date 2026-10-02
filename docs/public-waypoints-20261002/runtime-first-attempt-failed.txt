@@ -199,7 +199,7 @@
 [12:53:40] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilWarFormationSpawnRegistry:register:60]: [LOTRMoreMobs] Mumak war-formation NPC spawning: homeTrigger=native-unit-replacement conquestTrigger=LOTR-conquest-unit-replacement invasionTrigger=invasion-unit-replacement sharedPipeline=true homeChance=1/50 conquestBaseChance=1/100 conquestMinimumDenominator=1/50 conquestThreshold=>=500.0 invasionChance=1/40 conquestEnabled=true invasionEnabled=true oldConquestBootstrapInjection=removed
 [12:53:40] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.spawning.MumakilInvasionFormationRegistry:register:33]: [LOTRMoreMobs] Mumak invasion per-unit replacement: eligibleInvasions=3 names=NEAR_HARAD_CORSAIR,NEAR_HARAD_COAST,NEAR_HARAD_HARNEDOR enabled=true chance=1/40 limit=unlimited weightedBootstrap=false budget=33
 [12:53:40] [Server thread/INFO] [FML]: Forge Mod Loader has successfully loaded 6 mods
-[12:53:40] [Server thread/WARN]: Failed to load user banlist: 
+[12:53:40] [Server thread/WARN]: Failed to load user banlist:
 java.io.FileNotFoundException: banned-players.json (The system cannot find the file specified)
 	at java.io.FileInputStream.open0(Native Method) ~[?:1.8.0_482]
 	at java.io.FileInputStream.open(FileInputStream.java:195) ~[?:1.8.0_482]
@@ -211,7 +211,7 @@ java.io.FileNotFoundException: banned-players.json (The system cannot find the f
 	at net.minecraft.server.dedicated.DedicatedServer.func_71197_b(DedicatedServer.java:211) [lt.class:?]
 	at net.minecraft.server.MinecraftServer.run(MinecraftServer.java:387) [MinecraftServer.class:?]
 	at net.minecraft.server.MinecraftServer$2.run(MinecraftServer.java:685) [li.class:?]
-[12:53:40] [Server thread/WARN]: Failed to load ip banlist: 
+[12:53:40] [Server thread/WARN]: Failed to load ip banlist:
 java.io.FileNotFoundException: banned-ips.json (The system cannot find the file specified)
 	at java.io.FileInputStream.open0(Native Method) ~[?:1.8.0_482]
 	at java.io.FileInputStream.open(FileInputStream.java:195) ~[?:1.8.0_482]
@@ -223,7 +223,7 @@ java.io.FileNotFoundException: banned-ips.json (The system cannot find the file 
 	at net.minecraft.server.dedicated.DedicatedServer.func_71197_b(DedicatedServer.java:211) [lt.class:?]
 	at net.minecraft.server.MinecraftServer.run(MinecraftServer.java:387) [MinecraftServer.class:?]
 	at net.minecraft.server.MinecraftServer$2.run(MinecraftServer.java:685) [li.class:?]
-[12:53:40] [Server thread/WARN]: Failed to load operators list: 
+[12:53:40] [Server thread/WARN]: Failed to load operators list:
 java.io.FileNotFoundException: ops.json (The system cannot find the file specified)
 	at java.io.FileInputStream.open0(Native Method) ~[?:1.8.0_482]
 	at java.io.FileInputStream.open(FileInputStream.java:195) ~[?:1.8.0_482]
@@ -235,7 +235,7 @@ java.io.FileNotFoundException: ops.json (The system cannot find the file specifi
 	at net.minecraft.server.dedicated.DedicatedServer.func_71197_b(DedicatedServer.java:211) [lt.class:?]
 	at net.minecraft.server.MinecraftServer.run(MinecraftServer.java:387) [MinecraftServer.class:?]
 	at net.minecraft.server.MinecraftServer$2.run(MinecraftServer.java:685) [li.class:?]
-[12:53:40] [Server thread/WARN]: Failed to load white-list: 
+[12:53:40] [Server thread/WARN]: Failed to load white-list:
 java.io.FileNotFoundException: whitelist.json (The system cannot find the file specified)
 	at java.io.FileInputStream.open0(Native Method) ~[?:1.8.0_482]
 	at java.io.FileInputStream.open(FileInputStream.java:195) ~[?:1.8.0_482]
@@ -259,14 +259,14 @@ java.io.FileNotFoundException: whitelist.json (The system cannot find the file s
 [12:53:41] [Server thread/INFO]: Done (0.837s)! For help, type "help" or "?"
 [12:53:41] [Server thread/INFO] [STDOUT]: [com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer:transform:80]: [LOTRMoreMobs] Installed generic Siege Gate AI sight context in func_75522_a(Lnet/minecraft/entity/Entity;)Z
 [12:53:41] [Server thread/ERROR] [FML]: Fatal errors were detected during the transition from SERVER_ABOUT_TO_START to SERVER_STARTING. Loading cannot continue
-[12:53:41] [Server thread/ERROR] [FML]: 
+[12:53:41] [Server thread/ERROR] [FML]:
 	States: 'U' = Unloaded 'L' = Loaded 'C' = Constructed 'H' = Pre-initialized 'I' = Initialized 'J' = Post-initialized 'A' = Available 'D' = Disabled 'E' = Errored
-	UCHIJAAA	mcp{9.05} [Minecraft Coder Pack] (minecraft.jar) 
-	UCHIJAAA	FML{7.10.99.99} [Forge Mod Loader] (forge-1.7.10-10.13.4.1614-1.7.10-universal.jar) 
-	UCHIJAAA	Forge{10.13.4.1614} [Minecraft Forge] (forge-1.7.10-10.13.4.1614-1.7.10-universal.jar) 
-	UCHIJAAA	geckolib3{3.0.40} [GeckoLib] (geckolib-unofficial-1.7.10-1.0.4.jar) 
-	UCHIJAAA	lotr{Update v36.15 for Minecraft 1.7.10} [The Lord of the Rings Mod] (LOTRMod v36.15.jar) 
-	UCHIJAAE	kome{1.0.9-integration-g3} [Kings of Middle-earth Server Addon] (KOME-LOTR-Addon-1.0.8.jar) 
+	UCHIJAAA	mcp{9.05} [Minecraft Coder Pack] (minecraft.jar)
+	UCHIJAAA	FML{7.10.99.99} [Forge Mod Loader] (forge-1.7.10-10.13.4.1614-1.7.10-universal.jar)
+	UCHIJAAA	Forge{10.13.4.1614} [Minecraft Forge] (forge-1.7.10-10.13.4.1614-1.7.10-universal.jar)
+	UCHIJAAA	geckolib3{3.0.40} [GeckoLib] (geckolib-unofficial-1.7.10-1.0.4.jar)
+	UCHIJAAA	lotr{Update v36.15 for Minecraft 1.7.10} [The Lord of the Rings Mod] (LOTRMod v36.15.jar)
+	UCHIJAAE	kome{1.0.9-integration-g3} [Kings of Middle-earth Server Addon] (KOME-LOTR-Addon-1.0.8.jar)
 [12:53:41] [Server thread/ERROR] [FML]: The following problems were captured during this phase
 [12:53:41] [Server thread/ERROR] [FML]: Caught exception from kome
 java.lang.IllegalStateException: KOME public waypoint compatibility: public waypoint hooks were not installed; refusing incomplete server integration
