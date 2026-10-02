@@ -63,7 +63,7 @@ public class KOMEPacketTroopGuiAction implements IMessage {
                     troops.processCommand(player, tileId.length() == 0 ? new String[] {"companies"}
                         : new String[] {"companies", tileId});
                 } else if ("create".equals(action)) {
-                    throw new IllegalArgumentException("Manual company creation was retired; combat hires create their hiring-tile company automatically.");
+                    throw new IllegalArgumentException("Manual company creation is retired; Campaign Hire uses canonical local Campaign Detachment admission.");
                 } else if ("tendency".equals(action)) {
                     requireCompany(companyId);
                     if (!"aggressive".equals(value) && !"conservative".equals(value))

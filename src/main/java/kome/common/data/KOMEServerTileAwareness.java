@@ -80,6 +80,13 @@ public final class KOMEServerTileAwareness {
 
     public interface Listener { void onTransition(Transition transition); }
 
+    /** Runs inside the existing END sampling pass, before publishing transitions. */
+    public interface BoundaryGuard {
+        boolean onSample(Entity entity, KOMETileResolution physical, KOMETileWorldResolver.ReadView view, long tick);
+        void removed(Entity entity);
+        void reset();
+    }
+
     public final class Subscription implements AutoCloseable {
         private final Listener listener;
         private boolean active = true;
@@ -118,9 +125,15 @@ public final class KOMEServerTileAwareness {
     private Thread serverThread;
     private boolean running, notifying;
     private long session, incarnation, tick, lookups, sequence;
+    private BoundaryGuard boundaryGuard;
 
     KOMEServerTileAwareness(KOMETileWorldResolver resolver) {
         this.resolver = Objects.requireNonNull(resolver, "resolver");
+    }
+
+    public void setBoundaryGuard(BoundaryGuard guard) {
+        if (running) throw new IllegalStateException("Configure boundary guard before session starts");
+        boundaryGuard = guard;
     }
 
     /** Called in FML serverAboutToStart, before worlds load; discovers startup entities without scanning. */
@@ -128,6 +141,7 @@ public final class KOMEServerTileAwareness {
         if (notifying) throw new IllegalStateException("Cannot restart tile awareness during notification");
         if (running) throw new IllegalStateException("Tile awareness session already running");
         serverThread = Thread.currentThread();
+        if (boundaryGuard != null) boundaryGuard.reset();
         entries.clear(); notifications.clear(); listeners.clear();
         session++; tick = 0L; incarnation = 0L; lookups = 0L; sequence = 0L; running = true;
     }
@@ -138,6 +152,7 @@ public final class KOMEServerTileAwareness {
         checkThread();
         for (Entry entry : entries.values()) enqueueRemoval(entry, Cause.SERVER_STOP);
         entries.clear();
+        if (boundaryGuard != null) boundaryGuard.reset();
         running = false;
         flush();
         // A callback may stop the session. Its queued removals still belong to these subscribers.
@@ -249,26 +264,36 @@ public final class KOMEServerTileAwareness {
             if (removal != null) { iterator.remove(); enqueueRemoval(entry, removal); continue; }
             if (entry.location != null && entry.view == view && samePosition(entry)) {
                 entry.sampledTick = tick; // No result/string/observation allocation on unchanged samples.
-                continue;
+            } else {
+                sampleEntry(entry, view);
             }
-            KOMETileResolution location = view.resolveWorldPosition(
-                entry.entity.worldObj.provider.dimensionId, entry.entity.posX, entry.entity.posZ);
-            lookups++;
-            boolean changed = entry.location == null || !sameLocation(entry.location, location);
-            Observation before = changed && entry.location != null ? new Observation(entry, session) : null;
-            Cause cause = entry.location == null ? entry.initialCause
-                : entry.location.dimension != location.dimension ? Cause.DIMENSION_CHANGED
-                : entry.view != view ? Cause.GEOMETRY_CHANGED : Cause.POSITION_CHANGED;
-            entry.x = entry.entity.posX; entry.z = entry.entity.posZ; entry.sampledTick = tick;
-            entry.sampledWorld = entry.entity.worldObj; entry.view = view; entry.location = location;
-            if (changed) {
-                Type type = isFailure(location) ? Type.RESOLUTION_FAILED
-                    : before == null ? Type.INITIALIZED : Type.CHANGED;
-                notifications.add(new Transition(type, cause, before, new Observation(entry, session), tick, ++sequence));
+            // O(1) record eligibility lookup; full confinement work is explicit CAMPAIGN only.
+            // No second world/entity scan and no route-status exemption (including WAITING_NEXT_STEP).
+            if (boundaryGuard != null && entry.kind == Kind.HIRED_UNIT
+                    && boundaryGuard.onSample(entry.entity, entry.location, entry.view, tick)) {
+                sampleEntry(entry, resolver.readView()); // Publish fresh corrected evidence this same tick.
             }
         }
         // Publish the entire sampling pass before any consumer runs; callbacks may query other entities.
         flush();
+    }
+
+    private void sampleEntry(Entry entry, KOMETileWorldResolver.ReadView view) {
+        KOMETileResolution location = view.resolveWorldPosition(
+            entry.entity.worldObj.provider.dimensionId, entry.entity.posX, entry.entity.posZ);
+        lookups++;
+        boolean changed = entry.location == null || !sameLocation(entry.location, location);
+        Observation before = changed && entry.location != null ? new Observation(entry, session) : null;
+        Cause cause = entry.location == null ? entry.initialCause
+            : entry.location.dimension != location.dimension ? Cause.DIMENSION_CHANGED
+            : entry.view != view ? Cause.GEOMETRY_CHANGED : Cause.POSITION_CHANGED;
+        entry.x = entry.entity.posX; entry.z = entry.entity.posZ; entry.sampledTick = tick;
+        entry.sampledWorld = entry.entity.worldObj; entry.view = view; entry.location = location;
+        if (changed) {
+            Type type = isFailure(location) ? Type.RESOLUTION_FAILED
+                : before == null ? Type.INITIALIZED : Type.CHANGED;
+            notifications.add(new Transition(type, cause, before, new Observation(entry, session), tick, ++sequence));
+        }
     }
 
     private static boolean sameLocation(KOMETileResolution a, KOMETileResolution b) {
@@ -308,6 +333,7 @@ public final class KOMEServerTileAwareness {
     }
 
     private void enqueueRemoval(Entry entry, Cause cause) {
+        if (boundaryGuard != null) boundaryGuard.removed(entry.entity);
         if (entry.location != null)
             notifications.add(new Transition(Type.REMOVED, cause, new Observation(entry, session), null, tick, ++sequence));
     }

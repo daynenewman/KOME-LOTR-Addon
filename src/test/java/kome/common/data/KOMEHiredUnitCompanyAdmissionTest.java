@@ -7,20 +7,22 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMEHiredUnitCompanyAdmissionTest {
-    @Test public void directAutoAdmissionRejectsOrdinaryAndAcceptsCampaign() {
+    @Test public void canonicalReconciliationNeverAutoAdmitsOrdinaryOrCampaignOrphans() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEHiredUnitRecord ordinary = unit();
-        assertNull(data.assignUnitToHiringTileCompany(ordinary, "Owner"));
-        assertFalse(data.hiredUnits.containsKey(ordinary.entity));
-        assertTrue(data.armyCompanies.isEmpty());
-
         KOMEHiredUnitRecord campaign = unit();
+        campaign.owner = ordinary.owner;
         KOMEHiredUnitClassification.assignForCampaignWorkflow(campaign);
-        KOMEArmyCompany company = data.assignUnitToHiringTileCompany(campaign, "Owner");
-        assertNotNull(company);
-        assertTrue(company.units.contains(campaign.entity));
-        assertEquals(company.id, campaign.companyId);
-        assertSame(campaign, data.hiredUnits.get(campaign.entity));
+        data.hiredUnits.put(ordinary.entity, ordinary);
+        data.hiredUnits.put(campaign.entity, campaign);
+
+        data.rebuildArmyCompaniesForPlayer(ordinary.owner);
+
+        assertEquals("", ordinary.companyId);
+        assertEquals("", campaign.companyId);
+        assertTrue(data.armyCompanies.isEmpty());
+        assertFalse(KOMEHiredUnitClassification.isCampaignUnit(ordinary));
+        assertTrue(KOMEHiredUnitClassification.isCampaignUnit(campaign));
     }
 
     @Test public void rebuildRemovesOrdinaryMembershipWithoutConvertingClass() {
@@ -40,22 +42,27 @@ public class KOMEHiredUnitCompanyAdmissionTest {
             KOMEHiredUnitClassification.getUnitClass(ordinary));
     }
 
-    @Test public void rebuildAdmitsOnlyExplicitCampaignRecord() {
+    @Test public void rebuildPreservesOnlyExplicitConsistentCampaignMembership() {
         KOMEWorldData data = new KOMEWorldData("test");
         KOMEHiredUnitRecord ordinary = unit();
         KOMEHiredUnitRecord campaign = unit();
         campaign.owner = ordinary.owner;
         KOMEHiredUnitClassification.assignForCampaignWorkflow(campaign);
+        campaign.companyId = "C1";
         data.hiredUnits.put(ordinary.entity, ordinary);
         data.hiredUnits.put(campaign.entity, campaign);
+        KOMEArmyCompany company = company(ordinary.owner, "C1");
+        company.faction = company.nativeFaction = "";
+        company.units.add(campaign.entity);
+        data.armyCompanies.put(company.id, company);
 
         data.rebuildArmyCompaniesForPlayer(ordinary.owner);
 
         assertEquals("", ordinary.companyId);
         assertFalse(KOMEHiredUnitClassification.isCampaignUnit(ordinary));
-        assertFalse(campaign.companyId.isEmpty());
+        assertEquals("C1", campaign.companyId);
         assertTrue(KOMEHiredUnitClassification.isCampaignUnit(campaign));
-        assertTrue(data.armyCompanies.get(campaign.companyId).units.contains(campaign.entity));
+        assertTrue(company.units.contains(campaign.entity));
     }
 
     @Test public void companyAndMovementLabelsNeverBecomeClassificationAuthority() {

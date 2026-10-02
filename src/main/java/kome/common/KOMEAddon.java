@@ -123,6 +123,8 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverAboutToStart(FMLServerAboutToStartEvent event) {
+        kome.common.data.KOMEServerTileAwareness.INSTANCE.setBoundaryGuard(
+            kome.common.data.KOMECampaignTileConfinementService.INSTANCE);
         kome.common.data.KOMEServerTileAwareness.INSTANCE.startSession();
     }
 

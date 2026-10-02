@@ -14,6 +14,7 @@ public class KOMEArmyCompany {
     public static final String SOURCE_LEGACY_MIGRATED = "legacy_migrated";
     public static final String SOURCE_AUTO_UNIT_ASSIGNMENT = "auto_unit_assignment";
     public static final String SOURCE_LOTR_COMPANY_ASSIGNMENT = "lotr_company_assignment";
+    public static final String SOURCE_CAMPAIGN_RECRUITMENT = "campaign_recruitment";
 
     public String id = "";
     public UUID owner;
@@ -22,7 +23,7 @@ public class KOMEArmyCompany {
     public String name = "";
     public String lotrCompanyValue = "";
     public String currentTile = "";
-    /** Immutable hiring/source tile used to keep one persistent company per player and source tile. */
+    /** Derived shared recruitment provenance; empty for mixed/unknown sources, never grouping authority. */
     public String sourceTileId = "";
     public final List<UUID> units = new ArrayList<UUID>();
     public int totalPopulation;
@@ -143,7 +144,7 @@ public class KOMEArmyCompany {
         lotrCompanyValue = nbt.getString("LotrCompanyValue");
         currentTile = KOMEConquestTile.normalizeId(nbt.getString("CurrentTile"));
         sourceTileId = KOMEConquestTile.normalizeId(nbt.getString("SourceTileId"));
-        if (sourceTileId.length() == 0) sourceTileId = currentTile;
+        if (!nbt.hasKey("SourceTileId")) sourceTileId = currentTile;
         totalPopulation = Math.max(0, nbt.getInteger("TotalPopulation"));
         mountedPopulation = Math.max(0, nbt.getInteger("MountedPopulation"));
         groundPopulation = Math.max(0, nbt.getInteger("GroundPopulation"));
