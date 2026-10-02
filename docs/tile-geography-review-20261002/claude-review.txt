@@ -1,0 +1,58 @@
+The `Write` tool is disabled for this session (consistent with the read-only reviewer role), so I'm delivering the review directly here rather than to a plan file.
+
+# Independent review — `dayne/tile-geography-review-20261002` @ `cccb227`
+
+Base `76fb78e7fc07a6d3421b5aa1c597e86ef36af6bf`. Reviewed the committed source/test diff (`build/claude-review-diff.patch`, 16 files), the current sources, the tests, and the committed evidence package. Advisory only; no files modified.
+
+**Overall: I found no functional correctness defect in the new loader, resolver, awareness or HUD code**, and no violation of the stated non-goals. The findings below are documentation, latent-cost, evidence-scope and test-coverage defects.
+
+## Verified clean (with evidence)
+
+- **Immutable publication / last-valid retention** — `KOMETileWorldResolver.java:92,103,131` retain `state.snapshot` on every failure path; `publish()` is a single volatile write (`:108-111`); readers take no lock. Covered by `KOMETileExclusionsTest.java:131-143,145-162`.
+- **Bounded parsing/allocation** — 4 MiB metadata, 64 MiB mask, ≤65,535 zones, 2 B/cell `char` index. Cumulative run-loop iterations are bounded by raster size because a duplicate cell write throws (`KOMETileExclusions.java:118`). Max zone index 65,535 fits `char`; `used[]` sizing is correct; coordinate regex + `parseInt` reject the 10-digit overflow case.
+- **Raw-byte hash + dimension pinning** — the hash covers the *original* PNG bytes before decode (`KOMETileRasterSnapshot.java:130-133`); strict header equality at `KOMETileExclusions.java:89-92`.
+- **Exclusion vs tile/gap/outside** — active-tile overlap rejected (`:116-117`); `CLASSIFIED_EXCLUSION` carries empty `tileId`; `IN_BOUNDS_GAP` stays unclassified; `OUTSIDE_MASK` untouched.
+- **Ownership/capturability/traversability separation** — `capturable()` returns false only from an explicit exclusion, `traversable()` always empty (`KOMETileResolution.java:52-60`).
+- **All consumers fail closed** on non-`RESOLVED`: `KOMEBuildService.java:516`, `KOMEStrategicDeploymentResolver.java:33,72-79,132-138`, `KOMEFactionCapitalService.java:152`, `KOMEEvents.java:653`. The overlay reads `.tileId` (`KOMEConquestMapOverlay.java:366,1074`), so a classified cell yields no hover/selection/tooltip — rendering genuinely unchanged.
+- **Consumer equality / HUD cache include full zone metadata** — `KOMEServerTileAwareness.java:274-277`, `KOMECurrentTileHud.java:110,115`. Tests cover same-type/different-id, same-id/different-type and reason-only replacement (`KOMECurrentTileHudTest.java:293-313`, `KOMEServerTileAwarenessTest.java:445-474`).
+- **Java 8 / Forge 1.7.10 / addon-only** — `CLASSIFIED_EXCLUSION` appended last (no ordinal shift); no resource filtering in `build.gradle.kts`; major version 52 recorded; no packet/NBT/schema change.
+- **12.8 M-cell arithmetic** agrees across `KOMETileGeographyAcceptanceTest.java:30`, `atlas-summary.json` and `build-review.py:32` (4,067,979 + 8,732,021 = 3200×4000). Empty production set is asserted twice (`KOMETileExclusionsTest.java:58-66`; acceptance test `:24`).
+- **Gate + preservation** — `build-results.json` totals/skips match the README; `clean-build.txt:96` BUILD SUCCESSFUL; `preservation-after.json` records 10 unchanged worktree HEADs, unchanged stashes, no worlds/runtimes, no merge/push/deploy. No manual/runtime/low-spec acceptance is claimed.
+
+## Confirmed defects
+
+**D1 — Moderate. The standing authority doc now contradicts shipped behavior.** `docs/KOME_TILE_WORLD_RESOLUTION.md` was not updated; grep finds no mention of exclusion metadata in any standing doc. Specifically `:367-368` ("`capturable()` is empty because no authoritative area-capturability metadata exists") is now false per `KOMETileResolution.java:53-55`; the status table `:358-365` omits `CLASSIFIED_EXCLUSION`; `:361` defines `IN_BOUNDS_GAP` as covering *all* alpha≤24/retired cells; `:474-477` still lists "uncapturable-area metadata" as deferred; `:386-393,410-419` omit the now-mandatory TSV and the mask pin that can fail `reloadBundled()`. `docs/KOME_SERVER_TILE_AWARENESS.md` — the doc `KOMEServerTileAwareness.java:23` points to — omits the zone-metadata comparison and the `STALE_GEOMETRY`/`GEOMETRY_CHANGED` metadata-replacement path.
+
+**D2 — Low/Moderate. Per-record regex recompilation on the startup load path.** `String.matches` compiles a fresh `Pattern` per call. `KOMETileExclusions.java:130` compiles one per coordinate and `:109` calls it three times per `run`; a fully populated 4 MiB file (~280 k runs) is ~840 k `Pattern.compile` calls — order of seconds added to `KOMEAddon.postInit`. `:101` adds two more per `zone`. Zero impact today (empty set), but it lands exactly when KOM-58 classifications are approved. Fix: `static final Pattern` constants.
+
+**D3 — Moderate. Performance evidence never covers a populated exclusion index.** `measurements.txt:47` shows `exclusionIndexBytes=0` — both random-access lookup figures and the heap figure were taken while `cells == null`, where `KOMETileExclusions.at()` short-circuits and touches no array. The synthetic full-size index (`measurements.txt:50-51`, `KOMETileGeographyMeasurement.java:58-65`) is exercised at **one fixed coordinate** in a tight loop, then replaced — a cache-resident best case, not comparable to the random workload at `:41-46`. There is also no measured heap with the synthetic snapshot resident and no parse time for a nonempty metadata file. So README line 48 ("No additional caching/index optimization justified by these measurements") is unsupported for the populated configuration.
+
+**D4 — Low/Moderate. The production load path's failure mode is untested.** `reloadBundled()` is the only production entry point and the TSV is mandatory there, but no test exercises it failing on bad/missing *bundled* metadata — `KOMETileExclusionsTest.java:131-143` uses the package-private `reload(...)` overload, and `KOMETileWorldResolverTest.java:213` covers only LOTR-dimension disagreement. The classloader-substitution pattern at `KOMETileGameplayDefaultsTest.java:105-115` is directly reusable.
+
+**D5 — Low/Moderate. KOM-59 provenance isn't re-verifiable here.** `historical-provenance.json` names `v2-geography-review-20260920/cell-review.csv` (212,449,646 B) and three others; none exist in this worktree (those folders contain only `edit-manifest.csv`), and no absolute root or owning worktree HEAD is recorded. The atlas *is* reproducible from the hash-pinned `review-inputs.csv`; the derivation *of* that file is not checkable.
+
+**D6 — Low. Stale/unindexed evidence.** `focused-results.json:24-29` reports `KOMETileExclusionsTest: 8` vs `build-results.json:731-736`'s 10 (two added at checkpoint 1 per `PROGRESS.md:12`), with no run label — the two artifacts read as contradictory. `focused-results.json`, `atlas-summary.json` and `preservation-after.json` are unreferenced from the README, including the file carrying the actual preservation verification.
+
+**D7 — Low. Build evidence is transcribed, not reproducible.** `PROGRESS.md:20` discloses the Gradle transcripts were edited post-run, so `clean-build.txt` is not byte-faithful; `build-results.json`/`measurement-summary.json` have no committed generator and the JUnit XML isn't committed.
+
+**D8 — Low. Unguarded `Optional.get()` in the client tick handler.** `KOMECurrentTileHud.java:133` calls `location.exclusion().get()` twice. The invariant holds today, but `KOMETileResolution.java:25-30` defaults `exclusion` to null, so a future producer that forgets would throw `NoSuchElementException` on the client tick.
+
+**D9 — Low (hardening). The newly hash-pinned mask has no `.gitattributes` entry.** `.gitattributes:3` pins the checksummed `kome_tile_*` datasets, but nothing covers `src/main/resources/assets/kome/map/**` even though the TSV hard-pins the PNG's SHA-256. Git's binary heuristic makes real corruption unlikely — so this is residual risk, not a live break — but the consequence of a mismatch is a whole-feature `INVALID_SNAPSHOT`.
+
+**D10 — Low. Geometry+metadata soft-fails while its sibling dataset hard-fails.** `KOMEAddon.java:113` throws for the gameplay dataset; `:114-116` only prints to stderr when `reloadBundled()` fails. Pre-existing, but KOM-58 widens the trigger surface. A build-time guard exists (`KOMETileTestResources.java:15` makes ~100 tests fail on drift), so this is about runtime diagnosability.
+
+## Suggestions (no action required)
+
+`build-review.py:62` — `overview.png` is a NEAREST 4× downsample, so ~15/16 of single-cell markers vanish; reviewers must use the 43 region crops and `review-cells.csv` (worth a README caption). `build-review.py:22,26` — `read_text()` without explicit encoding (both targets are currently pure ASCII — verified). `KOMETileRasterSnapshot.java:130-131` — the 6-arg loader buffers the whole PNG before dimension validation, and metadata parsing transiently expands to ~5× the 4 MiB bound; both bounded and documented. Forward-compat: the first approved classification will break `KOMETileResourceAuditTest.java:68` and `KOMETileGeographyAcceptanceTest.java:22-25,30` (both deliberately pin the empty state) and stale the `IN_BOUNDS_GAP:` annotation validated at `KOMETileGameplayDefaults.java:104`. A failed reload rotates the `ReadView` identity, so every awareness entry reports `STALE_GEOMETRY` and re-resolves once next tick with no transitions (pre-existing, now metadata-triggerable). `KOMETileExclusions.java:50` — `new Zone[1]` is an implicit `{null}` sentinel. `en_US.lang:10` — new key appended outside its `kome.hud.*` group.
+
+## Unknowns (not assessed)
+
+Live Forge/Minecraft runtime, GL/GPU, FPS, cold first-open, multiplayer and low-spec behavior — explicitly not claimed and not reviewable from source. The JAR bytes/SHA-256, the "no base `lotr/` classes bundled" check and the host hardware figures are self-reported; I did not re-run the build or inspect the artifact. Whether the absent historical CSVs actually contain the 26,731 extracted rows (see D5).
+
+## Suggested verification after remediation
+
+1. Focused run: `.\gradlew.bat test --tests 'kome.common.data.KOMETile*' --tests 'kome.common.data.KOMEServerTileAwareness*' --tests 'kome.client.KOMECurrentTileHudTest' --no-daemon --console=plain`, plus the new D4 bundled-failure case.
+2. `.\gradlew.bat clean test build --no-daemon --console=plain` — expect the same 1,176 / 1,174 / 2-skip gate; commit or regenerate the results artifact (D7).
+3. `.\gradlew.bat -I docs/tile-geography-review-20261002/measure.gradle tileGeographyMeasure --no-daemon --console=plain` — must now emit random-access lookup and `MEMORY` lines for the populated index and a nonempty-metadata reload (D2, D3); then update `measurement-summary.json` and README line 48.
+4. `python docs/tile-geography-review-20261002/build-review.py` — summary must reproduce `mask_sha256`, 26,731 rows / 26,664 cells / 43 regions and the three protected-control asserts.
+5. Re-read both authority docs against `KOMETileResolution`, `KOMETileExclusions` and `KOMEServerTileAwareness.sameLocation` (D1).

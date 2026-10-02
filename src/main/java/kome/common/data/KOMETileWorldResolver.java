@@ -19,6 +19,7 @@ import java.util.Set;
 public final class KOMETileWorldResolver {
     public static final KOMETileWorldResolver INSTANCE = new KOMETileWorldResolver();
     static final String MASK = "assets/kome/map/reset_conquest_tile_ids.png";
+    static final String EXCLUSIONS = "assets/kome/map/tile_exclusions.tsv";
     static final String MAPPING = "assets/kome/map/reset_conquest_tile_ids.txt";
     private volatile ReadView state = new ReadView(null, "Tile raster has not been initialized");
 
@@ -93,9 +94,20 @@ public final class KOMETileWorldResolver {
         }
     }
 
+    synchronized boolean reload(InputStream image, InputStream mapping, InputStream exclusions,
+            KOMETileRasterSnapshot.Transform transform, Set<String> knownIds, Set<String> retiredIds) {
+        try {
+            publish(KOMETileRasterSnapshot.load(image, mapping, exclusions, transform, knownIds, retiredIds));
+            return true;
+        } catch (IOException | IllegalArgumentException | ArithmeticException | IllegalStateException e) {
+            state = new ReadView(state.snapshot, "Tile raster/exclusions load rejected: " + e.getMessage());
+            return false;
+        }
+    }
+
     synchronized void publish(KOMETileRasterSnapshot snapshot) {
         if (snapshot == null) throw new IllegalArgumentException("Cannot publish a null tile raster");
-        state = new ReadView(snapshot, "Validated tile raster " + snapshot.width + "x" + snapshot.height);
+        state = new ReadView(snapshot, "Validated tile raster " + snapshot.width + "x" + snapshot.height + "; " + snapshot.exclusions.diagnostic);
     }
 
     /** Bundled common resources only: resource packs cannot redefine server tile geometry. */
@@ -103,7 +115,8 @@ public final class KOMETileWorldResolver {
         ClassLoader loader = KOMETileWorldResolver.class.getClassLoader();
         try (InputStream map = LOTRGenLayerWorld.class.getClassLoader().getResourceAsStream("assets/lotr/map/map.png");
                 InputStream mask = loader.getResourceAsStream(MASK);
-                InputStream mapping = loader.getResourceAsStream(MAPPING)) {
+                InputStream mapping = loader.getResourceAsStream(MAPPING);
+                InputStream exclusions = loader.getResourceAsStream(EXCLUSIONS)) {
             int[] dimensions = mapDimensions(map);
             if ((LOTRGenLayerWorld.imageWidth > 0 && LOTRGenLayerWorld.imageWidth != dimensions[0])
                     || (LOTRGenLayerWorld.imageHeight > 0 && LOTRGenLayerWorld.imageHeight != dimensions[1])) {
@@ -112,7 +125,7 @@ public final class KOMETileWorldResolver {
             KOMETileRasterSnapshot.Transform transform = new KOMETileRasterSnapshot.Transform(
                 LOTRDimension.MIDDLE_EARTH.dimensionID, LOTRGenLayerWorld.originX, LOTRGenLayerWorld.originZ,
                 LOTRGenLayerWorld.scale, dimensions[0], dimensions[1]);
-            return reload(mask, mapping, transform, KOMEConquestTileDefaults.getKnownTileIds(),
+            return reload(mask, mapping, exclusions, transform, KOMEConquestTileDefaults.getKnownTileIds(),
                 KOMEConquestTileDefaults.getRetiredTileIds());
         } catch (IOException | IllegalArgumentException | ArithmeticException | IllegalStateException e) {
             state = new ReadView(state.snapshot, "Tile raster load rejected: " + e.getMessage());
