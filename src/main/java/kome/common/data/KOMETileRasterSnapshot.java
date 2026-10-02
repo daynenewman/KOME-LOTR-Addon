@@ -6,6 +6,7 @@ import javax.imageio.stream.ImageInputStream;
 import javax.imageio.stream.MemoryCacheImageInputStream;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,13 +34,17 @@ public final class KOMETileRasterSnapshot {
     public final Transform transform;
     // Low 16 bits: palette index (0 = gap). High byte: original alpha for existing textures.
     private final int[] cells;
+    public final KOMETileExclusions exclusions;
+    private final String gapDiagnostic;
     private final String[] tileIds;
     private final int[] colors;
     private final Map<Integer, String> idsByColor;
     private final Map<String, Integer> colorsById;
 
     private KOMETileRasterSnapshot(int width, int height, Transform transform, int[] cells,
-            String[] tileIds, int[] colors, Map<Integer, String> idsByColor) {
+            String[] tileIds, int[] colors, Map<Integer, String> idsByColor, KOMETileExclusions exclusions) {
+        this.exclusions = exclusions;
+        gapDiagnostic = "Exact cell is an unclassified gap; " + exclusions.diagnostic;
         this.width = width;
         this.height = height;
         this.transform = transform;
@@ -111,11 +116,23 @@ public final class KOMETileRasterSnapshot {
                         cells[y * width + x] = (argb & 0xFF000000) | cell;
                     }
                 }
-                return new KOMETileRasterSnapshot(width, height, transform, cells, ids, colors, active);
+                return new KOMETileRasterSnapshot(width, height, transform, cells, ids, colors, active, KOMETileExclusions.notLoaded());
             } finally {
                 reader.dispose();
             }
         }
+    }
+
+    /** Geometry and mandatory annotations are validated together before publication. Caller owns streams. */
+    public static KOMETileRasterSnapshot load(InputStream image, InputStream mapping, InputStream metadata,
+            Transform transform, Set<String> knownIds, Set<String> retiredIds) throws IOException {
+        // Bound compressed input as well as decoded dimensions; hash includes every original PNG byte.
+        byte[] bytes = KOMETileExclusions.readBounded(image, 64 * 1024 * 1024, "tile mask");
+        KOMETileRasterSnapshot geometry = load(new ByteArrayInputStream(bytes), mapping, transform, knownIds, retiredIds);
+        KOMETileExclusions exclusions = KOMETileExclusions.load(metadata, KOMETileExclusions.sha256(bytes),
+            geometry.width, geometry.height, geometry.cells);
+        return new KOMETileRasterSnapshot(geometry.width, geometry.height, transform, geometry.cells,
+            geometry.tileIds, geometry.colors, geometry.idsByColor, exclusions);
     }
 
     /** Shared strict parser; KOMEConquestTileDefaults remains the packaged identity authority. */
@@ -176,9 +193,13 @@ public final class KOMETileRasterSnapshot {
         if (x < 0 || y < 0 || x >= width || y >= height) {
             return result(KOMETileResolution.Status.OUTSIDE_MASK, worldX, worldZ, x, y, "", "Outside authoritative mask coverage");
         }
-        int palette = cells[(int) y * width + (int) x] & 0xFFFF;
+        int index = (int) y * width + (int) x;
+        int palette = cells[index] & 0xFFFF;
+        KOMETileExclusions.Zone zone = exclusions.at(index);
+        if (zone != null) return new KOMETileResolution(KOMETileResolution.Status.CLASSIFIED_EXCLUSION,
+            transform.dimension, worldX, worldZ, true, x, y, true, "", zone.diagnostic, zone);
         return palette == 0
-            ? result(KOMETileResolution.Status.IN_BOUNDS_GAP, worldX, worldZ, x, y, "", "Exact cell is a gap")
+            ? result(KOMETileResolution.Status.IN_BOUNDS_GAP, worldX, worldZ, x, y, "", gapDiagnostic)
             : result(KOMETileResolution.Status.RESOLVED, worldX, worldZ, x, y, tileIds[palette], "Exact cell; capturability unknown");
     }
 

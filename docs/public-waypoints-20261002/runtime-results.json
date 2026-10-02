@@ -1,0 +1,51 @@
+{
+  "scope": "real isolated Java8/Forge dedicated server, original LOTR jar, no players or legacy fellowship inventory",
+  "addon_sha256": "3bda8fc44e28eb816dc1a2a2a48d75d83ce104db4feb363d5247432be89bed4b",
+  "runtime": "C:\\Users\\dayne\\.codex\\worktrees\\public-waypoints\\KOME-LOTR-Addon\\run-server-production-verification-public-waypoints-20261002",
+  "world": "C:\\Users\\dayne\\.codex\\worktrees\\public-waypoints\\KOME-LOTR-Addon\\run-server-production-verification-public-waypoints-20261002\\waypoint-fixture\\data\\KOME_ServerRules.dat",
+  "record_before": {
+    "Tile": "T150",
+    "Dimension": 100,
+    "Source": "NATIVE",
+    "Name": "Fixture public waypoint",
+    "ModifiedAt": 1790963823045,
+    "WireId": -1,
+    "SourceKey": "HOBBITON",
+    "ApprovedAt": 1790963823045,
+    "ApprovedBy": "console",
+    "X": 704,
+    "Y": 64,
+    "Z": -320,
+    "Level": 20,
+    "Id": "33147bfe-06b1-4cb7-bad9-a89d7298c9af",
+    "Proposal": ""
+  },
+  "record_after": {
+    "Tile": "T150",
+    "Dimension": 100,
+    "Source": "NATIVE",
+    "Name": "Fixture renamed after restart",
+    "ModifiedAt": 1790963838460,
+    "WireId": -1,
+    "SourceKey": "HOBBITON",
+    "ApprovedAt": 1790963823045,
+    "ApprovedBy": "console",
+    "X": 704,
+    "Y": 64,
+    "Z": -320,
+    "Level": 21,
+    "Id": "33147bfe-06b1-4cb7-bad9-a89d7298c9af",
+    "Proposal": ""
+  },
+  "history_count": 3,
+  "steps": [
+    "fresh native startup",
+    "console association",
+    "save and clean stop",
+    "restart and inspect same stable identity",
+    "rename and level metadata",
+    "save and clean stop",
+    "inspect compressed canonical NBT"
+  ],
+  "manual_acceptance": "two-client map presentation and real travel/gameplay are unperformed"
+}

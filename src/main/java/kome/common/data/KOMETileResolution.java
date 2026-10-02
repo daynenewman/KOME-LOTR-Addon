@@ -6,7 +6,7 @@ import java.util.Optional;
 public final class KOMETileResolution {
     public enum Status {
         RESOLVED, IN_BOUNDS_GAP, OUTSIDE_MASK, UNSUPPORTED_DIMENSION, INVALID_SNAPSHOT,
-        INVALID_COORDINATE
+        INVALID_COORDINATE, CLASSIFIED_EXCLUSION
     }
 
     public final Status status;
@@ -20,10 +20,19 @@ public final class KOMETileResolution {
     /** Empty unless status is RESOLVED. Prefer resolvedTileId() for optional use. */
     public final String tileId;
     public final String diagnostic;
+    private final KOMETileExclusions.Zone exclusion;
 
     KOMETileResolution(Status status, int dimension, int worldX, int worldZ,
             boolean hasWorldCoordinate, long maskX, long maskY, boolean hasMaskCoordinate,
             String tileId, String diagnostic) {
+        this(status, dimension, worldX, worldZ, hasWorldCoordinate, maskX, maskY, hasMaskCoordinate,
+            tileId, diagnostic, null);
+    }
+
+    KOMETileResolution(Status status, int dimension, int worldX, int worldZ,
+            boolean hasWorldCoordinate, long maskX, long maskY, boolean hasMaskCoordinate,
+            String tileId, String diagnostic, KOMETileExclusions.Zone exclusion) {
+        this.exclusion = exclusion;
         this.status = status;
         this.dimension = dimension;
         this.worldX = worldX;
@@ -40,10 +49,15 @@ public final class KOMETileResolution {
         return status == Status.RESOLVED ? Optional.of(tileId) : Optional.<String>empty();
     }
 
-    /** No authoritative area-capturability metadata exists in this checkpoint. */
+    /** Exclusions alone establish false; tile identity is not permission to capture. */
     public Optional<Boolean> capturable() {
-        return Optional.empty();
+        return exclusion == null ? Optional.<Boolean>empty() : Optional.of(false);
     }
+
+    public Optional<KOMETileExclusions.Zone> exclusion() { return Optional.ofNullable(exclusion); }
+
+    /** Requires future unit-specific movement rules; neither tiles nor exclusions imply passage. */
+    public Optional<Boolean> traversable() { return Optional.empty(); }
 
     static KOMETileResolution unavailable(Status status, int dimension, int x, int z, String reason) {
         return new KOMETileResolution(status, dimension, x, z, status != Status.INVALID_COORDINATE,

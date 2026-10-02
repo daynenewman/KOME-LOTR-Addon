@@ -56,6 +56,10 @@ public class KOMECommonProxy {
         throw new IllegalStateException("Client conquest publication is unavailable on the dedicated server");
     }
 
+    public void acceptPublicWaypoints(kome.common.network.KOMEPacketPublicWaypoints.Chunk chunk,Object connection) {
+        throw new IllegalStateException("Public waypoint publication is unavailable on a dedicated server");
+    }
+
     public void displayPopulationGui(kome.common.network.KOMEPacketPopulationGui message) { }
     public void displayPopulationUnitsGui(kome.common.network.KOMEPacketPopulationUnitsGui message) { }
     public void displayConquestCaptureGui(kome.common.network.KOMEPacketConquestCaptureGui message) { }

@@ -1,0 +1,86 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.5/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+
+> Configure project :
+You might want to check out './gradlew :faq' if your build fails.
+gradleTokenModId is deprecated! The field will no longer be generated.
+gradleTokenModGroup is deprecated! The field will no longer be generated.
+gradleTokenModName is deprecated! The field will no longer be generated.
+
+> Task :extractDependencyATs SKIPPED
+> Task :generateForgeSrgMappings SKIPPED
+> Task :downloadVanillaJars SKIPPED
+> Task :mergeVanillaSidedJars SKIPPED
+> Task :deobfuscateMergedJarToSrg SKIPPED
+> Task :downloadFernflower SKIPPED
+> Task :decompileSrgJar SKIPPED
+> Task :cleanupDecompSrgJar SKIPPED
+> Task :patchDecompiledJar SKIPPED
+> Task :applySourceAccessTransformers SKIPPED
+> Task :remapDecompiledJar SKIPPED
+> Task :decompressDecompiledSources UP-TO-DATE
+> Task :compilePatchedMcJava UP-TO-DATE
+> Task :processPatchedMcResources UP-TO-DATE
+> Task :patchedMcClasses UP-TO-DATE
+> Task :compileApiJava NO-SOURCE
+> Task :processApiResources NO-SOURCE
+> Task :apiClasses UP-TO-DATE
+> Task :injectTags UP-TO-DATE
+> Task :compileInjectedTagsJava UP-TO-DATE
+> Task :extractNatives2 UP-TO-DATE
+> Task :createMcLauncherFiles UP-TO-DATE
+> Task :compileMcLauncherJava UP-TO-DATE
+> Task :processInjectedTagsResources NO-SOURCE
+> Task :injectedTagsClasses UP-TO-DATE
+> Task :processMcLauncherResources NO-SOURCE
+> Task :mcLauncherClasses UP-TO-DATE
+> Task :compileJava UP-TO-DATE
+> Task :processResources UP-TO-DATE
+> Task :classes UP-TO-DATE
+> Task :compileTestJava UP-TO-DATE
+> Task :processTestResources UP-TO-DATE
+> Task :testClasses UP-TO-DATE
+
+> Task :tileGeographyMeasure
+ENV java=21.0.8 vm=OpenJDK 64-Bit Server VM os=Windows 11 arch=amd64 processors=12 heapMax=536870912
+MEASURE bundledReloadMs trials=[350.611099, 322.9044, 319.281899, 309.6396, 321.3034] median=321.3034 min=309.6396 max=350.611099
+MEMORY rasterCellBytes=51200000 exclusionIndexBytes=0 zones=0 classifiedCells=0 heapUsedApprox=58757736
+MEASURE worldIntegerNsPerLookup trials=[23.3852, 15.983198, 18.035002, 18.303402, 17.597798] median=18.035002 min=15.983198 max=23.3852
+MEASURE worldDoubleNsPerLookup trials=[143.845, 110.636802, 110.2408, 109.581, 113.299798] median=110.636802 min=109.581 max=143.845
+POPULATED_FIXTURE metadataBytes=755402 runs=29165 cells=8732021 productionUnchanged=true
+MEASURE populatedMetadataParseMs trials=[244.652901, 25.023399, 22.9795, 17.4731, 32.5724] median=25.023399 min=17.4731 max=244.652901
+MEASURE populatedSnapshotLoadMs trials=[336.673201, 331.915599, 328.486501, 337.395701, 347.7972] median=336.673201 min=328.486501 max=347.7972
+POPULATED_MEMORY rasterCellBytes=51200000 exclusionIndexBytes=25600000 zones=1 classifiedCells=8732021 retainedRasterSnapshots=2 heapUsedApprox=135539160
+POPULATED_COVERAGE positions=8192 classifiedPositions=5573
+MEASURE populatedIntegerNsPerLookup trials=[22.4956, 25.941998, 21.3028, 20.9736, 21.2928] median=21.3028 min=20.9736 max=25.941998
+MEASURE populatedDoubleNsPerLookup trials=[112.7894, 109.967, 111.5614, 114.406198, 112.137002] median=112.137002 min=109.967 max=114.406198
+MEASURE tracking100_0MsPerTick trials=[0.009052, 0.0064855, 0.006591, 0.005082, 0.003945995] median=0.0064855 min=0.003945995 max=0.009052
+TRACK entities=100 players=5 mode=0 trials=5 ticksPerTrial=200 lookups=0 transitions=0
+MEASURE tracking100_1MsPerTick trials=[0.071410995, 0.040089505, 0.021672995, 0.014793005, 0.011189] median=0.021672995 min=0.011189 max=0.071410995
+TRACK entities=100 players=5 mode=1 trials=5 ticksPerTrial=200 lookups=100000 transitions=0
+MEASURE tracking100_2MsPerTick trials=[0.027270995, 0.018332, 0.018569005, 0.027611495, 0.034337505] median=0.027270995 min=0.018332 max=0.034337505
+TRACK entities=100 players=5 mode=2 trials=5 ticksPerTrial=200 lookups=100000 transitions=100000
+MEASURE tracking2000_0MsPerTick trials=[0.051962005, 0.058179, 0.0602395, 0.051881, 0.045465] median=0.051962005 min=0.045465 max=0.0602395
+TRACK entities=2000 players=100 mode=0 trials=5 ticksPerTrial=200 lookups=0 transitions=0
+MEASURE tracking2000_1MsPerTick trials=[0.282858505, 0.227536, 0.201867, 0.232436995, 0.228977505] median=0.228977505 min=0.201867 max=0.282858505
+TRACK entities=2000 players=100 mode=1 trials=5 ticksPerTrial=200 lookups=2000000 transitions=0
+MEASURE tracking2000_2MsPerTick trials=[0.2955735, 0.290395, 0.2858155, 0.2688875, 0.2700085] median=0.2858155 min=0.2688875 max=0.2955735
+TRACK entities=2000 players=100 mode=2 trials=5 ticksPerTrial=200 lookups=2000000 transitions=2000000
+MEASURE borderExtractionMs trials=[142.2962, 150.0744, 98.3826, 100.165201, 103.7125] median=103.7125 min=98.3826 max=150.0744
+BORDER_CACHE primitiveBytes=2609460 edgeRuns=99816 fillRuns=60474
+MEASURE headlessDrawMs gui=854x480 zoom=0.15 trials=[0.698173, 0.693663, 0.6924955, 0.692617, 0.6791175] median=0.692617 min=0.6791175 max=0.698173
+DRAW quadsPerFrameAvg=90004.0 excludesGL=true excludesFPS=true
+MEASURE headlessDrawMs gui=854x480 zoom=1.0 trials=[0.035737, 0.0395555, 0.038484, 0.039155, 0.0361165] median=0.038484 min=0.035737 max=0.0395555
+DRAW quadsPerFrameAvg=5036.3 excludesGL=true excludesFPS=true
+MEASURE headlessDrawMs gui=854x480 zoom=8.0 trials=[0.0028805, 0.002507005, 0.002763, 0.003646, 0.002523] median=0.002763 min=0.002507005 max=0.003646
+DRAW quadsPerFrameAvg=128.95 excludesGL=true excludesFPS=true
+MEASURE headlessDrawMs gui=1920x1080 zoom=0.15 trials=[0.770416, 0.761225, 0.779389505, 0.7634325, 0.7453615] median=0.7634325 min=0.7453615 max=0.779389505
+DRAW quadsPerFrameAvg=100154.0 excludesGL=true excludesFPS=true
+MEASURE headlessDrawMs gui=1920x1080 zoom=1.0 trials=[0.154195, 0.1622195, 0.1568655, 0.15846, 0.1623105] median=0.15846 min=0.154195 max=0.1623105
+DRAW quadsPerFrameAvg=19709.2 excludesGL=true excludesFPS=true
+MEASURE headlessDrawMs gui=1920x1080 zoom=8.0 trials=[0.0061105, 0.009065, 0.008388495, 0.0052705, 0.005795005] median=0.0061105 min=0.0052705 max=0.009065
+DRAW quadsPerFrameAvg=506.35 excludesGL=true excludesFPS=true
+LIMITS syntheticCurrentHostOnly=true liveServerTicks=false clientFps=false lowSpec=false sink=806707446
+
+BUILD SUCCESSFUL in 16s
+13 actionable tasks: 1 executed, 12 up-to-date

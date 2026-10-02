@@ -98,6 +98,7 @@ public class KOMEEvents {
     private final KOMEPopulationPayoutRuntime populationPayoutRuntime = new KOMEPopulationPayoutRuntime();
 
     public void resetSessionState() {
+        kome.common.network.KOMEPublicWaypointSync.reset();
         KOMEPacketConquestData.clearSentSnapshots();
         lastCoinValues.clear();
         lastCoinCounts.clear();
@@ -120,6 +121,7 @@ public class KOMEEvents {
             data.rememberPlayerName(KOMEReflection.getEntityUUID(event.player), event.player.getCommandSenderName());
             KOMEPledgeReleaseService.observePledge(data, (EntityPlayerMP) event.player,
                 getActualPledgeFactionKey(event.player), System.currentTimeMillis());
+            kome.common.network.KOMEPublicWaypointSync.send(data,(EntityPlayerMP)event.player);
             KOMEPacketConquestData.sendIfChanged(data, (EntityPlayerMP) event.player);
             sendAllianceRefresh((EntityPlayerMP) event.player, data);
             KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
@@ -131,6 +133,8 @@ public class KOMEEvents {
 
     @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.player instanceof EntityPlayerMP) KOMEPacketHandler.forgetRequester((EntityPlayerMP) event.player);
+        if(event.player instanceof EntityPlayerMP) kome.common.network.KOMEPublicWaypointSync.forget((EntityPlayerMP)event.player);
         KOMEAllianceRecordBuilder.clearOperatorView(event.player);
         if (event.player instanceof EntityPlayerMP)
             KOMEPacketConquestData.forgetRecipient((EntityPlayerMP) event.player);
@@ -201,6 +205,7 @@ public class KOMEEvents {
         if (server == null || server.worldServers == null) {
             return;
         }
+        kome.common.network.KOMEPublicWaypointSync.tick(server);
         if (now >= nextLiveUnitMarkerSyncMillis) {
             nextLiveUnitMarkerSyncMillis = now + 1000L;
             KOMEWorldData markerData = null;

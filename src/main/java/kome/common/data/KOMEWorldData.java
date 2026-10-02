@@ -62,6 +62,7 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
     public final Map<String, String> activeRecruitmentTiles = new HashMap<>();
+    public final KOMEPublicWaypointRegistry publicWaypoints = new KOMEPublicWaypointRegistry();
     public final Map<String, KOMETileWaypoint> tileWaypoints = new HashMap<>();
     public final Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId = new HashMap<>();
     public final Map<String, KOMEConquestRouteEdge> routeEdges = new HashMap<>();
@@ -2499,6 +2500,12 @@ public class KOMEWorldData extends WorldSavedData {
             loadedStateReconciled = true;
         }
 
+        loadSection = "PublicWaypoints";
+        if (nbt.hasKey("PublicWaypoints")) {
+            if (!nbt.hasKey("PublicWaypoints", 10)) throw new IllegalArgumentException("Wrong public waypoint section type");
+            publicWaypoints.replaceFrom(KOMEPublicWaypointRegistry.read(this, nbt.getCompoundTag("PublicWaypoints")));
+        }
+
         loadSection = "War, stewardship and movement restart reconciliation";
         long restartRevalidationNow = System.currentTimeMillis();
         KOMEWarService.reconcileAutomaticMilitarySupport(this, restartRevalidationNow, "World load reconciliation");
@@ -2534,6 +2541,7 @@ public class KOMEWorldData extends WorldSavedData {
         conquestTiles.putAll(candidate.conquestTiles);
         activeRecruitmentTiles.clear();
         activeRecruitmentTiles.putAll(candidate.activeRecruitmentTiles);
+        publicWaypoints.replaceFrom(candidate.publicWaypoints);
         tileWaypoints.clear();
         tileWaypoints.putAll(candidate.tileWaypoints);
         tileWaypointLinksByTileId.clear();
@@ -2702,6 +2710,7 @@ public class KOMEWorldData extends WorldSavedData {
                 ? KOMEFactionCapitalDefaults.metadataFixture(0L)
                 : KOMEFactionCapitalService.validateCompleteSet(factionCapitals);
         nbt.setInteger(KOME_DATA_SCHEMA_KEY, KOME_DATA_SCHEMA_VERSION);
+        nbt.setTag("PublicWaypoints", publicWaypoints.writeToNBT());
         nbt.removeTag("TradeProduceSlotsMaximum");
         nbt.removeTag("AllianceProduceSlots");
         nbt.setInteger("AllianceDataSchemaVersion", ALLIANCE_DATA_SCHEMA_VERSION);

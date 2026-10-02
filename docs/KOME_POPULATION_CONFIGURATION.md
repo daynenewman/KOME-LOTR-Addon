@@ -87,3 +87,7 @@ At SERVER TICK START, startup reconciliation precedes queued packet work. On the
 The existing bounded central audit and server log receive INITIALIZED, PAID, FROZEN, SKIPPED and RECONCILED population records. Paid records include exact rate units, prior/next remainder, generated/granted/cap-blocked centi, resulting bank, effective hours, multiplier, cap, catch-up flag and schedule identity. Operator `/population rate` additionally shows persisted/active schedules, UTC/local last/next boundaries, remainder scale/values, recent central population records and the latest transient failure without mutating state. No new GUI or packet payload is introduced.
 
 See [Checkpoint D Build model](KOME_PRECISE_BUILDS.md) for unchanged Build storage and review. Manager auto-approval, defensive exclusion and permanent combat spending are preserved. KOM-71 and Checkpoints F/G are not activated.
+
+## Server request cooldown
+
+The same canonical registry now owns validated `network.serverRecordCooldownMillis` (default2000ms, integer1–60000), including effective inspection and coherent candidate/change guards. See [server queue policy](KOME_SERVER_TASK_QUEUE.md) for overload, fairness, session fencing and precise cooldown behavior. Population settings and readiness/world binding remain unchanged.

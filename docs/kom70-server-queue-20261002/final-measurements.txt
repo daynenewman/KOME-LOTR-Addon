@@ -1,0 +1,13 @@
+Java=1.8.0_492; processors=12
+Limits: pending=1024, perConnection=32, attemptsPerTick=64, softBudgetNanos=2000000
+Inert registered players and transport; actual KOMEServerRecordBuilder; no live clients/TPS/FPS claim.
+Fixture: 200 saved offline player rows, 20 historical wars, 621 canonical tiles.
+record_flood players=20 offered=2000 admitted=640 rejected=1360 peak_pending=640 drain_invocations=30 total_attempts=640 first_tick_attempts=1 max_tick_attempts=64 projections=20 admission_ms=1.726
+Logical complete responses=20; response chunks=200
+real_projection_ms samples=20 mean=13.021 p50=13.773 p95=16.589 max=20.925
+record_drain_invocation_ms samples=30 mean=8.975 p50=11.383 p95=16.658 max=27.582
+global_flood round=0 offered=100000 admitted=1024 rejected=98976 peak_pending=1024 drain_invocations=16 max_tick_attempts=64 admission_ms=12.516 total_drain_ms=0.621
+global_flood round=1 offered=100000 admitted=1024 rejected=98976 peak_pending=1024 drain_invocations=16 max_tick_attempts=64 admission_ms=6.652 total_drain_ms=0.163
+global_flood round=2 offered=100000 admitted=1024 rejected=98976 peak_pending=1024 drain_invocations=16 max_tick_attempts=64 admission_ms=10.771 total_drain_ms=0.183
+global_flood round=3 offered=100000 admitted=1024 rejected=98976 peak_pending=1024 drain_invocations=16 max_tick_attempts=64 admission_ms=10.331 total_drain_ms=0.170
+global_flood round=4 offered=100000 admitted=1024 rejected=98976 peak_pending=1024 drain_invocations=16 max_tick_attempts=64 admission_ms=11.044 total_drain_ms=0.170

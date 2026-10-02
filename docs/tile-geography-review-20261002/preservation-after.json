@@ -1,0 +1,47 @@
+{
+  "existing_worktrees": {
+    "C:/Users/dayne/OneDrive/Desktop/The-Lord-of-the-Rings-main/KOME-LOTR-Addon": {
+      "unchanged": true,
+      "head": "9037d1cb70410dfae16545085f4bc438370a1ff8"
+    },
+    "C:/Users/dayne/Documents/KOME-Integration-Review/kom60-publication-20260926": {
+      "unchanged": true,
+      "head": "adc7138acb74c8046b154e8ee75aa8dea26de879"
+    },
+    "C:/Users/dayne/Documents/KOME-Integration-Review/tile-d901976-20260921T000233Z/checkpoint": {
+      "unchanged": true,
+      "head": "d90197650f7749b300f9fdb580e0c00681b658b5"
+    },
+    "C:/Users/dayne/Documents/KOME-Integration-Review/tile-d901976-20260921T000233Z/integration": {
+      "unchanged": true,
+      "head": "96daae9e062c3337117dd3056aee72153be9bb3e"
+    },
+    "C:/Users/dayne/OneDrive/Desktop/The-Lord-of-the-Rings-main/KOME-LOTR-Addon-Conquest-Sync": {
+      "unchanged": true,
+      "head": "01c171ded13b16b48cbe224c984df9b77a5bc334"
+    },
+    "C:/Users/dayne/OneDrive/Desktop/The-Lord-of-the-Rings-main/KOME-LOTR-Addon-Conquest-Sync-Review": {
+      "unchanged": true,
+      "head": "e39de5b48f659cbeaed9f33446c224e39a0eb0a1"
+    },
+    "C:/Users/dayne/OneDrive/Desktop/The-Lord-of-the-Rings-main/KOME-LOTR-Addon-Public-Access": {
+      "unchanged": true,
+      "head": "d6bb856f2a06d39f15458b042bb48071286655de"
+    },
+    "C:/Users/dayne/OneDrive/Desktop/The-Lord-of-the-Rings-main/KOME-LOTR-Addon-Server-Tile-Awareness": {
+      "unchanged": true,
+      "head": "31f8fb26fb12ccc198813c6356acb4c3e063985a"
+    },
+    "C:/Users/dayne/OneDrive/Desktop/The-Lord-of-the-Rings-main/KOME-LOTR-Addon-Tile-Resolution": {
+      "unchanged": true,
+      "head": "cd9af14a9533bebb0bda9e8d32f914cac81dad9f"
+    },
+    "C:/Users/dayne/OneDrive/Desktop/The-Lord-of-the-Rings-main/KOME-LOTR-Addon-Tile-Resolution-Dev": {
+      "unchanged": true,
+      "head": "d90197650f7749b300f9fdb580e0c00681b658b5"
+    }
+  },
+  "stashes_unchanged": true,
+  "worlds_or_runtimes_opened_or_modified": false,
+  "merge_push_deploy_performed": false
+}

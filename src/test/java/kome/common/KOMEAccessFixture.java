@@ -49,7 +49,7 @@ public final class KOMEAccessFixture {
         world.playerEntities = new ArrayList();
         set(World.class, world, "worldScoreboard", new net.minecraft.scoreboard.Scoreboard());
         player = allocate(Player.class);
-        player.id = UUID.randomUUID();
+        player.id = UUID.randomUUID(); player.connected = true;
         set(Entity.class, player, "entityUniqueID", player.id);
         player.messages = new ArrayList<String>();
         player.worldObj = world;
@@ -78,6 +78,19 @@ public final class KOMEAccessFixture {
         return type.cast(unsafe.getMethod("allocateInstance", Class.class).invoke(singleton.get(null), type));
     }
 
+    /** Real FML lifecycle event with an inert native handler; no socket or live client. */
+    public static cpw.mods.fml.common.network.FMLNetworkEvent.ClientConnectedToServerEvent clientConnected() throws Exception {
+        NetworkManager manager = new NetworkManager(false);
+        manager.setNetHandler(allocate(net.minecraft.client.network.NetHandlerPlayClient.class));
+        return new cpw.mods.fml.common.network.FMLNetworkEvent.ClientConnectedToServerEvent(manager, "MODDED");
+    }
+
+    public static cpw.mods.fml.common.network.FMLNetworkEvent.ClientDisconnectionFromServerEvent clientDisconnected() throws Exception {
+        NetworkManager manager = new NetworkManager(false);
+        manager.setNetHandler(allocate(net.minecraft.client.network.NetHandlerPlayClient.class));
+        return new cpw.mods.fml.common.network.FMLNetworkEvent.ClientDisconnectionFromServerEvent(manager);
+    }
+
     private static void set(Class<?> type, Object target, String name, Object value) throws Exception {
         Field field = type.getDeclaredField(name); field.setAccessible(true); field.set(target, value);
     }
@@ -86,6 +99,7 @@ public final class KOMEAccessFixture {
         public UUID id;
         public String name;
         public boolean operator;
+        public boolean connected = true;
         public List<String> messages;
         private Player() { super(null, null, null, null); }
         @Override public UUID getUniqueID() { return id; }
@@ -113,7 +127,7 @@ public final class KOMEAccessFixture {
     private static final class RecordingManager extends NetworkManager {
         EntityPlayerMP recipient;
         RecordingManager() { super(false); }
-        @Override public boolean isChannelOpen() { return true; }
+        @Override public boolean isChannelOpen() { return ((Player)recipient).connected; }
         @Override public void scheduleOutboundPacket(Packet packet, GenericFutureListener... listeners) {
             kome.common.network.KOMEPacketHandler.network.sendTo(((RecordedPacket) packet).message, recipient);
             for (GenericFutureListener listener : listeners) {

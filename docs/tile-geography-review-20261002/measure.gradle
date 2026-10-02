@@ -1,0 +1,10 @@
+// Explicit opt-in; timing never decides the correctness test result.
+gradle.projectsEvaluated {
+    rootProject.tasks.register('tileGeographyMeasure', JavaExec) {
+        dependsOn rootProject.tasks.named('testClasses')
+        classpath = rootProject.sourceSets.test.runtimeClasspath
+        mainClass.set('kome.common.data.KOMETileGeographyMeasurement')
+        maxHeapSize = '512m'
+        workingDir = rootProject.projectDir
+    }
+}

@@ -43,7 +43,7 @@ public class KOMEConfigInspectionTest {
             previous = value.format();
         }
         assertEquals(new HashSet<String>(Arrays.asList("dailyBatch", "population", "movement",
-                "battle", "muster", "siege", "battleSupport", "encirclement", "season", "gear")), categories);
+                "battle", "muster", "siege", "battleSupport", "encirclement", "season", "gear", "network")), categories);
         Map<String, String> expected = expectedDefaults();
         expected.put("population.lastApplyStatus", KOMEConfigRegistry.getLastApplyStatus());
         assertEquals(expected.keySet(), keys);
@@ -86,7 +86,7 @@ public class KOMEConfigInspectionTest {
 
     private static Map<String, String> expectedDefaults() {
         String[] entries = {
-                "dailyBatch.localTime=20:00", "dailyBatch.timezone=America/Chicago",
+                "network.serverRecordCooldownMillis=2000", "dailyBatch.localTime=20:00", "dailyBatch.timezone=America/Chicago",
                 "population.hoursPerPopulationPoint=10.00", "population.capturedBuildMultiplier=0.50",
                 "population.bottleneckRatePerActiveServerDay=0.10",
                 "population.pauseRateCeilingWhenNoPendingHours=true",
