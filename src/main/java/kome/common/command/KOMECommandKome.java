@@ -36,8 +36,8 @@ public class KOMECommandKome extends KOMEPublicCommand {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        if (!hasStaffPermission(sender)) return "/kome [gui|help|tile <tileId>]";
-        return "/kome capital <list|get faction|relocate faction here> | character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
+        if (!hasStaffPermission(sender)) return "/kome [gui|help|tile <tileId>|waypoint propose <name>]";
+        return "/kome waypoint help | capital <list|get faction|relocate faction here> | character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
     @Override
@@ -60,6 +60,9 @@ public class KOMECommandKome extends KOMEPublicCommand {
         if (args.length == 2 && "tile".equalsIgnoreCase(args[0])) {
             kome.common.network.KOMEPacketConquestOpenCapture.sendTileCommand(getCommandSenderAsPlayer(sender), args[1]);
             return;
+        }
+        if ("waypoint".equalsIgnoreCase(args[0])) {
+            KOMEWaypointCommands.process(sender,args); return;
         }
         // Remaining root functions are administrative. Reject before accessing world state.
         requireStaff(sender);
@@ -221,13 +224,13 @@ public class KOMECommandKome extends KOMEPublicCommand {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (!hasStaffPermission(sender)) {
-            return args.length == 1 ? getListOfStringsMatchingLastWord(args, "gui", "help", "tile")
+            return args.length == 1 ? getListOfStringsMatchingLastWord(args, "gui", "help", "tile", "waypoint")
                 : java.util.Collections.emptyList();
         }
         if (args.length == 1) {
             return getListOfStringsMatchingLastWord(
                 args,
-                "gui", "help", "tile",
+                "gui", "help", "tile", "waypoint",
                 "character",
                 "config",
                 "conquest",

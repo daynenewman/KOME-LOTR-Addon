@@ -41,6 +41,7 @@ public final class KOMEPublicWaypoint {
 
     KOMEPublicWaypoint changed(String tile, String displayName, int dim, int wx, int wy, int wz,
             int newLevel, long now) {
+        if (now < modifiedAt) throw new IllegalArgumentException("Stale administrative timestamp");
         return new KOMEPublicWaypoint(id, wireId, tile, displayName, source, sourceKey,
             dim, wx, wy, wz, newLevel, approvedBy, approvedAt, now, proposalId);
     }

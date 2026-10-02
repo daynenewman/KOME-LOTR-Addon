@@ -14,6 +14,8 @@ public final class KOMEPublicWaypointRegistry {
     private final List<NBTTagCompound> history = new ArrayList<NBTTagCompound>();
     private final List<NBTTagCompound> quarantine = new ArrayList<NBTTagCompound>();
     private final SortedMap<String, UUID> cutover = new TreeMap<String, UUID>();
+    public static final int MAX_PROPOSALS = 4096, MAX_PENDING_PER_TILE = 8;
+    private final SortedMap<UUID, KOMEWaypointProposal> proposals = new TreeMap<UUID, KOMEWaypointProposal>();
     private long nextWire = 1, revision;
 
     public long revision() { return revision; }
@@ -58,11 +60,18 @@ public final class KOMEPublicWaypointRegistry {
             int x, int y, int z, int level, KOMEPublicWaypoint.Source source, String sourceKey,
             String actor, long now, UUID proposalId) {
         writable(data);
+        KOMEPublicWaypoint r = prepareRecord(data,name,dimension,x,y,z,level,source,sourceKey,actor,now,proposalId,nextWire);
+        prepareAudit(actor, now, "APPROVE", r.id, null, r.writeToNBT(), "Approved destination");
+        install(r); data.markDirty(); return r;
+    }
+    private KOMEPublicWaypoint prepareRecord(KOMEWorldData data, String name, int dimension,
+            int x, int y, int z, int level, KOMEPublicWaypoint.Source source, String sourceKey,
+            String actor, long now, UUID proposalId, long allocation) {
         String tile = resolveTile(data, dimension, x, z);
         if (forTile(tile) != null) throw new IllegalArgumentException("Tile already has an approved waypoint: " + tile);
-        if (records.size() >= MAX_RECORDS || nextWire > Integer.MAX_VALUE || revision == Long.MAX_VALUE)
+        if (records.size() >= MAX_RECORDS || allocation > Integer.MAX_VALUE || revision == Long.MAX_VALUE)
             throw new IllegalStateException("Waypoint registry capacity exhausted");
-        KOMEPublicWaypoint r = new KOMEPublicWaypoint(UUID.randomUUID(), -(int) nextWire,
+        KOMEPublicWaypoint r = new KOMEPublicWaypoint(UUID.randomUUID(), -(int) allocation,
             tile, name, source, sourceKey, dimension, x, y, z, level, actor, now, now, proposalId);
         String invalid = invalidAssociation(data, r);
         if (invalid != null) throw new IllegalArgumentException(invalid);
@@ -70,11 +79,105 @@ public final class KOMEPublicWaypointRegistry {
             throw new IllegalArgumentException("Legacy identity already converted");
         if (source == KOMEPublicWaypoint.Source.MIGRATED && cutover.size() >= MAX_RECORDS)
             throw new IllegalStateException("Cutover identity capacity exhausted");
-        prepareAudit(actor, now, "APPROVE", r.id, null, r.writeToNBT(), "Approved destination");
-        records.put(r.id, r); nextWire++; revision++;
-        if (source == KOMEPublicWaypoint.Source.MIGRATED) cutover.put(sourceKey, r.id);
-        data.markDirty();
         return r;
+    }
+    private void install(KOMEPublicWaypoint r) {
+        records.put(r.id,r); nextWire++; revision++;
+        if (r.source == KOMEPublicWaypoint.Source.MIGRATED) cutover.put(r.sourceKey,r.id);
+    }
+
+    public List<KOMEWaypointProposal> proposals() {
+        return Collections.unmodifiableList(new ArrayList<KOMEWaypointProposal>(proposals.values()));
+    }
+    public KOMEWaypointProposal proposal(UUID id) { return proposals.get(id); }
+    public KOMEWaypointProposal propose(KOMEWorldData data, UUID submitter, String submitterName,
+            String name, int dim, int x, int y, int z, long now) {
+        writable(data); String tile=resolveTile(data,dim,x,z);
+        if (forTile(tile)!=null) throw new IllegalArgumentException("Tile already has an approved waypoint");
+        if (proposals.size()>=MAX_PROPOSALS) throw new IllegalStateException("Proposal history capacity exhausted");
+        int pending=0;
+        for(KOMEWaypointProposal q:proposals.values()) if(q.status==KOMEWaypointProposal.Status.PENDING && q.tileId.equals(tile)) {
+            pending++;
+            if(q.submitter.equals(submitter)) throw new IllegalArgumentException("You already have a pending proposal on this tile");
+        }
+        if(pending>=MAX_PENDING_PER_TILE) throw new IllegalArgumentException("Tile pending proposal limit reached");
+        KOMEWaypointProposal q=new KOMEWaypointProposal(UUID.randomUUID(),submitter,submitterName,tile,name,dim,x,y,z,
+            0,now,KOMEWaypointProposal.Status.PENDING,"","",now,0,null);
+        prepareAudit(submitter.toString(),now,"PROPOSE",q.id,null,q.writeToNBT(),"Submitted for review");
+        proposals.put(q.id,q); revision++; data.markDirty(); return q;
+    }
+    private KOMEWaypointProposal pending(UUID id,long expected) {
+        KOMEWaypointProposal q=proposals.get(id);
+        if(q==null || q.status!=KOMEWaypointProposal.Status.PENDING || q.version!=expected)
+            throw new IllegalArgumentException("Proposal no longer pending or review version is stale");
+        return q;
+    }
+    public KOMEWaypointProposal adjust(KOMEWorldData data, UUID id, long expected, String name,
+            int dim,int x,int y,int z,int level,String actor,String reason,long now) {
+        writable(data); KOMEWaypointProposal before=pending(id,expected);
+        String tile=resolveTile(data,dim,x,z);
+        if(forTile(tile)!=null) throw new IllegalArgumentException("Destination tile already occupied");
+        int pending=0;
+        for(KOMEWaypointProposal other:proposals.values()) if(!other.id.equals(id)
+                && other.status==KOMEWaypointProposal.Status.PENDING && other.tileId.equals(tile)) {
+            pending++;
+            if(other.submitter.equals(before.submitter)) throw new IllegalArgumentException("Submitter already has a pending proposal on destination tile");
+        }
+        if(pending>=MAX_PENDING_PER_TILE) throw new IllegalArgumentException("Destination pending limit reached");
+        KOMEWaypointProposal after=before.reviewed(tile,name,dim,x,y,z,level,KOMEWaypointProposal.Status.PENDING,
+            actor,reason,now,null);
+        prepareAudit(actor,now,"ADJUST",id,before.writeToNBT(),after.writeToNBT(),reason);
+        proposals.put(id,after); revision++; data.markDirty(); return after;
+    }
+    public KOMEPublicWaypoint approveProposal(KOMEWorldData data,UUID id,long expected,String actor,String reason,long now) {
+        writable(data); KOMEWaypointProposal before=pending(id,expected);
+        if(history.size()>MAX_HISTORY-2) throw new IllegalStateException("Waypoint audit capacity exhausted");
+        KOMEPublicWaypoint r=prepareRecord(data,before.name,before.dimension,before.x,before.y,before.z,before.level,
+            KOMEPublicWaypoint.Source.PUBLIC,"",actor,now,id,nextWire);
+        if(!r.tileId.equals(before.tileId)) throw new IllegalArgumentException("Proposal geometry changed; adjust and review again");
+        KOMEWaypointProposal after=before.reviewed(before.tileId,before.name,before.dimension,before.x,before.y,before.z,
+            before.level,KOMEWaypointProposal.Status.APPROVED,actor,reason,now,r.id);
+        NBTTagCompound approval=audit(actor,now,"APPROVE",r.id,null,r.writeToNBT(),reason);
+        NBTTagCompound review=audit(actor,now,"REVIEW_APPROVE",id,before.writeToNBT(),after.writeToNBT(),reason);
+        history.add(approval); history.add(review); install(r); proposals.put(id,after); data.markDirty(); return r;
+    }
+    public void reject(KOMEWorldData data,UUID id,long expected,String actor,String reason,long now) {
+        writable(data); KOMEWaypointProposal before=pending(id,expected);
+        KOMEWaypointProposal after=before.reviewed(before.tileId,before.name,before.dimension,before.x,before.y,before.z,
+            before.level,KOMEWaypointProposal.Status.REJECTED,actor,reason,now,null);
+        prepareAudit(actor,now,"REJECT",id,before.writeToNBT(),after.writeToNBT(),reason);
+        proposals.put(id,after); revision++; data.markDirty();
+    }
+
+    /** All validation/audit construction precedes publication; no native/fellowship writes. */
+    public List<KOMEPublicWaypoint> importLegacy(KOMEWorldData data,List<KOMEWaypointMigration.Entry> entries,String actor,long now) {
+        writable(data);
+        if(entries.isEmpty() || entries.size()>MAX_RECORDS-records.size() || entries.size()>MAX_RECORDS-cutover.size()
+                || entries.size()>MAX_HISTORY-history.size() || nextWire+entries.size()-1>Integer.MAX_VALUE
+                || revision>Long.MAX_VALUE-entries.size()) throw new IllegalArgumentException("Import capacity exceeded or empty selection");
+        Set<String> tiles=new HashSet<String>(), aliases=new HashSet<String>();
+        List<KOMEPublicWaypoint> prepared=new ArrayList<KOMEPublicWaypoint>();
+        List<NBTTagCompound> audits=new ArrayList<NBTTagCompound>();
+        for(KOMEWaypointMigration.Entry entry:entries) {
+            KOMEPublicWaypoint r=prepareRecord(data,entry.name,entry.dimension,entry.x,entry.y,entry.z,0,
+                KOMEPublicWaypoint.Source.MIGRATED,entry.identity,actor,now,null,nextWire+prepared.size());
+            if(!tiles.add(r.tileId) || !aliases.add(entry.identity)) throw new IllegalArgumentException("Ambiguous import selection");
+            prepared.add(r); audits.add(audit(actor,now,"MIGRATE",r.id,null,r.writeToNBT(),"Explicit legacy cutover"));
+        }
+        history.addAll(audits); for(KOMEPublicWaypoint r:prepared) install(r); data.markDirty();
+        return Collections.unmodifiableList(prepared);
+    }
+    public void rollbackLegacy(KOMEWorldData data,String identity,String actor,long now) {
+        writable(data); KOMEPublicWaypoint.legacyIdentity(identity);
+        UUID id=cutover.get(identity);
+        if(id==null) throw new IllegalArgumentException("No cutover identity to roll back");
+        KOMEPublicWaypoint record=get(id);
+        if(record!=null && (record.source!=KOMEPublicWaypoint.Source.MIGRATED || !record.sourceKey.equals(identity)))
+            throw new IllegalArgumentException("Inconsistent cutover target; inspect before rollback");
+        NBTTagCompound prior=new NBTTagCompound(); prior.setString("Legacy",identity); prior.setString("Waypoint",id.toString());
+        if(record!=null) prior.setTag("Record",record.writeToNBT());
+        prepareAudit(actor,now,"ROLLBACK",id,prior,null,"Restore original legacy visibility without modifying native data");
+        records.remove(id); cutover.remove(identity); revision++; data.markDirty();
     }
 
     public KOMEPublicWaypoint rename(KOMEWorldData data, UUID id, String name, String actor, long now) {
@@ -146,14 +249,17 @@ public final class KOMEPublicWaypointRegistry {
 
     private void prepareAudit(String actor, long now, String action, UUID id,
             NBTTagCompound before, NBTTagCompound after, String reason) {
-        KOMEPublicWaypoint.actor(actor);
+        history.add(audit(actor,now,action,id,before,after,reason));
+    }
+    private NBTTagCompound audit(String actor,long now,String action,UUID id,NBTTagCompound before,NBTTagCompound after,String reason) {
+        KOMEPublicWaypoint.actor(actor); KOMEPublicWaypoint.text(reason,256,true);
         if (now < 0) throw new IllegalArgumentException("Invalid review time");
         NBTTagCompound n = new NBTTagCompound();
         n.setString("Entity", id.toString()); n.setString("Actor", actor);
         n.setString("Action", action); n.setLong("At", now); n.setString("Reason", reason);
         if (before != null) n.setTag("Before", before.copy());
         if (after != null) n.setTag("After", after.copy());
-        history.add(n);
+        return n;
     }
 
     public NBTTagCompound writeToNBT() {
@@ -168,7 +274,10 @@ public final class KOMEPublicWaypointRegistry {
             row.setString("Legacy", entry.getKey()); row.setString("Waypoint", entry.getValue().toString());
             aliases.appendTag(row);
         }
-        n.setTag("Cutover", aliases); return n;
+        n.setTag("Cutover", aliases);
+        NBTTagList pending=new NBTTagList();
+        for(KOMEWaypointProposal q:proposals.values()) pending.appendTag(q.writeToNBT());
+        n.setTag("Proposals",pending); return n;
     }
 
     static KOMEPublicWaypointRegistry read(KOMEWorldData data, NBTTagCompound n) {
@@ -231,6 +340,30 @@ public final class KOMEPublicWaypointRegistry {
             if (r.source == KOMEPublicWaypoint.Source.MIGRATED
                     && !r.id.equals(result.cutover.get(r.sourceKey)))
                 throw new IllegalArgumentException("Migrated destination lacks exact cutover identity");
+        if(n.hasKey("Proposals")) {
+            List<KOMEWaypointProposal> parsed=new ArrayList<KOMEWaypointProposal>();
+            List<NBTTagCompound> originals=new ArrayList<NBTTagCompound>();
+            Map<UUID,Integer> proposalIds=new HashMap<UUID,Integer>();
+            for(NBTTagCompound row:copyList(list(n,"Proposals",MAX_PROPOSALS))) {
+                try {
+                    KOMEWaypointProposal q=KOMEWaypointProposal.read(row);
+                    if(!data.conquestTiles.containsKey(q.tileId) || !KOMEConquestTileDefaults.getKnownTileIds().contains(q.tileId))
+                        throw new IllegalArgumentException("Orphaned proposal tile");
+                    parsed.add(q); originals.add(row); increment(proposalIds,q.id);
+                } catch(RuntimeException bad) { result.quarantine("Proposals",row,bad.getMessage()); }
+            }
+            Map<String,Integer> submitterTiles=new HashMap<String,Integer>(), pendingTiles=new HashMap<String,Integer>();
+            for(KOMEWaypointProposal q:parsed) if(q.status==KOMEWaypointProposal.Status.PENDING) {
+                increment(submitterTiles,q.submitter+":"+q.tileId); increment(pendingTiles,q.tileId);
+            }
+            for(int i=0;i<parsed.size();i++) {
+                KOMEWaypointProposal q=parsed.get(i);
+                if(proposalIds.get(q.id)>1 || q.status==KOMEWaypointProposal.Status.PENDING
+                        && (submitterTiles.get(q.submitter+":"+q.tileId)>1 || pendingTiles.get(q.tileId)>MAX_PENDING_PER_TILE))
+                    result.quarantine("Proposals",originals.get(i),"Conflicting proposal identity or pending limits; all contenders withheld");
+                else result.proposals.put(q.id,q);
+            }
+        }
         return result;
     }
     private void quarantine(String section, NBTTagCompound row, String reason) {
@@ -271,6 +404,7 @@ public final class KOMEPublicWaypointRegistry {
     }
     void replaceFrom(KOMEPublicWaypointRegistry other) {
         records.clear(); records.putAll(other.records);
+        proposals.clear(); proposals.putAll(other.proposals);
         // Rows are private and never mutated after construction; public readers receive deep copies.
         // Candidate publication transfers these immutable-by-encapsulation rows without invoking NBT parsing/copy hooks.
         history.clear(); history.addAll(other.history);
