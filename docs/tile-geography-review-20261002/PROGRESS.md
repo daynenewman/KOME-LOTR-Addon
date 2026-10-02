@@ -16,3 +16,5 @@
 
 - Checkpoint 2: 13b7686 (automated acceptance and measured workloads). Corrected final clean test/build: 1,176 discovered, 1,174 passed, two existing Windows symlink skips, zero failures/errors. Production JAR SHA256 73392cbf8ee16dd18397d87de0ed66ae2f0629841edb9d01b2a785f3d7e238b5; PNG/metadata bytes match, Java8 major52, no LOTR classes bundled.
 - Final local self-review complete; automated implementation/measurement scope complete. Exact manual/design/hardware and external-auth limits recorded in README. Existing nine worktree HEAD/status pairs and protected stash verified unchanged. No worlds/runtime/source ownership/Linear state modifications; no push/merge/deploy.
+
+- Review-package checkpoint: 8a39010. Follow-up evidence hygiene: allow deliberate CSV CRLF under the existing checksum-preservation convention, and strip harmless trailing spaces from saved Gradle transcripts. No CSV, Java, production resource, artifact or test result changed. Final diff whitespace check passed before the last local commit.
