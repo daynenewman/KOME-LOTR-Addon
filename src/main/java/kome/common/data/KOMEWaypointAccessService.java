@@ -33,6 +33,21 @@ public final class KOMEWaypointAccessService {
                 "No waypoint was selected.");
         }
 
+        if (waypoint instanceof KOMEPublicWaypointAdapter) {
+            KOMEPublicWaypointAdapter adapter=(KOMEPublicWaypointAdapter)waypoint;
+            KOMEPublicWaypointRegistry.View current=data instanceof KOMEClientData
+                ?KOMEPublicWaypointClientState.INSTANCE.snapshot().byId(adapter.view.record.id)
+                :data==null?null:data.publicWaypoints.view(data,adapter.view.record.id);
+            if(current==null || !KOMEPublicWaypointBridge.sameDestination(adapter.view.record,current.record))
+                return Decision.denied(adapter.view.record.tileId,"",normalizedPlayerFaction,false,"Public destination was removed, moved or is unavailable.");
+            return evaluateTerritory(data,current.record.tileId,normalizedPlayerFaction,current.currentOwner,nativeEligible);
+        }
+        String legacy=KOMEPublicWaypointBridge.legacyIdentity(waypoint,playerId);
+        if(legacy!=null && data!=null && (data instanceof KOMEClientData
+                ?KOMEPublicWaypointClientState.INSTANCE.snapshot().cutover.containsKey(legacy)
+                :data.publicWaypoints.cutoverIdentities().containsKey(legacy)))
+            return Decision.denied("","",normalizedPlayerFaction,false,"Legacy destination was explicitly cut over; use the canonical public marker.");
+
         String waypointFaction = resolveWaypointFaction(waypoint);
 
         // Wanderers / unpledged players retain ordinary LOTR fast travel.
@@ -197,7 +212,12 @@ public final class KOMEWaypointAccessService {
         }
 
         String owner = KOMEAlliance.normalizeFactionKey(tile.currentRulingFaction());
-
+        return evaluateTerritory(data,normalizedTileId,normalizedPlayerFaction,owner,nativeEligible);
+    }
+    private static Decision evaluateTerritory(KOMEWorldData data,String normalizedTileId,String normalizedPlayerFaction,
+            String owner,boolean nativeEligible) {
+        if(normalizedPlayerFaction.isEmpty()) return Decision.allowed(normalizedTileId,owner,normalizedPlayerFaction,
+            nativeEligible,nativeEligible,"Unpledged players use native LOTR waypoint access.",State.DISABLED);
         // Diplomatic and active-war restrictions are server rules, not command
         // permissions. Operators must pass the same destination policy as players.
         if (owner.length() == 0) {
@@ -243,6 +263,10 @@ public final class KOMEWaypointAccessService {
         boolean operator = KOMEReflection.isRemote(player.worldObj)
             ? KOMEClientData.INSTANCE.clientViewerIsAdmin : player.canCommandSenderUseCommand(2, "alliance");
         UUID playerId = KOMEReflection.getEntityUUID(player);
+        if(waypoint instanceof KOMEPublicWaypointAdapter) {
+            KOMEPublicWaypointAdapter adapter=(KOMEPublicWaypointAdapter)waypoint;
+            nativeEligible=adapter.nativeEligible(player,faction) && KOMEProgressionPermissions.has(player,KOMEProgressionPermissions.FAST_TRAVEL);
+        }
         return evaluate(data, playerId, faction, operator, waypoint, nativeEligible);
     }
 
@@ -251,6 +275,7 @@ public final class KOMEWaypointAccessService {
         if (player == null || waypoint == null) {
             return false;
         }
+        if (waypoint instanceof KOMEPublicWaypointAdapter) return true;
         if (!(waypoint instanceof LOTRWaypoint)) {
             return waypoint.hasPlayerUnlocked(player);
         }
@@ -309,6 +334,9 @@ public final class KOMEWaypointAccessService {
             player.addChatMessage(new ChatComponentText("Fast travel denied: you have not unlocked Fast Travel yet."));
             playerData.setTargetFTWaypoint(null);
             return false;
+        }
+        if(target instanceof KOMEPublicWaypointAdapter && !KOMEPublicWaypointBridge.travelConditions(player,(KOMEPublicWaypointAdapter)target)) {
+            playerData.setTargetFTWaypoint(null); return false;
         }
         boolean nativeEligible = hasNativeProgression(player, target);
         Decision decision = evaluatePlayer(player, target, nativeEligible);

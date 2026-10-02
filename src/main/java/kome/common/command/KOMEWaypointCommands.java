@@ -16,8 +16,8 @@ final class KOMEWaypointCommands {
     static final String HELP="/kome waypoint propose <name> | staff: pending [page], list [page], inspect <id>, history <id>, "
         +"approve/reject <proposalId> <version> <reason>, adjust <proposalId> <version> <level> here <name>, "
         +"add <level> <name>, associate <nativeKey> <level> <name>, rename <id> <name>, move <id> here, "
-        +"remove <id>, level <id> <level>, migration dryrun <fellowshipUUID> [page], "
-        +"migration convert <fellowshipUUID> <token> <owner:ID,...>, migration rollback <owner:ID>";
+        +"remove <id>, level <id> <level>, migration dryrun <fellowshipUUID> <confirmedDimension> [page], "
+        +"migration convert <fellowshipUUID> <confirmedDimension> <token> <owner:ID,...>, migration rollback <owner:ID>";
     static void process(ICommandSender sender,String[] args) {
         if(args.length<2 || "help".equalsIgnoreCase(args[1])) {
             say(sender,sender.canCommandSenderUseCommand(2,"kome")?HELP:"/kome waypoint propose <name>"); return;
@@ -102,18 +102,18 @@ final class KOMEWaypointCommands {
                 registry.level(data,uuid(args[2]),Integer.parseInt(args[3]),actor,now); say(sender,"Updated independent waypoint level."); return;
             }
             if("migration".equals(action)) {
-                if(args.length>=4 && "dryrun".equalsIgnoreCase(args[2]) && args.length<=5) {
-                    UUID fs=uuid(args[3]); KOMEWaypointMigration.Report report=KOMEWaypointMigration.dryRun(data,fs,KOMEWaypointMigration.inventory(fs));
-                    say(sender,"Dry-run token="+report.token+" entries="+report.rows.size()+" (read only)");
+                if(args.length>=5 && "dryrun".equalsIgnoreCase(args[2]) && args.length<=6) {
+                    UUID fs=uuid(args[3]); KOMEWaypointMigration.Report report=KOMEWaypointMigration.dryRun(data,fs,KOMEWaypointMigration.inventory(fs,Integer.parseInt(args[4])));
+                    say(sender,"Dry-run token="+report.token+" entries="+report.rows.size()+" confirmedDimension="+args[4]+" (read only; native records do not store dimension)");
                     List<String> lines=new ArrayList<String>();
                     for(KOMEWaypointMigration.Row row:report.rows) lines.add(row.entry.identity+" "+row.entry.name+" @ "
                         +row.entry.dimension+":"+row.entry.x+","+row.entry.y+","+row.entry.z+" tile="+row.tile+" "
                         +(row.eligible()?"ELIGIBLE":row.problem));
-                    paged(sender,lines,args.length==5?page(args[4]):0); return;
+                    paged(sender,lines,args.length==6?page(args[5]):0); return;
                 }
-                if(args.length==6 && "convert".equalsIgnoreCase(args[2])) {
-                    UUID fs=uuid(args[3]); List<KOMEWaypointMigration.Entry> fresh=KOMEWaypointMigration.inventory(fs);
-                    List<KOMEPublicWaypoint> imported=KOMEWaypointMigration.convert(data,fs,fresh,args[4],Arrays.asList(args[5].split(",",-1)),actor,now);
+                if(args.length==7 && "convert".equalsIgnoreCase(args[2])) {
+                    UUID fs=uuid(args[3]); List<KOMEWaypointMigration.Entry> fresh=KOMEWaypointMigration.inventory(fs,Integer.parseInt(args[4]));
+                    List<KOMEPublicWaypoint> imported=KOMEWaypointMigration.convert(data,fs,fresh,args[5],Arrays.asList(args[6].split(",",-1)),actor,now);
                     say(sender,"Converted "+imported.size()+" destinations; native/fellowship originals preserved."); return;
                 }
                 if(args.length==4 && "rollback".equalsIgnoreCase(args[2])) {

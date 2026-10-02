@@ -18,7 +18,7 @@ public final class KOMEPublicWaypoint {
     KOMEPublicWaypoint(UUID id, int wireId, String tileId, String name, Source source,
             String sourceKey, int dimension, int x, int y, int z, int level,
             String approvedBy, long approvedAt, long modifiedAt, UUID proposalId) {
-        if (id == null || wireId >= 0 || source == null) throw new IllegalArgumentException("Invalid waypoint identity/source");
+        if (id == null || wireId >= 0 || wireId == Integer.MIN_VALUE || source == null) throw new IllegalArgumentException("Invalid waypoint identity/source");
         this.id = id;
         this.wireId = wireId;
         this.tileId = canonicalTile(tileId);
@@ -72,6 +72,11 @@ public final class KOMEPublicWaypoint {
             n.getLong("ApprovedAt"), n.getLong("ModifiedAt"), proposal.isEmpty() ? null : uuid(proposal));
     }
 
+    /** Public wire projection omits submitter/reviewer/audit data. */
+    public static KOMEPublicWaypoint presentation(UUID id,int wire,String tile,String name,Source source,String key,
+            int dimension,int x,int y,int z,int level) {
+        return new KOMEPublicWaypoint(id,wire,tile,name,source,key,dimension,x,y,z,level,"console",0,0,null);
+    }
     public static String validName(String name) { return text(name, 64, false); }
 
     static String text(String s, int max, boolean empty) {

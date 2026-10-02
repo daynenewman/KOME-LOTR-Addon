@@ -401,6 +401,7 @@ public class CharacterCreationIsolationTest {
         assertArrayEquals(
             new String[] {
                 KOMEWaypointTransformer.class.getName(),
+                kome.core.KOMEPublicWaypointTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),

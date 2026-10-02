@@ -16,6 +16,8 @@ public final class KOMEPublicWaypointRegistry {
     private final SortedMap<String, UUID> cutover = new TreeMap<String, UUID>();
     public static final int MAX_PROPOSALS = 4096, MAX_PENDING_PER_TILE = 8;
     private final SortedMap<UUID, KOMEWaypointProposal> proposals = new TreeMap<UUID, KOMEWaypointProposal>();
+    private volatile Map<String,UUID> cutoverRead=Collections.emptyMap();
+    private void publishCutover(){ cutoverRead=Collections.unmodifiableMap(new TreeMap<String,UUID>(cutover)); }
     private long nextWire = 1, revision;
 
     public long revision() { return revision; }
@@ -30,12 +32,13 @@ public final class KOMEPublicWaypointRegistry {
     public List<NBTTagCompound> history() { return copyRows(history); }
     public List<NBTTagCompound> quarantine() { return copyRows(quarantine); }
     public Map<String, UUID> cutoverIdentities() {
-        return Collections.unmodifiableMap(new TreeMap<String, UUID>(cutover));
+        return cutoverRead;
     }
 
     /** A read-only canonical projection; capture never overwrites waypoint level or persists owners. */
     public View view(KOMEWorldData data, UUID id) {
         KOMEPublicWaypoint r = get(id);
+        if(data==null || data.isWriteBlocked()) return null;
         if (r == null || invalidAssociation(data, r) != null) return null;
         KOMEConquestTile tile = data.conquestTiles.get(r.tileId);
         return new View(r, KOMEAlliance.normalizeFactionKey(tile.defaultRulingFaction),
@@ -51,7 +54,7 @@ public final class KOMEPublicWaypointRegistry {
     public static final class View {
         public final KOMEPublicWaypoint record;
         public final String defaultOwner, currentOwner;
-        View(KOMEPublicWaypoint r, String defaultOwner, String currentOwner) {
+        public View(KOMEPublicWaypoint r, String defaultOwner, String currentOwner) {
             record = r; this.defaultOwner = defaultOwner; this.currentOwner = currentOwner;
         }
     }
@@ -60,6 +63,7 @@ public final class KOMEPublicWaypointRegistry {
             int x, int y, int z, int level, KOMEPublicWaypoint.Source source, String sourceKey,
             String actor, long now, UUID proposalId) {
         writable(data);
+        if(proposalId!=null) throw new IllegalArgumentException("Use the revalidated proposal approval workflow");
         KOMEPublicWaypoint r = prepareRecord(data,name,dimension,x,y,z,level,source,sourceKey,actor,now,proposalId,nextWire);
         prepareAudit(actor, now, "APPROVE", r.id, null, r.writeToNBT(), "Approved destination");
         install(r); data.markDirty(); return r;
@@ -83,7 +87,7 @@ public final class KOMEPublicWaypointRegistry {
     }
     private void install(KOMEPublicWaypoint r) {
         records.put(r.id,r); nextWire++; revision++;
-        if (r.source == KOMEPublicWaypoint.Source.MIGRATED) cutover.put(r.sourceKey,r.id);
+        if (r.source == KOMEPublicWaypoint.Source.MIGRATED) { cutover.put(r.sourceKey,r.id); publishCutover(); }
     }
 
     public List<KOMEWaypointProposal> proposals() {
@@ -177,7 +181,7 @@ public final class KOMEPublicWaypointRegistry {
         NBTTagCompound prior=new NBTTagCompound(); prior.setString("Legacy",identity); prior.setString("Waypoint",id.toString());
         if(record!=null) prior.setTag("Record",record.writeToNBT());
         prepareAudit(actor,now,"ROLLBACK",id,prior,null,"Restore original legacy visibility without modifying native data");
-        records.remove(id); cutover.remove(identity); revision++; data.markDirty();
+        records.remove(id); cutover.remove(identity); publishCutover(); revision++; data.markDirty();
     }
 
     public KOMEPublicWaypoint rename(KOMEWorldData data, UUID id, String name, String actor, long now) {
@@ -364,7 +368,12 @@ public final class KOMEPublicWaypointRegistry {
                 else result.proposals.put(q.id,q);
             }
         }
-        return result;
+        for(Map.Entry<String,UUID> alias:result.cutover.entrySet()) {
+            KOMEPublicWaypoint r=result.records.get(alias.getValue());
+            if(r!=null && (r.source!=KOMEPublicWaypoint.Source.MIGRATED || !r.sourceKey.equals(alias.getKey())))
+                throw new IllegalArgumentException("Cutover target does not match exact migrated source");
+        }
+        result.publishCutover(); return result;
     }
     private void quarantine(String section, NBTTagCompound row, String reason) {
         if (quarantine.size() >= MAX_QUARANTINE) throw new IllegalArgumentException("Quarantine capacity exceeded");
@@ -409,7 +418,7 @@ public final class KOMEPublicWaypointRegistry {
         // Candidate publication transfers these immutable-by-encapsulation rows without invoking NBT parsing/copy hooks.
         history.clear(); history.addAll(other.history);
         quarantine.clear(); quarantine.addAll(other.quarantine);
-        cutover.clear(); cutover.putAll(other.cutover);
+        cutover.clear(); cutover.putAll(other.cutover); cutoverRead=other.cutoverRead;
         nextWire = other.nextWire; revision = other.revision;
     }
 }

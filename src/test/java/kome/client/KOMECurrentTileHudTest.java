@@ -148,18 +148,18 @@ public class KOMECurrentTileHudTest {
         field(KOMEClientProxy.class, "conquestSnapshots").set(proxy,
             new KOMEConquestSnapshotPublisher(queue));
         field(KOMEClientProxy.class, "currentTileHud").set(proxy, hud);
-        proxy.onClientDisconnect(null);
+        proxy.onClientDisconnect(KOMEAccessFixture.clientDisconnected());
         assertFalse(hud.visible()); assertNull(hud.location()); assertEquals("", hud.label());
         queue.drain(); tick(); assertNull(hud.location());
-        proxy.onClientConnect(null);
+        proxy.onClientConnect(KOMEAccessFixture.clientConnected());
         tick(); assertNull(hud.location()); // Still gated until queued session reset.
         client.theWorld = world(KOMETileTestResources.dimension());
         client.thePlayer = player(client.theWorld, 189568, -86016);
         queue.drain(); tick();
         assertEquals("No tile", hud.label()); assertTrue(hud.visible());
-        proxy.onClientDisconnect(null);
-        proxy.onClientConnect(null);
-        proxy.onClientDisconnect(null); // Latest network transition wins.
+        proxy.onClientDisconnect(KOMEAccessFixture.clientDisconnected());
+        proxy.onClientConnect(KOMEAccessFixture.clientConnected());
+        proxy.onClientDisconnect(KOMEAccessFixture.clientDisconnected()); // Latest network transition wins.
         queue.drain(); tick(); assertNull(hud.location()); assertFalse(hud.visible());
     }
 

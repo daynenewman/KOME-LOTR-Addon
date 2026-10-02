@@ -7,10 +7,6 @@ import lotr.common.LOTRLevelData;
 import lotr.common.fellowship.LOTRFellowship;
 import lotr.common.fellowship.LOTRFellowshipData;
 import lotr.common.world.map.LOTRCustomWaypoint;
-import lotr.common.world.map.LOTRWaypoint;
-import lotr.common.world.map.LOTRAbstractWaypoint;
-import lotr.common.world.map.LOTRWaypoint.Region;
-import lotr.common.LOTRDimension;
 
 /** Explicit read-only inventory and token-checked conversion. Native records remain owned by LOTR. */
 public final class KOMEWaypointMigration {
@@ -38,7 +34,8 @@ public final class KOMEWaypointMigration {
             fellowship=fs; this.token=token; this.rows=Collections.unmodifiableList(rows);
         }
     }
-    public static List<Entry> inventory(UUID fellowship) {
+    /** Native records do not store a dimension. The reviewer must explicitly supply the intended dimension. */
+    public static List<Entry> inventory(UUID fellowship,int confirmedDimension) {
         LOTRFellowship fs=LOTRFellowshipData.getActiveFellowship(fellowship);
         if(fs==null) throw new IllegalArgumentException("Chosen fellowship is not active");
         List<Entry> result=new ArrayList<Entry>();
@@ -46,7 +43,7 @@ public final class KOMEWaypointMigration {
         for(UUID owner:owners) for(LOTRCustomWaypoint point:LOTRLevelData.getData(owner).getCustomWaypoints()) {
             if(!point.getSharedFellowshipIDs().contains(fellowship)) continue;
             if(result.size()>=MAX_INVENTORY) throw new IllegalArgumentException("Legacy inventory limit exceeded");
-            result.add(new Entry(owner,point.getID(),point.getCodeName(),LOTRDimension.MIDDLE_EARTH.dimensionID,
+            result.add(new Entry(owner,point.getID(),point.getCodeName(),confirmedDimension,
                 point.getXCoord(),point.getYCoordSaved(),point.getZCoord()));
         }
         return Collections.unmodifiableList(result);
@@ -61,9 +58,10 @@ public final class KOMEWaypointMigration {
         for(Entry e:sorted) {
             String tile="",problem="";
             try {
-                KOMEPublicWaypoint.legacyIdentity(e.identity); KOMEPublicWaypoint.validName(e.name);
-                if(e.y<0 || e.y>255) throw new IllegalArgumentException("Legacy height unavailable/out of range");
+                KOMEPublicWaypoint.legacyIdentity(e.identity);
                 tile=KOMEPublicWaypointRegistry.resolveTile(data,e.dimension,e.x,e.z);
+                KOMEPublicWaypoint.validName(e.name);
+                if(e.y<0 || e.y>255) throw new IllegalArgumentException("Legacy height unavailable/out of range");
                 if(data.publicWaypoints.forTile(tile)!=null) problem="Tile already has approved destination";
                 if(data.publicWaypoints.cutoverIdentities().containsKey(e.identity)) problem="Legacy identity already cut over";
             } catch(IllegalArgumentException bad) { problem=bad.getMessage(); }
