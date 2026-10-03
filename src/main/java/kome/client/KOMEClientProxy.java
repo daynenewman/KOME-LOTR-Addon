@@ -19,6 +19,11 @@ import net.minecraftforge.common.MinecraftForge;
 import java.util.List;
 
 public class KOMEClientProxy extends KOMECommonProxy {
+    // Created on first editor publication; general client lifecycle does not require an editor session.
+    private kome.common.tactical.edit.KOMETacticalEditClientMirror tacticalEditor;
+    private kome.common.tactical.edit.KOMETacticalEditSessionManager.Status tacticalEditorStatus;
+    // Network intake reads this; client world/connection lifecycle advances it.
+    private volatile long tacticalEditorLifecycleEpoch;
     private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue(
             () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
@@ -68,6 +73,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        invalidateTacticalEditorPublications();
         conquestSnapshots.resetSession();
         final long tileSession = currentTileHud == null ? 0L : currentTileHud.suspendSession();
         clientTasks.resetSession(true, () -> {
@@ -78,6 +84,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        invalidateTacticalEditorPublications();
         conquestSnapshots.resetSession();
         if (currentTileHud != null) currentTileHud.suspendSession();
         clientTasks.resetSession(false, this::resetClientSessionState);
@@ -86,6 +93,9 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @SubscribeEvent
     public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
         if (event.world != null && event.world.isRemote) {
+            invalidateTacticalEditorPublications();
+            if (tacticalEditor != null) tacticalEditor.clearScope();
+            tacticalEditorStatus = null;
             conquestSnapshots.resetSession();
             KOMEClientData.INSTANCE.clearConquestTooltip();
         }
@@ -103,6 +113,8 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     }
 
     private void resetClientSessionState() {
+        if (tacticalEditor != null) tacticalEditor.reset();
+        tacticalEditorStatus = null;
         if (currentTileHud != null) currentTileHud.clear();
         KOMEClientData.INSTANCE.resetClientState();
         KOMEQuotaLedgerOverlay.reset();
@@ -112,6 +124,27 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         KOMEUnitCapClientState.reset();
         KOMEConquestMapOverlay.resetClientMapState();
     }
+
+    private synchronized void invalidateTacticalEditorPublications() { ++tacticalEditorLifecycleEpoch; }
+
+    @Override public void acceptTacticalEditSnapshot(final kome.common.network.KOMEPacketTacticalEditSnapshot message) {
+        // Keep response ordering until the mirror can compare server publication numbers.
+        final long publicationEpoch = tacticalEditorLifecycleEpoch;
+        try { clientTasks.enqueue(() -> {
+            if (publicationEpoch != tacticalEditorLifecycleEpoch) return;
+            if (tacticalEditor == null) tacticalEditor = new kome.common.tactical.edit.KOMETacticalEditClientMirror();
+            net.minecraft.entity.player.EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().thePlayer;
+            if (player != null && (message.getSnapshot() == null
+                    || tacticalEditor.accept(player.getUniqueID(), player.dimension, message.getSnapshot()))) {
+                tacticalEditorStatus = message.getStatus();
+            }
+        }); } catch (java.util.concurrent.RejectedExecutionException disconnectedOrFull) {
+            // Late/disconnected or excess publications cannot revive client editor state.
+        }
+    }
+    /** Client-thread read API for later UI; both the mirror snapshot and its domain definitions are immutable. */
+    public kome.common.tactical.edit.KOMETacticalEditSnapshot getTacticalEditorSnapshot() { return tacticalEditor == null ? null : tacticalEditor.getSnapshot(); }
+    public kome.common.tactical.edit.KOMETacticalEditSessionManager.Status getTacticalEditorStatus() { return tacticalEditorStatus; }
 
     @Override
     public void displayPopulationGui(kome.common.network.KOMEPacketPopulationGui message) {

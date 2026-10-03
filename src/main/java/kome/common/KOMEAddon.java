@@ -128,6 +128,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
+        kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
         kome.core.KOMEWaypointTransformer.requireNativeRequestGuardInstalled();
         KOMEPacketHandler.clearPendingServerTasks();
         proxy.resetServerSessionState();
@@ -149,6 +150,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
+        kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();
         kome.common.network.KOMEPacketConquestData.clearSentSnapshots();
         KOMEPacketHandler.clearPendingServerTasks();
@@ -158,6 +160,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopped(FMLServerStoppedEvent event) {
+        kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
         // Also covers failed startup/crash paths that skip serverStopping. Idempotent.
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();
         kome.common.network.KOMEPacketConquestData.clearSentSnapshots();

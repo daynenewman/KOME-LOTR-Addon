@@ -24,21 +24,33 @@ public final class KOMETacticalMembershipService {
     private KOMETacticalMembershipService() { }
 
     public static Result assignBuild(KOMEWorldData data, String buildId, String complexId, long expectedRevision) {
-        return change(data, buildId, null, complexId, expectedRevision, Operation.ASSIGN);
+        return change(data, buildId, null, complexId, expectedRevision, Operation.ASSIGN, true);
     }
 
     /** Removal can repair an assignment even after its Build is missing, inactive or no longer DEFENSIVE. */
     public static Result unassignBuild(KOMEWorldData data, String buildId, long expectedRevision) {
-        return change(data, buildId, null, null, expectedRevision, Operation.UNASSIGN);
+        return change(data, buildId, null, null, expectedRevision, Operation.UNASSIGN, true);
     }
 
     public static Result reassignBuild(KOMEWorldData data, String buildId, String expectedOldComplexId,
             String newComplexId, long expectedRevision) {
-        return change(data, buildId, expectedOldComplexId, newComplexId, expectedRevision, Operation.REASSIGN);
+        return change(data, buildId, expectedOldComplexId, newComplexId, expectedRevision, Operation.REASSIGN, true);
+    }
+
+    /** Read-only editor preflight uses exactly the commit validation, including world-aware Build checks. */
+    public static Result previewAssignBuild(KOMEWorldData data, String buildId, String complexId, long expectedRevision) {
+        return change(data, buildId, null, complexId, expectedRevision, Operation.ASSIGN, false);
+    }
+    public static Result previewUnassignBuild(KOMEWorldData data, String buildId, long expectedRevision) {
+        return change(data, buildId, null, null, expectedRevision, Operation.UNASSIGN, false);
+    }
+    public static Result previewReassignBuild(KOMEWorldData data, String buildId, String expectedOldComplexId,
+            String newComplexId, long expectedRevision) {
+        return change(data, buildId, expectedOldComplexId, newComplexId, expectedRevision, Operation.REASSIGN, false);
     }
 
     private static Result change(KOMEWorldData data, String buildId, String expectedOldComplexId,
-            String newComplexId, long expectedRevision, Operation operation) {
+            String newComplexId, long expectedRevision, Operation operation, boolean publish) {
         if (data == null) return Result.failure(Status.WORLD_DATA_MISSING, "World data is required.");
         String buildKey = KOMETacticalIds.buildLookup(buildId);
         String targetKey = canonicalComplexId(newComplexId);
@@ -84,6 +96,7 @@ public final class KOMETacticalMembershipService {
                 : KOMETacticalGateReferenceResolver.membershipImpact(data, candidate, buildKey, oldComplexId);
             Result result = new Result(Status.CHANGED, "Membership updated.", buildKey, oldComplexId,
                 operation == Operation.UNASSIGN ? null : targetKey, candidate.getRevision(), affected);
+            if (!publish) return result;
             try {
                 data.publishTacticalMembership(expectedRevision, candidate);
             } catch (RuntimeException failure) {

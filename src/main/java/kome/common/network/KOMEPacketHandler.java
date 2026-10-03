@@ -120,5 +120,8 @@ public class KOMEPacketHandler {
         network.registerMessage(new ServerThreadHandler<KOMEPacketTroopGuiAction>(new KOMEPacketTroopGuiAction.Handler()) {}, KOMEPacketTroopGuiAction.class, 35, Side.SERVER);
         network.registerMessage(new ServerThreadHandler<KOMEPacketBuildAction>(new KOMEPacketBuildAction.Handler()) {}, KOMEPacketBuildAction.class, 36, Side.SERVER);
         network.registerMessage(new ServerThreadHandler<KOMEPacketCampaignHire>(new KOMEPacketCampaignHire.Handler()) {}, KOMEPacketCampaignHire.class, 37, Side.SERVER);
+        // Tactical intake owns a separate bounded queue; never wrap it in the unbounded generic task queue.
+        network.registerMessage(KOMEPacketTacticalEditRequest.Handler.class, KOMEPacketTacticalEditRequest.class, 38, Side.SERVER);
+        network.registerMessage(KOMEPacketTacticalEditSnapshot.Handler.class, KOMEPacketTacticalEditSnapshot.class, 39, Side.CLIENT);
     }
 }

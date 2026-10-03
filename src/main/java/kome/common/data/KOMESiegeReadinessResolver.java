@@ -51,7 +51,8 @@ public final class KOMESiegeReadinessResolver {
             return Collections.unmodifiableMap(reports);
         }
     }
-    private static Report evaluate(final KOMEWorldData data, final KOMETacticalConfiguration configuration,
+    /** Package-scoped detached draft preflight; callers hold the world-data lock. */
+    static Report evaluate(final KOMEWorldData data, final KOMETacticalConfiguration configuration,
             final KOMESiegeComplex complex, final KOMETacticalGateReferenceResolver.PhysicalLookup lookup) {
         final List<AssignedBuild> assigned = new ArrayList<AssignedBuild>();
         for (String buildId : configuration.listAssignedBuildIds(complex.getComplexId())) {

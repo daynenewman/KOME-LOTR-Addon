@@ -214,6 +214,45 @@ public class KOMEWorldData extends WorldSavedData {
         }
     }
 
+    /** One existing definition only; editor services cannot publish arbitrary store/membership replacements. */
+    synchronized final void publishTacticalDefinition(long expectedRevision, String complexId, String areaId,
+            KOMETacticalConfiguration replacement) {
+        ensureWritable();
+        if (tacticalConfiguration.getRevision() != expectedRevision) throw new IllegalStateException("Stale tactical revision.");
+        if ((complexId == null) == (areaId == null)) throw new IllegalArgumentException("One definition target required.");
+        KOMETacticalConfiguration prepared = replacement.snapshot();
+        if (expectedRevision == Long.MAX_VALUE || prepared.getRevision() != expectedRevision + 1L
+                || !prepared.getBuildAssignmentsByBuildId().equals(tacticalConfiguration.getBuildAssignmentsByBuildId())) {
+            throw new IllegalArgumentException("Definition commit must preserve membership and advance once.");
+        }
+        java.util.Map<String, kome.common.siege.KOMESiegeComplex> oldComplexes =
+            new java.util.TreeMap<String, kome.common.siege.KOMESiegeComplex>(tacticalConfiguration.getComplexesById());
+        java.util.Map<String, kome.common.siege.KOMESiegeComplex> newComplexes =
+            new java.util.TreeMap<String, kome.common.siege.KOMESiegeComplex>(prepared.getComplexesById());
+        java.util.Map<String, kome.common.tactical.KOMEForceDeploymentArea> oldAreas =
+            new java.util.TreeMap<String, kome.common.tactical.KOMEForceDeploymentArea>(tacticalConfiguration.getForceDeploymentAreasById());
+        java.util.Map<String, kome.common.tactical.KOMEForceDeploymentArea> newAreas =
+            new java.util.TreeMap<String, kome.common.tactical.KOMEForceDeploymentArea>(prepared.getForceDeploymentAreasById());
+        if (complexId != null) {
+            kome.common.siege.KOMESiegeComplex old = oldComplexes.remove(complexId), updated = newComplexes.remove(complexId);
+            if (old == null || updated == null || !old.getTileId().equals(updated.getTileId())
+                    || old.getDimensionId() != updated.getDimensionId() || old.getRevision() == Long.MAX_VALUE
+                    || updated.getRevision() != old.getRevision() + 1L) throw new IllegalArgumentException("Invalid complex replacement.");
+        } else {
+            kome.common.tactical.KOMEForceDeploymentArea old = oldAreas.remove(areaId), updated = newAreas.remove(areaId);
+            if (old == null || updated == null || !old.getTileId().equals(updated.getTileId())
+                    || old.getDimensionId() != updated.getDimensionId() || old.getRevision() == Long.MAX_VALUE
+                    || updated.getRevision() != old.getRevision() + 1L) throw new IllegalArgumentException("Invalid area replacement.");
+        }
+        if (!oldComplexes.equals(newComplexes) || !oldAreas.equals(newAreas)) {
+            throw new IllegalArgumentException("Definition commit changed other authorities.");
+        }
+        KOMETacticalConfiguration previous = tacticalConfiguration;
+        boolean dirty = super.isDirty();
+        try { tacticalConfiguration = prepared; markDirty(); }
+        catch (RuntimeException failure) { tacticalConfiguration = previous; super.setDirty(dirty); throw failure; }
+    }
+
     @Override
     public void markDirty() {
         ensureWritable();
