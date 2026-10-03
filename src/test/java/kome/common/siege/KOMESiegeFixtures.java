@@ -26,9 +26,9 @@ final class KOMESiegeFixtures {
         return new KOMEWallZone(id,id,prism,Arrays.asList(access));
     }
     static KOMESiegeComplex complex(Collection<KOMENormalSegment> normals,Collection<KOMEWallZone> walls,
-            Collection<KOMETransitionZone> transitions,Collection<KOMEExteriorDeploymentArea> exteriors,
+            Collection<KOMETransitionZone> transitions,
             Collection<KOMESiegeConnection> connections){
-        return new KOMESiegeComplex("FIXTURE-COMPLEX","t277",0,0,normals,walls,transitions,exteriors,connections);
+        return new KOMESiegeComplex("FIXTURE-COMPLEX","t277",0,0,normals,walls,transitions,null,connections);
     }
     static <T> Collection<T> none(){return Collections.emptyList();}
 }

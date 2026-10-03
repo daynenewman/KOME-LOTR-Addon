@@ -4,13 +4,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import kome.common.tactical.KOMETacticalIds;
 
 /**
  * Immutable tactical geometry definition with a stable, caller-supplied complex identity.
  * The tile ID identifies its associated location; multiple complexes may share that tile.
- * Zone IDs, Connection IDs, references and Exterior are local to this containing complex.
+ * Zone IDs, Connection IDs and conceptual Exterior are local to this containing complex.
+ * Preferred staging geometry is tile-owned and referenced by ID; it never defines Exterior.
  */
 public final class KOMESiegeComplex {
     private final String complexId;
@@ -20,17 +23,19 @@ public final class KOMESiegeComplex {
     private final List<KOMENormalSegment> normalSegments;
     private final List<KOMEWallZone> wallZones;
     private final List<KOMETransitionZone> transitionZones;
-    private final List<KOMEExteriorDeploymentArea> exteriorDeploymentAreas;
+    private final String preferredForceDeploymentAreaId;
     private final List<KOMESiegeConnection> connections;
 
     public KOMESiegeComplex(String complexId,String tileId,int dimensionId,long revision,
             Collection<KOMENormalSegment> normals,Collection<KOMEWallZone> walls,
-            Collection<KOMETransitionZone> transitions,Collection<KOMEExteriorDeploymentArea> exteriorAreas,
+            Collection<KOMETransitionZone> transitions,String preferredForceDeploymentAreaId,
             Collection<KOMESiegeConnection> connections){
         this.complexId=KOMESiegeIds.complex(complexId);
         this.tileId=KOMESiegeIds.tile(tileId);this.dimensionId=dimensionId;this.revision=revision;
         normalSegments=copy(normals);wallZones=copy(walls);transitionZones=copy(transitions);
-        exteriorDeploymentAreas=copy(exteriorAreas);this.connections=copy(connections);
+        this.preferredForceDeploymentAreaId=preferredForceDeploymentAreaId==null?null
+            :KOMETacticalIds.forceDeploymentArea(preferredForceDeploymentAreaId);
+        this.connections=copy(connections);
     }
     private static <T> List<T> copy(Collection<T> source){
         if(source==null)return Collections.emptyList();List<T> result=new ArrayList<T>(source);
@@ -44,7 +49,8 @@ public final class KOMESiegeComplex {
     public List<KOMENormalSegment> getNormalSegments(){return normalSegments;}
     public List<KOMEWallZone> getWallZones(){return wallZones;}
     public List<KOMETransitionZone> getTransitionZones(){return transitionZones;}
-    public List<KOMEExteriorDeploymentArea> getExteriorDeploymentAreas(){return exteriorDeploymentAreas;}
+    /** Absence permits a later automatic/waypoint fallback; an explicit ID must resolve separately. */
+    public Optional<String> getPreferredForceDeploymentAreaId(){return Optional.ofNullable(preferredForceDeploymentAreaId);}
     public List<KOMESiegeConnection> getConnections(){return connections;}
 
     public KOMENormalSegment findNormalSegment(String id){
@@ -55,9 +61,6 @@ public final class KOMESiegeComplex {
     }
     public KOMETransitionZone findTransitionZone(String id){
         String key=KOMESiegeIds.id(id);for(KOMETransitionZone item:transitionZones)if(item.getId().equals(key))return item;return null;
-    }
-    public KOMEExteriorDeploymentArea findExteriorDeploymentArea(String id){
-        String key=KOMESiegeIds.id(id);for(KOMEExteriorDeploymentArea item:exteriorDeploymentAreas)if(item.getId().equals(key))return item;return null;
     }
     /** Complex-local Stronghold footprint is Normal Segments plus Wall Zones only. */
     public Set<String> getStrongholdZoneIds(){

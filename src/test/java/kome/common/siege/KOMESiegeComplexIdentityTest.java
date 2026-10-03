@@ -99,7 +99,7 @@ public class KOMESiegeComplexIdentityTest {
         KOMESiegeComplex east = definition("EAST", 7, 100, "C");
         KOMESiegeComplex revisedWest = new KOMESiegeComplex(west.getComplexId(), "t278", 1, 4,
             west.getNormalSegments(), west.getWallZones(), west.getTransitionZones(),
-            west.getExteriorDeploymentAreas(), west.getConnections());
+            west.getPreferredForceDeploymentAreaId().orElse(null), west.getConnections());
 
         assertEquals(west.getComplexId(), revisedWest.getComplexId());
         assertEquals("T278", revisedWest.getTileId());
@@ -120,11 +120,9 @@ public class KOMESiegeComplexIdentityTest {
         assertSame(own.getNormalSegments().get(0), own.findNormalSegment("A"));
         assertSame(own.getWallZones().get(0), own.findWallZone("WALL"));
         assertSame(own.getTransitionZones().get(0), own.findTransitionZone("GATE"));
-        assertSame(own.getExteriorDeploymentAreas().get(0), own.findExteriorDeploymentArea("DEPLOY"));
         assertNotSame(other.findNormalSegment("A"), own.findNormalSegment("A"));
         assertNotSame(other.findWallZone("WALL"), own.findWallZone("WALL"));
         assertNotSame(other.findTransitionZone("GATE"), own.findTransitionZone("GATE"));
-        assertNotSame(other.findExteriorDeploymentArea("DEPLOY"), own.findExteriorDeploymentArea("DEPLOY"));
     }
 
     private void assertRevisionOwner(KOMESiegeComplex complex) {
@@ -142,14 +140,12 @@ public class KOMESiegeComplexIdentityTest {
         KOMEWallZone wall = wall("WALL", prism(offset, 10, offset + 10, 12, 0, 10), "A");
         KOMETransitionZone entry = transition("GATE", offset - 2, 2, offset, 4);
         KOMETransitionZone internal = transition("INTERNAL", offset + 10, 6, offset + 12, 8);
-        KOMEExteriorDeploymentArea deployment = new KOMEExteriorDeploymentArea("DEPLOY", "Deployment",
-            prism(offset - 10, 0, offset - 5, 5, 0, 10));
         KOMESiegeConnection entrance = KOMESiegeConnection.gateLess("ENTRY", KOMESiegeAreaRef.exterior(),
             KOMESiegeAreaRef.normal("A"), "GATE");
         KOMESiegeConnection link = KOMESiegeConnection.gateLess("LINK", KOMESiegeAreaRef.normal("A"),
             KOMESiegeAreaRef.normal(innerId), "INTERNAL");
         return new KOMESiegeComplex(complexId, "t277", 0, revision, Arrays.asList(outer, inner),
-            Arrays.asList(wall), Arrays.asList(entry, internal), Arrays.asList(deployment),
+            Arrays.asList(wall), Arrays.asList(entry, internal), null,
             Arrays.asList(entrance, link));
     }
 }

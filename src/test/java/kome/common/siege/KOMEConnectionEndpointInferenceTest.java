@@ -19,29 +19,29 @@ public class KOMEConnectionEndpointInferenceTest {
     @Test public void transitionUniquelyBetweenTwoNormalsInfersBoth(){
         KOMENormalSegment a=normal("A",0,0,10,10),b=normal("B",12,0,22,10);KOMETransitionZone t=transition("T",10,2,12,4);
         KOMEConnectionEndpointInference.Result result=KOMEConnectionEndpointInference.infer(
-            complex(Arrays.asList(a,b),none(),Arrays.asList(t),none(),none()),"T");
+            complex(Arrays.asList(a,b),none(),Arrays.asList(t),none()),"T");
         assertTrue(result.isSuccessful());assertEquals(KOMESiegeAreaRef.normal("A"),result.getEndpointA());assertEquals(KOMESiegeAreaRef.normal("B"),result.getEndpointB());
     }
     @Test public void transitionFromOneNormalIntoExteriorInfersExteriorAndNormal(){
         KOMENormalSegment a=normal("A",0,0,10,10);KOMETransitionZone t=transition("WEST",-2,2,0,4);
         KOMEConnectionEndpointInference.Result result=KOMEConnectionEndpointInference.infer(
-            complex(Arrays.asList(a),none(),Arrays.asList(t),none(),none()),"WEST");
+            complex(Arrays.asList(a),none(),Arrays.asList(t),none()),"WEST");
         assertTrue(result.isSuccessful());assertEquals(KOMESiegeAreaRef.exterior(),result.getEndpointA());assertEquals(KOMESiegeAreaRef.normal("A"),result.getEndpointB());
     }
     @Test public void transitionWhollyInsideOneNormalDoesNotInventExterior(){
         KOMENormalSegment a=normal("A",0,0,10,10);KOMETransitionZone t=transition("INSIDE",2,2,4,4);
         KOMEConnectionEndpointInference.Result result=KOMEConnectionEndpointInference.infer(
-            complex(Arrays.asList(a),none(),Arrays.asList(t),none(),none()),"INSIDE");
+            complex(Arrays.asList(a),none(),Arrays.asList(t),none()),"INSIDE");
         assertEquals(KOMEConnectionEndpointInference.Status.EXTERIOR_NOT_ESTABLISHED,result.getStatus());
     }
     @Test public void zeroAndMoreThanTwoNormalCandidatesAreRejected(){
         KOMETransitionZone isolated=transition("ISO",100,100,102,102);
-        KOMESiegeComplex noCandidates=complex(Arrays.asList(normal("A",0,0,10,10)),none(),Arrays.asList(isolated),none(),none());
+        KOMESiegeComplex noCandidates=complex(Arrays.asList(normal("A",0,0,10,10)),none(),Arrays.asList(isolated),none());
         assertEquals(KOMEConnectionEndpointInference.Status.NO_ENDPOINT_CANDIDATES,
             KOMEConnectionEndpointInference.infer(noCandidates,"ISO").getStatus());
         KOMENormalSegment a=normal("A",0,0,10,10),b=normal("B",12,0,22,10),c=normal("C",10,4,12,6);
         KOMETransitionZone crowded=transition("T",10,2,12,4);
-        KOMESiegeComplex three=complex(Arrays.asList(a,b,c),none(),Arrays.asList(crowded),none(),none());
+        KOMESiegeComplex three=complex(Arrays.asList(a,b,c),none(),Arrays.asList(crowded),none());
         assertEquals(KOMEConnectionEndpointInference.Status.TOO_MANY_NORMAL_ENDPOINTS,
             KOMEConnectionEndpointInference.infer(three,"T").getStatus());
     }
@@ -53,7 +53,7 @@ public class KOMEConnectionEndpointInferenceTest {
         for(Collection<KOMENormalSegment> normals:Arrays.<Collection<KOMENormalSegment>>asList(
                 first,second,Arrays.asList(a,b,distant),Arrays.asList(distant,b,a))){
             KOMEConnectionEndpointInference.Result result=KOMEConnectionEndpointInference.infer(
-                complex(normals,none(),Arrays.asList(t),none(),none()),"T");
+                complex(normals,none(),Arrays.asList(t),none()),"T");
             assertTrue(result.isSuccessful());
             assertEquals(KOMESiegeAreaRef.normal("A"),result.getEndpointA());
             assertEquals(KOMESiegeAreaRef.normal("B"),result.getEndpointB());
@@ -62,18 +62,18 @@ public class KOMEConnectionEndpointInferenceTest {
     @Test public void overlappingTransitionCorridorMakesInferenceAmbiguous(){
         KOMENormalSegment a=normal("A",0,0,10,10),b=normal("B",12,0,22,10);
         KOMETransitionZone t1=transition("T1",10,2,12,5),t2=transition("T2",10,4,12,7);
-        KOMESiegeComplex complex=complex(Arrays.asList(a,b),none(),Arrays.asList(t1,t2),none(),none());
+        KOMESiegeComplex complex=complex(Arrays.asList(a,b),none(),Arrays.asList(t1,t2),none());
         assertEquals(KOMEConnectionEndpointInference.Status.AMBIGUOUS_CORRIDOR,
             KOMEConnectionEndpointInference.infer(complex,"T1").getStatus());
     }
     @Test public void missingAndInvalidTransitionReturnExplicitStatuses(){
         KOMENormalSegment a=normal("A",0,0,10,10);
-        KOMESiegeComplex missing=complex(Arrays.asList(a),none(),none(),none(),none());
+        KOMESiegeComplex missing=complex(Arrays.asList(a),none(),none(),none());
         assertEquals(KOMEConnectionEndpointInference.Status.TRANSITION_NOT_FOUND,
             KOMEConnectionEndpointInference.infer(missing,"NONE").getStatus());
         KOMETransitionZone invalid=new KOMETransitionZone("BAD","BAD",prism(-2,2,0,4,10,10));
         assertEquals(KOMEConnectionEndpointInference.Status.INVALID_TRANSITION_GEOMETRY,
-            KOMEConnectionEndpointInference.infer(complex(Arrays.asList(a),none(),Arrays.asList(invalid),none(),none()),"BAD").getStatus());
+            KOMEConnectionEndpointInference.infer(complex(Arrays.asList(a),none(),Arrays.asList(invalid),none()),"BAD").getStatus());
     }
     @Test public void malformedNormalPolygonIsRejectedBeforeEndpointSelection(){
         KOMEPolygon crossed=KOMEPolygon.of(new KOMEXZPoint(0,0),new KOMEXZPoint(10,10),
@@ -140,7 +140,7 @@ public class KOMEConnectionEndpointInferenceTest {
             new KOMEXZPoint(6,8),new KOMEXZPoint(6,2),new KOMEXZPoint(2,2),new KOMEXZPoint(2,8),new KOMEXZPoint(0,8));
         KOMENormalSegment normal=new KOMENormalSegment("A","A",new KOMEPolygonPrism(uShape,0,10));
         KOMEConnectionEndpointInference.Result result=KOMEConnectionEndpointInference.infer(
-            complex(Arrays.asList(normal),none(),Arrays.asList(transition("T",2,2,6,6)),none(),none()),"T");
+            complex(Arrays.asList(normal),none(),Arrays.asList(transition("T",2,2,6,6)),none()),"T");
         assertTrue(result.isSuccessful());assertEquals(KOMESiegeAreaRef.exterior(),result.getEndpointA());
         assertEquals(KOMESiegeAreaRef.normal("A"),result.getEndpointB());
     }
@@ -154,8 +154,8 @@ public class KOMEConnectionEndpointInferenceTest {
         KOMETransitionZone transition=transition("T",10,2,12,4);
         KOMESiegeConnection connection=KOMESiegeConnection.gateLess("ENTRY",KOMESiegeAreaRef.normal("A"),
             KOMESiegeAreaRef.normal("B"),"T");
-        KOMESiegeComplex valid=complex(Arrays.asList(a,b),none(),Arrays.asList(transition),none(),Arrays.asList(connection));
-        KOMESiegeComplex incomplete=complex(Arrays.asList(a,b,invalid),none(),Arrays.asList(transition),none(),Arrays.asList(connection));
+        KOMESiegeComplex valid=complex(Arrays.asList(a,b),none(),Arrays.asList(transition),Arrays.asList(connection));
+        KOMESiegeComplex incomplete=complex(Arrays.asList(a,b,invalid),none(),Arrays.asList(transition),Arrays.asList(connection));
         KOMESiegeComplexValidator validator=new KOMESiegeComplexValidator();
         assertTrue(validator.validate(valid).isValid());
         KOMEConnectionEndpointInference.Result result=KOMEConnectionEndpointInference.infer(incomplete,"T");
@@ -170,7 +170,7 @@ public class KOMEConnectionEndpointInferenceTest {
     }
     private static void assertFailure(KOMEConnectionEndpointInference.Status expected,List<KOMENormalSegment> normals,KOMETransitionZone transition){
         KOMEConnectionEndpointInference.Result result=KOMEConnectionEndpointInference.infer(
-            complex(normals,none(),Arrays.asList(transition),none(),none()),transition.getId());
+            complex(normals,none(),Arrays.asList(transition),none()),transition.getId());
         assertEquals(expected,result.getStatus());
         assertFalse(result.isSuccessful());assertNull(result.getEndpointA());assertNull(result.getEndpointB());
     }

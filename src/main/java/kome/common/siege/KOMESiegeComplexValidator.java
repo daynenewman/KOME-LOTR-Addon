@@ -7,6 +7,7 @@ import kome.common.siege.validation.KOMEValidationCode;
 import kome.common.siege.validation.KOMEValidationIssue;
 import kome.common.siege.validation.KOMEValidationResult;
 import kome.common.siege.validation.KOMEValidationSeverity;
+import kome.common.tactical.KOMEForceDeploymentArea;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -24,26 +25,44 @@ public final class KOMESiegeComplexValidator {
         Map<String,KOMENormalSegment> normals=new TreeMap<String,KOMENormalSegment>();
         Map<String,KOMEWallZone> walls=new TreeMap<String,KOMEWallZone>();
         Map<String,KOMETransitionZone> transitions=new TreeMap<String,KOMETransitionZone>();
-        Map<String,KOMEExteriorDeploymentArea> exteriors=new TreeMap<String,KOMEExteriorDeploymentArea>();
         Map<String,String> allZoneTypes=new TreeMap<String,String>();
-        indexZones(complex,issues,normals,walls,transitions,exteriors,allZoneTypes);
+        indexZones(complex,issues,normals,walls,transitions,allZoneTypes);
         validateZoneGeometry(complex,issues);
         validateWallReferences(complex,issues,normals);
         validateStrongholdOverlaps(complex,issues);
         validateTransitionOverlaps(complex,issues);
-        validateExteriorOverlaps(complex,issues);
         validateConnections(complex,issues,normals,transitions,allZoneTypes);
+        return new KOMEValidationResult(issues);
+    }
+
+    /** Validates only the preferred reference against a caller-resolved tile area; absence is valid. */
+    public KOMEValidationResult validatePreferredForceDeploymentArea(KOMESiegeComplex complex,
+            KOMEForceDeploymentArea resolvedArea){
+        if(complex==null)throw new IllegalArgumentException("A Siege Complex is required.");
+        List<KOMEValidationIssue> issues=new ArrayList<KOMEValidationIssue>();
+        if(!complex.getPreferredForceDeploymentAreaId().isPresent())return new KOMEValidationResult(issues);
+        String preferredId=complex.getPreferredForceDeploymentAreaId().get();
+        if(resolvedArea==null||!preferredId.equals(resolvedArea.getAreaId())){
+            add(issues,KOMEValidationCode.PREFERRED_DEPLOYMENT_AREA_UNKNOWN,
+                "Explicit preferred Force Deployment Area does not resolve.",complex.getComplexId(),preferredId);
+            return new KOMEValidationResult(issues);
+        }
+        if(!complex.getTileId().equals(resolvedArea.getTileId()))
+            add(issues,KOMEValidationCode.PREFERRED_DEPLOYMENT_AREA_WRONG_TILE,
+                "Preferred Force Deployment Area must belong to the complex's conquest tile.",complex.getComplexId(),preferredId);
+        if(complex.getDimensionId()!=resolvedArea.getDimensionId())
+            add(issues,KOMEValidationCode.PREFERRED_DEPLOYMENT_AREA_WRONG_DIMENSION,
+                "Preferred Force Deployment Area dimension must match the complex.",complex.getComplexId(),preferredId);
         return new KOMEValidationResult(issues);
     }
 
     private static void indexZones(KOMESiegeComplex complex,List<KOMEValidationIssue> issues,
             Map<String,KOMENormalSegment> normals,Map<String,KOMEWallZone> walls,
-            Map<String,KOMETransitionZone> transitions,Map<String,KOMEExteriorDeploymentArea> exteriors,
+            Map<String,KOMETransitionZone> transitions,
             Map<String,String> allTypes){
         for(KOMENormalSegment zone:complex.getNormalSegments())index(zone,"NORMAL",normals,allTypes,issues);
         for(KOMEWallZone zone:complex.getWallZones())index(zone,"WALL",walls,allTypes,issues);
         for(KOMETransitionZone zone:complex.getTransitionZones())index(zone,"TRANSITION",transitions,allTypes,issues);
-        for(KOMEExteriorDeploymentArea zone:complex.getExteriorDeploymentAreas())index(zone,"EXTERIOR_DEPLOYMENT",exteriors,allTypes,issues);
     }
     private static <T extends KOMESiegeZone> void index(T zone,String type,Map<String,T> sameType,
             Map<String,String> allTypes,List<KOMEValidationIssue> issues){
@@ -62,7 +81,7 @@ public final class KOMESiegeComplexValidator {
     }
     private static List<KOMESiegeZone> allZones(KOMESiegeComplex complex){
         List<KOMESiegeZone> zones=new ArrayList<KOMESiegeZone>();zones.addAll(complex.getNormalSegments());
-        zones.addAll(complex.getWallZones());zones.addAll(complex.getTransitionZones());zones.addAll(complex.getExteriorDeploymentAreas());return zones;
+        zones.addAll(complex.getWallZones());zones.addAll(complex.getTransitionZones());return zones;
     }
     private static void validateWallReferences(KOMESiegeComplex complex,List<KOMEValidationIssue> issues,
             Map<String,KOMENormalSegment> normals){
@@ -88,12 +107,6 @@ public final class KOMESiegeComplexValidator {
             overlap(issues,KOMEValidationCode.TRANSITION_TRANSITION_OVERLAP,transitions.get(i),transitions.get(j));
         for(KOMETransitionZone transition:transitions)for(KOMEWallZone wall:complex.getWallZones())
             overlap(issues,KOMEValidationCode.TRANSITION_WALL_OVERLAP,transition,wall);
-    }
-    private static void validateExteriorOverlaps(KOMESiegeComplex complex,List<KOMEValidationIssue> issues){
-        for(KOMEExteriorDeploymentArea exterior:complex.getExteriorDeploymentAreas()){
-            for(KOMENormalSegment normal:complex.getNormalSegments())overlap(issues,KOMEValidationCode.EXTERIOR_STRONGHOLD_OVERLAP,exterior,normal);
-            for(KOMEWallZone wall:complex.getWallZones())overlap(issues,KOMEValidationCode.EXTERIOR_STRONGHOLD_OVERLAP,exterior,wall);
-        }
     }
     private static void overlap(List<KOMEValidationIssue> issues,KOMEValidationCode code,KOMESiegeZone a,KOMESiegeZone b){
         if(validGeometry(a.getPrism())&&validGeometry(b.getPrism())
