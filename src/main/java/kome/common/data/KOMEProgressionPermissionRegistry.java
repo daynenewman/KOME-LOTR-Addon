@@ -11,7 +11,6 @@ public final class KOMEProgressionPermissionRegistry {
         public final String progressionId, intendedUnlock, enforcementSite; public final Status status;
         private Gate(String id, String unlock, String site, Status status) { progressionId=id; intendedUnlock=unlock; enforcementSite=site; this.status=status; }
     }
-    private static final String[] RANKS = { "baseline", "wanderer", "serf", "knight", "lord", "prince_king" };
     private static final Map<String, Gate> GATES;
     static {
         Map<String, Gate> gates = new LinkedHashMap<String, Gate>();
@@ -20,10 +19,10 @@ public final class KOMEProgressionPermissionRegistry {
         gate(gates,"baseline.farming","Farming","KOMEEvents interaction/use gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.fire","Fire and light","KOMEEvents place/use gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.meat","Meat consumption","KOMEEvents item-use gate",Status.CANONICAL_ENFORCED);
-        gate(gates,"baseline.miniquests","NPC mini-quests","KOMEEvents interaction gate",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.miniquests","Legacy mini-quest milestone","No gameplay gate",Status.INFORMATIONAL);
         gate(gates,"baseline.mounts","Mount use","KOMEEvents mount gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.npc_trade","NPC trading","KOMEEvents container gate",Status.CANONICAL_ENFORCED);
-        gate(gates,"baseline.pledge","Pledging to a lord","KOMEProgressionLords",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.pledge","Pledging to a faction","KOMEProgressionLords",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.pouches","Pouch use","KOMEEvents interaction/container gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.stonework","Stone tools","KOMEGearRestrictionService action/crafting gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.fast_travel","Fast travel","KOMEWaypointAccessService",Status.CANONICAL_ENFORCED);
@@ -49,17 +48,29 @@ public final class KOMEProgressionPermissionRegistry {
     public static Gate gate(String id) { return id == null ? null : GATES.get(id.toLowerCase(java.util.Locale.ROOT)); }
     public static boolean canComplete(KOMEPlayerProgression progression, KOMEProgressionAchievement achievement) {
         if (progression == null || achievement == null) return false;
-        int rank = rankIndex(achievement.group); if (rank <= 0) return true;
-        for (KOMEProgressionAchievement prior : KOMEProgressionAchievement.forGroup(RANKS[rank - 1])) if (!progression.isCompleted(prior)) return false;
-        return true;
+        KOMEHigherRankTransitionService.Transition transition =
+            KOMEHigherRankTransitionService.forMarker(achievement.id);
+        if (transition != null)
+            return progression.getCanonicalRank() == transition.fromRank
+                && KOMEHigherRankTransitionService.requirementsComplete(progression, transition);
+        KOMEProgressionRank required = requiredCanonicalRank(achievement.group);
+        return required == null || progression.getCanonicalRank().order >= required.order;
     }
     public static String prerequisiteText(KOMEProgressionAchievement achievement) {
-        int rank = achievement == null ? -1 : rankIndex(achievement.group);
-        return rank <= 0 ? "" : " Requires completion of the " + displayRank(RANKS[rank - 1]) + " progression.";
+        KOMEProgressionRank required = achievement == null ? null : requiredCanonicalRank(achievement.group);
+        return required == null || required == KOMEProgressionRank.WANDERER
+            ? "" : " Requires reaching the corresponding canonical faction rank.";
     }
     public static String requirementText(KOMEProgressionAchievement achievement) {
         return achievement == null ? "" : achievement.requirement + prerequisiteText(achievement);
     }
-    private static int rankIndex(String group) { for(int i=0;i<RANKS.length;i++) if(RANKS[i].equalsIgnoreCase(group)) return i; return -1; }
-    private static String displayRank(String rank) { return "prince_king".equals(rank) ? "Prince/King" : Character.toUpperCase(rank.charAt(0))+rank.substring(1); }
+    private static KOMEProgressionRank requiredCanonicalRank(String group) {
+        if (group == null || "baseline".equalsIgnoreCase(group) || "wanderer".equalsIgnoreCase(group))
+            return KOMEProgressionRank.WANDERER;
+        if ("serf".equalsIgnoreCase(group)) return KOMEProgressionRank.SERF;
+        if ("knight".equalsIgnoreCase(group)) return KOMEProgressionRank.KNIGHT;
+        if ("lord".equalsIgnoreCase(group)) return KOMEProgressionRank.LORD;
+        if ("prince_king".equalsIgnoreCase(group)) return KOMEProgressionRank.PRINCE;
+        return null;
+    }
 }

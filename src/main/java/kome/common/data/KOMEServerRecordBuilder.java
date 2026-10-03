@@ -155,26 +155,8 @@ public class KOMEServerRecordBuilder {
         if (KOMERulerService.isRuler(data, factionKey, playerID)) {
             return "King";
         }
-        if (isGroupComplete(progression, "prince_king")) {
-            return "Prince";
-        }
-        if (isGroupComplete(progression, "lord")) {
-            return "Prince";
-        }
-        if (isGroupComplete(progression, "knight")) {
-            return "Lord";
-        }
-        if (isGroupComplete(progression, "serf")) {
-            return "Knight";
-        }
-        if (isGroupComplete(progression, "wanderer")) {
-            return "Serf";
-        }
-        return "Wanderer";
-    }
-
-    private static boolean isGroupComplete(KOMEPlayerProgression progression, String group) {
-        return progression != null && progression.getTotalCount(group) > 0 && progression.getCompletedCount(group) >= progression.getTotalCount(group);
+        KOMEProgressionRank rank = progression == null ? KOMEProgressionRank.WANDERER : progression.getCanonicalRank();
+        return KOMEFactionProgressionTitles.title(factionKey, rank);
     }
 
     private static FactionInfo getFactionInfo(KOMEWorldData data, World world, UUID playerID, KOMEPlayerProgression progression) {

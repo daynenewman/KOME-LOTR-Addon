@@ -98,8 +98,6 @@ public class KOMEProgressionTaskGenerator {
             return false;
         }
         return achievement.requirement.toLowerCase().contains("random task")
-            || id.startsWith("serf.food_quota")
-            || "serf.drink_quota".equals(id)
             || id.startsWith("knight.drop_quota")
             || id.startsWith("knight.faction_")
             || "lord.fell_beast".equals(id);

@@ -1,0 +1,107 @@
+package kome.common.data;
+
+import java.util.Random;
+import net.minecraft.nbt.NBTTagCompound;
+
+/** Legal state transitions for the canonical Serf-to-Knight path. No world mutation occurs here. */
+public final class KOMESerfKnightService {
+    public static final int REQUIRED_ALIGNMENT = 150;
+    /** Blocks replacement selection only for the server calendar day of the betrayal. */
+    public static final int BETRAYAL_LOCKOUT_DAYS = 1;
+    public static final class Result { public final boolean success; public final String reason; public final String trialId; private Result(boolean success, String reason, String trialId) { this.success=success; this.reason=reason; this.trialId=trialId; } }
+    private KOMESerfKnightService() { }
+    private static Result ok() { return new Result(true, "", ""); }
+    private static Result ok(String trialId) { return new Result(true, "", trialId); }
+    private static Result reject(String reason) { return new Result(false, reason, ""); }
+    /** Narrow internal helper for already-validated references; public selection must supply social-rank evidence. */
+    static Result setSerfdomMaster(KOMESerfKnightProgression state, KOMEProgressionNpcRef master) { if(state==null) return reject("Missing standing-progression state."); if(state.isLockedOut(calendarDayNow())) return reject("Progression assignments are locked after betrayal."); if(master==null || !master.isSet()) return reject("A Master is required."); if(state.getSerfdomMaster().isSet()) return state.getSerfdomMaster().hasSameIdentity(master) ? ok() : reject("Changing the Master is not supported."); state.setSerfdomMaster(master); return ok(); }
+    public static Result setSerfdomMaster(KOMESerfKnightProgression state, KOMEProgressionNpcRef master, KOMEProgressionNpcRank rank, boolean validFactionNpc) { if(!validFactionNpc) return reject("A valid faction NPC is required for Master service."); if(rank != KOMEProgressionNpcRank.UNRANKED) return reject("A Master must have exact UNRANKED NPC rank."); return setSerfdomMaster(state,master); }
+    public static Result selectSerfdomMaster(KOMESerfKnightProgression state, KOMEWorldData data, lotr.common.entity.npc.LOTREntityNPC npc) { if(!KOMEProgressionNpcRankService.isValidFactionNpc(npc)) return reject("A valid faction NPC is required for Master service."); return setSerfdomMaster(state,KOMEProgressionNpcRankService.referenceOf(npc),KOMEProgressionNpcRankService.effectiveRank(data,npc),true); }
+    public static Result assignDuty(KOMESerfKnightProgression state, KOMESerfKnightDutyType type) { return assignDuty(state, type, null, calendarDayNow()); }
+    public static Result assignDuty(KOMESerfKnightProgression state, KOMESerfKnightDutyType type, NBTTagCompound assignmentData) { return assignDuty(state,type,assignmentData,calendarDayNow()); }
+    public static Result assignDuty(KOMESerfKnightProgression state, KOMESerfKnightDutyType type, NBTTagCompound assignmentData, long calendarDay, java.util.UUID playerId) { if(state==null||type==null)return reject("A valid duty is required."); if(!state.getSerfdomMaster().isSet())return reject("A Master must be selected first."); if(state.isLockedOut(calendarDay))return reject("Progression assignments are locked after betrayal."); if(state.hasActiveAssignment())return reject("You already have an active progression task."); if(state.getPhase()!=KOMESerfKnightPhase.SERFDOM_DUTIES)return reject("Duties are no longer assignable at your current standing."); if(state.getDuty(type).isCompleted()||state.getDuty(type).isAssigned())return reject("That duty is already complete."); if(!mayIssueAssignment(state,calendarDay,playerId))return reject("You have already received a progression task today. Return later for another assignment."); state.assignDuty(type,assignmentData); state.setLastAssignmentEpochDay(calendarDay); return ok(); }
+    public static Result assignDuty(KOMESerfKnightProgression state, KOMESerfKnightDutyType type, NBTTagCompound assignmentData, long calendarDay) { if(state==null || type==null) return reject("A valid duty is required."); if(!state.getSerfdomMaster().isSet()) return reject("A Master must be selected first."); if(state.isLockedOut(calendarDay)) return reject("Progression assignments are locked after betrayal."); if(state.hasActiveAssignment()) return reject("You already have an active progression task."); if(state.getPhase()!=KOMESerfKnightPhase.SERFDOM_DUTIES) return reject("Duties are no longer assignable at your current standing."); if(state.getDuty(type).isCompleted()||state.getDuty(type).isAssigned()) return reject("That duty is already complete."); if(!mayIssueAssignment(state,calendarDay)) return reject("You have already received a progression task today. Return later for another assignment."); state.assignDuty(type, assignmentData); state.setLastAssignmentEpochDay(calendarDay); return ok(); }
+    public static Result completeDuty(KOMESerfKnightProgression state, KOMESerfKnightDutyType type) { if(state==null || type==null) return reject("A valid duty is required."); if(!state.getSerfdomMaster().isSet()) return reject("A Master must be selected first."); if(!state.getDuty(type).isAssigned()) return reject("That duty has not been assigned."); if(state.getDuty(type).isCompleted()) return ok(); state.completeDuty(type); return ok(); }
+    public static Result completeDuty(KOMEPlayerProgression progression, KOMESerfKnightDutyType type) { if(progression==null||progression.getCanonicalRank()!=KOMEProgressionRank.SERF)return reject("Your current faction rank is not eligible for this duty.");return completeDuty(progression.getSerfKnightProgression(),type); }
+    public static boolean allDutiesComplete(KOMESerfKnightProgression state) { if(state==null) return false; for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()) if(!state.getDuty(type).isCompleted()) return false; return true; }
+    /** Commits a Liege only after the player has chosen to accept that NPC's Trial of Standing. */
+    static Result commitLiegeForTrial(KOMESerfKnightProgression state, KOMEProgressionNpcRef liege) { if(state==null) return reject("Missing standing-progression state."); if(state.isLockedOut(calendarDayNow())) return reject("Progression assignments are locked after betrayal."); if(!state.getSerfdomMaster().isSet()) return reject("A Master must be selected first."); if(!allDutiesComplete(state)) return reject("All duties must be complete before seeking a Liege."); if(liege==null || !liege.isSet()) return reject("A Liege is required."); if(state.getTrialId().length()!=0 && !state.getLiege().hasSameIdentity(liege)) return reject("The Liege cannot change after trial assignment."); state.setLiege(liege); return ok(); }
+    static Result commitLiegeForTrial(KOMESerfKnightProgression state, KOMEProgressionNpcRef liege, KOMEProgressionNpcRank rank, boolean combatUnitHiringNpc) { if(!combatUnitHiringNpc) return reject("A prospective Liege must be a combat-unit-hiring NPC."); if(rank != KOMEProgressionNpcRank.LORD) return reject("A prospective Liege must have exact LORD NPC rank."); return commitLiegeForTrial(state,liege); }
+    /** Legacy compatibility seam for tests/staff code. Normal gameplay commits the relationship through acceptStandingTrial. */
+    @Deprecated
+    static Result setProspectiveLiege(KOMESerfKnightProgression state, KOMEProgressionNpcRef liege) { return commitLiegeForTrial(state,liege); }
+    @Deprecated
+    public static Result setProspectiveLiege(KOMESerfKnightProgression state, KOMEProgressionNpcRef liege, KOMEProgressionNpcRank rank, boolean combatUnitHiringNpc) { return commitLiegeForTrial(state,liege,rank,combatUnitHiringNpc); }
+    @Deprecated
+    public static Result selectProspectiveLiege(KOMESerfKnightProgression state, KOMEWorldData data, lotr.common.entity.npc.LOTREntityNPC npc) { if(!KOMEProgressionNpcRankService.isValidFactionNpc(npc)) return reject("A valid faction NPC is required for prospective liege."); boolean hiring=KOMEProgressionLords.isStandingTrialLiegeCandidate(npc); return commitLiegeForTrial(state,KOMEProgressionNpcRankService.referenceOf(npc),KOMEProgressionNpcRankService.effectiveRank(data,npc),hiring); }
+    /** Commits the Liege relationship and Trial as one server-side transition. */
+    public static Result acceptStandingTrial(KOMESerfKnightProgression state,KOMEWorldData data,
+            lotr.common.entity.npc.LOTREntityNPC npc,Random random,long calendarDay,
+            java.util.UUID playerId){
+        if(npc==null||!KOMEProgressionNpcRankService.isValidFactionNpc(npc))return reject("A valid faction NPC is required for prospective liege.");
+        net.minecraft.entity.player.EntityPlayer player=playerId==null||npc.worldObj==null?null:npc.worldObj.func_152378_a(playerId);
+        if(player==null||!KOMEProgressionOfferBridge.canRequestStandingTrialFrom(player,npc))return reject("Complete your Duties and meet the faction and captain alignment requirements before accepting a Liege.");
+        return acceptStandingTrial(state,KOMEProgressionNpcRankService.referenceOf(npc),
+            KOMEProgressionNpcRankService.effectiveRank(data,npc),KOMEProgressionLords.isStandingTrialLiegeCandidate(npc),
+            random,calendarDay,playerId);
+    }
+    static Result acceptStandingTrial(KOMESerfKnightProgression state,KOMEProgressionNpcRef liege,
+            KOMEProgressionNpcRank rank,boolean combatUnitHiringNpc,Random random,long calendarDay,
+            java.util.UUID playerId){
+        KOMEProgressionNpcRef previous=state==null?KOMEProgressionNpcRef.EMPTY:state.getLiege();
+        boolean replacementRequired=state!=null&&state.isLiegeReplacementRequired();
+        Result selected=commitLiegeForTrial(state,liege,rank,combatUnitHiringNpc);
+        if(!selected.success)return selected;
+        Result assigned=assignTrial(state,random,calendarDay,playerId);
+        if(!assigned.success)state.restoreLiege(previous,replacementRequired);
+        return assigned;
+    }
+    /** Progression-state half of prospective-Liege eligibility. World/NPC social checks remain server-side in the offer bridge. */
+    public static boolean canRequestTrialFromProspectiveLiege(KOMESerfKnightProgression state, KOMEProgressionNpcRef candidate, long calendarDay, java.util.UUID playerId) {
+        if(state==null||candidate==null||!candidate.isSet())return false;
+        if(!state.getSerfdomMaster().isSet()||!allDutiesComplete(state)||state.hasActiveAssignment()||state.getTrialId().length()!=0)return false;
+        if(state.isLockedOut(calendarDay)||!mayIssueTrial(state,calendarDay,playerId))return false;
+        return !state.hasLiege()||state.getLiege().hasSameIdentity(candidate);
+    }
+    public static Result assignTrial(KOMESerfKnightProgression state, Random random) { return assignTrial(state,random,calendarDayNow()); }
+    public static Result assignTrial(KOMESerfKnightProgression state, Random random, long calendarDay) { return assignTrial(state,random,calendarDay,null); }
+    public static Result assignTrial(KOMESerfKnightProgression state, Random random, long calendarDay, java.util.UUID playerId) { if(state==null) return reject("Missing standing-progression state."); if(!state.getSerfdomMaster().isSet()) return reject("A Master must be selected first."); if(state.isLockedOut(calendarDay)) return reject("Progression assignments are locked after betrayal."); if(!allDutiesComplete(state)) return reject("All duties must be complete before assigning a trial."); if(!state.hasLiege()) return reject("A Liege is required before assigning a trial."); if(state.hasActiveAssignment()) return reject("You already have an active progression task."); if(state.getTrialId().length()!=0) return reject("A Trial of Standing is already assigned."); if(!mayIssueTrial(state,calendarDay,playerId)) return reject("You have already received a Trial of Standing today. Return later before seeking another trial."); if(random==null) return reject("A random source is required."); java.util.List<KOMESerfKnightTrial> trials=KOMESerfKnightTrial.all(); if(trials.isEmpty()) return reject("No Trials of Standing are registered."); KOMESerfKnightTrial trial=trials.get(random.nextInt(trials.size())); state.setTrial(KOMESerfKnightTrialAssignment.create(trial,state.getLiege(),calendarDay,random.nextInt(2)));state.setLastTrialAssignmentEpochDay(calendarDay); return ok(trial.id); }
+    /** Trusted server-side world services may use this seam after completing their objective. */
+    public static Result markTrialObjectiveComplete(KOMESerfKnightProgression state) { if(state!=null&&state.getTrialAssignment()!=null)state.updateTrialAssignment(state.getTrialAssignment().withStage(KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE,null)); return completeTrial(state); }
+    public static String trialSpeech(KOMESerfKnightTrialAssignment assignment) { if(assignment==null)return "I have no trial for you yet."; if("escort".equals(assignment.trialId))return assignment.storyVariant%2==0?"A traveller of mine must reach the road beyond these lands. Keep them safe.":"A servant must make a dangerous journey. See them safely to their destination."; if("recovery".equals(assignment.trialId))return assignment.storyVariant%2==0?"A keepsake of my house lies lost beyond these lands. Recover it and bring it back to me.":"Something entrusted to my people was lost on the road. Find it, and return it to my hand."; return assignment.storyVariant%2==0?"Our people are threatened. Stand with them when the attack comes.":"Enemies draw near to our folk. Go to them, and do not let them stand alone."; }
+    public static String existingTrialSpeech(KOMESerfKnightTrialAssignment assignment) { if(assignment==null)return "Your trial still awaits you."; if(assignment.stage==KOMESerfKnightTrialAssignment.Stage.FAILED)return "This trial is lost. You must seek another Liege before you may be tested again."; if("escort".equals(assignment.trialId))return "Keep your charge safe upon the road."; if("recovery".equals(assignment.trialId))return assignment.data.getBoolean("RecoveryRetrieved")?"Bring the recovered thing back to my hand.":"Find what was lost, then return it to me."; return assignment.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED?"Go to our people and stand with them.":"Defeat those who threaten our people."; }
+    public static Result completeTrial(KOMESerfKnightProgression state) { if(state==null) return reject("Missing standing-progression state."); if(!state.getSerfdomMaster().isSet()) return reject("A Master must be selected first."); if(!allDutiesComplete(state)) return reject("All duties must be complete before completing a trial."); if(!state.hasLiege()) return reject("A Liege is required."); if(KOMESerfKnightTrial.forId(state.getTrialId())==null) return reject("No valid Trial of Standing is assigned."); if(state.isTrialCompleted()) return ok(); state.setTrialCompleted(); return ok(); }
+    public static Result recordPartingGift(KOMESerfKnightProgression state) { if(state==null) return reject("Missing standing-progression state."); if(!state.getSerfdomMaster().isSet()) return reject("A Master is required for the parting gift."); if(!allDutiesComplete(state) || KOMESerfKnightTrial.forId(state.getTrialId())==null) return reject("A valid completed service-and-Trial path is required for the parting gift."); if(!state.isTrialCompleted()) return reject("The Trial of Standing must be complete before the parting gift."); if(state.hasPartingGift()) return ok(); state.setPartingGiftReceived(); return ok(); }
+    public static boolean canPromote(KOMESerfKnightProgression state, double currentFactionAlignment) { return promotionReason(state, currentFactionAlignment).length()==0; }
+    public static Result leaveSerfdomMaster(KOMESerfKnightProgression state) { if(state==null||!state.getSerfdomMaster().isSet())return reject("No Master relationship exists.");state.leaveSerfdomMaster();return ok(); }
+    public static Result leaveLiege(KOMESerfKnightProgression state) { if(state==null||!state.hasLiege())return reject("No Liege relationship exists.");state.leaveLiege();return ok(); }
+    public static Result leaveLiege(KOMEPlayerProgression progression) {
+        if(progression==null)return reject("Missing player progression.");
+        KOMESerfKnightProgression state=progression.getSerfKnightProgression();
+        if(!state.hasLiege())return reject("No Liege relationship exists.");
+        if(progression.getCanonicalRank()==KOMEProgressionRank.SERF)return leaveLiege(state);
+        if(progression.getCanonicalRank().order>=KOMEProgressionRank.KNIGHT.order){
+            state.releaseLiegeAfterPromotion();
+            return ok();
+        }
+        return reject("That Liege relationship cannot be left at the current rank.");
+    }
+    @Deprecated
+    public static Result leaveProspectiveLiege(KOMESerfKnightProgression state) { return leaveLiege(state); }
+    @Deprecated
+    public static Result leaveProspectiveLiege(KOMEPlayerProgression progression) { return leaveLiege(progression); }
+    public static String promotionReason(KOMESerfKnightProgression state, double currentFactionAlignment) { if(state==null) return "Missing standing-progression state."; if(state.isPromoted()) return "Rank promotion is already complete."; if(currentFactionAlignment < REQUIRED_ALIGNMENT) return "Requires at least 150 positive faction alignment."; if(!allDutiesComplete(state)) return "All duties must be complete."; if(state.getTrialId().length()==0) return "A Trial of Standing is required."; if(!state.isTrialCompleted()) return "The Trial of Standing must be complete."; if(!state.hasPartingGift()) return "The Master's parting gift is required."; return ""; }
+    public static Result markPromoted(KOMESerfKnightProgression state, double currentFactionAlignment) { if(state != null && state.isPromoted()) return ok(); String reason=promotionReason(state,currentFactionAlignment); if(reason.length()!=0) return reject(reason); state.setPromoted(); return ok(); }
+    public static long calendarDayNow() { return KOMEProgressionCalendar.currentEpochDay(); }
+    public static boolean mayIssueAssignment(KOMESerfKnightProgression state, long calendarDay) { return state != null && calendarDay >= 0L && !state.isLockedOut(calendarDay) && !state.hasActiveAssignment() && (state.getLastAssignmentEpochDay() < 0L || calendarDay > state.getLastAssignmentEpochDay()); }
+    public static boolean mayIssueAssignment(KOMESerfKnightProgression state, long calendarDay, java.util.UUID playerId) { return KOMESerfKnightCadenceOverride.isEnabled(playerId) || mayIssueAssignment(state,calendarDay); }
+    /** Trial issuance has its own daily slot so completing a final duty never forces an extra-day wait. */
+    public static boolean mayIssueTrial(KOMESerfKnightProgression state, long calendarDay) { return state != null && calendarDay >= 0L && !state.isLockedOut(calendarDay) && !state.hasActiveAssignment() && (state.getLastTrialAssignmentEpochDay() < 0L || calendarDay > state.getLastTrialAssignmentEpochDay()); }
+    public static boolean mayIssueTrial(KOMESerfKnightProgression state, long calendarDay, java.util.UUID playerId) { return KOMESerfKnightCadenceOverride.isEnabled(playerId) || mayIssueTrial(state,calendarDay); }
+    public static KOMESerfKnightDutyType chooseAvailableDuty(KOMESerfKnightProgression state, Random random) { if(state==null||random==null||state.hasActiveAssignment())return null; java.util.List<KOMESerfKnightDutyType> available=new java.util.ArrayList<KOMESerfKnightDutyType>();for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values())if(!state.getDuty(type).isCompleted()&&!state.getDuty(type).isAssigned())available.add(type);return available.isEmpty()?null:available.get(random.nextInt(available.size())); }
+    /** Compatibility query only; gameplay must chooseAvailableDuty at assignment time. */
+    public static KOMESerfKnightDutyType nextDuty(KOMESerfKnightProgression state) { return chooseAvailableDuty(state,new Random(0L)); }
+    /** Calendar-day gate for a later assignment UI/service; no task cadence is implemented here. */
+    public static boolean canSelectReplacement(KOMESerfKnightProgression state, long calendarDay) { return state != null && !state.isLockedOut(calendarDay); }
+    public static boolean handleNpcDeath(KOMESerfKnightProgression state, String npcUuid, boolean causedByServingPlayer, long calendarDay) { if(state==null || npcUuid==null) return false; boolean master=npcUuid.equals(state.getSerfdomMaster().entityUuid), liege=npcUuid.equals(state.getLiege().entityUuid); if(!master&&!liege) return false; if(master) state.handleMasterDeath(causedByServingPlayer); if(liege) state.handleLiegeDeath(causedByServingPlayer); if(causedByServingPlayer) state.lockoutUntil(Math.max(0L,calendarDay)+BETRAYAL_LOCKOUT_DAYS); return true; }
+}

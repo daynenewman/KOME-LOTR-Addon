@@ -5,17 +5,33 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagString;
 import net.minecraft.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 public class KOMEPlayerProgression {
+    /** Short-lived per-NPC decline ledger; entries are pruned when a new server day is observed. */
+    private final java.util.Map<String, Long> serfdomOfferDeclines = new java.util.HashMap<String, Long>();
+    public boolean declinedSerfdomOfferToday(String npcId, long day) { pruneSerfdomOfferDeclines(day); Long value=serfdomOfferDeclines.get(npcId); return value != null && value.longValue()==day; }
+    public void declineSerfdomOffer(String npcId, long day) { if(npcId!=null&&npcId.length()!=0){pruneSerfdomOfferDeclines(day);serfdomOfferDeclines.put(npcId,Long.valueOf(day));} }
+    private void pruneSerfdomOfferDeclines(long day) { java.util.Iterator<java.util.Map.Entry<String,Long>> it=serfdomOfferDeclines.entrySet().iterator();while(it.hasNext())if(it.next().getValue().longValue()!=day)it.remove(); }
     public static final int OFFERING_SLOTS = 54;
     private final Set<String> completed = new HashSet<>();
     private final Map<String, String> assignments = new HashMap<>();
     private final Map<String, Integer> quotaDelivered = new HashMap<>();
     private final ItemStack[] offerings = new ItemStack[OFFERING_SLOTS];
+    private final KOMELordshipTrialRecord lordship = new KOMELordshipTrialRecord();
+    public KOMELordshipTrialRecord getLordship() { return lordship; }
+    private final KOMEKnightServiceRecord knightService = new KOMEKnightServiceRecord();
+    public KOMEKnightServiceRecord getKnightService() { return knightService; }
+    private final KOMESerfKnightProgression serfKnightProgression = new KOMESerfKnightProgression();
+    /** One-shot relationship-death notices that survive logout/server restart until delivered. */
+    private final List<KOMERelationshipDeathNotice> pendingRelationshipDeathNotices = new ArrayList<KOMERelationshipDeathNotice>();
+    /** Revised-progression authority; intentionally independent of legacy achievement groups. */
+    private KOMEProgressionRank canonicalRank = KOMEProgressionRank.WANDERER;
     private String pledgedLordID = "";
     private String pledgedLordName = "";
     private String pledgedLordFaction = "";
@@ -43,6 +59,11 @@ public class KOMEPlayerProgression {
         assignments.clear();
         quotaDelivered.clear();
         clearOfferings();
+        serfKnightProgression.reset();
+        knightService.reset();
+        lordship.reset();
+        pendingRelationshipDeathNotices.clear();
+        canonicalRank = KOMEProgressionRank.WANDERER;
         pledgedLordID = "";
         pledgedLordName = "";
         pledgedLordFaction = "";
@@ -94,6 +115,16 @@ public class KOMEPlayerProgression {
         pledgedLordZ = z;
     }
 
+    public void clearPledgedLord() {
+        pledgedLordID = "";
+        pledgedLordName = "";
+        pledgedLordFaction = "";
+        pledgedLordDimension = 0;
+        pledgedLordX = 0.0D;
+        pledgedLordY = 0.0D;
+        pledgedLordZ = 0.0D;
+    }
+
     public boolean hasPledgedLord() {
         return pledgedLordName != null && !pledgedLordName.trim().isEmpty();
     }
@@ -128,6 +159,27 @@ public class KOMEPlayerProgression {
         }
         return pledgedLordFaction == null || pledgedLordFaction.trim().isEmpty() ? pledgedLordName : pledgedLordName + " of " + pledgedLordFaction;
     }
+
+    boolean queueRelationshipDeathNotice(KOMERelationshipDeathNotice notice) {
+        if (notice == null) return false;
+        for (KOMERelationshipDeathNotice existing : pendingRelationshipDeathNotices)
+            if (existing.eventId.equals(notice.eventId) && existing.role == notice.role) return false;
+        pendingRelationshipDeathNotices.add(notice);
+        return true;
+    }
+
+    List<KOMERelationshipDeathNotice> drainRelationshipDeathNotices() {
+        List<KOMERelationshipDeathNotice> drained = new ArrayList<KOMERelationshipDeathNotice>(pendingRelationshipDeathNotices);
+        pendingRelationshipDeathNotices.clear();
+        return drained;
+    }
+
+    int pendingRelationshipDeathNoticeCount() { return pendingRelationshipDeathNotices.size(); }
+
+    /** Canonical Serf-to-Knight state, deliberately separate from the legacy pledged-lord fields. */
+    public KOMESerfKnightProgression getSerfKnightProgression() { return serfKnightProgression; }
+    public KOMEProgressionRank getCanonicalRank() { return canonicalRank; }
+    void setCanonicalRank(KOMEProgressionRank rank) { canonicalRank = rank == null ? KOMEProgressionRank.WANDERER : rank; }
 
     public ItemStack getOffering(int slot) {
         return slot >= 0 && slot < offerings.length ? offerings[slot] : null;
@@ -190,6 +242,7 @@ public class KOMEPlayerProgression {
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
+        serfdomOfferDeclines.clear(); long now=KOMESerfKnightService.calendarDayNow(); NBTTagList declined=nbt.getTagList("SerfdomOfferDeclines",10);for(int i=0;i<declined.tagCount();i++){NBTTagCompound e=declined.getCompoundTagAt(i);if(e.getLong("Day")==now)serfdomOfferDeclines.put(e.getString("NPC"),Long.valueOf(now));}
         completed.clear();
         assignments.clear();
         quotaDelivered.clear();
@@ -223,6 +276,19 @@ public class KOMEPlayerProgression {
         pledgedLordX = nbt.getDouble("PledgedLordX");
         pledgedLordY = nbt.getDouble("PledgedLordY");
         pledgedLordZ = nbt.getDouble("PledgedLordZ");
+        KOMEProgressionRank loadedRank = KOMEProgressionRank.forKey(nbt.getString("CanonicalRank"));
+        canonicalRank = loadedRank == null ? KOMEProgressionRank.WANDERER : loadedRank;
+        lordship.readFromNBT(nbt.hasKey("Lordship",10) ? nbt.getCompoundTag("Lordship") : null);
+        lordship.reconcileRank(canonicalRank);
+        knightService.readFromNBT(nbt.hasKey("KnightService",10) ? nbt.getCompoundTag("KnightService") : null);
+        knightService.reconcileRank(canonicalRank);
+        serfKnightProgression.readFromNBT(nbt.hasKey("SerfKnightProgression", 10) ? nbt.getCompoundTag("SerfKnightProgression") : null, canonicalRank);
+        pendingRelationshipDeathNotices.clear();
+        NBTTagList deathNotices = nbt.getTagList("RelationshipDeathNotices", 10);
+        for (int i = 0; i < deathNotices.tagCount(); i++) {
+            KOMERelationshipDeathNotice notice = KOMERelationshipDeathNotice.readFromNBT(deathNotices.getCompoundTagAt(i));
+            if (notice != null) queueRelationshipDeathNotice(notice);
+        }
         clearOfferings();
         NBTTagList offeringList = nbt.getTagList("Offerings", 10);
         for (int i = 0; i < offeringList.tagCount(); i++) {
@@ -235,6 +301,7 @@ public class KOMEPlayerProgression {
     }
 
     public NBTTagCompound writeToNBT() {
+        pruneSerfdomOfferDeclines(KOMESerfKnightService.calendarDayNow());
         NBTTagCompound nbt = new NBTTagCompound();
         NBTTagList list = new NBTTagList();
         for (String id : completed) {
@@ -264,6 +331,15 @@ public class KOMEPlayerProgression {
         nbt.setDouble("PledgedLordX", pledgedLordX);
         nbt.setDouble("PledgedLordY", pledgedLordY);
         nbt.setDouble("PledgedLordZ", pledgedLordZ);
+        nbt.setString("CanonicalRank", canonicalRank.key);
+        nbt.setTag("Lordship", lordship.writeToNBT());
+        nbt.setTag("KnightService", knightService.writeToNBT());
+        nbt.setTag("SerfKnightProgression", serfKnightProgression.writeToNBT());
+        NBTTagList deathNotices = new NBTTagList();
+        for (KOMERelationshipDeathNotice notice : pendingRelationshipDeathNotices)
+            if (notice != null) deathNotices.appendTag(notice.writeToNBT());
+        nbt.setTag("RelationshipDeathNotices", deathNotices);
+        NBTTagList declined=new NBTTagList();for(java.util.Map.Entry<String,Long> e:serfdomOfferDeclines.entrySet()){NBTTagCompound row=new NBTTagCompound();row.setString("NPC",e.getKey());row.setLong("Day",e.getValue().longValue());declined.appendTag(row);}nbt.setTag("SerfdomOfferDeclines",declined);
         NBTTagList offeringList = new NBTTagList();
         for (int i = 0; i < offerings.length; i++) {
             if (offerings[i] != null) {

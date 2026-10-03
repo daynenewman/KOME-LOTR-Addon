@@ -53,7 +53,7 @@ cannot bypass the commitment. Pledge-release cleanup also retains the committed 
 and held order rather than manufacturing a departure. Conflict end or diplomacy change does not
 auto-resume the route.
 
-Schema 6 remains the root schema. The movement-order fields are additive and conflict-held orders
+Schema 7 is the merged root schema. The movement-order fields are additive and conflict-held orders
 are cross-validated against the persisted ConflictRecord, company, tile, cohort, and unit links on
 load and before write. Restart therefore restores the hold without scheduling departure.
 

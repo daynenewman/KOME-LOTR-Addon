@@ -23,10 +23,11 @@ public class KOMEConflictPersistenceTest {
     private static final UUID MEMBER_ONE = UUID.fromString("20000000-0000-0000-0000-000000000001");
     private static final UUID MEMBER_TWO = UUID.fromString("20000000-0000-0000-0000-000000000002");
 
-    @Test public void emptySchemaSixRoundTripsWithCanonicalSectionAndAllocator() {
+    @Test public void emptySchemaSevenRoundTripsWithCanonicalSectionAndAllocator() {
         KOMEWorldData source = initialized("empty");
         NBTTagCompound saved = save(source);
-        assertEquals(6, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
+            saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(1, saved.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
         assertEquals(1L, saved.getLong(KOMEConflictPersistence.SEQUENCE_KEY));
         assertEquals(0, records(saved).tagCount());
@@ -274,8 +275,9 @@ public class KOMEConflictPersistenceTest {
         expectInvalid(missingSection, KOMEConflictPersistence.SCHEMA_KEY);
 
         NBTTagCompound future = ordinaryDocument();
-        future.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 7);
-        expectInvalid(future, "schema 7");
+        future.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,
+            KOMEWorldData.KOME_DATA_SCHEMA_VERSION + 1);
+        expectInvalid(future, "schema 8");
     }
 
     @Test public void conflictDecodeFailureLeavesExistingLiveStateUntouchedAndWriteBlocked() {
@@ -317,8 +319,8 @@ public class KOMEConflictPersistenceTest {
         assertFalse(destination.hasKey(KOMEConflictPersistence.RECORDS_KEY));
     }
 
-    @Test public void schemaFiveUpgradePreservesAuthoritiesAndInfersNoConflicts() {
-        KOMEWorldData legacy = initialized("schema-five");
+    @Test public void schemaSixUpgradePreservesAuthoritiesAndInfersNoConflicts() {
+        KOMEWorldData legacy = initialized("schema-six");
         legacy.grantFactionPopulationCenti("gondor", 2500L);
         KOMEConquestRouteEdge edge = new KOMEConquestRouteEdge("T100", "T101", KOMEConquestRouteEdge.OPEN);
         legacy.routeEdges.put(KOMEConquestRouteEdge.key("T100", "T101"), edge);
@@ -329,30 +331,33 @@ public class KOMEConflictPersistenceTest {
         build.id = "defensive-sentinel"; build.tileId = "T100"; build.type = KOMEBuildType.DEFENSIVE;
         build.populationFaction = "gondor"; build.originalBuilderFaction = "gondor";
         legacy.builds.put(build.id, build);
+        UUID progressionPlayer = UUID.fromString("00000000-0000-0000-0000-000000000099");
+        legacy.getProgression(progressionPlayer);
         addCoherentCompany(legacy);
 
-        NBTTagCompound schemaFive = save(legacy);
-        schemaFive.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 5);
-        schemaFive.removeTag(KOMEConflictPersistence.SCHEMA_KEY);
-        schemaFive.removeTag(KOMEConflictPersistence.SEQUENCE_KEY);
-        schemaFive.removeTag(KOMEConflictPersistence.RECORDS_KEY);
-        KOMEWorldData upgraded = load(schemaFive);
+        NBTTagCompound schemaSix = save(legacy);
+        schemaSix.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 6);
+        schemaSix.removeTag(KOMEConflictPersistence.SCHEMA_KEY);
+        schemaSix.removeTag(KOMEConflictPersistence.SEQUENCE_KEY);
+        schemaSix.removeTag(KOMEConflictPersistence.RECORDS_KEY);
+        KOMEWorldData upgraded = load(schemaSix);
         assertTrue(upgraded.isDirty());
         assertEquals(2500L, upgraded.getFactionPopulationIfPresent("gondor").getAvailablePopulationCenti());
         assertTrue(upgraded.routeEdges.containsKey(KOMEConquestRouteEdge.key("T100", "T101")));
         assertEquals(KOMEDiplomacyRelation.ENEMIES, upgraded.canonicalDiplomacyRecords.get("gondor|rohan").relation);
         assertTrue(upgraded.builds.containsKey("defensive-sentinel"));
+        assertTrue(upgraded.progressions.containsKey(progressionPlayer));
         assertTrue(upgraded.armyCompanies.containsKey("C1"));
         assertTrue(upgraded.getConflictService().records().isEmpty());
         assertEquals(1L, upgraded.getConflictService().getNextConflictSequence());
 
-        NBTTagCompound schemaSix = save(upgraded);
-        assertEquals(6, schemaSix.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
-        assertEquals(1, schemaSix.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
-        assertEquals(0, records(schemaSix).tagCount());
-        NBTTagCompound expectedAuthorities = (NBTTagCompound) schemaFive.copy();
+        NBTTagCompound schemaSeven = save(upgraded);
+        assertEquals(7, schemaSeven.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(1, schemaSeven.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
+        assertEquals(0, records(schemaSeven).tagCount());
+        NBTTagCompound expectedAuthorities = (NBTTagCompound) schemaSix.copy();
         expectedAuthorities.removeTag(KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        NBTTagCompound actualAuthorities = (NBTTagCompound) schemaSix.copy();
+        NBTTagCompound actualAuthorities = (NBTTagCompound) schemaSeven.copy();
         actualAuthorities.removeTag(KOMEWorldData.KOME_DATA_SCHEMA_KEY);
         actualAuthorities.removeTag(KOMEConflictPersistence.SCHEMA_KEY);
         actualAuthorities.removeTag(KOMEConflictPersistence.SEQUENCE_KEY);

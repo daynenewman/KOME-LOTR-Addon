@@ -70,7 +70,7 @@ do not choose ticking/offline policy. Arrivals do not restart them. Episode iden
 `CF<n>:E<sequence>`; a same-episode timer checkpoint cannot silently reset its elapsed/duration
 snapshot. Phase controllers own episode detection and semantic authorization.
 
-Phase 2 implements the approved root schema 5 to 6 one-way upgrade and conflict persistence described
+Phase 2 implements conflict persistence and the narrow one-way root-schema upgrade described
 in `KOM17_PHASE2_CONFLICT_PERSISTENCE.md`; Phase 1 remains the codec-independent model foundation.
 
 Focused validation:

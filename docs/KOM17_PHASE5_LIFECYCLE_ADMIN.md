@@ -50,7 +50,7 @@ hold handoff use the central audit stream.
 ## Persistence and deferrals
 
 No root or conflict schema bump is required. The post-conflict movement status is an additive
-schema-6 movement value with strict cross-section validation. Active and ENDED records retain the
+schema-7 movement value with strict cross-section validation. Active and ENDED records retain the
 Phase 2 codec and allocator high-water behavior.
 
 KOM-18 and later battle tickets own victory, conquest, timers, deployment, damage, retreat/death,

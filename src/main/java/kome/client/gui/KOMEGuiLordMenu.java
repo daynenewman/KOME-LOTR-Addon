@@ -29,9 +29,9 @@ public class KOMEGuiLordMenu extends LOTRGuiMenuBase {
         int center = width / 2;
         if (currentLord) {
             buttonList.add(KOMEGuiButton.wide(1, center - 72, guiTop + 82, "Open offerings"));
-            buttonList.add(KOMEGuiButton.wide(2, center - 72, guiTop + 106, "Highlight lord"));
+            buttonList.add(KOMEGuiButton.wide(2, center - 72, guiTop + 106, "Highlight Liege"));
         } else {
-            buttonList.add(KOMEGuiButton.wide(0, center - 72, guiTop + 94, "Pledge to this lord"));
+            buttonList.add(KOMEGuiButton.wide(2, center - 72, guiTop + 94, "Highlight NPC"));
         }
     }
 
@@ -39,7 +39,7 @@ public class KOMEGuiLordMenu extends LOTRGuiMenuBase {
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();
         KOMEGuiTheme.drawMainPanel(guiLeft, guiTop, xSize, ySize);
-        KOMEGuiTheme.drawHeader(fontRendererObj, "Lord Menu", guiLeft + 10, guiTop + 10, xSize - 20);
+        KOMEGuiTheme.drawHeader(fontRendererObj, "Liege Menu", guiLeft + 10, guiTop + 10, xSize - 20);
 
         int cardX = guiLeft + 18;
         int cardY = guiTop + 42;
@@ -49,7 +49,7 @@ public class KOMEGuiLordMenu extends LOTRGuiMenuBase {
         String faction = factionName == null || factionName.length() == 0 ? "No faction" : factionName;
         drawCenteredString(fontRendererObj, KOMEGuiTheme.trimToWidth(fontRendererObj, faction, cardW - 12), width / 2, cardY + 18, KOMEGuiTheme.COLOR_TEXT_MUTED);
 
-        String status = currentLord ? "Current pledged lord" : "Available for pledge";
+        String status = currentLord ? "Current Liege" : "Not your current Liege";
         drawCenteredString(fontRendererObj, status, width / 2, guiTop + 126, KOMEGuiTheme.COLOR_TEXT_MUTED);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

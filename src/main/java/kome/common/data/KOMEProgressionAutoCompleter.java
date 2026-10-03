@@ -40,15 +40,21 @@ public class KOMEProgressionAutoCompleter {
         changed += grantIf(progression, "wanderer.expert_traveler", hasAchievement(lotrData, LOTRAchievement.travel10));
         changed += grantIf(progression, "wanderer.dangerous_business", hasAchievement(lotrData, LOTRAchievement.travel20));
         changed += grantIf(progression, "wanderer.travel_30km", hasAchievement(lotrData, LOTRAchievement.travel30));
-        changed += grantIf(progression, "wanderer.find_serf_lord", progression.hasPledgedLord());
+        changed += grantIf(progression, "wanderer.find_serf_lord", progression.getCanonicalRank().order>=KOMEProgressionRank.SERF.order);
+
+        LOTRFaction pledge = lotrData.getPledgeFaction();
+        String serviceFaction=pledge==null?"":pledge.codeName();
+        changed+=KOMEKnightCommissionService.reconcileAllegiance(player.worldObj,playerID,progression,serviceFaction)?1:0;
+        changed+=KOMELordshipTrialService.reconcileAllegiance(player.worldObj,playerID,progression,serviceFaction)?1:0;
+        changed += reconcilePledgeDuties(progression, pledge);
 
         changed += grantIf(progression, "serf.quest_seeker", lotrData.getCompletedMiniQuestsTotal() >= 5);
-        changed += grantIf(progression, "serf.alignment_100", hasAnyAlignmentAtLeast(lotrData, 100.0f));
-        changed += grantIf(progression, "serf.pledge", lotrData.getPledgeFaction() != null);
+        changed += grantIf(progression, "serf.alignment_100", pledge != null && lotrData.getAlignment(pledge) >= KOMESerfKnightService.REQUIRED_ALIGNMENT);
         changed += grantIf(progression, "serf.defeat_invasion", hasAchievement(lotrData, LOTRAchievement.defeatInvasion));
         changed += grantIf(progression, "serf.brewing", hasAchievement(lotrData, LOTRAchievement.brewDrinkInBarrel));
 
-        changed += grantIf(progression, "knight.alignment_2000", hasAnyAlignmentAtLeast(lotrData, 2000.0f));
+        changed += grantIf(progression, "knight.alignment_2000",
+            pledge != null && lotrData.getAlignment(pledge) >= 2000.0f);
         changed += grantIf(progression, "knight.hooligan", hasAchievement(lotrData, LOTRAchievement.killWhileDrunk));
         changed += grantIf(progression, "knight.speared", hasAchievement(lotrData, LOTRAchievement.useSpearFromFar));
         changed += grantIf(progression, "knight.fanny_pack", hasAchievement(lotrData, LOTRAchievement.getPouch));
@@ -56,8 +62,9 @@ public class KOMEProgressionAutoCompleter {
         changed += grantIf(progression, "knight.faction_2", hasAssignedFactionAlignment(lotrData, progression.getAssignment("knight.faction_2")));
 
         changed += applyPopulationProgression(data, progression, data.getPlayerFactionKey(playerID));
-        changed += grantIf(progression, "lord.alignment_3000", hasAnyAlignmentAtLeast(lotrData, 3000.0f));
-        changed += grantIf(progression, "lord.global_alignment", hasEveryPlayableAlignmentAtLeastAbsolute(lotrData, 250.0f));
+        changed += grantIf(progression, "lord.alignment_3000",
+            pledge != null && lotrData.getAlignment(pledge) >= 3000.0f);
+        changed += grantIf(progression, "lord.global_alignment", hasEveryPlayableAlignmentAtRequiredAbsolute(lotrData));
         changed += grantIf(progression, "lord.fluttering_by", hasAchievement(lotrData, LOTRAchievement.catchButterfly));
         changed += grantIf(progression, "lord.protective_banners", hasAchievement(lotrData, LOTRAchievement.bannerProtect));
         changed += grantIf(progression, "lord.fell_beast", hasFellBeastAchievement(lotrData, progression.getAssignment("lord.fell_beast")));
@@ -85,6 +92,32 @@ public class KOMEProgressionAutoCompleter {
         return grantIf(progression, "lord.early_beginnings", meetsPopulationThreshold(data, faction));
     }
 
+    /** The durable LOTR commitment state used by the baseline faction-pledge duty. */
+    public static boolean hasValidFactionCommitment(LOTRFaction pledge) {
+        return pledge != null && pledge.isPlayableAlignmentFaction();
+    }
+
+    /**
+     * Uses LOTR's live pledge as the source of truth for the later Serf pledge duty.
+     * Once a Serfdom Master is recorded, the pledge must be to that master's faction.
+     */
+    static boolean hasValidSerfPledge(KOMEPlayerProgression progression, LOTRFaction pledge) {
+        if (!hasValidFactionCommitment(pledge)) return false;
+        if (progression == null) return false;
+        KOMEProgressionNpcRef master = progression.getSerfKnightProgression().getSerfdomMaster();
+        return !master.isSet() || KOMEProgressionFactionResolver.matches(master.factionKey,pledge);
+    }
+
+    /** Reconciles both historical pledge Duties through their ordinary grant route. */
+    static int reconcilePledgeDuties(KOMEPlayerProgression progression, LOTRFaction pledge) {
+        return grantIf(progression, "baseline.pledge", hasValidFactionCommitment(pledge))
+            + reconcileSerfPledge(progression, pledge);
+    }
+
+    static int reconcileSerfPledge(KOMEPlayerProgression progression, LOTRFaction pledge) {
+        return grantIf(progression, "serf.pledge", hasValidSerfPledge(progression, pledge));
+    }
+
     public static int applyUnlocks(KOMEPlayerProgression progression) {
         int changed = 0;
 
@@ -94,6 +127,7 @@ public class KOMEProgressionAutoCompleter {
         changed += grantAfter(progression, "wanderer.learn_to_cook", "baseline.cooking");
         changed += grantAfter(progression, "wanderer.smoke_drink", "baseline.alcohol_pipeweed");
         changed += grantAfter(progression, "wanderer.find_serf_lord", "baseline.hunting", "baseline.house_waypoints", "baseline.farming");
+
 
         changed += grantAfter(progression, "serf.bartering", "baseline.npc_trade");
         changed += grantAfter(progression, "serf.quest_seeker", "baseline.miniquests");
@@ -108,7 +142,8 @@ public class KOMEProgressionAutoCompleter {
         changed += grantAfter(progression, "knight.meat", "baseline.meat");
         changed += grantAfter(progression, "knight.craftsman", "baseline.faction_gear");
         changed += grantAfter(progression, "knight.fellowship", "baseline.fellowship");
-        changed += grantAfter(progression, "knight.title_lord", "baseline.take_waypoints", "baseline.reclaim_waypoints");
+        changed += grantIf(progression, "baseline.take_waypoints", progression.getCanonicalRank().order>=KOMEProgressionRank.LORD.order);
+        changed += grantIf(progression, "baseline.reclaim_waypoints", progression.getCanonicalRank().order>=KOMEProgressionRank.LORD.order);
 
         changed += grantAfter(progression, "lord.redstone", "baseline.redstone");
         changed += grantAfter(progression, "lord.smithing_apprentice", "baseline.scrolls_modifiers");
@@ -134,13 +169,19 @@ public class KOMEProgressionAutoCompleter {
     }
 
     public static void syncPlayer(EntityPlayerMP player, KOMEPlayerProgression progression) {
+        KOMEProgressionOfferBridge.refreshPlayerOffers(player);
         List completed = new ArrayList();
         for (KOMEProgressionAchievement achievement : KOMEProgressionAchievement.ALL) {
             if (progression.isCompleted(achievement)) {
                 completed.add(achievement.id);
             }
         }
-        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments()), player);
+        LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();String pledgeName=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.factionName():"";
+        double alignment=pledge==null?0D:LOTRLevelData.getData(player).getAlignment(pledge);
+        String pledgeKey=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.codeName():"";
+        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression,pledgeName,pledgeKey,alignment), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression), KOMEProgressionRankSummary.project(progression,alignment,pledgeKey,player.getUniqueID())), player);
+        KOMEVisualLocationService.syncIfChanged(player, progression, false);
+        KOMEProgressionTrackerService.syncIfChanged(player, KOMEWorldData.get(player.worldObj), false);
     }
 
     private static int grantAfter(KOMEPlayerProgression progression, String requiredID, String... unlockedIDs) {
@@ -184,18 +225,22 @@ public class KOMEProgressionAutoCompleter {
         return false;
     }
 
-    private static boolean hasEveryPlayableAlignmentAtLeastAbsolute(LOTRPlayerData data, float amount) {
+    private static boolean hasEveryPlayableAlignmentAtRequiredAbsolute(LOTRPlayerData data) {
         boolean checked = false;
         for (LOTRFaction faction : LOTRFaction.values()) {
             if (!faction.isPlayableAlignmentFaction()) {
                 continue;
             }
             checked = true;
-            if (Math.abs(data.getAlignment(faction)) < amount) {
+            if (Math.abs(data.getAlignment(faction)) < globalAlignmentThreshold(faction)) {
                 return false;
             }
         }
         return checked;
+    }
+
+    static float globalAlignmentThreshold(LOTRFaction faction) {
+        return KOMEProgressionFactionQuotas.isElite(faction) ? 500.0f : 250.0f;
     }
 
     private static boolean hasAssignedFactionAlignment(LOTRPlayerData data, String assignment) {

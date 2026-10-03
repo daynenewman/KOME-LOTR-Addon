@@ -1,0 +1,31 @@
+// Disposable headless Forge verification. Run only under Local\KOME-Heavy-Validation.
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.tasks.Jar
+
+allprojects { afterEvaluate {
+ tasks.register('compileMusterVerification', JavaCompile) {
+    dependsOn tasks.named('classes')
+    source = project.fileTree('tools/kom11/java') { include '**/*.java' }
+    classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+    destinationDirectory.set(layout.buildDirectory.dir('kom11/verification-classes'))
+    sourceCompatibility = '8'
+    targetCompatibility = '8'
+}
+tasks.register('musterVerificationJar', Jar) {
+    dependsOn tasks.named('compileMusterVerification')
+    from layout.buildDirectory.dir('kom11/verification-classes')
+    archiveFileName.set('kom11-verification.jar')
+    destinationDirectory.set(layout.buildDirectory.dir('kom11/forge/mods'))
+}
+tasks.named('runServer') {
+    dependsOn tasks.named('musterVerificationJar')
+    workingDir = project.file('build/kom11/forge')
+    timeout.set(java.time.Duration.ofMinutes(4))
+    doFirst {
+        workingDir.mkdirs()
+        new File(workingDir, 'eula.txt').text = 'eula=true\n'
+        new File(workingDir, 'server.properties').text = 'server-port=0\nlevel-name=kom11-disposable-' + System.currentTimeMillis() + '\nonline-mode=false\nview-distance=2\nmax-tick-time=120000\n'
+    }
+}
+
+} }

@@ -31,8 +31,13 @@ public class KOMEProgressionTitles {
         ensureTeam(scoreboard, rank);
         String playerName = player.getCommandSenderName();
         ScorePlayerTeam current = scoreboard.getPlayersTeam(playerName);
+        if (current != null && !isKomeOwnedTeam(current.getRegisteredName())) {
+            return;
+        }
         if (current == null || !rank.teamName.equals(current.getRegisteredName())) {
-            scoreboard.removePlayerFromTeams(playerName);
+            if (current != null) {
+                scoreboard.removePlayerFromTeams(playerName);
+            }
             scoreboard.func_151392_a(playerName, rank.teamName);
         }
     }
@@ -75,25 +80,12 @@ public class KOMEProgressionTitles {
         if (data != null && KOMERulerService.isRuler(data, factionKey, playerID)) {
             return "King";
         }
-        if (isGroupComplete(progression, "prince_king") || isGroupComplete(progression, "lord")) {
-            return "Prince";
-        }
-        if (isGroupComplete(progression, "knight")) {
-            return "Lord";
-        }
-        if (isGroupComplete(progression, "serf")) {
-            return "Knight";
-        }
-        if (isGroupComplete(progression, "wanderer")) {
-            return "Serf";
-        }
-        return "Wanderer";
+        KOMEProgressionRank rank = progression == null ? KOMEProgressionRank.WANDERER : progression.getCanonicalRank();
+        return rank == null ? KOMEProgressionRank.WANDERER.displayName : rank.displayName;
     }
 
-    private static boolean isGroupComplete(KOMEPlayerProgression progression, String group) {
-        return progression != null
-            && progression.getTotalCount(group) > 0
-            && progression.getCompletedCount(group) >= progression.getTotalCount(group);
+    static boolean isKomeOwnedTeam(String teamName) {
+        return teamName != null && teamName.startsWith(TEAM_PREFIX);
     }
 
     private static FactionRankKey getFactionRankKey(EntityPlayerMP player, KOMEPlayerProgression progression) {

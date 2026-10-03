@@ -152,6 +152,7 @@ public final class KOMEDiplomacyService {
             actor == null ? "" : actor.toString(), record.key(),
             "LOTR faction relation changed", current.key + " -> " + target.key);
         revalidateConsequences(data, now);
+        KOMEDiplomacyClientSync.refreshAll(data);
         return Result.ok(record);
     }
 
@@ -193,6 +194,7 @@ public final class KOMEDiplomacyService {
             actor == null ? "" : actor.toString(), record.key(),
             "LOTR faction relation worsened unilaterally", current.key + " -> " + target.key);
         revalidateConsequences(data, now);
+        KOMEDiplomacyClientSync.refreshAll(data);
         return Result.ok(record);
     }
 
@@ -217,6 +219,7 @@ public final class KOMEDiplomacyService {
                 actor == null ? "" : actor, KOMEDiplomacyRecord.pairKey(attacker, defender),
                 "War declaration set LOTR relation to Mortal Enemy",
                 current.key + " -> " + KOMEDiplomacyRelation.MORTAL_ENEMIES.key);
+            KOMEDiplomacyClientSync.refreshAll(data);
         }
         return true;
     }

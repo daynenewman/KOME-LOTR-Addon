@@ -19,14 +19,29 @@ import kome.common.data.KOMEConflictService;
 import kome.common.data.KOMERulerService;
 import kome.common.data.KOMETileOwnershipDefaults;
 import kome.common.data.KOMEWaypointDefaults;
+import kome.common.data.KOMEPlayerProgression;
+import kome.common.data.KOMEProgressionNpcRankService;
+import kome.common.data.KOMEProgressionNpcRef;
+import kome.common.data.KOMEProgressionEncounterCleanup;
+import kome.common.data.KOMESerfKnightProgression;
+import kome.common.data.KOMESerfKnightDefenseService;
+import kome.common.data.KOMESerfKnightEscortService;
+import kome.common.data.KOMESerfKnightRecoveryService;
+import kome.common.data.KOMESerfKnightRelationshipService;
+import kome.common.data.KOMESerfKnightTrialAssignment;
 import kome.common.network.KOMEPacketUnitMapMarkers;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.entity.Entity;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.AxisAlignedBB;
+import net.minecraft.util.MovingObjectPosition;
+import net.minecraft.util.Vec3;
 import net.minecraft.world.World;
 import lotr.common.fac.LOTRFaction;
+import lotr.common.entity.npc.LOTREntityNPC;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,7 +56,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
     @Override
     public String getCommandUsage(ICommandSender sender) {
         if (!hasStaffPermission(sender)) return "/kome [gui|help|tile <tileId>|waypoint propose <name>]";
-        return "/kome conflict <inspect|end> ... | /kome repair conflict <tile> <preview|apply> | /kome waypoint help | /kome capital <list|get faction|relocate faction here> | character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
+        return "/kome conflict <inspect|end> ... | /kome repair conflict <tile> <preview|apply> | /kome waypoint help | /kome capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
     @Override
@@ -70,6 +85,18 @@ public class KOMECommandKome extends KOMEPublicCommand {
         }
         // Remaining root functions are administrative. Reject before accessing world state.
         requireStaff(sender);
+        if (args.length == 3 && "progression".equalsIgnoreCase(args[0]) && "cooldown".equalsIgnoreCase(args[1])) {
+            if (!(sender instanceof EntityPlayerMP)) throw new WrongUsageException("This testing override must be used by an authorized player.");
+            if (!"on".equalsIgnoreCase(args[2]) && !"off".equalsIgnoreCase(args[2])) throw new WrongUsageException("/kome progression cooldown <on|off>");
+            boolean disabled="off".equalsIgnoreCase(args[2]);
+            kome.common.data.KOMESerfKnightCadenceOverride.set(((EntityPlayerMP)sender).getUniqueID(),disabled);
+            sender.addChatMessage(new ChatComponentText(disabled?"Progression daily cooldown disabled for testing.":"Progression daily cooldown restored."));
+            return;
+        }
+        if (args.length >= 2 && "progression".equalsIgnoreCase(args[0]) && "relationship".equalsIgnoreCase(args[1])) {
+            processRelationshipCommand(sender, args);
+            return;
+        }
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         if (args.length == 3 && "conflict".equalsIgnoreCase(args[0])
                 && "inspect".equalsIgnoreCase(args[1])) {
@@ -321,7 +348,8 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 "ruler",
                 "audit",
                 "conflict",
-                "repair");
+                "repair",
+                "progression");
         }
         if (args.length == 2 && "capital".equalsIgnoreCase(args[0]))
             return getListOfStringsMatchingLastWord(args, "list", "get", "relocate");
@@ -378,7 +406,77 @@ public class KOMECommandKome extends KOMEPublicCommand {
         if (args.length == 2 && "adminmarkers".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, "on", "off", "status");
         }
+        if (args.length == 2 && "progression".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "cooldown", "relationship");
+        if (args.length == 3 && "progression".equalsIgnoreCase(args[0]) && "cooldown".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, "on", "off");
+        if (args.length == 3 && "progression".equalsIgnoreCase(args[0]) && "relationship".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, "force", "clear");
+        if (args.length == 4 && "progression".equalsIgnoreCase(args[0]) && "relationship".equalsIgnoreCase(args[1]) && "force".equalsIgnoreCase(args[2])) return getListOfStringsMatchingLastWord(args, "serf", "knight", "lord");
         return null;
+    }
+
+    /** Minecraft passes exactly the tokens after /kome. */
+    private void processRelationshipCommand(ICommandSender sender, String[] args) {
+        if (args.length == 3 && "clear".equalsIgnoreCase(args[2])) { clearRelationship(sender); return; }
+        if (args.length == 4 && "force".equalsIgnoreCase(args[2])) { forceRelationship(sender, args[3]); return; }
+        throw new WrongUsageException("/kome progression relationship <force <serf|knight|lord>|clear>");
+    }
+
+    private void forceRelationship(ICommandSender sender, String levelName) {
+        if (!(sender instanceof EntityPlayerMP)) throw new WrongUsageException("This testing command must be used by an authorized player.");
+        KOMESerfKnightRelationshipService.ForceLevel level = KOMESerfKnightRelationshipService.ForceLevel.forCommand(levelName);
+        if (level == null) throw new WrongUsageException("/kome progression relationship force <serf|knight|lord>");
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+        LOTREntityNPC npc = targetedNpc(player);
+        if (npc == null) throw new WrongUsageException("Look at a valid living LOTR faction NPC within 8 blocks.");
+        KOMEWorldData data = KOMEWorldData.get(player.worldObj);
+        KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+        KOMEProgressionEncounterCleanup.cleanup(player,progression);
+        KOMEProgressionNpcRef target = KOMEProgressionNpcRankService.referenceOf(npc);
+        KOMESerfKnightRelationshipService.Result result = KOMESerfKnightRelationshipService.force(data, KOMEReflection.getEntityUUID(player), target, level);
+        if (!result.success) throw new WrongUsageException(result.reason);
+        npc.func_110163_bv();
+        kome.common.data.KOMEProgressionAutoCompleter.syncPlayer(player, progression);
+        sender.addChatMessage(new ChatComponentText("Forced relationship with targeted NPC to " + level.rank.displayName + "."));
+    }
+
+    private void clearRelationship(ICommandSender sender) {
+        if (!(sender instanceof EntityPlayerMP)) throw new WrongUsageException("This testing command must be used by an authorized player.");
+        EntityPlayerMP player = (EntityPlayerMP) sender;
+        LOTREntityNPC npc = targetedNpc(player);
+        if (npc == null) throw new WrongUsageException("Look at a valid living LOTR faction NPC within 8 blocks.");
+        KOMEWorldData data = KOMEWorldData.get(player.worldObj);
+        KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+        String targetedId=KOMEReflection.getEntityUUID(npc).toString();
+        KOMESerfKnightProgression relationshipState=progression.getSerfKnightProgression();
+        boolean related=targetedId.equals(relationshipState.getSerfdomMaster().entityUuid)
+            ||targetedId.equals(relationshipState.getLiege().entityUuid);
+        if(!related)throw new WrongUsageException("The targeted NPC has no relationship to clear.");
+        KOMEProgressionEncounterCleanup.cleanup(player,progression);
+        KOMESerfKnightRelationshipService.Result result = KOMESerfKnightRelationshipService.clear(data, KOMEReflection.getEntityUUID(player), targetedId);
+        if (!result.success) throw new WrongUsageException(result.reason);
+        kome.common.data.KOMEProgressionAutoCompleter.syncPlayer(player, progression);
+        sender.addChatMessage(new ChatComponentText("Cleared relationship with targeted NPC."));
+    }
+/** Server-side eight-block line-of-sight target selection; never trusts a client entity id. */
+    private static LOTREntityNPC targetedNpc(EntityPlayerMP player) {
+        if (player == null || player.worldObj == null || player.boundingBox == null) return null;
+        Vec3 start = Vec3.createVectorHelper(player.posX, player.posY + player.getEyeHeight(), player.posZ);
+        Vec3 look = player.getLookVec();
+        if (look == null) return null;
+        Vec3 end = start.addVector(look.xCoord * 8.0D, look.yCoord * 8.0D, look.zCoord * 8.0D);
+        Entity best = null; double bestDistance = 64.0D;
+        AxisAlignedBB box = player.boundingBox.addCoord(look.xCoord * 8.0D, look.yCoord * 8.0D, look.zCoord * 8.0D).expand(1.0D, 1.0D, 1.0D);
+        for (Object value : player.worldObj.getEntitiesWithinAABBExcludingEntity(player, box)) {
+            if (!(value instanceof Entity)) continue;
+            Entity candidate = (Entity) value;
+            if (!candidate.canBeCollidedWith()) continue;
+            MovingObjectPosition hit = candidate.boundingBox.expand(candidate.getCollisionBorderSize(), candidate.getCollisionBorderSize(), candidate.getCollisionBorderSize()).calculateIntercept(start, end);
+            if (hit == null) continue;
+            double distance = start.distanceTo(hit.hitVec);
+            if (distance <= bestDistance) { best = candidate; bestDistance = distance; }
+        }
+        if (!(best instanceof LOTREntityNPC)) return null;
+        LOTREntityNPC npc = (LOTREntityNPC) best;
+        return npc.isEntityAlive() && !npc.isChild() && KOMEProgressionNpcRankService.isValidFactionNpc(npc) ? npc : null;
     }
 
     protected void openOverview(EntityPlayerMP player) {

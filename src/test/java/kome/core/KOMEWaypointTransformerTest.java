@@ -26,6 +26,13 @@ public class KOMEWaypointTransformerTest {
         assertArrayEquals(new String[] {
                 KOMEWaypointTransformer.class.getName(),
                 KOMEPublicWaypointTransformer.class.getName(),
+                KOMEProgressionOfferTransformer.class.getName(),
+                KOMEProgressionOfferGuiTransformer.class.getName(),
+                KOMEFactionTitleTransformer.class.getName(),
+                KOMEAlignmentBarTitleTransformer.class.getName(),
+                KOMEFactionTitleOptionsTransformer.class.getName(),
+                KOMEVisualLocationTransformer.class.getName(),
+                KOMEProgressionNpcDespawnTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),
@@ -38,6 +45,48 @@ public class KOMEWaypointTransformerTest {
 "com.fuzs.aquaacrobatics.core.asm.AquaLateClientPlayerTransformer"
             },
             new KOMECorePlugin().getASMTransformerClass());
+    }
+
+    @Test
+    public void registeredMapTransformersKeepPublicWaypointsAndProgressionMarkers() throws Exception {
+        String target = "lotr.client.gui.LOTRGuiMap";
+        byte[] transformed = readResource("/lotr/client/gui/LOTRGuiMap.class");
+        String[] registrations = new KOMECorePlugin().getASMTransformerClass();
+        assertEquals("Transformers must not be registered twice", registrations.length,
+            new java.util.HashSet<String>(java.util.Arrays.asList(registrations)).size());
+        for (String registration : registrations) {
+            if (registration.startsWith("kome.core.")) {
+                net.minecraft.launchwrapper.IClassTransformer transformer =
+                    (net.minecraft.launchwrapper.IClassTransformer) Class.forName(registration)
+                        .getDeclaredConstructor().newInstance();
+                transformed = transformer.transform(target, target, transformed);
+            }
+        }
+        ClassNode node = new ClassNode();
+        new ClassReader(transformed).accept(node, 0);
+        int publicWidgets = 0, publicVisibility = 0, progressionMarkers = 0;
+        for (MethodNode method : node.methods) {
+            for (AbstractInsnNode instruction = method.instructions.getFirst(); instruction != null;
+                    instruction = instruction.getNext()) {
+                if (instruction instanceof MethodInsnNode) {
+                    MethodInsnNode call = (MethodInsnNode) instruction;
+                    if (KOMEPublicWaypointTransformer.CLIENT.equals(call.owner)) {
+                        if ("beforeWidgets".equals(call.name)) publicWidgets++;
+                        if ("isPublicVisible".equals(call.name)) publicVisibility++;
+                    }
+                    if (KOMEVisualLocationTransformer.BRIDGE.equals(call.owner)
+                            && "renderMapMarkers".equals(call.name)) progressionMarkers++;
+                }
+            }
+            if ("renderMapWidgets".equals(method.name) || "isWaypointVisible".equals(method.name)
+                    || "renderMiniQuests".equals(method.name)) {
+                new org.objectweb.asm.tree.analysis.Analyzer(
+                    new org.objectweb.asm.tree.analysis.BasicVerifier()).analyze(node.name, method);
+            }
+        }
+        assertEquals(1, publicWidgets);
+        assertEquals(1, publicVisibility);
+        assertEquals(1, progressionMarkers);
     }
 
     @Test
