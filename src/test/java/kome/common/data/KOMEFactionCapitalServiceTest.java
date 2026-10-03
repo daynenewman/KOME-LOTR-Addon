@@ -85,11 +85,12 @@ public class KOMEFactionCapitalServiceTest {
         }
     }
 
-    @Test public void schemaFiveRoundTripsCompleteCapitalAuthority() {
+    @Test public void schemaSixRoundTripsCompleteCapitalAuthority() {
         KOMEWorldData source = initialized();
         NBTTagCompound saved = new NBTTagCompound();
         source.writeToNBT(saved);
-        assertEquals(6, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
+            saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(1, saved.getInteger("FactionCapitalDataSchemaVersion"));
         assertEquals(24, saved.getTagList("FactionCapitals", 10).tagCount());
         KOMEWorldData restored = new KOMEWorldData("restored");

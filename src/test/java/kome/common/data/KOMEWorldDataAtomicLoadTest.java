@@ -175,7 +175,7 @@ public class KOMEWorldDataAtomicLoadTest {
         assertFalse(buildReconciled.centralAudit.isEmpty());
     }
 
-    @Test public void schemaFiveSaveSurvivesThreeRealRoundTripsAndDoesNotAliasSourceNBT() throws Exception {
+    @Test public void schemaSixSaveSurvivesThreeRealRoundTripsAndDoesNotAliasSourceNBT() throws Exception {
         KOMEWorldData data = populated();
         data.hiredUnits.get(UNIT).stationedEntityData = new NBTTagCompound();
         data.hiredUnits.get(UNIT).stationedEntityData.setString("Sentinel", "original");
@@ -184,7 +184,8 @@ public class KOMEWorldDataAtomicLoadTest {
             NBTTagCompound original = (NBTTagCompound) saved.copy();
             KOMEWorldData loaded = new KOMEWorldData("restart"); loaded.readFromNBT(saved);
             assertEquals(original, saved);
-            assertEquals(6, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
+                saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             assertEquals(2450L, loaded.getFactionPopulationIfPresent("gondor").getAvailablePopulationCenti());
             assertEquals(Long.valueOf(17L), loaded.populationPayoutRemainders.get("gondor"));
             assertEquals(data.lastPopulationPayoutBoundaryMillis, loaded.lastPopulationPayoutBoundaryMillis);

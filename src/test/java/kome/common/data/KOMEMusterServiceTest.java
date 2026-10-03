@@ -328,10 +328,23 @@ public class KOMEMusterServiceTest {
     @Test public void oldRootCannotSilentlyLoseMusterUseAndInvalidSaveLeavesDestinationUntouched() {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,5);
-        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("expected 6"));}
+        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("schema 6 -> 7"));}
         data.civilianMusters.put("bad-key",record);NBTTagCompound destination=new NBTTagCompound();destination.setString("Sentinel","keep");
         NBTTagCompound before=(NBTTagCompound)destination.copy();
         try{data.writeToNBT(destination);fail("invalid identity saved");}catch(IllegalStateException expected){assertEquals(before,destination);}
+    }
+    @Test public void schemaSixConflictUpgradePreservesConsumedMusterAuthority() {
+        TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
+        NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);
+        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,6);
+        root.removeTag(KOMEConflictPersistence.SCHEMA_KEY);
+        root.removeTag(KOMEConflictPersistence.SEQUENCE_KEY);
+        root.removeTag(KOMEConflictPersistence.RECORDS_KEY);
+        KOMEWorldData upgraded=new KOMEWorldData("upgraded");upgraded.readFromNBT(root);
+        assertTrue(upgraded.isDirty());
+        assertEquals(record.rosterSummary(),upgraded.civilianMusters.get(record.key()).rosterSummary());
+        assertTrue(upgraded.getConflictService().records().isEmpty());
+        assertEquals(1L,upgraded.getConflictService().getNextConflictSequence());
     }
     @Test public void rosterFailureAndScheduleOverflowNeverConsumeUsageOrTouchBank() {
         TestWorld data=world("gondor");

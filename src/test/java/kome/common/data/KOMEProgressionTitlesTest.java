@@ -113,4 +113,3 @@ public class KOMEProgressionTitlesTest {
         return progression;
     }
 }
-

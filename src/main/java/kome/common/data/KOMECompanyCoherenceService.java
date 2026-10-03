@@ -271,11 +271,42 @@ public final class KOMECompanyCoherenceService {
         return assessChecked(data, company);
     }
 
+    /**
+     * Canonical coherence assessment for a deterministic movement-link repair candidate.
+     * The expected order is authoritative; only an empty company/member link may be tolerated.
+     * Competing links and every other KOM-46 coherence defect remain failures.
+     */
+    Assessment assessMovementLinkCandidate(KOMEWorldData data, KOMEArmyCompany company,
+            KOMEArmyMovementOrder expectedOrder) {
+        if (data == null) throw new IllegalArgumentException("data");
+        if (company == null) throw new IllegalArgumentException("company");
+        if (expectedOrder == null) throw new IllegalArgumentException("expectedOrder");
+        List<Issue> issues = new ArrayList<Issue>();
+        String companyOrderId = clean(company.movementOrderId);
+        if (companyOrderId.length() > 0 && !clean(expectedOrder.id).equals(companyOrderId)) {
+            issue(issues, IssueCode.MOVEMENT_ORDER_COMPANY_MISMATCH, null,
+                "Detachment references movement order " + companyOrderId
+                    + ", not repair candidate " + clean(expectedOrder.id) + ".");
+        }
+        if (!clean(company.id).equals(clean(expectedOrder.companyId))) {
+            issue(issues, IssueCode.MOVEMENT_ORDER_COMPANY_MISMATCH, null,
+                "Movement order " + clean(expectedOrder.id) + " belongs to detachment "
+                    + display(expectedOrder.companyId) + ".");
+        }
+        if (isTerminal(expectedOrder.status)) {
+            issue(issues, IssueCode.COMPANY_REFERENCES_TERMINAL_ORDER, null,
+                "Movement order " + clean(expectedOrder.id) + " is terminal ("
+                    + clean(expectedOrder.status) + ").");
+        }
+        assessCompanyBasics(company, issues);
+        return assessMembers(data, company, expectedOrder, issues, true);
+    }
+
     private Assessment assessChecked(KOMEWorldData data, KOMEArmyCompany company) {
         List<Issue> issues = new ArrayList<Issue>();
         KOMEArmyMovementOrder order = referencedOrder(data, company, issues);
         assessCompanyBasics(company, issues);
-        return assessMembers(data, company, order, issues);
+        return assessMembers(data, company, order, issues, false);
     }
 
     private static void assessCompanyBasics(KOMEArmyCompany company, List<Issue> issues) {
@@ -291,7 +322,8 @@ public final class KOMECompanyCoherenceService {
     }
 
     private Assessment assessMembers(KOMEWorldData data, KOMEArmyCompany company,
-            KOMEArmyMovementOrder order, List<Issue> issues) {
+            KOMEArmyMovementOrder order, List<Issue> issues,
+            boolean allowMissingExpectedMovementLink) {
         List<MemberAssessment> members = new ArrayList<MemberAssessment>();
         Set<UUID> seen = new HashSet<UUID>();
         Set<String> memberTiles = new HashSet<String>();
@@ -314,7 +346,8 @@ public final class KOMECompanyCoherenceService {
             if (member.physicalAgreement == PhysicalAgreement.AGREES) confirmed++;
             else if (member.physicalAgreement == PhysicalAgreement.DISAGREES) contradictory++;
             else unknown++;
-            assessMember(data, company, member, record, memberTiles, order, issues, totals);
+            assessMember(data, company, member, record, memberTiles, order, issues, totals,
+                allowMissingExpectedMovementLink);
         }
         if (memberTiles.size() > 1) {
             List<String> sorted = new ArrayList<String>(memberTiles);
@@ -336,10 +369,12 @@ public final class KOMECompanyCoherenceService {
 
     private static void assessMember(KOMEWorldData data, KOMEArmyCompany company,
             MemberAssessment member, KOMEHiredUnitRecord record, Set<String> memberTiles,
-            KOMEArmyMovementOrder order, List<Issue> issues, Totals totals) {
+            KOMEArmyMovementOrder order, List<Issue> issues, Totals totals,
+            boolean allowMissingExpectedMovementLink) {
         assessMembershipIdentity(data, company, member, record, issues);
         assessMemberLocation(issues, member, memberTiles, company.currentTile);
-        assessRecordMovementLink(issues, member, order, company.id);
+        assessRecordMovementLink(issues, member, order, company.id,
+            allowMissingExpectedMovementLink);
         if (member.campaignUnit && !member.farmhand && member.offensive) {
             int cost = Math.max(0, record.cost);
             totals.total += cost;
@@ -451,8 +486,11 @@ public final class KOMECompanyCoherenceService {
     }
 
     private static void assessRecordMovementLink(List<Issue> issues,
-            MemberAssessment member, KOMEArmyMovementOrder order, String companyId) {
+            MemberAssessment member, KOMEArmyMovementOrder order, String companyId,
+            boolean allowMissingExpectedMovementLink) {
         String expectedOrder = order == null || isTerminal(order.status) ? "" : clean(order.id);
+        if (allowMissingExpectedMovementLink && expectedOrder.length() > 0
+                && member.movementOrderId.length() == 0) return;
         if (!expectedOrder.equals(member.movementOrderId)) {
             issue(issues, IssueCode.RECORD_MOVEMENT_ORDER_MISMATCH, member.entityId,
                 "Unit " + shortId(member.entityId) + " records movement order "
@@ -516,7 +554,9 @@ public final class KOMECompanyCoherenceService {
             return MovementPhase.TRANSITION_OR_ARRIVAL;
         if (KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status)
                 || KOMEArmyMovementOrder.HOLDING.equals(order.status)
-                || KOMEArmyMovementOrder.WAR_ENDED_HALTED.equals(order.status))
+                || KOMEArmyMovementOrder.WAR_ENDED_HALTED.equals(order.status)
+                || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status))
             return MovementPhase.STRATEGIC_HOLD;
         if (isTerminal(order.status)) return MovementPhase.TERMINAL_HISTORY;
         return MovementPhase.UNKNOWN;

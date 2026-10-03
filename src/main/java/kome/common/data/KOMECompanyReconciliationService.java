@@ -25,6 +25,7 @@ public final class KOMECompanyReconciliationService {
         RECORD_LINK_REPAIRED, COMPANY_LINK_REPAIRED,
         UNRESOLVED_RECORD_LINK_CLEARED, AMBIGUOUS_MEMBERSHIP_CLEARED,
         EMPTY_COMPANY_REMOVED, EMPTY_COMPANY_RETAINED_FOR_MOVEMENT,
+        EMPTY_COMPANY_RETAINED_FOR_CONFLICT,
         MOVEMENT_LINK_REPAIRED, MOVEMENT_COHORT_CONFLICT,
         PHYSICAL_TILE_CONTRADICTION, STRATEGIC_INCOHERENCE
     }
@@ -47,7 +48,8 @@ public final class KOMECompanyReconciliationService {
         public final int retainedMemberships, recordLinksRepaired, companyLinksRepaired;
         public final int duplicateMembershipsRemoved, ambiguousUnitsUnassigned;
         public final int invalidMembersRemoved, emptyCompaniesRemoved;
-        public final int emptyCompaniesRetainedForMovement, totalsRecomputed;
+        public final int emptyCompaniesRetainedForMovement;
+        public final int emptyCompaniesRetainedForConflict, totalsRecomputed;
         public final int movementLinksRepaired, movementConflicts;
         public final int incoherentCompanies, physicalContradictions, unknownPhysicalMembers;
         public final List<Issue> issues;
@@ -62,6 +64,7 @@ public final class KOMECompanyReconciliationService {
             invalidMembersRemoved = builder.invalidMembersRemoved;
             emptyCompaniesRemoved = builder.emptyCompaniesRemoved;
             emptyCompaniesRetainedForMovement = builder.emptyCompaniesRetainedForMovement;
+            emptyCompaniesRetainedForConflict = builder.emptyCompaniesRetainedForConflict;
             totalsRecomputed = builder.totalsRecomputed;
             movementLinksRepaired = builder.movementLinksRepaired;
             movementConflicts = builder.movementConflicts;
@@ -79,7 +82,8 @@ public final class KOMECompanyReconciliationService {
         int retainedMemberships, recordLinksRepaired, companyLinksRepaired;
         int duplicateMembershipsRemoved, ambiguousUnitsUnassigned;
         int invalidMembersRemoved, emptyCompaniesRemoved;
-        int emptyCompaniesRetainedForMovement, totalsRecomputed;
+        int emptyCompaniesRetainedForMovement, emptyCompaniesRetainedForConflict;
+        int totalsRecomputed;
         int movementLinksRepaired, movementConflicts;
         int incoherentCompanies, physicalContradictions, unknownPhysicalMembers;
         boolean changed;
@@ -326,6 +330,17 @@ public final class KOMECompanyReconciliationService {
                 result.emptyCompaniesRetainedForMovement++;
                 result.issue(IssueCode.EMPTY_COMPANY_RETAINED_FOR_MOVEMENT, null,
                     company.id, "Retained an empty detachment because an active movement cohort still references it.");
+                continue;
+            }
+            KOMEConflictRecord conflict =
+                KOMEConflictMovementService.activeConflictForDetachment(data, company.id);
+            if (conflict != null
+                    || KOMEConflictMovementService.isActivelyCommitted(data, company.id)) {
+                result.emptyCompaniesRetainedForConflict++;
+                result.issue(IssueCode.EMPTY_COMPANY_RETAINED_FOR_CONFLICT, null,
+                    company.id, "Retained an empty detachment shell because active conflict "
+                        + (conflict == null ? "authority is ambiguous"
+                            : conflict.getConflictId() + " still references it") + ".");
                 continue;
             }
             data.armyCompanies.remove(company.id);

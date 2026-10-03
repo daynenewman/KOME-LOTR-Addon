@@ -19,6 +19,8 @@ public final class KOMEMovementAccessService {
             if (order == null || order.retreating
                     || KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status)
                     || KOMEArmyMovementOrder.HOLDING.equals(order.status)
+                    || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                    || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)
                     || KOMEArmyMovementOrder.STOPPED.equals(order.status)
                     || KOMEArmyMovementOrder.WAR_ENDED_HALTED.equals(order.status)
                     || KOMEArmyMovementOrder.ARRIVED.equals(order.status)
@@ -55,7 +57,9 @@ public final class KOMEMovementAccessService {
             return false;
         }
         return (retreat || isTileStandableForOrder(data, order, origin, false))
-            && isTileStandableForOrder(data, order, destination, retreat);
+            && (isTileStandableForOrder(data, order, destination, retreat)
+                || !retreat && KOMEConflictMovementService.isAuthorizedHostileTerminalStep(
+                    data, order, destination));
     }
 
     public static String movementAccessReason(KOMEWorldData data, KOMEArmyMovementOrder order) {

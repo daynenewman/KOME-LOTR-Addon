@@ -29,8 +29,9 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 6 adds mandatory KOM-11 season usage and scheduled native muster rosters. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 6;
+    /** Schema 7 adds canonical KOM-17 conflict authority to dev's schema-6 progression/muster root. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 7;
+    public static final int CONFLICT_DATA_SCHEMA_VERSION = KOMEConflictPersistence.DATA_SCHEMA_VERSION;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
@@ -97,6 +98,8 @@ public class KOMEWorldData extends WorldSavedData {
     public final List<NBTTagCompound> quarantinedAllianceRecords = new ArrayList<NBTTagCompound>();
     public final Map<String, KOMEArmyMovementOrder> armyMovements = new HashMap<>();
     public final Map<String, KOMEArmyCompany> armyCompanies = new HashMap<>();
+    /** Sole tile-conflict registry/allocator authority; all snapshots are immutable. */
+    private final KOMEConflictService conflictService = new KOMEConflictService();
     /** Next never-reused canonical Campaign Detachment identity (C1, C2, ...). */
     long nextCompanySequence = 1L;
     public final Map<String, KOMEMovementHistoryRecord> movementHistory = new HashMap<>();
@@ -187,6 +190,10 @@ public class KOMEWorldData extends WorldSavedData {
 
     public String getLoadFailureReason() {
         return loadFailureReason;
+    }
+
+    public KOMEConflictService getConflictService() {
+        return conflictService;
     }
 
     @Override
@@ -1937,14 +1944,15 @@ public class KOMEWorldData extends WorldSavedData {
             integratedRootInitialized = false;
             return;
         }
-        if (!nbt.hasKey(KOME_DATA_SCHEMA_KEY)) {
+        if (!nbt.hasKey(KOME_DATA_SCHEMA_KEY, 3)) {
             failUnsupportedRootSchema("KOME world data is non-empty but has no " + KOME_DATA_SCHEMA_KEY
                 + " marker. Development-world migration is intentionally disabled.");
         }
         int savedRootSchema = nbt.getInteger(KOME_DATA_SCHEMA_KEY);
-        if (savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
-            failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema + "; expected "
-                + KOME_DATA_SCHEMA_VERSION + ". Reset this development world; migration is intentionally disabled.");
+        if (savedRootSchema != 6 && savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
+            failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema
+                + "; only schema 6 -> " + KOME_DATA_SCHEMA_VERSION
+                + " is supported. Reset this development world; no other root migration is supported.");
         }
         for (String retired : new String[] {"Populations", "TilePopulations", "PopulationAllocations", "PopulationDataSchemaVersion"}) {
             if (nbt.hasKey(retired)) {
@@ -1953,7 +1961,8 @@ public class KOMEWorldData extends WorldSavedData {
                     + ". Reset this development world; no population migration is supported.");
             }
         }
-        boolean loadedStateReconciled = false;
+        boolean schemaSixUpgrade = savedRootSchema == 6;
+        boolean loadedStateReconciled = schemaSixUpgrade;
         int savedAllianceSchema = nbt.hasKey("AllianceDataSchemaVersion") ? nbt.getInteger("AllianceDataSchemaVersion") : 0;
         loadSection = "FactionPopulations";
         Map<String, KOMEFactionPopulation> loadedPopulations = readCanonicalFactionPopulations(nbt);
@@ -1968,6 +1977,11 @@ public class KOMEWorldData extends WorldSavedData {
         loadSection = "FactionCapitals";
         Map<String, KOMEFactionCapitalRecord> loadedCapitals =
             readCanonicalFactionCapitals(nbt);
+        // Conflict authority is validated before any candidate collections are cleared or any
+        // restart reconciliation may inspect companies, routes, or other strategic references.
+        loadSection = "ConflictRecords";
+        KOMEConflictService loadedConflicts = schemaSixUpgrade
+            ? new KOMEConflictService() : KOMEConflictPersistence.read(nbt);
         integratedRootInitialized = true;
         factionCapitals.clear();
         factionCapitals.putAll(loadedCapitals);
@@ -2012,6 +2026,7 @@ public class KOMEWorldData extends WorldSavedData {
         quarantinedAllianceRecords.clear();
         armyMovements.clear();
         armyCompanies.clear();
+        conflictService.replaceFrom(loadedConflicts);
         movementHistory.clear();
         playerNames.clear();
         adminUnitMapMarkerOptOuts.clear();
@@ -2509,8 +2524,17 @@ public class KOMEWorldData extends WorldSavedData {
         NBTTagList movementList = nbt.getTagList("ArmyMovements", 10);
         for (int i = 0; i < movementList.tagCount(); i++) {
             loadSection = "ArmyMovements[" + i + "]";
+            NBTTagCompound movementTag = movementList.getCompoundTagAt(i);
+            if (KOMEArmyMovementOrder.CONFLICT_HELD.equals(
+                    movementTag.getString("Status"))) {
+                if (!movementTag.hasKey("ConflictHoldId", 8)
+                        || !movementTag.hasKey("ConflictHeldAtMillis", 4)
+                        || !movementTag.hasKey("HostileAttackDestination", 8))
+                    throw new IllegalArgumentException(
+                        "Conflict-held movement order lacks typed hold metadata.");
+            }
             KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
-            order.readFromNBT(movementList.getCompoundTagAt(i));
+            order.readFromNBT(movementTag);
             if (order.id.length() > 0) {
                 armyMovements.put(order.id, order);
             }
@@ -2543,6 +2567,8 @@ public class KOMEWorldData extends WorldSavedData {
             nextCompanySequence = reconciledCompanySequence;
             loadedStateReconciled = true;
         }
+        loadSection = "Conflict movement holds";
+        validateConflictMovementHolds();
         loadSection = "Company membership reconciliation";
         KOMECompanyReconciliationService.Result companyReconciliation =
             KOMECompanyReconciliationService.INSTANCE.reconcile(this);
@@ -2663,6 +2689,7 @@ public class KOMEWorldData extends WorldSavedData {
         armyMovements.putAll(candidate.armyMovements);
         armyCompanies.clear();
         armyCompanies.putAll(candidate.armyCompanies);
+        conflictService.replaceFrom(candidate.conflictService);
         movementHistory.clear();
         movementHistory.putAll(candidate.movementHistory);
         playerNames.clear();
@@ -2771,6 +2798,67 @@ public class KOMEWorldData extends WorldSavedData {
         return changed;
     }
 
+    /** Strict cross-section validation for schema-7 conflict-owned route holds. */
+    private void validateConflictMovementHolds() {
+        for (KOMEArmyMovementOrder order : armyMovements.values()) {
+            if (order == null) continue;
+            boolean held = KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status);
+            boolean released = KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(
+                order.status);
+            String conflictId = order.conflictHoldId == null
+                ? "" : order.conflictHoldId.trim();
+            if (!held && !released) {
+                if (conflictId.length() > 0 || order.conflictHeldAtMillis != 0L)
+                    throw new IllegalArgumentException(
+                        "Non-held movement order retains conflict-hold authority: " + order.id);
+                continue;
+            }
+            if (held) KOMEConflictIdAllocator.requireIdentity(conflictId);
+            else if (conflictId.length() > 0 || order.conflictHeldAtMillis != 0L)
+                throw new IllegalArgumentException(
+                    "Post-conflict paused order retains active hold authority: " + order.id);
+            String tileId = KOMEConquestTile.normalizeId(order.currentTile);
+            String attackTile = KOMEConquestTile.normalizeId(
+                order.hostileAttackDestination);
+            String finalTile = KOMEConquestTile.normalizeId(
+                order.finalDestinationTile.length() == 0
+                    ? order.destinationTile : order.finalDestinationTile);
+            if (tileId.length() == 0 || !tileId.equals(attackTile)
+                    || !tileId.equals(finalTile))
+                throw new IllegalArgumentException(
+                    "Conflict-held movement tile metadata is inconsistent: " + order.id);
+            if (held) {
+                KOMEConflictRecord conflict = conflictService.get(tileId);
+                if (conflict == null || !conflict.isActive()
+                        || !conflictId.equals(conflict.getConflictId())
+                        || !conflict.getCommitments().containsKey(order.companyId))
+                    throw new IllegalArgumentException(
+                        "Conflict-held movement lacks matching active commitment: " + order.id);
+            } else if (order.nextStepDepartureMillis != 0L
+                    || order.nextStepAvailableMillis != 0L || order.arrivalMillis != 0L) {
+                throw new IllegalArgumentException(
+                    "Post-conflict paused movement remains scheduled: " + order.id);
+            }
+            KOMEArmyCompany company = armyCompanies.get(order.companyId);
+            if (company == null || !tileId.equals(
+                    KOMEConquestTile.normalizeId(company.currentTile))
+                    || !order.id.equals(company.movementOrderId)
+                    || !new HashSet<UUID>(company.units).equals(
+                        new HashSet<UUID>(order.units)))
+                throw new IllegalArgumentException(
+                    "Conflict-paused movement and detachment authority disagree: " + order.id);
+            for (UUID unitId : order.units) {
+                KOMEHiredUnitRecord record = hiredUnits.get(unitId);
+                if (record == null || !order.companyId.equals(record.companyId)
+                        || !order.id.equals(record.movementOrderId)
+                        || !tileId.equals(KOMEConquestTile.normalizeId(
+                            record.currentTile)))
+                    throw new IllegalArgumentException(
+                        "Conflict-paused unit link is inconsistent: " + order.id);
+            }
+        }
+    }
+
     @Override
     public void writeToNBT(NBTTagCompound nbt) {
         ensureWritable();
@@ -2783,11 +2871,19 @@ public class KOMEWorldData extends WorldSavedData {
         }
         validatePopulationPayoutState(); // reject before touching the destination tag
         populationDevelopment.validate();
+        validateConflictMovementHolds();
+        NBTTagCompound conflictsForWrite = KOMEConflictPersistence.write(conflictService);
         Map<String, KOMEFactionCapitalRecord> capitalsForWrite =
             factionCapitals.isEmpty() && !integratedRootInitialized
                 ? KOMEFactionCapitalDefaults.metadataFixture(0L)
                 : KOMEFactionCapitalService.validateCompleteSet(factionCapitals);
         nbt.setInteger(KOME_DATA_SCHEMA_KEY, KOME_DATA_SCHEMA_VERSION);
+        nbt.setInteger(KOMEConflictPersistence.SCHEMA_KEY,
+            conflictsForWrite.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
+        nbt.setLong(KOMEConflictPersistence.SEQUENCE_KEY,
+            conflictsForWrite.getLong(KOMEConflictPersistence.SEQUENCE_KEY));
+        nbt.setTag(KOMEConflictPersistence.RECORDS_KEY,
+            conflictsForWrite.getTag(KOMEConflictPersistence.RECORDS_KEY).copy());
         nbt.setTag("PublicWaypoints", publicWaypoints.writeToNBT());
         nbt.removeTag("TradeProduceSlotsMaximum");
         nbt.removeTag("AllianceProduceSlots");
