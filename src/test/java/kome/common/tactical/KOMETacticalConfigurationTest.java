@@ -460,6 +460,36 @@ public class KOMETacticalConfigurationTest {
         }
     }
 
+    @Test public void snapshotsCaptureAuthoritiesAndRevisionAndMutateIndependentlyInBothDirections() {
+        KOMETacticalConfiguration source = populated(); source.assignBuild("B1", "A");
+        KOMETacticalConfiguration copy = source.snapshot();
+        assertNotSame(source, copy);
+        assertEquals(source.getRevision(), copy.getRevision());
+        assertEquals(source.getComplexesById(), copy.getComplexesById());
+        assertEquals(source.getForceDeploymentAreasById(), copy.getForceDeploymentAreasById());
+        assertEquals(source.getBuildAssignmentsByBuildId(), copy.getBuildAssignmentsByBuildId());
+        copy.reassignBuild("B1", "A", "B"); copy.removeComplex("A"); copy.removeForceDeploymentArea("FIELD");
+        assertNotNull(source.findComplex("A")); assertNotNull(source.findForceDeploymentArea("FIELD"));
+        assertEquals("A", source.findAssignedComplexId("B1").get()); assertEquals(4L, source.getRevision());
+        source.addComplex(complex("C", "T277", 0, null, 0));
+        source.addForceDeploymentArea(area("OTHER", "T277", 0, 0)); source.unassignBuild("B1");
+        assertNull(copy.findComplex("C")); assertNull(copy.findForceDeploymentArea("OTHER"));
+        assertEquals("B", copy.findAssignedComplexId("B1").get());
+    }
+
+    @Test public void snapshotsPreserveIncompleteMalformedAuthoringWithoutCodecValidationOrMutationReplay() {
+        KOMETacticalConfiguration source = new KOMETacticalConfiguration();
+        KOMEPolygonPrism bad = new KOMEPolygonPrism(new KOMEPolygon(Collections.<KOMEXZPoint>emptyList()), 5, 5);
+        KOMEForceDeploymentArea area = new KOMEForceDeploymentArea("FIELD", "T277", 0, "Draft", bad, 0);
+        KOMESiegeComplex complex = complex("A", "T277", 0, "MISSING", 0);
+        source.addForceDeploymentArea(area); source.addComplex(complex);
+        KOMETacticalConfiguration copy = source.snapshot();
+        assertEquals(2L, copy.getRevision()); assertEquals(2L, source.getRevision());
+        assertSame(complex, copy.findComplex("A")); assertSame(area, copy.findForceDeploymentArea("FIELD"));
+        assertEquals("MISSING", copy.findComplex("A").getPreferredForceDeploymentAreaId().get());
+        assertEquals(bad, copy.findForceDeploymentArea("FIELD").getPrism());
+    }
+
     private static boolean competingAssign(KOMETacticalConfiguration store, CountDownLatch start, String target) throws InterruptedException {
         start.await();
         try { return store.assignBuild("B1", target); }

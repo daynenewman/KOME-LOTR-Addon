@@ -7,6 +7,8 @@ import kome.common.command.KOMECommandAlliance;
 import kome.common.command.KOMECommandTroops;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketConquestData;
+import kome.common.tactical.KOMETacticalConfiguration;
+import kome.common.tactical.KOMETacticalConfigurationCodec;
 import lotr.common.entity.npc.LOTREntityNPC;
 import lotr.common.world.map.LOTRWaypoint;
 import net.minecraft.entity.Entity;
@@ -29,8 +31,8 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 5 adds mandatory KOM-71 population-development authority. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 5;
+    /** Schema 6 adds mandatory tactical configuration; valid schema-5 roots upgrade with empty tactics. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 6;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
@@ -66,6 +68,8 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId = new HashMap<>();
     public final Map<String, KOMEConquestRouteEdge> routeEdges = new HashMap<>();
     public final Map<String, KOMEPlayerBuild> builds = new HashMap<String, KOMEPlayerBuild>();
+    /** Sole tactical authority. Only complete detached load candidates are published in this phase. */
+    private KOMETacticalConfiguration tacticalConfiguration = new KOMETacticalConfiguration();
     /** Explicit future-construction grants; Build provenance is deliberately stored separately. */
     public final Map<String, KOMEForeignConstructionPermission> foreignConstructionPermissions = new HashMap<String, KOMEForeignConstructionPermission>();
     public final Map<String, KOMEAlliance> alliances = new HashMap<>();
@@ -178,6 +182,11 @@ public class KOMEWorldData extends WorldSavedData {
 
     public String getLoadFailureReason() {
         return loadFailureReason;
+    }
+
+    /** Mutating this detached snapshot cannot change live configuration or world dirty state. */
+    public synchronized KOMETacticalConfiguration getTacticalConfigurationSnapshot() {
+        return tacticalConfiguration.snapshot();
     }
 
     @Override
@@ -2007,9 +2016,9 @@ public class KOMEWorldData extends WorldSavedData {
                 + " marker. Development-world migration is intentionally disabled.");
         }
         int savedRootSchema = nbt.getInteger(KOME_DATA_SCHEMA_KEY);
-        if (savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
+        if (savedRootSchema != 5 && savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
             failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema + "; expected "
-                + KOME_DATA_SCHEMA_VERSION + ". Reset this development world; migration is intentionally disabled.");
+                + "5 or " + KOME_DATA_SCHEMA_VERSION + ". Reset this development world; only the schema-5 tactical upgrade is supported.");
         }
         for (String retired : new String[] {"Populations", "TilePopulations", "PopulationAllocations", "PopulationDataSchemaVersion"}) {
             if (nbt.hasKey(retired)) {
@@ -2018,7 +2027,8 @@ public class KOMEWorldData extends WorldSavedData {
                     + ". Reset this development world; no population migration is supported.");
             }
         }
-        boolean loadedStateReconciled = false;
+        // Request a schema-6 save only after the entire schema-5 candidate succeeds.
+        boolean loadedStateReconciled = savedRootSchema == 5;
         int savedAllianceSchema = nbt.hasKey("AllianceDataSchemaVersion") ? nbt.getInteger("AllianceDataSchemaVersion") : 0;
         loadSection = "FactionPopulations";
         Map<String, KOMEFactionPopulation> loadedPopulations = readCanonicalFactionPopulations(nbt);
@@ -2606,6 +2616,17 @@ public class KOMEWorldData extends WorldSavedData {
         KOMECommandTroops.revalidateTemporaryControllers(this, restartRevalidationNow, "Restart authorization revalidation");
         KOMEMovementAccessService.revalidateAll(this, restartRevalidationNow);
 
+        loadSection = "TacticalConfiguration";
+        if (savedRootSchema == 5) {
+            // Schema 5 has no tactical authority; never infer it from Builds, gates or unknown tags.
+            tacticalConfiguration = new KOMETacticalConfiguration();
+        } else {
+            if (!nbt.hasKey("TacticalConfiguration", 10)) {
+                throw new IllegalArgumentException("Schema 6 requires a TacticalConfiguration compound.");
+            }
+            tacticalConfiguration = KOMETacticalConfigurationCodec.decode(nbt.getCompoundTag("TacticalConfiguration"));
+        }
+
         if (loadedStateReconciled || migratedAllianceData) {
             markDirty();
         }
@@ -2641,6 +2662,7 @@ public class KOMEWorldData extends WorldSavedData {
         routeEdges.putAll(candidate.routeEdges);
         builds.clear();
         builds.putAll(candidate.builds);
+        tacticalConfiguration = candidate.tacticalConfiguration;
         foreignConstructionPermissions.clear();
         foreignConstructionPermissions.putAll(candidate.foreignConstructionPermissions);
         alliances.clear();
@@ -2799,7 +2821,10 @@ public class KOMEWorldData extends WorldSavedData {
             factionCapitals.isEmpty() && !integratedRootInitialized
                 ? KOMEFactionCapitalDefaults.metadataFixture(0L)
                 : KOMEFactionCapitalService.validateCompleteSet(factionCapitals);
+        // Prepare tactical output before changing the destination; encoding never edits authority.
+        NBTTagCompound tacticalForWrite = KOMETacticalConfigurationCodec.encode(tacticalConfiguration);
         nbt.setInteger(KOME_DATA_SCHEMA_KEY, KOME_DATA_SCHEMA_VERSION);
+        nbt.setTag("TacticalConfiguration", tacticalForWrite);
         nbt.removeTag("TradeProduceSlotsMaximum");
         nbt.removeTag("AllianceProduceSlots");
         nbt.setInteger("AllianceDataSchemaVersion", ALLIANCE_DATA_SCHEMA_VERSION);

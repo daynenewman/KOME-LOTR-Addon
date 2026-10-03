@@ -59,6 +59,16 @@ public final class KOMETacticalConfiguration {
     /** Configuration revision starts at zero and is independent of all definition revisions. */
     public synchronized long getRevision() { return revision; }
 
+    /** Detached mutable copy of the authorities/revision; shared definition objects are immutable. */
+    public synchronized KOMETacticalConfiguration snapshot() {
+        KOMETacticalConfiguration copy = new KOMETacticalConfiguration();
+        copy.complexesById.putAll(complexesById);
+        copy.forceDeploymentAreasById.putAll(forceDeploymentAreasById);
+        copy.buildAssignmentsByBuildId.putAll(buildAssignmentsByBuildId);
+        copy.revision = revision;
+        return copy;
+    }
+
     public synchronized KOMESiegeComplex findComplex(String complexId) {
         return complexesById.get(KOMETacticalIds.lookup(complexId));
     }
