@@ -29,8 +29,9 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 5 adds mandatory KOM-71 population-development authority. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 5;
+    /** Schema 6 adds the canonical KOM-17 ConflictRecord authority. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 6;
+    public static final int CONFLICT_DATA_SCHEMA_VERSION = KOMEConflictPersistence.DATA_SCHEMA_VERSION;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
@@ -93,6 +94,8 @@ public class KOMEWorldData extends WorldSavedData {
     public final List<NBTTagCompound> quarantinedAllianceRecords = new ArrayList<NBTTagCompound>();
     public final Map<String, KOMEArmyMovementOrder> armyMovements = new HashMap<>();
     public final Map<String, KOMEArmyCompany> armyCompanies = new HashMap<>();
+    /** Sole tile-conflict registry/allocator authority; all snapshots are immutable. */
+    private final KOMEConflictService conflictService = new KOMEConflictService();
     /** Next never-reused canonical Campaign Detachment identity (C1, C2, ...). */
     long nextCompanySequence = 1L;
     public final Map<String, KOMEMovementHistoryRecord> movementHistory = new HashMap<>();
@@ -181,6 +184,10 @@ public class KOMEWorldData extends WorldSavedData {
 
     public String getLoadFailureReason() {
         return loadFailureReason;
+    }
+
+    public KOMEConflictService getConflictService() {
+        return conflictService;
     }
 
     @Override
@@ -1924,14 +1931,15 @@ public class KOMEWorldData extends WorldSavedData {
             integratedRootInitialized = false;
             return;
         }
-        if (!nbt.hasKey(KOME_DATA_SCHEMA_KEY)) {
+        if (!nbt.hasKey(KOME_DATA_SCHEMA_KEY, 3)) {
             failUnsupportedRootSchema("KOME world data is non-empty but has no " + KOME_DATA_SCHEMA_KEY
                 + " marker. Development-world migration is intentionally disabled.");
         }
         int savedRootSchema = nbt.getInteger(KOME_DATA_SCHEMA_KEY);
-        if (savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
-            failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema + "; expected "
-                + KOME_DATA_SCHEMA_VERSION + ". Reset this development world; migration is intentionally disabled.");
+        if (savedRootSchema != 5 && savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
+            failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema
+                + "; only schema 5 -> " + KOME_DATA_SCHEMA_VERSION
+                + " is supported. Reset this development world; no other root migration is supported.");
         }
         for (String retired : new String[] {"Populations", "TilePopulations", "PopulationAllocations", "PopulationDataSchemaVersion"}) {
             if (nbt.hasKey(retired)) {
@@ -1940,7 +1948,8 @@ public class KOMEWorldData extends WorldSavedData {
                     + ". Reset this development world; no population migration is supported.");
             }
         }
-        boolean loadedStateReconciled = false;
+        boolean schemaFiveUpgrade = savedRootSchema == 5;
+        boolean loadedStateReconciled = schemaFiveUpgrade;
         int savedAllianceSchema = nbt.hasKey("AllianceDataSchemaVersion") ? nbt.getInteger("AllianceDataSchemaVersion") : 0;
         loadSection = "FactionPopulations";
         Map<String, KOMEFactionPopulation> loadedPopulations = readCanonicalFactionPopulations(nbt);
@@ -1955,6 +1964,11 @@ public class KOMEWorldData extends WorldSavedData {
         loadSection = "FactionCapitals";
         Map<String, KOMEFactionCapitalRecord> loadedCapitals =
             readCanonicalFactionCapitals(nbt);
+        // Conflict authority is validated before any candidate collections are cleared or any
+        // restart reconciliation may inspect companies, routes, or other strategic references.
+        loadSection = "ConflictRecords";
+        KOMEConflictService loadedConflicts = schemaFiveUpgrade
+            ? new KOMEConflictService() : KOMEConflictPersistence.read(nbt);
         integratedRootInitialized = true;
         factionCapitals.clear();
         factionCapitals.putAll(loadedCapitals);
@@ -1997,6 +2011,7 @@ public class KOMEWorldData extends WorldSavedData {
         quarantinedAllianceRecords.clear();
         armyMovements.clear();
         armyCompanies.clear();
+        conflictService.replaceFrom(loadedConflicts);
         movementHistory.clear();
         playerNames.clear();
         adminUnitMapMarkerOptOuts.clear();
@@ -2594,6 +2609,7 @@ public class KOMEWorldData extends WorldSavedData {
         armyMovements.putAll(candidate.armyMovements);
         armyCompanies.clear();
         armyCompanies.putAll(candidate.armyCompanies);
+        conflictService.replaceFrom(candidate.conflictService);
         movementHistory.clear();
         movementHistory.putAll(candidate.movementHistory);
         playerNames.clear();
@@ -2705,11 +2721,18 @@ public class KOMEWorldData extends WorldSavedData {
         ensureWritable();
         validatePopulationPayoutState(); // reject before touching the destination tag
         populationDevelopment.validate();
+        NBTTagCompound conflictsForWrite = KOMEConflictPersistence.write(conflictService);
         Map<String, KOMEFactionCapitalRecord> capitalsForWrite =
             factionCapitals.isEmpty() && !integratedRootInitialized
                 ? KOMEFactionCapitalDefaults.metadataFixture(0L)
                 : KOMEFactionCapitalService.validateCompleteSet(factionCapitals);
         nbt.setInteger(KOME_DATA_SCHEMA_KEY, KOME_DATA_SCHEMA_VERSION);
+        nbt.setInteger(KOMEConflictPersistence.SCHEMA_KEY,
+            conflictsForWrite.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
+        nbt.setLong(KOMEConflictPersistence.SEQUENCE_KEY,
+            conflictsForWrite.getLong(KOMEConflictPersistence.SEQUENCE_KEY));
+        nbt.setTag(KOMEConflictPersistence.RECORDS_KEY,
+            conflictsForWrite.getTag(KOMEConflictPersistence.RECORDS_KEY).copy());
         nbt.setTag("PublicWaypoints", publicWaypoints.writeToNBT());
         nbt.removeTag("TradeProduceSlotsMaximum");
         nbt.removeTag("AllianceProduceSlots");

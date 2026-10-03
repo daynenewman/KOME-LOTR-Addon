@@ -29,6 +29,63 @@ public final class KOMEConflictService {
     }
     public synchronized long getNextConflictSequence() { return allocator.getNextSequence(); }
 
+    /** Atomic persistence projection: registry and allocator high-water are captured together. */
+    synchronized PersistenceSnapshot persistenceSnapshot() {
+        return new PersistenceSnapshot(records, allocator.getNextSequence());
+    }
+
+    /** Strict detached restore; no runtime/world-dependent reference resolution occurs here. */
+    static KOMEConflictService restore(Map<String, KOMEConflictRecord> restoredRecords, long nextConflictSequence) {
+        required(restoredRecords, "Conflict registry");
+        if (nextConflictSequence < 1L)
+            throw new IllegalArgumentException("Next conflict sequence must be positive.");
+        Map<String, KOMEConflictRecord> validated = new LinkedHashMap<String, KOMEConflictRecord>();
+        Set<String> conflictIds = new HashSet<String>();
+        Set<String> activeDetachments = new HashSet<String>();
+        long highestSequence = 0L;
+        for (Map.Entry<String, KOMEConflictRecord> entry : restoredRecords.entrySet()) {
+            KOMEConflictRecord record = required(entry.getValue(), "Conflict record");
+            String tileId = tile(entry.getKey());
+            if (!tileId.equals(entry.getKey()) || !tileId.equals(record.getTileId()))
+                throw new IllegalArgumentException("Conflict registry tile key is noncanonical or mismatched.");
+            if (validated.put(tileId, record) != null)
+                throw new IllegalArgumentException("Duplicate conflict tile authority: " + tileId);
+            if (!conflictIds.add(record.getConflictId()))
+                throw new IllegalArgumentException("Duplicate conflict identity: " + record.getConflictId());
+            highestSequence = Math.max(highestSequence, KOMEConflictIdAllocator.sequenceOf(record.getConflictId()));
+            if (record.isActive()) {
+                for (String detachmentId : record.getCommitments().keySet()) {
+                    if (!activeDetachments.add(detachmentId))
+                        throw new IllegalArgumentException("Detachment is committed to multiple active conflicts: " + detachmentId);
+                }
+            }
+        }
+        if (nextConflictSequence <= highestSequence)
+            throw new IllegalArgumentException("Next conflict sequence does not exceed persisted conflict identities.");
+        KOMEConflictService service = new KOMEConflictService(nextConflictSequence);
+        service.records.putAll(validated);
+        return service;
+    }
+
+    /** Candidate publication preserves this service object's identity for existing readers. */
+    synchronized void replaceFrom(KOMEConflictService source) {
+        PersistenceSnapshot snapshot = required(source, "Conflict service").persistenceSnapshot();
+        KOMEConflictService validated = restore(snapshot.records, snapshot.nextConflictSequence);
+        records.clear();
+        records.putAll(validated.records);
+        allocator.setNextSequence(validated.allocator.getNextSequence());
+    }
+
+    static final class PersistenceSnapshot {
+        final Map<String, KOMEConflictRecord> records;
+        final long nextConflictSequence;
+
+        PersistenceSnapshot(Map<String, KOMEConflictRecord> records, long nextConflictSequence) {
+            this.records = Collections.unmodifiableMap(new LinkedHashMap<String, KOMEConflictRecord>(records));
+            this.nextConflictSequence = nextConflictSequence;
+        }
+    }
+
     /** Only absent/ended -> fresh ORDINARY/ENCIRCLEMENT; an ended predecessor must be acknowledged. */
     public synchronized Result start(String tileId, State initialState, ExpectedConflict expected,
             Collection<GarrisonSeed> originalGarrison, Context context) {
