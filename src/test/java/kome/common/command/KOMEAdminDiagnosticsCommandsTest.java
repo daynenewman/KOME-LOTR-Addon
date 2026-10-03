@@ -1,7 +1,10 @@
 package kome.common.command;
 
 import java.lang.reflect.Proxy;
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.List;
 import kome.common.data.*;
 import net.minecraft.command.ICommandSender;
@@ -13,6 +16,10 @@ import net.minecraft.world.World;
 import net.minecraft.world.WorldProvider;
 import net.minecraft.world.WorldProviderSurface;
 import net.minecraft.world.WorldSettings;
+import net.minecraft.world.WorldServer;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.dedicated.DedicatedServer;
+import net.minecraftforge.common.DimensionManager;
 import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraft.world.storage.ISaveHandler;
 import net.minecraft.profiler.Profiler;
@@ -123,10 +130,72 @@ public class KOMEAdminDiagnosticsCommandsTest {
         }
     }
 
-    private static final class InspectionWorld extends World {
+    @Test public void capitalCommandUsesOnlyLoadedDimensionsWithoutInitializationOrChunkProvision() throws Exception {
+        KOMEWorldData data = data();
+        int dimension = KOMEFactionCapitalService.getCapital(data, "gondor").getDeploymentDimensionId();
+        Field worlds = DimensionManager.class.getDeclaredField("worlds");
+        worlds.setAccessible(true);
+        Object previousWorlds = worlds.get(null);
+        Field singleton = null;
+        for (Field field : MinecraftServer.class.getDeclaredFields())
+            if (Modifier.isStatic(field.getModifiers()) && field.getType() == MinecraftServer.class) singleton = field;
+        assertNotNull(singleton); singleton.setAccessible(true);
+        Object previousServer = singleton.get(null);
+        try {
+            // Keep the real worldServerForDimension implementation: on the old command path it
+            // calls initDimension for an absent world, which first queries the overworld.
+            singleton.set(null, kome.common.KOMEAccessFixture.allocate(DedicatedServer.class));
+            for (boolean dimensionLoaded : new boolean[] {false, true}) {
+                InspectionWorld world = kome.common.KOMEAccessFixture.allocate(InspectionWorld.class);
+                Field provider = World.class.getDeclaredField("provider"); provider.setAccessible(true);
+                provider.set(world, kome.common.KOMEAccessFixture.allocate(WorldProviderSurface.class));
+                world.provider.dimensionId = dimension;
+                LookupWorlds registry = new LookupWorlds(dimension);
+                if (dimensionLoaded) registry.put(dimension, world);
+                worlds.set(null, registry);
+                for (boolean chunkLoaded : new boolean[] {false, true}) {
+                    world.loaded = chunkLoaded;
+                    List<String> messages = new ArrayList<String>();
+                    new KOMEAdminDiagnosticsCommands().process(sender(true, messages),
+                        new String[] {"diagnostics", "capital", "gondor"}, data);
+                    String expected = dimensionLoaded ? (chunkLoaded ? "chunk loaded" : "chunk unloaded")
+                        : "Deployment world unavailable";
+                    assertTrue(messages.toString(), messages.toString().contains(expected));
+                    assertTrue(messages.toString().contains("safety is unverified"));
+                    assertEquals(0, registry.initializationReads);
+                    assertEquals(dimensionLoaded ? 1 : 0, registry.size());
+                    assertEquals(0, world.provisionAttempts);
+                }
+            }
+        } finally {
+            worlds.set(null, previousWorlds);
+            singleton.set(null, previousServer);
+        }
+    }
+
+    private static final class LookupWorlds extends Hashtable<Integer, WorldServer> {
+        final int dimension;
+        int initializationReads;
+        LookupWorlds(int dimension) { this.dimension = dimension; }
+        @Override public synchronized WorldServer get(Object id) {
+            for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
+                if (frame.getClassName().equals(DimensionManager.class.getName())
+                        && frame.getMethodName().equals("initDimension")) {
+                    initializationReads++;
+                    throw new AssertionError("Inspection entered DimensionManager.initDimension");
+                }
+            }
+            if (!Integer.valueOf(dimension).equals(id)) {
+                throw new AssertionError("Inspection queried an unrelated dimension");
+            }
+            return super.get(id);
+        }
+    }
+
+    private static final class InspectionWorld extends WorldServer {
         boolean loaded;
         int provisionAttempts;
-        private InspectionWorld() { super((ISaveHandler) null, "disposable", (WorldProvider) null, (WorldSettings) null, (Profiler) null); }
+        private InspectionWorld() { super((MinecraftServer) null, (ISaveHandler) null, "disposable", 0, (WorldSettings) null, (Profiler) null); }
         @Override protected IChunkProvider createChunkProvider() { throw new AssertionError("No provider creation during inspection"); }
         @Override protected int func_152379_p() { return 0; }
         @Override public net.minecraft.entity.Entity getEntityByID(int id) { return null; }

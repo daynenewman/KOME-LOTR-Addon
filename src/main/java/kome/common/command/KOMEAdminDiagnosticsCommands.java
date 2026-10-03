@@ -12,6 +12,7 @@ import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.world.World;
+import net.minecraftforge.common.DimensionManager;
 
 /** Parsing only; inspection and mutations remain in authoritative domain services. */
 final class KOMEAdminDiagnosticsCommands {
@@ -36,9 +37,8 @@ final class KOMEAdminDiagnosticsCommands {
                 World world = null;
                 if ("capital".equals(domain)) {
                     KOMEFactionCapitalRecord capital = KOMEFactionCapitalService.getCapital(data, args[2]);
-                    MinecraftServer server = MinecraftServer.getServer();
-                    if (capital != null && server != null)
-                        world = server.worldServerForDimension(capital.getDeploymentDimensionId());
+                    if (capital != null)
+                        world = DimensionManager.getWorld(capital.getDeploymentDimensionId());
                 }
                 for (String line : KOMEAdminDiagnostics.inspect(data, domain, args[2],
                         args.length == 4 ? args[3] : "", world)) say(sender, line);

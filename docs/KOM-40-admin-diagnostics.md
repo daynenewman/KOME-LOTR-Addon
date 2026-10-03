@@ -82,14 +82,17 @@ ruler, capital or destination is created.
 
 ## Validation and remaining live acceptance
 
-Final local validation on 2026-10-02: Gradle 8.5 `--offline --no-daemon test build`
+Original foundation validation at `afcbc42d634e3ef463df116668073734537e2f7c`
+on 2026-10-02: Gradle 8.5 `--offline --no-daemon test build`
 passed under `Local\KOME-Heavy-Validation`. JUnit XML reports 1,394 tests: 1,389 passed,
 zero failures/errors and five existing skips. All 24 added behavioral tests passed.
 The production `KOME-LOTR-Addon-1.0.8.jar` SHA-256 is
 `593fea40d97bb435112b09c4db7fb9a21ce332528f60988360012e9bdb1ec695`.
 Task-local evidence: `outputs/kom40/full-build.log` and `build/test-results/test/` (ignored).
-Self-review corrected the capital chunk-loading inspection path and retained confirmation
-tokens/before-after audit values when cached ruler names are corrupt and oversized.
+That revision avoided chunk provisioning inside the inspection service but still used
+the loading `MinecraftServer.worldServerForDimension` lookup in the command. The
+follow-up below corrects that remaining defect. Confirmation tokens/before-after audit
+values are retained when cached ruler names are corrupt and oversized.
 
 Behavioral JUnit tests use task-owned disposable in-memory world data and real domain
 services. They exercise root permission rejection before world access, preview/apply
@@ -100,10 +103,60 @@ waypoint links/write-blocked state are injected only into test fixtures.
 
 Full Gradle builds use Windows named mutex `Local\KOME-Heavy-Validation`, copied ignored
 dependency jars and outputs under this task's worktree. No repairs run against existing
-user worlds. No merge, deployment or runtime modification is authorized by this PR.
+user worlds. No merge, deployment or modification of existing runtimes is included.
 
-Remaining acceptance checks in a disposable Forge world: operator versus ordinary-player
-chat/dispatch behavior; preview then changed-state rejection; matching online-ruler rename;
-public waypoint revision reaching a connected client; and save/restart inspection of audit
-and repaired metadata. Automated NBT round trips do not prove Forge save scheduling or
-client receipt. Broader issue acceptance remains deferred as listed above.
+### Capital lookup correction and disposable Forge evidence (2026-10-02)
+
+Starting from `afcbc42d634e3ef463df116668073734537e2f7c`, the capital command now
+uses `DimensionManager.getWorld`. An absent dimension passes null into
+`inspectionReadiness`, preserving `Deployment world unavailable; live standing safety
+is unverified.` It does not initialize the dimension or infer safe deployment.
+
+The new regression invokes the actual command with the real server lookup implementation
+available, intercepting the dimension registry and chunk provider. It covers an absent
+dimension and a loaded dimension with both loaded and unloaded chunks, restores global
+fixtures in `finally`, and fails on dimension initialization or chunk provision. Before
+the fix it failed with this actual call path:
+
+```
+KOMEAdminDiagnosticsCommands.process:41
+  MinecraftServer.worldServerForDimension:781
+    DimensionManager.initDimension:227
+      AssertionError: Inspection entered DimensionManager.initDimension
+```
+
+After the fix, Gradle 8.5 `--offline --no-daemon test --tests '*KOMEAdmin*'
+--tests '*KOMEFactionCapitalServiceTest' build` passed under
+`Local\KOME-Heavy-Validation`: 36 tests, zero failures/errors/skips, including retained
+loaded-world coverage. This focused run is distinct from the historical full suite above.
+Corrected production jar SHA-256:
+`2135f43ae98a45cab3b9c09ec054da50df73314929973d9f8db3d1737f849dad`.
+Self-review checked null propagation, loaded-world behavior, fixture restoration and scope.
+
+The same jar ran under Forge 10.13.4.1614, LOTR v36.15 and Java 8 in the task-owned
+`outputs/kom40/runtime-correction/kom40-disposable` world on loopback port 25640.
+Each run held the same mutex through clean shutdown. Runtime libraries were copied;
+no existing world or configuration was copied or repaired. Server-console checks passed:
+
+1. Capital, population, ruler, diplomacy, ownership and audit commands dispatched through
+   the real command manager. Capital reported loaded/unloaded chunk presence across runs
+   while retaining explicit unverified safety.
+2. Only the stopped disposable world's NBT was seeded with one obsolete Gondor/Rohan
+   `friends` consent; the authoritative LOTR relation remained `allies`. Two previews
+   were created, the first applied, and the second returned `State changed since preview;
+   no repair applied; preview again`.
+3. `save-all`, clean stop and cold restart retained `allies` with no pending consent.
+   Live audit output and saved NBT retained two `REPAIR_PREVIEW` entries, one
+   `REPAIR_APPLY` with before/after values, and one stale `REPAIR_DENIED`.
+
+Task-local evidence (ignored): `outputs/kom40/capital-before-fix.xml`,
+`capital-correction-build.log`, `forge-{initial,repair,restart}-probes.txt` and matching
+stdout/stderr logs; `disposable-nbt.py` verifies saved metadata and audit after restart.
+All disposable server processes stopped cleanly. Existing worlds, runtimes, primary
+checkout, other worktrees and stash were preserved.
+
+Remaining live acceptance: operator versus ordinary-player client chat/dispatch,
+matching online-ruler rename, and public waypoint revision reaching a connected client.
+No client was connected. Unloaded-dimension/no-initialization and no-chunk-provision
+guarantees are covered by the actual-command regression, not a live dimension-unload
+experiment. Broader KOM-40 acceptance remains deferred as listed above.
