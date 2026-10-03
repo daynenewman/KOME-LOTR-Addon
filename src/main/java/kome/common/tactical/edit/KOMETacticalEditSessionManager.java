@@ -18,7 +18,7 @@ public final class KOMETacticalEditSessionManager {
     public enum Status {
         OPENED, UPDATED, VALIDATED, REFRESHED, SAVED, NO_CHANGE, CANCELLED, EXPIRED,
         DENIED, WRONG_DIMENSION, INVALID_SESSION, INVALID_DRAFT, SESSION_ACTIVE, LIMIT_REACHED,
-        STALE_SEQUENCE, STALE_STORE, STALE_OBJECT, REJECTED, COMMIT_FAILED, RATE_LIMITED
+        STALE_SEQUENCE, STALE_STORE, STALE_OBJECT, REJECTED, COMMIT_FAILED, RATE_LIMITED, DELETED, DUPLICATE_ID
     }
     public interface Actor {
         UUID getPlayerId();
@@ -52,20 +52,28 @@ public final class KOMETacticalEditSessionManager {
             if (request.getAction() != KOMETacticalEditRequest.Action.OPEN) return result(Status.EXPIRED, session, true);
             session = null;
         }
-        if (request.getAction() == KOMETacticalEditRequest.Action.OPEN) {
+        boolean creating = request.getAction() == KOMETacticalEditRequest.Action.CREATE;
+        if (request.getAction() == KOMETacticalEditRequest.Action.OPEN || creating) {
             if (session != null) {
-                if (!session.scope.equals(request.getScope()) || session.data != data) return result(Status.SESSION_ACTIVE, session, false);
+                if (!session.scope.equals(request.getScope()) || session.data != data || session.creating != creating) return result(Status.SESSION_ACTIVE, session, false);
                 refresh(session); return result(Status.OPENED, session, false);
             }
             if (sessions.size() >= maxSessions || generation == Long.MAX_VALUE) return result(Status.LIMIT_REACHED, null, false);
             try {
                 synchronized (data) {
                     KOMETacticalConfiguration configuration = data.getTacticalConfigurationSnapshot();
-                    KOMETacticalEditDraft draft = KOMETacticalEditService.current(configuration, request.getScope());
+                    if (creating) {
+                        kome.common.data.KOMETacticalAreaAccess.requireTile(request.getScope().getTileId(), request.getScope().getDimensionId());
+                        if (configuration.findForceDeploymentArea(request.getScope().getTargetId()) != null) return result(Status.DUPLICATE_ID, null, false);
+                    }
+                    KOMETacticalEditDraft draft = creating ? new KOMETacticalEditDraft(new kome.common.tactical.KOMEForceDeploymentArea(
+                        request.getScope().getTargetId(), request.getScope().getTileId(), request.getScope().getDimensionId(), "",
+                        new kome.common.siege.geometry.KOMEPolygonPrism(new kome.common.siege.geometry.KOMEPolygon(Collections.emptyList()), 0, 1), 0L))
+                        : KOMETacticalEditService.current(configuration, request.getScope());
                     KOMETacticalEditWire.encodeDraft(draft);
                     session = new Session(actor.getPlayerId(), UUID.randomUUID(), request.getScope(), data, ++generation,
                         configuration.getRevision(), draft, request.getScope().getComplexId() == null ? Collections.emptyList()
-                            : configuration.listAssignedBuildIds(request.getScope().getComplexId()));
+                            : configuration.listAssignedBuildIds(request.getScope().getComplexId()), creating);
                     refresh(session);
                     sessions.put(actor.getPlayerId(), session);
                     return result(Status.OPENED, session, false);
@@ -87,18 +95,27 @@ public final class KOMETacticalEditSessionManager {
                     return result(Status.UPDATED, session, false);
                 } catch (RuntimeException invalid) { return result(Status.INVALID_DRAFT, session, false); }
             case PREFLIGHT:
-                session.preflight = KOMETacticalEditService.preflight(data, session.scope, session.draft,
-                    session.baseRevision, session.baseObjectRevision);
+                session.preflight = session.creating ? KOMETacticalEditService.preflightCreation(data, session.scope, session.draft, session.baseRevision)
+                    : KOMETacticalEditService.preflight(data, session.scope, session.draft, session.baseRevision, session.baseObjectRevision);
                 return result(Status.VALIDATED, session, false);
             case SAVE:
-                KOMETacticalEditService.Result saved = KOMETacticalEditService.save(data, session.scope, session.draft,
-                    session.baseRevision, session.baseObjectRevision);
+                KOMETacticalEditService.Result saved = session.creating
+                    ? KOMETacticalEditService.saveCreation(data, session.scope, session.draft, session.baseRevision)
+                    : KOMETacticalEditService.save(data, session.scope, session.draft, session.baseRevision, session.baseObjectRevision);
                 session.preflight = saved.getPreflight();
                 if (saved.getStatus() == KOMETacticalEditService.Status.CHANGED || saved.getStatus() == KOMETacticalEditService.Status.NO_CHANGE) {
                     sessions.remove(actor.getPlayerId());
                     return result(saved.getStatus() == KOMETacticalEditService.Status.CHANGED ? Status.SAVED : Status.NO_CHANGE, session, true);
                 }
                 return result(Status.valueOf(saved.getStatus().name()), session, false);
+            case DELETE:
+                if (session.creating) return result(Status.REJECTED, session, false);
+                KOMETacticalEditService.Result deleted = KOMETacticalEditService.deleteArea(data, session.scope, session.baseRevision, session.baseObjectRevision);
+                session.preflight = deleted.getPreflight();
+                if (deleted.getStatus() == KOMETacticalEditService.Status.CHANGED) {
+                    sessions.remove(actor.getPlayerId()); return result(Status.DELETED, session, true);
+                }
+                return result(Status.valueOf(deleted.getStatus().name()), session, false);
             case CANCEL:
                 sessions.remove(actor.getPlayerId()); return result(Status.CANCELLED, session, true);
             case REFRESH:
@@ -136,15 +153,17 @@ public final class KOMETacticalEditSessionManager {
         final KOMETacticalEditScope scope;
         final KOMEWorldData data;
         final long generation, baseRevision, baseObjectRevision;
+        final boolean creating;
         long sequence, expiresAtTick;
         KOMETacticalEditDraft draft;
         KOMETacticalEditPreflight preflight;
         final List<String> assignedBuildIds;
         Session(UUID playerId, UUID token, KOMETacticalEditScope scope, KOMEWorldData data, long generation,
-                long baseRevision, KOMETacticalEditDraft draft, List<String> assignedBuildIds) {
+                long baseRevision, KOMETacticalEditDraft draft, List<String> assignedBuildIds, boolean creating) {
             this.playerId = playerId; this.token = token; this.scope = scope; this.data = data; this.generation = generation;
             this.baseRevision = baseRevision; this.baseObjectRevision = draft.getObjectRevision(); this.draft = draft;
             this.assignedBuildIds = assignedBuildIds;
+            this.creating = creating;
         }
     }
     public static final class Result {

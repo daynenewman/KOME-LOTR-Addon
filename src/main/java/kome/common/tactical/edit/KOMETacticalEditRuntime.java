@@ -47,6 +47,13 @@ public final class KOMETacticalEditRuntime {
                 send(player, KOMETacticalEditSessionManager.Status.DENIED, null); continue;
             }
             try {
+                if (pending.getRequest().getAction() == KOMETacticalEditRequest.Action.BROWSE) {
+                    browse(player, pending.getRequest().getScope().getTileId(), (int) pending.getRequest().getExpectedSequence());
+                    continue;
+                }
+                if (pending.getRequest().getScope().getType() == KOMETacticalEditScope.Type.TILE_FORCE_DEPLOYMENT_AREA) {
+                    kome.common.data.KOMETacticalAreaAccess.requireTile(pending.getRequest().getScope().getTileId(), player.dimension);
+                }
                 KOMETacticalEditSessionManager.Result result = sessions.handle(new PlayerActor(player), KOMEWorldData.get(player.worldObj), pending.getRequest());
                 KOMETacticalEditSnapshot snapshot = result.getSnapshot();
                 if (snapshot != null) {
@@ -72,6 +79,13 @@ public final class KOMETacticalEditRuntime {
             if (notify && result.getSnapshot() != null) send((EntityPlayerMP) player, result);
         }
     }
+    /** Command entry executes on the server thread; packet browser requests pass through bounded intake above. */
+    public static void browse(EntityPlayerMP player, String tile, int page) {
+        if (!KOMETacticalEditAccess.isAuthorized(player) || !hasConnection(player)) throw new IllegalArgumentException("Creative or operator level 2 is required.");
+        KOMEPacketHandler.network.sendTo(new kome.common.network.KOMEPacketTacticalAreaCatalog(
+            kome.common.data.KOMETacticalAreaAccess.catalog(KOMEWorldData.get(player.worldObj), tile, player.dimension, page)), player);
+    }
+
     /** Called at start, stop and failed-start cleanup; never retains a world/player across server sessions. */
     public static void resetServerState() { QUEUE.clear(); LIMITER.clear(); OWNERS.clear(); sessions = null; serverThread = null; }
     private static void send(EntityPlayerMP player, KOMETacticalEditSessionManager.Result result) { send(player, result.getStatus(), result.getSnapshot()); }

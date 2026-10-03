@@ -214,6 +214,36 @@ public class KOMEWorldData extends WorldSavedData {
         }
     }
 
+    /** One area creation/removal only; definitions and membership outside the target must be identical. */
+    synchronized final void publishTacticalAreaLifecycle(long expectedRevision, String areaId,
+            KOMETacticalConfiguration replacement, boolean creation) {
+        ensureWritable();
+        KOMETacticalConfiguration prepared = replacement.snapshot();
+        if (tacticalConfiguration.getRevision() != expectedRevision || expectedRevision == Long.MAX_VALUE
+                || prepared.getRevision() != expectedRevision + 1L
+                || !prepared.getComplexesById().equals(tacticalConfiguration.getComplexesById())
+                || !prepared.getBuildAssignmentsByBuildId().equals(tacticalConfiguration.getBuildAssignmentsByBuildId())) {
+            throw new IllegalArgumentException("Invalid area lifecycle publication.");
+        }
+        java.util.Map<String, kome.common.tactical.KOMEForceDeploymentArea> oldAreas =
+            new java.util.TreeMap<String, kome.common.tactical.KOMEForceDeploymentArea>(tacticalConfiguration.getForceDeploymentAreasById());
+        java.util.Map<String, kome.common.tactical.KOMEForceDeploymentArea> newAreas =
+            new java.util.TreeMap<String, kome.common.tactical.KOMEForceDeploymentArea>(prepared.getForceDeploymentAreasById());
+        kome.common.tactical.KOMEForceDeploymentArea old = oldAreas.remove(areaId), updated = newAreas.remove(areaId);
+        if (creation ? old != null || updated == null || updated.getRevision() != 1L : old == null || updated != null) {
+            throw new IllegalArgumentException("Invalid area lifecycle target.");
+        }
+        if (!oldAreas.equals(newAreas)) throw new IllegalArgumentException("Area operation changed unrelated areas.");
+        if (!creation) {
+            // Recheck intrinsic reference protection at the publication boundary.
+            tacticalConfiguration.snapshot().removeForceDeploymentArea(areaId);
+        }
+        KOMETacticalConfiguration previous = tacticalConfiguration;
+        boolean dirty = super.isDirty();
+        try { tacticalConfiguration = prepared; markDirty(); }
+        catch (RuntimeException failure) { tacticalConfiguration = previous; super.setDirty(dirty); throw failure; }
+    }
+
     /** One existing definition only; editor services cannot publish arbitrary store/membership replacements. */
     synchronized final void publishTacticalDefinition(long expectedRevision, String complexId, String areaId,
             KOMETacticalConfiguration replacement) {

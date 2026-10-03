@@ -38,6 +38,36 @@ public class KOMETacticalEditFoundationTest {
             assertThrows(IllegalArgumentException.class, () -> new KOMETacticalEditScope(KOMETacticalEditScope.Type.TILE_FORCE_DEPLOYMENT_AREA, "T100", null, id, 0));
         }
     }
+    @Test public void tileAreaCatalogueRoundTripsAndRejectsOversizedCountsAndTrailingData() {
+        KOMETacticalAreaCatalog catalogue = new KOMETacticalAreaCatalog("T100", -1, 20, 0, 1,
+            Collections.singletonList(new KOMETacticalAreaCatalog.Row("FIELD", "Shared display label", 3)));
+        ByteBuf buffer = Unpooled.buffer();
+        try {
+            new kome.common.network.KOMEPacketTacticalAreaCatalog(catalogue).toBytes(buffer);
+            ByteBuf invalid = buffer.copy(); invalid.writeByte(0);
+            try {
+                kome.common.network.KOMEPacketTacticalAreaCatalog bad = new kome.common.network.KOMEPacketTacticalAreaCatalog();
+                bad.fromBytes(invalid); assertNull(bad.getCatalog());
+            } finally { invalid.release(); }
+            kome.common.network.KOMEPacketTacticalAreaCatalog copy = new kome.common.network.KOMEPacketTacticalAreaCatalog();
+            copy.fromBytes(buffer); assertNotNull(copy.getCatalog()); assertEquals("FIELD", copy.getCatalog().rows.get(0).id);
+            assertEquals(20, copy.getCatalog().revision); assertEquals(-1, copy.getCatalog().dimension);
+            assertThrows(UnsupportedOperationException.class, () -> copy.getCatalog().rows.clear());
+            buffer.clear(); buffer.writeByte(1); KOMETacticalEditWire.writeText(buffer, "T100", 128);
+            buffer.writeInt(-1); buffer.writeLong(20); buffer.writeInt(0); buffer.writeInt(100); buffer.writeByte(255);
+            copy.fromBytes(buffer); assertNull(copy.getCatalog());
+        } finally { buffer.release(); }
+    }
+    @Test public void newAreaActionsCannotBeSentInSiegeScopeOrWithForgedStartTokens() {
+        KOMETacticalEditScope scope = new KOMETacticalEditScope(KOMETacticalEditScope.Type.SIEGE_COMPLEX, "T100", "FORT", "FORT", 0);
+        for (KOMETacticalEditRequest.Action action : new KOMETacticalEditRequest.Action[] {
+                KOMETacticalEditRequest.Action.CREATE, KOMETacticalEditRequest.Action.DELETE, KOMETacticalEditRequest.Action.BROWSE}) {
+            assertThrows(IllegalArgumentException.class, () -> new KOMETacticalEditRequest(action, scope,
+                action == KOMETacticalEditRequest.Action.DELETE ? UUID.randomUUID() : null, 0, new byte[0]));
+        }
+        assertThrows(IllegalArgumentException.class, () -> new KOMETacticalEditRequest(
+            KOMETacticalEditRequest.Action.CREATE, scope(), UUID.randomUUID(), 0, new byte[0]));
+    }
     @Test public void draftWirePreservesExtremeCoordinatesVertexOrderAndSignedDimension() {
         KOMETacticalEditDraft decoded = KOMETacticalEditWire.decodeDraft(KOMETacticalEditWire.encodeDraft(draft()));
         assertEquals(draft().encode(), decoded.encode()); assertEquals(-1, decoded.getDimensionId());
@@ -83,7 +113,8 @@ public class KOMETacticalEditFoundationTest {
     @Test public void requestPacketRoundTripsEveryActionAndDoesNotDecodeDraftOnIntake() {
         UUID token = UUID.randomUUID();
         for (KOMETacticalEditRequest.Action action : KOMETacticalEditRequest.Action.values()) {
-            KOMETacticalEditRequest intent = new KOMETacticalEditRequest(action, scope(), action == KOMETacticalEditRequest.Action.OPEN ? null : token,
+            KOMETacticalEditRequest intent = new KOMETacticalEditRequest(action, scope(),
+                action == KOMETacticalEditRequest.Action.OPEN || action == KOMETacticalEditRequest.Action.CREATE || action == KOMETacticalEditRequest.Action.BROWSE ? null : token,
                 0, action == KOMETacticalEditRequest.Action.UPDATE ? new byte[] {1, 2, 3} : new byte[0]);
             ByteBuf buffer = Unpooled.buffer();
             try {

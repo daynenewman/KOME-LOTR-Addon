@@ -66,6 +66,43 @@ public class KOMETacticalEditRuntimeTest {
     }
     private NBTTagCompound state() { return KOMETacticalConfigurationCodec.encode(fixture.data.getTacticalConfigurationSnapshot()); }
     @Test public void creativeModeIsAuthorizedWithoutAnOperator() { assertTrue(KOMETacticalEditAccess.isAuthorized(fixture.player)); assertEquals(OPENED, open() == null ? null : last().getStatus()); }
+    @Test public void creativeCommandOpensSelectedTileBrowserWithoutSiegeGateFlag() {
+        boolean old = MumakilConfig.enableSiegeGates;
+        try {
+            MumakilConfig.enableSiegeGates = false;
+            new kome.common.command.KOMECommandKome().processCommand(fixture.player, new String[] {"tactical", "T100"});
+            assertTrue(fixture.network.messages.get(0) instanceof KOMEPacketTacticalAreaCatalog);
+            assertEquals("T100", ((KOMEPacketTacticalAreaCatalog) fixture.network.messages.get(0)).getCatalog().tileId);
+            assertFalse(fixture.data.isDirty());
+        } finally { MumakilConfig.enableSiegeGates = old; }
+    }
+    @Test public void operatorCommandOpensBrowserAndOrdinaryCommandCannotBypassChecks() throws Exception {
+        fixture.player.capabilities.isCreativeMode = false; operator(2);
+        new kome.common.command.KOMECommandKome().processCommand(fixture.player, new String[] {"tactical", "T100"});
+        assertTrue(fixture.network.messages.get(0) instanceof KOMEPacketTacticalAreaCatalog);
+        operator(1); int replies = fixture.network.messages.size();
+        assertThrows(net.minecraft.command.WrongUsageException.class, () ->
+            new kome.common.command.KOMECommandKome().processCommand(fixture.player, new String[] {"tactical", "T100"}));
+        assertEquals(replies, fixture.network.messages.size());
+    }
+    @Test public void implicitCommandUsesExactCurrentTileAndExplicitBadTileIsRejected() {
+        fixture.player.posX = KOMETileTestResources.x(); fixture.player.posZ = KOMETileTestResources.z();
+        new kome.common.command.KOMECommandKome().processCommand(fixture.player, new String[] {"tactical"});
+        assertEquals("T100", ((KOMEPacketTacticalAreaCatalog) fixture.network.messages.get(0)).getCatalog().tileId);
+        assertThrows(net.minecraft.command.WrongUsageException.class, () ->
+            new kome.common.command.KOMECommandKome().processCommand(fixture.player, new String[] {"tactical", "UNKNOWN123"}));
+    }
+    @Test public void tacticalCommandCompletionRetainsExistingPublicAndStaffSuggestions() {
+        kome.common.command.KOMECommandKome command = new kome.common.command.KOMECommandKome();
+        java.util.List suggestions = command.addTabCompletionOptions(fixture.player, new String[] {""});
+        assertTrue(suggestions.contains("tile")); assertTrue(suggestions.contains("gui")); assertTrue(suggestions.contains("tactical"));
+        fixture.player.operator = true;
+        suggestions = command.addTabCompletionOptions(fixture.player, new String[] {""});
+        assertTrue(suggestions.contains("capital")); assertTrue(suggestions.contains("conquest")); assertTrue(suggestions.contains("tactical"));
+        assertTrue(command.getCommandUsage(fixture.player).contains("tactical"));
+        fixture.player.operator = false; fixture.player.capabilities.isCreativeMode = false;
+        assertFalse(command.addTabCompletionOptions(fixture.player, new String[] {""}).contains("tactical"));
+    }
     @Test public void explicitLevelTwoOperatorIsAuthorizedWithoutCreative() throws Exception {
         fixture.player.capabilities.isCreativeMode = false; operator(2);
         assertTrue(KOMETacticalEditAccess.isAuthorized(fixture.player)); open();

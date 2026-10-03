@@ -114,4 +114,88 @@ public class KOMETacticalEditClientTest {
         assertEquals(KOMEClientTaskQueue.MAX_PENDING_TASKS, queue.pendingTasks()); assertNull(proxy.getTacticalEditorSnapshot());
         queue.drain(); assertEquals(KOMEClientTaskQueue.MAX_PENDING_TASKS, proxy.getTacticalEditorSnapshot().getPublicationSequence());
     }
+    private void catalogue() {
+        new kome.common.network.KOMEPacketTacticalAreaCatalog.Handler().onMessage(new kome.common.network.KOMEPacketTacticalAreaCatalog(
+            new KOMETacticalAreaCatalog("T100", -1, 10, 0, 0, java.util.Collections.emptyList())), null);
+    }
+    @Test public void browserUsesSameLifecycleBarrierAndWorldUnloadClearsTileDraftOverlay() {
+        catalogue(); proxy.onClientWorldUnload(new WorldEvent.Unload(world)); queue.drain();
+        assertNull(proxy.getTacticalAreaEditor());
+        catalogue(); queue.drain(); assertNotNull(proxy.getTacticalAreaEditor().getCatalog());
+        proxy.getTacticalAreaEditor().accept(packet(1, 1, 0).getSnapshot(), KOMETacticalEditSessionManager.Status.OPENED);
+        proxy.getTacticalAreaEditor().select(kome.client.tactical.KOMETacticalAreaEditor.Selection.VERTICES);
+        assertNotNull(proxy.getTacticalAreaEditor().overlay(playerId, -1));
+        proxy.onClientWorldUnload(new WorldEvent.Unload(world));
+        assertNull(proxy.getTacticalAreaEditor().overlay(playerId, -1)); assertNull(proxy.getTacticalAreaEditor().getCatalog());
+    }
+    @Test public void mouseAndInteractSelectionAreConsumedWhileGameplayOutsideSelectionIsUntouched() throws Exception {
+        catalogue(); queue.drain();
+        Field controller = KOMEClientProxy.class.getDeclaredField("tacticalAreaEditor"); controller.setAccessible(true);
+        kome.client.tactical.KOMETacticalAreaEditor local = new kome.client.tactical.KOMETacticalAreaEditor(request -> { });
+        local.acceptCatalog(proxy.getTacticalAreaEditor().getCatalog()); controller.set(proxy, local);
+        proxy.getTacticalAreaEditor().accept(packet(1, 1, 0).getSnapshot(), KOMETacticalEditSessionManager.Status.OPENED);
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input = new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy);
+        net.minecraftforge.client.event.MouseEvent ordinary = mouseEvent(); input.mouse(ordinary);
+        assertFalse(ordinary.isCanceled());
+        proxy.getTacticalAreaEditor().select(kome.client.tactical.KOMETacticalAreaEditor.Selection.VERTICES);
+        Minecraft.getMinecraft().objectMouseOver = new net.minecraft.util.MovingObjectPosition(5, 64, 7, 1, net.minecraft.util.Vec3.createVectorHelper(5, 64, 7));
+        net.minecraftforge.client.event.MouseEvent right = mouseEvent();
+        try {
+            Field button = net.minecraftforge.client.event.MouseEvent.class.getDeclaredField("button"); button.setAccessible(true); button.setInt(right, 1);
+            Field down = net.minecraftforge.client.event.MouseEvent.class.getDeclaredField("buttonstate"); down.setAccessible(true); down.setBoolean(right, true);
+            // Ignore the advisory refresh packet in this inert client; geometry changes remain local.
+            input.mouse(right);
+            assertTrue(right.isCanceled());
+            assertEquals(5, proxy.getTacticalAreaEditor().getDraft().getPrism().getPolygon().getVertices().get(4).getX());
+            net.minecraftforge.client.event.MouseEvent left = mouseEvent();
+            button.setInt(left, 0); down.setBoolean(left, true); input.mouse(left); assertTrue(left.isCanceled());
+            net.minecraftforge.event.entity.player.PlayerInteractEvent interact = new net.minecraftforge.event.entity.player.PlayerInteractEvent(
+                Minecraft.getMinecraft().thePlayer, net.minecraftforge.event.entity.player.PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK, 5, 64, 7, 1, world) {
+                    @Override public boolean isCancelable() { return true; } // Forge's launch transformer supplies this in-game.
+                };
+            input.interact(interact); assertTrue(interact.isCanceled());
+        } catch (ReflectiveOperationException failure) { throw new AssertionError(failure); }
+        proxy.getTacticalAreaEditor().reset(); net.minecraftforge.client.event.MouseEvent after = new net.minecraftforge.client.event.MouseEvent(); input.mouse(after);
+        assertFalse(after.isCanceled());
+    }
+    private static net.minecraftforge.client.event.MouseEvent mouseEvent() {
+        return new net.minecraftforge.client.event.MouseEvent() {
+            @Override public boolean isCancelable() { return true; } // No Forge launch transformer in unit tests.
+        };
+    }
+    @Test public void selectionClearsHeldAndBufferedAttackUseWithoutSuppressingNormalGameplay() throws Exception {
+        catalogue(); queue.drain();
+        proxy.getTacticalAreaEditor().accept(packet(1, 1, 0).getSnapshot(), KOMETacticalEditSessionManager.Status.OPENED);
+        proxy.getTacticalAreaEditor().select(kome.client.tactical.KOMETacticalAreaEditor.Selection.VERTICES);
+        Field bindings = net.minecraft.client.settings.KeyBinding.class.getDeclaredField("keybindArray");
+        bindings.setAccessible(true);
+        @SuppressWarnings("unchecked") java.util.List<Object> all = (java.util.List<Object>) bindings.get(null);
+        java.util.List<Object> previous = new java.util.ArrayList<Object>(all);
+        java.util.Set<String> categories = new java.util.HashSet<String>(net.minecraft.client.settings.KeyBinding.getKeybinds());
+        try {
+            net.minecraft.client.settings.GameSettings settings = KOMEAccessFixture.allocate(net.minecraft.client.settings.GameSettings.class);
+            settings.keyBindAttack = new net.minecraft.client.settings.KeyBinding("test.attack", 541, "test.tactical");
+            settings.keyBindUseItem = new net.minecraft.client.settings.KeyBinding("test.use", 542, "test.tactical");
+            Minecraft.getMinecraft().gameSettings = settings;
+            net.minecraft.client.settings.KeyBinding.setKeyBindState(541, true);
+            net.minecraft.client.settings.KeyBinding.setKeyBindState(542, true);
+            net.minecraft.client.settings.KeyBinding.onTick(541); net.minecraft.client.settings.KeyBinding.onTick(542);
+            kome.client.tactical.KOMETacticalAreaInteractionHandler input = new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy);
+            input.tick(new cpw.mods.fml.common.gameevent.TickEvent.ClientTickEvent(cpw.mods.fml.common.gameevent.TickEvent.Phase.START));
+            assertFalse(settings.keyBindAttack.getIsKeyPressed()); assertFalse(settings.keyBindUseItem.getIsKeyPressed());
+            assertFalse(settings.keyBindAttack.isPressed()); assertFalse(settings.keyBindUseItem.isPressed());
+            proxy.getTacticalAreaEditor().reset();
+            net.minecraft.client.settings.KeyBinding.setKeyBindState(541, true);
+            net.minecraft.client.settings.KeyBinding.setKeyBindState(542, true);
+            net.minecraft.client.settings.KeyBinding.onTick(541); net.minecraft.client.settings.KeyBinding.onTick(542);
+            input.tick(new cpw.mods.fml.common.gameevent.TickEvent.ClientTickEvent(cpw.mods.fml.common.gameevent.TickEvent.Phase.START));
+            assertTrue(settings.keyBindAttack.getIsKeyPressed()); assertTrue(settings.keyBindUseItem.getIsKeyPressed());
+            assertTrue(settings.keyBindAttack.isPressed()); assertTrue(settings.keyBindUseItem.isPressed());
+        } finally {
+            all.clear(); all.addAll(previous);
+            net.minecraft.client.settings.KeyBinding.getKeybinds().clear();
+            net.minecraft.client.settings.KeyBinding.getKeybinds().addAll(categories);
+            net.minecraft.client.settings.KeyBinding.resetKeyBindingArrayAndHash();
+        }
+    }
 }

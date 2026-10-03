@@ -33,7 +33,7 @@ public final class KOMETacticalEditRequestLimiter {
         buckets.lastSeen = now;
         Kind kind = action == KOMETacticalEditRequest.Action.UPDATE ? Kind.DRAFT
             : action == KOMETacticalEditRequest.Action.PREFLIGHT ? Kind.PREFLIGHT
-            : action == KOMETacticalEditRequest.Action.SAVE ? Kind.SAVE : Kind.SESSION;
+            : action == KOMETacticalEditRequest.Action.SAVE || action == KOMETacticalEditRequest.Action.DELETE ? Kind.SAVE : Kind.SESSION;
         Bucket bucket = buckets.buckets.get(kind);
         if (bucket == null) { bucket = new Bucket(kind.burst, now); buckets.buckets.put(kind, bucket); }
         long elapsed = now - bucket.updated;
