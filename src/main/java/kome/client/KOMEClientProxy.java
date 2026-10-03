@@ -49,7 +49,9 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         FMLCommonHandler.instance().bus().register(currentTileHud);
         MinecraftForge.EVENT_BUS.register(currentTileHud);
         MinecraftForge.EVENT_BUS.register(new KOMEChatSanitizer());
+        MinecraftForge.EVENT_BUS.register(new KOMECourierBookPagination());
         MinecraftForge.EVENT_BUS.register(new KOMEProgressionMenuOverlay());
+        MinecraftForge.EVENT_BUS.register(new KOMELiegeQuestButtonOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEUnitOverviewCapOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEEntityHighlightOverlay());
@@ -112,10 +114,12 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         KOMEQuotaLedgerOverlay.reset();
         KOMEGuiAllianceUnified.resetData();
         KOMEGuiProgression.resetData();
+        KOMEFactionTitleClientBridge.reset();
         KOMEGuiServerRecords.resetData();
         KOMEUnitCapClientState.reset();
         KOMEConquestMapOverlay.resetClientMapState();
         KOMEVisualMarkerClientState.clear();
+        KOMELiegeQuestButtonOverlay.reset();
         progressionTrackerOverlay.resetSession();
     }
 
@@ -192,7 +196,29 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         KOMEGuiProgression.updateProgressionData(playerName, completed, assignments);
     }
     @Override public void updateProgressionData(String playerName, List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName) { KOMEGuiProgression.updateProgressionData(playerName, completed, assignments, summary, findLabel, leaveType, leaveLabel, leaveName); }
-    @Override public void updateProgressionData(String playerName, List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName, kome.common.data.KOMEProgressionRankSummary ranks) { KOMEGuiProgression.updateProgressionData(playerName, completed, assignments, summary, findLabel, leaveType, leaveLabel, leaveName, ranks); }
+    @Override
+    public void updateProgressionData(
+            String playerName,
+            List completed,
+            java.util.Map assignments,
+            String summary,
+            String findLabel,
+            String leaveType,
+            String leaveLabel,
+            String leaveName,
+            kome.common.data.KOMEProgressionRankSummary ranks) {
+        KOMEFactionTitleClientBridge.updateRankSummary(ranks);
+        KOMEGuiProgression.updateProgressionData(
+            playerName,
+            completed,
+            assignments,
+            summary,
+            findLabel,
+            leaveType,
+            leaveLabel,
+            leaveName,
+            ranks);
+    }
 
     @Override
     public void updateQuotaLedger(List lines) {
@@ -224,6 +250,24 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void updateProgressionTracker(
             kome.common.data.KOMEProgressionTrackerSnapshot snapshot) {
         progressionTrackerOverlay.update(snapshot);
+    }
+
+    @Override
+    public void updateStandingTrialEligibility(
+            int entityId,
+            long entityUuidMost,
+            long entityUuidLeast,
+            boolean eligible,
+            boolean passiveOffer,
+            boolean offering,
+            int offerColor) {
+        KOMELiegeQuestButtonOverlay.updateEligibility(
+            entityId,
+            new java.util.UUID(entityUuidMost, entityUuidLeast),
+            eligible,
+            passiveOffer,
+            offering,
+            offerColor);
     }
 
     @Override

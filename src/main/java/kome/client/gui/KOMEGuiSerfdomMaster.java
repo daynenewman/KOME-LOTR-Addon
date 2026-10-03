@@ -35,11 +35,11 @@ public class KOMEGuiSerfdomMaster extends LOTRGuiMenuBase {
     static int firstButtonOffsetForTest(int detailLines){return buttonStartOffset(detailLines);}
     private int activeAction(){if(dutyStatus.startsWith("Provisioning duty"))return 4;if(dutyStatus.startsWith("Profession duty"))return 5;if(dutyStatus.startsWith("Courier duty - delivered"))return 7;if(dutyStatus.startsWith("Courier duty - outbound"))return 6;return -1;}
     private String actionLabel(int action){return action==4?"Deliver provisions":action==5?"Deliver materials":action==7?"Report to Master":"Replace message";}
-    private List<String> wrappedDetails(int width){List<String> result=new ArrayList<String>();String status=mode==1?"Your Serfdom Master":mode==2?"Replacement Master Required":mode==3?"You already serve another master":"Available Serfdom Master";appendWrapped(result,status,width);if(dutyStatus.length()!=0)appendWrapped(result,dutyStatus,width);return result;}
+    private List<String> wrappedDetails(int width){List<String> result=new ArrayList<String>();String status=mode==1?"Your Master":mode==2?"Replacement Master Required":mode==3?"You already serve another master":"Available Master";appendWrapped(result,status,width);if(dutyStatus.length()!=0)appendWrapped(result,dutyStatus,width);return result;}
     private void appendWrapped(List<String> output,String text,int width){for(String paragraph:text.split("\\n"))output.addAll(fontRendererObj.listFormattedStringToWidth(paragraph,width));}
 
     @Override public void drawScreen(int mouseX,int mouseY,float partialTicks){
-        drawDefaultBackground();KOMEGuiTheme.drawMainPanel(guiLeft,guiTop,xSize,ySize);KOMEGuiTheme.drawHeader(fontRendererObj,"Serfdom Master",guiLeft+10,guiTop+10,xSize-20);
+        drawDefaultBackground();KOMEGuiTheme.drawMainPanel(guiLeft,guiTop,xSize,ySize);KOMEGuiTheme.drawHeader(fontRendererObj,"Master",guiLeft+10,guiTop+10,xSize-20);
         int cardX=guiLeft+18,cardY=guiTop+40,cardW=xSize-36;KOMEGuiTheme.drawCard(cardX,cardY,cardW,39,KOMEGuiTheme.isHovered(mouseX,mouseY,cardX,cardY,cardW,39));
         drawCenteredString(fontRendererObj,KOMEGuiTheme.trimToWidth(fontRendererObj,masterName,cardW-12),width/2,cardY+6,KOMEGuiTheme.COLOR_BORDER_RED);
         drawCenteredString(fontRendererObj,KOMEGuiTheme.trimToWidth(fontRendererObj,factionName.length()==0?"No faction":factionName,cardW-12),width/2,cardY+19,KOMEGuiTheme.COLOR_TEXT_MUTED);

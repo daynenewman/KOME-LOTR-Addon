@@ -6,10 +6,17 @@ import net.minecraft.entity.player.EntityPlayerMP;
 
 /** Presentation-only bridge to LOTR's native immersive NPC speech behavior. */
 public final class KOMEProgressionNpcSpeech {
+    interface Sender { void send(EntityPlayerMP player,LOTREntityNPC npc,String text); }
+    // Package-local transport seam; all gameplay decisions remain in server services.
+    static Sender sender=new Sender(){public void send(EntityPlayerMP player,LOTREntityNPC npc,String text){LOTRSpeech.sendSpeech(player, npc, text);}};
     private KOMEProgressionNpcSpeech() {}
 
     public static void say(EntityPlayerMP player, LOTREntityNPC npc, String text) {
-        if (player != null && npc != null && text != null && text.trim().length() != 0) LOTRSpeech.sendSpeech(player, npc, text);
+        if (player != null && npc != null && text != null && text.trim().length() != 0) sender.send(player, npc, text);
+    }
+
+    public static void commission(EntityPlayerMP player, LOTREntityNPC npc, KOMEKnightCommission assignment, String event) {
+        say(player,npc,KOMEKnightCommissionPresentation.speech(assignment,event));
     }
 
     public static void welcomeSerf(EntityPlayerMP player, LOTREntityNPC master, boolean enteredSerfdom) {

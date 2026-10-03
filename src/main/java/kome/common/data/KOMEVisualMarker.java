@@ -3,11 +3,13 @@ package kome.common.data;
 /** Minimal server-authored presentation record for the native LOTR visual layer. */
 public final class KOMEVisualMarker {
     public enum Role {
-        SERFDOM_MASTER("serfdom_master", "Serfdom Master"),
+        SERFDOM_MASTER("serfdom_master", "Master"),
+        MASTER_GIFT("master_gift", "Parting Gift"),
         KNIGHT_LIEGE("knight_liege", "Liege"),
         LORD_LIEGE("lord_liege", "Liege"),
         RULER("ruler", "Ruler"),
         COURIER("courier", "Courier Destination"),
+        COMMISSION("commission", "Commission"),
         RECOVERY_SEARCH("recovery_search", "Recovery Search");
 
         public final String key, label;
@@ -37,7 +39,7 @@ public final class KOMEVisualMarker {
     }
 
     public boolean isRelationship() {
-        return role == Role.SERFDOM_MASTER || role == Role.KNIGHT_LIEGE
+        return role == Role.MASTER_GIFT || role == Role.SERFDOM_MASTER || role == Role.KNIGHT_LIEGE
             || role == Role.LORD_LIEGE || role == Role.RULER;
     }
     public String signature() {

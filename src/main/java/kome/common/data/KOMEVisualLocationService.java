@@ -28,10 +28,12 @@ public final class KOMEVisualLocationService {
         KOMESerfKnightProgression state = progression.getSerfKnightProgression();
         KOMEVisualMarker relationship = relationshipMarker(progression, state, worldData);
         if (relationship != null) markers.add(relationship);
+        if(state.isTrialCompleted()&&!state.hasPartingGift()&&state.getSerfdomMaster().isSet())
+            markers.add(relationship(KOMEVisualMarker.Role.MASTER_GIFT,state.getSerfdomMaster()));
         if ("courier".equals(state.getActiveAssignmentKind())) {
             KOMESerfCourierAssignment courier = KOMESerfCourierAssignment.readFromNBT(
                 state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-            if (courier != null && courier.stage == KOMESerfCourierAssignment.Stage.OUTBOUND) {
+            if (courier != null && courier.stage == KOMESerfCourierAssignment.Stage.OUTBOUND && !courier.confirmedRecipientDeath) {
                 KOMEProgressionNpcRef recipient = courier.recipient;
                 markers.add(recipient.isSet()
                     ? new KOMEVisualMarker(KOMEVisualMarker.Role.COURIER, recipient.entityUuid,
@@ -44,6 +46,17 @@ public final class KOMEVisualLocationService {
         }
         KOMEVisualMarker recovery = KOMESerfKnightRecoveryService.searchMarker(state.getTrialAssignment());
         if (recovery != null) markers.add(recovery);
+        KOMEKnightCommission commission=progression.getKnightService().assignment();
+        if(commission!=null&&commission.live()&&commission.stage!=KOMEKnightCommission.Stage.READY_TO_REPORT)
+            markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,"",KOMEKnightCommissionPresentation.title(commission.type),commission.place,commission.dimension,commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?commission.destinationX:commission.x,0,commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?commission.destinationZ:commission.z));
+        if(commission!=null&&commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT&&commission.stage==KOMEKnightCommission.Stage.ACTIVE&&!commission.threatResolved)
+            markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,"",KOMEKnightCommissionPresentation.title(KOMEKnightCommission.Type.BORDER_INCURSION),commission.place,commission.dimension,commission.x,0,commission.z));
+        KOMELordshipTrial trial=progression.getLordship().assignment();
+        if(trial!=null&&trial.objective.stage==KOMEKnightCommission.Stage.ACTIVE){
+            KOMEKnightCommission a=trial.objective;
+            markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,"",KOMELordshipTrialPresentation.title(trial),a.place,a.dimension,a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?a.destinationX:a.x,0,a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?a.destinationZ:a.z));
+            if(a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT&&!a.threatResolved)markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,"","Reported threat",a.place,a.dimension,a.x,0,a.z));
+        }
         return markers;
     }
 
@@ -53,15 +66,13 @@ public final class KOMEVisualLocationService {
         KOMEProgressionNpcRef ref;
         KOMEVisualMarker.Role role;
         if (rank == KOMEProgressionRank.LORD || rank == KOMEProgressionRank.PRINCE) {
-            ref = state.getProspectiveLiege().isSet() ? state.getProspectiveLiege() : state.getSerfdomMaster();
+            ref = state.hasLiege() ? state.getLiege() : state.getSerfdomMaster();
             role = KOMEVisualMarker.Role.LORD_LIEGE;
         } else if (rank == KOMEProgressionRank.KNIGHT) {
-            ref = state.getProspectiveLiege().isSet() ? state.getProspectiveLiege() : state.getSerfdomMaster();
+            ref = state.hasLiege() ? state.getLiege() : state.getSerfdomMaster();
             role = KOMEVisualMarker.Role.KNIGHT_LIEGE;
-        } else if (rank == KOMEProgressionRank.SERF && state.getProspectiveLiege().isSet()
-                && (state.getPhase() == KOMESerfKnightPhase.SEEKING_LIEGE
-                    || state.getPhase() == KOMESerfKnightPhase.TRIAL_ASSIGNED)) {
-            ref = state.getProspectiveLiege();
+        } else if (rank == KOMEProgressionRank.SERF && state.hasLiege()) {
+            ref = state.getLiege();
             role = KOMEVisualMarker.Role.KNIGHT_LIEGE;
         } else {
             ref = state.getSerfdomMaster();
@@ -104,9 +115,9 @@ public final class KOMEVisualLocationService {
                 state.updateSerfdomMasterLocation(KOMEProgressionNpcRankService.referenceOf(npc));
                 changed = true;
             }
-            if (id.equals(state.getProspectiveLiege().entityUuid)
-                    && materiallyChanged(state.getProspectiveLiege(), npc)) {
-                state.updateProspectiveLiegeLocation(KOMEProgressionNpcRankService.referenceOf(npc));
+            if (id.equals(state.getLiege().entityUuid)
+                    && materiallyChanged(state.getLiege(), npc)) {
+                state.updateLiegeLocation(KOMEProgressionNpcRankService.referenceOf(npc));
                 changed = true;
             }
             if (courier != null && id.equals(courier.recipient.entityUuid)

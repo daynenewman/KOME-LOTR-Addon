@@ -30,6 +30,27 @@ public final class KOMESerfKnightRelationshipService {
     private static Result ok() { return new Result(true, ""); }
     private static Result reject(String reason) { return new Result(false, reason); }
 
+    public static boolean canEstablishLiege(KOMEPlayerProgression progression,long day) {
+        if(progression==null||progression.getCanonicalRank().order<KOMEProgressionRank.KNIGHT.order)return false;
+        KOMESerfKnightProgression state=progression.getSerfKnightProgression();
+        return !state.hasLiege()&&!state.isLockedOut(day);
+    }
+
+    /** The same captain eligibility as a standing trial, without a new trial or rank mutation. */
+    public static Result establishLiege(net.minecraft.entity.player.EntityPlayerMP player,
+            KOMEWorldData data,lotr.common.entity.npc.LOTREntityNPC npc) {
+        if(player==null||data==null||npc==null||player.worldObj.isRemote
+                ||player.getDistanceSqToEntity(npc)>64D
+                ||data!=KOMEWorldData.get(player.worldObj)
+                ||!KOMEProgressionOfferBridge.canReplaceLiegeFrom(player,npc))
+            return reject("That NPC is not eligible to become your Liege.");
+        KOMEPlayerProgression progression=data.getProgression(player.getUniqueID());
+        progression.getSerfKnightProgression().setLiege(KOMEProgressionNpcRankService.referenceOf(npc));
+        KOMEProgressionNpcRoles.syncPlayer(data,player.getUniqueID());
+        data.markDirty();
+        return ok();
+    }
+
     /**
      * Staff-only callers have already validated the target NPC. This does not
      * grant trials, achievements, or permissions. Higher relationships need
@@ -43,14 +64,14 @@ public final class KOMESerfKnightRelationshipService {
         KOMEPlayerProgression progression = data.getProgression(playerId);
         KOMESerfKnightProgression state = progression.getSerfKnightProgression();
         if (state.getSerfdomMaster().isSet()) state.leaveSerfdomMaster();
-        else if (state.getProspectiveLiege().isSet()) state.leaveProspectiveLiege();
+        if (state.hasLiege()) state.leaveLiege();
         state.setSerfdomMaster(target);
         if (level != ForceLevel.SERF) {
             for (KOMESerfKnightDutyType duty : KOMESerfKnightDutyType.values()) {
                 state.assignDuty(duty, null);
                 state.completeDuty(duty);
             }
-            state.setProspectiveLiege(target);
+            state.setLiege(target);
         }
         KOMECanonicalRankService.setCanonicalRank(data, playerId, level.rank);
         KOMEProgressionNpcRoles.syncPlayer(data,playerId);
@@ -64,11 +85,11 @@ public final class KOMESerfKnightRelationshipService {
         KOMEPlayerProgression progression = data.getProgression(playerId);
         KOMESerfKnightProgression state = progression.getSerfKnightProgression();
         boolean master = state.getSerfdomMaster().isSet() && state.getSerfdomMaster().entityUuid.equals(targetedNpcId);
-        boolean liege = state.getProspectiveLiege().isSet() && state.getProspectiveLiege().entityUuid.equals(targetedNpcId);
+        boolean liege = state.hasLiege() && state.getLiege().entityUuid.equals(targetedNpcId);
         if (!master && !liege) return reject("The targeted NPC has no relationship to clear.");
         KOMESerfKnightService.Result result = master
             ? KOMESerfKnightService.leaveSerfdomMaster(state)
-            : KOMESerfKnightService.leaveProspectiveLiege(progression);
+            : KOMESerfKnightService.leaveLiege(progression);
         if (!result.success) return reject(result.reason);
         KOMEProgressionNpcRoles.syncPlayer(data,playerId);
         data.markDirty();

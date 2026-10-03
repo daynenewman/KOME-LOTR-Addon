@@ -36,8 +36,11 @@ public final class KOMEProgressionOfferTransformer implements IClassTransformer 
         if (has(method, "canOffer")) return;
         LabelNode vanilla = new LabelNode(); InsnList i = new InsnList();
         i.add(new VarInsnNode(Opcodes.ALOAD, 0)); i.add(new VarInsnNode(Opcodes.ALOAD, 1));
+        i.add(new MethodInsnNode(Opcodes.INVOKESTATIC, OWNER, "hasExternalOffer", "(Llotr/common/entity/npc/LOTREntityQuestInfo;Lnet/minecraft/entity/player/EntityPlayer;)Z", false));
+        i.add(new JumpInsnNode(Opcodes.IFEQ, vanilla));
+        i.add(new VarInsnNode(Opcodes.ALOAD, 0)); i.add(new VarInsnNode(Opcodes.ALOAD, 1));
         i.add(new MethodInsnNode(Opcodes.INVOKESTATIC, OWNER, "canOffer", "(Llotr/common/entity/npc/LOTREntityQuestInfo;Lnet/minecraft/entity/player/EntityPlayer;)Z", false));
-        i.add(new JumpInsnNode(Opcodes.IFEQ, vanilla)); i.add(new InsnNode(Opcodes.ICONST_1)); i.add(new InsnNode(Opcodes.IRETURN)); i.add(vanilla); method.instructions.insert(i);
+        i.add(new InsnNode(Opcodes.IRETURN)); i.add(vanilla); method.instructions.insert(i);
     }
     private void injectInteraction(MethodNode method) {
         if (has(method, "handleInteraction")) return;

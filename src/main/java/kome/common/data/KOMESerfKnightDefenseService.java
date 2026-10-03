@@ -31,7 +31,7 @@ public final class KOMESerfKnightDefenseService {
         data.setBoolean(ACTIVATED,true); data.setBoolean(PARTICIPATED,false); data.setTag(OBJECTIVE,KOMEProgressionNpcRankService.referenceOf(objective).writeToNBT()); data.setString(ENEMY_FACTION,invasion.invasionFaction.codeName());
         NBTTagList ids=new NBTTagList(); for(LOTREntityNPC attacker:attackers){NBTTagCompound id=new NBTTagCompound();id.setString("Id",attacker.getUniqueID().toString());ids.appendTag(id);} data.setTag(ENEMIES,ids); data.setTag(DEAD,new NBTTagList());
         state.updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)); KOMEWorldData worldData=KOMEWorldData.get(player.worldObj);KOMEProgressionNpcRoles.syncPlayer(worldData,player.getUniqueID()); worldData.markDirty();
-        for(int i=0;i<attackers.size();i++) { LOTREntityNPC attacker=attackers.get(i); placeAttacker(attacker,objective,i,assignment); attacker.setAttackTarget(objective,true); if(!player.worldObj.spawnEntityInWorld(attacker)){fail(state,worldData);cleanup(player,state.getTrialAssignment());return false;} KOMEProgressionEncounterMarker.mark(attacker,KOMEProgressionEncounterMarker.DEFENSE,player.getUniqueID(),assignment.assignmentToken); }
+        for(int i=0;i<attackers.size();i++) { LOTREntityNPC attacker=attackers.get(i); placeAttacker(attacker,objective,i,assignment); attacker.setAttackTarget(objective,true); if(!player.worldObj.spawnEntityInWorld(attacker)){fail(state,worldData,player.worldObj);cleanup(player,state.getTrialAssignment());return false;} KOMEProgressionEncounterMarker.mark(attacker,KOMEProgressionEncounterMarker.DEFENSE,player.getUniqueID(),assignment.assignmentToken); }
         return true;
     }
 
@@ -39,9 +39,9 @@ public final class KOMESerfKnightDefenseService {
         if(player==null||player.worldObj.isRemote)return; KOMEWorldData world=KOMEWorldData.get(player.worldObj); KOMEPlayerProgression progression=world.getProgression(player.getUniqueID()); KOMESerfKnightProgression state=progression.getSerfKnightProgression(); KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment();
         if(!isDefense(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE)return;
         Entity entity=findLoaded(player.worldObj,objective(assignment).entityUuid); if(entity==null)return; // unloaded is deliberately inconclusive
-        if(!(entity instanceof LOTREntityNPC)||!entity.isEntityAlive()||!objective(assignment).hasSameIdentity(KOMEProgressionNpcRankService.referenceOf((LOTREntityNPC)entity))){fail(state,world);return;}
-        for(String id:enemyIds(assignment)){Entity attacker=findLoaded(player.worldObj,id);if(attacker!=null&&(!(attacker instanceof LOTREntityNPC)||!matchesBinding((LOTREntityNPC)attacker,assignment))){fail(state,world);return;}}
-        if(allDead(assignment)&&!hasParticipation(assignment)){fail(state,world);return;}
+        if(!(entity instanceof LOTREntityNPC)||!entity.isEntityAlive()||!objective(assignment).hasSameIdentity(KOMEProgressionNpcRankService.referenceOf((LOTREntityNPC)entity))){fail(state,world,player.worldObj);return;}
+        for(String id:enemyIds(assignment)){Entity attacker=findLoaded(player.worldObj,id);if(attacker!=null&&(!(attacker instanceof LOTREntityNPC)||!matchesBinding((LOTREntityNPC)attacker,assignment))){fail(state,world,player.worldObj);return;}}
+        if(allDead(assignment)&&!hasParticipation(assignment)){fail(state,world,player.worldObj);return;}
         if(allDead(assignment)&&KOMESerfKnightService.markTrialObjectiveComplete(state).success){KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());world.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,progression);KOMEProgressionNpcSpeech.say(player,(LOTREntityNPC)entity,"Our people stand because you stood with them. You have met this trial well.");}
     }
 
@@ -58,9 +58,10 @@ public final class KOMESerfKnightDefenseService {
     static boolean hasParticipation(KOMESerfKnightTrialAssignment assignment){return isDefense(assignment)&&assignment.data.getBoolean(PARTICIPATED);}
 
     /** Death is proof; a missing loaded/unloaded attacker is never inferred to be defeated. */
-    public static void handleNpcDeath(KOMEWorldData world,String uuid) {
+    public static void handleNpcDeath(KOMEWorldData world,String uuid){handleNpcDeath(world,uuid,null);}
+    public static void handleNpcDeath(KOMEWorldData world,String uuid,World liveWorld) {
         if(world==null||uuid==null)return; for(KOMEPlayerProgression progression:world.progressions.values()) { KOMESerfKnightProgression state=progression.getSerfKnightProgression(); KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment(); if(!isDefense(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE)continue;
-            if(uuid.equals(objective(assignment).entityUuid)){fail(state,world);continue;} if(!enemyIds(assignment).contains(uuid)||deadIds(assignment).contains(uuid))continue;
+            if(uuid.equals(objective(assignment).entityUuid)){fail(state,world,liveWorld);continue;} if(!enemyIds(assignment).contains(uuid)||deadIds(assignment).contains(uuid))continue;
             NBTTagCompound data=(NBTTagCompound)assignment.data.copy(); NBTTagList dead=data.getTagList(DEAD,10); NBTTagCompound entry=new NBTTagCompound(); entry.setString("Id",uuid); dead.appendTag(entry); data.setTag(DEAD,dead); state.updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)); world.markDirty();
         }
     }
@@ -123,5 +124,5 @@ public final class KOMESerfKnightDefenseService {
     static int trackerTotalAttackers(KOMESerfKnightTrialAssignment assignment){return isDefense(assignment)?enemyIds(assignment).size():0;}
     static int trackerDefeatedAttackers(KOMESerfKnightTrialAssignment assignment){return isDefense(assignment)?deadIds(assignment).size():0;}
     private static Entity findLoaded(World world,String uuid){if(world==null||uuid==null)return null;for(Object value:world.loadedEntityList)if(value instanceof Entity&&uuid.equals(((Entity)value).getUniqueID().toString()))return (Entity)value;return null;}
-    private static void fail(KOMESerfKnightProgression state,KOMEWorldData world){KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment();if(assignment!=null){state.updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.FAILED,null));KOMEProgressionNpcRoles.rebuild(world);world.markDirty();}}
+    private static void fail(KOMESerfKnightProgression state,KOMEWorldData world,World liveWorld){KOMEProgressionEncounterCleanup.failTrial(world,liveWorld,state);}
 }

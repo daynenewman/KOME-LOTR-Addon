@@ -2,7 +2,6 @@ package kome.client;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import cpw.mods.fml.common.gameevent.TickEvent;
-import kome.common.KOMEAddon;
 import kome.common.data.KOMEProgressionTrackerSnapshot;
 import kome.common.data.KOMEProgressionVisualItems;
 import lotr.client.LOTRTickHandlerClient;
@@ -52,6 +51,9 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
     private static final int DEFAULT_MARGIN_X=16;
     private static final int DEFAULT_Y=10;
 
+    /** Five seconds at 20 client ticks per second. */
+    private static final int DAILY_COMPLETE_TICKS=100;
+
     // Muted Middle-earth gold rather than bright yellow.
     private static final float GOLD_R=0.84F;
     private static final float GOLD_G=0.66F;
@@ -64,6 +66,7 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
 
     private boolean dragging;
     private boolean mouseWasDown;
+    private int dailyCompleteTicks;
     private int dragOffsetX;
     private int dragOffsetY;
 
@@ -79,6 +82,12 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
             next==null
                 ?KOMEProgressionTrackerSnapshot.EMPTY
                 :next;
+
+        dailyCompleteTicks=
+            snapshot.visible
+                &&"daily_complete".equals(snapshot.iconKey)
+                ?DAILY_COMPLETE_TICKS
+                :0;
     }
 
     /** Clears per-server presentation without deleting the user's HUD position. */
@@ -86,6 +95,7 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
         snapshot=KOMEProgressionTrackerSnapshot.EMPTY;
         dragging=false;
         mouseWasDown=false;
+        dailyCompleteTicks=0;
     }
 
     @SubscribeEvent
@@ -127,6 +137,17 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
             TickEvent.ClientTickEvent event) {
         if(event.phase!=TickEvent.Phase.END) {
             return;
+        }
+
+        if(dailyCompleteTicks>0) {
+            dailyCompleteTicks--;
+
+            if(dailyCompleteTicks==0
+                    &&snapshot!=null
+                    &&"daily_complete".equals(snapshot.iconKey)) {
+                snapshot=
+                    KOMEProgressionTrackerSnapshot.EMPTY;
+            }
         }
 
         Minecraft minecraft=Minecraft.getMinecraft();
@@ -305,7 +326,7 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
         GL11.glDisable(GL11.GL_BLEND);
         GL11.glDisable(GL11.GL_ALPHA_TEST);
 
-        ItemStack icon=icon(snapshot.iconKey);
+        ItemStack icon=snapshot.requestedItem==null?icon(snapshot.iconKey):snapshot.requestedItem;
 
         if(icon!=null) {
             RenderHelper.enableGUIStandardItemLighting();
@@ -571,10 +592,7 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
         }
 
         if("courier".equals(key)) {
-            return new ItemStack(
-                KOMEAddon.sealedMessage!=null
-                    ?KOMEAddon.sealedMessage
-                    :Items.paper);
+            return new ItemStack(Items.paper);
         }
 
         if("escort".equals(key)) {
@@ -585,7 +603,7 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
             return new ItemStack(Items.gold_ingot);
         }
 
-        if("defense".equals(key)) {
+        if("defense".equals(key)||"commission".equals(key)) {
             return new ItemStack(Items.iron_sword);
         }
 

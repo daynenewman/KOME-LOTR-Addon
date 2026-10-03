@@ -34,6 +34,12 @@ public final class KOMEProgressionNpcInteractionService {
         KOMEProgressionNpcRef clicked=
             KOMEProgressionNpcRankService.referenceOf(npc);
 
+        if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&state.getLiege().hasSameIdentity(clicked)) {
+            KOMEKnightCommission commission=progression.getKnightService().assignment();
+            return commission!=null&&commission.stage!=KOMEKnightCommission.Stage.OFFERED
+                &&KOMEKnightCommissionService.acceptOrReport(player,npc);
+        }
+
         if(state.getSerfdomMaster()
                 .hasSameIdentity(clicked)) {
             return interactMaster(
@@ -44,7 +50,7 @@ public final class KOMEProgressionNpcInteractionService {
                 npc);
         }
 
-        if(state.getProspectiveLiege()
+        if(state.getLiege()
                 .hasSameIdentity(clicked)) {
             return interactLiege(
                 player,
@@ -52,6 +58,15 @@ public final class KOMEProgressionNpcInteractionService {
                 progression,
                 state,
                 npc);
+        }
+
+        if(state.getFormerMaster().hasSameIdentity(clicked)
+                &&progression.getCanonicalRank().order>=KOMEProgressionRank.KNIGHT.order
+                &&npc.isEntityAlive()&&player.worldObj==npc.worldObj
+                &&player.getDistanceSqToEntity(npc)<=64D) {
+            KOMEProgressionNpcSpeech.say(player,npc,
+                "It is good to see you again. I remember your faithful service in my household.");
+            // Acknowledgement must not replace ordinary trading or conversation.
         }
 
         return false;
@@ -92,7 +107,7 @@ public final class KOMEProgressionNpcInteractionService {
                 player,
                 npc,
                 "You have fulfilled your service and proved yourself before your liege. "
-                    +"Take my blessing as you leave my household. Rise now as a knight.");
+                    +"Take my blessing as you leave my household. Rise now to your new standing.");
 
             KOMEProgressionAutoCompleter.syncPlayer(
                 player,
@@ -170,19 +185,6 @@ public final class KOMEProgressionNpcInteractionService {
                 state.getActiveAssignmentKind());
 
         if(requested==KOMESerfKnightDutyType.COURIER) {
-            KOMESerfCourierAssignment assignment=
-                KOMESerfCourierAssignment.readFromNBT(
-                    state.getDuty(requested)
-                        .getAssignmentData());
-
-            if(assignment!=null) {
-                KOMECourierService.dropMessageFromMaster(
-                    player,
-                    npc,
-                    assignment,
-                    state.getSerfdomMaster());
-            }
-
             KOMEProgressionNpcSpeech.assignCourier(
                 player,
                 npc);
@@ -325,54 +327,7 @@ public final class KOMEProgressionNpcInteractionService {
             KOMEPlayerProgression progression,
             KOMESerfKnightProgression state,
             LOTREntityNPC npc) {
-        KOMESerfCourierAssignment assignment=
-            KOMESerfCourierAssignment.readFromNBT(
-                state.getDuty(
-                    KOMESerfKnightDutyType.COURIER)
-                    .getAssignmentData());
-
-        if(assignment==null) {
-            return false;
-        }
-
-        if(assignment.stage==
-                KOMESerfCourierAssignment.Stage.DELIVERED) {
-            if(KOMECourierService.reportToMaster(
-                    player,
-                    data,
-                    progression)) {
-                KOMEProgressionNpcSpeech.completeCourier(
-                    player,
-                    npc);
-            } else {
-                player.addChatMessage(
-                    new ChatComponentText(
-                        "Deliver the dispatch, then return to your Master."));
-            }
-
-            return true;
-        }
-
-        if(assignment.stage==
-                KOMESerfCourierAssignment.Stage.OUTBOUND
-                &&!KOMECourierService.hasDispatch(
-                    player,
-                    assignment,
-                    state.getSerfdomMaster())) {
-            KOMECourierService.dropMessageFromMaster(
-                player,
-                npc,
-                assignment,
-                state.getSerfdomMaster());
-
-            KOMEProgressionNpcSpeech.replaceCourierMessage(
-                player,
-                npc);
-
-            return true;
-        }
-
-        return false;
+        return KOMECourierIssuance.interact(player,data,npc);
     }
 
     private static boolean interactLiege(
@@ -431,50 +386,13 @@ public final class KOMEProgressionNpcInteractionService {
             return true;
         }
 
-        long day=KOMESerfKnightService.calendarDayNow();
-
-        if(!KOMESerfKnightService.mayIssueAssignment(
-                state,
-                day,
-                player.getUniqueID())) {
-            return false;
-        }
-
-        KOMESerfKnightService.Result result=
-            KOMESerfKnightService.assignTrial(
-                state,
-                player.worldObj.rand,
-                day,
-                player.getUniqueID());
-
-        if(!result.success) {
-            player.addChatMessage(
-                new ChatComponentText(result.reason));
-            return true;
-        }
-
-        activateTrial(
-            player,
-            progression,
-            npc,
-            state.getTrialId());
-
-        data.markDirty();
-
-        KOMEProgressionAutoCompleter.syncPlayer(
-            player,
-            progression);
-
-        KOMEProgressionNpcSpeech.say(
-            player,
-            npc,
-            KOMESerfKnightService.trialSpeech(
-                state.getTrialAssignment()));
-
-        return true;
+        // A new Trial of Standing is now accepted explicitly through the normal
+        // Talk / Hire / Quest interaction GUI. Do not assign it just because the
+        // player right-clicked their committed Liege.
+        return false;
     }
 
-    private static void activateTrial(
+    static void activateTrial(
             EntityPlayerMP player,
             KOMEPlayerProgression progression,
             LOTREntityNPC liege,

@@ -7,28 +7,47 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEProgressionPermissionRegistryTest {
-    @Test public void rankPrerequisitesBlockCrossGroupButAllowCompleteChains() {
+    @Test public void canonicalRankRatherThanPreviousAchievementGroupControlsTierAccess() {
         KOMEPlayerProgression progression = new KOMEPlayerProgression();
         KOMEProgressionAchievement serf = KOMEProgressionAchievement.forID("serf.quest_seeker");
         assertFalse(KOMEProgressionPermissionRegistry.canComplete(progression, serf));
-        for (KOMEProgressionAchievement a : KOMEProgressionAchievement.forGroup("wanderer")) progression.grant(a.id);
+        progression.setCanonicalRank(KOMEProgressionRank.SERF);
         assertTrue(KOMEProgressionPermissionRegistry.canComplete(progression, serf));
+        assertFalse("Optional Wanderer advancements are not rank authority",
+            progression.isCompleted(KOMEProgressionAchievement.forID("wanderer.expert_traveler")));
+        KOMEProgressionAchievement knight = KOMEProgressionAchievement.forID("knight.craftsman");
+        assertFalse(KOMEProgressionPermissionRegistry.canComplete(progression, knight));
+        progression.setCanonicalRank(KOMEProgressionRank.KNIGHT);
+        assertTrue(KOMEProgressionPermissionRegistry.canComplete(progression, knight));
     }
-    @Test public void requirementTextAndPredicateDescribeTheSameRankGate() {
+
+    @Test public void lordMarkerCannotBeSelfCertifiedEvenWithHistoricalChecklist() {
+        KOMEPlayerProgression progression = new KOMEPlayerProgression();
+        progression.setCanonicalRank(KOMEProgressionRank.KNIGHT);
+        KOMEProgressionAchievement marker = KOMEProgressionAchievement.forID("knight.title_lord");
+        assertFalse(KOMEProgressionPermissionRegistry.canComplete(progression, marker));
+        KOMEHigherRankTransitionService.Transition transition =
+            KOMEHigherRankTransitionService.forCurrentRank(KOMEProgressionRank.KNIGHT);
+        for (KOMEHigherRankTransitionService.RequirementGroup group : transition.groups)
+            for (String id : group.achievementIds) progression.grant(id);
+        assertFalse(KOMEProgressionPermissionRegistry.canComplete(progression, marker));
+        assertFalse(progression.isCompleted(KOMEProgressionAchievement.forID("knight.craftsman")));
+    }
+    @Test public void requirementTextAndPredicateDescribeTheSameCanonicalRankGate() {
         KOMEProgressionAchievement lord = KOMEProgressionAchievement.forID("lord.redstone");
-        assertTrue(KOMEProgressionPermissionRegistry.requirementText(lord).contains("Knight progression"));
-        assertFalse(KOMEProgressionPermissionRegistry.canComplete(new KOMEPlayerProgression(), lord));
+        assertTrue(KOMEProgressionPermissionRegistry.requirementText(lord).contains("canonical faction rank"));
+        KOMEPlayerProgression progression = new KOMEPlayerProgression();
+        progression.setCanonicalRank(KOMEProgressionRank.KNIGHT);
+        assertFalse(KOMEProgressionPermissionRegistry.canComplete(progression, lord));
+        progression.setCanonicalRank(KOMEProgressionRank.LORD);
+        assertTrue(KOMEProgressionPermissionRegistry.canComplete(progression, lord));
     }
     @Test public void endgameAndRulerOfficeRemainIndependent() {
         KOMEWorldData data = new KOMEWorldData("progression"); UUID player = UUID.randomUUID();
         assertTrue(KOMERulerService.assignRuler(data,"gondor",player,"Ruler"));
         assertFalse(data.getProgression(player).isCompleted(KOMEProgressionAchievement.forID("prince_king.true_silver")));
         KOMEPlayerProgression p = data.getProgression(player);
-        for (KOMEProgressionAchievement a : KOMEProgressionAchievement.forGroup("baseline")) p.grant(a.id);
-        for (KOMEProgressionAchievement a : KOMEProgressionAchievement.forGroup("wanderer")) p.grant(a.id);
-        for (KOMEProgressionAchievement a : KOMEProgressionAchievement.forGroup("serf")) p.grant(a.id);
-        for (KOMEProgressionAchievement a : KOMEProgressionAchievement.forGroup("knight")) p.grant(a.id);
-        for (KOMEProgressionAchievement a : KOMEProgressionAchievement.forGroup("lord")) p.grant(a.id);
+        p.setCanonicalRank(KOMEProgressionRank.PRINCE);
         KOMEProgressionAchievement endgame=KOMEProgressionAchievement.forID("prince_king.true_silver");
         assertTrue(KOMEProgressionPermissionRegistry.canComplete(p,endgame)); assertTrue(p.grant(endgame.id));
         assertTrue(KOMERulerAuthorization.canActAsRuler(data,"gondor",player));

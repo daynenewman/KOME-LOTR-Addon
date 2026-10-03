@@ -28,7 +28,7 @@ public class KOMEVisualLocationServiceTest {
         player.getSerfKnightProgression().setSerfdomMaster(master);
         assertEquals(KOMEVisualMarker.Role.SERFDOM_MASTER,
             KOMEVisualLocationService.markersFor(player).get(0).role);
-        player.getSerfKnightProgression().setProspectiveLiege(liege);
+        player.getSerfKnightProgression().setLiege(liege);
         player.setCanonicalRank(KOMEProgressionRank.KNIGHT);
         assertEquals(KOMEVisualMarker.Role.KNIGHT_LIEGE,
             KOMEVisualLocationService.markersFor(player).get(0).role);
@@ -38,6 +38,8 @@ public class KOMEVisualLocationServiceTest {
         assertEquals("Hurin", lord.title);
         assertEquals("Liege", lord.subtitle);
         player.getSerfKnightProgression().leaveSerfdomMaster();
+        assertEquals(liege.entityUuid,KOMEVisualLocationService.markersFor(player).get(0).entityUuid);
+        player.getSerfKnightProgression().leaveLiege();
         assertTrue(KOMEVisualLocationService.markersFor(player).isEmpty());
     }
 
@@ -139,7 +141,7 @@ public class KOMEVisualLocationServiceTest {
         KOMESerfKnightProgression state = player.getSerfKnightProgression();
         state.setSerfdomMaster(npc("Aldor", 10, 20));
         KOMEProgressionNpcRef liege = npc("Hurin", 30, 40);
-        state.setProspectiveLiege(liege);
+        state.setLiege(liege);
         KOMESerfKnightTrialAssignment base = KOMESerfKnightTrialAssignment.create(
             KOMESerfKnightTrial.forId("recovery"), liege, 20L, 0);
         NBTTagCompound data = new NBTTagCompound();

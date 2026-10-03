@@ -16,7 +16,7 @@ public class KOMESerfKnightRelationshipServiceTest {
         KOMEPlayerProgression progression = data.getProgression(player);
         assertEquals(KOMEProgressionRank.SERF, progression.getCanonicalRank());
         assertTrue(progression.getSerfKnightProgression().getSerfdomMaster().hasSameIdentity(target));
-        assertFalse(progression.getSerfKnightProgression().getProspectiveLiege().isSet());
+        assertFalse(progression.getSerfKnightProgression().getLiege().isSet());
         assertFalse(progression.getSerfKnightProgression().getDuty(KOMESerfKnightDutyType.PROVISIONING).isCompleted());
         assertNull(progression.getSerfKnightProgression().getTrialAssignment());
     }
@@ -29,7 +29,7 @@ public class KOMESerfKnightRelationshipServiceTest {
             KOMEPlayerProgression progression = data.getProgression(player);
             assertEquals(level.rank, progression.getCanonicalRank());
             assertTrue(progression.getSerfKnightProgression().getSerfdomMaster().hasSameIdentity(target));
-            assertTrue(progression.getSerfKnightProgression().getProspectiveLiege().hasSameIdentity(target));
+            assertTrue(progression.getSerfKnightProgression().getLiege().hasSameIdentity(target));
             // These structural records are required for a valid persisted liege;
             // no achievement, trial, or reward has been granted.
             assertTrue(progression.getSerfKnightProgression().getDuty(KOMESerfKnightDutyType.COURIER).isCompleted());
@@ -38,7 +38,7 @@ public class KOMESerfKnightRelationshipServiceTest {
             KOMEPlayerProgression restored = new KOMEPlayerProgression();
             restored.readFromNBT(progression.writeToNBT());
             assertEquals(level.rank, restored.getCanonicalRank());
-            assertTrue(restored.getSerfKnightProgression().getProspectiveLiege().hasSameIdentity(target));
+            assertTrue(restored.getSerfKnightProgression().getLiege().hasSameIdentity(target));
         }
     }
 
@@ -50,7 +50,7 @@ public class KOMESerfKnightRelationshipServiceTest {
         firstState.setTrial("escort");
         assertTrue(KOMESerfKnightRelationshipService.clear(data, first, one.entityUuid).success);
         assertFalse(firstState.getSerfdomMaster().isSet());
-        assertFalse(firstState.getProspectiveLiege().isSet());
+        assertTrue("Master cleanup retains the independent Liege",firstState.getLiege().isSet());
         assertNull(firstState.getTrialAssignment());
         assertTrue(data.getProgression(second).getSerfKnightProgression().getSerfdomMaster().hasSameIdentity(two));
         assertFalse(KOMESerfKnightRelationshipService.clear(data, second, one.entityUuid).success);

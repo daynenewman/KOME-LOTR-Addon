@@ -40,7 +40,7 @@ public class KOMECourierDispatchDropTest {
     }
 
     @Test
-    public void directInteractionDropsCourierLetterInsteadOfSilentlyInsertingIt()
+    public void directInteractionUsesSharedPhysicalIssuance()
             throws Exception {
         String source=
             new String(
@@ -50,13 +50,33 @@ public class KOMECourierDispatchDropTest {
                 java.nio.charset.StandardCharsets.UTF_8);
 
         assertTrue(source.contains(
-            "KOMECourierService.dropMessageFromMaster"));
+            "KOMECourierIssuance.interact"));
 
         assertTrue(source.contains(
-            "KOMECourierService.hasDispatch"));
+            "handleCourierAtMaster"));
 
         assertFalse(source.contains(
             "player.inventory.addItemStackToInventory(" +
             "\n                    KOMECourierService.message"));
+    }
+
+    @Test
+    public void courierUsesNativeSoundsForDropAndRecipientHandoff()
+            throws Exception {
+        String source=
+            new String(
+                java.nio.file.Files.readAllBytes(
+                    java.nio.file.Paths.get(
+                        "src/main/java/kome/common/data/KOMECourierService.java")),
+                java.nio.charset.StandardCharsets.UTF_8);
+
+        assertTrue(source.contains(
+            "\"random.pop\""));
+
+        assertTrue(source.contains(
+            "\"mob.horse.leather\""));
+
+        assertTrue(source.contains(
+            "playSoundAtEntity("));
     }
 }

@@ -52,7 +52,7 @@ public class KOMEPacketProgressionData implements IMessage {
         String factionKey=ByteBufUtils.readUTF8String(buf);
         String current=ByteBufUtils.readUTF8String(buf),next=ByteBufUtils.readUTF8String(buf),promotion=ByteBufUtils.readUTF8String(buf);
         int requirementCount=buf.readInt();List requirements=new ArrayList();
-        for(int i=0;i<requirementCount;i++)requirements.add(new KOMEProgressionRankSummary.Requirement(ByteBufUtils.readUTF8String(buf),buf.readInt(),buf.readInt(),buf.readBoolean()));
+        for(int i=0;i<requirementCount;i++)requirements.add(readRequirement(buf));
         rankSummary=new KOMEProgressionRankSummary(factionKey,current,next,promotion,requirements,ByteBufUtils.readUTF8String(buf),ByteBufUtils.readUTF8String(buf),ByteBufUtils.readUTF8String(buf));
     }
 
@@ -72,8 +72,22 @@ public class KOMEPacketProgressionData implements IMessage {
         ByteBufUtils.writeUTF8String(buf,canonicalSummary);ByteBufUtils.writeUTF8String(buf,findLabel);ByteBufUtils.writeUTF8String(buf,leaveRelationshipType);ByteBufUtils.writeUTF8String(buf,leaveRelationshipLabel);ByteBufUtils.writeUTF8String(buf,leaveRelationshipName);
         KOMEProgressionRankSummary ranks=rankSummary==null?KOMEProgressionRankSummary.EMPTY:rankSummary;
         ByteBufUtils.writeUTF8String(buf,ranks.factionKey);ByteBufUtils.writeUTF8String(buf,ranks.currentRank);ByteBufUtils.writeUTF8String(buf,ranks.nextRank);ByteBufUtils.writeUTF8String(buf,ranks.promotionTitle);buf.writeInt(ranks.requirements.size());
-        for(KOMEProgressionRankSummary.Requirement requirement:ranks.requirements){ByteBufUtils.writeUTF8String(buf,requirement.label);buf.writeInt(requirement.current);buf.writeInt(requirement.required);buf.writeBoolean(requirement.complete);}
+        for(KOMEProgressionRankSummary.Requirement requirement:ranks.requirements)writeRequirement(buf,requirement);
         ByteBufUtils.writeUTF8String(buf,ranks.activityHeading);ByteBufUtils.writeUTF8String(buf,ranks.activityTitle);ByteBufUtils.writeUTF8String(buf,ranks.activityObjective);
+    }
+
+    private static KOMEProgressionRankSummary.Requirement readRequirement(ByteBuf buf) {
+        String label=ByteBufUtils.readUTF8String(buf);int current=buf.readInt(),required=buf.readInt();boolean complete=buf.readBoolean();
+        int childCount=buf.readInt();List<KOMEProgressionRankSummary.Requirement> children=new ArrayList<KOMEProgressionRankSummary.Requirement>();
+        for(int i=0;i<childCount;i++)children.add(new KOMEProgressionRankSummary.Requirement(
+            ByteBufUtils.readUTF8String(buf),buf.readInt(),buf.readInt(),buf.readBoolean()));
+        return new KOMEProgressionRankSummary.Requirement(label,current,required,complete,children);
+    }
+
+    private static void writeRequirement(ByteBuf buf,KOMEProgressionRankSummary.Requirement requirement) {
+        ByteBufUtils.writeUTF8String(buf,requirement.label);buf.writeInt(requirement.current);buf.writeInt(requirement.required);buf.writeBoolean(requirement.complete);
+        buf.writeInt(requirement.children.size());
+        for(KOMEProgressionRankSummary.Requirement child:requirement.children){ByteBufUtils.writeUTF8String(buf,child.label);buf.writeInt(child.current);buf.writeInt(child.required);buf.writeBoolean(child.complete);}
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketProgressionData, IMessage> {

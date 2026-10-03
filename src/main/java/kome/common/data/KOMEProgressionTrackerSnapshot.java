@@ -4,6 +4,8 @@ import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 
 /** Server-authored presentation snapshot for the movable progression HUD tracker. */
 public final class KOMEProgressionTrackerSnapshot {
@@ -13,6 +15,7 @@ public final class KOMEProgressionTrackerSnapshot {
     public final boolean visible;
     public final String iconKey, objective, progress;
     public final float completion;
+    public final ItemStack requestedItem;
 
     public KOMEProgressionTrackerSnapshot(
             boolean visible,
@@ -20,11 +23,16 @@ public final class KOMEProgressionTrackerSnapshot {
             String objective,
             String progress,
             float completion) {
+        this(visible,iconKey,objective,progress,completion,null);
+    }
+
+    public KOMEProgressionTrackerSnapshot(boolean visible,String iconKey,String objective,String progress,float completion,ItemStack requestedItem) {
         this.visible=visible;
         this.iconKey=safe(iconKey);
         this.objective=safe(objective);
         this.progress=safe(progress);
         this.completion=clamp(completion);
+        this.requestedItem=requestedItem==null||requestedItem.getItem()==null?null:requestedItem.copy();
     }
 
     public String signature() {
@@ -32,12 +40,31 @@ public final class KOMEProgressionTrackerSnapshot {
             +'|'+iconKey
             +'|'+objective
             +'|'+progress
-            +'|'+Float.floatToIntBits(completion);
+            +'|'+Float.floatToIntBits(completion)
+            +'|'+(requestedItem==null?"":requestedItem.writeToNBT(new net.minecraft.nbt.NBTTagCompound()).toString());
+    }
+
+    /** Client-safe hint derived entirely from this server-authored snapshot. */
+    public boolean isReadyForStandingTrial() {
+        return visible
+            && "standing_trial_ready".equals(iconKey);
     }
 
     public static KOMEProgressionTrackerSnapshot project(
             EntityPlayerMP player,
             KOMEPlayerProgression progression) {
+        if(player!=null&&progression!=null&&progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT){
+            LOTRFaction faction=LOTRLevelData.getData(player).getPledgeFaction();String key=faction==null?"":faction.codeName();
+            double alignment=faction==null?0:LOTRLevelData.getData(player).getAlignment(faction);
+            String standing=KOMELordshipTrialPresentation.standing(progression,alignment,key);
+            KOMELordshipTrial trial=progression.getLordship().assignment();
+            if(trial!=null)return shown("commission",KOMELordshipTrialPresentation.objective(trial),KOMELordshipTrialPresentation.title(trial),trial.ready()?1F:0F);
+            KOMEKnightCommission commission=progression.getKnightService().assignment();
+            if(commission==null)return shown("commission",KOMEProgressionFactionResolver.missingNativeLiege(key)?KOMEKnightCommissionPresentation.unavailableLiege():KOMELordshipTrialPresentation.status(progression,alignment,key),standing,progression.getKnightService().qualifyingTypes(key).size()/3F);
+            return shown("commission",KOMEKnightCommissionPresentation.objective(commission),
+                KOMEKnightCommissionPresentation.title(commission.type),
+                commission.stage==KOMEKnightCommission.Stage.READY_TO_REPORT?1F:0F);
+        }
         if(player==null
                 ||progression==null
                 ||progression.getCanonicalRank()!=KOMEProgressionRank.SERF) {
@@ -51,7 +78,7 @@ public final class KOMEProgressionTrackerSnapshot {
 
         if("provisioning".equals(active))return provisioning(state);
         if("profession".equals(active))return profession(state);
-        if("courier".equals(active))return courier(state);
+        if("courier".equals(active))return courier(player,state);
         if("trial".equals(active))return trial(player,state);
 
         return nextStep(player,state);
@@ -80,7 +107,8 @@ public final class KOMEProgressionTrackerSnapshot {
                     "provisioning",
                     requirement.description(),
                     requirement.delivered,
-                    requirement.required);
+                    requirement.required,
+                    requirement.requestedStack());
             }
         }
 
@@ -89,7 +117,8 @@ public final class KOMEProgressionTrackerSnapshot {
                 "provisioning",
                 assignment.drink.description(),
                 assignment.drink.delivered,
-                assignment.drink.required);
+                assignment.drink.required,
+                assignment.drink.requestedStack());
         }
 
         return shown(
@@ -122,7 +151,8 @@ public final class KOMEProgressionTrackerSnapshot {
                     "profession",
                     requirement.required+" "+requirement.displayName,
                     requirement.delivered,
-                    requirement.required);
+                    requirement.required,
+                    professionStack(requirement));
             }
         }
 
@@ -134,7 +164,7 @@ public final class KOMEProgressionTrackerSnapshot {
     }
 
     private static KOMEProgressionTrackerSnapshot courier(
-            KOMESerfKnightProgression state) {
+            EntityPlayerMP player,KOMESerfKnightProgression state) {
         KOMESerfCourierAssignment assignment=
             KOMESerfCourierAssignment.readFromNBT(
                 state.getDuty(
@@ -149,6 +179,12 @@ public final class KOMEProgressionTrackerSnapshot {
                 0F);
         }
 
+        if(assignment.confirmedRecipientDeath) {
+            long wait=assignment.replacementTicksRemaining(player.worldObj.getTotalWorldTime());
+            return shown("courier","The recipient has died. Return the current letter to your Master.",wait>0?"Copy in "+KOMECourierIssuance.cooldownText(wait):assignment.replacements>=3?"No copies remain":"Copy available",0.9F);
+        }
+        String cooldown=assignment.documentIssued&&assignment.replacementTicksRemaining(player.worldObj.getTotalWorldTime())>0L
+            ?"Copy in "+KOMECourierIssuance.cooldownText(assignment.replacementTicksRemaining(player.worldObj.getTotalWorldTime())):assignment.replacements>=3?"No copies remain":"Copy available";
         if(assignment.stage==
                 KOMESerfCourierAssignment.Stage.DELIVERED) {
             return shown(
@@ -164,7 +200,7 @@ public final class KOMEProgressionTrackerSnapshot {
                 "courier",
                 "Deliver the dispatch to "
                     +assignment.recipient.displayName+".",
-                "Recipient found",
+                cooldown,
                 0.75F);
         }
 
@@ -172,7 +208,7 @@ public final class KOMEProgressionTrackerSnapshot {
             "courier",
             "Carry the dispatch to "
                 +assignment.destinationName+".",
-            "En route",
+            cooldown,
             0.25F);
     }
 
@@ -185,7 +221,7 @@ public final class KOMEProgressionTrackerSnapshot {
         if(assignment==null) {
             return shown(
                 "progression",
-                "Complete your Trial of Knighthood.",
+                "Complete your Trial of Standing.",
                 "Trial",
                 0F);
         }
@@ -277,7 +313,7 @@ public final class KOMEProgressionTrackerSnapshot {
 
         return shown(
             "progression",
-            "Complete your Trial of Knighthood.",
+            "Complete your Trial of Standing.",
             "Trial",
             0F);
     }
@@ -298,7 +334,7 @@ public final class KOMEProgressionTrackerSnapshot {
         if(!state.getSerfdomMaster().isSet()) {
             return shown(
                 "progression",
-                "Find a Serfdom Master in your pledged faction.",
+                "Find a Master in your pledged faction.",
                 "Find a Master",
                 0F);
         }
@@ -315,41 +351,56 @@ public final class KOMEProgressionTrackerSnapshot {
         int total=KOMESerfKnightDutyType.values().length;
 
         if(completed<total) {
-            String objective=
-                KOMESerfKnightService.mayIssueAssignment(
+            if(!KOMESerfKnightService.mayIssueAssignment(
                     state,
                     day,
-                    player.getUniqueID())
-                    ?"Request another duty from your Master."
-                    :"Return to your Master when more work is available.";
+                    player.getUniqueID())) {
+                return dailyComplete(
+                    completed,
+                    total);
+            }
 
             return shown(
                 "progression",
-                objective,
+                "Request another duty from your Master.",
                 completed+" / "+total+" duties",
                 completed/(float)total);
         }
 
-        if(!state.getProspectiveLiege().isSet()) {
+        if(!state.hasLiege()) {
+            String factionKey=state.getSerfdomMaster().factionKey;
+            int required=KOMEStandingTrialEligibility.requiredAlignment(factionKey);
+            double alignment=currentAlignment(player);
+            String title=KOMEFactionProgressionTitles.title(factionKey,KOMEProgressionRank.SERF);
+            if(!KOMEStandingTrialEligibility.meetsAlignment(state,alignment,factionKey)) {
+                int current=(int)Math.floor(alignment);
+                return shown("alignment","Earn faction alignment as a "+title+" before seeking a Liege.",current+" / "+required,current/(float)required);
+            }
+            if(!KOMESerfKnightService.mayIssueTrial(
+                    state,
+                    day,
+                    player.getUniqueID())) {
+                return trialDailyComplete();
+            }
+
             return shown(
-                "progression",
-                "Seek a prospective Liege for your Trial of Knighthood.",
-                "Duties complete",
+                "standing_trial_ready",
+                "Seek an eligible Liege for your Trial of Standing.\n"+title,
+                (int)Math.floor(alignment)+" / "+required,
                 0.6F);
         }
 
         if(state.getTrialId().length()==0) {
-            String objective=
-                KOMESerfKnightService.mayIssueAssignment(
+            if(!KOMESerfKnightService.mayIssueTrial(
                     state,
                     day,
-                    player.getUniqueID())
-                    ?"Request your Trial of Knighthood from your Liege."
-                    :"Return to your Liege when another assignment is available.";
+                    player.getUniqueID())) {
+                return trialDailyComplete();
+            }
 
             return shown(
-                "progression",
-                objective,
+                "standing_trial_ready",
+                "Request your Trial of Standing from your Liege.",
                 "Ready for trial",
                 0.7F);
         }
@@ -373,28 +424,54 @@ public final class KOMEProgressionTrackerSnapshot {
 
             return shown(
                 "progression",
-                "Return to your Master for Knighthood.",
+                "Return to your Master to receive your new standing.",
                 "Ready",
                 1F);
         }
 
         return shown(
             "progression",
-            "Complete your Trial of Knighthood.",
+            "Complete your Trial of Standing.",
             "Trial",
             0.75F);
+    }
+
+    private static KOMEProgressionTrackerSnapshot dailyComplete(
+            int completed,
+            int total) {
+        return shown(
+            "daily_complete",
+            "Today's duty is complete.",
+            completed+" / "+total+" duties",
+            total<=0?1F:completed/(float)total);
+    }
+
+    private static KOMEProgressionTrackerSnapshot trialDailyComplete() {
+        return shown(
+            "daily_complete",
+            "You have already received a Trial of Standing today.",
+            "Return another day",
+            1F);
     }
 
     private static KOMEProgressionTrackerSnapshot requirement(
             String icon,
             String description,
             int current,
-            int required) {
-        return shown(
+            int required,
+            ItemStack target) {
+        return new KOMEProgressionTrackerSnapshot(
+            true,
             icon,
             "Bring "+description+" to your Master.",
             current+" / "+required,
-            required<=0?0F:current/(float)required);
+            required<=0?0F:current/(float)required,
+            target);
+    }
+
+    private static ItemStack professionStack(KOMESerfProfessionAssignment.Requirement r) {
+        Item item=r.itemKey.length()==0?Item.getItemById(r.itemId):(Item)Item.itemRegistry.getObject(r.itemKey);
+        return item==null?null:new ItemStack(item,1,r.damage);
     }
 
     private static KOMEProgressionTrackerSnapshot shown(

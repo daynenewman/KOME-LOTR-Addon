@@ -26,7 +26,7 @@ public final class KOMEMiniquestOfferGuard {
             .getProgression(KOMEReflection.getEntityUUID(player));
         String id=KOMEReflection.getEntityUUID(npc).toString();
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
-        return id.equals(state.getSerfdomMaster().entityUuid)||id.equals(state.getProspectiveLiege().entityUuid);
+        return id.equals(state.getSerfdomMaster().entityUuid)||id.equals(state.getLiege().entityUuid);
     }
 
     private static LOTREntityNPC npc(LOTREntityQuestInfo info){

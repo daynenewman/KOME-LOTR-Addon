@@ -8,5 +8,5 @@ import lotr.common.quest.LOTRMiniQuest;
 public final class KOMEProgressionOfferClientBridge {
     private static Field quest, sent;
     private KOMEProgressionOfferClientBridge(){}
-    public static boolean preservePassiveClose(Object gui){try{if(quest==null){quest=gui.getClass().getDeclaredField("theMiniQuest");quest.setAccessible(true);sent=gui.getClass().getDeclaredField("sentClosePacket");sent.setAccessible(true);}Object value=quest.get(gui);if(value instanceof LOTRMiniQuest&&KOMEProgressionOfferBridge.isExternalOffer((LOTRMiniQuest)value)&&!sent.getBoolean(gui)){sent.setBoolean(gui,true);return true;}}catch(Exception ignored){}return false;}
+    public static boolean preservePassiveClose(Object gui){try{if(quest==null){quest=gui.getClass().getDeclaredField("theMiniQuest");quest.setAccessible(true);sent=gui.getClass().getDeclaredField("sentClosePacket");sent.setAccessible(true);}Object value=quest.get(gui);if(value instanceof LOTRMiniQuest&&KOMEProgressionOfferBridge.isExternalOffer((LOTRMiniQuest)value)&&!(value instanceof kome.common.data.KOMELiegeOfferQuest&&(((kome.common.data.KOMELiegeOfferQuest)value).isStandingTrialOffer()||((kome.common.data.KOMELiegeOfferQuest)value).isReplacementOffer()))&&!sent.getBoolean(gui)){sent.setBoolean(gui,true);return true;}}catch(Exception ignored){}return false;}
 }

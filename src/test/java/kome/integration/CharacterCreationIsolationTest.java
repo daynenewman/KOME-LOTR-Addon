@@ -4,6 +4,9 @@ import kome.core.KOMECorePlugin;
 import kome.core.KOMEWaypointTransformer;
 import kome.core.KOMEProgressionOfferTransformer;
 import kome.core.KOMEProgressionOfferGuiTransformer;
+import kome.core.KOMEFactionTitleTransformer;
+import kome.core.KOMEAlignmentBarTitleTransformer;
+import kome.core.KOMEFactionTitleOptionsTransformer;
 import kome.core.KOMEVisualLocationTransformer;
 import kome.core.KOMEProgressionNpcDespawnTransformer;
 import net.minecraft.entity.player.EntityPlayer;
@@ -408,6 +411,9 @@ public class CharacterCreationIsolationTest {
                 KOMEWaypointTransformer.class.getName(),
                 KOMEProgressionOfferTransformer.class.getName(),
                 KOMEProgressionOfferGuiTransformer.class.getName(),
+                KOMEFactionTitleTransformer.class.getName(),
+                KOMEAlignmentBarTitleTransformer.class.getName(),
+                KOMEFactionTitleOptionsTransformer.class.getName(),
                 KOMEVisualLocationTransformer.class.getName(),
                 KOMEProgressionNpcDespawnTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),

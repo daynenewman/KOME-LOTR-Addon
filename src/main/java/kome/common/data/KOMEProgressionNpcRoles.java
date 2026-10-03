@@ -24,16 +24,24 @@ public final class KOMEProgressionNpcRoles {
         if(progression==null){prune(world);return;}
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         add(world,player,state.getSerfdomMaster(),KOMEProgressionNpcRoleLease.Role.SERFDOM_MASTER,state.getSerfdomMaster().entityUuid);
-        add(world,player,state.getProspectiveLiege(),KOMEProgressionNpcRoleLease.Role.LIEGE,state.getProspectiveLiege().entityUuid);
+        add(world,player,state.getLiege(),KOMEProgressionNpcRoleLease.Role.LIEGE,state.getLiege().entityUuid);
         if("courier".equals(state.getActiveAssignmentKind())) {
             KOMESerfCourierAssignment courier=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-            if(courier!=null&&courier.stage==KOMESerfCourierAssignment.Stage.OUTBOUND)
+            if(courier!=null&&courier.stage==KOMESerfCourierAssignment.Stage.OUTBOUND&&!courier.confirmedRecipientDeath)
                 add(world,player,courier.recipient,KOMEProgressionNpcRoleLease.Role.COURIER_RECIPIENT,courier.token);
         }
         KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();
         if(trial!=null&&trial.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE&&!state.isTrialCompleted()) {
             if("escort".equals(trial.trialId))add(world,player,ref(trial,"EscortTarget"),KOMEProgressionNpcRoleLease.Role.ESCORT_CHARGE,trial.assignmentToken);
             if("defense".equals(trial.trialId))add(world,player,ref(trial,"DefenseObjective"),KOMEProgressionNpcRoleLease.Role.DEFENSE_PROTECTED,trial.assignmentToken);
+        }
+        KOMEKnightCommission commission=progression.getKnightService().assignment();
+        if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&commission!=null&&commission.live())for(KOMEKnightCommission.Actor actor:commission.actors)if(!actor.dead)
+            add(world,player,new KOMEProgressionNpcRef(actor.id,commission.place,actor.role==KOMEKnightCommission.Role.ENEMY?commission.enemyFaction:commission.faction,commission.dimension,actor.x,actor.y,actor.z),actor.role==KOMEKnightCommission.Role.ENEMY?KOMEProgressionNpcRoleLease.Role.COMMISSION_ENEMY:KOMEProgressionNpcRoleLease.Role.COMMISSION_BENEFICIARY,commission.token);
+        KOMELordshipTrial lordship=progression.getLordship().assignment();
+        if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&lordship!=null&&!lordship.forceReleased&&(lordship.objective.stage==KOMEKnightCommission.Stage.ACTIVE||lordship.ready()))for(KOMEKnightCommission.Actor actor:lordship.objective.actors)if(!actor.dead&&(!lordship.ready()||actor.role==KOMEKnightCommission.Role.GUARD)){
+            KOMEKnightCommission a=lordship.objective;
+            add(world,player,new KOMEProgressionNpcRef(actor.id,a.place,actor.role==KOMEKnightCommission.Role.ENEMY?a.enemyFaction:a.faction,a.dimension,actor.x,actor.y,actor.z),KOMEProgressionNpcRoleLease.Role.LORDSHIP_GUARD,a.token);
         }
         prune(world);
     }

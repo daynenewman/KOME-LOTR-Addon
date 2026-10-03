@@ -9,11 +9,19 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEVisualRenderBridgeTest {
+    @Test public void giftPouchAndLiegeMedallionRemainOnTheirOwnNpcsAcrossSnapshots() {
+        KOMEVisualMarker gift=new KOMEVisualMarker(KOMEVisualMarker.Role.MASTER_GIFT,"old-master","Master","Parting Gift",100,1,2,3);
+        KOMEVisualMarker liege=new KOMEVisualMarker(KOMEVisualMarker.Role.KNIGHT_LIEGE,"new-liege","Liege","Liege",100,4,5,6);
+        KOMEVisualMarker stale=new KOMEVisualMarker(KOMEVisualMarker.Role.RULER,"old-master","Master","Ruler",100,1,2,3);
+        KOMEVisualMarkerClientState.update(Arrays.asList(stale,liege,gift));
+        assertSame(gift,KOMEVisualRenderBridge.overheadFor("old-master",100));assertSame(liege,KOMEVisualRenderBridge.overheadFor("new-liege",100));
+        KOMEVisualMarkerClientState.update(Arrays.asList(liege));assertNull(KOMEVisualRenderBridge.overheadFor("old-master",100));assertSame(liege,KOMEVisualRenderBridge.overheadFor("new-liege",100));
+    }
     @After public void clear() { KOMEVisualMarkerClientState.clear(); }
 
     @Test public void relationshipLookupIsIdentityAndDimensionSpecific() {
         KOMEVisualMarker marker = new KOMEVisualMarker(KOMEVisualMarker.Role.SERFDOM_MASTER,
-            "npc-one", "Master", "Serfdom Master", 100, 1, 2, 3);
+            "npc-one", "Master", "Master", 100, 1, 2, 3);
         KOMEVisualMarkerClientState.update(Arrays.asList(marker));
         assertSame(marker, KOMEVisualRenderBridge.relationshipFor("npc-one", 100));
         assertNull(KOMEVisualRenderBridge.relationshipFor("npc-two", 100));
@@ -31,7 +39,7 @@ public class KOMEVisualRenderBridgeTest {
 
     @Test public void rulerMarkerOverridesRelationshipMarkerForSameNpc() {
         KOMEVisualMarker relationship = new KOMEVisualMarker(KOMEVisualMarker.Role.SERFDOM_MASTER,
-            "npc-one", "Master", "Serfdom Master", 100, 1, 2, 3);
+            "npc-one", "Master", "Master", 100, 1, 2, 3);
         KOMEVisualMarker ruler = new KOMEVisualMarker(KOMEVisualMarker.Role.RULER,
             "npc-one", "King", "Ruler", 100, 1, 2, 3);
         KOMEVisualMarkerClientState.update(Arrays.asList(relationship, ruler));

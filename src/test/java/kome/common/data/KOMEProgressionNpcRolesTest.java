@@ -14,9 +14,9 @@ public class KOMEProgressionNpcRolesTest {
     @Test public void simultaneousMasterAndLiegeRolesReleaseIndependently(){
         KOMEWorldData world=new KOMEWorldData("roles");UUID player=UUID.randomUUID(),npc=UUID.randomUUID();
         KOMESerfKnightProgression state=world.getProgression(player).getSerfKnightProgression();
-        state.setSerfdomMaster(ref(npc));state.setProspectiveLiege(ref(npc));KOMEProgressionNpcRoles.syncPlayer(world,player);
+        state.setSerfdomMaster(ref(npc));state.setLiege(ref(npc));KOMEProgressionNpcRoles.syncPlayer(world,player);
         assertEquals(2,world.progressionNpcRoleLeases.get(npc).size());assertTrue(KOMEProgressionNpcRoles.protects(world,npc));
-        state.leaveProspectiveLiege();KOMEProgressionNpcRoles.syncPlayer(world,player);
+        state.leaveLiege();KOMEProgressionNpcRoles.syncPlayer(world,player);
         assertEquals(1,world.progressionNpcRoleLeases.get(npc).size());
         state.leaveSerfdomMaster();KOMEProgressionNpcRoles.syncPlayer(world,player);
         assertFalse(KOMEProgressionNpcRoles.protects(world,npc));

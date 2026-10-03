@@ -46,14 +46,15 @@ public final class KOMEVisualRenderBridge {
     }
 
     static KOMEVisualMarker overheadFor(String entityUuid,int dimension) {
-        KOMEVisualMarker relationship=null, courier=null;
+        KOMEVisualMarker relationship=null, courier=null, ruler=null;
         for(KOMEVisualMarker marker:KOMEVisualMarkerClientState.markers())
             if(marker.dimension==dimension&&marker.entityUuid.equals(entityUuid)) {
-                if(marker.role==KOMEVisualMarker.Role.RULER)return marker;
+                if(marker.role==KOMEVisualMarker.Role.MASTER_GIFT)return marker;
+                if(marker.role==KOMEVisualMarker.Role.RULER)ruler=marker;
                 if(marker.isRelationship()&&relationship==null)relationship=marker;
                 if(marker.role==KOMEVisualMarker.Role.COURIER)courier=marker;
             }
-        return relationship!=null?relationship:courier;
+        return ruler!=null?ruler:relationship!=null?relationship:courier;
     }
 
     static KOMEVisualMarker relationshipFor(String entityUuid, int dimension) {
@@ -148,6 +149,7 @@ public final class KOMEVisualRenderBridge {
     }
 
     static ItemStack icon(KOMEVisualMarker.Role role) {
+        if(role==KOMEVisualMarker.Role.MASTER_GIFT&&lotr.common.LOTRMod.pouch!=null)return new ItemStack(lotr.common.LOTRMod.pouch,1,1);
         if (role == KOMEVisualMarker.Role.RULER)
             return new ItemStack(KOMEProgressionVisualItems.RULER);
         if (role == KOMEVisualMarker.Role.SERFDOM_MASTER
@@ -155,6 +157,7 @@ public final class KOMEVisualRenderBridge {
                 || role == KOMEVisualMarker.Role.LORD_LIEGE)
             return new ItemStack(KOMEProgressionVisualItems.RELATIONSHIP);
         if (role == KOMEVisualMarker.Role.COURIER) return new ItemStack(Items.paper);
+        if (role == KOMEVisualMarker.Role.COMMISSION) return new ItemStack(Items.iron_sword);
         return role == KOMEVisualMarker.Role.RECOVERY_SEARCH ? new ItemStack(Items.gold_ingot) : null;
     }
 

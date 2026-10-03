@@ -1,0 +1,28 @@
+package kome.common.data;
+
+import java.util.*;
+import lotr.common.entity.npc.LOTREntityNPC;
+import lotr.common.fac.LOTRFaction;
+import net.minecraft.nbt.NBTTagCompound;
+import org.junit.Test;
+import static org.junit.Assert.*;
+import static kome.common.data.KOMEKnightCommission.*;
+import static kome.common.data.KOMELordshipTrial.Scenario.*;
+
+public class KOMELordshipTrialStateTest {
+    @Test public void fewerThanThreeServicesCannotReceiveTrial()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(2);assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));}}
+    @Test public void threeServicesRequireLiveTwoThousandAlignment()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);f.alignment(1999);f.s.p.grant("knight.alignment_2000");assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));f.alignment(2000);assertTrue(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));}}
+    @Test public void lordCannotReceiveKnightTrial()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);f.s.p.setCanonicalRank(KOMEProgressionRank.LORD);assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));}}
+    @Test public void wrongFactionLiegeCannotIssueOrConfer()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);f.ready(f.trial(BORDER_PATROL,Stage.ACTIVE));f.s.f.pledge(LOTRFaction.GONDOR);assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));assertFalse(KOMELordshipTrialService.promote(f.s.f.player,f.liege));}}
+    @Test public void activeCommissionMustBeReportedBeforeTrial()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);f.s.p.getKnightService().offer(new KOMEKnightCommission(Type.RELIEF,f.s.p.getSerfKnightProgression().getLiege()));assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));}}
+    @Test public void onlyOneTrialCanBeOffered()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.OFFERED);assertFalse(f.s.p.getLordship().offer(t));assertSame(t,f.s.p.getLordship().assignment());}}
+    @Test public void stateActorIdentityAndDestinationRoundTrip()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){KOMELordshipTrial t=f.trial(PROTECTED_EXPEDITION,Stage.ACTIVE);f.force(t);f.actor(t,Role.CHARGE);t.objective.participated=true;NBTTagCompound before=f.s.p.writeToNBT();f.s.reload();assertEquals(before,f.s.p.writeToNBT());assertEquals(t.objective.token,f.s.p.getLordship().assignment().objective.token);}}
+    @Test public void readyEvidencePersistsAcrossReload()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){KOMELordshipTrial t=f.trial(RELIEF_FORCE,Stage.READY_TO_REPORT);f.s.reload();assertTrue(f.s.p.getLordship().assignment().ready());assertEquals(t.objective.destinationX,f.s.p.getLordship().assignment().objective.destinationX,0);}}
+    @Test public void oldSavesLoadWithoutTrialAndRetainLegacyQuotas() {KOMEPlayerProgression p=new KOMEPlayerProgression();p.setCanonicalRank(KOMEProgressionRank.KNIGHT);p.grant("knight.hooligan");p.setAssignment("knight.drop_quota_1","Old quota");NBTTagCompound n=p.writeToNBT();n.removeTag("Lordship");p.readFromNBT(n);assertNull(p.getLordship().assignment());assertEquals("Old quota",p.getAssignment("knight.drop_quota_1"));assertTrue(p.isCompleted(KOMEProgressionAchievement.forID("knight.hooligan")));}
+    @Test public void existingLordIsNeverDemotedByMigration() {KOMEPlayerProgression p=new KOMEPlayerProgression();p.setCanonicalRank(KOMEProgressionRank.LORD);NBTTagCompound n=p.writeToNBT();n.removeTag("Lordship");p.readFromNBT(n);assertEquals(KOMEProgressionRank.LORD,p.getCanonicalRank());}
+    @Test public void malformedTrialSafelyLoadsEmpty()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.ACTIVE);NBTTagCompound n=t.writeToNBT();n.setString("Scenario","bogus");assertNull(KOMELordshipTrial.readFromNBT(n));n=t.writeToNBT();n.getCompoundTag("Objective").setDouble("X",Double.NaN);assertNull(KOMELordshipTrial.readFromNBT(n));}}
+    @Test public void survivalThresholdForThreeFourAndFiveIsCeilingHalf() {for(int count=3;count<=5;count++){KOMELordshipTrial t=new KOMELordshipTrial(BORDER_PATROL,KOMEKnightCommissionStateTest.commission(Type.BORDER_INCURSION),Collections.nCopies(count,"Guard"));assertEquals((count+1)/2,t.requiredSurvivors);}}
+    @Test public void savedSurvivalThresholdCannotRelaxRule()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){NBTTagCompound n=f.trial(BORDER_PATROL,Stage.ACTIVE).writeToNBT();n.setInteger("RequiredSurvivors",0);assertEquals(2,KOMELordshipTrial.readFromNBT(n).requiredSurvivors);}}
+    @Test public void currentStandingIsNotFiniteCannotQualify()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);assertFalse(KOMELordshipTrialService.prerequisites(f.s.p,Double.NaN));assertFalse(KOMELordshipTrialService.prerequisites(f.s.p,Double.POSITIVE_INFINITY));}}
+    @Test public void failedHistoryIsBoundedAndCreditsSurvive()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);for(int i=0;i<24;i++){f.trial(BORDER_PATROL,Stage.FAILED);f.s.p.getLordship().archive();}f.s.reload();assertEquals(16,f.s.p.getLordship().history().size());assertEquals(3,f.s.p.getKnightService().completedTypes().size());}}
+}

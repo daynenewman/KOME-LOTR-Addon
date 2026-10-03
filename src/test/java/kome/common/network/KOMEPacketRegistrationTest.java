@@ -28,7 +28,7 @@ public class KOMEPacketRegistrationTest {
 
     private static final Set<Integer> EXPECTED_DISCRIMINATORS = new HashSet<Integer>(Arrays.asList(
         0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46
     ));
 
     @Test public void retiredIdsStayHolesAndEveryRetainedClassKeepsItsIdAndSide() throws Exception {
@@ -48,7 +48,8 @@ public class KOMEPacketRegistrationTest {
             "SerfdomMasterMenu:38:CLIENT", "SerfdomMasterAction:39:SERVER",
             "ProgressionRelationshipAction:40:SERVER", "RelationshipHub:41:CLIENT",
             "RelationshipAction:42:SERVER", "VisualMarkers:43:CLIENT",
-            "ProgressionRequest:44:SERVER", "ProgressionTracker:45:CLIENT"
+            "ProgressionRequest:44:SERVER", "ProgressionTracker:45:CLIENT",
+            "StandingTrialEligibility:46:CLIENT"
         };
         for (String entry : entries) {
             String[] parts = entry.split(":");
@@ -92,7 +93,7 @@ public class KOMEPacketRegistrationTest {
             }
         }
 
-        assertEquals(40, registrations);
+        assertEquals(41, registrations);
         assertEquals(EXPECTED_DISCRIMINATORS, discriminators);
         assertEquals(19, serverRegistrations);
 
@@ -138,9 +139,9 @@ public class KOMEPacketRegistrationTest {
 
         assertTrue(packet.contains("KOMEProgressionEncounterCleanup.cleanup"));
         assertTrue(packet.contains("KOMESerfKnightService.leaveSerfdomMaster"));
-        assertTrue(packet.contains("KOMESerfKnightService.leaveProspectiveLiege"));
+        assertTrue(packet.contains("KOMESerfKnightService.leaveLiege"));
         assertTrue(packet.contains("state.getSerfdomMaster().isSet()"));
-        assertTrue(packet.contains("state.getProspectiveLiege().isSet()"));
+        assertTrue(packet.contains("state.hasLiege()"));
 
         assertTrue(registry.contains("KOMEPacketProgressionRelationshipAction.class"));
         assertTrue(registry.contains("KOMEPacketProgressionRelationshipAction.class, 40, Side.SERVER"));

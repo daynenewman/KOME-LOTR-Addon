@@ -30,8 +30,10 @@ public class KOMESerfKnightIntegratedJourneyTest {
             assertTrue(KOMESerfKnightService.assignDuty(state,duty,null,day++).success);
             assertTrue(KOMESerfKnightService.completeDuty(progression,duty).success);
         }
-        assertTrue(KOMESerfKnightService.setProspectiveLiege(state,liege,KOMEProgressionNpcRank.LORD,true).success);
-        assertTrue(KOMESerfKnightService.assignTrial(state,new Random(4L),day,playerId).success);
+        assertFalse(state.hasLiege());
+        assertTrue(KOMESerfKnightService.acceptStandingTrial(
+            state,liege,KOMEProgressionNpcRank.LORD,true,new Random(4L),day,playerId).success);
+        assertTrue(state.getLiege().hasSameIdentity(liege));
         assertTrue(KOMESerfKnightService.markTrialObjectiveComplete(state).success);
         assertTrue(state.isTrialCompleted());
         assertFalse(state.hasPartingGift());
@@ -47,7 +49,7 @@ public class KOMESerfKnightIntegratedJourneyTest {
         assertTrue(state.hasPartingGift());assertTrue(state.isPromoted());
         assertEquals(KOMEProgressionRank.KNIGHT,progression.getCanonicalRank());
         assertFalse("The former Serfdom Master is no longer an active relationship after Knighthood",state.getSerfdomMaster().isSet());
-        assertTrue(state.getProspectiveLiege().hasSameIdentity(liege));
+        assertTrue(state.getLiege().hasSameIdentity(liege));
         assertTrue(KOMESerfKnightService.allDutiesComplete(state));
         assertTrue(progression.isCompleted(KOMEProgressionAchievement.forID("serf.title_knight")));
         assertEquals("Knight",KOMEProgressionRankSummary.project(progression,150D).currentRank);
@@ -56,7 +58,10 @@ public class KOMESerfKnightIntegratedJourneyTest {
         assertEquals(KOMEProgressionRank.KNIGHT,reloaded.getCanonicalRank());
         assertTrue(reloaded.getSerfKnightProgression().hasPartingGift());
         assertFalse(reloaded.getSerfKnightProgression().getSerfdomMaster().isSet());
-        assertTrue(reloaded.getSerfKnightProgression().getProspectiveLiege().hasSameIdentity(liege));
+        assertTrue(reloaded.getSerfKnightProgression().getLiege().hasSameIdentity(liege));
+        assertTrue(KOMESerfKnightService.leaveLiege(reloaded).success);
+        assertFalse(reloaded.getSerfKnightProgression().hasLiege());
+        assertEquals(KOMEProgressionRank.KNIGHT,reloaded.getCanonicalRank());
     }
 
     private static KOMEProgressionNpcRef ref(String name){return new KOMEProgressionNpcRef(

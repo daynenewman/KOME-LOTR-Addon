@@ -63,7 +63,7 @@ public class KOMESerfKnightRecoveryServiceTest {
 
     @Test public void recoveryPresentationContainsOnlyHumanState() {
         KOMEPlayerProgression player=new KOMEPlayerProgression(); player.setCanonicalRank(KOMEProgressionRank.SERF); KOMESerfKnightProgression state=player.getSerfKnightProgression();
-        assertTrue(KOMESerfKnightService.setSerfdomMaster(state,liege()).success); for(KOMESerfKnightDutyType duty:KOMESerfKnightDutyType.values()){assertTrue(KOMESerfKnightService.assignDuty(state,duty,null,10+duty.ordinal()).success);assertTrue(KOMESerfKnightService.completeDuty(state,duty).success);} assertTrue(KOMESerfKnightService.setProspectiveLiege(state,liege()).success);
+        assertTrue(KOMESerfKnightService.setSerfdomMaster(state,liege()).success); for(KOMESerfKnightDutyType duty:KOMESerfKnightDutyType.values()){assertTrue(KOMESerfKnightService.assignDuty(state,duty,null,10+duty.ordinal()).success);assertTrue(KOMESerfKnightService.completeDuty(state,duty).success);} assertTrue(KOMESerfKnightService.commitLiegeForTrial(state,liege()).success);
         KOMESerfKnightTrialAssignment a=assignment(); state.setTrial(a); assertTrue(KOMEProgressionSummary.text(player).contains("Recover the lost item"));
         NBTTagCompound data=(NBTTagCompound)a.data.copy(); data.setBoolean(KOMESerfKnightRecoveryService.DATA_RETRIEVED,true); state.updateTrialAssignment(a.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)); assertTrue(KOMEProgressionSummary.text(player).contains("Return the recovered item to your Liege")); assertFalse(KOMEProgressionSummary.text(player).contains(a.assignmentToken));
     }

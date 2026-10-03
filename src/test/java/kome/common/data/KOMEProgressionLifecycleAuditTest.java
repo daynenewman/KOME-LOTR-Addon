@@ -50,7 +50,7 @@ public class KOMEProgressionLifecycleAuditTest {
         KOMEProgressionNpcRef liege=npc("Liege","rohan");
 
         assertTrue(
-            KOMESerfKnightService.setProspectiveLiege(
+            KOMESerfKnightService.commitLiegeForTrial(
                 state,liege).success);
 
         assertTrue(
@@ -67,10 +67,10 @@ public class KOMEProgressionLifecycleAuditTest {
         String trial=state.getTrialId();
 
         assertTrue(
-            KOMESerfKnightService.leaveProspectiveLiege(
+            KOMESerfKnightService.leaveLiege(
                 progression).success);
 
-        assertFalse(state.getProspectiveLiege().isSet());
+        assertFalse(state.getLiege().isSet());
         assertEquals(trial,state.getTrialId());
         assertTrue(state.isTrialCompleted());
         assertTrue(state.hasPartingGift());

@@ -14,6 +14,19 @@ public final class KOMEProgressionEncounterCleanup {
     private KOMEProgressionEncounterCleanup() {
     }
 
+    /** Failed trials retain their retry/leave UI, but no temporary physical roles. */
+    static void failTrial(KOMEWorldData world,World liveWorld,KOMESerfKnightProgression state) {
+        KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();
+        if(world==null||trial==null)return;
+        state.updateTrialAssignment(trial.withStage(KOMESerfKnightTrialAssignment.Stage.FAILED,null));
+        for(java.util.Map.Entry<UUID,KOMEPlayerProgression> row:world.progressions.entrySet()) {
+            if(row.getValue().getSerfKnightProgression()!=state)continue;
+            if(liveWorld!=null)cleanup(liveWorld,row.getKey(),row.getValue());
+            KOMEProgressionNpcRoles.syncPlayer(world,row.getKey());
+        }
+        world.markDirty();
+    }
+
     public static void cleanup(EntityPlayerMP player,KOMEPlayerProgression progression) {
         if(player==null||progression==null)return;
         cleanup(player.worldObj,player.getUniqueID(),progression);
@@ -22,6 +35,8 @@ public final class KOMEProgressionEncounterCleanup {
     public static void cleanup(World world,UUID owner,KOMEPlayerProgression progression) {
         if(world==null||owner==null||progression==null)return;
 
+        KOMELordshipTrialService.relationshipLost(world,owner,progression);
+        KOMEKnightCommissionService.cancel(world,owner,progression);
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();
 

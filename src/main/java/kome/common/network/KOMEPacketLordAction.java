@@ -55,9 +55,9 @@ public class KOMEPacketLordAction implements IMessage {
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
             KOMEPlayerProgression progression = data.progressions.get(KOMEReflection.getEntityUUID(player));
             if (message.action == OFFERINGS) {
-                if (progression == null || !KOMEProgressionLords.isPledgedLord(entity, progression)) {
+                if (progression == null || !KOMEProgressionLords.isCanonicalLiege(entity, progression)) {
                     player.addChatMessage(new ChatComponentText(
-                        "You can only open legacy offerings for your recorded pledged lord."));
+                        "You can only open rank offerings with your committed Liege."));
                     return null;
                 }
                 KOMEProgressionLords.openOfferings(player);

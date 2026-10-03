@@ -98,10 +98,10 @@ public class KOMECanonicalPlayerRankTest {
     }
 
     @Test public void summaryDistinguishesPledgeEntryAndPermanentSerfReplacementGuidance() {
-        KOMEPlayerProgression player=new KOMEPlayerProgression();String unpledged=KOMEProgressionSummary.text(player,"");assertTrue(unpledged.contains("Pledge: None"));assertTrue(unpledged.contains("Next: Pledge to a faction"));String pledged=KOMEProgressionSummary.text(player,"Rohan");assertTrue(pledged.contains("Pledge: Rohan"));assertTrue(pledged.contains("Next: Find a Serfdom Master"));player.setCanonicalRank(KOMEProgressionRank.SERF);String serf=KOMEProgressionSummary.text(player,"Rohan");assertTrue(serf.contains("Rank: Serf"));assertTrue(serf.contains("Serfdom Master: None"));assertTrue(serf.contains("Next: Find a Serfdom Master"));assertFalse(serf.contains("Sneak-right-click"));
+        KOMEPlayerProgression player=new KOMEPlayerProgression();String unpledged=KOMEProgressionSummary.text(player,"");assertTrue(unpledged.contains("Pledge: None"));assertTrue(unpledged.contains("Next: Pledge to a faction"));String pledged=KOMEProgressionSummary.text(player,"Rohan");assertTrue(pledged.contains("Pledge: Rohan"));assertTrue(pledged.contains("Next: Find a Master"));player.setCanonicalRank(KOMEProgressionRank.SERF);String serf=KOMEProgressionSummary.text(player,"Rohan");assertTrue(serf.contains("Rank: Eorling-at-Arms"));assertTrue(serf.contains("Master: None"));assertTrue(serf.contains("Next: Find a Master"));assertFalse(serf.contains("Sneak-right-click"));
     }
 
-    @Test public void factionSelectionPledgeReconcilesBothCanonicalPledgeDutiesWithoutKomeEvent() throws Exception {
+    @Test public void factionSelectionPledgeReconciliationRespectsCanonicalRankWithoutKomeEvent() throws Exception {
         KOMEPlayerProgression player = new KOMEPlayerProgression();
         for (KOMEProgressionAchievement achievement : KOMEProgressionAchievement.forGroup("wanderer")) player.grant(achievement.id);
         KOMEProgressionNpcRef master = new KOMEProgressionNpcRef(UUID.randomUUID().toString(), "Master", "gondor", 0, 0, 0, 0);
@@ -110,11 +110,19 @@ public class KOMECanonicalPlayerRankTest {
         assertTrue(KOMEProgressionAutoCompleter.hasValidSerfPledge(player, LOTRFaction.GONDOR));
         assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
         assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
-        assertEquals(2, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
+
+        // The faction pledge is a Wanderer-level completion. The historical Serf pledge marker
+        // must respect canonical rank authority and cannot complete before entering Serfdom.
+        assertEquals(1, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
         assertEquals(0, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
         assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("baseline.pledge")));
+        assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
+        assertTrue(KOMEProgressionSummary.text(player, "Gondor").contains("Next: Find a Master"));
+
+        player.setCanonicalRank(KOMEProgressionRank.SERF);
+        assertEquals(1, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
+        assertEquals(0, KOMEProgressionAutoCompleter.reconcilePledgeDuties(player, LOTRFaction.GONDOR));
         assertTrue(player.isCompleted(KOMEProgressionAchievement.forID("serf.pledge")));
-        assertTrue(KOMEProgressionSummary.text(player, "Gondor").contains("Next: Find a Serfdom Master"));
         assertFalse(KOMEProgressionAutoCompleter.hasValidSerfPledge(player, null));
         assertFalse(KOMEProgressionAutoCompleter.hasValidSerfPledge(player, LOTRFaction.ROHAN));
         NBTTagCompound saved = player.writeToNBT();
@@ -176,7 +184,8 @@ public class KOMECanonicalPlayerRankTest {
         assertTrue(direct.contains("interactMaster"));
         assertTrue(direct.contains("interactLiege"));
         assertTrue(direct.contains("KOMESerfdomMasterService.requestDuty"));
-        assertTrue(direct.contains("KOMESerfKnightService.assignTrial"));
+        assertFalse(direct.contains("KOMESerfKnightService.assignTrial"));
+        assertTrue(direct.contains("accepted explicitly through the normal"));
 
         String bridge=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionOfferBridge.java")),StandardCharsets.UTF_8);
         assertTrue(bridge.contains("!progression.getSerfKnightProgression().getSerfdomMaster().isSet()"));
@@ -184,6 +193,6 @@ public class KOMECanonicalPlayerRankTest {
     }
 
     @Test public void masterDialogueUsesNativeLotrSpeechWhileTechnicalFailuresRemainSystemFeedback() throws Exception {
-        String speech=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionNpcSpeech.java")),StandardCharsets.UTF_8);assertTrue(speech.contains("LOTRSpeech.sendSpeech(player, npc, text)"));assertTrue(speech.contains("You are in my service now"));assertTrue(speech.contains("You may serve me"));assertTrue(speech.contains("I have need of provisions"));assertTrue(speech.contains("Return tomorrow"));assertTrue(speech.contains("I am still waiting on those provisions"));assertTrue(speech.contains("I see nothing here that I asked for"));assertTrue(speech.contains("Bring me the rest"));assertTrue(speech.contains("That is everything I asked for"));String bridge=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionOfferBridge.java")),StandardCharsets.UTF_8);assertTrue(bridge.contains("KOMEProgressionNpcSpeech.welcomeSerf"));String packet=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/network/KOMEPacketSerfdomMasterAction.java")),StandardCharsets.UTF_8);assertTrue(packet.contains("KOMEProgressionNpcSpeech.assignDuty"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.sameDay"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.viewDuty"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.noMatchingProvisions"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.partialProvisions"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.completedProvisions"));assertTrue(packet.contains("Unknown Serfdom Master action."));assertTrue(packet.contains("new ChatComponentText(result.reason)"));
+        String speech=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionNpcSpeech.java")),StandardCharsets.UTF_8);assertTrue(speech.contains("LOTRSpeech.sendSpeech(player, npc, text)"));assertTrue(speech.contains("You are in my service now"));assertTrue(speech.contains("You may serve me"));assertTrue(speech.contains("I have need of provisions"));assertTrue(speech.contains("Return tomorrow"));assertTrue(speech.contains("I am still waiting on those provisions"));assertTrue(speech.contains("I see nothing here that I asked for"));assertTrue(speech.contains("Bring me the rest"));assertTrue(speech.contains("That is everything I asked for"));String bridge=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionOfferBridge.java")),StandardCharsets.UTF_8);assertTrue(bridge.contains("KOMEProgressionNpcSpeech.welcomeSerf"));String packet=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/network/KOMEPacketSerfdomMasterAction.java")),StandardCharsets.UTF_8);assertTrue(packet.contains("KOMEProgressionNpcSpeech.assignDuty"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.sameDay"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.viewDuty"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.noMatchingProvisions"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.partialProvisions"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.completedProvisions"));assertTrue(packet.contains("Unknown Master action."));assertTrue(packet.contains("new ChatComponentText(result.reason)"));
     }
 }

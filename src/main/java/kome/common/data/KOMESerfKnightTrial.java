@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/** Extensible registry of Trial of Knighthood definitions. */
+/** Extensible registry of Trial of Standing definitions. */
 public final class KOMESerfKnightTrial {
     private static final Map<String, KOMESerfKnightTrial> BY_ID = new HashMap<String, KOMESerfKnightTrial>();
     public final String id, displayName, description;

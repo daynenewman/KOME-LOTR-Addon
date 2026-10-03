@@ -14,7 +14,7 @@ public class KOMEProgressionNpcDeathLifecycleTest {
     private static KOMEProgressionNpcRef ref(String name) { return new KOMEProgressionNpcRef(UUID.randomUUID().toString(),name,"rohan",0,0,0,0); }
     private static void master(KOMESerfKnightProgression state, KOMEProgressionNpcRef master) { assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master).success); }
     private static void duties(KOMESerfKnightProgression state) { long day=10L; for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()){assertTrue(KOMESerfKnightService.assignDuty(state,type,null,day++).success);assertTrue(KOMESerfKnightService.completeDuty(state,type).success);} }
-    private static void liegeTrial(KOMESerfKnightProgression state,KOMEProgressionNpcRef liege,boolean complete){assertTrue(KOMESerfKnightService.setProspectiveLiege(state,liege).success);assertTrue(KOMESerfKnightService.assignTrial(state,new Random(1),20L).success);if(complete)assertTrue(KOMESerfKnightService.completeTrial(state).success);}
+    private static void liegeTrial(KOMESerfKnightProgression state,KOMEProgressionNpcRef liege,boolean complete){assertTrue(KOMESerfKnightService.commitLiegeForTrial(state,liege).success);assertTrue(KOMESerfKnightService.assignTrial(state,new Random(1),20L).success);if(complete)assertTrue(KOMESerfKnightService.completeTrial(state).success);}
 
     @Test public void normalMasterDeathCancelsAllUnfinishedDutiesAndAllowsReplacement() {
         KOMESerfKnightProgression state=new KOMESerfKnightProgression(); KOMEProgressionNpcRef old=ref("old"); master(state,old);
@@ -29,7 +29,7 @@ public class KOMEProgressionNpcDeathLifecycleTest {
 
     @Test public void completedTrialSurvivesDeadLiegeAndReplacementMasterCanFinishGift() {
         KOMESerfKnightProgression state=new KOMESerfKnightProgression();KOMEProgressionNpcRef oldMaster=ref("master");master(state,oldMaster);duties(state);KOMEProgressionNpcRef liege=ref("liege");liegeTrial(state,liege,true);
-        assertTrue(KOMESerfKnightService.handleNpcDeath(state,liege.entityUuid,false,10));assertTrue(state.isTrialCompleted());assertFalse(state.getProspectiveLiege().isSet());
+        assertTrue(KOMESerfKnightService.handleNpcDeath(state,liege.entityUuid,false,10));assertTrue(state.isTrialCompleted());assertFalse(state.getLiege().isSet());
         assertTrue(KOMESerfKnightService.handleNpcDeath(state,oldMaster.entityUuid,false,10));assertTrue(KOMESerfKnightService.allDutiesComplete(state));
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,ref("replacement")).success);assertTrue(KOMESerfKnightService.recordPartingGift(state).success);assertTrue(KOMESerfKnightService.canPromote(state,150));assertEquals(KOMESerfKnightPhase.READY_FOR_KNIGHT,state.getPhase());
     }

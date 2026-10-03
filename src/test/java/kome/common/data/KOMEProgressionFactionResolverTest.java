@@ -33,7 +33,7 @@ public class KOMEProgressionFactionResolverTest {
     }
 
     @Test public void existingCourierSaveKeepsItsKeyAndResolves() {
-        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","DORWINION",0,1000,64,1000);
+        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","DORWINION",0,lotr.common.world.map.LOTRWaypoint.DORWINION_COURT.getXCoord()+900,64,lotr.common.world.map.LOTRWaypoint.DORWINION_COURT.getZCoord());
         KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.create(master,LOTRWaypoint.DORWINION_COURT);
         NBTTagCompound old=assignment.writeToNBT();old.setInteger("Version",5);
         old.setString("MasterFactionKey","dorwinion");old.setString("DestinationFactionKey","dorwinion");
@@ -41,6 +41,6 @@ public class KOMEProgressionFactionResolverTest {
         assertNotNull(restored);
         assertEquals("dorwinion",restored.destinationFactionKey);
         assertSame(LOTRFaction.DORWINION,KOMEProgressionFactionResolver.resolve(restored.destinationFactionKey));
-        assertEquals(LOTRFaction.DORWINION.factionName()+" Dispatch",KOMECourierService.dispatchTitle(restored));
+        assertEquals("To My correspondent",KOMECourierService.dispatchTitle(restored));
     }
 }

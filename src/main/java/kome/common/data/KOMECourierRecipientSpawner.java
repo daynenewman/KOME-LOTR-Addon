@@ -41,6 +41,26 @@ final class KOMECourierRecipientSpawner {
         "LOTREntityLebenninCaptain","LOTREntityPelargirCaptain","LOTREntityDolAmrothCaptain"};
     private KOMECourierRecipientSpawner() {}
 
+    /** Reserve a native class and native name without loading destination terrain. */
+    static boolean prepareCorrespondent(World world,KOMESerfCourierAssignment a,LOTREntityNPC master) {
+        BiomeGenBase base=world.getWorldChunkManager().getBiomeGenAt((int)a.destinationX,(int)a.destinationZ);
+        if(!(base instanceof LOTRBiome))return false;
+        LOTRFaction faction=KOMEProgressionFactionResolver.resolve(a.destinationFactionKey);
+        List<Class<? extends LOTREntityNPC>> types=eligibleClasses(world,(LOTRBiome)base,faction);
+        if(types.isEmpty())return false;
+        int first=new Random(a.token.hashCode()*31L+0x4b4f4d45L).nextInt(types.size());
+        for(int i=0;i<types.size();i++) {
+            Class<? extends LOTREntityNPC> type=types.get((first+i)%types.size());
+            LOTREntityNPC sample=create(world,type,faction);if(sample==null)continue;
+            sample.setupNPCName();
+            a.recipientClass=type.getName();a.recipientName=sample.getNPCName();
+            a.recipientRole=KOMEProgressionLords.isCombatUnitHiringNpc(sample)?"captain":KOMESerfProfessionClassifier.classify(sample).key;
+            a.masterRole=KOMESerfProfessionClassifier.classify(master).key;
+            a.letterText=KOMECourierCorrespondence.compose(a,KOMEProgressionNpcRankService.referenceOf(master));return true;
+        }
+        return false;
+    }
+
     static LOTREntityNPC findOwned(World world,String token){
         for(Object value:world.loadedEntityList)if(value instanceof LOTREntityNPC){LOTREntityNPC npc=(LOTREntityNPC)value;if(npc.isEntityAlive()&&token.equals(npc.getEntityData().getString(TOKEN)))return npc;}
         return null;
@@ -65,7 +85,7 @@ final class KOMECourierRecipientSpawner {
             KOMESerfKnightProgression state=progression.getSerfKnightProgression();
             if(!"courier".equals(state.getActiveAssignmentKind()))continue;
             KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-            if(assignment!=null&&assignment.stage==KOMESerfCourierAssignment.Stage.OUTBOUND
+            if(assignment!=null&&!assignment.confirmedRecipientDeath&&assignment.stage==KOMESerfCourierAssignment.Stage.OUTBOUND
                     &&token.equals(assignment.token)&&recipientId(assignment).equals(npc.getUniqueID()))return;
         }
         npc.getEntityData().removeTag(TOKEN);
@@ -89,7 +109,7 @@ final class KOMECourierRecipientSpawner {
         Random random=new Random(assignment.token.hashCode()*31L+0x4b4f4d45L);
         int first=random.nextInt(types.size());Set<Class<? extends LOTREntityNPC>> attempted=new HashSet<Class<? extends LOTREntityNPC>>();
         for(int i=0;i<types.size();i++){
-            Class<? extends LOTREntityNPC> type=types.get((first+i)%types.size());if(!attempted.add(type))continue;
+            Class<? extends LOTREntityNPC> type=types.get((first+i)%types.size());if(assignment.recipientClass.length()>0&&!assignment.recipientClass.equals(type.getName()))continue;if(!attempted.add(type))continue;
             LOTREntityNPC npc=create(world,type,faction,true);if(npc==null){if(LOGGER.isDebugEnabled())LOGGER.debug("Courier class rejected token={} class={} construction/faction",assignment.token,type.getName());continue;}
             if(LOGGER.isDebugEnabled())LOGGER.debug("Courier class constructed token={} class={}",assignment.token,type.getName());
             double[] position=safeLoadedPosition(world,player,assignment,npc);if(position==null)return null;
@@ -99,6 +119,12 @@ final class KOMECourierRecipientSpawner {
             if(npc.ridingEntity!=null||npc.bossInfo!=null||npc.isTraderEscort||npc.isChild()
                     ||npc.hiredNPCInfo==null||npc.hiredNPCInfo.isActive||npc.getFaction()!=faction){if(LOGGER.isDebugEnabled())LOGGER.debug("Courier native class unsafe after initialization token={} class={}",assignment.token,type.getName());continue;}
             npc.getEntityData().setString(TOKEN,assignment.token);
+            if(assignment.recipientName.length()>0){
+                // Most LOTR races override getNPCName with the native family name,
+                // so a vanilla custom name alone does not identify this correspondent.
+                npc.familyInfo.setName(assignment.recipientName);
+                npc.setCustomNameTag(assignment.recipientName);
+            }
             npc.setUniqueID(recipientId(assignment));
             if(!world.spawnEntityInWorld(npc)){if(LOGGER.isDebugEnabled())LOGGER.debug("Courier spawnEntityInWorld rejected token={} class={} uuid={} chunk=({}, {})",assignment.token,type.getName(),npc.getUniqueID(),((int)Math.floor(npc.posX))>>4,((int)Math.floor(npc.posZ))>>4);return null;}
             if(LOGGER.isDebugEnabled())LOGGER.debug("Courier spawned token={} class={} uuid={} at=({}, {}, {})",assignment.token,type.getName(),npc.getUniqueID(),npc.posX,npc.posY,npc.posZ);
@@ -150,6 +176,7 @@ final class KOMECourierRecipientSpawner {
         for(int i=0;i<SEARCH_ATTEMPTS;i++){
             double angle=random.nextDouble()*Math.PI*2D, distance=24D+random.nextDouble()*72D;
             int x=cx+(int)Math.round(Math.cos(angle)*distance),z=cz+(int)Math.round(Math.sin(angle)*distance);
+            if(!assignment.withinRecipientRange(x+0.5D,z+0.5D)){rejected[0]++;continue;}
             // Keep collision and standing-space probes inside this loaded chunk too.
             if((x&15)<2||(x&15)>13||(z&15)<2||(z&15)>13
                     ||!world.getChunkProvider().chunkExists(x>>4,z>>4)){rejected[0]++;continue;}

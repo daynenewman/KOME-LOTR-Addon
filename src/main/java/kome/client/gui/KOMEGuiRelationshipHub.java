@@ -58,8 +58,8 @@ public class KOMEGuiRelationshipHub extends LOTRGuiMenuBase {
 
         String header=
             type==KOMEPacketRelationshipAction.MASTER
-                ?"Serfdom Master"
-                :allowService?"Prospective Liege":"Liege";
+                ?"Master"
+                :"Liege";
 
         KOMEGuiTheme.drawHeader(
             fontRendererObj,

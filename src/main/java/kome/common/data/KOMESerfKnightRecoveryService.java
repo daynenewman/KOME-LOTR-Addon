@@ -36,7 +36,7 @@ public final class KOMESerfKnightRecoveryService {
         KOMEWorldData worldData=KOMEWorldData.get(player.worldObj); worldData.markDirty();
         EntityItem dropped=new EntityItem(player.worldObj,site.x+0.5D,site.y+0.2D,site.z+0.5D,assignedStack(assignment,player.getUniqueID()));
         dropped.delayBeforeCanPickup=0; dropped.lifespan=Integer.MAX_VALUE;
-        if(!player.worldObj.spawnEntityInWorld(dropped)) { fail(state,worldData); return false; }
+        if(!player.worldObj.spawnEntityInWorld(dropped)) { KOMEProgressionEncounterCleanup.failTrial(worldData,player.worldObj,state); return false; }
         data.setString(DATA_OBJECT,dropped.getUniqueID().toString());
         state.updateTrialAssignment(state.getTrialAssignment().withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)); worldData.markDirty();
         return true;
@@ -67,7 +67,7 @@ public final class KOMESerfKnightRecoveryService {
     public static boolean deliver(EntityPlayerMP player,KOMEPlayerProgression progression,LOTREntityNPC liege) {
         if(player==null||progression==null||liege==null)return false;
         KOMESerfKnightProgression state=progression.getSerfKnightProgression(); KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment();
-        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE||!assignment.data.getBoolean(DATA_RETRIEVED)||!state.getProspectiveLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
+        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE||!assignment.data.getBoolean(DATA_RETRIEVED)||!state.getLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
         int slot=findAssignedStack(player,assignment);
         // Retrieval is the canonical proof. Consume the physical object when it is still present,
         // but never permanently soft-lock a player who already recovered it and later lost it.
@@ -241,7 +241,7 @@ public final class KOMESerfKnightRecoveryService {
         item.setDead();
         return true;
     }
-    private static void fail(KOMESerfKnightProgression state,KOMEWorldData world) { KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment(); if(assignment!=null){state.updateTrialAssignment(assignment.withStage(KOMESerfKnightTrialAssignment.Stage.FAILED,null));world.markDirty();} }
+
     private static Site findSite(World world,LOTREntityNPC liege,String token) {
         if(world==null||world.provider.dimensionId!=liege.worldObj.provider.dimensionId||world.provider.dimensionId==-1)return null;
         int hash=token==null?0:token.hashCode();

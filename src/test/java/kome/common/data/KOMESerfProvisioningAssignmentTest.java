@@ -18,15 +18,23 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMESerfProvisioningAssignmentTest {
+    @Test public void quantitiesUseTargetStackLimitIncludingSixteenStackFood(){
+        Random random=new Random(42);for(int i=0;i<100;i++) {
+            int single=KOMESerfProvisioningAssignment.foodQuantity(1,random),sixteen=KOMESerfProvisioningAssignment.foodQuantity(16,random),normal=KOMESerfProvisioningAssignment.foodQuantity(64,random);
+            assertTrue(single>=3&&single<=5);assertTrue(sixteen>=16&&sixteen<=48);assertEquals(0,sixteen%16);assertTrue(normal>=64&&normal<=192);assertEquals(0,normal%64);
+        }
+        Item item=new Item(){@Override public int getItemStackLimit(ItemStack stack){return stack.getItemDamage()==2?16:64;}};
+        assertEquals(16,KOMESerfProvisioningAssignment.Candidate.runtime(item,2).maxStack);
+    }
     private static List<KOMESerfProvisioningAssignment.Candidate> foods(){return Arrays.asList(candidate("bread",64),candidate("apple",64),candidate("mutton",64),candidate("stew",1));}
     private static List<KOMESerfProvisioningAssignment.Candidate> drinks(){return Arrays.asList(candidate("ale",1),candidate("cider",1));}
     private static KOMESerfProvisioningAssignment.Candidate candidate(String key,int max){return new KOMESerfProvisioningAssignment.Candidate(key,key.hashCode(),0,max,key);}
     private static KOMESerfProvisioningAssignment generate(long seed){return KOMESerfProvisioningAssignment.generate(foods(),drinks(),Arrays.asList("MUG","BOTTLE"),new Random(seed));}
     private static KOMESerfProvisioningAssignment.CandidateResolver resolver(){final Map<String,KOMESerfProvisioningAssignment.Candidate> candidates=new HashMap<String,KOMESerfProvisioningAssignment.Candidate>();for(KOMESerfProvisioningAssignment.Candidate c:foods())candidates.put(c.key,c);for(KOMESerfProvisioningAssignment.Candidate c:drinks())candidates.put(c.key,c);return new KOMESerfProvisioningAssignment.CandidateResolver(){public KOMESerfProvisioningAssignment.Candidate resolve(String key,int id,int damage){return candidates.get(key);}};}
 
-    @Test public void pureGenerationIsDeterministicDistinctAndUsesRequiredRanges(){KOMESerfProvisioningAssignment a=generate(4),b=generate(4);assertEquals(3,a.foods.size());assertNotNull(a.drink);assertEquals(a.writeToNBT().toString(),b.writeToNBT().toString());for(int i=0;i<3;i++){KOMESerfProvisioningAssignment.Requirement r=a.foods.get(i);assertTrue(r.required>=16);if("stew".equals(r.itemKey))assertTrue(r.required<=24);else{assertTrue(r.required>=4*64);assertTrue(r.required<=8*64);}for(int j=i+1;j<3;j++)assertNotEquals(r.itemKey,a.foods.get(j).itemKey);}assertTrue(a.drink.required>=24&&a.drink.required<=32);}
+    @Test public void pureGenerationIsDeterministicDistinctAndUsesRequiredRanges(){KOMESerfProvisioningAssignment a=generate(4),b=generate(4);assertEquals(3,a.foods.size());assertNotNull(a.drink);assertEquals(a.writeToNBT().toString(),b.writeToNBT().toString());for(int i=0;i<3;i++){KOMESerfProvisioningAssignment.Requirement r=a.foods.get(i);if("stew".equals(r.itemKey)){assertTrue(r.required>=3);assertTrue(r.required<=5);}else{assertTrue(r.required>=64);assertTrue(r.required<=3*64);assertEquals(0,r.required%64);}for(int j=i+1;j<3;j++)assertNotEquals(r.itemKey,a.foods.get(j).itemKey);}assertTrue(a.drink.required>=3&&a.drink.required<=5);}
 
-    @Test public void descriptorRoundTripPreservesIdentityCountsVesselAndPartialProgress(){KOMESerfProvisioningAssignment a=generate(8);a.foods.get(0).delivered=17;a.drink.delivered=9;KOMESerfProvisioningAssignment b=KOMESerfProvisioningAssignment.readFromNBT(a.writeToNBT(),resolver());assertNotNull(b);assertEquals(a.foods.get(0).itemKey,b.foods.get(0).itemKey);assertEquals(a.foods.get(0).damage,b.foods.get(0).damage);assertEquals(17,b.foods.get(0).delivered);assertEquals(a.drink.itemKey,b.drink.itemKey);assertEquals(a.drink.vessel,b.drink.vessel);assertEquals(9,b.drink.delivered);}
+    @Test public void descriptorRoundTripPreservesIdentityCountsVesselAndPartialProgress(){KOMESerfProvisioningAssignment a=generate(8);a.foods.get(0).delivered=Math.min(2,a.foods.get(0).required);a.drink.delivered=2;KOMESerfProvisioningAssignment b=KOMESerfProvisioningAssignment.readFromNBT(a.writeToNBT(),resolver());assertNotNull(b);assertEquals(a.foods.get(0).itemKey,b.foods.get(0).itemKey);assertEquals(a.foods.get(0).damage,b.foods.get(0).damage);assertEquals(a.foods.get(0).delivered,b.foods.get(0).delivered);assertEquals(a.drink.itemKey,b.drink.itemKey);assertEquals(a.drink.vessel,b.drink.vessel);assertEquals(2,b.drink.delivered);}
 
     @Test public void malformedPayloadFailsClosed(){NBTTagCompound bad=generate(2).writeToNBT();bad.removeTag("Drink");assertNull(KOMESerfProvisioningAssignment.readFromNBT(bad,resolver()));NBTTagCompound badCount=generate(3).writeToNBT();badCount.getTagList("Foods",10).getCompoundTagAt(0).setInteger("Required",0);assertNull(KOMESerfProvisioningAssignment.readFromNBT(badCount,resolver()));}
 

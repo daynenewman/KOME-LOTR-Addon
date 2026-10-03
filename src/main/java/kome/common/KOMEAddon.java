@@ -72,6 +72,7 @@ public class KOMEAddon {
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
         KOMEProgressionVisualItems.register();
+        GameRegistry.registerItem(kome.common.data.KOMEKnightCommissionService.STOLEN_PROPERTY, "stolenProperty");
         sealedMessage = new kome.common.item.KOMEItemSealedMessage();
         GameRegistry.registerItem(sealedMessage, "sealedMessage");
         sealedParcel = new kome.common.item.KOMEItemSealedParcel(); GameRegistry.registerItem(sealedParcel, "sealedParcel");

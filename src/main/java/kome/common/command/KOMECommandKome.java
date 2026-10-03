@@ -360,7 +360,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
         String targetedId=KOMEReflection.getEntityUUID(npc).toString();
         KOMESerfKnightProgression relationshipState=progression.getSerfKnightProgression();
         boolean related=targetedId.equals(relationshipState.getSerfdomMaster().entityUuid)
-            ||targetedId.equals(relationshipState.getProspectiveLiege().entityUuid);
+            ||targetedId.equals(relationshipState.getLiege().entityUuid);
         if(!related)throw new WrongUsageException("The targeted NPC has no relationship to clear.");
         KOMEProgressionEncounterCleanup.cleanup(player,progression);
         KOMESerfKnightRelationshipService.Result result = KOMESerfKnightRelationshipService.clear(data, KOMEReflection.getEntityUUID(player), targetedId);

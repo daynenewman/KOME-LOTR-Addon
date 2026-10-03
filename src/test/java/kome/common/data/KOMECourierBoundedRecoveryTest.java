@@ -16,7 +16,7 @@ import static org.junit.Assert.*;
 public class KOMECourierBoundedRecoveryTest {
     @Test public void unloadedDestinationWaitsWithoutChangingAssignmentOrDispatch() throws Exception {
         KOMEAccessFixture fixture=fixture();KOMEProgressionNpcRef master=master(fixture);
-        KOMESerfCourierAssignment first=KOMESerfCourierAssignment.create(master,fixture.world);assertNotNull(first);
+        KOMESerfCourierAssignment first=geographic(master,fixture);assertNotNull(first);
         KOMESerfKnightProgression state=fixture.data.getProgression(fixture.player.id).getSerfKnightProgression();
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master).success);
         assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.COURIER,first.writeToNBT(),10L).success);
@@ -30,7 +30,7 @@ public class KOMECourierBoundedRecoveryTest {
             assertEquals(1,dispatchCount(fixture,first.token));assertFalse(state.getDuty(KOMESerfKnightDutyType.COURIER).isCompleted());
         }finally{KOMEPacketHandler.network=previous;}
     }
-    @Test public void loadedRecipientThatBecomesHiredIsClearedWithoutTreatingUnloadAsDeath() throws Exception {
+    @Test public void loadedRecipientThatBecomesHiredIsNotMistakenForDeath() throws Exception {
         KOMEAccessFixture fixture=fixture();KOMEProgressionNpcRef master=master(fixture);
         KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.create(master,LOTRWaypoint.EDORAS);
         KOMESerfKnightProgression state=fixture.data.getProgression(fixture.player.id).getSerfKnightProgression();
@@ -50,17 +50,17 @@ public class KOMECourierBoundedRecoveryTest {
             fixture.world.loadedEntityList.add(npc);
             KOMECourierService.tickPlayer(fixture.player);
             KOMESerfCourierAssignment retired=active(state);
-            assertFalse("loaded invalid recipient must be released",retired.recipient.isSet());
+            assertTrue("A hired NPC is still alive",retired.recipient.isSet());
             assertEquals(assignment.token,retired.token);
-            assertEquals(1,retired.recipientDeaths);
-            assertTrue(retired.nextRecipientWorldTime>fixture.world.getTotalWorldTime());
-            assertFalse("retired generation marker must be removed",npc.getEntityData().hasKey(KOMECourierRecipientSpawner.TOKEN));
+            assertEquals(0,retired.recipientDeaths);assertFalse(retired.confirmedRecipientDeath);
+            assertEquals(0L,retired.nextRecipientWorldTime);
+            assertTrue(npc.getEntityData().hasKey(KOMECourierRecipientSpawner.TOKEN));
         } finally {KOMEPacketHandler.network=previous;}
     }
 
     @Test public void validRecipientDeliveryAndMasterReportCompleteExactlyOnce() throws Exception {
         KOMEAccessFixture fixture=fixture();KOMEProgressionNpcRef master=master(fixture);
-        KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.create(master,fixture.world);
+        KOMESerfCourierAssignment assignment=geographic(master,fixture);
         assertNotNull(assignment);
         KOMESerfKnightProgression state=fixture.data.getProgression(fixture.player.id).getSerfKnightProgression();
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master).success);
@@ -84,6 +84,7 @@ public class KOMECourierBoundedRecoveryTest {
             assertTrue("recipient must pass live validation",KOMECourierService.validRecipient(fixture.player,npc,active(state),master));
             assertTrue("rewritten physical dispatch must still match",KOMECourierService.hasMessage(fixture.player,active(state),master));
             assertTrue(KOMECourierService.deliverToRecipient(fixture.player,fixture.data,npc));
+            assertTrue(fixture.world.playedSounds.contains("mob.horse.leather"));
             assertEquals(KOMESerfCourierAssignment.Stage.DELIVERED,active(state).stage);
             assertFalse(state.getDuty(KOMESerfKnightDutyType.COURIER).isCompleted());
             assertTrue(KOMECourierService.reportToMaster(fixture.player,fixture.data,fixture.data.getProgression(fixture.player.id)));
@@ -94,6 +95,7 @@ public class KOMECourierBoundedRecoveryTest {
 
     private static KOMEAccessFixture fixture() throws Exception {
         KOMEAccessFixture fixture=new KOMEAccessFixture();fixture.world.provider.dimensionId=LOTRDimension.MIDDLE_EARTH.dimensionID;
+        fixture.world.rand=new java.util.Random(3);
         fixture.player.dimension=LOTRDimension.MIDDLE_EARTH.dimensionID;
         fixture.player.inventory=new InventoryPlayer(fixture.player);fixture.player.inventoryContainer=new TestContainer();
         fixture.pledge(LOTRFaction.ROHAN);fixture.data.getProgression(fixture.player.id).setCanonicalRank(KOMEProgressionRank.SERF);
@@ -101,6 +103,12 @@ public class KOMECourierBoundedRecoveryTest {
         biome.heightBaseParameter=0.2F;biome.npcSpawnList=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestSpawnList.class);
         KOMECourierGeographyTest.TestManager manager=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestManager.class);
         manager.biome=biome;fixture.world.provider.worldChunkMgr=manager;return fixture;
+    }
+    private static KOMESerfCourierAssignment geographic(KOMEProgressionNpcRef master,KOMEAccessFixture fixture){
+        // The inert world lacks server constructor services; native class inspection
+        // uses the client constructor path, then restores the server tick fixture.
+        boolean remote=fixture.world.isRemote;fixture.world.isRemote=true;
+        try{return KOMESerfCourierAssignment.create(master,fixture.world);}finally{fixture.world.isRemote=remote;}
     }
     private static KOMEProgressionNpcRef master(KOMEAccessFixture fixture){return new KOMEProgressionNpcRef(
         UUID.randomUUID().toString(),"Master","rohan",fixture.player.dimension,

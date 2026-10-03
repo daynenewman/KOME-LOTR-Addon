@@ -36,7 +36,7 @@ public class KOMECourierRecipientSpawnerTest {
         assertTrue(Collections.frequency(types,LOTREntityGondorMan.class)>Collections.frequency(types,LOTREntityGondorianCaptain.class));
     }
     @Test public void replacementIdentityIsStableAcrossReloadAndChangesAfterRealDeath(){
-        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","rohan",0,1000,64,1000);
+        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","rohan",0,lotr.common.world.map.LOTRWaypoint.EDORAS.getXCoord()+900,64,lotr.common.world.map.LOTRWaypoint.EDORAS.getZCoord());
         KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.create(master,lotr.common.world.map.LOTRWaypoint.EDORAS);
         UUID first=KOMECourierRecipientSpawner.recipientId(assignment);
         assertEquals(first,KOMECourierRecipientSpawner.recipientId(KOMESerfCourierAssignment.readFromNBT(assignment.writeToNBT())));
@@ -45,7 +45,7 @@ public class KOMECourierRecipientSpawnerTest {
     }
     @Test public void safeSearchNeverProbesUnloadedNeighborChunks() throws Exception {
         KOMEAccessFixture fixture=new KOMEAccessFixture();fixture.world.isRemote=true;fixture.world.rand=new Random(9);fixture.world.flatTerrain=true;
-        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","gondor",0,1000,64,1000);
+        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","gondor",0,lotr.common.world.map.LOTRWaypoint.MINAS_TIRITH.getXCoord()+900,64,lotr.common.world.map.LOTRWaypoint.MINAS_TIRITH.getZCoord());
         KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.create(master,lotr.common.world.map.LOTRWaypoint.MINAS_TIRITH);
         final int chunkX=((int)assignment.destinationX)>>4,chunkZ=((int)assignment.destinationZ)>>4;
         fixture.world.testChunkProvider=(IChunkProvider)java.lang.reflect.Proxy.newProxyInstance(getClass().getClassLoader(),new Class[]{IChunkProvider.class},
@@ -63,7 +63,7 @@ public class KOMECourierRecipientSpawnerTest {
         biome.npcSpawnList=KOMEAccessFixture.allocate(NativeList.class);
         KOMECourierGeographyTest.TestManager manager=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestManager.class);
         manager.biome=biome;fixture.world.provider.worldChunkMgr=manager;
-        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","dorwinion",0,1000,64,1000);
+        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","dorwinion",0,lotr.common.world.map.LOTRWaypoint.DORWINION_COURT.getXCoord()+900,64,lotr.common.world.map.LOTRWaypoint.DORWINION_COURT.getZCoord());
         KOMESerfCourierAssignment current=KOMESerfCourierAssignment.create(master,lotr.common.world.map.LOTRWaypoint.DORWINION_COURT);
         net.minecraft.nbt.NBTTagCompound old=current.writeToNBT();old.setInteger("Version",5);old.setString("DestinationFactionKey","dorwinion");
         KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.readFromNBT(old);
@@ -91,8 +91,9 @@ public class KOMECourierRecipientSpawnerTest {
         biome.npcSpawnList=KOMEAccessFixture.allocate(NativeList.class);
         KOMECourierGeographyTest.TestManager manager=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestManager.class);
         manager.biome=biome;fixture.world.provider.worldChunkMgr=manager;
-        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","gondor",0,1000,64,1000);
+        KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","gondor",0,lotr.common.world.map.LOTRWaypoint.MINAS_TIRITH.getXCoord()+900,64,lotr.common.world.map.LOTRWaypoint.MINAS_TIRITH.getZCoord());
         KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.create(master,lotr.common.world.map.LOTRWaypoint.MINAS_TIRITH);
+        assignment.recipientClass=LOTREntityGondorMan.class.getName();assignment.recipientName="Beregond";
         fixture.player.posX=assignment.destinationX;fixture.player.posZ=assignment.destinationZ;
         assertTrue(fixture.world.getActualHeight()>67);assertTrue(fixture.world.getChunkProvider().chunkExists(0,0));
         assertTrue(fixture.world.getBlock(10,64,10).getMaterial().isSolid());assertTrue(fixture.world.isAirBlock(10,65,10));
@@ -102,6 +103,7 @@ public class KOMECourierRecipientSpawnerTest {
         fixture.world.spawnSucceeds=true;
         LOTREntityNPC npc=KOMECourierRecipientSpawner.spawn(fixture.player,assignment);
         assertNotNull(npc);assertEquals(assignment.token,npc.getEntityData().getString(KOMECourierRecipientSpawner.TOKEN));
+        assertEquals("Reserved correspondence must name the actual native recipient",assignment.recipientName,npc.getNPCName());
         assertEquals(KOMECourierRecipientSpawner.recipientId(assignment),npc.getUniqueID());
         assertSame(npc,KOMECourierRecipientSpawner.findOwned(fixture.world,assignment.token));
         assertEquals(1,fixture.world.loadedEntityList.size());

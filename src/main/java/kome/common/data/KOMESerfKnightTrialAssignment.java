@@ -3,7 +3,7 @@ package kome.common.data;
 import java.util.UUID;
 import net.minecraft.nbt.NBTTagCompound;
 
-/** Versioned, server-authoritative state for one assigned Trial of Knighthood. */
+/** Versioned, server-authoritative state for one assigned Trial of Standing. */
 public final class KOMESerfKnightTrialAssignment {
     public static final int VERSION = 1;
     public enum Stage { ASSIGNED, ACTIVE, OBJECTIVE_COMPLETE, FAILED }

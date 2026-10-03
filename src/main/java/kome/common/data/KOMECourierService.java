@@ -23,16 +23,42 @@ public final class KOMECourierService {
     static final double ARRIVAL_RADIUS=192D,SETTLEMENT_RADIUS=256D;
     private KOMECourierService(){}
 
+    public static boolean hasBookSpace(EntityPlayerMP player){return player!=null&&player.inventory!=null&&emptyBookSlot(player.inventory.mainInventory)>=0;}
+    static int emptyBookSlot(ItemStack[] inventory){
+        if(inventory==null)return -1;
+        for(int i=0;i<Math.min(9,inventory.length);i++)if(inventory[i]==null)return i;
+        for(int i=9;i<inventory.length;i++)if(inventory[i]==null)return i;
+        return -1;
+    }
+    /** Compatibility entry point, with physical server-side issuance only. */
+    public static boolean issueMessage(EntityPlayerMP player,KOMESerfCourierAssignment assignment,KOMEProgressionNpcRef master){
+        if(player==null||master==null||player.worldObj==null)return false;
+        for(Object value:player.worldObj.loadedEntityList)if(value instanceof LOTREntityNPC&&master.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf((LOTREntityNPC)value)))
+            return KOMECourierIssuance.initial(player,KOMEWorldData.get(player.worldObj),(LOTREntityNPC)value);
+        return false;
+    }
+
     public static ItemStack message(KOMESerfCourierAssignment a,EntityPlayerMP p,KOMEProgressionNpcRef master){return message(a,KOMEReflection.getEntityUUID(p),master);}
     public static EntityItem dropMessageFromMaster(
             EntityPlayerMP player,
             LOTREntityNPC masterNpc,
             KOMESerfCourierAssignment assignment,
             KOMEProgressionNpcRef master) {
-        if(player==null||masterNpc==null||assignment==null||master==null)return null;
-        return masterNpc.entityDropItem(
-            message(assignment,player,master),
-            0.5F);
+        if(player==null||masterNpc==null||assignment==null||master==null||masterNpc.worldObj==null||masterNpc.worldObj.isRemote)return null;
+
+        EntityItem dropped=new EntityItem(masterNpc.worldObj,masterNpc.posX,masterNpc.posY+0.5D,masterNpc.posZ,message(assignment,player,master));
+        dropped.delayBeforeCanPickup=10;
+        if(!masterNpc.worldObj.spawnEntityInWorld(dropped))return null;
+
+        if(dropped!=null) {
+            masterNpc.worldObj.playSoundAtEntity(
+                masterNpc,
+                "random.pop",
+                0.4F,
+                1.0F);
+        }
+
+        return dropped;
     }
 
     public static boolean canPickup(
@@ -65,7 +91,7 @@ public final class KOMECourierService {
             EntityItem entity=(EntityItem)value;
 
             if(!entity.isDead
-                    &&identityMatch(
+                    &&matching(
                         entity.getEntityItem(),
                         assignment,
                         owner,
@@ -78,31 +104,20 @@ public final class KOMECourierService {
     }
     static ItemStack message(KOMESerfCourierAssignment a,UUID player,KOMEProgressionNpcRef master){
         ItemStack book=new ItemStack(Items.written_book);NBTTagCompound root=new NBTTagCompound(),hidden=new NBTTagCompound();
-        hidden.setString("Assignment",a.token);hidden.setString("Owner",player.toString());hidden.setString("Master",master.entityUuid);hidden.setString("Destination",a.destinationKey);root.setTag(TAG,hidden);
+        hidden.setString("Assignment",a.token);hidden.setString("Owner",player.toString());hidden.setString("Master",master.entityUuid);hidden.setString("Destination",a.destinationKey);hidden.setInteger("Revision",a.documentRevision);root.setTag(TAG,hidden);
+        String text=dispatchText(a,master);hidden.setString("Correspondence",text);
         root.setString("title",dispatchTitle(a));root.setString("author",master.displayName);NBTTagList pages=new NBTTagList();
-        pages.appendTag(new NBTTagString(dispatchText(a,master)));root.setTag("pages",pages);book.setTagCompound(root);return book;
+        for(String page:KOMECourierCorrespondence.pages(text))pages.appendTag(new NBTTagString(page));
+        root.setTag("pages",pages);book.setTagCompound(root);return book;
     }
-
-    static String dispatchTitle(KOMESerfCourierAssignment a){LOTRFaction f=KOMEProgressionFactionResolver.resolve(a.destinationFactionKey);return f==null?"Sealed Dispatch":f.factionName()+" Dispatch";}
-    static String dispatchText(KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){
-        String recipient=a.recipient.isSet()?a.recipient.displayName:"The appointed recipient";
-        String body=story(a.storyVariant,a.destinationFactionKey,a.destinationName);
-        LOTRFaction faction=KOMEProgressionFactionResolver.resolve(a.destinationFactionKey);String factionName=faction==null?a.destinationFactionKey:faction.factionName();
-        return recipient+",\n\n"+body+"\n\nFor "+factionName+".\n— "+master.displayName+"\n\nCarry this sealed letter to "+recipient+" within "+a.destinationName+".";
+    static String dispatchTitle(KOMESerfCourierAssignment a){
+        String recipient=a.recipientName.length()>0?a.recipientName:a.recipient.isSet()?a.recipient.displayName:"My correspondent";
+        String title="To "+recipient;return title.substring(0,Math.min(32,title.length()));
     }
-    private static String story(int variant,String faction,String destination){
-        String f=faction==null?"":faction.toLowerCase();boolean rohan=f.contains("rohan");boolean evil=f.contains("mordor")||f.contains("orc")||f.contains("uruk");boolean dwarf=f.contains("dwarf");boolean elf=f.contains("elf")||f.contains("lothlorien");
-        switch(Math.floorMod(variant,5)){
-        case 0:return rohan?"Riders report movement along the road. Keep watch from "+destination+" and send word if they draw nearer.":evil?"Scouts have sighted enemies near the road. Double the watch and report every movement.":"Patrols report strangers on the road. Keep a close watch and send word of anything amiss.";
-        case 1:return dwarf?"Our stores of iron and lamp-oil run low. Count what remains and make ready to receive fresh supplies.":rohan?"See that the horse-lines and grain stores are provisioned before the next patrol rides.":"Take account of the provisions at "+destination+" and report what must be sent before winter.";
-        case 2:return evil?"Muster those fit to fight and see that their weapons are ready. Delay will not be forgiven.":elf?"Call the wardens together and see that bowstrings and stores are made ready.":"Muster the available men and inspect their arms. Send me a true account of your strength.";
-        case 3:return dwarf?"The road-borne merchants are overdue. Hold their goods safely and send an accounting of every crate.":"Receive the next supply train in good order and send back a tally of the goods entrusted to you.";
-        default:return "Place this report among the records of "+destination+" and return a sealed acknowledgement by the next messenger.";
-        }
-    }
+    static String dispatchText(KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){return a.letterText.length()>0?a.letterText:KOMECourierCorrespondence.compose(a,master);}
 
     public static boolean matching(ItemStack s,KOMESerfCourierAssignment a,EntityPlayerMP p,KOMEProgressionNpcRef m){return matching(s,a,KOMEReflection.getEntityUUID(p),m);}
-    static boolean matching(ItemStack s,KOMESerfCourierAssignment a,UUID owner,KOMEProgressionNpcRef m){return identityMatch(s,a,owner,m)&&a.destinationKey.equals(s.getTagCompound().getCompoundTag(TAG).getString("Destination"));}
+    static boolean matching(ItemStack s,KOMESerfCourierAssignment a,UUID owner,KOMEProgressionNpcRef m){return identityMatch(s,a,owner,m)&&a.documentRevision==s.getTagCompound().getCompoundTag(TAG).getInteger("Revision")&&a.destinationKey.equals(s.getTagCompound().getCompoundTag(TAG).getString("Destination"));}
 
     static boolean isCourierTagged(ItemStack stack){
         return stack!=null
@@ -135,33 +150,49 @@ public final class KOMECourierService {
     /** Called only for a nearby NPC interaction; the binding and letter remain server authority. */
     public static boolean deliverToRecipient(EntityPlayerMP player,KOMEWorldData world,LOTREntityNPC npc){
         if(player==null||world==null||npc==null)return false;
+        synchronized(world){
         KOMEPlayerProgression progression=world.getProgression(player.getUniqueID());KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         if(progression.getCanonicalRank()!=KOMEProgressionRank.SERF||!"courier".equals(state.getActiveAssignmentKind()))return false;
         KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-        if(assignment==null||!validRecipient(player,npc,assignment,state.getSerfdomMaster())||!removeMessage(player,assignment,state.getSerfdomMaster()))return false;
+        if(assignment==null||assignment.confirmedRecipientDeath||!validRecipient(player,npc,assignment,state.getSerfdomMaster())||!removeMessage(player,assignment,state.getSerfdomMaster()))return false;
         assignment.stage=KOMESerfCourierAssignment.Stage.DELIVERED;
         state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER,assignment.writeToNBT());world.markDirty();
+
+        player.worldObj.playSoundAtEntity(
+            npc,
+            "mob.horse.leather",
+            0.5F,
+            1.0F);
+
         KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());npc.getEntityData().removeTag(KOMECourierRecipientSpawner.TOKEN);
         player.inventoryContainer.detectAndSendChanges();KOMEProgressionAutoCompleter.syncPlayer(player,progression);
         return true;
+        }
     }
     /** The Master explicitly accepts a delivered dispatch on return. */
     public static boolean reportToMaster(EntityPlayerMP player,KOMEWorldData world,KOMEPlayerProgression progression){
         if(player==null||world==null||progression==null||progression.getCanonicalRank()!=KOMEProgressionRank.SERF)return false;
+        synchronized(world){
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         if(!"courier".equals(state.getActiveAssignmentKind()))return false;
         KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-        if(assignment==null||assignment.stage!=KOMESerfCourierAssignment.Stage.DELIVERED||!assignment.recipient.isSet())return false;
+        if(assignment==null)return false;
+        if(assignment.confirmedRecipientDeath){
+            if(!hasMessage(player,assignment,state.getSerfdomMaster()))return false;
+            removeMessage(player,assignment,state.getSerfdomMaster());
+        }else if(assignment.stage!=KOMESerfCourierAssignment.Stage.DELIVERED||!assignment.recipient.isSet())return false;
         if(!KOMESerfKnightService.completeDuty(progression,KOMESerfKnightDutyType.COURIER).success)return false;
+        cleanup(player,assignment,state.getSerfdomMaster());
         KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());
         world.markDirty();player.inventoryContainer.detectAndSendChanges();KOMEProgressionAutoCompleter.syncPlayer(player,progression);return true;
+        }
     }
 
     /** Rewrites the one assignment-owned physical book in place, removing accidental duplicates. */
     static void refreshDispatch(EntityPlayerMP p,KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){
         UUID owner=KOMEReflection.getEntityUUID(p);int first=-1;
-        for(int i=0;i<p.inventory.mainInventory.length;i++)if(identityMatch(p.inventory.mainInventory[i],a,owner,master)){if(first<0)first=i;else p.inventory.mainInventory[i]=null;}
-        ItemStack current=message(a,owner,master);if(first>=0)p.inventory.mainInventory[first]=current;else p.inventory.addItemStackToInventory(current);p.inventoryContainer.detectAndSendChanges();
+        for(int i=0;i<p.inventory.mainInventory.length;i++)if(matching(p.inventory.mainInventory[i],a,owner,master)){if(first<0)first=i;else p.inventory.mainInventory[i]=null;}
+        ItemStack current=message(a,owner,master);if(first>=0)p.inventory.mainInventory[first]=current;else for(Object value:p.worldObj.loadedEntityList)if(value instanceof EntityItem){EntityItem entity=(EntityItem)value;if(!entity.isDead&&matching(entity.getEntityItem(),a,owner,master))entity.setEntityItemStack(current.copy());}p.inventory.markDirty();p.inventoryContainer.detectAndSendChanges();
     }
 
     public static boolean validRecipient(EntityPlayerMP p,LOTREntityNPC n,KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){return eligible(n,a,master)&&a.stage==KOMESerfCourierAssignment.Stage.OUTBOUND&&a.recipient.isSet()&&a.recipient.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(n))&&KOMEProgressionFactionResolver.matches(a.masterFactionKey,LOTRLevelData.getData(p).getPledgeFaction())&&p.getDistanceSqToEntity(n)<=64D;}
@@ -244,17 +275,12 @@ public final class KOMECourierService {
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         if(!"courier".equals(state.getActiveAssignmentKind()))return;
         KOMESerfCourierAssignment a=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-        if(a==null||a.stage!=KOMESerfCourierAssignment.Stage.OUTBOUND)return;
+        if(a==null||a.stage!=KOMESerfCourierAssignment.Stage.OUTBOUND||a.confirmedRecipientDeath)return;
         if(a.recipient.isSet()){
             LOTREntityNPC bound=loadedRecipient(p,a.recipient.entityUuid);
             if(bound==null)return; // Unload is not death.
-            if(eligible(bound,a,state.getSerfdomMaster()))return;
-            // Retire this generation before selecting a replacement so it cannot be rebound.
-            KOMECourierRecipientSpawner.retire(bound,a.token);
-            a.recipient=KOMEProgressionNpcRef.EMPTY;
-            a.recipientDeaths=Math.min(100,a.recipientDeaths+1);
-            a.nextRecipientWorldTime=p.worldObj.getTotalWorldTime()+replacementDelay(a.recipientDeaths);
-            persist(world,p,progression,state,a);refreshDispatch(p,a,state.getSerfdomMaster());
+            // A loaded but changed NPC is not proof of death either.
+            return;
         }
         if(!a.atDestination(p.dimension,p.posX,p.posZ,ARRIVAL_RADIUS)||p.worldObj.getTotalWorldTime()<a.nextRecipientWorldTime)return;
         if(LOGGER.isDebugEnabled())LOGGER.debug("Courier arrival token={} dimension={} destination=({}, {}) player=({}, {})",a.token,a.dimension,a.destinationX,a.destinationZ,p.posX,p.posZ);
@@ -268,6 +294,20 @@ public final class KOMECourierService {
     private static void persist(KOMEWorldData world,EntityPlayerMP p,KOMEPlayerProgression progression,KOMESerfKnightProgression state,KOMESerfCourierAssignment a){state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER,a.writeToNBT());KOMEProgressionNpcRoles.syncPlayer(world,p.getUniqueID());world.markDirty();KOMEProgressionAutoCompleter.syncPlayer(p,progression);}
 
     public static boolean handleRecipientDeath(KOMEWorldData world,String npcId){return handleRecipientDeath(world,npcId,null);}
-    public static boolean handleRecipientDeath(KOMEWorldData world,String npcId,net.minecraft.world.World serverWorld){if(world==null||npcId==null)return false;boolean changed=false;for(java.util.Map.Entry<UUID,KOMEPlayerProgression> entry:world.progressions.entrySet()){KOMEPlayerProgression progression=entry.getValue();KOMESerfKnightProgression state=progression.getSerfKnightProgression();if(!"courier".equals(state.getActiveAssignmentKind()))continue;KOMESerfCourierAssignment a=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());if(a!=null&&a.stage==KOMESerfCourierAssignment.Stage.OUTBOUND&&npcId.equals(a.recipient.entityUuid)){a.recipient=KOMEProgressionNpcRef.EMPTY;a.recipientDeaths=Math.min(100,a.recipientDeaths+1);long now=serverWorld==null?0L:serverWorld.getTotalWorldTime();a.nextRecipientWorldTime=now+replacementDelay(a.recipientDeaths);state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER,a.writeToNBT());KOMEProgressionNpcRoles.syncPlayer(world,entry.getKey());if(serverWorld!=null){net.minecraft.entity.player.EntityPlayer player=serverWorld.func_152378_a(entry.getKey());if(player instanceof EntityPlayerMP)refreshDispatch((EntityPlayerMP)player,a,state.getSerfdomMaster());}changed=true;}}if(changed)world.markDirty();return changed;}
+    public static boolean handleRecipientDeath(KOMEWorldData world,String npcId,net.minecraft.world.World serverWorld){
+        if(world==null||npcId==null)return false;boolean changed=false;
+        synchronized(world){for(java.util.Map.Entry<UUID,KOMEPlayerProgression> entry:world.progressions.entrySet()){
+            KOMEPlayerProgression progression=entry.getValue();KOMESerfKnightProgression state=progression.getSerfKnightProgression();
+            if(!"courier".equals(state.getActiveAssignmentKind()))continue;
+            KOMESerfCourierAssignment a=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
+            if(a!=null&&a.stage==KOMESerfCourierAssignment.Stage.OUTBOUND&&!a.confirmedRecipientDeath&&npcId.equals(a.recipient.entityUuid)){
+                a.confirmedRecipientDeath=true;a.recipientDeaths=Math.min(100,a.recipientDeaths+1);
+                state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER,a.writeToNBT());
+                KOMEProgressionNpcRoles.syncPlayer(world,entry.getKey());
+                if(serverWorld!=null){net.minecraft.entity.player.EntityPlayer player=serverWorld.func_152378_a(entry.getKey());if(player instanceof EntityPlayerMP)KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP)player,progression);}
+                changed=true;
+            }
+        }if(changed)world.markDirty();}return changed;
+    }
     static long replacementDelay(int deaths){return Math.min(6000L,1200L*Math.max(1,deaths));}
 }

@@ -17,6 +17,7 @@ import static org.junit.Assert.*;
 public class KOMECourierGeographyTest {
     @Test public void deterministicUnloadedTerritoryDestinationIsInTravelRangeAndPersists() throws Exception {
         KOMEAccessFixture fixture=new KOMEAccessFixture();fixture.world.provider.dimensionId=LOTRDimension.MIDDLE_EARTH.dimensionID;
+        fixture.world.rand=new java.util.Random(3);fixture.world.isRemote=true;
         TestBiome biome=KOMEAccessFixture.allocate(TestBiome.class);biome.heightBaseParameter=0.2F;biome.npcSpawnList=KOMEAccessFixture.allocate(TestSpawnList.class);
         TestManager manager=KOMEAccessFixture.allocate(TestManager.class);manager.biome=biome;fixture.world.provider.worldChunkMgr=manager;
         KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(java.util.UUID.randomUUID().toString(),"Aldor","rohan",LOTRDimension.MIDDLE_EARTH.dimensionID,1000,64,1000);
@@ -32,6 +33,10 @@ public class KOMECourierGeographyTest {
         for(String forbidden:new String[]{"getChunkFromChunkCoords","loadChunk","provideChunk"})assertFalse(forbidden,source.contains(forbidden));
     }
     public static final class TestManager extends WorldChunkManager {TestBiome biome;private TestManager(){super();}@Override public BiomeGenBase getBiomeGenAt(int x,int z){return biome;}}
-    public static final class TestSpawnList extends LOTRBiomeSpawnList {private TestSpawnList(){super("test");}@Override public boolean isFactionPresent(net.minecraft.world.World world,LOTRFaction faction){return faction==LOTRFaction.ROHAN;}}
+    public static final class TestSpawnList extends LOTRBiomeSpawnList {
+        private TestSpawnList(){super("test");}
+        @Override public boolean isFactionPresent(net.minecraft.world.World world,LOTRFaction faction){return faction==LOTRFaction.ROHAN;}
+        @Override public java.util.List<lotr.common.world.spawning.LOTRSpawnEntry> getAllSpawnEntries(net.minecraft.world.World world){return java.util.Arrays.asList(new lotr.common.world.spawning.LOTRSpawnEntry(lotr.common.entity.npc.LOTREntityRohanMan.class,10,1,1));}
+    }
     public static final class TestBiome extends LOTRBiome {private TestBiome(){super(250,false);}@Override public boolean isWateryBiome(){return false;}@Override public LOTRMusicRegion.Sub getBiomeMusic(){return null;}}
 }

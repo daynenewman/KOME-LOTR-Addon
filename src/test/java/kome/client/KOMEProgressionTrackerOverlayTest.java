@@ -73,6 +73,26 @@ public class KOMEProgressionTrackerOverlayTest {
         assertTrue(
             source.contains(
                 "normalizedY"));
+
+        assertTrue(
+            source.contains(
+                "DAILY_COMPLETE_TICKS=100"));
+
+        assertTrue(
+            source.contains(
+                "\"daily_complete\".equals(snapshot.iconKey)"));
+
+        assertTrue(
+            source.contains(
+                "dailyCompleteTicks--"));
+
+        assertTrue(
+            source.contains(
+                "return new ItemStack(Items.paper);"));
+
+        assertFalse(
+            source.contains(
+                "KOMEAddon.sealedMessage"));
     }
 
     @Test

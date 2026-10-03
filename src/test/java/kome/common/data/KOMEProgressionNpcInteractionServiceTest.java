@@ -28,16 +28,19 @@ public class KOMEProgressionNpcInteractionServiceTest {
             "KOMESerfProfessionService.deliver"));
 
         assertTrue(source.contains(
-            "KOMECourierService.reportToMaster"));
+            "KOMECourierIssuance.interact"));
 
         assertTrue(source.contains(
-            "KOMECourierService.hasDispatch"));
+            "handleCourierAtMaster"));
 
         assertTrue(source.contains(
             "KOMESerfdomMasterService.requestDuty"));
 
-        assertTrue(source.contains(
+        assertFalse(source.contains(
             "KOMESerfKnightService.assignTrial"));
+
+        assertTrue(source.contains(
+            "accepted explicitly through the normal"));
 
         assertTrue(source.contains(
             "KOMESerfKnightRecoveryService.deliver"));

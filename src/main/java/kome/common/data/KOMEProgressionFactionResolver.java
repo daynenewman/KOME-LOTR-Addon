@@ -17,10 +17,14 @@ public final class KOMEProgressionFactionResolver {
         // few faction names. Derive those spellings from LOTR's identifiers too.
         for(LOTRFaction faction:LOTRFaction.values())
             if(key.equals(KOMEAlliance.normalizeFactionKey(faction.codeName())))return faction;
+        for(LOTRFaction faction:LOTRFaction.values())for(String alias:faction.listAliases())
+            if(key.equals(alias.toLowerCase(Locale.ROOT))||key.equals(KOMEAlliance.normalizeFactionKey(alias)))return faction;
         return null;
     }
 
     public static boolean matches(String storedKey,LOTRFaction faction) {
         return faction!=null&&resolve(storedKey)==faction;
     }
+    /** v36.15 contains Ents/Huorns but no Fangorn LOTRUnitTradeable Liege or Quest host. */
+    public static boolean missingNativeLiege(String faction){return resolve(faction)==LOTRFaction.FANGORN;}
 }

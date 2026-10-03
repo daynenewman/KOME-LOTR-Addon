@@ -51,7 +51,7 @@ public class KOMESerfKnightDefenseServiceTest {
     }
 
     @Test public void activationAndReconciliationNeverRespawnOrDuplicateAttackers() throws Exception {
-        String source=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMESerfKnightDefenseService.java")),StandardCharsets.UTF_8);assertTrue(source.contains("assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ASSIGNED"));assertTrue(source.contains("if(data.getBoolean(ACTIVATED))return false"));assertTrue(source.contains("if(entity==null)return; // unloaded is deliberately inconclusive"));assertTrue(source.contains("if(uuid.equals(objective(assignment).entityUuid)){fail(state,world);continue;}"));
+        String source=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMESerfKnightDefenseService.java")),StandardCharsets.UTF_8);assertTrue(source.contains("assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ASSIGNED"));assertTrue(source.contains("if(data.getBoolean(ACTIVATED))return false"));assertTrue(source.contains("if(entity==null)return; // unloaded is deliberately inconclusive"));assertTrue(source.contains("if(uuid.equals(objective(assignment).entityUuid)){fail(state,world,liveWorld);continue;}"));
     }
 
     @Test public void cleanupAndSelectionStayConservativeAcrossTrialTypes() throws Exception {

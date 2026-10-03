@@ -116,6 +116,16 @@ public class KOMECommonProxy {
     public void updateProgressionTracker(kome.common.data.KOMEProgressionTrackerSnapshot snapshot) {
     }
 
+    public void updateStandingTrialEligibility(
+            int entityId,
+            long entityUuidMost,
+            long entityUuidLeast,
+            boolean eligible,
+            boolean passiveOffer,
+            boolean offering,
+            int offerColor) {
+    }
+
     public void displayPledgeDeparture(kome.common.network.KOMEPacketPledgeDepartureData message) {
     }
 

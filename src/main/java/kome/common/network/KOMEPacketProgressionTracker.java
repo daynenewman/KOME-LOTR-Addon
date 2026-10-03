@@ -32,7 +32,8 @@ public final class KOMEPacketProgressionTracker implements IMessage {
                 ByteBufUtils.readUTF8String(buffer),
                 ByteBufUtils.readUTF8String(buffer),
                 ByteBufUtils.readUTF8String(buffer),
-                buffer.readFloat());
+                buffer.readFloat(),
+                ByteBufUtils.readItemStack(buffer));
     }
 
     @Override
@@ -47,6 +48,7 @@ public final class KOMEPacketProgressionTracker implements IMessage {
         ByteBufUtils.writeUTF8String(buffer,value.objective);
         ByteBufUtils.writeUTF8String(buffer,value.progress);
         buffer.writeFloat(value.completion);
+        ByteBufUtils.writeItemStack(buffer,value.requestedItem);
     }
 
     public static final class Handler

@@ -63,10 +63,10 @@ public class KOMEProgressionNpcRankTest {
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master,KOMEProgressionNpcRank.UNRANKED,true).success);
         long day=10L;
         for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()) { assertTrue(KOMESerfKnightService.assignDuty(state,type,null,day++).success); assertTrue(KOMESerfKnightService.completeDuty(state,type).success); }
-        assertFalse(KOMESerfKnightService.setProspectiveLiege(state,liege,KOMEProgressionNpcRank.UNRANKED,true).success);
-        assertFalse(KOMESerfKnightService.setProspectiveLiege(state,liege,KOMEProgressionNpcRank.PRINCE,true).success);
-        assertFalse(KOMESerfKnightService.setProspectiveLiege(state,liege,KOMEProgressionNpcRank.KING,true).success);
-        assertTrue(KOMESerfKnightService.setProspectiveLiege(state,liege,KOMEProgressionNpcRank.LORD,true).success);
+        assertFalse(KOMESerfKnightService.commitLiegeForTrial(state,liege,KOMEProgressionNpcRank.UNRANKED,true).success);
+        assertFalse(KOMESerfKnightService.commitLiegeForTrial(state,liege,KOMEProgressionNpcRank.PRINCE,true).success);
+        assertFalse(KOMESerfKnightService.commitLiegeForTrial(state,liege,KOMEProgressionNpcRank.KING,true).success);
+        assertTrue(KOMESerfKnightService.commitLiegeForTrial(state,liege,KOMEProgressionNpcRank.LORD,true).success);
         assertFalse(KOMESerfKnightService.setSerfdomMaster(new KOMESerfKnightProgression(),ref("ranked"),KOMEProgressionNpcRank.LORD,true).success);
     }
 

@@ -9,7 +9,7 @@ import net.minecraft.nbt.NBTTagCompound;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
-/** Domain coverage for the one-assignment-per-server-calendar-day rule. */
+/** Domain coverage for separate daily duty and Trial-of-Standing cadence slots. */
 public class KOMESerfKnightCadenceTest {
     private static KOMEProgressionNpcRef ref(String name) {
         return new KOMEProgressionNpcRef(UUID.randomUUID().toString(), name, "rohan", 0, 0, 0, 0);
@@ -27,7 +27,7 @@ public class KOMESerfKnightCadenceTest {
     private static KOMEProgressionNpcRef completeDutiesAndSetLiege(KOMESerfKnightProgression state) {
         master(state); completeDuties(state);
         KOMEProgressionNpcRef liege = ref("Liege");
-        assertTrue(KOMESerfKnightService.setProspectiveLiege(state, liege).success);
+        assertTrue(KOMESerfKnightService.commitLiegeForTrial(state, liege).success);
         return liege;
     }
 
@@ -84,30 +84,45 @@ public class KOMESerfKnightCadenceTest {
         assertFalse(KOMESerfKnightService.assignTrial(state, new Random(1L), 11L).success);
     }
 
-    @Test public void trialConsumesDailySlotAndNormalDisruptionDoesNotRestoreIt() {
-        KOMESerfKnightProgression state = new KOMESerfKnightProgression();
-        KOMEProgressionNpcRef liege = completeDutiesAndSetLiege(state);
-        assertTrue(KOMESerfKnightService.assignTrial(state, new Random(2L), 20L).success);
+    @Test public void finalDutyAndTrialMayShareADayButTrialRetryStillWaits() {
+        KOMESerfKnightProgression state = new KOMESerfKnightProgression(); master(state);
+        long day=18L;
+        for (KOMESerfKnightDutyType type : KOMESerfKnightDutyType.values()) {
+            assertTrue(KOMESerfKnightService.assignDuty(state, type, null, day).success);
+            assertTrue(KOMESerfKnightService.completeDuty(state, type).success);
+            day++;
+        }
         assertEquals(20L, state.getLastAssignmentEpochDay());
-        // A cancelled active trial demonstrates that disruption cannot restore today's slot.
-        assertTrue(KOMESerfKnightService.handleNpcDeath(state, liege.entityUuid, false, 20L));
-        assertTrue(KOMESerfKnightService.canSelectReplacement(state, 20L));
-        KOMEProgressionNpcRef replacement = ref("Replacement Liege");
-        assertTrue(KOMESerfKnightService.setProspectiveLiege(state, replacement).success);
-        assertFalse(KOMESerfKnightService.assignTrial(state, new Random(2L), 20L).success);
-        assertTrue(KOMESerfKnightService.assignTrial(state, new Random(2L), 21L).success);
+        assertEquals(-1L, state.getLastTrialAssignmentEpochDay());
+        assertTrue(KOMESerfKnightService.mayIssueTrial(state,20L));
+        KOMEProgressionNpcRef liege=ref("Liege");
+        assertTrue(KOMESerfKnightService.commitLiegeForTrial(state,liege).success);
+        assertTrue(KOMESerfKnightService.assignTrial(state,new Random(2L),20L).success);
+        assertEquals(20L,state.getLastAssignmentEpochDay());
+        assertEquals(20L,state.getLastTrialAssignmentEpochDay());
+        // A cancelled active trial does not restore today's separate Trial slot.
+        assertTrue(KOMESerfKnightService.handleNpcDeath(state,liege.entityUuid,false,20L));
+        assertTrue(KOMESerfKnightService.canSelectReplacement(state,20L));
+        KOMEProgressionNpcRef replacement=ref("Replacement Liege");
+        assertTrue(KOMESerfKnightService.commitLiegeForTrial(state,replacement).success);
+        assertFalse(KOMESerfKnightService.assignTrial(state,new Random(2L),20L).success);
+        assertTrue(KOMESerfKnightService.assignTrial(state,new Random(2L),21L).success);
     }
 
-    @Test public void giftAndPromotionDoNotConsumeOrWaitForDailyAssignment() {
+    @Test public void giftAndPromotionDoNotConsumeEitherCadenceSlot() {
         KOMESerfKnightProgression state = new KOMESerfKnightProgression();
         completeDutiesAndSetLiege(state);
-        assertTrue(KOMESerfKnightService.assignTrial(state, new Random(2L), 20L).success);
+        long dutyDay=state.getLastAssignmentEpochDay();
+        assertTrue(KOMESerfKnightService.assignTrial(state,new Random(2L),20L).success);
         assertTrue(KOMESerfKnightService.completeTrial(state).success);
-        assertFalse(KOMESerfKnightService.mayIssueAssignment(state, 20L));
+        assertFalse(KOMESerfKnightService.mayIssueTrial(state,20L));
         assertTrue(KOMESerfKnightService.recordPartingGift(state).success);
-        assertEquals(20L, state.getLastAssignmentEpochDay());
-        assertTrue(KOMESerfKnightService.canPromote(state, 150));
-        assertTrue(KOMESerfKnightService.markPromoted(state, 150).success);
+        assertEquals(dutyDay,state.getLastAssignmentEpochDay());
+        assertEquals(20L,state.getLastTrialAssignmentEpochDay());
+        assertTrue(KOMESerfKnightService.canPromote(state,150));
+        assertTrue(KOMESerfKnightService.markPromoted(state,150).success);
+        assertEquals(dutyDay,state.getLastAssignmentEpochDay());
+        assertEquals(20L,state.getLastTrialAssignmentEpochDay());
     }
 
     @Test public void betrayalKeepsConsumedSlotAcrossRoundTripWhileNormalDisruptionDoesNotLockOut() {
@@ -144,7 +159,19 @@ public class KOMESerfKnightCadenceTest {
         assertFalse(loaded.getDuty(KOMESerfKnightDutyType.PROFESSION).isAssigned());
         assertFalse(loaded.getDuty(KOMESerfKnightDutyType.COURIER).isAssigned());
         old.setLong("LastAssignmentEpochDay", Long.MAX_VALUE);
+        old.setLong("LastTrialAssignmentEpochDay", Long.MAX_VALUE);
         loaded.readFromNBT(old);
         assertEquals(-1L, loaded.getLastAssignmentEpochDay());
+        assertEquals(-1L, loaded.getLastTrialAssignmentEpochDay());
+
+        KOMESerfKnightProgression legacyTrial=new KOMESerfKnightProgression();
+        completeDutiesAndSetLiege(legacyTrial);
+        assertTrue(KOMESerfKnightService.assignTrial(legacyTrial,new Random(3L),30L).success);
+        NBTTagCompound legacyTrialTag=legacyTrial.writeToNBT();
+        legacyTrialTag.removeTag("LastTrialAssignmentEpochDay");
+        KOMESerfKnightProgression migrated=new KOMESerfKnightProgression();
+        migrated.readFromNBT(legacyTrialTag);
+        assertEquals(30L,migrated.getLastTrialAssignmentEpochDay());
+        assertFalse(KOMESerfKnightService.mayIssueTrial(migrated,30L));
     }
 }

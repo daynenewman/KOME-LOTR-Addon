@@ -10,6 +10,8 @@ import kome.common.data.KOMEProgressionTaskGenerator;
 import kome.common.data.KOMEProgressionTitles;
 import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMECanonicalRankService;
+import kome.common.data.KOMEHigherRankTransitionService;
+import kome.common.data.KOMEFactionProgressionTitles;
 import kome.common.data.KOMEProgressionRank;
 import kome.common.data.KOMEProgressionEncounterCleanup;
 import kome.common.data.KOMEProgressionNpcRoles;
@@ -94,11 +96,23 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             EntityPlayerMP player = getCommandSenderAsPlayer(sender);
             KOMEProgressionAchievement achievement = getSelfCompletableAchievement(args[1]);
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-            KOMEPlayerProgression progression = data.progressionForInspection(KOMEReflection.getEntityUUID(player));
+            UUID playerId = KOMEReflection.getEntityUUID(player);
+            KOMEPlayerProgression progression = data.progressionForInspection(playerId);
+            if (KOMEHigherRankTransitionService.isTransitionMarker(achievement.id)) {
+                KOMEHigherRankTransitionService.Result result =
+                    KOMEHigherRankTransitionService.promote(data, playerId, achievement.id);
+                if (!result.success) throw new WrongUsageException(result.reason);
+                progression = data.getProgression(playerId);
+                syncProgression(player, progression);
+                String rankTitle = KOMEFactionProgressionTitles.title(
+                    data.getPlayerFactionKey(playerId), result.newRank);
+                player.addChatMessage(new ChatComponentText("Advanced to " + rankTitle + "."));
+                return;
+            }
             if (!KOMEProgressionPermissionRegistry.canComplete(progression, achievement)) {
                 throw new WrongUsageException("Cannot complete " + achievement.title + ":" + KOMEProgressionPermissionRegistry.prerequisiteText(achievement).trim());
             }
-            progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+            progression = data.getProgression(playerId);
             boolean changed = progression.grant(achievement.id);
             changed = KOMEProgressionAutoCompleter.applyUnlocks(progression) > 0 || changed;
             data.markDirty();
@@ -112,6 +126,11 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             }
             EntityPlayerMP player = getCommandSenderAsPlayer(sender);
             KOMEProgressionAchievement achievement = getSelfCompletableAchievement(args[1]);
+            if (KOMEHigherRankTransitionService.isTransitionMarker(achievement.id)
+                    || "serf.title_knight".equalsIgnoreCase(achievement.id)
+                    || "wanderer.find_serf_lord".equalsIgnoreCase(achievement.id)) {
+                throw new WrongUsageException("Canonical rank-transition history cannot be removed with /progression uncomplete.");
+            }
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
             KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
             boolean changed = progression.revoke(achievement.id);
@@ -156,6 +175,10 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             }
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
             KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
+            if (!KOMEProgressionPermissionRegistry.canComplete(progression, achievement)) {
+                throw new WrongUsageException("Cannot roll " + achievement.title + ":"
+                    + KOMEProgressionPermissionRegistry.prerequisiteText(achievement).trim());
+            }
             String current = progression.getAssignment(achievement.id);
             if (current == null || current.trim().isEmpty()) {
                 long seed = KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)) ^ KOMEReflection.getEntityUUID(player).getLeastSignificantBits();
@@ -249,7 +272,7 @@ public class KOMECommandProgression extends KOMEPublicCommand {
         KOMEPlayerProgression progression = data.progressionForInspection(KOMEReflection.getEntityUUID(player));
         sender.addChatMessage(new ChatComponentText("Progression restrictions: " + (data.isProgressionEnabled() ? "enabled" : "disabled")));
         sender.addChatMessage(new ChatComponentText(player.getCommandSenderName() + " progression: " + progression.getCompletedCount(null) + "/" + progression.getTotalCount(null) + " complete"));
-        sender.addChatMessage(new ChatComponentText("Legacy pledged lord: " + progression.getPledgedLordDisplay()));
+        sender.addChatMessage(new ChatComponentText("Legacy relationship record: " + progression.getPledgedLordDisplay()));
         sender.addChatMessage(new ChatComponentText("Canonical rank: " + progression.getCanonicalRank().displayName));
         for (String group : GROUPS) {
             sender.addChatMessage(new ChatComponentText(group + ": " + progression.getCompletedCount(group) + "/" + progression.getTotalCount(group)));

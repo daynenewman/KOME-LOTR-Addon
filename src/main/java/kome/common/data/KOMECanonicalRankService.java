@@ -27,6 +27,7 @@ public final class KOMECanonicalRankService {
 
         if(progression.getCanonicalRank()==rank)return false;
 
+        KOMELordshipTrialService.cancel(player.worldObj,playerId,progression);
         KOMEProgressionEncounterCleanup.cleanup(player,progression);
         progression.getSerfKnightProgression().reset();
         progression.setCanonicalRank(rank);

@@ -48,7 +48,7 @@ public class KOMEPacketProgressionRequest implements IMessage {
             LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();String pledgeName=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.factionName():"";
             double alignment=pledge==null?0D:LOTRLevelData.getData(player).getAlignment(pledge);
         String pledgeKey=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.codeName():"";
-            KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression,pledgeName,pledgeKey), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression), KOMEProgressionRankSummary.project(progression,alignment,pledgeKey)), player);
+            KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression,pledgeName,pledgeKey,alignment), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression), KOMEProgressionRankSummary.project(progression,alignment,pledgeKey,player.getUniqueID())), player);
             KOMEVisualLocationService.syncIfChanged(player, progression, false);
             return null;
         }
