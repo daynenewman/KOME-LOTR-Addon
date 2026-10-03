@@ -29,8 +29,8 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 5 adds mandatory KOM-71 population-development authority. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 5;
+    /** Schema 6 adds mandatory KOM-11 season usage and scheduled native muster rosters. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 6;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
@@ -107,6 +107,8 @@ public class KOMEWorldData extends WorldSavedData {
     public int nextWarSequence = 1;
     /** The sole persisted campaign-season authority; population and unit records remain separate. */
     public final KOMEWarSeasonState warSeason = new KOMEWarSeasonState();
+    /** Access through KOMEMusterService; each faction/season call is retained, including pending old seasons. */
+    final Map<String, KOMEMusterRecord> civilianMusters = new HashMap<String, KOMEMusterRecord>();
     public int nextBuildSequence = 1;
     public int allianceStageThreeRequiredHalfHours = KOMEAllianceProgressionService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
     public String allianceDifficulty = KOMEAllianceRequirements.STANDARD;
@@ -2026,6 +2028,20 @@ public class KOMEWorldData extends WorldSavedData {
         nextWarSequence = nbt.hasKey("NextWarSequence") ? Math.max(1, nbt.getInteger("NextWarSequence")) : 1;
         loadSection = "WarSeason";
         warSeason.readFromNBT(nbt.getCompoundTag("WarSeason"));
+        loadSection = "CivilianMusters";
+        civilianMusters.clear();
+        if (!nbt.hasKey("MusterDataSchemaVersion", 3) || nbt.getInteger("MusterDataSchemaVersion") != 1
+                || !nbt.hasKey("CivilianMusters", 9))
+            throw new IllegalArgumentException("Missing or unsupported civilian-muster section.");
+        NBTTagList musterList = nbt.getTagList("CivilianMusters", 10);
+        NBTTagList rawMusters = (NBTTagList) nbt.getTag("CivilianMusters");
+        if (rawMusters.tagCount() > 0 && rawMusters.func_150303_d() != 10)
+            throw new IllegalArgumentException("Civilian-muster list must contain compounds.");
+        for (int i = 0; i < musterList.tagCount(); i++) {
+            KOMEMusterRecord record = KOMEMusterRecord.readFromNBT(musterList.getCompoundTagAt(i));
+            if (record.seasonId > warSeason.seasonId || civilianMusters.put(record.key(), record) != null)
+                throw new IllegalArgumentException("Duplicate or future-season civilian muster.");
+        }
         nextBuildSequence = nbt.hasKey("NextBuildSequence") ? Math.max(1, nbt.getInteger("NextBuildSequence")) : 1;
         nextCompanySequence = nbt.hasKey("NextCompanySequence")
             ? Math.max(1L, nbt.getLong("NextCompanySequence")) : 1L;
@@ -2640,6 +2656,8 @@ public class KOMEWorldData extends WorldSavedData {
         conquestDefaultsInitialized = candidate.conquestDefaultsInitialized;
         integratedRootInitialized = candidate.integratedRootInitialized;
         warSeason.seasonId = candidate.warSeason.seasonId;
+        civilianMusters.clear();
+        civilianMusters.putAll(candidate.civilianMusters);
         warSeason.phase = candidate.warSeason.phase;
         warSeason.minimumWarEndMillis = candidate.warSeason.minimumWarEndMillis;
         warSeason.finaleTriggerActor = candidate.warSeason.finaleTriggerActor;
@@ -2723,6 +2741,13 @@ public class KOMEWorldData extends WorldSavedData {
     @Override
     public void writeToNBT(NBTTagCompound nbt) {
         ensureWritable();
+        NBTTagList musterList = new NBTTagList();
+        for (String id : new java.util.TreeSet<String>(civilianMusters.keySet())) {
+            KOMEMusterRecord record = civilianMusters.get(id);
+            if (record == null || !id.equals(record.key()) || record.seasonId > warSeason.seasonId)
+                throw new IllegalStateException("Invalid civilian-muster identity/season.");
+            musterList.appendTag(record.writeToNBT());
+        }
         validatePopulationPayoutState(); // reject before touching the destination tag
         populationDevelopment.validate();
         Map<String, KOMEFactionCapitalRecord> capitalsForWrite =
@@ -2756,6 +2781,8 @@ public class KOMEWorldData extends WorldSavedData {
         NBTTagCompound warSeasonTag = new NBTTagCompound();
         warSeason.writeToNBT(warSeasonTag);
         nbt.setTag("WarSeason", warSeasonTag);
+        nbt.setInteger("MusterDataSchemaVersion", 1);
+        nbt.setTag("CivilianMusters", musterList);
         KOMEAuditService.writeToNBT(this, nbt);
         nbt.setInteger("NextBuildSequence", Math.max(1, nextBuildSequence));
         nbt.setLong("NextCompanySequence", Math.max(1L, nextCompanySequence));

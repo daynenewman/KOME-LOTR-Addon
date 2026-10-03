@@ -1,7 +1,8 @@
 # KOM-29: live faction defeat detection
 
-Branch: `dayne/kom-29-defeat-detection`, based exactly on dev commit
-`fa6a43cc4876f68fd59f361fa6182b21ae26d974`. PR targets `dev`.
+Branch: `dayne/kom-29-defeat-detection`, originally based exactly on dev commit
+`fa6a43cc4876f68fd59f361fa6182b21ae26d974`, now integrating `origin/dev` at
+`585e12a1c91cfa38ef8ed5d2da5e3580d1b8a238` through a merge. PR targets `dev`.
 
 Authority read: current Linear KOM-29 and its implementation comment; Draft 0.4
 sections 9.3, 9.5, 9.6, 9.7 and 12.2; existing ownership, capital, population,
@@ -22,9 +23,11 @@ Read the applicable user and parent AGENTS.md instructions and Java skill.
   numerators, avoiding display rounding that can turn a sub-one rate into `1.000000`.
   Only active normal Builds' currently developed approved hours contribute. Pending
   hours, defensive-only Builds and encirclement pressure add no alternative rate rule.
-- The server START campaign path reconciles after live population development/payout
-  succeeds. Without a lost capital, it avoids a Build scan. Transitions run only during
-  WAR/FINALE, preserving setup/reset lifecycle. Inspection is read-only in every phase.
+- The server START campaign path preserves its startup return. Live ticks reset movement
+  allowances, process movement, process scheduled musters, then run population
+  development/payout; defeat reconciles only after population processing succeeds.
+  Without a lost capital, it avoids a Build scan. Transitions run only during WAR/FINALE,
+  preserving setup/reset lifecycle. Inspection is read-only in every phase.
 - The existing `KOMEWarSeasonState` stores faction/timestamp outcomes only. Successful
   season reset clears them. Recapture updates the live predicate, but cannot replay or
   reverse a completed defeat. No objective snapshot, duplicate ownership/population
@@ -95,11 +98,49 @@ Read the applicable user and parent AGENTS.md instructions and Java skill.
   remained unchanged; other worktree heads stayed unchanged, with two other worktrees'
   working-file statuses changing independently during this task.
 
+## Integration with current dev, 2026-10-02
+
+- Merged `origin/dev` commit `585e12a1c91cfa38ef8ed5d2da5e3580d1b8a238` into
+  feature head `1d2312d12f7ca843c746bb7cf52b1c9e6151b587`. The only merge conflict
+  was `KOMEEvents.processCampaignTick`; it now preserves the startup return and the
+  live sequence: movement allowance reset, movement, scheduled musters, live population,
+  then defeat reconciliation only when the population result succeeds.
+- Root schema remains **6**. The mandatory `CivilianMusters` section, muster schema 1,
+  and `WarSeason.FactionDefeats` survive the shared root loader and candidate publication.
+  Self-review compared all 27 incoming files with `origin/dev`: outside the intentional
+  event integration, WorldData defeat additions and muster integration tests, every
+  incoming file matches dev. Existing command/admin/configuration behavior is retained.
+- Three new behavioral regressions execute the real campaign tick and services. They
+  verify movement allowance reset and arrival before muster processing, muster before
+  live payout, and defeat after successful payout; a rejected payout retains the pending
+  muster but defers defeat until successful retry; startup anchors movement without
+  running overdue movement/muster/defeat. Full root NBT save/load preserves both pending
+  and arrived muster snapshots, the once-per-season call, defeat timestamp and audits.
+  Repeated ticks/delivery checks/reconciliation after reload do not duplicate outcomes.
+  Arrival uses the existing test receipt authority and inert movement-world fixture;
+  it does not claim physical NPC deployment.
+- Focused validation: **215 passed, 0 skipped, 0 failures/errors**, including all 27
+  muster tests and 20 defeat tests plus movement, population, root schema/load, season,
+  capital, configuration and public-access regressions.
+- Full `clean test build --offline --no-daemon --console=plain` validation:
+  **1,415 passed, 2 existing Windows symbolic-link skips, 0 failures/errors**, including
+  release reobfuscation. Both focused and full gates held `Local\KOME-Heavy-Validation`.
+  Integrated release jar SHA-256:
+  `26d9fc694506a22c9deb4c65e4dee4e7f206bf15ba2ed4eee845c09911eb59cf`.
+- Task-owned logs, XML snapshots and preservation comparisons are under ignored
+  `outputs/kom29-dev-integration`. Primary checkout, other worktree heads/statuses and
+  stash matched their pre-merge snapshots. Existing worlds/runtimes were not used or
+  changed; the previous disposable runtime jar still has its original hash.
+
 ## Remaining acceptance checks
 
 - Real players should refresh Server Records, inspect the new war-detail card at
   supported window sizes, and confirm scrolling/labels and non-operator inspection.
 - Live multiplayer encirclement/siege gameplay was not exercised. Automated coverage
   uses the existing hostile-pressure hook and actual population/ownership services.
+- The integrated build has not been run in a multiplayer Forge campaign. Verify the
+  combined muster/deadline/restart and defeat UI paths there; muster physical deployment
+  remains deferred to the existing conflict/deployment integration, as documented in
+  [KOM-11 acceptance](KOM11_CIVILIAN_MUSTER.md).
 
-No merge or deployment was performed.
+No PR merge or deployment was performed.
