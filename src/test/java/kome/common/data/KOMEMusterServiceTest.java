@@ -311,7 +311,7 @@ public class KOMEMusterServiceTest {
 
     private static KOMEWorldData restartCombined(KOMEWorldData data, KOMEMusterRecord muster) {
         NBTTagCompound tag = new NBTTagCompound(); data.writeToNBT(tag);
-        assertEquals(6, tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(1, tag.getInteger("MusterDataSchemaVersion"));
         assertEquals(1, tag.getTagList("CivilianMusters", 10).tagCount());
         assertEquals(1, tag.getCompoundTag("WarSeason").getTagList("FactionDefeats", 10).tagCount());

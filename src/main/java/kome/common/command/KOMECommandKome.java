@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class KOMECommandKome extends KOMEPublicCommand {
+    private final KOMEAdminDiagnosticsCommands diagnostics = new KOMEAdminDiagnosticsCommands();
     @Override
     public String getCommandName() {
         return "kome";
@@ -56,7 +57,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
     @Override
     public String getCommandUsage(ICommandSender sender) {
         if (!hasStaffPermission(sender)) return "/kome [gui|help|tile <tileId>|waypoint propose <name>]";
-        return "/kome conflict <inspect|end> ... | /kome repair conflict <tile> <preview|apply> | /kome waypoint help | /kome capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
+        return "/kome diagnostics <domain> <subject> | repair <preview domain subject|apply token> | conflict <inspect|end> ... | repair conflict <tile> <preview|apply> | waypoint help | capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> [page] | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
     @Override
@@ -98,6 +99,12 @@ public class KOMECommandKome extends KOMEPublicCommand {
             return;
         }
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
+        if ("diagnostics".equalsIgnoreCase(args[0]) || args.length >= 2
+                && "repair".equalsIgnoreCase(args[0])
+                && ("preview".equalsIgnoreCase(args[1]) || "apply".equalsIgnoreCase(args[1]))) {
+            diagnostics.process(sender, args, data);
+            return;
+        }
         if (args.length == 3 && "conflict".equalsIgnoreCase(args[0])
                 && "inspect".equalsIgnoreCase(args[1])) {
             for (String line : KOMEConflictLifecycleService.INSTANCE
@@ -164,20 +171,8 @@ public class KOMECommandKome extends KOMEPublicCommand {
             return;
         }
         if (args.length >= 1 && "audit".equalsIgnoreCase(args[0])) {
-            requireStaff(sender);
-            if (args.length == 2 && "summary".equalsIgnoreCase(args[1])) {
-                java.util.List<String> summary = kome.common.data.KOMEAuditService.summary(data);
-                for (String line : summary) sender.addChatMessage(new ChatComponentText(line));
-                if (summary.isEmpty()) sender.addChatMessage(new ChatComponentText("No central audit entries."));
-                return;
-            }
-            if (args.length == 2 && "list".equalsIgnoreCase(args[1])) {
-                java.util.List<kome.common.data.KOMEAuditEntry> entries = kome.common.data.KOMEAuditService.entries(data);
-                if (entries.isEmpty()) sender.addChatMessage(new ChatComponentText("No central audit entries."));
-                for (kome.common.data.KOMEAuditEntry entry : entries) sender.addChatMessage(new ChatComponentText(entry.compact()));
-                return;
-            }
-            throw new WrongUsageException("/kome audit <list|summary>");
+            KOMEAdminDiagnosticsCommands.audit(sender, args, data);
+            return;
         }
         if (args.length == 3 && "repair".equalsIgnoreCase(args[0]) && "stewardship".equalsIgnoreCase(args[1])) {
             requireStaff(sender);
@@ -347,6 +342,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 "capital",
                 "ruler",
                 "audit",
+                "diagnostics",
                 "conflict",
                 "repair",
                 "progression");
@@ -361,9 +357,13 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 && "relocate".equalsIgnoreCase(args[1]))
             return getListOfStringsMatchingLastWord(args, "here");
         if (args.length == 2 && "audit".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "list", "summary");
+        if (args.length == 2 && "diagnostics".equalsIgnoreCase(args[0]))
+            return getListOfStringsMatchingLastWord(args, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint");
+        if (args.length == 2 && "repair".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "preview", "apply", "conflict", "stewardship", "war");
+        if (args.length == 3 && "repair".equalsIgnoreCase(args[0]) && "preview".equalsIgnoreCase(args[1]))
+            return getListOfStringsMatchingLastWord(args, "ownership", "diplomacy", "ruler", "waypoint");
         if (args.length == 2 && "conflict".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "inspect", "end");
         if (args.length == 3 && "conflict".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "T");
-        if (args.length == 2 && "repair".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "conflict", "stewardship", "war");
         if (args.length == 4 && "repair".equalsIgnoreCase(args[0]) && "conflict".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, "preview", "apply");
         if (args.length == 3 && "repair".equalsIgnoreCase(args[0]) && "stewardship".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, factionSuggestions());
         if (args.length == 3 && "repair".equalsIgnoreCase(args[0]) && "war".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, KOMEWorldData.get(sender.getEntityWorld()).wars.keySet().toArray(new String[0]));
@@ -595,13 +595,12 @@ public class KOMECommandKome extends KOMEPublicCommand {
             return;
         }
         if ("repair".equals(action) && (args.length == 3 || args.length == 4)) {
+            if (args.length == 4) {
+                diagnostics.process(sender, new String[] {"repair", "preview", "ruler", faction, args[3]}, data);
+                return;
+            }
             UUID authoritativeID = null;
             String authoritativeName = null;
-            if (args.length == 4) {
-                EntityPlayerMP target = getPlayer(sender, args[3]);
-                authoritativeID = KOMEReflection.getEntityUUID(target);
-                authoritativeName = target.getCommandSenderName();
-            }
             KOMERulerService.RepairResult result = KOMERulerService.repair(data, faction, authoritativeID, authoritativeName);
             if (result.changed) KOMEAuditService.record(data, System.currentTimeMillis(), "RULER", "REPAIR",
                 sender.getCommandSenderName(), faction, result.reason, "");
