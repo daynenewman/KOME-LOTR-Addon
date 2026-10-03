@@ -96,6 +96,12 @@ public final class KOMETacticalGateReferenceResolver {
         return resolve(data, complexId, connectionId, LIVE_PHYSICAL_LOOKUP);
     }
 
+    /** Scoped read-only adapter entry point; the caller holds the world-data lock and its detached snapshot. */
+    static Diagnostic resolveReference(KOMEWorldData data, KOMETacticalConfiguration configuration,
+            KOMESiegeComplex complex, KOMESiegeConnection connection, PhysicalLookup lookup) {
+        return diagnose(data, configuration, complex, connection, lookup == null ? LIVE_PHYSICAL_LOOKUP : lookup);
+    }
+
     /** Candidate membership impacts are logical diagnostics; no live physical inspection is needed. */
     static List<Diagnostic> membershipImpact(KOMEWorldData data, KOMETacticalConfiguration candidate,
             String buildId, String oldComplexId) {
