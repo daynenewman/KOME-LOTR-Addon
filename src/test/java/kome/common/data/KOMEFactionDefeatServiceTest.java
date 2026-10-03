@@ -129,6 +129,60 @@ public class KOMEFactionDefeatServiceTest {
         }
     }
 
+    @Test public void unrecognizedCapitalOwnerIsNotReadyWithoutRepairOrDefeat() throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            KOMEWorldData data = world();
+            KOMEConquestTile capital = data.conquestTiles.get("T388");
+            capital.currentRulingFaction = " Unknown Realm ";
+            capital.ownerFaction = "mordor"; // An invalid current owner must not fall back to a valid legacy owner.
+            assertUnrecognizedCapitalOwnerUnchanged(data);
+            capital.currentRulingFaction = "";
+            capital.ownerFaction = " Unknown Realm "; // The read-only legacy projection must also fail closed.
+            assertUnrecognizedCapitalOwnerUnchanged(data);
+        }
+    }
+
+    @Test public void savedUnrecognizedCapitalOwnerRemainsNotReadyWithoutDefeat() throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            KOMEWorldData data = world();
+            data.conquestTiles.get("T388").setCurrentRulingFaction("unknownrealm");
+            NBTTagCompound saved = new NBTTagCompound(); data.writeToNBT(saved);
+            KOMEWorldData restored = new KOMEWorldData("unknown-owner-restart");
+            restored.readFromNBT(saved);
+            assertFalse(restored.isWriteBlocked());
+            assertEquals("unknownrealm", restored.conquestTiles.get("T388").currentRulingFaction);
+            assertUnrecognizedCapitalOwnerUnchanged(restored);
+            NBTTagCompound resaved = new NBTTagCompound(); restored.writeToNBT(resaved);
+            assertEquals(0, resaved.getCompoundTag("WarSeason").getTagList("FactionDefeats", 10).tagCount());
+            KOMEWorldData secondRestart = new KOMEWorldData("unknown-owner-second-restart");
+            secondRestart.readFromNBT(resaved);
+            assertUnrecognizedCapitalOwnerUnchanged(secondRestart);
+        }
+    }
+
+    @Test public void nativeUnclaimedAndRecognizedCapturedCapitalBehaviorIsPreserved() throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            KOMEWorldData data = world();
+            assertTrue(evaluate(data).ready);
+            assertFalse(evaluate(data).capitalCaptured);
+            assertEquals(0, KOMEFactionDefeatService.reconcile(data, 10L));
+            data.conquestTiles.get("T388").clearOwnershipOnly();
+            assertTrue(evaluate(data).ready);
+            assertFalse(evaluate(data).capitalCaptured);
+            assertFalse(evaluate(data).defeated);
+            assertEquals(0, KOMEFactionDefeatService.reconcile(data, 11L));
+            assertFalse(data.warSeason.isFactionDefeated("gondor"));
+            assertEquals(0, defeatAudits(data));
+            capture(data, "T388");
+            assertTrue(evaluate(data).ready);
+            assertTrue(evaluate(data).capitalCaptured);
+            assertTrue(evaluate(data).defeated);
+            assertEquals(1, KOMEFactionDefeatService.reconcile(data, 12L));
+            assertTrue(data.warSeason.isFactionDefeated("gondor"));
+            assertEquals(1, defeatAudits(data));
+        }
+    }
+
     @Test public void transitionAndAuditAreOncePerSeasonAndIndependentOfLiveRecapture() throws Exception {
         try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
             KOMEWorldData data = world(); capture(data, "T388");
@@ -292,6 +346,30 @@ public class KOMEFactionDefeatServiceTest {
     }
 
     private static KOMEWorldData world() { KOMEWorldData data = new KOMEWorldData("defeat"); initialize(data); return data; }
+    private static void assertUnrecognizedCapitalOwnerUnchanged(KOMEWorldData data) {
+        KOMEConquestTile capital = data.conquestTiles.get("T388");
+        String current = capital.currentRulingFaction, legacy = capital.ownerFaction;
+        List<KOMEAuditEntry> audits = new ArrayList<KOMEAuditEntry>(data.centralAudit);
+        data.setDirty(false);
+        KOMEFactionDefeatService.Evaluation result = evaluate(data);
+        assertFalse(result.ready);
+        assertFalse(result.capitalCaptured);
+        assertFalse(result.defeated);
+        assertEquals("unknownrealm", result.capitalController);
+        assertTrue(result.reason.contains("unknownrealm"));
+        assertTrue(result.reason.contains("/conquest claim T388"));
+        assertEquals(Arrays.asList("T388"), result.remainingObjectives);
+        assertTrue(KOMEFactionDefeatService.inspect(data, "gondor").contains("NOT_READY"));
+        assertEquals(0, KOMEFactionDefeatService.reconcile(data, 10L));
+        assertEquals(0, KOMEFactionDefeatService.reconcile(data, 11L));
+        assertFalse(data.warSeason.isFactionDefeated("gondor"));
+        assertEquals(-1L, data.warSeason.factionDefeatedAt("gondor"));
+        assertEquals(0, defeatAudits(data));
+        assertEquals(audits, data.centralAudit);
+        assertEquals(current, capital.currentRulingFaction);
+        assertEquals(legacy, capital.ownerFaction);
+        assertFalse(data.isDirty());
+    }
     private static void initialize(KOMEWorldData data) {
         KOMEFactionCapitalService.initializeMetadataFixture(data);
         for (String faction : KOMEAlliance.allFactionKeys()) tile(data,

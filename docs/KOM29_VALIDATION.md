@@ -14,6 +14,9 @@ Read the applicable user and parent AGENTS.md instructions and Java skill.
 - `KOMEFactionDefeatService` requires a live captured capital and no tile currently
   producing at least 1 population/day for the faction. An unclaimed or unavailable
   capital does not establish capture. Ownership is read from the existing tile authority.
+  Capture requires a recognized canonical controlling faction. Unrecognized ownership
+  returns `NOT_READY` with the owner, tile and operator correction command, without
+  repairing ownership, publishing defeat or recording `FACTION_DEFEAT`.
 - The existing rate service owns aggregation and recipient policy, including captured
   foreign Build production. Tile threshold comparison uses its unrounded BigInteger
   numerators, avoiding display rounding that can turn a sub-one rate into `1.000000`.
@@ -34,7 +37,7 @@ Read the applicable user and parent AGENTS.md instructions and Java skill.
   Server Records' war detail has a public `Faction Defeat / Live Objectives` card;
   its DTO parser and scroll-height calculation include the new field.
 
-## Executed validation, 2026-10-02
+## Initial implementation validation (4f7b3cf), 2026-10-02
 
 - Focused gate: 56 tests passed. Final clean full gate:
   **1,385 passed, 2 skipped, 0 failures, 0 errors**; `clean test build --offline
@@ -64,6 +67,33 @@ Read the applicable user and parent AGENTS.md instructions and Java skill.
   worktrees' working-file statuses changed during the task, without writes from this task.
   Existing worlds/runtimes were not modified. Original LOTR input hash stayed
   `4f296e749c0d4739ecf859217a526b4218a2a45a768c08d3d551af0d0d3d5635`.
+
+## Invalid-capital-owner correction, 2026-10-02
+
+- Started from `4f7b3cfd390d87471f61049741365f38d7bb3ade`. Self-review confirmed
+  the shared evaluator checks the projected controller against the existing
+  `KOMEAlliance.allFactionKeys()` authority before establishing capture. This covers
+  inspection and both reconciliation evaluations without adding ownership repair or
+  changing campaign persistence/publication.
+- Three additional regressions cover invalid current and legacy ownership in memory;
+  full WorldData NBT save/load and a second save/load; and unchanged native, unclaimed
+  and legitimate captured-capital behavior. Invalid-owner assertions verify `NOT_READY`,
+  an actionable reason, no capture/defeat predicate, repeated reconciliation with no
+  defeat latch/timestamp/audit, unchanged ownership and audit list, and no dirty state.
+  Both invalid-owner regressions failed against the original implementation.
+- Focused gate: **59 passed** across defeat, population rate/development, season state
+  and capital services. Final `clean test build --offline --no-daemon --console=plain`:
+  **1,388 passed, 2 existing symbolic-link skips, 0 failures, 0 errors**, including all
+  20 defeat tests and release reobfuscation. Both gates held `Local\KOME-Heavy-Validation`.
+- Corrected release jar SHA-256:
+  `61d968d18920ff429928a27b6fc288ad5e611f30267f4301a6afdae209da6477`.
+  Logs, regression failure evidence and XML/count snapshots are task-owned under
+  ignored `outputs/kom29-invalid-owner`.
+- No Forge run was performed for this correction; native runtime evidence above is
+  for the initial implementation. No worlds or runtimes were changed. The existing
+  disposable runtime jar retains the initial release hash. Primary checkout and stash
+  remained unchanged; other worktree heads stayed unchanged, with two other worktrees'
+  working-file statuses changing independently during this task.
 
 ## Remaining acceptance checks
 

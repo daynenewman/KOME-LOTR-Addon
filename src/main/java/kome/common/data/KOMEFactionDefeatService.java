@@ -32,6 +32,11 @@ public final class KOMEFactionDefeatService {
         if (tile == null) return new Evaluation(key, capital == null ? "" : capital.getCapitalTileId(),
             "", false, false, remaining, "Authoritative capital tile is unavailable.");
         String controller = tile.projectRulingFaction();
+        if (controller.length() > 0 && !KOMEAlliance.allFactionKeys().contains(controller))
+            return new Evaluation(key, capital.getCapitalTileId(), controller, false, false, remaining,
+                "Unrecognized controlling faction '" + controller + "' on capital tile "
+                    + capital.getCapitalTileId() + ". Ask an operator to verify ownership and correct it with "
+                    + "/conquest claim " + capital.getCapitalTileId() + " <faction|none>.");
         boolean captured = controller.length() > 0 && !key.equals(controller);
         return new Evaluation(key, capital.getCapitalTileId(), controller, true, captured,
             remaining, "");
