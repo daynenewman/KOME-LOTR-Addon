@@ -2732,15 +2732,20 @@ public class KOMEWorldData extends WorldSavedData {
         for (KOMEArmyMovementOrder order : armyMovements.values()) {
             if (order == null) continue;
             boolean held = KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status);
+            boolean released = KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(
+                order.status);
             String conflictId = order.conflictHoldId == null
                 ? "" : order.conflictHoldId.trim();
-            if (!held) {
+            if (!held && !released) {
                 if (conflictId.length() > 0 || order.conflictHeldAtMillis != 0L)
                     throw new IllegalArgumentException(
                         "Non-held movement order retains conflict-hold authority: " + order.id);
                 continue;
             }
-            KOMEConflictIdAllocator.requireIdentity(conflictId);
+            if (held) KOMEConflictIdAllocator.requireIdentity(conflictId);
+            else if (conflictId.length() > 0 || order.conflictHeldAtMillis != 0L)
+                throw new IllegalArgumentException(
+                    "Post-conflict paused order retains active hold authority: " + order.id);
             String tileId = KOMEConquestTile.normalizeId(order.currentTile);
             String attackTile = KOMEConquestTile.normalizeId(
                 order.hostileAttackDestination);
@@ -2751,11 +2756,18 @@ public class KOMEWorldData extends WorldSavedData {
                     || !tileId.equals(finalTile))
                 throw new IllegalArgumentException(
                     "Conflict-held movement tile metadata is inconsistent: " + order.id);
-            KOMEConflictRecord conflict = conflictService.get(tileId);
-            if (conflict == null || !conflictId.equals(conflict.getConflictId())
-                    || !conflict.getCommitments().containsKey(order.companyId))
+            if (held) {
+                KOMEConflictRecord conflict = conflictService.get(tileId);
+                if (conflict == null || !conflict.isActive()
+                        || !conflictId.equals(conflict.getConflictId())
+                        || !conflict.getCommitments().containsKey(order.companyId))
+                    throw new IllegalArgumentException(
+                        "Conflict-held movement lacks matching active commitment: " + order.id);
+            } else if (order.nextStepDepartureMillis != 0L
+                    || order.nextStepAvailableMillis != 0L || order.arrivalMillis != 0L) {
                 throw new IllegalArgumentException(
-                    "Conflict-held movement lacks matching persisted commitment: " + order.id);
+                    "Post-conflict paused movement remains scheduled: " + order.id);
+            }
             KOMEArmyCompany company = armyCompanies.get(order.companyId);
             if (company == null || !tileId.equals(
                     KOMEConquestTile.normalizeId(company.currentTile))
@@ -2763,7 +2775,7 @@ public class KOMEWorldData extends WorldSavedData {
                     || !new HashSet<UUID>(company.units).equals(
                         new HashSet<UUID>(order.units)))
                 throw new IllegalArgumentException(
-                    "Conflict-held movement and detachment authority disagree: " + order.id);
+                    "Conflict-paused movement and detachment authority disagree: " + order.id);
             for (UUID unitId : order.units) {
                 KOMEHiredUnitRecord record = hiredUnits.get(unitId);
                 if (record == null || !order.companyId.equals(record.companyId)
@@ -2771,7 +2783,7 @@ public class KOMEWorldData extends WorldSavedData {
                         || !tileId.equals(KOMEConquestTile.normalizeId(
                             record.currentTile)))
                     throw new IllegalArgumentException(
-                        "Conflict-held unit link is inconsistent: " + order.id);
+                        "Conflict-paused unit link is inconsistent: " + order.id);
             }
         }
     }

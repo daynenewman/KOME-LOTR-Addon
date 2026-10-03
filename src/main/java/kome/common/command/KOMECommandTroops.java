@@ -1704,10 +1704,13 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (order == null || !order.isMoving() && !((retreatRequest || resumeRequest) && KOMEArmyMovementOrder.STOPPED.equals(order.status))) {
             throw new WrongUsageException("No active movement order " + args[2] + ".");
         }
-        if (KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)) {
+        if (KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)) {
             throw new WrongUsageException("Movement order " + order.id
-                + " is held by active conflict " + order.conflictHoldId
-                + "; normal movement controls cannot release or erase that commitment.");
+                + (KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                    ? " is held by active conflict " + order.conflictHoldId
+                    : " is paused after its conflict ended")
+                + "; normal movement controls cannot release or resume it.");
         }
         boolean controllerAction = KOMEAllianceTemporaryCommandPolicy.allows(args[1]);
         if (!controllerAction && !admin) {
@@ -1947,7 +1950,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
 
     private void advanceMovementOrder(KOMEWorldData data, KOMEArmyMovementOrder order, int steps, long nowMillis) {
         if (order == null || !order.isMoving()
-                || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)) {
+                || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)) {
             return;
         }
         int distance = Math.max(1, order.distanceTiles);
@@ -5261,7 +5265,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         boolean changed = false;
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
             if (order == null || !order.isMoving()
-                    || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)) continue;
+                    || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                    || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)) continue;
             if (order.nextDailyStepMillis != next) {
                 order.nextDailyStepMillis = next;
                 changed = true;
@@ -5283,6 +5288,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
             if (order == null || !order.isMoving()
                     || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                    || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)
                     || order.nextDailyStepMillis <= 0L
                     || nowMillis < order.nextDailyStepMillis) continue;
             order.dailyStepsRemaining = order.tilesPerDay;

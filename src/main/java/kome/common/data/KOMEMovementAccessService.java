@@ -20,6 +20,7 @@ public final class KOMEMovementAccessService {
                     || KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status)
                     || KOMEArmyMovementOrder.HOLDING.equals(order.status)
                     || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                    || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)
                     || KOMEArmyMovementOrder.STOPPED.equals(order.status)
                     || KOMEArmyMovementOrder.WAR_ENDED_HALTED.equals(order.status)
                     || KOMEArmyMovementOrder.ARRIVED.equals(order.status)

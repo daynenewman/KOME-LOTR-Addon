@@ -2,8 +2,10 @@ package kome.common.data;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -17,6 +19,21 @@ import static kome.common.data.KOMEConflictRecord.*;
  * snapshot, with exact conflict-ID/revision preconditions.
  */
 public final class KOMEConflictService {
+    public enum EndSource { LIFECYCLE, ADMIN_FORCED }
+
+    public static final class EndResult {
+        public final Result conflictResult;
+        public final int movementHoldsReleased;
+
+        private EndResult(Result result, int holdsReleased) {
+            conflictResult = result;
+            movementHoldsReleased = holdsReleased;
+        }
+
+        public boolean isSuccess() {
+            return conflictResult != null && conflictResult.code == Code.SUCCESS;
+        }
+    }
     private final Map<String, KOMEConflictRecord> records = new LinkedHashMap<String, KOMEConflictRecord>();
     private final KOMEConflictIdAllocator allocator;
 
@@ -560,7 +577,7 @@ public final class KOMEConflictService {
     }
 
     /** Explicit authorized ending, not victory inference. Preserves the final diagnostic snapshot. */
-    public synchronized Result end(String tileId, ExpectedConflict expected, Context context) {
+    synchronized Result end(String tileId, ExpectedConflict expected, Context context) {
         return mutate(tileId, expected, context, Operation.END, "", draft -> {
             draft.state = State.ENDED;
             draft.endedAtMillis = context.timestampMillis;
@@ -574,6 +591,89 @@ public final class KOMEConflictService {
                 draft.encirclement.checkpointAtMillis, context.timestampMillis);
             return Code.SUCCESS;
         });
+    }
+
+    /**
+     * World-backed lifecycle transaction. It validates every owned route hold before publishing
+     * ENDED, then converts those orders to a persisted non-scheduling pause without resuming them.
+     */
+    public synchronized EndResult endWithMovementHandoff(KOMEWorldData data,
+            String tileId, ExpectedConflict expected, Context context, EndSource source) {
+        if (data == null || data.getConflictService() != this || source == null) {
+            return new EndResult(Result.failure(Code.INVALID_REQUEST, null,
+                "Persisted world conflict authority and end source are required."), 0);
+        }
+        data.ensureWritable();
+        String normalized;
+        try {
+            normalized = tile(tileId);
+            required(expected, "Expected conflict");
+            required(context, "Context");
+            if (context.reason.trim().length() == 0)
+                throw new IllegalArgumentException("Explicit conflict end reason is required.");
+        } catch (IllegalArgumentException invalid) {
+            return new EndResult(Result.failure(Code.INVALID_REQUEST, null,
+                invalid.getMessage()), 0);
+        }
+        KOMEConflictRecord current = records.get(normalized);
+        Code precondition = guard(current, expected, context);
+        if (precondition != Code.SUCCESS)
+            return new EndResult(Result.failure(precondition, current,
+                "Conflict end precondition failed."), 0);
+        if (current == null)
+            return new EndResult(Result.failure(Code.NOT_FOUND, null,
+                "Conflict is absent."), 0);
+        if (!current.isActive())
+            return new EndResult(Result.failure(Code.CONFLICT_ENDED, current,
+                "Ended conflict is immutable."), 0);
+
+        List<KOMEArmyMovementOrder> holds = new ArrayList<KOMEArmyMovementOrder>();
+        for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
+            if (order == null
+                    || !KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)) continue;
+            String heldConflictId = order.conflictHoldId == null
+                ? "" : order.conflictHoldId.trim();
+            boolean related = normalized.equals(KOMEConquestTile.normalizeId(order.currentTile))
+                || current.getCommitments().containsKey(order.companyId)
+                || current.getConflictId().equals(heldConflictId);
+            if (!related) continue;
+            if (!current.getConflictId().equals(heldConflictId))
+                return new EndResult(Result.failure(Code.AMBIGUOUS_REFERENCE,
+                    current, "A related movement order claims another conflict hold."), 0);
+            String error = KOMEConflictMovementHoldValidator.validate(data, current, order,
+                KOMEConflictMovementHoldValidator.LinkPolicy.REQUIRE_COMPLETE);
+            if (error.length() > 0)
+                return new EndResult(Result.failure(Code.AMBIGUOUS_REFERENCE,
+                    current, error), 0);
+            holds.add(order);
+        }
+
+        Result ended = end(normalized, expected, context);
+        if (ended.code != Code.SUCCESS) return new EndResult(ended, 0);
+        for (KOMEArmyMovementOrder order : holds) {
+            KOMEConflictLifecycleService.releaseEndedHold(order,
+                ended.record.getConflictId());
+            KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
+            if (company != null) {
+                company.status = KOMEArmyCompany.STATIONED;
+                company.movementOrderId = order.id;
+                company.currentTile = ended.record.getTileId();
+                company.updatedAtMillis = context.timestampMillis;
+            }
+            for (UUID unitId : order.units) {
+                KOMEHiredUnitRecord unit = data.hiredUnits.get(unitId);
+                if (unit != null) unit.movementOrderId = order.id;
+            }
+            data.updateMovementHistory(order,
+                KOMEMovementHistoryRecord.CONFLICT_RELEASED_PAUSED);
+        }
+        KOMEAuditService.record(data, context.timestampMillis, "CONFLICT",
+            source == EndSource.ADMIN_FORCED ? "FORCED_END" : "END",
+            context.actor, ended.record.getConflictId(), context.reason,
+            "tile=" + normalized + ";releasedHolds=" + holds.size()
+                + ";winner=none;ownershipTransfer=none");
+        data.markDirty();
+        return new EndResult(ended, holds.size());
     }
 
     public synchronized Result commit(String tileId, ExpectedConflict expected, CommitmentInput input, Context context) {

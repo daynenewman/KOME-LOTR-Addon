@@ -22,6 +22,8 @@ public class KOMEArmyMovementOrder {
     public static final String WAR_ENDED_HALTED = "war_ended_halted";
     /** Route remains intact, but an active ConflictRecord owns departure authority. */
     public static final String CONFLICT_HELD = "conflict_held";
+    /** Conflict ended; route data remains queued but no current system may resume it. */
+    public static final String CONFLICT_RELEASED_PAUSED = "conflict_released_paused";
     public static final long REAL_DAY_MILLIS = 24L * 60L * 60L * 1000L;
 
     public String id = "";
@@ -128,7 +130,8 @@ public class KOMEArmyMovementOrder {
         return MOVING.equals(status) || PENDING_SPAWN.equals(status) || SPAWNING.equals(status)
             || SPAWN_BLOCKED.equals(status) || WAITING_NEXT_STEP.equals(status)
             || ACCESS_HALTED.equals(status) || RETREATING.equals(status) || HOLDING.equals(status)
-            || WAR_ENDED_HALTED.equals(status) || CONFLICT_HELD.equals(status);
+            || WAR_ENDED_HALTED.equals(status) || CONFLICT_HELD.equals(status)
+            || CONFLICT_RELEASED_PAUSED.equals(status);
     }
 
     public boolean hasArrived(long nowMillis) {
