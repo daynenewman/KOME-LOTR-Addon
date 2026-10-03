@@ -360,15 +360,6 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
                 return true;
             }
         }
-        for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
-            if (kome.common.data.KOMEHiredUnitClassification.isCampaignUnit(record)
-                    && viewerId.equals(record.owner) && !record.farmhand
-                    && record.type == KOMEPopulationType.OFFENSIVE && !record.isMoving()
-                    && tile.equals(KOMEConquestTile.normalizeId(record.currentTile))
-                    && record.lotrCompanyValue != null && record.lotrCompanyValue.length() > 0) {
-                return true;
-            }
-        }
         if (admin && data.canFactionStandOnTile(tile, viewerFaction)) {
             for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
                 if (kome.common.data.KOMEHiredUnitClassification.isCampaignUnit(record)

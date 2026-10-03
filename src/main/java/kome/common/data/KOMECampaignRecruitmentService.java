@@ -212,6 +212,15 @@ public final class KOMECampaignRecruitmentService {
         }
         Map<String, NBTTagCompound> companies = snapshotCompanies(prepared.data);
         List<KOMEAuditEntry> audit = new ArrayList<KOMEAuditEntry>(prepared.data.centralAudit);
+        String priorCurrentTile = prepared.record.currentTile;
+        String priorSourceTile = prepared.record.sourceTileId;
+        String priorCompanyId = prepared.record.companyId;
+        String priorCompanyName = prepared.record.companyName;
+        long priorCompanyAssignedAt = prepared.record.companyAssignedAtMillis;
+        UUID priorCompanyAssignedBy = prepared.record.companyAssignedBy;
+        String priorCompanyAssignedByName = prepared.record.companyAssignedByName;
+        NBTTagCompound priorStationedEntityData = prepared.record.stationedEntityData == null
+            ? null : (NBTTagCompound) prepared.record.stationedEntityData.copy();
         boolean nativeStarted = false;
         try {
             nativeStarted = true;
@@ -248,10 +257,14 @@ public final class KOMECampaignRecruitmentService {
             prepared.data.centralAudit.clear();
             prepared.data.centralAudit.addAll(audit);
             prepared.record.assignPersistedUnitClass(KOMEHiredUnitClass.ORDINARY);
-            prepared.record.currentTile = "";
-            prepared.record.companyId = "";
-            prepared.record.companyName = "";
-            prepared.record.stationedEntityData = null;
+            prepared.record.currentTile = priorCurrentTile;
+            prepared.record.sourceTileId = priorSourceTile;
+            prepared.record.companyId = priorCompanyId;
+            prepared.record.companyName = priorCompanyName;
+            prepared.record.companyAssignedAtMillis = priorCompanyAssignedAt;
+            prepared.record.companyAssignedBy = priorCompanyAssignedBy;
+            prepared.record.companyAssignedByName = priorCompanyAssignedByName;
+            prepared.record.stationedEntityData = priorStationedEntityData;
             if (nativeStarted) safeRollback(prepared.effect);
             population.rollback();
             prepared.data.markDirty();

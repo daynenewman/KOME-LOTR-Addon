@@ -1,5 +1,17 @@
 # KOM-60 server tile awareness / KOM-46 handoff
 
+## Exclusion metadata consumption - 2026-10-02
+
+The tracker uses the canonical resolver's CLASSIFIED_EXCLUSION result, retaining
+zone ID/type/reason separately from tile identity. Full immutable zone metadata
+participates in location equality. A metadata replacement changes the captured
+ReadView and produces STALE_GEOMETRY before resampling; a semantic zone change
+then uses the existing GEOMETRY_CHANGED cause for CHANGED. A failed load retains
+the last valid snapshot and triggers one freshness resample without inventing
+a transition. Query/event freshness and lifecycle rules below remain unchanged.
+The approved production classification set is empty. No gameplay/company rules
+or manual acceptance are added. See [current review evidence](tile-geography-review-20261002/README.md).
+
 ## Publication review (2026-09-26)
 
 The user reports the population-menu flicker is fixed. This is specific acceptance
@@ -210,7 +222,7 @@ STALE_POSITION until the next END sample; event payloads remain historical facts
 | Type | Meaning |
 | --- | --- |
 | INITIALIZED | First non-failure observation for an incarnation; previous is absent. A first gap/outside/unsupported result is explicit initialization too. |
-| CHANGED | Semantic location changed (status, dimension or resolved tile ID); previous and current are present. Includes tile-to-gap, unsupported dimension and recovery from failure. |
+| CHANGED | Semantic location changed (status, dimension, resolved tile ID or full exclusion zone metadata); previous and current are present. Includes tile-to-gap, unsupported dimension and recovery from failure. |
 | RESOLUTION_FAILED | INVALID_SNAPSHOT or INVALID_COORDINATE. Current carries the failure, never the previous tile. Previous absent distinguishes initial failure from loss of an existing resolution. |
 | REMOVED | Previously observed incarnation became unavailable. Previous is present, current absent. Observations are removed before callbacks. |
 
@@ -221,7 +233,8 @@ teleport event or distinction from large movement. A respawn/reconnect gets a
 new incarnation even at the same tile. Removal before a first sample has no
 transition because no location observation was published.
 
-No event repeats while status + dimension + tile ID are unchanged. Coordinates
+No event repeats while status + dimension + tile ID + exclusion zone metadata
+are unchanged. Coordinates
 and observation timestamps still advance when moving within the same tile or
 unresolved region. Changing between two gap cells is not a tile transition.
 Altitude alone is irrelevant to the X/Z geometry.

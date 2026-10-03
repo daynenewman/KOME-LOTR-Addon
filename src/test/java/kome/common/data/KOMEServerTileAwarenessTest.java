@@ -442,6 +442,37 @@ public class KOMEServerTileAwarenessTest {
         assertEquals(Type.INITIALIZED, events.get(events.size()-1).type);
     }
 
+    @Test public void playersAndHiresShareZonesAndDeduplicateSameZoneMovement() throws Exception {
+        resolver.publish(KOMETileExclusionsTest.load(KOMETileExclusionsTest.zones()));
+        Player p = join(-1); Unit u = unit(world); position(u, -1);
+        hooks.onJoin(new EntityJoinWorldEvent(u, world)); tick(); events.clear();
+        for (Entity e : new Entity[] {p, u}) position(e, 0); tick();
+        assertEquals(2, events.size());
+        for (Entity e : new Entity[] {p, u}) {
+            assertEquals(CLASSIFIED_EXCLUSION, observation(e).location.status);
+            assertEquals("river-a", observation(e).location.exclusion().get().id);
+            position(e, 127.999);
+        }
+        tick(); assertEquals(2, events.size());
+        for (Entity e : new Entity[] {p, u}) position(e, 128); tick();
+        assertEquals(4, events.size()); // Same zone type, different zone identity.
+        for (Entity e : new Entity[] {p, u}) position(e, 256); tick();
+        assertEquals(6, events.size()); assertEquals(IN_BOUNDS_GAP, observation(u).location.status);
+        for (Entity e : new Entity[] {p, u}) position(e, -1); tick();
+        assertEquals(8, events.size()); assertEquals("T001", observation(u).location.tileId);
+    }
+
+    @Test public void metadataReplacementAtUnchangedPositionPublishesSemanticChangeOnly() throws Exception {
+        resolver.publish(KOMETileExclusionsTest.load(KOMETileExclusionsTest.zones()));
+        Player p = join(1); events.clear();
+        resolver.publish(KOMETileExclusionsTest.load(KOMETileExclusionsTest.zones())); tick(); assertTrue(events.isEmpty());
+        resolver.publish(KOMETileExclusionsTest.load(KOMETileExclusionsTest.zones().replace("Fixture only, not approved geography", "Revised fixture reason")));
+        assertEquals(Availability.STALE_GEOMETRY, awareness.current(p.getUniqueID()).availability);
+        tick(); assertEquals(1, events.size()); assertEquals(Cause.GEOMETRY_CHANGED, events.get(0).cause);
+        resolver.publish(KOMETileExclusionsTest.load("")); tick();
+        assertEquals(2, events.size()); assertEquals(IN_BOUNDS_GAP, observation(p).location.status);
+    }
+
     @Test public void boundedRepresentativeWorkload() throws Exception {
         // Inert physical entities and actual sampling code; no world AI/network/chunk-generation costs.
         resolver.publish(KOMETileTestResources.real()); world.provider.dimensionId = KOMETileTestResources.dimension();
@@ -500,12 +531,12 @@ public class KOMEServerTileAwarenessTest {
     }
     public static class Unit extends LOTREntityGondorSoldier {
         boolean alive;
-        private Unit() { super(null); }
+        protected Unit() { super(null); }
         @Override public boolean isEntityAlive() { return alive && !isDead; }
     }
     public static class TestWorld extends WorldServer {
         Map<Integer, Entity> entities;
-        private TestWorld() { super(null, null, "", 0, null, null); }
+        protected TestWorld() { super(null, null, "", 0, null, null); }
         @Override public Entity getEntityByID(int id) { return entities.get(id); }
     }
 }

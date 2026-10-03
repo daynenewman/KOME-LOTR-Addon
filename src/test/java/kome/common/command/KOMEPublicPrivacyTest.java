@@ -214,9 +214,28 @@ public class KOMEPublicPrivacyTest {
     @Test public void troopReadsCannotBypassUnitPrivacyAndDoNotRepairOwnership() {
         KOMECommandTroops troops = new KOMECommandTroops();
         assertDenied(troops, f.player, "unit", otherUnit.entity.toString());
+        KOMEArmyCompany company = new KOMEArmyCompany();
+        company.id = "C_DIAGNOSTIC";
+        company.name = "Diagnostic Company";
+        company.owner = f.player.id;
+        company.ownerName = f.player.getCommandSenderName();
+        company.faction = "gondor";
+        company.currentTile = tile.id;
+        company.sourceTileId = tile.id;
+        company.units.add(ownUnit.entity);
+        company.totalPopulation = ownUnit.cost;
+        company.groundPopulation = ownUnit.cost;
+        ownUnit.companyId = company.id;
+        f.data.armyCompanies.put(company.id, company);
         troops.processCommand(f.player, new String[] {"unit", ownUnit.entity.toString()});
         assertTrue(f.player.messages.toString().contains("UUID: " + ownUnit.entity));
         assertTrue(f.player.messages.toString().contains("Class: CAMPAIGN"));
+        assertTrue(f.player.messages.toString().contains("Detachment coherence: UNKNOWN_PHYSICAL_STATE"));
+        assertTrue(f.player.messages.toString().contains("Campaign Detachment " + company.id));
+        troops.processCommand(f.player, new String[] {"company", company.id});
+        assertTrue(f.player.messages.toString().contains(
+            "Campaign Detachment coherence: UNKNOWN_PHYSICAL_STATE"));
+        assertTrue(f.player.messages.toString().contains("Coherence issues: none"));
         troops.processCommand(f.player, new String[] {"tile", tile.id});
         assertTrue(f.player.messages.toString().contains("Own warrior"));
         assertFalse(f.player.messages.toString().contains("Private warrior"));

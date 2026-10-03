@@ -110,6 +110,7 @@ public class KOMEEvents {
     private final KOMEPopulationPayoutRuntime populationPayoutRuntime = new KOMEPopulationPayoutRuntime();
 
     public void resetSessionState() {
+        kome.common.network.KOMEPublicWaypointSync.reset();
         KOMEPacketConquestData.clearSentSnapshots();
         lastCoinValues.clear();
         lastCoinCounts.clear();
@@ -135,6 +136,7 @@ public class KOMEEvents {
             KOMERelationshipDeathNotificationService.deliverPending((EntityPlayerMP) event.player, data, true);
             KOMEPledgeReleaseService.observePledge(data, (EntityPlayerMP) event.player,
                 getActualPledgeFactionKey(event.player), System.currentTimeMillis());
+            kome.common.network.KOMEPublicWaypointSync.send(data,(EntityPlayerMP)event.player);
             KOMEPacketConquestData.sendIfChanged(data, (EntityPlayerMP) event.player);
             sendAllianceRefresh((EntityPlayerMP) event.player, data);
             KOMEProgressionInventoryReconciler.reconcile(
@@ -149,6 +151,8 @@ public class KOMEEvents {
 
     @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (event.player instanceof EntityPlayerMP) KOMEPacketHandler.forgetRequester((EntityPlayerMP) event.player);
+        if(event.player instanceof EntityPlayerMP) kome.common.network.KOMEPublicWaypointSync.forget((EntityPlayerMP)event.player);
         KOMEAllianceRecordBuilder.clearOperatorView(event.player);
         if (event.player instanceof EntityPlayerMP) {
             EntityPlayerMP player=(EntityPlayerMP)event.player;
@@ -263,6 +267,7 @@ public class KOMEEvents {
         if (server == null || server.worldServers == null) {
             return;
         }
+        kome.common.network.KOMEPublicWaypointSync.tick(server);
         if (now >= nextLiveUnitMarkerSyncMillis) {
             nextLiveUnitMarkerSyncMillis = now + 1000L;
             KOMEWorldData markerData = null;
@@ -306,6 +311,7 @@ public class KOMEEvents {
         if (!runtime.hasStarted(data)) return runtime.onStartup(data, Instant.ofEpochMilli(nowMillis));
         KOMECommandTroops.resetDailyMovementAllowances(data, nowMillis);
         KOMECommandTroops.processMovementTick(data, world, nowMillis);
+        KOMEMusterService.processDue(data, nowMillis);
         return runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
     }
 

@@ -16,8 +16,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationProtocolTest {
-    @Test public void g3PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.9-integration-g3", KOMEPopulationWire.VERSION);
+    @Test public void g4PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
+        assertEquals("1.0.9-integration-g4", KOMEPopulationWire.VERSION);
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();
@@ -134,6 +134,7 @@ public class KOMEPopulationProtocolTest {
 
     @Test public void oldProtocolFailsClosedBeforePopulationDecode() {
         assertTrue(KOMEPopulationWire.accepts(KOMEPopulationWire.VERSION));
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g3"));
         assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g2"));
         assertFalse(KOMEPopulationWire.accepts("1.0.8-integration-g1"));
         assertFalse(KOMEPopulationWire.accepts("1.0.8")); assertFalse(KOMEPopulationWire.accepts(null));
@@ -256,7 +257,7 @@ public class KOMEPopulationProtocolTest {
         KOMEAddon addon = new KOMEAddon();
         for (Side side : new Side[] {Side.CLIENT, Side.SERVER}) {
             assertTrue(addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", KOMEPopulationWire.VERSION), side));
-            for (String version : new String[] {"1.0.8", "unknown", "1.0.8-integration-f1", "1.0.8-integration-g1"})
+            for (String version : new String[] {"1.0.9-integration-g3", "1.0.9-integration-g2", "1.0.8", "unknown", "1.0.8-integration-f1", "1.0.8-integration-g1"})
                 assertFalse(addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", version), side));
             assertFalse(addon.acceptsRemoteKome(java.util.Collections.<String, String>emptyMap(), side));
         }

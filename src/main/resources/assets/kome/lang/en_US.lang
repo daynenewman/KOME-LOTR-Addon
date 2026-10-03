@@ -75,3 +75,5 @@ kome.commission.historical_service=%s: %s
 kome.commission.unrecorded_faction=Faction not recorded
 kome.commission.native_liege_unavailable=Fangorn has no eligible Liege in the current NPC roster; this progression path is unavailable.
 kome.lordship.standing=Service: %s / 3; faction standing: %s / 2000
+
+kome.hud.tile.exclusion=Excluded: %s (%s)

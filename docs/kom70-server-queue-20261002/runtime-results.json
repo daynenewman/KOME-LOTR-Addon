@@ -1,0 +1,20 @@
+{
+  "addon_sha256": "019a1cf4fc9cb0f20d17022a921d3f3947cc4928141c7973618635418c851cb0",
+  "runtime": "C:\\Users\\dayne\\.codex\\worktrees\\kom70-server-queue\\KOME-LOTR-Addon\\run-server-production-verification-kom70-20261002",
+  "world": "C:\\Users\\dayne\\.codex\\worktrees\\kom70-server-queue\\KOME-LOTR-Addon\\run-server-production-verification-kom70-20261002\\queue-fixture",
+  "port": 25593,
+  "steps": [
+    "fresh original LOTR/Forge/Java8 startup and active server tick",
+    "canonical network inspection default2000ms",
+    "inherited public waypoint command (empty registry)",
+    "save and clean stop",
+    "cold restart with3500ms canonical setting",
+    "inspection and save/clean stop",
+    "source input hashes preserved",
+    "final corrected release binary: native startup, authoritative ticks,3500ms inspection, inherited waypoint command, save and clean stop"
+  ],
+  "stopped": true,
+  "live_acceptance": "No real players, live packet flood, travel, FPS or lower-spec hardware exercised; same-JVM lifecycle/disconnect/cooldown behavior covered by automated integration tests",
+  "preceding_binary_sha256": "09892a9609d4ad88dfe2981dab7e6af191a8d59c4f0d6a3c68053c0d0fb9e006",
+  "final_corrected_binary_verified": true
+}

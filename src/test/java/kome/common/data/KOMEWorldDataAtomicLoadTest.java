@@ -184,7 +184,7 @@ public class KOMEWorldDataAtomicLoadTest {
             NBTTagCompound original = (NBTTagCompound) saved.copy();
             KOMEWorldData loaded = new KOMEWorldData("restart"); loaded.readFromNBT(saved);
             assertEquals(original, saved);
-            assertEquals(5, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(6, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             assertEquals(2450L, loaded.getFactionPopulationIfPresent("gondor").getAvailablePopulationCenti());
             assertEquals(Long.valueOf(17L), loaded.populationPayoutRemainders.get("gondor"));
             assertEquals(data.lastPopulationPayoutBoundaryMillis, loaded.lastPopulationPayoutBoundaryMillis);
@@ -195,6 +195,7 @@ public class KOMEWorldDataAtomicLoadTest {
             assertEquals(data.activeRecruitmentTiles, loaded.activeRecruitmentTiles);
             assertEquals(data.armyMovements.keySet(), loaded.armyMovements.keySet());
             assertEquals(data.armyCompanies.keySet(), loaded.armyCompanies.keySet());
+            assertEquals(23L, loaded.nextCompanySequence);
             loaded.hiredUnits.get(UNIT).stationedEntityData.setString("Sentinel", "changed after load");
             assertEquals(original, saved);
             data = loaded;
@@ -341,7 +342,9 @@ public class KOMEWorldDataAtomicLoadTest {
         data.populationPayoutRemainders.put("gondor", 17L);
         data.populationPayoutLastFailure = "prior transient diagnostic";
         data.builds.put("build-sentinel", build());
-        KOMEHiredUnitRecord record = hired(UNIT); record.companyId = "company-sentinel";
+        KOMEHiredUnitRecord record = hired(UNIT);
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
+        record.companyId = "company-sentinel"; record.currentTile = "T100";
         data.hiredUnits.put(UNIT, record);
         data.progressions.put(PLAYER, new KOMEPlayerProgression());
         KOMEConquestTile tile = data.getConquestTile("T100"); tile.claim("gondor", 7L);
@@ -359,7 +362,8 @@ public class KOMEWorldDataAtomicLoadTest {
         data.armyMovements.put(order.id, order);
         KOMEArmyCompany company = new KOMEArmyCompany();
         company.id = "company-sentinel"; company.owner = PLAYER; company.faction = "gondor";
-        company.nativeFaction = "gondor"; company.units.add(UNIT);
+        company.nativeFaction = "gondor"; company.currentTile = "T100";
+        company.units.add(UNIT); company.totalPopulation = company.groundPopulation = record.cost;
         data.armyCompanies.put(company.id, company);
         data.playerNames.put(PLAYER, "Sentinel player");
         data.writeFactionKingRecord("gondor", PLAYER, "Sentinel king");
@@ -372,6 +376,7 @@ public class KOMEWorldDataAtomicLoadTest {
         data.warSeason.finaleTriggerActor = PLAYER; data.warSeason.finaleTriggerActorName = "Sentinel actor";
         data.movementSecondsPerTileOverride = 17; data.movementTotalSecondsOverride = 23;
         data.movementStepDelaySeconds = 11; data.nextBuildSequence = 19; data.nextWarSequence = 21;
+        data.nextCompanySequence = 23L;
         data.setProgressionEnabled(false);
         return data;
     }

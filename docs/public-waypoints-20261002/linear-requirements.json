@@ -1,0 +1,581 @@
+{
+  "KOM-64": {
+    "id": "KOM-64",
+    "uuid": "cfa1e3a2-98ce-4484-a9f9-afe66e2f315a",
+    "title": "Build canonical tile-linked public waypoint system",
+    "description": "Effort: XL\n\nCreate a canonical KOME waypoint system tightly integrated with conquest tiles and visible to all players without relying on shared fellowships.\n\n## Core rules\n\n* A conquest tile may contain zero or one approved KOME waypoint.\n* Every approved KOME waypoint must belong to exactly one conquest tile.\n* Tiles without waypoints are valid and are expected to gain waypoints later through player development.\n* KOME public waypoints are server-managed and globally synchronized. Players should not need to join a shared fellowship, manually add them, or manually remove them.\n* Existing native LOTR waypoints and KOME-created public waypoints should coexist cleanly.\n* Player-created waypoint proposals require admin approval before becoming globally visible or usable.\n* Waypoint ownership is connected to tile ownership.\n* Waypoint level is first-class KOME metadata and remains available for progression/travel/gameplay systems.\n\n## Canonical waypoint state\n\nAn approved waypoint should at minimum have:\n\n* stable waypoint ID\n* tile ID\n* display name\n* world position\n* source/type, such as native LOTR association or KOME public waypoint\n* default owner\n* current owner\n* level\n* approval metadata where relevant\n\nPrefer deriving default/current ownership from the linked tile rather than maintaining independently mutable duplicate ownership state unless a later design explicitly requires waypoint and tile control to diverge.\n\n## Public visibility\n\nKOME-created approved waypoints should behave from the player's perspective like persistent world/default waypoints:\n\n* visible to all applicable players\n* synchronized automatically from server state\n* persistent across logout/restart\n* independent of fellowship membership\n* removed/renamed/moved through KOME administration rather than requiring player cleanup\n\n## Player proposal workflow\n\nAny player may propose a waypoint while standing in a tile that has no approved waypoint.\n\nA proposal does not create a real/public waypoint. It enters a pending state for admin review.\n\nAdmin approval must revalidate that the tile still has no approved waypoint before creating the canonical waypoint.\n\n## Scope boundary\n\nThis parent issue establishes canonical waypoint data, public synchronization, tile relationship, proposal/approval workflow, ownership, and level metadata.\n\nNormal waypoint fast-travel permission rules remain covered by <issue id=\"99b396e9-fbf0-49cf-9d27-459af40768e2\" href=\"https://linear.app/kome-development/issue/KOM-14/implement-waypoint-fast-travel-from-canonical-faction-relations\">KOM-14</issue> and should consume this canonical waypoint state rather than being duplicated here.\n\nImplementation is split into child issues so persistence, public synchronization, proposal approval, metadata, and migration can be validated independently.",
+    "priority": {
+      "value": 2,
+      "name": "High"
+    },
+    "url": "https://linear.app/kome-development/issue/KOM-64/build-canonical-tile-linked-public-waypoint-system",
+    "gitBranchName": "dayne/kom-64-build-canonical-tile-linked-public-waypoint-system",
+    "createdAt": "2026-09-06T22:31:27.896Z",
+    "updatedAt": "2026-09-25T05:56:53.384Z",
+    "archivedAt": null,
+    "completedAt": null,
+    "startedAt": null,
+    "canceledAt": null,
+    "dueDate": null,
+    "slaStartedAt": null,
+    "slaMediumRiskAt": null,
+    "slaHighRiskAt": null,
+    "slaBreachesAt": null,
+    "status": "Todo",
+    "statusType": "unstarted",
+    "labels": [
+      "Feature"
+    ],
+    "attachments": [],
+    "documents": [],
+    "stateHistory": [
+      {
+        "state": {
+          "id": "cc8179eb-351d-44ce-9c5f-e3a23a58fe33",
+          "name": "Backlog",
+          "type": "backlog"
+        },
+        "startedAt": "2026-09-06T22:31:27.896Z",
+        "endedAt": "2026-09-18T20:27:28.826Z"
+      },
+      {
+        "state": {
+          "id": "86d53122-7570-4367-95a0-ebcc3d597c48",
+          "name": "Todo",
+          "type": "unstarted"
+        },
+        "startedAt": "2026-09-18T20:27:28.826Z",
+        "endedAt": "2026-09-18T22:27:26.543Z"
+      },
+      {
+        "state": {
+          "id": "cc8179eb-351d-44ce-9c5f-e3a23a58fe33",
+          "name": "Backlog",
+          "type": "backlog"
+        },
+        "startedAt": "2026-09-18T22:27:26.543Z",
+        "endedAt": "2026-09-25T05:56:53.334Z"
+      },
+      {
+        "state": {
+          "id": "86d53122-7570-4367-95a0-ebcc3d597c48",
+          "name": "Todo",
+          "type": "unstarted"
+        },
+        "startedAt": "2026-09-25T05:56:53.334Z",
+        "endedAt": null
+      }
+    ],
+    "createdBy": "Dayne Newman",
+    "createdById": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+    "project": "KOME Rules Implementation",
+    "projectId": "e0a989b3-d027-427d-b7f5-321a701aa9f6",
+    "team": "KOME Development",
+    "teamId": "9652dc65-082e-425d-98b5-c8acb6a5735d",
+    "relations": {
+      "blocks": [],
+      "blockedBy": [],
+      "relatedTo": [
+        {
+          "id": "KOM-14",
+          "title": "Implement waypoint fast travel from canonical faction relations"
+        }
+      ],
+      "duplicateOf": null
+    }
+  },
+  "KOM-65": {
+    "id": "KOM-65",
+    "uuid": "62cf7288-5bc1-4e43-8fa4-b895cee2c547",
+    "title": "Define canonical waypoint data model and one-waypoint-per-tile invariant",
+    "description": "Effort: M\n\nImplement the canonical persisted waypoint record used by all KOME waypoint features.\n\n## Requirements\n\n* Each conquest tile may reference zero or one approved waypoint.\n* Each approved waypoint must reference exactly one conquest tile.\n* Enforce the one-waypoint-per-tile rule server-side, not only in UI.\n* Preserve stable waypoint IDs across restarts.\n* Store display name, world X/Y/Z position, tile ID, source/type, level, and approval metadata.\n* Support both KOME-created public waypoints and associations to existing native LOTR waypoints where appropriate.\n* Integrate with the canonical tile system from <issue id=\"61fbbc37-d792-49a8-b6d1-03a327bc0f7d\" href=\"https://linear.app/kome-development/issue/KOM-43/build-canonical-world-aware-conquest-tile-geometry-and-exact-map\">KOM-43</issue> rather than maintaining independent geographic membership logic.\n* Define deterministic validation for malformed or orphaned waypoint records.\n\n## Acceptance\n\n* A tile with no waypoint is valid.\n* A second approved waypoint cannot be attached to the same tile.\n* A waypoint cannot exist without a valid tile association unless explicitly represented as a native/non-KOME exception.\n* Persistence survives restart without changing IDs or tile linkage.\n* Other systems consume this one canonical waypoint record rather than duplicating state.",
+    "priority": {
+      "value": 2,
+      "name": "High"
+    },
+    "url": "https://linear.app/kome-development/issue/KOM-65/define-canonical-waypoint-data-model-and-one-waypoint-per-tile",
+    "gitBranchName": "dayne/kom-65-define-canonical-waypoint-data-model-and-one-waypoint-per",
+    "createdAt": "2026-09-06T22:31:36.233Z",
+    "updatedAt": "2026-09-18T22:27:27.765Z",
+    "archivedAt": null,
+    "completedAt": null,
+    "startedAt": null,
+    "canceledAt": null,
+    "dueDate": null,
+    "slaStartedAt": null,
+    "slaMediumRiskAt": null,
+    "slaHighRiskAt": null,
+    "slaBreachesAt": null,
+    "status": "Backlog",
+    "statusType": "backlog",
+    "labels": [
+      "Feature"
+    ],
+    "attachments": [],
+    "documents": [],
+    "stateHistory": [
+      {
+        "state": {
+          "id": "cc8179eb-351d-44ce-9c5f-e3a23a58fe33",
+          "name": "Backlog",
+          "type": "backlog"
+        },
+        "startedAt": "2026-09-06T22:31:36.233Z",
+        "endedAt": null
+      }
+    ],
+    "createdBy": "Dayne Newman",
+    "createdById": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+    "project": "KOME Rules Implementation",
+    "projectId": "e0a989b3-d027-427d-b7f5-321a701aa9f6",
+    "parentId": "KOM-64",
+    "team": "KOME Development",
+    "teamId": "9652dc65-082e-425d-98b5-c8acb6a5735d",
+    "relations": {
+      "blocks": [
+        {
+          "id": "KOM-69",
+          "title": "Migrate existing shared-fellowship waypoints into canonical public waypoints"
+        },
+        {
+          "id": "KOM-68",
+          "title": "Connect waypoint ownership and level metadata to canonical tile state"
+        },
+        {
+          "id": "KOM-67",
+          "title": "Add player waypoint proposals with admin approval workflow"
+        },
+        {
+          "id": "KOM-66",
+          "title": "Implement globally synced KOME public waypoints independent of fellowships"
+        }
+      ],
+      "blockedBy": [
+        {
+          "id": "KOM-43",
+          "title": "Build canonical world-aware conquest tile geometry and exact map borders"
+        }
+      ],
+      "relatedTo": [],
+      "duplicateOf": null
+    }
+  },
+  "KOM-66": {
+    "id": "KOM-66",
+    "uuid": "dab15feb-3a54-4550-8667-e008e391dc07",
+    "title": "Implement globally synced KOME public waypoints independent of fellowships",
+    "description": "Effort: L\n\nAdd a server-managed public waypoint source so approved KOME waypoints are automatically visible to all applicable players without using a shared fellowship.\n\n## Requirements\n\n* Approved KOME public waypoints are synchronized from canonical server state.\n* Players do not need to manually add or remove them.\n* Joining/leaving fellowships must not affect KOME public waypoint visibility.\n* KOME public waypoints must coexist with native LOTR/default waypoints.\n* Renames, moves, removals, ownership metadata changes, and level changes should propagate cleanly.\n* Persist across logout and server restart.\n* Minimize client state and avoid duplicate waypoint entries after reconnect/reload.\n* Prefer integration that behaves like persistent/default LOTR waypoints from the player's perspective without mutating unrelated native waypoint data unnecessarily.\n\n## Acceptance\n\n* A newly approved KOME waypoint appears for all connected players and for players joining later.\n* Removing a waypoint removes it globally without requiring player cleanup.\n* No shared fellowship is required.\n* Reconnect/restart does not duplicate entries.\n* Native LOTR waypoints continue to function normally.",
+    "priority": {
+      "value": 2,
+      "name": "High"
+    },
+    "url": "https://linear.app/kome-development/issue/KOM-66/implement-globally-synced-kome-public-waypoints-independent-of",
+    "gitBranchName": "dayne/kom-66-implement-globally-synced-kome-public-waypoints-independent",
+    "createdAt": "2026-09-06T22:31:45.679Z",
+    "updatedAt": "2026-09-18T22:27:28.612Z",
+    "archivedAt": null,
+    "completedAt": null,
+    "startedAt": null,
+    "canceledAt": null,
+    "dueDate": null,
+    "slaStartedAt": null,
+    "slaMediumRiskAt": null,
+    "slaHighRiskAt": null,
+    "slaBreachesAt": null,
+    "status": "Backlog",
+    "statusType": "backlog",
+    "labels": [
+      "Feature"
+    ],
+    "attachments": [],
+    "documents": [],
+    "stateHistory": [
+      {
+        "state": {
+          "id": "cc8179eb-351d-44ce-9c5f-e3a23a58fe33",
+          "name": "Backlog",
+          "type": "backlog"
+        },
+        "startedAt": "2026-09-06T22:31:45.679Z",
+        "endedAt": null
+      }
+    ],
+    "createdBy": "Dayne Newman",
+    "createdById": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+    "project": "KOME Rules Implementation",
+    "projectId": "e0a989b3-d027-427d-b7f5-321a701aa9f6",
+    "parentId": "KOM-64",
+    "team": "KOME Development",
+    "teamId": "9652dc65-082e-425d-98b5-c8acb6a5735d",
+    "relations": {
+      "blocks": [
+        {
+          "id": "KOM-69",
+          "title": "Migrate existing shared-fellowship waypoints into canonical public waypoints"
+        },
+        {
+          "id": "KOM-67",
+          "title": "Add player waypoint proposals with admin approval workflow"
+        }
+      ],
+      "blockedBy": [
+        {
+          "id": "KOM-65",
+          "title": "Define canonical waypoint data model and one-waypoint-per-tile invariant"
+        }
+      ],
+      "relatedTo": [],
+      "duplicateOf": null
+    }
+  },
+  "KOM-67": {
+    "id": "KOM-67",
+    "uuid": "9b69dca9-fdfd-4631-84ff-1d96ebb9b134",
+    "title": "Add player waypoint proposals with admin approval workflow",
+    "description": "Effort: L\n\nAllow any player to propose a new public waypoint in a tile that currently has no approved waypoint, while requiring admin approval before it becomes canonical or globally visible.\n\n## Player proposal\n\nProvide a simple command/workflow equivalent to:\n\n`/kome waypoint propose <name>`\n\nUse the player's current world position and canonical tile resolution.\n\nValidate before creating a proposal:\n\n* player is inside a valid conquest tile\n* tile has no approved waypoint\n* submitted name is valid\n* proposed position is valid\n* handle existing pending proposals for the same tile explicitly rather than silently creating uncontrolled duplicates\n\nPending proposals must not behave as usable/public waypoints.\n\n## Proposal state\n\nPersist at minimum:\n\n* proposal ID\n* tile ID\n* proposed name\n* proposed world position\n* submitting player\n* submission time\n* status: PENDING / APPROVED / REJECTED\n* admin/review metadata and optional rejection reason\n\n## Admin review\n\nProvide workflows equivalent to:\n\n* `/kome waypoint pending`\n* `/kome waypoint inspect <proposal>`\n* `/kome waypoint approve <proposal>`\n* `/kome waypoint reject <proposal> [reason]`\n\nApproval must revalidate canonical state, especially the one-waypoint-per-tile invariant, before creating the approved waypoint.\n\nAllow an admin to adjust canonical values such as display name, exact position, or initial level during approval without forcing a player resubmission.\n\n## Acceptance\n\n* Any normal player can submit a valid proposal.\n* Proposal is invisible as a public waypoint until approved.\n* Admin approval creates exactly one canonical waypoint and triggers global synchronization.\n* Admin rejection leaves no public waypoint behind.\n* A stale proposal cannot create a second waypoint after another proposal was approved for that tile.\n* Proposal history survives restart and remains auditable.",
+    "priority": {
+      "value": 2,
+      "name": "High"
+    },
+    "url": "https://linear.app/kome-development/issue/KOM-67/add-player-waypoint-proposals-with-admin-approval-workflow",
+    "gitBranchName": "dayne/kom-67-add-player-waypoint-proposals-with-admin-approval-workflow",
+    "createdAt": "2026-09-06T22:31:58.533Z",
+    "updatedAt": "2026-09-18T22:27:29.404Z",
+    "archivedAt": null,
+    "completedAt": null,
+    "startedAt": null,
+    "canceledAt": null,
+    "dueDate": null,
+    "slaStartedAt": null,
+    "slaMediumRiskAt": null,
+    "slaHighRiskAt": null,
+    "slaBreachesAt": null,
+    "status": "Backlog",
+    "statusType": "backlog",
+    "labels": [
+      "Feature"
+    ],
+    "attachments": [],
+    "documents": [],
+    "stateHistory": [
+      {
+        "state": {
+          "id": "cc8179eb-351d-44ce-9c5f-e3a23a58fe33",
+          "name": "Backlog",
+          "type": "backlog"
+        },
+        "startedAt": "2026-09-06T22:31:58.533Z",
+        "endedAt": null
+      }
+    ],
+    "createdBy": "Dayne Newman",
+    "createdById": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+    "project": "KOME Rules Implementation",
+    "projectId": "e0a989b3-d027-427d-b7f5-321a701aa9f6",
+    "parentId": "KOM-64",
+    "team": "KOME Development",
+    "teamId": "9652dc65-082e-425d-98b5-c8acb6a5735d",
+    "relations": {
+      "blocks": [],
+      "blockedBy": [
+        {
+          "id": "KOM-66",
+          "title": "Implement globally synced KOME public waypoints independent of fellowships"
+        },
+        {
+          "id": "KOM-65",
+          "title": "Define canonical waypoint data model and one-waypoint-per-tile invariant"
+        }
+      ],
+      "relatedTo": [],
+      "duplicateOf": null
+    }
+  },
+  "KOM-68": {
+    "id": "KOM-68",
+    "uuid": "66f5f2c5-15e6-4a04-8033-94abe4cf2d3e",
+    "title": "Connect waypoint ownership and level metadata to canonical tile state",
+    "description": "Effort: M\n\nMake waypoint ownership and level first-class KOME metadata while preventing ownership state from drifting away from the linked tile.\n\n## Ownership\n\n* Every approved waypoint exposes default owner and current owner information.\n* By default, derive waypoint default owner from the tile default owner.\n* By default, derive waypoint current owner from the tile current owner.\n* Tile ownership changes should automatically update what the waypoint reports without separate manual synchronization.\n* Do not allow independent waypoint ownership divergence unless a future explicit gameplay design introduces settlement-level occupation.\n\n## Level\n\n* Store waypoint level independently from ownership.\n* Level must persist across restart and ownership changes unless a later rule explicitly changes it.\n* Expose level through the canonical waypoint API for future travel, settlement, progression, defense, or economy rules.\n* Define safe validation/range handling without hardcoding gameplay meaning that has not yet been decided.\n\n## Acceptance\n\n* Capturing a tile changes the linked waypoint's reported current owner automatically.\n* Historical/default ownership remains available.\n* Waypoint level survives tile capture and restart.\n* Fast-travel and UI systems can read ownership and level from one canonical source.",
+    "priority": {
+      "value": 2,
+      "name": "High"
+    },
+    "url": "https://linear.app/kome-development/issue/KOM-68/connect-waypoint-ownership-and-level-metadata-to-canonical-tile-state",
+    "gitBranchName": "dayne/kom-68-connect-waypoint-ownership-and-level-metadata-to-canonical",
+    "createdAt": "2026-09-06T22:32:07.623Z",
+    "updatedAt": "2026-09-18T22:27:30.293Z",
+    "archivedAt": null,
+    "completedAt": null,
+    "startedAt": null,
+    "canceledAt": null,
+    "dueDate": null,
+    "slaStartedAt": null,
+    "slaMediumRiskAt": null,
+    "slaHighRiskAt": null,
+    "slaBreachesAt": null,
+    "status": "Backlog",
+    "statusType": "backlog",
+    "labels": [
+      "Feature"
+    ],
+    "attachments": [],
+    "documents": [],
+    "stateHistory": [
+      {
+        "state": {
+          "id": "cc8179eb-351d-44ce-9c5f-e3a23a58fe33",
+          "name": "Backlog",
+          "type": "backlog"
+        },
+        "startedAt": "2026-09-06T22:32:07.623Z",
+        "endedAt": null
+      }
+    ],
+    "createdBy": "Dayne Newman",
+    "createdById": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+    "project": "KOME Rules Implementation",
+    "projectId": "e0a989b3-d027-427d-b7f5-321a701aa9f6",
+    "parentId": "KOM-64",
+    "team": "KOME Development",
+    "teamId": "9652dc65-082e-425d-98b5-c8acb6a5735d",
+    "relations": {
+      "blocks": [
+        {
+          "id": "KOM-69",
+          "title": "Migrate existing shared-fellowship waypoints into canonical public waypoints"
+        }
+      ],
+      "blockedBy": [
+        {
+          "id": "KOM-65",
+          "title": "Define canonical waypoint data model and one-waypoint-per-tile invariant"
+        }
+      ],
+      "relatedTo": [],
+      "duplicateOf": null
+    }
+  },
+  "KOM-69": {
+    "id": "KOM-69",
+    "uuid": "aa758d96-a868-47ec-b0d1-73677b6d02e8",
+    "title": "Migrate existing shared-fellowship waypoints into canonical public waypoints",
+    "description": "Effort: M\n\nReplace the current operational dependence on a shared fellowship for KOME-managed waypoints.\n\n## Requirements\n\n* Inventory the waypoints currently being maintained through the shared fellowship and determine their corresponding conquest tiles.\n* Preserve intended names and positions where valid.\n* Convert eligible waypoints into canonical KOME public waypoints.\n* Enforce the one-approved-waypoint-per-tile rule during migration.\n* Flag duplicates, conflicting tile assignments, invalid positions, or waypoints outside canonical tiles for manual review.\n* Do not require players to manually remove old fellowship waypoints as the long-term operating model.\n* Provide a clean migration/cutover path that avoids duplicate visible waypoints during rollout.\n\n## Acceptance\n\n* Existing intended KOME waypoints are represented in canonical server state.\n* Players no longer need the shared fellowship to receive KOME public waypoints.\n* Duplicate or ambiguous legacy entries are reported instead of silently guessed.\n* Cutover does not leave persistent duplicate public/fellowship waypoint entries for normal operation.",
+    "priority": {
+      "value": 2,
+      "name": "High"
+    },
+    "url": "https://linear.app/kome-development/issue/KOM-69/migrate-existing-shared-fellowship-waypoints-into-canonical-public",
+    "gitBranchName": "dayne/kom-69-migrate-existing-shared-fellowship-waypoints-into-canonical",
+    "createdAt": "2026-09-06T22:32:15.522Z",
+    "updatedAt": "2026-09-18T22:27:30.989Z",
+    "archivedAt": null,
+    "completedAt": null,
+    "startedAt": null,
+    "canceledAt": null,
+    "dueDate": null,
+    "slaStartedAt": null,
+    "slaMediumRiskAt": null,
+    "slaHighRiskAt": null,
+    "slaBreachesAt": null,
+    "status": "Backlog",
+    "statusType": "backlog",
+    "labels": [
+      "Feature"
+    ],
+    "attachments": [],
+    "documents": [],
+    "stateHistory": [
+      {
+        "state": {
+          "id": "cc8179eb-351d-44ce-9c5f-e3a23a58fe33",
+          "name": "Backlog",
+          "type": "backlog"
+        },
+        "startedAt": "2026-09-06T22:32:15.522Z",
+        "endedAt": null
+      }
+    ],
+    "createdBy": "Dayne Newman",
+    "createdById": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+    "project": "KOME Rules Implementation",
+    "projectId": "e0a989b3-d027-427d-b7f5-321a701aa9f6",
+    "parentId": "KOM-64",
+    "team": "KOME Development",
+    "teamId": "9652dc65-082e-425d-98b5-c8acb6a5735d",
+    "relations": {
+      "blocks": [],
+      "blockedBy": [
+        {
+          "id": "KOM-68",
+          "title": "Connect waypoint ownership and level metadata to canonical tile state"
+        },
+        {
+          "id": "KOM-65",
+          "title": "Define canonical waypoint data model and one-waypoint-per-tile invariant"
+        },
+        {
+          "id": "KOM-66",
+          "title": "Implement globally synced KOME public waypoints independent of fellowships"
+        }
+      ],
+      "relatedTo": [],
+      "duplicateOf": null
+    }
+  },
+  "KOM-14": {
+    "id": "KOM-14",
+    "uuid": "99b396e9-fbf0-49cf-9d27-459af40768e2",
+    "title": "Implement waypoint fast travel from canonical faction relations",
+    "description": "Effort: L\n\nMake KOME waypoint access consume the canonical faction relation state.\n\nRequired behavior:\n\n* Wanderers/unpledged players retain normal LOTR travel access.\n* Once pledged/serving a faction, waypoint access follows that faction's current canonical relation state.\n* Enemy waypoints are not valid normal fast-travel destinations.\n* Accepted relations grant the intended cross-faction waypoint access.\n* Preserve native LOTR region unlock, cooldown, attack, sleeping, and global fast-travel configuration checks.\n* Keep Join Battle deployment separate from normal fast travel.\n* Support config-driven blocking of fast travel into active hostile/contested destinations if required by the battle implementation.\n* Return clear denial reasons in UI.\n\nAI implementation note: reuse KOMEWaypointAccessService and the transformer/request path where useful, but the canonical DiplomacyService must be the relationship authority. Retired waypoint/alliance-tier policy fields do not need compatibility support and can be removed once unused.",
+    "priority": {
+      "value": 2,
+      "name": "High"
+    },
+    "url": "https://linear.app/kome-development/issue/KOM-14/implement-waypoint-fast-travel-from-canonical-faction-relations",
+    "gitBranchName": "dayne/kom-14-implement-waypoint-fast-travel-from-canonical-faction",
+    "createdAt": "2026-08-31T04:28:17.204Z",
+    "updatedAt": "2026-09-12T04:28:11.610Z",
+    "archivedAt": null,
+    "completedAt": "2026-09-12T04:28:11.599Z",
+    "startedAt": "2026-09-12T04:09:12.652Z",
+    "canceledAt": null,
+    "dueDate": null,
+    "slaStartedAt": null,
+    "slaMediumRiskAt": null,
+    "slaHighRiskAt": null,
+    "slaBreachesAt": null,
+    "status": "Done",
+    "statusType": "completed",
+    "labels": [
+      "Improvement"
+    ],
+    "attachments": [],
+    "documents": [],
+    "stateHistory": [
+      {
+        "state": {
+          "id": "cc8179eb-351d-44ce-9c5f-e3a23a58fe33",
+          "name": "Backlog",
+          "type": "backlog"
+        },
+        "startedAt": "2026-08-31T04:28:17.204Z",
+        "endedAt": "2026-09-12T04:09:12.662Z"
+      },
+      {
+        "state": {
+          "id": "56f93d06-f13f-428a-a637-269bf845f544",
+          "name": "In Progress",
+          "type": "started"
+        },
+        "startedAt": "2026-09-12T04:09:12.662Z",
+        "endedAt": "2026-09-12T04:28:11.605Z"
+      },
+      {
+        "state": {
+          "id": "e9e9f0c7-a212-4e9d-a477-49d8c210913b",
+          "name": "Done",
+          "type": "completed"
+        },
+        "startedAt": "2026-09-12T04:28:11.605Z",
+        "endedAt": null
+      }
+    ],
+    "createdBy": "Dayne Newman",
+    "createdById": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+    "assignee": "Lije",
+    "assigneeId": "7b2dcdff-2968-4d02-b477-41419f515be3",
+    "project": "KOME Rules Implementation",
+    "projectId": "e0a989b3-d027-427d-b7f5-321a701aa9f6",
+    "team": "KOME Development",
+    "teamId": "9652dc65-082e-425d-98b5-c8acb6a5735d",
+    "relations": {
+      "blocks": [],
+      "blockedBy": [],
+      "relatedTo": [
+        {
+          "id": "KOM-64",
+          "title": "Build canonical tile-linked public waypoint system"
+        }
+      ],
+      "duplicateOf": null
+    }
+  },
+  "KOM-43": {
+    "id": "KOM-43",
+    "uuid": "61fbbc37-d792-49a8-b6d1-03a327bc0f7d",
+    "title": "Build canonical world-aware conquest tile geometry and exact map borders",
+    "description": "## Current milestone: merged into dev (2026-09-22)\n\nThis update supersedes the historical candidate/checkpoint status below. Evidence comes from Dayne's local Codex reports and user acceptance in this conversation; tests were not independently rerun during this Linear update.\n\n* Merged dev commit: [2559141cbc44a8e1f44811643381dd35673ccc59](<https://github.com/daynenewman/KOME-LOTR-Addon/commit/2559141cbc44a8e1f44811643381dd35673ccc59>).\n* Validated integration: `96daae9e062c3337117dd3056aee72153be9bb3e`; merged tree reported identical. Local/remote dev synchronized and clean.\n* Clean combined build: **951 passed, two existing Windows symlink skips**. All **6,055 gameplay expectations** passed. Disposable server completed two startup/save/stop cycles; 24 capitals READY.\n* Dayne reported the combined client works well but could not fully test it. Detailed combined-client interaction, multiplayer and performance acceptance is not claimed.\n* Shared server not deployed. Required schemas inherited from dev: root 4, Build 3, capital 1. No supported root-schema-3 migration.\n\nMerged delivery includes canonical geometry/resolver (<issue id=\"30efefe2-2845-49fa-9c0e-c2bfd9142b12\" href=\"https://linear.app/kome-development/issue/KOM-55/define-canonical-conquest-tile-raster-and-exact-cell-boundary-policy\">KOM-55</issue>/56), current-tile HUD (partial <issue id=\"c6b4eb78-eda5-4fa0-94c6-2754c827165f\" href=\"https://linear.app/kome-development/issue/KOM-60/add-player-and-physical-unit-tile-awareness-with-transition-events\">KOM-60</issue>), reviewed land-gap and biome-boundary corrections (partial <issue id=\"c8b21e5b-74e1-46f4-96f8-5f698f76a5c9\" href=\"https://linear.app/kome-development/issue/KOM-59/audit-canonical-raster-coverage-and-classify-or-correct-unintended\">KOM-59</issue>), explicit gameplay-default separation, and authoritative map rendering (<issue id=\"994f1c9f-5a08-43ed-8079-3a41d4ed4a46\" href=\"https://linear.app/kome-development/issue/KOM-61/rebuild-conquest-map-rendering-from-canonical-tile-geometry\">KOM-61</issue>). Foundation and rendering implementation are complete.\n\nKeep the parent open for remaining <issue id=\"a514e8d8-9cff-461f-ba39-53462e5ed069\" href=\"https://linear.app/kome-development/issue/KOM-57/validate-immutable-raster-snapshots-and-o1-tile-lookup-performance\">KOM-57</issue> performance acceptance, <issue id=\"4b66c83f-d9c9-4745-b706-7dee533382af\" href=\"https://linear.app/kome-development/issue/KOM-58/model-explicit-uncapturable-geography-and-excluded-strategic-zones\">KOM-58</issue> explicit geography metadata, <issue id=\"c8b21e5b-74e1-46f4-96f8-5f698f76a5c9\" href=\"https://linear.app/kome-development/issue/KOM-59/audit-canonical-raster-coverage-and-classify-or-correct-unintended\">KOM-59</issue> unresolved geographic decisions, <issue id=\"c6b4eb78-eda5-4fa0-94c6-2754c827165f\" href=\"https://linear.app/kome-development/issue/KOM-60/add-player-and-physical-unit-tile-awareness-with-transition-events\">KOM-60</issue> server/entity transitions, <issue id=\"a8fcc927-9f6c-4fb2-9396-d9f87630a0ba\" href=\"https://linear.app/kome-development/issue/KOM-62/add-optional-in-world-tile-border-visualization-and-admin-debug-tools\">KOM-62</issue> optional in-world visualization, and <issue id=\"36b95b2c-1115-4d57-9f45-fd50b1d25417\" href=\"https://linear.app/kome-development/issue/KOM-63/run-tile-geometry-consistency-multiplayer-and-performance-acceptance\">KOM-63</issue> broader acceptance. Map borders are not in-world border visualization. Public waypoint features remain separate and are not completed by capital integration.\n\n---\n\nEffort: XL\n\nCreate one canonical territory source shared by world lookup and conquest-map presentation. Preserve existing tile IDs, ownership, strategic adjacency, configuration, and persistence authorities. Membership depends on dimension and X/Z, independent of Y.\n\n## Accepted architecture\n\nThe current authority is `reset_conquest_tile_ids.png`, its color-to-ID mapping, and LOTR's authoritative coordinate transform. This supersedes the earlier polygon/multipolygon implementation and chunk polygon-index requirements.\n\n* Exact floor-based conversion, exactly one containing cell, no clamping or neighbor/nearest assignment.\n* Irregular shapes, disconnected components, and empty areas are represented at raster-cell precision. No claim of subpixel precision.\n* One common-side resolver serves server gameplay and client coordinate lookup; gameplay remains server-authoritative.\n* Validated immutable decoded snapshots provide O(1) lookup, atomic publication, explicit invalidation/reload, and last-valid-snapshot preservation on failed replacement.\n* No second tile registry, ownership cache, persisted derived raster, or automatic WorldData mutation.\n\n## Gap policy and remaining geography work\n\nAn in-bounds gap means no assigned tile. It does not establish uncapturability, traversability, or a geographic reason. Capturability remains unknown without authoritative metadata.\nTransparent and authoritatively excluded cells remain gaps. Unknown opaque colors and malformed mappings fail resource validation.\nCell (2291,58) remains a gap; (2292,58) resolves to T001. Do not auto-fill or repaint these as part of the foundation.\n<issue id=\"4b66c83f-d9c9-4745-b706-7dee533382af\" href=\"https://linear.app/kome-development/issue/KOM-58/model-explicit-uncapturable-geography-and-excluded-strategic-zones\">KOM-58</issue> defines explicit geographic classification. <issue id=\"c8b21e5b-74e1-46f4-96f8-5f698f76a5c9\" href=\"https://linear.app/kome-development/issue/KOM-59/migrate-existing-conquest-map-tiles-into-canonical-world-geometry\">KOM-59</issue> audits gaps and proposes reviewed resource corrections. The broader goal remains no unexplained accidental strips between normal tiles. Reassignment requires an explicit data decision, never runtime inference.\nOutside-mask is a technical extent result, not complete classification of every non-playable area.\n\n## Child stages\n\n* <issue id=\"30efefe2-2845-49fa-9c0e-c2bfd9142b12\" href=\"https://linear.app/kome-development/issue/KOM-55/define-canonical-conquest-tile-geometry-and-shared-boundary-data-model\">KOM-55</issue>: canonical raster representation and boundary policy.\n* <issue id=\"bc171cb5-3d66-4263-8b0d-d10621a1a97d\" href=\"https://linear.app/kome-development/issue/KOM-56/implement-server-authoritative-world-xz-to-conquest-tile-resolver\">KOM-56</issue>: shared dimension-aware resolver and existing caller reconciliation.\n* <issue id=\"a514e8d8-9cff-461f-ba39-53462e5ed069\" href=\"https://linear.app/kome-development/issue/KOM-57/add-chunk-level-spatial-index-and-cache-for-tile-resolution\">KOM-57</issue>: immutable snapshot performance/lifecycle validation.\n* <issue id=\"4b66c83f-d9c9-4745-b706-7dee533382af\" href=\"https://linear.app/kome-development/issue/KOM-58/model-explicit-uncapturable-geography-and-excluded-strategic-zones\">KOM-58</issue>: explicit uncapturable geography.\n* <issue id=\"c8b21e5b-74e1-46f4-96f8-5f698f76a5c9\" href=\"https://linear.app/kome-development/issue/KOM-59/migrate-existing-conquest-map-tiles-into-canonical-world-geometry\">KOM-59</issue>: coverage audit and reviewed resource corrections.\n* <issue id=\"c6b4eb78-eda5-4fa0-94c6-2754c827165f\" href=\"https://linear.app/kome-development/issue/KOM-60/add-player-and-physical-unit-tile-awareness-with-transition-events\">KOM-60</issue>: player/unit awareness and transition events.\n* <issue id=\"994f1c9f-5a08-43ed-8079-3a41d4ed4a46\" href=\"https://linear.app/kome-development/issue/KOM-61/rebuild-conquest-map-rendering-from-canonical-tile-geometry\">KOM-61</issue>: map fills and display borders derived from canonical cells.\n* <issue id=\"a8fcc927-9f6c-4fb2-9396-d9f87630a0ba\" href=\"https://linear.app/kome-development/issue/KOM-62/add-optional-in-world-tile-border-visualization-and-admin-debug-tools\">KOM-62</issue>: optional nearby in-world borders and further diagnostics.\n* <issue id=\"36b95b2c-1115-4d57-9f45-fd50b1d25417\" href=\"https://linear.app/kome-development/issue/KOM-63/run-tile-geometry-consistency-multiplayer-and-performance-acceptance\">KOM-63</issue>: staged foundation and full-system acceptance.\n\nWorld positions, map lookup, and final rendered fills must agree. Visual border width cannot change membership. Lookup reconciliation alone does not complete rendering, player indicators, or entity tracking.\nMeasure multiple-player and lower-spec performance. Do not add a redundant index without demonstrated need.\n\n## Scope and completion\n\nWar, movement, population, and capture-rule redesign remain outside this issue. A standalone tile editor is deferred by Dayne.\nFoundation testing may proceed before later stages. Keep the parent open until broader acceptance is met. Its existing dependency blocking <issue id=\"62cf7288-5bc1-4e43-8fa4-b895cee2c547\" href=\"https://linear.app/kome-development/issue/KOM-65/define-canonical-waypoint-data-model-and-one-waypoint-per-tile\">KOM-65</issue> remains; this does not block testing <issue id=\"61fbbc37-d792-49a8-b6d1-03a327bc0f7d\" href=\"https://linear.app/kome-development/issue/KOM-43/build-canonical-world-aware-conquest-tile-geometry-and-exact-map\">KOM-43</issue> itself.\n\n## Reported checkpoint: 2026-09-19\n\nSource: Dayne's local Codex report, not independently rerun from Linear.\n\n* Branch: `dayne/tile-world-resolution-dev`; base/HEAD: `d6bb856f2a06d39f15458b042bb48071286655de`.\n* 24 changed paths: 14 modified, 10 untracked; empty index; no candidate commit/push/merge.\n* Focused tests: 171 passed. Clean test/build: 741 discovered, 739 passed, two existing platform-dependent skips, zero failures/errors. Production packaging passed.\n* Original worktree, recovery package, and protected stash preserved.\n* Dedicated-server startup, matching-client connection, map/boundary interaction, Build and permission checks remain pending.\n* Implementation is ready for review and live validation, not completed or deployed.",
+    "priority": {
+      "value": 2,
+      "name": "High"
+    },
+    "url": "https://linear.app/kome-development/issue/KOM-43/build-canonical-world-aware-conquest-tile-geometry-and-exact-map",
+    "gitBranchName": "dayne/kom-43-build-canonical-world-aware-conquest-tile-geometry-and-exact",
+    "createdAt": "2026-08-31T13:17:46.933Z",
+    "updatedAt": "2026-09-22T03:15:54.358Z",
+    "archivedAt": null,
+    "completedAt": null,
+    "startedAt": "2026-09-18T22:27:24.482Z",
+    "canceledAt": null,
+    "dueDate": null,
+    "slaStartedAt": null,
+    "slaMediumRiskAt": null,
+    "slaHighRiskAt": null,
+    "slaBreachesAt": null,
+    "status": "In Progress",
+    "statusType": "started",
+    "labels": [
+      "Feature"
+    ],
+    "attachments": [],
+    "documents": [],
+    "stateHistory": [
+      {
+        "state": {
+          "id": "cc8179eb-351d-44ce-9c5f-e3a23a58fe33",
+          "name": "Backlog",
+          "type": "backlog"
+        },
+        "startedAt": "2026-08-31T13:17:46.933Z",
+        "endedAt": "2026-09-18T20:27:15.515Z"
+      },
+      {
+        "state": {
+          "id": "86d53122-7570-4367-95a0-ebcc3d597c48",
+          "name": "Todo",
+          "type": "unstarted"
+        },
+        "startedAt": "2026-09-18T20:27:15.515Z",
+        "endedAt": "2026-09-18T22:27:24.497Z"
+      },
+      {
+        "state": {
+          "id": "56f93d06-f13f-428a-a637-269bf845f544",
+          "name": "In Progress",
+          "type": "started"
+        },
+        "startedAt": "2026-09-18T22:27:24.497Z",
+        "endedAt": null
+      }
+    ],
+    "createdBy": "Dayne Newman",
+    "createdById": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+    "assignee": "Dayne Newman",
+    "assigneeId": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+    "project": "KOME Rules Implementation",
+    "projectId": "e0a989b3-d027-427d-b7f5-321a701aa9f6",
+    "team": "KOME Development",
+    "teamId": "9652dc65-082e-425d-98b5-c8acb6a5735d",
+    "relations": {
+      "blocks": [
+        {
+          "id": "KOM-65",
+          "title": "Define canonical waypoint data model and one-waypoint-per-tile invariant"
+        }
+      ],
+      "blockedBy": [],
+      "relatedTo": [],
+      "duplicateOf": null
+    }
+  }
+}

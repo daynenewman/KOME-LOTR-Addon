@@ -51,8 +51,8 @@ public class KOMECommandKome extends KOMEPublicCommand {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        if (!hasStaffPermission(sender)) return "/kome [gui|help|tile <tileId>]";
-        return "/kome capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
+        if (!hasStaffPermission(sender)) return "/kome [gui|help|tile <tileId>|waypoint propose <name>]";
+        return "/kome waypoint help | /kome capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
     @Override
@@ -75,6 +75,9 @@ public class KOMECommandKome extends KOMEPublicCommand {
         if (args.length == 2 && "tile".equalsIgnoreCase(args[0])) {
             kome.common.network.KOMEPacketConquestOpenCapture.sendTileCommand(getCommandSenderAsPlayer(sender), args[1]);
             return;
+        }
+        if ("waypoint".equalsIgnoreCase(args[0])) {
+            KOMEWaypointCommands.process(sender,args); return;
         }
         // Remaining root functions are administrative. Reject before accessing world state.
         requireStaff(sender);
@@ -247,14 +250,18 @@ public class KOMECommandKome extends KOMEPublicCommand {
 
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
+        if(args.length==2 && "waypoint".equalsIgnoreCase(args[0]))
+            return hasStaffPermission(sender)?getListOfStringsMatchingLastWord(args,"help","propose","pending","list","inspect","history",
+                "adjust","approve","reject","add","associate","rename","move","remove","level","migration")
+                :getListOfStringsMatchingLastWord(args,"help","propose");
         if (!hasStaffPermission(sender)) {
-            return args.length == 1 ? getListOfStringsMatchingLastWord(args, "gui", "help", "tile")
+            return args.length == 1 ? getListOfStringsMatchingLastWord(args, "gui", "help", "tile", "waypoint")
                 : java.util.Collections.emptyList();
         }
         if (args.length == 1) {
             return getListOfStringsMatchingLastWord(
                 args,
-                "gui", "help", "tile",
+                "gui", "help", "tile", "waypoint",
                 "character",
                 "config",
                 "conquest",
@@ -398,6 +405,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
 
     private void sendPublicHelp(ICommandSender sender) {
         sender.addChatMessage(new ChatComponentText("/kome gui - Population overview; Tiles opens the conquest map."));
+        sender.addChatMessage(new ChatComponentText("/kome waypoint propose <name> - Submit your current position for public waypoint review."));
         sender.addChatMessage(new ChatComponentText("/kome tile <tileId> - Tile Command (Builds / Canonical Population)."));
         sender.addChatMessage(new ChatComponentText("Public commands: /population, /conquest list|get, /build list|inspect, /troops, /progression, /alliance, /war list|status, /season status."));
         sender.addChatMessage(new ChatComponentText("The LOTR menu also opens Progression, Server Records and Alliances. Gameplay actions still require their normal permissions."));

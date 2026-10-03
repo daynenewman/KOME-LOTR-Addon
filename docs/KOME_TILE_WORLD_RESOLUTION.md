@@ -1,5 +1,14 @@
 # Tile world-resolution foundation
 
+## KOM-58 exclusion metadata - 2026-10-02
+
+The canonical raster now owns validated optional cell classifications from mandatory
+bundled `assets/kome/map/tile_exclusions.tsv`. The approved production set is empty;
+no geographic purpose is inferred from transparency, retired colors or biomes.
+See [contract, validation and remaining decisions](tile-geography-review-20261002/README.md).
+No ownership, geometry, traversal, packet, save or company policy changes are made.
+Earlier runtime acceptance below belongs to its stated artifact only.
+
 ## Server physical tile awareness - 2026-09-21
 
 The KOM-60 follow-up adds transient server-thread observations and transition
@@ -358,14 +367,16 @@ separate half-cell position convention.
 | State | Meaning |
 | --- | --- |
 | RESOLVED | Exact cell identifies an active stable tile ID. Contains original integer world X/Z, dimension and sampled mask X/Y. |
-| IN_BOUNDS_GAP | Cell has alpha <= 24 (the existing transparency threshold), or a color explicitly excluded by the existing retired-ID authority. No tile is returned. |
+| IN_BOUNDS_GAP | An unclassified canonical gap: alpha <= 24 or a retired-ID color, with no explicit exclusion annotation. No tile is returned. |
+| CLASSIFIED_EXCLUSION | An explicit named zone/type/reason on a canonical gap cell. No tile ID or ownership is returned. |
 | OUTSIDE_MASK | Floored cell is outside the half-open raster extent. No clamping. |
 | UNSUPPORTED_DIMENSION | A valid snapshot exists but the explicit dimension differs from configured Middle-earth. |
 | INVALID_SNAPSHOT | No validated snapshot is available, including explicit invalidation or failed initial load. |
 | INVALID_COORDINATE | A legacy/UI input is nonfinite or cannot designate a supported integer block. |
 
-`resolvedTileId()` is present only for RESOLVED. `capturable()` is empty because
-no authoritative area-capturability metadata exists. Current ownership remains
+`resolvedTileId()` is present only for RESOLVED. `capturable()` is false for an
+explicit CLASSIFIED_EXCLUSION and empty for every other result. `traversable()`
+is always empty, pending unit-specific passage rules. Current ownership remains
 in WorldData and is never copied into results or geometry. Ownership changes
 therefore cannot invalidate the raster. Viewer `canClaim`, traversal, rivers,
 bridges, mountains, passes, deserts and waypoints remain separate concepts.
@@ -390,7 +401,17 @@ is transient and separate from this retained allocation. The mapping is limited
 to 1 MiB and 65,535 unique colors. Missing resources, invalid images/dimensions,
 empty mapping, malformed RGB/ID rows, duplicate colors/IDs and unknown active IDs
 fail visibly. Unknown opaque colors fail even if they do not occur near a lookup.
-Transparent pixels ignore their RGB and remain gaps.
+Transparent pixels ignore their RGB for tile identity; only explicit metadata
+can classify these canonical gaps. Production mask input is limited to 64 MiB
+before PNG decoding; raw-byte SHA-256 includes every original PNG byte.
+
+Mandatory exclusion metadata is strict UTF-8, at most 4 MiB, schema 1, and pins
+the exact mask SHA-256 and dimensions. Named zones use an open type vocabulary,
+nonempty reasons and half-open horizontal cell runs. At most 65,535 zones may
+be defined. Unknown references, malformed coordinates, duplicate/overlapping
+runs, unused zones, out-of-bounds cells and active-tile overlap reject loading.
+A nonempty index retains two bytes per canonical cell; an empty set allocates
+no index. Geometry-only fixture loading explicitly reports metadata not loaded.
 
 The existing defaults class remains the packaged identity authority and now uses
 the shared strict parser. Its ID lookup no longer requires center, adjacency or
@@ -402,7 +423,7 @@ only, not ownership or independent tile records.
 Cells store a compact palette index and original active alpha. All arrays are
 privately owned; palette projections are immutable; rendering receives a detached
 ARGB copy. Runtime resolution performs a fixed amount of integer arithmetic,
-one array access and one palette access: O(1), without scans, neighbor searches,
+bounded cell/index and palette accesses: O(1), without scans, neighbor searches,
 per-coordinate caching, image decoding, WorldData access or dirty marking.
 Full raster scans occur only at construction and in pre-existing bulk rendering
 and center/adjacency generation, never in coordinate resolution.
@@ -411,9 +432,12 @@ and center/adjacency generation, never in coordinate resolution.
 explicitly calls `reloadBundled()` on both physical sides. Lookups do not perform
 lazy loading. A volatile immutable State publishes a fully built snapshot and
 diagnostic together; writers serialize loading/publication, while readers capture
-one State and take no locks. Failed replacement retains the last valid snapshot
+one State and take no locks. Geometry and mandatory metadata validate together
+before publication. Failed replacement retains the complete last valid snapshot
 and exposes the rejection diagnostic. Failed initial loading stays INVALID_SNAPSHOT
-and logs the diagnostic. `invalidate()` explicitly disables lookup until a valid
+and logs the diagnostic to stderr; addon startup is not aborted by this failure.
+This existing fail-closed diagnostic policy remains distinct from the gameplay
+default dataset hard failure. `invalidate()` explicitly disables lookup until a valid
 reload. Future authoritative resource/configuration editing must use this boundary;
 no editing, polling or save migration is implemented here. Ownership/configuration
 unrelated to geometry does not trigger reconstruction.
@@ -472,9 +496,10 @@ run. Before live use, on an isolated test world with matching artifacts:
    a development harness before any future editor enables runtime replacement.
 
 Deferred: visible borders/toggles, tile editing/splitting/combining, public waypoint
-creation/approval, movement integration/rules, capture redesign, uncapturable-area
-metadata, biome registration, protocol/schema changes and KOM-71. No new behavior
-from those features is activated by this checkpoint.
+creation/approval, movement integration/rules, capture redesign, approved geographic
+classification assignments, biome registration, protocol/schema changes and KOM-71.
+The KOM-58 metadata mechanism is implemented; geographic decisions and live
+acceptance remain pending. KOM-77 first-opening work remains deferred.
 
 ## Historical validation on the original tile baseline
 

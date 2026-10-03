@@ -1,0 +1,60 @@
+{
+  "scope": "pre-protocol-bump focused checkpoint; superseded by full clean gate",
+  "classes": [
+    {
+      "class": "kome.common.command.KOMEPublicCommandTest",
+      "tests": 6,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "kome.common.data.KOMEPublicWaypointIntegrationTest",
+      "tests": 10,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "kome.common.data.KOMEPublicWaypointRegistryTest",
+      "tests": 13,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "kome.common.data.KOMEWaypointWorkflowTest",
+      "tests": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "kome.common.network.KOMEPublicWaypointSyncTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "kome.core.KOMEPublicWaypointTransformerTest",
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "class": "kome.core.KOMEWaypointTransformerTest",
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "total": {
+    "tests": 56,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  }
+}

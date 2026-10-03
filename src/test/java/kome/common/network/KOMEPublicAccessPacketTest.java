@@ -21,6 +21,7 @@ import static org.junit.Assert.*;
 public class KOMEPublicAccessPacketTest {
     @org.junit.Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
     private KOMEAccessFixture f;
+    private kome.common.KOMETestServerSession serverSession;
     private SimpleNetworkWrapper previous;
     private KOMEConquestTile tile;
 
@@ -34,10 +35,12 @@ public class KOMEPublicAccessPacketTest {
         f.world.provider.dimensionId = KOMETileTestResources.dimension();
         f.data.conquestTiles.put(tile.id, tile);
         f.pledge(LOTRFaction.GONDOR);
+        serverSession = new kome.common.KOMETestServerSession(f);
         f.data.setDirty(false);
     }
 
-    @After public void cleanup() {
+    @After public void cleanup() throws Exception {
+        if (serverSession != null) serverSession.close();
         KOMEPacketHandler.clearPendingServerTasks();
         KOMEPacketHandler.network = previous;
     }
@@ -339,7 +342,7 @@ public class KOMEPublicAccessPacketTest {
         assertFalse(f.data.isDirty()); assertTrue(f.network.messages.isEmpty());
     }
 
-    @Test public void existingGuiAndProtocolBoundariesRemainPublicAndUnchanged() throws Exception {
+    @Test public void existingGuiAccessAndPacketIdentitiesRemainPublic() throws Exception {
         String population = source("kome/client/gui/KOMEGuiPopulation.java");
         assertTrue(population.contains("KOMEConquestMapOverlay.openPreservedMap()"));
         String menu = source("kome/client/KOMEProgressionMenuOverlay.java");
@@ -351,8 +354,8 @@ public class KOMEPublicAccessPacketTest {
         assertTrue(registration.contains("KOMEPacketConquestOpenCapture.class, 7, Side.SERVER"));
         assertTrue(registration.contains("KOMEPacketBuildAction.class, 36, Side.SERVER"));
         assertTrue(registration.contains("IDs 23 and 24 are retired"));
-        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g3"));
-        assertEquals(5, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g4"));
+        assertEquals(6, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
 
     @Test public void validNonOperatorCreationPassesQueuedPacketAndExactGeometry() {

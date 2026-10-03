@@ -88,8 +88,8 @@ public class KOMEConquestPopulationRefreshTest {
         KOMEClientProxy lifecycle=KOMEAccessFixture.allocate(KOMEClientProxy.class);
         java.lang.reflect.Field publisher=KOMEClientProxy.class.getDeclaredField("conquestSnapshots");publisher.setAccessible(true);publisher.set(lifecycle,proxy.snapshots);
         java.lang.reflect.Field queue=KOMEClientProxy.class.getDeclaredField("clientTasks");queue.setAccessible(true);queue.set(lifecycle,proxy.queue);
-        lifecycle.onClientDisconnect(null);proxy.queue.drain();assertTrue(lines().isEmpty());
-        lifecycle.onClientConnect(null);proxy.queue.drain();assertTrue(lines().isEmpty());
+        lifecycle.onClientDisconnect(KOMEAccessFixture.clientDisconnected());proxy.queue.drain();assertTrue(lines().isEmpty());
+        lifecycle.onClientConnect(KOMEAccessFixture.clientConnected());proxy.queue.drain();assertTrue(lines().isEmpty());
         send(packet(false,true,summary("gondor",9999)));assertTrue(lines().isEmpty());
         send(packet(true,true,summary("rohan",100)));assertPopulation(100);
     }
@@ -141,8 +141,8 @@ public class KOMEConquestPopulationRefreshTest {
         send(waypointPacket(false,true,"Old tail"));assertTrue(client.tileWaypointLinksByTileId.isEmpty());
         send(waypointPacket(true,true,"New world"));assertWaypoint("New world");
         java.lang.reflect.Field queue=KOMEClientProxy.class.getDeclaredField("clientTasks");queue.setAccessible(true);queue.set(lifecycle,proxy.queue);
-        send(waypointPacket(true,false,"Pending disconnect"));lifecycle.onClientDisconnect(null);proxy.queue.drain();
-        assertTrue(client.tileWaypointLinksByTileId.isEmpty());lifecycle.onClientConnect(null);proxy.queue.drain();
+        send(waypointPacket(true,false,"Pending disconnect"));lifecycle.onClientDisconnect(KOMEAccessFixture.clientDisconnected());proxy.queue.drain();
+        assertTrue(client.tileWaypointLinksByTileId.isEmpty());lifecycle.onClientConnect(KOMEAccessFixture.clientConnected());proxy.queue.drain();
         send(waypointPacket(false,true,"Old connection"));assertTrue(client.tileWaypointLinksByTileId.isEmpty());
         send(waypointPacket(true,true,"New connection"));assertWaypoint("New connection");
     }

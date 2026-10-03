@@ -1,0 +1,32 @@
+{
+  "scope": "new loopback-only disposable runtime; original Java8 and libraries read without modifying source; no old configs/worlds copied",
+  "runtime": "C:\\Users\\dayne\\.codex\\worktrees\\public-waypoints\\KOME-LOTR-Addon\\run-server-production-verification-public-waypoints-20261002",
+  "java": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\LOTR-Test-Server\\java8\\bin\\java.exe",
+  "inputs": [
+    {
+      "input": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\LOTR-Test-Server\\forge-1.7.10-10.13.4.1614-1.7.10-universal.jar",
+      "output": "C:\\Users\\dayne\\.codex\\worktrees\\public-waypoints\\KOME-LOTR-Addon\\run-server-production-verification-public-waypoints-20261002\\forge-1.7.10-10.13.4.1614-1.7.10-universal.jar",
+      "sha256": "00d1ca02192c7efb87da95552ebf247021f1e1d642f86d0a03076314def11529"
+    },
+    {
+      "input": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\LOTR-Test-Server\\minecraft_server.1.7.10.jar",
+      "output": "C:\\Users\\dayne\\.codex\\worktrees\\public-waypoints\\KOME-LOTR-Addon\\run-server-production-verification-public-waypoints-20261002\\minecraft_server.1.7.10.jar",
+      "sha256": "c70870f00c4024d829e154f7e5f4e885b02dd87991726a3308d81f513972f3fc"
+    },
+    {
+      "input": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\LOTR-Test-Server\\eula.txt",
+      "output": "C:\\Users\\dayne\\.codex\\worktrees\\public-waypoints\\KOME-LOTR-Addon\\run-server-production-verification-public-waypoints-20261002\\eula.txt",
+      "sha256": "ee27072e4a23e088522f740ddaab0c7c4145c186969e90a86254faa3a5ec5ce6"
+    },
+    {
+      "input": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\LOTR-Test-Server\\mods\\LOTRMod v36.15.jar.original",
+      "output": "C:\\Users\\dayne\\.codex\\worktrees\\public-waypoints\\KOME-LOTR-Addon\\run-server-production-verification-public-waypoints-20261002\\mods\\LOTRMod v36.15.jar",
+      "sha256": "4f296e749c0d4739ecf859217a526b4218a2a45a768c08d3d551af0d0d3d5635"
+    },
+    {
+      "input": "C:\\Users\\dayne\\.codex\\worktrees\\public-waypoints\\KOME-LOTR-Addon\\libs\\geckolib-unofficial-1.7.10-1.0.4.jar",
+      "output": "C:\\Users\\dayne\\.codex\\worktrees\\public-waypoints\\KOME-LOTR-Addon\\run-server-production-verification-public-waypoints-20261002\\mods\\geckolib-unofficial-1.7.10-1.0.4.jar",
+      "sha256": "36d9d0471bfb55271f0d6649b586fe99608dad61261fac4065c008276021fe23"
+    }
+  ]
+}

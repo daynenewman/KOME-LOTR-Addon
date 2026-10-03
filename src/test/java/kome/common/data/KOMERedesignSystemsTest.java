@@ -426,63 +426,38 @@ public class KOMERedesignSystemsTest {
         assertEquals(500L, build.approvedCentiHours());
     }
 
-    @Test public void firstHireCreatesOneSourceTileCompany() {
+    @Test public void sameSourceTileCampaignOrphansAreNotImplicitlyGrouped() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID owner = UUID.randomUUID();
         setFaction(data, owner, "gondor");
-        KOMEHiredUnitRecord unit = unit(owner, "gondor", "T100", 25);
-        KOMEArmyCompany company = data.assignUnitToHiringTileCompany(unit, "Player");
-        assertNotNull(company);
-        assertEquals("T100", company.sourceTileId);
-        assertEquals(1, company.units.size());
+        KOMEHiredUnitRecord first = unit(owner, "gondor", "T100", 25);
+        KOMEHiredUnitRecord second = unit(owner, "gondor", "T100", 25);
+        first.sourceTileId = second.sourceTileId = "T100";
+        data.hiredUnits.put(first.entity, first);
+        data.hiredUnits.put(second.entity, second);
+
+        data.rebuildArmyCompaniesForPlayer(owner);
+
+        assertEquals("", first.companyId);
+        assertEquals("", second.companyId);
+        assertTrue(data.armyCompanies.isEmpty());
     }
 
-    @Test public void laterHireFromSameTileJoinsSameCompany() {
+    @Test public void strategicRenamePreservesSourceAndNativeSquadronMetadata() {
         KOMEWorldData data = new KOMEWorldData("test");
         UUID owner = UUID.randomUUID();
-        setFaction(data, owner, "gondor");
-        KOMEArmyCompany first = data.assignUnitToHiringTileCompany(unit(owner, "gondor", "T100", 25), "Player");
-        KOMEArmyCompany second = data.assignUnitToHiringTileCompany(unit(owner, "gondor", "T100", 25), "Player");
-        assertSame(first, second);
-        assertEquals(2, first.units.size());
-        assertEquals(1, data.armyCompanies.size());
-    }
+        KOMEArmyCompany company = new KOMEArmyCompany();
+        company.id = "C1";
+        company.owner = owner;
+        company.name = "Original";
+        company.sourceTileId = "T100";
+        company.lotrCompanyValue = "Native Squadron";
+        data.armyCompanies.put(company.id, company);
 
-    @Test public void renamedCompanyRetainsImmutableSourceTileIdentity() {
-        KOMEWorldData data = new KOMEWorldData("test");
-        UUID owner = UUID.randomUUID();
-        setFaction(data, owner, "gondor");
-        KOMEArmyCompany company = data.assignUnitToHiringTileCompany(unit(owner, "gondor", "T100", 25), "Player");
         assertTrue(data.renameHiringCompany(company.id, owner, "Northern Watch"));
         assertEquals("Northern Watch", company.name);
         assertEquals("T100", company.sourceTileId);
-    }
-
-    @Test public void awayCompanyStillReceivesHireWithoutDuplicateCompany() {
-        KOMEWorldData data = new KOMEWorldData("test");
-        UUID owner = UUID.randomUUID();
-        setFaction(data, owner, "gondor");
-        KOMEArmyCompany company = data.assignUnitToHiringTileCompany(unit(owner, "gondor", "T100", 25), "Player");
-        company.currentTile = "T999";
-        KOMEArmyCompany reused = data.assignUnitToHiringTileCompany(unit(owner, "gondor", "T100", 25), "Player");
-        assertSame(company, reused);
-        assertEquals("T999", reused.currentTile);
-        assertEquals(1, data.armyCompanies.size());
-    }
-
-    @Test public void awayCompanyFallbackKeepsNewUnitAtHireTileButInTheSameCompany() {
-        KOMEWorldData data = new KOMEWorldData("test");
-        UUID owner = UUID.randomUUID();
-        setFaction(data, owner, "gondor");
-        KOMEArmyCompany company = data.assignUnitToHiringTileCompany(
-            unit(owner, "gondor", "T100", 25), "Player");
-        company.currentTile = "T999";
-        KOMEHiredUnitRecord hire = unit(owner, "gondor", "T100", 25);
-        KOMEArmyCompany reused = data.assignUnitToHiringTileCompany(hire, "Player");
-        assertSame(company, reused);
-        assertEquals("T100", hire.currentTile);
-        assertEquals("T999", company.currentTile);
-        assertTrue(company.units.contains(hire.entity));
+        assertEquals("Native Squadron", company.lotrCompanyValue);
     }
 
     @Test public void stageThreeCountsApprovedPreAlliancePartnerBuildHours() {

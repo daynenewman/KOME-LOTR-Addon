@@ -74,6 +74,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(event.handler);
         conquestSnapshots.resetSession();
         final long tileSession = currentTileHud == null ? 0L : currentTileHud.suspendSession();
         clientTasks.resetSession(true, () -> {
@@ -84,6 +85,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(null);
         conquestSnapshots.resetSession();
         if (currentTileHud != null) currentTileHud.suspendSession();
         clientTasks.resetSession(false, this::resetClientSessionState);
@@ -106,6 +108,11 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void acceptConquestSnapshotChunk(
             kome.common.network.KOMEPacketConquestData.PublicationChunk chunk) {
         conquestSnapshots.accept(chunk);
+    }
+
+    @Override
+    public void acceptPublicWaypoints(kome.common.network.KOMEPacketPublicWaypoints.Chunk chunk,Object connection) {
+        enqueueClientTask(() -> kome.common.data.KOMEPublicWaypointClientState.INSTANCE.accept(connection,chunk));
     }
 
     private void resetClientSessionState() {
