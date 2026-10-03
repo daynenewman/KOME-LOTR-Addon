@@ -7,8 +7,17 @@ public final class KOMETacticalIds {
     private KOMETacticalIds() {}
 
     public static String forceDeploymentArea(String value) {
-        String id = value == null ? "" : value.trim();
+        String id = lookup(value);
         if (id.isEmpty()) throw new IllegalArgumentException("Force Deployment Area ID is required.");
-        return id.toUpperCase(Locale.ROOT);
+        return id;
+    }
+
+    /** Matches KOMEWorldData.getBuild lookup semantics; mutation callers separately reject blank keys. */
+    public static String buildLookup(String value) {
+        return lookup(value);
+    }
+
+    static String lookup(String value) {
+        return value == null ? "" : value.trim().toUpperCase(Locale.ROOT);
     }
 }
