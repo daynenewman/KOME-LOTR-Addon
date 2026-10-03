@@ -68,7 +68,7 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId = new HashMap<>();
     public final Map<String, KOMEConquestRouteEdge> routeEdges = new HashMap<>();
     public final Map<String, KOMEPlayerBuild> builds = new HashMap<String, KOMEPlayerBuild>();
-    /** Sole tactical authority. Only complete detached load candidates are published in this phase. */
+    /** Sole tactical authority; loads and scoped membership services publish detached replacements. */
     private KOMETacticalConfiguration tacticalConfiguration = new KOMETacticalConfiguration();
     /** Explicit future-construction grants; Build provenance is deliberately stored separately. */
     public final Map<String, KOMEForeignConstructionPermission> foreignConstructionPermissions = new HashMap<String, KOMEForeignConstructionPermission>();
@@ -187,6 +187,31 @@ public class KOMEWorldData extends WorldSavedData {
     /** Mutating this detached snapshot cannot change live configuration or world dirty state. */
     public synchronized KOMETacticalConfiguration getTacticalConfigurationSnapshot() {
         return tacticalConfiguration.snapshot();
+    }
+
+    /** Membership-only commit boundary. Retained caller snapshots cannot mutate the live authority. */
+    synchronized final void publishTacticalMembership(long expectedRevision,
+            KOMETacticalConfiguration replacement) {
+        ensureWritable();
+        if (tacticalConfiguration.getRevision() != expectedRevision) {
+            throw new IllegalStateException("Stale tactical configuration revision.");
+        }
+        KOMETacticalConfiguration prepared = replacement.snapshot();
+        if (expectedRevision == Long.MAX_VALUE || prepared.getRevision() != expectedRevision + 1L
+                || !prepared.getComplexesById().equals(tacticalConfiguration.getComplexesById())
+                || !prepared.getForceDeploymentAreasById().equals(tacticalConfiguration.getForceDeploymentAreasById())) {
+            throw new IllegalArgumentException("A membership commit must preserve definitions and advance revision once.");
+        }
+        KOMETacticalConfiguration previous = tacticalConfiguration;
+        boolean dirty = super.isDirty();
+        try {
+            tacticalConfiguration = prepared;
+            markDirty();
+        } catch (RuntimeException failure) {
+            tacticalConfiguration = previous;
+            super.setDirty(dirty);
+            throw failure;
+        }
     }
 
     @Override
