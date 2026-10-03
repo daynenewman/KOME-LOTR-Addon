@@ -6,6 +6,8 @@ import kome.common.data.KOMEArmyCompany;
 import kome.common.data.KOMECompanyDiplomacyAuthorization;
 import kome.common.data.KOMECompanyCoherenceService;
 import kome.common.data.KOMECompanyReconciliationService;
+import kome.common.data.KOMEConflictMovementService;
+import kome.common.data.KOMEConflictRecord;
 import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEAllianceAuthority;
 import kome.common.data.KOMEAllianceProgressionService;
@@ -1416,6 +1418,15 @@ public class KOMECommandTroops extends KOMEPublicCommand {
 
     private void disbandStewardshipCompany(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data,
             KOMEArmyCompany company, UUID actor, boolean admin) {
+        KOMEConflictRecord conflict =
+            KOMEConflictMovementService.activeConflictForDetachment(data, company.id);
+        if (conflict != null
+                || KOMEConflictMovementService.isActivelyCommitted(data, company.id)) {
+            throw new WrongUsageException("Campaign Detachment " + company.id
+                + " is committed to active conflict "
+                + (conflict == null ? "(ambiguous authority)" : conflict.getConflictId())
+                + " and cannot be disbanded by ordinary cleanup.");
+        }
         List<UUID> unitIds = new ArrayList<UUID>(company.units);
         boolean stewardship = false;
         for (UUID unitId : unitIds) {
@@ -1693,6 +1704,14 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (order == null || !order.isMoving() && !((retreatRequest || resumeRequest) && KOMEArmyMovementOrder.STOPPED.equals(order.status))) {
             throw new WrongUsageException("No active movement order " + args[2] + ".");
         }
+        if (KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)) {
+            throw new WrongUsageException("Movement order " + order.id
+                + (KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                    ? " is held by active conflict " + order.conflictHoldId
+                    : " is paused after its conflict ended")
+                + "; normal movement controls cannot release or resume it.");
+        }
         boolean controllerAction = KOMEAllianceTemporaryCommandPolicy.allows(args[1]);
         if (!controllerAction && !admin) {
             throw new WrongUsageException("Only operators can manage movement order spawning.");
@@ -1930,7 +1949,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private void advanceMovementOrder(KOMEWorldData data, KOMEArmyMovementOrder order, int steps, long nowMillis) {
-        if (order == null || !order.isMoving()) {
+        if (order == null || !order.isMoving()
+                || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)) {
             return;
         }
         int distance = Math.max(1, order.distanceTiles);
@@ -2495,6 +2516,12 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         order.originTile = company.currentTile;
         order.destinationTile = destination;
         order.finalDestinationTile = destination;
+        KOMEConflictMovementService.Permission hostilePermission =
+            KOMEConflictMovementService.evaluateHostileDestination(
+                data, company, destination, true);
+        if (hostilePermission.allowed()) {
+            order.hostileAttackDestination = destination;
+        }
         order.currentStepOriginTile = company.currentTile;
         order.currentStepDestinationTile = firstStepDestination;
         order.arrivalPointTileId = firstStepDestination;
@@ -2708,6 +2735,26 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     changed |= markPendingSpawn(order, failureCode(failedTarget.failureReason), failedTarget.failureReason, nowMillis);
                     continue;
                 }
+                KOMEConflictMovementService.ArrivalPreparation conflictPreparation = null;
+                boolean explicitHostileArrival = isFinalStep(order)
+                    && stepDestinationTile.equals(KOMEConquestTile.normalizeId(
+                        order.hostileAttackDestination));
+                if (explicitHostileArrival) {
+                    conflictPreparation = KOMEConflictMovementService.prepareLegalArrival(
+                        data, order, stepDestinationTile);
+                    if (!conflictPreparation.ready()) {
+                        if (order.haltAfterArrival) {
+                            // The step departed under valid authority and remains committed to its
+                            // physical destination, but live authority no longer permits conflict
+                            // commitment. Preserve the established access-halt arrival semantics.
+                            conflictPreparation = null;
+                        } else {
+                            changed |= markPendingSpawn(order, "CONFLICT_NOT_READY",
+                                conflictPreparation.reason, nowMillis);
+                            continue;
+                        }
+                    }
+                }
                 if (announce) {
                     notifyMovementOwner(arrivalWorld, order, "Trying arrival spawn for " + order.id + " at " + describeTargets(spawnTargets) + ".");
                 }
@@ -2718,6 +2765,12 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 double spawnedY = 0.0D;
                 double spawnedZ = 0.0D;
                 List<SpawnAttempt> verifiedSpawns = new ArrayList<SpawnAttempt>();
+                NBTTagCompound orderBeforePublication = order.writeToNBT();
+                KOMEArmyCompany publicationCompany = data.armyCompanies.get(order.companyId);
+                NBTTagCompound companyBeforePublication = publicationCompany == null
+                    ? null : publicationCompany.writeToNBT();
+                Map<UUID, NBTTagCompound> recordsBeforePublication =
+                    new HashMap<UUID, NBTTagCompound>();
                 for (int index = 0; index < order.units.size(); index++) {
                     UUID unitId = order.units.get(index);
                     KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
@@ -2741,6 +2794,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                         changed |= markPendingSpawn(order, "MISSING_MOVING_ENTITY_DATA", "unit " + displayRecordId(record) + " has no saved moving entity data", nowMillis);
                         continue;
                     }
+                    recordsBeforePublication.put(unitId, record.writeToNBT());
                     SpawnAttempt attempt = respawnMovingUnit(data, arrivalWorld, record, spawnTargets, index);
                     rememberSpawnAttempt(order, attempt);
                     UUID newId = attempt.newId;
@@ -2783,7 +2837,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                         }
                     }
                     record.currentTile = stepDestinationTile;
-                    if (finalStep && !order.haltAfterArrival) {
+                    if (finalStep && !order.haltAfterArrival
+                            && conflictPreparation == null) {
                         record.movementOrderId = "";
                     }
                     record.movingEntityData = null;
@@ -2819,6 +2874,65 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 if (company != null) {
                     company.currentTile = stepDestinationTile;
                     company.updatedAtMillis = nowMillis;
+                }
+                if (conflictPreparation != null) {
+                    KOMEConflictMovementService.ArrivalCommitment commitment =
+                        KOMEConflictMovementService.commitLegalArrival(data,
+                            conflictPreparation.receipt, order.owner == null
+                                ? order.ownerName : order.owner.toString());
+                    if (!commitment.success()) {
+                        rollbackPublishedArrival(data, arrivalWorld, order,
+                            verifiedSpawns, orderBeforePublication,
+                            company, companyBeforePublication,
+                            recordsBeforePublication);
+                        changed |= markPendingSpawn(order, "CONFLICT_COMMIT_REJECTED",
+                            commitment.reason, nowMillis);
+                        continue;
+                    }
+                    KOMEConflictRecord conflict = commitment.conflictResult.record;
+                    Map<UUID, UUID> replacements = new HashMap<UUID, UUID>();
+                    for (SpawnAttempt attempt : verifiedSpawns) {
+                        if (attempt.oldId != null && attempt.newId != null
+                                && !attempt.oldId.equals(attempt.newId))
+                            replacements.put(attempt.oldId, attempt.newId);
+                    }
+                    if (!replacements.isEmpty()) {
+                        kome.common.data.KOMEConflictService.Result rekey =
+                            data.getConflictService().rekeyOriginalGarrisonMembers(data,
+                                conflict.getTileId(),
+                                kome.common.data.KOMEConflictContracts.ExpectedConflict.at(
+                                    conflict.getConflictId(), conflict.getRevision()),
+                                replacements,
+                                new kome.common.data.KOMEConflictContracts.Context(nowMillis,
+                                    order.owner == null ? order.ownerName
+                                        : order.owner.toString(),
+                                    "Verified strategic-arrival entity UUID replacement"));
+                        if (rekey.code == kome.common.data.KOMEConflictContracts.Code.SUCCESS)
+                            conflict = rekey.record;
+                        else if (rekey.code
+                                != kome.common.data.KOMEConflictContracts.Code.NO_CHANGE)
+                            throw new IllegalStateException(
+                                "Conflict garrison UUID rekey failed: " + rekey.code);
+                    }
+                    KOMEConflictMovementService.applyConflictHold(data, order,
+                        conflict, nowMillis);
+                    order.finalArrivalMillis = nowMillis;
+                    if (finalStep) {
+                        order.nextRouteIndex = order.currentRouteIndex;
+                        order.nextTile = "";
+                    }
+                    if (company != null) refreshCompany(data, company);
+                    KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, nowMillis);
+                    if (announce) {
+                        notifyMovementOwner(arrivalWorld, order,
+                            "Movement " + order.id + " committed " + order.companyId
+                                + " to conflict " + conflict.getConflictId() + " at "
+                                + stepDestinationTile + "; its queued route is held.");
+                    }
+                    changed = true;
+                    continue;
+                }
+                if (company != null) {
                     KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, nowMillis);
                 }
                 if (finalStep) {
@@ -3111,7 +3225,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         int nextIndex = originIndex + 1;
         String origin = KOMEConquestTile.normalizeId(order.routeTiles.get(originIndex));
         String destination = KOMEConquestTile.normalizeId(order.routeTiles.get(nextIndex));
-        if (!isTileStandableForOrder(data, order, destination, order.retreating)) {
+        if (!isTileStandableForOrder(data, order, destination, order.retreating)
+                && !KOMEConflictMovementService.isAuthorizedHostileTerminalStep(
+                    data, order, destination)) {
             haltForAccessLoss(data, order, nowMillis, "No current passage into " + destination + ".");
             return false;
         }
@@ -3555,6 +3671,23 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 order.units.set(attempt.orderIndex, attempt.oldId);
             }
         }
+    }
+
+    /** Restores all strategic/identity publication after a post-spawn conflict rejection. */
+    private static void rollbackPublishedArrival(KOMEWorldData data, World world,
+            KOMEArmyMovementOrder order, List<SpawnAttempt> attempts,
+            NBTTagCompound orderBefore, KOMEArmyCompany company,
+            NBTTagCompound companyBefore,
+            Map<UUID, NBTTagCompound> recordSnapshots) {
+        rollbackVerifiedSpawns(data, world, order, attempts);
+        if (company != null && companyBefore != null) company.readFromNBT(companyBefore);
+        if (recordSnapshots != null) {
+            for (Map.Entry<UUID, NBTTagCompound> entry : recordSnapshots.entrySet()) {
+                KOMEHiredUnitRecord record = data.hiredUnits.get(entry.getKey());
+                if (record != null) record.readFromNBT(entry.getValue());
+            }
+        }
+        if (order != null && orderBefore != null) order.readFromNBT(orderBefore);
     }
 
     private static SpawnAttempt respawnMovingUnit(KOMEWorldData data, World world, KOMEHiredUnitRecord record, List<SpawnTarget> targets, int index) {
@@ -4186,6 +4319,14 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (!admin && !playerFaction.equals(companyFaction) && !temporary) {
             throw new WrongUsageException("Company faction does not match your faction.");
         }
+        KOMEConflictRecord activeConflict =
+            KOMEConflictMovementService.activeConflictForDetachment(data, company.id);
+        if (activeConflict != null
+                || KOMEConflictMovementService.isActivelyCommitted(data, company.id)) {
+            throw new WrongUsageException(company.name + " is committed to active conflict "
+                + (activeConflict == null ? "(ambiguous authority)"
+                    : activeConflict.getConflictId() + " at " + activeConflict.getTileId()) + ".");
+        }
         // canPlayerControlCompany already checks live stewardship/delegation
         // authorization. Revocation and withdrawal cleanup stay in the lifecycle.
         if (company.isMoving()) {
@@ -4206,6 +4347,12 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             if (blocked.length() > 0) {
                 throw new WrongUsageException(company.name + " cannot move: " + blocked);
             }
+        }
+        KOMECompanyCoherenceService.Assessment coherence =
+            KOMECompanyCoherenceService.INSTANCE.assess(data, company);
+        if (coherence.status == KOMECompanyCoherenceService.Status.INCOHERENT) {
+            throw new WrongUsageException(company.name
+                + " is strategically incoherent and cannot receive a movement order.");
         }
         return company;
     }
@@ -4720,10 +4867,15 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (company != null && KOMEWartimeStewardshipService.canEnter(data, company, owner, false)) {
             return null;
         }
+        if (destination && company != null
+                && KOMEConflictMovementService.evaluateHostileDestination(
+                    data, company, tileKey, true).allowed()) {
+            return null;
+        }
         if (destination) {
-            return "Enemy tile attack movement is not implemented yet. Destination tile " + tileKey + " is owned by "
-                + displayFaction(owner) + " (" + emptyKey(owner) + "), and " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") has no LOTR Ally passage.";
+            return "Destination tile " + tileKey + " is owned by " + displayFaction(owner) + " ("
+                + emptyKey(owner) + "), and this detachment has neither LOTR passage nor an authorized hostile "
+                + "attack-destination commitment.";
         }
         return "Tile " + tileKey + " is controlled by " + displayFaction(owner) + " and no military passage permission exists.";
     }
@@ -5112,7 +5264,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         long next = nextDailyResetMillis(data, nowMillis);
         boolean changed = false;
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
-            if (order == null || !order.isMoving()) continue;
+            if (order == null || !order.isMoving()
+                    || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                    || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)) continue;
             if (order.nextDailyStepMillis != next) {
                 order.nextDailyStepMillis = next;
                 changed = true;
@@ -5132,7 +5286,10 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         long next = nextDailyResetMillis(data, nowMillis);
         boolean changed = false;
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
-            if (order == null || !order.isMoving() || order.nextDailyStepMillis <= 0L
+            if (order == null || !order.isMoving()
+                    || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
+                    || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)
+                    || order.nextDailyStepMillis <= 0L
                     || nowMillis < order.nextDailyStepMillis) continue;
             order.dailyStepsRemaining = order.tilesPerDay;
             order.nextDailyStepMillis = next;

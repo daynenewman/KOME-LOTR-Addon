@@ -13,6 +13,7 @@ public class KOMEMovementHistoryRecord {
     public static final String STOPPED = "STOPPED";
     public static final String CANCELLED = "CANCELLED";
     public static final String FAILED = "FAILED";
+    public static final String CONFLICT_RELEASED_PAUSED = "CONFLICT_RELEASED_PAUSED";
 
     public String historyId = "";
     public String movementOrderId = "";

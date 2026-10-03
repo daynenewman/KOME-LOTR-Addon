@@ -85,11 +85,12 @@ public class KOMEFactionCapitalServiceTest {
         }
     }
 
-    @Test public void schemaFiveRoundTripsCompleteCapitalAuthority() {
+    @Test public void schemaSixRoundTripsCompleteCapitalAuthority() {
         KOMEWorldData source = initialized();
         NBTTagCompound saved = new NBTTagCompound();
         source.writeToNBT(saved);
-        assertEquals(5, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
+            saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(1, saved.getInteger("FactionCapitalDataSchemaVersion"));
         assertEquals(24, saved.getTagList("FactionCapitals", 10).tagCount());
         KOMEWorldData restored = new KOMEWorldData("restored");
@@ -291,8 +292,8 @@ public class KOMEFactionCapitalServiceTest {
         String service = new String(Files.readAllBytes(Paths.get(
             "src/main/java/kome/common/data/KOMEFactionCapitalService.java")),
             StandardCharsets.UTF_8);
-        assertTrue(service.contains("before Encirclement"));
-        assertTrue(service.contains("after Encirclement starts"));
+        assertTrue(service.contains("Encircled-capital arrival policy is TBD"));
+        assertTrue(service.contains("confirm safe arrival before deployment"));
         assertFalse(service.contains("Siege Complex"));
     }
 

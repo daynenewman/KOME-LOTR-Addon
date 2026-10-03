@@ -40,6 +40,8 @@ public final class KOMEHaltedUnitProtection {
     }
 
     public static boolean isProtected(LOTREntityNPC npc) {
+        KOMEProgressionEncounterMarker.Marker marker=KOMEProgressionEncounterMarker.read(npc);
+        if(marker!=null&&KOMELordshipTrialService.MARKER.equals(marker.kind))return false;
         return isActiveHiredWarrior(npc) && npc.hiredNPCInfo.isHalted();
     }
 
@@ -64,6 +66,8 @@ public final class KOMEHaltedUnitProtection {
         if (npc == null) {
             return;
         }
+        KOMEProgressionEncounterMarker.Marker marker=KOMEProgressionEncounterMarker.read(npc);
+        if(marker!=null&&KOMELordshipTrialService.MARKER.equals(marker.kind))return;
         if (applyingInactiveState) {
             return;
         }

@@ -371,6 +371,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
         cursorY = drawInfoCard("Status / Dates", war.status + " | Created " + war.createdAt + " | Ending " + war.endingAt + " | Ended " + war.endedAt, x + 12, cursorY, width - 24, mouseX, mouseY);
         cursorY = drawCoalitionCard(war.sideOneName, war.sideOneFactions, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawCoalitionCard(war.sideTwoName, war.sideTwoFactions, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
+        cursorY = drawInfoCard("Faction Defeat / Live Objectives", war.defeatObjectives, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Coalition Membership Provenance", war.memberships, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Automatic Stage 4 Support", war.supportEnrollments, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
         cursorY = drawInfoCard("Latest Tile Event", war.latestCapture, x + 12, cursorY + 8, width - 24, mouseX, mouseY);
@@ -817,6 +818,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             total += getCardHeight(war.coordinators, width) + getCardHeight(war.reservations, width);
             total += getCardHeight(war.pending, width) + KOMEGuiTheme.warningBannerHeight(fontRendererObj, emptyAsNone(war.warning), width);
             total += getCardHeight(war.adminHistory, width) + getCardHeight(war.endReason, width);
+            total += getCardHeight(war.defeatObjectives, width) + 8;
             return total;
         }
         Record record = (Record) selectedRecord;
@@ -933,6 +935,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
     }
 
     private static class WarRecord {
+        private final String defeatObjectives;
         private final String id;
         private final String name;
         private final String status;
@@ -963,6 +966,7 @@ public class KOMEGuiServerRecords extends LOTRGuiMenuBase {
             endingAt = parts[18]; endedAt = parts[19];
             memberships = parts.length > 20 ? parts[20] : "Legacy membership provenance unavailable";
             supportEnrollments = parts.length > 21 ? parts[21] : "None";
+            defeatObjectives = parts.length > 22 ? parts[22] : "Refresh to inspect live defeat objectives";
         }
     }
 

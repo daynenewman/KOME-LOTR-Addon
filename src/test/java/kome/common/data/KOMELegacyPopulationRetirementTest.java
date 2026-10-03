@@ -66,7 +66,8 @@ public class KOMELegacyPopulationRetirementTest {
                 NBTTagCompound tag = new NBTTagCompound(); data.writeToNBT(tag);
                 for (String key : RETIRED_TAGS) assertFalse(key, tag.hasKey(key));
                 assertFalse(tag.hasKey("ActivePopulationCenti")); assertFalse(tag.hasKey("RepresentedPopulationCenti"));
-                assertEquals(5, tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+                assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
+                    tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
                 assertEquals(2, tag.getInteger("FactionPopulationDataSchemaVersion"));
                 KOMEWorldData restored = new KOMEWorldData("restart"); restored.readFromNBT(tag); data = restored;
             }

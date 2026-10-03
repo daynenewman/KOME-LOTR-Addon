@@ -13,8 +13,8 @@ import java.util.Map;
 
 /**
  * Sole normal read/mutation boundary for authoritative capitals.
- * This service is neutral about muster timing: KOM-11/siege logic must choose normal
- * deployment before Encirclement and exterior relief deployment after Encirclement starts.
+ * This service is neutral about muster timing. Encircled-capital arrival policy is TBD;
+ * the authoritative conflict/deployment service must confirm safe arrival before deployment.
  */
 public final class KOMEFactionCapitalService {
     private KOMEFactionCapitalService() { }

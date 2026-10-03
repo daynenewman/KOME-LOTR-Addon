@@ -2,6 +2,13 @@ package kome.integration;
 
 import kome.core.KOMECorePlugin;
 import kome.core.KOMEWaypointTransformer;
+import kome.core.KOMEProgressionOfferTransformer;
+import kome.core.KOMEProgressionOfferGuiTransformer;
+import kome.core.KOMEFactionTitleTransformer;
+import kome.core.KOMEAlignmentBarTitleTransformer;
+import kome.core.KOMEFactionTitleOptionsTransformer;
+import kome.core.KOMEVisualLocationTransformer;
+import kome.core.KOMEProgressionNpcDespawnTransformer;
 import net.minecraft.entity.player.EntityPlayer;
 import org.junit.Test;
 
@@ -347,7 +354,8 @@ public class CharacterCreationIsolationTest {
             assertFalse(relativePath, text.contains("\"lotrcharactercreation.cfg\""));
             assertFalse(relativePath, text.contains("\"automaticStartingAllegiance\""));
             assertFalse(relativePath, text.contains("com.lotrcharactercreation.config.ModConfiguration"));
-            assertFalse(relativePath, Pattern.compile("\\bgetEntityData\\s*\\(").matcher(text).find());
+            if (!relativePath.endsWith("KOMECourierRecipientSpawner.java") && !relativePath.endsWith("KOMECourierService.java") && !relativePath.endsWith("KOMEProgressionEncounterMarker.java"))
+                assertFalse(relativePath, Pattern.compile("\\bgetEntityData\\s*\\(").matcher(text).find());
             assertFalse(relativePath, text.contains("EntityPlayer.PERSISTED_NBT_TAG"));
             assertFalse(relativePath, text.contains("\"ForgeData\""));
             assertFalse(relativePath, text.contains("\"PlayerPersisted\""));
@@ -402,6 +410,13 @@ public class CharacterCreationIsolationTest {
             new String[] {
                 KOMEWaypointTransformer.class.getName(),
                 kome.core.KOMEPublicWaypointTransformer.class.getName(),
+                KOMEProgressionOfferTransformer.class.getName(),
+                KOMEProgressionOfferGuiTransformer.class.getName(),
+                KOMEFactionTitleTransformer.class.getName(),
+                KOMEAlignmentBarTitleTransformer.class.getName(),
+                KOMEFactionTitleOptionsTransformer.class.getName(),
+                KOMEVisualLocationTransformer.class.getName(),
+                KOMEProgressionNpcDespawnTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),

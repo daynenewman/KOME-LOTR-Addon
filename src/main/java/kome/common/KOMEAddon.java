@@ -26,7 +26,11 @@ import kome.common.command.KOMECommandWar;
 import kome.common.config.KOMEConfigRegistry;
 import kome.common.gui.KOMEAllianceGuiHandler;
 import kome.common.network.KOMEPacketHandler;
+import kome.common.data.KOMEProgressionOfferBridge;
+import kome.common.data.KOMEProgressionVisualItems;
 import net.minecraftforge.common.ForgeChunkManager;
+import cpw.mods.fml.common.registry.GameRegistry;
+import net.minecraft.item.Item;
 
 import java.io.File;
 import java.util.List;
@@ -62,9 +66,17 @@ public class KOMEAddon {
             serverSide = "kome.common.KOMECommonProxy"
     )
     public static KOMECommonProxy proxy;
+    public static Item sealedMessage;
+    public static Item sealedParcel;
 
     @Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        KOMEProgressionVisualItems.register();
+        GameRegistry.registerItem(kome.common.data.KOMEKnightCommissionService.STOLEN_PROPERTY, "stolenProperty");
+        sealedMessage = new kome.common.item.KOMEItemSealedMessage();
+        GameRegistry.registerItem(sealedMessage, "sealedMessage");
+        sealedParcel = new kome.common.item.KOMEItemSealedParcel(); GameRegistry.registerItem(sealedParcel, "sealedParcel");
+        KOMEProgressionOfferBridge.registerQuestType();
         KOMEConfigRegistry.load(new File(event.getModConfigurationDirectory(), "kome.cfg"));
         characterCreation.commonPreInitialize(event);
         lotrMoreMobs.preInit(event);
@@ -145,6 +157,7 @@ public class KOMEAddon {
         event.registerServerCommand(new KOMECommandTroops());
         event.registerServerCommand(new KOMECommandWar());
         event.registerServerCommand(new KOMECommandSeason());
+        event.registerServerCommand(new kome.common.command.KOMECommandMuster());
 
         characterCreation.registerServerCommands(event);
         lotrMoreMobs.serverStarting(event);

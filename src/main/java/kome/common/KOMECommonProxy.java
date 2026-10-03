@@ -83,12 +83,23 @@ public class KOMECommonProxy {
     public void displayLordMenu(int entityId, String lordName, String factionName, boolean currentLord) {
     }
 
+    public void displaySerfdomMasterMenu(int entityId, String masterName, String factionName, int mode, String dutyStatus) {
+    }
+    public void displaySerfdomMasterMenu(int entityId,String masterName,String factionName,int mode,String dutyStatus,boolean canRequestDuty,boolean hasActiveDuty){displaySerfdomMasterMenu(entityId,masterName,factionName,mode,dutyStatus);}
+    public void displayRelationshipHub(int entityId, int relationship, String npcName, String factionName) {
+        displayRelationshipHub(entityId, relationship, npcName, factionName, true);
+    }
+    public void displayRelationshipHub(int entityId, int relationship, String npcName, String factionName, boolean allowService) {
+    }
+
     public void updateProgressionData(String playerName, java.util.List completed) {
     }
 
     public void updateProgressionData(String playerName, java.util.List completed, java.util.Map assignments) {
         updateProgressionData(playerName, completed);
     }
+    public void updateProgressionData(String playerName, java.util.List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName) { updateProgressionData(playerName, completed, assignments); }
+    public void updateProgressionData(String playerName, java.util.List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName, kome.common.data.KOMEProgressionRankSummary ranks) { updateProgressionData(playerName, completed, assignments, summary, findLabel, leaveType, leaveLabel, leaveName); }
 
     public void updateQuotaLedger(java.util.List lines) {
     }
@@ -101,6 +112,22 @@ public class KOMECommonProxy {
     }
 
     public void updateAllianceData(java.util.List lines) {
+    }
+
+    public void updateVisualMarkers(java.util.List<kome.common.data.KOMEVisualMarker> markers) {
+    }
+
+    public void updateProgressionTracker(kome.common.data.KOMEProgressionTrackerSnapshot snapshot) {
+    }
+
+    public void updateStandingTrialEligibility(
+            int entityId,
+            long entityUuidMost,
+            long entityUuidLeast,
+            boolean eligible,
+            boolean passiveOffer,
+            boolean offering,
+            int offerColor) {
     }
 
     public void displayPledgeDeparture(kome.common.network.KOMEPacketPledgeDepartureData message) {

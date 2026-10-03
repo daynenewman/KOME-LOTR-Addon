@@ -1,6 +1,7 @@
 # KOM-40 scoped audit/repair foundation
 
-Base: `fa6a43cc4876f68fd59f361fa6182b21ae26d974` (dev). This is a partial foundation for
+Original base: `fa6a43cc4876f68fd59f361fa6182b21ae26d974` (dev). Integrated latest dev
+`a8ee2665d69ed5eb51df1edf047c8395b37080a9` by merge. This is a partial foundation for
 [KOM-40](https://linear.app/kome-development/issue/KOM-40/add-centralized-audit-logging-reason-strings-and-admin-repair-tools), not completion of the issue.
 
 ## Operator commands
@@ -71,10 +72,10 @@ at apply time. These are server-thread checks; no worker-thread or background re
 
 ## Deferred acceptance scope
 
-This PR does not implement faction defeat, future siege/conflict systems, defensive-gate
+These admin additions do not expand dev's faction defeat or conflict lifecycle, defensive-gate
 relinking, company location/state repair, corrupted-conflict repair, combat/finale/season
 milestone logging, a daily notification batch, global milestone notifications or Discord.
-Existing stewardship/war repair commands are retained as legacy behavior, not expanded or
+Existing conflict, stewardship and war repair commands are retained, not expanded or
 claimed as covered by these new plans. Broader blocked-action reason coverage and audit
 coverage across all canonical actions remain KOM-40 work. Ambiguous corruption, unavailable
 geometry and quarantined waypoint evidence require review; no guessed ownership, population,
@@ -103,7 +104,7 @@ waypoint links/write-blocked state are injected only into test fixtures.
 
 Full Gradle builds use Windows named mutex `Local\KOME-Heavy-Validation`, copied ignored
 dependency jars and outputs under this task's worktree. No repairs run against existing
-user worlds. No merge, deployment or modification of existing runtimes is included.
+user worlds. No PR merge, deployment or modification of existing runtimes is included.
 
 ### Capital lookup correction and disposable Forge evidence (2026-10-02)
 
@@ -160,3 +161,46 @@ matching online-ruler rename, and public waypoint revision reaching a connected 
 No client was connected. Unloaded-dimension/no-initialization and no-chunk-provision
 guarantees are covered by the actual-command regression, not a live dimension-unload
 experiment. Broader KOM-40 acceptance remains deferred as listed above.
+
+### Integration with current dev (2026-10-03)
+
+Merged `origin/dev` at `a8ee2665d69ed5eb51df1edf047c8395b37080a9` into PR head
+`66ffd7741385f7bb4d58c41ac1b8011eafc03f95`. Four conflicts in `KOMECommandKome`
+were resolved by combining usage, dispatch, root completion and repair completion.
+Diagnostics, token preview/apply, paged audit, conflict inspect/end/repair and progression
+controls coexist. Conflict repair retains its own tile/preview/apply arguments; the
+metadata repair token workflow remains separate. Staff checks precede world access.
+
+The non-loading `DimensionManager.getWorld()` correction, output bounds, guarded repairs
+and legacy ruler-name preview behavior are unchanged. Self-review compared all 282
+incoming files with dev: outside the command resolution and PR #20's existing additive
+diplomacy/capital helpers, they matched before the test-only schema correction below.
+WorldData, conflict, progression, muster and faction-defeat persistence remain dev's code.
+
+Three added actual-command regressions cover combined usage/completion; diagnostics and
+both repair forms through root dispatch; conflict inspection, stale-ID rejection and
+forced end; bounded paged audit; progression cooldown dispatch; and legacy ruler-name
+preview followed by explicit token application. The existing unauthorized-root test now
+also covers conflict, progression and all repair families without accessing the world.
+Existing dimension-registry and chunk-provider interception tests remain enabled.
+
+The first focused run found a stale schema-6 literal in the merged muster save/load
+regression: current dev uses root schema **7**. That test now checks the canonical schema
+constant; no production schema or persistence behavior was changed. The new forced-end
+assertion was corrected to dev's `FORCED_END` audit action. Focused validation then passed
+**230 tests, zero failures/errors/skips**.
+
+Full `clean test build --offline --no-daemon --console=plain`:
+**2,030 passed, two existing Windows symbolic-link skips, zero failures/errors**, including
+release reobfuscation and all 10 diagnostics command regressions. Both focused and full
+gates held `Local\KOME-Heavy-Validation`. Integrated release SHA-256:
+`4cc3938923d11f040ea91a6f94026bea05c2c0212f977414f94a0aeefd01658a`.
+Primary checkout, all other worktree heads/statuses and stash matched the pre-merge
+snapshot; no existing worlds or runtimes were changed.
+
+Task-local integration logs and XML/count snapshots are under ignored
+`outputs/kom40-dev-integration`. No Forge run was performed for this integration; native
+runtime evidence above applies to correction head `66ffd77`. The stopped disposable
+runtime jar retains SHA-256 `2135f43ae98a45cab3b9c09ec054da50df73314929973d9f8db3d1737f849dad`.
+Remaining live acceptance is unchanged: player/operator chat and dispatch, online ruler
+rename and public-waypoint publication to a connected client. No PR merge or deployment.

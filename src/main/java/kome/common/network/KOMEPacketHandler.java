@@ -172,6 +172,16 @@ public class KOMEPacketHandler {
         network.registerMessage(new ServerThreadHandler<KOMEPacketTroopGuiAction>(new KOMEPacketTroopGuiAction.Handler()) {}, KOMEPacketTroopGuiAction.class, 35, Side.SERVER);
         network.registerMessage(new ServerThreadHandler<KOMEPacketBuildAction>(new KOMEPacketBuildAction.Handler()) {}, KOMEPacketBuildAction.class, 36, Side.SERVER);
         network.registerMessage(new ServerThreadHandler<KOMEPacketCampaignHire>(new KOMEPacketCampaignHire.Handler()) {}, KOMEPacketCampaignHire.class, 37, Side.SERVER);
-        network.registerMessage(KOMEPacketPublicWaypoints.Handler.class, KOMEPacketPublicWaypoints.class, 38, Side.CLIENT);
+        network.registerMessage(KOMEPacketSerfdomMasterMenu.Handler.class, KOMEPacketSerfdomMasterMenu.class, 38, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketSerfdomMasterAction>(new KOMEPacketSerfdomMasterAction.Handler()) {}, KOMEPacketSerfdomMasterAction.class, 39, Side.SERVER);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketProgressionRelationshipAction>(new KOMEPacketProgressionRelationshipAction.Handler()) {}, KOMEPacketProgressionRelationshipAction.class, 40, Side.SERVER);
+        network.registerMessage(KOMEPacketRelationshipHub.Handler.class, KOMEPacketRelationshipHub.class, 41, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketRelationshipAction>(new KOMEPacketRelationshipAction.Handler()) {}, KOMEPacketRelationshipAction.class, 42, Side.SERVER);
+        network.registerMessage(KOMEPacketVisualMarkers.Handler.class, KOMEPacketVisualMarkers.class, 43, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketProgressionRequest>(new KOMEPacketProgressionRequest.Handler()) {}, KOMEPacketProgressionRequest.class, 44, Side.SERVER);
+        network.registerMessage(KOMEPacketProgressionTracker.Handler.class, KOMEPacketProgressionTracker.class, 45, Side.CLIENT);
+        network.registerMessage(KOMEPacketStandingTrialEligibility.Handler.class, KOMEPacketStandingTrialEligibility.class, 46, Side.CLIENT);
+        // Both branches used 38; retain progression IDs and append public waypoints at the next free ID.
+        network.registerMessage(KOMEPacketPublicWaypoints.Handler.class, KOMEPacketPublicWaypoints.class, 47, Side.CLIENT);
     }
 }

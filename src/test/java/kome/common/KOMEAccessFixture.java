@@ -34,6 +34,25 @@ import net.minecraft.world.storage.MapStorage;
 
 /** Inert world/player fixtures: actual command, handler and service code, no live Forge connection. */
 public final class KOMEAccessFixture {
+    static {
+        try { initializeVanillaItems(); }
+        catch (Exception failure) { throw new ExceptionInInitializerError(failure); }
+    }
+    /** Plain JUnit skips Minecraft bootstrap. Install immutable item identities before live service calls. */
+    private static void initializeVanillaItems() throws Exception {
+        java.lang.reflect.Method raw=net.minecraft.item.Item.itemRegistry.getClass().getDeclaredMethod("addObjectRaw",int.class,String.class,Object.class);
+        raw.setAccessible(true);int id=31000;
+        Field modifiers=Field.class.getDeclaredField("modifiers");modifiers.setAccessible(true);
+        for(Field field:net.minecraft.init.Items.class.getFields())if((field.getType()==net.minecraft.item.Item.class||field.getType()==net.minecraft.item.ItemArmor.class||field.getType()==net.minecraft.item.ItemBow.class||field.getType()==net.minecraft.item.ItemPotion.class)&&field.get(null)==null) {
+            net.minecraft.item.Item item=field.getType()==net.minecraft.item.ItemArmor.class?new net.minecraft.item.ItemArmor(net.minecraft.item.ItemArmor.ArmorMaterial.CLOTH,0,field.getName().contains("helmet")?0:1):field.getType()==net.minecraft.item.ItemBow.class?new net.minecraft.item.ItemBow():field.getType()==net.minecraft.item.ItemPotion.class?new net.minecraft.item.ItemPotion():new net.minecraft.item.ItemFood(8,0.8F,false);
+            if(field.getName().equals("glass_bottle"))item=new net.minecraft.item.Item(){
+                @Override public String getItemStackDisplayName(net.minecraft.item.ItemStack stack){return "Bottle";}
+            };
+            if(field.getName().matches(".*sword|bow|.*helmet|.*chestplate|written_book|mushroom_stew"))item.setMaxStackSize(1);
+            raw.invoke(net.minecraft.item.Item.itemRegistry,id++,"kome:fixture_vanilla_"+field.getName(),item);
+            field.setAccessible(true);modifiers.setInt(field,field.getModifiers()&~java.lang.reflect.Modifier.FINAL);field.set(null,item);
+        }
+    }
     public final KOMEWorldData data = new KOMEWorldData();
     public final TestWorld world;
     public final Player player;
@@ -47,6 +66,7 @@ public final class KOMEAccessFixture {
         world.mapStorage.setData("KOME_ServerRules", data);
         world.loadedEntityList = new ArrayList<Entity>();
         world.playerEntities = new ArrayList();
+        world.playedSounds = new ArrayList<String>();
         set(World.class, world, "worldScoreboard", new net.minecraft.scoreboard.Scoreboard());
         player = allocate(Player.class);
         player.id = UUID.randomUUID(); player.connected = true;
@@ -101,12 +121,14 @@ public final class KOMEAccessFixture {
         public boolean operator;
         public boolean connected = true;
         public List<String> messages;
+        public net.minecraft.inventory.IInventory openedInventory;
         private Player() { super(null, null, null, null); }
         @Override public UUID getUniqueID() { return id; }
         @Override public String getCommandSenderName() { return name == null ? "AccessTester" : name; }
         // Deliberately deny level 0 too, matching real 1.7.10 non-operator behavior.
         @Override public boolean canCommandSenderUseCommand(int level, String command) { return operator; }
         @Override public void addChatMessage(IChatComponent message) { messages.add(message.getUnformattedText()); }
+        @Override public void displayGUIChest(net.minecraft.inventory.IInventory inventory){openedInventory=inventory;}
     }
 
     public static final class RecordingNetwork extends SimpleNetworkWrapper {
@@ -138,11 +160,38 @@ public final class KOMEAccessFixture {
     }
 
     public static final class TestWorld extends World {
+        private static final net.minecraft.block.Block TEST_GROUND=new net.minecraft.block.Block(net.minecraft.block.material.Material.ground){};
+        private static final net.minecraft.block.Block TEST_AIR=new net.minecraft.block.Block(net.minecraft.block.material.Material.air){};
+        public long testWorldTime;
+        public boolean flatTerrain,spawnSucceeds,unsafeSurface;
+        public int terrainProbes;
+        public IChunkProvider testChunkProvider;
+        public List<String> playedSounds;
         private TestWorld() { super((ISaveHandler) null, "test", (WorldProvider) null, (WorldSettings) null, (Profiler) null); }
         @Override protected IChunkProvider createChunkProvider() { return null; }
+        @Override public IChunkProvider getChunkProvider(){return testChunkProvider==null?super.getChunkProvider():testChunkProvider;}
+        @Override public int getTopSolidOrLiquidBlock(int x,int z){terrainProbes++;return flatTerrain?65:super.getTopSolidOrLiquidBlock(x,z);}
+        @Override public net.minecraft.block.Block getBlock(int x,int y,int z){return flatTerrain?(y==64&&!unsafeSurface?TEST_GROUND:TEST_AIR):super.getBlock(x,y,z);}
+        @Override public boolean isAirBlock(int x,int y,int z){return flatTerrain?y>64:super.isAirBlock(x,y,z);}
+        @Override public java.util.List getCollidingBoundingBoxes(Entity entity,net.minecraft.util.AxisAlignedBB box){return flatTerrain?new ArrayList():super.getCollidingBoundingBoxes(entity,box);}
+        @Override public boolean checkNoEntityCollision(net.minecraft.util.AxisAlignedBB box,Entity entity){return flatTerrain||super.checkNoEntityCollision(box,entity);}
+        @Override public boolean spawnEntityInWorld(Entity entity){if(!flatTerrain)return super.spawnEntityInWorld(entity);if(spawnSucceeds)loadedEntityList.add(entity);return spawnSucceeds;}
+        @Override public void playSoundAtEntity(Entity entity,String sound,float volume,float pitch){if(playedSounds!=null)playedSounds.add(sound);}
         @Override protected int func_152379_p() { return 0; }
-        @Override public Entity getEntityByID(int id) { return null; }
-        @Override public long getTotalWorldTime() { return 0L; }
+        @Override public Entity getEntityByID(int id) {
+            for(Object value:loadedEntityList)if(((Entity)value).getEntityId()==id)return (Entity)value;
+            return null;
+        }
+        @Override public java.util.List getEntitiesWithinAABB(Class type,net.minecraft.util.AxisAlignedBB box) {
+            java.util.List result=new ArrayList();
+            for(Object value:loadedEntityList)if(type.isInstance(value)) {
+                Entity entity=(Entity)value;
+                if(entity.posX>=box.minX&&entity.posX<=box.maxX&&entity.posY>=box.minY
+                        &&entity.posY<=box.maxY&&entity.posZ>=box.minZ&&entity.posZ<=box.maxZ)result.add(entity);
+            }
+            return result;
+        }
+        @Override public long getTotalWorldTime() { return testWorldTime; }
         @Override public EntityPlayer func_152378_a(UUID id) {
             for (Object value : playerEntities) if (((EntityPlayer) value).getUniqueID().equals(id)) return (EntityPlayer) value;
             return null;

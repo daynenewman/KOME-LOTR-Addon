@@ -90,6 +90,7 @@ public final class KOMEConfigInspection {
             add(values, category, "budgetDailyPopulationMultiplier", s.getBudgetDailyPopulationMultiplier());
             add(values, category, "arrivalDelayHours", s.getArrivalDelayHours());
             add(values, category, "encircledCapitalArrivalPolicy", s.getEncircledCapitalArrivalPolicy());
+            add(values, category, "rosterWeightOverrides", s.getRosterWeightOverrides());
         } else if ("siege".equals(category)) {
             KOMEConfigRegistry.SiegeSettings s = snapshot.getSiege();
             add(values, category, "gateHpPerApprovedHour", s.getGateHpPerApprovedHour());

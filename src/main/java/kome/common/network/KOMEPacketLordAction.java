@@ -55,13 +55,15 @@ public class KOMEPacketLordAction implements IMessage {
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
             KOMEPlayerProgression progression = data.progressions.get(KOMEReflection.getEntityUUID(player));
             if (message.action == OFFERINGS) {
-                if (progression == null || !KOMEProgressionLords.isPledgedLord(entity, progression)) {
-                    player.addChatMessage(new ChatComponentText("You can only open offerings for your pledged lord."));
+                if (progression == null || !KOMEProgressionLords.isCanonicalLiege(entity, progression)) {
+                    player.addChatMessage(new ChatComponentText(
+                        "You can only open rank offerings with your committed Liege."));
                     return null;
                 }
                 KOMEProgressionLords.openOfferings(player);
             } else {
-                KOMEProgressionLords.pledgeToLord(player, (LOTRHireableBase) entity);
+                player.addChatMessage(new ChatComponentText(
+                    "Legacy pledged-lord selection is retired. Use canonical Master and Liege relationships instead."));
             }
             return null;
         }

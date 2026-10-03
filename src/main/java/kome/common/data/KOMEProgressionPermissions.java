@@ -45,6 +45,10 @@ public class KOMEProgressionPermissions {
         }
         UUID playerID = KOMEReflection.getEntityUUID(player);
         KOMEPlayerProgression progression = data.progressions.get(playerID);
+        // Legacy title flags are compatibility history, never present Lord authority.
+        if(TAKE_WAYPOINTS.equals(permissionID)||RECLAIM_WAYPOINTS.equals(permissionID))
+            return progression!=null&&progression.getCanonicalRank().order>=KOMEProgressionRank.LORD.order
+                &&progression.isCompleted(permission);
         // Permission reads must not create a record, including on a denied forged request.
         return permission.defaultUnlocked || progression != null && progression.isCompleted(permission);
     }

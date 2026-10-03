@@ -56,8 +56,126 @@ public class KOMEAdminDiagnosticsCommandsTest {
         denied(() -> root.processCommand(sender, new String[] {"repair", "preview", "ownership", "T100"}));
         denied(() -> root.processCommand(sender, new String[] {"repair", "apply", "token"}));
         denied(() -> root.processCommand(sender, new String[] {"audit", "list", "1"}));
+        for (String[] args : new String[][] {
+                {"conflict", "inspect", "T100"}, {"conflict", "end", "T100", "CF1", "reason"},
+                {"repair", "conflict", "T100", "preview"}, {"repair", "conflict", "T100", "apply"},
+                {"repair", "stewardship", "gondor"}, {"repair", "war", "W1"},
+                {"progression", "cooldown", "off"}, {"progression", "relationship", "force", "lord"},
+                {"progression", "relationship", "clear"}, {"ruler", "repair", "gondor", "Player"}}) {
+            denied(() -> root.processCommand(sender, args));
+            assertTrue(root.addTabCompletionOptions(sender, args).isEmpty());
+        }
     }
 
+    @Test public void mergedUsageAndCompletionRetainDiagnosticsConflictRepairsAndProgression() throws Exception {
+        KOMECommandKome root = new KOMECommandKome(); ICommandSender staff = sender(true, new ArrayList<String>());
+        String usage = root.getCommandUsage(staff);
+        for (String part : new String[] {"diagnostics", "preview domain subject|apply token", "conflict <inspect|end>",
+                "repair conflict <tile> <preview|apply>", "audit <list|summary> [page]", "repair stewardship",
+                "repair war", "progression cooldown", "progression relationship"}) assertTrue(part, usage.contains(part));
+        completion(root, staff, new String[] {""}, "gui", "help", "tile", "waypoint", "character", "config",
+            "conquest", "waypointdefaults", "adminmarkers", "capital", "ruler", "audit", "diagnostics", "conflict", "repair", "progression");
+        completion(root, staff, new String[] {"repair", ""}, "preview", "apply", "conflict", "stewardship", "war");
+        completion(root, staff, new String[] {"diagnostics", ""}, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint");
+        completion(root, staff, new String[] {"repair", "preview", ""}, "ownership", "diplomacy", "ruler", "waypoint");
+        completion(root, staff, new String[] {"repair", "conflict", "T100", ""}, "preview", "apply");
+        completion(root, staff, new String[] {"conflict", ""}, "inspect", "end");
+        completion(root, staff, new String[] {"conflict", "inspect", ""}, "T");
+        completion(root, staff, new String[] {"conflict", "end", ""}, "T");
+        completion(root, staff, new String[] {"audit", ""}, "list", "summary");
+        completion(root, staff, new String[] {"progression", ""}, "cooldown", "relationship");
+        completion(root, staff, new String[] {"progression", "cooldown", ""}, "on", "off");
+        completion(root, staff, new String[] {"progression", "relationship", ""}, "force", "clear");
+        completion(root, staff, new String[] {"progression", "relationship", "force", ""}, "serf", "knight", "lord");
+        assertTrue(root.addTabCompletionOptions(staff, new String[] {"repair", "stewardship", ""})
+            .contains(lotr.common.fac.LOTRFaction.GONDOR.codeName()));
+        kome.common.KOMEAccessFixture fixture = new kome.common.KOMEAccessFixture(); fixture.player.operator = true;
+        KOMEWar war = new KOMEWar(); war.id = "W1"; fixture.data.wars.put(war.id, war);
+        completion(root, fixture.player, new String[] {"repair", "war", ""}, "W1");
+        ICommandSender ordinary = sender(false, new ArrayList<String>());
+        completion(root, ordinary, new String[] {""}, "gui", "help", "tile", "waypoint");
+        assertFalse(root.getCommandUsage(ordinary).contains("diagnostics"));
+    }
+
+    @Test public void mergedRootDispatchKeepsGuardedRepairsConflictCommandsAndPagedAudit() throws Exception {
+        kome.common.KOMEAccessFixture fixture = new kome.common.KOMEAccessFixture(); fixture.player.operator = true;
+        KOMEWorldData data = fixture.data; data.initializeIntegratedWorld();
+        KOMEConquestTile tile = data.conquestTiles.get("T100"); tile.setCurrentRulingFaction("gondor"); tile.ownerFaction = "";
+        KOMECommandKome root = new KOMECommandKome();
+        assertFalse(runRoot(root, fixture, "diagnostics", "ownership", "T100").isEmpty());
+        assertEquals("", tile.ownerFaction);
+        String preview = runRoot(root, fixture, "repair", "preview", "ownership", "T100").get(0);
+        String token = preview.split("/kome repair apply ")[1].split(" ")[0];
+        assertEquals("", tile.ownerFaction);
+        KOMEConflictRecord conflict = data.getConflictService().start("T100", KOMEConflictRecord.State.ORDINARY,
+            KOMEConflictContracts.ExpectedConflict.absent(), java.util.Collections.<KOMEConflictContracts.GarrisonSeed>emptyList(),
+            new KOMEConflictContracts.Context(10L, "test", "integration fixture")).record;
+        assertNotNull(conflict);
+        assertTrue(runRoot(root, fixture, "conflict", "inspect", "T100").get(0).contains(conflict.getConflictId()));
+        assertTrue(runRoot(root, fixture, "repair", "conflict", "T100", "preview").get(0).startsWith("Conflict repair preview"));
+        assertTrue(runRoot(root, fixture, "repair", "conflict", "T100", "apply").get(0).contains("0 deterministic"));
+        assertEquals("", tile.ownerFaction);
+        assertTrue(runRoot(root, fixture, "repair", "apply", token).get(0).startsWith("Applied:"));
+        assertEquals("gondor", tile.ownerFaction);
+        assertTrue(runRoot(root, fixture, "repair", "apply", token).get(0).contains("consumed"));
+        denied(() -> root.processCommand(fixture.player, new String[] {"conflict", "end", "T100", "CF999", "stale"}));
+        assertEquals(KOMEConflictRecord.State.ORDINARY, data.getConflictService().get("T100").getState());
+        assertTrue(runRoot(root, fixture, "conflict", "end", "T100", conflict.getConflictId(), "integration", "end")
+            .get(0).startsWith("Ended conflict"));
+        assertEquals(KOMEConflictRecord.State.ENDED, data.getConflictService().get("T100").getState());
+        assertEquals("gondor", tile.projectRulingFaction());
+        assertEquals(1L, data.centralAudit.stream().filter(e -> "CONFLICT".equals(e.domain) && "FORCED_END".equals(e.action)).count());
+        for (int i = 0; i < 40; i++) KOMEAuditService.record(data, i, "TEST", "EVENT", "test", "S" + i, "fixture", "");
+        List<String> page = runRoot(root, fixture, "audit", "list", "2");
+        assertEquals(19, page.size()); assertTrue(page.get(0).startsWith("Audit page 2/"));
+        for (String line : page) assertTrue(line.length() <= KOMEAdminDiagnostics.MAX_LINE_LENGTH);
+        assertTrue(runRoot(root, fixture, "audit", "summary", "1").get(0).startsWith("Audit page 1/"));
+        try {
+            runRoot(root, fixture, "progression", "cooldown", "off");
+            assertTrue(KOMESerfKnightCadenceOverride.isEnabled(fixture.player.id));
+            runRoot(root, fixture, "progression", "cooldown", "on");
+            assertFalse(KOMESerfKnightCadenceOverride.isEnabled(fixture.player.id));
+        } finally { KOMESerfKnightCadenceOverride.clear(fixture.player.id); }
+    }
+
+    @Test public void legacyRulerNameRepairStillPreviewsUntilExplicitTokenApply() throws Exception {
+        kome.common.KOMEAccessFixture fixture = new kome.common.KOMEAccessFixture(); fixture.player.operator = true;
+        fixture.data.initializeIntegratedWorld();
+        KOMERulerService.assignRuler(fixture.data, "gondor", fixture.player.id, "OldName");
+        Field singleton = null;
+        for (Field field : MinecraftServer.class.getDeclaredFields())
+            if (Modifier.isStatic(field.getModifiers()) && field.getType() == MinecraftServer.class) singleton = field;
+        assertNotNull(singleton); singleton.setAccessible(true); Object previousServer = singleton.get(null);
+        try {
+            DedicatedServer server = kome.common.KOMEAccessFixture.allocate(DedicatedServer.class);
+            net.minecraft.server.dedicated.DedicatedPlayerList players =
+                kome.common.KOMEAccessFixture.allocate(net.minecraft.server.dedicated.DedicatedPlayerList.class);
+            Field playerList = net.minecraft.server.management.ServerConfigurationManager.class.getDeclaredField("playerEntityList");
+            playerList.setAccessible(true); playerList.set(players, fixture.world.playerEntities);
+            server.func_152361_a(players); singleton.set(null, server);
+            KOMECommandKome root = new KOMECommandKome();
+            String preview = runRoot(root, fixture, "ruler", "repair", "gondor", fixture.player.getCommandSenderName()).get(0);
+            assertEquals("OldName", KOMERulerService.getRulerName(fixture.data, "gondor"));
+            assertEquals(fixture.player.id, KOMERulerService.getRuler(fixture.data, "gondor"));
+            assertEquals(1L, fixture.data.centralAudit.stream().filter(e -> "REPAIR_PREVIEW".equals(e.action)).count());
+            assertEquals(0L, fixture.data.centralAudit.stream().filter(e -> "REPAIR_APPLY".equals(e.action)).count());
+            String token = preview.split("/kome repair apply ")[1].split(" ")[0];
+            assertTrue(runRoot(root, fixture, "repair", "apply", token).get(0).startsWith("Applied:"));
+            assertEquals(fixture.player.getCommandSenderName(), KOMERulerService.getRulerName(fixture.data, "gondor"));
+            assertEquals(fixture.player.id, KOMERulerService.getRuler(fixture.data, "gondor"));
+        } finally { singleton.set(null, previousServer); }
+    }
+
+    private static List<String> runRoot(KOMECommandKome root, kome.common.KOMEAccessFixture fixture, String... args) {
+        fixture.player.messages.clear(); root.processCommand(fixture.player, args);
+        return new ArrayList<String>(fixture.player.messages);
+    }
+    private static void completion(KOMECommandKome root, ICommandSender sender, String[] args, String... expected) {
+        List actual = root.addTabCompletionOptions(sender, args);
+        assertEquals(java.util.Arrays.toString(args), new java.util.HashSet<String>(java.util.Arrays.asList(expected)),
+            new java.util.HashSet(actual));
+        assertEquals(expected.length, actual.size());
+    }
     @Test public void commandPreviewAndApplyUseRealServiceAndSingleUseToken() {
         KOMEWorldData data = data(); KOMEConquestTile t = data.conquestTiles.get("T100");
         t.setCurrentRulingFaction("gondor"); t.ownerFaction = "";

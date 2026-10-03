@@ -1,8 +1,6 @@
 package kome.common.data;
 
 import kome.common.KOMEReflection;
-import kome.common.network.KOMEPacketHandler;
-import kome.common.network.KOMEPacketLordHighlight;
 import lotr.common.entity.npc.LOTRHireableBase;
 import lotr.common.entity.npc.LOTREntityNPC;
 import lotr.common.entity.npc.LOTRHiredNPCInfo;
@@ -16,42 +14,24 @@ import net.minecraft.util.ChatComponentText;
 import net.minecraft.world.World;
 
 import java.util.List;
-import java.util.UUID;
 
 public class KOMEProgressionLords {
     public static boolean pledgeToLord(EntityPlayerMP player, LOTRHireableBase lord) {
-        if (player == null || lord == null || !(lord instanceof Entity) || !isPledgeLord(lord)) {
-            throw new WrongUsageException("Choose a captain or unit-trading lord.");
+        if(player!=null) {
+            player.addChatMessage(new ChatComponentText(
+                "Legacy pledged-lord selection is retired. Use canonical Master and Liege relationships instead."));
         }
-        if (!KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.PLEDGE)) {
-            return false;
-        }
-        Entity entity = (Entity) lord;
-        if (player.getDistanceSqToEntity(entity) > 64.0D) {
-            throw new WrongUsageException("Stand within 8 blocks of the lord you want to pledge to.");
-        }
-        LOTRFaction faction = lord.getFaction();
-        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-        progression.setPledgedLord(String.valueOf(KOMEReflection.getEntityUUID(entity)), lord.getNPCName(), faction == null ? "" : faction.factionName());
-        progression.setPledgedLordLocation(KOMEReflection.getWorld(player).provider.dimensionId, entity.posX, entity.posY, entity.posZ);
-        boolean changed = progression.grant("wanderer.find_serf_lord");
-        changed = KOMEProgressionAutoCompleter.applyUnlocks(progression) > 0 || changed;
-        data.markDirty();
-        KOMEProgressionAutoCompleter.syncPlayer(player, progression);
-        KOMEProgressionTitles.updatePlayerTitle(player);
-        player.addChatMessage(new ChatComponentText("Pledged loyalty to " + progression.getPledgedLordDisplay() + ". Bring your quotas to this lord."));
-        if (changed) {
-            player.addChatMessage(new ChatComponentText("Completed: Pledge to a Lord"));
-        }
-        return true;
+        return false;
     }
 
     public static void openOfferings(EntityPlayerMP player) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         KOMEPlayerProgression progression = data.progressions.get(KOMEReflection.getEntityUUID(player));
-        if (progression == null || !progression.hasPledgedLord()) {
-            throw new WrongUsageException("Pledge to a lord first.");
+        if (progression == null || !progression.getSerfKnightProgression().hasLiege()) {
+            throw new WrongUsageException("A committed Liege relationship is required for rank offerings.");
+        }
+        if (findNearbyCanonicalLiege(player, progression) == null) {
+            throw new WrongUsageException("Stand near your Liege to open rank offerings.");
         }
         KOMEProgressionQuotas.processDeposits(progression);
         KOMEProgressionQuotas.applyCompletedQuotas(progression);
@@ -60,44 +40,28 @@ public class KOMEProgressionLords {
         player.displayGUIChest(new KOMEProgressionOfferingInventory(data, progression, player));
     }
 
-    public static void highlightPledgedLord(EntityPlayerMP player) {
-        KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
-        KOMEPlayerProgression progression = data.progressionForInspection(KOMEReflection.getEntityUUID(player));
-        if (!progression.hasPledgedLord()) {
-            throw new WrongUsageException("Pledge to a lord first.");
-        }
-        Entity loaded = findLoadedPledgedLord(player, progression);
-        if (loaded != null) {
-            // Location inspection is a projection; pledging owns the persisted fallback location.
-            KOMEPacketHandler.network.sendTo(new KOMEPacketLordHighlight(loaded.getEntityId(), progression.getPledgedLordDisplay(), loaded.posX, loaded.posY, loaded.posZ), player);
-            player.addChatMessage(new ChatComponentText("Highlighted " + progression.getPledgedLordDisplay() + "."));
-            return;
-        }
-        if (progression.getPledgedLordDimension() != KOMEReflection.getWorld(player).provider.dimensionId) {
-            player.addChatMessage(new ChatComponentText("Your pledged lord is recorded in another dimension. Go there and use /progression findlord again."));
-            return;
-        }
-        KOMEPacketHandler.network.sendTo(new KOMEPacketLordHighlight(-1, progression.getPledgedLordDisplay(), progression.getPledgedLordX(), progression.getPledgedLordY(), progression.getPledgedLordZ()), player);
-        player.addChatMessage(new ChatComponentText("Your pledged lord is not loaded nearby. Highlighting the last known location."));
-    }
-
-    private static Entity findLoadedPledgedLord(EntityPlayerMP player, KOMEPlayerProgression progression) {
-        UUID pledgedID;
-        try {
-            pledgedID = UUID.fromString(progression.getPledgedLordID());
-        } catch (Exception e) {
-            pledgedID = null;
-        }
-        if (pledgedID == null) {
-            return null;
-        }
+    public static LOTREntityNPC findNearbyCanonicalLiege(EntityPlayerMP player, KOMEPlayerProgression progression) {
+        if (player == null || progression == null) return null;
+        KOMEProgressionNpcRef liege = progression.getSerfKnightProgression().getLiege();
+        if (!liege.isSet()) return null;
         World world = KOMEReflection.getWorld(player);
-        for (Object object : world.loadedEntityList) {
-            if (object instanceof Entity && pledgedID.equals(KOMEReflection.getEntityUUID((Entity) object))) {
-                return (Entity) object;
+        List entities = world.getEntitiesWithinAABB(LOTREntityNPC.class, player.boundingBox.expand(8.0D, 4.0D, 8.0D));
+        for (Object object : entities) {
+            if (!(object instanceof LOTREntityNPC)) continue;
+            LOTREntityNPC npc = (LOTREntityNPC) object;
+            if (player.getDistanceSqToEntity(npc) <= 64.0D
+                    && liege.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))) {
+                return npc;
             }
         }
         return null;
+    }
+
+    public static boolean isCanonicalLiege(Entity target, KOMEPlayerProgression progression) {
+        if (!(target instanceof LOTREntityNPC) || progression == null) return false;
+        KOMEProgressionNpcRef liege = progression.getSerfKnightProgression().getLiege();
+        return liege.isSet()
+            && liege.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf((LOTREntityNPC) target));
     }
 
     public static LOTRHireableBase findNearbyPledgeLord(EntityPlayerMP player) {
@@ -124,17 +88,55 @@ public class KOMEProgressionLords {
     }
 
     public static boolean isPledgeLord(LOTRHireableBase hireable) {
+        return isCombatUnitHiringNpc(hireable);
+    }
+
+    /** Shared noble-hiring predicate: farmer-only traders are never noble lieges. */
+    public static boolean isCombatUnitHiringNpc(LOTRHireableBase hireable) {
+        return isCombatUnitHiringNpc((Object) hireable);
+    }
+
+    /** Supports base LOTR NPC references as well as the narrower hireable interaction type. */
+    public static boolean isCombatUnitHiringNpc(LOTREntityNPC npc) {
+        return isCombatUnitHiringNpc((Object) npc);
+    }
+
+    /**
+     * Standing Trials must use an NPC that can actually open LOTR's unit-trader
+     * Talk/Hire GUI. Class-name heuristics are intentionally not accepted here:
+     * otherwise an NPC can receive the native quest indicator without having a
+     * GUI capable of hosting KOME's Quest button.
+     */
+    public static boolean isStandingTrialLiegeCandidate(LOTREntityNPC npc) {
+        return npc instanceof LOTRUnitTradeable
+            && hasCombatUnitTrades((LOTRUnitTradeable) npc);
+    }
+
+    private static boolean hasCombatUnitTrades(LOTRUnitTradeable hireable) {
+        if (hireable == null || hireable.getUnits() == null) return false;
+        LOTRUnitTradeEntry[] entries = hireable.getUnits().tradeEntries;
+        if (entries == null) return false;
+        boolean hasEntry = false;
+        for (LOTRUnitTradeEntry entry : entries) {
+            hasEntry |= entry != null;
+            if (entry != null && entry.task != LOTRHiredNPCInfo.Task.FARMER) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isCombatUnitHiringNpc(Object hireable) {
         if (hireable instanceof LOTRUnitTradeable) {
-            LOTRUnitTradeEntry[] entries = ((LOTRUnitTradeable) hireable).getUnits().tradeEntries;
-            if (entries != null) {
-                for (LOTRUnitTradeEntry entry : entries) {
-                    if (entry != null && entry.task != LOTRHiredNPCInfo.Task.FARMER) {
-                        return true;
-                    }
+            LOTRUnitTradeable unitTradeable = (LOTRUnitTradeable) hireable;
+            if (hasCombatUnitTrades(unitTradeable)) return true;
+            if (unitTradeable.getUnits() != null && unitTradeable.getUnits().tradeEntries != null) {
+                for (LOTRUnitTradeEntry entry : unitTradeable.getUnits().tradeEntries) {
+                    if (entry != null) return false;
                 }
             }
         }
-        String className = hireable.getClass().getSimpleName().toLowerCase();
+        String className = hireable == null ? "" : hireable.getClass().getSimpleName().toLowerCase();
         return className.contains("captain") || className.contains("commander") || className.contains("lord") || className.contains("warlord") || className.contains("chieftain");
     }
 

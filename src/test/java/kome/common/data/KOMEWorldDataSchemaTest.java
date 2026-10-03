@@ -26,7 +26,9 @@ public class KOMEWorldDataSchemaTest {
 
     private static final Set<String> REQUIRED_CURRENT_DEV_ROOT_TAGS = new HashSet<String>(Arrays.asList(
         "KOMEDataSchemaVersion", "AllianceDataSchemaVersion", "BuildDataSchemaVersion",
+        "ConflictDataSchemaVersion", "NextConflictSequence", "ConflictRecords",
         "PopulationDevelopmentDataSchemaVersion", "PopulationDevelopment",
+        "MusterDataSchemaVersion", "CivilianMusters",
         "FactionCapitalDataSchemaVersion", "FactionCapitals",
         "FactionPopulationDataSchemaVersion", "ProgressionEnabled",
         "MovementSecondsPerTileOverride", "MovementTotalSecondsOverride", "MovementStepDelaySeconds",
@@ -42,7 +44,7 @@ public class KOMEWorldDataSchemaTest {
         "ForeignConstructionPermissions", "ActiveRecruitmentTiles", "TileWaypoints",
         "TileWaypointLinks", "RouteEdges", "Alliances", "RecoveredLegacyTradePostIds",
         "TradePostMigrationQuarantine", "Wars", "ConquestClaimConfirmations", "ArmyMovements",
-        "MovementHistory", "ArmyCompanies", "FactionKings"
+        "MovementHistory", "ArmyCompanies", "FactionKings", "ProgressionNpcRanks"
     ));
 
     @Test
@@ -66,7 +68,8 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
         assertEquals("KOMEDataSchemaVersion", KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        assertEquals(5, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(7, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(1, KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION);
         assertEquals(4, KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEWorldData.POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION);
         assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
@@ -136,7 +139,7 @@ public class KOMEWorldDataSchemaTest {
 
         IllegalStateException failure = expectReadFailure(data, unsupported);
         assertTrue(failure.getMessage().contains("schema 1"));
-        assertTrue(failure.getMessage().contains("expected 5"));
+        assertTrue(failure.getMessage().contains("schema 6 -> 7"));
         assertTrue(data.isWriteBlocked());
         assertFalse(data.isDirty());
         assertTrue(data.conquestTiles.isEmpty());
