@@ -20,6 +20,8 @@ public class KOMEArmyMovementOrder {
     public static final String RETREATING = "retreating";
     public static final String HOLDING = "holding";
     public static final String WAR_ENDED_HALTED = "war_ended_halted";
+    /** Route remains intact, but an active ConflictRecord owns departure authority. */
+    public static final String CONFLICT_HELD = "conflict_held";
     public static final long REAL_DAY_MILLIS = 24L * 60L * 60L * 1000L;
 
     public String id = "";
@@ -99,6 +101,11 @@ public class KOMEArmyMovementOrder {
     public String accessLossReason = "";
     public long accessLostAtMillis;
     public String accessChoice = "";
+    /** Explicit terminal hostile destination authorized when this order was dispatched. */
+    public String hostileAttackDestination = "";
+    /** Active ConflictRecord responsible for pausing this order; empty when not conflict-held. */
+    public String conflictHoldId = "";
+    public long conflictHeldAtMillis;
 
     /** Only creation grants the initial allowance. Persistence and status changes never call this. */
     public static KOMEArmyMovementOrder newRoute(int tilesPerDay) {
@@ -121,7 +128,7 @@ public class KOMEArmyMovementOrder {
         return MOVING.equals(status) || PENDING_SPAWN.equals(status) || SPAWNING.equals(status)
             || SPAWN_BLOCKED.equals(status) || WAITING_NEXT_STEP.equals(status)
             || ACCESS_HALTED.equals(status) || RETREATING.equals(status) || HOLDING.equals(status)
-            || WAR_ENDED_HALTED.equals(status);
+            || WAR_ENDED_HALTED.equals(status) || CONFLICT_HELD.equals(status);
     }
 
     public boolean hasArrived(long nowMillis) {
@@ -232,6 +239,9 @@ public class KOMEArmyMovementOrder {
         nbt.setString("AccessLossReason", accessLossReason == null ? "" : accessLossReason);
         nbt.setLong("AccessLostAtMillis", accessLostAtMillis);
         nbt.setString("AccessChoice", accessChoice == null ? "" : accessChoice);
+        nbt.setString("HostileAttackDestination", KOMEConquestTile.normalizeId(hostileAttackDestination));
+        nbt.setString("ConflictHoldId", conflictHoldId == null ? "" : conflictHoldId);
+        nbt.setLong("ConflictHeldAtMillis", Math.max(0L, conflictHeldAtMillis));
         NBTTagList unitList = new NBTTagList();
         for (UUID unit : units) {
             if (unit != null) {
@@ -350,6 +360,9 @@ public class KOMEArmyMovementOrder {
         accessLossReason = nbt.getString("AccessLossReason");
         accessLostAtMillis = nbt.getLong("AccessLostAtMillis");
         accessChoice = nbt.getString("AccessChoice");
+        hostileAttackDestination = KOMEConquestTile.normalizeId(nbt.getString("HostileAttackDestination"));
+        conflictHoldId = nbt.getString("ConflictHoldId");
+        conflictHeldAtMillis = Math.max(0L, nbt.getLong("ConflictHeldAtMillis"));
         units.clear();
         NBTTagList unitList = nbt.getTagList("Units", 10);
         for (int i = 0; i < unitList.tagCount(); i++) {

@@ -516,7 +516,8 @@ public final class KOMECompanyCoherenceService {
             return MovementPhase.TRANSITION_OR_ARRIVAL;
         if (KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status)
                 || KOMEArmyMovementOrder.HOLDING.equals(order.status)
-                || KOMEArmyMovementOrder.WAR_ENDED_HALTED.equals(order.status))
+                || KOMEArmyMovementOrder.WAR_ENDED_HALTED.equals(order.status)
+                || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status))
             return MovementPhase.STRATEGIC_HOLD;
         if (isTerminal(order.status)) return MovementPhase.TERMINAL_HISTORY;
         return MovementPhase.UNKNOWN;

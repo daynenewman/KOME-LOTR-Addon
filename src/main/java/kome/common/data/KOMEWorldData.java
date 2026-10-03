@@ -2461,8 +2461,17 @@ public class KOMEWorldData extends WorldSavedData {
         NBTTagList movementList = nbt.getTagList("ArmyMovements", 10);
         for (int i = 0; i < movementList.tagCount(); i++) {
             loadSection = "ArmyMovements[" + i + "]";
+            NBTTagCompound movementTag = movementList.getCompoundTagAt(i);
+            if (KOMEArmyMovementOrder.CONFLICT_HELD.equals(
+                    movementTag.getString("Status"))) {
+                if (!movementTag.hasKey("ConflictHoldId", 8)
+                        || !movementTag.hasKey("ConflictHeldAtMillis", 4)
+                        || !movementTag.hasKey("HostileAttackDestination", 8))
+                    throw new IllegalArgumentException(
+                        "Conflict-held movement order lacks typed hold metadata.");
+            }
             KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
-            order.readFromNBT(movementList.getCompoundTagAt(i));
+            order.readFromNBT(movementTag);
             if (order.id.length() > 0) {
                 armyMovements.put(order.id, order);
             }
@@ -2495,6 +2504,8 @@ public class KOMEWorldData extends WorldSavedData {
             nextCompanySequence = reconciledCompanySequence;
             loadedStateReconciled = true;
         }
+        loadSection = "Conflict movement holds";
+        validateConflictMovementHolds();
         loadSection = "Company membership reconciliation";
         KOMECompanyReconciliationService.Result companyReconciliation =
             KOMECompanyReconciliationService.INSTANCE.reconcile(this);
@@ -2716,11 +2727,61 @@ public class KOMEWorldData extends WorldSavedData {
         return changed;
     }
 
+    /** Strict cross-section validation for additive schema-6 conflict-owned route holds. */
+    private void validateConflictMovementHolds() {
+        for (KOMEArmyMovementOrder order : armyMovements.values()) {
+            if (order == null) continue;
+            boolean held = KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status);
+            String conflictId = order.conflictHoldId == null
+                ? "" : order.conflictHoldId.trim();
+            if (!held) {
+                if (conflictId.length() > 0 || order.conflictHeldAtMillis != 0L)
+                    throw new IllegalArgumentException(
+                        "Non-held movement order retains conflict-hold authority: " + order.id);
+                continue;
+            }
+            KOMEConflictIdAllocator.requireIdentity(conflictId);
+            String tileId = KOMEConquestTile.normalizeId(order.currentTile);
+            String attackTile = KOMEConquestTile.normalizeId(
+                order.hostileAttackDestination);
+            String finalTile = KOMEConquestTile.normalizeId(
+                order.finalDestinationTile.length() == 0
+                    ? order.destinationTile : order.finalDestinationTile);
+            if (tileId.length() == 0 || !tileId.equals(attackTile)
+                    || !tileId.equals(finalTile))
+                throw new IllegalArgumentException(
+                    "Conflict-held movement tile metadata is inconsistent: " + order.id);
+            KOMEConflictRecord conflict = conflictService.get(tileId);
+            if (conflict == null || !conflictId.equals(conflict.getConflictId())
+                    || !conflict.getCommitments().containsKey(order.companyId))
+                throw new IllegalArgumentException(
+                    "Conflict-held movement lacks matching persisted commitment: " + order.id);
+            KOMEArmyCompany company = armyCompanies.get(order.companyId);
+            if (company == null || !tileId.equals(
+                    KOMEConquestTile.normalizeId(company.currentTile))
+                    || !order.id.equals(company.movementOrderId)
+                    || !new HashSet<UUID>(company.units).equals(
+                        new HashSet<UUID>(order.units)))
+                throw new IllegalArgumentException(
+                    "Conflict-held movement and detachment authority disagree: " + order.id);
+            for (UUID unitId : order.units) {
+                KOMEHiredUnitRecord record = hiredUnits.get(unitId);
+                if (record == null || !order.companyId.equals(record.companyId)
+                        || !order.id.equals(record.movementOrderId)
+                        || !tileId.equals(KOMEConquestTile.normalizeId(
+                            record.currentTile)))
+                    throw new IllegalArgumentException(
+                        "Conflict-held unit link is inconsistent: " + order.id);
+            }
+        }
+    }
+
     @Override
     public void writeToNBT(NBTTagCompound nbt) {
         ensureWritable();
         validatePopulationPayoutState(); // reject before touching the destination tag
         populationDevelopment.validate();
+        validateConflictMovementHolds();
         NBTTagCompound conflictsForWrite = KOMEConflictPersistence.write(conflictService);
         Map<String, KOMEFactionCapitalRecord> capitalsForWrite =
             factionCapitals.isEmpty() && !integratedRootInitialized

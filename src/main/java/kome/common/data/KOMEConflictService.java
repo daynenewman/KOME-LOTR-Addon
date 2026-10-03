@@ -718,6 +718,62 @@ public final class KOMEConflictService {
         });
     }
 
+    /**
+     * Explicit entity-identity replacement from a verified KOME lifecycle operation. This changes
+     * no cohort rights or commitment identity and never interprets a missing UUID as death.
+     */
+    public Result rekeyOriginalGarrisonMembers(KOMEWorldData data, String tileId,
+            ExpectedConflict expected, final Map<UUID, UUID> replacements,
+            Context context) {
+        if (data == null || data.getConflictService() != this)
+            return Result.failure(Code.INVALID_REQUEST, null,
+                "The persisted world conflict authority is required.");
+        data.ensureWritable();
+        Result result = rekeyOriginalGarrisonMembers(tileId, expected,
+            replacements, context);
+        if (result.code == Code.SUCCESS) {
+            data.markDirty();
+            KOMEAuditService.record(data, context.timestampMillis, "CONFLICT",
+                "GARRISON_UUID_REKEY", context.actor, result.record.getConflictId(),
+                context.reason, "Verified replacements=" + replacements.size());
+        }
+        return result;
+    }
+
+    synchronized Result rekeyOriginalGarrisonMembers(String tileId,
+            ExpectedConflict expected, final Map<UUID, UUID> replacements,
+            Context context) {
+        return mutate(tileId, expected, context, Operation.GARRISON_MEMBER_REKEY,
+            "", draft -> {
+                required(replacements, "UUID replacements");
+                if (replacements.isEmpty()) return Code.NO_CHANGE;
+                Set<UUID> resulting = new HashSet<UUID>();
+                boolean changed = false;
+                Map<String, GarrisonCohort> updated =
+                    new LinkedHashMap<String, GarrisonCohort>();
+                for (Map.Entry<String, GarrisonCohort> entry
+                        : draft.originalGarrison.entrySet()) {
+                    Map<UUID, GarrisonMemberState> members =
+                        new LinkedHashMap<UUID, GarrisonMemberState>();
+                    for (Map.Entry<UUID, GarrisonMemberState> member
+                            : entry.getValue().members.entrySet()) {
+                        UUID replacement = replacements.get(member.getKey());
+                        UUID identity = replacement == null ? member.getKey() : replacement;
+                        if (identity == null || !resulting.add(identity))
+                            return Code.AMBIGUOUS_REFERENCE;
+                        if (replacement != null && !replacement.equals(member.getKey()))
+                            changed = true;
+                        members.put(identity, member.getValue());
+                    }
+                    updated.put(entry.getKey(), new GarrisonCohort(entry.getKey(), members));
+                }
+                if (!changed) return Code.NO_CHANGE;
+                draft.originalGarrison.clear();
+                draft.originalGarrison.putAll(updated);
+                return Code.SUCCESS;
+            });
+    }
+
     private Result mutate(String tileId, ExpectedConflict expected, Context context, Operation operation, String subject, Change change) {
         String normalized;
         try { normalized = tile(tileId); required(context, "Context"); required(expected, "Expected conflict"); }
