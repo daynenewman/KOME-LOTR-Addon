@@ -1,0 +1,82 @@
+first,first_name,second,second_name,seed_endpoint,shared_grid_edges,diagonal_cell_pairs,historical_shared_grid_edges,historical_diagonal_cell_pairs,contact_bbox_inclusive,packaged_route_type,disposition
+T188,T188,T217,Old Elven Way,False,44,65,0,2,1099;791;1131;805,open,existing explicit gameplay edge
+T188,T188,T218,Ost-in-Edhil,True,29,49,0,1,1131;804;1155;810,open,existing explicit gameplay edge
+T217,Old Elven Way,T218,Ost-in-Edhil,True,131,178,0,0,1089;804;1131;879,open,existing explicit gameplay edge
+T218,Ost-in-Edhil,T220,Mount Caradhras,True,14,22,0,0,1158;838;1162;850,ABSENT,geometric contact only; no default gameplay edge
+T218,Ost-in-Edhil,T239,West Gate,True,22,35,0,0,1125;866;1144;871,river,existing explicit gameplay edge
+T220,Mount Caradhras,T223,Mount Fanuidhol,True,4,6,0,0,1182;845;1185;848,open,existing explicit gameplay edge
+T220,Mount Caradhras,T231,Cerin Amroth,True,6,11,0,0,1184;839;1185;845,ABSENT,geometric contact only; no default gameplay edge
+T220,Mount Caradhras,T232,Mount Celebdil,True,7,9,0,0,1161;854;1166;856,open,existing explicit gameplay edge
+T220,Mount Caradhras,T233,Dimrill Dale,True,24,31,0,0,1165;846;1181;855,ABSENT,geometric contact only; no default gameplay edge
+T223,Mount Fanuidhol,T231,Cerin Amroth,False,24,36,0,0,1184;845;1197;857,ABSENT,geometric contact only; no default gameplay edge
+T223,Mount Fanuidhol,T233,Dimrill Dale,False,19,26,0,0,1183;851;1193;862,open,existing explicit gameplay edge
+T231,Cerin Amroth,T233,Dimrill Dale,False,13,21,0,0,1194;864;1197;875,open,existing explicit gameplay edge
+T232,Mount Celebdil,T233,Dimrill Dale,False,18,25,0,0,1165;855;1171;868,ABSENT,geometric contact only; no default gameplay edge
+T232,Mount Celebdil,T239,West Gate,False,5,9,0,0,1146;865;1148;870,open,existing explicit gameplay edge
+T296,T296,T312,T312,False,0,0,0,0,,river,existing explicit gameplay edge
+T296,T296,T322,T322,False,92,125,0,0,1790;1029;1833;1076,open,existing explicit gameplay edge
+T296,T296,T329,T329,True,0,0,0,0,,river,existing explicit gameplay edge
+T312,T312,T329,T329,True,75,121,0,1,1842;1076;1903;1092,open,existing explicit gameplay edge
+T312,T312,T331,T331,False,52,64,0,1,1902;1069;1933;1092,open,existing explicit gameplay edge
+T322,T322,T329,T329,True,0,0,0,0,,bridge,existing explicit gameplay edge
+T322,T322,T338,T338,False,0,0,0,0,,river,existing explicit gameplay edge
+T326,T326,T340,T340,False,93,136,0,1,1408;1086;1442;1146,open,existing explicit gameplay edge
+T326,T326,T346,Valley of Udun,False,52,82,0,0,1460;1132;1497;1145,open,existing explicit gameplay edge
+T326,T326,T352,North Ithilien,True,17,24,0,0,1442;1145;1454;1149,open,existing explicit gameplay edge
+T329,T329,T331,T331,True,86,112,0,4,1863;1092;1903;1138,open,existing explicit gameplay edge
+T329,T329,T338,T338,True,0,0,0,0,,bridge,existing explicit gameplay edge
+T329,T329,T355,Eastern Guard,True,13,19,0,0,1854;1135;1864;1139,ABSENT,geometric contact only; no default gameplay edge
+T331,T331,T355,Eastern Guard,True,34,43,0,0,1863;1138;1882;1154,open,existing explicit gameplay edge
+T331,T331,T361,T361,False,131,187,0,0,1882;1116;1973;1154,open,existing explicit gameplay edge
+T338,T338,T355,Eastern Guard,True,18,29,0,0,1836;1133;1852;1136,open,existing explicit gameplay edge
+T340,T340,T351,T351,False,98,136,0,0,1365;1130;1432;1162,open,existing explicit gameplay edge
+T340,T340,T352,North Ithilien,True,0,2,0,0,1432;1146;1442;1162,river,existing explicit gameplay edge
+T346,Valley of Udun,T356,Durthang,True,16,20,0,0,1465;1153;1474;1162,ABSENT,geometric contact only; no default gameplay edge
+T346,Valley of Udun,T357,Carach Angren,False,25,34,0,0,1483;1158;1500;1166,open,existing explicit gameplay edge
+T351,T351,T352,North Ithilien,True,2,3,0,0,1430;1163;1432;1165,river,existing explicit gameplay edge
+T351,T351,T358,T358,False,59,77,0,1,1396;1164;1431;1190,open,existing explicit gameplay edge
+T352,North Ithilien,T356,Durthang,True,8,8,0,0,1457;1158;1460;1164,ABSENT,geometric contact only; no default gameplay edge
+T352,North Ithilien,T358,T358,True,33,40,0,0,1431;1164;1449;1181,open,existing explicit gameplay edge
+T352,North Ithilien,T375,Crossroads of the Fallen King,True,0,1,0,0,1449;1181;1450;1182,river,existing explicit gameplay edge
+T355,Eastern Guard,T361,T361,True,100,143,0,0,1881;1153;1905;1225,open,existing explicit gameplay edge
+T355,Eastern Guard,T364,Amon Angren,True,76,100,0,0,1810;1153;1851;1190,open,existing explicit gameplay edge
+T355,Eastern Guard,T395,T395,True,65,90,0,0,1851;1189;1873;1233,open,existing explicit gameplay edge
+T355,Eastern Guard,T400,T400,True,39,63,0,1,1873;1225;1905;1233,open,existing explicit gameplay edge
+T356,Durthang,T357,Carach Angren,True,47,80,0,0,1477;1175;1484;1214,ABSENT,geometric contact only; no default gameplay edge
+T356,Durthang,T391,Cirith Ungol,True,10,13,0,1,1477;1214;1483;1219,open,existing explicit gameplay edge
+T357,Carach Angren,T391,Cirith Ungol,False,32,52,0,0,1482;1213;1508;1218,open,existing explicit gameplay edge
+T358,T358,T375,Crossroads of the Fallen King,False,0,1,0,1,1437;1201;1438;1202,bridge,existing explicit gameplay edge
+T361,T361,T400,T400,True,49,75,0,0,1904;1225;1916;1263,open,existing explicit gameplay edge
+T361,T361,T409,T409,False,61,91,0,3,1916;1260;1959;1278,open,existing explicit gameplay edge
+T364,Amon Angren,T395,T395,False,57,72,0,0,1827;1189;1851;1224,open,existing explicit gameplay edge
+T395,T395,T400,T400,True,107,173,0,0,1868;1232;1881;1319,open,existing explicit gameplay edge
+T400,T400,T409,T409,True,70,112,0,0,1907;1262;1919;1318,open,existing explicit gameplay edge
+T400,T400,T420,T420,True,10,17,0,0,1895;1318;1904;1320,ABSENT,geometric contact only; no default gameplay edge
+T409,T409,T420,T420,True,0,0,0,0,,bridge,existing explicit gameplay edge
+T409,T409,T437,T437,False,0,0,0,0,,river,existing explicit gameplay edge
+T415,T415,T425,T425,False,57,92,0,0,1405;1345;1462;1357,open,existing explicit gameplay edge
+T415,T415,T435,Crossings of Poros,True,0,0,0,0,,river,existing explicit gameplay edge
+T417,T417,T430,T430,False,0,0,0,0,,river,existing explicit gameplay edge
+T417,T417,T654,Valley of Spiders,True,0,0,0,0,,river,existing explicit gameplay edge
+T420,T420,T436,T436,True,124,175,0,2,1861;1339;1941;1378,open,existing explicit gameplay edge
+T420,T420,T437,T437,True,50,61,0,5,1940;1340;1961;1370,open,existing explicit gameplay edge
+T425,T425,T435,Crossings of Poros,True,3,6,0,0,1440;1368;1445;1371,bridge,existing explicit gameplay edge
+T425,T425,T441,T441,False,0,0,0,0,,river,existing explicit gameplay edge
+T430,T430,T433,T433,False,47,60,0,1,1655;1370;1673;1401,open,existing explicit gameplay edge
+T430,T430,T654,Valley of Spiders,True,145,229,0,1,1541;1379;1655;1406,open,existing explicit gameplay edge
+T433,T433,T654,Valley of Spiders,True,18,31,0,0,1655;1400;1659;1416,open,existing explicit gameplay edge
+T435,Crossings of Poros,T441,T441,True,108,174,0,2,1372;1396;1387;1483,open,existing explicit gameplay edge
+T435,Crossings of Poros,T444,T444,True,158,208,0,4,1387;1425;1488;1483,open,existing explicit gameplay edge
+T435,Crossings of Poros,T654,Valley of Spiders,True,2,3,0,0,1481;1386;1482;1388,ABSENT,geometric contact only; no default gameplay edge
+T436,T436,T437,T437,False,154,241,0,7,1936;1370;1953;1491,open,existing explicit gameplay edge
+T441,T441,T444,T444,False,63,116,0,0,1385;1482;1390;1541,open,existing explicit gameplay edge
+T441,T441,T462,T462,False,0,0,0,0,,river,existing explicit gameplay edge
+T444,T444,T454,T454,False,3,4,1,2,1509;1541;1511;1544,river,existing explicit gameplay edge
+T444,T444,T455,Crossings of Harnen,True,26,33,26,32,1496;1543;1511;1552,bridge,existing explicit gameplay edge
+T444,T444,T462,T462,False,0,0,0,0,,river,existing explicit gameplay edge
+T444,T444,T654,Valley of Spiders,True,27,54,0,0,1555;1425;1592;1426,ABSENT,geometric contact only; no default gameplay edge
+T454,T454,T455,Crossings of Harnen,True,108,140,0,4,1511;1543;1559;1586,open,existing explicit gameplay edge
+T454,T454,T466,T466,False,65,92,0,2,1540;1580;1584;1593,open,existing explicit gameplay edge
+T455,Crossings of Harnen,T462,T462,True,47,76,0,1,1473;1557;1481;1596,open,existing explicit gameplay edge
+T455,Crossings of Harnen,T466,T466,True,76,118,0,1,1481;1585;1540;1598,open,existing explicit gameplay edge
+T462,T462,T466,T466,False,61,97,0,2,1470;1595;1481;1644,open,existing explicit gameplay edge

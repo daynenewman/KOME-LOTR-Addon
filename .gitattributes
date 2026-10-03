@@ -21,3 +21,6 @@ src/main/resources/assets/kome/map/*.png -text
 
 # Preserve complete captured transcript lines without editing harmless terminal whitespace.
 docs/tile-geography-review-20261002/*.txt -text whitespace=-blank-at-eol,-blank-at-eof,cr-at-eol
+
+# KOM-80 validation transcripts have recorded SHA-256 hashes.
+docs/kom80-mountain-barriers/*.txt -text whitespace=cr-at-eol
