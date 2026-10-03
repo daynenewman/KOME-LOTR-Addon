@@ -1,6 +1,7 @@
 package kome.common.tactical;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,38 @@ public final class KOMETacticalConfiguration {
     private final Map<String, KOMEForceDeploymentArea> forceDeploymentAreasById = new TreeMap<String, KOMEForceDeploymentArea>();
     private final Map<String, String> buildAssignmentsByBuildId = new TreeMap<String, String>();
     private long revision;
+
+    /** Codec-only detached reconstruction: validate authorities before returning, without mutation replay. */
+    static KOMETacticalConfiguration reconstruct(long revision, Collection<KOMESiegeComplex> complexes,
+            Collection<KOMEForceDeploymentArea> areas, Map<String, String> assignments) {
+        if (revision < 0) throw new IllegalArgumentException("Tactical configuration revision cannot be negative.");
+        if (complexes == null || areas == null || assignments == null) {
+            throw new IllegalArgumentException("All tactical authorities are required.");
+        }
+        KOMETacticalConfiguration result = new KOMETacticalConfiguration();
+        for (KOMESiegeComplex complex : complexes) {
+            requireComplex(complex);
+            if (result.complexesById.put(complex.getComplexId(), complex) != null) {
+                throw new IllegalArgumentException("Duplicate Siege Complex ID: " + complex.getComplexId());
+            }
+        }
+        for (KOMEForceDeploymentArea area : areas) {
+            requireArea(area);
+            if (result.forceDeploymentAreasById.put(area.getAreaId(), area) != null) {
+                throw new IllegalArgumentException("Duplicate Force Deployment Area ID: " + area.getAreaId());
+            }
+        }
+        for (KOMESiegeComplex complex : result.complexesById.values()) result.validateKnownPreferredArea(complex);
+        for (Map.Entry<String, String> assignment : assignments.entrySet()) {
+            String build = requireBuild(assignment.getKey());
+            String target = result.requireExistingComplex(assignment.getValue()).getComplexId();
+            if (result.buildAssignmentsByBuildId.put(build, target) != null) {
+                throw new IllegalArgumentException("Duplicate Build assignment ID: " + build);
+            }
+        }
+        result.revision = revision;
+        return result;
+    }
 
     /** Configuration revision starts at zero and is independent of all definition revisions. */
     public synchronized long getRevision() { return revision; }
