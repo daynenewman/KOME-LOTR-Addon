@@ -60,7 +60,7 @@ public class KOMECampaignCompanyAdmissionServiceTest {
         assertEquals("C2", data.nextCampaignCompanyId());
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
-        assertEquals(5, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(6, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(3L, saved.getLong("NextCompanySequence"));
 
         KOMEWorldData restored = new KOMEWorldData("restored");

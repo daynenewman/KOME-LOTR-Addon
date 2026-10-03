@@ -1,0 +1,49 @@
+faction	key	entity	mount	cost	weight
+hobbit	hobbit:hobbit_shirriff:0	lotr.HobbitShirriff		20	5
+hobbit	hobbit:hobbit_shirriff:1	lotr.HobbitShirriff	lotr.ShirePony	45	3
+bree	bree:bree_captain:0	lotr.BreeGuard		20	5
+bree	bree:bree_captain:1	lotr.BreeBannerBearer		20	3
+dunedain	dunedain:ranger_north_captain:0	lotr.RangerNorth		25	5
+dunedain	dunedain:ranger_north_captain:1	lotr.RangerNorth	lotr.Horse	50	3
+bluemountains	bluemountains:blue_dwarf_commander:0	lotr.BlueDwarf		26	5
+bluemountains	bluemountains:blue_dwarf_commander:1	lotr.BlueDwarfWarrior		26	3
+highelves	highelves:high_elf_lord:0	lotr.HighElf		30	5
+highelves	highelves:high_elf_lord:1	lotr.HighElfWarrior		30	3
+gundabad	gundabad:gundabad_orc_mercenary_captain:0	lotr.GundabadOrc		18	5
+gundabad	gundabad:gundabad_orc_mercenary_captain:1	lotr.GundabadOrcArcher		18	3
+angmar	angmar:angmar_orc_mercenary_captain:0	lotr.AngmarOrc		18	5
+angmar	angmar:angmar_orc_mercenary_captain:1	lotr.AngmarOrcArcher		18	3
+woodelf	woodelf:wood_elf_captain:0	lotr.WoodElf		30	5
+woodelf	woodelf:wood_elf_captain:1	lotr.WoodElfScout		30	3
+dolguldur	dolguldur:dol_guldur_captain:0	lotr.DolGuldurOrc		20	5
+dolguldur	dolguldur:dol_guldur_captain:1	lotr.DolGuldurOrcArcher		20	3
+dale	dale:dale_captain:0	lotr.DaleLevyman		20	5
+dale	dale:dale_captain:1	lotr.DaleSoldier		20	3
+durinsfolk	durinsfolk:dwarf_commander:0	lotr.Dwarf		26	5
+durinsfolk	durinsfolk:dwarf_commander:1	lotr.DwarfWarrior		26	3
+lothlorien	lothlorien:elf_lord:0	lotr.GaladhrimElf		30	5
+lothlorien	lothlorien:elf_lord:1	lotr.GaladhrimWarden		30	3
+dunland	dunland:dunlending_warlord:0	lotr.Dunlending		20	5
+dunland	dunland:dunlending_warlord:1	lotr.DunlendingWarrior		20	3
+isengard	isengard:uruk_hai_mercenary_captain:0	lotr.IsengardSnaga		18	5
+isengard	isengard:uruk_hai_mercenary_captain:1	lotr.IsengardSnagaArcher		18	3
+fangorn	fangorn:ent:0	lotr.Ent		100	5
+rohan	rohan:rohirrim_marshal:2	lotr.Rohirrim	lotr.Horse	45	5
+rohan	rohan:rohirrim_marshal:3	lotr.RohirrimArcher	lotr.Horse	45	3
+gondor	gondor:gondorian_captain:0	lotr.GondorLevyman		20	5
+gondor	gondor:gondorian_captain:1	lotr.GondorSoldier		20	3
+mordor	mordor:mordor_orc_mercenary_captain:0	lotr.MordorOrc		20	5
+mordor	mordor:mordor_orc_mercenary_captain:1	lotr.MordorOrcArcher		20	3
+dorwinion	dorwinion:dorwinion_captain:0	lotr.DorwinionGuard		20	5
+dorwinion	dorwinion:dorwinion_captain:1	lotr.DorwinionCrossbower		20	3
+rhudel	rhudel:easterling_warlord:0	lotr.EasterlingLevyman		20	5
+rhudel	rhudel:easterling_warlord:1	lotr.EasterlingWarrior		20	3
+harad	harad:near_haradrim_warlord:0	lotr.NearHaradrimWarrior		20	5
+harad	harad:near_haradrim_warlord:1	lotr.NearHaradrimArcher		20	3
+morwaith	morwaith:moredain_chieftain:0	lotr.MoredainWarrior		20	5
+morwaith	morwaith:moredain_chieftain:1	lotr.MoredainWarrior	lotr.Zebra	45	3
+taurethrim	taurethrim:tauredain_chieftain:0	lotr.TauredainWarrior		20	5
+taurethrim	taurethrim:tauredain_chieftain:1	lotr.TauredainBlowgunner		20	3
+halftroll	halftroll:half_troll_warlord:0	lotr.HalfTroll		35	5
+halftroll	halftroll:half_troll_warlord:1	lotr.HalfTrollWarrior		35	3
+PASS factions=24 units=47; no entities spawned

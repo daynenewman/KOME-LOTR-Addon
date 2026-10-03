@@ -117,7 +117,7 @@ public final class KOMEConfigRegistry {
             new PopulationSettings(1000L, 5000L, 100_000L, 5_000_000L,
                 true, true, false, OptionalLong.empty(), false),
             new MovementSettings(1, 2), new BattleSettings(20, 35, 50),
-            new MusterSettings(2, 21, 24, EncircledCapitalArrivalPolicy.TBD),
+            new MusterSettings(2, 21, 24, EncircledCapitalArrivalPolicy.TBD, Collections.<String, Integer>emptyMap()),
             new SiegeSettings(OptionalDouble.empty(), KOMEGateSizeCalculator.Parameters.defaults(),
                 1, 15, PreBreachRepair.TBD, false, 192, OptionalInt.empty()),
             new BattleSupportSettings(BattleSupportMode.CURVE, 32, 48, 64, 70, 0.50D, 0.10D, 0.01D, 48, 192),
@@ -433,6 +433,26 @@ public final class KOMEConfigRegistry {
         return new BattleSettings(level1, level2, level3);
     }
 
+    private static Map<String, Integer> parseMusterWeights(String value) {
+        Map<String, Integer> result = new LinkedHashMap<String, Integer>();
+        if (value.trim().isEmpty()) return result;
+        java.util.Set<String> known = new java.util.HashSet<String>();
+        for (kome.common.data.KOMEMusterNativeRoster.Definition definition :
+                kome.common.data.KOMEMusterNativeRoster.definitions()) known.add(definition.key);
+        for (String part : value.split(",", -1)) {
+            String[] pair = part.trim().split("=", -1);
+            String key = pair.length == 0 ? "" : pair[0].trim().toLowerCase(java.util.Locale.ROOT);
+            if (pair.length != 2 || !known.contains(key))
+                throw invalid(MUSTER_CATEGORY, "rosterWeightOverrides", value, "requires known native roster key=weight entries");
+            int weight;
+            try { weight = Integer.parseInt(pair[1].trim()); }
+            catch (NumberFormatException e) { throw invalid(MUSTER_CATEGORY, "rosterWeightOverrides", value, "weights must be nonnegative integers"); }
+            if (weight < 0 || result.put(key, weight) != null)
+                throw invalid(MUSTER_CATEGORY, "rosterWeightOverrides", value, "weights must be nonnegative with unique keys");
+        }
+        return result;
+    }
+
     private static MusterSettings readMuster(Configuration c) {
         int threatDistance = positive(MUSTER_CATEGORY, THREAT_DISTANCE_TILES,
                 value(c, MUSTER_CATEGORY, THREAT_DISTANCE_TILES, "2"));
@@ -445,7 +465,8 @@ public final class KOMEConfigRegistry {
                 ENCIRCLED_CAPITAL_ARRIVAL_POLICY,
                 value(c, MUSTER_CATEGORY, ENCIRCLED_CAPITAL_ARRIVAL_POLICY, "TBD"),
                 EncircledCapitalArrivalPolicy.class);
-        return new MusterSettings(threatDistance, budgetMultiplier, arrivalDelay, policy);
+        return new MusterSettings(threatDistance, budgetMultiplier, arrivalDelay, policy,
+                parseMusterWeights(value(c, MUSTER_CATEGORY, "rosterWeightOverrides", "")));
     }
 
     private static SiegeSettings readSiege(Configuration c) {
@@ -1029,14 +1050,16 @@ public final class KOMEConfigRegistry {
         private final int budgetDailyPopulationMultiplier;
         private final int arrivalDelayHours;
         private final EncircledCapitalArrivalPolicy encircledCapitalArrivalPolicy;
+        private final Map<String, Integer> rosterWeightOverrides;
 
         private MusterSettings(int threatDistanceTiles,
                 int budgetDailyPopulationMultiplier, int arrivalDelayHours,
-                EncircledCapitalArrivalPolicy encircledCapitalArrivalPolicy) {
+                EncircledCapitalArrivalPolicy encircledCapitalArrivalPolicy, Map<String, Integer> weights) {
             this.threatDistanceTiles = threatDistanceTiles;
             this.budgetDailyPopulationMultiplier = budgetDailyPopulationMultiplier;
             this.arrivalDelayHours = arrivalDelayHours;
             this.encircledCapitalArrivalPolicy = encircledCapitalArrivalPolicy;
+            this.rosterWeightOverrides = Collections.unmodifiableMap(new LinkedHashMap<String, Integer>(weights));
         }
 
         public int getThreatDistanceTiles() {
@@ -1050,6 +1073,8 @@ public final class KOMEConfigRegistry {
         public int getArrivalDelayHours() {
             return arrivalDelayHours;
         }
+
+        public Map<String, Integer> getRosterWeightOverrides() { return rosterWeightOverrides; }
 
         public EncircledCapitalArrivalPolicy getEncircledCapitalArrivalPolicy() {
             return encircledCapitalArrivalPolicy;

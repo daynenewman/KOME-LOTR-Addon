@@ -184,7 +184,7 @@ public class KOMEWorldDataAtomicLoadTest {
             NBTTagCompound original = (NBTTagCompound) saved.copy();
             KOMEWorldData loaded = new KOMEWorldData("restart"); loaded.readFromNBT(saved);
             assertEquals(original, saved);
-            assertEquals(5, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(6, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             assertEquals(2450L, loaded.getFactionPopulationIfPresent("gondor").getAvailablePopulationCenti());
             assertEquals(Long.valueOf(17L), loaded.populationPayoutRemainders.get("gondor"));
             assertEquals(data.lastPopulationPayoutBoundaryMillis, loaded.lastPopulationPayoutBoundaryMillis);
