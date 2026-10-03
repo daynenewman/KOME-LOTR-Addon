@@ -1,0 +1,10 @@
+{
+  "pilot": 95,
+  "v2": 93103,
+  "combined": 4915,
+  "ids": 621,
+  "components": 622,
+  "component_bijection": true,
+  "exact_manifest_replay": true,
+  "protected_controls": true
+}

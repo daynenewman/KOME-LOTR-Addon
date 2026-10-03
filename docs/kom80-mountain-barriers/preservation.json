@@ -1,0 +1,42 @@
+{
+  "before_utc": "2026-10-03T23:21:16.5862196Z",
+  "after_utc": "2026-10-03T23:43:40.6671428Z",
+  "other_worktrees_checked": 19,
+  "other_heads_and_branches_unchanged": true,
+  "other_statuses_unchanged": 18,
+  "concurrent_status_changes_not_written_by_this_task": [
+    {
+      "path": "C:/Users/dayne/.codex/worktrees/kom28-company-reset/KOME-LOTR-Addon",
+      "head": "41f145773601ff84f754421ee7534d7265d42f74",
+      "branch": "dayne/kom-28-company-reset",
+      "before_status_entries": 0,
+      "after_status_entries": 14,
+      "before_status": [],
+      "after_status": [
+        " M src/main/java/kome/common/KOMEReflection.java",
+        " M src/main/java/kome/common/command/KOMECommandSeason.java",
+        " M src/main/java/kome/common/command/KOMECommandTroops.java",
+        " M src/main/java/kome/common/data/KOMECampaignCompanyAdmissionService.java",
+        " M src/main/java/kome/common/data/KOMECompanyReorganizationService.java",
+        " M src/main/java/kome/common/data/KOMECompanyTransferService.java",
+        " M src/main/java/kome/common/data/KOMEEvents.java",
+        " M src/main/java/kome/common/data/KOMEWartimeStewardshipService.java",
+        " M src/main/java/kome/common/data/KOMEWorldData.java",
+        " M src/test/java/kome/common/data/KOMEWorldDataSchemaTest.java",
+        "?? src/main/java/kome/common/data/KOMESeasonResetDeployment.java",
+        "?? src/main/java/kome/common/data/KOMESeasonResetService.java",
+        "?? src/main/java/kome/common/data/KOMESeasonResetState.java",
+        "?? src/test/java/kome/common/data/KOMESeasonResetServiceTest.java"
+      ]
+    }
+  ],
+  "stash_unchanged": true,
+  "stash": [
+    "stash@{0} eb8f04e9845a521d918b2495b35bfd1b37974388 On dayne/kom-54-establish-canonical-fresh-world-schema-and-retire: KOM-54 local changes before dev integration"
+  ],
+  "scope": "Read-only Git HEAD, branch, status and stash comparison; not a byte-level worlds/ignored-files/process audit.",
+  "raw_local_snapshots_sha256": {
+    "preservation-before.json": "9852929d32168a65fa32d9ac9b99980a83ab6968592cd0dda29321ac26876140",
+    "preservation-after.json": "2087ddf7de2cba50d1e3212890d1a0feee616cc944038b9d33d2a84055e5cde3"
+  }
+}

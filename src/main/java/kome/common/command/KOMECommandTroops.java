@@ -1763,7 +1763,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
         if ("resume".equalsIgnoreCase(args[1]) && (KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status)
                 || KOMEArmyMovementOrder.HOLDING.equals(order.status)
-                || KOMEArmyMovementOrder.STOPPED.equals(order.status) && order.accessLossReason.length() > 0)) {
+                || KOMEArmyMovementOrder.STOPPED.equals(order.status))) {
+            KOMEMovementRecoveryOptions recovery = KOMEMovementRecoveryOptions.forOrder(data, order);
+            if (!recovery.canResume) throw new WrongUsageException(recovery.resumeBlockedReason);
             if (!canPlayerControlMovementOrder(player, data, order)) {
                 throw new WrongUsageException("You do not control movement order " + order.id + ".");
             }
@@ -1840,10 +1842,14 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             order.nextStepDepartureMillis = now;
             data.markDirty();
             processMovementTick(data, KOMEReflection.getWorld(player), now);
-            if (KOMEArmyMovementOrder.MOVING.equals(order.status)) {
-                order.arrivalMillis = System.currentTimeMillis();
-                order.stepArrivalMillis = order.arrivalMillis;
+            // The tick may reject departure or already complete arrival. Neither permits replay.
+            if (!KOMEArmyMovementOrder.MOVING.equals(order.status)) {
+                sender.addChatMessage(new ChatComponentText("Movement order " + order.id + " is " + order.status
+                    + (order.pendingSpawnReason.length() == 0 ? "." : ": " + order.pendingSpawnReason)));
+                return;
             }
+            order.arrivalMillis = System.currentTimeMillis();
+            order.stepArrivalMillis = order.arrivalMillis;
         }
         order.status = KOMEArmyMovementOrder.MOVING;
         order.pendingSpawnReason = "";
@@ -3045,6 +3051,12 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 continue;
             }
             if (isDailyMovementMode(data) && order.dailyStepsRemaining <= 0) continue;
+            // A saved route is a plan, not permission to cross a removed or newly blocked edge.
+            // Reject before loading chunks or staging/removing any physical units.
+            if (!validateNextRouteStepEdge(data, order, nowMillis)) {
+                changed = true;
+                continue;
+            }
             World orderWorld = worldForOrder(world, order);
             if (orderWorld == null) {
                 changed |= markStepDepartureBlocked(order, "DEPARTURE_DIMENSION_UNAVAILABLE",
@@ -3211,7 +3223,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         KOMEMovementAccessService.haltForAccessLoss(data, order, nowMillis, reason);
     }
 
-    private static boolean scheduleNextRouteStep(KOMEWorldData data, KOMEArmyMovementOrder order, World world, long nowMillis) {
+    private static boolean validateNextRouteStepEdge(KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis) {
         if (order == null || order.routeTiles.size() < 2) {
             if (order != null) markStepDepartureBlocked(order, "INVALID_ROUTE", "No route step is available", nowMillis);
             return false;
@@ -3222,6 +3234,24 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             markStepDepartureBlocked(order, "INVALID_ROUTE_INDEX", "No next route step is available", nowMillis);
             return false;
         }
+        String origin = KOMEConquestTile.normalizeId(order.routeTiles.get(originIndex));
+        String destination = KOMEConquestTile.normalizeId(order.routeTiles.get(originIndex + 1));
+        KOMEConquestRouteEdge edge = data == null ? null : data.getRouteEdge(origin, destination);
+        if (edge == null) {
+            markStepDepartureBlocked(order, "ROUTE_EDGE_MISSING",
+                "No current route edge between " + origin + " and " + destination + ".", nowMillis);
+            return false;
+        }
+        if (!edge.isPassable()) {
+            markStepDepartureBlocked(order, "ROUTE_EDGE_BLOCKED", edge.describeBlock(), nowMillis);
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean scheduleNextRouteStep(KOMEWorldData data, KOMEArmyMovementOrder order, World world, long nowMillis) {
+        if (!validateNextRouteStepEdge(data, order, nowMillis)) return false;
+        int originIndex = Math.max(0, Math.min(order.currentRouteIndex, order.routeTiles.size() - 1));
         int nextIndex = originIndex + 1;
         String origin = KOMEConquestTile.normalizeId(order.routeTiles.get(originIndex));
         String destination = KOMEConquestTile.normalizeId(order.routeTiles.get(nextIndex));

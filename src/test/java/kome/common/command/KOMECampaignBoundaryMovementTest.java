@@ -129,6 +129,8 @@ public class KOMECampaignBoundaryMovementTest {
                 KOMEArmyMovementOrder order = route(data, allowance);
                 KOMEConquestTile third = new KOMEConquestTile("T003"); third.claim("gondor", 0L);
                 third.setAnchor(0, 10.0D, 64.0D, 20.0D); data.conquestTiles.put(third.id, third);
+                data.setRouteEdge("T002", "T003", KOMEConquestRouteEdge.OPEN,
+                    "boundary fixture", 0, 10, 64, 20, "test");
                 order.routeTiles.add("T003"); order.traveledRouteTiles.add("T002");
                 order.currentTile = "T002"; order.currentStepOriginTile = "T002";
                 order.nextTile = "T003"; order.currentStepDestinationTile = "T003";
@@ -215,6 +217,9 @@ public class KOMECampaignBoundaryMovementTest {
     }
 
     private static KOMEArmyMovementOrder route(KOMEWorldData data, int allowance) {
+        // These synthetic tiles have no packaged connection; the fixture explicitly authorizes its route.
+        data.setRouteEdge("T001", "T002", KOMEConquestRouteEdge.OPEN,
+            "boundary fixture", 0, 10, 64, 20, "test");
         for (String id : new String[] {"T001", "T002"}) {
             KOMEConquestTile tile = new KOMEConquestTile(id); tile.claim("gondor", 0L);
             tile.setAnchor(0, 10.0D, 64.0D, 20.0D); data.conquestTiles.put(id, tile);
