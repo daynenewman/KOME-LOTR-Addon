@@ -88,6 +88,8 @@ final class KOMEConflictPersistence {
             row.setString("Origin", value.origin.name());
             row.setLong("AcceptedAtMillis", value.acceptedAtMillis);
             row.setString("MovementOrderId", value.movementOrderId);
+            if (value.validatedEvent != null)
+                row.setTag("ValidatedEvent", writeValidatedEvent(value.validatedEvent));
             commitments.appendTag(row);
         }
         tag.setTag("Commitments", commitments);
@@ -184,9 +186,12 @@ final class KOMEConflictPersistence {
         NBTTagList commitments = compoundList(tag, "Commitments");
         for (int i = 0; i < commitments.tagCount(); i++) {
             NBTTagCompound row = commitments.getCompoundTagAt(i);
+            ValidatedCommitmentEvent validatedEvent = row.hasKey("ValidatedEvent")
+                ? readValidatedEvent(compound(row, "ValidatedEvent")) : null;
             Commitment value = new Commitment(canonicalCompanyId(string(row, "DetachmentId")),
                 enumValue(EntryOrigin.class, string(row, "Origin"), "commitment origin"),
-                longValue(row, "AcceptedAtMillis"), canonicalOptionalId(string(row, "MovementOrderId")));
+                longValue(row, "AcceptedAtMillis"), canonicalOptionalId(string(row, "MovementOrderId")),
+                validatedEvent);
             duplicate(draft.commitments.put(value.detachmentId, value), "commitment", value.detachmentId);
         }
 
@@ -261,6 +266,44 @@ final class KOMEConflictPersistence {
         tag.setString("Availability", value.availability.name());
         tag.setTag("RequiredComplexIds", idRows(value.requiredComplexIds));
         return tag;
+    }
+
+    private static NBTTagCompound writeValidatedEvent(ValidatedCommitmentEvent value) {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setString("DetachmentFactionId", value.detachmentFactionId);
+        tag.setString("AuthorityKind", value.authorityKind.name());
+        tag.setString("AuthorityFactionId", value.authorityFactionId);
+        tag.setBoolean("CreatedConflict", value.createdConflict);
+        tag.setBoolean("DefensiveContext", value.defensiveContext);
+        NBTTagList factions = new NBTTagList();
+        for (String detachmentId : sorted(value.originalGarrisonFactions.keySet())) {
+            NBTTagCompound row = new NBTTagCompound();
+            row.setString("DetachmentId", detachmentId);
+            row.setString("FactionId", value.originalGarrisonFactions.get(detachmentId));
+            factions.appendTag(row);
+        }
+        tag.setTag("OriginalGarrisonFactions", factions);
+        return tag;
+    }
+
+    private static ValidatedCommitmentEvent readValidatedEvent(NBTTagCompound tag) {
+        String detachmentFaction = canonicalFaction(string(tag, "DetachmentFactionId"));
+        ConflictAuthorityKind authorityKind = enumValue(ConflictAuthorityKind.class,
+            string(tag, "AuthorityKind"), "conflict authority kind");
+        String authorityFaction = canonicalFaction(string(tag, "AuthorityFactionId"));
+        boolean createdConflict = booleanValue(tag, "CreatedConflict");
+        boolean defensiveContext = booleanValue(tag, "DefensiveContext");
+        Map<String, String> factions = new LinkedHashMap<String, String>();
+        NBTTagList rows = compoundList(tag, "OriginalGarrisonFactions");
+        for (int i = 0; i < rows.tagCount(); i++) {
+            NBTTagCompound row = rows.getCompoundTagAt(i);
+            String detachmentId = canonicalCompanyId(string(row, "DetachmentId"));
+            String factionId = canonicalFaction(string(row, "FactionId"));
+            duplicate(factions.put(detachmentId, factionId),
+                "validated-event garrison faction", detachmentId);
+        }
+        return new ValidatedCommitmentEvent(detachmentFaction, authorityKind,
+            authorityFaction, createdConflict, defensiveContext, factions);
     }
 
     private static ComplexCatalog readCatalog(NBTTagCompound tag) {
@@ -423,6 +466,11 @@ final class KOMEConflictPersistence {
     private static long longValue(NBTTagCompound tag, String key) {
         require(tag, key, 4);
         return tag.getLong(key);
+    }
+
+    private static boolean booleanValue(NBTTagCompound tag, String key) {
+        require(tag, key, 1);
+        return tag.getBoolean(key);
     }
 
     private static Long optionalLong(NBTTagCompound tag, String key) {

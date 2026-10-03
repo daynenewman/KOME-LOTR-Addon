@@ -12,9 +12,9 @@ import static kome.common.data.KOMEConflictContracts.*;
 import static kome.common.data.KOMEConflictRecord.*;
 
 /**
- * Authoritative in-memory registry/mutation boundary. No production singleton or world hook exists
- * in Phase 1. Future adapters must authorize gameplay requests BEFORE invoking these data commands.
- * All mutations publish a new immutable snapshot, with exact conflict-ID/revision preconditions.
+ * Authoritative world-backed registry/mutation boundary. Strategic adapters must authorize legal
+ * gameplay requests before invoking these data commands. All mutations publish a new immutable
+ * snapshot, with exact conflict-ID/revision preconditions.
  */
 public final class KOMEConflictService {
     private final Map<String, KOMEConflictRecord> records = new LinkedHashMap<String, KOMEConflictRecord>();
@@ -84,6 +84,429 @@ public final class KOMEConflictService {
             this.records = Collections.unmodifiableMap(new LinkedHashMap<String, KOMEConflictRecord>(records));
             this.nextConflictSequence = nextConflictSequence;
         }
+    }
+
+    /** Current LOTR diplomacy only. KOME wars and recorded conflict participation are not inputs. */
+    public Hostility currentHostility(KOMEWorldData data, String firstFaction,
+            String secondFaction) {
+        String first = KOMEAlliance.normalizeFactionKey(firstFaction);
+        String second = KOMEAlliance.normalizeFactionKey(secondFaction);
+        if (KOMEAlliance.findLotrFaction(first) == null
+                || KOMEAlliance.findLotrFaction(second) == null) {
+            return Hostility.UNKNOWN;
+        }
+        if (first.equals(second)) return Hostility.NON_HOSTILE;
+        KOMEDiplomacyRelation relation = KOMEDiplomacyService.getRelation(data, first, second);
+        return relation == KOMEDiplomacyRelation.ENEMIES
+                || relation == KOMEDiplomacyRelation.MORTAL_ENEMIES
+            ? Hostility.HOSTILE : Hostility.NON_HOSTILE;
+    }
+
+    /**
+     * Production entry point for an arrival already authorized by KOME strategic movement.
+     * This method does not inspect entity coordinates and cannot manufacture an arrival from
+     * physical presence. Phase 4 owns the movement call site.
+     */
+    public Result acceptValidatedCommitment(KOMEWorldData data,
+            ValidatedCommitmentRequest request, Context context) {
+        if (data == null || data.getConflictService() != this) {
+            return Result.failure(Code.INVALID_REQUEST, null,
+                "The persisted world conflict authority is required.");
+        }
+        data.ensureWritable();
+        Result result = acceptValidatedCommitment(request,
+            new HostilityResolver() {
+                @Override public Hostility resolve(String first, String second) {
+                    return currentHostility(data, first, second);
+                }
+            }, productionDetachmentResolver(data), context);
+        if (result.code == Code.SUCCESS) {
+            data.markDirty();
+            KOMEAuditService.record(data, context.timestampMillis, "CONFLICT", "COMMIT",
+                context.actor, result.record.getConflictId(), context.reason,
+                request.detachmentId + " -> " + request.destinationTileId
+                    + " as " + request.origin);
+        }
+        return result;
+    }
+
+    /** Pure deterministic seam used by tests and the future strategic-movement adapter. */
+    synchronized Result acceptValidatedCommitment(ValidatedCommitmentRequest request,
+            HostilityResolver hostilityResolver, DetachmentResolver detachmentResolver,
+            Context context) {
+        try {
+            required(request, "Validated commitment request");
+            required(hostilityResolver, "Hostility resolver");
+            required(detachmentResolver, "Detachment resolver");
+            required(context, "Context");
+        } catch (IllegalArgumentException invalid) {
+            return Result.failure(Code.INVALID_REQUEST, null, invalid.getMessage());
+        }
+        KOMEConflictRecord previous = records.get(request.destinationTileId);
+        if (request.acceptedAtMillis > context.timestampMillis) {
+            return Result.failure(Code.TIME_REGRESSION, previous,
+                "Accepted arrival cannot be later than its mutation context.");
+        }
+        Code guard = guard(previous, request.expectedConflict, context);
+        if (guard != Code.SUCCESS)
+            return Result.failure(guard, previous, "Commitment precondition failed.");
+        Code resolution = validateDetachment(detachmentResolver.resolve(request.detachmentId),
+            request.detachmentId, request.detachmentFactionId, request.destinationTileId);
+        if (resolution != Code.SUCCESS)
+            return Result.failure(resolution, previous, "Arriving detachment authority is not ready.");
+
+        if (previous != null && previous.isActive()
+                && previous.getCommitments().containsKey(request.detachmentId)) {
+            if (request.expectedConflict.isAbsent()
+                    || !request.expectedConflict.conflictId.equals(previous.getConflictId())) {
+                return Result.failure(Code.STALE_CONFLICT_ID, previous,
+                    "Idempotent arrival targeted another conflict.");
+            }
+            Commitment existing = previous.getCommitments().get(request.detachmentId);
+            if (isExactReplay(previous, existing, request)) {
+                return new Result(Code.ALREADY_COMMITTED_SAME_CONFLICT, previous, previous,
+                    "The validated arrival was already accepted.");
+            }
+            return Result.failure(Code.DUPLICATE_DETACHMENT, previous,
+                "The detachment is already committed with different arrival metadata.");
+        }
+        if (previous != null && request.acceptedAtMillis
+                < previous.getLastTransition().timestampMillis) {
+            return Result.failure(Code.TIME_REGRESSION, previous,
+                "Accepted arrival cannot predate the current conflict checkpoint.");
+        }
+
+        if (previous != null && previous.isActive()
+                && previous.getRevision() == Long.MAX_VALUE) {
+            return Result.failure(Code.REVISION_EXHAUSTED, previous, "Revision exhausted.");
+        }
+        if (committedElsewhere(request.detachmentId, request.destinationTileId)) {
+            return Result.failure(Code.DETACHMENT_ALREADY_COMMITTED, previous,
+                "The detachment is committed in another active conflict.");
+        }
+
+        boolean creating = previous == null || !previous.isActive();
+        if (creating && request.authority.kind
+                != ConflictAuthorityKind.VALIDATED_DEFENDER)
+            return Result.failure(Code.INVALID_REFERENCE, previous,
+                "New conflict creation requires validated defending/owning faction authority.");
+        if (!creating && request.authority.kind
+                != ConflictAuthorityKind.ACTIVE_PARTICIPANT)
+            return Result.failure(Code.INVALID_REFERENCE, previous,
+                "Existing conflict entry requires an active participant authority.");
+        if (!creating) {
+            FactionParticipation authority = previous.getFactionParticipation()
+                .get(request.authority.factionId);
+            if (authority == null || !authority.isActive())
+                return Result.failure(Code.INVALID_REFERENCE, previous,
+                    "The opposed faction is not an active participant in this conflict.");
+        }
+
+        Hostility hostility = hostilityResolver.resolve(request.detachmentFactionId,
+            request.authority.factionId);
+        if (hostility == Hostility.UNKNOWN)
+            return Result.failure(Code.UNKNOWN_HOSTILITY, previous,
+                "Current LOTR faction relation is unavailable.");
+        if (hostility != Hostility.HOSTILE)
+            return Result.failure(Code.NON_HOSTILE, previous,
+                "A validated hostile relation is required.");
+
+        return creating
+            ? createFromValidatedCommitment(previous, request, detachmentResolver, context)
+            : joinFromValidatedCommitment(previous, request, context);
+    }
+
+    private Result createFromValidatedCommitment(KOMEConflictRecord previous,
+            ValidatedCommitmentRequest request, DetachmentResolver resolver, Context context) {
+        if (allocator.getNextSequence() == Long.MAX_VALUE)
+            return Result.failure(Code.IDENTITY_EXHAUSTED, previous,
+                "Conflict identities are exhausted.");
+        if (request.origin == EntryOrigin.RELIEF)
+            return Result.failure(Code.INVALID_ORIGIN, previous,
+                "Relief classification requires an existing Encirclement.");
+
+        State state = request.qualifyingDefensiveContext
+            ? State.ENCIRCLEMENT : State.ORDINARY;
+        Draft draft = new Draft("CF" + allocator.getNextSequence(),
+            request.destinationTileId, state, request.acceptedAtMillis);
+        Set<UUID> members = new HashSet<UUID>();
+        Set<String> seededDetachments = new HashSet<String>();
+        for (GarrisonParticipantSeed participant : request.originalGarrison) {
+            if (participant == null)
+                return Result.failure(Code.INVALID_REQUEST, previous, "Null garrison participant.");
+            GarrisonSeed seed = participant.cohort;
+            if (!seededDetachments.add(seed.detachmentId)
+                    || seed.detachmentId.equals(request.detachmentId))
+                return Result.failure(Code.DUPLICATE_DETACHMENT, previous,
+                    "Duplicate initial detachment authority.");
+            Code readiness = validateDetachment(resolver.resolve(seed.detachmentId),
+                seed.detachmentId, participant.factionId, request.destinationTileId);
+            if (readiness != Code.SUCCESS)
+                return Result.failure(readiness, previous,
+                    "Original-garrison detachment authority is not ready.");
+            if (seed.classification != KOMEHiredUnitClass.CAMPAIGN)
+                return Result.failure(Code.ORDINARY_NOT_ELIGIBLE, previous,
+                    "Original garrison requires CAMPAIGN detachments.");
+            if (committedElsewhere(seed.detachmentId, request.destinationTileId))
+                return Result.failure(Code.DETACHMENT_ALREADY_COMMITTED, previous,
+                    "An original-garrison detachment is committed elsewhere.");
+            Map<UUID, GarrisonMemberState> cohort =
+                new LinkedHashMap<UUID, GarrisonMemberState>();
+            for (UUID member : seed.originalMembers) {
+                if (!members.add(member))
+                    return Result.failure(Code.DUPLICATE_GARRISON_MEMBER, previous,
+                        "Original member appears in multiple cohorts.");
+                cohort.put(member, GarrisonMemberState.ORIGINAL);
+            }
+            draft.commitments.put(seed.detachmentId, new Commitment(seed.detachmentId,
+                EntryOrigin.ORIGINAL_GARRISON, request.acceptedAtMillis, ""));
+            draft.originalGarrison.put(seed.detachmentId,
+                new GarrisonCohort(seed.detachmentId, cohort));
+            activateFaction(draft, participant.factionId, request.acceptedAtMillis);
+        }
+        draft.commitments.put(request.detachmentId, new Commitment(request.detachmentId,
+            request.origin, request.acceptedAtMillis, request.movementOrderId,
+            validatedEvent(request, true)));
+        activateFaction(draft, request.authority.factionId, request.acceptedAtMillis);
+        activateFaction(draft, request.detachmentFactionId, request.acceptedAtMillis);
+        draft.revision = 1L;
+        draft.lastTransition = new LastTransition(Operation.CREATE,
+            previous == null ? null : previous.getState(), state, 1L, context,
+            request.detachmentId);
+        try {
+            KOMEConflictRecord record = new KOMEConflictRecord(draft);
+            allocator.allocate();
+            records.put(request.destinationTileId, record);
+            return Result.success(previous, record);
+        } catch (IllegalArgumentException invalid) {
+            return Result.failure(Code.INVALID_REQUEST, previous, invalid.getMessage());
+        }
+    }
+
+    private Result joinFromValidatedCommitment(KOMEConflictRecord previous,
+            ValidatedCommitmentRequest request, Context context) {
+        if (!request.originalGarrison.isEmpty())
+            return Result.failure(Code.INVALID_ORIGIN, previous,
+                "Original garrison is immutable after conflict creation.");
+        if (request.origin == EntryOrigin.RELIEF
+                && previous.getState() != State.ENCIRCLEMENT)
+            return Result.failure(Code.INVALID_ORIGIN, previous,
+                "Relief classification requires an Encirclement.");
+
+        Draft draft = new Draft(previous);
+        draft.commitments.put(request.detachmentId, new Commitment(request.detachmentId,
+            request.origin, request.acceptedAtMillis, request.movementOrderId,
+            validatedEvent(request, false)));
+        activateFaction(draft, request.detachmentFactionId, request.acceptedAtMillis);
+        draft.revision = previous.getRevision() + 1L;
+        draft.lastTransition = new LastTransition(Operation.COMMIT, previous.getState(),
+            previous.getState(), draft.revision, context, request.detachmentId);
+        try {
+            KOMEConflictRecord record = new KOMEConflictRecord(draft);
+            records.put(request.destinationTileId, record);
+            return Result.success(previous, record);
+        } catch (IllegalArgumentException invalid) {
+            return Result.failure(Code.INVALID_REQUEST, previous, invalid.getMessage());
+        }
+    }
+
+    /** Explicit authorized departure; missing runtime references never trigger this mutation. */
+    public Result releaseValidatedCommitment(KOMEWorldData data,
+            ValidatedDepartureRequest request, Context context) {
+        if (data == null || data.getConflictService() != this) {
+            return Result.failure(Code.INVALID_REQUEST, null,
+                "The persisted world conflict authority is required.");
+        }
+        data.ensureWritable();
+        Result result = releaseValidatedCommitment(request,
+            productionDetachmentResolver(data), context);
+        if (result.code == Code.SUCCESS) {
+            data.markDirty();
+            KOMEAuditService.record(data, context.timestampMillis, "CONFLICT", "DEPART",
+                context.actor, result.record.getConflictId(), context.reason,
+                request.detachmentId + " <- " + request.tileId);
+        }
+        return result;
+    }
+
+    synchronized Result releaseValidatedCommitment(ValidatedDepartureRequest request,
+            DetachmentResolver resolver, Context context) {
+        KOMEConflictRecord previous = null;
+        try {
+            required(request, "Validated departure request");
+            required(resolver, "Detachment resolver");
+            required(context, "Context");
+            previous = records.get(request.tileId);
+            Code guard = guard(previous, request.expectedConflict, context);
+            if (guard != Code.SUCCESS)
+                return Result.failure(guard, previous, "Departure precondition failed.");
+            if (previous == null) return Result.failure(Code.NOT_FOUND, null, "Conflict is absent.");
+            if (!previous.isActive())
+                return Result.failure(Code.CONFLICT_ENDED, previous, "Ended conflict is immutable.");
+            if (previous.getRevision() == Long.MAX_VALUE)
+                return Result.failure(Code.REVISION_EXHAUSTED, previous, "Revision exhausted.");
+            Commitment departing = previous.getCommitments().get(request.detachmentId);
+            if (departing == null)
+                return Result.failure(Code.COMMITMENT_NOT_FOUND, previous,
+                    "Detachment is not committed to this conflict.");
+            DetachmentResolution departingResolution = resolver.resolve(request.detachmentId);
+            Code departingReadiness = validateDetachment(departingResolution,
+                request.detachmentId, request.factionId, request.tileId);
+            if (departingReadiness != Code.SUCCESS)
+                return Result.failure(departingReadiness, previous,
+                    "Departing detachment authority cannot be resolved.");
+            FactionParticipation participation =
+                previous.getFactionParticipation().get(request.factionId);
+            if (participation == null || !participation.isActive())
+                return Result.failure(Code.FACTION_NOT_ACTIVE, previous,
+                    "Departure faction is not continuously participating.");
+
+            boolean sameFactionRemains = false;
+            for (String detachmentId : previous.getCommitments().keySet()) {
+                if (detachmentId.equals(request.detachmentId)) continue;
+                DetachmentResolution resolved = resolver.resolve(detachmentId);
+                Code readiness = validateResolvedReference(resolved, detachmentId);
+                if (readiness == Code.SUCCESS
+                        && resolved.classification != KOMEHiredUnitClass.CAMPAIGN)
+                    readiness = Code.ORDINARY_NOT_ELIGIBLE;
+                if (readiness == Code.SUCCESS
+                        && !request.tileId.equals(resolved.strategicTileId))
+                    readiness = Code.DETACHMENT_TILE_MISMATCH;
+                if (readiness != Code.SUCCESS)
+                    return Result.failure(readiness, previous,
+                        "A remaining commitment cannot be resolved; departure is fail-closed.");
+                if (request.factionId.equals(resolved.factionId)) sameFactionRemains = true;
+            }
+
+            Draft draft = new Draft(previous);
+            draft.commitments.remove(request.detachmentId);
+            if (!sameFactionRemains) {
+                draft.factionParticipation.put(request.factionId,
+                    new FactionParticipation(request.factionId,
+                        participation.continuitySequence, participation.startedAtMillis,
+                        context.timestampMillis));
+            }
+            draft.revision = previous.getRevision() + 1L;
+            draft.lastTransition = new LastTransition(Operation.DETACHMENT_DEPARTURE,
+                previous.getState(), previous.getState(), draft.revision, context,
+                request.detachmentId);
+            KOMEConflictRecord record = new KOMEConflictRecord(draft);
+            records.put(request.tileId, record);
+            return Result.success(previous, record);
+        } catch (IllegalArgumentException invalid) {
+            return Result.failure(Code.INVALID_REQUEST, previous, invalid.getMessage());
+        }
+    }
+
+    private static DetachmentResolver productionDetachmentResolver(final KOMEWorldData data) {
+        return new DetachmentResolver() {
+            @Override public DetachmentResolution resolve(String detachmentId) {
+                KOMEArmyCompany company = data.armyCompanies.get(detachmentId);
+                if (company == null) return new DetachmentResolution(detachmentId,
+                    ReferenceStatus.MISSING, null, "", "", "Campaign Detachment is missing.");
+                String factionId = KOMEAlliance.normalizeFactionKey(company.faction);
+                String tileId = KOMEConquestTile.normalizeId(company.currentTile);
+                if (factionId.length() == 0 || KOMEAlliance.findLotrFaction(factionId) == null
+                        || tileId.length() == 0)
+                    return new DetachmentResolution(detachmentId,
+                        ReferenceStatus.INCOHERENT, null, "", "",
+                        "Campaign Detachment lacks faction or strategic tile authority.");
+                for (UUID member : company.units) {
+                    KOMEHiredUnitRecord record = data.hiredUnits.get(member);
+                    if (record == null) return new DetachmentResolution(detachmentId,
+                        ReferenceStatus.MISSING, null, "", "",
+                        "A Campaign Detachment member record is missing.");
+                    if (!KOMEHiredUnitClassification.isCampaignUnit(record))
+                        return new DetachmentResolution(detachmentId,
+                            ReferenceStatus.RESOLVED, KOMEHiredUnitClass.ORDINARY,
+                            factionId, tileId, "An ORDINARY member cannot form a commitment.");
+                }
+                KOMECompanyCoherenceService.Assessment assessment =
+                    KOMECompanyCoherenceService.INSTANCE.assess(data, company);
+                if (assessment.status == KOMECompanyCoherenceService.Status.INCOHERENT)
+                    return new DetachmentResolution(detachmentId,
+                        ReferenceStatus.INCOHERENT, null, "", "",
+                        "Campaign Detachment coherence failed.");
+                return new DetachmentResolution(detachmentId, ReferenceStatus.RESOLVED,
+                    KOMEHiredUnitClass.CAMPAIGN, factionId, tileId,
+                    assessment.status.name());
+            }
+        };
+    }
+
+    private static Code validateDetachment(DetachmentResolution resolution,
+            String expectedId, String expectedFaction, String expectedTile) {
+        Code readiness = validateResolvedReference(resolution, expectedId);
+        if (readiness != Code.SUCCESS) return readiness;
+        if (resolution.classification != KOMEHiredUnitClass.CAMPAIGN)
+            return Code.ORDINARY_NOT_ELIGIBLE;
+        if (!expectedFaction.equals(resolution.factionId))
+            return Code.DETACHMENT_FACTION_MISMATCH;
+        if (!expectedTile.equals(resolution.strategicTileId))
+            return Code.DETACHMENT_TILE_MISMATCH;
+        return Code.SUCCESS;
+    }
+
+    private static Code validateResolvedReference(DetachmentResolution resolution,
+            String expectedId) {
+        if (resolution == null || !expectedId.equals(resolution.detachmentId))
+            return Code.DETACHMENT_UNRESOLVED;
+        if (resolution.status == ReferenceStatus.RESOLVED) return Code.SUCCESS;
+        return resolution.status == ReferenceStatus.INCOHERENT
+                || resolution.status == ReferenceStatus.AMBIGUOUS
+            ? Code.DETACHMENT_INCOHERENT : Code.DETACHMENT_UNRESOLVED;
+    }
+
+    private static void activateFaction(Draft draft, String factionId, long timestamp) {
+        FactionParticipation previous = draft.factionParticipation.get(factionId);
+        if (previous != null && previous.isActive()) return;
+        if (previous != null && previous.continuitySequence == Long.MAX_VALUE)
+            throw new IllegalArgumentException("Faction continuity sequence exhausted.");
+        draft.factionParticipation.put(factionId, new FactionParticipation(factionId,
+            previous == null ? 1L : previous.continuitySequence + 1L, timestamp, null));
+    }
+
+    private static ValidatedCommitmentEvent validatedEvent(
+            ValidatedCommitmentRequest request, boolean createdConflict) {
+        Map<String, String> factions = new LinkedHashMap<String, String>();
+        for (GarrisonParticipantSeed participant : request.originalGarrison)
+            factions.put(participant.cohort.detachmentId, participant.factionId);
+        return new ValidatedCommitmentEvent(request.detachmentFactionId,
+            request.authority.kind, request.authority.factionId, createdConflict,
+            request.qualifyingDefensiveContext, factions);
+    }
+
+    private static boolean isExactReplay(KOMEConflictRecord record,
+            Commitment existing, ValidatedCommitmentRequest request) {
+        ValidatedCommitmentEvent event = existing.validatedEvent;
+        if (event == null || existing.acceptedAtMillis != request.acceptedAtMillis
+                || existing.origin != request.origin
+                || !existing.movementOrderId.equals(request.movementOrderId)
+                || !event.detachmentFactionId.equals(request.detachmentFactionId)
+                || event.authorityKind != request.authority.kind
+                || !event.authorityFactionId.equals(request.authority.factionId)
+                || event.defensiveContext != request.qualifyingDefensiveContext)
+            return false;
+        Map<String, String> factions = new LinkedHashMap<String, String>();
+        Map<String, Set<UUID>> members = new LinkedHashMap<String, Set<UUID>>();
+        for (GarrisonParticipantSeed participant : request.originalGarrison) {
+            if (participant == null
+                    || participant.cohort.classification != KOMEHiredUnitClass.CAMPAIGN
+                    || factions.put(participant.cohort.detachmentId,
+                        participant.factionId) != null
+                    || members.put(participant.cohort.detachmentId,
+                        participant.cohort.originalMembers) != null)
+                return false;
+        }
+        if (!event.originalGarrisonFactions.equals(factions)) return false;
+        if (!event.createdConflict) return members.isEmpty();
+        if (!record.getOriginalGarrison().keySet().equals(members.keySet())) return false;
+        for (Map.Entry<String, Set<UUID>> entry : members.entrySet()) {
+            GarrisonCohort cohort = record.getOriginalGarrison().get(entry.getKey());
+            if (cohort == null || !cohort.members.keySet().equals(entry.getValue()))
+                return false;
+        }
+        return true;
     }
 
     /** Only absent/ended -> fresh ORDINARY/ENCIRCLEMENT; an ended predecessor must be acknowledged. */
@@ -361,7 +784,10 @@ public final class KOMEConflictService {
         private Result(Code code, KOMEConflictRecord previous, KOMEConflictRecord record, String reason) {
             this.code = code; this.previous = previous; this.record = record; this.reason = reason;
         }
-        public boolean isSuccess() { return code == Code.SUCCESS || code == Code.NO_CHANGE; }
+        public boolean isSuccess() {
+            return code == Code.SUCCESS || code == Code.NO_CHANGE
+                || code == Code.ALREADY_COMMITTED_SAME_CONFLICT;
+        }
         private static Result success(KOMEConflictRecord previous, KOMEConflictRecord record) {
             return new Result(Code.SUCCESS, previous, record, "");
         }

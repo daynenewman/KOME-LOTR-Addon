@@ -66,6 +66,44 @@ public class KOMEConflictPersistenceTest {
         assertEquals(record.getRevision(), actual.getRevision());
     }
 
+    @Test public void validatedCommitmentReplayIdentityRoundTripsAndMalformedShapeFailsClosed() {
+        Draft draft = new Draft("CF1", "T100", State.ORDINARY, 10L);
+        ValidatedCommitmentEvent event = new ValidatedCommitmentEvent("gondor",
+            ConflictAuthorityKind.VALIDATED_DEFENDER, "mordor", true, false,
+            Collections.<String, String>emptyMap());
+        draft.commitments.put("C1", new Commitment("C1", EntryOrigin.LEGAL_ARRIVAL,
+            10L, "M1", event));
+        draft.factionParticipation.put("gondor",
+            new FactionParticipation("gondor", 1L, 10L, null));
+        draft.factionParticipation.put("mordor",
+            new FactionParticipation("mordor", 1L, 10L, null));
+        draft.revision = 1L;
+        draft.lastTransition = new LastTransition(Operation.CREATE, null, State.ORDINARY,
+            1L, context(10), "C1");
+        Map<String, KOMEConflictRecord> records =
+            new LinkedHashMap<String, KOMEConflictRecord>();
+        records.put("T100", new KOMEConflictRecord(draft));
+        KOMEConflictService service = KOMEConflictService.restore(records, 2L);
+
+        KOMEConflictRecord actual = roundTrip(service).get("T100");
+        ValidatedCommitmentEvent restored =
+            actual.getCommitments().get("C1").validatedEvent;
+        assertNotNull(restored);
+        assertEquals("gondor", restored.detachmentFactionId);
+        assertEquals(ConflictAuthorityKind.VALIDATED_DEFENDER, restored.authorityKind);
+        assertEquals("mordor", restored.authorityFactionId);
+        assertTrue(restored.createdConflict);
+        assertFalse(restored.defensiveContext);
+        assertTrue(restored.originalGarrisonFactions.isEmpty());
+
+        KOMEWorldData malformedWorld = initialized("validated-event-malformed");
+        malformedWorld.getConflictService().replaceFrom(service);
+        NBTTagCompound malformed = save(malformedWorld);
+        records(malformed).getCompoundTagAt(0).getTagList("Commitments", 10)
+            .getCompoundTagAt(0).setString("ValidatedEvent", "wrong type");
+        expectInvalid(malformed, "ValidatedEvent");
+    }
+
     @Test public void activeEncirclementRoundTripsGarrisonReliefTimersAndIndependentComplexes() {
         KOMEConflictService service = fullEncirclement(false);
         KOMEConflictService restored = roundTrip(service);

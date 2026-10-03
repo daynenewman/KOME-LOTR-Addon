@@ -25,7 +25,7 @@ public final class KOMEConflictRecord {
     public enum Operation {
         CREATE, END, COMMIT, FACTION_JOIN, FACTION_LEAVE, PLAYER_REGISTER, PLAYER_WITHDRAW,
         COMPLEX_REGISTER, CATALOG_BIND, COMPLEX_CHECKPOINT, COMBAT_CHECKPOINT,
-        ENCIRCLEMENT_CHECKPOINT, REFERENCE_DIAGNOSTIC
+        ENCIRCLEMENT_CHECKPOINT, REFERENCE_DIAGNOSTIC, DETACHMENT_DEPARTURE
     }
 
     private final String conflictId;
@@ -88,19 +88,44 @@ public final class KOMEConflictRecord {
                 || encirclement.checkpointAtMillis > lastTime
                 || !java.util.Objects.equals(encirclement.endedAtMillis, endedAtMillis)))
             throw new IllegalArgumentException("Encirclement continuity and record timestamps disagree.");
+        int validatedCreationEvents = 0;
         for (Map.Entry<String, Commitment> entry : commitments.entrySet()) {
             Commitment value = entry.getValue();
             requireKey(entry.getKey(), value.detachmentId);
             requireTime(value.acceptedAtMillis, lastTime);
-            if ((value.origin == EntryOrigin.ORIGINAL_GARRISON) != originalGarrison.containsKey(value.detachmentId))
+            if (value.origin == EntryOrigin.ORIGINAL_GARRISON
+                    && !originalGarrison.containsKey(value.detachmentId)
+                    || value.origin != EntryOrigin.ORIGINAL_GARRISON
+                    && originalGarrison.containsKey(value.detachmentId))
                 throw new IllegalArgumentException("Original-garrison commitment and cohort disagree.");
             if (value.origin == EntryOrigin.RELIEF && encirclement == null)
                 throw new IllegalArgumentException("Encirclement relief requires an Encirclement lifecycle.");
+            if (value.validatedEvent != null) {
+                ValidatedCommitmentEvent event = value.validatedEvent;
+                if (!factionParticipation.containsKey(event.detachmentFactionId)
+                        || !factionParticipation.containsKey(event.authorityFactionId))
+                    throw new IllegalArgumentException(
+                        "Validated commitment event lacks faction participation history.");
+                for (String garrisonFaction : event.originalGarrisonFactions.values())
+                    if (!factionParticipation.containsKey(garrisonFaction))
+                        throw new IllegalArgumentException(
+                            "Validated garrison event lacks faction participation history.");
+                if (event.createdConflict) {
+                    validatedCreationEvents++;
+                    if (value.acceptedAtMillis != createdAtMillis
+                            || event.defensiveContext != (encirclement != null)
+                            || !event.originalGarrisonFactions.keySet()
+                                .equals(originalGarrison.keySet()))
+                        throw new IllegalArgumentException(
+                            "Validated creation event and conflict origin disagree.");
+                }
+            }
         }
+        if (validatedCreationEvents > 1)
+            throw new IllegalArgumentException("Multiple validated conflict-creation events.");
         Set<UUID> cohortMembers = new LinkedHashSet<UUID>();
         for (Map.Entry<String, GarrisonCohort> entry : originalGarrison.entrySet()) {
             requireKey(entry.getKey(), entry.getValue().detachmentId);
-            if (!commitments.containsKey(entry.getKey())) throw new IllegalArgumentException("Garrison commitment missing.");
             for (UUID member : entry.getValue().members.keySet())
                 if (!cohortMembers.add(member)) throw new IllegalArgumentException("Duplicate original-garrison member.");
         }
@@ -170,12 +195,59 @@ public final class KOMEConflictRecord {
         public final EntryOrigin origin;
         public final long acceptedAtMillis;
         public final String movementOrderId;
+        public final ValidatedCommitmentEvent validatedEvent;
 
         public Commitment(String detachmentId, EntryOrigin origin, long acceptedAtMillis, String movementOrderId) {
+            this(detachmentId, origin, acceptedAtMillis, movementOrderId, null);
+        }
+
+        public Commitment(String detachmentId, EntryOrigin origin, long acceptedAtMillis,
+                String movementOrderId, ValidatedCommitmentEvent validatedEvent) {
             this.detachmentId = companyId(detachmentId);
             this.origin = required(origin, "Commitment origin");
             this.acceptedAtMillis = nonnegative(acceptedAtMillis, "Commitment timestamp");
             this.movementOrderId = optionalId(movementOrderId);
+            this.validatedEvent = validatedEvent;
+            if (origin == EntryOrigin.ORIGINAL_GARRISON && validatedEvent != null)
+                throw new IllegalArgumentException(
+                    "Original-garrison seeds are not strategic-arrival events.");
+        }
+    }
+
+    /** Persisted exact-replay identity for a validated strategic commitment event. */
+    public static final class ValidatedCommitmentEvent {
+        public final String detachmentFactionId;
+        public final ConflictAuthorityKind authorityKind;
+        public final String authorityFactionId;
+        public final boolean createdConflict;
+        public final boolean defensiveContext;
+        public final Map<String, String> originalGarrisonFactions;
+
+        public ValidatedCommitmentEvent(String detachmentFactionId,
+                ConflictAuthorityKind authorityKind, String authorityFactionId,
+                boolean createdConflict, boolean defensiveContext,
+                Map<String, String> originalGarrisonFactions) {
+            this.detachmentFactionId = faction(detachmentFactionId);
+            this.authorityKind = required(authorityKind, "Conflict authority kind");
+            this.authorityFactionId = faction(authorityFactionId);
+            this.createdConflict = createdConflict;
+            this.defensiveContext = defensiveContext;
+            required(originalGarrisonFactions, "Original-garrison faction map");
+            Map<String, String> factions = new LinkedHashMap<String, String>();
+            for (Map.Entry<String, String> entry : originalGarrisonFactions.entrySet()) {
+                String detachmentId = companyId(entry.getKey());
+                if (factions.put(detachmentId, faction(entry.getValue())) != null)
+                    throw new IllegalArgumentException("Duplicate original-garrison detachment.");
+            }
+            this.originalGarrisonFactions = Collections.unmodifiableMap(factions);
+            if (createdConflict
+                    != (authorityKind == ConflictAuthorityKind.VALIDATED_DEFENDER))
+                throw new IllegalArgumentException(
+                    "Creation events require validated defender authority; joins require a participant.");
+            if (!createdConflict && (defensiveContext || !factions.isEmpty())
+                    || !defensiveContext && !factions.isEmpty())
+                throw new IllegalArgumentException(
+                    "Only a defensive creation event may retain an original-garrison snapshot.");
         }
     }
 
