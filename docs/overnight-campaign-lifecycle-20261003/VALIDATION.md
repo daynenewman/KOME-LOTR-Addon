@@ -26,3 +26,9 @@ The new root version is 9; no existing world has been loaded or written by this 
 
 - `muster-checkpoint`: **54 tests passed**, zero failures/errors/skips. Canonical conflict projection, non-loading dimension/chunk preflight, capital snapshots, pending-state persistence, uncertainty latch, governance and admin diagnostics covered. First attempt exposed one expectation for the former placeholder authority; corrected to the concrete dimension-unavailable result.
 - These are service/NBT tests. No physical delivery or entity/world-save receipt is claimed; the faction-owned control contract is unavailable.
+
+## Daily coordinator gate
+
+- `daily-first`: compile failed because the new checkpoint helper could not access the canonical data name; made that existing constant package-visible.
+- `daily-compiled`: **158 tests passed**, zero failures/errors/skips, including eight new coordinator tests over real population services and compressed atomic canonical-file saves. Covers each stage-save failure, repeat boundary, cold restart, offline payout-only catch-up, skipped interrupted development, blocked movement/starvation, deterministic clock, schedule changes and malformed journal fail-closed loading.
+- Checkpoint guarantees cover canonical data only: synced temporary bytes plus atomic replacement, not entity/chunk durability or acknowledged chat delivery. Notification claim is persisted before sending; a crash after that claim may omit a summary but cannot replay it.

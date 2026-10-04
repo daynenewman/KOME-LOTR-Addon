@@ -27,7 +27,7 @@ import java.util.Set;
 import java.util.UUID;
 
 public class KOMEWorldData extends WorldSavedData {
-    private static final String DATA_NAME = "KOME_ServerRules";
+    static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
     /** Schema 9 adds campaign governance. Schema 8 is reserved for the independently reviewed reset journal. */
     public static final int KOME_DATA_SCHEMA_VERSION = 9;
@@ -117,6 +117,7 @@ public class KOMEWorldData extends WorldSavedData {
     /** Access through KOMEMusterService; each faction/season call is retained, including pending old seasons. */
     final Map<String, KOMEMusterRecord> civilianMusters = new HashMap<String, KOMEMusterRecord>();
     final Map<String, KOMEPlayerGovernance> playerGovernance = new HashMap<String, KOMEPlayerGovernance>();
+    public KOMEDailyJournal dailyJournal = new KOMEDailyJournal();
     public int nextBuildSequence = 1;
     public int allianceStageThreeRequiredHalfHours = KOMEAllianceProgressionService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
     public String allianceDifficulty = KOMEAllianceRequirements.STANDARD;
@@ -2062,6 +2063,10 @@ public class KOMEWorldData extends WorldSavedData {
         warSeason.readFromNBT(nbt.getCompoundTag("WarSeason"));
         loadSection = "PlayerGovernance";
         KOMEGovernanceService.read(this, nbt, savedRootSchema >= 9);
+        loadSection = "DailyJournal";
+        if (savedRootSchema >= 9 && !nbt.hasKey("DailyJournal", 10))
+            throw new IllegalArgumentException("Missing daily journal");
+        dailyJournal = nbt.hasKey("DailyJournal") ? KOMEDailyJournal.read(nbt.getCompoundTag("DailyJournal")) : new KOMEDailyJournal();
         loadSection = "CivilianMusters";
         civilianMusters.clear();
         if (!nbt.hasKey("MusterDataSchemaVersion", 3) || nbt.getInteger("MusterDataSchemaVersion") != 1
@@ -2746,6 +2751,7 @@ public class KOMEWorldData extends WorldSavedData {
         civilianMusters.putAll(candidate.civilianMusters);
         playerGovernance.clear();
         playerGovernance.putAll(candidate.playerGovernance);
+        dailyJournal = candidate.dailyJournal;
         warSeason.phase = candidate.warSeason.phase;
         warSeason.minimumWarEndMillis = candidate.warSeason.minimumWarEndMillis;
         warSeason.finaleTriggerActor = candidate.warSeason.finaleTriggerActor;
@@ -2942,6 +2948,7 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.setTag("CivilianMusters", musterList);
         KOMEAuditService.writeToNBT(this, nbt);
         KOMEGovernanceService.write(this, nbt);
+        nbt.setTag("DailyJournal", dailyJournal.write());
         nbt.setInteger("NextBuildSequence", Math.max(1, nextBuildSequence));
         nbt.setLong("NextCompanySequence", Math.max(1L, nextCompanySequence));
         nbt.setInteger("AllianceStageThreeRequiredHalfHours", Math.max(1, allianceStageThreeRequiredHalfHours));

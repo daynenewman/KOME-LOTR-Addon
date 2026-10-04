@@ -310,6 +310,11 @@ public class KOMEEvents {
             long nowMillis, KOMEPopulationPayoutRuntime runtime) {
         if (!runtime.hasStarted(data)) return runtime.onStartup(data, Instant.ofEpochMilli(nowMillis));
         KOMEGovernanceService.reconcile(data, nowMillis);
+        KOMEDailyCoordinator.Outcome coordinated = runtime.coordinate(data, world, Instant.ofEpochMilli(nowMillis));
+        if (coordinated.handled) {
+            if (coordinated.payout != null && coordinated.payout.success) KOMEFactionDefeatService.reconcile(data, nowMillis);
+            return coordinated.payout;
+        }
         KOMECommandTroops.resetDailyMovementAllowances(data, nowMillis);
         KOMECommandTroops.processMovementTick(data, world, nowMillis);
         KOMEMusterService.processDue(data, nowMillis);
