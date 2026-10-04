@@ -137,6 +137,9 @@ public class KOMEDailyCoordinatorTest {
         KOMEDailyCoordinator coordinator = new KOMEDailyCoordinator(); coordinator.startSession(data, start); coordinator.process(data, checkpoint, start);
         coordinator.process(data, checkpoint, due);
         assertFalse(coordinator.process(data, checkpoint, start).handled); assertTrue(data.dailyJournal.reason().contains("CLOCK_REGRESSED"));
+        final int[] repeatedSaves = {0};
+        coordinator.process(data, value -> { repeatedSaves[0]++; checkpoint.save(value); }, start);
+        assertEquals("Repeated blocked clock checks must not sync the same file every server tick", 0, repeatedSaves[0]);
         config.set("dailyBatch.localTime", "09:15"); coordinator.process(data, checkpoint, due.plusSeconds(60));
         assertEquals(10, KOMEPopulationPayoutProcessorTest.bank(data, "gondor")); assertEquals(1, notifications.size());
         assertEquals(due.toEpochMilli(), read(file).dailyJournal.lastComplete());

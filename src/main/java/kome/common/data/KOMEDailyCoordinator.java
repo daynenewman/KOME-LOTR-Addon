@@ -46,8 +46,8 @@ public final class KOMEDailyCoordinator {
             // Effects already applied in memory must reach disk before any stage is executed again.
             if (needsCheckpoint.contains(data)) { checkpoint.save(data); needsCheckpoint.remove(data); }
             if (millis < j.lastObserved) {
-                blocked(data, "CLOCK_REGRESSED: waiting for " + j.lastObserved, millis);
-                flush(data, checkpoint); return new Outcome(false, null);
+                if (blocked(data, "CLOCK_REGRESSED: waiting for " + j.lastObserved, millis)) flush(data, checkpoint);
+                return new Outcome(false, null);
             }
             boolean newSession = sessions.containsKey(data);
             boolean scheduleChanged = !schedule.timezone().equals(j.timezone) || !schedule.localTime().equals(j.localTime);

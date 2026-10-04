@@ -38,3 +38,26 @@ The new root version is 9; no existing world has been loaded or written by this 
 - `operations-first`: 176 tests, one new test fixture failure (missing Build type); corrected fixture and asserted the real repair-denial response.
 - `operations-reviewed`: **189 tests passed**, zero failures/errors/skips. Includes existing guarded/stale admin repairs and conflict/gate checks, actual root lifecycle diagnostics, audit bounds, new exile authorization and preserved native unit NBT/HP/progression/bank regressions.
 - Review correction: host selection no longer invents a same-side selection policy; actual participation still requires ordinary host war-side authority. Native hired-unit combat checks its own funding/native faction rather than borrowing its exiled owner's host affiliation.
+
+## Full and real Forge validation
+
+- `clean-full`: clean `test build` passed in 1m44s: 2,074 tests, 2,069 passed, 5 skipped, zero failures/errors. Two skips are platform symlink support. Three optional original-jar compatibility inputs were absent from this worktree-relative default; the existing real jars were then supplied read-only using `KOME_LOTR_VALIDATION_DIRECTORY` and the focused transformer gate passed with no skips.
+- `forge-first` and `forge-restart`: real Forge 10.13.4.1614 / LOTR 36.15 / Java 8 disposable server launches both passed, including explicit PASS evidence files. Test-only mod is in `tools/campaign-lifecycle/java`; it is not shipped in the main jar. Actual command dispatcher exercised submit/exile/status, lifecycle diagnostics, audit, non-operator rejection and save-all. It uses a Forge FakePlayer (no connected client).
+- First phase invoked actual defeat and available daily services, using a fixed future boundary inside real Forge. It saved one development step (100 centi-hours), 10 centi-population, and one summary. Cold process startup retained origin/Submitted restriction and all three values without repeating effects. This is controlled-clock runtime evidence, not an observed wall-clock 8 PM session.
+- Native factories/registration: 24 factions, 47 roster entries, 5 mounted entries resolved; no entities spawned. Physical faction-force delivery, rider/mount placement and entity-save recovery remain blocked and unverified.
+- Legacy Forge signature/version-check/default-waypoint warnings were present; the verification checks and orderly saves/shutdowns passed.
+- Runtime proof uncovered an avoidable repeated disk sync while a clock remains behind a saved boundary; changed the coordinator to save only the first identical block. The regression now asserts repeated blocked checks do not write. A final full gate follows this production correction.
+
+Commands (PowerShell, isolated checkout):
+
+```powershell
+& ./tools/campaign-lifecycle/validate.ps1 -Label clean-full -GradleArgs @('clean','test','build')
+& ./tools/campaign-lifecycle/validate.ps1 -Label forge-first -GradleArgs @('-I','tools/campaign-lifecycle/verify-forge.gradle','runServer','-PcampaignVerificationPhase=first')
+& ./tools/campaign-lifecycle/validate.ps1 -Label forge-restart -GradleArgs @('-I','tools/campaign-lifecycle/verify-forge.gradle','runServer','-PcampaignVerificationPhase=restart')
+```
+
+The first Forge phase refuses to overwrite an existing disposable world. Preserve its evidence before a later clean. Local proof: `build/campaign-lifecycle/forge/campaign-first.txt` SHA-256 `53ae680750ed88f9f5d78aa7f6e043773029cec6302156b4548bb31d90904c19`; restart `e93c7c207032d970e120f8368fcaca53dcb79bf2164a6ea9231ae49872532572`. Logs: `outputs/campaign-lifecycle/forge-first.log` (`386b15fdf082703f95089245039051a8c07a4cd4dd27348a01defe3bb1bf26b7`), `forge-restart.log` (`fe5aaf66f17781720b05748bdb49082d4942fb3b5c1bbe32160608f3e6fe07f1`). These ignored local files are not deployment artifacts.
+
+## Preservation check
+
+All 20 other pre-existing worktrees have matching HEAD, normal porcelain status and tracked diff; stash identity matches. Inventoried ignored runtime directory timestamps match and javaw PID 44196 retains its original start time. Initial evidence covers directory metadata/process identity, not every world's bytes; no claim of a full world/config hash comparison. Two apparent status differences were caused by `--untracked-files=all` expanding directories; matching the original normal display resolved both. No other worktree/world/runtime/config was written. Local inventory/comparison JSON is under `outputs/campaign-lifecycle`.
