@@ -32,6 +32,8 @@ public final class KOMEPledgeReleaseService {
         String current = KOMEAlliance.normalizeFactionKey(currentFaction);
         if (!data.lastKnownPlayerFactions.containsKey(playerId)) {
             String migrationBaseline = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(playerId));
+            KOMEGovernanceService.retainDefeat(data, playerId, migrationBaseline, nowMillis);
+            KOMEGovernanceService.retainDefeat(data, playerId, current, nowMillis);
             data.lastKnownPlayerFactions.put(playerId, current);
             if (migrationBaseline.length() > 0 && !migrationBaseline.equals(current)) {
                 KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);
@@ -42,6 +44,7 @@ public final class KOMEPledgeReleaseService {
             return Result.noop("Pledge baseline recorded.");
         }
         String former = KOMEAlliance.normalizeFactionKey(data.lastKnownPlayerFactions.get(playerId));
+        KOMEGovernanceService.retainDefeat(data, playerId, former, nowMillis);
         if (former.equals(current)) return Result.noop("Pledge unchanged.");
         data.lastKnownPlayerFactions.put(playerId, current);
         KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);

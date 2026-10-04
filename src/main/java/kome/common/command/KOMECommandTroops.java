@@ -4339,6 +4339,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (company == null) {
             throw new WrongUsageException("Unknown company " + companyId + ".");
         }
+        kome.common.data.KOMEGovernanceService.Decision governance =
+            kome.common.data.KOMEGovernanceService.militaryAction(data, KOMEReflection.getEntityUUID(player), company.faction);
+        if (!governance.allowed) throw new WrongUsageException(governance.reason);
         if (!canPlayerControlCompany(data, player, company)) {
             throw new WrongUsageException("You do not own " + company.name + ".");
         }

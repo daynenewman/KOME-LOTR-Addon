@@ -16,6 +16,8 @@ public final class KOMECompanyTransferService {
     public static Result offer(KOMEWorldData data, KOMEArmyCompany company, UUID owner, UUID recipient,
             String recipientName, long nowMillis) {
         if (data == null || company == null || owner == null || !owner.equals(company.owner)) return Result.failure("Only the actual owner may offer this company.");
+        KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(data, owner, company.faction);
+        if (!governance.allowed) return Result.failure(governance.reason);
         if (company.temporaryController != null && owner.equals(company.temporaryController) && !owner.equals(company.owner)) return Result.failure("A temporary controller cannot transfer ownership.");
         if (company.isMoving()) return Result.failure("A company cannot transfer while moving or crossing a route boundary.");
         if (recipient == null || recipient.equals(owner)) return Result.failure("Choose a different same-faction recipient.");
@@ -38,6 +40,9 @@ public final class KOMECompanyTransferService {
     public static Result accept(KOMEWorldData data, KOMEArmyCompany company, UUID recipient,
             String recipientName, long nowMillis) {
         if (data == null || company == null || recipient == null || !recipient.equals(company.transferRecipient)) return Result.failure("No transfer offer is pending for you.");
+        KOMEGovernanceService.Decision giver = KOMEGovernanceService.militaryAction(data, company.owner, company.faction);
+        KOMEGovernanceService.Decision receiver = KOMEGovernanceService.militaryAction(data, recipient, company.faction);
+        if (!giver.allowed || !receiver.allowed) return Result.failure(!giver.allowed ? giver.reason : receiver.reason);
         if (nowMillis > company.transferExpiresAtMillis) {
             company.clearTransferOffer();
             data.markDirty();

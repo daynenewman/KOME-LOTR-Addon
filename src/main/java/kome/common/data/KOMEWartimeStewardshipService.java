@@ -29,6 +29,8 @@ public final class KOMEWartimeStewardshipService {
         if (data == null || company == null || actor == null || !actor.equals(company.temporaryController))
             return KOMEWarService.AuthorizationDecision.deny("The player is not the recorded temporary controller.");
         String controllerFaction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor));
+        KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(data, actor, nativeFaction(company));
+        if (!governance.allowed) return KOMEWarService.AuthorizationDecision.deny(governance.reason);
         return KOMEWarService.supportingKingDecision(data, nativeFaction(company), controllerFaction, actor);
     }
 

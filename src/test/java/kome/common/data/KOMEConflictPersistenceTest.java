@@ -277,7 +277,7 @@ public class KOMEConflictPersistenceTest {
         NBTTagCompound future = ordinaryDocument();
         future.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,
             KOMEWorldData.KOME_DATA_SCHEMA_VERSION + 1);
-        expectInvalid(future, "schema 8");
+        expectInvalid(future, "schema " + (KOMEWorldData.KOME_DATA_SCHEMA_VERSION + 1));
     }
 
     @Test public void conflictDecodeFailureLeavesExistingLiveStateUntouchedAndWriteBlocked() {
@@ -352,7 +352,7 @@ public class KOMEConflictPersistenceTest {
         assertEquals(1L, upgraded.getConflictService().getNextConflictSequence());
 
         NBTTagCompound schemaSeven = save(upgraded);
-        assertEquals(7, schemaSeven.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, schemaSeven.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(1, schemaSeven.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
         assertEquals(0, records(schemaSeven).tagCount());
         NBTTagCompound expectedAuthorities = (NBTTagCompound) schemaSix.copy();

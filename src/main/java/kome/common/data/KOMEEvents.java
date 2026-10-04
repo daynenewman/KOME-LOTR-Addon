@@ -309,6 +309,7 @@ public class KOMEEvents {
     public static KOMEPopulationPayoutProcessor.Result processCampaignTick(KOMEWorldData data, World world,
             long nowMillis, KOMEPopulationPayoutRuntime runtime) {
         if (!runtime.hasStarted(data)) return runtime.onStartup(data, Instant.ofEpochMilli(nowMillis));
+        KOMEGovernanceService.reconcile(data, nowMillis);
         KOMECommandTroops.resetDailyMovementAllowances(data, nowMillis);
         KOMECommandTroops.processMovementTick(data, world, nowMillis);
         KOMEMusterService.processDue(data, nowMillis);
@@ -603,6 +604,14 @@ public class KOMEEvents {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onLivingAttack(LivingAttackEvent event) {
         if (event.entityLiving == null || KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving))) {
+            return;
+        }
+        Entity governanceSource = event.source == null ? null : event.source.getEntity();
+        String governanceDenial = KOMEGovernanceCombat.denial(KOMEWorldData.get(KOMEReflection.getWorld(event.entityLiving)), governanceSource, event.entityLiving);
+        if (!governanceDenial.isEmpty()) {
+            event.setCanceled(true);
+            if (governanceSource instanceof EntityPlayer)
+                ((EntityPlayer) governanceSource).addChatMessage(new ChatComponentText(governanceDenial));
             return;
         }
         if (event.entityLiving instanceof LOTREntityNPC && KOMEHaltedUnitProtection.isProtected((LOTREntityNPC) event.entityLiving)) {

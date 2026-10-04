@@ -29,8 +29,8 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 7 adds canonical KOM-17 conflict authority to dev's schema-6 progression/muster root. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 7;
+    /** Schema 9 adds campaign governance. Schema 8 is reserved for the independently reviewed reset journal. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 9;
     public static final int CONFLICT_DATA_SCHEMA_VERSION = KOMEConflictPersistence.DATA_SCHEMA_VERSION;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
@@ -116,6 +116,7 @@ public class KOMEWorldData extends WorldSavedData {
     public final KOMEWarSeasonState warSeason = new KOMEWarSeasonState();
     /** Access through KOMEMusterService; each faction/season call is retained, including pending old seasons. */
     final Map<String, KOMEMusterRecord> civilianMusters = new HashMap<String, KOMEMusterRecord>();
+    final Map<String, KOMEPlayerGovernance> playerGovernance = new HashMap<String, KOMEPlayerGovernance>();
     public int nextBuildSequence = 1;
     public int allianceStageThreeRequiredHalfHours = KOMEAllianceProgressionService.DEFAULT_STAGE_THREE_REQUIRED_HALF_HOURS;
     public String allianceDifficulty = KOMEAllianceRequirements.STANDARD;
@@ -214,13 +215,16 @@ public class KOMEWorldData extends WorldSavedData {
         ensureWritable();
         if (warSeason.isFactionDefeated(faction)) return false;
         List<KOMEAuditEntry> oldAudit = new ArrayList<KOMEAuditEntry>(centralAudit);
+        Map<String, KOMEPlayerGovernance> oldGovernance = new HashMap<String, KOMEPlayerGovernance>(playerGovernance);
         boolean dirty = super.isDirty();
         try {
             warSeason.factionDefeats.put(faction, Long.valueOf(now));
             KOMEAuditService.appendPrepared(this, audit);
+            KOMEGovernanceService.retainKnownDefeatedPlayers(this, faction, now);
             return true;
         } catch (RuntimeException failure) {
             warSeason.factionDefeats.remove(faction);
+            playerGovernance.clear(); playerGovernance.putAll(oldGovernance);
             centralAudit.clear(); centralAudit.addAll(oldAudit);
             super.setDirty(dirty);
             throw failure;
@@ -1967,9 +1971,9 @@ public class KOMEWorldData extends WorldSavedData {
                 + " marker. Development-world migration is intentionally disabled.");
         }
         int savedRootSchema = nbt.getInteger(KOME_DATA_SCHEMA_KEY);
-        if (savedRootSchema != 6 && savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
+        if (savedRootSchema != 6 && savedRootSchema != 7 && savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
             failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema
-                + "; only schema 6 -> " + KOME_DATA_SCHEMA_VERSION
+                + "; only schemas 6/7 -> " + KOME_DATA_SCHEMA_VERSION
                 + " is supported. Reset this development world; no other root migration is supported.");
         }
         for (String retired : new String[] {"Populations", "TilePopulations", "PopulationAllocations", "PopulationDataSchemaVersion"}) {
@@ -1980,7 +1984,7 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
         boolean schemaSixUpgrade = savedRootSchema == 6;
-        boolean loadedStateReconciled = schemaSixUpgrade;
+        boolean loadedStateReconciled = savedRootSchema != KOME_DATA_SCHEMA_VERSION;
         int savedAllianceSchema = nbt.hasKey("AllianceDataSchemaVersion") ? nbt.getInteger("AllianceDataSchemaVersion") : 0;
         loadSection = "FactionPopulations";
         Map<String, KOMEFactionPopulation> loadedPopulations = readCanonicalFactionPopulations(nbt);
@@ -2056,6 +2060,8 @@ public class KOMEWorldData extends WorldSavedData {
         nextWarSequence = nbt.hasKey("NextWarSequence") ? Math.max(1, nbt.getInteger("NextWarSequence")) : 1;
         loadSection = "WarSeason";
         warSeason.readFromNBT(nbt.getCompoundTag("WarSeason"));
+        loadSection = "PlayerGovernance";
+        KOMEGovernanceService.read(this, nbt, savedRootSchema >= 9);
         loadSection = "CivilianMusters";
         civilianMusters.clear();
         if (!nbt.hasKey("MusterDataSchemaVersion", 3) || nbt.getInteger("MusterDataSchemaVersion") != 1
@@ -2738,6 +2744,8 @@ public class KOMEWorldData extends WorldSavedData {
         warSeason.seasonId = candidate.warSeason.seasonId;
         civilianMusters.clear();
         civilianMusters.putAll(candidate.civilianMusters);
+        playerGovernance.clear();
+        playerGovernance.putAll(candidate.playerGovernance);
         warSeason.phase = candidate.warSeason.phase;
         warSeason.minimumWarEndMillis = candidate.warSeason.minimumWarEndMillis;
         warSeason.finaleTriggerActor = candidate.warSeason.finaleTriggerActor;
@@ -2933,6 +2941,7 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.setInteger("MusterDataSchemaVersion", 1);
         nbt.setTag("CivilianMusters", musterList);
         KOMEAuditService.writeToNBT(this, nbt);
+        KOMEGovernanceService.write(this, nbt);
         nbt.setInteger("NextBuildSequence", Math.max(1, nextBuildSequence));
         nbt.setLong("NextCompanySequence", Math.max(1L, nextCompanySequence));
         nbt.setInteger("AllianceStageThreeRequiredHalfHours", Math.max(1, allianceStageThreeRequiredHalfHours));

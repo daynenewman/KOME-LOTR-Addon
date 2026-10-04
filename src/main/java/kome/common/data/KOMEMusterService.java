@@ -54,6 +54,8 @@ public final class KOMEMusterService {
             String callKey = key + "|" + data.warSeason.seasonId;
             if (data.civilianMusters.containsKey(callKey))
                 return denied(Code.ALREADY_USED, "This faction has already called muster in this season.");
+            KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(data, actor, key);
+            if (!governance.allowed) return denied(Code.NOT_AUTHORIZED, governance.reason);
             KOMEFactionCapitalRecord capital = KOMEFactionCapitalService.getCapital(data, key);
             if (capital == null) return denied(Code.NO_CAPITAL, "No authoritative faction capital is available.");
             KOMEConfigRegistry.ValidatedConfig config = KOMEConfigRegistry.currentValidated();
