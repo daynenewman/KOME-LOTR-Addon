@@ -68,7 +68,7 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
         assertEquals("KOMEDataSchemaVersion", KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        assertEquals(9, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(10, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION);
         assertEquals(4, KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEWorldData.POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION);
@@ -139,7 +139,7 @@ public class KOMEWorldDataSchemaTest {
 
         IllegalStateException failure = expectReadFailure(data, unsupported);
         assertTrue(failure.getMessage().contains("schema 1"));
-        assertTrue(failure.getMessage().contains("schemas 6/7 -> 9"));
+        assertTrue(failure.getMessage().contains("schemas 6/7/8/9 -> 10"));
         assertTrue(data.isWriteBlocked());
         assertFalse(data.isDirty());
         assertTrue(data.conquestTiles.isEmpty());

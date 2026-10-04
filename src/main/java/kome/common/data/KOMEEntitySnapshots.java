@@ -12,6 +12,8 @@ public final class KOMEEntitySnapshots {
             return null;
         }
         NBTTagCompound snapshot = new NBTTagCompound();
-        return entity.writeMountToNBT(snapshot) ? snapshot : null;
+        // Forge writes the live customEntityData tag by reference, including mounted entities.
+        // A snapshot must not change when a later reset stamps the live tree's receipts.
+        return entity.writeMountToNBT(snapshot) ? (NBTTagCompound) snapshot.copy() : null;
     }
 }

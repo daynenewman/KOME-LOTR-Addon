@@ -1,5 +1,7 @@
 # Validation evidence
 
+> Combined PR #24/#25 schema-10 validation and corrections: [integration report](../PR24_PR25_INTEGRATION_VALIDATION.md). The evidence below describes the original independent PR head.
+
 Historical test counts are not this branch's evidence.
 
 - Read-only repository, Linear and GitHub discovery performed.

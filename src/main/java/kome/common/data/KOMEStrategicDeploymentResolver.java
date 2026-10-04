@@ -217,7 +217,9 @@ public final class KOMEStrategicDeploymentResolver {
             }
         }
         try {
-            return world.getCollidingBoundingBoxes(null, body).isEmpty();
+            // Terrain clearance has no querying entity. The legacy entity-collision overload
+            // dereferences that entity when a survivor already occupies the capital on retry.
+            return world.func_147461_a(body).isEmpty();
         } catch (Throwable invalidGeometry) {
             return false;
         }

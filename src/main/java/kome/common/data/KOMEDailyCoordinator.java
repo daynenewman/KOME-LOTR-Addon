@@ -26,6 +26,7 @@ public final class KOMEDailyCoordinator {
     public void resetSession() { sessions.clear(); needsCheckpoint.clear(); }
 
     public Outcome process(KOMEWorldData data, World world, Instant now) {
+        if (KOMESeasonResetService.active(data)) return new Outcome(true, null);
         Checkpoint checkpoint;
         try { checkpoint = KOMEWorldCheckpoint.forWorld(data, world); }
         catch (Exception unavailable) {
@@ -38,6 +39,8 @@ public final class KOMEDailyCoordinator {
 
     Outcome process(KOMEWorldData data, Checkpoint checkpoint, Instant now) {
         data.ensureWritable();
+        // RESET owns the world, including interrupted daily cursors. Do not consume or rewrite them.
+        if (KOMESeasonResetService.active(data)) return new Outcome(true, null);
         KOMEDailyJournal j = data.dailyJournal;
         KOMEDailyBoundary schedule = KOMEDailyBoundary.from(KOMEConfigRegistry.dailyBatch());
         long millis = now.toEpochMilli(), latest = schedule.latestBoundaryAtOrBefore(now).toEpochMilli();

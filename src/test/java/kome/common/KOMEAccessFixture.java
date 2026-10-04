@@ -174,6 +174,7 @@ public final class KOMEAccessFixture {
         @Override public net.minecraft.block.Block getBlock(int x,int y,int z){return flatTerrain?(y==64&&!unsafeSurface?TEST_GROUND:TEST_AIR):super.getBlock(x,y,z);}
         @Override public boolean isAirBlock(int x,int y,int z){return flatTerrain?y>64:super.isAirBlock(x,y,z);}
         @Override public java.util.List getCollidingBoundingBoxes(Entity entity,net.minecraft.util.AxisAlignedBB box){return flatTerrain?new ArrayList():super.getCollidingBoundingBoxes(entity,box);}
+        @Override public java.util.List func_147461_a(net.minecraft.util.AxisAlignedBB box){return flatTerrain?new ArrayList():super.func_147461_a(box);}
         @Override public boolean checkNoEntityCollision(net.minecraft.util.AxisAlignedBB box,Entity entity){return flatTerrain||super.checkNoEntityCollision(box,entity);}
         @Override public boolean spawnEntityInWorld(Entity entity){if(!flatTerrain)return super.spawnEntityInWorld(entity);if(spawnSucceeds)loadedEntityList.add(entity);return spawnSucceeds;}
         @Override public void playSoundAtEntity(Entity entity,String sound,float volume,float pitch){if(playedSounds!=null)playedSounds.add(sound);}

@@ -145,6 +145,45 @@ public class KOMEDailyCoordinatorTest {
         assertEquals(due.toEpochMilli(), read(file).dailyJournal.lastComplete());
     }
 
+    @Test public void resetPrecedesDueDailyWorkAndPreservesInterruptedCursor() throws Exception {
+        KOMEWorldData data = world(); Instant boundary = due(data);
+        KOMEDailyCoordinator coordinator = new KOMEDailyCoordinator();
+        KOMEWorldCheckpoint checkpoint = new KOMEWorldCheckpoint(files.getRoot().toPath().resolve("reset.dat"));
+        coordinator.startSession(data, start); coordinator.process(data, checkpoint, start);
+        coordinator.process(data, value -> {
+            if (value.dailyJournal.completedStages() == 2) throw new IOException("interrupted before development");
+            checkpoint.save(value);
+        }, boundary);
+        data.warSeason.phase = KOMEWarSeasonState.Phase.RESET;
+        NBTTagCompound journal = data.dailyJournal.write();
+        int audit = data.centralAudit.size();
+        assertTrue(coordinator.process(data, value -> { fail("RESET must not checkpoint ordinary daily work"); }, boundary).handled);
+        assertTrue(coordinator.process(data, (net.minecraft.world.World)null, boundary).handled);
+        assertEquals(journal, data.dailyJournal.write()); assertEquals(audit, data.centralAudit.size());
+        assertEquals(0, data.builds.get("B-gondor").developedNativeCentiHours);
+        assertEquals(0, KOMEPopulationPayoutProcessorTest.bank(data, "gondor"));
+        assertTrue(notifications.isEmpty());
+    }
+
+    @Test public void actualResetTickSkipsDevelopmentAndDoesNotCatchItUpAfterCompletion() throws Exception {
+        KOMEWorldData data = world(); Instant boundary = due(data);
+        KOMEPopulationPayoutRuntime runtime = new KOMEPopulationPayoutRuntime();
+        KOMEEvents.processCampaignTick(data, null, start.toEpochMilli(), runtime);
+        data.warSeason.phase = KOMEWarSeasonState.Phase.RESET;
+        NBTTagCompound journal = data.dailyJournal.write();
+        KOMEEvents.processCampaignTick(data, null, boundary.toEpochMilli(), runtime);
+        assertEquals(1, data.seasonReset.seasonId);
+        assertFalse(data.seasonReset.complete()); // unavailable real checkpoint fails closed
+        assertEquals(journal, data.dailyJournal.write());
+        assertEquals(0, data.builds.get("B-gondor").developedNativeCentiHours);
+        assertEquals(0, KOMEPopulationPayoutProcessorTest.bank(data, "gondor"));
+        assertTrue(notifications.isEmpty());
+        data.warSeason.phase = KOMEWarSeasonState.Phase.WAR;
+        runtime.onLiveCheck(data, boundary);
+        assertEquals(0, data.builds.get("B-gondor").developedNativeCentiHours);
+        assertEquals(0, KOMEPopulationPayoutProcessorTest.bank(data, "gondor"));
+    }
+
     @Test public void malformedJournalRejectsTheWholeCandidateWithoutPartialPublication() {
         KOMEWorldData original = world(); NBTTagCompound tag = KOMEPopulationPayoutProcessorTest.save(original);
         tag.getCompoundTag("DailyJournal").setInteger("NextStage", 99);

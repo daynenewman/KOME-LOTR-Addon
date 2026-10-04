@@ -29,8 +29,8 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 9 adds campaign governance. Schema 8 is reserved for the independently reviewed reset journal. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 9;
+    /** Schema 10 unifies schema-8 reset receipts and schema-9 governance/daily authority. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 10;
     public static final int CONFLICT_DATA_SCHEMA_VERSION = KOMEConflictPersistence.DATA_SCHEMA_VERSION;
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
@@ -114,6 +114,7 @@ public class KOMEWorldData extends WorldSavedData {
     public int nextWarSequence = 1;
     /** The sole persisted campaign-season authority; population and unit records remain separate. */
     public final KOMEWarSeasonState warSeason = new KOMEWarSeasonState();
+    public KOMESeasonResetState seasonReset = new KOMESeasonResetState();
     /** Access through KOMEMusterService; each faction/season call is retained, including pending old seasons. */
     final Map<String, KOMEMusterRecord> civilianMusters = new HashMap<String, KOMEMusterRecord>();
     final Map<String, KOMEPlayerGovernance> playerGovernance = new HashMap<String, KOMEPlayerGovernance>();
@@ -148,6 +149,43 @@ public class KOMEWorldData extends WorldSavedData {
             storage.setData(DATA_NAME, data);
         }
         return data;
+    }
+
+    /** Durable reset intent boundary. MapStorage's legacy saver logs and swallows I/O failure. */
+    public synchronized void checkpointReset(World world) {
+        ensureWritable();
+        if (world == null || get(world) != this)
+            throw new IllegalStateException("Canonical reset storage world is unavailable");
+        java.io.File file = KOMEReflection.getMapSaveHandler(world).getMapFileFromName(mapName);
+        if (file == null) throw new IllegalStateException("Canonical reset file is unavailable");
+        checkpointResetFile(file.toPath());
+    }
+
+    synchronized void checkpointResetFile(java.nio.file.Path file) {
+        ensureWritable();
+        java.nio.file.Path temporary = null;
+        try {
+            NBTTagCompound root = new NBTTagCompound();
+            NBTTagCompound data = new NBTTagCompound();
+            writeToNBT(data);
+            root.setTag("data", data);
+            java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+            net.minecraft.nbt.CompressedStreamTools.writeCompressed(root, bytes);
+            temporary = java.nio.file.Files.createTempFile(file.toAbsolutePath().getParent(), "KOME-reset-", ".tmp");
+            try (java.io.FileOutputStream stream = new java.io.FileOutputStream(temporary.toFile())) {
+                stream.write(bytes.toByteArray());
+                stream.getFD().sync();
+            }
+            java.nio.file.Files.move(temporary, file, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            super.setDirty(false);
+        } catch (java.io.IOException failure) {
+            super.markDirty();
+            throw new IllegalStateException("Reset checkpoint could not be saved; relocation remains pending", failure);
+        } finally {
+            if (temporary != null) try { java.nio.file.Files.deleteIfExists(temporary); }
+                catch (java.io.IOException ignored) { /* A failed temp cleanup never authorizes relocation. */ }
+        }
     }
 
     /**
@@ -1972,9 +2010,9 @@ public class KOMEWorldData extends WorldSavedData {
                 + " marker. Development-world migration is intentionally disabled.");
         }
         int savedRootSchema = nbt.getInteger(KOME_DATA_SCHEMA_KEY);
-        if (savedRootSchema != 6 && savedRootSchema != 7 && savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
+        if (savedRootSchema < 6 || savedRootSchema > KOME_DATA_SCHEMA_VERSION) {
             failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema
-                + "; only schemas 6/7 -> " + KOME_DATA_SCHEMA_VERSION
+                + "; only schemas 6/7/8/9 -> " + KOME_DATA_SCHEMA_VERSION
                 + " is supported. Reset this development world; no other root migration is supported.");
         }
         for (String retired : new String[] {"Populations", "TilePopulations", "PopulationAllocations", "PopulationDataSchemaVersion"}) {
@@ -1984,7 +2022,10 @@ public class KOMEWorldData extends WorldSavedData {
                     + ". Reset this development world; no population migration is supported.");
             }
         }
-        boolean schemaSixUpgrade = savedRootSchema == 6;
+        boolean schemaSixUpgrade = savedRootSchema == 6
+            && !nbt.hasKey(KOMEConflictPersistence.SCHEMA_KEY)
+            && !nbt.hasKey(KOMEConflictPersistence.SEQUENCE_KEY)
+            && !nbt.hasKey(KOMEConflictPersistence.RECORDS_KEY);
         boolean loadedStateReconciled = savedRootSchema != KOME_DATA_SCHEMA_VERSION;
         int savedAllianceSchema = nbt.hasKey("AllianceDataSchemaVersion") ? nbt.getInteger("AllianceDataSchemaVersion") : 0;
         loadSection = "FactionPopulations";
@@ -2061,10 +2102,17 @@ public class KOMEWorldData extends WorldSavedData {
         nextWarSequence = nbt.hasKey("NextWarSequence") ? Math.max(1, nbt.getInteger("NextWarSequence")) : 1;
         loadSection = "WarSeason";
         warSeason.readFromNBT(nbt.getCompoundTag("WarSeason"));
+        loadSection = "SeasonReset";
+        if ((savedRootSchema == 8 || savedRootSchema >= 10 || nbt.hasKey("SeasonReset"))
+                && !nbt.hasKey("SeasonReset", 10))
+            throw new IllegalArgumentException("Mandatory reset journal is missing or malformed");
+        seasonReset = nbt.hasKey("SeasonReset", 10)
+            ? KOMESeasonResetState.read(nbt.getCompoundTag("SeasonReset"), warSeason.seasonId)
+            : new KOMESeasonResetState();
         loadSection = "PlayerGovernance";
         KOMEGovernanceService.read(this, nbt, savedRootSchema >= 9);
         loadSection = "DailyJournal";
-        if (savedRootSchema >= 9 && !nbt.hasKey("DailyJournal", 10))
+        if ((savedRootSchema >= 9 || nbt.hasKey("DailyJournal")) && !nbt.hasKey("DailyJournal", 10))
             throw new IllegalArgumentException("Missing daily journal");
         dailyJournal = nbt.hasKey("DailyJournal") ? KOMEDailyJournal.read(nbt.getCompoundTag("DailyJournal")) : new KOMEDailyJournal();
         loadSection = "CivilianMusters";
@@ -2746,6 +2794,7 @@ public class KOMEWorldData extends WorldSavedData {
         allianceDifficulty = candidate.allianceDifficulty;
         conquestDefaultsInitialized = candidate.conquestDefaultsInitialized;
         integratedRootInitialized = candidate.integratedRootInitialized;
+        seasonReset = candidate.seasonReset;
         warSeason.seasonId = candidate.warSeason.seasonId;
         civilianMusters.clear();
         civilianMusters.putAll(candidate.civilianMusters);
@@ -2944,6 +2993,7 @@ public class KOMEWorldData extends WorldSavedData {
         NBTTagCompound warSeasonTag = new NBTTagCompound();
         warSeason.writeToNBT(warSeasonTag);
         nbt.setTag("WarSeason", warSeasonTag);
+        nbt.setTag("SeasonReset", seasonReset.write());
         nbt.setInteger("MusterDataSchemaVersion", 1);
         nbt.setTag("CivilianMusters", musterList);
         KOMEAuditService.writeToNBT(this, nbt);

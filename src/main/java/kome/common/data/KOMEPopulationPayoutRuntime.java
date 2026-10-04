@@ -35,7 +35,9 @@ public final class KOMEPopulationPayoutRuntime {
         if (data == null || now == null) return null;
         if (!started.contains(data)) return onStartup(data, now);
         KOMEPopulationDevelopmentService.Result development =
-            KOMEPopulationDevelopmentService.processLiveDueBoundaries(data, now);
+            KOMESeasonResetService.active(data)
+                ? KOMEPopulationDevelopmentService.initializeOrSkipStartup(data, now)
+                : KOMEPopulationDevelopmentService.processLiveDueBoundaries(data, now);
         if (!development.success) return developmentFailure(development, now);
         return report(KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data, now), now);
     }
