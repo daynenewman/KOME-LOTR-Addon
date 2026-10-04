@@ -311,7 +311,7 @@ public class KOMEMusterServiceTest {
 
     private static KOMEWorldData restartCombined(KOMEWorldData data, KOMEMusterRecord muster) {
         NBTTagCompound tag = new NBTTagCompound(); data.writeToNBT(tag);
-        assertEquals(6, tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(8, tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(1, tag.getInteger("MusterDataSchemaVersion"));
         assertEquals(1, tag.getTagList("CivilianMusters", 10).tagCount());
         assertEquals(1, tag.getCompoundTag("WarSeason").getTagList("FactionDefeats", 10).tagCount());
@@ -494,18 +494,17 @@ public class KOMEMusterServiceTest {
     @Test public void oldRootCannotSilentlyLoseMusterUseAndInvalidSaveLeavesDestinationUntouched() {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,5);
-        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("schema 6 -> 7"));}
+        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("schema 7 -> 8"));}
         data.civilianMusters.put("bad-key",record);NBTTagCompound destination=new NBTTagCompound();destination.setString("Sentinel","keep");
         NBTTagCompound before=(NBTTagCompound)destination.copy();
         try{data.writeToNBT(destination);fail("invalid identity saved");}catch(IllegalStateException expected){assertEquals(before,destination);}
     }
-    @Test public void schemaSixConflictUpgradePreservesConsumedMusterAuthority() {
+    @Test public void schemaSevenEmergencyDefenseUpgradePreservesConsumedMusterAuthority() {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);
-        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,6);
-        root.removeTag(KOMEConflictPersistence.SCHEMA_KEY);
-        root.removeTag(KOMEConflictPersistence.SEQUENCE_KEY);
-        root.removeTag(KOMEConflictPersistence.RECORDS_KEY);
+        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,7);
+        root.removeTag(KOMEEmergencyDefensePersistence.SCHEMA_KEY);
+        root.removeTag(KOMEEmergencyDefensePersistence.RECORDS_KEY);
         KOMEWorldData upgraded=new KOMEWorldData("upgraded");upgraded.readFromNBT(root);
         assertTrue(upgraded.isDirty());
         assertEquals(record.rosterSummary(),upgraded.civilianMusters.get(record.key()).rosterSummary());

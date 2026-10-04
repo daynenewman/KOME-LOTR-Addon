@@ -16,6 +16,7 @@ import kome.common.data.KOMEConflictContracts;
 import kome.common.data.KOMEConflictLifecycleService;
 import kome.common.data.KOMEConflictRecord;
 import kome.common.data.KOMEConflictService;
+import kome.common.data.KOMEEmergencyDefenseService;
 import kome.common.data.KOMERulerService;
 import kome.common.data.KOMETileOwnershipDefaults;
 import kome.common.data.KOMEWaypointDefaults;
@@ -56,7 +57,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
     @Override
     public String getCommandUsage(ICommandSender sender) {
         if (!hasStaffPermission(sender)) return "/kome [gui|help|tile <tileId>|waypoint propose <name>]";
-        return "/kome conflict <inspect|end> ... | /kome repair conflict <tile> <preview|apply> | /kome waypoint help | /kome capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
+        return "/kome emergencydefense inspect <faction> | /kome conflict <inspect|end> ... | /kome repair conflict <tile> <preview|apply> | /kome waypoint help | /kome capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
     @Override
@@ -98,6 +99,17 @@ public class KOMECommandKome extends KOMEPublicCommand {
             return;
         }
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
+        if (args.length == 3 && "emergencydefense".equalsIgnoreCase(args[0])
+                && "inspect".equalsIgnoreCase(args[1])) {
+            try {
+                for (String line : KOMEEmergencyDefenseService.INSTANCE.inspectionLines(
+                        data, args[2], System.currentTimeMillis()))
+                    sender.addChatMessage(new ChatComponentText(line));
+            } catch (IllegalArgumentException invalid) {
+                throw new WrongUsageException(invalid.getMessage());
+            }
+            return;
+        }
         if (args.length == 3 && "conflict".equalsIgnoreCase(args[0])
                 && "inspect".equalsIgnoreCase(args[1])) {
             for (String line : KOMEConflictLifecycleService.INSTANCE
@@ -348,6 +360,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 "ruler",
                 "audit",
                 "conflict",
+                "emergencydefense",
                 "repair",
                 "progression");
         }
@@ -362,6 +375,8 @@ public class KOMECommandKome extends KOMEPublicCommand {
             return getListOfStringsMatchingLastWord(args, "here");
         if (args.length == 2 && "audit".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "list", "summary");
         if (args.length == 2 && "conflict".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "inspect", "end");
+        if (args.length == 2 && "emergencydefense".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "inspect");
+        if (args.length == 3 && "emergencydefense".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, factionSuggestions());
         if (args.length == 3 && "conflict".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "T");
         if (args.length == 2 && "repair".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "conflict", "stewardship", "war");
         if (args.length == 4 && "repair".equalsIgnoreCase(args[0]) && "conflict".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, "preview", "apply");

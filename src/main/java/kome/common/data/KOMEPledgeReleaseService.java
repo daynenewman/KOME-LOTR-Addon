@@ -104,9 +104,12 @@ public final class KOMEPledgeReleaseService {
         // operation resolves it.
         Set<String> conflictProtectedCompanies = new HashSet<String>();
         for (KOMEArmyCompany company : data.armyCompanies.values()) {
-            if (company == null || !player.equals(company.owner)
-                    || !former.equals(KOMEAlliance.normalizeFactionKey(
-                        KOMEWartimeStewardshipService.nativeFaction(company)))) continue;
+            if (company == null) continue;
+            boolean ownedFormerFaction = player.equals(company.owner);
+            boolean temporarySteward = player.equals(company.temporaryController)
+                && KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(
+                    company.controllerAuthority);
+            if (!ownedFormerFaction && !temporarySteward) continue;
             KOMEConflictRecord conflict =
                 KOMEConflictMovementService.activeConflictForDetachment(data, company.id);
             if (conflict == null

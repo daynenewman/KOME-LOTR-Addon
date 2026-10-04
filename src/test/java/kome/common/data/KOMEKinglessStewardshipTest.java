@@ -19,12 +19,12 @@ public class KOMEKinglessStewardshipTest {
         setRelation("rohan", "mordor", LOTRFactionRelations.Relation.NEUTRAL);
     }
 
-    @Test public void friendsSameSideWarAllowsRecognizedSupportingRulerWithoutStageFour() {
+    @Test public void fixedWarSideNoLongerAllowsRecognizedSupportingRuler() {
         KOMEWorldData data = worldWithFriends("rohan", "gondor");
         UUID king = crown(data, "gondor");
         KOMEWar war = KOMEWarService.createWar(data, "rohan", "mordor", "", "test", 10L);
         war.addFaction(1, "gondor");
-        assertTrue(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", king).allowed);
+        assertFalse(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", king).allowed);
         assertTrue(new KOMEAllianceAuthority(data).getEffectiveStage("gondor", "rohan") < 4);
     }
 
@@ -35,7 +35,7 @@ public class KOMEKinglessStewardshipTest {
         KOMEWar sameSide = KOMEWarService.createWar(data, "rohan", "mordor", "", "test", 10L);
         sameSide.addFaction(1, "gondor");
         assertFalse(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", member).allowed);
-        assertTrue(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", king).allowed);
+        assertFalse(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", king).allowed);
         KOMEWarService.createWar(data, "rohan", "gondor", "opposition", "test", 11L);
         assertFalse(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", king).allowed);
         assertTrue(KOMERulerService.assignRuler(data, "rohan", UUID.randomUUID(), "Native"));
@@ -59,13 +59,13 @@ public class KOMEKinglessStewardshipTest {
         int grantsAfterAuthorization = countAudits(data, "action=STEWARDSHIP_GRANTED");
         assertEquals("rohan", company.nativeFaction);
         assertEquals("rohan", unit.populationOwningFaction);
-        assertEquals(1, KOMEWartimeStewardshipService.reconcileDefensiveUnits(data, "rohan", 12L).repairedLinks);
+        assertEquals(0, KOMEWartimeStewardshipService.reconcileDefensiveUnits(data, "rohan", 12L).repairedLinks);
         int centralAfterFirstRepair = data.centralAudit.size();
         assertEquals(0, KOMEWartimeStewardshipService.reconcileDefensiveUnits(data, "rohan", 13L).repairedLinks);
         assertEquals(centralAfterFirstRepair, data.centralAudit.size());
         assertEquals(grantsAfterAuthorization, countAudits(data, "action=STEWARDSHIP_GRANTED"));
         war.removeFaction("gondor");
-        assertFalse(KOMEWartimeStewardshipService.revalidateCompany(data, company, 14L, "membership removed"));
+        assertTrue(KOMEWartimeStewardshipService.revalidateCompany(data, company, 14L, "membership removed"));
         assertEquals("rohan", company.nativeFaction);
         assertEquals("rohan", unit.populationOwningFaction);
         assertNull(company.temporaryController);

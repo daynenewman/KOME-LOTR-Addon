@@ -52,6 +52,12 @@ public class KOMECampaignRecruitmentServiceTest {
             assertEquals(25, result.populationCost);
             assertEquals(1, data.centralAudit.size());
             assertEquals("CAMPAIGN_HIRE", data.centralAudit.get(0).action);
+            KOMEEmergencyDefenseActivity activity =
+                data.emergencyDefenseActivities.get("gondor");
+            assertNotNull(activity);
+            assertTrue(activity.hasKnownQualifyingHire());
+            assertEquals(KOMEEmergencyDefenseActivity.PLAYER_COMBAT_HIRE,
+                activity.updateSource);
         }
     }
 
@@ -74,6 +80,7 @@ public class KOMECampaignRecruitmentServiceTest {
             assertEquals(0, effect.coinCharges);
             assertEquals(0, effect.deploymentCalls);
             assertTrue(effect.rollbackCalls > 0);
+            assertFalse(data.emergencyDefenseActivities.containsKey("gondor"));
             assertEquals(before, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
             assertFalse(data.hiredUnits.containsKey(record.entity));
         }
