@@ -15,6 +15,7 @@ public final class KOMECompanyTransferService {
 
     public static Result offer(KOMEWorldData data, KOMEArmyCompany company, UUID owner, UUID recipient,
             String recipientName, long nowMillis) {
+        if (KOMESeasonResetService.active(data)) return Result.failure("Season reset is pending");
         if (data == null || company == null || owner == null || !owner.equals(company.owner)) return Result.failure("Only the actual owner may offer this company.");
         if (company.temporaryController != null && owner.equals(company.temporaryController) && !owner.equals(company.owner)) return Result.failure("A temporary controller cannot transfer ownership.");
         if (company.isMoving()) return Result.failure("A company cannot transfer while moving or crossing a route boundary.");
@@ -37,6 +38,7 @@ public final class KOMECompanyTransferService {
 
     public static Result accept(KOMEWorldData data, KOMEArmyCompany company, UUID recipient,
             String recipientName, long nowMillis) {
+        if (KOMESeasonResetService.active(data)) return Result.failure("Season reset is pending");
         if (data == null || company == null || recipient == null || !recipient.equals(company.transferRecipient)) return Result.failure("No transfer offer is pending for you.");
         if (nowMillis > company.transferExpiresAtMillis) {
             company.clearTransferOffer();

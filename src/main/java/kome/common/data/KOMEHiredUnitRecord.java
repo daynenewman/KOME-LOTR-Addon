@@ -56,6 +56,9 @@ public class KOMEHiredUnitRecord {
     /** Compatibility field: true means cleanup handled funding; canonical population is never refunded. */
     public boolean populationReturned;
     public String releaseState = "";
+    /** Receipt expected on a reset-returned physical entity; stale virtual disk copies are rejected. */
+    public String seasonReturnToken = "";
+    public boolean seasonReturnVirtual;
     public NBTTagCompound movingEntityData;
     public NBTTagCompound stationedEntityData;
 
@@ -112,6 +115,8 @@ public class KOMEHiredUnitRecord {
         stewardshipWarIds = nbt.getString("StewardshipWarIds");
         populationReturned = nbt.getBoolean("PopulationReturned");
         releaseState = nbt.getString("ReleaseState");
+        seasonReturnToken = nbt.getString("SeasonReturnToken");
+        seasonReturnVirtual = nbt.getBoolean("SeasonReturnVirtual");
         movingEntityData = nbt.hasKey("MovingEntityData", 10) ? nbt.getCompoundTag("MovingEntityData") : null;
         stationedEntityData = nbt.hasKey("StationedEntityData", 10) ? nbt.getCompoundTag("StationedEntityData") : null;
         if (farmhand) {
@@ -124,6 +129,8 @@ public class KOMEHiredUnitRecord {
     public NBTTagCompound writeToNBT() {
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Entity", entity.toString());
+        nbt.setString("SeasonReturnToken", seasonReturnToken);
+        nbt.setBoolean("SeasonReturnVirtual", seasonReturnVirtual);
         nbt.setString("Owner", owner.toString());
         nbt.setString("UnitClass", persistedUnitClass().name());
         nbt.setString("Type", type.key);

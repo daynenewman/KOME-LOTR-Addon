@@ -494,7 +494,7 @@ public class KOMEMusterServiceTest {
     @Test public void oldRootCannotSilentlyLoseMusterUseAndInvalidSaveLeavesDestinationUntouched() {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,5);
-        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("schema 6 -> 7"));}
+        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("schemas 6 and 7 -> 8"));}
         data.civilianMusters.put("bad-key",record);NBTTagCompound destination=new NBTTagCompound();destination.setString("Sentinel","keep");
         NBTTagCompound before=(NBTTagCompound)destination.copy();
         try{data.writeToNBT(destination);fail("invalid identity saved");}catch(IllegalStateException expected){assertEquals(before,destination);}

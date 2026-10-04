@@ -290,6 +290,7 @@ public final class KOMECompanyReorganizationService {
 
     private Failure validateMutationCompany(KOMEWorldData data,
             KOMEArmyCompany company, UUID actor, boolean administrator) {
+        if (KOMESeasonResetService.active(data)) return new Failure(Code.MUTATION_HOLD, "Season reset is pending");
         if (company.owner == null || !administrator && !company.owner.equals(actor)) {
             return new Failure(Code.NOT_AUTHORIZED,
                 "Only the detachment owner or an operator may reorganize it.");

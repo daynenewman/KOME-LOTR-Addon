@@ -94,6 +94,21 @@ public final class KOMEWartimeStewardshipService {
         data.markDirty();
     }
 
+    /** Season cleanup is not demobilization: permanent investment and unit records stay intact. */
+    public static void clearSeasonResetTransients(KOMEWorldData data, KOMEArmyCompany company) {
+        company.withdrawalState = KOMEArmyCompany.CLEANUP_NONE;
+        company.authorizedWarIds.clear();
+        company.clearTemporaryController("Season reset");
+        company.clearTransferOffer();
+        for (UUID id : company.units) {
+            KOMEHiredUnitRecord record = data.hiredUnits.get(id);
+            record.stewardshipWarIds = "";
+            record.controller = record.owner;
+            record.controllerAuthority = KOMEArmyCompany.AUTHORITY_NATIVE;
+        }
+        data.markDirty();
+    }
+
     public static boolean revalidateCompany(KOMEWorldData data, KOMEArmyCompany company, long nowMillis, String reason) {
         if (data == null || company == null || !KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) {
             return true;

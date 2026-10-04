@@ -100,6 +100,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         EntityPlayerMP player = getCommandSenderAsPlayer(sender);
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(player));
         UUID owner = KOMEReflection.getEntityUUID(player);
+        if (kome.common.data.KOMESeasonResetService.active(data)
+                && !(args.length <= 2 && java.util.Arrays.asList("list", "tile", "unit", "companies", "company", "history", "moving", "locate", "debugtile").contains(args[0].toLowerCase(java.util.Locale.ROOT))))
+            throw new WrongUsageException("Company changes are paused during season reset; inspect /season status.");
         if ("pledgeRelease".equalsIgnoreCase(args[0])) {
             handlePledgeRelease(sender, data, owner, args);
             return;
@@ -3023,7 +3026,38 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
     }
 
+    /** Reset cancels scheduling through the movement authority, preserving units, snapshots and history. */
+    public static void clearSeasonResetMovement(KOMEWorldData data, KOMEArmyCompany company, long now) {
+        if (kome.common.data.KOMEConflictMovementService.isActivelyCommitted(data, company.id))
+            throw new IllegalStateException("End the canonical conflict before clearing company movement");
+        for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
+            if (!company.id.equals(order.companyId)) continue;
+            if (KOMEArmyMovementOrder.CANCELLED.equals(order.status) || KOMEArmyMovementOrder.ARRIVED.equals(order.status)) continue;
+            order.status = KOMEArmyMovementOrder.CANCELLED;
+            order.stopped = true;
+            order.retreating = false;
+            order.haltAfterArrival = false;
+            order.conflictHoldId = "";
+            order.conflictHeldAtMillis = 0L;
+            order.hostileAttackDestination = "";
+            order.accessChoice = "";
+            order.accessLossReason = "";
+            order.accessLostAtMillis = 0L;
+            order.nextStepAvailableMillis = 0L;
+            order.nextStepDepartureMillis = 0L;
+            order.nextSpawnRetryMillis = 0L;
+            order.spawnRetryPaused = true;
+            order.pendingSpawnReason = "Season reset";
+            data.updateMovementHistory(order, KOMEMovementHistoryRecord.CANCELLED);
+        }
+        company.status = KOMEArmyCompany.STATIONED;
+        company.movementOrderId = "";
+        for (UUID id : company.units) data.hiredUnits.get(id).movementOrderId = "";
+        data.markDirty();
+    }
+
     public static void processMovementTick(KOMEWorldData data, World world, long nowMillis) {
+        if (kome.common.data.KOMESeasonResetService.active(data)) return;
         if (data == null || world == null || data.armyMovements.isEmpty()) {
             return;
         }
