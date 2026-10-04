@@ -158,6 +158,7 @@ public class KOMEAddon {
         event.registerServerCommand(new KOMECommandWar());
         event.registerServerCommand(new KOMECommandSeason());
         event.registerServerCommand(new kome.common.command.KOMECommandMuster());
+        event.registerServerCommand(new kome.common.command.KOMECommandGovernance());
 
         characterCreation.registerServerCommands(event);
         lotrMoreMobs.serverStarting(event);

@@ -202,6 +202,8 @@ public final class KOMEWarService {
         String supportingKey = KOMEAlliance.normalizeFactionKey(supportingFaction);
         if (data == null || nativeKey.length() == 0 || supportingKey.length() == 0 || actor == null)
             return AuthorizationDecision.deny("Missing stewardship identity.");
+        KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(data, actor, nativeKey);
+        if (!governance.allowed) return AuthorizationDecision.deny(governance.reason);
         if (data.hasFactionKing(nativeKey))
             return AuthorizationDecision.deny("Wartime Stewardship is dormant because the native faction has a king.");
         if (!KOMERulerAuthorization.canActAsRuler(data, supportingKey, actor))

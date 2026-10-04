@@ -11,6 +11,7 @@ public final class KOMEPopulationPayoutRuntime {
     private final FailureReporter failureReporter;
     private String lastFailure = "";
     private long lastFailureLogMillis;
+    private final KOMEDailyCoordinator dailyCoordinator = new KOMEDailyCoordinator();
 
     public KOMEPopulationPayoutRuntime() { this(new FailureReporter() { public void report(String message) { System.err.println("[KOME] population transition rejected; uncommitted work remains retryable: " + message); } }); }
     KOMEPopulationPayoutRuntime(FailureReporter reporter) { failureReporter = reporter == null ? new FailureReporter() { public void report(String message) { } } : reporter; }
@@ -25,6 +26,7 @@ public final class KOMEPopulationPayoutRuntime {
             // Population catch-up does not replenish missed movement days.
             kome.common.command.KOMECommandTroops.anchorMovementSchedule(data, now.toEpochMilli());
             started.add(data);
+            dailyCoordinator.startSession(data, now);
         }
         return result;
     }
@@ -38,7 +40,11 @@ public final class KOMEPopulationPayoutRuntime {
         return report(KOMEPopulationPayoutProcessor.processLiveDueBoundaries(data, now), now);
     }
 
-    public void resetSession() { started.clear(); lastFailure = ""; lastFailureLogMillis = 0L; }
+    public KOMEDailyCoordinator.Outcome coordinate(KOMEWorldData data, net.minecraft.world.World world, Instant now) {
+        return dailyCoordinator.process(data, world, now);
+    }
+
+    public void resetSession() { started.clear(); dailyCoordinator.resetSession(); lastFailure = ""; lastFailureLogMillis = 0L; }
     public boolean hasStarted(KOMEWorldData data) { return started.contains(data); }
 
     private KOMEPopulationPayoutProcessor.Result developmentFailure(

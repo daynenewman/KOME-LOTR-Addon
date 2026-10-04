@@ -36,6 +36,8 @@ public final class KOMECommandSeason extends KOMEPublicCommand {
             EntityPlayer player = (EntityPlayer) sender;
             UUID actor = KOMEReflection.getEntityUUID(player);
             String faction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor));
+            kome.common.data.KOMEGovernanceService.Decision governance = kome.common.data.KOMEGovernanceService.militaryAction(data, actor, faction);
+            if (!governance.allowed) throw new WrongUsageException(governance.reason);
             boolean eligible = faction.length() > 0 && KOMERulerAuthorization.canActAsRuler(data, faction, actor) && hasActiveWar(data, faction);
             result = data.warSeason.triggerFinale(actor, sender.getCommandSenderName(), eligible, now);
         } else {

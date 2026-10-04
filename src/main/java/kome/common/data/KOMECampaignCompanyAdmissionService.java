@@ -73,6 +73,8 @@ public final class KOMECampaignCompanyAdmissionService {
                     ? Code.ALREADY_ASSIGNED : Code.INVALID_RECORD, 0, invalid);
             }
             String faction = data.resolveCampaignCompanyFaction(record);
+            KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(data, record.owner, faction);
+            if (!governance.allowed) return Result.failure(Code.INVALID_RECORD, 0, governance.reason);
             if (faction.length() == 0) {
                 return Result.failure(Code.INVALID_RECORD, 0,
                     "The campaign unit has no authoritative strategic faction.");
