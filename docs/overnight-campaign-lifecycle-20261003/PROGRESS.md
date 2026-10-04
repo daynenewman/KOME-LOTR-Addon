@@ -10,7 +10,7 @@ Rules: Draft 0.4 PDF, SHA-256 `da1c50af347992829e9f410f4e34e1a5e8770129bc56dda12
 
 1. Discovery in progress. Branch `dayne/campaign-lifecycle-20261003`, current origin/dev base `f3743f27b9a9d3979a8f99f40685bc2e46b48ed3`. GitHub query confirms only PR #24 open (KOM-28); its branch is untouched. No dependence on that unmerged code.
 2. KOM-30: initial state/command/permission integration verified by 320 passing focused tests. First code checkpoint ready; further cross-system review/runtime evidence will follow.
-3. KOM-78: pending implementation and faction-force compatibility assessment.
+3. KOM-78: real conflict projection and non-loading delivery preflight implemented; 54 focused tests passed. Physical delivery is concretely blocked by faction-owned troop/control/persistence support (see below).
 4. KOM-48: available durable coordination; incomplete movement/starvation contracts must stay visible.
 5. KOM-82: coverage matrix and available audit/inspection integrations.
 6. KOM-42: authoritative cross-system regressions, full gate, disposable Forge, self-review and publication.
@@ -50,3 +50,9 @@ Integrated server checks: conquest claim, campaign recruitment/admission, delega
 Schema 9 holds governance; schema 8 remains reserved for unmerged KOM-28. Loader accepts existing 6/7, strictly requires governance on 9, and preserves existing authorities. Before merge with future reset code, incorporate schema 8 and its journal rather than overwriting it.
 
 Physical muster blocker verified in production: `KOMEHiredUnitRecord.writeToNBT` dereferences owner/controller UUID; admission requires a player owner; movement validates owner equality and reconstructs native hired state. A null owner or ruler UUID is not a safe faction-force contract. Available work is canonical safety/preflight/pending integration; real faction-owned delivery, durable entity receipts and save reconciliation remain blocked by this contract, not by missing KOM-17.
+
+## Next checkpoint plan (KOM-48)
+
+Keep existing runtime for campaigns requiring unavailable movement/starvation/deployment authorities. Add a persisted, bounded stage journal and deterministic-clock coordinator for available services; only empty movement/conflict/starvation work is a provable no-op. Production preflight must visibly block the owning stage when those authorities are needed. Run the complete available pipeline only when all required stages are ready/inapplicable; legacy functioning runtime remains active otherwise. Development precedes payout; startup payout catch-up remains the exception and startup anchors skip offline non-payout days. Persist each actual stage with canonical WorldData; summary audit and an at-most-once notification claim commit before external chat. Never present blocked fallback execution as canonical daily completion. Add operator inspection and real-service/file checkpoint tests. PR #24 owns reset checkpoint code independently; do not cherry-pick or duplicate its reset service.
+
+Current commit: governance `14d90b1767bbfac0865de6b9eb8bdb64938419bc` (320 passing focused tests). Muster checkpoint: 54 focused tests passed. Remaining required work: muster checkpoint; daily available coordinator; KOM-40 original requirement matrix and admin lifecycle inspection; integration tests; full clean gate; disposable Forge commands/save/restart; self-review; final dev refresh/integration; preservation verification; push/draft PR/Linear updates/final handoff.

@@ -19,14 +19,10 @@ public final class KOMEMusterService {
     /** Implemented by the conflict/deployment owner. Delivery must be durable and idempotent by record.key(). */
     public interface ArrivalAuthority {
         CapitalState capitalState(KOMEWorldData data, KOMEFactionCapitalRecord capital);
+        /** Read-only preflight. A reason preserves pending state without starting an uncertain spawn attempt. */
+        default String deliveryBlockReason(KOMEWorldData data, KOMEMusterRecord record) { return ""; }
         String deliver(KOMEWorldData data, KOMEMusterRecord record) throws Exception;
     }
-    private static final ArrivalAuthority UNAVAILABLE = new ArrivalAuthority() {
-        public CapitalState capitalState(KOMEWorldData data, KOMEFactionCapitalRecord capital) { return CapitalState.UNKNOWN; }
-        public String deliver(KOMEWorldData data, KOMEMusterRecord record) {
-            throw new IllegalStateException("Conflict/deployment authority is not implemented.");
-        }
-    };
     public enum Code { SUCCESS, NOT_AUTHORIZED, WRONG_PHASE, ALREADY_USED, NO_CAPITAL, NO_THREAT,
         NO_AFFORDABLE_ROSTER, INVALID_REQUEST, ROSTER_UNAVAILABLE }
     public static final class Result {
@@ -133,7 +129,7 @@ public final class KOMEMusterService {
         }
         return seen;
     }
-    public static int processDue(KOMEWorldData data, long now) { return processDue(data, now, UNAVAILABLE); }
+    public static int processDue(KOMEWorldData data, long now) { return processDue(data, now, KOMEMusterArrivalAuthority.INSTANCE); }
     public static int processDue(KOMEWorldData data, long now, ArrivalAuthority authority) {
         if (data == null || authority == null || now < 0) throw new IllegalArgumentException("Arrival context required.");
         synchronized (data) {
@@ -151,7 +147,16 @@ public final class KOMEMusterService {
                     try {
                         CapitalState state = authority.capitalState(data, record.capital);
                         if (state == CapitalState.CLEAR) {
-                            // Persist intent before invoking an external factory; reentrant ticks cannot redeliver.
+                            String blocked = authority.deliveryBlockReason(data, record);
+                            if (blocked == null) blocked = "DEPLOYMENT_READINESS_UNKNOWN";
+                            if (!blocked.isEmpty()) {
+                                if (record.pending(blocked)) KOMEAuditService.record(data, now, "MUSTER", "PENDING", "SERVER", id,
+                                    "Scheduled muster retained without deployment", blocked);
+                                continue;
+                            }
+                            // Latch in canonical memory before invoking the adapter; reentrant ticks cannot redeliver.
+                            // The delivery adapter must checkpoint this intent before any physical effects and
+                            // reconcile entity/world saves before returning a receipt. markDirty alone is not a disk commit.
                             record.pending("DEPLOYMENT_CONFIRMATION_REQUIRED");
                             KOMEAuditService.record(data, now, "MUSTER", "DELIVERY_ATTEMPT", "SERVER", id,
                                 "Muster delivery requires a durable receipt", "capital=" + record.capital.getCapitalTileId());

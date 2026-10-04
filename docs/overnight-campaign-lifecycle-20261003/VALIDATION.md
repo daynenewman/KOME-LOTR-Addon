@@ -21,3 +21,8 @@ All commands use `tools/campaign-lifecycle/validate.ps1`, Gradle 8.5 offline, Ja
 - `governance-checkpoint`: **320 tests passed, zero failures/errors/skips**, including 12 new governance tests, production compilation, movement/conflict, gate/ram, pledge, recruitment and schema regressions. The first full run will follow integration. A diagnostic `diff --check` with an incorrect `core.autocrlf=false` override reported CRLF line endings as whitespace; normal repository settings are authoritative and used below.
 
 The new root version is 9; no existing world has been loaded or written by this branch. Local dependency jars were copied read-only from the primary checkout into ignored `libs/`; the primary files were not modified.
+
+## Muster gate
+
+- `muster-checkpoint`: **54 tests passed**, zero failures/errors/skips. Canonical conflict projection, non-loading dimension/chunk preflight, capital snapshots, pending-state persistence, uncertainty latch, governance and admin diagnostics covered. First attempt exposed one expectation for the former placeholder authority; corrected to the concrete dimension-unavailable result.
+- These are service/NBT tests. No physical delivery or entity/world-save receipt is claimed; the faction-owned control contract is unavailable.
