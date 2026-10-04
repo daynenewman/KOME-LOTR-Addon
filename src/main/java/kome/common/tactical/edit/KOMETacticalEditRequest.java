@@ -4,7 +4,7 @@ import java.util.UUID;
 
 /** Bounded immutable packet intent. NBT parsing and all world work wait for the server tick. */
 public final class KOMETacticalEditRequest {
-    public enum Action { OPEN, UPDATE, PREFLIGHT, SAVE, CANCEL, REFRESH, CREATE, DELETE, BROWSE, BROWSE_COMPLEXES, BROWSE_PREFERRED_AREAS, BROWSE_BUILDS }
+    public enum Action { OPEN, UPDATE, PREFLIGHT, SAVE, CANCEL, REFRESH, CREATE, DELETE, BROWSE, BROWSE_COMPLEXES, BROWSE_PREFERRED_AREAS, BROWSE_BUILDS, BROWSE_GATES, BROWSE_CONNECTIONS }
     private final Action action;
     private final KOMETacticalEditScope scope;
     private final UUID token;
@@ -16,7 +16,8 @@ public final class KOMETacticalEditRequest {
         if (action == null || scope == null || payload == null || expectedSequence < 0
                 || payload.length > KOMETacticalEditWire.MAX_DRAFT_BYTES) throw new IllegalArgumentException("Invalid editor request.");
         boolean browse = action == Action.BROWSE || action == Action.BROWSE_COMPLEXES
-            || action == Action.BROWSE_PREFERRED_AREAS || action == Action.BROWSE_BUILDS;
+            || action == Action.BROWSE_PREFERRED_AREAS || action == Action.BROWSE_BUILDS
+            || action == Action.BROWSE_GATES || action == Action.BROWSE_CONNECTIONS;
         boolean starts = action == Action.OPEN || action == Action.CREATE || browse;
         if (starts ? token != null || (!browse && expectedSequence != 0) : token == null
                 || (token.getMostSignificantBits() == 0L && token.getLeastSignificantBits() == 0L)) {
@@ -55,7 +56,9 @@ public final class KOMETacticalEditRequest {
     }
     public static KOMETacticalEditRequest complexPage(KOMETacticalComplexCatalog.Kind kind, String tile, int dimension, String complex, int page) {
         Action action = kind == KOMETacticalComplexCatalog.Kind.COMPLEXES ? Action.BROWSE_COMPLEXES
-            : kind == KOMETacticalComplexCatalog.Kind.PREFERRED_AREAS ? Action.BROWSE_PREFERRED_AREAS : Action.BROWSE_BUILDS;
+            : kind == KOMETacticalComplexCatalog.Kind.PREFERRED_AREAS ? Action.BROWSE_PREFERRED_AREAS
+            : kind == KOMETacticalComplexCatalog.Kind.GATES ? Action.BROWSE_GATES
+            : kind == KOMETacticalComplexCatalog.Kind.CONNECTIONS ? Action.BROWSE_CONNECTIONS : Action.BROWSE_BUILDS;
         String id = kind == KOMETacticalComplexCatalog.Kind.COMPLEXES ? "BROWSE" : complex;
         return new KOMETacticalEditRequest(action, new KOMETacticalEditScope(KOMETacticalEditScope.Type.SIEGE_COMPLEX,
             tile, id, id, dimension), null, page, new byte[0]);

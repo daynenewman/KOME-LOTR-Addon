@@ -5,7 +5,7 @@ import kome.common.siege.*;
 import kome.common.siege.geometry.*;
 import kome.common.tactical.edit.*;
 
-/** Detached local zone operations. Connections are retained verbatim, never authored or repaired here. */
+/** Detached local zone operations. Connection editing uses the shared complex draft separately. */
 public final class KOMETacticalComplexDraft {
     public enum ZoneType { NORMAL, WALL, TRANSITION }
     private KOMETacticalComplexDraft() { }

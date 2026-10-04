@@ -6,7 +6,7 @@ import java.util.List;
 
 /** Bounded advisory pages for the shared shell. No Build accounting or mutable world records. */
 public final class KOMETacticalComplexCatalog {
-    public enum Kind { COMPLEXES, PREFERRED_AREAS, BUILDS }
+    public enum Kind { COMPLEXES, PREFERRED_AREAS, BUILDS, GATES, CONNECTIONS }
     public static final int PAGE_SIZE = 5;
     public final Kind kind;
     public final String tileId, complexId;
@@ -22,6 +22,8 @@ public final class KOMETacticalComplexCatalog {
         this.complexId = complex == null ? null : KOMETacticalEditScope.canonicalId(complex);
         if (kind == Kind.COMPLEXES ? complex != null : complex == null) throw new IllegalArgumentException("Invalid page scope.");
         this.dimension = dimension; this.revision = revision; this.page = page; this.total = total;
+        if (kind == Kind.GATES) for (Row row : rows) if (row.relatedId == null)
+            throw new IllegalArgumentException("Gate choices require a Build-scoped record identity.");
         this.rows = Collections.unmodifiableList(new ArrayList<Row>(rows));
     }
     public static final class Row {

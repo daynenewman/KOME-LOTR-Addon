@@ -32,6 +32,7 @@ public final class KOMESiegeComplexValidator {
         validateStrongholdOverlaps(complex,issues);
         validateTransitionOverlaps(complex,issues);
         validateConnections(complex,issues,normals,transitions,allZoneTypes);
+        issues.addAll(KOMESiegeGateUsage.validate(complex).getIssues());
         return new KOMEValidationResult(issues);
     }
 

@@ -86,6 +86,20 @@ public class KOMETacticalEditRuntimeTest {
             assertFalse(fixture.data.isDirty());
         } finally { MumakilConfig.enableSiegeGates = old; }
     }
+    @Test public void gateAndConnectionPagesRunOnlyOnServerTickAndRecheckPermissionWithoutGateFlag() {
+        boolean old=MumakilConfig.enableSiegeGates;
+        try {
+            MumakilConfig.enableSiegeGates=false;
+            for (KOMETacticalComplexCatalog.Kind kind : new KOMETacticalComplexCatalog.Kind[] {KOMETacticalComplexCatalog.Kind.GATES,KOMETacticalComplexCatalog.Kind.CONNECTIONS}) {
+                int count=fixture.network.messages.size();
+                new KOMEPacketTacticalEditRequest.Handler().onMessage(new KOMEPacketTacticalEditRequest(KOMETacticalEditRequest.complexPage(kind,"T100",dimension(),"A",0)),fixture.context);
+                assertEquals(count,fixture.network.messages.size()); tick();
+                assertEquals(kind,((KOMEPacketTacticalComplexCatalog)fixture.network.messages.get(count)).getCatalog().kind);
+            }
+            new KOMEPacketTacticalEditRequest.Handler().onMessage(new KOMEPacketTacticalEditRequest(KOMETacticalEditRequest.complexPage(KOMETacticalComplexCatalog.Kind.GATES,"T100",dimension(),"A",0)),fixture.context);
+            fixture.player.capabilities.isCreativeMode=false; tick(); assertEquals(DENIED,last().getStatus()); assertFalse(fixture.data.isDirty());
+        } finally { MumakilConfig.enableSiegeGates=old; }
+    }
     @Test public void operatorCommandOpensBrowserAndOrdinaryCommandCannotBypassChecks() throws Exception {
         fixture.player.capabilities.isCreativeMode = false; operator(2);
         new kome.common.command.KOMECommandKome().processCommand(fixture.player, new String[] {"tactical", "T100"});

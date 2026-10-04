@@ -118,6 +118,21 @@ public class KOMETacticalEditClientTest {
         new kome.common.network.KOMEPacketTacticalAreaCatalog.Handler().onMessage(new kome.common.network.KOMEPacketTacticalAreaCatalog(
             new KOMETacticalAreaCatalog("T100", -1, 10, 0, 0, java.util.Collections.emptyList())), null);
     }
+    @Test public void connectionWorldPreviewSurvivesClientTickEscReturnsAndUnloadClearsIt() {
+        catalogue(); queue.drain(); kome.client.tactical.KOMETacticalAreaEditor editor = proxy.getTacticalAreaEditor();
+        kome.common.siege.KOMESiegeComplex c=KOMESiegeReadinessFixtures.minimal("FORT","T100",-1,null);
+        editor.accept(new KOMETacticalEditSnapshot(playerId,token,new KOMETacticalEditScope(KOMETacticalEditScope.Type.SIEGE_COMPLEX,"T100","FORT","FORT",-1),
+            1,1,10,c.getRevision(),0,10,false,new KOMETacticalEditDraft(c),null),KOMETacticalEditSessionManager.Status.OPENED);
+        editor.selectConnection("ENTRY"); editor.select(kome.client.tactical.KOMETacticalAreaEditor.Selection.TOPOLOGY);
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input = new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy);
+        input.tick(new cpw.mods.fml.common.gameevent.TickEvent.ClientTickEvent(cpw.mods.fml.common.gameevent.TickEvent.Phase.END));
+        assertTrue(editor.isEditing()); assertEquals(1,editor.connectionOverlays(playerId,-1).size()); assertFalse(editor.consumesClicks(playerId,-1));
+        assertFalse(input.handleKey(org.lwjgl.input.Keyboard.KEY_TAB,true,false));
+        net.minecraftforge.client.event.GuiOpenEvent escape = new net.minecraftforge.client.event.GuiOpenEvent(new net.minecraft.client.gui.GuiIngameMenu());
+        input.gui(escape); assertTrue(escape.gui instanceof kome.client.gui.KOMEGuiTacticalAreaEditor);
+        assertEquals(kome.client.tactical.KOMETacticalAreaEditor.Selection.NONE,editor.getSelection()); assertEquals("ENTRY",editor.getConnectionId());
+        proxy.onClientWorldUnload(new WorldEvent.Unload(world)); assertTrue(editor.connectionOverlays(playerId,-1).isEmpty()); assertFalse(editor.isEditing());
+    }
     @Test public void browserUsesSameLifecycleBarrierAndWorldUnloadClearsTileDraftOverlay() {
         catalogue(); proxy.onClientWorldUnload(new WorldEvent.Unload(world)); queue.drain();
         assertNull(proxy.getTacticalAreaEditor());

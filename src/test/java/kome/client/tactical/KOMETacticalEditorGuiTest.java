@@ -141,6 +141,66 @@ public class KOMETacticalEditorGuiTest {
         Method key = KOMEGuiTacticalAreaEditor.class.getDeclaredMethod("keyTyped", char.class, int.class); key.setAccessible(true); key.invoke(screen, 'n', 49);
         assertNotNull(button(212)); assertTrue(editor.isComplexEditing());
     }
+    private void openExistingConnection() throws Exception {
+        click(7); editor.acceptComplexCatalog(new KOMETacticalComplexCatalog(KOMETacticalComplexCatalog.Kind.COMPLEXES, "T100", null, -1, 10, 0, 0, Collections.emptyList())); screen.updateScreen();
+        KOMESiegeComplex c = KOMESiegeReadinessFixtures.minimal("FORT", "T100", -1, null); editor.openComplex("FORT", false);
+        editor.accept(new KOMETacticalEditSnapshot(UUID.randomUUID(), UUID.randomUUID(), new KOMETacticalEditScope(KOMETacticalEditScope.Type.SIEGE_COMPLEX,"T100","FORT","FORT",-1),
+            1,1,10,c.getRevision(),0,10,false,new KOMETacticalEditDraft(c),null),KOMETacticalEditSessionManager.Status.OPENED); screen.updateScreen(); requests.clear();
+        click(206); replyConnections();
+    }
+    private void replyConnections() throws Exception {
+        editor.acceptComplexCatalog(new KOMETacticalComplexCatalog(KOMETacticalComplexCatalog.Kind.CONNECTIONS,"T100","FORT",-1,10,0,1,
+            Collections.singletonList(new KOMETacticalComplexCatalog.Row("ENTRY","NONE","Geometry valid / Gateless",null,17,0)))); screen.updateScreen();
+    }
+    @Test public void actualConnectionControlsRequireInferenceAcceptanceAndKeepManualEndpointsAvailable() throws Exception {
+        openExistingConnection(); click(620); replyConnections();
+        click(601); click(651); // select NORMAL(A) manually; both endpoints now A, visibly invalid
+        assertEquals(KOMESiegeAreaRef.normal("A"),editor.getConnection().getEndpointA());
+        click(606); assertTrue(button(607).enabled); assertTrue(editor.getMessage().contains("Suggestion:"));
+        assertFalse(editor.getConnection().getEndpointA().isExterior()); click(607); assertTrue(editor.getConnection().getEndpointA().isExterior());
+        click(602); assertTrue(button(650).displayString.contains("EXTERIOR")); assertTrue(button(651).displayString.contains("NORMAL")); click(657);
+        for (GuiButton b : buttons()) { assertTrue(b.xPosition>=0); assertTrue(b.xPosition+b.width<=screen.width); assertTrue(b.yPosition+b.height<=screen.height); }
+        requests.clear(); click(21); assertEquals(KOMETacticalEditRequest.Action.UPDATE,requests.get(0).getAction());
+        assertTrue(requests.stream().noneMatch(r->r.getAction()==KOMETacticalEditRequest.Action.DELETE));
+    }
+    @Test public void connectionCreationRemovalIsExplicitAndPreservesTransition() throws Exception {
+        openExistingConnection(); text("id","lower"); click(615); assertEquals("lower",editor.getConnectionId());
+        assertFalse(editor.getConnection().isGated()); click(610); assertNotNull(editor.getConnection()); assertTrue(editor.getMessage().contains("Remove Connection lower"));
+        click(610); assertNull(editor.getConnection()); assertEquals(1,editor.getComplexDraft().getConnections().size()); assertEquals(1,editor.getComplexDraft().getTransitionZones().size());
+        assertTrue(requests.stream().noneMatch(r->r.getAction()==KOMETacticalEditRequest.Action.DELETE)); click(609); assertNotNull(button(212));
+    }
+    @Test public void gateSelectorOffersExplicitGatelessAndReturnsToSameConnectionForm() throws Exception {
+        openExistingConnection(); click(620); replyConnections(); click(604);
+        assertEquals(KOMETacticalEditRequest.Action.BROWSE_GATES,requests.get(requests.size()-1).getAction());
+        editor.acceptComplexCatalog(new KOMETacticalComplexCatalog(KOMETacticalComplexCatalog.Kind.GATES,"T100","FORT",-1,10,0,0,Collections.emptyList())); screen.updateScreen();
+        assertEquals("Gateless (NONE)",button(226).displayString); click(226); assertEquals("ENTRY",editor.getConnectionId()); assertFalse(editor.getConnection().isGated());
+        assertNotNull(button(601)); assertNotNull(button(606)); assertTrue(requests.stream().noneMatch(r->r.getAction()==KOMETacticalEditRequest.Action.DELETE));
+    }
+    @Test public void gateSelectorKeepsBrokenAuthoredGateVisibleWithoutOfferingItAsNewChoice() throws Exception {
+        openExistingConnection(); click(620); replyConnections();
+        KOMESiegeComplex c=editor.getComplexDraft();
+        Field draft=KOMETacticalAreaEditor.class.getDeclaredField("localComplex"); draft.setAccessible(true);
+        draft.set(editor,KOMETacticalConnectionDraft.edit(c,new KOMESiegeConnection("ENTRY",KOMESiegeAreaRef.exterior(),KOMESiegeAreaRef.normal("A"),"T_ENTRY",new KOMEDefensiveGateRef("MISSING","GONE"))));
+        click(604); editor.acceptComplexCatalog(new KOMETacticalComplexCatalog(KOMETacticalComplexCatalog.Kind.GATES,"T100","FORT",-1,10,0,0,Collections.emptyList())); screen.updateScreen();
+        assertEquals("Keep current",button(227).displayString); click(227);
+        assertEquals(new KOMEDefensiveGateRef("MISSING","GONE"),editor.getConnection().getGateRef().get());
+        assertTrue(editor.getMessage().contains("Retained authored gate")); assertNotNull(button(604));
+    }
+    @Test public void anotherConnectionsUsedGateIsVisibleButDisabledAndOwnGateIsEnabled() throws Exception {
+        openExistingConnection(); click(620); replyConnections();
+        KOMESiegeComplex c=editor.getComplexDraft();
+        KOMESiegeConnection other=new KOMESiegeConnection("OTHER",KOMESiegeAreaRef.exterior(),KOMESiegeAreaRef.normal("A"),"OTHER_T",new KOMEDefensiveGateRef("B7","G1"));
+        Field draft=KOMETacticalAreaEditor.class.getDeclaredField("localComplex"); draft.setAccessible(true);
+        draft.set(editor,new KOMESiegeComplex(c.getComplexId(),c.getTileId(),c.getDimensionId(),c.getRevision(),c.getNormalSegments(),c.getWallZones(),c.getTransitionZones(),null,
+            Arrays.asList(c.getConnections().get(0),other)));
+        click(604);
+        KOMETacticalComplexCatalog.Row row=new KOMETacticalComplexCatalog.Row("G1","Build","UNKNOWN","B7",0,0);
+        editor.acceptComplexCatalog(new KOMETacticalComplexCatalog(KOMETacticalComplexCatalog.Kind.GATES,"T100","FORT",-1,10,0,1,Collections.singletonList(row))); screen.updateScreen();
+        assertFalse(button(400).enabled); assertTrue(button(400).displayString.contains("Used by OTHER")); assertTrue(button(226).enabled);
+        click(223); editor.selectConnection("OTHER"); screen.updateScreen(); click(604);
+        editor.acceptComplexCatalog(new KOMETacticalComplexCatalog(KOMETacticalComplexCatalog.Kind.GATES,"T100","FORT",-1,10,0,1,Collections.singletonList(row))); screen.updateScreen();
+        assertTrue(button(400).enabled); assertTrue(button(227).enabled); click(400); assertEquals(other.getGateRef(),editor.getConnection().getGateRef());
+    }
     public static class InertFont extends FontRenderer {
         public InertFont() { super(null, null, null, false); }
         @Override public String trimStringToWidth(String value, int width) { return value.substring(0, Math.min(value.length(), Math.max(0, width / 6))); }

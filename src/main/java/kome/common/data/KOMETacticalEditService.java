@@ -2,6 +2,10 @@ package kome.common.data;
 
 import java.util.ArrayList;
 import java.util.List;
+import kome.common.siege.KOMEDefensiveGateRef;
+import kome.common.siege.KOMESiegeComplex;
+import kome.common.siege.KOMESiegeConnection;
+import kome.common.siege.KOMESiegeGateUsage;
 import kome.common.siege.KOMESiegeReadinessEvaluator;
 import kome.common.siege.validation.KOMEValidationIssue;
 import kome.common.siege.validation.KOMEValidationResult;
@@ -25,6 +29,7 @@ public final class KOMETacticalEditService {
                 KOMETacticalConfiguration candidate = data.getTacticalConfigurationSnapshot();
                 if (candidate.getRevision() != baseRevision) { admission = false; issues.add("Configuration changed; cancel and reopen."); }
                 if (draft.getComplex() != null) {
+                    requireNewGateSelections(data, candidate, null, draft.getComplex());
                     candidate.addComplex(draft.getComplex());
                     KOMESiegeReadinessEvaluator.Report report = KOMESiegeReadinessResolver.evaluate(data, candidate, draft.getComplex(), null);
                     structural = report.getGeometryValidation().isValid();
@@ -117,6 +122,7 @@ public final class KOMETacticalEditService {
                     if (!preview.isSuccessful()) { admission = false; issues.add(preview.getStatus().name()); }
                     else applyPreview(candidate, draft);
                 } else if (!draft.sameDefinition(original)) {
+                    if (draft.getComplex() != null) requireNewGateSelections(data, candidate, original.getComplex(), draft.getComplex());
                     if (draft.getComplex() != null) candidate.replaceComplex(draft.getComplex());
                     else candidate.replaceForceDeploymentArea(draft.getArea());
                 }
@@ -184,6 +190,25 @@ public final class KOMETacticalEditService {
         if (d.getGateRecordId() != null) identities.add("gate record " + d.getGateRecordId());
         return d.getCode() + ": " + d.getMessage() + (identities.isEmpty() ? "" : " (" + String.join(", ", identities) + ")")
             + (d.getSubjectIds().isEmpty() ? "" : " " + d.getSubjectIds());
+    }
+    /** Existing unresolved authored pairs survive. Newly selected pairs must belong to this complex now. */
+    private static void requireNewGateSelections(KOMEWorldData data, KOMETacticalConfiguration config,
+            KOMESiegeComplex original, KOMESiegeComplex draft) {
+        KOMESiegeGateUsage.requireNoNewConflicts(original, draft);
+        for (KOMESiegeConnection connection : draft.getConnections()) {
+            if (!connection.isGated()) continue;
+            KOMEDefensiveGateRef ref = connection.getGateRef().get();
+            boolean retained = false;
+            if (original != null) for (KOMESiegeConnection old : original.getConnections())
+                if (old.getId().equals(connection.getId()) && old.getGateRef().isPresent()
+                        && old.getGateRef().get().equals(ref)) retained = true;
+            if (retained) continue;
+            KOMEPlayerBuild build = data.getBuild(ref.getBuildId());
+            if (!KOMETacticalGateReferenceResolver.buildProblems(build, draft).isEmpty()
+                    || !config.findAssignedComplexId(ref.getBuildId()).orElse("").equals(draft.getComplexId())
+                    || build.getDefensiveGateRecord(ref.getGateRecordId()) == null)
+                throw new IllegalArgumentException("Connection " + connection.getId() + ": select an existing gate record from an active Defensive Build assigned to this complex.");
+        }
     }
     private static KOMETacticalEditPreflight.State state(KOMESiegeReadinessEvaluator.Report report) {
         return report.isReady() ? KOMETacticalEditPreflight.State.READY

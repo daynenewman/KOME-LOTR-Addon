@@ -1,8 +1,8 @@
 package kome.common.data;
 
 import java.util.*;
-import kome.common.siege.KOMESiegeComplex;
-import kome.common.siege.KOMESiegeReadinessEvaluator;
+import kome.common.siege.*;
+import kome.common.siege.validation.KOMEValidationIssue;
 import kome.common.tactical.*;
 import kome.common.tactical.edit.KOMETacticalComplexCatalog;
 import kome.common.tactical.edit.KOMETacticalComplexCatalog.*;
@@ -18,7 +18,7 @@ public final class KOMETacticalComplexAccess {
         synchronized (data) {
             KOMETacticalConfiguration config = data.getTacticalConfigurationSnapshot();
             KOMESiegeComplex owner = complexId == null ? null : config.findComplex(complexId);
-            if (kind != Kind.COMPLEXES && (kind == Kind.BUILDS && owner == null
+            if (kind != Kind.COMPLEXES && (kind != Kind.PREFERRED_AREAS && owner == null
                     || owner != null && (!tile.equals(owner.getTileId()) || owner.getDimensionId() != dimension)))
                 throw new IllegalArgumentException("Save and reopen this complex before editing membership or choosing an area.");
             String context = kind == Kind.COMPLEXES ? null : KOMETacticalEditScope.canonicalId(complexId);
@@ -45,6 +45,41 @@ public final class KOMETacticalComplexAccess {
                     KOMEForceDeploymentArea area = areas.get(i);
                     rows.add(new Row(area.getAreaId(), text(area.getLabel(), 256), "Tile-owned staging area", null, area.getRevision(), 0));
                 }
+            } else if (kind == Kind.GATES) {
+                List<KOMEDefensiveGateRef> refs = new ArrayList<>();
+                for (String buildId : config.listAssignedBuildIds(owner.getComplexId())) {
+                    KOMEPlayerBuild build = data.getBuild(buildId);
+                    if (!KOMETacticalGateReferenceResolver.buildProblems(build, owner).isEmpty()) continue;
+                    for (KOMEDefensiveGateRecord gate : build.getDefensiveGateRecords()) refs.add(new KOMEDefensiveGateRef(buildId, gate.getId()));
+                }
+                refs.sort(Comparator.comparing(KOMEDefensiveGateRef::getBuildId).thenComparing(KOMEDefensiveGateRef::getGateRecordId));
+                total = refs.size(); int start = start(page, total);
+                for (int i = start; i < Math.min(total, start + PAGE_SIZE); i++) {
+                    KOMEDefensiveGateRef ref = refs.get(i);
+                    KOMESiegeConnection probe = new KOMESiegeConnection("GATE_CHOICE", KOMESiegeAreaRef.exterior(),
+                        KOMESiegeAreaRef.normal("PROBE"), "PROBE", ref);
+                    List<String> usedBy = KOMESiegeGateUsage.otherConnectionIds(owner, null, ref);
+                    rows.add(new Row(ref.getGateRecordId(), text(data.getBuild(ref.getBuildId()).displayName, 256),
+                        text(gateStatus(KOMETacticalGateReferenceResolver.resolveReference(data, config, owner, probe, null))
+                            + (usedBy.isEmpty() ? "" : " / Used by " + String.join(", ", usedBy)), 512),
+                        ref.getBuildId(), 0L, 0));
+                }
+            } else if (kind == Kind.CONNECTIONS) {
+                List<KOMESiegeConnection> connections = new ArrayList<>(owner.getConnections());
+                connections.sort(Comparator.comparing(KOMESiegeConnection::getId));
+                List<KOMEValidationIssue> issues = new KOMESiegeComplexValidator().validate(owner).getIssues();
+                total = connections.size(); int start = start(page, total);
+                for (int i = start; i < Math.min(total, start + PAGE_SIZE); i++) {
+                    KOMESiegeConnection connection = connections.get(i); List<String> problems = new ArrayList<>();
+                    for (KOMEValidationIssue issue : issues) if (issue.getSubjectIds().contains(connection.getId())
+                            || issue.getSubjectIds().contains(connection.getTransitionZoneId())
+                            || connection.getEndpointA().isNormal() && issue.getSubjectIds().contains(connection.getEndpointA().getNormalSegmentId())
+                            || connection.getEndpointB().isNormal() && issue.getSubjectIds().contains(connection.getEndpointB().getNormalSegmentId())) problems.add(issue.getCode().name());
+                    String status = problems.isEmpty() ? "Geometry valid" : String.join(", ", problems);
+                    status += connection.isGated() ? " / " + gateStatus(KOMETacticalGateReferenceResolver.resolveReference(data, config, owner, connection, null)) : " / Gateless";
+                    rows.add(new Row(connection.getId(), connection.isGated() ? text(connection.getGateRef().get().getBuildId()
+                        + " / " + connection.getGateRef().get().getGateRecordId(), 256) : "NONE", text(status, 512), null, owner.getRevision(), 0));
+                }
             } else {
                 SortedSet<String> ids = new TreeSet<String>(config.listAssignedBuildIds(owner.getComplexId()));
                 for (KOMEPlayerBuild build : data.builds.values()) if (build != null && build.tileId != null && tile.equalsIgnoreCase(build.tileId.trim()) && build.isDefensive())
@@ -68,6 +103,10 @@ public final class KOMETacticalComplexAccess {
     private static int start(int page, int total) {
         if (page < 0 || (long) page * PAGE_SIZE > total) throw new IllegalArgumentException("Page changed; refresh.");
         return page * PAGE_SIZE;
+    }
+    private static String gateStatus(KOMETacticalGateReferenceResolver.Diagnostic diagnostic) {
+        return (diagnostic.isLogicallyValid() ? "Logical reference valid" : "Unresolved logical reference")
+            + " / Physical " + diagnostic.getPhysicalStatus() + " / " + diagnostic.getCodes() + " " + diagnostic.getPhysicalDetail();
     }
     private static String text(String value, int max) { return value == null ? "" : value.substring(0, Math.min(max, value.length())); }
 }

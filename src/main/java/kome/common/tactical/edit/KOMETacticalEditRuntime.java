@@ -53,10 +53,13 @@ public final class KOMETacticalEditRuntime {
                 }
                 KOMETacticalEditRequest.Action action = pending.getRequest().getAction();
                 if (action == KOMETacticalEditRequest.Action.BROWSE_COMPLEXES || action == KOMETacticalEditRequest.Action.BROWSE_PREFERRED_AREAS
-                        || action == KOMETacticalEditRequest.Action.BROWSE_BUILDS) {
+                        || action == KOMETacticalEditRequest.Action.BROWSE_BUILDS || action == KOMETacticalEditRequest.Action.BROWSE_GATES
+                        || action == KOMETacticalEditRequest.Action.BROWSE_CONNECTIONS) {
                     KOMETacticalComplexCatalog.Kind kind = action == KOMETacticalEditRequest.Action.BROWSE_COMPLEXES
                         ? KOMETacticalComplexCatalog.Kind.COMPLEXES : action == KOMETacticalEditRequest.Action.BROWSE_PREFERRED_AREAS
-                            ? KOMETacticalComplexCatalog.Kind.PREFERRED_AREAS : KOMETacticalComplexCatalog.Kind.BUILDS;
+                            ? KOMETacticalComplexCatalog.Kind.PREFERRED_AREAS : action == KOMETacticalEditRequest.Action.BROWSE_GATES
+                            ? KOMETacticalComplexCatalog.Kind.GATES : action == KOMETacticalEditRequest.Action.BROWSE_CONNECTIONS
+                            ? KOMETacticalComplexCatalog.Kind.CONNECTIONS : KOMETacticalComplexCatalog.Kind.BUILDS;
                     KOMEPacketHandler.network.sendTo(new kome.common.network.KOMEPacketTacticalComplexCatalog(
                         kome.common.data.KOMETacticalComplexAccess.catalog(KOMEWorldData.get(player.worldObj), kind,
                             pending.getRequest().getScope().getTileId(), kind == KOMETacticalComplexCatalog.Kind.COMPLEXES

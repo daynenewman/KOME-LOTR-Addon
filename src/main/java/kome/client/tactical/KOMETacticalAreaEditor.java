@@ -14,7 +14,7 @@ import kome.common.tactical.edit.*;
 
 /** Client advisory edit state for the shared editor shell; authoritative changes remain server sessions. */
 public final class KOMETacticalAreaEditor {
-    public enum Selection { NONE, VERTICES, LOWER_Y, UPPER_Y }
+    public enum Selection { NONE, VERTICES, LOWER_Y, UPPER_Y, TOPOLOGY }
     private final Consumer<KOMETacticalEditRequest> transport;
     private KOMETacticalAreaCatalog catalog;
     private KOMETacticalEditSnapshot snapshot;
@@ -25,6 +25,15 @@ public final class KOMETacticalAreaEditor {
     private KOMETacticalComplexCatalog.Kind pendingKind;
     private ZoneType zoneType = ZoneType.NORMAL;
     private String zoneId;
+    private String connectionId;
+    private KOMEConnectionEndpointInference.Result inference;
+    private KOMESiegeComplex inferenceSource;
+    private KOMETacticalComplexCatalog connectionCatalog;
+    private KOMESiegeComplex topologySource;
+    private KOMEValidationResult topologyValidation;
+    private KOMESiegeComplex comparedComplex;
+    private KOMETacticalEditDraft comparedDraft;
+    private boolean sameSnapshotDefinition;
     private UUID cancelled;
     private KOMETacticalEditRequest.Action afterUpdate;
     private boolean busy, openingNew, creating, waitingCatalog;
@@ -47,6 +56,11 @@ public final class KOMETacticalAreaEditor {
     public long getCatalogueVersion() { return catalogueVersion; }
     public ZoneType getZoneType() { return zoneType; }
     public String getZoneId() { return zoneId; }
+    public String getConnectionId() { return connectionId; }
+    public List<KOMESiegeConnection> getConnections() { return localComplex == null ? java.util.Collections.emptyList() : KOMETacticalConnectionDraft.list(localComplex); }
+    public KOMESiegeConnection getConnection() { return localComplex == null || connectionId == null ? null : KOMETacticalConnectionDraft.find(localComplex, connectionId); }
+    public List<KOMESiegeAreaRef> endpointChoices() { return KOMETacticalConnectionDraft.endpoints(localComplex); }
+    public KOMEConnectionEndpointInference.Result getInference() { return inferenceSource == localComplex ? inference : null; }
     public boolean isEditing() { return snapshot != null && !snapshot.isClosed() && (local != null || localComplex != null); }
     public boolean isComplexEditing() { return isEditing() && localComplex != null; }
     public KOMESiegeZone getZone() { return localComplex == null || zoneId == null ? null : KOMETacticalComplexDraft.find(localComplex, zoneType, zoneId); }
@@ -62,7 +76,7 @@ public final class KOMETacticalAreaEditor {
         return snapshot == null ? value : Math.max(value, snapshot.getCurrentRevision());
     }
     public String readinessSummary() {
-        if (localComplex == null || snapshot.getPreflight() == null || !new KOMETacticalEditDraft(localComplex).sameDefinition(snapshot.getDraft())) return "Validate for readiness";
+        if (localComplex == null || snapshot.getPreflight() == null || !definitionMatchesSnapshot()) return "Validate for readiness";
         return snapshot.getPreflight().isReady() ? "READY" : snapshot.getPreflight().canSave() ? "NOT READY (saveable authoring)" : "NOT READY / save blocked";
     }
     public boolean isBusy() { return busy; }
@@ -79,10 +93,12 @@ public final class KOMETacticalAreaEditor {
     public boolean acceptComplexCatalog(KOMETacticalComplexCatalog page) {
         if (catalog == null || !catalog.tileId.equals(page.tileId) || page.dimension != catalog.dimension || page.revision < catalog.revision) return false;
         if (pendingKind == null || pendingKind != page.kind || page.page != requestedPage) return false;
-        KOMETacticalComplexCatalog previous = page.kind == KOMETacticalComplexCatalog.Kind.COMPLEXES ? complexCatalog : options;
+        KOMETacticalComplexCatalog previous = page.kind == KOMETacticalComplexCatalog.Kind.COMPLEXES ? complexCatalog
+            : page.kind == KOMETacticalComplexCatalog.Kind.CONNECTIONS ? connectionCatalog : options;
         if (previous != null && previous.kind == page.kind && previous.revision > page.revision) return false;
         if (page.kind != KOMETacticalComplexCatalog.Kind.COMPLEXES && (!isComplexEditing() || !localComplex.getComplexId().equals(page.complexId))) return false;
-        if (page.kind == KOMETacticalComplexCatalog.Kind.COMPLEXES) complexCatalog = page; else options = page;
+        if (page.kind == KOMETacticalComplexCatalog.Kind.COMPLEXES) complexCatalog = page;
+        else if (page.kind == KOMETacticalComplexCatalog.Kind.CONNECTIONS) connectionCatalog = page; else options = page;
         ++catalogueVersion; pendingKind = null; busy = false; return true;
     }
     public void switchBrowser(boolean complexes) {
@@ -92,7 +108,7 @@ public final class KOMETacticalAreaEditor {
     }
     public void complexPage(KOMETacticalComplexCatalog.Kind kind, int page) {
         if (busy || catalog == null) return;
-        if (kind != KOMETacticalComplexCatalog.Kind.COMPLEXES && (!isComplexEditing() || creating && kind == KOMETacticalComplexCatalog.Kind.BUILDS))
+        if (kind != KOMETacticalComplexCatalog.Kind.COMPLEXES && (!isComplexEditing() || creating && kind != KOMETacticalComplexCatalog.Kind.PREFERRED_AREAS))
             throw new IllegalArgumentException("Save and reopen the new complex first.");
         requestedPage = page; pendingKind = kind; busy = true;
         transport.accept(KOMETacticalEditRequest.complexPage(kind, catalog.tileId, catalog.dimension,
@@ -197,7 +213,7 @@ public final class KOMETacticalAreaEditor {
     public KOMETacticalPolygonPreview.Corner getCorner() { return corner; }
     public void cycleCorner() { if (selection == Selection.VERTICES) corner = corner.next(); }
     public KOMEXZPoint aimedCorner(int x, int z) { return corner.point(x,z); }
-    private void clearGeometryPreview() { corner = KOMETacticalPolygonPreview.Corner.NW; fillSource = null; fillTriangles = null; feedback = null; }
+    private void clearGeometryPreview() { corner = KOMETacticalPolygonPreview.Corner.NW; fillSource = null; fillTriangles = null; feedback = null; topologySource = null; topologyValidation = null; comparedComplex = null; comparedDraft = null; sameSnapshotDefinition = false; }
     public void undo() {
         requireEditable();
         List<KOMEXZPoint> points = new ArrayList<KOMEXZPoint>(geometry().getPolygon().getVertices());
@@ -216,15 +232,165 @@ public final class KOMETacticalAreaEditor {
     private void requireEditable() { if (!isEditing() || busy) throw new IllegalArgumentException("Wait for the editor response."); }
     private KOMEPolygonPrism geometry() { if (getGeometry() == null) throw new IllegalArgumentException("Select a zone first."); return getGeometry(); }
     public void select(Selection mode) {
-        requireEditable(); if (mode != Selection.NONE) geometry();
+        requireEditable(); if (mode != Selection.NONE && mode != Selection.TOPOLOGY) geometry();
+        if (mode == Selection.TOPOLOGY && !isComplexEditing()) throw new IllegalArgumentException("Open a Siege Complex to view its Connections.");
         selection = mode;
         if (mode == Selection.VERTICES) message = "Aim at a block. Tab chooses NW/NE/SE/SW; right-click confirms a vertex. Backspace undoes; Delete clears.";
     }
-    public void zoneType(ZoneType type) { requireEditable(); zoneType = type; zoneId = null; selection = Selection.NONE; feedback = null; }
+    public void zoneType(ZoneType type) { requireEditable(); zoneType = type; zoneId = null; connectionId = null; inference = null; selection = Selection.NONE; feedback = null; }
     public void selectZone(String id) { requireEditable(); if (KOMETacticalComplexDraft.find(localComplex, zoneType, id) == null) throw new IllegalArgumentException("Unknown zone."); zoneId = id; feedback = null; }
     public void createZone(String id) { requireEditable(); localComplex = KOMETacticalComplexDraft.create(localComplex, zoneType, id); zoneId = id.trim(); message = "New unsaved zone."; feedback = null; }
     public void deleteZone() { requireEditable(); localComplex = KOMETacticalComplexDraft.remove(localComplex, zoneType, zoneId); feedback = null; zoneId = null; selection = Selection.NONE; message = "Zone removed from draft; references are retained for validation."; }
     public void toggleWallAccess(String normalId) { requireEditable(); localComplex = KOMETacticalComplexDraft.wallAccess(localComplex, zoneId, normalId); }
+    public void selectConnection(String id) {
+        requireEditable(); if (KOMETacticalConnectionDraft.find(localComplex, id) == null) throw new IllegalArgumentException("Unknown Connection.");
+        connectionId = id; inference = null; selection = Selection.NONE; focusTransition();
+    }
+    public void createConnection(String id) {
+        requireEditable(); localComplex = KOMETacticalConnectionDraft.create(localComplex, id);
+        connectionId = id.trim(); inference = null; focusTransition(); message = "New unsaved Connection. Choose endpoints and Transition; gate is optional.";
+    }
+    private void focusTransition() { zoneType = ZoneType.TRANSITION; zoneId = getConnection().getTransitionZoneId(); feedback = null; }
+    private void connection(KOMESiegeAreaRef a, KOMESiegeAreaRef b, String transition, KOMEDefensiveGateRef gate) {
+        localComplex = KOMETacticalConnectionDraft.edit(localComplex, new KOMESiegeConnection(connectionId, a, b, transition, gate));
+        inference = null; focusTransition(); message = "Unsaved Connection. Validate for geometry, gate status and readiness.";
+    }
+    public void setConnectionEndpoint(boolean first, KOMESiegeAreaRef endpoint) {
+        requireEditable(); if (!endpointChoices().contains(endpoint)) throw new IllegalArgumentException("Select EXTERIOR or a Normal Segment from this complex.");
+        KOMESiegeConnection c = getConnection(); connection(first ? endpoint : c.getEndpointA(), first ? c.getEndpointB() : endpoint,
+            c.getTransitionZoneId(), c.getGateRef().orElse(null));
+    }
+    public void setConnectionTransition(String id) {
+        requireEditable(); if (localComplex.findTransitionZone(id) == null) throw new IllegalArgumentException("Select a Transition from this complex.");
+        KOMESiegeConnection c = getConnection(); connection(c.getEndpointA(), c.getEndpointB(), id, c.getGateRef().orElse(null));
+    }
+    public void setConnectionGate(KOMETacticalComplexCatalog.Row gate) {
+        requireEditable();
+        if (gate != null && (options == null || options.kind != KOMETacticalComplexCatalog.Kind.GATES || !options.rows.contains(gate)))
+            throw new IllegalArgumentException("Select a gate from the server's assigned-Build list.");
+        if (gate != null && !canSelectConnectionGate(gate)) throw new IllegalArgumentException(gateChoiceUsage(gate));
+        KOMESiegeConnection c = getConnection(); connection(c.getEndpointA(), c.getEndpointB(), c.getTransitionZoneId(),
+            gate == null ? null : new KOMEDefensiveGateRef(gate.relatedId, gate.id));
+        if (gate != null) message += " " + gate.relatedId + " / " + gate.id + ": " + gate.detail;
+    }
+    public boolean canSelectConnectionGate(KOMETacticalComplexCatalog.Row gate) {
+        KOMESiegeConnection c = getConnection();
+        if (c == null || gate == null || gate.relatedId == null) return false;
+        KOMEDefensiveGateRef ref = new KOMEDefensiveGateRef(gate.relatedId, gate.id);
+        return KOMESiegeGateUsage.sameGate(c.getGateRef().orElse(null), ref)
+            || KOMESiegeGateUsage.otherConnectionIds(localComplex, c.getId(), ref).isEmpty();
+    }
+    public String gateChoiceUsage(KOMETacticalComplexCatalog.Row gate) {
+        KOMESiegeConnection c = getConnection(); if (c == null) return "Select a Connection first.";
+        List<String> ids = KOMESiegeGateUsage.otherConnectionIds(localComplex, c.getId(), new KOMEDefensiveGateRef(gate.relatedId, gate.id));
+        return ids.isEmpty() ? "Available for this Connection" : "Used by " + String.join(", ", ids)
+            + (canSelectConnectionGate(gate) ? " (also authored here; repair duplicate usage)" : "; choose another gate or Gateless");
+    }
+    public void deleteConnection() {
+        requireEditable(); localComplex = KOMETacticalConnectionDraft.remove(localComplex, connectionId);
+        connectionId = null; inference = null; zoneId = null; feedback = null;
+        message = "Connection removed from draft. Transition, Build and gate record retained.";
+    }
+    public void inferEndpoints() {
+        requireEditable(); inference = KOMEConnectionEndpointInference.infer(localComplex, getConnection().getTransitionZoneId()); inferenceSource = localComplex;
+        message = inference.isSuccessful() ? "Suggestion: " + inference.getEndpointA() + " <-> " + inference.getEndpointB() + ". Click Accept suggestion or choose endpoints manually."
+            : inferenceMessage(inference.getStatus());
+        if (inference.getStatus() == KOMEConnectionEndpointInference.Status.INVALID_NORMAL_GEOMETRY
+                || inference.getStatus() == KOMEConnectionEndpointInference.Status.INVALID_TRANSITION_GEOMETRY) {
+            for (KOMEValidationIssue issue : new KOMESiegeComplexValidator().validate(localComplex).getIssues())
+                if (issue.getCode().name().startsWith("POLYGON_") || issue.getCode().name().startsWith("PRISM_")) message += " " + issue.getMessage() + " " + issue.getSubjectIds();
+        }
+    }
+    public void acceptInference() {
+        requireEditable(); KOMEConnectionEndpointInference.Result result = getInference();
+        if (result == null || !result.isSuccessful()) throw new IllegalArgumentException("Infer again before accepting a suggestion.");
+        KOMESiegeConnection c = getConnection(); connection(result.getEndpointA(), result.getEndpointB(), c.getTransitionZoneId(), c.getGateRef().orElse(null));
+    }
+    public void rejectInference() { inference = null; message = "Suggestion dismissed. Manual endpoints retained."; }
+    private static String inferenceMessage(KOMEConnectionEndpointInference.Status status) {
+        switch (status) {
+            case TRANSITION_NOT_FOUND: return "Selected Transition no longer exists. Choose a Transition.";
+            case INVALID_TRANSITION_GEOMETRY: return "Inference blocked: selected Transition geometry is malformed.";
+            case INVALID_NORMAL_GEOMETRY: return "Inference blocked: potentially relevant Normal geometry is malformed.";
+            case DUPLICATE_NORMAL_ID: return "Inference blocked: duplicate Normal IDs make endpoints ambiguous.";
+            case NO_ENDPOINT_CANDIDATES: return "No endpoints found: Transition does not contact a Normal Segment.";
+            case EXTERIOR_NOT_ESTABLISHED: return "No exterior established: Transition is contained inside its only Normal candidate.";
+            case TOO_MANY_NORMAL_ENDPOINTS: return "Ambiguous: Transition contacts more than two Normal Segments.";
+            default: return "Ambiguous corridor: Transition overlaps another Transition or Wall. Validate for details.";
+        }
+    }
+    public List<String> connectionDiagnostics() {
+        List<String> result = new ArrayList<>(); KOMESiegeConnection c = getConnection(); if (c == null) return result;
+        for (KOMEValidationIssue issue : topologyValidation().getIssues())
+            if (concerns(issue, c))
+                result.add(issue.getCode() + ": " + issue.getMessage() + " " + issue.getSubjectIds());
+        if (snapshot != null && snapshot.getPreflight() != null && definitionMatchesSnapshot())
+            for (String diagnostic : snapshot.getPreflight().getDiagnostics()) if (diagnostic.contains("connection " + c.getId() + ",")
+                || diagnostic.contains("connection " + c.getId() + ")")) result.add(diagnostic);
+        return java.util.Collections.unmodifiableList(result);
+    }
+    public String connectionStatus() {
+        return connectionStatus(connectionId);
+    }
+    public String connectionStatus(String id) {
+        KOMESiegeConnection c = id == null || localComplex == null ? null : KOMETacticalConnectionDraft.find(localComplex, id); if (c == null) return "Select a Connection.";
+        if (connectionCatalog != null && snapshot != null && connectionCatalog.revision == snapshot.getCurrentRevision()
+                && snapshot.getDraft().getComplex() != null && c.equals(KOMETacticalConnectionDraft.find(snapshot.getDraft().getComplex(), c.getId())))
+            for (KOMETacticalComplexCatalog.Row row : connectionCatalog.rows) if (row.id.equals(c.getId()) && row.revision == localComplex.getRevision()) return row.detail;
+        return "Draft status: Validate for current gate diagnostics and readiness.";
+    }
+    public boolean connectionHasErrors(KOMESiegeConnection c) {
+        for (KOMEValidationIssue issue : topologyValidation().getIssues()) if (concerns(issue, c)) return true;
+        String status = connectionStatus(c.getId());
+        if (c.isGated() && options != null && options.kind == KOMETacticalComplexCatalog.Kind.GATES
+                && options.revision == snapshot.getCurrentRevision())
+            for (KOMETacticalComplexCatalog.Row row : options.rows) if (row.id.equals(c.getGateRef().get().getGateRecordId())
+                    && row.relatedId.equalsIgnoreCase(c.getGateRef().get().getBuildId())) status += " " + row.detail;
+        if (snapshot.getPreflight() != null && definitionMatchesSnapshot())
+            for (String diagnostic : snapshot.getPreflight().getDiagnostics()) if (diagnostic.contains("connection " + c.getId() + ",")
+                    || diagnostic.contains("connection " + c.getId() + ")")) status += " " + diagnostic;
+        return status.contains("BUILD_") || status.contains("GATE_RECORD_MISSING") || status.contains("PHYSICAL_BINDING_");
+    }
+    private static boolean concerns(KOMEValidationIssue issue, KOMESiegeConnection c) {
+        return issue.getSubjectIds().contains(c.getId()) || issue.getSubjectIds().contains(c.getTransitionZoneId())
+            || c.getEndpointA().isNormal() && issue.getSubjectIds().contains(c.getEndpointA().getNormalSegmentId())
+            || c.getEndpointB().isNormal() && issue.getSubjectIds().contains(c.getEndpointB().getNormalSegmentId());
+    }
+    private KOMEValidationResult topologyValidation() {
+        if (topologySource != localComplex) { topologySource = localComplex; topologyValidation = new KOMESiegeComplexValidator().validate(localComplex); }
+        return topologyValidation;
+    }
+    private boolean definitionMatchesSnapshot() {
+        if (snapshot == null || localComplex == null) return false;
+        if (comparedComplex != localComplex || comparedDraft != snapshot.getDraft()) {
+            comparedComplex = localComplex; comparedDraft = snapshot.getDraft();
+            sameSnapshotDefinition = new KOMETacticalEditDraft(localComplex).sameDefinition(comparedDraft);
+        }
+        return sameSnapshotDefinition;
+    }
+    public static final class ConnectionOverlay {
+        public final KOMESiegeConnection connection;
+        public final KOMEPolygonPrism transition, normalA, normalB;
+        public final boolean selected, invalid;
+        private ConnectionOverlay(KOMESiegeConnection c, KOMEPolygonPrism transition, KOMEPolygonPrism a,
+                KOMEPolygonPrism b, boolean selected, boolean invalid) {
+            this.connection = c; this.transition = transition; normalA = a; normalB = b; this.selected = selected; this.invalid = invalid;
+        }
+    }
+    /** Context cues only: EXTERIOR is labelled, never resolved as geometry or a tile area. */
+    public List<ConnectionOverlay> connectionOverlays(UUID player, int dimension) {
+        List<ConnectionOverlay> result = new ArrayList<>();
+        if (!hasSession(player, dimension) || localComplex == null) return java.util.Collections.emptyList();
+        for (KOMESiegeConnection c : getConnections()) {
+            boolean invalid = connectionHasErrors(c);
+            KOMETransitionZone transition = localComplex.findTransitionZone(c.getTransitionZoneId());
+            KOMENormalSegment a = c.getEndpointA().isNormal() ? localComplex.findNormalSegment(c.getEndpointA().getNormalSegmentId()) : null;
+            KOMENormalSegment b = c.getEndpointB().isNormal() ? localComplex.findNormalSegment(c.getEndpointB().getNormalSegmentId()) : null;
+            result.add(new ConnectionOverlay(c, transition == null ? null : transition.getPrism(), a == null ? null : a.getPrism(),
+                b == null ? null : b.getPrism(), c.getId().equals(connectionId), invalid));
+        }
+        return java.util.Collections.unmodifiableList(result);
+    }
     public void setPreferredArea(String id) {
         requireEditable();
         if (id != null && (options == null || options.kind != KOMETacticalComplexCatalog.Kind.PREFERRED_AREAS
@@ -243,7 +409,7 @@ public final class KOMETacticalAreaEditor {
         transport.accept(KOMETacticalEditRequest.update(snapshot, intent));
     }
     public boolean consumesClicks(UUID player, int dimension) {
-        return selection != Selection.NONE && isEditing() && snapshot.getPlayerId().equals(player) && snapshot.getScope().getDimensionId() == dimension;
+        return selection != Selection.NONE && selection != Selection.TOPOLOGY && isEditing() && snapshot.getPlayerId().equals(player) && snapshot.getScope().getDimensionId() == dimension;
     }
     public void worldPoint(int x, int y, int z) {
         if (busy || !isEditing()) return;
@@ -304,7 +470,9 @@ public final class KOMETacticalAreaEditor {
             GeometryFeedback validation = geometryFeedback();
             if (local != null) result.add(new Overlay(local.getPrism(), null, true, validation.isInvalid()));
             else for (ZoneType kind : ZoneType.values()) for (KOMESiegeZone zone : KOMETacticalComplexDraft.zones(localComplex, kind)) {
-                boolean selected = kind == zoneType && zone.getId().equals(zoneId);
+                KOMESiegeConnection c = getConnection();
+                boolean selected = kind == zoneType && zone.getId().equals(zoneId) || c != null && kind == ZoneType.NORMAL
+                    && (c.getEndpointA().equals(KOMESiegeAreaRef.normal(zone.getId())) || c.getEndpointB().equals(KOMESiegeAreaRef.normal(zone.getId())));
                 result.add(new Overlay(zone.getPrism(), kind, selected, selected && validation.isInvalid() || validation.conflictingZoneIds.contains(zone.getId())));
             }
         }
@@ -328,7 +496,7 @@ public final class KOMETacticalAreaEditor {
         }
         clearDraft(); busy = false; afterUpdate = null; message = "Draft cancelled.";
     }
-    private void clearDraft() { selection = Selection.NONE; snapshot = null; local = null; localComplex = null; zoneId = null; options = null; creating = false; clearGeometryPreview(); }
+    private void clearDraft() { selection = Selection.NONE; snapshot = null; local = null; localComplex = null; zoneId = null; connectionId = null; inference = null; connectionCatalog = null; options = null; creating = false; clearGeometryPreview(); }
     public void reset() { clearDraft(); catalog = null; complexCatalog = null; pendingKind = null; complexBrowser = false; busy = false; waitingCatalog = false; afterUpdate = null; cancelled = null; message = ""; }
     public void error(String text) { message = text; }
     public static String statusMessage(KOMETacticalEditSessionManager.Status status) {

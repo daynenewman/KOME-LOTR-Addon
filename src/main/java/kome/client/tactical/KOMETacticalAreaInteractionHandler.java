@@ -50,8 +50,14 @@ public final class KOMETacticalAreaInteractionHandler {
         } catch (RuntimeException invalid) { editor().error(invalid.getMessage()); }
     }
     private boolean selectingVertices() { return selecting() && editor().getSelection() == KOMETacticalAreaEditor.Selection.VERTICES; }
+    private boolean viewingTopology() {
+        Minecraft mc = Minecraft.getMinecraft(); KOMETacticalAreaEditor e = editor();
+        return e != null && mc.thePlayer != null && mc.currentScreen == null
+            && e.hasSession(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension) && e.getSelection() == KOMETacticalAreaEditor.Selection.TOPOLOGY;
+    }
     /** The real FML callback delegates here; one physical Tab press changes only the corner. */
     public boolean handleKey(int key, boolean pressed, boolean repeat) {
+        if (viewingTopology() && key == Keyboard.KEY_RETURN && pressed && !repeat) { returnToScreen(); return true; }
         if (key == Keyboard.KEY_TAB) {
             if (!selectingVertices()) { tabHeld = false; return false; }
             suppressPlayerListBinding();
@@ -124,7 +130,7 @@ public final class KOMETacticalAreaInteractionHandler {
             for (KOMETacticalAreaEditor.Overlay overlay : overlays) {
             List<KOMEXZPoint> points = overlay.prism.getPolygon().getVertices();
             double low = overlay.prism.getMinYInclusive(), high = overlay.prism.getMaxYExclusive();
-            if (overlay.selected && e.getGeometry() != null) {
+            if (overlay.selected && overlay.prism == e.getGeometry()) {
                 Tessellator fill = Tessellator.instance; fill.startDrawing(GL11.GL_TRIANGLES);
                 fill.setColorRGBA_F(overlay.invalid ? 1F : 0.2F, overlay.invalid ? 0.15F : 1F, overlay.invalid ? 0.15F : 0.85F, 0.22F);
                 for (KOMEXZPoint p : e.getFillTriangles()) fill.addVertex(p.getX(), low + 0.02, p.getZ());
@@ -186,8 +192,28 @@ public final class KOMETacticalAreaInteractionHandler {
                 GL11.glDisable(GL11.GL_TEXTURE_2D);
             }
             }
+            for (KOMETacticalAreaEditor.ConnectionOverlay overlay : e.connectionOverlays(mc.thePlayer.getUniqueID(), mc.thePlayer.dimension)) {
+                if (overlay.transition == null || !overlay.transition.getPolygon().hasBounds()) continue;
+                double x = centerX(overlay.transition), z = centerZ(overlay.transition), y = overlay.transition.getMaxYExclusive() + 0.4;
+                GL11.glLineWidth(overlay.selected ? 4F : 2F);
+                Tessellator t = Tessellator.instance; t.startDrawing(GL11.GL_LINES);
+                if (overlay.invalid) t.setColorOpaque_F(1F, 0.15F, 0.15F);
+                else if (overlay.selected) t.setColorOpaque_F(1F, 0.9F, 0.2F);
+                else if (overlay.connection.isGated()) t.setColorOpaque_F(0.2F, 0.9F, 1F);
+                else t.setColorOpaque_F(0.9F, 0.9F, 0.9F);
+                for (KOMEPolygonPrism endpoint : new KOMEPolygonPrism[] {overlay.normalA, overlay.normalB})
+                    if (endpoint != null && endpoint.getPolygon().hasBounds()) line(t, x, y, z, centerX(endpoint), endpoint.getMaxYExclusive() + 0.4, centerZ(endpoint));
+                line(t, x, y - 0.3, z, x, y + 0.3, z); t.draw();
+                GL11.glEnable(GL11.GL_TEXTURE_2D);
+                String gate = overlay.connection.isGated() ? overlay.connection.getGateRef().get().getBuildId() + " / " + overlay.connection.getGateRef().get().getGateRecordId() : "Gateless";
+                label(mc, camera, x, y + 0.5, z, overlay.connection.getId() + " | " + gate, overlay.invalid ? 0xFF5555 : overlay.selected ? 0xFFFF55 : 0xFFFFFF);
+                if (overlay.selected) label(mc, camera, x, y + 1, z, overlay.connection.getEndpointA() + " <-> " + overlay.connection.getEndpointB(), 0xFFFFFF);
+                GL11.glDisable(GL11.GL_TEXTURE_2D);
+            }
         } finally { GL11.glPopAttrib(); GL11.glPopMatrix(); }
     }
+    private static double centerX(KOMEPolygonPrism prism) { return ((double) prism.getMinX() + prism.getMaxX()) / 2D; }
+    private static double centerZ(KOMEPolygonPrism prism) { return ((double) prism.getMinZ() + prism.getMaxZ()) / 2D; }
     private static void line(Tessellator t, double x, double y, double z, double xx, double yy, double zz) {
         t.addVertex(x, y, z); t.addVertex(xx, yy, zz);
     }
@@ -211,6 +237,11 @@ public final class KOMETacticalAreaInteractionHandler {
         }
     }
     @SubscribeEvent public void hud(RenderGameOverlayEvent.Text event) {
+        if (viewingTopology()) {
+            event.left.add("Tactical Connections | Enter/Esc editor | Yellow selected | Cyan gated | White gateless | Red invalid");
+            if (editor().getConnection() != null) { event.left.add(editor().getConnection().getEndpointA() + " <-> " + editor().getConnection().getEndpointB()); event.left.add(editor().connectionStatus()); }
+            event.left.addAll(editor().connectionDiagnostics()); return;
+        }
         if (!selecting()) return;
         KOMEPolygonPrism prism = editor().getGeometry();
         if (prism == null) return;

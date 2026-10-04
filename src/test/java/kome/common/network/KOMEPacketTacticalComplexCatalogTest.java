@@ -53,4 +53,22 @@ public class KOMEPacketTacticalComplexCatalogTest {
             new KOMETacticalEditScope(KOMETacticalEditScope.Type.TILE_FORCE_DEPLOYMENT_AREA, "T100", null, "ID", 0), null, 0, new byte[0]));
     }
     private void reject(ByteBuf buffer) { KOMEPacketTacticalComplexCatalog p = new KOMEPacketTacticalComplexCatalog(); p.fromBytes(buffer); assertNull(p.getCatalog()); }
+    @Test public void gatePagesPreserveBuildScopedIdentityAndBothNewBrowseRequestsRoundTrip() {
+        List<Row> rows=Arrays.asList(new Row("G1","West fort","Physical UNKNOWN","B1",0,0),new Row("G1","East fort","Physical VERIFIED","B2",0,0));
+        ByteBuf b=Unpooled.buffer();
+        try {
+            new KOMEPacketTacticalComplexCatalog(new KOMETacticalComplexCatalog(Kind.GATES,"T100","FORT",0,10,0,2,rows)).toBytes(b);
+            KOMEPacketTacticalComplexCatalog copy=new KOMEPacketTacticalComplexCatalog(); copy.fromBytes(b); assertNotNull(copy.getCatalog());
+            assertEquals("B1",copy.getCatalog().rows.get(0).relatedId); assertEquals("B2",copy.getCatalog().rows.get(1).relatedId);
+            assertEquals("G1",copy.getCatalog().rows.get(0).id); assertEquals("G1",copy.getCatalog().rows.get(1).id);
+            for (Kind kind : Arrays.asList(Kind.GATES,Kind.CONNECTIONS)) {
+                b.clear(); KOMETacticalEditRequest request=KOMETacticalEditRequest.complexPage(kind,"T100",0,"FORT",1);
+                new KOMEPacketTacticalEditRequest(request).toBytes(b); KOMEPacketTacticalEditRequest decoded=new KOMEPacketTacticalEditRequest(); decoded.fromBytes(b);
+                assertTrue(decoded.isValid()); assertEquals(request.getAction(),decoded.getRequest().getAction()); assertEquals(1,decoded.getRequest().getExpectedSequence());
+                assertEquals("FORT",decoded.getRequest().getScope().getComplexId());
+                assertThrows(IllegalArgumentException.class,()->new KOMETacticalEditRequest(request.getAction(),new KOMETacticalEditScope(
+                    KOMETacticalEditScope.Type.TILE_FORCE_DEPLOYMENT_AREA,"T100",null,"FIELD",0),null,0,new byte[0]));
+            }
+        } finally { b.release(); }
+    }
 }
