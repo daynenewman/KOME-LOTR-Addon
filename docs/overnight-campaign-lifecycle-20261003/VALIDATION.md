@@ -66,4 +66,17 @@ All 20 other pre-existing worktrees have matching HEAD, normal porcelain status 
 
 `final-full` on 4bd22b2 passed: 2,074 tests, 2,072 passed, two platform symlink skips, zero failures/errors. `forge-final-restart` also passed. Further source review then identified a live-player lookup bypass for ram commanders who logged out. Ram impacts now authorize the persisted commander UUID. Two additional regressions cover missing/offline actors and invoke the actual private impact boundary on an offline commander's ram before any animation/damage/geometry access.
 
-`offline-ram-guard` initially could not compile the actual ram test because the existing GeckoLib dependency was unavailable to the test source set. Added that same existing jar to testCompileOnly/testRuntimeOnly (no new library/version). `offline-ram-linked` then passed all 16 governance tests, zero failures/errors/skips. The final full gate follows this correction.
+`offline-ram-guard` initially could not compile the actual ram test because the existing GeckoLib dependency was unavailable to the test source set. Added that same existing jar to testCompileOnly/testRuntimeOnly (no new library/version). `offline-ram-linked` then passed all 16 governance tests, zero failures/errors/skips. The final full gate below includes this correction.
+
+## Final publication gate
+
+`publication-full` on `95b62d7ad08aae2cb2133a683e981c0097dfba9f`: **2,076 tests, 2,074 passed, 2 skipped, zero failures/errors; test/build successful in 42 seconds**. The only skips are the platform-dependent symlink tests in `CustomSkinLibraryFoundationTest` and `ClientCustomSkinCacheTest`. Original LOTR jar compatibility inputs were supplied read-only, and their checks passed. The new regression count is 29; focused checkpoint counts overlap.
+
+```powershell
+$env:KOME_LOTR_VALIDATION_DIRECTORY = 'C:\Users\dayne\OneDrive\Desktop\The-Lord-of-the-Rings-main\LOTR-Test-Server\mods'
+& ./tools/campaign-lifecycle/validate.ps1 -Label publication-full -GradleArgs @('test','build')
+```
+
+Final jar `build/libs/KOME-LOTR-Addon-1.0.8.jar` SHA-256: `32724e5274ebb92d47b378f2a22a5128c776f879ecc9261328a7b5ae6a85be78`. Local log/receipt: `outputs/campaign-lifecycle/publication-full.log` and `publication-gate.json`. No deployment occurred.
+
+The final handoff commit changes only PROGRESS.md, VALIDATION.md and HANDOFF.md. Its published SHA, equality with the tested source/build/tool tree, final Gradle up-to-date verification and remote-head verification are recorded in [draft PR #25](https://github.com/daynenewman/KOME-LOTR-Addon/pull/25), avoiding a self-referential commit hash in this file. The final offline-ram correction has actual-impact regression/full-suite evidence; Forge was last restarted at `4bd22b2`, before that correction. Connected-client, multiplayer, hardware and real faction-force delivery remain unverified.

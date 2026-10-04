@@ -1,6 +1,6 @@
 # Campaign lifecycle handoff
 
-Branch `dayne/campaign-lifecycle-20261003`; initial base `f3743f27b9a9d3979a8f99f40685bc2e46b48ed3`. Final tested HEAD and publication await final validation. No merge or deployment.
+Branch `dayne/campaign-lifecycle-20261003`; base/current dev `f3743f27b9a9d3979a8f99f40685bc2e46b48ed3`. [Draft PR #25](https://github.com/daynenewman/KOME-LOTR-Addon/pull/25) targets `dev`. Full-suite implementation HEAD: `95b62d7ad08aae2cb2133a683e981c0097dfba9f`; the final handoff commit changes only these three documents. The PR records its published SHA and final verification. No merge or deployment.
 
 | Issue | Delivered in this branch | Pending |
 |---|---|---|
@@ -8,7 +8,7 @@ Branch `dayne/campaign-lifecycle-20261003`; initial base `f3743f27b9a9d3979a8f99
 | KOM-78 | Canonical CLEAR/ENCIRCLED/UNKNOWN projection; non-loading capital/snapshot/dimension/chunk preflight; pending reasons and uncertainty latch | Player owner/controller is required by unit persistence/control. Faction-owned force, entity-save receipt and reconciliation contracts are absent. Real delivery remains blocked. Encircled placement and old-season reserves remain undecided |
 | KOM-48 | Bounded persisted stage journal, deterministic clock, atomic data checkpoints, real development before payout, dependency blocks, fallback scheduler, durable summary claim | Full movement KOM-47, starvation/scheduling KOM-24, active conflict referee and physical muster. Complete available batches run only where those stages are provably inapplicable |
 | KOM-82 | Coverage matrix below; new lifecycle audit and bounded diagnostics; existing guarded repairs reused | Future siege/episode/sortie controllers and reset acceptance; Discord transport optional; no guessed physical repair |
-| KOM-42 | Authoritative services, NBT and atomic-file tests for transitions, failures, clocks, restart, payout-only catch-up and asset preservation | Final full/Forge evidence below; unimplemented siege and delivered muster outcomes cannot be certified |
+| KOM-42 | Authoritative services, NBT and atomic-file tests for transitions, failures, clocks, restart, payout-only catch-up and asset preservation; full and disposable Forge gates passed | Connected-client/multiplayer acceptance; unimplemented siege and delivered muster outcomes cannot be certified |
 
 ## Original KOM-40 requirement coverage
 
@@ -29,7 +29,7 @@ Source coverage is not blanket runtime acceptance. Existing hooks are credited, 
 | Combat episode starts | `KOMEConflictService.checkpointCombat` stores episode/timer checkpoints | Data contract exists; no production episode controller/publisher found. Immediate audit/announcement integration pending KOM-18/26; no fabricated outcomes |
 | Finale trigger | `KOMECommandSeason`, SEASON/FINALE and `timeSensitive` | Existing immediate notification; new governance gate; season tests |
 | Faction defeat | `KOMEFactionDefeatService`, CAMPAIGN/FACTION_DEFEAT | KOM-29 credited; governance origin captured in same in-memory rollback boundary; defeat/governance persistence tests |
-| Reset returns | PR #24 / KOM-28 owns reset journal and return durability | Unmerged at initial inspection; final refresh required. Its branch/service were not copied or modified |
+| Reset returns | PR #24 / KOM-28 owns reset journal and return durability | Still open at final dev refresh. Its branch/service were not copied or modified; integration prerequisite if it merges first |
 | Population rate inspection/repair | `/kome diagnostics population <faction>`; existing Build/development authority | Existing derived aggregation; no fake stored rate repair |
 | Ruler inspection/repair | `KOMERulerService`, `/kome ruler`, guarded online-name repair | Existing; identity/permission/stale-preview tests |
 | Capital records | `KOMEFactionCapitalService`; `/kome diagnostics capital`; explicit validated relocation | Existing non-loading diagnostics and unloaded-dimension command regression |
@@ -64,4 +64,8 @@ Use a disposable server/client pair after review, never a preserved existing wor
 
 ## Final evidence
 
-Pending final dev/PR #24 refresh, clean full gate, disposable Forge command/save/restart, preservation comparison, draft PR and Linear updates. The goal is still in progress.
+- Final full `test build` on `95b62d7`: **2,076 tests, 2,074 passed, 2 platform symlink skips, zero failures/errors**. An earlier clean full gate passed; later production corrections were followed by full gates. Focused counts and exact commands are in [VALIDATION.md](VALIDATION.md).
+- Disposable Forge actual command dispatch, defeat/governance, controlled-clock daily processing, canonical save and cold restart passed. The last Forge restart used `4bd22b2`; the later offline-ram correction was verified at its actual impact method by regression and the final full gate. No connected client or physical muster deployment was tested.
+- Jar SHA-256: `32724e5274ebb92d47b378f2a22a5128c776f879ecc9261328a7b5ae6a85be78`. This build was not deployed.
+- All 20 other worktrees retained HEAD/status/tracked diffs; stash identity, inventoried runtime-directory metadata and original javaw PID/start time matched. Evidence is metadata/process based, not a full world/config byte comparison. No preserved world/runtime/config was written.
+- PR #25 is a draft. Evidence comments were posted to KOM-30, KOM-78, KOM-48, KOM-82 and KOM-42 without changing assignees or claiming full issue acceptance. Remaining implementation paths and policy decisions are explicitly listed above; none are disguised as completed integration.
