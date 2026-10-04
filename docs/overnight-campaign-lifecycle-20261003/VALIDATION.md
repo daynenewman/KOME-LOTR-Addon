@@ -32,3 +32,9 @@ The new root version is 9; no existing world has been loaded or written by this 
 - `daily-first`: compile failed because the new checkpoint helper could not access the canonical data name; made that existing constant package-visible.
 - `daily-compiled`: **158 tests passed**, zero failures/errors/skips, including eight new coordinator tests over real population services and compressed atomic canonical-file saves. Covers each stage-save failure, repeat boundary, cold restart, offline payout-only catch-up, skipped interrupted development, blocked movement/starvation, deterministic clock, schedule changes and malformed journal fail-closed loading.
 - Checkpoint guarantees cover canonical data only: synced temporary bytes plus atomic replacement, not entity/chunk durability or acknowledged chat delivery. Notification claim is persisted before sending; a crash after that claim may omit a summary but cannot replay it.
+
+## Operations and cross-system review
+
+- `operations-first`: 176 tests, one new test fixture failure (missing Build type); corrected fixture and asserted the real repair-denial response.
+- `operations-reviewed`: **189 tests passed**, zero failures/errors/skips. Includes existing guarded/stale admin repairs and conflict/gate checks, actual root lifecycle diagnostics, audit bounds, new exile authorization and preserved native unit NBT/HP/progression/bank regressions.
+- Review correction: host selection no longer invents a same-side selection policy; actual participation still requires ordinary host war-side authority. Native hired-unit combat checks its own funding/native faction rather than borrowing its exiled owner's host affiliation.

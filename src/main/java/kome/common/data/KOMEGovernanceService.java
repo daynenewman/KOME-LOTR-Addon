@@ -87,7 +87,6 @@ public final class KOMEGovernanceService {
             return "Exile requires a different recognized allied host faction.";
         if (!KOMEDiplomacyService.areAllies(data, origin, host)) return "Exile host must have the canonical ALLY relation with " + origin + ".";
         if (data.warSeason.isFactionDefeated(host)) return "The proposed host is defeated in this season.";
-        if (!war.sameSide(origin, host)) return "Exile host must participate on the originating faction's side of this war.";
         return "";
     }
 
@@ -107,6 +106,8 @@ public final class KOMEGovernanceService {
             return Decision.deny("Submitted players cannot participate directly or indirectly in " + war.id + ". Civilian activities remain available.");
         String invalid = hostReason(data, war, record.origin, record.host);
         if (!invalid.isEmpty()) return Decision.deny("Exile host is no longer valid: " + invalid + " Participation is suspended.");
+        if (!war.sameSide(record.origin, record.host))
+            return Decision.deny("Host " + record.host + " has not joined the originating side of " + war.id + "; existing war authorization is required before participation.");
         if (!acting.equals(record.host)) return Decision.deny("Exile participation in " + war.id + " must be under host " + record.host + ". Native assets remain preserved.");
         return Decision.allow(record.host);
     }

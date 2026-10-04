@@ -69,7 +69,7 @@ public class KOMEGovernanceServiceTest {
         assertTrue(data.pledgeReleaseTombstones.isEmpty());
     }
 
-    @Test public void exileRequiresRealAlliedUndefeatedSameSideHost() {
+    @Test public void exileRequiresRealAlliedUndefeatedHost() {
         KOMEWorldData data = world(true);
         assertFalse(choose(data, KOMEPlayerGovernance.State.EXILED, "gondor", 20).allowed);
         assertFalse(choose(data, KOMEPlayerGovernance.State.EXILED, "mordor", 20).allowed);
@@ -84,6 +84,37 @@ public class KOMEGovernanceServiceTest {
         assertFalse(KOMEGovernanceService.militaryAction(data, player, "gondor").allowed);
         assertEquals("rohan", KOMEGovernanceService.effectiveFaction(data, player, "mordor").faction);
         assertEquals("gondor", data.getPlayerFactionKey(player));
+    }
+
+    @Test public void choosingAlliedHostDoesNotInventWarMembershipOrLaunderNativeTroops() {
+        KOMEWorldData data = world(true); data.wars.get("W1").sideOneFactions.remove("rohan");
+        assertTrue(choose(data, KOMEPlayerGovernance.State.EXILED, "rohan", 20).allowed);
+        assertFalse(KOMEGovernanceService.participation(data, player, data.wars.get("W1"), "rohan").allowed);
+        assertEquals(0, KOMEGovernanceService.reconcile(data, 21));
+        data.wars.get("W1").sideOneFactions.add("rohan");
+        assertTrue(KOMEGovernanceService.participation(data, player, data.wars.get("W1"), "rohan").allowed);
+        assertFalse(KOMEGovernanceCombat.unitDenial(data, player, "gondor", "mordor").isEmpty());
+        assertTrue(KOMEGovernanceCombat.unitDenial(data, player, "rohan", "mordor").isEmpty());
+    }
+
+    @Test public void governanceAndSaveLoadPreservePurchasedIdentityHealthAndProgression() {
+        KOMEWorldData data = world(true);
+        KOMEHiredUnitRecord unit = new KOMEHiredUnitRecord(); unit.entity = UUID.randomUUID(); unit.owner = player; unit.controller = player;
+        unit.unitEntityId = "LOTR.GondorSoldier"; unit.unitFaction = "gondor"; unit.populationOwningFaction = "gondor";
+        unit.populationSpent = 37; unit.level = 8; unit.sourceType = KOMEHiredUnitRecord.SOURCE_FACTION_POPULATION_BANK;
+        unit.stationedEntityData = new NBTTagCompound(); unit.stationedEntityData.setFloat("Health", 7.5F);
+        unit.stationedEntityData.setString("NativeIdentity", "survivor"); data.hiredUnits.put(unit.entity, unit);
+        KOMEPlayerProgression progression = new KOMEPlayerProgression(); data.progressions.put(player, progression);
+        NBTTagCompound unitBefore = unit.writeToNBT(); NBTTagCompound progressionBefore = progression.writeToNBT();
+        long population = KOMEPopulationService.getAvailablePopulationCenti(data, "gondor");
+        choose(data, KOMEPlayerGovernance.State.SUBMITTED, "", 20); choose(data, KOMEPlayerGovernance.State.EXILED, "rohan", 21);
+        assertEquals(unitBefore, unit.writeToNBT()); assertEquals(progressionBefore, progression.writeToNBT());
+        NBTTagCompound saved = new NBTTagCompound(); data.writeToNBT(saved);
+        KOMEWorldData loaded = new KOMEWorldData("survivors"); loaded.readFromNBT(saved);
+        assertEquals(unitBefore, loaded.hiredUnits.get(unit.entity).writeToNBT());
+        assertEquals(progressionBefore, loaded.progressions.get(player).writeToNBT());
+        assertEquals(population, KOMEPopulationService.getAvailablePopulationCenti(loaded, "gondor"));
+        assertTrue(loaded.pledgeReleaseTombstones.isEmpty());
     }
 
     @Test public void relationLossDeniesImmediatelyAndPersistsSubmissionWithoutAssetCleanup() {

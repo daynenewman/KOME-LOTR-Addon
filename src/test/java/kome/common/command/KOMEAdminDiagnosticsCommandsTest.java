@@ -51,7 +51,7 @@ public class KOMEAdminDiagnosticsCommandsTest {
     @Test public void rootRejectsAllNewAdminPathsBeforeReadingWorld() {
         ICommandSender sender = sender(false, new ArrayList<String>());
         KOMECommandKome root = new KOMECommandKome();
-        for (String domain : new String[] {"population", "ruler", "capital", "diplomacy", "ownership", "waypoint"})
+        for (String domain : new String[] {"population", "ruler", "capital", "diplomacy", "ownership", "waypoint", "governance", "muster", "daily", "company", "gate"})
             denied(() -> root.processCommand(sender, new String[] {"diagnostics", domain, "gondor"}));
         denied(() -> root.processCommand(sender, new String[] {"repair", "preview", "ownership", "T100"}));
         denied(() -> root.processCommand(sender, new String[] {"repair", "apply", "token"}));
@@ -76,7 +76,7 @@ public class KOMEAdminDiagnosticsCommandsTest {
         completion(root, staff, new String[] {""}, "gui", "help", "tile", "waypoint", "character", "config",
             "conquest", "waypointdefaults", "adminmarkers", "capital", "ruler", "audit", "diagnostics", "conflict", "repair", "progression");
         completion(root, staff, new String[] {"repair", ""}, "preview", "apply", "conflict", "stewardship", "war");
-        completion(root, staff, new String[] {"diagnostics", ""}, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint");
+        completion(root, staff, new String[] {"diagnostics", ""}, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint", "governance", "muster", "daily", "company", "gate");
         completion(root, staff, new String[] {"repair", "preview", ""}, "ownership", "diplomacy", "ruler", "waypoint");
         completion(root, staff, new String[] {"repair", "conflict", "T100", ""}, "preview", "apply");
         completion(root, staff, new String[] {"conflict", ""}, "inspect", "end");
@@ -136,6 +136,30 @@ public class KOMEAdminDiagnosticsCommandsTest {
             runRoot(root, fixture, "progression", "cooldown", "on");
             assertFalse(KOMESerfKnightCadenceOverride.isEnabled(fixture.player.id));
         } finally { KOMESerfKnightCadenceOverride.clear(fixture.player.id); }
+    }
+
+    @Test public void lifecycleInspectionUsesActualRootWithoutMutationOrUnloadedWorldAccess() throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            kome.common.KOMEAccessFixture fixture = new kome.common.KOMEAccessFixture(); fixture.player.operator = true;
+            KOMEWorldData data = fixture.data; data.initializeIntegratedWorld();
+            KOMEArmyCompany company = new KOMEArmyCompany(); company.id = "C1"; company.faction = "gondor";
+            company.currentTile = "T100"; company.owner = fixture.player.getUniqueID(); data.armyCompanies.put("C1", company);
+            KOMEPlayerBuild build = new KOMEPlayerBuild(); build.id = "B1"; build.tileId = "T100";
+            build.populationFaction = "gondor"; build.type = KOMEBuildType.NORMAL; data.builds.put("B1", build);
+            net.minecraft.nbt.NBTTagCompound before = new net.minecraft.nbt.NBTTagCompound(); data.writeToNBT(before);
+            KOMECommandKome root = new KOMECommandKome();
+            for (String[] args : new String[][] {{"diagnostics", "daily", "status"}, {"diagnostics", "muster", "gondor"},
+                    {"diagnostics", "governance", fixture.player.getUniqueID().toString()}, {"diagnostics", "company", "C1"}, {"diagnostics", "gate", "B1"}}) {
+                List<String> output = runRoot(root, fixture, args);
+                assertFalse(output.isEmpty()); assertTrue(output.size() <= KOMEAdminDiagnostics.MAX_LINES);
+                for (String line : output) assertTrue(line.length() <= KOMEAdminDiagnostics.MAX_LINE_LENGTH);
+            }
+            assertTrue(runRoot(root, fixture, "diagnostics", "daily", "status").stream().anyMatch(s -> s.contains("KOM47")));
+            assertTrue(runRoot(root, fixture, "diagnostics", "company", "C1").stream().anyMatch(s -> s.contains("UNINSPECTED")));
+            net.minecraft.nbt.NBTTagCompound after = new net.minecraft.nbt.NBTTagCompound(); data.writeToNBT(after);
+            assertEquals(before, after);
+            assertFalse(runRoot(root, fixture, "repair", "preview", "company", "C1").get(0).contains("apply /kome"));
+        }
     }
 
     @Test public void legacyRulerNameRepairStillPreviewsUntilExplicitTokenApply() throws Exception {

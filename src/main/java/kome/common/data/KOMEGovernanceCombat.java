@@ -20,10 +20,20 @@ public final class KOMEGovernanceCombat {
         LOTREntityNPC npc = (LOTREntityNPC) attacker;
         KOMEHiredUnitRecord record = data.hiredUnits.get(KOMEReflection.getEntityUUID(attacker));
         UUID owner = record == null ? npc.hiredNPCInfo.getHiringPlayerUUID() : record.owner;
-        String denied = owner == null ? "" : playerDenial(data, owner, targetFaction);
+        String unitFaction = record == null ? faction(data, attacker) : KOMEPopulationService.populationFaction(record);
+        String denied = owner == null ? "" : unitDenial(data, owner, unitFaction, targetFaction);
         if (!denied.isEmpty()) return denied;
         UUID controller = record == null ? null : record.controller;
-        return controller == null || controller.equals(owner) ? "" : playerDenial(data, controller, targetFaction);
+        return controller == null || controller.equals(owner) ? "" : unitDenial(data, controller, unitFaction, targetFaction);
+    }
+
+    static String unitDenial(KOMEWorldData data, UUID player, String unitFaction, String targetFaction) {
+        for (KOMEWar war : data.wars.values()) {
+            if (war.isEnded() || war.sideOf(targetFaction) == 0) continue;
+            KOMEGovernanceService.Decision decision = KOMEGovernanceService.participation(data, player, war, unitFaction);
+            if (!decision.allowed) return decision.reason;
+        }
+        return "";
     }
 
     private static String playerDenial(KOMEWorldData data, UUID player, String targetFaction) {
