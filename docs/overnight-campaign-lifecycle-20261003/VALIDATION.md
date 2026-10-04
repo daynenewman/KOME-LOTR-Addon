@@ -61,3 +61,9 @@ The first Forge phase refuses to overwrite an existing disposable world. Preserv
 ## Preservation check
 
 All 20 other pre-existing worktrees have matching HEAD, normal porcelain status and tracked diff; stash identity matches. Inventoried ignored runtime directory timestamps match and javaw PID 44196 retains its original start time. Initial evidence covers directory metadata/process identity, not every world's bytes; no claim of a full world/config hash comparison. Two apparent status differences were caused by `--untracked-files=all` expanding directories; matching the original normal display resolved both. No other worktree/world/runtime/config was written. Local inventory/comparison JSON is under `outputs/campaign-lifecycle`.
+
+## Offline ram authorization correction
+
+`final-full` on 4bd22b2 passed: 2,074 tests, 2,072 passed, two platform symlink skips, zero failures/errors. `forge-final-restart` also passed. Further source review then identified a live-player lookup bypass for ram commanders who logged out. Ram impacts now authorize the persisted commander UUID. Two additional regressions cover missing/offline actors and invoke the actual private impact boundary on an offline commander's ram before any animation/damage/geometry access.
+
+`offline-ram-guard` initially could not compile the actual ram test because the existing GeckoLib dependency was unavailable to the test source set. Added that same existing jar to testCompileOnly/testRuntimeOnly (no new library/version). `offline-ram-linked` then passed all 16 governance tests, zero failures/errors/skips. The final full gate follows this correction.

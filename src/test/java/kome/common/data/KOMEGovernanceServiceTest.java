@@ -97,6 +97,33 @@ public class KOMEGovernanceServiceTest {
         assertTrue(KOMEGovernanceCombat.unitDenial(data, player, "rohan", "mordor").isEmpty());
     }
 
+    @Test public void offlineCommanderAndMissingActorCannotBypassWarDamageAuthorization() {
+        KOMEWorldData data = world(true); choose(data, KOMEPlayerGovernance.State.SUBMITTED, "", 20);
+        assertFalse(KOMEGovernanceCombat.warActionDenial(data, player, "mordor").isEmpty());
+        assertFalse(KOMEGovernanceCombat.warActionDenial(data, null, "mordor").isEmpty());
+        assertTrue(KOMEGovernanceCombat.warActionDenial(data, player, "dale").isEmpty());
+    }
+
+    @Test public void actualRamImpactChecksStoredCommanderWithoutAnOnlinePlayer() throws Exception {
+        kome.common.KOMEAccessFixture fixture = new kome.common.KOMEAccessFixture();
+        KOMEWorldData data = fixture.data;
+        data.warSeason.phase = KOMEWarSeasonState.Phase.WAR; data.warSeason.factionDefeats.put("gondor", 10L);
+        data.lastKnownPlayerFactions.put(player, "gondor");
+        KOMEWar war = new KOMEWar(); war.id = "W1"; war.sideOneFactions.add("gondor"); war.sideTwoFactions.add("mordor"); data.wars.put("W1", war);
+        choose(data, KOMEPlayerGovernance.State.SUBMITTED, "", 20);
+        com.enovak.lotrmoremobs.siege.ram.EntityBattleRam ram = kome.common.KOMEAccessFixture.allocate(com.enovak.lotrmoremobs.siege.ram.EntityBattleRam.class);
+        ram.worldObj = fixture.world;
+        java.lang.reflect.Field commander = ram.getClass().getDeclaredField("commanderUuid"); commander.setAccessible(true); commander.set(ram, player);
+        com.enovak.lotrmoremobs.siege.tile.TileEntitySiegeGate gate = kome.common.KOMEAccessFixture.allocate(com.enovak.lotrmoremobs.siege.tile.TileEntitySiegeGate.class);
+        java.lang.reflect.Field faction = gate.getClass().getDeclaredField("gateFaction"); faction.setAccessible(true); faction.set(gate, KOMEAlliance.findLotrFaction("mordor"));
+        assertNull(ram.getCommander());
+        java.lang.reflect.Method impact = null;
+        for (java.lang.reflect.Method method : ram.getClass().getDeclaredMethods()) if ("applyPhysicalRamImpact".equals(method.getName())) impact = method;
+        assertNotNull(impact); impact.setAccessible(true);
+        // No impact geometry is supplied: authorization must return before damage/animation/geometry access.
+        impact.invoke(ram, gate, null);
+    }
+
     @Test public void governanceAndSaveLoadPreservePurchasedIdentityHealthAndProgression() {
         KOMEWorldData data = world(true);
         KOMEHiredUnitRecord unit = new KOMEHiredUnitRecord(); unit.entity = UUID.randomUUID(); unit.owner = player; unit.controller = player;

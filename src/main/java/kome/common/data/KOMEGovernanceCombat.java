@@ -50,7 +50,12 @@ public final class KOMEGovernanceCombat {
 
     public static String warActionDenial(EntityPlayer player, String affectedFaction) {
         if (player == null || player.worldObj == null || player.worldObj.isRemote) return "";
-        return playerDenial(KOMEWorldData.get(player.worldObj), KOMEReflection.getEntityUUID(player), affectedFaction);
+        return warActionDenial(KOMEWorldData.get(player.worldObj), KOMEReflection.getEntityUUID(player), affectedFaction);
+    }
+
+    /** Persistent actors (for example ram commanders) must remain checked while offline. */
+    public static String warActionDenial(KOMEWorldData data, UUID actor, String affectedFaction) {
+        return data == null ? "War participation authority is unavailable." : playerDenial(data, actor, affectedFaction);
     }
 
     private static String faction(KOMEWorldData data, Entity entity) {

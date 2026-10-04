@@ -8,12 +8,12 @@ Rules: Draft 0.4 PDF, SHA-256 `da1c50af347992829e9f410f4e34e1a5e8770129bc56dda12
 
 ## Checkpoints
 
-1. Discovery in progress. Branch `dayne/campaign-lifecycle-20261003`, current origin/dev base `f3743f27b9a9d3979a8f99f40685bc2e46b48ed3`. GitHub query confirms only PR #24 open (KOM-28); its branch is untouched. No dependence on that unmerged code.
-2. KOM-30: initial state/command/permission integration verified by 320 passing focused tests. First code checkpoint ready; further cross-system review/runtime evidence will follow.
+1. Discovery completed. Branch `dayne/campaign-lifecycle-20261003`, current origin/dev base `f3743f27b9a9d3979a8f99f40685bc2e46b48ed3`. GitHub query confirms only PR #24 open (KOM-28); its branch is untouched. No dependence on that unmerged code.
+2. KOM-30: initial state/command/permission integration verified by 320 passing focused tests. Committed as 14d90b1; later review and runtime evidence are recorded below.
 3. KOM-78: real conflict projection and non-loading delivery preflight implemented; 54 focused tests passed. Physical delivery is concretely blocked by faction-owned troop/control/persistence support (see below).
-4. KOM-48: available durable coordination; incomplete movement/starvation contracts must stay visible.
-5. KOM-82: coverage matrix and available audit/inspection integrations.
-6. KOM-42: authoritative cross-system regressions, full gate, disposable Forge, self-review and publication.
+4. KOM-48: available durable coordination committed as 507228c; incomplete movement/starvation contracts remain visibly blocked.
+5. KOM-82: original coverage matrix and available audit/inspection integrations committed as f1fbb99.
+6. KOM-42: authoritative regressions, clean/full gates and disposable Forge save/cold restart passed; final permission correction and publication in progress.
 
 ## Requirement to authority map
 
@@ -43,19 +43,19 @@ Initial local evidence: `outputs/campaign-lifecycle/preservation-before.json` (i
 
 ## Governance implementation notes
 
-New `KOMEPlayerGovernance`, `KOMEGovernanceService`, `KOMEGovernanceCombat` and `/governance status [warId] | submit <warId> | exile <warId> <host>` preserve pledge, progression, assets and population. State keys include player/season/war. Defeat defaults known players to civilian Submitted; explicit valid exile can follow. Submitted/exile transitions are idempotent and audited. Invalid exile relation falls back to Submitted; permissions deny immediately before reconciliation. Current implementation requires a distinct, undefeated ALLY host on the same war side. Per-war records survive native pledge changes and season reset without carrying restrictions into the next season.
+New `KOMEPlayerGovernance`, `KOMEGovernanceService`, `KOMEGovernanceCombat` and `/governance status [warId] | submit <warId> | exile <warId> <host>` preserve pledge, progression, assets and population. State keys include player/season/war. Defeat defaults known players to civilian Submitted; explicit valid exile can follow. Submitted/exile transitions are idempotent and audited. Invalid exile relation falls back to Submitted; permissions deny immediately before reconciliation. Selection requires a distinct, undefeated ALLY host. Actual participation requires ordinary same-side host war authorization. Per-war records survive native pledge changes and season reset without carrying restrictions into the next season.
 
 Integrated server checks: conquest claim, campaign recruitment/admission, delegation/transfer, stewardship, movement departure/revalidation, canonical conflict commitment, combat damage (including native hires), gate operation/repair, ram impact and Finale. Native ordinary civilian gameplay remains on existing paths. Low-level conflict contracts remain caller-validated; future siege/player participation adapters still require governance integration.
 
-Schema 9 holds governance; schema 8 remains reserved for unmerged KOM-28. Loader accepts existing 6/7, strictly requires governance on 9, and preserves existing authorities. Before merge with future reset code, incorporate schema 8 and its journal rather than overwriting it.
+Schema 9 holds governance and the daily journal; schema 8 remains reserved for unmerged KOM-28. Loader accepts existing 6/7, strictly requires governance on 9, and preserves existing authorities. Before merge with future reset code, incorporate schema 8 and its journal rather than overwriting it.
 
 Physical muster blocker verified in production: `KOMEHiredUnitRecord.writeToNBT` dereferences owner/controller UUID; admission requires a player owner; movement validates owner equality and reconstructs native hired state. A null owner or ruler UUID is not a safe faction-force contract. Available work is canonical safety/preflight/pending integration; real faction-owned delivery, durable entity receipts and save reconciliation remain blocked by this contract, not by missing KOM-17.
 
-## Next checkpoint plan (KOM-48)
+## Daily implementation boundary
 
 Keep existing runtime for campaigns requiring unavailable movement/starvation/deployment authorities. Add a persisted, bounded stage journal and deterministic-clock coordinator for available services; only empty movement/conflict/starvation work is a provable no-op. Production preflight must visibly block the owning stage when those authorities are needed. Run the complete available pipeline only when all required stages are ready/inapplicable; legacy functioning runtime remains active otherwise. Development precedes payout; startup payout catch-up remains the exception and startup anchors skip offline non-payout days. Persist each actual stage with canonical WorldData; summary audit and an at-most-once notification claim commit before external chat. Never present blocked fallback execution as canonical daily completion. Add operator inspection and real-service/file checkpoint tests. PR #24 owns reset checkpoint code independently; do not cherry-pick or duplicate its reset service.
 
-Current commit: governance `14d90b1767bbfac0865de6b9eb8bdb64938419bc` (320 passing focused tests). Muster checkpoint: 54 focused tests passed. Remaining required work: muster checkpoint; daily available coordinator; KOM-40 original requirement matrix and admin lifecycle inspection; integration tests; full clean gate; disposable Forge commands/save/restart; self-review; final dev refresh/integration; preservation verification; push/draft PR/Linear updates/final handoff.
+Governance checkpoint: 14d90b1 (320 focused tests); muster checkpoint: 447de11 (54 focused tests).
 
 ## Daily checkpoint implementation
 
@@ -68,3 +68,9 @@ Daily milestone: 158 focused tests passed. Next: lifecycle diagnostics, original
 The original KOM-40 coverage matrix is in HANDOFF.md. New bounded diagnostics: governance, muster, daily status, company and gate metadata. Existing permissions/repairs remain the authority. Gate physical state and company physical locations explicitly remain uninspected; no inferred repair. Production episode/sortie controllers and publishers are absent (the conflict data checkpoint contract exists); future immediate notifications are pending, not silently credited.
 
 Self-review fixed native troops borrowing an exile host in combat. An allied host can now be selected before war-side admission; participation requires the host's existing war authorization. 189 focused operations/cross-system tests passed. Remaining: full clean gate, disposable Forge actual commands/save/cold restart, final dev/reset refresh, preservation comparison, publish/update/handoff.
+
+## Final review and delivery
+
+Clean full gate and actual Forge first/cold-restart phases passed. Native roster factories resolved 47 entries (5 mounted) without spawning. Preservation comparison matches all 20 other worktree heads/statuses/tracked diffs, stash, inventoried runtime directories and the original javaw process. Final dev refresh still shows f3743f2 and open PR #24. No reset integration is needed yet; its schema/journal remains an integration prerequisite if it merges.
+
+The reviewed source checkpoint 4bd22b2 also passed a full gate with real jar compatibility inputs (2,074 tests, 2 platform symlink skips, no failures/errors) and another cold Forge restart. Subsequent review found an offline-commander ram bypass. The correction uses persisted commander UUID and tests the actual impact method with no live commander; the existing GeckoLib jar is exposed to tests for that actual class boundary. Final full gate/publication will follow that correction.
