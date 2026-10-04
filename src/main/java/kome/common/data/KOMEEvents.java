@@ -297,10 +297,10 @@ public class KOMEEvents {
             }
             KOMEWorldData data = KOMEWorldData.get(world);
             if (!processed.add(data) || !populationPayoutRuntime.hasStarted(data)) continue;
-            data.reconcileAllianceLifecycle(now, world.getTotalWorldTime());
+            if (!KOMESeasonResetService.active(data)) data.reconcileAllianceLifecycle(now, world.getTotalWorldTime());
             processCampaignTick(data, world, now, populationPayoutRuntime);
             for (KOMEArmyCompany company : new ArrayList<KOMEArmyCompany>(data.armyCompanies.values())) {
-                KOMEWartimeStewardshipService.demobilizeIfSafe(data, company, world, now);
+                if (!KOMESeasonResetService.active(data)) KOMEWartimeStewardshipService.demobilizeIfSafe(data, company, world, now);
             }
         }
     }
@@ -309,6 +309,10 @@ public class KOMEEvents {
     public static KOMEPopulationPayoutProcessor.Result processCampaignTick(KOMEWorldData data, World world,
             long nowMillis, KOMEPopulationPayoutRuntime runtime) {
         if (!runtime.hasStarted(data)) return runtime.onStartup(data, Instant.ofEpochMilli(nowMillis));
+        if (KOMESeasonResetService.active(data)) {
+            KOMESeasonResetService.process(data, world, nowMillis);
+            return runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
+        }
         KOMECommandTroops.resetDailyMovementAllowances(data, nowMillis);
         KOMECommandTroops.processMovementTick(data, world, nowMillis);
         KOMEMusterService.processDue(data, nowMillis);
@@ -336,6 +340,11 @@ public class KOMEEvents {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onEntityJoinWorld(EntityJoinWorldEvent event) {
+        if (!KOMEReflection.isRemote(event.world)
+                && KOMESeasonResetDeployment.rejectStaleVirtual(KOMEWorldData.get(event.world), event.entity)) {
+            event.setCanceled(true);
+            return;
+        }
         if (!KOMEReflection.isRemote(event.world) && event.entity instanceof EntityItem) {
             KOMEWorldData data = KOMEWorldData.get(event.world);
             if(KOMEKnightCommissionService.reconcileItem(data,(EntityItem)event.entity)){event.setCanceled(true);return;}
@@ -568,6 +577,7 @@ public class KOMEEvents {
         if (!KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving)) && event.entityLiving instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
             KOMEWorldData progressionWorld=KOMEWorldData.get(npc.worldObj);
+            if (KOMESeasonResetDeployment.holdForReset(progressionWorld, npc)) return;
             KOMEKnightCommissionService.reconcileNpc(progressionWorld,npc);
             KOMELordshipTrialService.reconcileNpc(progressionWorld,npc);
             KOMESerfKnightEscortService.reconcileLoadedNpc(progressionWorld,npc);
