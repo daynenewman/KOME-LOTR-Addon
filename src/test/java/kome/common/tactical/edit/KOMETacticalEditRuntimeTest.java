@@ -66,6 +66,16 @@ public class KOMETacticalEditRuntimeTest {
     }
     private NBTTagCompound state() { return KOMETacticalConfigurationCodec.encode(fixture.data.getTacticalConfigurationSnapshot()); }
     @Test public void creativeModeIsAuthorizedWithoutAnOperator() { assertTrue(KOMETacticalEditAccess.isAuthorized(fixture.player)); assertEquals(OPENED, open() == null ? null : last().getStatus()); }
+    @Test public void complexBrowserRunsOnBoundedServerTickAndRechecksPermissions() {
+        new KOMEPacketTacticalEditRequest.Handler().onMessage(new KOMEPacketTacticalEditRequest(KOMETacticalEditRequest.complexPage(
+            KOMETacticalComplexCatalog.Kind.COMPLEXES, "T100", dimension(), null, 0)), fixture.context);
+        assertTrue(fixture.network.messages.isEmpty()); tick();
+        assertTrue(fixture.network.messages.get(0) instanceof KOMEPacketTacticalComplexCatalog);
+        assertFalse(fixture.data.isDirty());
+        new KOMEPacketTacticalEditRequest.Handler().onMessage(new KOMEPacketTacticalEditRequest(KOMETacticalEditRequest.complexPage(
+            KOMETacticalComplexCatalog.Kind.BUILDS, "T100", dimension(), "A", 0)), fixture.context);
+        fixture.player.capabilities.isCreativeMode = false; tick(); assertEquals(DENIED, last().getStatus());
+    }
     @Test public void creativeCommandOpensSelectedTileBrowserWithoutSiegeGateFlag() {
         boolean old = MumakilConfig.enableSiegeGates;
         try {

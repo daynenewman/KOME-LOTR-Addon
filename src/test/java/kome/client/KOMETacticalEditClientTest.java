@@ -146,7 +146,13 @@ public class KOMETacticalEditClientTest {
             // Ignore the advisory refresh packet in this inert client; geometry changes remain local.
             input.mouse(right);
             assertTrue(right.isCanceled());
-            assertEquals(5, proxy.getTacticalAreaEditor().getDraft().getPrism().getPolygon().getVertices().get(4).getX());
+            assertEquals(new kome.common.siege.geometry.KOMEXZPoint(5, 7), local.getConfirmedVertices().get(local.getConfirmedVertexCount()-1));
+            int confirmed = local.getConfirmedVertexCount();
+            // An opposite ray-hit face still chooses the SAME grid corner; duplicates are diagnosed.
+            Minecraft.getMinecraft().objectMouseOver = new net.minecraft.util.MovingObjectPosition(5, 64, 7, 5,
+                net.minecraft.util.Vec3.createVectorHelper(5.99, 64.99, 7.99));
+            input.mouse(mousePress(1));
+            assertEquals(confirmed,local.getConfirmedVertexCount());assertTrue(local.getMessage().contains("already a polygon vertex"));
             net.minecraftforge.client.event.MouseEvent left = mouseEvent();
             button.setInt(left, 0); down.setBoolean(left, true); input.mouse(left); assertTrue(left.isCanceled());
             net.minecraftforge.event.entity.player.PlayerInteractEvent interact = new net.minecraftforge.event.entity.player.PlayerInteractEvent(
@@ -162,6 +168,113 @@ public class KOMETacticalEditClientTest {
         return new net.minecraftforge.client.event.MouseEvent() {
             @Override public boolean isCancelable() { return true; } // No Forge launch transformer in unit tests.
         };
+    }
+    @Test public void preciseCornerUsesTabChoiceRegardlessOfMouseHitFaceOrFraction() throws Exception {
+        catalogue();queue.drain();
+        kome.client.tactical.KOMETacticalAreaEditor local=new kome.client.tactical.KOMETacticalAreaEditor(request -> { });
+        local.acceptCatalog(proxy.getTacticalAreaEditor().getCatalog());local.accept(packet(1,1,0).getSnapshot(),KOMETacticalEditSessionManager.Status.OPENED);
+        Field controller=KOMEClientProxy.class.getDeclaredField("tacticalAreaEditor");controller.setAccessible(true);controller.set(proxy,local);
+        local.clearVertices();local.select(kome.client.tactical.KOMETacticalAreaEditor.Selection.VERTICES);local.cycleCorner();
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input=new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy);
+        for(int face:new int[]{1,5}) {
+            Minecraft.getMinecraft().thePlayer.rotationYaw=face==1?0:180;
+            Minecraft.getMinecraft().objectMouseOver=new net.minecraft.util.MovingObjectPosition(5,64,7,face,net.minecraft.util.Vec3.createVectorHelper(5.99,64.99,7.99));
+            net.minecraftforge.client.event.MouseEvent click=mousePress(1);input.mouse(click);assertTrue(click.isCanceled());
+            assertEquals(java.util.Collections.singletonList(new kome.common.siege.geometry.KOMEXZPoint(6,7)),local.getConfirmedVertices());
+        }
+        assertTrue(local.getMessage().contains("already a polygon vertex"));
+        Minecraft.getMinecraft().objectMouseOver=new net.minecraft.util.MovingObjectPosition(9,64,11,2,net.minecraft.util.Vec3.createVectorHelper(9,64,11));
+        input.mouse(mousePress(1));assertEquals(new kome.common.siege.geometry.KOMEXZPoint(10,11),local.getConfirmedVertices().get(1));
+        assertEquals(kome.client.tactical.KOMETacticalPolygonPreview.Corner.NE,local.getCorner());
+        local.cancel();assertTrue(local.getConfirmedVertices().isEmpty());assertFalse(local.consumesClicks(playerId,-1));
+    }
+    @Test public void tabIsConsumedOncePerPressOnlyDuringPolygonSelectionAndDoesNotRemapVanilla() throws Exception {
+        catalogue();queue.drain();kome.client.tactical.KOMETacticalAreaEditor local=new kome.client.tactical.KOMETacticalAreaEditor(request->{ });
+        local.acceptCatalog(proxy.getTacticalAreaEditor().getCatalog());local.accept(packet(1,1,0).getSnapshot(),KOMETacticalEditSessionManager.Status.OPENED);
+        Field controller=KOMEClientProxy.class.getDeclaredField("tacticalAreaEditor");controller.setAccessible(true);controller.set(proxy,local);
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input=new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy);
+        Field bindings=net.minecraft.client.settings.KeyBinding.class.getDeclaredField("keybindArray");bindings.setAccessible(true);
+        java.util.List<Object> all=(java.util.List<Object>)bindings.get(null);java.util.List<Object> previous=new java.util.ArrayList<>(all);
+        java.util.Set<String> categories=new java.util.HashSet<>(net.minecraft.client.settings.KeyBinding.getKeybinds());
+        int tab=org.lwjgl.input.Keyboard.KEY_TAB;
+        try {
+            net.minecraft.client.settings.GameSettings settings=KOMEAccessFixture.allocate(net.minecraft.client.settings.GameSettings.class);
+            settings.keyBindPlayerList=new net.minecraft.client.settings.KeyBinding("test.list",tab,"test.tactical");
+            settings.keyBindAttack=new net.minecraft.client.settings.KeyBinding("test.attack",541,"test.tactical");
+            settings.keyBindUseItem=new net.minecraft.client.settings.KeyBinding("test.use",542,"test.tactical");Minecraft.getMinecraft().gameSettings=settings;
+            net.minecraft.client.settings.KeyBinding.setKeyBindState(tab,true);net.minecraft.client.settings.KeyBinding.onTick(tab);
+            assertFalse(input.handleKey(tab,true,false));assertTrue(settings.keyBindPlayerList.getIsKeyPressed());assertTrue(settings.keyBindPlayerList.isPressed());
+            local.select(kome.client.tactical.KOMETacticalAreaEditor.Selection.VERTICES);
+            for(kome.client.tactical.KOMETacticalPolygonPreview.Corner expected:new kome.client.tactical.KOMETacticalPolygonPreview.Corner[]{
+                    kome.client.tactical.KOMETacticalPolygonPreview.Corner.NE,kome.client.tactical.KOMETacticalPolygonPreview.Corner.SE,
+                    kome.client.tactical.KOMETacticalPolygonPreview.Corner.SW,kome.client.tactical.KOMETacticalPolygonPreview.Corner.NW}) {
+                net.minecraft.client.settings.KeyBinding.setKeyBindState(tab,true);net.minecraft.client.settings.KeyBinding.onTick(tab);
+                assertTrue(input.handleKey(tab,true,false));assertEquals(expected,local.getCorner());
+                assertFalse(settings.keyBindPlayerList.getIsKeyPressed());assertFalse(settings.keyBindPlayerList.isPressed());
+                assertTrue(input.handleKey(tab,true,true));assertTrue(input.handleKey(tab,true,false));assertEquals(expected,local.getCorner());
+                assertTrue(input.handleKey(tab,false,false));
+            }
+            assertEquals(4,local.getConfirmedVertexCount()); // cycling never confirms/removes a vertex
+            assertEquals(tab,settings.keyBindPlayerList.getKeyCode());
+            local.select(kome.client.tactical.KOMETacticalAreaEditor.Selection.UPPER_Y);
+            net.minecraft.client.settings.KeyBinding.setKeyBindState(tab,true);net.minecraft.client.settings.KeyBinding.onTick(tab);
+            assertFalse(input.handleKey(tab,true,false));assertTrue(settings.keyBindPlayerList.getIsKeyPressed());assertTrue(settings.keyBindPlayerList.isPressed());
+            local.cancel();assertFalse(input.handleKey(tab,true,false));assertTrue(settings.keyBindPlayerList.getIsKeyPressed());
+        } finally {
+            all.clear();all.addAll(previous);net.minecraft.client.settings.KeyBinding.getKeybinds().clear();
+            net.minecraft.client.settings.KeyBinding.getKeybinds().addAll(categories);net.minecraft.client.settings.KeyBinding.resetKeyBindingArrayAndHash();
+        }
+    }
+    private static net.minecraftforge.client.event.RenderGameOverlayEvent.Pre overlay(net.minecraftforge.client.event.RenderGameOverlayEvent.ElementType type) {
+        return new net.minecraftforge.client.event.RenderGameOverlayEvent.Pre(new net.minecraftforge.client.event.RenderGameOverlayEvent(0,null,0,0),type) {
+            @Override public boolean isCancelable() { return true; }
+        };
+    }
+    @Test public void playerListOverlaySuppressionIsRestrictedToActivePolygonSelection() {
+        catalogue();queue.drain();proxy.getTacticalAreaEditor().accept(packet(1,1,0).getSnapshot(),KOMETacticalEditSessionManager.Status.OPENED);
+        kome.client.tactical.KOMETacticalAreaInteractionHandler input=new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy);
+        net.minecraftforge.client.event.RenderGameOverlayEvent.Pre before=overlay(net.minecraftforge.client.event.RenderGameOverlayEvent.ElementType.PLAYER_LIST);input.playerList(before);assertFalse(before.isCanceled());
+        proxy.getTacticalAreaEditor().select(kome.client.tactical.KOMETacticalAreaEditor.Selection.VERTICES);
+        net.minecraftforge.client.event.RenderGameOverlayEvent.Pre active=overlay(net.minecraftforge.client.event.RenderGameOverlayEvent.ElementType.PLAYER_LIST);input.playerList(active);assertTrue(active.isCanceled());
+        net.minecraftforge.client.event.RenderGameOverlayEvent.Pre hotbar=overlay(net.minecraftforge.client.event.RenderGameOverlayEvent.ElementType.HOTBAR);input.playerList(hotbar);assertFalse(hotbar.isCanceled());
+        proxy.getTacticalAreaEditor().select(kome.client.tactical.KOMETacticalAreaEditor.Selection.NONE);
+        net.minecraftforge.client.event.RenderGameOverlayEvent.Pre after=overlay(net.minecraftforge.client.event.RenderGameOverlayEvent.ElementType.PLAYER_LIST);input.playerList(after);assertFalse(after.isCanceled());
+    }
+    @Test public void hudCountsAndListsActualDraftVerticesAndNamesTheHighlightedCandidate() throws Exception {
+        catalogue();queue.drain();kome.client.tactical.KOMETacticalAreaEditor local=new kome.client.tactical.KOMETacticalAreaEditor(request->{ });
+        local.acceptCatalog(proxy.getTacticalAreaEditor().getCatalog());local.accept(packet(1,1,0).getSnapshot(),KOMETacticalEditSessionManager.Status.OPENED);
+        Field controller=KOMEClientProxy.class.getDeclaredField("tacticalAreaEditor");controller.setAccessible(true);controller.set(proxy,local);
+        local.clearVertices();local.select(kome.client.tactical.KOMETacticalAreaEditor.Selection.VERTICES);
+        local.worldPoint(0,60,0);local.worldPoint(4,60,0);local.worldPoint(0,60,4);
+        local.cycleCorner();Minecraft.getMinecraft().objectMouseOver=new net.minecraft.util.MovingObjectPosition(8,64,9,5,net.minecraft.util.Vec3.createVectorHelper(8,64,9));
+        java.util.ArrayList<String> left=new java.util.ArrayList<>();
+        new kome.client.tactical.KOMETacticalAreaInteractionHandler(proxy).hud(new net.minecraftforge.client.event.RenderGameOverlayEvent.Text(
+            new net.minecraftforge.client.event.RenderGameOverlayEvent(0,null,0,0),left,new java.util.ArrayList<>()));
+        assertTrue(left.stream().anyMatch(s->s.contains("3 confirmed vertices / 3 distinct")));
+        assertTrue(left.contains("1: X 0, Z 0"));assertTrue(left.contains("2: X 4, Z 0"));assertTrue(left.contains("3: X 0, Z 4"));
+        assertTrue(left.contains("Next NE: X 9, Z 9"));assertFalse(local.geometryFeedback().isInvalid());
+        assertFalse(left.stream().anyMatch(s->s.contains("POLYGON_TOO_FEW_DISTINCT_VERTICES")));
+    }
+    private static net.minecraftforge.client.event.MouseEvent mousePress(int value) throws ReflectiveOperationException {
+        net.minecraftforge.client.event.MouseEvent event = mouseEvent();
+        Field button = net.minecraftforge.client.event.MouseEvent.class.getDeclaredField("button"); button.setAccessible(true); button.setInt(event, value);
+        Field down = net.minecraftforge.client.event.MouseEvent.class.getDeclaredField("buttonstate"); down.setAccessible(true); down.setBoolean(event, true);
+        return event;
+    }
+    @Test public void preUnloadComplexPageCannotPopulateNewLifecycleEvenWithHigherRevision() throws Exception {
+        catalogue(); queue.drain();
+        Field controller = KOMEClientProxy.class.getDeclaredField("tacticalAreaEditor"); controller.setAccessible(true);
+        kome.client.tactical.KOMETacticalAreaEditor local = new kome.client.tactical.KOMETacticalAreaEditor(request -> { });
+        local.acceptCatalog(proxy.getTacticalAreaEditor().getCatalog()); controller.set(proxy, local); local.switchBrowser(true);
+        new kome.common.network.KOMEPacketTacticalComplexCatalog.Handler().onMessage(new kome.common.network.KOMEPacketTacticalComplexCatalog(
+            new KOMETacticalComplexCatalog(KOMETacticalComplexCatalog.Kind.COMPLEXES, "T100", null, -1, 999, 0, 0, java.util.Collections.emptyList())), null);
+        Field tasks = KOMEClientTaskQueue.class.getDeclaredField("tasks"); tasks.setAccessible(true);
+        java.util.Queue<Runnable> pending = (java.util.Queue<Runnable>) tasks.get(queue); Runnable obsolete = pending.remove();
+        proxy.onClientWorldUnload(new WorldEvent.Unload(world));
+        catalogue(); queue.drain(); local.switchBrowser(true); obsolete.run(); assertNull(local.getComplexCatalog());
+        new kome.common.network.KOMEPacketTacticalComplexCatalog.Handler().onMessage(new kome.common.network.KOMEPacketTacticalComplexCatalog(
+            new KOMETacticalComplexCatalog(KOMETacticalComplexCatalog.Kind.COMPLEXES, "T100", null, -1, 10, 0, 0, java.util.Collections.emptyList())), null);
+        queue.drain(); assertEquals(10, local.getComplexCatalog().revision);
     }
     @Test public void selectionClearsHeldAndBufferedAttackUseWithoutSuppressingNormalGameplay() throws Exception {
         catalogue(); queue.drain();

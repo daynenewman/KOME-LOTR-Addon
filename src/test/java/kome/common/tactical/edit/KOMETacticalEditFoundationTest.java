@@ -58,13 +58,11 @@ public class KOMETacticalEditFoundationTest {
             copy.fromBytes(buffer); assertNull(copy.getCatalog());
         } finally { buffer.release(); }
     }
-    @Test public void newAreaActionsCannotBeSentInSiegeScopeOrWithForgedStartTokens() {
+    @Test public void browserScopeAndStartTokensRemainCheckedWhileBothScopesAllowLifecycleActions() {
         KOMETacticalEditScope scope = new KOMETacticalEditScope(KOMETacticalEditScope.Type.SIEGE_COMPLEX, "T100", "FORT", "FORT", 0);
-        for (KOMETacticalEditRequest.Action action : new KOMETacticalEditRequest.Action[] {
-                KOMETacticalEditRequest.Action.CREATE, KOMETacticalEditRequest.Action.DELETE, KOMETacticalEditRequest.Action.BROWSE}) {
-            assertThrows(IllegalArgumentException.class, () -> new KOMETacticalEditRequest(action, scope,
-                action == KOMETacticalEditRequest.Action.DELETE ? UUID.randomUUID() : null, 0, new byte[0]));
-        }
+        assertThrows(IllegalArgumentException.class, () -> new KOMETacticalEditRequest(KOMETacticalEditRequest.Action.BROWSE, scope, null, 0, new byte[0]));
+        assertNotNull(new KOMETacticalEditRequest(KOMETacticalEditRequest.Action.CREATE, scope, null, 0, new byte[0]));
+        assertNotNull(new KOMETacticalEditRequest(KOMETacticalEditRequest.Action.DELETE, scope, UUID.randomUUID(), 0, new byte[0]));
         assertThrows(IllegalArgumentException.class, () -> new KOMETacticalEditRequest(
             KOMETacticalEditRequest.Action.CREATE, scope(), UUID.randomUUID(), 0, new byte[0]));
     }
@@ -113,14 +111,16 @@ public class KOMETacticalEditFoundationTest {
     @Test public void requestPacketRoundTripsEveryActionAndDoesNotDecodeDraftOnIntake() {
         UUID token = UUID.randomUUID();
         for (KOMETacticalEditRequest.Action action : KOMETacticalEditRequest.Action.values()) {
-            KOMETacticalEditRequest intent = new KOMETacticalEditRequest(action, scope(),
-                action == KOMETacticalEditRequest.Action.OPEN || action == KOMETacticalEditRequest.Action.CREATE || action == KOMETacticalEditRequest.Action.BROWSE ? null : token,
+            boolean complexPage = action.ordinal() >= KOMETacticalEditRequest.Action.BROWSE_COMPLEXES.ordinal();
+            KOMETacticalEditScope context = complexPage ? new KOMETacticalEditScope(KOMETacticalEditScope.Type.SIEGE_COMPLEX, "T100", "FORT", "FORT", 0) : scope();
+            KOMETacticalEditRequest intent = new KOMETacticalEditRequest(action, context,
+                action == KOMETacticalEditRequest.Action.OPEN || action == KOMETacticalEditRequest.Action.CREATE || action == KOMETacticalEditRequest.Action.BROWSE || complexPage ? null : token,
                 0, action == KOMETacticalEditRequest.Action.UPDATE ? new byte[] {1, 2, 3} : new byte[0]);
             ByteBuf buffer = Unpooled.buffer();
             try {
                 new KOMEPacketTacticalEditRequest(intent).toBytes(buffer);
                 KOMEPacketTacticalEditRequest copy = new KOMEPacketTacticalEditRequest(); copy.fromBytes(buffer);
-                assertTrue(copy.isValid()); assertEquals(action, copy.getRequest().getAction()); assertEquals(scope(), copy.getRequest().getScope());
+                assertTrue(copy.isValid()); assertEquals(action, copy.getRequest().getAction()); assertEquals(context, copy.getRequest().getScope());
                 assertArrayEquals(intent.getPayload(), copy.getRequest().getPayload()); assertFalse(buffer.isReadable());
             } finally { buffer.release(); }
         }

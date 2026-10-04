@@ -64,9 +64,16 @@ public final class KOMETacticalEditSessionManager {
                     KOMETacticalConfiguration configuration = data.getTacticalConfigurationSnapshot();
                     if (creating) {
                         kome.common.data.KOMETacticalAreaAccess.requireTile(request.getScope().getTileId(), request.getScope().getDimensionId());
-                        if (configuration.findForceDeploymentArea(request.getScope().getTargetId()) != null) return result(Status.DUPLICATE_ID, null, false);
+                        if (request.getScope().getType() == KOMETacticalEditScope.Type.SIEGE_COMPLEX
+                                ? configuration.findComplex(request.getScope().getTargetId()) != null
+                                : configuration.findForceDeploymentArea(request.getScope().getTargetId()) != null)
+                            return result(Status.DUPLICATE_ID, null, false);
                     }
-                    KOMETacticalEditDraft draft = creating ? new KOMETacticalEditDraft(new kome.common.tactical.KOMEForceDeploymentArea(
+                    KOMETacticalEditDraft draft = creating && request.getScope().getType() == KOMETacticalEditScope.Type.SIEGE_COMPLEX
+                        ? new KOMETacticalEditDraft(new kome.common.siege.KOMESiegeComplex(request.getScope().getTargetId(),
+                            request.getScope().getTileId(), request.getScope().getDimensionId(), 0L,
+                            Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), null, Collections.emptyList()))
+                        : creating ? new KOMETacticalEditDraft(new kome.common.tactical.KOMEForceDeploymentArea(
                         request.getScope().getTargetId(), request.getScope().getTileId(), request.getScope().getDimensionId(), "",
                         new kome.common.siege.geometry.KOMEPolygonPrism(new kome.common.siege.geometry.KOMEPolygon(Collections.emptyList()), 0, 1), 0L))
                         : KOMETacticalEditService.current(configuration, request.getScope());
@@ -110,7 +117,7 @@ public final class KOMETacticalEditSessionManager {
                 return result(Status.valueOf(saved.getStatus().name()), session, false);
             case DELETE:
                 if (session.creating) return result(Status.REJECTED, session, false);
-                KOMETacticalEditService.Result deleted = KOMETacticalEditService.deleteArea(data, session.scope, session.baseRevision, session.baseObjectRevision);
+                KOMETacticalEditService.Result deleted = KOMETacticalEditService.deleteDefinition(data, session.scope, session.baseRevision, session.baseObjectRevision);
                 session.preflight = deleted.getPreflight();
                 if (deleted.getStatus() == KOMETacticalEditService.Status.CHANGED) {
                     sessions.remove(actor.getPlayerId()); return result(Status.DELETED, session, true);

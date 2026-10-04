@@ -316,7 +316,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
 
     private void sendPublicHelp(ICommandSender sender) {
         if (sender instanceof EntityPlayerMP && kome.common.tactical.edit.KOMETacticalEditAccess.isAuthorized((EntityPlayerMP) sender))
-            sender.addChatMessage(new ChatComponentText("/kome tactical [tileId] - Tactical Area Editor (Force Deployment Areas)."));
+            sender.addChatMessage(new ChatComponentText("/kome tactical [tileId] - Tactical Area Editor (Deployment Areas / Siege Complexes)."));
         sender.addChatMessage(new ChatComponentText("/kome gui - Population overview; Tiles opens the conquest map."));
         sender.addChatMessage(new ChatComponentText("/kome tile <tileId> - Tile Command (Builds / Canonical Population)."));
         sender.addChatMessage(new ChatComponentText("Public commands: /population, /conquest list|get, /build list|inspect, /troops, /progression, /alliance, /war list|status, /season status."));

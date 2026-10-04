@@ -244,6 +244,31 @@ public class KOMEWorldData extends WorldSavedData {
         catch (RuntimeException failure) { tacticalConfiguration = previous; super.setDirty(dirty); throw failure; }
     }
 
+    /** One complex creation/removal only, preserving all other definitions and assignments. */
+    synchronized final void publishTacticalComplexLifecycle(long expectedRevision, String complexId,
+            KOMETacticalConfiguration replacement, boolean creation) {
+        ensureWritable();
+        KOMETacticalConfiguration prepared = replacement.snapshot();
+        if (tacticalConfiguration.getRevision() != expectedRevision || expectedRevision == Long.MAX_VALUE
+                || prepared.getRevision() != expectedRevision + 1L
+                || !prepared.getForceDeploymentAreasById().equals(tacticalConfiguration.getForceDeploymentAreasById())
+                || !prepared.getBuildAssignmentsByBuildId().equals(tacticalConfiguration.getBuildAssignmentsByBuildId()))
+            throw new IllegalArgumentException("Invalid complex lifecycle publication.");
+        java.util.Map<String, kome.common.siege.KOMESiegeComplex> oldDefinitions =
+            new java.util.TreeMap<String, kome.common.siege.KOMESiegeComplex>(tacticalConfiguration.getComplexesById());
+        java.util.Map<String, kome.common.siege.KOMESiegeComplex> newDefinitions =
+            new java.util.TreeMap<String, kome.common.siege.KOMESiegeComplex>(prepared.getComplexesById());
+        kome.common.siege.KOMESiegeComplex old = oldDefinitions.remove(complexId), updated = newDefinitions.remove(complexId);
+        if (creation ? old != null || updated == null || updated.getRevision() != 1L : old == null || updated != null)
+            throw new IllegalArgumentException("Invalid complex lifecycle target.");
+        if (!oldDefinitions.equals(newDefinitions)) throw new IllegalArgumentException("Operation changed unrelated complexes.");
+        if (!creation) tacticalConfiguration.snapshot().removeComplex(complexId);
+        KOMETacticalConfiguration previous = tacticalConfiguration;
+        boolean dirty = super.isDirty();
+        try { tacticalConfiguration = prepared; markDirty(); }
+        catch (RuntimeException failure) { tacticalConfiguration = previous; super.setDirty(dirty); throw failure; }
+    }
+
     /** One existing definition only; editor services cannot publish arbitrary store/membership replacements. */
     synchronized final void publishTacticalDefinition(long expectedRevision, String complexId, String areaId,
             KOMETacticalConfiguration replacement) {

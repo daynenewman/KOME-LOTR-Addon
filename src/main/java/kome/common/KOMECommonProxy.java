@@ -61,6 +61,7 @@ public class KOMECommonProxy {
 
     public void acceptTacticalEditSnapshot(kome.common.network.KOMEPacketTacticalEditSnapshot message) { }
     public void acceptTacticalAreaCatalog(kome.common.network.KOMEPacketTacticalAreaCatalog message) { }
+    public void acceptTacticalComplexCatalog(kome.common.network.KOMEPacketTacticalComplexCatalog message) { }
 
     public void displayPopulationGui(kome.common.network.KOMEPacketPopulationGui message) { }
     public void displayPopulationUnitsGui(kome.common.network.KOMEPacketPopulationUnitsGui message) { }

@@ -124,5 +124,6 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketTacticalEditRequest.Handler.class, KOMEPacketTacticalEditRequest.class, 38, Side.SERVER);
         network.registerMessage(KOMEPacketTacticalEditSnapshot.Handler.class, KOMEPacketTacticalEditSnapshot.class, 39, Side.CLIENT);
         network.registerMessage(KOMEPacketTacticalAreaCatalog.Handler.class, KOMEPacketTacticalAreaCatalog.class, 40, Side.CLIENT);
+        network.registerMessage(KOMEPacketTacticalComplexCatalog.Handler.class, KOMEPacketTacticalComplexCatalog.class, 41, Side.CLIENT);
     }
 }

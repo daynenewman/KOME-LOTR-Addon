@@ -21,13 +21,22 @@ public final class KOMETacticalEditService {
             boolean admission = true, structural = false;
             try {
                 data.ensureWritable(); draft.requireScope(scope); KOMETacticalEditWire.encodeDraft(draft);
-                if (draft.getArea() == null || draft.getObjectRevision() != 0L) throw new IllegalArgumentException("Invalid new area.");
+                if (draft.getMembershipAction() != null || draft.getObjectRevision() != 0L) throw new IllegalArgumentException("Invalid new definition.");
                 KOMETacticalConfiguration candidate = data.getTacticalConfigurationSnapshot();
                 if (candidate.getRevision() != baseRevision) { admission = false; issues.add("Configuration changed; cancel and reopen."); }
-                candidate.addForceDeploymentArea(draft.getArea()); // Reject canonical duplicates and incompatible explicit references.
-                KOMEValidationResult validation = new KOMEForceDeploymentAreaValidator().validate(draft.getArea());
-                structural = validation.isValid();
-                for (KOMEValidationIssue issue : validation.getIssues()) issues.add(issue.getMessage());
+                if (draft.getComplex() != null) {
+                    candidate.addComplex(draft.getComplex());
+                    KOMESiegeReadinessEvaluator.Report report = KOMESiegeReadinessResolver.evaluate(data, candidate, draft.getComplex(), null);
+                    structural = report.getGeometryValidation().isValid();
+                    for (KOMESiegeReadinessEvaluator.Diagnostic d : report.getBlockingDiagnostics()) issues.add(describe(d));
+                    for (KOMESiegeReadinessEvaluator.Diagnostic d : report.getWarnings()) issues.add("Warning: " + describe(d));
+                    return new KOMETacticalEditPreflight(admission, structural, state(report), issues);
+                } else {
+                    candidate.addForceDeploymentArea(draft.getArea());
+                    KOMEValidationResult validation = new KOMEForceDeploymentAreaValidator().validate(draft.getArea());
+                    structural = validation.isValid();
+                    for (KOMEValidationIssue issue : validation.getIssues()) issues.add(issue.getMessage());
+                }
             } catch (RuntimeException invalid) { admission = false; issues.add(invalid.getMessage()); }
             return new KOMETacticalEditPreflight(admission, structural,
                 structural ? KOMETacticalEditPreflight.State.VALID : KOMETacticalEditPreflight.State.INVALID, issues);
@@ -41,28 +50,40 @@ public final class KOMETacticalEditService {
             if (!preflight.canSave()) return new Result(Status.REJECTED, preflight);
             try {
                 KOMETacticalConfiguration candidate = data.getTacticalConfigurationSnapshot();
-                candidate.addForceDeploymentArea(draft.atRevision(1L).getArea());
-                data.publishTacticalAreaLifecycle(baseRevision, scope.getTargetId(), candidate, true);
+                if (draft.getComplex() != null) {
+                    candidate.addComplex(draft.atRevision(1L).getComplex());
+                    data.publishTacticalComplexLifecycle(baseRevision, scope.getTargetId(), candidate, true);
+                } else {
+                    candidate.addForceDeploymentArea(draft.atRevision(1L).getArea());
+                    data.publishTacticalAreaLifecycle(baseRevision, scope.getTargetId(), candidate, true);
+                }
                 return new Result(Status.CHANGED, preflight);
             } catch (RuntimeException failure) { return new Result(Status.COMMIT_FAILED, preflight); }
         }
     }
 
     public static Result deleteArea(KOMEWorldData data, KOMETacticalEditScope scope, long baseRevision, long objectRevision) {
+        return deleteDefinition(data, scope, baseRevision, objectRevision);
+    }
+
+    public static Result deleteDefinition(KOMEWorldData data, KOMETacticalEditScope scope, long baseRevision, long objectRevision) {
         synchronized (data) {
             KOMETacticalConfiguration candidate = data.getTacticalConfigurationSnapshot();
             if (candidate.getRevision() != baseRevision) return new Result(Status.STALE_STORE, null);
             try {
                 data.ensureWritable();
                 KOMETacticalEditDraft original = current(candidate, scope);
-                if (original.getArea() == null || original.getObjectRevision() != objectRevision) return new Result(Status.STALE_OBJECT, null);
-                candidate.removeForceDeploymentArea(scope.getTargetId());
+                if (original.getObjectRevision() != objectRevision) return new Result(Status.STALE_OBJECT, null);
+                if (original.getComplex() != null) candidate.removeComplex(scope.getTargetId());
+                else candidate.removeForceDeploymentArea(scope.getTargetId());
             } catch (RuntimeException rejected) {
                 return new Result(Status.REJECTED, new KOMETacticalEditPreflight(false, true,
                     KOMETacticalEditPreflight.State.INVALID, java.util.Collections.singletonList(rejected.getMessage())));
             }
             try {
-                data.publishTacticalAreaLifecycle(baseRevision, scope.getTargetId(), candidate, false);
+                if (scope.getType() == KOMETacticalEditScope.Type.SIEGE_COMPLEX)
+                    data.publishTacticalComplexLifecycle(baseRevision, scope.getTargetId(), candidate, false);
+                else data.publishTacticalAreaLifecycle(baseRevision, scope.getTargetId(), candidate, false);
                 return new Result(Status.CHANGED, null);
             } catch (RuntimeException failure) { return new Result(Status.COMMIT_FAILED, null); }
         }
@@ -156,9 +177,18 @@ public final class KOMETacticalEditService {
     }
 
     private static String describe(KOMESiegeReadinessEvaluator.Diagnostic d) {
-        return d.getCode() + " complex=" + d.getComplexId() + " segment=" + d.getSegmentId()
-            + " connection=" + d.getConnectionId() + " build=" + d.getBuildId() + " gate=" + d.getGateRecordId()
-            + " subjects=" + d.getSubjectIds();
+        List<String> identities = new ArrayList<String>();
+        if (d.getSegmentId() != null) identities.add("segment " + d.getSegmentId());
+        if (d.getConnectionId() != null) identities.add("connection " + d.getConnectionId());
+        if (d.getBuildId() != null) identities.add("Build " + d.getBuildId());
+        if (d.getGateRecordId() != null) identities.add("gate record " + d.getGateRecordId());
+        return d.getCode() + ": " + d.getMessage() + (identities.isEmpty() ? "" : " (" + String.join(", ", identities) + ")")
+            + (d.getSubjectIds().isEmpty() ? "" : " " + d.getSubjectIds());
+    }
+    private static KOMETacticalEditPreflight.State state(KOMESiegeReadinessEvaluator.Report report) {
+        return report.isReady() ? KOMETacticalEditPreflight.State.READY
+            : !report.getGeometryValidation().isValid() || !report.isConfigurationValid()
+                ? KOMETacticalEditPreflight.State.INVALID : KOMETacticalEditPreflight.State.INCOMPLETE;
     }
     private static void requireScopedUnassignment(KOMETacticalConfiguration candidate, KOMETacticalEditScope scope, KOMETacticalEditDraft draft) {
         String old = candidate.findAssignedComplexId(draft.getBuildId()).orElse(null);

@@ -51,7 +51,21 @@ public final class KOMETacticalEditRuntime {
                     browse(player, pending.getRequest().getScope().getTileId(), (int) pending.getRequest().getExpectedSequence());
                     continue;
                 }
-                if (pending.getRequest().getScope().getType() == KOMETacticalEditScope.Type.TILE_FORCE_DEPLOYMENT_AREA) {
+                KOMETacticalEditRequest.Action action = pending.getRequest().getAction();
+                if (action == KOMETacticalEditRequest.Action.BROWSE_COMPLEXES || action == KOMETacticalEditRequest.Action.BROWSE_PREFERRED_AREAS
+                        || action == KOMETacticalEditRequest.Action.BROWSE_BUILDS) {
+                    KOMETacticalComplexCatalog.Kind kind = action == KOMETacticalEditRequest.Action.BROWSE_COMPLEXES
+                        ? KOMETacticalComplexCatalog.Kind.COMPLEXES : action == KOMETacticalEditRequest.Action.BROWSE_PREFERRED_AREAS
+                            ? KOMETacticalComplexCatalog.Kind.PREFERRED_AREAS : KOMETacticalComplexCatalog.Kind.BUILDS;
+                    KOMEPacketHandler.network.sendTo(new kome.common.network.KOMEPacketTacticalComplexCatalog(
+                        kome.common.data.KOMETacticalComplexAccess.catalog(KOMEWorldData.get(player.worldObj), kind,
+                            pending.getRequest().getScope().getTileId(), kind == KOMETacticalComplexCatalog.Kind.COMPLEXES
+                                ? null : pending.getRequest().getScope().getComplexId(), player.dimension,
+                            (int) pending.getRequest().getExpectedSequence())), player);
+                    continue;
+                }
+                if (pending.getRequest().getScope().getType() == KOMETacticalEditScope.Type.TILE_FORCE_DEPLOYMENT_AREA
+                        || action == KOMETacticalEditRequest.Action.CREATE) {
                     kome.common.data.KOMETacticalAreaAccess.requireTile(pending.getRequest().getScope().getTileId(), player.dimension);
                 }
                 KOMETacticalEditSessionManager.Result result = sessions.handle(new PlayerActor(player), KOMEWorldData.get(player.worldObj), pending.getRequest());

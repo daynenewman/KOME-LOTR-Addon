@@ -173,6 +173,15 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         }); } catch (java.util.concurrent.RejectedExecutionException disconnectedOrFull) { }
     }
 
+    @Override public void acceptTacticalComplexCatalog(final kome.common.network.KOMEPacketTacticalComplexCatalog packet) {
+        final long epoch = tacticalEditorLifecycleEpoch;
+        try { clientTasks.enqueue(() -> {
+            net.minecraft.entity.player.EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().thePlayer;
+            if (epoch != tacticalEditorLifecycleEpoch || player == null || player.dimension != packet.getCatalog().dimension || tacticalAreaEditor == null) return;
+            if (tacticalAreaEditor.acceptComplexCatalog(packet.getCatalog())) showTacticalEditor();
+        }); } catch (java.util.concurrent.RejectedExecutionException disconnectedOrFull) { }
+    }
+
     @Override
     public void displayPopulationGui(kome.common.network.KOMEPacketPopulationGui message) {
         KOMEMinecraftClient.displayGui(new KOMEGuiPopulation(message));
