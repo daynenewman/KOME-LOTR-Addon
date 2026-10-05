@@ -9,6 +9,7 @@ import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketConquestData;
 import kome.common.tactical.KOMETacticalConfiguration;
 import kome.common.tactical.KOMETacticalConfigurationCodec;
+import kome.common.tactical.KOMETacticalActivityLock;
 import lotr.common.entity.npc.LOTREntityNPC;
 import lotr.common.world.map.LOTRWaypoint;
 import net.minecraft.entity.Entity;
@@ -70,6 +71,17 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<String, KOMEPlayerBuild> builds = new HashMap<String, KOMEPlayerBuild>();
     /** Sole tactical authority; loads and scoped membership services publish detached replacements. */
     private KOMETacticalConfiguration tacticalConfiguration = new KOMETacticalConfiguration();
+    /** Transient authority callback, not another persisted active-conflict state. */
+    private transient KOMETacticalActivityLock.Provider tacticalActivityLockProvider = KOMETacticalActivityLock.UNLOCKED;
+
+    /** Future conflict integration installs its read-only provider on the authoritative server thread. */
+    public synchronized void setTacticalActivityLockProvider(KOMETacticalActivityLock.Provider provider) {
+        if (provider == null) throw new IllegalArgumentException("Tactical activity lock provider is required.");
+        tacticalActivityLockProvider = provider;
+    }
+    public synchronized boolean isTacticalActivityLocked(String tileId, int dimensionId, String canonicalComplexId) {
+        return tacticalActivityLockProvider.isLocked(tileId, dimensionId, canonicalComplexId);
+    }
     /** Explicit future-construction grants; Build provenance is deliberately stored separately. */
     public final Map<String, KOMEForeignConstructionPermission> foreignConstructionPermissions = new HashMap<String, KOMEForeignConstructionPermission>();
     public final Map<String, KOMEAlliance> alliances = new HashMap<>();
@@ -205,6 +217,16 @@ public class KOMEWorldData extends WorldSavedData {
         KOMETacticalConfiguration previous = tacticalConfiguration;
         boolean dirty = super.isDirty();
         try {
+            java.util.Set<String> keys = new java.util.TreeSet<>(tacticalConfiguration.getBuildAssignmentsByBuildId().keySet());
+            keys.addAll(prepared.getBuildAssignmentsByBuildId().keySet());
+            for (String key : keys) {
+                String oldOwner = tacticalConfiguration.findAssignedComplexId(key).orElse(null);
+                String newOwner = prepared.findAssignedComplexId(key).orElse(null);
+                if (!java.util.Objects.equals(oldOwner, newOwner)) {
+                    if (oldOwner != null) KOMETacticalActivityLock.requireUnlocked(this, tacticalConfiguration.findComplex(oldOwner));
+                    if (newOwner != null) KOMETacticalActivityLock.requireUnlocked(this, prepared.findComplex(newOwner));
+                }
+            }
             tacticalConfiguration = prepared;
             markDirty();
         } catch (RuntimeException failure) {
@@ -238,6 +260,7 @@ public class KOMEWorldData extends WorldSavedData {
             // Recheck intrinsic reference protection at the publication boundary.
             tacticalConfiguration.snapshot().removeForceDeploymentArea(areaId);
         }
+        KOMETacticalActivityLock.requireAreaUnlocked(this, areaId);
         KOMETacticalConfiguration previous = tacticalConfiguration;
         boolean dirty = super.isDirty();
         try { tacticalConfiguration = prepared; markDirty(); }
@@ -263,6 +286,7 @@ public class KOMEWorldData extends WorldSavedData {
             throw new IllegalArgumentException("Invalid complex lifecycle target.");
         if (!oldDefinitions.equals(newDefinitions)) throw new IllegalArgumentException("Operation changed unrelated complexes.");
         if (!creation) tacticalConfiguration.snapshot().removeComplex(complexId);
+        KOMETacticalActivityLock.requireUnlocked(this, creation ? updated : old);
         KOMETacticalConfiguration previous = tacticalConfiguration;
         boolean dirty = super.isDirty();
         try { tacticalConfiguration = prepared; markDirty(); }
@@ -302,6 +326,8 @@ public class KOMEWorldData extends WorldSavedData {
         if (!oldComplexes.equals(newComplexes) || !oldAreas.equals(newAreas)) {
             throw new IllegalArgumentException("Definition commit changed other authorities.");
         }
+        if (complexId != null) KOMETacticalActivityLock.requireUnlocked(this, tacticalConfiguration.findComplex(complexId));
+        else KOMETacticalActivityLock.requireAreaUnlocked(this, areaId);
         KOMETacticalConfiguration previous = tacticalConfiguration;
         boolean dirty = super.isDirty();
         try { tacticalConfiguration = prepared; markDirty(); }

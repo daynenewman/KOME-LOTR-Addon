@@ -10,6 +10,7 @@ import java.util.UUID;
 import kome.common.data.KOMETacticalEditService;
 import kome.common.data.KOMEWorldData;
 import kome.common.tactical.KOMETacticalConfiguration;
+import kome.common.tactical.KOMETacticalActivityLock;
 
 /** Server-thread-owned sessions. One draft per player; a conflicting Open requires explicit Cancel first. */
 public final class KOMETacticalEditSessionManager {
@@ -18,7 +19,7 @@ public final class KOMETacticalEditSessionManager {
     public enum Status {
         OPENED, UPDATED, VALIDATED, REFRESHED, SAVED, NO_CHANGE, CANCELLED, EXPIRED,
         DENIED, WRONG_DIMENSION, INVALID_SESSION, INVALID_DRAFT, SESSION_ACTIVE, LIMIT_REACHED,
-        STALE_SEQUENCE, STALE_STORE, STALE_OBJECT, REJECTED, COMMIT_FAILED, RATE_LIMITED, DELETED, DUPLICATE_ID
+        STALE_SEQUENCE, STALE_STORE, STALE_OBJECT, REJECTED, COMMIT_FAILED, RATE_LIMITED, DELETED, DUPLICATE_ID, ACTIVITY_LOCKED
     }
     public interface Actor {
         UUID getPlayerId();
@@ -54,6 +55,8 @@ public final class KOMETacticalEditSessionManager {
         }
         boolean creating = request.getAction() == KOMETacticalEditRequest.Action.CREATE;
         if (request.getAction() == KOMETacticalEditRequest.Action.OPEN || creating) {
+            try { KOMETacticalEditService.requireUnlocked(data, request.getScope()); }
+            catch (KOMETacticalActivityLock.LockedException locked) { return result(Status.ACTIVITY_LOCKED, session, false); }
             if (session != null) {
                 if (!session.scope.equals(request.getScope()) || session.data != data || session.creating != creating) return result(Status.SESSION_ACTIVE, session, false);
                 refresh(session); return result(Status.OPENED, session, false);
@@ -90,6 +93,14 @@ public final class KOMETacticalEditSessionManager {
         if (session == null || session.data != data || !session.token.equals(request.getToken())
                 || !session.scope.equals(request.getScope())) return result(Status.INVALID_SESSION, null, false);
         if (session.sequence != request.getExpectedSequence()) return result(Status.STALE_SEQUENCE, session, false);
+        if (request.getAction() != KOMETacticalEditRequest.Action.CANCEL && request.getAction() != KOMETacticalEditRequest.Action.REFRESH) {
+            try { KOMETacticalEditService.requireUnlocked(data, session.scope); }
+            catch (KOMETacticalActivityLock.LockedException locked) {
+                session.preflight = new KOMETacticalEditPreflight(false, true, KOMETacticalEditPreflight.State.INVALID,
+                    Collections.singletonList(locked.getMessage()));
+                return result(Status.ACTIVITY_LOCKED, session, false);
+            }
+        }
         refresh(session);
         switch (request.getAction()) {
             case UPDATE:

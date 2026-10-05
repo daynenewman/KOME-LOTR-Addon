@@ -88,13 +88,13 @@ public class KOMETacticalEditFoundationTest {
         assertEquals("B1", copy.getBuildId()); assertEquals("B", copy.getExpectedOldComplexId());
         assertEquals(0, copy.encode().getTagList("DefensiveBuildAssignments", 10).tagCount());
     }
-    @Test public void authoredDataBoundsRejectOversizedIdsLabelsAndCollections() {
+    @Test public void authoredTextIsBoundedWhileRepresentableCollectionsAreNotGameplayCapped() throws Exception {
         assertThrows(IllegalArgumentException.class, () -> KOMETacticalEditWire.encodeDraft(new KOMETacticalEditDraft(new KOMEForceDeploymentArea(
             "FIELD", "T100", 0, String.join("", Collections.nCopies(257, "x")), draft().getArea().getPrism(), 1))));
         KOMESiegeComplex base = KOMESiegeReadinessFixtures.minimal("A", "T100", 0, null);
         KOMESiegeComplex tooMany = new KOMESiegeComplex("A", "T100", 0, 1, Collections.nCopies(33, base.getNormalSegments().get(0)),
             Collections.emptyList(), Collections.emptyList(), null, Collections.emptyList());
-        assertThrows(IllegalArgumentException.class, () -> KOMETacticalEditWire.encodeDraft(new KOMETacticalEditDraft(tooMany)));
+        assertRoundTrip(new KOMETacticalEditDraft(tooMany));
         KOMESiegeComplex badId = new KOMESiegeComplex("A", "T100", 0, 1, Collections.singletonList(new KOMENormalSegment("bad\nid", "", base.getNormalSegments().get(0).getPrism())),
             Collections.emptyList(), Collections.emptyList(), null, Collections.emptyList());
         assertThrows(IllegalArgumentException.class, () -> KOMETacticalEditWire.encodeDraft(new KOMETacticalEditDraft(badId)));
@@ -132,6 +132,15 @@ public class KOMETacticalEditFoundationTest {
             for (int index : new int[] {1, 2}) {
                 ByteBuf corrupt = good.copy(); corrupt.setByte(index, 255); assertInvalid(corrupt);
             }
+            for (boolean badAction : new boolean[] {true,false}) {
+                ByteBuf malformed = Unpooled.buffer();
+                KOMETacticalPacketEnvelope.write(malformed,KOMETacticalPacketEnvelope.MAX_REQUEST_BYTES,out->{
+                    out.writeByte(1); out.writeByte(badAction?255:0); out.writeByte(badAction?0:255);
+                    KOMETacticalEditWire.writeText(out,"T100",128); KOMETacticalEditWire.writeText(out,"",128); KOMETacticalEditWire.writeText(out,"FIELD",128);
+                    out.writeInt(-1); out.writeBoolean(false); out.writeLong(0); out.writeInt(0);
+                });
+                assertInvalid(malformed);
+            }
             ByteBuf truncated = good.copy(0, good.readableBytes() - 1); assertInvalid(truncated);
             ByteBuf trailing = good.copy(); trailing.writeByte(0); assertInvalid(trailing);
             ByteBuf huge = Unpooled.buffer(); huge.writeZero(KOMETacticalEditWire.MAX_DRAFT_BYTES + 2049); assertInvalid(huge);
@@ -140,11 +149,13 @@ public class KOMETacticalEditFoundationTest {
     @Test public void packetRejectsOversizedScopeIdAndNegativeSequenceBeforeQueueing() {
         ByteBuf raw = Unpooled.buffer();
         try {
-            raw.writeByte(1); raw.writeByte(0); raw.writeByte(0);
-            kome.common.network.KOMEPopulationWire.writeText(raw, "T100");
-            kome.common.network.KOMEPopulationWire.writeText(raw, "");
-            kome.common.network.KOMEPopulationWire.writeText(raw, String.join("", Collections.nCopies(129, "A")));
-            raw.writeInt(0); raw.writeBoolean(false); raw.writeLong(0); raw.writeInt(0);
+            KOMETacticalPacketEnvelope.write(raw,KOMETacticalPacketEnvelope.MAX_REQUEST_BYTES,out->{
+                out.writeByte(1); out.writeByte(0); out.writeByte(0);
+                kome.common.network.KOMEPopulationWire.writeText(out,"T100");
+                kome.common.network.KOMEPopulationWire.writeText(out,"");
+                kome.common.network.KOMEPopulationWire.writeText(out,String.join("",Collections.nCopies(129,"A")));
+                out.writeInt(0); out.writeBoolean(false); out.writeLong(0); out.writeInt(0);
+            });
             KOMEPacketTacticalEditRequest bad = new KOMEPacketTacticalEditRequest(); bad.fromBytes(raw); assertFalse(bad.isValid());
         } finally { raw.release(); }
         assertThrows(IllegalArgumentException.class, () -> new KOMETacticalEditRequest(KOMETacticalEditRequest.Action.SAVE, scope(), UUID.randomUUID(), -1, new byte[0]));
@@ -269,13 +280,7 @@ public class KOMETacticalEditFoundationTest {
     }
     @Test public void totalTagCountAndUnsupportedScalarTypesAreRejectedBeforeNativeParsing() throws Exception {
         assertScanRejects(raw(out -> {
-            out.writeByte(9); out.writeUTF("Rows"); out.writeByte(10); out.writeInt(128);
-            for (int i = 0; i < 128; i++) {
-                out.writeByte(9); out.writeUTF("Rows"); out.writeByte(10); out.writeInt(128);
-                for (int j = 0; j < 128; j++) out.writeByte(0);
-                out.writeByte(0);
-            }
-            out.writeByte(0);
+            out.writeByte(9); out.writeUTF("Rows"); out.writeByte(10); out.writeInt(KOMETacticalEditWire.MAX_DRAFT_BYTES + 1);
         }));
         for (int type : new int[] {1, 2, 5, 6, 12, 255}) assertScanRejects(raw(out -> out.writeByte(type)));
     }
@@ -301,28 +306,21 @@ public class KOMETacticalEditFoundationTest {
         assertEquals(draft.encode(), KOMETacticalEditWire.decodeDraft(KOMETacticalEditWire.encodeDraft(draft)).encode());
         assertEquals(draft.encode(), KOMETacticalEditWire.decodeDraft(rawNbt(draft.encode())).encode());
     }
-    @Test public void exactly128PolygonVerticesRoundTripAnd129AreRejectedOnBothPaths() throws Exception {
+    @Test public void polygonVerticesAreByteBoundedRatherThanLimitedTo128() throws Exception {
         assertRoundTrip(areaWithVertices(128));
-        assertThrows(IllegalArgumentException.class, () -> KOMETacticalEditWire.encodeDraft(areaWithVertices(129)));
-        assertScanRejects(rawNbt(areaWithVertices(129).encode()));
+        assertRoundTrip(areaWithVertices(129)); assertRoundTrip(areaWithVertices(1024));
     }
-    @Test public void exactly512TotalVerticesRoundTripAnd513AreRejectedOnBothPaths() throws Exception {
+    @Test public void totalVerticesAreByteBoundedRatherThanLimitedTo512() throws Exception {
         assertRoundTrip(complexWithCounts(0, 128, 128, 128, 128));
-        KOMETacticalEditDraft excessive = complexWithCounts(0, 128, 128, 128, 125, 4);
-        assertThrows(IllegalArgumentException.class, () -> KOMETacticalEditWire.encodeDraft(excessive));
-        assertScanRejects(rawNbt(excessive.encode()));
+        assertRoundTrip(complexWithCounts(0, 256, 256, 256, 256));
     }
-    @Test public void exactly64ConnectionsRoundTripAnd65AreRejectedOnBothPaths() throws Exception {
+    @Test public void connectionsAreByteBoundedRatherThanLimitedTo64() throws Exception {
         assertRoundTrip(complexWithCounts(64, 4));
-        KOMETacticalEditDraft excessive = complexWithCounts(65, 4);
-        assertThrows(IllegalArgumentException.class, () -> KOMETacticalEditWire.encodeDraft(excessive));
-        assertScanRejects(rawNbt(excessive.encode()));
+        assertRoundTrip(complexWithCounts(128, 4));
     }
-    @Test public void zoneCountsRemainBoundedOnRawDecodeAsWellAsEncode() throws Exception {
-        int[] counts = new int[33]; Arrays.fill(counts, 4);
-        KOMETacticalEditDraft excessive = complexWithCounts(0, counts);
-        assertThrows(IllegalArgumentException.class, () -> KOMETacticalEditWire.encodeDraft(excessive));
-        assertScanRejects(rawNbt(excessive.encode()));
+    @Test public void zoneCountsAreByteBoundedRatherThanLimitedTo32() throws Exception {
+        int[] counts = new int[160]; Arrays.fill(counts, 4);
+        assertRoundTrip(complexWithCounts(0, counts));
     }
     @Test public void full64KiBRepresentableDraftWithMaximumCollectionsStillRoundTrips() throws Exception {
         List<KOMENormalSegment> normals = new ArrayList<KOMENormalSegment>();

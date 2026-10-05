@@ -7,6 +7,7 @@ import java.util.Locale;
 import kome.common.siege.KOMESiegeComplex;
 import kome.common.tactical.KOMETacticalConfiguration;
 import kome.common.tactical.KOMETacticalIds;
+import kome.common.tactical.KOMETacticalActivityLock;
 
 /**
  * Server-side world-aware membership operations. Callers handle authorization; no editor/runtime state is owned here.
@@ -17,7 +18,7 @@ public final class KOMETacticalMembershipService {
         CHANGED, NO_CHANGE, INVALID_ID, WORLD_DATA_MISSING, WRITE_BLOCKED, STALE_CONFIGURATION_REVISION,
         BUILD_MISSING, BUILD_INACTIVE, BUILD_NOT_DEFENSIVE, COMPLEX_MISSING,
         BUILD_TILE_MISMATCH, BUILD_DIMENSION_MISMATCH, BUILD_ALREADY_ASSIGNED,
-        EXPECTED_ASSIGNMENT_MISMATCH, REVISION_EXHAUSTED, COMMIT_FAILED
+        EXPECTED_ASSIGNMENT_MISMATCH, REVISION_EXHAUSTED, COMMIT_FAILED, ACTIVITY_LOCKED
     }
     private enum Operation { ASSIGN, UNASSIGN, REASSIGN }
 
@@ -66,6 +67,12 @@ public final class KOMETacticalMembershipService {
                 return Result.failure(Status.STALE_CONFIGURATION_REVISION, "Tactical configuration has changed; refresh the snapshot.");
             }
             String oldComplexId = candidate.findAssignedComplexId(buildKey).orElse(null);
+            try {
+                if (oldComplexId != null) KOMETacticalActivityLock.requireUnlocked(data, candidate.findComplex(oldComplexId));
+                if (!targetKey.isEmpty()) KOMETacticalActivityLock.requireUnlocked(data, candidate.findComplex(targetKey));
+            } catch (KOMETacticalActivityLock.LockedException locked) {
+                return Result.failure(Status.ACTIVITY_LOCKED, locked.getMessage());
+            }
             if (operation != Operation.UNASSIGN) {
                 KOMESiegeComplex target = candidate.findComplex(targetKey);
                 if (target == null) return Result.failure(Status.COMPLEX_MISSING, "Target Siege Complex does not exist.");
@@ -99,6 +106,8 @@ public final class KOMETacticalMembershipService {
             if (!publish) return result;
             try {
                 data.publishTacticalMembership(expectedRevision, candidate);
+            } catch (KOMETacticalActivityLock.LockedException locked) {
+                return Result.failure(Status.ACTIVITY_LOCKED, locked.getMessage());
             } catch (RuntimeException failure) {
                 return Result.failure(Status.COMMIT_FAILED, "Membership publication failed: " + failure.getMessage());
             }

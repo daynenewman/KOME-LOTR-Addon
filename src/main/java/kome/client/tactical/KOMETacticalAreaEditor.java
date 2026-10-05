@@ -195,7 +195,6 @@ public final class KOMETacticalAreaEditor {
         requireEditable(); List<KOMEXZPoint> points = new ArrayList<KOMEXZPoint>(geometry().getPolygon().getVertices());
         KOMEXZPoint vertex = new KOMEXZPoint(x, z);
         if (points.contains(vertex)) throw new IllegalArgumentException("That corner is already a polygon vertex (" + x + ", " + z + "). The polygon closes automatically.");
-        if (points.size() >= KOMETacticalEditWire.MAX_VERTICES) throw new IllegalArgumentException("Maximum 128 vertices.");
         points.add(vertex); polygon(points);
         message = "Vertex " + points.size() + " confirmed at " + x + ", " + z + ". Tab chooses the next block corner.";
     }
@@ -516,6 +515,7 @@ public final class KOMETacticalAreaEditor {
             case LIMIT_REACHED: return "Editor capacity reached. Wait briefly and reopen.";
             case RATE_LIMITED: return "Too many requests. Wait briefly and retry.";
             case INVALID_DRAFT: return "Draft rejected. Check the area ID, fields and size limits.";
+            case ACTIVITY_LOCKED: return "This Siege Complex is activity-locked. Draft kept; wait until activity ends before editing or saving.";
             case REJECTED: case COMMIT_FAILED: return "Request failed. No change was published; refresh and retry.";
             default: return "Unsaved draft.";
         }

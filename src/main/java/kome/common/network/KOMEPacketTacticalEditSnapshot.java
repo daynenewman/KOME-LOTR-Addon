@@ -24,7 +24,22 @@ public final class KOMEPacketTacticalEditSnapshot implements IMessage {
     public KOMETacticalEditSnapshot getSnapshot() { return snapshot; }
     @Override public void toBytes(ByteBuf buffer) {
         if (!valid) throw new IllegalStateException("Invalid editor snapshot packet.");
-        KOMEPopulationWire.writePacket(buffer, out -> {
+        int builds = snapshot == null ? 0 : Math.min(128, snapshot.getAssignedBuildIds().size());
+        int diagnostics = snapshot == null || snapshot.getPreflight() == null ? 0 : Math.min(MAX_DIAGNOSTICS, snapshot.getPreflight().getDiagnostics().size());
+        // Authored draft data is always complete. Advisory lists may shrink with explicit totals/truncation flags.
+        while (true) {
+            ByteBuf candidate = io.netty.buffer.Unpooled.buffer();
+            try {
+                writeSnapshot(candidate, builds, diagnostics); buffer.writeBytes(candidate); return;
+            } catch (KOMETacticalPacketEnvelope.SizeLimitException excessive) {
+                if (diagnostics > 0) diagnostics /= 2;
+                else if (builds > 0) builds /= 2;
+                else throw excessive;
+            } finally { candidate.release(); }
+        }
+    }
+    private void writeSnapshot(ByteBuf buffer, int buildCount, int diagnosticCount) {
+        KOMETacticalPacketEnvelope.write(buffer, KOMETacticalPacketEnvelope.MAX_SNAPSHOT_BYTES, out -> {
             out.writeByte(1); out.writeByte(status.ordinal()); out.writeBoolean(snapshot != null);
             if (snapshot == null) return;
             writeUuid(out, snapshot.getPlayerId()); writeUuid(out, snapshot.getToken());
@@ -33,14 +48,14 @@ public final class KOMEPacketTacticalEditSnapshot implements IMessage {
             out.writeLong(snapshot.getBaseRevision()); out.writeLong(snapshot.getBaseObjectRevision());
             out.writeLong(snapshot.getDraftSequence()); out.writeLong(snapshot.getCurrentRevision()); out.writeBoolean(snapshot.isClosed());
             out.writeInt(snapshot.getTotalAssignedBuildCount());
-            int builds = Math.min(128, snapshot.getAssignedBuildIds().size()); out.writeShort(builds);
+            int builds = buildCount; out.writeShort(builds);
             for (int i = 0; i < builds; i++) KOMETacticalEditWire.writeText(out, snapshot.getAssignedBuildIds().get(i), 128);
             KOMETacticalEditWire.writePayload(out, KOMETacticalEditWire.encodeDraft(snapshot.getDraft()));
             KOMETacticalEditPreflight preflight = snapshot.getPreflight(); out.writeBoolean(preflight != null);
             if (preflight != null) {
                 out.writeBoolean(preflight.canSave()); out.writeBoolean(preflight.isStructurallyValid()); out.writeByte(preflight.getState().ordinal());
                 out.writeInt(preflight.getTotalDiagnosticCount());
-                int count = Math.min(MAX_DIAGNOSTICS, preflight.getDiagnostics().size());
+                int count = diagnosticCount;
                 boolean truncated = preflight.isSummaryTruncated() || count < preflight.getDiagnostics().size();
                 for (int i = 0; i < count; i++) truncated |= preflight.getDiagnostics().get(i).length() > 1024;
                 out.writeBoolean(truncated); out.writeShort(count);
@@ -57,7 +72,10 @@ public final class KOMEPacketTacticalEditSnapshot implements IMessage {
     }
     @Override public void fromBytes(ByteBuf buffer) {
         valid = false; snapshot = null; status = null;
+        ByteBuf decoded = null;
         try {
+            decoded = KOMETacticalPacketEnvelope.read(buffer, KOMETacticalPacketEnvelope.MAX_SNAPSHOT_BYTES);
+            buffer = decoded;
             if (buffer.readableBytes() > 640 * 1024 || buffer.readUnsignedByte() != 1) throw new IllegalArgumentException("Invalid editor snapshot size/version.");
             int value = buffer.readUnsignedByte();
             if (value >= KOMETacticalEditSessionManager.Status.values().length) throw new IllegalArgumentException("Invalid editor status.");
@@ -89,6 +107,7 @@ public final class KOMEPacketTacticalEditSnapshot implements IMessage {
             }
             KOMEPopulationWire.requireFullyRead(buffer); valid = true;
         } catch (RuntimeException invalid) { valid = false; snapshot = null; status = null; }
+        finally { if (decoded != null) decoded.release(); }
     }
     private static void writeUuid(ByteBuf out, UUID id) { out.writeLong(id.getMostSignificantBits()); out.writeLong(id.getLeastSignificantBits()); }
     private static UUID readUuid(ByteBuf in) { return new UUID(in.readLong(), in.readLong()); }

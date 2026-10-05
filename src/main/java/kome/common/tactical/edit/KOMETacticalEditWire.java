@@ -7,39 +7,27 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import kome.common.network.KOMEPopulationWire;
-import kome.common.siege.KOMESiegeZone;
 import net.minecraft.nbt.*;
 
-/** Bounded uncompressed draft envelope: no GZIP expansion, floating point, or live-store publication. */
+/** Exact uncompressed NBT draft; bounded transport inflation is handled separately. No live-store publication. */
 public final class KOMETacticalEditWire {
+    /** Per-edit technical budget: bounds parser memory and synchronous geometry work, not persisted polygon counts. */
     public static final int MAX_DRAFT_BYTES = 65536;
-    public static final int MAX_VERTICES = 128;
-    public static final int MAX_TOTAL_VERTICES = 512;
-    public static final int MAX_ZONES_PER_KIND = 32;
-    public static final int MAX_CONNECTIONS = 64;
+    /** Technical parser budgets, not gameplay geometry counts. Every list row consumes at least one encoded byte. */
+    private static final int MAX_NBT_NODES = MAX_DRAFT_BYTES;
+    private static final long MAX_NBT_ACCOUNTED_BYTES = 64L * MAX_DRAFT_BYTES;
     private KOMETacticalEditWire() { }
 
     public static byte[] encodeDraft(KOMETacticalEditDraft draft) {
         if (draft == null) throw new IllegalArgumentException("Missing draft.");
-        int vertices = 0;
-        if (draft.getComplex() != null) {
-            if (draft.getComplex().getNormalSegments().size() > MAX_ZONES_PER_KIND
-                    || draft.getComplex().getWallZones().size() > MAX_ZONES_PER_KIND
-                    || draft.getComplex().getTransitionZones().size() > MAX_ZONES_PER_KIND
-                    || draft.getComplex().getConnections().size() > MAX_CONNECTIONS) {
-                throw new IllegalArgumentException("Editor definition exceeds collection limits.");
-            }
-            for (KOMESiegeZone zone : draft.getComplex().getNormalSegments()) vertices += zone.getPrism().getPolygon().getVertices().size();
-            for (KOMESiegeZone zone : draft.getComplex().getWallZones()) vertices += zone.getPrism().getPolygon().getVertices().size();
-            for (KOMESiegeZone zone : draft.getComplex().getTransitionZones()) vertices += zone.getPrism().getPolygon().getVertices().size();
-        } else vertices = draft.getArea().getPrism().getPolygon().getVertices().size();
-        if (vertices > MAX_TOTAL_VERTICES) throw new IllegalArgumentException("Too many editor vertices.");
-        return encodeNbt(draft.encode());
+        byte[] bytes = encodeNbt(draft.encode());
+        KOMETacticalPacketEnvelope.requireTransportableDraft(bytes);
+        return bytes;
     }
 
     public static KOMETacticalEditDraft decodeDraft(byte[] bytes) {
         KOMETacticalEditDraft draft = KOMETacticalEditDraft.decode(decodeNbt(bytes));
-        encodeDraft(draft); // Apply the same domain collection limits on both sides.
+        encodeDraft(draft); // Match structural/serialized byte admission on both sides, without polygon count limits.
         return draft;
     }
 
@@ -53,17 +41,19 @@ public final class KOMETacticalEditWire {
             return bytes;
         } catch (IOException failure) {
             throw new IllegalArgumentException("Invalid draft NBT.", failure);
+        } catch (IndexOutOfBoundsException excessive) {
+            throw new IllegalArgumentException("Editor technical size budget reached: one definition must fit in 64 KiB of exact NBT. No geometry was truncated.", excessive);
         } finally { buffer.release(); }
     }
 
     private static NBTTagCompound decodeNbt(byte[] bytes) {
-        if (bytes == null || bytes.length == 0 || bytes.length > MAX_DRAFT_BYTES) throw new IllegalArgumentException("Invalid draft size.");
+        if (bytes == null || bytes.length == 0 || bytes.length > MAX_DRAFT_BYTES) throw new IllegalArgumentException("Invalid draft size: editor technical budget is 64 KiB per definition.");
         try {
             // Minecraft 1.7.10 array accounting can overflow before allocation. Validate
             // every raw tag/count first; NBTSizeTracker and checkTree are additional barriers.
             new DraftNbtScan(bytes).validate();
             DataInputStream input = new DataInputStream(new ByteArrayInputStream(bytes));
-            NBTTagCompound tag = CompressedStreamTools.func_152456_a(input, new NBTSizeTracker(512 * 1024L));
+            NBTTagCompound tag = CompressedStreamTools.func_152456_a(input, new NBTSizeTracker(MAX_NBT_ACCOUNTED_BYTES));
             if (input.available() != 0) throw new IllegalArgumentException("Trailing draft bytes.");
             checkTree(tag, "", 0, new int[1]);
             return tag;
@@ -74,7 +64,6 @@ public final class KOMETacticalEditWire {
     private static final class DraftNbtScan {
         private final DataInputStream input;
         private int nodes;
-        private long vertices;
 
         DraftNbtScan(byte[] bytes) { input = new DataInputStream(new ByteArrayInputStream(bytes)); }
 
@@ -95,7 +84,7 @@ public final class KOMETacticalEditWire {
 
         private void payload(int type, String key, int depth) throws IOException {
             supported(type);
-            if (depth > 12 || ++nodes > 8192) throw invalid("Nesting/count limit.");
+            if (depth > 12 || ++nodes > MAX_NBT_NODES) throw invalid("Technical NBT nesting/node budget reached.");
             switch (type) {
                 case 3: skip(4L); break;
                 case 4: skip(8L); break;
@@ -104,17 +93,11 @@ public final class KOMETacticalEditWire {
                     remaining(5L);
                     int element = input.readUnsignedByte();
                     long length = input.readInt();
-                    int limit = "NormalSegments".equals(key) || "WallZones".equals(key) || "TransitionZones".equals(key)
-                        ? MAX_ZONES_PER_KIND : "Connections".equals(key) ? MAX_CONNECTIONS : MAX_VERTICES;
-                    if (length < 0L || length > limit || (element != 10 && !(element == 0 && length == 0L))) {
+                    if (length < 0L || length > MAX_NBT_NODES || (element != 10 && !(element == 0 && length == 0L))) {
                         throw invalid("Invalid list type/count.");
                     }
                     // Each compound row needs at least its END byte; check before iteration.
                     remaining(length);
-                    if ("Vertices".equals(key)) {
-                        vertices += length; // Each length is already bounded; use long for the aggregate.
-                        if (vertices > MAX_TOTAL_VERTICES) throw invalid("Too many editor vertices.");
-                    }
                     for (long i = 0; i < length; i++) payload(10, key, depth + 1);
                     break;
                 case 10:
@@ -158,7 +141,7 @@ public final class KOMETacticalEditWire {
     }
 
     private static void checkTree(NBTBase tag, String key, int depth, int[] count) {
-        if (depth > 12 || ++count[0] > 8192) throw new IllegalArgumentException("Draft NBT nesting/count limit.");
+        if (depth > 12 || ++count[0] > MAX_NBT_NODES) throw new IllegalArgumentException("Editor technical NBT nesting/node budget reached.");
         if (tag instanceof NBTTagCompound) {
             NBTTagCompound compound = (NBTTagCompound) tag;
             if (compound.func_150296_c().size() > 32) throw new IllegalArgumentException("Too many draft fields.");
@@ -168,7 +151,7 @@ public final class KOMETacticalEditWire {
             }
         } else if (tag instanceof NBTTagList) {
             NBTTagList list = (NBTTagList) tag;
-            if (list.tagCount() > MAX_VERTICES || (list.tagCount() != 0 && list.func_150303_d() != 10)) {
+            if (list.tagCount() > MAX_NBT_NODES || (list.tagCount() != 0 && list.func_150303_d() != 10)) {
                 throw new IllegalArgumentException("Invalid or oversized draft list.");
             }
             for (int i = 0; i < list.tagCount(); i++) checkTree(list.getCompoundTagAt(i), key, depth + 1, count);
