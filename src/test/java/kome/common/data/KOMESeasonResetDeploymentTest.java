@@ -96,6 +96,33 @@ public class KOMESeasonResetDeploymentTest {
         }
     }
 
+    @Test public void virtualResetUsesFresherSurvivorHealthAndRejectsUnresolvedMountedHealth() {
+        Object previous=EntityList.stringToClassMapping.put("kom28-health",SnapshotEntity.class);
+        Object previousName=EntityList.classToStringMapping.put(SnapshotEntity.class,"kom28-health");
+        try {
+            SnapshotEntity rider=new SnapshotEntity(null), mount=new SnapshotEntity(null);
+            rider.health=20F; mount.health=30F; rider.ridingEntity=mount; mount.riddenByEntity=rider;
+            KOMEHiredUnitRecord record=new KOMEHiredUnitRecord();
+            record.movingEntityData=new NBTTagCompound(); assertTrue(rider.writeMountToNBT(record.movingEntityData));
+            NBTTagCompound stored=(NBTTagCompound)record.movingEntityData.copy();
+            record.survivingHealth=new NBTTagCompound(); record.survivingHealth.setFloat("Current",3.25F);
+            NBTTagCompound mountHealth=new NBTTagCompound(); mountHealth.setFloat("Current",7.125F);
+            record.survivingHealth.setTag("Riding",mountHealth);
+            Entity restored=KOMESeasonResetDeployment.restoreVirtualUnit(record,null);
+            assertEquals(3.25F,((SnapshotEntity)restored).health,0F);
+            assertEquals(7.125F,((SnapshotEntity)restored.ridingEntity).health,0F);
+            assertEquals(rider.getUniqueID(),restored.getUniqueID());
+            assertEquals(mount.getUniqueID(),restored.ridingEntity.getUniqueID());
+            assertEquals(stored,record.movingEntityData);
+            record.survivingHealth.removeTag("Riding");
+            assertThrows(IllegalArgumentException.class,()->KOMESeasonResetDeployment.restoreVirtualUnit(record,null));
+            assertEquals(stored,record.movingEntityData);
+        } finally {
+            if(previous==null)EntityList.stringToClassMapping.remove("kom28-health");else EntityList.stringToClassMapping.put("kom28-health",previous);
+            if(previousName==null)EntityList.classToStringMapping.remove(SnapshotEntity.class);else EntityList.classToStringMapping.put(SnapshotEntity.class,previousName);
+        }
+    }
+
     @Test public void capturedMountedSnapshotDoesNotAliasLiveForgeReceipts() {
         Object previousName=EntityList.classToStringMapping.put(SnapshotEntity.class,"kom28-snapshot");
         try {

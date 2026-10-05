@@ -16,4 +16,9 @@ public final class KOMEEntitySnapshots {
         // A snapshot must not change when a later reset stamps the live tree's receipts.
         return entity.writeMountToNBT(snapshot) ? (NBTTagCompound) snapshot.copy() : null;
     }
+
+    public static NBTTagCompound snapshot(KOMEHiredUnitRecord record, Entity entity) {
+        KOMECampaignHealth.observe(record, entity);
+        return snapshot(entity);
+    }
 }

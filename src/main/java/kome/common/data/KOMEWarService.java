@@ -180,20 +180,9 @@ public final class KOMEWarService {
 
     public static List<KOMEWar> authorizedSameSideWars(KOMEWorldData data, String nativeFaction,
             String controllerFaction) {
-        List<KOMEWar> result = new ArrayList<KOMEWar>();
-        if (data == null || data.hasFactionKing(nativeFaction)) return result;
-        if (findActiveOpposition(data, nativeFaction, controllerFaction) != null) return result;
-        // KOM-31: stewardship is a wartime defensive authority, not an alliance-progression reward.
-        // Friend is the minimum LOTR relation for kingless stewardship; the supporting faction must
-        // also already be an explicit member of the native faction's active war side.
-        if (!KOMEDiplomacyService.relationAtLeast(data, nativeFaction, controllerFaction,
-                KOMEDiplomacyRelation.FRIENDS)) {
-            return result;
-        }
-        for (KOMEWar war : sortedWars(data)) {
-            if (war.isActive() && war.sameSide(nativeFaction, controllerFaction)) result.add(war);
-        }
-        return result;
+        // KOM-75: fixed KOMEWar sides are no longer defensive, hostility, target, or movement
+        // authority. Historical rows remain persisted for diagnostics only.
+        return new ArrayList<KOMEWar>();
     }
 
     public static AuthorizationDecision supportingKingDecision(KOMEWorldData data, String nativeFaction,
@@ -202,20 +191,8 @@ public final class KOMEWarService {
         String supportingKey = KOMEAlliance.normalizeFactionKey(supportingFaction);
         if (data == null || nativeKey.length() == 0 || supportingKey.length() == 0 || actor == null)
             return AuthorizationDecision.deny("Missing stewardship identity.");
-        KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(data, actor, nativeKey);
-        if (!governance.allowed) return AuthorizationDecision.deny(governance.reason);
-        if (data.hasFactionKing(nativeKey))
-            return AuthorizationDecision.deny("Wartime Stewardship is dormant because the native faction has a king.");
-        if (!KOMERulerAuthorization.canActAsRuler(data, supportingKey, actor))
-            return AuthorizationDecision.deny("Only the currently recognized supporting king may use Wartime Stewardship.");
-        if (!supportingKey.equals(KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor))))
-            return AuthorizationDecision.deny("The recognized supporting king is not actually pledged to the supporting faction.");
-        if (findActiveOpposition(data, nativeKey, supportingKey) != null)
-            return AuthorizationDecision.deny("The supporting faction is directly opposed to the native faction in an active war.");
-        List<KOMEWar> wars = authorizedSameSideWars(data, nativeKey, supportingKey);
-        if (wars.isEmpty())
-            return AuthorizationDecision.deny("Stewardship requires Friends-or-better diplomacy and an active war with both factions on the same side.");
-        return AuthorizationDecision.allow(wars);
+        return AuthorizationDecision.deny("KOM-31 Wartime Stewardship grants and allied command "
+            + "are retired under the final KOM-75 Emergency Defense design.");
     }
 
     /**

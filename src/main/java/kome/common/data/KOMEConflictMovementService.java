@@ -7,6 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.world.World;
 
 import static kome.common.data.KOMEConflictContracts.*;
 import static kome.common.data.KOMEConflictRecord.*;
@@ -17,7 +18,24 @@ import static kome.common.data.KOMEConflictRecord.*;
  * existing {@link KOMEConflictService} remains the sole ConflictRecord mutation authority.
  */
 public final class KOMEConflictMovementService {
+    interface EmergencyDefensePublisher {
+        boolean publish(KOMEWorldData data,
+            KOMEEmergencyDefenseMobilizationService.Plan plan);
+    }
+
+    private static final EmergencyDefensePublisher LIVE_EMERGENCY_DEFENSE_PUBLISHER =
+        new EmergencyDefensePublisher() {
+            @Override public boolean publish(KOMEWorldData data,
+                    KOMEEmergencyDefenseMobilizationService.Plan plan) {
+                return KOMEEmergencyDefenseMobilizationService.INSTANCE
+                    .publishPlan(data, plan);
+            }
+        };
     private KOMEConflictMovementService() { }
+    /** Server classification only. Creation cohorts remain separate from later strategic arrivals. */
+    static EntryOrigin placementOrigin(KOMEWorldData data, KOMEConflictRecord conflict, String factionId) {
+        return reliefOrigin(data, conflict, factionId) ? EntryOrigin.RELIEF : EntryOrigin.EXTERIOR_ARRIVAL;
+    }
 
     public enum PermissionCode {
         HOSTILE_ATTACK_ALLOWED, NORMAL_MOVEMENT_RULE, NOT_TERMINAL_DESTINATION,
@@ -280,6 +298,19 @@ public final class KOMEConflictMovementService {
     /** Call only after verified cohort recreation and strategic destination publication. */
     public static ArrivalCommitment commitLegalArrival(KOMEWorldData data,
             LegalArrivalReceipt receipt, String actor) {
+        return commitLegalArrival(data, receipt, actor, null, null);
+    }
+
+    /** Production transaction additionally initializes any conflict-created native reserve. */
+    public static ArrivalCommitment commitLegalArrival(KOMEWorldData data,
+            LegalArrivalReceipt receipt, String actor, World arrivalWorld) {
+        return commitLegalArrival(data, receipt, actor, arrivalWorld,
+            LIVE_EMERGENCY_DEFENSE_PUBLISHER);
+    }
+
+    static ArrivalCommitment commitLegalArrival(KOMEWorldData data,
+            LegalArrivalReceipt receipt, String actor, World arrivalWorld,
+            EmergencyDefensePublisher emergencyDefensePublisher) {
         if (data == null || receipt == null)
             return new ArrivalCommitment(ArrivalCode.INVALID_ORDER, null,
                 "A server legal-arrival receipt is required.");
@@ -288,6 +319,23 @@ public final class KOMEConflictMovementService {
         ValidatedCommitmentRequest request = receipt.request();
         KOMEConflictRecord current = data.getConflictService().get(
             receipt.destinationTileId);
+        KOMEConflictService.PersistenceSnapshot before =
+            data.getConflictService().persistenceSnapshot();
+        int auditSizeBefore = data.centralAudit.size();
+        KOMEEmergencyDefenseMobilizationService.Plan reservePlan = null;
+        boolean creating = current == null || !current.isActive();
+        if (emergencyDefensePublisher != null && creating) {
+            try {
+                reservePlan = KOMEEmergencyDefenseMobilizationService.INSTANCE
+                    .prepareForCreatedConflict(data, arrivalWorld,
+                        "CF" + data.getConflictService().getNextConflictSequence(),
+                        receipt.destinationTileId, receipt.authority.factionId,
+                        receipt.acceptedAtMillis);
+            } catch (RuntimeException notReady) {
+                return new ArrivalCommitment(ArrivalCode.CONFLICT_REJECTED, null,
+                    notReady.getMessage());
+            }
+        }
         // A server retry of the same creation receipt necessarily began with ABSENT. Rebind only
         // when the same detachment is already present; Phase 3's exact typed event comparison then
         // proves replay identity and rejects every material mismatch.
@@ -302,6 +350,25 @@ public final class KOMEConflictMovementService {
         }
         KOMEConflictService.Result result = data.getConflictService()
             .acceptValidatedCommitment(data, request, context);
+        boolean reservePublished = true;
+        String reserveFailure = "Emergency Defense population commitment could not be published.";
+        if (result.code == Code.SUCCESS && reservePlan != null && reservePlan.applicable) {
+            try {
+                reservePublished = emergencyDefensePublisher.publish(data, reservePlan);
+            } catch (RuntimeException failure) {
+                reservePublished = false;
+                if (failure.getMessage() != null && failure.getMessage().trim().length() > 0)
+                    reserveFailure = failure.getMessage();
+            }
+        }
+        if (!reservePublished) {
+            data.getConflictService().replaceFrom(KOMEConflictService.restore(
+                before.records, before.nextConflictSequence));
+            while (data.centralAudit.size() > auditSizeBefore)
+                data.centralAudit.remove(data.centralAudit.size() - 1);
+            return new ArrivalCommitment(ArrivalCode.CONFLICT_REJECTED, null,
+                reserveFailure);
+        }
         return new ArrivalCommitment(result.code == Code.SUCCESS
                 || result.code == Code.ALREADY_COMMITTED_SAME_CONFLICT
                     ? ArrivalCode.READY : ArrivalCode.CONFLICT_REJECTED,
@@ -320,6 +387,7 @@ public final class KOMEConflictMovementService {
                 && !conflict.getConflictId().equals(clean(order.conflictHoldId)))
             throw new IllegalStateException("Movement order is held by another conflict.");
         order.status = KOMEArmyMovementOrder.CONFLICT_HELD;
+        order.conflictRelease = null; // a new canonical hold cannot replay an earlier release
         order.conflictHoldId = conflict.getConflictId();
         order.conflictHeldAtMillis = timestampMillis;
         order.nextStepAvailableMillis = 0L;

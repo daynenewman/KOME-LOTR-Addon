@@ -29,6 +29,9 @@ import static org.junit.Assert.*;
 
 /** Actual command/handler behavior with inert players; no live connection or rendered GUI. */
 public class KOMEPublicPrivacyTest {
+    private kome.common.data.KOMEPopulationTestConfig movementConfig;
+    @Before public void movementConfig() throws Exception { movementConfig = new kome.common.data.KOMEPopulationTestConfig(); }
+    @org.junit.After public void closeMovementConfig() throws Exception { movementConfig.close(); }
     private KOMEAccessFixture f;
     private KOMEAccessFixture other;
     private SimpleNetworkWrapper previousNetwork;

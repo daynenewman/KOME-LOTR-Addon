@@ -30,6 +30,12 @@ public class KOMENativeHireRegistrationServiceTest {
         assertNull(record.movingEntityData);
         assertTrue(data.armyCompanies.isEmpty());
         assertTrue(data.armyMovements.isEmpty());
+        KOMEEmergencyDefenseActivity activity =
+            data.emergencyDefenseActivities.get("gondor");
+        assertNotNull(activity);
+        assertTrue(activity.hasKnownQualifyingHire());
+        assertEquals(KOMEEmergencyDefenseActivity.PLAYER_COMBAT_HIRE,
+            activity.updateSource);
     }
 
     @Test public void insufficientPopulationLeavesNoRecordAndNoPartialDebit() {
@@ -41,6 +47,7 @@ public class KOMENativeHireRegistrationServiceTest {
             data, record, "gondor"));
         assertEquals(2400L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));
         assertFalse(data.hiredUnits.containsKey(record.entity));
+        assertFalse(data.emergencyDefenseActivities.containsKey("gondor"));
         assertEquals(BigInteger.ZERO,
             KOMEPopulationProjection.of(data, "gondor").activePopulationCenti);
     }

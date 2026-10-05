@@ -61,6 +61,8 @@ public final class KOMEDefensiveGateLinkService {
     private static OperationResult createLink(KOMEWorldData data, KOMEPlayerBuild parent,
             KOMEPhysicalGateInspection.Result inspection, UUID actorUuid, String actorName,
             long timestamp, PhysicalHealthApplication physicalHealth) {
+        OperationResult activity = validateParent(data, parent, true);
+        if (!activity.isSuccessful()) return activity;
         // All validation precedes allocation; a later physical failure intentionally burns its
         // transient G-number so persisted logical IDs remain monotonic and are never reused.
         String recordId = parent.allocateDefensiveGateRecordId();
@@ -192,6 +194,8 @@ public final class KOMEDefensiveGateLinkService {
                 return OperationResult.failure(
                     "The physical Siege Gate cannot accept recalculated KOME health.");
             }
+            OperationResult activity = validateParent(data, parent, administrator);
+            if (!activity.isSuccessful()) return activity;
             boolean applied;
             try {
                 applied = physicalHealth.apply();
@@ -299,6 +303,8 @@ public final class KOMEDefensiveGateLinkService {
             return OperationResult.failure("The selected KOME Build is not active.");
         }
         if (!parent.isDefensive()) return OperationResult.failure("Only a DEFENSIVE Build may own gate links.");
+        try { kome.common.tactical.KOMETacticalActivityLock.requireBuildUnlocked(data, parent.id); }
+        catch (kome.common.tactical.KOMETacticalActivityLock.LockedException locked) { return OperationResult.failure(locked.getMessage()); }
         return OperationResult.validationSuccess();
     }
 

@@ -85,7 +85,7 @@ public class KOMEFactionCapitalServiceTest {
         }
     }
 
-    @Test public void schemaSixRoundTripsCompleteCapitalAuthority() {
+    @Test public void currentSchemaRoundTripsCompleteCapitalAuthority() {
         KOMEWorldData source = initialized();
         NBTTagCompound saved = new NBTTagCompound();
         source.writeToNBT(saved);

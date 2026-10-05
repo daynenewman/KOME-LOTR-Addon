@@ -147,10 +147,13 @@ public class KOMESeasonResetServiceTest {
     @Test public void schemaSevenUpgradesWithEmptyJournalAndKeepsSeasonState() {
         Fixture f = new Fixture(); NBTTagCompound saved = save(f.data);
         saved.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 7); saved.removeTag("SeasonReset");
+        for (String key : new String[] {KOMEEmergencyDefensePersistence.SCHEMA_KEY,
+                KOMEEmergencyDefensePersistence.RECORDS_KEY, KOMEEmergencyDefensePersistence.COMMITMENTS_KEY,
+                KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY}) saved.removeTag(key);
         KOMEWorldData loaded = new KOMEWorldData("old"); loaded.readFromNBT(saved);
         assertEquals(KOMEWarSeasonState.Phase.RESET, loaded.warSeason.phase);
         assertEquals(0, loaded.seasonReset.seasonId);
-        assertEquals(10, save(loaded).getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, save(loaded).getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
     }
 
     @Test public void checkpointWritesReloadableCanonicalRootAndIoFailureStopsTheBoundary() throws Exception {

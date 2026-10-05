@@ -13,6 +13,39 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMECompanyReorganizationServiceTest {
+    private KOMEPopulationTestConfig movementConfig;
+    @org.junit.Before public void movementConfig() throws Exception { movementConfig = new KOMEPopulationTestConfig(); }
+    @org.junit.After public void closeMovementConfig() throws Exception { movementConfig.close(); }
+    @Test public void actualSplitAndMergeCannotMintMovementCredit() {
+        Fixture f = new Fixture();
+        KOMEHiredUnitRecord first = f.record("T100", 25, true, "T900", "A");
+        KOMEHiredUnitRecord second = f.record("T100", 25, true, "T900", "B");
+        KOMEArmyCompany parent = f.company("T100", first, second);
+        KOMEMovementDayService.initializeNewCompany(parent, java.time.Instant.parse("2026-01-10T12:00:00Z").toEpochMilli());
+        parent.movementAllowance = 1;
+        NBTTagCompound before = parent.writeToNBT();
+        KOMECompanyReorganizationService.Result split = f.service.split(f.data, f.owner, parent.id, Collections.singleton(second.entity));
+        assertTrue(split.reason, split.success);
+        assertEquals(1, parent.movementAllowance); assertEquals(0, split.secondaryCompany.movementAllowance);
+        assertEquals(parent.movementBoundaryMillis, split.secondaryCompany.movementBoundaryMillis);
+        KOMECompanyReorganizationService.Result merge = f.service.merge(f.data, f.owner, parent.id, split.secondaryCompanyId);
+        assertTrue(merge.reason, merge.success);
+        assertEquals(before.getCompoundTag("MovementAllowance"), parent.writeToNBT().getCompoundTag("MovementAllowance"));
+        assertEquals(1, parent.movementAllowance);
+    }
+
+    @Test public void actualMergeUsesMaximumContributingAllowanceCappedByMixedComposition() {
+        Fixture f = new Fixture();
+        KOMEArmyCompany first = f.company("T100", f.record("T100", 25, false, "T900", "A"));
+        KOMEArmyCompany second = f.company("T100", f.record("T100", 25, true, "T900", "B"));
+        long now = java.time.Instant.parse("2026-01-10T12:00:00Z").toEpochMilli();
+        KOMEMovementDayService.initializeNewCompany(first, now); KOMEMovementDayService.initializeNewCompany(second, now);
+        first.movementAllowance = 0;
+        KOMECompanyReorganizationService.Result merge = f.service.merge(f.data, f.owner, first.id, second.id);
+        assertTrue(merge.reason, merge.success);
+        assertEquals(1, first.movementAllowance);
+        assertEquals(second.movementBoundaryMillis, first.movementBoundaryMillis);
+    }
     @Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
 
     @Test public void splitCreatesStableChildAndPreservesUnitEconomicsAndProvenance() {

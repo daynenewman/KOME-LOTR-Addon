@@ -1,0 +1,40 @@
+OK cold canonical root retained both purchased units
+OK cold root retained interrupted daily cursor
+OK cold root retained governance history
+OK both test regions initially unloaded
+OK obsolete virtual rider rejected before recovery
+OK obsolete virtual mount rejected before recovery
+OK cold reset remains active
+OK RESET preempts direct coordinator
+OK interrupted daily authority unchanged
+OK Submitted restriction survived interrupted return
+OK real retry completes: [Company reset season 1: 0 pending / 2; ownership reset=true]
+OK one original mounted tree C1
+OK exact fractional survivor HP C1
+OK physical and strategic destination agree C1
+OK rider/mount receipts retained C1
+OK original snapshot preserved C1
+OK one original mounted tree C2
+OK exact fractional survivor HP C2
+OK physical and strategic destination agree C2
+OK rider/mount receipts retained C2
+OK original snapshot preserved C2
+OK completion save failure denied
+OK failed completion retains RESET and audit
+OK durable completion succeeds
+OK one original mounted tree C1
+OK exact fractional survivor HP C1
+OK physical and strategic destination agree C1
+OK rider/mount receipts retained C1
+OK original snapshot preserved C1
+OK one original mounted tree C2
+OK exact fractional survivor HP C2
+OK physical and strategic destination agree C2
+OK rider/mount receipts retained C2
+OK original snapshot preserved C2
+OK season advanced exactly once
+OK repeat completion succeeds without new outcome
+OK one completion and one audit per returned company
+OK purchased population preserved
+OK real save-all completed
+PASS recover destination-first; no connected client

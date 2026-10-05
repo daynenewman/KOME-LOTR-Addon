@@ -209,6 +209,9 @@ public class KOMEGovernanceServiceTest {
         KOMEWorldData data = world(true); choose(data, KOMEPlayerGovernance.State.SUBMITTED, "", 20);
         NBTTagCompound saved = new NBTTagCompound(); data.writeToNBT(saved);
         saved.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 7);
+        for (String key : new String[] {KOMEEmergencyDefensePersistence.SCHEMA_KEY,
+                KOMEEmergencyDefensePersistence.RECORDS_KEY, KOMEEmergencyDefensePersistence.COMMITMENTS_KEY,
+                KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY}) saved.removeTag(key);
         KOMEWorldData loaded = new KOMEWorldData("schema7"); loaded.readFromNBT(saved);
         assertTrue(loaded.warSeason.isFactionDefeated("gondor"));
         assertNotNull(KOMEGovernanceService.record(loaded, player, "W1"));

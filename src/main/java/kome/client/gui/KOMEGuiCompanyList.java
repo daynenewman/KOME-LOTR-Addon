@@ -220,7 +220,7 @@ public class KOMEGuiCompanyList extends GuiScreen {
             if (index == selectedIndex) {
                 drawRect(x + 24, cardY + 2, x + PANEL_WIDTH - 24, cardY + 4, KOMEGuiTheme.COLOR_BORDER_RED);
             }
-            String speed = company.groundPopulation == 0 ? "2 tiles/day" : "1 tile/day";
+            String speed = company.tilesPerDay + " tiles/day; " + company.remainingMovementAllowance + " left";
             String status = company.status + " | " + speed;
             String companyLabel = displayCompanyName(company) + " @ " + displayTileLabel(company.tile, company.tileDisplayName);
             int statusWidth = fontRendererObj.getStringWidth(status);
@@ -231,7 +231,8 @@ public class KOMEGuiCompanyList extends GuiScreen {
             fontRendererObj.drawString(composition, x + 34, cardY + 21, KOMEGuiTheme.COLOR_TEXT_MUTED);
             String controller = "Native " + company.nativeFaction + " | Owner " + company.ownerName + " | Controller " + company.controllerName + " (" + company.controllerAuthority
                 + ") | Wars " + company.authorizedWarIds + " | Targets " + company.legalTargets + " | Cleanup " + company.withdrawalState
-                + (company.movementStatus.length() > 0 ? " | " + company.movementStatus : "");
+                + (company.movementStatus.length() > 0 ? " | " + company.movementStatus : "")
+                + (company.movementEtaText.length() > 0 ? " | " + company.movementEtaText : "");
             fontRendererObj.drawString(fontRendererObj.trimStringToWidth(controller, PANEL_WIDTH - 68), x + 34, cardY + 34, KOMEGuiTheme.COLOR_TEXT_MUTED);
             fontRendererObj.drawString(status, x + PANEL_WIDTH - 34 - statusWidth,
                 cardY + 7, company.canMove ? KOMEGuiTheme.COLOR_GOOD : KOMEGuiTheme.COLOR_WARN);

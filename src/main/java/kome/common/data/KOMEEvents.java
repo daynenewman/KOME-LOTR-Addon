@@ -95,8 +95,14 @@ public class KOMEEvents {
     /** Forge's periodic despawn event and LOTR's canDespawn veto cover both native paths. */
     @SubscribeEvent(priority=EventPriority.LOWEST)
     public void onProgressionNpcAllowDespawn(LivingSpawnEvent.AllowDespawn event){
-        if(event.entityLiving instanceof LOTREntityNPC&&KOMEProgressionNpcRoles.preventDespawn((LOTREntityNPC)event.entityLiving))
-            event.setResult(Event.Result.DENY);
+        if(event.entityLiving instanceof LOTREntityNPC) {
+            LOTREntityNPC npc=(LOTREntityNPC)event.entityLiving;
+            if(KOMEProgressionNpcRoles.preventDespawn(npc)
+                    || KOMEEmergencyDefenseMobilizationService.INSTANCE.preventsDespawn(
+                        KOMEWorldData.get(KOMEReflection.getWorld(npc)),
+                        KOMEReflection.getEntityUUID(npc)))
+                event.setResult(Event.Result.DENY);
+        }
     }
     public static int defaultUnitCost = 25;
     private final Map<UUID, Integer> lastCoinValues = new HashMap<>();
@@ -321,6 +327,8 @@ public class KOMEEvents {
         }
         KOMECommandTroops.resetDailyMovementAllowances(data, nowMillis);
         KOMECommandTroops.processMovementTick(data, world, nowMillis);
+        KOMEEmergencyDefenseMobilizationService.INSTANCE.processPending(data, world,
+            nowMillis);
         KOMEMusterService.processDue(data, nowMillis);
         KOMEPopulationPayoutProcessor.Result result = runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
         if (result != null && result.success) KOMEFactionDefeatService.reconcile(data, nowMillis);
@@ -362,6 +370,8 @@ public class KOMEEvents {
 
         if (!KOMEReflection.isRemote(event.world) && event.entity instanceof LOTREntityNPC) {
             KOMEWorldData data = KOMEWorldData.get(event.world);
+            if (KOMEEmergencyDefenseMobilizationService.INSTANCE.reconcileLoadedEntity(
+                    data, (LOTREntityNPC) event.entity)) return;
             if (KOMECourierRecipientSpawner.duplicateOwned((LOTREntityNPC)event.entity)) {
                 event.setCanceled(true);
                 return;
@@ -384,6 +394,10 @@ public class KOMEEvents {
                 KOMEReflection.setDead(event.entity);
                 event.setCanceled(true);
                 return;
+            }
+            if (KOMEHiredUnitClassification.isCampaignUnit(movingRecord)) {
+                KOMECampaignHealth.reconcileLoaded(movingRecord, event.entity);
+                data.markDirty();
             }
             // World.spawnEntityInWorld chooses the insertion chunk before this event.
             // Recruitment may relocate across a chunk boundary, so registration is
@@ -608,6 +622,7 @@ public class KOMEEvents {
                 if (npc.isEntityAlive() && data.hiredUnits.containsKey(entityId)) {
                     KOMEUnitLevelCapHooks.enforceCap(npc);
                     updateTrackedPopulationCost(npc, !wasTracked);
+                    if (KOMECampaignHealth.observe(data.hiredUnits.get(entityId), npc)) data.markDirty();
                 }
             } else {
                 releaseIfTracked(npc);
@@ -664,6 +679,38 @@ public class KOMEEvents {
             KOMEHaltedUnitProtection.applyInactiveState((LOTREntityNPC) source);
             event.ammount = 0.0F;
             event.setCanceled(true);
+        }
+    }
+
+    /** Damage occurs after LivingHurtEvent: track the entity now, read exact post-damage HP on save. */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onCampaignHealthDamage(LivingHurtEvent event) {
+        if (event.isCanceled() || event.ammount <= 0F || event.entityLiving.worldObj.isRemote) return;
+        Entity rider = event.entityLiving;
+        Entity passenger = KOMEReflection.getRiddenByEntity(rider);
+        if (passenger != null) rider = passenger;
+        KOMEWorldData data = KOMEWorldData.get(rider.worldObj);
+        KOMEHiredUnitRecord record = data.hiredUnits.get(rider.getUniqueID());
+        if (KOMEHiredUnitClassification.isCampaignUnit(record)) {
+            KOMECampaignHealth.observe(record, rider);
+            data.markDirty();
+        }
+    }
+
+    @SubscribeEvent
+    public void onCampaignChunkUnload(net.minecraftforge.event.world.ChunkEvent.Unload event) {
+        if (event.world.isRemote) return;
+        KOMEWorldData data = KOMEWorldData.get(event.world);
+        for (java.util.List entities : event.getChunk().entityLists) {
+            for (Object value : entities) if (value instanceof Entity) {
+                Entity entity = (Entity) value;
+                KOMEHiredUnitRecord record = data.hiredUnits.get(entity.getUniqueID());
+                if (KOMEHiredUnitClassification.isCampaignUnit(record)) {
+                    if (KOMECampaignHealth.observe(record, entity)) data.markDirty();
+                    record.healthObservedEntity = null;
+                    record.healthObservedMount = null;
+                }
+            }
         }
     }
 
@@ -727,6 +774,18 @@ public class KOMEEvents {
             KOMEKnightCommissionService.npcDeath(KOMEWorldData.get(npc.worldObj),npc.worldObj,npc.getUniqueID().toString());
             KOMELordshipTrialService.npcDeath(KOMEWorldData.get(npc.worldObj),npc.worldObj,npc.getUniqueID().toString());
             KOMECourierService.handleRecipientDeath(KOMEWorldData.get(npc.worldObj),npc.getUniqueID().toString(),npc.worldObj);
+        }
+    }
+
+    /** LivingDeathEvent is cancelable; account only after higher-priority protection handlers. */
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onEmergencyDefenseDeath(LivingDeathEvent event) {
+        if (!event.isCanceled() && event.entityLiving instanceof LOTREntityNPC
+                && !event.entityLiving.worldObj.isRemote) {
+            LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
+            KOMEEmergencyDefenseMobilizationService.INSTANCE.markDead(
+                KOMEWorldData.get(npc.worldObj), KOMEReflection.getEntityUUID(npc),
+                System.currentTimeMillis());
         }
     }
 
@@ -891,7 +950,7 @@ public class KOMEEvents {
             record.benefitSource = alliedHire ? "CIVIL_T2_FARMHAND" : "";
             record.spawningFaction = KOMEAlliance.normalizeFactionKey(ownerFaction);
             record.controller = info.getHiringPlayerUUID();
-            record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
+            record.stationedEntityData = KOMEEntitySnapshots.snapshot(record, npc);
             data.hiredUnits.put(entityID, record);
             KOMEAuditService.record(data, System.currentTimeMillis(), "UNIT", "HIRE", record.sourcePlayer == null ? "" : record.sourcePlayer.toString(),
                 entityID.toString(), "Farmhand hired", "farmhand=true");
@@ -937,7 +996,7 @@ public class KOMEEvents {
         record.controllerAuthority = stewardshipHire
             ? KOMEArmyCompany.AUTHORITY_STEWARDSHIP : KOMEArmyCompany.AUTHORITY_NATIVE;
         record.stewardshipWarIds = "";
-        record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
+        record.stationedEntityData = KOMEEntitySnapshots.snapshot(record, npc);
         boolean registered;
         try {
             registered = KOMENativeHireRegistrationService.registerOrdinaryCombatHire(

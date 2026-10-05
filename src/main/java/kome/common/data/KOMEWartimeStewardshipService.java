@@ -35,18 +35,8 @@ public final class KOMEWartimeStewardshipService {
     }
 
     public static Set<String> authorizedOpponents(KOMEWorldData data, KOMEArmyCompany company) {
-        Set<String> result = new HashSet<String>();
-        if (data == null || company == null || !KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) {
-            return result;
-        }
-        String nativeFaction = nativeFaction(company);
-        for (String warId : company.authorizedWarIds) {
-            KOMEWar war = data.wars.get(warId);
-            if (war != null && war.isActive() && war.sideOf(nativeFaction) > 0) {
-                result.addAll(war.getOpposingFactions(nativeFaction));
-            }
-        }
-        return result;
+        // Retained API shape for historical callers; fixed KOMEWar sides are not target authority.
+        return new HashSet<String>();
     }
 
     public static boolean canEnter(KOMEWorldData data, KOMEArmyCompany company, String tileOwner, boolean retreat) {
@@ -54,9 +44,8 @@ public final class KOMEWartimeStewardshipService {
         String nativeFaction = nativeFaction(company);
         String owner = KOMEAlliance.normalizeFactionKey(tileOwner);
         if (nativeFaction.equals(owner) || data.canFactionUseMilitaryPassage(nativeFaction, owner)) return true;
-        if (retreat) return false;
-        return KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
-            && authorizedOpponents(data, company).contains(owner);
+        // Historical KOMEWar opponent unions are never movement authority after KOM-75.
+        return false;
     }
 
     public static void authorizeCompany(KOMEWorldData data, KOMEArmyCompany company, String controllerFaction,
@@ -133,13 +122,26 @@ public final class KOMEWartimeStewardshipService {
                 company.temporaryController, company.temporaryControllerName, reason);
             return true;
         }
+        KOMEArmyMovementOrder order = data.armyMovements.get(company.movementOrderId);
+        boolean conflictProtected = KOMEConflictMovementService
+                .isActivelyCommitted(data, company.id)
+            || order != null && KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status);
         company.temporaryController = null;
         company.temporaryControllerName = "";
         company.delegationRevocationReason = decision.reason.length() > 0 ? decision.reason
             : reason == null ? "Wartime Stewardship authorization ended" : reason;
+        if (conflictProtected) {
+            // Controller authority may end, but an active/ambiguous ConflictRecord owns every
+            // strategic and cohort mutation until its explicit lifecycle releases the hold.
+            markAuthorizationStates(data, company.id, "REVOKED_CONFLICT_PRESERVED",
+                company.delegationRevocationReason, nowMillis);
+            data.recordCompanyDelegationAudit(nowMillis, "STEWARDSHIP_REVOKED_CONFLICT_PRESERVED",
+                company, null, "", null, "", company.delegationRevocationReason);
+            data.markDirty();
+            return false;
+        }
         company.withdrawalState = company.stewardshipCreated
             ? KOMEArmyCompany.CLEANUP_WITHDRAWAL : KOMEArmyCompany.CLEANUP_NONE;
-        KOMEArmyMovementOrder order = data.armyMovements.get(company.movementOrderId);
         if (order != null && order.isMoving()) {
             order.status = KOMEArmyMovementOrder.WAR_ENDED_HALTED;
             order.accessChoice = "RETREAT_ONLY";
@@ -194,7 +196,8 @@ public final class KOMEWartimeStewardshipService {
 
     /** Demobilizes stewardship-created forces only after they physically reach a safe tile. */
     public static int demobilizeIfSafe(KOMEWorldData data, KOMEArmyCompany company, World world, long nowMillis) {
-        if (data == null || company == null || world == null || !company.stewardshipCreated || company.isMoving()
+        if (data == null || company == null || conflictProtects(data, company)) return 0;
+        if (world == null || !company.stewardshipCreated || company.isMoving()
                 || KOMEArmyCompany.CLEANUP_NONE.equals(company.withdrawalState)
                 || !isSafeTile(data, company.currentTile, nativeFaction(company))) return 0;
         int removed = 0;
@@ -245,6 +248,16 @@ public final class KOMEWartimeStewardshipService {
             pending > 0 ? "Pending loaded-entity removal" : "Safe-tile demobilization");
         if (removed > 0) data.markDirty();
         return removed;
+    }
+
+    static boolean conflictProtects(KOMEWorldData data, KOMEArmyCompany company) {
+        if (data == null || company == null) return true;
+        if (KOMEConflictMovementService.isActivelyCommitted(data, company.id)) return true;
+        for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
+            if (order != null && company.id.equals(order.companyId)
+                    && KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)) return true;
+        }
+        return false;
     }
 
     static void markDemobilizedPopulationPermanentlySpent(KOMEHiredUnitRecord record,

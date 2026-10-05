@@ -29,11 +29,11 @@ public class KOMECampaignSchemaIntegrationTest {
     }
 
     @Test public void everySupportedRootRetainsEveryPresentAuthorityAcrossTwoRoundTrips() {
-        for (int schema = 6; schema <= 10; schema++) {
+        for (int schema = 6; schema <= KOMEWorldData.KOME_DATA_SCHEMA_VERSION; schema++) {
             KOMESeasonResetServiceTest.Fixture f = fixture();
-            NBTTagCompound root = save(f.data); root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, schema);
+            NBTTagCompound root = campaignRoot(f.data, schema);
             NBTTagCompound saved = save(load(save(load(root))));
-            assertEquals(10, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             for (String key : new String[] {"SeasonReset", "PlayerGovernance", "DailyJournal", "CivilianMusters",
                     "HiredUnits", "FactionPopulations", "WarSeason", "ConflictRecords"})
                 assertEquals("schema " + schema + " " + key, root.getTag(key), saved.getTag(key));
@@ -46,7 +46,7 @@ public class KOMECampaignSchemaIntegrationTest {
 
     @Test public void originalSixSevenEightNineLayoutsUpgradeOnlyTheirAbsentSections() {
         for (int schema = 6; schema <= 9; schema++) {
-            NBTTagCompound root = save(fixture().data); root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, schema);
+            NBTTagCompound root = campaignRoot(fixture().data, schema);
             if (schema != 8) root.removeTag("SeasonReset");
             if (schema < 9) { root.removeTag("GovernanceSchema"); root.removeTag("PlayerGovernance"); root.removeTag("DailyJournal"); }
             if (schema == 6) { root.removeTag("ConflictDataSchemaVersion"); root.removeTag("NextConflictSequence"); root.removeTag("ConflictRecords"); }
@@ -56,21 +56,21 @@ public class KOMECampaignSchemaIntegrationTest {
             assertEquals(schema == 9 ? 2 : 0, loaded.dailyJournal.completedStages());
             assertEquals(777, KOMEPopulationService.getAvailablePopulationCenti(loaded, "gondor"));
             assertEquals(1, loaded.hiredUnits.size());
-            assertEquals(10, save(loaded).getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, save(loaded).getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         }
     }
 
     @Test public void mandatoryAndOptionalMalformedSectionsFailClosedWithoutPublishingCandidate() {
-        for (int schema = 6; schema <= 10; schema++) for (String key : new String[] {"SeasonReset", "DailyJournal", "PlayerGovernance"}) {
-            NBTTagCompound root = save(fixture().data); root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, schema);
+        for (int schema = 6; schema <= KOMEWorldData.KOME_DATA_SCHEMA_VERSION; schema++) for (String key : new String[] {"SeasonReset", "DailyJournal", "PlayerGovernance"}) {
+            NBTTagCompound root = campaignRoot(fixture().data, schema);
             root.setString(key, "damaged authority"); reject(root);
         }
-        for (int schema : new int[] {8, 10}) {
-            NBTTagCompound root = save(fixture().data); root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, schema);
+        for (int schema : new int[] {8, 10, 12}) {
+            NBTTagCompound root = campaignRoot(fixture().data, schema);
             root.removeTag("SeasonReset"); reject(root);
         }
-        for (int schema : new int[] {9, 10}) for (String key : new String[] {"DailyJournal", "PlayerGovernance"}) {
-            NBTTagCompound root = save(fixture().data); root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, schema);
+        for (int schema : new int[] {9, 10, 12}) for (String key : new String[] {"DailyJournal", "PlayerGovernance"}) {
+            NBTTagCompound root = campaignRoot(fixture().data, schema);
             root.removeTag(key); reject(root);
         }
     }
@@ -82,6 +82,42 @@ public class KOMECampaignSchemaIntegrationTest {
             NBTTagList wrong = new NBTTagList(); wrong.appendTag(new NBTTagString("not a compound")); target.setTag(key, wrong);
             reject(root);
         }
+    }
+
+    private NBTTagCompound campaignRoot(KOMEWorldData data, int schema) {
+        NBTTagCompound root = save(data);
+        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, schema);
+        if (schema <= 10) {
+            root.removeTag("TacticalConfiguration");
+            root.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
+            for (String key : new String[] {KOMEEmergencyDefensePersistence.SCHEMA_KEY,
+                    KOMEEmergencyDefensePersistence.RECORDS_KEY, KOMEEmergencyDefensePersistence.COMMITMENTS_KEY,
+                    KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY, "MovementBoundary"}) root.removeTag(key);
+            NBTTagList companies = root.getTagList("ArmyCompanies", 10);
+            for (int i = 0; i < companies.tagCount(); i++) companies.getCompoundTagAt(i).removeTag("MovementAllowance");
+        }
+        return root;
+    }
+
+    @Test public void schemaElevenDevWorldUpgradesAbsentCampaignSectionsWithoutChangingMovement() {
+        NBTTagCompound root = save(fixture().data);
+        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 11);
+        for (String key : new String[] {"SeasonReset", "GovernanceSchema", "PlayerGovernance", "DailyJournal"}) root.removeTag(key);
+        NBTTagCompound before = (NBTTagCompound) root.copy();
+        KOMEWorldData loaded = load(root);
+        NBTTagCompound current = save(loaded);
+        assertEquals(before, root);
+        assertEquals(before.getTag("MovementBoundary"), current.getTag("MovementBoundary"));
+        assertEquals(before.getTag("ArmyCompanies"), current.getTag("ArmyCompanies"));
+        assertEquals(before.getTag("HiredUnits"), current.getTag("HiredUnits"));
+        assertEquals(before.getTag("TacticalConfiguration"), current.getTag("TacticalConfiguration"));
+        for (String key : new String[] {KOMEEmergencyDefensePersistence.SCHEMA_KEY,
+                KOMEEmergencyDefensePersistence.RECORDS_KEY, KOMEEmergencyDefensePersistence.COMMITMENTS_KEY,
+                KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY}) assertEquals(key, before.getTag(key), current.getTag(key));
+        assertEquals(0, loaded.seasonReset.companies.size());
+        assertTrue(loaded.playerGovernance.isEmpty());
+        assertEquals(0, loaded.dailyJournal.completedStages());
+        assertEquals(current, save(load(current)));
     }
 
     private void reject(NBTTagCompound root) {

@@ -117,14 +117,14 @@ public class KOMEDailyCoordinatorTest {
         assertTrue(loaded.centralAudit.stream().anyMatch(e -> "DAILY".equals(e.domain) && "INTERRUPTED".equals(e.action)));
     }
 
-    @Test public void missingMovementAndStarvationAuthoritiesAreVisibleAndKeepLegacyRuntime() throws Exception {
+    @Test public void pendingMovementIntegrationAndStarvationAuthorityKeepLegacyRuntime() throws Exception {
         KOMEWorldData data = world(); Instant due = due(data);
         KOMEDailyCoordinator coordinator = new KOMEDailyCoordinator();
         KOMEDailyCoordinator.Checkpoint checkpoint = value -> { };
         coordinator.startSession(data, start); coordinator.process(data, checkpoint, start);
         KOMEArmyCompany company = new KOMEArmyCompany(); data.armyCompanies.put("C1", company);
         assertFalse(coordinator.process(data, checkpoint, due).handled);
-        assertTrue(data.dailyJournal.reason().contains("KOM47")); assertEquals(-1, data.dailyJournal.lastComplete());
+        assertTrue(data.dailyJournal.reason().contains("MOVEMENT_INTEGRATION_PENDING_KOM48")); assertEquals(-1, data.dailyJournal.lastComplete());
         int audit = data.centralAudit.size(); coordinator.process(data, checkpoint, due); assertEquals(audit, data.centralAudit.size());
         data.armyCompanies.clear(); data.hiredUnits.put(java.util.UUID.randomUUID(), new KOMEHiredUnitRecord());
         assertFalse(coordinator.process(data, checkpoint, due).handled); assertTrue(data.dailyJournal.reason().contains("KOM24"));

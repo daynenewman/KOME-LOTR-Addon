@@ -135,7 +135,7 @@ public final class KOMEDailyCoordinator {
 
     static String unavailable(KOMEWorldData data, long now) {
         if (!data.armyMovements.isEmpty() || !data.armyCompanies.isEmpty())
-            return "MOVEMENT_BLOCKED_KOM47: daily allowance/arrival completion contract unavailable; existing movement runtime retained";
+            return "MOVEMENT_INTEGRATION_PENDING_KOM48: canonical KOM-47 authority is available; coordinator adapter pending; existing movement runtime retained";
         for (KOMEConflictRecord record : data.getConflictService().records().values()) if (record.isActive())
             return "CONFLICT_BLOCKED: active conflict requires its owning daily/referee authority; KOM-17 registry remains available";
         if (!data.hiredUnits.isEmpty()) return "STARVATION_BLOCKED_KOM24: unit eligibility/casualty authority unavailable";

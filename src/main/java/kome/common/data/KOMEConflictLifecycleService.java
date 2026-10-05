@@ -344,7 +344,7 @@ public final class KOMEConflictLifecycleService {
         order.nextStepDepartureMillis = 0L;
         order.spawnRetryPaused = false;
         order.pendingSpawnReason = "Conflict " + conflictId
-            + " ended; route remains paused pending explicit future movement policy.";
+            + " ended; route remains paused pending an explicit movement outcome.";
     }
 
     private static String commitmentIssue(KOMEWorldData data,

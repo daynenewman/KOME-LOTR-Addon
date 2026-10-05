@@ -80,7 +80,10 @@ public final class KOMESeasonResetDeployment implements KOMESeasonResetService.D
             if (restoring) {
                 if (entry.complete || !entry.virtualUnits.contains(id)) return "Load company unit " + id + " at " + entry.origin + "; stationary snapshots are not proof of absence";
                 if (record == null || record.movingEntityData == null) return "Authoritative movement snapshot unavailable for " + id;
-                entity = restoreTree((NBTTagCompound) record.movingEntityData.copy(), world);
+                try { entity = restoreVirtualUnit(record, world); }
+                catch (IllegalArgumentException invalidHealth) {
+                    return "Authoritative survivor health unavailable for " + id + ": " + invalidHealth.getMessage();
+                }
                 if (entity == null || !id.equals(KOMEReflection.getEntityUUID(entity)))
                     return "Movement snapshot identity does not match " + id;
             }
@@ -203,6 +206,10 @@ public final class KOMESeasonResetDeployment implements KOMESeasonResetService.D
         if (entity == null || entity instanceof net.minecraft.entity.player.EntityPlayer || entity.isDead || entity instanceof EntityLivingBase
                 && (!Float.isFinite(((EntityLivingBase) entity).getHealth()) || ((EntityLivingBase) entity).getHealth() <= 0)) return false;
         return entity.ridingEntity == null || aliveTree(entity.ridingEntity);
+    }
+
+    static Entity restoreVirtualUnit(KOMEHiredUnitRecord record, World world) {
+        return restoreTree(KOMECampaignHealth.movementSnapshot(record, record.movingEntityData), world);
     }
 
     static Entity restoreTree(NBTTagCompound snapshot, World world) {

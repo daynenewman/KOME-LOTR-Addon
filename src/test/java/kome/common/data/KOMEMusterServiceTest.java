@@ -34,7 +34,7 @@ public class KOMEMusterServiceTest {
                 KOMEMusterRecord muster = civilianMusters.get("gondor|" + warSeason.seasonId);
                 if (muster.getStatus() == KOMEMusterRecord.Status.PENDING_TBD) {
                     if (observedMovement != null) {
-                        assertEquals(1, observedMovement.dailyStepsRemaining);
+                        assertEquals(0, observedMovement.dailyStepsRemaining); // no company authority in this arrival-only fixture
                         assertEquals(KOMEArmyMovementOrder.ARRIVED, observedMovement.status);
                     }
                     sawMusterAfterMovement = true;
@@ -494,23 +494,30 @@ public class KOMEMusterServiceTest {
     @Test public void oldRootCannotSilentlyLoseMusterUseAndInvalidSaveLeavesDestinationUntouched() {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,5);
-        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("Unsupported KOME world-data schema 5"));}
+        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("schema 5"));}
         data.civilianMusters.put("bad-key",record);NBTTagCompound destination=new NBTTagCompound();destination.setString("Sentinel","keep");
         NBTTagCompound before=(NBTTagCompound)destination.copy();
         try{data.writeToNBT(destination);fail("invalid identity saved");}catch(IllegalStateException expected){assertEquals(before,destination);}
     }
-    @Test public void schemaSixConflictUpgradePreservesConsumedMusterAuthority() {
+    @Test public void schemaEightEmergencyDefenseUpgradePreservesConsumedMusterAuthority() {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);
-        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,6);
-        root.removeTag(KOMEConflictPersistence.SCHEMA_KEY);
-        root.removeTag(KOMEConflictPersistence.SEQUENCE_KEY);
-        root.removeTag(KOMEConflictPersistence.RECORDS_KEY);
+        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,8);
+        root.removeTag("MovementBoundary");
+        NBTTagList historicalCompanies = root.getTagList("ArmyCompanies", 10);
+        for (int i = 0; i < historicalCompanies.tagCount(); i++)
+            historicalCompanies.getCompoundTagAt(i).removeTag("MovementAllowance");
+        root.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
+        root.removeTag("TacticalConfiguration");
+        root.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY,1);
+        root.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
+        root.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
         KOMEWorldData upgraded=new KOMEWorldData("upgraded");upgraded.readFromNBT(root);
         assertTrue(upgraded.isDirty());
         assertEquals(record.rosterSummary(),upgraded.civilianMusters.get(record.key()).rosterSummary());
         assertTrue(upgraded.getConflictService().records().isEmpty());
         assertEquals(1L,upgraded.getConflictService().getNextConflictSequence());
+        assertTrue(upgraded.emergencyDefenseCommitments.isEmpty());
     }
     @Test public void rosterFailureAndScheduleOverflowNeverConsumeUsageOrTouchBank() {
         TestWorld data=world("gondor");

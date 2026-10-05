@@ -71,10 +71,12 @@ public class KOMEAdminDiagnosticsCommandsTest {
         KOMECommandKome root = new KOMECommandKome(); ICommandSender staff = sender(true, new ArrayList<String>());
         String usage = root.getCommandUsage(staff);
         for (String part : new String[] {"diagnostics", "preview domain subject|apply token", "conflict <inspect|end>",
-                "repair conflict <tile> <preview|apply>", "audit <list|summary> [page]", "repair stewardship",
+                "emergencydefense inspect <faction>", "repair conflict <tile> <preview|apply>",
+                "audit <list|summary> [page]", "repair stewardship",
                 "repair war", "progression cooldown", "progression relationship"}) assertTrue(part, usage.contains(part));
         completion(root, staff, new String[] {""}, "gui", "help", "tile", "waypoint", "character", "config",
-            "conquest", "waypointdefaults", "adminmarkers", "capital", "ruler", "audit", "diagnostics", "conflict", "repair", "progression");
+            "conquest", "waypointdefaults", "adminmarkers", "capital", "ruler", "audit", "diagnostics",
+            "conflict", "emergencydefense", "repair", "progression");
         completion(root, staff, new String[] {"repair", ""}, "preview", "apply", "conflict", "stewardship", "war");
         completion(root, staff, new String[] {"diagnostics", ""}, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint", "governance", "muster", "daily", "company", "gate");
         completion(root, staff, new String[] {"repair", "preview", ""}, "ownership", "diplomacy", "ruler", "waypoint");
@@ -154,7 +156,7 @@ public class KOMEAdminDiagnosticsCommandsTest {
                 assertFalse(output.isEmpty()); assertTrue(output.size() <= KOMEAdminDiagnostics.MAX_LINES);
                 for (String line : output) assertTrue(line.length() <= KOMEAdminDiagnostics.MAX_LINE_LENGTH);
             }
-            assertTrue(runRoot(root, fixture, "diagnostics", "daily", "status").stream().anyMatch(s -> s.contains("KOM47")));
+            assertTrue(runRoot(root, fixture, "diagnostics", "daily", "status").stream().anyMatch(s -> s.contains("MOVEMENT_INTEGRATION_PENDING_KOM48")));
             assertTrue(runRoot(root, fixture, "diagnostics", "company", "C1").stream().anyMatch(s -> s.contains("UNINSPECTED")));
             net.minecraft.nbt.NBTTagCompound after = new net.minecraft.nbt.NBTTagCompound(); data.writeToNBT(after);
             assertEquals(before, after);
