@@ -155,7 +155,7 @@ public class KOMEWorldDataAtomicLoadTest {
     @Test public void schemaEightRequiresTacticalAuthorityEvenWithoutTheAdditionalIntegrityMarker() throws Exception {
         for (boolean markerPresent : new boolean[]{false, true}) {
             NBTTagCompound source = stableDocument();
-            assertEquals(8, source.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(9, source.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             source.removeTag("TacticalConfiguration");
             if (!markerPresent) source.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
             assertRejectedWithoutPublication(source, "Schema 8 requires a TacticalConfiguration compound");

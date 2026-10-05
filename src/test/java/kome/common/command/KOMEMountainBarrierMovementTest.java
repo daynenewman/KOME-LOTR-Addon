@@ -38,6 +38,9 @@ import static org.junit.Assert.*;
 
 /** KOM-80: rendered contacts, route edges and territorial access are separate authorities. */
 public class KOMEMountainBarrierMovementTest {
+    private KOMEPopulationTestConfig movementConfig;
+    @org.junit.Before public void movementConfig() throws Exception { movementConfig = new KOMEPopulationTestConfig(); }
+    @org.junit.After public void closeMovementConfig() throws Exception { movementConfig.close(); }
     @Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
 
     private static final long NOW = 123456789L;
@@ -273,9 +276,10 @@ public class KOMEMountainBarrierMovementTest {
                     record.currentTile = record.sourceTileId = direction[0];
                     record.sourceFaction = record.unitFaction = record.populationOwningFaction = "gondor";
                     record.cost = record.baseCost = record.populationSpent = 10;
+                    record.mounted = true; company.movementAllowance = 2;
                     NBTTagCompound persisted = record.writeToNBT(); persisted.setString("UnitClass", "CAMPAIGN");
                     record.readFromNBT(persisted);
-                    company.units.add(record.entity); company.totalPopulation = company.groundPopulation = record.cost;
+                    company.units.add(record.entity); company.totalPopulation = company.mountedPopulation = record.cost;
                     order.companyId = company.id; order.owner = company.owner; order.units.add(record.entity);
                     order.hostileAttackDestination = direction[1];
                     data.hiredUnits.put(record.entity, record); data.armyCompanies.put(company.id, company);
@@ -360,6 +364,10 @@ public class KOMEMountainBarrierMovementTest {
 
     private static KOMEArmyMovementOrder queued(KOMEWorldData data, String[] direction) {
         KOMEArmyMovementOrder order = KOMEArmyMovementOrder.newRoute(2);
+        KOMEArmyCompany company = new KOMEArmyCompany(); company.id = "C-KOM80";
+        company.currentTile = direction[0]; company.mountedPopulation = 1;
+        company.movementAllowance = 2; data.armyCompanies.put(company.id, company);
+        order.companyId = company.id; order.dailyStepsRemaining = 2;
         order.id = "M-KOM80"; order.ownerFaction = "gondor";
         order.status = KOMEArmyMovementOrder.WAITING_NEXT_STEP;
         order.originTile = direction[0]; order.destinationTile = direction[1];
@@ -384,7 +392,7 @@ public class KOMEMountainBarrierMovementTest {
         final Method schedule = KOMECommandTroops.class.getDeclaredMethod("scheduleNextRouteStep",
             KOMEWorldData.class, KOMEArmyMovementOrder.class, World.class, long.class);
         schedule.setAccessible(true);
-        return order.tryDepart(true, () -> {
+        return kome.common.data.KOMEMovementDayService.depart(data, order, true, () -> {
             try { return (Boolean) schedule.invoke(null, data, order, world, NOW); }
             catch (ReflectiveOperationException failure) { throw new AssertionError(failure); }
         });

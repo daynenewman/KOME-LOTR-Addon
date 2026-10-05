@@ -18,6 +18,9 @@ import static org.junit.Assert.*;
 
 /** Deterministic Phase 4 movement/conflict integration tests; no physical observation is used. */
 public class KOMEConflictMovementServiceTest {
+    private KOMEPopulationTestConfig movementConfig;
+    @org.junit.Before public void movementConfig() throws Exception { movementConfig = new KOMEPopulationTestConfig(); }
+    @org.junit.After public void closeMovementConfig() throws Exception { movementConfig.close(); }
     @Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
 
     @Before @After public void resetRelations() {

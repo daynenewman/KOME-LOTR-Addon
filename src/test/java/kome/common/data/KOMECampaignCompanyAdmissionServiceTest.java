@@ -10,6 +10,20 @@ import java.util.UUID;
 import static org.junit.Assert.*;
 
 public class KOMECampaignCompanyAdmissionServiceTest {
+    private KOMEPopulationTestConfig movementConfig;
+    @org.junit.Before public void movementConfig() throws Exception { movementConfig = new KOMEPopulationTestConfig(); }
+    @org.junit.After public void closeMovementConfig() throws Exception { movementConfig.close(); }
+    @Test public void newRecruitmentGrantsOnceAndAdmittingAnotherUnitDoesNotRefill() {
+        Fixture f = new Fixture();
+        KOMECampaignCompanyAdmissionService.Result first = f.admit(f.newHire(TILE), TILE);
+        assertTrue(first.reason, first.success); assertEquals(1, first.company.movementAllowance);
+        assertTrue(first.company.movementAllowanceInitialized);
+        long boundary = first.company.movementBoundaryMillis;
+        first.company.movementAllowance = 0;
+        KOMECampaignCompanyAdmissionService.Result second = f.admit(f.newHire(TILE), TILE);
+        assertTrue(second.reason, second.success); assertSame(first.company, second.company);
+        assertEquals(0, second.company.movementAllowance); assertEquals(boundary, second.company.movementBoundaryMillis);
+    }
     private static final String TILE = "T100";
     private static final String OTHER_TILE = "T101";
     @org.junit.Rule public final KOMETileTestResources tileGeometry =

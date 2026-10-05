@@ -83,7 +83,7 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
         assertEquals("KOMEDataSchemaVersion", KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        assertEquals(8, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(9, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION);
         assertEquals(4, KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEWorldData.POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION);
@@ -155,7 +155,7 @@ public class KOMEWorldDataSchemaTest {
 
         IllegalStateException failure = expectReadFailure(data, unsupported);
         assertTrue(failure.getMessage().contains("schema 1"));
-        assertTrue(failure.getMessage().contains("schema 6 or 7 -> 8"));
+        assertTrue(failure.getMessage().contains("schema 6, 7 or 8 -> 9"));
         assertTrue(data.isWriteBlocked());
         assertFalse(data.isDirty());
         assertTrue(data.conquestTiles.isEmpty());
@@ -287,7 +287,7 @@ public class KOMEWorldDataSchemaTest {
     @Test public void newlyCreatedWorldWritesCurrentSchemaWithAnEmptyTacticalSectionWithoutInitializingOrDirtying() {
         KOMEWorldData data = new KOMEWorldData("empty");
         NBTTagCompound root = saved(data);
-        assertEquals(8, root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(9, root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertTrue(root.getBoolean(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY));
         assertEquals(4, root.getInteger("BuildDataSchemaVersion"));
         assertEmptyTacticalSection(root);
@@ -331,7 +331,7 @@ public class KOMEWorldDataSchemaTest {
         assertEquals(17, upgraded.movementSecondsPerTileOverride);
         assertEquals(8, upgraded.nextBuildSequence);
         NBTTagCompound current = saved(upgraded);
-        assertEquals(8, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(9, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEmptyTacticalSection(current);
         for (String key : Arrays.asList("BuildDataSchemaVersion", "Builds", "ConquestTiles", "FactionPopulations",
                 "PopulationDevelopment", "FactionCapitals", "CanonicalDiplomacyRecords", "TileWaypoints", "TileWaypointLinks", "RouteEdges")) {
@@ -356,7 +356,7 @@ public class KOMEWorldDataSchemaTest {
             target.readFromNBT(legacy);
             assertNotNull(target.getBuild("B1").getDefensiveGateRecord("G1"));
             NBTTagCompound upgraded = saved(target);
-            assertEquals(8, upgraded.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(9, upgraded.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             assertEmptyTacticalSection(upgraded);
             assertEquals(0L, target.getTacticalConfigurationSnapshot().getRevision());
             assertTrue(target.isDirty());
@@ -376,7 +376,7 @@ public class KOMEWorldDataSchemaTest {
     }
 
     @Test public void schemasOlderThanSixAndFutureSchemasRetainFailClosedBehavior() {
-        for (int version : new int[]{0, 1, 2, 3, 4, 5, 9, Integer.MAX_VALUE}) {
+        for (int version : new int[]{0, 1, 2, 3, 4, 5, 10, Integer.MAX_VALUE}) {
             NBTTagCompound source = saved(new KOMEWorldData("source"));
             source.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, version);
             NBTTagCompound original = (NBTTagCompound) source.copy();
@@ -421,7 +421,7 @@ public class KOMEWorldDataSchemaTest {
         assertTrue(loaded.isDirty()); assertFalse(loaded.isWriteBlocked());
         assertEquals(original, legacy);
         NBTTagCompound current = saved(loaded);
-        assertEquals(8, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(9, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(original.getCompoundTag("TacticalConfiguration"), current.getCompoundTag("TacticalConfiguration"));
         assertEquals(731L, loaded.getTacticalConfigurationSnapshot().getRevision());
         assertTrue(loaded.getConflictService().records().isEmpty());
@@ -451,7 +451,7 @@ public class KOMEWorldDataSchemaTest {
             KOMEWorldData target = new KOMEWorldData("transitional-seven"); target.readFromNBT(transitional);
             assertTrue(target.isDirty()); assertFalse(target.isWriteBlocked()); assertEquals(original, transitional);
             NBTTagCompound current = saved(target);
-            assertEquals(8, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(9, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             assertEquals(1, current.getCompoundTag("TacticalConfiguration").getInteger("SchemaVersion"));
             assertEquals(731L, target.getTacticalConfigurationSnapshot().getRevision());
             for (String key : REQUIRED_CURRENT_DEV_ROOT_TAGS) {
@@ -484,7 +484,7 @@ public class KOMEWorldDataSchemaTest {
         KOMEPublicWaypoint waypoint = source.publicWaypoints.approve(source, "Merge waypoint", KOMETileTestResources.dimension(),
             KOMETileTestResources.x(), 72, KOMETileTestResources.z(), 0, KOMEPublicWaypoint.Source.PUBLIC, "", "console", 100L, null);
         NBTTagCompound root = saved(source), original = (NBTTagCompound) root.copy();
-        assertEquals(8, root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(9, root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         KOMEWorldData loaded = new KOMEWorldData("combined");
         kome.common.tactical.KOMETacticalActivityLock.Provider provider = (tile, dimension, complex) -> "WEST".equals(complex);
         loaded.setTacticalActivityLockProvider(provider); loaded.readFromNBT(root);
@@ -503,7 +503,7 @@ public class KOMEWorldDataSchemaTest {
         KOMEWorldData upgraded = new KOMEWorldData("dev-seven"); upgraded.readFromNBT(legacy);
         assertTrue(upgraded.isDirty());
         NBTTagCompound current = saved(upgraded);
-        assertEquals(8, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY)); assertEmptyTacticalSection(current);
+        assertEquals(9, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY)); assertEmptyTacticalSection(current);
         for (String key : REQUIRED_CURRENT_DEV_ROOT_TAGS) {
             if (!KOMEWorldData.KOME_DATA_SCHEMA_KEY.equals(key) && !"TacticalConfiguration".equals(key)
                     && !KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY.equals(key))

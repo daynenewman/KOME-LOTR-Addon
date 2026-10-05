@@ -109,21 +109,13 @@ public class KOMEArmyMovementOrder {
     public String conflictHoldId = "";
     public long conflictHeldAtMillis;
 
-    /** Only creation grants the initial allowance. Persistence and status changes never call this. */
+    /** Creates route metadata only. Movement credit belongs to KOMEArmyCompany. */
     public static KOMEArmyMovementOrder newRoute(int tilesPerDay) {
         if (tilesPerDay <= 0) throw new IllegalArgumentException("Movement allowance must be positive");
         KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
         order.tilesPerDay = tilesPerDay;
-        order.dailyStepsRemaining = tilesPerDay;
+        order.dailyStepsRemaining = 0; // diagnostic mirror; route creation grants no company credit
         return order;
-    }
-
-    /** Departure must commit before its allowance is consumed. Blocked/retry paths keep the budget. */
-    public boolean tryDepart(boolean dailyMode, java.util.function.BooleanSupplier departure) {
-        if (dailyMode && dailyStepsRemaining <= 0) return false;
-        if (!departure.getAsBoolean()) return false;
-        if (dailyMode) dailyStepsRemaining--;
-        return true;
     }
 
     public boolean isMoving() {

@@ -53,7 +53,7 @@ public class KOMECombatHireMountSafetyTest {
             "KOMENativeHireRegistrationService.registerOrdinaryCombatHire("));
         assertTrue(source.indexOf("isSecondaryHiredMount(npc, info)")
             < source.indexOf("KOMEUnitPopulationCostService.calculate("));
-        assertTrue(hire.contains("record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);"));
+        assertTrue(hire.contains("record.stationedEntityData = KOMEEntitySnapshots.snapshot(record, npc);"));
         assertFalse(hire.contains("resolveRecruitmentTile("));
         assertFalse(hire.contains("KOMERecruitmentDeploymentService"));
         assertFalse(hire.contains("positionEntityTree(npc"));

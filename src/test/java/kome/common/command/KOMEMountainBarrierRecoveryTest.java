@@ -142,6 +142,8 @@ public class KOMEMountainBarrierRecoveryTest {
             company.id = "C-KOM80"; company.owner = player.id; company.faction = "gondor";
             company.currentTile = origin; company.status = KOMEArmyCompany.MOVING;
             company.movementOrderId = "M-KOM80";
+            company.mountedPopulation = 1; company.movementAllowance = 2;
+            order.dailyStepsRemaining = 2;
             data.armyCompanies.put(company.id, company);
             order.id = company.movementOrderId; order.companyId = company.id; order.owner = player.id;
             order.ownerFaction = "gondor"; order.status = KOMEArmyMovementOrder.WAITING_NEXT_STEP;

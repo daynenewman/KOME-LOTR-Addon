@@ -55,6 +55,7 @@ public class KOMECommandTroopsMovementTest {
         order.traveledRouteTiles.add("T001");
         claim(data, "T001", "gondor");
         claim(data, "T002", "rohan");
+        data.setRouteEdge("T001", "T002", kome.common.data.KOMEConquestRouteEdge.OPEN, "access fixture", 0, 0, 64, 0, "test");
         data.armyMovements.put(order.id, order);
 
         boolean changed = KOMECommandTroops.processWaitingStepDepartures(data, null, 200L);
