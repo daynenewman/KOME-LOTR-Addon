@@ -311,7 +311,8 @@ public class KOMEMusterServiceTest {
 
     private static KOMEWorldData restartCombined(KOMEWorldData data, KOMEMusterRecord muster) {
         NBTTagCompound tag = new NBTTagCompound(); data.writeToNBT(tag);
-        assertEquals(8, tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
+            tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(1, tag.getInteger("MusterDataSchemaVersion"));
         assertEquals(1, tag.getTagList("CivilianMusters", 10).tagCount());
         assertEquals(1, tag.getCompoundTag("WarSeason").getTagList("FactionDefeats", 10).tagCount());
@@ -494,22 +495,24 @@ public class KOMEMusterServiceTest {
     @Test public void oldRootCannotSilentlyLoseMusterUseAndInvalidSaveLeavesDestinationUntouched() {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,5);
-        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("schema 7 -> 8"));}
+        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("schema 8 -> 9"));}
         data.civilianMusters.put("bad-key",record);NBTTagCompound destination=new NBTTagCompound();destination.setString("Sentinel","keep");
         NBTTagCompound before=(NBTTagCompound)destination.copy();
         try{data.writeToNBT(destination);fail("invalid identity saved");}catch(IllegalStateException expected){assertEquals(before,destination);}
     }
-    @Test public void schemaSevenEmergencyDefenseUpgradePreservesConsumedMusterAuthority() {
+    @Test public void schemaEightEmergencyDefenseUpgradePreservesConsumedMusterAuthority() {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);
-        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,7);
-        root.removeTag(KOMEEmergencyDefensePersistence.SCHEMA_KEY);
-        root.removeTag(KOMEEmergencyDefensePersistence.RECORDS_KEY);
+        root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,8);
+        root.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY,1);
+        root.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
+        root.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
         KOMEWorldData upgraded=new KOMEWorldData("upgraded");upgraded.readFromNBT(root);
         assertTrue(upgraded.isDirty());
         assertEquals(record.rosterSummary(),upgraded.civilianMusters.get(record.key()).rosterSummary());
         assertTrue(upgraded.getConflictService().records().isEmpty());
         assertEquals(1L,upgraded.getConflictService().getNextConflictSequence());
+        assertTrue(upgraded.emergencyDefenseCommitments.isEmpty());
     }
     @Test public void rosterFailureAndScheduleOverflowNeverConsumeUsageOrTouchBank() {
         TestWorld data=world("gondor");

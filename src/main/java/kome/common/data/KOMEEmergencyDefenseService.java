@@ -1,10 +1,22 @@
 package kome.common.data;
 
+import kome.common.KOMEReflection;
 import kome.common.config.KOMEConfigRegistry;
+import net.minecraft.entity.Entity;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import static kome.common.data.KOMEConflictContracts.Hostility;
 
@@ -32,6 +44,8 @@ public final class KOMEEmergencyDefenseService {
         public final boolean inactivitySatisfied;
         public final List<String> qualifyingConflictIds;
         public final boolean eligible;
+        public final boolean mobilized;
+        /** Compatibility alias for callers written before mobilization authority existed. */
         public final boolean active;
         public final long eligibleSinceMillis;
         public final String reason;
@@ -39,7 +53,7 @@ public final class KOMEEmergencyDefenseService {
         private Assessment(String faction, boolean king,
                 KOMEEmergencyDefenseActivity activity, long threshold,
                 boolean inactive, List<String> conflicts, boolean eligible,
-                long eligibleSince, String reason) {
+                boolean mobilized, long eligibleSince, String reason) {
             nativeFaction = faction;
             recognizedKing = king;
             knownQualifyingHire = activity != null && activity.hasKnownQualifyingHire();
@@ -52,13 +66,27 @@ public final class KOMEEmergencyDefenseService {
             qualifyingConflictIds = Collections.unmodifiableList(
                 new ArrayList<String>(conflicts));
             this.eligible = eligible;
-            active = eligible; // Phase 1 has authority/readiness only; no reserve troops exist yet.
+            this.mobilized = mobilized;
+            active = mobilized;
             eligibleSinceMillis = eligibleSince;
             this.reason = reason;
         }
     }
 
     private KOMEEmergencyDefenseService() { }
+
+    /** Prospective legal-arrival gate; the caller supplies the authoritative attack event. */
+    public boolean eligibleForAuthoritativeAttack(KOMEWorldData data, String factionId,
+            long nowMillis) {
+        if (data == null || nowMillis < 0L) return false;
+        String faction = KOMEAlliance.normalizeFactionKey(factionId);
+        if (faction.length() == 0 || KOMEAlliance.findLotrFaction(faction) == null)
+            return false;
+        if (!data.hasFactionKing(faction)) return true;
+        KOMEEmergencyDefenseActivity activity = data.emergencyDefenseActivities.get(faction);
+        return activity != null && nowMillis >= saturatedAdd(
+            activity.inactivityAnchorMillis(), configuredInactivityThresholdMillis());
+    }
 
     public long configuredInactivityThresholdMillis() {
         return Math.multiplyExact((long) KOMEConfigRegistry.season()
@@ -91,6 +119,14 @@ public final class KOMEEmergencyDefenseService {
         Collections.sort(ids);
         boolean underAttack = !ids.isEmpty();
         boolean eligible = underAttack && (!king || inactive);
+        boolean mobilized = false;
+        for (KOMEEmergencyDefenseCommitment commitment
+                : data.emergencyDefenseCommitments.values())
+            if (faction.equals(commitment.nativeFaction)
+                    && commitment.state != KOMEEmergencyDefenseCommitment.State.DEMOBILIZED) {
+                mobilized = true;
+                break;
+            }
         long eligibleSince = eligible
             ? king ? Math.max(firstConflictAt, inactivityAt) : firstConflictAt : -1L;
         String reason;
@@ -102,7 +138,7 @@ public final class KOMEEmergencyDefenseService {
             : "Unknown historical activity is inside its conservative observation window.";
         else reason = "No qualifying player combat hire occurred within the configured inactivity window.";
         return new Assessment(faction, king, activity, threshold, inactive, ids,
-            eligible, eligibleSince, reason);
+            eligible, mobilized, eligibleSince, reason);
     }
 
     public boolean recordRecruitmentActivity(KOMEWorldData data, String factionId,
@@ -141,14 +177,21 @@ public final class KOMEEmergencyDefenseService {
         // Ruler assignment and the schema-7 -> schema-8 migration create anchors. Retaining
         // UNKNOWN here keeps
         // partially observed legacy/admin fixtures fail-closed without fabricating history.
-        KOMEEmergencyDefensePersistence.write(data.emergencyDefenseActivities);
+        KOMEEmergencyDefensePersistence.write(data.emergencyDefenseActivities,
+            data.emergencyDefenseCommitments, data.emergencyDefenseObservations);
     }
 
     public List<String> inspectionLines(KOMEWorldData data, String faction, long nowMillis) {
+        return inspectionLines(data, faction, nowMillis, null);
+    }
+
+    public List<String> inspectionLines(KOMEWorldData data, String faction, long nowMillis,
+            World contextWorld) {
         Assessment state = assess(data, faction, nowMillis);
         List<String> lines = new ArrayList<String>();
+        Map<UUID, Entity> loaded = loadedDefenders(data, state.nativeFaction, contextWorld);
         lines.add("Emergency Defense " + KOMEAlliance.displayFactionName(state.nativeFaction)
-            + ": eligible=" + state.eligible + ", active=" + state.active);
+            + ": eligible=" + state.eligible + ", mobilized=" + state.mobilized);
         lines.add("Ruler: " + (state.recognizedKing ? "recognized" : "none")
             + "; last qualifying combat hire="
             + (state.knownQualifyingHire ? Long.toString(state.lastQualifyingHireAtMillis) : "UNKNOWN")
@@ -158,8 +201,88 @@ public final class KOMEEmergencyDefenseService {
         lines.add("Inactivity threshold=" + state.inactivityThresholdMillis
             + "ms; satisfied=" + state.inactivitySatisfied);
         lines.add("Qualifying defensive conflicts=" + state.qualifyingConflictIds);
+        List<String> deferred = new ArrayList<String>();
+        for (KOMEEmergencyDefenseObservation observation
+                : data.emergencyDefenseObservations.values())
+            if (state.nativeFaction.equals(observation.nativeFaction))
+                deferred.add(observation.conflictId + "@" + observation.tileId);
+        Collections.sort(deferred);
+        lines.add("Deferred eligibility observations=" + deferred);
+        for (KOMEEmergencyDefenseCommitment commitment
+                : data.emergencyDefenseCommitments.values()) {
+            if (!state.nativeFaction.equals(commitment.nativeFaction)) continue;
+            lines.add("Commitment " + commitment.conflictId + " tile="
+                + commitment.tileId + " state=" + commitment.state + " share="
+                + commitment.attackedTileProductionRate + "/"
+                + commitment.totalFactionProductionRate + " basisCenti="
+                + commitment.availablePopulationBasisCenti + " unitCost="
+                + commitment.defenderPopulationCost + " units="
+                + commitment.calculatedUnitCount + " committedCenti="
+                + commitment.populationCommittedCenti + " pending="
+                + commitment.count(KOMEEmergencyDefenseCommitment.Disposition.PENDING)
+                + " active=" + commitment.count(
+                    KOMEEmergencyDefenseCommitment.Disposition.ACTIVE)
+                + " dead=" + commitment.count(
+                    KOMEEmergencyDefenseCommitment.Disposition.DEAD)
+                + " refundableCenti=" + commitment.refundableCenti());
+            if (commitment.diagnostic.length() > 0)
+                lines.add("  diagnostic=" + commitment.diagnostic);
+            for (KOMEEmergencyDefenseCommitment.Defender defender
+                    : commitment.defenders.values()) {
+                Entity entity = loaded.get(defender.entityUuid);
+                StringBuilder detail = new StringBuilder("  defender intent=")
+                    .append(defender.intentId).append(" uuid=")
+                    .append(defender.entityUuid).append(" disposition=")
+                    .append(defender.disposition).append(" refunded=")
+                    .append(defender.populationRefunded).append(" loaded=")
+                    .append(entity != null && !entity.isDead);
+                if (entity != null && !entity.isDead) {
+                    detail.append(" dimension=").append(entity.dimension)
+                        .append(" position=").append(String.format(Locale.ROOT,
+                            "%.1f,%.1f,%.1f", entity.posX, entity.posY, entity.posZ));
+                    if (entity instanceof lotr.common.entity.npc.LOTREntityNPC) {
+                        KOMEEmergencyDefenseEntityMarker.Marker marker =
+                            KOMEEmergencyDefenseEntityMarker.read(
+                                (lotr.common.entity.npc.LOTREntityNPC) entity);
+                        if (marker != null && marker.hasHome)
+                            detail.append(" home=").append(marker.homeX).append(',')
+                                .append(marker.homeY).append(',').append(marker.homeZ)
+                                .append(" radius=").append(marker.homeRadius);
+                    }
+                }
+                if (defender.diagnostic.length() > 0)
+                    detail.append(" diagnostic=").append(defender.diagnostic);
+                lines.add(detail.toString());
+            }
+        }
         lines.add("Reason: " + state.reason);
         return Collections.unmodifiableList(lines);
+    }
+
+    private static Map<UUID, Entity> loadedDefenders(KOMEWorldData data, String faction,
+            World contextWorld) {
+        Set<UUID> sought = new HashSet<UUID>();
+        for (KOMEEmergencyDefenseCommitment commitment
+                : data.emergencyDefenseCommitments.values()) {
+            if (!faction.equals(commitment.nativeFaction)) continue;
+            for (KOMEEmergencyDefenseCommitment.Defender defender
+                    : commitment.defenders.values()) sought.add(defender.entityUuid);
+        }
+        Map<UUID, Entity> found = new HashMap<UUID, Entity>();
+        Set<World> worlds = Collections.newSetFromMap(new IdentityHashMap<World, Boolean>());
+        if (contextWorld != null) worlds.add(contextWorld);
+        MinecraftServer server = MinecraftServer.getServer();
+        if (server != null && server.worldServers != null)
+            for (WorldServer world : server.worldServers) if (world != null) worlds.add(world);
+        for (World world : worlds) {
+            for (Object raw : world.loadedEntityList) {
+                if (!(raw instanceof Entity)) continue;
+                Entity entity = (Entity) raw;
+                UUID id = KOMEReflection.getEntityUUID(entity);
+                if (sought.contains(id) && !found.containsKey(id)) found.put(id, entity);
+            }
+        }
+        return found;
     }
 
     private List<KOMEConflictRecord> qualifyingDefensiveConflicts(
@@ -175,6 +298,21 @@ public final class KOMEEmergencyDefenseService {
             if (hasLiveHostileCommitment(data, record, defender, creation)) result.add(record);
         }
         return result;
+    }
+
+    boolean hasNativeDefensiveConflictAuthority(KOMEWorldData data, String conflictId,
+            String tileId, String defenderId) {
+        if (data == null) return false;
+        String defender = KOMEAlliance.normalizeFactionKey(defenderId);
+        KOMEConflictRecord record = data.getConflictService().get(tileId);
+        if (record == null || !record.isActive()
+                || !record.getConflictId().equals(conflictId)) return false;
+        KOMEConquestTile tile = data.getConquestTileIfPresent(record.getTileId());
+        if (tile == null || !defender.equals(KOMEAlliance.normalizeFactionKey(
+                tile.projectRulingFaction()))) return false;
+        KOMEConflictRecord.ValidatedCommitmentEvent creation = creationEvent(record);
+        return creation != null && defender.equals(creation.authorityFactionId)
+            && record.getFactionParticipation().containsKey(defender);
     }
 
     private boolean hasLiveHostileCommitment(KOMEWorldData data,

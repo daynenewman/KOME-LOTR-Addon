@@ -1,5 +1,7 @@
 package kome.common.data;
 
+import kome.common.KOMEAccessFixture;
+import lotr.common.entity.npc.LOTREntityGondorMan;
 import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.nbt.NBTTagCompound;
 import org.junit.After;
@@ -33,6 +35,8 @@ public class KOMEEmergencyDefenseServiceTest {
         KOMEEmergencyDefenseService.Assessment eligible =
             KOMEEmergencyDefenseService.INSTANCE.assess(data, "mordor", 20L);
         assertTrue(eligible.eligible);
+        assertFalse(eligible.mobilized);
+        assertFalse(eligible.active);
         assertFalse(eligible.recognizedKing);
         assertEquals(Collections.singletonList("CF1"), eligible.qualifyingConflictIds);
 
@@ -136,23 +140,26 @@ public class KOMEEmergencyDefenseServiceTest {
         }
     }
 
-    @Test public void schemaSevenMigrationAnchorsRuledFactionWithoutInventingHire() {
+    @Test public void schemaEightMigrationPreservesActivityAndInventsNoCommitment() {
         KOMEWorldData source = world();
         source.writeFactionKingRecord("mordor", UUID.randomUUID(), "King");
         KOMEEmergencyDefenseService.INSTANCE.anchorUnknownHistory(source, "mordor", 100L);
-        NBTTagCompound schemaSeven = new NBTTagCompound(); source.writeToNBT(schemaSeven);
-        schemaSeven.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 7);
-        schemaSeven.removeTag(KOMEEmergencyDefensePersistence.SCHEMA_KEY);
-        schemaSeven.removeTag(KOMEEmergencyDefensePersistence.RECORDS_KEY);
+        NBTTagCompound schemaEight = new NBTTagCompound(); source.writeToNBT(schemaEight);
+        schemaEight.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 8);
+        schemaEight.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY, 1);
+        schemaEight.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
+        schemaEight.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
 
         KOMEWorldData migrated = new KOMEWorldData("migrated");
-        migrated.readFromNBT(schemaSeven);
+        migrated.readFromNBT(schemaEight);
         KOMEEmergencyDefenseActivity activity =
             migrated.emergencyDefenseActivities.get("mordor");
         assertNotNull(activity);
         assertFalse(activity.hasKnownQualifyingHire());
         assertEquals(KOMEEmergencyDefenseActivity.UNKNOWN_HISTORY_ANCHOR,
             activity.updateSource);
+        assertTrue(migrated.emergencyDefenseCommitments.isEmpty());
+        assertTrue(migrated.emergencyDefenseObservations.isEmpty());
         assertTrue(migrated.isDirty());
     }
 
@@ -167,6 +174,51 @@ public class KOMEEmergencyDefenseServiceTest {
         NBTTagCompound after = new NBTTagCompound(); data.writeToNBT(after);
         assertEquals(before, after);
         assertEquals(auditSize, data.centralAudit.size());
+    }
+
+    @Test public void inspectionDistinguishesLoadedAndUnloadedActiveDefendersWithoutInference()
+            throws Exception {
+        KOMEAccessFixture fixture = new KOMEAccessFixture();
+        UUID loadedId = UUID.randomUUID(), unloadedId = UUID.randomUUID();
+        java.util.Map<String, KOMEEmergencyDefenseCommitment.Defender> defenders =
+            new java.util.LinkedHashMap<String, KOMEEmergencyDefenseCommitment.Defender>();
+        defenders.put("ED-1-1", new KOMEEmergencyDefenseCommitment.Defender(
+            "ED-1-1", loadedId, 20, 10L,
+            KOMEEmergencyDefenseCommitment.Disposition.ACTIVE, false, "deployed"));
+        defenders.put("ED-1-2", new KOMEEmergencyDefenseCommitment.Defender(
+            "ED-1-2", unloadedId, 20, 10L,
+            KOMEEmergencyDefenseCommitment.Disposition.ACTIVE, false, "deployed"));
+        fixture.data.emergencyDefenseCommitments.put("CF1",
+            new KOMEEmergencyDefenseCommitment("CF1", "T100", "gondor", 1L, 1L,
+                4000L, "EDT-GONDOR", 20, 2, 4000L, 10L,
+                KOMEEmergencyDefenseCommitment.State.ACTIVE, defenders, "test"));
+        fixture.world.isRemote = true;
+        LOTREntityGondorMan loaded = new LOTREntityGondorMan(fixture.world);
+        fixture.world.isRemote = false;
+        loaded.setUniqueID(loadedId);
+        loaded.setLocationAndAngles(11.5D, 65D, -4.5D, 0F, 0F);
+        loaded.dimension = 100;
+        KOMEEmergencyDefenseMobilizationService.establishBattlefieldHome(loaded,
+            "ED-1-1", "CF1", 10, 65, -5);
+        fixture.world.loadedEntityList.add(loaded);
+
+        java.util.List<String> lines = KOMEEmergencyDefenseService.INSTANCE
+            .inspectionLines(fixture.data, "gondor", 20L, fixture.world);
+        String loadedLine = lineContaining(lines, loadedId.toString());
+        String unloadedLine = lineContaining(lines, unloadedId.toString());
+        assertTrue(loadedLine, loadedLine.contains("disposition=ACTIVE"));
+        assertTrue(loadedLine, loadedLine.contains("loaded=true"));
+        assertTrue(loadedLine, loadedLine.contains("dimension=100"));
+        assertTrue(loadedLine, loadedLine.contains("position=11.5,65.0,-4.5"));
+        assertTrue(loadedLine, loadedLine.contains("home=10,65,-5 radius=24"));
+        assertTrue(unloadedLine, unloadedLine.contains("disposition=ACTIVE"));
+        assertTrue(unloadedLine, unloadedLine.contains("loaded=false"));
+        assertFalse(unloadedLine, unloadedLine.contains("dimension="));
+    }
+
+    private static String lineContaining(java.util.List<String> lines, String value) {
+        for (String line : lines) if (line.contains(value)) return line;
+        throw new AssertionError("Missing inspection line containing " + value + ": " + lines);
     }
 
     private static KOMEWorldData world() {

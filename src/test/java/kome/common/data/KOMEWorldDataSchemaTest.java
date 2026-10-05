@@ -28,6 +28,7 @@ public class KOMEWorldDataSchemaTest {
         "KOMEDataSchemaVersion", "AllianceDataSchemaVersion", "BuildDataSchemaVersion",
         "ConflictDataSchemaVersion", "NextConflictSequence", "ConflictRecords",
         "EmergencyDefenseDataSchemaVersion", "EmergencyDefenseActivities",
+        "EmergencyDefenseCommitments", "EmergencyDefenseObservations",
         "PopulationDevelopmentDataSchemaVersion", "PopulationDevelopment",
         "MusterDataSchemaVersion", "CivilianMusters",
         "FactionCapitalDataSchemaVersion", "FactionCapitals",
@@ -69,8 +70,9 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
         assertEquals("KOMEDataSchemaVersion", KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        assertEquals(8, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(9, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION);
+        assertEquals(3, saved.getInteger("EmergencyDefenseDataSchemaVersion"));
         assertEquals(4, KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEWorldData.POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION);
         assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
@@ -140,7 +142,7 @@ public class KOMEWorldDataSchemaTest {
 
         IllegalStateException failure = expectReadFailure(data, unsupported);
         assertTrue(failure.getMessage().contains("schema 1"));
-        assertTrue(failure.getMessage().contains("schema 7 -> 8"));
+        assertTrue(failure.getMessage().contains("schema 8 -> 9"));
         assertTrue(data.isWriteBlocked());
         assertFalse(data.isDirty());
         assertTrue(data.conquestTiles.isEmpty());

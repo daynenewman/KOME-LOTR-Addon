@@ -103,7 +103,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 && "inspect".equalsIgnoreCase(args[1])) {
             try {
                 for (String line : KOMEEmergencyDefenseService.INSTANCE.inspectionLines(
-                        data, args[2], System.currentTimeMillis()))
+                        data, args[2], System.currentTimeMillis(), sender.getEntityWorld()))
                     sender.addChatMessage(new ChatComponentText(line));
             } catch (IllegalArgumentException invalid) {
                 throw new WrongUsageException(invalid.getMessage());

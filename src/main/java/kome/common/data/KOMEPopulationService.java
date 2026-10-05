@@ -40,6 +40,13 @@ public final class KOMEPopulationService {
         data.grantFactionPopulationCenti(faction, amountCenti);
     }
 
+    public static boolean canGrantCenti(KOMEWorldData data, String faction,
+            long amountCenti) {
+        if (data == null || amountCenti < 0L) return false;
+        long available = getAvailablePopulationCenti(data, faction);
+        return amountCenti <= Long.MAX_VALUE - available;
+    }
+
     /** Debits the one canonical faction bank for a new combat hire. */
     public static boolean tryDebitCombatHire(KOMEWorldData data, String faction, int amount) {
         return trySpendCenti(data, faction, wholeToCenti(amount));
