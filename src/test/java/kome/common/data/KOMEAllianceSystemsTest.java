@@ -826,7 +826,7 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void stewardshipIsKingOnlyAndSupportingKingReplacementReauthorizesWithoutChangingCoalition() {
+    public void retiredStewardshipDeniesSupportingKingReplacementReauthorization() {
         KOMEWorldData data = new KOMEWorldData("test");
         establishMilitaryT3(data, "rohan", "gondor");
         UUID originalKing = crown(data, "gondor", "First King");

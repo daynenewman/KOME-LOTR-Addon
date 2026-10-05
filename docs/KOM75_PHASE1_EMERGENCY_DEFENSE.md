@@ -18,8 +18,9 @@ of troops.
   successful, positive-population combat hire.
 
 No `KOMEWar` side/opponent union, physical NPC location, login state, source tile, or native LOTR
-squadron metadata participates in this decision. The Phase 1 `active` assessment means the
-Emergency Defense authority is active; there are no reserve units until Phase 2.
+squadron metadata participates in this decision. `eligible` means the Emergency Defense authority
+conditions are currently satisfied. `mobilized` (and the compatibility `active` alias) means an
+actual durable Emergency Defense commitment exists.
 
 ## Military-recruitment activity
 
@@ -56,6 +57,7 @@ Staff can inspect derived state without mutation or audit through:
 
 ## Deferred work
 
-Phase 2 owns reserve population spending, troop creation, and equipment. Phase 3 owns any explicit
-allied strategic-command lease. This phase adds no allied ownership, movement permission, horn
-support, campaign AI, victory, conquest, battle resolution, or succession behavior.
+Phase 2 owns conflict-scoped population spending, troop creation, equipment, and autonomous native
+defense. The final KOM-75 design has no Phase 3: allied strategic command, allied ownership,
+supporting-king control, command horns, and command leases are explicitly retired. KOM-75 adds no
+strategic routing, campaign AI, victory, conquest, battle resolution, or succession behavior.

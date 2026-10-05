@@ -191,8 +191,8 @@ public final class KOMEWarService {
         String supportingKey = KOMEAlliance.normalizeFactionKey(supportingFaction);
         if (data == null || nativeKey.length() == 0 || supportingKey.length() == 0 || actor == null)
             return AuthorizationDecision.deny("Missing stewardship identity.");
-        return AuthorizationDecision.deny("KOM-31 Wartime Stewardship grants are retired; "
-            + "Emergency Defense uses active ConflictRecord authority and grants no allied command in Phase 1.");
+        return AuthorizationDecision.deny("KOM-31 Wartime Stewardship grants and allied command "
+            + "are retired under the final KOM-75 Emergency Defense design.");
     }
 
     /**
