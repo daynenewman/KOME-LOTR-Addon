@@ -2885,7 +2885,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     KOMEConflictMovementService.ArrivalCommitment commitment =
                         KOMEConflictMovementService.commitLegalArrival(data,
                             conflictPreparation.receipt, order.owner == null
-                                ? order.ownerName : order.owner.toString());
+                                ? order.ownerName : order.owner.toString(), arrivalWorld);
                     if (!commitment.success()) {
                         rollbackPublishedArrival(data, arrivalWorld, order,
                             verifiedSpawns, orderBeforePublication,

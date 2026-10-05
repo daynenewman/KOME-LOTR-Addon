@@ -79,8 +79,22 @@ public class KOMEConfigRegistryTest {
         assertEquals(10, KOMEConfigRegistry.encirclement().getStarvationGraceDays());
         assertEquals(48, KOMEConfigRegistry.encirclement().getAnnouncedAssaultNoticeHours());
         assertFalse(KOMEConfigRegistry.encirclement().isOfflineStarvationCatchUp());
+        assertEquals(14, KOMEConfigRegistry.season()
+            .getEmergencyDefenseRulerInactivityDays());
         assertFalse(KOMEConfigRegistry.season().getMinimumWarSeasonLengthDays().isPresent());
         assertFalse(KOMEConfigRegistry.season().isAutomaticFinaleEnabled());
+    }
+
+    @Test public void emergencyDefenseInactivityDaysArePositiveAndConfigurable()
+            throws Exception {
+        File file = configFile();
+        write(file, KOMEConfigRegistry.SEASON_CATEGORY,
+            KOMEConfigRegistry.EMERGENCY_DEFENSE_RULER_INACTIVITY_DAYS, "21");
+        KOMEConfigRegistry.load(file);
+        assertEquals(21, KOMEConfigRegistry.season()
+            .getEmergencyDefenseRulerInactivityDays());
+        invalid(KOMEConfigRegistry.SEASON_CATEGORY,
+            KOMEConfigRegistry.EMERGENCY_DEFENSE_RULER_INACTIVITY_DAYS, "0");
     }
 
     @Test public void unitPopulationOverridesUseStableEntityIdsAndRequirePositiveCosts() throws Exception {

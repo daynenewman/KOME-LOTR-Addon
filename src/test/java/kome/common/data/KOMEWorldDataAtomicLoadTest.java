@@ -152,19 +152,21 @@ public class KOMEWorldDataAtomicLoadTest {
         }
     }
 
-    @Test public void schemaEightRequiresTacticalAuthorityEvenWithoutTheAdditionalIntegrityMarker() throws Exception {
+    @Test public void currentSchemaRequiresTacticalAuthorityAndIntegrityMarker() throws Exception {
         for (boolean markerPresent : new boolean[]{false, true}) {
             NBTTagCompound source = stableDocument();
-            assertEquals(8, source.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
+                source.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             source.removeTag("TacticalConfiguration");
             if (!markerPresent) source.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
-            assertRejectedWithoutPublication(source, "Schema 8 requires a TacticalConfiguration compound");
+            assertRejectedWithoutPublication(source, "TacticalConfiguration");
         }
     }
 
-    @Test public void malformedTransitionalSevenAndCurrentEightTacticsFailBeforeAnyUpgradePublication() throws Exception {
+    @Test public void malformedTransitionalSevenAndDevEightTacticsFailBeforeAnyUpgradePublication() throws Exception {
         for (int schema : new int[]{7, 8}) {
             NBTTagCompound source = stableDocument(); source.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, schema);
+            removeEmergencyDefenseSection(source);
             source.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
             source.getCompoundTag("TacticalConfiguration").setString("Revision", "corrupt");
             assertRejectedWithoutPublication(source, "TacticalConfiguration");
@@ -224,6 +226,7 @@ public class KOMEWorldDataAtomicLoadTest {
         NBTTagCompound source = stableDocument(); source.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 6);
         source.removeTag("TacticalConfiguration");
         source.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
+        removeEmergencyDefenseSection(source);
         NBTTagCompound bad = new NBTTagCompound(); bad.setString("Id", "late"); bad.setString("Owner", "not-a-uuid");
         source.setTag("ArmyCompanies", rows(bad));
         assertRejectedWithoutPublication(source, "ArmyCompanies[0]");
@@ -462,6 +465,12 @@ public class KOMEWorldDataAtomicLoadTest {
     private static NBTTagCompound stableDocument() {
         KOMEWorldData initialized = new KOMEWorldData("stable"); initialized.initializeIntegratedWorld();
         NBTTagCompound tag = new NBTTagCompound(); initialized.writeToNBT(tag); return tag;
+    }
+    private static void removeEmergencyDefenseSection(NBTTagCompound root) {
+        root.removeTag(KOMEEmergencyDefensePersistence.SCHEMA_KEY);
+        root.removeTag(KOMEEmergencyDefensePersistence.RECORDS_KEY);
+        root.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
+        root.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
     }
     private static KOMEHiredUnitRecord hired(UUID id) {
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();

@@ -672,6 +672,8 @@ public final class KOMEConflictService {
             context.actor, ended.record.getConflictId(), context.reason,
             "tile=" + normalized + ";releasedHolds=" + holds.size()
                 + ";winner=none;ownershipTransfer=none");
+        KOMEEmergencyDefenseMobilizationService.INSTANCE.onConflictEnded(data,
+            ended.record.getConflictId(), context.timestampMillis);
         data.markDirty();
         return new EndResult(ended, holds.size());
     }

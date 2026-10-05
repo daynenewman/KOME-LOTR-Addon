@@ -71,10 +71,12 @@ public class KOMEAdminDiagnosticsCommandsTest {
         KOMECommandKome root = new KOMECommandKome(); ICommandSender staff = sender(true, new ArrayList<String>());
         String usage = root.getCommandUsage(staff);
         for (String part : new String[] {"diagnostics", "preview domain subject|apply token", "conflict <inspect|end>",
-                "repair conflict <tile> <preview|apply>", "audit <list|summary> [page]", "repair stewardship",
+                "emergencydefense inspect <faction>", "repair conflict <tile> <preview|apply>",
+                "audit <list|summary> [page]", "repair stewardship",
                 "repair war", "progression cooldown", "progression relationship"}) assertTrue(part, usage.contains(part));
         completion(root, staff, new String[] {""}, "gui", "help", "tile", "waypoint", "character", "config",
-            "conquest", "waypointdefaults", "adminmarkers", "capital", "ruler", "audit", "diagnostics", "conflict", "repair", "progression");
+            "conquest", "waypointdefaults", "adminmarkers", "capital", "ruler", "audit", "diagnostics",
+            "conflict", "emergencydefense", "repair", "progression");
         completion(root, staff, new String[] {"repair", ""}, "preview", "apply", "conflict", "stewardship", "war");
         completion(root, staff, new String[] {"diagnostics", ""}, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint");
         completion(root, staff, new String[] {"repair", "preview", ""}, "ownership", "diplomacy", "ruler", "waypoint");

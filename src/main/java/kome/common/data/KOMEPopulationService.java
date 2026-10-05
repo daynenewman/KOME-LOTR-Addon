@@ -40,6 +40,13 @@ public final class KOMEPopulationService {
         data.grantFactionPopulationCenti(faction, amountCenti);
     }
 
+    public static boolean canGrantCenti(KOMEWorldData data, String faction,
+            long amountCenti) {
+        if (data == null || amountCenti < 0L) return false;
+        long available = getAvailablePopulationCenti(data, faction);
+        return amountCenti <= Long.MAX_VALUE - available;
+    }
+
     /** Debits the one canonical faction bank for a new combat hire. */
     public static boolean tryDebitCombatHire(KOMEWorldData data, String faction, int amount) {
         return trySpendCenti(data, faction, wholeToCenti(amount));
@@ -47,11 +54,21 @@ public final class KOMEPopulationService {
 
     /** Begins an atomic hire debit. Only this token can roll back its still-uncommitted debit. */
     public static CombatHireDebit beginCombatHireDebit(KOMEWorldData data, String faction, int wholeCost) {
+        return beginCombatHireDebit(data, faction, wholeCost,
+            KOMEEmergencyDefenseService.RecruitmentSource.PLAYER_COMBAT_HIRE,
+            System.currentTimeMillis());
+    }
+
+    /** Explicit source/time seam keeps future system reserve recruitment out of ruler activity. */
+    public static CombatHireDebit beginCombatHireDebit(KOMEWorldData data, String faction,
+            int wholeCost, KOMEEmergencyDefenseService.RecruitmentSource source,
+            long acceptedAtMillis) {
         long amountCenti = wholeToCenti(wholeCost);
         if (!trySpendCenti(data, faction, amountCenti)) {
             return null;
         }
-        return new CombatHireDebit(data, KOMEAlliance.normalizeFactionKey(faction), amountCenti);
+        return new CombatHireDebit(data, KOMEAlliance.normalizeFactionKey(faction),
+            wholeCost, amountCenti, source, acceptedAtMillis);
     }
 
     /** Marks a newly-created combat record as funded by the canonical faction bank. */
@@ -152,13 +169,24 @@ public final class KOMEPopulationService {
     public static final class CombatHireDebit {
         private final KOMEWorldData data;
         private final String faction;
+        private final int wholeCost;
         private final long amountCenti;
+        private final KOMEEmergencyDefenseService.RecruitmentSource activitySource;
+        private final long acceptedAtMillis;
         private boolean closed;
 
-        private CombatHireDebit(KOMEWorldData data, String faction, long amountCenti) {
+        private CombatHireDebit(KOMEWorldData data, String faction, int wholeCost,
+                long amountCenti,
+                KOMEEmergencyDefenseService.RecruitmentSource activitySource,
+                long acceptedAtMillis) {
+            if (activitySource == null || acceptedAtMillis < 0L)
+                throw new IllegalArgumentException("Combat-hire activity source/time is required.");
             this.data = data;
             this.faction = faction;
+            this.wholeCost = wholeCost;
             this.amountCenti = amountCenti;
+            this.activitySource = activitySource;
+            this.acceptedAtMillis = acceptedAtMillis;
         }
 
         public long getAmountCenti() {
@@ -167,6 +195,8 @@ public final class KOMEPopulationService {
 
         public void commit() {
             ensureOpen();
+            KOMEEmergencyDefenseService.INSTANCE.recordRecruitmentActivity(data,
+                faction, wholeCost, true, activitySource, acceptedAtMillis);
             closed = true;
         }
 

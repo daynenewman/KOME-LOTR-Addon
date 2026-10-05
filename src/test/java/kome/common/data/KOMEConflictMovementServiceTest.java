@@ -1,5 +1,6 @@
 package kome.common.data;
 
+import kome.common.KOMEAccessFixture;
 import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -120,6 +121,86 @@ public class KOMEConflictMovementServiceTest {
         assertFalse(KOMEMovementAccessService.revalidateAll(f.data, 12L));
         assertEquals(KOMEArmyMovementOrder.CONFLICT_HELD, order.status);
         assertSame(conflict, f.data.getConflictService().get("T101"));
+    }
+
+    @Test public void unavailablePhysicalPlacementDoesNotRejectLegalHostileArrival()
+            throws Exception {
+        Fixture f = hostileFixture(false, false);
+        f.normalProduction("B-ED", "T101", "mordor", 20);
+        f.data.grantFactionPopulationCenti("mordor", 100000L);
+        KOMEAccessFixture physical = new KOMEAccessFixture();
+        physical.world.isRemote = true; // inert fixture avoids LOTR WorldServer watcher casts
+        physical.world.flatTerrain = false;
+        KOMEConflictMovementService.ArrivalPreparation prepared = f.prepare("M1", 15L);
+        assertTrue(prepared.reason, prepared.ready());
+        f.publish("M1", "T101");
+        KOMEConflictMovementService.ArrivalCommitment accepted =
+            KOMEConflictMovementService.commitLegalArrival(f.data,
+                prepared.receipt, "server", physical.world);
+        assertTrue(accepted.reason, accepted.success());
+        KOMEConflictRecord conflict = accepted.conflictResult.record;
+        KOMEConflictMovementService.applyConflictHold(f.data,
+            f.data.armyMovements.get("M1"), conflict, 15L);
+
+        KOMEEmergencyDefenseCommitment reserve =
+            f.data.emergencyDefenseCommitments.get(conflict.getConflictId());
+        assertNotNull(reserve);
+        assertTrue(reserve.calculatedUnitCount > 0);
+        assertEquals(reserve.calculatedUnitCount,
+            reserve.count(KOMEEmergencyDefenseCommitment.Disposition.PENDING));
+        assertEquals(KOMEArmyMovementOrder.CONFLICT_HELD,
+            f.data.armyMovements.get("M1").status);
+        assertEquals(0, physical.world.terrainProbes);
+        assertTrue(physical.world.loadedEntityList.isEmpty());
+        assertEquals(100000L - reserve.populationCommittedCenti,
+            KOMEPopulationService.getAvailablePopulationCenti(f.data, "mordor"));
+    }
+
+    @Test public void zeroUnitEmergencyAllocationNeverRejectsLegalConflict()
+            throws Exception {
+        Fixture f = hostileFixture(false, false);
+        f.data.grantFactionPopulationCenti("mordor", 100000L);
+        KOMEAccessFixture physical = new KOMEAccessFixture();
+        physical.world.isRemote = true;
+        KOMEConflictMovementService.ArrivalPreparation prepared = f.prepare("M1", 16L);
+        f.publish("M1", "T101");
+        KOMEConflictMovementService.ArrivalCommitment accepted =
+            KOMEConflictMovementService.commitLegalArrival(f.data,
+                prepared.receipt, "server", physical.world);
+        assertTrue(accepted.reason, accepted.success());
+        KOMEEmergencyDefenseCommitment reserve = f.data.emergencyDefenseCommitments
+            .get(accepted.conflictResult.record.getConflictId());
+        assertNotNull(reserve);
+        assertEquals(0, reserve.calculatedUnitCount);
+        assertEquals(0L, reserve.populationCommittedCenti);
+        assertEquals(KOMEEmergencyDefenseCommitment.State.ACTIVE, reserve.state);
+        assertEquals(100000L,
+            KOMEPopulationService.getAvailablePopulationCenti(f.data, "mordor"));
+    }
+
+    @Test public void durableEmergencyPublicationFailureRollsBackNewConflict()
+            throws Exception {
+        Fixture f = hostileFixture(false, false);
+        f.normalProduction("B-ED", "T101", "mordor", 20);
+        f.data.grantFactionPopulationCenti("mordor", 100000L);
+        KOMEAccessFixture physical = new KOMEAccessFixture();
+        physical.world.isRemote = true;
+        KOMEConflictMovementService.ArrivalPreparation prepared = f.prepare("M1", 17L);
+        f.publish("M1", "T101");
+        int auditsBefore = f.data.centralAudit.size();
+        KOMEConflictMovementService.ArrivalCommitment rejected =
+            KOMEConflictMovementService.commitLegalArrival(f.data, prepared.receipt,
+                "server", physical.world,
+                (ignoredData, ignoredPlan) -> false);
+        assertFalse(rejected.success());
+        assertEquals(KOMEConflictMovementService.ArrivalCode.CONFLICT_REJECTED,
+            rejected.code);
+        assertNull(f.data.getConflictService().get("T101"));
+        assertTrue(f.data.emergencyDefenseCommitments.isEmpty());
+        assertTrue(f.data.emergencyDefenseObservations.isEmpty());
+        assertEquals(100000L,
+            KOMEPopulationService.getAvailablePopulationCenti(f.data, "mordor"));
+        assertEquals(auditsBefore, f.data.centralAudit.size());
     }
 
     @Test public void defensiveArrivalCreatesEncirclementWithStrategicGarrisonOnly() {
@@ -493,6 +574,20 @@ public class KOMEConflictMovementServiceTest {
             build.id = id; build.tileId = tile;
             build.displayName = id; build.active = true;
             build.type = KOMEBuildType.DEFENSIVE;
+            data.builds.put(id, build);
+        }
+
+        void normalProduction(String id, String tile, String faction, int hours) {
+            KOMEPlayerBuild build = new KOMEPlayerBuild();
+            build.id = id; build.tileId = tile; build.populationFaction = faction;
+            build.displayName = id; build.active = true;
+            build.type = KOMEBuildType.NORMAL;
+            KOMEBuildContribution contribution = new KOMEBuildContribution();
+            contribution.id = "H-" + id;
+            contribution.centiHours = Math.multiplyExact((long) hours, 50L);
+            contribution.status = KOMEBuildContribution.APPROVED;
+            build.contributions.add(contribution);
+            build.developedNativeCentiHours = contribution.centiHours;
             data.builds.put(id, build);
         }
 

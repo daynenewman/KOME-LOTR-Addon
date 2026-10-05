@@ -1,0 +1,25 @@
+faction_id,source,entry_index,weapon,helmet,body,legs,boots,light_exception,ent_exception,native_equipment_exception,native_exception_protection,native_exception_reason
+hobbit,HOBBIT_SHIRRIFF,0,swordBronze,,,,,true,false,false,0,
+bree,BREE_CAPTAIN,0,swordBronze,,,,,true,false,false,0,
+dunedain,RANGER_NORTH_CAPTAIN,0,swordArnor,helmetRanger,bodyRanger,legsRanger,bootsRanger,true,false,false,0,
+bluemountains,BLUE_DWARF_COMMANDER,0,swordBlueDwarven,helmetBlueDwarven,bodyBlueDwarven,legsBlueDwarven,bootsBlueDwarven,false,false,false,0,
+highelves,HIGH_ELF_LORD,0,swordHighElven,helmetHighElven,bodyHighElven,legsHighElven,bootsHighElven,false,false,false,0,
+gundabad,GUNDABAD_ORC_MERCENARY_CAPTAIN,0,swordGundabadUruk,helmetGundabadUruk,bodyGundabadUruk,legsGundabadUruk,bootsGundabadUruk,false,false,false,0,
+angmar,ANGMAR_ORC_MERCENARY_CAPTAIN,0,swordAngmar,helmetAngmar,bodyAngmar,legsAngmar,bootsAngmar,false,false,false,0,
+woodelf,WOOD_ELF_CAPTAIN,0,swordWoodElven,helmetWoodElven,bodyWoodElven,legsWoodElven,bootsWoodElven,false,false,false,0,
+dolguldur,DOL_GULDUR_CAPTAIN,0,swordDolGuldur,helmetDolGuldur,bodyDolGuldur,legsDolGuldur,bootsDolGuldur,false,false,false,0,
+dale,DALE_CAPTAIN,0,swordDale,helmetDale,bodyDale,legsDale,bootsDale,false,false,false,0,
+durinsfolk,DWARF_COMMANDER,0,swordDwarven,helmetDwarven,bodyDwarven,legsDwarven,bootsDwarven,false,false,false,0,
+lothlorien,ELF_LORD,0,swordElven,helmetElven,bodyElven,legsElven,bootsElven,false,false,false,0,
+dunland,DUNLENDING_WARLORD,0,battleaxeIron,helmetDunlending,bodyDunlending,legsDunlending,bootsDunlending,false,false,true,19,Dunlending full set reaches the strongest legal native protection ceiling
+isengard,URUK_HAI_MERCENARY_CAPTAIN,0,scimitarUruk,helmetUruk,bodyUruk,legsUruk,bootsUruk,false,false,false,0,
+fangorn,ENT,0,,,,,,false,true,false,0,
+rohan,ROHIRRIM_MARSHAL,0,swordRohan,helmetRohanMarshal,bodyRohanMarshal,legsRohanMarshal,bootsRohanMarshal,false,false,false,0,
+gondor,GONDORIAN_CAPTAIN,0,swordGondor,helmetGondor,bodyGondor,legsGondor,bootsGondor,false,false,false,0,
+mordor,MORDOR_ORC_MERCENARY_CAPTAIN,0,scimitarOrc,helmetOrc,bodyOrc,legsOrc,bootsOrc,false,false,false,0,
+dorwinion,DORWINION_CAPTAIN,0,swordDorwinionElf,helmetDorwinionElf,bodyDorwinionElf,legsDorwinionElf,bootsDorwinionElf,false,false,false,0,
+rhudel,EASTERLING_WARLORD,0,swordRhun,helmetRhunGold,bodyRhunGold,legsRhunGold,bootsRhunGold,false,false,false,0,
+harad,NEAR_HARADRIM_WARLORD,0,scimitarNearHarad,helmetNearHarad,bodyNearHarad,legsNearHarad,bootsNearHarad,false,false,true,19,Near Harad full set reaches 19 and its warlord helmet uses the same material
+morwaith,MOREDAIN_CHIEFTAIN,0,swordMoredain,helmetMoredain,bodyMoredain,legsMoredain,bootsMoredain,false,false,true,19,Moredain full set reaches 19 while Lion armor is weaker and no full Bronze set exists
+taurethrim,TAUREDAIN_CHIEFTAIN,0,swordTauredain,helmetTauredainGold,bodyTauredainGold,legsTauredainGold,bootsTauredainGold,false,false,false,0,
+halftroll,HALF_TROLL_WARLORD,0,scimitarHalfTroll,helmetHalfTroll,bodyHalfTroll,legsHalfTroll,bootsHalfTroll,false,false,true,19,Half-troll full set reaches the strongest legal native protection ceiling
