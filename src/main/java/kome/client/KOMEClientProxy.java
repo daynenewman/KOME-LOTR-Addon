@@ -30,6 +30,8 @@ public class KOMEClientProxy extends KOMECommonProxy {
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
         new KOMEConquestSnapshotPublisher(clientTasks);
     private KOMECurrentTileHud currentTileHud;
+    private final KOMEProgressionTrackerOverlay progressionTrackerOverlay =
+        new KOMEProgressionTrackerOverlay();
     public KOMEClientProxy() {
         super(new ClientProxy());
         com.enovak.lotrmoremobs.Main.proxy =
@@ -56,10 +58,14 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         FMLCommonHandler.instance().bus().register(currentTileHud);
         MinecraftForge.EVENT_BUS.register(currentTileHud);
         MinecraftForge.EVENT_BUS.register(new KOMEChatSanitizer());
+        MinecraftForge.EVENT_BUS.register(new KOMECourierBookPagination());
         MinecraftForge.EVENT_BUS.register(new KOMEProgressionMenuOverlay());
+        MinecraftForge.EVENT_BUS.register(new KOMELiegeQuestButtonOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEUnitOverviewCapOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEEntityHighlightOverlay());
+        MinecraftForge.EVENT_BUS.register(progressionTrackerOverlay);
+        FMLCommonHandler.instance().bus().register(progressionTrackerOverlay);
         KOMEWaypointMapOverlay waypointMapOverlay = new KOMEWaypointMapOverlay();
         MinecraftForge.EVENT_BUS.register(waypointMapOverlay);
         FMLCommonHandler.instance().bus().register(waypointMapOverlay);
@@ -78,6 +84,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
         invalidateTacticalEditorPublications();
+        kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(event == null ? null : event.handler);
         conquestSnapshots.resetSession();
         final long tileSession = currentTileHud == null ? 0L : currentTileHud.suspendSession();
         clientTasks.resetSession(true, () -> {
@@ -89,6 +96,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
         invalidateTacticalEditorPublications();
+        kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(null);
         conquestSnapshots.resetSession();
         if (currentTileHud != null) currentTileHud.suspendSession();
         clientTasks.resetSession(false, this::resetClientSessionState);
@@ -117,6 +125,11 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         conquestSnapshots.accept(chunk);
     }
 
+    @Override
+    public void acceptPublicWaypoints(kome.common.network.KOMEPacketPublicWaypoints.Chunk chunk,Object connection) {
+        enqueueClientTask(() -> kome.common.data.KOMEPublicWaypointClientState.INSTANCE.accept(connection,chunk));
+    }
+
     private void resetClientSessionState() {
         if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
         if (tacticalEditor != null) tacticalEditor.reset();
@@ -126,9 +139,13 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         KOMEQuotaLedgerOverlay.reset();
         KOMEGuiAllianceUnified.resetData();
         KOMEGuiProgression.resetData();
+        KOMEFactionTitleClientBridge.reset();
         KOMEGuiServerRecords.resetData();
         KOMEUnitCapClientState.reset();
         KOMEConquestMapOverlay.resetClientMapState();
+        KOMEVisualMarkerClientState.clear();
+        KOMELiegeQuestButtonOverlay.reset();
+        progressionTrackerOverlay.resetSession();
     }
 
     private synchronized void invalidateTacticalEditorPublications() { ++tacticalEditorLifecycleEpoch; }
@@ -234,6 +251,18 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     }
 
     @Override
+    public void displaySerfdomMasterMenu(int entityId, String masterName, String factionName, int mode, String dutyStatus) {
+        KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiSerfdomMaster(entityId, masterName, factionName, mode, dutyStatus));
+    }
+    @Override public void displaySerfdomMasterMenu(int entityId,String masterName,String factionName,int mode,String dutyStatus,boolean canRequestDuty,boolean hasActiveDuty){KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiSerfdomMaster(entityId,masterName,factionName,mode,dutyStatus,canRequestDuty,hasActiveDuty));}
+    @Override public void displayRelationshipHub(int entityId, int relationship, String npcName, String factionName) {
+        displayRelationshipHub(entityId, relationship, npcName, factionName, true);
+    }
+    @Override public void displayRelationshipHub(int entityId, int relationship, String npcName, String factionName, boolean allowService) {
+        KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiRelationshipHub(entityId, relationship, npcName, factionName, allowService));
+    }
+
+    @Override
     public void updateProgressionData(String playerName, List completed) {
         KOMEGuiProgression.updateProgressionData(playerName, completed);
     }
@@ -241,6 +270,30 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @Override
     public void updateProgressionData(String playerName, List completed, java.util.Map assignments) {
         KOMEGuiProgression.updateProgressionData(playerName, completed, assignments);
+    }
+    @Override public void updateProgressionData(String playerName, List completed, java.util.Map assignments, String summary, String findLabel, String leaveType, String leaveLabel, String leaveName) { KOMEGuiProgression.updateProgressionData(playerName, completed, assignments, summary, findLabel, leaveType, leaveLabel, leaveName); }
+    @Override
+    public void updateProgressionData(
+            String playerName,
+            List completed,
+            java.util.Map assignments,
+            String summary,
+            String findLabel,
+            String leaveType,
+            String leaveLabel,
+            String leaveName,
+            kome.common.data.KOMEProgressionRankSummary ranks) {
+        KOMEFactionTitleClientBridge.updateRankSummary(ranks);
+        KOMEGuiProgression.updateProgressionData(
+            playerName,
+            completed,
+            assignments,
+            summary,
+            findLabel,
+            leaveType,
+            leaveLabel,
+            leaveName,
+            ranks);
     }
 
     @Override
@@ -262,6 +315,35 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void updateAllianceData(List lines) {
         updateClientAllianceCache(lines);
         KOMEGuiAllianceUnified.update(lines);
+    }
+
+    @Override
+    public void updateVisualMarkers(List<kome.common.data.KOMEVisualMarker> markers) {
+        KOMEVisualMarkerClientState.update(markers);
+    }
+
+    @Override
+    public void updateProgressionTracker(
+            kome.common.data.KOMEProgressionTrackerSnapshot snapshot) {
+        progressionTrackerOverlay.update(snapshot);
+    }
+
+    @Override
+    public void updateStandingTrialEligibility(
+            int entityId,
+            long entityUuidMost,
+            long entityUuidLeast,
+            boolean eligible,
+            boolean passiveOffer,
+            boolean offering,
+            int offerColor) {
+        KOMELiegeQuestButtonOverlay.updateEligibility(
+            entityId,
+            new java.util.UUID(entityUuidMost, entityUuidLeast),
+            eligible,
+            passiveOffer,
+            offering,
+            offerColor);
     }
 
     @Override

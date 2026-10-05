@@ -1,0 +1,1104 @@
+{
+  "command": ".\\gradlew.bat clean test build --no-daemon --console=plain",
+  "generator": "verify-evidence.py build",
+  "transcript_sha256": "469c71f4cbc78f0f896bcf08bd78783ddf7a1972faaf5b80f44e1b8f36015671",
+  "totals": {
+    "tests": 1177,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 2,
+    "passed": 1175,
+    "skipped_cases": [
+      "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported",
+      "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported"
+    ],
+    "artifact_sha256": "5bd7e0565481b92c8d0e442ed3b71f4f38760c028228e86c3c6071e199c54412",
+    "artifact_bytes": 15287819,
+    "packaged_mask_and_exclusions_match": true,
+    "no_base_lotr_classes": true,
+    "changed_class_major_versions": {
+      "kome/client/KOMECurrentTileHud$1.class": 52,
+      "kome/client/KOMECurrentTileHud.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$1.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$Availability.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$Cause.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$Current.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$Entry.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$Kind.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$Listener.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$Observation.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$Subscription.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$Transition.class": 52,
+      "kome/common/data/KOMEServerTileAwareness$Type.class": 52,
+      "kome/common/data/KOMEServerTileAwareness.class": 52,
+      "kome/common/data/KOMETileExclusions$1.class": 52,
+      "kome/common/data/KOMETileExclusions$Zone.class": 52,
+      "kome/common/data/KOMETileExclusions.class": 52,
+      "kome/common/data/KOMETileRasterSnapshot$Transform.class": 52,
+      "kome/common/data/KOMETileRasterSnapshot.class": 52,
+      "kome/common/data/KOMETileResolution$Status.class": 52,
+      "kome/common/data/KOMETileResolution.class": 52,
+      "kome/common/data/KOMETileWorldResolver$1.class": 52,
+      "kome/common/data/KOMETileWorldResolver$ReadView.class": 52,
+      "kome/common/data/KOMETileWorldResolver.class": 52
+    }
+  },
+  "suites": [
+    {
+      "name": "com.enovak.lotrmoremobs.config.MumakilConfigTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "de76a219a8a67a6e330aa825ef776490ab24333d9e9d614c1704df9e2da53e72"
+    },
+    {
+      "name": "com.enovak.lotrmoremobs.siege.client.GateManagementClientContextSessionTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "ec54e8f0e40dcd14344fada335d03511c7dfa96396dddd5c2bfafc26fda2727d"
+    },
+    {
+      "name": "com.enovak.lotrmoremobs.siege.client.gui.GuiGateManagementButtonIdTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "bf70470e42f5fefde40644a5367c14a66edce77adf638b0886ba5153b488548b"
+    },
+    {
+      "name": "com.enovak.lotrmoremobs.siege.network.GateManagementKOMEProtocolTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "034664fc79bd6e77dbb3d2968aa95fb6ba6323657389714bd2e5bc79b2dd20bb"
+    },
+    {
+      "name": "com.enovak.lotrmoremobs.siege.repair.GateManagementKOMEInitialHealthTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "81275fa48d2c6a5071776793a90acb57c1325b631465a134051cf0ff174c3c6f"
+    },
+    {
+      "name": "com.enovak.lotrmoremobs.siege.tile.TileEntitySiegeGateKOMEHealthTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "6095ad2aa9574ee9cd350980f5b2e66fe8f1426bc0509545dcaa6d2305932110"
+    },
+    {
+      "name": "com.fuzs.aquaacrobatics.client.model.AquaLotrSpecialArmorPoseBridgeTest",
+      "tests": "12",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "a232180103351f9995d72d4bb33c90471b8951d8d6b09ba8195de774efe28d19"
+    },
+    {
+      "name": "com.fuzs.aquaacrobatics.core.asm.AquaLotrSpecialArmorTransformerTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "2a5120672274ff908974a39021cf03a037e197ce97e6812f65cb9850660bd1af"
+    },
+    {
+      "name": "com.fuzs.aquaacrobatics.core.asm.AquaModelPoseTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "7992dddba8d280eaaa8809837bd0b6caed24dbcaead14b1adab8c60639d532cd"
+    },
+    {
+      "name": "com.fuzs.aquaacrobatics.core.asm.AquaProductionMappingsTest",
+      "tests": "17",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "abcec4dd14c545188edd932390de4b8059ed73aa255f4125c3a0abbbd65bd62d"
+    },
+    {
+      "name": "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest",
+      "tests": "18",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "1",
+      "xml_sha256": "07fa2dc285e99f1b494f7399569d8088b3361a26f8c7846629b6aec84cae3bd5"
+    },
+    {
+      "name": "com.lotrcharactercreation.CharacterCreationLegacyCompatibilityTest",
+      "tests": "21",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "df0312c7da26df01b623c6a816e6c2e4e17b5908a21c674ce017b6537c27b200"
+    },
+    {
+      "name": "com.lotrcharactercreation.CharacterCreationRuntimeContractTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "ad8334c676f3d78d3529bccce5a5734d5f7a955872182919eade038a93fa6e32"
+    },
+    {
+      "name": "com.lotrcharactercreation.CharacterRecreationContractTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "72975ebebd13b740f7fa105ee8856dbb226185a92ab89d18d7ee0540359191bc"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.appearance.ClientAppearanceTextureResolverTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "7e3463f7db1000b5e625960995370ba3e1c07543cfe29d59d79dcee8d273d6cf"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest",
+      "tests": "12",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "1",
+      "xml_sha256": "a258d8747c884650e5f422724a12868559066abaa23c98695c8a7bd5f5122c4e"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.appearance.ClientCustomSkinLifecycleContractTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "68e6fbcba22052dad796d3d2353a41d69b8f5ce50a4e3dc68c718a9240d92567"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.appearance.ClientCustomSkinTransferTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "bacefb5abf175f04e58377280ac23d1490e413977f331775cbfecf47ea5fdba7"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.appearance.ClientExternalTextureStateTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "919598ce699fc47c23131446c0de7f912dfec6fb1934fd423d0d276401fe2e44"
+    },
+    {
+      "name": "com.lotrcharactercreation.client.render.RacePlayerRendererTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "025ab64b9987a4740490faa1aa2c130a59579d316647eda61ff8f4459bb2e5ae"
+    },
+    {
+      "name": "com.lotrcharactercreation.faction.CharacterCreationAlignmentSyncTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "2c0b191f58b0108fface85cb9689d712f1ecc98cf199e98ebce15f453d3cd46d"
+    },
+    {
+      "name": "com.lotrcharactercreation.faction.CharacterCreationPledgeMigrationTest",
+      "tests": "12",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "0f89a1599aaaf12f6e364a4ec78f141029a557809f8edacc7974deb0b0f79c07"
+    },
+    {
+      "name": "com.lotrcharactercreation.network.CustomSkinManifestProtocolTest",
+      "tests": "14",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "b20f5cc65acf1af7974355248c31f74687ffb000ffd5188c28ca99fe88b7c478"
+    },
+    {
+      "name": "com.lotrcharactercreation.network.CustomSkinPhase7ContractTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "a5b2ab2eae73382e2593cdc743cff17f0fddb320210a83f8d1f4d28f5dedab3a"
+    },
+    {
+      "name": "com.lotrcharactercreation.network.LegacyC2SNetworkHardeningTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "aa05eaf8d254d53e653cba91085b6907da594d2690d25e1bcbf46026694b26fe"
+    },
+    {
+      "name": "kome.client.gui.KOMEAllianceListNavigationTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "bdeafe015f1e5811915cace9b4f0840c8a61063c72ad1da0d7b610b269a0aa25"
+    },
+    {
+      "name": "kome.client.gui.KOMECanonicalPopulationNavigationTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "1e21050f5cb7c95688d49faf7e6f0fb4daec8937d38777e5b96d7df38841c659"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiBuildInteractionTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "d71270eb85b5247955eb0a4e8aa082a5783e628b5e8557fd6b392618154fe540"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiCompanyListTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "7dfaf046c11fc30d9ba1ee392af0ef534e1d918d5a280568f75935a6d740aa6a"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiConquestCaptureBuildEnablementTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "dce316fd55b887664dac0bdb249959e6a68246f6b40bc9a964b00728f042d7bd"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiPopulationUnitsObservabilityTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "78288e0c0f2d97fabc61d5bd7ad317d37a1ebae5eb9c88897ffeb8bd3cd0d8f6"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiProgressionTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "67a0beb9a344f50e3bc9b6500eae20561ce6f169055443f964c6cfa20c5725b8"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiScrollPanelTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "527a210ee64b2ec16925117480e100ddf6d594cb7b80d6c9078142e3a8d392a3"
+    },
+    {
+      "name": "kome.client.gui.KOMEGuiServerRecordsPresentationTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "106bdfedd4e170487302894d66350484f4aff8c546b794c1b953dd81739938c4"
+    },
+    {
+      "name": "kome.client.KOMEClaimTextureTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "ff311fad86ad8189517e38a81e25eb0ee7b279862b3098cf41eb6700a7b38691"
+    },
+    {
+      "name": "kome.client.KOMEClientTaskQueueTest",
+      "tests": "16",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "81652b3bb56446c3065113496f9584d68f08d1a68a5c042975aed43e7e8d2dac"
+    },
+    {
+      "name": "kome.client.KOMEConquestPopulationRefreshTest",
+      "tests": "12",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "dd880610eb97b0681d14947bd9ec027a9a13e6a71bf9d30b9280b382cdd2285c"
+    },
+    {
+      "name": "kome.client.KOMECurrentTileHudTest",
+      "tests": "17",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "54fb8effa0132f204233b6b592ed2a927c10ae2570da30b0796aca2b56aaf8a4"
+    },
+    {
+      "name": "kome.client.KOMEMapBordersTest",
+      "tests": "17",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "66817f9a1071a1eeba35145b268e847795b4abbd533c359721d467e8c984c5a1"
+    },
+    {
+      "name": "kome.client.KOMEMapRenderLifecycleTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "229627e8076b7d06f94e27d6c7ca9184856ed2945fe2d1e1ff57527666a2f7e6"
+    },
+    {
+      "name": "kome.client.KOMETileClientAdapterTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "6711ac853b9bf422465ef59d1de50b3b7111a94ea80d20d9f377931c9582fc93"
+    },
+    {
+      "name": "kome.common.command.KOMECampaignBoundaryMovementTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "53d057f11d4201fcd36f35384015094abf5a84d2d8d353441f5b38a6f90470ab"
+    },
+    {
+      "name": "kome.common.command.KOMECommandKomeRulerTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "f6456efc01eff08ea4fe5dd42a339e06a687617063893375730afce92408d96f"
+    },
+    {
+      "name": "kome.common.command.KOMECommandPopulationGrantTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "74f38c2a84822bdd201d85fa30f6fb62425490f32485ed4d64faaf04855accdb"
+    },
+    {
+      "name": "kome.common.command.KOMECommandTroopsMovementTest",
+      "tests": "26",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "c958a5c44ed976682f02aff3472e619724306d2017c6d2367fcd9c4d781b9040"
+    },
+    {
+      "name": "kome.common.command.KOMEPublicCommandTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "2241c1445e36972628f77a9e98719ae2254f854eb6e2b6ff6a93877662491c3c"
+    },
+    {
+      "name": "kome.common.command.KOMEPublicPrivacyTest",
+      "tests": "14",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "008b168d44b06ccce1f066b30a0250b7c433526f5d91c0b6b9150f068e334f92"
+    },
+    {
+      "name": "kome.common.command.KOMEUnitInspectionObservabilityTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "2b98b2fbe911326aea67ccd292f0d6d83d1ab74700af42d7841e79df2fcd1598"
+    },
+    {
+      "name": "kome.common.config.KOMECampaignReadinessValidatorTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "dde984a14879dd98ad535e0b9a3a6a02ad53a84dc5b753dd0584ecc75bb4c8b9"
+    },
+    {
+      "name": "kome.common.config.KOMEConfigChangeGuardTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "da3cb60d4c74ab1b047f97efb7e276383c04758e988a96992ab2c4a4d146a460"
+    },
+    {
+      "name": "kome.common.config.KOMEConfigInspectionTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "84daae8b1459fb52e7b7976b30866635be01ae3c000e61509b60163868e9bbe6"
+    },
+    {
+      "name": "kome.common.config.KOMEConfigRegistryTest",
+      "tests": "37",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "5b8fc6a87a698b19d6b52bef698559e093a70c3e80d907f27e3ec1ddddc8e004"
+    },
+    {
+      "name": "kome.common.config.KOMEPopulationConfigFoundationTest",
+      "tests": "20",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "44218d09ea62d6dc1a79cbddc8ba44c15bcfc043ad22329706b5951d1e5b7b80"
+    },
+    {
+      "name": "kome.common.data.KOMEAllianceModelTest",
+      "tests": "17",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "65b2e612c0847f4d5cc74f6fb3a25a915c9f0c67da23cd069f3082add5a13851"
+    },
+    {
+      "name": "kome.common.data.KOMEAllianceSystemsTest",
+      "tests": "45",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "28ef791707cbaf7dd8e91cbc7305dd8c4cab5b82b23b607968286f43732fdc22"
+    },
+    {
+      "name": "kome.common.data.KOMEAuditServiceTest",
+      "tests": "11",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "fe9574e7234444144d411d1bc2de26b78a94c686057e7f1e8943fe61f500dda8"
+    },
+    {
+      "name": "kome.common.data.KOMEBaseIsolationTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "72043fa60afb83ba723bbf6e9e62dfa1a5c7a6b5fc7865503fc1ca0a121ee0aa"
+    },
+    {
+      "name": "kome.common.data.KOMEBuildOwnerSelectionTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "88b6d6de6bd14dd2e75791b54c08e5cd03039ff9b1593af8c02f1cabbfbd67e6"
+    },
+    {
+      "name": "kome.common.data.KOMECampaignHaltedUnitProtectionTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "f962729bd172d6bbc83faa36c9c1a6d2a16a69cb1da9f901d3270522d79c7a88"
+    },
+    {
+      "name": "kome.common.data.KOMECampaignRecruitmentArchitectureTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "c53db4b92a7f58e0c7c71e94a03be7d72b7056ec93e5aa811dcedd341641c307"
+    },
+    {
+      "name": "kome.common.data.KOMECampaignRecruitmentServiceTest",
+      "tests": "12",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "3ff8f8a501055f38fef96c186e5b2cf9ea61c3b5b392860210cd4a7cc920fd66"
+    },
+    {
+      "name": "kome.common.data.KOMECapitalTileIntegrationTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "6424ce70d78358d41844085342e05ffcc9f78de5caffe494c45aab18972ae32a"
+    },
+    {
+      "name": "kome.common.data.KOMECombatHireMountSafetyTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "e22d1fbe3e2babd0eccbd7908ef29d58f98cfea12876f08da558e0165385ac5b"
+    },
+    {
+      "name": "kome.common.data.KOMECombatHirePopulationTest",
+      "tests": "8",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "dcb6567ccf963ec7212ee713f150750fc8a07875fb028e43ff1e2115cb44cd8e"
+    },
+    {
+      "name": "kome.common.data.KOMECompanyDiplomacyAuthorizationTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "0ae78c08c81f5ceae78f7470097cf2989c9abedea0ebe498a906648b78dadac1"
+    },
+    {
+      "name": "kome.common.data.KOMEDailyBoundaryTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "883d1d502834ce89693076dbfd469f96ef4b292b835b463d4f0bbd5bb8acb70b"
+    },
+    {
+      "name": "kome.common.data.KOMEDefensiveGateHealthCalculatorTest",
+      "tests": "16",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "fb5dcc094fc769ed29b8f4d4842421fcb2ce317a8d0329da9444e5f945a5c21e"
+    },
+    {
+      "name": "kome.common.data.KOMEDefensiveGateLinkServiceTest",
+      "tests": "20",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "32895103c2de0f591470479f0bfc4ee6db348629fa27037dfe866144d6d2316a"
+    },
+    {
+      "name": "kome.common.data.KOMEDefensiveGateRecordTest",
+      "tests": "20",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "c270ede0ff73573e6681246557fe0ec624cc013b096b7dc41278ba09837bb8d0"
+    },
+    {
+      "name": "kome.common.data.KOMEDiplomacyServiceTest",
+      "tests": "17",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "3b3037207b5dcc6c4bccaa4769c19a00936ed2d8bfa0645ae9bdbea76bcbee21"
+    },
+    {
+      "name": "kome.common.data.KOMEFactionCapitalServiceTest",
+      "tests": "11",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "60774a65b2adca95086cb08c920c45726c60d91d86cbf1d3c24ca9289dc42836"
+    },
+    {
+      "name": "kome.common.data.KOMEFactionPopulationTest",
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "85e0eca82296a0d3084a293552e9945a91673d74de4135e4ee30f56202faa6df"
+    },
+    {
+      "name": "kome.common.data.KOMEForeignConstructionServiceTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "ac534da3e9375943262cd4a87ba0b3be7e4b90407ab77f4120b2cfe1a7739641"
+    },
+    {
+      "name": "kome.common.data.KOMEGateManagementSnapshotTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "45b98dd5cf2d279bb40bdd17712a40fcf405801a0ca9aefb07e01dd2468b43d3"
+    },
+    {
+      "name": "kome.common.data.KOMEGateSizeCalculatorTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "42d23b1d4072cff823f5c1b1cac7cdf0e6e9a412fdd9a9c1ad6bca6467eb7df2"
+    },
+    {
+      "name": "kome.common.data.KOMEGearRestrictionServiceTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "a4911222ce223be2ded4d7e22ee44c6792d8c7237910e387c730acdabccb7f3c"
+    },
+    {
+      "name": "kome.common.data.KOMEHiredUnitClassificationTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "1fa2d5bc5f409b14e9e2a1e6f9b2730c3434552e5ad89a3e4255a3d67c4998ee"
+    },
+    {
+      "name": "kome.common.data.KOMEHiredUnitCompanyAdmissionTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "5a49a08e54857f23b3e2f12a65a33198c74a51a0e88707c5193998746f575377"
+    },
+    {
+      "name": "kome.common.data.KOMEHiredUnitLifecycleTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "887068f9835350fd04594398093923ef1034e34f5d41f73ce139417c5a44901c"
+    },
+    {
+      "name": "kome.common.data.KOMEHiredUnitLiveUpdateServiceTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "496902bb83e75daaacf108ef724837c314b5ed06f39c7bc1873a424643b87888"
+    },
+    {
+      "name": "kome.common.data.KOMEKinglessStewardshipTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "fa8c4b4e074b50ec6b68797d279a023a7e13c1a62f254757ab05fd4620bea3e9"
+    },
+    {
+      "name": "kome.common.data.KOMELegacyPopulationRetirementTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "ab28bc1a9633f343a280d9ed8c9bbc2c2cd179c155096a65db33e6b7c2c733b7"
+    },
+    {
+      "name": "kome.common.data.KOMENativeHireRegistrationServiceTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "b8c3dfcf1f4a0e9c4ae49d98b81b30d95ccb290571c07c035badbce884ce304a"
+    },
+    {
+      "name": "kome.common.data.KOMEPhysicalGateInspectionTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "f6d6ab41db061b03441ab3d6016500d0e5f038f611384bcd2bdd9ef57b003529"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationDevelopmentServiceTest",
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "ca8118013e9ef03e11f3f598ecae11df3ac51915b752db7898c721e94aac7af9"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationGrandfatherImportTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "fa46b4bfc98194351d735c59f9296f1afd55ea01f7d775a4c63cf6b8c12a37d6"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationPayoutProcessorTest",
+      "tests": "28",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "ec26fb9dbe60d632d7e9cdc2a2c6f5aa6c29a2f66d424ed107f83c213a126a27"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationPermanentSpendTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "73b598aaac1e1bd5d5ee44afec9a1e900b039eacb3e7cc6a63fecd9f307dded2"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationProjectionTest",
+      "tests": "12",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "c245f8f05bb8f379d626b762f940a857b8e50ea3acd65fd992b091f07c57fbf7"
+    },
+    {
+      "name": "kome.common.data.KOMEPopulationRateServiceTest",
+      "tests": "9",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "42036f74108ef512f70ab39920e815a0464f18863ea82337953f1ab233a47124"
+    },
+    {
+      "name": "kome.common.data.KOMEPreciseBuildTest",
+      "tests": "19",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "d8c65c25d8dd927b524332ce55aa083545e915e6d8c4f37b3f2291a815b7711c"
+    },
+    {
+      "name": "kome.common.data.KOMEProgressionPermissionRegistryTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "227f2b231068c26e9bead5aed7f26c29c282378e7ddce6d1f33f5bd5a26ff8cb"
+    },
+    {
+      "name": "kome.common.data.KOMEProgressionTitlesTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "c7aebc66168e7b65a76cc202313de50436542ef55e886df76f8fe43674b7047b"
+    },
+    {
+      "name": "kome.common.data.KOMERecruitmentDeploymentClearanceTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "f062a7a316dd933623e6a615ceb0b47e7c7703073128e33376a32b87f9e23a89"
+    },
+    {
+      "name": "kome.common.data.KOMERecruitmentLocationServiceTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "c772e3c48e867eca2691c3f5245d301189bd6076a818be5c81912371feceb620"
+    },
+    {
+      "name": "kome.common.data.KOMERedesignSystemsTest",
+      "tests": "56",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "42b9157285eb018c48c2d28f93a088ba2d0f7bb188df8c24c13f28c6a470b4c4"
+    },
+    {
+      "name": "kome.common.data.KOMERulerAuthorizationTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "ecfc3986f5cc1a4ae6b2424113c94ac167070ec20e6585ead83f8cd2e99e4931"
+    },
+    {
+      "name": "kome.common.data.KOMERulerServiceTest",
+      "tests": "11",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "2a97928d7afb5d6945e58358c9b7812eb26e71d26d840b57c44df34013e2b8f1"
+    },
+    {
+      "name": "kome.common.data.KOMEServerTileAwarenessIsolationTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "f6824ce876c29099ce3902c9b1d9ba8b6d5bdf12f0c7b60de3d6dd9344a57dd2"
+    },
+    {
+      "name": "kome.common.data.KOMEServerTileAwarenessTest",
+      "tests": "31",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "8d981e8feb6023a7d57b30efdb3c3445dc073b800de1bdc663a1cea2306970b3"
+    },
+    {
+      "name": "kome.common.data.KOMETileBuildValidationTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "910efbbb559b608d4163e697cfb0aa3fd38ec9374b045e2b7ab3296685a73e73"
+    },
+    {
+      "name": "kome.common.data.KOMETileExclusionsTest",
+      "tests": "11",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "b9ed6a8db6d5611e36856c8393e2aba6bbba32d116a0d2f445901ea612417da7"
+    },
+    {
+      "name": "kome.common.data.KOMETileGameplayDefaultsTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "26e4ede66cde9b50f0dfb3b3e2f68d3fac2393859b3b6686d1a0358aacb4c906"
+    },
+    {
+      "name": "kome.common.data.KOMETileGameplayParityTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "9509c1979329d0e83aa9fb3e6e664c38c09d4295c5cb882bec6302423ae9c427"
+    },
+    {
+      "name": "kome.common.data.KOMETileGeographyAcceptanceTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "538795777272918fa4fdda3322c50d00873abbe67614a4d80e61345a75f9593e"
+    },
+    {
+      "name": "kome.common.data.KOMETileRasterSnapshotTest",
+      "tests": "10",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "e2036e2f9e2fc925a8b3f276ba55f699e4dd8369b8276128196208f69f53c0b0"
+    },
+    {
+      "name": "kome.common.data.KOMETileResolverIsolationTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "934a0afd87d11a2c177d4f14be33a75100bed29463248fb394c58090c7491cf8"
+    },
+    {
+      "name": "kome.common.data.KOMETileResourceAuditTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "20b04f818914b202e2fa6f8d330ee49104a64926fd6a8a14d3618ee8633cef7e"
+    },
+    {
+      "name": "kome.common.data.KOMETileWorldResolverTest",
+      "tests": "13",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "456c2e6172edac2c9a83085ca21278caee05946c770bb88adf9b12038eed7150"
+    },
+    {
+      "name": "kome.common.data.KOMEUnitPopulationCostServiceTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "935c6cdc960c9b8b1622b9e01522fb83151fec0b99f044d7f03859828b3e7f26"
+    },
+    {
+      "name": "kome.common.data.KOMEV2GeometryTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "c0954521db982104382ad53b780620cad96a52398f06fa83b7c7ae32c7970a1d"
+    },
+    {
+      "name": "kome.common.data.KOMEWarBondServiceTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "2496839124560665efee85ded0c06baf1625a541e9e0307424726fcd746d61c8"
+    },
+    {
+      "name": "kome.common.data.KOMEWarInactivityTest",
+      "tests": "1",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "4caa4ac65920c54180593b4be7475f96a30e1040be2e9c1d09045b5f945ae9a9"
+    },
+    {
+      "name": "kome.common.data.KOMEWarSeasonStateTest",
+      "tests": "6",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "288766124f0bffd8f600d19e0afaec79f67ef6f6000cabf61571b676e95eb5db"
+    },
+    {
+      "name": "kome.common.data.KOMEWaypointAccessServiceTest",
+      "tests": "18",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "d270450d832fd2afae18bc7e3247357227ebcaa06d53362f9ed80703a6fbd87e"
+    },
+    {
+      "name": "kome.common.data.KOMEWeathertopPilotTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "179564929767693d59fb67df2c7cc8cce8037375cb6e9798a23a544bf5d3b384"
+    },
+    {
+      "name": "kome.common.data.KOMEWorldDataAtomicLoadTest",
+      "tests": "14",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "eaa631fed961b7dd62a45c61ddaf07426da9f6c04433cd0dc0f3d1d7f32a174a"
+    },
+    {
+      "name": "kome.common.data.KOMEWorldDataSchemaTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "3734f1d8cbf271b9c563de28be9586de58996c3e7e33ee1075c6779acf3c8e0f"
+    },
+    {
+      "name": "kome.common.network.KOMECampaignStrategicConsumerTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "f312aaff4814d75ba71cfe6404122adaff914c51cce57b1f9a9d61a5cb073a67"
+    },
+    {
+      "name": "kome.common.network.KOMECanonicalBuildPacketTest",
+      "tests": "4",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "f81a72e3196e04a76fab77d4e71a199b5000c482519f371aa3b8778e9bd01104"
+    },
+    {
+      "name": "kome.common.network.KOMEConquestDispatchFailureReviewTest",
+      "tests": "11",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "73ccf796743c467e68b93d868133fbc3aa220675ceea7d9a47c933ac05cffe84"
+    },
+    {
+      "name": "kome.common.network.KOMEConquestSyncTest",
+      "tests": "16",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "6d172e11d1b0ed9ec4e1181b29b7f27c5408d602c6aad623d5bce8426270a442"
+    },
+    {
+      "name": "kome.common.network.KOMEMapHotPathParityTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "798cb42bdbdf5b1c3e377442749e8a9eb6d3079cc6e2e743c1647bd152ca8e46"
+    },
+    {
+      "name": "kome.common.network.KOMEPacketCampaignHireTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "700cd620b557049e8aa78341231a66a80162b2303bcd11d23f66dfec3f91abcd"
+    },
+    {
+      "name": "kome.common.network.KOMEPacketConquestOwnerSelectionTest",
+      "tests": "2",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "711ba708bcdb2f9e507e7b30b10c0ffe457e29586681c68580d57046f0806404"
+    },
+    {
+      "name": "kome.common.network.KOMEPacketRegistrationTest",
+      "tests": "5",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "991f5c1189d58300139759c628963cbed37dfaa8903f37c7aa77cda1d6025464"
+    },
+    {
+      "name": "kome.common.network.KOMEPopulationProtocolTest",
+      "tests": "18",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "dd55e9706bffc3c9e5aa5944b50e2b4dac8e349f09dfb437a2dce12f24374426"
+    },
+    {
+      "name": "kome.common.network.KOMEPopulationRefreshWiringTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "d1032965f4d72db6d9114aea360c18a5d3fc08b6da827f050d28a9e39945fffb"
+    },
+    {
+      "name": "kome.common.network.KOMEPublicAccessPacketTest",
+      "tests": "25",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "e81de8cc0aa1bb94e466acd7bb65105eec96d78d81ded15af6d82603dd9694ca"
+    },
+    {
+      "name": "kome.core.KOMECoremodConfigurationTest",
+      "tests": "3",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "60443d0427cdb418a2e6b8b2460913762621ad785e0ed81b5af01289677bf826"
+    },
+    {
+      "name": "kome.core.KOMEWaypointTransformerTest",
+      "tests": "7",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "f996a3d535584603b67ef0f42347c7402958fd93c4d9f43b11ec2f6c85f42ef5"
+    },
+    {
+      "name": "kome.integration.CharacterCreationIsolationTest",
+      "tests": "19",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0",
+      "xml_sha256": "410476bb177d51b9f13ed2ae1c7e9a875a4c03eafbbef86c0c9edf0e67806a6c"
+    }
+  ]
+}

@@ -13,8 +13,8 @@ import java.util.Map;
 
 /**
  * Sole normal read/mutation boundary for authoritative capitals.
- * This service is neutral about muster timing: KOM-11/siege logic must choose normal
- * deployment before Encirclement and exterior relief deployment after Encirclement starts.
+ * This service is neutral about muster timing. Encircled-capital arrival policy is TBD;
+ * the authoritative conflict/deployment service must confirm safe arrival before deployment.
  */
 public final class KOMEFactionCapitalService {
     private KOMEFactionCapitalService() { }
@@ -129,6 +129,27 @@ public final class KOMEFactionCapitalService {
             return "READY";
         } catch (RuntimeException unavailable) {
             return "NOT_READY: " + KOMEFactionCapitalRecord.clean(unavailable.getMessage());
+        }
+    }
+
+    /** Inspection must not call validateStored: deployment validation may load/generate chunks. */
+    public static String inspectionReadiness(KOMEWorldData data, String faction, World world) {
+        KOMEFactionCapitalRecord r = getCapital(data, faction);
+        if (r == null) return "NOT_READY: No authoritative capital exists; manual review required.";
+        KOMEStrategicDeploymentResolver.Validation metadata = KOMEStrategicDeploymentResolver.validateMetadata(
+            r.getCapitalTileId(), r.getDeploymentDimensionId(), r.getDeploymentX(),
+            r.getDeploymentY(), r.getDeploymentZ());
+        if (!metadata.valid) return "NOT_READY: " + metadata.reason;
+        if (world == null || world.provider == null || world.provider.dimensionId != r.getDeploymentDimensionId())
+            return "METADATA_VALID: Deployment world unavailable; live standing safety is unverified.";
+        try {
+            int chunkX = net.minecraft.util.MathHelper.floor_double(r.getDeploymentX()) >> 4;
+            int chunkZ = net.minecraft.util.MathHelper.floor_double(r.getDeploymentZ()) >> 4;
+            boolean loaded = world.getChunkProvider() != null && world.getChunkProvider().chunkExists(chunkX, chunkZ);
+            return "METADATA_VALID: Deployment chunk " + (loaded ? "loaded" : "unloaded")
+                + "; live standing safety is unverified; inspection does not load chunks.";
+        } catch (RuntimeException unavailable) {
+            return "METADATA_VALID: Chunk availability could not be inspected; live standing safety is unverified.";
         }
     }
 

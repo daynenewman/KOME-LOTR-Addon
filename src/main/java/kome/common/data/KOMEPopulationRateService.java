@@ -102,6 +102,39 @@ public final class KOMEPopulationRateService {
     /** Exact current production grouped by strategic tile and receiving faction. */
     public static Map<String, Map<String, BigInteger>> getExactTilePopulationRates(
             KOMEWorldData data, KOMEConfigRegistry.PopulationSettings settings) {
+        Map<String, Map<String, BigInteger>> numerators = tileRateNumerators(data, settings);
+        BigInteger denominator = rateDenominator(settings.getHoursPerPopulationPointCentiHours());
+        Map<String, Map<String, BigInteger>> result = new LinkedHashMap<String, Map<String, BigInteger>>();
+        for (Map.Entry<String, Map<String, BigInteger>> tile : numerators.entrySet()) {
+            Map<String, BigInteger> rates = new LinkedHashMap<String, BigInteger>();
+            for (Map.Entry<String, BigInteger> faction : tile.getValue().entrySet())
+                rates.put(faction.getKey(), roundedUnits(faction.getValue(), denominator));
+            result.put(tile.getKey(), Collections.unmodifiableMap(rates));
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    /** Exact threshold comparison before display rounding, using the same production authority. */
+    public static Map<String, List<String>> getTilesProducingAtLeastOnePerDay(
+            KOMEWorldData data, KOMEConfigRegistry.PopulationSettings settings) {
+        BigInteger threshold = rateDenominator(settings.getHoursPerPopulationPointCentiHours())
+            .multiply(BigInteger.valueOf(KOMEPopulationRate.SCALE));
+        Map<String, List<String>> result = new TreeMap<String, List<String>>();
+        for (Map.Entry<String, Map<String, BigInteger>> tile : tileRateNumerators(data, settings).entrySet()) {
+            for (Map.Entry<String, BigInteger> faction : tile.getValue().entrySet()) {
+                if (faction.getValue().compareTo(threshold) < 0) continue;
+                List<String> tiles = result.get(faction.getKey());
+                if (tiles == null) { tiles = new ArrayList<String>(); result.put(faction.getKey(), tiles); }
+                tiles.add(tile.getKey());
+            }
+        }
+        for (Map.Entry<String, List<String>> faction : result.entrySet())
+            faction.setValue(Collections.unmodifiableList(faction.getValue()));
+        return Collections.unmodifiableMap(result);
+    }
+
+    private static Map<String, Map<String, BigInteger>> tileRateNumerators(
+            KOMEWorldData data, KOMEConfigRegistry.PopulationSettings settings) {
         Map<String, Map<String, BigInteger>> numerators =
             new TreeMap<String, Map<String, BigInteger>>();
         for (KOMEPopulationRateContribution row : getPopulationRateContributions(data, settings)) {
@@ -118,17 +151,7 @@ public final class KOMEPopulationRateService {
             byFaction.put(row.receivingFaction,
                 (old == null ? BigInteger.ZERO : old).add(value));
         }
-        BigInteger denominator = rateDenominator(
-            settings.getHoursPerPopulationPointCentiHours());
-        Map<String, Map<String, BigInteger>> result =
-            new LinkedHashMap<String, Map<String, BigInteger>>();
-        for (Map.Entry<String, Map<String, BigInteger>> tile : numerators.entrySet()) {
-            Map<String, BigInteger> rates = new LinkedHashMap<String, BigInteger>();
-            for (Map.Entry<String, BigInteger> faction : tile.getValue().entrySet())
-                rates.put(faction.getKey(), roundedUnits(faction.getValue(), denominator));
-            result.put(tile.getKey(), Collections.unmodifiableMap(rates));
-        }
-        return Collections.unmodifiableMap(result);
+        return numerators;
     }
 
     /** Fixed units = developed centi-hours * SCALE * basis points / (configured centi-hours * 10,000). */

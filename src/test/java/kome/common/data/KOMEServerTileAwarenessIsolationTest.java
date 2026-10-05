@@ -66,7 +66,8 @@ public class KOMEServerTileAwarenessIsolationTest {
             assertFalse(banned, hooks.contains(banned));
         }
         String addon = source("common/KOMEAddon.java"), proxy = source("common/KOMECommonProxy.java");
-        assertTrue(addon.contains("serverAboutToStart(FMLServerAboutToStartEvent event) {\n"
+        assertTrue(addon.contains("KOMEServerTileAwareness.INSTANCE.setBoundaryGuard(\n"
+            + "            kome.common.data.KOMECampaignTileConfinementService.INSTANCE);\n"
             + "        kome.common.data.KOMEServerTileAwareness.INSTANCE.startSession();"));
         assertTrue(addon.contains("serverStopped(FMLServerStoppedEvent event)"));
         assertTrue(addon.contains("KOMEServerTileAwareness.INSTANCE.stopSession();"));

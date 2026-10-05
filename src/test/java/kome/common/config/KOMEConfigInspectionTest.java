@@ -43,7 +43,7 @@ public class KOMEConfigInspectionTest {
             previous = value.format();
         }
         assertEquals(new HashSet<String>(Arrays.asList("dailyBatch", "population", "movement",
-                "battle", "muster", "siege", "battleSupport", "encirclement", "season", "gear")), categories);
+                "battle", "muster", "siege", "battleSupport", "encirclement", "season", "gear", "network")), categories);
         Map<String, String> expected = expectedDefaults();
         expected.put("population.lastApplyStatus", KOMEConfigRegistry.getLastApplyStatus());
         assertEquals(expected.keySet(), keys);
@@ -86,7 +86,7 @@ public class KOMEConfigInspectionTest {
 
     private static Map<String, String> expectedDefaults() {
         String[] entries = {
-                "dailyBatch.localTime=20:00", "dailyBatch.timezone=America/Chicago",
+                "network.serverRecordCooldownMillis=2000", "dailyBatch.localTime=20:00", "dailyBatch.timezone=America/Chicago",
                 "population.hoursPerPopulationPoint=10.00", "population.capturedBuildMultiplier=0.50",
                 "population.bottleneckRatePerActiveServerDay=0.10",
                 "population.pauseRateCeilingWhenNoPendingHours=true",
@@ -98,7 +98,7 @@ public class KOMEConfigInspectionTest {
                 "movement.footOrMixedTilesPerDay=1", "movement.fullyMountedTilesPerDay=2",
                 "battle.responseLevel1Minutes=20", "battle.responseLevel2Minutes=35", "battle.responseLevel3Minutes=50",
                 "muster.threatDistanceTiles=2", "muster.budgetDailyPopulationMultiplier=21",
-                "muster.arrivalDelayHours=24", "muster.encircledCapitalArrivalPolicy=TBD",
+                "muster.arrivalDelayHours=24", "muster.encircledCapitalArrivalPolicy=TBD", "muster.rosterWeightOverrides={}",
                 "siege.gateHpPerApprovedHour=100.0", "siege.gateBaselineWidth=5",
                 "siege.gateBaselineHeight=5", "siege.gateFullBonusWidth=12",
                 "siege.gateFullBonusHeight=12", "siege.gateMaxSizeMultiplier=1.5",

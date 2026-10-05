@@ -25,6 +25,14 @@ public class KOMEWaypointTransformerTest {
     public void corePluginRegistersKomeAndLotrMoreMobsTransformers() {
         assertArrayEquals(new String[] {
                 KOMEWaypointTransformer.class.getName(),
+                KOMEPublicWaypointTransformer.class.getName(),
+                KOMEProgressionOfferTransformer.class.getName(),
+                KOMEProgressionOfferGuiTransformer.class.getName(),
+                KOMEFactionTitleTransformer.class.getName(),
+                KOMEAlignmentBarTitleTransformer.class.getName(),
+                KOMEFactionTitleOptionsTransformer.class.getName(),
+                KOMEVisualLocationTransformer.class.getName(),
+                KOMEProgressionNpcDespawnTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.EntitySensesGateSightTransformer.class.getName(),
@@ -37,6 +45,48 @@ public class KOMEWaypointTransformerTest {
 "com.fuzs.aquaacrobatics.core.asm.AquaLateClientPlayerTransformer"
             },
             new KOMECorePlugin().getASMTransformerClass());
+    }
+
+    @Test
+    public void registeredMapTransformersKeepPublicWaypointsAndProgressionMarkers() throws Exception {
+        String target = "lotr.client.gui.LOTRGuiMap";
+        byte[] transformed = readResource("/lotr/client/gui/LOTRGuiMap.class");
+        String[] registrations = new KOMECorePlugin().getASMTransformerClass();
+        assertEquals("Transformers must not be registered twice", registrations.length,
+            new java.util.HashSet<String>(java.util.Arrays.asList(registrations)).size());
+        for (String registration : registrations) {
+            if (registration.startsWith("kome.core.")) {
+                net.minecraft.launchwrapper.IClassTransformer transformer =
+                    (net.minecraft.launchwrapper.IClassTransformer) Class.forName(registration)
+                        .getDeclaredConstructor().newInstance();
+                transformed = transformer.transform(target, target, transformed);
+            }
+        }
+        ClassNode node = new ClassNode();
+        new ClassReader(transformed).accept(node, 0);
+        int publicWidgets = 0, publicVisibility = 0, progressionMarkers = 0;
+        for (MethodNode method : node.methods) {
+            for (AbstractInsnNode instruction = method.instructions.getFirst(); instruction != null;
+                    instruction = instruction.getNext()) {
+                if (instruction instanceof MethodInsnNode) {
+                    MethodInsnNode call = (MethodInsnNode) instruction;
+                    if (KOMEPublicWaypointTransformer.CLIENT.equals(call.owner)) {
+                        if ("beforeWidgets".equals(call.name)) publicWidgets++;
+                        if ("isPublicVisible".equals(call.name)) publicVisibility++;
+                    }
+                    if (KOMEVisualLocationTransformer.BRIDGE.equals(call.owner)
+                            && "renderMapMarkers".equals(call.name)) progressionMarkers++;
+                }
+            }
+            if ("renderMapWidgets".equals(method.name) || "isWaypointVisible".equals(method.name)
+                    || "renderMiniQuests".equals(method.name)) {
+                new org.objectweb.asm.tree.analysis.Analyzer(
+                    new org.objectweb.asm.tree.analysis.BasicVerifier()).analyze(node.name, method);
+            }
+        }
+        assertEquals(1, publicWidgets);
+        assertEquals(1, publicVisibility);
+        assertEquals(1, progressionMarkers);
     }
 
     @Test
@@ -83,7 +133,7 @@ public class KOMEWaypointTransformerTest {
 
     @Test
     public void configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms() throws Exception {
-        File jar = new File("../LOTR-Test-Server/mods/LOTRMod v36.15.jar");
+        File jar = externalJar("LOTRMod v36.15.jar");
         org.junit.Assume.assumeTrue("Configured build LOTR v36.15 jar is unavailable", jar.isFile());
         assertExternalJarTransforms(jar,
             "d495524e27358296fbc584756d9ce3edefb1ad3836d96955473d6876edfb2321");
@@ -91,10 +141,17 @@ public class KOMEWaypointTransformerTest {
 
     @Test
     public void configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms() throws Exception {
-        File jar = new File("../LOTR-Test-Server/mods/LOTRMod v36.15.jar.original");
+        File jar = externalJar("LOTRMod v36.15.jar.original");
         org.junit.Assume.assumeTrue("Configured production LOTR v36.15 jar is unavailable", jar.isFile());
         assertExternalJarTransforms(jar,
             "67b3303bf84d66fee4f5284c0e34d630817a1c366f7a592aab3455edc6df439e");
+    }
+
+    private static File externalJar(String name) {
+        String configured=System.getenv("KOME_LOTR_VALIDATION_DIRECTORY");
+        File input=new File(configured==null?"../LOTR-Test-Server/mods":configured,name);
+        if(configured!=null) assertTrue("Explicit LOTR validation jar is missing: "+input,input.isFile());
+        return input;
     }
 
     private static void assertExternalJarTransforms(File jar, String expectedClassHash) throws Exception {

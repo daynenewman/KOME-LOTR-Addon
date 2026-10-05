@@ -1,0 +1,23 @@
+{
+  "mask_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+  "mapping_sha256": "d8674747229c7a9cbfdebcd217f1423d722ff4cdacb882d55607491cea36d9e5",
+  "jar_sha256": "4f296e749c0d4739ecf859217a526b4218a2a45a768c08d3d551af0d0d3d5635",
+  "background_sha256": "1c79d0610dfbcfa970aa0dd929ce80cb19b1feb89fe57777b293b166282230f3",
+  "inputs_sha256": "c90303b209809661806257ecd364d710dbf336d010842933c0879bab9d980462",
+  "concern_rows": 26731,
+  "unique_review_cells": 26664,
+  "regions": 43,
+  "groups": {
+    "uncertain_v2": 25919,
+    "withheld_transfer": 48,
+    "withheld_gap": 691,
+    "blocked55": 55,
+    "optional_shape": 1,
+    "protected_junction": 14,
+    "protected_control": 3
+  },
+  "assigned_cells": 4067979,
+  "unknown_gap_cells": 8732021,
+  "classified_exclusions": 0,
+  "geometry_changed": false
+}

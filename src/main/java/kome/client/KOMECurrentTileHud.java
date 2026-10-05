@@ -6,6 +6,7 @@ import java.util.Objects;
 import kome.client.gui.KOMEGuiTheme;
 import kome.common.data.KOMEClientData;
 import kome.common.data.KOMETileResolution;
+import kome.common.data.KOMETileExclusions;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMETileWorldResolver;
 import lotr.common.LOTRDimension;
@@ -35,6 +36,7 @@ public final class KOMECurrentTileHud implements IResourceManagerReloadListener 
     private KOMETileResolution location;
     private String label = "";
     private String displayedId = "";
+    private KOMETileExclusions.Zone displayedExclusion;
     private KOMETileResolution.Status displayedStatus;
     private KOMETileWaypointLink displayedLink;
     private String waypointKey, waypointName, language;
@@ -64,6 +66,7 @@ public final class KOMECurrentTileHud implements IResourceManagerReloadListener 
         location = null;
         label = "";
         displayedId = "";
+        displayedExclusion = null;
         displayedStatus = null;
         displayedLink = null;
         waypointKey = waypointName = language = null;
@@ -104,10 +107,12 @@ public final class KOMECurrentTileHud implements IResourceManagerReloadListener 
         String name = link == null ? null : link.waypointDisplayName;
         String currentLanguage = client.gameSettings.language;
         if (!refreshText && displayedStatus == location.status && displayedId.equals(location.tileId)
+                && Objects.equals(displayedExclusion, location.exclusion().orElse(null))
                 && displayedLink == link && Objects.equals(waypointKey, key)
                 && Objects.equals(waypointName, name) && Objects.equals(language, currentLanguage)) return;
         displayedStatus = location.status;
         displayedId = location.tileId;
+        displayedExclusion = location.exclusion().orElse(null);
         displayedLink = link;
         waypointKey = key;
         waypointName = name;
@@ -123,6 +128,9 @@ public final class KOMECurrentTileHud implements IResourceManagerReloadListener 
                     place = name == null ? "" : name.trim();
                 }
                 label = place.isEmpty() ? location.tileId : location.tileId + " - " + place;
+                break;
+            case CLASSIFIED_EXCLUSION:
+                label = I18n.format("kome.hud.tile.exclusion", location.exclusion().get().type, location.exclusion().get().id);
                 break;
             case IN_BOUNDS_GAP: label = I18n.format("kome.hud.tile.gap"); break;
             case OUTSIDE_MASK: label = I18n.format("kome.hud.tile.outside"); break;

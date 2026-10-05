@@ -25,6 +25,10 @@ public class KOMEProgressionQuotas {
             int remaining = stack.stackSize;
             for (int i = 0; i < QUOTA_IDS.length && remaining > 0; i++) {
                 String id = QUOTA_IDS[i];
+                KOMEProgressionAchievement achievement = KOMEProgressionAchievement.forID(id);
+                if (!KOMEProgressionPermissionRegistry.canComplete(progression, achievement)) {
+                    continue;
+                }
                 Quota quota = parseQuota(progression.getAssignment(id));
                 if (quota == null || !matches(stack, quota)) {
                     continue;
@@ -60,10 +64,10 @@ public class KOMEProgressionQuotas {
         changed += completeIfMet(progression, "knight.drop_quota_2");
 
         if (isComplete(progression, "serf.food_quota_1") && isComplete(progression, "serf.food_quota_2") && isComplete(progression, "serf.drink_quota")) {
-            changed += progression.grant("serf.deliver_quota") ? 1 : 0;
+            changed += grantIfAllowed(progression, "serf.deliver_quota");
         }
         if (isComplete(progression, "knight.drop_quota_1") && isComplete(progression, "knight.drop_quota_2")) {
-            changed += progression.grant("knight.deliver_drops") ? 1 : 0;
+            changed += grantIfAllowed(progression, "knight.deliver_drops");
         }
         return changed;
     }
@@ -83,11 +87,21 @@ public class KOMEProgressionQuotas {
     }
 
     private static int completeIfMet(KOMEPlayerProgression progression, String id) {
+        KOMEProgressionAchievement achievement = KOMEProgressionAchievement.forID(id);
+        if (!KOMEProgressionPermissionRegistry.canComplete(progression, achievement)) {
+            return 0;
+        }
         Quota quota = parseQuota(progression.getAssignment(id));
         if (quota == null) {
             return 0;
         }
         return progression.getQuotaDelivered(id) >= quota.requiredUnits && progression.grant(id) ? 1 : 0;
+    }
+
+    private static int grantIfAllowed(KOMEPlayerProgression progression, String id) {
+        KOMEProgressionAchievement achievement = KOMEProgressionAchievement.forID(id);
+        return KOMEProgressionPermissionRegistry.canComplete(progression, achievement)
+            && progression.grant(id) ? 1 : 0;
     }
 
     private static void addQuotaLine(List lines, KOMEPlayerProgression progression, String id) {

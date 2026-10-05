@@ -114,7 +114,7 @@ public class KOMEPublicPrivacyTest {
         KOMECommandProgression command = new KOMECommandProgression();
         command.processCommand(f.player, new String[] {"get"});
         command.processCommand(f.player, new String[] {"list", "baseline"});
-        assertTrue(f.player.messages.toString().contains("Pledged lord: None"));
+        assertTrue(f.player.messages.toString().contains("Legacy relationship record: None"));
         assertTrue(f.player.messages.toString().contains("[x]"));
         assertTrue(f.data.progressions.isEmpty());
         assertTrue(f.network.messages.isEmpty());
@@ -181,17 +181,12 @@ public class KOMEPublicPrivacyTest {
         assertTrue(new KOMECommandPopulation().addTabCompletionOptions(f.player, new String[] {"units", ""}).contains("OtherTester"));
     }
 
-    @Test public void loadedLordHighlightDoesNotRewriteSavedLocation() {
-        KOMEPlayerProgression progression = f.data.getProgression(f.player.id);
-        progression.setPledgedLord(other.player.id.toString(), "Lord", "gondor");
-        progression.setPledgedLordLocation(0, 1, 2, 3);
-        NBTTagCompound before = progression.writeToNBT();
-        other.player.posX = 30; other.player.posY = 40; other.player.posZ = 50;
-        f.world.loadedEntityList.add(other.player); // locator only requires the recorded entity UUID
-        new KOMECommandProgression().processCommand(f.player, new String[] {"findlord"});
-        assertTrue(f.network.messages.get(0) instanceof KOMEPacketLordHighlight);
-        assertEquals(before, progression.writeToNBT());
-        assertReadState();
+    @Test public void progressionCommandExposesNoManualRelationshipLocator() {
+        KOMECommandProgression command = new KOMECommandProgression();
+        assertFalse(command.getCommandUsage(f.player).contains("findlord"));
+        assertFalse(command.addTabCompletionOptions(f.player, new String[] {"find"}).contains("findlord"));
+        assertDenied(command, f.player, "findlord");
+        assertDenied(command, f.player, "highlightlord");
     }
 
     @Test public void publicTilePopulationRejectsUnknownRetiredAndAbsentWithoutRepair() {
@@ -219,9 +214,28 @@ public class KOMEPublicPrivacyTest {
     @Test public void troopReadsCannotBypassUnitPrivacyAndDoNotRepairOwnership() {
         KOMECommandTroops troops = new KOMECommandTroops();
         assertDenied(troops, f.player, "unit", otherUnit.entity.toString());
+        KOMEArmyCompany company = new KOMEArmyCompany();
+        company.id = "C_DIAGNOSTIC";
+        company.name = "Diagnostic Company";
+        company.owner = f.player.id;
+        company.ownerName = f.player.getCommandSenderName();
+        company.faction = "gondor";
+        company.currentTile = tile.id;
+        company.sourceTileId = tile.id;
+        company.units.add(ownUnit.entity);
+        company.totalPopulation = ownUnit.cost;
+        company.groundPopulation = ownUnit.cost;
+        ownUnit.companyId = company.id;
+        f.data.armyCompanies.put(company.id, company);
         troops.processCommand(f.player, new String[] {"unit", ownUnit.entity.toString()});
         assertTrue(f.player.messages.toString().contains("UUID: " + ownUnit.entity));
         assertTrue(f.player.messages.toString().contains("Class: CAMPAIGN"));
+        assertTrue(f.player.messages.toString().contains("Detachment coherence: UNKNOWN_PHYSICAL_STATE"));
+        assertTrue(f.player.messages.toString().contains("Campaign Detachment " + company.id));
+        troops.processCommand(f.player, new String[] {"company", company.id});
+        assertTrue(f.player.messages.toString().contains(
+            "Campaign Detachment coherence: UNKNOWN_PHYSICAL_STATE"));
+        assertTrue(f.player.messages.toString().contains("Coherence issues: none"));
         troops.processCommand(f.player, new String[] {"tile", tile.id});
         assertTrue(f.player.messages.toString().contains("Own warrior"));
         assertFalse(f.player.messages.toString().contains("Private warrior"));

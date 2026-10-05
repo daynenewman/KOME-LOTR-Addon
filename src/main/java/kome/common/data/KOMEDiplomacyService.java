@@ -152,6 +152,7 @@ public final class KOMEDiplomacyService {
             actor == null ? "" : actor.toString(), record.key(),
             "LOTR faction relation changed", current.key + " -> " + target.key);
         revalidateConsequences(data, now);
+        KOMEDiplomacyClientSync.refreshAll(data);
         return Result.ok(record);
     }
 
@@ -193,6 +194,7 @@ public final class KOMEDiplomacyService {
             actor == null ? "" : actor.toString(), record.key(),
             "LOTR faction relation worsened unilaterally", current.key + " -> " + target.key);
         revalidateConsequences(data, now);
+        KOMEDiplomacyClientSync.refreshAll(data);
         return Result.ok(record);
     }
 
@@ -217,6 +219,7 @@ public final class KOMEDiplomacyService {
                 actor == null ? "" : actor, KOMEDiplomacyRecord.pairKey(attacker, defender),
                 "War declaration set LOTR relation to Mortal Enemy",
                 current.key + " -> " + KOMEDiplomacyRelation.MORTAL_ENEMIES.key);
+            KOMEDiplomacyClientSync.refreshAll(data);
         }
         return true;
     }
@@ -277,6 +280,24 @@ public final class KOMEDiplomacyService {
         record.receivingFaction = "";
         record.requesterIdentity = "";
         record.requestedAt = 0L;
+    }
+
+    /** A repair removes obsolete consent only; it never overrides LOTR relations. */
+    static boolean repairObsoletePending(KOMEWorldData data, String first, String second,
+            String actor, long now) {
+        data.ensureWritable();
+        if (!KOMEAllianceAuthority.hasAuthoritativePair(first, second)) return false;
+        KOMEDiplomacyRecord record = data.canonicalDiplomacyRecords.get(
+            KOMEDiplomacyRecord.pairKey(first, second));
+        KOMEDiplomacyRelation current = getRelation(data, first, second);
+        if (record == null || record.pendingTarget == null
+                || record.pendingTarget.rank() > current.rank()) return false;
+        clearPending(record);
+        record.relation = current;
+        record.updatedAt = now;
+        record.lastUpdatedBy = actor;
+        data.markDirty();
+        return true;
     }
 
     private static void discardStalePending(KOMEWorldData data,

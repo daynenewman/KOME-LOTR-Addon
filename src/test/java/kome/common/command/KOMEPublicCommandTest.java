@@ -48,8 +48,12 @@ public class KOMEPublicCommandTest {
 
     @Test public void deniedAdministrativeCommandsDoNotEvenRequestWorldState() {
         ICommandSender nonOperator = console(new ArrayList<String>(), false);
+        for(String action:new String[]{"pending","inspect","adjust","approve","reject","rename","move","remove","associate","migration"})
+            deny(new KOMECommandKome(),nonOperator,"waypoint",action);
         deny(new KOMECommandKome(), nonOperator, "config");
         deny(new KOMECommandKome(), nonOperator, "audit", "list");
+        deny(new KOMECommandKome(), nonOperator, "progression", "relationship", "force", "serf");
+        deny(new KOMECommandKome(), nonOperator, "progression", "relationship", "clear");
         deny(new KOMECommandKome(), nonOperator, "repair", "war", "W1");
         deny(new KOMECommandKome(), nonOperator, "ruler", "assign", "gondor", "Someone");
         deny(new KOMECommandKome(), nonOperator, "conquest", "reset");

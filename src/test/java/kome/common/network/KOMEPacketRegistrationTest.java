@@ -28,7 +28,7 @@ public class KOMEPacketRegistrationTest {
 
     private static final Set<Integer> EXPECTED_DISCRIMINATORS = new HashSet<Integer>(Arrays.asList(
         0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51
     ));
 
     @Test public void retiredIdsStayHolesAndEveryRetainedClassKeepsItsIdAndSide() throws Exception {
@@ -45,7 +45,12 @@ public class KOMEPacketRegistrationTest {
             "MovementHistoryData:29:CLIENT", "UnitMapMarkers:30:CLIENT", "WaypointTravelRequest:31:SERVER",
             "AllianceAction:32:SERVER", "PledgeDepartureRequest:33:SERVER", "PledgeDepartureData:34:CLIENT",
             "TroopGuiAction:35:SERVER", "BuildAction:36:SERVER", "CampaignHire:37:SERVER",
-            "TacticalEditRequest:38:SERVER", "TacticalEditSnapshot:39:CLIENT", "TacticalAreaCatalog:40:CLIENT", "TacticalComplexCatalog:41:CLIENT"
+            "SerfdomMasterMenu:38:CLIENT", "SerfdomMasterAction:39:SERVER",
+            "ProgressionRelationshipAction:40:SERVER", "RelationshipHub:41:CLIENT",
+            "RelationshipAction:42:SERVER", "VisualMarkers:43:CLIENT",
+            "ProgressionRequest:44:SERVER", "ProgressionTracker:45:CLIENT",
+            "StandingTrialEligibility:46:CLIENT", "PublicWaypoints:47:CLIENT",
+            "TacticalEditRequest:48:SERVER", "TacticalEditSnapshot:49:CLIENT", "TacticalAreaCatalog:50:CLIENT", "TacticalComplexCatalog:51:CLIENT"
         };
         for (String entry : entries) {
             String[] parts = entry.split(":");
@@ -68,8 +73,10 @@ public class KOMEPacketRegistrationTest {
     public void currentRegistryHasUniqueDiscriminatorsAndServerHandlerIdentities() throws Exception {
         String source = source("src/main/java/kome/common/network/KOMEPacketHandler.java");
         Pattern registration = Pattern.compile(
-            "registerMessage\\(.*?,\\s*(\\d+),\\s*Side\\.(CLIENT|SERVER)\\s*\\);");
+            "registerMessage\\(.*?,\\s*(KOMEPacket\\w+)\\.class,\\s*(\\d+),\\s*Side\\.(CLIENT|SERVER)\\s*\\);");
         Set<Integer> discriminators = new HashSet<Integer>();
+        Set<String> packetClasses = new HashSet<String>();
+        int previousDiscriminator = -1;
         int registrations = 0;
         int serverRegistrations = 0;
         for (String line : source.split("\\R")) {
@@ -78,11 +85,14 @@ public class KOMEPacketRegistrationTest {
             }
             Matcher matcher = registration.matcher(line);
             assertTrue("Unrecognized packet registration: " + line, matcher.find());
-            Integer discriminator = Integer.valueOf(matcher.group(1));
+            assertTrue("Duplicate packet class " + matcher.group(1), packetClasses.add(matcher.group(1)));
+            Integer discriminator = Integer.valueOf(matcher.group(2));
             assertTrue("Duplicate packet discriminator " + discriminator, discriminators.add(discriminator));
+            assertTrue("Packet registrations must remain in discriminator order", discriminator > previousDiscriminator);
+            previousDiscriminator = discriminator;
             registrations++;
-            if ("SERVER".equals(matcher.group(2))) {
-                if (discriminator == 38) {
+            if ("SERVER".equals(matcher.group(3))) {
+                if (discriminator == 48) {
                     assertTrue(line.contains("KOMEPacketTacticalEditRequest.Handler.class"));
                     assertFalse(line.contains("ServerThreadHandler")); // This intake owns a bounded tick queue.
                     continue;
@@ -94,9 +104,9 @@ public class KOMEPacketRegistrationTest {
             }
         }
 
-        assertEquals(36, registrations);
+        assertEquals(46, registrations);
         assertEquals(EXPECTED_DISCRIMINATORS, discriminators);
-        assertEquals(15, serverRegistrations);
+        assertEquals(19, serverRegistrations);
 
         EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
         Set<String> handlerNames = new HashSet<String>();
@@ -113,7 +123,7 @@ public class KOMEPacketRegistrationTest {
     }
 
     @Test
-    public void serverHandlerEnqueuesWithoutExecutingInline() {
+    public void serverHandlerEnqueuesWithoutExecutingInline() throws Exception {
         final AtomicInteger calls = new AtomicInteger();
         IMessageHandler<TestMessage, IMessage> delegate = new IMessageHandler<TestMessage, IMessage>() {
             @Override
@@ -125,41 +135,53 @@ public class KOMEPacketRegistrationTest {
         KOMEPacketHandler.ServerThreadHandler<TestMessage> handler =
             new KOMEPacketHandler.ServerThreadHandler<TestMessage>(delegate);
 
-        assertNull(handler.onMessage(new TestMessage(), null));
+        kome.common.KOMEAccessFixture fixture = new kome.common.KOMEAccessFixture();
+        try (kome.common.KOMETestServerSession session = new kome.common.KOMETestServerSession(fixture)) {
+        assertNull(handler.onMessage(new TestMessage(), fixture.context));
         assertEquals(0, calls.get());
         assertEquals(1, KOMEPacketHandler.pendingServerTaskCount());
         assertEquals(1, KOMEPacketHandler.runPendingServerTasks());
         assertEquals(1, calls.get());
         assertEquals(0, KOMEPacketHandler.pendingServerTaskCount());
+        }
+    }
+
+    @Test
+    public void progressionBookDepartureIsServerDerivedAndEncounterSafe() throws Exception {
+        String packet = source("src/main/java/kome/common/network/KOMEPacketProgressionRelationshipAction.java");
+        String registry = source("src/main/java/kome/common/network/KOMEPacketHandler.java");
+
+        assertTrue(packet.contains("KOMEProgressionEncounterCleanup.cleanup"));
+        assertTrue(packet.contains("KOMESerfKnightService.leaveSerfdomMaster"));
+        assertTrue(packet.contains("KOMESerfKnightService.leaveLiege"));
+        assertTrue(packet.contains("state.getSerfdomMaster().isSet()"));
+        assertTrue(packet.contains("state.hasLiege()"));
+
+        assertTrue(registry.contains("KOMEPacketProgressionRelationshipAction.class"));
+        assertTrue(registry.contains("KOMEPacketProgressionRelationshipAction.class, 40, Side.SERVER"));
+    }
+
+    @Test public void visualMarkersAreOneWayAndPublishedOnTheClientThread() throws Exception {
+        String packet = source("src/main/java/kome/common/network/KOMEPacketVisualMarkers.java");
+        assertTrue(packet.contains("KOMEAddon.proxy.enqueueClientTask"));
+        assertTrue(packet.contains("KOMEAddon.proxy.updateVisualMarkers(snapshot)"));
+        assertFalse(packet.contains("sendToServer"));
     }
 
     @Test
     public void drainUsesASnapshotAndReportsFailuresWithoutBlockingLaterTasks() {
-        final AtomicInteger calls = new AtomicInteger();
-        KOMEPacketHandler.enqueueServerTask(new Runnable() {
-            @Override
-            public void run() {
-                calls.incrementAndGet();
-                KOMEPacketHandler.enqueueServerTask(new Runnable() {
-                    @Override
-                    public void run() {
-                        calls.addAndGet(100);
-                    }
-                });
-                throw new IllegalStateException("expected test failure");
-            }
-        });
-        KOMEPacketHandler.enqueueServerTask(new Runnable() {
-            @Override
-            public void run() {
-                calls.addAndGet(10);
-            }
-        });
-
-        assertEquals(2, KOMEPacketHandler.runPendingServerTasks());
-        assertEquals(11, calls.get());
-        assertEquals(1, KOMEPacketHandler.pendingServerTaskCount());
-        assertEquals(1, KOMEPacketHandler.runPendingServerTasks());
+        KOMEServerTaskQueue queue = new KOMEServerTaskQueue(10, 10, 10, Long.MAX_VALUE);
+        long session = queue.open(); Object connection = new Object();
+        AtomicInteger calls = new AtomicInteger(), failures = new AtomicInteger();
+        queue.offer(session, connection, () -> {
+            calls.incrementAndGet();
+            queue.offer(session, connection, () -> calls.addAndGet(100), null);
+            throw new IllegalStateException("expected test failure");
+        }, null);
+        queue.offer(session, connection, () -> calls.addAndGet(10), null);
+        assertEquals(2, queue.drain(error -> failures.incrementAndGet(), () -> 0L));
+        assertEquals(11, calls.get()); assertEquals(1, failures.get()); assertEquals(1, queue.pending());
+        assertEquals(1, queue.drain(error -> failures.incrementAndGet(), () -> 0L));
         assertEquals(111, calls.get());
     }
 

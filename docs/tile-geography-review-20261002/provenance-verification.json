@@ -1,0 +1,16 @@
+{
+  "source_docs_root": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\KOME-LOTR-Addon-Tile-Resolution-Dev\\docs",
+  "source_hashes_verified": true,
+  "exact_compact_rows_verified": true,
+  "inputs_sha256": "c90303b209809661806257ecd364d710dbf336d010842933c0879bab9d980462",
+  "rows": 26731,
+  "groups": {
+    "uncertain_v2": 25919,
+    "withheld_transfer": 48,
+    "withheld_gap": 691,
+    "blocked55": 55,
+    "optional_shape": 1,
+    "protected_junction": 14,
+    "protected_control": 3
+  }
+}

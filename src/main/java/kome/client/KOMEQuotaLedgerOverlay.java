@@ -186,11 +186,11 @@ public class KOMEQuotaLedgerOverlay {
 
     private boolean isLedgerInventory(GuiChest chest) {
         String name = getLowerInventoryName(chest);
-        return "Lord Offerings".equals(name);
+        return "Rank Offerings".equals(name);
     }
 
     private String getLedgerTitle(GuiChest chest) {
-        return "Alliance Ledger".equals(getLowerInventoryName(chest)) ? "Alliance Ledger" : "Lord Ledger";
+        return "Alliance Ledger".equals(getLowerInventoryName(chest)) ? "Alliance Ledger" : "Rank Ledger";
     }
 
     private String getLowerInventoryName(GuiChest chest) {

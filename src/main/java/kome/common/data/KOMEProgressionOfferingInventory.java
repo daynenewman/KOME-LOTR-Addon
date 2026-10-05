@@ -19,7 +19,7 @@ public class KOMEProgressionOfferingInventory implements IInventory {
         this.data = data;
         this.progression = progression;
         this.player = player;
-        this.name = "Lord Offerings";
+        this.name = "Rank Offerings";
     }
 
     @Override

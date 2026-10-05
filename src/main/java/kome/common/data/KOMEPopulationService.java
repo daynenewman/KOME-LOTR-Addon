@@ -11,6 +11,13 @@ public final class KOMEPopulationService {
     private KOMEPopulationService() {
     }
 
+    /** Temporary muster allowance in the exact daily-rate unit; never a faction-bank grant. */
+    public static BigInteger musterBudgetUnits(BigInteger dailyRateUnits, int multiplier) {
+        if (dailyRateUnits == null || dailyRateUnits.signum() < 0 || multiplier <= 0)
+            throw new IllegalArgumentException("Nonnegative daily rate and positive muster multiplier required.");
+        return dailyRateUnits.multiply(BigInteger.valueOf(multiplier));
+    }
+
     public static long getAvailablePopulationCenti(KOMEWorldData data, String faction) {
         if (data == null) {
             throw new IllegalArgumentException("World data is required");

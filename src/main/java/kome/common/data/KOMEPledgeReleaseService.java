@@ -34,6 +34,7 @@ public final class KOMEPledgeReleaseService {
             String migrationBaseline = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(playerId));
             data.lastKnownPlayerFactions.put(playerId, current);
             if (migrationBaseline.length() > 0 && !migrationBaseline.equals(current)) {
+                KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);
                 return release(data, playerId, player.getCommandSenderName(), migrationBaseline, current,
                     nowMillis, "Schema-5 initial pledge reconciliation");
             }
@@ -43,6 +44,7 @@ public final class KOMEPledgeReleaseService {
         String former = KOMEAlliance.normalizeFactionKey(data.lastKnownPlayerFactions.get(playerId));
         if (former.equals(current)) return Result.noop("Pledge unchanged.");
         data.lastKnownPlayerFactions.put(playerId, current);
+        KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);
         if (former.length() == 0) {
             data.markDirty();
             return Result.noop("New pledge recorded.");
@@ -97,6 +99,27 @@ public final class KOMEPledgeReleaseService {
         result.wasKing = KOMERulerService.isRuler(data, former, player);
         if (result.wasKing) KOMERulerService.removeRulerHeldBy(data, player);
 
+        // A pledge transition is not authoritative conflict departure. Retain every referenced
+        // detachment, unit, and conflict-owned route until a later explicit conflict lifecycle
+        // operation resolves it.
+        Set<String> conflictProtectedCompanies = new HashSet<String>();
+        for (KOMEArmyCompany company : data.armyCompanies.values()) {
+            if (company == null || !player.equals(company.owner)
+                    || !former.equals(KOMEAlliance.normalizeFactionKey(
+                        KOMEWartimeStewardshipService.nativeFaction(company)))) continue;
+            KOMEConflictRecord conflict =
+                KOMEConflictMovementService.activeConflictForDetachment(data, company.id);
+            if (conflict == null
+                    && !KOMEConflictMovementService.isActivelyCommitted(data, company.id)) continue;
+            conflictProtectedCompanies.add(company.id);
+            KOMEAuditService.record(data, nowMillis, "CONFLICT",
+                "PLEDGE_RELEASE_DEFERRED", player.toString(),
+                conflict == null ? company.id : conflict.getConflictId(),
+                "Committed detachment retained during pledge cleanup",
+                company.id + (conflict == null ? " with ambiguous conflict authority"
+                    : " at " + conflict.getTileId()));
+        }
+
         // Revoke both delegations issued by the departing king and temporary control held by the departing player.
         for (KOMEArmyCompany company : data.armyCompanies.values()) {
             if (company == null) continue;
@@ -135,6 +158,10 @@ public final class KOMEPledgeReleaseService {
             affected = affected || company != null && player.equals(company.owner)
                 && former.equals(KOMEAlliance.normalizeFactionKey(KOMEWartimeStewardshipService.nativeFaction(company)));
             if (!affected) continue;
+            if (conflictProtectedCompanies.contains(order.companyId)) {
+                result.conflictProtectedMovements++;
+                continue;
+            }
             order.status = KOMEArmyMovementOrder.CANCELLED;
             order.accessLossReason = "Owner pledge ended before the next movement step";
             order.nextStepDepartureMillis = 0L;
@@ -147,6 +174,10 @@ public final class KOMEPledgeReleaseService {
 
         for (KOMEHiredUnitRecord record : new ArrayList<KOMEHiredUnitRecord>(data.hiredUnits.values())) {
             if (!isOwnedFormerFactionUnit(record, player, former)) continue;
+            if (conflictProtectedCompanies.contains(record.companyId)) {
+                result.conflictProtectedUnits++;
+                continue;
+            }
             KOMEPledgeReleaseTombstone tombstone = tombstone(data, record, former, player, nowMillis, reason);
             boolean snapshotBacked = record.isMoving() || cancelledOrders.contains(record.movementOrderId);
             if (snapshotBacked) {
@@ -183,6 +214,10 @@ public final class KOMEPledgeReleaseService {
             KOMEArmyCompany company = data.armyCompanies.get(companyId);
             if (company == null) continue;
             if (player.equals(company.transferRecipient) || player.equals(company.transferOfferedBy)) company.clearTransferOffer();
+            if (conflictProtectedCompanies.contains(companyId)) {
+                result.conflictProtectedCompanies++;
+                continue;
+            }
             if (company.units.isEmpty() && player.equals(company.owner)
                     && former.equals(KOMEAlliance.normalizeFactionKey(KOMEWartimeStewardshipService.nativeFaction(company)))) {
                 data.armyCompanies.remove(companyId);
@@ -344,7 +379,10 @@ public final class KOMEPledgeReleaseService {
             + result.companiesRemoved + " empty companies, cancelled " + result.movementsCancelled
             + " movements; combat population remains permanently spent; pending unloaded="
             + result.pendingUnloaded + ", quarantined=" + result.quarantined + ", temporary authorities revoked="
-            + result.temporaryAuthoritiesRevoked + ".";
+            + result.temporaryAuthoritiesRevoked + ", conflict-protected units="
+            + result.conflictProtectedUnits + ", detachments="
+            + result.conflictProtectedCompanies + ", movements="
+            + result.conflictProtectedMovements + ".";
     }
 
     private static void notifyPlayerAndOperators(UUID player, String message) {
@@ -406,6 +444,9 @@ public final class KOMEPledgeReleaseService {
         public int farmhandsReleased;
         public int companiesRemoved;
         public int movementsCancelled;
+        public int conflictProtectedUnits;
+        public int conflictProtectedCompanies;
+        public int conflictProtectedMovements;
         /** Compatibility result fields retained for callers; canonical cleanup always leaves these zero. */
         public int offensiveReturned;
         public int defensiveReturned;

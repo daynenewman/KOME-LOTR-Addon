@@ -1,8 +1,12 @@
 package kome.common.command;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.UUID;
 
+import kome.common.data.KOMEArmyCompany;
+import kome.common.data.KOMECompanyCoherenceService;
+import kome.common.data.KOMECompanyReconciliationService;
 import kome.common.data.KOMEHiredUnitRecord;
 import kome.common.data.KOMEWorldData;
 import kome.common.network.KOMEUnitGuiEntry;
@@ -61,6 +65,52 @@ public class KOMEUnitInspectionObservabilityTest {
         assertFalse(data.isDirty());
         assertTrue(data.centralAudit.isEmpty());
         assertSame(record, data.hiredUnits.get(record.entity));
+    }
+
+    @Test public void companyAndUnitDiagnosticFormattingExposeStatusAndIssues() {
+        KOMEWorldData data = new KOMEWorldData("diagnostics");
+        KOMEArmyCompany company = new KOMEArmyCompany();
+        company.id = "C1";
+        company.owner = UUID.randomUUID();
+        company.currentTile = "T100";
+        KOMEHiredUnitRecord ordinary = record();
+        ordinary.owner = company.owner;
+        ordinary.companyId = company.id;
+        ordinary.currentTile = "T100";
+        company.units.add(ordinary.entity);
+        data.hiredUnits.put(ordinary.entity, ordinary);
+        data.armyCompanies.put(company.id, company);
+
+        KOMECompanyCoherenceService.Assessment assessment =
+            KOMECompanyCoherenceService.INSTANCE.assess(data, company);
+        List<String> companyLines = KOMECommandTroops.formatCompanyCoherence(assessment);
+        List<String> unitLines = KOMECommandTroops.formatUnitDetachmentCoherence(
+            assessment, ordinary.entity);
+
+        assertTrue(companyLines.toString().contains(
+            "Campaign Detachment coherence: INCOHERENT"));
+        assertTrue(companyLines.toString().contains("ORDINARY_MEMBER"));
+        assertTrue(unitLines.toString().contains("Campaign Detachment C1"));
+        assertTrue(unitLines.toString().contains("SERVER_STOPPED"));
+        assertTrue(unitLines.toString().contains("unit agreement UNKNOWN"));
+    }
+
+    @Test public void rebuildDiagnosticSummarizesCanonicalReconciliation() {
+        KOMEWorldData data = new KOMEWorldData("rebuild-diagnostics");
+        KOMEArmyCompany empty = new KOMEArmyCompany();
+        empty.id = "C1";
+        empty.owner = UUID.randomUUID();
+        empty.currentTile = "T100";
+        data.armyCompanies.put(empty.id, empty);
+
+        KOMECompanyReconciliationService.Result result =
+            KOMECompanyReconciliationService.INSTANCE.reconcile(data);
+        String line = KOMECommandTroops.formatCompanyReconciliation(result);
+
+        assertTrue(line.contains("empty detachments removed 1"));
+        assertTrue(line.contains("ambiguous units left unassigned 0"));
+        assertFalse(line.contains("LOTR Unit Overview"));
+        assertFalse(line.contains("source tile"));
     }
 
     private static KOMEHiredUnitRecord record() {
