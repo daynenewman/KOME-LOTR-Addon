@@ -320,6 +320,11 @@ public class KOMEEvents {
         KOMEEmergencyDefenseMobilizationService.INSTANCE.processPending(data, world,
             nowMillis);
         KOMEOrdinaryBattleLifecycleService.INSTANCE.processAll(data, nowMillis);
+        // Ownership publication requires the authoritative live world's tick clock. Tests and
+        // startup recovery may intentionally supply no/incomplete World; those defer safely.
+        if (world != null && world.getWorldInfo() != null)
+            KOMEOrdinaryBattleResolutionService.INSTANCE.processAll(data,
+                world.getTotalWorldTime(), nowMillis);
         KOMEMusterService.processDue(data, nowMillis);
         KOMEPopulationPayoutProcessor.Result result = runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
         if (result != null && result.success) KOMEFactionDefeatService.reconcile(data, nowMillis);
