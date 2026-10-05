@@ -167,6 +167,7 @@ public class KOMEAddon {
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
         kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
+        kome.common.data.KOMEOrdinaryBattleLifecycleService.INSTANCE.resetRuntimeState();
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();
         kome.common.network.KOMEPublicWaypointSync.reset();
         kome.common.network.KOMEPacketConquestData.clearSentSnapshots();
@@ -178,6 +179,7 @@ public class KOMEAddon {
     @Mod.EventHandler
     public void serverStopped(FMLServerStoppedEvent event) {
         kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
+        kome.common.data.KOMEOrdinaryBattleLifecycleService.INSTANCE.resetRuntimeState();
         // Also covers failed startup/crash paths that skip serverStopping. Idempotent.
         KOMEPacketHandler.clearPendingServerTasks();
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();

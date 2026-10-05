@@ -319,6 +319,7 @@ public class KOMEEvents {
         KOMECommandTroops.processMovementTick(data, world, nowMillis);
         KOMEEmergencyDefenseMobilizationService.INSTANCE.processPending(data, world,
             nowMillis);
+        KOMEOrdinaryBattleLifecycleService.INSTANCE.processAll(data, nowMillis);
         KOMEMusterService.processDue(data, nowMillis);
         KOMEPopulationPayoutProcessor.Result result = runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
         if (result != null && result.success) KOMEFactionDefeatService.reconcile(data, nowMillis);
