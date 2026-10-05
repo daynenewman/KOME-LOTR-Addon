@@ -22,7 +22,7 @@ public class KOMEArmyMovementOrder {
     public static final String WAR_ENDED_HALTED = "war_ended_halted";
     /** Route remains intact, but an active ConflictRecord owns departure authority. */
     public static final String CONFLICT_HELD = "conflict_held";
-    /** Conflict ended; route data remains queued but no current system may resume it. */
+    /** Conflict ended; route remains paused until an explicit validated movement outcome. */
     public static final String CONFLICT_RELEASED_PAUSED = "conflict_released_paused";
     public static final long REAL_DAY_MILLIS = 24L * 60L * 60L * 1000L;
 
@@ -108,6 +108,9 @@ public class KOMEArmyMovementOrder {
     /** Active ConflictRecord responsible for pausing this order; empty when not conflict-held. */
     public String conflictHoldId = "";
     public long conflictHeldAtMillis;
+    public KOMEConflictMovementHandoff.Receipt conflictRelease;
+    public KOMEStrategicArrivalPlacement.Context strategicArrival;
+    public boolean exteriorPlacementRequired;
 
     /** Creates route metadata only. Movement credit belongs to KOMEArmyCompany. */
     public static KOMEArmyMovementOrder newRoute(int tilesPerDay) {
@@ -160,6 +163,11 @@ public class KOMEArmyMovementOrder {
 
     public NBTTagCompound writeToNBT() {
         NBTTagCompound nbt = new NBTTagCompound();
+        if (conflictRelease != null) nbt.setTag("ConflictMovementRelease", conflictRelease.write());
+        if (strategicArrival != null) {
+            nbt.setTag("StrategicArrival", strategicArrival.write());
+            nbt.setBoolean("ExteriorPlacementRequired", exteriorPlacementRequired);
+        }
         nbt.setString("Id", id == null ? "" : id);
         nbt.setString("CompanyId", companyId == null ? "" : companyId);
         nbt.setString("CompanyName", companyName == null ? "" : companyName);
@@ -264,6 +272,21 @@ public class KOMEArmyMovementOrder {
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
+        conflictRelease = null; strategicArrival = null; exteriorPlacementRequired = false;
+        if (nbt.hasKey("ConflictMovementRelease")) {
+            if (!nbt.hasKey("ConflictMovementRelease", 10)) throw new IllegalArgumentException("Invalid conflict movement receipt tag");
+            conflictRelease = KOMEConflictMovementHandoff.Receipt.read(nbt.getCompoundTag("ConflictMovementRelease"));
+            if (!conflictRelease.orderId.equals(nbt.getString("Id")) || !conflictRelease.companyId.equals(nbt.getString("CompanyId")))
+                throw new IllegalArgumentException("Conflict movement receipt identity mismatch");
+        }
+        if (nbt.hasKey("StrategicArrival")) {
+            if (!nbt.hasKey("StrategicArrival", 10) || !nbt.hasKey("ExteriorPlacementRequired", 1))
+                throw new IllegalArgumentException("Invalid strategic placement metadata");
+            strategicArrival = KOMEStrategicArrivalPlacement.Context.read(nbt.getCompoundTag("StrategicArrival"));
+            if (!strategicArrival.orderId.equals(nbt.getString("Id")) || !strategicArrival.companyId.equals(nbt.getString("CompanyId")))
+                throw new IllegalArgumentException("Strategic arrival identity mismatch");
+            exteriorPlacementRequired = nbt.getBoolean("ExteriorPlacementRequired");
+        } else if (nbt.hasKey("ExteriorPlacementRequired")) throw new IllegalArgumentException("Exterior requirement has no arrival event");
         id = nbt.getString("Id");
         companyId = nbt.getString("CompanyId");
         companyName = nbt.getString("CompanyName");

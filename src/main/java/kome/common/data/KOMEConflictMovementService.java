@@ -18,6 +18,10 @@ import static kome.common.data.KOMEConflictRecord.*;
  */
 public final class KOMEConflictMovementService {
     private KOMEConflictMovementService() { }
+    /** Server classification only. Creation cohorts remain separate from later strategic arrivals. */
+    static EntryOrigin placementOrigin(KOMEWorldData data, KOMEConflictRecord conflict, String factionId) {
+        return reliefOrigin(data, conflict, factionId) ? EntryOrigin.RELIEF : EntryOrigin.EXTERIOR_ARRIVAL;
+    }
 
     public enum PermissionCode {
         HOSTILE_ATTACK_ALLOWED, NORMAL_MOVEMENT_RULE, NOT_TERMINAL_DESTINATION,
@@ -320,6 +324,7 @@ public final class KOMEConflictMovementService {
                 && !conflict.getConflictId().equals(clean(order.conflictHoldId)))
             throw new IllegalStateException("Movement order is held by another conflict.");
         order.status = KOMEArmyMovementOrder.CONFLICT_HELD;
+        order.conflictRelease = null; // a new canonical hold cannot replay an earlier release
         order.conflictHoldId = conflict.getConflictId();
         order.conflictHeldAtMillis = timestampMillis;
         order.nextStepAvailableMillis = 0L;

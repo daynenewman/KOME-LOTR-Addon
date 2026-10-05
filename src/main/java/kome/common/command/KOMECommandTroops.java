@@ -1036,6 +1036,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             + ", dim " + order.lastChunkLoadDimension + ", chunk " + order.lastChunkLoadChunkX + ", "
             + order.lastChunkLoadChunkZ + ", ticket " + (order.lastChunkLoadTicketAcquired ? "acquired" : "not acquired") + "."));
         sender.addChatMessage(new ChatComponentText("Last attempted physical spawn: " + formatOrderAttemptLocation(order) + "."));
+        if (order.conflictRelease != null) sender.addChatMessage(new ChatComponentText(
+            "Conflict movement outcome: " + order.conflictRelease.outcome + " / " + order.conflictRelease.code));
         if (order.isPendingSpawn()) {
             sender.addChatMessage(new ChatComponentText("Pending spawn reason: " + order.pendingSpawnReason));
         }
@@ -2748,6 +2750,33 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 // arrivalPointTileId, or the spawn target.  This is the committed
                 // destination of the in-flight step.
             }
+            KOMEConflictMovementService.ArrivalPreparation conflictPreparation = null;
+            boolean explicitHostileArrival = isFinalStep(order)
+                && stepDestinationTile.equals(KOMEConquestTile.normalizeId(
+                    order.hostileAttackDestination));
+            if (explicitHostileArrival) {
+                conflictPreparation = KOMEConflictMovementService.prepareLegalArrival(
+                    data, order, stepDestinationTile);
+                if (!conflictPreparation.ready()) {
+                    if (order.haltAfterArrival) {
+                        // The step departed under valid authority and remains committed to its
+                        // physical destination, but live authority no longer permits conflict
+                        // commitment. Preserve the established access-halt arrival semantics.
+                        conflictPreparation = null;
+                    } else {
+                        changed |= markPendingSpawn(order, "CONFLICT_NOT_READY",
+                            conflictPreparation.reason, nowMillis);
+                        continue;
+                    }
+                }
+            }
+            kome.common.data.KOMEStrategicArrivalPlacement.Decision placement =
+                kome.common.data.KOMEStrategicArrivalPlacement.preflight(data, order,
+                    stepDestinationTile, conflictPreparation == null ? null : conflictPreparation.receipt);
+            if (!placement.ordinaryAllowed()) {
+                changed |= markPendingSpawn(order, placement.code.name(), placement.reason, nowMillis);
+                continue;
+            }
             World arrivalWorld = worldForOrder(world, order);
             if (arrivalWorld == null) {
                 changed |= markPendingSpawn(order, "ARRIVAL_DIMENSION_UNAVAILABLE",
@@ -2766,26 +2795,6 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     SpawnTarget failedTarget = resolveArrivalTarget(data, arrivalWorld, order, destination, entrySide);
                     changed |= markPendingSpawn(order, failureCode(failedTarget.failureReason), failedTarget.failureReason, nowMillis);
                     continue;
-                }
-                KOMEConflictMovementService.ArrivalPreparation conflictPreparation = null;
-                boolean explicitHostileArrival = isFinalStep(order)
-                    && stepDestinationTile.equals(KOMEConquestTile.normalizeId(
-                        order.hostileAttackDestination));
-                if (explicitHostileArrival) {
-                    conflictPreparation = KOMEConflictMovementService.prepareLegalArrival(
-                        data, order, stepDestinationTile);
-                    if (!conflictPreparation.ready()) {
-                        if (order.haltAfterArrival) {
-                            // The step departed under valid authority and remains committed to its
-                            // physical destination, but live authority no longer permits conflict
-                            // commitment. Preserve the established access-halt arrival semantics.
-                            conflictPreparation = null;
-                        } else {
-                            changed |= markPendingSpawn(order, "CONFLICT_NOT_READY",
-                                conflictPreparation.reason, nowMillis);
-                            continue;
-                        }
-                    }
                 }
                 if (announce) {
                     notifyMovementOwner(arrivalWorld, order, "Trying arrival spawn for " + order.id + " at " + describeTargets(spawnTargets) + ".");
@@ -3283,6 +3292,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         order.currentTile = origin;
         order.nextTile = destination;
         order.nextRouteIndex = nextIndex;
+        order.strategicArrival = null;
+        order.exteriorPlacementRequired = false;
         order.arrivalPointTileId = destination;
         order.arrivalPointSource = target.label;
         order.arrivalDimension = target.dimensionId;

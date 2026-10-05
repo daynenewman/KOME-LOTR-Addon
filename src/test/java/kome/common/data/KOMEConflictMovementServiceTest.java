@@ -400,7 +400,7 @@ public class KOMEConflictMovementServiceTest {
         }
     }
 
-    private static Fixture hostileFixture(boolean defensive, boolean defenderCompany) {
+    static Fixture hostileFixture(boolean defensive, boolean defenderCompany) {
         Fixture f = new Fixture();
         f.tile("T100", "gondor");
         f.tile("T101", "mordor");
@@ -412,7 +412,7 @@ public class KOMEConflictMovementServiceTest {
         return f;
     }
 
-    private static final class Fixture {
+    static final class Fixture {
         final KOMEWorldData data = new KOMEWorldData("phase4");
         private int uuidSequence = 1;
 

@@ -116,6 +116,15 @@ public class KOMEWorldData extends WorldSavedData {
     public final List<NBTTagCompound> quarantinedAllianceRecords = new ArrayList<NBTTagCompound>();
     public final Map<String, KOMEArmyMovementOrder> armyMovements = new HashMap<>();
     public final Map<String, KOMEArmyCompany> armyCompanies = new HashMap<>();
+    /** Runtime policy only; no Encirclement authority or placement provider is serialized. */
+    private transient KOMEStrategicArrivalPlacement.Provider strategicArrivalPlacementProvider = KOMEStrategicArrivalPlacement.ORDINARY;
+    public synchronized void setStrategicArrivalPlacementProvider(KOMEStrategicArrivalPlacement.Provider provider) {
+        if (provider == null) throw new IllegalArgumentException("Strategic arrival placement provider is required");
+        strategicArrivalPlacementProvider = provider;
+    }
+    synchronized KOMEStrategicArrivalPlacement.Directive strategicArrivalPlacement(KOMEStrategicArrivalPlacement.Context arrival) {
+        return strategicArrivalPlacementProvider.placement(arrival);
+    }
     /** Sole tile-conflict registry/allocator authority; all snapshots are immutable. */
     private final KOMEConflictService conflictService = new KOMEConflictService();
     /** Next never-reused canonical Campaign Detachment identity (C1, C2, ...). */
