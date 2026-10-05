@@ -127,7 +127,9 @@ public final class KOMEConfigInspection {
             KOMEConfigRegistry.SeasonSettings s = snapshot.getSeason();
             add(values, category, "minimumWarSeasonLengthDays", s.getMinimumWarSeasonLengthDays());
             add(values, category, "automaticFinaleEnabled", s.isAutomaticFinaleEnabled());
-            add(values,category,"warInactivityDurationMillis",s.getWarInactivityDurationMillis()); add(values,category,"warBondsEnabled",s.isWarBondsEnabled()); add(values,category,"attackerWarBond",s.getAttackerWarBond()); add(values,category,"participationWarBond",s.getParticipationWarBond());
+            add(values,category,"warInactivityDurationMillis",s.getWarInactivityDurationMillis());
+            add(values,category,"emergencyDefenseRulerInactivityDays",s.getEmergencyDefenseRulerInactivityDays());
+            add(values,category,"warBondsEnabled",s.isWarBondsEnabled()); add(values,category,"attackerWarBond",s.getAttackerWarBond()); add(values,category,"participationWarBond",s.getParticipationWarBond());
         } else if ("gear".equals(category)) {
             add(values, category, "restrictionRules", snapshot.getGear().getRulesByItemId());
         }

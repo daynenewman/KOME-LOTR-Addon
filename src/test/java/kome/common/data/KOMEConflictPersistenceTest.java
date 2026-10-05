@@ -319,8 +319,8 @@ public class KOMEConflictPersistenceTest {
         assertFalse(destination.hasKey(KOMEConflictPersistence.RECORDS_KEY));
     }
 
-    @Test public void schemaSixUpgradePreservesAuthoritiesAndInfersNoConflicts() {
-        KOMEWorldData legacy = initialized("schema-six");
+    @Test public void schemaEightUpgradePreservesAuthoritiesAndInfersNoMobilization() {
+        KOMEWorldData legacy = initialized("schema-eight");
         legacy.grantFactionPopulationCenti("gondor", 2500L);
         KOMEConquestRouteEdge edge = new KOMEConquestRouteEdge("T100", "T101", KOMEConquestRouteEdge.OPEN);
         legacy.routeEdges.put(KOMEConquestRouteEdge.key("T100", "T101"), edge);
@@ -335,12 +335,14 @@ public class KOMEConflictPersistenceTest {
         legacy.getProgression(progressionPlayer);
         addCoherentCompany(legacy);
 
-        NBTTagCompound schemaSix = save(legacy);
-        schemaSix.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 6);
-        schemaSix.removeTag(KOMEConflictPersistence.SCHEMA_KEY);
-        schemaSix.removeTag(KOMEConflictPersistence.SEQUENCE_KEY);
-        schemaSix.removeTag(KOMEConflictPersistence.RECORDS_KEY);
-        KOMEWorldData upgraded = load(schemaSix);
+        NBTTagCompound schemaEight = save(legacy);
+        schemaEight.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 8);
+        schemaEight.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
+        schemaEight.removeTag("TacticalConfiguration");
+        schemaEight.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY, 1);
+        schemaEight.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
+        schemaEight.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
+        KOMEWorldData upgraded = load(schemaEight);
         assertTrue(upgraded.isDirty());
         assertEquals(2500L, upgraded.getFactionPopulationIfPresent("gondor").getAvailablePopulationCenti());
         assertTrue(upgraded.routeEdges.containsKey(KOMEConquestRouteEdge.key("T100", "T101")));
@@ -350,18 +352,34 @@ public class KOMEConflictPersistenceTest {
         assertTrue(upgraded.armyCompanies.containsKey("C1"));
         assertTrue(upgraded.getConflictService().records().isEmpty());
         assertEquals(1L, upgraded.getConflictService().getNextConflictSequence());
+        assertTrue(upgraded.emergencyDefenseActivities.isEmpty());
+        assertTrue(upgraded.emergencyDefenseCommitments.isEmpty());
+        assertTrue(upgraded.emergencyDefenseObservations.isEmpty());
 
         NBTTagCompound currentSchema = save(upgraded);
-        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, currentSchema.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
+            currentSchema.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(1, currentSchema.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
+        assertEquals(3, currentSchema.getInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY));
         assertEquals(0, records(currentSchema).tagCount());
-        NBTTagCompound expectedAuthorities = (NBTTagCompound) schemaSix.copy();
+        assertEquals(0, currentSchema.getTagList(
+            KOMEEmergencyDefensePersistence.RECORDS_KEY, 10).tagCount());
+        assertEquals(0, currentSchema.getTagList(
+            KOMEEmergencyDefensePersistence.COMMITMENTS_KEY, 10).tagCount());
+        assertEquals(0, currentSchema.getTagList(
+            KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY, 10).tagCount());
+        NBTTagCompound expectedAuthorities = (NBTTagCompound) schemaEight.copy();
         expectedAuthorities.removeTag(KOMEWorldData.KOME_DATA_SCHEMA_KEY);
+        expectedAuthorities.removeTag(KOMEEmergencyDefensePersistence.SCHEMA_KEY);
+        expectedAuthorities.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
+        expectedAuthorities.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
         NBTTagCompound actualAuthorities = (NBTTagCompound) currentSchema.copy();
         actualAuthorities.removeTag(KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        actualAuthorities.removeTag(KOMEConflictPersistence.SCHEMA_KEY);
-        actualAuthorities.removeTag(KOMEConflictPersistence.SEQUENCE_KEY);
-        actualAuthorities.removeTag(KOMEConflictPersistence.RECORDS_KEY);
+        actualAuthorities.removeTag(KOMEEmergencyDefensePersistence.SCHEMA_KEY);
+        actualAuthorities.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
+        actualAuthorities.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
+        actualAuthorities.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
+        actualAuthorities.removeTag("TacticalConfiguration");
         assertEquals(expectedAuthorities, actualAuthorities);
     }
 

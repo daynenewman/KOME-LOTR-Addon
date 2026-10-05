@@ -102,7 +102,7 @@ public class KOMEMovementAllowanceTest {
             KOMEMovementDayService.anchor(data, NOW);
             assertTrue(KOMEMovementDayService.depart(data, route(company), true, () -> true));
             NBTTagCompound root = new NBTTagCompound(); data.writeToNBT(root);
-            assertEquals(9, root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(11, root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             KOMEWorldData restored = new KOMEWorldData("restored"); restored.readFromNBT(root);
             KOMEArmyCompany copy = restored.armyCompanies.get(company.id);
             assertNotNull(copy); assertEquals(0, copy.movementAllowance);
@@ -148,6 +148,10 @@ public class KOMEMovementAllowanceTest {
             KOMEWorldData data = new KOMEWorldData("schema"); KOMEArmyCompany company = company(data, false);
             NBTTagCompound root = new NBTTagCompound(); data.writeToNBT(root);
             NBTTagCompound old = (NBTTagCompound) root.copy(); old.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 8);
+            old.removeTag(KOMEEmergencyDefensePersistence.SCHEMA_KEY);
+            old.removeTag(KOMEEmergencyDefensePersistence.RECORDS_KEY);
+            old.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
+            old.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
             old.removeTag("MovementBoundary"); old.getTagList("ArmyCompanies",10).getCompoundTagAt(0).removeTag("MovementAllowance");
             KOMEWorldData migrated = new KOMEWorldData("migrated"); migrated.readFromNBT(old);
             assertTrue(migrated.isDirty()); assertEquals(0, migrated.armyCompanies.get(company.id).movementAllowance);

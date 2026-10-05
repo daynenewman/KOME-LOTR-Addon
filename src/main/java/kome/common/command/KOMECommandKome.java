@@ -16,6 +16,7 @@ import kome.common.data.KOMEConflictContracts;
 import kome.common.data.KOMEConflictLifecycleService;
 import kome.common.data.KOMEConflictRecord;
 import kome.common.data.KOMEConflictService;
+import kome.common.data.KOMEEmergencyDefenseService;
 import kome.common.data.KOMERulerService;
 import kome.common.data.KOMETileOwnershipDefaults;
 import kome.common.data.KOMEWaypointDefaults;
@@ -60,7 +61,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 && kome.common.tactical.edit.KOMETacticalEditAccess.isAuthorized((EntityPlayerMP) sender)
             ? "/kome [gui|help|tile <tileId>|waypoint propose <name>|tactical [tileId]]"
             : "/kome [gui|help|tile <tileId>|waypoint propose <name>]";
-        return "/kome tactical [tileId] | diagnostics <domain> <subject> | repair <preview domain subject|apply token> | conflict <inspect|end> ... | repair conflict <tile> <preview|apply> | waypoint help | capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> [page] | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
+        return "/kome tactical [tileId] | diagnostics <domain> <subject> | emergencydefense inspect <faction> | repair <preview domain subject|apply token> | conflict <inspect|end> ... | repair conflict <tile> <preview|apply> | waypoint help | capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> [page] | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
     @Override
@@ -113,6 +114,17 @@ public class KOMECommandKome extends KOMEPublicCommand {
             return;
         }
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
+        if (args.length == 3 && "emergencydefense".equalsIgnoreCase(args[0])
+                && "inspect".equalsIgnoreCase(args[1])) {
+            try {
+                for (String line : KOMEEmergencyDefenseService.INSTANCE.inspectionLines(
+                        data, args[2], System.currentTimeMillis(), sender.getEntityWorld()))
+                    sender.addChatMessage(new ChatComponentText(line));
+            } catch (IllegalArgumentException invalid) {
+                throw new WrongUsageException(invalid.getMessage());
+            }
+            return;
+        }
         if ("diagnostics".equalsIgnoreCase(args[0]) || args.length >= 2
                 && "repair".equalsIgnoreCase(args[0])
                 && ("preview".equalsIgnoreCase(args[1]) || "apply".equalsIgnoreCase(args[1]))) {
@@ -359,6 +371,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 "audit",
                 "diagnostics",
                 "conflict",
+                "emergencydefense",
                 "repair",
                 "progression") : getListOfStringsMatchingLastWord(args, "gui", "help", "tile", "waypoint"));
             if (tactical) suggestions.addAll(getListOfStringsMatchingLastWord(args, "tactical"));
@@ -381,6 +394,8 @@ public class KOMECommandKome extends KOMEPublicCommand {
         if (args.length == 3 && "repair".equalsIgnoreCase(args[0]) && "preview".equalsIgnoreCase(args[1]))
             return getListOfStringsMatchingLastWord(args, "ownership", "diplomacy", "ruler", "waypoint");
         if (args.length == 2 && "conflict".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "inspect", "end");
+        if (args.length == 2 && "emergencydefense".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "inspect");
+        if (args.length == 3 && "emergencydefense".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, factionSuggestions());
         if (args.length == 3 && "conflict".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "T");
         if (args.length == 4 && "repair".equalsIgnoreCase(args[0]) && "conflict".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, "preview", "apply");
         if (args.length == 3 && "repair".equalsIgnoreCase(args[0]) && "stewardship".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, factionSuggestions());

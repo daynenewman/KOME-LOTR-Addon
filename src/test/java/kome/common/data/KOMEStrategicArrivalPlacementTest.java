@@ -173,7 +173,7 @@ public class KOMEStrategicArrivalPlacementTest {
         assertEquals(0, data.armyCompanies.get(order.companyId).movementAllowance);
         assertNotNull(order.strategicArrival);
         NBTTagCompound root = new NBTTagCompound(); data.writeToNBT(root);
-        assertEquals(9, root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(11, root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertFalse(root.toString().contains("strategicArrivalPlacementProvider"));
     }
     private static void relation(String first, String second, LOTRFactionRelations.Relation value) {

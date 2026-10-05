@@ -152,19 +152,21 @@ public class KOMEWorldDataAtomicLoadTest {
         }
     }
 
-    @Test public void schemaEightRequiresTacticalAuthorityEvenWithoutTheAdditionalIntegrityMarker() throws Exception {
+    @Test public void currentSchemaRequiresTacticalAuthorityAndIntegrityMarker() throws Exception {
         for (boolean markerPresent : new boolean[]{false, true}) {
             NBTTagCompound source = stableDocument();
-            assertEquals(9, source.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
+                source.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             source.removeTag("TacticalConfiguration");
             if (!markerPresent) source.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
-            assertRejectedWithoutPublication(source, "Schema 8 requires a TacticalConfiguration compound");
+            assertRejectedWithoutPublication(source, "TacticalConfiguration");
         }
     }
 
-    @Test public void malformedTransitionalSevenAndCurrentEightTacticsFailBeforeAnyUpgradePublication() throws Exception {
+    @Test public void malformedTransitionalSevenAndDevEightTacticsFailBeforeAnyUpgradePublication() throws Exception {
         for (int schema : new int[]{7, 8}) {
             NBTTagCompound source = stableDocument(); source.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, schema);
+            removeEmergencyDefenseSection(source);
             source.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
             source.getCompoundTag("TacticalConfiguration").setString("Revision", "corrupt");
             assertRejectedWithoutPublication(source, "TacticalConfiguration");
@@ -224,6 +226,7 @@ public class KOMEWorldDataAtomicLoadTest {
         NBTTagCompound source = stableDocument(); source.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 6);
         source.removeTag("TacticalConfiguration");
         source.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
+        removeEmergencyDefenseSection(source);
         NBTTagCompound bad = new NBTTagCompound(); bad.setString("Id", "late"); bad.setString("Owner", "not-a-uuid");
         source.setTag("ArmyCompanies", rows(bad));
         assertRejectedWithoutPublication(source, "ArmyCompanies[0]");
@@ -381,6 +384,67 @@ public class KOMEWorldDataAtomicLoadTest {
         assertFalse(data.isWriteBlocked());
     }
 
+    @Test public void combinedAuthorityFailuresPublishNothingAndPreserveRuntimeProviders() throws Exception {
+        NBTTagCompound complete = KOMEWorldDataSchemaTest.combinedAuthorityDocument();
+        for (boolean dirty : new boolean[]{false, true}) {
+            for (int kind = 0; kind < 7; kind++) {
+                KOMEWorldData target = new KOMEWorldData("combined-live"); target.readFromNBT(complete);
+                target.setTacticalActivityLockProvider((tile, dimension, complex) -> true);
+                target.setStrategicArrivalPlacementProvider(arrival -> KOMEStrategicArrivalPlacement.Directive.EXTERIOR_REQUIRED);
+                target.setDirty(dirty);
+                Object before = freeze(target);
+                KOMEArmyCompany company = target.armyCompanies.get("C1");
+                KOMEArmyMovementOrder order = target.armyMovements.get("M1");
+                KOMEEmergencyDefenseActivity activity = target.emergencyDefenseActivities.get("mordor");
+                KOMEConflictRecord conflict = target.getConflictService().get("T101");
+                NBTTagCompound source = (NBTTagCompound) complete.copy();
+                NBTTagCompound firstOrder = null;
+                NBTTagList orders = source.getTagList("ArmyMovements", 10);
+                for (int i = 0; i < orders.tagCount(); i++)
+                    if ("M1".equals(orders.getCompoundTagAt(i).getString("Id"))) firstOrder = orders.getCompoundTagAt(i);
+                assertNotNull(firstOrder);
+                String section;
+                if (kind == 0) {
+                    source.getCompoundTag("TacticalConfiguration").setInteger("SchemaVersion", 99);
+                    section = "TacticalConfiguration";
+                } else if (kind == 1) {
+                    source.setString(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY, "corrupt");
+                    section = "EmergencyDefenseActivities";
+                } else if (kind == 2) {
+                    source.getCompoundTag("MovementBoundary").setString("Millis", "corrupt");
+                    section = "Movement boundary";
+                } else if (kind == 3) {
+                    source.getTagList("ArmyCompanies", 10).getCompoundTagAt(0)
+                        .getCompoundTag("MovementAllowance").setInteger("Remaining", -1);
+                    section = "ArmyCompanies";
+                } else if (kind == 4) {
+                    firstOrder.getCompoundTag("ConflictMovementRelease").setInteger("SchemaVersion", 99);
+                    section = "ArmyMovements";
+                } else if (kind == 5) {
+                    firstOrder.getCompoundTag("StrategicArrival").setString("Origin", "CLIENT_INVENTED");
+                    section = "ArmyMovements";
+                } else {
+                    source.setString("ConflictRecords", "corrupt");
+                    section = "ConflictRecords";
+                }
+                NBTTagCompound original = (NBTTagCompound) source.copy();
+                reject(target, source, section);
+                assertTrue(target.isWriteBlocked()); assertEquals(dirty, target.isDirty());
+                assertEquals(before, freeze(target)); assertEquals(original, source);
+                assertSame(company, target.armyCompanies.get("C1"));
+                assertSame(order, target.armyMovements.get("M1"));
+                assertSame(activity, target.emergencyDefenseActivities.get("mordor"));
+                assertSame(conflict, target.getConflictService().get("T101"));
+                assertTrue(target.isTacticalActivityLocked("T277", -1, "WEST"));
+                assertEquals(KOMEStrategicArrivalPlacement.Directive.EXTERIOR_REQUIRED,
+                    target.strategicArrivalPlacement(order.strategicArrival));
+                try { target.writeToNBT(source); fail("failed load must block writes"); }
+                catch (IllegalStateException expected) { }
+                assertEquals(original, source); assertEquals(before, freeze(target));
+            }
+        }
+    }
+
     private static void assertRejectedWithoutPublication(NBTTagCompound source, String section) throws Exception {
         for (boolean dirty : new boolean[] {false, true}) {
             KOMEWorldData target = populated();
@@ -462,6 +526,12 @@ public class KOMEWorldDataAtomicLoadTest {
     private static NBTTagCompound stableDocument() {
         KOMEWorldData initialized = new KOMEWorldData("stable"); initialized.initializeIntegratedWorld();
         NBTTagCompound tag = new NBTTagCompound(); initialized.writeToNBT(tag); return tag;
+    }
+    private static void removeEmergencyDefenseSection(NBTTagCompound root) {
+        root.removeTag(KOMEEmergencyDefensePersistence.SCHEMA_KEY);
+        root.removeTag(KOMEEmergencyDefensePersistence.RECORDS_KEY);
+        root.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
+        root.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
     }
     private static KOMEHiredUnitRecord hired(UUID id) {
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
