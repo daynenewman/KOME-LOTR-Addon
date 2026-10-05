@@ -418,37 +418,43 @@ public final class KOMEConflictService {
     private static DetachmentResolver productionDetachmentResolver(final KOMEWorldData data) {
         return new DetachmentResolver() {
             @Override public DetachmentResolution resolve(String detachmentId) {
-                KOMEArmyCompany company = data.armyCompanies.get(detachmentId);
-                if (company == null) return new DetachmentResolution(detachmentId,
-                    ReferenceStatus.MISSING, null, "", "", "Campaign Detachment is missing.");
-                String factionId = KOMEAlliance.normalizeFactionKey(company.faction);
-                String tileId = KOMEConquestTile.normalizeId(company.currentTile);
-                if (factionId.length() == 0 || KOMEAlliance.findLotrFaction(factionId) == null
-                        || tileId.length() == 0)
-                    return new DetachmentResolution(detachmentId,
-                        ReferenceStatus.INCOHERENT, null, "", "",
-                        "Campaign Detachment lacks faction or strategic tile authority.");
-                for (UUID member : company.units) {
-                    KOMEHiredUnitRecord record = data.hiredUnits.get(member);
-                    if (record == null) return new DetachmentResolution(detachmentId,
-                        ReferenceStatus.MISSING, null, "", "",
-                        "A Campaign Detachment member record is missing.");
-                    if (!KOMEHiredUnitClassification.isCampaignUnit(record))
-                        return new DetachmentResolution(detachmentId,
-                            ReferenceStatus.RESOLVED, KOMEHiredUnitClass.ORDINARY,
-                            factionId, tileId, "An ORDINARY member cannot form a commitment.");
-                }
-                KOMECompanyCoherenceService.Assessment assessment =
-                    KOMECompanyCoherenceService.INSTANCE.assess(data, company);
-                if (assessment.status == KOMECompanyCoherenceService.Status.INCOHERENT)
-                    return new DetachmentResolution(detachmentId,
-                        ReferenceStatus.INCOHERENT, null, "", "",
-                        "Campaign Detachment coherence failed.");
-                return new DetachmentResolution(detachmentId, ReferenceStatus.RESOLVED,
-                    KOMEHiredUnitClass.CAMPAIGN, factionId, tileId,
-                    assessment.status.name());
+                return resolveProductionDetachment(data, detachmentId);
             }
         };
+    }
+
+    /** Shared canonical strategic projection; UNKNOWN physical state remains a valid detachment. */
+    static DetachmentResolution resolveProductionDetachment(KOMEWorldData data,
+            String detachmentId) {
+        KOMEArmyCompany company = data.armyCompanies.get(detachmentId);
+        if (company == null) return new DetachmentResolution(detachmentId,
+            ReferenceStatus.MISSING, null, "", "", "Campaign Detachment is missing.");
+        String factionId = KOMEAlliance.normalizeFactionKey(company.faction);
+        String tileId = KOMEConquestTile.normalizeId(company.currentTile);
+        if (factionId.length() == 0 || KOMEAlliance.findLotrFaction(factionId) == null
+                || tileId.length() == 0)
+            return new DetachmentResolution(detachmentId,
+                ReferenceStatus.INCOHERENT, null, "", "",
+                "Campaign Detachment lacks faction or strategic tile authority.");
+        for (UUID member : company.units) {
+            KOMEHiredUnitRecord record = data.hiredUnits.get(member);
+            if (record == null) return new DetachmentResolution(detachmentId,
+                ReferenceStatus.MISSING, null, "", "",
+                "A Campaign Detachment member record is missing.");
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record))
+                return new DetachmentResolution(detachmentId,
+                    ReferenceStatus.RESOLVED, KOMEHiredUnitClass.ORDINARY,
+                    factionId, tileId, "An ORDINARY member cannot form a commitment.");
+        }
+        KOMECompanyCoherenceService.Assessment assessment =
+            KOMECompanyCoherenceService.INSTANCE.assess(data, company);
+        if (assessment.status == KOMECompanyCoherenceService.Status.INCOHERENT)
+            return new DetachmentResolution(detachmentId,
+                ReferenceStatus.INCOHERENT, null, "", "",
+                "Campaign Detachment coherence failed.");
+        return new DetachmentResolution(detachmentId, ReferenceStatus.RESOLVED,
+            KOMEHiredUnitClass.CAMPAIGN, factionId, tileId,
+            assessment.status.name());
     }
 
     private static Code validateDetachment(DetachmentResolution resolution,
