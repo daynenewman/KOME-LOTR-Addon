@@ -34,7 +34,7 @@ public class KOMEMusterServiceTest {
                 KOMEMusterRecord muster = civilianMusters.get("gondor|" + warSeason.seasonId);
                 if (muster.getStatus() == KOMEMusterRecord.Status.PENDING_TBD) {
                     if (observedMovement != null) {
-                        assertEquals(1, observedMovement.dailyStepsRemaining);
+                        assertEquals(0, observedMovement.dailyStepsRemaining); // no company authority in this arrival-only fixture
                         assertEquals(KOMEArmyMovementOrder.ARRIVED, observedMovement.status);
                     }
                     sawMusterAfterMovement = true;

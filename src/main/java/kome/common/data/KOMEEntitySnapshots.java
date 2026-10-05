@@ -14,4 +14,9 @@ public final class KOMEEntitySnapshots {
         NBTTagCompound snapshot = new NBTTagCompound();
         return entity.writeMountToNBT(snapshot) ? snapshot : null;
     }
+
+    public static NBTTagCompound snapshot(KOMEHiredUnitRecord record, Entity entity) {
+        KOMECampaignHealth.observe(record, entity);
+        return snapshot(entity);
+    }
 }

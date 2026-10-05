@@ -147,6 +147,7 @@ public class KOMEEmergencyDefenseMobilizationServiceTest {
         legacy.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 9);
         legacy.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
         legacy.removeTag("TacticalConfiguration");
+        removeMovementAuthority(legacy);
         legacy.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY, 2);
         legacy.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
         KOMEWorldData loaded = new KOMEWorldData("legacy");
@@ -395,6 +396,7 @@ public class KOMEEmergencyDefenseMobilizationServiceTest {
         oldSection.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 9);
         oldSection.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
         oldSection.removeTag("TacticalConfiguration");
+        removeMovementAuthority(oldSection);
         oldSection.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY, 2);
         oldSection.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
 
@@ -814,5 +816,13 @@ public class KOMEEmergencyDefenseMobilizationServiceTest {
 
     private static NBTTagCompound save(KOMEWorldData data) {
         NBTTagCompound nbt = new NBTTagCompound(); data.writeToNBT(nbt); return nbt;
+    }
+
+    /** Strip KOM-47 authority from a current save to model the actual dev/KOM-75 schema-9 lineage. */
+    private static void removeMovementAuthority(NBTTagCompound root) {
+        root.removeTag("MovementBoundary");
+        net.minecraft.nbt.NBTTagList companies = root.getTagList("ArmyCompanies", 10);
+        for (int i = 0; i < companies.tagCount(); i++)
+            companies.getCompoundTagAt(i).removeTag("MovementAllowance");
     }
 }

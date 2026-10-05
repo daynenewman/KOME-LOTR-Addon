@@ -158,7 +158,7 @@ public final class KOMEHaltedUnitProtection {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
         KOMEHiredUnitRecord record = data.hiredUnits.get(KOMEReflection.getEntityUUID(npc));
         if (KOMEHiredUnitClassification.isCampaignUnit(record) && !record.isMoving()) {
-            record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
+            record.stationedEntityData = KOMEEntitySnapshots.snapshot(record, npc);
             data.markDirty();
         }
     }
