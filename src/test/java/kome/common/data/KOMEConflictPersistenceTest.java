@@ -23,7 +23,7 @@ public class KOMEConflictPersistenceTest {
     private static final UUID MEMBER_ONE = UUID.fromString("20000000-0000-0000-0000-000000000001");
     private static final UUID MEMBER_TWO = UUID.fromString("20000000-0000-0000-0000-000000000002");
 
-    @Test public void emptySchemaSevenRoundTripsWithCanonicalSectionAndAllocator() {
+    @Test public void emptyCurrentSchemaRoundTripsWithCanonicalSectionAndAllocator() {
         KOMEWorldData source = initialized("empty");
         NBTTagCompound saved = save(source);
         assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
@@ -277,7 +277,7 @@ public class KOMEConflictPersistenceTest {
         NBTTagCompound future = ordinaryDocument();
         future.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,
             KOMEWorldData.KOME_DATA_SCHEMA_VERSION + 1);
-        expectInvalid(future, "schema 8");
+        expectInvalid(future, "schema " + (KOMEWorldData.KOME_DATA_SCHEMA_VERSION + 1));
     }
 
     @Test public void conflictDecodeFailureLeavesExistingLiveStateUntouchedAndWriteBlocked() {
@@ -351,13 +351,13 @@ public class KOMEConflictPersistenceTest {
         assertTrue(upgraded.getConflictService().records().isEmpty());
         assertEquals(1L, upgraded.getConflictService().getNextConflictSequence());
 
-        NBTTagCompound schemaSeven = save(upgraded);
-        assertEquals(7, schemaSeven.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
-        assertEquals(1, schemaSeven.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
-        assertEquals(0, records(schemaSeven).tagCount());
+        NBTTagCompound currentSchema = save(upgraded);
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, currentSchema.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(1, currentSchema.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
+        assertEquals(0, records(currentSchema).tagCount());
         NBTTagCompound expectedAuthorities = (NBTTagCompound) schemaSix.copy();
         expectedAuthorities.removeTag(KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        NBTTagCompound actualAuthorities = (NBTTagCompound) schemaSeven.copy();
+        NBTTagCompound actualAuthorities = (NBTTagCompound) currentSchema.copy();
         actualAuthorities.removeTag(KOMEWorldData.KOME_DATA_SCHEMA_KEY);
         actualAuthorities.removeTag(KOMEConflictPersistence.SCHEMA_KEY);
         actualAuthorities.removeTag(KOMEConflictPersistence.SEQUENCE_KEY);

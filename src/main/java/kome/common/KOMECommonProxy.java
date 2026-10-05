@@ -37,6 +37,9 @@ public class KOMECommonProxy {
         kome.common.data.KOMETileAwarenessEvents tileAwareness = new kome.common.data.KOMETileAwarenessEvents();
         MinecraftForge.EVENT_BUS.register(tileAwareness);
         FMLCommonHandler.instance().bus().register(tileAwareness);
+        kome.common.tactical.edit.KOMETacticalEditRuntime tacticalEditor = new kome.common.tactical.edit.KOMETacticalEditRuntime();
+        FMLCommonHandler.instance().bus().register(tacticalEditor);
+        MinecraftForge.EVENT_BUS.register(tacticalEditor);
     }
 
     public void resetServerSessionState() {
@@ -56,6 +59,9 @@ public class KOMECommonProxy {
         throw new IllegalStateException("Client conquest publication is unavailable on the dedicated server");
     }
 
+    public void acceptTacticalEditSnapshot(kome.common.network.KOMEPacketTacticalEditSnapshot message) { }
+    public void acceptTacticalAreaCatalog(kome.common.network.KOMEPacketTacticalAreaCatalog message) { }
+    public void acceptTacticalComplexCatalog(kome.common.network.KOMEPacketTacticalComplexCatalog message) { }
     public void acceptPublicWaypoints(kome.common.network.KOMEPacketPublicWaypoints.Chunk chunk,Object connection) {
         throw new IllegalStateException("Public waypoint publication is unavailable on a dedicated server");
     }

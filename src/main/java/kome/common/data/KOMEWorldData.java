@@ -7,6 +7,9 @@ import kome.common.command.KOMECommandAlliance;
 import kome.common.command.KOMECommandTroops;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketConquestData;
+import kome.common.tactical.KOMETacticalConfiguration;
+import kome.common.tactical.KOMETacticalConfigurationCodec;
+import kome.common.tactical.KOMETacticalActivityLock;
 import lotr.common.entity.npc.LOTREntityNPC;
 import lotr.common.world.map.LOTRWaypoint;
 import net.minecraft.entity.Entity;
@@ -29,9 +32,11 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 7 adds canonical KOM-17 conflict authority to dev's schema-6 progression/muster root. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 7;
+    /** Schema 8 requires KOM-25 tactical authority alongside all schema-7 dev authorities. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 8;
     public static final int CONFLICT_DATA_SCHEMA_VERSION = KOMEConflictPersistence.DATA_SCHEMA_VERSION;
+    /** Additional integrity marker, including transitional schema-7 writes; schema 8 itself requires tactics. */
+    public static final String TACTICAL_CONFIGURATION_REQUIRED_KEY = "TacticalConfigurationRequired";
     private static final String AUTO_WAYPOINT_RALLY_SOURCE = "Auto LOTR waypoint";
     private static final double AUTO_RALLY_REFRESH_DISTANCE_SQ = 16.0D;
     public static final int ALLIANCE_DATA_SCHEMA_VERSION = KOMEAlliance.DATA_SCHEMA_VERSION;
@@ -72,6 +77,19 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<String, KOMETileWaypointLink> tileWaypointLinksByTileId = new HashMap<>();
     public final Map<String, KOMEConquestRouteEdge> routeEdges = new HashMap<>();
     public final Map<String, KOMEPlayerBuild> builds = new HashMap<String, KOMEPlayerBuild>();
+    /** Sole tactical authority; loads and scoped membership services publish detached replacements. */
+    private KOMETacticalConfiguration tacticalConfiguration = new KOMETacticalConfiguration();
+    /** Transient authority callback, not another persisted active-conflict state. */
+    private transient KOMETacticalActivityLock.Provider tacticalActivityLockProvider = KOMETacticalActivityLock.UNLOCKED;
+
+    /** Future conflict integration installs its read-only provider on the authoritative server thread. */
+    public synchronized void setTacticalActivityLockProvider(KOMETacticalActivityLock.Provider provider) {
+        if (provider == null) throw new IllegalArgumentException("Tactical activity lock provider is required.");
+        tacticalActivityLockProvider = provider;
+    }
+    public synchronized boolean isTacticalActivityLocked(String tileId, int dimensionId, String canonicalComplexId) {
+        return tacticalActivityLockProvider.isLocked(tileId, dimensionId, canonicalComplexId);
+    }
     /** Explicit future-construction grants; Build provenance is deliberately stored separately. */
     public final Map<String, KOMEForeignConstructionPermission> foreignConstructionPermissions = new HashMap<String, KOMEForeignConstructionPermission>();
     public final Map<String, KOMEAlliance> alliances = new HashMap<>();
@@ -190,6 +208,144 @@ public class KOMEWorldData extends WorldSavedData {
 
     public String getLoadFailureReason() {
         return loadFailureReason;
+    }
+
+    /** Mutating this detached snapshot cannot change live configuration or world dirty state. */
+    public synchronized KOMETacticalConfiguration getTacticalConfigurationSnapshot() {
+        return tacticalConfiguration.snapshot();
+    }
+
+    /** Membership-only commit boundary. Retained caller snapshots cannot mutate the live authority. */
+    synchronized final void publishTacticalMembership(long expectedRevision,
+            KOMETacticalConfiguration replacement) {
+        ensureWritable();
+        if (tacticalConfiguration.getRevision() != expectedRevision) {
+            throw new IllegalStateException("Stale tactical configuration revision.");
+        }
+        KOMETacticalConfiguration prepared = replacement.snapshot();
+        if (expectedRevision == Long.MAX_VALUE || prepared.getRevision() != expectedRevision + 1L
+                || !prepared.getComplexesById().equals(tacticalConfiguration.getComplexesById())
+                || !prepared.getForceDeploymentAreasById().equals(tacticalConfiguration.getForceDeploymentAreasById())) {
+            throw new IllegalArgumentException("A membership commit must preserve definitions and advance revision once.");
+        }
+        KOMETacticalConfiguration previous = tacticalConfiguration;
+        boolean dirty = super.isDirty();
+        try {
+            java.util.Set<String> keys = new java.util.TreeSet<>(tacticalConfiguration.getBuildAssignmentsByBuildId().keySet());
+            keys.addAll(prepared.getBuildAssignmentsByBuildId().keySet());
+            for (String key : keys) {
+                String oldOwner = tacticalConfiguration.findAssignedComplexId(key).orElse(null);
+                String newOwner = prepared.findAssignedComplexId(key).orElse(null);
+                if (!java.util.Objects.equals(oldOwner, newOwner)) {
+                    if (oldOwner != null) KOMETacticalActivityLock.requireUnlocked(this, tacticalConfiguration.findComplex(oldOwner));
+                    if (newOwner != null) KOMETacticalActivityLock.requireUnlocked(this, prepared.findComplex(newOwner));
+                }
+            }
+            tacticalConfiguration = prepared;
+            markDirty();
+        } catch (RuntimeException failure) {
+            tacticalConfiguration = previous;
+            super.setDirty(dirty);
+            throw failure;
+        }
+    }
+
+    /** One area creation/removal only; definitions and membership outside the target must be identical. */
+    synchronized final void publishTacticalAreaLifecycle(long expectedRevision, String areaId,
+            KOMETacticalConfiguration replacement, boolean creation) {
+        ensureWritable();
+        KOMETacticalConfiguration prepared = replacement.snapshot();
+        if (tacticalConfiguration.getRevision() != expectedRevision || expectedRevision == Long.MAX_VALUE
+                || prepared.getRevision() != expectedRevision + 1L
+                || !prepared.getComplexesById().equals(tacticalConfiguration.getComplexesById())
+                || !prepared.getBuildAssignmentsByBuildId().equals(tacticalConfiguration.getBuildAssignmentsByBuildId())) {
+            throw new IllegalArgumentException("Invalid area lifecycle publication.");
+        }
+        java.util.Map<String, kome.common.tactical.KOMEForceDeploymentArea> oldAreas =
+            new java.util.TreeMap<String, kome.common.tactical.KOMEForceDeploymentArea>(tacticalConfiguration.getForceDeploymentAreasById());
+        java.util.Map<String, kome.common.tactical.KOMEForceDeploymentArea> newAreas =
+            new java.util.TreeMap<String, kome.common.tactical.KOMEForceDeploymentArea>(prepared.getForceDeploymentAreasById());
+        kome.common.tactical.KOMEForceDeploymentArea old = oldAreas.remove(areaId), updated = newAreas.remove(areaId);
+        if (creation ? old != null || updated == null || updated.getRevision() != 1L : old == null || updated != null) {
+            throw new IllegalArgumentException("Invalid area lifecycle target.");
+        }
+        if (!oldAreas.equals(newAreas)) throw new IllegalArgumentException("Area operation changed unrelated areas.");
+        if (!creation) {
+            // Recheck intrinsic reference protection at the publication boundary.
+            tacticalConfiguration.snapshot().removeForceDeploymentArea(areaId);
+        }
+        KOMETacticalActivityLock.requireAreaUnlocked(this, areaId);
+        KOMETacticalConfiguration previous = tacticalConfiguration;
+        boolean dirty = super.isDirty();
+        try { tacticalConfiguration = prepared; markDirty(); }
+        catch (RuntimeException failure) { tacticalConfiguration = previous; super.setDirty(dirty); throw failure; }
+    }
+
+    /** One complex creation/removal only, preserving all other definitions and assignments. */
+    synchronized final void publishTacticalComplexLifecycle(long expectedRevision, String complexId,
+            KOMETacticalConfiguration replacement, boolean creation) {
+        ensureWritable();
+        KOMETacticalConfiguration prepared = replacement.snapshot();
+        if (tacticalConfiguration.getRevision() != expectedRevision || expectedRevision == Long.MAX_VALUE
+                || prepared.getRevision() != expectedRevision + 1L
+                || !prepared.getForceDeploymentAreasById().equals(tacticalConfiguration.getForceDeploymentAreasById())
+                || !prepared.getBuildAssignmentsByBuildId().equals(tacticalConfiguration.getBuildAssignmentsByBuildId()))
+            throw new IllegalArgumentException("Invalid complex lifecycle publication.");
+        java.util.Map<String, kome.common.siege.KOMESiegeComplex> oldDefinitions =
+            new java.util.TreeMap<String, kome.common.siege.KOMESiegeComplex>(tacticalConfiguration.getComplexesById());
+        java.util.Map<String, kome.common.siege.KOMESiegeComplex> newDefinitions =
+            new java.util.TreeMap<String, kome.common.siege.KOMESiegeComplex>(prepared.getComplexesById());
+        kome.common.siege.KOMESiegeComplex old = oldDefinitions.remove(complexId), updated = newDefinitions.remove(complexId);
+        if (creation ? old != null || updated == null || updated.getRevision() != 1L : old == null || updated != null)
+            throw new IllegalArgumentException("Invalid complex lifecycle target.");
+        if (!oldDefinitions.equals(newDefinitions)) throw new IllegalArgumentException("Operation changed unrelated complexes.");
+        if (!creation) tacticalConfiguration.snapshot().removeComplex(complexId);
+        KOMETacticalActivityLock.requireUnlocked(this, creation ? updated : old);
+        KOMETacticalConfiguration previous = tacticalConfiguration;
+        boolean dirty = super.isDirty();
+        try { tacticalConfiguration = prepared; markDirty(); }
+        catch (RuntimeException failure) { tacticalConfiguration = previous; super.setDirty(dirty); throw failure; }
+    }
+
+    /** One existing definition only; editor services cannot publish arbitrary store/membership replacements. */
+    synchronized final void publishTacticalDefinition(long expectedRevision, String complexId, String areaId,
+            KOMETacticalConfiguration replacement) {
+        ensureWritable();
+        if (tacticalConfiguration.getRevision() != expectedRevision) throw new IllegalStateException("Stale tactical revision.");
+        if ((complexId == null) == (areaId == null)) throw new IllegalArgumentException("One definition target required.");
+        KOMETacticalConfiguration prepared = replacement.snapshot();
+        if (expectedRevision == Long.MAX_VALUE || prepared.getRevision() != expectedRevision + 1L
+                || !prepared.getBuildAssignmentsByBuildId().equals(tacticalConfiguration.getBuildAssignmentsByBuildId())) {
+            throw new IllegalArgumentException("Definition commit must preserve membership and advance once.");
+        }
+        java.util.Map<String, kome.common.siege.KOMESiegeComplex> oldComplexes =
+            new java.util.TreeMap<String, kome.common.siege.KOMESiegeComplex>(tacticalConfiguration.getComplexesById());
+        java.util.Map<String, kome.common.siege.KOMESiegeComplex> newComplexes =
+            new java.util.TreeMap<String, kome.common.siege.KOMESiegeComplex>(prepared.getComplexesById());
+        java.util.Map<String, kome.common.tactical.KOMEForceDeploymentArea> oldAreas =
+            new java.util.TreeMap<String, kome.common.tactical.KOMEForceDeploymentArea>(tacticalConfiguration.getForceDeploymentAreasById());
+        java.util.Map<String, kome.common.tactical.KOMEForceDeploymentArea> newAreas =
+            new java.util.TreeMap<String, kome.common.tactical.KOMEForceDeploymentArea>(prepared.getForceDeploymentAreasById());
+        if (complexId != null) {
+            kome.common.siege.KOMESiegeComplex old = oldComplexes.remove(complexId), updated = newComplexes.remove(complexId);
+            if (old == null || updated == null || !old.getTileId().equals(updated.getTileId())
+                    || old.getDimensionId() != updated.getDimensionId() || old.getRevision() == Long.MAX_VALUE
+                    || updated.getRevision() != old.getRevision() + 1L) throw new IllegalArgumentException("Invalid complex replacement.");
+        } else {
+            kome.common.tactical.KOMEForceDeploymentArea old = oldAreas.remove(areaId), updated = newAreas.remove(areaId);
+            if (old == null || updated == null || !old.getTileId().equals(updated.getTileId())
+                    || old.getDimensionId() != updated.getDimensionId() || old.getRevision() == Long.MAX_VALUE
+                    || updated.getRevision() != old.getRevision() + 1L) throw new IllegalArgumentException("Invalid area replacement.");
+        }
+        if (!oldComplexes.equals(newComplexes) || !oldAreas.equals(newAreas)) {
+            throw new IllegalArgumentException("Definition commit changed other authorities.");
+        }
+        if (complexId != null) KOMETacticalActivityLock.requireUnlocked(this, tacticalConfiguration.findComplex(complexId));
+        else KOMETacticalActivityLock.requireAreaUnlocked(this, areaId);
+        KOMETacticalConfiguration previous = tacticalConfiguration;
+        boolean dirty = super.isDirty();
+        try { tacticalConfiguration = prepared; markDirty(); }
+        catch (RuntimeException failure) { tacticalConfiguration = previous; super.setDirty(dirty); throw failure; }
     }
 
     public KOMEConflictService getConflictService() {
@@ -1967,9 +2123,9 @@ public class KOMEWorldData extends WorldSavedData {
                 + " marker. Development-world migration is intentionally disabled.");
         }
         int savedRootSchema = nbt.getInteger(KOME_DATA_SCHEMA_KEY);
-        if (savedRootSchema != 6 && savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
+        if (savedRootSchema != 6 && savedRootSchema != 7 && savedRootSchema != KOME_DATA_SCHEMA_VERSION) {
             failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema
-                + "; only schema 6 -> " + KOME_DATA_SCHEMA_VERSION
+                + "; only schema 6 or 7 -> " + KOME_DATA_SCHEMA_VERSION
                 + " is supported. Reset this development world; no other root migration is supported.");
         }
         for (String retired : new String[] {"Populations", "TilePopulations", "PopulationAllocations", "PopulationDataSchemaVersion"}) {
@@ -1980,7 +2136,10 @@ public class KOMEWorldData extends WorldSavedData {
             }
         }
         boolean schemaSixUpgrade = savedRootSchema == 6;
-        boolean loadedStateReconciled = schemaSixUpgrade;
+        // KOM-25's pre-merge schema-6 writer predates dev's muster authority. Only that identifiable
+        // branch format may omit BOTH muster tags; partial/wrongly typed sections still fail closed.
+        boolean preMergeTacticalRoot = schemaSixUpgrade && nbt.hasKey("TacticalConfiguration", 10);
+        boolean loadedStateReconciled = savedRootSchema != KOME_DATA_SCHEMA_VERSION;
         int savedAllianceSchema = nbt.hasKey("AllianceDataSchemaVersion") ? nbt.getInteger("AllianceDataSchemaVersion") : 0;
         loadSection = "FactionPopulations";
         Map<String, KOMEFactionPopulation> loadedPopulations = readCanonicalFactionPopulations(nbt);
@@ -2058,11 +2217,13 @@ public class KOMEWorldData extends WorldSavedData {
         warSeason.readFromNBT(nbt.getCompoundTag("WarSeason"));
         loadSection = "CivilianMusters";
         civilianMusters.clear();
-        if (!nbt.hasKey("MusterDataSchemaVersion", 3) || nbt.getInteger("MusterDataSchemaVersion") != 1
-                || !nbt.hasKey("CivilianMusters", 9))
+        boolean absentPreMergeMusters = preMergeTacticalRoot
+            && !nbt.hasKey("MusterDataSchemaVersion") && !nbt.hasKey("CivilianMusters");
+        if (!absentPreMergeMusters && (!nbt.hasKey("MusterDataSchemaVersion", 3)
+                || nbt.getInteger("MusterDataSchemaVersion") != 1 || !nbt.hasKey("CivilianMusters", 9)))
             throw new IllegalArgumentException("Missing or unsupported civilian-muster section.");
         NBTTagList musterList = nbt.getTagList("CivilianMusters", 10);
-        NBTTagList rawMusters = (NBTTagList) nbt.getTag("CivilianMusters");
+        NBTTagList rawMusters = absentPreMergeMusters ? musterList : (NBTTagList) nbt.getTag("CivilianMusters");
         if (rawMusters.tagCount() > 0 && rawMusters.func_150303_d() != 10)
             throw new IllegalArgumentException("Civilian-muster list must contain compounds.");
         for (int i = 0; i < musterList.tagCount(); i++) {
@@ -2621,6 +2782,26 @@ public class KOMEWorldData extends WorldSavedData {
         KOMECommandTroops.revalidateTemporaryControllers(this, restartRevalidationNow, "Restart authorization revalidation");
         KOMEMovementAccessService.revalidateAll(this, restartRevalidationNow);
 
+        loadSection = "TacticalConfiguration";
+        if (savedRootSchema == KOME_DATA_SCHEMA_VERSION && !nbt.hasKey("TacticalConfiguration", 10)) {
+            throw new IllegalArgumentException("Schema 8 requires a TacticalConfiguration compound.");
+        }
+        if (nbt.hasKey(TACTICAL_CONFIGURATION_REQUIRED_KEY)
+                && (!nbt.hasKey(TACTICAL_CONFIGURATION_REQUIRED_KEY, 1)
+                    || !nbt.getBoolean(TACTICAL_CONFIGURATION_REQUIRED_KEY)
+                    || !nbt.hasKey("TacticalConfiguration", 10))) {
+            throw new IllegalArgumentException("Merged root requires a typed TacticalConfiguration section and requirement marker.");
+        }
+        if (!nbt.hasKey("TacticalConfiguration")) {
+            // Pre-merge dev schema-6/7 worlds have no tactical section. Never infer one from Builds or conflicts.
+            tacticalConfiguration = new KOMETacticalConfiguration();
+        } else {
+            if (!nbt.hasKey("TacticalConfiguration", 10)) {
+                throw new IllegalArgumentException("TacticalConfiguration must be a compound.");
+            }
+            tacticalConfiguration = KOMETacticalConfigurationCodec.decode(nbt.getCompoundTag("TacticalConfiguration"));
+        }
+
         if (loadedStateReconciled || migratedAllianceData) {
             markDirty();
         }
@@ -2663,6 +2844,7 @@ public class KOMEWorldData extends WorldSavedData {
         routeEdges.putAll(candidate.routeEdges);
         builds.clear();
         builds.putAll(candidate.builds);
+        tacticalConfiguration = candidate.tacticalConfiguration;
         foreignConstructionPermissions.clear();
         foreignConstructionPermissions.putAll(candidate.foreignConstructionPermissions);
         alliances.clear();
@@ -2897,7 +3079,11 @@ public class KOMEWorldData extends WorldSavedData {
             factionCapitals.isEmpty() && !integratedRootInitialized
                 ? KOMEFactionCapitalDefaults.metadataFixture(0L)
                 : KOMEFactionCapitalService.validateCompleteSet(factionCapitals);
+        // Prepare tactical output before changing the destination; encoding never edits authority.
+        NBTTagCompound tacticalForWrite = KOMETacticalConfigurationCodec.encode(tacticalConfiguration);
         nbt.setInteger(KOME_DATA_SCHEMA_KEY, KOME_DATA_SCHEMA_VERSION);
+        nbt.setBoolean(TACTICAL_CONFIGURATION_REQUIRED_KEY, true);
+        nbt.setTag("TacticalConfiguration", tacticalForWrite);
         nbt.setInteger(KOMEConflictPersistence.SCHEMA_KEY,
             conflictsForWrite.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
         nbt.setLong(KOMEConflictPersistence.SEQUENCE_KEY,

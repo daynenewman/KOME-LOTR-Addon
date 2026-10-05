@@ -5,6 +5,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
+import kome.common.siege.KOMESiegeReadinessEvaluator.Diagnostic;
+import kome.common.siege.KOMESiegeReadinessEvaluator.Report;
 
 /**
  * Read-only campaign reference validation. Pending campaign systems supply this
@@ -13,11 +18,19 @@ import java.util.List;
 public final class KOMECampaignReadinessValidator {
     public ReadinessResult validate(CampaignReadinessData data) {
         List<ValidationFailure> failures = new ArrayList<ValidationFailure>();
+        List<ValidationFailure> warnings = new ArrayList<ValidationFailure>();
+        Map<String, Report> reports = new TreeMap<String, Report>();
+        for (Report report : data.getSiegeComplexReadinessReports()) {
+            if (reports.put(report.getComplexId(), report) != null) {
+                throw new IllegalArgumentException("Duplicate Siege Complex readiness report: " + report.getComplexId());
+            }
+        }
         validateCapitals(data, failures);
-        validateDefenses(data, failures);
+        validateDefenses(data, reports, failures, warnings);
         validateMapAssets(data, failures);
         Collections.sort(failures, FAILURE_ORDER);
-        return new ReadinessResult(failures);
+        Collections.sort(warnings, FAILURE_ORDER);
+        return new ReadinessResult(failures, warnings, new ArrayList<Report>(reports.values()));
     }
 
     private void validateCapitals(CampaignReadinessData data,
@@ -36,43 +49,43 @@ public final class KOMECampaignReadinessValidator {
         }
     }
 
-    private void validateDefenses(CampaignReadinessData data,
-            List<ValidationFailure> failures) {
+    private void validateDefenses(CampaignReadinessData data, Map<String, Report> reports,
+            List<ValidationFailure> failures, List<ValidationFailure> warnings) {
+        // Consume each scoped report once, irrespective of how many Builds support that complex.
+        for (Report report : reports.values()) {
+            for (Diagnostic diagnostic : report.getBlockingDiagnostics()) addSiegeDiagnostic(failures, diagnostic);
+            for (Diagnostic diagnostic : report.getWarnings()) addSiegeDiagnostic(warnings, diagnostic);
+        }
         for (DefensiveBuild build : data.getDefensiveBuilds()) {
-            SiegeComplex complex = data.findSiegeComplex(build.getSiegeComplexId());
-            if (complex == null) {
+            // Unassigned authoring is legitimate unless this particular campaign Build requires a tactical entry.
+            if (blank(build.getSiegeComplexId()) && !build.requiresEntry() && blank(build.getEntryConnectionId())) continue;
+            Report report = reports.get(build.getSiegeComplexId() == null ? ""
+                : build.getSiegeComplexId().trim().toUpperCase(Locale.ROOT));
+            if (report == null) {
                 failure(failures, "defensiveBuild", build.getId(), "siegeComplexId",
                         build.getSiegeComplexId(), "defensive build references no known Siege Complex");
                 continue;
-            }
-            for (Connection connection : complex.getConnections()) {
-                validateConnection(failures, complex, connection);
             }
             if (build.requiresEntry() && blank(build.getEntryConnectionId())) {
                 failure(failures, "defensiveBuild", build.getId(), "entryConnectionId",
                         build.getEntryConnectionId(), "defensive build requires an entry connection");
             } else if (!blank(build.getEntryConnectionId())
-                    && !complex.hasConnection(build.getEntryConnectionId())) {
+                    && !report.getAuthoredConnectionIds().contains(build.getEntryConnectionId().trim())) {
                 failure(failures, "defensiveBuild", build.getId(), "entryConnectionId",
                         build.getEntryConnectionId(), "entry connection does not belong to Siege Complex");
             }
         }
     }
 
-    private void validateConnection(List<ValidationFailure> failures, SiegeComplex complex,
-            Connection connection) {
-        if (!complex.hasSegment(connection.getFromSegmentId())) {
-            failure(failures, "siegeConnection", complex.getId(), "fromSegmentId",
-                    connection.getFromSegmentId(), "connection references an unknown segment");
-        }
-        if (!complex.hasSegment(connection.getToSegmentId())) {
-            failure(failures, "siegeConnection", complex.getId(), "toSegmentId",
-                    connection.getToSegmentId(), "connection references an unknown segment");
-        }
-        if (connection.requiresGate() && !complex.hasGate(connection.getGateId())) {
-            failure(failures, "siegeConnection", complex.getId(), "gateId",
-                    connection.getGateId(), "gated connection references an unknown gate");
-        }
+    private static void addSiegeDiagnostic(List<ValidationFailure> diagnostics, Diagnostic diagnostic) {
+        List<String> subjects = new ArrayList<String>();
+        if (!blank(diagnostic.getSegmentId())) subjects.add("segment=" + diagnostic.getSegmentId());
+        if (!blank(diagnostic.getConnectionId())) subjects.add("connection=" + diagnostic.getConnectionId());
+        if (!blank(diagnostic.getBuildId())) subjects.add("build=" + diagnostic.getBuildId());
+        if (!blank(diagnostic.getGateRecordId())) subjects.add("gateRecord=" + diagnostic.getGateRecordId());
+        subjects.addAll(diagnostic.getSubjectIds());
+        failure(diagnostics, "siegeComplex", diagnostic.getComplexId(), diagnostic.getCode(),
+            subjects.toString(), diagnostic.getMessage());
     }
 
     private void validateMapAssets(CampaignReadinessData data,
@@ -112,7 +125,8 @@ public final class KOMECampaignReadinessValidator {
         String getCapitalTileId(String factionId);
         StrategicTile findStrategicTile(String tileId);
         Collection<DefensiveBuild> getDefensiveBuilds();
-        SiegeComplex findSiegeComplex(String complexId);
+        /** Scoped reports supplied once, e.g. by KOMESiegeReadinessResolver.evaluateAll(worldData).values(). */
+        Collection<Report> getSiegeComplexReadinessReports();
         Collection<String> getRequiredMapAssetIds();
         boolean hasMapAsset(String assetId);
     }
@@ -133,31 +147,22 @@ public final class KOMECampaignReadinessValidator {
         String getEntryConnectionId();
     }
 
-    public interface SiegeComplex {
-        String getId();
-        boolean hasSegment(String segmentId);
-        boolean hasGate(String gateId);
-        boolean hasConnection(String connectionId);
-        Collection<Connection> getConnections();
-    }
-
-    public interface Connection {
-        String getFromSegmentId();
-        String getToSegmentId();
-        boolean requiresGate();
-        String getGateId();
-    }
-
     public static final class ReadinessResult {
         private final List<ValidationFailure> failures;
+        private final List<ValidationFailure> warnings;
+        private final List<Report> siegeComplexReports;
 
-        private ReadinessResult(List<ValidationFailure> failures) {
+        private ReadinessResult(List<ValidationFailure> failures, List<ValidationFailure> warnings, List<Report> reports) {
             this.failures = Collections.unmodifiableList(
                     new ArrayList<ValidationFailure>(failures));
+            this.warnings = Collections.unmodifiableList(new ArrayList<ValidationFailure>(warnings));
+            siegeComplexReports = Collections.unmodifiableList(new ArrayList<Report>(reports));
         }
 
         public boolean isReady() { return failures.isEmpty(); }
         public List<ValidationFailure> getFailures() { return failures; }
+        public List<ValidationFailure> getWarnings() { return warnings; }
+        public List<Report> getSiegeComplexReports() { return siegeComplexReports; }
     }
 
     public static final class ValidationFailure {

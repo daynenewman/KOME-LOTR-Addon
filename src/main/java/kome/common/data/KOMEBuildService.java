@@ -163,6 +163,7 @@ public final class KOMEBuildService {
             UUID contributor, String contributorName, String contributorFaction, long centiHours,
             boolean contributorIsManager, long nowMillis) {
         requireActive(data, build);
+        kome.common.tactical.KOMETacticalActivityLock.requireBuildUnlocked(data, build.id);
         boolean managerSubmission = contributorIsManager && isManager(build, contributor);
         long before = build.approvedCentiHours();
         if (managerSubmission) KOMEBuildTime.add(before, centiHours);
@@ -239,6 +240,8 @@ public final class KOMEBuildService {
 
     private static Decision review(KOMEWorldData data, KOMEPlayerBuild build, KOMEBuildContribution contribution,
             long hours, String target, UUID actor, String name, String action, String reason, long nowMillis) {
+        try { kome.common.tactical.KOMETacticalActivityLock.requireBuildUnlocked(data, build.id); }
+        catch (kome.common.tactical.KOMETacticalActivityLock.LockedException locked) { return Decision.deny(locked.getMessage()); }
         long before = build.approvedCentiHours();
         long priorHours = contribution.centiHours;
         try {
@@ -312,7 +315,7 @@ public final class KOMEBuildService {
     }
 
     private static Decision canReview(KOMEWorldData data, KOMEPlayerBuild build, UUID actor, boolean admin) {
-        try { requireActive(data, build); }
+        try { requireActive(data, build); kome.common.tactical.KOMETacticalActivityLock.requireBuildUnlocked(data, build.id); }
         catch (IllegalArgumentException invalid) { return Decision.deny(invalid.getMessage()); }
         if (!admin && !isManager(build, actor)) return Decision.deny("Only the current Build manager may review submissions.");
         return Decision.allow();
@@ -361,6 +364,8 @@ public final class KOMEBuildService {
     public static Decision canDeleteBuild(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
             boolean admin) {
         if (build == null || !build.active) return Decision.deny("The Build is already inactive.");
+        try { kome.common.tactical.KOMETacticalActivityLock.requireBuildUnlocked(data, build.id); }
+        catch (kome.common.tactical.KOMETacticalActivityLock.LockedException locked) { return Decision.deny(locked.getMessage()); }
         if (!admin && !isManager(build, actor)) return Decision.deny("Only the current manager or an administrator may delete this Build.");
         return Decision.allow();
     }
@@ -376,6 +381,8 @@ public final class KOMEBuildService {
     public static Decision canDestroyEnemyBuild(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
             String actorFaction, boolean admin) {
         if (data == null || build == null || !build.active) return Decision.deny("The Build is not active.");
+        try { kome.common.tactical.KOMETacticalActivityLock.requireBuildUnlocked(data, build.id); }
+        catch (kome.common.tactical.KOMETacticalActivityLock.LockedException locked) { return Decision.deny(locked.getMessage()); }
         KOMEConquestTile tile = data.conquestTiles.get(build.tileId);
         String controller = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
         String defaultOwner = tile == null ? "" : KOMEAlliance.normalizeFactionKey(tile.defaultRulingFaction);
@@ -545,6 +552,7 @@ public final class KOMEBuildService {
     private static void softDelete(KOMEWorldData data, KOMEPlayerBuild build, UUID actor,
             String actorName, String reason, long nowMillis) {
         requireActive(data, build);
+        kome.common.tactical.KOMETacticalActivityLock.requireBuildUnlocked(data, build.id);
         long removedCentiHours = build.approvedCentiHours();
         int removedGateLinks = build.clearDefensiveGateRecords();
         for (KOMEBuildContribution contribution : build.contributions) {
