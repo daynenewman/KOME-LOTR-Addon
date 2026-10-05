@@ -23,6 +23,18 @@ public class KOMEPacketCompanyMoveConfirmGui implements IMessage {
     public int tilesPerDay;
     public long travelMillis;
     public String routeSummary = "";
+    public int remainingAllowance;
+    public boolean immediateMovementPossible;
+    public boolean requiresFutureBoundary;
+    public boolean exhausted;
+    public int requiredMovementBoundaries;
+    public long nextMovementBoundaryMillis;
+    public String nextMovementBoundaryText = "";
+    public long estimatedCompletionMillis;
+    public String estimatedCompletionText = "";
+    public String movementStatusCode = "";
+    public String movementStatusText = "";
+    public String previewToken = "";
     public int arrivalDimension;
     public double arrivalX;
     public double arrivalY;
@@ -47,6 +59,18 @@ public class KOMEPacketCompanyMoveConfirmGui implements IMessage {
         tilesPerDay = buf.readInt();
         travelMillis = buf.readLong();
         routeSummary = read(buf);
+        remainingAllowance = buf.readInt();
+        immediateMovementPossible = buf.readBoolean();
+        requiresFutureBoundary = buf.readBoolean();
+        exhausted = buf.readBoolean();
+        requiredMovementBoundaries = buf.readInt();
+        nextMovementBoundaryMillis = buf.readLong();
+        nextMovementBoundaryText = read(buf);
+        estimatedCompletionMillis = buf.readLong();
+        estimatedCompletionText = read(buf);
+        movementStatusCode = read(buf);
+        movementStatusText = read(buf);
+        previewToken = read(buf);
         arrivalDimension = buf.readInt();
         arrivalX = buf.readDouble();
         arrivalY = buf.readDouble();
@@ -73,6 +97,18 @@ public class KOMEPacketCompanyMoveConfirmGui implements IMessage {
         buf.writeInt(tilesPerDay);
         buf.writeLong(travelMillis);
         write(buf, routeSummary);
+        buf.writeInt(remainingAllowance);
+        buf.writeBoolean(immediateMovementPossible);
+        buf.writeBoolean(requiresFutureBoundary);
+        buf.writeBoolean(exhausted);
+        buf.writeInt(requiredMovementBoundaries);
+        buf.writeLong(nextMovementBoundaryMillis);
+        write(buf, nextMovementBoundaryText);
+        buf.writeLong(estimatedCompletionMillis);
+        write(buf, estimatedCompletionText);
+        write(buf, movementStatusCode);
+        write(buf, movementStatusText);
+        write(buf, previewToken);
         buf.writeInt(arrivalDimension);
         buf.writeDouble(arrivalX);
         buf.writeDouble(arrivalY);
@@ -87,9 +123,29 @@ public class KOMEPacketCompanyMoveConfirmGui implements IMessage {
     public static class Handler implements IMessageHandler<KOMEPacketCompanyMoveConfirmGui, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketCompanyMoveConfirmGui message, MessageContext ctx) {
-            KOMEAddon.proxy.displayCompanyMoveConfirmGui(message);
+            final KOMEPacketCompanyMoveConfirmGui snapshot = message.copyForPublication();
+            KOMEAddon.proxy.enqueueClientTask(() -> KOMEAddon.proxy.displayCompanyMoveConfirmGui(snapshot));
             return null;
         }
+    }
+
+    public KOMEPacketCompanyMoveConfirmGui copyForPublication() {
+        KOMEPacketCompanyMoveConfirmGui copy = new KOMEPacketCompanyMoveConfirmGui();
+        copy.companyId = companyId; copy.companyName = companyName; copy.originTile = originTile;
+        copy.destinationTile = destinationTile; copy.distanceTiles = distanceTiles; copy.unitCount = unitCount;
+        copy.population = population; copy.mountedPopulation = mountedPopulation; copy.groundPopulation = groundPopulation;
+        copy.tilesPerDay = tilesPerDay; copy.travelMillis = travelMillis; copy.routeSummary = routeSummary;
+        copy.remainingAllowance = remainingAllowance; copy.immediateMovementPossible = immediateMovementPossible;
+        copy.requiresFutureBoundary = requiresFutureBoundary; copy.exhausted = exhausted;
+        copy.requiredMovementBoundaries = requiredMovementBoundaries;
+        copy.nextMovementBoundaryMillis = nextMovementBoundaryMillis; copy.estimatedCompletionMillis = estimatedCompletionMillis;
+        copy.nextMovementBoundaryText = nextMovementBoundaryText;
+        copy.estimatedCompletionText = estimatedCompletionText;
+        copy.movementStatusCode = movementStatusCode; copy.movementStatusText = movementStatusText;
+        copy.previewToken = previewToken; copy.arrivalDimension = arrivalDimension; copy.arrivalX = arrivalX;
+        copy.arrivalY = arrivalY; copy.arrivalZ = arrivalZ; copy.arrivalSource = arrivalSource;
+        copy.routeTiles.addAll(routeTiles);
+        return copy;
     }
 
     private static String read(ByteBuf buf) {

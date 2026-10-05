@@ -300,7 +300,9 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
                 int mouseX = Mouse.getX() * screenWidth / KOMEMinecraftClient.displayWidth();
                 int mouseY = screenHeight - Mouse.getY() * screenHeight / KOMEMinecraftClient.displayHeight() - 1;
                 if (isPreviewingRoute() && isOverRouteConfirmButton(map, mouseX, mouseY)) {
-                    KOMEMinecraftClient.sendChat("/troops movecompany " + routePreviewMove.companyId + " " + routePreviewMove.destinationTile);
+                    KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction(
+                        "move", routePreviewMove.companyId, routePreviewMove.destinationTile,
+                        routePreviewMove.originTile, routePreviewMove.previewToken));
                     clearRoutePreview();
                     KOMEMinecraftClient.closePlayerScreen();
                 } else if (isPreviewingRoute() && isOverRouteCancelButton(map, mouseX, mouseY)) {
@@ -1394,15 +1396,22 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         int x = routePreviewPanelX();
         int y = routePreviewPanelY();
         int w = routePreviewPanelWidth();
-        Gui.drawRect(x, y, x + w, y + 78, 0xC81B1208);
+        Gui.drawRect(x, y, x + w, y + 124, 0xC81B1208);
         Gui.drawRect(x + 2, y + 2, x + w - 2, y + 18, 0xCC5A1118);
         font.drawString("Confirm Movement Route", x + 10, y + 6, 0xFFE8C46A);
         String route = routePreviewMove.originTile + " -> " + routePreviewMove.destinationTile
-            + " | " + routePreviewMove.distanceTiles + " step(s) | first move immediate";
+            + " | " + routePreviewMove.distanceTiles + " step(s) | allowance "
+            + routePreviewMove.remainingAllowance + "/" + routePreviewMove.tilesPerDay;
         font.drawString(KOMEGuiTheme.trimToWidth(font, route, w - 20), x + 10, y + 25, 0xFFFFFFFF);
         font.drawString(KOMEGuiTheme.trimToWidth(font, formatRoutePreviewTiles(), w - 20), x + 10, y + 39, 0xFFBFE8FF);
-        font.drawString(KOMEGuiTheme.trimToWidth(font, "Full route completion: about " + formatDuration(routePreviewMove.travelMillis), w - 20),
+        font.drawString(KOMEGuiTheme.trimToWidth(font, routePreviewMove.movementStatusText, w - 20),
             x + 10, y + 52, 0xFFBFA77A);
+        String boundary = routePreviewMove.requiredMovementBoundaries == 0 ? "Arrival can complete with current allowance"
+            : routePreviewMove.requiredMovementBoundaries + " movement boundary(s); next "
+                + routePreviewMove.nextMovementBoundaryText;
+        font.drawString(KOMEGuiTheme.trimToWidth(font, boundary, w - 220), x + 10, y + 66, 0xFFBFA77A);
+        font.drawString(KOMEGuiTheme.trimToWidth(font, "Estimated completion: "
+            + routePreviewMove.estimatedCompletionText, w - 220), x + 10, y + 80, 0xFFBFA77A);
         drawRouteButton(routeConfirmButtonX(), routeButtonY(), 92, 18, "Confirm", isOverRouteConfirmButton(map, mouseX, mouseY), 0xDD2E5D27);
         drawRouteButton(routeCancelButtonX(), routeButtonY(), 92, 18, "Cancel", isOverRouteCancelButton(map, mouseX, mouseY), 0xDD4F2A2A);
     }
@@ -1441,11 +1450,11 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
 
     private static int routePreviewPanelY() {
-        return mapInt("mapYMax") - 92;
+        return mapInt("mapYMax") - 138;
     }
 
     private static int routeButtonY() {
-        return routePreviewPanelY() + 56;
+        return routePreviewPanelY() + 102;
     }
 
     private static int routeConfirmButtonX() {
