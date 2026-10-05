@@ -32,8 +32,8 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     private static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 10 unifies KOM-25 tactical authority with schema-3 Emergency Defense authority. */
-    public static final int KOME_DATA_SCHEMA_VERSION = 10;
+    /** Schema 11 combines tactical/Emergency Defense authority with enduring company movement credit. */
+    public static final int KOME_DATA_SCHEMA_VERSION = 11;
     public static final int CONFLICT_DATA_SCHEMA_VERSION = KOMEConflictPersistence.DATA_SCHEMA_VERSION;
     /** Additional integrity marker for roots that require persisted tactical configuration. */
     public static final String TACTICAL_CONFIGURATION_REQUIRED_KEY = "TacticalConfigurationRequired";
@@ -116,6 +116,15 @@ public class KOMEWorldData extends WorldSavedData {
     public final List<NBTTagCompound> quarantinedAllianceRecords = new ArrayList<NBTTagCompound>();
     public final Map<String, KOMEArmyMovementOrder> armyMovements = new HashMap<>();
     public final Map<String, KOMEArmyCompany> armyCompanies = new HashMap<>();
+    /** Runtime policy only; no Encirclement authority or placement provider is serialized. */
+    private transient KOMEStrategicArrivalPlacement.Provider strategicArrivalPlacementProvider = KOMEStrategicArrivalPlacement.ORDINARY;
+    public synchronized void setStrategicArrivalPlacementProvider(KOMEStrategicArrivalPlacement.Provider provider) {
+        if (provider == null) throw new IllegalArgumentException("Strategic arrival placement provider is required");
+        strategicArrivalPlacementProvider = provider;
+    }
+    synchronized KOMEStrategicArrivalPlacement.Directive strategicArrivalPlacement(KOMEStrategicArrivalPlacement.Context arrival) {
+        return strategicArrivalPlacementProvider.placement(arrival);
+    }
     /** Persisted ruler military-recruitment history; Emergency Defense eligibility is derived. */
     final Map<String, KOMEEmergencyDefenseActivity> emergencyDefenseActivities =
         new HashMap<String, KOMEEmergencyDefenseActivity>();
@@ -137,6 +146,8 @@ public class KOMEWorldData extends WorldSavedData {
     private boolean progressionEnabled = true;
     public int movementSecondsPerTileOverride;
     public int movementTotalSecondsOverride;
+    public long movementBoundaryMillis;
+    public String movementBoundarySchedule = "";
     public int movementStepDelaySeconds = 5;
     public int nextWarSequence = 1;
     /** The sole persisted campaign-season authority; population and unit records remain separate. */
@@ -1975,6 +1986,7 @@ public class KOMEWorldData extends WorldSavedData {
             else company.groundPopulation += cost;
         }
         company.units.removeAll(missing);
+        if (company.movementAllowanceInitialized && kome.common.config.KOMEConfigRegistry.isReady()) KOMEMovementDayService.cap(company);
         company.updatedAtMillis = System.currentTimeMillis();
     }
 
@@ -2144,7 +2156,7 @@ public class KOMEWorldData extends WorldSavedData {
         int savedRootSchema = nbt.getInteger(KOME_DATA_SCHEMA_KEY);
         if (savedRootSchema < 6 || savedRootSchema > KOME_DATA_SCHEMA_VERSION) {
             failUnsupportedRootSchema("Unsupported KOME world-data schema " + savedRootSchema
-                + "; only schemas 6, 7, 8, or 9 -> " + KOME_DATA_SCHEMA_VERSION
+                + "; only schemas 6, 7, 8, 9, or 10 -> " + KOME_DATA_SCHEMA_VERSION
                 + " is supported. Reset this development world; no other root migration is supported.");
         }
         for (String retired : new String[] {"Populations", "TilePopulations", "PopulationAllocations", "PopulationDataSchemaVersion"}) {
@@ -2160,6 +2172,18 @@ public class KOMEWorldData extends WorldSavedData {
             || nbt.hasKey(KOMEEmergencyDefensePersistence.RECORDS_KEY)
             || nbt.hasKey(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY)
             || nbt.hasKey(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
+        // Root schema 9 was independently used by two development branches. Presence, not
+        // numeric version or a credit value, identifies the lineage; partial sections still
+        // undergo strict decoding below and cannot be silently replaced with defaults.
+        boolean hasMovementSection = nbt.hasKey("MovementBoundary");
+        NBTTagList movementCompanies = nbt.getTagList("ArmyCompanies", 10);
+        for (int i = 0; i < movementCompanies.tagCount(); i++)
+            hasMovementSection |= movementCompanies.getCompoundTagAt(i).hasKey("MovementAllowance");
+        boolean schemaNineMovementRoot = savedRootSchema == 9
+            && hasTacticalSection && hasMovementSection && !hasEmergencyDefenseSection;
+        boolean schemaNineEmergencyDefenseRoot = savedRootSchema == 9
+            && !hasTacticalSection && hasEmergencyDefenseSection && !hasMovementSection;
+        boolean requiresMovementAuthority = savedRootSchema >= 11 || schemaNineMovementRoot;
         boolean schemaEightTacticalRoot = savedRootSchema == 8
             && hasTacticalSection && !hasEmergencyDefenseSection;
         boolean schemaEightEmergencyDefenseRoot = savedRootSchema == 8
@@ -2173,14 +2197,16 @@ public class KOMEWorldData extends WorldSavedData {
             throw new IllegalArgumentException(
                 "Schema 8 must be exactly the tactical or Emergency Defense lineage.");
         }
-        if (savedRootSchema == 9 && (hasTacticalSection || !hasEmergencyDefenseSection)) {
+        if (savedRootSchema == 9 && !schemaNineMovementRoot && !schemaNineEmergencyDefenseRoot) {
             throw new IllegalArgumentException(
-                "Schema 9 must contain Emergency Defense authority and no tactical section.");
+                "Schema 9 must be exactly the TacticalConfiguration/movement or Emergency Defense lineage.");
         }
-        if (savedRootSchema == KOME_DATA_SCHEMA_VERSION
+        if (savedRootSchema == 10 && hasMovementSection)
+            throw new IllegalArgumentException("Schema 10 predates movement authority; mixed movement lineage is ambiguous.");
+        if (savedRootSchema >= 10
                 && (!hasTacticalSection || !hasEmergencyDefenseSection)) {
             throw new IllegalArgumentException(
-                "Schema 10 requires TacticalConfiguration and Emergency Defense authority.");
+                "Schema " + savedRootSchema + " requires TacticalConfiguration and Emergency Defense authority.");
         }
         // KOM-25's pre-merge schema-6 writer predates dev's muster authority. Only that identifiable
         // branch format may omit BOTH muster tags; partial/wrongly typed sections still fail closed.
@@ -2223,7 +2249,7 @@ public class KOMEWorldData extends WorldSavedData {
             upgraded.setTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY, new NBTTagList());
             upgraded.setTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY, new NBTTagList());
             loadedEmergencyDefense = KOMEEmergencyDefensePersistence.read(upgraded);
-        } else if (savedRootSchema == 9
+        } else if (schemaNineEmergencyDefenseRoot
                 && nbt.hasKey(KOMEEmergencyDefensePersistence.SCHEMA_KEY, 3)
                 && nbt.getInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY) == 2) {
             // Narrow schema-9 section upgrade. Existing commitments are preserved exactly;
@@ -2814,11 +2840,25 @@ public class KOMEWorldData extends WorldSavedData {
         }
 
         loadSection = "ArmyCompanies";
+        if (requiresMovementAuthority && (!nbt.hasKey("ArmyCompanies", 9)
+                || ((NBTTagList) nbt.getTag("ArmyCompanies")).tagCount() > 0
+                    && ((NBTTagList) nbt.getTag("ArmyCompanies")).func_150303_d() != 10))
+            throw new IllegalArgumentException("Invalid company movement authority list");
         NBTTagList companyList = nbt.getTagList("ArmyCompanies", 10);
         for (int i = 0; i < companyList.tagCount(); i++) {
             loadSection = "ArmyCompanies[" + i + "]";
             KOMEArmyCompany company = new KOMEArmyCompany();
+            if (requiresMovementAuthority && !companyList.getCompoundTagAt(i).hasKey("MovementAllowance", 10))
+                throw new IllegalArgumentException("Missing company movement allowance authority");
             company.readFromNBT(companyList.getCompoundTagAt(i));
+            // Pre-movement lineage credit cannot be proven across completed/cancelled orders. Migrate conservatively
+            // with zero credit until the next live boundary; never mint credit from a route.
+            if (!requiresMovementAuthority) {
+                company.movementAllowance = 0;
+                company.movementAllowanceInitialized = false;
+                company.movementBoundaryMillis = 0L;
+                company.movementBoundarySchedule = "";
+            }
             if (company.id.length() > 0 && company.owner != null) {
                 armyCompanies.put(company.id, company);
             }
@@ -2828,6 +2868,19 @@ public class KOMEWorldData extends WorldSavedData {
                 || reconciledCompanySequence != nextCompanySequence) {
             nextCompanySequence = reconciledCompanySequence;
             loadedStateReconciled = true;
+        }
+        loadSection = "Movement boundary";
+        movementBoundaryMillis = 0L;
+        movementBoundarySchedule = "";
+        if (requiresMovementAuthority) {
+            if (!nbt.hasKey("MovementBoundary", 10)) throw new IllegalArgumentException("Missing movement boundary authority");
+            NBTTagCompound movement = nbt.getCompoundTag("MovementBoundary");
+            if (!movement.hasKey("Millis", 4) || !movement.hasKey("Schedule", 8))
+                throw new IllegalArgumentException("Invalid movement boundary authority");
+            movementBoundaryMillis = movement.getLong("Millis");
+            movementBoundarySchedule = movement.getString("Schedule");
+            if (!movementBoundarySchedule.isEmpty()) KOMEMovementDayService.validateBoundary(movementBoundarySchedule, movementBoundaryMillis);
+            else if (movementBoundaryMillis != 0L) throw new IllegalArgumentException("Missing movement schedule identity");
         }
         loadSection = "Conflict movement holds";
         validateConflictMovementHolds();
@@ -2862,7 +2915,7 @@ public class KOMEWorldData extends WorldSavedData {
         loadSection = "War, stewardship and movement restart reconciliation";
         long restartRevalidationNow = System.currentTimeMillis();
         if (!hasEmergencyDefenseSection) {
-            // Schemas 6/7 and the tactical schema-8 lineage predate recruitment-activity
+            // Schemas 6/7, tactical schema 8 and movement schema 9 predate recruitment-activity
             // authority. Give only recognized rulers a conservative observation anchor;
             // never invent commitments or delayed-conflict receipts.
             for (String faction : factionKingRecordsSnapshot().keySet()) {
@@ -2879,8 +2932,8 @@ public class KOMEWorldData extends WorldSavedData {
         KOMEMovementAccessService.revalidateAll(this, restartRevalidationNow);
 
         loadSection = "TacticalConfiguration";
-        boolean requiresTacticalSection = savedRootSchema == KOME_DATA_SCHEMA_VERSION
-            || schemaEightTacticalRoot;
+        boolean requiresTacticalSection = savedRootSchema >= 10
+            || schemaEightTacticalRoot || schemaNineMovementRoot;
         if (requiresTacticalSection
                 && (!nbt.hasKey(TACTICAL_CONFIGURATION_REQUIRED_KEY, 1)
                     || !nbt.getBoolean(TACTICAL_CONFIGURATION_REQUIRED_KEY)
@@ -2990,6 +3043,8 @@ public class KOMEWorldData extends WorldSavedData {
         armyMovements.putAll(candidate.armyMovements);
         armyCompanies.clear();
         armyCompanies.putAll(candidate.armyCompanies);
+        movementBoundaryMillis = candidate.movementBoundaryMillis;
+        movementBoundarySchedule = candidate.movementBoundarySchedule;
         emergencyDefenseActivities.clear();
         emergencyDefenseActivities.putAll(candidate.emergencyDefenseActivities);
         emergencyDefenseCommitments.clear();
@@ -3281,6 +3336,10 @@ public class KOMEWorldData extends WorldSavedData {
         nbt.setBoolean("ProgressionEnabled", progressionEnabled);
         nbt.setInteger("MovementSecondsPerTileOverride", Math.max(0, movementSecondsPerTileOverride));
         nbt.setInteger("MovementTotalSecondsOverride", Math.max(0, movementTotalSecondsOverride));
+        NBTTagCompound movementBoundary = new NBTTagCompound();
+        movementBoundary.setLong("Millis", movementBoundaryMillis);
+        movementBoundary.setString("Schedule", movementBoundarySchedule);
+        nbt.setTag("MovementBoundary", movementBoundary);
         nbt.setInteger("MovementStepDelaySeconds", Math.max(0, movementStepDelaySeconds));
         nbt.setInteger("NextWarSequence", Math.max(1, nextWarSequence));
         NBTTagCompound warSeasonTag = new NBTTagCompound();

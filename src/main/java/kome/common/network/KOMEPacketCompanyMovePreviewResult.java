@@ -21,6 +21,10 @@ public class KOMEPacketCompanyMovePreviewResult implements IMessage {
     public String failureTitle = "";
     public String failureSummary = "";
     public String suggestedAction = "";
+    public String failureCode = "";
+    public int remainingAllowance;
+    public long nextMovementBoundaryMillis;
+    public String nextMovementBoundaryText = "";
     public int hiddenDetailCount;
     public final List<String> routeTiles = new ArrayList<String>();
     public final List<String> failureDetails = new ArrayList<String>();
@@ -40,6 +44,10 @@ public class KOMEPacketCompanyMovePreviewResult implements IMessage {
         failureTitle = read(buf);
         failureSummary = read(buf);
         suggestedAction = read(buf);
+        failureCode = read(buf);
+        remainingAllowance = buf.readInt();
+        nextMovementBoundaryMillis = buf.readLong();
+        nextMovementBoundaryText = read(buf);
         hiddenDetailCount = buf.readInt();
         routeTiles.clear();
         int routeCount = Math.max(0, Math.min(512, buf.readInt()));
@@ -65,6 +73,10 @@ public class KOMEPacketCompanyMovePreviewResult implements IMessage {
         write(buf, failureTitle);
         write(buf, failureSummary);
         write(buf, suggestedAction);
+        write(buf, failureCode);
+        buf.writeInt(remainingAllowance);
+        buf.writeLong(nextMovementBoundaryMillis);
+        write(buf, nextMovementBoundaryText);
         buf.writeInt(hiddenDetailCount);
         buf.writeInt(routeTiles.size());
         for (String tile : routeTiles) {
@@ -79,9 +91,23 @@ public class KOMEPacketCompanyMovePreviewResult implements IMessage {
     public static class Handler implements IMessageHandler<KOMEPacketCompanyMovePreviewResult, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketCompanyMovePreviewResult message, MessageContext ctx) {
-            KOMEAddon.proxy.displayCompanyMovePreviewResult(message);
+            final KOMEPacketCompanyMovePreviewResult snapshot = message.copyForPublication();
+            KOMEAddon.proxy.enqueueClientTask(() -> KOMEAddon.proxy.displayCompanyMovePreviewResult(snapshot));
             return null;
         }
+    }
+
+    public KOMEPacketCompanyMovePreviewResult copyForPublication() {
+        KOMEPacketCompanyMovePreviewResult copy = new KOMEPacketCompanyMovePreviewResult();
+        copy.companyId = companyId; copy.companyName = companyName; copy.originTileId = originTileId;
+        copy.destinationTileId = destinationTileId; copy.valid = valid; copy.distanceTiles = distanceTiles;
+        copy.travelTimeText = travelTimeText; copy.failureTitle = failureTitle; copy.failureSummary = failureSummary;
+        copy.suggestedAction = suggestedAction; copy.failureCode = failureCode;
+        copy.remainingAllowance = remainingAllowance; copy.nextMovementBoundaryMillis = nextMovementBoundaryMillis;
+        copy.nextMovementBoundaryText = nextMovementBoundaryText;
+        copy.hiddenDetailCount = hiddenDetailCount; copy.routeTiles.addAll(routeTiles);
+        copy.failureDetails.addAll(failureDetails);
+        return copy;
     }
 
     private static String read(ByteBuf buf) {

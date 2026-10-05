@@ -34,6 +34,11 @@ public class KOMEArmyCompany {
     public String source = SOURCE_AUTO_UNIT_ASSIGNMENT;
     public long createdAtMillis;
     public long updatedAtMillis;
+    /** Company authority; an order never grants movement credit. */
+    public int movementAllowance;
+    public long movementBoundaryMillis;
+    public String movementBoundarySchedule = "";
+    public boolean movementAllowanceInitialized;
     public static final String AGGRESSIVE = "AGGRESSIVE";
     public static final String CONSERVATIVE = "CONSERVATIVE";
     public static final String AUTHORITY_NATIVE = "NATIVE";
@@ -72,7 +77,10 @@ public class KOMEArmyCompany {
     }
 
     public int getTilesPerDay() {
-        return groundPopulation == 0 && mountedPopulation > 0 ? 2 : 1;
+        kome.common.config.KOMEConfigRegistry.MovementSettings settings =
+            kome.common.config.KOMEConfigRegistry.requireReadySnapshot().getMovement();
+        return groundPopulation == 0 && mountedPopulation > 0
+            ? settings.getFullyMountedTilesPerDay() : settings.getFootOrMixedTilesPerDay();
     }
 
     public NBTTagCompound writeToNBT() {
@@ -93,6 +101,12 @@ public class KOMEArmyCompany {
         nbt.setString("Source", source == null ? SOURCE_AUTO_UNIT_ASSIGNMENT : source);
         nbt.setLong("CreatedAtMillis", createdAtMillis);
         nbt.setLong("UpdatedAtMillis", updatedAtMillis);
+        NBTTagCompound movement = new NBTTagCompound();
+        movement.setInteger("Remaining", movementAllowance);
+        movement.setLong("BoundaryMillis", movementBoundaryMillis);
+        movement.setString("Schedule", movementBoundarySchedule);
+        movement.setBoolean("Initialized", movementAllowanceInitialized);
+        nbt.setTag("MovementAllowance", movement);
         nbt.setString("Tendency", AGGRESSIVE.equals(tendency) ? AGGRESSIVE : CONSERVATIVE);
         nbt.setString("TemporaryController", temporaryController == null ? "" : temporaryController.toString());
         nbt.setString("TemporaryControllerName", temporaryControllerName == null ? "" : temporaryControllerName);
@@ -159,6 +173,25 @@ public class KOMEArmyCompany {
         }
         createdAtMillis = nbt.getLong("CreatedAtMillis");
         updatedAtMillis = nbt.getLong("UpdatedAtMillis");
+        movementAllowance = 0;
+        movementBoundaryMillis = 0L;
+        movementBoundarySchedule = "";
+        movementAllowanceInitialized = false;
+        if (nbt.hasKey("MovementAllowance")) {
+            if (!nbt.hasKey("MovementAllowance", 10)) throw new IllegalArgumentException("Invalid company movement allowance");
+            NBTTagCompound movement = nbt.getCompoundTag("MovementAllowance");
+            if (!movement.hasKey("Remaining", 3) || !movement.hasKey("BoundaryMillis", 4)
+                    || !movement.hasKey("Schedule", 8) || !movement.hasKey("Initialized", 1)
+                    || movement.getInteger("Remaining") < 0 || movement.getLong("BoundaryMillis") < 0L)
+                throw new IllegalArgumentException("Invalid company movement allowance metadata");
+            movementAllowance = movement.getInteger("Remaining");
+            movementBoundaryMillis = movement.getLong("BoundaryMillis");
+            movementBoundarySchedule = movement.getString("Schedule");
+            movementAllowanceInitialized = movement.getBoolean("Initialized");
+            if (movementAllowanceInitialized) KOMEMovementDayService.validateBoundary(movementBoundarySchedule, movementBoundaryMillis);
+            else if (movementAllowance != 0 || movementBoundaryMillis != 0L || !movementBoundarySchedule.isEmpty())
+                throw new IllegalArgumentException("Uninitialized company has movement credit");
+        }
         tendency = AGGRESSIVE.equals(nbt.getString("Tendency")) ? AGGRESSIVE : CONSERVATIVE;
         temporaryController = parseUuid(nbt.getString("TemporaryController"));
         temporaryControllerName = nbt.getString("TemporaryControllerName");

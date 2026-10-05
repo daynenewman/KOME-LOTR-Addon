@@ -79,6 +79,39 @@ public class KOMEClientTaskQueueTest {
         } finally { KOMEAddon.proxy = previous; }
     }
 
+    @Test public void movementPreviewHandlersPublishDetachedStateOnClientQueue() throws Exception {
+        RecordingProxy proxy = proxy(); KOMECommonProxy previous = KOMEAddon.proxy; KOMEAddon.proxy = proxy;
+        try {
+            KOMEPacketCompanyMoveConfirmGui confirm = new KOMEPacketCompanyMoveConfirmGui();
+            confirm.companyId = "C1"; confirm.destinationTile = "T376"; confirm.previewToken = "before";
+            confirm.routeTiles.addAll(Arrays.asList("T388", "T379", "T376"));
+            KOMEPacketCompanyMovePreviewResult denied = new KOMEPacketCompanyMovePreviewResult();
+            denied.companyId = "C2"; denied.failureCode = "MOUNTAIN_EDGE_BLOCKED";
+            onNetwork(() -> {
+                new KOMEPacketCompanyMoveConfirmGui.Handler().onMessage(confirm, null);
+                new KOMEPacketCompanyMovePreviewResult.Handler().onMessage(denied, null);
+            });
+            assertTrue(proxy.calls.isEmpty()); assertEquals(2, proxy.queue.pendingTasks());
+            confirm.destinationTile = "T999"; confirm.previewToken = "after"; confirm.routeTiles.clear();
+            denied.failureCode = "after";
+            proxy.queue.drain();
+            assertEquals(Arrays.asList("move:C1:T376:before:3", "move-denied:C2:MOUNTAIN_EDGE_BLOCKED"), proxy.calls);
+            for (Thread thread : proxy.threads) assertSame(Thread.currentThread(), thread);
+        } finally { KOMEAddon.proxy = previous; }
+    }
+
+    @Test public void clientProxyOpensMapBeforePublishingPreviewState() throws Exception {
+        String source = source("client/KOMEClientProxy.java");
+        int method = source.indexOf("displayCompanyMoveConfirmGui");
+        int open = source.indexOf("openPreservedMap()", method);
+        int publish = source.indexOf("beginRoutePreview(message)", method);
+        assertTrue(method >= 0 && open > method && publish > open);
+        int denied = source.indexOf("displayCompanyMovePreviewResult", publish);
+        int deniedOpen = source.indexOf("openPreservedMap()", denied);
+        int deniedPublish = source.indexOf("showCompanyMovePreviewResult(message)", denied);
+        assertTrue(deniedOpen > denied && deniedPublish > deniedOpen);
+    }
+
     @Test public void conquestPublishesSevenValidatedMapsAndRevisionInExactlyOneClientTask() throws Exception {
         RecordingProxy proxy = proxy(); KOMECommonProxy previous = KOMEAddon.proxy; KOMEAddon.proxy = proxy;
         KOMEClientData client = KOMEClientData.INSTANCE;
@@ -443,6 +476,13 @@ public class KOMEClientTaskQueueTest {
         @Override public void displayPopulationUnitsGui(KOMEPacketPopulationUnitsGui packet) { display("units:" + packet.playerName); }
         @Override public void displayConquestCaptureGui(KOMEPacketConquestCaptureGui packet) { display("capture:" + packet.tileId); }
         @Override public void displayCompanyListGui(String tile, String name, List companies, boolean create) { display("companies:" + tile); }
+        @Override public void displayCompanyMoveConfirmGui(KOMEPacketCompanyMoveConfirmGui packet) {
+            display("move:" + packet.companyId + ":" + packet.destinationTile + ":" + packet.previewToken
+                + ":" + packet.routeTiles.size());
+        }
+        @Override public void displayCompanyMovePreviewResult(KOMEPacketCompanyMovePreviewResult packet) {
+            display("move-denied:" + packet.companyId + ":" + packet.failureCode);
+        }
     }
     private static String repeat(char ch, int length) { char[] chars = new char[length]; Arrays.fill(chars, ch); return new String(chars); }
     private static String source(String path) throws Exception { return new String(Files.readAllBytes(Paths.get("src/main/java/kome/" + path)), StandardCharsets.UTF_8); }

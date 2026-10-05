@@ -21,15 +21,21 @@ public class KOMEPacketTroopGuiAction implements IMessage {
     public String companyId = "";
     public String value = "";
     public String tileId = "";
+    public String previewToken = "";
 
     public KOMEPacketTroopGuiAction() {
     }
 
     public KOMEPacketTroopGuiAction(String action, String companyId, String value, String tileId) {
+        this(action, companyId, value, tileId, "");
+    }
+
+    public KOMEPacketTroopGuiAction(String action, String companyId, String value, String tileId, String previewToken) {
         this.action = safe(action);
         this.companyId = safe(companyId);
         this.value = safe(value);
         this.tileId = safe(tileId);
+        this.previewToken = safe(previewToken);
     }
 
     @Override
@@ -38,6 +44,7 @@ public class KOMEPacketTroopGuiAction implements IMessage {
         companyId = ByteBufUtils.readUTF8String(buf);
         value = ByteBufUtils.readUTF8String(buf);
         tileId = ByteBufUtils.readUTF8String(buf);
+        previewToken = ByteBufUtils.readUTF8String(buf);
     }
 
     @Override
@@ -46,6 +53,7 @@ public class KOMEPacketTroopGuiAction implements IMessage {
         ByteBufUtils.writeUTF8String(buf, companyId);
         ByteBufUtils.writeUTF8String(buf, value);
         ByteBufUtils.writeUTF8String(buf, tileId);
+        ByteBufUtils.writeUTF8String(buf, previewToken);
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketTroopGuiAction, IMessage> {
@@ -57,6 +65,7 @@ public class KOMEPacketTroopGuiAction implements IMessage {
             String rawValue = safe(message.value).trim();
             String value = rawValue.toLowerCase(Locale.ROOT);
             String tileId = safe(message.tileId).trim();
+            String previewToken = safe(message.previewToken).trim();
             try {
                 KOMECommandTroops troops = new KOMECommandTroops();
                 if ("list".equals(action)) {
@@ -92,7 +101,8 @@ public class KOMEPacketTroopGuiAction implements IMessage {
                 } else if ("move".equals(action)) {
                     requireCompany(companyId);
                     require(value, "A destination tile is required.");
-                    troops.processCommand(player, new String[] {"movecompany", companyId, value});
+                    require(previewToken, "Movement confirmation has expired; preview the route again.");
+                    troops.processCommand(player, new String[] {"movecompany", companyId, value, previewToken});
                     refresh(troops, player, tileId);
                 } else if ("recruit".equals(action)) {
                     require(tileId, "A recruitment tile is required.");

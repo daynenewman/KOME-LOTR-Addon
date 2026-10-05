@@ -108,6 +108,39 @@ public class KOMETileGameplayParityTest {
         assertTrue(data.removeRouteEdgeOverride("T055", "T061"));
         assertEquals("true:[T055, T061]", route(data, "T055", "T061"));
     }
+
+    @Test public void canonicalMinasTirithRoutesReachEilenachAndCairAndros() throws Exception {
+        prepare(); KOMEWorldData data = fullyClaimed("gondor");
+        assertEquals("true:[T388, T379, T376]", route(data, "T388", "T376"));
+        assertEquals("true:[T388, T379, T370]", route(data, "T388", "T370"));
+        assertEquals(KOMEConquestRouteEdge.OPEN, data.getRouteEdge("T388", "T379").edgeType);
+        assertEquals(KOMEConquestRouteEdge.OPEN, data.getRouteEdge("T379", "T376").edgeType);
+        assertEquals(KOMEConquestRouteEdge.BRIDGE, data.getRouteEdge("T379", "T370").edgeType);
+    }
+
+    @Test public void gundabadGraphIsReportedWithoutInventingPasses() throws Exception {
+        prepare(); KOMEWorldData defaults = new KOMEWorldData("gundabad-defaults");
+        assertEquals(new TreeSet<String>(Arrays.asList("T057", "T079")),
+            new TreeSet<String>(defaults.getRouteNeighbors("T068")));
+        KOMEConquestRouteEdge river = defaults.getRouteEdge("T061", "T079");
+        assertNotNull(river); assertEquals(KOMEConquestRouteEdge.RIVER, river.edgeType); assertFalse(river.isPassable());
+
+        KOMEWorldData geographyOnly = fullyClaimed("gundabad");
+        assertEquals("true:[T068, T057, T081]", route(geographyOnly, "T068", "T081", "gundabad"));
+        String toFramsburg = route(geographyOnly, "T068", "T061", "gundabad");
+        assertTrue(toFramsburg, toFramsburg.startsWith("true:[T068, T057, T081"));
+        assertFalse("Blocked T079/T061 river must not be treated as a pass",
+            toFramsburg.contains("T079, T061"));
+    }
+
+    private static KOMEWorldData fullyClaimed(String faction) {
+        KOMEWorldData data = new KOMEWorldData("fully-claimed");
+        for (String id : KOMEConquestTileDefaults.getKnownTileIds()) {
+            KOMEConquestTile tile = new KOMEConquestTile(id); tile.claim(faction, 0L);
+            data.conquestTiles.put(id, tile);
+        }
+        return data;
+    }
     static List<String> capture() throws Exception {
         List<String> rows = new ArrayList<String>();
         List<String> ids = new ArrayList<String>(KOMEConquestTileDefaults.getKnownTileIds()); Collections.sort(ids);
@@ -150,8 +183,11 @@ public class KOMETileGameplayParityTest {
         Collections.sort(rows);return rows;
     }
     static String route(KOMEWorldData d,String a,String b)throws Exception{
+        return route(d,a,b,"gondor");
+    }
+    static String route(KOMEWorldData d,String a,String b,String faction)throws Exception{
         Method m=KOMECommandTroops.class.getDeclaredMethod("findLegalRoute",KOMEWorldData.class,String.class,String.class,String.class);m.setAccessible(true);
-        Object value=m.invoke(new KOMECommandTroops(),d,a,b,"gondor");
+        Object value=m.invoke(new KOMECommandTroops(),d,a,b,faction);
         Field valid=value.getClass().getDeclaredField("valid"),path=value.getClass().getDeclaredField("routeTiles");valid.setAccessible(true);path.setAccessible(true);
         return valid.get(value)+":"+path.get(value);
     }

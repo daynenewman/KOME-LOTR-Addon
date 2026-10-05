@@ -221,18 +221,19 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @Override
     public void displayCompanyMoveConfirmGui(kome.common.network.KOMEPacketCompanyMoveConfirmGui message) {
-        KOMEConquestMapOverlay.beginRoutePreview(message);
         if (!(KOMEMinecraftClient.currentScreen() instanceof LOTRGuiMap)) {
             KOMEConquestMapOverlay.openPreservedMap();
         }
+        // Publish only after the map exists. An END tick with a null screen clears previews.
+        KOMEConquestMapOverlay.beginRoutePreview(message);
     }
 
     @Override
     public void displayCompanyMovePreviewResult(kome.common.network.KOMEPacketCompanyMovePreviewResult message) {
-        KOMEConquestMapOverlay.showCompanyMovePreviewResult(message);
         if (!(KOMEMinecraftClient.currentScreen() instanceof LOTRGuiMap)) {
             KOMEConquestMapOverlay.openPreservedMap();
         }
+        KOMEConquestMapOverlay.showCompanyMovePreviewResult(message);
     }
 
     @Override public void displayJoinBattleGui(kome.common.network.KOMEPacketJoinBattleViewResponse message) {

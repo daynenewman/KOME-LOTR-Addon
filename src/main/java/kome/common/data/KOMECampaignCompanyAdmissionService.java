@@ -192,6 +192,8 @@ public final class KOMECampaignCompanyAdmissionService {
             record.companyAssignedByName = clean(ownerName).length() == 0
                 ? company.ownerName : clean(ownerName);
             data.recalculateCampaignCompanyComposition(company);
+            if (createdNew) KOMEMovementDayService.initializeNewCompany(company, company.createdAtMillis);
+            else KOMEMovementDayService.cap(company);
             if (!company.units.contains(record.entity)
                     || !company.id.equals(record.companyId)) {
                 throw new IllegalStateException("Company and record membership did not agree.");

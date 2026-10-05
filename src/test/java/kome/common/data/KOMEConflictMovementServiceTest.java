@@ -19,6 +19,9 @@ import static org.junit.Assert.*;
 
 /** Deterministic Phase 4 movement/conflict integration tests; no physical observation is used. */
 public class KOMEConflictMovementServiceTest {
+    private KOMEPopulationTestConfig movementConfig;
+    @org.junit.Before public void movementConfig() throws Exception { movementConfig = new KOMEPopulationTestConfig(); }
+    @org.junit.After public void closeMovementConfig() throws Exception { movementConfig.close(); }
     @Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
 
     @Before @After public void resetRelations() {
@@ -478,7 +481,7 @@ public class KOMEConflictMovementServiceTest {
         }
     }
 
-    private static Fixture hostileFixture(boolean defensive, boolean defenderCompany) {
+    static Fixture hostileFixture(boolean defensive, boolean defenderCompany) {
         Fixture f = new Fixture();
         f.tile("T100", "gondor");
         f.tile("T101", "mordor");
@@ -490,7 +493,7 @@ public class KOMEConflictMovementServiceTest {
         return f;
     }
 
-    private static final class Fixture {
+    static final class Fixture {
         final KOMEWorldData data = new KOMEWorldData("phase4");
         private int uuidSequence = 1;
 
