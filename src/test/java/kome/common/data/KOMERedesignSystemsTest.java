@@ -346,11 +346,7 @@ public class KOMERedesignSystemsTest {
 
     @Test public void worldLoadBlocksStaleBuildWithoutType() {
         NBTTagCompound saved = new NBTTagCompound();
-        saved.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
-        saved.setInteger("BuildDataSchemaVersion", KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
-        saved.setTag("Builds", new net.minecraft.nbt.NBTTagList());
-        saved.setInteger("FactionPopulationDataSchemaVersion", KOMEWorldData.FACTION_POPULATION_DATA_SCHEMA_VERSION);
-        saved.setTag("FactionPopulations", new NBTTagList());
+        new KOMEWorldData("canonical-fixture").writeToNBT(saved);
         NBTTagList builds = new NBTTagList();
         NBTTagCompound stale = new NBTTagCompound();
         stale.setString("Id", "B-stale");

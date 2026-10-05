@@ -109,6 +109,9 @@ public final class KOMERulerService {
         }
         String suppliedName = authoritativeName == null ? "" : authoritativeName.trim();
         if (suppliedName.length() > 0 && !suppliedName.equals(currentName)) {
+            if (authoritativePlayerID == null)
+                return new RepairResult(false, "Matching authoritative ruler UUID is required to repair a name");
+            data.ensureWritable();
             data.writeFactionKingRecord(key, current, suppliedName);
             data.markDirty();
             return new RepairResult(true, "Repaired cached ruler name");

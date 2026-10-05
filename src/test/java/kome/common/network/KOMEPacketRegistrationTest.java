@@ -28,7 +28,7 @@ public class KOMEPacketRegistrationTest {
 
     private static final Set<Integer> EXPECTED_DISCRIMINATORS = new HashSet<Integer>(Arrays.asList(
         0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
-        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47
+        25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51
     ));
 
     @Test public void retiredIdsStayHolesAndEveryRetainedClassKeepsItsIdAndSide() throws Exception {
@@ -49,7 +49,8 @@ public class KOMEPacketRegistrationTest {
             "ProgressionRelationshipAction:40:SERVER", "RelationshipHub:41:CLIENT",
             "RelationshipAction:42:SERVER", "VisualMarkers:43:CLIENT",
             "ProgressionRequest:44:SERVER", "ProgressionTracker:45:CLIENT",
-            "StandingTrialEligibility:46:CLIENT", "PublicWaypoints:47:CLIENT"
+            "StandingTrialEligibility:46:CLIENT", "PublicWaypoints:47:CLIENT",
+            "TacticalEditRequest:48:SERVER", "TacticalEditSnapshot:49:CLIENT", "TacticalAreaCatalog:50:CLIENT", "TacticalComplexCatalog:51:CLIENT"
         };
         for (String entry : entries) {
             String[] parts = entry.split(":");
@@ -91,6 +92,11 @@ public class KOMEPacketRegistrationTest {
             previousDiscriminator = discriminator;
             registrations++;
             if ("SERVER".equals(matcher.group(3))) {
+                if (discriminator == 48) {
+                    assertTrue(line.contains("KOMEPacketTacticalEditRequest.Handler.class"));
+                    assertFalse(line.contains("ServerThreadHandler")); // This intake owns a bounded tick queue.
+                    continue;
+                }
                 assertTrue(line, line.contains("new ServerThreadHandler<"));
                 assertTrue("Each server registration needs a distinct anonymous runtime class: " + line,
                     line.contains(") {}"));
@@ -98,7 +104,7 @@ public class KOMEPacketRegistrationTest {
             }
         }
 
-        assertEquals(42, registrations);
+        assertEquals(46, registrations);
         assertEquals(EXPECTED_DISCRIMINATORS, discriminators);
         assertEquals(19, serverRegistrations);
 

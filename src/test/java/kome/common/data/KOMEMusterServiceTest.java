@@ -311,8 +311,7 @@ public class KOMEMusterServiceTest {
 
     private static KOMEWorldData restartCombined(KOMEWorldData data, KOMEMusterRecord muster) {
         NBTTagCompound tag = new NBTTagCompound(); data.writeToNBT(tag);
-        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
-            tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, tag.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(1, tag.getInteger("MusterDataSchemaVersion"));
         assertEquals(1, tag.getTagList("CivilianMusters", 10).tagCount());
         assertEquals(1, tag.getCompoundTag("WarSeason").getTagList("FactionDefeats", 10).tagCount());
@@ -495,7 +494,7 @@ public class KOMEMusterServiceTest {
     @Test public void oldRootCannotSilentlyLoseMusterUseAndInvalidSaveLeavesDestinationUntouched() {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,5);
-        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("schema 8 -> 9"));}
+        try{new KOMEWorldData("old").readFromNBT(root);fail("old root accepted");}catch(IllegalStateException expected){assertTrue(expected.getMessage().contains("schema 5"));}
         data.civilianMusters.put("bad-key",record);NBTTagCompound destination=new NBTTagCompound();destination.setString("Sentinel","keep");
         NBTTagCompound before=(NBTTagCompound)destination.copy();
         try{data.writeToNBT(destination);fail("invalid identity saved");}catch(IllegalStateException expected){assertEquals(before,destination);}
@@ -504,6 +503,8 @@ public class KOMEMusterServiceTest {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,8);
+        root.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
+        root.removeTag("TacticalConfiguration");
         root.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY,1);
         root.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
         root.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);

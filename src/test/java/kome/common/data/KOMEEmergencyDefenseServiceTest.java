@@ -146,6 +146,8 @@ public class KOMEEmergencyDefenseServiceTest {
         KOMEEmergencyDefenseService.INSTANCE.anchorUnknownHistory(source, "mordor", 100L);
         NBTTagCompound schemaEight = new NBTTagCompound(); source.writeToNBT(schemaEight);
         schemaEight.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 8);
+        schemaEight.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
+        schemaEight.removeTag("TacticalConfiguration");
         schemaEight.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY, 1);
         schemaEight.removeTag(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY);
         schemaEight.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);

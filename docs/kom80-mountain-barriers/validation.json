@@ -1,0 +1,278 @@
+{
+  "base_commit": "41f145773601ff84f754421ee7534d7265d42f74",
+  "mutex": "Local\\KOME-Heavy-Validation",
+  "runtime": {
+    "gradle": "8.5",
+    "gradle_jdk": "Eclipse Adoptium 21.0.9.10",
+    "bytecode_major": 52
+  },
+  "pre_fix_route_run": {
+    "tests": 8,
+    "failures": 4,
+    "errors": 0,
+    "skipped": 0,
+    "name": "kome.common.command.KOMEMountainBarrierMovementTest",
+    "skipped_cases": [],
+    "failure_cases": [
+      {
+        "name": "currentMountainRiverAndBlockedOverridesRejectFormerlyLegalDeparture",
+        "message": "java.lang.AssertionError: mountain[T409, T420]"
+      },
+      {
+        "name": "removedPassOverrideCannotAuthorizePreviouslyQueuedDeparture",
+        "message": "java.lang.AssertionError"
+      },
+      {
+        "name": "staleDirectOrdersAcrossReportedContactsCannotCommitOrSpendAllowance",
+        "message": "java.lang.AssertionError: [T654, T435]"
+      },
+      {
+        "name": "waitingTickRejectsIllegalEdgeBeforeStagingUnitsOrLoadingArrival",
+        "message": "org.junit.ComparisonFailure: [T218, T220] expected:<[waiting_next_step]> but was:<[moving]>"
+      }
+    ]
+  },
+  "pre_fix_recovery_run": {
+    "tests": 3,
+    "failures": 3,
+    "errors": 0,
+    "skipped": 0,
+    "name": "kome.common.command.KOMEMountainBarrierRecoveryTest",
+    "skipped_cases": [],
+    "failure_cases": [
+      {
+        "name": "ordinaryOwnerCannotResumeAPlainStoppedOrderAcrossAnIllegalEdge",
+        "message": "java.lang.AssertionError: Plain stopped route must reject Resume: missing"
+      },
+      {
+        "name": "operatorCompleteCannotTurnARejectedQueuedStepIntoAnArrival",
+        "message": "org.junit.ComparisonFailure: missing expected:<[waiting_next_step]> but was:<[arrived]>"
+      },
+      {
+        "name": "operatorCompleteOnALegalQueuedCrossingPublishesArrivalOnlyOnce",
+        "message": "java.lang.AssertionError: expected:<1> but was:<2>"
+      }
+    ]
+  },
+  "focused": {
+    "totals": {
+      "tests": 90,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 90
+    },
+    "suites": [
+      {
+        "name": "kome.client.KOMEMapBordersTest",
+        "tests": 17,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "kome.client.KOMEMountainContactBordersTest",
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "kome.common.command.KOMECampaignBoundaryMovementTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "kome.common.command.KOMECommandTroopsMovementTest",
+        "tests": 26,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "kome.common.command.KOMEMountainBarrierMovementTest",
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "kome.common.command.KOMEMountainBarrierRecoveryTest",
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "kome.common.data.KOMEConflictMovementServiceTest",
+        "tests": 16,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "kome.common.data.KOMETileGameplayDefaultsTest",
+        "tests": 6,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "name": "kome.common.data.KOMETileGameplayParityTest",
+        "tests": 4,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ]
+  },
+  "clean_full": {
+    "totals": {
+      "tests": 2047,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 5,
+      "passed": 2042
+    },
+    "suite_count": 230,
+    "skipped": [
+      {
+        "suite": "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest",
+        "cases": [
+          "symbolicLinkSkinIsRejectedWhenSupported"
+        ]
+      },
+      {
+        "suite": "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest",
+        "cases": [
+          "symbolicLinkAtHashPathIsNeverAcceptedWhenSupported"
+        ]
+      },
+      {
+        "suite": "kome.core.KOMEPublicWaypointTransformerTest",
+        "cases": [
+          "originalProductionAndBuildJarsHaveExactCompatibleHooks"
+        ]
+      },
+      {
+        "suite": "kome.core.KOMEWaypointTransformerTest",
+        "cases": [
+          "configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms",
+          "configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms"
+        ]
+      }
+    ],
+    "kom80_suites": [
+      {
+        "tests": 1,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "name": "kome.client.KOMEMountainContactBordersTest",
+        "skipped_cases": [],
+        "failure_cases": []
+      },
+      {
+        "tests": 11,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "name": "kome.common.command.KOMEMountainBarrierMovementTest",
+        "skipped_cases": [],
+        "failure_cases": []
+      },
+      {
+        "tests": 3,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "name": "kome.common.command.KOMEMountainBarrierRecoveryTest",
+        "skipped_cases": [],
+        "failure_cases": []
+      }
+    ]
+  },
+  "artifact": {
+    "path": "build/libs/KOME-LOTR-Addon-1.0.8.jar",
+    "sha256": "eab47d43f8684ef41a72c12aba3abcb8c1eacf5e99d8c46cd1a0ec84a233d994",
+    "bytes": 17170464,
+    "packaged_bytecode_major": 52,
+    "no_lotr_classes": true
+  },
+  "unchanged_packaged_resources": {
+    "assets/kome/config/kome_tile_gameplay_manifest.properties": {
+      "source_and_packaged_sha256": "89873a6893874b66574675f5e803ec4ec9756c9707d953018ae3e4b095fb72c2",
+      "git_blob": "003cf6d2265c8e225a28b51b95e28e4f3e3d01dd",
+      "byte_equal_to_base_git_blob": true
+    },
+    "assets/kome/config/kome_tile_gameplay_points.csv": {
+      "source_and_packaged_sha256": "e787eb404eb23f3786653051c868e75530ab708239f084d43e9a4535a1794176",
+      "git_blob": "b1d33e49cbc7844bf10329439f3c071219cdbfe2",
+      "byte_equal_to_base_git_blob": true
+    },
+    "assets/kome/config/kome_tile_gameplay_provenance.json": {
+      "source_and_packaged_sha256": "62f083d7508a8aa400587c66c6e1126abf424c2516a2276f996bf7db0e6e0523",
+      "git_blob": "d45b7b46af9a25c8b7c5ecf47a0a1fdb02070d92",
+      "byte_equal_to_base_git_blob": true
+    },
+    "assets/kome/config/kome_tile_ownership_balance_report.txt": {
+      "source_and_packaged_sha256": "b1c422242d32bf33358e7fffaec60321bcaaa3cf8bf53862d8241988238acb99",
+      "git_blob": "2147a6a25b19e00a78a473f64e781bf1735f4f67",
+      "byte_equal_to_base_git_blob": true
+    },
+    "assets/kome/config/kome_tile_ownership_defaults.csv": {
+      "source_and_packaged_sha256": "51a325a18fc52652d3f0dd2b9c6fec3693dd108da65941458d6843557e3bd1bc",
+      "git_blob": "11e6852a58b8303d2bd362531cb4c9bac72045c9",
+      "byte_equal_to_base_git_blob": true
+    },
+    "assets/kome/config/kome_tile_ownership_defaults_notes.txt": {
+      "source_and_packaged_sha256": "933189f2b2e0d691e34f5ced44c84be6e562d52562f34338f50f9a2114bbb6ec",
+      "git_blob": "eee3b7a08934a92082e6f8e8023edf68417773e8",
+      "byte_equal_to_base_git_blob": true
+    },
+    "assets/kome/config/kome_tile_route_defaults.csv": {
+      "source_and_packaged_sha256": "4b6ba308d288bf0148aeafdd2b808c5097962d9b152a269141af1430ea6870e2",
+      "git_blob": "d754c873c5672ed427c759bad5d816954dd74e65",
+      "byte_equal_to_base_git_blob": true
+    },
+    "assets/kome/config/kome_tile_route_markers.csv": {
+      "source_and_packaged_sha256": "d1093ca5a9c3718c1626f7dcb926e03a20e711457e4ced53aba8f545d53ffc8f",
+      "git_blob": "87a55174db145ddaaf2f517dcad72f09c4354324",
+      "byte_equal_to_base_git_blob": true
+    },
+    "assets/kome/config/kome_tile_waypoint_candidates.csv": {
+      "source_and_packaged_sha256": "e496a608e54fb16ab74bfcecbc91779dbf5ebce436c5c7160754d028345fb5ee",
+      "git_blob": "5247857bed8fe64a9ded48234fa672933cf5ac9d",
+      "byte_equal_to_base_git_blob": true
+    },
+    "assets/kome/map/reset_conquest_tile_ids.png": {
+      "source_and_packaged_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+      "git_blob": "ce0d280a7b1746771105baa5981b7975f2be6a72",
+      "byte_equal_to_base_git_blob": true
+    },
+    "assets/kome/map/reset_conquest_tile_ids.txt": {
+      "source_and_packaged_sha256": "d8674747229c7a9cbfdebcd217f1423d722ff4cdacb882d55607491cea36d9e5",
+      "git_blob": "ba7ee5342efde9b2cb425befbfa7d4d5bdd2c1f7",
+      "byte_equal_to_base_git_blob": false
+    },
+    "assets/kome/map/tile_exclusions.tsv": {
+      "source_and_packaged_sha256": "96d5bf63187e50f6964fe943ab233d783cf4ae565e4deedc338ec5cc597c62f1",
+      "git_blob": "6e5154b63f253d3f70c8b0c7d7313ebc6871b4e2",
+      "byte_equal_to_base_git_blob": false
+    }
+  },
+  "log_sha256": {
+    "reproduce.txt": "54db03171fbfd33a8b777dc87ae0945df0223261ee87f5de8629c86299b689db",
+    "reproduce-recovery.txt": "67fcb5b1d264d8c98a91f5502c1971c96675a769ffc42bf00c4038a834bfdbb2",
+    "focused.txt": "1fdce00316ce731417ee9c90f294b18c0e2173c12cb2aedf330b5e8f6ba19f58",
+    "full.txt": "aba58f08d1517f17b460a2e122bb25d94ca26425ca287e7ba1ba367fa7c85b91",
+    "geometry-replay.txt": "829dd9350f9e047a074cfaa441d6f990eb6af6d85ddc11c649865622445b1a0b"
+  },
+  "limitations": [
+    "No Forge runtime or connected-client execution; inert world fixtures are not physical NPC spawn proof.",
+    "No raster/geographic corrections approved or applied; changed-cell set empty.",
+    "No live world manual overrides inspected; explicit operator force-repair controls remain unchanged."
+  ]
+}

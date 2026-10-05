@@ -11,6 +11,17 @@ public final class KOMEConquestClaimService {
     private KOMEConquestClaimService() {
     }
 
+    /** Only restores the compatibility alias; never chooses between conflicting owners. */
+    static boolean repairMissingOwnerAlias(KOMEWorldData data, KOMEConquestTile tile) {
+        data.ensureWritable();
+        if (tile == null || data.conquestTiles.get(tile.id) != tile
+                || !KOMEAlliance.allFactionKeys().contains(tile.currentRulingFaction)
+                || tile.ownerFaction == null || !tile.ownerFaction.isEmpty()) return false;
+        tile.setCurrentRulingFaction(tile.currentRulingFaction);
+        data.markDirty();
+        return true;
+    }
+
     public static Result claim(KOMEWorldData data, KOMEConquestTile tile, String claimantFaction,
             UUID claimant, String claimantName, long worldTime, long nowMillis) {
         Result result = new Result();

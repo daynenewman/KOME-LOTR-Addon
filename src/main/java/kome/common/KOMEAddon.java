@@ -142,6 +142,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStarting(FMLServerStartingEvent event) {
+        kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
         kome.core.KOMEWaypointTransformer.requireNativeRequestGuardInstalled();
         kome.core.KOMEPublicWaypointTransformer.requireInstalled(KOMEAddon.class.getClassLoader());
         KOMEPacketHandler.startServerSession(event.getServer());
@@ -165,6 +166,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
+        kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();
         kome.common.network.KOMEPublicWaypointSync.reset();
         kome.common.network.KOMEPacketConquestData.clearSentSnapshots();
@@ -175,6 +177,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopped(FMLServerStoppedEvent event) {
+        kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
         // Also covers failed startup/crash paths that skip serverStopping. Idempotent.
         KOMEPacketHandler.clearPendingServerTasks();
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();

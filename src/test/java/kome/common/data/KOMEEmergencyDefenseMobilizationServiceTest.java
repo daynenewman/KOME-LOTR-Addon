@@ -144,6 +144,9 @@ public class KOMEEmergencyDefenseMobilizationServiceTest {
         KOMEWorldData source = world();
         createAuthoritativeAttack(source, "T100", "gondor", "mordor", 10L, false);
         NBTTagCompound legacy = save(source);
+        legacy.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 9);
+        legacy.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
+        legacy.removeTag("TacticalConfiguration");
         legacy.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY, 2);
         legacy.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
         KOMEWorldData loaded = new KOMEWorldData("legacy");
@@ -389,6 +392,9 @@ public class KOMEEmergencyDefenseMobilizationServiceTest {
         assertTrue(KOMEEmergencyDefenseMobilizationService.INSTANCE.publishPlan(data,
             plan("CF1", "T100", "gondor", 2, 20, 5000L)));
         NBTTagCompound oldSection = save(data);
+        oldSection.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 9);
+        oldSection.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
+        oldSection.removeTag("TacticalConfiguration");
         oldSection.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY, 2);
         oldSection.removeTag(KOMEEmergencyDefensePersistence.OBSERVATIONS_KEY);
 
