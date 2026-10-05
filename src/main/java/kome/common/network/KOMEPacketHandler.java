@@ -188,5 +188,9 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketTacticalEditSnapshot.Handler.class, KOMEPacketTacticalEditSnapshot.class, 49, Side.CLIENT);
         network.registerMessage(KOMEPacketTacticalAreaCatalog.Handler.class, KOMEPacketTacticalAreaCatalog.class, 50, Side.CLIENT);
         network.registerMessage(KOMEPacketTacticalComplexCatalog.Handler.class, KOMEPacketTacticalComplexCatalog.class, 51, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleViewRequest>(new KOMEPacketJoinBattleViewRequest.Handler()) {}, KOMEPacketJoinBattleViewRequest.class, 52, Side.SERVER);
+        network.registerMessage(KOMEPacketJoinBattleViewResponse.Handler.class, KOMEPacketJoinBattleViewResponse.class, 53, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleSelectionRequest>(new KOMEPacketJoinBattleSelectionRequest.Handler()) {}, KOMEPacketJoinBattleSelectionRequest.class, 54, Side.SERVER);
+        network.registerMessage(KOMEPacketJoinBattleSelectionResult.Handler.class, KOMEPacketJoinBattleSelectionResult.class, 55, Side.CLIENT);
     }
 }

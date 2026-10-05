@@ -46,6 +46,21 @@ public class KOMEPublicCommandTest {
         } finally { KOMEPacketHandler.network = previous; }
     }
 
+    @Test public void ordinaryPlayerCanOpenReadOnlyJoinBattleViewButConsoleCannot() throws Exception {
+        KOMEAccessFixture f=new KOMEAccessFixture();
+        cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper previous=KOMEPacketHandler.network;
+        try{
+            KOMEPacketHandler.network=f.network;f.data.setDirty(false);
+            new KOMECommandKome().processCommand(f.player,new String[]{"joinbattle","T100"});
+            assertEquals(1,f.network.messages.size());
+            assertTrue(f.network.messages.get(0) instanceof kome.common.network.KOMEPacketJoinBattleViewResponse);
+            assertFalse(f.data.isDirty());assertTrue(f.data.getConflictService().records().isEmpty());
+            try { new KOMECommandKome().processCommand(console(new ArrayList<String>(),true),new String[]{"joinbattle","T100"}); fail("console opened Join Battle"); }
+            catch (net.minecraft.command.CommandException expected) { assertNotNull(expected.getMessage()); }
+            assertContains(new KOMECommandKome(),console(new ArrayList<String>(),false),"joinbattle",true);
+        }finally{KOMEPacketHandler.network=previous;}
+    }
+
     @Test public void deniedAdministrativeCommandsDoNotEvenRequestWorldState() {
         ICommandSender nonOperator = console(new ArrayList<String>(), false);
         for(String action:new String[]{"pending","inspect","adjust","approve","reject","rename","move","remove","associate","migration"})

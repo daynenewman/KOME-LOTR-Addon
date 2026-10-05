@@ -235,6 +235,20 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         }
     }
 
+    @Override public void displayJoinBattleGui(kome.common.network.KOMEPacketJoinBattleViewResponse message) {
+        net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
+        if(current instanceof kome.client.gui.KOMEGuiJoinBattle
+                && ((kome.client.gui.KOMEGuiJoinBattle)current).tileId().equals(message.tileId))
+            ((kome.client.gui.KOMEGuiJoinBattle)current).acceptView(message);
+        else KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiJoinBattle(message));
+    }
+
+    @Override public void displayJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message) {
+        net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
+        if(current instanceof kome.client.gui.KOMEGuiJoinBattle)
+            ((kome.client.gui.KOMEGuiJoinBattle)current).acceptSelection(message);
+    }
+
     @Override
     public void displayMovementHistory(String title, String requestFaction, boolean allFactions, List records) {
         KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiMovementHistory(title, requestFaction, allFactions, records));

@@ -59,8 +59,8 @@ public class KOMECommandKome extends KOMEPublicCommand {
     public String getCommandUsage(ICommandSender sender) {
         if (!hasStaffPermission(sender)) return sender instanceof EntityPlayerMP
                 && kome.common.tactical.edit.KOMETacticalEditAccess.isAuthorized((EntityPlayerMP) sender)
-            ? "/kome [gui|help|tile <tileId>|waypoint propose <name>|tactical [tileId]]"
-            : "/kome [gui|help|tile <tileId>|waypoint propose <name>]";
+            ? "/kome [gui|help|tile <tileId>|joinbattle <tileId>|waypoint propose <name>|tactical [tileId]]"
+            : "/kome [gui|help|tile <tileId>|joinbattle <tileId>|waypoint propose <name>]";
         return "/kome tactical [tileId] | diagnostics <domain> <subject> | emergencydefense inspect <faction> | repair <preview domain subject|apply token> | conflict <inspect|end> ... | repair conflict <tile> <preview|apply> | waypoint help | capital <list|get faction|relocate faction here> | progression cooldown <on|off> | progression relationship <force <serf|knight|lord>|clear> | character recreate <player> | audit <list|summary> [page] | repair stewardship <faction> | repair war <warId> | config [category] | conquest <reset|balance> | waypointdefaults <reload|apply> | adminmarkers <on|off|status> | ruler <get|assign|remove|repair> ...";
     }
 
@@ -94,6 +94,15 @@ public class KOMECommandKome extends KOMEPublicCommand {
         }
         if (args.length == 2 && "tile".equalsIgnoreCase(args[0])) {
             kome.common.network.KOMEPacketConquestOpenCapture.sendTileCommand(getCommandSenderAsPlayer(sender), args[1]);
+            return;
+        }
+        if (args.length == 2 && "joinbattle".equalsIgnoreCase(args[0])) {
+            EntityPlayerMP player=getCommandSenderAsPlayer(sender);
+            kome.common.data.KOMEJoinBattleService.Projection projection=
+                kome.common.data.KOMEJoinBattleService.INSTANCE.evaluate(
+                    KOMEWorldData.get(player.worldObj),player,args[1]);
+            kome.common.network.KOMEPacketHandler.network.sendTo(
+                kome.common.network.KOMEPacketJoinBattleViewResponse.from(projection),player);
             return;
         }
         if ("waypoint".equalsIgnoreCase(args[0])) {
@@ -353,6 +362,10 @@ public class KOMECommandKome extends KOMEPublicCommand {
             && kome.common.tactical.edit.KOMETacticalEditAccess.isAuthorized((EntityPlayerMP) sender);
         if (tactical && args.length == 2 && "tactical".equalsIgnoreCase(args[0]))
             return getListOfStringsMatchingLastWord(args, kome.common.data.KOMEConquestTileDefaults.getKnownTileIds().toArray(new String[0]));
+        if (args.length == 2 && "joinbattle".equalsIgnoreCase(args[0]))
+            return sender instanceof EntityPlayerMP
+                ? getListOfStringsMatchingLastWord(args, kome.common.data.KOMEConquestTileDefaults.getKnownTileIds().toArray(new String[0]))
+                : java.util.Collections.emptyList();
         if(args.length==2 && "waypoint".equalsIgnoreCase(args[0]))
             return hasStaffPermission(sender)?getListOfStringsMatchingLastWord(args,"help","propose","pending","list","inspect","history",
                 "adjust","approve","reject","add","associate","rename","move","remove","level","migration")
@@ -360,7 +373,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
         if (args.length == 1) {
             List suggestions = new ArrayList(hasStaffPermission(sender) ? getListOfStringsMatchingLastWord(
                 args,
-                "gui", "help", "tile", "waypoint",
+                "gui", "help", "tile", "joinbattle", "waypoint",
                 "character",
                 "config",
                 "conquest",
@@ -373,7 +386,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
                 "conflict",
                 "emergencydefense",
                 "repair",
-                "progression") : getListOfStringsMatchingLastWord(args, "gui", "help", "tile", "waypoint"));
+                "progression") : getListOfStringsMatchingLastWord(args, "gui", "help", "tile", "joinbattle", "waypoint"));
             if (tactical) suggestions.addAll(getListOfStringsMatchingLastWord(args, "tactical"));
             return suggestions;
         }
@@ -523,6 +536,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
         sender.addChatMessage(new ChatComponentText("/kome gui - Population overview; Tiles opens the conquest map."));
         sender.addChatMessage(new ChatComponentText("/kome waypoint propose <name> - Submit your current position for public waypoint review."));
         sender.addChatMessage(new ChatComponentText("/kome tile <tileId> - Tile Command (Builds / Canonical Population)."));
+        sender.addChatMessage(new ChatComponentText("/kome joinbattle <tileId> - Inspect eligibility and select a committed Campaign company."));
         sender.addChatMessage(new ChatComponentText("Public commands: /population, /conquest list|get, /build list|inspect, /troops, /progression, /alliance, /war list|status, /season status."));
         sender.addChatMessage(new ChatComponentText("The LOTR menu also opens Progression, Server Records and Alliances. Gameplay actions still require their normal permissions."));
     }

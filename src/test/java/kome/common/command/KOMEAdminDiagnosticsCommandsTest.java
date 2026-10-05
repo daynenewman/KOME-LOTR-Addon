@@ -74,7 +74,7 @@ public class KOMEAdminDiagnosticsCommandsTest {
                 "emergencydefense inspect <faction>", "repair conflict <tile> <preview|apply>",
                 "audit <list|summary> [page]", "repair stewardship",
                 "repair war", "progression cooldown", "progression relationship"}) assertTrue(part, usage.contains(part));
-        completion(root, staff, new String[] {""}, "gui", "help", "tile", "waypoint", "character", "config",
+        completion(root, staff, new String[] {""}, "gui", "help", "tile", "joinbattle", "waypoint", "character", "config",
             "conquest", "waypointdefaults", "adminmarkers", "capital", "ruler", "audit", "diagnostics",
             "conflict", "emergencydefense", "repair", "progression");
         completion(root, staff, new String[] {"repair", ""}, "preview", "apply", "conflict", "stewardship", "war");
@@ -95,7 +95,7 @@ public class KOMEAdminDiagnosticsCommandsTest {
         KOMEWar war = new KOMEWar(); war.id = "W1"; fixture.data.wars.put(war.id, war);
         completion(root, fixture.player, new String[] {"repair", "war", ""}, "W1");
         ICommandSender ordinary = sender(false, new ArrayList<String>());
-        completion(root, ordinary, new String[] {""}, "gui", "help", "tile", "waypoint");
+        completion(root, ordinary, new String[] {""}, "gui", "help", "tile", "joinbattle", "waypoint");
         assertFalse(root.getCommandUsage(ordinary).contains("diagnostics"));
     }
 

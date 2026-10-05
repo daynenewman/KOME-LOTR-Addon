@@ -20,6 +20,7 @@ import static kome.common.data.KOMEConflictRecord.PlayerStatus;
 import static kome.common.data.KOMEConflictRecord.State;
 import static kome.common.data.KOMEJoinBattleService.Reason;
 import static org.junit.Assert.*;
+import kome.common.network.KOMEPacketJoinBattleSelectionResult;
 
 public class KOMEJoinBattleServiceTest {
     @After public void resetRelations() {
@@ -314,6 +315,12 @@ public class KOMEJoinBattleServiceTest {
         KOMEJoinBattleService.SelectionResult selected = f.select("C2");
         assertTrue(selected.isAllowed());
         assertEquals("C2", selected.selectedCompany.companyId);
+        KOMEPacketJoinBattleSelectionResult readiness =
+            KOMEPacketJoinBattleSelectionResult.from(selected);
+        assertEquals(KOMEPacketJoinBattleSelectionResult.Status.READY_FOR_DEPLOYMENT,
+            readiness.status);
+        assertEquals(Reason.ALLOWED, readiness.reason);
+        assertTrue(readiness.message.contains("not implemented"));
         assertEquals(Reason.COMPANY_NOT_COMMITTED, f.select("C999").reason);
 
         KOMEJoinBattleService.Projection projection = f.evaluate();
