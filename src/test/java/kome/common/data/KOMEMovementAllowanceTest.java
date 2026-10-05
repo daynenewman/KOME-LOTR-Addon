@@ -57,6 +57,35 @@ public class KOMEMovementAllowanceTest {
         }
     }
 
+    @Test public void movementHistoryDescribesDefaultOrderEntitlements() throws Exception {
+        try (KOMEPopulationTestConfig config = new KOMEPopulationTestConfig()) {
+            KOMEWorldData data = new KOMEWorldData("history-defaults");
+            KOMEMovementHistoryRecord foot = history(company(data, false));
+            KOMEMovementHistoryRecord mounted = history(company(data, true));
+            assertEquals("Ground/mixed company - 1 tile/day", foot.speedDescription);
+            assertEquals("Mounted company - 2 tiles/day", mounted.speedDescription);
+        }
+    }
+
+    @Test public void movementHistoryRoundTripRetainsAlternateOrderEntitlementAfterConfigChanges() throws Exception {
+        try (KOMEPopulationTestConfig config = new KOMEPopulationTestConfig()) {
+            config.set("movement.footOrMixedTilesPerDay", "3", "movement.fullyMountedTilesPerDay", "5");
+            KOMEWorldData data = new KOMEWorldData("history-configured");
+            KOMEMovementHistoryRecord foot = history(company(data, false));
+            KOMEMovementHistoryRecord mounted = history(company(data, true));
+            NBTTagCompound footTag = foot.writeToNBT(), mountedTag = mounted.writeToNBT();
+            assertEquals("Ground/mixed company - 3 tiles/day", foot.speedDescription);
+            assertEquals("Mounted company - 5 tiles/day", mounted.speedDescription);
+
+            config.set("movement.footOrMixedTilesPerDay", "1", "movement.fullyMountedTilesPerDay", "2");
+            KOMEMovementHistoryRecord restoredFoot = new KOMEMovementHistoryRecord();
+            KOMEMovementHistoryRecord restoredMounted = new KOMEMovementHistoryRecord();
+            restoredFoot.readFromNBT(footTag); restoredMounted.readFromNBT(mountedTag);
+            assertEquals("Ground/mixed company - 3 tiles/day", restoredFoot.speedDescription);
+            assertEquals("Mounted company - 5 tiles/day", restoredMounted.speedDescription);
+        }
+    }
+
     @Test public void completedCancelledReplacedAndReissuedRoutesCannotGrantCredit() throws Exception {
         try (KOMEPopulationTestConfig config = new KOMEPopulationTestConfig()) {
             KOMEWorldData data = new KOMEWorldData("routes"); KOMEArmyCompany company = company(data, false);
@@ -180,5 +209,16 @@ public class KOMEMovementAllowanceTest {
                 catch (IllegalStateException expected) { assertEquals(before, company.writeToNBT()); assertEquals(0L, data.movementBoundaryMillis); }
             }
         }
+    }
+
+    private KOMEMovementHistoryRecord history(KOMEArmyCompany company) {
+        KOMEArmyMovementOrder order = KOMEArmyMovementOrder.newRoute(company.getTilesPerDay());
+        order.companyId = company.id; order.companyName = company.name;
+        order.population = company.totalPopulation;
+        order.mountedPopulation = company.mountedPopulation;
+        order.groundPopulation = company.groundPopulation;
+        KOMEMovementHistoryRecord history = new KOMEMovementHistoryRecord();
+        history.updateFromOrder(order, KOMEMovementHistoryRecord.ACTIVE);
+        return history;
     }
 }
