@@ -1,0 +1,27 @@
+# Wars, seasons, capitals, defeat, muster, and Emergency Defense
+
+[Index](../../INDEX.md) · [Daily sequencing](../../flows/daily-movement.md)
+
+Owns campaign phase/outcomes, coalition war records, faction capital authority, once-per-season muster scheduling, and kingless Emergency Defense reserves. Conflict/tactical records and ordinary company transport have separate owners.
+
+## Authority and entry points
+
+- [KOMEWarService](../../../../src/main/java/kome/common/data/KOMEWarService.java), [KOMEWarSeasonState](../../../../src/main/java/kome/common/data/KOMEWarSeasonState.java), [KOMECommandWar](../../../../src/main/java/kome/common/command/KOMECommandWar.java), [KOMECommandSeason](../../../../src/main/java/kome/common/command/KOMECommandSeason.java): war declaration/coalitions/end, phase transitions, finale/reset state, administrative operations.
+- [KOMEFactionCapitalService](../../../../src/main/java/kome/common/data/KOMEFactionCapitalService.java), [KOMEFactionCapitalRecord](../../../../src/main/java/kome/common/data/KOMEFactionCapitalRecord.java): capital tile/rally readiness; [KOMEFactionDefeatService.evaluate](../../../../src/main/java/kome/common/data/KOMEFactionDefeatService.java), `reconcile`: live destruction predicate and once-only season outcome.
+- [KOMEMusterService.call](../../../../src/main/java/kome/common/data/KOMEMusterService.java), `processDue`, `retryConfirmedDelivery`, [KOMEMusterRecord](../../../../src/main/java/kome/common/data/KOMEMusterRecord.java), [KOMECommandMuster](../../../../src/main/java/kome/common/command/KOMECommandMuster.java): saved rate-budget roster/seed/capital/deadline, `/muster` entry point, pending delivery authority.
+- [KOMEEmergencyDefenseService](../../../../src/main/java/kome/common/data/KOMEEmergencyDefenseService.java), [KOMEEmergencyDefenseMobilizationService](../../../../src/main/java/kome/common/data/KOMEEmergencyDefenseMobilizationService.java), [KOMEEmergencyDefensePersistence](../../../../src/main/java/kome/common/data/KOMEEmergencyDefensePersistence.java): conflict-scoped reserve spending, physical NPC commitments, deferred observations and survivor refund. [KOMEWartimeStewardshipService](../../../../src/main/java/kome/common/data/KOMEWartimeStewardshipService.java) supplies restricted temporary authority.
+- [KOMEEvents.processCampaignTick](../../../../src/main/java/kome/common/data/KOMEEvents.java): movement → pending Emergency Defense → muster → development/payout → defeat after successful payout. Records persist in [KOMEWorldData](../../../../src/main/java/kome/common/data/KOMEWorldData.java); physical NPCs also persist in chunks.
+
+Dependencies: [population exact rates/banks](../build-population/README.md), [control/capital containment](../geography/README.md), [rulers/relations](../politics-diplomacy/README.md), [conflict triggers/tactical readiness](../conflict-tactical/README.md), [movement](../strategic-movement/README.md), [sync/records](../client-network/README.md).
+
+## Verification and gaps
+
+References: [defeat evidence](../../../KOM29_VALIDATION.md), [muster boundary](../../../KOM11_CIVILIAN_MUSTER.md), [Emergency Defense authority](../../../KOM75_PHASE1_EMERGENCY_DEFENSE.md), [mobilization](../../../KOM75_PHASE2_EMERGENCY_DEFENSE_MOBILIZATION.md). Their recorded root schemas are historical; current root is 11.
+
+Tests: [season](../../../../src/test/java/kome/common/data/KOMEWarSeasonStateTest.java), [defeat](../../../../src/test/java/kome/common/data/KOMEFactionDefeatServiceTest.java), [muster](../../../../src/test/java/kome/common/data/KOMEMusterServiceTest.java), [Emergency Defense](../../../../src/test/java/kome/common/data/KOMEEmergencyDefenseMobilizationServiceTest.java), [tick order](../../../../src/test/java/kome/common/command/KOMECampaignBoundaryMovementTest.java).
+
+```powershell
+.\gradlew.bat test --tests 'kome.common.data.KOMEFactionDefeatServiceTest' --tests 'kome.common.data.KOMEMusterServiceTest' --tests 'kome.common.data.KOMEEmergencyDefenseMobilizationServiceTest' --tests 'kome.common.command.KOMECampaignBoundaryMovementTest' --no-daemon --max-workers=2
+```
+
+Use [shared prerequisites](../../INDEX.md). Validate saved rosters, exact budget/commitments, repeated ticks, unloaded entities, cold restart, and one-time outcomes. Muster production still uses `UNAVAILABLE` arrival authority and reaches `PENDING_TBD`; fake receipt/native-factory tests do not prove deployment. Emergency Defense NPCs are not hired companies, and missing physical entities remain unresolved rather than presumed dead. War inactivity has inspection eligibility but no automatic expiry caller; enabled war bonds need a funding provider. No complete season reset/return implementation from pending branches is included here.
