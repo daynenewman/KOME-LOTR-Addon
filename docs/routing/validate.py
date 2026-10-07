@@ -1,4 +1,4 @@
-"""Read-only routing checks. Run with Python 3 from any working directory."""
+"""Read-only routing checks. Run with Python 3.9+ from any working directory."""
 
 from pathlib import Path
 import re
