@@ -1,0 +1,7 @@
+Wed Oct 07 20:42:43 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Ambiguous method func_71203_ab
+Wed Oct 07 20:43:20 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Expected authenticated player absent
+Wed Oct 07 20:45:53 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Missing method assignForCampaignWorkflow
+Wed Oct 07 20:47:50 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Missing method func_95999_t
+Wed Oct 07 20:47:50 CDT 2026 FIXTURE_FAIL java.nio.file.NoSuchFileException: C:\Users\dayne\.codex\worktrees\686a\KOME-LOTR-Addon\build\pr-review-20261007\reset-runtime\mounted-fixture.properties
+Wed Oct 07 20:48:24 CDT 2026 PREPARED owner=a976a4b7-0614-49c0-b992-61a3a89bd773 origin=T378 97728.5 200 59712.5 destination=T388 78016.5 200 66240.5 rider=869334e0-706c-4d84-96f9-3ddb101a72a4 mount=4772c3bf-e6a7-4a2c-bfc3-b7c2f09cf357 expectedHP=3.25/7.125 fixtureNotPaidRecruitment=true
+Wed Oct 07 20:48:24 CDT 2026 OBSERVED rider=869334e0-706c-4d84-96f9-3ddb101a72a4 mount=4772c3bf-e6a7-4a2c-bfc3-b7c2f09cf357 riderHP=3.25 mountHP=7.125 x=97728.5 y=200.80000001192093 z=59712.5 reset=kome.common.data.KOMESeasonResetState@7a3ccb9a phase=FINALE originalMountedTree=true

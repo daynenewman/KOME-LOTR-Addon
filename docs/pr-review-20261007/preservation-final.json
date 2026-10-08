@@ -1,0 +1,13 @@
+{
+  "checked_at": "2026-10-08T01:40:10.768886+00:00",
+  "worktrees_checked": 25,
+  "worktree_differences": [],
+  "user_refs_unchanged": true,
+  "stash_unchanged": true,
+  "original_runtime_roots_checked": 5,
+  "original_runtime_metadata_differences": [],
+  "previous_acceptance_roots_checked": 2,
+  "previous_acceptance_metadata_differences": [],
+  "excluded_intentional_changes": "New docs/pr-review-20261007 files and ignored private build workspace; internal refs/codex changes.",
+  "limits": "HEAD/status, user refs and stash verified. Runtime path/size/mtime verified; no initial byte snapshot of dirty worktrees or runtimes exists."
+}

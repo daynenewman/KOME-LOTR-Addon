@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="kome.integration.CharacterCreationIsolationTest" tests="19" skipped="0" failures="0" errors="0" timestamp="2026-10-07T02:14:47" hostname="DAYNEPC" time="0.437">
+  <properties/>
+  <testcase name="commonBootstrapSourcesRemainClientClassFree" classname="kome.integration.CharacterCreationIsolationTest" time="0.002"/>
+  <testcase name="komeDoesNotClaimCharacterCreationPlayerRendererOwnership" classname="kome.integration.CharacterCreationIsolationTest" time="0.089"/>
+  <testcase name="characterCreationLifecycleIsExplicitlyOwnedByKome" classname="kome.integration.CharacterCreationIsolationTest" time="0.0"/>
+  <testcase name="elfFoodSaturationRetainsTheServerSafeNbtPath" classname="kome.integration.CharacterCreationIsolationTest" time="0.0"/>
+  <testcase name="legacyPersistenceNetworkAndFilesystemIdentifiersRemainExact" classname="kome.integration.CharacterCreationIsolationTest" time="0.001"/>
+  <testcase name="komeMapInitializationPrecedesCharacterCreationClientInitialization" classname="kome.integration.CharacterCreationIsolationTest" time="0.014"/>
+  <testcase name="komeAndCharacterCreationKeepSeparateNetworkChannels" classname="kome.integration.CharacterCreationIsolationTest" time="0.0"/>
+  <testcase name="gradleConfiguresTheCharacterCreationAccessTransformer" classname="kome.integration.CharacterCreationIsolationTest" time="0.001"/>
+  <testcase name="selectionPacketsDelegateToTheServerAuthorizedFlowPolicy" classname="kome.integration.CharacterCreationIsolationTest" time="0.0"/>
+  <testcase name="characterCreationProxyCompositionPreservesTheSidedBoundary" classname="kome.integration.CharacterCreationIsolationTest" time="0.094"/>
+  <testcase name="komeRemainsTheOnlyForgeModContainer" classname="kome.integration.CharacterCreationIsolationTest" time="0.139"/>
+  <testcase name="komePledgeObserverStillReadsAndObservesTheActualLotrPledge" classname="kome.integration.CharacterCreationIsolationTest" time="0.001"/>
+  <testcase name="racialMaximumHealthIsAppliedDuringPlayerNbtLoad" classname="kome.integration.CharacterCreationIsolationTest" time="0.0"/>
+  <testcase name="characterCreationAccessTransformerIsExact" classname="kome.integration.CharacterCreationIsolationTest" time="0.001"/>
+  <testcase name="characterCreationCommandsRetainTheirNamesAndSingleRegistrationPath" classname="kome.integration.CharacterCreationIsolationTest" time="0.0"/>
+  <testcase name="commonDwarfEatingDoesNotUseTheClientOnlyItemInUseAccessor" classname="kome.integration.CharacterCreationIsolationTest" time="0.001"/>
+  <testcase name="komeSourcesDoNotOwnCharacterCreationConfigOrPlayerStorage" classname="kome.integration.CharacterCreationIsolationTest" time="0.088"/>
+  <testcase name="lotrMapUsesEntityAwareLocalAndProfileUuidRemoteAppearanceLookups" classname="kome.integration.CharacterCreationIsolationTest" time="0.0"/>
+  <testcase name="komeCorePluginExposesKomeAndLotrMoreMobsTransformers" classname="kome.integration.CharacterCreationIsolationTest" time="0.006"/>
+  <system-out><![CDATA[[KOME] Registered waypoint, LOTRMoreMobs, and Aqua Acrobatics transformers.
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

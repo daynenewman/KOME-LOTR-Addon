@@ -1,0 +1,103 @@
+{
+  "candidate_sha256": "7ab04d4d79da058fad8f8301d4d41253aca45c4788eeab9164efdffccdc52a58",
+  "current_candidate_sha256": "2816008d37c2171fdd41e0af2354f0dd7308fff868c73e020c77449bc9bbb5de",
+  "profile": "kome-review-acceptance-20261007",
+  "world": "review-acceptance-fresh",
+  "observations": [
+    {
+      "test": "current-map-tooltip-right-click-selection",
+      "actions": "L -> Map; hover current T401 fill; right-click same point",
+      "expected": "Tooltip and Tile Command agree on T401",
+      "reply": "t401",
+      "result": "USER_REPORTED_T401",
+      "limits": "Current observed configuration only; not another zoom/scale/resize or multiplayer result"
+    },
+    {
+      "test": "map-three-wheel-notches-out",
+      "actions": "Reopen Map; scroll three notches out; hover and right-click inside T401",
+      "expected": "Border/fill, T401 tooltip and T401 Tile Command agree",
+      "reply": "it looks in order",
+      "result": "USER_REPORTED_ALIGNMENT",
+      "limits": "Exact numerical map zoom was not captured at reply; no general all-zooms claim"
+    },
+    {
+      "test": "gui-scale-normal",
+      "actions": "Set GUI Scale Normal; reopen Map; hover and right-click T401",
+      "expected": "Border/fill, tooltip and Tile Command agree",
+      "reply": "yep it filled the border, and the tile command screens looks accurate",
+      "result": "USER_REPORTED_FILL_AND_SCREEN_ALIGNMENT",
+      "configuration_observed": "Client-thread probe: GUI scale 2, 3840x2054, render distance 12, VSync on, FPS cap 120",
+      "limits": "Reply did not separately repeat the tooltip ID; this is the stated visual observation only"
+    },
+    {
+      "test": "resized-window",
+      "actions": "Resize window; reopen Map; hover and right-click T401",
+      "expected": "Border/fill, tooltip and Tile Command remain aligned",
+      "reply": "nope, it looks good and accurate",
+      "result": "USER_REPORTED_ALIGNMENT",
+      "configuration_observed": "Client-thread probe: 2648x1452, GUI scale 2, render distance 12, VSync on, FPS cap 120"
+    },
+    {
+      "test": "denied-build-button",
+      "actions": "Try Create Build on T401",
+      "reply": "doesnt let me click on the create bnuild",
+      "result": "USER_REPORTED_DISABLED_CREATE",
+      "correction": "Prompt incorrectly assumed unpledged. Subsequent native setup observed previous pledge DALE and unclaimed T401. This accepts the disabled button in that state only, not an unpledged-specific permission check."
+    },
+    {
+      "test": "eligible-form-open-and-cancel",
+      "actions": "Open Create Build; enter acceptance cancel; click Build List without Confirm Build",
+      "reply": "yes",
+      "result": "USER_CONFIRMED_CANCELLATION",
+      "screenshot": "create-build-before.png",
+      "native_evidence": "build-cancellation.json: all 77 serialized sections unchanged; zero Builds; sequence unchanged",
+      "finding": "Screenshot also reproduces type buttons overlapping Coordinates and the hours label. Fixed with a failing-before regression; not yet visually rechecked on the new artifact."
+    },
+    {
+      "test": "repaired-create-layout",
+      "candidate_sha256": "2816008d37c2171fdd41e0af2354f0dd7308fff868c73e020c77449bc9bbb5de",
+      "profile": "kome-review-acceptance-layout-20261007",
+      "actions": "Rejoin matching candidate; L -> Map -> T401 -> Create Build; inspect coordinates/type/hours rows",
+      "reply": "yes it seems better,",
+      "result": "USER_REPORTED_IMPROVEMENT",
+      "limits": "Scoped form observation, not every GUI size."
+    },
+    {
+      "test": "valid-nonoperator-creation",
+      "candidate_sha256": "2816008d37c2171fdd41e0af2354f0dd7308fff868c73e020c77449bc9bbb5de",
+      "profile": "kome-review-acceptance-layout-20261007",
+      "actions": "Create Acceptance valid; Gondor; Normal; 1.00 hours; Confirm Build once",
+      "reply": "it shows approved/developed/pending",
+      "screenshot": "build-created.png",
+      "result": "USER_SCREENSHOT_AND_NATIVE_NBT_AGREE_B1_1.00_0.00_1.00",
+      "correction": "Creator becomes manager and initial contribution auto-approves; Pending is approved native hours awaiting development, not a pending submission.",
+      "native_evidence": "build-creation.json; production serializer; non-operator confirmed; one active B1, 100 approved centi-hours, zero developed, 100 pending native centi-hours."
+    },
+    {
+      "test": "malformed-hours-ui-rejection",
+      "candidate_sha256": "2816008d37c2171fdd41e0af2354f0dd7308fff868c73e020c77449bc9bbb5de",
+      "actions": "Create Acceptance invalid with Hours 1.001; Confirm Build",
+      "reply": "doesnt let me",
+      "screenshot": "build-invalid-hours.png",
+      "result": "SCREENSHOT_VALIDATION_MESSAGE_AND_ALL_77_SECTIONS_UNCHANGED",
+      "native_evidence": "build-invalid-hours.json; B1 remains only Build, next sequence remains 2",
+      "limits": "Client validation; no forged server packet was sent by this UI action."
+    },
+    {
+      "test": "saved-build-reconnect",
+      "candidate_sha256": "2816008d37c2171fdd41e0af2354f0dd7308fff868c73e020c77449bc9bbb5de",
+      "actions": "Build List; disconnect; rejoin 127.0.0.1:51326; L -> Map -> T401",
+      "reply": "yes",
+      "result": "USER_CONFIRMED_ONE_B1_WITH_1.00_0.00_1.00_HOURS",
+      "limits": "One authenticated client; not multiplayer or cold restart."
+    }
+  ],
+  "pending_test": null,
+  "not_inferred": [
+    "multiplayer",
+    "representative lower-spec performance",
+    "reset/governance/daily client acceptance",
+    "other Build permissions"
+  ],
+  "session_state": "User explicitly stopped further testing after saved-Build reconnect pass."
+}
