@@ -188,5 +188,7 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketTacticalEditSnapshot.Handler.class, KOMEPacketTacticalEditSnapshot.class, 49, Side.CLIENT);
         network.registerMessage(KOMEPacketTacticalAreaCatalog.Handler.class, KOMEPacketTacticalAreaCatalog.class, 50, Side.CLIENT);
         network.registerMessage(KOMEPacketTacticalComplexCatalog.Handler.class, KOMEPacketTacticalComplexCatalog.class, 51, Side.CLIENT);
+        // The unpublished progression response follows dev's retained tactical IDs.
+        network.registerMessage(new ServerThreadHandler<KOMEPacketMasterOfferResponse>(new KOMEPacketMasterOfferResponse.Handler()) {}, KOMEPacketMasterOfferResponse.class, 52, Side.SERVER);
     }
 }

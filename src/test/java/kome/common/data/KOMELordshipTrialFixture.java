@@ -32,6 +32,7 @@ final class KOMELordshipTrialFixture implements AutoCloseable {
     KOMELordshipTrial trial(KOMELordshipTrial.Scenario scenario,Stage stage) {
         KOMEKnightCommission a=new KOMEKnightCommission(scenario.objectiveType,s.p.getSerfKnightProgression().getLiege());
         a.x=640;a.y=65;a.z=640;a.destinationX=1000;a.destinationZ=1000;a.place="Refuge";
+        a.destinationProof=KOMEProgressionGameplayFixture.shelter(s.f.world,1000,1000,"rohan");
         a.civilianClass="Civilian";a.enemyFaction="mordor";a.enemyClasses.add("Enemy");a.stage=stage;
         KOMELordshipTrial t=new KOMELordshipTrial(scenario,a,Arrays.asList("Guard","Guard","Guard","Guard"));
         if(!s.p.getLordship().offer(t))throw new AssertionError("Existing trial");

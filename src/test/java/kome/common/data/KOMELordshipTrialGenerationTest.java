@@ -17,7 +17,9 @@ public class KOMELordshipTrialGenerationTest {
             f.s.f.world.provider.dimensionId=LOTRDimension.MIDDLE_EARTH.dimensionID;f.s.f.player.dimension=LOTRDimension.MIDDLE_EARTH.dimensionID;
             f.s.f.world.isRemote=true; // Native prototypes need no real server NPC watcher transport in plain JUnit.
             KOMECourierGeographyTest.TestBiome biome=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestBiome.class);biome.heightBaseParameter=.2F;biome.npcSpawnList=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestSpawnList.class);
-            KOMECourierGeographyTest.TestManager manager=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestManager.class);manager.biome=biome;f.s.f.world.provider.worldChunkMgr=manager;
+            KOMECourierGeographyTest.TestManager manager=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestManager.class);KOMEProgressionRegionalFixture.threats(biome,LOTRFaction.ROHAN);manager.biome=biome;f.s.f.world.provider.worldChunkMgr=manager;
+            f.liege.posX=f.s.f.player.posX=0;f.liege.posZ=f.s.f.player.posZ=0;
+            KOMEProgressionGameplayFixture.record(f.s.f.world,800,0,"rohan");KOMEProgressionGameplayFixture.border(f.s.f.world,LOTRFaction.DUNLAND);
             KOMEKnightCommissionService.npcFactory=f.s.oldFactory;
             Field rel=LOTRFactionRelations.class.getDeclaredField("defaultMap");rel.setAccessible(true);Map relations=(Map)rel.get(null);Map old=new HashMap(relations);
             LOTRInvasions own=null;for(LOTRInvasions invasion:LOTRInvasions.values())if(invasion.invasionFaction==LOTRFaction.ROHAN){own=invasion;break;}assertNotNull(own);
@@ -26,6 +28,7 @@ public class KOMELordshipTrialGenerationTest {
                 LOTRFactionRelations.setDefaultRelations(LOTRFaction.ROHAN,LOTRFaction.DUNLAND,LOTRFactionRelations.Relation.ENEMY);
                 own.invasionMobs=Arrays.asList(new LOTRInvasions.InvasionSpawnEntry(LOTREntityRohirrimWarrior.class,10));
                 LOTRInvasions.DUNLAND.invasionMobs=Arrays.asList(new LOTRInvasions.InvasionSpawnEntry(LOTREntityDunlendingWarrior.class,10));
+                KOMEProgressionRegionalFixture.threats(biome,LOTRFaction.ROHAN);
                 for(KOMELordshipTrial.Scenario scenario:KOMELordshipTrial.Scenario.values()){
                     KOMELordshipTrial t=KOMELordshipTrialService.generate(f.s.f.player,f.liege,scenario);assertNotNull(scenario.name(),t);
                     assertEquals(4,t.guardClasses.size());assertEquals(2,t.requiredSurvivors);assertEquals(5,t.objective.enemyClasses.size());

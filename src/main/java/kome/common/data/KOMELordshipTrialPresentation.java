@@ -7,12 +7,12 @@ import static kome.common.data.KOMEKnightCommission.Stage;
 /** Localized trial language; the rank screen uses the same live values as promotion. */
 public final class KOMELordshipTrialPresentation {
     private KOMELordshipTrialPresentation() {}
-    private static String text(String key,Object... args) { return StatCollector.translateToLocalFormatted("kome.lordship."+key,args); }
+    private static String text(String key,Object... args) { return KOMEProgressionLanguage.text("kome.lordship."+key,args); }
     public static String title(KOMELordshipTrial t) { return text("title."+t.scenario.name().toLowerCase(Locale.ROOT)); }
     public static String objective(KOMELordshipTrial t) {
         if(t.ready())return text(t.forceReleased?"report_recalled":"report");
         if(t.objective.stage==Stage.FAILED)return text("failed");
-        return text("objective."+t.scenario.name().toLowerCase(Locale.ROOT),t.objective.place)
+        return KOMEKnightCommissionPresentation.objective(t.objective)
             +"\n"+text("survivors",t.requiredSurvivors,t.guardClasses.size())+"\n"+text("commands");
     }
     public static String speech(KOMELordshipTrial t,String event) {

@@ -172,13 +172,15 @@ public class KOMECanonicalPlayerRankTest {
         String events=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEEvents.java")),StandardCharsets.UTF_8);
         int offer=events.indexOf("isExternalOffer");
         int master=events.indexOf("boolean currentMaster");
-        int liege=events.indexOf("boolean currentLiege");
+        int liege=events.indexOf("if (standingTrialCandidate && event.target instanceof LOTRUnitTradeable)");
 
         assertTrue(offer>=0&&master>offer&&liege>master);
         assertTrue(events.contains("KOMEProgressionOfferBridge.ensureSerfdomOffer"));
         assertFalse(events.contains("event.entityPlayer.isSneaking() && event.target instanceof LOTREntityNPC"));
         assertTrue(events.contains("KOMEProgressionNpcInteractionService.interact"));
         assertFalse(events.contains("KOMEPacketRelationshipAction.sendHub"));
+        assertTrue(events.contains("player.openGui(LOTRMod.instance, guiId"));
+        assertFalse(events.contains("currentLiege && progression.getCanonicalRank()==KOMEProgressionRank.SERF"));
 
         String direct=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionNpcInteractionService.java")),StandardCharsets.UTF_8);
         assertTrue(direct.contains("interactMaster"));
@@ -193,6 +195,6 @@ public class KOMECanonicalPlayerRankTest {
     }
 
     @Test public void masterDialogueUsesNativeLotrSpeechWhileTechnicalFailuresRemainSystemFeedback() throws Exception {
-        String speech=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionNpcSpeech.java")),StandardCharsets.UTF_8);assertTrue(speech.contains("LOTRSpeech.sendSpeech(player, npc, text)"));assertTrue(speech.contains("You are in my service now"));assertTrue(speech.contains("You may serve me"));assertTrue(speech.contains("I have need of provisions"));assertTrue(speech.contains("Return tomorrow"));assertTrue(speech.contains("I am still waiting on those provisions"));assertTrue(speech.contains("I see nothing here that I asked for"));assertTrue(speech.contains("Bring me the rest"));assertTrue(speech.contains("That is everything I asked for"));String bridge=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionOfferBridge.java")),StandardCharsets.UTF_8);assertTrue(bridge.contains("KOMEProgressionNpcSpeech.welcomeSerf"));String packet=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/network/KOMEPacketSerfdomMasterAction.java")),StandardCharsets.UTF_8);assertTrue(packet.contains("KOMEProgressionNpcSpeech.assignDuty"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.sameDay"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.viewDuty"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.noMatchingProvisions"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.partialProvisions"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.completedProvisions"));assertTrue(packet.contains("Unknown Master action."));assertTrue(packet.contains("new ChatComponentText(result.reason)"));
+        String speech=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionNpcSpeech.java")),StandardCharsets.UTF_8);assertTrue(speech.contains("LOTRSpeech.sendSpeech(player, npc, text)"));assertTrue(speech.contains("You are in my service now"));assertTrue(speech.contains("You may serve me"));assertTrue(speech.contains("Bring me the provisions I have set down for you"));assertTrue(speech.contains("Return tomorrow"));assertTrue(speech.contains("I am still waiting on those provisions"));assertTrue(speech.contains("I see nothing here that I asked for"));assertTrue(speech.contains("Bring me the rest"));assertTrue(speech.contains("That is everything I asked for"));String bridge=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionOfferBridge.java")),StandardCharsets.UTF_8);assertTrue(bridge.contains("KOMEProgressionNpcSpeech.welcomeSerf"));String packet=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/network/KOMEPacketSerfdomMasterAction.java")),StandardCharsets.UTF_8);assertTrue(packet.contains("KOMEProgressionNpcSpeech.assignDuty"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.sameDay"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.viewDuty"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.noMatchingProvisions"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.partialProvisions"));assertTrue(packet.contains("KOMEProgressionNpcSpeech.completedProvisions"));assertTrue(packet.contains("Unknown Master action."));assertTrue(packet.contains("new ChatComponentText(result.reason)"));
     }
 }

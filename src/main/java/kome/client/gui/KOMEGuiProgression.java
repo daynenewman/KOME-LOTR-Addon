@@ -53,6 +53,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private KOMEGuiButton buttonAdvancements;
     private KOMEGuiButton buttonRanks;
     private KOMEGuiButton buttonLeaveRelationship;
+    private GuiButton buttonShowMe;
     private int currentGroup;
     private int scroll;
     private int rankScroll;
@@ -156,6 +157,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     @Override
     public void actionPerformed(GuiButton button) {
         if (button.enabled) {
+            if(button==buttonShowMe){kome.client.KOMEProgressionMapFocus.open();return;}
             if (button == buttonLeaveRelationship) {
                 int action = "master".equals(leaveRelationshipType)
                     ? KOMEPacketProgressionRelationshipAction.LEAVE_MASTER
@@ -186,6 +188,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         refreshRelationshipButton();
+        if(buttonShowMe!=null)buttonShowMe.visible=kome.client.KOMEProgressionMapFocus.target()!=null;
         if (view == View.ADVANCEMENTS) {
             updateScrollbarDrag(mouseX, mouseY);
         } else {
@@ -256,9 +259,12 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
             ).setStyle(KOMEGuiButton.Style.DESTRUCTIVE);
 
         buttonList.add(buttonLeaveRelationship);
+        buttonLeaveRelationship.xPosition=guiLeft+12;buttonLeaveRelationship.width=116;
+        buttonShowMe=new KOMEGuiButton(23,guiLeft+138,guiTop+ySize-22,70,18,"Show Me");buttonList.add(buttonShowMe);
 
         refreshViewButtons();
         refreshRelationshipButton();
+        buttonShowMe.visible=kome.client.KOMEProgressionMapFocus.target()!=null;
         if (KOMEPacketHandler.network != null) {
             KOMEPacketHandler.network.sendToServer(new KOMEPacketProgressionRequest());
         }

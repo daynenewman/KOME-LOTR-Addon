@@ -462,8 +462,14 @@ public class KOMECommandKome extends KOMEPublicCommand {
         if (npc == null) throw new WrongUsageException("Look at a valid living LOTR faction NPC within 8 blocks.");
         KOMEWorldData data = KOMEWorldData.get(player.worldObj);
         KOMEPlayerProgression progression = data.getProgression(KOMEReflection.getEntityUUID(player));
-        KOMEProgressionEncounterCleanup.cleanup(player,progression);
+
         KOMEProgressionNpcRef target = KOMEProgressionNpcRankService.referenceOf(npc);
+        kome.common.data.KOMEProgressionNpcRank actual=kome.common.data.KOMEProgressionNpcRankService.effectiveRank(data,npc);
+        if(!kome.common.data.KOMEProgressionLiegePolicy.hasRequiredNpcRank(level.rank,actual))
+            throw new WrongUsageException("Required NPC authority: "+kome.common.data.KOMEProgressionLiegePolicy.requiredNpcRankForPlayerRank(level.rank)+". Selected NPC: "+actual+".");
+        lotr.common.fac.LOTRFaction pledge=lotr.common.LOTRLevelData.getData(player).getPledgeFaction();
+        if(pledge==null||!pledge.isPlayableAlignmentFaction()||pledge!=npc.getFaction())throw new WrongUsageException("A matching faction pledge is required.");
+        KOMEProgressionEncounterCleanup.cleanup(player,progression);
         KOMESerfKnightRelationshipService.Result result = KOMESerfKnightRelationshipService.force(data, KOMEReflection.getEntityUUID(player), target, level);
         if (!result.success) throw new WrongUsageException(result.reason);
         npc.func_110163_bv();

@@ -14,11 +14,11 @@ public class KOMEProgressionRankSummaryTest {
         completeDuty(state,KOMESerfKnightDutyType.PROVISIONING);
         KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(player,149D);
         assertEquals("Serf",summary.currentRank);assertEquals("Knight",summary.nextRank);assertEquals("Requirements for Knight",summary.promotionTitle);
-        assertEquals(4,summary.requirements.size());
+        assertEquals(3,summary.requirements.size());
         assertRequirement(summary,0,"Faction Alignment",149,150,false);
         assertRequirement(summary,1,"Duties",1,3,false);
         assertRequirement(summary,2,"Trial of Standing",0,1,false);
-        assertRequirement(summary,3,"Master's Parting Gift",0,1,false);
+        for(KOMEProgressionRankSummary.Requirement requirement:summary.requirements)assertFalse(requirement.label.contains("Gift"));
         KOMEProgressionRankSummary.Requirement duties=summary.requirements.get(1);
         assertTrue(duties.hasChildren());assertEquals(3,duties.children.size());
         assertRequirement(duties.children,0,"Provisioning",1,1,true);
@@ -69,7 +69,7 @@ public class KOMEProgressionRankSummaryTest {
 
         assertEquals("Trial of Standing",summary.activityHeading);
         assertEquals("Seek a prospective Liege",summary.activityTitle);
-        assertEquals("Seek an eligible Liege for your Trial of Standing.",summary.activityObjective);
+        assertEquals(KOMEProgressionNativeAuthority.guidance("rohan"),summary.activityObjective);
         assertFalse(state.getLiege().isSet());
     }
 

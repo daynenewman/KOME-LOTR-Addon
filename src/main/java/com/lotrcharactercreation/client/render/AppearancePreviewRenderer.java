@@ -54,9 +54,8 @@ public final class AppearancePreviewRenderer {
             return;
         }
         configureModel(preset, vanillaManFallback);
-        float bodyYaw = (float) Math.atan(mouseOffsetX / 40.0F) * 35.0F;
-        float headYaw = (float) Math.atan(mouseOffsetX / 40.0F) * 20.0F;
-        float headPitch = -((float) Math.atan(mouseOffsetY / 40.0F)) * 20.0F;
+        AppearancePreviewOrientation orientation=new AppearancePreviewOrientation(mouseOffsetX,mouseOffsetY);
+        float bodyYaw=orientation.bodyYaw,headYaw=orientation.headYaw,headPitch=orientation.headPitch;
         float raceScale = RaceBodyDefinition.forRace(race)
             .getRenderScale();
 

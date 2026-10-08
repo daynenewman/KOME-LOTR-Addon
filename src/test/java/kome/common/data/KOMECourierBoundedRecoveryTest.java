@@ -59,6 +59,7 @@ public class KOMECourierBoundedRecoveryTest {
     }
 
     @Test public void validRecipientDeliveryAndMasterReportCompleteExactlyOnce() throws Exception {
+        // Successful service can physically issue its small reward in the fixture world.
         KOMEAccessFixture fixture=fixture();KOMEProgressionNpcRef master=master(fixture);
         KOMESerfCourierAssignment assignment=geographic(master,fixture);
         assertNotNull(assignment);
@@ -81,7 +82,7 @@ public class KOMECourierBoundedRecoveryTest {
             assertTrue(active(state).recipient.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc)));
             assertTrue(active(state).atDestination(npc.worldObj.provider.dimensionId,npc.posX,npc.posZ,KOMECourierService.SETTLEMENT_RADIUS));
             assertTrue(fixture.player.getDistanceSqToEntity(npc)<=64D);
-            assertTrue("recipient must pass live validation",KOMECourierService.validRecipient(fixture.player,npc,active(state),master));
+            assertTrue("recipient must pass live validation",KOMECourierService.validRecipient(fixture.player,npc,active(state),master));fixture.world.flatTerrain=true;fixture.world.spawnSucceeds=true;
             assertTrue("rewritten physical dispatch must still match",KOMECourierService.hasMessage(fixture.player,active(state),master));
             assertTrue(KOMECourierService.deliverToRecipient(fixture.player,fixture.data,npc));
             assertTrue(fixture.world.playedSounds.contains("mob.horse.leather"));

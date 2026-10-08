@@ -60,6 +60,8 @@ public class KOMEVisualLocationTransformerTest {
         assertTrue(contains(calls, "org/lwjgl/opengl/GL11.glDepthMask"));
         assertTrue(contains(calls, "net/minecraft/client/renderer/ItemRenderer.renderItemIn2D"));
         assertTrue(contains(calls, KOMEVisualLocationTransformer.BRIDGE + ".relationshipIconForNative"));
+        assertTrue(contains(calls, KOMEVisualLocationTransformer.BRIDGE + ".itemIcon"));
+        assertFalse(contains(calls, "net/minecraft/item/ItemStack.getIconIndex"));
         boolean distanceField = false;
         for (AbstractInsnNode instruction = relationship.instructions.getFirst(); instruction != null;
                 instruction = instruction.getNext())
@@ -88,7 +90,7 @@ public class KOMEVisualLocationTransformerTest {
         assertFalse("The audited LOTR renderer must contain its native rendering calls", originalCalls.isEmpty());
         assertEquals("KOME must not remove or replace native quest/map rendering", originalCalls,
             transformedNativeCalls);
-        assertEquals(1, hookCount(transformed, methodName, descriptor, hookName));
+        assertEquals("Only one marker executes on either native/suppressed path", "renderQuestOffer".equals(methodName)?2:1, hookCount(transformed, methodName, descriptor, hookName));
         assertArrayEquals("Transforming twice must not duplicate visual markers", transformed,
             transformer.transform(targetClass, targetClass, transformed));
     }
@@ -101,7 +103,7 @@ public class KOMEVisualLocationTransformerTest {
                 instruction = instruction.getNext()) {
             if (instruction instanceof MethodInsnNode) {
                 MethodInsnNode call = (MethodInsnNode) instruction;
-                if (includeBridge || !KOMEVisualLocationTransformer.BRIDGE.equals(call.owner))
+                if (includeBridge || !call.owner.startsWith("kome/"))
                     calls.add(call.owner + '.' + call.name + call.desc);
             }
         }
@@ -124,7 +126,7 @@ public class KOMEVisualLocationTransformerTest {
         return null;
     }
 
-    private static byte[] readResource(String name) throws Exception {
+    static byte[] readResource(String name) throws Exception {
         InputStream stream = KOMEVisualLocationTransformerTest.class.getResourceAsStream(name);
         assertNotNull(name, stream);
         try {

@@ -59,11 +59,14 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         MinecraftForge.EVENT_BUS.register(currentTileHud);
         MinecraftForge.EVENT_BUS.register(new KOMEChatSanitizer());
         MinecraftForge.EVENT_BUS.register(new KOMECourierBookPagination());
+        MinecraftForge.EVENT_BUS.register(new KOMECourierInteractionPriority());
+        MinecraftForge.EVENT_BUS.register(new KOMEProgressionOfferClientBridge());
         MinecraftForge.EVENT_BUS.register(new KOMEProgressionMenuOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMELiegeQuestButtonOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEUnitOverviewCapOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEEntityHighlightOverlay());
+        MinecraftForge.EVENT_BUS.register(new KOMEProgressionEnemyOutline());
         MinecraftForge.EVENT_BUS.register(progressionTrackerOverlay);
         FMLCommonHandler.instance().bus().register(progressionTrackerOverlay);
         KOMEWaypointMapOverlay waypointMapOverlay = new KOMEWaypointMapOverlay();
