@@ -110,3 +110,14 @@ KOM-48's coordinator adapter, full siege/episode/sortie owning controllers and K
 physical muster arrival remain genuine dependencies. Do not infer physical company
 repairs, transport outcomes or human permission passes. Concrete Discord transport is
 optional scope. No other person's task, merge or deployment was taken over.
+
+
+## Resumed fixture correction
+
+Current source incorporates dev 69dbad5; matching production hash c4945669 is recorded
+in resumed-candidate.json. Fresh gate is 2,883 passed / five skipped; eight actual
+deobfuscated Forge launches passed. User's first rider was killed by an orc; the safe
+replacement dismounted because the direct-API helper omitted normal LOTR NPC-horse
+setup. Both menu checks remain inconclusive; helper correction retains surviving UUIDs.
+No live reset/restart, multiplayer or lower-spec acceptance is inferred. Update drafts
+remain unposted and ticket statuses unchanged.

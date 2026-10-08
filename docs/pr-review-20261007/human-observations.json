@@ -1,6 +1,6 @@
 {
   "candidate_sha256": "7ab04d4d79da058fad8f8301d4d41253aca45c4788eeab9164efdffccdc52a58",
-  "current_candidate_sha256": "2816008d37c2171fdd41e0af2354f0dd7308fff868c73e020c77449bc9bbb5de",
+  "current_candidate_sha256": "c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726",
   "profile": "kome-review-acceptance-20261007",
   "world": "review-acceptance-fresh",
   "observations": [
@@ -90,14 +90,29 @@
       "reply": "yes",
       "result": "USER_CONFIRMED_ONE_B1_WITH_1.00_0.00_1.00_HOURS",
       "limits": "One authenticated client; not multiplayer or cold restart."
+    },
+    {
+      "test": "mounted-rider-menu-initial-mordor-fixture",
+      "candidate_sha256": "c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726",
+      "profile": "kome-review-mounted-69dbad5-20261007",
+      "reply": "the unit was killed by an orc",
+      "result": "INCONCLUSIVE_FIXTURE_KILLED_BEFORE_MENU_CHECK",
+      "native_followup": "The original company remains with zero units/population; original rider registration absent. Original identities retained in mounted-fixture-killed-by-orc.properties. No reset/restart pass inferred."
+    },
+    {
+      "test": "mounted-rider-menu-protected-rohan-fixture",
+      "candidate_sha256": "c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726",
+      "reply": "theres no unit on the horses, can you respawn him, there is a unit that is off of the hporse tho",
+      "result": "INCONCLUSIVE_DIRECT_API_MOUNT_SETUP",
+      "native_followup": "Both new UUIDs were loaded but mounted tree was broken. Helper omitted LOTR NPC mount ownership/taming. Corrected helper uses verified stock setBelongsToNPC, setRidingHorse, navigator and halt APIs, retaining surviving UUIDs. This is fixture repair, not a gameplay defect or acceptance pass."
     }
   ],
-  "pending_test": null,
+  "pending_test": "Open the corrected owned mounted rider menu in enclosed Rohan T348.",
   "not_inferred": [
     "multiplayer",
     "representative lower-spec performance",
     "reset/governance/daily client acceptance",
     "other Build permissions"
   ],
-  "session_state": "User explicitly stopped further testing after saved-Build reconnect pass."
+  "session_state": "Resumed on current dev 69dbad5 with matching production client/server; human mounted acceptance pending."
 }

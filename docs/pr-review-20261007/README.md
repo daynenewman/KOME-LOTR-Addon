@@ -32,11 +32,20 @@ retain their original candidate identity and are not silently promoted to this J
 
 The production JAR passed the six native resolver controls and isolated-data company
 diagnostic/once-only movement audit probes. The authenticated non-operator is connected.
-An explicitly direct-API mounted fixture is at Mordor's T378 capital anchor
-X 97728.5/Y 200/Z 59712.5; its native Gondor destination is T388,
-X 78016.5/Y 200/Z 66240.5. Initial observed rider/mount HP is 3.25/7.125.
-The current human check is opening the owned rider menu. This fixture is not paid
-recruitment, and no human reset/restart or multiplayer pass has been recorded yet.
+The initial Mordor fixture was killed by an orc before the menu check; that check
+is inconclusive. The replacement direct-API fixture is in an enclosed bedrock arena
+at Rohan T348, X 48704.5/Y 200/Z 53568.5; its native Gondor destination is T388,
+X 78016.5/Y 200/Z 66240.5, also enclosed. User saw the replacement rider dismounted;
+the helper had omitted LOTR's NPC-horse ownership/taming setup. Correcting the helper
+retains the surviving safe UUIDs and uses ordinary stock mount/halt APIs.
+No paid recruitment, human reset/restart or multiplayer pass is recorded yet.
+
+PR #30's exact archived head still passes its original checker. Its 26 files were
+also overlaid in a separate private current-dev checkout: **25 documents, 695 links,
+853 symbol references and 48 exact JUnit selectors passed**, with whitespace checks
+passing. This refresh confirms routing references/discoverability, not a new semantic
+audit of every guide; the guide provenance remains explicitly pinned to b826ef35.
+
 
 ## PR readiness at the first review baseline
 
@@ -149,9 +158,10 @@ The final protected-state comparison covers existing worktree HEAD/status, user 
 stash and runtime file metadata; intentional new task files are excluded. It is not
 a retroactive byte snapshot of pre-existing uncommitted changes.
 
-## Session stop
+## Prior session stop
 
 User stopped further testing after confirming saved B1 survives reconnect with
-1.00/0.00/1.00h and no duplicate. No test is pending user input. The new implementation
-and reports are prepared in the isolated candidate, but have not been committed or
-pushed to PR #26. The disposable world is saved and its server is stopped cleanly.
+1.00/0.00/1.00h and no duplicate. At that stop, no test was pending; the layout-world server was saved and stopped.
+That historical stop predates the resumed current-dev candidate above. Validated
+source reconciliation and reports are now committed in the private clone; publication
+and current mounted acceptance are tracked separately.

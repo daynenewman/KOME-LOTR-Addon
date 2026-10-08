@@ -5,3 +5,11 @@ Wed Oct 07 20:47:50 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Missi
 Wed Oct 07 20:47:50 CDT 2026 FIXTURE_FAIL java.nio.file.NoSuchFileException: C:\Users\dayne\.codex\worktrees\686a\KOME-LOTR-Addon\build\pr-review-20261007\reset-runtime\mounted-fixture.properties
 Wed Oct 07 20:48:24 CDT 2026 PREPARED owner=a976a4b7-0614-49c0-b992-61a3a89bd773 origin=T378 97728.5 200 59712.5 destination=T388 78016.5 200 66240.5 rider=869334e0-706c-4d84-96f9-3ddb101a72a4 mount=4772c3bf-e6a7-4a2c-bfc3-b7c2f09cf357 expectedHP=3.25/7.125 fixtureNotPaidRecruitment=true
 Wed Oct 07 20:48:24 CDT 2026 OBSERVED rider=869334e0-706c-4d84-96f9-3ddb101a72a4 mount=4772c3bf-e6a7-4a2c-bfc3-b7c2f09cf357 riderHP=3.25 mountHP=7.125 x=97728.5 y=200.80000001192093 z=59712.5 reset=kome.common.data.KOMESeasonResetState@7a3ccb9a phase=FINALE originalMountedTree=true
+Wed Oct 07 20:58:20 CDT 2026 STATUS player=a976a4b7-0614-49c0-b992-61a3a89bd773@237248.5,181.0,87295.5 companies=[C-mounted-acceptance] units=[]
+Wed Oct 07 20:58:20 CDT 2026 COMPANY id=C-mounted-acceptance units=[] current=T378 population=0
+Wed Oct 07 20:59:03 CDT 2026 PREPARED owner=a976a4b7-0614-49c0-b992-61a3a89bd773 origin=T348 48704.5 200 53568.5 destination=T388 78016.5 200 66240.5 rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad expectedHP=3.25/7.125 fixtureNotPaidRecruitment=true
+Wed Oct 07 20:59:04 CDT 2026 OBSERVED rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad riderHP=3.25 mountHP=7.125 x=48704.5 y=200.80000001192093 z=53568.5 reset=kome.common.data.KOMESeasonResetState@7a3ccb9a phase=FINALE originalMountedTree=true
+Wed Oct 07 21:00:29 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Original mounted tree broken
+Wed Oct 07 21:02:31 CDT 2026 FIXTURE_FAIL java.lang.NoSuchFieldException: canMove
+Wed Oct 07 21:03:31 CDT 2026 FIXTURE_CORRECTED untamed direct-API horse now setBelongsToNPC=true; original safe UUIDs retained; halted; baselineHP=3.25/7.125; not product repair
+Wed Oct 07 21:03:31 CDT 2026 OBSERVED rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad riderHP=3.25 mountHP=7.125 x=48704.5 y=200.0 z=53568.5 reset=kome.common.data.KOMESeasonResetState@7a3ccb9a phase=FINALE originalMountedTree=true

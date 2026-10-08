@@ -9,6 +9,18 @@ failure was a temporary publication limitation, not the current state.
 
 ## Inputs
 
+This section records the October 5 consolidation inputs. On October 7, after resumed
+acceptance, dev advanced to `69dbad5a8d2d1cef461e8327b961ce9194d8241f`.
+The isolated PR candidate incorporates that dev at
+`d7d4a5a4e0bf810ce321b923b6482cb7d5406406`, retaining RESET precedence before new
+progression NPC reconciliation and both character-storage isolation assertions.
+Fresh validation found 2,888 tests: 2,883 passed, five skipped, zero failures/errors;
+eight disposable deobfuscated Forge launches passed mounted recovery/completion in
+both chunk orders and governance/daily command/save/restart checks. The matching
+production JAR is `c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726`.
+[Current closeout and evidence](pr-review-20261007/README.md) preserve the exact
+artifact identity of earlier human passes and current unresolved acceptance.
+
 - PR #26: `3b67b1ff84f1b834dd2a5bd01361d9b3d7c75b27`.
 - Current dev: `b826ef35a0fb88ce9b2d58129ed307e9986b43d7`, including merged
   KOM-25 tactical configuration, KOM-75 Emergency Defense, and KOM-47 movement.
