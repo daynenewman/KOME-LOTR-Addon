@@ -60,6 +60,32 @@ public class KOMEProgressionGameplayPassTest {
             int probes=f.s.f.world.terrainProbes;assertNotNull(KOMEProgressionDestinations.find(f.s.f.world,KOMEProgressionHardeningGeographyTest.origin(f),500,1500));assertEquals(probes,f.s.f.world.terrainProbes);
         }
     }
+    @Test public void progressionAndIncomingConflictAuthoritiesSurviveTheSameWorldSave()throws Exception {
+        try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
+            KOMEProgressionHardeningGeographyTest.territory(f);
+            KOMEProgressionGameplayFixture.record(f.s.f.world,1800,1000,"rohan");
+            KOMEWorldData data=new KOMEWorldData("combined-authorities");
+            data.initializeIntegratedWorld();
+            data.progressionShelters.putAll(f.s.f.data.progressionShelters);
+            UUID prince=UUID.randomUUID();
+            assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(data,prince,"rohan",
+                KOMEProgressionNpcRank.PRINCE,"Authority",true).success);
+            KOMEConflictService.Result started=data.getConflictService().start("T100",
+                KOMEConflictRecord.State.ORDINARY,KOMEConflictContracts.ExpectedConflict.absent(),
+                Collections.<KOMEConflictContracts.GarrisonSeed>emptyList(),
+                new KOMEConflictContracts.Context(10L,"test","combined progression save"));
+            assertTrue(started.reason,started.isSuccess());
+            NBTTagCompound saved=new NBTTagCompound();data.writeToNBT(saved);
+            KOMEWorldData restored=new KOMEWorldData();restored.readFromNBT(saved);
+            assertFalse(restored.isWriteBlocked());
+            assertEquals(data.progressionShelters,restored.progressionShelters);
+            assertEquals(KOMEProgressionNpcRank.PRINCE,restored.progressionNpcRanks.get(prince).rank);
+            assertEquals(started.record.getConflictId(),restored.getConflictService().get("T100").getConflictId());
+            assertEquals(started.record.getRevision(),restored.getConflictService().get("T100").getRevision());
+            NBTTagCompound resaved=new NBTTagCompound();restored.writeToNBT(resaved);
+            assertEquals(saved,resaved);
+        }
+    }
     @Test public void failedDestinationUsesExistingFailureAndCleansActors()throws Exception {
         try(KOMEKnightCommissionGameplayTest.Session s=new KOMEKnightCommissionGameplayTest.Session()){
             KOMEKnightCommission a=s.active(Type.DANGEROUS_ESCORT);KOMEKnightCommissionGameplayTest.TestNpc charge=KOMEKnightCommissionGameplayTest.actor(s,a,Role.CHARGE);

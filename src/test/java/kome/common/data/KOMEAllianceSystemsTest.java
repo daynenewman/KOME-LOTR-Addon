@@ -619,15 +619,15 @@ public class KOMEAllianceSystemsTest {
             KOMEDiplomacyService.getRelation(data, "gondor", "rohan"));
     }
     @Test
-    public void wartimeStewardshipIsDormantInPeaceAndTargetsOnlyOpposingSide() {
+    public void fixedWarSidesNeverGrantEmergencyDefenseOrStewardshipTargets() {
         KOMEWorldData data = new KOMEWorldData("test");
         setLotrRelation("gondor", "rohan", KOMEDiplomacyRelation.FRIENDS);
         assertFalse(KOMEWartimeStewardshipService.isAuthorized(data, "rohan", "gondor"));
         KOMEWar war = KOMEWarService.createWar(data, "gondor", "rhudel", "", "tester", 100L);
         assertTrue(war.addFaction(1, "rohan"));
         assertTrue(war.sameSide("gondor", "rohan"));
-        assertTrue(KOMEWartimeStewardshipService.isAuthorized(data, "rohan", "gondor"));
-        assertTrue(KOMEWarService.authorizedOpponents(data, "rohan", "gondor").contains("rhudel"));
+        assertFalse(KOMEWartimeStewardshipService.isAuthorized(data, "rohan", "gondor"));
+        assertFalse(KOMEWarService.authorizedOpponents(data, "rohan", "gondor").contains("rhudel"));
         assertFalse(KOMEWarService.authorizedOpponents(data, "rohan", "gondor").contains("mordor"));
         war.status = KOMEWar.ENDING;
         assertFalse(KOMEWartimeStewardshipService.isAuthorized(data, "rohan", "gondor"));
@@ -734,7 +734,7 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void stewardshipSupportsMultipleWarsAndRevokesOnSideChangeOrKingReturn() {
+    public void historicalMultipleWarsNoLongerGrantStewardshipAuthority() {
         KOMEWorldData data = new KOMEWorldData("test");
         setLotrRelation("rohan", "gondor", KOMEDiplomacyRelation.FRIENDS);
         UUID controller = crown(data, "gondor", "Supporting King");
@@ -750,17 +750,16 @@ public class KOMEAllianceSystemsTest {
         company.temporaryController = controller;
         company.controllerAuthority = KOMEArmyCompany.AUTHORITY_STEWARDSHIP;
         KOMEWartimeStewardshipService.authorizeCompany(data, company, "gondor", "test", 3L);
-        assertEquals(2, company.authorizedWarIds.size());
-        assertTrue(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains("rhudel"));
-        assertTrue(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains("mordor"));
+        assertEquals(0, company.authorizedWarIds.size());
+        assertFalse(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains("rhudel"));
+        assertFalse(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains("mordor"));
         assertFalse(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains("angmar"));
 
         east.removeFaction("rohan");
         KOMEWartimeStewardshipService.revalidateCompany(data, company, 4L, "side changed");
-        assertEquals(1, company.authorizedWarIds.size());
-        assertTrue(company.authorizedWarIds.contains(south.id));
+        assertEquals(0, company.authorizedWarIds.size());
         KOMERulerService.assignRuler(data, "rohan", UUID.randomUUID(), "King");
-        assertFalse(KOMEWartimeStewardshipService.revalidateCompany(data, company, 5L, "king returned"));
+        assertTrue(KOMEWartimeStewardshipService.revalidateCompany(data, company, 5L, "king returned"));
         assertNull(company.temporaryController);
     }
 
@@ -777,7 +776,7 @@ public class KOMEAllianceSystemsTest {
         company.controllerAuthority = KOMEArmyCompany.AUTHORITY_STEWARDSHIP;
         company.authorizedWarIds.add(war.id);
         assertTrue(KOMEWartimeStewardshipService.canEnter(data, company, "rohan", false));
-        assertTrue(KOMEWartimeStewardshipService.canEnter(data, company, "rhudel", false));
+        assertFalse(KOMEWartimeStewardshipService.canEnter(data, company, "rhudel", false));
         assertFalse(KOMEWartimeStewardshipService.canEnter(data, company, "mordor", false));
         war.status = KOMEWar.ENDING;
         assertFalse(KOMEWartimeStewardshipService.canEnter(data, company, "rhudel", false));
@@ -827,7 +826,7 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void stewardshipIsKingOnlyAndSupportingKingReplacementReauthorizesWithoutChangingCoalition() {
+    public void retiredStewardshipDeniesSupportingKingReplacementReauthorization() {
         KOMEWorldData data = new KOMEWorldData("test");
         establishMilitaryT3(data, "rohan", "gondor");
         UUID originalKing = crown(data, "gondor", "First King");
@@ -837,7 +836,7 @@ public class KOMEAllianceSystemsTest {
         assertTrue(war.addFaction(1, "gondor"));
 
         assertFalse(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", ordinaryMember).allowed);
-        assertTrue(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", originalKing).allowed);
+        assertFalse(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", originalKing).allowed);
 
         KOMEArmyCompany company = new KOMEArmyCompany();
         company.id = "replacement-company";
@@ -849,7 +848,7 @@ public class KOMEAllianceSystemsTest {
         company.stewardshipCreated = true;
         data.armyCompanies.put(company.id, company);
         KOMEWartimeStewardshipService.authorizeCompany(data, company, "gondor", "test", 2L);
-        assertTrue(company.authorizedWarIds.contains(war.id));
+        assertTrue(company.authorizedWarIds.isEmpty());
 
         data.lastKnownPlayerFactions.put(originalKing, "");
         KOMERulerService.removeRulerHeldBy(data, originalKing);
@@ -859,9 +858,8 @@ public class KOMEAllianceSystemsTest {
         assertNull(war.supportEnrollment("rohan", "gondor", false));
 
         UUID replacementKing = crown(data, "gondor", "Second King");
-        assertEquals(replacementKing, company.temporaryController);
-        assertTrue(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", replacementKing).allowed);
-        assertTrue(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", replacementKing).allowed);
+        assertNull(company.temporaryController);
+        assertFalse(KOMEWarService.supportingKingDecision(data, "rohan", "gondor", replacementKing).allowed);
     }
 
     @Test
@@ -891,7 +889,7 @@ public class KOMEAllianceSystemsTest {
     }
 
     @Test
-    public void overlappingWarEndRetainsOtherAuthorizationAndOpponentUnion() {
+    public void overlappingWarsRemainHistoricalAndGrantNoOpponentAuthority() {
         KOMEWorldData data = new KOMEWorldData("test");
         establishMilitaryT3(data, "rohan", "gondor");
         UUID king = crown(data, "gondor", "Supporting King");
@@ -907,19 +905,18 @@ public class KOMEAllianceSystemsTest {
         company.controllerAuthority = KOMEArmyCompany.AUTHORITY_STEWARDSHIP;
         data.armyCompanies.put(company.id, company);
         KOMEWartimeStewardshipService.authorizeCompany(data, company, "gondor", "test", 3L);
-        assertEquals(2, company.authorizedWarIds.size());
-        assertTrue(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
+        assertEquals(0, company.authorizedWarIds.size());
+        assertFalse(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
             KOMEAlliance.normalizeFactionKey("mordor")));
-        assertTrue(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
+        assertFalse(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
             KOMEAlliance.normalizeFactionKey("rhudel")));
 
         first.status = KOMEWar.ENDING;
-        assertTrue(KOMEWartimeStewardshipService.revalidateCompany(data, company, 4L, "first war ending"));
-        assertEquals(1, company.authorizedWarIds.size());
-        assertTrue(company.authorizedWarIds.contains(second.id));
+        assertFalse(KOMEWartimeStewardshipService.revalidateCompany(data, company, 4L, "first war ending"));
+        assertEquals(0, company.authorizedWarIds.size());
         assertFalse(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
             KOMEAlliance.normalizeFactionKey("mordor")));
-        assertTrue(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
+        assertFalse(KOMEWartimeStewardshipService.authorizedOpponents(data, company).contains(
             KOMEAlliance.normalizeFactionKey("rhudel")));
     }
 

@@ -1,6 +1,9 @@
 package kome.common.data;
 
 import java.util.UUID;
+import java.util.Map;
+import java.util.LinkedHashMap;
+import net.minecraft.nbt.NBTTagList;
 import net.minecraft.nbt.NBTTagCompound;
 
 /** Persisted campaign clock. All transitions are explicit and caller-clocked. */
@@ -16,6 +19,17 @@ public final class KOMEWarSeasonState {
     public long finaleEndTimeMillis = -1L;
     /** PENDING while RESET is in progress, COMPLETE after its explicit completion. */
     public String resetStatus = "NOT_STARTED";
+    /** Once-only faction defeat outcomes for this season; objectives are always derived live. */
+    final Map<String, Long> factionDefeats = new LinkedHashMap<String, Long>();
+
+    public boolean isFactionDefeated(String faction) {
+        return factionDefeats.containsKey(KOMEAlliance.normalizeFactionKey(faction));
+    }
+
+    public long factionDefeatedAt(String faction) {
+        Long time = factionDefeats.get(KOMEAlliance.normalizeFactionKey(faction));
+        return time == null ? -1L : time.longValue();
+    }
 
     public boolean isPopulationPayoutEnabled() { return phase == Phase.WAR || phase == Phase.FINALE; }
 
@@ -53,6 +67,7 @@ public final class KOMEWarSeasonState {
         if (phase != Phase.RESET) return TransitionResult.denied("Reset can be completed only while the season is RESET.");
         phase = Phase.MAINTENANCE;
         seasonId = Math.max(1L, seasonId) + 1L;
+        factionDefeats.clear();
         minimumWarEndMillis = -1L;
         finaleTriggerActor = null;
         finaleTriggerActorName = "";
@@ -89,6 +104,23 @@ public final class KOMEWarSeasonState {
         finaleTriggerTimeMillis = tag.hasKey("FinaleTriggerTimeMillis") ? tag.getLong("FinaleTriggerTimeMillis") : -1L;
         finaleEndTimeMillis = tag.hasKey("FinaleEndTimeMillis") ? tag.getLong("FinaleEndTimeMillis") : -1L;
         resetStatus = tag.hasKey("ResetStatus") ? tag.getString("ResetStatus") : "NOT_STARTED";
+        factionDefeats.clear();
+        if (tag.hasKey("FactionDefeats") && !tag.hasKey("FactionDefeats", 9))
+            throw new IllegalArgumentException("Invalid faction defeat list");
+        NBTTagList defeats = tag.hasKey("FactionDefeats")
+            ? (NBTTagList) tag.getTag("FactionDefeats") : new NBTTagList();
+        if (defeats.tagCount() > 0 && defeats.func_150303_d() != 10)
+            throw new IllegalArgumentException("Invalid faction defeat entries");
+        for (int i = 0; i < defeats.tagCount(); i++) {
+            NBTTagCompound entry = defeats.getCompoundTagAt(i);
+            String faction = entry.getString("Faction");
+            long time = entry.getLong("DefeatedAtMillis");
+            if (!KOMEAlliance.allFactionKeys().contains(faction)
+                    || !entry.hasKey("Faction", 8) || !entry.hasKey("DefeatedAtMillis", 4)
+                    || time < 0L || factionDefeats.containsKey(faction))
+                throw new IllegalArgumentException("Invalid or duplicate faction defeat: " + faction);
+            factionDefeats.put(faction, Long.valueOf(time));
+        }
     }
 
     public void writeToNBT(NBTTagCompound tag) {
@@ -98,6 +130,13 @@ public final class KOMEWarSeasonState {
         tag.setString("FinaleTriggerActorName", finaleTriggerActorName == null ? "" : finaleTriggerActorName);
         tag.setLong("FinaleTriggerTimeMillis", finaleTriggerTimeMillis); tag.setLong("FinaleEndTimeMillis", finaleEndTimeMillis);
         tag.setString("ResetStatus", resetStatus == null ? "NOT_STARTED" : resetStatus);
+        NBTTagList defeats = new NBTTagList();
+        for (Map.Entry<String, Long> defeat : factionDefeats.entrySet()) {
+            NBTTagCompound entry = new NBTTagCompound();
+            entry.setString("Faction", defeat.getKey()); entry.setLong("DefeatedAtMillis", defeat.getValue());
+            defeats.appendTag(entry);
+        }
+        tag.setTag("FactionDefeats", defeats);
     }
 
     public static final class TransitionResult {

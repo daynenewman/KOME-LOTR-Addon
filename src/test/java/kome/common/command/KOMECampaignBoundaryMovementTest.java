@@ -22,33 +22,23 @@ public class KOMECampaignBoundaryMovementTest {
     private static final Instant START = Instant.parse("2026-01-10T12:00:00Z");
     private static final Instant DUE = Instant.parse("2026-01-11T02:00:00Z");
 
-    @Test public void newFootAndMountedRoutesConsumeOnlySuccessfulDepartures() {
-        for (int allowance : new int[] {1, 2}) {
-            KOMEArmyMovementOrder order = KOMEArmyMovementOrder.newRoute(allowance);
-            assertEquals(allowance, order.dailyStepsRemaining);
-            assertFalse(order.tryDepart(true, () -> false));
-            assertEquals(allowance, order.dailyStepsRemaining);
-            assertTrue(order.tryDepart(true, () -> true));
-            assertEquals(allowance - 1, order.dailyStepsRemaining);
-            if (allowance == 2) assertTrue(order.tryDepart(true, () -> true));
-            assertFalse(order.tryDepart(true, () -> { fail("Spent allowance must not attempt departure"); return true; }));
-            NBTTagCompound tag = order.writeToNBT();
-            KOMEArmyMovementOrder restored = new KOMEArmyMovementOrder(); restored.readFromNBT(tag);
-            assertEquals(0, restored.dailyStepsRemaining);
+    @Test public void newRoutesNeverGrantMovementCredit() {
+        for (int entitlement : new int[]{1, 2, 5}) {
+            KOMEArmyMovementOrder order = KOMEArmyMovementOrder.newRoute(entitlement);
+            assertEquals(0, order.dailyStepsRemaining);
         }
     }
-
     @Test public void observedResetIsOnceAndRestartDoesNotReplayMissedMovement() throws Exception {
         try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
             KOMEWorldData data = new KOMEWorldData("movement");
             KOMEArmyMovementOrder order = route(data, 2);
-            order.dailyStepsRemaining = 0;
+            order.dailyStepsRemaining = 0; data.armyCompanies.get(order.companyId).movementAllowance = 0;
             KOMECommandTroops.anchorMovementSchedule(data, START.toEpochMilli());
             KOMECommandTroops.resetDailyMovementAllowances(data, DUE.minusMillis(1).toEpochMilli());
             assertEquals(0, order.dailyStepsRemaining);
             KOMECommandTroops.resetDailyMovementAllowances(data, DUE.toEpochMilli());
             assertEquals(2, order.dailyStepsRemaining);
-            assertTrue(order.tryDepart(true, () -> true));
+            assertTrue(KOMEMovementDayService.depart(data, order, true, () -> true));
             KOMECommandTroops.resetDailyMovementAllowances(data, DUE.toEpochMilli());
             assertEquals(1, order.dailyStepsRemaining);
             NBTTagCompound tag = new NBTTagCompound(); data.writeToNBT(tag);
@@ -58,6 +48,26 @@ public class KOMECampaignBoundaryMovementTest {
             KOMECommandTroops.resetDailyMovementAllowances(restored, restart.toEpochMilli());
             assertEquals(1, restored.armyMovements.get(order.id).dailyStepsRemaining);
             assertTrue(restored.armyMovements.get(order.id).nextDailyStepMillis > restart.toEpochMilli());
+        }
+    }
+    @Test public void movementDomainBoundaryAdvancesQueuedMultiDayRouteOncePerObservedDay() throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            KOMEWorldData data = new KOMEWorldData("multi-day"); KOMEArmyMovementOrder order = route(data, 1);
+            KOMEConquestTile third = new KOMEConquestTile("T003"); third.claim("gondor", 0L);
+            third.setAnchor(0, 10, 64, 20); data.conquestTiles.put(third.id, third);
+            data.setRouteEdge("T002", "T003", KOMEConquestRouteEdge.OPEN,"fixture",0,10,64,20,"test");
+            order.routeTiles.add("T003"); order.destinationTile = order.finalDestinationTile = "T003";
+            order.distanceTiles = order.totalSteps = order.finalRouteIndex = 2;
+            KOMEMovementDayService.anchor(data, START.toEpochMilli());
+            World world = world(); KOMECommandTroops.processMovementTick(data, world, START.toEpochMilli());
+            assertEquals(1, order.completedSteps); assertEquals(KOMEArmyMovementOrder.WAITING_NEXT_STEP, order.status);
+            assertEquals(0, data.armyCompanies.get(order.companyId).movementAllowance);
+            KOMEMovementDayService.applyBoundaryAndAdvance(data, world, DUE.toEpochMilli(), DUE.toEpochMilli());
+            assertEquals(2, order.completedSteps); assertEquals(KOMEArmyMovementOrder.ARRIVED, order.status);
+            assertEquals(0, data.armyCompanies.get(order.companyId).movementAllowance);
+            NBTTagCompound before = order.writeToNBT(); data.setDirty(false);
+            KOMEMovementDayService.applyBoundaryAndAdvance(data, world, DUE.toEpochMilli(), DUE.toEpochMilli());
+            assertEquals(before, order.writeToNBT()); assertFalse(data.isDirty());
         }
     }
 
@@ -75,7 +85,7 @@ public class KOMECampaignBoundaryMovementTest {
             assertEquals(1, order.dailyStepsRemaining);
             KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
             record.entity = unit; record.movementOrderId = order.id;
-            record.stationedEntityData = new NBTTagCompound(); data.hiredUnits.put(unit, record);
+            record.stationedEntityData = new NBTTagCompound(); record.stationedEntityData.setFloat("HealF", 5.375F); data.hiredUnits.put(unit, record);
             assertTrue(KOMECommandTroops.processWaitingStepDepartures(data, world, order.nextStepDepartureMillis));
             assertEquals(KOMEArmyMovementOrder.MOVING, order.status);
             assertEquals(0, order.dailyStepsRemaining);
@@ -90,7 +100,7 @@ public class KOMECampaignBoundaryMovementTest {
             ArrivalObservedData data = new ArrivalObservedData();
             data.warSeason.recordLegalConflict(0L, -1L);
             KOMEArmyMovementOrder order = route(data, 1);
-            order.status = KOMEArmyMovementOrder.MOVING; order.dailyStepsRemaining = 0;
+            order.status = KOMEArmyMovementOrder.MOVING; order.dailyStepsRemaining = 0; data.armyCompanies.get(order.companyId).movementAllowance = 0;
             order.arrivalMillis = DUE.toEpochMilli();
             order.arrivalX = 10.0D; order.arrivalY = 64.0D; order.arrivalZ = 20.0D;
             KOMEPlayerBuild build = new KOMEPlayerBuild(); build.id = "captured"; build.tileId = "T002";
@@ -118,8 +128,8 @@ public class KOMECampaignBoundaryMovementTest {
         String troops = source("command/KOMECommandTroops.java");
         assertFalse(troops.contains("Calendar")); assertFalse(troops.contains("movementDailyResetTimezone"));
         assertFalse(troops.contains("dailyStepsRemaining = Math.max"));
-        assertEquals(1, troops.split("KOMEArmyMovementOrder.newRoute\\(", -1).length - 1);
-        assertTrue(troops.contains("order.tryDepart(isDailyMovementMode(data)"));
+        assertTrue(troops.contains("KOMEMovementDayService.depart(data, order"));
+        assertFalse(troops.contains("order.tryDepart("));
     }
 
     @Test public void zeroBudgetSurvivesRepeatedCommandsRetriesReloadAndRestartUntilObservedBoundary() throws Exception {
@@ -129,13 +139,15 @@ public class KOMECampaignBoundaryMovementTest {
                 KOMEArmyMovementOrder order = route(data, allowance);
                 KOMEConquestTile third = new KOMEConquestTile("T003"); third.claim("gondor", 0L);
                 third.setAnchor(0, 10.0D, 64.0D, 20.0D); data.conquestTiles.put(third.id, third);
+                data.setRouteEdge("T002", "T003", KOMEConquestRouteEdge.OPEN,
+                    "boundary fixture", 0, 10, 64, 20, "test");
                 order.routeTiles.add("T003"); order.traveledRouteTiles.add("T002");
-                order.currentTile = "T002"; order.currentStepOriginTile = "T002";
+                order.currentTile = "T002"; order.currentStepOriginTile = "T002"; data.armyCompanies.get(order.companyId).currentTile = "T002";
                 order.nextTile = "T003"; order.currentStepDestinationTile = "T003";
                 order.destinationTile = "T003"; order.finalDestinationTile = "T003";
                 order.currentRouteIndex = 1; order.nextRouteIndex = 2; order.finalRouteIndex = 2;
                 order.totalSteps = 2; order.distanceTiles = 2;
-                order.status = KOMEArmyMovementOrder.ACCESS_HALTED; order.dailyStepsRemaining = 0;
+                order.status = KOMEArmyMovementOrder.ACCESS_HALTED; order.dailyStepsRemaining = 0; data.armyCompanies.get(order.companyId).movementAllowance = 0;
                 World world = world();
                 FixturePlayer player = (FixturePlayer) allocate(FixturePlayer.class);
                 player.worldObj = world;
@@ -177,7 +189,7 @@ public class KOMECampaignBoundaryMovementTest {
                 assertTrue(acceptedRetreats > 0);
                 NBTTagCompound persisted = new NBTTagCompound(); data.writeToNBT(persisted);
                 KOMEWorldData restored = new KOMEWorldData("restart"); restored.readFromNBT(persisted);
-                KOMEArmyMovementOrder reloaded = restored.armyMovements.get(order.id);
+                KOMEArmyMovementOrder reloaded = restored.armyMovements.get(order.id); restored.armyCompanies.get(order.companyId).mountedPopulation = allowance == 2 ? 1 : 0;
                 assertEquals(0, reloaded.dailyStepsRemaining);
                 Instant restart = DUE.plusSeconds(8L * 86400L + 3600L);
                 KOMEPopulationPayoutRuntime runtime = new KOMEPopulationPayoutRuntime();
@@ -215,11 +227,22 @@ public class KOMECampaignBoundaryMovementTest {
     }
 
     private static KOMEArmyMovementOrder route(KOMEWorldData data, int allowance) {
+        // These synthetic tiles have no packaged connection; the fixture explicitly authorizes its route.
+        data.setRouteEdge("T001", "T002", KOMEConquestRouteEdge.OPEN,
+            "boundary fixture", 0, 10, 64, 20, "test");
         for (String id : new String[] {"T001", "T002"}) {
             KOMEConquestTile tile = new KOMEConquestTile(id); tile.claim("gondor", 0L);
             tile.setAnchor(0, 10.0D, 64.0D, 20.0D); data.conquestTiles.put(id, tile);
         }
+        KOMEArmyCompany company = new KOMEArmyCompany();
+        company.id = "C1"; company.owner = UUID.randomUUID(); company.faction = "gondor";
+        company.currentTile = "T001"; company.mountedPopulation = allowance == 2 ? 1 : 0;
+        company.groundPopulation = allowance == 1 ? 1 : 0;
+        company.status = KOMEArmyCompany.MOVING; company.movementOrderId = "M1";
+        KOMEMovementDayService.initializeNewCompany(company, START.toEpochMilli());
+        data.armyCompanies.put(company.id, company);
         KOMEArmyMovementOrder order = KOMEArmyMovementOrder.newRoute(allowance);
+        order.companyId = company.id; order.dailyStepsRemaining = company.movementAllowance;
         order.id = "M1"; order.ownerFaction = "gondor"; order.status = KOMEArmyMovementOrder.WAITING_NEXT_STEP;
         order.originTile = "T001"; order.destinationTile = "T002";
         order.currentTile = "T001"; order.nextTile = "T002";

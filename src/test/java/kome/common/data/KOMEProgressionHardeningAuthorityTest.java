@@ -52,4 +52,3 @@ public class KOMEProgressionHardeningAuthorityTest {
         assertFalse(f.s.p.isCompleted(KOMEProgressionAchievement.forID("knight.title_lord")));assertTrue(KOMEProgressionPermissions.has(f.s.f.player,KOMEProgressionPermissions.TAKE_WAYPOINTS));assertTrue(KOMEProgressionPermissions.has(f.s.f.player,KOMEProgressionPermissions.RECLAIM_WAYPOINTS));
     }}
 }
-

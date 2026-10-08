@@ -58,6 +58,9 @@ public class KOMEHiredUnitRecord {
     public String releaseState = "";
     public NBTTagCompound movingEntityData;
     public NBTTagCompound stationedEntityData;
+    public NBTTagCompound survivingHealth;
+    transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedEntity;
+    transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedMount;
 
     public void readFromNBT(NBTTagCompound nbt) {
         entity = UUID.fromString(nbt.getString("Entity"));
@@ -114,6 +117,11 @@ public class KOMEHiredUnitRecord {
         releaseState = nbt.getString("ReleaseState");
         movingEntityData = nbt.hasKey("MovingEntityData", 10) ? nbt.getCompoundTag("MovingEntityData") : null;
         stationedEntityData = nbt.hasKey("StationedEntityData", 10) ? nbt.getCompoundTag("StationedEntityData") : null;
+        if (nbt.hasKey("SurvivingHealth") && !nbt.hasKey("SurvivingHealth", 10))
+            throw new IllegalArgumentException("Invalid survivor health authority");
+        survivingHealth = nbt.hasKey("SurvivingHealth", 10) ? (NBTTagCompound) nbt.getCompoundTag("SurvivingHealth").copy() : null;
+        healthObservedEntity = null;
+        healthObservedMount = null;
         if (farmhand) {
             cost = 0;
             baseCost = 0;
@@ -122,6 +130,7 @@ public class KOMEHiredUnitRecord {
     }
 
     public NBTTagCompound writeToNBT() {
+        KOMECampaignHealth.refresh(this);
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Entity", entity.toString());
         nbt.setString("Owner", owner.toString());
@@ -167,6 +176,7 @@ public class KOMEHiredUnitRecord {
         if (stationedEntityData != null) {
             nbt.setTag("StationedEntityData", stationedEntityData);
         }
+        if (survivingHealth != null) nbt.setTag("SurvivingHealth", survivingHealth.copy());
         return nbt;
     }
 

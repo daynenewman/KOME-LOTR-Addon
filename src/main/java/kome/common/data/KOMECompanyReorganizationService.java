@@ -38,6 +38,7 @@ public final class KOMECompanyReorganizationService {
         TRANSFER_PENDING,
         WITHDRAWAL_ACTIVE,
         MUTATION_HOLD,
+        CONFLICT_COMMITTED,
         AUTHORITY_STATE_UNSAFE,
         SAME_COMPANY,
         DIFFERENT_OWNER,
@@ -187,6 +188,7 @@ public final class KOMECompanyReorganizationService {
                 }
                 data.recalculateCampaignCompanyComposition(parent);
                 data.recalculateCampaignCompanyComposition(child);
+                KOMEMovementDayService.split(parent, child);
                 mutationHook.afterMutation(operation, parent, child);
                 requireValidSplit(data, parent, child, selected);
                 data.markDirty();
@@ -270,6 +272,7 @@ public final class KOMECompanyReorganizationService {
                 absorbed.units.clear();
                 data.armyCompanies.remove(absorbed.id);
                 data.recalculateCampaignCompanyComposition(survivor);
+                KOMEMovementDayService.merge(survivor, absorbed);
                 mutationHook.afterMutation(operation, survivor, absorbed);
                 requireValidMerge(data, survivor, absorbed.id, recordsBefore.keySet());
                 data.markDirty();
@@ -296,6 +299,15 @@ public final class KOMECompanyReorganizationService {
         if (company.units.isEmpty()) {
             return new Failure(Code.EMPTY_COMPANY,
                 "An empty Campaign Detachment cannot be reorganized.");
+        }
+        KOMEConflictRecord conflict =
+            KOMEConflictMovementService.activeConflictForDetachment(data, company.id);
+        if (conflict != null
+                || KOMEConflictMovementService.isActivelyCommitted(data, company.id)) {
+            return new Failure(Code.CONFLICT_COMMITTED,
+                "Campaign Detachment is committed to active conflict "
+                    + (conflict == null ? "(ambiguous authority)" : conflict.getConflictId())
+                    + ".");
         }
         if (company.transferRecipient != null || company.transferOfferedBy != null) {
             return new Failure(Code.TRANSFER_PENDING,

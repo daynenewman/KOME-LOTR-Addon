@@ -28,7 +28,7 @@ public class KOMEGuiCompanyMoveConfirm extends GuiScreen {
     protected void actionPerformed(GuiButton button) {
         if (button.id == 0) {
             KOMEPacketHandler.network.sendToServer(new KOMEPacketTroopGuiAction(
-                "move", move.companyId, move.destinationTile, move.originTile));
+                "move", move.companyId, move.destinationTile, move.originTile, move.previewToken));
         } else if (button.id == 1) {
             mc.displayGuiScreen(null);
         }
@@ -49,13 +49,16 @@ public class KOMEGuiCompanyMoveConfirm extends GuiScreen {
         drawCard(x + 24, y + 204, PANEL_WIDTH - 48, 44, "Arrival Point",
             "Dim " + move.arrivalDimension + " at " + formatCoord(move.arrivalX) + ", " + formatCoord(move.arrivalY) + ", " + formatCoord(move.arrivalZ),
             move.arrivalSource == null || move.arrivalSource.length() == 0 ? "Saved Rally Point" : move.arrivalSource);
-        String speed = move.tilesPerDay == 2 ? "Mounted company: 2 tiles/day" : "Ground/mixed company: 1 tile/day";
+        String speed = (move.groundPopulation == 0 && move.mountedPopulation > 0 ? "Mounted" : "Ground/mixed")
+            + " company: " + move.tilesPerDay + " tiles/day; remaining " + move.remainingAllowance;
         fontRendererObj.drawString("Mounted: " + move.mountedPopulation + "   Ground: " + move.groundPopulation,
             x + 38, y + 254, KOMEGuiTheme.COLOR_TEXT);
         fontRendererObj.drawString(speed, x + 38, y + 270, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        String step = "Steps: " + move.distanceTiles + " | first move immediate";
+        String step = "Steps: " + move.distanceTiles + " | "
+            + (move.immediateMovementPossible ? "movement available now" : "waiting for movement allowance");
         fontRendererObj.drawString(step, x + 38, y + 286, KOMEGuiTheme.COLOR_TEXT_MUTED);
-        String eta = "Full route: " + formatDuration(move.travelMillis);
+        String eta = move.requiredMovementBoundaries == 0 ? "Arrival: current movement day"
+            : "Future boundaries: " + move.requiredMovementBoundaries;
         fontRendererObj.drawString(eta, x + PANEL_WIDTH - 38 - fontRendererObj.getStringWidth(eta), y + 270, KOMEGuiTheme.COLOR_BORDER_RED);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

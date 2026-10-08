@@ -361,7 +361,7 @@ public class CharacterCreationIsolationTest {
             } else if(relativePath.endsWith("KOMEProgressionProtectedActors.java")){
                 assertTrue(text.contains("LOTREntityNPC npc"));assertTrue(text.contains("KOMEProtectedHome"));
                 assertFalse(text.contains("player.getEntityData"));
-            } else if (!relativePath.endsWith("KOMECourierRecipientSpawner.java") && !relativePath.endsWith("KOMECourierService.java") && !relativePath.endsWith("KOMEProgressionEncounterMarker.java"))
+            } else if (!relativePath.endsWith("KOMECourierRecipientSpawner.java") && !relativePath.endsWith("KOMECourierService.java") && !relativePath.endsWith("KOMEProgressionEncounterMarker.java") && !relativePath.endsWith("KOMEEmergencyDefenseEntityMarker.java"))
                 assertFalse(relativePath, Pattern.compile("\\bgetEntityData\\s*\\(").matcher(text).find());
             assertFalse(relativePath, text.contains("EntityPlayer.PERSISTED_NBT_TAG"));
             assertFalse(relativePath, text.contains("\"ForgeData\""));

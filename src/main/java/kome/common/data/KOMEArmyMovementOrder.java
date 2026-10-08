@@ -20,6 +20,10 @@ public class KOMEArmyMovementOrder {
     public static final String RETREATING = "retreating";
     public static final String HOLDING = "holding";
     public static final String WAR_ENDED_HALTED = "war_ended_halted";
+    /** Route remains intact, but an active ConflictRecord owns departure authority. */
+    public static final String CONFLICT_HELD = "conflict_held";
+    /** Conflict ended; route remains paused until an explicit validated movement outcome. */
+    public static final String CONFLICT_RELEASED_PAUSED = "conflict_released_paused";
     public static final long REAL_DAY_MILLIS = 24L * 60L * 60L * 1000L;
 
     public String id = "";
@@ -99,29 +103,30 @@ public class KOMEArmyMovementOrder {
     public String accessLossReason = "";
     public long accessLostAtMillis;
     public String accessChoice = "";
+    /** Explicit terminal hostile destination authorized when this order was dispatched. */
+    public String hostileAttackDestination = "";
+    /** Active ConflictRecord responsible for pausing this order; empty when not conflict-held. */
+    public String conflictHoldId = "";
+    public long conflictHeldAtMillis;
+    public KOMEConflictMovementHandoff.Receipt conflictRelease;
+    public KOMEStrategicArrivalPlacement.Context strategicArrival;
+    public boolean exteriorPlacementRequired;
 
-    /** Only creation grants the initial allowance. Persistence and status changes never call this. */
+    /** Creates route metadata only. Movement credit belongs to KOMEArmyCompany. */
     public static KOMEArmyMovementOrder newRoute(int tilesPerDay) {
         if (tilesPerDay <= 0) throw new IllegalArgumentException("Movement allowance must be positive");
         KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
         order.tilesPerDay = tilesPerDay;
-        order.dailyStepsRemaining = tilesPerDay;
+        order.dailyStepsRemaining = 0; // diagnostic mirror; route creation grants no company credit
         return order;
-    }
-
-    /** Departure must commit before its allowance is consumed. Blocked/retry paths keep the budget. */
-    public boolean tryDepart(boolean dailyMode, java.util.function.BooleanSupplier departure) {
-        if (dailyMode && dailyStepsRemaining <= 0) return false;
-        if (!departure.getAsBoolean()) return false;
-        if (dailyMode) dailyStepsRemaining--;
-        return true;
     }
 
     public boolean isMoving() {
         return MOVING.equals(status) || PENDING_SPAWN.equals(status) || SPAWNING.equals(status)
             || SPAWN_BLOCKED.equals(status) || WAITING_NEXT_STEP.equals(status)
             || ACCESS_HALTED.equals(status) || RETREATING.equals(status) || HOLDING.equals(status)
-            || WAR_ENDED_HALTED.equals(status);
+            || WAR_ENDED_HALTED.equals(status) || CONFLICT_HELD.equals(status)
+            || CONFLICT_RELEASED_PAUSED.equals(status);
     }
 
     public boolean hasArrived(long nowMillis) {
@@ -158,6 +163,11 @@ public class KOMEArmyMovementOrder {
 
     public NBTTagCompound writeToNBT() {
         NBTTagCompound nbt = new NBTTagCompound();
+        if (conflictRelease != null) nbt.setTag("ConflictMovementRelease", conflictRelease.write());
+        if (strategicArrival != null) {
+            nbt.setTag("StrategicArrival", strategicArrival.write());
+            nbt.setBoolean("ExteriorPlacementRequired", exteriorPlacementRequired);
+        }
         nbt.setString("Id", id == null ? "" : id);
         nbt.setString("CompanyId", companyId == null ? "" : companyId);
         nbt.setString("CompanyName", companyName == null ? "" : companyName);
@@ -232,6 +242,9 @@ public class KOMEArmyMovementOrder {
         nbt.setString("AccessLossReason", accessLossReason == null ? "" : accessLossReason);
         nbt.setLong("AccessLostAtMillis", accessLostAtMillis);
         nbt.setString("AccessChoice", accessChoice == null ? "" : accessChoice);
+        nbt.setString("HostileAttackDestination", KOMEConquestTile.normalizeId(hostileAttackDestination));
+        nbt.setString("ConflictHoldId", conflictHoldId == null ? "" : conflictHoldId);
+        nbt.setLong("ConflictHeldAtMillis", Math.max(0L, conflictHeldAtMillis));
         NBTTagList unitList = new NBTTagList();
         for (UUID unit : units) {
             if (unit != null) {
@@ -259,6 +272,21 @@ public class KOMEArmyMovementOrder {
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
+        conflictRelease = null; strategicArrival = null; exteriorPlacementRequired = false;
+        if (nbt.hasKey("ConflictMovementRelease")) {
+            if (!nbt.hasKey("ConflictMovementRelease", 10)) throw new IllegalArgumentException("Invalid conflict movement receipt tag");
+            conflictRelease = KOMEConflictMovementHandoff.Receipt.read(nbt.getCompoundTag("ConflictMovementRelease"));
+            if (!conflictRelease.orderId.equals(nbt.getString("Id")) || !conflictRelease.companyId.equals(nbt.getString("CompanyId")))
+                throw new IllegalArgumentException("Conflict movement receipt identity mismatch");
+        }
+        if (nbt.hasKey("StrategicArrival")) {
+            if (!nbt.hasKey("StrategicArrival", 10) || !nbt.hasKey("ExteriorPlacementRequired", 1))
+                throw new IllegalArgumentException("Invalid strategic placement metadata");
+            strategicArrival = KOMEStrategicArrivalPlacement.Context.read(nbt.getCompoundTag("StrategicArrival"));
+            if (!strategicArrival.orderId.equals(nbt.getString("Id")) || !strategicArrival.companyId.equals(nbt.getString("CompanyId")))
+                throw new IllegalArgumentException("Strategic arrival identity mismatch");
+            exteriorPlacementRequired = nbt.getBoolean("ExteriorPlacementRequired");
+        } else if (nbt.hasKey("ExteriorPlacementRequired")) throw new IllegalArgumentException("Exterior requirement has no arrival event");
         id = nbt.getString("Id");
         companyId = nbt.getString("CompanyId");
         companyName = nbt.getString("CompanyName");
@@ -350,6 +378,9 @@ public class KOMEArmyMovementOrder {
         accessLossReason = nbt.getString("AccessLossReason");
         accessLostAtMillis = nbt.getLong("AccessLostAtMillis");
         accessChoice = nbt.getString("AccessChoice");
+        hostileAttackDestination = KOMEConquestTile.normalizeId(nbt.getString("HostileAttackDestination"));
+        conflictHoldId = nbt.getString("ConflictHoldId");
+        conflictHeldAtMillis = Math.max(0L, nbt.getLong("ConflictHeldAtMillis"));
         units.clear();
         NBTTagList unitList = nbt.getTagList("Units", 10);
         for (int i = 0; i < unitList.tagCount(); i++) {

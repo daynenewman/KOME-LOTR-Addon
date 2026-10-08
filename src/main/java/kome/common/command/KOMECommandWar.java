@@ -23,8 +23,8 @@ public class KOMECommandWar extends KOMEPublicCommand {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        if (!isStaff(sender)) return "/war status <warId> | list [active|ending|ended|all]";
-        return "/war create <factionA> <factionB> [name] | rename <warId> <name> | side <rename|add|remove|move> ... | status <warId> | list [active|ending|ended|all] | end|finalize|cancel <warId> [reason]";
+        if (!isStaff(sender)) return "/war status <warId> | list [active|ending|ended|all] | objectives <faction>";
+        return "/war create <factionA> <factionB> [name] | rename <warId> <name> | side <rename|add|remove|move> ... | status <warId> | objectives <faction> | list [active|ending|ended|all] | end|finalize|cancel <warId> [reason]";
     }
 
     @Override
@@ -35,10 +35,17 @@ public class KOMECommandWar extends KOMEPublicCommand {
     @Override
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length == 0) throw new WrongUsageException(getCommandUsage(sender));
-        if (!"status".equalsIgnoreCase(args[0]) && !"list".equalsIgnoreCase(args[0])) requireStaff(sender);
+        if (!"status".equalsIgnoreCase(args[0]) && !"list".equalsIgnoreCase(args[0])
+                && !"objectives".equalsIgnoreCase(args[0])) requireStaff(sender);
         KOMEWorldData data = KOMEWorldData.get(sender.getEntityWorld());
         String action = args[0].toLowerCase(java.util.Locale.ROOT);
         long now = System.currentTimeMillis();
+        if ("objectives".equals(action)) {
+            if (args.length != 2) throw new WrongUsageException("/war objectives <faction>");
+            sender.addChatMessage(new ChatComponentText(
+                kome.common.data.KOMEFactionDefeatService.inspect(data, faction(args[1]))));
+            return;
+        }
         if ("create".equals(action)) {
             requireStaff(sender);
             if (args.length < 3) throw new WrongUsageException("/war create <factionA> <factionB> [name]");
@@ -167,8 +174,8 @@ public class KOMECommandWar extends KOMEPublicCommand {
     @Override
     public List addTabCompletionOptions(ICommandSender sender, String[] args) {
         if (args.length != 1) return java.util.Collections.emptyList();
-        return isStaff(sender) ? getListOfStringsMatchingLastWord(args, "status", "list", "create", "rename", "side", "end", "finalize", "cancel")
-            : getListOfStringsMatchingLastWord(args, "status", "list");
+        return isStaff(sender) ? getListOfStringsMatchingLastWord(args, "status", "list", "objectives", "create", "rename", "side", "end", "finalize", "cancel")
+            : getListOfStringsMatchingLastWord(args, "status", "list", "objectives");
     }
 
     private void requireStaff(ICommandSender sender) {

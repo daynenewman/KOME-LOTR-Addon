@@ -13,6 +13,7 @@ public class KOMEMovementHistoryRecord {
     public static final String STOPPED = "STOPPED";
     public static final String CANCELLED = "CANCELLED";
     public static final String FAILED = "FAILED";
+    public static final String CONFLICT_RELEASED_PAUSED = "CONFLICT_RELEASED_PAUSED";
 
     public String historyId = "";
     public String movementOrderId = "";
@@ -102,7 +103,10 @@ public class KOMEMovementHistoryRecord {
         totalPopulation = Math.max(0, order.population);
         mountedPopulation = Math.max(0, order.mountedPopulation);
         groundPopulation = Math.max(0, order.groundPopulation);
-        speedDescription = order.tilesPerDay >= 2 ? "Mounted company - 2 tiles/day" : "Ground/mixed company - 1 tile/day";
+        String movementType = order.groundPopulation == 0 && order.mountedPopulation > 0
+            ? "Mounted company" : "Ground/mixed company";
+        speedDescription = movementType + " - " + order.tilesPerDay
+            + (order.tilesPerDay == 1 ? " tile/day" : " tiles/day");
         createdAtMillis = order.createdAtMillis > 0L ? order.createdAtMillis : order.departureMillis;
         if (firstStepMillis <= 0L) {
             firstStepMillis = order.departureMillis > 0L ? order.departureMillis : createdAtMillis;

@@ -65,6 +65,16 @@ public class KOMEConfigChangeGuardTest {
         try { File bad=config(); write(bad,"siege","activeSiegeCheckInWindowMinutes","-1"); KOMEConfigRegistry.readValidated(bad); fail(); } catch (KOMEConfigValidationException expected) { }
     }
 
+    @Test public void emergencyDefenseInactivityDaysParticipateInCanonicalDiffs()
+            throws Exception {
+        File base=config(); KOMEConfigRegistry.load(base);
+        File candidate=config(); write(candidate,"season",
+            "emergencyDefenseRulerInactivityDays","21");
+        KOMEConfigChangeSet diff=KOMEConfigChangeSet.compare(
+            KOMEConfigRegistry.currentValidated(),KOMEConfigRegistry.readValidated(candidate));
+        assertEntry(diff,"season","emergencyDefenseRulerInactivityDays","14","21");
+    }
+
     @Test public void gateSizeBalanceKeysParticipateInCanonicalConfigDiffs() throws Exception {
         File base=config(); KOMEConfigRegistry.load(base);
         File candidate=config();

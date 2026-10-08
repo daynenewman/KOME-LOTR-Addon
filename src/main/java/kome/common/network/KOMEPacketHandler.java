@@ -183,6 +183,12 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketStandingTrialEligibility.Handler.class, KOMEPacketStandingTrialEligibility.class, 46, Side.CLIENT);
         // Both branches used 38; retain progression IDs and append public waypoints at the next free ID.
         network.registerMessage(KOMEPacketPublicWaypoints.Handler.class, KOMEPacketPublicWaypoints.class, 47, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketMasterOfferResponse>(new KOMEPacketMasterOfferResponse.Handler()) {}, KOMEPacketMasterOfferResponse.class, 48, Side.SERVER);
+        // Preserve dev's IDs. Tactical intake retains its own bounded tick queue and compressed envelope.
+        network.registerMessage(KOMEPacketTacticalEditRequest.Handler.class, KOMEPacketTacticalEditRequest.class, 48, Side.SERVER);
+        network.registerMessage(KOMEPacketTacticalEditSnapshot.Handler.class, KOMEPacketTacticalEditSnapshot.class, 49, Side.CLIENT);
+        network.registerMessage(KOMEPacketTacticalAreaCatalog.Handler.class, KOMEPacketTacticalAreaCatalog.class, 50, Side.CLIENT);
+        network.registerMessage(KOMEPacketTacticalComplexCatalog.Handler.class, KOMEPacketTacticalComplexCatalog.class, 51, Side.CLIENT);
+        // The unpublished progression response follows dev's retained tactical IDs.
+        network.registerMessage(new ServerThreadHandler<KOMEPacketMasterOfferResponse>(new KOMEPacketMasterOfferResponse.Handler()) {}, KOMEPacketMasterOfferResponse.class, 52, Side.SERVER);
     }
 }

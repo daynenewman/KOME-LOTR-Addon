@@ -69,6 +69,22 @@ public class KOMECampaignTileConfinementHookTest {
         data.hiredUnits.put(r.entity, r);
         hooks.onJoin(new net.minecraftforge.event.entity.EntityJoinWorldEvent(u, world)); return u;
     }
+    @Test public void illegalDisplacementReturnPreservesExactFractionalRiderAndMountHealth() throws Exception {
+        LoadedUnit rider = unit(true), mount = unit(false);
+        for (LoadedUnit unit : new LoadedUnit[]{rider, mount}) {
+            java.lang.reflect.Field watcher = Entity.class.getDeclaredField("dataWatcher"); watcher.setAccessible(true);
+            net.minecraft.entity.DataWatcher dataWatcher = new net.minecraft.entity.DataWatcher(unit);
+            dataWatcher.addObject(6, Float.valueOf(20F)); watcher.set(unit, dataWatcher);
+            unit.getAttributeMap().registerAttribute(net.minecraft.entity.SharedMonsterAttributes.maxHealth).setBaseValue(20D);
+        }
+        rider.setHealth(3.125F); mount.setHealth(8.875F); rider.mountEntity(mount);
+        KOMEHiredUnitRecord record = data.hiredUnits.get(rider.getUniqueID()); record.mounted = true;
+        KOMECampaignHealth.observe(record, rider);
+        rider.setPosition(64, 64, -1); mount.setPosition(64, 64, -1); endTick();
+        assertTrue(rider.hiredNPCInfo.isHalted()); assertEquals(-32D, rider.posX, 0D);
+        assertEquals(3.125F, rider.getHealth(), 0F); assertEquals(8.875F, mount.getHealth(), 0F);
+        assertEquals(3.125F, record.writeToNBT().getCompoundTag("SurvivingHealth").getFloat("Current"), 0F);
+    }
     @Test public void actualLoadedReturnStationsHaltsRefreshesKom60AndPreservesNativeIdentity() throws Exception {
         LoadedUnit u = unit(true); endTick();
         assertTrue(u.hiredNPCInfo.shouldFollowPlayer()); assertFalse(u.hiredNPCInfo.isHalted());

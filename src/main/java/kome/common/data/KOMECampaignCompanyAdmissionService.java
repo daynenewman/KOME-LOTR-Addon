@@ -112,6 +112,7 @@ public final class KOMECampaignCompanyAdmissionService {
         if (!faction.equals(KOMEAlliance.normalizeFactionKey(company.faction))) return false;
         if (!faction.equals(KOMEWartimeStewardshipService.nativeFaction(company))) return false;
         if (!KOMEArmyCompany.STATIONED.equals(company.status)) return false;
+        if (KOMEConflictMovementService.isActivelyCommitted(data, company.id)) return false;
         if (!clean(company.movementOrderId).isEmpty()
                 || hasActiveOrderForCompany(data, company.id)) return false;
         if (!KOMEArmyCompany.CLEANUP_NONE.equals(company.withdrawalState)) return false;
@@ -191,6 +192,8 @@ public final class KOMECampaignCompanyAdmissionService {
             record.companyAssignedByName = clean(ownerName).length() == 0
                 ? company.ownerName : clean(ownerName);
             data.recalculateCampaignCompanyComposition(company);
+            if (createdNew) KOMEMovementDayService.initializeNewCompany(company, company.createdAtMillis);
+            else KOMEMovementDayService.cap(company);
             if (!company.units.contains(record.entity)
                     || !company.id.equals(record.companyId)) {
                 throw new IllegalStateException("Company and record membership did not agree.");

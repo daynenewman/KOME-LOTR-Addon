@@ -19,6 +19,12 @@ import net.minecraftforge.common.MinecraftForge;
 import java.util.List;
 
 public class KOMEClientProxy extends KOMECommonProxy {
+    // Created on first editor publication; general client lifecycle does not require an editor session.
+    private kome.common.tactical.edit.KOMETacticalEditClientMirror tacticalEditor;
+    private kome.common.tactical.edit.KOMETacticalEditSessionManager.Status tacticalEditorStatus;
+    // Network intake reads this; client world/connection lifecycle advances it.
+    private volatile long tacticalEditorLifecycleEpoch;
+    private kome.client.tactical.KOMETacticalAreaEditor tacticalAreaEditor;
     private final KOMEClientTaskQueue clientTasks = new KOMEClientTaskQueue(
             () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
@@ -40,6 +46,9 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void init() {
         super.init();
         FMLCommonHandler.instance().bus().register(clientTasks);
+        kome.client.tactical.KOMETacticalAreaInteractionHandler tacticalInput = new kome.client.tactical.KOMETacticalAreaInteractionHandler(this);
+        FMLCommonHandler.instance().bus().register(tacticalInput);
+        MinecraftForge.EVENT_BUS.register(tacticalInput);
         KOMEClientConfig clientConfig = new KOMEClientConfig(new java.io.File(
             cpw.mods.fml.common.Loader.instance().getConfigDir(), "kome-client.cfg"));
         currentTileHud = new KOMECurrentTileHud(net.minecraft.client.Minecraft.getMinecraft(), clientConfig);
@@ -77,7 +86,8 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
-        kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(event.handler);
+        invalidateTacticalEditorPublications();
+        kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(event == null ? null : event.handler);
         conquestSnapshots.resetSession();
         final long tileSession = currentTileHud == null ? 0L : currentTileHud.suspendSession();
         clientTasks.resetSession(true, () -> {
@@ -88,6 +98,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(null);
         conquestSnapshots.resetSession();
         if (currentTileHud != null) currentTileHud.suspendSession();
@@ -97,6 +108,10 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @SubscribeEvent
     public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
         if (event.world != null && event.world.isRemote) {
+            invalidateTacticalEditorPublications();
+            if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
+            if (tacticalEditor != null) tacticalEditor.clearScope();
+            tacticalEditorStatus = null;
             conquestSnapshots.resetSession();
             KOMEClientData.INSTANCE.clearConquestTooltip();
         }
@@ -119,6 +134,9 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     }
 
     private void resetClientSessionState() {
+        if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
+        if (tacticalEditor != null) tacticalEditor.reset();
+        tacticalEditorStatus = null;
         if (currentTileHud != null) currentTileHud.clear();
         KOMEClientData.INSTANCE.resetClientState();
         KOMEQuotaLedgerOverlay.reset();
@@ -131,6 +149,57 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         KOMEVisualMarkerClientState.clear();
         KOMELiegeQuestButtonOverlay.reset();
         progressionTrackerOverlay.resetSession();
+    }
+
+    private synchronized void invalidateTacticalEditorPublications() { ++tacticalEditorLifecycleEpoch; }
+
+    @Override public void acceptTacticalEditSnapshot(final kome.common.network.KOMEPacketTacticalEditSnapshot message) {
+        // Keep response ordering until the mirror can compare server publication numbers.
+        final long publicationEpoch = tacticalEditorLifecycleEpoch;
+        try { clientTasks.enqueue(() -> {
+            if (publicationEpoch != tacticalEditorLifecycleEpoch) return;
+            if (tacticalEditor == null) tacticalEditor = new kome.common.tactical.edit.KOMETacticalEditClientMirror();
+            net.minecraft.entity.player.EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().thePlayer;
+            if (player != null && (message.getSnapshot() == null
+                    || tacticalEditor.accept(player.getUniqueID(), player.dimension, message.getSnapshot()))) {
+                tacticalEditorStatus = message.getStatus();
+                if (tacticalAreaEditor != null) {
+                    tacticalAreaEditor.accept(message.getSnapshot(), message.getStatus());
+                    if (message.getSnapshot() != null && !message.getSnapshot().isClosed() && tacticalAreaEditor.isEditing()
+                            && tacticalAreaEditor.getSelection() == kome.client.tactical.KOMETacticalAreaEditor.Selection.NONE) showTacticalEditor();
+                }
+            }
+        }); } catch (java.util.concurrent.RejectedExecutionException disconnectedOrFull) {
+            // Late/disconnected or excess publications cannot revive client editor state.
+        }
+    }
+    /** Client-thread read API for later UI; both the mirror snapshot and its domain definitions are immutable. */
+    public kome.common.tactical.edit.KOMETacticalEditSnapshot getTacticalEditorSnapshot() { return tacticalEditor == null ? null : tacticalEditor.getSnapshot(); }
+    public kome.common.tactical.edit.KOMETacticalEditSessionManager.Status getTacticalEditorStatus() { return tacticalEditorStatus; }
+    public kome.client.tactical.KOMETacticalAreaEditor getTacticalAreaEditor() { return tacticalAreaEditor; }
+    private void showTacticalEditor() {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+        if (mc.fontRenderer != null && !(mc.currentScreen instanceof kome.client.gui.KOMEGuiTacticalAreaEditor))
+            mc.displayGuiScreen(new kome.client.gui.KOMEGuiTacticalAreaEditor(tacticalAreaEditor));
+    }
+    @Override public void acceptTacticalAreaCatalog(final kome.common.network.KOMEPacketTacticalAreaCatalog packet) {
+        final long epoch = tacticalEditorLifecycleEpoch;
+        try { clientTasks.enqueue(() -> {
+            net.minecraft.entity.player.EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().thePlayer;
+            if (epoch != tacticalEditorLifecycleEpoch || player == null || player.dimension != packet.getCatalog().dimension) return;
+            if (tacticalAreaEditor == null) tacticalAreaEditor = new kome.client.tactical.KOMETacticalAreaEditor(
+                request -> kome.common.network.KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTacticalEditRequest(request)));
+            if (tacticalAreaEditor.acceptCatalog(packet.getCatalog())) showTacticalEditor();
+        }); } catch (java.util.concurrent.RejectedExecutionException disconnectedOrFull) { }
+    }
+
+    @Override public void acceptTacticalComplexCatalog(final kome.common.network.KOMEPacketTacticalComplexCatalog packet) {
+        final long epoch = tacticalEditorLifecycleEpoch;
+        try { clientTasks.enqueue(() -> {
+            net.minecraft.entity.player.EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().thePlayer;
+            if (epoch != tacticalEditorLifecycleEpoch || player == null || player.dimension != packet.getCatalog().dimension || tacticalAreaEditor == null) return;
+            if (tacticalAreaEditor.acceptComplexCatalog(packet.getCatalog())) showTacticalEditor();
+        }); } catch (java.util.concurrent.RejectedExecutionException disconnectedOrFull) { }
     }
 
     @Override
@@ -155,18 +224,19 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @Override
     public void displayCompanyMoveConfirmGui(kome.common.network.KOMEPacketCompanyMoveConfirmGui message) {
-        KOMEConquestMapOverlay.beginRoutePreview(message);
         if (!(KOMEMinecraftClient.currentScreen() instanceof LOTRGuiMap)) {
             KOMEConquestMapOverlay.openPreservedMap();
         }
+        // Publish only after the map exists. An END tick with a null screen clears previews.
+        KOMEConquestMapOverlay.beginRoutePreview(message);
     }
 
     @Override
     public void displayCompanyMovePreviewResult(kome.common.network.KOMEPacketCompanyMovePreviewResult message) {
-        KOMEConquestMapOverlay.showCompanyMovePreviewResult(message);
         if (!(KOMEMinecraftClient.currentScreen() instanceof LOTRGuiMap)) {
             KOMEConquestMapOverlay.openPreservedMap();
         }
+        KOMEConquestMapOverlay.showCompanyMovePreviewResult(message);
     }
 
     @Override

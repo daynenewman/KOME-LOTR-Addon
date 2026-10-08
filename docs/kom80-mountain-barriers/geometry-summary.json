@@ -1,0 +1,253 @@
+{
+  "base_commit": "41f145773601ff84f754421ee7534d7265d42f74",
+  "mask_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+  "base_mask_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+  "mapping_sha256": "d8674747229c7a9cbfdebcd217f1423d722ff4cdacb882d55607491cea36d9e5",
+  "historical_mask_sha256": "a5cd6cf91b3fc1b662cffffde36a250a6e6687bcb8b2b7cd9aa06809b944b866",
+  "exclusions_sha256": "96d5bf63187e50f6964fe943ab233d783cf4ae565e4deedc338ec5cc597c62f1",
+  "stock_jar_sha256": "4f296e749c0d4739ecf859217a526b4218a2a45a768c08d3d551af0d0d3d5635",
+  "stock_map_sha256": "1c79d0610dfbcfa970aa0dd929ce80cb19b1feb89fe57777b293b166282230f3",
+  "manifest_sha256": {
+    "pilot": "449a54b8ab52fe12c1cc731f4552a40ca676085e8c32a4a23c60f27c796c48fa",
+    "v2": "08a5ba7af076f053eacf9c995ca395f9737916bdafb37d73bdb5372d1ccb53f5",
+    "final": "72a21e60160994b9054e37eb3db4ce7d30ecb55152c7c0c61d9a365779dfa6f4"
+  },
+  "full_raster_cells_compared": 12800000,
+  "exact_changed_cells": [],
+  "assigned_cells": 4067979,
+  "unclassified_gap_cells": 8732021,
+  "active_tile_ids": 621,
+  "explicit_exclusion_zones": 0,
+  "requested_pairs": [
+    {
+      "pair": "T435-T654",
+      "first_name": "Crossings of Poros",
+      "second_name": "Valley of Spiders",
+      "shared_grid_edges": 2,
+      "diagonal_cell_pairs": 3,
+      "historical_shared_grid_edges": 0,
+      "historical_diagonal_cell_pairs": 0,
+      "unique_contact_cells": 5,
+      "contact_cells_changed_since_gameplay_baseline": 5,
+      "changed_contact_cell_phases": {
+        "v2": 2,
+        "final": 3
+      },
+      "packaged_route_type": "ABSENT",
+      "contact_bbox_inclusive": [
+        1481,
+        1386,
+        1482,
+        1388
+      ],
+      "crop_bbox_half_open": [
+        1436,
+        1341,
+        1528,
+        1434
+      ]
+    },
+    {
+      "pair": "T455-T654",
+      "first_name": "Crossings of Harnen",
+      "second_name": "Valley of Spiders",
+      "shared_grid_edges": 0,
+      "diagonal_cell_pairs": 0,
+      "historical_shared_grid_edges": 0,
+      "historical_diagonal_cell_pairs": 0,
+      "unique_contact_cells": 0,
+      "contact_cells_changed_since_gameplay_baseline": 0,
+      "changed_contact_cell_phases": {},
+      "packaged_route_type": "ABSENT",
+      "minimum_cell_center_distance_squared": 15298,
+      "nearest_boundary_cell_pairs": [
+        {
+          "first_cell": [
+            1511,
+            1544
+          ],
+          "second_cell": [
+            1524,
+            1421
+          ]
+        }
+      ],
+      "crop_bbox_half_open": [
+        1466,
+        1376,
+        1570,
+        1590
+      ]
+    },
+    {
+      "pair": "T400-T420",
+      "first_name": "T400",
+      "second_name": "T420",
+      "shared_grid_edges": 10,
+      "diagonal_cell_pairs": 17,
+      "historical_shared_grid_edges": 0,
+      "historical_diagonal_cell_pairs": 0,
+      "unique_contact_cells": 21,
+      "contact_cells_changed_since_gameplay_baseline": 21,
+      "changed_contact_cell_phases": {
+        "v2": 18,
+        "final": 3
+      },
+      "packaged_route_type": "ABSENT",
+      "contact_bbox_inclusive": [
+        1895,
+        1318,
+        1904,
+        1320
+      ],
+      "crop_bbox_half_open": [
+        1850,
+        1273,
+        1950,
+        1366
+      ]
+    },
+    {
+      "pair": "T329-T355",
+      "first_name": "T329",
+      "second_name": "Eastern Guard",
+      "shared_grid_edges": 13,
+      "diagonal_cell_pairs": 19,
+      "historical_shared_grid_edges": 0,
+      "historical_diagonal_cell_pairs": 0,
+      "unique_contact_cells": 27,
+      "contact_cells_changed_since_gameplay_baseline": 27,
+      "changed_contact_cell_phases": {
+        "v2": 27
+      },
+      "packaged_route_type": "ABSENT",
+      "contact_bbox_inclusive": [
+        1854,
+        1135,
+        1864,
+        1139
+      ],
+      "crop_bbox_half_open": [
+        1809,
+        1090,
+        1910,
+        1185
+      ]
+    },
+    {
+      "pair": "T352-T356",
+      "first_name": "North Ithilien",
+      "second_name": "Durthang",
+      "shared_grid_edges": 8,
+      "diagonal_cell_pairs": 8,
+      "historical_shared_grid_edges": 0,
+      "historical_diagonal_cell_pairs": 0,
+      "unique_contact_cells": 16,
+      "contact_cells_changed_since_gameplay_baseline": 16,
+      "changed_contact_cell_phases": {
+        "v2": 16
+      },
+      "packaged_route_type": "ABSENT",
+      "contact_bbox_inclusive": [
+        1457,
+        1158,
+        1460,
+        1164
+      ],
+      "crop_bbox_half_open": [
+        1412,
+        1113,
+        1506,
+        1210
+      ]
+    },
+    {
+      "pair": "T218-T220",
+      "first_name": "Ost-in-Edhil",
+      "second_name": "Mount Caradhras",
+      "shared_grid_edges": 14,
+      "diagonal_cell_pairs": 22,
+      "historical_shared_grid_edges": 0,
+      "historical_diagonal_cell_pairs": 0,
+      "unique_contact_cells": 30,
+      "contact_cells_changed_since_gameplay_baseline": 30,
+      "changed_contact_cell_phases": {
+        "v2": 22,
+        "final": 8
+      },
+      "packaged_route_type": "ABSENT",
+      "contact_bbox_inclusive": [
+        1158,
+        838,
+        1162,
+        850
+      ],
+      "crop_bbox_half_open": [
+        1113,
+        793,
+        1208,
+        896
+      ]
+    }
+  ],
+  "nearby_scope": "Both endpoints in the union of the six pairs and their direct geometric or strategic neighbors",
+  "nearby_tile_ids": [
+    "T188",
+    "T217",
+    "T218",
+    "T220",
+    "T223",
+    "T231",
+    "T232",
+    "T233",
+    "T239",
+    "T296",
+    "T312",
+    "T322",
+    "T326",
+    "T329",
+    "T331",
+    "T338",
+    "T340",
+    "T346",
+    "T351",
+    "T352",
+    "T355",
+    "T356",
+    "T357",
+    "T358",
+    "T361",
+    "T364",
+    "T375",
+    "T391",
+    "T395",
+    "T400",
+    "T409",
+    "T415",
+    "T417",
+    "T420",
+    "T425",
+    "T430",
+    "T433",
+    "T435",
+    "T436",
+    "T437",
+    "T441",
+    "T444",
+    "T454",
+    "T455",
+    "T462",
+    "T466",
+    "T654"
+  ],
+  "nearby_pairs": 81,
+  "nearby_geometry_only_pairs": 12,
+  "nearby_routes_by_type": {
+    "open": 48,
+    "ABSENT": 12,
+    "river": 15,
+    "bridge": 6
+  },
+  "render_evidence": "Source-matched grid-edge reconstruction; actual client/GL rendering remains a live check",
+  "geographic_ambiguity": "No approved mountain exclusion zones or cell-removal manifest exists; contact and stock map appearance alone do not authorize deleting tile cells or blocking existing strategic routes"
+}
