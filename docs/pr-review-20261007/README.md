@@ -5,6 +5,41 @@ No merge, shared deployment, geography repaint, optional in-world borders or til
 Current Linear descriptions/comments and prior reports were read before validation.
 KOM-47 is Done and merged; KOM-48 and KOM-26 remain separate owning tasks.
 
+## Current candidate — mounted reload correction
+
+Current matching JAR: `9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef`.
+Profile: **KOME Mounted Reload Fix**, `kome-review-mounted-reload-fix-20261007`;
+server: `build/pr-review-20261007/reload-fix-runtime/server`, `127.0.0.1:51326`.
+[Exact candidate](reload-candidate.json) records hashes and configuration. The world
+copies only the cleanly stopped previous disposable world; all earlier candidates
+and the original rider/horse UUIDs remain preserved. No replacement was spawned.
+
+The c494 candidate's reset return passed the user's mounted-rider/T388 observation,
+and first cold load preserved partial HP and once-only receipts. Subsequent human
+reconnect **failed**: the rider was absent from the tracked world list while still
+ticking through its horse. The actual production guard reproduced rejection of a
+legitimate same-UUID reload while its old copy remained queued for chunk unloading.
+`KOMESeasonResetDeployment.find` now ignores queued unloads, using verified MCP/SRG
+field names; an unavailable unload list fails explicitly. Active duplicate rejection
+and virtual receipt requirements remain intact. Two new behavioral regressions
+failed before the fix. The intermediate test fixture needed distinct vanilla entity
+IDs because constructor-bypassed entities otherwise compare equal; that was corrected.
+
+Fresh gate: **2,890 tests / 2,885 passed / five skipped / zero failures/errors**.
+Six fresh deobfuscated Forge reset launches passed interruption/recovery/completion
+in both chunk orders; [archive and source manifest](reload-validation.json) retain
+exact identities. The two earlier governance/daily launches are reused for unchanged
+authority. In the actual production loader, active duplicate rejection passed and
+the legitimate queued-unload replacement was accepted. The original mounted rider
+loaded from native disk and remained tracked after authenticated reconnect; the
+current human visibility/menu/T388 check is pending. No multiplayer, paid hiring or
+lower-spec pass is inferred.
+
+Implementation and earlier evidence were published to PR #26 at `4961a4f` after
+incorporating dev `69dbad5`; GitHub reports draft/open/conflict-free. This new guard
+correction is being published as a follow-up. PR #30 remains draft/conflict-free at
+`9901f4f`; its checker also passes against current dev. Neither PR was merged.
+
 ## Resumed acceptance â€” newer dev
 
 After the user resumed, dev had advanced to
@@ -21,10 +56,10 @@ completion in both chunk-load orders, plus governance and daily command/save/col
 checks. [Exact resumed evidence](resume-validation.json) links the archived tests,
 logs and native fixture sources. These use deobfuscated classes and Java 8u492;
 they do not certify a production-JAR client or live multiplayer.
-The current matching production JAR is
+That earlier matching production JAR is
 `c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726`.
 See [resumed-candidate.json](resumed-candidate.json) for exact configuration.
-Current profile: **KOME Mounted Reset Acceptance dev 69dbad5**;
+That earlier profile: **KOME Mounted Reset Acceptance dev 69dbad5**;
 server: `build/pr-review-20261007/reset-runtime/server`, loopback `127.0.0.1:51326`.
 It copies only the cleanly stopped disposable world, preserving B1. Earlier
 profiles, worlds and artifacts remain separately recorded. Prior human passes
@@ -142,7 +177,7 @@ The layout repair changes only `KOMEGuiConquestCapture.class` relative to that c
 | KOM-63 non-operator Build and permissions | PASS: prior admin denial and atomic mismatch rejection; denied-state disabled Create; eligible form opening and Build List cancellation with all 77 sections/zero Builds/sequence unchanged. Initial unpledged assumption corrected to Dale pledge/unclaimed T401. Screenshot overlap repaired with failing-before regression; user reported improvement and subsequent screenshot shows separated readable rows. Valid non-operator B1 creation passed: screenshot and native NBT agree on 1.00 approved / 0.00 developed / 1.00 awaiting development, Normal, Gondor, T401; creator-manager initial hours auto-approve. [Creation evidence](build-creation.json). Malformed 1.001-hour input displays the expected validation message and all 77 sections remain unchanged. [Rejection evidence](build-invalid-hours.json). | Saved B1 reconnect also passed; other Build permission/rejection flows and second-player synchronization remain. Gondor pledge and tile claim are disposable fixtures, not ordinary pledge/claim acceptance. |
 | KOM-63 multi-player consistency | No live multi-player pass claimed. | Second authenticated player on matching candidate; compare HUD/map/ownership/Build/transition/reconnect updates simultaneously. |
 | KOM-63 measured client/server performance | PASS: prior actual 21-native-hire and one-client total tick windows; actual high-spec world/map FPS with exact settings. New startup and isolated native timing/FPS samples are being retained. | No isolated tile-cost comparison, multi-player capacity or representative lower-spec hardware result; do not generalize high-spec measurements. |
-| KOM-28 reset inside/outside-native decisions and mounted HP | PASS: historical seven Forge launches preserve UUIDs, 3.25 rider / 7.125 mount HP, canonical receipts/population, both recovery chunk orders and once-only effects; unchanged packaged authority classes. | Connected-client mounted reset/restart observation and simultaneous-player synchronization; future physical siege/assault cleanup depends on owning authorities. |
+| KOM-28 reset inside/outside-native decisions and mounted HP | PASS: six fresh reset Forge launches on the repaired source preserve UUIDs, 3.25/7.125 HP, receipts/population and both chunk orders. Earlier c494 human menu and mounted-return/T388 checks passed; native first cold load retained exact partial HP and 1/1/1 ownership/return/completion audits. Subsequent human reconnect failed, prompting the queued-unload guard correction and renewed matching acceptance. | Repaired production human reconnect/visibility check is pending; simultaneous-player synchronization and future physical siege/assault cleanup remain separate. |
 | PR #26 governance permissions/client synchronization | PASS: historical native command and deterministic permission/persistence tests, fresh complete regression gate. | Human permission changes and synchronized UI/commands on two clients; synthetic permission tests do not establish that. |
 | PR #26 daily development-before-payout and once-only effects | PASS: historical actual Forge/cold-restart transcripts and fresh coordinator/development tests. | Required stages with unavailable owning adapters stay blocked, including KOM-48 movement coordinator integration; connected-client summary observation remains. |
 | KOM-82 available audit/inspection integration | PASS: new company coherence/credit diagnostics and once-only credit-restoration audit; actual production-loader isolated-data probe and behavioral regressions. [Coverage matrix](KOM-82-coverage.md) accounts for original KOM-40 targets. | Company physical repair without an unambiguous ordinary service is not invented. Episode/sortie/full siege and physical muster authorities, full coordinator order and associated client acceptance remain dependent. Discord transport is optional. |

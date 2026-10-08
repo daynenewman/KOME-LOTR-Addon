@@ -153,6 +153,34 @@ public class KOMESeasonResetDeploymentTest {
         }
     }
 
+    @Test public void queuedChunkUnloadDoesNotRejectTheLegitimateReloadedRider() throws Exception {
+        try(Session s=new Session()) {
+            TestNpc old=s.npc(3.25F), incoming=s.npc(3.25F);
+            incoming.setUniqueID(old.getUniqueID());
+            KOMEHiredUnitRecord record=new KOMEHiredUnitRecord();record.entity=old.getUniqueID();record.seasonReturnToken="1:C1";
+            s.data.hiredUnits.put(record.entity,record);s.world.loadedEntityList.add(old);
+            assertTrue(KOMESeasonResetDeployment.rejectStaleVirtual(s.data,incoming));
+            s.world.queueUnload(old);
+            assertFalse("Queued unload is not a competing live entity",KOMESeasonResetDeployment.rejectStaleVirtual(s.data,incoming));
+            assertNull(KOMESeasonResetDeployment.find(record.entity));
+        }
+    }
+
+    @Test public void queuedUnloadStillRequiresVirtualReceiptAndRejectsAnotherActiveCopy() throws Exception {
+        try(Session s=new Session()) {
+            TestNpc old=s.npc(3.25F), incoming=s.npc(3.25F), duplicate=s.npc(3.25F);
+            incoming.setUniqueID(old.getUniqueID());duplicate.setUniqueID(old.getUniqueID());
+            KOMEHiredUnitRecord record=new KOMEHiredUnitRecord();record.entity=old.getUniqueID();record.seasonReturnToken="1:C1";record.seasonReturnVirtual=true;
+            s.data.hiredUnits.put(record.entity,record);s.world.loadedEntityList.add(old);s.world.queueUnload(old);
+            assertTrue(KOMESeasonResetDeployment.rejectStaleVirtual(s.data,incoming));
+            incoming.getEntityData().setString(KOMESeasonResetDeployment.RECEIPT,"1:C1");
+            assertFalse(KOMESeasonResetDeployment.rejectStaleVirtual(s.data,incoming));
+            s.world.loadedEntityList.add(incoming);duplicate.getEntityData().setString(KOMESeasonResetDeployment.RECEIPT,"1:C1");
+            assertSame(incoming,KOMESeasonResetDeployment.find(record.entity));
+            assertTrue(KOMESeasonResetDeployment.rejectStaleVirtual(s.data,duplicate));
+        }
+    }
+
     @Test public void nativeChunkReadbackRejectsMissingReceiptsWrongHpAndStaleOriginCopies() throws Exception {
         try(Session s=new Session()) {
             java.nio.file.Path directory=java.nio.file.Files.createTempDirectory("kom28-chunk-receipt-");
@@ -229,6 +257,7 @@ public class KOMESeasonResetDeploymentTest {
         final KOMESeasonResetDeployment adapter;
         final Hashtable<Integer,WorldServer> registry=new Hashtable<Integer,WorldServer>();
         final Field worlds; final Object previous;
+        int nextEntityId=1;
         Session() throws Exception {
             data.initializeIntegratedWorld(); entry.capital=KOMEFactionCapitalService.getCapital(data,"gondor");
             entry.companyId="C1"; entry.nativeFaction="gondor"; entry.returnRequired=true;
@@ -243,7 +272,7 @@ public class KOMESeasonResetDeploymentTest {
         }
         TestNpc npc(float health) throws Exception {
             TestNpc npc=KOMEAccessFixture.allocate(TestNpc.class); npc.worldObj=world; npc.dimension=world.provider.dimensionId;
-            npc.width=.6F; npc.height=1.8F; npc.setUniqueID(UUID.randomUUID());
+            npc.width=.6F; npc.height=1.8F; npc.setUniqueID(UUID.randomUUID());npc.setEntityId(nextEntityId++);
             Field watcher=Entity.class.getDeclaredField("dataWatcher"); watcher.setAccessible(true);
             DataWatcher dataWatcher=new DataWatcher(npc); dataWatcher.addObject(6,Float.valueOf(health)); watcher.set(npc,dataWatcher);
             Field box=Entity.class.getDeclaredField("boundingBox"); box.setAccessible(true); box.set(npc,AxisAlignedBB.getBoundingBox(0,64,0,.6,65.8,.6));
@@ -281,6 +310,7 @@ public class KOMESeasonResetDeploymentTest {
         public List getCollidingBoundingBoxes(Entity e,AxisAlignedBB box){throw new AssertionError("Terrain clearance must not use a null-entity collision query");}
         public void updateEntityWithOptionalForce(Entity e,boolean force){moves++;}
         public boolean spawnEntityInWorld(Entity e){spawns++;loadedEntityList.add(e);return true;}
+        void queueUnload(Entity e){if(unloadedEntityList==null)unloadedEntityList=new ArrayList<Entity>();unloadedEntityList.add(e);}
     }
     static class TestChunk extends Chunk {
         private TestChunk(){super((World)null,0,0);}

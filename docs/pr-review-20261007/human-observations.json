@@ -1,6 +1,6 @@
 {
   "candidate_sha256": "7ab04d4d79da058fad8f8301d4d41253aca45c4788eeab9164efdffccdc52a58",
-  "current_candidate_sha256": "c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726",
+  "current_candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
   "profile": "kome-review-acceptance-20261007",
   "world": "review-acceptance-fresh",
   "observations": [
@@ -105,14 +105,36 @@
       "reply": "theres no unit on the horses, can you respawn him, there is a unit that is off of the hporse tho",
       "result": "INCONCLUSIVE_DIRECT_API_MOUNT_SETUP",
       "native_followup": "Both new UUIDs were loaded but mounted tree was broken. Helper omitted LOTR NPC mount ownership/taming. Corrected helper uses verified stock setBelongsToNPC, setRidingHorse, navigator and halt APIs, retaining surviving UUIDs. This is fixture repair, not a gameplay defect or acceptance pass."
+    },
+    {
+      "test": "corrected-mounted-owned-unit-menu",
+      "candidate_sha256": "c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726",
+      "reply": "yes i can command the unit,",
+      "result": "USER_CONFIRMED_CAN_COMMAND_MOUNTED_UNIT",
+      "limits": "One authenticated non-operator; correct direct-API setup, not ordinary paid hiring."
+    },
+    {
+      "test": "mounted-reset-return-and-hud",
+      "candidate_sha256": "c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726",
+      "actions": "After server season reset, close menu; observe original named mounted rider in Gondor arena T388",
+      "reply": "yes",
+      "result": "USER_CONFIRMED_MOUNTED_RETURN_AND_T388_HUD",
+      "native_evidence": "mounted-live-reset.json verifies original UUIDs/mount and immediate surviving HP 3.25/7.125; no paid hire or multiplayer claim."
+    },
+    {
+      "test": "mounted-completed-reset-reconnect-before-unload-guard-fix",
+      "candidate_sha256": "c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726",
+      "reply": "i dont see the rider",
+      "result": "FAIL_RECONNECT_VISIBILITY",
+      "native_evidence": "Original alive rider continued ticking through horse but was absent from world.loadedEntityList. Isolated actual-production guard reproducer rejected legitimate reload while old copy awaited unload. Two behavioral regressions failed before the fix. Original world and UUIDs preserved; no replacement spawned."
     }
   ],
-  "pending_test": "Open the corrected owned mounted rider menu in enclosed Rohan T348.",
+  "pending_test": "Matching repaired profile ready after native verification; recheck original mounted rider visibility/menu/T388.",
   "not_inferred": [
     "multiplayer",
     "representative lower-spec performance",
     "reset/governance/daily client acceptance",
     "other Build permissions"
   ],
-  "session_state": "Resumed on current dev 69dbad5 with matching production client/server; human mounted acceptance pending."
+  "session_state": "Resumed acceptance found and fixed queued-unload identity guard; fresh matching candidate."
 }

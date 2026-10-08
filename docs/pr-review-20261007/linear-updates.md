@@ -121,3 +121,18 @@ replacement dismounted because the direct-API helper omitted normal LOTR NPC-hor
 setup. Both menu checks remain inconclusive; helper correction retains surviving UUIDs.
 No live reset/restart, multiplayer or lower-spec acceptance is inferred. Update drafts
 remain unposted and ticket statuses unchanged.
+
+
+## Mounted reload defect and corrected candidate
+
+User confirmed c494 mounted menu and reset return/T388. Its first native cold load
+retained 3.25/7.125 HP and exactly one ownership/return/completion audit, but later
+human reconnect failed: rider invisible/untracked while ticking through its horse.
+Reproduced production duplicate guard rejection of valid same-UUID chunk reload
+while the old entity awaited unload. Fixed only that identity lookup; active duplicates
+and virtual receipt checks remain. Fresh gate: 2,885 passed/five skipped; six fresh
+reset Forge launches passed both recovery orders. New matching JAR 9fc21f5b is ready
+with original persisted UUIDs; no replacement spawn. Production guard passes and
+native rider remains tracked after real reconnect. Human recheck is pending.
+Retain ticket statuses and no-merge boundary; this is not multiplayer or paid-hire
+acceptance. KOM-58/59 exact-cell decisions remain unknown/unapproved.

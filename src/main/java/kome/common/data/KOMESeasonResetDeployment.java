@@ -23,6 +23,7 @@ import net.minecraft.nbt.CompressedStreamTools;
 /** Physical reset adapter: move existing objects or hydrate exclusively virtual snapshots. */
 public final class KOMESeasonResetDeployment implements KOMESeasonResetService.Deployment {
     public static final String RECEIPT = "KOMESeasonReturn";
+    private static java.lang.reflect.Field queuedUnloadsField;
     interface EntityCheckpoint { String save(World world, List<Entity> entities, Set<Chunk> touched); }
     private final EntityCheckpoint entityCheckpoint;
     private final java.util.function.Consumer<KOMEWorldData> intentCheckpoint;
@@ -189,12 +190,32 @@ public final class KOMESeasonResetDeployment implements KOMESeasonResetService.D
 
     public static Entity find(UUID id) {
         Entity found = null;
-        for (World world : DimensionManager.getWorlds()) for (Object value : world.loadedEntityList) {
-            if (!(value instanceof Entity) || !id.equals(KOMEReflection.getEntityUUID((Entity) value))) continue;
-            if (found != null && found != value) throw new IllegalStateException("Duplicate loaded company unit " + id);
-            found = (Entity) value;
+        for (World world : DimensionManager.getWorlds()) {
+            List<?> queued = queuedUnloads(world);
+            for (Object value : world.loadedEntityList) {
+                if (!(value instanceof Entity) || !id.equals(KOMEReflection.getEntityUUID((Entity) value))) continue;
+                // Chunk reload can join its replacement before World drains the old unload list.
+                // Rejecting that replacement leaves a mounted rider ticking but untracked.
+                if (queued.contains(value)) continue;
+                if (found != null && found != value) throw new IllegalStateException("Duplicate loaded company unit " + id);
+                found = (Entity) value;
+            }
         }
         return found;
+    }
+
+    private static List<?> queuedUnloads(World world) {
+        try {
+            if (queuedUnloadsField == null) {
+                try { queuedUnloadsField = World.class.getDeclaredField("unloadedEntityList"); }
+                catch (NoSuchFieldException remapped) { queuedUnloadsField = World.class.getDeclaredField("field_72997_g"); }
+                queuedUnloadsField.setAccessible(true);
+            }
+            List<?> queued = (List<?>) queuedUnloadsField.get(world);
+            return queued == null ? java.util.Collections.emptyList() : queued;
+        } catch (ReflectiveOperationException unavailable) {
+            throw new IllegalStateException("Cannot inspect queued entity unloads", unavailable);
+        }
     }
 
     public static boolean inTile(Entity entity, String tile) {
