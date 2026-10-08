@@ -83,6 +83,10 @@ public class KOMECommonProxy {
     public void displayCompanyMovePreviewResult(kome.common.network.KOMEPacketCompanyMovePreviewResult message) {
     }
 
+    public void displayJoinBattleGui(kome.common.network.KOMEPacketJoinBattleViewResponse message) { }
+    public void displayJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message) { }
+    public void displayJoinBattleRetreatResult(kome.common.network.KOMEPacketJoinBattleRetreatResult message) { }
+
     public void displayMovementHistory(String title, String requestFaction, boolean allFactions, java.util.List records) {
     }
 

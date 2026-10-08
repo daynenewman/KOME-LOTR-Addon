@@ -11,12 +11,46 @@ import java.util.UUID;
 import static kome.common.data.KOMEConflictContracts.*;
 import static kome.common.data.KOMEConflictRecord.*;
 
-/** Read-only readiness/inspection plus narrowly proven derived-link repair for KOM-17. */
+/** Conflict readiness/inspection, narrow repair, and canonical lifecycle reconciliation. */
 public final class KOMEConflictLifecycleService {
     public static final KOMEConflictLifecycleService INSTANCE =
         new KOMEConflictLifecycleService();
+    public static final String FORMAL_RETREAT_ABANDONMENT_REASON =
+        "FORMAL_RETREAT_ATTACK_ABANDONED: no qualifying offensive committed Campaign force remains.";
 
     private KOMEConflictLifecycleService() { }
+
+    public enum OrdinaryAbandonmentCode {
+        NOT_APPLICABLE,
+        OFFENSIVE_COMMITMENT_REMAINS,
+        ENDED_ABANDONED,
+        UNRESOLVED_AUTHORITY,
+        END_FAILED
+    }
+
+    /**
+     * Result of the narrow ordinary-conflict abandonment check.  Faction continuity is historical
+     * metadata; only current coherent commitments hostile to the objective's current ruler sustain
+     * the offensive side of this decision.
+     */
+    public static final class OrdinaryAbandonmentResult {
+        public final OrdinaryAbandonmentCode code;
+        public final KOMEConflictRecord record;
+        public final String reason;
+        public final int movementHoldsReleased;
+
+        private OrdinaryAbandonmentResult(OrdinaryAbandonmentCode code,
+                KOMEConflictRecord record, String reason, int released) {
+            this.code = code;
+            this.record = record;
+            this.reason = reason == null ? "" : reason;
+            movementHoldsReleased = released;
+        }
+
+        public boolean ended() {
+            return code == OrdinaryAbandonmentCode.ENDED_ABANDONED;
+        }
+    }
 
     public static final class HostilePair {
         public final String firstFactionId;
@@ -157,6 +191,76 @@ public final class KOMEConflictLifecycleService {
             }
         }
         return new Diagnostics(tile, record, factions, pairs, unresolved, holds);
+    }
+
+    /**
+     * Ends an ORDINARY conflict only when its current objective has no remaining, coherent
+     * committed Campaign force hostile to the tile's authoritative ruler.  This deliberately is
+     * not a "no hostile pair" rule: a lone attacker still hostile to the ruler keeps the conflict
+     * active for KOM-18's later response/capture lifecycle.
+     */
+    public OrdinaryAbandonmentResult reconcileOrdinaryConflictAfterCommitmentChange(
+            KOMEWorldData data, String tileId, ExpectedConflict expected, Context context) {
+        if (data == null || expected == null || expected.isAbsent() || context == null)
+            return abandonment(OrdinaryAbandonmentCode.UNRESOLVED_AUTHORITY, null,
+                "Exact persisted conflict authority is required.", 0);
+        String tile;
+        try { tile = KOMEConquestTile.normalizeId(tileId); }
+        catch (IllegalArgumentException invalid) {
+            return abandonment(OrdinaryAbandonmentCode.UNRESOLVED_AUTHORITY, null,
+                invalid.getMessage(), 0);
+        }
+        KOMEConflictRecord current = data.getConflictService().get(tile);
+        if (current == null || !expected.conflictId.equals(current.getConflictId())
+                || expected.revision != current.getRevision())
+            return abandonment(OrdinaryAbandonmentCode.UNRESOLVED_AUTHORITY, current,
+                "The exact conflict changed before abandonment reconciliation.", 0);
+        if (!current.isActive() || current.getState() != State.ORDINARY)
+            return abandonment(OrdinaryAbandonmentCode.NOT_APPLICABLE, current,
+                "Only an active ORDINARY conflict can be abandoned by this lifecycle rule.", 0);
+
+        if (!current.getCommitments().isEmpty()) {
+            KOMEConquestTile objective = data.conquestTiles.get(tile);
+            String defender = objective == null ? ""
+                : KOMEAlliance.normalizeFactionKey(objective.projectRulingFaction());
+            if (defender.length() == 0 || KOMEAlliance.findLotrFaction(defender) == null)
+                return abandonment(OrdinaryAbandonmentCode.UNRESOLVED_AUTHORITY, current,
+                    "The objective's current ruling faction cannot be resolved.", 0);
+            for (Commitment commitment : current.getCommitments().values()) {
+                String issue = offensiveCommitmentIssue(data, current, commitment);
+                if (issue.length() > 0)
+                    return abandonment(OrdinaryAbandonmentCode.UNRESOLVED_AUTHORITY,
+                        current, commitment.detachmentId + ": " + issue, 0);
+                KOMEArmyCompany company = data.armyCompanies.get(commitment.detachmentId);
+                String faction = KOMEAlliance.normalizeFactionKey(company.faction);
+                Hostility hostility = data.getConflictService().currentHostility(
+                    data, faction, defender);
+                if (hostility == Hostility.UNKNOWN)
+                    return abandonment(OrdinaryAbandonmentCode.UNRESOLVED_AUTHORITY,
+                        current, "Current hostility for " + faction + " versus " + defender
+                            + " cannot be resolved.", 0);
+                if (hostility == Hostility.HOSTILE)
+                    return abandonment(
+                        OrdinaryAbandonmentCode.OFFENSIVE_COMMITMENT_REMAINS, current,
+                        "Committed offensive force " + commitment.detachmentId
+                            + " still sustains the attack.", 0);
+            }
+        }
+
+        Context endContext = new Context(context.timestampMillis, context.actor,
+            FORMAL_RETREAT_ABANDONMENT_REASON);
+        KOMEConflictService.EndResult ended = data.getConflictService()
+            .endWithMovementHandoff(data, tile, expected, endContext,
+                KOMEConflictService.EndSource.LIFECYCLE);
+        if (!ended.isSuccess())
+            return abandonment(OrdinaryAbandonmentCode.END_FAILED,
+                ended.conflictResult == null ? current : ended.conflictResult.record,
+                ended.conflictResult == null ? "Canonical conflict end failed."
+                    : ended.conflictResult.reason, ended.movementHoldsReleased);
+        return abandonment(OrdinaryAbandonmentCode.ENDED_ABANDONED,
+            ended.conflictResult.record,
+            "The attacking force withdrew and the battle ended.",
+            ended.movementHoldsReleased);
     }
 
     public List<String> inspectionLines(KOMEWorldData data, String tileId) {
@@ -364,6 +468,38 @@ public final class KOMEConflictLifecycleService {
             KOMECompanyCoherenceService.INSTANCE.assess(data, company);
         return coherence.status == KOMECompanyCoherenceService.Status.INCOHERENT
             ? "Campaign Detachment is strategically incoherent." : "";
+    }
+
+    private static String offensiveCommitmentIssue(KOMEWorldData data,
+            KOMEConflictRecord conflict, Commitment commitment) {
+        if (commitment == null) return "Commitment identity is missing.";
+        String issue = commitmentIssue(data, conflict, commitment.detachmentId);
+        if (issue.length() > 0) return issue;
+        KOMEArmyCompany company = data.armyCompanies.get(commitment.detachmentId);
+        String faction = KOMEAlliance.normalizeFactionKey(company.faction);
+        if (faction.length() == 0 || KOMEAlliance.findLotrFaction(faction) == null)
+            return "Campaign Detachment faction authority is unresolved.";
+        if (commitment.validatedEvent != null
+                && !faction.equals(commitment.validatedEvent.detachmentFactionId))
+            return "Campaign Detachment faction no longer matches its validated commitment.";
+        boolean currentCombatMember = false;
+        for (UUID unitId : company.units) {
+            KOMEHiredUnitRecord unit = data.hiredUnits.get(unitId);
+            if (unit == null || unit.populationReturned
+                    || !commitment.detachmentId.equals(trim(unit.companyId)))
+                return "Campaign Detachment has a missing, terminal, or unlinked member.";
+            if (KOMEHiredUnitClassification.isCampaignUnit(unit)
+                    && !unit.farmhand && unit.type == KOMEPopulationType.OFFENSIVE)
+                currentCombatMember = true;
+        }
+        return currentCombatMember ? ""
+            : "Campaign Detachment has no current offensive Campaign combat member.";
+    }
+
+    private static OrdinaryAbandonmentResult abandonment(
+            OrdinaryAbandonmentCode code, KOMEConflictRecord record,
+            String reason, int holdsReleased) {
+        return new OrdinaryAbandonmentResult(code, record, reason, holdsReleased);
     }
 
     private static String commitmentFaction(KOMEConflictRecord record,

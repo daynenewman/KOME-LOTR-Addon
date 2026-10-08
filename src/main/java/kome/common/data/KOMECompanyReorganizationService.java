@@ -292,6 +292,8 @@ public final class KOMECompanyReorganizationService {
 
     private Failure validateMutationCompany(KOMEWorldData data,
             KOMEArmyCompany company, UUID actor, boolean administrator) {
+        if (KOMEFormalRetreatAuthority.protectsCompany(data, company.id))
+            return new Failure(Code.MUTATION_HOLD, "An unfinished Formal Retreat reserves this detachment.");
         if (company.owner == null || !administrator && !company.owner.equals(actor)) {
             return new Failure(Code.NOT_AUTHORIZED,
                 "Only the detachment owner or an operator may reorganize it.");

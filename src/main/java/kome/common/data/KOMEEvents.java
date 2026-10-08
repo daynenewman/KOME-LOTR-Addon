@@ -129,6 +129,8 @@ public class KOMEEvents {
         nextLiveUnitMarkerSyncMillis = 0L;
         KOMEVisualLocationService.resetSession();
         KOMEProgressionTrackerService.resetSession();
+        KOMEJoinBattleEntryRecoveryService.INSTANCE.resetSession();
+        KOMEJoinBattleEgressService.INSTANCE.resetSession();
     }
 
     @SubscribeEvent
@@ -151,6 +153,21 @@ public class KOMEEvents {
             KOMEProgressionAutoCompleter.runForPlayer((EntityPlayerMP) event.player, true);
             KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP) event.player, data.getProgression(KOMEReflection.getEntityUUID(event.player)));
             KOMEProgressionTitles.updatePlayerTitle((EntityPlayerMP) event.player);
+            long recoveryNow=System.currentTimeMillis();
+            KOMEJoinBattleEntryService.Result entryRecovery=
+                KOMEJoinBattleEntryRecoveryService.INSTANCE.onLogin(data,
+                    (EntityPlayerMP)event.player,recoveryNow);
+            publishJoinBattleRecovery((EntityPlayerMP)event.player,entryRecovery);
+            if(entryRecovery!=null&&entryRecovery.status==
+                    KOMEJoinBattleEntryService.Status.ENTRY_PENDING){
+                KOMEJoinBattleDeploymentReceipt receipt=entryRecovery.receiptId.isEmpty()?null:
+                    data.getJoinBattleDeploymentReceipts().get(entryRecovery.receiptId);
+                String where=receipt==null?"the accepted battle":receipt.getTileId()+" ("
+                    +receipt.getConflictId()+")";
+                ((EntityPlayerMP)event.player).addChatMessage(new ChatComponentText(
+                    "Joining "+where+". "+entryRecovery.message));
+            }
+            KOMEJoinBattleEgressService.INSTANCE.onLogin(data,(EntityPlayerMP) event.player);
             cacheCoinValue((EntityPlayer) event.player);
         }
     }
@@ -288,7 +305,19 @@ public class KOMEEvents {
             return;
         }
         kome.common.network.KOMEPublicWaypointSync.tick(server);
-
+        for(WorldServer world:server.worldServers)if(world!=null&&!KOMEReflection.isRemote(world))
+            KOMEFormalRetreatService.INSTANCE.tick(KOMEWorldData.get(world),now);
+        if(server.getConfigurationManager()!=null){
+            for(Object candidate:new ArrayList<Object>(
+                    server.getConfigurationManager().playerEntityList)){
+                if(!(candidate instanceof EntityPlayerMP))continue;
+                EntityPlayerMP online=(EntityPlayerMP)candidate;
+                KOMEWorldData onlineData=KOMEWorldData.get(KOMEReflection.getWorld(online));
+                publishJoinBattleRecovery(online,
+                    KOMEJoinBattleEntryRecoveryService.INSTANCE.tick(onlineData,online,now));
+                KOMEJoinBattleEgressService.INSTANCE.tick(onlineData,online,now);
+            }
+        }
         if (now >= nextLiveUnitMarkerSyncMillis) {
             nextLiveUnitMarkerSyncMillis = now + 1000L;
             KOMEWorldData markerData = null;
@@ -324,6 +353,14 @@ public class KOMEEvents {
                 KOMEWartimeStewardshipService.demobilizeIfSafe(data, company, world, now);
             }
         }
+    }
+
+    private static void publishJoinBattleRecovery(EntityPlayerMP player,
+            KOMEJoinBattleEntryService.Result result){
+        if(player==null||result==null||result.status==KOMEJoinBattleEntryService.Status.ENTRY_PENDING)
+            return;
+        KOMEPacketHandler.network.sendTo(
+            kome.common.network.KOMEPacketJoinBattleSelectionResult.from(result,player),player);
     }
 
     /** Called once per canonical data instance at START: observed movement precedes the due payout. */
@@ -388,6 +425,8 @@ public class KOMEEvents {
                 return;
             }
             KOMEHiredUnitRecord movingRecord = data.hiredUnits.get(KOMEReflection.getEntityUUID(event.entity));
+            if (movingRecord != null && KOMEFormalRetreatAuthority.isQuarantined(
+                    data.armyMovements.get(movingRecord.movementOrderId))) return;
             if (data.isVirtualMovingHiredUnit(movingRecord)) {
                 if (KOMECommandTroops.isArrivalSpawnInProgress(data, movingRecord)) {
                     return;
@@ -710,6 +749,9 @@ public class KOMEEvents {
                 Entity entity = (Entity) value;
                 KOMEHiredUnitRecord record = data.hiredUnits.get(entity.getUniqueID());
                 if (KOMEHiredUnitClassification.isCampaignUnit(record)) {
+                    KOMEHiredUnitPhysicalLocatorService.observe(data, record, entity,
+                        KOMEHiredUnitPhysicalLocator.CaptureKind.CHUNK_UNLOAD,
+                        System.currentTimeMillis(), true);
                     if (KOMECampaignHealth.observe(record, entity)) data.markDirty();
                     record.healthObservedEntity = null;
                     record.healthObservedMount = null;
@@ -1089,6 +1131,9 @@ public class KOMEEvents {
                         return KOMEEntitySnapshots.snapshot(npc);
                     }
                 });
+        KOMEHiredUnitPhysicalLocatorService.observe(data, record, npc,
+            KOMEHiredUnitPhysicalLocator.CaptureKind.LIVE_OBSERVATION,
+            System.currentTimeMillis(), result.snapshotAttempted);
         if (result.rejected) {
             denyLevelUpForPopulation(npc, data, record, result.requiredExtra);
         }
