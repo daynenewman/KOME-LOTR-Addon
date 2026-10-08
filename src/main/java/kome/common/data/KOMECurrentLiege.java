@@ -9,10 +9,13 @@ import net.minecraft.entity.player.EntityPlayer;
 final class KOMECurrentLiege {
     private KOMECurrentLiege() {}
     static boolean validNpc(KOMEWorldData data,LOTREntityNPC npc,KOMEProgressionNpcRef reference) {
-        return npc!=null&&reference!=null&&npc.isEntityAlive()&&!npc.isChild()
+        return validNpc(data,npc,reference,KOMEProgressionRank.KNIGHT);
+    }
+    static boolean validNpc(KOMEWorldData data,LOTREntityNPC npc,KOMEProgressionNpcRef reference,KOMEProgressionRank rank) {
+        return npc!=null&&reference!=null&&npc.isEntityAlive()&&!npc.isChild()&&npc.getFaction()!=null
             &&npc.hiredNPCInfo!=null&&!npc.hiredNPCInfo.isActive
             &&KOMEProgressionLords.isStandingTrialLiegeCandidate(npc)
-            &&KOMEProgressionNpcRankService.effectiveRank(data,npc)==KOMEProgressionNpcRank.LORD
+            &&KOMEProgressionLiegePolicy.accepts(data,rank,KOMEProgressionNpcRankService.effectiveRank(data,npc),reference.factionKey,npc.getFaction().codeName())
             &&KOMEProgressionFactionResolver.matches(reference.factionKey,npc.getFaction())
             &&reference.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc));
     }
@@ -21,6 +24,6 @@ final class KOMECurrentLiege {
         KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=data.getProgression(player.getUniqueID());
         LOTRFaction faction=LOTRLevelData.getData(player).getPledgeFaction();
         return faction!=null&&faction.isPlayableAlignmentFaction()&&npc.getFaction()==faction
-            &&validNpc(data,npc,p.getSerfKnightProgression().getLiege());
+            &&validNpc(data,npc,p.getSerfKnightProgression().getLiege(),p.getCanonicalRank());
     }
 }

@@ -106,6 +106,12 @@ public final class KOMEProgressionOfferBridge {
             LOTREntityNPC npc,
             boolean publishNegative) {
         if (player == null || npc == null || npc.questInfo == null) return false;
+        if(KOMELiegeProgressionInteraction.ownsQuest(player,npc)) {
+            if(npc.questInfo.getOfferFor(player) instanceof KOMELiegeOfferQuest){
+                npc.questInfo.removeOpenOfferPlayer(player);npc.questInfo.clearPlayerSpecificOffer(player);npc.questInfo.sendData(player);
+            }
+            sendStandingTrialEligibility(player,npc,true);return true;
+        }
         clearPassiveLiegeSponsorshipOffer(player, npc);
         boolean eligible = canRequestLiegeOfferFrom(player, npc);
         LOTRMiniQuest before = npc.questInfo.getOfferFor(player);
@@ -154,7 +160,9 @@ public final class KOMEProgressionOfferBridge {
             LOTREntityNPC npc,
             boolean eligible) {
         LOTRMiniQuest current = npc.questInfo.getOfferFor(player);
-        boolean passiveOffer = eligible && isStandingTrialOffer(current);
+        boolean ownsQuest=KOMELiegeProgressionInteraction.ownsQuest(player,npc);
+        eligible=eligible||ownsQuest;
+        boolean passiveOffer = ownsQuest||eligible && isStandingTrialOffer(current);
         boolean offering = current != null && (isStandingTrialOffer(current)
             ? eligible : npc.questInfo.canOfferQuestsTo(player));
         int color = current == null ? 0xFFFFFF : current.getQuestColor();
@@ -222,6 +230,11 @@ public final class KOMEProgressionOfferBridge {
     private static boolean sendOffer(LOTREntityQuestInfo info,EntityPlayerMP player,LOTREntityNPC npc,LOTRMiniQuest offer){NBTTagCompound tag=new NBTTagCompound();offer.writeToNBT(tag);offerSender.send(player,npc,tag);info.addOpenOfferPlayer(player);return true;}
 
     /** Handles response outside LOTR's tracked-quest lifecycle and reward path. */
+    public static boolean handleNativeResponse(LOTREntityQuestInfo info,EntityPlayer player,boolean accepted){
+        // Native responses lack an offer identity. Master responses use the queued KOME packet.
+        if(info!=null&&player!=null&&info.getOfferFor(player) instanceof KOMESerfdomOfferQuest)return true;
+        return handleResponse(info,player,accepted);
+    }
     public static boolean handleResponse(LOTREntityQuestInfo info, EntityPlayer player, boolean accepted) {
         LOTREntityNPC npc = npc(info);
         LOTRMiniQuest candidate = info == null || player == null ? null : info.getOfferFor(player);
@@ -253,13 +266,18 @@ public final class KOMEProgressionOfferBridge {
         KOMESerfdomOfferQuest offer = (KOMESerfdomOfferQuest) candidate;
         info.removeOpenOfferPlayer(player);
         if (!accepted) { KOMEWorldData data=KOMEWorldData.get(player.worldObj);data.getProgression(player.getUniqueID()).declineSerfdomOffer(npc.getUniqueID().toString(),KOMESerfKnightService.calendarDayNow());data.markDirty();info.clearPlayerSpecificOffer(player); info.sendData((EntityPlayerMP) player); return true; }
-        if (!(player instanceof EntityPlayerMP) || !isOfferActive(offer, player, npc) || player.getDistanceSqToEntity(npc) > 64.0D) return true;
+        if (!(player instanceof EntityPlayerMP))return true;
+        if (!isOfferActive(offer, player, npc) || player.getDistanceSqToEntity(npc) > 64.0D) {
+            KOMESerfdomMasterService.Result validation=KOMESerfdomMasterService.validateMasterSelection((EntityPlayerMP)player,KOMEWorldData.get(player.worldObj),npc,true);
+            KOMEProgressionNpcSpeech.say((EntityPlayerMP)player,npc,validation.success?"That offer of service has expired.":validation.reason);
+            info.clearPlayerSpecificOffer(player);info.sendData((EntityPlayerMP)player);return true;
+        }
         EntityPlayerMP mp = (EntityPlayerMP) player;
         KOMEWorldData data = KOMEWorldData.get(mp.worldObj);
         KOMEPlayerProgression progression = data.getProgression(mp.getUniqueID());
         boolean entered = progression.getCanonicalRank() == KOMEProgressionRank.WANDERER;
         KOMESerfdomMasterService.Result result = KOMESerfdomMasterService.serve(mp, data, npc);
-        if (!result.success) return true;
+        if (!result.success) {KOMEProgressionNpcSpeech.say(mp,npc,result.reason);return true;}
         info.clearPlayerSpecificOffer(mp);
         data.markDirty();
         KOMEProgressionAutoCompleter.syncPlayer(mp, progression);
@@ -326,7 +344,7 @@ public final class KOMEProgressionOfferBridge {
         return true;
     }
 
-    public static boolean canRequestStandingTrialFrom(EntityPlayer player,LOTREntityNPC npc){if(player==null||npc==null||player.worldObj==null||npc.worldObj!=player.worldObj||!npc.isEntityAlive()||npc.questInfo==null)return false;KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression progression=data.getProgression(player.getUniqueID());KOMESerfKnightProgression state=progression.getSerfKnightProgression();KOMEProgressionNpcRef ref=KOMEProgressionNpcRankService.referenceOf(npc);LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();long day=KOMESerfKnightService.calendarDayNow();return progression.getCanonicalRank()==KOMEProgressionRank.SERF&&KOMESerfKnightService.canRequestTrialFromProspectiveLiege(state,ref,day,player.getUniqueID())&&pledge!=null&&pledge.isPlayableAlignmentFaction()&&pledge==npc.getFaction()&&KOMEStandingTrialEligibility.meetsAlignment(state,LOTRLevelData.getData(player).getAlignment(pledge),pledge.codeName())&&KOMEProgressionFactionResolver.matches(state.getSerfdomMaster().factionKey,npc.getFaction())&&!npc.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(npc)&&KOMEProgressionLords.isStandingTrialLiegeCandidate(npc)&&((lotr.common.entity.npc.LOTRUnitTradeable)npc).canTradeWith(player)&&KOMEProgressionNpcRankService.effectiveRank(data,npc)==KOMEProgressionNpcRank.LORD&&npc.hiredNPCInfo!=null&&!npc.hiredNPCInfo.isActive;}
+    public static boolean canRequestStandingTrialFrom(EntityPlayer player,LOTREntityNPC npc){if(player==null||npc==null||player.worldObj==null||npc.worldObj!=player.worldObj||!npc.isEntityAlive()||npc.questInfo==null)return false;KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression progression=data.getProgression(player.getUniqueID());KOMESerfKnightProgression state=progression.getSerfKnightProgression();KOMEProgressionNpcRef ref=KOMEProgressionNpcRankService.referenceOf(npc);LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();long day=KOMESerfKnightService.calendarDayNow();return progression.getCanonicalRank()==KOMEProgressionRank.SERF&&KOMESerfKnightService.canRequestTrialFromProspectiveLiege(state,ref,day,player.getUniqueID())&&pledge!=null&&pledge.isPlayableAlignmentFaction()&&pledge==npc.getFaction()&&KOMEStandingTrialEligibility.meetsAlignment(state,LOTRLevelData.getData(player).getAlignment(pledge),pledge.codeName())&&KOMEProgressionFactionResolver.matches(state.getSerfdomMaster().factionKey,npc.getFaction())&&!npc.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(npc)&&KOMEProgressionLords.isStandingTrialLiegeCandidate(npc)&&((lotr.common.entity.npc.LOTRUnitTradeable)npc).canTradeWith(player)&&KOMEProgressionNpcRankService.effectiveRank(data,npc)==KOMEProgressionLiegePolicy.requiredSuperior(progression.getCanonicalRank())&&npc.hiredNPCInfo!=null&&!npc.hiredNPCInfo.isActive;}
 
     public static boolean canRequestLiegeOfferFrom(EntityPlayer player,LOTREntityNPC npc) {
         return canRequestStandingTrialFrom(player, npc)||canReplaceLiegeFrom(player,npc)||KOMEKnightCommissionService.eligible(player,npc)||KOMELordshipTrialService.eligible(player,npc);
@@ -347,7 +365,7 @@ public final class KOMEProgressionOfferBridge {
             &&KOMEProgressionNpcRankService.isValidFactionNpc(npc)
             &&KOMEProgressionLords.isStandingTrialLiegeCandidate(npc)
             &&((lotr.common.entity.npc.LOTRUnitTradeable)npc).canTradeWith(player)
-            &&KOMEProgressionNpcRankService.effectiveRank(data,npc)==KOMEProgressionNpcRank.LORD
+            &&KOMEProgressionLiegePolicy.accepts(data,data.getProgression(player.getUniqueID()).getCanonicalRank(),KOMEProgressionNpcRankService.effectiveRank(data,npc),pledge.codeName(),npc.getFaction().codeName())
             &&npc.hiredNPCInfo!=null&&!npc.hiredNPCInfo.isActive;
     }
 
@@ -356,7 +374,9 @@ public final class KOMEProgressionOfferBridge {
 
     private static boolean isOfferActive(KOMESerfdomOfferQuest offer, EntityPlayer player, LOTREntityNPC npc) {
         return offer != null && player != null && npc != null && !offer.isExpired(opportunityWindow(KOMESerfKnightService.calendarDayNow()))
-            && eligiblePlayer(player) && eligibleNpc(player, npc);
+            &&npc.getUniqueID().equals(offer.entityUUID)
+            && eligiblePlayer(player) && eligibleNpc(player, npc)
+            &&offer.matchesPledgeRevision(KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).observeOfferPledge(LOTRLevelData.getData(player).getPledgeFaction().codeName()));
     }
     private static boolean eligiblePlayer(EntityPlayer player) {
         if (player == null) return false;

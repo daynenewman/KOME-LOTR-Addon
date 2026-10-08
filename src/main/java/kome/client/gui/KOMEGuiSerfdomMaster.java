@@ -23,7 +23,7 @@ public class KOMEGuiSerfdomMaster extends LOTRGuiMenuBase {
         xSize=230;detailLines=wrappedDetails(194);int buttons=buttonCount();
         ySize=panelHeight(detailLines.size(),buttons);super.initGui();
         buttonList.clear();buttonMenuReturn=null;detailY=guiTop+88;buttonY=guiTop+buttonStartOffset(detailLines.size());int center=width/2,row=0;
-        if(mode==1&&dutyStatus.startsWith("Trial complete"))buttonList.add(KOMEGuiButton.wide(8,center-72,buttonY+24*row++,"Receive parting gift"));
+        if(mode==1&&dutyStatus.startsWith("Trial complete"))buttonList.add(KOMEGuiButton.wide(8,center-72,buttonY+24*row++,"Receive new standing"));
         else if(mode==1&&canRequestDuty)buttonList.add(KOMEGuiButton.wide(1,center-72,buttonY+24*row++,"Request today's duty"));
         if(mode==1&&hasActiveDuty){int action=activeAction();if(action>=0)buttonList.add(KOMEGuiButton.wide(action,center-72,buttonY+24*row++,actionLabel(action)));buttonList.add(KOMEGuiButton.wide(2,center-72,buttonY+24*row,"View current duty"));}
     }

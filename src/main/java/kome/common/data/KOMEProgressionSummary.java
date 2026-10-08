@@ -3,6 +3,14 @@ package kome.common.data;
 /** Read-only canonical progression-book projection. */
 public final class KOMEProgressionSummary {
     private KOMEProgressionSummary() {}
+    public static String courierCopy(KOMEPlayerProgression p,long now){
+        KOMESerfKnightProgression s=p.getSerfKnightProgression();
+        if(!"courier".equals(s.getActiveAssignmentKind()))return "";
+        KOMESerfCourierAssignment a=KOMESerfCourierAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
+        if(a==null||a.stage==KOMESerfCourierAssignment.Stage.DELIVERED)return "";
+        long remaining=a.replacementTicksRemaining(now);
+        return "\nReplacement message: "+(a.replacements>=3?"No copies remain":remaining>0?"Speak with your Master in "+KOMECourierIssuance.cooldownText(remaining):"Ask your Master for a copy");
+    }
 
     public static String text(KOMEPlayerProgression p) { return text(p, ""); }
     public static String text(KOMEPlayerProgression p, boolean hasPlayablePledge) { return text(p, hasPlayablePledge ? "Pledged Faction" : ""); }
@@ -24,7 +32,7 @@ public final class KOMEProgressionSummary {
             +(s.hasLiege()?"\nLiege: "+s.getLiege().displayName:"\nLiege: None\nNext: Seek an eligible captain and accept their Liege offer");
         if (!s.getSerfdomMaster().isSet()) return rank + "\nMaster: None\nNext: Find a Master";
 
-        String base = rank + "\nMaster: " + s.getSerfdomMaster().displayName;
+        String base = rank + (s.hasMasterRelationship()?"\nMaster: ":"\nFormer Master: ") + s.getSerfdomMaster().displayName;
         if (s.hasLiege() && s.getTrialId().length() == 0) return base + "\nLiege: " + s.getLiege().displayName + "\nNext: Ask your Liege for a Trial of Standing";
         if ("courier".equals(s.getActiveAssignmentKind())) {
             KOMESerfCourierAssignment a = KOMESerfCourierAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
@@ -45,17 +53,23 @@ public final class KOMEProgressionSummary {
             String objective=trial==null?"Complete your Trial":trial.description;
             KOMESerfKnightTrialAssignment assignment=s.getTrialAssignment();
             if(assignment!=null&&assignment.stage==KOMESerfKnightTrialAssignment.Stage.FAILED) return base + "\nLiege: " + s.getLiege().displayName + "\nTrial of Standing: " + (trial==null?"Trial":trial.displayName) + "\nObjective: This trial is lost. Seek a new Liege.";
-            if(assignment!=null&&"escort".equals(assignment.trialId)) objective=assignment.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED?"Meet your charge at your Liege's side":assignment.stage==KOMESerfKnightTrialAssignment.Stage.FAILED?"Your charge was lost": "See your charge safely through the journey";
+            if(assignment!=null&&"escort".equals(assignment.trialId)) objective=assignment.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED?"Meet your charge at your Liege's side":assignment.stage==KOMESerfKnightTrialAssignment.Stage.FAILED?"Your charge was lost": "Escort your charge to "+KOMESerfKnightEscortService.destinationName(assignment);
             if(assignment!=null&&"recovery".equals(assignment.trialId)) objective=assignment.data.getBoolean("RecoveryRetrieved")?"Return the recovered item to your Liege":"Recover the lost item";
             if(assignment!=null&&"defense".equals(assignment.trialId)) objective=assignment.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED?"Defend your people from the attack":KOMESerfKnightDefenseService.allDead(assignment)?"Return to your Liege":"Defeat the remaining attackers";
             return base + "\nLiege: " + s.getLiege().displayName + "\nTrial of Standing: " + (trial==null?"Trial":trial.displayName) + "\nObjective: " + objective;
         }
         if (s.getActiveAssignmentKind().length() != 0) return base + "\nCurrent Duty: " + s.getActiveAssignmentKind() + "\nNext: Complete your duty";
-        if (s.isTrialCompleted() && !s.hasPartingGift()) return base + "\nNext: Return to your Master for a parting gift";
-        if (KOMESerfKnightService.allDutiesComplete(s) && !s.hasLiege()) return base + "\nNext: Seek an eligible prospective Liege";
+        if (s.isTrialCompleted()) return base + "\nNext: Return to your Master for your new standing";
+        if (KOMESerfKnightService.allDutiesComplete(s) && !s.hasLiege()) return base + "\nNext: Seek a prospective Liege\n"+KOMEProgressionNativeAuthority.guidance(pledgeKey);
         return base + "\nNext: Speak with your Master";
     }
     public static String text(KOMEPlayerProgression p,String pledgeName,String pledgeKey,double alignment){
+        KOMESerfKnightProgression s=p.getSerfKnightProgression();
+        if(p.getCanonicalRank()==KOMEProgressionRank.SERF&&KOMESerfKnightService.allDutiesComplete(s)
+            &&!s.hasLiege()&&!s.isTrialCompleted()&&!KOMEStandingTrialEligibility.meetsAlignment(s,alignment,pledgeKey))
+            return "Rank: "+KOMEFactionProgressionTitles.title(pledgeKey,KOMEProgressionRank.SERF)
+                +"\nMaster: "+s.getSerfdomMaster().displayName+"\nNext: Reach "+KOMEStandingTrialEligibility.requiredAlignment(pledgeKey)
+                +" faction alignment ("+(int)Math.floor(Math.max(0,alignment))+" / "+KOMEStandingTrialEligibility.requiredAlignment(pledgeKey)+").";
         String result=text(p,pledgeName,pledgeKey);
         if(p.getCanonicalRank()==KOMEProgressionRank.KNIGHT)result+="\n"+KOMELordshipTrialPresentation.standing(p,alignment,pledgeKey)+"\n"+KOMELordshipTrialPresentation.status(p,alignment,pledgeKey);
         return result;
@@ -63,7 +77,7 @@ public final class KOMEProgressionSummary {
 
     static String professionText(String base, KOMESerfProfessionAssignment assignment) {
         String q = base + "\nCurrent Duty: Profession\nMaster's Trade: " + assignment.tradeDisplayName;
-        for (KOMESerfProfessionAssignment.Requirement material : assignment.requirements) q += "\n" + material.displayName + ": " + material.delivered + " / " + material.required;
+        for (KOMESerfProfessionAssignment.Requirement material : assignment.requirements) q += "\n" + KOMEProgressionGoodsRules.name(material.requestedStack(),material.displayName) + ": " + material.delivered + " / " + material.required;
         return q;
     }
 

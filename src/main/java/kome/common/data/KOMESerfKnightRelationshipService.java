@@ -39,6 +39,11 @@ public final class KOMESerfKnightRelationshipService {
     /** The same captain eligibility as a standing trial, without a new trial or rank mutation. */
     public static Result establishLiege(net.minecraft.entity.player.EntityPlayerMP player,
             KOMEWorldData data,lotr.common.entity.npc.LOTREntityNPC npc) {
+        if(player!=null&&data!=null&&data.getProgression(player.getUniqueID()).getCanonicalRank()==KOMEProgressionRank.PRINCE){
+            lotr.common.fac.LOTRFaction pledge=lotr.common.LOTRLevelData.getData(player).getPledgeFaction();
+            if(pledge!=null&&KOMERulerService.hasRuler(data,pledge.codeName()))
+                return reject("Your faction's player King holds your allegiance. Seek "+KOMERulerService.getRulerName(data,pledge.codeName())+".");
+        }
         if(player==null||data==null||npc==null||player.worldObj.isRemote
                 ||player.getDistanceSqToEntity(npc)>64D
                 ||data!=KOMEWorldData.get(player.worldObj)

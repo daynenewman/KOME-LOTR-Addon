@@ -122,7 +122,9 @@ public class GuiStartingFactionSelection extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
-        if (keyCode == 1 && !selectionPending && (mandatoryFlow || parent != null)) {
+        if (keyCode == 1 && mandatoryFlow) {
+            ClientCreationContinuation.pause(this);
+        } else if (keyCode == 1 && !selectionPending && parent != null) {
             goBack();
         } else if (keyCode != 1) {
             super.keyTyped(typedChar, keyCode);

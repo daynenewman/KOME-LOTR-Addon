@@ -19,7 +19,10 @@ public class KOMEProgressionHardeningGeographyTest {
     static KOMEProgressionNpcRef origin(KOMELordshipTrialFixture f){return new KOMEProgressionNpcRef(f.liege.getUniqueID().toString(),"Captain","rohan",LOTRDimension.MIDDLE_EARTH.dimensionID,1000,65,1000);}
     @Test public void allProfilesRetainTheirRangeAndDestinationWithoutReroll()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         territory(f);f.s.chunks=false;
+        KOMEProgressionGameplayFixture.record(f.s.f.world,1800,1000,"rohan");
+        ((KOMECourierGeographyTest.TestManager)f.s.f.world.getWorldChunkManager()).borderZ=1600;
         for(Type type:Type.values()){KOMEKnightCommissionLocations.Destination d=KOMEKnightCommissionLocations.choose(origin(f),f.s.f.world,type,"fixed-seed"),again=KOMEKnightCommissionLocations.choose(origin(f),f.s.f.world,type,"fixed-seed");
+            if(type==Type.BORDER_INCURSION){assertNull("No hostile neighboring territory exists in this fixture",d);assertNull(again);continue;}
             assertNotNull(type.name(),d);assertEquals(d.x,again.x,0);assertEquals(d.z,again.z,0);double distance=Math.hypot(d.x-1000,d.z-1000);assertTrue(distance>=500&&distance<=1500);
             KOMEKnightCommission a=new KOMEKnightCommission(type,origin(f));a.x=a.destinationX=d.x;a.z=a.destinationZ=d.z;assertTrue(f.s.p.getKnightService().offer(a));
             f.s.reload();assertEquals(d.x,f.s.p.getKnightService().assignment().destinationX,0);assertEquals(a.token,f.s.p.getKnightService().assignment().token);f.s.p.getKnightService().discardOffer();
@@ -31,6 +34,7 @@ public class KOMEProgressionHardeningGeographyTest {
     }}
     @Test public void loadedInvalidSurfaceRejectsOfferRatherThanAcceptingBadCoordinates()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         territory(f);f.s.chunks=true;f.s.f.world.unsafeSurface=true;
+        KOMEProgressionGameplayFixture.record(f.s.f.world,1800,1000,"rohan");
         assertNull(KOMEKnightCommissionLocations.choose(origin(f),f.s.f.world,Type.RELIEF,"seed"));assertTrue(f.s.f.world.terrainProbes>0);assertNull(f.s.p.getKnightService().assignment());
     }}
     @Test public void steepTerrainAndWrongFactionAreRejected()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){

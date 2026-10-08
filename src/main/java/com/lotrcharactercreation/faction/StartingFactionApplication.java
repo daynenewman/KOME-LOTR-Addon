@@ -31,6 +31,7 @@ public final class StartingFactionApplication {
         }
 
         if (!ModConfiguration.isAutomaticStartingAllegianceEnabled()) {
+            applyInitialAlignmentView(LOTRLevelData.getData(player),startingFaction.getLotrFaction());
             PlayerRaceData.setStartingFactionApplied(player, true);
             return startingFaction;
         }
@@ -88,8 +89,15 @@ public final class StartingFactionApplication {
             return null;
         }
 
+        // One-time default; native manual choices and region preferences persist thereafter.
+        applyInitialAlignmentView(lotrData,selectedPledge);
         PlayerRaceData.setStartingFactionApplied(player, true);
         return startingFaction;
+    }
+    static void applyInitialAlignmentView(LOTRPlayerData data,LOTRFaction selected) {
+        if(data==null||selected==null)return;
+        data.setViewingFaction(selected);
+        data.setRegionLastViewedFaction(selected.factionRegion,selected);
     }
 
     public static boolean isReplacementRequired(boolean automaticStartingAllegiance, String existingPledgeCode,

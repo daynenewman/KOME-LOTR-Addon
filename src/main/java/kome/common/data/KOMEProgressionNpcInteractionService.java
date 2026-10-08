@@ -34,6 +34,12 @@ public final class KOMEProgressionNpcInteractionService {
         KOMEProgressionNpcRef clicked=
             KOMEProgressionNpcRankService.referenceOf(npc);
 
+        if(KOMEPartingGiftService.drop(player,data,npc)){
+            KOMEProgressionNpcSpeech.say(player,npc,"You have served me well. Take this gift with my blessing for the road.");
+            KOMEProgressionAutoCompleter.syncPlayer(player,progression);
+            return true;
+        }
+
         if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&state.getLiege().hasSameIdentity(clicked)) {
             KOMEKnightCommission commission=progression.getKnightService().assignment();
             return commission!=null&&commission.stage!=KOMEKnightCommission.Stage.OFFERED
@@ -64,6 +70,10 @@ public final class KOMEProgressionNpcInteractionService {
                 &&progression.getCanonicalRank().order>=KOMEProgressionRank.KNIGHT.order
                 &&npc.isEntityAlive()&&player.worldObj==npc.worldObj
                 &&player.getDistanceSqToEntity(npc)<=64D) {
+            if(KOMEPartingGiftService.drop(player,data,npc)){
+                KOMEProgressionAutoCompleter.syncPlayer(player,progression);
+                KOMEProgressionNpcSpeech.say(player,npc,"Take this pouch with my blessing for the road.");return true;
+            }
             KOMEProgressionNpcSpeech.say(player,npc,
                 "It is good to see you again. I remember your faithful service in my household.");
             // Acknowledgement must not replace ordinary trading or conversation.
@@ -90,7 +100,7 @@ public final class KOMEProgressionNpcInteractionService {
             return false;
         }
 
-        if(canReceivePartingGift(player,state)) {
+        if(canReceiveKnighthood(player,state)) {
             KOMESerfdomMasterService.Result result=
                 KOMESerfdomMasterService.conferKnighthood(
                     player,
@@ -155,6 +165,12 @@ public final class KOMEProgressionNpcInteractionService {
         KOMESerfKnightDutyType next=
             KOMESerfKnightService.nextDuty(state);
 
+        lotr.common.fac.LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
+        if(next==null&&!state.hasLiege()&&pledge!=null&&KOMEStandingTrialEligibility.meetsAlignment(state,
+                LOTRLevelData.getData(player).getAlignment(pledge),pledge.codeName())){
+            KOMEProgressionNpcSpeech.say(player,npc,KOMEProgressionNativeAuthority.guidance(pledge.codeName()));return true;
+        }
+        if(next==null&&state.getLastAssignmentEpochDay()==KOMESerfKnightService.calendarDayNow()){KOMEProgressionNpcSpeech.sameDay(player,npc);return true;}
         if(next==null) {
             return false;
         }
@@ -165,7 +181,8 @@ public final class KOMEProgressionNpcInteractionService {
                 state,
                 day,
                 player.getUniqueID())) {
-            return false;
+            KOMEProgressionNpcSpeech.sameDay(player,npc);
+            return true;
         }
 
         KOMESerfdomMasterService.Result result=
@@ -249,6 +266,7 @@ public final class KOMEProgressionNpcInteractionService {
             progression);
 
         if(assignment.complete()) {
+            KOMEProgressionServiceRewards.duty(player,state,KOMESerfKnightDutyType.PROVISIONING);
             KOMEProgressionNpcSpeech.completedProvisions(
                 player,
                 npc);
@@ -307,6 +325,7 @@ public final class KOMEProgressionNpcInteractionService {
             progression);
 
         if(assignment.complete()) {
+            KOMEProgressionServiceRewards.duty(player,state,KOMESerfKnightDutyType.PROFESSION);
             KOMEProgressionNpcSpeech
                 .completedProfessionMaterials(
                     player,
@@ -392,11 +411,16 @@ public final class KOMEProgressionNpcInteractionService {
         return false;
     }
 
-    static void activateTrial(
+    public static void activateTrial(
             EntityPlayerMP player,
             KOMEPlayerProgression progression,
             LOTREntityNPC liege,
             String trialId) {
+        if(player==null||progression==null||liege==null||player.worldObj.isRemote)return;
+        KOMEWorldData world=KOMEWorldData.get(player.worldObj);
+        if(!validLiegeInteraction(player,progression,world,liege))return;
+        KOMESerfKnightTrialAssignment before=progression.getSerfKnightProgression().getTrialAssignment();
+        if(before==null||before.stage!=KOMESerfKnightTrialAssignment.Stage.ASSIGNED)return;
         if("recovery".equals(trialId)) {
             KOMESerfKnightRecoveryService.activate(
                 player,
@@ -413,14 +437,19 @@ public final class KOMEProgressionNpcInteractionService {
                 progression,
                 liege);
         }
+        KOMESerfKnightProgression state=progression.getSerfKnightProgression();
+        if(state.getTrialAssignment()!=null&&state.getTrialAssignment().stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED){
+            KOMEProgressionEncounterCleanup.failTrial(world,player.worldObj,state);
+            KOMEProgressionNpcSpeech.say(player,liege,"I cannot arrange this trial safely here. Seek new service before attempting another trial.");
+            KOMEProgressionAutoCompleter.syncPlayer(player,progression);
+        }
     }
 
-    private static boolean canReceivePartingGift(
+    private static boolean canReceiveKnighthood(
             EntityPlayerMP player,
             KOMESerfKnightProgression state) {
         if(state==null
-                ||!state.isTrialCompleted()
-                ||state.hasPartingGift()) {
+                ||!state.isTrialCompleted()) {
             return false;
         }
 
@@ -469,7 +498,7 @@ public final class KOMEProgressionNpcInteractionService {
                 .isCombatUnitHiringNpc(npc)
             &&KOMEProgressionNpcRankService
                 .effectiveRank(data,npc)==
-                    KOMEProgressionNpcRank.LORD
+                    KOMEProgressionLiegePolicy.requiredSuperior(progression.getCanonicalRank())
             &&npc.hiredNPCInfo!=null
             &&!npc.hiredNPCInfo.isActive;
     }

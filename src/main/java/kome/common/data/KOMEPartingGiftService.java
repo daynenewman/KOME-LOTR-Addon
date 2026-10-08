@@ -12,14 +12,50 @@ import net.minecraft.init.Items;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 
-/** Native medium pouch, generated once into saved state; claims reserve one inventory slot. */
+/** Native medium pouch, generated once into saved state, then physically issued once. */
 public final class KOMEPartingGiftService {
     private KOMEPartingGiftService() { }
     public static ItemStack pending(KOMESerfKnightProgression state,Random random) {
-        if(state==null||!state.isTrialCompleted()||state.hasPartingGift()||!state.getSerfdomMaster().isSet())return null;
+        if(state==null||!state.isTrialCompleted()||state.hasPartingGift()||!giftMaster(state).isSet())return null;
         ItemStack saved=state.getPendingPartingGift();
-        if(saved==null){saved=generate(state.getSerfdomMaster().factionKey,random);state.setPendingPartingGift(saved);}
+        if(saved==null){saved=generate(giftMaster(state).factionKey,random);state.setPendingPartingGift(saved);}
         return saved==null?null:saved.copy();
+    }
+    static KOMEProgressionNpcRef giftMaster(KOMESerfKnightProgression state) {
+        if(state.getSerfdomMaster().isSet())return state.getSerfdomMaster();
+        return state.getFormerMaster().hasSameIdentity(state.getDeceasedMaster())?KOMEProgressionNpcRef.EMPTY:state.getFormerMaster();
+    }
+    public static void tickPlayer(net.minecraft.entity.player.EntityPlayerMP player) {
+        KOMEWorldData world=KOMEWorldData.get(player.worldObj);
+        KOMESerfKnightProgression state=world.getProgression(player.getUniqueID()).getSerfKnightProgression();
+        if(!state.isTrialCompleted()||state.hasPartingGift()||!KOMESerfKnightService.allDutiesComplete(state))return;
+        KOMEProgressionNpcRef master=giftMaster(state);
+        lotr.common.fac.LOTRFaction pledge=lotr.common.LOTRLevelData.getData(player).getPledgeFaction();
+        if(!KOMEProgressionFactionResolver.matches(master.factionKey,pledge))return;
+        for(Object entity:player.worldObj.loadedEntityList)if(entity instanceof lotr.common.entity.npc.LOTREntityNPC
+                &&master.entityUuid.equals(((net.minecraft.entity.Entity)entity).getUniqueID().toString())){
+            lotr.common.entity.npc.LOTREntityNPC npc=(lotr.common.entity.npc.LOTREntityNPC)entity;
+            if(!state.getSerfdomMaster().isSet()&&(!npc.isEntityAlive()||!KOMEProgressionFactionResolver.matches(master.factionKey,npc.getFaction()))){
+                state.handleFormerMasterLoss();world.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,world.getProgression(player.getUniqueID()));return;
+            }
+            // Availability is reconciled here; issuance belongs exclusively to an explicit interaction.
+            return;
+        }
+    }
+    public static boolean drop(net.minecraft.entity.player.EntityPlayerMP player,KOMEWorldData world,
+            lotr.common.entity.npc.LOTREntityNPC master) {
+        if(player==null||world==null||master==null||player.worldObj.isRemote
+                ||master.worldObj!=player.worldObj||!master.isEntityAlive()||player.getDistanceSqToEntity(master)>64)return false;
+        synchronized(world){
+            KOMESerfKnightProgression state=world.getProgression(player.getUniqueID()).getSerfKnightProgression();
+            lotr.common.fac.LOTRFaction pledge=lotr.common.LOTRLevelData.getData(player).getPledgeFaction();
+            if(!KOMEProgressionFactionResolver.matches(giftMaster(state).factionKey,pledge)
+                    ||!KOMEProgressionFactionResolver.matches(giftMaster(state).factionKey,master.getFaction()))return false;
+            if(!giftMaster(state).hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(master)))return false;
+            ItemStack gift=pending(state,player.worldObj.rand);world.markDirty();if(gift==null)return false;
+            if(KOMEProgressionItemDrops.drop(master.worldObj,master.posX,master.posY+0.5D,master.posZ,gift)==null)return false;
+            state.setPartingGiftReceived();world.markDirty();return true;
+        }
     }
     static ItemStack generate(String faction,Random random) {
         if(LOTRMod.pouch==null||LOTRMod.silverCoin==null)return null;

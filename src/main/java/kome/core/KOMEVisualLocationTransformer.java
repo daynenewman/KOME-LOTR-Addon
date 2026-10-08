@@ -57,11 +57,31 @@ public final class KOMEVisualLocationTransformer implements IClassTransformer {
             if (nativeQuestBook == null)
                 throw new IllegalStateException("LOTR v36.15 accepted-miniquest renderer was not found");
             if (!hasRelationshipRenderer) node.methods.add(relationshipRenderer(nativeQuestBook));
+            // Clone first: native indicators are hidden, the supplied relationship icon is not.
+            for(MethodNode method:node.methods)
+                if(NPC_RENDER_DESC.equals(method.desc)&&("renderQuestBook".equals(method.name)||"renderQuestOffer".equals(method.name)))
+                    suppressNative(method,"renderQuestOffer".equals(method.name));
+            for(MethodNode method:node.methods)if(method.name.startsWith("render")&&(method.access&Opcodes.ACC_STATIC)!=0&&method.desc.endsWith(")V")){
+                boolean existing=false;for(AbstractInsnNode i=method.instructions.getFirst();i!=null;i=i.getNext())if(i instanceof MethodInsnNode&&"isRendering".equals(((MethodInsnNode)i).name))existing=true;
+                if(!existing){InsnList guard=new InsnList();org.objectweb.asm.tree.LabelNode ordinary=new org.objectweb.asm.tree.LabelNode();
+                    guard.add(new MethodInsnNode(Opcodes.INVOKESTATIC,"kome/client/KOMEProgressionEnemyOutline","isRendering","()Z",false));guard.add(new JumpInsnNode(Opcodes.IFEQ,ordinary));guard.add(new org.objectweb.asm.tree.InsnNode(Opcodes.RETURN));guard.add(ordinary);method.instructions.insert(guard);}
+            }
         }
         if (!found) throw new IllegalStateException("LOTR v36.15 visual rendering fingerprint was not found in " + transformedName);
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         node.accept(writer);
         return writer.toByteArray();
+    }
+
+    private static void suppressNative(MethodNode method,boolean overhead) {
+        for(AbstractInsnNode insn=method.instructions.getFirst();insn!=null;insn=insn.getNext())
+            if(insn instanceof MethodInsnNode&&"suppressNativeIndicator".equals(((MethodInsnNode)insn).name))return;
+        InsnList hook=new InsnList();org.objectweb.asm.tree.LabelNode nativePath=new org.objectweb.asm.tree.LabelNode();
+        hook.add(new VarInsnNode(Opcodes.ALOAD,0));
+        hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC,BRIDGE,"suppressNativeIndicator","(Llotr/common/entity/npc/LOTREntityNPC;)Z",false));
+        hook.add(new JumpInsnNode(Opcodes.IFEQ,nativePath));
+        if(overhead)hook.add(overheadCall());
+        hook.add(new org.objectweb.asm.tree.InsnNode(Opcodes.RETURN));hook.add(nativePath);method.instructions.insert(hook);
     }
 
     /** Clone the audited LOTR renderer, changing only its eligibility gate and supplied item. */
@@ -70,6 +90,15 @@ public final class KOMEVisualLocationTransformer implements IClassTransformer {
             NATIVE_RELATIONSHIP_RENDERER, nativeMethod.desc, nativeMethod.signature,
             nativeMethod.exceptions == null ? null : nativeMethod.exceptions.toArray(new String[0]));
         nativeMethod.accept(copy);
+        // Pouches use getIcon(stack, pass); getIconIndex() returns null for this native item.
+        for(AbstractInsnNode insn=copy.instructions.getFirst();insn!=null;insn=insn.getNext())
+            if(insn instanceof MethodInsnNode){MethodInsnNode call=(MethodInsnNode)insn;
+                if("net/minecraft/item/ItemStack".equals(call.owner)
+                        &&("getIconIndex".equals(call.name)||"func_77954_c".equals(call.name))){
+                    call.setOpcode(Opcodes.INVOKESTATIC);call.owner=BRIDGE;call.name="itemIcon";
+                    call.desc="(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/util/IIcon;";
+                }
+            }
         boolean gatePatched = false, speechPatched = false, itemPatched = false;
         for (AbstractInsnNode instruction = copy.instructions.getFirst(); instruction != null;
                 instruction = instruction.getNext()) {

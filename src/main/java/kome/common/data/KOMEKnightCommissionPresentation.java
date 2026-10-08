@@ -9,20 +9,42 @@ import static kome.common.data.KOMEKnightCommission.*;
 public final class KOMEKnightCommissionPresentation {
     private KOMEKnightCommissionPresentation() {}
     public static String title(Type type) { return text("title."+type.name().toLowerCase(java.util.Locale.ROOT)); }
-    private static String text(String key,Object... args) { return StatCollector.translateToLocalFormatted("kome.commission."+key,args); }
+    private static String text(String key,Object... args) { return KOMEProgressionLanguage.text("kome.commission."+key,args); }
     public static String objective(KOMEKnightCommission a) {
         if(a.stage==Stage.FAILED)return text("failed");
         if(a.stage==Stage.READY_TO_REPORT)return text("report");
-        String result=text("objective."+a.type.name().toLowerCase(java.util.Locale.ROOT),a.place);
+        if(a.stage==Stage.OFFERED)return text("receive_orders");
+        if(!a.encounterCreated)return text("travel");
+        if(a.type!=Type.RELIEF&&!a.threatResolved)return text("repel");
+        String result=text("objective."+a.type.name().toLowerCase(java.util.Locale.ROOT),location(a));
         if(a.type==Type.RELIEF){for(Goods good:a.goods){Item item=(Item)Item.itemRegistry.getObject(good.itemKey);String name=item==null?text("provisions"):new ItemStack(item,1,good.damage).getDisplayName();result+="\n"+name+": "+good.delivered+" / "+good.required;}}
-        if(a.type==Type.STOLEN_GOODS&&a.threatResolved)result=text("recover",a.place);
+        if(a.type==Type.STOLEN_GOODS&&a.threatResolved)result=text("recover");
         return result;
     }
-    public static String speech(KOMEKnightCommission a,String event) {
-        if("assigned".equals(event)||"offer".equals(event))return text("speech."+a.type.name().toLowerCase(java.util.Locale.ROOT),a.place);
-        if("progress".equals(event))return objective(a);
-        return text("speech."+event,a.place);
+    public static int required(KOMEKnightCommission a){
+        if(a.stage==Stage.ACTIVE&&a.encounterCreated&&!a.threatResolved&&a.type!=Type.RELIEF){
+            int total=0;for(Actor actor:a.actors)if(actor.role==Role.ENEMY)total++;return Math.max(1,total);
+        }
+        return 1;
     }
+    public static int completed(KOMEKnightCommission a){
+        if(a.stage==Stage.ACTIVE&&a.encounterCreated&&!a.threatResolved&&a.type!=Type.RELIEF){
+            int dead=0;for(Actor actor:a.actors)if(actor.role==Role.ENEMY&&actor.dead)dead++;return dead;
+        }
+        return a.stage==Stage.REPORTED?1:0;
+    }
+    public static String speech(KOMEKnightCommission a,String event) {
+        if("assigned".equals(event)||"offer".equals(event)){
+            lotr.common.fac.LOTRFaction enemy=KOMEProgressionFactionResolver.resolve(a.enemyFaction);
+            String foe=enemy==null?"the raiders":enemy.factionName();
+            String opening="rohan".equals(KOMEAlliance.normalizeFactionKey(a.faction))?text("rohan_orders"):
+                "gondor".equals(KOMEAlliance.normalizeFactionKey(a.faction))?text("gondor_orders"):"";
+            return (opening.isEmpty()?"":opening+" ")+text("speech."+a.type.name().toLowerCase(java.util.Locale.ROOT),location(a),foe,KOMEProgressionLostItems.name(a));
+        }
+        if("progress".equals(event))return objective(a);
+        return text("speech."+event,location(a));
+    }
+    static String location(KOMEKnightCommission a){return "EXISTING_VERIFIED".equals(a.destinationProof.getString("Status"))?"the shelter marked on your map":"the ground marked on your map";}
     public static String summary(KOMEPlayerProgression p) {return summary(p,p.getSerfKnightProgression().getLiege().factionKey);}
     public static String summary(KOMEPlayerProgression p,String faction) {
         KOMEKnightServiceRecord s=p.getKnightService();KOMEKnightCommission a=s.assignment();KOMEProgressionNpcRef liege=p.getSerfKnightProgression().getLiege();

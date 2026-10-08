@@ -15,8 +15,8 @@ public final class KOMESerfdomMasterService {
     public static Result validateMasterSelection(KOMEProgressionRank playerRank, String pledgeKey, String npcFactionKey, KOMEProgressionNpcRank npcRank, boolean validNpc) {
         if(playerRank != KOMEProgressionRank.WANDERER && playerRank != KOMEProgressionRank.SERF) return reject("Only a Wanderer or a player in their first faction rank may choose a Master.");
         if(!validNpc || npcRank != KOMEProgressionNpcRank.UNRANKED) return reject("That NPC is not an eligible Master.");
-        if(pledgeKey == null || pledgeKey.trim().length()==0) return reject("You must pledge to a playable faction before serving a Master.");
-        if(npcFactionKey == null || !pledgeKey.trim().equalsIgnoreCase(npcFactionKey.trim())) return reject("A Master must belong to your pledged faction.");
+        if(pledgeKey == null || KOMEProgressionFactionResolver.resolve(pledgeKey)==null || !KOMEProgressionFactionResolver.resolve(pledgeKey).isPlayableAlignmentFaction()) return reject("You must first pledge yourself to this faction.");
+        if(npcFactionKey == null || !KOMEProgressionFactionResolver.matches(npcFactionKey,KOMEProgressionFactionResolver.resolve(pledgeKey))) return reject("You have sworn yourself elsewhere.");
         return ok();
     }
     public static Result validateCurrentMasterInteraction(KOMEProgressionRank playerRank, String pledgeKey, String npcFactionKey, KOMEProgressionNpcRank npcRank, boolean validNpc) {
@@ -60,14 +60,9 @@ public final class KOMESerfdomMasterService {
             UUID owner=player.getUniqueID();KOMEProgressionNpcRef master=KOMEProgressionNpcRankService.referenceOf(npc);
             validation=validateConfer(data,owner,master,pledgeKey,alignment);if(!validation.success)return validation;
             KOMESerfKnightProgression state=data.getProgression(owner).getSerfKnightProgression();
-            net.minecraft.item.ItemStack gift=KOMEPartingGiftService.pending(state,new java.util.Random());data.markDirty();
-            if(gift==null)return reject("The Master's gift is not yet ready.");
-            int slot=KOMECourierService.emptyBookSlot(player.inventory.mainInventory);
-            if(slot<0)return reject("Make one empty inventory slot for your Master's parting pouch.");
-            player.inventory.mainInventory[slot]=gift.copy();
+            KOMEPartingGiftService.pending(state,player.worldObj.rand);
             Result result=conferKnighthood(data,owner,master,pledgeKey,alignment);
-            if(!result.success){player.inventory.mainInventory[slot]=null;return result;}
-            player.inventory.markDirty();player.inventoryContainer.detectAndSendChanges();return result;
+            return result;
         }
     }
     /** Server-only transition shared by the live NPC interaction and integrated progression tests. */
@@ -75,10 +70,8 @@ public final class KOMESerfdomMasterService {
         Result validation=validateConfer(data,playerId,clickedMaster,pledgeKey,alignment);if(!validation.success)return validation;
         KOMEPlayerProgression progression=data.getProgression(playerId);
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
-        KOMESerfKnightService.Result gift=KOMESerfKnightService.recordPartingGift(state);
-        if(!gift.success)return reject(gift.reason);
         KOMESerfKnightService.Result promotion=KOMESerfKnightService.markPromoted(state,alignment);
-        if(!promotion.success)throw new IllegalStateException("Validated parting gift could not complete knighthood: "+promotion.reason);
+        if(!promotion.success)throw new IllegalStateException("Validated promotion could not complete knighthood: "+promotion.reason);
         KOMECanonicalRankService.setCanonicalRank(data,playerId,KOMEProgressionRank.KNIGHT);
         state.retireSerfdomMasterAfterPromotion();
         progression.grant("serf.title_knight");
@@ -91,7 +84,7 @@ public final class KOMESerfdomMasterService {
         if(data==null||playerId==null||clickedMaster==null)return reject("A valid Master is required.");
         KOMEPlayerProgression progression=data.getProgression(playerId);
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
-        if(progression.getCanonicalRank()!=KOMEProgressionRank.SERF||state.isPromoted()||state.hasPartingGift())return reject("Your next standing has already been conferred or is unavailable.");
+        if(progression.getCanonicalRank()!=KOMEProgressionRank.SERF||state.isPromoted())return reject("Your next standing has already been conferred or is unavailable.");
         if(!state.getSerfdomMaster().hasSameIdentity(clickedMaster))return reject("Return to your own Master.");
         LOTRFaction pledgedFaction=KOMEProgressionFactionResolver.resolve(pledgeKey);
         KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();
@@ -111,6 +104,9 @@ public final class KOMESerfdomMasterService {
     private static Result requestDutyLocked(EntityPlayerMP player,KOMEWorldData data,LOTREntityNPC npc) {
         Result validation=validateCurrentMasterInteraction(player,data,npc,true); if(!validation.success)return validation;
         KOMESerfKnightProgression state=data.getProgression(KOMEReflection.getEntityUUID(player)).getSerfKnightProgression();
+        if(state.hasActiveAssignment())return reject("Finish the work I have already given you.");
+        if(!KOMESerfKnightService.mayIssueAssignment(state,KOMESerfKnightService.calendarDayNow(),player.getUniqueID()))
+            return reject("You have already received a progression task today. Return tomorrow.");
         java.util.Random random=new java.util.Random();KOMESerfKnightDutyType next=KOMESerfKnightService.chooseAvailableDuty(state,random);net.minecraft.nbt.NBTTagCompound assignmentData=null;
         if(next==KOMESerfKnightDutyType.PROVISIONING)assignmentData=KOMESerfProvisioningAssignment.generate(npc.getFaction().codeName(),random).writeToNBT();
         else if(next==KOMESerfKnightDutyType.PROFESSION)assignmentData=KOMESerfProfessionAssignment.generate(KOMESerfProfessionClassifier.classify(npc),npc.getFaction().codeName(),random).writeToNBT();

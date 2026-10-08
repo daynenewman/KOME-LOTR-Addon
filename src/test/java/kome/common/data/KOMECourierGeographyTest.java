@@ -32,7 +32,7 @@ public class KOMECourierGeographyTest {
         assertTrue(source.contains("inDefinedControlZone"));assertTrue(source.contains("npcSpawnList.isFactionPresent"));
         for(String forbidden:new String[]{"getChunkFromChunkCoords","loadChunk","provideChunk"})assertFalse(forbidden,source.contains(forbidden));
     }
-    public static final class TestManager extends WorldChunkManager {TestBiome biome;private TestManager(){super();}@Override public BiomeGenBase getBiomeGenAt(int x,int z){return biome;}}
+    public static final class TestManager extends WorldChunkManager {TestBiome biome,hostileBiome;int borderZ;private TestManager(){super();}@Override public BiomeGenBase getBiomeGenAt(int x,int z){return hostileBiome!=null&&z>borderZ?hostileBiome:biome;}}
     public static final class TestSpawnList extends LOTRBiomeSpawnList {
         private TestSpawnList(){super("test");}
         @Override public boolean isFactionPresent(net.minecraft.world.World world,LOTRFaction faction){return faction==LOTRFaction.ROHAN;}

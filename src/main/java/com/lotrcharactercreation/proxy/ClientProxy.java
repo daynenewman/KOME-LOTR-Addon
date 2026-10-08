@@ -23,6 +23,7 @@ import com.lotrcharactercreation.client.appearance.ClientPlayerAppearanceCache;
 import com.lotrcharactercreation.client.body.ClientPlayerEyeCameraService;
 import com.lotrcharactercreation.client.command.CommandManSkinReview;
 import com.lotrcharactercreation.client.gui.GuiAppearanceSelection;
+import com.lotrcharactercreation.client.gui.ClientCreationContinuation;
 import com.lotrcharactercreation.client.gui.GuiCharacterConfirmation;
 import com.lotrcharactercreation.client.gui.GuiRaceSelection;
 import com.lotrcharactercreation.client.gui.GuiSexSelection;
@@ -46,6 +47,7 @@ public class ClientProxy extends CommonProxy {
 
     @Override
     public void initialize(File customSkinRoot, File configurationDirectory) {
+        FMLCommonHandler.instance().bus().register(ClientCreationContinuation.INSTANCE);
         ClientAppearanceTextureResolver.initialize(customSkinRoot, configurationDirectory);
         CommandManSkinReview manSkinReviewCommand = new CommandManSkinReview();
         ClientCommandHandler.instance.registerCommand(manSkinReviewCommand);
@@ -200,21 +202,18 @@ public class ClientProxy extends CommonProxy {
                 @Override
                 public void run() {
                     Minecraft minecraft = Minecraft.getMinecraft();
-                    if (minecraft.thePlayer == null) {
-                        return;
-                    }
-
                     CharacterCreationStage stage = CharacterCreationStage.findBySerializedId(serializedStageId);
                     if (stage == CharacterCreationStage.COMPLETE) {
+                        ClientCreationContinuation.INSTANCE.complete();
                         if (minecraft.currentScreen instanceof GuiCharacterConfirmation) {
                             minecraft.displayGuiScreen(null);
                         }
-                        minecraft.thePlayer.addChatMessage(
+                        if(minecraft.thePlayer!=null)minecraft.thePlayer.addChatMessage(
                             new ChatComponentText("[LOTR Character Creation] Character recreation complete."));
                         return;
                     }
                     if (stage == CharacterCreationStage.RACE) {
-                        minecraft.displayGuiScreen(new GuiRaceSelection());
+                        ClientCreationContinuation.INSTANCE.require(new GuiRaceSelection());
                         return;
                     }
 
@@ -230,7 +229,7 @@ public class ClientProxy extends CommonProxy {
                         currentPledgeCode,
                         automaticStartingAllegiance);
                     if (screen != null) {
-                        minecraft.displayGuiScreen(screen);
+                        ClientCreationContinuation.INSTANCE.require(screen);
                     }
                 }
             });
@@ -249,8 +248,6 @@ public class ClientProxy extends CommonProxy {
                         return;
                     }
 
-                    minecraft.thePlayer.addChatMessage(
-                        new ChatComponentText("[LOTR Character Creation] Race selected: " + race.getDisplayName()));
                 }
             });
     }
@@ -306,6 +303,7 @@ public class ClientProxy extends CommonProxy {
 
                 @Override
                 public void run() {
+                    ClientCreationContinuation.INSTANCE.complete();
                     Minecraft minecraft = Minecraft.getMinecraft();
                     StartingFaction faction = StartingFaction.findBySerializedId(serializedFactionId);
                     if (minecraft.thePlayer == null || faction == null) {
@@ -390,9 +388,8 @@ public class ClientProxy extends CommonProxy {
                     if (minecraft.currentScreen instanceof GuiAppearanceSelection) {
                         ((GuiAppearanceSelection) minecraft.currentScreen).handleSelectionResult(accepted, presetId);
                     }
-                    String message = accepted ? "Appearance confirmed."
-                        : "Appearance selection was rejected because your character state changed.";
-                    minecraft.thePlayer.addChatMessage(new ChatComponentText("[LOTR Character Creation] " + message));
+                    if (!accepted) minecraft.thePlayer.addChatMessage(new ChatComponentText(
+                        "Appearance selection was rejected because your character state changed."));
                 }
             });
     }
@@ -432,9 +429,8 @@ public class ClientProxy extends CommonProxy {
                         ((GuiSexSelection) minecraft.currentScreen).handleSelectionResult(accepted, serializedSexId);
                     }
                     PlayerSex sex = PlayerSex.findBySerializedId(serializedSexId);
-                    String message = accepted && sex != null ? "Sex selected: " + sex.getDisplayName() + "."
-                        : "Sex selection was rejected because your character state changed.";
-                    minecraft.thePlayer.addChatMessage(new ChatComponentText("[LOTR Character Creation] " + message));
+                    if (!accepted || sex == null) minecraft.thePlayer.addChatMessage(new ChatComponentText(
+                        "Gender selection was rejected because your character state changed."));
                 }
             });
     }

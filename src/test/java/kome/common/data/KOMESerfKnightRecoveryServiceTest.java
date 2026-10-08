@@ -104,9 +104,15 @@ public class KOMESerfKnightRecoveryServiceTest {
         assertTrue(source.contains("replacement.lifespan=Integer.MAX_VALUE"));
     }
 
-    @Test public void retrievedStateCannotBeSoftLockedByLaterPhysicalItemLoss() throws Exception {
-        String source=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMESerfKnightRecoveryService.java")),StandardCharsets.UTF_8);
-        assertTrue(source.contains("Retrieval is the canonical proof"));
-        assertFalse(source.contains("int slot=findAssignedStack(player,assignment); if(slot<0)return false;"));
+    @Test public void retrievedItemLossFailsRecoverablyRatherThanCompletingWithoutHandover() throws Exception {
+        try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()){
+            s.ready();s.state.setTrial(assignment());
+            net.minecraft.nbt.NBTTagCompound data=new net.minecraft.nbt.NBTTagCompound();data.setBoolean(KOMESerfKnightRecoveryService.DATA_RETRIEVED,true);
+            KOMEProgressionNpcRef ref=KOMEProgressionNpcRankService.referenceOf(s.master);s.state.setLiege(ref);
+            KOMESerfKnightTrialAssignment a=new KOMESerfKnightTrialAssignment("recovery",java.util.UUID.randomUUID().toString(),ref,"rohan",10,KOMESerfKnightTrialAssignment.Stage.ACTIVE,0,data);
+            s.state.setTrial(a);assertTrue(KOMESerfKnightRecoveryService.deliver(s.f.player,s.p,s.master));
+            assertFalse(s.state.isTrialCompleted());assertEquals(KOMESerfKnightTrialAssignment.Stage.FAILED,s.state.getTrialAssignment().stage);
+            assertTrue(s.f.player.messages.stream().anyMatch(m->m.contains("lost again")));assertEquals(0,s.drops());
+        }
     }
 }

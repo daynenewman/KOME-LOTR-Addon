@@ -217,7 +217,17 @@ public final class KOMEStrategicDeploymentResolver {
             }
         }
         try {
-            return world.getCollidingBoundingBoxes(null, body).isEmpty();
+            // Native 1.7.10 dereferences a null query entity when another entity is nearby.
+            // Use its block-only query, then explicitly reject live entity volumes.
+            if (!world.func_147461_a(body).isEmpty() || world.isAnyLiquid(body)) return false;
+            for (Object value : world.getEntitiesWithinAABBExcludingEntity(null,
+                    body.expand(0.25D, 0.25D, 0.25D))) {
+                if (!(value instanceof net.minecraft.entity.Entity)) continue;
+                net.minecraft.entity.Entity other = (net.minecraft.entity.Entity) value;
+                if (!other.isDead && other.boundingBox != null && other.boundingBox.intersectsWith(body))
+                    return false;
+            }
+            return true;
         } catch (Throwable invalidGeometry) {
             return false;
         }

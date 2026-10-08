@@ -44,8 +44,11 @@ public class KOMEProgressionHardeningFactionTest {
             f.s.f.world.isRemote=true;
             CoverageSpawns spawns=KOMEAccessFixture.allocate(CoverageSpawns.class);spawns.faction=faction;
             KOMECourierGeographyTest.TestBiome biome=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestBiome.class);biome.heightBaseParameter=.2F;biome.npcSpawnList=spawns;
-            KOMECourierGeographyTest.TestManager manager=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestManager.class);manager.biome=biome;f.s.f.world.provider.worldChunkMgr=manager;
+            KOMECourierGeographyTest.TestManager manager=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestManager.class);KOMEProgressionRegionalFixture.threats(biome,faction);manager.biome=biome;f.s.f.world.provider.worldChunkMgr=manager;
             EnumSet<Type> types=EnumSet.noneOf(Type.class);
+            KOMEProgressionGameplayFixture.record(f.s.f.world,(int)liege.posX+800,(int)liege.posZ,faction.codeName());
+            List<LOTRInvasions> regional=KOMEProgressionRegionalEnemies.choices(f.s.f.world,faction,0,0);
+            if(!regional.isEmpty())KOMEProgressionGameplayFixture.border(f.s.f.world,regional.get(0).invasionFaction);
             for(Type type:Type.values()){
                 KOMEKnightCommission a=KOMEKnightCommissionService.generate(f.s.f.player,liege,type);if(a==null)continue;types.add(type);
                 assertEquals(faction,KOMEProgressionFactionResolver.resolve(a.faction));assertTrue(KOMEKnightCommissionLocations.usable(f.s.f.world,faction,a.destinationX,a.destinationZ));

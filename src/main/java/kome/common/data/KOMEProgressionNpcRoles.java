@@ -34,6 +34,9 @@ public final class KOMEProgressionNpcRoles {
         if(trial!=null&&trial.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE&&!state.isTrialCompleted()) {
             if("escort".equals(trial.trialId))add(world,player,ref(trial,"EscortTarget"),KOMEProgressionNpcRoleLease.Role.ESCORT_CHARGE,trial.assignmentToken);
             if("defense".equals(trial.trialId))add(world,player,ref(trial,"DefenseObjective"),KOMEProgressionNpcRoleLease.Role.DEFENSE_PROTECTED,trial.assignmentToken);
+            if("defense".equals(trial.trialId))for(String id:KOMESerfKnightDefenseService.enemyIds(trial))
+                if(!KOMESerfKnightDefenseService.deadIds(trial).contains(id))
+                    add(world,player,new KOMEProgressionNpcRef(id,"Attacker",trial.data.getString("DefenseEnemyFaction"),trial.liege.dimension,0,0,0),KOMEProgressionNpcRoleLease.Role.DEFENSE_ENEMY,trial.assignmentToken);
         }
         KOMEKnightCommission commission=progression.getKnightService().assignment();
         if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&commission!=null&&commission.live())for(KOMEKnightCommission.Actor actor:commission.actors)if(!actor.dead)
@@ -54,5 +57,5 @@ public final class KOMEProgressionNpcRoles {
     }
     public static boolean protects(KOMEWorldData world,UUID npc){Set<KOMEProgressionNpcRoleLease> roles=world==null||npc==null?null:world.progressionNpcRoleLeases.get(npc);return roles!=null&&!roles.isEmpty();}
     public static boolean availableForNewRole(KOMEWorldData world,UUID npc){return world!=null&&npc!=null&&!protects(world,npc);}
-    public static boolean preventDespawn(LOTREntityNPC npc){return npc!=null&&!npc.worldObj.isRemote&&protects(KOMEWorldData.get(npc.worldObj),KOMEReflection.getEntityUUID(npc));}
+    public static boolean preventDespawn(LOTREntityNPC npc){return npc!=null&&!npc.worldObj.isRemote&&KOMEProgressionNpcRankService.shouldPreventNaturalDespawn(KOMEWorldData.get(npc.worldObj),KOMEReflection.getEntityUUID(npc));}
 }

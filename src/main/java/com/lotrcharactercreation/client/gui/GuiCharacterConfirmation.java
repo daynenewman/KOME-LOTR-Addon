@@ -93,8 +93,8 @@ public class GuiCharacterConfirmation extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
-        if (keyCode == 1 && !confirmationPending) {
-            goBack();
+        if (keyCode == 1) {
+            ClientCreationContinuation.pause(this);
         } else if (keyCode != 1) {
             super.keyTyped(typedChar, keyCode);
         }
@@ -107,7 +107,7 @@ public class GuiCharacterConfirmation extends GuiScreen {
         drawCenteredString(fontRendererObj, "CONFIRM YOUR CHARACTER", width / 2, centerY - 78, 0xFFFFFF);
         drawCenteredString(fontRendererObj, "Race: " + race.getDisplayName(), width / 2, centerY - 48, 0xD0D0D0);
         if (sex == PlayerSex.MALE || sex == PlayerSex.FEMALE) {
-            drawCenteredString(fontRendererObj, "Sex: " + sex.getDisplayName(), width / 2, centerY - 32, 0xD0D0D0);
+            drawCenteredString(fontRendererObj, "Gender: " + sex.getDisplayName(), width / 2, centerY - 32, 0xD0D0D0);
         }
         drawCenteredString(
             fontRendererObj,

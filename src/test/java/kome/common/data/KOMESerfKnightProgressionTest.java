@@ -137,7 +137,7 @@ public class KOMESerfKnightProgressionTest {
         assertTrue(KOMESerfKnightService.assignTrial(state, new Random(4L), 20L).success);
         assertFalse(KOMESerfKnightService.canPromote(state, 150));
         assertTrue(KOMESerfKnightService.completeTrial(state).success);
-        assertFalse(KOMESerfKnightService.canPromote(state, 150));
+        assertTrue("The optional gift cannot gate promotion",KOMESerfKnightService.canPromote(state, 150));
         assertTrue(KOMESerfKnightService.recordPartingGift(state).success);
         assertFalse(KOMESerfKnightService.canPromote(state, 149));
         assertFalse(KOMESerfKnightService.canPromote(state, -150));
@@ -233,7 +233,7 @@ public class KOMESerfKnightProgressionTest {
         KOMEProgressionNpcRef liege=npc("Liege","rohan"), charge=npc("Charge","rohan"); KOMESerfKnightTrialAssignment seed=KOMESerfKnightTrialAssignment.create(KOMESerfKnightTrial.forId("escort"),liege,30L,0);
         NBTTagCompound encounter=KOMESerfKnightEscortService.createEncounterData(charge,0,10D,-5D); KOMESerfKnightTrialAssignment active=seed.withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,encounter);
         KOMESerfKnightTrialAssignment loaded=KOMESerfKnightTrialAssignment.readFromNBT(active.writeToNBT()); assertEquals(seed.assignmentToken,loaded.assignmentToken); assertEquals(charge.entityUuid,KOMEProgressionNpcRef.readFromNBT(loaded.data.getCompoundTag("EscortTarget")).entityUuid); assertEquals(10D,loaded.data.getDouble("EscortOriginX"),0D); assertEquals(-5D,loaded.data.getDouble("EscortOriginZ"),0D);
-        assertFalse(KOMESerfKnightEscortService.hasReachedDestination(255D,0D)); assertTrue(KOMESerfKnightEscortService.hasReachedDestination(256D,0D)); assertTrue(KOMESerfKnightEscortService.hasReachedDestination(200D,200D));
+        encounter.setDouble(KOMESerfKnightEscortService.DEST_X,1000);encounter.setDouble(KOMESerfKnightEscortService.DEST_Z,1000);encounter.setString(KOMESerfKnightEscortService.DEST_NAME,"Refuge");loaded=loaded.withStage(loaded.stage,encounter);assertFalse(KOMESerfKnightEscortService.arrived(loaded,0,256,0));assertFalse(KOMESerfKnightEscortService.arrived(loaded,0,200,200));assertTrue(KOMESerfKnightEscortService.arrived(loaded,0,1000,1000));
     }
 
     @Test public void trialSpeechVariantsAndFailedPresentationAreStableAndHumanReadable() {

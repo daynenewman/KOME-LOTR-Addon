@@ -59,11 +59,14 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         MinecraftForge.EVENT_BUS.register(currentTileHud);
         MinecraftForge.EVENT_BUS.register(new KOMEChatSanitizer());
         MinecraftForge.EVENT_BUS.register(new KOMECourierBookPagination());
+        MinecraftForge.EVENT_BUS.register(new KOMECourierInteractionPriority());
+        MinecraftForge.EVENT_BUS.register(new KOMEProgressionOfferClientBridge());
         MinecraftForge.EVENT_BUS.register(new KOMEProgressionMenuOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMELiegeQuestButtonOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEUnitOverviewCapOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEEntityHighlightOverlay());
+        MinecraftForge.EVENT_BUS.register(new KOMEProgressionEnemyOutline());
         MinecraftForge.EVENT_BUS.register(progressionTrackerOverlay);
         FMLCommonHandler.instance().bus().register(progressionTrackerOverlay);
         KOMEWaypointMapOverlay waypointMapOverlay = new KOMEWaypointMapOverlay();
@@ -234,6 +237,33 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
             KOMEConquestMapOverlay.openPreservedMap();
         }
         KOMEConquestMapOverlay.showCompanyMovePreviewResult(message);
+    }
+
+    @Override public void displayJoinBattleGui(kome.common.network.KOMEPacketJoinBattleViewResponse message) {
+        net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
+        if(current instanceof kome.client.gui.KOMEGuiJoinBattle
+                && ((kome.client.gui.KOMEGuiJoinBattle)current).tileId().equals(message.tileId))
+            ((kome.client.gui.KOMEGuiJoinBattle)current).acceptView(message);
+        else KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiJoinBattle(message));
+    }
+
+      @Override public void displayJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message) {
+          net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
+          if(current instanceof kome.client.gui.KOMEGuiJoinBattle)
+              ((kome.client.gui.KOMEGuiJoinBattle)current).acceptSelection(message);
+          else if(net.minecraft.client.Minecraft.getMinecraft().thePlayer!=null
+                  &&message.status!=kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING)
+              net.minecraft.client.Minecraft.getMinecraft().thePlayer.addChatMessage(
+                  new net.minecraft.util.ChatComponentText(message.message));
+      }
+
+    @Override public void displayJoinBattleRetreatResult(kome.common.network.KOMEPacketJoinBattleRetreatResult message) {
+        net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
+        if(current instanceof kome.client.gui.KOMEGuiJoinBattle)
+            ((kome.client.gui.KOMEGuiJoinBattle)current).acceptRetreat(message);
+        else if(net.minecraft.client.Minecraft.getMinecraft().thePlayer!=null)
+            net.minecraft.client.Minecraft.getMinecraft().thePlayer.addChatMessage(
+                new net.minecraft.util.ChatComponentText(message.message));
     }
 
     @Override

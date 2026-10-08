@@ -19,6 +19,8 @@ import kome.common.data.KOMEEntitySnapshots;
 import kome.common.data.KOMEHaltedUnitProtection;
 import kome.common.data.KOMEHiredUnitClassification;
 import kome.common.data.KOMEHiredUnitRecord;
+import kome.common.data.KOMEHiredUnitPhysicalLocator;
+import kome.common.data.KOMEHiredUnitPhysicalLocatorService;
 import kome.common.data.KOMEMovementHistoryRecord;
 import kome.common.data.KOMEMovementAccessService;
 import kome.common.data.KOMEMovementDayService;
@@ -75,6 +77,141 @@ import java.util.Set;
 import java.util.UUID;
 
 public class KOMECommandTroops extends KOMEPublicCommand {
+    /**
+     * Prepared physical state for the first step of an accepted formal retreat.
+     * The origin chunk ticket is deliberately held from preflight through publication so all
+     * personally commanded companies can be checked before any conflict commitment is released.
+     */
+    public static final class FormalRetreatDeparturePlan {
+        private final String orderId;
+        private final String originTile;
+        private final String destinationTile;
+        private final World world;
+        private final ForgeChunkManager.Ticket ticket;
+        private final java.util.Map<KOMEHiredUnitRecord, NBTTagCompound> snapshots;
+        private final List<Entity> physicalEntities;
+
+        private FormalRetreatDeparturePlan(String orderId, String originTile,
+                String destinationTile, World world, ForgeChunkManager.Ticket ticket,
+                java.util.Map<KOMEHiredUnitRecord, NBTTagCompound> snapshots,
+                List<Entity> physicalEntities) {
+            this.orderId = orderId;
+            this.originTile = originTile;
+            this.destinationTile = destinationTile;
+            this.world = world;
+            this.ticket = ticket;
+            this.snapshots = snapshots;
+            this.physicalEntities = physicalEntities;
+        }
+
+        public String getOriginTile() { return originTile; }
+        public String getDestinationTile() { return destinationTile; }
+    }
+
+    /**
+     * Preflight the canonical movement virtualization used by the immediate formal-retreat step.
+     * No company, order, entity, commitment, or allowance is mutated here.
+     */
+    public static FormalRetreatDeparturePlan prepareImmediateFormalRetreatStep(
+            KOMEWorldData data, World fallbackWorld, KOMEArmyMovementOrder order,
+            String destinationTile, long nowMillis) {
+        boolean held = order != null && KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status);
+        boolean published = order != null
+            && KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)
+            && kome.common.data.KOMEMovementRetreatService.isImmediateFormalRetreatStep(order);
+        if (data == null || order == null || !(held || published))
+            throw new IllegalArgumentException("Formal-retreat departure requires an exact held or accepted immediate retreat order.");
+        String origin = KOMEConquestTile.normalizeId(order.currentTile);
+        String destination = KOMEConquestTile.normalizeId(destinationTile);
+        if (origin.length() == 0 || destination.length() == 0 || origin.equals(destination))
+            throw new IllegalArgumentException("Formal-retreat departure requires a distinct legal earlier tile.");
+        if (!isMovementStepAuthorized(data, order, origin, destination, true))
+            throw new IllegalArgumentException("No current retreat passage exists from " + origin
+                + " to " + destination + ".");
+        World orderWorld = worldForOrder(fallbackWorld, order);
+        if (orderWorld == null)
+            throw new IllegalArgumentException("Retreat origin dimension is unavailable.");
+        SpawnTarget target = requireArrivalTarget(data, orderWorld, destination);
+        if (!target.valid)
+            throw new IllegalArgumentException(target.failureReason);
+
+        ForgeChunkManager.Ticket ticket = acquireTemporaryArrivalChunk(orderWorld, order, nowMillis);
+        java.util.Map<KOMEHiredUnitRecord, NBTTagCompound> staged =
+            new java.util.LinkedHashMap<KOMEHiredUnitRecord, NBTTagCompound>();
+        List<Entity> physical = new ArrayList<Entity>();
+        try {
+            for (UUID unitId : new ArrayList<UUID>(order.units)) {
+                KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
+                if (record == null || !order.id.equals(record.movementOrderId))
+                    throw new IllegalArgumentException("Unit record " + unitId
+                        + " is missing from the conflict-held movement order.");
+                Entity entity = findLoadedEntity(orderWorld, record.entity);
+                NBTTagCompound snapshot;
+                if (entity != null && !entity.isDead && entity.isEntityAlive()) {
+                    snapshot = KOMEEntitySnapshots.snapshot(record, entity);
+                    if (snapshot == null)
+                        throw new IllegalArgumentException("Could not save "
+                            + displayRecordId(record) + " before formal retreat.");
+                    physical.add(entity);
+                } else if (record.stationedEntityData != null) {
+                    snapshot = kome.common.data.KOMECampaignHealth.movementSnapshot(
+                        record, record.stationedEntityData);
+                } else {
+                    throw new IllegalArgumentException("Could not load or restore "
+                        + displayRecordId(record) + " at " + origin
+                        + " before formal retreat.");
+                }
+                staged.put(record, snapshot);
+            }
+            return new FormalRetreatDeparturePlan(order.id, origin, destination,
+                orderWorld, ticket, staged, physical);
+        } catch (RuntimeException failure) {
+            releaseTemporaryArrivalChunk(ticket);
+            throw failure;
+        }
+    }
+
+    /** Execute the already-preflighted first step using the normal movement scheduler/snapshots. */
+    public static boolean executeImmediateFormalRetreatStep(KOMEWorldData data,
+            FormalRetreatDeparturePlan plan, long nowMillis) {
+        if (data == null || plan == null) return false;
+        KOMEArmyMovementOrder order = data.armyMovements.get(plan.orderId);
+        if (order == null || !KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)
+                || !kome.common.data.KOMEMovementRetreatService.isAcceptedFormalRetreat(order)
+                || !plan.originTile.equals(KOMEConquestTile.normalizeId(order.currentTile))
+                || !plan.destinationTile.equals(KOMEConquestTile.normalizeId(order.nextTile)))
+            return false;
+        if (!kome.common.data.KOMEMovementDayService.depart(data, order,
+                isDailyMovementMode(data),
+                () -> scheduleNextRouteStep(data, order, plan.world, nowMillis))) return false;
+        for (java.util.Map.Entry<KOMEHiredUnitRecord, NBTTagCompound> entry
+                : plan.snapshots.entrySet()) {
+            KOMEHiredUnitPhysicalLocatorService.clear(data, entry.getKey());
+            entry.getKey().movingEntityData = entry.getValue();
+        }
+        for (Entity entity : plan.physicalEntities)
+            removeMovementEntityTree(plan.world, entity);
+        KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
+        if (company != null) {
+            company.status = KOMEArmyCompany.MOVING;
+            company.movementOrderId = order.id;
+            company.updatedAtMillis = nowMillis;
+        }
+        data.updateMovementHistory(order, KOMEMovementHistoryRecord.ACTIVE);
+        data.markDirty();
+        return true;
+    }
+
+    /** Resolve the now-due immediate step through the existing reconstruction/arrival machinery. */
+    public static void completeImmediateFormalRetreatSteps(KOMEWorldData data,
+            World fallbackWorld, long nowMillis, java.util.Set<String> acceptedOrders) {
+        processArrivals(data, fallbackWorld, nowMillis, true, acceptedOrders);
+    }
+
+    public static void releaseImmediateFormalRetreatPlan(FormalRetreatDeparturePlan plan) {
+        if (plan != null) releaseTemporaryArrivalChunk(plan.ticket);
+    }
+
     @Override
     public String getCommandName() {
         return "troops";
@@ -1465,6 +1602,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
 
     private void disbandStewardshipCompany(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data,
             KOMEArmyCompany company, UUID actor, boolean admin) {
+        if (kome.common.data.KOMEFormalRetreatAuthority.protectsCompany(data, company.id))
+            throw new WrongUsageException("An unfinished Formal Retreat reserves this detachment.");
         KOMEConflictRecord conflict =
             KOMEConflictMovementService.activeConflictForDetachment(data, company.id);
         if (conflict != null
@@ -1516,6 +1655,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         for (UUID unitId : unitIds) {
             KOMEHiredUnitRecord record = data.hiredUnits.remove(unitId);
             if (record == null) continue;
+            KOMEHiredUnitPhysicalLocatorService.clear(data, record);
             Entity entity = loaded.get(unitId);
             if (entity != null) KOMEReflection.setDead(entity);
         }
@@ -1708,6 +1848,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             if (args.length != 2) {
                 throw new WrongUsageException("/troops movement ticknow");
             }
+            requireOrdinaryBulkMovementMutation(data);
             int advanced = 0;
             long now = System.currentTimeMillis();
             for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
@@ -1728,6 +1869,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             if (args.length != 3) {
                 throw new WrongUsageException("/troops movement advanceall <steps>");
             }
+            requireOrdinaryBulkMovementMutation(data);
             int steps = Math.max(1, parseInt(sender, args[2]));
             int advanced = 0;
             long now = System.currentTimeMillis();
@@ -1746,6 +1888,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             throw new WrongUsageException("/troops movement <complete|retry|resume|pause|cancelspawn|retarget|advance|next|stop> <orderId> [x y z|steps]");
         }
         KOMEArmyMovementOrder order = data.armyMovements.get(args[2]);
+        if (order != null) requireOrdinaryMovementMutation(data, order.companyId, order.id);
         boolean retreatRequest = "retreat".equalsIgnoreCase(args[1]);
         boolean resumeRequest = "resume".equalsIgnoreCase(args[1]);
         if (order == null || !order.isMoving() && !((retreatRequest || resumeRequest) && KOMEArmyMovementOrder.STOPPED.equals(order.status))) {
@@ -2006,6 +2149,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private void advanceMovementOrder(KOMEWorldData data, KOMEArmyMovementOrder order, int steps, long nowMillis) {
+        if (order != null) requireOrdinaryMovementMutation(data, order.companyId, order.id);
         if (order == null || !order.isMoving()
                 || KOMEArmyMovementOrder.CONFLICT_HELD.equals(order.status)
                 || KOMEArmyMovementOrder.CONFLICT_RELEASED_PAUSED.equals(order.status)) return;
@@ -2029,6 +2173,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             || KOMEArmyMovementOrder.SPAWN_BLOCKED.equals(order.status);
     }
     private void stopMovementOrder(ICommandSender sender, KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis) {
+        requireOrdinaryMovementMutation(data, order.companyId, order.id);
         if (!KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)
                 && !KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status)) {
             throw new WrongUsageException("Movement order " + order.id
@@ -2074,85 +2219,28 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     void beginRetreat(ICommandSender sender, KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis) {
-        if (!KOMEArmyMovementOrder.WAITING_NEXT_STEP.equals(order.status)
-                && !KOMEArmyMovementOrder.ACCESS_HALTED.equals(order.status)
-                && !KOMEArmyMovementOrder.STOPPED.equals(order.status)
-                && !KOMEArmyMovementOrder.HOLDING.equals(order.status)
-                && !KOMEArmyMovementOrder.WAR_ENDED_HALTED.equals(order.status)) {
-            throw new WrongUsageException("Retreat is available only after the company has physically reached a route tile.");
-        }
-        String current = KOMEConquestTile.normalizeId(order.currentTile);
-        List<String> traveled = new ArrayList<String>(order.traveledRouteTiles);
-        if (traveled.isEmpty()) {
-            traveled.add(current);
-        }
-        int currentIndex = traveled.lastIndexOf(current);
-        if (currentIndex < 0) {
-            traveled.add(current);
-            currentIndex = traveled.size() - 1;
-        }
-        KOMEMovementRecoveryOptions recovery = KOMEMovementRecoveryOptions.forOrder(data, order);
-        if (!recovery.canRetreat) {
+        requireOrdinaryMovementMutation(data, order.companyId, order.id);
+        kome.common.data.KOMEMovementRetreatService.Plan plan;
+        try {
+            plan = kome.common.data.KOMEMovementRetreatService.prepare(data, order, false);
+        } catch (IllegalArgumentException denied) {
             KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
             if (company != null && company.stewardshipCreated) {
                 company.withdrawalState = KOMEArmyCompany.CLEANUP_ADMIN;
-                order.pendingSpawnReason = recovery.retreatBlockedReason;
-                order.accessLossReason = recovery.retreatBlockedReason;
+                order.pendingSpawnReason = denied.getMessage();
+                order.accessLossReason = denied.getMessage();
                 data.markDirty();
             }
-            throw new WrongUsageException(recovery.retreatBlockedReason
+            throw new WrongUsageException(denied.getMessage()
                 + " The halted company is preserved for admin resolution.");
         }
-        KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
-        int safeIndex = recovery.retreatRouteIndex;
-        order.routeTiles.clear();
-        for (int i = currentIndex; i >= safeIndex; i--) {
-            String tile = KOMEConquestTile.normalizeId(traveled.get(i));
-            if (order.routeTiles.isEmpty() || !tile.equals(order.routeTiles.get(order.routeTiles.size() - 1))) {
-                order.routeTiles.add(tile);
-            }
-        }
-        if (order.routeTiles.size() < 2) {
-            throw new WrongUsageException("The company is already at the nearest legal retreat tile.");
-        }
-        order.originTile = current;
-        order.destinationTile = order.routeTiles.get(order.routeTiles.size() - 1);
-        order.finalDestinationTile = order.destinationTile;
-        order.currentRouteIndex = 0;
-        order.nextRouteIndex = 1;
-        order.finalRouteIndex = order.routeTiles.size() - 1;
-        order.totalSteps = order.routeTiles.size() - 1;
-        order.distanceTiles = order.totalSteps;
-        order.completedSteps = 0;
-        order.currentTile = current;
-        order.currentStepOriginTile = current;
-        order.currentStepDestinationTile = order.routeTiles.get(1);
-        order.nextTile = order.currentStepDestinationTile;
-        order.retreating = true;
-        order.haltAfterArrival = false;
-        order.accessChoice = "RETREAT";
-        order.status = KOMEArmyMovementOrder.WAITING_NEXT_STEP;
-        order.nextStepDepartureMillis = nowMillis;
-        order.nextStepAvailableMillis = nowMillis;
-        order.spawnRetryPaused = false;
-        for (UUID unitId : order.units) {
-            KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
-            if (record != null) {
-                record.movementOrderId = order.id;
-            }
-        }
-        if (company != null) {
-            company.status = KOMEArmyCompany.MOVING;
-            company.movementOrderId = order.id;
-            company.updatedAtMillis = nowMillis;
-        }
-        data.updateMovementHistory(order, KOMEMovementHistoryRecord.ACTIVE);
-        data.markDirty();
+        kome.common.data.KOMEMovementRetreatService.publish(data, order, plan, nowMillis);
         sender.addChatMessage(new ChatComponentText("Retreat ordered along traveled route " + formatRouteTiles(order.routeTiles)
             + " to " + order.destinationTile + "."));
     }
 
     void resumeAccessHaltedRoute(ICommandSender sender, KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis) {
+        requireOrdinaryMovementMutation(data, order.companyId, order.id);
         String prospectiveDestination = KOMEMovementAccessService.resolveProspectiveForwardStep(order);
         if (prospectiveDestination.length() == 0) {
             throw new WrongUsageException("No remaining forward route or movement step is available; Resume is not legal.");
@@ -2596,6 +2684,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
 
     private void moveCompany(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, UUID owner,
             String companyId, String destination, String expectedPreviewToken) {
+        requireOrdinaryMovementMutation(data, companyId, null);
         KOMEArmyCompany company = validateCompanyMove(player, data, owner, companyId, destination);
         if (isDailyMovementMode(data) && company.movementAllowance <= 0)
             throw new WrongUsageException("Company has no movement allowance remaining until the next movement day.");
@@ -2743,6 +2832,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 throw new WrongUsageException("Departure rejected; company movement allowance was not spent.");
             for (int i = 0; i < selected.size(); i++) {
                 KOMEHiredUnitRecord record = selected.get(i);
+                KOMEHiredUnitPhysicalLocatorService.clear(data, record);
                 record.movingEntityData = snapshots.get(i);
                 record.movementOrderId = order.id;
                 order.units.add(record.entity);
@@ -2867,8 +2957,14 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     public static void processArrivals(KOMEWorldData data, World world, long nowMillis, boolean announce) {
+        processArrivals(data,world,nowMillis,announce,null);
+    }
+
+    private static void processArrivals(KOMEWorldData data, World world, long nowMillis,
+            boolean announce, java.util.Set<String> acceptedOrders) {
         boolean changed = false;
         for (KOMEArmyMovementOrder order : kome.common.data.KOMEMovementDayService.orderedRoutes(data)) {
+            if(acceptedOrders!=null&&(order==null||!acceptedOrders.contains(order.id)))continue;
             if (order == null || !order.hasArrived(nowMillis)) {
                 continue;
             }
@@ -2957,6 +3053,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     }
                     if (record.movingEntityData == null) {
                         Entity legacyEntity = findLoadedEntity(arrivalWorld, record.entity);
+                        if (legacyEntity != null)
+                            KOMEHiredUnitPhysicalLocatorService.clear(data, record);
                         record.movingEntityData = legacyEntity == null ? null : KOMEEntitySnapshots.snapshot(record, legacyEntity);
                         if (legacyEntity != null) {
                             removeMovementEntityTree(arrivalWorld, legacyEntity);
@@ -3089,6 +3187,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     }
                     KOMEConflictMovementService.applyConflictHold(data, order,
                         conflict, nowMillis);
+                    installStrategicReconstructionLocators(data, arrivalWorld,
+                        verifiedSpawns, nowMillis);
                     order.finalArrivalMillis = nowMillis;
                     if (finalStep) {
                         order.nextRouteIndex = order.currentRouteIndex;
@@ -3105,6 +3205,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     changed = true;
                     continue;
                 }
+                installStrategicReconstructionLocators(data, arrivalWorld,
+                    verifiedSpawns, nowMillis);
                 if (company != null) {
                     KOMEAllianceProgressionService.scanQualifyingWarDeployments(data, nowMillis);
                 }
@@ -3218,7 +3320,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 changed = true;
                 continue;
             }
-            if (isDailyMovementMode(data) && kome.common.data.KOMEMovementDayService.remaining(data, order) <= 0) continue;
+            if (isDailyMovementMode(data)
+                    && !kome.common.data.KOMEMovementRetreatService.isImmediateFormalRetreatStep(order)
+                    && kome.common.data.KOMEMovementDayService.remaining(data, order) <= 0) continue;
             World orderWorld = worldForOrder(world, order);
             if (orderWorld == null) {
                 changed |= markStepDepartureBlocked(order, "DEPARTURE_DIMENSION_UNAVAILABLE",
@@ -3268,8 +3372,10 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 }
                 if (kome.common.data.KOMEMovementDayService.depart(data, order, isDailyMovementMode(data),
                         () -> scheduleNextRouteStep(data, order, orderWorld, nowMillis))) {
-                    for (java.util.Map.Entry<KOMEHiredUnitRecord, NBTTagCompound> entry : staged.entrySet())
+                    for (java.util.Map.Entry<KOMEHiredUnitRecord, NBTTagCompound> entry : staged.entrySet()) {
+                        KOMEHiredUnitPhysicalLocatorService.clear(data, entry.getKey());
                         entry.getKey().movingEntityData = entry.getValue();
+                    }
                     for (Entity entity : physicalEntities) {
                         removeMovementEntityTree(orderWorld, entity);
                     }
@@ -3858,6 +3964,19 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
     }
 
+    /** Publish physical lookup authority only after entity and company UUID rekeying has committed. */
+    private static void installStrategicReconstructionLocators(KOMEWorldData data,
+            World world, List<SpawnAttempt> attempts, long observedAtMillis) {
+        if (data == null || world == null || attempts == null) return;
+        for (SpawnAttempt attempt : attempts) {
+            if (attempt == null || attempt.record == null || attempt.newId == null) continue;
+            Entity entity = findLoadedEntity(world, attempt.newId);
+            KOMEHiredUnitPhysicalLocatorService.observe(data, attempt.record, entity,
+                KOMEHiredUnitPhysicalLocator.CaptureKind.STRATEGIC_RECONSTRUCTION,
+                observedAtMillis, true);
+        }
+    }
+
     /** Restores all strategic/identity publication after a post-spawn conflict rejection. */
     private static void rollbackPublishedArrival(KOMEWorldData data, World world,
             KOMEArmyMovementOrder order, List<SpawnAttempt> attempts,
@@ -3918,6 +4037,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             positionEntityTree(root, safePosition[0], safePosition[1], safePosition[2]);
             UUID oldId = record.entity;
             UUID newId = KOMEReflection.getEntityUUID(root);
+            KOMEHiredUnitPhysicalLocatorService.clear(data, record);
             data.hiredUnits.remove(oldId);
             record.entity = newId;
             data.hiredUnits.put(newId, record);
@@ -4285,6 +4405,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             }
             Entity entity = (Entity) object;
             KOMEHiredUnitRecord record = data.hiredUnits.get(KOMEReflection.getEntityUUID(entity));
+            if (record != null && kome.common.data.KOMEFormalRetreatAuthority.isQuarantined(
+                    data.armyMovements.get(record.movementOrderId))) continue;
             if (data.isVirtualMovingHiredUnit(record) && !isArrivalSpawnInProgress(data, record)) {
                 stale.add(entity);
             }
@@ -4352,6 +4474,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             }
             UUID oldId = record.entity;
             if (oldId != null && !oldId.equals(npcId)) {
+                KOMEHiredUnitPhysicalLocatorService.clear(data, record);
                 data.hiredUnits.remove(oldId);
                 record.entity = npcId;
                 data.hiredUnits.put(npcId, record);
@@ -4359,6 +4482,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             }
             record.unitName = getDisplayUnitName(npc);
             record.stationedEntityData = KOMEEntitySnapshots.snapshot(record, npc);
+            KOMEHiredUnitPhysicalLocatorService.observe(data, record, npc,
+                KOMEHiredUnitPhysicalLocator.CaptureKind.LIVE_OBSERVATION,
+                System.currentTimeMillis(), true);
             data.markDirty();
             return npc;
         }
@@ -4478,6 +4604,18 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             return record.unitName;
         }
         return record.entity == null ? "unknown" : record.entity.toString().substring(0, 8);
+    }
+
+    private static void requireOrdinaryMovementMutation(KOMEWorldData data, String companyId, String orderId) {
+        String reason = kome.common.data.KOMEFormalRetreatAuthority.ordinaryMovementBlockReason(data, companyId, orderId);
+        if (!reason.isEmpty()) throw new WrongUsageException(reason);
+    }
+
+    private static void requireOrdinaryBulkMovementMutation(KOMEWorldData data) {
+        // Preflight all affected orders before changing even an unrelated order's clock.
+        for (KOMEArmyMovementOrder order : data.armyMovements.values())
+            if (order != null && order.isMoving())
+                requireOrdinaryMovementMutation(data, order.companyId, order.id);
     }
 
     private KOMEArmyCompany validateCompanyMove(EntityPlayerMP player, KOMEWorldData data, UUID owner, String companyId, String destination) {
@@ -5439,7 +5577,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private static long nextStepCooldownMillis(KOMEWorldData data, KOMEArmyMovementOrder order, long nowMillis) {
-        if (order != null && isDailyMovementMode(data) && kome.common.data.KOMEMovementDayService.remaining(data, order) > 0) {
+        if (order != null && isDailyMovementMode(data)
+                && (kome.common.data.KOMEMovementRetreatService.isImmediateFormalRetreatStep(order)
+                    || kome.common.data.KOMEMovementDayService.remaining(data, order) > 0)) {
             return 0L;
         }
         return getStepCooldownMillis(data, order, nowMillis);

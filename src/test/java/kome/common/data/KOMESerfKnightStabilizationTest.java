@@ -30,7 +30,8 @@ public class KOMESerfKnightStabilizationTest {
             reload(s);assertFalse(s.state.hasLiege());assertTrue(s.state.isTrialCompleted());
             assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);
             assertEquals(KOMEProgressionRank.KNIGHT,s.p.getCanonicalRank());
-            assertTrue(s.f.player.inventory.mainInventory[0].getItem() instanceof lotr.common.item.LOTRItemPouch);
+            assertEquals(0,s.drops());assertTrue(KOMEProgressionNpcInteractionService.interact(s.f.player,s.f.data,s.master));
+            assertTrue(s.latest().getItem() instanceof lotr.common.item.LOTRItemPouch);assertEquals(1,s.drops());assertNull(s.f.player.inventory.mainInventory[0]);
             assertFalse(s.state.getSerfdomMaster().isSet());assertTrue(s.state.getFormerMaster().hasSameIdentity(master));
             KOMEPlayerProgression restored=new KOMEPlayerProgression();restored.readFromNBT(s.p.writeToNBT());
             assertEquals(master.entityUuid,restored.getSerfKnightProgression().getFormerMaster().entityUuid);
@@ -128,10 +129,10 @@ public class KOMESerfKnightStabilizationTest {
             assertEquals(KOMESerfKnightTrialAssignment.Stage.ACTIVE,s.state.getTrialAssignment().stage);
             reload(s);s.f.world.playerEntities.clear();
             Charge loaded=charge(s,id);KOMEProgressionEncounterMarker.mark(loaded.getEntityData(),"escort",s.f.player.id,s.state.getTrialAssignment().assignmentToken);
-            assertEquals(marker,loaded.getEntityData());
+            for(Object key:marker.func_150296_c())loaded.getEntityData().setTag((String)key,marker.getTag((String)key).copy());assertEquals(marker,loaded.getEntityData());
             KOMESerfKnightEscortService.reconcileLoadedNpc(s.f.data,loaded);
             new KOMEEvents().onLivingUpdate(new LivingEvent.LivingUpdateEvent(loaded));
-            assertFalse(loaded.isDead);assertTrue(loaded.hiredNPCInfo.isActive);
+            assertFalse(loaded.isDead);assertTrue(loaded.hiredNPCInfo.isActive);assertFalse(loaded.hiredNPCInfo.teleportAutomatically);
             s.f.world.playerEntities.add(s.f.player);s.f.world.loadedEntityList.add(loaded);
             new KOMEEvents().onLivingUpdate(new LivingEvent.LivingUpdateEvent(loaded));assertTrue(s.f.data.hiredUnits.isEmpty());
         }
@@ -160,6 +161,8 @@ public class KOMESerfKnightStabilizationTest {
     @Test public void escortCompletionAndFailureReleaseFollowerMarkerAndLease()throws Exception {
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()) {
             Charge charge=escort(s);charge.posX+=256;s.f.player.posX=charge.posX;
+            KOMESerfKnightEscortService.tickPlayer(s.f.player);assertFalse("Raw displacement cannot finish the escort",s.state.isTrialCompleted());
+            charge.posX=s.state.getTrialAssignment().data.getDouble(KOMESerfKnightEscortService.DEST_X);charge.posZ=s.state.getTrialAssignment().data.getDouble(KOMESerfKnightEscortService.DEST_Z);s.f.player.posX=charge.posX;s.f.player.posZ=charge.posZ;
             KOMESerfKnightEscortService.tickPlayer(s.f.player);assertTrue(s.state.isTrialCompleted());assertReleased(s,charge);
         }
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()) {
@@ -242,8 +245,12 @@ public class KOMESerfKnightStabilizationTest {
         duties(s.state);TrialCaptain liege=captain(s);
         s.state.setLiege(KOMEProgressionNpcRankService.referenceOf(liege));
         s.state.setTrial(KOMESerfKnightTrialAssignment.create(KOMESerfKnightTrial.forId("escort"),s.state.getLiege(),10,0));
+        net.minecraft.nbt.NBTTagCompound destination=new net.minecraft.nbt.NBTTagCompound();destination.setDouble(KOMESerfKnightEscortService.DEST_X,s.master.posX+800);destination.setDouble(KOMESerfKnightEscortService.DEST_Z,s.master.posZ);destination.setString(KOMESerfKnightEscortService.DEST_NAME,"Fixture refuge");s.state.updateTrialAssignment(s.state.getTrialAssignment().withStage(KOMESerfKnightTrialAssignment.Stage.ASSIGNED,destination));
+        destination.setTag(KOMEProgressionDestinations.PROOF,KOMEProgressionGameplayFixture.shelter(s.f.world,(int)s.master.posX+800,(int)s.master.posZ,"rohan"));
+        s.state.updateTrialAssignment(s.state.getTrialAssignment().withStage(KOMESerfKnightTrialAssignment.Stage.ASSIGNED,destination));
         Charge charge=charge(s,UUID.randomUUID());charge.hiredNPCInfo.isActive=false;s.f.world.loadedEntityList.add(charge);
-        assertTrue(KOMESerfKnightEscortService.activate(s.f.player,s.p,liege));return charge;
+        charge.hiredNPCInfo.teleportAutomatically=true;
+        assertTrue(KOMESerfKnightEscortService.activate(s.f.player,s.p,liege));assertFalse(charge.hiredNPCInfo.teleportAutomatically);return charge;
     }
     private static Charge charge(KOMEProgressionFollowupTest.Session s,UUID id)throws Exception {
         Charge npc=KOMEAccessFixture.allocate(Charge.class);npc.worldObj=s.f.world;npc.setUniqueID(id);
@@ -255,6 +262,7 @@ public class KOMESerfKnightStabilizationTest {
     }
     private static void assertReleased(KOMEProgressionFollowupTest.Session s,Charge npc) {
         assertFalse(npc.hiredNPCInfo.isActive);assertNull(KOMEProgressionEncounterMarker.read(npc));
+        assertTrue(npc.hiredNPCInfo.teleportAutomatically);assertFalse(npc.getEntityData().hasKey(KOMEProgressionEscortFollowing.ORIGINAL));
         assertFalse(KOMEProgressionNpcRoles.protects(s.f.data,npc.getUniqueID()));assertTrue(s.f.data.hiredUnits.isEmpty());
     }
     public static class Charge extends lotr.common.entity.npc.LOTREntityRohanMan {

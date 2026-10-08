@@ -76,9 +76,6 @@ public class KOMEProgressionAutoCompleter {
         if (changed > 0) {
             data.markDirty();
             syncPlayer(player, progression);
-            if (notify) {
-                player.addChatMessage(new ChatComponentText("KOME Progression auto-completed " + changed + " step" + (changed == 1 ? "." : "s.")));
-            }
         }
         return changed;
     }
@@ -179,7 +176,7 @@ public class KOMEProgressionAutoCompleter {
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();String pledgeName=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.factionName():"";
         double alignment=pledge==null?0D:LOTRLevelData.getData(player).getAlignment(pledge);
         String pledgeKey=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.codeName():"";
-        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression,pledgeName,pledgeKey,alignment), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression), KOMEProgressionRankSummary.project(progression,alignment,pledgeKey,player.getUniqueID())), player);
+        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression,pledgeName,pledgeKey,alignment)+KOMEProgressionSummary.courierCopy(progression,player.worldObj.getTotalWorldTime()), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression), KOMEProgressionGoodsPresentation.enrich(KOMEProgressionLiegePolicy.presentAuthority(KOMEProgressionRankSummary.project(progression,alignment,pledgeKey,player.getUniqueID()),KOMEWorldData.get(player.worldObj),progression,pledgeKey),progression,player.inventory==null?null:player.inventory.mainInventory)), player);
         KOMEVisualLocationService.syncIfChanged(player, progression, false);
         KOMEProgressionTrackerService.syncIfChanged(player, KOMEWorldData.get(player.worldObj), false);
     }

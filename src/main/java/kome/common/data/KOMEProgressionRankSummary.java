@@ -82,7 +82,9 @@ public final class KOMEProgressionRankSummary {
         List<Requirement> requirements = new ArrayList<Requirement>();
         String heading = "", title = "", objective = "";
 
-        if (rank == KOMEProgressionRank.SERF) {
+        if(rank==KOMEProgressionRank.WANDERER&&!progression.getSerfKnightProgression().getSerfdomMaster().isSet()) {
+            heading="Begin your service";title="Find a Master";objective="Find a Master to serve.";
+        } else if (rank == KOMEProgressionRank.SERF) {
             KOMESerfKnightProgression state = progression.getSerfKnightProgression();
             int alignment = (int) Math.floor(Math.max(0D, pledgedFactionAlignment));
             int duties = 0;
@@ -102,8 +104,6 @@ public final class KOMEProgressionRankSummary {
                 dutyRequirements));
             requirements.add(new Requirement("Trial of Standing", state.isTrialCompleted() ? 1 : 0,
                 1, state.isTrialCompleted()));
-            requirements.add(new Requirement("Master's Parting Gift", state.hasPartingGift() ? 1 : 0,
-                1, state.hasPartingGift()));
 
             String active = state.getActiveAssignmentKind();
             if ("provisioning".equals(active)) {
@@ -123,6 +123,10 @@ public final class KOMEProgressionRankSummary {
                 KOMESerfKnightTrial trial = KOMESerfKnightTrial.forId(state.getTrialId());
                 title = trial == null ? "Trial" : trial.displayName;
                 objective = trialObjective(state, trial);
+            } else if(state.isTrialCompleted()) {
+                heading="New standing";title=pledgedFactionAlignment>=KOMESerfKnightService.REQUIRED_ALIGNMENT?"Ready":"Faction Alignment";
+                objective=!state.getSerfdomMaster().isSet()?"Find a replacement Master for your completed service.":
+                    pledgedFactionAlignment>=KOMESerfKnightService.REQUIRED_ALIGNMENT?"Return to your Master to receive your new standing.":"Reach 150 faction alignment before returning to your Master.";
             } else if (KOMESerfKnightService.allDutiesComplete(state)
                     && state.getSerfdomMaster().isSet()
                     && safe(factionKey).length() != 0
@@ -139,7 +143,7 @@ public final class KOMEProgressionRankSummary {
                     objective = "Request your Trial of Standing from your Liege.";
                 } else {
                     title = "Seek a prospective Liege";
-                    objective = "Seek an eligible Liege for your Trial of Standing.";
+                    objective = KOMEProgressionNativeAuthority.guidance(factionKey);
                 }
             }
         } else if (rank == KOMEProgressionRank.KNIGHT) {
@@ -224,7 +228,7 @@ public final class KOMEProgressionRankSummary {
         if (assignment == null) return "Bring the requested materials to your Master.";
         String text = "For your Master's " + assignment.tradeDisplayName + " trade: ";
         for (KOMESerfProfessionAssignment.Requirement material : assignment.requirements)
-            text = appendQuota(text, material.displayName, material.delivered, material.required);
+            text = appendQuota(text, KOMEProgressionGoodsRules.name(material.requestedStack(),material.displayName), material.delivered, material.required);
         return text + ".";
     }
 
@@ -246,8 +250,8 @@ public final class KOMEProgressionRankSummary {
             return "This trial is lost. Seek a new Liege.";
         if (assignment != null && "escort".equals(assignment.trialId))
             return assignment.stage == KOMESerfKnightTrialAssignment.Stage.ASSIGNED
-                ? "Meet your charge at your Liege's side."
-                : "See your charge safely through the journey.";
+                ? "Meet your charge at your Liege's side, then escort them to "+KOMESerfKnightEscortService.destinationName(assignment)+"."
+                : "Escort your charge to "+KOMESerfKnightEscortService.destinationName(assignment)+".";
         if (assignment != null && "recovery".equals(assignment.trialId))
             return assignment.data.getBoolean("RecoveryRetrieved")
                 ? "Return the recovered item to your Liege." : "Recover the lost item.";

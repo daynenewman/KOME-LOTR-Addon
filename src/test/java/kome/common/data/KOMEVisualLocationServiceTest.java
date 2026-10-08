@@ -36,7 +36,7 @@ public class KOMEVisualLocationServiceTest {
         KOMEVisualMarker lord = KOMEVisualLocationService.markersFor(player).get(0);
         assertEquals(KOMEVisualMarker.Role.LORD_LIEGE, lord.role);
         assertEquals("Hurin", lord.title);
-        assertEquals("Liege", lord.subtitle);
+        assertEquals("", lord.subtitle);
         player.getSerfKnightProgression().leaveSerfdomMaster();
         assertEquals(liege.entityUuid,KOMEVisualLocationService.markersFor(player).get(0).entityUuid);
         player.getSerfKnightProgression().leaveLiege();
@@ -74,7 +74,7 @@ public class KOMEVisualLocationServiceTest {
         assertTrue(KOMEVisualLocationService.refreshLoadedLocations(fixture.player, fixture.data, progression));
         KOMEVisualMarker moved = KOMEVisualLocationService.markersFor(progression).get(0);
         assertEquals(150.0D, moved.x, 0.0D);
-        assertEquals("Aldor", moved.title);
+        assertEquals("Master Aldor", moved.title);
         assertTrue(fixture.data.isDirty());
 
         fixture.data.setDirty(false);
@@ -102,7 +102,7 @@ public class KOMEVisualLocationServiceTest {
         assertEquals(2, markers.size());
         KOMEVisualMarker objective = markers.get(1);
         assertEquals(KOMEVisualMarker.Role.COURIER, objective.role);
-        assertEquals(LOTRWaypoint.EDORAS.getDisplayName(), objective.subtitle);
+        assertEquals("", objective.subtitle);
         assertEquals(LOTRWaypoint.EDORAS.getXCoord(), objective.x, 0.0D);
         courier.recipient = npc("Captain", courier.destinationX, courier.destinationZ);
         state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER, courier.writeToNBT());
@@ -110,7 +110,7 @@ public class KOMEVisualLocationServiceTest {
         assertEquals(2, markers.size());
         objective = markers.get(1);
         assertEquals("Captain", objective.title);
-        assertEquals("Deliver the dispatch", objective.subtitle);
+        assertEquals("", objective.subtitle);
         assertEquals(courier.recipient.entityUuid, objective.entityUuid);
         courier.stage = KOMESerfCourierAssignment.Stage.DELIVERED;
         state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER, courier.writeToNBT());
@@ -126,8 +126,8 @@ public class KOMEVisualLocationServiceTest {
         second.getSerfKnightProgression().setSerfdomMaster(npc("Second", 3, 4));
         List<KOMEVisualMarker> firstMarkers = KOMEVisualLocationService.markersFor(first);
         List<KOMEVisualMarker> secondMarkers = KOMEVisualLocationService.markersFor(second);
-        assertEquals("First", firstMarkers.get(0).title);
-        assertEquals("Second", secondMarkers.get(0).title);
+        assertEquals("Master First", firstMarkers.get(0).title);
+        assertEquals("Master Second", secondMarkers.get(0).title);
         assertNotEquals(firstMarkers.get(0).entityUuid, secondMarkers.get(0).entityUuid);
         NBTTagCompound saved = first.writeToNBT();
         KOMEPlayerProgression loaded = new KOMEPlayerProgression(); loaded.readFromNBT(saved);
@@ -156,8 +156,8 @@ public class KOMEVisualLocationServiceTest {
         KOMEVisualMarker search = null;
         for (KOMEVisualMarker marker : markers) if (marker.role == KOMEVisualMarker.Role.RECOVERY_SEARCH) search = marker;
         assertNotNull(search);
-        assertEquals("Lost Object", search.title);
-        assertEquals("Search the surrounding area", search.subtitle);
+        assertEquals("Recover the lost item", search.title);
+        assertEquals("", search.subtitle);
         double dx = search.x - 160.0D, dz = search.z - 220.0D;
         double distance = Math.sqrt(dx * dx + dz * dz);
         assertTrue(distance >= 23.9D && distance <= 39.1D);

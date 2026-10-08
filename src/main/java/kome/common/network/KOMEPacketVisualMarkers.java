@@ -12,7 +12,7 @@ import kome.common.data.KOMEVisualMarker;
 
 /** One-way, server-authored snapshot containing presentation data only. */
 public final class KOMEPacketVisualMarkers implements IMessage {
-    private static final int MAX_MARKERS = 8;
+    private static final int MAX_MARKERS = 64;
     public List<KOMEVisualMarker> markers = new ArrayList<KOMEVisualMarker>();
 
     public KOMEPacketVisualMarkers() { }
@@ -32,7 +32,7 @@ public final class KOMEPacketVisualMarkers implements IMessage {
             int dimension = buffer.readInt();
             double x = buffer.readDouble(), y = buffer.readDouble(), z = buffer.readDouble();
             if (role == null) throw new IllegalArgumentException("Unknown KOME visual marker role.");
-            markers.add(new KOMEVisualMarker(role, entityUuid, title, subtitle, dimension, x, y, z));
+            markers.add(new KOMEVisualMarker(role, entityUuid, title, subtitle, dimension, x, y, z,buffer.readBoolean()));
         }
     }
 
@@ -46,6 +46,7 @@ public final class KOMEPacketVisualMarkers implements IMessage {
             ByteBufUtils.writeUTF8String(buffer, marker.subtitle);
             buffer.writeInt(marker.dimension);
             buffer.writeDouble(marker.x); buffer.writeDouble(marker.y); buffer.writeDouble(marker.z);
+            buffer.writeBoolean(marker.actionable);
         }
     }
 

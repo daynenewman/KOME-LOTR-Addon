@@ -121,7 +121,7 @@ public class GuiManSkinReview extends GuiScreen {
             centerY + 35,
             45,
             mouseX - width / 2,
-            mouseY - centerY,
+            mouseY - com.lotrcharactercreation.client.render.AppearancePreviewOrientation.headCentreY(centerY+35,45,1F),
             partialTicks);
 
         drawCenteredString(

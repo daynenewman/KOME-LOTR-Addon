@@ -275,6 +275,7 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
         int meterWidth=
             BAR_WIDTH-BAR_EDGE*2;
 
+        if(snapshot.hasNumericProgress()) {
         meterWidth=
             Math.round(
                 meterWidth*snapshot.completion);
@@ -315,11 +316,12 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
                 -font.FONT_HEIGHT/2,
             snapshot.progress,
             1F);
+        }
 
         font.drawSplitString(
             snapshot.objective,
             barX,
-            y+BAR_HEIGHT+GAP,
+            y+(snapshot.hasNumericProgress()?BAR_HEIGHT+GAP:0),
             BAR_WIDTH,
             0xFFFFFF);
 

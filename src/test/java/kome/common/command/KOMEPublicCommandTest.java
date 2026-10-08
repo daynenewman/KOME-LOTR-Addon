@@ -6,6 +6,9 @@ import java.util.List;
 import kome.common.KOMEAccessFixture;
 import kome.common.network.KOMEPacketHandler;
 import kome.common.network.KOMEPacketPopulationGui;
+import kome.common.network.KOMEPacketJoinBattleViewRequest;
+import kome.common.network.KOMEPacketJoinBattleViewResponse;
+import lotr.common.fac.LOTRFaction;
 import net.minecraft.command.ICommand;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
@@ -44,6 +47,40 @@ public class KOMEPublicCommandTest {
             new KOMECommandKome().processCommand(console(messages, true), new String[0]);
             assertTrue(messages.toString().contains("/kome tile"));
         } finally { KOMEPacketHandler.network = previous; }
+    }
+
+    @Test public void ordinaryPlayerCanOpenReadOnlyJoinBattleViewButConsoleCannot() throws Exception {
+        KOMEAccessFixture f=new KOMEAccessFixture();
+        cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper previous=KOMEPacketHandler.network;
+        try{
+            KOMEPacketHandler.network=f.network;f.data.setDirty(false);
+            new KOMECommandKome().processCommand(f.player,new String[]{"joinbattle","T100"});
+            assertEquals(1,f.network.messages.size());
+            assertTrue(f.network.messages.get(0) instanceof kome.common.network.KOMEPacketJoinBattleViewResponse);
+            assertEquals("Blocked projection must not carry authority","",
+                ((KOMEPacketJoinBattleViewResponse)f.network.messages.get(0)).actionToken);
+            assertFalse(f.data.isDirty());assertTrue(f.data.getConflictService().records().isEmpty());
+            try { new KOMECommandKome().processCommand(console(new ArrayList<String>(),true),new String[]{"joinbattle","T100"}); fail("console opened Join Battle"); }
+            catch (net.minecraft.command.CommandException expected) { assertNotNull(expected.getMessage()); }
+            assertContains(new KOMECommandKome(),console(new ArrayList<String>(),false),"joinbattle",true);
+        }finally{KOMEPacketHandler.network=previous;}
+    }
+
+    @Test public void commandAndRefreshAllowedViewsAlwaysCarryFreshValidTokens() throws Exception {
+        KOMEAccessFixture f=new KOMEAccessFixture();makeJoinBattleEligible(f);
+        cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper previous=KOMEPacketHandler.network;
+        try{
+            KOMEPacketHandler.network=f.network;
+            new KOMECommandKome().processCommand(f.player,new String[]{"joinbattle","T100"});
+            KOMEPacketJoinBattleViewResponse command=(KOMEPacketJoinBattleViewResponse)f.network.messages.get(0);
+            assertTrue(command.isAllowed());assertTrue(command.actionToken.matches("[0-9a-f]{32}"));
+
+            KOMEPacketJoinBattleViewResponse refresh=(KOMEPacketJoinBattleViewResponse)
+                new KOMEPacketJoinBattleViewRequest.Handler().onMessage(
+                    new KOMEPacketJoinBattleViewRequest("T100"),f.context);
+            assertTrue(refresh.isAllowed());assertTrue(refresh.actionToken.matches("[0-9a-f]{32}"));
+            assertNotEquals(command.actionToken,refresh.actionToken);
+        }finally{KOMEPacketHandler.network=previous;}
     }
 
     @Test public void deniedAdministrativeCommandsDoNotEvenRequestWorldState() {
@@ -136,6 +173,41 @@ public class KOMEPublicCommandTest {
 
     private static void assertContains(ICommand command, ICommandSender sender, String word, boolean expected) {
         assertEquals(command.getCommandName() + " " + word, expected, command.addTabCompletionOptions(sender, new String[] {""}).contains(word));
+    }
+
+    private static void makeJoinBattleEligible(KOMEAccessFixture f) throws Exception {
+        f.pledge(LOTRFaction.GONDOR);long now=10L;
+        kome.common.data.KOMEConflictService.Result started=f.data.getConflictService().start(
+            "T100",kome.common.data.KOMEConflictRecord.State.ORDINARY,
+            kome.common.data.KOMEConflictContracts.ExpectedConflict.absent(),
+            java.util.Collections.<kome.common.data.KOMEConflictContracts.GarrisonSeed>emptyList(),
+            new kome.common.data.KOMEConflictContracts.Context(now++,"test","Join Battle command token"));
+        assertTrue(started.isSuccess());kome.common.data.KOMEConflictRecord record=started.record;
+        kome.common.data.KOMEConflictService.Result participated=f.data.getConflictService().beginFactionParticipation(
+            "T100",kome.common.data.KOMEConflictContracts.ExpectedConflict.at(record.getConflictId(),record.getRevision()),
+            "gondor",new kome.common.data.KOMEConflictContracts.Context(now++,"test","Join Battle command token"));
+        assertTrue(participated.isSuccess());record=participated.record;
+        kome.common.data.KOMEArmyCompany company=new kome.common.data.KOMEArmyCompany();
+        company.id="C1";company.owner=java.util.UUID.randomUUID();company.ownerName="Owner";
+        company.faction="gondor";company.name="First Company";company.currentTile="T100";
+        f.data.lastKnownPlayerFactions.put(company.owner,"gondor");
+        kome.common.data.KOMEHiredUnitRecord unit=new kome.common.data.KOMEHiredUnitRecord();
+        unit.entity=java.util.UUID.randomUUID();unit.owner=company.owner;unit.companyId="C1";
+        unit.companyName=company.name;unit.currentTile="T100";unit.sourceTileId="T001";
+        unit.unitFaction="gondor";unit.populationOwningFaction="gondor";
+        unit.type=kome.common.data.KOMEPopulationType.OFFENSIVE;
+        java.lang.reflect.Field unitClass=kome.common.data.KOMEHiredUnitRecord.class.getDeclaredField("unitClass");
+        unitClass.setAccessible(true);unitClass.set(unit,kome.common.data.KOMEHiredUnitClass.CAMPAIGN);
+        unit.cost=unit.baseCost=unit.populationSpent=20;company.units.add(unit.entity);
+        company.totalPopulation=company.groundPopulation=20;
+        f.data.armyCompanies.put(company.id,company);f.data.hiredUnits.put(unit.entity,unit);
+        kome.common.data.KOMEConflictService.Result committed=f.data.getConflictService().commit(
+            "T100",kome.common.data.KOMEConflictContracts.ExpectedConflict.at(record.getConflictId(),record.getRevision()),
+            new kome.common.data.KOMEConflictContracts.CommitmentInput("C1",
+                kome.common.data.KOMEHiredUnitClass.CAMPAIGN,
+                kome.common.data.KOMEConflictRecord.EntryOrigin.LEGAL_ARRIVAL,"M-C1"),
+            new kome.common.data.KOMEConflictContracts.Context(now,"test","Join Battle command token"));
+        assertTrue(committed.isSuccess());
     }
 
     private static void deny(ICommand command, ICommandSender sender, String... args) {

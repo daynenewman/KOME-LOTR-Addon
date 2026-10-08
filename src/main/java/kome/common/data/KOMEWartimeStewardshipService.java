@@ -235,6 +235,7 @@ public final class KOMEWartimeStewardshipService {
 
     static boolean conflictProtects(KOMEWorldData data, KOMEArmyCompany company) {
         if (data == null || company == null) return true;
+        if (KOMEFormalRetreatAuthority.protectsCompany(data, company.id)) return true;
         if (KOMEConflictMovementService.isActivelyCommitted(data, company.id)) return true;
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
             if (order != null && company.id.equals(order.companyId)
@@ -249,6 +250,7 @@ public final class KOMEWartimeStewardshipService {
         // The historical flag means funding cleanup is resolved, not refunded.
         tombstone.populationReturned = true;
         record.populationReturned = true;
+        record.clearPhysicalLocator();
         record.releaseState = "STEWARDSHIP_DEMOBILIZED_PERMANENTLY_SPENT";
     }
 

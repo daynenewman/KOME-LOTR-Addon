@@ -40,13 +40,13 @@ public class KOMESerfKnightIntegratedJourneyTest {
         assertEquals(KOMEProgressionRank.SERF,progression.getCanonicalRank());
         KOMEProgressionRankSummary before=KOMEProgressionRankSummary.project(progression,150D);
         assertEquals(1,before.requirements.get(2).current);
-        assertEquals(0,before.requirements.get(3).current);
+        assertEquals(3,before.requirements.size());
 
         assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,liege,"rohan",150D).success);
         assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"gondor",150D).success);
         assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"rohan",149D).success);
         assertTrue(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"rohan",150D).success);
-        assertTrue(state.hasPartingGift());assertTrue(state.isPromoted());
+        assertFalse("Unclaimed reward is optional",state.hasPartingGift());assertTrue(state.isPromoted());
         assertEquals(KOMEProgressionRank.KNIGHT,progression.getCanonicalRank());
         assertFalse("The former Serfdom Master is no longer an active relationship after Knighthood",state.getSerfdomMaster().isSet());
         assertTrue(state.getLiege().hasSameIdentity(liege));
@@ -56,7 +56,7 @@ public class KOMESerfKnightIntegratedJourneyTest {
         assertFalse("The Master cannot give a second gift",KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"rohan",150D).success);
         KOMEPlayerProgression reloaded=new KOMEPlayerProgression();reloaded.readFromNBT(progression.writeToNBT());
         assertEquals(KOMEProgressionRank.KNIGHT,reloaded.getCanonicalRank());
-        assertTrue(reloaded.getSerfKnightProgression().hasPartingGift());
+        assertFalse(reloaded.getSerfKnightProgression().hasPartingGift());
         assertFalse(reloaded.getSerfKnightProgression().getSerfdomMaster().isSet());
         assertTrue(reloaded.getSerfKnightProgression().getLiege().hasSameIdentity(liege));
         assertTrue(KOMESerfKnightService.leaveLiege(reloaded).success);

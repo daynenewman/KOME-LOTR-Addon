@@ -42,6 +42,7 @@ public class KOMEWorldDataSchemaTest {
     private static final Set<String> REQUIRED_CURRENT_DEV_ROOT_TAGS = new HashSet<String>(Arrays.asList(
         "KOMEDataSchemaVersion", "TacticalConfiguration", "TacticalConfigurationRequired", "AllianceDataSchemaVersion", "BuildDataSchemaVersion",
         "ConflictDataSchemaVersion", "NextConflictSequence", "ConflictRecords",
+        "NextJoinBattleReceiptSequence", "JoinBattleDeploymentReceipts",
         "EmergencyDefenseDataSchemaVersion", "EmergencyDefenseActivities",
         "EmergencyDefenseCommitments", "EmergencyDefenseObservations",
         "PopulationDevelopmentDataSchemaVersion", "PopulationDevelopment",
@@ -86,7 +87,7 @@ public class KOMEWorldDataSchemaTest {
         data.writeToNBT(saved);
         assertEquals("KOMEDataSchemaVersion", KOMEWorldData.KOME_DATA_SCHEMA_KEY);
         assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
-        assertEquals(1, KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION);
+        assertEquals(2, KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION);
         assertEquals(3, saved.getInteger("EmergencyDefenseDataSchemaVersion"));
         assertEquals(4, KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEWorldData.POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION);
@@ -322,6 +323,8 @@ public class KOMEWorldDataSchemaTest {
         legacy.removeTag(KOMEConflictPersistence.SCHEMA_KEY);
         legacy.removeTag(KOMEConflictPersistence.SEQUENCE_KEY);
         legacy.removeTag(KOMEConflictPersistence.RECORDS_KEY);
+        legacy.removeTag(KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY);
+        legacy.removeTag(KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY);
         removeEmergencyDefenseSection(legacy);
         NBTTagCompound original = (NBTTagCompound) legacy.copy();
         KOMEWorldData upgraded = new KOMEWorldData("upgraded"); upgraded.readFromNBT(legacy);
@@ -424,7 +427,9 @@ public class KOMEWorldDataSchemaTest {
         legacy.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
         removeEmergencyDefenseSection(legacy);
         for (String key : Arrays.asList("MusterDataSchemaVersion", "CivilianMusters", "PublicWaypoints",
-                KOMEConflictPersistence.SCHEMA_KEY, KOMEConflictPersistence.SEQUENCE_KEY, KOMEConflictPersistence.RECORDS_KEY))
+                KOMEConflictPersistence.SCHEMA_KEY, KOMEConflictPersistence.SEQUENCE_KEY,
+                KOMEConflictPersistence.RECORDS_KEY, KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY,
+                KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY))
             legacy.removeTag(key);
         NBTTagCompound original = (NBTTagCompound) legacy.copy();
         KOMEWorldData loaded = new KOMEWorldData("pre-merge-kom25"); loaded.readFromNBT(legacy);
@@ -773,7 +778,7 @@ public class KOMEWorldDataSchemaTest {
     }
 
     @Test public void schemaElevenRequiresEveryMandatoryAuthorityAndStrictMovementMetadata() throws Exception {
-        for (int kind = 0; kind < 10; kind++) {
+        for (int kind = 0; kind < 12; kind++) {
             NBTTagCompound root = combinedAuthorityDocument();
             if (kind == 0) root.removeTag("TacticalConfiguration");
             if (kind == 1) root.removeTag(KOMEEmergencyDefensePersistence.SCHEMA_KEY);
@@ -786,6 +791,8 @@ public class KOMEWorldDataSchemaTest {
                 .getCompoundTag("MovementAllowance").setInteger("Remaining", -1);
             if (kind == 8) root.setString(KOMEEmergencyDefensePersistence.COMMITMENTS_KEY, "corrupt");
             if (kind == 9) root.getCompoundTag("TacticalConfiguration").setInteger("SchemaVersion", 99);
+            if (kind == 10) root.removeTag(KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY);
+            if (kind == 11) root.removeTag(KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY);
             NBTTagCompound original = (NBTTagCompound) root.copy();
             KOMEWorldData loaded = new KOMEWorldData("mandatory-eleven");
             expectReadFailure(loaded, root);

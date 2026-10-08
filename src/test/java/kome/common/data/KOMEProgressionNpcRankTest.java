@@ -51,11 +51,11 @@ public class KOMEProgressionNpcRankTest {
         NBTTagCompound duplicate=((KOMEProgressionNpcRankRecord) data.progressionNpcRanks.get(king)).writeToNBT(); duplicate.setString("UUID",UUID.randomUUID().toString()); records.appendTag(duplicate);
         NBTTagCompound malformed=new NBTTagCompound(); malformed.setString("UUID","bad"); malformed.setString("Faction","rohan"); malformed.setString("Rank","king"); records.appendTag(malformed);
         KOMEWorldData loaded=new KOMEWorldData("npcs"); loaded.readFromNBT(tag);
-        assertTrue(loaded.progressionNpcRanks.isEmpty());
+        assertEquals(1,loaded.progressionNpcRanks.size());
         NBTTagCompound reversed=(NBTTagCompound)tag.copy(); NBTTagList reversedRecords=new NBTTagList();
         reversedRecords.appendTag(duplicate); reversedRecords.appendTag(((KOMEProgressionNpcRankRecord) data.progressionNpcRanks.get(king)).writeToNBT()); reversedRecords.appendTag(malformed); reversed.setTag("ProgressionNpcRanks",reversedRecords);
         KOMEWorldData reverseLoaded=new KOMEWorldData("npcs"); reverseLoaded.readFromNBT(reversed);
-        assertTrue(reverseLoaded.progressionNpcRanks.isEmpty());
+        assertEquals(loaded.progressionNpcRanks.keySet(),reverseLoaded.progressionNpcRanks.keySet());
     }
 
     @Test public void rankAwareSerfKnightSelectionRequiresExactRanks() {

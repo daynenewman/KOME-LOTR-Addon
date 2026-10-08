@@ -13,6 +13,9 @@ public final class KOMEProgressionRelationshipLifecycle {
         if(data==null||player==null||player.worldObj.isRemote)return false;
         KOMEPlayerProgression progression=data.getProgression(player.getUniqueID());
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
+        if(progression.getCanonicalRank()==KOMEProgressionRank.PRINCE&&state.hasLiege()&&KOMERulerService.hasRuler(data,state.getLiege().factionKey)){
+            state.releaseLiegeAfterPromotion();KOMEProgressionNpcRoles.syncPlayer(data,player.getUniqueID());data.markDirty();return true;
+        }
         boolean masterInvalid=false,liegeInvalid=false;
         for(Object value:player.worldObj.loadedEntityList) {
             if(!(value instanceof lotr.common.entity.npc.LOTREntityNPC))continue;
@@ -22,7 +25,7 @@ public final class KOMEProgressionRelationshipLifecycle {
             if(id.equals(state.getSerfdomMaster().entityUuid))masterInvalid=!valid
                 ||!KOMEProgressionFactionResolver.matches(state.getSerfdomMaster().factionKey,npc.getFaction())
                 ||KOMEProgressionNpcRankService.effectiveRank(data,npc)!=KOMEProgressionNpcRank.UNRANKED;
-            if(id.equals(state.getLiege().entityUuid))liegeInvalid=!KOMECurrentLiege.validNpc(data,npc,state.getLiege());
+            if(id.equals(state.getLiege().entityUuid))liegeInvalid=!KOMECurrentLiege.validNpc(data,npc,state.getLiege(),progression.getCanonicalRank());
         }
         if(!masterInvalid&&!liegeInvalid)return false;
         KOMEProgressionEncounterCleanup.cleanup(player,progression);

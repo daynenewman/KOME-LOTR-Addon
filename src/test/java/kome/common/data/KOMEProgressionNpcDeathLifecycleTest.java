@@ -1,4 +1,5 @@
 package kome.common.data;
+import net.minecraft.nbt.NBTTagCompound;
 
 import java.util.HashSet;
 import java.util.Random;
@@ -44,24 +45,27 @@ public class KOMEProgressionNpcDeathLifecycleTest {
         KOMESerfKnightProgression restored=new KOMESerfKnightProgression();restored.readFromNBT(betrayal.writeToNBT());assertEquals(21L,restored.getBetrayalLockoutUntilDay());assertTrue(restored.isLockedOut(20));assertFalse(restored.isLockedOut(21));
     }
 
-    @Test public void successionSelectsLowestUuidPrinceAndRecordsFormerKingAtCapital() {
-        KOMEWorldData data=new KOMEWorldData("royal");assertTrue(data.initializeIntegratedWorld());UUID king=UUID.randomUUID(),first=UUID.fromString("00000000-0000-0000-0000-000000000001"),second=UUID.fromString("ffffffff-ffff-ffff-ffff-ffffffffffff"),other=UUID.randomUUID();
+    @Test public void kingDeathKeepsCanonicalIdentityAndDoesNotPromotePrinces() {
+        KOMEWorldData data=new KOMEWorldData("royal");assertTrue(data.initializeIntegratedWorld());
+        UUID king=UUID.randomUUID(),prince=UUID.randomUUID();
         assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(data,king,"rohan",KOMEProgressionNpcRank.KING,"King",true).success);
-        assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(data,second,"rohan",KOMEProgressionNpcRank.PRINCE,"Second",true).success);
-        assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(data,first,"rohan",KOMEProgressionNpcRank.PRINCE,"First",true).success);
-        assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(data,other,"gondor",KOMEProgressionNpcRank.PRINCE,"Other",true).success);
-        Set<UUID> eligible=new HashSet<UUID>();eligible.add(second);eligible.add(first);eligible.add(other);
-        assertEquals(first,KOMEProgressionNpcSuccessionService.handleKingDeath(data,king,eligible));assertEquals(KOMEProgressionNpcRank.KING,data.progressionNpcRanks.get(first).rank);assertFalse(data.progressionNpcRanks.containsKey(king));
-        KOMEProgressionNpcRoyalRestoration restoration=data.progressionNpcRoyalRestorations.get(king);assertNotNull(restoration);assertEquals(KOMEProgressionNpcRank.PRINCE.key,restoration.writeToNBT().getString("RestoreRank"));assertEquals(KOMEFactionCapitalService.getCapitalTileId(data,"rohan"),restoration.capitalTileId);
+        assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(data,prince,"rohan",KOMEProgressionNpcRank.PRINCE,"Prince",true).success);
+        assertNull(KOMEProgressionNpcSuccessionService.handleKingDeath(data,king));
+        assertEquals(KOMEProgressionNpcRank.KING,data.progressionNpcRanks.get(king).rank);
+        assertEquals(KOMEProgressionNpcRank.PRINCE,data.progressionNpcRanks.get(prince).rank);
+        assertEquals(600000L,data.progressionNpcRanks.get(king).respawnRemainingMillis);
+        assertTrue(data.progressionNpcRoyalRestorations.isEmpty());
     }
-
-    @Test public void unloadedPrinceRecordsSucceedDeterministicallyAndDeadPrinceIsRemoved() {
-        KOMEWorldData firstData=new KOMEWorldData("royal");assertTrue(firstData.initializeIntegratedWorld());UUID king=UUID.randomUUID(),low=UUID.fromString("00000000-0000-0000-0000-000000000010"),high=UUID.fromString("ffffffff-ffff-ffff-ffff-fffffffffff0");
-        assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(firstData,king,"rohan",KOMEProgressionNpcRank.KING,"King",true).success);assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(firstData,high,"rohan",KOMEProgressionNpcRank.PRINCE,"High",true).success);assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(firstData,low,"rohan",KOMEProgressionNpcRank.PRINCE,"Low",true).success);
-        assertEquals(low,KOMEProgressionNpcSuccessionService.handleKingDeath(firstData,king,new HashSet<UUID>()));assertEquals(KOMEProgressionNpcRank.KING,firstData.progressionNpcRanks.get(low).rank);
-        KOMEWorldData princeDeath=new KOMEWorldData("royal");UUID deadPrince=UUID.randomUUID();assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(princeDeath,deadPrince,"rohan",KOMEProgressionNpcRank.PRINCE,"Dead",true).success);assertTrue(KOMEProgressionNpcSuccessionService.invalidatePrinceDeath(princeDeath,deadPrince));assertFalse(princeDeath.progressionNpcRanks.containsKey(deadPrince));
+    @Test public void restartRetainsRemainingRuntimeAndPrinceDeathStillInvalidatesPrince() {
+        KOMEWorldData data=new KOMEWorldData("royal");assertTrue(data.initializeIntegratedWorld());UUID king=UUID.randomUUID();
+        assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(data,king,"rohan",KOMEProgressionNpcRank.KING,"King",true).success);
+        KOMEProgressionRulerService.noteDeath(data,king);KOMEProgressionRulerService.advance(data.progressionNpcRanks.get(king),180000);
+        NBTTagCompound saved=new NBTTagCompound();data.writeToNBT(saved);KOMEWorldData loaded=new KOMEWorldData("royal");loaded.readFromNBT(saved);
+        assertEquals(420000L,loaded.progressionNpcRanks.get(king).respawnRemainingMillis);
+        assertFalse(KOMEProgressionRulerService.noteDeath(loaded,king));
+        UUID prince=UUID.randomUUID();assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(loaded,prince,"rohan",KOMEProgressionNpcRank.PRINCE,"Prince",true).success);
+        assertTrue(KOMEProgressionNpcSuccessionService.invalidatePrinceDeath(loaded,prince));assertFalse(loaded.progressionNpcRanks.containsKey(prince));
     }
-
     @Test public void playerKingBlocksSuccessionAndNoPrinceMeansNoKing() {
         KOMEWorldData data=new KOMEWorldData("royal");assertTrue(data.initializeIntegratedWorld());UUID king=UUID.randomUUID(),prince=UUID.randomUUID();
         assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(data,king,"rohan",KOMEProgressionNpcRank.KING,"King",true).success);assertTrue(KOMEProgressionNpcRankService.assignElevatedRank(data,prince,"rohan",KOMEProgressionNpcRank.PRINCE,"Prince",true).success);

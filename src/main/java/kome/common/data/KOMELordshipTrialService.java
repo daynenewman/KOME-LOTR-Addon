@@ -86,7 +86,7 @@ public final class KOMELordshipTrialService {
             if(a.stage==Stage.ACTIVE&&a.type==Type.DANGEROUS_ESCORT){
                 double[] site=KOMEKnightCommissionService.safeSite(player.worldObj,(int)liege.posX,(int)liege.posZ);
                 LOTREntityNPC charge=site==null?null:KOMEKnightCommissionService.spawn(player,a,a.civilianClass,Role.CHARGE,site,MARKER);
-                if(charge==null)fail(data,player.worldObj,player.getUniqueID(),t,"generation");else follow(charge,player);
+                if(charge==null)fail(data,player.worldObj,player.getUniqueID(),t,"generation");else {follow(charge,player);KOMEProgressionEscortFollowing.disable(charge);}
             }
             speech(player,liege,t,a.stage==Stage.FAILED?"failed":"assigned");
         } else speech(player,liege,t,"progress");
@@ -114,9 +114,11 @@ public final class KOMELordshipTrialService {
                 boolean missing=false;
                 for(Actor actor:a.actors)if(actor.role==Role.GUARD&&!actor.dead){
                     Entity entity=KOMEKnightCommissionService.findLoaded(player.worldObj,actor.id);
-                    if(entity!=null&&entity.isEntityAlive()){actor.x=entity.posX;actor.y=entity.posY;actor.z=entity.posZ;}
+                    if(entity!=null&&entity.isEntityAlive()){actor.x=entity.posX;actor.y=entity.posY;actor.z=entity.posZ;actor.missingTicks=0;}
                     else if(player.dimension==a.dimension&&player.getDistanceSq(actor.x,actor.y,actor.z)<=96*96
-                            &&KOMEKnightCommissionService.loadedAround(player.worldObj,actor.x,actor.z))missing=true;
+                            &&KOMEKnightCommissionService.loadedAround(player.worldObj,actor.x,actor.z)){
+                if(actor.role==Role.ENEMY){actor.missingTicks+=20;if(actor.missingTicks>=100&&!KOMEKnightCommissionService.recoverEnemy(player,a,actor,MARKER)){fail(data,player.worldObj,player.getUniqueID(),t,"missing");return;}}else missing=true;
+            } else actor.missingTicks=0;
                 }
                 a.missingTicks=missing?a.missingTicks+20:0;
                 // Earned field evidence must not become a dead end through invalid entity lifecycle loss.
@@ -127,6 +129,7 @@ public final class KOMELordshipTrialService {
         }
         if(!a.liege.hasSameIdentity(p.getSerfKnightProgression().getLiege())){fail(data,player.worldObj,player.getUniqueID(),t,"liege");return;}
         if(a.stage!=Stage.ACTIVE)return;
+        if(!KOMEKnightCommissionService.validateDestination(player.worldObj,a)){fail(data,player.worldObj,player.getUniqueID(),t,"destination");changed(data,player,p);return;}
         if(!a.encounterCreated&&a.atSite(player.dimension,player.posX,player.posZ,72)
                 &&KOMEKnightCommissionService.loaded(player.worldObj,a.x,a.z)) {
             if(!KOMEKnightCommissionService.activate(player,a,MARKER)){fail(data,player.worldObj,player.getUniqueID(),t,"generation");return;}
@@ -136,9 +139,11 @@ public final class KOMELordshipTrialService {
         for(Actor actor:a.actors)if(!actor.dead){Entity entity=KOMEKnightCommissionService.findLoaded(player.worldObj,actor.id);
             if(entity!=null){
                 if(!entity.isEntityAlive()){fail(data,player.worldObj,player.getUniqueID(),t,"missing");return;}
-                actor.x=entity.posX;actor.y=entity.posY;actor.z=entity.posZ;
+                actor.x=entity.posX;actor.y=entity.posY;actor.z=entity.posZ;actor.missingTicks=0;
             } else if(player.dimension==a.dimension&&player.getDistanceSq(actor.x,actor.y,actor.z)<=96*96
-                    &&KOMEKnightCommissionService.loadedAround(player.worldObj,actor.x,actor.z))missing=true;
+                    &&KOMEKnightCommissionService.loadedAround(player.worldObj,actor.x,actor.z)){
+                if(actor.role==Role.ENEMY){actor.missingTicks+=20;if(actor.missingTicks>=100&&!KOMEKnightCommissionService.recoverEnemy(player,a,actor,MARKER)){fail(data,player.worldObj,player.getUniqueID(),t,"missing");return;}}else missing=true;
+            } else actor.missingTicks=0;
         }
         a.missingTicks=missing?a.missingTicks+20:0;
         if(a.missingTicks>=1200){fail(data,player.worldObj,player.getUniqueID(),t,"missing");return;}
@@ -176,7 +181,7 @@ public final class KOMELordshipTrialService {
         for(Actor actor:t.objective.actors)if(actor.role!=Role.GUARD){Entity e=KOMEKnightCommissionService.findLoaded(world,actor.id);
             if(e instanceof LOTREntityNPC){LOTREntityNPC npc=(LOTREntityNPC)e;KOMEProgressionEncounterMarker.Marker m=KOMEProgressionEncounterMarker.read(npc);
                 if(m!=null&&MARKER.equals(m.kind)&&m.owner.equals(owner)&&t.objective.token.equals(m.token)){
-                    if(npc.hiredNPCInfo.isActive)npc.hiredNPCInfo.dismissUnit(false);npc.setDead();
+                    if(npc.hiredNPCInfo.isActive)dismissFollower(npc);npc.setDead();
                 }
             }
         }
@@ -246,7 +251,7 @@ public final class KOMELordshipTrialService {
         for(Object entity:new ArrayList<Object>(world.loadedEntityList))if(entity instanceof LOTREntityNPC){
             LOTREntityNPC npc=(LOTREntityNPC)entity;KOMEProgressionEncounterMarker.Marker m=KOMEProgressionEncounterMarker.read(npc);
             if(m!=null&&MARKER.equals(m.kind)&&owner.equals(m.owner)&&t.objective.token.equals(m.token)){
-                if(npc.hiredNPCInfo!=null&&npc.hiredNPCInfo.isActive)npc.hiredNPCInfo.dismissUnit(false);npc.setDead();
+                if(npc.hiredNPCInfo!=null&&npc.hiredNPCInfo.isActive)dismissFollower(npc);npc.setDead();
             }
         }
     }
@@ -268,7 +273,7 @@ public final class KOMELordshipTrialService {
     public static void reconcileNpc(KOMEWorldData data,LOTREntityNPC npc) {
         KOMEProgressionEncounterMarker.Marker m=KOMEProgressionEncounterMarker.read(npc);if(m==null||!MARKER.equals(m.kind))return;
         Actor actor=boundActor(data,npc);
-        if(actor==null){if(npc.hiredNPCInfo!=null&&npc.hiredNPCInfo.isActive)npc.hiredNPCInfo.dismissUnit(false);npc.setDead();return;}
+        if(actor==null){if(npc.hiredNPCInfo!=null&&npc.hiredNPCInfo.isActive)dismissFollower(npc);npc.setDead();return;}
         if(actor.role==Role.GUARD||actor.role==Role.CHARGE){
             EntityPlayer owner=npc.worldObj.func_152378_a(m.owner);
             if(owner!=null&&(!npc.hiredNPCInfo.isActive||!m.owner.equals(npc.hiredNPCInfo.getHiringPlayerUUID())))follow(npc,owner);
@@ -293,4 +298,5 @@ public final class KOMELordshipTrialService {
     private static void changed(KOMEWorldData data,EntityPlayerMP player,KOMEPlayerProgression p) {
         KOMEProgressionNpcRoles.syncPlayer(data,player.getUniqueID());data.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,p);
     }
+    private static void dismissFollower(LOTREntityNPC npc) { KOMEProgressionEscortFollowing.restore(npc);npc.hiredNPCInfo.dismissUnit(false); }
 }
