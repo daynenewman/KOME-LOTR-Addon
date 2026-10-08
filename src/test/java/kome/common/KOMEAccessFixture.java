@@ -43,6 +43,15 @@ public final class KOMEAccessFixture {
         java.lang.reflect.Method raw=net.minecraft.item.Item.itemRegistry.getClass().getDeclaredMethod("addObjectRaw",int.class,String.class,Object.class);
         raw.setAccessible(true);int id=31000;
         Field modifiers=Field.class.getDeclaredField("modifiers");modifiers.setAccessible(true);
+        for(String key:new String[]{"grass","planks","stonebrick"}){
+            Field field=net.minecraft.init.Blocks.class.getField(key);if(field.get(null)!=null)continue;
+            net.minecraft.block.Block block;
+            if(key.equals("grass")){java.lang.reflect.Constructor<?> c=net.minecraft.block.BlockGrass.class.getDeclaredConstructor();c.setAccessible(true);block=(net.minecraft.block.Block)c.newInstance();}
+            else block=new net.minecraft.block.Block(net.minecraft.block.material.Material.wood){};
+            java.lang.reflect.Method blocksRaw=net.minecraft.block.Block.blockRegistry.getClass().getDeclaredMethod("addObjectRaw",int.class,String.class,Object.class);
+            blocksRaw.setAccessible(true);blocksRaw.invoke(net.minecraft.block.Block.blockRegistry,3000+key.length(),"fixture:"+key,block);
+            field.setAccessible(true);modifiers.setInt(field,field.getModifiers()&~java.lang.reflect.Modifier.FINAL);field.set(null,block);
+        }
         for(Field field:net.minecraft.init.Items.class.getFields())if((field.getType()==net.minecraft.item.Item.class||field.getType()==net.minecraft.item.ItemArmor.class||field.getType()==net.minecraft.item.ItemBow.class||field.getType()==net.minecraft.item.ItemPotion.class)&&field.get(null)==null) {
             net.minecraft.item.Item item=field.getType()==net.minecraft.item.ItemArmor.class?new net.minecraft.item.ItemArmor(net.minecraft.item.ItemArmor.ArmorMaterial.CLOTH,0,field.getName().contains("helmet")?0:1):field.getType()==net.minecraft.item.ItemBow.class?new net.minecraft.item.ItemBow():field.getType()==net.minecraft.item.ItemPotion.class?new net.minecraft.item.ItemPotion():new net.minecraft.item.ItemFood(8,0.8F,false);
             if(field.getName().equals("glass_bottle"))item=new net.minecraft.item.Item(){
@@ -67,12 +76,14 @@ public final class KOMEAccessFixture {
         world.loadedEntityList = new ArrayList<Entity>();
         world.playerEntities = new ArrayList();
         world.playedSounds = new ArrayList<String>();
+        world.structureBlocks=new java.util.HashMap<String,net.minecraft.block.Block>();
         set(World.class, world, "worldScoreboard", new net.minecraft.scoreboard.Scoreboard());
         player = allocate(Player.class);
         player.id = UUID.randomUUID(); player.connected = true;
         set(Entity.class, player, "entityUniqueID", player.id);
         player.messages = new ArrayList<String>();
         player.worldObj = world;
+        net.minecraft.entity.DataWatcher taskWatcher=new net.minecraft.entity.DataWatcher(player);taskWatcher.addObject(0,(byte)0);set(Entity.class,player,"dataWatcher",taskWatcher);
         world.playerEntities.add(player);
         network = allocate(RecordingNetwork.class);
         network.messages = new ArrayList<IMessage>();
@@ -125,6 +136,7 @@ public final class KOMEAccessFixture {
         private Player() { super(null, null, null, null); }
         @Override public UUID getUniqueID() { return id; }
         @Override public String getCommandSenderName() { return name == null ? "AccessTester" : name; }
+        @Override public boolean isEntityAlive(){return !isDead;}
         // Deliberately deny level 0 too, matching real 1.7.10 non-operator behavior.
         @Override public boolean canCommandSenderUseCommand(int level, String command) { return operator; }
         @Override public void addChatMessage(IChatComponent message) { messages.add(message.getUnformattedText()); }
@@ -161,9 +173,14 @@ public final class KOMEAccessFixture {
 
     public static final class TestWorld extends World {
         private static final net.minecraft.block.Block TEST_GROUND=new net.minecraft.block.Block(net.minecraft.block.material.Material.ground){};
-        private static final net.minecraft.block.Block TEST_AIR=new net.minecraft.block.Block(net.minecraft.block.material.Material.air){};
+        private static final net.minecraft.block.Block TEST_AIR=new net.minecraft.block.Block(net.minecraft.block.material.Material.air){@Override public net.minecraft.util.AxisAlignedBB getCollisionBoundingBoxFromPool(World world,int x,int y,int z){return null;}};
         public long testWorldTime;
         public boolean flatTerrain,spawnSucceeds,unsafeSurface;
+        public java.util.Map<String,net.minecraft.block.Block> structureBlocks;
+        public void shelter(int x,int z){
+            for(int dx=0;dx<=1;dx++)for(int dz=0;dz<=1;dz++)structureBlocks.put((x+dx)+",68,"+(z+dz),net.minecraft.init.Blocks.planks);
+            structureBlocks.put(x+",66,"+z,net.minecraft.init.Blocks.planks);structureBlocks.put(x+",67,"+z,net.minecraft.init.Blocks.planks);
+        }
         public int terrainProbes;
         public IChunkProvider testChunkProvider;
         public List<String> playedSounds;
@@ -171,8 +188,9 @@ public final class KOMEAccessFixture {
         @Override protected IChunkProvider createChunkProvider() { return null; }
         @Override public IChunkProvider getChunkProvider(){return testChunkProvider==null?super.getChunkProvider():testChunkProvider;}
         @Override public int getTopSolidOrLiquidBlock(int x,int z){terrainProbes++;return flatTerrain?65:super.getTopSolidOrLiquidBlock(x,z);}
-        @Override public net.minecraft.block.Block getBlock(int x,int y,int z){return flatTerrain?(y==64&&!unsafeSurface?TEST_GROUND:TEST_AIR):super.getBlock(x,y,z);}
-        @Override public boolean isAirBlock(int x,int y,int z){return flatTerrain?y>64:super.isAirBlock(x,y,z);}
+        @Override public net.minecraft.block.Block getBlock(int x,int y,int z){if(flatTerrain&&structureBlocks!=null&&structureBlocks.containsKey(x+","+y+","+z))return structureBlocks.get(x+","+y+","+z);return flatTerrain?(y==64&&!unsafeSurface?net.minecraft.init.Blocks.grass:TEST_AIR):super.getBlock(x,y,z);}
+        @Override public boolean isAirBlock(int x,int y,int z){return flatTerrain?getBlock(x,y,z).getMaterial()==net.minecraft.block.material.Material.air:super.isAirBlock(x,y,z);}
+        @Override public net.minecraft.tileentity.TileEntity getTileEntity(int x,int y,int z){return flatTerrain?null:super.getTileEntity(x,y,z);}
         @Override public java.util.List getCollidingBoundingBoxes(Entity entity,net.minecraft.util.AxisAlignedBB box){return flatTerrain?new ArrayList():super.getCollidingBoundingBoxes(entity,box);}
         @Override public boolean checkNoEntityCollision(net.minecraft.util.AxisAlignedBB box,Entity entity){return flatTerrain||super.checkNoEntityCollision(box,entity);}
         @Override public boolean spawnEntityInWorld(Entity entity){if(!flatTerrain)return super.spawnEntityInWorld(entity);if(spawnSucceeds)loadedEntityList.add(entity);return spawnSucceeds;}

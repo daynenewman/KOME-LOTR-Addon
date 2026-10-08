@@ -26,8 +26,11 @@ public final class KOMEProgressionNpcSpeech {
     }
 
     public static void assignDuty(EntityPlayerMP player, LOTREntityNPC master, KOMESerfKnightDutyType duty) {
+        String culture=master.getFaction().codeName();
+        String household="rohan".equals(culture)?"There must be food at our hearths, even when the riders are away. ":
+            "gondor".equals(culture)?"Our folk must be supplied through these troubled days. ":"Our household has need of your service. ";
         say(player, master, duty == KOMESerfKnightDutyType.PROVISIONING
-            ? "I have need of provisions. Bring me what I have asked for."
+            ? household+"Bring me the provisions I have set down for you."
             : duty == KOMESerfKnightDutyType.PROFESSION
                 ? "I have need of materials for my trade. Bring me what I have asked for."
                 : "I have work for you. See that it is done.");
@@ -36,7 +39,12 @@ public final class KOMEProgressionNpcSpeech {
     public static void sameDay(EntityPlayerMP player, LOTREntityNPC master) {
         say(player, master, "You have done enough for today. Return tomorrow, and I may have more work for you.");
     }
-    public static void assignCourier(EntityPlayerMP player, LOTREntityNPC master) { say(player,master,"I have a message that must be carried. Take this to one of our people beyond these parts, and return when it is delivered."); }
+    public static void assignCourier(EntityPlayerMP player, LOTREntityNPC master) {
+        KOMESerfKnightProgression state=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).getSerfKnightProgression();
+        KOMESerfCourierAssignment a=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
+        String recipient=a!=null&&a.recipient.isSet()?a.recipient.displayName:a==null?"one of our people":"the recipient marked on your map";
+        say(player,master,"Carry this word to "+recipient+". Mind the road, and return to me when it has been delivered.");
+    }
     public static void replaceCourierMessage(EntityPlayerMP player, LOTREntityNPC master) { say(player,master,"You've lost it? Take another, and mind it this time."); }
     public static void receiveCourier(EntityPlayerMP player, LOTREntityNPC recipient, String masterName) { say(player,recipient,"I'll see that this is received. Tell "+masterName+" the message reached its destination."); }
     public static void completeCourier(EntityPlayerMP player, LOTREntityNPC master) { say(player,master,"Good. You carried out my word and returned as you were told. You have done well."); }

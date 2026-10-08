@@ -61,6 +61,8 @@ public class KOMEWorldData extends WorldSavedData {
     public final Map<UUID, KOMEPlayerProgression> progressions = new HashMap<>();
     /** Explicit PRINCE/KING NPC rank authority; LORD and UNRANKED remain live-derived. */
     final Map<UUID, KOMEProgressionNpcRankRecord> progressionNpcRanks = new HashMap<UUID, KOMEProgressionNpcRankRecord>();
+    /** Observed existing shelters, not planned world generation. Bounded and checked again on arrival. */
+    final Map<String,NBTTagCompound> progressionShelters = new java.util.LinkedHashMap<String,NBTTagCompound>();
     final Map<UUID, java.util.Set<KOMEProgressionNpcRoleLease>> progressionNpcRoleLeases = new HashMap<UUID, java.util.Set<KOMEProgressionNpcRoleLease>>();
     final Map<UUID, KOMEProgressionNpcRoyalRestoration> progressionNpcRoyalRestorations = new HashMap<UUID, KOMEProgressionNpcRoyalRestoration>();
     public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
@@ -2191,6 +2193,13 @@ public class KOMEWorldData extends WorldSavedData {
         }
 
         loadSection = "ProgressionNpcRanks";
+        progressionShelters.clear();
+        NBTTagList shelters=nbt.getTagList("ProgressionShelters",10);
+        for(int i=0;i<Math.min(256,shelters.tagCount());i++){
+            NBTTagCompound shelter=shelters.getCompoundTagAt(i);
+            if("EXISTING_VERIFIED".equals(shelter.getString("Status"))&&!shelter.getString("Faction").isEmpty())
+                progressionShelters.put(KOMEProgressionDestinations.key(shelter),(NBTTagCompound)shelter.copy());
+        }
         NBTTagList progressionNpcRankList = nbt.getTagList("ProgressionNpcRanks", 10);
         Map<UUID, KOMEProgressionNpcRankRecord> npcRankCandidates = new HashMap<UUID, KOMEProgressionNpcRankRecord>();
         Set<UUID> conflictingNpcRankIds = new HashSet<UUID>();
@@ -2215,12 +2224,13 @@ public class KOMEWorldData extends WorldSavedData {
         for (KOMEProgressionNpcRankRecord record : npcRankCandidates.values()) if (record.rank == KOMEProgressionNpcRank.KING) {
             UUID prior = npcKingCandidates.get(record.factionKey);
             if (prior == null) npcKingCandidates.put(record.factionKey, record.npcUuid);
-            else if (!prior.equals(record.npcUuid)) { conflictingNpcKingFactions.add(record.factionKey); loadedStateReconciled = true; }
+            else if (!prior.equals(record.npcUuid)) { if(record.npcUuid.toString().compareTo(prior.toString())<0)npcKingCandidates.put(record.factionKey,record.npcUuid); conflictingNpcKingFactions.add(record.factionKey); loadedStateReconciled = true; }
         }
         for (KOMEProgressionNpcRankRecord record : npcRankCandidates.values()) {
-            if (record.rank != KOMEProgressionNpcRank.KING || !conflictingNpcKingFactions.contains(record.factionKey)) progressionNpcRanks.put(record.npcUuid, record);
+            if (record.rank != KOMEProgressionNpcRank.KING || record.npcUuid.equals(npcKingCandidates.get(record.factionKey))) progressionNpcRanks.put(record.npcUuid, record);
         }
         loadSection = "ProgressionNpcRoyalRestorations";
+        loadedStateReconciled |= KOMEProgressionNpcRankService.migrateRelationships(this);
         NBTTagList royalRestorationList = nbt.getTagList("ProgressionNpcRoyalRestorations", 10);
         for (int i = 0; i < royalRestorationList.tagCount(); i++) { KOMEProgressionNpcRoyalRestoration restoration=KOMEProgressionNpcRoyalRestoration.readFromNBT(royalRestorationList.getCompoundTagAt(i),this); if(restoration!=null&&!progressionNpcRoyalRestorations.containsKey(restoration.formerKingUuid)) progressionNpcRoyalRestorations.put(restoration.formerKingUuid,restoration); else loadedStateReconciled=true; }
 
@@ -2600,6 +2610,7 @@ public class KOMEWorldData extends WorldSavedData {
         progressions.putAll(candidate.progressions);
         progressionNpcRanks.clear();
         progressionNpcRanks.putAll(candidate.progressionNpcRanks);
+        progressionShelters.clear();progressionShelters.putAll(candidate.progressionShelters);
         progressionNpcRoleLeases.clear();
         progressionNpcRoleLeases.putAll(candidate.progressionNpcRoleLeases);
         progressionNpcRoyalRestorations.clear();
@@ -2917,6 +2928,7 @@ public class KOMEWorldData extends WorldSavedData {
 
         NBTTagList progressionNpcRankList = new NBTTagList();
         List<UUID> progressionNpcRankIds = new ArrayList<UUID>(progressionNpcRanks.keySet());
+        NBTTagList shelters=new NBTTagList();for(NBTTagCompound shelter:progressionShelters.values())shelters.appendTag(shelter.copy());nbt.setTag("ProgressionShelters",shelters);
         Collections.sort(progressionNpcRankIds, new java.util.Comparator<UUID>() { public int compare(UUID a, UUID b) { return a.toString().compareTo(b.toString()); } });
         for (UUID id : progressionNpcRankIds) {
             KOMEProgressionNpcRankRecord record = progressionNpcRanks.get(id);

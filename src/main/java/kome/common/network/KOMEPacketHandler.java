@@ -183,5 +183,6 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketStandingTrialEligibility.Handler.class, KOMEPacketStandingTrialEligibility.class, 46, Side.CLIENT);
         // Both branches used 38; retain progression IDs and append public waypoints at the next free ID.
         network.registerMessage(KOMEPacketPublicWaypoints.Handler.class, KOMEPacketPublicWaypoints.class, 47, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketMasterOfferResponse>(new KOMEPacketMasterOfferResponse.Handler()) {}, KOMEPacketMasterOfferResponse.class, 48, Side.SERVER);
     }
 }

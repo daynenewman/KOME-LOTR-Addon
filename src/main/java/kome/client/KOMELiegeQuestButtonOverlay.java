@@ -111,6 +111,12 @@ public final class KOMELiegeQuestButtonOverlay {
             npc.getEntityId(),
             KOMEPacketRelationshipAction.LIEGE,
             KOMEPacketRelationshipAction.SERVICE));
+        // The authoritative action updates this same progression view; geographic status exposes Show Me.
+        for(kome.common.data.KOMEVisualMarker marker:KOMEVisualMarkerClientState.markers())
+            if(marker.role==kome.common.data.KOMEVisualMarker.Role.KNIGHT_LIEGE
+                    &&marker.entityUuid.equals(npc.getUniqueID().toString())){
+                Minecraft.getMinecraft().displayGuiScreen(kome.client.gui.KOMEGuiProgression.dutyView());break;
+            }
         event.setCanceled(true);
     }
 

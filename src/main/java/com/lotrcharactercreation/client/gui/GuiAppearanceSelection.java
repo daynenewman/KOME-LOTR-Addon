@@ -165,7 +165,9 @@ public class GuiAppearanceSelection extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
-        if (keyCode == 1 && !selectionPending) {
+        if (keyCode == 1 && mandatoryFlow) {
+            ClientCreationContinuation.pause(this);
+        } else if (keyCode == 1 && !selectionPending) {
             goBack();
         } else if (keyCode != 1) {
             super.keyTyped(typedChar, keyCode);
@@ -182,7 +184,7 @@ public class GuiAppearanceSelection extends GuiScreen {
         drawCenteredString(fontRendererObj, "Race: " + race.getDisplayName(), width / 2, contextY, 0xD0D0D0);
         contextY += 11;
         if (sex == PlayerSex.MALE || sex == PlayerSex.FEMALE) {
-            drawCenteredString(fontRendererObj, "Sex: " + sex.getDisplayName(), width / 2, contextY, 0xD0D0D0);
+            drawCenteredString(fontRendererObj, "Gender: " + sex.getDisplayName(), width / 2, contextY, 0xD0D0D0);
             contextY += 11;
         }
         drawCenteredString(
@@ -209,7 +211,8 @@ public class GuiAppearanceSelection extends GuiScreen {
                 centerY + 42,
                 46,
                 mouseX - width / 2,
-                mouseY - centerY,
+                mouseY - com.lotrcharactercreation.client.render.AppearancePreviewOrientation.headCentreY(centerY+42,46,
+                    com.lotrcharactercreation.body.RaceBodyDefinition.forRace(selected.getRace()).getRenderScale()),
                 partialTicks);
             int indexY = centerY + 52;
             if (selected.getDisplayName() != null) {

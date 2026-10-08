@@ -49,6 +49,8 @@ public final class KOMEKnightCommissionService {
         KOMEKnightCommission a=new KOMEKnightCommission(type,ref);
         KOMEKnightCommissionLocations.Destination location=KOMEKnightCommissionLocations.choose(ref,world,type,a.token);if(location==null)return null;
         a.createdAt=world.getTotalWorldTime();a.x=location.x;a.z=location.z;a.destinationX=a.x;a.destinationZ=a.z;a.place=location.name;
+        a.destinationProof=(NBTTagCompound)location.proof.copy();
+        if(type==Type.BORDER_INCURSION)a.enemyFaction=location.proof.getString("BorderEnemy");
         BiomeGenBase base=world.getWorldChunkManager().getBiomeGenAt((int)a.x,(int)a.z);if(!(base instanceof LOTRBiome))return null;
         Set<String> candidates=new LinkedHashSet<String>();
         for(Class<? extends LOTREntityNPC> c:KOMECourierRecipientSpawner.eligibleClasses(world,(LOTRBiome)base,liege.getFaction()))candidates.add(c.getName());
@@ -61,19 +63,16 @@ public final class KOMEKnightCommissionService {
         if(type!=Type.BORDER_INCURSION&&type!=Type.STOLEN_GOODS&&a.civilianClass.isEmpty())return null;
         if(type!=Type.RELIEF&&!enemies(world,liege.getFaction(),a))return null;
         if(type==Type.RELIEF){a.goods.addAll(reliefGoods(a.faction,world.rand));if(a.goods.isEmpty())return null;}
-        if(type==Type.STOLEN_GOODS){if(lotr.common.LOTRMod.silver==null||Item.itemRegistry.getNameForObject(lotr.common.LOTRMod.silver)==null)return null;a.goods.add(new Goods(String.valueOf(Item.itemRegistry.getNameForObject(lotr.common.LOTRMod.silver)),0,3));}
+        if(type==Type.STOLEN_GOODS){ItemStack lost=KOMEProgressionLostItems.choose(a.faction,world.rand);if(lost==null)return null;a.goods.add(new Goods(String.valueOf(Item.itemRegistry.getNameForObject(lost.getItem())),lost.getItemDamage(),1));}
         if(type==Type.DANGEROUS_ESCORT){a.x=(ref.x+a.destinationX)/2;a.z=(ref.z+a.destinationZ)/2;if(!KOMEKnightCommissionLocations.usable(world,liege.getFaction(),a.x,a.z))return null;}
         a.y=KOMEKnightCommissionLocations.height(world,a.x,a.z);if(!Double.isFinite(a.y))return null;
         return a;
     }
     /** Validate actual native units as well as invasion metadata; try another force on invalid entries. */
     static boolean enemies(World world,LOTRFaction defender,KOMEKnightCommission a) {
-        List<LOTRInvasions> choices=new ArrayList<LOTRInvasions>();
-        for(LOTRInvasions invasion:LOTRInvasions.values())if(invasion.invasionFaction!=defender
-                &&KOMESerfKnightDefenseService.hostile(defender,invasion.invasionFaction)
-                &&invasion.invasionMobs!=null&&!invasion.invasionMobs.isEmpty())choices.add(invasion);
+        List<LOTRInvasions> choices=KOMEProgressionRegionalEnemies.choices(world,defender,a.x,a.z);
         if(choices.isEmpty())return false;Collections.rotate(choices,Math.floorMod(a.token.hashCode(),choices.size()));
-        for(LOTRInvasions invasion:choices){List<String> valid=new ArrayList<String>();
+        for(LOTRInvasions invasion:choices){if(a.type==Type.BORDER_INCURSION&&!a.enemyFaction.isEmpty()&&!a.enemyFaction.equals(invasion.invasionFaction.codeName()))continue;List<String> valid=new ArrayList<String>();
             for(Object entry:invasion.invasionMobs){String name=((LOTRInvasions.InvasionSpawnEntry)entry).getEntityClass().getName();
                 LOTREntityNPC sample=construct(world,name);
                 if(sample!=null&&sample.getFaction()==invasion.invasionFaction&&sample.getFaction()!=defender
@@ -96,19 +95,19 @@ public final class KOMEKnightCommissionService {
         KOMEWorldData world=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=world.getProgression(player.getUniqueID());KOMEKnightServiceRecord state=p.getKnightService();KOMEKnightCommission a=state.assignment();if(a==null)return false;
         if(a.stage==Stage.READY_TO_REPORT&&!a.liege.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
         if(a.stage==Stage.FAILED){cleanup(player.worldObj,player.getUniqueID(),a);state.clearFailed();KOMEProgressionNpcSpeech.commission(player,liege,a,"retry");changed(world,player,p);return true;}
-        if(a.stage==Stage.READY_TO_REPORT){if(a.type==Type.STOLEN_GOODS&&!consumeProperty(player.inventory.mainInventory,a,player.getUniqueID())){a.stage=Stage.ACTIVE;a.nextRecoveryTick=0;changed(world,player,p);return true;}player.inventory.markDirty();player.inventoryContainer.detectAndSendChanges();cleanup(player.worldObj,player.getUniqueID(),a);a.reportedAt=player.worldObj.getTotalWorldTime();if(state.report(KOMEProgressionNpcRankService.referenceOf(liege)))KOMEProgressionNpcSpeech.commission(player,liege,a,"reported");}
+        if(a.stage==Stage.READY_TO_REPORT){if(a.type==Type.STOLEN_GOODS&&!consumeHeldProperty(player,a)){a.stage=Stage.ACTIVE;a.nextRecoveryTick=0;changed(world,player,p);KOMEProgressionNpcSpeech.say(player,liege,"Place the recovered property in your hand, and return it to me.");return true;}player.inventory.markDirty();player.inventoryContainer.detectAndSendChanges();cleanup(player.worldObj,player.getUniqueID(),a);a.reportedAt=player.worldObj.getTotalWorldTime();if(state.report(KOMEProgressionNpcRankService.referenceOf(liege))){KOMEProgressionServiceRewards.commission(player,a);KOMEProgressionNpcSpeech.commission(player,liege,a,"reported");}}
         else if(a.stage==Stage.OFFERED){if(!state.accept(p.getCanonicalRank(),p.getSerfKnightProgression().getLiege(),LOTRLevelData.getData(player).getPledgeFaction().codeName()))return false;a.acceptedAt=player.worldObj.getTotalWorldTime();a.stage=Stage.ACTIVE;if(a.type==Type.DANGEROUS_ESCORT&&!spawnCharge(player,a,liege))fail(world,player.worldObj,player.getUniqueID(),a);KOMEProgressionNpcSpeech.commission(player,liege,a,a.stage==Stage.FAILED?"failed":"assigned");}
         else KOMEProgressionNpcSpeech.commission(player,liege,a,"progress");
         changed(world,player,p);return true;
     }
-    static boolean spawnCharge(EntityPlayerMP player,KOMEKnightCommission a,LOTREntityNPC liege) { double[] site=safeSite(player.worldObj,(int)liege.posX,(int)liege.posZ);if(site==null)return false;LOTREntityNPC npc=spawn(player,a,a.civilianClass,Role.CHARGE,site);if(npc==null)return false;npc.hiredNPCInfo.isActive=true;npc.hiredNPCInfo.setHiringPlayer(player);npc.hiredNPCInfo.setTask(LOTRHiredNPCInfo.Task.WARRIOR);npc.hiredNPCInfo.ready();return true; }
+    static boolean spawnCharge(EntityPlayerMP player,KOMEKnightCommission a,LOTREntityNPC liege) { double[] site=safeSite(player.worldObj,(int)liege.posX,(int)liege.posZ);if(site==null)return false;LOTREntityNPC npc=spawn(player,a,a.civilianClass,Role.CHARGE,site);if(npc==null)return false;npc.hiredNPCInfo.isActive=true;npc.hiredNPCInfo.setHiringPlayer(player);npc.hiredNPCInfo.setTask(LOTRHiredNPCInfo.Task.WARRIOR);npc.hiredNPCInfo.ready();KOMEProgressionEscortFollowing.disable(npc);return true; }
     /** No force loading: each generated actor is reserved before it joins the world. */
     static boolean activate(EntityPlayerMP player,KOMEKnightCommission a) { return activate(player,a,MARKER); }
     static boolean activate(EntityPlayerMP player,KOMEKnightCommission a,String markerKind) {
         if(a.encounterCreated||a.stage!=Stage.ACTIVE)return false;
         double[] site=safeSite(player.worldObj,(int)a.x,(int)a.z);if(site==null)return false;a.y=site[1];
         LOTREntityNPC beneficiary=null;if(a.type==Type.SETTLEMENT_DEFENSE||a.type==Type.RELIEF){beneficiary=spawn(player,a,a.civilianClass,Role.BENEFICIARY,site,markerKind);if(beneficiary==null)return false;}
-        if(a.type!=Type.RELIEF)for(int i=0;i<a.enemyClasses.size();i++){double[] enemySite=safeSite(player.worldObj,(int)a.x+14+i*3,(int)a.z+14);if(enemySite==null)return false;LOTREntityNPC enemy=spawn(player,a,a.enemyClasses.get(i),Role.ENEMY,enemySite,markerKind);if(enemy==null)return false;if(beneficiary!=null)enemy.setAttackTarget(beneficiary,true);else enemy.setAttackTarget(player);}
+        if(a.type!=Type.RELIEF)for(int i=0;i<a.enemyClasses.size();i++){double[] enemySite=KOMEProgressionEncounterSites.attacker(player.worldObj,a.x,a.z,a.liege,a.token,i);if(enemySite==null)return false;LOTREntityNPC enemy=spawn(player,a,a.enemyClasses.get(i),Role.ENEMY,enemySite,markerKind);if(enemy==null)return false;if(beneficiary!=null)enemy.setAttackTarget(beneficiary,true);else enemy.setAttackTarget(player);}
         a.encounterCreated=true;return true;
     }
     private static LOTREntityNPC spawn(EntityPlayerMP player,KOMEKnightCommission a,String className,Role role,double[] site) { return spawn(player,a,className,role,site,MARKER); }
@@ -120,11 +119,25 @@ public final class KOMEKnightCommissionService {
         if(role==Role.GUARD&&!KOMELordshipTrialService.suitableGuard(npc,faction))return null;
         if(role!=Role.ENEMY&&role!=Role.GUARD&&!npc.isCivilianNPC()
                 &&!(role==Role.BENEFICIARY&&(a.type==Type.SETTLEMENT_DEFENSE||a.type==Type.RELIEF)&&KOMELordshipTrialService.suitableGuard(npc,faction)))return null;
-        npc.func_110163_bv();Actor actor=new Actor(npc.getUniqueID().toString(),npc.getClass().getName(),role,npc.posX,npc.posY,npc.posZ);a.actors.add(actor);
+        if(!player.worldObj.checkNoEntityCollision(npc.boundingBox)||!player.worldObj.getCollidingBoundingBoxes(npc,npc.boundingBox).isEmpty())return null;
+        Actor actor=new Actor(npc.getUniqueID().toString(),npc.getClass().getName(),role,npc.posX,npc.posY,npc.posZ);a.actors.add(actor);
+        actor.displayName=npc.getNPCName();
         KOMEProgressionEncounterMarker.mark(npc,markerKind,player.getUniqueID(),a.token);KOMEWorldData.get(player.worldObj).markDirty();
         if(!player.worldObj.spawnEntityInWorld(npc))return null;return npc;
     }
     static LOTREntityNPC construct(World world,String className) { return npcFactory.create(world,className); }
+    /** Reconstitutes one missing slot. A dead slot is never eligible for recovery. */
+    static boolean recoverEnemy(EntityPlayerMP player,KOMEKnightCommission a,Actor actor,String kind){
+        if(actor.role!=Role.ENEMY||actor.dead||actor.recoveries>=3)return false;
+        double[] site=safeSite(player.worldObj,(int)actor.x,(int)actor.z);if(site==null)return false;
+        LOTREntityNPC npc=construct(player.worldObj,actor.className);
+        if(npc==null||!KOMEProgressionFactionResolver.matches(a.enemyFaction,npc.getFaction()))return false;
+        npc.onArtificalSpawn();npc.setLocationAndAngles(site[0],site[1],site[2],0,0);
+        KOMEProgressionEncounterMarker.mark(npc,kind,player.getUniqueID(),a.token);
+        actor.id=npc.getUniqueID().toString();actor.x=site[0];actor.y=site[1];actor.z=site[2];actor.missingTicks=0;actor.recoveries++;
+        KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEProgressionNpcRoles.syncPlayer(data,player.getUniqueID());data.markDirty();
+        return player.worldObj.spawnEntityInWorld(npc);
+    }
     private static LOTREntityNPC nativeNpc(World world,String className) { try{if(!className.startsWith("lotr.common.entity.npc."))return null;return (LOTREntityNPC)Class.forName(className).getConstructor(World.class).newInstance(world);}catch(Exception invalid){return null;} }
     static boolean loaded(World world,double x,double z) { return world.getChunkProvider()!=null&&world.getChunkProvider().chunkExists(((int)Math.floor(x))>>4,((int)Math.floor(z))>>4); }
     static double[] safeSite(World world,int x,int z) {
@@ -141,19 +154,19 @@ public final class KOMEKnightCommissionService {
             a.stage=Stage.ACTIVE;changed(world,player,p);
         }
         if(a.stage!=Stage.ACTIVE)return;
-        if(a.type==Type.DANGEROUS_ESCORT&&destinationHost(a)==null&&a.atDestination(player.dimension,player.posX,player.posZ)&&loaded(player.worldObj,a.destinationX,a.destinationZ)){
-            double[] haven=safeSite(player.worldObj,(int)a.destinationX,(int)a.destinationZ);
-            if(haven==null||spawn(player,a,a.civilianClass,Role.BENEFICIARY,haven)==null){fail(world,player.worldObj,player.getUniqueID(),a);return;}
-            KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());world.markDirty();
-        }
+        if(!validateDestination(player.worldObj,a)){fail(world,player.worldObj,player.getUniqueID(),a);changed(world,player,p);return;}
         if(!a.encounterCreated&&a.atSite(player.dimension,player.posX,player.posZ,72)&&loaded(player.worldObj,a.x,a.z)){if(!activate(player,a)){fail(world,player.worldObj,player.getUniqueID(),a);return;}changed(world,player,p);}
         boolean missing=false;
-        for(Actor actor:a.actors){if(actor.dead)continue;Entity entity=findLoaded(player.worldObj,actor.id);if(entity!=null){if(!entity.isEntityAlive()){fail(world,player.worldObj,player.getUniqueID(),a);return;}actor.x=entity.posX;actor.y=entity.posY;actor.z=entity.posZ;}else if(player.dimension==a.dimension&&player.getDistanceSq(actor.x,actor.y,actor.z)<=96*96&&loadedAround(player.worldObj,actor.x,actor.z))missing=true;}
+        for(Actor actor:a.actors){if(actor.dead)continue;Entity entity=findLoaded(player.worldObj,actor.id);if(entity!=null){if(!entity.isEntityAlive()){fail(world,player.worldObj,player.getUniqueID(),a);return;}actor.x=entity.posX;actor.y=entity.posY;actor.z=entity.posZ;actor.missingTicks=0;}else if(player.dimension==a.dimension&&player.getDistanceSq(actor.x,actor.y,actor.z)<=96*96&&loadedAround(player.worldObj,actor.x,actor.z)){if(actor.role==Role.ENEMY){actor.missingTicks+=20;if(actor.missingTicks>=100&&!recoverEnemy(player,a,actor,MARKER)){fail(world,player.worldObj,player.getUniqueID(),a);return;}}else missing=true;}else actor.missingTicks=0;}
         // A minute of loaded evidence provides a recoverable failure, never a false kill.
         a.missingTicks=missing?a.missingTicks+20:0;if(a.missingTicks>=1200){fail(world,player.worldObj,player.getUniqueID(),a);return;}
         boolean present=a.atSite(player.dimension,player.posX,player.posZ,96);
         resolveCombat(a,present);
-        if(a.type==Type.DANGEROUS_ESCORT&&a.threatResolved){Actor charge=a.protectedActor(),host=destinationHost(a);Entity entity=charge==null?null:findLoaded(player.worldObj,charge.id);Entity destination=host==null?null:findLoaded(player.worldObj,host.id);if(entity!=null&&destination!=null&&destination.isEntityAlive()&&escortArrived(a,entity.worldObj.provider.dimensionId,entity.posX,entity.posZ,player.getDistanceSqToEntity(entity)))a.stage=Stage.READY_TO_REPORT;}
+        if(a.type==Type.DANGEROUS_ESCORT&&a.threatResolved&&!a.destinationProof.hasNoTags()){
+            Actor charge=a.protectedActor();Entity entity=charge==null?null:findLoaded(player.worldObj,charge.id);
+            if(entity instanceof LOTREntityNPC&&activeEscort(world,(LOTREntityNPC)entity)
+                    &&escortArrived(a,entity.worldObj.provider.dimensionId,entity.posX,entity.posZ,player.getDistanceSqToEntity(entity)))a.stage=Stage.READY_TO_REPORT;
+        }
         if(a.type==Type.STOLEN_GOODS&&a.threatResolved){if(hasProperty(player.inventory.mainInventory,a,player.getUniqueID()))a.stage=Stage.READY_TO_REPORT;else if(present&&loaded(player.worldObj,a.x,a.z))recoverProperty(player,a);}
         world.markDirty();if(a.stage==Stage.READY_TO_REPORT){releaseFollower(player.worldObj,player.getUniqueID(),a);changed(world,player,p);}
     }
@@ -164,6 +177,16 @@ public final class KOMEKnightCommissionService {
         a.threatResolved=a.threatResolved||a.stage==Stage.READY_TO_REPORT;
         cleanup(world,owner,a);a.stage=Stage.FAILED;p.getKnightService().clearFailed();
         KOMEWorldData data=KOMEWorldData.get(world);KOMEProgressionNpcRoles.syncPlayer(data,owner);data.markDirty();return true;
+    }
+    static boolean validateDestination(World world,KOMEKnightCommission a){
+        if(a.type!=Type.DANGEROUS_ESCORT&&a.type!=Type.SETTLEMENT_DEFENSE&&a.type!=Type.RELIEF)return true;
+        if(a.destinationProof.hasNoTags()){
+            LOTRFaction faction=KOMEProgressionFactionResolver.resolve(a.faction);
+            KOMEKnightCommissionLocations.Destination verified=KOMEProgressionDestinations.verify(world,faction,a.destinationX,a.destinationZ,"legacy:verified_shelter");
+            if(verified==null)return !loadedAround(world,a.destinationX,a.destinationZ);
+            a.destinationProof=verified.proof;a.place=verified.name;
+        }
+        return a.destinationProof.hasNoTags()?true:KOMEProgressionDestinations.valid(world,a.destinationProof);
     }
     static boolean resolveCombat(KOMEKnightCommission a,boolean ownerPresent) {
         if(a.stage!=Stage.ACTIVE||!a.allEnemiesDead()||!a.participated||!ownerPresent)return false;
@@ -207,18 +230,25 @@ public final class KOMEKnightCommissionService {
     static boolean matchesProperty(ItemStack stack,KOMEKnightCommission a,UUID owner) { if(stack==null||a==null||owner==null||a.type!=Type.STOLEN_GOODS||a.goods.size()!=1||stack.stackSize<=0||stack.getItem()!=STOLEN_PROPERTY||stack.getItemDamage()!=0||!stack.hasTagCompound()||!stack.getTagCompound().hasKey(ITEM_TAG,10))return false;NBTTagCompound tag=stack.getTagCompound().getCompoundTag(ITEM_TAG);return a.goods.get(0).itemKey.equals(tag.getString("Contents"))&&a.goods.get(0).damage==tag.getInteger("Damage")&&a.token.equals(tag.getString("Token"))&&owner.toString().equals(tag.getString("Owner"))&&a.revision==tag.getInteger("Revision"); }
     static boolean hasProperty(ItemStack[] inventory,KOMEKnightCommission a,UUID owner) { int count=0;for(ItemStack stack:inventory)if(matchesProperty(stack,a,owner))count+=stack.stackSize;return a.goods.size()==1&&count>=a.goods.get(0).required; }
     static boolean consumeProperty(ItemStack[] inventory,KOMEKnightCommission a,UUID owner) { if(!hasProperty(inventory,a,owner))return false;int remaining=a.goods.get(0).required;for(int i=0;i<inventory.length&&remaining>0;i++)if(matchesProperty(inventory[i],a,owner)){int take=Math.min(remaining,inventory[i].stackSize);inventory[i].stackSize-=take;remaining-=take;if(inventory[i].stackSize==0)inventory[i]=null;}a.goods.get(0).delivered=a.goods.get(0).required;return true; }
+    static boolean consumeHeldProperty(EntityPlayerMP player,KOMEKnightCommission a){
+        ItemStack held=player.getCurrentEquippedItem();
+        if(!matchesProperty(held,a,player.getUniqueID())||held.stackSize<a.goods.get(0).required)return false;
+        if(!consumeProperty(player.inventory.mainInventory,a,player.getUniqueID()))return false;
+        player.worldObj.playSoundAtEntity(player,"random.pop",0.4F,1F);return true;
+    }
     private static void recoverProperty(EntityPlayerMP player,KOMEKnightCommission a) {
         int count=0;for(ItemStack stack:player.inventory.mainInventory)if(matchesProperty(stack,a,player.getUniqueID()))count+=stack.stackSize;
         for(Object entity:player.worldObj.loadedEntityList)if(entity instanceof EntityItem&&!((EntityItem)entity).isDead&&matchesProperty(((EntityItem)entity).getEntityItem(),a,player.getUniqueID()))count+=((EntityItem)entity).getEntityItem().stackSize;
         if(count>=a.goods.get(0).required)return;
         long now=player.worldObj.getTotalWorldTime();if(now<a.nextRecoveryTick)return;double[] site=safeSite(player.worldObj,(int)a.x,(int)a.z);if(site==null)return;
         purgeProperty(player.worldObj,player.getUniqueID(),a);
-        a.revision++;a.nextRecoveryTick=now+1200;KOMEWorldData.get(player.worldObj).markDirty();EntityItem item=new EntityItem(player.worldObj,site[0],site[1]+0.5,site[2],property(a,player.getUniqueID()));player.worldObj.spawnEntityInWorld(item);
+        if(a.retries>=3){fail(KOMEWorldData.get(player.worldObj),player.worldObj,player.getUniqueID(),a);return;}
+        a.retries++;a.revision++;a.nextRecoveryTick=now+1200;KOMEWorldData.get(player.worldObj).markDirty();EntityItem item=new EntityItem(player.worldObj,site[0],site[1]+0.5,site[2],property(a,player.getUniqueID()));item.lifespan=Integer.MAX_VALUE;KOMEProgressionItemDrops.spawn(player.worldObj,item);
     }
     public static boolean canPickup(ItemStack stack,UUID owner) { return stack==null||!stack.hasTagCompound()||!stack.getTagCompound().hasKey(ITEM_TAG,10)||owner!=null&&owner.toString().equals(stack.getTagCompound().getCompoundTag(ITEM_TAG).getString("Owner")); }
     public static boolean reconcileItem(KOMEWorldData world,EntityItem entity) {
         ItemStack stack=entity.getEntityItem();if(stack==null||!stack.hasTagCompound()||!stack.getTagCompound().hasKey(ITEM_TAG,10))return false;NBTTagCompound tag=stack.getTagCompound().getCompoundTag(ITEM_TAG);
-        try{UUID owner=UUID.fromString(tag.getString("Owner"));KOMEPlayerProgression p=world.progressions.get(owner);KOMEKnightCommission a=p==null?null:p.getKnightService().assignment();if(a!=null&&a.live()&&matchesProperty(stack,a,owner))return false;}catch(IllegalArgumentException invalid){}entity.setDead();return true;
+        try{UUID owner=UUID.fromString(tag.getString("Owner"));KOMEPlayerProgression p=world.progressions.get(owner);KOMEKnightCommission a=p==null?null:p.getKnightService().assignment();if(a!=null&&a.live()&&matchesProperty(stack,a,owner)){entity.lifespan=Integer.MAX_VALUE;entity.age=0;return false;}}catch(IllegalArgumentException invalid){}entity.setDead();return true;
     }
     public static boolean activeEscort(KOMEWorldData world,LOTREntityNPC npc) {
         KOMEProgressionEncounterMarker.Marker marker=KOMEProgressionEncounterMarker.read(npc);if(marker==null||!MARKER.equals(marker.kind)||npc.hiredNPCInfo==null||!npc.hiredNPCInfo.isActive||!marker.owner.equals(npc.hiredNPCInfo.getHiringPlayerUUID()))return false;KOMEPlayerProgression p=world.progressions.get(marker.owner);KOMEKnightCommission a=p==null?null:p.getKnightService().assignment();Actor actor=a==null?null:a.protectedActor();return p!=null&&p.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&a!=null&&a.liege.hasSameIdentity(p.getSerfKnightProgression().getLiege())&&a.type==Type.DANGEROUS_ESCORT&&a.stage==Stage.ACTIVE&&a.token.equals(marker.token)&&actor!=null&&!actor.dead&&actor.id.equals(npc.getUniqueID().toString())&&KOMEProgressionFactionResolver.matches(a.faction,npc.getFaction());
@@ -226,11 +256,11 @@ public final class KOMEKnightCommissionService {
     public static void reconcileNpc(KOMEWorldData world,LOTREntityNPC npc) {
         KOMEProgressionEncounterMarker.Marker marker=KOMEProgressionEncounterMarker.read(npc);if(marker==null||!MARKER.equals(marker.kind))return;KOMEPlayerProgression p=world.progressions.get(marker.owner);KOMEKnightCommission a=p==null?null:p.getKnightService().assignment();
         if(a!=null&&a.live()&&a.token.equals(marker.token))for(Actor actor:a.actors)if(!actor.dead&&actor.id.equals(npc.getUniqueID().toString())&&actor.className.equals(npc.getClass().getName())&&KOMEProgressionFactionResolver.matches(actor.role==Role.ENEMY?a.enemyFaction:a.faction,npc.getFaction()))return;
-        if(npc.hiredNPCInfo!=null&&npc.hiredNPCInfo.isActive&&marker.owner.equals(npc.hiredNPCInfo.getHiringPlayerUUID()))npc.hiredNPCInfo.dismissUnit(false);npc.setDead();
+        if(npc.hiredNPCInfo!=null&&npc.hiredNPCInfo.isActive&&marker.owner.equals(npc.hiredNPCInfo.getHiringPlayerUUID()))dismissFollower(npc);npc.setDead();
     }
     static void fail(KOMEWorldData world,World liveWorld,UUID owner,KOMEKnightCommission a) { a.stage=Stage.FAILED;a.cleanupPending=true;cleanup(liveWorld,owner,a);KOMEProgressionNpcRoles.syncPlayer(world,owner);world.markDirty(); }
     public static void cancel(World world,UUID owner,KOMEPlayerProgression p) { KOMEKnightCommission a=p.getKnightService().assignment();if(a==null)return;a.stage=Stage.FAILED;a.cleanupPending=true;cleanup(world,owner,a); }
-    static void releaseFollower(World world,UUID owner,KOMEKnightCommission a) { Actor charge=a.protectedActor();Entity entity=charge==null?null:findLoaded(world,charge.id);if(a.type==Type.DANGEROUS_ESCORT&&entity instanceof LOTREntityNPC){LOTREntityNPC npc=(LOTREntityNPC)entity;if(npc.hiredNPCInfo.isActive&&owner.equals(npc.hiredNPCInfo.getHiringPlayerUUID()))npc.hiredNPCInfo.dismissUnit(false);} }
+    static void releaseFollower(World world,UUID owner,KOMEKnightCommission a) { Actor charge=a.protectedActor();Entity entity=charge==null?null:findLoaded(world,charge.id);if(a.type==Type.DANGEROUS_ESCORT&&entity instanceof LOTREntityNPC){LOTREntityNPC npc=(LOTREntityNPC)entity;if(npc.hiredNPCInfo.isActive&&owner.equals(npc.hiredNPCInfo.getHiringPlayerUUID()))dismissFollower(npc);} }
     static void cleanup(World world,UUID owner,KOMEKnightCommission a) { if(world==null||a==null)return;releaseFollower(world,owner,a);for(Actor actor:a.actors){Entity entity=findLoaded(world,actor.id);if(entity instanceof LOTREntityNPC){KOMEProgressionEncounterMarker.Marker marker=KOMEProgressionEncounterMarker.read((LOTREntityNPC)entity);if(marker!=null&&MARKER.equals(marker.kind)&&owner.equals(marker.owner)&&a.token.equals(marker.token))entity.setDead();}}purgeProperty(world,owner,a); }
     private static boolean propertyBelongsTo(ItemStack stack,UUID owner,KOMEKnightCommission a) { if(stack==null||stack.getItem()!=STOLEN_PROPERTY||!stack.hasTagCompound()||!stack.getTagCompound().hasKey(ITEM_TAG,10))return false;NBTTagCompound tag=stack.getTagCompound().getCompoundTag(ITEM_TAG);return owner.toString().equals(tag.getString("Owner"))&&a.token.equals(tag.getString("Token")); }
     private static void purgeProperty(World world,UUID owner,KOMEKnightCommission a) {
@@ -240,4 +270,5 @@ public final class KOMEKnightCommissionService {
     }
     static Entity findLoaded(World world,String id) { if(world==null)return null;for(Object entity:world.loadedEntityList)if(entity instanceof Entity&&id.equals(((Entity)entity).getUniqueID().toString()))return (Entity)entity;return null; }
     private static void changed(KOMEWorldData world,EntityPlayerMP player,KOMEPlayerProgression p) { KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());world.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,p); }
+    private static void dismissFollower(LOTREntityNPC npc) { KOMEProgressionEscortFollowing.restore(npc);npc.hiredNPCInfo.dismissUnit(false); }
 }

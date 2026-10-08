@@ -73,7 +73,7 @@ public class KOMEProgressionTrackerSnapshotTest {
 
         assertTrue(available.visible);
         assertEquals(
-            "Request another duty from your Master.",
+            "Talk with your Master",
             available.objective);
 
         state.assignDuty(
@@ -100,7 +100,7 @@ public class KOMEProgressionTrackerSnapshotTest {
         assertTrue(nextPhase.visible);
         assertEquals("standing_trial_ready",nextPhase.iconKey);
         assertEquals(
-            "Seek an eligible Liege for your Trial of Standing.\nEorling-at-Arms",
+            "Seek a prospective Liege",
             nextPhase.objective);
 
         state.setLastTrialAssignmentEpochDay(today);
@@ -122,7 +122,7 @@ public class KOMEProgressionTrackerSnapshotTest {
 
         assertEquals("standing_trial_ready",prospectiveReady.iconKey);
         assertEquals(
-            "Seek an eligible Liege for your Trial of Standing.\nEorling-at-Arms",
+            "Seek a prospective Liege",
             prospectiveReady.objective);
         assertTrue(prospectiveReady.isReadyForStandingTrial());
 

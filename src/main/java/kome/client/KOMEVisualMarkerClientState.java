@@ -15,5 +15,6 @@ public final class KOMEVisualMarkerClientState {
             : Collections.unmodifiableList(new ArrayList<KOMEVisualMarker>(values));
     }
     public static List<KOMEVisualMarker> markers() { return markers; }
-    public static void clear() { markers = Collections.emptyList(); }
+    static boolean relevant(String id,int dimension){for(KOMEVisualMarker m:markers)if(m.dimension==dimension&&m.entityUuid.equals(id))return true;return false;}
+    public static void clear() { markers = Collections.emptyList();KOMEProgressionMapFocus.clear(); }
 }
