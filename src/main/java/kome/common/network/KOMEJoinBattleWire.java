@@ -10,6 +10,8 @@ final class KOMEJoinBattleWire {
     static final int MAX_COMPANY_LENGTH = 64;
     static final int MAX_FACTION_LENGTH = 64;
     static final int MAX_NAME_LENGTH = 128;
+    static final int MAX_ACTION_TOKEN_LENGTH = 128;
+    static final int MAX_RECEIPT_LENGTH = 32;
     static final int MAX_COMPANIES = 256;
     private KOMEJoinBattleWire() { }
 

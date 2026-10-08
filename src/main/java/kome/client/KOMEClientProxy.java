@@ -244,10 +244,23 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         else KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiJoinBattle(message));
     }
 
-    @Override public void displayJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message) {
+      @Override public void displayJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message) {
+          net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
+          if(current instanceof kome.client.gui.KOMEGuiJoinBattle)
+              ((kome.client.gui.KOMEGuiJoinBattle)current).acceptSelection(message);
+          else if(net.minecraft.client.Minecraft.getMinecraft().thePlayer!=null
+                  &&message.status!=kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING)
+              net.minecraft.client.Minecraft.getMinecraft().thePlayer.addChatMessage(
+                  new net.minecraft.util.ChatComponentText(message.message));
+      }
+
+    @Override public void displayJoinBattleRetreatResult(kome.common.network.KOMEPacketJoinBattleRetreatResult message) {
         net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
         if(current instanceof kome.client.gui.KOMEGuiJoinBattle)
-            ((kome.client.gui.KOMEGuiJoinBattle)current).acceptSelection(message);
+            ((kome.client.gui.KOMEGuiJoinBattle)current).acceptRetreat(message);
+        else if(net.minecraft.client.Minecraft.getMinecraft().thePlayer!=null)
+            net.minecraft.client.Minecraft.getMinecraft().thePlayer.addChatMessage(
+                new net.minecraft.util.ChatComponentText(message.message));
     }
 
     @Override

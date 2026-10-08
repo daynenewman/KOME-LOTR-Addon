@@ -161,6 +161,7 @@ public final class KOMEJoinBattleDeploymentReceipt {
     public String getEgressReason() { return egressReason; }
     public Long getClosedAtMillis() { return closedAtMillis; }
     public ClosureOutcome getClosureOutcome() { return closureOutcome; }
+    /** Player pose captured before entry: standing when unmounted, rider height when mounted. */
     public Pose getReturnAnchor() { return returnAnchor; }
     public Pose getDeploymentDestination() { return deploymentDestination; }
     public ParticipationRecovery getParticipationRecovery() { return participationRecovery; }
@@ -168,6 +169,7 @@ public final class KOMEJoinBattleDeploymentReceipt {
     public UUID getMountUuid() { return mountUuid; }
     public String getMountEntityType() { return mountEntityType; }
     public MountProfile getMountProfile() { return mountProfile; }
+    /** Exact original mount base pose, captured independently of the player's rider pose. */
     public Pose getMountSourceAnchor() { return mountSourceAnchor; }
     public MountTransferPhase getMountTransferPhase() { return mountTransferPhase; }
     public NBTTagCompound getTemporaryMountNbt() {
@@ -288,6 +290,8 @@ public final class KOMEJoinBattleDeploymentReceipt {
             throw new IllegalArgumentException("Mounted deployment requires completed entry transfer.");
         if (state == State.PENDING_EGRESS
                 && mountTransferPhase != MountTransferPhase.NOT_STARTED
+                && mountTransferPhase != MountTransferPhase.SOURCE_SNAPSHOT_PERSISTED
+                && mountTransferPhase != MountTransferPhase.DESTINATION_PUBLICATION_PENDING
                 && mountTransferPhase != MountTransferPhase.DEPLOYMENT_COMPLETE
                 && mountTransferPhase != MountTransferPhase.EGRESS_TRANSFER_PENDING)
             throw new IllegalArgumentException("Pending mounted egress has an invalid transfer phase.");

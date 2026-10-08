@@ -57,8 +57,10 @@ public class KOMEHiredUnitRecord {
     public boolean populationReturned;
     public String releaseState = "";
     public NBTTagCompound movingEntityData;
+    /** Reconstruction payload only; never a verified Join Battle/chunk locator. */
     public NBTTagCompound stationedEntityData;
     public NBTTagCompound survivingHealth;
+    private KOMEHiredUnitPhysicalLocator physicalLocator;
     transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedEntity;
     transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedMount;
 
@@ -120,6 +122,18 @@ public class KOMEHiredUnitRecord {
         if (nbt.hasKey("SurvivingHealth") && !nbt.hasKey("SurvivingHealth", 10))
             throw new IllegalArgumentException("Invalid survivor health authority");
         survivingHealth = nbt.hasKey("SurvivingHealth", 10) ? (NBTTagCompound) nbt.getCompoundTag("SurvivingHealth").copy() : null;
+        if (nbt.hasKey(KOMEHiredUnitPhysicalLocator.TAG)
+                && !nbt.hasKey(KOMEHiredUnitPhysicalLocator.TAG, 10))
+            throw new IllegalArgumentException("Invalid physical locator authority");
+        physicalLocator = nbt.hasKey(KOMEHiredUnitPhysicalLocator.TAG, 10)
+            ? KOMEHiredUnitPhysicalLocator.readFromNBT(
+                nbt.getCompoundTag(KOMEHiredUnitPhysicalLocator.TAG), entity) : null;
+        if (physicalLocator != null && (movingEntityData != null || populationReturned
+                || !KOMEHiredUnitClassification.isCampaignUnit(this)
+                || companyId == null || companyId.length() == 0
+                || !KOMEConquestTile.normalizeId(currentTile).equals(
+                    physicalLocator.getPhysicalTileId())))
+            throw new IllegalArgumentException("Physical locator attached to an ineligible hired-unit state");
         healthObservedEntity = null;
         healthObservedMount = null;
         if (farmhand) {
@@ -177,7 +191,32 @@ public class KOMEHiredUnitRecord {
             nbt.setTag("StationedEntityData", stationedEntityData);
         }
         if (survivingHealth != null) nbt.setTag("SurvivingHealth", survivingHealth.copy());
+        if (physicalLocator != null) {
+            physicalLocator.validateAttachedTo(entity);
+            if (movingEntityData != null || populationReturned
+                    || !KOMEHiredUnitClassification.isCampaignUnit(this)
+                    || companyId == null || companyId.length() == 0
+                    || !KOMEConquestTile.normalizeId(currentTile).equals(
+                        physicalLocator.getPhysicalTileId()))
+                throw new IllegalStateException("Physical locator attached to an ineligible hired-unit state");
+            nbt.setTag(KOMEHiredUnitPhysicalLocator.TAG, physicalLocator.writeToNBT());
+        }
         return nbt;
+    }
+
+    /** Read-only durable address for a future bounded physical verification attempt. */
+    public KOMEHiredUnitPhysicalLocator getPhysicalLocator() {
+        return physicalLocator;
+    }
+
+    void replacePhysicalLocator(KOMEHiredUnitPhysicalLocator locator) {
+        if (locator == null) throw new IllegalArgumentException("Physical locator is required");
+        locator.validateAttachedTo(entity);
+        physicalLocator = locator;
+    }
+
+    void clearPhysicalLocator() {
+        physicalLocator = null;
     }
 
     public boolean isPlayerReserveFunded() {

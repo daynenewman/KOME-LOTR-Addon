@@ -192,5 +192,7 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketJoinBattleViewResponse.Handler.class, KOMEPacketJoinBattleViewResponse.class, 53, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleSelectionRequest>(new KOMEPacketJoinBattleSelectionRequest.Handler()) {}, KOMEPacketJoinBattleSelectionRequest.class, 54, Side.SERVER);
         network.registerMessage(KOMEPacketJoinBattleSelectionResult.Handler.class, KOMEPacketJoinBattleSelectionResult.class, 55, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleRetreatRequest>(new KOMEPacketJoinBattleRetreatRequest.Handler()) {}, KOMEPacketJoinBattleRetreatRequest.class, 56, Side.SERVER);
+        network.registerMessage(KOMEPacketJoinBattleRetreatResult.Handler.class, KOMEPacketJoinBattleRetreatResult.class, 57, Side.CLIENT);
     }
 }

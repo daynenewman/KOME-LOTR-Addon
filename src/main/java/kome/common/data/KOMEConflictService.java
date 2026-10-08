@@ -674,6 +674,8 @@ public final class KOMEConflictService {
                 + ";winner=none;ownershipTransfer=none");
         KOMEEmergencyDefenseMobilizationService.INSTANCE.onConflictEnded(data,
             ended.record.getConflictId(), context.timestampMillis);
+        KOMEJoinBattleEgressService.INSTANCE.onConflictEnded(data,
+            ended.record.getConflictId(), context.timestampMillis);
         data.markDirty();
         return new EndResult(ended, holds.size());
     }

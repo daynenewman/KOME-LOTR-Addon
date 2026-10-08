@@ -83,6 +83,30 @@ public class KOMEJoinBattlePersistenceTest {
             .getTemporaryMountNbt().getInteger("Health"));
     }
 
+    @Test public void unresolvedMountedDestinationPublicationRemainsRecoverableAcrossRestart() {
+        NBTTagCompound snapshot = new NBTTagCompound();
+        snapshot.setString("id", "Horse"); snapshot.setString("Recovery", "required");
+        KOMEJoinBattleDeploymentReceipt receipt = base("JB1", "recovery-token", PLAYER_1,
+            "CF1", "T100").deploymentDestination(new Pose(0, 20, 65, 20, 0, 0))
+            .enteredMounted(true).mountUuid(MOUNT).mountEntityType("Horse")
+            .mountProfile(MountProfile.VANILLA_HORSE).mountSourceAnchor(anchor())
+            .mountTransferPhase(MountTransferPhase.DESTINATION_PUBLICATION_PENDING)
+            .temporaryMountNbt(snapshot).build();
+        KOMEWorldData data = initialized("mounted-recovery"); start(data, "T100", 10L);
+        data.getJoinBattleDeploymentReceipts().publishNew(receipt);
+
+        KOMEWorldData loaded = load(save(data));
+        KOMEJoinBattleDeploymentReceipt restored =
+            loaded.getJoinBattleDeploymentReceipts().get("JB1");
+        assertEquals(State.PENDING_ENTRY, restored.getState());
+        assertEquals(MountTransferPhase.DESTINATION_PUBLICATION_PENDING,
+            restored.getMountTransferPhase());
+        assertEquals("required", restored.getTemporaryMountNbt().getString("Recovery"));
+        assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(2, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
+        assertEquals(1, KOMEHiredUnitPhysicalLocator.DATA_SCHEMA_VERSION);
+    }
+
     @Test public void mountedAndLifecycleShapeValidationRejectsContradictions() {
         assertThrows(IllegalArgumentException.class, () -> base("JB1", "t1", PLAYER_1,
             "CF1", "T100").mountUuid(MOUNT).build());

@@ -72,6 +72,7 @@ public final class KOMEAccessFixture {
         player.id = UUID.randomUUID(); player.connected = true;
         set(Entity.class, player, "entityUniqueID", player.id);
         player.messages = new ArrayList<String>();
+        player.vanillaPackets = new ArrayList<Packet>();
         player.worldObj = world;
         world.playerEntities.add(player);
         network = allocate(RecordingNetwork.class);
@@ -121,6 +122,7 @@ public final class KOMEAccessFixture {
         public boolean operator;
         public boolean connected = true;
         public List<String> messages;
+        public List<Packet> vanillaPackets;
         public net.minecraft.inventory.IInventory openedInventory;
         private Player() { super(null, null, null, null); }
         @Override public UUID getUniqueID() { return id; }
@@ -128,6 +130,9 @@ public final class KOMEAccessFixture {
         // Deliberately deny level 0 too, matching real 1.7.10 non-operator behavior.
         @Override public boolean canCommandSenderUseCommand(int level, String command) { return operator; }
         @Override public void addChatMessage(IChatComponent message) { messages.add(message.getUnformattedText()); }
+        @Override public void dismountEntity(Entity mount) {
+            if(mount!=null)setPosition(mount.posX,mount.boundingBox.minY+mount.height,mount.posZ);
+        }
         @Override public void displayGUIChest(net.minecraft.inventory.IInventory inventory){openedInventory=inventory;}
     }
 
@@ -151,7 +156,9 @@ public final class KOMEAccessFixture {
         RecordingManager() { super(false); }
         @Override public boolean isChannelOpen() { return ((Player)recipient).connected; }
         @Override public void scheduleOutboundPacket(Packet packet, GenericFutureListener... listeners) {
-            kome.common.network.KOMEPacketHandler.network.sendTo(((RecordedPacket) packet).message, recipient);
+            if(packet instanceof RecordedPacket)
+                kome.common.network.KOMEPacketHandler.network.sendTo(((RecordedPacket) packet).message, recipient);
+            else ((Player)recipient).vanillaPackets.add(packet);
             for (GenericFutureListener listener : listeners) {
                 try { listener.operationComplete(ImmediateEventExecutor.INSTANCE.newSucceededFuture(null)); }
                 catch (Exception error) { throw new AssertionError(error); }
@@ -163,7 +170,7 @@ public final class KOMEAccessFixture {
         private static final net.minecraft.block.Block TEST_GROUND=new net.minecraft.block.Block(net.minecraft.block.material.Material.ground){};
         private static final net.minecraft.block.Block TEST_AIR=new net.minecraft.block.Block(net.minecraft.block.material.Material.air){};
         public long testWorldTime;
-        public boolean flatTerrain,spawnSucceeds,unsafeSurface;
+        public boolean flatTerrain,spawnSucceeds,unsafeSurface,blockedCollision;
         public int terrainProbes;
         public IChunkProvider testChunkProvider;
         public List<String> playedSounds;
@@ -173,7 +180,33 @@ public final class KOMEAccessFixture {
         @Override public int getTopSolidOrLiquidBlock(int x,int z){terrainProbes++;return flatTerrain?65:super.getTopSolidOrLiquidBlock(x,z);}
         @Override public net.minecraft.block.Block getBlock(int x,int y,int z){return flatTerrain?(y==64&&!unsafeSurface?TEST_GROUND:TEST_AIR):super.getBlock(x,y,z);}
         @Override public boolean isAirBlock(int x,int y,int z){return flatTerrain?y>64:super.isAirBlock(x,y,z);}
-        @Override public java.util.List getCollidingBoundingBoxes(Entity entity,net.minecraft.util.AxisAlignedBB box){return flatTerrain?new ArrayList():super.getCollidingBoundingBoxes(entity,box);}
+        @Override public boolean blockExists(int x,int y,int z){return flatTerrain||super.blockExists(x,y,z);}
+        @Override public java.util.List getCollidingBoundingBoxes(Entity entity,net.minecraft.util.AxisAlignedBB box){
+            if(flatTerrain){java.util.List result=new ArrayList();if(blockedCollision)result.add(box);return result;}
+            return super.getCollidingBoundingBoxes(entity,box);
+        }
+        @Override public java.util.List func_147461_a(net.minecraft.util.AxisAlignedBB box){
+            if(flatTerrain){java.util.List result=new ArrayList();if(blockedCollision)result.add(box);return result;}
+            return super.func_147461_a(box);
+        }
+        @Override public java.util.List getEntitiesWithinAABBExcludingEntity(Entity excluded,
+                net.minecraft.util.AxisAlignedBB box){
+            if(!flatTerrain)return super.getEntitiesWithinAABBExcludingEntity(excluded,box);
+            java.util.List result=new ArrayList();
+            for(Object value:loadedEntityList)if(value instanceof Entity){
+                Entity candidate=(Entity)value;
+                if(candidate!=excluded&&!candidate.isDead&&candidate.boundingBox!=null
+                        &&candidate.boundingBox.intersectsWith(box)&&!result.contains(candidate))
+                    result.add(candidate);
+            }
+            for(Object value:playerEntities)if(value instanceof Entity){
+                Entity candidate=(Entity)value;
+                if(candidate!=excluded&&!candidate.isDead&&candidate.boundingBox!=null
+                        &&candidate.boundingBox.intersectsWith(box)&&!result.contains(candidate))
+                    result.add(candidate);
+            }
+            return result;
+        }
         @Override public boolean checkNoEntityCollision(net.minecraft.util.AxisAlignedBB box,Entity entity){return flatTerrain||super.checkNoEntityCollision(box,entity);}
         @Override public boolean spawnEntityInWorld(Entity entity){if(!flatTerrain)return super.spawnEntityInWorld(entity);if(spawnSucceeds)loadedEntityList.add(entity);return spawnSucceeds;}
         @Override public void playSoundAtEntity(Entity entity,String sound,float volume,float pitch){if(playedSounds!=null)playedSounds.add(sound);}

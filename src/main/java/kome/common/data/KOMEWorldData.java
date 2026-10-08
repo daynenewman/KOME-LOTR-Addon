@@ -1835,6 +1835,7 @@ public class KOMEWorldData extends WorldSavedData {
         ensureWritable();
         KOMEHiredUnitRecord record = hiredUnits.get(entityId);
         if (record == null || isVirtualMovingHiredUnit(record)) return null;
+        record.clearPhysicalLocator();
         hiredUnits.remove(entityId);
         KOMEArmyMovementOrder order = armyMovements.get(record.movementOrderId);
         if (order != null && order.isMoving()) order.units.remove(entityId);
@@ -2833,11 +2834,16 @@ public class KOMEWorldData extends WorldSavedData {
             KOMEArmyMovementOrder order = new KOMEArmyMovementOrder();
             order.readFromNBT(movementTag);
             if (order.id.length() > 0) {
+                KOMEArmyMovementOrder previous=armyMovements.get(order.id);
+                if(previous!=null&&(previous.formalRetreatBatch!=null||order.formalRetreatBatch!=null))
+                    throw new IllegalArgumentException("Duplicate movement identity would overwrite retreat authority.");
                 armyMovements.put(order.id, order);
             }
         }
 
         loadSection = "MovementHistory";
+        KOMEFormalRetreatBatch.validateWorld(this);
+        KOMEFormalRetreatAuthority.quarantineIncompleteLegacy(this);
         NBTTagList historyList = nbt.getTagList("MovementHistory", 10);
         for (int i = 0; i < historyList.tagCount(); i++) {
             loadSection = "MovementHistory[" + i + "]";

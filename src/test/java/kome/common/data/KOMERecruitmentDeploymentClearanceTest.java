@@ -113,10 +113,14 @@ public class KOMERecruitmentDeploymentClearanceTest {
         @Override public Block getBlock(int x, int y, int z) {
             return onlyCenterGround && (x != 0 || z != 0) ? null : SOLID;
         }
-        @Override public List getCollidingBoundingBoxes(Entity entity, AxisAlignedBB box) {
+        @Override public List func_147461_a(AxisAlignedBB box) {
             return box.maxY <= maximumClearY
                 ? Collections.emptyList() : Collections.singletonList(box);
         }
+        @Override public List getEntitiesWithinAABBExcludingEntity(Entity excluded,AxisAlignedBB box) {
+            return Collections.emptyList();
+        }
+        @Override public boolean isAnyLiquid(AxisAlignedBB box) { return false; }
     }
 
     private static final class SolidBlock extends Block {

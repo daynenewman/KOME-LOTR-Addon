@@ -51,16 +51,48 @@ public final class KOMEJoinBattleDeploymentRegistry {
 
     /** Replaces lifecycle state without permitting identity mutation or terminal reopening. */
     synchronized void replace(KOMEJoinBattleDeploymentReceipt receipt) {
+        replace(receipt, false, false);
+    }
+
+    /** Called only after the entry orchestrator verifies restoration of the source. */
+    synchronized void restoreEntrySource(KOMEJoinBattleDeploymentReceipt receipt) {
+        replace(receipt, true, false);
+    }
+
+    synchronized void prepareEntryAttempt(KOMEJoinBattleDeploymentReceipt receipt) {
+        replace(receipt, false, true);
+    }
+
+    /** Only the egress orchestrator may certify a fully restored battle-side source. */
+    synchronized void restoreEgressSource(KOMEJoinBattleDeploymentReceipt receipt) {
+        replace(receipt, true, false);
+    }
+
+    private void replace(KOMEJoinBattleDeploymentReceipt receipt, boolean restored, boolean prepared) {
         if (receipt == null) throw new IllegalArgumentException("Join Battle receipt is required.");
         KOMEJoinBattleDeploymentReceipt previous = receipts.get(receipt.getReceiptId());
         if (previous == null) throw new IllegalArgumentException("Join Battle receipt is absent.");
+        boolean pending = previous.getState() == KOMEJoinBattleDeploymentReceipt.State.PENDING_ENTRY
+            && receipt.getState() == KOMEJoinBattleDeploymentReceipt.State.PENDING_ENTRY;
+        boolean restoredEntry = pending
+            && receipt.getMountTransferPhase() == KOMEJoinBattleDeploymentReceipt.MountTransferPhase.NOT_STARTED;
+        boolean restoredEgress = previous.getState() == KOMEJoinBattleDeploymentReceipt.State.PENDING_EGRESS
+            && receipt.getState() == KOMEJoinBattleDeploymentReceipt.State.PENDING_EGRESS
+            && previous.getMountTransferPhase() == KOMEJoinBattleDeploymentReceipt.MountTransferPhase.EGRESS_TRANSFER_PENDING
+            && receipt.getMountTransferPhase() == KOMEJoinBattleDeploymentReceipt.MountTransferPhase.DEPLOYMENT_COMPLETE;
+        if (restored && ((!restoredEntry && !restoredEgress) || !previous.isEnteredMounted()
+                || receipt.getTemporaryMountNbt() != null))
+            throw new IllegalArgumentException("Invalid verified source restoration.");
+        if (prepared && (!pending || previous.isEnteredMounted()
+                && previous.getMountTransferPhase() == KOMEJoinBattleDeploymentReceipt.MountTransferPhase.DESTINATION_PUBLICATION_PENDING))
+            throw new IllegalArgumentException("Cannot replace armed entry placement.");
         if (!previous.sameImmutableIdentity(receipt))
             throw new IllegalArgumentException("Join Battle receipt immutable identity changed.");
         if (!KOMEJoinBattleDeploymentReceipt.isForwardTransition(previous.getState(), receipt.getState()))
             throw new IllegalArgumentException("Join Battle receipt lifecycle cannot move backward or reopen.");
         if (receipt.getUpdatedAtMillis() < previous.getUpdatedAtMillis())
             throw new IllegalArgumentException("Join Battle receipt update time regressed.");
-        if (previous.getDeploymentDestination() != null
+        if (!prepared && previous.getDeploymentDestination() != null
                 && !previous.getDeploymentDestination().equals(receipt.getDeploymentDestination()))
             throw new IllegalArgumentException("Resolved Join Battle deployment destination changed.");
         requireStableTimestamp(previous.getDeployedAtMillis(), receipt.getDeployedAtMillis(), "deployment");
@@ -68,7 +100,7 @@ public final class KOMEJoinBattleDeploymentRegistry {
         requireStableTimestamp(previous.getClosedAtMillis(), receipt.getClosedAtMillis(), "closure");
         if (!participationAdvances(previous.getParticipationRecovery(), receipt.getParticipationRecovery()))
             throw new IllegalArgumentException("Join Battle participation recovery state regressed.");
-        if (!mountTransferAdvances(previous.getMountTransferPhase(), receipt.getMountTransferPhase()))
+        if (!restored && !mountTransferAdvances(previous.getMountTransferPhase(), receipt.getMountTransferPhase()))
             throw new IllegalArgumentException("Join Battle mount transfer phase regressed.");
         Map<String, KOMEJoinBattleDeploymentReceipt> candidate =
             new LinkedHashMap<String, KOMEJoinBattleDeploymentReceipt>(receipts);
