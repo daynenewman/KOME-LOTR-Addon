@@ -8,6 +8,7 @@ import net.minecraft.nbt.NBTTagCompound;
 /** Persistent, domain-only state for the revised Serf-to-Knight path. */
 public final class KOMESerfKnightProgression {
     public static final class Duty {
+        boolean rewardReserved;
         private boolean assigned, completed;
         private NBTTagCompound assignmentData;
         public boolean isAssigned() { return assigned; }
@@ -15,10 +16,13 @@ public final class KOMESerfKnightProgression {
         public NBTTagCompound getAssignmentData() { return assignmentData == null ? null : (NBTTagCompound) assignmentData.copy(); }
         private void assign(NBTTagCompound data) { assigned = true; assignmentData = data == null ? null : (NBTTagCompound) data.copy(); }
         private void complete() { completed = true; }
-        private void clear() { assigned = false; completed = false; assignmentData = null; }
+        private void clear() { assigned = false; completed = false; assignmentData = null; rewardReserved=false; }
         private void cancel() { assigned = false; assignmentData = null; }
     }
     private KOMEProgressionNpcRef serfdomMaster = KOMEProgressionNpcRef.EMPTY;
+    // Keep the service witness for the existing farewell/promotion path after release.
+    private boolean masterReleasedByFealty;
+    public boolean hasMasterRelationship(){return serfdomMaster.isSet()&&!masterReleasedByFealty;}
     private KOMEProgressionNpcRef formerMaster = KOMEProgressionNpcRef.EMPTY;
     private KOMEProgressionNpcRef liege = KOMEProgressionNpcRef.EMPTY;
     private KOMEProgressionNpcRef deceasedMaster = KOMEProgressionNpcRef.EMPTY;
@@ -27,6 +31,7 @@ public final class KOMESerfKnightProgression {
     private String trialId = "";
     private KOMESerfKnightTrialAssignment trialAssignment;
     private boolean trialCompleted, partingGiftReceived, promoted;
+    boolean trialRewardReserved;
     private NBTTagCompound pendingPartingGift;
     public net.minecraft.item.ItemStack getPendingPartingGift(){return pendingPartingGift==null?null:net.minecraft.item.ItemStack.loadItemStackFromNBT((NBTTagCompound)pendingPartingGift.copy());}
     void setPendingPartingGift(net.minecraft.item.ItemStack stack){if(pendingPartingGift==null&&stack!=null)pendingPartingGift=stack.writeToNBT(new NBTTagCompound());}
@@ -65,13 +70,13 @@ public final class KOMESerfKnightProgression {
     public KOMESerfKnightPhase getPhase() {
         if (promoted) return KOMESerfKnightPhase.COMPLETE;
         if (!allDutiesComplete()) return KOMESerfKnightPhase.SERFDOM_DUTIES;
-        if (trialCompleted) return partingGiftReceived ? KOMESerfKnightPhase.READY_FOR_KNIGHT : KOMESerfKnightPhase.PARTING_GIFT_PENDING;
+        if (trialCompleted) return KOMESerfKnightPhase.READY_FOR_KNIGHT;
         if (!liege.isSet() || trialId.length() == 0) return KOMESerfKnightPhase.SEEKING_LIEGE;
         if (!trialCompleted) return KOMESerfKnightPhase.TRIAL_ASSIGNED;
         return KOMESerfKnightPhase.PARTING_GIFT_PENDING;
     }
-    void setSerfdomMaster(KOMEProgressionNpcRef value) { serfdomMaster = value; masterReplacementRequired=false; }
-    void setLiege(KOMEProgressionNpcRef value) { liege = value; liegeReplacementRequired=false; }
+    void setSerfdomMaster(KOMEProgressionNpcRef value) { serfdomMaster = value; masterReplacementRequired=false; masterReleasedByFealty=false; }
+    void setLiege(KOMEProgressionNpcRef value) { liege = value; liegeReplacementRequired=false; if(value.isSet())masterReleasedByFealty=true; }
     @Deprecated
     void setProspectiveLiege(KOMEProgressionNpcRef value) { setLiege(value); }
     void restoreLiege(KOMEProgressionNpcRef value,boolean replacementRequired) { liege=value; liegeReplacementRequired=replacementRequired; }
@@ -89,6 +94,8 @@ public final class KOMESerfKnightProgression {
     void updateTrialAssignment(KOMESerfKnightTrialAssignment assignment) { if(assignment!=null&&assignment.trialId.equals(trialId))trialAssignment=assignment; }
     void setTrialCompleted() { trialCompleted = true; }
     void setPartingGiftReceived() { partingGiftReceived = true; pendingPartingGift=null; }
+    void handleFormerMasterLoss() { deceasedMaster=formerMaster;pendingPartingGift=null; }
+    void updateFormerMasterLocation(KOMEProgressionNpcRef value) { if(formerMaster.hasSameIdentity(value))formerMaster=value; }
     void setPromoted() { promoted = true; }
     void retireSerfdomMasterAfterPromotion() {
         if (serfdomMaster.isSet()) formerMaster=serfdomMaster;
@@ -144,25 +151,35 @@ public final class KOMESerfKnightProgression {
     }
     /** A cancelled physical encounter can be activated again after replacing the Master. */
     void retryUnfinishedTrial() {
-        if (!trialCompleted && trialAssignment!=null)
-            trialAssignment=trialAssignment.withStage(KOMESerfKnightTrialAssignment.Stage.ASSIGNED,new NBTTagCompound());
+        if (!trialCompleted && trialAssignment!=null) {
+            NBTTagCompound data=new NBTTagCompound();
+            // Reactivation releases the charge, but the same assignment keeps its destination.
+            if("escort".equals(trialAssignment.trialId))for(String key:new String[]{
+                    KOMESerfKnightEscortService.DEST_X,KOMESerfKnightEscortService.DEST_Z,
+                    KOMESerfKnightEscortService.DEST_NAME,"EscortOriginDim",KOMEProgressionDestinations.PROOF})
+                if(trialAssignment.data.hasKey(key))data.setTag(key,trialAssignment.data.getTag(key).copy());
+            trialAssignment=trialAssignment.withStage(KOMESerfKnightTrialAssignment.Stage.ASSIGNED,data);
+        }
     }
     @Deprecated
     void leaveProspectiveLiege() { leaveLiege(); }
-    public void reset() { formerMaster=KOMEProgressionNpcRef.EMPTY; pendingPartingGift=null; serfdomMaster=KOMEProgressionNpcRef.EMPTY; liege=KOMEProgressionNpcRef.EMPTY; deceasedMaster=KOMEProgressionNpcRef.EMPTY; deceasedLiege=KOMEProgressionNpcRef.EMPTY; for (Duty duty : duties.values()) duty.clear(); trialId=""; trialAssignment=null; trialCompleted=false; partingGiftReceived=false; promoted=false; masterReplacementRequired=false; liegeReplacementRequired=false; betrayalLockoutUntilDay=0L; lastAssignmentEpochDay=-1L; lastTrialAssignmentEpochDay=-1L; }
+    public void reset() { trialRewardReserved=false; masterReleasedByFealty=false; formerMaster=KOMEProgressionNpcRef.EMPTY; pendingPartingGift=null; serfdomMaster=KOMEProgressionNpcRef.EMPTY; liege=KOMEProgressionNpcRef.EMPTY; deceasedMaster=KOMEProgressionNpcRef.EMPTY; deceasedLiege=KOMEProgressionNpcRef.EMPTY; for (Duty duty : duties.values()) duty.clear(); trialId=""; trialAssignment=null; trialCompleted=false; partingGiftReceived=false; promoted=false; masterReplacementRequired=false; liegeReplacementRequired=false; betrayalLockoutUntilDay=0L; lastAssignmentEpochDay=-1L; lastTrialAssignmentEpochDay=-1L; }
     private boolean allDutiesComplete() { for (KOMESerfKnightDutyType type : KOMESerfKnightDutyType.values()) if (!duties.get(type).completed) return false; return true; }
     public NBTTagCompound writeToNBT() {
+        // Release is a relationship transition, not duty availability.
         // Historical identity is deliberately not an active NPC lease.
         NBTTagCompound tag = new NBTTagCompound(); tag.setTag("Master", serfdomMaster.writeToNBT()); tag.setTag("Liege", liege.writeToNBT()); tag.setTag("DeceasedMaster", deceasedMaster.writeToNBT()); tag.setTag("DeceasedLiege", deceasedLiege.writeToNBT()); tag.setBoolean("MasterReplacement",masterReplacementRequired); tag.setBoolean("LiegeReplacement",liegeReplacementRequired); tag.setLong("BetrayalLockoutUntilDay",betrayalLockoutUntilDay); if(lastAssignmentEpochDay>=0L)tag.setLong("LastAssignmentEpochDay",lastAssignmentEpochDay); if(lastTrialAssignmentEpochDay>=0L)tag.setLong("LastTrialAssignmentEpochDay",lastTrialAssignmentEpochDay); tag.setString("Trial", trialId); if(trialAssignment!=null)tag.setTag("TrialAssignment",trialAssignment.writeToNBT()); tag.setBoolean("TrialCompleted", trialCompleted); tag.setBoolean("PartingGift", partingGiftReceived); if(pendingPartingGift!=null&&!partingGiftReceived)tag.setTag("PendingPartingGift",pendingPartingGift.copy()); tag.setBoolean("Promoted", promoted);
+        tag.setBoolean("TrialRewardReserved",trialRewardReserved);tag.setBoolean("MasterReleasedByFealty",masterReleasedByFealty);
         tag.setTag("FormerMaster", formerMaster.writeToNBT());
-        NBTTagCompound dutyTag = new NBTTagCompound(); for (KOMESerfKnightDutyType type : KOMESerfKnightDutyType.values()) { Duty duty=duties.get(type); NBTTagCompound entry=new NBTTagCompound(); entry.setBoolean("Assigned", duty.assigned); entry.setBoolean("Completed", duty.completed); if(duty.assignmentData != null) entry.setTag("Data", duty.assignmentData.copy()); dutyTag.setTag(type.key, entry); } tag.setTag("Duties", dutyTag); return tag;
+        NBTTagCompound dutyTag = new NBTTagCompound(); for (KOMESerfKnightDutyType type : KOMESerfKnightDutyType.values()) { Duty duty=duties.get(type); NBTTagCompound entry=new NBTTagCompound(); entry.setBoolean("Assigned", duty.assigned); entry.setBoolean("Completed", duty.completed);entry.setBoolean("RewardReserved",duty.rewardReserved); if(duty.assignmentData != null) entry.setTag("Data", duty.assignmentData.copy()); dutyTag.setTag(type.key, entry); } tag.setTag("Duties", dutyTag); return tag;
     }
     public void readFromNBT(NBTTagCompound tag) {
         readFromNBT(tag, KOMEProgressionRank.SERF);
     }
     public void readFromNBT(NBTTagCompound tag, KOMEProgressionRank rank) {
         reset(); if (tag == null) return; serfdomMaster=KOMEProgressionNpcRef.readFromNBT(tag.getCompoundTag("Master")); liege=KOMEProgressionNpcRef.readFromNBT(tag.getCompoundTag("Liege")); deceasedMaster=KOMEProgressionNpcRef.readFromNBT(tag.getCompoundTag("DeceasedMaster")); deceasedLiege=KOMEProgressionNpcRef.readFromNBT(tag.getCompoundTag("DeceasedLiege")); masterReplacementRequired=tag.getBoolean("MasterReplacement"); liegeReplacementRequired=tag.getBoolean("LiegeReplacement"); betrayalLockoutUntilDay=Math.max(0L,tag.getLong("BetrayalLockoutUntilDay")); long savedDay=tag.hasKey("LastAssignmentEpochDay")?tag.getLong("LastAssignmentEpochDay"):-1L; lastAssignmentEpochDay=KOMEProgressionCalendar.isSanePersistedDay(savedDay)?savedDay:-1L; long savedTrialDay=tag.hasKey("LastTrialAssignmentEpochDay")?tag.getLong("LastTrialAssignmentEpochDay"):-1L; lastTrialAssignmentEpochDay=KOMEProgressionCalendar.isSanePersistedDay(savedTrialDay)?savedTrialDay:-1L; trialId=tag.getString("Trial"); trialAssignment=tag.hasKey("TrialAssignment",10)?KOMESerfKnightTrialAssignment.readFromNBT(tag.getCompoundTag("TrialAssignment")):null; if(lastTrialAssignmentEpochDay<0L&&trialAssignment!=null&&KOMEProgressionCalendar.isSanePersistedDay(trialAssignment.assignedEpochDay))lastTrialAssignmentEpochDay=trialAssignment.assignedEpochDay; trialCompleted=tag.getBoolean("TrialCompleted"); partingGiftReceived=tag.getBoolean("PartingGift");pendingPartingGift=!partingGiftReceived&&tag.hasKey("PendingPartingGift",10)?(NBTTagCompound)tag.getCompoundTag("PendingPartingGift").copy():null; promoted=tag.getBoolean("Promoted");
-        NBTTagCompound dutyTag=tag.getCompoundTag("Duties"); for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()) { NBTTagCompound entry=dutyTag.getCompoundTag(type.key); Duty duty=duties.get(type); if(entry.getBoolean("Assigned")) duty.assign(entry.hasKey("Data", 10) ? entry.getCompoundTag("Data") : null); if(entry.getBoolean("Completed") && duty.assigned) duty.complete(); }
+        NBTTagCompound dutyTag=tag.getCompoundTag("Duties"); for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()) { NBTTagCompound entry=dutyTag.getCompoundTag(type.key); Duty duty=duties.get(type); if(entry.getBoolean("Assigned")) duty.assign(entry.hasKey("Data", 10) ? entry.getCompoundTag("Data") : null); if(entry.getBoolean("Completed") && duty.assigned) duty.complete();duty.rewardReserved=entry.hasKey("RewardReserved")?entry.getBoolean("RewardReserved"):duty.completed; }
+        trialRewardReserved=tag.hasKey("TrialRewardReserved")?tag.getBoolean("TrialRewardReserved"):trialCompleted;masterReleasedByFealty=tag.hasKey("MasterReleasedByFealty")?tag.getBoolean("MasterReleasedByFealty"):liege.isSet()||promoted;
         formerMaster=KOMEProgressionNpcRef.readFromNBT(tag.getCompoundTag("FormerMaster"));
         reconcile(rank);
     }
@@ -191,7 +208,7 @@ public final class KOMESerfKnightProgression {
                 ||trialAssignment.stage==KOMESerfKnightTrialAssignment.Stage.FAILED)) {cancelTrial();return;}
         if(trialAssignment!=null&&!trialAssignment.isValidFor(trialId,liege)&&!trialCompleted){trialId="";trialAssignment=null;trialCompleted=false;partingGiftReceived=false;promoted=false;return;}
         if (!trialCompleted) { partingGiftReceived=false; promoted=false; return; }
-        if (!partingGiftReceived) promoted=false;
+
     }
 
     private String legacyTrialAssignmentToken() {

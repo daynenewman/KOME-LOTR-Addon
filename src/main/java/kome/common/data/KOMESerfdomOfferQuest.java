@@ -12,6 +12,8 @@ public final class KOMESerfdomOfferQuest extends LOTRMiniQuest {
     public static final String TYPE = "KOMESerfdomOffer";
     private long opportunityWindow;
     private String story = "";
+    private long pledgeRevision=-1L;
+    public boolean matchesPledgeRevision(long revision){return pledgeRevision>=0&&pledgeRevision==revision;}
 
     public KOMESerfdomOfferQuest(LOTRPlayerData playerData) { super(playerData); }
 
@@ -33,7 +35,13 @@ public final class KOMESerfdomOfferQuest extends LOTRMiniQuest {
         if (npc == null || story == null || story.trim().length() == 0) return null;
         LOTRMiniQuest template = npc.createMiniQuest();
         if (!hasNativePresentation(template)) return null;
-        return new KOMESerfdomOfferQuest(playerData, npc, window, story, template);
+        KOMESerfdomOfferQuest offer=new KOMESerfdomOfferQuest(playerData,npc,window,story,template);
+        if(npc.worldObj!=null&&!npc.worldObj.isRemote){
+            KOMEWorldData data=KOMEWorldData.get(npc.worldObj);
+            offer.pledgeRevision=data.getProgression(playerData.getPlayerUUID()).observeOfferPledge(playerData.getPledgeFaction()==null?"":playerData.getPledgeFaction().codeName());
+            data.markDirty();
+        }
+        return offer;
     }
 
     private void copyNativePresentation(LOTRMiniQuest template) {
@@ -74,12 +82,14 @@ public final class KOMESerfdomOfferQuest extends LOTRMiniQuest {
         super.writeToNBT(tag);
         tag.setLong("KOMEOpportunityWindow", opportunityWindow);
         tag.setString("KOMEStory", story);
+        tag.setLong("KOMEPledgeRevision",pledgeRevision);
     }
 
     @Override public void readFromNBT(NBTTagCompound tag) {
         super.readFromNBT(tag);
         opportunityWindow = tag.getLong("KOMEOpportunityWindow");
         story = tag.getString("KOMEStory");
+        pledgeRevision=tag.hasKey("KOMEPledgeRevision")?tag.getLong("KOMEPledgeRevision"):-1L;
         quoteStart = story;
     }
 }

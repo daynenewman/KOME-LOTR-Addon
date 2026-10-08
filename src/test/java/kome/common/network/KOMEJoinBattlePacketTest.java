@@ -130,12 +130,12 @@ public class KOMEJoinBattlePacketTest {
 
     @Test public void registrationUsesThreadFenceAndPacketDelegatesWithoutClientAuthority() throws Exception {
         String registry=source("src/main/java/kome/common/network/KOMEPacketHandler.java");
-        assertTrue(registry.contains("KOMEPacketJoinBattleViewRequest.class, 52, Side.SERVER"));
-        assertTrue(registry.contains("KOMEPacketJoinBattleViewResponse.class, 53, Side.CLIENT"));
-        assertTrue(registry.contains("KOMEPacketJoinBattleSelectionRequest.class, 54, Side.SERVER"));
-        assertTrue(registry.contains("KOMEPacketJoinBattleSelectionResult.class, 55, Side.CLIENT"));
-        assertTrue(registry.contains("KOMEPacketJoinBattleRetreatRequest.class, 56, Side.SERVER"));
-        assertTrue(registry.contains("KOMEPacketJoinBattleRetreatResult.class, 57, Side.CLIENT"));
+        assertTrue(registry.contains("KOMEPacketJoinBattleViewRequest.class, 53, Side.SERVER"));
+        assertTrue(registry.contains("KOMEPacketJoinBattleViewResponse.class, 54, Side.CLIENT"));
+        assertTrue(registry.contains("KOMEPacketJoinBattleSelectionRequest.class, 55, Side.SERVER"));
+        assertTrue(registry.contains("KOMEPacketJoinBattleSelectionResult.class, 56, Side.CLIENT"));
+        assertTrue(registry.contains("KOMEPacketJoinBattleRetreatRequest.class, 57, Side.SERVER"));
+        assertTrue(registry.contains("KOMEPacketJoinBattleRetreatResult.class, 58, Side.CLIENT"));
         assertTrue(registry.contains("new ServerThreadHandler<KOMEPacketJoinBattleViewRequest>"));
         assertTrue(registry.contains("new ServerThreadHandler<KOMEPacketJoinBattleSelectionRequest>"));
         assertTrue(registry.contains("new ServerThreadHandler<KOMEPacketJoinBattleRetreatRequest>"));

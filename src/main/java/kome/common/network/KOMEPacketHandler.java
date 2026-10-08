@@ -188,11 +188,13 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketTacticalEditSnapshot.Handler.class, KOMEPacketTacticalEditSnapshot.class, 49, Side.CLIENT);
         network.registerMessage(KOMEPacketTacticalAreaCatalog.Handler.class, KOMEPacketTacticalAreaCatalog.class, 50, Side.CLIENT);
         network.registerMessage(KOMEPacketTacticalComplexCatalog.Handler.class, KOMEPacketTacticalComplexCatalog.class, 51, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleViewRequest>(new KOMEPacketJoinBattleViewRequest.Handler()) {}, KOMEPacketJoinBattleViewRequest.class, 52, Side.SERVER);
-        network.registerMessage(KOMEPacketJoinBattleViewResponse.Handler.class, KOMEPacketJoinBattleViewResponse.class, 53, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleSelectionRequest>(new KOMEPacketJoinBattleSelectionRequest.Handler()) {}, KOMEPacketJoinBattleSelectionRequest.class, 54, Side.SERVER);
-        network.registerMessage(KOMEPacketJoinBattleSelectionResult.Handler.class, KOMEPacketJoinBattleSelectionResult.class, 55, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleRetreatRequest>(new KOMEPacketJoinBattleRetreatRequest.Handler()) {}, KOMEPacketJoinBattleRetreatRequest.class, 56, Side.SERVER);
-        network.registerMessage(KOMEPacketJoinBattleRetreatResult.Handler.class, KOMEPacketJoinBattleRetreatResult.class, 57, Side.CLIENT);
+        // The unpublished progression response follows dev's retained tactical IDs.
+        network.registerMessage(new ServerThreadHandler<KOMEPacketMasterOfferResponse>(new KOMEPacketMasterOfferResponse.Handler()) {}, KOMEPacketMasterOfferResponse.class, 52, Side.SERVER);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleViewRequest>(new KOMEPacketJoinBattleViewRequest.Handler()) {}, KOMEPacketJoinBattleViewRequest.class, 53, Side.SERVER);
+        network.registerMessage(KOMEPacketJoinBattleViewResponse.Handler.class, KOMEPacketJoinBattleViewResponse.class, 54, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleSelectionRequest>(new KOMEPacketJoinBattleSelectionRequest.Handler()) {}, KOMEPacketJoinBattleSelectionRequest.class, 55, Side.SERVER);
+        network.registerMessage(KOMEPacketJoinBattleSelectionResult.Handler.class, KOMEPacketJoinBattleSelectionResult.class, 56, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleRetreatRequest>(new KOMEPacketJoinBattleRetreatRequest.Handler()) {}, KOMEPacketJoinBattleRetreatRequest.class, 57, Side.SERVER);
+        network.registerMessage(KOMEPacketJoinBattleRetreatResult.Handler.class, KOMEPacketJoinBattleRetreatResult.class, 58, Side.CLIENT);
     }
 }

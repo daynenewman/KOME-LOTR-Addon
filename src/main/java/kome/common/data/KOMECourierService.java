@@ -46,19 +46,7 @@ public final class KOMECourierService {
             KOMEProgressionNpcRef master) {
         if(player==null||masterNpc==null||assignment==null||master==null||masterNpc.worldObj==null||masterNpc.worldObj.isRemote)return null;
 
-        EntityItem dropped=new EntityItem(masterNpc.worldObj,masterNpc.posX,masterNpc.posY+0.5D,masterNpc.posZ,message(assignment,player,master));
-        dropped.delayBeforeCanPickup=10;
-        if(!masterNpc.worldObj.spawnEntityInWorld(dropped))return null;
-
-        if(dropped!=null) {
-            masterNpc.worldObj.playSoundAtEntity(
-                masterNpc,
-                "random.pop",
-                0.4F,
-                1.0F);
-        }
-
-        return dropped;
+        return KOMEProgressionItemDrops.drop(masterNpc.worldObj,masterNpc.posX,masterNpc.posY+0.5D,masterNpc.posZ,message(assignment,player,master));
     }
 
     public static boolean canPickup(
@@ -147,6 +135,11 @@ public final class KOMECourierService {
     private static boolean identityMatch(ItemStack s,KOMESerfCourierAssignment a,UUID owner,KOMEProgressionNpcRef m){if(s==null||a==null||owner==null||m==null||s.getItem()!=Items.written_book||!s.hasTagCompound()||!s.getTagCompound().hasKey(TAG,10))return false;NBTTagCompound t=s.getTagCompound().getCompoundTag(TAG);return a.valid()&&a.token.equals(t.getString("Assignment"))&&owner.toString().equals(t.getString("Owner"))&&m.entityUuid.equals(t.getString("Master"));}
     public static boolean hasMessage(EntityPlayerMP p,KOMESerfCourierAssignment a,KOMEProgressionNpcRef m){for(ItemStack s:p.inventory.mainInventory)if(matching(s,a,p,m))return true;return false;}
     public static boolean removeMessage(EntityPlayerMP p,KOMESerfCourierAssignment a,KOMEProgressionNpcRef m){for(int i=0;i<p.inventory.mainInventory.length;i++)if(matching(p.inventory.mainInventory[i],a,p,m)){p.inventory.mainInventory[i]=null;return true;}return false;}
+    private static boolean removeHeldMessage(EntityPlayerMP player,KOMESerfCourierAssignment a,KOMEProgressionNpcRef master){
+        ItemStack held=player.getCurrentEquippedItem();if(!matching(held,a,player,master)||held.stackSize<=0)return false;
+        if(--held.stackSize==0)player.inventory.mainInventory[player.inventory.currentItem]=null;
+        player.inventory.markDirty();return true;
+    }
     /** Called only for a nearby NPC interaction; the binding and letter remain server authority. */
     public static boolean deliverToRecipient(EntityPlayerMP player,KOMEWorldData world,LOTREntityNPC npc){
         if(player==null||world==null||npc==null)return false;
@@ -154,7 +147,7 @@ public final class KOMECourierService {
         KOMEPlayerProgression progression=world.getProgression(player.getUniqueID());KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         if(progression.getCanonicalRank()!=KOMEProgressionRank.SERF||!"courier".equals(state.getActiveAssignmentKind()))return false;
         KOMESerfCourierAssignment assignment=KOMESerfCourierAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
-        if(assignment==null||assignment.confirmedRecipientDeath||!validRecipient(player,npc,assignment,state.getSerfdomMaster())||!removeMessage(player,assignment,state.getSerfdomMaster()))return false;
+        if(assignment==null||assignment.confirmedRecipientDeath||!validRecipient(player,npc,assignment,state.getSerfdomMaster())||!removeHeldMessage(player,assignment,state.getSerfdomMaster()))return false;
         assignment.stage=KOMESerfCourierAssignment.Stage.DELIVERED;
         state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER,assignment.writeToNBT());world.markDirty();
 
@@ -182,6 +175,7 @@ public final class KOMECourierService {
             removeMessage(player,assignment,state.getSerfdomMaster());
         }else if(assignment.stage!=KOMESerfCourierAssignment.Stage.DELIVERED||!assignment.recipient.isSet())return false;
         if(!KOMESerfKnightService.completeDuty(progression,KOMESerfKnightDutyType.COURIER).success)return false;
+        if(!assignment.confirmedRecipientDeath)KOMEProgressionServiceRewards.duty(player,state,KOMESerfKnightDutyType.COURIER);
         cleanup(player,assignment,state.getSerfdomMaster());
         KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());
         world.markDirty();player.inventoryContainer.detectAndSendChanges();KOMEProgressionAutoCompleter.syncPlayer(player,progression);return true;

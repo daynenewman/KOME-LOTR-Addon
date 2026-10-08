@@ -40,7 +40,7 @@ public class KOMEKnightCommissionGameplayTest {
             f.world.testChunkProvider=(IChunkProvider)Proxy.newProxyInstance(getClass().getClassLoader(),new Class[]{IChunkProvider.class},(proxy,method,args)->method.getName().equals("chunkExists")?chunks:method.getReturnType()==boolean.class?false:method.getReturnType()==int.class?0:null);
             KOMEKnightCommissionService.npcFactory=(world,type)->{try{return npc(type.contains("Enemy")?LOTRFaction.MORDOR:LOTRFaction.ROHAN);}catch(Exception e){throw new RuntimeException(e);}};
         }
-        KOMEKnightCommission active(Type type){KOMEKnightCommission a=new KOMEKnightCommission(type,liege);a.stage=Stage.ACTIVE;a.x=640;a.y=65;a.z=640;a.destinationX=1000;a.destinationZ=1000;a.place="Refuge";a.civilianClass="Civilian";a.enemyFaction="mordor";if(type!=Type.RELIEF)for(int i=0;i<3;i++)a.enemyClasses.add("Enemy");p.getKnightService().offer(a);f.player.posX=a.x;f.player.posY=a.y;f.player.posZ=a.z;return a;}
+        KOMEKnightCommission active(Type type){KOMEKnightCommission a=new KOMEKnightCommission(type,liege);a.stage=Stage.ACTIVE;a.x=640;a.y=65;a.z=640;a.destinationX=1000;a.destinationZ=1000;a.destinationProof=KOMEProgressionGameplayFixture.shelter(f.world,1000,1000,"rohan");a.place="the shelter marked on your map";a.civilianClass="Civilian";a.enemyFaction="mordor";if(type!=Type.RELIEF)for(int i=0;i<3;i++)a.enemyClasses.add("Enemy");p.getKnightService().offer(a);f.player.posX=a.x;f.player.posY=a.y;f.player.posZ=a.z;return a;}
         TestNpc npc(LOTRFaction faction)throws Exception {TestNpc n=KOMEAccessFixture.allocate(TestNpc.class);n.worldObj=f.world;n.faction=faction;n.setUniqueID(UUID.randomUUID());n.posY=65;Field bounds=Entity.class.getDeclaredField("boundingBox");bounds.setAccessible(true);bounds.set(n,AxisAlignedBB.getBoundingBox(-0.3,65,-0.3,0.3,66.8,0.3));n.hiredNPCInfo=new Follower(n);return n;}
         void reload(){p.readFromNBT(p.writeToNBT());KOMEProgressionNpcRoles.syncPlayer(f.data,f.player.id);}
         @Override public void close()throws Exception {KOMEKnightCommissionService.npcFactory=oldFactory;original.close();}
@@ -70,11 +70,11 @@ public class KOMEKnightCommissionGameplayTest {
         KOMEKnightCommission a=s.active(Type.BORDER_INCURSION);a.stage=Stage.ACCEPTED;s.reload();s.f.player.posX=0;s.f.player.posZ=0;
         KOMEKnightCommissionService.tickPlayer(s.f.player);assertEquals(Stage.ACTIVE,s.p.getKnightService().assignment().stage);assertFalse(s.p.getKnightService().assignment().encounterCreated);
     }}
-    @Test public void escortActualArrivalCreatesDestinationHostAndReleasesFollower()throws Exception {try(Session s=new Session()){
+    @Test public void escortActualArrivalUsesVerifiedShelterWithoutAnotherHostAndReleasesFollower()throws Exception {try(Session s=new Session()){
         KOMEKnightCommission a=s.active(Type.DANGEROUS_ESCORT);a.encounterCreated=true;a.threatResolved=true;TestNpc charge=actor(s,a,Role.CHARGE);charge.hiredNPCInfo.isActive=true;charge.hiredNPCInfo.setHiringPlayer(s.f.player);
         charge.posX=-1000;charge.posZ=-1000;s.f.player.posX=charge.posX;s.f.player.posZ=charge.posZ;KOMEKnightCommissionService.tickPlayer(s.f.player);assertEquals(Stage.ACTIVE,a.stage);
         charge.posX=a.destinationX;charge.posZ=a.destinationZ;s.f.player.posX=charge.posX;s.f.player.posZ=charge.posZ;KOMEKnightCommissionService.tickPlayer(s.f.player);
-        assertEquals(Stage.READY_TO_REPORT,a.stage);assertFalse(charge.hiredNPCInfo.isActive);assertTrue(a.actors.stream().anyMatch(actor->actor.role==Role.BENEFICIARY));assertTrue(s.p.getKnightService().completedTypes().isEmpty());
+        assertEquals(Stage.READY_TO_REPORT,a.stage);assertFalse(charge.hiredNPCInfo.isActive);assertFalse(a.actors.stream().anyMatch(actor->actor.role==Role.BENEFICIARY));assertEquals(1,a.actors.size());assertFalse(s.f.world.structureBlocks.isEmpty());assertTrue(s.p.getKnightService().completedTypes().isEmpty());
     }}
     @Test public void propertyRevisionAndPhysicalIdentitySurviveItemNbtReload()throws Exception {try(Session s=new Session()){
         KOMEKnightCommission a=s.active(Type.STOLEN_GOODS);goods(a);a.revision=4;ItemStack item=KOMEKnightCommissionService.property(a,s.f.player.id);
@@ -84,7 +84,28 @@ public class KOMEKnightCommissionGameplayTest {
     @Test public void reliefFoodIsLocalAndQuantitiesBounded()throws Exception {try(KOMEProgressionFollowupTest.NativeItems items=new KOMEProgressionFollowupTest.NativeItems();Session s=new Session()){for(String faction:new String[]{"rohan","mordor","dorwinion","halftroll"})for(int seed=0;seed<20;seed++){List<Goods> goods=KOMEKnightCommissionService.reliefGoods(faction,new Random(seed));assertFalse(goods.isEmpty());for(Goods good:goods){assertTrue(good.required>=6&&good.required<=32);boolean local=false;for(Item item:KOMELocalProvisionFoods.forFaction(faction))if(item!=null&&good.itemKey.equals(String.valueOf(Item.itemRegistry.getNameForObject(item))))local=true;assertTrue(local);}}}}
     @Test public void reliefPartialDeliveryPersistsAndStillRequiresReport()throws Exception {try(Session s=new Session()){KOMEKnightCommission a=s.active(Type.RELIEF);a.encounterCreated=true;a.goods.add(new Goods(String.valueOf(Item.itemRegistry.getNameForObject(Items.bread)),0,24));TestNpc beneficiary=actor(s,a,Role.BENEFICIARY);s.f.player.inventory.mainInventory[0]=new ItemStack(Items.bread,10);assertTrue(KOMEKnightCommissionService.deliverRelief(s.f.player,beneficiary));assertEquals(10,a.goods.get(0).delivered);assertEquals(Stage.ACTIVE,a.stage);s.reload();a=s.p.getKnightService().assignment();assertEquals(10,a.goods.get(0).delivered);s.f.player.inventory.mainInventory[0]=new ItemStack(Items.bread,14);assertTrue(KOMEKnightCommissionService.deliverRelief(s.f.player,beneficiary));assertEquals(Stage.READY_TO_REPORT,a.stage);assertTrue(s.p.getKnightService().completedTypes().isEmpty());}}
     @Test public void reliefCannotBeDeliveredToLiegeOrAnotherNpc()throws Exception {try(Session s=new Session()){KOMEKnightCommission a=s.active(Type.RELIEF);a.goods.add(new Goods(String.valueOf(Item.itemRegistry.getNameForObject(Items.bread)),0,24));actor(s,a,Role.BENEFICIARY);TestNpc wrong=s.npc(LOTRFaction.ROHAN);s.f.player.inventory.mainInventory[0]=new ItemStack(Items.bread,24);assertFalse(KOMEKnightCommissionService.deliverRelief(s.f.player,wrong));assertEquals(24,s.f.player.inventory.mainInventory[0].stackSize);}}
-    @Test public void absentLoadedActorsFailRecoverablyInsteadOfCountingAsKills()throws Exception {try(Session s=new Session()){KOMEKnightCommission a=s.active(Type.BORDER_INCURSION);a.encounterCreated=true;TestNpc enemy=actor(s,a,Role.ENEMY);s.f.world.loadedEntityList.removeIf(e->e==enemy);assertTrue(KOMEKnightCommissionService.loadedAround(s.f.world,a.x,a.z));for(int i=0;i<59;i++)KOMEKnightCommissionService.tickPlayer(s.f.player);assertEquals("loaded observation count",1180,a.missingTicks);assertEquals(Stage.ACTIVE,a.stage);KOMEKnightCommissionService.tickPlayer(s.f.player);assertEquals(Stage.FAILED,a.stage);assertFalse(a.allEnemiesDead());}}
+    @Test public void missingEnemyReconstitutesOneSlotButLegitimateDefeatNeverReplenishes()throws Exception {
+        try(Session s=new Session()){
+            KOMEKnightCommission a=s.active(Type.BORDER_INCURSION);a.encounterCreated=true;TestNpc enemy=actor(s,a,Role.ENEMY);
+            String old=enemy.getUniqueID().toString();s.f.world.loadedEntityList.removeIf(e->e==enemy);
+            KOMEKnightCommissionService.npcFactory=(world,type)->{try{return s.npc(LOTRFaction.MORDOR);}catch(Exception e){throw new RuntimeException(e);}};
+            for(int i=0;i<5;i++)KOMEKnightCommissionService.tickPlayer(s.f.player);
+            assertEquals(Stage.ACTIVE,a.stage);assertEquals(1,a.actors.size());assertEquals(1,a.actors.get(0).recoveries);assertNotEquals(old,a.actors.get(0).id);
+            assertFalse(a.allEnemiesDead());KOMEKnightCommissionService.reconcileNpc(s.f.data,enemy);assertTrue(enemy.isDead);
+            KOMEKnightCommissionService.noteDamage(s.f.data,s.f.player.id,a.actors.get(0).id);
+            KOMEKnightCommissionService.npcDeath(s.f.data,s.f.world,a.actors.get(0).id);
+            for(int i=0;i<20;i++)KOMEKnightCommissionService.tickPlayer(s.f.player);
+            assertEquals(Stage.READY_TO_REPORT,a.stage);assertTrue(a.allEnemiesDead());assertEquals(1,a.actors.size());assertEquals(1,a.actors.get(0).recoveries);
+        }
+    }
+    @Test public void repeatedlyLostEnemyHasBoundedRecoveryBudget()throws Exception {
+        try(Session s=new Session()){
+            KOMEKnightCommission a=s.active(Type.BORDER_INCURSION);a.encounterCreated=true;actor(s,a,Role.ENEMY);
+            KOMEKnightCommissionService.npcFactory=(world,type)->{try{return s.npc(LOTRFaction.MORDOR);}catch(Exception e){throw new RuntimeException(e);}};
+            for(int loss=0;loss<4;loss++){String id=a.actors.get(0).id;s.f.world.loadedEntityList.removeIf(e->((net.minecraft.entity.Entity)e).getUniqueID().toString().equals(id));for(int i=0;i<5;i++)KOMEKnightCommissionService.tickPlayer(s.f.player);}
+            assertEquals(Stage.FAILED,a.stage);assertEquals(3,a.actors.get(0).recoveries);assertFalse(a.allEnemiesDead());assertEquals(1,a.actors.size());
+        }
+    }
     @Test public void obsoleteUnloadedActorsCleanWhenTheyReturn()throws Exception {try(Session s=new Session()){KOMEKnightCommission a=s.active(Type.RELIEF);TestNpc beneficiary=actor(s,a,Role.BENEFICIARY);s.f.world.loadedEntityList.removeIf(e->e==beneficiary);KOMEKnightCommissionService.cancel(s.f.world,s.f.player.id,s.p);s.reload();KOMEKnightCommissionService.reconcileNpc(s.f.data,beneficiary);assertTrue(beneficiary.isDead);}}
     @Test public void cancelledDamageAndGenericPvpNeverCount()throws Exception {try(Session s=new Session()){KOMEKnightCommission a=s.active(Type.BORDER_INCURSION);TestNpc enemy=actor(s,a,Role.ENEMY);LivingHurtEvent event=new LivingHurtEvent(enemy,DamageSource.causePlayerDamage(s.f.player),3){@Override public boolean isCancelable(){return true;}};event.setCanceled(true);new KOMEEvents().onDefenseParticipation(event);assertFalse(a.participated);assertFalse(KOMEKnightCommissionService.noteDamage(s.f.data,s.f.player.id,UUID.randomUUID().toString()));}}
     public static class TestNpc extends LOTREntityRohanMan {
@@ -98,6 +119,13 @@ public class KOMEKnightCommissionGameplayTest {
         @Override public IEntityLivingData onSpawnWithEgg(IEntityLivingData data){return data;}
         @Override public void onArtificalSpawn(){}
         @Override public void setAttackTarget(EntityLivingBase target,boolean flag){}
+        @Override public net.minecraft.pathfinding.PathNavigate getNavigator(){try{return KOMEAccessFixture.allocate(InertNavigator.class);}catch(Exception e){throw new RuntimeException(e);}}
+    }
+    public static class InertNavigator extends net.minecraft.pathfinding.PathNavigate {
+        private InertNavigator(){super(null,null);}
+        @Override public void clearPathEntity(){}
+        @Override public boolean tryMoveToEntityLiving(Entity target,double speed){return true;}
+        @Override public boolean tryMoveToXYZ(double x,double y,double z,double speed){return true;}
     }
     static class Follower extends LOTRHiredNPCInfo {
         EntityPlayer player;

@@ -98,7 +98,7 @@ public final class KOMEFactionTitleClientBridge {
                     ?safe(current.currentRank)
                     :"";
 
-            return project(
+            return "Rank: " + project(
                 pledgeKey,
                 viewedKey,
                 ownTitle,
@@ -130,10 +130,11 @@ public final class KOMEFactionTitleClientBridge {
             String vanillaTitle,
             LOTRFaction viewedFaction,
             boolean otherPlayer) {
-        return resolveFactionStatus(
+        String result = resolveFactionStatus(
             viewedFaction,
             otherPlayer,
             vanillaTitle);
+        return result.startsWith("Rank: ") ? result.substring(6) : result;
     }
 
     static String project(

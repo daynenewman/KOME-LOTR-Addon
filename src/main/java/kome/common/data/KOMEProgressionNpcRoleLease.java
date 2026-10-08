@@ -4,7 +4,7 @@ import java.util.UUID;
 
 /** A particular player needs a particular native NPC for active progression. */
 public final class KOMEProgressionNpcRoleLease {
-    public enum Role { SERFDOM_MASTER, LIEGE, COURIER_RECIPIENT, ESCORT_CHARGE, DEFENSE_PROTECTED, COMMISSION_BENEFICIARY, COMMISSION_ENEMY, LORDSHIP_GUARD }
+    public enum Role { SERFDOM_MASTER, LIEGE, COURIER_RECIPIENT, ESCORT_CHARGE, DEFENSE_PROTECTED, DEFENSE_ENEMY, COMMISSION_BENEFICIARY, COMMISSION_ENEMY, LORDSHIP_GUARD }
     public final UUID npc, player;
     public final Role role;
     public final String token;

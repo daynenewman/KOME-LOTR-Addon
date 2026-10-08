@@ -19,7 +19,11 @@ public final class KOMEProgressionNpcDespawnTransformer implements IClassTransfo
             InsnList hook=new InsnList();LabelNode nativePath=new LabelNode();
             hook.add(new VarInsnNode(Opcodes.ALOAD,0));hook.add(new MethodInsnNode(Opcodes.INVOKESTATIC,BRIDGE,"preventDespawn","(Llotr/common/entity/npc/LOTREntityNPC;)Z",false));
             hook.add(new JumpInsnNode(Opcodes.IFEQ,nativePath));hook.add(new InsnNode(Opcodes.ICONST_0));hook.add(new InsnNode(Opcodes.IRETURN));hook.add(nativePath);
-            method.instructions.insert(hook);ClassWriter writer=new ClassWriter(ClassWriter.COMPUTE_MAXS);node.accept(writer);return writer.toByteArray();
+            method.instructions.insert(hook);for(MethodNode spawn:node.methods)if(("onSpawnWithEgg".equals(spawn.name)||"func_110161_a".equals(spawn.name))){
+                for(AbstractInsnNode insn=spawn.instructions.getFirst();insn!=null;insn=insn.getNext())if(insn.getOpcode()==Opcodes.ARETURN){InsnList rankHook=new InsnList();rankHook.add(new VarInsnNode(Opcodes.ALOAD,0));rankHook.add(new MethodInsnNode(Opcodes.INVOKESTATIC,"kome/common/data/KOMEProgressionNpcRankService","assignNatural","(Llotr/common/entity/npc/LOTREntityNPC;)V",false));spawn.instructions.insertBefore(insn,rankHook);}}
+            for(MethodNode load:node.methods)if(("readEntityFromNBT".equals(load.name)||"func_70037_a".equals(load.name))&&"(Lnet/minecraft/nbt/NBTTagCompound;)V".equals(load.desc))
+                for(AbstractInsnNode insn=load.instructions.getFirst();insn!=null;insn=insn.getNext())if(insn.getOpcode()==Opcodes.RETURN){InsnList migration=new InsnList();migration.add(new VarInsnNode(Opcodes.ALOAD,0));migration.add(new MethodInsnNode(Opcodes.INVOKESTATIC,"kome/common/data/KOMEProgressionNpcRankService","migrateFromSave","(Llotr/common/entity/npc/LOTREntityNPC;)V",false));load.instructions.insertBefore(insn,migration);}
+            ClassWriter writer=new ClassWriter(ClassWriter.COMPUTE_MAXS);node.accept(writer);return writer.toByteArray();
         }
         throw new IllegalStateException("LOTR v36.15 NPC canDespawn/func_70692_ba fingerprint changed");
     }
