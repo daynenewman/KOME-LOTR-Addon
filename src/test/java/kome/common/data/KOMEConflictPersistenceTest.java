@@ -138,8 +138,11 @@ public class KOMEConflictPersistenceTest {
         KOMEConflictRecord ended = restored.get("T100");
         assertEquals(State.ENDED, ended.getState());
         assertEquals(endedBefore.getRevision(), ended.getRevision());
-        assertEquals(TimerStatus.RUNNING, ended.getResponseTimer().status);
-        assertEquals(EpisodeState.ACTIVE, ended.getCombatEpisode().state);
+        assertEquals(TimerStatus.PAUSED, ended.getResponseTimer().status);
+        assertEquals(endedBefore.getResponseTimer().elapsedMillis, ended.getResponseTimer().elapsedMillis);
+        assertEquals(EpisodeState.INACTIVE, ended.getCombatEpisode().state);
+        assertEquals(endedBefore.getCombatEpisode().startedAtMillis, ended.getCombatEpisode().startedAtMillis);
+        assertEquals(endedBefore.getEndedAtMillis(), ended.getCombatEpisode().endedAtMillis);
         assertTrue(ended.getComplexes().get("castle").isCaptured());
         assertEquals("assault-2", ended.getComplexes().get("citadel").activeAssaultId);
         assertNotNull(ended.getComplexes().get("citadel").lead);

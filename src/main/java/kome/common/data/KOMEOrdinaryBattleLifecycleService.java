@@ -13,7 +13,7 @@ import static kome.common.data.KOMEConflictContracts.*;
 import static kome.common.data.KOMEConflictRecord.*;
 
 /**
- * Server-authoritative ordinary-combat episode clock. ConflictRecord remains the only durable
+ * Server-authoritative ordinary objective-response episode clock. ConflictRecord is the durable
  * episode/timer authority; this service retains only the current server session's uncheckpointed
  * active time so wall-clock downtime can never advance a response window.
  */
@@ -41,7 +41,7 @@ public final class KOMEOrdinaryBattleLifecycleService {
             public void episodeStarted(KOMEConflictRecord record, long durationMillis) {
                 long minutes = durationMillis / 60_000L;
                 KOMENotificationService.timeSensitive("Battle " + record.getConflictId()
-                    + " on " + record.getTileId() + " began combat episode "
+                    + " on " + record.getTileId() + " began response episode "
                     + record.getCombatEpisode().episodeId + ". Response window: "
                     + minutes + " minute" + (minutes == 1L ? "" : "s") + ".");
             }
@@ -57,7 +57,8 @@ public final class KOMEOrdinaryBattleLifecycleService {
         EPISODE_STARTED,
         TIMER_CHECKPOINTED,
         TIMER_COMPLETED_HOSTILITY_CONTINUES,
-        EPISODE_ENDED_RESOLUTION_ELIGIBLE,
+        TIMER_COMPLETED_RESOLUTION_ELIGIBLE,
+        EPISODE_STOPPED,
         STALE_RETRY,
         PUBLICATION_REJECTED
     }
@@ -88,6 +89,30 @@ public final class KOMEOrdinaryBattleLifecycleService {
     interface EvaluationSource {
         KOMECombatStateEvaluator.Result evaluate(KOMEWorldData data,
             KOMEConflictRecord conflict);
+    }
+
+    interface ObjectiveSource {
+        KOMEConflictLifecycleService.ObjectiveContest inspect(KOMEWorldData data,
+            KOMEConflictRecord conflict);
+    }
+
+    /**
+     * Current strategic facts, not a historical combat/recovery certificate. Phase 4B must
+     * durably record hostileMilitaryPairPresent at episode start and each active observation
+     * (including commitment/retreat changes before teardown); objective contest alone is not
+     * evidence of actual hostile military participation, and this signal has no restart memory.
+     */
+    public static final class Observation {
+        public final KOMEConflictLifecycleService.ObjectiveContest objective;
+        public final boolean hostileMilitaryPairPresent;
+        public final boolean militaryAuthorityKnown;
+
+        private Observation(KOMEConflictLifecycleService.ObjectiveContest objective,
+                KOMECombatStateEvaluator.Result military) {
+            this.objective = objective;
+            hostileMilitaryPairPresent = military != null && military.hostilePairPresent;
+            militaryAuthorityKnown = resolved(military);
+        }
     }
 
     interface FortificationSource {
@@ -130,6 +155,7 @@ public final class KOMEOrdinaryBattleLifecycleService {
     }
 
     private final EvaluationSource evaluationSource;
+    private final ObjectiveSource objectiveSource;
     private final FortificationSource fortificationSource;
     private final DurationSource durationSource;
     private final NotificationSink notificationSink;
@@ -140,10 +166,22 @@ public final class KOMEOrdinaryBattleLifecycleService {
     KOMEOrdinaryBattleLifecycleService(EvaluationSource evaluation,
             FortificationSource fortification, DurationSource duration,
             NotificationSink notifications, BeforePublication beforePublication) {
+        this(evaluation, new ObjectiveSource() {
+            public KOMEConflictLifecycleService.ObjectiveContest inspect(KOMEWorldData data,
+                    KOMEConflictRecord conflict) {
+                return KOMEConflictLifecycleService.INSTANCE.inspectOrdinaryObjective(data, conflict);
+            }
+        }, fortification, duration, notifications, beforePublication);
+    }
+
+    KOMEOrdinaryBattleLifecycleService(EvaluationSource evaluation, ObjectiveSource objective,
+            FortificationSource fortification, DurationSource duration,
+            NotificationSink notifications, BeforePublication beforePublication) {
         if (evaluation == null || fortification == null || duration == null
-                || notifications == null || beforePublication == null)
+                || objective == null || notifications == null || beforePublication == null)
             throw new IllegalArgumentException("Ordinary battle lifecycle dependencies are required.");
         evaluationSource = evaluation;
+        objectiveSource = objective;
         fortificationSource = fortification;
         durationSource = duration;
         notificationSink = notifications;
@@ -163,6 +201,14 @@ public final class KOMEOrdinaryBattleLifecycleService {
     /** Clears only uncheckpointed runtime clocks; durable ConflictRecord state is untouched. */
     public void resetRuntimeState() {
         clocks.clear();
+    }
+
+    /** Pure reporting query; no timer, persistence, entity lookup or recovery side effects. */
+    public Observation inspect(KOMEWorldData data, KOMEConflictRecord conflict) {
+        KOMECombatStateEvaluator.Result military;
+        try { military = evaluationSource.evaluate(data, conflict); }
+        catch (RuntimeException failure) { military = null; }
+        return new Observation(objectiveSource.inspect(data, conflict), military);
     }
 
     public Result process(KOMEWorldData data, String tileId, long nowMillis) {
@@ -191,20 +237,21 @@ public final class KOMEOrdinaryBattleLifecycleService {
                 ? "Defensive context is unavailable." : fortification.reason);
         }
 
-        KOMECombatStateEvaluator.Result combat;
-        try {
-            combat = evaluationSource.evaluate(data, record);
-        } catch (RuntimeException failure) {
-            combat = null;
+        if (KOMEOrdinaryBattleResolutionService.hasCapturePublication(data, record)) {
+            removeClock(data, record.getTileId());
+            return result(Code.NO_CHANGE, record,
+                "Conflict-specific capture publication awaits Phase-3 reconciliation.");
         }
+        Observation observation = inspect(data, record);
+        KOMEConflictLifecycleService.ObjectiveContest objective = observation.objective;
         CombatEpisode episode = record.getCombatEpisode();
         if (episode.state != EpisodeState.ACTIVE) {
             removeClock(data, record.getTileId());
-            if (!resolved(combat))
+            if (objective.status == KOMEConflictLifecycleService.ObjectiveContestStatus.UNKNOWN)
                 return result(Code.DEFERRED_UNKNOWN_AUTHORITY, record,
-                    "Strategic military or diplomacy authority is unresolved.");
-            if (!combat.hostilePairPresent)
-                return result(Code.NO_CHANGE, record, "No hostile military pair is active.");
+                    objective.reason);
+            if (!objective.objectiveContested)
+                return result(Code.NO_CHANGE, record, "No offensive commitment contests the objective.");
             return startEpisode(data, record, nowMillis);
         }
 
@@ -222,7 +269,7 @@ public final class KOMEOrdinaryBattleLifecycleService {
         boolean complete = previous.status == TimerStatus.COMPLETE
             || elapsed >= previous.durationSnapshotMillis;
 
-        if (!resolved(combat)) {
+        if (objective.status == KOMEConflictLifecycleService.ObjectiveContestStatus.UNKNOWN) {
             if (shouldCheckpoint(previous, pending, complete)) {
                 KOMEConflictService.Result published = checkpointTimer(data, record,
                     nowMillis, elapsed, complete, clock);
@@ -233,11 +280,11 @@ public final class KOMEOrdinaryBattleLifecycleService {
             KOMEConflictRecord current = data.getConflictService().get(record.getTileId());
             return result(Code.DEFERRED_UNKNOWN_AUTHORITY,
                 current == null ? record : current,
-                "Strategic military or diplomacy authority is unresolved; cessation is deferred.");
+                "Objective authority is unresolved; cessation is deferred: " + objective.reason);
         }
 
-        if (!combat.hostilePairPresent)
-            return endEpisode(data, record, nowMillis, elapsed, complete, clock);
+        if (!objective.objectiveContested)
+            return endEpisode(data, record, nowMillis, elapsed, complete);
 
         if (!shouldCheckpoint(previous, pending, complete))
             return result(Code.NO_CHANGE, record,
@@ -246,10 +293,16 @@ public final class KOMEOrdinaryBattleLifecycleService {
             elapsed, complete, clock);
         if (published == null || published.code != KOMEConflictContracts.Code.SUCCESS)
             return publicationFailure(record, published);
-        return result(complete && previous.status != TimerStatus.COMPLETE
-                ? Code.TIMER_COMPLETED_HOSTILITY_CONTINUES : Code.TIMER_CHECKPOINTED,
+        Code code = Code.TIMER_CHECKPOINTED;
+        if (complete && previous.status != TimerStatus.COMPLETE) {
+            if (observation.hostileMilitaryPairPresent)
+                code = Code.TIMER_COMPLETED_HOSTILITY_CONTINUES;
+            else if (observation.militaryAuthorityKnown)
+                code = Code.TIMER_COMPLETED_RESOLUTION_ELIGIBLE;
+        }
+        return result(code,
             published.record, complete
-                ? "Response window completed; hostile military factions remain."
+                ? "Response window completed; Phase 3 must evaluate military and ownership authority."
                 : "Server-active response time checkpointed.");
     }
 
@@ -272,7 +325,7 @@ public final class KOMEOrdinaryBattleLifecycleService {
         KOMEConflictService.Result published = data.getConflictService().checkpointCombat(
             record.getTileId(), ExpectedConflict.at(record.getConflictId(), record.getRevision()),
             episode, response, TimerSlot.unstarted(),
-            new Context(nowMillis, "ordinary-battle", "start hostile combat episode"));
+            new Context(nowMillis, "ordinary-battle", "start contested objective response episode"));
         if (published.code != KOMEConflictContracts.Code.SUCCESS)
             return publicationFailure(record, published);
         data.markDirty();
@@ -280,11 +333,11 @@ public final class KOMEOrdinaryBattleLifecycleService {
             new ActiveClock(record.getConflictId(), episodeId, nowMillis));
         notificationSink.episodeStarted(published.record, duration.durationMillis);
         return result(Code.EPISODE_STARTED, published.record,
-            "A new hostile combat episode was published.");
+            "A new contested objective response episode was published.");
     }
 
     private Result endEpisode(KOMEWorldData data, KOMEConflictRecord record,
-            long nowMillis, long elapsed, boolean complete, ActiveClock clock) {
+            long nowMillis, long elapsed, boolean complete) {
         CombatEpisode previous = record.getCombatEpisode();
         CombatEpisode ended = new CombatEpisode(previous.sequence, previous.episodeId,
             EpisodeState.INACTIVE, previous.startedAtMillis, Long.valueOf(nowMillis));
@@ -295,14 +348,15 @@ public final class KOMEOrdinaryBattleLifecycleService {
         KOMEConflictService.Result published = data.getConflictService().checkpointCombat(
             record.getTileId(), ExpectedConflict.at(record.getConflictId(), record.getRevision()),
             ended, response, record.getCaptureTimer(),
-            new Context(nowMillis, "ordinary-battle", "end hostile combat episode"));
+            new Context(nowMillis, "ordinary-battle", "stop uncontested objective response episode"));
         if (published.code != KOMEConflictContracts.Code.SUCCESS)
             return publicationFailure(record, published);
         data.markDirty();
         removeClock(data, record.getTileId());
-        return result(Code.EPISODE_ENDED_RESOLUTION_ELIGIBLE, published.record,
-            complete ? "Hostility ceased after the response window completed."
-                : "Hostility ceased; Phase 3 must preserve the incomplete response-window constraint.");
+        return result(Code.EPISODE_STOPPED, published.record,
+            "No qualifying offensive commitment remains hostile to the objective ruler."
+                + (complete ? " Response timing was complete."
+                    : " Incomplete response timing is retained as paused history."));
     }
 
     private KOMEConflictService.Result checkpointTimer(KOMEWorldData data,

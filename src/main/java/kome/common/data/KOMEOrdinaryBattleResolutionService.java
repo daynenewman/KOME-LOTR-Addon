@@ -143,6 +143,11 @@ public final class KOMEOrdinaryBattleResolutionService {
             KOMEConflictRecord conflict);
     }
 
+    interface ObjectiveSource {
+        KOMEConflictLifecycleService.ObjectiveContest inspect(KOMEWorldData data,
+            KOMEConflictRecord conflict);
+    }
+
     interface FortificationSource {
         KOMEFortificationContextResolver.Decision evaluate(KOMEWorldData data,
             String tileId);
@@ -194,6 +199,7 @@ public final class KOMEOrdinaryBattleResolutionService {
     }
 
     private final EvaluationSource evaluationSource;
+    private final ObjectiveSource objectiveSource;
     private final FortificationSource fortificationSource;
     private final NotificationSink notificationSink;
     private final PublicationObserver publicationObserver;
@@ -202,10 +208,22 @@ public final class KOMEOrdinaryBattleResolutionService {
     KOMEOrdinaryBattleResolutionService(EvaluationSource evaluation,
             FortificationSource fortification, NotificationSink notifications,
             PublicationObserver observer, ResolutionFinalizer finalizer) {
+        this(evaluation, new ObjectiveSource() {
+            public KOMEConflictLifecycleService.ObjectiveContest inspect(KOMEWorldData data,
+                    KOMEConflictRecord conflict) {
+                return KOMEConflictLifecycleService.INSTANCE.inspectOrdinaryObjective(data, conflict);
+            }
+        }, fortification, notifications, observer, finalizer);
+    }
+
+    KOMEOrdinaryBattleResolutionService(EvaluationSource evaluation, ObjectiveSource objective,
+            FortificationSource fortification, NotificationSink notifications,
+            PublicationObserver observer, ResolutionFinalizer finalizer) {
         if (evaluation == null || fortification == null || notifications == null
-                || observer == null || finalizer == null)
+                || objective == null || observer == null || finalizer == null)
             throw new IllegalArgumentException("Ordinary resolution dependencies are required.");
         evaluationSource = evaluation;
+        objectiveSource = objective;
         fortificationSource = fortification;
         notificationSink = notifications;
         publicationObserver = observer;
@@ -222,7 +240,6 @@ public final class KOMEOrdinaryBattleResolutionService {
             KOMEConflictRecord conflict = data.getConflictService().get(tile);
             if (conflict != null && conflict.isActive()
                     && conflict.getState() == State.ORDINARY
-                    && conflict.getCombatEpisode().state == EpisodeState.INACTIVE
                     && conflict.getCombatEpisode().sequence > 0L)
                 results.add(resolve(data, tile, worldTime, nowMillis));
         }
@@ -258,10 +275,8 @@ public final class KOMEOrdinaryBattleResolutionService {
             return plan(Code.DEFERRED_UNKNOWN_AUTHORITY, conflict, null, "", null,
                 null, emptySurvivors(), Collections.<String>emptyList(), false,
                 false, "Canonical conquest tile authority is missing.");
-        if (conflict.getCombatEpisode().state == EpisodeState.ACTIVE)
-            return plan(Code.WAITING_EPISODE_CESSATION, conflict, tile, "", null,
-                null, emptySurvivors(), Collections.<String>emptyList(), false,
-                false, "The hostile combat episode remains active.");
+        // Objective response episodes remain ACTIVE while an offensive commitment contests
+        // the ruler. COMPLETE timing and absence of a hostile military pair permit resolution.
         if (conflict.getCombatEpisode().sequence == 0L
                 || conflict.getResponseTimer().status != TimerStatus.COMPLETE)
             return plan(Code.WAITING_RESPONSE_WINDOW, conflict, tile, "", null,
@@ -336,6 +351,17 @@ public final class KOMEOrdinaryBattleResolutionService {
         // a war between those allies. An absent former owner's loss is the hostile conquest.
         boolean history = changes && current.length() > 0
             && !survivors.containsKey(current) && !recorded;
+        if (history) {
+            // An old COMPLETE timer is not permission to conquer a ruler that is no longer
+            // hostile. Reuse the abandonment/continuity predicate for a new hostile capture.
+            // Existing capture receipts and allied administration selection retain their rules.
+            KOMEConflictLifecycleService.ObjectiveContest objective = objectiveSource.inspect(data, conflict);
+            if (!objective.objectiveContested)
+                return plan(objective.status == KOMEConflictLifecycleService.ObjectiveContestStatus.UNKNOWN
+                        ? Code.DEFERRED_UNKNOWN_AUTHORITY : Code.DEFERRED_NO_WINNER,
+                    conflict, tile, "", military, fortification, survivors, holds.orderIds,
+                    false, false, objective.reason);
+        }
         return plan(Code.READY, conflict, tile, ownership.winnerFactionId,
             military, fortification, survivors, holds.orderIds, history,
             recorded, "Ordinary conquest resolution is ready for publication.");
@@ -499,6 +525,21 @@ public final class KOMEOrdinaryBattleResolutionService {
 
     private static String captureMethod(String conflictId) {
         return CAPTURE_METHOD_PREFIX + conflictId;
+    }
+
+    /**
+     * Narrow reservation for a receipt-bearing Phase-3 publication. Even a contradictory
+     * receipt must reach preflight's existing diagnostics rather than be hidden by abandonment.
+     * Receipt-free ownership transfers still require Phase-4B durable resolution intent.
+     */
+    static boolean hasCapturePublication(KOMEWorldData data, KOMEConflictRecord conflict) {
+        String method = captureMethod(conflict.getConflictId());
+        for (KOMEWar war : data.wars.values()) {
+            if (war == null) continue;
+            for (KOMEWar.TileCaptureEvent event : war.tileCaptureHistory)
+                if (method.equals(event.claimMethod)) return true;
+        }
+        return false;
     }
 
     private static boolean sameAuthority(Plan expected, Plan current) {

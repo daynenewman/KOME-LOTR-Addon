@@ -104,6 +104,7 @@ public class KOMEOrdinaryBattleLifecycleServiceTest {
         Fixture f = fixture(1, 1, 2, 3);
         f.lifecycle.process(f.data, TILE, 100L);
         f.evaluation.unknown = true;
+        f.evaluation.objectiveUnknown = true;
         assertEquals(KOMEOrdinaryBattleLifecycleService.Code.DEFERRED_UNKNOWN_AUTHORITY,
             f.lifecycle.process(f.data, TILE, 5_100L).code);
         assertEquals(EpisodeState.ACTIVE, f.record().getCombatEpisode().state);
@@ -112,6 +113,7 @@ public class KOMEOrdinaryBattleLifecycleServiceTest {
         // The evaluator deliberately has no player/entity/chunk inputs. Strategic commitments
         // remain authoritative when physical observations disappear.
         f.evaluation.unknown = false;
+        f.evaluation.objectiveUnknown = false;
         assertEquals(KOMEOrdinaryBattleLifecycleService.Code.NO_CHANGE,
             f.lifecycle.process(f.data, TILE, 5_200L).code);
         assertEquals(EpisodeState.ACTIVE, f.record().getCombatEpisode().state);
@@ -122,7 +124,8 @@ public class KOMEOrdinaryBattleLifecycleServiceTest {
         f.lifecycle.process(f.data, TILE, 100L);
         assertEquals(1, f.notifications.count);
         f.evaluation.hostile = false;
-        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.EPISODE_ENDED_RESOLUTION_ELIGIBLE,
+        f.evaluation.objectiveHostile = false;
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.EPISODE_STOPPED,
             f.lifecycle.process(f.data, TILE, 5_100L).code);
         KOMEConflictRecord ended = f.record();
         assertEquals(EpisodeState.INACTIVE, ended.getCombatEpisode().state);
@@ -135,6 +138,7 @@ public class KOMEOrdinaryBattleLifecycleServiceTest {
         f.minutes[1] = 3;
         f.minutes[2] = 4;
         f.evaluation.hostile = true;
+        f.evaluation.objectiveHostile = true;
         assertEquals(KOMEOrdinaryBattleLifecycleService.Code.EPISODE_STARTED,
             f.lifecycle.process(f.data, TILE, 5_200L).code);
         KOMEConflictRecord renewed = f.record();
@@ -144,6 +148,90 @@ public class KOMEOrdinaryBattleLifecycleServiceTest {
         assertEquals(KOMEOrdinaryBattleLifecycleService.Code.NO_CHANGE,
             f.lifecycle.process(f.data, TILE, 5_300L).code);
         assertEquals(2, f.notifications.count);
+    }
+
+    @Test public void defenderDisappearanceAndReturnKeepSameActiveEpisodeAndTimer() {
+        Fixture f = fixture(1, 1, 2, 3);
+        f.lifecycle.process(f.data, TILE, 100L);
+        f.lifecycle.process(f.data, TILE, 5_100L);
+        f.release("C1", 5_101L); // defender leaves, not the hostile offensive commitment
+        KOMEOrdinaryBattleLifecycleService.Observation lone = f.lifecycle.inspect(f.data, f.record());
+        assertTrue(lone.objective.objectiveContested);
+        assertFalse(lone.hostileMilitaryPairPresent);
+        assertTrue(lone.militaryAuthorityKnown);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.TIMER_CHECKPOINTED,
+            f.lifecycle.process(f.data, TILE, 10_100L).code);
+        assertEquals(10_000L, f.record().getResponseTimer().elapsedMillis);
+        assertEquals(EpisodeState.ACTIVE, f.record().getCombatEpisode().state);
+        assertEquals("CF1:E1", f.record().getCombatEpisode().episodeId);
+        f.commit("C3", "mordor", 10_101L);
+        f.lifecycle.process(f.data, TILE, 10_102L);
+        f.joinAndCommit("gondor", "C1", 10_103L);
+        f.lifecycle.process(f.data, TILE, 15_100L);
+        assertTrue(f.lifecycle.inspect(f.data, f.record()).hostileMilitaryPairPresent);
+        assertEquals("CF1:E1", f.record().getCombatEpisode().episodeId);
+        assertEquals(15_000L, f.record().getResponseTimer().elapsedMillis);
+        assertEquals(1, f.notifications.count);
+    }
+
+    @Test public void unopposedEntryStartsResponseAndCompletesWithoutClaimingActualCombat() {
+        Fixture f = fixture(1, 1, 2, 3);
+        f.release("C1", 20L);
+        KOMEOrdinaryBattleLifecycleService.Observation observation =
+            f.lifecycle.inspect(f.data, f.record());
+        assertTrue(observation.objective.objectiveContested);
+        assertFalse(observation.hostileMilitaryPairPresent);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.EPISODE_STARTED,
+            f.lifecycle.process(f.data, TILE, 100L).code);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.TIMER_COMPLETED_RESOLUTION_ELIGIBLE,
+            f.lifecycle.process(f.data, TILE, 60_100L).code);
+        assertEquals(EpisodeState.ACTIVE, f.record().getCombatEpisode().state);
+        assertEquals(TimerStatus.COMPLETE, f.record().getResponseTimer().status);
+        assertEquals("CF1:E1", f.record().getCombatEpisode().episodeId);
+        assertFalse(f.lifecycle.inspect(f.data, f.record()).hostileMilitaryPairPresent);
+    }
+
+    @Test public void defenderLossThenRestartStillContinuesE1WithoutOfflineElapsed() {
+        Fixture f = fixture(1, 1, 2, 3);
+        f.lifecycle.process(f.data, TILE, 100L);
+        f.release("C1", 101L);
+        f.lifecycle.process(f.data, TILE, 5_100L);
+        Fixture restarted = f.restart();
+        restarted.lifecycle.process(restarted.data, TILE, 1_000_000L);
+        assertEquals(5_000L, restarted.record().getResponseTimer().elapsedMillis);
+        restarted.lifecycle.process(restarted.data, TILE, 1_055_000L);
+        assertEquals(TimerStatus.COMPLETE, restarted.record().getResponseTimer().status);
+        assertEquals("CF1:E1", restarted.record().getCombatEpisode().episodeId);
+        assertEquals(EpisodeState.ACTIVE, restarted.record().getCombatEpisode().state);
+    }
+
+    @Test public void unknownMilitaryPresenceDoesNotStopKnownObjectiveResponseTime() {
+        Fixture f = fixture(1, 1, 2, 3);
+        f.evaluation.unknown = true;
+        assertTrue(f.lifecycle.inspect(f.data, f.record()).objective.objectiveContested);
+        assertFalse(f.lifecycle.inspect(f.data, f.record()).militaryAuthorityKnown);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.EPISODE_STARTED,
+            f.lifecycle.process(f.data, TILE, 100L).code);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.TIMER_CHECKPOINTED,
+            f.lifecycle.process(f.data, TILE, 5_100L).code);
+        assertEquals(5_000L, f.record().getResponseTimer().elapsedMillis);
+        f.lifecycle.process(f.data, TILE, 60_100L);
+        assertEquals(TimerStatus.COMPLETE, f.record().getResponseTimer().status);
+        assertEquals(EpisodeState.ACTIVE, f.record().getCombatEpisode().state);
+    }
+
+    @Test public void hostileMilitaryPairAloneCannotStartAnUncontestedObjectiveEpisode() {
+        Fixture f = fixture(1, 1, 2, 3);
+        f.evaluation.objectiveHostile = false;
+        assertTrue(f.lifecycle.inspect(f.data, f.record()).hostileMilitaryPairPresent);
+        assertFalse(f.lifecycle.inspect(f.data, f.record()).objective.objectiveContested);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.NO_CHANGE,
+            f.lifecycle.process(f.data, TILE, 100L).code);
+        assertEquals(0L, f.record().getCombatEpisode().sequence);
+        f.evaluation.hostile = false; // allied/neutral-only activity is not combat either
+        assertFalse(f.lifecycle.inspect(f.data, f.record()).hostileMilitaryPairPresent);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.NO_CHANGE,
+            f.lifecycle.process(f.data, TILE, 200L).code);
     }
 
     @Test public void fortifiedAndAmbiguousContextConservativelyDefer() {
@@ -235,7 +323,7 @@ public class KOMEOrdinaryBattleLifecycleServiceTest {
     private static KOMEOrdinaryBattleLifecycleService lifecycle(Evaluation evaluation,
             MutableFortification fortification, Notifications notifications,
             final int[] minutes, KOMEOrdinaryBattleLifecycleService.BeforePublication before) {
-        return new KOMEOrdinaryBattleLifecycleService(evaluation, fortification,
+        return new KOMEOrdinaryBattleLifecycleService(evaluation, evaluation, fortification,
             new KOMEOrdinaryBattleLifecycleService.DurationSource() {
                 public KOMEOrdinaryBattlePlanner.DurationPlan select(KOMEWorldData data,
                         KOMEConflictRecord conflict) {
@@ -266,6 +354,18 @@ public class KOMEOrdinaryBattleLifecycleServiceTest {
         }
 
         KOMEConflictRecord record() { return data.getConflictService().get(TILE); }
+
+        void release(String id, long now) {
+            ok(data.getConflictService().releaseValidatedCommitment(
+                new ValidatedDepartureRequest(TILE, id, evaluation.factions.get(id), expected(record())),
+                new DetachmentResolver() {
+                    public DetachmentResolution resolve(String companyId) {
+                        return new DetachmentResolution(companyId, ReferenceStatus.RESOLVED,
+                            KOMEHiredUnitClass.CAMPAIGN, evaluation.factions.get(companyId), TILE,
+                            "test departure authority");
+                    }
+                }, context(now)));
+        }
 
         void commit(String id, String faction, long now) {
             KOMEConflictRecord current = record();
@@ -302,10 +402,23 @@ public class KOMEOrdinaryBattleLifecycleServiceTest {
     }
 
     private static final class Evaluation
-            implements KOMEOrdinaryBattleLifecycleService.EvaluationSource {
+            implements KOMEOrdinaryBattleLifecycleService.EvaluationSource,
+                KOMEOrdinaryBattleLifecycleService.ObjectiveSource {
         final Map<String, String> factions = new LinkedHashMap<String, String>();
         boolean hostile = true;
+        boolean objectiveHostile = true;
+        boolean objectiveUnknown;
         boolean unknown;
+
+        public KOMEConflictLifecycleService.ObjectiveContest inspect(KOMEWorldData data,
+                KOMEConflictRecord conflict) {
+            return new KOMEConflictLifecycleService.ObjectiveContest(objectiveUnknown
+                    ? KOMEConflictLifecycleService.ObjectiveContestStatus.UNKNOWN
+                    : objectiveHostile
+                        ? KOMEConflictLifecycleService.ObjectiveContestStatus.CONTESTED
+                        : KOMEConflictLifecycleService.ObjectiveContestStatus.UNCONTESTED,
+                "test objective authority independent of military pairs");
+        }
 
         public KOMECombatStateEvaluator.Result evaluate(KOMEWorldData data,
                 KOMEConflictRecord conflict) {

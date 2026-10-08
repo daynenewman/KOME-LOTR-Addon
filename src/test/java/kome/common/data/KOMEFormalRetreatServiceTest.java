@@ -90,6 +90,10 @@ public class KOMEFormalRetreatServiceTest {
         Fixture f = new Fixture(1);
         String ownerBefore = f.data.conquestTiles.get("T101").projectRulingFaction();
         String firstId = f.record().getConflictId();
+        CombatEpisode episode = new CombatEpisode(1L, firstId + ":E1", EpisodeState.ACTIVE, 22L, null);
+        TimerSlot timer = new TimerSlot(TimerStatus.RUNNING, 60_000L, 7L, 25L, episode.episodeId);
+        Fixture.ok(f.data.getConflictService().checkpointCombat("T101", Fixture.expected(f.record()),
+            episode, timer, TimerSlot.unstarted(), Fixture.context(25L)));
 
         KOMEFormalRetreatService.Result result = KOMEFormalRetreatService.INSTANCE.retreat(
             f.data, f.access.player, 30L, new SuccessfulEgress());
@@ -102,6 +106,15 @@ public class KOMEFormalRetreatServiceTest {
         assertTrue(result.message.contains("battle ended"));
         assertEquals(ownerBefore,
             f.data.conquestTiles.get("T101").projectRulingFaction());
+        assertEquals(EpisodeState.INACTIVE, ended.getCombatEpisode().state);
+        assertEquals(episode.episodeId, ended.getCombatEpisode().episodeId);
+        assertEquals(episode.startedAtMillis, ended.getCombatEpisode().startedAtMillis);
+        assertNotNull(ended.getCombatEpisode().endedAtMillis);
+        assertEquals(TimerStatus.PAUSED, ended.getResponseTimer().status);
+        assertEquals(7L, ended.getResponseTimer().elapsedMillis);
+        assertEquals(60_000L, ended.getResponseTimer().durationSnapshotMillis);
+        assertEquals(KOMEOrdinaryBattleResolutionService.Code.ALREADY_RESOLVED,
+            KOMEOrdinaryBattleResolutionService.INSTANCE.preflight(f.data, "T101").code);
 
         KOMEConflictRecord fresh = Fixture.ok(f.data.getConflictService().start("T101",
             KOMEConflictRecord.State.ORDINARY, Fixture.expected(ended),

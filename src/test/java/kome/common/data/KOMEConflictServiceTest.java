@@ -283,9 +283,14 @@ public class KOMEConflictServiceTest {
         assertEquals(State.ENDED, ended.getState());
         assertEquals(Long.valueOf(70), ended.getEndedAtMillis());
         assertEquals(activeSnapshot.getRevision() + 1L, ended.getRevision());
-        assertSame(response, ended.getResponseTimer());
+        assertEquals(TimerStatus.PAUSED, ended.getResponseTimer().status);
+        assertEquals(response.elapsedMillis, ended.getResponseTimer().elapsedMillis);
+        assertEquals(response.durationSnapshotMillis, ended.getResponseTimer().durationSnapshotMillis);
         assertSame(capture, ended.getCaptureTimer());
-        assertSame(episode, ended.getCombatEpisode());
+        assertEquals(EpisodeState.INACTIVE, ended.getCombatEpisode().state);
+        assertEquals(episode.episodeId, ended.getCombatEpisode().episodeId);
+        assertEquals(episode.startedAtMillis, ended.getCombatEpisode().startedAtMillis);
+        assertEquals(Long.valueOf(70L), ended.getCombatEpisode().endedAtMillis);
         assertSame(activeSnapshot.getComplexes().get("castle"), ended.getComplexes().get("castle"));
         assertSame(activeSnapshot.getComplexes().get("citadel"), ended.getComplexes().get("citadel"));
         assertTrue(ended.getComplexes().get("castle").isCaptured());

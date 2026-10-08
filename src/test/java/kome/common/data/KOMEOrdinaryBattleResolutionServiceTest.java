@@ -31,7 +31,7 @@ public class KOMEOrdinaryBattleResolutionServiceTest {
             LOTRFactionRelations.Relation.NEUTRAL);
     }
 
-    @Test public void onlyCompleteEndedEpisodePermitsResolutionPlanning() {
+    @Test public void completeResponseAndNoMilitaryPairPermitActiveOrStoppedEpisodeResolution() {
         Fixture complete = fixture("gondor", "gondor").campaign("C1", "gondor", 10L)
             .episode(TimerStatus.COMPLETE, false);
         assertEquals(KOMEOrdinaryBattleResolutionService.Code.READY,
@@ -56,8 +56,26 @@ public class KOMEOrdinaryBattleResolutionServiceTest {
 
         Fixture active = fixture("gondor", "gondor")
             .campaign("C1", "gondor", 10L).episode(TimerStatus.COMPLETE, true);
-        assertEquals(KOMEOrdinaryBattleResolutionService.Code.WAITING_EPISODE_CESSATION,
+        assertEquals(KOMEOrdinaryBattleResolutionService.Code.READY,
             active.service().preflight(active.data, TILE).code);
+        Fixture activeRunning = fixture("gondor", "gondor")
+            .campaign("C1", "mordor", 10L).episode(TimerStatus.RUNNING, true);
+        assertEquals(KOMEOrdinaryBattleResolutionService.Code.WAITING_RESPONSE_WINDOW,
+            activeRunning.service().preflight(activeRunning.data, TILE).code);
+    }
+
+    @Test public void processAllResolvesCompleteActiveLoneAttackerAndNormalizesClosure() {
+        Fixture f = fixture("gondor", "gondor").campaign("C1", "mordor", 10L)
+            .episode(TimerStatus.COMPLETE, true);
+        java.util.List<KOMEOrdinaryBattleResolutionService.Result> results =
+            f.service().processAll(f.data, 500L, 200L);
+        assertEquals(1, results.size());
+        assertTrue(results.get(0).reason, results.get(0).resolved());
+        assertEquals("mordor", f.tile().projectRulingFaction());
+        assertEquals(EpisodeState.INACTIVE, f.conflict().getCombatEpisode().state);
+        assertEquals("CF1:E1", f.conflict().getCombatEpisode().episodeId);
+        assertEquals(Long.valueOf(200L), f.conflict().getCombatEpisode().endedAtMillis);
+        assertEquals(TimerStatus.COMPLETE, f.conflict().getResponseTimer().status);
     }
 
     @Test public void ownershipPlanUsesDefaultClaimContinuityTieAndCoalitionRules() {
@@ -235,6 +253,7 @@ public class KOMEOrdinaryBattleResolutionServiceTest {
         assertEquals("gondor", history.tile().projectRulingFaction());
         assertTrue(history.conflict().isActive());
         assertEquals(1, captureCount(history.data));
+        assertCaptureReservedAgainstAbandonment(history, 200L);
         history.observer = KOMEOrdinaryBattleResolutionService.PublicationObserver.NONE;
         assertEquals(KOMEOrdinaryBattleResolutionService.Code.RESOLVED_OWNERSHIP_CHANGED,
             history.service().resolve(history.data, TILE, 500L, 201L).code);
@@ -242,18 +261,38 @@ public class KOMEOrdinaryBattleResolutionServiceTest {
         assertEquals(1, captureCount(history.data));
 
         Fixture ownership = fixture("gondor", "gondor").campaign("C1", "mordor", 10L)
-            .episode(TimerStatus.COMPLETE, false);
+            .episode(TimerStatus.COMPLETE, true);
         ownership.observer = new OneShotObserver(false, true);
         assertEquals(KOMEOrdinaryBattleResolutionService.Code.RECONCILIATION_PENDING,
             ownership.service().resolve(ownership.data, TILE, 500L, 200L).code);
         assertEquals("mordor", ownership.tile().projectRulingFaction());
         assertTrue(ownership.conflict().isActive());
         assertEquals(1, captureCount(ownership.data));
+        assertCaptureReservedAgainstAbandonment(ownership, 200L);
         ownership.observer = KOMEOrdinaryBattleResolutionService.PublicationObserver.NONE;
         assertEquals(KOMEOrdinaryBattleResolutionService.Code.RESOLVED_OWNERSHIP_CHANGED,
             ownership.service().resolve(ownership.data, TILE, 500L, 201L).code);
         assertEquals(State.ENDED, ownership.conflict().getState());
         assertEquals(1, captureCount(ownership.data));
+    }
+
+    private static void assertCaptureReservedAgainstAbandonment(Fixture f, long now) {
+        KOMEConflictRecord before = f.conflict();
+        KOMEConflictLifecycleService.OrdinaryAbandonmentResult result =
+            KOMEConflictLifecycleService.INSTANCE.reconcileOrdinaryConflictAfterCommitmentChange(
+                f.data, TILE, ExpectedConflict.at(before.getConflictId(), before.getRevision()), context(now));
+        assertEquals(KOMEConflictLifecycleService.OrdinaryAbandonmentCode.RESOLUTION_PENDING, result.code);
+        assertSame(before, f.conflict());
+        assertTrue(f.conflict().isActive());
+        KOMEOrdinaryBattleLifecycleService lifecycle = new KOMEOrdinaryBattleLifecycleService(
+            (data, conflict) -> f.evaluation.evaluate(data, conflict),
+            (data, tile) -> KOMEFortificationContextResolver.Decision.clear(),
+            (data, conflict) -> KOMEOrdinaryBattlePlanner.responseDuration(1, 1, 2, 3),
+            (conflict, duration) -> fail("Pending capture must not start another response episode"),
+            KOMEOrdinaryBattleLifecycleService.BeforePublication.NONE);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.NO_CHANGE,
+            lifecycle.process(f.data, TILE, now).code);
+        assertSame(before, f.conflict());
     }
 
     @Test public void conflictRevisionChangedAfterOwnershipReconcilesOnNextTick() {
@@ -432,6 +471,14 @@ public class KOMEOrdinaryBattleResolutionServiceTest {
             final int[] notifications,
             KOMEOrdinaryBattleResolutionService.PublicationObserver observer) {
         return new KOMEOrdinaryBattleResolutionService(evaluation,
+            new KOMEOrdinaryBattleResolutionService.ObjectiveSource() {
+                public KOMEConflictLifecycleService.ObjectiveContest inspect(KOMEWorldData data,
+                        KOMEConflictRecord conflict) {
+                    return new KOMEConflictLifecycleService.ObjectiveContest(
+                        KOMEConflictLifecycleService.ObjectiveContestStatus.CONTESTED,
+                        "test hostile objective authority");
+                }
+            },
             new KOMEOrdinaryBattleResolutionService.FortificationSource() {
                 public KOMEFortificationContextResolver.Decision evaluate(
                         KOMEWorldData data, String tileId) { return fortification; }

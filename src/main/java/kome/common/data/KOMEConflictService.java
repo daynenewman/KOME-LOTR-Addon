@@ -587,6 +587,14 @@ public final class KOMEConflictService {
         return mutate(tileId, expected, context, Operation.END, "", draft -> {
             draft.state = State.ENDED;
             draft.endedAtMillis = context.timestampMillis;
+            CombatEpisode episode = draft.combatEpisode;
+            if (episode.state == EpisodeState.ACTIVE)
+                draft.combatEpisode = new CombatEpisode(episode.sequence, episode.episodeId,
+                    EpisodeState.INACTIVE, episode.startedAtMillis, context.timestampMillis);
+            // Ending is not timer expiry: preserve accumulated time without counting downtime
+            // or manufacturing COMPLETE. This covers abandonment and every canonical end path.
+            draft.responseTimer = pauseEndedTimer(draft.responseTimer, context.timestampMillis);
+            draft.captureTimer = pauseEndedTimer(draft.captureTimer, context.timestampMillis);
             for (String id : draft.factionParticipation.keySet()) {
                 FactionParticipation faction = draft.factionParticipation.get(id);
                 if (faction.isActive()) draft.factionParticipation.put(id, new FactionParticipation(id,
@@ -597,6 +605,12 @@ public final class KOMEConflictService {
                 draft.encirclement.checkpointAtMillis, context.timestampMillis);
             return Code.SUCCESS;
         });
+    }
+
+    private static TimerSlot pauseEndedTimer(TimerSlot timer, long nowMillis) {
+        return timer.status == TimerStatus.RUNNING
+            ? new TimerSlot(TimerStatus.PAUSED, timer.durationSnapshotMillis,
+                timer.elapsedMillis, nowMillis, timer.episodeId) : timer;
     }
 
     /**
