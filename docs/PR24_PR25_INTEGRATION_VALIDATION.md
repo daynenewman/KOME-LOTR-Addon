@@ -1,5 +1,11 @@
 # PR #24 + #25 integration validation
 
+Historical October 4 schema-10 evidence. Current publication supersedes its
+open-PR/readiness wording: PRs #24/#25 are closed as superseded; consolidated
+PR #26 incorporates dev `b826ef35a0fb88ce9b2d58129ed307e9986b43d7` and root
+schema 12. See [current review/acceptance checklist](pr-review-20261007/README.md).
+The transcripts below retain their original revision and artifact limits.
+
 Integration branch: `dayne/pr24-pr25-integration-20261004`. Prepared in the isolated `aff2` worktree on 2026-10-04 (America/Chicago). No merge or deployment.
 
 ## Refreshed inputs

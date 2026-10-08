@@ -132,7 +132,22 @@ public final class KOMEAdminDiagnostics {
             lines.add("tile=" + company.currentTile + ";status=" + company.status + ";order=" + company.movementOrderId);
             lines.add("controller=" + company.temporaryController + ";authority=" + company.controllerAuthority + ";cleanup=" + company.withdrawalState);
             int missing = 0; for (UUID id : company.units) if (!data.hiredUnits.containsKey(id)) missing++;
-            lines.add("members=" + company.units.size() + ";missingCanonicalUnits=" + missing + ";physical locations=UNINSPECTED");
+            lines.add("members=" + company.units.size() + ";missingCanonicalUnits=" + missing);
+            lines.add("Movement credit=" + company.movementAllowance + ";entitlement=" + company.getTilesPerDay()
+                + ";initialized=" + company.movementAllowanceInitialized);
+            lines.add("Movement boundary=" + company.movementBoundaryMillis + ";schedule=" + company.movementBoundarySchedule);
+            KOMECompanyCoherenceService.Assessment coherence = KOMECompanyCoherenceService.INSTANCE.assess(data, company);
+            lines.add("Coherence=" + coherence.status + ";phase=" + coherence.movementPhase
+                + ";route=" + coherence.routeOrderStatus);
+            lines.add("Cached physical observations: confirmed=" + coherence.physicallyConfirmedMembers
+                + ";unknown=" + coherence.physicallyUnknownMembers + ";contradictory=" + coherence.physicallyContradictoryMembers
+                + ";no world or chunk is loaded for inspection");
+            int shown = 0;
+            for (KOMECompanyCoherenceService.Issue issue : coherence.issues) {
+                if (lines.size() >= MAX_LINES - 3) break;
+                lines.add(issue.code + ": " + issue.detail); shown++;
+            }
+            if (shown < coherence.issues.size()) lines.add("Additional coherence issues omitted=" + (coherence.issues.size() - shown));
             lines.add("Use existing movement/withdrawal and stewardship services. Missing entities are not proof of death; no teleport/repair inferred.");
         } else if ("gate".equals(domain)) {
             KOMEPlayerBuild build = data.builds.get(subject);

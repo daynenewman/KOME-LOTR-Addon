@@ -1,10 +1,11 @@
 # PR #24 / #25 / #26 consolidation validation
 
-Prepared October 5, 2026 for the existing PR #26 branch. The resolved revision is
-local and has not been published: the connected GitHub application rejected a
-Git blob write with HTTP 403, `Resource not accessible by integration`, and this
-environment has no authenticated Git push credential. PRs #24 and #25 remain
-open until #26 receives the validated commit.
+Prepared October 5, 2026 for the existing PR #26 branch. Publication was later
+completed at `4b55b59e923028a9ed59233176e41235846efece`. A fresh GitHub read at
+the start of the October 7 review found PR #26 open, draft and conflict-free against dev
+`b826ef35a0fb88ce9b2d58129ed307e9986b43d7`; PRs #24 and #25 are closed as
+superseded, with their original heads preserved. The earlier connector/push
+failure was a temporary publication limitation, not the current state.
 
 ## Inputs
 
@@ -15,9 +16,9 @@ open until #26 receives the validated commit.
 - Original PR #25: `b59ec9af6f9bfee20e0049d5fe4bc6d085058b93`.
 
 The existing combined PR already includes both independent implementations.
-Merge current dev into that branch, publish the resulting merge commit, then
-close #24 and #25 as superseded. Preserve both original branches. Do not merge
-the consolidated PR into dev or deploy a jar as part of this task.
+Current dev was incorporated and the resulting merge commit published; #24 and
+#25 were then closed as superseded. Both original branches remain preserved.
+The consolidated PR has not been merged into dev or deployed.
 
 ## Resolved behavior
 
@@ -74,7 +75,14 @@ PR24_PR25_INTEGRATION_VALIDATION.md and the original handoff documents.
 
 ## Remaining scope
 
-No connected client participated. Client/multiplayer acceptance remains pending.
+No connected client participated in the seven launches recorded above.
+Separate October 6 Windows candidate evidence under `docs/tile-acceptance-20261006`
+records a matching connection, scoped human tile HUD/reconnect/respawn/menu/map
+checks and actual FPS/tick measurements, plus a production-options transformer
+repair. Those artifacts differ from this historical Linux JAR and do not certify
+reset/governance/daily client synchronization, multiplayer or lower-spec hardware.
+The [October 7 review checklist](pr-review-20261007/README.md) records the newer
+options/KOM-82 candidate and complete fresh regression gate separately.
 KOM-47 is merged and its active blocking link on KOM-48 was removed in Linear.
 KOM-48's coordinator adapter, KOM-24 starvation/scheduling, KOM-78 physical
 muster delivery, and dependent full campaign acceptance remain incomplete.

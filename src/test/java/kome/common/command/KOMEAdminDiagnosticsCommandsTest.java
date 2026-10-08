@@ -157,10 +157,33 @@ public class KOMEAdminDiagnosticsCommandsTest {
                 for (String line : output) assertTrue(line.length() <= KOMEAdminDiagnostics.MAX_LINE_LENGTH);
             }
             assertTrue(runRoot(root, fixture, "diagnostics", "daily", "status").stream().anyMatch(s -> s.contains("MOVEMENT_INTEGRATION_PENDING_KOM48")));
-            assertTrue(runRoot(root, fixture, "diagnostics", "company", "C1").stream().anyMatch(s -> s.contains("UNINSPECTED")));
+            assertTrue(runRoot(root, fixture, "diagnostics", "company", "C1").stream().anyMatch(s -> s.contains("Coherence=INCOHERENT")));
+            assertTrue(runRoot(root, fixture, "diagnostics", "company", "C1").stream().anyMatch(s -> s.contains("Cached physical observations")));
             net.minecraft.nbt.NBTTagCompound after = new net.minecraft.nbt.NBTTagCompound(); data.writeToNBT(after);
             assertEquals(before, after);
             assertFalse(runRoot(root, fixture, "repair", "preview", "company", "C1").get(0).contains("apply /kome"));
+        }
+    }
+
+    @Test public void companyDiagnosticsExposeBoundedCanonicalIssuesWithoutRepairOrWorldAccess() throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            kome.common.KOMEAccessFixture fixture = new kome.common.KOMEAccessFixture(); fixture.player.operator = true;
+            KOMEWorldData data = fixture.data; data.initializeIntegratedWorld();
+            KOMEArmyCompany company = new KOMEArmyCompany(); company.id = "C-inspect";
+            company.owner = fixture.player.id; company.faction = company.nativeFaction = "gondor";
+            company.currentTile = "T100"; company.movementAllowanceInitialized = true; company.movementAllowance = 1;
+            for (int i = 0; i < 31; i++) company.units.add(java.util.UUID.randomUUID());
+            data.armyCompanies.put(company.id, company);
+            net.minecraft.nbt.NBTTagCompound before = new net.minecraft.nbt.NBTTagCompound(); data.writeToNBT(before);
+            List<String> output = runRoot(new KOMECommandKome(), fixture, "diagnostics", "company", company.id);
+            assertTrue(output.stream().anyMatch(s -> s.contains("Movement credit=1;entitlement=1")));
+            assertTrue(output.stream().anyMatch(s -> s.contains("MISSING_UNIT_RECORD")));
+            assertTrue(output.stream().anyMatch(s -> s.contains("Additional coherence issues omitted=")));
+            assertTrue(output.stream().anyMatch(s -> s.contains("Missing entities are not proof of death")));
+            assertTrue(output.size() <= KOMEAdminDiagnostics.MAX_LINES);
+            for (String line : output) assertTrue(line.length() <= KOMEAdminDiagnostics.MAX_LINE_LENGTH);
+            net.minecraft.nbt.NBTTagCompound after = new net.minecraft.nbt.NBTTagCompound(); data.writeToNBT(after);
+            assertEquals(before, after);
         }
     }
 
