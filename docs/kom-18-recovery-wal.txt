@@ -1,0 +1,173 @@
+KOM-18 Phase 4B2A1 - recovery journal format and lifecycle
+=======================================================
+
+Scope
+-----
+This implementation is infrastructure only. Nothing registers an event handler,
+opens a production journal automatically, changes ConflictData, writes entity HP,
+changes grant states, or emits gameplay records. READY means the journal is ready
+for acknowledged appends; it does not mean world/health replay has completed.
+
+Production registration is KOMERecoveryJournalManager.forServer(server), called
+from the authoritative server lifecycle thread. Like the existing packet session,
+it binds that thread as owner. Subsequent mutation on another thread is rejected.
+The manager obtains the overworld through the current MinecraftServer and resolves
+its ISaveHandler.getWorldDirectory() canonically. No public manager path override
+exists. The package-private directory/factory constructor is a filesystem test seam.
+One manager is retained per canonical directory and server session until close.
+
+Files and provisioning
+----------------------
+<save>/data/kome-ordinary-battle-recovery.wal
+<save>/data/kome-ordinary-battle-recovery.identity
+
+There is one WAL, plus a fixed 68-byte provisioning marker. No files per unit/grant.
+The marker contains the journal UUID and canonical save-path fingerprint. It is
+created exclusively and forced BEFORE the WAL is created exclusively and forced.
+No MapStorage durability claim or schema addition is needed.
+
+Both absent: UNPROVISIONED. open() does not create files; bootstrap() is explicit.
+Only one present: BLOCKED, never automatically recreate/adopt the other.
+Both present: open validates marker, exclusively locks WAL, scans, then forces the
+complete valid prefix before reporting READY. A different path fingerprint or UUID
+is CORRUPT. A moved/copied world requires a future explicit migration procedure;
+no rebind or marker-reset command is included. Interrupted bootstrap preserves its
+evidence and requires operator review. close() releases handles/lock and session.
+
+Marker deletion together with WAL deletion, or a coordinated rollback of every
+copy, cannot be detected without another independent durable anchor. Back up both
+files with the world. Never repair by silently deleting/recreating either file.
+
+Binary format v1
+----------------
+All integers are big endian. Signed Java longs are validated for positive sequence
+and nonnegative revision/time ranges. Journal sequence Long.MAX_VALUE is reserved
+for exhaustion. UUIDs use two longs; nil UUIDs are invalid. Text is length-prefixed
+strict UTF-8 (not modified UTF), limited to 4096 bytes. Enum payloads use their exact
+names, not Java ordinals. Collections are bounded to 4096 entries and canonically
+ordered (B1 UUID natural ordering and string-key ordering). Payload limit: 4 MiB.
+Encoding is bounded as well as decoding. No Java object serialization is used.
+
+File/marker header (68 bytes):
+  u64 magic: WAL 0x4b4f4d4557414c31; marker 0x4b4f4d4557494431
+  i32 formatVersion = 1
+  i32 headerLength = 68
+  UUID journalId (16 bytes)
+  SHA-256(canonical save-path UTF-8) (32 bytes)
+  CRC32 of preceding 64 bytes (4 bytes)
+
+Frame header (56 bytes):
+  i32 magic = 0x4b575231
+  u16 frameVersion = 1
+  u16 type: 1 EPISODE_CONTEXT, 2 PREPARE, 3 TERMINAL, 4 LINEAGE
+  i64 sequence (first = 1, contiguous thereafter)
+  i32 payloadLength
+  previous record SHA-256 (32 bytes; first references SHA-256 of file header)
+  CRC32 of preceding 52 frame-header bytes
+
+Then payload, followed by a 48-byte trailer:
+  SHA-256(frame header + payload + the following 16 trailer bytes)
+  i32 totalFrameLength = 56 + payloadLength + 48
+  i64 sequenceAgain
+  i32 endMagic = 0x31454e44
+
+Checksums detect accidental corruption, not malicious rewriting of an entire log.
+
+Payloads
+--------
+EPISODE_CONTEXT: one resolved B1 episode, its exact participant roster, referenced
+logical targets and aliases, coverage/combat evidence, dispositions, unprepared
+PENDING grants, optional complete B1 intent data, amount, next conflict sequence,
+conflict revision, and episode checkpoint. An intent fingerprint is SHA-256 of its
+canonical optional encoding. No unrelated world records are included. One immutable
+context per episode; conflicting later snapshots are rejected.
+
+PREPARE: journal/context sequence/hash binding; conflict/episode/participant;
+logical target/component/current physical alias; lineage sequence; source revision,
+transition UUID and HP; optional inherited fence (journal, preparation sequence,
+transition); reserved revision = source + 1; distinct recovery transition UUID;
+target HP, configured amount, Max HP calculation snapshot, and intent fingerprint.
+Source and reserved revisions must leave space below Long.MAX_VALUE. Values must
+be finite and target HP must equal min(Max HP, source HP + amount).
+
+TERMINAL: context/target/component binding, verified alias, health revision and
+transition, terminal disposition, observation time, reason, optional inherited
+fence. Only DEAD/DESTROYED/UNAVAILABLE are terminal in the B1 model.
+
+LINEAGE: context/target/component binding, old and new alias, unique activation
+UUID, previous lineage sequence, preserved health revision/transition, optional
+inherited fence. Caller must have crossed an irrevocable verified activation
+boundary. This module does not establish that gameplay boundary, and is not wired
+to B1's reversible reconstruction transaction.
+
+Semantic validation verifies exact context/grant bindings, pending membership,
+intent/amount consistency, logical components, physical alias uniqueness, terminal
+exclusion, lineage predecessor continuity, recovery token uniqueness, and inherited
+fences. Later preparations cannot branch from a revision before an earlier reserved
+recovery. Reusing that exact revision requires matching source token and HP.
+
+Append contract
+---------------
+append(record, expectedLastSequence, expectedLastHash):
+  require READY, owning server thread, and no reentrant mutation;
+  validate/detach the bounded canonical payload;
+  verify endpoint and semantic references;
+  positional FileChannel writes in a short-write loop;
+  FileChannel.force(true);
+  publish immutable view and return Acknowledgment only after force returns.
+
+Production uses FileChannel.open with CREATE_NEW only during bootstrap, and READ /
+WRITE without CREATE on reopen. This avoids RandomAccessFile("rw") recreating an
+unexpectedly missing file. Exclusive FileChannel lock is held for the session.
+
+An identical API retry at the current endpoint returns the original acknowledgment
+without another append. Conflicting identity reuse fails before writing. Duplicate
+physical frames are rejected by the scanner, including identical payloads at a new
+sequence: they could otherwise create ambiguous fence sequence identities.
+
+Write/force failures poison the writer. The old view is not proof that bytes were
+absent: a complete unacknowledged frame may have reached disk. No further append is
+allowed until explicit open/rescan and successful force. Read-only scan() alone
+never creates an acknowledgment and never forces/truncates.
+
+Readiness and failure
+--------------------
+READY: locked, structurally/semantically validated, valid prefix forced.
+UNPROVISIONED: both files absent; explicit bootstrap required.
+BLOCKED: missing counterpart, lock/open problem, or validated incomplete tail.
+CORRUPT: identity/header/frame/payload/chain validation failure; preserve evidence.
+POISONED: append/force/repair outcome uncertain; no more appends before rescan.
+CLOSED: handles released; this manager cannot be reopened.
+
+An incomplete EOF suffix is repairable only after the entire preceding prefix is
+valid and all available structural/checksum bytes are consistent. A fully present
+payload is also decoded and semantically validated even if its trailer is partial.
+No search for later magic occurs. Full frames with failed checksums, bad payloads,
+sequence gaps, and mid-file corruption are never classified as a crash tail.
+repairTail() rescans, requires the same validated endpoint/length, truncates only
+that suffix, forces truncation, and rescans before READY. Repair failure poisons.
+There is no completed-history truncation or compaction.
+
+This tail rule assumes ordinary append interruption, not subsequent loss of bytes
+already acknowledged by storage. A completely removed final frame/valid suffix
+can be indistinguishable from an older valid log without an independent watermark.
+Future projection fences must block references beyond the surviving WAL endpoint.
+
+Durability boundary and remaining work
+-------------------------------------
+Successful force is the Java local-file durability boundary, subject to the actual
+OS/filesystem/storage honoring it. This does not certify directory-entry durability
+on every platform, remote filesystems, hardware that lies about flushes, or external
+backup rollback. Provisioning/production storage qualification remains deployment
+work; this phase tests normal local FileChannel behavior and injected failures.
+
+KOMERecoveryJournalIO is the fault-injection seam for open/lock, positional reads/
+writes, short writes, exceptions, force, and truncation. Tests distinguish written
+bytes from forced bytes and simulate either survival outcome after uncertain force.
+
+Next phases must implement versioned health identity/projections, detached entity
+NBT acknowledgments, all HP mutation hooks, verified reconstruction activation,
+terminal producers, and startup replay before battle/health mutations. The journal
+view indexes supply context, preparation, lineage, terminal, and endpoint evidence;
+they do not replay it into ConflictData or entities. ConflictData stays v3 and root
+schema stays 11. No recovery execution or grant APPLIED mutation is present.
