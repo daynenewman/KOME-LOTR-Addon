@@ -21,7 +21,9 @@ public class KOMECampaignHealthVersionTest {
             KOMECampaignHealth.observe(record, rider);
         }
         KOMECampaignHealthProjection rider() { return read(record.survivingHealth); }
-        void mount() { rider.mountEntity(mount); record.mounted = true; KOMECampaignHealth.observe(record, rider); }
+        void mount() { rider.mountEntity(mount); record.mounted = true;
+            record.stationedEntityData = KOMEEntitySnapshots.snapshot(rider);
+            KOMECampaignHealth.observe(record, rider); }
     }
     private KOMECampaignHealthProjection fenced(KOMECampaignHealthProjection p) {
         return new KOMECampaignHealthProjection(p.target, p.component, p.alias, p.hp, p.revision + 1, UUID.randomUUID(), p.terminal,
@@ -95,7 +97,7 @@ public class KOMECampaignHealthVersionTest {
         f.rider.mountEntity(null); KOMECampaignHealth.observe(f.record,f.rider);
         mutation(f.mount,5F); assertEquals(5F,read(KOMECampaignHealth.mountHealth(f.record.survivingHealth,f.mount.getUniqueID())).hp,0F);
         EntityPig other=new EntityPig(f.access.world); other.setHealth(9F); f.rider.mountEntity(other); KOMECampaignHealth.observe(f.record,f.rider);
-        assertNotEquals(old,KOMECampaignHealthEntity.projection(other).target); assertEquals(9F,other.getHealth(),0F);
+        assertNull(KOMECampaignHealthEntity.projection(other)); assertEquals(9F,other.getHealth(),0F);
         assertEquals(old,read(KOMECampaignHealth.mountHealth(f.record.survivingHealth,f.mount.getUniqueID())).target);
     }
     @Test public void obsoleteNestedSnapshotCannotTargetUnrelatedMount() throws Exception {
@@ -196,8 +198,7 @@ public class KOMECampaignHealthVersionTest {
         EntityPig other=new EntityPig(f.access.world); f.rider.mountEntity(other); KOMECampaignHealth.observe(f.record,f.rider);
         reject(() -> KOMECampaignHealth.movementSnapshot(f.record,old));
         NBTTagCompound current=KOMEEntitySnapshots.snapshot(f.record,f.rider);
-        assertEquals(other.getUniqueID().toString(),KOMECampaignHealth.movementSnapshot(f.record,current)
-            .getCompoundTag("Riding").getCompoundTag(ENTITY_TAG).getString("PhysicalAlias"));
+        reject(() -> KOMECampaignHealth.movementSnapshot(f.record,current));
     }
     @Test public void oldMountedGeometryAfterDismountIsUnresolvedRatherThanResurrected() throws Exception {
         Fixture f=new Fixture(); f.mount(); NBTTagCompound old=KOMEEntitySnapshots.snapshot(f.record,f.rider);

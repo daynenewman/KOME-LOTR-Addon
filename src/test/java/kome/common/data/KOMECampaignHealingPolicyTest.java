@@ -48,9 +48,9 @@ public class KOMECampaignHealingPolicyTest {
             rider.setHealth(3.25F); defender.setHealth(3.25F); mount.setHealth(3.25F);
             unit=record(rider,"C1"); defending=record(defender,"C2");
             rider.ridingEntity=mount; mount.riddenByEntity=rider; unit.mounted=true;
-            KOMECampaignHealth.observe(unit,rider); KOMECampaignHealth.observe(defending,defender);
             NBTTagCompound snapshot=new NBTTagCompound(), savedMount=new NBTTagCompound(); rider.writeToNBT(snapshot); mount.writeToNBT(savedMount);
             snapshot.setTag("Riding",savedMount); unit.stationedEntityData=snapshot;
+            KOMECampaignHealth.observe(unit,rider); KOMECampaignHealth.observe(defending,defender);
             access.world.loadedEntityList.add(rider); access.world.loadedEntityList.add(defender); access.world.loadedEntityList.add(mount);
         }
         KOMEHiredUnitRecord record(EntityPig entity,String company) {
@@ -216,5 +216,97 @@ public class KOMECampaignHealingPolicyTest {
         Fixture f=new Fixture(); f.battle();
         assertFalse(KOMECampaignHealingPolicy.activelyParticipatingInBattle(f.data,f.unit,(d,u,c)->false));
         assertTrue(KOMECampaignHealingPolicy.activelyParticipatingInBattle(f.data,f.unit,(d,u,c)->true));
+    }
+
+    @Test public void realProducerRejectsReplacementAndRetainsDismountedCommitmentInEveryConfig() throws Exception {
+        for (boolean battle : new boolean[]{false,true}) for (boolean commitment : new boolean[]{false,true})
+            for (boolean dismountedBeforeEnrollment : new boolean[]{false,true}) {
+                config(false,false);
+                KOMEOrdinaryBattleRecoveryFoundationTest.Fixture f = new KOMEOrdinaryBattleRecoveryFoundationTest.Fixture(true);
+                f.registry().replaceFrom(new KOMEOrdinaryBattleRecoveryRegistry());
+                f.registry().begin(f.record(),Coverage.COMPLETE);
+                KOMEAccessFixture access = new KOMEAccessFixture(); access.world.mapStorage.setData("KOME_ServerRules",f.data);
+                Class<?> nativeClass = new kome.core.KOMECampaignHealthTransformerTest().executable(false);
+                EntityPig rider=(EntityPig)nativeClass.getConstructor(net.minecraft.world.World.class).newInstance(access.world);
+                EntityPig mount=(EntityPig)nativeClass.getConstructor(net.minecraft.world.World.class).newInstance(access.world);
+                EntityPig replacement=(EntityPig)nativeClass.getConstructor(net.minecraft.world.World.class).newInstance(access.world);
+                KOMEHiredUnitRecord unit=f.data.hiredUnits.get(f.member("C1"));
+                KOMERecoveryExecutorTest.alias(rider,unit.entity);
+                rider.setHealth(3F); mount.setHealth(3F); replacement.setHealth(3F);
+                rider.ridingEntity=mount; mount.riddenByEntity=rider; unit.mounted=true;
+                KOMEArmyCompany company=f.data.armyCompanies.get("C1"); company.mountedPopulation=company.totalPopulation; company.groundPopulation=0;
+                NBTTagCompound deployment=new NBTTagCompound(), riding=new NBTTagCompound();
+                rider.writeToNBT(deployment); mount.writeToNBT(riding); deployment.setTag("Riding",riding); unit.stationedEntityData=deployment;
+                KOMECampaignHealth.observe(unit,rider);
+                UUID logical=KOMECampaignHealthEntity.projection(mount).target;
+                if (dismountedBeforeEnrollment) { rider.ridingEntity=null; mount.riddenByEntity=null; KOMECampaignHealth.observe(unit,rider); }
+                KOMEOrdinaryBattleRecoveryService.observe(f.data,f.record(),110);
+                rider.ridingEntity=replacement; replacement.riddenByEntity=rider; mount.riddenByEntity=null;
+                KOMECampaignHealth.observe(unit,rider);
+                KOMEOrdinaryBattleRecoveryService.observe(f.data,f.record(),120);
+                assertNull(KOMECampaignHealthEntity.projection(replacement));
+                assertNull(f.registry().targetForPhysical(replacement.getUniqueID()));
+                Participant participant=f.episode().participants.get(f.registry().targetForPhysical(unit.entity).id);
+                assertEquals(dismountedBeforeEnrollment ? Collections.emptySet() : Collections.singleton(logical),participant.mountIds);
+                assertEquals(logical,KOMECampaignHealthProjection.read(unit.survivingHealth.getCompoundTag("Riding")).target);
+                unit.healthObservedMount=null; access.world.loadedEntityList.clear(); // policy cannot depend on physical load
+                config(battle,commitment);
+                assertEquals(battle||commitment,KOMECampaignHealingPolicy.blocksNormalHealing(f.data,mount.getUniqueID()));
+                assertFalse(KOMECampaignHealingPolicy.blocksNormalHealing(f.data,replacement.getUniqueID()));
+                NBTTagCompound before=KOMECampaignHealthEntity.projection(mount).write();
+                mount.heal(1F); replacement.setHealth(4F);
+                assertEquals(4F,replacement.getHealth(),0);
+                if (battle||commitment) assertEquals(before,KOMECampaignHealthEntity.projection(mount).write());
+                else assertEquals(4F,mount.getHealth(),0);
+                mount.setHealth(2F); assertEquals(2F,mount.getHealth(),0);
+                f.registry().end(f.record(),130); f.registry().prepareGrants("CF1","CF1:E1",5);
+                assertEquals(!dismountedBeforeEnrollment,f.episode().grants.containsKey("MOUNT:"+logical));
+                assertEquals(commitment,KOMECampaignHealingPolicy.blocksNormalHealing(f.data,mount.getUniqueID()));
+            }
+    }
+
+    @Test public void unrelatedNativeHealingNeverTraversesRecordsOrEpisodeHistory() throws Exception {
+        Fixture f=new Fixture(); f.battle(); config(true,true);
+        KOMEHiredUnitRecord detached=new KOMEHiredUnitRecord(); detached.readFromNBT(f.unit.writeToNBT());
+        f.data.campaignAssociations.track(detached);
+        assertSame("A detached old record must not replace the canonical cache owner",f.unit,f.data.campaignAssociations.owner(f.mount.getUniqueID()));
+        // Test-only tripwire: even a single registry-wide traversal from the hook fails the test.
+        Map<UUID,KOMEHiredUnitRecord> guarded=new HashMap<UUID,KOMEHiredUnitRecord>(f.data.hiredUnits) {
+            @Override public Collection<KOMEHiredUnitRecord> values() { throw new AssertionError("Unbounded hired-unit traversal"); }
+            @Override public Set<Map.Entry<UUID,KOMEHiredUnitRecord>> entrySet() { throw new AssertionError("Unbounded hired-unit traversal"); }
+        };
+        java.lang.reflect.Field records=KOMEWorldData.class.getField("hiredUnits"); records.setAccessible(true); records.set(f.data,guarded);
+        for (int i=0;i<10000;i++) assertFalse(KOMECampaignHealingPolicy.blocksNormalHealing(f.data,new UUID(55,i)));
+        assertTrue(KOMECampaignHealingPolicy.blocksNormalHealing(f.data,f.mount.getUniqueID()));
+        new org.objectweb.asm.ClassReader(KOMECampaignHealingPolicy.class.getName()).accept(new org.objectweb.asm.ClassVisitor(org.objectweb.asm.Opcodes.ASM5) {
+            @Override public org.objectweb.asm.MethodVisitor visitMethod(int a,String n,String d,String s,String[] e) {
+                return new org.objectweb.asm.MethodVisitor(org.objectweb.asm.Opcodes.ASM5) {
+                    @Override public void visitMethodInsn(int op,String owner,String name,String desc,boolean itf) {
+                        assertFalse("Healing policy must not traverse recovery history",name.equals("episodes"));
+                        assertFalse("Healing policy must not scan records",name.equals("values"));
+                    }
+                };
+            }
+        },0);
+        EntityPig unrelated=(EntityPig)new kome.core.KOMECampaignHealthTransformerTest().executable(false).getConstructor(net.minecraft.world.World.class).newInstance(f.access.world);
+        unrelated.setHealth(2F); unrelated.heal(2F); assertEquals(4F,unrelated.getHealth(),0);
+    }
+
+    @Test public void firstDismountedObservationRetainsDeploymentAssociationThroughSnapshotReplacementAndReload() throws Exception {
+        KOMEAccessFixture access=new KOMEAccessFixture();
+        EntityPig rider=new EntityPig(access.world), mount=new EntityPig(access.world);
+        rider.setHealth(3F); mount.setHealth(4F);
+        KOMEHiredUnitRecord unit=new KOMEHiredUnitRecord(); unit.entity=rider.getUniqueID(); unit.owner=UUID.randomUUID(); unit.mounted=true;
+        KOMEHiredUnitClassification.assignForCampaignWorkflow(unit);
+        NBTTagCompound deployment=new NBTTagCompound(), riding=new NBTTagCompound(); rider.writeToNBT(deployment); mount.writeToNBT(riding);
+        deployment.setTag("Riding",riding); unit.stationedEntityData=deployment; access.data.hiredUnits.put(unit.entity,unit);
+        assertNull(rider.ridingEntity); KOMECampaignHealth.observe(unit,rider);
+        unit.stationedEntityData=KOMEEntitySnapshots.snapshot(rider); unit.healthObservedEntity=null;
+        KOMEHiredUnitRecord restored=new KOMEHiredUnitRecord(); restored.readFromNBT(unit.writeToNBT()); access.data.hiredUnits.put(restored.entity,restored);
+        assertFalse(restored.stationedEntityData.hasKey("Riding"));
+        assertEquals(mount.getUniqueID().toString(),restored.survivingHealth.getCompoundTag("Riding").getString("EntityId"));
+        assertTrue(access.data.getOrdinaryBattleRecovery().episodes().isEmpty());
+        config(false,true); assertTrue(KOMECampaignHealingPolicy.blocksNormalHealing(access.data,mount.getUniqueID()));
+        assertNull(KOMECampaignHealthEntity.projection(mount)); assertEquals(4F,mount.getHealth(),0);
     }
 }

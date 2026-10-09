@@ -27,6 +27,7 @@ final class KOMERecoveryRuntime {
             for (Object value : world.loadedEntityList) if (value instanceof Entity) observe((Entity)value);
     }
     void track(KOMEHiredUnitRecord unit) {
+        data.campaignAssociations.track(unit);
         Set<UUID> old = recorded.remove(unit);
         if (old != null) for (UUID target : old) { Set<KOMEHiredUnitRecord> set = owners.get(target); if (set != null) { set.remove(unit); if (set.isEmpty()) owners.remove(target); } }
         unit.healthAuthorityData = data;

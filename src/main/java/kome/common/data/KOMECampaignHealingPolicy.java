@@ -60,49 +60,14 @@ public final class KOMECampaignHealingPolicy {
     }
     private static boolean blocksNormalHealing(KOMEWorldData data, UUID physical, KOMEConfigRegistry.BattleSettings settings) {
         if (!enabled(settings) || data == null || physical == null) return false;
-        KOMEHiredUnitRecord rider = data.hiredUnits.get(physical);
-        if (rider != null) return blockedUnit(data,rider,settings);
+        KOMEHiredUnitRecord unit = data.campaignAssociations.owner(physical);
+        if (unit == null || !blockedUnit(data,unit,settings)) return false;
         Target target = data.getOrdinaryBattleRecovery().targetForPhysical(physical);
-        if (target != null && (target.component != Component.MOUNT || target.terminal || !target.physicalId.equals(physical))) return false;
-        Collection<KOMEHiredUnitRecord> candidates = target != null && data.recoveryStartup != null && data.recoveryStartup.runtime != null
-            ? data.recoveryStartup.runtime.owners(target.id) : data.hiredUnits.values();
-        for (KOMEHiredUnitRecord unit : candidates) {
-            if (!blockedUnit(data,unit,settings)) continue;
-            NBTTagCompound saved = KOMECampaignHealth.mountHealth(unit.survivingHealth,physical);
-            if (!KOMECampaignHealth.versioned(saved)) continue;
-            KOMECampaignHealthProjection mount = KOMECampaignHealthProjection.read(saved);
-            if (mount.terminal) continue;
-            if (verifiedMount(data,unit,mount)) return true;
-        }
-        return false;
-    }
-    private static boolean verifiedMount(KOMEWorldData data, KOMEHiredUnitRecord unit, KOMECampaignHealthProjection mount) {
-        if (mount.component != Component.MOUNT) return false;
-        Target target = data.getOrdinaryBattleRecovery().target(mount.target);
-        Target rider = data.getOrdinaryBattleRecovery().targetForPhysical(unit.entity);
-        boolean capturedRider = false;
-        if (rider != null) {
-            for (Episode episode : data.getOrdinaryBattleRecovery().episodes().values()) {
-                Participant participant = episode.participants.get(rider.id);
-                if (participant == null) continue;
-                capturedRider = true;
-                if (target != null && target.physicalId.equals(mount.alias) && !target.terminal
-                        && participant.mountIds.contains(mount.target)) return true;
-            }
-        }
-        // A newer physical riding snapshot cannot replace already captured logical mount association.
-        if (capturedRider) return false;
-        // Before any battle history exists, canonical deployment/movement geometry can bind the mount.
-        return snapshotMount(unit.stationedEntityData,mount) || snapshotMount(unit.movingEntityData,mount);
-    }
-    private static boolean snapshotMount(NBTTagCompound snapshot, KOMECampaignHealthProjection mount) {
-        if (snapshot == null || !snapshot.hasKey("Riding",10)) return false;
-        NBTTagCompound riding = snapshot.getCompoundTag("Riding");
-        if (!riding.hasKey("UUIDMost",4) || !riding.hasKey("UUIDLeast",4)) return false;
-        UUID alias = new UUID(riding.getLong("UUIDMost"),riding.getLong("UUIDLeast"));
-        if (!alias.equals(mount.alias)) return false;
-        if (!riding.hasKey(KOMECampaignHealthProjection.ENTITY_TAG)) return true;
-        KOMECampaignHealthProjection projection = KOMECampaignHealthProjection.read(riding.getCompoundTag(KOMECampaignHealthProjection.ENTITY_TAG));
-        return projection.component == Component.MOUNT && projection.alias.equals(alias) && projection.target.equals(mount.target);
+        if (target != null && target.terminal) return false;
+        if (unit.entity.equals(physical)) return true;
+        if (target != null && target.component == Component.RIDER) return true;
+        NBTTagCompound mount = KOMECampaignAssociationIndex.mount(unit);
+        return mount != null && (!KOMECampaignHealth.versioned(mount)
+            || !KOMECampaignHealthProjection.read(mount).terminal);
     }
 }

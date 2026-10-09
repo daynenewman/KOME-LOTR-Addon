@@ -24,7 +24,7 @@ public final class KOMEHiredUnitClassification {
         if (data == null || record == null || data.hiredUnits.get(record.entity) != record
                 || !isCampaignUnit(record) || record.populationReturned) return false;
         KOMEOrdinaryBattleRecoveryRegistry.Target target = data.getOrdinaryBattleRecovery().targetForPhysical(record.entity);
-        if (target != null && (target.terminal || !target.physicalId.equals(record.entity))) return false;
+        if (target != null && target.terminal) return false;
         return !KOMECampaignHealth.versioned(record.survivingHealth)
             || !KOMECampaignHealthProjection.read(record.survivingHealth).terminal;
     }

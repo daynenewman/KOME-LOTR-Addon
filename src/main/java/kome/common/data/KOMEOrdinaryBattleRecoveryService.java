@@ -43,10 +43,11 @@ public final class KOMEOrdinaryBattleRecoveryService {
                     Target known = next.targetForPhysical(id);
                     if (known != null && known.terminal) continue;
                     UUID mountId = associatedMount(unit);
+                    data.campaignAssociations.track(unit);
                     changed |= next.enroll(conflict, id, companyId, faction.factionId, now, mountId,
                         KOMECampaignHealth.logicalTarget(unit.survivingHealth, id, Component.RIDER),
                         mountId == null ? null : KOMECampaignHealth.logicalTarget(
-                            KOMECampaignHealth.mountHealth(unit.survivingHealth, mountId), mountId, Component.MOUNT));
+                            KOMECampaignAssociationIndex.mount(unit), mountId, Component.MOUNT));
                     if (unit.populationReturned || terminalHealth(unit)) {
                         KOMERecoveryTargetJournal.terminal(data, id, Disposition.UNAVAILABLE, now, "Terminal Campaign authority");
                         changed |= next.terminalize(id, Disposition.UNAVAILABLE, now, "Terminal Campaign authority");
@@ -163,18 +164,20 @@ public final class KOMEOrdinaryBattleRecoveryService {
         return null;
     }
     private static UUID associatedMount(KOMEHiredUnitRecord unit) {
+        NBTTagCompound mount = KOMECampaignAssociationIndex.mount(unit);
+        if (mount == null || !mount.hasKey("Current", 5) || !(mount.getFloat("Current") > 0)) return null;
+        if (KOMECampaignHealth.versioned(mount) && KOMECampaignHealthProjection.read(mount).terminal) return null;
+        UUID alias = UUID.fromString(mount.getString("EntityId"));
         Entity rider = unit.healthObservedEntity == null ? null : unit.healthObservedEntity.get();
         if (rider != null && unit.entity.equals(rider.getUniqueID())) {
-            Entity mount = KOMEReflection.getRidingEntity(rider);
-            return mount instanceof EntityLivingBase && mount.isEntityAlive()
-                && ((EntityLivingBase)mount).getHealth() > 0 ? mount.getUniqueID() : null;
+            Entity attached = KOMEReflection.getRidingEntity(rider);
+            return attached instanceof EntityLivingBase && alias.equals(attached.getUniqueID())
+                && attached.isEntityAlive() && ((EntityLivingBase)attached).getHealth() > 0 ? alias : null;
         }
-        NBTTagCompound health = unit.survivingHealth;
-        if (!unit.mounted || health == null || !unit.entity.toString().equals(health.getString("EntityId"))
-                || !health.hasKey("Riding",10)) return null;
-        NBTTagCompound mount = health.getCompoundTag("Riding");
-        if (!mount.hasKey("Current",5) || !(mount.getFloat("Current") > 0) || !mount.hasKey("EntityId",8)) return null;
-        try { return UUID.fromString(mount.getString("EntityId")); } catch (IllegalArgumentException invalid) { return null; }
+        if (KOMECampaignHealth.versioned(unit.survivingHealth)
+                && unit.survivingHealth.hasKey("AttachedMountAlias", 8)
+                && !alias.toString().equals(unit.survivingHealth.getString("AttachedMountAlias"))) return null;
+        return alias;
     }
     private static boolean terminalHealth(KOMEHiredUnitRecord unit) {
         return unit.survivingHealth != null && unit.entity.toString().equals(unit.survivingHealth.getString("EntityId"))

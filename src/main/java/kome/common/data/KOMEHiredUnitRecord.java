@@ -234,6 +234,7 @@ public class KOMEHiredUnitRecord {
     void assignPersistedUnitClass(KOMEHiredUnitClass value) {
         unitClass = value == KOMEHiredUnitClass.CAMPAIGN
             ? KOMEHiredUnitClass.CAMPAIGN : KOMEHiredUnitClass.ORDINARY;
+        if (healthAuthorityData != null) healthAuthorityData.campaignAssociations.track(this);
     }
 
     public boolean isFactionPopulationBankFunded() {

@@ -222,6 +222,7 @@ public final class KOMERecoveryStartup {
                 + "; journal=" + s.view.journalId + "; repaired episodes=" + (s.plan == null ? 0 : s.plan.repairedEpisodes)
                 + "; quarantined conflicts=" + (s.plan == null ? "[]" : s.plan.quarantinedConflicts)
                 + "; quarantined targets=" + s.quarantinedTargets
+                + "; quarantine reasons=" + (s.plan == null ? "{}" : s.plan.quarantinedTargets)
                 + "; PREPARE evidence=" + (s.plan == null ? "{}" : s.plan.preparations)
                 + "; consumed grants reconciled from verified health; no startup HP effects";
             if (s.plan != null && s.plan.changed) data.markDirty();

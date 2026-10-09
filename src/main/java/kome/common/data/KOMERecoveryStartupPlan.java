@@ -142,6 +142,32 @@ final class KOMERecoveryStartupPlan {
         KOMERecoveryHealthEvidence.collect(candidate, all);
         Map<UUID,KOMECampaignHealthProjection> latest = new TreeMap<UUID,KOMECampaignHealthProjection>();
         Map<UUID,String> quarantinedTargets = new TreeMap<UUID,String>();
+        // LINEAGE proves a physical replacement, not publication of the hired/company/movement
+        // transaction. Keep stale strategic authority intact and fence its complete obligation set.
+        NBTTagList hired = persisted.getTagList("HiredUnits", 10);
+        Set<String> referencedOrders = new HashSet<String>();
+        for (int i = 0; i < hired.tagCount(); i++) {
+            NBTTagCompound row = hired.getCompoundTagAt(i);
+            if (!"CAMPAIGN".equals(row.getString("UnitClass"))) continue;
+            quarantineStrategicAlias(wal, row.getString("Entity"), quarantinedTargets);
+            referencedOrders.add(row.getString("MovementOrderId"));
+            quarantineStrategicAlias(wal, row.getCompoundTag("PhysicalLocator").getString("Entity"), quarantinedTargets);
+            NBTTagCompound retained = row.getCompoundTag("SurvivingHealth").getCompoundTag("Riding");
+            if (retained.hasKey("EntityId", 8))
+                quarantineStrategicAlias(wal, retained.getString("EntityId"), quarantinedTargets);
+        }
+        NBTTagList companies = persisted.getTagList("ArmyCompanies", 10);
+        for (int i = 0; i < companies.tagCount(); i++) {
+            NBTTagCompound company = companies.getCompoundTagAt(i);
+            referencedOrders.add(company.getString("MovementOrderId"));
+            quarantineStrategicMembers(wal, company, quarantinedTargets);
+        }
+        referencedOrders.remove("");
+        NBTTagList orders = persisted.getTagList("ArmyMovements", 10);
+        for (int i = 0; i < orders.tagCount(); i++) {
+            NBTTagCompound order = orders.getCompoundTagAt(i);
+            if (referencedOrders.contains(order.getString("Id"))) quarantineStrategicMembers(wal, order, quarantinedTargets);
+        }
         Map<String,KOMECampaignHealthProjection> revisions = new TreeMap<String,KOMECampaignHealthProjection>();
         for (KOMECampaignHealthProjection p : all) {
             try {
@@ -172,6 +198,23 @@ final class KOMERecoveryStartupPlan {
             for (UUID mount : p.mountIds) affected |= quarantinedTargets.containsKey(mount);
             if (affected) quarantine.add(e.conflictId);
         }
+        // An affected company may already have joined a later conflict whose first episode has
+        // not enrolled yet. Fence that exact commitment too, without rewriting the later record.
+        Set<String> affectedCompanies = new HashSet<String>();
+        for (int i = 0; i < hired.tagCount(); i++) {
+            NBTTagCompound row = hired.getCompoundTagAt(i);
+            if (quarantinedAlias(wal, row.getString("Entity"), quarantinedTargets)
+                    || quarantinedAlias(wal, row.getCompoundTag("SurvivingHealth").getCompoundTag("Riding").getString("EntityId"), quarantinedTargets))
+                affectedCompanies.add(row.getString("CompanyId"));
+        }
+        for (int i = 0; i < companies.tagCount(); i++) {
+            NBTTagCompound company = companies.getCompoundTagAt(i);
+            NBTTagList members = company.getTagList("Units", 10);
+            for (int j = 0; j < members.tagCount(); j++)
+                if (quarantinedAlias(wal, members.getCompoundTagAt(j).getString("Unit"), quarantinedTargets)) affectedCompanies.add(company.getString("Id"));
+        }
+        for (KOMEConflictRecord conflict : validated.conflicts.records().values()) if (conflict.isActive())
+            for (String company : conflict.getCommitments().keySet()) if (affectedCompanies.contains(company)) quarantine.add(conflict.getConflictId());
         for (KOMERecoveryJournalView.Entry e : wal.preparations.values()) {
             Prepare p = (Prepare)e.record;
             if (quarantinedTargets.containsKey(p.binding.targetId)) adoption.put(p.grantIdentity(), Adoption.PENDING);
@@ -183,6 +226,27 @@ final class KOMERecoveryStartupPlan {
         for (UUID id : quarantinedTargets.keySet()) latest.remove(id);
         return new KOMERecoveryStartupPlan(candidate, quarantine, adoption, repaired, quarantinedTargets, !candidate.equals(persisted), latest);
     }
+    private static void quarantineStrategicMembers(KOMERecoveryJournalView wal, NBTTagCompound row, Map<UUID,String> quarantine) {
+        NBTTagList members = row.getTagList("Units", 10);
+        for (int i = 0; i < members.tagCount(); i++) quarantineStrategicAlias(wal, members.getCompoundTagAt(i).getString("Unit"), quarantine);
+    }
+    private static boolean quarantinedAlias(KOMERecoveryJournalView wal, String text, Map<UUID,String> quarantine) {
+        try {
+            UUID logical = wal.logicalTargetsByAlias.get(UUID.fromString(text));
+            return logical != null && quarantine.containsKey(logical);
+        }
+        catch (IllegalArgumentException invalid) { return false; }
+    }
+    private static void quarantineStrategicAlias(KOMERecoveryJournalView wal, String text, Map<UUID,String> quarantine) {
+        UUID alias;
+        try { alias = UUID.fromString(text); } catch (IllegalArgumentException invalid) { return; }
+        UUID logical = wal.logicalTargetsByAlias.get(alias);
+        if (logical != null && !alias.equals(wal.currentPhysicalAliases.get(logical)))
+            quarantine.put(logical, "LINEAGE ahead of strategic UUID publication: retained=" + alias
+                + " journal=" + wal.currentPhysicalAliases.get(logical)
+                + "; hired/company/movement/locator rekey requires separate reconstruction authority");
+    }
+
     /** Only startup inventory may interpret an old physical copy through verified activation evidence. */
     static KOMECampaignHealthProjection historicalProjection(KOMERecoveryJournalView wal, KOMECampaignHealthProjection p) {
         if (!wal.currentPhysicalAliases.containsKey(p.target) || p.alias.equals(wal.currentPhysicalAliases.get(p.target))) return p;

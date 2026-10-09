@@ -71,7 +71,8 @@ public class KOMEWorldData extends WorldSavedData {
     final Map<String,NBTTagCompound> progressionShelters = new java.util.LinkedHashMap<String,NBTTagCompound>();
     final Map<UUID, java.util.Set<KOMEProgressionNpcRoleLease>> progressionNpcRoleLeases = new HashMap<UUID, java.util.Set<KOMEProgressionNpcRoleLease>>();
     final Map<UUID, KOMEProgressionNpcRoyalRestoration> progressionNpcRoyalRestorations = new HashMap<UUID, KOMEProgressionNpcRoyalRestoration>();
-    public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
+    final KOMECampaignAssociationIndex campaignAssociations = new KOMECampaignAssociationIndex(this);
+    public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = campaignAssociations.records();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
     public final Map<String, String> activeRecruitmentTiles = new HashMap<>();
     public final KOMEPublicWaypointRegistry publicWaypoints = new KOMEPublicWaypointRegistry();
@@ -3102,6 +3103,7 @@ public class KOMEWorldData extends WorldSavedData {
         conflictService.replaceFrom(candidate.conflictService);
         joinBattleDeploymentReceipts.replaceFrom(candidate.joinBattleDeploymentReceipts);
         ordinaryBattleRecovery.replaceFrom(candidate.ordinaryBattleRecovery);
+        campaignAssociations.rebuild();
         movementHistory.clear();
         movementHistory.putAll(candidate.movementHistory);
         playerNames.clear();

@@ -76,11 +76,16 @@ public final class KOMECampaignHealth {
         }
         require(record.entity.equals(entity.getUniqueID()), "Campaign record physical alias mismatch");
         NBTTagCompound before = record.survivingHealth == null ? null : (NBTTagCompound)record.survivingHealth.copy();
+        NBTTagCompound associated = KOMECampaignAssociationIndex.mount(record);
         Entity previouslyObserved = record.healthObservedEntity == null ? null : record.healthObservedEntity.get();
         KOMECampaignHealthProjection rider = reconcile(record, entity, record.survivingHealth, Component.RIDER);
         updateProjection(record, rider); record.healthObservedEntity = new WeakReference<Entity>(entity);
+        // Preserve deployment-proven association even if first observation occurs dismounted.
+        // Legacy HP remains legacy evidence; no new mount revision or physical effect is invented.
+        if (associated != null && !record.survivingHealth.hasKey("Riding", 10))
+            record.survivingHealth.setTag("Riding", associated.copy());
         Entity mount = KOMEReflection.getRidingEntity(entity);
-        if (mount instanceof EntityLivingBase) {
+        if (mount instanceof EntityLivingBase && KOMECampaignAssociationIndex.accepts(record, mount.getUniqueID())) {
             NBTTagCompound saved = mountHealth(record.survivingHealth, mount.getUniqueID());
             KOMECampaignHealthProjection p = reconcile(record, mount, saved, Component.MOUNT);
             updateProjection(record, p); record.survivingHealth.setTag("Riding", p.write());
@@ -89,6 +94,7 @@ public final class KOMECampaignHealth {
         } else if (previouslyObserved == entity || !record.mounted || before == null || !before.hasKey("AttachedMountAlias", 8)) {
             record.survivingHealth.setString("AttachedMountAlias", "");
         } // EntityJoinWorld can precede attachment: keep the saved association unresolved until the next observation.
+        if (record.healthAuthorityData != null) record.healthAuthorityData.campaignAssociations.track(record);
         return !record.survivingHealth.equals(before);
     }
     /** Preserve all previously associated mounts, including an independently surviving dismounted mount. */
@@ -110,6 +116,7 @@ public final class KOMECampaignHealth {
                 next.setTag("Riding", p.write());
             record.survivingHealth = next;
         }
+        if (record.healthAuthorityData != null) record.healthAuthorityData.campaignAssociations.track(record);
         if (record.healthAuthorityData != null && record.healthAuthorityData.recoveryStartup != null
                 && record.healthAuthorityData.recoveryStartup.runtime != null)
             record.healthAuthorityData.recoveryStartup.runtime.track(record);
@@ -121,6 +128,7 @@ public final class KOMECampaignHealth {
     private static void bind(KOMEHiredUnitRecord record, Entity entity) {
         if (entity.worldObj == null) return;
         KOMEWorldData data = KOMEWorldData.get(entity.worldObj);
+        data.campaignAssociations.track(record);
         if (data.recoveryStartup != null && data.recoveryStartup.runtime != null) data.recoveryStartup.runtime.track(record);
         KOMERecoveryStartup.observeEntity(entity);
     }
@@ -278,6 +286,7 @@ public final class KOMECampaignHealth {
         }
         record.survivingHealth = next;
         record.healthObservedEntity = null; record.healthObservedMount = null;
+        if (record.healthAuthorityData != null) record.healthAuthorityData.campaignAssociations.track(record);
     }
     /** Independently loaded/dismounted mounts reconcile against every retained exact-alias projection. */
     public static void reconcileMount(KOMEWorldData data, Entity entity) {

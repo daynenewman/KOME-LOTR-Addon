@@ -358,7 +358,7 @@ public class KOMEOrdinaryBattleRecoveryFoundationTest {
         r.enroll(c,RIDER,"C1","gondor",100,mounted?MOUNT:null); r.observeCombat(c,true); return r;
     }
     private static NBTTagCompound health(UUID physical,float hp) { NBTTagCompound h=new NBTTagCompound();h.setString("EntityId",physical.toString());h.setFloat("Current",hp);return h; }
-    private static final class Fixture {
+    static final class Fixture {
         final KOMEConflictMovementServiceTest.Fixture f=KOMEConflictMovementServiceTest.hostileFixture(false,false);
         final KOMEWorldData data=f.data;
         Fixture(boolean defender) {

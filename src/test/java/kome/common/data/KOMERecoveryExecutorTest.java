@@ -48,6 +48,7 @@ public class KOMERecoveryExecutorTest {
             KOMEHiredUnitClassification.assignForCampaignWorkflow(unit); data.hiredUnits.put(unit.entity,unit);
             set(Component.RIDER,4,3.25F,new UUID(4,1),null);
             set(Component.MOUNT,4,3.25F,new UUID(4,1),null);
+            unit.survivingHealth.setTag("Riding", KOMECampaignHealthEntity.projection(mount).write());
             access.world.loadedEntityList.add(rider); access.world.loadedEntityList.add(mount);
             EpisodeContext c=context(); episode(c.episode);
             data.getConflictService().replaceFrom(new KOMEConflictService(2));

@@ -287,6 +287,8 @@ public final class KOMENativeTraderCampaignRecruitment {
             }
             npc.hiredNPCInfo.halt();
             record.level = Math.max(1, npc.hiredNPCInfo.xpLevel);
+            // Verified recruitment establishes the initial association before ordinary observation.
+            record.stationedEntityData = KOMEEntitySnapshots.snapshot(npc);
             record.stationedEntityData = KOMEEntitySnapshots.snapshot(record, npc);
             if (record.stationedEntityData == null) {
                 throw new IllegalStateException("The halted campaign unit could not be snapshotted.");

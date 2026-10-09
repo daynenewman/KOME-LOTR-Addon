@@ -28,6 +28,7 @@ final class KOMERecoveryTargetJournal {
     }
     static void activate(KOMEWorldData data, Lineage l) {
         if (l == null) return;
+        KOMEHiredUnitRecord owner = data.campaignAssociations.owner(l.oldAlias);
         data.recoveryStartup.append(l);
         Map<UUID, Target> targets = new TreeMap<UUID, Target>(data.getOrdinaryBattleRecovery().targets());
         Target t = targets.get(l.binding.targetId); Set<UUID> aliases = new TreeSet<UUID>(t.aliases); aliases.add(l.newAlias);
@@ -35,6 +36,7 @@ final class KOMERecoveryTargetJournal {
         data.getOrdinaryBattleRecovery().replaceFrom(KOMEOrdinaryBattleRecoveryRegistry.restore(targets,
             data.getOrdinaryBattleRecovery().episodes()));
         data.recoveryStartup.activated(l.newAlias); data.markDirty();
+        if (owner != null) data.campaignAssociations.track(owner);
     }
     /** Preserve every acknowledged edge when a later strategic transaction rejects publication. */
     static void rollback(KOMEWorldData data, KOMEOrdinaryBattleRecoveryRegistry before) {
