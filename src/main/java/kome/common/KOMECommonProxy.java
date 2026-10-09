@@ -66,6 +66,8 @@ public class KOMECommonProxy {
         throw new IllegalStateException("Public waypoint publication is unavailable on a dedicated server");
     }
 
+    public void acceptCompanyDestinationOptions(kome.common.data.KOMECompanyDestinationOptions snapshot,Object connection) { }
+
     public void displayPopulationGui(kome.common.network.KOMEPacketPopulationGui message) { }
     public void displayPopulationUnitsGui(kome.common.network.KOMEPacketPopulationUnitsGui message) { }
     public void displayConquestCaptureGui(kome.common.network.KOMEPacketConquestCaptureGui message) { }

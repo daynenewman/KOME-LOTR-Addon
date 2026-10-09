@@ -29,6 +29,7 @@ public class KOMEClientProxy extends KOMECommonProxy {
             () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
         new KOMEConquestSnapshotPublisher(clientTasks);
+    private KOMECompanyDestinationClientState destinationOptions;
     private KOMECurrentTileHud currentTileHud;
     private final KOMEProgressionTrackerOverlay progressionTrackerOverlay =
         new KOMEProgressionTrackerOverlay();
@@ -86,6 +87,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        destinationOptions().start(event == null ? null : event.handler);
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(event == null ? null : event.handler);
         conquestSnapshots.resetSession();
@@ -98,6 +100,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        destinationOptions().start(null);
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(null);
         conquestSnapshots.resetSession();
@@ -108,6 +111,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @SubscribeEvent
     public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
         if (event.world != null && event.world.isRemote) {
+            destinationOptions().close();
             invalidateTacticalEditorPublications();
             if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
             if (tacticalEditor != null) tacticalEditor.clearScope();
@@ -115,6 +119,21 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
             conquestSnapshots.resetSession();
             KOMEClientData.INSTANCE.clearConquestTooltip();
         }
+    }
+
+    public synchronized KOMECompanyDestinationClientState destinationOptions() {
+        if (destinationOptions == null) destinationOptions = new KOMECompanyDestinationClientState();
+        return destinationOptions;
+    }
+
+    /** Explicit future interaction hook; never invoked by ticks/rendering. */
+    public void requestCompanyDestinationOptions(String tile,int limit,String after,String catalogue) {
+        kome.common.network.KOMEPacketHandler.network.sendToServer(destinationOptions().request(tile,limit,after,catalogue));
+    }
+
+    @Override public void acceptCompanyDestinationOptions(
+            kome.common.data.KOMECompanyDestinationOptions snapshot,Object connection) {
+        destinationOptions().accept(snapshot,connection);
     }
 
     @Override

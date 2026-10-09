@@ -32,6 +32,40 @@ public final class KOMECompanyMovementService {
         this.clock = Objects.requireNonNull(clock);
     }
 
+    static final class ArrivalBudget {
+        private int remaining;
+        private final int routeLimit;
+        ArrivalBudget(int maximum) { this(maximum, maximum); }
+        ArrivalBudget(int maximum, int routeLimit) {
+            if (maximum < 1 || routeLimit < 2 || routeLimit > maximum) throw new IllegalArgumentException("Invalid arrival budget");
+            remaining = maximum; this.routeLimit = routeLimit;
+        }
+        void reserve(int count, KOMEWorldData data, KOMEArmyCompany company, String destination) {
+            if (count > routeLimit || count > remaining)
+                throw new EvaluationLimitExceeded(new DeferredEvaluation(data, company, destination, count > routeLimit));
+            remaining -= count;
+        }
+    }
+    /** Metadata only: arrival validation did not complete, so eligibility and consequence remain unknown. */
+    public static final class DeferredEvaluation {
+        public final String companyId, companyName, currentTile, destinationTile;
+        public final int mountedPopulation, groundPopulation, tilesPerDay, remainingAllowance;
+        public final ScheduleMode scheduleMode;
+        public final boolean exceedsSingleRouteLimit;
+        private DeferredEvaluation(KOMEWorldData data, KOMEArmyCompany company, String destination, boolean routeLimit) {
+            companyId = company.id; companyName = company.name; currentTile = company.currentTile; destinationTile = destination;
+            mountedPopulation = company.mountedPopulation; groundPopulation = company.groundPopulation;
+            tilesPerDay = company.getTilesPerDay();
+            remainingAllowance = Math.max(0, Math.min(company.movementAllowance, tilesPerDay));
+            scheduleMode = isDaily(data) ? ScheduleMode.DAILY : ScheduleMode.TIMED_OVERRIDE;
+            exceedsSingleRouteLimit = routeLimit;
+        }
+    }
+    static final class EvaluationLimitExceeded extends RuntimeException {
+        final DeferredEvaluation deferred;
+        EvaluationLimitExceeded(DeferredEvaluation deferred) { this.deferred = deferred; }
+    }
+
     public enum Status { BLOCKED, CAN_START_AND_ARRIVE_NOW, CAN_START_BUT_CONTINUES_LATER }
     public enum ScheduleMode { DAILY, TIMED_OVERRIDE }
     /** Expected arrival consequence only; downstream live arrival authority still owns commitment. */
@@ -212,6 +246,10 @@ public final class KOMECompanyMovementService {
     }
     /** Explicit authoritative world data supports server callers and deterministic domain tests. */
     public Evaluation evaluate(KOMEWorldData data, EntityPlayerMP actor, String companyId, String destination) {
+        return evaluate(data, actor, companyId, destination, null);
+    }
+    /** Query-scoped work budget; legacy evaluations remain unchanged and unbounded by this adapter. */
+    Evaluation evaluate(KOMEWorldData data, EntityPlayerMP actor, String companyId, String destination, ArrivalBudget budget) {
         String id = companyId == null ? "" : companyId;
         String tile = KOMEConquestTile.normalizeId(destination);
         long now = 0L; KOMEArmyCompany company = null; RouteResult route = null;
@@ -228,6 +266,7 @@ public final class KOMECompanyMovementService {
             if (!route.valid) return new Evaluation(data, company, id, tile, route, null, null,
                 new Denial(route.failureCode, route.failureReason, stage), clock.getAsLong(), "");
             stage = FailureStage.ARRIVAL;
+            if (budget != null) budget.reserve(route.routeTiles.size(), data, company, tile); // All steps plus repeated destination check.
             SpawnTarget routeArrival = KOMECommandTroops.validateRouteArrivalTargets(data, KOMEReflection.getWorld(actor), route);
             if (!routeArrival.valid) throw new MovementDenied("ARRIVAL_UNAVAILABLE", routeArrival.failureReason);
             arrival = KOMECommandTroops.requireArrivalTarget(data, KOMEReflection.getWorld(actor), tile);
@@ -445,6 +484,16 @@ public final class KOMECompanyMovementService {
         }
         return KOMECompanyDiplomacyAuthorization.canContinueDelegation(
             data, KOMEWartimeStewardshipService.nativeFaction(company), actor).allowed;
+    }
+
+    /** Player catalogue authority excludes command-only operator privileges and stale raw controller metadata. */
+    boolean canPlayerConsiderCompany(KOMEWorldData data, EntityPlayerMP player, KOMEArmyCompany company) {
+        if (data == null || !validActor(player) || company == null) return false;
+        UUID actor = KOMEReflection.getEntityUUID(player);
+        if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
+                || KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority))
+            return canPlayerControlCompany(data, player, company);
+        return actor.equals(company.owner) && canPlayerControlCompany(data, player, company);
     }
 
     boolean canPlayerControlCompany(KOMEWorldData data, EntityPlayerMP player, KOMEArmyCompany company) {

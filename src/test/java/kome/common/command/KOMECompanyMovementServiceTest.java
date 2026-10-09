@@ -518,12 +518,12 @@ public class KOMECompanyMovementServiceTest {
         assertEquals(e.dailyTiming.immediateMovementPossible, packet.immediateMovementPossible);
         assertEquals(e.dailyTiming.requiredBoundaries, packet.requiredMovementBoundaries);
     }
-    private static final class RecordingCommand extends KOMECommandTroops {
+    static final class RecordingCommand extends KOMECommandTroops {
         KOMEPacketCompanyMoveConfirmGui preview; KOMEPacketCompanyMovePreviewResult failure;
         @Override void publishMovementPreview(KOMEPacketCompanyMoveConfirmGui value, EntityPlayerMP actor) { preview = value; }
         @Override void publishMovementFailure(KOMEPacketCompanyMovePreviewResult value, EntityPlayerMP actor) { failure = value; }
     }
-    private static final class Fixture implements AutoCloseable {
+    static final class Fixture implements AutoCloseable {
         final KOMEWorldData data = new KOMEWorldData("movement-service");
         final KOMEArmyCompany company = new KOMEArmyCompany();
         final KOMEHiredUnitRecord unit = new KOMEHiredUnitRecord();
@@ -590,7 +590,7 @@ public class KOMECompanyMovementServiceTest {
         Submission submit(Evaluation e) { return service.submit(data, player, "C1", destination, e); }
         @Override public void close() { if (previous == null) nativePlayers.remove(player.id); else nativePlayers.put(player.id, previous); }
     }
-    private static final class FixtureWorld extends World {
+    static final class FixtureWorld extends World {
         Runnable arrivalInspection;
         private FixtureWorld() { super((ISaveHandler)null, "test", (WorldProvider)null, (WorldSettings)null, (Profiler)null); }
         @Override protected IChunkProvider createChunkProvider() { return null; }
