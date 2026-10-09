@@ -135,6 +135,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverAboutToStart(FMLServerAboutToStartEvent event) {
+        kome.common.data.KOMERecoveryStartup.beginSession(event.getServer());
         kome.common.data.KOMEServerTileAwareness.INSTANCE.setBoundaryGuard(
             kome.common.data.KOMECampaignTileConfinementService.INSTANCE);
         kome.common.data.KOMEServerTileAwareness.INSTANCE.startSession();
@@ -166,6 +167,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
+        kome.common.data.KOMERecoveryStartup.stopSession();
         kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
         kome.common.data.KOMEOrdinaryBattleLifecycleService.INSTANCE.resetRuntimeState();
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();
@@ -178,6 +180,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopped(FMLServerStoppedEvent event) {
+        kome.common.data.KOMERecoveryStartup.stopSession();
         kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
         kome.common.data.KOMEOrdinaryBattleLifecycleService.INSTANCE.resetRuntimeState();
         // Also covers failed startup/crash paths that skip serverStopping. Idempotent.

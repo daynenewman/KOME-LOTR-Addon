@@ -173,6 +173,8 @@ public class KOMEWorldData extends WorldSavedData {
     private String loadFailureReason = "";
     /** Candidate-only diagnostic context; never gameplay state or persisted data. */
     private String loadSection = "root";
+    /** Runtime session only; never part of root schema 11 or ConflictData v3. */
+    KOMERecoveryStartup recoveryStartup;
 
     public KOMEWorldData() {
         super(DATA_NAME);
@@ -186,13 +188,25 @@ public class KOMEWorldData extends WorldSavedData {
         if (KOMEReflection.isRemote(world)) {
             return KOMEClientData.INSTANCE;
         }
-        MapStorage storage = KOMEReflection.getMapStorage(world);
-        KOMEWorldData data = (KOMEWorldData) storage.loadData(KOMEWorldData.class, DATA_NAME);
-        if (data == null) {
-            data = new KOMEWorldData();
-            storage.setData(DATA_NAME, data);
+        World root = KOMERecoveryStartup.root(world);
+        KOMERecoveryStartup startup = KOMERecoveryStartup.beforeLoad(root);
+        try {
+            MapStorage storage = KOMEReflection.getMapStorage(root);
+            KOMEWorldData data = (KOMEWorldData) storage.loadData(KOMEWorldData.class, DATA_NAME);
+            if (startup != null) startup.requireLoaded();
+            if (data == null) {
+                if (startup != null) {
+                    java.io.File persisted = root.getSaveHandler().getMapFileFromName(DATA_NAME);
+                    if (persisted != null && persisted.exists()) throw new IllegalStateException("Refusing to replace unreadable canonical KOME world data: " + persisted);
+                }
+                data = new KOMEWorldData();
+                storage.setData(DATA_NAME, data);
+            }
+            KOMERecoveryStartup.afterLoad(startup, data);
+            return data;
+        } finally {
+            KOMERecoveryStartup.endLoad(startup);
         }
-        return data;
     }
 
     /**
@@ -2095,6 +2109,8 @@ public class KOMEWorldData extends WorldSavedData {
     public synchronized void readFromNBT(NBTTagCompound nbt) {
         ensureWritable();
         KOMEWorldData candidate = new KOMEWorldData(DATA_NAME);
+        candidate.recoveryStartup = KOMERecoveryStartup.loadingSession();
+        if (candidate.recoveryStartup != null) candidate.getConflictService().bindRecoveryStartup(candidate);
         try {
             // Preserve the existing empty-root lifecycle: defaults are installed only at START tick.
             if (nbt != null && nbt.hasNoTags()) {
@@ -2103,9 +2119,10 @@ public class KOMEWorldData extends WorldSavedData {
             }
             // Readers may retain nested tags. Neither candidate reconciliation nor later gameplay
             // may share mutable NBT with the caller's persisted source.
-            candidate.readCandidateFromNBT(nbt == null ? null : (NBTTagCompound) nbt.copy());
+            candidate.readCandidateFromNBT(KOMERecoveryStartup.prepareCandidate(nbt == null ? null : (NBTTagCompound) nbt.copy()));
             KOMEProgressionNpcRoles.rebuild(candidate);
         } catch (RuntimeException invalid) {
+            KOMERecoveryStartup.failedLoad(invalid);
             writeBlocked = true;
             loadFailureReason = "Invalid KOME world data in " + candidate.loadSection + ": "
                 + invalid.getMessage();

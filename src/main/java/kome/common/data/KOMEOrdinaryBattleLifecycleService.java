@@ -214,6 +214,10 @@ public final class KOMEOrdinaryBattleLifecycleService {
         if (data == null) throw new IllegalArgumentException("World data is required.");
         if (nowMillis < 0L) throw new IllegalArgumentException("Lifecycle timestamp must be nonnegative.");
         KOMEConflictRecord record = data.getConflictService().get(tileId);
+        if (!KOMERecoveryStartup.permits(data, record)) {
+            removeClock(data, tileId);
+            return result(Code.DEFERRED_UNKNOWN_AUTHORITY, record, KOMERecoveryStartup.reason(data));
+        }
         if (record == null || !record.isActive()) {
             removeClock(data, tileId);
             return result(Code.NO_CONFLICT, record, "No active conflict is present.");

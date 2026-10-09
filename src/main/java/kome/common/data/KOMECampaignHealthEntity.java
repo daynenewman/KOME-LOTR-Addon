@@ -32,6 +32,7 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
     public static void changed(Entity entity) {
         KOMECampaignHealthEntity s = state(entity, false);
         if (s == null || s.loading || s.projecting || s.projection == null) return;
+        if (!KOMERecoveryStartup.healthReady(entity) || !KOMERecoveryStartup.validateProjection(entity, s.projection)) return;
         require(s.projection.alias.equals(entity.getUniqueID()), "Unverified physical alias mutation");
         KOMECampaignHealthProjection next = s.projection.change(s.entity.getHealth(), s.projection.terminal);
         if (next != s.projection) { s.projection = next; s.publish(); }
@@ -52,6 +53,7 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
         require(Float.isFinite(requested), "Nonfinite native HP mutation");
         float next = Math.max(0F, Math.min(s.entity.getMaxHealth(), requested));
         if (Float.compare(next, s.projection.hp) != 0) {
+            require(KOMERecoveryStartup.permitsHealthChange(entity, s.projection), "Recovery reservation awaits reconciliation");
             require(!s.projection.terminal, "Terminal target cannot change health");
             require(s.projection.revision < Long.MAX_VALUE - 1, "Health revision exhausted");
         }
@@ -60,6 +62,7 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
         KOMECampaignHealthEntity s = state(entity, true);
         require(s != null && p.alias.equals(entity.getUniqueID()), "Health alias does not match entity");
         if (project) {
+            require(KOMERecoveryStartup.mayInstallHP(entity, p), "Recovery startup cannot apply a prepared HP transition");
             require(p.hp <= s.entity.getMaxHealth(), "Authoritative HP exceeds validated live Max HP");
             s.projecting = true;
             try { s.entity.setHealth(p.hp); } finally { s.projecting = false; }
@@ -75,6 +78,7 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
     public static void terminal(Entity entity) {
         KOMECampaignHealthEntity s = state(entity, false);
         if (s == null || s.projection == null) return;
+        if (!KOMERecoveryStartup.healthReady(entity) || !KOMERecoveryStartup.validateProjection(entity, s.projection)) return;
         changed(entity); s.projection = s.projection.change(s.entity.getHealth(), true); s.publish();
     }
     public static void beginRead(Entity entity, NBTTagCompound nbt) {
@@ -97,6 +101,7 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
         require(nbt.hasKey("HealF", 5) && Float.compare(nbt.getFloat("HealF"), s.reading.hp) == 0
             && Float.compare(s.entity.getHealth(), s.reading.hp) == 0, "Saved HP contradicts health acknowledgment");
         s.loading = false; s.reading = null;
+        if (!KOMERecoveryStartup.healthReady(entity) || !KOMERecoveryStartup.validateProjection(entity, s.projection)) return;
         install(entity, s.projection, null, Float.compare(s.entity.getHealth(), s.projection.hp) != 0);
     }
     public static void endWrite(Entity entity, NBTTagCompound nbt) {

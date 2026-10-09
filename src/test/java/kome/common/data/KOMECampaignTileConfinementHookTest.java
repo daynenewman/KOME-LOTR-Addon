@@ -23,6 +23,8 @@ import static org.junit.Assert.*;
 
 /** Actual END event, KOM-60 sampler, loaded-entity adapter, collision checks and vanilla position API. */
 public class KOMECampaignTileConfinementHookTest {
+    @org.junit.Rule public org.junit.rules.TemporaryFolder recoveryDirectory = new org.junit.rules.TemporaryFolder();
+    private KOMERecoveryStartupFixture recoverySession;
     private KOMETileWorldResolver resolver;
     private KOMEServerTileAwareness awareness;
     private KOMETileAwarenessEvents hooks;
@@ -46,8 +48,9 @@ public class KOMECampaignTileConfinementHookTest {
         data.conquestTiles.put("T002", new KOMEConquestTile("T002"));
         data.conquestTiles.get("T001").setAnchor(173, -32, 64, -1);
         data.conquestTiles.get("T002").setAnchor(173, 32, 64, -1);
+        recoverySession = new KOMERecoveryStartupFixture(data, recoveryDirectory.newFolder());
     }
-    @After public void stop() { awareness.stopSession(); }
+    @After public void stop() throws Exception { awareness.stopSession(); if (recoverySession != null) recoverySession.close(); }
     private void endTick() { hooks.onServerTick(new cpw.mods.fml.common.gameevent.TickEvent.ServerTickEvent(
         cpw.mods.fml.common.gameevent.TickEvent.Phase.END)); }
     private LoadedUnit unit(boolean campaign) throws Exception {

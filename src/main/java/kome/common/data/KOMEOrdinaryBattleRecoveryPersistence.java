@@ -51,6 +51,18 @@ final class KOMEOrdinaryBattleRecoveryPersistence {
         root.setTag("Episodes",episodes); return root;
     }
     static KOMEOrdinaryBattleRecoveryRegistry read(NBTTagCompound root) {
+        Candidate candidate = decode(root);
+        return KOMEOrdinaryBattleRecoveryRegistry.restore(candidate.targets, candidate.episodes);
+    }
+    /** Typed detached decode only. The journal repair path must validate the completed graph. */
+    static final class Candidate {
+        final Map<UUID,Target> targets;
+        final Map<String,Episode> episodes;
+        Candidate(Map<UUID,Target> targets, Map<String,Episode> episodes) {
+            this.targets = targets; this.episodes = episodes;
+        }
+    }
+    static Candidate decode(NBTTagCompound root) {
         Map<UUID,Target> targets = new TreeMap<UUID,Target>(); Map<String,Episode> episodes = new TreeMap<String,Episode>();
         NBTTagList rows = list(root,"Targets");
         for (int j=0;j<rows.tagCount();j++) {
@@ -90,7 +102,7 @@ final class KOMEOrdinaryBattleRecoveryPersistence {
                 Coverage.valueOf(str(n,"Coverage")),bool(n,"ActualHostileCombatObserved"),people,intent,grants);
             require(episodes.put(e.episodeId,e)==null,"Duplicate recovery episode identity");
         }
-        return KOMEOrdinaryBattleRecoveryRegistry.restore(targets,episodes);
+        return new Candidate(targets,episodes);
     }
     private static NBTTagList uuids(Set<UUID> ids) {
         NBTTagList list = new NBTTagList(); for(UUID id : ids) { NBTTagCompound n=new NBTTagCompound(); s(n,"Id",id); list.appendTag(n); } return list;

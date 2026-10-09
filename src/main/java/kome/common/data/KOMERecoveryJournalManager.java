@@ -9,7 +9,7 @@ import net.minecraft.world.WorldServer;
 import static kome.common.data.KOMERecoveryJournalCodec.*;
 import static kome.common.data.KOMEOrdinaryBattleRecoveryRegistry.require;
 
-/** Explicit lifecycle API only; no event registration, world-data loading, or health execution. */
+/** Canonical root-world session owner. No health execution. */
 public final class KOMERecoveryJournalManager implements Closeable {
     public static final String FILE_NAME="kome-ordinary-battle-recovery.wal";
     public static final String MARKER_NAME="kome-ordinary-battle-recovery.identity";
@@ -28,11 +28,20 @@ public final class KOMERecoveryJournalManager implements Closeable {
         require(server!=null&&MinecraftServer.getServer()==server,"Current server session required");
         WorldServer overworld=server.worldServerForDimension(0);
         require(overworld!=null&&!overworld.isRemote&&overworld.provider.dimensionId==0,"Authoritative overworld required");
+        return forRoot(overworld, server);
+    }
+    static synchronized KOMERecoveryJournalManager forRoot(WorldServer overworld, Object session) throws IOException {
+        require(overworld != null && !overworld.isRemote && overworld.provider.dimensionId == 0, "Root world required");
         File directory=overworld.getSaveHandler().getWorldDirectory();
         require(directory!=null,"World save directory unavailable"); File canonical=directory.getCanonicalFile();
+        return forSession(canonical, session);
+    }
+    static synchronized KOMERecoveryJournalManager forSession(File canonical, Object session) throws IOException {
+        canonical = canonical.getCanonicalFile();
         KOMERecoveryJournalManager existing=SESSIONS.get(canonical);
-        if(existing!=null) { require(existing.session==server,"Journal belongs to another server session"); existing.owner(); return existing; }
-        KOMERecoveryJournalManager created=new KOMERecoveryJournalManager(canonical,server,KOMERecoveryJournalIO.FILES);
+        if(existing!=null && existing.session==session && existing.state()!=KOMERecoveryJournal.State.CLOSED) { existing.owner(); return existing; }
+        if(existing!=null) existing.close();
+        KOMERecoveryJournalManager created=new KOMERecoveryJournalManager(canonical,session,KOMERecoveryJournalIO.FILES);
         SESSIONS.put(canonical,created); return created;
     }
     // Package-only filesystem fixture seam. Production callers cannot supply a path.
@@ -101,7 +110,8 @@ public final class KOMERecoveryJournalManager implements Closeable {
     public void repairTail() throws IOException { owner(); require(journal!=null,"Journal is not open"); journal.repairTail(); }
     private void owner() { if(Thread.currentThread()!=owner)throw new IllegalStateException("Recovery journal lifecycle requires owning server thread"); }
     public void close() throws IOException {
-        owner(); if(state()==KOMERecoveryJournal.State.CLOSED)return;
+        if(Thread.currentThread()!=owner && owner.isAlive()) throw new IllegalStateException("Cannot close another live server session");
+        if(state()==KOMERecoveryJournal.State.CLOSED)return;
         try { if(journal!=null)journal.close(); }
         finally {
             journal=null; state=KOMERecoveryJournal.State.CLOSED; diagnostic="Closed: "+file;

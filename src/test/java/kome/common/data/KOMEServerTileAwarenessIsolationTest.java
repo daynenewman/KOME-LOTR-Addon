@@ -40,7 +40,8 @@ public class KOMEServerTileAwarenessIsolationTest {
     @Test public void addonLifecycleAndDefaultHooksDriveTheActualSingleton() throws Exception {
         kome.common.KOMEAddon addon = kome.common.KOMEAccessFixture.allocate(kome.common.KOMEAddon.class);
         KOMEServerTileAwareness service = KOMEServerTileAwareness.INSTANCE;
-        addon.serverAboutToStart(null);
+        addon.serverAboutToStart(new cpw.mods.fml.common.event.FMLServerAboutToStartEvent(
+            (Object)net.minecraft.server.MinecraftServer.getServer()));
         try {
             KOMEServerTileAwarenessTest.TestWorld world = KOMEServerTileAwarenessTest.world(173);
             KOMEServerTileAwarenessTest.Player player =

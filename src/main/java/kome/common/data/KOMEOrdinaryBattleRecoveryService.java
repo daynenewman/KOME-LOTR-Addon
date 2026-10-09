@@ -13,16 +13,19 @@ import static kome.common.data.KOMEOrdinaryBattleRecoveryRegistry.*;
 public final class KOMEOrdinaryBattleRecoveryService {
     private KOMEOrdinaryBattleRecoveryService() { }
     static void episodeStarted(KOMEWorldData data, KOMEConflictRecord conflict, long now, boolean hostilePair) {
+        if (!KOMERecoveryStartup.permits(data, conflict)) return;
         data.ensureWritable();
         if (data.getOrdinaryBattleRecovery().begin(conflict, Coverage.COMPLETE)) data.markDirty();
         observe(data, conflict, now, hostilePair);
     }
     public static void observe(KOMEWorldData data, KOMEConflictRecord conflict, long now) {
+        if (!KOMERecoveryStartup.permits(data, conflict)) return;
         if (!active(conflict)) return;
         KOMECombatStateEvaluator.Result military = new KOMECombatStateEvaluator().evaluate(data, conflict);
         observe(data, conflict, now, military.hostilePairPresent);
     }
     static void observe(KOMEWorldData data, KOMEConflictRecord conflict, long now, boolean hostilePair) {
+        if (!KOMERecoveryStartup.permits(data, conflict)) return;
         if (!active(conflict)) return;
         data.ensureWritable();
         KOMEOrdinaryBattleRecoveryRegistry next = copy(data);
@@ -74,6 +77,7 @@ public final class KOMEOrdinaryBattleRecoveryService {
         next.replaceFrom(data.getOrdinaryBattleRecovery()); return next;
     }
     static void endEpisode(KOMEWorldData data, KOMEConflictRecord conflict, long now) {
+        if (!KOMERecoveryStartup.permits(data, conflict)) return;
         KOMEOrdinaryBattleRecoveryRegistry registry = data.getOrdinaryBattleRecovery();
         Episode e = registry.get(conflict.getConflictId(), conflict.getCombatEpisode().episodeId);
         if (e == null) return;
@@ -84,10 +88,12 @@ public final class KOMEOrdinaryBattleRecoveryService {
         data.markDirty();
     }
     static void conflictClosed(KOMEWorldData data, KOMEConflictRecord conflict, long now) {
+        if (!KOMERecoveryStartup.permits(data, conflict)) return;
         endEpisode(data, conflict, now); data.getOrdinaryBattleRecovery().closed(conflict, now); data.markDirty();
     }
     static void departed(KOMEWorldData data, KOMEConflictRecord before, Collection<UUID> members,
             KOMEConflictMovementHandoff.Outcome outcome, long now) {
+        if (!KOMERecoveryStartup.permits(data, before)) return;
         Disposition disposition = outcome == KOMEConflictMovementHandoff.Outcome.FORMAL_RETREAT ? Disposition.FORMAL_RETREAT
             : outcome == KOMEConflictMovementHandoff.Outcome.DESTROYED ? Disposition.DESTROYED
             : outcome == KOMEConflictMovementHandoff.Outcome.DEFEATED ? Disposition.DEFEATED : Disposition.DEPARTED;
@@ -96,6 +102,7 @@ public final class KOMEOrdinaryBattleRecoveryService {
             terminal(data, id, disposition, now, outcome.name());
     }
     public static void terminal(KOMEWorldData data, UUID physical, Disposition disposition, long now, String reason) {
+        if (!KOMERecoveryStartup.permitsTarget(data, physical)) return;
         data.ensureWritable();
         Target known = data.getOrdinaryBattleRecovery().targetForPhysical(physical);
         if (known != null && !physical.equals(known.physicalId)) return;
@@ -113,6 +120,8 @@ public final class KOMEOrdinaryBattleRecoveryService {
     }
     /** Called only from the verified, reversible strategic reconstruction transaction. */
     public static void reconstructed(KOMEWorldData data, UUID oldRider, UUID newRider, UUID oldMount, UUID newMount) {
+        require(KOMERecoveryStartup.permitsTarget(data, oldRider)
+            && (oldMount == null || KOMERecoveryStartup.permitsTarget(data, oldMount)), "Recovery lineage is not ready");
         data.ensureWritable(); KOMEOrdinaryBattleRecoveryRegistry next = copy(data);
         boolean changed = next.rekeyVerified(oldRider, newRider, Component.RIDER);
         if (oldMount != null && newMount != null) changed |= next.rekeyVerified(oldMount, newMount, Component.MOUNT);

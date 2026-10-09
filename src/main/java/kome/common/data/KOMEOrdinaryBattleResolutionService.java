@@ -257,6 +257,9 @@ public final class KOMEOrdinaryBattleResolutionService {
         if (data == null) throw new IllegalArgumentException("World data is required.");
         KOMEConflictRecord conflict = data.getConflictService().get(tileId);
         KOMEConquestTile tile = data.getConquestTileIfPresent(tileId);
+        if (!KOMERecoveryStartup.permits(data, conflict))
+            return plan(Code.DEFERRED_UNKNOWN_AUTHORITY, conflict, tile, "", null, null,
+                emptySurvivors(), Collections.<String>emptyList(), false, false, KOMERecoveryStartup.reason(data));
         if (conflict == null)
             return plan(Code.NO_CONFLICT, null, tile, "", null, null,
                 emptySurvivors(), Collections.<String>emptyList(), false, false,
@@ -555,7 +558,8 @@ public final class KOMEOrdinaryBattleResolutionService {
     }
 
     static boolean hasResolutionReservation(KOMEWorldData data, KOMEConflictRecord conflict) {
-        return data.getOrdinaryBattleRecovery().hasIntent(conflict) || hasCapturePublication(data, conflict);
+        return !KOMERecoveryStartup.permits(data, conflict)
+            || data.getOrdinaryBattleRecovery().hasIntent(conflict) || hasCapturePublication(data, conflict);
     }
 
     /** Prepare/reuse exact durable intent before any ownership/history side effect. */

@@ -36,6 +36,8 @@ public final class KOMEConflictService {
     }
     private final Map<String, KOMEConflictRecord> records = new LinkedHashMap<String, KOMEConflictRecord>();
     private final KOMEConflictIdAllocator allocator;
+    private KOMEWorldData recoveryOwner;
+    void bindRecoveryStartup(KOMEWorldData data) { recoveryOwner = data; }
 
     public KOMEConflictService() { this(1L); }
     public KOMEConflictService(long nextConflictSequence) { allocator = new KOMEConflictIdAllocator(nextConflictSequence); }
@@ -938,7 +940,9 @@ public final class KOMEConflictService {
         }
     }
 
-    private static Code guard(KOMEConflictRecord previous, ExpectedConflict expected, Context context) {
+    private Code guard(KOMEConflictRecord previous, ExpectedConflict expected, Context context) {
+        if (recoveryOwner != null && (previous == null || previous.getState() == State.ORDINARY)
+                && !KOMERecoveryStartup.permits(recoveryOwner, previous)) return Code.AMBIGUOUS_REFERENCE;
         if (expected.isAbsent()) {
             if (previous != null) return previous.isActive() ? Code.ACTIVE_CONFLICT_EXISTS : Code.STALE_CONFLICT_ID;
             return Code.SUCCESS;

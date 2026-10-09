@@ -8,13 +8,14 @@ import static kome.common.data.KOMERecoveryJournalRecord.*;
 /** Immutable validated journal snapshot. No mutable NBT or entity references. */
 public final class KOMERecoveryJournalView {
     public final UUID journalId;
-        final Map<String,String> conflictTiles=new HashMap<String,String>();
     public final long validLength, fileLength, lastSequence;
     public final String lastHash;
     public final Map<Long, Entry> records;
     public final Map<String, Entry> contexts, preparations;
     public final Map<UUID, Entry> lineages, terminals;
     public final Map<UUID, UUID> currentPhysicalAliases;
+    public final Map<UUID, UUID> logicalTargetsByAlias;
+    public final Map<UUID, Component> targetComponents;
     /** Includes both explicit TERMINAL records and terminal targets sealed in episode contexts. */
     public final Set<UUID> terminalTargets;
     public boolean hasIncompleteTail() { return fileLength!=validLength; }
@@ -23,6 +24,8 @@ public final class KOMERecoveryJournalView {
         records=immutable(index.records); contexts=immutable(index.contexts); preparations=immutable(index.preparations);
         lineages=immutable(index.lineages); terminals=immutable(index.terminals);
         currentPhysicalAliases=immutable(new TreeMap<UUID,UUID>(index.currentAlias));
+        logicalTargetsByAlias=immutable(new TreeMap<UUID,UUID>(index.aliases));
+        targetComponents=immutable(new TreeMap<UUID,Component>(index.components));
         Set<UUID> terminalIds=new TreeSet<UUID>(index.contextTerminal); terminalIds.addAll(index.terminals.keySet());
         terminalTargets=Collections.unmodifiableSet(terminalIds);
         lastSequence=records.isEmpty()?0:index.records.lastKey();
@@ -82,6 +85,7 @@ public final class KOMERecoveryJournalView {
                 require(grant!=null&&grant.participantId.equals(p.participantId)&&grant.amount==p.recoveryAmount,"Prepare does not match exact pending grant");
                 require(c.intentFingerprint().equals(p.intentFingerprint),"Resolution intent fingerprint mismatch");
                 alias(b,p.physicalAlias); require(p.lineageSequence==lineageSequence(b.targetId),"Stale lineage reference");
+                lineageHealth(b.targetId, p.sourceRevision, p.sourceTransitionId, false);
                 require(!recoveryTokens.contains(p.recoveryTransitionId),"Recovery transition token reused");
                 fence(b,p.inheritedFence,p.sourceRevision);
                 Entry previous=latestPrepare.get(b.targetId);
@@ -94,6 +98,7 @@ public final class KOMERecoveryJournalView {
                 Lineage l=(Lineage)record; alias(b,l.oldAlias);
                 require(!aliases.containsKey(l.newAlias),"Replacement alias is already known");
                 require(l.previousLineageSequence==lineageSequence(b.targetId),"Stale lineage predecessor");
+                lineageHealth(b.targetId, l.healthRevision, l.healthTransitionId, false);
                 fence(b,l.fence,l.healthRevision);
                 Entry previous=latestPrepare.get(b.targetId);
                 if(previous!=null) {
@@ -103,10 +108,20 @@ public final class KOMERecoveryJournalView {
                 }
             } else {
                 Terminal t=(Terminal)record; alias(b,t.physicalAlias); fence(b,t.fence,t.healthRevision);
+                lineageHealth(b.targetId, t.healthRevision, t.transitionId, true);
+                Entry previous=latestPrepare.get(b.targetId);
+                require(previous==null || t.healthRevision>((Prepare)previous.record).recoveryRevision,
+                    "Terminal health transition must follow prepared live health");
             }
         }
         private void alias(Binding b,UUID physical) { require(physical.equals(currentAlias.get(b.targetId)),"Obsolete/unverified physical alias="+physical); }
         private long lineageSequence(UUID target) { Entry entry=lineages.get(target); return entry==null?0:entry.sequence; }
+        private void lineageHealth(UUID target, long revision, UUID transition, boolean terminal) {
+            Entry entry=lineages.get(target); if(entry==null)return;
+            Lineage prior=(Lineage)entry.record;
+            require(revision>prior.healthRevision || !terminal && revision==prior.healthRevision
+                && transition.equals(prior.healthTransitionId), "Health revision/transition regresses verified LINEAGE");
+        }
         private void fence(Binding b,Fence fence,long revision) {
             Entry latest=latestPrepare.get(b.targetId);
             if(latest==null) { require(fence==null,"Fence references unknown target preparation"); return; }

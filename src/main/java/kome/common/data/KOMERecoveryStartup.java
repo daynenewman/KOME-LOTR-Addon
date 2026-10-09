@@ -1,0 +1,238 @@
+package kome.common.data;
+
+import java.io.IOException;
+import java.util.*;
+import net.minecraft.entity.Entity;
+import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.World;
+import net.minecraft.world.WorldServer;
+
+/** Session readiness, deliberately independent of first-tick world initialization. */
+public final class KOMERecoveryStartup {
+    public enum State { UNINITIALIZED, READY, BLOCKED_MISSING, BLOCKED_CORRUPT, BLOCKED_CONTRADICTORY, STOPPING }
+    private static KOMERecoveryStartup session;
+    private static final ThreadLocal<KOMERecoveryStartup> LOADING = new ThreadLocal<KOMERecoveryStartup>();
+    private final Object server;
+    private KOMERecoveryJournalManager manager;
+    private State state = State.UNINITIALIZED;
+    private String diagnostic = "Awaiting canonical root-world recovery reconciliation";
+    private KOMERecoveryJournalView view;
+    private KOMERecoveryStartupPlan plan;
+    private KOMEWorldData data;
+    private boolean loading, provision, claimsJournal;
+    private List<KOMECampaignHealthProjection> physicalEvidence = Collections.emptyList();
+    private RuntimeException loadFailure;
+    private final Set<UUID> quarantinedTargets = new TreeSet<UUID>();
+
+    KOMERecoveryStartup(Object server) { this.server = server; }
+    public State state() { return state; }
+    public String diagnostic() { return diagnostic; }
+    public static void beginSession(Object server) {
+        stopSession(); session = new KOMERecoveryStartup(server);
+    }
+    public static void stopSession() {
+        if (session != null) session.stop();
+    }
+    void stop() {
+        if (state == State.STOPPING) return;
+        state = State.STOPPING;
+        diagnostic = "Recovery startup STOPPING; accepting no new work";
+        if (manager != null) try { manager.close(); }
+        catch (IOException | RuntimeException failure) { diagnostic += "; close failed: " + failure; log(); }
+    }
+    public static void worldUnloaded(World world) {
+        if (world != null && !world.isRemote && world.provider.dimensionId == 0) stopSession();
+    }
+    static World root(World world) {
+        if (!(world instanceof WorldServer)) return world;
+        MinecraftServer server = MinecraftServer.getServer();
+        World root = world.provider.dimensionId == 0 ? world : server == null ? null : server.worldServerForDimension(0);
+        return root == null ? world : root;
+    }
+    /** Called before MapStorage.loadData: decode can only see this session's independently opened journal. */
+    static KOMERecoveryStartup beforeLoad(World world) {
+        if (!(world instanceof WorldServer)) return null;
+        MinecraftServer current = MinecraftServer.getServer();
+        if (session == null || session.server != current) beginSession(current);
+        KOMERecoveryStartup s = session;
+        if (s.data != null || s.loading || s.state != State.UNINITIALIZED) return s;
+        if (!(world instanceof WorldServer) || world.provider.dimensionId != 0) return s;
+        try {
+            s.manager = KOMERecoveryJournalManager.forRoot((WorldServer)world, current);
+            s.open();
+        } catch (IOException | RuntimeException failure) { s.block(State.BLOCKED_CORRUPT, "Journal open failed: " + failure); }
+        s.loading = true; LOADING.set(s);
+        return s;
+    }
+    void open() throws IOException {
+        provision = manager.state() == KOMERecoveryJournal.State.UNPROVISIONED;
+        if (provision) { inventory(); return; }
+        manager.open();
+        if (manager.state() != KOMERecoveryJournal.State.READY) {
+            block(manager.state() == KOMERecoveryJournal.State.CORRUPT ? State.BLOCKED_CORRUPT : State.BLOCKED_MISSING,
+                manager.diagnostic()); return;
+        }
+        view = manager.view();
+        inventory();
+    }
+    private void inventory() throws IOException {
+        physicalEvidence = KOMERecoveryHealthEvidence.scan(manager.file().getParentFile().getParentFile());
+        for (KOMECampaignHealthProjection p : physicalEvidence) claimsJournal |= p.fence != null;
+        if (provision && claimsJournal) block(State.BLOCKED_CONTRADICTORY, "Unloaded durable health claims a WAL fence; bootstrap refused");
+    }
+    static NBTTagCompound prepareCandidate(NBTTagCompound persisted) {
+        KOMERecoveryStartup s = LOADING.get();
+        return s == null ? persisted : s.prepare(persisted);
+    }
+    static KOMERecoveryStartup loadingSession() { return LOADING.get(); }
+    NBTTagCompound prepare(NBTTagCompound persisted) {
+        if (persisted == null) return null;
+        claimsJournal |= KOMERecoveryStartupPlan.claimsJournal(persisted);
+        if (provision && claimsJournal) block(State.BLOCKED_CONTRADICTORY,
+            "First-deployment provisioning refused: durable state claims WAL-backed PREPARE/fence");
+        if (view == null || state != State.UNINITIALIZED) return persisted;
+        try {
+            plan = KOMERecoveryStartupPlan.build(persisted, view, physicalEvidence);
+            quarantinedTargets.addAll(plan.quarantinedTargets.keySet());
+            return plan.candidate;
+        }
+        catch (RuntimeException contradiction) {
+            block(State.BLOCKED_CONTRADICTORY, "Journal/ConflictData or health contradiction: " + contradiction.getMessage());
+            // The unchanged canonical decoder still rejects malformed v3. No partial plan is published.
+            return persisted;
+        }
+    }
+    static void afterLoad(KOMERecoveryStartup s, KOMEWorldData data) {
+        if (s == null) return;
+        data.recoveryStartup = s;
+        data.getConflictService().bindRecoveryStartup(data);
+        if (s.data != null || !s.loading) return;
+        s.data = data;
+        try {
+            if (s.state != State.UNINITIALIZED) return;
+            if (s.provision) {
+                if (s.claimsJournal) { s.block(State.BLOCKED_CONTRADICTORY, "Persisted WAL claims prohibit bootstrap"); return; }
+                s.manager.bootstrap(); s.view = s.manager.view();
+            }
+            if (s.view == null || s.manager.state() != KOMERecoveryJournal.State.READY) {
+                s.block(State.BLOCKED_CORRUPT, "No fully validated journal available"); return;
+            }
+            if (s.plan == null) {
+                if (!s.view.records.isEmpty()) { s.block(State.BLOCKED_CONTRADICTORY, "WAL history exists but canonical world recovery candidate was not decoded"); return; }
+                for (KOMECampaignHealthProjection p : s.physicalEvidence)
+                    KOMERecoveryStartupPlan.validateFence(s.view, p);
+            }
+            s.state = State.READY;
+            s.diagnostic = "Recovery READY; " + (s.provision ? "first-deployment bootstrap" : "established journal open")
+                + "; journal=" + s.view.journalId + "; repaired episodes=" + (s.plan == null ? 0 : s.plan.repairedEpisodes)
+                + "; quarantined conflicts=" + (s.plan == null ? "[]" : s.plan.quarantinedConflicts)
+                + "; quarantined targets=" + (s.plan == null ? "{}" : s.plan.quarantinedTargets)
+                + "; PREPARE evidence=" + (s.plan == null ? "{}" : s.plan.preparations)
+                + "; grants remain pending; no HP effects";
+            if (s.plan != null && s.plan.changed) data.markDirty();
+            s.log();
+        } catch (IOException | RuntimeException failure) { s.block(State.BLOCKED_CORRUPT, "Recovery initialization failed: " + failure); }
+    }
+    static void endLoad(KOMERecoveryStartup s) {
+        if (s != null && LOADING.get() == s) { LOADING.remove(); s.loading = false; }
+    }
+    static void failedLoad(RuntimeException failure) {
+        KOMERecoveryStartup s = LOADING.get();
+        if (s != null) { s.loadFailure = failure; s.block(State.BLOCKED_CONTRADICTORY, "Canonical world load rejected: " + failure.getMessage()); }
+    }
+    void requireLoaded() {
+        if (loadFailure != null) throw new IllegalStateException("Refusing replacement after failed canonical world decode", loadFailure);
+    }
+    void block(State reason, String text) { state = reason; diagnostic = "Recovery " + reason + ": " + text; log(); }
+    private void log() { System.err.println("[KOME] " + diagnostic); }
+    static boolean permits(KOMEWorldData data, KOMEConflictRecord conflict) {
+        KOMERecoveryStartup s = data == null ? null : data.recoveryStartup;
+        // Detached metadata fixtures/candidates have no server authority. Every production get binds a session.
+        if (s == null) return true;
+        if (!s.ready()) return false;
+        if (conflict == null) return true;
+        if (s.plan != null && s.plan.quarantinedConflicts.contains(conflict.getConflictId())) return false;
+        for (KOMEOrdinaryBattleRecoveryRegistry.Episode e : data.getOrdinaryBattleRecovery().episodes().values()) {
+            if (!e.conflictId.equals(conflict.getConflictId())) continue;
+            for (KOMEOrdinaryBattleRecoveryRegistry.Participant p : e.participants.values()) {
+                if (s.quarantinedTargets.contains(p.id)) return false;
+                for (UUID mount : p.mountIds) if (s.quarantinedTargets.contains(mount)) return false;
+            }
+        }
+        return true;
+    }
+    private boolean ready() {
+        if (state == State.READY && (manager == null || manager.state() != KOMERecoveryJournal.State.READY))
+            block(State.BLOCKED_CORRUPT, "Journal lost readiness: " + (manager == null ? "missing manager" : manager.diagnostic()));
+        return state == State.READY;
+    }
+    static boolean permitsTarget(KOMEWorldData data, UUID physical) {
+        KOMERecoveryStartup s = data.recoveryStartup;
+        if (s == null) return true;
+        KOMEOrdinaryBattleRecoveryRegistry.Target t = data.getOrdinaryBattleRecovery().targetForPhysical(physical);
+        return s.ready() && (t == null || !s.quarantinedTargets.contains(t.id)
+            && !s.view.terminalTargets.contains(t.id));
+    }
+    static boolean healthReady(Entity entity) {
+        if (entity == null || !(entity.worldObj instanceof WorldServer) || entity.worldObj.isRemote) return true;
+        // Do not recursively load world data from a native health callback during entity deserialization.
+        return session != null && session.server == MinecraftServer.getServer() && session.ready();
+    }
+    static boolean validateProjection(Entity entity, KOMECampaignHealthProjection projection) {
+        if (!(entity.worldObj instanceof WorldServer) || entity.worldObj.isRemote) return true;
+        if (!healthReady(entity)) return false;
+        KOMERecoveryStartup s = session;
+        if (s.quarantinedTargets.contains(projection.target)) return false;
+        try {
+            KOMERecoveryStartupPlan.validateHealthTree(projection.write(), s.view, new TreeMap<String,KOMERecoveryStartupPlan.Adoption>());
+            if (s.view.terminalTargets.contains(projection.target) && !projection.terminal) return false;
+            return true;
+        } catch (RuntimeException failure) {
+            s.quarantinedTargets.add(projection.target);
+            UUID owner = s.view.logicalTargetsByAlias.get(projection.alias);
+            if (owner != null) s.quarantinedTargets.add(owner);
+            System.err.println("[KOME] Recovery target quarantined=" + projection.target + ": " + failure.getMessage());
+            return false;
+        }
+    }
+    static boolean permitsHealthChange(Entity entity, KOMECampaignHealthProjection projection) {
+        if (!(entity.worldObj instanceof WorldServer) || entity.worldObj.isRemote) return true;
+        if (!validateProjection(entity, projection)) return false;
+        for (KOMERecoveryJournalView.Entry e : session.view.preparations.values()) {
+            KOMERecoveryJournalRecord.Prepare p = (KOMERecoveryJournalRecord.Prepare)e.record;
+            if (p.binding.targetId.equals(projection.target)
+                    && KOMERecoveryStartupPlan.reconcile(session.view, e, projection) != KOMERecoveryStartupPlan.Adoption.CONSUMED)
+                return false;
+        }
+        return true;
+    }
+    static boolean mayInstallHP(Entity entity, KOMECampaignHealthProjection p) {
+        if (!(entity.worldObj instanceof WorldServer) || entity.worldObj.isRemote) return true;
+        return healthReady(entity) && p.fence == null && !session.view.currentPhysicalAliases.containsKey(p.target);
+    }
+    static void requireDetachedReconciliation(KOMECampaignHealthProjection p, boolean rekey) {
+        if (session == null || !(session.server instanceof MinecraftServer)) return;
+        KOMEOrdinaryBattleRecoveryRegistry.require(session.state == State.READY,
+            "Recovery health reconciliation awaits startup: " + session.state);
+        KOMEOrdinaryBattleRecoveryRegistry.require(!session.quarantinedTargets.contains(p.target), "Recovery target quarantined");
+        KOMERecoveryStartupPlan.validateFence(session.view, p);
+        if (rekey) KOMEOrdinaryBattleRecoveryRegistry.require(p.fence == null
+            && !session.view.currentPhysicalAliases.containsKey(p.target), "Journal-backed reconstruction requires future durable LINEAGE API");
+    }
+    static String reason(KOMEWorldData data) {
+        return "Recovery authority is awaiting reconciliation or quarantined; see the server recovery diagnostics.";
+    }
+    // Real filesystem fixture, using the same open/prepare/publication lifecycle as the root-world adapter.
+    void initialize(KOMERecoveryJournalManager manager, NBTTagCompound persisted, KOMEWorldData target) throws IOException {
+        this.manager = manager; open(); loading = true;
+        NBTTagCompound candidate = prepare(persisted);
+        if (candidate != null && candidate.hasKey(KOMEConflictPersistence.SCHEMA_KEY)) {
+            KOMEConflictPersistence.Loaded loaded = KOMEConflictPersistence.readSection(candidate);
+            target.getConflictService().replaceFrom(loaded.conflicts);
+            target.getJoinBattleDeploymentReceipts().replaceFrom(loaded.joinBattleReceipts);
+            target.getOrdinaryBattleRecovery().replaceFrom(loaded.recovery);
+        }
+        afterLoad(this, target); loading = false;
+    }
+}

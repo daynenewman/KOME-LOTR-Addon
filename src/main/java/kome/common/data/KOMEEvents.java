@@ -92,6 +92,14 @@ import java.util.Map;
 import java.time.Instant;
 
 public class KOMEEvents {
+    @SubscribeEvent(priority=EventPriority.HIGHEST)
+    public void onRecoveryRootLoad(net.minecraftforge.event.world.WorldEvent.Load event) {
+        if (!event.world.isRemote && event.world.provider.dimensionId == 0) KOMEWorldData.get(event.world);
+    }
+    @SubscribeEvent(priority=EventPriority.HIGHEST)
+    public void onRecoveryRootUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+        KOMERecoveryStartup.worldUnloaded(event.world);
+    }
     /** Forge's periodic despawn event and LOTR's canDespawn veto cover both native paths. */
     @SubscribeEvent(priority=EventPriority.LOWEST)
     public void onProgressionNpcAllowDespawn(LivingSpawnEvent.AllowDespawn event){

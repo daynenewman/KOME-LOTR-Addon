@@ -176,7 +176,8 @@ public final class KOMERecoveryJournal implements Closeable {
     private void enterMutation() { owner(); require(!mutating,"Reentrant journal mutation prohibited"); mutating=true; }
     private void owner() { if(Thread.currentThread()!=owner)throw new IllegalStateException("Recovery journal mutation requires the owning server thread"); }
     public void close() throws IOException {
-        owner(); require(!mutating,"Cannot close during journal mutation"); if(state==State.CLOSED)return;
+        if(Thread.currentThread()!=owner && owner.isAlive()) throw new IllegalStateException("Cannot close another live server thread's journal");
+        require(!mutating,"Cannot close during journal mutation"); if(state==State.CLOSED)return;
         try { io.close(); } finally { state=State.CLOSED; diagnostic="Closed: "+path; }
     }
 }

@@ -29,6 +29,10 @@ public final class KOMECampaignHealth {
     private static KOMECampaignHealthProjection reconcile(KOMEHiredUnitRecord record, Entity entity,
             NBTTagCompound saved, Component kind) {
         require(entity instanceof EntityLivingBase, "Campaign target is not living");
+        require(KOMERecoveryStartup.healthReady(entity), "Recovery reconciliation is not ready");
+        KOMECampaignHealthProjection initial = KOMECampaignHealthEntity.projection(entity);
+        require(initial == null || KOMERecoveryStartup.validateProjection(entity, initial), "Entity health is quarantined");
+        require(!versioned(saved) || KOMERecoveryStartup.validateProjection(entity, read(saved)), "Saved health is quarantined");
         KOMECampaignHealthEntity.changed(entity);
         KOMECampaignHealthProjection live = KOMECampaignHealthEntity.projection(entity);
         KOMECampaignHealthProjection disk = versioned(saved) ? read(saved) : null;
@@ -59,6 +63,16 @@ public final class KOMECampaignHealth {
     }
     public static boolean observe(KOMEHiredUnitRecord record, Entity entity) {
         if (record == null || !KOMEHiredUnitClassification.isCampaignUnit(record) || entity == null) return false;
+        if (!KOMERecoveryStartup.healthReady(entity)) return false;
+        if (entity.worldObj != null && !KOMERecoveryStartup.permitsTarget(KOMEWorldData.get(entity.worldObj), entity.getUniqueID())) return false;
+        KOMECampaignHealthProjection live = KOMECampaignHealthEntity.projection(entity);
+        if (live != null && !KOMERecoveryStartup.validateProjection(entity, live)
+            || versioned(record.survivingHealth) && !KOMERecoveryStartup.validateProjection(entity, read(record.survivingHealth))) return false;
+        if (versioned(record.survivingHealth)) {
+            KOMECampaignHealthProjection saved = read(record.survivingHealth);
+            if ((live == null || saved.revision > live.revision) && entity instanceof EntityLivingBase
+                    && saved.hp != ((EntityLivingBase)entity).getHealth() && !KOMERecoveryStartup.mayInstallHP(entity, saved)) return false;
+        }
         require(record.entity.equals(entity.getUniqueID()), "Campaign record physical alias mismatch");
         NBTTagCompound before = record.survivingHealth == null ? null : (NBTTagCompound)record.survivingHealth.copy();
         Entity previouslyObserved = record.healthObservedEntity == null ? null : record.healthObservedEntity.get();
@@ -161,6 +175,7 @@ public final class KOMECampaignHealth {
         float hp;
         if (versioned(health)) {
             KOMECampaignHealthProjection p = read(health);
+            KOMERecoveryStartup.requireDetachedReconciliation(p, false);
             if (p.component == Component.RIDER) {
                 String attached = health.getString("AttachedMountAlias");
                 if (snapshot.hasKey("Riding", 10)) {
@@ -197,6 +212,7 @@ public final class KOMECampaignHealth {
     public static void prepareReconstruction(NBTTagCompound snapshot) {
         if (snapshot.hasKey(ENTITY_TAG)) {
             KOMECampaignHealthProjection p = read(snapshot.getCompoundTag(ENTITY_TAG)); UUID old = snapshotId(snapshot), next = UUID.randomUUID();
+            KOMERecoveryStartup.requireDetachedReconciliation(p, true);
             p = p.rekey(old, next); snapshot.setTag(ENTITY_TAG, p.write());
             snapshot.setLong("UUIDMost", next.getMostSignificantBits()); snapshot.setLong("UUIDLeast", next.getLeastSignificantBits());
             snapshot.removeTag("PersistentIDMSB"); snapshot.removeTag("PersistentIDLSB");
@@ -206,6 +222,7 @@ public final class KOMECampaignHealth {
     /** Publish only after verified spawn; the caller's existing transaction restores record NBT on rollback. */
     public static void reconstructed(KOMEHiredUnitRecord record, UUID oldRider, UUID newRider, UUID oldMount, UUID newMount) {
         if (record == null || !versioned(record.survivingHealth)) return;
+        KOMERecoveryStartup.requireDetachedReconciliation(read(record.survivingHealth), true);
         KOMECampaignHealthProjection p = read(record.survivingHealth).rekey(oldRider, newRider);
         NBTTagCompound old = record.survivingHealth;
         require((oldMount == null) == (newMount == null), "Incomplete mount reconstruction lineage");
@@ -230,12 +247,20 @@ public final class KOMECampaignHealth {
     }
     /** Independently loaded/dismounted mounts reconcile against every retained exact-alias projection. */
     public static void reconcileMount(KOMEWorldData data, Entity entity) {
+        if (!KOMERecoveryStartup.healthReady(entity) || !KOMERecoveryStartup.permitsTarget(data, entity.getUniqueID())) return;
         KOMECampaignHealthProjection live = KOMECampaignHealthEntity.projection(entity);
         if (live == null || live.component != Component.MOUNT) return;
+        if (!KOMERecoveryStartup.validateProjection(entity, live)) return;
         for (KOMEHiredUnitRecord record : data.hiredUnits.values()) {
             if (!KOMEHiredUnitClassification.isCampaignUnit(record)) continue;
             NBTTagCompound saved = mountHealth(record.survivingHealth, entity.getUniqueID());
             if (saved == null) continue;
+            if (versioned(saved)) {
+                KOMECampaignHealthProjection p = read(saved);
+                if (!KOMERecoveryStartup.validateProjection(entity, p)) return;
+                if (p.revision > live.revision && p.hp != ((EntityLivingBase)entity).getHealth()
+                        && !KOMERecoveryStartup.mayInstallHP(entity, p)) return;
+            }
             KOMECampaignHealthProjection p = reconcile(record, entity, saved, Component.MOUNT);
             updateProjection(record, p); record.healthObservedMount = new WeakReference<Entity>(entity); data.markDirty();
         }
