@@ -67,7 +67,7 @@ final class KOMERecoveryStartupPlan {
             if (entry.record instanceof EpisodeContext) {
                 EpisodeContext context = (EpisodeContext)entry.record;
                 Episode old = episodes.get(context.episode.episodeId);
-                Episode merged = mergeEpisode(old, context.episode);
+                Episode merged = mergeEpisode(old, context);
                 episodes.put(merged.episodeId, merged);
                 if (old != merged) repaired++;
                 watermark = Math.max(watermark, context.nextConflictSequence);
@@ -203,7 +203,8 @@ final class KOMERecoveryStartupPlan {
         return root;
     }
 
-    private static Episode mergeEpisode(Episode old, Episode durable) {
+    private static Episode mergeEpisode(Episode old, EpisodeContext context) {
+        Episode durable = context.episode;
         if (old == null) return durable;
         require(old.conflictId.equals(durable.conflictId) && old.tileId.equals(durable.tileId)
             && old.startedAt == durable.startedAt && (old.endedAt == null || old.endedAt.equals(durable.endedAt)), "Episode/context contradiction");
@@ -231,6 +232,12 @@ final class KOMERecoveryStartupPlan {
         Map<String,Grant> grants = new TreeMap<String,Grant>(durable.grants);
         for (Grant g : old.grants.values()) {
             Grant d = grants.get(g.key());
+            if (d == null && g.state == GrantState.TERMINAL && context.targets.containsKey(g.targetId)
+                    && context.targets.get(g.targetId).terminal && g.amount == context.recoveryAmount) {
+                // This obligation was retired before context sealing. Preserve its v3 receipt exactly;
+                // the journal proves terminal identity, never fabricates a retirement reason.
+                grants.put(g.key(), g); continue;
+            }
             require(d != null && d.participantId.equals(g.participantId) && d.amount == g.amount, "Grant absent/contradictory in context");
             grants.put(g.key(), g);
         }

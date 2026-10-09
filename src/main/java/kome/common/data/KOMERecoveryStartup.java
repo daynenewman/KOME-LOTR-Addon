@@ -24,6 +24,71 @@ public final class KOMERecoveryStartup {
     private List<KOMECampaignHealthProjection> physicalEvidence = Collections.emptyList();
     private RuntimeException loadFailure;
     private final Set<UUID> quarantinedTargets = new TreeSet<UUID>();
+    private final Thread owner = Thread.currentThread();
+    private KOMERecoveryJournalRecord uncertain;
+    private final Map<UUID, KOMECampaignHealthProjection> provisionalAliases = new HashMap<UUID, KOMECampaignHealthProjection>();
+
+    KOMERecoveryJournalView journal() { return view; }
+    void requireRuntime(String conflict, UUID target) {
+        KOMEOrdinaryBattleRecoveryRegistry.require(Thread.currentThread() == owner, "Recovery requires owning server thread");
+        rescanUncertain();
+        KOMEOrdinaryBattleRecoveryRegistry.require(ready() && !quarantinedTargets.contains(target)
+            && (plan == null || !plan.quarantinedConflicts.contains(conflict)), "Recovery authority blocked: " + diagnostic);
+        if (data != null) for (KOMEOrdinaryBattleRecoveryRegistry.Episode episode : data.getOrdinaryBattleRecovery().episodes().values()) {
+            if (!episode.conflictId.equals(conflict)) continue;
+            for (KOMEOrdinaryBattleRecoveryRegistry.Participant p : episode.participants.values()) {
+                KOMEOrdinaryBattleRecoveryRegistry.require(!quarantinedTargets.contains(p.id), "Conflict has a quarantined recovery participant");
+                for (UUID mount : p.mountIds) KOMEOrdinaryBattleRecoveryRegistry.require(!quarantinedTargets.contains(mount),
+                    "Conflict has a quarantined recovery mount");
+            }
+        }
+    }
+    void quarantine(UUID target, String reason) {
+        quarantinedTargets.add(target);
+        diagnostic = "Recovery target quarantined=" + target + ": " + reason; log();
+    }
+    KOMERecoveryJournalView.Entry append(KOMERecoveryJournalRecord record) {
+        KOMEOrdinaryBattleRecoveryRegistry.require(Thread.currentThread() == owner && ready(), "Journal writer is not ready");
+        try {
+            KOMERecoveryJournal.Acknowledgment ack = manager.append(record, view.lastSequence, view.lastHash);
+            view = manager.view();
+            return view.records.get(ack.sequence);
+        } catch (IOException | RuntimeException failure) {
+            uncertain = record;
+            block(State.BLOCKED_CORRUPT, "Durable " + record.type + " acknowledgment failed; rescan required: " + failure);
+            throw new IllegalArgumentException(diagnostic, failure);
+        }
+    }
+    private void rescanUncertain() {
+        if (uncertain == null || state == State.STOPPING) return;
+        try {
+            manager.open();
+            if (manager.state() != KOMERecoveryJournal.State.READY) return;
+            KOMERecoveryJournalView rescanned = manager.view();
+            for (KOMERecoveryJournalView.Entry entry : rescanned.records.values()) {
+                if (!entry.record.identity().equals(uncertain.identity())) continue;
+                KOMEOrdinaryBattleRecoveryRegistry.require(Arrays.equals(KOMERecoveryJournalCodec.encode(entry.record),
+                    KOMERecoveryJournalCodec.encode(uncertain)), "Uncertain append identity contradicts WAL");
+                view = rescanned;
+                // Alias/terminal activation belongs to its transaction, never to an unrelated retry.
+                if (uncertain instanceof KOMERecoveryJournalRecord.Lineage || uncertain instanceof KOMERecoveryJournalRecord.Terminal) return;
+                uncertain = null; state = State.READY;
+                diagnostic = "Recovery READY; uncertain append found and forced by full WAL rescan"; log(); return;
+            }
+            block(State.BLOCKED_CORRUPT, "Uncertain append absent after rescan; replacement identity prohibited");
+        } catch (IOException | RuntimeException failure) { block(State.BLOCKED_CORRUPT, "Uncertain append rescan failed: " + failure); }
+    }
+    static void stageAlias(KOMECampaignHealthProjection source, UUID next) {
+        if (session != null && session.view != null && session.view.currentPhysicalAliases.containsKey(source.target))
+            session.provisionalAliases.put(next, source);
+    }
+    void activated(UUID alias) { provisionalAliases.remove(alias); }
+    static void discardAlias(UUID alias) { if (session != null) session.provisionalAliases.remove(alias); }
+    void requireStaged(KOMECampaignHealthProjection p, UUID next) {
+        KOMECampaignHealthProjection staged = provisionalAliases.get(next);
+        KOMEOrdinaryBattleRecoveryRegistry.require(staged != null && staged.write().equals(p.write()),
+            "Replacement lacks exact verified reconstruction source");
+    }
 
     KOMERecoveryStartup(Object server) { this.server = server; }
     public State state() { return state; }
@@ -183,6 +248,8 @@ public final class KOMERecoveryStartup {
         if (!(entity.worldObj instanceof WorldServer) || entity.worldObj.isRemote) return true;
         if (!healthReady(entity)) return false;
         KOMERecoveryStartup s = session;
+        // A detached, verified-source reconstruction is not authoritative until LINEAGE is forced.
+        if (s.provisionalAliases.containsKey(projection.alias)) return false;
         if (s.quarantinedTargets.contains(projection.target)) return false;
         try {
             KOMERecoveryStartupPlan.validateHealthTree(projection.write(), s.view, new TreeMap<String,KOMERecoveryStartupPlan.Adoption>());
@@ -199,10 +266,14 @@ public final class KOMERecoveryStartup {
     static boolean permitsHealthChange(Entity entity, KOMECampaignHealthProjection projection) {
         if (!(entity.worldObj instanceof WorldServer) || entity.worldObj.isRemote) return true;
         if (!validateProjection(entity, projection)) return false;
-        for (KOMERecoveryJournalView.Entry e : session.view.preparations.values()) {
+        return session.permitsMutation(projection);
+    }
+    boolean permitsMutation(KOMECampaignHealthProjection projection) {
+        if (!ready() || quarantinedTargets.contains(projection.target) || view.terminalTargets.contains(projection.target)) return false;
+        for (KOMERecoveryJournalView.Entry e : view.preparations.values()) {
             KOMERecoveryJournalRecord.Prepare p = (KOMERecoveryJournalRecord.Prepare)e.record;
             if (p.binding.targetId.equals(projection.target)
-                    && KOMERecoveryStartupPlan.reconcile(session.view, e, projection) != KOMERecoveryStartupPlan.Adoption.CONSUMED)
+                    && KOMERecoveryStartupPlan.reconcile(view, e, projection) != KOMERecoveryStartupPlan.Adoption.CONSUMED)
                 return false;
         }
         return true;
@@ -217,8 +288,19 @@ public final class KOMERecoveryStartup {
             "Recovery health reconciliation awaits startup: " + session.state);
         KOMEOrdinaryBattleRecoveryRegistry.require(!session.quarantinedTargets.contains(p.target), "Recovery target quarantined");
         KOMERecoveryStartupPlan.validateFence(session.view, p);
-        if (rekey) KOMEOrdinaryBattleRecoveryRegistry.require(p.fence == null
-            && !session.view.currentPhysicalAliases.containsKey(p.target), "Journal-backed reconstruction requires future durable LINEAGE API");
+        if (rekey) KOMEOrdinaryBattleRecoveryRegistry.require(session.permitsMutation(p), "Pending reservation prevents reconstruction");
+    }
+    static void requireAliasPublication(KOMECampaignHealthProjection p, UUID next) {
+        if (session == null) return;
+        if (session.server instanceof MinecraftServer) KOMEOrdinaryBattleRecoveryRegistry.require(session.ready(),
+            "Alias publication awaits recovery readiness");
+        if (session.view == null || !session.view.currentPhysicalAliases.containsKey(p.target)) return;
+        if (p.alias.equals(next)) { KOMERecoveryStartupPlan.validateFence(session.view, p); return; }
+        KOMERecoveryJournalView.Entry entry = session.view.lineages.get(p.target);
+        KOMEOrdinaryBattleRecoveryRegistry.require(entry != null, "Missing durable LINEAGE activation");
+        KOMERecoveryJournalRecord.Lineage l = (KOMERecoveryJournalRecord.Lineage)entry.record;
+        KOMEOrdinaryBattleRecoveryRegistry.require(session.ready() && l.oldAlias.equals(p.alias) && l.newAlias.equals(next)
+            && l.healthRevision == p.revision && l.healthTransitionId.equals(p.transition), "Health publication contradicts durable LINEAGE");
     }
     static String reason(KOMEWorldData data) {
         return "Recovery authority is awaiting reconciliation or quarantined; see the server recovery diagnostics.";

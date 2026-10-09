@@ -47,8 +47,10 @@ public final class KOMEOrdinaryBattleRecoveryService {
                         KOMECampaignHealth.logicalTarget(unit.survivingHealth, id, Component.RIDER),
                         mountId == null ? null : KOMECampaignHealth.logicalTarget(
                             KOMECampaignHealth.mountHealth(unit.survivingHealth, mountId), mountId, Component.MOUNT));
-                    if (unit.populationReturned || terminalHealth(unit))
+                    if (unit.populationReturned || terminalHealth(unit)) {
+                        KOMERecoveryTargetJournal.terminal(data, id, Disposition.UNAVAILABLE, now, "Terminal Campaign authority");
                         changed |= next.terminalize(id, Disposition.UNAVAILABLE, now, "Terminal Campaign authority");
+                    }
                 }
             }
         }
@@ -97,21 +99,26 @@ public final class KOMEOrdinaryBattleRecoveryService {
         Disposition disposition = outcome == KOMEConflictMovementHandoff.Outcome.FORMAL_RETREAT ? Disposition.FORMAL_RETREAT
             : outcome == KOMEConflictMovementHandoff.Outcome.DESTROYED ? Disposition.DESTROYED
             : outcome == KOMEConflictMovementHandoff.Outcome.DEFEATED ? Disposition.DEFEATED : Disposition.DEPARTED;
-        if (data.getOrdinaryBattleRecovery().exit(before, members, disposition, now, outcome.name())) data.markDirty();
         if (disposition == Disposition.DESTROYED) for (UUID id : members)
             terminal(data, id, disposition, now, outcome.name());
+        if (data.getOrdinaryBattleRecovery().exit(before, members, disposition, now, outcome.name())) data.markDirty();
     }
     public static void terminal(KOMEWorldData data, UUID physical, Disposition disposition, long now, String reason) {
-        if (!KOMERecoveryStartup.permitsTarget(data, physical)) return;
+        require(KOMERecoveryStartup.permitsTarget(data, physical)
+            || data.getOrdinaryBattleRecovery().targetForPhysical(physical) == null
+            || data.getOrdinaryBattleRecovery().targetForPhysical(physical).terminal, "Terminal recovery authority is blocked");
         data.ensureWritable();
         Target known = data.getOrdinaryBattleRecovery().targetForPhysical(physical);
         if (known != null && !physical.equals(known.physicalId)) return;
+        // For an already journal-bound target, seal the caller's exact irreversible disposition
+        // before observation can classify zero HP more generally as UNAVAILABLE.
+        KOMERecoveryTargetJournal.terminal(data, physical, disposition, now, reason);
         // Observe BEFORE removing strategic membership; this may be the last hostile-pair proof.
         KOMEHiredUnitRecord unit = data.hiredUnits.get(physical);
         if (unit != null) observe(data, data.getConflictService().get(unit.currentTile), now);
         if (data.getOrdinaryBattleRecovery().terminalize(physical, disposition, now, reason)) data.markDirty();
         if (disposition == Disposition.DEAD || disposition == Disposition.DESTROYED) {
-            for (KOMEHiredUnitRecord record : data.hiredUnits.values()) KOMECampaignHealth.markTerminal(record, physical);
+            for (KOMEHiredUnitRecord record : data.hiredUnits.values()) KOMECampaignHealth.markTerminal(data, record, physical);
             data.markDirty();
         }
     }
@@ -125,7 +132,16 @@ public final class KOMEOrdinaryBattleRecoveryService {
         data.ensureWritable(); KOMEOrdinaryBattleRecoveryRegistry next = copy(data);
         boolean changed = next.rekeyVerified(oldRider, newRider, Component.RIDER);
         if (oldMount != null && newMount != null) changed |= next.rekeyVerified(oldMount, newMount, Component.MOUNT);
+        // Validate the whole replacement before any irreversible WAL activation.
+        KOMERecoveryJournalRecord.Lineage rider = KOMERecoveryTargetJournal.lineage(data, oldRider, newRider, false);
+        KOMERecoveryJournalRecord.Lineage mount = oldMount == null || newMount == null ? null
+            : KOMERecoveryTargetJournal.lineage(data, oldMount, newMount, false);
+        KOMERecoveryTargetJournal.activate(data, rider);
+        KOMERecoveryTargetJournal.activate(data, mount);
         if (changed) { data.getOrdinaryBattleRecovery().replaceFrom(next); data.markDirty(); }
+    }
+    public static void rollbackReconstruction(KOMEWorldData data, KOMEOrdinaryBattleRecoveryRegistry before) {
+        KOMERecoveryTargetJournal.rollback(data, before);
     }
     /** Decode a source snapshot's physical mount identity before reconstruction clears UUIDs. */
     public static UUID snapshotMount(NBTTagCompound snapshot) {

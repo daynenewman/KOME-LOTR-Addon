@@ -34,6 +34,8 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
         if (s == null || s.loading || s.projecting || s.projection == null) return;
         if (!KOMERecoveryStartup.healthReady(entity) || !KOMERecoveryStartup.validateProjection(entity, s.projection)) return;
         require(s.projection.alias.equals(entity.getUniqueID()), "Unverified physical alias mutation");
+        if (s.projection.hp != s.entity.getHealth())
+            require(KOMERecoveryStartup.permitsHealthChange(entity, s.projection), "Recovery reservation prevents publishing branched health");
         KOMECampaignHealthProjection next = s.projection.change(s.entity.getHealth(), s.projection.terminal);
         if (next != s.projection) { s.projection = next; s.publish(); }
     }
@@ -78,8 +80,11 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
     public static void terminal(Entity entity) {
         KOMECampaignHealthEntity s = state(entity, false);
         if (s == null || s.projection == null) return;
-        if (!KOMERecoveryStartup.healthReady(entity) || !KOMERecoveryStartup.validateProjection(entity, s.projection)) return;
-        changed(entity); s.projection = s.projection.change(s.entity.getHealth(), true); s.publish();
+        if (!KOMERecoveryStartup.healthReady(entity)) return;
+        KOMEWorldData data = KOMEWorldData.get(entity.worldObj);
+        KOMERecoveryTargetJournal.terminal(data, entity.getUniqueID(),
+            KOMEOrdinaryBattleRecoveryRegistry.Disposition.DEAD, System.currentTimeMillis(), "Authoritative living death");
+        s.projection = KOMERecoveryTargetJournal.terminalProjection(data, s.projection); s.publish();
     }
     public static void beginRead(Entity entity, NBTTagCompound nbt) {
         KOMECampaignHealthEntity existing = state(entity, false);

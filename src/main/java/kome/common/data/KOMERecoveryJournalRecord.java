@@ -42,8 +42,7 @@ public abstract class KOMERecoveryJournalRecord {
                 Grant g = entry.getValue();
                 require(entry.getKey().equals(g.key()) && g.state == GrantState.PENDING && g.transition == null
                     && g.amount == recoveryAmount, "Context must contain only unprepared pending obligations");
-                require(!this.targets.get(g.targetId).terminal && !terminal(episode.participants.get(g.participantId).disposition),
-                    "Terminal context grant");
+                require(!this.targets.get(g.targetId).terminal, "Pending terminal context target");
             }
         }
         public String intentFingerprint() { return KOMERecoveryJournalCodec.intentFingerprint(episode.intent); }
@@ -140,6 +139,11 @@ public abstract class KOMERecoveryJournalRecord {
             this.previousLineageSequence = previousLineageSequence; this.healthRevision = healthRevision; this.fence = fence;
         }
         @Override String identity() { return "LINEAGE:" + activationId; }
+        /** Domain-separated identity makes a deliberate reverse edge distinguishable in WAL v1. */
+        static UUID reverseActivation(UUID activation) {
+            return UUID.nameUUIDFromBytes(("KOME:recovery-lineage-reverse:v1:" + activation)
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
     }
     static UUID uuid(UUID value) {
         require(value != null && (value.getMostSignificantBits() != 0 || value.getLeastSignificantBits() != 0), "Missing/nil UUID");

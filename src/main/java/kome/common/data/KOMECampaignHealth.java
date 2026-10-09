@@ -157,9 +157,15 @@ public final class KOMECampaignHealth {
     }
     private static boolean terminal(NBTTagCompound n) { return versioned(n) && read(n).terminal; }
     public static void markTerminal(KOMEHiredUnitRecord record, UUID physical) {
+        markTerminal(null, record, physical);
+    }
+    static void markTerminal(KOMEWorldData data, KOMEHiredUnitRecord record, UUID physical) {
         if (record == null) return;
         NBTTagCompound n = record.entity.equals(physical) ? record.survivingHealth : mountHealth(record.survivingHealth, physical);
-        if (versioned(n)) { KOMECampaignHealthProjection p = read(n); updateProjection(record, p.change(p.hp, true)); }
+        if (versioned(n)) {
+            KOMECampaignHealthProjection p = read(n);
+            updateProjection(record, data == null ? p.change(p.hp, true) : KOMERecoveryTargetJournal.terminalProjection(data, p));
+        }
     }
     public static float exact(NBTTagCompound snapshot) {
         String key = snapshot.hasKey("HealF") ? "HealF" : "Health";
@@ -213,16 +219,24 @@ public final class KOMECampaignHealth {
         if (snapshot.hasKey(ENTITY_TAG)) {
             KOMECampaignHealthProjection p = read(snapshot.getCompoundTag(ENTITY_TAG)); UUID old = snapshotId(snapshot), next = UUID.randomUUID();
             KOMERecoveryStartup.requireDetachedReconciliation(p, true);
+            KOMERecoveryStartup.stageAlias(p, next);
             p = p.rekey(old, next); snapshot.setTag(ENTITY_TAG, p.write());
             snapshot.setLong("UUIDMost", next.getMostSignificantBits()); snapshot.setLong("UUIDLeast", next.getLeastSignificantBits());
             snapshot.removeTag("PersistentIDMSB"); snapshot.removeTag("PersistentIDLSB");
         } else { snapshot.removeTag("UUIDMost"); snapshot.removeTag("UUIDLeast"); snapshot.removeTag("PersistentIDMSB"); snapshot.removeTag("PersistentIDLSB"); }
         if (snapshot.hasKey("Riding", 10)) prepareReconstruction(snapshot.getCompoundTag("Riding"));
     }
+    public static void discardReconstruction(NBTTagCompound snapshot) {
+        if (snapshot.hasKey(ENTITY_TAG)) KOMERecoveryStartup.discardAlias(read(snapshot.getCompoundTag(ENTITY_TAG)).alias);
+        if (snapshot.hasKey("Riding", 10)) discardReconstruction(snapshot.getCompoundTag("Riding"));
+    }
+    public static void discardReconstruction(UUID rider, UUID mount) {
+        KOMERecoveryStartup.discardAlias(rider); KOMERecoveryStartup.discardAlias(mount);
+    }
     /** Publish only after verified spawn; the caller's existing transaction restores record NBT on rollback. */
     public static void reconstructed(KOMEHiredUnitRecord record, UUID oldRider, UUID newRider, UUID oldMount, UUID newMount) {
         if (record == null || !versioned(record.survivingHealth)) return;
-        KOMERecoveryStartup.requireDetachedReconciliation(read(record.survivingHealth), true);
+        KOMERecoveryStartup.requireAliasPublication(read(record.survivingHealth), newRider);
         KOMECampaignHealthProjection p = read(record.survivingHealth).rekey(oldRider, newRider);
         NBTTagCompound old = record.survivingHealth;
         require((oldMount == null) == (newMount == null), "Incomplete mount reconstruction lineage");
@@ -230,6 +244,7 @@ public final class KOMECampaignHealth {
         if (oldMount != null) {
             NBTTagCompound savedMount = mountHealth(old, oldMount);
             require(versioned(savedMount), "Missing versioned mount reconstruction source");
+            KOMERecoveryStartup.requireAliasPublication(read(savedMount), newMount);
             mount = read(savedMount).rekey(oldMount, newMount);
         }
         NBTTagCompound next = p.write();

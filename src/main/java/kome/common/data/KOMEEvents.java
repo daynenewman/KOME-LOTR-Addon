@@ -848,14 +848,23 @@ public class KOMEEvents {
     public void onEmergencyDefenseDeath(LivingDeathEvent event) {
         if (!event.isCanceled() && event.entityLiving != null && event.entityLiving.worldObj != null
                 && !event.entityLiving.worldObj.isRemote) {
-            KOMECampaignHealthEntity.terminal(event.entityLiving);
             KOMEWorldData recoveryData = KOMEWorldData.get(event.entityLiving.worldObj);
-            KOMEOrdinaryBattleRecoveryService.terminal(recoveryData, event.entityLiving.getUniqueID(),
-                KOMEOrdinaryBattleRecoveryRegistry.Disposition.DEAD, System.currentTimeMillis(), "Authoritative living death");
+            try {
+                KOMEOrdinaryBattleRecoveryService.terminal(recoveryData, event.entityLiving.getUniqueID(),
+                    KOMEOrdinaryBattleRecoveryRegistry.Disposition.DEAD, System.currentTimeMillis(), "Authoritative living death");
+                KOMECampaignHealthEntity.terminal(event.entityLiving);
+            } catch (IllegalArgumentException blockedRecovery) {
+                event.setCanceled(true);
+                System.err.println("[KOME] Death finalization deferred by recovery authority: " + blockedRecovery.getMessage());
+                return;
+            }
         }
         if (!event.isCanceled() && event.entityLiving instanceof LOTREntityNPC
                 && !event.entityLiving.worldObj.isRemote) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
+            // Retained health is needed to force TERMINAL above; remove membership only afterward.
+            releaseIfTracked(npc);
+            releaseLinkedInactiveUnits(npc);
             KOMEEmergencyDefenseMobilizationService.INSTANCE.markDead(
                 KOMEWorldData.get(npc.worldObj), KOMEReflection.getEntityUUID(npc),
                 System.currentTimeMillis());
@@ -872,8 +881,6 @@ public class KOMEEvents {
                 event.setCanceled(true);
                 return;
             }
-            releaseIfTracked(npc);
-            releaseLinkedInactiveUnits(npc);
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
             UUID deadId = KOMEReflection.getEntityUUID(npc);
             KOMESerfKnightEscortService.handleTargetDeath(data, deadId.toString(),npc.worldObj);

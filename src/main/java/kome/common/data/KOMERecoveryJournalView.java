@@ -82,7 +82,9 @@ public final class KOMERecoveryJournalView {
             require(!contextTerminal.contains(b.targetId)&&!terminals.containsKey(b.targetId),"Target already terminal");
             if(record instanceof Prepare) {
                 Prepare p=(Prepare)record; Grant grant=c.episode.grants.get(b.component+":"+b.targetId);
-                require(grant!=null&&grant.participantId.equals(p.participantId)&&grant.amount==p.recoveryAmount,"Prepare does not match exact pending grant");
+                require(grant!=null&&grant.state==GrantState.PENDING&&grant.participantId.equals(p.participantId)
+                    &&grant.amount==p.recoveryAmount&&!terminal(c.episode.participants.get(grant.participantId).disposition),
+                    "Prepare does not match exact eligible pending grant");
                 require(c.intentFingerprint().equals(p.intentFingerprint),"Resolution intent fingerprint mismatch");
                 alias(b,p.physicalAlias); require(p.lineageSequence==lineageSequence(b.targetId),"Stale lineage reference");
                 lineageHealth(b.targetId, p.sourceRevision, p.sourceTransitionId, false);
@@ -96,7 +98,15 @@ public final class KOMERecoveryJournalView {
                 }
             } else if(record instanceof Lineage) {
                 Lineage l=(Lineage)record; alias(b,l.oldAlias);
-                require(!aliases.containsKey(l.newAlias),"Replacement alias is already known");
+                // A verified transaction rollback is another explicit edge, not deletion of history.
+                Entry predecessor=lineages.get(b.targetId);
+                Lineage priorLineage=predecessor==null?null:(Lineage)predecessor.record;
+                boolean reverse=priorLineage!=null && l.activationId.equals(Lineage.reverseActivation(priorLineage.activationId))
+                    && l.newAlias.equals(priorLineage.oldAlias) && l.oldAlias.equals(priorLineage.newAlias)
+                    && l.healthRevision==priorLineage.healthRevision && l.healthTransitionId.equals(priorLineage.healthTransitionId)
+                    && sameFence(l.fence,priorLineage.fence);
+                require(!aliases.containsKey(l.newAlias) || aliases.get(l.newAlias).equals(b.targetId) && reverse,
+                    "Replacement alias is already known without exact reverse-lineage proof");
                 require(l.previousLineageSequence==lineageSequence(b.targetId),"Stale lineage predecessor");
                 lineageHealth(b.targetId, l.healthRevision, l.healthTransitionId, false);
                 fence(b,l.fence,l.healthRevision);
@@ -107,14 +117,26 @@ public final class KOMERecoveryJournalView {
                         "Lineage changes an existing recovery transition identity");
                 }
             } else {
-                Terminal t=(Terminal)record; alias(b,t.physicalAlias); fence(b,t.fence,t.healthRevision);
+                Terminal t=(Terminal)record; alias(b,t.physicalAlias);
                 lineageHealth(b.targetId, t.healthRevision, t.transitionId, true);
                 Entry previous=latestPrepare.get(b.targetId);
-                require(previous==null || t.healthRevision>((Prepare)previous.record).recoveryRevision,
-                    "Terminal health transition must follow prepared live health");
+                Prepare prior=previous==null?null:(Prepare)previous.record;
+                // Irreversible retirement may cancel an unconsumed reservation. It must NOT claim
+                // that reservation's fence/token or masquerade as physical recovery adoption.
+                boolean cancellation=prior!=null && t.healthRevision==prior.recoveryRevision
+                    && !t.transitionId.equals(prior.recoveryTransitionId) && sameFence(t.fence,prior.inheritedFence);
+                if(!cancellation) {
+                    fence(b,t.fence,t.healthRevision);
+                    require(prior==null || t.healthRevision>prior.recoveryRevision,
+                        "Terminal health transition must follow prepared live health");
+                }
             }
         }
         private void alias(Binding b,UUID physical) { require(physical.equals(currentAlias.get(b.targetId)),"Obsolete/unverified physical alias="+physical); }
+        private boolean sameFence(Fence a,Fence b) {
+            return a==null?b==null:b!=null&&a.journalId.equals(b.journalId)&&a.prepareSequence==b.prepareSequence
+                &&a.transitionId.equals(b.transitionId);
+        }
         private long lineageSequence(UUID target) { Entry entry=lineages.get(target); return entry==null?0:entry.sequence; }
         private void lineageHealth(UUID target, long revision, UUID transition, boolean terminal) {
             Entry entry=lineages.get(target); if(entry==null)return;

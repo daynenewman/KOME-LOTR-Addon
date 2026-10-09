@@ -3105,7 +3105,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                             attempt.oldId, attempt.newId, attempt.oldMountId, attempt.newMountId);
                     }
                 } catch (IllegalArgumentException invalidRecoveryIdentity) {
-                    data.getOrdinaryBattleRecovery().replaceFrom(recoveryBeforePublication);
+                    kome.common.data.KOMEOrdinaryBattleRecoveryService.rollbackReconstruction(data, recoveryBeforePublication);
                     rollbackVerifiedSpawns(data, arrivalWorld, order, verifiedSpawns);
                     for (Map.Entry<UUID, NBTTagCompound> saved : recordsBeforePublication.entrySet()) {
                         KOMEHiredUnitRecord original = data.hiredUnits.get(saved.getKey());
@@ -3175,7 +3175,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                             conflictPreparation.receipt, order.owner == null
                                 ? order.ownerName : order.owner.toString(), arrivalWorld);
                     if (!commitment.success()) {
-                        data.getOrdinaryBattleRecovery().replaceFrom(recoveryBeforePublication);
+                        kome.common.data.KOMEOrdinaryBattleRecoveryService.rollbackReconstruction(data, recoveryBeforePublication);
                         rollbackPublishedArrival(data, arrivalWorld, order,
                             verifiedSpawns, orderBeforePublication,
                             company, companyBeforePublication,
@@ -3976,6 +3976,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 continue;
             }
             Entity spawned = findLoadedEntity(world, attempt.newId);
+            kome.common.data.KOMECampaignHealth.discardReconstruction(attempt.newId, attempt.newMountId);
             if (spawned != null) {
                 removeEntityTree(world, spawned);
             }
@@ -4038,68 +4039,74 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 return attempt;
             }
             attempt.oldMountId = kome.common.data.KOMEOrdinaryBattleRecoveryService.snapshotMount(snapshot);
-            kome.common.data.KOMECampaignHealth.prepareReconstruction(snapshot);
-            sanitizeMovingEntitySnapshot(snapshot);
-            Entity root = createEntityTree(snapshot, world);
-            if (!(root instanceof LOTREntityNPC)) {
-                attempt.failureReason = "saved entity data did not recreate a LOTR NPC";
-                return attempt;
-            }
-            prepareMovementRespawnEntity(root);
-            double[] safePosition = findSafeSpawn(world, root, target, index);
-            if (safePosition == null) {
-                if (failures.length() > 0) {
-                    failures.append("; ");
+            boolean verifiedReconstruction = false;
+            try {
+                kome.common.data.KOMECampaignHealth.prepareReconstruction(snapshot);
+                sanitizeMovingEntitySnapshot(snapshot);
+                Entity root = createEntityTree(snapshot, world);
+                if (!(root instanceof LOTREntityNPC)) {
+                    attempt.failureReason = "saved entity data did not recreate a LOTR NPC";
+                    return attempt;
                 }
-                failures.append(describeTarget(target)).append(" had no safe nearby space");
-                continue;
-            }
-            attempt.attemptX = safePosition[0];
-            attempt.attemptY = safePosition[1];
-            attempt.attemptZ = safePosition[2];
-            attempt.dimensionId = world.provider.dimensionId;
-            attempt.targetLabel = target.label + " at " + formatBlockPos(safePosition[0], safePosition[1], safePosition[2]);
-            positionEntityTree(root, safePosition[0], safePosition[1], safePosition[2]);
-            UUID oldId = record.entity;
-            UUID newId = KOMEReflection.getEntityUUID(root);
-            KOMEHiredUnitPhysicalLocatorService.clear(data, record);
-            data.hiredUnits.remove(oldId);
-            record.entity = newId;
-            data.hiredUnits.put(newId, record);
-            if (spawnEntityTree(world, root)) {
-                String verificationFailure = verifySpawnedEntity(data, world, record, root, newId, safePosition);
-                if (verificationFailure.length() > 0) {
-                    removeEntityTree(world, root);
-                    data.hiredUnits.remove(newId);
-                    record.entity = oldId;
-                    data.hiredUnits.put(oldId, record);
+                prepareMovementRespawnEntity(root);
+                double[] safePosition = findSafeSpawn(world, root, target, index);
+                if (safePosition == null) {
                     if (failures.length() > 0) {
                         failures.append("; ");
                     }
-                    failures.append(describeTarget(target)).append(" selected ")
-                        .append(formatBlockPos(safePosition[0], safePosition[1], safePosition[2]))
-                        .append(" but physical verification failed: ").append(verificationFailure);
+                    failures.append(describeTarget(target)).append(" had no safe nearby space");
                     continue;
                 }
-                Entity reconstructedMount = KOMEReflection.getRidingEntity(root);
-                attempt.newMountId = reconstructedMount == null ? null : reconstructedMount.getUniqueID();
-                attempt.oldId = oldId;
-                attempt.newId = newId;
-                attempt.spawnX = root.posX;
-                attempt.spawnY = root.posY;
-                attempt.spawnZ = root.posZ;
-                ((LOTREntityNPC) root).hiredNPCInfo.halt();
-                return attempt;
+                attempt.attemptX = safePosition[0];
+                attempt.attemptY = safePosition[1];
+                attempt.attemptZ = safePosition[2];
+                attempt.dimensionId = world.provider.dimensionId;
+                attempt.targetLabel = target.label + " at " + formatBlockPos(safePosition[0], safePosition[1], safePosition[2]);
+                positionEntityTree(root, safePosition[0], safePosition[1], safePosition[2]);
+                UUID oldId = record.entity;
+                UUID newId = KOMEReflection.getEntityUUID(root);
+                KOMEHiredUnitPhysicalLocatorService.clear(data, record);
+                data.hiredUnits.remove(oldId);
+                record.entity = newId;
+                data.hiredUnits.put(newId, record);
+                if (spawnEntityTree(world, root)) {
+                    String verificationFailure = verifySpawnedEntity(data, world, record, root, newId, safePosition);
+                    if (verificationFailure.length() > 0) {
+                        removeEntityTree(world, root);
+                        data.hiredUnits.remove(newId);
+                        record.entity = oldId;
+                        data.hiredUnits.put(oldId, record);
+                        if (failures.length() > 0) {
+                            failures.append("; ");
+                        }
+                        failures.append(describeTarget(target)).append(" selected ")
+                            .append(formatBlockPos(safePosition[0], safePosition[1], safePosition[2]))
+                            .append(" but physical verification failed: ").append(verificationFailure);
+                        continue;
+                    }
+                    Entity reconstructedMount = KOMEReflection.getRidingEntity(root);
+                    attempt.newMountId = reconstructedMount == null ? null : reconstructedMount.getUniqueID();
+                    attempt.oldId = oldId;
+                    attempt.newId = newId;
+                    attempt.spawnX = root.posX;
+                    attempt.spawnY = root.posY;
+                    attempt.spawnZ = root.posZ;
+                    ((LOTREntityNPC) root).hiredNPCInfo.halt();
+                    verifiedReconstruction = true;
+                    return attempt;
+                }
+                data.hiredUnits.remove(newId);
+                record.entity = oldId;
+                data.hiredUnits.put(oldId, record);
+                if (failures.length() > 0) {
+                    failures.append("; ");
+                }
+                failures.append(describeTarget(target)).append(" selected ")
+                    .append(formatBlockPos(safePosition[0], safePosition[1], safePosition[2]))
+                    .append(" but spawn was rejected by the world");
+            } finally {
+                if (!verifiedReconstruction) kome.common.data.KOMECampaignHealth.discardReconstruction(snapshot);
             }
-            data.hiredUnits.remove(newId);
-            record.entity = oldId;
-            data.hiredUnits.put(oldId, record);
-            if (failures.length() > 0) {
-                failures.append("; ");
-            }
-            failures.append(describeTarget(target)).append(" selected ")
-                .append(formatBlockPos(safePosition[0], safePosition[1], safePosition[2]))
-                .append(" but spawn was rejected by the world");
         }
         attempt.failureReason = failures.length() == 0 ? "no arrival target accepted the unit" : failures.toString();
         return attempt;
