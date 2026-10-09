@@ -109,3 +109,10 @@ full siege/episode/sortie controllers and KOM-78 physical muster arrival remain 
 dependencies. Unknown physical locations are not repaired by inference. Wider command,
 client/governance/notification and simultaneous-player acceptance remain. Concrete Discord
 transport is optional scope. No other person's unfinished task was taken over.
+
+
+## October 9 current-dev integration follow-up — prepared, not posted
+
+PR #26 retains reset/governance/daily root schema 12 while adding current dev f154dea Join Battle ConflictData v2. Occupied-capital reset retries and a Join Battle governance bypass were reproduced and fixed. Fresh gate: 333 focused passes; clean test/build 3,078 passed/five skipped; eight disposable native restart gates plus production-JAR linkage PASS. Exact evidence: ../pr26-integration-20261009/README.md.
+
+KOM-28/PR26: native mounted reset HP/UUID/receipt recovery now validated alongside retained offline Join recovery NBT; connected-client Join UI/governance and changed landing/reconnect remain pending. KOM-57/60/63: preserve existing R1/HUD/map/Build observations with exact old candidate identities. Multiplayer deferred; lower-spec validation and KOM-58/59 approvals remain pending. No ticket status or dependency ownership changed; no merge/deployment.

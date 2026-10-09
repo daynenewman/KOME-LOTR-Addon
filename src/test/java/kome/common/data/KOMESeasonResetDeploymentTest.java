@@ -41,9 +41,30 @@ public class KOMESeasonResetDeploymentTest {
             assertTrue(KOMESeasonResetDeployment.inTile(rider,s.entry.destination));
             assertEquals(rider.posX,mount.posX,0D); assertEquals(rider.posZ,mount.posZ,0D);
             assertEquals(0,s.world.spawns);
+            KOMEFactionCapitalRecord capital=KOMEFactionCapitalService.getCapital(s.data,"gondor");
+            assertFalse("Ordinary deployment must still reject the returned unit's occupied volume",
+                KOMEStrategicDeploymentResolver.validateStored(s.world,capital.getCapitalTileId(),
+                    capital.getDeploymentDimensionId(),capital.getDeploymentX(),capital.getDeploymentY(),capital.getDeploymentZ()).valid);
             int moves=s.world.moves;
             assertEquals("",s.adapter.apply(s.data,s.entry,"1:C1"));
             assertEquals(moves,s.world.moves); assertEquals(0,s.world.spawns);
+        }
+    }
+
+    @Test public void partialReturnRetryPlacesRemainingSurvivorWithoutMovingOrOverlappingReturnedUnit() throws Exception {
+        try(Session s=new Session()) {
+            TestNpc first=s.npc(3.25F);s.entry.units.add(first.getUniqueID());s.world.loadedEntityList.add(first);
+            KOMEHiredUnitRecord record=new KOMEHiredUnitRecord();record.entity=first.getUniqueID();record.owner=UUID.randomUUID();s.data.hiredUnits.put(record.entity,record);
+            assertEquals("",s.adapter.apply(s.data,s.entry,"1:C1"));
+            double x=first.posX,z=first.posZ;
+            TestNpc remaining=s.npc(2.75F);s.entry.units.add(remaining.getUniqueID());s.world.loadedEntityList.add(remaining);
+            KOMEHiredUnitRecord other=new KOMEHiredUnitRecord();other.entity=remaining.getUniqueID();other.owner=record.owner;s.data.hiredUnits.put(other.entity,other);
+            assertEquals("",s.adapter.apply(s.data,s.entry,"1:C1"));
+            assertEquals(x,first.posX,0D);assertEquals(z,first.posZ,0D);
+            assertFalse(first.boundingBox.intersectsWith(remaining.boundingBox));
+            assertEquals(3.25F,first.getHealth(),0F);assertEquals(2.75F,remaining.getHealth(),0F);
+            assertEquals("1:C1",remaining.getEntityData().getString(KOMESeasonResetDeployment.RECEIPT));
+            assertEquals(0,s.world.spawns);
         }
     }
 
@@ -307,6 +328,16 @@ public class KOMESeasonResetDeploymentTest {
         public int getTopSolidOrLiquidBlock(int x,int z){return 64;}
         public Block getBlock(int x,int y,int z){return SOLID;}
         public List func_147461_a(AxisAlignedBB box){return blocked?Collections.singletonList(box):Collections.emptyList();}
+        public boolean isAnyLiquid(AxisAlignedBB box){return false;}
+        public List getEntitiesWithinAABBExcludingEntity(Entity excluded,AxisAlignedBB box){
+            List<Entity> result=new ArrayList<Entity>();
+            for(Object value:loadedEntityList){
+                Entity entity=(Entity)value;
+                if(entity!=excluded&&!entity.isDead&&entity.boundingBox!=null&&entity.boundingBox.intersectsWith(box))
+                    result.add(entity);
+            }
+            return result;
+        }
         public List getCollidingBoundingBoxes(Entity e,AxisAlignedBB box){throw new AssertionError("Terrain clearance must not use a null-entity collision query");}
         public void updateEntityWithOptionalForce(Entity e,boolean force){moves++;}
         public boolean spawnEntityInWorld(Entity e){spawns++;loadedEntityList.add(e);return true;}

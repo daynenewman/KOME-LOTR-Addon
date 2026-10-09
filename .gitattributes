@@ -32,3 +32,7 @@ docs/pr-review-20261007/*.java -text whitespace=cr-at-eol,-blank-at-eof
 docs/tile-acceptance-20261006/*.log -text whitespace=cr-at-eol,-blank-at-eol,-blank-at-eof
 docs/tile-acceptance-20261006/*.java -text whitespace=cr-at-eol,-blank-at-eof
 docs/tile-acceptance-20261006/*.patch -text whitespace=cr-at-eol,-blank-at-eol,-blank-at-eof
+
+# Exact integration evidence bytes and archived native/JUnit logs.
+docs/pr26-integration-20261009/*.json -text whitespace=cr-at-eol
+docs/pr26-integration-20261009/*.zip -text

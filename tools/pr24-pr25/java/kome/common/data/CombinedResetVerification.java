@@ -48,6 +48,7 @@ public final class CombinedResetVerification {
                 loadChunks(world,data);
                 if ("recover".equals(phase)) recover(world,data); else completed(world,data);
             }
+            verifyJoinRecovery(data);
             check(server.getCommandManager().executeCommand(server,"save-all")==1,"real save-all completed");
             data.checkpointReset(world);
             evidence.append("PASS ").append(phase).append(' ').append(order).append("; no connected client\n");
@@ -104,6 +105,7 @@ public final class CombinedResetVerification {
                 world.removePlayerEntityDangerously(rider);world.removePlayerEntityDangerously(mount);
             }
         }
+        seedOfflineJoinRecovery(world,data,origin);
         try(OutputStream out=Files.newOutputStream(Paths.get("fixture.dat"))) {CompressedStreamTools.writeCompressed(fixture,out);}
         check(KOMESeasonResetService.begin(data,10).allowed,"begin canonical reset");
         KOMESeasonResetDeployment actual=new KOMESeasonResetDeployment(world);
@@ -125,10 +127,17 @@ public final class CombinedResetVerification {
     private void loadChunks(WorldServer world,KOMEWorldData data) {
         int ox=fixture.getInteger("OriginX"),oz=fixture.getInteger("OriginZ"),dx=fixture.getInteger("DestinationX"),dz=fixture.getInteger("DestinationZ");
         check(!world.getChunkProvider().chunkExists(ox,oz) && !world.getChunkProvider().chunkExists(dx,dz),"both test regions initially unloaded");
-        if("origin-first".equals(order)){world.getChunkFromChunkCoords(ox,oz);world.getChunkFromChunkCoords(dx,dz);}
-        else {world.getChunkFromChunkCoords(dx,dz);world.getChunkFromChunkCoords(ox,oz);}
+        if("origin-first".equals(order)){world.getChunkFromChunkCoords(ox,oz);loadDestinationRegion(world,dx,dz);}
+        else {loadDestinationRegion(world,dx,dz);world.getChunkFromChunkCoords(ox,oz);}
         check(KOMESeasonResetDeployment.find(UUID.fromString(fixture.getString("C2")))==null || "completed".equals(phase),"obsolete virtual rider rejected before recovery");
         check(KOMESeasonResetDeployment.find(UUID.fromString(fixture.getString("C2Mount")))==null || "completed".equals(phase),"obsolete virtual mount rejected before recovery");
+    }
+    /** Actual safe placements may cross the capital reference chunk; load saved neighboring chunks. */
+    private void loadDestinationRegion(WorldServer world,int dx,int dz) {
+        world.getChunkFromChunkCoords(dx,dz);
+        AnvilChunkLoader loader=(AnvilChunkLoader)((ChunkProviderServer)world.getChunkProvider()).currentChunkLoader;
+        for(int x=dx-2;x<=dx+2;x++)for(int z=dz-2;z<=dz+2;z++)
+            if(loader.chunkExists(world,x,z))world.getChunkFromChunkCoords(x,z);
     }
     private void recover(WorldServer world,KOMEWorldData data) throws Exception {
         check(data.warSeason.phase==KOMEWarSeasonState.Phase.RESET,"cold reset remains active");
@@ -155,12 +164,53 @@ public final class CombinedResetVerification {
         for(int index=1;index<=2;index++) {
             String id="C"+index;Entity rider=KOMESeasonResetDeployment.find(UUID.fromString(fixture.getString(id)));
             Entity mount=KOMESeasonResetDeployment.find(UUID.fromString(fixture.getString(id+"Mount")));
-            check(rider!=null && mount!=null && rider.ridingEntity==mount,"one original mounted tree "+id);
+            check(rider!=null && mount!=null && rider.ridingEntity==mount,"one original mounted tree "+id+" rider="+fixture.getString(id)+" mount="+fixture.getString(id+"Mount"));
+            evidence.append("NATIVE ").append(id).append(" position=").append(rider.posX).append(",").append(rider.posY).append(",").append(rider.posZ).append(" chunk=").append((int)Math.floor(rider.posX)>>4).append(",").append((int)Math.floor(rider.posZ)>>4).append("\n");
             check(((EntityLivingBase)rider).getHealth()==3.25F && ((EntityLivingBase)mount).getHealth()==7.125F,"exact fractional survivor HP "+id);
             check(KOMESeasonResetDeployment.inTile(rider,data.armyCompanies.get(id).currentTile),"physical and strategic destination agree "+id);
             check(("1:"+id).equals(rider.getEntityData().getString(KOMESeasonResetDeployment.RECEIPT)) && ("1:"+id).equals(mount.getEntityData().getString(KOMESeasonResetDeployment.RECEIPT)),"rider/mount receipts retained "+id);
             check(fixture.getCompoundTag(id+"Snapshot").equals(data.hiredUnits.get(rider.getUniqueID()).stationedEntityData),"original snapshot preserved "+id);
         }
+    }
+    /** Synthetic offline receipt beside real NPC returns; tests durable coexistence, not player deployment. */
+    private void seedOfflineJoinRecovery(WorldServer world,KOMEWorldData data,KOMEFactionCapitalRecord origin) {
+        KOMEConflictService.Result started=data.getConflictService().start(origin.getCapitalTileId(),
+            KOMEConflictRecord.State.ORDINARY,KOMEConflictContracts.ExpectedConflict.absent(),
+            Collections.<KOMEConflictContracts.GarrisonSeed>emptyList(),
+            new KOMEConflictContracts.Context(3L,"verification","offline Join recovery coexistence"));
+        check(started.isSuccess(),"create isolated receipt conflict");
+        net.minecraft.entity.passive.EntityHorse mount=new net.minecraft.entity.passive.EntityHorse(world);
+        mount.setHealth(7.125F);
+        NBTTagCompound snapshot=KOMEEntitySnapshots.snapshot(mount);
+        check(snapshot!=null,"snapshot native unspawned recovery mount");
+        KOMEJoinBattleDeploymentReceipt.Pose pose=new KOMEJoinBattleDeploymentReceipt.Pose(
+            world.provider.dimensionId,origin.getDeploymentX(),200,origin.getDeploymentZ(),0F,0F);
+        data.getJoinBattleDeploymentReceipts().publishNew(KOMEJoinBattleDeploymentReceipt.builder()
+            .receiptId("JB1").actionToken("offline-combined-recovery").playerId(OWNER)
+            .conflictId(started.record.getConflictId()).tileId(origin.getCapitalTileId())
+            .acceptedConflictRevision(started.record.getRevision()).factionId("gondor").selectedCompanyId("C1")
+            .createdAtMillis(4L).updatedAtMillis(4L).returnAnchor(pose).deploymentDestination(pose)
+            .participationRecovery(KOMEJoinBattleDeploymentReceipt.ParticipationRecovery.REGISTRATION_REQUIRED)
+            .enteredMounted(true).mountUuid(mount.getUniqueID()).mountEntityType("Horse")
+            .mountProfile(KOMEJoinBattleDeploymentReceipt.MountProfile.VANILLA_HORSE).mountSourceAnchor(pose)
+            .mountTransferPhase(KOMEJoinBattleDeploymentReceipt.MountTransferPhase.DESTINATION_PUBLICATION_PENDING)
+            .temporaryMountNbt(snapshot).build());
+        fixture.setString("JoinMountUuid",mount.getUniqueID().toString());
+        fixture.setTag("JoinMountSnapshot",snapshot.copy());
+    }
+    private void verifyJoinRecovery(KOMEWorldData data) {
+        KOMEJoinBattleDeploymentReceipt receipt=data.getJoinBattleDeploymentReceipts().get("JB1");
+        check(receipt!=null&&receipt.getState()==KOMEJoinBattleDeploymentReceipt.State.PENDING_ENTRY,
+            "offline Join Battle entry remains owned by entry recovery");
+        check(receipt.getMountTransferPhase()==KOMEJoinBattleDeploymentReceipt.MountTransferPhase.DESTINATION_PUBLICATION_PENDING,
+            "Join Battle recovery phase retained alongside reset");
+        check(fixture.getString("JoinMountUuid").equals(receipt.getMountUuid().toString()),"original offline Join mount identity retained");
+        check(fixture.getCompoundTag("JoinMountSnapshot").equals(receipt.getTemporaryMountNbt()),
+            "native unspawned mount snapshot retained through reset and restart; no player deployment pass");
+        check(receipt.getTemporaryMountNbt().getFloat("HealF")==7.125F,"offline Join snapshot partial HP retained");
+        NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);
+        check(root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY)==12&&root.getInteger("ConflictDataSchemaVersion")==2,
+            "combined root 12 and ConflictData v2 serialize together");
     }
     private void platform(WorldServer world,KOMEFactionCapitalRecord capital) {
         int x=(int)Math.floor(capital.getDeploymentX()),z=(int)Math.floor(capital.getDeploymentZ());

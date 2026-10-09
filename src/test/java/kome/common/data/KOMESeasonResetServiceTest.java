@@ -11,6 +11,60 @@ import static kome.common.data.KOMEConflictContracts.*;
 public class KOMESeasonResetServiceTest {
     @Rule public KOMETileTestResources geometry = new KOMETileTestResources();
 
+    @Test public void compressedRestartRetainsJoinRecoveryAlongsideResetGovernanceAndDaily() throws Exception {
+        Fixture f=new Fixture();KOMEArmyCompany company=f.company("C1",f.foreignTile);f.order(company,true);
+        KOMEWar war=new KOMEWar();war.id="W-integration";war.initiatingFaction="gondor";war.defendingFaction="mordor";
+        war.sideOneFactions.add("gondor");war.sideTwoFactions.add("mordor");
+        f.data.wars.put(war.id,war);f.data.warSeason.factionDefeats.put("gondor",1L);
+        KOMEGovernanceService.retainDefeat(f.data,company.owner,"gondor",2L);
+        f.data.dailyJournal.boundary=f.data.dailyJournal.anchor=100L;
+        f.data.dailyJournal.nextStage=2;f.data.dailyJournal.status="RUNNING";
+        KOMEConflictService.Result started=f.data.getConflictService().start(f.foreignTile,
+            KOMEConflictRecord.State.ORDINARY,ExpectedConflict.absent(),Collections.<GarrisonSeed>emptyList(),
+            new Context(3L,"test","combined recovery"));
+        assertTrue(started.reason,started.isSuccess());
+        NBTTagCompound mount=new NBTTagCompound();mount.setString("id","Horse");mount.setFloat("HealF",7.125F);
+        mount.setString("Sentinel","offline Join Battle recovery");
+        KOMEJoinBattleDeploymentReceipt.Pose pose=new KOMEJoinBattleDeploymentReceipt.Pose(100,1.5D,70D,2.5D,0F,0F);
+        KOMEJoinBattleDeploymentReceipt receipt=KOMEJoinBattleDeploymentReceipt.builder()
+            .receiptId("JB1").actionToken("combined-recovery").playerId(company.owner)
+            .conflictId(started.record.getConflictId()).tileId(f.foreignTile)
+            .acceptedConflictRevision(started.record.getRevision()).factionId("gondor").selectedCompanyId(company.id)
+            .createdAtMillis(4L).updatedAtMillis(4L).returnAnchor(pose).deploymentDestination(pose)
+            .participationRecovery(KOMEJoinBattleDeploymentReceipt.ParticipationRecovery.REGISTRATION_REQUIRED)
+            .enteredMounted(true).mountUuid(UUID.randomUUID()).mountEntityType("Horse")
+            .mountProfile(KOMEJoinBattleDeploymentReceipt.MountProfile.VANILLA_HORSE).mountSourceAnchor(pose)
+            .mountTransferPhase(KOMEJoinBattleDeploymentReceipt.MountTransferPhase.DESTINATION_PUBLICATION_PENDING)
+            .temporaryMountNbt(mount).build();
+        f.data.getJoinBattleDeploymentReceipts().publishNew(receipt);
+        NBTTagCompound daily=f.data.dailyJournal.write();
+        f.delivery.available=false;f.run();
+        assertTrue(f.data.seasonReset.ownershipReset);assertFalse(f.data.seasonReset.complete());
+        assertFalse(f.data.getConflictService().get(f.foreignTile).isActive());
+        java.nio.file.Path directory=java.nio.file.Files.createTempDirectory("combined-authorities");
+        java.nio.file.Path file=directory.resolve("KOME_ServerRules.dat");
+        try {
+            f.data.checkpointResetFile(file);
+            NBTTagCompound saved;
+            try(java.io.InputStream in=java.nio.file.Files.newInputStream(file)) {
+                saved=net.minecraft.nbt.CompressedStreamTools.readCompressed(in).getCompoundTag("data");
+            }
+            KOMEWorldData loaded=new KOMEWorldData("combined-restart");loaded.readFromNBT(saved);
+            assertTrue(loaded.seasonReset.ownershipReset);assertFalse(loaded.seasonReset.complete());
+            assertEquals(daily,loaded.dailyJournal.write());
+            assertEquals(1,KOMEGovernanceService.records(loaded,company.owner).size());
+            assertEquals(company.movementOrderId,loaded.armyCompanies.get(company.id).movementOrderId);
+            assertEquals(KOMEArmyMovementOrder.CANCELLED,loaded.armyMovements.get("M1").status);
+            assertEquals(7.125F,loaded.getJoinBattleDeploymentReceipts().get("JB1").getTemporaryMountNbt().getFloat("HealF"),0F);
+            assertEquals(KOMEJoinBattleDeploymentReceipt.State.PENDING_ENTRY,
+                loaded.getJoinBattleDeploymentReceipts().get("JB1").getState());
+            assertEquals(mount,loaded.getJoinBattleDeploymentReceipts().get("JB1").getTemporaryMountNbt());
+            assertEquals(receipt.getMountUuid(),loaded.getJoinBattleDeploymentReceipts().get("JB1").getMountUuid());
+            assertEquals(f.data.hiredUnits.values().iterator().next().movingEntityData,
+                loaded.hiredUnits.values().iterator().next().movingEntityData);
+        } finally {java.nio.file.Files.deleteIfExists(file);java.nio.file.Files.deleteIfExists(directory);}
+    }
+
     @Test public void nativeStaysForeignReturnsAfterOwnershipResetWithoutRepurchasing() {
         Fixture f = new Fixture();
         KOMEArmyCompany nativeCompany = f.company("C1", f.nativeTile);

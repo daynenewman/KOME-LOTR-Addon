@@ -178,12 +178,13 @@
       "limits": "One point and one authenticated client; no approved river/exclusion classification or multiplayer pass."
     }
   ],
-  "pending_test": "Authenticate second Microsoft-owned Minecraft Java account, prepare isolated matching profile, then simultaneous-client HUD/map, boundary/gap, Build/permissions and one-player reconnect checks.",
+  "pending_test": "Separate integrated candidate: one public /kome joinbattle T388 UI smoke check, then scoped governance denial and changed mounted return/reconnect. No second-account setup now.",
   "not_inferred": [
     "multiplayer",
     "representative lower-spec performance",
     "governance/daily client acceptance",
     "other Build permissions"
   ],
-  "session_state": "Resumed 2026-10-09 from preserved checkpoint. Existing single-client evidence publication first; second authenticated account and simultaneous-player acceptance pending."
+  "session_state": "Resumed 2026-10-09 for PR26/current-dev integration. Published R1 passes retained on their original artifact; frozen acceptance runtime unchanged. Multiplayer deferred by user.",
+  "integration_candidate_sha256": "263e8ff420b0e84c81f9b802a58b7d46182dee4158bfa41c60afc213b9e43eb0"
 }

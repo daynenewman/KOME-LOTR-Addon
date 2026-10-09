@@ -117,6 +117,10 @@ public class KOMERecruitmentDeploymentClearanceTest {
             return box.maxY <= maximumClearY
                 ? Collections.emptyList() : Collections.singletonList(box);
         }
+        @Override public List getEntitiesWithinAABBExcludingEntity(Entity excluded,AxisAlignedBB box) {
+            return Collections.emptyList();
+        }
+        @Override public boolean isAnyLiquid(AxisAlignedBB box) { return false; }
     }
 
     private static final class SolidBlock extends Block {

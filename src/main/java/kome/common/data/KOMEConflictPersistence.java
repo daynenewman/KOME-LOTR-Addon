@@ -17,20 +17,38 @@ import java.util.UUID;
 import static kome.common.data.KOMEConflictContracts.*;
 import static kome.common.data.KOMEConflictRecord.*;
 
-/** Strict schema-1 NBT codec for the tile-scoped ConflictRecord registry. */
+/**
+ * Strict independently versioned conflict-domain codec. KOM-19 owns schema 2; later conflict
+ * tickets must inspect the merged version rather than assuming their preferred version number.
+ */
 final class KOMEConflictPersistence {
-    static final int DATA_SCHEMA_VERSION = 1;
+    static final int DATA_SCHEMA_VERSION = 2;
     static final String SCHEMA_KEY = "ConflictDataSchemaVersion";
     static final String SEQUENCE_KEY = "NextConflictSequence";
     static final String RECORDS_KEY = "ConflictRecords";
+    static final String JOIN_BATTLE_SEQUENCE_KEY = "NextJoinBattleReceiptSequence";
+    static final String JOIN_BATTLE_RECEIPTS_KEY = "JoinBattleDeploymentReceipts";
 
     private KOMEConflictPersistence() { }
 
     /** Builds and validates a detached section before a destination root is mutated. */
     static NBTTagCompound write(KOMEConflictService source) {
+        return write(source, new KOMEJoinBattleDeploymentRegistry());
+    }
+
+    static NBTTagCompound write(KOMEConflictService source,
+            KOMEJoinBattleDeploymentRegistry joinBattleSource) {
         KOMEConflictService.PersistenceSnapshot snapshot = required(source, "Conflict service").persistenceSnapshot();
         KOMEConflictService validated = KOMEConflictService.restore(snapshot.records, snapshot.nextConflictSequence);
         KOMEConflictService.PersistenceSnapshot stable = validated.persistenceSnapshot();
+        KOMEJoinBattleDeploymentRegistry.PersistenceSnapshot joinSnapshot =
+            required(joinBattleSource, "Join Battle receipt registry").persistenceSnapshot();
+        KOMEJoinBattleDeploymentRegistry validatedJoin = KOMEJoinBattleDeploymentRegistry.restore(
+            joinSnapshot.receipts, joinSnapshot.nextSequence);
+        KOMEJoinBattleDeploymentRegistry.PersistenceSnapshot stableJoin =
+            validatedJoin.persistenceSnapshot();
+        validateReceiptReferences(stable.records, stable.nextConflictSequence,
+            stableJoin.receipts);
         NBTTagCompound section = new NBTTagCompound();
         section.setInteger(SCHEMA_KEY, DATA_SCHEMA_VERSION);
         section.setLong(SEQUENCE_KEY, stable.nextConflictSequence);
@@ -43,13 +61,34 @@ final class KOMEConflictPersistence {
         });
         for (KOMEConflictRecord record : ordered) records.appendTag(writeRecord(record));
         section.setTag(RECORDS_KEY, records);
+        section.setLong(JOIN_BATTLE_SEQUENCE_KEY, stableJoin.nextSequence);
+        NBTTagList joinReceipts = new NBTTagList();
+        List<KOMEJoinBattleDeploymentReceipt> orderedReceipts =
+            new ArrayList<KOMEJoinBattleDeploymentReceipt>(stableJoin.receipts.values());
+        Collections.sort(orderedReceipts, new Comparator<KOMEJoinBattleDeploymentReceipt>() {
+            @Override public int compare(KOMEJoinBattleDeploymentReceipt first,
+                    KOMEJoinBattleDeploymentReceipt second) {
+                return first.getReceiptId().compareTo(second.getReceiptId());
+            }
+        });
+        for (KOMEJoinBattleDeploymentReceipt receipt : orderedReceipts)
+            joinReceipts.appendTag(writeJoinBattleReceipt(receipt));
+        section.setTag(JOIN_BATTLE_RECEIPTS_KEY, joinReceipts);
         return section;
     }
 
     static KOMEConflictService read(NBTTagCompound root) {
+        return readSection(root).conflicts;
+    }
+
+    static Loaded readSection(NBTTagCompound root) {
         require(root, SCHEMA_KEY, 3);
-        if (root.getInteger(SCHEMA_KEY) != DATA_SCHEMA_VERSION)
-            throw new IllegalArgumentException("Unsupported " + SCHEMA_KEY + ": " + root.getInteger(SCHEMA_KEY));
+        int schema = root.getInteger(SCHEMA_KEY);
+        if (schema != 1 && schema != DATA_SCHEMA_VERSION)
+            throw new IllegalArgumentException("Unsupported " + SCHEMA_KEY + ": " + schema);
+        if (schema == 1 && (root.hasKey(JOIN_BATTLE_SEQUENCE_KEY)
+                || root.hasKey(JOIN_BATTLE_RECEIPTS_KEY)))
+            throw new IllegalArgumentException("ConflictData v1 cannot contain Join Battle receipt authority.");
         require(root, SEQUENCE_KEY, 4);
         require(root, RECORDS_KEY, 9);
         long nextSequence = root.getLong(SEQUENCE_KEY);
@@ -68,7 +107,209 @@ final class KOMEConflictPersistence {
             if (!conflictIds.add(record.getConflictId()))
                 throw new IllegalArgumentException("Duplicate conflict identity: " + record.getConflictId());
         }
-        return KOMEConflictService.restore(records, nextSequence);
+        KOMEConflictService conflicts = KOMEConflictService.restore(records, nextSequence);
+        KOMEJoinBattleDeploymentRegistry joinBattle;
+        if (schema == 1) {
+            joinBattle = new KOMEJoinBattleDeploymentRegistry();
+        } else {
+            require(root, JOIN_BATTLE_SEQUENCE_KEY, 4);
+            require(root, JOIN_BATTLE_RECEIPTS_KEY, 9);
+            long nextJoinSequence = root.getLong(JOIN_BATTLE_SEQUENCE_KEY);
+            Map<String, KOMEJoinBattleDeploymentReceipt> receipts =
+                new LinkedHashMap<String, KOMEJoinBattleDeploymentReceipt>();
+            NBTTagList receiptRows = compoundList(root, JOIN_BATTLE_RECEIPTS_KEY);
+            for (int i = 0; i < receiptRows.tagCount(); i++) {
+                KOMEJoinBattleDeploymentReceipt receipt;
+                try {
+                    receipt = readJoinBattleReceipt(receiptRows.getCompoundTagAt(i));
+                } catch (RuntimeException invalid) {
+                    throw new IllegalArgumentException("Invalid " + JOIN_BATTLE_RECEIPTS_KEY
+                        + "[" + i + "]: " + invalid.getMessage(), invalid);
+                }
+                if (receipts.put(receipt.getReceiptId(), receipt) != null)
+                    throw new IllegalArgumentException("Duplicate Join Battle receipt identity: "
+                        + receipt.getReceiptId());
+            }
+            joinBattle = KOMEJoinBattleDeploymentRegistry.restore(receipts, nextJoinSequence);
+        }
+        validateReceiptReferences(records, nextSequence, joinBattle.records());
+        return new Loaded(conflicts, joinBattle, schema == 1);
+    }
+
+    static final class Loaded {
+        final KOMEConflictService conflicts;
+        final KOMEJoinBattleDeploymentRegistry joinBattleReceipts;
+        final boolean migratedFromV1;
+
+        Loaded(KOMEConflictService conflicts,
+                KOMEJoinBattleDeploymentRegistry joinBattleReceipts,
+                boolean migratedFromV1) {
+            this.conflicts = required(conflicts, "Conflict service");
+            this.joinBattleReceipts = required(joinBattleReceipts,
+                "Join Battle receipt registry");
+            this.migratedFromV1 = migratedFromV1;
+        }
+
+        static Loaded empty() {
+            return new Loaded(new KOMEConflictService(),
+                new KOMEJoinBattleDeploymentRegistry(), false);
+        }
+    }
+
+    private static void validateReceiptReferences(Map<String, KOMEConflictRecord> conflicts,
+            long nextConflictSequence,
+            Map<String, KOMEJoinBattleDeploymentReceipt> receipts) {
+        Map<String, KOMEConflictRecord> byId = new LinkedHashMap<String, KOMEConflictRecord>();
+        for (KOMEConflictRecord record : conflicts.values()) byId.put(record.getConflictId(), record);
+        for (KOMEJoinBattleDeploymentReceipt receipt : receipts.values()) {
+            long sequence = KOMEConflictIdAllocator.sequenceOf(receipt.getConflictId());
+            if (sequence >= nextConflictSequence)
+                throw new IllegalArgumentException("Join Battle receipt references an unissued conflict identity: "
+                    + receipt.getReceiptId());
+            KOMEConflictRecord current = byId.get(receipt.getConflictId());
+            if (current != null && !current.getTileId().equals(receipt.getTileId()))
+                throw new IllegalArgumentException("Join Battle receipt tile disagrees with matching current conflict: "
+                    + receipt.getReceiptId());
+            // A missing old ConflictRecord is valid recovery input: latest-per-tile replacement
+            // must never discard a deployed or pending-egress physical obligation.
+        }
+    }
+
+    private static NBTTagCompound writeJoinBattleReceipt(
+            KOMEJoinBattleDeploymentReceipt value) {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setString("ReceiptId", value.getReceiptId());
+        tag.setString("ActionToken", value.getActionToken());
+        tag.setString("PlayerId", value.getPlayerId().toString());
+        tag.setString("ConflictId", value.getConflictId());
+        tag.setString("TileId", value.getTileId());
+        tag.setLong("AcceptedConflictRevision", value.getAcceptedConflictRevision());
+        tag.setString("FactionId", value.getFactionId());
+        tag.setString("SelectedCompanyId", value.getSelectedCompanyId());
+        tag.setLong("CreatedAtMillis", value.getCreatedAtMillis());
+        tag.setString("State", value.getState().name());
+        tag.setLong("UpdatedAtMillis", value.getUpdatedAtMillis());
+        putOptionalLong(tag, "DeployedAtMillis", value.getDeployedAtMillis());
+        putOptionalLong(tag, "EgressRequestedAtMillis", value.getEgressRequestedAtMillis());
+        if (!value.getEgressReason().isEmpty()) tag.setString("EgressReason", value.getEgressReason());
+        putOptionalLong(tag, "ClosedAtMillis", value.getClosedAtMillis());
+        if (value.getClosureOutcome() != null)
+            tag.setString("ClosureOutcome", value.getClosureOutcome().name());
+        tag.setTag("ReturnAnchor", writePose(value.getReturnAnchor()));
+        if (value.getDeploymentDestination() != null)
+            tag.setTag("DeploymentDestination", writePose(value.getDeploymentDestination()));
+        tag.setString("ParticipationRecovery", value.getParticipationRecovery().name());
+        tag.setBoolean("EnteredMounted", value.isEnteredMounted());
+        if (value.isEnteredMounted()) {
+            tag.setString("MountUuid", value.getMountUuid().toString());
+            tag.setString("MountEntityType", value.getMountEntityType());
+            tag.setString("MountProfile", value.getMountProfile().name());
+            tag.setTag("MountSourceAnchor", writePose(value.getMountSourceAnchor()));
+            tag.setString("MountTransferPhase", value.getMountTransferPhase().name());
+            NBTTagCompound mountNbt = value.getTemporaryMountNbt();
+            if (mountNbt != null) tag.setTag("TemporaryMountNbt", mountNbt.copy());
+            if (value.getMountDisposition() != null)
+                tag.setString("MountDisposition", value.getMountDisposition().name());
+        }
+        return tag;
+    }
+
+    private static KOMEJoinBattleDeploymentReceipt readJoinBattleReceipt(NBTTagCompound tag) {
+        String rawReceipt = string(tag, "ReceiptId");
+        String rawToken = string(tag, "ActionToken");
+        String rawConflict = string(tag, "ConflictId");
+        String rawTile = string(tag, "TileId");
+        String rawFaction = string(tag, "FactionId");
+        String rawCompany = string(tag, "SelectedCompanyId");
+        KOMEJoinBattleDeploymentReceipt.Builder builder =
+            KOMEJoinBattleDeploymentReceipt.builder()
+                .receiptId(rawReceipt)
+                .actionToken(rawToken)
+                .playerId(uuid(string(tag, "PlayerId"), "Join Battle player"))
+                .conflictId(rawConflict)
+                .tileId(rawTile)
+                .acceptedConflictRevision(longValue(tag, "AcceptedConflictRevision"))
+                .factionId(rawFaction)
+                .selectedCompanyId(rawCompany)
+                .createdAtMillis(longValue(tag, "CreatedAtMillis"))
+                .state(enumValue(KOMEJoinBattleDeploymentReceipt.State.class,
+                    string(tag, "State"), "Join Battle receipt state"))
+                .updatedAtMillis(longValue(tag, "UpdatedAtMillis"))
+                .deployedAtMillis(optionalLong(tag, "DeployedAtMillis"))
+                .egressRequestedAtMillis(optionalLong(tag, "EgressRequestedAtMillis"))
+                .egressReason(optionalString(tag, "EgressReason"))
+                .closedAtMillis(optionalLong(tag, "ClosedAtMillis"))
+                .closureOutcome(optionalEnum(tag, "ClosureOutcome",
+                    KOMEJoinBattleDeploymentReceipt.ClosureOutcome.class,
+                    "Join Battle closure outcome"))
+                .returnAnchor(readPose(compound(tag, "ReturnAnchor")))
+                .deploymentDestination(tag.hasKey("DeploymentDestination")
+                    ? readPose(compound(tag, "DeploymentDestination")) : null)
+                .participationRecovery(enumValue(
+                    KOMEJoinBattleDeploymentReceipt.ParticipationRecovery.class,
+                    string(tag, "ParticipationRecovery"), "participation recovery state"));
+        require(tag, "EnteredMounted", 1);
+        boolean mounted = tag.getBoolean("EnteredMounted");
+        String rawMountEntityType = null;
+        builder.enteredMounted(mounted);
+        if (mounted) {
+            rawMountEntityType = string(tag, "MountEntityType");
+            builder.mountUuid(uuid(string(tag, "MountUuid"), "mount"))
+                .mountEntityType(rawMountEntityType)
+                .mountProfile(enumValue(KOMEJoinBattleDeploymentReceipt.MountProfile.class,
+                    string(tag, "MountProfile"), "mount profile"))
+                .mountSourceAnchor(readPose(compound(tag, "MountSourceAnchor")))
+                .mountTransferPhase(enumValue(
+                    KOMEJoinBattleDeploymentReceipt.MountTransferPhase.class,
+                    string(tag, "MountTransferPhase"), "mount transfer phase"))
+                .temporaryMountNbt(tag.hasKey("TemporaryMountNbt")
+                    ? compound(tag, "TemporaryMountNbt") : null)
+                .mountDisposition(optionalEnum(tag, "MountDisposition",
+                    KOMEJoinBattleDeploymentReceipt.MountDisposition.class,
+                    "mount disposition"));
+        } else {
+            for (String forbidden : new String[] {"MountUuid", "MountEntityType", "MountProfile",
+                    "MountSourceAnchor", "MountTransferPhase", "TemporaryMountNbt", "MountDisposition"})
+                if (tag.hasKey(forbidden))
+                    throw new IllegalArgumentException("Unmounted receipt contains " + forbidden + ".");
+        }
+        KOMEJoinBattleDeploymentReceipt receipt = builder.build();
+        if (!rawReceipt.equals(receipt.getReceiptId())
+                || !rawToken.equals(receipt.getActionToken())
+                || !rawConflict.equals(receipt.getConflictId())
+                || !rawTile.equals(receipt.getTileId())
+                || !rawFaction.equals(receipt.getFactionId())
+                || !rawCompany.equals(receipt.getSelectedCompanyId())
+                || mounted && !rawMountEntityType.equals(receipt.getMountEntityType()))
+            throw new IllegalArgumentException("Join Battle receipt contains noncanonical identity text.");
+        return receipt;
+    }
+
+    private static NBTTagCompound writePose(KOMEJoinBattleDeploymentReceipt.Pose pose) {
+        NBTTagCompound tag = new NBTTagCompound();
+        tag.setInteger("Dimension", pose.dimensionId);
+        tag.setDouble("X", pose.x); tag.setDouble("Y", pose.y); tag.setDouble("Z", pose.z);
+        tag.setFloat("Yaw", pose.yaw); tag.setFloat("Pitch", pose.pitch);
+        return tag;
+    }
+
+    private static KOMEJoinBattleDeploymentReceipt.Pose readPose(NBTTagCompound tag) {
+        require(tag, "Dimension", 3); require(tag, "X", 6); require(tag, "Y", 6);
+        require(tag, "Z", 6); require(tag, "Yaw", 5); require(tag, "Pitch", 5);
+        return new KOMEJoinBattleDeploymentReceipt.Pose(tag.getInteger("Dimension"),
+            tag.getDouble("X"), tag.getDouble("Y"), tag.getDouble("Z"),
+            tag.getFloat("Yaw"), tag.getFloat("Pitch"));
+    }
+
+    private static String optionalString(NBTTagCompound tag, String key) {
+        if (!tag.hasKey(key)) return "";
+        require(tag, key, 8);
+        return tag.getString(key);
+    }
+
+    private static <E extends Enum<E>> E optionalEnum(NBTTagCompound tag, String key,
+            Class<E> type, String label) {
+        return tag.hasKey(key) ? enumValue(type, string(tag, key), label) : null;
     }
 
     private static NBTTagCompound writeRecord(KOMEConflictRecord record) {

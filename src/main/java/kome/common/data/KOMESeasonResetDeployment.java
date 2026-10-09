@@ -47,8 +47,15 @@ public final class KOMESeasonResetDeployment implements KOMESeasonResetService.D
         if (world == null) return "Load the destination dimension before retrying";
         KOMEStrategicDeploymentResolver.Anchor capital = null;
         if (entry.returnRequired) {
-            try { capital = KOMEFactionCapitalService.requireCapitalDeployment(data, entry.nativeFaction, world); }
-            catch (IllegalStateException unavailable) { return unavailable.getMessage(); }
+            KOMEFactionCapitalRecord record=KOMEFactionCapitalService.getCapital(data,entry.nativeFaction);
+            if(record==null)return "No authoritative capital exists for faction: " + entry.nativeFaction;
+            // Returned survivors may occupy the capital reference on a retry. Actual placement
+            // below still uses resolveAround's full terrain, liquid and live-entity clearance.
+            KOMEStrategicDeploymentResolver.Validation validation=
+                KOMEStrategicDeploymentResolver.validateResetSearchOrigin(world,record.getCapitalTileId(),
+                    record.getDeploymentDimensionId(),record.getDeploymentX(),record.getDeploymentY(),record.getDeploymentZ());
+            if(!validation.valid)return "Capital deployment is unavailable for " + record.getFactionId() + ": " + validation.reason;
+            capital=validation.anchor;
         }
         int index = 0;
         List<Entity> verified = new ArrayList<Entity>();

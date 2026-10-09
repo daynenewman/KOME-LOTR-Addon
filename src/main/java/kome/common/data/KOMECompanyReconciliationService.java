@@ -326,6 +326,12 @@ public final class KOMECompanyReconciliationService {
         for (KOMEArmyCompany company : sortedCompanies(data)) {
             if (!company.units.isEmpty()
                     || !inScope(onlyOwner, company, null) && !touchedCompanies.contains(company.id)) continue;
+            if (KOMEFormalRetreatAuthority.protectsCompany(data, company.id)) {
+                result.emptyCompaniesRetainedForMovement++;
+                result.issue(IssueCode.EMPTY_COMPANY_RETAINED_FOR_MOVEMENT, null,
+                    company.id, "Retained unresolved Formal Retreat recovery authority.");
+                continue;
+            }
             if (!activeOrdersForCompany(data, company.id).isEmpty()) {
                 result.emptyCompaniesRetainedForMovement++;
                 result.issue(IssueCode.EMPTY_COMPANY_RETAINED_FOR_MOVEMENT, null,

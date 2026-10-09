@@ -8,9 +8,17 @@ Current Linear descriptions/comments and prior reports were read before validati
 
 KOM-47 is Done and merged; KOM-48 and KOM-26 remain separate owning tasks.
 
-## Current candidate — mounted reload correction
+## October 9 integration with current dev
 
-Current matching JAR: `9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef`.
+PR #26 now incorporates dev `f154deaed18ac3f1a7770ffa3bda8a88382a9e35` in an isolated private checkout. Four conflicts are resolved, preserving root schema 12, reset/recovery receipts, surviving mounted HP and governance/daily journals alongside Join Battle's ConflictData v2/formal-retreat authority. [Exact integration evidence](../pr26-integration-20261009/README.md) includes two reproduced product fixes, retained failures and raw source/artifact hashes.
+
+Fresh gate: **333 focused tests passed; clean test/build 3,078 passed, five skipped, zero failures/errors; eight disposable deobfuscated Forge restart gates plus one actual production linkage gate passed**. New production JAR: `263e8ff420b0e84c81f9b802a58b7d46182dee4158bfa41c60afc213b9e43eb0`. The PR remains draft. Its current published head is recorded in GitHub metadata; this report pins both exact parents and the validated source tree to avoid circular commit identities.
+
+The frozen `9fc21f5b...44f9ef` acceptance runtime is unchanged. Earlier human passes, including R1 HUD/map, remain evidence for their original artifacts. **Multiplayer is explicitly deferred; no second account setup or pass is required/claimed now.** Join Battle client UI/governance denial and changed mounted landing/reconnect are the next scoped single-player acceptance. Geography decisions, lower-spec measurements and unfinished dependencies still prevent broader ticket closure.
+
+## Frozen human-acceptance candidate — mounted reload correction
+
+Frozen matching JAR: `9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef`.
 
 Profile: **KOME Mounted Reload Fix**, `kome-review-mounted-reload-fix-20261007`;
 
@@ -56,9 +64,7 @@ the legitimate queued-unload replacement was accepted. The original mounted ride
 
 loaded from native disk and remained tracked after authenticated reconnect; the
 
-user confirmed rider visibility, command menu and T388 HUD. A further actual repaired-server cold restart also passed the human reconnect check: [native identities/partial HP and receipts](reload-live-restart.json) stayed unchanged. The [dimension round trip](dimension-round-trip.json) passed both human HUD observations and native fresh callbacks. No multiplayer, paid hiring or
-
-lower-spec pass is inferred.
+user confirmed rider visibility, command menu and T388 HUD. A further actual repaired-server cold restart also passed the human reconnect check: [native identities/partial HP and receipts](reload-live-restart.json) stayed unchanged. The [dimension round trip](dimension-round-trip.json) passed both human HUD observations and native fresh callbacks. Those reload observations do not establish multiplayer or lower-spec acceptance; later paid-hire evidence is recorded separately.
 
 Source correction and initial evidence were published to PR #26 at
 `c2765f7e4a26941b2172affb30113c39e7ee60d6`. The latest human/native
@@ -66,12 +72,8 @@ records, including R1 HUD/map passes, are published as a documentation follow-up
 with unchanged 1,026 main-source hashes. The candidate remains based on dev
 `69dbad5a8d2d1cef461e8327b961ce9194d8241f`.
 
-On October 9, dev is `f154deaed18ac3f1a7770ffa3bda8a88382a9e35`.
-PR #26 is draft/open and reports conflicts; reconciliation with that newer dev
-is a separate source-validation task. The [non-checkout conflict preview](reconciliation-preview-20261009.txt) identifies
-KOMECompanyReorganizationService, KOMEStrategicDeploymentResolver, KOMEAccessFixture
-and KOMEWorldDataSchemaTest. These acceptance results do not validate a reconciled artifact. PR #30 is draft/open and conflict-free at `9901f4f`;
-its recorded checker runs used its pinned baseline and dev `69dbad5`, not f154dea.
+At the October 9 pre-integration checkpoint, dev was `f154deaed18ac3f1a7770ffa3bda8a88382a9e35` and PR #26 reported conflicts. [The historical conflict preview](reconciliation-preview-20261009.txt) remains preserved; the current validated resolution is recorded above. PR #30 was draft/open and conflict-free at `9901f4f`; its checker provenance remains its pinned baseline and dev `69dbad5`, not f154dea.
+
 Neither PR was merged. See [publication checkpoint](publication-checkpoint-20261009.json).
 
 ## October 7 resumed acceptance — dev 69dbad5
@@ -296,6 +298,8 @@ The layout repair changes only `KOMEGuiConquestCapture.class` relative to that c
 
 |---|---|---|
 
+| PR #26 current-dev integration | PASS: exact dev f154dea parents/source/JAR, 333 focused and 3,078 full passing tests; eight native restart gates plus production linkage. [Evidence](../pr26-integration-20261009/README.md). | Draft; new Join Battle human UI/governance and changed mounted placement/reconnect acceptance pending. Multiplayer deferred. No dev merge or deployment. |
+
 | KOM-43 canonical exact geometry, shared lookup, immutable publication | PASS: unchanged resolver/resource classes; historical whole-raster/gameplay oracles and fresh native six-state controls. | Parent remains open for KOM-57/58/59/60/63 acceptance below. |
 
 | KOM-57 O(1), load/reload and bounded immutable snapshot | PASS: unchanged automated performance/lifecycle evidence; native reload and failed-replacement tests retained. | Representative lower-spec startup/lookup/memory/tick/FPS comparison and multi-player workload; no new index without measured need. |
@@ -312,7 +316,7 @@ The layout repair changes only `KOMEGuiConquestCapture.class` relative to that c
 
 | KOM-63 non-operator Build and permissions | PASS: prior admin denial and atomic mismatch rejection; denied-state disabled Create; eligible form opening and Build List cancellation with all 77 sections/zero Builds/sequence unchanged. Initial unpledged assumption corrected to Dale pledge/unclaimed T401. Screenshot overlap repaired with failing-before regression; user reported improvement and subsequent screenshot shows separated readable rows. Valid non-operator B1 creation passed: screenshot and native NBT agree on 1.00 approved / 0.00 developed / 1.00 awaiting development, Normal, Gondor, T401; creator-manager initial hours auto-approve. [Creation evidence](build-creation.json). Malformed 1.001-hour input displays the expected validation message and all 77 sections remain unchanged. [Rejection evidence](build-invalid-hours.json). | Saved B1 reconnect also passed; other Build permission/rejection flows and second-player synchronization remain. Gondor pledge and tile claim are disposable fixtures, not ordinary pledge/claim acceptance. |
 
-| KOM-63 multi-player consistency | No live multi-player pass claimed. | Second authenticated player on matching candidate; compare HUD/map/ownership/Build/transition/reconnect updates simultaneously. |
+| KOM-63 multi-player consistency | No live multi-player pass claimed. | Deferred by user: second authenticated player on matching candidate; compare HUD/map/ownership/Build/transition/reconnect updates simultaneously. |
 
 | KOM-63 measured client/server performance | PASS: prior actual 21-native-hire and one-client total tick windows; actual high-spec world/map FPS with exact settings. Current repaired candidate: [60 actual client samples](reload-measured-results.json) ranged 14–121 FPS (mean 103.07, median 120) across world/menu/map and 854×480 → 3840×2054 resize. First map sample was 14 FPS at zoom 1; do not describe this run as all 120 FPS. Server 100-tick window averaged 1.883281 ms, p95 2.5551 ms, max 4.0695 ms, 522,461,112 bytes used heap. Workload: one player plus original mounted fixture; no incremental cost comparison. | No isolated tile-cost comparison, multi-player capacity or representative lower-spec hardware result; do not generalize high-spec measurements. |
 
@@ -356,4 +360,4 @@ and current mounted acceptance are tracked separately.
 
 ## October 7 acceptance pause and October 9 resume
 
-User explicitly paused after the R1 gap HUD/map checks. A second authenticated account is pending. Existing acceptance client/server and disposable world were left unchanged. On October 9 the user resumed publication and multiplayer preparation. Historical pause state is retained in the gap record; live multiplayer remains pending. No merge, deployment or Linear posting occurred.
+User explicitly paused after the R1 gap HUD/map checks. On October 9, multiplayer and second-account setup were subsequently deferred in favor of current-dev integration. Existing acceptance client/server and disposable world were left unchanged. On October 9 the user resumed publication and multiplayer preparation. Historical pause state is retained in the gap record; live multiplayer remains pending. No merge, deployment or Linear posting occurred.

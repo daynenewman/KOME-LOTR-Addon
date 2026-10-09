@@ -25,6 +25,7 @@ public final class KOMEConflictMovementHandoff {
 
     /** Optional movement receipt schema, independent of the root and ConflictRecord schemas. */
     public static final class Receipt {
+        private static final String LEGACY_QUARANTINE = "LEGACY_FORMAL_RETREAT_GROUP_UNRESOLVED: ";
         public final String conflictId, orderId, companyId, reason;
         public final long conflictRevision, appliedAtMillis;
         public final Outcome outcome;
@@ -44,8 +45,16 @@ public final class KOMEConflictMovementHandoff {
             companyId = company; this.outcome = outcome; appliedAtMillis = at;
             this.code = code; this.reason = reason;
         }
+        public boolean isLegacyQuarantined() {
+            return outcome == Outcome.FORMAL_RETREAT && reason.startsWith(LEGACY_QUARANTINE);
+        }
+        Receipt quarantineLegacy() {
+            return isLegacyQuarantined() ? this : new Receipt(conflictId, conflictRevision,
+                orderId, companyId, outcome, appliedAtMillis, code, LEGACY_QUARANTINE + reason);
+        }
         public NBTTagCompound write() {
-            NBTTagCompound tag = new NBTTagCompound(); tag.setInteger("SchemaVersion", 1);
+            NBTTagCompound tag = new NBTTagCompound(); tag.setInteger("SchemaVersion", 2);
+            tag.setBoolean("HasRelease", true);
             tag.setString("ConflictId", conflictId); tag.setLong("ConflictRevision", conflictRevision);
             tag.setString("OrderId", orderId); tag.setString("CompanyId", companyId);
             tag.setString("Outcome", outcome.name()); tag.setLong("AppliedAtMillis", appliedAtMillis);
@@ -54,13 +63,43 @@ public final class KOMEConflictMovementHandoff {
         public static Receipt read(NBTTagCompound tag) {
             for (String key : new String[]{"ConflictId", "OrderId", "CompanyId", "Outcome", "Code", "Reason"})
                 if (!tag.hasKey(key, 8)) throw new IllegalArgumentException("Missing handoff " + key);
-            if (!tag.hasKey("SchemaVersion", 3) || tag.getInteger("SchemaVersion") != 1
+            if (!tag.hasKey("SchemaVersion", 3)
+                    || !(tag.getInteger("SchemaVersion") == 1 || tag.getInteger("SchemaVersion") == 2
+                        && tag.hasKey("HasRelease",1) && tag.getBoolean("HasRelease"))
                     || !tag.hasKey("ConflictRevision", 4) || !tag.hasKey("AppliedAtMillis", 4))
                 throw new IllegalArgumentException("Invalid handoff schema/metadata");
             return new Receipt(tag.getString("ConflictId"), tag.getLong("ConflictRevision"),
                 tag.getString("OrderId"), tag.getString("CompanyId"), Outcome.valueOf(tag.getString("Outcome")),
                 tag.getLong("AppliedAtMillis"), Code.valueOf(tag.getString("Code")), tag.getString("Reason"));
         }
+    }
+
+    static NBTTagCompound writeEnvelope(Receipt release,KOMEFormalRetreatBatch batch){
+        NBTTagCompound tag=release==null?new NBTTagCompound():release.write();
+        tag.setInteger("SchemaVersion",2);tag.setBoolean("HasRelease",release!=null);
+        if(batch!=null)tag.setTag("RetreatBatch",batch.write());
+        return tag;
+    }
+
+    static void readEnvelope(KOMEArmyMovementOrder order,NBTTagCompound tag){
+        if(!tag.hasKey("SchemaVersion",3))throw new IllegalArgumentException("Missing movement release schema");
+        int version=tag.getInteger("SchemaVersion");
+        if(version==1){
+            if(tag.hasKey("RetreatBatch")||tag.hasKey("HasRelease"))
+                throw new IllegalArgumentException("Legacy release cannot carry v2 authority");
+            order.conflictRelease=Receipt.read(tag);return;
+        }
+        if(version!=2||!tag.hasKey("HasRelease",1))
+            throw new IllegalArgumentException("Unsupported movement release schema");
+        if(tag.getBoolean("HasRelease"))order.conflictRelease=Receipt.read(tag);
+        else for(String key:new String[]{"ConflictId","ConflictRevision","OrderId","CompanyId","Outcome","AppliedAtMillis","Code","Reason"})
+            if(tag.hasKey(key))throw new IllegalArgumentException("Unapplied envelope contains release authority");
+        if(tag.hasKey("RetreatBatch")){
+            if(!tag.hasKey("RetreatBatch",10))throw new IllegalArgumentException("Invalid retreat batch");
+            order.formalRetreatBatch=KOMEFormalRetreatBatch.read(tag.getCompoundTag("RetreatBatch"));
+        }
+        if(order.conflictRelease==null&&order.formalRetreatBatch==null)
+            throw new IllegalArgumentException("Empty movement release envelope");
     }
 
     /** Consume a canonical ENDED snapshot; an unresolved end alone never implies victory. */
@@ -117,6 +156,8 @@ public final class KOMEConflictMovementHandoff {
     private static Result replay(KOMEArmyMovementOrder order, ExpectedConflict expected, Outcome outcome) {
         if (order == null || order.conflictRelease == null) return null;
         Receipt receipt = order.conflictRelease;
+        if (receipt.isLegacyQuarantined())
+            return result(Code.INVALID_RELEASE, "Incomplete legacy Formal Retreat requires operator review; accepted group authority is missing.");
         if (expected == null || !receipt.conflictId.equals(expected.conflictId)
                 || receipt.conflictRevision != expected.revision)
             return result(Code.STALE_HANDOFF, "Release event does not match the accepted handoff.");
