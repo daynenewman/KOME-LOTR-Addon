@@ -89,9 +89,20 @@ public final class KOMEOrdinaryBattleRecoveryService {
         registry.prepareGrants(e.conflictId, e.episodeId, amount);
         data.markDirty();
     }
-    static void conflictClosed(KOMEWorldData data, KOMEConflictRecord conflict, long now) {
+    static void conflictClosed(KOMEWorldData data, KOMEConflictRecord before, KOMEConflictRecord conflict, long now) {
         if (!KOMERecoveryStartup.permits(data, conflict)) return;
-        endEpisode(data, conflict, now); data.getOrdinaryBattleRecovery().closed(conflict, now); data.markDirty();
+        endEpisode(data, conflict, now);
+        KOMEConquestTile tile = data.getConquestTileIfPresent(conflict.getTileId());
+        try {
+            data.getOrdinaryBattleRecovery().bindClosedConflict(before,
+                tile == null ? null : KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction()),now);
+        } catch (IllegalArgumentException contradiction) {
+            // Ending/handoff is canonical even if recovery lacks a representable ownership decision.
+            if (data.recoveryStartup != null) for (Episode e : data.getOrdinaryBattleRecovery().episodes().values())
+                if (e.conflictId.equals(conflict.getConflictId())) for (Grant grant : e.grants.values())
+                    data.recoveryStartup.quarantine(grant.targetId,"Canonical closure recovery intent: " + contradiction.getMessage());
+        }
+        data.markDirty();
     }
     static void departed(KOMEWorldData data, KOMEConflictRecord before, Collection<UUID> members,
             KOMEConflictMovementHandoff.Outcome outcome, long now) {

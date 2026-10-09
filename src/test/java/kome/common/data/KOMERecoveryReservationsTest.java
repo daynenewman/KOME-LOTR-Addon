@@ -209,7 +209,8 @@ public class KOMERecoveryReservationsTest {
     @Test public void equalContradictionAndNewerWithoutAncestryQuarantine() throws Exception {
         for (long revision : new long[]{5,6}) try (Fixture f = new Fixture()) {
             f.prepare(Component.RIDER);
-            f.setHealth(Component.RIDER,projection(Component.RIDER,revision,2F,UUID.randomUUID(),null));
+            // An independently loaded projection bypasses publication's earlier ancestry rejection.
+            KOMECampaignHealthEntity.install(f.rider,projection(Component.RIDER,revision,2F,UUID.randomUUID(),null),f.unit,false);
             rejects(() -> f.prepare(Component.RIDER)); assertFalse(KOMERecoveryStartup.permitsTarget(f.data,RIDER_ALIAS));
             assertEquals(2,f.manager.view().lastSequence);
         }

@@ -385,6 +385,7 @@ public class KOMEEvents {
         if (world != null && world.getWorldInfo() != null)
             KOMEOrdinaryBattleResolutionService.INSTANCE.processAll(data,
                 world.getTotalWorldTime(), nowMillis);
+        KOMERecoveryExecutor.processCampaignTick(data);
         KOMEMusterService.processDue(data, nowMillis);
         KOMEPopulationPayoutProcessor.Result result = runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
         if (result != null && result.success) KOMEFactionDefeatService.reconcile(data, nowMillis);
@@ -406,6 +407,11 @@ public class KOMEEvents {
             data.ensureAutomaticTileWaypointLinks();
             data.syncConquestTiles();
         }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onRecoveryEntityLoaded(EntityJoinWorldEvent event) {
+        if (!event.world.isRemote) KOMERecoveryStartup.observeEntity(event.entity);
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
@@ -773,6 +779,7 @@ public class KOMEEvents {
                     record.healthObservedEntity = null;
                     record.healthObservedMount = null;
                 }
+                KOMERecoveryStartup.forgetEntity(entity);
             }
         }
     }

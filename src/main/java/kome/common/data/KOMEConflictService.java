@@ -686,7 +686,7 @@ public final class KOMEConflictService {
         KOMEOrdinaryBattleRecoveryService.observe(data, current, context.timestampMillis);
         Result ended = end(normalized, expected, context);
         if (ended.code != Code.SUCCESS) return new EndResult(ended, 0);
-        KOMEOrdinaryBattleRecoveryService.conflictClosed(data, ended.record, context.timestampMillis);
+        KOMEOrdinaryBattleRecoveryService.conflictClosed(data, current, ended.record, context.timestampMillis);
         for (KOMEArmyMovementOrder order : holds) {
             KOMEConflictLifecycleService.releaseEndedHold(order,
                 ended.record.getConflictId());

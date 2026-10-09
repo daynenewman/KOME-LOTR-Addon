@@ -14,15 +14,18 @@ final class KOMERecoveryStartupPlan {
     final Map<String,Adoption> preparations;
     final int repairedEpisodes;
     final boolean changed;
+    final Map<UUID,KOMECampaignHealthProjection> health;
 
     private KOMERecoveryStartupPlan(NBTTagCompound candidate, Set<String> conflicts,
-            Map<String,Adoption> preparations, int repaired, Map<UUID,String> targets, boolean changed) {
+            Map<String,Adoption> preparations, int repaired, Map<UUID,String> targets, boolean changed,
+            Map<UUID,KOMECampaignHealthProjection> health) {
         this.candidate = candidate;
         quarantinedConflicts = Collections.unmodifiableSet(new TreeSet<String>(conflicts));
         this.preparations = Collections.unmodifiableMap(new TreeMap<String,Adoption>(preparations));
         repairedEpisodes = repaired;
         quarantinedTargets = Collections.unmodifiableMap(new TreeMap<UUID,String>(targets));
         this.changed = changed;
+        this.health = Collections.unmodifiableMap(new TreeMap<UUID,KOMECampaignHealthProjection>(health));
     }
 
     static KOMERecoveryStartupPlan build(NBTTagCompound persisted, KOMERecoveryJournalView wal) {
@@ -37,7 +40,8 @@ final class KOMERecoveryStartupPlan {
             validateHealthTree(candidate, wal, new TreeMap<String,Adoption>());
             for (KOMECampaignHealthProjection p : physicalEvidence) validateFence(wal, p);
             return new KOMERecoveryStartupPlan(candidate, Collections.<String>emptySet(),
-                Collections.<String,Adoption>emptyMap(), 0, Collections.<UUID,String>emptyMap(), false);
+                Collections.<String,Adoption>emptyMap(), 0, Collections.<UUID,String>emptyMap(), false,
+                Collections.<UUID,KOMECampaignHealthProjection>emptyMap());
         }
         int schema = candidate.getInteger(KOMEConflictPersistence.SCHEMA_KEY);
         require(schema >= 1 && schema <= 3, "Unsupported ConflictData schema");
@@ -176,10 +180,12 @@ final class KOMERecoveryStartupPlan {
         Map<String,NBTTagCompound> beforeEpisodes = episodeRows(persisted), afterEpisodes = episodeRows(candidate);
         repaired = 0;
         for (Map.Entry<String,NBTTagCompound> e : afterEpisodes.entrySet()) if (!e.getValue().equals(beforeEpisodes.get(e.getKey()))) repaired++;
-        return new KOMERecoveryStartupPlan(candidate, quarantine, adoption, repaired, quarantinedTargets, !candidate.equals(persisted));
+        for (UUID id : quarantinedTargets.keySet()) latest.remove(id);
+        return new KOMERecoveryStartupPlan(candidate, quarantine, adoption, repaired, quarantinedTargets, !candidate.equals(persisted), latest);
     }
     /** Only startup inventory may interpret an old physical copy through verified activation evidence. */
-    private static KOMECampaignHealthProjection historicalProjection(KOMERecoveryJournalView wal, KOMECampaignHealthProjection p) {
+    static KOMECampaignHealthProjection historicalProjection(KOMERecoveryJournalView wal, KOMECampaignHealthProjection p) {
+        if (!wal.currentPhysicalAliases.containsKey(p.target) || p.alias.equals(wal.currentPhysicalAliases.get(p.target))) return p;
         UUID alias = p.alias;
         for (KOMERecoveryJournalView.Entry entry : wal.records.values()) if (entry.record instanceof Lineage) {
             Lineage l = (Lineage)entry.record;
@@ -267,7 +273,7 @@ final class KOMERecoveryStartupPlan {
         return Adoption.CONSUMED;
     }
 
-    private static boolean descends(KOMERecoveryJournalView wal, KOMECampaignHealthProjection.Fence fence, long sequence) {
+    static boolean descends(KOMERecoveryJournalView wal, KOMECampaignHealthProjection.Fence fence, long sequence) {
         if (fence == null || !wal.journalId.equals(fence.journal)) return false;
         long cursor = fence.sequence;
         while (cursor >= sequence) {

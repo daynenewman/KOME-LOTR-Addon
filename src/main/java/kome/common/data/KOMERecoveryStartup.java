@@ -27,24 +27,49 @@ public final class KOMERecoveryStartup {
     private final Thread owner = Thread.currentThread();
     private KOMERecoveryJournalRecord uncertain;
     private final Map<UUID, KOMECampaignHealthProjection> provisionalAliases = new HashMap<UUID, KOMECampaignHealthProjection>();
+    KOMERecoveryRuntime runtime;
+    private final Set<UUID> adopting = new HashSet<UUID>();
+
+    boolean permitsWork(String conflict, UUID target) {
+        return ready() && (target == null || !quarantinedTargets.contains(target))
+            && (plan == null || !plan.quarantinedConflicts.contains(conflict))
+            && (data == null || !data.getOrdinaryBattleRecovery().quarantined(conflict, quarantinedTargets));
+    }
+    KOMECampaignHealthProjection reconcileHealth(KOMECampaignHealthProjection a, KOMECampaignHealthProjection b) {
+        KOMERecoveryStartupPlan.validateFence(view,a); KOMERecoveryStartupPlan.validateFence(view,b);
+        KOMEOrdinaryBattleRecoveryRegistry.require(a.target.equals(b.target) && a.component == b.component && a.alias.equals(b.alias),
+            "Recovery health identity mismatch");
+        if (a.revision == b.revision) return KOMECampaignHealthProjection.reconcile(a,b);
+        KOMECampaignHealthProjection newer = a.revision > b.revision ? a : b, older = newer == a ? b : a;
+        KOMEOrdinaryBattleRecoveryRegistry.require(!older.terminal || newer.terminal, "Terminal health cannot be superseded");
+        KOMEOrdinaryBattleRecoveryRegistry.require(older.fence == null || KOMERecoveryStartupPlan.descends(view,newer.fence,older.fence.sequence),
+            "Recovery health ancestry lost");
+        KOMERecoveryJournalView.Entry prepare = view.latestPreparations.get(newer.target);
+        if (prepare != null) KOMERecoveryStartupPlan.reconcile(view,prepare,newer);
+        return newer;
+    }
+    void beginAdoption(KOMERecoveryJournalView.Entry entry, KOMECampaignHealthProjection source) {
+        KOMERecoveryJournalRecord.Prepare p = (KOMERecoveryJournalRecord.Prepare)entry.record;
+        requireRuntime(p.binding.conflictId,p.binding.targetId);
+        KOMEOrdinaryBattleRecoveryRegistry.require(view.records.get(entry.sequence) == entry
+            && view.latestPreparations.get(source.target) == entry && !adopting.contains(source.target)
+            && KOMERecoveryStartupPlan.reconcile(view,entry,source) == KOMERecoveryStartupPlan.Adoption.PENDING
+            && source.revision == p.sourceRevision && source.transition.equals(p.sourceTransitionId) && source.hp == p.sourceHp,
+            "Executor does not own exact reserved source");
+        adopting.add(source.target);
+    }
+    void finishAdoption(UUID target) { adopting.remove(target); }
+    static void observeEntity(Entity entity) { if (session != null && session.runtime != null) session.runtime.observe(entity); }
+    static void forgetEntity(Entity entity) { if (session != null && session.runtime != null) session.runtime.forget(entity); }
 
     KOMERecoveryJournalView journal() { return view; }
     void requireRuntime(String conflict, UUID target) {
         KOMEOrdinaryBattleRecoveryRegistry.require(Thread.currentThread() == owner, "Recovery requires owning server thread");
         rescanUncertain();
-        KOMEOrdinaryBattleRecoveryRegistry.require(ready() && !quarantinedTargets.contains(target)
-            && (plan == null || !plan.quarantinedConflicts.contains(conflict)), "Recovery authority blocked: " + diagnostic);
-        if (data != null) for (KOMEOrdinaryBattleRecoveryRegistry.Episode episode : data.getOrdinaryBattleRecovery().episodes().values()) {
-            if (!episode.conflictId.equals(conflict)) continue;
-            for (KOMEOrdinaryBattleRecoveryRegistry.Participant p : episode.participants.values()) {
-                KOMEOrdinaryBattleRecoveryRegistry.require(!quarantinedTargets.contains(p.id), "Conflict has a quarantined recovery participant");
-                for (UUID mount : p.mountIds) KOMEOrdinaryBattleRecoveryRegistry.require(!quarantinedTargets.contains(mount),
-                    "Conflict has a quarantined recovery mount");
-            }
-        }
+        KOMEOrdinaryBattleRecoveryRegistry.require(permitsWork(conflict,target), "Recovery authority blocked: " + diagnostic);
     }
     void quarantine(UUID target, String reason) {
-        quarantinedTargets.add(target);
+        if (!quarantinedTargets.add(target)) return;
         diagnostic = "Recovery target quarantined=" + target + ": " + reason; log();
     }
     KOMERecoveryJournalView.Entry append(KOMERecoveryJournalRecord record) {
@@ -189,12 +214,16 @@ public final class KOMERecoveryStartup {
                     KOMERecoveryStartupPlan.validateFence(s.view, p);
             }
             s.state = State.READY;
+            s.runtime = new KOMERecoveryRuntime(data,s,s.plan == null
+                ? Collections.<UUID,KOMECampaignHealthProjection>emptyMap() : s.plan.health);
+            if (s.server == MinecraftServer.getServer()) s.runtime.inventoryLoaded(MinecraftServer.getServer());
+            KOMERecoveryExecutor.reconcileStartup(data);
             s.diagnostic = "Recovery READY; " + (s.provision ? "first-deployment bootstrap" : "established journal open")
                 + "; journal=" + s.view.journalId + "; repaired episodes=" + (s.plan == null ? 0 : s.plan.repairedEpisodes)
                 + "; quarantined conflicts=" + (s.plan == null ? "[]" : s.plan.quarantinedConflicts)
-                + "; quarantined targets=" + (s.plan == null ? "{}" : s.plan.quarantinedTargets)
+                + "; quarantined targets=" + s.quarantinedTargets
                 + "; PREPARE evidence=" + (s.plan == null ? "{}" : s.plan.preparations)
-                + "; grants remain pending; no HP effects";
+                + "; consumed grants reconciled from verified health; no startup HP effects";
             if (s.plan != null && s.plan.changed) data.markDirty();
             s.log();
         } catch (IOException | RuntimeException failure) { s.block(State.BLOCKED_CORRUPT, "Recovery initialization failed: " + failure); }
@@ -218,14 +247,7 @@ public final class KOMERecoveryStartup {
         if (!s.ready()) return false;
         if (conflict == null) return true;
         if (s.plan != null && s.plan.quarantinedConflicts.contains(conflict.getConflictId())) return false;
-        for (KOMEOrdinaryBattleRecoveryRegistry.Episode e : data.getOrdinaryBattleRecovery().episodes().values()) {
-            if (!e.conflictId.equals(conflict.getConflictId())) continue;
-            for (KOMEOrdinaryBattleRecoveryRegistry.Participant p : e.participants.values()) {
-                if (s.quarantinedTargets.contains(p.id)) return false;
-                for (UUID mount : p.mountIds) if (s.quarantinedTargets.contains(mount)) return false;
-            }
-        }
-        return true;
+        return !data.getOrdinaryBattleRecovery().quarantined(conflict.getConflictId(),s.quarantinedTargets);
     }
     private boolean ready() {
         if (state == State.READY && (manager == null || manager.state() != KOMERecoveryJournal.State.READY))
@@ -252,7 +274,9 @@ public final class KOMERecoveryStartup {
         if (s.provisionalAliases.containsKey(projection.alias)) return false;
         if (s.quarantinedTargets.contains(projection.target)) return false;
         try {
-            KOMERecoveryStartupPlan.validateHealthTree(projection.write(), s.view, new TreeMap<String,KOMERecoveryStartupPlan.Adoption>());
+            KOMERecoveryStartupPlan.validateFence(s.view,projection);
+            KOMERecoveryJournalView.Entry latest = s.view.latestPreparations.get(projection.target);
+            if (latest != null) KOMERecoveryStartupPlan.reconcile(s.view,latest,projection);
             if (s.view.terminalTargets.contains(projection.target) && !projection.terminal) return false;
             return true;
         } catch (RuntimeException failure) {
@@ -269,18 +293,20 @@ public final class KOMERecoveryStartup {
         return session.permitsMutation(projection);
     }
     boolean permitsMutation(KOMECampaignHealthProjection projection) {
-        if (!ready() || quarantinedTargets.contains(projection.target) || view.terminalTargets.contains(projection.target)) return false;
-        for (KOMERecoveryJournalView.Entry e : view.preparations.values()) {
-            KOMERecoveryJournalRecord.Prepare p = (KOMERecoveryJournalRecord.Prepare)e.record;
-            if (p.binding.targetId.equals(projection.target)
-                    && KOMERecoveryStartupPlan.reconcile(view, e, projection) != KOMERecoveryStartupPlan.Adoption.CONSUMED)
-                return false;
-        }
-        return true;
+        if (!ready() || adopting.contains(projection.target) || quarantinedTargets.contains(projection.target)
+                || view.terminalTargets.contains(projection.target)) return false;
+        KOMERecoveryJournalView.Entry e = view.latestPreparations.get(projection.target);
+        return e == null || KOMERecoveryStartupPlan.reconcile(view,e,projection) == KOMERecoveryStartupPlan.Adoption.CONSUMED;
     }
     static boolean mayInstallHP(Entity entity, KOMECampaignHealthProjection p) {
         if (!(entity.worldObj instanceof WorldServer) || entity.worldObj.isRemote) return true;
-        return healthReady(entity) && p.fence == null && !session.view.currentPhysicalAliases.containsKey(p.target);
+        if (!healthReady(entity) || session.quarantinedTargets.contains(p.target) || session.adopting.contains(p.target)) return false;
+        if (!session.view.currentPhysicalAliases.containsKey(p.target)) return p.fence == null;
+        // Reproject already-proven persisted ancestry, never infer adoption from PREPARE alone.
+        KOMECampaignHealthProjection known = session.runtime == null ? null : session.runtime.health(p.target,p.component);
+        KOMERecoveryJournalView.Entry prepare = session.view.latestPreparations.get(p.target);
+        return known != null && known.write().equals(p.write()) && (prepare == null ? p.fence == null
+            : KOMERecoveryStartupPlan.reconcile(session.view,prepare,known) == KOMERecoveryStartupPlan.Adoption.CONSUMED);
     }
     static void requireDetachedReconciliation(KOMECampaignHealthProjection p, boolean rekey) {
         if (session == null || !(session.server instanceof MinecraftServer)) return;

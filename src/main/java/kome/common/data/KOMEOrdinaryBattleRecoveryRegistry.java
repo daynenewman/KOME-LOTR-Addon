@@ -64,7 +64,12 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
             conflictId = text(conflict); episodeId = text(episode); expectedRevision = revision;
             require(revision > 0 && state == State.ORDINARY, "Invalid resolution precondition");
             expectedState = state; this.kind = Objects.requireNonNull(kind);
-            expectedOwner = Objects.requireNonNull(owner); this.winner = text(winner);
+            expectedOwner = Objects.requireNonNull(owner);
+            // A canonical ended, unclaimed tile has neither an owner nor a winner. This is only
+            // representable as closed NO_TRANSFER authority, never an empty conquest decision.
+            boolean neutralClosure = kind == ResolutionKind.NO_TRANSFER && owner.isEmpty() && "".equals(winner)
+                && closed != null && stage != null && stage.ordinal() >= Stage.RECOVERY_PENDING.ordinal();
+            this.winner = neutralClosure ? "" : text(winner);
             require(owner.equals(KOMEAlliance.normalizeFactionKey(owner))
                 && winner.equals(KOMEAlliance.normalizeFactionKey(winner)), "Noncanonical resolution faction");
             require((kind == ResolutionKind.NO_TRANSFER) == owner.equals(winner), "Contradictory resolution kind");
@@ -150,6 +155,51 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
     private final Map<String, Episode> episodes = new TreeMap<String, Episode>();
     private final Map<UUID, Target> targets = new TreeMap<UUID, Target>();
     private final Map<UUID, UUID> aliases = new HashMap<UUID, UUID>();
+    /** Derived session work index; no new persisted authority or full-history polling. */
+    private final NavigableMap<String, Work> work = new TreeMap<String, Work>();
+    private final Map<String, Set<UUID>> conflictTargets = new HashMap<String, Set<UUID>>();
+    static final class Work {
+        final String key;
+        final Episode episode;
+        final Grant grant;
+        Work(Episode e, Grant g) { episode = e; grant = g; key = e.episodeId + ":" + (g == null ? "!closure" : g.key()); }
+    }
+    synchronized Work nextWork(String after) {
+        Map.Entry<String, Work> next = work.higherEntry(after == null ? "" : after);
+        if (next == null) next = work.firstEntry();
+        return next == null ? null : next.getValue();
+    }
+    synchronized boolean quarantined(String conflict, Set<UUID> targets) {
+        Set<UUID> participants = conflictTargets.get(conflict);
+        if (participants != null) for (UUID id : participants) if (targets.contains(id)) return true;
+        return false;
+    }
+    private void storeEpisode(String id, Episode e) {
+        Episode old = episodes.put(id, e);
+        if (old != null) {
+            work.remove(new Work(old, null).key);
+            for (Grant g : old.grants.values()) work.remove(new Work(old, g).key);
+        }
+        Set<UUID> targets = conflictTargets.get(e.conflictId);
+        if (targets == null) { targets = new HashSet<UUID>(); conflictTargets.put(e.conflictId, targets); }
+        for (Participant p : e.participants.values()) { targets.add(p.id); targets.addAll(p.mountIds); }
+        if (e.intent == null || e.intent.stage.ordinal() < Stage.RECOVERY_PENDING.ordinal()
+                || e.intent.stage == Stage.COMPLETE || e.endedAt == null) return;
+        boolean pending = false;
+        for (Grant g : e.grants.values()) if (g.state == GrantState.PENDING) {
+            Work item = new Work(e, g); work.put(item.key, item); pending = true;
+        }
+        if (!pending) { Work item = new Work(e, null); work.put(item.key, item); }
+    }
+    synchronized void replaceGrant(Episode expected, Grant grant) {
+        require(episodes.get(expected.episodeId) == expected, "Recovery episode changed during component transaction");
+        Grant old = expected.grants.get(grant.key());
+        require(old != null && old.participantId.equals(grant.participantId) && old.amount == grant.amount,
+            "Recovery grant identity changed");
+        Map<String, Grant> grants = new TreeMap<String, Grant>(expected.grants); grants.put(grant.key(), grant);
+        storeEpisode(expected.episodeId, expected.update(expected.endedAt, expected.actualHostileCombatObserved,
+            expected.participants, expected.intent, grants));
+    }
     public synchronized Map<String, Episode> episodes() { return Collections.unmodifiableMap(new TreeMap<String, Episode>(episodes)); }
     public synchronized Map<UUID, Target> targets() { return Collections.unmodifiableMap(new TreeMap<UUID, Target>(targets)); }
     public synchronized Episode get(String conflict, String episode) {
@@ -162,6 +212,8 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
         if (other == this) return;
         episodes.clear(); episodes.putAll(other.episodes()); targets.clear(); targets.putAll(other.targets());
         aliases.clear(); for (Target t : targets.values()) for (UUID alias : t.aliases) aliases.put(alias, t.id);
+        work.clear(); conflictTargets.clear();
+        for (Episode e : new ArrayList<Episode>(episodes.values())) storeEpisode(e.episodeId, e);
     }
     synchronized boolean begin(KOMEConflictRecord conflict, Coverage coverage) {
         CombatEpisode episode = conflict.getCombatEpisode();
@@ -171,7 +223,7 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
             require(existing.tileId.equals(conflict.getTileId()) && existing.startedAt == episode.startedAtMillis,
                 "Contradictory episode history"); return false;
         }
-        episodes.put(episode.episodeId, new Episode(conflict.getConflictId(), conflict.getTileId(),
+        storeEpisode(episode.episodeId, new Episode(conflict.getConflictId(), conflict.getTileId(),
             episode.episodeId, episode.startedAtMillis, episode.endedAtMillis, coverage, false,
             Collections.<UUID, Participant>emptyMap(), null, Collections.<String, Grant>emptyMap()));
         return true;
@@ -179,13 +231,13 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
     synchronized boolean incomplete(KOMEConflictRecord conflict) {
         Episode e = get(conflict.getConflictId(), conflict.getCombatEpisode().episodeId);
         if (e == null || e.coverage != Coverage.COMPLETE) return false;
-        episodes.put(e.episodeId, new Episode(e.conflictId, e.tileId, e.episodeId, e.startedAt,
+        storeEpisode(e.episodeId, new Episode(e.conflictId, e.tileId, e.episodeId, e.startedAt,
             e.endedAt, Coverage.INCOMPLETE, e.actualHostileCombatObserved, e.participants, e.intent, e.grants)); return true;
     }
     synchronized boolean observeCombat(KOMEConflictRecord conflict, boolean hostilePair) {
         Episode e = get(conflict.getConflictId(), conflict.getCombatEpisode().episodeId);
         if (e == null || e.endedAt != null || !hostilePair || e.actualHostileCombatObserved) return false;
-        episodes.put(e.episodeId, e.update(null, true, e.participants, e.intent, e.grants)); return true;
+        storeEpisode(e.episodeId, e.update(null, true, e.participants, e.intent, e.grants)); return true;
     }
     private Target identify(UUID physical, Component kind, UUID logical) {
         Target existing = targetForPhysical(physical);
@@ -221,7 +273,7 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
         Episode updated = e.update(null, e.actualHostileCombatObserved, people, e.intent, e.grants);
         targets.put(rider.id, rider); aliases.put(physical, rider.id);
         if (mount != null) { targets.put(mount.id, mount); aliases.put(mountPhysical, mount.id); }
-        episodes.put(e.episodeId, updated); return true;
+        storeEpisode(e.episodeId, updated); return true;
     }
     synchronized boolean exit(KOMEConflictRecord conflict, Collection<UUID> physicalIds,
             Disposition disposition, long now, String reason) {
@@ -233,7 +285,7 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
             if (p == null || terminal(p.disposition) || p.disposition == disposition) continue;
             people.put(p.id, p.exit(disposition, now, reason)); changed = true;
         }
-        if (changed) episodes.put(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, people, e.intent, e.grants));
+        if (changed) storeEpisode(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, people, e.intent, e.grants));
         return changed;
     }
     /** A verified reconstruction maps physical aliases, never transfers authority to a remount. */
@@ -258,14 +310,14 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
             Map<String, Grant> grants = new TreeMap<String, Grant>(e.grants);
             for (Grant g : e.grants.values()) if (g.targetId.equals(t.id) && g.state == GrantState.PENDING)
                 grants.put(g.key(), new Grant(g.participantId, g.targetId, g.component, g.amount, GrantState.TERMINAL, g.transition, reason));
-            episodes.put(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, people, e.intent, grants));
+            storeEpisode(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, people, e.intent, grants));
         }
         return true;
     }
     synchronized boolean end(KOMEConflictRecord conflict, long now) {
         Episode e = get(conflict.getConflictId(), conflict.getCombatEpisode().episodeId);
         if (e == null || e.endedAt != null) return false;
-        episodes.put(e.episodeId, e.update(Long.valueOf(Math.max(now, e.startedAt)), e.actualHostileCombatObserved,
+        storeEpisode(e.episodeId, e.update(Long.valueOf(Math.max(now, e.startedAt)), e.actualHostileCombatObserved,
             e.participants, e.intent, e.grants)); return true;
     }
     /** Exact initial revision is mandatory; retries retain the original amount and ownership decision. */
@@ -282,7 +334,7 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
         float snapshottedAmount = e.grants.isEmpty() ? amount : e.grants.values().iterator().next().amount;
         Intent intent = new Intent(e.conflictId, e.episodeId, expectedRevision, live.getState(), kind,
             owner, winner, snapshottedAmount, Stage.PREPARED, null);
-        episodes.put(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, e.participants, intent, e.grants)); return intent;
+        storeEpisode(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, e.participants, intent, e.grants)); return intent;
     }
     public synchronized boolean hasIntent(KOMEConflictRecord conflict) {
         for (Episode e : episodes.values()) if (e.conflictId.equals(conflict.getConflictId()) && e.intent != null) return true;
@@ -295,13 +347,40 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
             for (Grant g : e.grants.values()) require(g.state != GrantState.PENDING, "Recovery remains pending");
         }
         Intent intent = e.intent.advance(stage, null);
-        episodes.put(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, e.participants, intent, e.grants));
+        storeEpisode(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, e.participants, intent, e.grants));
     }
     synchronized void closed(KOMEConflictRecord conflict, long now) {
         end(conflict, now); Episode e = get(conflict.getConflictId(), conflict.getCombatEpisode().episodeId);
         if (e == null || e.intent == null) return;
-        episodes.put(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, e.participants,
+        storeEpisode(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, e.participants,
             e.intent.advance(e.intent.stage, Long.valueOf(now)), e.grants));
+    }
+    /** Bind retained episodes to the one canonical ending decision, including receipt-free no-transfer ends. */
+    synchronized void bindClosedConflict(KOMEConflictRecord before, String owner, long now) {
+        if (before.getState() != State.ORDINARY) return;
+        Intent publication = null;
+        for (Episode e : episodes.values()) if (e.conflictId.equals(before.getConflictId()) && e.intent != null) {
+            require(e.intent.stage.ordinal() >= Stage.RECOVERY_PENDING.ordinal(), "Closure preceded ownership publication");
+            require(publication == null || publication.expectedRevision == e.intent.expectedRevision
+                && publication.kind == e.intent.kind && publication.expectedOwner.equals(e.intent.expectedOwner)
+                && publication.winner.equals(e.intent.winner), "Contradictory canonical closure intents");
+            publication = e.intent;
+        }
+        Map<String,Episode> changed = new TreeMap<String,Episode>();
+        for (Episode e : new ArrayList<Episode>(episodes.values())) {
+            if (!e.conflictId.equals(before.getConflictId()) || e.endedAt == null) continue;
+            Intent intent = e.intent;
+            if (intent == null && e.coverage == Coverage.COMPLETE && e.actualHostileCombatObserved) {
+                require(publication != null || owner != null, "Canonical tile ownership is missing");
+                float amount = e.grants.isEmpty() ? 0F : e.grants.values().iterator().next().amount;
+                intent = new Intent(e.conflictId,e.episodeId,publication == null ? before.getRevision() : publication.expectedRevision,
+                    State.ORDINARY,publication == null ? ResolutionKind.NO_TRANSFER : publication.kind,
+                    publication == null ? owner : publication.expectedOwner,publication == null ? owner : publication.winner,
+                    amount,Stage.RECOVERY_PENDING,Long.valueOf(now));
+            } else if (intent != null) intent = intent.advance(intent.stage,Long.valueOf(now));
+            if (intent != null) changed.put(e.episodeId,e.update(e.endedAt,e.actualHostileCombatObserved,e.participants,intent,e.grants));
+        }
+        for (Episode e : changed.values()) storeEpisode(e.episodeId,e);
     }
     /** Freeze obligations only for proven complete coverage. HP is deliberately untouched. */
     public synchronized boolean prepareGrants(String conflict, String episode, float amount) {
@@ -317,7 +396,7 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
                 addGrant(grants, new Grant(p.id, mount, Component.MOUNT, amount, GrantState.PENDING, null, ""));
         }
         boolean changed = grants.size() != e.grants.size();
-        episodes.put(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, e.participants, e.intent, grants)); return changed;
+        storeEpisode(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, e.participants, e.intent, grants)); return changed;
     }
     private static void addGrant(Map<String, Grant> grants, Grant next) {
         Grant old = grants.get(next.key());
@@ -364,6 +443,7 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
             }
         }
         require(referenced.equals(targets.keySet()), "Unreferenced recovery target");
+        for (Episode e : episodes.values()) result.storeEpisode(e.episodeId, e);
         return result;
     }
 }

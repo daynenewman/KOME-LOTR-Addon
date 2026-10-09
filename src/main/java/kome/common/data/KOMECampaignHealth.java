@@ -40,7 +40,7 @@ public final class KOMECampaignHealth {
         if (disk != null) require(disk.alias.equals(entity.getUniqueID()) && disk.component == kind, "Persisted health alias mismatch");
         if (live != null) require(live.alias.equals(entity.getUniqueID()) && live.component == kind, "Entity health alias mismatch");
         KOMECampaignHealthProjection chosen;
-        if (disk != null && live != null) chosen = KOMECampaignHealthProjection.reconcile(disk, live);
+        if (disk != null && live != null) chosen = reconcile(record,disk,live);
         else if (disk != null) {
             // Missing acknowledgment is not proof that a live projection is older.
             require(Float.compare(((EntityLivingBase)entity).getHealth(), disk.hp) == 0 && disk.fence == null,
@@ -64,6 +64,7 @@ public final class KOMECampaignHealth {
     public static boolean observe(KOMEHiredUnitRecord record, Entity entity) {
         if (record == null || !KOMEHiredUnitClassification.isCampaignUnit(record) || entity == null) return false;
         if (!KOMERecoveryStartup.healthReady(entity)) return false;
+        bind(record, entity);
         if (entity.worldObj != null && !KOMERecoveryStartup.permitsTarget(KOMEWorldData.get(entity.worldObj), entity.getUniqueID())) return false;
         KOMECampaignHealthProjection live = KOMECampaignHealthEntity.projection(entity);
         if (live != null && !KOMERecoveryStartup.validateProjection(entity, live)
@@ -94,14 +95,14 @@ public final class KOMECampaignHealth {
     static void updateProjection(KOMEHiredUnitRecord record, KOMECampaignHealthProjection p) {
         NBTTagCompound old = record.survivingHealth;
         if (p.component == Component.RIDER) {
-            if (versioned(old)) p = KOMECampaignHealthProjection.reconcile(read(old), p);
+            if (versioned(old)) p = reconcile(record, read(old), p);
             NBTTagCompound next = p.write();
             if (old != null) for (String key : new String[]{"Riding", "Mounts", "AttachedMountAlias"}) if (old.hasKey(key)) next.setTag(key, old.getTag(key).copy());
             record.survivingHealth = next;
         } else {
             if (old == null) return;
             Map<UUID, KOMECampaignHealthProjection> mounts = mounts(old);
-            if (mounts.containsKey(p.target)) p = KOMECampaignHealthProjection.reconcile(mounts.get(p.target), p);
+            if (mounts.containsKey(p.target)) p = reconcile(record, mounts.get(p.target), p);
             mounts.put(p.target, p);
             NBTTagCompound next = (NBTTagCompound)old.copy(); NBTTagList list = new NBTTagList();
             for (KOMECampaignHealthProjection m : mounts.values()) list.appendTag(m.write()); next.setTag("Mounts", list);
@@ -109,6 +110,24 @@ public final class KOMECampaignHealth {
                 next.setTag("Riding", p.write());
             record.survivingHealth = next;
         }
+        if (record.healthAuthorityData != null && record.healthAuthorityData.recoveryStartup != null
+                && record.healthAuthorityData.recoveryStartup.runtime != null)
+            record.healthAuthorityData.recoveryStartup.runtime.track(record);
+    }
+    static KOMECampaignHealthProjection reconcile(KOMEHiredUnitRecord record, KOMECampaignHealthProjection a, KOMECampaignHealthProjection b) {
+        KOMERecoveryStartup startup = record == null || record.healthAuthorityData == null ? null : record.healthAuthorityData.recoveryStartup;
+        return startup == null ? KOMECampaignHealthProjection.reconcile(a,b) : startup.reconcileHealth(a,b);
+    }
+    private static void bind(KOMEHiredUnitRecord record, Entity entity) {
+        if (entity.worldObj == null) return;
+        KOMEWorldData data = KOMEWorldData.get(entity.worldObj);
+        if (data.recoveryStartup != null && data.recoveryStartup.runtime != null) data.recoveryStartup.runtime.track(record);
+        KOMERecoveryStartup.observeEntity(entity);
+    }
+    static KOMECampaignHealthProjection retained(KOMEHiredUnitRecord record, UUID target, Component component) {
+        KOMECampaignHealthProjection p = component == Component.MOUNT ? mounts(record.survivingHealth).get(target)
+            : versioned(record.survivingHealth) ? read(record.survivingHealth) : null;
+        return p != null && p.target.equals(target) ? p : null;
     }
     private static Map<UUID, KOMECampaignHealthProjection> mounts(NBTTagCompound root) {
         Map<UUID, KOMECampaignHealthProjection> result = new TreeMap<UUID, KOMECampaignHealthProjection>();
@@ -174,10 +193,10 @@ public final class KOMECampaignHealth {
     private static void positive(float hp) { require(Float.isFinite(hp) && hp > 0F, "Invalid survivor current health"); }
     public static NBTTagCompound movementSnapshot(KOMEHiredUnitRecord record, NBTTagCompound stored) {
         require(stored != null, "Missing survivor snapshot"); refresh(record);
-        NBTTagCompound result = (NBTTagCompound)stored.copy(); applyToSnapshot(result, record.survivingHealth);
+        NBTTagCompound result = (NBTTagCompound)stored.copy(); applyToSnapshot(result, record.survivingHealth, record);
         return result;
     }
-    private static void applyToSnapshot(NBTTagCompound snapshot, NBTTagCompound health) {
+    private static void applyToSnapshot(NBTTagCompound snapshot, NBTTagCompound health, KOMEHiredUnitRecord record) {
         float hp;
         if (versioned(health)) {
             KOMECampaignHealthProjection p = read(health);
@@ -192,7 +211,7 @@ public final class KOMECampaignHealth {
             require(!p.terminal && p.alias.equals(snapshotId(snapshot)), "Stale/terminal snapshot lineage"); hp = p.hp;
             if (snapshot.hasKey(ENTITY_TAG)) {
                 type(snapshot, ENTITY_TAG, 10);
-                p = KOMECampaignHealthProjection.reconcile(p, read(snapshot.getCompoundTag(ENTITY_TAG)));
+                p = reconcile(record,p,read(snapshot.getCompoundTag(ENTITY_TAG)));
                 require(!p.terminal, "Terminal snapshot cannot reconstruct"); hp = p.hp;
             }
             snapshot.setTag(ENTITY_TAG, p.write());
@@ -206,7 +225,7 @@ public final class KOMECampaignHealth {
             NBTTagCompound child = snapshot.getCompoundTag("Riding");
             NBTTagCompound mount = versioned(health) ? mountHealth(health, snapshotId(child))
                 : health == null ? null : health.hasKey("Riding", 10) ? health.getCompoundTag("Riding") : null;
-            require(health == null || mount != null, "Mount survivor lineage is unresolved"); applyToSnapshot(child, mount);
+            require(health == null || mount != null, "Mount survivor lineage is unresolved"); applyToSnapshot(child, mount, record);
         } else if (health != null && !versioned(health) && health.hasKey("Riding"))
             throw new IllegalArgumentException("CAMPAIGN_HEALTH: Survivor mount snapshot is missing");
     }
@@ -287,6 +306,8 @@ public final class KOMECampaignHealth {
     }
     /** Unloaded lookup across retained owners; shared mounts must not use an arbitrary old owner's copy. */
     public static KOMECampaignHealthProjection persisted(KOMEWorldData data, UUID target, Component kind) {
+        if (data.recoveryStartup != null && data.recoveryStartup.runtime != null)
+            return data.recoveryStartup.runtime.health(target,kind);
         KOMECampaignHealthProjection result = null;
         KOMEOrdinaryBattleRecoveryRegistry.Target identity = data.getOrdinaryBattleRecovery().target(target);
         if (identity != null) require(identity.component == kind, "Persisted target component mismatch");

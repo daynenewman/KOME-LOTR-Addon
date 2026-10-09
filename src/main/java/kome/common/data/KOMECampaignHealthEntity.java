@@ -48,7 +48,7 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
             NBTTagCompound n = s.projection.component == KOMEOrdinaryBattleRecoveryRegistry.Component.RIDER
                 ? record.survivingHealth : KOMECampaignHealth.mountHealth(record.survivingHealth, s.projection.alias);
             if (KOMECampaignHealth.versioned(n)) {
-                KOMECampaignHealthProjection latest = KOMECampaignHealthProjection.reconcile(s.projection, read(n));
+                KOMECampaignHealthProjection latest = KOMECampaignHealth.reconcile(record,s.projection,read(n));
                 require(latest.revision == s.projection.revision, "Target requires reconciliation before another mutation");
             }
         }
@@ -71,6 +71,46 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
             require(Float.compare(s.entity.getHealth(), p.hp) == 0, "Entity rejected health projection");
         }
         s.projection = p; if (owner != null) s.owner = new WeakReference<KOMEHiredUnitRecord>(owner);
+        KOMERecoveryStartup.observeEntity(entity);
+    }
+    /** Explicit authorized recovery: exactly one WAL transition, including capped/zero-amount grants. */
+    static KOMECampaignHealthProjection adoptRecovery(KOMEWorldData data, EntityLivingBase entity,
+            KOMERecoveryJournalView.Entry entry) {
+        KOMERecoveryStartup startup = data.recoveryStartup;
+        KOMERecoveryJournalRecord.Prepare prepare = (KOMERecoveryJournalRecord.Prepare)entry.record;
+        KOMECampaignHealthEntity s = state(entity,false);
+        require(s != null && !s.loading && !s.projecting && s.projection != null && !s.projection.terminal,
+            "Recovery requires a reconciled live component");
+        KOMECampaignHealthProjection live = s.projection;
+        require(live.hp == entity.getHealth() && entity.getMaxHealth() == prepare.maxHp && entity.isEntityAlive(),
+            "Recovery physical source changed");
+        require(live.target.equals(prepare.binding.targetId) && live.component == prepare.binding.component
+            && live.alias.equals(startup.journal().currentPhysicalAliases.get(live.target)), "Recovery physical identity changed");
+        require(KOMERecoveryStartupPlan.reconcile(startup.journal(),entry,live) == KOMERecoveryStartupPlan.Adoption.PENDING
+            && live.revision <= prepare.sourceRevision, "Recovery source is no longer reserved");
+        // PREPARE durably captured S even when both ordinary saves still contain an older revision.
+        KOMECampaignHealthProjection source = new KOMECampaignHealthProjection(live.target,live.component,live.alias,
+            prepare.sourceHp,prepare.sourceRevision,prepare.sourceTransitionId,false,
+            prepare.inheritedFence == null ? null : new Fence(prepare.inheritedFence.journalId,
+                prepare.inheritedFence.prepareSequence,prepare.inheritedFence.transitionId));
+        startup.beginAdoption(entry,source);
+        KOMECampaignHealthProjection adopted = new KOMECampaignHealthProjection(live.target,live.component,live.alias,
+            prepare.targetHp,prepare.recoveryRevision,prepare.recoveryTransitionId,false,
+            new Fence(prepare.binding.journalId,entry.sequence,prepare.recoveryTransitionId));
+        // Native HEAD/RETURN hooks see the authorized projection scope and cannot allocate R+1.
+        // A failure deliberately retains R/quarantine; never roll authority back to S.
+        s.projecting = true; s.projection = adopted;
+        try {
+            entity.setHealth(adopted.hp);
+            require(entity.getHealth() == adopted.hp && s.projection == adopted && !entity.isDead,
+                "Native entity rejected prepared recovery");
+            NBTTagCompound acknowledgment = new NBTTagCompound(); entity.writeToNBT(acknowledgment);
+            endWrite(entity,acknowledgment);
+            require(acknowledgment.getCompoundTag(ENTITY_TAG).equals(adopted.write()) && entity.getHealth() == adopted.hp
+                && entity.getMaxHealth() == prepare.maxHp && entity.isEntityAlive() && !entity.isDead && s.projection == adopted,
+                "Recovery serialization acknowledgment failed");
+            return adopted;
+        } finally { s.projecting = false; }
     }
     private void publish() {
         KOMEHiredUnitRecord record = owner == null ? null : owner.get();
@@ -106,6 +146,7 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
         require(nbt.hasKey("HealF", 5) && Float.compare(nbt.getFloat("HealF"), s.reading.hp) == 0
             && Float.compare(s.entity.getHealth(), s.reading.hp) == 0, "Saved HP contradicts health acknowledgment");
         s.loading = false; s.reading = null;
+        KOMERecoveryStartup.observeEntity(entity);
         if (!KOMERecoveryStartup.healthReady(entity) || !KOMERecoveryStartup.validateProjection(entity, s.projection)) return;
         install(entity, s.projection, null, Float.compare(s.entity.getHealth(), s.projection.hp) != 0);
     }

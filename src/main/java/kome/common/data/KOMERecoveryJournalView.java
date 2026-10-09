@@ -13,6 +13,7 @@ public final class KOMERecoveryJournalView {
     public final Map<Long, Entry> records;
     public final Map<String, Entry> contexts, preparations;
     public final Map<UUID, Entry> lineages, terminals;
+    public final Map<UUID, Entry> latestPreparations;
     public final Map<UUID, UUID> currentPhysicalAliases;
     public final Map<UUID, UUID> logicalTargetsByAlias;
     public final Map<UUID, Component> targetComponents;
@@ -23,6 +24,7 @@ public final class KOMERecoveryJournalView {
         this.journalId=index.journalId; this.validLength=validLength; this.fileLength=fileLength; this.lastHash=lastHash;
         records=immutable(index.records); contexts=immutable(index.contexts); preparations=immutable(index.preparations);
         lineages=immutable(index.lineages); terminals=immutable(index.terminals);
+        latestPreparations=immutable(new TreeMap<UUID,Entry>(index.latestPrepare));
         currentPhysicalAliases=immutable(new TreeMap<UUID,UUID>(index.currentAlias));
         logicalTargetsByAlias=immutable(new TreeMap<UUID,UUID>(index.aliases));
         targetComponents=immutable(new TreeMap<UUID,Component>(index.components));

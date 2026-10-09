@@ -168,6 +168,40 @@ public class KOMEOrdinaryBattleRecoveryFoundationTest {
         KOMEConflictPersistence.Loaded restored=KOMEConflictPersistence.readSection(section(f.data));
         assertEquals(2,restored.recovery.get("CF1","CF1:E1").grants.size());
     }
+    @Test public void genuineHostileAbandonmentBindsNoTransferIntentAtCanonicalEnd() {
+        Fixture f=new Fixture(true); String owner=f.data.getConquestTileIfPresent(TILE).projectRulingFaction();
+        long revision=f.record().getRevision();
+        assertTrue(f.data.getConflictService().endWithMovementHandoff(f.data,TILE,expected(f.record()),context(200),KOMEConflictService.EndSource.LIFECYCLE).isSuccess());
+        Intent intent=f.episode().intent;
+        assertNotNull(intent); assertEquals(ResolutionKind.NO_TRANSFER,intent.kind); assertEquals(revision,intent.expectedRevision);
+        assertEquals(owner,intent.expectedOwner); assertEquals(owner,intent.winner); assertEquals(Long.valueOf(200),intent.closedAt);
+        assertEquals(Stage.RECOVERY_PENDING,intent.stage); assertEquals(2,f.episode().grants.size());
+        KOMERecoveryExecutor.progress(f.data,"CF1","CF1:E1"); assertEquals(Stage.RECOVERY_PENDING,f.episode().intent.stage);
+        assertEquals(owner,f.data.getConquestTileIfPresent(TILE).projectRulingFaction());
+    }
+    @Test public void olderEpisodeUsesCanonicalPublishedOwnershipIdentityAndOwnAmount() {
+        Fixture f=new Fixture(true); KOMEConflictRecord live=f.record();
+        f.registry().end(live,150); f.registry().prepareGrants("CF1","CF1:E1",2.5F);
+        Episode older=f.episode(); Map<String,Episode> episodes=new TreeMap<String,Episode>(); episodes.put(older.episodeId,older);
+        Intent published=new Intent("CF1","CF1:E2",live.getRevision(),State.ORDINARY,ResolutionKind.CONQUEST,"mordor","gondor",5,Stage.RECOVERY_PENDING,null);
+        episodes.put("CF1:E2",new Episode("CF1",TILE,"CF1:E2",160,190L,Coverage.COMPLETE,true,Collections.emptyMap(),published,Collections.emptyMap()));
+        f.registry().replaceFrom(KOMEOrdinaryBattleRecoveryRegistry.restore(f.registry().targets(),episodes));
+        f.registry().bindClosedConflict(live,"gondor",200);
+        Intent bound=f.episode().intent; assertEquals(published.expectedRevision,bound.expectedRevision);
+        assertEquals(published.kind,bound.kind); assertEquals(published.expectedOwner,bound.expectedOwner); assertEquals(published.winner,bound.winner);
+        assertEquals(2.5F,bound.recoveryAmount,0); assertEquals(Long.valueOf(200),bound.closedAt);
+    }
+    @Test public void neutralCanonicalEndKeepsRecoveryWithoutInventingWinner() {
+        Fixture f=new Fixture(true); f.registry().end(f.record(),150); f.registry().prepareGrants("CF1","CF1:E1",5);
+        f.registry().bindClosedConflict(f.record(),"",200);
+        Intent i=KOMEOrdinaryBattleRecoveryRegistry.read(f.registry().write()).get("CF1","CF1:E1").intent;
+        assertEquals(ResolutionKind.NO_TRANSFER,i.kind); assertEquals("",i.expectedOwner); assertEquals("",i.winner);
+        assertEquals(Long.valueOf(200),i.closedAt); assertEquals(2,f.episode().grants.size());
+        assertThrows(IllegalArgumentException.class,()->new Intent("CF1","CF1:E1",1,State.ORDINARY,
+            ResolutionKind.CONQUEST,"","",5,Stage.RECOVERY_PENDING,200L));
+        assertThrows(IllegalArgumentException.class,()->new Intent("CF1","CF1:E1",1,State.ORDINARY,
+            ResolutionKind.NO_TRANSFER,"","",5,Stage.PREPARED,null));
+    }
     @Test public void exactIntentRetryReturnsSameIntentAndSnapshotsAmountWithoutSideEffects() {
         Fixture f=new Fixture(true); NBTTagCompound health=health(f.member("C1"),12); f.data.hiredUnits.get(f.member("C1")).survivingHealth=health;
         long revision=f.record().getRevision(); String owner=f.data.getConquestTileIfPresent(TILE).projectRulingFaction();

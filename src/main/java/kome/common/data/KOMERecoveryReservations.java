@@ -23,6 +23,14 @@ public final class KOMERecoveryReservations {
     /** Call immediately before the future bounded executor, never speculatively for unloaded grants. */
     public static Result prepare(KOMEWorldData data, String conflict, String episode, Component component,
             UUID logicalTarget, EntityLivingBase entity) {
+        return prepare(data,conflict,episode,component,logicalTarget,entity,false);
+    }
+    static Result prepareForExecution(KOMEWorldData data, String conflict, String episode, Component component,
+            UUID logicalTarget, EntityLivingBase entity) {
+        return prepare(data,conflict,episode,component,logicalTarget,entity,true);
+    }
+    private static Result prepare(KOMEWorldData data, String conflict, String episode, Component component,
+            UUID logicalTarget, EntityLivingBase entity, boolean execution) {
         KOMERecoveryStartup s = data.recoveryStartup;
         require(s != null, "Recovery startup authority is required");
         s.requireRuntime(conflict, logicalTarget); data.ensureWritable();
@@ -53,11 +61,12 @@ public final class KOMERecoveryReservations {
                 KOMECampaignHealthProjection loaded = entity == null ? null : KOMECampaignHealthEntity.projection(entity);
                 if (loaded != null) {
                     require(entity.getUniqueID().equals(t.physicalId), "Unrelated physical retry target");
-                    saved = saved == null ? loaded : KOMECampaignHealthProjection.reconcile(saved, loaded);
+                    saved = saved == null ? loaded : s.reconcileHealth(saved, loaded);
                 }
                 Result result = result(s, old, saved);
                 if (result.status == Status.RESERVED) {
-                    if (!available(entity) || loaded == null || loaded.revision != ((Prepare)old.record).sourceRevision)
+                    if (!(execution ? KOMERecoveryRuntime.available(entity) : available(entity)) || loaded == null
+                            || (execution ? loaded.revision > ((Prepare)old.record).sourceRevision : loaded.revision != ((Prepare)old.record).sourceRevision))
                         result = new Result(Status.UNAVAILABLE, old);
                     else require(loaded.hp == entity.getHealth() && entity.getMaxHealth() == ((Prepare)old.record).maxHp,
                         "Reserved physical health/Max HP changed before execution");
@@ -66,7 +75,7 @@ public final class KOMERecoveryReservations {
                 return result;
             }
             require(g.transition == null, "ConflictData PREPARE absent from WAL");
-            if (!available(entity)) return new Result(Status.UNAVAILABLE, null);
+            if (!(execution ? KOMERecoveryRuntime.available(entity) : available(entity))) return new Result(Status.UNAVAILABLE, null);
             require(KOMERecoveryStartup.healthReady(entity) && KOMEWorldData.get(entity.worldObj) == data,
                 "Recovery entity belongs to another world session");
             require(entity.getUniqueID().equals(t.physicalId), "Unrelated physical recovery target");
@@ -74,7 +83,7 @@ public final class KOMERecoveryReservations {
             if (live == null || saved == null) return new Result(Status.UNAVAILABLE, null);
             require(live.target.equals(t.id) && live.component == component && live.alias.equals(t.physicalId),
                 "Unverified health target identity");
-            KOMECampaignHealthProjection source = KOMECampaignHealthProjection.reconcile(saved, live);
+            KOMECampaignHealthProjection source = s.reconcileHealth(saved, live);
             // A4 never installs a newer saved projection onto a physical entity.
             if (source.revision != live.revision) return new Result(Status.UNAVAILABLE, null);
             require(!source.terminal && source.hp > 0 && source.hp == entity.getHealth(), "Physical health is not executable");
@@ -143,12 +152,8 @@ public final class KOMERecoveryReservations {
                 && old.sourceHealth == t.sourceHealth && old.targetHealth == t.targetHealth && old.maxHealth == t.maxHealth,
                 "Conflicting persisted reservation"); return;
         }
-        Map<String, Grant> grants = new TreeMap<String, Grant>(e.grants);
-        grants.put(g.key(), new Grant(g.participantId, g.targetId, g.component, g.amount, g.state, t, g.terminalReason));
-        Map<String, Episode> episodes = new TreeMap<String, Episode>(data.getOrdinaryBattleRecovery().episodes());
-        episodes.put(e.episodeId, e.update(e.endedAt, e.actualHostileCombatObserved, e.participants, e.intent, grants));
-        data.getOrdinaryBattleRecovery().replaceFrom(KOMEOrdinaryBattleRecoveryRegistry.restore(
-            data.getOrdinaryBattleRecovery().targets(), episodes)); data.markDirty();
+        data.getOrdinaryBattleRecovery().replaceGrant(e,
+            new Grant(g.participantId,g.targetId,g.component,g.amount,g.state,t,g.terminalReason)); data.markDirty();
     }
     private static Map<UUID, Target> episodeTargets(Episode e, KOMEOrdinaryBattleRecoveryRegistry registry) {
         Map<UUID, Target> targets = new TreeMap<UUID, Target>();
@@ -159,7 +164,7 @@ public final class KOMERecoveryReservations {
         return targets;
     }
     /** Compare immutable episode facts; only proven terminal/lineage and monotone intent progress may differ. */
-    private static KOMERecoveryJournalView.Entry requireContext(KOMERecoveryJournalView view, Episode e,
+    static KOMERecoveryJournalView.Entry requireContext(KOMERecoveryJournalView view, Episode e,
             KOMEOrdinaryBattleRecoveryRegistry registry) {
         KOMERecoveryJournalView.Entry entry = view.contexts.get(e.episodeId);
         if (entry == null) return null;

@@ -63,6 +63,7 @@ public class KOMEHiredUnitRecord {
     private KOMEHiredUnitPhysicalLocator physicalLocator;
     transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedEntity;
     transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedMount;
+    transient KOMEWorldData healthAuthorityData;
 
     public void readFromNBT(NBTTagCompound nbt) {
         entity = UUID.fromString(nbt.getString("Entity"));
