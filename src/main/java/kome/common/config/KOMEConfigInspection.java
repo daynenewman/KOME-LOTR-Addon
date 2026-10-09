@@ -85,6 +85,8 @@ public final class KOMEConfigInspection {
             add(values, category, "responseLevel2Minutes", s.getResponseLevel2Minutes());
             add(values, category, "responseLevel3Minutes", s.getResponseLevel3Minutes());
             add(values, category, "postBattleRecoveryAmount", s.getPostBattleRecoveryAmount());
+            add(values, category, KOMEConfigRegistry.DISABLE_NORMAL_HEALING_IN_BATTLE, s.isNormalHealingDisabledInBattle());
+            add(values, category, KOMEConfigRegistry.DISABLE_NORMAL_HEALING_DURING_CAMPAIGN_COMMITMENT, s.isNormalHealingDisabledDuringCampaignCommitment());
         } else if ("muster".equals(category)) {
             KOMEConfigRegistry.MusterSettings s = snapshot.getMuster();
             add(values, category, "threatDistanceTiles", s.getThreatDistanceTiles());
@@ -169,6 +171,11 @@ public final class KOMEConfigInspection {
         public String getCategory() { return category; }
         public String getKey() { return key; }
         public String getValue() { return value; }
-        public String format() { return category + "." + key + "=" + value; }
+        public String getDescription() {
+            if ("battle".equals(category) && KOMEConfigRegistry.DISABLE_NORMAL_HEALING_IN_BATTLE.equals(key)) return KOMEConfigRegistry.BATTLE_HEALING_DESCRIPTION;
+            if ("battle".equals(category) && KOMEConfigRegistry.DISABLE_NORMAL_HEALING_DURING_CAMPAIGN_COMMITMENT.equals(key)) return KOMEConfigRegistry.CAMPAIGN_HEALING_DESCRIPTION;
+            return "";
+        }
+        public String format() { return category + "." + key + "=" + value + (getDescription().isEmpty() ? "" : " — " + getDescription()); }
     }
 }

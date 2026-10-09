@@ -13,6 +13,11 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
     private static final String KEY = "KOME.CampaignHealth";
     KOMECampaignHealthProjection projection, reading;
     boolean loading, projecting;
+    /** Deliberate health writers add an explicit source here after validating their own authority. */
+    enum AuthorizedHealthSource { STATE_RECONCILIATION, WAL_POST_BATTLE_RECOVERY }
+    private AuthorizedHealthSource authorizedSource;
+    private float authorizedHp;
+    private boolean authorizationAvailable;
     WeakReference<KOMEHiredUnitRecord> owner;
     private final EntityLivingBase entity;
     private KOMECampaignHealthEntity(EntityLivingBase entity) { this.entity = entity; }
@@ -28,6 +33,23 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
     public static KOMECampaignHealthProjection projection(Entity entity) {
         KOMECampaignHealthEntity s = state(entity, false); return s == null ? null : s.projection;
     }
+    /** Native setter HEAD: cancel policy-denied increases before HP or version metadata changes. */
+    public static boolean allowChange(Entity entity, float requested) {
+        KOMECampaignHealthEntity s = state(entity,false);
+        if (s != null && s.loading && s.reading != null && requested == s.reading.hp) return true;
+        if (s != null && s.authorizedSource != null && s.authorizationAvailable && requested == s.authorizedHp) {
+            s.authorizationAvailable = false; return true;
+        }
+        if (entity instanceof EntityLivingBase && Math.min(requested,((EntityLivingBase)entity).getMaxHealth()) > ((EntityLivingBase)entity).getHealth()
+                && KOMECampaignHealingPolicy.blocksNormalHealing(entity)) return false;
+        beforeChange(entity,requested); return true;
+    }
+    private static void writeAuthorizedProjection(KOMECampaignHealthEntity s, KOMECampaignHealthProjection p, AuthorizedHealthSource source) {
+        require(s.authorizedSource == null, "Nested authorized health write");
+        s.authorizedSource = source; s.authorizedHp = p.hp; s.authorizationAvailable = true;
+        try { s.entity.setHealth(p.hp); }
+        finally { s.authorizedSource = null; s.authorizationAvailable = false; }
+    }
     /** Native setHealth RETURN and snapshot fallback. No I/O and no recovery execution. */
     public static void changed(Entity entity) {
         KOMECampaignHealthEntity s = state(entity, false);
@@ -36,6 +58,8 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
         require(s.projection.alias.equals(entity.getUniqueID()), "Unverified physical alias mutation");
         if (s.projection.hp != s.entity.getHealth())
             require(KOMERecoveryStartup.permitsHealthChange(entity, s.projection), "Recovery reservation prevents publishing branched health");
+        require(s.entity.getHealth() <= s.projection.hp || !KOMECampaignHealingPolicy.blocksNormalHealing(entity),
+            "Campaign healing policy prevents publishing unauthorized HP increase");
         KOMECampaignHealthProjection next = s.projection.change(s.entity.getHealth(), s.projection.terminal);
         if (next != s.projection) { s.projection = next; s.publish(); }
     }
@@ -43,6 +67,7 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
     public static void beforeChange(Entity entity, float requested) {
         KOMECampaignHealthEntity s = state(entity, false);
         if (s == null || s.loading || s.projecting || s.projection == null) return;
+        require(Math.min(requested,s.entity.getMaxHealth()) <= s.entity.getHealth() || !KOMECampaignHealingPolicy.blocksNormalHealing(entity), "Campaign normal healing is disabled");
         KOMEHiredUnitRecord record = s.owner == null ? null : s.owner.get();
         if (record != null) {
             NBTTagCompound n = s.projection.component == KOMEOrdinaryBattleRecoveryRegistry.Component.RIDER
@@ -67,7 +92,7 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
             require(KOMERecoveryStartup.mayInstallHP(entity, p), "Recovery startup cannot apply a prepared HP transition");
             require(p.hp <= s.entity.getMaxHealth(), "Authoritative HP exceeds validated live Max HP");
             s.projecting = true;
-            try { s.entity.setHealth(p.hp); } finally { s.projecting = false; }
+            try { writeAuthorizedProjection(s,p,AuthorizedHealthSource.STATE_RECONCILIATION); } finally { s.projecting = false; }
             require(Float.compare(s.entity.getHealth(), p.hp) == 0, "Entity rejected health projection");
         }
         s.projection = p; if (owner != null) s.owner = new WeakReference<KOMEHiredUnitRecord>(owner);
@@ -101,7 +126,7 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
         // A failure deliberately retains R/quarantine; never roll authority back to S.
         s.projecting = true; s.projection = adopted;
         try {
-            entity.setHealth(adopted.hp);
+            writeAuthorizedProjection(s,adopted,AuthorizedHealthSource.WAL_POST_BATTLE_RECOVERY);
             require(entity.getHealth() == adopted.hp && s.projection == adopted && !entity.isDead,
                 "Native entity rejected prepared recovery");
             NBTTagCompound acknowledgment = new NBTTagCompound(); entity.writeToNBT(acknowledgment);
@@ -124,7 +149,14 @@ public final class KOMECampaignHealthEntity implements IExtendedEntityProperties
         KOMEWorldData data = KOMEWorldData.get(entity.worldObj);
         KOMERecoveryTargetJournal.terminal(data, entity.getUniqueID(),
             KOMEOrdinaryBattleRecoveryRegistry.Disposition.DEAD, System.currentTimeMillis(), "Authoritative living death");
-        s.projection = KOMERecoveryTargetJournal.terminalProjection(data, s.projection); s.publish();
+        // The canonical death service can already have published terminal authority before
+        // this entity callback, including targets that do not yet have a sealed WAL context.
+        // Adopt its exact transition rather than generate a competing UUID at the same revision.
+        KOMECampaignHealthProjection persisted = KOMECampaignHealth.persisted(data,s.projection.target,s.projection.component);
+        s.projection = persisted != null && persisted.terminal
+            ? KOMECampaignHealthProjection.reconcile(s.projection,persisted)
+            : KOMERecoveryTargetJournal.terminalProjection(data,s.projection);
+        s.publish();
     }
     public static void beginRead(Entity entity, NBTTagCompound nbt) {
         KOMECampaignHealthEntity existing = state(entity, false);

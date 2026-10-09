@@ -18,9 +18,13 @@ public final class KOMECampaignHealthTransformer implements IClassTransformer {
         int count = 0;
         for (MethodNode m : node.methods) {
             if (living && ("setHealth".equals(m.name) || "func_70606_j".equals(m.name)) && "(F)V".equals(m.desc)) {
+                returns(m, "changed", false);
                 InsnList before = new InsnList(); before.add(new VarInsnNode(Opcodes.ALOAD, 0)); before.add(new VarInsnNode(Opcodes.FLOAD, 1));
-                before.add(new MethodInsnNode(Opcodes.INVOKESTATIC, BRIDGE, "beforeChange", "(" + ENTITY + "F)V", false)); m.instructions.insert(before);
-                returns(m, "changed", false); count++;
+                before.add(new MethodInsnNode(Opcodes.INVOKESTATIC, BRIDGE, "allowChange", "(" + ENTITY + "F)Z", false));
+                LabelNode allowed = new LabelNode(); before.add(new JumpInsnNode(Opcodes.IFNE,allowed));
+                before.add(new InsnNode(Opcodes.RETURN)); before.add(allowed);
+                before.add(new FrameNode(Opcodes.F_SAME,0,null,0,null));
+                m.instructions.insert(before); count++;
             }
             if (!living && ("readFromNBT".equals(m.name) || "func_70020_e".equals(m.name)) && ("(" + NBT + ")V").equals(m.desc)) {
                 m.instructions.insert(call("beginRead", true)); returns(m, "endRead", true); count++;

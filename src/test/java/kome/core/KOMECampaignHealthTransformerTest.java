@@ -55,7 +55,7 @@ public class KOMECampaignHealthTransformerTest {
         java.lang.reflect.Method assign=kome.common.data.KOMEHiredUnitClassification.class.getDeclaredMethod("assignForCampaignWorkflow",kome.common.data.KOMEHiredUnitRecord.class);
         assign.setAccessible(true);assign.invoke(null,r);
     }
-    private Class<?> executable(boolean serialization) throws Exception {
+    public Class<?> executable(boolean serialization) throws Exception {
         String name="kome/core/HealthExecutable"+(serialization?"Nbt":"Mutation");
         ClassWriter w=new ClassWriter(ClassWriter.COMPUTE_MAXS); w.visit(Opcodes.V1_8,Opcodes.ACC_PUBLIC,name,null,"net/minecraft/entity/passive/EntityPig",null);
         MethodVisitor c=w.visitMethod(Opcodes.ACC_PUBLIC,"<init>","(Lnet/minecraft/world/World;)V",null,null);c.visitCode();

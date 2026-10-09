@@ -415,6 +415,11 @@ public class KOMEEvents {
     }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onCampaignHealing(net.minecraftforge.event.entity.living.LivingHealEvent event) {
+        if (event.amount > 0F && KOMECampaignHealingPolicy.blocksNormalHealing(event.entityLiving)) event.setCanceled(true);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onEntityJoinWorld(EntityJoinWorldEvent event) {
         if (!KOMEReflection.isRemote(event.world))
             KOMECampaignHealth.reconcileMount(KOMEWorldData.get(event.world), event.entity);

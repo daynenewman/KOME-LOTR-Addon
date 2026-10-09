@@ -23,7 +23,7 @@ public class KOMERecoveryExecutorTest {
         int recoveryWrites;
         Living(net.minecraft.world.World world) { super(world); }
         @Override public void setHealth(float hp) {
-            if (observeHooks) KOMECampaignHealthEntity.beforeChange(this,hp);
+            if (observeHooks && !KOMECampaignHealthEntity.allowChange(this,hp)) return;
             super.setHealth(hp);
             if (observeHooks) { recoveryWrites++; KOMECampaignHealthEntity.changed(this); }
         }

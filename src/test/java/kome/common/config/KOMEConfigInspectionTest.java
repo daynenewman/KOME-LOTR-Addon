@@ -97,6 +97,7 @@ public class KOMEConfigInspectionTest {
                 "population.unitPopulationCostOverrides={}",
                 "movement.footOrMixedTilesPerDay=1", "movement.fullyMountedTilesPerDay=2",
                 "battle.postBattleRecoveryAmount=5.0", "battle.responseLevel1Minutes=20", "battle.responseLevel2Minutes=35", "battle.responseLevel3Minutes=50",
+                "battle.disableNormalHealingInBattle=false", "battle.disableNormalHealingDuringCampaignCommitment=false",
                 "muster.threatDistanceTiles=2", "muster.budgetDailyPopulationMultiplier=21",
                 "muster.arrivalDelayHours=24", "muster.encircledCapitalArrivalPolicy=TBD", "muster.rosterWeightOverrides={}",
                 "siege.gateHpPerApprovedHour=100.0", "siege.gateBaselineWidth=5",

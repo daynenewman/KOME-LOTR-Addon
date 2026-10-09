@@ -57,6 +57,10 @@ public final class KOMEConfigRegistry {
     public static final String FOOT_OR_MIXED_TILES_PER_DAY = "footOrMixedTilesPerDay";
     public static final String FULLY_MOUNTED_TILES_PER_DAY = "fullyMountedTilesPerDay";
     public static final String POST_BATTLE_RECOVERY_AMOUNT = "postBattleRecoveryAmount";
+    public static final String DISABLE_NORMAL_HEALING_IN_BATTLE = "disableNormalHealingInBattle";
+    public static final String DISABLE_NORMAL_HEALING_DURING_CAMPAIGN_COMMITMENT = "disableNormalHealingDuringCampaignCommitment";
+    public static final String BATTLE_HEALING_DESCRIPTION = "Block normal current-HP increases while Campaign riders and verified mounts participate in an active battle. Authorized post-battle recovery and authoritative health reconciliation remain allowed.";
+    public static final String CAMPAIGN_HEALING_DESCRIPTION = "Block normal current-HP increases throughout the committed Campaign lifespan, including stationing, movement, waiting and Formal Retreat, until canonical return, demobilization or termination. Authorized recovery and authoritative health reconciliation remain allowed.";
     public static final String RESPONSE_LEVEL_1_MINUTES = "responseLevel1Minutes";
     public static final String RESPONSE_LEVEL_2_MINUTES = "responseLevel2Minutes";
     public static final String RESPONSE_LEVEL_3_MINUTES = "responseLevel3Minutes";
@@ -440,7 +444,11 @@ public final class KOMEConfigRegistry {
         catch (NumberFormatException invalid) { throw invalid(BATTLE_CATEGORY, POST_BATTLE_RECOVERY_AMOUNT, recoveryRaw, "must be a finite nonnegative HP amount"); }
         if (Float.isNaN(recovery) || Float.isInfinite(recovery) || recovery < 0)
             throw invalid(BATTLE_CATEGORY, POST_BATTLE_RECOVERY_AMOUNT, recoveryRaw, "must be a finite nonnegative HP amount");
-        return new BattleSettings(level1, level2, level3, recovery);
+        boolean battleLock = bool(BATTLE_CATEGORY, DISABLE_NORMAL_HEALING_IN_BATTLE,
+            c.get(BATTLE_CATEGORY, DISABLE_NORMAL_HEALING_IN_BATTLE, "false", BATTLE_HEALING_DESCRIPTION).getString());
+        boolean campaignLock = bool(BATTLE_CATEGORY, DISABLE_NORMAL_HEALING_DURING_CAMPAIGN_COMMITMENT,
+            c.get(BATTLE_CATEGORY, DISABLE_NORMAL_HEALING_DURING_CAMPAIGN_COMMITMENT, "false", CAMPAIGN_HEALING_DESCRIPTION).getString());
+        return new BattleSettings(level1, level2, level3, recovery, battleLock, campaignLock);
     }
 
     private static Map<String, Integer> parseMusterWeights(String value) {
@@ -1024,10 +1032,15 @@ public final class KOMEConfigRegistry {
         private final int responseLevel3Minutes;
 
         private final float postBattleRecoveryAmount;
+        private final boolean disableNormalHealingInBattle, disableNormalHealingDuringCampaignCommitment;
         public float getPostBattleRecoveryAmount() { return postBattleRecoveryAmount; }
-        private BattleSettings(int level1, int level2, int level3) { this(level1, level2, level3, 5F); }
-        private BattleSettings(int level1, int level2, int level3, float recoveryAmount) {
+        public boolean isNormalHealingDisabledInBattle() { return disableNormalHealingInBattle; }
+        public boolean isNormalHealingDisabledDuringCampaignCommitment() { return disableNormalHealingDuringCampaignCommitment; }
+        private BattleSettings(int level1, int level2, int level3) { this(level1, level2, level3, 5F, false, false); }
+        private BattleSettings(int level1, int level2, int level3, float recoveryAmount, boolean battleLock, boolean campaignLock) {
             postBattleRecoveryAmount = recoveryAmount;
+            disableNormalHealingInBattle = battleLock;
+            disableNormalHealingDuringCampaignCommitment = campaignLock;
             responseLevel1Minutes = level1;
             responseLevel2Minutes = level2;
             responseLevel3Minutes = level3;
