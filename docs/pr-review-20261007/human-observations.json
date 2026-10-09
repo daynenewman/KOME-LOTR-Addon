@@ -176,9 +176,33 @@
       "result": "USER_CONFIRMED_NO_TILE_COMMAND_AT_UNCLASSIFIED_GAP_POINT",
       "native_evidence": "gap-acceptance.json",
       "limits": "One point and one authenticated client; no approved river/exclusion classification or multiplayer pass."
+    },
+    {
+      "test": "public-joinbattle-T388-fatal-disconnect",
+      "reply": "/kome joinbattle T388 caused a fatal network error and disconnected me",
+      "result": "USER_REPORTED_FAIL_CONFIRMED_BY_DECODER_LOG",
+      "server_candidate_sha256": "263e8ff420b0e84c81f9b802a58b7d46182dee4158bfa41c60afc213b9e43eb0",
+      "actual_client_sha256": "9b267eb7c19f5cdd5f60a64c6db4927fb991bd640aaa27ab40e6726517c4ef61",
+      "reported_profile_name": "KOME PR26 Integrated f154",
+      "actual_connected_profile": "C:\\Users\\dayne\\AppData\\Roaming\\PrismLauncher\\instances\\kome-tile-acceptance-pr26-20261006",
+      "first_exception": "14:26:54 DecoderException caused by NullPointerException: Undefined message for discriminator 54 in channel kome",
+      "evidence": "../pr26-joinbattle-fix-20261009/validation.json",
+      "limits": "Actual old g4 client connected; intended integrated profile had not launched. Preserve failure, distinguish it from matching-candidate UI acceptance."
+    },
+    {
+      "test": "repaired-g5-public-joinbattle-T388",
+      "candidate_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+      "profile": "KOME PR26 Join Battle g5",
+      "address": "127.0.0.1:51327",
+      "actions": "Press T; /kome joinbattle T388",
+      "expected": "Join Battle panel opens for T388; There is no active battle on this tile; Select / Join Battle disabled; stays connected",
+      "reply": "yes",
+      "result": "USER_CONFIRMED_ALL_FOUR_EXPECTATIONS",
+      "native_evidence": "../pr26-joinbattle-fix-20261009/validation.json",
+      "limits": "One authenticated non-operator and no active conflict; does not certify actual battle deployment, governance changes or multiplayer."
     }
   ],
-  "pending_test": "Separate integrated candidate: one public /kome joinbattle T388 UI smoke check, then scoped governance denial and changed mounted return/reconnect. No second-account setup now.",
+  "pending_test": "Scoped g5 Join Battle disconnect retest PASS. Actual battle/governance and changed mounted landing/reconnect remain separate broader acceptance; multiplayer deferred.",
   "not_inferred": [
     "multiplayer",
     "representative lower-spec performance",
@@ -186,5 +210,5 @@
     "other Build permissions"
   ],
   "session_state": "Resumed 2026-10-09 for PR26/current-dev integration. Published R1 passes retained on their original artifact; frozen acceptance runtime unchanged. Multiplayer deferred by user.",
-  "integration_candidate_sha256": "263e8ff420b0e84c81f9b802a58b7d46182dee4158bfa41c60afc213b9e43eb0"
+  "integration_candidate_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823"
 }

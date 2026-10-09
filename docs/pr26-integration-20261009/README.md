@@ -2,6 +2,8 @@
 
 This report supports the single [closeout checklist](../pr-review-20261007/README.md#closeout-checklist). PR #26 remains draft; no dev merge or deployment. Multiplayer is deferred.
 
+This is the initial integrated `263e8ff...` artifact report. The subsequent human Join Battle disconnect exposed an old-g4/matching-protocol mismatch; [the correction report](../pr26-joinbattle-fix-20261009/README.md) preserves that failure and identifies the current g5 production JAR and connected native checks. Previous scoped passes below retain their exact artifact identities.
+
 ## Exact candidate
 
 - PR parent: `4f73b345ff60a0ff78bae9e34470299cd4383642` (published human/R1 evidence).
