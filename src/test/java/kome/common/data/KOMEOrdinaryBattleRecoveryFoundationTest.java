@@ -288,6 +288,31 @@ public class KOMEOrdinaryBattleRecoveryFoundationTest {
         assertEquals(5F, intent.recoveryAmount, 0F);
         assertEquals(r.write(), KOMEOrdinaryBattleRecoveryRegistry.read(r.write()).write());
     }
+    @Test public void enrollmentAdoptsPreexistingHealthIdentityAndRejectsConflictingIdentity() {
+        KOMEConflictRecord c=record(); KOMEOrdinaryBattleRecoveryRegistry r=new KOMEOrdinaryBattleRecoveryRegistry(); r.begin(c,Coverage.COMPLETE);
+        UUID riderLogical=UUID.randomUUID(), mountLogical=UUID.randomUUID();
+        r.enroll(c,RIDER,"C1","gondor",100,MOUNT,riderLogical,mountLogical);
+        assertEquals(riderLogical,r.targetForPhysical(RIDER).id);assertEquals(mountLogical,r.targetForPhysical(MOUNT).id);
+        assertFalse(r.enroll(c,RIDER,"C1","gondor",101,MOUNT,riderLogical,mountLogical));
+        NBTTagCompound before=r.write();
+        assertThrows(IllegalArgumentException.class,()->r.enroll(c,RIDER,"C1","gondor",102,MOUNT,UUID.randomUUID(),mountLogical));
+        assertEquals(before,r.write());
+    }
+    @Test public void formalRetreatRetainsVersionedHealthAndDoesNotConsumePendingGrants() {
+        Fixture f=new Fixture(true); UUID rider=f.member("C1"); KOMEHiredUnitRecord unit=f.data.hiredUnits.get(rider);
+        KOMECampaignHealthProjection health=new KOMECampaignHealthProjection(f.registry().targetForPhysical(rider).id,
+            Component.RIDER,rider,3.25F,7,UUID.randomUUID(),false,
+            new KOMECampaignHealthProjection.Fence(UUID.randomUUID(),1,UUID.randomUUID()));
+        unit.survivingHealth=health.write();
+        KOMEConflictMovementService.applyConflictHold(f.data,f.data.armyMovements.get("M1"),f.record(),110);
+        assertTrue(KOMEConflictMovementHandoff.releaseCommitment(f.data,
+            new ValidatedDepartureRequest(TILE,"C1","gondor",expected(f.record())),"M1",
+            KOMEConflictMovementHandoff.Outcome.FORMAL_RETREAT,context(120)).accepted());
+        assertEquals(health.write(),unit.survivingHealth);
+        KOMEHiredUnitRecord restored=new KOMEHiredUnitRecord();restored.readFromNBT(unit.writeToNBT());
+        assertEquals(health.write(),restored.survivingHealth);
+        for(Episode e:f.registry().episodes().values())for(Grant g:e.grants.values())assertNotEquals(GrantState.APPLIED,g.state);
+    }
     private static KOMEConflictRecord record() {
         KOMEConflictService s=new KOMEConflictService();
         KOMEConflictRecord c=ok(s.start(TILE,State.ORDINARY,ExpectedConflict.absent(),Collections.<GarrisonSeed>emptyList(),context(10)));

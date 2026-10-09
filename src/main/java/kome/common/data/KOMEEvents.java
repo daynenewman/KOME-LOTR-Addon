@@ -402,6 +402,8 @@ public class KOMEEvents {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onEntityJoinWorld(EntityJoinWorldEvent event) {
+        if (!KOMEReflection.isRemote(event.world))
+            KOMECampaignHealth.reconcileMount(KOMEWorldData.get(event.world), event.entity);
         if (!KOMEReflection.isRemote(event.world) && event.entity instanceof EntityItem) {
             KOMEWorldData data = KOMEWorldData.get(event.world);
             if(KOMEKnightCommissionService.reconcileItem(data,(EntityItem)event.entity)){event.setCanceled(true);return;}
@@ -753,6 +755,7 @@ public class KOMEEvents {
         for (java.util.List entities : event.getChunk().entityLists) {
             for (Object value : entities) if (value instanceof Entity) {
                 Entity entity = (Entity) value;
+                KOMECampaignHealthEntity.changed(entity);
                 KOMEHiredUnitRecord record = data.hiredUnits.get(entity.getUniqueID());
                 if (KOMEHiredUnitClassification.isCampaignUnit(record)) {
                     KOMEHiredUnitPhysicalLocatorService.observe(data, record, entity,
@@ -837,6 +840,7 @@ public class KOMEEvents {
     public void onEmergencyDefenseDeath(LivingDeathEvent event) {
         if (!event.isCanceled() && event.entityLiving != null && event.entityLiving.worldObj != null
                 && !event.entityLiving.worldObj.isRemote) {
+            KOMECampaignHealthEntity.terminal(event.entityLiving);
             KOMEWorldData recoveryData = KOMEWorldData.get(event.entityLiving.worldObj);
             KOMEOrdinaryBattleRecoveryService.terminal(recoveryData, event.entityLiving.getUniqueID(),
                 KOMEOrdinaryBattleRecoveryRegistry.Disposition.DEAD, System.currentTimeMillis(), "Authoritative living death");

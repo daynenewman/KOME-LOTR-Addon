@@ -416,6 +416,7 @@ public class CharacterCreationIsolationTest {
         assertArrayEquals(
             new String[] {
                 KOMEWaypointTransformer.class.getName(),
+                kome.core.KOMECampaignHealthTransformer.class.getName(),
                 kome.core.KOMEPublicWaypointTransformer.class.getName(),
                 KOMEProgressionOfferTransformer.class.getName(),
                 KOMEProgressionOfferGuiTransformer.class.getName(),

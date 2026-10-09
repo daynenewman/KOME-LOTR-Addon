@@ -72,6 +72,8 @@ public class KOMECampaignTileConfinementHookTest {
     @Test public void illegalDisplacementReturnPreservesExactFractionalRiderAndMountHealth() throws Exception {
         LoadedUnit rider = unit(true), mount = unit(false);
         for (LoadedUnit unit : new LoadedUnit[]{rider, mount}) {
+            java.lang.reflect.Field extensions = Entity.class.getDeclaredField("extendedProperties"); extensions.setAccessible(true);
+            extensions.set(unit, new java.util.HashMap<String, net.minecraftforge.common.IExtendedEntityProperties>());
             java.lang.reflect.Field watcher = Entity.class.getDeclaredField("dataWatcher"); watcher.setAccessible(true);
             net.minecraft.entity.DataWatcher dataWatcher = new net.minecraft.entity.DataWatcher(unit);
             dataWatcher.addObject(6, Float.valueOf(20F)); watcher.set(unit, dataWatcher);

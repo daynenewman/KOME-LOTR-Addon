@@ -39,7 +39,11 @@ public final class KOMEOrdinaryBattleRecoveryService {
                     if (unit == null) continue;
                     Target known = next.targetForPhysical(id);
                     if (known != null && known.terminal) continue;
-                    changed |= next.enroll(conflict, id, companyId, faction.factionId, now, associatedMount(unit));
+                    UUID mountId = associatedMount(unit);
+                    changed |= next.enroll(conflict, id, companyId, faction.factionId, now, mountId,
+                        KOMECampaignHealth.logicalTarget(unit.survivingHealth, id, Component.RIDER),
+                        mountId == null ? null : KOMECampaignHealth.logicalTarget(
+                            KOMECampaignHealth.mountHealth(unit.survivingHealth, mountId), mountId, Component.MOUNT));
                     if (unit.populationReturned || terminalHealth(unit))
                         changed |= next.terminalize(id, Disposition.UNAVAILABLE, now, "Terminal Campaign authority");
                 }
@@ -99,6 +103,10 @@ public final class KOMEOrdinaryBattleRecoveryService {
         KOMEHiredUnitRecord unit = data.hiredUnits.get(physical);
         if (unit != null) observe(data, data.getConflictService().get(unit.currentTile), now);
         if (data.getOrdinaryBattleRecovery().terminalize(physical, disposition, now, reason)) data.markDirty();
+        if (disposition == Disposition.DEAD || disposition == Disposition.DESTROYED) {
+            for (KOMEHiredUnitRecord record : data.hiredUnits.values()) KOMECampaignHealth.markTerminal(record, physical);
+            data.markDirty();
+        }
     }
     public static boolean isTracked(KOMEWorldData data, UUID physical) {
         return data.getOrdinaryBattleRecovery().targetForPhysical(physical) != null;

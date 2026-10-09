@@ -3098,12 +3098,19 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     new kome.common.data.KOMEOrdinaryBattleRecoveryRegistry();
                 recoveryBeforePublication.replaceFrom(data.getOrdinaryBattleRecovery());
                 try {
-                    for (SpawnAttempt attempt : verifiedSpawns)
+                    for (SpawnAttempt attempt : verifiedSpawns) {
                         kome.common.data.KOMEOrdinaryBattleRecoveryService.reconstructed(data,
                             attempt.oldId, attempt.newId, attempt.oldMountId, attempt.newMountId);
+                        kome.common.data.KOMECampaignHealth.reconstructed(attempt.record,
+                            attempt.oldId, attempt.newId, attempt.oldMountId, attempt.newMountId);
+                    }
                 } catch (IllegalArgumentException invalidRecoveryIdentity) {
                     data.getOrdinaryBattleRecovery().replaceFrom(recoveryBeforePublication);
                     rollbackVerifiedSpawns(data, arrivalWorld, order, verifiedSpawns);
+                    for (Map.Entry<UUID, NBTTagCompound> saved : recordsBeforePublication.entrySet()) {
+                        KOMEHiredUnitRecord original = data.hiredUnits.get(saved.getKey());
+                        if (original != null) original.readFromNBT(saved.getValue());
+                    }
                     changed |= markPendingSpawn(order, "RECOVERY_IDENTITY_CONTRADICTION", invalidRecoveryIdentity.getMessage(), nowMillis);
                     continue;
                 }
@@ -4031,7 +4038,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 return attempt;
             }
             attempt.oldMountId = kome.common.data.KOMEOrdinaryBattleRecoveryService.snapshotMount(snapshot);
-            clearEntityUuids(snapshot);
+            kome.common.data.KOMECampaignHealth.prepareReconstruction(snapshot);
             sanitizeMovingEntitySnapshot(snapshot);
             Entity root = createEntityTree(snapshot, world);
             if (!(root instanceof LOTREntityNPC)) {
@@ -4219,19 +4226,6 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
         NBTTagCompound snapshot = new NBTTagCompound();
         return entity.writeMountToNBT(snapshot) ? snapshot : null;
-    }
-
-    private static void clearEntityUuids(NBTTagCompound nbt) {
-        if (nbt == null) {
-            return;
-        }
-        nbt.removeTag("UUIDMost");
-        nbt.removeTag("UUIDLeast");
-        nbt.removeTag("PersistentIDMSB");
-        nbt.removeTag("PersistentIDLSB");
-        if (nbt.hasKey("Riding", 10)) {
-            clearEntityUuids(nbt.getCompoundTag("Riding"));
-        }
     }
 
     private static void sanitizeMovingEntitySnapshot(NBTTagCompound nbt) {
@@ -4494,7 +4488,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             }
             UUID oldId = record.entity;
             if (oldId != null && !oldId.equals(npcId)) {
-                if (kome.common.data.KOMEOrdinaryBattleRecoveryService.isTracked(data, oldId)) continue;
+                if (kome.common.data.KOMEOrdinaryBattleRecoveryService.isTracked(data, oldId) || record.survivingHealth != null && record.survivingHealth.hasKey("HealthFormatVersion")) continue;
                 KOMEHiredUnitPhysicalLocatorService.clear(data, record);
                 data.hiredUnits.remove(oldId);
                 record.entity = npcId;

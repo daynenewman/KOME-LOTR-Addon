@@ -134,6 +134,8 @@ public class KOMEHiredUnitRecord {
                 || !KOMEConquestTile.normalizeId(currentTile).equals(
                     physicalLocator.getPhysicalTileId())))
             throw new IllegalArgumentException("Physical locator attached to an ineligible hired-unit state");
+        KOMECampaignHealth.validate(survivingHealth);
+        KOMECampaignHealth.logicalTarget(survivingHealth, entity, KOMEOrdinaryBattleRecoveryRegistry.Component.RIDER);
         healthObservedEntity = null;
         healthObservedMount = null;
         if (farmhand) {

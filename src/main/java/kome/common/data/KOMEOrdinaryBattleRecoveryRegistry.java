@@ -187,22 +187,28 @@ public final class KOMEOrdinaryBattleRecoveryRegistry {
         if (e == null || e.endedAt != null || !hostilePair || e.actualHostileCombatObserved) return false;
         episodes.put(e.episodeId, e.update(null, true, e.participants, e.intent, e.grants)); return true;
     }
-    private Target identify(UUID physical, Component kind) {
+    private Target identify(UUID physical, Component kind, UUID logical) {
         Target existing = targetForPhysical(physical);
         if (existing != null) {
             require(existing.component == kind && existing.physicalId.equals(physical) && !existing.terminal,
-                "Stale or terminal recovery target alias"); return existing;
+                "Stale or terminal recovery target alias"); require(logical == null || logical.equals(existing.id), "Health target identity conflicts with registry"); return existing;
         }
-        Target created = new Target(UUID.randomUUID(), kind, physical, Collections.singleton(physical), false);
+        require(logical == null || !targets.containsKey(logical), "Logical target already has another alias");
+        Target created = new Target(logical == null ? UUID.randomUUID() : logical, kind, physical, Collections.singleton(physical), false);
         return created;
     }
     synchronized boolean enroll(KOMEConflictRecord conflict, UUID physical, String company, String faction,
             long now, UUID mountPhysical) {
+        return enroll(conflict, physical, company, faction, now, mountPhysical, null, null);
+    }
+    synchronized boolean enroll(KOMEConflictRecord conflict, UUID physical, String company, String faction,
+            long now, UUID mountPhysical, UUID riderLogical, UUID mountLogical) {
         Episode e = get(conflict.getConflictId(), conflict.getCombatEpisode().episodeId);
         if (e == null || e.endedAt != null || e.intent != null) return false;
         require(physical != null && !physical.equals(mountPhysical), "Rider and mount identities collide");
-        Target rider = identify(physical, Component.RIDER);
-        Target mount = mountPhysical == null ? null : identify(mountPhysical, Component.MOUNT);
+        Target rider = identify(physical, Component.RIDER, riderLogical);
+        Target mount = mountPhysical == null ? null : identify(mountPhysical, Component.MOUNT, mountLogical);
+        require(mount == null || !rider.id.equals(mount.id), "Rider and mount logical identities collide");
         Participant previous = e.participants.get(rider.id);
         Set<UUID> mounts = new TreeSet<UUID>();
         if (previous != null) mounts.addAll(previous.mountIds);
