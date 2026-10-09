@@ -114,11 +114,17 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static float savedMapZoomScale;
     private static float savedMapZoomScaleStable;
     private static float savedMapZoomExp;
+    private static final KOMEMapRadialMenu radialMenu = new KOMEMapRadialMenu();
+    private static LOTRGuiMap radialMap;
+    private static boolean radialLeftCaptured;
+    private static LOTRGuiMap radialDragMap;
+    private static Field mapButtonsField;
     private boolean wasRightMouseDown;
     private boolean wasLeftMouseDown;
     private boolean wasEscapeDown;
 
     public static void beginDestinationSelection(String companyId, String companyName, String originTile) {
+        closeRadialInteraction();
         destinationCompanyId = companyId == null ? "" : companyId;
         destinationCompanyName = companyName == null ? "Company" : companyName;
         destinationOriginTile = KOMEConquestTile.normalizeId(originTile);
@@ -139,6 +145,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
 
     public static void beginRoutePreview(KOMEPacketCompanyMoveConfirmGui move) {
+        closeRadialInteraction();
         clearDestinationSelection();
         clearRoutePreviewError();
         routePreviewMove = move;
@@ -185,6 +192,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
 
     public static void resetDestinationSelection() {
+        closeRadialInteraction();
         clearDestinationSelection();
         clearRoutePreview();
         clearRoutePreviewError();
@@ -230,6 +238,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
 
         if (!ensureTileMaskLoaded()) return;
         int tileColor = getHoveredTileColor(map, event.mouseX, event.mouseY);
+        int radialHover = radialHit(map, event.mouseX, event.mouseY);
         drawClaimedTexture(map);
         drawMapTexture(map, getDesertShadeTextureLocation(), 1.0f);
         if (tileColor != 0) {
@@ -245,11 +254,13 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         drawTroopMarkers(map);
         List<String> liveUnitTooltip = drawLiveUnitMarkers(map, event.mouseX, event.mouseY);
         List<String> buildTooltip = drawBuildMarkers(map, event.mouseX, event.mouseY);
-        if (tileColor != 0 && automaticBridgeTooltip == null && riverBlockTooltip == null
+        if (!suppressMapInspection(map) && tileColor != 0 && automaticBridgeTooltip == null && riverBlockTooltip == null
                 && liveUnitTooltip == null && buildTooltip == null) {
             drawTileTooltip(map, tileColor, event.mouseX, event.mouseY);
         }
-        if (automaticBridgeTooltip != null) {
+        if (suppressMapInspection(map)) {
+            // Command mode and tile/marker inspection mode are mutually exclusive.
+        } else if (automaticBridgeTooltip != null) {
             drawAutomaticBridgeTooltip(map, automaticBridgeTooltip, event.mouseX, event.mouseY);
         } else if (riverBlockTooltip != null) {
             drawMarkerTooltip(map, riverBlockTooltip, event.mouseX, event.mouseY);
@@ -260,6 +271,14 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         }
         drawRoutePreviewPanel(map, event.mouseX, event.mouseY);
         drawRouteErrorPanel(map);
+        if (radialMap == map && radialMenu.isOpen()) {
+            double[] anchor = radialAnchorMapPosition(radialMenu.tileId());
+            if (anchor != null) {
+                KOMEMapViewport view = viewport(map);
+                KOMEMapRadialRenderer.draw(radialMenu, view, view.screenX(anchor[0]), view.screenY(anchor[1]), radialHover,
+                    KOMEMinecraftClient.fontRenderer(), radialScale());
+            }
+        }
     }
 
     @SubscribeEvent
@@ -269,6 +288,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         }
         GuiScreen screen = KOMEMinecraftClient.currentScreen();
         updateMapViewportState(screen);
+        if ((radialMap != null && screen != radialMap) || (radialDragMap != null && screen != radialDragMap)) closeRadialInteraction();
         if (screen == null) {
             if (isChoosingDestination()) {
                 clearDestinationSelection();
@@ -292,7 +312,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             wasLeftMouseDown = leftMouseDown;
             return;
         }
-        if (leftMouseDown && !wasLeftMouseDown && screen instanceof LOTRGuiMap) {
+        if (leftMouseDown && !wasLeftMouseDown && !radialLeftCaptured && screen instanceof LOTRGuiMap) {
             LOTRGuiMap map = (LOTRGuiMap) screen;
             if (!shouldSkipMap(map)) {
                 int screenWidth = KOMEMinecraftClient.screenWidth(screen);
@@ -326,7 +346,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         wasLeftMouseDown = leftMouseDown;
 
         boolean rightMouseDown = Mouse.isButtonDown(1);
-        if (isPreviewingRoute() || !showConquestTiles || !rightMouseDown || wasRightMouseDown || !(screen instanceof LOTRGuiMap)) {
+        if (!isChoosingDestination() || isPreviewingRoute() || !showConquestTiles || !rightMouseDown || wasRightMouseDown || !(screen instanceof LOTRGuiMap)) {
             wasRightMouseDown = rightMouseDown;
             return;
         }
@@ -353,10 +373,128 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             wasRightMouseDown = rightMouseDown;
             return;
         }
-        if (tileId != null) {
-            KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(tileId));
-        }
         wasRightMouseDown = rightMouseDown;
+    }
+
+    @SubscribeEvent
+    public void onMapScreenChange(net.minecraftforge.client.event.GuiOpenEvent event) {
+        if ((radialMap != null && event.gui != radialMap) || (radialDragMap != null && event.gui != radialDragMap)) closeRadialInteraction();
+    }
+
+    private static void closeRadialInteraction() {
+        radialMenu.close(); radialMap = null; releaseRadialCapture();
+    }
+
+    /** Called after LOTR's native waypoint picker and controls, before its base GUI handler. */
+    public static boolean onMapMouseClicked(LOTRGuiMap map, int mouseX, int mouseY, int button) {
+        if (button == 0) releaseRadialCapture(); // A fresh press starts a new gesture, even between render frames.
+        if (shouldSkipMap(map) || !showConquestTiles || isChoosingDestination() || isPreviewingRoute()
+                || !viewport(map).contains(mouseX, mouseY) || isOverMapControl(map, mouseX, mouseY)) return false;
+        if (button == 1) {
+            int color = getHoveredTileColor(map, mouseX, mouseY);
+            String tile = tileIdsByColor.get(color);
+            // A gap or unusable anchor leaves the existing interaction intact.
+            if (tile == null || radialAnchorMapPosition(tile) == null || !radialMenu.open(tile)) return false;
+            radialMap = map; return true;
+        }
+        if (button != 0) return false;
+        int index = radialHit(map, mouseX, mouseY);
+        if (index < 0) return false;
+        KOMEMapRadialMenu.Action action = radialMenu.activate(index);
+        if (action == KOMEMapRadialMenu.Action.INFO)
+            KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(radialMenu.tileId()));
+        if (action == KOMEMapRadialMenu.Action.CLOSE) closeRadialInteraction();
+        // Keep the closing press captured until release, even though the interaction itself is now cleared.
+        radialLeftCaptured = true; radialDragMap = map;
+        return true; // Disabled segments consume their own click without issuing any order/query.
+    }
+
+    /** Native picker success, for ANY waypoint. No visibility/travel rules are duplicated here. */
+    public static void onNativeWaypointClick(LOTRGuiMap map) {
+        if (radialMap == map && radialMenu.isOpen()) closeRadialInteraction();
+    }
+
+    static double radialScale() {
+        net.minecraft.client.Minecraft client = KOMEMinecraftClient.get();
+        if (client == null || client.gameSettings == null) return 1;
+        net.minecraft.client.gui.ScaledResolution resolution =
+            new net.minecraft.client.gui.ScaledResolution(client, client.displayWidth, client.displayHeight);
+        return KOMEMapRadialMenu.scaleForGuiFactor(resolution.getScaleFactor());
+    }
+
+    /** Escape dismisses the interaction first; native map/waypoint keys otherwise remain untouched. */
+    public static boolean onMapKeyTyped(LOTRGuiMap map, int key) {
+        if (key != Keyboard.KEY_ESCAPE || radialMap != map || !radialMenu.isOpen() || shouldSkipMap(map)) return false;
+        closeRadialInteraction(); return true;
+    }
+
+    /** LOTR polls drag state during drawing, independently of mouseClicked. Capture only a segment-origin gesture. */
+    public static boolean isMapDragButtonDown(int button, LOTRGuiMap map) {
+        return mapDragButtonDown(map, Mouse.isButtonDown(button));
+    }
+    static boolean mapDragButtonDown(LOTRGuiMap map, boolean down) {
+        if (!down) releaseRadialCapture();
+        return down && !(radialDragMap == map && radialLeftCaptured);
+    }
+
+    private static void releaseRadialCapture() { radialLeftCaptured = false; radialDragMap = null; }
+
+    /** Presentation-only guard shared by native waypoint and KOME inspection renderers. */
+    public static boolean suppressMapInspection(LOTRGuiMap map) {
+        return map != null && radialMap == map && radialMenu.isOpen() && showConquestTiles && !shouldSkipMap(map);
+    }
+
+    private static int radialHit(LOTRGuiMap map, int mouseX, int mouseY) {
+        if (radialMap != map || !radialMenu.isOpen() || !viewport(map).contains(mouseX, mouseY)
+                || isOverMapControl(map, mouseX, mouseY)) return -1;
+        double[] anchor = radialAnchorMapPosition(radialMenu.tileId());
+        if (anchor == null) return -1;
+        KOMEMapViewport view = viewport(map);
+        return radialMenu.hit(mouseX - view.screenX(anchor[0]), mouseY - view.screenY(anchor[1]), radialScale());
+    }
+
+    /** Same projected waypoint and raster-center sources used by the existing map markers, in map space. */
+    static double[] radialAnchorMapPosition(String tileId) {
+        String tile = KOMEConquestTile.normalizeId(tileId);
+        double[] waypoint = radialWaypointMapPosition(tile);
+        if (waypoint != null) return waypoint;
+        int[] center = tileCentersById.get(tile);
+        if (center == null || tileRaster == null) return null;
+        return new double[] {center[0] * (double) tileRaster.transform.mapWidth / tileRaster.width,
+            center[1] * (double) tileRaster.transform.mapHeight / tileRaster.height};
+    }
+
+    private static double[] radialWaypointMapPosition(String tile) {
+        KOMETileWaypointLink link = KOMEClientData.INSTANCE.tileWaypointLinksByTileId.get(tile);
+        if (link != null && link.dimensionId == LOTRDimension.MIDDLE_EARTH.dimensionID) {
+            lotr.common.world.map.LOTRWaypoint waypoint = link.resolveWaypoint();
+            if (waypoint != null || link.waypointWorldX != 0 || link.waypointWorldZ != 0) {
+                int x = waypoint == null ? link.waypointWorldX : waypoint.getXCoord();
+                int z = waypoint == null ? link.waypointWorldZ : waypoint.getZCoord();
+                return new double[] {x / (double) LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originX,
+                    z / (double) LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originZ};
+            }
+        }
+        return null;
+    }
+
+    private static boolean isOverMapControl(LOTRGuiMap map, int mouseX, int mouseY) {
+        if (isOverConquestToggleButton(map, mouseX, mouseY) || isOverRiverBlockToggleButton(map, mouseX, mouseY)
+                || isOverBridgeToggleButton(map, mouseX, mouseY) || isOverTroopToggleButton(map, mouseX, mouseY)) return true;
+        for (Object object : (List) mapFieldValue(null, "mapWidgets")) {
+            lotr.client.gui.LOTRGuiMapWidget widget = (lotr.client.gui.LOTRGuiMapWidget) object;
+            if (widget.isMouseOver(mouseX - mapInt("mapXMin"), mouseY - mapInt("mapYMin"), mapInt("mapWidth"), mapInt("mapHeight"))) return true;
+        }
+        List buttons;
+        try {
+            if (mapButtonsField == null) mapButtonsField = cpw.mods.fml.relauncher.ReflectionHelper.findField(GuiScreen.class, "buttonList", "field_146292_n");
+            buttons = (List) mapButtonsField.get(map);
+        } catch (IllegalAccessException failure) { throw new IllegalStateException("Could not read native map controls", failure); }
+        if (buttons != null) for (Object object : buttons) {
+            net.minecraft.client.gui.GuiButton button = (net.minecraft.client.gui.GuiButton) object;
+            if (button.visible && KOMEGuiTheme.isHovered(mouseX, mouseY, button.xPosition, button.yPosition, button.width, button.height)) return true;
+        }
+        return false;
     }
 
     private static int getHoveredTileColor(LOTRGuiMap map, int mouseX, int mouseY) {
