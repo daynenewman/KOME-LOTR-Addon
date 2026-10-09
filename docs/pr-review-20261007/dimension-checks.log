@@ -1,0 +1,8 @@
+Wed Oct 07 21:50:15 CDT 2026 OBSERVER_INSTALLED owner=a976a4b7-0614-49c0-b992-61a3a89bd773 readOnly=true
+Wed Oct 07 21:50:16 CDT 2026 DIMENSION_FIXTURE command=out dimension=0 x=16.5 y=181.0 z=16.5 existingDirectWaypointTeleporter=true noPaidOrPortalTravelAcceptance=true
+Wed Oct 07 21:50:16 CDT 2026 PLAYER_EVENT type=CHANGED cause=DIMENSION_CHANGED query=AVAILABLE freshTokens=true location=UNSUPPORTED_DIMENSION dimension=0 world=16,16 (Only the configured Middle-earth dimension is supported) thread=Server thread
+Wed Oct 07 21:51:17 CDT 2026 CURRENT dimension=0 x=16.6748345287545 y=181.0 z=16.396794241424875 query=AVAILABLE location=UNSUPPORTED_DIMENSION dimension=0 world=16,16 (Only the configured Middle-earth dimension is supported)
+Wed Oct 07 21:51:28 CDT 2026 DIMENSION_FIXTURE command=back dimension=100 x=78017.5 y=200.0 z=66242.5 existingDirectWaypointTeleporter=true noPaidOrPortalTravelAcceptance=true
+Wed Oct 07 21:51:28 CDT 2026 PLAYER_EVENT type=CHANGED cause=DIMENSION_CHANGED query=AVAILABLE freshTokens=true location=RESOLVED dimension=100 world=78017,66242 mask=1419,1247 tile=T388 (Exact cell; capturability unknown) thread=Server thread
+Wed Oct 07 21:52:55 CDT 2026 CURRENT dimension=100 x=78017.5 y=200.0 z=66242.5 query=AVAILABLE location=RESOLVED dimension=100 world=78017,66242 mask=1419,1247 tile=T388 (Exact cell; capturability unknown)
+Wed Oct 07 21:52:55 CDT 2026 OBSERVER_CLOSED

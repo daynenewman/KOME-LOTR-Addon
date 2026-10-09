@@ -127,14 +127,63 @@
       "reply": "i dont see the rider",
       "result": "FAIL_RECONNECT_VISIBILITY",
       "native_evidence": "Original alive rider continued ticking through horse but was absent from world.loadedEntityList. Isolated actual-production guard reproducer rejected legitimate reload while old copy awaited unload. Two behavioral regressions failed before the fix. Original world and UUIDs preserved; no replacement spawned."
+    },
+    {
+      "test": "mounted-unload-guard-repaired-connected-client",
+      "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+      "reply": "the hud menu, like for the player is there. plus the other two. i guess im confused on if you are asking if the unit has a place that says the tile?",
+      "clarification_question": "Close the hired-unit menu. Does the player current-tile HUD show T388?",
+      "clarification_reply": "yes",
+      "result": "USER_CONFIRMED_MOUNTED_RIDER_VISIBLE_MENU_OPENS_PLAYER_HUD_T388",
+      "limits": "Original persisted UUIDs were confirmed natively. One authenticated client and direct-API fixture, not paid hiring or multiplayer."
+    },
+    {
+      "test": "repaired-mounted-completed-reset-cold-reconnect",
+      "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+      "reply": "yes",
+      "result": "USER_CONFIRMED_ONE_MOUNTED_RIDER_MENU_AND_PLAYER_T388_HUD_AFTER_COLD_RESTART",
+      "native_evidence": "reload-live-restart.json: original UUIDs, partial 3.25/7.125 HP at first native load and 1/1/1 once-only audit counts."
+    },
+    {
+      "test": "repaired-production-dimension-hud-round-trip",
+      "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+      "out_reply": "yes i dont see any tile",
+      "back_reply": "yes, it is back",
+      "result": "USER_CONFIRMED_NO_STALE_TILE_OUTSIDE_MIDDLE_EARTH_AND_T388_RESTORED",
+      "native_evidence": "dimension-round-trip.json; native physical transfer with existing waypoint teleporter, not human portal or fast-travel permission."
+    },
+    {
+      "test": "real-paid-campaign-and-ordinary-hire-lifecycle",
+      "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+      "purchase_reply": "i successfully hire the unit and now he is halted with an exclamation point over his head (i also accidentally hired a regular unit)",
+      "reconnect_reply": "yes, i see two because i dismissed the unit i accidentally hired",
+      "result": "USER_CONFIRMED_CAMPAIGN_HIRE_HALTED_RECONNECT_AND_SEPARATE_ORDINARY_DISMISSAL",
+      "native_evidence": "paid-hire-lifecycle.json: payments, one campaign admission, ordinary dismissal without refund and NOT_TRACKED, both survivors AVAILABLE/T388."
+    },
+    {
+      "test": "protected-r1-gap-hud",
+      "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+      "actions": "Observe player HUD at dimension 100, X34944.5/Y181/Z640.5",
+      "reply": "no tile",
+      "result": "USER_CONFIRMED_NO_TILE_AT_UNCLASSIFIED_GAP",
+      "native_evidence": "gap-acceptance.json"
+    },
+    {
+      "test": "protected-r1-gap-map-picking",
+      "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+      "actions": "At X35008/Y181/Z704, L -> Map; hover player-marker center; right-click",
+      "reply": "nothing pops up when i right click hovering over my head",
+      "result": "USER_CONFIRMED_NO_TILE_COMMAND_AT_UNCLASSIFIED_GAP_POINT",
+      "native_evidence": "gap-acceptance.json",
+      "limits": "One point and one authenticated client; no approved river/exclusion classification or multiplayer pass."
     }
   ],
-  "pending_test": "Matching repaired profile ready after native verification; recheck original mounted rider visibility/menu/T388.",
+  "pending_test": "Authenticate second Microsoft-owned Minecraft Java account, prepare isolated matching profile, then simultaneous-client HUD/map, boundary/gap, Build/permissions and one-player reconnect checks.",
   "not_inferred": [
     "multiplayer",
     "representative lower-spec performance",
-    "reset/governance/daily client acceptance",
+    "governance/daily client acceptance",
     "other Build permissions"
   ],
-  "session_state": "Resumed acceptance found and fixed queued-unload identity guard; fresh matching candidate."
+  "session_state": "Resumed 2026-10-09 from preserved checkpoint. Existing single-client evidence publication first; second authenticated account and simultaneous-player acceptance pending."
 }

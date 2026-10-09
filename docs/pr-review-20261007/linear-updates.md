@@ -1,138 +1,111 @@
 # Prepared Linear updates — not posted
 
-Resume addendum: dev advanced to `69dbad5a8d2d1cef461e8327b961ce9194d8241f`.
-PR #26's reset/progression event and isolation-test conflicts were reconciled in
-the private candidate at `d7d4a5a4e0bf810ce321b923b6482cb7d5406406`.
-Fresh gate: 2,888 discovered / 2,883 passed / five skipped / zero failures/errors.
-Current production JAR is `c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726`.
-Eight fresh deobfuscated Forge launches passed reset/recovery/completion in both chunk
-orders and governance/daily commands across cold restart. Prior human observations remain tied to their earlier JARs; new connected
-mounted-reset acceptance is being prepared. No merge into dev or deployment occurred.
+Retain the statuses and assignments read on October 7; refresh before posting. No entire ticket is newly Done.
+PR #26 remains draft, incorporates dev `69dbad5a8d2d1cef461e8327b961ce9194d8241f`,
+and publishes the mounted queued-unload correction at
+`c2765f7e4a26941b2172affb30113c39e7ee60d6`; final acceptance evidence follows
+on the same branch. Resolve its latest published head before posting these drafts.
+On October 9, dev is `f154deaed18ac3f1a7770ffa3bda8a88382a9e35` and PR #26 reports conflicts.
+Reconciliation is a separate source-validation task; the preserved acceptance JAR remains based on dev 69dbad5.
+PRs #24/#25 are closed/superseded, with original branches preserved. Root schema is 12.
+No dev merge or shared deployment occurred. KOM-47 is merged and Done; KOM-48 is
+an unfinished owning dependency, not assigned to Dayne.
 
-Retain current statuses. These drafts supersede stale current-status claims while
-preserving dated reports and their artifact limits. Insert the final published PR
-head when posting; the tested production JAR hash remains the exact identity below.
-
-Common evidence: [PR #26](https://github.com/daynenewman/KOME-LOTR-Addon/pull/26),
-review starting head `4b55b59e923028a9ed59233176e41235846efece`, dev
-`b826ef35a0fb88ce9b2d58129ed307e9986b43d7`; fresh Windows candidate
-`2816008d37c2171fdd41e0af2354f0dd7308fff868c73e020c77449bc9bbb5de`,
-2,783 discovered / 2,778 passed / five skips / zero failures/errors.
-Earlier observations retain their original artifact hashes; the final GUI repair
-changes only the Tile Command layout class relative to the October 7 pre-repair candidate.
-PRs #24/#25 are closed and superseded; PR #26 remains draft, not merged/deployed.
-Current integrated root schema is 12; older schema-10 statements describe historical
-revisions. No entire assigned ticket is newly marked Done by this report.
+Common evidence: [one closeout checklist](README.md), [fresh validation](reload-validation.json),
+[human observations](human-observations.json), [production cold restart](reload-live-restart.json),
+[dimension round trip](dimension-round-trip.json), [real paid hire/dismissal](paid-hire-lifecycle.json),
+and [measured workload](reload-measured-results.json).
+Matching production JAR SHA-256:
+`9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef`.
+Fresh full gate: 2,890 discovered / 2,885 passed / five skipped / zero failures/errors.
+Six fresh deobfuscated Forge reset launches passed both interruption/recovery/completion
+orders; two unchanged dev-69dbad5 governance/daily launches are reused separately.
+Native production and human checks retain their precise scopes and JAR identities.
 
 ## KOM-43 — retain In Progress
 
-Canonical geometry/resolver/rendering and immutable publication remain delivered.
-Fresh native exact-cell controls passed. Recorded human boundary, reconnect, respawn,
-map opening and scoped selection/zoom alignment extend acceptance on the specified
-candidates. Parent closure still depends on explicit KOM-58/59 geography decisions,
-remaining Build/GUI/entity/client checks, live multiplayer and lower-spec measurements.
-Optional in-world borders and standalone tile editor remain deferred.
+Canonical geometry, shared resolver/rendering and immutable publication remain delivered.
+Available regression/native controls pass. Scoped human boundary, respawn/reconnect,
+selection/zoom/GUI scale/resize and Build observations retain their older identities.
+Current production dimension and real hire lifecycle observations extend acceptance.
+Parent closure still needs the KOM-58/59 cell decisions, remaining client/campaign checks,
+simultaneous players and representative lower-spec measurements. Optional in-world
+borders and a standalone tile editor remain deferred.
 
 ## KOM-57 — retain In Progress
 
-Reuse unchanged whole-raster/O(1)/immutable snapshot/load-reload/failure lifecycle
-evidence. Native startup, total tick/memory and actual client FPS are recorded with
-exact artifacts/workloads. They do not isolate incremental tile cost or establish
-representative lower-spec/multiple-player performance. No redundant spatial index added.
+Reuse valid O(1), publication/concurrency, load/reload/failure and bounded-allocation evidence.
+Current 60 one-second high-spec FPS samples range 14–121 FPS (mean 103.07, median 120),
+including a 14-FPS first map sample at zoom 1 and a window-size change. Server total
+100-tick window: mean 1.883281 ms, p95 2.5551 ms, maximum 4.0695 ms; observed used heap
+522,461,112 bytes. One player and original mounted fixture; later hire tests are a
+different workload. These do not isolate tile cost, establish capacity or accept lower-spec
+hardware. Required remaining: representative initialization/lookup/memory/tick/FPS
+comparison and multiple moving players. No redundant index was added.
 
 ## KOM-58 — retain In Review
 
-The explicit exclusion schema and zone-aware runtime are merged; production metadata
-currently has zero zones/cells. Prepared 43 exact atlas-region proposals and 693
-existing atlas-gap decision rows. Type/reason stay blank without approval. Proposed
-mountain alternatives can only become exclusions after approved exact raster changes
-and a new bound hash. No classification or repaint was performed.
+Exclusion schema and zone-aware runtime are merged; production metadata has zero
+zones/cells. [43 exact atlas-region proposals](geography/README.md) and 693 existing
+atlas-gap decision rows are prepared. Type/reason remain blank without approval.
+Approve exact cells/type/reason before any metadata or bound-mask change. Unknown gaps
+remain unknown; a runtime gap observation does not classify them as uncapturable.
 
 ## KOM-59 — retain In Progress
 
-Prepared exact A/B side-removal candidates for five mountain pairs, 99 unique cells,
-with per-cell world bounds/current and historical IDs/edit provenance. These remove
-recorded pair contacts only; width, adjacent topology and persisted-reference impact
-require decision/review before application. Preserve authored corridor/bridge controls,
-protected gap/T001 and optional T149 shape. Harnen T455/T654 has no current direct
-contact: request exact live IDs/location/build instead of substituting T444/T654.
+Prepared exact alternatives for five mountain pairs, 99 unique contact cells, with
+world bounds, current/historical IDs and edit provenance. Side/width, adjacent topology
+and persisted-reference impact need approval/review before application. Preserve authored
+bridge/corridor controls, protected gap/T001 and optional T149 shape. Current T455/T654
+has no direct contact; obtain exact live IDs/location/build for the Harnen report.
+No raster was repainted.
 
 ## KOM-60 — retain In Review
 
-Supersede historical server/unit-awareness milestone wording with the currently
-delivered service and observed boundary. Actual native hired fixtures verify initialization,
-movement, stationary dedupe, unload/reload, inactive dismissal, removal and cold
-reload. They are owner/task API fixtures, not ordinary paid campaign recruitment.
-Human boundary/reconnect/respawn passes and native incarnation/dimension callbacks
-are scoped evidence. Human dimension changes, natural hire/company flows and live
-multiple-player consistency remain open.
+Actual older native fixtures cover initialization, physical movement, stationary dedupe,
+unload/reload, inactive dismissal/removal and cold reload. Current matching production
+now also has human/native paid Campaign Hire (15 coins, 20 population), separate ordinary
+hire/dismissal without refund, and survivor reconnect. Campaign admission reused the
+existing local company; both surviving canonical units query AVAILABLE/T388. Dismissed
+ordinary unit is alive/inactive, absent canonically and NOT_TRACKED. Human HUD disappears
+in Overworld and restores T388 on return; native dimension callbacks are fresh.
+Further ordinary strategic movement, moving reconnect/company flows and simultaneous-player
+consistency remain separate. No broad multiplayer or hardware pass is inferred.
 
 ## KOM-63 — retain In Progress
 
-Add observed pre-repair candidate tooltip/right-click T401, three-notch zoom agreement,
-Normal GUI scale and resized-window alignment. Preserve actual admin denial and atomic Build
-coordinate-mismatch rejection (all 77 serialized authority sections unchanged).
-Eligible Create form opened and Build List cancellation passed, with all 77 serialized
-sections, zero Builds and sequence unchanged. Correct the initial unpledged assumption:
-the disabled Create observation used a Dale pledge and unclaimed T401. Gondor pledge
-and T401 claim were explicit disposable fixtures. The screenshot exposed overlapping
-coordinates/type/hour controls; the regression failed before the spacing repair and
-all six Build interaction tests now pass. User reported the final form looks better.
-Valid non-operator B1 creation passed with screenshot and actual native NBT agreement:
-Normal, Gondor, T401, 100 approved centi-hours, zero developed and 100 awaiting
-development. The creator becomes manager and auto-approves initial hours; the Pending
-column reports approved hours awaiting development, not pending submission status.
-Malformed 1.001-hour input was rejected with the expected screenshot-visible validation
-message; all 77 serialized sections and B1/sequence remained unchanged. This verifies
-client input validation, not an independent forged-packet server permission check.
-Reconnect with saved B1 and unchanged 1.00/0.00/1.00h also passed. User then stopped testing. Other rejection/permission UI, wider settings, multi-player
-consistency and representative lower-spec hardware remain acceptance gates. Existing
-Ryzen 5 7600X/RTX 4060 FPS data is high-spec single-client evidence only.
+Credit exact earlier T401/T442 boundary/HUD and map hover/right-click/zoom/Normal GUI scale/
+resize observations. The Create Build overlap was reproduced, repaired and tested; user
+confirmed the improved form. Non-operator B1 creation, Build List cancellation, invalid
+1.001-hour rejection and saved B1 reconnect passed with native/screenshot agreement.
+Creator-manager initial hours auto-approve: Pending is approved hours awaiting development.
+Initial disabled Create used Dale pledge/unclaimed T401, not an unpledged character.
+Gondor pledge/claim were disposable prerequisites. Forged coordinate mismatch rejection
+preserved all 77 sections. Current R1 gap HUD and map picking passed at the recorded point: No tile and no Tile Command. This does not classify unknown geography. Wider permissions/edge cases, simultaneous
+authenticated clients and representative lower-spec performance remain open. A second account is pending; user explicitly paused acceptance. Keep unknown
+KOM-58/59 geography decisions explicit.
 
 ## KOM-28 — retain In Review
 
-Correct stale PR head/publication/schema wording. Seven historical Forge launches
-already verify mounted identity and exact 3.25/7.125 HP across interrupted recovery,
-both chunk orders, completed cold restarts and once-only effects. Unchanged authority
-classes permit reusing that evidence; it is not a human or multiplayer acceptance.
-Connected mounted reset and client synchronization remain open; future physical
-siege/assault cleanup remains dependent on owning services.
+Correct obsolete PR/schema/publication wording. Mounted reset return passed on c494, but
+its later reconnect failed: a legitimate reload was rejected while the old same-UUID copy
+awaited chunk unloading. Fixed only that lookup; active duplicate/virtual receipt guards
+remain. Two new regressions failed before correction. Current 2,885-pass gate and six
+fresh Forge launches pass both recovery orders. Repaired production human reconnect and
+a further completed-reset cold restart pass: original UUIDs/mounted tree, first-load
+3.25/7.125 HP and unchanged 1/1/1 ownership/return/completion audits. Ordinary later HP
+regeneration is separate. Simultaneous-player reset synchronization and future physical
+siege/assault cleanup remain dependent; no replacement survivor was spawned.
 
 ## KOM-82 — retain In Progress
 
-Credit existing audits/repairs and the completed KOM-47 movement authority; remove
-KOM-47 as an unfinished implementation blocker. Added available company coherence,
-cached-physical and movement-credit diagnostics plus canonical once-only
-MOVEMENT/ALLOWANCE_RESTORED audit. Behavioral regressions and native production-loader
-isolated-data checks passed, including output/NBT bounds and root permission denial
-before world access. Coverage matrix accounts for every original KOM-40 target.
-KOM-48's coordinator adapter, full siege/episode/sortie owning controllers and KOM-78
-physical muster arrival remain genuine dependencies. Do not infer physical company
-repairs, transport outcomes or human permission passes. Concrete Discord transport is
-optional scope. No other person's task, merge or deployment was taken over.
-
-
-## Resumed fixture correction
-
-Current source incorporates dev 69dbad5; matching production hash c4945669 is recorded
-in resumed-candidate.json. Fresh gate is 2,883 passed / five skipped; eight actual
-deobfuscated Forge launches passed. User's first rider was killed by an orc; the safe
-replacement dismounted because the direct-API helper omitted normal LOTR NPC-horse
-setup. Both menu checks remain inconclusive; helper correction retains surviving UUIDs.
-No live reset/restart, multiplayer or lower-spec acceptance is inferred. Update drafts
-remain unposted and ticket statuses unchanged.
-
-
-## Mounted reload defect and corrected candidate
-
-User confirmed c494 mounted menu and reset return/T388. Its first native cold load
-retained 3.25/7.125 HP and exactly one ownership/return/completion audit, but later
-human reconnect failed: rider invisible/untracked while ticking through its horse.
-Reproduced production duplicate guard rejection of valid same-UUID chunk reload
-while the old entity awaited unload. Fixed only that identity lookup; active duplicates
-and virtual receipt checks remain. Fresh gate: 2,885 passed/five skipped; six fresh
-reset Forge launches passed both recovery orders. New matching JAR 9fc21f5b is ready
-with original persisted UUIDs; no replacement spawn. Production guard passes and
-native rider remains tracked after real reconnect. Human recheck is pending.
-Retain ticket statuses and no-merge boundary; this is not multiplayer or paid-hire
-acceptance. KOM-58/59 exact-cell decisions remain unknown/unapproved.
+[Coverage matrix](KOM-82-coverage.md) accounts for the original KOM-40 targets. Credit
+existing authorities and KOM-47 Done. Added bounded company coherence/cached-physical/
+credit diagnostics and once-only MOVEMENT/ALLOWANCE_RESTORED audit. Behavioral regressions
+and production-loader probes pass output/NBT bounds and root denial before world access.
+Real Campaign/ordinary hire/dismissal now validates available UNIT audit events; mounted
+return/restart validates available reset audits. KOM-48 full coordinator ordering/adapters,
+full siege/episode/sortie controllers and KOM-78 physical muster arrival remain genuine
+dependencies. Unknown physical locations are not repaired by inference. Wider command,
+client/governance/notification and simultaneous-player acceptance remain. Concrete Discord
+transport is optional scope. No other person's unfinished task was taken over.

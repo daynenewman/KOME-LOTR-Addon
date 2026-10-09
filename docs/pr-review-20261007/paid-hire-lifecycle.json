@@ -1,0 +1,84 @@
+{
+  "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+  "human_purchase_reply": "i successfully hire the unit and now he is halted with an exclamation point over his head (i also accidentally hired a regular unit)",
+  "human_reconnect_reply": "yes, i see two because i dismissed the unit i accidentally hired",
+  "result": "Real native Campaign Hire and separate ordinary hire/dismissal observed; Campaign and original mounted rider remain after authenticated reconnect.",
+  "fixture": "Native captain, 500 LOTR coins, +1000 Gondor population, alignment 1000 and only NPC Trade/Hire Units staff-granted unlocks; Gondor pledge and capital already configured. No synthetic purchase was made.",
+  "payments": {
+    "coins_before": 500,
+    "coins_after": 470,
+    "total_spent": 30,
+    "campaign_coin_cost": 15,
+    "ordinary_coin_cost": "Other 15 coins by native total difference and separate human hire; campaign audit records its own 15.",
+    "population_centi_before": 100000,
+    "population_centi_after": 96000,
+    "campaign_population_cost": 20,
+    "ordinary_population_cost": 20,
+    "dismissal_refund": 0
+  },
+  "campaign_unit": {
+    "Entity": "b54078cf-b482-4266-8679-591e4bf8d266",
+    "Owner": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+    "UnitName": "Anborn, the Gondor Levyman",
+    "UnitClass": "CAMPAIGN",
+    "CompanyId": "C-mounted-acceptance-safe",
+    "CurrentTile": "T388",
+    "Cost": 20,
+    "BaseCost": 20,
+    "PopulationSpent": 20,
+    "Mounted": 0,
+    "SourceType": "FACTION_POPULATION_BANK"
+  },
+  "ordinary_unit": {
+    "uuid": "cc9313f6-6110-45d9-a8b6-13bb8aac5476",
+    "human_dismissed": true,
+    "native_active": false,
+    "alive": true,
+    "canonical_present": false,
+    "awareness": "NOT_TRACKED"
+  },
+  "audit_events": [
+    {
+      "Action": "HIRE",
+      "Details": "populationCost=20",
+      "Actor": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+      "Domain": "UNIT",
+      "Timestamp": 1791428364789,
+      "Subject": "cc9313f6-6110-45d9-a8b6-13bb8aac5476",
+      "Reason": "Ordinary combat unit hired"
+    },
+    {
+      "Action": "CAMPAIGN_HIRE",
+      "Details": "source=NATIVE_TRADER;unit=trade:0;tile=T388;company=C-mounted-acceptance-safe;coinCost=15;populationCost=20",
+      "Actor": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+      "Domain": "UNIT",
+      "Timestamp": 1791428378906,
+      "Subject": "b54078cf-b482-4266-8679-591e4bf8d266",
+      "Reason": "Campaign combat unit hired"
+    },
+    {
+      "Action": "REMOVED",
+      "Details": "Population remains permanently spent",
+      "Actor": "",
+      "Domain": "UNIT",
+      "Timestamp": 1791428386583,
+      "Subject": "cc9313f6-6110-45d9-a8b6-13bb8aac5476",
+      "Reason": "Unit dismissed"
+    }
+  ],
+  "limits": "One authenticated client. Campaign join reused the existing local detachment. No simultaneous-client, strategic movement order, all rejection cases or lower-spec result. Original helper registry/name guards failed before any purchase; correction did not repeat prerequisite grants. Earlier pre-fixture coin/alignment values were not recorded and are not reconstructed.",
+  "files": {
+    "campaign-hire-before-fixture.nbt": "607a57e75227d22fb02fd4df8114ed76b1ea5844be6f8e6c9e0d71e03a57b8ab",
+    "campaign-hire-ready.nbt": "71345987c84c5554aea75352194e0c473e5feb11d1a43808447f79494dfed37f",
+    "campaign-hire-observed.nbt": "b10a7d37891a6e61042b308230592a1d899cbbfabe958b412759ee5bc7bbace0",
+    "campaign-hire-fixture.properties": "efe5d7d2d4a227aed86b221f50b8318a0fb9506e48955189ce0247422a444a65",
+    "campaign-hire-checks.log": "9891e76671652837f2d81cf89efd2944190d65019e72720f35fb2391da8b2761",
+    "CampaignHireAcceptanceProbe.java": "873f155f20a1a3c751df0efcc00ae3746ef678f17a95b2d0eea0c9c78aa71233",
+    "CampaignHireAcceptanceProbeV2.java": "97c46be6e4638e2397836c2f455825e0e19c90aba7f1e4f02d79389862bdf12d",
+    "CampaignHireAcceptanceProbeV3.java": "3a7800cb1d196c4b2bd340a61b66b72987a86e44ee32d51819fb4fadef3f79d9",
+    "CampaignHireAcceptanceProbeV3.jar": "5ccb4364533533e388bacef5f76e423cc15143d4ccc1bbf4834ef07aaacb93ce",
+    "CampaignHireAcceptanceProbeV4.java": "d65f65d15ea087adef8d34d0b581ee1290663124381086388e3936e2af0bdaf7",
+    "CampaignHireAcceptanceProbeV5.java": "71a6301ff69a786012b1fda362c3ad11e3ca015fd9e0863aa649005df4a365a0",
+    "CampaignHireAcceptanceProbeV5.jar": "982cdf89b6e00ee96b5fa92f67e1c8052c000b65920f6b9ae503200acd0d7df0"
+  }
+}
