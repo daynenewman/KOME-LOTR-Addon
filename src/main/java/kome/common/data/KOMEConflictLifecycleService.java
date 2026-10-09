@@ -276,7 +276,7 @@ public final class KOMEConflictLifecycleService {
 
         // A capture receipt reserves this exact conflict for Phase-3 reconciliation. Its new
         // owner must not be used to reclassify a partly published conquest as abandonment.
-        if (KOMEOrdinaryBattleResolutionService.hasCapturePublication(data, current))
+        if (KOMEOrdinaryBattleResolutionService.hasResolutionReservation(data, current))
             return abandonment(OrdinaryAbandonmentCode.RESOLUTION_PENDING, current,
                 "Conflict-specific capture publication must reconcile before abandonment.", 0);
         ObjectiveContest objective = inspectOrdinaryObjective(data, current);

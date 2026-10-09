@@ -28,7 +28,7 @@ public class KOMEConflictPersistenceTest {
         NBTTagCompound saved = save(source);
         assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
             saved.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
-        assertEquals(2, saved.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
+        assertEquals(3, saved.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
         assertEquals(1L, saved.getLong(KOMEConflictPersistence.SEQUENCE_KEY));
         assertEquals(0, records(saved).tagCount());
         assertEquals(1L, saved.getLong(KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY));
@@ -273,7 +273,7 @@ public class KOMEConflictPersistenceTest {
 
     @Test public void invalidConflictSectionVersionAndUnknownFutureRootSchemaAreRejected() {
         NBTTagCompound wrongSection = ordinaryDocument();
-        wrongSection.setInteger(KOMEConflictPersistence.SCHEMA_KEY, 3);
+        wrongSection.setInteger(KOMEConflictPersistence.SCHEMA_KEY, 4);
         expectInvalid(wrongSection, KOMEConflictPersistence.SCHEMA_KEY);
 
         NBTTagCompound missingSection = ordinaryDocument();
@@ -296,6 +296,7 @@ public class KOMEConflictPersistenceTest {
         NBTTagCompound legacy = save(source);
         assertEquals(11, legacy.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         legacy.setInteger(KOMEConflictPersistence.SCHEMA_KEY, 1);
+        legacy.removeTag(KOMEConflictPersistence.RECOVERY_KEY);
         legacy.removeTag(KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY);
         legacy.removeTag(KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY);
         NBTTagCompound original = (NBTTagCompound) legacy.copy();
@@ -312,7 +313,7 @@ public class KOMEConflictPersistenceTest {
 
         NBTTagCompound upgraded = save(loaded);
         assertEquals(11, upgraded.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
-        assertEquals(2, upgraded.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
+        assertEquals(3, upgraded.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
         assertEquals(1L, upgraded.getLong(KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY));
         assertEquals(0, upgraded.getTagList(
             KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY, 10).tagCount());
@@ -403,7 +404,7 @@ public class KOMEConflictPersistenceTest {
         NBTTagCompound currentSchema = save(upgraded);
         assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION,
             currentSchema.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
-        assertEquals(2, currentSchema.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
+        assertEquals(3, currentSchema.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
         assertEquals(3, currentSchema.getInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY));
         assertEquals(0, records(currentSchema).tagCount());
         assertEquals(0, currentSchema.getTagList(

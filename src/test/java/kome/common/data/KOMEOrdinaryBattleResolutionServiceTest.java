@@ -276,6 +276,44 @@ public class KOMEOrdinaryBattleResolutionServiceTest {
         assertEquals(1, captureCount(ownership.data));
     }
 
+    @Test public void receiptFreeOwnershipInterruptionHasDurableIntentAndCannotAbandon() {
+        Fixture f = fixture("rohan", "gondor").campaign("C1", "mordor", 10L)
+            .campaign("C2", "rohan", 20L).relation("mordor", "rohan", Relation.ALLIED)
+            .episode(TimerStatus.COMPLETE, true);
+        f.observer = new OneShotObserver(false, true);
+        assertEquals(KOMEOrdinaryBattleResolutionService.Code.RECONCILIATION_PENDING,
+            f.service().resolve(f.data, TILE, 500L, 200L).code);
+        assertEquals("mordor", f.tile().projectRulingFaction()); assertEquals(0, captureCount(f.data));
+        KOMEOrdinaryBattleRecoveryRegistry.Intent intent = f.data.getOrdinaryBattleRecovery()
+            .get("CF1", "CF1:E1").intent;
+        assertEquals("rohan", intent.expectedOwner);
+        assertEquals(KOMEOrdinaryBattleRecoveryRegistry.Stage.PUBLICATION_STARTED, intent.stage);
+        // Restore the durable registry to exercise the retry path without any capture-history receipt.
+        f.data.getOrdinaryBattleRecovery().replaceFrom(KOMEOrdinaryBattleRecoveryRegistry.read(
+            f.data.getOrdinaryBattleRecovery().write()));
+        assertCaptureReservedAgainstAbandonment(f, 200L);
+        f.observer = KOMEOrdinaryBattleResolutionService.PublicationObserver.NONE;
+        assertTrue(f.service().resolve(f.data, TILE, 500L, 201L).resolved());
+        KOMEOrdinaryBattleRecoveryRegistry.Intent closed = f.data.getOrdinaryBattleRecovery()
+            .get("CF1", "CF1:E1").intent;
+        assertEquals(intent.expectedRevision, closed.expectedRevision);
+        assertEquals(KOMEOrdinaryBattleRecoveryRegistry.Stage.RECOVERY_PENDING, closed.stage);
+        assertEquals(Long.valueOf(201L), closed.closedAt); assertEquals(0, captureCount(f.data));
+    }
+
+    @Test public void phaseThreePreparationHasNoOwnershipOrClosureSideEffects() {
+        Fixture f = fixture("gondor", "gondor").campaign("C1", "mordor", 10L)
+            .episode(TimerStatus.COMPLETE, true);
+        KOMEOrdinaryBattleResolutionService service = f.service();
+        KOMEOrdinaryBattleResolutionService.Plan plan = service.preflight(f.data, TILE);
+        KOMEOrdinaryBattleRecoveryRegistry.Intent first = service.prepareResolutionIntent(f.data, plan);
+        assertSame(first, service.prepareResolutionIntent(f.data, plan));
+        assertEquals("gondor", f.tile().projectRulingFaction()); assertTrue(f.conflict().isActive());
+        assertEquals(0, captureCount(f.data)); assertEquals(0, f.notifications());
+        assertEquals(KOMEOrdinaryBattleRecoveryRegistry.Stage.PREPARED, first.stage);
+        assertCaptureReservedAgainstAbandonment(f, 200L);
+    }
+
     private static void assertCaptureReservedAgainstAbandonment(Fixture f, long now) {
         KOMEConflictRecord before = f.conflict();
         KOMEConflictLifecycleService.OrdinaryAbandonmentResult result =

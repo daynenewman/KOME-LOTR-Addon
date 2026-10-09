@@ -217,6 +217,8 @@ public final class KOMEWartimeStewardshipService {
             record.stationedEntityData = null;
             if (tombstone.complete()) tombstone.completedTimestamp = nowMillis;
             data.removeUnitFromCompany(record);
+            KOMEOrdinaryBattleRecoveryService.terminal(data, unitId, KOMEOrdinaryBattleRecoveryRegistry.Disposition.UNAVAILABLE,
+                System.currentTimeMillis(), "Campaign administrative removal");
             data.hiredUnits.remove(unitId);
             removed++;
         }

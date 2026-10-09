@@ -835,6 +835,12 @@ public class KOMEEvents {
     /** LivingDeathEvent is cancelable; account only after higher-priority protection handlers. */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onEmergencyDefenseDeath(LivingDeathEvent event) {
+        if (!event.isCanceled() && event.entityLiving != null && event.entityLiving.worldObj != null
+                && !event.entityLiving.worldObj.isRemote) {
+            KOMEWorldData recoveryData = KOMEWorldData.get(event.entityLiving.worldObj);
+            KOMEOrdinaryBattleRecoveryService.terminal(recoveryData, event.entityLiving.getUniqueID(),
+                KOMEOrdinaryBattleRecoveryRegistry.Disposition.DEAD, System.currentTimeMillis(), "Authoritative living death");
+        }
         if (!event.isCanceled() && event.entityLiving instanceof LOTREntityNPC
                 && !event.entityLiving.worldObj.isRemote) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;

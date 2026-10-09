@@ -283,7 +283,7 @@ public class KOMEFormalRetreatServiceTest {
 
     @Test public void schemasRemainOwnedByExistingAuthorities() {
         assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
-        assertEquals(2, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
+        assertEquals(3, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEHiredUnitPhysicalLocator.DATA_SCHEMA_VERSION);
     }
 
@@ -633,6 +633,29 @@ public class KOMEFormalRetreatServiceTest {
                 KOMEJoinBattleEgressService.Preparation preparation) {
             return KOMEJoinBattleEgressService.PhysicalResult.failed();
         }
+    }
+
+    @Test public void acceptedRetreatBatchPreservesEpisodeParticipantAfterAbandonment() throws Exception {
+        Fixture f = new Fixture(1);
+        KOMEConflictRecord current = f.record();
+        String episodeId = current.getConflictId() + ":E1";
+        current = Fixture.ok(f.data.getConflictService().checkpointCombat("T101", Fixture.expected(current),
+            new KOMEConflictRecord.CombatEpisode(1, episodeId, KOMEConflictRecord.EpisodeState.ACTIVE, 20L, null),
+            new KOMEConflictRecord.TimerSlot(KOMEConflictRecord.TimerStatus.RUNNING, 60000, 0, 20L, episodeId),
+            KOMEConflictRecord.TimerSlot.unstarted(), Fixture.context(20L)));
+        KOMEOrdinaryBattleRecoveryService.episodeStarted(f.data, current, 20L, false);
+        UUID physical = f.data.armyCompanies.get("C1").units.get(0);
+        UUID logical = f.data.getOrdinaryBattleRecovery().targetForPhysical(physical).id;
+        KOMEFormalRetreatService.Result result = KOMEFormalRetreatService.INSTANCE.retreat(
+            f.data, f.access.player, 30L, new SuccessfulEgress());
+        assertEquals(result.message, KOMEFormalRetreatService.Code.RETREATED, result.code);
+        assertFalse(f.record().isActive()); assertFalse(f.record().getCommitments().containsKey("C1"));
+        KOMEOrdinaryBattleRecoveryRegistry.Episode historical = KOMEOrdinaryBattleRecoveryRegistry.read(
+            f.data.getOrdinaryBattleRecovery().write()).get(current.getConflictId(), episodeId);
+        assertEquals(KOMEOrdinaryBattleRecoveryRegistry.Disposition.FORMAL_RETREAT,
+            historical.participants.get(logical).disposition);
+        assertFalse(historical.actualHostileCombatObserved); assertTrue(historical.grants.isEmpty());
+        assertNotNull(historical.endedAt);
     }
 
     private static final class Fixture {

@@ -84,6 +84,7 @@ public final class KOMEConfigInspection {
             add(values, category, "responseLevel1Minutes", s.getResponseLevel1Minutes());
             add(values, category, "responseLevel2Minutes", s.getResponseLevel2Minutes());
             add(values, category, "responseLevel3Minutes", s.getResponseLevel3Minutes());
+            add(values, category, "postBattleRecoveryAmount", s.getPostBattleRecoveryAmount());
         } else if ("muster".equals(category)) {
             KOMEConfigRegistry.MusterSettings s = snapshot.getMuster();
             add(values, category, "threatDistanceTiles", s.getThreatDistanceTiles());

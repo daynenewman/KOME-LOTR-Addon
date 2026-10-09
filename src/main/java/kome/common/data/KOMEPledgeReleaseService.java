@@ -216,6 +216,8 @@ public final class KOMEPledgeReleaseService {
             KOMEHiredUnitPhysicalLocatorService.clear(data, record);
             if (tombstone.complete() && tombstone.completedTimestamp <= 0L) tombstone.completedTimestamp = nowMillis;
             data.removeUnitFromCompany(record);
+            KOMEOrdinaryBattleRecoveryService.terminal(data, record.entity, KOMEOrdinaryBattleRecoveryRegistry.Disposition.UNAVAILABLE,
+                System.currentTimeMillis(), "Campaign administrative removal");
             data.hiredUnits.remove(record.entity);
             result.unitsReleased++;
         }

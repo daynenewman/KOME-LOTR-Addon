@@ -56,6 +56,7 @@ public final class KOMEConfigRegistry {
     public static final String UNIT_POPULATION_COST_OVERRIDES = "unitPopulationCostOverrides";
     public static final String FOOT_OR_MIXED_TILES_PER_DAY = "footOrMixedTilesPerDay";
     public static final String FULLY_MOUNTED_TILES_PER_DAY = "fullyMountedTilesPerDay";
+    public static final String POST_BATTLE_RECOVERY_AMOUNT = "postBattleRecoveryAmount";
     public static final String RESPONSE_LEVEL_1_MINUTES = "responseLevel1Minutes";
     public static final String RESPONSE_LEVEL_2_MINUTES = "responseLevel2Minutes";
     public static final String RESPONSE_LEVEL_3_MINUTES = "responseLevel3Minutes";
@@ -433,7 +434,13 @@ public final class KOMEConfigRegistry {
             throw invalid(BATTLE_CATEGORY, RESPONSE_LEVEL_3_MINUTES, level3Value,
                     "must be greater than responseLevel2Minutes");
         }
-        return new BattleSettings(level1, level2, level3);
+        String recoveryRaw = value(c, BATTLE_CATEGORY, POST_BATTLE_RECOVERY_AMOUNT, "5");
+        float recovery;
+        try { recovery = Float.parseFloat(recoveryRaw); }
+        catch (NumberFormatException invalid) { throw invalid(BATTLE_CATEGORY, POST_BATTLE_RECOVERY_AMOUNT, recoveryRaw, "must be a finite nonnegative HP amount"); }
+        if (Float.isNaN(recovery) || Float.isInfinite(recovery) || recovery < 0)
+            throw invalid(BATTLE_CATEGORY, POST_BATTLE_RECOVERY_AMOUNT, recoveryRaw, "must be a finite nonnegative HP amount");
+        return new BattleSettings(level1, level2, level3, recovery);
     }
 
     private static Map<String, Integer> parseMusterWeights(String value) {
@@ -1016,7 +1023,11 @@ public final class KOMEConfigRegistry {
         private final int responseLevel2Minutes;
         private final int responseLevel3Minutes;
 
-        private BattleSettings(int level1, int level2, int level3) {
+        private final float postBattleRecoveryAmount;
+        public float getPostBattleRecoveryAmount() { return postBattleRecoveryAmount; }
+        private BattleSettings(int level1, int level2, int level3) { this(level1, level2, level3, 5F); }
+        private BattleSettings(int level1, int level2, int level3, float recoveryAmount) {
+            postBattleRecoveryAmount = recoveryAmount;
             responseLevel1Minutes = level1;
             responseLevel2Minutes = level2;
             responseLevel3Minutes = level3;

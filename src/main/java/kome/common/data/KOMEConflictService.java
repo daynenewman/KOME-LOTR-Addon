@@ -131,6 +131,9 @@ public final class KOMEConflictService {
                 "The persisted world conflict authority is required.");
         }
         data.ensureWritable();
+        KOMEConflictRecord reserved = request == null ? null : get(request.destinationTileId);
+        if (reserved != null && data.getOrdinaryBattleRecovery().hasIntent(reserved))
+            return Result.failure(Code.INVALID_REQUEST, reserved, "Prepared ordinary resolution reserves this conflict.");
         Result result = acceptValidatedCommitment(request,
             new HostilityResolver() {
                 @Override public Hostility resolve(String first, String second) {
@@ -139,6 +142,7 @@ public final class KOMEConflictService {
             }, productionDetachmentResolver(data), context);
         if (result.code == Code.SUCCESS) {
             data.markDirty();
+            KOMEOrdinaryBattleRecoveryService.observe(data, result.record, context.timestampMillis);
             KOMEAuditService.record(data, context.timestampMillis, "CONFLICT", "COMMIT",
                 context.actor, result.record.getConflictId(), context.reason,
                 request.detachmentId + " -> " + request.destinationTileId
@@ -335,10 +339,19 @@ public final class KOMEConflictService {
                 "The persisted world conflict authority is required.");
         }
         data.ensureWritable();
+        KOMEConflictRecord recoveryBefore = request == null ? null : get(request.tileId);
+        java.util.List<UUID> recoveryMembers = new java.util.ArrayList<UUID>();
+        KOMEArmyCompany recoveryCompany = request == null ? null : data.armyCompanies.get(request.detachmentId);
+        if (recoveryCompany != null) recoveryMembers.addAll(recoveryCompany.units);
+        if (request != null && context != null && guard(recoveryBefore, request.expectedConflict, context) == Code.SUCCESS)
+            KOMEOrdinaryBattleRecoveryService.observe(data, recoveryBefore, context.timestampMillis);
         Result result = releaseValidatedCommitment(request,
             productionDetachmentResolver(data), context);
         if (result.code == Code.SUCCESS) {
             data.markDirty();
+            if (recoveryBefore != null && data.getOrdinaryBattleRecovery().exit(recoveryBefore, recoveryMembers,
+                    KOMEOrdinaryBattleRecoveryRegistry.Disposition.DEPARTED, context.timestampMillis, context.reason))
+                data.markDirty();
             KOMEAuditService.record(data, context.timestampMillis, "CONFLICT", "DEPART",
                 context.actor, result.record.getConflictId(), context.reason,
                 request.detachmentId + " <- " + request.tileId);
@@ -668,8 +681,10 @@ public final class KOMEConflictService {
             holds.add(order);
         }
 
+        KOMEOrdinaryBattleRecoveryService.observe(data, current, context.timestampMillis);
         Result ended = end(normalized, expected, context);
         if (ended.code != Code.SUCCESS) return new EndResult(ended, 0);
+        KOMEOrdinaryBattleRecoveryService.conflictClosed(data, ended.record, context.timestampMillis);
         for (KOMEArmyMovementOrder order : holds) {
             KOMEConflictLifecycleService.releaseEndedHold(order,
                 ended.record.getConflictId());

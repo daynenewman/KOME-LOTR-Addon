@@ -97,10 +97,9 @@ public final class KOMEOrdinaryBattleLifecycleService {
     }
 
     /**
-     * Current strategic facts, not a historical combat/recovery certificate. Phase 4B must
-     * durably record hostileMilitaryPairPresent at episode start and each active observation
-     * (including commitment/retreat changes before teardown); objective contest alone is not
-     * evidence of actual hostile military participation, and this signal has no restart memory.
+     * Current strategic facts. The recovery registry latches authoritative hostile pairs at
+     * episode start and active observations, including commitment/retreat teardown hooks.
+     * Objective contest alone never establishes historical hostile-combat evidence.
      */
     public static final class Observation {
         public final KOMEConflictLifecycleService.ObjectiveContest objective;
@@ -237,7 +236,7 @@ public final class KOMEOrdinaryBattleLifecycleService {
                 ? "Defensive context is unavailable." : fortification.reason);
         }
 
-        if (KOMEOrdinaryBattleResolutionService.hasCapturePublication(data, record)) {
+        if (KOMEOrdinaryBattleResolutionService.hasResolutionReservation(data, record)) {
             removeClock(data, record.getTileId());
             return result(Code.NO_CHANGE, record,
                 "Conflict-specific capture publication awaits Phase-3 reconciliation.");
@@ -252,9 +251,10 @@ public final class KOMEOrdinaryBattleLifecycleService {
                     objective.reason);
             if (!objective.objectiveContested)
                 return result(Code.NO_CHANGE, record, "No offensive commitment contests the objective.");
-            return startEpisode(data, record, nowMillis);
+            return startEpisode(data, record, nowMillis, observation);
         }
 
+        KOMEOrdinaryBattleRecoveryService.observe(data, record, nowMillis, observation.hostileMilitaryPairPresent);
         ActiveClock clock = observe(data, record, nowMillis);
         long pending = clock.pendingActiveMillis;
         TimerSlot previous = record.getResponseTimer();
@@ -307,7 +307,7 @@ public final class KOMEOrdinaryBattleLifecycleService {
     }
 
     private Result startEpisode(KOMEWorldData data, KOMEConflictRecord record,
-            long nowMillis) {
+            long nowMillis, Observation observation) {
         KOMEOrdinaryBattlePlanner.DurationPlan duration = durationSource.select(data, record);
         if (duration == null || !duration.selected())
             return result(Code.DEFERRED_INVALID_DURATION, record, duration == null
@@ -331,6 +331,7 @@ public final class KOMEOrdinaryBattleLifecycleService {
         data.markDirty();
         clocksFor(data).put(record.getTileId(),
             new ActiveClock(record.getConflictId(), episodeId, nowMillis));
+        KOMEOrdinaryBattleRecoveryService.episodeStarted(data, published.record, nowMillis, observation.hostileMilitaryPairPresent);
         notificationSink.episodeStarted(published.record, duration.durationMillis);
         return result(Code.EPISODE_STARTED, published.record,
             "A new contested objective response episode was published.");
@@ -353,6 +354,7 @@ public final class KOMEOrdinaryBattleLifecycleService {
             return publicationFailure(record, published);
         data.markDirty();
         removeClock(data, record.getTileId());
+        KOMEOrdinaryBattleRecoveryService.endEpisode(data, published.record, nowMillis);
         return result(Code.EPISODE_STOPPED, published.record,
             "No qualifying offensive commitment remains hostile to the objective ruler."
                 + (complete ? " Response timing was complete."

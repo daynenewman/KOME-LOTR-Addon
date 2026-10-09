@@ -23,6 +23,8 @@ class SpawnAttempt {
     int orderIndex = -1;
     UUID oldId;
     UUID newId;
+    UUID oldMountId;
+    UUID newMountId;
     double attemptX;
     double attemptY;
     double attemptZ;

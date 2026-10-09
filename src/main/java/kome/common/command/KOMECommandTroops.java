@@ -1653,6 +1653,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             order.accessLossReason = "Disbanded by native authority; combat population remains permanently spent.";
         }
         for (UUID unitId : unitIds) {
+            kome.common.data.KOMEOrdinaryBattleRecoveryService.terminal(data, unitId,
+                kome.common.data.KOMEOrdinaryBattleRecoveryRegistry.Disposition.UNAVAILABLE,
+                System.currentTimeMillis(), "Native company disband");
             KOMEHiredUnitRecord record = data.hiredUnits.remove(unitId);
             if (record == null) continue;
             KOMEHiredUnitPhysicalLocatorService.clear(data, record);
@@ -3091,6 +3094,19 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                     changed = true;
                     continue;
                 }
+                kome.common.data.KOMEOrdinaryBattleRecoveryRegistry recoveryBeforePublication =
+                    new kome.common.data.KOMEOrdinaryBattleRecoveryRegistry();
+                recoveryBeforePublication.replaceFrom(data.getOrdinaryBattleRecovery());
+                try {
+                    for (SpawnAttempt attempt : verifiedSpawns)
+                        kome.common.data.KOMEOrdinaryBattleRecoveryService.reconstructed(data,
+                            attempt.oldId, attempt.newId, attempt.oldMountId, attempt.newMountId);
+                } catch (IllegalArgumentException invalidRecoveryIdentity) {
+                    data.getOrdinaryBattleRecovery().replaceFrom(recoveryBeforePublication);
+                    rollbackVerifiedSpawns(data, arrivalWorld, order, verifiedSpawns);
+                    changed |= markPendingSpawn(order, "RECOVERY_IDENTITY_CONTRADICTION", invalidRecoveryIdentity.getMessage(), nowMillis);
+                    continue;
+                }
                 boolean finalStep = isFinalStep(order);
                 // Join events only discover the newly spawned entities. Confinement samples at
                 // server END, after this synchronous operation commits every record AND company
@@ -3152,6 +3168,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                             conflictPreparation.receipt, order.owner == null
                                 ? order.ownerName : order.owner.toString(), arrivalWorld);
                     if (!commitment.success()) {
+                        data.getOrdinaryBattleRecovery().replaceFrom(recoveryBeforePublication);
                         rollbackPublishedArrival(data, arrivalWorld, order,
                             verifiedSpawns, orderBeforePublication,
                             company, companyBeforePublication,
@@ -4013,6 +4030,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 attempt.failureReason = "INVALID_SURVIVOR_HEALTH: " + invalidHealth.getMessage();
                 return attempt;
             }
+            attempt.oldMountId = kome.common.data.KOMEOrdinaryBattleRecoveryService.snapshotMount(snapshot);
             clearEntityUuids(snapshot);
             sanitizeMovingEntitySnapshot(snapshot);
             Entity root = createEntityTree(snapshot, world);
@@ -4056,6 +4074,8 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                         .append(" but physical verification failed: ").append(verificationFailure);
                     continue;
                 }
+                Entity reconstructedMount = KOMEReflection.getRidingEntity(root);
+                attempt.newMountId = reconstructedMount == null ? null : reconstructedMount.getUniqueID();
                 attempt.oldId = oldId;
                 attempt.newId = newId;
                 attempt.spawnX = root.posX;
@@ -4474,6 +4494,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             }
             UUID oldId = record.entity;
             if (oldId != null && !oldId.equals(npcId)) {
+                if (kome.common.data.KOMEOrdinaryBattleRecoveryService.isTracked(data, oldId)) continue;
                 KOMEHiredUnitPhysicalLocatorService.clear(data, record);
                 data.hiredUnits.remove(oldId);
                 record.entity = npcId;

@@ -42,7 +42,7 @@ public class KOMEWorldDataSchemaTest {
     private static final Set<String> REQUIRED_CURRENT_DEV_ROOT_TAGS = new HashSet<String>(Arrays.asList(
         "KOMEDataSchemaVersion", "TacticalConfiguration", "TacticalConfigurationRequired", "AllianceDataSchemaVersion", "BuildDataSchemaVersion",
         "ConflictDataSchemaVersion", "NextConflictSequence", "ConflictRecords",
-        "NextJoinBattleReceiptSequence", "JoinBattleDeploymentReceipts",
+        "NextJoinBattleReceiptSequence", "OrdinaryBattleRecovery", "JoinBattleDeploymentReceipts",
         "EmergencyDefenseDataSchemaVersion", "EmergencyDefenseActivities",
         "EmergencyDefenseCommitments", "EmergencyDefenseObservations",
         "PopulationDevelopmentDataSchemaVersion", "PopulationDevelopment",
@@ -87,7 +87,7 @@ public class KOMEWorldDataSchemaTest {
         data.writeToNBT(saved);
         assertEquals("KOMEDataSchemaVersion", KOMEWorldData.KOME_DATA_SCHEMA_KEY);
         assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
-        assertEquals(2, KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION);
+        assertEquals(3, KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION);
         assertEquals(3, saved.getInteger("EmergencyDefenseDataSchemaVersion"));
         assertEquals(4, KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEWorldData.POPULATION_DEVELOPMENT_DATA_SCHEMA_VERSION);

@@ -139,6 +139,8 @@ public class KOMEWorldData extends WorldSavedData {
     /** Sole tile-conflict registry/allocator authority; all snapshots are immutable. */
     private final KOMEConflictService conflictService = new KOMEConflictService();
     /** Conflict-domain physical delivery receipts; never a second participation registry. */
+    private final KOMEOrdinaryBattleRecoveryRegistry ordinaryBattleRecovery = new KOMEOrdinaryBattleRecoveryRegistry();
+    public KOMEOrdinaryBattleRecoveryRegistry getOrdinaryBattleRecovery() { return ordinaryBattleRecovery; }
     private final KOMEJoinBattleDeploymentRegistry joinBattleDeploymentReceipts =
         new KOMEJoinBattleDeploymentRegistry();
     /** Next never-reused canonical Campaign Detachment identity (C1, C2, ...). */
@@ -1837,6 +1839,8 @@ public class KOMEWorldData extends WorldSavedData {
         ensureWritable();
         KOMEHiredUnitRecord record = hiredUnits.get(entityId);
         if (record == null || isVirtualMovingHiredUnit(record)) return null;
+        KOMEOrdinaryBattleRecoveryService.terminal(this, entityId,
+            KOMEOrdinaryBattleRecoveryRegistry.Disposition.UNAVAILABLE, System.currentTimeMillis(), reason);
         record.clearPhysicalLocator();
         hiredUnits.remove(entityId);
         KOMEArmyMovementOrder order = armyMovements.get(record.movementOrderId);
@@ -2241,7 +2245,7 @@ public class KOMEWorldData extends WorldSavedData {
         loadSection = "ConflictRecords";
         KOMEConflictPersistence.Loaded loadedConflictData = schemaSixUpgrade
             ? KOMEConflictPersistence.Loaded.empty() : KOMEConflictPersistence.readSection(nbt);
-        loadedStateReconciled |= loadedConflictData.migratedFromV1;
+        loadedStateReconciled |= loadedConflictData.migrated;
         loadSection = "EmergencyDefenseActivities";
         KOMEEmergencyDefensePersistence.Loaded loadedEmergencyDefense;
         if (!hasEmergencyDefenseSection) {
@@ -2325,6 +2329,7 @@ public class KOMEWorldData extends WorldSavedData {
         emergencyDefenseObservations.putAll(loadedEmergencyDefense.observations);
         conflictService.replaceFrom(loadedConflictData.conflicts);
         joinBattleDeploymentReceipts.replaceFrom(loadedConflictData.joinBattleReceipts);
+        ordinaryBattleRecovery.replaceFrom(loadedConflictData.recovery);
         movementHistory.clear();
         playerNames.clear();
         adminUnitMapMarkerOptOuts.clear();
@@ -3079,6 +3084,7 @@ public class KOMEWorldData extends WorldSavedData {
         emergencyDefenseObservations.putAll(candidate.emergencyDefenseObservations);
         conflictService.replaceFrom(candidate.conflictService);
         joinBattleDeploymentReceipts.replaceFrom(candidate.joinBattleDeploymentReceipts);
+        ordinaryBattleRecovery.replaceFrom(candidate.ordinaryBattleRecovery);
         movementHistory.clear();
         movementHistory.putAll(candidate.movementHistory);
         playerNames.clear();
@@ -3313,7 +3319,7 @@ public class KOMEWorldData extends WorldSavedData {
         validateEmergencyDefenseCommitments();
         KOMEEmergencyDefenseService.INSTANCE.validatePersistedAuthority(this);
         NBTTagCompound conflictsForWrite = KOMEConflictPersistence.write(conflictService,
-            joinBattleDeploymentReceipts);
+            joinBattleDeploymentReceipts, ordinaryBattleRecovery);
         NBTTagCompound emergencyDefenseForWrite =
             KOMEEmergencyDefensePersistence.write(emergencyDefenseActivities,
                 emergencyDefenseCommitments, emergencyDefenseObservations);
@@ -3336,6 +3342,8 @@ public class KOMEWorldData extends WorldSavedData {
             conflictsForWrite.getLong(KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY));
         nbt.setTag(KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY,
             conflictsForWrite.getTag(KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY).copy());
+        nbt.setTag(KOMEConflictPersistence.RECOVERY_KEY,
+            conflictsForWrite.getTag(KOMEConflictPersistence.RECOVERY_KEY).copy());
         nbt.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY,
             emergencyDefenseForWrite.getInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY));
         nbt.setTag(KOMEEmergencyDefensePersistence.RECORDS_KEY,

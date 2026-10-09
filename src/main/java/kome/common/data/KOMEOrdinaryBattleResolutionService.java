@@ -170,8 +170,8 @@ public final class KOMEOrdinaryBattleResolutionService {
     }
 
     /**
-     * Deliberate Phase-4 seam. It is read-only/no-op until a durable once-only recovery ledger
-     * exists; recovery must eventually complete here before ConflictRecord closure.
+     * Phase-4B2 health execution seam. B1 prepares durable intent before publication and retains
+     * pending component obligations independently of closure; this callback still has no HP effect.
      */
     interface ResolutionFinalizer {
         ResolutionFinalizer NONE = new ResolutionFinalizer() {
@@ -336,6 +336,15 @@ public final class KOMEOrdinaryBattleResolutionService {
                 ownership.winnerFactionId, military, fortification, survivors,
                 holds.orderIds, false, false, holds.error);
 
+        KOMEOrdinaryBattleRecoveryRegistry.Episode recovery = data.getOrdinaryBattleRecovery().get(
+            conflict.getConflictId(), conflict.getCombatEpisode().episodeId);
+        KOMEOrdinaryBattleRecoveryRegistry.Intent intent = recovery == null ? null : recovery.intent;
+        String currentOwner = KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
+        if (intent != null && (!intent.winner.equals(ownership.winnerFactionId)
+                || !currentOwner.equals(intent.expectedOwner) && !(currentOwner.equals(intent.winner)
+                    && intent.stage.ordinal() >= KOMEOrdinaryBattleRecoveryRegistry.Stage.PUBLICATION_STARTED.ordinal())))
+            return plan(Code.RECONCILIATION_PENDING, conflict, tile, "", military, fortification,
+                survivors, holds.orderIds, false, false, "Prepared resolution contradicts current ownership/winner authority.");
         String method = captureMethod(conflict.getConflictId());
         String current = KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
         CaptureInspection capture = inspectCaptureHistory(data, method,
@@ -383,6 +392,8 @@ public final class KOMEOrdinaryBattleResolutionService {
         boolean historyPublished = false;
         boolean ownershipPublished = false;
         try {
+            KOMEOrdinaryBattleRecoveryRegistry.Intent intent = prepareResolutionIntent(data, current);
+            advanceIntent(data, intent, KOMEOrdinaryBattleRecoveryRegistry.Stage.PUBLICATION_STARTED);
             if (current.captureHistoryRequired) {
                 KOMEWar war = KOMEWarService.recordHostileCapture(data,
                     current.tileId, current.currentOwner, current.winnerFactionId,
@@ -412,7 +423,9 @@ public final class KOMEOrdinaryBattleResolutionService {
                 publicationObserver.afterOwnership(data, current);
             }
 
-            // Phase 4 installs only a durable, replay-safe recovery implementation here.
+            advanceIntent(data, intent, KOMEOrdinaryBattleRecoveryRegistry.Stage.PUBLICATION_COMPLETE);
+            advanceIntent(data, intent, KOMEOrdinaryBattleRecoveryRegistry.Stage.RECOVERY_PENDING);
+            // B1 preserves the closure architecture; pending grants remain independently durable.
             finalizer.prepare(data, current);
             KOMEConflictRecord live = data.getConflictService().get(current.tileId);
             if (live == null || !live.isActive()
@@ -447,7 +460,7 @@ public final class KOMEOrdinaryBattleResolutionService {
                     + ";releasedHolds=" + ended.movementHoldsReleased);
             data.syncConquestTiles();
             notificationSink.resolved(current, ended.conflictResult.record);
-            return new Result(current.ownershipChanges
+            return new Result(intent.kind == KOMEOrdinaryBattleRecoveryRegistry.ResolutionKind.CONQUEST || current.ownershipChanges
                     || current.captureHistoryAlreadyRecorded
                         ? Code.RESOLVED_OWNERSHIP_CHANGED
                         : Code.RESOLVED_NO_TRANSFER,
@@ -528,9 +541,8 @@ public final class KOMEOrdinaryBattleResolutionService {
     }
 
     /**
-     * Narrow reservation for a receipt-bearing Phase-3 publication. Even a contradictory
-     * receipt must reach preflight's existing diagnostics rather than be hidden by abandonment.
-     * Receipt-free ownership transfers still require Phase-4B durable resolution intent.
+     * Legacy receipt reservation. Contradictory receipts reach preflight diagnostics.
+     * hasResolutionReservation additionally covers receipt-free v3 resolution intents.
      */
     static boolean hasCapturePublication(KOMEWorldData data, KOMEConflictRecord conflict) {
         String method = captureMethod(conflict.getConflictId());
@@ -542,6 +554,37 @@ public final class KOMEOrdinaryBattleResolutionService {
         return false;
     }
 
+    static boolean hasResolutionReservation(KOMEWorldData data, KOMEConflictRecord conflict) {
+        return data.getOrdinaryBattleRecovery().hasIntent(conflict) || hasCapturePublication(data, conflict);
+    }
+
+    /** Prepare/reuse exact durable intent before any ownership/history side effect. */
+    public KOMEOrdinaryBattleRecoveryRegistry.Intent prepareResolutionIntent(KOMEWorldData data, Plan plan) {
+        data.ensureWritable();
+        KOMEConflictRecord live = data.getConflictService().get(plan.tileId);
+        if (live == null || !live.getConflictId().equals(plan.conflictId)
+                || live.getRevision() != plan.expectedConflictRevision || !plan.ready() || !sameAuthority(plan, preflight(data, plan.tileId)))
+            throw new IllegalArgumentException("Stale ordinary resolution plan");
+        KOMEOrdinaryBattleRecoveryService.observe(data, live, live.getLastTransition().timestampMillis);
+        KOMEOrdinaryBattleRecoveryRegistry registry = data.getOrdinaryBattleRecovery();
+        registry.begin(live, KOMEOrdinaryBattleRecoveryRegistry.Coverage.LEGACY_INCOMPLETE);
+        KOMEOrdinaryBattleRecoveryRegistry.Episode e = registry.get(live.getConflictId(), live.getCombatEpisode().episodeId);
+        KOMEOrdinaryBattleRecoveryRegistry.Intent prior = e.intent;
+        KOMEOrdinaryBattleRecoveryRegistry.Intent intent = registry.prepareIntent(live, plan.expectedConflictRevision,
+            e.episodeId, prior == null ? (plan.ownershipChanges ? KOMEOrdinaryBattleRecoveryRegistry.ResolutionKind.CONQUEST
+                : KOMEOrdinaryBattleRecoveryRegistry.ResolutionKind.NO_TRANSFER) : prior.kind,
+            prior == null ? plan.currentOwner : prior.expectedOwner, plan.winnerFactionId,
+            kome.common.config.KOMEConfigRegistry.battle().getPostBattleRecoveryAmount());
+        data.markDirty(); return intent;
+    }
+
+    private static void advanceIntent(KOMEWorldData data, KOMEOrdinaryBattleRecoveryRegistry.Intent intent,
+            KOMEOrdinaryBattleRecoveryRegistry.Stage stage) {
+        KOMEOrdinaryBattleRecoveryRegistry registry = data.getOrdinaryBattleRecovery();
+        if (registry.get(intent.conflictId, intent.episodeId).intent.stage.ordinal() < stage.ordinal()) {
+            registry.advance(intent.conflictId, intent.episodeId, stage); data.markDirty();
+        }
+    }
     private static boolean sameAuthority(Plan expected, Plan current) {
         return current != null && current.ready()
             && expected.conflictId.equals(current.conflictId)
