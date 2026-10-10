@@ -1,0 +1,332 @@
+[
+  {
+    "snapshot": "S009",
+    "category": "JoinBattleDeploymentReceipts",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S009",
+    "category": "NativePlayer.SharedCustomWaypoints",
+    "reason": "Field absent; native schema-specific shared reference coverage unavailable"
+  },
+  {
+    "snapshot": "S011",
+    "category": "JoinBattleDeploymentReceipts",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S011",
+    "category": "NativePlayer.SharedCustomWaypoints",
+    "reason": "Field absent; native schema-specific shared reference coverage unavailable"
+  },
+  {
+    "snapshot": "S012",
+    "category": "JoinBattleDeploymentReceipts",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S012",
+    "category": "NativePlayer.SharedCustomWaypoints",
+    "reason": "Field absent; native schema-specific shared reference coverage unavailable"
+  },
+  {
+    "snapshot": "S014",
+    "category": "NativePlayer.SharedCustomWaypoints",
+    "reason": "Field absent; native schema-specific shared reference coverage unavailable"
+  },
+  {
+    "snapshot": "S015",
+    "category": "NativeCustomWaypoints",
+    "reason": "Native player directory unavailable; shared/custom waypoint state not zero"
+  },
+  {
+    "snapshot": "S016",
+    "category": "NativeCustomWaypoints",
+    "reason": "Native player directory unavailable; shared/custom waypoint state not zero"
+  },
+  {
+    "snapshot": "S017",
+    "category": "NativeCustomWaypoints",
+    "reason": "Native player directory unavailable; shared/custom waypoint state not zero"
+  },
+  {
+    "snapshot": "S018",
+    "category": "NativePlayer.SharedCustomWaypoints",
+    "reason": "Field absent; native schema-specific shared reference coverage unavailable"
+  },
+  {
+    "snapshot": "S023",
+    "category": "JoinBattleDeploymentReceipts",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S023",
+    "category": "NativeCustomWaypoints",
+    "reason": "Native player directory unavailable; shared/custom waypoint state not zero"
+  },
+  {
+    "snapshot": "S024",
+    "category": "JoinBattleDeploymentReceipts",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S024",
+    "category": "NativeCustomWaypoints",
+    "reason": "Native player directory unavailable; shared/custom waypoint state not zero"
+  },
+  {
+    "snapshot": "S035",
+    "category": "ConflictRecords",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S035",
+    "category": "TacticalConfiguration",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S035",
+    "category": "SeasonReset",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S035",
+    "category": "JoinBattleDeploymentReceipts",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S035",
+    "category": "PublicWaypoints.Records",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S035",
+    "category": "PublicWaypoints.Proposals",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S035",
+    "category": "PublicWaypoints.History",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S035",
+    "category": "PublicWaypoints.Quarantine",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S035",
+    "category": "PublicWaypoints.Cutover",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S035",
+    "category": "NativePlayer.SharedCustomWaypoints",
+    "reason": "Field absent; native schema-specific shared reference coverage unavailable"
+  },
+  {
+    "snapshot": "S037",
+    "category": "ConflictRecords",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S037",
+    "category": "TacticalConfiguration",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S037",
+    "category": "SeasonReset",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S037",
+    "category": "JoinBattleDeploymentReceipts",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S037",
+    "category": "PublicWaypoints.Records",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S037",
+    "category": "PublicWaypoints.Proposals",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S037",
+    "category": "PublicWaypoints.History",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S037",
+    "category": "PublicWaypoints.Quarantine",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S037",
+    "category": "PublicWaypoints.Cutover",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S037",
+    "category": "NativeCustomWaypoints",
+    "reason": "Native player directory unavailable; shared/custom waypoint state not zero"
+  },
+  {
+    "snapshot": "S038",
+    "category": "ConflictRecords",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S038",
+    "category": "TacticalConfiguration",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S038",
+    "category": "SeasonReset",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S038",
+    "category": "JoinBattleDeploymentReceipts",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S038",
+    "category": "PublicWaypoints.Records",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S038",
+    "category": "PublicWaypoints.Proposals",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S038",
+    "category": "PublicWaypoints.History",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S038",
+    "category": "PublicWaypoints.Quarantine",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S038",
+    "category": "PublicWaypoints.Cutover",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S038",
+    "category": "NativePlayer.SharedCustomWaypoints",
+    "reason": "Field absent; native schema-specific shared reference coverage unavailable"
+  },
+  {
+    "snapshot": "S039",
+    "category": "ConflictRecords",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S039",
+    "category": "TacticalConfiguration",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S039",
+    "category": "SeasonReset",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S039",
+    "category": "JoinBattleDeploymentReceipts",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S039",
+    "category": "PublicWaypoints.Records",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S039",
+    "category": "PublicWaypoints.Proposals",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S039",
+    "category": "PublicWaypoints.History",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S039",
+    "category": "PublicWaypoints.Quarantine",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S039",
+    "category": "PublicWaypoints.Cutover",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S039",
+    "category": "NativeCustomWaypoints",
+    "reason": "Native player directory unavailable; shared/custom waypoint state not zero"
+  },
+  {
+    "snapshot": "S046",
+    "category": "ConflictRecords",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S046",
+    "category": "TacticalConfiguration",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S046",
+    "category": "SeasonReset",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S046",
+    "category": "FactionCapitals",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S046",
+    "category": "JoinBattleDeploymentReceipts",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S046",
+    "category": "PublicWaypoints.Records",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S046",
+    "category": "PublicWaypoints.Proposals",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S046",
+    "category": "PublicWaypoints.History",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S046",
+    "category": "PublicWaypoints.Quarantine",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S046",
+    "category": "PublicWaypoints.Cutover",
+    "reason": "Section absent from this snapshot/schema; not reported as zero impact"
+  },
+  {
+    "snapshot": "S046",
+    "category": "NativePlayer.SharedCustomWaypoints",
+    "reason": "Field absent; native schema-specific shared reference coverage unavailable"
+  }
+]

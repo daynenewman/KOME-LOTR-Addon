@@ -1,0 +1,39 @@
+{
+  "dev": "26ba6cb7d1bbe7d4e0e4482b4f5855e15747c04d",
+  "production": {
+    "src\\main\\resources\\assets\\kome\\map\\reset_conquest_borders.png": "8e5f51fcc8481ddd8a8ac8153b3d36f46de765980d476c32f0856f1c43a3db20",
+    "src\\main\\resources\\assets\\kome\\map\\reset_conquest_borders_thin.png": "36a3e522248c07e9948d94169f36e7d524182059adf59bfd17217f5d7f1a384e",
+    "src\\main\\resources\\assets\\kome\\map\\reset_conquest_bridges.png": "c6082a9310490a49173bafa352029a3dacfd2c06a85972975900939e8c2c3dde",
+    "src\\main\\resources\\assets\\kome\\map\\reset_conquest_desert_shade.png": "5b7498f76109e99d0425c27bdd674d384a46984ff180e90214079bafe8cfd809",
+    "src\\main\\resources\\assets\\kome\\map\\reset_conquest_hitmap.png": "3ee80b95947f99ca4bdc355c0acf3dc832d41e964b5fe54e880f35665068e6d1",
+    "src\\main\\resources\\assets\\kome\\map\\reset_conquest_labels.png": "f1174fd31e2afa158a21dfc5c436cdabb0f3a758e1f9c2e19075f88921eb017e",
+    "src\\main\\resources\\assets\\kome\\map\\reset_conquest_overlay.png": "73b5f0cbf67259b6121da3315c6f838f2c870601ec095b526d4b2d630549367c",
+    "src\\main\\resources\\assets\\kome\\map\\reset_conquest_roads.png": "9eb44114b93be6faba6d148366d2fb98d127c49a154aa0032dc9c9f843f97f60",
+    "src\\main\\resources\\assets\\kome\\map\\reset_conquest_tile_ids.png": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+    "src\\main\\resources\\assets\\kome\\map\\reset_conquest_tile_ids.txt": "544cbc4a95fc75d869b3187b82e19bf931ba0dbbe5719a06f3f26f079d619445",
+    "src\\main\\resources\\assets\\kome\\map\\tile_exclusions.tsv": "96d5bf63187e50f6964fe943ab233d783cf4ae565e4deedc338ec5cc597c62f1",
+    "src\\main\\resources\\assets\\kome\\config\\kome_emergency_defense_templates.csv": "68fed4d9ffd4fc286be29dc23d0dc45a17f3bd41dbbc7cb59e6dd4f53bf5345e",
+    "src\\main\\resources\\assets\\kome\\config\\kome_faction_capital_defaults.csv": "429b4d8430caa9e25107548f4b895d8ce77cbd208f23f071c320c0a97da0887f",
+    "src\\main\\resources\\assets\\kome\\config\\kome_muster_roster.csv": "dd994b4cafd61137b26b5d634a78d30a0775f1e7543d41fef6e2acc0f1c62d84",
+    "src\\main\\resources\\assets\\kome\\config\\kome_tile_gameplay_manifest.properties": "4076a76f8d674888fe49f6abdca00585a8c912e050e15a43196a1b0aa1ca845a",
+    "src\\main\\resources\\assets\\kome\\config\\kome_tile_gameplay_points.csv": "e787eb404eb23f3786653051c868e75530ab708239f084d43e9a4535a1794176",
+    "src\\main\\resources\\assets\\kome\\config\\kome_tile_gameplay_provenance.json": "1b07f19aeb5ab105a9382960159d49f86a1c981c230932fe74d6f51787bb712e",
+    "src\\main\\resources\\assets\\kome\\config\\kome_tile_ownership_balance_report.txt": "ccd1aa837c4fc584bbde15f80adf12d77e36da194d3d300fc9de63c2f5942ff1",
+    "src\\main\\resources\\assets\\kome\\config\\kome_tile_ownership_defaults.csv": "51a325a18fc52652d3f0dd2b9c6fec3693dd108da65941458d6843557e3bd1bc",
+    "src\\main\\resources\\assets\\kome\\config\\kome_tile_ownership_defaults_notes.txt": "933189f2b2e0d691e34f5ced44c84be6e562d52562f34338f50f9a2114bbb6ec",
+    "src\\main\\resources\\assets\\kome\\config\\kome_tile_route_defaults.csv": "d214d0b7446b9718b303c608b125ae755adebfc6a2437c739bdb60867c2d8f5e",
+    "src\\main\\resources\\assets\\kome\\config\\kome_tile_route_markers.csv": "4d0ea8bdd204f78b5e65eb5b0cb9d93167b1b5a2694617a7b7e25f80ab730d7d",
+    "src\\main\\resources\\assets\\kome\\config\\kome_tile_waypoint_candidates.csv": "e496a608e54fb16ab74bfcecbc91779dbf5ebce436c5c7160754d028345fb5ee",
+    "src\\main\\resources\\assets\\kome\\config\\kome_waypoint_defaults.csv": "29d23023efc67a2153021dcf1bd93c0ea5b16101b1e252b47ed13372af392f69"
+  },
+  "evidence": {
+    "docs\\kom80-mountain-barriers\\geometry-summary.json": "60f6586deed926b85f0f31ff2511ce33a6d3267ce49e3cdc4ac3125c982cc80f",
+    "docs\\kom80-mountain-barriers\\requested-contact-cells.csv": "48f413a63b7f52bd5c53d18a6b54af3239420108ca6baea018ec3758e7a1933c",
+    "docs\\pr-review-20261007\\geography\\mountain-candidate-cells.csv": "2e0a26e7df912d7355f08263af0afb2441dd0d01b48828fea8d4d2942118a735",
+    "docs\\gameplay-separation-implementation-20260919\\original-derived.tsv": "97f31e11e33705df4eb7b4c10c355d3741b042401225c7b00edde78a8fb88efb",
+    "docs\\gameplay-separation-implementation-20260919\\original-KOMEConquestTileDefaults.java.txt": "f77920023fdf14d0fb8690b4d6ef9b3b4cdcb00f097f6cd3ea3f401e9bc1f682",
+    "src\\test\\resources\\kome\\tile\\gameplay-baseline\\mask.png": "a5cd6cf91b3fc1b662cffffde36a250a6e6687bcb8b2b7cd9aa06809b944b866",
+    "libs\\LOTRMod v36.15.jar": "4f296e749c0d4739ecf859217a526b4218a2a45a768c08d3d551af0d0d3d5635"
+  },
+  "native_png": "1c79d0610dfbcfa970aa0dd929ce80cb19b1feb89fe57777b293b166282230f3"
+}

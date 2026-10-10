@@ -1,0 +1,290 @@
+[
+  {
+    "snapshot": "S009",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\layout-runtime\\server\\review-acceptance-fresh\\data\\KOME_ServerRules.dat",
+    "sha256": "9144381e5b46e4bba096ee49d6ddab56fc6695a4c7f5715b4d7202a303bbe518",
+    "bytes": 45128,
+    "mtime_utc": "2026-10-08T00:46:09.982569+00:00"
+  },
+  {
+    "snapshot": "S009",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\layout-runtime\\server\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S009",
+    "role": "Native_LOTR_player",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\layout-runtime\\server\\review-acceptance-fresh\\LOTR\\players\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+    "sha256": "c6bb9b431f4d5a7dd28a936fbab60f27285740f177b74a4eaa930a03c10a693f",
+    "bytes": 666,
+    "mtime_utc": "2026-10-08T00:51:35.003822+00:00"
+  },
+  {
+    "snapshot": "S011",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\reset-runtime\\server\\review-acceptance-fresh\\data\\KOME_ServerRules.dat",
+    "sha256": "725dd11e855efb047787ed9dd9b4852869f1c9e302f52568d72eb011e7daae41",
+    "bytes": 49575,
+    "mtime_utc": "2026-10-08T02:23:48.329097+00:00"
+  },
+  {
+    "snapshot": "S011",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\reset-runtime\\server\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S011",
+    "role": "Native_LOTR_player",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\reset-runtime\\server\\review-acceptance-fresh\\LOTR\\players\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+    "sha256": "47d3c3615953baf5546400722a2af6269e37631648bb5c81736fecc36d5e47d4",
+    "bytes": 700,
+    "mtime_utc": "2026-10-08T02:23:46.999969+00:00"
+  },
+  {
+    "snapshot": "S012",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\server\\review-acceptance-fresh\\data\\KOME_ServerRules.dat",
+    "sha256": "81660291ee36d037997fc0cfdee3b391d1ee755b717a154e2b2744ba9e7d9b24",
+    "bytes": 44329,
+    "mtime_utc": "2026-10-08T00:24:25.035074+00:00"
+  },
+  {
+    "snapshot": "S012",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\server\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S012",
+    "role": "Native_LOTR_player",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\server\\review-acceptance-fresh\\LOTR\\players\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+    "sha256": "2604fc5f880e6fa1d386891c3fc62cb04e5f9342ccf4fab112875f9692dc17c8",
+    "bytes": 665,
+    "mtime_utc": "2026-10-08T00:29:50.055629+00:00"
+  },
+  {
+    "snapshot": "S014",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\joinbattle-fix\\runtime\\server\\pr26-integration-disposable\\data\\KOME_ServerRules.dat",
+    "sha256": "07ef754cd3441336cbcf7abcab0f34a304a7f023b750d4d541b1cd2b91fd9949",
+    "bytes": 50222,
+    "mtime_utc": "2026-10-10T17:11:49.422618+00:00"
+  },
+  {
+    "snapshot": "S014",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\joinbattle-fix\\runtime\\server\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S014",
+    "role": "Native_LOTR_player",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\joinbattle-fix\\runtime\\server\\pr26-integration-disposable\\LOTR\\players\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+    "sha256": "561b3d19504c6908f915a5665dc5aa4acc8c629e7adecca5f1c46fce86306267",
+    "bytes": 670,
+    "mtime_utc": "2026-10-10T17:11:42.892280+00:00"
+  },
+  {
+    "snapshot": "S015",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production-final\\server\\pr26-integration-disposable\\data\\KOME_ServerRules.dat",
+    "sha256": "b6d141d3e0202846819a4ff0816ba39a92c5b044dc3ac4097a0ad7fa50cccf11",
+    "bytes": 37415,
+    "mtime_utc": "2026-10-09T18:54:30.910729+00:00"
+  },
+  {
+    "snapshot": "S015",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production-final\\server\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S016",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production-verified\\server\\pr26-integration-disposable\\data\\KOME_ServerRules.dat",
+    "sha256": "499d5dc83487b91615f939b7b18b4981e6a63676753d1a114f47e9e23aeb78b9",
+    "bytes": 37474,
+    "mtime_utc": "2026-10-09T18:55:55.772594+00:00"
+  },
+  {
+    "snapshot": "S016",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production-verified\\server\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S017",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production\\server\\pr26-integration-disposable\\data\\KOME_ServerRules.dat",
+    "sha256": "d401a1037d1eb302cc53d07f8806e83a3e0302d1b650776e87cca81151e8e040",
+    "bytes": 37388,
+    "mtime_utc": "2026-10-09T18:52:23.269738+00:00"
+  },
+  {
+    "snapshot": "S017",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production\\server\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S018",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\singleplayer\\server\\pr26-integration-disposable\\data\\KOME_ServerRules.dat",
+    "sha256": "2ad3652c1877079f8489f4bc3dd3d3e392e8da08584332e366f35bc87b75c3ee",
+    "bytes": 44989,
+    "mtime_utc": "2026-10-09T19:27:10.476442+00:00"
+  },
+  {
+    "snapshot": "S018",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\singleplayer\\server\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S018",
+    "role": "Native_LOTR_player",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\singleplayer\\server\\pr26-integration-disposable\\LOTR\\players\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+    "sha256": "763458a9a799511945cc2a40da2072d1c92d69a68b1e50c899255669b3e9bccb",
+    "bytes": 675,
+    "mtime_utc": "2026-10-09T19:26:51.773847+00:00"
+  },
+  {
+    "snapshot": "S023",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\stopped-first-backup\\data\\KOME_ServerRules.dat",
+    "sha256": "2c8bc361357776202bb322f181d1ac34fd22903ae66483abbe49d67cfa30c1d6",
+    "bytes": 43274,
+    "mtime_utc": "2026-10-07T01:41:24.508093+00:00"
+  },
+  {
+    "snapshot": "S024",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\stopped-populated-backup\\data\\KOME_ServerRules.dat",
+    "sha256": "a28abfe4e2e0b66388a6fa6d90ecc551b082a71b3dc66fc616c9bdbbb17c5dce",
+    "bytes": 43287,
+    "mtime_utc": "2026-10-07T01:43:10.962348+00:00"
+  },
+  {
+    "snapshot": "S035",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\map-performance\\stopped-backup\\server\\kom60-world\\data\\KOME_ServerRules.dat",
+    "sha256": "342bb1341e69c5ba1398a76b6dec19d606ed36581d5efbe25ae95392e758354a",
+    "bytes": 45084,
+    "mtime_utc": "2026-09-24T03:01:30.807776+00:00"
+  },
+  {
+    "snapshot": "S035",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\map-performance\\stopped-backup\\server\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S035",
+    "role": "Native_LOTR_player",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\map-performance\\stopped-backup\\server\\kom60-world\\LOTR\\players\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+    "sha256": "7c53903afb4e234c8f6ec6df8cf1da78087149809013da13588096180eb07425",
+    "bytes": 683,
+    "mtime_utc": "2026-09-24T03:00:51.964880+00:00"
+  },
+  {
+    "snapshot": "S037",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\stopped-cycle-1-backup\\kom60-world\\data\\KOME_ServerRules.dat",
+    "sha256": "03b6e7e82160a36dc60a46b49eb56985696b7543c850317d49e0dc2b37a3958b",
+    "bytes": 42570,
+    "mtime_utc": "2026-09-23T00:50:42.775938+00:00"
+  },
+  {
+    "snapshot": "S037",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\stopped-cycle-1-backup\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S038",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\stopped-pre-queue-fix-backup\\kom60-world\\data\\KOME_ServerRules.dat",
+    "sha256": "51be417b5111f80e570ca70d30f81f75d0f6009aec7df37a7836cba3e8a11c75",
+    "bytes": 45040,
+    "mtime_utc": "2026-09-23T02:46:24.496873+00:00"
+  },
+  {
+    "snapshot": "S038",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\stopped-pre-queue-fix-backup\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S038",
+    "role": "Native_LOTR_player",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\stopped-pre-queue-fix-backup\\kom60-world\\LOTR\\players\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+    "sha256": "32f815ba0e38c3036908d22602625047f9a9e87bb4faaed69860b76bef4ebf26",
+    "bytes": 679,
+    "mtime_utc": "2026-09-23T02:46:06.544312+00:00"
+  },
+  {
+    "snapshot": "S039",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-pr12-20260926T205642Z-a86a68\\backup-after-initial-stop\\pr12-fresh-world\\data\\KOME_ServerRules.dat",
+    "sha256": "ce1a3abfee83de05bc45a47270b4240432f8c603b53c4f14e11524e3996185bf",
+    "bytes": 42563,
+    "mtime_utc": "2026-09-26T20:57:59.288159+00:00"
+  },
+  {
+    "snapshot": "S039",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-pr12-20260926T205642Z-a86a68\\backup-after-initial-stop\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S046",
+    "role": "KOME_ServerRules",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-final-combined-20260920T170309Z-36c64fdc\\server\\world\\data\\KOME_ServerRules.dat",
+    "sha256": "95581750ae80180359ba47a36a17fa5026254ff024cc717a32984c2c6687e88f",
+    "bytes": 43003,
+    "mtime_utc": "2026-09-20T14:07:16.027223+00:00"
+  },
+  {
+    "snapshot": "S046",
+    "role": "MiddleEarth_dimension_configuration",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-final-combined-20260920T170309Z-36c64fdc\\server\\config\\LOTR.cfg",
+    "sha256": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+    "bytes": 9759,
+    "mtime_utc": "2026-05-06T17:31:25.010329+00:00"
+  },
+  {
+    "snapshot": "S046",
+    "role": "Native_LOTR_player",
+    "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-final-combined-20260920T170309Z-36c64fdc\\server\\world\\LOTR\\players\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+    "sha256": "6db654c6480a22bff8abf8fafa244e5a4cce692903734fa2385b473da5768a4b",
+    "bytes": 670,
+    "mtime_utc": "2026-09-20T15:17:11.058847+00:00"
+  }
+]

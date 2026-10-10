@@ -1,0 +1,37 @@
+[
+  {
+    "step": "Analysis Git read",
+    "outcome": "FAILED",
+    "detail": "Sandbox permission denied reading primary Git directory; approved read-only escalation succeeded."
+  },
+  {
+    "step": "Mapping hash guard",
+    "outcome": "FAILED_RETAINED",
+    "detail": "Recorded KOM-80 mapping SHA did not match current bytes. Git pinned/current mapping lines equal; hash mismatch and exact byte hashes retained in mapping-reuse-check.json."
+  },
+  {
+    "step": "Nearby contact count accumulation",
+    "outcome": "CORRECTED",
+    "detail": "Initial draft overwrote horizontal count with vertical count; replaced assignment with accumulation. Correct final T351/T352: 2 edges and 3 corners; T340/T352: 0 edges and 2 corners."
+  },
+  {
+    "step": "Minimum-cut helper context",
+    "outcome": "FAILED_FIXED",
+    "detail": "NameError __file__; supplied explicit helper path. Final exhaustive contact cuts and full-tile components completed."
+  },
+  {
+    "step": "Figure plotting dependency",
+    "outcome": "FAILED_FIXED",
+    "detail": "ModuleNotFoundError matplotlib. Used existing Pillow for exact nearest-neighbor figures; installed no dependency."
+  },
+  {
+    "step": "Strict final worktree-set equality",
+    "outcome": "FAILED_RETAINED",
+    "detail": "Additional clean detached worktree 88a9 appeared. No worktree creation command issued in this session. All 26 pre-existing worktree states and all other protected fields match; addition recorded separately."
+  },
+  {
+    "step": "Read-only analysis",
+    "outcome": "COMPLETE",
+    "detail": "Current data assertions, historical classification ratios, 45-cell cut/topology, 621 retained IDs and protected-state comparisons. Not gameplay tests."
+  }
+]

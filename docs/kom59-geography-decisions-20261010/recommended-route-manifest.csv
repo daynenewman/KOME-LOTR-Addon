@@ -1,0 +1,10 @@
+pair,before_type,proposed_type,action,condition,status
+T435-T654,ABSENT,ABSENT,RETAIN_NO_DIRECT_EDGE,Approve native mountain separation; no graph regeneration,PROPOSAL_ONLY
+T400-T420,ABSENT,ABSENT,RETAIN_NO_DIRECT_EDGE,Approve native mountain separation; no graph regeneration,PROPOSAL_ONLY
+T329-T355,ABSENT,ABSENT,RETAIN_NO_DIRECT_EDGE,Approve native mountain separation; no graph regeneration,PROPOSAL_ONLY
+T352-T356,ABSENT,ABSENT,RETAIN_NO_DIRECT_EDGE,Approve native mountain separation; no graph regeneration,PROPOSAL_ONLY
+T218-T220,ABSENT,ABSENT,RETAIN_NO_DIRECT_EDGE,Approve native mountain separation; no graph regeneration,PROPOSAL_ONLY
+T351-T352,open,open,RETAIN_MERGED_PR32,Already authorized; no new change,RETAIN
+T340-T352,river,open,CONDITIONAL_SINGLE_EDGE_CHANGE,Approve that this marsh/land interface is not an intended river barrier; real terrain remains unknown,PENDING_GEOGRAPHY_DECISION
+T352-T375,river,river,RETAIN,Native river present; decorative contamination does not justify removing whole barrier,HOLD
+T455-T654,ABSENT,ABSENT,RETAIN_UNVERIFIED_REPORT,"Exact live tile pair, coordinate and candidate identity needed; do not substitute T444",UNVERIFIED

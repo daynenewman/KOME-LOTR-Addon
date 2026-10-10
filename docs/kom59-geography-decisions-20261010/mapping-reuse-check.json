@@ -1,0 +1,8 @@
+{
+  "recorded_audit_sha": "d8674747229c7a9cbfdebcd217f1423d722ff4cdacb882d55607491cea36d9e5",
+  "current_raw_sha": "544cbc4a95fc75d869b3187b82e19bf931ba0dbbe5719a06f3f26f079d619445",
+  "historical_git_blob_sha": "56735a1da8c62ed365fac6e8385df0a9a17ca9405daf83c84b7c5609a22d9474",
+  "current_lf_sha": "56735a1da8c62ed365fac6e8385df0a9a17ca9405daf83c84b7c5609a22d9474",
+  "lines_equal": true,
+  "limitation": "Recorded audit mapping byte hash differs; current mapping compared line-for-line with pinned historical Git blob. Counts/cells checked against current decoded raster; old hash not claimed current."
+}

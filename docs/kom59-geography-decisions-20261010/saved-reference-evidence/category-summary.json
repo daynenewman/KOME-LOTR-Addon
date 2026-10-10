@@ -1,0 +1,105 @@
+{
+  "unit": "Record occurrences across historical snapshots; not deduplicated production objects",
+  "categories": [
+    {
+      "category": "Builds",
+      "inspected_sections": 15,
+      "unavailable_sections": 0,
+      "record_occurrences": 6,
+      "coordinate_fields": 6,
+      "dimension_gaps": 0,
+      "contact_tile_reference_records": 0,
+      "removed_coordinate_hits": 0
+    },
+    {
+      "category": "TileWaypoints",
+      "inspected_sections": 15,
+      "unavailable_sections": 0,
+      "record_occurrences": 9315,
+      "coordinate_fields": 9315,
+      "dimension_gaps": 0,
+      "contact_tile_reference_records": 150,
+      "removed_coordinate_hits": 0
+    },
+    {
+      "category": "TileWaypointLinks",
+      "inspected_sections": 15,
+      "unavailable_sections": 0,
+      "record_occurrences": 3228,
+      "coordinate_fields": 3228,
+      "dimension_gaps": 0,
+      "contact_tile_reference_records": 96,
+      "removed_coordinate_hits": 0
+    },
+    {
+      "category": "ArmyCompanies",
+      "inspected_sections": 15,
+      "unavailable_sections": 0,
+      "record_occurrences": 6,
+      "coordinate_fields": 0,
+      "dimension_gaps": 0,
+      "contact_tile_reference_records": 0,
+      "removed_coordinate_hits": 0
+    },
+    {
+      "category": "ArmyMovements",
+      "inspected_sections": 15,
+      "unavailable_sections": 0,
+      "record_occurrences": 0,
+      "coordinate_fields": 0,
+      "dimension_gaps": 0,
+      "contact_tile_reference_records": 0,
+      "removed_coordinate_hits": 0
+    },
+    {
+      "category": "MovementHistory",
+      "inspected_sections": 15,
+      "unavailable_sections": 0,
+      "record_occurrences": 0,
+      "coordinate_fields": 0,
+      "dimension_gaps": 0,
+      "contact_tile_reference_records": 0,
+      "removed_coordinate_hits": 0
+    },
+    {
+      "category": "ConflictRecords",
+      "inspected_sections": 10,
+      "unavailable_sections": 5,
+      "record_occurrences": 1,
+      "coordinate_fields": 0,
+      "dimension_gaps": 0,
+      "contact_tile_reference_records": 0,
+      "removed_coordinate_hits": 0
+    },
+    {
+      "category": "HiredUnits",
+      "inspected_sections": 15,
+      "unavailable_sections": 0,
+      "record_occurrences": 6,
+      "coordinate_fields": 20,
+      "dimension_gaps": 0,
+      "contact_tile_reference_records": 0,
+      "removed_coordinate_hits": 0
+    },
+    {
+      "category": "RouteEdges",
+      "inspected_sections": 15,
+      "unavailable_sections": 0,
+      "record_occurrences": 0,
+      "coordinate_fields": 0,
+      "dimension_gaps": 0,
+      "contact_tile_reference_records": 0,
+      "removed_coordinate_hits": 0
+    },
+    {
+      "category": "NativePlayer.CustomWaypoints",
+      "inspected_sections": 8,
+      "unavailable_sections": 0,
+      "record_occurrences": 0,
+      "coordinate_fields": 0,
+      "dimension_gaps": 0,
+      "contact_tile_reference_records": 0,
+      "removed_coordinate_hits": 0
+    }
+  ]
+}

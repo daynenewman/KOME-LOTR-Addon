@@ -1,0 +1,156 @@
+{
+  "base_dev": "26ba6cb7d1bbe7d4e0e4482b4f5855e15747c04d",
+  "branch": "dayne/kom59-geography-decision-review-20261010",
+  "isolated_checkout_kind": "Independent clone under ignored task output; no existing checkout switched",
+  "routing_validation": {
+    "status": "PASS",
+    "command": "python -B -X utf8 docs/routing/validate.py",
+    "documents": 25,
+    "local_links": 747,
+    "symbol_references": 920,
+    "exact_junit_selectors": 48,
+    "limits": "No Java execution, gameplay proof, external link checks or method semantics"
+  },
+  "package_validation": {
+    "status": "PASS",
+    "portable_documents": 3,
+    "local_links_and_images": 100,
+    "exact_copies": 34,
+    "png_crops": [
+      {
+        "file": "visuals/T218-T220.png",
+        "size": [
+          1800,
+          985
+        ]
+      },
+      {
+        "file": "visuals/T329-T355.png",
+        "size": [
+          1800,
+          985
+        ]
+      },
+      {
+        "file": "visuals/T340-T352.png",
+        "size": [
+          1800,
+          555
+        ]
+      },
+      {
+        "file": "visuals/T351-T352.png",
+        "size": [
+          1800,
+          555
+        ]
+      },
+      {
+        "file": "visuals/T352-T356.png",
+        "size": [
+          1800,
+          985
+        ]
+      },
+      {
+        "file": "visuals/T352-T375.png",
+        "size": [
+          1800,
+          555
+        ]
+      },
+      {
+        "file": "visuals/T400-T420.png",
+        "size": [
+          1800,
+          985
+        ]
+      },
+      {
+        "file": "visuals/T435-T654.png",
+        "size": [
+          1800,
+          985
+        ]
+      },
+      {
+        "file": "visuals/T455-T654-unverified.png",
+        "size": [
+          660,
+          706
+        ]
+      }
+    ],
+    "unique_removals": 45,
+    "exclusion_runs": 25,
+    "exclusion_zones": 5,
+    "production_inputs_compared": 24,
+    "production_byte_identical": 22,
+    "explicit_eol_only_deltas": 2,
+    "scope": "Offline documentation, exact-copy and existing manifest consistency checks only; no gameplay tests"
+  },
+  "whitespace_validation": {
+    "status": "PASS",
+    "command": "git diff --cached --check",
+    "exit_code": 0,
+    "scope": "All staged documentation/evidence; local attributes preserve original evidence bytes and recognize CRLF as an end-of-line. Other whitespace checks remain enabled."
+  },
+  "preservation": {
+    "status": "PASS_AFTER_DOCS",
+    "existing_worktrees": 27,
+    "runtime_files": 141,
+    "server_and_controller_identities": 6,
+    "ports": [
+      {
+        "LocalPort": 51326,
+        "OwningProcess": 30672
+      },
+      {
+        "LocalPort": 51327,
+        "OwningProcess": 22264
+      },
+      {
+        "LocalPort": 51328,
+        "OwningProcess": 31700
+      }
+    ],
+    "original_package_unchanged": true,
+    "heads_branches_statuses_stash_unchanged": true,
+    "verification": "Exact before/after comparison; live world/log contents not frozen or hashed"
+  },
+  "attempts": [
+    {
+      "stage": "Initial local clone",
+      "result": "Dubious ownership rejection",
+      "resolution": "Command-scoped safe.directory in isolated clone operation; no global trust or source checkout changes"
+    },
+    {
+      "stage": "Initial stopped-save selection",
+      "result": "Four backup associations were too weak",
+      "resolution": "Excluded; exact stopped-root captures accepted separately. Preliminary counts retained in inventory-attempts.json"
+    },
+    {
+      "stage": "Package input raw-byte check",
+      "result": "Failed on reset_conquest_tile_ids.txt",
+      "resolution": "Primary hash preserved; two source/clone differences and six checkout/blob differences explicitly verified as CRLF/LF-only in publication-input-comparison.json"
+    },
+    {
+      "stage": "Package link check during assembly",
+      "result": "Failed: protected-corridors.csv omitted with private protected status files; final publication/hash reports not yet written",
+      "resolution": "Exact corridor CSV restored and reports created before final validation"
+    },
+    {
+      "stage": "Exact checkout/blob assertion",
+      "result": "Failed raw byte equality on tile mapping",
+      "resolution": "Six named text paths use Git checkout EOL filtering; current blob/checkout and primary source differences verified only CRLF/LF. Listed separately in publication-input-comparison.json."
+    }
+  ],
+  "builds": 0,
+  "gameplay_test_reruns": 0,
+  "world_writes": 0,
+  "runtime_commands": 0,
+  "multiplayer": "DEFERRED",
+  "pull_request_created": false,
+  "production_resources_changed": false,
+  "review_decisions": "UNAPPROVED"
+}

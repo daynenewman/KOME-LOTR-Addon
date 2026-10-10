@@ -1,0 +1,19 @@
+{
+  "preexisting_protected_state_unchanged": true,
+  "dev": "26ba6cb7d1bbe7d4e0e4482b4f5855e15747c04d",
+  "worktrees_before": 26,
+  "worktrees_after": 27,
+  "additional_worktrees": {
+    "C:\\Users\\dayne\\.codex\\worktrees\\88a9\\KOME-LOTR-Addon": {
+      "head": "26ba6cb7d1bbe7d4e0e4482b4f5855e15747c04d",
+      "branch": "",
+      "status": ""
+    }
+  },
+  "creation_command_issued": false,
+  "runtime_files": 109,
+  "protected_processes": 4,
+  "branches_stash_statuses_equal": true,
+  "production_map_config_hashes_equal": true,
+  "worlds": "Not inspected or edited; no runtime commands issued"
+}

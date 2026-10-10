@@ -1,0 +1,65 @@
+{
+  "comments": [
+    {
+      "id": "45c468a0-6dbf-421a-a84a-346ea7ce8ebb",
+      "body": "## Live geography / route mismatch observed during KOM-18 acceptance — clarified 2026-10-10\n\nFresh-world live testing found a strategic geography mismatch around North Ithilien:\n\n- A company at **T352 (North Ithilien)** was ordered toward **T351**.\n- On the conquest map the two tiles visibly share a border.\n- Canonical routing nevertheless treated the destination as **two tiles away**.\n- The user also reports **river blockers where there should not be blockers** in this area.\n\n### Canonical design rule clarified by user\n\nFor ordinary strategic geography, **if two tiles visibly share a normal border, they should be directly traversable as adjacent tiles**.\n\nA visually touching pair should be non-traversable only when the map/world itself supplies a real geographic barrier, such as an actual mountain barrier/biome or actual river barrier/biome that intentionally blocks passage. The barrier should be understandable from the geography itself, not from an invisible/artificial route rule.\n\nTherefore the correction should fix the underlying geography/adjacency/blocker data so that:\n- normal shared borders imply direct adjacency;\n- actual mountains/rivers may block an otherwise touching pair where intended;\n- false river/mountain blockers are removed;\n- rendered borders, canonical raster adjacency and legal route edges agree.\n\nDo **not** preserve a visually touching but secretly non-adjacent pair and solve it only with UI explanation.\n\nPlease audit the exact T352/T351 border cells and nearby river/passability metadata. This remains a live observation, not yet a proven raster-vs-route root cause.",
+      "attachments": [],
+      "createdAt": "2026-10-10T16:39:27.094Z",
+      "updatedAt": "2026-10-10T16:41:30.446Z",
+      "parentId": null,
+      "resolvedAt": null,
+      "quotedText": null,
+      "author": {
+        "id": "fbe28be2-14f4-4449-8934-95531d732ddc",
+        "name": "KillStreak7634"
+      },
+      "onBehalfOf": null
+    },
+    {
+      "id": "b0087e06-627c-40e5-b66c-56a155616a14",
+      "body": "Live geography review follow-up — 2026-10-08\n\nThe user is seeing multiple visible conquest-map geography defects during current map testing, including:\n- tile boundaries/raster shapes that do not match the intended hand-drawn conquest map;\n- apparent river/gap channels that are not actual intended rivers/geographic separations;\n- some tiles apparently containing two waypoint markers, which may turn out to be a raster-boundary issue rather than waypoint metadata.\n\nImportant design clarification from the user:\nThe hand-drawn map was never intended to freeze the conquest raster permanently. Boundary/resource corrections are expected as live review finds implementation mistakes. The system must remain practically editable at the source-resource level even though validated runtime snapshots are immutable.\n\nPlease explicitly distinguish:\n- immutable validated runtime snapshot / stable IDs, which should remain;\nfrom\n- editable canonical raster/resource data, whose cell assignments and boundaries may be deliberately corrected after review.\n\nFor future correction work:\n- compare current raster against the intended hand-drawn source and visible LOTR geography;\n- inventory concrete wrong-river/wrong-boundary cases with tile IDs and coordinates;\n- classify whether each defect came from the original drawing or from translation/implementation into KOME;\n- preserve stable tile IDs and evaluate persisted Build/waypoint/company/conflict reference impact before edits;\n- allow deliberate boundary edits rather than treating current cells as untouchable;\n- retain explicit exclusions/gaps only where they are actually intended geography.\n\nThe user expects meaningful map cleanup work and does not want implementation constraints to turn the current raster into an effectively uneditable final map.",
+      "attachments": [],
+      "createdAt": "2026-10-09T04:21:01.708Z",
+      "updatedAt": "2026-10-09T04:21:01.670Z",
+      "parentId": null,
+      "resolvedAt": null,
+      "quotedText": null,
+      "author": {
+        "id": "fbe28be2-14f4-4449-8934-95531d732ddc",
+        "name": "KillStreak7634"
+      },
+      "onBehalfOf": null
+    },
+    {
+      "id": "eba78196-5abb-4978-9888-4e83300c4d7b",
+      "body": "## Merge verified — 2026-10-02\n\n[PR #15](https://github.com/daynenewman/KOME-LOTR-Addon/pull/15) is verified merged into dev at [050048409b3769601027133b462f6ab80ed5888b](https://github.com/daynenewman/KOME-LOTR-Addon/commit/050048409b3769601027133b462f6ab80ed5888b). Fresh origin/dev and the clean primary dev worktree both resolve to this SHA; primary advanced by fast-forward only. Reviewed head 4d8e9b5e703c1f45c687239fae8ea2fa29745bb7 is an ancestor and both trees are exactly 18222d72298ab9f9a34f541bc8939261ec2ce6b6. No extra combined changes require a new integration run.\n\nReused recorded clean test/build: **1,175 passed, two existing Windows symlink skips, zero failures/errors** (1,177 discovered). Not rerun for merge verification; no additional live acceptance claimed. [Committed validation and coordinate/manual handoff](https://github.com/daynenewman/KOME-LOTR-Addon/blob/050048409b3769601027133b462f6ab80ed5888b/docs/tile-geography-review-20261002/README.md). No deployment, branch deletion, world operation or runtime refresh. Other worktrees and protected stash preserved.\n\nCoordinate atlas (26,731 evidence rows / 26,664 unique cells, 43 crops), exact original-source hash/row provenance and approved geometry replay are available on dev. No geometry change or geographic classification was approved by this merge. Uncertain additions, withheld topology/banks/junctions, blocked proposal and optional transfer decisions remain pending; current coordinates and protected controls are in the handoff. Retain In Progress.",
+      "attachments": [],
+      "createdAt": "2026-10-02T15:59:06.785Z",
+      "updatedAt": "2026-10-02T15:59:06.758Z",
+      "parentId": null,
+      "resolvedAt": null,
+      "quotedText": null,
+      "author": {
+        "id": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+        "name": "Dayne Newman"
+      },
+      "onBehalfOf": null
+    },
+    {
+      "id": "c9e92adc-6f9e-46c9-b1b8-30ed8f858cc1",
+      "body": "Published [PR #15](https://github.com/daynenewman/KOME-LOTR-Addon/pull/15) targeting `dev`; head `4d8e9b5e703c1f45c687239fae8ea2fa29745bb7`. Fresh dev `76fb78e` has no divergence from the reviewed feature base; GitHub reports mergeable. Reported clean test/build: **1,175 passed, two existing Windows symlink skips, zero failures/errors** (not rerun for publication). [Published handoff/evidence](https://github.com/daynenewman/KOME-LOTR-Addon/blob/4d8e9b5e703c1f45c687239fae8ea2fa29745bb7/docs/tile-geography-review-20261002/README.md) and [Claude finding assessment](https://github.com/daynenewman/KOME-LOTR-Addon/blob/4d8e9b5e703c1f45c687239fae8ea2fa29745bb7/docs/tile-geography-review-20261002/claude-review-assessment.md).\n\nCoordinate review package covers 26,731 evidence rows / 26,664 unique cells in 43 regions, with current IDs/gaps, half-open world bounds, protected controls and pending dispositions. [Atlas handoff](https://github.com/daynenewman/KOME-LOTR-Addon/blob/4d8e9b5e703c1f45c687239fae8ea2fa29745bb7/docs/tile-geography-review-20261002/README.md), [compact cells](https://github.com/daynenewman/KOME-LOTR-Addon/blob/4d8e9b5e703c1f45c687239fae8ea2fa29745bb7/docs/tile-geography-review-20261002/review-cells.csv) and [exact provenance verification](https://github.com/daynenewman/KOME-LOTR-Addon/blob/4d8e9b5e703c1f45c687239fae8ea2fa29745bb7/docs/tile-geography-review-20261002/provenance-verification.json): original hashes and every compact coordinate/group/note/source row checked against preserved audits; compact inputs reproduce the atlas, while full provenance replay requires the recorded exact historical originals.\n\nApproved mask remains ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7. No geometry correction, owner/reference change or migration is applied. The 25,919 uncertain V2 additions are concerns, not proven errors; withheld banks/topology, blocked 55-cell proposal and optional (974,727) transfer remain pending explicit decisions. KOM-58 provides an implemented metadata mechanism, but production classifications remain empty. Preserve In Progress and broader acceptance/dependencies.",
+      "attachments": [],
+      "createdAt": "2026-10-02T15:25:51.212Z",
+      "updatedAt": "2026-10-02T15:25:51.133Z",
+      "parentId": null,
+      "resolvedAt": null,
+      "quotedText": null,
+      "author": {
+        "id": "1868f67d-5cfb-4a37-b1ae-5d012d463d03",
+        "name": "Dayne Newman"
+      },
+      "onBehalfOf": null
+    }
+  ],
+  "hasNextPage": false
+}

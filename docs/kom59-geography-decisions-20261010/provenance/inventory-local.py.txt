@@ -1,0 +1,204 @@
+"""Read-only stopped-save inventory. Never saves, starts or stops a world."""
+from pathlib import Path
+import csv,json,hashlib,sys,importlib.util,re,datetime,collections,math,subprocess
+sys.dont_write_bytecode=True
+O=Path(__file__).resolve().parent;W=O.parents[1];ORIGINAL=W/'build/kom59-geography-decisions-20261010'
+OUT=O/'saved-reference-evidence';OUT.mkdir(exist_ok=True)
+spec=importlib.util.spec_from_file_location('reader',W/'build/tile-acceptance-20261006/nbt_snapshot.py');reader=importlib.util.module_from_spec(spec);spec.loader.exec_module(reader)
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+def dump(n,v):(OUT/n).write_text(json.dumps(v,indent=2)+'\n',encoding='utf-8')
+def csvout(n,rows,columns):
+ with (OUT/n).open('w',encoding='utf-8',newline='') as f:
+  w=csv.DictWriter(f,fieldnames=columns);w.writeheader();w.writerows(rows)
+manifest=list(csv.DictReader((ORIGINAL/'recommended-cell-manifest.csv').open()))
+removed={(int(v['mask_x']),int(v['mask_y'])):v for v in manifest};affected={v['before_tile'] for v in manifest}
+endpoints={t for v in manifest for t in v['pair'].split('-')}
+assert len(removed)==45
+registry=Path('C:/Users/dayne/.codex/worktrees/88a9/KOME-LOTR-Addon/build/waypoint-acceptance-20261010/saved-waypoints.json')
+entries=json.loads(registry.read_text());worlds={str(Path(v['world'])):dict(discovery='Earlier read-only 53-world saved-waypoint registry; no stopped-state assumption') for v in entries}
+live=[W/'build/pr-review-20261007/reload-fix-runtime/server/review-acceptance-fresh',W/'build/pr26-integration-20261009/joinbattle-fix/occupied-capital/runtime/server/pr26-integration-disposable',Path('C:/Users/dayne/.codex/worktrees/88a9/KOME-LOTR-Addon/build/waypoint-acceptance-20261010/server/waypoint-acceptance-fresh')]
+for w in live:worlds[str(w)]={'discovery':'Protected live acceptance server'}
+# Explicit preserved pre-restart copies, verified against the source run's graceful-stop receipts.
+for folder,cycle in [('stopped-first-backup','first'),('stopped-populated-backup','second')]:
+ w=W/'build/tile-acceptance-20261006'/folder
+ worlds[str(w)]={'discovery':'Preserved stopped acceptance copy','exit':str(w.parent/f'exit-{cycle}.json'),'log':str(w.parent/f'console-{cycle}.log'),'export':str(w.parent/f'saved-{cycle}.json')}
+historical=Path('C:/Users/dayne/OneDrive/Desktop/The-Lord-of-the-Rings-main/KOME-LOTR-Addon-Tile-Resolution-Dev/docs/combined-geography-install-20260920')
+backup_meta=historical/'runtime-backup.json';bk=json.loads(backup_meta.read_text());backup=Path(bk['path']);bm=json.loads((backup/'manifest.json').read_text())
+backworld=backup/'server/world'
+worlds[str(backworld)]={'discovery':'Recorded stopped full backup','stop_metadata':str(backup_meta),'manifest':str(backup/'manifest.json')}
+sources=[];provenance=[];counts=[];records=[];hits=[];gaps=[];stop_tails=[];supplement=[]
+details=[]
+# These preserved copies can be tied to a complete captured strategic root and
+# the matching numbered source-run shutdown. Nearby unrelated logs do not qualify.
+captured_copies={
+ 'stopped-cycle-1-backup':('saved-cycle-1.json','1'),
+ 'stopped-pre-queue-fix-backup':('saved-pre-queue-fix.json','2'),
+ 'stopped-backup':('map-performance/saved-before.json','4'),
+ 'backup-after-initial-stop':('saved-cycle-1.json','1'),
+}
+def fileinfo(p):
+ s=p.stat();return dict(path=str(p),sha256=sha(p),bytes=s.st_size,mtime_utc=datetime.datetime.fromtimestamp(s.st_mtime,datetime.timezone.utc).isoformat())
+def readstable(p,snapshot,role):
+ before=fileinfo(p);data=reader.read_nbt(p);after=fileinfo(p);assert before==after,'Saved input changed during read: '+str(p)
+ sources.append(dict(snapshot=snapshot,role=role,**before));return data
+def classify(w,meta):
+ if w in live:return 'EXCLUDED_LIVE_RUNTIME',None,'Not a consistent stopped snapshot; not read or modified'
+ if not (w/'data/KOME_ServerRules.dat').is_file():return 'UNAVAILABLE_FILE',None,'No current strategic root file'
+ if meta.get('stop_metadata'):
+  assert bk['world_stopped'] is True
+  failed=[k for k,v in bm.items() if not (backup/k).is_file() or sha(backup/k)!=v['sha256']]
+  if failed:return 'EXCLUDED_BACKUP_HASH_MISMATCH',None,json.dumps(failed)
+  proof=dict(stop_metadata=fileinfo(backup_meta),backup_manifest=fileinfo(backup/'manifest.json'),verified_manifest_files=len(bm),declared_world_stopped=True)
+  return 'CONSISTENT_STOPPED_BACKUP',proof,'All archived manifest files match; stop assertion recorded by earlier controlled operation'
+ if meta.get('exit'):
+  ex=Path(meta['exit']);log=Path(meta['log']);v=json.loads(ex.read_text());text=log.read_text(errors='replace');d=reader.read_nbt(w/'data/KOME_ServerRules.dat').get('data',{})
+  export=json.loads(Path(meta['export']).read_text())
+  if d!=export:return 'EXCLUDED_COPY_EXPORT_MISMATCH',None,'Stopped copy root does not equal captured source-run root'
+  if v.get('returncode')!=0 or text.rfind('Stopping server')<text.rfind('Starting minecraft server'):return 'EXCLUDED_STOP_PROOF',None,'Missing final clean stop proof'
+  proof=dict(exit=fileinfo(ex),console=fileinfo(log),captured_root=fileinfo(Path(meta['export'])),export_matches_root=True)
+  stop_tails.append(dict(world=str(w),exit=ex.read_text().strip(),console_tail=text.splitlines()[-22:]))
+  return 'CONSISTENT_STOPPED_COPY',proof,'Graceful shutdown/exit zero and source root export match; preserved copy not a live world'
+ # A backup requires its own root-capture association; chronological proximity
+ # to any ancestor's shutdown is insufficient.
+ if w.parent.name in captured_copies or w.parent.parent.name in captured_copies:
+  key=w.parent.name if w.parent.name in captured_copies else w.parent.parent.name
+  export_name,cycle=captured_copies[key]
+  for ancestor in list(w.parents)[:6]:
+   export=ancestor/export_name;ex=ancestor/f'exit-{cycle}.json';log=ancestor/f'console-{cycle}.log'
+   if not all(p.is_file() for p in [export,ex,log]):continue
+   d=reader.read_nbt(w/'data/KOME_ServerRules.dat').get('data',{})
+   raw=json.loads(export.read_text());captured=raw.get('kome',raw.get('data',raw))
+   text=log.read_text(errors='replace');exitdata=json.loads(ex.read_text())
+   if d!=captured or exitdata.get('returncode',exitdata.get('exit_code'))!=0:continue
+   if abs(log.stat().st_mtime-ex.stat().st_mtime)>5 or export.stat().st_mtime<ex.stat().st_mtime:continue
+   if text.rfind('Stopping server')<text.rfind('Starting minecraft server') or 'Saving worlds' not in text[text.rfind('Stopping server'):]:continue
+   proof=dict(exit=fileinfo(ex),console=fileinfo(log),captured_root=fileinfo(export),export_matches_root=True,proof_scope='Complete strategic root matches post-stop capture; not a whole-world physical-chunk validation')
+   stop_tails.append(dict(world=str(w),exit=ex.read_text().strip(),console_tail=text.splitlines()[-22:]))
+   return 'CONSISTENT_STOPPED_ROOT_COPY',proof,'Exact strategic root match to captured source checkpoint and matching clean numbered shutdown'
+ if 'backup' in str(w).lower():
+  return 'EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE',None,'Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient'
+ # Retired runtime: require its own latest log and an adjacent clean exit receipt.
+ for root in [w.parent,*list(w.parents)[1:5]]:
+  if root==W or root==W/'build':break
+  for ex in sorted(root.glob('exit*.json'),key=lambda p:p.stat().st_mtime,reverse=True):
+   try:v=json.loads(ex.read_text())
+   except Exception:continue
+   if v.get('exit_code',v.get('returncode'))!=0:continue
+   if (w/'data/KOME_ServerRules.dat').stat().st_mtime>ex.stat().st_mtime+2:continue
+   if (w/'session.lock').exists() and (w/'session.lock').stat().st_mtime>ex.stat().st_mtime+2:continue
+   logs=[w.parent/'logs/latest.log']
+   for log in logs:
+    if not log.is_file() or abs(log.stat().st_mtime-ex.stat().st_mtime)>5:continue
+    text=log.read_text(errors='replace')
+    if text.rfind('Stopping server')<0 or text.rfind('Stopping server')<text.rfind('Starting minecraft server'):continue
+    if 'Saving worlds' not in text[text.rfind('Stopping server'):]:continue
+    proof=dict(exit=fileinfo(ex),console=fileinfo(log),last_launch_and_save_not_after_exit=True)
+    stop_tails.append(dict(world=str(w),exit=ex.read_text().strip(),console_tail=text.splitlines()[-22:]))
+    return 'CONSISTENT_RETIRED_STOPPED_SAVE',proof,'Exit zero + final stop/save log; saved root and session lock not later than receipt'
+ return 'EXCLUDED_STOP_PROVENANCE_UNAVAILABLE',None,'Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified'
+def tile_refs(v):
+ result=[]
+ def walk(a,p=''):
+  if isinstance(a,str):
+   if re.fullmatch(r'T\d{3}',a) and a in endpoints:result.append((p,a))
+  elif isinstance(a,dict):
+   for k,z in a.items():
+    q=p+'/'+k
+    walk(z,q)
+  elif isinstance(a,list):
+   for i,z in enumerate(a):walk(z,p+f'/{i}')
+ walk(v);return result
+def poses(v,dim=None,path=''):
+ if isinstance(v,dict):
+  own=next((v[k] for k in ['DimensionId','Dimension','dimension','dimensionId'] if isinstance(v.get(k),(int,float))),dim)
+  for k,x in v.items():
+   if not k.endswith('X') or not isinstance(x,(int,float)):continue
+   prefix=k[:-1];z=v.get(prefix+'Z')
+   if not isinstance(z,(int,float)) or 'Map' in prefix or 'Chunk' in prefix:continue
+   specific=v.get(prefix+'Dimension',own)
+   yield path+'/'+prefix+'{X,Z}',float(x),float(z),specific,'POINT'
+  if isinstance(v.get('XCoord'),(int,float)) and isinstance(v.get('ZCoord'),(int,float)):
+   yield path+'/{XCoord,ZCoord}',float(v['XCoord']),float(v['ZCoord']),own,'CUSTOM_WAYPOINT'
+  if isinstance(v.get('Pos'),list) and len(v['Pos'])>=3 and all(isinstance(x,(int,float)) for x in v['Pos'][:3]):
+   yield path+'/Pos',float(v['Pos'][0]),float(v['Pos'][2]),own,'ENTITY_SNAPSHOT_POS'
+  low={k.lower():k for k in v}
+  if all(k in low for k in ['minx','minz','maxx','maxz']):
+   bb=[v[low[k]] for k in ['minx','minz','maxx','maxz']]
+   if all(isinstance(x,(int,float)) for x in bb):yield path+'/Bounds',bb,None,own,'BOUNDS'
+  for k,x in v.items():
+   if isinstance(x,(dict,list)):yield from poses(x,own,path+'/'+k)
+ elif isinstance(v,list):
+  for i,x in enumerate(v):yield from poses(x,dim,path+f'/{i}')
+def inventory_record(sid,cat,index,row,native_dim=None):
+ identity=str(row.get('Id',row.get('ConflictId',row.get('TileId',row.get('WaypointKey',row.get('ID',index)))))) if isinstance(row,dict) else str(index)
+ refs=tile_refs(row);pp=list(poses(row,native_dim));resolved=0;unknown=0;hitcount=0
+ for path,x,z,dim,kind in pp:
+  if kind=='BOUNDS':
+   xx,z0,x1,z1=x;matched=[c for c,v in removed.items() if xx<float(v['world_x_max_exclusive']) and x1>=float(v['world_x_min']) and z0<float(v['world_z_max_exclusive']) and z1>=float(v['world_z_min'])]
+  else:matched=[(math.floor(x/128+810),math.floor(z/128+730))];matched=[c for c in matched if c in removed]
+  if dim is None:unknown+=1
+  else:resolved+=1
+  for c in matched:
+   if dim not in [100,None]:continue
+   v=removed[c];hitcount+=1
+   hits.append(dict(snapshot=sid,category=cat,record=identity,field_path=path,kind=kind,dimension='' if dim is None else dim,mask_x=c[0],mask_y=c[1],pair=v['pair'],before_tile=v['before_tile'],classification='POTENTIAL_HIT_DIMENSION_UNAVAILABLE' if dim is None else 'REMOVED_CELL_INTERSECTION',world_x=json.dumps(x) if isinstance(x,list) else x,world_z='' if z is None else z,recommendation='Preserve record and original reference; approval must explicitly decide containment/remediation. Do not delete, relocate or replan automatically.'))
+ if refs or hitcount or unknown:
+  records.append(dict(snapshot=sid,category=cat,record=identity,tile_references=json.dumps(refs),point_locations=len(pp),explicit_dimension_locations=resolved,dimension_unavailable_locations=unknown,removed_cell_intersections=hitcount,disposition='EXACT_HIT_REQUIRES_DECISION' if hitcount else 'DIMENSION_COVERAGE_GAP' if unknown else 'STABLE_TILE_ID_REFERENCE_ONLY'))
+ if refs or hitcount or unknown or cat in ['Builds','ArmyCompanies','ArmyMovements','MovementHistory','ConflictRecords']:
+  details.append(dict(snapshot=sid,category=cat,record=identity,tile_references=refs,locations=[dict(field_path=p,world_x=x,world_z=z,dimension=d,kind=k) for p,x,z,d,k in pp],saved_record=row))
+ return len(pp),unknown,hitcount
+categories=['Builds','TileWaypoints','TileWaypointLinks','ArmyCompanies','ArmyMovements','MovementHistory','ConflictRecords','RouteEdges','HiredUnits','TacticalConfiguration','SeasonReset','FactionCapitals','JoinBattleDeploymentReceipts']
+for number,(ws,meta) in enumerate(sorted(worlds.items()),1):
+ w=Path(ws);sid=f'S{number:03d}';status,proof,note=classify(w,meta)
+ item=dict(snapshot=sid,world=str(w),selection=status,reason=note,proof=proof)
+ if status.startswith('CONSISTENT'):
+  try:
+   root=readstable(w/'data/KOME_ServerRules.dat',sid,'KOME_ServerRules');data=root.get('data',root);item['root_schema']=data.get('KOMEDataSchemaVersion','UNAVAILABLE');item['root_sha256']=sources[-1]['sha256']
+   cfg=w.parent/'config/LOTR.cfg';native_dim=None
+   if cfg.exists():
+    match=re.search(r'I:"Dimension ID: MiddleEarth"=(-?\d+)',cfg.read_text(errors='replace'))
+    if match:native_dim=int(match.group(1));sources.append(dict(snapshot=sid,role='MiddleEarth_dimension_configuration',**fileinfo(cfg)))
+   item['native_custom_waypoint_dimension']=native_dim
+   catdata={k:data.get(k) for k in categories}
+   public=data.get('PublicWaypoints')
+   for sub in ['Records','Proposals','History','Quarantine','Cutover']:catdata['PublicWaypoints.'+sub]=public.get(sub) if isinstance(public,dict) else None
+   for cat,v in catdata.items():
+    if v is None:
+     counts.append(dict(snapshot=sid,category=cat,records='',coordinate_fields='',dimension_gaps='',exact_hits='',coverage='SECTION_UNAVAILABLE'))
+     gaps.append(dict(snapshot=sid,category=cat,reason='Section absent from this snapshot/schema; not reported as zero impact'));continue
+    rows=v if isinstance(v,list) else [v] if isinstance(v,dict) else []
+    loc=unknown=nhits=0
+    for i,row in enumerate(rows):
+     a,b,c=inventory_record(sid,cat,i,row);loc+=a;unknown+=b;nhits+=c
+    counts.append(dict(snapshot=sid,category=cat,records=len(rows),coordinate_fields=loc,dimension_gaps=unknown,exact_hits=nhits,coverage='ROOT_SECTION_INSPECTED'))
+   playerdir=w/'LOTR/players';players=sorted(playerdir.glob('*.dat')) if playerdir.exists() else []
+   item['native_player_files_available']=len(players) if playerdir.exists() else None
+   if not playerdir.exists():gaps.append(dict(snapshot=sid,category='NativeCustomWaypoints',reason='Native player directory unavailable; shared/custom waypoint state not zero'))
+   for i,p in enumerate(players):
+    player=readstable(p,sid,'Native_LOTR_player');n=0
+    for key in ['CustomWaypoints','CWPSharedUnlocked','SharedCustomWaypoints']:
+     v=player.get(key)
+     if v is None:
+      gaps.append(dict(snapshot=sid,category='NativePlayer.'+key,reason='Field absent; native schema-specific shared reference coverage unavailable'));continue
+     rr=v if isinstance(v,list) else [v];loc=unk=nh=0
+     for j,row in enumerate(rr):
+      a,b,c=inventory_record(sid,'NativePlayer.'+key,f'player{i+1}/{j}',row,native_dim);loc+=a;unk+=b;nh+=c
+     counts.append(dict(snapshot=sid,category='NativePlayer.'+key,records=len(rr),coordinate_fields=loc,dimension_gaps=unk,exact_hits=nh,coverage='NATIVE_PLAYER_FIELD_INSPECTED'))
+   item['coverage_limits']=['Stopped snapshot only, not current live-world state','Root strategic records and available native custom/shared waypoint fields inspected','Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned','Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells']
+   item['state_kind']='Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory'
+  except Exception as e:
+   item['selection']='UNREADABLE_OR_UNSTABLE_SNAPSHOT';item['error']=str(e);gaps.append(dict(snapshot=sid,category='Snapshot',reason=str(e)))
+ provenance.append(item)
+# Rehash every inspected input, including metadata, after the inventory; no claim if a stopped source changed.
+for v in sources:assert sha(Path(v['path']))==v['sha256'],'Source changed after read: '+v['path']
+for snapshot in provenance:
+ for value in (snapshot.get('proof') or {}).values():
+  if isinstance(value,dict) and 'sha256' in value:assert sha(Path(value['path']))==value['sha256'],'Stop proof changed: '+value['path']
+dump('snapshot-provenance.json',provenance);dump('source-files.json',sources);dump('stop-proof-excerpts.json',stop_tails);dump('coverage-gaps.json',gaps)
+dump('record-details.json',details)
+csvout('section-inventory.csv',counts,['snapshot','category','records','coordinate_fields','dimension_gaps','exact_hits','coverage'])
+csvout('affected-references.csv',records,['snapshot','category','record','tile_references','point_locations','explicit_dimension_locations','dimension_unavailable_locations','removed_cell_intersections','disposition'])
+csvout('removed-cell-hits.csv',hits,['snapshot','category','record','field_path','kind','dimension','mask_x','mask_y','pair','before_tile','classification','world_x','world_z','recommendation'])
+result=dict(proposal_mask_cell_manifest_sha256=sha(ORIGINAL/'recommended-cell-manifest.csv'),source_registry_sha256=sha(registry),candidate_worlds=len(provenance),selection_counts=dict(collections.Counter(v['selection'] for v in provenance)),consistent_stopped_snapshots=sum(v['selection'].startswith('CONSISTENT') for v in provenance),removed_cells=45,affected_tile_ids=sorted(affected),contact_endpoint_ids=sorted(endpoints),coordinate_intersection_rows=len(hits),stable_tile_or_coverage_reference_rows=len(records),inspected_files=len(sources),coverage_gap_rows=len(gaps),tests_or_gameplay_launches=0,scope='Read-only saved-reference inventory, not save migration or live acceptance; no live root read',limits=['Repeated snapshots/records are not unique production-world totals','Unavailable, excluded or absent sections must not be interpreted as zero impact','Native dimension for custom waypoint checks comes only from available saved server configuration','T364 three-tile proposal is separate; no T364 edit is in this manifest'])
+dump('summary.json',result);dump('inventory-code-provenance.json',dict(script_sha256=sha(Path(__file__)),nbt_reader_sha256=sha(W/'build/tile-acceptance-20261006/nbt_snapshot.py'),proposal_manifest_sha256=sha(ORIGINAL/'recommended-cell-manifest.csv')))
+print(json.dumps(result,indent=2))

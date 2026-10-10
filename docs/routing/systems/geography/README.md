@@ -6,6 +6,8 @@ Owns world/map coordinate resolution, bundled tile geometry, gameplay defaults, 
 
 [KOM-59 T351/T352 correction](../../../kom59-ithilien-route-20261010/README.md) opens the existing direct default edge and removes its false river marker. The historical decorative-color water inference was wrong for this pair. Raster/IDs/reference coordinates remain unchanged; saved overrides still win. This narrow approval does not resolve the atlas's uncertain cells or establish actual server terrain/permissions.
 
+[KOM-59 geography decision package](../../../kom59-geography-decisions-20261010/README.md) contains five unapproved mountain-contact cuts, an independent conditional T340/T352 route/marker proposal, and the unresolved Harnen report. Exact manifests, annotated crops and historical stopped-save coverage are review evidence, not geographic approval or a current production-state inventory. T364 remains separate.
+
 ## Authorities and entry points
 
 - [KOMETileWorldResolver.resolveWorldPosition](../../../../src/main/java/kome/common/data/KOMETileWorldResolver.java), `resolveMapPosition`, and [KOMETileResolution](../../../../src/main/java/kome/common/data/KOMETileResolution.java): explicit `RESOLVED`, `IN_BOUNDS_GAP`, `OUTSIDE_MASK`, unsupported/invalid states. Never substitute a nearby tile for a failed resolution.

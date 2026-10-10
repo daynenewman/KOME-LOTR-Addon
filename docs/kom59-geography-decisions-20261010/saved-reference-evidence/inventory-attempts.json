@@ -1,0 +1,16 @@
+{
+  "initial_inventory": {
+    "candidate_worlds": 57,
+    "accepted_snapshots": 19,
+    "removed_coordinate_hits": 0,
+    "reference_rows": 229,
+    "status": "SUPERSEDED_NOT_FINAL"
+  },
+  "corrections": [
+    "Rejected association of arbitrary ancestor exit receipts with copied backups; now require an exact strategic-root export and matching numbered clean shutdown, an explicit stopped/hash backup, or the retired runtime own latest log with adjacent receipt. Four previously accepted copies are now excluded.",
+    "Tile references in array elements are now inspected as well as compound fields. Reference scope includes all ten contact endpoints; the seven edited IDs are reported separately.",
+    "Published record details and category totals include records outside the endpoints; no empty queue section is treated as current live-state proof."
+  ],
+  "final_summary": "summary.json",
+  "gameplay_or_test_failures_observed_in_this_inventory": 0
+}

@@ -1,0 +1,55 @@
+from pathlib import Path
+import json,csv,hashlib,re,html,sys,subprocess
+from urllib.parse import urlsplit,unquote
+from PIL import Image
+O=Path(__file__).resolve().parent;R=O/'review';D=R/'docs/kom59-geography-decisions-20261010'
+def sha(p):return hashlib.sha256(p.read_bytes()).hexdigest()
+errors=[];links=0
+for doc in [*D.rglob('*.md'),*D.rglob('*.html')]:
+ text=doc.read_text(encoding='utf-8-sig')
+ targets=re.findall(r'!?\[[^\]]*\]\(([^)\n]+)\)',text) if doc.suffix=='.md' else re.findall(r'(?:src|href)="([^"]+)"',text)
+ for link in targets:
+  p=urlsplit(html.unescape(link));
+  if p.scheme or p.netloc:continue
+  links+=1;t=(doc.parent/unquote(p.path)).resolve() if p.path else doc
+  if not t.is_relative_to(R) or not t.exists():errors.append(f'{doc.name}: missing/nonportable {link}');continue
+  if p.fragment:
+   content=t.read_text(encoding='utf-8-sig');anchors=set(re.findall(r'id="([^"]+)"',content))
+   anchors.update(re.sub(r'[^\w\- ]','',x.strip().lower()).replace(' ','-') for x in re.findall(r'^#+\s+(.+)$',content,re.M))
+   if unquote(p.fragment) not in anchors:errors.append(f'{doc.name}: missing anchor {link}')
+copy=json.loads((D/'copy-verification.json').read_text())
+for v in copy['files']:assert sha(D/v['published'])==v['sha256'],v['published']
+rows=list(csv.DictReader((D/'recommended-cell-manifest.csv').open()))
+cells={(int(v['mask_x']),int(v['mask_y'])) for v in rows};assert len(rows)==len(cells)==45
+assert sha(D/'recommended-cell-manifest.csv')=='f14472b0e865974634bc5b6e791e0ce872687f1fda6a56958ec038165a9b4b5e'
+runs=list(csv.DictReader((D/'recommended-exclusion-manifest.csv').open()))
+expanded={(x,int(v['mask_y'])) for v in runs for x in range(int(v['x_start_inclusive']),int(v['x_end_exclusive']))}
+assert expanded==cells and len(runs)==25 and len({r['zone_id'] for r in runs})==5
+for v in rows:
+ x,y=int(v['mask_x']),int(v['mask_y']);assert int(v['world_x_min'])==(x-810)*128 and int(v['world_z_min'])==(y-730)*128
+ assert int(v['world_x_max_exclusive'])==(x+1-810)*128 and int(v['world_z_max_exclusive'])==(y+1-730)*128
+ assert v['after_tile']=='GAP' and v['after_rgba']=='0,0,0,0' and v['before_tile']!='T364'
+top=json.loads((D/'minimum-cut-topology.json').read_text());assert len(top)==5 and sum(v['recommended_cells'] for v in top)==45
+assert all(len(c)==1 for v in top for c in v['components_after'].values()) and all(not v['default_point_intersections'] for v in top)
+inputs=json.loads((D/'inputs.json').read_text())
+primary=Path('C:/Users/dayne/OneDrive/Desktop/The-Lord-of-the-Rings-main/KOME-LOTR-Addon')
+comparisons=[]
+allowed_eol={'src/main/resources/assets/kome/map/reset_conquest_tile_ids.txt','src/main/resources/assets/kome/config/kome_tile_ownership_balance_report.txt'}
+allowed_checkout_eol={'src/main/resources/assets/kome/map/reset_conquest_tile_ids.txt','src/main/resources/assets/kome/map/tile_exclusions.tsv',*[f'src/main/resources/assets/kome/config/{name}.csv' for name in ['kome_emergency_defense_templates','kome_faction_capital_defaults','kome_muster_roster','kome_waypoint_defaults']]}
+for path,digest in inputs['production'].items():
+ relative=Path(path).as_posix();source=(primary/Path(path)).read_bytes();clone=(R/Path(path)).read_bytes()
+ assert hashlib.sha256(source).hexdigest()==digest,'Pinned primary input changed: '+path
+ blob=subprocess.check_output(['git','-C',str(R),'show','origin/dev:'+relative])
+ if clone!=blob:assert relative in allowed_checkout_eol and clone.replace(b'\r\n',b'\n')==blob.replace(b'\r\n',b'\n'),'Isolated checkout differs from current dev beyond explicit EOL filter: '+path
+ equal=hashlib.sha256(clone).hexdigest()==digest
+ if not equal:assert relative in allowed_eol and source.replace(b'\r\n',b'\n')==clone.replace(b'\r\n',b'\n'),'Non-EOL drift: '+path
+ comparisons.append(dict(path=relative,pinned_primary_sha256=digest,isolated_checkout_sha256=hashlib.sha256(clone).hexdigest(),dev_blob_sha256=hashlib.sha256(blob).hexdigest(),comparison='BYTE_IDENTICAL' if equal else 'EXPLICIT_CRLF_LF_ONLY_DELTA',checkout_to_blob='BYTE_IDENTICAL' if clone==blob else 'EXPLICIT_CHECKOUT_EOL_FILTER'))
+(D/'publication-input-comparison.json').write_text(json.dumps(dict(base=inputs['dev'],files=comparisons,limits='Raw primary/clone byte reuse initially failed for two text inputs; primary hashes still match. Six clone files use the recorded checkout CRLF filter compared with Git blobs. Every difference is explicitly listed and only CRLF/LF; no resource was edited.'),indent=2)+'\n',encoding='utf-8')
+pics=[]
+for p in sorted((D/'visuals').glob('*.png')):
+ with Image.open(p) as image:pics.append(dict(file=p.relative_to(D).as_posix(),size=list(image.size)));image.verify()
+assert len(pics)==9
+assert not errors,errors
+out=dict(status='PASS',portable_documents=3,local_links_and_images=links,exact_copies=len(copy['files']),png_crops=pics,unique_removals=45,exclusion_runs=25,exclusion_zones=5,production_inputs_compared=len(inputs['production']),production_byte_identical=sum(x['comparison']=='BYTE_IDENTICAL' for x in comparisons),explicit_eol_only_deltas=sum(x['comparison']!='BYTE_IDENTICAL' for x in comparisons),scope='Offline documentation, exact-copy and existing manifest consistency checks only; no gameplay tests')
+(O/'package-check.json').write_text(json.dumps(out,indent=2)+'\n',encoding='utf-8')
+print(json.dumps(out,indent=2))

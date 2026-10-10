@@ -1,0 +1,26 @@
+{
+  "dev": "26ba6cb7d1bbe7d4e0e4482b4f5855e15747c04d",
+  "proposal_only": true,
+  "contact_cells_reviewed": 99,
+  "recommended_changed_cells": 45,
+  "recommended_zones": 5,
+  "recommended_exclusion_runs": 25,
+  "active_ids_before": 621,
+  "active_ids_after": 621,
+  "default_route_arrival_point_intersections": 0,
+  "tests_run": 0,
+  "builds_run": 0,
+  "runtimes_touched": false,
+  "current_shared_raster_edges": 47,
+  "source_intent": "Packaged drawing inspected; original hand-drawn source and explicit intended extent not authenticated",
+  "figures": [
+    "visuals/T435-T654.png",
+    "visuals/T400-T420.png",
+    "visuals/T329-T355.png",
+    "visuals/T352-T356.png",
+    "visuals/T218-T220.png",
+    "visuals/T340-T352.png",
+    "visuals/T351-T352.png",
+    "visuals/T352-T375.png"
+  ]
+}

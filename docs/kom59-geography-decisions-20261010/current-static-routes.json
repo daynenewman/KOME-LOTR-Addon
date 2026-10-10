@@ -1,0 +1,71 @@
+{
+  "scope": "Read-only default graph reconstruction with all territorial access assumed and no saved overrides. Follows production pass-rank/distance/ID neighbor order. Not command execution, human or world-state evidence.",
+  "pairs": [
+    {
+      "pair": "T435-T654",
+      "direct_default": "ABSENT",
+      "current_static_forward": [],
+      "current_static_reverse": [],
+      "proposal": "Same frozen graph; queued paths and overrides not rewritten"
+    },
+    {
+      "pair": "T400-T420",
+      "direct_default": "ABSENT",
+      "current_static_forward": [
+        "T400",
+        "T409",
+        "T420"
+      ],
+      "current_static_reverse": [
+        "T420",
+        "T409",
+        "T400"
+      ],
+      "proposal": "Same frozen graph; queued paths and overrides not rewritten"
+    },
+    {
+      "pair": "T329-T355",
+      "direct_default": "ABSENT",
+      "current_static_forward": [
+        "T329",
+        "T331",
+        "T355"
+      ],
+      "current_static_reverse": [
+        "T355",
+        "T338",
+        "T329"
+      ],
+      "proposal": "Same frozen graph; queued paths and overrides not rewritten"
+    },
+    {
+      "pair": "T352-T356",
+      "direct_default": "ABSENT",
+      "current_static_forward": [
+        "T352",
+        "T358",
+        "T375",
+        "T381",
+        "T391",
+        "T356"
+      ],
+      "current_static_reverse": [
+        "T356",
+        "T391",
+        "T357",
+        "T346",
+        "T326",
+        "T352"
+      ],
+      "proposal": "Same frozen graph; queued paths and overrides not rewritten"
+    },
+    {
+      "pair": "T218-T220",
+      "direct_default": "ABSENT",
+      "current_static_forward": [],
+      "current_static_reverse": [],
+      "proposal": "Same frozen graph; queued paths and overrides not rewritten"
+    }
+  ],
+  "route_sha256": "d214d0b7446b9718b303c608b125ae755adebfc6a2437c739bdb60867c2d8f5e"
+}

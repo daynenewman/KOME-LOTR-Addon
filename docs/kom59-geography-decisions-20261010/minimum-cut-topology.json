@@ -1,0 +1,146 @@
+[
+  {
+    "pair": "T435-T654",
+    "global_minimum_cells": 2,
+    "minimum_solutions": 1,
+    "recommended_cells": 2,
+    "method": "global minimum cardinal+diagonal endpoint cut",
+    "remove_counts": {
+      "T654": 2
+    },
+    "components_before": {
+      "T435": [
+        8425
+      ],
+      "T654": [
+        4273
+      ]
+    },
+    "components_after": {
+      "T435": [
+        8425
+      ],
+      "T654": [
+        4271
+      ]
+    },
+    "collateral_lost_contacts": {},
+    "default_point_intersections": []
+  },
+  {
+    "pair": "T400-T420",
+    "global_minimum_cells": 10,
+    "minimum_solutions": 4,
+    "recommended_cells": 10,
+    "method": "global minimum cardinal+diagonal endpoint cut",
+    "remove_counts": {
+      "T420": 10
+    },
+    "components_before": {
+      "T400": [
+        3259
+      ],
+      "T420": [
+        3549
+      ]
+    },
+    "components_after": {
+      "T400": [
+        3259
+      ],
+      "T420": [
+        3539
+      ]
+    },
+    "collateral_lost_contacts": {},
+    "default_point_intersections": []
+  },
+  {
+    "pair": "T329-T355",
+    "global_minimum_cells": 12,
+    "minimum_solutions": 15,
+    "recommended_cells": 12,
+    "method": "global minimum cardinal+diagonal endpoint cut",
+    "remove_counts": {
+      "T329": 4,
+      "T355": 8
+    },
+    "components_before": {
+      "T329": [
+        2232
+      ],
+      "T355": [
+        4198
+      ]
+    },
+    "components_after": {
+      "T329": [
+        2228
+      ],
+      "T355": [
+        4190
+      ]
+    },
+    "collateral_lost_contacts": {
+      "T329-T331:edge": 1
+    },
+    "default_point_intersections": []
+  },
+  {
+    "pair": "T352-T356",
+    "global_minimum_cells": 6,
+    "minimum_solutions": 1,
+    "recommended_cells": 6,
+    "method": "global minimum cardinal+diagonal endpoint cut",
+    "remove_counts": {
+      "T352": 2,
+      "T356": 4
+    },
+    "components_before": {
+      "T352": [
+        509
+      ],
+      "T356": [
+        486
+      ]
+    },
+    "components_after": {
+      "T352": [
+        507
+      ],
+      "T356": [
+        482
+      ]
+    },
+    "collateral_lost_contacts": {},
+    "default_point_intersections": []
+  },
+  {
+    "pair": "T218-T220",
+    "global_minimum_cells": 15,
+    "minimum_solutions": 253,
+    "recommended_cells": 15,
+    "method": "global minimum cardinal+diagonal endpoint cut",
+    "remove_counts": {
+      "T218": 15
+    },
+    "components_before": {
+      "T218": [
+        3108
+      ],
+      "T220": [
+        268
+      ]
+    },
+    "components_after": {
+      "T218": [
+        3093
+      ],
+      "T220": [
+        268
+      ]
+    },
+    "collateral_lost_contacts": {},
+    "default_point_intersections": []
+  }
+]

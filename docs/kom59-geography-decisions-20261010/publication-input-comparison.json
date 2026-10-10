@@ -1,0 +1,198 @@
+{
+  "base": "26ba6cb7d1bbe7d4e0e4482b4f5855e15747c04d",
+  "files": [
+    {
+      "path": "src/main/resources/assets/kome/map/reset_conquest_borders.png",
+      "pinned_primary_sha256": "8e5f51fcc8481ddd8a8ac8153b3d36f46de765980d476c32f0856f1c43a3db20",
+      "isolated_checkout_sha256": "8e5f51fcc8481ddd8a8ac8153b3d36f46de765980d476c32f0856f1c43a3db20",
+      "dev_blob_sha256": "8e5f51fcc8481ddd8a8ac8153b3d36f46de765980d476c32f0856f1c43a3db20",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/map/reset_conquest_borders_thin.png",
+      "pinned_primary_sha256": "36a3e522248c07e9948d94169f36e7d524182059adf59bfd17217f5d7f1a384e",
+      "isolated_checkout_sha256": "36a3e522248c07e9948d94169f36e7d524182059adf59bfd17217f5d7f1a384e",
+      "dev_blob_sha256": "36a3e522248c07e9948d94169f36e7d524182059adf59bfd17217f5d7f1a384e",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/map/reset_conquest_bridges.png",
+      "pinned_primary_sha256": "c6082a9310490a49173bafa352029a3dacfd2c06a85972975900939e8c2c3dde",
+      "isolated_checkout_sha256": "c6082a9310490a49173bafa352029a3dacfd2c06a85972975900939e8c2c3dde",
+      "dev_blob_sha256": "c6082a9310490a49173bafa352029a3dacfd2c06a85972975900939e8c2c3dde",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/map/reset_conquest_desert_shade.png",
+      "pinned_primary_sha256": "5b7498f76109e99d0425c27bdd674d384a46984ff180e90214079bafe8cfd809",
+      "isolated_checkout_sha256": "5b7498f76109e99d0425c27bdd674d384a46984ff180e90214079bafe8cfd809",
+      "dev_blob_sha256": "5b7498f76109e99d0425c27bdd674d384a46984ff180e90214079bafe8cfd809",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/map/reset_conquest_hitmap.png",
+      "pinned_primary_sha256": "3ee80b95947f99ca4bdc355c0acf3dc832d41e964b5fe54e880f35665068e6d1",
+      "isolated_checkout_sha256": "3ee80b95947f99ca4bdc355c0acf3dc832d41e964b5fe54e880f35665068e6d1",
+      "dev_blob_sha256": "3ee80b95947f99ca4bdc355c0acf3dc832d41e964b5fe54e880f35665068e6d1",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/map/reset_conquest_labels.png",
+      "pinned_primary_sha256": "f1174fd31e2afa158a21dfc5c436cdabb0f3a758e1f9c2e19075f88921eb017e",
+      "isolated_checkout_sha256": "f1174fd31e2afa158a21dfc5c436cdabb0f3a758e1f9c2e19075f88921eb017e",
+      "dev_blob_sha256": "f1174fd31e2afa158a21dfc5c436cdabb0f3a758e1f9c2e19075f88921eb017e",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/map/reset_conquest_overlay.png",
+      "pinned_primary_sha256": "73b5f0cbf67259b6121da3315c6f838f2c870601ec095b526d4b2d630549367c",
+      "isolated_checkout_sha256": "73b5f0cbf67259b6121da3315c6f838f2c870601ec095b526d4b2d630549367c",
+      "dev_blob_sha256": "73b5f0cbf67259b6121da3315c6f838f2c870601ec095b526d4b2d630549367c",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/map/reset_conquest_roads.png",
+      "pinned_primary_sha256": "9eb44114b93be6faba6d148366d2fb98d127c49a154aa0032dc9c9f843f97f60",
+      "isolated_checkout_sha256": "9eb44114b93be6faba6d148366d2fb98d127c49a154aa0032dc9c9f843f97f60",
+      "dev_blob_sha256": "9eb44114b93be6faba6d148366d2fb98d127c49a154aa0032dc9c9f843f97f60",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/map/reset_conquest_tile_ids.png",
+      "pinned_primary_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+      "isolated_checkout_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+      "dev_blob_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/map/reset_conquest_tile_ids.txt",
+      "pinned_primary_sha256": "544cbc4a95fc75d869b3187b82e19bf931ba0dbbe5719a06f3f26f079d619445",
+      "isolated_checkout_sha256": "d8674747229c7a9cbfdebcd217f1423d722ff4cdacb882d55607491cea36d9e5",
+      "dev_blob_sha256": "56735a1da8c62ed365fac6e8385df0a9a17ca9405daf83c84b7c5609a22d9474",
+      "comparison": "EXPLICIT_CRLF_LF_ONLY_DELTA",
+      "checkout_to_blob": "EXPLICIT_CHECKOUT_EOL_FILTER"
+    },
+    {
+      "path": "src/main/resources/assets/kome/map/tile_exclusions.tsv",
+      "pinned_primary_sha256": "96d5bf63187e50f6964fe943ab233d783cf4ae565e4deedc338ec5cc597c62f1",
+      "isolated_checkout_sha256": "96d5bf63187e50f6964fe943ab233d783cf4ae565e4deedc338ec5cc597c62f1",
+      "dev_blob_sha256": "84dee4be792321aff4a63ec6abb76cd12bbc0d8343754989cd7944ab042290d3",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "EXPLICIT_CHECKOUT_EOL_FILTER"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_emergency_defense_templates.csv",
+      "pinned_primary_sha256": "68fed4d9ffd4fc286be29dc23d0dc45a17f3bd41dbbc7cb59e6dd4f53bf5345e",
+      "isolated_checkout_sha256": "68fed4d9ffd4fc286be29dc23d0dc45a17f3bd41dbbc7cb59e6dd4f53bf5345e",
+      "dev_blob_sha256": "31c6345a7535b3ce83ffaf6e37d17466cb520880e46dc418d84f7ff4e9c6ba4d",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "EXPLICIT_CHECKOUT_EOL_FILTER"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_faction_capital_defaults.csv",
+      "pinned_primary_sha256": "429b4d8430caa9e25107548f4b895d8ce77cbd208f23f071c320c0a97da0887f",
+      "isolated_checkout_sha256": "429b4d8430caa9e25107548f4b895d8ce77cbd208f23f071c320c0a97da0887f",
+      "dev_blob_sha256": "3e78baac14cdb56f28ba55fa0f1e626f7ea2c0da8821dbf0c808a8e95e07601e",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "EXPLICIT_CHECKOUT_EOL_FILTER"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_muster_roster.csv",
+      "pinned_primary_sha256": "dd994b4cafd61137b26b5d634a78d30a0775f1e7543d41fef6e2acc0f1c62d84",
+      "isolated_checkout_sha256": "dd994b4cafd61137b26b5d634a78d30a0775f1e7543d41fef6e2acc0f1c62d84",
+      "dev_blob_sha256": "8d89360407b49d756d47d5f7a6d34dbb8c5acee4e3453196052025c32787fb3b",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "EXPLICIT_CHECKOUT_EOL_FILTER"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_tile_gameplay_manifest.properties",
+      "pinned_primary_sha256": "4076a76f8d674888fe49f6abdca00585a8c912e050e15a43196a1b0aa1ca845a",
+      "isolated_checkout_sha256": "4076a76f8d674888fe49f6abdca00585a8c912e050e15a43196a1b0aa1ca845a",
+      "dev_blob_sha256": "4076a76f8d674888fe49f6abdca00585a8c912e050e15a43196a1b0aa1ca845a",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_tile_gameplay_points.csv",
+      "pinned_primary_sha256": "e787eb404eb23f3786653051c868e75530ab708239f084d43e9a4535a1794176",
+      "isolated_checkout_sha256": "e787eb404eb23f3786653051c868e75530ab708239f084d43e9a4535a1794176",
+      "dev_blob_sha256": "e787eb404eb23f3786653051c868e75530ab708239f084d43e9a4535a1794176",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_tile_gameplay_provenance.json",
+      "pinned_primary_sha256": "1b07f19aeb5ab105a9382960159d49f86a1c981c230932fe74d6f51787bb712e",
+      "isolated_checkout_sha256": "1b07f19aeb5ab105a9382960159d49f86a1c981c230932fe74d6f51787bb712e",
+      "dev_blob_sha256": "1b07f19aeb5ab105a9382960159d49f86a1c981c230932fe74d6f51787bb712e",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_tile_ownership_balance_report.txt",
+      "pinned_primary_sha256": "ccd1aa837c4fc584bbde15f80adf12d77e36da194d3d300fc9de63c2f5942ff1",
+      "isolated_checkout_sha256": "b1c422242d32bf33358e7fffaec60321bcaaa3cf8bf53862d8241988238acb99",
+      "dev_blob_sha256": "b1c422242d32bf33358e7fffaec60321bcaaa3cf8bf53862d8241988238acb99",
+      "comparison": "EXPLICIT_CRLF_LF_ONLY_DELTA",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_tile_ownership_defaults.csv",
+      "pinned_primary_sha256": "51a325a18fc52652d3f0dd2b9c6fec3693dd108da65941458d6843557e3bd1bc",
+      "isolated_checkout_sha256": "51a325a18fc52652d3f0dd2b9c6fec3693dd108da65941458d6843557e3bd1bc",
+      "dev_blob_sha256": "51a325a18fc52652d3f0dd2b9c6fec3693dd108da65941458d6843557e3bd1bc",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_tile_ownership_defaults_notes.txt",
+      "pinned_primary_sha256": "933189f2b2e0d691e34f5ced44c84be6e562d52562f34338f50f9a2114bbb6ec",
+      "isolated_checkout_sha256": "933189f2b2e0d691e34f5ced44c84be6e562d52562f34338f50f9a2114bbb6ec",
+      "dev_blob_sha256": "933189f2b2e0d691e34f5ced44c84be6e562d52562f34338f50f9a2114bbb6ec",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_tile_route_defaults.csv",
+      "pinned_primary_sha256": "d214d0b7446b9718b303c608b125ae755adebfc6a2437c739bdb60867c2d8f5e",
+      "isolated_checkout_sha256": "d214d0b7446b9718b303c608b125ae755adebfc6a2437c739bdb60867c2d8f5e",
+      "dev_blob_sha256": "d214d0b7446b9718b303c608b125ae755adebfc6a2437c739bdb60867c2d8f5e",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_tile_route_markers.csv",
+      "pinned_primary_sha256": "4d0ea8bdd204f78b5e65eb5b0cb9d93167b1b5a2694617a7b7e25f80ab730d7d",
+      "isolated_checkout_sha256": "4d0ea8bdd204f78b5e65eb5b0cb9d93167b1b5a2694617a7b7e25f80ab730d7d",
+      "dev_blob_sha256": "4d0ea8bdd204f78b5e65eb5b0cb9d93167b1b5a2694617a7b7e25f80ab730d7d",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_tile_waypoint_candidates.csv",
+      "pinned_primary_sha256": "e496a608e54fb16ab74bfcecbc91779dbf5ebce436c5c7160754d028345fb5ee",
+      "isolated_checkout_sha256": "e496a608e54fb16ab74bfcecbc91779dbf5ebce436c5c7160754d028345fb5ee",
+      "dev_blob_sha256": "e496a608e54fb16ab74bfcecbc91779dbf5ebce436c5c7160754d028345fb5ee",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "BYTE_IDENTICAL"
+    },
+    {
+      "path": "src/main/resources/assets/kome/config/kome_waypoint_defaults.csv",
+      "pinned_primary_sha256": "29d23023efc67a2153021dcf1bd93c0ea5b16101b1e252b47ed13372af392f69",
+      "isolated_checkout_sha256": "29d23023efc67a2153021dcf1bd93c0ea5b16101b1e252b47ed13372af392f69",
+      "dev_blob_sha256": "133638e56fbd88917d7a6cb760cd705045a9b8799085ab6000e70a7aa883c119",
+      "comparison": "BYTE_IDENTICAL",
+      "checkout_to_blob": "EXPLICIT_CHECKOUT_EOL_FILTER"
+    }
+  ],
+  "limits": "Raw primary/clone byte reuse initially failed for two text inputs; primary hashes still match. Six clone files use the recorded checkout CRLF filter compared with Git blobs. Every difference is explicitly listed and only CRLF/LF; no resource was edited."
+}

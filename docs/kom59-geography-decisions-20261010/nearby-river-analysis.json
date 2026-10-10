@@ -1,0 +1,87 @@
+[
+  {
+    "pair": "T328-T351",
+    "counts": {
+      "edge": 0,
+      "corner": 0
+    },
+    "cells": 0,
+    "biomes": {},
+    "bbox": null
+  },
+  {
+    "pair": "T340-T352",
+    "counts": {
+      "edge": 0,
+      "corner": 2
+    },
+    "cells": 4,
+    "biomes": {
+      "ithilienWasteland": 2,
+      "deadMarshes": 1,
+      "nindalf": 1
+    },
+    "bbox": [
+      1432,
+      1146,
+      1442,
+      1162
+    ]
+  },
+  {
+    "pair": "T351-T353",
+    "counts": {
+      "edge": 0,
+      "corner": 0
+    },
+    "cells": 0,
+    "biomes": {},
+    "bbox": null
+  },
+  {
+    "pair": "T351-T371",
+    "counts": {
+      "edge": 0,
+      "corner": 0
+    },
+    "cells": 0,
+    "biomes": {},
+    "bbox": null
+  },
+  {
+    "pair": "T352-T375",
+    "counts": {
+      "edge": 0,
+      "corner": 1
+    },
+    "cells": 2,
+    "biomes": {
+      "ithilienWasteland": 1,
+      "river": 1
+    },
+    "bbox": [
+      1449,
+      1181,
+      1450,
+      1182
+    ]
+  },
+  {
+    "pair": "T351-T352",
+    "counts": {
+      "edge": 2,
+      "corner": 3
+    },
+    "cells": 6,
+    "biomes": {
+      "nindalf": 4,
+      "ithilienWasteland": 2
+    },
+    "bbox": [
+      1430,
+      1163,
+      1432,
+      1165
+    ]
+  }
+]

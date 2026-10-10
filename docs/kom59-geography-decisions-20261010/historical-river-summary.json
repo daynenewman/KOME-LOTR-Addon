@@ -1,0 +1,68 @@
+[
+  {
+    "pair": "T340-T352",
+    "historical_samples": 25,
+    "river_samples": 25,
+    "scan_biomes": {
+      "dagorlad": 2,
+      "deadMarshes": 194,
+      "ithilienWasteland": 262,
+      "nindalf": 17
+    }
+  },
+  {
+    "pair": "T351-T352",
+    "historical_samples": 3,
+    "river_samples": 2,
+    "scan_biomes": {
+      "deadMarshes": 4,
+      "ithilienWasteland": 20,
+      "nindalf": 33,
+      "ithilien": 3
+    }
+  },
+  {
+    "pair": "T352-T375",
+    "historical_samples": 9,
+    "river_samples": 9,
+    "scan_biomes": {
+      "ithilienWasteland": 102,
+      "river": 67,
+      "mordorMountains": 3,
+      "ithilien": 3
+    }
+  },
+  {
+    "pair": "T351-T371",
+    "historical_samples": 12,
+    "river_samples": 12,
+    "scan_biomes": {
+      "entwashMouth": 1,
+      "gondor": 28,
+      "nindalf": 31,
+      "river": 166,
+      "ithilien": 4
+    }
+  },
+  {
+    "pair": "T351-T353",
+    "historical_samples": 74,
+    "river_samples": 74,
+    "scan_biomes": {
+      "entwashMouth": 285,
+      "nindalf": 241,
+      "river": 904
+    }
+  },
+  {
+    "pair": "T328-T351",
+    "historical_samples": 1,
+    "river_samples": 1,
+    "scan_biomes": {
+      "entwashMouth": 3,
+      "nindalf": 6,
+      "river": 7,
+      "rohan": 4
+    }
+  }
+]

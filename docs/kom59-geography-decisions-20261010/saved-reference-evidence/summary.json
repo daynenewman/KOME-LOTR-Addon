@@ -1,0 +1,50 @@
+{
+  "proposal_mask_cell_manifest_sha256": "f14472b0e865974634bc5b6e791e0ce872687f1fda6a56958ec038165a9b4b5e",
+  "source_registry_sha256": "271708fca1a1442db98f25632b721af1372b05707a653039c988bcb44fe4cd52",
+  "candidate_worlds": 57,
+  "selection_counts": {
+    "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE": 28,
+    "CONSISTENT_RETIRED_STOPPED_SAVE": 8,
+    "EXCLUDED_LIVE_RUNTIME": 3,
+    "CONSISTENT_STOPPED_COPY": 2,
+    "UNAVAILABLE_FILE": 1,
+    "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE": 10,
+    "CONSISTENT_STOPPED_ROOT_COPY": 4,
+    "CONSISTENT_STOPPED_BACKUP": 1
+  },
+  "consistent_stopped_snapshots": 15,
+  "removed_cells": 45,
+  "affected_tile_ids": [
+    "T218",
+    "T329",
+    "T352",
+    "T355",
+    "T356",
+    "T420",
+    "T654"
+  ],
+  "contact_endpoint_ids": [
+    "T218",
+    "T220",
+    "T329",
+    "T352",
+    "T355",
+    "T356",
+    "T400",
+    "T420",
+    "T435",
+    "T654"
+  ],
+  "coordinate_intersection_rows": 0,
+  "stable_tile_or_coverage_reference_rows": 246,
+  "inspected_files": 36,
+  "coverage_gap_rows": 66,
+  "tests_or_gameplay_launches": 0,
+  "scope": "Read-only saved-reference inventory, not save migration or live acceptance; no live root read",
+  "limits": [
+    "Repeated snapshots/records are not unique production-world totals",
+    "Unavailable, excluded or absent sections must not be interpreted as zero impact",
+    "Native dimension for custom waypoint checks comes only from available saved server configuration",
+    "T364 three-tile proposal is separate; no T364 edit is in this manifest"
+  ]
+}

@@ -1,0 +1,216 @@
+{
+  "source_package": "build/kom59-geography-decisions-20261010/",
+  "files": [
+    {
+      "source": "all-contact-cells.csv",
+      "published": "all-contact-cells.csv",
+      "sha256": "7dcbe0d29b9f6446f1eace96b4e37cfe6d4c42b6a6e243da6e8345e73ff3e63f",
+      "bytes": 7451
+    },
+    {
+      "source": "alternatives-topology.json",
+      "published": "alternatives-topology.json",
+      "sha256": "40f4e4cd41ddfcd31db64b40e47cf6cb808e6530e6708128d77feac4b39e4bb6",
+      "bytes": 3833
+    },
+    {
+      "source": "analysis.json",
+      "published": "analysis.json",
+      "sha256": "7c33d4ce98a44bb17e228da5e22c1177043e6fd697fd1fc25be676e55500433d",
+      "bytes": 2998
+    },
+    {
+      "source": "attempts.json",
+      "published": "attempts.json",
+      "sha256": "fcf72e6036d1f4f398f42097eb8654f49ff5080bdec77c794cb0718a5530b5b3",
+      "bytes": 1750
+    },
+    {
+      "source": "conditional-marker-manifest.csv",
+      "published": "conditional-marker-manifest.csv",
+      "sha256": "a0826857bf04dd58b5730c49c473b2ce0d7e100e0cf5ed0e03f1c377c8446b86",
+      "bytes": 158
+    },
+    {
+      "source": "current-static-routes.json",
+      "published": "current-static-routes.json",
+      "sha256": "708ff48cb1f517b528a1d0d0409e6b4a7dc68ae082bba7759ba9f60ec5f9130f",
+      "bytes": 1951
+    },
+    {
+      "source": "decision-table.csv",
+      "published": "decision-table.csv",
+      "sha256": "865fdd52bfcd120e26e91597da1b17e18b943cd1207609982dd3927a073379d8",
+      "bytes": 3786
+    },
+    {
+      "source": "historical-river-samples.csv",
+      "published": "historical-river-samples.csv",
+      "sha256": "cd668199297202745e9ef649c1363f1438712aabeb3081ebc921a1fe5f1fdaa9",
+      "bytes": 50027
+    },
+    {
+      "source": "historical-river-summary.json",
+      "published": "historical-river-summary.json",
+      "sha256": "b58f7e0f593235f833251a9f41dc888c3a2be837d023a938fb77f94976ebec24",
+      "bytes": 1309
+    },
+    {
+      "source": "inputs.json",
+      "published": "inputs.json",
+      "sha256": "7f5c46a11b5ae01bd7bbdcf76176c39168af199f613db1eec69a20bae330a067",
+      "bytes": 4725
+    },
+    {
+      "source": "linear-comments.json",
+      "published": "linear-comments.json",
+      "sha256": "346a46c4d439599aff4ca0c3cd41b01c7b80399713eed46b933a7b7cd92b46d1",
+      "bytes": 8870
+    },
+    {
+      "source": "mapping-reuse-check.json",
+      "published": "mapping-reuse-check.json",
+      "sha256": "e856b568ff9cc1b7e6b15a5dda145e0730bfca19e76e656834bc01def67cd629",
+      "bytes": 616
+    },
+    {
+      "source": "minimum-cut-topology.json",
+      "published": "minimum-cut-topology.json",
+      "sha256": "189191562b61684b07fa2b02fba0fc1d3236a8d7b7b46b14c05cdd16c5f0fab6",
+      "bytes": 2824
+    },
+    {
+      "source": "native-biome-bytecode.txt",
+      "published": "native-biome-bytecode.txt",
+      "sha256": "6c42d7f36e74c1e34d689c15adedc5127108d5b804bbe57d17ae64f01dd03a01",
+      "bytes": 336245
+    },
+    {
+      "source": "nearby-river-analysis.json",
+      "published": "nearby-river-analysis.json",
+      "sha256": "5ade04827945938d9ced08e5602d52d501a32e2a0db6f2174a0b3cdebea7bbc1",
+      "bytes": 1282
+    },
+    {
+      "source": "nearby-river-contact-cells.csv",
+      "published": "nearby-river-contact-cells.csv",
+      "sha256": "adc3987f8a71cfb4aceae0dedad0a832aca5fd93cd640a677c2fc4fc3bdf8aaf",
+      "bytes": 1045
+    },
+    {
+      "source": "package-hashes.json",
+      "published": "original-package-hashes.json",
+      "sha256": "071ca3eba04bb6b35e91c74079a99251d28290e0a1ec0c7bda8954398dc10000",
+      "bytes": 3977
+    },
+    {
+      "source": "package-summary.json",
+      "published": "package-summary.json",
+      "sha256": "122716174d2a6e915ec96c7e72aeae16438f199e4cd36d34b1ece83ad2c69f34",
+      "bytes": 819
+    },
+    {
+      "source": "preservation.json",
+      "published": "preservation.json",
+      "sha256": "76a21ee312358755c502ad2d42d08ae357c1572c3734c157729639aabb84d2a5",
+      "bytes": 621
+    },
+    {
+      "source": "protected-corridors.csv",
+      "published": "protected-corridors.csv",
+      "sha256": "8172ddbd1742b23d802717af7d0271b8c2221fd2d85a1789fbb85c5aed154c25",
+      "bytes": 1476
+    },
+    {
+      "source": "DECISIONS.md",
+      "published": "provenance/DECISIONS.before-publication.txt",
+      "sha256": "616e9f2857fa8ba831d3966950f2472c7e03364ab386e433ca94881c11be2c19",
+      "bytes": 10725
+    },
+    {
+      "source": "recommended-cell-manifest.csv",
+      "published": "recommended-cell-manifest.csv",
+      "sha256": "f14472b0e865974634bc5b6e791e0ce872687f1fda6a56958ec038165a9b4b5e",
+      "bytes": 9591
+    },
+    {
+      "source": "recommended-exclusion-manifest.csv",
+      "published": "recommended-exclusion-manifest.csv",
+      "sha256": "46aafc36e8a8cf3db7709c21a0d66b26b74fbe68d0b8fdcc2f969cd34e53e477",
+      "bytes": 5964
+    },
+    {
+      "source": "recommended-route-manifest.csv",
+      "published": "recommended-route-manifest.csv",
+      "sha256": "f109ffbfc75f2489f826d9b1709a9e2ecc058402eb1587e3c2a95ca6964e0ece",
+      "bytes": 1186
+    },
+    {
+      "source": "review.html",
+      "published": "review.html",
+      "sha256": "df52df4042468babb910b3a918cf10c442af8e078d94509f8a54fcd26b1811e6",
+      "bytes": 5977
+    },
+    {
+      "source": "visuals/T218-T220.png",
+      "published": "visuals/T218-T220.png",
+      "sha256": "39e1f7ca5be0206d9c9d9c36d3dd4d0f2b0cdd2f0bc59e127fa6541b8635b255",
+      "bytes": 97063
+    },
+    {
+      "source": "visuals/T329-T355.png",
+      "published": "visuals/T329-T355.png",
+      "sha256": "73e0c041fc889a079cf5a69a5659dd535b9f32091a2837ed17fa493a203b3728",
+      "bytes": 81687
+    },
+    {
+      "source": "visuals/T340-T352.png",
+      "published": "visuals/T340-T352.png",
+      "sha256": "cc3413a384304e686ac6c08f3af68573f2083ea5cb79800a12474b5b6aae43d5",
+      "bytes": 44778
+    },
+    {
+      "source": "visuals/T351-T352.png",
+      "published": "visuals/T351-T352.png",
+      "sha256": "0614f94f95db2238f5e2e591a6d82bf69dc5c5ca100082fb84bf2f88fa6a4de8",
+      "bytes": 39745
+    },
+    {
+      "source": "visuals/T352-T356.png",
+      "published": "visuals/T352-T356.png",
+      "sha256": "5127ddf3f3ff554834f5a0878a777c711971980226f8dc5595491e19460f3c8c",
+      "bytes": 97296
+    },
+    {
+      "source": "visuals/T352-T375.png",
+      "published": "visuals/T352-T375.png",
+      "sha256": "e19052cf33a8c5166a6eda391d267bd6b8444041ccf5a115f2435caf660aaea8",
+      "bytes": 36294
+    },
+    {
+      "source": "visuals/T400-T420.png",
+      "published": "visuals/T400-T420.png",
+      "sha256": "0ed7469ff98625c41e962f12bc5434760ff189d57dde5dfad009b0f5b2f67ee6",
+      "bytes": 74277
+    },
+    {
+      "source": "visuals/T435-T654.png",
+      "published": "visuals/T435-T654.png",
+      "sha256": "d9db2d3669203687dac1e48fb905386d74696bddd7f343e7ef393f94c5929b0a",
+      "bytes": 71156
+    },
+    {
+      "source": "visuals/T455-T654-unverified.png",
+      "published": "visuals/T455-T654-unverified.png",
+      "sha256": "f1286c07b7fdfdbcbfb6d8b2ca94d230f5f3a1a0be27f1f916e19f0e3cb4cb36",
+      "bytes": 29408
+    }
+  ],
+  "exact_byte_copies": true,
+  "excluded": [
+    "Local absolute-path generators",
+    "Full protected-worktree status snapshots"
+  ],
+  "original_hash_manifest": "original-package-hashes.json",
+  "note": "Original hash inventory describes the original local package, including omitted local-only files; package-hashes.json describes the portable published package."
+}

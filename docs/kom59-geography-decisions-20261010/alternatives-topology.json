@@ -1,0 +1,186 @@
+[
+  {
+    "proposal": "T435-T654-435",
+    "pair": "T435-T654",
+    "remove_from": "T435",
+    "cells": 3,
+    "components_before": [
+      8425
+    ],
+    "components_after": [
+      8422
+    ],
+    "additional_components": 0,
+    "lost_contacts": {
+      "T435-T654:corner": 3,
+      "T435-T654:edge": 2
+    },
+    "default_point_intersections": []
+  },
+  {
+    "proposal": "T435-T654-654",
+    "pair": "T435-T654",
+    "remove_from": "T654",
+    "cells": 2,
+    "components_before": [
+      4273
+    ],
+    "components_after": [
+      4271
+    ],
+    "additional_components": 0,
+    "lost_contacts": {
+      "T435-T654:corner": 3,
+      "T435-T654:edge": 2
+    },
+    "default_point_intersections": []
+  },
+  {
+    "proposal": "T400-T420-400",
+    "pair": "T400-T420",
+    "remove_from": "T400",
+    "cells": 11,
+    "components_before": [
+      3259
+    ],
+    "components_after": [
+      3248
+    ],
+    "additional_components": 0,
+    "lost_contacts": {
+      "T400-T420:corner": 17,
+      "T400-T420:edge": 10
+    },
+    "default_point_intersections": []
+  },
+  {
+    "proposal": "T400-T420-420",
+    "pair": "T400-T420",
+    "remove_from": "T420",
+    "cells": 10,
+    "components_before": [
+      3549
+    ],
+    "components_after": [
+      3539
+    ],
+    "additional_components": 0,
+    "lost_contacts": {
+      "T400-T420:corner": 17,
+      "T400-T420:edge": 10
+    },
+    "default_point_intersections": []
+  },
+  {
+    "proposal": "T329-T355-329",
+    "pair": "T329-T355",
+    "remove_from": "T329",
+    "cells": 13,
+    "components_before": [
+      2232
+    ],
+    "components_after": [
+      2219
+    ],
+    "additional_components": 0,
+    "lost_contacts": {
+      "T329-T355:edge": 13,
+      "T329-T355:corner": 19,
+      "T329-T331:edge": 1
+    },
+    "default_point_intersections": []
+  },
+  {
+    "proposal": "T329-T355-355",
+    "pair": "T329-T355",
+    "remove_from": "T355",
+    "cells": 14,
+    "components_before": [
+      4198
+    ],
+    "components_after": [
+      4184
+    ],
+    "additional_components": 0,
+    "lost_contacts": {
+      "T329-T355:edge": 13,
+      "T331-T355:edge": 2,
+      "T331-T355:corner": 2,
+      "T329-T355:corner": 19
+    },
+    "default_point_intersections": []
+  },
+  {
+    "proposal": "T352-T356-352",
+    "pair": "T352-T356",
+    "remove_from": "T352",
+    "cells": 8,
+    "components_before": [
+      509
+    ],
+    "components_after": [
+      498,
+      3
+    ],
+    "additional_components": 1,
+    "lost_contacts": {
+      "T352-T356:corner": 8,
+      "T352-T356:edge": 8
+    },
+    "default_point_intersections": []
+  },
+  {
+    "proposal": "T352-T356-356",
+    "pair": "T352-T356",
+    "remove_from": "T356",
+    "cells": 8,
+    "components_before": [
+      486
+    ],
+    "components_after": [
+      478
+    ],
+    "additional_components": 0,
+    "lost_contacts": {
+      "T352-T356:corner": 8,
+      "T352-T356:edge": 8
+    },
+    "default_point_intersections": []
+  },
+  {
+    "proposal": "T218-T220-218",
+    "pair": "T218-T220",
+    "remove_from": "T218",
+    "cells": 15,
+    "components_before": [
+      3108
+    ],
+    "components_after": [
+      3093
+    ],
+    "additional_components": 0,
+    "lost_contacts": {
+      "T218-T220:corner": 22,
+      "T218-T220:edge": 14
+    },
+    "default_point_intersections": []
+  },
+  {
+    "proposal": "T218-T220-220",
+    "pair": "T218-T220",
+    "remove_from": "T220",
+    "cells": 15,
+    "components_before": [
+      268
+    ],
+    "components_after": [
+      253
+    ],
+    "additional_components": 0,
+    "lost_contacts": {
+      "T218-T220:corner": 22,
+      "T218-T220:edge": 14
+    },
+    "default_point_intersections": []
+  }
+]

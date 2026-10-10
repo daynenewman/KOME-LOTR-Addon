@@ -1,0 +1,46 @@
+from pathlib import Path
+import struct,gzip,json,hashlib,sys
+
+def read_nbt(path):
+ raw=Path(path).read_bytes()
+ if raw[:2]==b'\x1f\x8b':raw=gzip.decompress(raw)
+ pos=0
+ def take(n):
+  nonlocal pos
+  assert n>=0 and pos+n<=len(raw)
+  v=raw[pos:pos+n];pos+=n;return v
+ def num(fmt):return struct.unpack('>'+fmt,take(struct.calcsize('>'+fmt)))[0]
+ def string():return take(num('H')).decode('utf-8','replace')
+ def payload(t):
+  if t in range(1,7):return num({1:'b',2:'h',3:'i',4:'q',5:'f',6:'d'}[t])
+  if t==7:return list(take(num('i')))
+  if t==8:return string()
+  if t==9:
+   typ=num('B');count=num('i');assert 0<=count<=10000000
+   return [payload(typ) for _ in range(count)]
+  if t==10:
+   d={}
+   while True:
+    typ=num('B')
+    if typ==0:return d
+    key=string();assert key not in d;d[key]=payload(typ)
+  if t in (11,12):return [num('i' if t==11 else 'q') for _ in range(num('i'))]
+  raise ValueError(t)
+ typ=num('B');name=string();data=payload(typ);assert pos==len(raw)
+ return data
+
+def capture(world,out):
+ world=Path(world)
+ kome=read_nbt(world/'data/KOME_ServerRules.dat')['data']
+ files={str(p.relative_to(world)):read_nbt(p) for sub in ['LOTR/players','playerdata'] for p in (world/sub).glob('*.dat')}
+ result={'kome':kome,'players':files}
+ Path(out).write_text(json.dumps(result,indent=2,sort_keys=True))
+ print('SNAPSHOT',out)
+ print('KOME_COUNTS',json.dumps({k:(len(v) if isinstance(v,(list,dict)) else v) for k,v in kome.items() if k in ['Builds','NextBuildSequence','Progressions','RouteEdges','TileWaypoints','TileWaypointLinks','ArmyMovements','MovementHistory','ConquestTiles','ArmyCompanies','HiredUnits','ForeignConstructionPermissions']}))
+ print('BUILDS',[{k:v for k,v in x.items() if k in ['Id','Name','Tile','TileId','X','Y','Z','Dimension']} for x in kome.get('Builds',[])])
+ print('ROUTES',json.dumps(kome.get('RouteEdges',[])))
+ print('MOVEMENTS',json.dumps(kome.get('ArmyMovements',[])))
+ print('WAYPOINT_SAMPLE',json.dumps(kome.get('TileWaypoints',[])[:2]))
+ return result
+
+if __name__=='__main__':capture(sys.argv[1],sys.argv[2])

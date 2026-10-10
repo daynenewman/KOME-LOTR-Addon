@@ -1,0 +1,817 @@
+[
+  {
+    "snapshot": "S001",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\00e6\\KOME-LOTR-Addon\\run-server-production-verification-kom29\\kom29-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S002",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\408a\\KOME-LOTR-Addon\\build\\campaign-lifecycle\\forge\\campaign-lifecycle-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S003",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\5c1d\\KOME-LOTR-Addon\\outputs\\kom40\\runtime-correction\\kom40-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S004",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\gameplay-candidate\\build\\campaign-lifecycle\\forge\\campaign-lifecycle-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S005",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\gameplay-candidate\\outputs\\pr24-pr25\\forge-destination-first\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S006",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\gameplay-candidate\\outputs\\pr24-pr25\\forge-origin-first\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S007",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\gameplay-candidate\\outputs\\pr24-pr25\\reload-fix\\forge-destination-first\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S008",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\gameplay-candidate\\outputs\\pr24-pr25\\reload-fix\\forge-origin-first\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S009",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\layout-runtime\\server\\review-acceptance-fresh",
+    "selection": "CONSISTENT_RETIRED_STOPPED_SAVE",
+    "reason": "Exit zero + final stop/save log; saved root and session lock not later than receipt",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\layout-runtime\\exit-ready.json",
+        "sha256": "c365161d39236fe0f1d32937fbc549796b8487d8faf65ed3879b96897c78ea5d",
+        "bytes": 17,
+        "mtime_utc": "2026-10-08T00:51:39.621594+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\layout-runtime\\server\\logs\\latest.log",
+        "sha256": "6ce4b31d510e9fdebae6a3d869a6de0eba79bbadd2286ff7b250b07052bcd148",
+        "bytes": 5718,
+        "mtime_utc": "2026-10-08T00:51:39.032018+00:00"
+      },
+      "last_launch_and_save_not_after_exit": true
+    },
+    "root_schema": 12,
+    "root_sha256": "9144381e5b46e4bba096ee49d6ddab56fc6695a4c7f5715b4d7202a303bbe518",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": 1,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S010",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\reload-fix-runtime\\server\\review-acceptance-fresh",
+    "selection": "EXCLUDED_LIVE_RUNTIME",
+    "reason": "Not a consistent stopped snapshot; not read or modified",
+    "proof": null
+  },
+  {
+    "snapshot": "S011",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\reset-runtime\\server\\review-acceptance-fresh",
+    "selection": "CONSISTENT_RETIRED_STOPPED_SAVE",
+    "reason": "Exit zero + final stop/save log; saved root and session lock not later than receipt",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\reset-runtime\\exit-cold-mounted.json",
+        "sha256": "c365161d39236fe0f1d32937fbc549796b8487d8faf65ed3879b96897c78ea5d",
+        "bytes": 17,
+        "mtime_utc": "2026-10-08T02:23:49.013479+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\reset-runtime\\server\\logs\\latest.log",
+        "sha256": "7447a44e1122f1c90061dda56d22b311cb320823d27167c99d1ec53316c6738b",
+        "bytes": 5021,
+        "mtime_utc": "2026-10-08T02:23:48.430885+00:00"
+      },
+      "last_launch_and_save_not_after_exit": true
+    },
+    "root_schema": 12,
+    "root_sha256": "725dd11e855efb047787ed9dd9b4852869f1c9e302f52568d72eb011e7daae41",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": 1,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S012",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\server\\review-acceptance-fresh",
+    "selection": "CONSISTENT_RETIRED_STOPPED_SAVE",
+    "reason": "Exit zero + final stop/save log; saved root and session lock not later than receipt",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\exit-ready.json",
+        "sha256": "c365161d39236fe0f1d32937fbc549796b8487d8faf65ed3879b96897c78ea5d",
+        "bytes": 17,
+        "mtime_utc": "2026-10-08T00:30:00.265422+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\server\\logs\\latest.log",
+        "sha256": "3bde042db4ea7cc6fef78d8f8853194193054ba8850ac960beb6e83cdb84072b",
+        "bytes": 5265,
+        "mtime_utc": "2026-10-08T00:29:59.667817+00:00"
+      },
+      "last_launch_and_save_not_after_exit": true
+    },
+    "root_schema": 12,
+    "root_sha256": "81660291ee36d037997fc0cfdee3b391d1ee755b717a154e2b2744ba9e7d9b24",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": 1,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S013",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\joinbattle-fix\\occupied-capital\\runtime\\server\\pr26-integration-disposable",
+    "selection": "EXCLUDED_LIVE_RUNTIME",
+    "reason": "Not a consistent stopped snapshot; not read or modified",
+    "proof": null
+  },
+  {
+    "snapshot": "S014",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\joinbattle-fix\\runtime\\server\\pr26-integration-disposable",
+    "selection": "CONSISTENT_RETIRED_STOPPED_SAVE",
+    "reason": "Exit zero + final stop/save log; saved root and session lock not later than receipt",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\joinbattle-fix\\runtime\\exit.json",
+        "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce",
+        "bytes": 18,
+        "mtime_utc": "2026-10-10T17:11:50.271645+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\joinbattle-fix\\runtime\\server\\logs\\latest.log",
+        "sha256": "528c5cb8dc6787d00084ed8bf49cb167619b971ade8753e898b87c4d09dc0977",
+        "bytes": 1780,
+        "mtime_utc": "2026-10-10T17:11:49.435660+00:00"
+      },
+      "last_launch_and_save_not_after_exit": true
+    },
+    "root_schema": 12,
+    "root_sha256": "07ef754cd3441336cbcf7abcab0f34a304a7f023b750d4d541b1cd2b91fd9949",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": 1,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S015",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production-final\\server\\pr26-integration-disposable",
+    "selection": "CONSISTENT_RETIRED_STOPPED_SAVE",
+    "reason": "Exit zero + final stop/save log; saved root and session lock not later than receipt",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production-final\\exit.json",
+        "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce",
+        "bytes": 18,
+        "mtime_utc": "2026-10-09T18:54:33.380836+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production-final\\server\\logs\\latest.log",
+        "sha256": "be914f20c0ed4338c23ca6395307ae4396fb17929a45e61d3cc242ceaec5ed9f",
+        "bytes": 7250,
+        "mtime_utc": "2026-10-09T18:54:31.910746+00:00"
+      },
+      "last_launch_and_save_not_after_exit": true
+    },
+    "root_schema": 12,
+    "root_sha256": "b6d141d3e0202846819a4ff0816ba39a92c5b044dc3ac4097a0ad7fa50cccf11",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": null,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S016",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production-verified\\server\\pr26-integration-disposable",
+    "selection": "CONSISTENT_RETIRED_STOPPED_SAVE",
+    "reason": "Exit zero + final stop/save log; saved root and session lock not later than receipt",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production-verified\\exit.json",
+        "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce",
+        "bytes": 18,
+        "mtime_utc": "2026-10-09T18:55:58.211593+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production-verified\\server\\logs\\latest.log",
+        "sha256": "83eabcdbc45adb132217dc9a81f3fb72282b3452bb6ccf90bf67ad62d0dbb4df",
+        "bytes": 7310,
+        "mtime_utc": "2026-10-09T18:55:56.599740+00:00"
+      },
+      "last_launch_and_save_not_after_exit": true
+    },
+    "root_schema": 12,
+    "root_sha256": "499d5dc83487b91615f939b7b18b4981e6a63676753d1a114f47e9e23aeb78b9",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": null,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S017",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production\\server\\pr26-integration-disposable",
+    "selection": "CONSISTENT_RETIRED_STOPPED_SAVE",
+    "reason": "Exit zero + final stop/save log; saved root and session lock not later than receipt",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production\\exit.json",
+        "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce",
+        "bytes": 18,
+        "mtime_utc": "2026-10-09T18:52:25.862504+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\production\\server\\logs\\latest.log",
+        "sha256": "13ac8fc0f2b07bd6c5bcaaed32d11158136bf3d8b33ae68a91bbd13237e08892",
+        "bytes": 7310,
+        "mtime_utc": "2026-10-09T18:52:24.363309+00:00"
+      },
+      "last_launch_and_save_not_after_exit": true
+    },
+    "root_schema": 12,
+    "root_sha256": "d401a1037d1eb302cc53d07f8806e83a3e0302d1b650776e87cca81151e8e040",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": null,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S018",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\singleplayer\\server\\pr26-integration-disposable",
+    "selection": "CONSISTENT_RETIRED_STOPPED_SAVE",
+    "reason": "Exit zero + final stop/save log; saved root and session lock not later than receipt",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\singleplayer\\exit.json",
+        "sha256": "302c5fcf0227d427ee240abdbd2a948557ea7ab09699f9c3bdeb0f98b67375ce",
+        "bytes": 18,
+        "mtime_utc": "2026-10-09T19:34:51.500430+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\singleplayer\\server\\logs\\latest.log",
+        "sha256": "939054da20a66757e49ce2d7852543124858e1797f81fc7402e74119ff84d8f9",
+        "bytes": 7419,
+        "mtime_utc": "2026-10-09T19:34:50.878239+00:00"
+      },
+      "last_launch_and_save_not_after_exit": true
+    },
+    "root_schema": 12,
+    "root_sha256": "2ad3652c1877079f8489f4bc3dd3d3e392e8da08584332e366f35bc87b75c3ee",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": 1,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S019",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\source\\outputs\\pr24-pr25\\forge-origin-first\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S020",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\source\\outputs\\pr24-pr25\\integration-final\\forge-destination-first\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S021",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\source\\outputs\\pr24-pr25\\integration-final\\forge-origin-first\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S022",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\server\\tile-acceptance-fresh",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S023",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\stopped-first-backup",
+    "selection": "CONSISTENT_STOPPED_COPY",
+    "reason": "Graceful shutdown/exit zero and source root export match; preserved copy not a live world",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\exit-first.json",
+        "sha256": "c365161d39236fe0f1d32937fbc549796b8487d8faf65ed3879b96897c78ea5d",
+        "bytes": 17,
+        "mtime_utc": "2026-10-07T01:42:30.811641+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\console-first.log",
+        "sha256": "319255d9350e1ebea393aa1f07124aa9cec649bed40e9d3f56f1d39192cacbf2",
+        "bytes": 51243,
+        "mtime_utc": "2026-10-07T01:42:30.226040+00:00"
+      },
+      "captured_root": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\saved-first.json",
+        "sha256": "e3b573ed34108501659afea5dd8d2d283dd1b2689f73d3e4b7bf175f5eece554",
+        "bytes": 686216,
+        "mtime_utc": "2026-10-07T01:42:55.959174+00:00"
+      },
+      "export_matches_root": true
+    },
+    "root_schema": 12,
+    "root_sha256": "2c8bc361357776202bb322f181d1ac34fd22903ae66483abbe49d67cfa30c1d6",
+    "native_custom_waypoint_dimension": null,
+    "native_player_files_available": null,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S024",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\stopped-populated-backup",
+    "selection": "CONSISTENT_STOPPED_COPY",
+    "reason": "Graceful shutdown/exit zero and source root export match; preserved copy not a live world",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\exit-second.json",
+        "sha256": "c365161d39236fe0f1d32937fbc549796b8487d8faf65ed3879b96897c78ea5d",
+        "bytes": 17,
+        "mtime_utc": "2026-10-07T01:47:51.707105+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\console-second.log",
+        "sha256": "6c375ee5cf9c034322558a62b9ecff02eb5f44c520a05b4642b152c8e19651f7",
+        "bytes": 63399,
+        "mtime_utc": "2026-10-07T01:47:51.133387+00:00"
+      },
+      "captured_root": {
+        "path": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\saved-second.json",
+        "sha256": "ac52d39a8d0b936fafae1e171631a58a85b83264082a081aece1503321263e01",
+        "bytes": 686861,
+        "mtime_utc": "2026-10-07T01:48:04.929876+00:00"
+      },
+      "export_matches_root": true
+    },
+    "root_schema": 12,
+    "root_sha256": "a28abfe4e2e0b66388a6fa6d90ecc551b082a71b3dc66fc616c9bdbbb17c5dce",
+    "native_custom_waypoint_dimension": null,
+    "native_player_files_available": null,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S025",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\6c3b\\KOME-LOTR-Addon\\tools\\kom11\\build\\kom11\\forge\\kom11-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S026",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\88a9\\KOME-LOTR-Addon\\build\\waypoint-acceptance-20261010\\server\\waypoint-acceptance-fresh",
+    "selection": "EXCLUDED_LIVE_RUNTIME",
+    "reason": "Not a consistent stopped snapshot; not read or modified",
+    "proof": null
+  },
+  {
+    "snapshot": "S027",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\aff2\\KOME-LOTR-Addon\\build\\campaign-lifecycle\\forge\\campaign-lifecycle-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S028",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\aff2\\KOME-LOTR-Addon\\outputs\\pr24-pr25\\forge-destination-first-before-snapshot-fix\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S029",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\aff2\\KOME-LOTR-Addon\\outputs\\pr24-pr25\\forge-destination-first\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S030",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\aff2\\KOME-LOTR-Addon\\outputs\\pr24-pr25\\forge-origin-first-before-snapshot-fix\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S031",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\aff2\\KOME-LOTR-Addon\\outputs\\pr24-pr25\\forge-origin-first\\combined-disposable",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S032",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\kom70-server-queue\\KOME-LOTR-Addon\\run-server-production-verification-kom70-20261002\\queue-fixture",
+    "selection": "UNAVAILABLE_FILE",
+    "reason": "No current strategic root file",
+    "proof": null
+  },
+  {
+    "snapshot": "S033",
+    "world": "C:\\Users\\dayne\\.codex\\worktrees\\public-waypoints\\KOME-LOTR-Addon\\run-server-production-verification-public-waypoints-20261002\\waypoint-fixture",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S034",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\interactive-map-20260925\\resume-backup-20260926T180248Z\\kom60-world",
+    "selection": "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient",
+    "proof": null
+  },
+  {
+    "snapshot": "S035",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\map-performance\\stopped-backup\\server\\kom60-world",
+    "selection": "CONSISTENT_STOPPED_ROOT_COPY",
+    "reason": "Exact strategic root match to captured source checkpoint and matching clean numbered shutdown",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\exit-4.json",
+        "sha256": "c365161d39236fe0f1d32937fbc549796b8487d8faf65ed3879b96897c78ea5d",
+        "bytes": 17,
+        "mtime_utc": "2026-09-24T03:01:31.437575+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\console-4.log",
+        "sha256": "9e9696dec084e78403379e21e0b969d42ac752b557b089973c4265363394f31e",
+        "bytes": 74503,
+        "mtime_utc": "2026-09-24T03:01:30.991675+00:00"
+      },
+      "captured_root": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\map-performance\\saved-before.json",
+        "sha256": "e3757c79e8104713a09e61e4f133afaf7575ac4226a48947994a2a44acbfed77",
+        "bytes": 694367,
+        "mtime_utc": "2026-09-24T03:02:24.022849+00:00"
+      },
+      "export_matches_root": true,
+      "proof_scope": "Complete strategic root matches post-stop capture; not a whole-world physical-chunk validation"
+    },
+    "root_schema": 4,
+    "root_sha256": "342bb1341e69c5ba1398a76b6dec19d606ed36581d5efbe25ae95392e758354a",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": 1,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S036",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\server\\kom60-world",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S037",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\stopped-cycle-1-backup\\kom60-world",
+    "selection": "CONSISTENT_STOPPED_ROOT_COPY",
+    "reason": "Exact strategic root match to captured source checkpoint and matching clean numbered shutdown",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\exit-1.json",
+        "sha256": "c365161d39236fe0f1d32937fbc549796b8487d8faf65ed3879b96897c78ea5d",
+        "bytes": 17,
+        "mtime_utc": "2026-09-23T00:51:41.921578+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\console-1.log",
+        "sha256": "6d3834f0306ad5986afcc38fde96dd3c8c68f8e7160d6a37ddeb0f5516c5f52e",
+        "bytes": 47269,
+        "mtime_utc": "2026-09-23T00:51:41.377440+00:00"
+      },
+      "captured_root": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\saved-cycle-1.json",
+        "sha256": "d7e88ea42d9c55187ed18b742c5fe4a30d09c60f8839bbedbab3c2be009e46dc",
+        "bytes": 683901,
+        "mtime_utc": "2026-09-23T00:52:11.795866+00:00"
+      },
+      "export_matches_root": true,
+      "proof_scope": "Complete strategic root matches post-stop capture; not a whole-world physical-chunk validation"
+    },
+    "root_schema": 4,
+    "root_sha256": "03b6e7e82160a36dc60a46b49eb56985696b7543c850317d49e0dc2b37a3958b",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": null,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S038",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\stopped-pre-queue-fix-backup\\kom60-world",
+    "selection": "CONSISTENT_STOPPED_ROOT_COPY",
+    "reason": "Exact strategic root match to captured source checkpoint and matching clean numbered shutdown",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\exit-2.json",
+        "sha256": "c365161d39236fe0f1d32937fbc549796b8487d8faf65ed3879b96897c78ea5d",
+        "bytes": 17,
+        "mtime_utc": "2026-09-23T02:54:55.688215+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\console-2.log",
+        "sha256": "cdedc1f62fbae0bc621ea2958c3d007290dcf1a7b795c7f874ac8f9cfa2940fd",
+        "bytes": 93094,
+        "mtime_utc": "2026-09-23T02:54:55.191004+00:00"
+      },
+      "captured_root": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-20260923T004907Z-65b1ff\\saved-pre-queue-fix.json",
+        "sha256": "ec544b3ec038e86e4c051ca15bb570ca9cf03ec7eef02cc5f2dea5fdf9b9fc83",
+        "bytes": 692948,
+        "mtime_utc": "2026-09-23T02:55:33.982425+00:00"
+      },
+      "export_matches_root": true,
+      "proof_scope": "Complete strategic root matches post-stop capture; not a whole-world physical-chunk validation"
+    },
+    "root_schema": 4,
+    "root_sha256": "51be417b5111f80e570ca70d30f81f75d0f6009aec7df37a7836cba3e8a11c75",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": 1,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S039",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-pr12-20260926T205642Z-a86a68\\backup-after-initial-stop\\pr12-fresh-world",
+    "selection": "CONSISTENT_STOPPED_ROOT_COPY",
+    "reason": "Exact strategic root match to captured source checkpoint and matching clean numbered shutdown",
+    "proof": {
+      "exit": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-pr12-20260926T205642Z-a86a68\\exit-1.json",
+        "sha256": "c365161d39236fe0f1d32937fbc549796b8487d8faf65ed3879b96897c78ea5d",
+        "bytes": 17,
+        "mtime_utc": "2026-09-26T20:58:13.254356+00:00"
+      },
+      "console": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-pr12-20260926T205642Z-a86a68\\console-1.log",
+        "sha256": "ae21941fab9003dc4a393a9b6749f0b6d99dd81302302500a5aca51960820ef5",
+        "bytes": 50018,
+        "mtime_utc": "2026-09-26T20:58:12.679817+00:00"
+      },
+      "captured_root": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-pr12-20260926T205642Z-a86a68\\saved-cycle-1.json",
+        "sha256": "d186d3b41da6465f82bdea9da81e4f8e57d30aa97b2458b942cf8ef11d127589",
+        "bytes": 684761,
+        "mtime_utc": "2026-09-26T20:58:48.275126+00:00"
+      },
+      "export_matches_root": true,
+      "proof_scope": "Complete strategic root matches post-stop capture; not a whole-world physical-chunk validation"
+    },
+    "root_schema": 5,
+    "root_sha256": "ce1a3abfee83de05bc45a47270b4240432f8c603b53c4f14e11524e3996185bf",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": null,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S040",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom60-pr12-20260926T205642Z-a86a68\\server\\pr12-fresh-world",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S041",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom74-20260926T215215Z-9fc9b2\\backup-before-candidate-20260926T221840Z\\kom74-fresh-world",
+    "selection": "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient",
+    "proof": null
+  },
+  {
+    "snapshot": "S042",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom74-20260926T215215Z-9fc9b2\\backup-before-kom77-20260926T234930Z\\server\\kom74-fresh-world",
+    "selection": "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient",
+    "proof": null
+  },
+  {
+    "snapshot": "S043",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom74-20260926T215215Z-9fc9b2\\backup-before-kom77-cold-20260927T155535Z\\server\\kom74-fresh-world",
+    "selection": "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient",
+    "proof": null
+  },
+  {
+    "snapshot": "S044",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\kom74-20260926T215215Z-9fc9b2\\server\\kom74-fresh-world",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S045",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-click-fix-20260918-210403\\server\\tile-resolution-fresh-world",
+    "selection": "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient",
+    "proof": null
+  },
+  {
+    "snapshot": "S046",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-final-combined-20260920T170309Z-36c64fdc\\server\\world",
+    "selection": "CONSISTENT_STOPPED_BACKUP",
+    "reason": "All archived manifest files match; stop assertion recorded by earlier controlled operation",
+    "proof": {
+      "stop_metadata": {
+        "path": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\KOME-LOTR-Addon-Tile-Resolution-Dev\\docs\\combined-geography-install-20260920\\runtime-backup.json",
+        "sha256": "c1ded8186586c5795ca160c934d3b6f9517515d8eef4da50cf7d4ef125d8168f",
+        "bytes": 501,
+        "mtime_utc": "2026-09-20T17:07:51.714098+00:00"
+      },
+      "backup_manifest": {
+        "path": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-final-combined-20260920T170309Z-36c64fdc\\manifest.json",
+        "sha256": "86dca89f86acf1944524b8fca2d93c8a726aa002a1cd13376125339e025929aa",
+        "bytes": 31401,
+        "mtime_utc": "2026-09-20T17:07:51.714098+00:00"
+      },
+      "verified_manifest_files": 103,
+      "declared_world_stopped": true
+    },
+    "root_schema": 3,
+    "root_sha256": "95581750ae80180359ba47a36a17fa5026254ff024cc717a32984c2c6687e88f",
+    "native_custom_waypoint_dimension": 100,
+    "native_player_files_available": 1,
+    "coverage_limits": [
+      "Stopped snapshot only, not current live-world state",
+      "Root strategic records and available native custom/shared waypoint fields inspected",
+      "Physical Anvil entities/tile entities, unloaded chunks, other saves, unsaved state and external shared waypoint owners not scanned",
+      "Snapshot tile-key references persist by ID; absence of coordinates is not proof that physical entities are outside removed cells"
+    ],
+    "state_kind": "Historical validation/acceptance fixture or archived validation-server backup; not a current production inventory"
+  },
+  {
+    "snapshot": "S047",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-foundation-audit-20260919T040619Z\\server\\tile-resolution-fresh-world",
+    "selection": "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient",
+    "proof": null
+  },
+  {
+    "snapshot": "S048",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-hud-review-20260919T184154Z\\server\\tile-resolution-fresh-world",
+    "selection": "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient",
+    "proof": null
+  },
+  {
+    "snapshot": "S049",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-owner-list-fix-20260918-203948\\server\\tile-resolution-fresh-world",
+    "selection": "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient",
+    "proof": null
+  },
+  {
+    "snapshot": "S050",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-reviewed-borders-20260920T134032Z-f3ca2225\\server\\tile-resolution-fresh-world",
+    "selection": "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient",
+    "proof": null
+  },
+  {
+    "snapshot": "S051",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\backups\\before-weathertop-pilot-20260919T201204Z\\server\\tile-resolution-fresh-world",
+    "selection": "EXCLUDED_BACKUP_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Backup not tied to its own stopped capture or explicit stopped/hash manifest; nearby ancestor shutdown is insufficient",
+    "proof": null
+  },
+  {
+    "snapshot": "S052",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\gameplay-v2-validation-20260920T005444Z-bd9c472a\\disposable-server\\tile-resolution-fresh-world",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S053",
+    "world": "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\server\\tile-resolution-fresh-world",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S054",
+    "world": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\KOME-LOTR-Addon\\build\\local-testing-20261002-172206\\server\\fresh-testing-world",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S055",
+    "world": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\KOME-LOTR-Addon\\run-production-final-evidence\\server\\verification-world",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S056",
+    "world": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\KOME-LOTR-Addon\\run-production-release-verification\\server\\verification-world",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  },
+  {
+    "snapshot": "S057",
+    "world": "C:\\Users\\dayne\\OneDrive\\Desktop\\The-Lord-of-the-Rings-main\\LOTR-Test-Server\\world",
+    "selection": "EXCLUDED_STOP_PROVENANCE_UNAVAILABLE",
+    "reason": "Readable saved file is not proof of a consistent stopped checkpoint; no suitable clean-stop receipt verified",
+    "proof": null
+  }
+]
