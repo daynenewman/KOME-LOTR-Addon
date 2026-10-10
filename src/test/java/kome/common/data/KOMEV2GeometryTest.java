@@ -10,7 +10,7 @@ import java.security.MessageDigest;
 import java.util.*;
 import static org.junit.Assert.*;
 
-/** Approved V2 plus final 4,915-cell correction, preserving all pre-V2 territory. */
+/** Historical V2 replay plus the independently approved 45-cell mountain delta. */
 public class KOMEV2GeometryTest {
     @Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
     static Map<Integer,String> edits() throws Exception {
@@ -43,17 +43,24 @@ public class KOMEV2GeometryTest {
     }
     @Test public void exactApprovedMaskPreservesEveryPreviouslyAssignedPixel() throws Exception {
         ClassLoader loader = getClass().getClassLoader();
-        assertEquals("ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7", hash(loader, KOMETileWorldResolver.MASK));
+        assertEquals(KOMEMountainSeparationTest.MASK_HASH, hash(loader, KOMETileWorldResolver.MASK));
         assertEquals("a5cd6cf91b3fc1b662cffffde36a250a6e6687bcb8b2b7cd9aa06809b944b866", hash(loader, "kome/tile/gameplay-baseline/mask.png"));
         BufferedImage before = ImageIO.read(loader.getResource("kome/tile/gameplay-baseline/mask.png"));
         BufferedImage after = ImageIO.read(loader.getResource(KOMETileWorldResolver.MASK));
         assertEquals(before.getWidth(), after.getWidth()); assertEquals(before.getHeight(), after.getHeight());
         Map<Integer,String> edits = edits(); Map<Integer,String> colors = KOMEConquestTileDefaults.getTileIdsByColor();
-        int changes = 0, dimension = KOMETileTestResources.dimension();
+        Map<Integer,KOMEMountainSeparationTest.Cell> removals = KOMEMountainSeparationTest.cells();
+        int changes = 0, removed = 0, dimension = KOMETileTestResources.dimension();
         for (int y = 0; y < 4000; y++) {
             int[] a = before.getRGB(0,y,3200,1,null,0,3200), b = after.getRGB(0,y,3200,1,null,0,3200);
             for (int x = 0; x < 3200; x++) {
                 String id = edits.get(y * 3200 + x);
+                KOMEMountainSeparationTest.Cell removal = removals.get(y * 3200 + x);
+                if (removal != null) {
+                    assertEquals(removal.before, id); assertTrue((a[x] >>> 24) <= 24); assertEquals(0, b[x]);
+                    KOMEMountainSeparationTest.assertMountain(KOMETileWorldResolver.INSTANCE.resolve(dimension, (x-810)*128, (y-730)*128), removal.zone);
+                    removed++; continue;
+                }
                 if (id == null) { if (a[x] != b[x]) fail("Unapproved change at " + x + "," + y); continue; }
                 assertTrue((a[x] >>> 24) <= 24); assertEquals(255, b[x] >>> 24); assertEquals(id, colors.get(b[x] & 0xFFFFFF));
                 int wx = (x - 810) * 128, wz = (y - 730) * 128;
@@ -63,7 +70,7 @@ public class KOMEV2GeometryTest {
                 changes++;
             }
         }
-        assertEquals(94015, changes);
+        assertEquals(93970, changes); assertEquals(45, removed); assertEquals(94015, changes + removed);
     }
     @Test public void approvedCombinedBoundariesUseExactFractionalSampling() {
         int dimension = KOMETileTestResources.dimension();

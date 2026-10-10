@@ -1,6 +1,37 @@
-# KOM-58: no geographic classification is approved. Every existing gap remains unknown.
-# Add explicit reviewed zones and cell runs only; see docs/tile-geography-review-20261002/README.md.
+# KOM-59: exact 45-cell mountain separation approved by Dayne on 2026-10-10.
+# Authority: decision package 4475f90; recommended-cell-manifest.csv SHA256 f14472b0e865974634bc5b6e791e0ce872687f1fda6a56958ec038165a9b4b5e
+# Other gaps remain unclassified. This metadata does not authorize strategic passage.
 schema=1
 width=3200
 height=4000
-mask_sha256=ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7
+mask_sha256=89bd8ccc9ceff3e7d3f9271d61125b07f5f9b1122fb51726ab2f2f5a95364a12
+zone	t435-t654-contact	mountain	Approved KOM-59 narrow mountain-contact separation (2026-10-10)
+zone	t400-t420-contact	mountain	Approved KOM-59 narrow mountain-contact separation (2026-10-10)
+zone	t329-t355-contact	mountain	Approved KOM-59 narrow mountain-contact separation (2026-10-10)
+zone	t352-t356-contact	mountain	Approved KOM-59 narrow mountain-contact separation (2026-10-10)
+zone	t218-t220-contact	mountain	Approved KOM-59 narrow mountain-contact separation (2026-10-10)
+run	1386	1482	1483	t435-t654-contact
+run	1387	1482	1483	t435-t654-contact
+run	1319	1898	1905	t400-t420-contact
+run	1320	1896	1899	t400-t420-contact
+run	1136	1854	1856	t329-t355-contact
+run	1137	1855	1858	t329-t355-contact
+run	1138	1857	1864	t329-t355-contact
+run	1158	1458	1459	t352-t356-contact
+run	1159	1458	1459	t352-t356-contact
+run	1160	1458	1459	t352-t356-contact
+run	1161	1458	1459	t352-t356-contact
+run	1163	1459	1460	t352-t356-contact
+run	1164	1459	1460	t352-t356-contact
+run	838	1161	1162	t218-t220-contact
+run	839	1160	1162	t218-t220-contact
+run	840	1159	1161	t218-t220-contact
+run	841	1159	1160	t218-t220-contact
+run	842	1158	1160	t218-t220-contact
+run	843	1158	1159	t218-t220-contact
+run	844	1158	1159	t218-t220-contact
+run	845	1158	1159	t218-t220-contact
+run	846	1158	1159	t218-t220-contact
+run	847	1158	1159	t218-t220-contact
+run	848	1158	1159	t218-t220-contact
+run	849	1158	1159	t218-t220-contact

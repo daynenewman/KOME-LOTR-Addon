@@ -55,6 +55,7 @@ public class KOMETileWorldResolverTest {
     @Test public void actualRasterAgreesWithIndependentPixelSamples() throws Exception {
         java.awt.image.BufferedImage image = javax.imageio.ImageIO.read(getClass().getClassLoader().getResource(KOMETileWorldResolver.MASK));
         KOMETileRasterSnapshot snapshot = KOMETileTestResources.real();
+        java.util.Map<Integer,KOMEMountainSeparationTest.Cell> approved = KOMEMountainSeparationTest.cells();
         java.util.Random random = new java.util.Random(9917);
         for (int i = 0; i < 5000; i++) {
             int x = random.nextInt(image.getWidth()), y = random.nextInt(image.getHeight());
@@ -62,6 +63,8 @@ public class KOMETileWorldResolverTest {
             String expected = (argb >>> 24) <= 24 ? null : KOMEConquestTileDefaults.getTileIdsByColor().get(argb & 0xFFFFFF);
             KOMETileResolution r = snapshot.resolve(snapshot.transform.dimension,
                 KOMETileTestResources.worldX(x), KOMETileTestResources.worldZ(y));
+            KOMEMountainSeparationTest.Cell cell = approved.get(y * 3200 + x);
+            if (cell != null) { KOMEMountainSeparationTest.assertMountain(r, cell.zone); continue; }
             assertEquals(expected == null ? IN_BOUNDS_GAP : RESOLVED, r.status);
             assertEquals(expected == null ? "" : expected, r.tileId);
         }
