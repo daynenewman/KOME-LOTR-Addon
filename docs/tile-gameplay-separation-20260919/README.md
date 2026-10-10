@@ -1,5 +1,7 @@
 # Geometry / gameplay separation plan — 2026-09-19
 
+This historical plan predates the implemented separation and the authorized [KOM-59 T351/T352 correction](../kom59-ithilien-route-20261010/README.md). Its baseline counts/identical-parity proposal remain historical; current parity explicitly checks the one-edge/one-marker delta without changing the original golden or any raster cells.
+
 Status: read-only investigation and implementation proposal. No production changes. **V2 zero extra river buffer is selected; installation remains unauthorized.** Mapped water and conflicting geographic evidence stay protected. This is not another geography-authoring pass.
 
 ## Baseline and evidence
