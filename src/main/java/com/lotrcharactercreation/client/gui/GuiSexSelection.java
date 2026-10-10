@@ -108,7 +108,9 @@ public class GuiSexSelection extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
-        if (keyCode == 1 && pendingSex == null && !navigationPending) {
+        if (keyCode == 1 && mandatoryFlow) {
+            ClientCreationContinuation.pause(this);
+        } else if (keyCode == 1 && pendingSex == null && !navigationPending) {
             goBack();
         } else if (keyCode != 1) {
             super.keyTyped(typedChar, keyCode);
@@ -120,7 +122,7 @@ public class GuiSexSelection extends GuiScreen {
         drawDefaultBackground();
         int centerY = height / 2;
         drawCenteredString(fontRendererObj, "LOTR CHARACTER CREATION", width / 2, centerY - 64, 0xFFFFFF);
-        drawCenteredString(fontRendererObj, "Choose Your Sex", width / 2, centerY - 46, 0xE0E0E0);
+        drawCenteredString(fontRendererObj, "Choose Your Gender", width / 2, centerY - 46, 0xE0E0E0);
         drawCenteredString(fontRendererObj, "Race: " + race.getDisplayName(), width / 2, centerY - 30, 0xB0B0B0);
         super.drawScreen(mouseX, mouseY, partialTicks);
     }

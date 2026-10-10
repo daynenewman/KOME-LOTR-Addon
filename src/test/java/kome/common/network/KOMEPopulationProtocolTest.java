@@ -16,8 +16,19 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationProtocolTest {
-    @Test public void g4PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.9-integration-g4", KOMEPopulationWire.VERSION);
+    @Test public void preJoinBattleG4CannotHandshakeWithTheExtendedPacketTable() {
+        KOMEAddon addon = new KOMEAddon();
+        for (Side side : new Side[] {Side.CLIENT, Side.SERVER}) {
+            assertFalse("g4 lacks Join Battle response discriminator 54: " + side,
+                addon.acceptsRemoteKome(java.util.Collections.singletonMap(
+                    "kome", "1.0.9-integration-g4"), side));
+            assertTrue(addon.acceptsRemoteKome(java.util.Collections.singletonMap(
+                "kome", KOMEPopulationWire.VERSION), side));
+        }
+    }
+
+    @Test public void g5PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
+        assertEquals("1.0.9-integration-g5", KOMEPopulationWire.VERSION);
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();

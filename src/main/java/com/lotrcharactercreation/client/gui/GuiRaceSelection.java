@@ -45,7 +45,9 @@ public class GuiRaceSelection extends GuiScreen {
 
     @Override
     protected void keyTyped(char typedChar, int keyCode) {
-        if (keyCode != 1) {
+        if (keyCode == 1) {
+            ClientCreationContinuation.pause(this);
+        } else {
             super.keyTyped(typedChar, keyCode);
         }
     }

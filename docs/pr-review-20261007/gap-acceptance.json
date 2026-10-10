@@ -1,0 +1,59 @@
+{
+  "recorded_at_utc": "2026-10-08T03:21:35.204308+00:00",
+  "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+  "profile": "kome-review-mounted-reload-fix-20261007",
+  "world": "review-acceptance-fresh",
+  "dimension": 100,
+  "mask_cell": [
+    1083,
+    735
+  ],
+  "classification": "IN_BOUNDS_GAP",
+  "validated_exclusion_zones": 0,
+  "validated_exclusion_cells": 0,
+  "hud_position": [
+    34944.5,
+    181,
+    640.5
+  ],
+  "map_position": [
+    35008,
+    181,
+    704
+  ],
+  "observations": [
+    {
+      "test": "protected-r1-gap-hud",
+      "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+      "actions": "Observe player HUD at dimension 100, X34944.5/Y181/Z640.5",
+      "reply": "no tile",
+      "result": "USER_CONFIRMED_NO_TILE_AT_UNCLASSIFIED_GAP",
+      "native_evidence": "gap-acceptance.json"
+    },
+    {
+      "test": "protected-r1-gap-map-picking",
+      "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+      "actions": "At X35008/Y181/Z704, L -> Map; hover player-marker center; right-click",
+      "reply": "nothing pops up when i right click hovering over my head",
+      "result": "USER_CONFIRMED_NO_TILE_COMMAND_AT_UNCLASSIFIED_GAP_POINT",
+      "native_evidence": "gap-acceptance.json",
+      "limits": "One point and one authenticated client; no approved river/exclusion classification or multiplayer pass."
+    }
+  ],
+  "files_sha256": {
+    "gap-checks.log": "8da7bf50c4d20ede3bca4422ca4a2988616508c6c3855c42b3f9959b734882c2",
+    "GapAcceptanceProbeV3.java": "ea74f9b2a115508856e43bd680f874c27fc35b641b1842e8080cc7986d6c92fd",
+    "GapAcceptanceProbeV3.jar": "543b549729a93cd38a686f04efde88c39d6c6a60189e8052d01060b66188b896"
+  },
+  "limits": [
+    "Unknown geography remains unknown; no raster or exclusion changes.",
+    "Initial helper coordinate guard rejected an adjacent non-gap point before mutation; preserved in raw log.",
+    "No simultaneous-player or lower-spec acceptance."
+  ],
+  "pause": {
+    "explicit_user_request": "pending, lets pause here",
+    "second_authenticated_account": "pending",
+    "runtime_action": "None; existing acceptance client/server left unchanged.",
+    "unpublished_work": "Latest evidence follow-up and PR metadata refresh remain uncommitted/unpushed."
+  }
+}

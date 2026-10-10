@@ -1,6 +1,10 @@
 # KOME GUI handoff
 
-Current source of truth for the schema-7 Build/population/alliance redesign. Superseded screen inventories are in `archive`.
+Historical schema-7 Build/population/alliance handoff. Current Tile Command has
+Builds and Canonical Population tabs, one selected Build type/hours field, and
+`Build List` to leave the creation form; the three-tab and simultaneous-hours
+descriptions below are historical. Source in the current checkout takes precedence.
+See [current scoped client observations](pr-review-20261007/README.md).
 
 ## Shared visual language
 

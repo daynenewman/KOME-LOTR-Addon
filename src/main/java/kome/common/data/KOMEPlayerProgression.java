@@ -32,6 +32,13 @@ public class KOMEPlayerProgression {
     private final List<KOMERelationshipDeathNotice> pendingRelationshipDeathNotices = new ArrayList<KOMERelationshipDeathNotice>();
     /** Revised-progression authority; intentionally independent of legacy achievement groups. */
     private KOMEProgressionRank canonicalRank = KOMEProgressionRank.WANDERER;
+    private String offerPledge="";
+    private long offerPledgeRevision;
+    public long observeOfferPledge(String faction){
+        String key=faction==null?"":faction;
+        if(!key.equals(offerPledge)){offerPledge=key;offerPledgeRevision++;}
+        return offerPledgeRevision;
+    }
     private String pledgedLordID = "";
     private String pledgedLordName = "";
     private String pledgedLordFaction = "";
@@ -242,6 +249,7 @@ public class KOMEPlayerProgression {
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
+        offerPledge=nbt.getString("OfferPledge");offerPledgeRevision=Math.max(0L,nbt.getLong("OfferPledgeRevision"));
         serfdomOfferDeclines.clear(); long now=KOMESerfKnightService.calendarDayNow(); NBTTagList declined=nbt.getTagList("SerfdomOfferDeclines",10);for(int i=0;i<declined.tagCount();i++){NBTTagCompound e=declined.getCompoundTagAt(i);if(e.getLong("Day")==now)serfdomOfferDeclines.put(e.getString("NPC"),Long.valueOf(now));}
         completed.clear();
         assignments.clear();
@@ -303,6 +311,7 @@ public class KOMEPlayerProgression {
     public NBTTagCompound writeToNBT() {
         pruneSerfdomOfferDeclines(KOMESerfKnightService.calendarDayNow());
         NBTTagCompound nbt = new NBTTagCompound();
+        nbt.setString("OfferPledge",offerPledge);nbt.setLong("OfferPledgeRevision",offerPledgeRevision);
         NBTTagList list = new NBTTagList();
         for (String id : completed) {
             list.appendTag(new NBTTagString(id));

@@ -1,0 +1,23 @@
+Wed Oct 07 19:42:55 CDT 2026 COMPANY C-review;faction=gondor;native=gondor;owner=82cb47c7-fa4c-4be8-ba9b-000000000082
+Wed Oct 07 19:42:55 CDT 2026 COMPANY tile=T401;status=stationed;order=
+Wed Oct 07 19:42:55 CDT 2026 COMPANY controller=null;authority=NATIVE;cleanup=NONE
+Wed Oct 07 19:42:55 CDT 2026 COMPANY members=31;missingCanonicalUnits=31
+Wed Oct 07 19:42:55 CDT 2026 COMPANY Movement credit=0;entitlement=1;initialized=false
+Wed Oct 07 19:42:55 CDT 2026 COMPANY Movement boundary=0;schedule=
+Wed Oct 07 19:42:55 CDT 2026 COMPANY Coherence=INCOHERENT;phase=NO_ROUTE;route=
+Wed Oct 07 19:42:55 CDT 2026 COMPANY Cached physical observations: confirmed=0;unknown=31;contradictory=0;no world or chunk is loaded for inspection
+Wed Oct 07 19:42:55 CDT 2026 COMPANY MISSING_UNIT_RECORD: Unit 00000000 has no tracked KOME hired-unit record.
+Wed Oct 07 19:42:55 CDT 2026 COMPANY MEMBER_STRATEGIC_TILE_MISSING: Unit 00000000 has no strategic conquest tile.
+Wed Oct 07 19:42:55 CDT 2026 COMPANY MISSING_UNIT_RECORD: Unit 00000000 has no tracked KOME hired-unit record.
+Wed Oct 07 19:42:55 CDT 2026 COMPANY MEMBER_STRATEGIC_TILE_MISSING: Unit 00000000 has no strategic conquest tile.
+Wed Oct 07 19:42:55 CDT 2026 COMPANY MISSING_UNIT_RECORD: Unit 00000000 has no tracked KOME hired-unit record.
+Wed Oct 07 19:42:55 CDT 2026 COMPANY MEMBER_STRATEGIC_TILE_MISSING: Unit 00000000 has no strategic conquest tile.
+Wed Oct 07 19:42:55 CDT 2026 COMPANY MISSING_UNIT_RECORD: Unit 00000000 has no tracked KOME hired-unit record.
+Wed Oct 07 19:42:55 CDT 2026 COMPANY MEMBER_STRATEGIC_TILE_MISSING: Unit 00000000 has no strategic conquest tile.
+Wed Oct 07 19:42:55 CDT 2026 COMPANY MISSING_UNIT_RECORD: Unit 00000000 has no tracked KOME hired-unit record.
+Wed Oct 07 19:42:55 CDT 2026 COMPANY Additional coherence issues omitted=53
+Wed Oct 07 19:42:55 CDT 2026 COMPANY Use existing movement/withdrawal and stewardship services. Missing entities are not proof of death; no teleport/repair inferred.
+Wed Oct 07 19:42:55 CDT 2026 PASS production_company_diagnostics nativeLoader=true serverThread=true isolatedData=true noAuthoritativeMutation=true
+Wed Oct 07 19:42:55 CDT 2026 ROOT_DENIAL net.minecraft.command.WrongUsageException: You do not have permission to use this KOME admin command.
+Wed Oct 07 19:42:55 CDT 2026 PASS native_root_denial_before_world_access syntheticSender=true humanPermissionAcceptance=false
+Wed Oct 07 19:42:55 CDT 2026 PASS production_movement_credit_audit onceOnly=true nativeNBTRoundTrip=true liveWorldBoundaryOrColdJVMRestart=false event=kome.common.data.KOMEAuditEntry@48fd51ee

@@ -14,8 +14,8 @@ JAVA = {p.stem: p for base in ("src/main/java", "src/test/java")
 IDENTIFIERS = set()
 for source_path in JAVA.values():
     IDENTIFIERS.update(re.findall(r"\b[A-Za-z_]\w*\b", source_path.read_text(encoding="utf-8-sig")))
-# These two names occur only in explicit absence/provenance notes.
-ABSENT = {"KOMEDailyCoordinator", "KOMESeasonResetService"}
+# Current routing names resolve to production classes; no historical absence exceptions.
+ABSENT = set()
 errors = []
 links = symbols = selectors = 0
 

@@ -131,7 +131,7 @@ public class KOMEMovementAllowanceTest {
             KOMEMovementDayService.anchor(data, NOW);
             assertTrue(KOMEMovementDayService.depart(data, route(company), true, () -> true));
             NBTTagCompound root = new NBTTagCompound(); data.writeToNBT(root);
-            assertEquals(11, root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, root.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             KOMEWorldData restored = new KOMEWorldData("restored"); restored.readFromNBT(root);
             KOMEArmyCompany copy = restored.armyCompanies.get(company.id);
             assertNotNull(copy); assertEquals(0, copy.movementAllowance);
@@ -208,6 +208,49 @@ public class KOMEMovementAllowanceTest {
                 try { mutate.run(); fail("Write-blocked world must reject movement authority changes"); }
                 catch (IllegalStateException expected) { assertEquals(before, company.writeToNBT()); assertEquals(0L, data.movementBoundaryMillis); }
             }
+        }
+    }
+
+    @Test public void restoredCreditAuditIsOnceOnlyAcrossRepeatAndPersistence() throws Exception {
+        try (KOMEPopulationTestConfig config = new KOMEPopulationTestConfig()) {
+            KOMEWorldData data = new KOMEWorldData("audit-credit"); company(data, true);
+            KOMEMovementDayService.anchor(data, NOW);
+            assertTrue(KOMEAuditService.entries(data).isEmpty());
+            long boundary = KOMEMovementDayService.schedule().nextBoundary(Instant.ofEpochMilli(NOW)).toEpochMilli();
+            assertTrue(KOMEMovementDayService.applyBoundary(data, boundary));
+            KOMEAuditEntry event = KOMEAuditService.entries(data).get(0);
+            assertEquals("MOVEMENT", event.domain); assertEquals("ALLOWANCE_RESTORED", event.action);
+            assertTrue(event.details.contains("companies=1"));
+            assertFalse(KOMEMovementDayService.applyBoundary(data, boundary));
+            NBTTagCompound saved = new NBTTagCompound(); data.writeToNBT(saved);
+            KOMEWorldData restored = new KOMEWorldData("audit-credit-restored"); restored.readFromNBT(saved);
+            assertFalse(KOMEMovementDayService.applyBoundary(restored, boundary));
+            assertEquals(1, KOMEAuditService.entries(restored).size());
+            assertEquals(event.compact(), KOMEAuditService.entries(restored).get(0).compact());
+        }
+    }
+
+    @Test public void offlineAnchorsAndScheduleChangesDoNotAnnounceRestoredCredit() throws Exception {
+        try (KOMEPopulationTestConfig config = new KOMEPopulationTestConfig()) {
+            KOMEWorldData data = new KOMEWorldData("audit-anchor"); company(data, false);
+            KOMEMovementDayService.anchor(data, NOW + 5 * 86400000L);
+            config.set("dailyBatch.localTime", "21:00");
+            KOMEMovementDayService.observe(data, NOW + 6 * 86400000L);
+            assertTrue(KOMEAuditService.entries(data).isEmpty());
+        }
+    }
+
+    @Test public void movementCreditAuditUsesExistingBoundedHistory() throws Exception {
+        try (KOMEPopulationTestConfig config = new KOMEPopulationTestConfig()) {
+            KOMEWorldData data = new KOMEWorldData("audit-bounds"); company(data, false);
+            KOMEMovementDayService.anchor(data, NOW);
+            for (int i = 0; i < KOMEAuditService.MAX_ENTRIES; i++)
+                KOMEAuditService.record(data, i, "TEST", "EXISTING", "system", "" + i, "existing history", "");
+            long boundary = KOMEMovementDayService.schedule().nextBoundary(Instant.ofEpochMilli(NOW)).toEpochMilli();
+            assertTrue(KOMEMovementDayService.applyBoundary(data, boundary));
+            assertEquals(KOMEAuditService.MAX_ENTRIES, KOMEAuditService.entries(data).size());
+            assertEquals("1", KOMEAuditService.entries(data).get(0).subject);
+            assertEquals("ALLOWANCE_RESTORED", KOMEAuditService.entries(data).get(KOMEAuditService.MAX_ENTRIES - 1).action);
         }
     }
 

@@ -167,6 +167,9 @@ public class KOMEWorldDataAtomicLoadTest {
         for (int schema : new int[]{7, 8}) {
             NBTTagCompound source = stableDocument(); source.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, schema);
             removeEmergencyDefenseSection(source);
+            source.removeTag("MovementBoundary");
+            NBTTagList companies = source.getTagList("ArmyCompanies", 10);
+            for (int i = 0; i < companies.tagCount(); i++) companies.getCompoundTagAt(i).removeTag("MovementAllowance");
             source.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
             source.getCompoundTag("TacticalConfiguration").setString("Revision", "corrupt");
             assertRejectedWithoutPublication(source, "TacticalConfiguration");

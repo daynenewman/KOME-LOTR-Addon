@@ -1,0 +1,21 @@
+Wed Oct 07 21:56:12 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Gondor captain registry entry absent
+Wed Oct 07 21:57:25 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Missing method func_94057_bL
+Wed Oct 07 21:57:57 CDT 2026 HIRE_READY captain=ca253918-74e2-48b7-b2ab-6d3152332de8 firstTradeCost=15 coins=500 populationCenti=100000 alignment=1000 staffUnlockedTradeAndHire=true onlyPrerequisitesSeeded=true purchaseNotPerformed=true
+Wed Oct 07 22:00:49 CDT 2026 HIRE_OBSERVED coins=470 coinBefore=500 populationCenti=96000 populationBefore=100000 units=[8ce35270-7847-4b9a-a1f0-d68ddd680e8b, b54078cf-b482-4266-8679-591e4bf8d266] companies=[C-mounted-acceptance-safe]
+Wed Oct 07 22:00:49 CDT 2026 HIRE_QUERY unit=8ce35270-7847-4b9a-a1f0-d68ddd680e8b query=AVAILABLE location=RESOLVED dimension=100 world=78016,66239 mask=1419,1247 tile=T388 (Exact cell; capturability unknown)
+Wed Oct 07 22:00:49 CDT 2026 HIRE_QUERY unit=b54078cf-b482-4266-8679-591e4bf8d266 query=AVAILABLE location=RESOLVED dimension=100 world=78016,66241 mask=1419,1247 tile=T388 (Exact cell; capturability unknown)
+Wed Oct 07 22:04:06 CDT 2026 HIRE_OBSERVED coins=470 coinBefore=500 populationCenti=96000 populationBefore=100000 units=[8ce35270-7847-4b9a-a1f0-d68ddd680e8b, b54078cf-b482-4266-8679-591e4bf8d266] companies=[C-mounted-acceptance-safe]
+Wed Oct 07 22:04:06 CDT 2026 HIRE_QUERY unit=8ce35270-7847-4b9a-a1f0-d68ddd680e8b query=AVAILABLE location=RESOLVED dimension=100 world=78017,66238 mask=1419,1247 tile=T388 (Exact cell; capturability unknown)
+Wed Oct 07 22:04:06 CDT 2026 HIRE_QUERY unit=b54078cf-b482-4266-8679-591e4bf8d266 query=AVAILABLE location=RESOLVED dimension=100 world=78017,66241 mask=1419,1247 tile=T388 (Exact cell; capturability unknown)
+Wed Oct 07 22:04:06 CDT 2026 PHYSICAL_HIRE uuid=b54078cf-b482-4266-8679-591e4bf8d266 class=lotr.common.entity.npc.LOTREntityGondorLevyman active=true halted=true dead=false task=WARRIOR canonical=true hp=20.0 x=78017.08343925558 y=200.0 z=66241.30800764565
+Wed Oct 07 22:04:06 CDT 2026 PHYSICAL_HIRE uuid=cc9313f6-6110-45d9-a8b6-13bb8aac5476 class=lotr.common.entity.npc.LOTREntityGondorLevyman active=false halted=false dead=false task=WARRIOR canonical=false hp=20.0 x=78016.02463265858 y=200.0 z=66244.12131373501
+Wed Oct 07 22:04:06 CDT 2026 PHYSICAL_HIRE uuid=8ce35270-7847-4b9a-a1f0-d68ddd680e8b class=lotr.common.entity.npc.LOTREntityGondorSoldier active=true halted=true dead=false task=WARRIOR canonical=true hp=20.0 x=78017.40457962827 y=200.80000001192093 z=66238.80426888977
+Wed Oct 07 22:04:06 CDT 2026 PHYSICAL_HIRE_COUNT=3
+Wed Oct 07 22:06:39 CDT 2026 HIRE_OBSERVED coins=470 coinBefore=500 populationCenti=96000 populationBefore=100000 units=[8ce35270-7847-4b9a-a1f0-d68ddd680e8b, b54078cf-b482-4266-8679-591e4bf8d266] companies=[C-mounted-acceptance-safe]
+Wed Oct 07 22:06:39 CDT 2026 HIRE_QUERY unit=8ce35270-7847-4b9a-a1f0-d68ddd680e8b query=AVAILABLE location=RESOLVED dimension=100 world=78015,66239 mask=1419,1247 tile=T388 (Exact cell; capturability unknown)
+Wed Oct 07 22:06:39 CDT 2026 HIRE_QUERY unit=b54078cf-b482-4266-8679-591e4bf8d266 query=AVAILABLE location=RESOLVED dimension=100 world=78017,66241 mask=1419,1247 tile=T388 (Exact cell; capturability unknown)
+Wed Oct 07 22:06:39 CDT 2026 DISMISSED_QUERY uuid=cc9313f6-6110-45d9-a8b6-13bb8aac5476 query=NOT_TRACKED canonical=false populationRefunded=false
+Wed Oct 07 22:06:39 CDT 2026 PHYSICAL_HIRE uuid=b54078cf-b482-4266-8679-591e4bf8d266 class=lotr.common.entity.npc.LOTREntityGondorLevyman active=true halted=true dead=false task=WARRIOR canonical=true hp=20.0 x=78017.08343925558 y=200.0 z=66241.30800764565
+Wed Oct 07 22:06:39 CDT 2026 PHYSICAL_HIRE uuid=cc9313f6-6110-45d9-a8b6-13bb8aac5476 class=lotr.common.entity.npc.LOTREntityGondorLevyman active=false halted=false dead=false task=WARRIOR canonical=false hp=20.0 x=78010.53828312861 y=200.0 z=66240.44296767339
+Wed Oct 07 22:06:39 CDT 2026 PHYSICAL_HIRE uuid=8ce35270-7847-4b9a-a1f0-d68ddd680e8b class=lotr.common.entity.npc.LOTREntityGondorSoldier active=true halted=true dead=false task=WARRIOR canonical=true hp=20.0 x=78015.59704560044 y=200.80000001192093 z=66239.44383771444
+Wed Oct 07 22:06:39 CDT 2026 PHYSICAL_HIRE_COUNT=3

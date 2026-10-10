@@ -1,0 +1,46 @@
+// Test-only verification. Run through campaign-lifecycle/validate.ps1 for the required mutex.
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.tasks.Jar
+allprojects { afterEvaluate {
+    tasks.register('compileCombinedVerification', JavaCompile) {
+        dependsOn tasks.named('classes')
+        source = project.fileTree('tools/pr24-pr25/java') { include '**/*.java' }
+        classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+        destinationDirectory.set(layout.buildDirectory.dir('pr24-pr25/verification-classes'))
+        sourceCompatibility = '8'; targetCompatibility = '8'
+    }
+    tasks.register('combinedVerificationJar', Jar) {
+        dependsOn tasks.named('compileCombinedVerification')
+        from layout.buildDirectory.dir('pr24-pr25/verification-classes')
+        archiveFileName.set('combined-verification.jar')
+        destinationDirectory.set(layout.buildDirectory.dir('pr24-pr25'))
+    }
+    tasks.named('runServer') {
+        dependsOn tasks.named('combinedVerificationJar')
+        String order = project.findProperty('verificationOrder') ?: 'origin-first'
+        if (!(order in ['origin-first','destination-first'])) throw new GradleException('Invalid chunk order')
+        workingDir = project.file('outputs/pr24-pr25/forge-' + order)
+        timeout.set(java.time.Duration.ofMinutes(6))
+        doFirst {
+            String phase = project.findProperty('verificationPhase') ?: 'first'
+            if (!(phase in ['first','recover','completed'])) throw new GradleException('Invalid phase')
+            File world = new File(workingDir, 'combined-disposable')
+            if (phase == 'first' && world.exists()) throw new GradleException('Refusing to overwrite disposable evidence')
+            if (phase != 'first' && !world.exists()) throw new GradleException('Disposable world missing')
+            workingDir.mkdirs()
+            project.copy { from layout.buildDirectory.file('pr24-pr25/combined-verification.jar'); into new File(workingDir,'mods') }
+            new File(workingDir,'verification-phase.txt').text = phase
+            new File(workingDir,'verification-order.txt').text = order
+            new File(workingDir,'eula.txt').text = 'eula=true\n'
+            new File(workingDir,'server.properties').text = 'server-port=0\nlevel-name=combined-disposable\nonline-mode=false\nview-distance=2\nmax-tick-time=120000\n'
+        }
+        doLast {
+            String phase = project.findProperty('verificationPhase') ?: 'first'
+            File proof = new File(workingDir, 'combined-' + phase + '-' + order + '.txt')
+            if (!proof.exists() || !proof.text.contains('PASS ' + phase + ' ' + order) || proof.text.contains('FAIL '))
+                throw new GradleException('Forge exited without passing evidence: ' + proof)
+            if (phase == 'first' && !proof.text.contains('OK injected obsolete virtual source'))
+                throw new GradleException('Missing post-shutdown source-chunk fixture')
+        }
+    }
+} }

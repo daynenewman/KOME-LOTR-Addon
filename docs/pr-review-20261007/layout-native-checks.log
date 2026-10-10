@@ -1,0 +1,8 @@
+Wed Oct 07 19:42:54 CDT 2026 CONTROL RESOLVED dimension=100 world=237248,87295 mask=2663,1411 tile=T401 (Exact cell; capturability unknown)
+Wed Oct 07 19:42:54 CDT 2026 CONTROL RESOLVED dimension=100 world=237248,87296 mask=2663,1412 tile=T442 (Exact cell; capturability unknown)
+Wed Oct 07 19:42:54 CDT 2026 CONTROL IN_BOUNDS_GAP dimension=100 world=34944,640 mask=1083,735 (Exact cell is an unclassified gap; Validated exclusions: zones=0 cells=0)
+Wed Oct 07 19:42:54 CDT 2026 CONTROL RESOLVED dimension=100 world=189696,-86016 mask=2292,58 tile=T001 (Exact cell; capturability unknown)
+Wed Oct 07 19:42:54 CDT 2026 CONTROL OUTSIDE_MASK dimension=100 world=-10000000,-10000000 mask=-77315,-77395 (Outside authoritative mask coverage)
+Wed Oct 07 19:42:54 CDT 2026 CONTROL UNSUPPORTED_DIMENSION dimension=0 world=237248,87295 (Only the configured Middle-earth dimension is supported)
+Wed Oct 07 19:42:54 CDT 2026 PASS resolver_controls dimension=100 geometryDiagnostic=Validated tile raster 3200x4000; Validated exclusions: zones=0 cells=0
+Wed Oct 07 19:45:40 CDT 2026 METRIC label=layout-one-client tick=12912 tracked=1 lookups=1 samples=100 meanMs=1.607655 p95Ms=2.089 maxMs=2.5848 heapUsedBytes=439437872 maxHeapBytes=1193279488

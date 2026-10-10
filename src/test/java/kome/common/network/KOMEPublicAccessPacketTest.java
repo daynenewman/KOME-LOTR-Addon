@@ -354,8 +354,8 @@ public class KOMEPublicAccessPacketTest {
         assertTrue(registration.contains("KOMEPacketConquestOpenCapture.class, 7, Side.SERVER"));
         assertTrue(registration.contains("KOMEPacketBuildAction.class, 36, Side.SERVER"));
         assertTrue(registration.contains("IDs 23 and 24 are retired"));
-        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g4"));
-        assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g5"));
+        assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
 
     @Test public void validNonOperatorCreationPassesQueuedPacketAndExactGeometry() {

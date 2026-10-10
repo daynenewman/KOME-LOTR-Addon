@@ -56,9 +56,14 @@ public class KOMEHiredUnitRecord {
     /** Compatibility field: true means cleanup handled funding; canonical population is never refunded. */
     public boolean populationReturned;
     public String releaseState = "";
+    /** Receipt expected on a reset-returned physical entity; stale virtual disk copies are rejected. */
+    public String seasonReturnToken = "";
+    public boolean seasonReturnVirtual;
     public NBTTagCompound movingEntityData;
+    /** Reconstruction payload only; never a verified Join Battle/chunk locator. */
     public NBTTagCompound stationedEntityData;
     public NBTTagCompound survivingHealth;
+    private KOMEHiredUnitPhysicalLocator physicalLocator;
     transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedEntity;
     transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedMount;
 
@@ -115,11 +120,25 @@ public class KOMEHiredUnitRecord {
         stewardshipWarIds = nbt.getString("StewardshipWarIds");
         populationReturned = nbt.getBoolean("PopulationReturned");
         releaseState = nbt.getString("ReleaseState");
+        seasonReturnToken = nbt.getString("SeasonReturnToken");
+        seasonReturnVirtual = nbt.getBoolean("SeasonReturnVirtual");
         movingEntityData = nbt.hasKey("MovingEntityData", 10) ? nbt.getCompoundTag("MovingEntityData") : null;
         stationedEntityData = nbt.hasKey("StationedEntityData", 10) ? nbt.getCompoundTag("StationedEntityData") : null;
         if (nbt.hasKey("SurvivingHealth") && !nbt.hasKey("SurvivingHealth", 10))
             throw new IllegalArgumentException("Invalid survivor health authority");
         survivingHealth = nbt.hasKey("SurvivingHealth", 10) ? (NBTTagCompound) nbt.getCompoundTag("SurvivingHealth").copy() : null;
+        if (nbt.hasKey(KOMEHiredUnitPhysicalLocator.TAG)
+                && !nbt.hasKey(KOMEHiredUnitPhysicalLocator.TAG, 10))
+            throw new IllegalArgumentException("Invalid physical locator authority");
+        physicalLocator = nbt.hasKey(KOMEHiredUnitPhysicalLocator.TAG, 10)
+            ? KOMEHiredUnitPhysicalLocator.readFromNBT(
+                nbt.getCompoundTag(KOMEHiredUnitPhysicalLocator.TAG), entity) : null;
+        if (physicalLocator != null && (movingEntityData != null || populationReturned
+                || !KOMEHiredUnitClassification.isCampaignUnit(this)
+                || companyId == null || companyId.length() == 0
+                || !KOMEConquestTile.normalizeId(currentTile).equals(
+                    physicalLocator.getPhysicalTileId())))
+            throw new IllegalArgumentException("Physical locator attached to an ineligible hired-unit state");
         healthObservedEntity = null;
         healthObservedMount = null;
         if (farmhand) {
@@ -133,6 +152,8 @@ public class KOMEHiredUnitRecord {
         KOMECampaignHealth.refresh(this);
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Entity", entity.toString());
+        nbt.setString("SeasonReturnToken", seasonReturnToken);
+        nbt.setBoolean("SeasonReturnVirtual", seasonReturnVirtual);
         nbt.setString("Owner", owner.toString());
         nbt.setString("UnitClass", persistedUnitClass().name());
         nbt.setString("Type", type.key);
@@ -177,7 +198,32 @@ public class KOMEHiredUnitRecord {
             nbt.setTag("StationedEntityData", stationedEntityData);
         }
         if (survivingHealth != null) nbt.setTag("SurvivingHealth", survivingHealth.copy());
+        if (physicalLocator != null) {
+            physicalLocator.validateAttachedTo(entity);
+            if (movingEntityData != null || populationReturned
+                    || !KOMEHiredUnitClassification.isCampaignUnit(this)
+                    || companyId == null || companyId.length() == 0
+                    || !KOMEConquestTile.normalizeId(currentTile).equals(
+                        physicalLocator.getPhysicalTileId()))
+                throw new IllegalStateException("Physical locator attached to an ineligible hired-unit state");
+            nbt.setTag(KOMEHiredUnitPhysicalLocator.TAG, physicalLocator.writeToNBT());
+        }
         return nbt;
+    }
+
+    /** Read-only durable address for a future bounded physical verification attempt. */
+    public KOMEHiredUnitPhysicalLocator getPhysicalLocator() {
+        return physicalLocator;
+    }
+
+    void replacePhysicalLocator(KOMEHiredUnitPhysicalLocator locator) {
+        if (locator == null) throw new IllegalArgumentException("Physical locator is required");
+        locator.validateAttachedTo(entity);
+        physicalLocator = locator;
+    }
+
+    void clearPhysicalLocator() {
+        physicalLocator = null;
     }
 
     public boolean isPlayerReserveFunded() {

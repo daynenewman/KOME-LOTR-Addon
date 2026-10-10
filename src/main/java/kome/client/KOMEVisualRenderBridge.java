@@ -29,32 +29,38 @@ public final class KOMEVisualRenderBridge {
     private KOMEVisualRenderBridge() { }
 
     public static void renderRelationshipMarker(LOTREntityNPC npc, double x, double y, double z) {
+        if(KOMEProgressionEnemyOutline.isRendering())return;
         Minecraft minecraft = Minecraft.getMinecraft();
         if (npc == null || minecraft.thePlayer == null || minecraft.renderViewEntity == null
                 || !npc.isEntityAlive()) return;
         KOMEVisualMarker marker = overheadFor(npc.getUniqueID().toString(), minecraft.thePlayer.dimension);
+        if(marker==null&&KOMELiegeQuestButtonOverlay.isStandingTrialAvailableFor(minecraft.thePlayer,npc))
+            marker=new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,npc.getUniqueID().toString(),"","",minecraft.thePlayer.dimension,npc.posX,npc.posY,npc.posZ);
         if (marker == null) return;
-        boolean nativeIndicator = npc.questInfo != null && (npc.questInfo.clientIsOffering
-            || !LOTRLevelData.getData(minecraft.thePlayer).getMiniQuestsForEntity(npc, true).isEmpty());
-        if (nativeIndicator) {
-            double angle = Math.toRadians(RenderManager.instance.playerViewY);
-            x += Math.cos(angle) * 0.62D;
-            z += Math.sin(angle) * 0.62D;
-        }
         if (LOTRSpeechClient.hasSpeech(npc)) y += speechDisplacement(npc);
         invokeNativeRelationshipRenderer(npc, icon(marker.role), x, y, z);
     }
 
     static KOMEVisualMarker overheadFor(String entityUuid,int dimension) {
-        KOMEVisualMarker relationship=null, courier=null, ruler=null;
+        KOMEVisualMarker relationship=null, courier=null, ruler=null,gift=null;
         for(KOMEVisualMarker marker:KOMEVisualMarkerClientState.markers())
-            if(marker.dimension==dimension&&marker.entityUuid.equals(entityUuid)) {
-                if(marker.role==KOMEVisualMarker.Role.MASTER_GIFT)return marker;
+            if((marker.actionable||marker.isRelationship())&&marker.dimension==dimension&&marker.entityUuid.equals(entityUuid)) {
+                if(marker.role==KOMEVisualMarker.Role.MASTER_GIFT){gift=marker;continue;}
                 if(marker.role==KOMEVisualMarker.Role.RULER)ruler=marker;
                 if(marker.isRelationship()&&relationship==null)relationship=marker;
                 if(marker.role==KOMEVisualMarker.Role.COURIER)courier=marker;
+                if(marker.role==KOMEVisualMarker.Role.ESCORT||marker.role==KOMEVisualMarker.Role.DEFENSE||marker.role==KOMEVisualMarker.Role.COMMISSION)courier=marker;
             }
-        return ruler!=null?ruler:relationship!=null?relationship:courier;
+        return ruler!=null?ruler:relationship!=null?relationship:gift!=null?gift:courier;
+    }
+
+    /** Presentation only: never changes native quest data or another player's indicators. */
+    public static boolean suppressNativeIndicator(LOTREntityNPC npc) {
+        Minecraft mc=Minecraft.getMinecraft();
+        if(KOMEProgressionEnemyOutline.isRendering())return true;
+        if(npc==null||mc.thePlayer==null)return false;
+        if(KOMEVisualMarkerClientState.relevant(npc.getUniqueID().toString(),mc.thePlayer.dimension))return true;
+        return KOMELiegeQuestButtonOverlay.isStandingTrialAvailableFor(mc.thePlayer,npc);
     }
 
     static KOMEVisualMarker relationshipFor(String entityUuid, int dimension) {
@@ -74,6 +80,9 @@ public final class KOMEVisualRenderBridge {
     }
 
     public static ItemStack relationshipIconForNative() { return RELATIONSHIP_ICON.get(); }
+    public static net.minecraft.util.IIcon itemIcon(ItemStack stack) {
+        return stack==null?null:stack.getItem().getIcon(stack,0);
+    }
 
     private static void invokeNativeRelationshipRenderer(LOTREntityNPC npc, ItemStack stack,
             double x, double y, double z) {
@@ -110,8 +119,9 @@ public final class KOMEVisualRenderBridge {
             KOMEVisualMarker hovered = null;
             double hoveredDistance = Double.MAX_VALUE;
             for (KOMEVisualMarker marker : KOMEVisualMarkerClientState.markers()) {
-                if (marker.dimension != player.dimension) continue;
+                if (marker.dimension != player.dimension||(marker.role==KOMEVisualMarker.Role.ENCOUNTER_ENEMY||marker.role==KOMEVisualMarker.Role.PARTICIPANT)) continue;
                 float[] point = (float[])transformCoords.invoke(map, (float)marker.x, (float)marker.z);
+                if(marker.role==KOMEVisualMarker.Role.RULER&&(point[0]<mapXMin.getInt(null)||point[0]>mapXMax.getInt(null)||point[1]<mapYMin.getInt(null)||point[1]>mapYMax.getInt(null)))continue;
                 int x = Math.round(point[0]), y = Math.round(point[1]);
                 int half = 5;
                 x = Math.max(mapXMin.getInt(null) + half + 1,
@@ -119,6 +129,10 @@ public final class KOMEVisualRenderBridge {
                 y = Math.max(mapYMin.getInt(null) + half + 1,
                     Math.min(mapYMax.getInt(null) - half - 2, y));
                 drawMapItem(icon(marker.role), x, y);
+                if(KOMEProgressionMapFocus.isFocused(marker)){
+                    GuiScreen.drawRect(x-7,y-7,x+7,y-6,0xFFFFD15A);GuiScreen.drawRect(x-7,y+6,x+7,y+7,0xFFFFD15A);
+                    GuiScreen.drawRect(x-7,y-7,x-6,y+7,0xFFFFD15A);GuiScreen.drawRect(x+6,y-7,x+7,y+7,0xFFFFD15A);
+                }
                 double dx = x - mouseX, dy = y - mouseY, distance = Math.sqrt(dx * dx + dy * dy);
                 if (distance <= 7.0D && distance < hoveredDistance) {
                     hovered = marker;
@@ -135,6 +149,7 @@ public final class KOMEVisualRenderBridge {
 
     private static void drawMapItem(ItemStack stack, int x, int y) {
         if (stack == null) return;
+        if(KOMEProgressionEnemyOutline.isRendering())return;
         Minecraft minecraft = Minecraft.getMinecraft();
         GL11.glPushMatrix();
         GL11.glScalef(0.5F, 0.5F, 0.5F);
@@ -157,7 +172,8 @@ public final class KOMEVisualRenderBridge {
                 || role == KOMEVisualMarker.Role.LORD_LIEGE)
             return new ItemStack(KOMEProgressionVisualItems.RELATIONSHIP);
         if (role == KOMEVisualMarker.Role.COURIER) return new ItemStack(Items.paper);
-        if (role == KOMEVisualMarker.Role.COMMISSION) return new ItemStack(Items.iron_sword);
+        if (role == KOMEVisualMarker.Role.COMMISSION||role==KOMEVisualMarker.Role.DEFENSE) return new ItemStack(Items.iron_sword);
+        if (role == KOMEVisualMarker.Role.ESCORT) return new ItemStack(Items.lead);
         return role == KOMEVisualMarker.Role.RECOVERY_SEARCH ? new ItemStack(Items.gold_ingot) : null;
     }
 
@@ -165,11 +181,12 @@ public final class KOMEVisualRenderBridge {
 
     private static void drawNativeMapHover(Object map, KOMEVisualMarker marker, int mouseX, int mouseY)
             throws Exception {
+        if(KOMEProgressionEnemyOutline.isRendering())return;
         Minecraft minecraft = Minecraft.getMinecraft();
         FontRenderer font = minecraft.fontRenderer;
         int width = Math.max(font.getStringWidth(marker.title), font.getStringWidth(marker.subtitle)) + 6;
         int lineHeight = font.FONT_HEIGHT;
-        int height = lineHeight * 2 + 6;
+        int height = lineHeight * (marker.subtitle.isEmpty()?1:2) + 6;
         int x = Math.max(mapXMin.getInt(null) + 2,
             Math.min(mapXMax.getInt(null) - width - 2, mouseX - width / 2));
         int y = Math.max(mapYMin.getInt(null) + 2,
@@ -179,7 +196,7 @@ public final class KOMEVisualRenderBridge {
             GL11.glTranslatef(0.0F, 0.0F, 300.0F);
             drawFancyRect.invoke(map, x, y, x + width, y + height);
             font.drawString(marker.title, x + 3, y + 3, 0xFFFFFF);
-            font.drawString(marker.subtitle, x + 3, y + 3 + lineHeight, 0xFFFFFF);
+            if(!marker.subtitle.isEmpty())font.drawString(marker.subtitle, x + 3, y + 3 + lineHeight, 0xFFFFFF);
         } finally {
             GL11.glPopMatrix();
         }

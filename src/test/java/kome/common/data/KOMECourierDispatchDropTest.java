@@ -70,8 +70,11 @@ public class KOMECourierDispatchDropTest {
                         "src/main/java/kome/common/data/KOMECourierService.java")),
                 java.nio.charset.StandardCharsets.UTF_8);
 
-        assertTrue(source.contains(
-            "\"random.pop\""));
+        assertTrue(source.contains("KOMEProgressionItemDrops.drop("));
+        String drops=new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(
+            "src/main/java/kome/common/data/KOMEProgressionItemDrops.java")),java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(drops.contains("\"random.pop\""));
+        assertTrue(drops.indexOf("spawnEntityInWorld(item)")<drops.indexOf("playSoundAtEntity(item"));
 
         assertTrue(source.contains(
             "\"mob.horse.leather\""));

@@ -6,6 +6,8 @@
 
 Verified against code baseline **b826ef35a0fb88ce9b2d58129ed307e9986b43d7** on 2026-10-06. The starting reference was the October 2 system audit at **585e12a1c91cfa38ef8ed5d2da5e3580d1b8a238**. [Provenance and status changes](PROVENANCE.md) records its preserved location, subsequent changes, and contradictions. Guide claims describe source wiring, not live multiplayer acceptance.
 
+After PR #26 merged, the affected runtime/persistence, reset/governance, daily sequencing and Join Battle routes were refreshed against dev **9b765f5c8e8b8fb141d5a4b55c361377f109955f** on **2026-10-10**. Other guides retain their original targeted-review provenance; a passing link/symbol checker is not a new audit of every gameplay claim. See [current-dev refresh](PROVENANCE.md).
+
 | Task or symptom | System guide | Primary code entry points | Related systems | Verification |
 |---|---|---|---|---|
 | Incorrect tile detection, borders, map/HUD location | [Geography](systems/geography/README.md) | [KOMETileWorldResolver.resolveWorldPosition](../../src/main/java/kome/common/data/KOMETileWorldResolver.java); [KOMEMapBorders](../../src/main/java/kome/client/KOMEMapBorders.java) | Client sync; movement graph; Build placement | KOMETileWorldResolverTest; KOMETileGameplayParityTest; KOMEMapRenderLifecycleTest |

@@ -1,0 +1,10 @@
+{
+  "user_stopped_testing": true,
+  "server_saved_and_stopped": true,
+  "server_exit_code": 0,
+  "world": "build\\pr-review-20261007\\layout-runtime\\server\\review-acceptance-fresh",
+  "source_changes_committed": false,
+  "source_changes_pushed": false,
+  "merged": false,
+  "deployed": false
+}

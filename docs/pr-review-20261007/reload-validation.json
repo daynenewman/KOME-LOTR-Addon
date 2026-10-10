@@ -1,0 +1,47 @@
+{
+  "source_base": "4961a4f281d5293c240db5ea3f47be462b7095a0",
+  "remote_dev": "69dbad5a8d2d1cef461e8327b961ce9194d8241f",
+  "tests": {
+    "tests": 2890,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 2885,
+    "suites": 291
+  },
+  "jar_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+  "native_forge_launches": [
+    {
+      "file": "outputs\\pr24-pr25\\reload-fix\\forge-destination-first\\combined-completed-destination-first.txt",
+      "sha256": "bd8e79ed7869173573a6eb0f3f6af73a8fc5665bb74a8e44e20125e75e6cf6a4",
+      "pass_line": "PASS completed destination-first; no connected client"
+    },
+    {
+      "file": "outputs\\pr24-pr25\\reload-fix\\forge-destination-first\\combined-first-destination-first.txt",
+      "sha256": "153dd93da5098e7eceee4a2e9f8e848b81f5f6924363be9180098ad1a319ca75",
+      "pass_line": "PASS first destination-first; no connected client"
+    },
+    {
+      "file": "outputs\\pr24-pr25\\reload-fix\\forge-destination-first\\combined-recover-destination-first.txt",
+      "sha256": "5f07835499a35ea0e9e5e8b6f5feecdf98525116312ba76e0e9cf519a4af948a",
+      "pass_line": "PASS recover destination-first; no connected client"
+    },
+    {
+      "file": "outputs\\pr24-pr25\\reload-fix\\forge-origin-first\\combined-completed-origin-first.txt",
+      "sha256": "5772dc78f67dcbfa4622745f5990ecee1778763a89c252cc537e1be06ddd082e",
+      "pass_line": "PASS completed origin-first; no connected client"
+    },
+    {
+      "file": "outputs\\pr24-pr25\\reload-fix\\forge-origin-first\\combined-first-origin-first.txt",
+      "sha256": "e145c23ddd6a6ad69cb7f32ba9acb785ee945c482f5735592b7a3b16836adaa0",
+      "pass_line": "PASS first origin-first; no connected client"
+    },
+    {
+      "file": "outputs\\pr24-pr25\\reload-fix\\forge-origin-first\\combined-recover-origin-first.txt",
+      "sha256": "7a42665d9c2b11a0ef42e91f5e5aa32b7fc8476f629643e045bbd8c802c95acb",
+      "pass_line": "PASS recover origin-first; no connected client"
+    }
+  ],
+  "archive_sha256": "a6c16151d5e5f3ad668129afa9d5a5d368dae6689119b85c3d022629216b718c",
+  "limits": "Fresh six reset Forge launches use deobfuscated classes and Java 8u492; previous governance/daily authority launch evidence is unchanged. Production-JAR and human results remain separate."
+}

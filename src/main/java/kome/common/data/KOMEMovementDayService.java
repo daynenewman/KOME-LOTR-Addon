@@ -64,16 +64,21 @@ public final class KOMEMovementDayService {
     public static boolean depart(KOMEWorldData data, KOMEArmyMovementOrder order, boolean daily, BooleanSupplier accept) {
         data.ensureWritable();
         KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
-        if (company == null || daily && remaining(data, order) <= 0) return false;
+        KOMEFormalRetreatAuthority.quarantineIncompleteLegacy(data);
+        if (KOMEFormalRetreatAuthority.isQuarantined(order)) return false;
+        boolean formalRetreat = KOMEMovementRetreatService.isImmediateFormalRetreatStep(order);
+        if (company == null || daily && !formalRetreat && remaining(data, order) <= 0) return false;
         if (!accept.getAsBoolean()) return false;
-        if (daily) company.movementAllowance = remaining(data, order) - 1;
+        if (daily && !formalRetreat) company.movementAllowance = remaining(data, order) - 1;
         order.dailyStepsRemaining = remaining(data, order); // compatibility/display mirror only
         return true;
     }
 
     public static List<KOMEArmyMovementOrder> orderedRoutes(KOMEWorldData data) {
+        KOMEFormalRetreatAuthority.quarantineIncompleteLegacy(data);
         List<KOMEArmyMovementOrder> orders = new ArrayList<KOMEArmyMovementOrder>();
-        for (KOMEArmyMovementOrder order : data.armyMovements.values()) if (order != null) orders.add(order);
+        for (KOMEArmyMovementOrder order : data.armyMovements.values())
+            if (order != null && !KOMEFormalRetreatAuthority.isQuarantined(order)) orders.add(order);
         orders.sort(Comparator.comparing(order -> order.id));
         return orders;
     }
@@ -109,12 +114,18 @@ public final class KOMEMovementDayService {
         }
         if (boundary <= data.movementBoundaryMillis) return false;
         data.movementBoundaryMillis = boundary;
+        int restoredCompanies = 0;
         for (KOMEArmyCompany company : data.armyCompanies.values()) {
             if (company.movementBoundaryMillis >= boundary) continue;
             stamp(company, schedule, boundary);
             company.movementAllowance = company.getTilesPerDay();
+            restoredCompanies++;
         }
         mirror(data, schedule.nextBoundary(Instant.ofEpochMilli(boundary)).toEpochMilli());
+        if (restoredCompanies > 0) KOMEAuditService.record(data, boundary, "MOVEMENT", "ALLOWANCE_RESTORED",
+            "system", String.valueOf(boundary), "Canonical observed daily movement credit restored",
+            "schedule=" + schedule.signature() + ";companies=" + restoredCompanies
+                + ";routes=" + data.armyMovements.size() + ";offlineReplay=false");
         data.markDirty();
         return true;
     }

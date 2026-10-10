@@ -19,6 +19,11 @@ public final class KOMEProgressionEncounterMarker {
 
     private KOMEProgressionEncounterMarker() {
     }
+    public static int rulerIncarnation(LOTREntityNPC npc){
+        return npc.getEntityData().hasKey("KOMERulerIncarnation")?npc.getEntityData().getInteger("KOMERulerIncarnation"):-1;
+    }
+    public static String rulerSlot(LOTREntityNPC npc){return npc.getEntityData().getString("KOMERulerSlot");}
+    public static void stampRuler(LOTREntityNPC npc,int incarnation){npc.getEntityData().setInteger("KOMERulerIncarnation",incarnation);npc.getEntityData().setString("KOMERulerSlot",npc.getUniqueID().toString());}
 
     public static void mark(LOTREntityNPC npc, String kind, UUID owner, String token) {
         if (npc == null) {

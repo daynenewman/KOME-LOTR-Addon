@@ -12,6 +12,14 @@ import net.minecraft.entity.player.EntityPlayerMP;
 public final class KOMEProgressionTrackerService {
     private static final Map<UUID,String> LAST =
         new HashMap<UUID,String>();
+    private static final Map<UUID,String> BOOK=new HashMap<UUID,String>();
+    public static void syncInventoryBook(EntityPlayerMP player,KOMEWorldData data) {
+        KOMEPlayerProgression p=data.getProgression(player.getUniqueID());
+        String projection=KOMEProgressionGoodsPresentation.objective(p,player.inventory.mainInventory)
+            +KOMEProgressionSummary.courierCopy(p,player.worldObj.getTotalWorldTime()/1200*1200);
+        if(!projection.equals(BOOK.put(player.getUniqueID(),projection))&&!projection.isEmpty())
+            KOMEProgressionAutoCompleter.syncPlayer(player,p);
+    }
 
     private KOMEProgressionTrackerService() {
     }
@@ -51,10 +59,12 @@ public final class KOMEProgressionTrackerService {
     public static void clearPlayer(UUID playerId) {
         if(playerId!=null) {
             LAST.remove(playerId);
+            BOOK.remove(playerId);
         }
     }
 
     public static void resetSession() {
         LAST.clear();
+        BOOK.clear();
     }
 }

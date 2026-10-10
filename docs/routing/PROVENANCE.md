@@ -28,7 +28,9 @@ The audit also contains FEATURE_MATRIX.md, GAP_AND_DEPENDENCY_PLAN.md, subsystem
 
 On **2026-10-06**, this worktree began clean and detached at **b826ef35a0fb88ce9b2d58129ed307e9986b43d7** (PR #29 merge). The documentation branch starts at that exact commit. No remote refresh or live deployment inference was needed. Registration, authoritative mutations, persistence, consumers, and relevant test declarations were inspected against this checkout, with changed-source paths compared to the audit baseline. This was targeted routing verification, not a repeated full audit.
 
-| Audit finding or older description | Current checkout evidence/status |
+The following table preserves the original October 6 comparison. Its root-schema and pending-reset claims are superseded by the October 10 refresh below.
+
+| Audit finding or older description | October 6 checkout evidence/status |
 |---|---|
 | Root schema 6 | [KOMEWorldData](../../src/main/java/kome/common/data/KOMEWorldData.java) uses 11, with independent mandatory conflict/tactical/Emergency Defense/movement sections. Historical nested/root numbers must be checked separately. |
 | Progression branch excluded; cyclic fresh progression | Progression through Lordship and hardening now exists in [progression code/tests](systems/progression/README.md). Do not reuse the old blanket defect without tracing the current task. |
@@ -41,9 +43,25 @@ On **2026-10-06**, this worktree began clean and detached at **b826ef35a0fb88ce9
 | Aqua crawl decoder/queue weaknesses | Negative ordinal guard and admission/drain bounds remain absent in [PacketSendKey](../../src/main/java/com/fuzs/aquaacrobatics/network/message/PacketSendKey.java). |
 | Older tile capacity, native auto-company, four-stage alliance descriptions | Current authorities are faction bank/developed rate, explicit campaign classification, and native bilateral relations. Historical docs are linked with status notes, not silently rewritten. |
 
+## October 10 current-dev refresh
+
+The primary `dev` checkout was clean and fast-forwarded without pruning to PR #26 merge **9b765f5c8e8b8fb141d5a4b55c361377f109955f**, matching `origin/dev` with zero ahead/behind. PR #30 was checked in an isolated clone; existing worktrees, local branches, stash and both acceptance runtimes remain protected. This documentation-only integration incorporates that dev tree; it does not change gameplay source.
+
+| Earlier route claim | Inspected current source and boundary |
+|---|---|
+| Root schema 11 | [KOMEWorldData](../../src/main/java/kome/common/data/KOMEWorldData.java) now uses root 12; [KOMEConflictPersistence](../../src/main/java/kome/common/data/KOMEConflictPersistence.java) independently uses ConflictData v2. |
+| Daily/reset authorities absent | [KOMESeasonResetService](../../src/main/java/kome/common/data/KOMESeasonResetService.java), [KOMESeasonResetDeployment](../../src/main/java/kome/common/data/KOMESeasonResetDeployment.java), [KOMEDailyCoordinator](../../src/main/java/kome/common/data/KOMEDailyCoordinator.java) and durable journals are present. Reset preempts ordinary campaign processing. Daily population sequencing is available; owning movement/conflict/starvation/event adapters remain explicitly blocked when required. |
+| Campaign cadence only follows the legacy loop | [KOMEEvents.processCampaignTick](../../src/main/java/kome/common/data/KOMEEvents.java) starts the payout session, routes active RESET, reconciles governance, then tries the coordinator before falling back to the existing movement/muster/development/payout loop. |
+| No Join Battle route | [KOMEJoinBattleService](../../src/main/java/kome/common/data/KOMEJoinBattleService.java) owns eligible projection and selected-company revalidation, including existing governance military restrictions; [KOMEJoinBattleEntryService](../../src/main/java/kome/common/data/KOMEJoinBattleEntryService.java) owns physical entry/receipt recovery. Source wiring is separate from complete battle/siege outcomes. |
+| New packets can reuse the older protocol identity | [KOMEPopulationWire](../../src/main/java/kome/common/network/KOMEPopulationWire.java) now advertises integration-g5; old peers missing Join Battle response registrations must be rejected before gameplay packets. |
+
+[Published integration evidence](../pr26-integration-20261009/README.md), [disconnect correction](../pr26-joinbattle-fix-20261009/README.md), [focused governance acceptance](../pr26-governance-acceptance-20261010/README.md) and [occupied-capital repair](../pr26-occupied-capital-20261010/README.md) keep their exact source/artifact identities, failures and scope. Their JUnit/native/human passes are not fresh gameplay execution by this routing refresh. Multiplayer remains deferred and representative lower-spec performance remains pending.
+
+The historical client progression-cache gap and unfinished muster/battle owning authorities are not silently declared fixed. The newer reset/daily/Join Battle routes were traced through their actual callers, persistence and projection. Other guides were checked for link/symbol/selector presence, not re-audited exhaustively.
+
 ## Unresolved or separate work
 
-- Season reset/physical company-return work from other branches is not present merely because a phase/command exists here. Neither `KOMEDailyCoordinator` nor `KOMESeasonResetService` is in this production tree.
+- At the original October 6 baseline, daily/reset return authorities were absent. That absence is superseded by PR #26 and the October 10 refresh below; it is not a current-dev gap.
 - The separate client progression-cache correction is absent: packet → proxy updates GUI/title summaries, while permission checks can read a different client progression projection. The map routes this symptom; it does not implement a fix.
 - Explicit conflict-release and specialized arrival placement seams have no production consumer/provider installed; complete battle/siege result handling and automatic capture integration remain unproven/unbuilt boundaries.
 - Development/payout timing across multiple owed boundaries uses sequential current-state loops. Historical per-boundary rate expectations require a rules decision; no invented resolution is recorded.

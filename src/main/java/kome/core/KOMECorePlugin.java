@@ -26,9 +26,11 @@ public final class KOMECorePlugin implements IFMLLoadingPlugin {
                 KOMEProgressionOfferGuiTransformer.class.getName(),
                 KOMEFactionTitleTransformer.class.getName(),
                 KOMEAlignmentBarTitleTransformer.class.getName(),
+                KOMEAlignmentSyncTransformer.class.getName(),
                 KOMEFactionTitleOptionsTransformer.class.getName(),
                 KOMEVisualLocationTransformer.class.getName(),
                 KOMEProgressionNpcDespawnTransformer.class.getName(),
+                KOMEProgressionBanditTransformer.class.getName(),
 
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
