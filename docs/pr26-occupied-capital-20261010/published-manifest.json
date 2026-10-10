@@ -1,0 +1,19 @@
+{
+  "recorded_at_utc": "2026-10-10T17:31:04.163713+00:00",
+  "archive_sha256": "63f82df1c1062720f831d2c9bb3541cbb7b9195466fc37d69443c163107fc994",
+  "files": {
+    "validation.json": "8d8ad676eda054552f7530c6192f38787b91e85ba0d5c615e46bcc661089e1c8",
+    "human-observation.json": "57149ff978d8abd933b27ca8f355e1577bd4558d7eba2ddfb6c86ba7bf1513eb",
+    "failure.json": "c4817b4fa1fe02f970f2fb9fbba44a3f80888a314008533d722bc19f302819ff",
+    "source-manifest.json": "bc7ca8199437d120a60a2448f3acb97a4ccf01e2b06a1064204f58442db16622",
+    "class-reuse.json": "328167e60f4aff1495aee11adca078988628129b54b5453ba8044d466bcf065b",
+    "preservation.json": "dbc12d66e79bf3d8e187b6225ec7acda6d24169484eb506cab35aae691b5ecc4",
+    "server-proof.txt": "202f4e6d446a5d3d62043b15280b01477dab7100fa6743ab47f234e046694ca5",
+    "client-proof.txt": "2458c176f633adc6ae1cf73f2d8aa4848e81a63608d94e4685c386a648cba21d",
+    "candidate.json": "d43f2bebaf74a30fac309a4e3ec246934ef14773c1797106cbb1d4d5693ff5d5",
+    "fixture.properties": "fcf3f3ca5b84a04e4b9e8b2ef8f8c36312124f6cc7ec6e05f1bbc6a9d3aa7426",
+    "entity-network-ids.properties": "ba9e66ffab23141f048df0f8373200236b2f2b360a031792ad8ccebfa11f1fbb",
+    "archive-manifest.json": "c8cc613ef51e44d6d956877044178a226c8e51cc564379feba715c1d8cda93e2",
+    "evidence.zip": "63f82df1c1062720f831d2c9bb3541cbb7b9195466fc37d69443c163107fc994"
+  }
+}

@@ -68,6 +68,49 @@ public class KOMESeasonResetDeploymentTest {
         }
     }
 
+    @Test public void observedOriginLocatorIsDurablyClearedBeforeMountedReturn() throws Exception {
+        try(Session s=new Session()) {
+            TestNpc rider=s.npc(3.25F),mount=s.npc(7.125F);
+            rider.ridingEntity=mount;mount.riddenByEntity=rider;
+            s.world.loadedEntityList.add(rider);s.world.loadedEntityList.add(mount);
+            s.entry.units.add(rider.getUniqueID());
+            KOMEArmyCompany company=new KOMEArmyCompany();company.id="C1";company.owner=UUID.randomUUID();
+            company.currentTile=s.entry.origin;company.units.add(rider.getUniqueID());
+            s.data.armyCompanies.put(company.id,company);
+            KOMEHiredUnitRecord record=new KOMEHiredUnitRecord();record.entity=rider.getUniqueID();
+            record.owner=company.owner;record.companyId=company.id;record.currentTile=s.entry.origin;
+            record.mounted=true;KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
+            s.data.hiredUnits.put(record.entity,record);
+            assertTrue(KOMEHiredUnitPhysicalLocatorService.observe(s.data,record,rider,
+                KOMEHiredUnitPhysicalLocator.CaptureKind.LIVE_OBSERVATION,1L,true));
+            assertEquals(s.entry.origin,record.getPhysicalLocator().getPhysicalTileId());
+            final int[] checkpoints={0};
+            KOMESeasonResetDeployment adapter=new KOMESeasonResetDeployment(s.world,
+                (world,entities,touched)->{
+                    assertNull(record.getPhysicalLocator());
+                    record.currentTile=s.entry.destination;
+                    company.currentTile=s.entry.destination;
+                    record.writeToNBT(); // The old origin locator made strategic publication unsaveable.
+                    return "";
+                },data->{
+                    assertNull("Persist locator invalidation before relocation",record.getPhysicalLocator());
+                    assertTrue(KOMESeasonResetDeployment.inTile(rider,s.entry.origin));
+                    record.writeToNBT();checkpoints[0]++;
+                });
+            assertEquals("",adapter.apply(s.data,s.entry,"1:C1"));
+            assertEquals(1,checkpoints[0]);
+            assertSame(mount,rider.ridingEntity);
+            assertEquals(3.25F,rider.getHealth(),0F);assertEquals(7.125F,mount.getHealth(),0F);
+            int moves=s.world.moves;
+            assertEquals("",adapter.apply(s.data,s.entry,"1:C1"));
+            assertEquals(moves,s.world.moves);assertEquals(1,checkpoints[0]);
+            assertTrue(KOMEHiredUnitPhysicalLocatorService.observe(s.data,record,rider,
+                KOMEHiredUnitPhysicalLocator.CaptureKind.LIVE_OBSERVATION,2L,true));
+            assertEquals(s.entry.destination,record.getPhysicalLocator().getPhysicalTileId());
+            record.writeToNBT();
+        }
+    }
+
     @Test public void unloadedStationarySnapshotNeverCreatesAReplacementAndUnsafeAnchorDoesNotMoveUnit() throws Exception {
         try(Session s=new Session()) {
             TestNpc npc=s.npc(2.75F); s.entry.units.add(npc.getUniqueID());

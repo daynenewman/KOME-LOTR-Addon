@@ -200,15 +200,92 @@
       "result": "USER_CONFIRMED_ALL_FOUR_EXPECTATIONS",
       "native_evidence": "../pr26-joinbattle-fix-20261009/validation.json",
       "limits": "One authenticated non-operator and no active conflict; does not certify actual battle deployment, governance changes or multiplayer."
+    },
+    {
+      "status": "PASS_SCOPED_GOVERNANCE_PANEL",
+      "test": "joinbattle-governance-restriction-T388",
+      "candidate_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+      "authenticated_player": "_Danye_",
+      "uuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+      "address": "127.0.0.1:51327",
+      "command": "/kome joinbattle T388",
+      "expected": "T388 panel: Your current war governance status prevents Join Battle participation.; Select / Join Battle disabled; remains connected",
+      "reply": "Screenshot attachment; no verbal yes/no reply supplied.",
+      "limits": "One authenticated non-operator and synthetic registered company baseline. No physical battle entry, full defeat predicate, multiplayer or representative lower-spec acceptance. Fixture retained; no product defect or rebuild.",
+      "recorded_at_utc": "2026-10-10T16:48:24.293405+00:00",
+      "reply_type": "USER_SUPPLIED_SCREENSHOT",
+      "screenshot": {
+        "file": "human-governance-20261010.png",
+        "sha256": "f729db232f059a0b25e1cc7fafd703c7bfdb47eea101c0acf2e49c91f4947030",
+        "width": 1305,
+        "height": 1017
+      },
+      "human_observed": {
+        "tile": "T388",
+        "conflict": "CF1",
+        "revision": 4,
+        "state": "ORDINARY",
+        "faction": "gondor",
+        "panel_status": "BLOCKED",
+        "reason_text": "Your current war governance status prevents Join Battle participation.",
+        "select_join_battle_disabled": true,
+        "no_eligible_rows_displayed": true
+      },
+      "native_current_session": {
+        "evidence": "screenshot-session-proof-20261010.txt",
+        "sha256": "f84d67296d38500b6ea7f5aaa31e981cbb0ad5b7edaab98f5ec389d59a5d6ba7",
+        "client_pid": 45260,
+        "server_pid": 47508,
+        "connected": true,
+        "loaded_client_server_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+        "non_operator_server_verified": true,
+        "read_only": true,
+        "commands_sent": 0
+      },
+      "interpretation": "Human screenshot confirms exact active-conflict governance denial and disabled Join. Subsequent read-only native inspection independently confirms the matching authenticated session stays connected."
+    },
+    {
+      "test": "occupied-capital-mounted-return-reconnect",
+      "status": "PASS",
+      "recorded_at_utc": "2026-10-10T17:31:04.163713+00:00",
+      "candidate_sha256": "e20756089e48d0962b486ad14fa11407cb0782ad709931b296da5e9ed24dab53",
+      "source_parent": "4925e931f6909bf24a6cbdbd44290bfa51c1df67",
+      "profile": "KOME PR26 Occupied Capital Repair",
+      "address": "127.0.0.1:51327",
+      "identity": "_Danye_",
+      "uuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+      "non_operator_native_verified": true,
+      "actions": "Esc → Disconnect; rejoin 127.0.0.1:51327; close any menu and look around T388 at X78080.5 Y200 Z66304.5.",
+      "expected": "Exactly two Gondor soldiers remain mounted on two horses, at separate positions, with no extra rider or horse and no disconnect.",
+      "user_reply_verbatim": "yes!",
+      "question_call_id": "call_a05f51a40ba646f3aa389b7bf417f6d7",
+      "observation_scope": "Human confirms visibility, mounted pairs, separate positions, no visible extras and no disconnect. UUIDs, exact HP, tokens, audit counts and tracking are separate native evidence.",
+      "native_after_reconnect": {
+        "server_proof_time_utc": "2026-10-10T17:24:23.324Z",
+        "network_map_time_utc": "2026-10-10T17:27:49.689Z",
+        "client_proof_time_utc": "2026-10-10T17:28:00.223Z",
+        "client_network_ids": {
+          "C2": [
+            329,
+            330
+          ],
+          "C3": [
+            327,
+            328
+          ]
+        }
+      }
     }
   ],
-  "pending_test": "Scoped g5 Join Battle disconnect retest PASS. Actual battle/governance and changed mounted landing/reconnect remain separate broader acceptance; multiplayer deferred.",
+  "pending_test": "Focused disconnect, submitted-governance restriction and occupied-capital mounted return/reconnect PASS. Actual active battle entry and broader campaign flows remain separate; multiplayer deferred.",
   "not_inferred": [
     "multiplayer",
     "representative lower-spec performance",
-    "governance/daily client acceptance",
-    "other Build permissions"
+    "broader governance/daily client acceptance",
+    "other Build permissions",
+    "full global season-reset acceptance on occupied-capital repair candidate"
   ],
   "session_state": "Resumed 2026-10-09 for PR26/current-dev integration. Published R1 passes retained on their original artifact; frozen acceptance runtime unchanged. Multiplayer deferred by user.",
-  "integration_candidate_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823"
+  "integration_candidate_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+  "current_integration_candidate_sha256": "e20756089e48d0962b486ad14fa11407cb0782ad709931b296da5e9ed24dab53"
 }

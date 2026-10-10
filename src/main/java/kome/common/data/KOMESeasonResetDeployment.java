@@ -123,7 +123,10 @@ public final class KOMESeasonResetDeployment implements KOMESeasonResetService.D
                 newOrigins |= entry.originChunks.add(chunkKey(xChunk, zChunk));
                 touched.add(world.getChunkFromChunkCoords(xChunk, zChunk));
             }
-            if (newOrigins) checkpoint(data);
+            // A durable origin locator cannot authorize the relocated survivor's address.
+            // Clear it before physical effects; normal live observation can verify a new one.
+            boolean locatorCleared = KOMEHiredUnitPhysicalLocatorService.clear(data, record);
+            if (newOrigins || locatorCleared) checkpoint(data);
             moveTree(entity, position.anchor.x, position.anchor.y, position.anchor.z, token, !restoring);
             if (restoring && !spawnTree(world, entity)) return "World rejected return of " + id + "; snapshot retained for retry";
             if (find(id) != entity || !aliveTree(entity) || !inTile(entity, entry.destination))

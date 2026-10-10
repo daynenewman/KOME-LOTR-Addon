@@ -1,0 +1,12 @@
+{
+  "parent": "4925e931f6909bf24a6cbdbd44290bfa51c1df67",
+  "paths": {
+    "src/main/java/kome/common/data/KOMESeasonResetDeployment.java": "efcfdd35046077dc134059204ac9789930ad2003d814b7f18225d75465fb6773",
+    "src/test/java/kome/common/data/KOMESeasonResetDeploymentTest.java": "2f1cfce19a1d740a84647f77bbc1518dda86bfb1e70add8974b1c0c196daeb09"
+  },
+  "candidate_sha256": "e20756089e48d0962b486ad14fa11407cb0782ad709931b296da5e9ed24dab53",
+  "production_changed_classes": [
+    "kome/common/data/KOMESeasonResetDeployment.class"
+  ],
+  "class_reuse_manifest_sha256": "328167e60f4aff1495aee11adca078988628129b54b5453ba8044d466bcf065b"
+}
