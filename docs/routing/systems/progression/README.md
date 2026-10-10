@@ -1,0 +1,26 @@
+# Progression, rank, NPC relationships, and quests
+
+[Index](../../INDEX.md)
+
+Owns canonical rank and permission unlocks, NPC role/relationship authority, Serf/Knight tasks, courier correspondence, commissions, and Lordship trials. Character race/appearance is a separate integrated system.
+
+## Authority and entry points
+
+- [KOMEPlayerProgression](../../../../src/main/java/kome/common/data/KOMEPlayerProgression.java), [KOMEProgressionAchievement](../../../../src/main/java/kome/common/data/KOMEProgressionAchievement.java), [KOMECanonicalRankService](../../../../src/main/java/kome/common/data/KOMECanonicalRankService.java), [KOMEProgressionPermissions.has](../../../../src/main/java/kome/common/data/KOMEProgressionPermissions.java): persisted player progression in [KOMEWorldData](../../../../src/main/java/kome/common/data/KOMEWorldData.java), definitions, canonical rank, action gates. Native pledge/alignment and NPC/entity NBT are additional authorities.
+- [KOMEProgressionAutoCompleter.runForPlayer](../../../../src/main/java/kome/common/data/KOMEProgressionAutoCompleter.java), `applyUnlocks`, `syncPlayer`, [KOMEEvents](../../../../src/main/java/kome/common/data/KOMEEvents.java): login/player tick, item/entity/NPC events, unlock recomputation and synchronization.
+- [KOMEProgressionNpcInteractionService.interact](../../../../src/main/java/kome/common/data/KOMEProgressionNpcInteractionService.java), [KOMEProgressionNpcRankService](../../../../src/main/java/kome/common/data/KOMEProgressionNpcRankService.java), [KOMEProgressionRelationshipLifecycle](../../../../src/main/java/kome/common/data/KOMEProgressionRelationshipLifecycle.java): NPC rank/role leases, master/liege selection, death/release/succession.
+- [KOMECourierService](../../../../src/main/java/kome/common/data/KOMECourierService.java), [KOMESerfKnightRelationshipService](../../../../src/main/java/kome/common/data/KOMESerfKnightRelationshipService.java), [KOMEKnightCommissionService](../../../../src/main/java/kome/common/data/KOMEKnightCommissionService.java), [KOMELordshipTrialService](../../../../src/main/java/kome/common/data/KOMELordshipTrialService.java): concrete task authorities; follow their models, encounter markers, recovery and ownership checks for a quest symptom.
+- [KOMECommandProgression](../../../../src/main/java/kome/common/command/KOMECommandProgression.java), [KOMEPacketProgressionData](../../../../src/main/java/kome/common/network/KOMEPacketProgressionData.java), [KOMEGuiProgression](../../../../src/main/java/kome/client/gui/KOMEGuiProgression.java), [KOMEGuiRelationshipHub](../../../../src/main/java/kome/client/gui/KOMEGuiRelationshipHub.java), [KOMEProgressionTrackerOverlay](../../../../src/main/java/kome/client/KOMEProgressionTrackerOverlay.java): admin/intents, summaries, tasks, tracking.
+- [KOMEProgressionOfferTransformer](../../../../src/main/java/kome/core/KOMEProgressionOfferTransformer.java), [KOMEProgressionNpcDespawnTransformer](../../../../src/main/java/kome/core/KOMEProgressionNpcDespawnTransformer.java), [KOMEFactionTitleTransformer](../../../../src/main/java/kome/core/KOMEFactionTitleTransformer.java): native offers, protected role entities, and titles. Registrations are in [KOMECorePlugin](../../../../src/main/java/kome/core/KOMECorePlugin.java).
+
+Consumers: [waypoint travel](../waypoints/README.md), [hiring](../hiring-companies/README.md), [ruler/diplomacy](../politics-diplomacy/README.md), [geographic eligibility](../geography/README.md), [client permissions/records](../client-network/README.md). [Character starting faction](../character-creation/README.md) can affect pledge but does not own KOME rank.
+
+## Verification and boundaries
+
+Existing [integration decisions](../../../KOME_DEV_INTEGRATION_DECISIONS.md) and [GUI handoff](../../../KOME_GUI_HANDOFF.md) predate parts of this implementation. Tests provide current detail: [hardening](../../../../src/test/java/kome/common/data/KOMEProgressionHardeningServiceTest.java), [permission registry](../../../../src/test/java/kome/common/data/KOMEProgressionPermissionRegistryTest.java), [integrated journey](../../../../src/test/java/kome/common/data/KOMESerfKnightIntegratedJourneyTest.java), [Lordship](../../../../src/test/java/kome/common/data/KOMELordshipTrialIntegrationTest.java), [schema](../../../../src/test/java/kome/common/data/KOMEProgressionSchemaTest.java).
+
+```powershell
+.\gradlew.bat test --tests 'kome.common.data.KOMEProgressionHardeningServiceTest' --tests 'kome.common.data.KOMEProgressionPermissionRegistryTest' --tests 'kome.common.data.KOMESerfKnightIntegratedJourneyTest' --tests 'kome.common.data.KOMELordshipTrialIntegrationTest' --no-daemon --max-workers=2
+```
+
+Use [shared prerequisites](../../INDEX.md). Inspect the exact achievement/permission ID, canonical rank, persisted assignment, native pledge, NPC role identity, and visible projection. Replays/death/reload must not duplicate rewards or reuse foreign encounter items. This checkout contains progression through Lordship added after the audit; its earlier cyclic fresh-progression finding must not be treated as an unchanged blanket status. Higher-rank transitions and configured TODO boundaries require task-specific inspection; presence of an enum or title does not prove every rank journey is complete.
