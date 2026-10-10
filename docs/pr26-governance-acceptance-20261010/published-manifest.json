@@ -20,5 +20,6 @@
     "server-proof.txt": "a380cbb6968782f221b2336e067eff1c10d1a5d6e7c4ef293147568d47038c74",
     "validation-native-20261009.json": "f8f1dd094b9b0d8c22c60bab1614dcbc90d0a398ca9ade9fa8f5d531290a08bd",
     "validation.json": "9257b310eb3c2e9d75440e4b3990d485cb681aa83518a4fab42c9bb79657348a"
-  }
+  },
+  "hash_scope": "Exact published evidence file bytes; scoped gitattributes disable line-ending normalization. Archive member hashes refer to original captured bytes."
 }

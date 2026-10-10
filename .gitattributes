@@ -36,3 +36,7 @@ docs/tile-acceptance-20261006/*.patch -text whitespace=cr-at-eol,-blank-at-eol,-
 # Exact integration evidence bytes and archived native/JUnit logs.
 docs/pr26-integration-20261009/*.json -text whitespace=cr-at-eol
 docs/pr26-integration-20261009/*.zip -text
+
+# Published native acceptance records retain their captured bytes and checksums.
+docs/pr26-governance-acceptance-20261010/* -text whitespace=cr-at-eol
+docs/pr26-occupied-capital-20261010/* -text whitespace=cr-at-eol
