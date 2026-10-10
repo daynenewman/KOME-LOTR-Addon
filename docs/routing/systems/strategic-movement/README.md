@@ -4,6 +4,8 @@
 
 Owns campaign route preview/confirmation, enduring daily credit, departures, physical transport/arrival, confinement, retries, and recovery. It does not own swimming/crawling; see [movement compatibility](../movement-compatibility/README.md).
 
+[KOM-59 T351/T352](../../../kom59-ithilien-route-20261010/README.md) supplies a corrected open default for new permitted direct routes in both directions. Effective saved barriers and military passage checks still apply; stored detours are not automatically rewritten. [Focused regressions](../../../../src/test/java/kome/common/data/KOMEIthilienRouteCorrectionTest.java) cover command search, departure authority, override reload and queued-route preservation.
+
 ## Authority and entry points
 
 - [KOMECommandTroops](../../../../src/main/java/kome/common/command/KOMECommandTroops.java): `previewCompanyMove`, `moveCompany`, `processMovementTick`, `processArrivals`, `scheduleNextRouteStep`, `anchorMovementSchedule`, `resetDailyMovementAllowances`; `/troops` and [company move confirmation](../../../../src/main/java/kome/client/gui/KOMEGuiCompanyMoveConfirm.java) reach these paths through registered packets.

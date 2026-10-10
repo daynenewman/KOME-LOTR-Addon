@@ -61,6 +61,8 @@ The historical client progression-cache gap and unfinished muster/battle owning 
 
 ## Unresolved or separate work
 
+The separately authorized [KOM-59 T351/T352 correction](../kom59-ithilien-route-20261010/README.md) starts from clean dev **ff5053e56990dc601a1f0fe22d9e26e3affc1da0**. It changes one packaged river edge to open and removes that edge's river marker; geography and strategic movement guides record the new behavior. Historical separation inputs/golden, other route defaults, raster/IDs/coordinates, saved overrides and stored queued paths remain protected. Actual generated terrain and the reported server state remain unverified; this is not blanket geography or multiplayer acceptance.
+
 - At the original October 6 baseline, daily/reset return authorities were absent. That absence is superseded by PR #26 and the October 10 refresh below; it is not a current-dev gap.
 - The separate client progression-cache correction is absent: packet → proxy updates GUI/title summaries, while permission checks can read a different client progression projection. The map routes this symptom; it does not implement a fix.
 - Explicit conflict-release and specialized arrival placement seams have no production consumer/provider installed; complete battle/siege result handling and automatic capture integration remain unproven/unbuilt boundaries.

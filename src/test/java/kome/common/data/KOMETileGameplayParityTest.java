@@ -41,10 +41,27 @@ public class KOMETileGameplayParityTest {
     @Test public void productionRoutingInitializationAndReloadMatchOriginalBaseline() throws Exception {
         prepare();
         List<String> actual = capture();
-        Path golden = Paths.get("src/test/resources/kome/tile/gameplay-baseline/production-paths.tsv");
-        List<String> expected = Files.readAllLines(golden, StandardCharsets.UTF_8);
+        List<String> expected = expectedWithKom59Correction();
         assertEquals(expected.size(), actual.size());
         for (int i = 0; i < expected.size(); i++) assertEquals("Original baseline row " + i, expected.get(i), actual.get(i));
+    }
+    /** Apply only the approved edge/marker delta; the original golden file stays immutable. */
+    static List<String> expectedWithKom59Correction() throws Exception {
+        List<String> expected = Files.readAllLines(
+            Paths.get("src/test/resources/kome/tile/gameplay-baseline/production-paths.tsv"), StandardCharsets.UTF_8);
+        String oldEdge = "edge\tT351/T352\triver,false,false,Automatic river crossing,false";
+        String newEdge = "edge\tT351/T352\topen,true,false,,false";
+        String oldMarker = "riverMarker\t{dimensionId=100, fromTile=T351, imageX=1431, imageY=1163, toTile=T352, x=79488.0, y=80.0, z=55424.0}";
+        assertEquals("Historical golden row count", 6055, expected.size());
+        assertEquals("Exactly one historical edge", 1, Collections.frequency(expected, oldEdge));
+        assertEquals("Correction must not already be in golden", 0, Collections.frequency(expected, newEdge));
+        assertEquals("Exactly one historical marker", 1, Collections.frequency(expected, oldMarker));
+        expected.set(expected.indexOf(oldEdge), newEdge);
+        assertTrue(expected.remove(oldMarker));
+        Collections.sort(expected);
+        assertEquals(6054, expected.size());
+        assertEquals(1, Collections.frequency(expected, newEdge));
+        return expected;
     }
     @Test public void manualConsumptionUsesTheNextOriginalWaypointCandidate() throws Exception {
         prepare(); KOMEWorldData data = new KOMEWorldData("waypoint-alternative");
