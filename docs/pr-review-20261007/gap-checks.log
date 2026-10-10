@@ -1,0 +1,4 @@
+Wed Oct 07 22:09:26 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Protected control is no longer a gap
+Wed Oct 07 22:10:14 CDT 2026 GAP_READY IN_BOUNDS_GAP dimension=100 world=34944,640 mask=1083,735 (Exact cell is an unclassified gap; Validated exclusions: zones=0 cells=0) x=34944.5 y=181 z=640.5 noRasterOrExclusionChange=true
+Wed Oct 07 22:15:05 CDT 2026 GAP_READY IN_BOUNDS_GAP dimension=100 world=35008,704 mask=1083,735 (Exact cell is an unclassified gap; Validated exclusions: zones=0 cells=0) x=35008 y=181 z=704 noRasterOrExclusionChange=true
+Wed Oct 07 22:16:15 CDT 2026 GAP_CURRENT query=AVAILABLE location=IN_BOUNDS_GAP dimension=100 world=35008,704 mask=1083,735 (Exact cell is an unclassified gap; Validated exclusions: zones=0 cells=0)

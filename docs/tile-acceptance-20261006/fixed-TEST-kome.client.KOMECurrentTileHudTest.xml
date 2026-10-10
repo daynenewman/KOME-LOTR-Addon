@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="kome.client.KOMECurrentTileHudTest" tests="17" skipped="0" failures="0" errors="0" timestamp="2026-10-07T02:14:41" hostname="DAYNEPC" time="5.888">
+  <properties/>
+  <testcase name="preferenceDefaultsOnAndRealKeyPressPersistsBothToggleDirections" classname="kome.client.KOMECurrentTileHudTest" time="5.731"/>
+  <testcase name="replacementChangesIdentityWithoutMovementAndUsesConfiguredDimension" classname="kome.client.KOMECurrentTileHudTest" time="0.011"/>
+  <testcase name="screensF1DebugAndPlayerListHideWithoutChangingPreference" classname="kome.client.KOMECurrentTileHudTest" time="0.019"/>
+  <testcase name="missingWorldPlayerDeathAndRespawnClearPresentation" classname="kome.client.KOMECurrentTileHudTest" time="0.003"/>
+  <testcase name="lookupDoesNotCreateOrRepairClientOwnershipRecords" classname="kome.client.KOMECurrentTileHudTest" time="0.003"/>
+  <testcase name="untranslatedWaypointKeyIsNotInventedAsATileName" classname="kome.client.KOMECurrentTileHudTest" time="0.018"/>
+  <testcase name="resourceReloadAndLanguageChangeReformatWithoutStaleText" classname="kome.client.KOMECurrentTileHudTest" time="0.003"/>
+  <testcase name="namesUseExistingMetadataArrivingLateAndCacheUnchangedText" classname="kome.client.KOMECurrentTileHudTest" time="0.002"/>
+  <testcase name="olderConnectionResetCannotReactivateADisconnectedSession" classname="kome.client.KOMECurrentTileHudTest" time="0.002"/>
+  <testcase name="exactBoundaryChangesTileOnlyAtEndOfTick" classname="kome.client.KOMECurrentTileHudTest" time="0.003"/>
+  <testcase name="registrationRemainsClientOnlyAndRenderDoesNotResolve" classname="kome.client.KOMECurrentTileHudTest" time="0.005"/>
+  <testcase name="classifiedZoneLabelsRefreshAcrossZoneAndMetadataChanges" classname="kome.client.KOMECurrentTileHudTest" time="0.01"/>
+  <testcase name="actualProxyDisconnectQueueClearsBeforeReconnectPublication" classname="kome.client.KOMECurrentTileHudTest" time="0.067"/>
+  <testcase name="invalidSnapshotAndInvalidNumberReplacePreviousTileWithUnavailable" classname="kome.client.KOMECurrentTileHudTest" time="0.003"/>
+  <testcase name="tileGapOutsideAndBackNeverRetainAnOldName" classname="kome.client.KOMECurrentTileHudTest" time="0.003"/>
+  <testcase name="teleportAndDimensionTransferUseTheCurrentWorldProvider" classname="kome.client.KOMECurrentTileHudTest" time="0.003"/>
+  <testcase name="approvedWeathertopLandBoundaryHasNoIntermediateGap" classname="kome.client.KOMECurrentTileHudTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

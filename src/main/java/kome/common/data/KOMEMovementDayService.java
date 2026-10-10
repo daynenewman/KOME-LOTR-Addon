@@ -114,12 +114,18 @@ public final class KOMEMovementDayService {
         }
         if (boundary <= data.movementBoundaryMillis) return false;
         data.movementBoundaryMillis = boundary;
+        int restoredCompanies = 0;
         for (KOMEArmyCompany company : data.armyCompanies.values()) {
             if (company.movementBoundaryMillis >= boundary) continue;
             stamp(company, schedule, boundary);
             company.movementAllowance = company.getTilesPerDay();
+            restoredCompanies++;
         }
         mirror(data, schedule.nextBoundary(Instant.ofEpochMilli(boundary)).toEpochMilli());
+        if (restoredCompanies > 0) KOMEAuditService.record(data, boundary, "MOVEMENT", "ALLOWANCE_RESTORED",
+            "system", String.valueOf(boundary), "Canonical observed daily movement credit restored",
+            "schedule=" + schedule.signature() + ";companies=" + restoredCompanies
+                + ";routes=" + data.armyMovements.size() + ";offlineReplay=false");
         data.markDirty();
         return true;
     }

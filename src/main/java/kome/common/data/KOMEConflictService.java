@@ -130,6 +130,15 @@ public final class KOMEConflictService {
             return Result.failure(Code.INVALID_REQUEST, null,
                 "The persisted world conflict authority is required.");
         }
+        KOMEArmyCompany company = request == null ? null : data.armyCompanies.get(request.detachmentId);
+        if (company != null) {
+            KOMEGovernanceService.Decision owner = company.owner == null ? KOMEGovernanceService.Decision.allow(company.faction)
+                : KOMEGovernanceService.militaryAction(data, company.owner, company.faction);
+            KOMEGovernanceService.Decision controller = company.temporaryController == null ? owner
+                : KOMEGovernanceService.militaryAction(data, company.temporaryController, company.faction);
+            if (!owner.allowed || !controller.allowed)
+                return Result.failure(Code.INVALID_REQUEST, null, !owner.allowed ? owner.reason : controller.reason);
+        }
         data.ensureWritable();
         Result result = acceptValidatedCommitment(request,
             new HostilityResolver() {

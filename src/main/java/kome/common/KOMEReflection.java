@@ -71,6 +71,24 @@ public class KOMEReflection {
         }
     }
 
+    /** The storage's own handler is authoritative even when dimensions share a MapStorage. */
+    public static net.minecraft.world.storage.ISaveHandler getMapSaveHandler(World world) {
+        MapStorage storage = getMapStorage(world);
+        net.minecraft.world.storage.ISaveHandler found = null;
+        try {
+            for (java.lang.reflect.Field field : MapStorage.class.getDeclaredFields()) {
+                if (field.getType() != net.minecraft.world.storage.ISaveHandler.class) continue;
+                field.setAccessible(true);
+                if (found != null) throw new IllegalStateException("Ambiguous map storage save handler");
+                found = (net.minecraft.world.storage.ISaveHandler) field.get(storage);
+            }
+        } catch (IllegalAccessException failure) {
+            throw new IllegalStateException("Cannot access canonical map storage save handler", failure);
+        }
+        if (found == null) throw new IllegalStateException("Canonical map storage save handler is unavailable");
+        return found;
+    }
+
     public static MapStorage getMapStorage(World world) {
         try {
             if (worldMapStorageField == null) {

@@ -102,7 +102,7 @@ public class KOMEJoinBattlePersistenceTest {
         assertEquals(MountTransferPhase.DESTINATION_PUBLICATION_PENDING,
             restored.getMountTransferPhase());
         assertEquals("required", restored.getTemporaryMountNbt().getString("Recovery"));
-        assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertEquals(2, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEHiredUnitPhysicalLocator.DATA_SCHEMA_VERSION);
     }
@@ -224,8 +224,8 @@ public class KOMEJoinBattlePersistenceTest {
         expectInvalid(futureConflict, "Unsupported ConflictDataSchemaVersion");
 
         NBTTagCompound futureRoot = save(data);
-        futureRoot.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 12);
-        expectInvalid(futureRoot, "schema 12");
+        futureRoot.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 13);
+        expectInvalid(futureRoot, "schema 13");
     }
 
     private static Builder base(String receipt, String token, UUID player, String conflict, String tile) {

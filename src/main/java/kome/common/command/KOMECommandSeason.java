@@ -36,18 +36,22 @@ public final class KOMECommandSeason extends KOMEPublicCommand {
             EntityPlayer player = (EntityPlayer) sender;
             UUID actor = KOMEReflection.getEntityUUID(player);
             String faction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor));
+            kome.common.data.KOMEGovernanceService.Decision governance = kome.common.data.KOMEGovernanceService.militaryAction(data, actor, faction);
+            if (!governance.allowed) throw new WrongUsageException(governance.reason);
             boolean eligible = faction.length() > 0 && KOMERulerAuthorization.canActAsRuler(data, faction, actor) && hasActiveWar(data, faction);
             result = data.warSeason.triggerFinale(actor, sender.getCommandSenderName(), eligible, now);
         } else {
             requireStaff(sender);
             if ("prewar".equals(action)) result = data.warSeason.beginPreWar(now);
-            else if ("reset".equals(action)) result = data.warSeason.beginReset(now);
-            else if ("complete-reset".equals(action)) result = data.warSeason.completeReset(now);
+            else if ("reset".equals(action)) result = kome.common.data.KOMESeasonResetService.begin(data, now);
+            else if ("complete-reset".equals(action)) result = kome.common.data.KOMESeasonResetService.finish(data, now,
+                value -> value.checkpointReset(sender.getEntityWorld()));
             else if ("repair".equals(action) && args.length == 2) result = repair(data, args[1], now);
             else throw new WrongUsageException(getCommandUsage(sender));
         }
         if (!result.allowed) throw new WrongUsageException(result.reason);
-        kome.common.data.KOMEAuditService.record(data, now, "SEASON", action.toUpperCase(java.util.Locale.ROOT),
+        if ("reset".equals(action)) kome.common.data.KOMESeasonResetService.process(data, sender.getEntityWorld(), now);
+        if (!"reset".equals(action) && !"complete-reset".equals(action)) kome.common.data.KOMEAuditService.record(data, now, "SEASON", action.toUpperCase(java.util.Locale.ROOT),
             sender.getCommandSenderName(), "season:" + data.warSeason.seasonId,
             "Season transition completed", data.warSeason.phase.name());
         if ("finale".equals(action)) kome.common.data.KOMENotificationService.timeSensitive(
@@ -66,6 +70,8 @@ public final class KOMECommandSeason extends KOMEPublicCommand {
     }
 
     private static KOMEWarSeasonState.TransitionResult repair(KOMEWorldData data, String value, long now) {
+        if (kome.common.data.KOMESeasonResetService.active(data) && !"reset".equalsIgnoreCase(value))
+            throw new WrongUsageException("Complete the pending reset with /season complete-reset before changing phase.");
         try { return data.warSeason.repair(KOMEWarSeasonState.Phase.valueOf(value.toUpperCase(java.util.Locale.ROOT)), now); }
         catch (IllegalArgumentException e) { throw new WrongUsageException("Unknown season phase: " + value); }
     }
@@ -86,6 +92,7 @@ public final class KOMECommandSeason extends KOMEPublicCommand {
         sender.addChatMessage(new ChatComponentText("Season " + state.seasonId + ": " + state.phase
             + "; population payout " + (state.isPopulationPayoutEnabled() ? "ENABLED" : "FROZEN")
             + "; reset " + state.resetStatus + "."));
+        for (String line : kome.common.data.KOMESeasonResetService.status(data)) sender.addChatMessage(new ChatComponentText(line));
         if (countdown.length() > 0) sender.addChatMessage(new ChatComponentText(countdown));
         if (state.finaleTriggerTimeMillis >= 0L) sender.addChatMessage(new ChatComponentText("Finale triggered by "
             + state.finaleTriggerActorName + " at " + state.finaleTriggerTimeMillis + "."));

@@ -1,0 +1,12 @@
+{
+  "status": "PENDING",
+  "test": "joinbattle-governance-restriction-T388",
+  "candidate_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+  "authenticated_player": "_Danye_",
+  "uuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+  "address": "127.0.0.1:51327",
+  "command": "/kome joinbattle T388",
+  "expected": "T388 panel: Your current war governance status prevents Join Battle participation.; Select / Join Battle disabled; remains connected",
+  "reply": null,
+  "limits": "One authenticated non-operator. Multiplayer deferred. Native checks are recorded separately."
+}

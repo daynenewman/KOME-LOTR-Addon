@@ -159,6 +159,17 @@ public final class KOMEStrategicDeploymentResolver {
     /** Exact read-only validation; this never searches, repairs, or manufactures a point. */
     public static Validation validateStored(World world, String expectedTile, int dimensionId,
             double x, double y, double z) {
+        return validateStored(world, expectedTile, dimensionId, x, y, z, true);
+    }
+
+    /** Reset searches around this reference and separately checks occupancy at every placement. */
+    static Validation validateResetSearchOrigin(World world, String expectedTile, int dimensionId,
+            double x, double y, double z) {
+        return validateStored(world, expectedTile, dimensionId, x, y, z, false);
+    }
+
+    private static Validation validateStored(World world, String expectedTile, int dimensionId,
+            double x, double y, double z, boolean checkEntityOccupancy) {
         Validation metadata = validateMetadata(expectedTile, dimensionId, x, y, z);
         if (!metadata.valid) return metadata;
         if (world == null || world.provider == null || world.provider.dimensionId != dimensionId)
@@ -168,7 +179,7 @@ public final class KOMEStrategicDeploymentResolver {
         int blockZ = MathHelper.floor_double(z);
         if (!ensureChunkAvailable(world, blockX, blockZ))
             return Validation.invalid("Capital deployment chunk is unavailable.");
-        if (!isSafeStandingAnchor(world, blockX, blockY, blockZ))
+        if (!isSafeStandingAnchor(world, blockX, blockY, blockZ, 0.6D, 1.8D, checkEntityOccupancy))
             return Validation.invalid("Stored capital deployment anchor is no longer safe for standing.");
         return metadata;
     }
@@ -195,6 +206,11 @@ public final class KOMEStrategicDeploymentResolver {
 
     static boolean isSafeStandingAnchor(World world, int x, int y, int z,
             double requiredWidth, double requiredHeight) {
+        return isSafeStandingAnchor(world, x, y, z, requiredWidth, requiredHeight, true);
+    }
+
+    private static boolean isSafeStandingAnchor(World world, int x, int y, int z,
+            double requiredWidth, double requiredHeight, boolean checkEntityOccupancy) {
         if (world == null || !finite(requiredWidth) || !finite(requiredHeight)
                 || requiredWidth <= 0.0D || requiredHeight <= 0.0D
                 || y < 1 || y + requiredHeight > world.getActualHeight()
@@ -220,6 +236,7 @@ public final class KOMEStrategicDeploymentResolver {
             // Native 1.7.10 dereferences a null query entity when another entity is nearby.
             // Use its block-only query, then explicitly reject live entity volumes.
             if (!world.func_147461_a(body).isEmpty() || world.isAnyLiquid(body)) return false;
+            if (!checkEntityOccupancy) return true;
             for (Object value : world.getEntitiesWithinAABBExcludingEntity(null,
                     body.expand(0.25D, 0.25D, 0.25D))) {
                 if (!(value instanceof net.minecraft.entity.Entity)) continue;

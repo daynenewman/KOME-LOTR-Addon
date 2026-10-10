@@ -1,0 +1,23 @@
+{
+  "tests": 2104.0,
+  "failures": 0.0,
+  "errors": 0.0,
+  "skipped": 2.0,
+  "jar": "9DF21EB87C09E92410EBDBF5123E6492F488BD2B4E8780EF7EAB5D394BFDF0D5",
+  "skippedSuites": [
+    {
+      "suite": "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest",
+      "tests": 18,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    },
+    {
+      "suite": "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest",
+      "tests": 12,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 1
+    }
+  ]
+}

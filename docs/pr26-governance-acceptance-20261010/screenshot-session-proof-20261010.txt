@@ -1,0 +1,2 @@
+2026-10-10T16:46:51.487Z PASS CONNECTED identity=_Danye_ uuid=a976a4b7-0614-49c0-b992-61a3a89bd773 loadedJar=C:\Users\dayne\AppData\Roaming\PrismLauncher\instances\kome-pr26-joinbattle-g5-20261009\minecraft\mods\KOME-LOTR-Addon-1.0.8.jar sha256=ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823 thread=Client thread readOnly=true commandsSent=0
+2026-10-10T16:46:51.489Z PASS PANEL tile=T388 conflict=CF1 revision=4 reason=GOVERNANCE_RESTRICTED text=Your current war governance status prevents Join Battle participation. joinEnabled=false connected=true

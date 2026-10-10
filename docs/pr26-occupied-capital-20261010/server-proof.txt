@@ -1,0 +1,89 @@
+2026-10-10T17:03:22.576Z LIVE inspect productionSHA=ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:03:22.580Z TRACKER_FIELD field_151249_a interface org.apache.logging.log4j.Logger
+2026-10-10T17:03:22.580Z TRACKER_FIELD field_72795_a class net.minecraft.world.WorldServer
+2026-10-10T17:03:22.580Z TRACKER_FIELD field_72793_b interface java.util.Set
+2026-10-10T17:03:22.580Z TRACKER_FIELD field_72794_c class net.minecraft.util.IntHashMap
+2026-10-10T17:03:22.581Z TRACKER_FIELD field_72792_d int
+2026-10-10T17:03:22.581Z TRACKER_FIELD __OBFID class java.lang.String
+2026-10-10T17:03:40.954Z LIVE stage productionSHA=ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:03:40.977Z SNAPSHOT global-before sha256=4f5bc3624711e5ba2947ae4a6fd696d65dd70a5686d97a1cded89b14ae5d396f
+2026-10-10T17:03:41.842Z CREATED baseline C2 rider=21b42537-396e-4762-802f-56ec51c0258e mount=0f938b4d-6dbc-4de7-95bb-4c8609a7e20e HP=3.25/7.125 source=T348 directAPIFixtureNotPaidHire=true
+2026-10-10T17:03:41.915Z SNAPSHOT first-returned sha256=c628c6778944d08c033d7a4bfd5f1549674a7be6cee82a1e25e510d701dd98e2
+2026-10-10T17:03:41.916Z PASS already returned C2 occupies exact capital reference with durable rider/mount receipt; no global reset
+2026-10-10T17:03:41.919Z CREATED baseline C3 rider=e62ad6eb-941b-405a-af8b-dec982045b24 mount=e7bec980-bf86-4101-bfe6-ac6067e86bbc HP=5.5/9.25 source=T348 directAPIFixtureNotPaidHire=true
+2026-10-10T17:03:41.929Z SNAPSHOT second-before-return sha256=e1e8788dde75abff7c8e144122987a81b936145c5bcab4495d03caad88da1cf7
+2026-10-10T17:03:41.977Z PASS RETURN C2 rider=21b42537-396e-4762-802f-56ec51c0258e mount=0f938b4d-6dbc-4de7-95bb-4c8609a7e20e HP=3.25/7.125 position=78080.5,200.0,66304.5 token=1:C2 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=false
+2026-10-10T17:03:41.978Z PASS RETURN C3 rider=e62ad6eb-941b-405a-af8b-dec982045b24 mount=e7bec980-bf86-4101-bfe6-ac6067e86bbc HP=5.5/9.25 position=78080.5,208.0,66304.5 token=1:C3 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=false
+2026-10-10T17:03:41.979Z PASS RETURN clear landing; original first survivor still at occupied reference; onceOnlyCompanyReturnAudits=2
+2026-10-10T17:03:41.990Z SNAPSHOT returned sha256=b3d5eae90735cde7a5fd2ed3a855b96f6682595657d577f1848512df7cd7be09
+2026-10-10T17:03:42.035Z PASS RETRY C2 rider=21b42537-396e-4762-802f-56ec51c0258e mount=0f938b4d-6dbc-4de7-95bb-4c8609a7e20e HP=3.25/7.125 position=78080.5,200.0,66304.5 token=1:C2 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=false
+2026-10-10T17:03:42.036Z PASS RETRY C3 rider=e62ad6eb-941b-405a-af8b-dec982045b24 mount=e7bec980-bf86-4101-bfe6-ac6067e86bbc HP=5.5/9.25 position=78080.5,208.0,66304.5 token=1:C3 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=false
+2026-10-10T17:03:42.037Z PASS RETRY clear landing; original first survivor still at occupied reference; onceOnlyCompanyReturnAudits=2
+2026-10-10T17:03:42.056Z SNAPSHOT retry sha256=b3d5eae90735cde7a5fd2ed3a855b96f6682595657d577f1848512df7cd7be09
+2026-10-10T17:03:42.065Z PASS retained governance CF1/C1/SUBMITTED and exact authority sections unchanged; nonOperator=true
+2026-10-10T17:03:42.142Z SNAPSHOT global-staged sha256=eaada10cc649f98f8bdaafc01ad5efc22a07d5d776e7d2d9ee1b3e31c740330b
+2026-10-10T17:03:42.143Z READY human reconnect at T388 capital=78080.5,200,66304.5 two named mounted survivors; original candidate/config retained
+2026-10-10T17:03:54.605Z LIVE verify productionSHA=ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:03:54.626Z FAIL mode=verify java.lang.IllegalStateException: Partial HP changed: 1
+2026-10-10T17:04:58.854Z LIVE observe productionSHA=ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:04:58.857Z DIAGNOSTIC C2 riderHP=20.0 mountHP=20.0 mounted=true riderPos=78080.5,200.80000001192093,66304.5 mountPos=78080.5,200.0,66304.5 healthAuthority={EntityId:"21b42537-396e-4762-802f-56ec51c0258e",Riding:{EntityId:"0f938b4d-6dbc-4de7-95bb-4c8609a7e20e",Current:20.0f,},Current:20.0f,}
+2026-10-10T17:04:58.857Z DIAGNOSTIC C3 riderHP=20.0 mountHP=20.0 mounted=true riderPos=78080.5,208.80000001192093,66304.5 mountPos=78080.5,208.0,66304.5 healthAuthority={EntityId:"e62ad6eb-941b-405a-af8b-dec982045b24",Riding:{EntityId:"e7bec980-bf86-4101-bfe6-ac6067e86bbc",Current:20.0f,},Current:20.0f,}
+2026-10-10T17:08:00.060Z LIVE repair-fixture productionSHA=ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:08:00.075Z FIXTURE_CONTROL LivingHealEvent cancelled ONLY for four original fixture UUIDs; no product class/config changes; stock LOTR passive regeneration otherwise remains active
+2026-10-10T17:08:00.099Z FAIL mode=repair-fixture java.lang.reflect.InvocationTargetException
+2026-10-10T17:09:18.152Z LIVE repair-fixture productionSHA=ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:09:18.185Z FIXTURE_CONTROL LivingHealEvent cancelled ONLY for four original fixture UUIDs; no product class/config changes; stock LOTR passive regeneration otherwise remains active
+2026-10-10T17:09:18.211Z VALID_BASELINE original UUID=21b42537-396e-4762-802f-56ec51c0258e currentTile=T348 physicalLocator=T348 partialHP=3.25
+2026-10-10T17:09:18.212Z VALID_BASELINE original UUID=e62ad6eb-941b-405a-af8b-dec982045b24 currentTile=T348 physicalLocator=T348 partialHP=5.5
+2026-10-10T17:09:18.223Z SNAPSHOT controlled-baseline sha256=6b4d1a1e7d382e9db6fe01cbabecfdf287db8d5e48966128b9f1d785c30a3fe2
+2026-10-10T17:09:18.252Z FAIL mode=repair-fixture java.lang.IllegalStateException: Controlled return failed: [Company reset season 1: 0 pending / 1; ownership reset=true, Reset pending: java.lang.reflect.InvocationTargetException]
+2026-10-10T17:11:10.952Z LIVE save-stop productionSHA=ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:11:10.954Z RETAIN beforeStop C2 uuid=21b42537-396e-4762-802f-56ec51c0258e mounted=true hp=3.25 currentTile=T388
+2026-10-10T17:11:10.954Z FAIL mode=save-stop java.lang.NullPointerException
+2026-10-10T17:11:49.206Z LIVE save-stop productionSHA=ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:11:49.252Z RETAIN beforeStop C2 uuid=21b42537-396e-4762-802f-56ec51c0258e mounted=true hp=3.25 currentTile=T388
+2026-10-10T17:11:49.252Z RETAIN beforeStop C3 uuid=e62ad6eb-941b-405a-af8b-dec982045b24 mounted=true hp=5.5 currentTile=T348
+2026-10-10T17:11:49.259Z PASS retained governance CF1/C1/SUBMITTED and exact authority sections unchanged; nonOperator=true
+2026-10-10T17:11:49.274Z SNAPSHOT global-before-repair-stop sha256=cc619c3b02c72b4866d7a3e609847cf395ada3b4438fad55c8872cc055f07e8f
+2026-10-10T17:11:49.330Z PASS fixture and governance durably saved before orderly g5 stop; frozen51326excluded=true
+2026-10-10T17:18:46.804Z LIVE boot repairedProductionSHA=e20756089e48d0962b486ad14fa11407cb0782ad709931b296da5e9ed24dab53 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:18:46.926Z PASS REPAIRED_COLD_LOAD C2 originalRider=21b42537-396e-4762-802f-56ec51c0258e originalMount=0f938b4d-6dbc-4de7-95bb-4c8609a7e20e partialHP=3.25/7.125 mounted=true; scoped native heal-event control before chunk load
+2026-10-10T17:18:46.926Z PASS REPAIRED_COLD_LOAD C3 originalRider=e62ad6eb-941b-405a-af8b-dec982045b24 originalMount=e7bec980-bf86-4101-bfe6-ac6067e86bbc partialHP=5.5/9.25 mounted=true; scoped native heal-event control before chunk load
+2026-10-10T17:18:46.935Z PASS REPAIRED_COLD_LOAD retained active CF1 and submitted governance; original fixture UUIDs; no authenticated client observation yet
+2026-10-10T17:19:39.194Z LIVE repair-fixture repairedProductionSHA=e20756089e48d0962b486ad14fa11407cb0782ad709931b296da5e9ed24dab53 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:19:39.239Z FIXTURE_CONTROL LivingHealEvent cancelled ONLY for four original fixture UUIDs; no product class/config changes; stock LOTR passive regeneration otherwise remains active
+2026-10-10T17:19:39.280Z VALID_BASELINE original UUID=21b42537-396e-4762-802f-56ec51c0258e currentTile=T348 physicalLocator=T348 partialHP=3.25
+2026-10-10T17:19:39.281Z VALID_BASELINE original UUID=e62ad6eb-941b-405a-af8b-dec982045b24 currentTile=T348 physicalLocator=T348 partialHP=5.5
+2026-10-10T17:19:39.297Z SNAPSHOT repaired-baseline sha256=cd38b6812241dff2351e8f567f17503f0d0250d1365721c1732f49e0207896a1
+2026-10-10T17:19:39.378Z SNAPSHOT repaired-first-returned sha256=f20d71ae622184a11c37d0a857e8092b788709b92a04951627380286e7f3e2c6
+2026-10-10T17:19:39.394Z SNAPSHOT repaired-second-before-return sha256=256c72060b9d29cc02080f1e03cb15ab6f29a49d0a34f7c66fe0d62f0c5d35cc
+2026-10-10T17:19:39.443Z PASS REPAIRED_RETURN C2 rider=21b42537-396e-4762-802f-56ec51c0258e mount=0f938b4d-6dbc-4de7-95bb-4c8609a7e20e HP=3.25/7.125 position=78080.5,200.0,66304.5 token=1:C2 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=false
+2026-10-10T17:19:39.445Z PASS REPAIRED_RETURN C3 rider=e62ad6eb-941b-405a-af8b-dec982045b24 mount=e7bec980-bf86-4101-bfe6-ac6067e86bbc HP=5.5/9.25 position=78078.5,200.0,66302.5 token=1:C3 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=false
+2026-10-10T17:19:39.447Z PASS REPAIRED_RETURN clear landing; original first survivor still at occupied reference; onceOnlyCompanyReturnAudits=2
+2026-10-10T17:19:39.509Z PASS REPAIRED_RETRY C2 rider=21b42537-396e-4762-802f-56ec51c0258e mount=0f938b4d-6dbc-4de7-95bb-4c8609a7e20e HP=3.25/7.125 position=78080.5,200.0,66304.5 token=1:C2 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=false
+2026-10-10T17:19:39.510Z PASS REPAIRED_RETRY C3 rider=e62ad6eb-941b-405a-af8b-dec982045b24 mount=e7bec980-bf86-4101-bfe6-ac6067e86bbc HP=5.5/9.25 position=78078.5,200.0,66302.5 token=1:C3 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=false
+2026-10-10T17:19:39.511Z PASS REPAIRED_RETRY clear landing; original first survivor still at occupied reference; onceOnlyCompanyReturnAudits=2
+2026-10-10T17:19:39.531Z SNAPSHOT repaired-returned sha256=4e0e5a90a51250c82541736fb726b019c1930f1731e1ca510dacaf5f9b2476a0
+2026-10-10T17:19:39.547Z PASS retained governance CF1/C1/SUBMITTED and exact authority sections unchanged; nonOperator=true
+2026-10-10T17:19:39.624Z SNAPSHOT global-repaired-staged sha256=ff97f4a93aec0cc3490b777ee08ab574cc1248be20dcf5313e4dff8e09095629
+2026-10-10T17:19:39.626Z READY controlled occupied-capital fixture; same original UUIDs; open roof; scoped native heal-event suppression; both mounted landings at Y200
+2026-10-10T17:20:44.681Z LIVE verify repairedProductionSHA=e20756089e48d0962b486ad14fa11407cb0782ad709931b296da5e9ed24dab53 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:20:44.696Z PASS RECONNECT C2 rider=21b42537-396e-4762-802f-56ec51c0258e mount=0f938b4d-6dbc-4de7-95bb-4c8609a7e20e HP=3.25/7.125 position=78080.5,200.0,66304.5 token=1:C2 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=true
+2026-10-10T17:20:44.698Z PASS RECONNECT C3 rider=e62ad6eb-941b-405a-af8b-dec982045b24 mount=e7bec980-bf86-4101-bfe6-ac6067e86bbc HP=5.5/9.25 position=78078.5,200.0,66302.5 token=1:C3 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=true
+2026-10-10T17:20:44.698Z PASS RECONNECT clear landing; original first survivor still at occupied reference; onceOnlyCompanyReturnAudits=2
+2026-10-10T17:20:44.705Z PASS retained governance CF1/C1/SUBMITTED and exact authority sections unchanged; nonOperator=true
+2026-10-10T17:20:44.729Z SNAPSHOT global-reconnect-1791652844706 sha256=d5efd6dc13b656ddab1c4b1dd2480b33a703bb2e4120f3df08ffa22453aec589
+2026-10-10T17:20:44.730Z PASS native current connected reset fixture; isolated durable journal roundtrip and real entity tracking verified
+2026-10-10T17:22:00.883Z LIVE map-client repairedProductionSHA=e20756089e48d0962b486ad14fa11407cb0782ad709931b296da5e9ed24dab53 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:22:00.885Z NATIVE_NETWORK_MAP originalRider=21b42537-396e-4762-802f-56ec51c0258e networkId=302 originalMount=0f938b4d-6dbc-4de7-95bb-4c8609a7e20e networkId=303 nonOperator=true
+2026-10-10T17:22:00.885Z NATIVE_NETWORK_MAP originalRider=e62ad6eb-941b-405a-af8b-dec982045b24 networkId=324 originalMount=e7bec980-bf86-4101-bfe6-ac6067e86bbc networkId=325 nonOperator=true
+2026-10-10T17:24:23.324Z LIVE verify repairedProductionSHA=e20756089e48d0962b486ad14fa11407cb0782ad709931b296da5e9ed24dab53 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:24:23.330Z PASS RECONNECT C2 rider=21b42537-396e-4762-802f-56ec51c0258e mount=0f938b4d-6dbc-4de7-95bb-4c8609a7e20e HP=3.25/7.125 position=78080.5,200.0,66304.5 token=1:C2 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=true
+2026-10-10T17:24:23.332Z PASS RECONNECT C3 rider=e62ad6eb-941b-405a-af8b-dec982045b24 mount=e7bec980-bf86-4101-bfe6-ac6067e86bbc HP=5.5/9.25 position=78078.5,200.0,66302.5 token=1:C3 uuidCounts=1/1 mounted=true canonicalTile=T388 nativeTracked=true
+2026-10-10T17:24:23.332Z PASS RECONNECT clear landing; original first survivor still at occupied reference; onceOnlyCompanyReturnAudits=2
+2026-10-10T17:24:23.338Z PASS retained governance CF1/C1/SUBMITTED and exact authority sections unchanged; nonOperator=true
+2026-10-10T17:24:23.351Z SNAPSHOT global-reconnect-1791653063338 sha256=aac0812c0bf12ca22314e67d3354d0d8261b6ae82ebdb7123cfd8fa3b2432722
+2026-10-10T17:24:23.351Z PASS native current connected reset fixture; isolated durable journal roundtrip and real entity tracking verified
+2026-10-10T17:27:49.689Z LIVE map-client repairedProductionSHA=e20756089e48d0962b486ad14fa11407cb0782ad709931b296da5e9ed24dab53 player=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperator=true serverThread=Server thread
+2026-10-10T17:27:49.690Z NATIVE_NETWORK_MAP originalRider=21b42537-396e-4762-802f-56ec51c0258e networkId=329 originalMount=0f938b4d-6dbc-4de7-95bb-4c8609a7e20e networkId=330 nonOperator=true
+2026-10-10T17:27:49.690Z NATIVE_NETWORK_MAP originalRider=e62ad6eb-941b-405a-af8b-dec982045b24 networkId=327 originalMount=e7bec980-bf86-4101-bfe6-ac6067e86bbc networkId=328 nonOperator=true

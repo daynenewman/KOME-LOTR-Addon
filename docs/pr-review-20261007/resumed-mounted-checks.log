@@ -1,0 +1,33 @@
+Wed Oct 07 20:42:43 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Ambiguous method func_71203_ab
+Wed Oct 07 20:43:20 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Expected authenticated player absent
+Wed Oct 07 20:45:53 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Missing method assignForCampaignWorkflow
+Wed Oct 07 20:47:50 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Missing method func_95999_t
+Wed Oct 07 20:47:50 CDT 2026 FIXTURE_FAIL java.nio.file.NoSuchFileException: C:\Users\dayne\.codex\worktrees\686a\KOME-LOTR-Addon\build\pr-review-20261007\reset-runtime\mounted-fixture.properties
+Wed Oct 07 20:48:24 CDT 2026 PREPARED owner=a976a4b7-0614-49c0-b992-61a3a89bd773 origin=T378 97728.5 200 59712.5 destination=T388 78016.5 200 66240.5 rider=869334e0-706c-4d84-96f9-3ddb101a72a4 mount=4772c3bf-e6a7-4a2c-bfc3-b7c2f09cf357 expectedHP=3.25/7.125 fixtureNotPaidRecruitment=true
+Wed Oct 07 20:48:24 CDT 2026 OBSERVED rider=869334e0-706c-4d84-96f9-3ddb101a72a4 mount=4772c3bf-e6a7-4a2c-bfc3-b7c2f09cf357 riderHP=3.25 mountHP=7.125 x=97728.5 y=200.80000001192093 z=59712.5 reset=kome.common.data.KOMESeasonResetState@7a3ccb9a phase=FINALE originalMountedTree=true
+Wed Oct 07 20:58:20 CDT 2026 STATUS player=a976a4b7-0614-49c0-b992-61a3a89bd773@237248.5,181.0,87295.5 companies=[C-mounted-acceptance] units=[]
+Wed Oct 07 20:58:20 CDT 2026 COMPANY id=C-mounted-acceptance units=[] current=T378 population=0
+Wed Oct 07 20:59:03 CDT 2026 PREPARED owner=a976a4b7-0614-49c0-b992-61a3a89bd773 origin=T348 48704.5 200 53568.5 destination=T388 78016.5 200 66240.5 rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad expectedHP=3.25/7.125 fixtureNotPaidRecruitment=true
+Wed Oct 07 20:59:04 CDT 2026 OBSERVED rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad riderHP=3.25 mountHP=7.125 x=48704.5 y=200.80000001192093 z=53568.5 reset=kome.common.data.KOMESeasonResetState@7a3ccb9a phase=FINALE originalMountedTree=true
+Wed Oct 07 21:00:29 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Original mounted tree broken
+Wed Oct 07 21:02:31 CDT 2026 FIXTURE_FAIL java.lang.NoSuchFieldException: canMove
+Wed Oct 07 21:03:31 CDT 2026 FIXTURE_CORRECTED untamed direct-API horse now setBelongsToNPC=true; original safe UUIDs retained; halted; baselineHP=3.25/7.125; not product repair
+Wed Oct 07 21:03:31 CDT 2026 OBSERVED rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad riderHP=3.25 mountHP=7.125 x=48704.5 y=200.0 z=53568.5 reset=kome.common.data.KOMESeasonResetState@7a3ccb9a phase=FINALE originalMountedTree=true
+Wed Oct 07 21:04:28 CDT 2026 OBSERVED rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad riderHP=20.0 mountHP=20.0 x=48704.50611823891 y=200.80000001192093 z=53568.55272047733 reset=kome.common.data.KOMESeasonResetState@7a3ccb9a phase=FINALE originalMountedTree=true
+Wed Oct 07 21:08:26 CDT 2026 EXISTING_CANONICAL_RECONCILIATION result=kome.common.data.KOMECompanyReconciliationService$Result@3de3273b companies=[C-mounted-acceptance-safe]
+Wed Oct 07 21:08:26 CDT 2026 RESET_BASELINE rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad actualHP=3.25/7.125 canonicalHealth={EntityId:"8ce35270-7847-4b9a-a1f0-d68ddd680e8b",Riding:{EntityId:"e000ee01-3aea-463e-9a65-9276412371ad",Current:7.125f,},Current:3.25f,}
+Wed Oct 07 21:08:26 CDT 2026 RESET_COMMAND result=1 phase=RESET failure= complete=true
+Wed Oct 07 21:08:26 CDT 2026 OBSERVED rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad riderHP=3.25 mountHP=7.125 x=78016.5 y=200.0 z=66240.5 reset=kome.common.data.KOMESeasonResetState@1a3b6e56 phase=RESET originalMountedTree=true
+Wed Oct 07 21:09:29 CDT 2026 OBSERVED rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad riderHP=20.0 mountHP=20.0 x=78016.10281543755 y=200.80000001192093 z=66240.49473928893 reset=kome.common.data.KOMESeasonResetState@1a3b6e56 phase=RESET originalMountedTree=true
+Wed Oct 07 21:12:18 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Reset completion failed
+Wed Oct 07 21:13:12 CDT 2026 RESTART_BASELINE damaged surviving original fixture HP=3.25/7.125; save-all complete; stop requested
+Wed Oct 07 21:13:12 CDT 2026 OBSERVED rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad riderHP=3.25 mountHP=7.125 x=78016.10281543755 y=200.80000001192093 z=66240.49473928893 reset=kome.common.data.KOMESeasonResetState@1a3b6e56 phase=MAINTENANCE originalMountedTree=true
+Wed Oct 07 21:14:44 CDT 2026 COLD_LOAD_CHECK originalUUIDs=true mountedTree=true savedHP=3.25/7.125 phase=MAINTENANCE firstServerThreadLoad=true noClientRequired=true
+Wed Oct 07 21:14:44 CDT 2026 OBSERVED rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b mount=e000ee01-3aea-463e-9a65-9276412371ad riderHP=3.25 mountHP=7.125 x=78016.10281543755 y=200.80000001192093 z=66240.49473928893 reset=kome.common.data.KOMESeasonResetState@423b2aec phase=MAINTENANCE originalMountedTree=true
+Wed Oct 07 21:16:39 CDT 2026 STATUS player=a976a4b7-0614-49c0-b992-61a3a89bd773@78017.19593735014,200.0,66242.48235872816 companies=[C-mounted-acceptance-safe] units=[8ce35270-7847-4b9a-a1f0-d68ddd680e8b]
+Wed Oct 07 21:16:39 CDT 2026 COMPANY id=C-mounted-acceptance-safe units=[8ce35270-7847-4b9a-a1f0-d68ddd680e8b] current=T388 population=45
+Wed Oct 07 21:16:39 CDT 2026 FIXTURE_FAIL java.lang.IllegalStateException: Expected exactly one loaded original rider/mount: 0/1
+Wed Oct 07 21:19:32 CDT 2026 MISSING_HEALTH_REFERENCE rider=8ce35270-7847-4b9a-a1f0-d68ddd680e8b class=lotr.common.entity.npc.LOTREntityGondorSoldier dead=false addedToChunk=true x=78016.27430000223 y=200.80000001192093 z=66240.20751289069 hp=20.0
+Wed Oct 07 21:19:32 CDT 2026 MOUNT_LOADED id=e000ee01-3aea-463e-9a65-9276412371ad riddenBy=8ce35270-7847-4b9a-a1f0-d68ddd680e8b x=78016.27430000223 y=200.0 z=66240.20751289069
+Wed Oct 07 21:19:32 CDT 2026 MISSING_RESET phase=MAINTENANCE companies=[C-mounted-acceptance-safe] units=[8ce35270-7847-4b9a-a1f0-d68ddd680e8b]
+Wed Oct 07 21:22:16 CDT 2026 GUARD_REPRODUCER activeDuplicateRejected=true legitimateReloadWhileOldQueuedForUnloadRejected=true isolatedCanonicalData=true noSpawn=true

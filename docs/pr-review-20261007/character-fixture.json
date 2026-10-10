@@ -1,0 +1,16 @@
+{
+  "world_terrain_copied": false,
+  "canonical_KOME_root_copied": false,
+  "two_test_character_records_copied": [
+    {
+      "source": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\server\\tile-acceptance-fresh\\playerdata\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+      "destination": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\server\\review-acceptance-fresh\\playerdata\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+      "sha256": "e39296db4ba7d4fca378b5fb16311b52a75e5841d3d564447e056b37470c22ab"
+    },
+    {
+      "source": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\server\\tile-acceptance-fresh\\LOTR\\players\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+      "destination": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr-review-20261007\\server\\review-acceptance-fresh\\LOTR\\players\\a976a4b7-0614-49c0-b992-61a3a89bd773.dat",
+      "sha256": "ca3f137b70f2c0a78454206c4c7444fbac4a5b0f17374c3c3486abf6a5838c29"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "status": "PASS_SCOPED_GOVERNANCE_PANEL",
+  "test": "joinbattle-governance-restriction-T388",
+  "candidate_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+  "authenticated_player": "_Danye_",
+  "uuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+  "address": "127.0.0.1:51327",
+  "command": "/kome joinbattle T388",
+  "expected": "T388 panel: Your current war governance status prevents Join Battle participation.; Select / Join Battle disabled; remains connected",
+  "reply": "Screenshot attachment; no verbal yes/no reply supplied.",
+  "limits": "One authenticated non-operator and synthetic registered company baseline. No physical battle entry, full defeat predicate, multiplayer or representative lower-spec acceptance. Fixture retained; no product defect or rebuild.",
+  "recorded_at_utc": "2026-10-10T16:48:24.293405+00:00",
+  "reply_type": "USER_SUPPLIED_SCREENSHOT",
+  "screenshot": {
+    "file": "human-governance-20261010.png",
+    "sha256": "f729db232f059a0b25e1cc7fafd703c7bfdb47eea101c0acf2e49c91f4947030",
+    "width": 1305,
+    "height": 1017
+  },
+  "human_observed": {
+    "tile": "T388",
+    "conflict": "CF1",
+    "revision": 4,
+    "state": "ORDINARY",
+    "faction": "gondor",
+    "panel_status": "BLOCKED",
+    "reason_text": "Your current war governance status prevents Join Battle participation.",
+    "select_join_battle_disabled": true,
+    "no_eligible_rows_displayed": true
+  },
+  "native_current_session": {
+    "evidence": "screenshot-session-proof-20261010.txt",
+    "sha256": "f84d67296d38500b6ea7f5aaa31e981cbb0ad5b7edaab98f5ec389d59a5d6ba7",
+    "client_pid": 45260,
+    "server_pid": 47508,
+    "connected": true,
+    "loaded_client_server_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+    "non_operator_server_verified": true,
+    "read_only": true,
+    "commands_sent": 0
+  },
+  "interpretation": "Human screenshot confirms exact active-conflict governance denial and disabled Join. Subsequent read-only native inspection independently confirms the matching authenticated session stays connected."
+}

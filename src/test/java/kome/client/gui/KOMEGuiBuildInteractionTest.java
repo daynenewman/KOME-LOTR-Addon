@@ -113,6 +113,22 @@ public class KOMEGuiBuildInteractionTest {
         assertTrue(network.sent.isEmpty());
     }
 
+    @Test public void createTypeControlsClearCoordinatesAndLeaveRoomForHoursLabel() throws Exception {
+        for (int[] size : new int[][] {{788,458},{1324,726},{394,229}}) {
+            screen.prepare(minecraft, KOMEAccessFixture.allocate(TestFont.class), size[0], size[1]);
+            screen.setVisualTestState(0, 0, 0); screen.initGui();
+            screen.click("Create Build", 0); screen.release();
+            Field panel = KOMEGuiConquestCapture.class.getDeclaredField("panelY"); panel.setAccessible(true);
+            int coordinatesBottom = panel.getInt(screen) + 88 + 102 + 9;
+            GuiButton normal = screen.button("Normal"), defensive = screen.button("Defensive");
+            assertTrue("Type buttons must clear the coordinate line", normal.yPosition >= coordinatesBottom + 6);
+            assertEquals(normal.yPosition, defensive.yPosition);
+            assertTrue("Hours label needs a separate line below the type buttons",
+                normal.yPosition + normal.height + 9 + 4 <= field("buildHoursField").yPosition);
+            assertTrue(network.sent.isEmpty());
+        }
+    }
+
     private GuiTextField field(String name) throws Exception {
         Field field = KOMEGuiConquestCapture.class.getDeclaredField(name);
         field.setAccessible(true);

@@ -1,0 +1,71 @@
+{
+  "recorded_at_utc": "2026-10-09T18:07:21.799804+00:00",
+  "source_fix_commit": "c2765f7e4a26941b2172affb30113c39e7ee60d6",
+  "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+  "validated_dev": "69dbad5a8d2d1cef461e8327b961ce9194d8241f",
+  "current_dev": "f154deaed18ac3f1a7770ffa3bda8a88382a9e35",
+  "pr26_draft": true,
+  "pr26_mergeable": false,
+  "reconciliation": "Separate source task; acceptance runtime unchanged. No f154dea or reconciled-artifact validation claimed.",
+  "tests": {
+    "tests": 2890,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 5,
+    "passed": 2885,
+    "suites": 291
+  },
+  "r1_human_checks": "PASS at recorded points; unclassified geography remains unknown.",
+  "second_authenticated_account": "Not yet available in Prism; only _Danye_ is Microsoft authenticated. Offline KOME_Tester2 is not acceptance.",
+  "runtime": {
+    "server_pid": 30672,
+    "address": "127.0.0.1:51326",
+    "world": "review-acceptance-fresh",
+    "configuration_matches_recorded_manifest": true,
+    "first_client": "Existing profile preserved; not currently running."
+  },
+  "curated_hashes_verified": [
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\CampaignHireAcceptanceProbe.java",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\CampaignHireAcceptanceProbeV2.java",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\CampaignHireAcceptanceProbeV3.jar",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\CampaignHireAcceptanceProbeV3.java",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\CampaignHireAcceptanceProbeV4.java",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\CampaignHireAcceptanceProbeV5.jar",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\CampaignHireAcceptanceProbeV5.java",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\DimensionAcceptanceProbe.jar",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\DimensionAcceptanceProbe.java",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\GapAcceptanceProbeV3.jar",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\GapAcceptanceProbeV3.java",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\MountedReloadAcceptanceProbe.jar",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\MountedReloadAcceptanceProbe.java",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\campaign-hire-before-fixture.nbt",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\campaign-hire-checks.log",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\campaign-hire-fixture.properties",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\campaign-hire-observed.nbt",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\campaign-hire-ready.nbt",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\dimension-checks.log",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\gap-checks.log",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\reload-client-performance.log",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\reload-cold-server.log",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\reload-mounted-checks.log",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\reload-mounted-restart-after.nbt",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\reload-mounted-restart-before.nbt",
+    "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\docs\\pr-review-20261007\\reload-native-checks.log",
+    "reload-validation.zip",
+    "resume-validation.zip"
+  ],
+  "publication": "Documentation follow-up on PR26 branch; final commit identified by GitHub branch history.",
+  "limits": "Human observations, native production probes, deobfuscated Forge and JUnit remain distinct. Prior failures retained; no multiplayer/lower-spec pass.",
+  "conflict_preview": {
+    "method": "git merge-tree --write-tree --messages; no checkout or runtime changes",
+    "against_dev": "f154deaed18ac3f1a7770ffa3bda8a88382a9e35",
+    "files": [
+      "src/main/java/kome/common/data/KOMECompanyReorganizationService.java",
+      "src/main/java/kome/common/data/KOMEStrategicDeploymentResolver.java",
+      "src/test/java/kome/common/KOMEAccessFixture.java",
+      "src/test/java/kome/common/data/KOMEWorldDataSchemaTest.java"
+    ],
+    "raw": "reconciliation-preview-20261009.txt",
+    "status": "Tracked separately; unresolved. Full reconciled-source validation required."
+  }
+}

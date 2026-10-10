@@ -184,7 +184,7 @@ public class KOMEJoinBattleEgressServiceTest {
         assertEquals(MountTransferPhase.DESTINATION_PUBLICATION_PENDING,
             f.receipt().getMountTransferPhase());
         assertNotNull(f.receipt().getTemporaryMountNbt());
-        assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertEquals(2, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEHiredUnitPhysicalLocator.DATA_SCHEMA_VERSION);
     }

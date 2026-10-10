@@ -361,10 +361,12 @@ public class CharacterCreationIsolationTest {
             } else if(relativePath.endsWith("KOMEProgressionProtectedActors.java")){
                 assertTrue(text.contains("LOTREntityNPC npc"));assertTrue(text.contains("KOMEProtectedHome"));
                 assertFalse(text.contains("player.getEntityData"));
-            } else if (!relativePath.endsWith("KOMECourierRecipientSpawner.java") && !relativePath.endsWith("KOMECourierService.java") && !relativePath.endsWith("KOMEProgressionEncounterMarker.java") && !relativePath.endsWith("KOMEEmergencyDefenseEntityMarker.java"))
+            } else if (!relativePath.endsWith("KOMECourierRecipientSpawner.java") && !relativePath.endsWith("KOMECourierService.java") && !relativePath.endsWith("KOMEProgressionEncounterMarker.java") && !relativePath.endsWith("KOMEEmergencyDefenseEntityMarker.java") && !relativePath.endsWith("KOMESeasonResetDeployment.java"))
                 assertFalse(relativePath, Pattern.compile("\\bgetEntityData\\s*\\(").matcher(text).find());
             assertFalse(relativePath, text.contains("EntityPlayer.PERSISTED_NBT_TAG"));
-            assertFalse(relativePath, text.contains("\"ForgeData\""));
+            // Reset reads NPC/mount chunk receipts; character-creation player storage remains forbidden.
+            if (!relativePath.endsWith("KOMESeasonResetDeployment.java"))
+                assertFalse(relativePath, text.contains("\"ForgeData\""));
             assertFalse(relativePath, text.contains("\"PlayerPersisted\""));
             assertFalse(relativePath, text.contains("\"lotrcharactercreation\""));
         }

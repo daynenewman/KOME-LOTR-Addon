@@ -60,6 +60,11 @@ public final class GateAccess {
             return;
         }
         String denialMessage;
+        String governance = gate.getGateFaction() == null ? "" : kome.common.data.KOMEGovernanceCombat.warActionDenial(player, gate.getGateFaction().codeName());
+        if (!governance.isEmpty()) {
+            player.addChatMessage(new ChatComponentText(governance));
+            return;
+        }
         if (gate.getGateFaction() != null
                 && gate.isFactionAccessEnabled()) {
             float currentAlignment =

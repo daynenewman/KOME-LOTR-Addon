@@ -415,7 +415,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
             return getListOfStringsMatchingLastWord(args, "here");
         if (args.length == 2 && "audit".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "list", "summary");
         if (args.length == 2 && "diagnostics".equalsIgnoreCase(args[0]))
-            return getListOfStringsMatchingLastWord(args, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint");
+            return getListOfStringsMatchingLastWord(args, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint", "governance", "muster", "daily", "company", "gate");
         if (args.length == 2 && "repair".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "preview", "apply", "conflict", "stewardship", "war");
         if (args.length == 3 && "repair".equalsIgnoreCase(args[0]) && "preview".equalsIgnoreCase(args[1]))
             return getListOfStringsMatchingLastWord(args, "ownership", "diplomacy", "ruler", "waypoint");

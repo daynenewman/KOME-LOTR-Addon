@@ -1,0 +1,63 @@
+{
+  "candidate_sha256": "c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726",
+  "check": "Actual production-JAR save, clean server stop and cold first capital-chunk load in MAINTENANCE after completed reset",
+  "checks": {
+    "WarSeason_unchanged": true,
+    "SeasonReset_unchanged": true,
+    "FactionPopulations_unchanged": true,
+    "company_identity_membership_population_unchanged": true,
+    "unit_Entity_unchanged": true,
+    "unit_Owner_unchanged": true,
+    "unit_CompanyId_unchanged": true,
+    "unit_CurrentTile_unchanged": true,
+    "unit_SurvivingHealth_unchanged": true,
+    "unit_Cost_unchanged": true,
+    "unit_BaseCost_unchanged": true,
+    "unit_PopulationSpent_unchanged": true,
+    "unit_SeasonReturnToken_unchanged": true,
+    "once_only_counts_unchanged": true
+  },
+  "counts_before": {
+    "RESET_OWNERSHIP": 1,
+    "COMPANY_RETURN": 1,
+    "RESET_COMPLETE": 1
+  },
+  "counts_after": {
+    "RESET_OWNERSHIP": 1,
+    "COMPANY_RETURN": 1,
+    "RESET_COMPLETE": 1
+  },
+  "rider": "8ce35270-7847-4b9a-a1f0-d68ddd680e8b",
+  "horse": "e000ee01-3aea-463e-9a65-9276412371ad",
+  "hp": {
+    "rider": 3.25,
+    "horse": 7.125
+  },
+  "company": "C-mounted-acceptance-safe",
+  "tile": "T388",
+  "unit_count": 1,
+  "before_sections": 78,
+  "after_sections": 78,
+  "movement_allowance_change": {
+    "before": {
+      "Initialized": 0,
+      "Schedule": "",
+      "BoundaryMillis": 0,
+      "Remaining": 0
+    },
+    "after": {
+      "Initialized": 1,
+      "Schedule": "America/Chicago@20:00",
+      "BoundaryMillis": 1791421200000,
+      "Remaining": 0
+    },
+    "explanation": "Cold load initialized the fixture company with the existing movement boundary; zero credit preserved."
+  },
+  "limits": "Native first-load observation only. Subsequent human reconnect FAILED: rider absent from tracked world list, with original mounted rider object still ticking through its horse. Production duplicate guard reproducer rejects a valid replacement while old entity awaits unload. Fix and renewed live acceptance required. Direct-API fixture is not ordinary paid hiring; no multiplayer/hardware claim.",
+  "files": {
+    "mounted-restart-before.nbt": "c47e803da49ceae3fb58cb30459b8a24d92911d3a44584ab9c7b3aab1bfac056",
+    "mounted-restart-after.nbt": "d835b5e71e0e18f90d886276ed6b8797559e1dd9d157d849e1b083883b4209e5",
+    "MountedAcceptanceProbeV10.java": "c46ae962ab5d37f766758b17d110b65d1e7f2205db42c44afe281baf7f0ce44c",
+    "MountedAcceptanceProbeV10.jar": "52b62295cd7ff63dd559cb5632dcb59f819e0df0ac9fb2b1c61b1737c6329bc8"
+  }
+}

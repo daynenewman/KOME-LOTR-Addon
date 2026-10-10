@@ -19,6 +19,9 @@ dependencies {
         "testRuntimeOnly",
         rfg.deobf(project.files("libs/LOTRMod v36.15.jar"))
     )
+    // The actual ram impact permission test links the existing production animation interface.
+    add("testCompileOnly", rfg.deobf(project.files("libs/geckolib-unofficial-1.7.10-1.0.4.jar")))
+    add("testRuntimeOnly", rfg.deobf(project.files("libs/geckolib-unofficial-1.7.10-1.0.4.jar")))
 
     testImplementation("junit:junit:4.13.2")
 }

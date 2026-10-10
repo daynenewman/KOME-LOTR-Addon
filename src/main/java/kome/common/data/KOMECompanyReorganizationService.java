@@ -292,6 +292,7 @@ public final class KOMECompanyReorganizationService {
 
     private Failure validateMutationCompany(KOMEWorldData data,
             KOMEArmyCompany company, UUID actor, boolean administrator) {
+        if (KOMESeasonResetService.active(data)) return new Failure(Code.MUTATION_HOLD, "Season reset is pending");
         if (KOMEFormalRetreatAuthority.protectsCompany(data, company.id))
             return new Failure(Code.MUTATION_HOLD, "An unfinished Formal Retreat reserves this detachment.");
         if (company.owner == null || !administrator && !company.owner.equals(actor)) {

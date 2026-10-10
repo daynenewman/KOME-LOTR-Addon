@@ -1,0 +1,34 @@
+9084840cccc44ad538f6e876b4e34cc9efad94c1
+100644 deb85cb96dced5d9be4e17d78001ecf09e15aae2 1	src/main/java/kome/common/data/KOMECompanyReorganizationService.java
+100644 2e2eba77624d970c716ab6dde875229d6e937456 2	src/main/java/kome/common/data/KOMECompanyReorganizationService.java
+100644 ffb8606cfabe25d08e95b552e7ea4d0580bb230d 3	src/main/java/kome/common/data/KOMECompanyReorganizationService.java
+100644 c7fa8aceed58a5458baf52598cc5cfa08dfbd187 1	src/main/java/kome/common/data/KOMEStrategicDeploymentResolver.java
+100644 bb7d7b9f105aff31e49b47333598624ee922e6c9 2	src/main/java/kome/common/data/KOMEStrategicDeploymentResolver.java
+100644 a8f3007a053d19e090629758700e7ed70b38e5d8 3	src/main/java/kome/common/data/KOMEStrategicDeploymentResolver.java
+100644 d13b9b83e15f145a677de033253c59f865a74c54 1	src/test/java/kome/common/KOMEAccessFixture.java
+100644 573a9ca18921824b334fc18cd9b7110c5d92f099 2	src/test/java/kome/common/KOMEAccessFixture.java
+100644 1fa9cfe6b8fc5127d933a2d446aaaa8a8b28a8bf 3	src/test/java/kome/common/KOMEAccessFixture.java
+100644 fb9206aa585dac7f453b271aaee5d6c0c6fb7b99 1	src/test/java/kome/common/data/KOMEWorldDataSchemaTest.java
+100644 20a9d6f59f81404c4e04d6995a6eb780b9a192c0 2	src/test/java/kome/common/data/KOMEWorldDataSchemaTest.java
+100644 af6a18feed6ffce507f35f0dab6c704512d25c69 3	src/test/java/kome/common/data/KOMEWorldDataSchemaTest.java
+
+Auto-merging src/main/java/kome/common/command/KOMECommandKome.java
+Auto-merging src/main/java/kome/common/command/KOMECommandTroops.java
+Auto-merging src/main/java/kome/common/data/KOMECompanyReorganizationService.java
+CONFLICT (content): Merge conflict in src/main/java/kome/common/data/KOMECompanyReorganizationService.java
+Auto-merging src/main/java/kome/common/data/KOMEConflictService.java
+Auto-merging src/main/java/kome/common/data/KOMEEvents.java
+Auto-merging src/main/java/kome/common/data/KOMEHiredUnitRecord.java
+Auto-merging src/main/java/kome/common/data/KOMEMovementDayService.java
+Auto-merging src/main/java/kome/common/data/KOMEPledgeReleaseService.java
+Auto-merging src/main/java/kome/common/data/KOMEStrategicDeploymentResolver.java
+CONFLICT (content): Merge conflict in src/main/java/kome/common/data/KOMEStrategicDeploymentResolver.java
+Auto-merging src/main/java/kome/common/data/KOMEWartimeStewardshipService.java
+Auto-merging src/main/java/kome/common/data/KOMEWorldData.java
+Auto-merging src/test/java/kome/common/KOMEAccessFixture.java
+CONFLICT (content): Merge conflict in src/test/java/kome/common/KOMEAccessFixture.java
+Auto-merging src/test/java/kome/common/command/KOMEAdminDiagnosticsCommandsTest.java
+Auto-merging src/test/java/kome/common/data/KOMEConflictPersistenceTest.java
+Auto-merging src/test/java/kome/common/data/KOMERecruitmentDeploymentClearanceTest.java
+Auto-merging src/test/java/kome/common/data/KOMEWorldDataSchemaTest.java
+CONFLICT (content): Merge conflict in src/test/java/kome/common/data/KOMEWorldDataSchemaTest.java

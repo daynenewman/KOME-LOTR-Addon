@@ -52,7 +52,7 @@ public class KOMEWorldDataSchemaTest {
         "MovementSecondsPerTileOverride", "MovementTotalSecondsOverride", "MovementStepDelaySeconds",
         "PopulationPayoutDataSchemaVersion", "PopulationPayoutTimezone", "PopulationPayoutLocalTime", "NextWarSequence", "NextBuildSequence",
         "NextCompanySequence", "MovementBoundary",
-        "WarSeason", "CentralAudit", "AllianceRequirementOverrides", "AllianceQuotaItemOverrides",
+        "WarSeason", "SeasonReset", "CentralAudit", "GovernanceSchema", "PlayerGovernance", "DailyJournal", "AllianceRequirementOverrides", "AllianceQuotaItemOverrides",
         "AllianceAdminAudit", "AllianceMigrationQuarantine", "ConquestDefaultsInitialized",
         "FactionPopulations", "PopulationPayoutInitialized", "LastPopulationPayoutBoundaryMillis",
         "PopulationPayoutRemainders", "CanonicalDiplomacyRecords", "Progressions", "PlayerNames",
@@ -86,7 +86,7 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound saved = new NBTTagCompound();
         data.writeToNBT(saved);
         assertEquals("KOMEDataSchemaVersion", KOMEWorldData.KOME_DATA_SCHEMA_KEY);
-        assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertEquals(2, KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION);
         assertEquals(3, saved.getInteger("EmergencyDefenseDataSchemaVersion"));
         assertEquals(4, KOMEWorldData.BUILD_DATA_SCHEMA_VERSION);
@@ -159,7 +159,7 @@ public class KOMEWorldDataSchemaTest {
 
         IllegalStateException failure = expectReadFailure(data, unsupported);
         assertTrue(failure.getMessage().contains("schema 1"));
-        assertTrue(failure.getMessage().contains("schemas 6, 7, 8, 9, or 10 -> 11"));
+        assertTrue(failure.getMessage().contains("schemas 6 through 11 -> 12"));
         assertTrue(data.isWriteBlocked());
         assertFalse(data.isDirty());
         assertTrue(data.conquestTiles.isEmpty());
@@ -388,7 +388,7 @@ public class KOMEWorldDataSchemaTest {
     }
 
     @Test public void schemasOlderThanSixAndFutureSchemasRetainFailClosedBehavior() {
-        for (int version : new int[]{0, 1, 2, 3, 4, 5, 12, Integer.MAX_VALUE}) {
+        for (int version : new int[]{0, 1, 2, 3, 4, 5, KOMEWorldData.KOME_DATA_SCHEMA_VERSION + 1, Integer.MAX_VALUE}) {
             NBTTagCompound source = saved(new KOMEWorldData("source"));
             source.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, version);
             NBTTagCompound original = (NBTTagCompound) source.copy();
@@ -523,6 +523,7 @@ public class KOMEWorldDataSchemaTest {
         NBTTagCompound devEight = (NBTTagCompound) root.copy();
         devEight.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 8);
         removeEmergencyDefenseSection(devEight);
+        removeMovementAuthority(devEight);
         KOMEWorldData devEightUpgraded = new KOMEWorldData("dev-eight");
         devEightUpgraded.readFromNBT(devEight);
         assertTrue(devEightUpgraded.isDirty());
@@ -683,7 +684,7 @@ public class KOMEWorldDataSchemaTest {
         assertTrue(loaded.isDirty()); assertEquals(original, legacy);
         assertNoHistoricalMovementCredit(loaded);
         NBTTagCompound current = saved(loaded);
-        assertEquals(11, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertCombinedSectionsPreserved(legacy, current);
     }
 
@@ -696,7 +697,7 @@ public class KOMEWorldDataSchemaTest {
         assertEquals(1, loaded.armyCompanies.get("C1").movementAllowance);
         assertEquals(0, loaded.armyCompanies.get("C3").movementAllowance);
         NBTTagCompound current = saved(loaded);
-        assertEquals(11, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEquals(legacy.getTag("MovementBoundary"), current.getTag("MovementBoundary"));
         for (int i = 0; i < legacy.getTagList("ArmyCompanies", 10).tagCount(); i++) {
             NBTTagCompound company = legacy.getTagList("ArmyCompanies", 10).getCompoundTagAt(i);
@@ -723,7 +724,7 @@ public class KOMEWorldDataSchemaTest {
         assertTrue(loaded.isDirty()); assertEquals(original, legacy);
         assertNoHistoricalMovementCredit(loaded);
         NBTTagCompound current = saved(loaded);
-        assertEquals(11, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertEmptyTacticalSection(current);
         assertEquals(3, current.getInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY));
         assertEquals(legacy.getTag(KOMEEmergencyDefensePersistence.RECORDS_KEY),
@@ -749,7 +750,7 @@ public class KOMEWorldDataSchemaTest {
             KOMEWorldData loaded = new KOMEWorldData("eight"); loaded.readFromNBT(legacy);
             assertTrue(loaded.isDirty()); assertNoHistoricalMovementCredit(loaded);
             NBTTagCompound current = saved(loaded);
-            assertEquals(11, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+            assertEquals(KOMEWorldData.KOME_DATA_SCHEMA_VERSION, current.getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
             if (tactical) assertEquals(legacy.getTag("TacticalConfiguration"), current.getTag("TacticalConfiguration"));
             else {
                 assertEmptyTacticalSection(current);
