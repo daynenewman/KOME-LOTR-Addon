@@ -29,7 +29,7 @@ multiplayer progression journey or physical escort pathfinding across every shel
 | Agricultural worker deterrence | Implemented | Native `LOTRFarmhand` workers, including agricultural slaves, use short pursuit and nonlethal knockback only against active crop offenders. Native scripted behavior checks. |
 | Elven foot appearance | Implemented as a native particle approximation | Synchronized Elven race, small bounded blue particles near feet; no block lighting or film-style illumination. Qualitative appearance is a limited controlled fixture observation. |
 | Technical trial activation fairness | Implemented | Same trial retained for retry, daily reservation refunded, no failed-Liege penalty; real gameplay failure still has consequences. |
-| Full verification and publication | Verification implemented; publication record follows | Full suite, native probes and reobfuscation pass. Git publication is recorded below. |
+| Full verification and publication | Implemented | Full suite, native probes and reobfuscation pass; verified work published normally to both branches. |
 
 No new Lord/Prince progression design was introduced. Existing higher-rank trials
 only receive the shared escort arrival, marker and successful-release corrections.
@@ -348,11 +348,29 @@ speech on a connected server and long-term farm/ecology balance remain acceptanc
 - Initial HEAD: `69dbad5a8d2d1cef461e8327b961ce9194d8241f`.
 - Protected unpublished checkpoint: `a0705bf` (83 source/test/documentation files).
 - Integrated dev baseline: `20e27ed` (refreshed again before publication).
-- Backup references: `backup/progression-testing-20261010-start` and
-  `backup/progression-testing-20261010-checkpoint`; older backup references retained.
+- Backup references: `backup/progression-testing-20261010-start`,
+  `backup/progression-testing-20261010-checkpoint`, and
+  `backup/progression-testing-20261010-verified`; older backup references retained.
 - Stash objects unchanged: `61f81972fe98afe0497ddd376d571ebb019883ad`,
   `1f7c28e4ab11eb929b64d247de5800048fc9b34a`,
   `7d9c99bc5cfa9d5bd96dbe81fe4203449d007221`.
-- Verified feature/dev code commit, push results, final branch and working-tree state:
-  pending final publication record. No force-push, rebase, branch deletion or stash
-  mutation is permitted or used.
+- Feature branch verified implementation commit:
+  `fecbb707dad648ea707d3afb78a4689f0c9a921e`.
+- Dev verified implementation commit:
+  `fecbb707dad648ea707d3afb78a4689f0c9a921e`.
+- Feature push succeeded normally: `69dbad5` → `fecbb70`.
+- Local dev first fast-forwarded from `69dbad5` to refreshed `origin/dev` at
+  `20e27ed`, then to the verified integration. Normal dev push succeeded:
+  `20e27ed` → `fecbb70`. No branch-protection exception or force update was used.
+- After the post-push fetch, local feature = remote feature = local dev = `origin/dev`
+  at the verified implementation commit above. The progression branch was checked
+  out again and the working tree was clean; all original stashes remained unchanged.
+
+This publication log is a documentation-only follow-up to that code/build revision.
+The commit containing this final report is also published to both branches and is
+their final documentation tip; it does not change the tested code or artifact.
+Exact final tip hashes and working-tree/stash checks are recorded locally in
+`outputs/progression-testing-20261010/git-publication.json` and in the task closeout.
+The implementation hash above is the reproducible source/build revision rather
+than a self-referential hash of this report. No force-push, rebase, branch deletion,
+stash application/pop/drop, existing-world replacement or history rewrite was used.
