@@ -24,6 +24,7 @@ public class KOMEPacketHandler {
         MAX_PENDING_SERVER_TASKS, MAX_PENDING_PER_CONNECTION, MAX_SERVER_TASKS_PER_TICK, SERVER_TASK_TICK_BUDGET_NANOS);
     static final KOMEServerRecordCooldown SERVER_RECORD_COOLDOWNS = new KOMEServerRecordCooldown(1024);
     static final KOMECompanyDestinationRateLimit DESTINATION_RATE_LIMIT = new KOMECompanyDestinationRateLimit(1024);
+    static final KOMECompanyMovementReplayGuard MOVEMENT_REPLAY_GUARD = new KOMECompanyMovementReplayGuard();
     private static volatile ServerSession session;
 
     /** Called on the server thread after native guards succeed, before accepting player intents. */
@@ -67,6 +68,8 @@ public class KOMEPacketHandler {
         SERVER_TASKS.forget(player.playerNetServerHandler);
         SERVER_RECORD_COOLDOWNS.forget(player.playerNetServerHandler);
         DESTINATION_RATE_LIMIT.forget(player.playerNetServerHandler);
+        MOVEMENT_REPLAY_GUARD.forget(player.playerNetServerHandler);
+        kome.common.command.KOMECompanyMovementSessions.forget(player.playerNetServerHandler);
     }
     public static final class Requester {
         private final ServerSession session;
@@ -112,6 +115,8 @@ public class KOMEPacketHandler {
         SERVER_TASKS.close();
         SERVER_RECORD_COOLDOWNS.clear();
         DESTINATION_RATE_LIMIT.clear();
+        MOVEMENT_REPLAY_GUARD.clear();
+        kome.common.command.KOMECompanyMovementSessions.clear();
     }
 
     static int pendingServerTaskCount() { return SERVER_TASKS.pending(); }
@@ -201,5 +206,7 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketJoinBattleRetreatResult.Handler.class, KOMEPacketJoinBattleRetreatResult.class, 58, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyDestinationRequest>(new KOMEPacketCompanyDestinationRequest.Handler()) {}, KOMEPacketCompanyDestinationRequest.class, 59, Side.SERVER);
         network.registerMessage(KOMEPacketCompanyDestinationResponse.Handler.class, KOMEPacketCompanyDestinationResponse.class, 60, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyMovementRequest>(new KOMEPacketCompanyMovementRequest.Handler()) {}, KOMEPacketCompanyMovementRequest.class, 61, Side.SERVER);
+        network.registerMessage(KOMEPacketCompanyMovementResult.Handler.class, KOMEPacketCompanyMovementResult.class, 62, Side.CLIENT);
     }
 }

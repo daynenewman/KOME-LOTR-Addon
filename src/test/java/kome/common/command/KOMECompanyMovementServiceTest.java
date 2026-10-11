@@ -538,6 +538,8 @@ public class KOMECompanyMovementServiceTest {
             world.mapStorage = new MapStorage(null); world.mapStorage.setData("KOME_ServerRules", data);
             player = KOMEAccessFixture.allocate(KOMEAccessFixture.Player.class); player.id = new UUID(1, 1);
             player.messages = new ArrayList<String>(); player.worldObj = world;
+            player.playerNetServerHandler = KOMEAccessFixture.allocate(net.minecraft.network.NetHandlerPlayServer.class);
+            player.playerNetServerHandler.playerEntity = player;
             Field uuid = Entity.class.getDeclaredField("entityUniqueID"); uuid.setAccessible(true); uuid.set(player, player.id);
             Field map = LOTRLevelData.class.getDeclaredField("playerDataMap"); map.setAccessible(true);
             nativePlayers = (Map<UUID, LOTRPlayerData>) map.get(null);
@@ -588,7 +590,10 @@ public class KOMECompanyMovementServiceTest {
         void edge(String a, String b, String type) { data.setRouteEdge(a, b, type, "fixture", 0, 10, 64, 20, "test"); }
         Evaluation evaluate() { return service.evaluate(data, player, "C1", destination); }
         Submission submit(Evaluation e) { return service.submit(data, player, "C1", destination, e); }
-        @Override public void close() { if (previous == null) nativePlayers.remove(player.id); else nativePlayers.put(player.id, previous); }
+        @Override public void close() {
+            KOMECompanyMovementSessions.forget(player.playerNetServerHandler);
+            if (previous == null) nativePlayers.remove(player.id); else nativePlayers.put(player.id, previous);
+        }
     }
     static final class FixtureWorld extends World {
         Runnable arrivalInspection;

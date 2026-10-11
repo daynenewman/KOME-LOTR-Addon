@@ -379,6 +379,55 @@ public class KOMEMapRadialInteractionTest {
         }
         assertTrue(network.sent.isEmpty());
     }
+    @Test public void confirmMoveOwnsOverlappingNativeControlAndOnlyExplicitClickSubmits() throws Exception {
+        KOMEClientProxy proxy=connectSelector();openSelector();deliverSelectorRow(proxy);
+        KOMECompanyDestinationPanel.Rect row=selectorLayout().row(0);assertTrue(click(row.x+2,row.y+2,0));
+        assertPreviewRequestsOnly();assertFalse(preview().points.isEmpty());
+        KOMECompanyDestinationPanel.Rect confirm=selectorLayout().controls.get(KOMECompanyDestinationPanel.Control.CONFIRM);
+        ((List<GuiButton>)field(GuiScreen.class,"buttonList").get(map)).add(new GuiButton(999,confirm.x,confirm.y,confirm.width,confirm.height,"native control"));
+        assertTrue(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,confirm.x+2,confirm.y+2,0));
+        assertEquals(2,network.sent.size());assertTrue(network.sent.get(1) instanceof KOMEPacketCompanyMovementRequest);
+        assertEquals(KOMECompanyDestinationSelector.Phase.SUBMITTING,selector().phase());assertTrue(preview().points.isEmpty());
+        assertNull(field(LOTRGuiMap.class,"selectedWaypoint").get(map));assertFalse(KOMEConquestMapOverlay.mapDragButtonDown(map,true));
+        assertTrue(click(confirm.x+2,confirm.y+2,0));assertEquals(2,network.sent.size());
+        KOMEPacketCompanyMovementRequest move=(KOMEPacketCompanyMovementRequest)network.sent.get(1);
+        KOMECompanyMovementResult result=new KOMECompanyMovementResult(move.session,move.sequence,move.previewSequence,move.companyId,move.destination,
+            KOMECompanyMovementResult.Outcome.ORDER_ACCEPTED,"M1","waiting_next_step","T002",1,2,"","");
+        proxy.acceptCompanyMovementResult(result,selectorConnection);
+        assertEquals(3,network.sent.size());assertTrue(network.sent.get(2) instanceof KOMEPacketCompanyDestinationRequest);
+        assertEquals(KOMECompanyDestinationSelector.Phase.LOADING,selector().phase());assertTrue(preview().points.isEmpty());assertTrue(selector().rows().isEmpty());
+        assertTrue(selector().notice().contains("Arrival not completed"));
+        proxy.acceptCompanyMovementResult(result,selectorConnection);assertEquals(3,network.sent.size());
+        assertSame(map,field(KOMEConquestMapOverlay.class,"radialMap").get(null)); // Remains on the map.
+    }
+    @Test public void visiblePagingArrowsAndNextReachAllEighteenCompaniesAndPreviousReturnsToLastWindow() throws Exception {
+        KOMEClientProxy proxy=connectSelector();openSelector();Set<String> seen=new HashSet<String>();
+        for(int serverPage=0;serverPage<3;serverPage++) {
+            KOMEPacketCompanyDestinationRequest request=(KOMEPacketCompanyDestinationRequest)network.sent.get(network.sent.size()-1);
+            if(serverPage>0)assertEquals("C"+(serverPage*8),request.afterCompanyId);
+            List<KOMECompanyDestinationOptions.Row> rows=new ArrayList<KOMECompanyDestinationOptions.Row>();
+            for(int i=serverPage*8+1;i<=Math.min(18,(serverPage+1)*8);i++)rows.add(KOMECompanyDestinationSelectorTest.row("C"+i,
+                kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW));
+            publish(proxy,KOMECompanyDestinationSelectorTest.page(request,KOMECompanyDestinationOptions.Result.OK,rows,serverPage<2,0));
+            while(true) {
+                KOMECompanyDestinationPanel.Layout layout=selectorLayout();int offset=selector().rowOffset(),sent=network.sent.size();
+                for(int i=offset;i<Math.min(rows.size(),offset+layout.capacity);i++)assertTrue(seen.add(selector().rows().get(i).companyId));
+                if(offset+layout.capacity>=rows.size())break;
+                clickControl(KOMECompanyDestinationPanel.Control.NEXT);assertEquals(sent,network.sent.size());
+            }
+            if(serverPage<2) {
+                clickControl(KOMECompanyDestinationPanel.Control.ROWS_DOWN);
+                assertEquals(serverPage+2,network.sent.size());assertEquals(KOMECompanyDestinationSelector.Phase.LOADING,selector().phase());
+            }
+        }
+        assertEquals(18,seen.size());assertFalse(selector().hasNext());
+        clickControl(KOMECompanyDestinationPanel.Control.ROWS_UP);
+        assertEquals(4,network.sent.size());assertEquals("C8",((KOMEPacketCompanyDestinationRequest)network.sent.get(3)).afterCompanyId);
+        List<KOMECompanyDestinationOptions.Row> previous=new ArrayList<KOMECompanyDestinationOptions.Row>();
+        for(int i=9;i<=16;i++)previous.add(KOMECompanyDestinationSelectorTest.row("C"+i,kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW));
+        publish(proxy,KOMECompanyDestinationSelectorTest.page((KOMEPacketCompanyDestinationRequest)network.sent.get(3),KOMECompanyDestinationOptions.Result.OK,previous,true,0));
+        int capacity=selectorLayout().capacity;assertEquals(7/capacity*capacity,selector().rowOffset());assertPreviewRequestsOnly();
+    }
     private KOMEClientProxy connectSelector() throws Exception {
         KOMEClientProxy proxy=KOMEAccessFixture.allocate(KOMEClientProxy.class);
         selectorConnection=new Object();proxy.destinationOptions().start(selectorConnection);kome.common.KOMEAddon.proxy=proxy;return proxy;
@@ -398,7 +447,7 @@ public class KOMEMapRadialInteractionTest {
             KOMECompanyDestinationOptions.Entitlement.MOUNTED,4,4,2,Arrays.asList("T002","T050","T001"),
             kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW,
             kome.common.command.KOMECompanyMovementService.ScheduleMode.DAILY,true,true,true,true,0,10000,20000,
-            "","","",-1,kome.common.command.KOMECompanyMovementService.Consequence.NONE,"",-1,"legacy","confirmation");
+            "","","",-1,kome.common.command.KOMECompanyMovementService.Consequence.NONE,"",-1,KOMECompanyDestinationSelectorTest.HASH,KOMECompanyDestinationSelectorTest.HASH);
         publish(proxy,KOMECompanyDestinationSelectorTest.page(request,
             KOMECompanyDestinationOptions.Result.OK,Collections.singletonList(row),false,0));
     }

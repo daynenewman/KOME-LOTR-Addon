@@ -2723,7 +2723,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             if (!constantTimeEquals(expectedPreviewToken, currentToken)) {
                 throw new KOMECompanyMovementService.MovementDenied("STALE_PREVIEW", "Movement preview is stale; preview the route again before confirming.");
             }
-            KOMECompanyMovementService.requireCurrentConfirmation(data, company, destination, currentToken, expectedConfirmation);
+            KOMECompanyMovementService.requireCurrentConfirmation(data, player, company, destination, currentToken, expectedConfirmation);
         }
         List<KOMEHiredUnitRecord> selected = new ArrayList<KOMEHiredUnitRecord>();
         for (UUID unitId : company.units) {

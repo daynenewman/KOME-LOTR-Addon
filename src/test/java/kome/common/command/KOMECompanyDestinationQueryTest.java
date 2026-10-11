@@ -14,6 +14,24 @@ import static kome.common.command.KOMECompanyMovementService.Consequence.*;
 import kome.common.command.KOMECompanyMovementServiceTest.Fixture;
 
 public class KOMECompanyDestinationQueryTest {
+    /** Shared deterministic catalogue for testing the full query/codec/client paging path. */
+    public static final class Catalogue implements AutoCloseable {
+        private final Fixture fixture;
+        private int inspections;
+        public Catalogue(int count) throws Exception {
+            fixture=new Fixture(false,1);
+            for(int i=2;i<=count;i++)add("C"+i);
+            fixture.world.arrivalInspection=()->inspections++;
+        }
+        public void add(String id) {new KOMECompanyDestinationQueryTest().add(fixture,id,"T001");}
+        public int inspections() {return inspections;}
+        public KOMECompanyDestinationOptions query(KOMEPacketCompanyDestinationRequest request) {
+            KOMECompanyDestinationOptions page=new KOMECompanyDestinationQuery(fixture.service).query(fixture.data,fixture.player,
+                request.session,request.sequence,request.destination,request.limit,request.afterCompanyId,request.catalogueToken);
+            return KOMEPacketCompanyDestinationResponse.forQuery(page).snapshot();
+        }
+        @Override public void close() {fixture.close();}
+    }
     @Rule public final KOMETileTestResources geometry=new KOMETileTestResources();
     private KOMEPopulationTestConfig config;
     private final UUID session=new UUID(7,7);

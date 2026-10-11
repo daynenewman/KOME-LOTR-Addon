@@ -454,6 +454,12 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         if (companySelector != null && companySelector.accept(response, previewClock()))
             companyPreview = KOMECompanyDestinationPreview.EMPTY;
     }
+    public static void acceptCompanyMovementResult(kome.common.data.KOMECompanyMovementResult result) {
+        if(companySelector==null)return;
+        kome.common.network.KOMEPacketCompanyDestinationRequest refresh=companySelector.acceptMovement(result);
+        companyPreview=KOMECompanyDestinationPreview.EMPTY;
+        if(refresh!=null)sendDestinationRequest(refresh);
+    }
     private static KOMECompanyDestinationPanel.Layout selectorLayout(LOTRGuiMap map) {
         KOMECompanyDestinationPanel.Layout layout = new KOMECompanyDestinationPanel.Layout(viewport(map), selectorOnLeft);
         if (companySelectorOpen()) companySelector.scrollRows(0,layout.capacity);
@@ -490,11 +496,18 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             KOMECompanyDestinationPanel.Control control = layout.controlAt(mouseX,mouseY);
             if (control != null && KOMECompanyDestinationPanel.enabled(control,companySelector,layout,previewClock())) {
                 switch (control) {
-                    case ROWS_UP: companySelector.scrollRows(-layout.capacity,layout.capacity); break;
-                    case ROWS_DOWN: companySelector.scrollRows(layout.capacity,layout.capacity); break;
-                    case PREVIOUS: sendDestinationRequest(companySelector.previous()); break;
-                    case NEXT: sendDestinationRequest(companySelector.next()); break;
-                    case RETRY: sendDestinationRequest(companySelector.retry(previewClock())); break;
+                    case ROWS_UP:
+                    case PREVIOUS:
+                        sendDestinationRequest(companySelector.previous());companyPreview=KOMECompanyDestinationPreview.EMPTY;break;
+                    case ROWS_DOWN:
+                    case NEXT:
+                        sendDestinationRequest(companySelector.next());companyPreview=KOMECompanyDestinationPreview.EMPTY;break;
+                    case CONFIRM:
+                        kome.common.network.KOMEPacketCompanyMovementRequest order=companySelector.confirm();
+                        companyPreview=KOMECompanyDestinationPreview.EMPTY;
+                        if(order!=null)KOMEPacketHandler.network.sendToServer(order);
+                        break;
+                    case RETRY: sendDestinationRequest(companySelector.retry(previewClock()));companyPreview=KOMECompanyDestinationPreview.EMPTY;break;
                     case BACK: closeCompanySelector(); break;
                     case CLEAR: companySelector.clearSelection(); companyPreview=KOMECompanyDestinationPreview.EMPTY; break;
                     case CLOSE: closeRadialInteraction(); break;

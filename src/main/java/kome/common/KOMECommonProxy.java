@@ -67,6 +67,7 @@ public class KOMECommonProxy {
     }
 
     public void acceptCompanyDestinationOptions(kome.common.data.KOMECompanyDestinationOptions snapshot,Object connection) { }
+    public void acceptCompanyMovementResult(kome.common.data.KOMECompanyMovementResult result,Object connection) { }
 
     public void displayPopulationGui(kome.common.network.KOMEPacketPopulationGui message) { }
     public void displayPopulationUnitsGui(kome.common.network.KOMEPacketPopulationUnitsGui message) { }

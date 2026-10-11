@@ -136,6 +136,10 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         if (destinationOptions().accept(snapshot,connection)) KOMEConquestMapOverlay.acceptCompanyDestinationOptions(snapshot);
     }
 
+    @Override public void acceptCompanyMovementResult(kome.common.data.KOMECompanyMovementResult result,Object connection) {
+        if(destinationOptions().acceptMovement(result,connection))KOMEConquestMapOverlay.acceptCompanyMovementResult(result);
+    }
+
     @Override
     public void enqueueClientTask(Runnable task) {
         clientTasks.enqueue(task);

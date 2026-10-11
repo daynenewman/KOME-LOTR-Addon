@@ -140,15 +140,15 @@ public class KOMECompanyDestinationSelectorTest {
     @Test public void localRowWindowDoesNotCreateNetworkRequestsOrDuplicateRows() {
         List<Row> rows=new ArrayList<Row>();for(int i=1;i<=8;i++)rows.add(row("C"+i,Status.CAN_START_AND_ARRIVE_NOW));
         deliver(request,Result.OK,rows,false,0,0);selector.scrollRows(5,5);
-        assertEquals(3,selector.rowOffset());assertEquals(8,selector.rows().size());assertFalse(queries.isLoading());
+        assertEquals(5,selector.rowOffset());assertEquals(8,selector.rows().size());assertFalse(queries.isLoading());
         selector.scrollRows(-5,5);assertEquals(0,selector.rowOffset());
     }
-    @Test public void timedOverridePresentationDoesNotInventDailyEtaAndEmptyNameUsesStableId() {
+    @Test public void timedOverridePresentationDoesNotInventDailyEtaAndEmptyNameUsesNeutralLabel() {
         Row row=new Row("C1","","T001","T100",Entitlement.MOUNTED,4,3,2,Arrays.asList("T001","T050","T100"),
             Status.CAN_START_AND_ARRIVE_NOW,ScheduleMode.TIMED_OVERRIDE,true,true,true,false,0,0,0,
             "","","",-1,Consequence.NONE,"",-1,"legacy","confirmation");
         deliver(request,Result.OK,Collections.singletonList(row),false,0,0);selector.select("C1");
-        assertEquals("C1",KOMECompanyDestinationSelector.name(row));
+        assertEquals("Campaign Company",KOMECompanyDestinationSelector.name(row));
         assertEquals("Timed schedule; no ETA projected",KOMECompanyDestinationSelector.timing(row));
         assertTrue(KOMECompanyDestinationPanel.stats(row).contains("3/4"));assertEquals(row.route,selector.selectedRoute());
     }
@@ -178,10 +178,105 @@ public class KOMECompanyDestinationSelectorTest {
         assertEquals("ETA unavailable",KOMECompanyDestinationSelector.eta(row("C1",Status.BLOCKED)));
         assertEquals("ETA unavailable",KOMECompanyDestinationSelector.eta(row("C1",null,Entitlement.FOOT_OR_MIXED,EvaluationState.DEFERRED_ROUTE_LIMIT,null)));
     }
+    @Test public void selectionIsPreviewOnlyUntilExplicitConfirmAndUsesExactServerGuard() {
+        Row row=row("C1",Status.CAN_START_BUT_CONTINUES_LATER);
+        deliver(request,Result.OK,Collections.singletonList(row),false,0,0);selector.select("C1");
+        assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector.phase());assertTrue(selector.canConfirm());
+        kome.common.network.KOMEPacketCompanyMovementRequest move=selector.confirm();
+        assertEquals(row.companyId,move.companyId);assertEquals(row.destinationTile,move.destination);
+        assertEquals(row.legacyFingerprint,move.legacyFingerprint);assertEquals(row.confirmationFingerprint,move.confirmationFingerprint);
+        assertEquals(request.sequence,move.previewSequence);assertEquals(request.session,move.session);
+        assertEquals(KOMECompanyDestinationSelector.Phase.SUBMITTING,selector.phase());assertNull(selector.confirm());
+        assertFalse(selector.canConfirm());assertTrue(selector.selectedRoute().isEmpty());assertNull(selector.next());assertNull(selector.previous());
+    }
+    @Test public void blockedDeferredAndMissingGuardsCannotConfirm() {
+        for(Row row:Arrays.asList(row("C1",Status.BLOCKED),row("C1",null,Entitlement.FOOT_OR_MIXED,EvaluationState.DEFERRED_ROUTE_LIMIT,null))) {
+            request=selector.open("T100");deliver(request,Result.OK,Collections.singletonList(row),false,0,0);selector.select("C1");
+            assertFalse(selector.canConfirm());assertNull(selector.confirm());
+        }
+        Row missing=new Row("C1","","T001","T100",Entitlement.FOOT_OR_MIXED,2,2,2,Arrays.asList("T001","T050","T100"),
+            Status.CAN_START_AND_ARRIVE_NOW,ScheduleMode.TIMED_OVERRIDE,true,true,true,false,0,0,0,"","","",-1,Consequence.NONE,"",-1,"","");
+        request=selector.open("T100");deliver(request,Result.OK,Collections.singletonList(missing),false,0,0);selector.select("C1");
+        assertFalse(selector.canConfirm());assertNull(selector.confirm());
+    }
+    @Test public void hostileRowsRequireSeparateConfirmationAndSummarizeCreateAndJoin() {
+        for(Consequence consequence:Arrays.asList(Consequence.EXPECTED_CREATE_CONFLICT,Consequence.EXPECTED_JOIN_CONFLICT)) {
+            request=selector.open("T100");Row row=row("C1",Status.CAN_START_AND_ARRIVE_NOW,Entitlement.MOUNTED,EvaluationState.COMPLETE,consequence);
+            deliver(request,Result.OK,Collections.singletonList(row),false,0,0);selector.select("C1");
+            assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector.phase());assertTrue(selector.canConfirm());
+            String text=String.join(" ",KOMECompanyDestinationSelector.confirmationSummary(new Row(row,1800,12,0)));
+            assertTrue(text.contains("T001 -> T100"));assertTrue(text.contains("12 units | Pop 18"));assertTrue(text.contains("Mounted"));
+            assertTrue(text.contains(consequence==Consequence.EXPECTED_CREATE_CONFLICT?"create a battle on arrival":"join the existing battle on arrival"));
+        }
+    }
+    @Test public void successClearsOldPreviewRefreshesCatalogueAndPreservesOutcomeNotice() {
+        for(kome.common.data.KOMECompanyMovementResult.Outcome outcome:Arrays.asList(kome.common.data.KOMECompanyMovementResult.Outcome.ARRIVED,kome.common.data.KOMECompanyMovementResult.Outcome.ORDER_ACCEPTED)) {
+            request=selector.open("T100");deliver(request,Result.OK,Collections.singletonList(row("C1",Status.CAN_START_AND_ARRIVE_NOW)),false,0,0);selector.select("C1");
+            kome.common.network.KOMEPacketCompanyMovementRequest move=selector.confirm();
+            kome.common.data.KOMECompanyMovementResult result=movementResult(move,outcome);
+            assertTrue(queries.acceptMovement(result,connection));KOMEPacketCompanyDestinationRequest refresh=selector.acceptMovement(result);
+            assertNotNull(refresh);assertTrue(refresh.afterCompanyId.isEmpty());assertEquals(request.session,refresh.session);
+            assertTrue(selector.selectedRoute().isEmpty());assertNull(selector.selected());assertTrue(selector.rows().isEmpty());
+            assertTrue(selector.notice().contains(outcome==kome.common.data.KOMECompanyMovementResult.Outcome.ARRIVED?"Arrived at T100":"Arrival not completed"));
+            deliver(refresh,Result.OK,Collections.singletonList(row("C1",Status.BLOCKED)),false,0,0);
+            assertFalse(selector.canConfirm());assertFalse(selector.notice().isEmpty());
+            selector.select("C1");assertTrue(selector.notice().isEmpty()); // New choice shows its own consequence, not the previous success.
+        }
+    }
+    @Test public void staleAndLiveRejectionsRequireRefreshWithoutResubmission() {
+        for(kome.common.data.KOMECompanyMovementResult.Outcome outcome:Arrays.asList(kome.common.data.KOMECompanyMovementResult.Outcome.STALE_PREVIEW,kome.common.data.KOMECompanyMovementResult.Outcome.REJECTED,kome.common.data.KOMECompanyMovementResult.Outcome.SERVER_ERROR)) {
+            request=selector.open("T100");deliver(request,Result.OK,Collections.singletonList(row("C1",Status.CAN_START_AND_ARRIVE_NOW)),false,0,0);selector.select("C1");
+            kome.common.network.KOMEPacketCompanyMovementRequest move=selector.confirm();kome.common.data.KOMECompanyMovementResult result=movementResult(move,outcome);
+            assertTrue(queries.acceptMovement(result,connection));assertNull(selector.acceptMovement(result));
+            assertEquals(KOMECompanyDestinationSelector.Phase.ERROR,selector.phase());assertNull(selector.confirm());assertTrue(selector.selectedRoute().isEmpty());
+            assertTrue(selector.notice().contains("Refresh Preview"));if(outcome==kome.common.data.KOMECompanyMovementResult.Outcome.STALE_PREVIEW)assertTrue(selector.notice().contains("stale"));
+            KOMEPacketCompanyDestinationRequest refresh=selector.retry(0);assertNotNull(refresh);assertTrue(refresh.afterCompanyId.isEmpty());assertTrue(selector.rows().isEmpty());
+        }
+    }
+    @Test public void movementRepliesCannotReviveClosedReplacedOrDisconnectedInteractions() {
+        deliver(request,Result.OK,Collections.singletonList(row("C1",Status.CAN_START_AND_ARRIVE_NOW)),false,0,0);selector.select("C1");
+        kome.common.network.KOMEPacketCompanyMovementRequest move=selector.confirm();kome.common.data.KOMECompanyMovementResult result=movementResult(move,kome.common.data.KOMECompanyMovementResult.Outcome.ARRIVED);
+        assertFalse(queries.acceptMovement(result,new Object()));selector.open("T101");assertFalse(queries.acceptMovement(result,connection));assertNull(selector.acceptMovement(result));
+        selector.close();assertTrue(selector.selectedRoute().isEmpty());queries.start(null);assertFalse(queries.acceptMovement(result,connection));
+    }
+    @Test public void submissionSequenceSurvivesUiCloseAndResetsOnNewConnectionOnly() {
+        long previous=0;
+        for(int i=0;i<2;i++) {
+            request=selector.open("T100");deliver(request,Result.OK,Collections.singletonList(row("C1",Status.CAN_START_AND_ARRIVE_NOW)),false,0,0);selector.select("C1");
+            long seq=selector.confirm().sequence;assertTrue(seq>previous);previous=seq;selector.close();
+        }
+        queries.start(null);queries.start(connection);request=selector.open("T100");deliver(request,Result.OK,Collections.singletonList(row("C1",Status.CAN_START_AND_ARRIVE_NOW)),false,0,0);selector.select("C1");assertEquals(1,selector.confirm().sequence);
+    }
+    @Test public void rawStableNameAndAbsentNameUseNeutralLabel() {
+        Row base=row("C1",Status.CAN_START_AND_ARRIVE_NOW);
+        Row raw=new Row("C1","C1","T001","T100",base.entitlement,base.tilesPerDay,base.remainingAllowance,base.distance,base.route,
+            base.status,base.scheduleMode,true,true,true,true,0,0,0,"","","",-1,Consequence.NONE,"",-1,HASH,HASH);
+        assertEquals("Campaign Company",KOMECompanyDestinationSelector.name(raw));
+        assertEquals("Company C1",KOMECompanyDestinationSelector.name(base));
+    }
+    @Test public void ordinaryRejectionNoticeDoesNotAppendInternalCompanyIdentity() {
+        for(String code:Arrays.asList("UNKNOWN_COMPANY","INELIGIBLE_MEMBER","UNAUTHORIZED","STALE_PREVIEW")) {
+            request=selector.open("T100");deliver(request,Result.OK,Collections.singletonList(row("C1",Status.CAN_START_AND_ARRIVE_NOW)),false,0,0);
+            selector.select("C1");kome.common.network.KOMEPacketCompanyMovementRequest move=selector.confirm();
+            kome.common.data.KOMECompanyMovementResult result=kome.common.data.KOMECompanyMovementResult.denied(move.session,move.sequence,
+                move.previewSequence,"C1",move.destination,kome.common.data.KOMECompanyMovementResult.Outcome.REJECTED,code,
+                kome.common.data.KOMECompanyMovementResult.playerDenialDetail(code));
+            assertTrue(queries.acceptMovement(result,connection));selector.acceptMovement(result);
+            assertFalse(selector.notice().contains("C1"));assertFalse(selector.notice().contains("C2"));
+            assertTrue(selector.notice().contains(result.detail));
+        }
+    }
+    static kome.common.data.KOMECompanyMovementResult movementResult(kome.common.network.KOMEPacketCompanyMovementRequest m,kome.common.data.KOMECompanyMovementResult.Outcome outcome) {
+        boolean accepted=outcome==kome.common.data.KOMECompanyMovementResult.Outcome.ARRIVED||outcome==kome.common.data.KOMECompanyMovementResult.Outcome.ORDER_ACCEPTED;
+        return new kome.common.data.KOMECompanyMovementResult(m.session,m.sequence,m.previewSequence,m.companyId,m.destination,outcome,
+            accepted?"M1":"",accepted?(outcome==kome.common.data.KOMECompanyMovementResult.Outcome.ARRIVED?"arrived":"waiting_next_step"):"",
+            accepted?m.destination:"",accepted?2:0,accepted?2:0,accepted?"":"STALE_PREVIEW",accepted?"":"Movement state changed.");
+    }
     private KOMECompanyDestinationOptions deliver(KOMEPacketCompanyDestinationRequest request,Result result,List<Row> rows,boolean more,long retry,long now) {
         KOMECompanyDestinationOptions response=page(request,result,rows,more,retry);
         assertTrue(queries.accept(response,connection));assertTrue(selector.accept(response,now));return response;
     }
+    static final String HASH="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     static final String TOKEN="12345678-1234-1234-1234-123456789012";
     static KOMECompanyDestinationOptions page(KOMEPacketCompanyDestinationRequest request,Result result,List<Row> rows,boolean more,long retry) {
         return new KOMECompanyDestinationOptions(request.session,request.sequence,request.destination,result,rows,
@@ -197,6 +292,6 @@ public class KOMECompanyDestinationSelectorTest {
             status==Status.BLOCKED?"CONFLICT_HELD":"",status==Status.BLOCKED?"Company is held by an active battle.":"",
             status==Status.BLOCKED?"battle-hold":"",status==Status.BLOCKED?2:-1,consequence,
             consequence==Consequence.EXPECTED_JOIN_CONFLICT?"battle-destination":"",consequence==Consequence.EXPECTED_JOIN_CONFLICT?7:-1,
-            legal?"legacy":"",legal?"confirmation":"");
+            legal?HASH:"",legal?HASH:"");
     }
 }

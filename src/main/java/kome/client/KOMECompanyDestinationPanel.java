@@ -9,7 +9,7 @@ import net.minecraft.client.gui.Gui;
 /** Compact native-GUI-space selector; rectangle geometry is shared by drawing and click capture. */
 final class KOMECompanyDestinationPanel {
     static final int ROW_HEIGHT=44;
-    enum Control { ROWS_UP, ROWS_DOWN, PREVIOUS, NEXT, RETRY, BACK, CLEAR, CLOSE }
+    enum Control { ROWS_UP, ROWS_DOWN, PREVIOUS, NEXT, RETRY, CONFIRM, BACK, CLEAR, CLOSE }
     static final class Rect {
         final int x,y,width,height;
         Rect(int x,int y,int width,int height) {this.x=x;this.y=y;this.width=width;this.height=height;}
@@ -23,13 +23,15 @@ final class KOMECompanyDestinationPanel {
             viewRight=(int)view.right;viewBottom=(int)view.bottom;viewTop=(int)view.top;
             int available=Math.max(1,(int)(view.bottom-view.top)-16);
             int width=Math.min((int)(view.right-view.left)-16,Math.min(260,Math.max(180,(int)(view.right-view.left)/3)));
-            capacity=Math.max(1,Math.min(8,(available-144)/ROW_HEIGHT));
-            int height=Math.min(available,144+capacity*ROW_HEIGHT);
+            capacity=Math.max(1,Math.min(6,(available-212)/ROW_HEIGHT));
+            int height=Math.min(available,212+capacity*ROW_HEIGHT);
             int x=left?(int)view.left+8:(int)view.right-width-8,y=(int)view.top+8;
             panel=new Rect(x,y,width,height);rowTop=y+36;detailTop=rowTop+capacity*ROW_HEIGHT+4;
-            int footer=y+height-44;detailHeight=Math.max(0,footer-detailTop-4);
+            int footer=y+height-66;detailHeight=Math.max(0,footer-detailTop-4);
             controls.put(Control.ROWS_UP,new Rect(x+width-44,y+18,18,14));
             controls.put(Control.ROWS_DOWN,new Rect(x+width-24,y+18,18,14));
+            controls.put(Control.CONFIRM,new Rect(x+6,footer,panel.width-12,20));
+            footer+=22;
             int buttonWidth=(width-20)/3;
             Control[] upper={Control.PREVIOUS,Control.NEXT,Control.RETRY},lower={Control.BACK,Control.CLEAR,Control.CLOSE};
             for(int i=0;i<3;i++) {
@@ -46,12 +48,13 @@ final class KOMECompanyDestinationPanel {
     }
     static boolean enabled(Control control,KOMECompanyDestinationSelector model,Layout layout,long now) {
         switch(control) {
-            case ROWS_UP:return model.rowOffset()>0;
-            case ROWS_DOWN:return model.rowOffset()+layout.capacity<model.rows().size();
+            case ROWS_UP:return model.hasPrevious();
+            case ROWS_DOWN:return model.hasNext();
             case PREVIOUS:return model.hasPrevious();
             case NEXT:return model.hasNext();
             case RETRY:return model.canRetry(now);
-            case CLEAR:return model.selected()!=null;
+            case CONFIRM:return model.canConfirm();
+            case CLEAR:return model.selected()!=null&&model.phase()!=KOMECompanyDestinationSelector.Phase.SUBMITTING;
             default:return true;
         }
     }
@@ -61,8 +64,7 @@ final class KOMECompanyDestinationPanel {
         KOMEGuiTheme.drawSubPanel(panel.x,panel.y,panel.width,panel.height);
         text(font,"Move to "+model.destination(),panel.x+8,panel.y+6,panel.width-16,KOMEGuiTheme.COLOR_GOLD);
         int count=model.rows().size(),offset=model.rowOffset(),shown=Math.min(layout.capacity,Math.max(0,count-offset));
-        String paging="Page "+model.pageNumber();
-        if(count>0)paging+=" | "+(offset+1)+"-"+(offset+shown)+"/"+count;
+        String paging=model.companyRange(layout.capacity);
         text(font,paging,panel.x+8,panel.y+22,panel.width-60,KOMEGuiTheme.COLOR_TEXT_MUTED);
         for(int i=0;i<shown;i++) {
             Row row=model.rows().get(offset+i);Rect box=layout.row(i);
@@ -83,28 +85,30 @@ final class KOMECompanyDestinationPanel {
                 font.drawString(lines.get(i),panel.x+8,layout.rowTop+6+i*10,KOMEGuiTheme.COLOR_TEXT_LIGHT);
         }
         List<String> details=new ArrayList<String>();
-        details.add("Preview only - orders not wired.");
         Row selected=model.selected();
-        if(selected!=null) {
+        if(!model.notice().isEmpty())details.addAll(font.listFormattedStringToWidth(model.notice(),panel.width-16));
+        else if(model.phase()==KOMECompanyDestinationSelector.Phase.SUBMITTING)details.add("Submitting movement order...");
+        else if(selected!=null) {
+            // Consequence stays visible above the explicit button, including at the minimum GUI size.
+            details.add(KOMECompanyDestinationSelector.confirmationSummary(selected).get(3));
+            details.add(KOMECompanyDestinationSelector.name(selected));
+            details.add(selected.currentTile+" -> "+selected.destinationTile);
             details.add(KOMECompanyDestinationSelector.population(selected));
+            details.add(KOMECompanyDestinationSelector.classification(selected)+" | "+selected.distance+" tiles");
             details.add(KOMECompanyDestinationSelector.eta(selected));
             if(!KOMECompanyDestinationSelector.reason(selected).isEmpty())details.add(KOMECompanyDestinationSelector.reason(selected));
-            if(!KOMECompanyDestinationSelector.consequence(selected).isEmpty())details.add(KOMECompanyDestinationSelector.consequence(selected));
-            if(!KOMECompanyDestinationSelector.timing(selected).isEmpty())details.add(KOMECompanyDestinationSelector.timing(selected));
-            if(!selected.heldConflictId.isEmpty())details.add("Held by battle "+selected.heldConflictId);
-        } else details.add("Click a row for route or explanation.");
-        int line=0;
-        for(String detail:details)for(String wrapped:(List<String>)font.listFormattedStringToWidth(detail,panel.width-16)) {
-            if(line*10+9>layout.detailHeight)break;
-            font.drawString(wrapped,panel.x+8,layout.detailTop+line*10,line==0?KOMEGuiTheme.COLOR_WARN:KOMEGuiTheme.COLOR_TEXT_MUTED);line++;
-        }
+        } else details.add("Select a company to review its move.");
+        for(int line=0;line<details.size()&&line*10+9<=layout.detailHeight;line++)
+            text(font,details.get(line),panel.x+8,layout.detailTop+line*10,panel.width-16,
+                line==0?KOMEGuiTheme.COLOR_WARN:KOMEGuiTheme.COLOR_TEXT_MUTED);
         for(Control control:Control.values()) {
             Rect rect=layout.controls.get(control);
             boolean active=enabled(control,model,layout,now);
             KOMEGuiTheme.drawCard(rect.x,rect.y,rect.width,rect.height,active&&rect.contains(mouseX,mouseY));
             String label=control==Control.ROWS_UP?"<":control==Control.ROWS_DOWN?">":
-                control==Control.PREVIOUS?"Prev":control==Control.NEXT?"Next":control==Control.RETRY?"Retry":
-                control==Control.BACK?"Back":control==Control.CLEAR?"Clear":"Close";
+                control==Control.PREVIOUS?"Prev":control==Control.NEXT?"Next":control==Control.RETRY?(model.phase()==KOMECompanyDestinationSelector.Phase.THROTTLED?"Retry":"Refresh"):
+                control==Control.CONFIRM?(model.phase()==KOMECompanyDestinationSelector.Phase.SUBMITTING?"Submitting...":
+                    model.canConfirm()?"Confirm Move":"Movement unavailable"):control==Control.BACK?"Back":control==Control.CLEAR?"Clear":"Close";
             font.drawString(label,rect.x+(rect.width-font.getStringWidth(label))/2,rect.y+(rect.height-8)/2,
                 active?KOMEGuiTheme.COLOR_TEXT_LIGHT:KOMEGuiTheme.COLOR_TEXT_DISABLED);
         }
@@ -112,7 +116,7 @@ final class KOMECompanyDestinationPanel {
         if(hover>=0) {
             Row row=model.rows().get(offset+hover);
             List<String> help=new ArrayList<String>();
-            for(String info:Arrays.asList(KOMECompanyDestinationSelector.name(row),"Company: "+row.companyId,
+            for(String info:Arrays.asList(KOMECompanyDestinationSelector.name(row),
                     stats(row),KOMECompanyDestinationSelector.population(row),KOMECompanyDestinationSelector.eta(row),
                     "ETA is measured at the server preview; population is permanent faction investment.",
                     KOMECompanyDestinationSelector.state(row),KOMECompanyDestinationSelector.reason(row),

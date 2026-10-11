@@ -46,7 +46,7 @@ public final class KOMECompanyDestinationOptions {
                 !hasDailyTiming(e) ? 0 : e.dailyTiming.requiredBoundaries,
                 !hasDailyTiming(e) ? 0 : e.dailyTiming.nextBoundaryMillis,
                 !hasDailyTiming(e) ? 0 : e.dailyTiming.estimatedCompletionMillis,
-                e.denial == null ? "" : e.denial.code,e.denial == null ? "" : e.denial.reason,
+                e.denial == null ? "" : e.denial.code,e.denial == null ? "" : KOMECompanyMovementResult.playerDenialDetail(e.denial.code),
                 e.heldConflictId,e.heldConflictRevision,e.consequence,e.destinationConflictId,e.destinationConflictRevision,
                 e.confirmation == null ? "" : e.confirmation.legacyFingerprint,
                 e.confirmation == null ? "" : e.confirmation.serviceFingerprint);

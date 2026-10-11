@@ -117,7 +117,7 @@ public final class KOMECompanyMovementService {
         /** Rich service guard; previewFingerprint remains the unchanged legacy packet token. */
         public final Confirmation confirmation;
 
-        private Evaluation(KOMEWorldData data, KOMEArmyCompany company, String id, String destination,
+        private Evaluation(KOMEWorldData data, EntityPlayerMP actor, KOMEArmyCompany company, String id, String destination,
                 RouteResult route, KOMEMovementRoutePreview.Timing timing, SpawnTarget arrival,
                 Denial denial, long now, String fingerprint) {
             companyId = id; companyName = company == null ? "" : company.name;
@@ -151,7 +151,7 @@ public final class KOMECompanyMovementService {
             DestinationConsequence target = destinationConsequence(data, company, destination);
             destinationConflictId = target.conflictId; destinationConflictRevision = target.revision;
             consequence = target.consequence;
-            confirmation = denial == null ? confirmation(data, company, destination, fingerprint, target) : null;
+            confirmation = denial == null ? confirmation(data, actor, company, destination, fingerprint, target) : null;
         }
         public boolean allowed() { return denial == null; }
         // A fresh mutable copy is used only by the legacy command's presentation adapter.
@@ -166,6 +166,15 @@ public final class KOMECompanyMovementService {
     /** Opaque, detached service confirmation; this is stale-state evidence, never authorization. */
     public static final class Confirmation {
         public final String companyId, destinationTile, legacyFingerprint, serviceFingerprint;
+        /** Reconstitutes untrusted wire evidence; submitConfirmed still revalidates live authority. */
+        public static Confirmation fromTransport(String companyId, String destination, String legacy, String guard) {
+            if (companyId == null || !companyId.matches("[A-Za-z0-9_.:-]{1,64}")
+                    || !KOMEConquestTile.isCanonicalTileId(destination)
+                    || legacy == null || !legacy.matches("[0-9a-f]{64}")
+                    || guard == null || !guard.matches("[0-9a-f]{64}"))
+                throw new IllegalArgumentException("Invalid movement confirmation evidence");
+            return new Confirmation(companyId, destination, legacy, guard);
+        }
         private Confirmation(String companyId, String destinationTile, String legacyFingerprint, String serviceFingerprint) {
             this.companyId = companyId; this.destinationTile = destinationTile;
             this.legacyFingerprint = legacyFingerprint; this.serviceFingerprint = serviceFingerprint;
@@ -173,22 +182,28 @@ public final class KOMECompanyMovementService {
     }
     private static final class DestinationConsequence {
         final String conflictId; final long revision; final Consequence consequence;
-        DestinationConsequence(String id, long revision, Consequence consequence) {
+        final String defenderFactionId, authorityFactionId;
+        DestinationConsequence(String id, long revision, Consequence consequence, String defender, String authority) {
             conflictId = id; this.revision = revision; this.consequence = consequence;
+            defenderFactionId = KOMEAlliance.normalizeFactionKey(defender);
+            authorityFactionId = KOMEAlliance.normalizeFactionKey(authority);
         }
     }
     private static DestinationConsequence destinationConsequence(KOMEWorldData data, KOMEArmyCompany company, String destination) {
         KOMEConflictRecord target = company == null ? null : data.getConflictService().get(destination);
         boolean active = target != null && target.isActive();
-        boolean hostile = company != null && KOMEConflictMovementService
-            .evaluateHostileDestination(data, company, destination, true).allowed();
+        KOMEConflictMovementService.Permission permission = company == null ? null : KOMEConflictMovementService
+            .evaluateHostileDestination(data, company, destination, true);
+        boolean hostile = permission != null && permission.allowed();
         return new DestinationConsequence(active ? target.getConflictId() : "", active ? target.getRevision() : -1L,
-            !hostile ? Consequence.NONE : active ? Consequence.EXPECTED_JOIN_CONFLICT : Consequence.EXPECTED_CREATE_CONFLICT);
+            !hostile ? Consequence.NONE : active ? Consequence.EXPECTED_JOIN_CONFLICT : Consequence.EXPECTED_CREATE_CONFLICT,
+            hostile ? permission.defenderFactionId : "", hostile ? permission.authorityFactionId : "");
     }
-    private static Confirmation confirmation(KOMEWorldData data, KOMEArmyCompany company, String destination,
+    private static Confirmation confirmation(KOMEWorldData data, EntityPlayerMP actor, KOMEArmyCompany company, String destination,
             String legacyFingerprint, DestinationConsequence target) {
         StringBuilder snapshot = new StringBuilder();
-        appendGuard(snapshot, "KOM84-1"); appendGuard(snapshot, company.id); appendGuard(snapshot, destination);
+        appendGuard(snapshot, "KOM84-2"); appendGuard(snapshot, company.id); appendGuard(snapshot, destination);
+        appendGuard(snapshot, KOMEReflection.getEntityUUID(actor)); appendGuard(snapshot, KOMECompanyMovementSessions.current(actor));
         appendGuard(snapshot, legacyFingerprint); appendGuard(snapshot, company.owner);
         appendGuard(snapshot, company.faction); appendGuard(snapshot, company.nativeFaction);
         appendGuard(snapshot, company.controllerAuthority); appendGuard(snapshot, company.temporaryController);
@@ -200,6 +215,7 @@ public final class KOMECompanyMovementService {
         appendGuard(snapshot, data.movementSecondsPerTileOverride); appendGuard(snapshot, data.movementTotalSecondsOverride);
         appendGuard(snapshot, company.getTilesPerDay()); appendGuard(snapshot, KOMEMovementDayService.schedule().signature());
         appendGuard(snapshot, target.consequence); appendGuard(snapshot, target.conflictId); appendGuard(snapshot, target.revision);
+        appendGuard(snapshot, target.defenderFactionId); appendGuard(snapshot, target.authorityFactionId);
         // Exclude observation time, global dirty state and unrelated conflicts/companies.
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256").digest(snapshot.toString().getBytes(StandardCharsets.UTF_8));
@@ -212,10 +228,10 @@ public final class KOMECompanyMovementService {
         String text = value == null ? "" : String.valueOf(value);
         out.append(text.length()).append(':').append(text).append('|');
     }
-    static void requireCurrentConfirmation(KOMEWorldData data, KOMEArmyCompany company, String destination,
+    static void requireCurrentConfirmation(KOMEWorldData data, EntityPlayerMP actor, KOMEArmyCompany company, String destination,
             String currentLegacyFingerprint, Confirmation expected) {
         if (expected == null) return; // Existing CLI/packet keeps its established legacy semantics.
-        Confirmation current = confirmation(data, company, destination, currentLegacyFingerprint,
+        Confirmation current = confirmation(data, actor, company, destination, currentLegacyFingerprint,
             destinationConsequence(data, company, destination));
         if (!Objects.equals(expected.serviceFingerprint, current.serviceFingerprint))
             throw new MovementDenied("STALE_PREVIEW", "Movement preview is stale; preview the route again before confirming.");
@@ -263,7 +279,7 @@ public final class KOMECompanyMovementService {
             stage = FailureStage.ROUTE;
             route = findLegalRoute(data, company.currentTile, tile, company.faction, company);
             validateStewardshipRoute(data, company, route);
-            if (!route.valid) return new Evaluation(data, company, id, tile, route, null, null,
+            if (!route.valid) return new Evaluation(data, actor, company, id, tile, route, null, null,
                 new Denial(route.failureCode, route.failureReason, stage), clock.getAsLong(), "");
             stage = FailureStage.ARRIVAL;
             if (budget != null) budget.reserve(route.routeTiles.size(), data, company, tile); // All steps plus repeated destination check.
@@ -278,12 +294,12 @@ public final class KOMECompanyMovementService {
             if (isDaily(data) && timing.exhausted)
                 throw new MovementDenied("NO_ALLOWANCE", "This company has no movement allowance remaining for the current movement day.");
             String fingerprint = KOMECommandTroops.previewToken(data, company, tile, route, arrival);
-            return new Evaluation(data, company, id, tile, route, timing, arrival, null, now, fingerprint);
+            return new Evaluation(data, actor, company, id, tile, route, timing, arrival, null, now, fingerprint);
         } catch (WrongUsageException denied) {
             // Only reveal a known company's details to a currently authorized controller.
             KOMEArmyCompany found = data == null ? null : data.armyCompanies.get(id);
             if (found != null && validActor(actor) && canPlayerControlCompany(data, actor, found)) company = found;
-            return new Evaluation(data, company, id, tile, route, timing, arrival,
+            return new Evaluation(data, actor, company, id, tile, route, timing, arrival,
                 new Denial(denialCode(denied), denied.getMessage(), stage), timing == null ? clock.getAsLong() : now, "");
         }
     }
@@ -487,7 +503,7 @@ public final class KOMECompanyMovementService {
     }
 
     /** Player catalogue authority excludes command-only operator privileges and stale raw controller metadata. */
-    boolean canPlayerConsiderCompany(KOMEWorldData data, EntityPlayerMP player, KOMEArmyCompany company) {
+    public boolean canPlayerConsiderCompany(KOMEWorldData data, EntityPlayerMP player, KOMEArmyCompany company) {
         if (data == null || !validActor(player) || company == null) return false;
         UUID actor = KOMEReflection.getEntityUUID(player);
         if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)

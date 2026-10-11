@@ -5,16 +5,23 @@ import kome.common.command.KOMECompanyMovementService;
 import kome.common.data.KOMECompanyDestinationOptions;
 import kome.common.data.KOMECompanyDestinationOptions.*;
 import kome.common.network.KOMEPacketCompanyDestinationRequest;
+import kome.common.network.KOMEPacketCompanyMovementRequest;
+import kome.common.data.KOMECompanyMovementResult;
 
-/** Presentation/navigation over accepted server projections. Never submits movement or derives eligibility. */
+/** Presentation/navigation over accepted server projections. Submits only explicitly confirmed server evidence; never derives eligibility. */
 final class KOMECompanyDestinationSelector {
-    enum Phase { CLOSED, LOADING, READY, THROTTLED, ERROR }
+    enum Phase { CLOSED, LOADING, READY, THROTTLED, ERROR, SUBMITTING }
     private static final class Cursor {
         final String after, catalogue;
-        Cursor(String after,String catalogue) {this.after=after;this.catalogue=catalogue;}
+        final int start;
+        Cursor(String after,String catalogue) {this(after,catalogue,0);}
+        Cursor(String after,String catalogue,int start) {this.after=after;this.catalogue=catalogue;this.start=start;}
     }
     private final KOMECompanyDestinationClientState queries;
     private final List<Cursor> history=new ArrayList<Cursor>();
+    // Only cursors, never cached route projections. The server catalogue bound limits history.
+    // Byte packing can return fewer than eight rows. At least one candidate advances per page.
+    static final int MAX_PAGE_HISTORY=KOMECompanyDestinationOptions.MAX_CATALOGUE;
     private UUID session;
     private String destination="";
     private Phase phase=Phase.CLOSED;
@@ -22,9 +29,14 @@ final class KOMECompanyDestinationSelector {
     private KOMECompanyDestinationOptions page;
     private Row selected;
     private int pageIndex, rowOffset;
+    private int windowCapacity=KOMECompanyDestinationOptions.MAX_ROWS;
+    private boolean enterAtEnd;
+    private List<Row> orderedRows=Collections.emptyList();
     private long retryAt;
     private String error="";
     private Result failure;
+    private KOMEPacketCompanyMovementRequest movement;
+    private String notice="";
     KOMECompanyDestinationSelector(KOMECompanyDestinationClientState queries) {this.queries=Objects.requireNonNull(queries);}
     KOMEPacketCompanyDestinationRequest open(String tile) {
         close();queries.close();session=queries.sessionId();destination=tile;
@@ -40,12 +52,12 @@ final class KOMECompanyDestinationSelector {
         clear();
     }
     private void clear() {
-        phase=Phase.CLOSED;session=null;destination="";history.clear();page=null;pending=null;selected=null;rowOffset=0;pageIndex=0;error="";failure=null;
+        phase=Phase.CLOSED;session=null;destination="";history.clear();page=null;pending=null;selected=null;rowOffset=0;pageIndex=0;error="";failure=null;movement=null;notice="";enterAtEnd=false;orderedRows=Collections.emptyList();
     }
     private KOMEPacketCompanyDestinationRequest request() {
         selected=null;page=null;rowOffset=0;error="";failure=null;phase=Phase.LOADING;
         Cursor cursor=history.get(pageIndex);
-        try {pending=queries.request(destination,KOMECompanyDestinationOptions.MAX_ROWS,cursor.after,cursor.catalogue);return pending;}
+        try {pending=queries.request(destination,KOMECompanyDestinationOptions.MAX_ROWS,cursor.after,cursor.after.isEmpty()?"":cursor.catalogue);return pending;}
         catch(IllegalStateException disconnected) {pending=null;phase=Phase.ERROR;error="Not connected. Reopen after reconnect.";return null;}
     }
     /** Proxy already accepted connection/session/sequence/destination through Slice 2 state. */
@@ -54,7 +66,19 @@ final class KOMECompanyDestinationSelector {
                 ||!pending.session.equals(response.session)||pending.sequence!=response.sequence
                 ||!destination.equals(response.destination))return false;
         selected=null;rowOffset=0;failure=response.result;
-        if(response.result==Result.OK) {page=response;phase=Phase.READY;error="";}
+        // First-page requests have no wire cursor. Revisited first pages still must match retained history.
+        String expectedCatalogue=history.get(pageIndex).catalogue;
+        if(response.result==Result.OK&&!expectedCatalogue.isEmpty()&&!expectedCatalogue.equals(response.catalogueToken)) {
+            phase=Phase.ERROR;failure=Result.CATALOGUE_CHANGED;error=queryError(failure);return true;
+        }
+        if(response.result==Result.OK) {
+            page=response;orderedRows=new ArrayList<Row>(response.rows);orderedRows.sort(ROW_ORDER);
+            orderedRows=Collections.unmodifiableList(orderedRows);
+            Cursor cursor=history.get(pageIndex);
+            history.set(pageIndex,new Cursor(cursor.after,response.catalogueToken,cursor.start));
+            rowOffset=enterAtEnd&&!orderedRows.isEmpty()?(orderedRows.size()-1)/windowCapacity*windowCapacity:0;
+            enterAtEnd=false;phase=Phase.READY;error="";
+        }
         else if(response.result==Result.RATE_LIMITED) {
             phase=Phase.THROTTLED;retryAt=now+(response.retryAfterMillis<0?1000:response.retryAfterMillis);
             error="Server busy. Retry shortly.";
@@ -62,47 +86,70 @@ final class KOMECompanyDestinationSelector {
         return true;
     }
     KOMEPacketCompanyDestinationRequest next() {
-        if(!isOpen()||phase!=Phase.READY||page==null||!page.hasMore)return null;
-        Cursor next=new Cursor(page.nextCompanyId,page.catalogueToken);
+        if(!hasNext())return null;
+        if(rowOffset+windowCapacity<rows().size()) {rowOffset+=windowCapacity;selected=null;return null;}
+        if(pageIndex+1>=MAX_PAGE_HISTORY)return null;
+        Cursor next=new Cursor(page.nextCompanyId,page.catalogueToken,history.get(pageIndex).start+page.rows.size());
         while(history.size()>pageIndex+1)history.remove(history.size()-1);
         history.add(next);pageIndex++;return request();
     }
     KOMEPacketCompanyDestinationRequest previous() {
-        if(!isOpen()||phase==Phase.LOADING||pageIndex==0)return null;
+        if(!hasPrevious())return null;
+        if(phase==Phase.READY&&rowOffset>0) {rowOffset=Math.max(0,rowOffset-windowCapacity);selected=null;return null;}
+        enterAtEnd=true;
         pageIndex--;return request();
     }
     KOMEPacketCompanyDestinationRequest retry(long now) {
         if(!canRetry(now))return null;
-        if(pending!=null&&phase==Phase.ERROR&&failure==Result.CATALOGUE_CHANGED) {
+        if(phase==Phase.READY||pending!=null&&phase==Phase.ERROR&&failure==Result.CATALOGUE_CHANGED) {
             history.clear();history.add(new Cursor("",""));pageIndex=0;
+            enterAtEnd=false;
         }
         return request();
     }
-    boolean canRetry(long now) {return isOpen()&&(phase==Phase.ERROR||phase==Phase.THROTTLED&&now>=retryAt);}
-    boolean hasNext() {return isOpen()&&phase==Phase.READY&&page!=null&&page.hasMore;}
-    boolean hasPrevious() {return isOpen()&&phase!=Phase.LOADING&&pageIndex>0;}
+    boolean canRetry(long now) {return isOpen()&&(phase==Phase.READY||phase==Phase.ERROR||phase==Phase.THROTTLED&&now>=retryAt);}
+    boolean hasNext() {return isOpen()&&phase==Phase.READY&&page!=null&&(rowOffset+windowCapacity<rows().size()||page.hasMore&&pageIndex+1<MAX_PAGE_HISTORY);}
+    boolean hasPrevious() {return isOpen()&&phase!=Phase.LOADING&&phase!=Phase.SUBMITTING&&(pageIndex>0||phase==Phase.READY&&rowOffset>0);}
     Phase phase() {isOpen();return phase;}
     String destination() {isOpen();return destination;}
     int pageNumber() {return pageIndex+1;}
     int rowOffset() {return rowOffset;}
     void scrollRows(int amount,int capacity) {
-        rowOffset=Math.max(0,Math.min(Math.max(0,rows().size()-capacity),rowOffset+amount));
+        windowCapacity=Math.max(1,capacity);
+        rowOffset=Math.max(0,Math.min(Math.max(0,rows().size()-1),rowOffset+amount));
     }
-    List<Row> rows() {return isOpen()&&phase==Phase.READY&&page!=null?page.rows:Collections.<Row>emptyList();}
+    List<Row> rows() {return isOpen()&&phase==Phase.READY&&page!=null?orderedRows:Collections.<Row>emptyList();}
+    int historySize() {return history.size();}
+    String companyRange(int capacity) {
+        if(rows().isEmpty())return "Companies";
+        int first=history.get(pageIndex).start+rowOffset+1;
+        return "Companies "+first+"–"+(first+Math.min(capacity,rows().size()-rowOffset)-1);
+    }
+    private static int priority(Row row) {
+        if(row.evaluationState!=EvaluationState.COMPLETE)return 4;
+        if(row.canStartNow&&row.canArriveNow)return 0;
+        if(row.canStartNow)return 1;
+        if(row.remainingAllowance==0||Arrays.asList("ALREADY_MOVING","CONFLICT_HELD","FORMAL_RETREAT_BLOCKED","UNAUTHORIZED","UNKNOWN_COMPANY","EMPTY_COMPANY").contains(row.denialCode))return 3;
+        return 2;
+    }
+    private static final Comparator<Row> ROW_ORDER=Comparator.comparingInt(KOMECompanyDestinationSelector::priority)
+        .thenComparingInt(row->row.distance<0?Integer.MAX_VALUE:row.distance)
+        .thenComparing(row->name(row),String.CASE_INSENSITIVE_ORDER).thenComparing(row->name(row)).thenComparing(row->row.companyId);
     Row selected() {return isOpen()?selected:null;}
     void select(String companyId) {
         if(!isOpen()||phase!=Phase.READY)return;
         for(Row row:rows())if(row.companyId.equals(companyId)) {
-            selected=selected!=null&&selected.companyId.equals(companyId)?null:row;return;
+            notice="";selected=selected!=null&&selected.companyId.equals(companyId)?null:row;return;
         }
     }
-    void clearSelection() {selected=null;}
+    void clearSelection() {if(phase!=Phase.SUBMITTING)selected=null;}
     List<String> selectedRoute() {
         Row row=selected();
-        return row!=null&&row.evaluationState==EvaluationState.COMPLETE&&row.legalRoute?row.route:Collections.<String>emptyList();
+        return phase==Phase.READY&&row!=null&&row.evaluationState==EvaluationState.COMPLETE&&row.legalRoute?row.route:Collections.<String>emptyList();
     }
     String message(long now) {
         switch(phase()) {
+            case SUBMITTING:return "Submitting movement order...";
             case LOADING:return "Loading company options...";
             case THROTTLED:return now<retryAt?"Server busy; retry in "+(retryAt-now)+" ms.":"Server busy; Retry is available.";
             case ERROR:return error;
@@ -110,7 +157,40 @@ final class KOMECompanyDestinationSelector {
             default:return "";
         }
     }
-    static String name(Row row) {return row.name.isEmpty()?row.companyId:row.name;}
+    boolean canConfirm() {
+        Row row=selected();
+        return phase==Phase.READY&&row!=null&&row.evaluationState==EvaluationState.COMPLETE&&row.canStartNow&&row.legalRoute
+            &&row.legacyFingerprint.matches("[0-9a-f]{64}")&&row.confirmationFingerprint.matches("[0-9a-f]{64}");
+    }
+    KOMEPacketCompanyMovementRequest confirm() {
+        if(!canConfirm())return null;
+        movement=queries.submit(selected);phase=Phase.SUBMITTING;notice="";return movement;
+    }
+    /** Connection/session acceptance happens in the proxy before this presentation transition. */
+    KOMEPacketCompanyDestinationRequest acceptMovement(KOMECompanyMovementResult result) {
+        if(!isOpen()||phase!=Phase.SUBMITTING||movement==null||!session.equals(result.session)
+                ||movement.sequence!=result.sequence||movement.previewSequence!=result.previewSequence
+                ||!movement.companyId.equals(result.companyId)||!destination.equals(result.destination))return null;
+        selected=null;page=null;movement=null;
+        if(result.accepted()) {
+            notice=result.outcome==KOMECompanyMovementResult.Outcome.ARRIVED?"Arrived at "+destination+("conflict_held".equals(result.orderStatus)?"; committed to battle.":
+                "access_halted".equals(result.orderStatus)?"; halted after access changed.":"."):
+                "Order accepted: "+result.orderStatus.replace('_',' ')+". Arrival not completed.";
+            history.clear();history.add(new Cursor("",""));pageIndex=0;return request();
+        }
+        phase=Phase.ERROR;failure=Result.CATALOGUE_CHANGED;
+        error=(result.outcome==KOMECompanyMovementResult.Outcome.STALE_PREVIEW?"Preview is stale. ":"")+result.detail;
+        notice=error+" Refresh Preview before confirming again.";return null;
+    }
+    String notice() {return notice;}
+    static List<String> confirmationSummary(Row row) {
+        return Arrays.asList(name(row)+": "+row.currentTile+" -> "+row.destinationTile,population(row),
+            classification(row)+" | "+row.distance+" tiles | "+eta(row),
+            row.consequence==KOMECompanyMovementService.Consequence.EXPECTED_CREATE_CONFLICT?"Will create a battle on arrival.":
+            row.consequence==KOMECompanyMovementService.Consequence.EXPECTED_JOIN_CONFLICT?"Will join the existing battle on arrival.":row.evaluationState!=EvaluationState.COMPLETE?"Route evaluation deferred.":
+            !row.canStartNow?"Movement blocked.":"Normal movement.");
+    }
+    static String name(Row row) {return row.name.trim().isEmpty()||row.name.trim().equals(row.companyId)?"Campaign Company":row.name;}
     static String classification(Row row) {return row.entitlement==Entitlement.MOUNTED?"Mounted":"Foot/Mixed";}
     static String state(Row row) {
         if(row.evaluationState==EvaluationState.DEFERRED_ROUTE_LIMIT)return "Route evaluation deferred";
