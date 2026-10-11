@@ -1,6 +1,6 @@
 # Strategic routes and physical arrival
 
-[Index](../../INDEX.md) Â· [Daily flow](../../flows/daily-movement.md)
+[Index](../../INDEX.md) · [Daily flow](../../flows/daily-movement.md)
 
 Owns campaign route preview/confirmation, enduring daily credit, departures, physical transport/arrival, confinement, retries, and recovery. It does not own swimming/crawling; see [movement compatibility](../movement-compatibility/README.md).
 
