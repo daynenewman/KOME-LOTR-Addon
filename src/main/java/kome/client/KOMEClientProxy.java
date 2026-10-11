@@ -30,7 +30,8 @@ public class KOMEClientProxy extends KOMECommonProxy {
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
         new KOMEConquestSnapshotPublisher(clientTasks);
     private final KOMECampaignHiredInfoClient campaignHiredInfo = new KOMECampaignHiredInfoClient(
-        () -> net.minecraft.client.Minecraft.getMinecraft().theWorld);
+        () -> net.minecraft.client.Minecraft.getMinecraft().theWorld,
+        request -> kome.common.network.KOMEPacketHandler.network.sendToServer(request), clientTasks::enqueue);
     private KOMECurrentTileHud currentTileHud;
     private final KOMEProgressionTrackerOverlay progressionTrackerOverlay =
         new KOMEProgressionTrackerOverlay();
@@ -49,6 +50,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         super.init();
         FMLCommonHandler.instance().bus().register(clientTasks);
         FMLCommonHandler.instance().bus().register(campaignHiredInfo);
+        MinecraftForge.EVENT_BUS.register(campaignHiredInfo);
         kome.client.tactical.KOMETacticalAreaInteractionHandler tacticalInput = new kome.client.tactical.KOMETacticalAreaInteractionHandler(this);
         FMLCommonHandler.instance().bus().register(tacticalInput);
         MinecraftForge.EVENT_BUS.register(tacticalInput);
@@ -134,12 +136,6 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @Override
     public void acceptPublicWaypoints(kome.common.network.KOMEPacketPublicWaypoints.Chunk chunk,Object connection) {
         enqueueClientTask(() -> kome.common.data.KOMEPublicWaypointClientState.INSTANCE.accept(connection,chunk));
-    }
-
-    @Override public void acceptCampaignHiredInfo(kome.common.network.KOMEPacketCampaignHiredInfo message, Object connection) {
-        try { clientTasks.enqueue(() -> {
-            if (net.minecraft.client.Minecraft.getMinecraft().getNetHandler() == connection) campaignHiredInfo.accept(message);
-        }); } catch (java.util.concurrent.RejectedExecutionException disconnectedOrFull) { }
     }
 
     private void resetClientSessionState() {
