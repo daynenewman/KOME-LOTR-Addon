@@ -50,6 +50,8 @@ public class KOMECommonProxy {
     }
 
     /** Common packet handlers cross this proxy boundary without loading client classes. */
+    public void acceptCampaignHiredInfo(kome.common.network.KOMEPacketCampaignHiredInfo message, Object connection) { }
+
     public void enqueueClientTask(Runnable task) {
         throw new IllegalStateException("Client publication is unavailable on the dedicated server");
     }

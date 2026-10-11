@@ -410,6 +410,21 @@ public class KOMEEvents {
     }
 
     @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onCampaignPresentationTracking(net.minecraftforge.event.entity.player.PlayerEvent.StartTracking event) {
+        KOMECampaignHiredPresentation.tracking(event.entityPlayer, event.target);
+    }
+
+    @SubscribeEvent
+    public void onCampaignPresentationUntracking(net.minecraftforge.event.entity.player.PlayerEvent.StopTracking event) {
+        KOMECampaignHiredPresentation.stoppedTracking(event.entityPlayer, event.target);
+    }
+
+    @SubscribeEvent
+    public void onCampaignPresentationTick(TickEvent.ServerTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) KOMECampaignHiredPresentation.flush();
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onRecoveryEntityLoaded(EntityJoinWorldEvent event) {
         if (!event.world.isRemote) KOMERecoveryStartup.observeEntity(event.entity);
     }

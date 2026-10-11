@@ -29,6 +29,8 @@ public class KOMEClientProxy extends KOMECommonProxy {
             () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
         new KOMEConquestSnapshotPublisher(clientTasks);
+    private final KOMECampaignHiredInfoClient campaignHiredInfo = new KOMECampaignHiredInfoClient(
+        () -> net.minecraft.client.Minecraft.getMinecraft().theWorld);
     private KOMECurrentTileHud currentTileHud;
     private final KOMEProgressionTrackerOverlay progressionTrackerOverlay =
         new KOMEProgressionTrackerOverlay();
@@ -46,6 +48,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void init() {
         super.init();
         FMLCommonHandler.instance().bus().register(clientTasks);
+        FMLCommonHandler.instance().bus().register(campaignHiredInfo);
         kome.client.tactical.KOMETacticalAreaInteractionHandler tacticalInput = new kome.client.tactical.KOMETacticalAreaInteractionHandler(this);
         FMLCommonHandler.instance().bus().register(tacticalInput);
         MinecraftForge.EVENT_BUS.register(tacticalInput);
@@ -133,7 +136,14 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         enqueueClientTask(() -> kome.common.data.KOMEPublicWaypointClientState.INSTANCE.accept(connection,chunk));
     }
 
+    @Override public void acceptCampaignHiredInfo(kome.common.network.KOMEPacketCampaignHiredInfo message, Object connection) {
+        try { clientTasks.enqueue(() -> {
+            if (net.minecraft.client.Minecraft.getMinecraft().getNetHandler() == connection) campaignHiredInfo.accept(message);
+        }); } catch (java.util.concurrent.RejectedExecutionException disconnectedOrFull) { }
+    }
+
     private void resetClientSessionState() {
+        if (campaignHiredInfo != null) campaignHiredInfo.clear();
         if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
         if (tacticalEditor != null) tacticalEditor.reset();
         tacticalEditorStatus = null;

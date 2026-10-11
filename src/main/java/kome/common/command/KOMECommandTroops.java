@@ -836,6 +836,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             + ". Funding provenance: " + source + ". Population refund: 0.00 (permanent spending)."));
         Entity physicalEntity = findLoadedEntity(world, found.entity);
         boolean physicallySpawned = physicalEntity != null;
+        sender.addChatMessage(new ChatComponentText(kome.common.data.KOMECampaignHealthDiagnostics.describe(data, found, physicalEntity)));
         sender.addChatMessage(new ChatComponentText("Physical spawned: " + (physicallySpawned ? "yes" : "no")
             + (physicallySpawned ? " at dim " + physicalEntity.dimension + " "
                 + formatBlockPos(physicalEntity.posX, physicalEntity.posY, physicalEntity.posZ) : "")
