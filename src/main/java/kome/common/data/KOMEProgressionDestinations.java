@@ -13,7 +13,23 @@ import net.minecraft.world.World;
 /** Loaded-world evidence, never a village generation prediction or a planned building. */
 public final class KOMEProgressionDestinations {
     static final String PROOF="DestinationStructure";
+    public static final int ARRIVAL_RADIUS=6;
+    public static final int ARRIVAL_VERTICAL_TOLERANCE=2;
     private KOMEProgressionDestinations() {}
+    static boolean nearArrival(NBTTagCompound proof,int dimension,double x,double y,double z){
+        if(proof==null||!"EXISTING_VERIFIED".equals(proof.getString("Status"))||dimension!=proof.getInteger("Dimension")
+                ||!proof.hasKey("ArrivalY",99)||!Double.isFinite(y))return false;
+        double dx=x-proof.getDouble("ArrivalX"),dz=z-proof.getDouble("ArrivalZ");
+        return dx*dx+dz*dz<=ARRIVAL_RADIUS*ARRIVAL_RADIUS&&Math.abs(y-proof.getDouble("ArrivalY"))<=ARRIVAL_VERTICAL_TOLERANCE;
+    }
+    static boolean arrived(LOTREntityNPC traveler,NBTTagCompound proof){
+        if(traveler==null||traveler.worldObj==null||traveler.worldObj.isRemote||!traveler.isEntityAlive()
+                ||!nearArrival(proof,traveler.worldObj.provider.dimensionId,traveler.posX,traveler.posY,traveler.posZ)
+                ||!valid(traveler.worldObj,proof))return false;
+        net.minecraft.util.Vec3 from=net.minecraft.util.Vec3.createVectorHelper(traveler.posX,traveler.posY+0.9D,traveler.posZ);
+        net.minecraft.util.Vec3 to=net.minecraft.util.Vec3.createVectorHelper(proof.getDouble("ArrivalX"),proof.getDouble("ArrivalY")+0.9D,proof.getDouble("ArrivalZ"));
+        return traveler.worldObj.func_147447_a(from,to,false,true,false)==null;
+    }
     static String key(NBTTagCompound proof){return proof.getString("Faction")+"|"+proof.getInteger("Dimension")+"|"+proof.getInteger("RoofX")+"|"+proof.getInteger("RoofZ");}
     public static void observe(KOMEWorldData data,LOTREntityNPC npc){
         if(npc.getFaction()==null||!npc.getFaction().isPlayableAlignmentFaction())return;
@@ -114,6 +130,12 @@ public final class KOMEProgressionDestinations {
         if(!KOMEKnightCommissionService.loadedAround(world,x,z))return true;
         return built(world.getBlock(x,y,z))&&built(world.getBlock(x+1,y,z))
             &&built(world.getBlock(x,y,z+1))&&built(world.getBlock(x+1,y,z+1))
-            &&KOMEKnightCommissionService.safeSite(world,(int)proof.getDouble("ArrivalX"),(int)proof.getDouble("ArrivalZ"))!=null;
+            &&usableArrival(world,proof);
+    }
+    static boolean usableArrival(World world,NBTTagCompound proof){
+        if(!proof.hasKey("ArrivalY",99))return false;
+        int x=(int)Math.floor(proof.getDouble("ArrivalX")),y=(int)Math.floor(proof.getDouble("ArrivalY")),z=(int)Math.floor(proof.getDouble("ArrivalZ"));
+        return y>=2&&y<world.getActualHeight()-2&&world.getBlock(x,y-1,z).getMaterial().isSolid()
+            &&world.getBlock(x,y-1,z)!=Blocks.cactus&&world.isAirBlock(x,y,z)&&world.isAirBlock(x,y+1,z);
     }
 }

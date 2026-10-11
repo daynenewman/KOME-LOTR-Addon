@@ -1,5 +1,7 @@
 # Gameplay separation and V2 integration — local candidate
 
+Historical September 19 implementation/evidence follows unchanged. Current defaults additionally include the explicitly authorized [KOM-59 T351/T352 correction](../kom59-ithilien-route-20261010/README.md): one river edge becomes open and its river marker is removed. The historical golden/export inputs stay intact; both parity comparisons check exactly this delta and otherwise remain strict. Baseline counts below describe the historical dataset, not current corrected outputs.
+
 This implements the reviewed plan. Only the worktree candidate changed; the isolated runtime and all saved-world data were left alone.
 
 ## Recovery and baseline

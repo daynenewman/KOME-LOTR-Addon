@@ -194,18 +194,20 @@ public class KOMEProgressionGameplayPassTest {
             assertNull(state.getTrialAssignment());assertFalse(state.hasLiege());assertFalse(state.failures().isEmpty());assertFalse(state.isTrialCompleted());assertEquals(0,s.original.drops());
         }
     }
-    @Test public void unavailablePhysicalTrialDoesNotRemainAssignedAfterInteraction()throws Exception {
+    @Test public void unavailablePhysicalTrialRemainsRetryableWithoutFailurePenalty()throws Exception {
         try(KOMEKnightCommissionGameplayTest.Session s=new KOMEKnightCommissionGameplayTest.Session()){
             s.original.ready();s.p.setCanonicalRank(KOMEProgressionRank.SERF);
             lotr.common.entity.npc.LOTREntityNPC liege=KOMEKnightCommissionInteractionTest.captain(s);
             KOMESerfKnightProgression state=s.p.getSerfKnightProgression();
             state.setTrial(KOMESerfKnightTrialAssignment.create(KOMESerfKnightTrial.forId("defense"),state.getLiege(),10,0));
             KOMEProgressionNpcInteractionService.activateTrial(s.f.player,s.p,liege,"defense");
-            assertNull(state.getTrialAssignment());assertFalse(state.hasLiege());assertFalse(state.failures().isEmpty());
+            assertNotNull(state.getTrialAssignment());assertTrue(state.hasLiege());assertTrue(state.failures().isEmpty());
+            assertEquals(KOMESerfKnightTrialAssignment.Stage.ASSIGNED,state.getTrialAssignment().stage);
+            String token=state.getTrialAssignment().assignmentToken;
             assertTrue(s.f.player.messages.stream().anyMatch(m->m.contains("cannot arrange this trial safely")));
             assertFalse(state.isTrialCompleted());assertEquals(0,s.original.drops());
             int failures=state.failures().size();KOMEProgressionNpcInteractionService.activateTrial(s.f.player,s.p,liege,"defense");
-            assertNull(state.getTrialAssignment());assertEquals(failures,state.failures().size());assertEquals(0,s.original.drops());
+            assertNotNull(state.getTrialAssignment());assertEquals(token,state.getTrialAssignment().assignmentToken);assertEquals(failures,state.failures().size());assertEquals(0,s.original.drops());
         }
     }
 }

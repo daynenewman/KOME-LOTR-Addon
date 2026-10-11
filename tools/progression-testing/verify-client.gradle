@@ -1,0 +1,38 @@
+// Native GUI fixture capture; no existing game directory or world is reused.
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.tasks.Jar
+allprojects { afterEvaluate {
+    tasks.register('compileProgressionClientProbe', JavaCompile) {
+        dependsOn tasks.named('classes')
+        source = project.fileTree('tools/progression-testing/client/java') { include '**/*.java' }
+        classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+        destinationDirectory.set(layout.buildDirectory.dir('progression-testing/client-probe-classes'))
+        sourceCompatibility = '8'; targetCompatibility = '8'
+    }
+    tasks.register('progressionClientProbeJar', Jar) {
+        dependsOn tasks.named('compileProgressionClientProbe')
+        from layout.buildDirectory.dir('progression-testing/client-probe-classes')
+        archiveFileName.set('progression-client-probe.jar')
+        destinationDirectory.set(layout.buildDirectory.dir('progression-testing'))
+    }
+    tasks.named('runClient') {
+        dependsOn tasks.named('progressionClientProbeJar')
+        workingDir = project.file('outputs/progression-testing-20261010/client-' + System.currentTimeMillis())
+        timeout.set(java.time.Duration.ofMinutes(4))
+        doFirst {
+            workingDir.mkdirs()
+            project.copy { from layout.buildDirectory.file('progression-testing/progression-client-probe.jar'); into new File(workingDir,'mods') }
+            new File(workingDir,'options.txt').text = 'renderDistance:2\nmaxFps:30\nfancyGraphics:false\nguiScale:2\nparticles:0\nenableVsync:true\n'
+        }
+        doLast {
+            File proof = new File(workingDir,'progression-client.txt')
+            if (!proof.exists() || !proof.text.contains('PASS controlled native GUI fixture') || proof.text.contains('FAIL '))
+                throw new GradleException('Client progression evidence missing or failed: ' + proof)
+            for (String logName : ['logs/latest.log','logs/fml-client-latest.log']) {
+                File renderLog = new File(workingDir,logName)
+                if (renderLog.exists() && (renderLog.text.contains('########## GL ERROR ##########') || renderLog.text.contains('KOME native relationship indicator failed')))
+                    throw new GradleException('Native render error in ' + renderLog)
+            }
+        }
+    }
+} }

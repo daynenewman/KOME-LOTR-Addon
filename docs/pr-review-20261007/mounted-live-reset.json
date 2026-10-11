@@ -1,0 +1,1469 @@
+{
+  "candidate_sha256": "c49456694be28a870ed29a47dc66c3ec32e098fb7d9ef0b8cacd8756aa36c726",
+  "source_merge": "d7d4a5a4e0bf810ce321b923b6482cb7d5406406",
+  "before": {
+    "ArmyCompanies": [
+      {
+        "GroundPopulation": 0,
+        "UpdatedAtMillis": 1791424744391,
+        "Owner": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "OwnerName": "",
+        "MovementAllowance": {
+          "Initialized": 0,
+          "Schedule": "",
+          "BoundaryMillis": 0,
+          "Remaining": 0
+        },
+        "SourceTileId": "",
+        "TemporaryController": "",
+        "TransferRecipientName": "",
+        "MovementOrderId": "",
+        "StewardshipCreated": 0,
+        "TransferRecipient": "",
+        "StewardshipReservation": 0,
+        "Source": "auto_unit_assignment",
+        "Name": "Mounted acceptance",
+        "AuthorizationReason": "",
+        "TransferExpiresAtMillis": 0,
+        "DelegationRevocationReason": "",
+        "CurrentTile": "T348",
+        "TotalPopulation": 45,
+        "DelegationAlliancePair": "",
+        "Faction": "gondor",
+        "Status": "stationed",
+        "DelegatedAtMillis": 0,
+        "NativeFaction": "gondor",
+        "AuthorizedWars": [],
+        "CreatedAtMillis": 0,
+        "TransferOfferedAtMillis": 0,
+        "Units": [
+          {
+            "Unit": "8ce35270-7847-4b9a-a1f0-d68ddd680e8b"
+          }
+        ],
+        "MountedPopulation": 45,
+        "DelegatedByName": "",
+        "PopulationSource": "",
+        "TransferOfferedBy": "",
+        "TemporaryControllerName": "",
+        "WithdrawalState": "NONE",
+        "Id": "C-mounted-acceptance-safe",
+        "Tendency": "CONSERVATIVE",
+        "ControllerAuthority": "NATIVE",
+        "DelegatedBy": "",
+        "LotrCompanyValue": ""
+      }
+    ],
+    "HiredUnits": [
+      {
+        "Entity": "8ce35270-7847-4b9a-a1f0-d68ddd680e8b",
+        "StewardshipWarIds": "",
+        "Owner": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "Farmhand": 0,
+        "LevelCap": 0,
+        "SourceType": "FACTION_POPULATION_BANK",
+        "UnitClass": "CAMPAIGN",
+        "MovementOrderId": "",
+        "SourceFaction": "gondor",
+        "Cost": 45,
+        "AllocationFaction": "",
+        "CompanyName": "Mounted acceptance",
+        "UnitEntityId": "lotr.gondorsoldier",
+        "AllocationTile": "",
+        "StationedEntityData": {
+          "ReplacedFlag_6": 0,
+          "ReplacedFlag_5": 0,
+          "ReplacedFlag_4": 0,
+          "ReplacedFlag_3": 0,
+          "ReplacedMelee": 0,
+          "TraderShouldRespawn": 0,
+          "SetInitHome": 0,
+          "Attributes": [
+            {
+              "Base": 20.0,
+              "Name": "generic.maxHealth"
+            },
+            {
+              "Base": 0.0,
+              "Name": "generic.knockbackResistance"
+            },
+            {
+              "Base": 0.2,
+              "Name": "generic.movementSpeed"
+            },
+            {
+              "Base": 36.0,
+              "Name": "generic.followRange"
+            },
+            {
+              "Base": 2.0,
+              "Name": "lotr.npcAttackDamage"
+            },
+            {
+              "Base": 0.0,
+              "Name": "lotr.npcAttackDamageExtra"
+            },
+            {
+              "Base": 4.0,
+              "Name": "lotr.npcAttackDamageDrunk"
+            },
+            {
+              "Base": 0.75,
+              "Name": "lotr.npcRangedAccuracy"
+            },
+            {
+              "Base": 1.7,
+              "Name": "lotr.horseAttackSpeed"
+            }
+          ],
+          "Invulnerable": 0,
+          "AbsorptionAmount": 0.0,
+          "NPCMale": 1,
+          "ValueSinceRefresh": 0,
+          "FallDistance": 0.0,
+          "NPCName": "H\u00farin",
+          "NPCPassive": 0,
+          "NPCHomeY": 0,
+          "MaxChildren": 0,
+          "NPCHomeX": 0,
+          "NPCHomeZ": 0,
+          "PersistenceRequired": 0,
+          "id": "lotr.GondorSoldier",
+          "HealF": 3.25,
+          "ShouldLockTrades": 1,
+          "ReplacedFlag_2": 0,
+          "RefreshAtValue": 5000,
+          "ReplacedFlag_1": 0,
+          "ReplacedFlag_0": 0,
+          "NPCPersistent": 0,
+          "Leashed": 0,
+          "SpecificLocationName": 0,
+          "ShouldRefresh": 1,
+          "Air": 300,
+          "HiredReplacedItems": [],
+          "TimeSinceTrade": 0,
+          "ActiveQuestPlayers": [],
+          "HurtOnlyByPlates": 1,
+          "Riding": {
+            "Tame": 1,
+            "ForgeData": {
+              "LOTREnchantInit": 1
+            },
+            "HasReproduced": 0,
+            "Attributes": [
+              {
+                "Base": 20.0,
+                "Name": "generic.maxHealth"
+              },
+              {
+                "Base": 0.0,
+                "Name": "generic.knockbackResistance"
+              },
+              {
+                "Base": 0.22499999403953552,
+                "Name": "generic.movementSpeed"
+              },
+              {
+                "Base": 36.0,
+                "Name": "generic.followRange"
+              },
+              {
+                "Base": 0.7,
+                "Name": "horse.jumpStrength"
+              }
+            ],
+            "Invulnerable": 0,
+            "PortalCooldown": 0,
+            "AbsorptionAmount": 0.0,
+            "Bred": 0,
+            "FallDistance": 0.0,
+            "InLove": 0,
+            "EatingHaystack": 0,
+            "DeathTime": 0,
+            "DropChances": [
+              0.08500000089406967,
+              0.08500000089406967,
+              0.08500000089406967,
+              0.08500000089406967,
+              0.08500000089406967
+            ],
+            "PersistenceRequired": 0,
+            "BelongsNPC": 1,
+            "id": "lotr.Horse",
+            "HealF": 7.125,
+            "Age": 0,
+            "Motion": [
+              0.0,
+              -0.0784000015258789,
+              0.0
+            ],
+            "Leashed": 0,
+            "UUIDLeast": -7321284582624235091,
+            "Health": 8,
+            "Mountable": 1,
+            "TicksSinceFeed": 0,
+            "Air": 300,
+            "OnGround": 1,
+            "Dimension": 100,
+            "Rotation": [
+              0.0,
+              0.0
+            ],
+            "Variant": 0,
+            "OwnerUUID": "",
+            "Type": 0,
+            "UUIDMost": -2305581320162884034,
+            "Equipment": [
+              {},
+              {},
+              {},
+              {},
+              {}
+            ],
+            "CustomName": "",
+            "Pos": [
+              48704.26086718081,
+              200.0,
+              53568.0084258414
+            ],
+            "ChestedHorse": 0,
+            "Fire": -1,
+            "Temper": 0,
+            "CanPickUpLoot": 0,
+            "HurtTime": 0,
+            "AttackTime": 0,
+            "CustomNameVisible": 0
+          },
+          "CustomName": "",
+          "Pos": [
+            48704.26086718081,
+            200.80000001192093,
+            53568.0084258414
+          ],
+          "NPCHomeRadius": -1,
+          "LockTradeAtValue": 200,
+          "CanPickUpLoot": 0,
+          "HurtTime": 0,
+          "AttackTime": 0,
+          "CustomNameVisible": 0,
+          "ForgeData": {
+            "LOTREnchantInit": 1
+          },
+          "PortalCooldown": 0,
+          "NPCItemsInv": [],
+          "InitHomeR": -1,
+          "DeathTime": 0,
+          "HiredNPCInfo": {
+            "HiringPlayerUUID": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+            "PledgeType": 0,
+            "Task": 0,
+            "IsActive": 1,
+            "GuardMode": 0,
+            "AlignReqF": 0.0,
+            "Xp": 0,
+            "TeleportAutomatically": 1,
+            "CanMove": 0,
+            "GuardRange": 8,
+            "XpLevel": 1,
+            "MobKills": 0
+          },
+          "DropChances": [
+            0.08500000089406967,
+            0.08500000089406967,
+            0.08500000089406967,
+            0.08500000089406967,
+            0.08500000089406967
+          ],
+          "InitHomeX": 0,
+          "RidingHorse": 1,
+          "InitHomeY": 0,
+          "Children": 0,
+          "InitHomeZ": 0,
+          "NPCAge": 0,
+          "MQSpecificOffers": [],
+          "Motion": [
+            0.0,
+            -0.0784000015258789,
+            0.0
+          ],
+          "UUIDLeast": -6777681534399279477,
+          "Health": 4,
+          "MQOfferTime": 0,
+          "TraderEscort": 0,
+          "OnGround": 0,
+          "Dimension": 100,
+          "Rotation": [
+            0.0,
+            0.0
+          ],
+          "NPCDrunkTime": 0,
+          "LockValueDecayTicks": 60,
+          "NPCEating": 0,
+          "UUIDMost": -8294695445678568550,
+          "Equipment": [
+            {},
+            {},
+            {},
+            {},
+            {}
+          ],
+          "LockTicksAfterRefresh": 6000,
+          "Fire": -1
+        },
+        "Mounted": 1,
+        "AlliancePair": "",
+        "ReleaseState": "",
+        "CurrentTile": "T348",
+        "SpawningFaction": "",
+        "SeasonReturnToken": "",
+        "SourceTile": "T388",
+        "AllocationPlayer": "",
+        "SeasonReturnVirtual": 0,
+        "UnitFaction": "gondor",
+        "CompanyId": "C-mounted-acceptance-safe",
+        "SourcePlayer": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "BaseCost": 20,
+        "UnitName": "H\u00farin, the Gondor Soldier",
+        "CompanyAssignedByName": "",
+        "Controller": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "Type": "offensive",
+        "BenefitSource": "",
+        "CompanyAssignedBy": "",
+        "Level": 1,
+        "SurvivingHealth": {
+          "EntityId": "8ce35270-7847-4b9a-a1f0-d68ddd680e8b",
+          "Riding": {
+            "EntityId": "e000ee01-3aea-463e-9a65-9276412371ad",
+            "Current": 7.125
+          },
+          "Current": 3.25
+        },
+        "PopulationSpent": 50,
+        "PopulationReturned": 0,
+        "CompanyAssignedAtMillis": 0,
+        "ControllerAuthority": "",
+        "PopulationOwningFaction": "gondor",
+        "LotrCompanyValue": ""
+      }
+    ],
+    "SeasonReset": {
+      "OwnershipReset": 0,
+      "Schema": 1,
+      "Companies": [],
+      "Prepared": 0,
+      "Season": 0,
+      "Failure": ""
+    },
+    "WarSeason": {
+      "MinimumWarEndMillis": -1,
+      "Phase": "FINALE",
+      "FinaleEndTimeMillis": -1,
+      "ResetStatus": "NOT_STARTED",
+      "FinaleTriggerActorName": "",
+      "FinaleTriggerTimeMillis": -1,
+      "SeasonId": 1,
+      "FactionDefeats": []
+    },
+    "CentralAudit": [
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T179@100:-1727.5,72.0,1216.5;source=SERVER_DEFAULT_WAYPOINT:MICHEL_DELVING",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "hobbit",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T164@100:13504.5,64.0,576.5;source=SERVER_DEFAULT_WAYPOINT:BREE",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "bree",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T116@100:11200.5,64.0,-9919.5;source=SERVER_DEFAULT_WAYPOINT:FORNOST",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "dunedain",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T108@100:-21567.5,97.0,-7487.5;source=SERVER_DEFAULT_WAYPOINT:THORIN_HALLS",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "bluemountains",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T101@100:-17983.5,68.0,-1599.5;source=SERVER_DEFAULT_WAYPOINT:MITHLOND_NORTH",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "highelves",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T068@100:49344.5,233.0,-17599.5;source=SERVER_DEFAULT_WAYPOINT:MOUNT_GUNDABAD",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "gundabad",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T040@100:25664.5,148.0,-28991.5;source=SERVER_DEFAULT_WAYPOINT:CARN_DUM",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "angmar",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T100@100:78144.5,74.0,-12351.5;source=SERVER_DEFAULT_WAYPOINT:THRANDUIL_HALLS",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "woodelf",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T246@100:67776.5,119.0,21056.5;source=SERVER_DEFAULT_WAYPOINT:DOL_GULDUR",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "dolguldur",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T087@100:83776.5,68.0,-14655.5;source=SERVER_DEFAULT_WAYPOINT:DALE_CITY",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "dale",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T075@100:83648.5,78.0,-15423.5;source=SERVER_DEFAULT_WAYPOINT:EREBOR",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "durinsfolk",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T237@100:55360.5,121.0,22080.5;source=SERVER_DEFAULT_WAYPOINT:CARAS_GALADHON",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "lothlorien",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T320@100:34240.5,76.0,47168.5;source=SERVER_DEFAULT_WAYPOINT:WULFBURG",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "dunland",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T315@100:37440.5,72.0,42496.5;source=SERVER_DEFAULT_WAYPOINT:ISENGARD",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "isengard",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T300@100:45248.5,68.0,38464.5;source=SERVER_DEFAULT_WAYPOINT:DERNDINGLE",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "fangorn",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T348@100:48704.5,72.0,53568.5;source=SERVER_DEFAULT_WAYPOINT:EDORAS",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "rohan",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T388@100:78016.5,71.0,66240.5;source=SERVER_DEFAULT_WAYPOINT:MINAS_TIRITH",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "gondor",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T378@100:97728.5,84.0,59712.5;source=SERVER_DEFAULT_WAYPOINT:BARAD_DUR",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "mordor",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T255@100:121408.5,64.0,26816.5;source=SERVER_DEFAULT_WAYPOINT:DORWINION_COURT",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "dorwinion",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T292@100:135360.5,70.0,32576.5;source=SERVER_DEFAULT_WAYPOINT:RHUN_CAPITAL",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "rhudel",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T470@100:51776.5,69.0,122816.5;source=SERVER_DEFAULT_WAYPOINT:UMBAR_CITY",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "harad",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T516@100:105920.5,65.0,185152.5;source=SERVER_DEFAULT_WAYPOINT:GREAT_PLAINS_EAST",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "morwaith",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T591@100:73024.5,71.0,272832.5;source=SERVER_DEFAULT_WAYPOINT:JUNGLE_CITY_CAPITAL",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "taurethrim",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T587@100:146240.5,90.0,273088.5;source=SERVER_DEFAULT_WAYPOINT:SHADOW_POINT",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "halftroll",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "WORLD_BOUND",
+        "Details": "active population.hoursPerPopulationPoint=10.00, population.capturedBuildMultiplier=0.50, population.bottleneckRatePerActiveServerDay=0.10, population.pauseRateCeilingWhenNoPendingHours=true, population.recruitmentTileActiveRateThreshold=5.00, population.populationCapEnabled=false, population.populationCapValue=TBD, population.populationCapCenti=TBD, dailyBatch.timezone=America/Chicago",
+        "Actor": "SERVER",
+        "Domain": "CONFIG",
+        "Timestamp": 1791418121088,
+        "Subject": "kome.cfg",
+        "Reason": "Validated configuration bound to initialized world"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "ceiling=0;lastLiveBoundary=2026-10-07T01:00:00Z;schedule=America/Chicago@20:00;offlineDevelopment=false",
+        "Actor": "SERVER",
+        "Domain": "POPULATION_DEVELOPMENT",
+        "Timestamp": 1791418120057,
+        "Subject": "2026-10-08T00:08:40.057Z",
+        "Reason": "Population development initialize"
+      },
+      {
+        "Action": "INITIALIZED",
+        "Details": "schedule=America/Chicago@20:00; hoursPerPoint=10.00; capturedMultiplier=0.50; capEnabled=false; cap=TBD; catchUp=true; rateUnitsPerCenti=10000; Fresh anchor; no historical payout",
+        "Actor": "SERVER",
+        "Domain": "POPULATION",
+        "Timestamp": 1791418120057,
+        "Subject": "2026-10-08T00:08:40.057Z",
+        "Reason": "Population INITIALIZED"
+      },
+      {
+        "Action": "OWNERSHIP_CHANGE",
+        "Details": "-> gondor",
+        "Actor": "",
+        "Domain": "TILE",
+        "Timestamp": 18293,
+        "Subject": "T401",
+        "Reason": "Tile ownership changed"
+      },
+      {
+        "Action": "WORLD_BOUND",
+        "Details": "active population.hoursPerPopulationPoint=10.00, population.capturedBuildMultiplier=0.50, population.bottleneckRatePerActiveServerDay=0.10, population.pauseRateCeilingWhenNoPendingHours=true, population.recruitmentTileActiveRateThreshold=5.00, population.populationCapEnabled=false, population.populationCapValue=TBD, population.populationCapCenti=TBD, dailyBatch.timezone=America/Chicago",
+        "Actor": "SERVER",
+        "Domain": "CONFIG",
+        "Timestamp": 1791419695065,
+        "Subject": "kome.cfg",
+        "Reason": "Validated configuration bound to initialized world"
+      },
+      {
+        "Action": "REGISTER",
+        "Details": ";approvedHours=0.00;type=NORMAL;populationFaction=gondor;tile=T401",
+        "Actor": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "Domain": "BUILD",
+        "Timestamp": 1791420346203,
+        "Subject": "B1",
+        "Reason": "Build registered"
+      },
+      {
+        "Action": "SUBMIT",
+        "Details": "contribution=H1;status=PENDING;hours=1.00;approvedCentiHoursDelta=0;approvedHours=0.00;type=NORMAL;populationFaction=gondor;tile=T401",
+        "Actor": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "Domain": "BUILD",
+        "Timestamp": 1791420346203,
+        "Subject": "B1",
+        "Reason": "Initial submission"
+      },
+      {
+        "Action": "APPROVE",
+        "Details": "contribution=H1;status=APPROVED;priorHours=1.00;hours=1.00;approvedCentiHoursDelta=100;approvedHours=1.00;type=NORMAL;populationFaction=gondor;tile=T401",
+        "Actor": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "Domain": "BUILD",
+        "Timestamp": 1791420346203,
+        "Subject": "B1",
+        "Reason": "Manager contribution approved immediately"
+      },
+      {
+        "Action": "WORLD_BOUND",
+        "Details": "active population.hoursPerPopulationPoint=10.00, population.capturedBuildMultiplier=0.50, population.bottleneckRatePerActiveServerDay=0.10, population.pauseRateCeilingWhenNoPendingHours=true, population.recruitmentTileActiveRateThreshold=5.00, population.populationCapEnabled=false, population.populationCapValue=TBD, population.populationCapCenti=TBD, dailyBatch.timezone=America/Chicago",
+        "Actor": "SERVER",
+        "Domain": "CONFIG",
+        "Timestamp": 1791423492147,
+        "Subject": "kome.cfg",
+        "Reason": "Validated configuration bound to initialized world"
+      },
+      {
+        "Action": "STARTUP_SKIP",
+        "Details": "ceiling=0;lastLiveBoundary=2026-10-08T01:00:00Z;schedule=America/Chicago@20:00;offlineDevelopment=false",
+        "Actor": "SERVER",
+        "Domain": "POPULATION_DEVELOPMENT",
+        "Timestamp": 1791423492101,
+        "Subject": "2026-10-08T01:38:12.101Z",
+        "Reason": "Population development startup_skip"
+      },
+      {
+        "Action": "FROZEN",
+        "Details": "schedule=America/Chicago@20:00; hoursPerPoint=10.00; capturedMultiplier=0.50; capEnabled=false; cap=TBD; catchUp=true; rateUnitsPerCenti=10000; phase=MAINTENANCE; no accrual; prior remainders preserved",
+        "Actor": "SERVER",
+        "Domain": "POPULATION",
+        "Timestamp": 1791421200000,
+        "Subject": "2026-10-08T01:00:00Z",
+        "Reason": "Population FROZEN"
+      },
+      {
+        "Action": "BLOCKED",
+        "Details": "boundary=-1",
+        "Actor": "system",
+        "Domain": "DAILY",
+        "Timestamp": 1791424104877,
+        "Subject": "MOVEMENT",
+        "Reason": "MOVEMENT_INTEGRATION_PENDING_KOM48: canonical KOM-47 authority is available; coordinator adapter pending; existing movement runtime retained"
+      },
+      {
+        "Action": "REMOVED",
+        "Details": "Population remains permanently spent",
+        "Actor": "",
+        "Domain": "UNIT",
+        "Timestamp": 1791424108973,
+        "Subject": "869334e0-706c-4d84-96f9-3ddb101a72a4",
+        "Reason": "Unit died"
+      }
+    ],
+    "FactionPopulationBanks": null
+  },
+  "after": {
+    "ArmyCompanies": [
+      {
+        "GroundPopulation": 0,
+        "UpdatedAtMillis": 1791425306486,
+        "Owner": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "OwnerName": "",
+        "MovementAllowance": {
+          "Initialized": 0,
+          "Schedule": "",
+          "BoundaryMillis": 0,
+          "Remaining": 0
+        },
+        "SourceTileId": "",
+        "TemporaryController": "",
+        "TransferRecipientName": "",
+        "MovementOrderId": "",
+        "StewardshipCreated": 0,
+        "TransferRecipient": "",
+        "StewardshipReservation": 0,
+        "Source": "auto_unit_assignment",
+        "Name": "Mounted acceptance",
+        "AuthorizationReason": "",
+        "TransferExpiresAtMillis": 0,
+        "DelegationRevocationReason": "Season reset",
+        "CurrentTile": "T388",
+        "TotalPopulation": 45,
+        "DelegationAlliancePair": "",
+        "Faction": "gondor",
+        "Status": "stationed",
+        "DelegatedAtMillis": 0,
+        "NativeFaction": "gondor",
+        "AuthorizedWars": [],
+        "CreatedAtMillis": 0,
+        "TransferOfferedAtMillis": 0,
+        "Units": [
+          {
+            "Unit": "8ce35270-7847-4b9a-a1f0-d68ddd680e8b"
+          }
+        ],
+        "MountedPopulation": 45,
+        "DelegatedByName": "",
+        "PopulationSource": "",
+        "TransferOfferedBy": "",
+        "TemporaryControllerName": "",
+        "WithdrawalState": "NONE",
+        "Id": "C-mounted-acceptance-safe",
+        "Tendency": "CONSERVATIVE",
+        "ControllerAuthority": "NATIVE",
+        "DelegatedBy": "",
+        "LotrCompanyValue": ""
+      }
+    ],
+    "HiredUnits": [
+      {
+        "Entity": "8ce35270-7847-4b9a-a1f0-d68ddd680e8b",
+        "StewardshipWarIds": "",
+        "Owner": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "Farmhand": 0,
+        "LevelCap": 0,
+        "SourceType": "FACTION_POPULATION_BANK",
+        "UnitClass": "CAMPAIGN",
+        "MovementOrderId": "",
+        "SourceFaction": "gondor",
+        "Cost": 45,
+        "AllocationFaction": "",
+        "CompanyName": "Mounted acceptance",
+        "UnitEntityId": "lotr.gondorsoldier",
+        "AllocationTile": "",
+        "StationedEntityData": {
+          "ReplacedFlag_6": 0,
+          "ReplacedFlag_5": 0,
+          "ReplacedFlag_4": 0,
+          "ReplacedFlag_3": 0,
+          "ReplacedMelee": 0,
+          "TraderShouldRespawn": 0,
+          "SetInitHome": 0,
+          "Attributes": [
+            {
+              "Base": 20.0,
+              "Name": "generic.maxHealth"
+            },
+            {
+              "Base": 0.0,
+              "Name": "generic.knockbackResistance"
+            },
+            {
+              "Base": 0.2,
+              "Name": "generic.movementSpeed"
+            },
+            {
+              "Base": 36.0,
+              "Name": "generic.followRange"
+            },
+            {
+              "Base": 2.0,
+              "Name": "lotr.npcAttackDamage"
+            },
+            {
+              "Base": 0.0,
+              "Name": "lotr.npcAttackDamageExtra"
+            },
+            {
+              "Base": 4.0,
+              "Name": "lotr.npcAttackDamageDrunk"
+            },
+            {
+              "Base": 0.75,
+              "Name": "lotr.npcRangedAccuracy"
+            },
+            {
+              "Base": 1.7,
+              "Name": "lotr.horseAttackSpeed"
+            }
+          ],
+          "Invulnerable": 0,
+          "AbsorptionAmount": 0.0,
+          "NPCMale": 1,
+          "ValueSinceRefresh": 0,
+          "FallDistance": 0.0,
+          "NPCName": "H\u00farin",
+          "NPCPassive": 0,
+          "NPCHomeY": 0,
+          "MaxChildren": 0,
+          "NPCHomeX": 0,
+          "NPCHomeZ": 0,
+          "PersistenceRequired": 0,
+          "id": "lotr.GondorSoldier",
+          "HealF": 3.25,
+          "ShouldLockTrades": 1,
+          "ReplacedFlag_2": 0,
+          "RefreshAtValue": 5000,
+          "ReplacedFlag_1": 0,
+          "ReplacedFlag_0": 0,
+          "NPCPersistent": 0,
+          "Leashed": 0,
+          "SpecificLocationName": 0,
+          "ShouldRefresh": 1,
+          "Air": 300,
+          "HiredReplacedItems": [],
+          "TimeSinceTrade": 0,
+          "ActiveQuestPlayers": [],
+          "HurtOnlyByPlates": 1,
+          "Riding": {
+            "Tame": 1,
+            "ForgeData": {
+              "LOTREnchantInit": 1
+            },
+            "HasReproduced": 0,
+            "Attributes": [
+              {
+                "Base": 20.0,
+                "Name": "generic.maxHealth"
+              },
+              {
+                "Base": 0.0,
+                "Name": "generic.knockbackResistance"
+              },
+              {
+                "Base": 0.22499999403953552,
+                "Name": "generic.movementSpeed"
+              },
+              {
+                "Base": 36.0,
+                "Name": "generic.followRange"
+              },
+              {
+                "Base": 0.7,
+                "Name": "horse.jumpStrength"
+              }
+            ],
+            "Invulnerable": 0,
+            "PortalCooldown": 0,
+            "AbsorptionAmount": 0.0,
+            "Bred": 0,
+            "FallDistance": 0.0,
+            "InLove": 0,
+            "EatingHaystack": 0,
+            "DeathTime": 0,
+            "DropChances": [
+              0.08500000089406967,
+              0.08500000089406967,
+              0.08500000089406967,
+              0.08500000089406967,
+              0.08500000089406967
+            ],
+            "PersistenceRequired": 0,
+            "BelongsNPC": 1,
+            "id": "lotr.Horse",
+            "HealF": 7.125,
+            "Age": 0,
+            "Motion": [
+              0.0,
+              -0.0784000015258789,
+              0.0
+            ],
+            "Leashed": 0,
+            "UUIDLeast": -7321284582624235091,
+            "Health": 8,
+            "Mountable": 1,
+            "TicksSinceFeed": 0,
+            "Air": 300,
+            "OnGround": 1,
+            "Dimension": 100,
+            "Rotation": [
+              0.0,
+              0.0
+            ],
+            "Variant": 0,
+            "OwnerUUID": "",
+            "Type": 0,
+            "UUIDMost": -2305581320162884034,
+            "Equipment": [
+              {},
+              {},
+              {},
+              {},
+              {}
+            ],
+            "CustomName": "",
+            "Pos": [
+              48704.26086718081,
+              200.0,
+              53568.0084258414
+            ],
+            "ChestedHorse": 0,
+            "Fire": -1,
+            "Temper": 0,
+            "CanPickUpLoot": 0,
+            "HurtTime": 0,
+            "AttackTime": 0,
+            "CustomNameVisible": 0
+          },
+          "CustomName": "",
+          "Pos": [
+            48704.26086718081,
+            200.80000001192093,
+            53568.0084258414
+          ],
+          "NPCHomeRadius": -1,
+          "LockTradeAtValue": 200,
+          "CanPickUpLoot": 0,
+          "HurtTime": 0,
+          "AttackTime": 0,
+          "CustomNameVisible": 0,
+          "ForgeData": {
+            "LOTREnchantInit": 1
+          },
+          "PortalCooldown": 0,
+          "NPCItemsInv": [],
+          "InitHomeR": -1,
+          "DeathTime": 0,
+          "HiredNPCInfo": {
+            "HiringPlayerUUID": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+            "PledgeType": 0,
+            "Task": 0,
+            "IsActive": 1,
+            "GuardMode": 0,
+            "AlignReqF": 0.0,
+            "Xp": 0,
+            "TeleportAutomatically": 1,
+            "CanMove": 0,
+            "GuardRange": 8,
+            "XpLevel": 1,
+            "MobKills": 0
+          },
+          "DropChances": [
+            0.08500000089406967,
+            0.08500000089406967,
+            0.08500000089406967,
+            0.08500000089406967,
+            0.08500000089406967
+          ],
+          "InitHomeX": 0,
+          "RidingHorse": 1,
+          "InitHomeY": 0,
+          "Children": 0,
+          "InitHomeZ": 0,
+          "NPCAge": 0,
+          "MQSpecificOffers": [],
+          "Motion": [
+            0.0,
+            -0.0784000015258789,
+            0.0
+          ],
+          "UUIDLeast": -6777681534399279477,
+          "Health": 4,
+          "MQOfferTime": 0,
+          "TraderEscort": 0,
+          "OnGround": 0,
+          "Dimension": 100,
+          "Rotation": [
+            0.0,
+            0.0
+          ],
+          "NPCDrunkTime": 0,
+          "LockValueDecayTicks": 60,
+          "NPCEating": 0,
+          "UUIDMost": -8294695445678568550,
+          "Equipment": [
+            {},
+            {},
+            {},
+            {},
+            {}
+          ],
+          "LockTicksAfterRefresh": 6000,
+          "Fire": -1
+        },
+        "Mounted": 1,
+        "AlliancePair": "",
+        "ReleaseState": "",
+        "CurrentTile": "T388",
+        "SpawningFaction": "",
+        "SeasonReturnToken": "1:C-mounted-acceptance-safe",
+        "SourceTile": "T388",
+        "AllocationPlayer": "",
+        "SeasonReturnVirtual": 0,
+        "UnitFaction": "gondor",
+        "CompanyId": "C-mounted-acceptance-safe",
+        "SourcePlayer": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "BaseCost": 20,
+        "UnitName": "H\u00farin, the Gondor Soldier",
+        "CompanyAssignedByName": "",
+        "Controller": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "Type": "offensive",
+        "BenefitSource": "",
+        "CompanyAssignedBy": "",
+        "Level": 1,
+        "SurvivingHealth": {
+          "EntityId": "8ce35270-7847-4b9a-a1f0-d68ddd680e8b",
+          "Riding": {
+            "EntityId": "e000ee01-3aea-463e-9a65-9276412371ad",
+            "Current": 7.125
+          },
+          "Current": 3.25
+        },
+        "PopulationSpent": 50,
+        "PopulationReturned": 0,
+        "CompanyAssignedAtMillis": 0,
+        "ControllerAuthority": "NATIVE",
+        "PopulationOwningFaction": "gondor",
+        "LotrCompanyValue": ""
+      }
+    ],
+    "SeasonReset": {
+      "OwnershipReset": 1,
+      "Schema": 1,
+      "Companies": [
+        {
+          "Origin": "T348",
+          "Destination": "T388",
+          "Company": "C-mounted-acceptance-safe",
+          "Owner": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+          "OriginChunks": [
+            {
+              "Key": 13073880452372
+            }
+          ],
+          "NativeFaction": "gondor",
+          "Cleared": 1,
+          "Complete": 1,
+          "ReturnRequired": 1,
+          "Capital": {
+            "UpdatedAtMillis": 1791424743747,
+            "DeploymentY": 200.0,
+            "DeploymentZ": 66240.5,
+            "DeploymentX": 78016.5,
+            "Actor": "system",
+            "DeploymentDimension": 100,
+            "CapitalTile": "T388",
+            "Source": "disposable mounted acceptance",
+            "Faction": "gondor"
+          },
+          "Reason": "Outside native territory after ownership reset",
+          "Units": [
+            {
+              "Virtual": 0,
+              "Id": "8ce35270-7847-4b9a-a1f0-d68ddd680e8b"
+            }
+          ]
+        }
+      ],
+      "Prepared": 1,
+      "Season": 1,
+      "Failure": ""
+    },
+    "WarSeason": {
+      "MinimumWarEndMillis": -1,
+      "Phase": "RESET",
+      "FinaleEndTimeMillis": 1791425306486,
+      "ResetStatus": "READY_TO_COMPLETE",
+      "FinaleTriggerActorName": "",
+      "FinaleTriggerTimeMillis": -1,
+      "SeasonId": 1,
+      "FactionDefeats": []
+    },
+    "CentralAudit": [
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T179@100:-1727.5,72.0,1216.5;source=SERVER_DEFAULT_WAYPOINT:MICHEL_DELVING",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "hobbit",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T164@100:13504.5,64.0,576.5;source=SERVER_DEFAULT_WAYPOINT:BREE",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "bree",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T116@100:11200.5,64.0,-9919.5;source=SERVER_DEFAULT_WAYPOINT:FORNOST",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "dunedain",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T108@100:-21567.5,97.0,-7487.5;source=SERVER_DEFAULT_WAYPOINT:THORIN_HALLS",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "bluemountains",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T101@100:-17983.5,68.0,-1599.5;source=SERVER_DEFAULT_WAYPOINT:MITHLOND_NORTH",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "highelves",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T068@100:49344.5,233.0,-17599.5;source=SERVER_DEFAULT_WAYPOINT:MOUNT_GUNDABAD",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "gundabad",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T040@100:25664.5,148.0,-28991.5;source=SERVER_DEFAULT_WAYPOINT:CARN_DUM",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "angmar",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T100@100:78144.5,74.0,-12351.5;source=SERVER_DEFAULT_WAYPOINT:THRANDUIL_HALLS",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "woodelf",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T246@100:67776.5,119.0,21056.5;source=SERVER_DEFAULT_WAYPOINT:DOL_GULDUR",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "dolguldur",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T087@100:83776.5,68.0,-14655.5;source=SERVER_DEFAULT_WAYPOINT:DALE_CITY",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "dale",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T075@100:83648.5,78.0,-15423.5;source=SERVER_DEFAULT_WAYPOINT:EREBOR",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "durinsfolk",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T237@100:55360.5,121.0,22080.5;source=SERVER_DEFAULT_WAYPOINT:CARAS_GALADHON",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "lothlorien",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T320@100:34240.5,76.0,47168.5;source=SERVER_DEFAULT_WAYPOINT:WULFBURG",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "dunland",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T315@100:37440.5,72.0,42496.5;source=SERVER_DEFAULT_WAYPOINT:ISENGARD",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "isengard",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T300@100:45248.5,68.0,38464.5;source=SERVER_DEFAULT_WAYPOINT:DERNDINGLE",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "fangorn",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T348@100:48704.5,72.0,53568.5;source=SERVER_DEFAULT_WAYPOINT:EDORAS",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "rohan",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T388@100:78016.5,71.0,66240.5;source=SERVER_DEFAULT_WAYPOINT:MINAS_TIRITH",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "gondor",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T378@100:97728.5,84.0,59712.5;source=SERVER_DEFAULT_WAYPOINT:BARAD_DUR",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "mordor",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T255@100:121408.5,64.0,26816.5;source=SERVER_DEFAULT_WAYPOINT:DORWINION_COURT",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "dorwinion",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T292@100:135360.5,70.0,32576.5;source=SERVER_DEFAULT_WAYPOINT:RHUN_CAPITAL",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "rhudel",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T470@100:51776.5,69.0,122816.5;source=SERVER_DEFAULT_WAYPOINT:UMBAR_CITY",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "harad",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T516@100:105920.5,65.0,185152.5;source=SERVER_DEFAULT_WAYPOINT:GREAT_PLAINS_EAST",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "morwaith",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T591@100:73024.5,71.0,272832.5;source=SERVER_DEFAULT_WAYPOINT:JUNGLE_CITY_CAPITAL",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "taurethrim",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "old=none;new=T587@100:146240.5,90.0,273088.5;source=SERVER_DEFAULT_WAYPOINT:SHADOW_POINT",
+        "Actor": "SERVER",
+        "Domain": "CAPITAL",
+        "Timestamp": 1791418120096,
+        "Subject": "halftroll",
+        "Reason": "Fresh schema-4 capital default"
+      },
+      {
+        "Action": "WORLD_BOUND",
+        "Details": "active population.hoursPerPopulationPoint=10.00, population.capturedBuildMultiplier=0.50, population.bottleneckRatePerActiveServerDay=0.10, population.pauseRateCeilingWhenNoPendingHours=true, population.recruitmentTileActiveRateThreshold=5.00, population.populationCapEnabled=false, population.populationCapValue=TBD, population.populationCapCenti=TBD, dailyBatch.timezone=America/Chicago",
+        "Actor": "SERVER",
+        "Domain": "CONFIG",
+        "Timestamp": 1791418121088,
+        "Subject": "kome.cfg",
+        "Reason": "Validated configuration bound to initialized world"
+      },
+      {
+        "Action": "INITIALIZE",
+        "Details": "ceiling=0;lastLiveBoundary=2026-10-07T01:00:00Z;schedule=America/Chicago@20:00;offlineDevelopment=false",
+        "Actor": "SERVER",
+        "Domain": "POPULATION_DEVELOPMENT",
+        "Timestamp": 1791418120057,
+        "Subject": "2026-10-08T00:08:40.057Z",
+        "Reason": "Population development initialize"
+      },
+      {
+        "Action": "INITIALIZED",
+        "Details": "schedule=America/Chicago@20:00; hoursPerPoint=10.00; capturedMultiplier=0.50; capEnabled=false; cap=TBD; catchUp=true; rateUnitsPerCenti=10000; Fresh anchor; no historical payout",
+        "Actor": "SERVER",
+        "Domain": "POPULATION",
+        "Timestamp": 1791418120057,
+        "Subject": "2026-10-08T00:08:40.057Z",
+        "Reason": "Population INITIALIZED"
+      },
+      {
+        "Action": "OWNERSHIP_CHANGE",
+        "Details": "-> gondor",
+        "Actor": "",
+        "Domain": "TILE",
+        "Timestamp": 18293,
+        "Subject": "T401",
+        "Reason": "Tile ownership changed"
+      },
+      {
+        "Action": "WORLD_BOUND",
+        "Details": "active population.hoursPerPopulationPoint=10.00, population.capturedBuildMultiplier=0.50, population.bottleneckRatePerActiveServerDay=0.10, population.pauseRateCeilingWhenNoPendingHours=true, population.recruitmentTileActiveRateThreshold=5.00, population.populationCapEnabled=false, population.populationCapValue=TBD, population.populationCapCenti=TBD, dailyBatch.timezone=America/Chicago",
+        "Actor": "SERVER",
+        "Domain": "CONFIG",
+        "Timestamp": 1791419695065,
+        "Subject": "kome.cfg",
+        "Reason": "Validated configuration bound to initialized world"
+      },
+      {
+        "Action": "REGISTER",
+        "Details": ";approvedHours=0.00;type=NORMAL;populationFaction=gondor;tile=T401",
+        "Actor": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "Domain": "BUILD",
+        "Timestamp": 1791420346203,
+        "Subject": "B1",
+        "Reason": "Build registered"
+      },
+      {
+        "Action": "SUBMIT",
+        "Details": "contribution=H1;status=PENDING;hours=1.00;approvedCentiHoursDelta=0;approvedHours=0.00;type=NORMAL;populationFaction=gondor;tile=T401",
+        "Actor": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "Domain": "BUILD",
+        "Timestamp": 1791420346203,
+        "Subject": "B1",
+        "Reason": "Initial submission"
+      },
+      {
+        "Action": "APPROVE",
+        "Details": "contribution=H1;status=APPROVED;priorHours=1.00;hours=1.00;approvedCentiHoursDelta=100;approvedHours=1.00;type=NORMAL;populationFaction=gondor;tile=T401",
+        "Actor": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "Domain": "BUILD",
+        "Timestamp": 1791420346203,
+        "Subject": "B1",
+        "Reason": "Manager contribution approved immediately"
+      },
+      {
+        "Action": "WORLD_BOUND",
+        "Details": "active population.hoursPerPopulationPoint=10.00, population.capturedBuildMultiplier=0.50, population.bottleneckRatePerActiveServerDay=0.10, population.pauseRateCeilingWhenNoPendingHours=true, population.recruitmentTileActiveRateThreshold=5.00, population.populationCapEnabled=false, population.populationCapValue=TBD, population.populationCapCenti=TBD, dailyBatch.timezone=America/Chicago",
+        "Actor": "SERVER",
+        "Domain": "CONFIG",
+        "Timestamp": 1791423492147,
+        "Subject": "kome.cfg",
+        "Reason": "Validated configuration bound to initialized world"
+      },
+      {
+        "Action": "STARTUP_SKIP",
+        "Details": "ceiling=0;lastLiveBoundary=2026-10-08T01:00:00Z;schedule=America/Chicago@20:00;offlineDevelopment=false",
+        "Actor": "SERVER",
+        "Domain": "POPULATION_DEVELOPMENT",
+        "Timestamp": 1791423492101,
+        "Subject": "2026-10-08T01:38:12.101Z",
+        "Reason": "Population development startup_skip"
+      },
+      {
+        "Action": "FROZEN",
+        "Details": "schedule=America/Chicago@20:00; hoursPerPoint=10.00; capturedMultiplier=0.50; capEnabled=false; cap=TBD; catchUp=true; rateUnitsPerCenti=10000; phase=MAINTENANCE; no accrual; prior remainders preserved",
+        "Actor": "SERVER",
+        "Domain": "POPULATION",
+        "Timestamp": 1791421200000,
+        "Subject": "2026-10-08T01:00:00Z",
+        "Reason": "Population FROZEN"
+      },
+      {
+        "Action": "BLOCKED",
+        "Details": "boundary=-1",
+        "Actor": "system",
+        "Domain": "DAILY",
+        "Timestamp": 1791424104877,
+        "Subject": "MOVEMENT",
+        "Reason": "MOVEMENT_INTEGRATION_PENDING_KOM48: canonical KOM-47 authority is available; coordinator adapter pending; existing movement runtime retained"
+      },
+      {
+        "Action": "REMOVED",
+        "Details": "Population remains permanently spent",
+        "Actor": "",
+        "Domain": "UNIT",
+        "Timestamp": 1791424108973,
+        "Subject": "869334e0-706c-4d84-96f9-3ddb101a72a4",
+        "Reason": "Unit died"
+      },
+      {
+        "Action": "RESET_OWNERSHIP",
+        "Details": "",
+        "Actor": "system",
+        "Domain": "SEASON",
+        "Timestamp": 1791425306486,
+        "Subject": "season:1",
+        "Reason": "Restored canonical ownership defaults"
+      },
+      {
+        "Action": "COMPANY_RETURN",
+        "Details": "season=1;origin=T348;destination=T388;native=gondor",
+        "Actor": "system",
+        "Domain": "SEASON",
+        "Timestamp": 1791425306486,
+        "Subject": "C-mounted-acceptance-safe",
+        "Reason": "Outside native territory after ownership reset"
+      }
+    ],
+    "FactionPopulationBanks": null
+  },
+  "result": "Native authoritative season reset returned the same mounted rider/horse to T388 with 3.25/7.125 HP in the immediate server-thread observation.",
+  "limits": "One authenticated client connected; direct-API fixture, not a paid hire. Later ordinary runtime observations reached 20/20 HP; unchanged partial HP is not claimed after elapsed play. Human return observation, restart recovery and multiplayer are separate checks.",
+  "serialized_root_sections": {
+    "before": 78,
+    "after": 78
+  },
+  "files": {
+    "mounted-before-reconciliation.nbt": "6e3a22b110b7410ff9adade4e9a9c7877e1a991ad80216b708e06a2a9aa86ac0",
+    "mounted-reset-before.nbt": "d5f993d0360c762660f63ccee6f84b220df78a9c8fb60615760fb4187271270f",
+    "mounted-reset-after.nbt": "658ea169728ce3fe5fc291edfde1749af7cb4032df18b21660687f3355373670",
+    "MountedAcceptanceProbeV8.java": "5edb8b2a2680c880ee66e6d6d557cd6372eae9d89b8ed6dedb35e9bd954cce6d",
+    "MountedAcceptanceProbeV8.jar": "6925f6a7a45bd6597f99932413d324d3b16669b0213ede4b506832e9b1cc5241"
+  }
+}

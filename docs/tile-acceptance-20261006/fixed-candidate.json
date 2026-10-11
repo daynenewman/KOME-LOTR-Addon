@@ -1,0 +1,137 @@
+{
+  "sourceBase": "4b55b59e923028a9ed59233176e41235846efece",
+  "patchSha256": "84a44f1a31034674f7485f04f63deb7bcd8332ec86521daa52b1a8cc78520a64",
+  "baselineJarSha256": "87b5aad2b055206f64cf5818c8b2d4a1fee3fd2a9bbca609decb9b17acd921c2",
+  "fixedJarSha256": "9b267eb7c19f5cdd5f60a64c6db4927fb991bd640aaa27ab40e6726517c4ef61",
+  "changedPackagedEntries": [
+    "kome/core/KOMEFactionTitleOptionsTransformer.class"
+  ],
+  "unchangedOtherEntries": true,
+  "java8Classes": 1972,
+  "focusedTests": {
+    "tests": 49,
+    "passed": 49,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "reports": [
+      {
+        "name": "kome.client.gui.KOMEGuiBuildInteractionTest",
+        "tests": "5",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-10-07T02:14:47",
+        "hostname": "DAYNEPC",
+        "time": "0.053"
+      },
+      {
+        "name": "kome.client.KOMECurrentTileHudTest",
+        "tests": "17",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-10-07T02:14:41",
+        "hostname": "DAYNEPC",
+        "time": "5.888"
+      },
+      {
+        "name": "kome.client.KOMEFactionTitleClientBridgeTest",
+        "tests": "3",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-10-07T02:14:47",
+        "hostname": "DAYNEPC",
+        "time": "0.004"
+      },
+      {
+        "name": "kome.client.KOMETileClientAdapterTest",
+        "tests": "2",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-10-07T02:14:47",
+        "hostname": "DAYNEPC",
+        "time": "0.041"
+      },
+      {
+        "name": "kome.core.KOMEFactionTitleOptionsTransformerTest",
+        "tests": "2",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-10-07T02:14:41",
+        "hostname": "DAYNEPC",
+        "time": "0.032"
+      },
+      {
+        "name": "kome.core.KOMEFactionTitleTransformerTest",
+        "tests": "1",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-10-07T02:14:47",
+        "hostname": "DAYNEPC",
+        "time": "0.008"
+      },
+      {
+        "name": "kome.integration.CharacterCreationIsolationTest",
+        "tests": "19",
+        "skipped": "0",
+        "failures": "0",
+        "errors": "0",
+        "timestamp": "2026-10-07T02:14:47",
+        "hostname": "DAYNEPC",
+        "time": "0.437"
+      }
+    ]
+  },
+  "regressionBeforeFix": {
+    "tests": 2,
+    "passed": 1,
+    "failed": 1,
+    "nativeProductionSrgNames": true
+  },
+  "nativeClientClassLoadVerified": true,
+  "humanOptionsAndRespawnAcceptance": {
+    "respawn": "PASS user-confirmed T401 and native fresh RESPawn callback",
+    "menu": "PASS user confirmed Menu opens normally",
+    "optionsButtonInteraction": "unverified",
+    "mapOpening": "PASS user confirmed Map and tile borders appear normally"
+  },
+  "matchingJarHashesVerified": true,
+  "nativeKillCommandExecutedNonOperator": true,
+  "serverProcess": {
+    "pid": 35036,
+    "controller": 2360,
+    "cycle": "fixed",
+    "args": [
+      "C:\\Users\\dayne\\Documents\\KOME-Validation\\tile-resolution-20260918-200409-d095d7\\server\\java8\\bin\\java.exe",
+      "-Xms256M",
+      "-Xmx1280M",
+      "-Djava.awt.headless=true",
+      "-jar",
+      "forge-1.7.10-10.13.4.1614-1.7.10-universal.jar",
+      "nogui"
+    ],
+    "cwd": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\tile-acceptance-20261006\\server"
+  },
+  "clientProcessId": 31516,
+  "nativePlayerRemoval": "NO_LONGER_RELEVANT, NOT_TRACKED, absent observation after vanilla kill",
+  "nativeHumanRespawnVerified": true,
+  "testToolingSha256": {
+    "AcceptanceRespawnProbe.java": "e3ddee19ffe976cd0a71de168d6043f76ba00963545acc4775a240454f125541",
+    "AcceptanceRespawnProbe.jar": "4079a6ce28139353e28d08cf217404d29d0ca089c841528ccfefe34acdcbcb70",
+    "ClientOptionsVerificationProbe.java": "24e5fca3f1ed494342e2dacd6c0a8ea994f64eca3230bcbfbf4072c4b43984ef",
+    "ClientOptionsVerificationProbe.jar": "61cb3dc7c2424f88f15ae75f3b35bd1fe676899e7cc561f0b89e9986952fc07c",
+    "AwarenessProbeV2.jar": "51940c8d7971fc2710fc35acfb2aeba74e8c8eeb0ab16bb6562087520c343131",
+    "controller.py": "208328ae5eedb3272bfea58b573d433d8300397996dea6e9d526f024932e76c8"
+  },
+  "respawnNativeEvidence": "Tue Oct 06 21:21:25 CDT 2026 EVENT thread=Server thread id=a976a4b7-0614-49c0-b992-61a3a89bd773 kind=PLAYER type=INITIALIZED cause=RESPAWN previous={absent} current={session=1 incarnation=3 tick=4705 x=237248.5 z=87295.5 location=[RESOLVED dimension=100 world=237248,87295 mask=2663,1411 tile=T401 (Exact cell; capturability unknown)]} query=AVAILABLE queryObservation={session=1 incarnation=3 tick=4705 x=237248.5 z=87295.5 location=[RESOLVED dimension=100 world=237248,87295 mask=2663,1411 tile=T401 (Exact cell; capturability unknown)]} matchingTokens=true strategicMutation=NONE",
+  "mapHoverAcceptance": "PASS user-confirmed everything looked good; exact observed zoom not independently captured; scales/resizing/click selection remain pending",
+  "mapFpsSamplingPhase": "map-hover-fixed",
+  "mapCurrentFpsEvidence": "map-current-fps.json",
+  "nativeBuildCoordinateRejectionEvidence": "build-coordinate-rejection.json",
+  "connectedPopulatedPerformanceEvidence": "connected-populated-performance.json"
+}

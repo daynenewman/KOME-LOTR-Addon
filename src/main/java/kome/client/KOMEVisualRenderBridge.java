@@ -19,11 +19,13 @@ import org.lwjgl.opengl.GL11;
 
 /** Rendering adapter invoked from LOTR's native overhead and main-map passes. */
 public final class KOMEVisualRenderBridge {
+    static final int GL_QUERY_FLOATS=16; // LWJGL 2 requires 16 even for GL_CURRENT_COLOR's four values.
     private static Method transformCoords, drawFancyRect;
     private static Field hasOverlay, mapXMin, mapXMax, mapYMin, mapYMax;
     private static boolean reflectionAttempted;
     private static Method nativeRelationshipRenderer, nativeSpeechDisplacement;
     private static boolean nativeRendererAttempted;
+    private static boolean nativeRendererFailureReported;
     private static final ThreadLocal<ItemStack> RELATIONSHIP_ICON = new ThreadLocal<ItemStack>();
 
     private KOMEVisualRenderBridge() { }
@@ -38,7 +40,7 @@ public final class KOMEVisualRenderBridge {
             marker=new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,npc.getUniqueID().toString(),"","",minecraft.thePlayer.dimension,npc.posX,npc.posY,npc.posZ);
         if (marker == null) return;
         if (LOTRSpeechClient.hasSpeech(npc)) y += speechDisplacement(npc);
-        invokeNativeRelationshipRenderer(npc, icon(marker.role), x, y, z);
+        invokeNativeRelationshipRenderer(npc, icon(marker), x, y, z);
     }
 
     static KOMEVisualMarker overheadFor(String entityUuid,int dimension) {
@@ -80,20 +82,58 @@ public final class KOMEVisualRenderBridge {
     }
 
     public static ItemStack relationshipIconForNative() { return RELATIONSHIP_ICON.get(); }
+    public static boolean nearRelationshipIndicator(boolean nativeNear){
+        ItemStack stack=RELATIONSHIP_ICON.get();
+        // A static pouch uses LOTR's native billboard path; its map silhouette stays readable nearby.
+        return nativeNear&&(stack==null||!(stack.getItem() instanceof lotr.common.item.LOTRItemPouch));
+    }
     public static net.minecraft.util.IIcon itemIcon(ItemStack stack) {
         return stack==null?null:stack.getItem().getIcon(stack,0);
+    }
+    /** Native overhead geometry/fading with the pouch's normal two texture/color passes. */
+    public static void renderRelationshipIcon(RenderItem renderer,int x,int y,net.minecraft.util.IIcon icon,int width,int height){
+        ItemStack stack=RELATIONSHIP_ICON.get();
+        if(stack==null||!(stack.getItem() instanceof lotr.common.item.LOTRItemPouch)){renderer.renderIcon(x,y,icon,width,height);return;}
+        java.nio.FloatBuffer color=org.lwjgl.BufferUtils.createFloatBuffer(GL_QUERY_FLOATS);GL11.glGetFloat(GL11.GL_CURRENT_COLOR,color);float alpha=color.get(3);
+        GL11.glPushAttrib(GL11.GL_CURRENT_BIT);
+        try{for(int pass=0;pass<2;pass++){
+            int rgb=stack.getItem().getColorFromItemStack(stack,pass);
+            GL11.glColor4f(((rgb>>16)&255)/255F,((rgb>>8)&255)/255F,(rgb&255)/255F,alpha);
+            renderer.renderIcon(x,y,stack.getItem().getIcon(stack,pass),width,height);
+        }}finally{GL11.glPopAttrib();}
+    }
+    /** Close-up native indicators spin as extruded items, using the same two pouch passes. */
+    public static void renderRelationshipItemIn2D(net.minecraft.client.renderer.Tessellator t,float maxU,float minV,float minU,float maxV,int width,int height,float thickness){
+        ItemStack stack=RELATIONSHIP_ICON.get();
+        if(stack==null||!(stack.getItem() instanceof lotr.common.item.LOTRItemPouch)){
+            net.minecraft.client.renderer.ItemRenderer.renderItemIn2D(t,maxU,minV,minU,maxV,width,height,thickness);return;
+        }
+        java.nio.FloatBuffer color=org.lwjgl.BufferUtils.createFloatBuffer(GL_QUERY_FLOATS);GL11.glGetFloat(GL11.GL_CURRENT_COLOR,color);float alpha=color.get(3);
+        GL11.glPushAttrib(GL11.GL_CURRENT_BIT);
+        try{for(int pass=0;pass<2;pass++){
+            int rgb=stack.getItem().getColorFromItemStack(stack,pass);net.minecraft.util.IIcon icon=stack.getItem().getIcon(stack,pass);
+            GL11.glColor4f(((rgb>>16)&255)/255F,((rgb>>8)&255)/255F,(rgb&255)/255F,alpha);
+            net.minecraft.client.renderer.ItemRenderer.renderItemIn2D(t,icon.getMaxU(),icon.getMinV(),icon.getMinU(),icon.getMaxV(),icon.getIconWidth(),icon.getIconHeight(),thickness);
+        }}finally{GL11.glPopAttrib();}
     }
 
     private static void invokeNativeRelationshipRenderer(LOTREntityNPC npc, ItemStack stack,
             double x, double y, double z) {
         if (stack == null || !prepareNativeRenderer()) return;
+        int matrixMode=GL11.glGetInteger(GL11.GL_MATRIX_MODE);
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        int matrixDepth=GL11.glGetInteger(GL11.GL_MODELVIEW_STACK_DEPTH);
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT|GL11.GL_CURRENT_BIT|GL11.GL_COLOR_BUFFER_BIT|GL11.GL_TEXTURE_BIT|GL11.GL_DEPTH_BUFFER_BIT);
         RELATIONSHIP_ICON.set(stack);
         try {
             nativeRelationshipRenderer.invoke(null, npc, x, y, z);
-        } catch (Throwable ignored) {
-            // The unmodified native quest indicator remains safe if another coremod changes this class.
+        } catch (Throwable failure) {
+            if(!nativeRendererFailureReported){nativeRendererFailureReported=true;cpw.mods.fml.common.FMLLog.log(org.apache.logging.log4j.Level.ERROR,failure,"KOME native relationship indicator failed");}
         } finally {
             RELATIONSHIP_ICON.remove();
+            GL11.glMatrixMode(GL11.GL_MODELVIEW);
+            while(GL11.glGetInteger(GL11.GL_MODELVIEW_STACK_DEPTH)>matrixDepth)GL11.glPopMatrix();
+            GL11.glPopAttrib();GL11.glMatrixMode(matrixMode);
         }
     }
 
@@ -128,7 +168,7 @@ public final class KOMEVisualRenderBridge {
                     Math.min(mapXMax.getInt(null) - half - 2, x));
                 y = Math.max(mapYMin.getInt(null) + half + 1,
                     Math.min(mapYMax.getInt(null) - half - 2, y));
-                drawMapItem(icon(marker.role), x, y);
+                if(isDestination(marker))drawDestinationShield(x,y);else drawMapItem(icon(marker), x, y);
                 if(KOMEProgressionMapFocus.isFocused(marker)){
                     GuiScreen.drawRect(x-7,y-7,x+7,y-6,0xFFFFD15A);GuiScreen.drawRect(x-7,y+6,x+7,y+7,0xFFFFD15A);
                     GuiScreen.drawRect(x-7,y-7,x-6,y+7,0xFFFFD15A);GuiScreen.drawRect(x+6,y-7,x+7,y+7,0xFFFFD15A);
@@ -163,6 +203,23 @@ public final class KOMEVisualRenderBridge {
         GL11.glPopMatrix();
     }
 
+    static ItemStack icon(KOMEVisualMarker marker) {
+        return icon(marker.role);
+    }
+    static boolean isDestination(KOMEVisualMarker marker){return marker.role==KOMEVisualMarker.Role.ESCORT&&marker.entityUuid.isEmpty();}
+    static net.minecraft.util.ResourceLocation destinationShieldTexture(){return lotr.common.LOTRShields.ACHIEVEMENT_BRONZE.getTexture();}
+    private static void drawDestinationShield(int x,int y){
+        GL11.glPushAttrib(GL11.GL_CURRENT_BIT|GL11.GL_ENABLE_BIT|GL11.GL_TEXTURE_BIT|GL11.GL_COLOR_BUFFER_BIT);
+        try{
+            GL11.glColor4f(1,1,1,1);GL11.glEnable(GL11.GL_BLEND);GL11.glEnable(GL11.GL_ALPHA_TEST);
+            GL11.glBlendFunc(GL11.GL_SRC_ALPHA,GL11.GL_ONE_MINUS_SRC_ALPHA);
+            Minecraft.getMinecraft().getTextureManager().bindTexture(destinationShieldTexture());
+            net.minecraft.client.renderer.Tessellator t=net.minecraft.client.renderer.Tessellator.instance;
+            // v36.15 packs front/back faces side by side. Sample the native front shield.
+            t.startDrawingQuads();t.addVertexWithUV(x-5,y+5,0,0,1);t.addVertexWithUV(x+5,y+5,0,0.5,1);
+            t.addVertexWithUV(x+5,y-5,0,0.5,0);t.addVertexWithUV(x-5,y-5,0,0,0);t.draw();
+        }finally{GL11.glPopAttrib();}
+    }
     static ItemStack icon(KOMEVisualMarker.Role role) {
         if(role==KOMEVisualMarker.Role.MASTER_GIFT&&lotr.common.LOTRMod.pouch!=null)return new ItemStack(lotr.common.LOTRMod.pouch,1,1);
         if (role == KOMEVisualMarker.Role.RULER)
@@ -205,6 +262,7 @@ public final class KOMEVisualRenderBridge {
     private static boolean prepareReflection(Class<?> mapClass) {
         if (reflectionAttempted) return transformCoords != null;
         reflectionAttempted = true;
+        mapClass=lotr.client.gui.LOTRGuiMap.class;
         try {
             transformCoords = mapClass.getDeclaredMethod("transformCoords", float.class, float.class);
             transformCoords.setAccessible(true);

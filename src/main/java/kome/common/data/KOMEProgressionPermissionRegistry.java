@@ -21,9 +21,9 @@ public final class KOMEProgressionPermissionRegistry {
         gate(gates,"baseline.meat","Meat consumption","KOMEEvents item-use gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.miniquests","Legacy mini-quest milestone","No gameplay gate",Status.INFORMATIONAL);
         gate(gates,"baseline.mounts","Mount use","KOMEEvents mount gate",Status.CANONICAL_ENFORCED);
-        gate(gates,"baseline.npc_trade","NPC trading","KOMEEvents container gate",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.npc_trade","Native NPC trading","Retained legacy identifier; native LOTR eligibility",Status.OBSOLETE);
         gate(gates,"baseline.pledge","Pledging to a faction","KOMEProgressionLords",Status.CANONICAL_ENFORCED);
-        gate(gates,"baseline.pouches","Pouch use","KOMEEvents interaction/container gate",Status.CANONICAL_ENFORCED);
+        gate(gates,"baseline.pouches","Native pouch use","Retained legacy identifier; native LOTR rules",Status.OBSOLETE);
         gate(gates,"baseline.stonework","Stone tools","KOMEGearRestrictionService action/crafting gate",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.fast_travel","Fast travel","KOMEWaypointAccessService",Status.CANONICAL_ENFORCED);
         gate(gates,"baseline.take_waypoints","Hostile waypoint/tile capture","KOMEPacketConquestClaim",Status.CANONICAL_ENFORCED);

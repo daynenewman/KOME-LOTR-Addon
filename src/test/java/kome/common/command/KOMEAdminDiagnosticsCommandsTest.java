@@ -51,7 +51,7 @@ public class KOMEAdminDiagnosticsCommandsTest {
     @Test public void rootRejectsAllNewAdminPathsBeforeReadingWorld() {
         ICommandSender sender = sender(false, new ArrayList<String>());
         KOMECommandKome root = new KOMECommandKome();
-        for (String domain : new String[] {"population", "ruler", "capital", "diplomacy", "ownership", "waypoint"})
+        for (String domain : new String[] {"population", "ruler", "capital", "diplomacy", "ownership", "waypoint", "governance", "muster", "daily", "company", "gate"})
             denied(() -> root.processCommand(sender, new String[] {"diagnostics", domain, "gondor"}));
         denied(() -> root.processCommand(sender, new String[] {"repair", "preview", "ownership", "T100"}));
         denied(() -> root.processCommand(sender, new String[] {"repair", "apply", "token"}));
@@ -74,11 +74,11 @@ public class KOMEAdminDiagnosticsCommandsTest {
                 "emergencydefense inspect <faction>", "repair conflict <tile> <preview|apply>",
                 "audit <list|summary> [page]", "repair stewardship",
                 "repair war", "progression cooldown", "progression relationship"}) assertTrue(part, usage.contains(part));
-        completion(root, staff, new String[] {""}, "gui", "help", "tile", "waypoint", "character", "config",
+        completion(root, staff, new String[] {""}, "gui", "help", "tile", "joinbattle", "battle", "waypoint", "character", "config",
             "conquest", "waypointdefaults", "adminmarkers", "capital", "ruler", "audit", "diagnostics",
             "conflict", "emergencydefense", "repair", "progression");
         completion(root, staff, new String[] {"repair", ""}, "preview", "apply", "conflict", "stewardship", "war");
-        completion(root, staff, new String[] {"diagnostics", ""}, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint");
+        completion(root, staff, new String[] {"diagnostics", ""}, "population", "ruler", "capital", "diplomacy", "ownership", "waypoint", "governance", "muster", "daily", "company", "gate");
         completion(root, staff, new String[] {"repair", "preview", ""}, "ownership", "diplomacy", "ruler", "waypoint");
         completion(root, staff, new String[] {"repair", "conflict", "T100", ""}, "preview", "apply");
         completion(root, staff, new String[] {"conflict", ""}, "inspect", "end");
@@ -95,7 +95,7 @@ public class KOMEAdminDiagnosticsCommandsTest {
         KOMEWar war = new KOMEWar(); war.id = "W1"; fixture.data.wars.put(war.id, war);
         completion(root, fixture.player, new String[] {"repair", "war", ""}, "W1");
         ICommandSender ordinary = sender(false, new ArrayList<String>());
-        completion(root, ordinary, new String[] {""}, "gui", "help", "tile", "waypoint");
+        completion(root, ordinary, new String[] {""}, "gui", "help", "tile", "joinbattle", "battle", "waypoint");
         assertFalse(root.getCommandUsage(ordinary).contains("diagnostics"));
     }
 
@@ -138,6 +138,53 @@ public class KOMEAdminDiagnosticsCommandsTest {
             runRoot(root, fixture, "progression", "cooldown", "on");
             assertFalse(KOMESerfKnightCadenceOverride.isEnabled(fixture.player.id));
         } finally { KOMESerfKnightCadenceOverride.clear(fixture.player.id); }
+    }
+
+    @Test public void lifecycleInspectionUsesActualRootWithoutMutationOrUnloadedWorldAccess() throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            kome.common.KOMEAccessFixture fixture = new kome.common.KOMEAccessFixture(); fixture.player.operator = true;
+            KOMEWorldData data = fixture.data; data.initializeIntegratedWorld();
+            KOMEArmyCompany company = new KOMEArmyCompany(); company.id = "C1"; company.faction = "gondor";
+            company.currentTile = "T100"; company.owner = fixture.player.getUniqueID(); data.armyCompanies.put("C1", company);
+            KOMEPlayerBuild build = new KOMEPlayerBuild(); build.id = "B1"; build.tileId = "T100";
+            build.populationFaction = "gondor"; build.type = KOMEBuildType.NORMAL; data.builds.put("B1", build);
+            net.minecraft.nbt.NBTTagCompound before = new net.minecraft.nbt.NBTTagCompound(); data.writeToNBT(before);
+            KOMECommandKome root = new KOMECommandKome();
+            for (String[] args : new String[][] {{"diagnostics", "daily", "status"}, {"diagnostics", "muster", "gondor"},
+                    {"diagnostics", "governance", fixture.player.getUniqueID().toString()}, {"diagnostics", "company", "C1"}, {"diagnostics", "gate", "B1"}}) {
+                List<String> output = runRoot(root, fixture, args);
+                assertFalse(output.isEmpty()); assertTrue(output.size() <= KOMEAdminDiagnostics.MAX_LINES);
+                for (String line : output) assertTrue(line.length() <= KOMEAdminDiagnostics.MAX_LINE_LENGTH);
+            }
+            assertTrue(runRoot(root, fixture, "diagnostics", "daily", "status").stream().anyMatch(s -> s.contains("MOVEMENT_INTEGRATION_PENDING_KOM48")));
+            assertTrue(runRoot(root, fixture, "diagnostics", "company", "C1").stream().anyMatch(s -> s.contains("Coherence=INCOHERENT")));
+            assertTrue(runRoot(root, fixture, "diagnostics", "company", "C1").stream().anyMatch(s -> s.contains("Cached physical observations")));
+            net.minecraft.nbt.NBTTagCompound after = new net.minecraft.nbt.NBTTagCompound(); data.writeToNBT(after);
+            assertEquals(before, after);
+            assertFalse(runRoot(root, fixture, "repair", "preview", "company", "C1").get(0).contains("apply /kome"));
+        }
+    }
+
+    @Test public void companyDiagnosticsExposeBoundedCanonicalIssuesWithoutRepairOrWorldAccess() throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            kome.common.KOMEAccessFixture fixture = new kome.common.KOMEAccessFixture(); fixture.player.operator = true;
+            KOMEWorldData data = fixture.data; data.initializeIntegratedWorld();
+            KOMEArmyCompany company = new KOMEArmyCompany(); company.id = "C-inspect";
+            company.owner = fixture.player.id; company.faction = company.nativeFaction = "gondor";
+            company.currentTile = "T100"; company.movementAllowanceInitialized = true; company.movementAllowance = 1;
+            for (int i = 0; i < 31; i++) company.units.add(java.util.UUID.randomUUID());
+            data.armyCompanies.put(company.id, company);
+            net.minecraft.nbt.NBTTagCompound before = new net.minecraft.nbt.NBTTagCompound(); data.writeToNBT(before);
+            List<String> output = runRoot(new KOMECommandKome(), fixture, "diagnostics", "company", company.id);
+            assertTrue(output.stream().anyMatch(s -> s.contains("Movement credit=1;entitlement=1")));
+            assertTrue(output.stream().anyMatch(s -> s.contains("MISSING_UNIT_RECORD")));
+            assertTrue(output.stream().anyMatch(s -> s.contains("Additional coherence issues omitted=")));
+            assertTrue(output.stream().anyMatch(s -> s.contains("Missing entities are not proof of death")));
+            assertTrue(output.size() <= KOMEAdminDiagnostics.MAX_LINES);
+            for (String line : output) assertTrue(line.length() <= KOMEAdminDiagnostics.MAX_LINE_LENGTH);
+            net.minecraft.nbt.NBTTagCompound after = new net.minecraft.nbt.NBTTagCompound(); data.writeToNBT(after);
+            assertEquals(before, after);
+        }
     }
 
     @Test public void legacyRulerNameRepairStillPreviewsUntilExplicitTokenApply() throws Exception {

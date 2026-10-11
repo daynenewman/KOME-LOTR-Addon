@@ -375,6 +375,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             return;
         }
         LOTRGuiMap map = (LOTRGuiMap) screen;
+        if (KOMEProgressionMapFocus.isObjectiveView(map)) return;
         if (shouldSkipMap(map)) {
             return;
         }

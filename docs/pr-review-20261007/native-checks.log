@@ -1,0 +1,21 @@
+Wed Oct 07 19:09:36 CDT 2026 CONTROL RESOLVED dimension=100 world=237248,87295 mask=2663,1411 tile=T401 (Exact cell; capturability unknown)
+Wed Oct 07 19:09:36 CDT 2026 CONTROL RESOLVED dimension=100 world=237248,87296 mask=2663,1412 tile=T442 (Exact cell; capturability unknown)
+Wed Oct 07 19:09:36 CDT 2026 CONTROL IN_BOUNDS_GAP dimension=100 world=34944,640 mask=1083,735 (Exact cell is an unclassified gap; Validated exclusions: zones=0 cells=0)
+Wed Oct 07 19:09:36 CDT 2026 CONTROL RESOLVED dimension=100 world=189696,-86016 mask=2292,58 tile=T001 (Exact cell; capturability unknown)
+Wed Oct 07 19:09:36 CDT 2026 CONTROL OUTSIDE_MASK dimension=100 world=-10000000,-10000000 mask=-77315,-77395 (Outside authoritative mask coverage)
+Wed Oct 07 19:09:36 CDT 2026 CONTROL UNSUPPORTED_DIMENSION dimension=0 world=237248,87295 (Only the configured Middle-earth dimension is supported)
+Wed Oct 07 19:09:36 CDT 2026 PASS resolver_controls dimension=100 geometryDiagnostic=Validated tile raster 3200x4000; Validated exclusions: zones=0 cells=0
+Wed Oct 07 19:09:36 CDT 2026 PLATFORM disposable-world-only x=237244..237255 y=180 z=87290..87302 boundaryZ=87296
+Wed Oct 07 19:09:36 CDT 2026 METRIC label=idle-1 tick=1132 tracked=0 lookups=0 samples=100 meanMs=1.831214 p95Ms=1.5393 maxMs=67.3361 heapUsedBytes=620665184 maxHeapBytes=1193279488
+Wed Oct 07 19:11:25 CDT 2026 METRIC label=idle-2 tick=3307 tracked=1 lookups=1 samples=100 meanMs=2.427866 p95Ms=3.2657 maxMs=17.2678 heapUsedBytes=675924088 maxHeapBytes=1193279488
+Wed Oct 07 19:11:51 CDT 2026 STAGED_PLAYER uuid=a976a4b7-0614-49c0-b992-61a3a89bd773 nonOperatorExpected=true boundary=T401/T442
+Wed Oct 07 19:11:51 CDT 2026 PLAYER uuid=a976a4b7-0614-49c0-b992-61a3a89bd773 dimension=100 x=237248.5 y=181.0 z=87295.5
+Wed Oct 07 19:19:37 CDT 2026 FAIL command=lookup-benchmark error=java.lang.IllegalArgumentException: lookup-benchmark
+Wed Oct 07 19:20:05 CDT 2026 LOOKUP_BENCHMARK run=0 warmup=10000 count=100000 elapsedNs=28492500 nsPerCall=284.925 reflectionAndResultAllocationIncluded=true singleServerThread=true
+Wed Oct 07 19:20:06 CDT 2026 LOOKUP_BENCHMARK run=1 warmup=10000 count=100000 elapsedNs=13299000 nsPerCall=132.99 reflectionAndResultAllocationIncluded=true singleServerThread=true
+Wed Oct 07 19:20:06 CDT 2026 LOOKUP_BENCHMARK run=2 warmup=10000 count=100000 elapsedNs=23556400 nsPerCall=235.564 reflectionAndResultAllocationIncluded=true singleServerThread=true
+Wed Oct 07 19:20:06 CDT 2026 LOOKUP_BENCHMARK run=3 warmup=10000 count=100000 elapsedNs=24016500 nsPerCall=240.165 reflectionAndResultAllocationIncluded=true singleServerThread=true
+Wed Oct 07 19:20:06 CDT 2026 LOOKUP_BENCHMARK run=4 warmup=10000 count=100000 elapsedNs=22386200 nsPerCall=223.862 reflectionAndResultAllocationIncluded=true singleServerThread=true
+Wed Oct 07 19:20:06 CDT 2026 LOOKUP_HEAP beforeBytes=474296656 afterBytes=713623752 gcNotForced=true retainedSnapshotBytesNotIsolated=true
+Wed Oct 07 19:23:18 CDT 2026 FAIL command=build-setup error=java.lang.IllegalStateException: T401 is not Gondor: 
+Wed Oct 07 19:23:54 CDT 2026 BUILD_SETUP disposableCharacterOnly=true previousPledge=DALE newPledge=GONDOR tile=T401 controller=gondor operator=false builds=0

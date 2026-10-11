@@ -34,7 +34,7 @@ public final class KOMEKnightCommission {
     }
     public boolean live() { return stage==Stage.ACCEPTED || stage==Stage.ACTIVE || stage==Stage.READY_TO_REPORT; }
     public boolean atSite(int dim,double px,double pz,double radius) { return dim==dimension && square(px-x)+square(pz-z)<=radius*radius; }
-    public boolean atDestination(int dim,double px,double pz) { return dim==dimension && square(px-destinationX)+square(pz-destinationZ)<=24*24; }
+    public boolean atDestination(int dim,double px,double pz) { return dim==dimension && square(px-destinationX)+square(pz-destinationZ)<=KOMEProgressionDestinations.ARRIVAL_RADIUS*KOMEProgressionDestinations.ARRIVAL_RADIUS; }
     private static double square(double d) { return d*d; }
     public boolean allEnemiesDead() { boolean found=false; for(Actor actor:actors)if(actor.role==Role.ENEMY){found=true;if(!actor.dead)return false;}return found; }
     public boolean goodsDelivered() { if(goods.isEmpty())return false;for(Goods g:goods)if(g.delivered<g.required)return false;return true; }

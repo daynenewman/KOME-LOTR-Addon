@@ -37,7 +37,7 @@ public final class KOMEProgressionGoodsPresentation {
     }
     private static void provision(StringBuilder text,KOMESerfProvisioningAssignment.Requirement r,ItemStack[] inventory){
         int have=r.delivered;if(inventory!=null)for(ItemStack s:inventory)if(KOMESerfProvisioningService.matches(s,r))have+=s.stackSize;
-        line(text,KOMEProgressionGoodsRules.name(r.requestedStack(),r.displayName),have,r.required);
+        line(text,r.requirementName(),have,r.required);
     }
     private static void line(StringBuilder text,String name,int have,int required){text.append("\n").append(name).append(": ").append(Math.min(required,have)).append(" / ").append(required);}
     public static KOMEProgressionRankSummary enrich(KOMEProgressionRankSummary summary,KOMEPlayerProgression p,ItemStack[] inventory){

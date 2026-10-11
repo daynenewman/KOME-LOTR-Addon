@@ -257,14 +257,14 @@ public final class KOMEProgressionTrackerSnapshot {
                 return shown(
                     "escort",
                     "Meet the traveler",
-                    "0/1",
+                    "",
                     0F);
             }
 
             return shown(
                 "escort",
                 assignment.stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE?"Report to your Liege":"Escort the traveler to safety",
-                "0/1",0F);
+                "",0F);
         }
 
         if("recovery".equals(assignment.trialId)) {

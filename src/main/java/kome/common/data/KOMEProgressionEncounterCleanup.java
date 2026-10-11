@@ -13,6 +13,32 @@ import net.minecraft.world.World;
 public final class KOMEProgressionEncounterCleanup {
     private KOMEProgressionEncounterCleanup() {
     }
+    /** No actor/item became playable: release partial issuance and retain the same trial for retry. */
+    static void activationFailed(KOMEWorldData world,World liveWorld,KOMESerfKnightProgression state){
+        KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();if(world==null||trial==null)return;
+        for(java.util.Map.Entry<UUID,KOMEPlayerProgression> row:world.progressions.entrySet())if(row.getValue().getSerfKnightProgression()==state){
+            KOMESerfKnightEscortService.cleanup(liveWorld,row.getKey(),trial);
+            KOMESerfKnightRecoveryService.cleanup(liveWorld,row.getKey(),trial);
+            KOMESerfKnightDefenseService.cleanup(liveWorld,row.getKey(),trial);
+        }
+        state.retryUnfinishedTrial();
+        net.minecraft.nbt.NBTTagCompound data=(net.minecraft.nbt.NBTTagCompound)state.getTrialAssignment().data.copy();
+        long previous=trial.data.hasKey("PreviousTrialDay",99)?trial.data.getLong("PreviousTrialDay"):-1L;
+        data.setLong("PreviousTrialDay",previous);data.setBoolean("ActivationPending",true);
+        data.setLong("ActivationRetryAt",liveWorld==null?0:liveWorld.getTotalWorldTime()+100);
+        state.updateTrialAssignment(trial.withStage(KOMESerfKnightTrialAssignment.Stage.ASSIGNED,data));
+        state.setLastTrialAssignmentEpochDay(previous);
+        for(java.util.Map.Entry<UUID,KOMEPlayerProgression> row:world.progressions.entrySet())if(row.getValue().getSerfKnightProgression()==state)KOMEProgressionNpcRoles.syncPlayer(world,row.getKey());
+        world.markDirty();
+    }
+    static void activationSucceeded(KOMESerfKnightProgression state){
+        KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();
+        if(trial==null||trial.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE)return;
+        state.setLastTrialAssignmentEpochDay(KOMESerfKnightService.calendarDayNow());
+        net.minecraft.nbt.NBTTagCompound data=(net.minecraft.nbt.NBTTagCompound)trial.data.copy();
+        data.removeTag("ActivationPending");data.removeTag("ActivationRetryAt");
+        state.updateTrialAssignment(trial.withStage(trial.stage,data));
+    }
 
     /** Failed trials retain their retry/leave UI, but no temporary physical roles. */
     static void failTrial(KOMEWorldData world,World liveWorld,KOMESerfKnightProgression state) {

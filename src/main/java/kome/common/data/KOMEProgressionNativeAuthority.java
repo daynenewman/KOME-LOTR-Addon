@@ -61,14 +61,32 @@ public final class KOMEProgressionNativeAuthority {
     public static String name(String faction,KOMEProgressionNpcRank rank,String personal){
         Definition d=definition(faction);String title=d==null?rank.displayName:d.title(rank);
         lotr.common.fac.LOTRFaction nativeFaction=KOMEProgressionFactionResolver.resolve(faction);
-        String territory=nativeFaction==null?"":nativeFaction.factionName();
+        String territory=nativeFaction==null?"":KOMEProgressionIdentity.factionName(faction);
         if(personal==null||personal.trim().isEmpty())return title;
-        for(KOMEProgressionNpcRank old:KOMEProgressionNpcRank.values()){
-            String prefix=(d==null?old.displayName:d.title(old))+" ";
-            if(personal.startsWith(prefix))personal=personal.substring(prefix.length());
-        }
-        int suffix=personal.indexOf(", ");if(suffix>=0)personal=personal.substring(0,suffix);
+        personal=personalIdentity(faction,personal);
         return personal+", "+title+(territory.isEmpty()?"":" of "+territory);
+    }
+    /** Retire only our exact cultural authority suffix. Commas and epithets belong to identity. */
+    public static String personalIdentity(String faction,String personal){
+        if(personal==null)return "";
+        Definition d=definition(faction);lotr.common.fac.LOTRFaction f=KOMEProgressionFactionResolver.resolve(faction);
+        java.util.Set<String> territories=new java.util.LinkedHashSet<String>();
+        territories.add(f==null?"":KOMEProgressionIdentity.factionName(faction));
+        if(f!=null){territories.add(f.factionName());territories.add("lotr.faction."+f.codeName());
+            String english=KOMEProgressionGoodsRules.nativeText("lotr.faction."+f.codeName());if(english!=null)territories.add(english);}
+        for(KOMEProgressionNpcRank old:KOMEProgressionNpcRank.values()){
+            if(old==KOMEProgressionNpcRank.UNRANKED)continue;
+            for(String territory:territories){
+                String suffix=", "+(d==null?old.displayName:d.title(old))+(territory.isEmpty()?"":" of "+territory);
+                if(personal.endsWith(suffix))return personal.substring(0,personal.length()-suffix.length());
+            }
+        }
+        return personal;
+    }
+    /** Native formatter still owns styling; only a synchronized KOME authority name replaces occupation. */
+    public static String nativeOccupation(LOTREntityNPC npc,String personal,String occupation){
+        if(npc==null||npc.getFaction()==null||!KOMEProgressionLords.isStandingTrialLiegeCandidate(npc))return occupation;
+        return !personalIdentity(npc.getFaction().codeName(),personal).equals(personal)?personal:occupation;
     }
     /** Native family-name synchronization avoids vanilla custom-tag overhead rendering. */
     public static void applyName(LOTREntityNPC npc,KOMEProgressionNpcRankRecord record){
@@ -76,11 +94,7 @@ public final class KOMEProgressionNativeAuthority {
         if(npc.familyInfo!=null){
             if(!name.equals(npc.familyInfo.getName()))npc.familyInfo.setName(name);
             String custom=npc.getCustomNameTag();boolean owned=custom.equals(name)||custom.equals(record.displayName);
-            Definition d=definition(record.factionKey);
-            for(KOMEProgressionNpcRank rank:KOMEProgressionNpcRank.values()){
-                String title=d==null?rank.displayName:d.title(rank);
-                if(custom.startsWith(title+" ")||custom.contains(", "+title+" of "))owned=true;
-            }
+            if(!personalIdentity(record.factionKey,custom).equals(custom))owned=true;
             if(owned)npc.getDataWatcher().updateObject(10,"");
         }
     }

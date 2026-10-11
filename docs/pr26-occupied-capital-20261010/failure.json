@@ -1,0 +1,8 @@
+{
+  "candidate_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+  "production_result": "FAIL_REPRODUCED_WITH_VALID_OBSERVED_ORIGIN_LOCATOR",
+  "first_exception": "IllegalStateException: Physical locator attached to an ineligible hired-unit state",
+  "cause": "Production reset retained T348 locator after changing rider/current company tile to T388; reset intent/checkpoint serialization refused that inconsistent state.",
+  "proof": "VALID_BASELINE at 17:09:18 followed by reset failure; g5-failed-console.log and controlled-baseline.dat retained",
+  "regression": "failed-before.xml: Persist locator invalidation before relocation expected null, but was KOMEHiredUnitPhysicalLocator"
+}

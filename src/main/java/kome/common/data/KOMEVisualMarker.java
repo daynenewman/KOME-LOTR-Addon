@@ -28,6 +28,7 @@ public final class KOMEVisualMarker {
     public final String entityUuid, title, subtitle;
     public final int dimension;
     public final boolean actionable;
+    public final boolean objective;
     public final double x, y, z;
 
     public KOMEVisualMarker(Role role, String entityUuid, String title, String subtitle,
@@ -36,6 +37,12 @@ public final class KOMEVisualMarker {
     }
     public KOMEVisualMarker(Role role,String entityUuid,String title,String subtitle,int dimension,
             double x,double y,double z,boolean actionable) {
+        this(role,entityUuid,title,subtitle,dimension,x,y,z,actionable,
+            actionable&&role!=Role.MASTER_GIFT&&role!=Role.SERFDOM_MASTER&&role!=Role.KNIGHT_LIEGE
+                &&role!=Role.LORD_LIEGE&&role!=Role.RULER&&role!=Role.PARTICIPANT&&role!=Role.ENCOUNTER_ENEMY);
+    }
+    public KOMEVisualMarker(Role role,String entityUuid,String title,String subtitle,int dimension,
+            double x,double y,double z,boolean actionable,boolean objective) {
         if (role == null) throw new IllegalArgumentException("Marker role is required.");
         this.role = role;
         this.entityUuid = entityUuid == null ? "" : entityUuid;
@@ -46,7 +53,9 @@ public final class KOMEVisualMarker {
         this.y = y;
         this.z = z;
         this.actionable=actionable;
+        this.objective=objective;
     }
+    public KOMEVisualMarker withObjective(boolean value){return new KOMEVisualMarker(role,entityUuid,title,subtitle,dimension,x,y,z,actionable,value);}
 
     public boolean isRelationship() {
         return role == Role.MASTER_GIFT || role == Role.SERFDOM_MASTER || role == Role.KNIGHT_LIEGE
@@ -54,6 +63,6 @@ public final class KOMEVisualMarker {
     }
     public String signature() {
         return role.key + '|' + entityUuid + '|' + title + '|' + subtitle + '|'
-            + dimension + '|' + x + '|' + y + '|' + z+'|'+actionable;
+            + dimension + '|' + x + '|' + y + '|' + z+'|'+actionable+'|'+objective;
     }
 }

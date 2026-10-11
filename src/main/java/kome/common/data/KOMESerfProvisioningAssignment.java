@@ -38,7 +38,8 @@ public final class KOMESerfProvisioningAssignment {
         }
         public String description(){
             if(!drink)return required+" "+KOMEProgressionGoodsRules.name(requestedStack(),displayName);
-            if(vessel.length()==0)return required+" "+displayName+" (any vessel or strength)";
+            String contents=KOMEProgressionGoodsRules.name(requestedStack(),displayName);
+            if(vessel.length()==0)return required+" "+contents+" (any vessel or strength)";
             LOTRItemMug.Vessel type=LOTRItemMug.Vessel.valueOf(vessel);
             String fallback=type.name().replace('_',' ').toLowerCase(java.util.Locale.ROOT);
             fallback=Character.toUpperCase(fallback.charAt(0))+fallback.substring(1);
@@ -46,10 +47,21 @@ public final class KOMESerfProvisioningAssignment {
             if(container.length()==0||container.equalsIgnoreCase(type.name())||container.equalsIgnoreCase(type.name().replace('_',' ')))container=fallback;
             if(required!=1)container+="s";
             String potency=strength<0?"":strengthName(strength)+" ";
-            return required+" "+container+" of "+potency+displayName;
+            return required+" "+container+" of "+potency+contents;
         }
-        public String progressText(){return KOMEProgressionGoodsRules.name(requestedStack(),displayName)+": "+delivered+" / "+required;}
-        private static String strengthName(int value){String[] nativeNames={"weak","light","moderate","strong","potent"};String key="item.lotr.drink."+nativeNames[value];String localized=StatCollector.translateToLocal(key);return localized.equals(key)?Character.toUpperCase(nativeNames[value].charAt(0))+nativeNames[value].substring(1):localized;}
+        public String requirementName(){
+            String name=KOMEProgressionGoodsRules.name(requestedStack(),displayName);
+            if(!drink)return name;
+            if(vessel.isEmpty())return name+" (any vessel or strength)";
+            LOTRItemMug.Vessel type=LOTRItemMug.Vessel.valueOf(vessel);
+            String key="item.lotr:"+type.name+".name";
+            String container=type.getEmptyVesselItem()==null?null:KOMEProgressionGoodsRules.name(new ItemStack(type.getEmptyVesselItem()),null);
+            if(container==null||container.equals("Requested item"))container=KOMEProgressionGoodsRules.nativeText(key);
+            if(container==null){container=type.name().replace('_',' ').toLowerCase(java.util.Locale.ROOT);container=Character.toUpperCase(container.charAt(0))+container.substring(1);}
+            return name+" — "+container+(strength<0?"":", "+strengthName(strength));
+        }
+        public String progressText(){return requirementName()+": "+delivered+" / "+required;}
+        private static String strengthName(int value){String[] nativeNames={"weak","light","moderate","strong","potent"};String key="item.lotr.drink."+nativeNames[value];String localized=StatCollector.translateToLocal(key);String english=KOMEProgressionGoodsRules.nativeText(key);return localized.equals(key)?english==null?Character.toUpperCase(nativeNames[value].charAt(0))+nativeNames[value].substring(1):english:localized;}
         NBTTagCompound write(){NBTTagCompound tag=new NBTTagCompound();tag.setString("ItemKey",itemKey);tag.setInteger("Item",itemId);tag.setInteger("Damage",damage);tag.setInteger("Required",required);tag.setInteger("Delivered",delivered);tag.setInteger("ValueMilli",valueMilli);tag.setString("Display",displayName);tag.setString("Vessel",vessel);if(drink&&vessel.length()!=0)tag.setInteger("Strength",strength);return tag;}
         static Requirement read(NBTTagCompound tag,CandidateResolver resolver,boolean drink,boolean exactDrink){String key=tag.getString("ItemKey");int damage=tag.getInteger("Damage"),required=tag.getInteger("Required");Candidate item=resolver.resolve(key,tag.getInteger("Item"),damage);if(item==null||required<=0)return null;String vessel=drink&&exactDrink?tag.getString("Vessel"):"";int strength=drink&&exactDrink?tag.getInteger("Strength"):-1;if(drink&&exactDrink){try{LOTRItemMug.Vessel.valueOf(vessel);}catch(Exception e){return null;}if(strength< -1||strength>4||item.brewable!=(strength>=0))return null;}Requirement r=new Requirement(item.key,item.itemId,damage,required,tag.getInteger("Delivered"),tag.getString("Display"),vessel,drink,strength);r.valueMilli=Math.max(0,Math.min(1000,tag.getInteger("ValueMilli")));return r;}
     }

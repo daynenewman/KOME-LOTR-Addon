@@ -1,0 +1,34 @@
+// Disposable native verification, coordinated with Local\KOME-Heavy-Validation.
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.tasks.Jar
+allprojects { afterEvaluate {
+    tasks.register('compileProgressionTestingProbe', JavaCompile) {
+        dependsOn tasks.named('classes')
+        source = project.fileTree('tools/progression-testing/java') { include '**/*.java' }
+        classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+        destinationDirectory.set(layout.buildDirectory.dir('progression-testing/probe-classes'))
+        sourceCompatibility = '8'; targetCompatibility = '8'
+    }
+    tasks.register('progressionTestingProbeJar', Jar) {
+        dependsOn tasks.named('compileProgressionTestingProbe')
+        from layout.buildDirectory.dir('progression-testing/probe-classes')
+        archiveFileName.set('progression-testing-probe.jar')
+        destinationDirectory.set(layout.buildDirectory.dir('progression-testing'))
+    }
+    tasks.named('runServer') {
+        dependsOn tasks.named('progressionTestingProbeJar')
+        workingDir = project.file('outputs/progression-testing-20261010/forge-' + System.currentTimeMillis())
+        timeout.set(java.time.Duration.ofMinutes(4))
+        doFirst {
+            workingDir.mkdirs()
+            project.copy { from layout.buildDirectory.file('progression-testing/progression-testing-probe.jar'); into new File(workingDir,'mods') }
+            new File(workingDir,'eula.txt').text = 'eula=true\n'
+            new File(workingDir,'server.properties').text = 'server-port=0\nlevel-name=disposable\nonline-mode=false\nview-distance=2\nmax-tick-time=120000\n'
+        }
+        doLast {
+            File proof = new File(workingDir,'progression-native.txt')
+            if (!proof.exists() || !proof.text.contains('PASS checks=') || proof.text.contains('FAIL '))
+                throw new GradleException('Native progression evidence missing or failed: ' + proof)
+        }
+    }
+} }

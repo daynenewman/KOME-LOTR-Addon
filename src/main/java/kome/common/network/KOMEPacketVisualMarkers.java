@@ -32,7 +32,7 @@ public final class KOMEPacketVisualMarkers implements IMessage {
             int dimension = buffer.readInt();
             double x = buffer.readDouble(), y = buffer.readDouble(), z = buffer.readDouble();
             if (role == null) throw new IllegalArgumentException("Unknown KOME visual marker role.");
-            markers.add(new KOMEVisualMarker(role, entityUuid, title, subtitle, dimension, x, y, z,buffer.readBoolean()));
+            markers.add(new KOMEVisualMarker(role, entityUuid, title, subtitle, dimension, x, y, z,buffer.readBoolean(),buffer.readBoolean()));
         }
     }
 
@@ -47,6 +47,7 @@ public final class KOMEPacketVisualMarkers implements IMessage {
             buffer.writeInt(marker.dimension);
             buffer.writeDouble(marker.x); buffer.writeDouble(marker.y); buffer.writeDouble(marker.z);
             buffer.writeBoolean(marker.actionable);
+            buffer.writeBoolean(marker.objective);
         }
     }
 

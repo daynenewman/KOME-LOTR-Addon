@@ -32,6 +32,8 @@ public final class KOMEPledgeReleaseService {
         String current = KOMEAlliance.normalizeFactionKey(currentFaction);
         if (!data.lastKnownPlayerFactions.containsKey(playerId)) {
             String migrationBaseline = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(playerId));
+            KOMEGovernanceService.retainDefeat(data, playerId, migrationBaseline, nowMillis);
+            KOMEGovernanceService.retainDefeat(data, playerId, current, nowMillis);
             data.lastKnownPlayerFactions.put(playerId, current);
             if (migrationBaseline.length() > 0 && !migrationBaseline.equals(current)) {
                 KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);
@@ -42,6 +44,7 @@ public final class KOMEPledgeReleaseService {
             return Result.noop("Pledge baseline recorded.");
         }
         String former = KOMEAlliance.normalizeFactionKey(data.lastKnownPlayerFactions.get(playerId));
+        KOMEGovernanceService.retainDefeat(data, playerId, former, nowMillis);
         if (former.equals(current)) return Result.noop("Pledge unchanged.");
         data.lastKnownPlayerFactions.put(playerId, current);
         KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);
@@ -103,6 +106,10 @@ public final class KOMEPledgeReleaseService {
         // detachment, unit, and conflict-owned route until a later explicit conflict lifecycle
         // operation resolves it.
         Set<String> conflictProtectedCompanies = new HashSet<String>();
+        KOMEFormalRetreatAuthority.quarantineIncompleteLegacy(data);
+        for (KOMEArmyCompany company : data.armyCompanies.values())
+            if (company != null && KOMEFormalRetreatAuthority.protectsCompany(data, company.id))
+                conflictProtectedCompanies.add(company.id);
         for (KOMEArmyCompany company : data.armyCompanies.values()) {
             if (company == null) continue;
             boolean ownedFormerFaction = player.equals(company.owner);
@@ -161,7 +168,9 @@ public final class KOMEPledgeReleaseService {
             affected = affected || company != null && player.equals(company.owner)
                 && former.equals(KOMEAlliance.normalizeFactionKey(KOMEWartimeStewardshipService.nativeFaction(company)));
             if (!affected) continue;
-            if (conflictProtectedCompanies.contains(order.companyId)) {
+            if (conflictProtectedCompanies.contains(order.companyId)
+                    || KOMEFormalRetreatAuthority.reservation(data, order.companyId, order.id) != null
+                    || KOMEFormalRetreatAuthority.isQuarantined(order)) {
                 result.conflictProtectedMovements++;
                 continue;
             }
@@ -207,6 +216,7 @@ public final class KOMEPledgeReleaseService {
                 // canonical and historical provenance without crediting any bank or ledger.
                 markPermanentlySpentPopulationHandled(record, tombstone);
             }
+            KOMEHiredUnitPhysicalLocatorService.clear(data, record);
             if (tombstone.complete() && tombstone.completedTimestamp <= 0L) tombstone.completedTimestamp = nowMillis;
             data.removeUnitFromCompany(record);
             data.hiredUnits.remove(record.entity);
@@ -335,6 +345,7 @@ public final class KOMEPledgeReleaseService {
     private static void markPermanentlySpentPopulationHandled(KOMEHiredUnitRecord record,
             KOMEPledgeReleaseTombstone tombstone) {
         record.populationReturned = true;
+        record.clearPhysicalLocator();
         record.releaseState = "PLEDGE_RELEASED_PERMANENTLY_SPENT";
         tombstone.populationReturned = true;
     }

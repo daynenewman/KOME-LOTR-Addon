@@ -29,6 +29,8 @@ public final class KOMEWartimeStewardshipService {
         if (data == null || company == null || actor == null || !actor.equals(company.temporaryController))
             return KOMEWarService.AuthorizationDecision.deny("The player is not the recorded temporary controller.");
         String controllerFaction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor));
+        KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(data, actor, nativeFaction(company));
+        if (!governance.allowed) return KOMEWarService.AuthorizationDecision.deny(governance.reason);
         return KOMEWarService.supportingKingDecision(data, nativeFaction(company), controllerFaction, actor);
     }
 
@@ -79,6 +81,21 @@ public final class KOMEWartimeStewardshipService {
         if (auditRevalidation && (!previouslyAuthorized || materiallyChanged)) {
             data.recordCompanyDelegationAudit(nowMillis, "STEWARDSHIP_GRANTED", company, null, "",
                 company.temporaryController, company.temporaryControllerName, company.authorizationReason);
+        }
+        data.markDirty();
+    }
+
+    /** Season cleanup is not demobilization: permanent investment and unit records stay intact. */
+    public static void clearSeasonResetTransients(KOMEWorldData data, KOMEArmyCompany company) {
+        company.withdrawalState = KOMEArmyCompany.CLEANUP_NONE;
+        company.authorizedWarIds.clear();
+        company.clearTemporaryController("Season reset");
+        company.clearTransferOffer();
+        for (UUID id : company.units) {
+            KOMEHiredUnitRecord record = data.hiredUnits.get(id);
+            record.stewardshipWarIds = "";
+            record.controller = record.owner;
+            record.controllerAuthority = KOMEArmyCompany.AUTHORITY_NATIVE;
         }
         data.markDirty();
     }
@@ -235,6 +252,7 @@ public final class KOMEWartimeStewardshipService {
 
     static boolean conflictProtects(KOMEWorldData data, KOMEArmyCompany company) {
         if (data == null || company == null) return true;
+        if (KOMEFormalRetreatAuthority.protectsCompany(data, company.id)) return true;
         if (KOMEConflictMovementService.isActivelyCommitted(data, company.id)) return true;
         for (KOMEArmyMovementOrder order : data.armyMovements.values()) {
             if (order != null && company.id.equals(order.companyId)
@@ -249,6 +267,7 @@ public final class KOMEWartimeStewardshipService {
         // The historical flag means funding cleanup is resolved, not refunded.
         tombstone.populationReturned = true;
         record.populationReturned = true;
+        record.clearPhysicalLocator();
         record.releaseState = "STEWARDSHIP_DEMOBILIZED_PERMANENTLY_SPENT";
     }
 

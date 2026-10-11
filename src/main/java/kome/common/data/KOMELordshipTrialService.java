@@ -167,7 +167,7 @@ public final class KOMELordshipTrialService {
         if(a.type==Type.BORDER_INCURSION)return true;
         Actor beneficiary=a.protectedActor();Entity e=beneficiary==null?null:KOMEKnightCommissionService.findLoaded(owner.worldObj,beneficiary.id);
         if(beneficiary==null||beneficiary.dead||e==null||!e.isEntityAlive())return false;
-        return a.type!=Type.DANGEROUS_ESCORT||(a.atDestination(e.worldObj.provider.dimensionId,e.posX,e.posZ)&&owner.getDistanceSqToEntity(e)<=256);
+        return a.type!=Type.DANGEROUS_ESCORT||(a.atDestination(e.worldObj.provider.dimensionId,e.posX,e.posZ)&&e instanceof LOTREntityNPC&&KOMEProgressionDestinations.arrived((LOTREntityNPC)e,a.destinationProof)&&owner.getDistanceSqToEntity(e)<=256);
     }
     static int returnedSurvivors(KOMELordshipTrial t,EntityPlayerMP owner) {
         int present=0;
@@ -181,7 +181,12 @@ public final class KOMELordshipTrialService {
         for(Actor actor:t.objective.actors)if(actor.role!=Role.GUARD){Entity e=KOMEKnightCommissionService.findLoaded(world,actor.id);
             if(e instanceof LOTREntityNPC){LOTREntityNPC npc=(LOTREntityNPC)e;KOMEProgressionEncounterMarker.Marker m=KOMEProgressionEncounterMarker.read(npc);
                 if(m!=null&&MARKER.equals(m.kind)&&m.owner.equals(owner)&&t.objective.token.equals(m.token)){
-                    if(npc.hiredNPCInfo.isActive)dismissFollower(npc);npc.setDead();
+                    if(t.ready()&&actor.role==Role.CHARGE){
+                        EntityPlayer player=world.func_152378_a(owner);
+                        if(player instanceof EntityPlayerMP)KOMEProgressionNpcSpeech.say((EntityPlayerMP)player,npc,KOMEProgressionDialogue.thanks(npc));
+                        if(npc.hiredNPCInfo.isActive)KOMEProgressionEscortFollowing.releaseDelivered(npc);
+                        KOMEProgressionEncounterMarker.clear(npc);
+                    }else{if(npc.hiredNPCInfo.isActive)dismissFollower(npc);npc.setDead();}
                 }
             }
         }

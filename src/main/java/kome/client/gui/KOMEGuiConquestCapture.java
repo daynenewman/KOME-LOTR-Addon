@@ -324,7 +324,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (buildMode == BUILD_MODE_CREATE || buildMode == BUILD_MODE_CONTRIBUTE) {
             int editorX = panelX + PANEL_MARGIN;
             int editorW = panelW - PANEL_MARGIN * 2;
-            int controlsY = contentY + (buildMode == BUILD_MODE_CREATE ? 128 : 119);
+            int controlsY = contentY + (buildMode == BUILD_MODE_CREATE ? 164 : 119);
             addHourControls(editorX, editorW, controlsY);
             if (buildMode == BUILD_MODE_CREATE) {
                 int selectorW = populationOwnerSelectorWidth(editorW);
@@ -389,8 +389,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         buttonList.add(KOMEGuiButton.small(ID_BUILD_OFF_MINUS, left, y, "-"));
         buttonList.add(KOMEGuiButton.small(ID_BUILD_OFF_PLUS, left + groupW - 20, y, "+"));
         if (buildMode == BUILD_MODE_CREATE) {
-            buttonList.add(new KOMEGuiButton(ID_BUILD_DEF_MINUS, left, y - 24, 92, 18, "Normal"));
-            buttonList.add(new KOMEGuiButton(ID_BUILD_DEF_PLUS, left + 98, y - 24, 92, 18, "Defensive"));
+            buttonList.add(new KOMEGuiButton(ID_BUILD_DEF_MINUS, left, y - 38, 92, 18, "Normal"));
+            buttonList.add(new KOMEGuiButton(ID_BUILD_DEF_PLUS, left + 98, y - 38, 92, 18, "Defensive"));
         }
         buildHoursField = new GuiTextField(fontRendererObj, left + 25, y + 1,
             Math.max(26, groupW - 50), 16);
@@ -818,7 +818,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         KOMEGuiTheme.drawSectionTitle(fontRendererObj,
             creating ? "Create Persistent Build" : "Contribute to " + (selected == null ? "Build" : selected.name),
             x + 12, y + 10, w - 24);
-        int controlsY = y + (creating ? 128 : 119);
+        int controlsY = y + (creating ? 164 : 119);
         if (creating) {
             fontRendererObj.drawString("Name", x + 20, y + 28, KOMEGuiTheme.COLOR_TEXT_MUTED);
             String owner = selectablePopulationOwners.isEmpty() ? "No eligible owner"
@@ -851,7 +851,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
             "Approved Build hours are stored exactly to one hundredth. " + (creating ? "The builder receives contribution credit; " + (selectablePopulationOwners.isEmpty()
                     ? "no owner is eligible." : factionName((String) selectablePopulationOwners.get(populationOwnerIndex)))
                     + " permanently owns the generated population." : "Contribution credit follows your current faction; population ownership does not change."),
-            x + 16, y + (creating ? 164 : 157), w - 32, KOMEGuiTheme.Status.NEUTRAL);
+            x + 16, y + (creating ? 214 : 157), w - 32, KOMEGuiTheme.Status.NEUTRAL);
     }
 
     private void drawBuildDetail(KOMEPacketConquestCaptureGui.BuildView build, int x, int y, int w,

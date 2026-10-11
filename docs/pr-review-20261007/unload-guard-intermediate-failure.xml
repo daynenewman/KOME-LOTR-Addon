@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="kome.common.data.KOMESeasonResetDeploymentTest" tests="11" skipped="0" failures="1" errors="0" timestamp="2026-10-08T02:25:45" hostname="DAYNEPC" time="2.062">
+  <properties/>
+  <testcase name="nativeChunkReadbackRejectsMissingReceiptsWrongHpAndStaleOriginCopies" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="1.997"/>
+  <testcase name="queuedUnloadStillRequiresVirtualReceiptAndRejectsAnotherActiveCopy" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="0.009">
+    <failure message="java.lang.NullPointerException" type="java.lang.NullPointerException">java.lang.NullPointerException
+	at net.minecraft.entity.DataWatcher.getWatchableObjectString(DataWatcher.java:111)
+	at net.minecraft.entity.EntityLiving.hasCustomNameTag(EntityLiving.java:1088)
+	at lotr.common.entity.npc.LOTREntityNPC.getCommandSenderName(LOTREntityNPC.java:334)
+	at net.minecraft.entity.Entity.toString(Entity.java:2333)
+	at java.lang.String.valueOf(String.java:2994)
+	at java.lang.StringBuilder.append(StringBuilder.java:136)
+	at org.junit.Assert.failNotSame(Assert.java:829)
+	at org.junit.Assert.assertSame(Assert.java:772)
+	at org.junit.Assert.assertSame(Assert.java:783)
+	at kome.common.data.KOMESeasonResetDeploymentTest.queuedUnloadStillRequiresVirtualReceiptAndRejectsAnotherActiveCopy(KOMESeasonResetDeploymentTest.java:179)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+	at org.junit.rules.ExternalResource$1.evaluate(ExternalResource.java:54)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.runTestClass(JUnitTestClassExecutor.java:112)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.execute(JUnitTestClassExecutor.java:58)
+	at org.gradle.api.internal.tasks.testing.junit.JUnitTestClassExecutor.execute(JUnitTestClassExecutor.java:40)
+	at org.gradle.api.internal.tasks.testing.junit.AbstractJUnitTestClassProcessor.processTestClass(AbstractJUnitTestClassProcessor.java:60)
+	at org.gradle.api.internal.tasks.testing.SuiteTestClassProcessor.processTestClass(SuiteTestClassProcessor.java:52)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:36)
+	at org.gradle.internal.dispatch.ReflectionDispatch.dispatch(ReflectionDispatch.java:24)
+	at org.gradle.internal.dispatch.ContextClassLoaderDispatch.dispatch(ContextClassLoaderDispatch.java:33)
+	at org.gradle.internal.dispatch.ProxyDispatchAdapter$DispatchingInvocationHandler.invoke(ProxyDispatchAdapter.java:94)
+	at com.sun.proxy.$Proxy2.processTestClass(Unknown Source)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker$2.run(TestWorker.java:176)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.executeAndMaintainThreadName(TestWorker.java:129)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:100)
+	at org.gradle.api.internal.tasks.testing.worker.TestWorker.execute(TestWorker.java:60)
+	at org.gradle.process.internal.worker.child.ActionExecutionWorker.execute(ActionExecutionWorker.java:56)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:113)
+	at org.gradle.process.internal.worker.child.SystemApplicationClassLoaderWorker.call(SystemApplicationClassLoaderWorker.java:65)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.run(GradleWorkerMain.java:69)
+	at worker.org.gradle.process.internal.worker.GradleWorkerMain.main(GradleWorkerMain.java:74)
+</failure>
+  </testcase>
+  <testcase name="nativeUnloadedUnitsNeedNoDeploymentAndMissingDimensionStaysPending" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="0.003"/>
+  <testcase name="virtualResetUsesFresherSurvivorHealthAndRejectsUnresolvedMountedHealth" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="0.012"/>
+  <testcase name="obsoleteVirtualEntityIsRejectedWhileReceiptBearingRestorationIsAccepted" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="0.003"/>
+  <testcase name="capturedMountedSnapshotDoesNotAliasLiveForgeReceipts" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="0.001"/>
+  <testcase name="realAdapterMovesExistingMountedObjectsWithoutChangingUuidHpOrSavedSnapshots" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="0.028"/>
+  <testcase name="unloadedStationarySnapshotNeverCreatesAReplacementAndUnsafeAnchorDoesNotMoveUnit" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="0.003"/>
+  <testcase name="staleMountRejectionSurvivesJournalRolloverAndUnitSaveLoad" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="0.002"/>
+  <testcase name="queuedChunkUnloadDoesNotRejectTheLegitimateReloadedRider" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="0.003"/>
+  <testcase name="snapshotHydrationKeepsUuidsFractionalHpMountsAndOriginalNbt" classname="kome.common.data.KOMESeasonResetDeploymentTest" time="0.0"/>
+  <system-out><![CDATA[[KOME] Unknown waypoint name/key in defaults file: scatha_s_lair.
+[KOME] Unknown waypoint name/key in defaults file: arvedui_s_mines.
+[KOME] Unknown waypoint name/key in defaults file: thorin_s_halls.
+[KOME] Unknown waypoint name/key in defaults file: thr_in_s_halls.
+[KOME] Unknown waypoint name/key in defaults file: bardhaven.
+[KOME] Unknown waypoint name/key in defaults file: dale.
+[KOME] Unknown waypoint name/key in defaults file: great_dalish_crossroads.
+[KOME] Unknown waypoint name/key in defaults file: dol_guldur_captial.
+[KOME] Unknown waypoint name/key in defaults file: mountains_of_mirkwood.
+[KOME] Unknown waypoint name/key in defaults file: amon_gw_n.
+[KOME] Unknown waypoint name/key in defaults file: golden_ford.
+[KOME] Unknown waypoint name/key in defaults file: mirulond.
+[KOME] Unknown waypoint name/key in defaults file: vintner_court.
+[KOME] Unknown waypoint name/key in defaults file: old_elven_way.
+[KOME] Unknown waypoint name/key in defaults file: duneard.
+[KOME] Unknown waypoint name/key in defaults file: firwold.
+[KOME] Unknown waypoint name/key in defaults file: freca_s_hold.
+[KOME] Unknown waypoint name/key in defaults file: mouths_of_isen.
+[KOME] Unknown waypoint name/key in defaults file: old_south_road.
+[KOME] Unknown waypoint name/key in defaults file: treebeard_s_hill.
+[KOME] Unknown waypoint name/key in defaults file: crossings_of_erui.
+[KOME] Unknown waypoint name/key in defaults file: crossroads_of_the_fallen_king.
+[KOME] Unknown waypoint name/key in defaults file: east_osgiliath.
+[KOME] Unknown waypoint name/key in defaults file: ethir_anduin.
+[KOME] Unknown waypoint name/key in defaults file: minas_tirith_captial.
+[KOME] Unknown waypoint name/key in defaults file: pinnath_gelin.
+[KOME] Unknown waypoint name/key in defaults file: tarlang_s_neck.
+[KOME] Unknown waypoint name/key in defaults file: west_osgiliath.
+[KOME] Unknown waypoint name/key in defaults file: durfalas.
+[KOME] Unknown waypoint name/key in defaults file: hardorogost.
+[KOME] Unknown waypoint name/key in defaults file: kimen_k_h.
+[KOME] Unknown waypoint name/key in defaults file: sereghir.
+[KOME] Unknown waypoint name/key in defaults file: tol_torog.
+[KOME] Unknown waypoint name/key in defaults file: ain_an_ah_r.
+[KOME] Unknown waypoint name/key in defaults file: ajtiaz_an_ah_r.
+[KOME] Unknown waypoint name/key in defaults file: an_bat_na.
+[KOME] Unknown waypoint name/key in defaults file: an_t_an_kh_rumor.
+[KOME] Unknown waypoint name/key in defaults file: an_t_an_ph_in_r.
+[KOME] Unknown waypoint name/key in defaults file: arminaz_l.
+[KOME] Unknown waypoint name/key in defaults file: ay_kaph_am_m.
+[KOME] Unknown waypoint name/key in defaults file: bakr_zad.
+[KOME] Unknown waypoint name/key in defaults file: b_lkadar.
+[KOME] Unknown waypoint name/key in defaults file: bridge_of_harlanhir.
+[KOME] Unknown waypoint name/key in defaults file: cedar_woods.
+[KOME] Unknown waypoint name/key in defaults file: crossings_of_harnen.
+[KOME] Unknown waypoint name/key in defaults file: emerald_lakes.
+[KOME] Unknown waypoint name/key in defaults file: ephal_n.
+[KOME] Unknown waypoint name/key in defaults file: gardens_of_bar_phel.
+[KOME] Unknown waypoint name/key in defaults file: gate_of_umbar.
+[KOME] Unknown waypoint name/key in defaults file: g_th_azraz_in.
+[KOME] Unknown waypoint name/key in defaults file: ijdi_ilel.
+[KOME] Unknown waypoint name/key in defaults file: iz_m_ulzuz.
+[KOME] Unknown waypoint name/key in defaults file: kh_pakadar.
+[KOME] Unknown waypoint name/key in defaults file: l_pha_t_n.
+[KOME] Unknown waypoint name/key in defaults file: ninzad_n.
+[KOME] Unknown waypoint name/key in defaults file: nur_min.
+[KOME] Unknown waypoint name/key in defaults file: taw_nen.
+[KOME] Unknown waypoint name/key in defaults file: tolfalas.
+[KOME] Unknown waypoint name/key in defaults file: topaz_bay.
+[KOME] Unknown waypoint name/key in defaults file: ugr_zad_n.
+[KOME] Unknown waypoint name/key in defaults file: umbar.
+[KOME] Unknown waypoint name/key in defaults file: yaphurushi.
+[KOME] Unknown waypoint name/key in defaults file: elostirion.
+[KOME] Unknown waypoint name/key in defaults file: ford_of_bruinen.
+[KOME] Unknown waypoint name/key in defaults file: north_mithlond.
+[KOME] Unknown waypoint name/key in defaults file: south_mithlond.
+[KOME] Unknown waypoint name/key in defaults file: orthanc_capital.
+[KOME] Unknown waypoint name/key in defaults file: sapper_s_grove.
+[KOME] Unknown waypoint name/key in defaults file: shagrat_s_tomb.
+[KOME] Unknown waypoint name/key in defaults file: house_of_nimrodel.
+[KOME] Unknown waypoint name/key in defaults file: black_gate.
+[KOME] Unknown waypoint name/key in defaults file: dunurnen.
+[KOME] Unknown waypoint name/key in defaults file: fornurnen.
+[KOME] Unknown waypoint name/key in defaults file: harnurnen.
+[KOME] Unknown waypoint name/key in defaults file: minas_morgul_capital.
+[KOME] Unknown waypoint name/key in defaults file: mornost.
+[KOME] Unknown waypoint name/key in defaults file: narroth.
+[KOME] Unknown waypoint name/key in defaults file: rhunurnen.
+[KOME] Unknown waypoint name/key in defaults file: thorband.
+[KOME] Unknown waypoint name/key in defaults file: vale_of_the_fell_beasts.
+[KOME] Unknown waypoint name/key in defaults file: valley_of_ud_n.
+[KOME] Unknown waypoint name/key in defaults file: bridge_of_haraduin.
+[KOME] Unknown waypoint name/key in defaults file: deep_harad.
+[KOME] Unknown waypoint name/key in defaults file: hill_of_the_sun.
+[KOME] Unknown waypoint name/key in defaults file: hunters_haunt.
+[KOME] Unknown waypoint name/key in defaults file: nan_harnagorath.
+[KOME] Unknown waypoint name/key in defaults file: nin_haecharad.
+[KOME] Unknown waypoint name/key in defaults file: town_of_bones.
+[KOME] Unknown waypoint name/key in defaults file: upper_floodplains.
+[KOME] Unknown waypoint name/key in defaults file: balcharas.
+[KOME] Unknown waypoint name/key in defaults file: baraz_t_m.
+[KOME] Unknown waypoint name/key in defaults file: beorn_s_hall.
+[KOME] Unknown waypoint name/key in defaults file: chunha.
+[KOME] Unknown waypoint name/key in defaults file: crossroads_of_anduin.
+[KOME] Unknown waypoint name/key in defaults file: east_rhovanion_gate.
+[KOME] Unknown waypoint name/key in defaults file: ethir_haraduin.
+[KOME] Unknown waypoint name/key in defaults file: gladden_confluence.
+[KOME] Unknown waypoint name/key in defaults file: horn_of_harad.
+[KOME] Unknown waypoint name/key in defaults file: khandwater_ford.
+[KOME] Unknown waypoint name/key in defaults file: meneltarma.
+[KOME] Unknown waypoint name/key in defaults file: mount_athras.
+[KOME] Unknown waypoint name/key in defaults file: mount_belegwaeras.
+[KOME] Unknown waypoint name/key in defaults file: mount_laegras.
+[KOME] Unknown waypoint name/key in defaults file: north_khand_road.
+[KOME] Unknown waypoint name/key in defaults file: redway.
+[KOME] Unknown waypoint name/key in defaults file: south_eriador_c.
+[KOME] Unknown waypoint name/key in defaults file: the_pits.
+[KOME] Unknown waypoint name/key in defaults file: tol_h_th.
+[KOME] Unknown waypoint name/key in defaults file: trollshaws.
+[KOME] Unknown waypoint name/key in defaults file: ashen_ford.
+[KOME] Unknown waypoint name/key in defaults file: atalak.
+[KOME] Unknown waypoint name/key in defaults file: belrhuk.
+[KOME] Unknown waypoint name/key in defaults file: ford_of_forunen.
+[KOME] Unknown waypoint name/key in defaults file: karanoda.
+[KOME] Unknown waypoint name/key in defaults file: karslan.
+[KOME] Unknown waypoint name/key in defaults file: kham_l_s_tower.
+[KOME] Unknown waypoint name/key in defaults file: munbelik_capital.
+[KOME] Unknown waypoint name/key in defaults file: northern_marches.
+[KOME] Unknown waypoint name/key in defaults file: pass_of_rh_del.
+[KOME] Unknown waypoint name/key in defaults file: rh_nost.
+[KOME] Unknown waypoint name/key in defaults file: southern_marches.
+[KOME] Unknown waypoint name/key in defaults file: taragal.
+[KOME] Unknown waypoint name/key in defaults file: deeping_coomb.
+[KOME] Unknown waypoint name/key in defaults file: edoras_capital.
+[KOME] Unknown waypoint name/key in defaults file: woldhall.
+[KOME] Unknown waypoint name/key in defaults file: aktun_k_h.
+[KOME] Unknown waypoint name/key in defaults file: lakin_p_h.
+[KOME] Unknown waypoint name/key in defaults file: m_mak_h.
+[KOME] Unknown waypoint name/key in defaults file: nohoch_k_h.
+[KOME] Unknown waypoint name/key in defaults file: otoch_k_h.
+[KOME] Unknown waypoint name/key in defaults file: pishan_k_h.
+[KOME] Unknown waypoint name/key in defaults file: shaman_p_h.
+[KOME] Unknown waypoint name/key in defaults file: t_nich_k_h.
+[KOME] Unknown waypoint name/key in defaults file: ya_ash_k_h.
+[KOME] Unknown waypoint name/key in defaults file: dal_minthruil_capital.
+[KOME] Unknown waypoint name/key in defaults file: ellythir.
+[KOME] Unknown waypoint name/key in defaults file: enduil_s_gate.
+[KOME] Unknown waypoint name/key in defaults file: thranduil_s_halls.
+[KOME] Unknown default ruling faction 'Half-trolls' for tile T539.
+[KOME] Unknown default ruling faction 'Half-trolls' for tile T549.
+[KOME] Unknown default ruling faction 'Half-trolls' for tile T551.
+[KOME] Unknown default ruling faction 'Half-trolls' for tile T564.
+[KOME] Unknown default ruling faction 'Half-trolls' for tile T567.
+[KOME] Unknown default ruling faction 'Half-trolls' for tile T573.
+[KOME] Unknown default ruling faction 'Half-trolls' for tile T587.
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

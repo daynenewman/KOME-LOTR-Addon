@@ -1,0 +1,41 @@
+OK one livestock AI after repeated installation
+OK native mature wheat consumed at real animal position
+OK immature wheat preserved
+OK native mature lettuce consumed
+OK structure block preserved
+OK mobGriefing false prevents consumption
+OK unrelated animals excluded
+OK offending animal inserted into native chunk entity index
+OK native agricultural worker receives deterrence task
+OK worker reacts to active nearby crop attempt
+OK deterrence stops crop attempt
+OK deterrence is nonlethal
+OK worker stops pursuit after deterrence
+OK transformed native NPC name avoids occupation duplication and preserves epithet
+OK bootstrapped native drink label matches exact delivery
+OK native mismatched potency rejected
+OK native pouch API available on dedicated side
+OK actual NPC near clear verified arrival accepted
+OK NPC seven blocks from arrival rejected
+OK NPC on wrong vertical level rejected
+OK NPC across inaccessible wall rejected by native collision ray
+OK blocked saved arrival is invalid rather than silently completing
+OK bootstrapped native hostility exists for GONDOR
+OK only native hostile factions changed for GONDOR
+OK exact additive minus one per unique enemy with selected alignment retained for GONDOR
+OK bootstrapped native hostility exists for ROHAN
+OK only native hostile factions changed for ROHAN
+OK exact additive minus one per unique enemy with selected alignment retained for ROHAN
+OK bootstrapped native hostility exists for MORDOR
+OK only native hostile factions changed for MORDOR
+OK exact additive minus one per unique enemy with selected alignment retained for MORDOR
+OK bootstrapped native hostility exists for HIGH_ELF
+OK only native hostile factions changed for HIGH_ELF
+OK exact additive minus one per unique enemy with selected alignment retained for HIGH_ELF
+NAME Gair, High Warlord of Dunland
+NAME Gair, Lord of Gondor
+NAME Gair, High Marshal of Rohan
+NAME Gair, High Lord of High Elves
+NAME Gair, High Lord of Durin's Folk
+NAME Gair, High Captain of Mordor
+PASS checks=34; dedicated Forge execution, no visual acceptance

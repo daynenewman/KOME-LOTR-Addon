@@ -42,9 +42,10 @@ public final class KOMESerfKnightRecoveryService {
         KOMEWorldData worldData=KOMEWorldData.get(player.worldObj); worldData.markDirty();
         EntityItem dropped=new EntityItem(player.worldObj,site.x+0.5D,site.y+0.2D,site.z+0.5D,assignedStack(assignment,player.getUniqueID()));
         dropped.delayBeforeCanPickup=0; dropped.lifespan=Integer.MAX_VALUE;
-        if(!KOMEProgressionItemDrops.spawn(player.worldObj,dropped)) { KOMEProgressionEncounterCleanup.failTrial(worldData,player.worldObj,state); return false; }
+        if(!KOMEProgressionItemDrops.spawn(player.worldObj,dropped)) { KOMEProgressionEncounterCleanup.activationFailed(worldData,player.worldObj,state); return false; }
         data.setString(DATA_OBJECT,dropped.getUniqueID().toString());
         state.updateTrialAssignment(state.getTrialAssignment().withStage(KOMESerfKnightTrialAssignment.Stage.ACTIVE,data)); worldData.markDirty();
+        KOMEProgressionEncounterCleanup.activationSucceeded(state);
         return true;
     }
 

@@ -109,6 +109,7 @@ public class KOMEArmyMovementOrder {
     public String conflictHoldId = "";
     public long conflictHeldAtMillis;
     public KOMEConflictMovementHandoff.Receipt conflictRelease;
+    public KOMEFormalRetreatBatch formalRetreatBatch;
     public KOMEStrategicArrivalPlacement.Context strategicArrival;
     public boolean exteriorPlacementRequired;
 
@@ -163,7 +164,8 @@ public class KOMEArmyMovementOrder {
 
     public NBTTagCompound writeToNBT() {
         NBTTagCompound nbt = new NBTTagCompound();
-        if (conflictRelease != null) nbt.setTag("ConflictMovementRelease", conflictRelease.write());
+        if (conflictRelease != null || formalRetreatBatch != null)
+            nbt.setTag("ConflictMovementRelease", KOMEConflictMovementHandoff.writeEnvelope(conflictRelease,formalRetreatBatch));
         if (strategicArrival != null) {
             nbt.setTag("StrategicArrival", strategicArrival.write());
             nbt.setBoolean("ExteriorPlacementRequired", exteriorPlacementRequired);
@@ -272,12 +274,21 @@ public class KOMEArmyMovementOrder {
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
-        conflictRelease = null; strategicArrival = null; exteriorPlacementRequired = false;
+        conflictRelease = null; formalRetreatBatch = null; strategicArrival = null; exteriorPlacementRequired = false;
         if (nbt.hasKey("ConflictMovementRelease")) {
             if (!nbt.hasKey("ConflictMovementRelease", 10)) throw new IllegalArgumentException("Invalid conflict movement receipt tag");
-            conflictRelease = KOMEConflictMovementHandoff.Receipt.read(nbt.getCompoundTag("ConflictMovementRelease"));
-            if (!conflictRelease.orderId.equals(nbt.getString("Id")) || !conflictRelease.companyId.equals(nbt.getString("CompanyId")))
+            KOMEConflictMovementHandoff.readEnvelope(this,nbt.getCompoundTag("ConflictMovementRelease"));
+            if (conflictRelease != null && (!conflictRelease.orderId.equals(nbt.getString("Id")) || !conflictRelease.companyId.equals(nbt.getString("CompanyId"))))
                 throw new IllegalArgumentException("Conflict movement receipt identity mismatch");
+            if(formalRetreatBatch!=null && (!formalRetreatBatch.leaderOrderId.equals(nbt.getString("Id"))
+                    ||!formalRetreatBatch.members.get(0).companyId.equals(nbt.getString("CompanyId"))))
+                throw new IllegalArgumentException("Retreat batch holder identity mismatch");
+            if(formalRetreatBatch!=null && formalRetreatBatch.members.get(0).progress
+                    !=KOMEFormalRetreatBatch.Progress.PREPARED
+                    &&(conflictRelease==null
+                        ||conflictRelease.outcome!=KOMEConflictMovementHandoff.Outcome.FORMAL_RETREAT
+                        ||!formalRetreatBatch.conflictId.equals(conflictRelease.conflictId)))
+                throw new IllegalArgumentException("Published retreat batch lacks its exact release authority");
         }
         if (nbt.hasKey("StrategicArrival")) {
             if (!nbt.hasKey("StrategicArrival", 10) || !nbt.hasKey("ExteriorPlacementRequired", 1))

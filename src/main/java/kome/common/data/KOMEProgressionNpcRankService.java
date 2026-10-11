@@ -21,7 +21,7 @@ public final class KOMEProgressionNpcRankService {
         if(existing==null||existing.provisionalSpawn){
             // Existing relationships are migrated as Lords, including old force-test saves.
             KOMEProgressionNpcRank rank=KOMEProgressionNpcRoles.protects(data,id)?KOMEProgressionNpcRank.LORD:naturalRank(npc.worldObj.rand);
-            data.progressionNpcRanks.put(id,new KOMEProgressionNpcRankRecord(id,npc.getFaction().codeName(),rank,npc.getNPCName()));data.markDirty();
+            data.progressionNpcRanks.put(id,new KOMEProgressionNpcRankRecord(id,npc.getFaction().codeName(),rank,KOMEProgressionNativeAuthority.personalIdentity(npc.getFaction().codeName(),npc.getNPCName())));data.markDirty();
         }
         migrateLoaded(data,npc);
         if(existing==null||existing.provisionalSpawn)for(Object value:npc.worldObj.playerEntities)
@@ -31,7 +31,7 @@ public final class KOMEProgressionNpcRankService {
     public static void migrateLoaded(KOMEWorldData data,LOTREntityNPC npc){
         if(data==null||npc==null||!KOMEProgressionLords.isStandingTrialLiegeCandidate(npc))return;
         UUID id=npc.getUniqueID();
-        if(!data.progressionNpcRanks.containsKey(id)){KOMEProgressionNpcRankRecord record=new KOMEProgressionNpcRankRecord(id,npc.getFaction().codeName(),KOMEProgressionNpcRank.LORD,npc.getNPCName());record.provisionalSpawn=true;data.progressionNpcRanks.put(id,record);data.markDirty();}
+        if(!data.progressionNpcRanks.containsKey(id)){KOMEProgressionNpcRankRecord record=new KOMEProgressionNpcRankRecord(id,npc.getFaction().codeName(),KOMEProgressionNpcRank.LORD,KOMEProgressionNativeAuthority.personalIdentity(npc.getFaction().codeName(),npc.getNPCName()));record.provisionalSpawn=true;data.progressionNpcRanks.put(id,record);data.markDirty();}
         KOMEProgressionNpcRankRecord r=data.progressionNpcRanks.get(id);
         KOMEProgressionNativeAuthority.applyName(npc,r);
     }
@@ -76,7 +76,7 @@ public final class KOMEProgressionNpcRankService {
         if(!isValidFactionNpc(npc)) return reject("A valid faction NPC is required."); LOTRFaction faction=npc.getFaction();
         if(rank==KOMEProgressionNpcRank.KING){KOMEFactionCapitalRecord c=KOMEFactionCapitalService.getCapital(data,faction.codeName());
             if(c==null||KOMEProgressionNativeAuthority.definition(faction.codeName())==null||npc.worldObj.provider.dimensionId!=c.getDeploymentDimensionId())return reject("A canonical ruler requires a supported faction and its capital dimension.");}
-        Result result=assignElevatedRank(data,KOMEReflection.getEntityUUID(npc),faction.codeName(),rank,npc.getNPCName(),KOMEProgressionLords.isCombatUnitHiringNpc(npc));
+        Result result=assignElevatedRank(data,KOMEReflection.getEntityUUID(npc),faction.codeName(),rank,KOMEProgressionNativeAuthority.personalIdentity(npc.getFaction().codeName(),npc.getNPCName()),KOMEProgressionLords.isCombatUnitHiringNpc(npc));
         if(result.success){migrateLoaded(data,npc);if(rank==KOMEProgressionNpcRank.KING)KOMEProgressionRulerService.reconcileJoin(data,npc);}return result;
     }
     public static boolean isActivePoliticalNpcKing(KOMEWorldData data, UUID npcUuid) { if(data==null || npcUuid==null) return false; KOMEProgressionNpcRankRecord record=data.progressionNpcRanks.get(npcUuid); return record!=null && record.rank==KOMEProgressionNpcRank.KING && !KOMERulerService.hasRuler(data,record.factionKey); }

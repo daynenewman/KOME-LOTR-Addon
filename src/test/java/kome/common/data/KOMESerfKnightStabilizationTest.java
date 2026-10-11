@@ -256,7 +256,7 @@ public class KOMESerfKnightStabilizationTest {
         Charge npc=KOMEAccessFixture.allocate(Charge.class);npc.worldObj=s.f.world;npc.setUniqueID(id);
         java.lang.reflect.Field equipment=net.minecraft.entity.EntityLiving.class.getDeclaredField("equipment");equipment.setAccessible(true);
         equipment.set(npc,new ItemStack[5]);
-        npc.posX=s.master.posX;npc.posY=64;npc.posZ=s.master.posZ;
+        npc.posX=s.master.posX;npc.posY=65;npc.posZ=s.master.posZ;
         npc.hiredNPCInfo=new InertFollower(npc);npc.hiredNPCInfo.setHiringPlayer(s.f.player);
         npc.hiredNPCInfo.setTask(LOTRHiredNPCInfo.Task.WARRIOR);npc.hiredNPCInfo.isActive=true;return npc;
     }

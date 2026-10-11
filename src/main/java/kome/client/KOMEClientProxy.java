@@ -46,6 +46,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void init() {
         super.init();
         FMLCommonHandler.instance().bus().register(clientTasks);
+        FMLCommonHandler.instance().bus().register(new KOMEElvenFootGlow());
         kome.client.tactical.KOMETacticalAreaInteractionHandler tacticalInput = new kome.client.tactical.KOMETacticalAreaInteractionHandler(this);
         FMLCommonHandler.instance().bus().register(tacticalInput);
         MinecraftForge.EVENT_BUS.register(tacticalInput);
@@ -240,6 +241,33 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
             KOMEConquestMapOverlay.openPreservedMap();
         }
         KOMEConquestMapOverlay.showCompanyMovePreviewResult(message);
+    }
+
+    @Override public void displayJoinBattleGui(kome.common.network.KOMEPacketJoinBattleViewResponse message) {
+        net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
+        if(current instanceof kome.client.gui.KOMEGuiJoinBattle
+                && ((kome.client.gui.KOMEGuiJoinBattle)current).tileId().equals(message.tileId))
+            ((kome.client.gui.KOMEGuiJoinBattle)current).acceptView(message);
+        else KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiJoinBattle(message));
+    }
+
+      @Override public void displayJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message) {
+          net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
+          if(current instanceof kome.client.gui.KOMEGuiJoinBattle)
+              ((kome.client.gui.KOMEGuiJoinBattle)current).acceptSelection(message);
+          else if(net.minecraft.client.Minecraft.getMinecraft().thePlayer!=null
+                  &&message.status!=kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING)
+              net.minecraft.client.Minecraft.getMinecraft().thePlayer.addChatMessage(
+                  new net.minecraft.util.ChatComponentText(message.message));
+      }
+
+    @Override public void displayJoinBattleRetreatResult(kome.common.network.KOMEPacketJoinBattleRetreatResult message) {
+        net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
+        if(current instanceof kome.client.gui.KOMEGuiJoinBattle)
+            ((kome.client.gui.KOMEGuiJoinBattle)current).acceptRetreat(message);
+        else if(net.minecraft.client.Minecraft.getMinecraft().thePlayer!=null)
+            net.minecraft.client.Minecraft.getMinecraft().thePlayer.addChatMessage(
+                new net.minecraft.util.ChatComponentText(message.message));
     }
 
     @Override

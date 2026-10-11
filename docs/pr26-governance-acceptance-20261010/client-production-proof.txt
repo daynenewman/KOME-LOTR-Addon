@@ -1,0 +1,7 @@
+LOADED_JAR C:\Users\dayne\AppData\Roaming\PrismLauncher\instances\kome-pr26-joinbattle-g5-20261009\minecraft\mods\KOME-LOTR-Addon-1.0.8.jar sha256=ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823
+IDENTITY _Danye_ a976a4b7-0614-49c0-b992-61a3a89bd773 protocol=g5 old_g4_rejected=true
+COMMAND /kome joinbattle T388 thread=Client thread
+GUI tile=T388 reason=GOVERNANCE_RESTRICTED text=Your current war governance status prevents Join Battle participation. joinEnabled=false buttons=5 connected=true thread=Client thread
+REFRESH actual GUI action sends view request
+GUI tile=T388 reason=GOVERNANCE_RESTRICTED text=Your current war governance status prevents Join Battle participation. joinEnabled=false buttons=5 connected=true thread=Client thread
+PASS governance-restricted matching authenticated production command -> response54 -> handler -> client queue -> initialized/rendered GUI; refresh round trip; connected; close returns to game

@@ -405,6 +405,7 @@ public final class KOMEProgressionNpcInteractionService {
         if(!validLiegeInteraction(player,progression,world,liege))return;
         KOMESerfKnightTrialAssignment before=progression.getSerfKnightProgression().getTrialAssignment();
         if(before==null||before.stage!=KOMESerfKnightTrialAssignment.Stage.ASSIGNED)return;
+        if(before.data.getBoolean("ActivationPending")&&player.worldObj.getTotalWorldTime()<before.data.getLong("ActivationRetryAt"))return;
         if("recovery".equals(trialId)) {
             KOMESerfKnightRecoveryService.activate(
                 player,
@@ -423,8 +424,8 @@ public final class KOMEProgressionNpcInteractionService {
         }
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         if(state.getTrialAssignment()!=null&&state.getTrialAssignment().stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED){
-            KOMEProgressionEncounterCleanup.failTrial(world,player.worldObj,state);
-            KOMEProgressionNpcSpeech.say(player,liege,"I cannot arrange this trial safely here. Seek new service before attempting another trial.");
+            KOMEProgressionEncounterCleanup.activationFailed(world,player.worldObj,state);
+            KOMEProgressionNpcSpeech.say(player,liege,"I cannot arrange this trial safely here yet. Return to me shortly; your trial and standing are preserved.");
             KOMEProgressionAutoCompleter.syncPlayer(player,progression);
         }
     }

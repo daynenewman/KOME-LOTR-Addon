@@ -31,6 +31,10 @@ public final class KOMEConquestClaimService {
         }
         String nextOwner = KOMEAlliance.normalizeFactionKey(claimantFaction);
         String previousOwner = tile.projectRulingFaction();
+        KOMEGovernanceService.Decision governance = KOMEGovernanceService.effectiveFaction(data, claimant, previousOwner);
+        if (!governance.allowed) { result.message = governance.reason; return result; }
+        // Host affiliation applies to this war action only; never change native membership.
+        if (!governance.faction.isEmpty()) nextOwner = governance.faction;
         if (nextOwner.length() == 0) {
             result.message = "You must be pledged to a faction to claim conquest tiles.";
             return result;

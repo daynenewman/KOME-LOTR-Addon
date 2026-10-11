@@ -1523,6 +1523,8 @@ public class TileEntitySiegeGate extends TileEntity {
         if (player == null || persistentOwnershipSuspended) {
             return false;
         }
+        if (getGateFaction() != null && !kome.common.data.KOMEGovernanceCombat.warActionDenial(
+                player, getGateFaction().codeName()).isEmpty()) return false;
         if (GateAccess.isAdministrativePlayer(player)) {
             return true;
         }

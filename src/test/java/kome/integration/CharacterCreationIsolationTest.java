@@ -364,10 +364,12 @@ public class CharacterCreationIsolationTest {
             } else if(relativePath.endsWith("KOMEProgressionEscortJourney.java")){
                 assertTrue(text.contains("LOTREntityNPC traveler"));assertTrue(text.contains("traveler.getEntityData()"));
                 assertFalse(text.contains("player.getEntityData"));assertTrue(text.contains("KOMEEscortAmbush"));
-            } else if (!relativePath.endsWith("KOMECourierRecipientSpawner.java") && !relativePath.endsWith("KOMECourierService.java") && !relativePath.endsWith("KOMEProgressionEncounterMarker.java") && !relativePath.endsWith("KOMEEmergencyDefenseEntityMarker.java"))
+            } else if (!relativePath.endsWith("KOMECourierRecipientSpawner.java") && !relativePath.endsWith("KOMECourierService.java") && !relativePath.endsWith("KOMEProgressionEncounterMarker.java") && !relativePath.endsWith("KOMEEmergencyDefenseEntityMarker.java") && !relativePath.endsWith("KOMESeasonResetDeployment.java"))
                 assertFalse(relativePath, Pattern.compile("\\bgetEntityData\\s*\\(").matcher(text).find());
             assertFalse(relativePath, text.contains("EntityPlayer.PERSISTED_NBT_TAG"));
-            assertFalse(relativePath, text.contains("\"ForgeData\""));
+            // Reset reads NPC/mount chunk receipts; character-creation player storage remains forbidden.
+            if (!relativePath.endsWith("KOMESeasonResetDeployment.java"))
+                assertFalse(relativePath, text.contains("\"ForgeData\""));
             assertFalse(relativePath, text.contains("\"PlayerPersisted\""));
             assertFalse(relativePath, text.contains("\"lotrcharactercreation\""));
         }
@@ -430,6 +432,7 @@ public class CharacterCreationIsolationTest {
                 KOMEFactionTitleOptionsTransformer.class.getName(),
                 KOMEVisualLocationTransformer.class.getName(),
                 KOMEProgressionNpcDespawnTransformer.class.getName(),
+                kome.core.KOMEProgressionNativeInteractionTransformer.class.getName(),
                 kome.core.KOMEProgressionBanditTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.RespawnMarkerProjectileCollisionTransformer.class.getName(),
