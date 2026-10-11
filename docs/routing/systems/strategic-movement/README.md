@@ -16,6 +16,8 @@ Owns campaign route preview/confirmation, enduring daily credit, departures, phy
 
 Dependencies: [company identity/hiring](../hiring-companies/README.md), [graph versus raster](../geography/README.md), [passage/delegation](../politics-diplomacy/README.md), [conflict/tactical authority](../conflict-tactical/README.md), [phase/capital](../campaign-lifecycle/README.md), [client projections](../client-network/README.md).
 
+[KOM-59 approved mountain cut](../../../kom59-mountain-separation-20261010/README.md) separates five raster contacts without changing route defaults, bridge/pass edges, configured arrivals or persisted movement. Exclusion metadata does not authorize strategic traversal.
+
 ## Verification and gaps
 
 References: [KOM-80 queued edge checks](../../../kom80-mountain-barriers/README.md), [tile confinement](../../../KOM46_PHASE5_CAMPAIGN_TILE_CONFINEMENT.md), [conflict arrivals](../../../KOM17_PHASE4_MOVEMENT_INTEGRATION.md), [ended holds](../../../KOM17_PHASE5_LIFECYCLE_ADMIN.md). Tests: [movement](../../../../src/test/java/kome/common/command/KOMECommandTroopsMovementTest.java), [credit](../../../../src/test/java/kome/common/data/KOMEMovementAllowanceTest.java), [recovery](../../../../src/test/java/kome/common/command/KOMEMountainBarrierRecoveryTest.java), [departure guard](../../../../src/test/java/kome/common/command/KOMEMovementDepartureGuardTest.java), [arrival placement](../../../../src/test/java/kome/common/data/KOMEStrategicArrivalPlacementTest.java).

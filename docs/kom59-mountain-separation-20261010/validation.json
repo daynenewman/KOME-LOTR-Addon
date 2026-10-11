@@ -1,0 +1,172 @@
+{
+  "date_utc": "2026-10-11T00:00:10.935884+00:00",
+  "base_dev": "26ba6cb7d1bbe7d4e0e4482b4f5855e15747c04d",
+  "validated_implementation_commit": "294990b3ecf1935fa514e5ddc61b835c613ba43b",
+  "source_tree": "d28ca8c87c08859dc69ed84a7604a128a3ae08f6",
+  "source_diff_since_validated_commit": "",
+  "geometry_provenance": {
+    "revision": "kom59-approved-mountain-separation-20261010",
+    "base_dev": "26ba6cb7d1bbe7d4e0e4482b4f5855e15747c04d",
+    "approval_commit": "4475f90d6269408a3d2f170b97276d91dcf568b9",
+    "authority_sha256": "f14472b0e865974634bc5b6e791e0ce872687f1fda6a56958ec038165a9b4b5e",
+    "before_png_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+    "after_png_sha256": "89bd8ccc9ceff3e7d3f9271d61125b07f5f9b1122fb51726ab2f2f5a95364a12",
+    "exclusions_sha256": "56c72566cdbe9717053de57597fc4ebf52a4fd0491663c737d3d65d95d641aa3",
+    "changed_cells": 45,
+    "zones": 5,
+    "runs": 25,
+    "removed_by_tile": {
+      "T654": 2,
+      "T420": 10,
+      "T329": 4,
+      "T355": 8,
+      "T352": 2,
+      "T356": 4,
+      "T218": 15
+    },
+    "historical_golden_unchanged": true,
+    "gameplay_resources_unchanged": true,
+    "excluded": [
+      "T340/T352",
+      "Harnen",
+      "T364"
+    ],
+    "world_adoption": "BLOCKED pending authoritative stopped target-save and physical-entity inventory"
+  },
+  "initial_focused_and_failed_clean_source_commit": "e1739d0422f4fd7ba2e58183652e90ecd76f5f4a",
+  "focused": {
+    "counts": {
+      "tests": 99,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 99
+    },
+    "skipped_cases": [],
+    "failures": []
+  },
+  "initial_clean_test_build_FAILED": {
+    "counts": {
+      "tests": 3095,
+      "failures": 2,
+      "errors": 0,
+      "skipped": 5,
+      "passed": 3088
+    },
+    "skipped_cases": [
+      "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported",
+      "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported",
+      "kome.core.KOMEPublicWaypointTransformerTest.originalProductionAndBuildJarsHaveExactCompatibleHooks",
+      "kome.core.KOMEWaypointTransformerTest.configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms",
+      "kome.core.KOMEWaypointTransformerTest.configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms"
+    ],
+    "failures": [
+      {
+        "case": "reportedContactsRenderExactlyTheCanonicalSharedCellEdges",
+        "message": "java.lang.AssertionError: T435/T654 vertical contacts expected:<2> but was:<0>"
+      },
+      {
+        "case": "auditEveryProductionCellAndReportGeography",
+        "message": "java.lang.AssertionError: expected:<IN_BOUNDS_GAP> but was:<CLASSIFIED_EXCLUSION>"
+      }
+    ]
+  },
+  "focused_assertion_corrections": {
+    "counts": {
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 7
+    },
+    "skipped_cases": [],
+    "failures": []
+  },
+  "full_test_build_after_clean_attempt": {
+    "counts": {
+      "tests": 3095,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 5,
+      "passed": 3090
+    },
+    "skipped_cases": [
+      "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported",
+      "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported",
+      "kome.core.KOMEPublicWaypointTransformerTest.originalProductionAndBuildJarsHaveExactCompatibleHooks",
+      "kome.core.KOMEWaypointTransformerTest.configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms",
+      "kome.core.KOMEWaypointTransformerTest.configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms"
+    ],
+    "failures": []
+  },
+  "commands": {
+    "focused": "gradlew.bat test --tests kome.client.KOMEMapRenderLifecycleTest --tests kome.common.command.KOMEMountainBarrierMovementTest --tests kome.common.command.KOMEMountainBarrierRecoveryTest --tests kome.common.data.KOMEIthilienRouteCorrectionTest --tests kome.common.data.KOMEMountainSeparationTest --tests kome.common.data.KOMEServerTileAwarenessTest --tests kome.common.data.KOMETileExclusionsTest --tests kome.common.data.KOMETileGameplayDefaultsTest --tests kome.common.data.KOMETileGameplayParityTest --tests kome.common.data.KOMETileGeographyAcceptanceTest --tests kome.common.data.KOMETileWorldResolverTest --tests kome.common.data.KOMEV2GeometryTest --offline --no-daemon --console=plain --max-workers=2",
+    "initial_clean_FAILED": "gradlew.bat clean test build --offline --no-daemon --console=plain --max-workers=2",
+    "focused_correction": "gradlew.bat test --tests kome.client.KOMEMountainContactBordersTest --tests kome.common.data.KOMETileResourceAuditTest --tests kome.common.data.KOMEMountainSeparationTest --offline --no-daemon --console=plain --max-workers=2",
+    "full_after_correction": "gradlew.bat test build --offline --no-daemon --console=plain --max-workers=2"
+  },
+  "environment": {
+    "gradle": "8.5",
+    "java_home": "C:/Users/dayne/.gradle/jdks/azul_systems__inc_-17-amd64-windows/zulu17.66.19-ca-fx-jdk17.0.19-win_x64",
+    "target_java": 8,
+    "minecraft": "1.7.10",
+    "forge": "10.13.4.1614",
+    "gradle_max_workers": 2,
+    "gradle_heap": "1g",
+    "libraries": {
+      "geckolib-unofficial-1.7.10-1.0.4.jar": "36d9d0471bfb55271f0d6649b586fe99608dad61261fac4065c008276021fe23",
+      "LOTRMod v36.15.jar": "4f296e749c0d4739ecf859217a526b4218a2a45a768c08d3d551af0d0d3d5635"
+    }
+  },
+  "coordination": "Retained same-session global reservation 43016/30672 and associated child 47800/22264, retained leaf 46756/31700 verified; offline child serialized using Local\\KOME-Heavy-Validation-686a-Offline. No owner reservation released.",
+  "retained_setup_failures_and_corrections": [
+    {
+      "stage": "authority extraction",
+      "cause": "Approved review commit was not present in the local clone initially",
+      "correction": "Fetched exact approved commit without pruning; extracted immutable files and verified authority SHA."
+    },
+    {
+      "stage": "mask edit preparation",
+      "cause": "First helper assumed comma CSV columns; canonical mapping uses RGB=TileID",
+      "correction": "Read mapping format and corrected parser before any raster mutation. Failed attempt retained in archive."
+    },
+    {
+      "stage": "validation coordination",
+      "cause": "Initial validator waited because preserved 51328 controller holds the existing leaf mutex continuously",
+      "correction": "Stopped only this task waiting validator before Gradle launch. Verified all three retained controller identities/logs and serialized offline checks on Local\\KOME-Heavy-Validation-686a-Offline under that reservation chain. No runtime stopped or reservation released."
+    },
+    {
+      "stage": "cross-platform resource assertions",
+      "cause": "Ordinary unchanged text resources use platform checkout line endings",
+      "correction": "Regression compares canonical Git bytes after CRLF normalization for those five text resources; byte-pinned resources and current-checkout artifact audit remain exact."
+    },
+    {
+      "stage": "evidence assembly",
+      "cause": "Windows default cp1252 decoding corrupted UTF-8 punctuation; staging also exposed CRLF evidence and a blank EOF in the whitespace checker",
+      "correction": "Regenerated the README from its UTF-8 source, used explicit UTF-8 reads and removed the blank EOF. Exact captured JSON bytes retain cr-at-eol whitespace handling; source and authored Markdown checks stay strict."
+    }
+  ],
+  "retained_test_failure_correction": "Initial clean run discovered 3095 tests: two historical assertions still expected touching tiles and unclassified gaps. Preserved original contact counts against immutable pre-edit mask; independent pinned 45-cell authority now controls classified status. No production code changed. Corrected focused checks and full test/build rerun passed.",
+  "limits": [
+    "No new Forge launch, human check, multiplayer or hardware acceptance.",
+    "Current production-save and physical-entity impact unknown; world-adoption gate remains.",
+    "T340/T352, Harnen and T364 excluded.",
+    "No save migration, runtime commands, merge or deployment."
+  ],
+  "documentation_checks": {
+    "affected_markdown_documents": 5,
+    "existing_local_links_and_embedded_images_checked": 121,
+    "introduced_missing_links": 0,
+    "inherited_missing_historical_links": [
+      {
+        "document": "docs/KOME_TILE_WORLD_RESOLUTION.md",
+        "destination": "tile-border-rendering-20260920/land-before-after.png",
+        "unchanged_in_base_dev": true
+      }
+    ],
+    "initial_expanded_link_check": "FAILED on inherited missing land-before-after.png; failure preserved here; no introduced broken links",
+    "routing_checker": "PASS",
+    "whitespace_check": "PASS",
+    "external_link_validation": false
+  }
+}

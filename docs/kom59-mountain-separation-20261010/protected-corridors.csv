@@ -1,0 +1,11 @@
+pair,type,before_shared_edges,after_shared_edges,before_corners,after_corners,strategic_edge,meaning
+T239-T232,open,5,5,9,9,UNCHANGED,Physical contact need not exist at an authored bridge/pass; strategic permission stays authoritative
+T232-T220,open,7,7,9,9,UNCHANGED,Physical contact need not exist at an authored bridge/pass; strategic permission stays authoritative
+T220-T223,open,4,4,6,6,UNCHANGED,Physical contact need not exist at an authored bridge/pass; strategic permission stays authoritative
+T223-T233,open,19,19,26,26,UNCHANGED,Physical contact need not exist at an authored bridge/pass; strategic permission stays authoritative
+T409-T420,bridge,0,0,0,0,UNCHANGED,Physical contact need not exist at an authored bridge/pass; strategic permission stays authoritative
+T425-T435,bridge,3,3,6,6,UNCHANGED,Physical contact need not exist at an authored bridge/pass; strategic permission stays authoritative
+T444-T455,bridge,26,26,33,33,UNCHANGED,Physical contact need not exist at an authored bridge/pass; strategic permission stays authoritative
+T322-T329,bridge,0,0,0,0,UNCHANGED,Physical contact need not exist at an authored bridge/pass; strategic permission stays authoritative
+T329-T338,bridge,0,0,0,0,UNCHANGED,Physical contact need not exist at an authored bridge/pass; strategic permission stays authoritative
+T329-T331,open,86,85,112,112,UNCHANGED,Physical contact need not exist at an authored bridge/pass; strategic permission stays authoritative

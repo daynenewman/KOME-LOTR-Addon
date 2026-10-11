@@ -2,6 +2,8 @@ package kome.client;
 
 import java.util.HashSet;
 import java.util.Set;
+import java.io.InputStream;
+import kome.common.data.KOMEConquestTileDefaults;
 import kome.common.data.KOMETileRasterSnapshot;
 import kome.common.data.KOMETileTestResources;
 import org.junit.Rule;
@@ -14,8 +16,28 @@ import static org.junit.Assert.assertTrue;
 public class KOMEMountainContactBordersTest {
     @Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
 
-    @Test public void reportedContactsRenderExactlyTheCanonicalSharedCellEdges() {
+    @Test public void reportedContactsRenderExactlyTheCanonicalSharedCellEdges() throws Exception {
         KOMETileRasterSnapshot snapshot = KOMETileTestResources.real();
+        // Preserve KOM-80's exact historical observations against the immutable pre-cut mask.
+        ClassLoader loader = getClass().getClassLoader();
+        try (InputStream mask = loader.getResourceAsStream("kome/tile/mountain-separation-approved/before-mask.png");
+                InputStream mapping = loader.getResourceAsStream("assets/kome/map/reset_conquest_tile_ids.txt")) {
+            assertHistoricalContacts(KOMETileRasterSnapshot.load(mask, mapping, snapshot.transform,
+                KOMEConquestTileDefaults.getKnownTileIds(), KOMEConquestTileDefaults.getRetiredTileIds()));
+        }
+        int[] pixels = snapshot.copyArgbPixels();
+        KOMEMapBorders borders = new KOMEMapBorders.Cache().get(snapshot, pixels);
+
+        // Only the separately hash-checked 45-cell authority removes these five contacts.
+        assertContact(snapshot, pixels, borders, "T435", "T654", 0, 0);
+        assertContact(snapshot, pixels, borders, "T455", "T654", 0, 0); // Harnen remains unverified and unchanged.
+        assertContact(snapshot, pixels, borders, "T400", "T420", 0, 0);
+        assertContact(snapshot, pixels, borders, "T329", "T355", 0, 0);
+        assertContact(snapshot, pixels, borders, "T352", "T356", 0, 0);
+        assertContact(snapshot, pixels, borders, "T218", "T220", 0, 0);
+    }
+
+    private static void assertHistoricalContacts(KOMETileRasterSnapshot snapshot) {
         int[] pixels = snapshot.copyArgbPixels();
         KOMEMapBorders borders = new KOMEMapBorders.Cache().get(snapshot, pixels);
 

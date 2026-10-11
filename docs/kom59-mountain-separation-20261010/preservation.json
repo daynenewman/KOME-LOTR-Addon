@@ -1,0 +1,31 @@
+{
+  "existing_worktrees": 28,
+  "heads_branches_statuses_equal": true,
+  "local_refs_and_stash_equal": true,
+  "published_review_checkout_equal": true,
+  "original_package_hashes_equal": true,
+  "protected_runtime_files": 141,
+  "runtime_files_equal": true,
+  "runtime_process_ids_and_start_times_equal": true,
+  "listeners": [
+    {
+      "LocalPort": 51326,
+      "OwningProcess": 30672
+    },
+    {
+      "LocalPort": 51327,
+      "OwningProcess": 22264
+    },
+    {
+      "LocalPort": 51328,
+      "OwningProcess": 31700
+    }
+  ],
+  "baseline_sha256": "971cf2366f89d3f8805ecf85f446f88d3d55dbb6c97022554bd81c437c717e91",
+  "after_build_sha256": "971cf2366f89d3f8805ecf85f446f88d3d55dbb6c97022554bd81c437c717e91",
+  "world_writes": 0,
+  "runtime_commands": 0,
+  "runtime_stops_or_restarts": 0,
+  "deployment": false,
+  "migration": false
+}
