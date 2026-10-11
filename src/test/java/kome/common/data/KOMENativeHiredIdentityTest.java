@@ -1,14 +1,13 @@
 package kome.common.data;
 
 import kome.common.KOMEAccessFixture;
-import kome.common.network.*;
 import lotr.common.entity.npc.*;
 import net.minecraft.nbt.NBTTagCompound;
 import org.junit.*;
 import java.util.*;
 import static org.junit.Assert.*;
 
-public class KOMECampaignHiredPresentationTest {
+public class KOMENativeHiredIdentityTest {
     private KOMEAccessFixture f;
     private KOMECampaignMovementReconstructionTest.MovementNpc npc;
     private KOMEHiredUnitRecord record;
@@ -31,20 +30,17 @@ public class KOMECampaignHiredPresentationTest {
         if(priorType!=null)net.minecraft.entity.EntityList.classToStringMapping.put(npc.getClass(),priorType);
         else net.minecraft.entity.EntityList.classToStringMapping.remove(npc.getClass());
     }
-    @Test public void ordinaryNativeHireBaselineRemainsOwnedAndReceivesNoCampaignPublication(){
+    @Test public void unrelatedNpcHasNoNativeOwnerPresentation(){
+        LOTREntityNPC unrelated=new KOMECampaignMovementReconstructionTest.MovementNpc(f.world);
+        assertFalse(unrelated.hiredNPCInfo.isActive);
+        assertNull(unrelated.hiredNPCInfo.getHiringPlayerUUID());
+        assertNull(unrelated.hiredNPCInfo.getHiringPlayer());
+    }
+    @Test public void ordinaryNativeHireBaselineRemainsOwned(){
         assertTrue(npc.hiredNPCInfo.isActive);assertEquals(record.owner,npc.hiredNPCInfo.getHiringPlayerUUID());
         assertEquals(LOTRHiredNPCInfo.Task.WARRIOR,npc.hiredNPCInfo.getTask());
-        refresh();assertTrue(f.network.messages.isEmpty());
+        assertTrue(f.network.messages.isEmpty());
         assertFalse(KOMEHiredUnitClassification.isCampaignUnit(record));
-    }
-    @Test public void campaignPublishesExactNativeStateAfterTrackingAndRecordPublication(){
-        KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
-        f.data.hiredUnits.remove(record.entity);
-        assertFalse(refresh());assertTrue(f.network.messages.isEmpty());
-        f.data.hiredUnits.put(record.entity,record);assertTrue(refresh());
-        lotr.common.network.LOTRPacketHiredInfo p=packet();
-        assertEquals(record.owner,p.hiringPlayer);assertEquals(npc.hiredNPCInfo.getTask(),p.task);
-        assertEquals("North Guard",p.squadron);assertEquals(npc.hiredNPCInfo.xpLevel,p.xpLvl);assertTrue(npc.hiredNPCInfo.isActive);
     }
     @Test public void haltedAndReadyCampaignPresentationUsesSameOwnerTask(){
         KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
@@ -52,19 +48,12 @@ public class KOMECampaignHiredPresentationTest {
         nativeNbt.getCompoundTag("HiredNPCInfo").setBoolean("CanMove",false);
         f.world.isRemote=true;npc.hiredNPCInfo.readFromNBT(nativeNbt);f.world.isRemote=false;
         assertTrue(npc.hiredNPCInfo.isHalted());
-        refresh();assertEquals(record.owner,packet().hiringPlayer);
+        npc.hiredNPCInfo.sendBasicData(f.player);assertEquals(record.owner,packet().hiringPlayer);
         f.network.messages.clear();f.world.isRemote=true;npc.hiredNPCInfo.ready();f.world.isRemote=false;
         assertFalse(npc.hiredNPCInfo.isHalted());
-        refresh();assertEquals(record.owner,packet().hiringPlayer);
+        npc.hiredNPCInfo.sendBasicData(f.player);assertEquals(record.owner,packet().hiringPlayer);
     }
-    @Test public void unrelatedOrdinaryWrongDimensionDisconnectedAndFailedSpawnDoNotPublish(){
-        assertFalse(refresh());KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
-        assertFalse(KOMECampaignHiredPresentation.refresh(f.player,f.world.provider.dimensionId+1,npc.getEntityId()));
-        f.player.connected=false;assertFalse(refresh());f.player.connected=true;
-        UUID owner=record.owner;record.owner=UUID.randomUUID();assertFalse(refresh());record.owner=owner;
-        f.world.loadedEntityList.clear();assertFalse(refresh());assertTrue(f.network.messages.isEmpty());
-    }
-    @Test public void persistedNativeHireStillPublishesOnRestartAndVerifiedReplacement() throws Exception {
+    @Test public void persistedNativeHireRetainsPresentationOnRestartAndVerifiedReplacement() throws Exception {
         KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
         priorType=net.minecraft.entity.EntityList.classToStringMapping.put(npc.getClass(),"kom89.presentation");
         record.stationedEntityData=KOMEEntitySnapshots.snapshot(record,npc);
@@ -79,51 +68,9 @@ public class KOMECampaignHiredPresentationTest {
         KOMECampaignHealth.reconstructed(record,old,replacement.getUniqueID(),null,null);
         f.data.hiredUnits.remove(old);record.entity=replacement.getUniqueID();f.data.hiredUnits.put(record.entity,record);
         f.world.loadedEntityList.clear();f.world.loadedEntityList.add(replacement);
-        npc=replacement;assertTrue(refresh());
-        assertEquals(record.owner,packet().hiringPlayer);assertTrue(f.network.messages.get(0) instanceof lotr.common.network.LOTRPacketEntityUUID);
+        npc=replacement;npc.hiredNPCInfo.sendBasicData(f.player);
+        assertEquals(record.owner,packet().hiringPlayer);
         assertTrue(replacement.hiredNPCInfo.isActive);assertEquals(LOTRHiredNPCInfo.Task.WARRIOR,replacement.hiredNPCInfo.getTask());
-    }
-    @Test public void lostInitialUuidAndHirePacketsRecoverThroughClientSpawnAcknowledgmentAndNativeGui() throws Exception {
-        KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
-        npc.setHealth(13F);
-        KOMEAccessFixture client=new KOMEAccessFixture();client.world.rand=new Random(5);client.player.id=f.player.id;
-        KOMECampaignMovementReconstructionTest.MovementNpc seen=new KOMECampaignMovementReconstructionTest.MovementNpc(client.world);
-        seen.setEntityId(npc.getEntityId());seen.setHealth(13F);client.world.isRemote=true;
-        assertNotEquals(npc.getUniqueID(),seen.getUniqueID());
-        lotr.common.LOTRCommonProxy previousProxy=lotr.common.LOTRMod.proxy;
-        java.util.concurrent.atomic.AtomicReference<LOTREntityNPC> opened=new java.util.concurrent.atomic.AtomicReference<>();
-        try {
-            lotr.common.LOTRMod.proxy=new lotr.common.LOTRCommonProxy(){
-                @Override public net.minecraft.world.World getClientWorld(){return client.world;}
-                @Override public net.minecraft.entity.player.EntityPlayer getClientPlayer(){return client.player;}
-                @Override public void openHiredNPCGui(LOTREntityNPC entity){opened.set(entity);}
-            };
-            assertTrue(refresh());
-            deliver(client); // Actual native handlers discard BOTH pre-spawn messages.
-            assertNull(seen.hiredNPCInfo.getHiringPlayer());assertNotEquals(npc.getUniqueID(),seen.getUniqueID());
-            List<KOMEPacketCampaignHiredInfoRequest> requests=new ArrayList<>();
-            kome.client.KOMECampaignHiredInfoClient acknowledgment=new kome.client.KOMECampaignHiredInfoClient(()->client.world,requests::add);
-            acknowledgment.joined(seen);acknowledgment.tick();assertTrue(requests.isEmpty());
-            client.world.loadedEntityList.add(seen);
-            // Server right-click eligibility succeeds, but the actual client GUI owner predicate fails.
-            new lotr.common.network.LOTRPacketHiredUnitInteract.Handler().onMessage(
-                new lotr.common.network.LOTRPacketHiredUnitInteract(npc.getEntityId(),1),f.context);
-            deliver(client);assertNull(opened.get());assertNull(seen.hiredNPCInfo.getHiringPlayer());
-            acknowledgment.tick();assertEquals(1,requests.size());
-            KOMEPacketCampaignHiredInfoRequest request=wire(requests.get(0));
-            new KOMEPacketCampaignHiredInfoRequest.Handler().onMessage(request,f.context);
-            deliver(client);
-            assertEquals(npc.getUniqueID(),seen.getUniqueID());assertSame(client.player,seen.hiredNPCInfo.getHiringPlayer());
-            assertEquals(LOTRHiredNPCInfo.Task.WARRIOR,seen.hiredNPCInfo.getTask());assertEquals("North Guard",seen.hiredNPCInfo.getSquadron());
-            assertEquals(13F,npc.getHealth(),0);assertEquals(13F,seen.getHealth(),0);
-            assertFalse(seen.hiredNPCInfo.isActive); // Native basic-info contract; client isActive is NOT the renderer predicate.
-            new lotr.common.network.LOTRPacketHiredUnitInteract.Handler().onMessage(
-                new lotr.common.network.LOTRPacketHiredUnitInteract(npc.getEntityId(),1),f.context);
-            deliver(client);
-            assertSame(seen,opened.get());assertTrue(seen.hiredNPCInfo.isActive);
-            assertSame(client.player,seen.hiredNPCInfo.getHiringPlayer());
-            assertTrue(f.network.messages.isEmpty());
-        } finally {lotr.common.LOTRMod.proxy=previousProxy;}
     }
     @Test public void ordinaryNativeClientBaselineUsesSameOwnerPredicateAndGuiContract() throws Exception {
         KOMEAccessFixture client=new KOMEAccessFixture();client.world.rand=new Random(5);client.player.id=f.player.id;
@@ -142,6 +89,51 @@ public class KOMECampaignHiredPresentationTest {
             new lotr.common.network.LOTRPacketHiredUnitInteract.Handler().onMessage(
                 new lotr.common.network.LOTRPacketHiredUnitInteract(npc.getEntityId(),1),f.context);
             deliver(client);assertSame(seen,opened.get());assertFalse(KOMEHiredUnitClassification.isCampaignUnit(record));
+        } finally {lotr.common.LOTRMod.proxy=previousProxy;}
+    }
+    @Test public void offlineIdentityMismatchAndParityControlNativeOrdinaryUiWithoutKomeRefresh() throws Exception {
+        nativeOfflineIdentityBaseline(false);
+    }
+    @Test public void offlineIdentityMismatchAndParityControlNativeCampaignUiWithoutKomeRefresh() throws Exception {
+        nativeOfflineIdentityBaseline(true);
+    }
+    private void nativeOfflineIdentityBaseline(boolean campaign) throws Exception {
+        String name="Developer";
+        UUID offline=net.minecraft.entity.player.EntityPlayer.func_146094_a(new com.mojang.authlib.GameProfile(null,name));
+        assertEquals(UUID.fromString("a01a21f5-c117-3c1f-b5d0-e055b927f733"),offline);
+        net.minecraft.util.Session mismatchedSession=new net.minecraft.util.Session(name,"31c4910d-9b69-4725-8969-9ed53ac8a7dc","0","legacy");
+        net.minecraft.util.Session alignedSession=new net.minecraft.util.Session(name,offline.toString(),"0","legacy");
+        assertNotEquals(offline,mismatchedSession.func_148256_e().getId());assertEquals(offline,alignedSession.func_148256_e().getId());
+        f.player.id=offline;f.player.name=name;record.owner=offline;
+        f.world.isRemote=true;npc.hiredNPCInfo.setHiringPlayer(f.player);f.world.isRemote=false;
+        if(campaign)KOMEHiredUnitClassification.assignForCampaignWorkflow(record);
+        KOMEAccessFixture client=new KOMEAccessFixture();client.world.rand=new Random(5);
+        client.player.id=mismatchedSession.func_148256_e().getId();client.player.name=name;
+        KOMECampaignMovementReconstructionTest.MovementNpc seen=new KOMECampaignMovementReconstructionTest.MovementNpc(client.world);
+        seen.setEntityId(npc.getEntityId());client.world.isRemote=true;client.world.loadedEntityList.add(seen);
+        lotr.common.LOTRCommonProxy previousProxy=lotr.common.LOTRMod.proxy;
+        java.util.concurrent.atomic.AtomicReference<LOTREntityNPC> opened=new java.util.concurrent.atomic.AtomicReference<>();
+        float hp=seen.getHealth();
+        try {
+            lotr.common.LOTRMod.proxy=new lotr.common.LOTRCommonProxy(){
+                @Override public net.minecraft.world.World getClientWorld(){return client.world;}
+                @Override public net.minecraft.entity.player.EntityPlayer getClientPlayer(){return client.player;}
+                @Override public void openHiredNPCGui(LOTREntityNPC entity){opened.set(entity);}
+            };
+            // Only native LOTR transport and handlers: no KOME refresh, queue or presentation helper.
+            npc.hiredNPCInfo.sendBasicData(f.player);deliver(client);
+            assertSame(f.player,npc.hiredNPCInfo.getHiringPlayer()); // Server horn ownership remains valid.
+            assertEquals(offline,seen.hiredNPCInfo.getHiringPlayerUUID());assertNull(seen.hiredNPCInfo.getHiringPlayer());
+            new lotr.common.network.LOTRPacketHiredUnitInteract.Handler().onMessage(
+                new lotr.common.network.LOTRPacketHiredUnitInteract(npc.getEntityId(),1),f.context);
+            deliver(client);assertNull(opened.get());
+            // Change only the test client's session-derived identity. The SAME native basic data now resolves.
+            client.player.id=alignedSession.func_148256_e().getId();
+            assertSame(client.player,seen.hiredNPCInfo.getHiringPlayer()); // Native bar and right-click owner predicate.
+            new lotr.common.network.LOTRPacketHiredUnitInteract.Handler().onMessage(
+                new lotr.common.network.LOTRPacketHiredUnitInteract(npc.getEntityId(),1),f.context);
+            deliver(client);assertSame(seen,opened.get());
+            assertEquals(hp,seen.getHealth(),0F);assertEquals(campaign,KOMEHiredUnitClassification.isCampaignUnit(record));
         } finally {lotr.common.LOTRMod.proxy=previousProxy;}
     }
     @Test public void nativeHornReadyStillUsesServerOwnershipWhileClientOwnershipIsAbsent(){
@@ -210,6 +202,5 @@ public class KOMECampaignHiredPresentationTest {
         io.netty.buffer.ByteBuf bytes=io.netty.buffer.Unpooled.buffer();message.toBytes(bytes);
         T decoded=(T)message.getClass().newInstance();decoded.fromBytes(bytes);assertFalse(bytes.isReadable());return decoded;
     }
-    private boolean refresh(){return KOMECampaignHiredPresentation.refresh(f.player,f.world.provider.dimensionId,npc.getEntityId());}
-    private lotr.common.network.LOTRPacketHiredInfo packet(){assertEquals(2,f.network.messages.size());return (lotr.common.network.LOTRPacketHiredInfo)f.network.messages.get(1); }
+    private lotr.common.network.LOTRPacketHiredInfo packet(){assertEquals(1,f.network.messages.size());return (lotr.common.network.LOTRPacketHiredInfo)f.network.messages.get(0); }
 }

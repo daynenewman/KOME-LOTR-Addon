@@ -196,7 +196,6 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketJoinBattleSelectionResult.Handler.class, KOMEPacketJoinBattleSelectionResult.class, 56, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleRetreatRequest>(new KOMEPacketJoinBattleRetreatRequest.Handler()) {}, KOMEPacketJoinBattleRetreatRequest.class, 57, Side.SERVER);
         network.registerMessage(KOMEPacketJoinBattleRetreatResult.Handler.class, KOMEPacketJoinBattleRetreatResult.class, 58, Side.CLIENT);
-        // Interim presentation payload 59 is retired. Responses now use native LOTR packets.
-        network.registerMessage(new ServerThreadHandler<KOMEPacketCampaignHiredInfoRequest>(new KOMEPacketCampaignHiredInfoRequest.Handler()) {}, KOMEPacketCampaignHiredInfoRequest.class, 60, Side.SERVER);
+        // Retired KOM-89 presentation workaround IDs 59 and 60 must not be reused.
     }
 }

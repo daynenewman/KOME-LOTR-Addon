@@ -29,7 +29,7 @@ public class KOMEPacketRegistrationTest {
     private static final Set<Integer> EXPECTED_DISCRIMINATORS = new HashSet<Integer>(Arrays.asList(
         0, 3, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
         25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,
-        52, 53, 54, 55, 56, 57, 58, 60
+        52, 53, 54, 55, 56, 57, 58
     ));
 
     @Test public void retiredIdsStayHolesAndEveryRetainedClassKeepsItsIdAndSide() throws Exception {
@@ -55,8 +55,7 @@ public class KOMEPacketRegistrationTest {
             "MasterOfferResponse:52:SERVER",
             "JoinBattleViewRequest:53:SERVER", "JoinBattleViewResponse:54:CLIENT",
             "JoinBattleSelectionRequest:55:SERVER", "JoinBattleSelectionResult:56:CLIENT",
-            "JoinBattleRetreatRequest:57:SERVER", "JoinBattleRetreatResult:58:CLIENT",
-            "CampaignHiredInfoRequest:60:SERVER"
+            "JoinBattleRetreatRequest:57:SERVER", "JoinBattleRetreatResult:58:CLIENT"
         };
         for (String entry : entries) {
             String[] parts = entry.split(":");
@@ -69,6 +68,7 @@ public class KOMEPacketRegistrationTest {
         assertFalse(registry.contains(".class, 23,"));
         assertFalse(registry.contains(".class, 24,"));
         assertFalse(registry.contains(".class, 59,"));
+        assertFalse(registry.contains(".class, 60,"));
     }
 
     @After
@@ -111,9 +111,9 @@ public class KOMEPacketRegistrationTest {
             }
         }
 
-        assertEquals(54, registrations);
+        assertEquals(53, registrations);
         assertEquals(EXPECTED_DISCRIMINATORS, discriminators);
-        assertEquals(24, serverRegistrations);
+        assertEquals(23, serverRegistrations);
 
         EmbeddedChannel channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
         Set<String> handlerNames = new HashSet<String>();
