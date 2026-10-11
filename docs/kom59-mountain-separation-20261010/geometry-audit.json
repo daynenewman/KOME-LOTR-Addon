@@ -1,0 +1,232 @@
+{
+  "exact_rgba_changes": 45,
+  "outside_manifest_changes": 0,
+  "active_ids_before": 621,
+  "active_ids_after": 621,
+  "contact_counts_shared_edges_and_diagonal_corners": {
+    "T435-T654": {
+      "before": [
+        2,
+        3
+      ],
+      "after": [
+        0,
+        0
+      ]
+    },
+    "T400-T420": {
+      "before": [
+        10,
+        17
+      ],
+      "after": [
+        0,
+        0
+      ]
+    },
+    "T329-T355": {
+      "before": [
+        13,
+        19
+      ],
+      "after": [
+        0,
+        0
+      ]
+    },
+    "T352-T356": {
+      "before": [
+        8,
+        8
+      ],
+      "after": [
+        0,
+        0
+      ]
+    },
+    "T218-T220": {
+      "before": [
+        14,
+        22
+      ],
+      "after": [
+        0,
+        0
+      ]
+    }
+  },
+  "affected_tile_components": {
+    "T218": [
+      3093
+    ],
+    "T220": [
+      268
+    ],
+    "T329": [
+      2228
+    ],
+    "T352": [
+      507
+    ],
+    "T355": [
+      4190
+    ],
+    "T356": [
+      482
+    ],
+    "T400": [
+      3259
+    ],
+    "T420": [
+      3539
+    ],
+    "T435": [
+      8425
+    ],
+    "T654": [
+      4271
+    ]
+  },
+  "protected_corridors": {
+    "T239-T232": {
+      "before": [
+        5,
+        9
+      ],
+      "after": [
+        5,
+        9
+      ],
+      "edge": "open"
+    },
+    "T232-T220": {
+      "before": [
+        7,
+        9
+      ],
+      "after": [
+        7,
+        9
+      ],
+      "edge": "open"
+    },
+    "T220-T223": {
+      "before": [
+        4,
+        6
+      ],
+      "after": [
+        4,
+        6
+      ],
+      "edge": "open"
+    },
+    "T223-T233": {
+      "before": [
+        19,
+        26
+      ],
+      "after": [
+        19,
+        26
+      ],
+      "edge": "open"
+    },
+    "T409-T420": {
+      "before": [
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0
+      ],
+      "edge": "bridge"
+    },
+    "T425-T435": {
+      "before": [
+        3,
+        6
+      ],
+      "after": [
+        3,
+        6
+      ],
+      "edge": "bridge"
+    },
+    "T444-T455": {
+      "before": [
+        26,
+        33
+      ],
+      "after": [
+        26,
+        33
+      ],
+      "edge": "bridge"
+    },
+    "T322-T329": {
+      "before": [
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0
+      ],
+      "edge": "bridge"
+    },
+    "T329-T338": {
+      "before": [
+        0,
+        0
+      ],
+      "after": [
+        0,
+        0
+      ],
+      "edge": "bridge"
+    },
+    "T329-T331": {
+      "before": [
+        86,
+        112
+      ],
+      "after": [
+        85,
+        112
+      ],
+      "edge": "open"
+    }
+  },
+  "configured_route_and_arrival_points_checked": 1242,
+  "points_on_removed_cells": 0,
+  "unchanged_resource_count": 22,
+  "unchanged_resources_sha256": {
+    "assets/kome/config/kome_emergency_defense_templates.csv": "68fed4d9ffd4fc286be29dc23d0dc45a17f3bd41dbbc7cb59e6dd4f53bf5345e",
+    "assets/kome/config/kome_faction_capital_defaults.csv": "429b4d8430caa9e25107548f4b895d8ce77cbd208f23f071c320c0a97da0887f",
+    "assets/kome/config/kome_muster_roster.csv": "dd994b4cafd61137b26b5d634a78d30a0775f1e7543d41fef6e2acc0f1c62d84",
+    "assets/kome/config/kome_tile_gameplay_manifest.properties": "4076a76f8d674888fe49f6abdca00585a8c912e050e15a43196a1b0aa1ca845a",
+    "assets/kome/config/kome_tile_gameplay_points.csv": "e787eb404eb23f3786653051c868e75530ab708239f084d43e9a4535a1794176",
+    "assets/kome/config/kome_tile_gameplay_provenance.json": "1b07f19aeb5ab105a9382960159d49f86a1c981c230932fe74d6f51787bb712e",
+    "assets/kome/config/kome_tile_ownership_balance_report.txt": "b1c422242d32bf33358e7fffaec60321bcaaa3cf8bf53862d8241988238acb99",
+    "assets/kome/config/kome_tile_ownership_defaults.csv": "51a325a18fc52652d3f0dd2b9c6fec3693dd108da65941458d6843557e3bd1bc",
+    "assets/kome/config/kome_tile_ownership_defaults_notes.txt": "933189f2b2e0d691e34f5ced44c84be6e562d52562f34338f50f9a2114bbb6ec",
+    "assets/kome/config/kome_tile_route_defaults.csv": "d214d0b7446b9718b303c608b125ae755adebfc6a2437c739bdb60867c2d8f5e",
+    "assets/kome/config/kome_tile_route_markers.csv": "4d0ea8bdd204f78b5e65eb5b0cb9d93167b1b5a2694617a7b7e25f80ab730d7d",
+    "assets/kome/config/kome_tile_waypoint_candidates.csv": "e496a608e54fb16ab74bfcecbc91779dbf5ebce436c5c7160754d028345fb5ee",
+    "assets/kome/config/kome_waypoint_defaults.csv": "29d23023efc67a2153021dcf1bd93c0ea5b16101b1e252b47ed13372af392f69",
+    "assets/kome/map/reset_conquest_borders.png": "8e5f51fcc8481ddd8a8ac8153b3d36f46de765980d476c32f0856f1c43a3db20",
+    "assets/kome/map/reset_conquest_borders_thin.png": "36a3e522248c07e9948d94169f36e7d524182059adf59bfd17217f5d7f1a384e",
+    "assets/kome/map/reset_conquest_bridges.png": "c6082a9310490a49173bafa352029a3dacfd2c06a85972975900939e8c2c3dde",
+    "assets/kome/map/reset_conquest_desert_shade.png": "5b7498f76109e99d0425c27bdd674d384a46984ff180e90214079bafe8cfd809",
+    "assets/kome/map/reset_conquest_hitmap.png": "3ee80b95947f99ca4bdc355c0acf3dc832d41e964b5fe54e880f35665068e6d1",
+    "assets/kome/map/reset_conquest_labels.png": "f1174fd31e2afa158a21dfc5c436cdabb0f3a758e1f9c2e19075f88921eb017e",
+    "assets/kome/map/reset_conquest_overlay.png": "73b5f0cbf67259b6121da3315c6f838f2c870601ec095b526d4b2d630549367c",
+    "assets/kome/map/reset_conquest_roads.png": "9eb44114b93be6faba6d148366d2fb98d127c49a154aa0032dc9c9f843f97f60",
+    "assets/kome/map/reset_conquest_tile_ids.txt": "d8674747229c7a9cbfdebcd217f1423d722ff4cdacb882d55607491cea36d9e5"
+  },
+  "historical_golden_git_diff_empty": true,
+  "exclusion_index_bytes": 25600000,
+  "evidence_level": "Offline decoded production resources; production loader/graph validation is recorded separately; no world/entity observation"
+}

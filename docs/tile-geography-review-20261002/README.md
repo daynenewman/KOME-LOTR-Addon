@@ -6,7 +6,9 @@ See [progress](PROGRESS.md), [preservation baseline](preservation-before.json) a
 [verified preservation](preservation-after.json). Independent [Claude report](claude-review.txt)
 and [finding assessment](claude-review-assessment.md) are included.
 
-## KOM-58 metadata contract
+Current source status: the [approved KOM-59 45-cell mountain batch](../kom59-mountain-separation-20261010/README.md) supersedes the historical empty production set below. This October 2 package remains evidence for its original artifact; other proposals remain unresolved.
+
+## Historical KOM-58 metadata contract
 
 `assets/kome/map/tile_exclusions.tsv` is mandatory for the bundled loader. Schema 1 pins the exact PNG SHA-256 and raster dimensions; bundled resources, not resource packs, supply the authority. UTF-8 must be valid, input <=4 MiB, <=65,535 unique named zones, and every zone must have cells. Mask input <=64 MiB and existing decoded dimension/pixel bounds apply. Tabs separate records; definitions precede runs. Example below is **test syntax only, not approved geography**:
 

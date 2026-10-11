@@ -1,6 +1,6 @@
 # Strategic routes and physical arrival
 
-[Index](../../INDEX.md) · [Daily flow](../../flows/daily-movement.md)
+[Index](../../INDEX.md) Â· [Daily flow](../../flows/daily-movement.md)
 
 Owns campaign route preview/confirmation, enduring daily credit, departures, physical transport/arrival, confinement, retries, and recovery. It does not own swimming/crawling; see [movement compatibility](../movement-compatibility/README.md).
 
@@ -15,6 +15,8 @@ Owns campaign route preview/confirmation, enduring daily credit, departures, phy
 - [KOMEEntitySnapshots](../../../../src/main/java/kome/common/data/KOMEEntitySnapshots.java), [KOMEStrategicDeploymentResolver](../../../../src/main/java/kome/common/data/KOMEStrategicDeploymentResolver.java), [KOMEHaltedUnitProtection](../../../../src/main/java/kome/common/data/KOMEHaltedUnitProtection.java): NPC/mount state, placement clearance, stationary protection. [KOMEEvents](../../../../src/main/java/kome/common/data/KOMEEvents.java) owns tick/join/death observations and marker synchronization.
 
 Dependencies: [company identity/hiring](../hiring-companies/README.md), [graph versus raster](../geography/README.md), [passage/delegation](../politics-diplomacy/README.md), [conflict/tactical authority](../conflict-tactical/README.md), [phase/capital](../campaign-lifecycle/README.md), [client projections](../client-network/README.md).
+
+[KOM-59 approved mountain cut](../../../kom59-mountain-separation-20261010/README.md) separates five raster contacts without changing route defaults, bridge/pass edges, configured arrivals or persisted movement. Exclusion metadata does not authorize strategic traversal.
 
 ## Verification and gaps
 
