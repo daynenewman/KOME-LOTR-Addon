@@ -232,7 +232,7 @@ public final class KOMELordshipTrialService {
         if(!KOMECanonicalRankService.setCanonicalRank(data,player.getUniqueID(),KOMEProgressionRank.LORD))return false;
         t.objective.stage=Stage.REPORTED;t.objective.reportedAt=player.worldObj.getTotalWorldTime();
         p.getLordship().archive();p.grant("knight.title_lord");KOMEProgressionAutoCompleter.applyUnlocks(p);
-        speech(player,liege,t,"promoted");changed(data,player,p);return true;
+        speech(player,liege,t,"promoted");KOMEProgressionAnnouncements.earned(player,KOMEProgressionRank.KNIGHT,t.objective.adminForced);changed(data,player,p);return true;
     }
     static void fail(KOMEWorldData data,World world,UUID owner,KOMELordshipTrial t,String reason) {
         t.objective.stage=Stage.FAILED;t.objective.cleanupPending=true;t.failureReason=reason;

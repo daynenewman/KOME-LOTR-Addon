@@ -30,9 +30,9 @@ public final class KOMEProgressionSummary {
         if (p.getCanonicalRank() == KOMEProgressionRank.KNIGHT) return rank + KOMEKnightCommissionPresentation.summary(p,pledgeKey);
         if (p.getCanonicalRank() != KOMEProgressionRank.SERF) return rank
             +(s.hasLiege()?"\nLiege: "+s.getLiege().displayName:"\nLiege: None\nNext: Seek an eligible captain and accept their Liege offer");
-        if (!s.getSerfdomMaster().isSet()) return rank + "\nMaster: None\nNext: Find a Master";
+        if (!s.getSerfdomMaster().isSet()&&!s.isTrialCompleted()) return rank + "\nMaster: None\nNext: Find a Master";
 
-        String base = rank + (s.hasMasterRelationship()?"\nMaster: ":"\nFormer Master: ") + s.getSerfdomMaster().displayName;
+        String base = rank + (s.hasMasterRelationship()?"\nMaster: ":"\nFormer Master: ") + (s.getSerfdomMaster().isSet()?s.getSerfdomMaster().displayName:s.getDeceasedMaster().isSet()?s.getDeceasedMaster().displayName:"None");
         if (s.hasLiege() && s.getTrialId().length() == 0) return base + "\nLiege: " + s.getLiege().displayName + "\nNext: Ask your Liege for a Trial of Standing";
         if ("courier".equals(s.getActiveAssignmentKind())) {
             KOMESerfCourierAssignment a = KOMESerfCourierAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
@@ -59,7 +59,7 @@ public final class KOMEProgressionSummary {
             return base + "\nLiege: " + s.getLiege().displayName + "\nTrial of Standing: " + (trial==null?"Trial":trial.displayName) + "\nObjective: " + objective;
         }
         if (s.getActiveAssignmentKind().length() != 0) return base + "\nCurrent Duty: " + s.getActiveAssignmentKind() + "\nNext: Complete your duty";
-        if (s.isTrialCompleted()) return base + "\nNext: Return to your Master for your new standing";
+        if (s.isTrialCompleted()) return base + (s.hasLiege()?"\nNext: Return to your Liege for your new standing":"\nNext: Seek an eligible replacement Liege to hear your completed trial report.");
         if (KOMESerfKnightService.allDutiesComplete(s) && !s.hasLiege()) return base + "\nNext: Seek a prospective Liege\n"+KOMEProgressionNativeAuthority.guidance(pledgeKey);
         return base + "\nNext: Speak with your Master";
     }
@@ -70,7 +70,7 @@ public final class KOMEProgressionSummary {
             return "Rank: "+KOMEFactionProgressionTitles.title(pledgeKey,KOMEProgressionRank.SERF)
                 +"\nMaster: "+s.getSerfdomMaster().displayName+"\nNext: Reach "+KOMEStandingTrialEligibility.requiredAlignment(pledgeKey)
                 +" faction alignment ("+(int)Math.floor(Math.max(0,alignment))+" / "+KOMEStandingTrialEligibility.requiredAlignment(pledgeKey)+").";
-        String result=text(p,pledgeName,pledgeKey);
+        String result=text(p,pledgeName,pledgeKey);if(p.getCanonicalRank()==KOMEProgressionRank.SERF&&!s.failures().isEmpty()&&!s.hasLiege()){net.minecraft.nbt.NBTTagCompound failure=s.failures().get(s.failures().size()-1);long remaining=Math.max(0,failure.getLong("Expiry")-KOMESerfKnightProgression.failureClock.getAsLong());result+="\nYour last Trial of Standing failed. That lord released you. Your completed duties remain honoured. Seek eligible service elsewhere.";if(remaining>0)result+="\nThe same lord will hear no new trial petition for another "+((remaining+59999)/60000)+" minutes. The daily trial limit also applies.";}
         if(p.getCanonicalRank()==KOMEProgressionRank.KNIGHT)result+="\n"+KOMELordshipTrialPresentation.standing(p,alignment,pledgeKey)+"\n"+KOMELordshipTrialPresentation.status(p,alignment,pledgeKey);
         return result;
     }

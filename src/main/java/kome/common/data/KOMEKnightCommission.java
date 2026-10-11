@@ -18,7 +18,7 @@ public final class KOMEKnightCommission {
     public String place = "", enemyFaction = "", civilianClass = "";
     public long createdAt, acceptedAt, reportedAt, nextRecoveryTick;
     public boolean participated, encounterCreated, threatResolved, cleanupPending;
-    public boolean rewardReserved;
+    public boolean rewardReserved,adminForced;
     public final List<Actor> actors = new ArrayList<Actor>();
     public final List<Goods> goods = new ArrayList<Goods>();
     public final List<String> enemyClasses = new ArrayList<String>();
@@ -61,7 +61,7 @@ public final class KOMEKnightCommission {
         n.setDouble("X",x);n.setDouble("Y",y);n.setDouble("Z",z);n.setDouble("DestinationX",destinationX);n.setDouble("DestinationZ",destinationZ);
         n.setTag("DestinationStructure",destinationProof.copy());n.setString("Place",place);n.setString("EnemyFaction",enemyFaction);n.setString("CivilianClass",civilianClass);
         n.setLong("Created",createdAt);n.setLong("Accepted",acceptedAt);n.setLong("Reported",reportedAt);n.setLong("NextRecovery",nextRecoveryTick);
-        n.setBoolean("RewardReserved",rewardReserved);n.setBoolean("Participated",participated);n.setBoolean("EncounterCreated",encounterCreated);n.setBoolean("ThreatResolved",threatResolved);n.setBoolean("CleanupPending",cleanupPending);
+        n.setBoolean("RewardReserved",rewardReserved);n.setBoolean("AdminForced",adminForced);n.setBoolean("Participated",participated);n.setBoolean("EncounterCreated",encounterCreated);n.setBoolean("ThreatResolved",threatResolved);n.setBoolean("CleanupPending",cleanupPending);
         NBTTagList a=new NBTTagList();for(Actor actor:actors)a.appendTag(actor.write());n.setTag("Actors",a);
         NBTTagList g=new NBTTagList();for(Goods good:goods)g.appendTag(good.write());n.setTag("Goods",g);
         NBTTagList e=new NBTTagList();for(String type:enemyClasses){NBTTagCompound t=new NBTTagCompound();t.setString("Class",type);e.appendTag(t);}n.setTag("EnemyClasses",e);return n;
@@ -75,7 +75,7 @@ public final class KOMEKnightCommission {
             a.x=n.getDouble("X");a.y=n.getDouble("Y");a.z=n.getDouble("Z");a.destinationX=n.getDouble("DestinationX");a.destinationZ=n.getDouble("DestinationZ");
             if(!KOMEKnightCommissionLocations.coordinate(a.x)||!Double.isFinite(a.y)||a.y<0||a.y>256||!KOMEKnightCommissionLocations.coordinate(a.z)||!KOMEKnightCommissionLocations.coordinate(a.destinationX)||!KOMEKnightCommissionLocations.coordinate(a.destinationZ)||a.dimension!=a.liege.dimension)return null;
             a.destinationProof=(NBTTagCompound)n.getCompoundTag("DestinationStructure").copy();a.place=n.getString("Place");a.enemyFaction=n.getString("EnemyFaction");a.civilianClass=n.getString("CivilianClass");a.createdAt=n.getLong("Created");a.acceptedAt=n.getLong("Accepted");a.reportedAt=n.getLong("Reported");a.nextRecoveryTick=n.getLong("NextRecovery");
-            a.rewardReserved=n.hasKey("RewardReserved")?n.getBoolean("RewardReserved"):a.stage==Stage.REPORTED;a.participated=n.getBoolean("Participated");a.encounterCreated=n.getBoolean("EncounterCreated");a.threatResolved=n.getBoolean("ThreatResolved");a.cleanupPending=n.getBoolean("CleanupPending");
+            a.adminForced=n.getBoolean("AdminForced");a.rewardReserved=n.hasKey("RewardReserved")?n.getBoolean("RewardReserved"):a.stage==Stage.REPORTED;a.participated=n.getBoolean("Participated");a.encounterCreated=n.getBoolean("EncounterCreated");a.threatResolved=n.getBoolean("ThreatResolved");a.cleanupPending=n.getBoolean("CleanupPending");
             NBTTagList actors=n.getTagList("Actors",10);if(actors.tagCount()>16)return null;
             Set<String> ids=new HashSet<String>();for(int i=0;i<actors.tagCount();i++){NBTTagCompound t=actors.getCompoundTagAt(i);Actor actor=new Actor(t.getString("Id"),t.getString("Class"),Role.valueOf(t.getString("Role")),t.getDouble("X"),t.getDouble("Y"),t.getDouble("Z"));if(!ids.add(actor.id)||!KOMEKnightCommissionLocations.coordinate(actor.x)||!KOMEKnightCommissionLocations.coordinate(actor.z)||!Double.isFinite(actor.y))return null;actor.displayName=t.getString("Name");actor.dead=t.getBoolean("Dead");actor.missingTicks=Math.max(0,t.getInteger("MissingTicks"));actor.recoveries=Math.max(0,t.getInteger("Recoveries"));a.actors.add(actor);}
             NBTTagList goods=n.getTagList("Goods",10);if(goods.tagCount()>8)return null;for(int i=0;i<goods.tagCount();i++){NBTTagCompound t=goods.getCompoundTagAt(i);Goods g=new Goods(t.getString("Item"),t.getInteger("Damage"),t.getInteger("Required"));g.delivered=Math.max(0,Math.min(g.required,t.getInteger("Delivered")));a.goods.add(g);}

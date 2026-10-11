@@ -100,34 +100,10 @@ public final class KOMEProgressionNpcInteractionService {
             return false;
         }
 
-        if(canReceiveKnighthood(player,state)) {
-            KOMESerfdomMasterService.Result result=
-                KOMESerfdomMasterService.conferKnighthood(
-                    player,
-                    data,
-                    npc);
-
-            if(!result.success) {
-                player.addChatMessage(
-                    new ChatComponentText(result.reason));
-                return true;
-            }
-
-            KOMEProgressionNpcSpeech.say(
-                player,
-                npc,
-                "You have fulfilled your service and proved yourself before your liege. "
-                    +"Take my blessing as you leave my household. Rise now to your new standing.");
-
-            KOMEProgressionAutoCompleter.syncPlayer(
-                player,
-                progression);
-
-            KOMEProgressionTitles.updatePlayerTitle(player);
-            return true;
-        }
+        if(state.isTrialCompleted()) { KOMEProgressionNpcSpeech.say(player,npc,"You are ready for greater service. Return to your Liege, who will confer your new standing.");return false; }
 
         String active=state.getActiveAssignmentKind();
+        if(KOMEProgressionGoodsRecovery.repair(player,npc))return true;
 
         if("provisioning".equals(active)) {
             return deliverProvisioning(
@@ -244,7 +220,7 @@ public final class KOMEProgressionNpcInteractionService {
             KOMEProgressionNpcSpeech.noMatchingProvisions(
                 player,
                 npc);
-            return true;
+            return false;
         }
 
         state.setDutyAssignmentData(
@@ -258,6 +234,9 @@ public final class KOMEProgressionNpcInteractionService {
         }
 
         data.markDirty();
+        KOMEProgressionServiceRewards.materials(player,state,KOMESerfKnightDutyType.PROVISIONING);
+        KOMEProgressionServiceRewards.materials(player,state,KOMESerfKnightDutyType.PROFESSION);
+        KOMEProgressionExchangeSounds.handover(player,npc);
 
         player.inventoryContainer.detectAndSendChanges();
 
@@ -305,7 +284,7 @@ public final class KOMEProgressionNpcInteractionService {
                 .noMatchingProfessionMaterials(
                     player,
                     npc);
-            return true;
+            return false;
         }
 
         state.setDutyAssignmentData(
@@ -317,6 +296,9 @@ public final class KOMEProgressionNpcInteractionService {
             assignment);
 
         data.markDirty();
+        KOMEProgressionServiceRewards.materials(player,state,KOMESerfKnightDutyType.PROVISIONING);
+        KOMEProgressionServiceRewards.materials(player,state,KOMESerfKnightDutyType.PROFESSION);
+        KOMEProgressionExchangeSounds.handover(player,npc);
 
         player.inventoryContainer.detectAndSendChanges();
 
@@ -362,6 +344,7 @@ public final class KOMEProgressionNpcInteractionService {
                 npc)) {
             return false;
         }
+        if(state.isTrialCompleted())return KOMESerfdomMasterService.conferKnighthood(player,data,npc).success;
 
         if(state.getTrialId().length()!=0) {
             KOMESerfKnightTrialAssignment assignment=
@@ -377,8 +360,9 @@ public final class KOMEProgressionNpcInteractionService {
             if("recovery".equals(assignment.trialId)
                     &&assignment.stage==
                         KOMESerfKnightTrialAssignment.Stage.ACTIVE
-                    &&assignment.data.getBoolean(
-                        KOMESerfKnightRecoveryService.DATA_RETRIEVED)) {
+                    &&(assignment.data.getBoolean(
+                        KOMESerfKnightRecoveryService.DATA_RETRIEVED)
+                        ||KOMESerfKnightRecoveryService.isAssignedTo(player.getCurrentEquippedItem(),assignment,player.getUniqueID()))) {
                 return KOMESerfKnightRecoveryService.deliver(
                     player,
                     progression,
@@ -480,7 +464,7 @@ public final class KOMEProgressionNpcInteractionService {
 
         return progression.getCanonicalRank()==
                     KOMEProgressionRank.SERF
-            &&state.getSerfdomMaster().isSet()
+            &&(state.getSerfdomMaster().isSet()||state.isTrialCompleted())
             &&KOMESerfKnightService.allDutiesComplete(state)
             &&(!state.hasActiveAssignment()
                 ||state.getTrialId().length()!=0)
@@ -489,7 +473,7 @@ public final class KOMEProgressionNpcInteractionService {
             &&pledge!=null
             &&pledge==npc.getFaction()
             &&KOMEProgressionFactionResolver.matches(
-                state.getSerfdomMaster().factionKey,
+                state.isTrialCompleted()?state.getLiege().factionKey:state.getSerfdomMaster().factionKey,
                 npc.getFaction())
             &&!npc.isChild()
             &&KOMEProgressionNpcRankService

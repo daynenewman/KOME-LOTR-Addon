@@ -19,11 +19,17 @@ public final class KOMEProgressionEncounterCleanup {
         KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();
         if(world==null||trial==null)return;
         state.updateTrialAssignment(trial.withStage(KOMESerfKnightTrialAssignment.Stage.FAILED,null));
+        UUID failedOwner=null;
         for(java.util.Map.Entry<UUID,KOMEPlayerProgression> row:world.progressions.entrySet()) {
             if(row.getValue().getSerfKnightProgression()!=state)continue;
             if(liveWorld!=null)cleanup(liveWorld,row.getKey(),row.getValue());
+            failedOwner=row.getKey();
+            if(liveWorld!=null){net.minecraft.entity.Entity liege=KOMEKnightCommissionService.findLoaded(liveWorld,trial.liege.entityUuid);net.minecraft.entity.player.EntityPlayer player=liveWorld.func_152378_a(row.getKey());if(liege instanceof lotr.common.entity.npc.LOTREntityNPC&&player instanceof EntityPlayerMP&&player.getDistanceSqToEntity(liege)<=64)KOMEProgressionNpcSpeech.say((EntityPlayerMP)player,(lotr.common.entity.npc.LOTREntityNPC)liege,"Your trial has failed. I release you from this service. Seek another lord, and reflect on what went wrong.");}
+            state.releaseFailedLiege(row.getKey(),trial,KOMESerfKnightProgression.failureClock.getAsLong());
             KOMEProgressionNpcRoles.syncPlayer(world,row.getKey());
+            if(liveWorld!=null&&kome.common.network.KOMEPacketHandler.network!=null){net.minecraft.entity.player.EntityPlayer live=liveWorld.func_152378_a(row.getKey());if(live instanceof EntityPlayerMP)KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP)live,row.getValue());}
         }
+        if(failedOwner==null)state.releaseFailedLiege(null,trial,KOMESerfKnightProgression.failureClock.getAsLong());
         world.markDirty();
     }
 

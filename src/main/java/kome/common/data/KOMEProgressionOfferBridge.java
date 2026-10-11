@@ -161,15 +161,14 @@ public final class KOMEProgressionOfferBridge {
             boolean eligible) {
         LOTRMiniQuest current = npc.questInfo.getOfferFor(player);
         boolean ownsQuest=KOMELiegeProgressionInteraction.ownsQuest(player,npc);
-        eligible=eligible||ownsQuest;
+        KOMEProgressionEligibility result=KOMEProgressionEligibility.evaluate(player,npc);eligible=result.enabled;
         boolean passiveOffer = ownsQuest||eligible && isStandingTrialOffer(current);
         boolean offering = current != null && (isStandingTrialOffer(current)
             ? eligible : npc.questInfo.canOfferQuestsTo(player));
         int color = current == null ? 0xFFFFFF : current.getQuestColor();
-        KOMEPacketHandler.network.sendTo(
-            new KOMEPacketStandingTrialEligibility(
-                npc.getEntityId(), npc.getUniqueID(), eligible, passiveOffer, offering, color),
-            player);
+        KOMEPacketStandingTrialEligibility message=new KOMEPacketStandingTrialEligibility(npc.getEntityId(),npc.getUniqueID(),eligible,passiveOffer,offering,color);
+        message.relevant=result.relevant;message.reason=result.reason;
+        KOMEPacketHandler.network.sendTo(message,player);
     }
 
     private static boolean isStandingTrialOffer(LOTRMiniQuest offer) {

@@ -39,11 +39,14 @@ public final class KOMEKnightCommissionLocations {
         double[] surface=KOMEKnightCommissionService.safeSite(world,(int)x,(int)z);return surface==null?Double.NaN:surface[1];
     }
     static Destination choose(KOMEProgressionNpcRef liege,World world,KOMEKnightCommission.Type type,String token){
+        return choose(liege,world,type,token,null);
+    }
+    static Destination choose(KOMEProgressionNpcRef liege,World world,KOMEKnightCommission.Type type,String token,KOMEProgressionVariety variety){
         if(liege==null||!liege.isSet()||world==null||world.provider==null||liege.dimension!=world.provider.dimensionId
                 ||!coordinate(liege.x)||!coordinate(liege.z))return null;
         LOTRFaction faction=KOMEProgressionFactionResolver.resolve(liege.factionKey);if(faction==null)return null;
         if(type==KOMEKnightCommission.Type.DANGEROUS_ESCORT||type==KOMEKnightCommission.Type.SETTLEMENT_DEFENSE||type==KOMEKnightCommission.Type.RELIEF)
-            return KOMEProgressionDestinations.find(world,liege,minimum(type),maximum(type));
+            return KOMEProgressionDestinations.find(world,liege,minimum(type),maximum(type),variety);
         Random random=new Random((token==null?0:token.hashCode())*31L+Double.doubleToLongBits(liege.x)+Double.doubleToLongBits(liege.z));
         Destination best=null;int bestScore=-1;
         for(int attempt=0;attempt<192;attempt++){
@@ -55,16 +58,17 @@ public final class KOMEKnightCommissionLocations {
             LOTRBiome biome=(LOTRBiome)world.getWorldChunkManager().getBiomeGenAt(x,z);
             String name=biome.getBiomeDisplayName();if(name==null||name.isEmpty())name="Faction lands";
             Destination candidate=new Destination(x,z,name);
-            if(type!=KOMEKnightCommission.Type.BORDER_INCURSION){best=candidate;break;}
+            if(type!=KOMEKnightCommission.Type.BORDER_INCURSION){if(best==null||variety!=null&&variety.penalty(liege,x,z)<variety.penalty(liege,best.x,best.z))best=candidate;if(variety==null||variety.penalty(liege,x,z)==0)break;continue;}
             LOTRFaction neighbor=hostileBoundary(world,faction,x,z);
             if(neighbor==null)continue;
             net.minecraft.nbt.NBTTagCompound border=new net.minecraft.nbt.NBTTagCompound();border.setString("BorderEnemy",neighbor.codeName());
-            best=new Destination(x,z,name,border);break;
+            if(best==null||variety!=null&&variety.penalty(liege,x,z)<variety.penalty(liege,best.x,best.z))best=new Destination(x,z,name,border);
+            if(variety==null||variety.penalty(liege,x,z)==0)break;
         }
         if(best==null)return null;
         if(type!=KOMEKnightCommission.Type.BORDER_INCURSION)for(LOTRWaypoint waypoint:LOTRWaypoint.values())
             if(waypoint.faction==faction&&!waypoint.isHidden()&&range(liege,type,waypoint.getXCoord(),waypoint.getZCoord())
-                    &&usable(world,faction,waypoint.getXCoord(),waypoint.getZCoord()))
+                    &&usable(world,faction,waypoint.getXCoord(),waypoint.getZCoord())&&(variety==null||variety.penalty(liege,waypoint.getXCoord(),waypoint.getZCoord())==0))
                 return new Destination(waypoint.getXCoord(),waypoint.getZCoord(),"the marked ground");
         return best;
     }

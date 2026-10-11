@@ -29,6 +29,8 @@ public class KOMEWaypointTransformerTest {
                 KOMEProgressionOfferTransformer.class.getName(),
                 KOMEProgressionOfferGuiTransformer.class.getName(),
                 KOMEFactionTitleTransformer.class.getName(),
+                KOMEPlayerNameplateTransformer.class.getName(),
+                KOMEProgressionOutlineTransformer.class.getName(),
                 KOMEAlignmentBarTitleTransformer.class.getName(),
                 KOMEAlignmentSyncTransformer.class.getName(),
                 KOMEFactionTitleOptionsTransformer.class.getName(),

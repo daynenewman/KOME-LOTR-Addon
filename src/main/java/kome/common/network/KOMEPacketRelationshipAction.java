@@ -42,6 +42,10 @@ public class KOMEPacketRelationshipAction implements IMessage {
             if(m.action==TALK){n.interactFirst(p);return null;}
             if(m.action!=SERVICE){p.addChatMessage(new ChatComponentText("Unknown relationship action."));return null;}
             if(m.relationship==MASTER){KOMEPacketSerfdomMasterAction.sendMenu(p,n);return null;}
+            if(exact&&s.isTrialCompleted()&&progression.getCanonicalRank()==KOMEProgressionRank.SERF){
+                KOMESerfdomMasterService.Result result=KOMESerfdomMasterService.conferKnighthood(p,data,n);
+                if(!result.success)KOMEProgressionNpcSpeech.say(p,n,result.reason);return null;
+            }
             if(exact&&KOMELiegeProgressionInteraction.quest(p,n))return null;
             if(KOMEProgressionOfferBridge.canReplaceLiegeFrom(p,n)||KOMEKnightCommissionService.eligible(p,n)||KOMELordshipTrialService.eligible(p,n)) {
                 KOMEProgressionOfferBridge.openStandingTrialOffer(p,n);

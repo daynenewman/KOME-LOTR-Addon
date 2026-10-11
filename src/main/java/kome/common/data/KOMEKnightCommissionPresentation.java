@@ -64,4 +64,12 @@ public final class KOMEKnightCommissionPresentation {
         else summary+="\n"+title(a.type)+"\n"+objective(a)+"\n"+text(a.stage==Stage.READY_TO_REPORT?"field_complete":"field_pending");return summary;
     }
     public static String unavailableLiege(){return text("native_liege_unavailable");}
+    public static String details(KOMEKnightCommission a){
+        String result="Stage: "+(a.stage==Stage.OFFERED?"Receive orders":a.stage==Stage.READY_TO_REPORT?"Ready to report":a.stage==Stage.FAILED?"Failed":"In service")+"\n"+objective(a)
+            +"\nDestination: "+location(a)+" ("+(int)a.destinationX+", "+(int)a.destinationZ+")";
+        Actor charge=a.protectedActor();if(charge!=null&&!charge.dead)result+="\nCharge: "+(charge.displayName.isEmpty()?"the marked traveler":charge.displayName);
+        if(a.type==Type.STOLEN_GOODS)result+="\nProperty: "+KOMEProgressionLostItems.name(a)+"\nReturn the bound item in your hand. Lost copies have a limited replacement allowance.";
+        if(a.type==Type.DANGEROUS_ESCORT)result+="\nKeep your traveler close. Speak to follow or recalculate; sneak and speak to wait. Arrival must include your traveler.";
+        return result+"\nReport personally to "+a.liege.displayName+".";
+    }
 }

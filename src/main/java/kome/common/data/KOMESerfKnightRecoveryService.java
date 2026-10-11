@@ -32,8 +32,9 @@ public final class KOMESerfKnightRecoveryService {
             if(selected==null)return false;data.setTag("RecoveryItem",selected.writeToNBT(new NBTTagCompound()));
             assignment=assignment.withStage(assignment.stage,data);
         }
-        Site site=findSite(player.worldObj,liege,assignment.assignmentToken);
+        Site site=findSite(player.worldObj,liege,assignment.assignmentToken,state.variety);
         if(site==null)return false;
+        state.variety.remember(assignment.liege,"standing_recovery",site.x,site.z);
         // Persist the chosen site before mutating the world; no restart path manufactures a second item.
         data.setBoolean(DATA_SITE_CREATED,true); data.setInteger(DATA_DIMENSION,player.worldObj.provider.dimensionId);
         data.setInteger(DATA_X,site.x); data.setInteger(DATA_Y,site.y); data.setInteger(DATA_Z,site.z);
@@ -72,7 +73,8 @@ public final class KOMESerfKnightRecoveryService {
     public static boolean deliver(EntityPlayerMP player,KOMEPlayerProgression progression,LOTREntityNPC liege) {
         if(player==null||progression==null||liege==null)return false;
         KOMESerfKnightProgression state=progression.getSerfKnightProgression(); KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment();
-        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE||!assignment.data.getBoolean(DATA_RETRIEVED)||!state.getLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
+        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE||!state.getLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
+        if(!assignment.data.getBoolean(DATA_RETRIEVED)&&!isAssignedTo(player.getCurrentEquippedItem(),assignment,player.getUniqueID()))return false;
         int slot=findAssignedStack(player,assignment);
         if(slot<0){
             KOMEProgressionEncounterCleanup.failTrial(KOMEWorldData.get(player.worldObj),player.worldObj,state);
@@ -83,7 +85,8 @@ public final class KOMESerfKnightRecoveryService {
             KOMEProgressionNpcSpeech.say(player,liege,"Place the recovered keepsake in your hand, and give it to me.");return true;
         }
         if(!consumeAssignedStack(player.inventory.mainInventory,assignment,player.getUniqueID()))return false;
-        player.worldObj.playSoundAtEntity(player,"random.pop",0.4F,1F);
+        NBTTagCompound returned=(NBTTagCompound)assignment.data.copy();returned.setBoolean(DATA_RETRIEVED,true);state.updateTrialAssignment(assignment.withStage(assignment.stage,returned));
+        KOMEProgressionExchangeSounds.handover(player,liege);
         if(KOMESerfKnightService.markTrialObjectiveComplete(state).success) {
             KOMEProgressionServiceRewards.trial(player,state);
             KOMEWorldData.get(player.worldObj).markDirty(); player.inventoryContainer.detectAndSendChanges();
@@ -270,15 +273,16 @@ public final class KOMESerfKnightRecoveryService {
         return true;
     }
 
-    private static Site findSite(World world,LOTREntityNPC liege,String token) {
+    private static Site findSite(World world,LOTREntityNPC liege,String token,KOMEProgressionVariety variety) {
         if(world==null||world.provider.dimensionId!=liege.worldObj.provider.dimensionId||world.provider.dimensionId==-1)return null;
         int hash=token==null?0:token.hashCode();
+        Site fallback=null;KOMEProgressionNpcRef origin=KOMEProgressionNpcRankService.referenceOf(liege);
         for(int i=0;i<24;i++) { double angle=((hash+i*97)&0x7fffffff)%6283/1000D; int distance=MIN_DISTANCE+((hash>>>Math.min(24,i*2))&63); distance=Math.min(MAX_DISTANCE,distance);
             int x=(int)Math.floor(liege.posX+Math.cos(angle)*distance), z=(int)Math.floor(liege.posZ+Math.sin(angle)*distance);
             if(!KOMEKnightCommissionService.loadedAround(world,x,z))continue;
             int y=world.getTopSolidOrLiquidBlock(x,z);
-            if(y>1&&y<world.getActualHeight()-2&&world.getBlock(x,y-1,z).getMaterial().isSolid()&&world.isAirBlock(x,y,z)&&world.isAirBlock(x,y+1,z)&&world.getBlock(x,y-1,z)!=net.minecraft.init.Blocks.lava&&world.getBlock(x,y-1,z)!=net.minecraft.init.Blocks.flowing_lava)return new Site(x,y,z);
-        } return null;
+            if(y>1&&y<world.getActualHeight()-2&&world.getBlock(x,y-1,z).getMaterial().isSolid()&&world.isAirBlock(x,y,z)&&world.isAirBlock(x,y+1,z)&&world.getBlock(x,y-1,z)!=net.minecraft.init.Blocks.lava&&world.getBlock(x,y-1,z)!=net.minecraft.init.Blocks.flowing_lava){Site candidate=new Site(x,y,z);if(variety.penalty(origin,x,z)==0)return candidate;if(fallback==null||variety.penalty(origin,x,z)<variety.penalty(origin,fallback.x,fallback.z))fallback=candidate;}
+        } return fallback;
     }
     private static final class Site { final int x,y,z; Site(int x,int y,int z){this.x=x;this.y=y;this.z=z;} }
 }

@@ -125,8 +125,8 @@ public final class KOMEProgressionRankSummary {
                 objective = trialObjective(state, trial);
             } else if(state.isTrialCompleted()) {
                 heading="New standing";title=pledgedFactionAlignment>=KOMESerfKnightService.REQUIRED_ALIGNMENT?"Ready":"Faction Alignment";
-                objective=!state.getSerfdomMaster().isSet()?"Find a replacement Master for your completed service.":
-                    pledgedFactionAlignment>=KOMESerfKnightService.REQUIRED_ALIGNMENT?"Return to your Master to receive your new standing.":"Reach 150 faction alignment before returning to your Master.";
+                objective=!state.hasLiege()?"Seek an eligible replacement Liege to hear your completed trial report.":
+                    pledgedFactionAlignment>=KOMESerfKnightService.REQUIRED_ALIGNMENT?"Return to your Liege to receive your new standing.":"Reach 150 faction alignment before returning to your Liege.";
             } else if (KOMESerfKnightService.allDutiesComplete(state)
                     && state.getSerfdomMaster().isSet()
                     && safe(factionKey).length() != 0
@@ -185,12 +185,14 @@ public final class KOMEProgressionRankSummary {
             }
         }
 
-        if(rank==KOMEProgressionRank.KNIGHT&&heading.length()==0){
-            KOMEKnightCommission commission=progression.getKnightService().assignment();
-            heading="Liege Commission";title=commission==null?"Service to your Liege":KOMEKnightCommissionPresentation.title(commission.type);
-            objective=KOMEKnightCommissionPresentation.summary(progression,factionKey).trim();
+        if(rank==KOMEProgressionRank.KNIGHT){
+            KOMELordshipTrial t=progression.getLordship().assignment();KOMEKnightCommission a=progression.getKnightService().assignment();
+            heading=t!=null?"Trial of Lordship":"Liege Service";
+            title=t!=null?KOMELordshipTrialPresentation.title(t):a!=null?KOMEKnightCommissionPresentation.title(a.type):"Next service";
+            objective=t!=null?KOMELordshipTrialPresentation.objective(t):a!=null?KOMEKnightCommissionPresentation.details(a):KOMELordshipTrialPresentation.status(progression,pledgedFactionAlignment,factionKey);
         }
-        else if(rank==KOMEProgressionRank.KNIGHT&&progression.getLordship().assignment()==null) objective+="\n"+KOMEKnightCommissionPresentation.summary(progression,factionKey).trim();
+
+
         String currentName = KOMEFactionProgressionTitles.title(factionKey, rank);
         if(rank.order<=KOMEProgressionRank.KNIGHT.order&&KOMEProgressionFactionResolver.missingNativeLiege(factionKey))objective+="\n"+KOMEKnightCommissionPresentation.unavailableLiege();
         String nextName = next == null ? "" : KOMEFactionProgressionTitles.title(factionKey, next);

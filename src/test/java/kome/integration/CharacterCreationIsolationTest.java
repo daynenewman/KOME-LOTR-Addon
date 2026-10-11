@@ -361,6 +361,9 @@ public class CharacterCreationIsolationTest {
             } else if(relativePath.endsWith("KOMEProgressionProtectedActors.java")){
                 assertTrue(text.contains("LOTREntityNPC npc"));assertTrue(text.contains("KOMEProtectedHome"));
                 assertFalse(text.contains("player.getEntityData"));
+            } else if(relativePath.endsWith("KOMEProgressionEscortJourney.java")){
+                assertTrue(text.contains("LOTREntityNPC traveler"));assertTrue(text.contains("traveler.getEntityData()"));
+                assertFalse(text.contains("player.getEntityData"));assertTrue(text.contains("KOMEEscortAmbush"));
             } else if (!relativePath.endsWith("KOMECourierRecipientSpawner.java") && !relativePath.endsWith("KOMECourierService.java") && !relativePath.endsWith("KOMEProgressionEncounterMarker.java") && !relativePath.endsWith("KOMEEmergencyDefenseEntityMarker.java"))
                 assertFalse(relativePath, Pattern.compile("\\bgetEntityData\\s*\\(").matcher(text).find());
             assertFalse(relativePath, text.contains("EntityPlayer.PERSISTED_NBT_TAG"));
@@ -420,6 +423,8 @@ public class CharacterCreationIsolationTest {
                 KOMEProgressionOfferTransformer.class.getName(),
                 KOMEProgressionOfferGuiTransformer.class.getName(),
                 KOMEFactionTitleTransformer.class.getName(),
+                kome.core.KOMEPlayerNameplateTransformer.class.getName(),
+                kome.core.KOMEProgressionOutlineTransformer.class.getName(),
                 KOMEAlignmentBarTitleTransformer.class.getName(),
                 kome.core.KOMEAlignmentSyncTransformer.class.getName(),
                 KOMEFactionTitleOptionsTransformer.class.getName(),

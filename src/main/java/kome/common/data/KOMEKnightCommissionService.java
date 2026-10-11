@@ -40,14 +40,14 @@ public final class KOMEKnightCommissionService {
         if(!eligible(player,liege))return null;
         KOMEWorldData world=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=world.getProgression(player.getUniqueID());KOMEKnightServiceRecord state=p.getKnightService();
         if(state.assignment()!=null)return state.assignment();
-        List<Type> types=state.eligible(Arrays.asList(Type.values()),liege.getFaction().codeName());Collections.shuffle(types,player.worldObj.rand);
-        for(Type type:types){KOMEKnightCommission a=generate(player,liege,type);if(a!=null&&state.offer(a)){world.markDirty();return a;}}return null;
+        List<Type> types=KOMEProgressionVariety.order(state.eligible(Arrays.asList(Type.values()),liege.getFaction().codeName()),state.history(),liege.getFaction().codeName(),player.worldObj.rand);
+        for(Type type:types){KOMEKnightCommission a=generate(player,liege,type);if(a!=null&&state.offer(a)){p.getSerfKnightProgression().variety.remember(a.liege,a.type.name(),a.destinationX,a.destinationZ);world.markDirty();return a;}}return null;
     }
     static KOMEKnightCommission generate(EntityPlayerMP player,LOTREntityNPC liege,Type type) {
         World world=player.worldObj;KOMEProgressionNpcRef ref=KOMEProgressionNpcRankService.referenceOf(liege);
         if(world.getWorldChunkManager()==null)return null;
         KOMEKnightCommission a=new KOMEKnightCommission(type,ref);
-        KOMEKnightCommissionLocations.Destination location=KOMEKnightCommissionLocations.choose(ref,world,type,a.token);if(location==null)return null;
+        KOMEKnightCommissionLocations.Destination location=KOMEKnightCommissionLocations.choose(ref,world,type,a.token,KOMEWorldData.get(world).getProgression(player.getUniqueID()).getSerfKnightProgression().variety);if(location==null)return null;
         a.createdAt=world.getTotalWorldTime();a.x=location.x;a.z=location.z;a.destinationX=a.x;a.destinationZ=a.z;a.place=location.name;
         a.destinationProof=(NBTTagCompound)location.proof.copy();
         if(type==Type.BORDER_INCURSION)a.enemyFaction=location.proof.getString("BorderEnemy");
@@ -95,12 +95,20 @@ public final class KOMEKnightCommissionService {
         KOMEWorldData world=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=world.getProgression(player.getUniqueID());KOMEKnightServiceRecord state=p.getKnightService();KOMEKnightCommission a=state.assignment();if(a==null)return false;
         if(a.stage==Stage.READY_TO_REPORT&&!a.liege.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
         if(a.stage==Stage.FAILED){cleanup(player.worldObj,player.getUniqueID(),a);state.clearFailed();KOMEProgressionNpcSpeech.commission(player,liege,a,"retry");changed(world,player,p);return true;}
-        if(a.stage==Stage.READY_TO_REPORT){if(a.type==Type.STOLEN_GOODS&&!consumeHeldProperty(player,a)){a.stage=Stage.ACTIVE;a.nextRecoveryTick=0;changed(world,player,p);KOMEProgressionNpcSpeech.say(player,liege,"Place the recovered property in your hand, and return it to me.");return true;}player.inventory.markDirty();player.inventoryContainer.detectAndSendChanges();cleanup(player.worldObj,player.getUniqueID(),a);a.reportedAt=player.worldObj.getTotalWorldTime();if(state.report(KOMEProgressionNpcRankService.referenceOf(liege))){KOMEProgressionServiceRewards.commission(player,a);KOMEProgressionNpcSpeech.commission(player,liege,a,"reported");}}
+        if(a.stage==Stage.READY_TO_REPORT){if(a.type==Type.STOLEN_GOODS&&!a.adminForced&&!consumeHeldProperty(player,a)){a.stage=Stage.ACTIVE;a.nextRecoveryTick=0;changed(world,player,p);KOMEProgressionNpcSpeech.say(player,liege,"Place the recovered property in your hand, and return it to me.");return true;}if(a.type==Type.STOLEN_GOODS&&!a.adminForced)KOMEProgressionExchangeSounds.handover(player,liege);player.inventory.markDirty();player.inventoryContainer.detectAndSendChanges();cleanup(player.worldObj,player.getUniqueID(),a);a.reportedAt=player.worldObj.getTotalWorldTime();if(state.report(KOMEProgressionNpcRankService.referenceOf(liege))){KOMEProgressionServiceRewards.commission(player,a);KOMEProgressionNpcSpeech.commission(player,liege,a,"reported");}}
         else if(a.stage==Stage.OFFERED){if(!state.accept(p.getCanonicalRank(),p.getSerfKnightProgression().getLiege(),LOTRLevelData.getData(player).getPledgeFaction().codeName()))return false;a.acceptedAt=player.worldObj.getTotalWorldTime();a.stage=Stage.ACTIVE;if(a.type==Type.DANGEROUS_ESCORT&&!spawnCharge(player,a,liege))fail(world,player.worldObj,player.getUniqueID(),a);KOMEProgressionNpcSpeech.commission(player,liege,a,a.stage==Stage.FAILED?"failed":"assigned");}
         else KOMEProgressionNpcSpeech.commission(player,liege,a,"progress");
         changed(world,player,p);return true;
     }
     static boolean spawnCharge(EntityPlayerMP player,KOMEKnightCommission a,LOTREntityNPC liege) { double[] site=safeSite(player.worldObj,(int)liege.posX,(int)liege.posZ);if(site==null)return false;LOTREntityNPC npc=spawn(player,a,a.civilianClass,Role.CHARGE,site);if(npc==null)return false;npc.hiredNPCInfo.isActive=true;npc.hiredNPCInfo.setHiringPlayer(player);npc.hiredNPCInfo.setTask(LOTRHiredNPCInfo.Task.WARRIOR);npc.hiredNPCInfo.ready();KOMEProgressionEscortFollowing.disable(npc);return true; }
+    public static boolean directPropertyHandover(EntityPlayerMP player,LOTREntityNPC liege){
+        if(!eligible(player,liege)||player.worldObj.isRemote||player.getDistanceSqToEntity(liege)>64)return false;
+        KOMEWorldData world=KOMEWorldData.get(player.worldObj);KOMEKnightCommission a=world.getProgression(player.getUniqueID()).getKnightService().assignment();
+        if(a==null||a.type!=Type.STOLEN_GOODS||!hasProperty(new ItemStack[]{player.getCurrentEquippedItem()},a,player.getUniqueID()))return false;
+        // The same held-property evidence as tickPlayer, without waiting for its next refresh.
+        if(a.stage==Stage.ACTIVE&&a.threatResolved){a.stage=Stage.READY_TO_REPORT;world.markDirty();}
+        return a.stage==Stage.READY_TO_REPORT&&acceptOrReport(player,liege);
+    }
     /** No force loading: each generated actor is reserved before it joins the world. */
     static boolean activate(EntityPlayerMP player,KOMEKnightCommission a) { return activate(player,a,MARKER); }
     static boolean activate(EntityPlayerMP player,KOMEKnightCommission a,String markerKind) {
@@ -165,7 +173,7 @@ public final class KOMEKnightCommissionService {
         if(a.type==Type.DANGEROUS_ESCORT&&a.threatResolved&&!a.destinationProof.hasNoTags()){
             Actor charge=a.protectedActor();Entity entity=charge==null?null:findLoaded(player.worldObj,charge.id);
             if(entity instanceof LOTREntityNPC&&activeEscort(world,(LOTREntityNPC)entity)
-                    &&escortArrived(a,entity.worldObj.provider.dimensionId,entity.posX,entity.posZ,player.getDistanceSqToEntity(entity)))a.stage=Stage.READY_TO_REPORT;
+                    &&escortArrived(a,entity.worldObj.provider.dimensionId,entity.posX,entity.posZ,player.getDistanceSqToEntity(entity))){a.stage=Stage.READY_TO_REPORT;KOMEProgressionNpcSpeech.say(player,(LOTREntityNPC)entity,KOMEProgressionDialogue.thanks((LOTREntityNPC)entity));}
         }
         if(a.type==Type.STOLEN_GOODS&&a.threatResolved){if(hasProperty(player.inventory.mainInventory,a,player.getUniqueID()))a.stage=Stage.READY_TO_REPORT;else if(present&&loaded(player.worldObj,a.x,a.z))recoverProperty(player,a);}
         world.markDirty();if(a.stage==Stage.READY_TO_REPORT){releaseFollower(player.worldObj,player.getUniqueID(),a);changed(world,player,p);}
@@ -221,7 +229,7 @@ public final class KOMEKnightCommissionService {
     public static boolean deliverRelief(EntityPlayerMP player,LOTREntityNPC npc) {
         KOMEWorldData world=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=world.getProgression(player.getUniqueID());KOMEKnightCommission a=p.getKnightService().assignment();if(a==null||a.type!=Type.RELIEF||a.stage!=Stage.ACTIVE||npc.worldObj!=player.worldObj||!npc.isEntityAlive()||player.getDistanceSqToEntity(npc)>64)return false;
         Actor beneficiary=a.protectedActor();if(beneficiary==null||!beneficiary.id.equals(npc.getUniqueID().toString())||!KOMEProgressionFactionResolver.matches(a.faction,npc.getFaction())||!a.atSite(player.dimension,npc.posX,npc.posZ,48))return false;
-        int delivered=deliverGoods(a,player.inventory.mainInventory);if(delivered>0){player.inventory.markDirty();player.inventoryContainer.detectAndSendChanges();if(a.goodsDelivered())a.stage=Stage.READY_TO_REPORT;changed(world,player,p);}KOMEProgressionNpcSpeech.commission(player,npc,a,a.stage==Stage.READY_TO_REPORT?"relief_complete":"relief_partial");return true;
+        int delivered=deliverGoods(a,player.inventory.mainInventory);if(delivered<=0)return false;if(delivered>0){KOMEProgressionExchangeSounds.handover(player,npc);player.inventory.markDirty();player.inventoryContainer.detectAndSendChanges();if(a.goodsDelivered())a.stage=Stage.READY_TO_REPORT;changed(world,player,p);}KOMEProgressionNpcSpeech.commission(player,npc,a,a.stage==Stage.READY_TO_REPORT?"relief_complete":"relief_partial");return true;
     }
     static int deliverGoods(KOMEKnightCommission a,ItemStack[] inventory) { int delivered=0;for(Goods good:a.goods)for(int i=0;i<inventory.length&&good.delivered<good.required;i++){ItemStack stack=inventory[i];if(stack==null||stack.getItemDamage()!=good.damage||!good.itemKey.equals(String.valueOf(Item.itemRegistry.getNameForObject(stack.getItem()))))continue;int take=Math.min(stack.stackSize,good.required-good.delivered);good.delivered+=take;stack.stackSize-=take;delivered+=take;if(stack.stackSize<=0)inventory[i]=null;}return delivered; }
     static ItemStack property(KOMEKnightCommission a,UUID owner) {
@@ -234,7 +242,7 @@ public final class KOMEKnightCommissionService {
         ItemStack held=player.getCurrentEquippedItem();
         if(!matchesProperty(held,a,player.getUniqueID())||held.stackSize<a.goods.get(0).required)return false;
         if(!consumeProperty(player.inventory.mainInventory,a,player.getUniqueID()))return false;
-        player.worldObj.playSoundAtEntity(player,"random.pop",0.4F,1F);return true;
+        return true;
     }
     private static void recoverProperty(EntityPlayerMP player,KOMEKnightCommission a) {
         int count=0;for(ItemStack stack:player.inventory.mainInventory)if(matchesProperty(stack,a,player.getUniqueID()))count+=stack.stackSize;

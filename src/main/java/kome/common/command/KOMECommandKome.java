@@ -101,6 +101,14 @@ public class KOMECommandKome extends KOMEPublicCommand {
         }
         // Remaining root functions are administrative. Reject before accessing world state.
         requireStaff(sender);
+        if(args.length>=2&&"progression".equalsIgnoreCase(args[0])&&java.util.Arrays.asList("finishduty","resetduty","status","why").contains(args[1].toLowerCase(java.util.Locale.ROOT))){
+            if(args.length!=2)throw new WrongUsageException("/kome progression <finishDuty|resetDuty|status|why>");
+            EntityPlayerMP player=getCommandSenderAsPlayer(sender);if(player.worldObj==null||player.worldObj.isRemote)throw new WrongUsageException("A server-side player is required.");
+            String action=args[1].toLowerCase(java.util.Locale.ROOT);
+            if("status".equals(action)){for(String line:kome.common.data.KOMEProgressionDevelopment.status(player))sender.addChatMessage(new ChatComponentText(line));}
+            else sender.addChatMessage(new ChatComponentText("finishduty".equals(action)?kome.common.data.KOMEProgressionDevelopment.finish(player):"resetduty".equals(action)?kome.common.data.KOMEProgressionDevelopment.reset(player):kome.common.data.KOMEProgressionDevelopment.why(player)));
+            return;
+        }
         if (args.length == 3 && "progression".equalsIgnoreCase(args[0]) && "cooldown".equalsIgnoreCase(args[1])) {
             if (!(sender instanceof EntityPlayerMP)) throw new WrongUsageException("This testing override must be used by an authorized player.");
             if (!"on".equalsIgnoreCase(args[2]) && !"off".equalsIgnoreCase(args[2])) throw new WrongUsageException("/kome progression cooldown <on|off>");
@@ -439,7 +447,7 @@ public class KOMECommandKome extends KOMEPublicCommand {
         if (args.length == 2 && "adminmarkers".equalsIgnoreCase(args[0])) {
             return getListOfStringsMatchingLastWord(args, "on", "off", "status");
         }
-        if (args.length == 2 && "progression".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "cooldown", "relationship");
+        if (args.length == 2 && "progression".equalsIgnoreCase(args[0])) return getListOfStringsMatchingLastWord(args, "cooldown", "relationship", "finishDuty", "resetDuty", "status", "why");
         if (args.length == 3 && "progression".equalsIgnoreCase(args[0]) && "cooldown".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, "on", "off");
         if (args.length == 3 && "progression".equalsIgnoreCase(args[0]) && "relationship".equalsIgnoreCase(args[1])) return getListOfStringsMatchingLastWord(args, "force", "clear");
         if (args.length == 4 && "progression".equalsIgnoreCase(args[0]) && "relationship".equalsIgnoreCase(args[1]) && "force".equalsIgnoreCase(args[2])) return getListOfStringsMatchingLastWord(args, "serf", "knight", "lord");

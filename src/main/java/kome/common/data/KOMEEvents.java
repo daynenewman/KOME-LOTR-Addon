@@ -157,6 +157,7 @@ public class KOMEEvents {
 
     @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        KOMEProgressionTitles.forget(event.player.getUniqueID());
         if (event.player instanceof EntityPlayerMP) KOMEPacketHandler.forgetRequester((EntityPlayerMP) event.player);
         if(event.player instanceof EntityPlayerMP) kome.common.network.KOMEPublicWaypointSync.forget((EntityPlayerMP)event.player);
         KOMEAllianceRecordBuilder.clearOperatorView(event.player);
@@ -423,6 +424,14 @@ public class KOMEEvents {
         if (event.target instanceof LOTREntityNPC) {
             LOTREntityNPC offerNpc = (LOTREntityNPC) event.target;
             KOMEWorldData commissionWorld=KOMEWorldData.get(player.worldObj);
+            KOMEPlayerProgression immediate=commissionWorld.getProgression(player.getUniqueID());
+            KOMESerfKnightProgression immediateState=immediate.getSerfKnightProgression();
+            if(immediateState.getLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(offerNpc))){
+                if(immediate.getCanonicalRank()==KOMEProgressionRank.SERF
+                    &&(immediateState.isTrialCompleted()||KOMESerfKnightRecoveryService.isAssignedTo(player.getCurrentEquippedItem(),immediateState.getTrialAssignment(),player.getUniqueID()))
+                    &&KOMEProgressionNpcInteractionService.interact(player,commissionWorld,offerNpc)){event.setCanceled(true);return;}
+                if(KOMEKnightCommissionService.directPropertyHandover(player,offerNpc)){event.setCanceled(true);return;}
+            }
             // Delivery precedes offer screens, trading and the held book's ordinary use.
             if(KOMECourierService.deliverToRecipient(player,commissionWorld,offerNpc)){
                 KOMEProgressionNpcSpeech.receiveCourier(player,offerNpc,commissionWorld.getProgression(player.getUniqueID()).getSerfKnightProgression().getSerfdomMaster().displayName);

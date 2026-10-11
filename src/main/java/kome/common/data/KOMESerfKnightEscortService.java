@@ -25,8 +25,8 @@ public final class KOMESerfKnightEscortService {
         KOMEProgressionNpcRef origin=a.liege;
         lotr.common.fac.LOTRFaction faction=KOMEProgressionFactionResolver.resolve(a.factionKey);
         if(world==null||world.provider==null||world.provider.dimensionId!=origin.dimension||faction==null)return false;
-        KOMEKnightCommissionLocations.Destination destination=KOMEProgressionDestinations.find(world,origin,MIN_ESCORT_DISTANCE,3000);
-        if(destination==null)return false;
+        KOMEKnightCommissionLocations.Destination destination=KOMEProgressionDestinations.find(world,origin,MIN_ESCORT_DISTANCE,3000,state.variety);
+        if(destination==null)return false;state.variety.remember(origin,"standing_escort",destination.x,destination.z);
         NBTTagCompound data=(NBTTagCompound)a.data.copy();data.setDouble(DEST_X,destination.x);data.setDouble(DEST_Z,destination.z);
         data.setString(DEST_NAME,destination.name);data.setInteger(ORIGIN_DIM,origin.dimension);
         data.setTag(KOMEProgressionDestinations.PROOF,destination.proof);
@@ -91,7 +91,7 @@ public final class KOMESerfKnightEscortService {
         if(!(entity instanceof LOTREntityNPC)||!entity.isEntityAlive()||!isActiveEscort(world,(LOTREntityNPC)entity)){fail(state,assignment,world,player.worldObj);return;}
         LOTREntityNPC target=(LOTREntityNPC)entity; if(target.worldObj.provider.dimensionId!=assignment.data.getInteger(ORIGIN_DIM))return;
         if(arrived(assignment,target.worldObj.provider.dimensionId,target.posX,target.posZ)&&player.getDistanceSqToEntity(target)<=256D){
-            if(KOMESerfKnightService.markTrialObjectiveComplete(state).success){KOMEProgressionServiceRewards.trial(player,state);KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());world.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,progression);KOMEProgressionEscortFollowing.restore(target);target.hiredNPCInfo.dismissUnit(false);KOMEProgressionEncounterMarker.clear(target);KOMEProgressionNpcSpeech.say(player,target,"We have come safely through. You have my thanks.");}
+            if(KOMESerfKnightService.markTrialObjectiveComplete(state).success){KOMEProgressionServiceRewards.trial(player,state);KOMEProgressionNpcRoles.syncPlayer(world,player.getUniqueID());world.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,progression);KOMEProgressionEscortFollowing.restore(target);target.hiredNPCInfo.dismissUnit(false);KOMEProgressionEncounterMarker.clear(target);KOMEProgressionNpcSpeech.say(player,target,KOMEProgressionDialogue.thanks(target));}
         }
     }
     public static void handleTargetDeath(KOMEWorldData world,String uuid){handleTargetDeath(world,uuid,null);}

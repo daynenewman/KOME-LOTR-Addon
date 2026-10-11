@@ -37,6 +37,7 @@ public final class KOMEProgressionEscortFollowing {
                 ||!a.protectedActor().id.equals(npc.getUniqueID().toString())))return;
         disable(npc);
         net.minecraft.entity.player.EntityPlayer owner=npc.hiredNPCInfo.getHiringPlayer();
+        if(owner instanceof net.minecraft.entity.player.EntityPlayerMP)KOMEProgressionEscortJourney.tick((net.minecraft.entity.player.EntityPlayerMP)owner,npc);
         if(npc.getAttackTarget()!=null&&(npc.isCivilianNPC()||owner==null||owner.getDistanceSqToEntity(npc.getAttackTarget())>16*16)){
             npc.setAttackTarget(null);npc.getNavigator().clearPathEntity();
         }
@@ -49,6 +50,7 @@ public final class KOMEProgressionEscortFollowing {
     }
     public static void restore(LOTREntityNPC npc) {
         if(npc==null||npc.hiredNPCInfo==null)return;
+        KOMEProgressionEscortJourney.release(npc);
         NBTTagCompound tag=npc.getEntityData();
         if(tag.hasKey(ORIGINAL)){npc.hiredNPCInfo.teleportAutomatically=tag.getBoolean(ORIGINAL);tag.removeTag(ORIGINAL);}
     }

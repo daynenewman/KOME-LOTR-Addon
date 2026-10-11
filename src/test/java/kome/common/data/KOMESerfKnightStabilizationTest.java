@@ -28,7 +28,7 @@ public class KOMESerfKnightStabilizationTest {
             assertTrue(KOMESerfKnightService.markTrialObjectiveComplete(s.state).success);
             assertTrue(KOMESerfKnightService.handleNpcDeath(s.state,captain.getUniqueID().toString(),false,11));
             reload(s);assertFalse(s.state.hasLiege());assertTrue(s.state.isTrialCompleted());
-            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);
+            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.liege()).success);
             assertEquals(KOMEProgressionRank.KNIGHT,s.p.getCanonicalRank());
             assertEquals(0,s.drops());assertTrue(KOMEProgressionNpcInteractionService.interact(s.f.player,s.f.data,s.master));
             assertTrue(s.latest().getItem() instanceof lotr.common.item.LOTRItemPouch);assertEquals(1,s.drops());assertNull(s.f.player.inventory.mainInventory[0]);
@@ -54,7 +54,7 @@ public class KOMESerfKnightStabilizationTest {
             replacement.worldObj=s.f.world;replacement.setUniqueID(UUID.randomUUID());
             replacement.posX=s.master.posX;replacement.posY=64;replacement.posZ=s.master.posZ;s.f.world.loadedEntityList.add(replacement);
             assertTrue(KOMESerfdomMasterService.serve(s.f.player,s.f.data,replacement).success);
-            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,replacement).success);
+            assertFalse(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,replacement).success);assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.liege()).success);
             assertEquals(KOMEProgressionRank.KNIGHT,s.p.getCanonicalRank());
             assertEquals(replacement.getUniqueID().toString(),s.state.getFormerMaster().entityUuid);
         }
@@ -64,7 +64,7 @@ public class KOMESerfKnightStabilizationTest {
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()) {
             s.ready();assertTrue(KOMESerfKnightService.leaveLiege(s.p).success);
             reload(s);assertTrue(s.state.isTrialCompleted());assertFalse(s.state.hasLiege());
-            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.data,s.f.player.id,s.state.getSerfdomMaster(),"rohan",150).success);
+            assertFalse(KOMESerfdomMasterService.conferKnighthood(s.f.data,s.f.player.id,s.state.getSerfdomMaster(),"rohan",150).success);assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.liege()).success);
         }
     }
 
@@ -167,8 +167,8 @@ public class KOMESerfKnightStabilizationTest {
         }
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()) {
             Charge charge=escort(s);KOMESerfKnightEscortService.handleTargetDeath(s.f.data,charge.getUniqueID().toString(),s.f.world);
-            assertEquals(KOMESerfKnightTrialAssignment.Stage.FAILED,s.state.getTrialAssignment().stage);assertReleased(s,charge);
-            assertTrue(KOMESerfKnightService.leaveLiege(s.p).success);assertFalse(s.state.hasActiveAssignment());
+            assertNull(s.state.getTrialAssignment());assertFalse(s.state.hasLiege());assertFalse(s.state.failures().isEmpty());assertReleased(s,charge);
+            assertFalse(s.state.hasLiege());assertFalse(s.state.hasActiveAssignment());
         }
     }
 
@@ -233,7 +233,7 @@ public class KOMESerfKnightStabilizationTest {
         java.lang.reflect.Field field=LOTRPlayerData.class.getDeclaredField("alignments");field.setAccessible(true);
         ((Map)field.get(LOTRLevelData.getData(s.f.player))).put(LOTRFaction.ROHAN,value);
     }
-    private static TrialCaptain captain(KOMEProgressionFollowupTest.Session s)throws Exception {
+    static TrialCaptain captain(KOMEProgressionFollowupTest.Session s)throws Exception {
         TrialCaptain npc=KOMEAccessFixture.allocate(TrialCaptain.class);
         npc.worldObj=s.f.world;npc.setUniqueID(UUID.randomUUID());npc.posX=s.master.posX;npc.posY=64;npc.posZ=s.master.posZ;
         java.lang.reflect.Field watcher=net.minecraft.entity.Entity.class.getDeclaredField("dataWatcher");watcher.setAccessible(true);

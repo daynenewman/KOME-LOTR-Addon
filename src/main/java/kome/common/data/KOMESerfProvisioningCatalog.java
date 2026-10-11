@@ -20,6 +20,9 @@ public final class KOMESerfProvisioningCatalog {
         String key=KOMEAlliance.normalizeFactionKey(faction);
         List<KOMESerfProvisioningAssignment.Candidate> p=new ArrayList<KOMESerfProvisioningAssignment.Candidate>();
         foods(p,KOMELocalProvisionFoods.forFaction(key));
+        // Common crops/cooking use ordinary recipes, with no faction table or rank gate.
+        foods(p,Items.bread,Items.apple);
+        p.removeIf(c->!KOMEProgressionGoodsEligibility.provision(new net.minecraft.item.ItemStack(Item.getItemById(c.itemId),1,c.damage)));
         return p;
     }
     public static List<KOMESerfProvisioningAssignment.Candidate> drinksForFaction(String faction){
@@ -41,9 +44,9 @@ public final class KOMESerfProvisioningCatalog {
             case "fangorn":items=new Item[]{LOTRMod.mugAppleJuice};break;
             default:items=new Item[]{LOTRMod.mugWater};
         }
-        List<KOMESerfProvisioningAssignment.Candidate> result=new ArrayList<KOMESerfProvisioningAssignment.Candidate>();for(Item item:items)if(item!=null)result.add(KOMESerfProvisioningAssignment.Candidate.runtime(item,0));if(result.isEmpty())throw new IllegalStateException("No canonical Provisioning drinks are registered.");return result;
+        List<KOMESerfProvisioningAssignment.Candidate> result=new ArrayList<KOMESerfProvisioningAssignment.Candidate>();for(Item item:items)if(item!=null)result.add(KOMESerfProvisioningAssignment.Candidate.runtime(item,0));result.removeIf(c->!KOMEProgressionGoodsEligibility.provision(new net.minecraft.item.ItemStack(Item.getItemById(c.itemId),1,c.damage)));if(result.isEmpty()&&LOTRMod.mugWater!=null)result.add(KOMESerfProvisioningAssignment.Candidate.runtime(LOTRMod.mugWater,0));if(result.isEmpty())throw new IllegalStateException("No canonical Provisioning drinks are registered.");return result;
     }
-    public static List<String> vesselsForFaction(String key){List<String> result=new ArrayList<String>();for(LOTRItemMug.Vessel vessel:new LOTRItemMug.Vessel[]{LOTRItemMug.Vessel.SKIN,LOTRItemMug.Vessel.BOTTLE,LOTRItemMug.Vessel.GOBLET_WOOD,LOTRItemMug.Vessel.MUG,LOTRItemMug.Vessel.HORN,LOTRItemMug.Vessel.GOBLET_COPPER})result.add(vessel.name());result.add((EVIL.contains(normalize(key))?LOTRItemMug.Vessel.SKULL:LOTRItemMug.Vessel.GLASS).name());return result;}
+    public static List<String> vesselsForFaction(String key){return java.util.Collections.singletonList(LOTRItemMug.Vessel.MUG.name());}
     private static String normalize(String value){return value==null?"":value.trim().toLowerCase();}
     private static void foods(List<KOMESerfProvisioningAssignment.Candidate> pool,Item... items){for(Item item:items)if(KOMEProgressionGoodsRules.consumable(item))pool.add(KOMESerfProvisioningAssignment.Candidate.runtime(item,0));}
 }

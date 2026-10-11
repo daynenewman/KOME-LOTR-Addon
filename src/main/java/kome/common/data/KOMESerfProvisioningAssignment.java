@@ -22,7 +22,7 @@ public final class KOMESerfProvisioningAssignment {
         public static Candidate runtime(Item item,int damage){if(item==null)throw new IllegalArgumentException("Provisioning item is required.");ItemStack stack=new ItemStack(item,1,damage);return new Candidate(String.valueOf(Item.itemRegistry.getNameForObject(item)),Item.getIdFromItem(item),damage,stack.getMaxStackSize(),KOMEProgressionGoodsRules.name(stack,stack.getDisplayName()),item instanceof LOTRItemMug&&((LOTRItemMug)item).isBrewable);}
     }
     public static final class Requirement {
-        public final String itemKey, displayName, vessel; public final int itemId, damage, required, strength; public final boolean drink; public int delivered;
+        public final String itemKey, displayName, vessel; public final int itemId, damage, required, strength; public final boolean drink; public int delivered; public int valueMilli;
         Requirement(Candidate item,int required,String vessel){this(item.key,item.itemId,item.damage,required,0,item.displayName,vessel,vessel.length()!=0,item.brewable?0:-1);}
         Requirement(String key,int id,int damage,int required,int delivered,String display,String vessel,boolean drink,int strength){this.itemKey=key==null?"":key;this.itemId=id;this.damage=damage;this.required=required;this.delivered=Math.max(0,Math.min(required,delivered));this.displayName=display==null?"":display;this.vessel=vessel==null?"":vessel;this.drink=drink;this.strength=strength;}
         public boolean isDrink(){return drink;} public boolean complete(){return delivered>=required;}
@@ -50,12 +50,16 @@ public final class KOMESerfProvisioningAssignment {
         }
         public String progressText(){return KOMEProgressionGoodsRules.name(requestedStack(),displayName)+": "+delivered+" / "+required;}
         private static String strengthName(int value){String[] nativeNames={"weak","light","moderate","strong","potent"};String key="item.lotr.drink."+nativeNames[value];String localized=StatCollector.translateToLocal(key);return localized.equals(key)?Character.toUpperCase(nativeNames[value].charAt(0))+nativeNames[value].substring(1):localized;}
-        NBTTagCompound write(){NBTTagCompound tag=new NBTTagCompound();tag.setString("ItemKey",itemKey);tag.setInteger("Item",itemId);tag.setInteger("Damage",damage);tag.setInteger("Required",required);tag.setInteger("Delivered",delivered);tag.setString("Display",displayName);tag.setString("Vessel",vessel);if(drink&&vessel.length()!=0)tag.setInteger("Strength",strength);return tag;}
-        static Requirement read(NBTTagCompound tag,CandidateResolver resolver,boolean drink,boolean exactDrink){String key=tag.getString("ItemKey");int damage=tag.getInteger("Damage"),required=tag.getInteger("Required");Candidate item=resolver.resolve(key,tag.getInteger("Item"),damage);if(item==null||required<=0)return null;String vessel=drink&&exactDrink?tag.getString("Vessel"):"";int strength=drink&&exactDrink?tag.getInteger("Strength"):-1;if(drink&&exactDrink){try{LOTRItemMug.Vessel.valueOf(vessel);}catch(Exception e){return null;}if(strength< -1||strength>4||item.brewable!=(strength>=0))return null;}return new Requirement(item.key,item.itemId,damage,required,tag.getInteger("Delivered"),tag.getString("Display"),vessel,drink,strength);}
+        NBTTagCompound write(){NBTTagCompound tag=new NBTTagCompound();tag.setString("ItemKey",itemKey);tag.setInteger("Item",itemId);tag.setInteger("Damage",damage);tag.setInteger("Required",required);tag.setInteger("Delivered",delivered);tag.setInteger("ValueMilli",valueMilli);tag.setString("Display",displayName);tag.setString("Vessel",vessel);if(drink&&vessel.length()!=0)tag.setInteger("Strength",strength);return tag;}
+        static Requirement read(NBTTagCompound tag,CandidateResolver resolver,boolean drink,boolean exactDrink){String key=tag.getString("ItemKey");int damage=tag.getInteger("Damage"),required=tag.getInteger("Required");Candidate item=resolver.resolve(key,tag.getInteger("Item"),damage);if(item==null||required<=0)return null;String vessel=drink&&exactDrink?tag.getString("Vessel"):"";int strength=drink&&exactDrink?tag.getInteger("Strength"):-1;if(drink&&exactDrink){try{LOTRItemMug.Vessel.valueOf(vessel);}catch(Exception e){return null;}if(strength< -1||strength>4||item.brewable!=(strength>=0))return null;}Requirement r=new Requirement(item.key,item.itemId,damage,required,tag.getInteger("Delivered"),tag.getString("Display"),vessel,drink,strength);r.valueMilli=Math.max(0,Math.min(1000,tag.getInteger("ValueMilli")));return r;}
     }
     public final List<Requirement> foods; public final Requirement drink;
     public KOMESerfProvisioningAssignment(List<Requirement> foods,Requirement drink){this.foods=foods;this.drink=drink;}
-    public static KOMESerfProvisioningAssignment generate(String faction,Random random){return generate(KOMESerfProvisioningCatalog.foodsForFaction(faction),KOMESerfProvisioningCatalog.drinksForFaction(faction),KOMESerfProvisioningCatalog.vesselsForFaction(faction),random);}
+    public static KOMESerfProvisioningAssignment generate(String faction,Random random){KOMESerfProvisioningAssignment a=generate(KOMESerfProvisioningCatalog.foodsForFaction(faction),KOMESerfProvisioningCatalog.drinksForFaction(faction),KOMESerfProvisioningCatalog.vesselsForFaction(faction),random);for(Requirement r:a.foods)r.valueMilli=KOMEProgressionGoodsValue.unitMilli(r.requestedStack());a.drink.valueMilli=KOMEProgressionGoodsValue.unitMilli(a.drink.requestedStack());return a;}
+    public static KOMESerfProvisioningAssignment generate(net.minecraft.entity.player.EntityPlayer player,String faction,Random random){
+        List<Candidate> foods=KOMESerfProvisioningCatalog.foodsForFaction(faction);foods.removeIf(c->!KOMEProgressionGoodsEligibility.provision(player,new ItemStack(Item.getItemById(c.itemId),1,c.damage)));
+        KOMESerfProvisioningAssignment a=generate(foods,KOMESerfProvisioningCatalog.drinksForFaction(faction),KOMESerfProvisioningCatalog.vesselsForFaction(faction),random);for(Requirement r:a.foods)r.valueMilli=KOMEProgressionGoodsValue.unitMilli(r.requestedStack());a.drink.valueMilli=KOMEProgressionGoodsValue.unitMilli(a.drink.requestedStack());return a;
+    }
     public static KOMESerfProvisioningAssignment generate(List<Candidate> foodPool,List<Candidate> drinkPool,List<String> vesselPool,Random random){
         if(random==null||foodPool==null||foodPool.isEmpty()||drinkPool==null||drinkPool.isEmpty()||vesselPool==null||vesselPool.isEmpty())throw new IllegalArgumentException("Complete Provisioning candidates are required.");
         List<Candidate> available=new ArrayList<Candidate>(foodPool);List<Requirement> foods=new ArrayList<Requirement>();
@@ -64,14 +68,11 @@ public final class KOMESerfProvisioningAssignment {
         Requirement prototype=new Requirement(drink.key,drink.itemId,drink.damage,1,0,drink.displayName,vessel,true,strength);
         ItemStack target=prototype.requestedStack();
         Requirement requirement=new Requirement(drink.key,drink.itemId,drink.damage,foodQuantity(target==null?drink.maxStack:target.getMaxStackSize(),random),0,drink.displayName,vessel,true,strength);
-        int drinkLimit=target==null?drink.maxStack:target.getMaxStackSize();
-        for(boolean stackable:new boolean[]{true,false}){
-            List<Candidate> group=new ArrayList<Candidate>();
-            for(Candidate c:available)if((c.maxStack>1)==stackable&&!c.key.equals(drink.key))group.add(c);
-            int existing=(drinkLimit>1)==stackable?1:0;
-            int count=Math.max(0,KOMEProgressionGoodsRules.types(stackable?64:1,group.size()+existing,random)-existing);
-            for(int i=0;i<count;i++){Candidate item=weighted(group,random);foods.add(new Requirement(item,foodQuantity(item.maxStack,random),""));group.removeIf(c->c.key.equals(item.key)&&c.damage==item.damage);}
-        }
+        available.removeIf(c->c==null||c.key.equals(drink.key));
+        List<Candidate> distinct=new ArrayList<Candidate>();
+        for(Candidate c:available){boolean seen=false;for(Candidate old:distinct)if(old.key.equals(c.key))seen=true;if(!seen)distinct.add(c);}
+        int count=Math.min(distinct.size(),2+random.nextInt(2));
+        for(int i=0;i<count;i++){Candidate item=weighted(distinct,random);foods.add(new Requirement(item,foodQuantity(item.maxStack,random),""));distinct.remove(item);}
         return new KOMESerfProvisioningAssignment(foods,requirement);
     }
     static int foodQuantity(int stackLimit,Random random){return KOMEProgressionGoodsRules.quantity(stackLimit,random);}

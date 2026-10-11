@@ -85,7 +85,7 @@ public class KOMEAdminDiagnosticsCommandsTest {
         completion(root, staff, new String[] {"conflict", "inspect", ""}, "T");
         completion(root, staff, new String[] {"conflict", "end", ""}, "T");
         completion(root, staff, new String[] {"audit", ""}, "list", "summary");
-        completion(root, staff, new String[] {"progression", ""}, "cooldown", "relationship");
+        completion(root, staff, new String[] {"progression", ""}, "cooldown", "relationship", "finishDuty", "resetDuty", "status", "why");
         completion(root, staff, new String[] {"progression", "cooldown", ""}, "on", "off");
         completion(root, staff, new String[] {"progression", "relationship", ""}, "force", "clear");
         completion(root, staff, new String[] {"progression", "relationship", "force", ""}, "serf", "knight", "lord");

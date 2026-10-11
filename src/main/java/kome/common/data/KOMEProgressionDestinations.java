@@ -28,20 +28,25 @@ public final class KOMEProgressionDestinations {
     }
 
     static KOMEKnightCommissionLocations.Destination find(World world,KOMEProgressionNpcRef origin,int minimum,int maximum){
+        return find(world,origin,minimum,maximum,null);
+    }
+    static KOMEKnightCommissionLocations.Destination find(World world,KOMEProgressionNpcRef origin,int minimum,int maximum,KOMEProgressionVariety variety){
         if(world==null||world.provider==null||origin==null||world.provider.dimensionId!=origin.dimension)return null;
         LOTRFaction faction=KOMEProgressionFactionResolver.resolve(origin.factionKey);
         if(faction==null)return null;
         KOMEWorldData data=KOMEWorldData.get(world);
-        NBTTagCompound nearest=null;double nearestDistance=maximum*(double)maximum;
+        NBTTagCompound nearest=null;double nearestDistance=Double.POSITIVE_INFINITY;
         java.util.Iterator<NBTTagCompound> savedSites=data.progressionShelters.values().iterator();
         while(savedSites.hasNext()){
             NBTTagCompound saved=savedSites.next();
             if(saved.getInteger("Dimension")!=origin.dimension||!KOMEProgressionFactionResolver.matches(saved.getString("Faction"),faction))continue;
             double dx=saved.getDouble("ArrivalX")-origin.x,dz=saved.getDouble("ArrivalZ")-origin.z,d=dx*dx+dz*dz;
             if(!valid(world,saved)){savedSites.remove();data.markDirty();continue;}
-            if(d>=minimum*(double)minimum&&d<=nearestDistance){nearest=saved;nearestDistance=d;}
+            double score=d+(variety==null?0:variety.penalty(origin,saved.getDouble("ArrivalX"),saved.getDouble("ArrivalZ")))*maximum*(double)maximum;
+            if(d>=minimum*(double)minimum&&d<=maximum*(double)maximum&&score<nearestDistance){nearest=saved;nearestDistance=score;}
         }
-        if(nearest!=null)return new KOMEKnightCommissionLocations.Destination(nearest.getDouble("ArrivalX"),nearest.getDouble("ArrivalZ"),"the shelter marked on your map",nearest);
+        KOMEKnightCommissionLocations.Destination fallback=nearest==null?null:new KOMEKnightCommissionLocations.Destination(nearest.getDouble("ArrivalX"),nearest.getDouble("ArrivalZ"),"the shelter marked on your map",nearest);
+        if(fallback!=null&&(variety==null||variety.penalty(origin,fallback.x,fallback.z)==0))return fallback;
         List<LOTREntityNPC> witnesses=new ArrayList<LOTREntityNPC>();
         for(Object value:world.loadedEntityList)if(value instanceof LOTREntityNPC){
             LOTREntityNPC npc=(LOTREntityNPC)value;
@@ -53,17 +58,17 @@ public final class KOMEProgressionDestinations {
         for(int i=0;i<Math.min(32,witnesses.size());i++){
             LOTREntityNPC npc=witnesses.get(i);
             KOMEKnightCommissionLocations.Destination result=verify(world,faction,npc.posX,npc.posZ,"native:"+npc.getClass().getSimpleName());
-            if(result!=null){if(data.progressionShelters.size()<256){data.progressionShelters.put(key(result.proof),result.proof);data.markDirty();}return result;}
+            if(result!=null){if(data.progressionShelters.size()<256){data.progressionShelters.put(key(result.proof),result.proof);data.markDirty();}if(variety==null||variety.penalty(origin,result.x,result.z)==0)return result;if(fallback==null||variety.penalty(origin,result.x,result.z)<variety.penalty(origin,fallback.x,fallback.z))fallback=result;}
         }
         for(lotr.common.world.map.LOTRWaypoint waypoint:lotr.common.world.map.LOTRWaypoint.values()){
             double x=waypoint.getXCoord(),z=waypoint.getZCoord(),dx=x-origin.x,dz=z-origin.z,d=dx*dx+dz*dz;
             if(waypoint.faction!=faction||waypoint.isHidden()||d<minimum*(double)minimum||d>maximum*(double)maximum)continue;
             KOMEKnightCommissionLocations.Destination result=verify(world,faction,x,z,"waypoint:"+waypoint.getCodeName());
-            if(result!=null)return result;
+            if(result!=null){if(variety==null||variety.penalty(origin,result.x,result.z)==0)return result;if(fallback==null)fallback=result;}
         }
         // The shipped structure generators do not expose an authoritative placement/protection
         // transaction. Fail closed rather than overwrite terrain based on player-build heuristics.
-        return null;
+        return fallback;
     }
 
     static KOMEKnightCommissionLocations.Destination verify(World world,LOTRFaction faction,double x,double z,String identity){
