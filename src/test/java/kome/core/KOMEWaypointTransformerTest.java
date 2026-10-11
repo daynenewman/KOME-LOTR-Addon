@@ -92,7 +92,7 @@ public class KOMEWaypointTransformerTest {
         assertEquals(1, publicWidgets);
         assertEquals(1, publicVisibility);
         assertEquals(1, progressionMarkers);
-        assertEquals(5, radialInput);
+        assertEquals(7, radialInput);
     }
 
     @Test

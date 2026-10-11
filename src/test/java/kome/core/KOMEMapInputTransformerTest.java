@@ -36,13 +36,14 @@ public class KOMEMapInputTransformerTest {
         byte[] transformed=transformer.transform(KOMEMapInputTransformer.TARGET,KOMEMapInputTransformer.TARGET,original);
         assertArrayEquals(transformed,transformer.transform(KOMEMapInputTransformer.TARGET,KOMEMapInputTransformer.TARGET,transformed));
         ClassNode before=node(original),after=node(transformed);
-        String[] methods=srg?new String[]{"func_73864_a","func_73869_a","func_73863_a","renderWaypointTooltip"}:new String[]{"mouseClicked","keyTyped","drawScreen","renderWaypointTooltip"};
-        String[] hooks={"onMapMouseClicked","onMapKeyTyped","isMapDragButtonDown","suppressMapInspection"};
+        String[] methods=srg?new String[]{"func_73864_a","func_73869_a","func_73863_a","renderWaypointTooltip","func_146274_d"}:new String[]{"mouseClicked","keyTyped","drawScreen","renderWaypointTooltip","handleMouseInput"};
+        String[] hooks={"onMapMouseClicked","onMapKeyTyped","isMapDragButtonDown","suppressMapInspection","mapMouseWheel"};
         for(int i=0;i<methods.length;i++) {
             MethodNode old=method(before,methods[i]),current=method(after,methods[i]);
             new Analyzer<BasicValue>(new BasicVerifier()).analyze(after.name,current);
             List<String> callsBefore=nativeCalls(old),callsAfter=nativeCalls(current);
             if(i==2) assertTrue(callsBefore.remove("org/lwjgl/input/Mouse.isButtonDown(I)Z"));
+            if(i==4) assertTrue(callsBefore.remove("org/lwjgl/input/Mouse.getEventDWheel()I"));
             assertEquals("Existing waypoint, zoom, and keyboard calls remain intact",callsBefore,callsAfter);
             int count=0;
             for(AbstractInsnNode instruction=current.instructions.getFirst();instruction!=null;instruction=instruction.getNext())
@@ -57,25 +58,27 @@ public class KOMEMapInputTransformerTest {
                         assertEquals("The native candidate, not a null clear",Opcodes.ALOAD,previous(assignment).getOpcode());
                         continue;
                     }
-                    assertEquals(hooks[i],hook.name);
-                    if(i!=2) {
+                    assertEquals(i == 0 && "onMapSelectorMouseClicked".equals(hook.name) ? "onMapSelectorMouseClicked" : hooks[i],hook.name);
+                    if(i!=2 && i!=4) {
                         AbstractInsnNode branch=next(instruction);assertEquals(Opcodes.IFEQ,branch.getOpcode());assertEquals(Opcodes.RETURN,next(branch).getOpcode());
                         assertTrue(current.instructions.indexOf(instruction)<current.instructions.indexOf(((JumpInsnNode)branch).label));
                     }
                 }
-            assertEquals(i == 0 ? 2 : 1,count);
+            assertEquals(i == 0 ? 3 : 1,count);
         }
         MethodNode click=method(after,methods[0]);
-        int pick=-1,radial=-1,base=-1;
+        int selector=-1,pick=-1,radial=-1,base=-1;
         for (AbstractInsnNode instruction=click.instructions.getFirst();instruction!=null;instruction=instruction.getNext()) {
             if (!(instruction instanceof MethodInsnNode)) continue;
             MethodInsnNode call=(MethodInsnNode)instruction;
             if (KOMEMapInputTransformer.HOOK.equals(call.owner)) {
+                if ("onMapSelectorMouseClicked".equals(call.name)) selector=click.instructions.indexOf(call);
                 if ("onNativeWaypointClick".equals(call.name)) pick=click.instructions.indexOf(call);
                 if ("onMapMouseClicked".equals(call.name)) radial=click.instructions.indexOf(call);
             } else if (call.getOpcode()==Opcodes.INVOKESPECIAL && methods[0].equals(call.name)) base=click.instructions.indexOf(call);
         }
-        assertTrue("Native waypoint selection wins before radial actions",pick>=0 && pick<radial && radial<base);
+        assertTrue("Only panel rectangles and rendered radial cells precede native picking",selector>=0 && selector<pick);
+        assertTrue("Unowned native waypoint selection precedes tile-context handling",pick>=0 && pick<radial && radial<base);
         assertEquals(before.methods.size(),after.methods.size());
         for (MethodNode old : before.methods) {
             if (Arrays.asList(methods).contains(old.name)) continue;

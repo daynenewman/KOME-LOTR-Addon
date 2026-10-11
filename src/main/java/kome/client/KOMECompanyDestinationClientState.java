@@ -28,6 +28,8 @@ public final class KOMECompanyDestinationClientState {
                 ||sequence!=response.sequence||!destination.equals(response.destination))return false;
         latest=response;loading=false;return true;
     }
+    public synchronized UUID sessionId() {return session;}
+    public synchronized boolean isSession(UUID expected) {return session.equals(expected);}
     public synchronized KOMECompanyDestinationOptions latest() {return latest;}
     public synchronized boolean isLoading() {return loading;}
 }

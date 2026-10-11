@@ -43,15 +43,31 @@ public final class KOMECompanyDestinationQuery {
             if(rows.size()==limit) return page(session,sequence,destination,Result.OK,rows,token,last,true);
             try {
                 KOMECompanyMovementService.Evaluation evaluation=movement.evaluate(data,actor,company,destination,budget);
-                rows.add(new Row(evaluation));last=company;
+                long eta=evaluation.allowed() && evaluation.scheduleMode==KOMECompanyMovementService.ScheduleMode.DAILY
+                    && evaluation.dailyTiming!=null ? Math.max(0,evaluation.dailyTiming.estimatedCompletionMillis-evaluation.evaluatedAtMillis) : -1;
+                rows.add(projectPopulation(data,data.armyCompanies.get(company),new Row(evaluation),eta));last=company;
             } catch(KOMECompanyMovementService.EvaluationLimitExceeded exhausted) {
                 if (!exhausted.deferred.exceedsSingleRouteLimit)
                     return page(session,sequence,destination,Result.ARRIVAL_BUDGET_EXCEEDED,rows,token,last,true);
                 // One company cannot fit even a fresh request. Expose unknown eligibility and advance past it.
-                rows.add(new Row(exhausted.deferred));last=company;
+                rows.add(projectPopulation(data,data.armyCompanies.get(company),new Row(exhausted.deferred),-1));last=company;
             }
         }
         return page(session,sequence,destination,Result.OK,rows,token,last,false);
+    }
+    /** Bounded member-index reads. Reuse canonical investment authority, never entity types or a world-wide scan. */
+    private static Row projectPopulation(KOMEWorldData data,KOMEArmyCompany company,Row row,long eta) {
+        if(company==null) return new Row(row,-1,-1,eta);
+        long investment=0;Set<UUID> seen=new HashSet<UUID>();
+        for(UUID id:company.units) {
+            KOMEHiredUnitRecord record=data.hiredUnits.get(id);
+            if(id==null || !seen.add(id) || record==null || !id.equals(record.entity)
+                    || !company.id.equals(record.companyId) || record.populationSpent<0)
+                return new Row(row,-1,-1,eta);
+            if(KOMEHiredUnitClassification.isCampaignUnit(record))
+                investment=Math.addExact(investment,KOMEPopulationService.getInvestmentCenti(record));
+        }
+        return new Row(row,investment,company.units.size(),eta);
     }
     private static KOMECompanyDestinationOptions page(UUID session,long sequence,String destination,Result result,
             List<Row> rows,String token,String last,boolean more) {

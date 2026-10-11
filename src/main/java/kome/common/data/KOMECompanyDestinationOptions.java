@@ -16,6 +16,11 @@ public final class KOMECompanyDestinationOptions {
         public final EvaluationState evaluationState;
         public final Entitlement entitlement;
         public final int tilesPerDay, remainingAllowance, distance;
+        /** Canonical permanent faction investment, in centi-population; -1 means incomplete/unknown. */
+        public final long populationCenti;
+        public final int unitCount;
+        /** Duration at server evaluation time, not a client-clock countdown; -1 means unavailable. */
+        public final long etaMillis;
         public final List<String> route;
         /** Null for deferred rows: unknown eligibility must never look like a movement denial. */
         public final KOMECompanyMovementService.Status status;
@@ -72,6 +77,25 @@ public final class KOMECompanyDestinationOptions {
                 boolean start,boolean arrive,boolean legal,boolean timing,int boundaries,long next,long completion,
                 String denial,String detail,String held,long heldRevision,KOMECompanyMovementService.Consequence consequence,
                 String conflict,long revision,String legacy,String confirmation) {
+            this(state,id,name,origin,destination,entitlement,tilesPerDay,allowance,distance,route,status,mode,
+                start,arrive,legal,timing,boundaries,next,completion,denial,detail,held,heldRevision,consequence,
+                conflict,revision,legacy,confirmation,-1,-1,-1);
+        }
+        public Row(Row base,long populationCenti,int unitCount,long etaMillis) {
+            this(base.evaluationState,base.companyId,base.name,base.currentTile,base.destinationTile,base.entitlement,
+                base.tilesPerDay,base.remainingAllowance,base.distance,base.route,base.status,base.scheduleMode,
+                base.canStartNow,base.canArriveNow,base.legalRoute,base.timingAvailable,base.futureBoundaries,
+                base.nextBoundaryMillis,base.estimatedCompletionMillis,base.denialCode,base.denialDetail,
+                base.heldConflictId,base.heldConflictRevision,base.consequence,base.destinationConflictId,
+                base.destinationConflictRevision,base.legacyFingerprint,base.confirmationFingerprint,populationCenti,unitCount,etaMillis);
+        }
+        private Row(EvaluationState state,String id,String name,String origin,String destination,Entitlement entitlement,
+                int tilesPerDay,int allowance,int distance,List<String> route,
+                KOMECompanyMovementService.Status status,KOMECompanyMovementService.ScheduleMode mode,
+                boolean start,boolean arrive,boolean legal,boolean timing,int boundaries,long next,long completion,
+                String denial,String detail,String held,long heldRevision,KOMECompanyMovementService.Consequence consequence,
+                String conflict,long revision,String legacy,String confirmation,long populationCenti,int unitCount,long etaMillis) {
+            this.populationCenti=populationCenti;this.unitCount=unitCount;this.etaMillis=etaMillis;
             evaluationState=Objects.requireNonNull(state);
             companyId=Objects.requireNonNull(id);this.name=Objects.requireNonNull(name);
             currentTile=Objects.requireNonNull(origin);destinationTile=Objects.requireNonNull(destination);

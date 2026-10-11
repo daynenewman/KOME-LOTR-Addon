@@ -22,6 +22,16 @@ public class KOMECompanyDestinationNetworkTest {
     }
     private KOMECompanyDestinationOptions reply(KOMEPacketCompanyDestinationRequest r) {return page(r.session,r.sequence,r.destination,Collections.<Row>emptyList());}
     private void rejected(Runnable run) {try{run.run();fail("Malformed payload accepted");}catch(IllegalArgumentException|IndexOutOfBoundsException expected) { }}
+    @Test public void populationUnitsAndEtaRoundTripAndRejectFalseAuthority() {
+        Row base=row(Arrays.asList("T001","T002"),"Name");
+        Row decoded=KOMEPacketCompanyDestinationResponse.validated(page(session,1,"T002",Arrays.asList(new Row(base,1800,12,0)))).snapshot().rows.get(0);
+        assertEquals(1800,decoded.populationCenti);assertEquals(12,decoded.unitCount);assertEquals(0,decoded.etaMillis);
+        rejected(()->KOMEPacketCompanyDestinationResponse.validated(page(session,1,"T002",Arrays.asList(new Row(base,-2,12,0)))));
+        rejected(()->KOMEPacketCompanyDestinationResponse.validated(page(session,1,"T002",Arrays.asList(new Row(base,-1,12,0)))));
+        rejected(()->KOMEPacketCompanyDestinationResponse.validated(page(session,1,"T002",Arrays.asList(new Row(base,1800,257,0)))));
+        rejected(()->KOMEPacketCompanyDestinationResponse.validated(page(session,1,"T002",Arrays.asList(new Row(base,1800,12,100)))));
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g5"));
+    }
     @Test public void requestRoundTripPreservesCorrelationAndPagingOnly() {
         KOMEPacketCompanyDestinationRequest p=new KOMEPacketCompanyDestinationRequest(session,19,"T002",4,"C1","00000000-0000-0000-0000-000000000001");
         ByteBuf b=Unpooled.buffer();try {p.toBytes(b);KOMEPacketCompanyDestinationRequest q=new KOMEPacketCompanyDestinationRequest();q.fromBytes(b);
@@ -112,7 +122,7 @@ public class KOMECompanyDestinationNetworkTest {
         }finally{KOMEPacketHandler.clearPendingServerTasks();}
     }
     @Test public void newProtocolRejectsPreviousArtifactIdentity() {
-        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g5"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g4"));
+        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g6"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g4"));
     }
     @Test public void tokenBucketAllowsTwoThenRefillsOnePerSecondWithRetryTiming() {
         KOMECompanyDestinationRateLimit gate=new KOMECompanyDestinationRateLimit(2);Object connection=new Object();

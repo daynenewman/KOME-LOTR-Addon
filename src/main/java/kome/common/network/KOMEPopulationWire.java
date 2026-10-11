@@ -7,8 +7,8 @@ import kome.common.data.KOMEPopulationProjection;
 
 /** Shared exact projection codec and one matching-artifact protocol identity. */
 public final class KOMEPopulationWire {
-    // Destination movement query IDs 59/60 require matching client/server artifacts.
-    public static final String VERSION = "1.0.9-integration-g5";
+    // Destination row ETA/investment extensions on IDs 59/60 require matching client/server artifacts.
+    public static final String VERSION = "1.0.9-integration-g6";
     public static final int MAX_DECIMAL_DIGITS = 64;
     public static final int MAX_ROWS = 4096;
     public static final int MAX_TEXT_BYTES = 4096;

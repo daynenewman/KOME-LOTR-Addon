@@ -20,7 +20,7 @@ final class KOMEMapRadialMenu {
         COMPANIES("Units", false, "Company browsing is not wired in this prototype"),
         INFO("Info", true, "Open existing tile information"),
         CLOSE("Close", true, "Dismiss this ring"),
-        MOVE_HERE("Move Here", false, "Prototype only: movement is not wired"),
+        MOVE_HERE("Move Here", true, "Choose a company and preview its route"),
         BATTLE_ACTIONS("Battle", false, "Battle actions are not wired in this prototype"),
         BACK("Back", true, "Return to the first ring");
         final String label, description;

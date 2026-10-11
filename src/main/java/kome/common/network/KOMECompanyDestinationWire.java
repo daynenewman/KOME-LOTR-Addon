@@ -51,6 +51,11 @@ final class KOMECompanyDestinationWire {
         try{return Enum.valueOf(type,value);}catch(RuntimeException bad){throw new IllegalArgumentException("Invalid destination enum",bad);}
     }
     static void validate(Row r) {
+        if(r.populationCenti < -1 || r.populationCenti > (long)MAX_MEMBERS*Integer.MAX_VALUE*100
+                || r.unitCount < -1 || r.unitCount > MAX_MEMBERS || (r.populationCenti==-1)!=(r.unitCount==-1)
+                || r.etaMillis < -1 || r.etaMillis>=0 && (!r.canStartNow || !r.timingAvailable || r.scheduleMode!=ScheduleMode.DAILY)
+                || r.etaMillis==0 && !r.canArriveNow || r.etaMillis>0 && r.canArriveNow)
+            throw new IllegalArgumentException("Invalid destination population or ETA");
         id(r.companyId,false);check(r.name,128);tile(r.currentTile,true);tile(r.destinationTile,false);
         if(r.tilesPerDay<1||r.remainingAllowance<0||r.remainingAllowance>r.tilesPerDay)
             throw new IllegalArgumentException("Invalid destination entitlement");
@@ -97,6 +102,7 @@ final class KOMECompanyDestinationWire {
         text(b,r.denialCode,64);text(b,r.denialDetail,512);text(b,r.heldConflictId,64);b.writeLong(r.heldConflictRevision);
         text(b,r.consequence==null?"":r.consequence.name(),64);text(b,r.destinationConflictId,64);b.writeLong(r.destinationConflictRevision);
         text(b,r.legacyFingerprint,64);text(b,r.confirmationFingerprint,64);
+        b.writeLong(r.populationCenti);b.writeInt(r.unitCount);b.writeLong(r.etaMillis);
     }
     static Row row(ByteBuf b) {
         String id=text(b,64),name=text(b,128),origin=text(b,24),dest=text(b,24);
@@ -108,6 +114,7 @@ final class KOMECompanyDestinationWire {
             optionalEnumeration(b,Status.class),enumeration(b,ScheduleMode.class),b.readBoolean(),b.readBoolean(),b.readBoolean(),b.readBoolean(),
             b.readInt(),b.readLong(),b.readLong(),text(b,64),text(b,512),text(b,64),b.readLong(),
             optionalEnumeration(b,Consequence.class),text(b,64),b.readLong(),text(b,64),text(b,64));
+        r=new Row(r,b.readLong(),b.readInt(),b.readLong());
         validate(r);return r;
     }
 }

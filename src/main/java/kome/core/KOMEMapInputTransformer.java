@@ -12,10 +12,17 @@ public final class KOMEMapInputTransformer implements IClassTransformer {
         if (bytes == null || !TARGET.equals(transformedName)) return bytes;
         ClassNode node = new ClassNode(); new ClassReader(bytes).accept(node, 0);
         MethodNode mouse = method(node, "mouseClicked", "func_73864_a", "(III)V");
+        MethodNode wheel = method(node, "handleMouseInput", "func_146274_d", "()V");
         MethodNode key = method(node, "keyTyped", "func_73869_a", "(CI)V");
         MethodNode draw = method(node, "drawScreen", "func_73863_a", "(IIF)V");
         MethodNode tooltip = method(node, "renderWaypointTooltip", "renderWaypointTooltip", "(Llotr/common/world/map/LOTRAbstractWaypoint;ZII)V");
-        if (hasHook(mouse, "onMapMouseClicked") && hasHook(mouse, "onNativeWaypointClick") && hasHook(key, "onMapKeyTyped") && hasHook(draw, "isMapDragButtonDown") && hasHook(tooltip, "suppressMapInspection")) return bytes;
+        if (hasHook(wheel,"mapMouseWheel") && hasHook(mouse, "onMapSelectorMouseClicked") && hasHook(mouse, "onMapMouseClicked") && hasHook(mouse, "onNativeWaypointClick") && hasHook(key, "onMapKeyTyped") && hasHook(draw, "isMapDragButtonDown") && hasHook(tooltip, "suppressMapInspection")) return bytes;
+        if (!hasHook(mouse, "onMapSelectorMouseClicked")) {
+            InsnList call = new InsnList(); call.add(new VarInsnNode(Opcodes.ALOAD, 0));
+            for (int local = 1; local <= 3; local++) call.add(new VarInsnNode(Opcodes.ILOAD, local));
+            call.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOK, "onMapSelectorMouseClicked", "(Llotr/client/gui/LOTRGuiMap;III)Z", false));
+            consumeOrContinue(mouse, call);
+        }
         if (!hasHook(mouse, "onMapMouseClicked")) {
             InsnList call = new InsnList(); call.add(new VarInsnNode(Opcodes.ALOAD, 0));
             for (int local = 1; local <= 3; local++) call.add(new VarInsnNode(Opcodes.ILOAD, local));
@@ -38,6 +45,20 @@ public final class KOMEMapInputTransformer implements IClassTransformer {
             InsnList call = new InsnList(); call.add(new VarInsnNode(Opcodes.ALOAD, 0));
             call.add(new MethodInsnNode(Opcodes.INVOKESTATIC, HOOK, "onNativeWaypointClick", "(Llotr/client/gui/LOTRGuiMap;)V", false));
             mouse.instructions.insert(selected, call);
+        }
+        if (!hasHook(wheel,"mapMouseWheel")) {
+            MethodInsnNode poll=null;
+            for (AbstractInsnNode insn=wheel.instructions.getFirst();insn!=null;insn=insn.getNext())
+                if (insn instanceof MethodInsnNode) {
+                    MethodInsnNode call=(MethodInsnNode)insn;
+                    if ("org/lwjgl/input/Mouse".equals(call.owner) && "getEventDWheel".equals(call.name) && "()I".equals(call.desc)) {
+                        if (poll!=null) throw new IllegalStateException("LOTR map wheel poll is ambiguous");
+                        poll=call;
+                    }
+                }
+            if (poll==null) throw new IllegalStateException("LOTR v36.15 map wheel poll missing");
+            wheel.instructions.insertBefore(poll,new VarInsnNode(Opcodes.ALOAD,0));
+            poll.owner=HOOK;poll.name="mapMouseWheel";poll.desc="(Llotr/client/gui/LOTRGuiMap;)I";
         }
         if (!hasHook(key, "onMapKeyTyped")) {
             InsnList call = new InsnList(); call.add(new VarInsnNode(Opcodes.ALOAD, 0)); call.add(new VarInsnNode(Opcodes.ILOAD, 2));
@@ -80,7 +101,7 @@ public final class KOMEMapInputTransformer implements IClassTransformer {
             if (insn instanceof MethodInsnNode && HOOK.equals(((MethodInsnNode)insn).owner) && name.equals(((MethodInsnNode)insn).name)) return true;
         return false;
     }
-    /** Place radial input AFTER native picking so any legitimate waypoint wins, even over a segment. */
+    /** Tile context opening stays after native picking; actual radial cells are owned by the entry hook. */
     private static AbstractInsnNode nativeBaseClickStart(MethodNode mouse) {
         AbstractInsnNode start = null;
         for (AbstractInsnNode insn = mouse.instructions.getFirst(); insn != null; insn = insn.getNext())

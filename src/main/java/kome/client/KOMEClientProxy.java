@@ -133,7 +133,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @Override public void acceptCompanyDestinationOptions(
             kome.common.data.KOMECompanyDestinationOptions snapshot,Object connection) {
-        destinationOptions().accept(snapshot,connection);
+        if (destinationOptions().accept(snapshot,connection)) KOMEConquestMapOverlay.acceptCompanyDestinationOptions(snapshot);
     }
 
     @Override

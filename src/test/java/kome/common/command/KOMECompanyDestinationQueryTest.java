@@ -29,6 +29,28 @@ public class KOMECompanyDestinationQueryTest {
         KOMEHiredUnitRecord u=new KOMEHiredUnitRecord();u.readFromNBT(f.unit.writeToNBT());u.entity=UUID.nameUUIDFromBytes(id.getBytes(java.nio.charset.StandardCharsets.UTF_8));u.companyId=id;u.currentTile=origin;
         c.units.add(u.entity);f.data.armyCompanies.put(id,c);f.data.hiredUnits.put(u.entity,u);return c;
     }
+    @Test public void populationUsesCanonicalPermanentInvestmentNotNpcCountOrCurrentHealthCost() throws Exception {
+        try(Fixture f=new Fixture(false,1)) {
+            f.unit.populationSpent=18;f.unit.cost=3;f.company.totalPopulation=999;
+            Row r=row(f);assertEquals(1800,r.populationCenti);assertEquals(1,r.unitCount);
+            assertEquals(KOMEPopulationService.getCompanyInvestmentCenti(f.data,f.company).longValueExact(),r.populationCenti);
+        }
+    }
+    @Test public void missingMembershipProjectsUnknownPopulationWithoutRepairOrPartialSum() throws Exception {
+        try(Fixture f=new Fixture(false,1)) {
+            f.company.units.add(new UUID(8,8));Row r=row(f);
+            assertEquals(-1,r.populationCenti);assertEquals(-1,r.unitCount);assertEquals(2,f.company.units.size());
+        }
+    }
+    @Test public void etaUsesPostValidationServerSampleAndCanonicalAllowanceAdjustedCompletion() throws Exception {
+        try(Fixture f=new Fixture(true,2)) {
+            f.company.movementAllowance=1;KOMECompanyMovementService.Evaluation e=f.evaluate();Row r=row(f);
+            assertEquals(e.dailyTiming.estimatedCompletionMillis-e.evaluatedAtMillis,r.etaMillis);assertTrue(r.etaMillis>0);
+            f.company.movementAllowance=2;assertEquals(0,row(f).etaMillis);
+            f.data.movementSecondsPerTileOverride=10;assertEquals(-1,row(f).etaMillis);
+            f.company.units.add(new UUID(9,9));assertEquals(-1,row(f).etaMillis);
+        }
+    }
     @Test public void controlledCampaignCompaniesAcrossOriginsAndCorrelation() throws Exception {
         try(Fixture f=new Fixture(false,2)) {
             add(f,"C2","T002");KOMECompanyDestinationOptions p=query(f);
