@@ -36,3 +36,7 @@ Existing references: [server queue](../../../KOME_SERVER_TASK_QUEUE.md), [conque
 Use [shared prerequisites](../../INDEX.md). Trace persistence → packet construction/delivery → client projection → GUI eligibility. Test disconnect/reconnect, dimension change, rejected requests, and reopened screens with a connected client before claiming visible correctness.
 
 At this baseline [KOMEPacketProgressionData.Handler](../../../../src/main/java/kome/common/network/KOMEPacketProgressionData.java) calls `updateProgressionData`; the client proxy updates progression UI/title summaries. Do not assume that also updates `KOMEClientData.progressions`, which permissions read. The separate waypoint-cache correction is not present here; investigate that boundary for a persisted unlock that still appears locked. Packet-specific application must be checked even when a general client queue exists.
+
+## KOM-18 merge compatibility
+
+The merge retains dev's integration-g6 packet contract, including progression identities at 59 and Join Battle at 53?58. The removed KOM-89 presentation workaround belonged to the incompatible 1.0.8 artifact; the exact-version handshake rejects that artifact before packet handling. No custom hired-presentation queue or packet is restored. ID 60 remains unused. Dev-only offline identity opt-in and its credential guards remain in Gradle.

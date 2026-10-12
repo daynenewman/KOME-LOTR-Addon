@@ -169,8 +169,11 @@ public class KOMESeasonResetDeploymentTest {
             KOMEHiredUnitRecord record=new KOMEHiredUnitRecord();
             record.movingEntityData=new NBTTagCompound(); assertTrue(rider.writeMountToNBT(record.movingEntityData));
             NBTTagCompound stored=(NBTTagCompound)record.movingEntityData.copy();
+            record.entity=rider.getUniqueID();
             record.survivingHealth=new NBTTagCompound(); record.survivingHealth.setFloat("Current",3.25F);
+            record.survivingHealth.setString("EntityId",rider.getUniqueID().toString());
             NBTTagCompound mountHealth=new NBTTagCompound(); mountHealth.setFloat("Current",7.125F);
+            mountHealth.setString("EntityId",mount.getUniqueID().toString());
             record.survivingHealth.setTag("Riding",mountHealth);
             Entity restored=KOMESeasonResetDeployment.restoreVirtualUnit(record,null);
             assertEquals(3.25F,((SnapshotEntity)restored).health,0F);

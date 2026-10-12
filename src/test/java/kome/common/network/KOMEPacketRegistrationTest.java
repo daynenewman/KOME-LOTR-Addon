@@ -68,6 +68,9 @@ public class KOMEPacketRegistrationTest {
         }
         assertFalse(registry.contains(".class, 23,"));
         assertFalse(registry.contains(".class, 24,"));
+        assertTrue(registry.contains("KOMEPacketProgressionIdentities.class, 59, Side.CLIENT"));
+        assertFalse(KOMEPopulationWire.accepts("1.0.8"));
+        assertFalse(registry.contains(".class, 60,"));
     }
 
     @After

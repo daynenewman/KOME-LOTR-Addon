@@ -66,6 +66,7 @@ public class KOMEHiredUnitRecord {
     private KOMEHiredUnitPhysicalLocator physicalLocator;
     transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedEntity;
     transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedMount;
+    transient KOMEWorldData healthAuthorityData;
 
     public void readFromNBT(NBTTagCompound nbt) {
         entity = UUID.fromString(nbt.getString("Entity"));
@@ -139,6 +140,8 @@ public class KOMEHiredUnitRecord {
                 || !KOMEConquestTile.normalizeId(currentTile).equals(
                     physicalLocator.getPhysicalTileId())))
             throw new IllegalArgumentException("Physical locator attached to an ineligible hired-unit state");
+        KOMECampaignHealth.validate(survivingHealth);
+        KOMECampaignHealth.logicalTarget(survivingHealth, entity, KOMEOrdinaryBattleRecoveryRegistry.Component.RIDER);
         healthObservedEntity = null;
         healthObservedMount = null;
         if (farmhand) {
@@ -238,6 +241,7 @@ public class KOMEHiredUnitRecord {
     void assignPersistedUnitClass(KOMEHiredUnitClass value) {
         unitClass = value == KOMEHiredUnitClass.CAMPAIGN
             ? KOMEHiredUnitClass.CAMPAIGN : KOMEHiredUnitClass.ORDINARY;
+        if (healthAuthorityData != null) healthAuthorityData.campaignAssociations.track(this);
     }
 
     public boolean isFactionPopulationBankFunded() {

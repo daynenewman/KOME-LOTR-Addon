@@ -196,6 +196,8 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketJoinBattleSelectionResult.Handler.class, KOMEPacketJoinBattleSelectionResult.class, 56, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleRetreatRequest>(new KOMEPacketJoinBattleRetreatRequest.Handler()) {}, KOMEPacketJoinBattleRetreatRequest.class, 57, Side.SERVER);
         network.registerMessage(KOMEPacketJoinBattleRetreatResult.Handler.class, KOMEPacketJoinBattleRetreatResult.class, 58, Side.CLIENT);
+        // g6 rejects the old 1.0.8 artifacts; retain dev's progression identity wire ID.
         network.registerMessage(KOMEPacketProgressionIdentities.Handler.class, KOMEPacketProgressionIdentities.class, 59, Side.CLIENT);
+        // Former KOM-89 request ID 60 remains unused; no hired-presentation workaround survives.
     }
 }

@@ -92,6 +92,14 @@ import java.util.Map;
 import java.time.Instant;
 
 public class KOMEEvents {
+    @SubscribeEvent(priority=EventPriority.HIGHEST)
+    public void onRecoveryRootLoad(net.minecraftforge.event.world.WorldEvent.Load event) {
+        if (!event.world.isRemote && event.world.provider.dimensionId == 0) KOMEWorldData.get(event.world);
+    }
+    @SubscribeEvent(priority=EventPriority.HIGHEST)
+    public void onRecoveryRootUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
+        KOMERecoveryStartup.worldUnloaded(event.world);
+    }
     /** Forge's periodic despawn event and LOTR's canDespawn veto cover both native paths. */
     @SubscribeEvent(priority=EventPriority.LOWEST)
     public void onProgressionNpcAllowDespawn(LivingSpawnEvent.AllowDespawn event){
@@ -382,6 +390,13 @@ public class KOMEEvents {
         KOMECommandTroops.processMovementTick(data, world, nowMillis);
         KOMEEmergencyDefenseMobilizationService.INSTANCE.processPending(data, world,
             nowMillis);
+        KOMEOrdinaryBattleLifecycleService.INSTANCE.processAll(data, nowMillis);
+        // Ownership publication requires the authoritative live world's tick clock. Tests and
+        // startup recovery may intentionally supply no/incomplete World; those defer safely.
+        if (world != null && world.getWorldInfo() != null)
+            KOMEOrdinaryBattleResolutionService.INSTANCE.processAll(data,
+                world.getTotalWorldTime(), nowMillis);
+        KOMERecoveryExecutor.processCampaignTick(data);
         KOMEMusterService.processDue(data, nowMillis);
         KOMEPopulationPayoutProcessor.Result result = runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
         if (result != null && result.success) KOMEFactionDefeatService.reconcile(data, nowMillis);
@@ -405,6 +420,16 @@ public class KOMEEvents {
         }
     }
 
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public void onRecoveryEntityLoaded(EntityJoinWorldEvent event) {
+        if (!event.world.isRemote) KOMERecoveryStartup.observeEntity(event.entity);
+    }
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onCampaignHealing(net.minecraftforge.event.entity.living.LivingHealEvent event) {
+        if (event.amount > 0F && KOMECampaignHealingPolicy.blocksNormalHealing(event.entityLiving)) event.setCanceled(true);
+    }
+
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onEntityJoinWorld(EntityJoinWorldEvent event) {
         if(!event.world.isRemote&&event.entity instanceof net.minecraft.entity.EntityLiving)
@@ -414,6 +439,8 @@ public class KOMEEvents {
             event.setCanceled(true);
             return;
         }
+        if (!KOMEReflection.isRemote(event.world))
+            KOMECampaignHealth.reconcileMount(KOMEWorldData.get(event.world), event.entity);
         if (!KOMEReflection.isRemote(event.world) && event.entity instanceof EntityItem) {
             KOMEWorldData data = KOMEWorldData.get(event.world);
             if(KOMEKnightCommissionService.reconcileItem(data,(EntityItem)event.entity)){event.setCanceled(true);return;}
@@ -747,6 +774,7 @@ public class KOMEEvents {
         for (java.util.List entities : event.getChunk().entityLists) {
             for (Object value : entities) if (value instanceof Entity) {
                 Entity entity = (Entity) value;
+                KOMECampaignHealthEntity.changed(entity);
                 KOMEHiredUnitRecord record = data.hiredUnits.get(entity.getUniqueID());
                 if (KOMEHiredUnitClassification.isCampaignUnit(record)) {
                     KOMEHiredUnitPhysicalLocatorService.observe(data, record, entity,
@@ -756,6 +784,7 @@ public class KOMEEvents {
                     record.healthObservedEntity = null;
                     record.healthObservedMount = null;
                 }
+                KOMERecoveryStartup.forgetEntity(entity);
             }
         }
     }
@@ -829,9 +858,25 @@ public class KOMEEvents {
     /** LivingDeathEvent is cancelable; account only after higher-priority protection handlers. */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onEmergencyDefenseDeath(LivingDeathEvent event) {
+        if (!event.isCanceled() && event.entityLiving != null && event.entityLiving.worldObj != null
+                && !event.entityLiving.worldObj.isRemote) {
+            KOMEWorldData recoveryData = KOMEWorldData.get(event.entityLiving.worldObj);
+            try {
+                KOMEOrdinaryBattleRecoveryService.terminal(recoveryData, event.entityLiving.getUniqueID(),
+                    KOMEOrdinaryBattleRecoveryRegistry.Disposition.DEAD, System.currentTimeMillis(), "Authoritative living death");
+                KOMECampaignHealthEntity.terminal(event.entityLiving);
+            } catch (IllegalArgumentException blockedRecovery) {
+                event.setCanceled(true);
+                System.err.println("[KOME] Death finalization deferred by recovery authority: " + blockedRecovery.getMessage());
+                return;
+            }
+        }
         if (!event.isCanceled() && event.entityLiving instanceof LOTREntityNPC
                 && !event.entityLiving.worldObj.isRemote) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
+            // Retained health is needed to force TERMINAL above; remove membership only afterward.
+            releaseIfTracked(npc);
+            releaseLinkedInactiveUnits(npc);
             KOMEEmergencyDefenseMobilizationService.INSTANCE.markDead(
                 KOMEWorldData.get(npc.worldObj), KOMEReflection.getEntityUUID(npc),
                 System.currentTimeMillis());
@@ -848,8 +893,6 @@ public class KOMEEvents {
                 event.setCanceled(true);
                 return;
             }
-            releaseIfTracked(npc);
-            releaseLinkedInactiveUnits(npc);
             KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
             UUID deadId = KOMEReflection.getEntityUUID(npc);
             KOMESerfKnightEscortService.handleTargetDeath(data, deadId.toString(),npc.worldObj);

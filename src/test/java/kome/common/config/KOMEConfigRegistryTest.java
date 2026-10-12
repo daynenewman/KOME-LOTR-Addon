@@ -650,6 +650,25 @@ public class KOMEConfigRegistryTest {
         return KOMEConfigRegistry.population();
     }
 
+    @Test public void recoveryAmountIsFiniteNonnegativeConfigurableAndIncludedInChangeSet() throws Exception {
+        File defaults = configFile(); KOMEConfigRegistry.load(defaults);
+        KOMEConfigRegistry.ValidatedConfig before = KOMEConfigRegistry.currentValidated();
+        assertEquals(5F, before.getBattle().getPostBattleRecoveryAmount(), 0F);
+        File custom = configFile(); write(custom, "battle", "postBattleRecoveryAmount", "7.5");
+        KOMEConfigRegistry.load(custom);
+        assertEquals(7.5F, KOMEConfigRegistry.battle().getPostBattleRecoveryAmount(), 0F);
+        assertTrue(KOMEConfigChangeSet.compare(before, KOMEConfigRegistry.currentValidated()).getEntries().stream()
+            .anyMatch(e -> e.getCanonicalKey().equals("battle.postBattleRecoveryAmount")));
+        for (String invalid : new String[]{"-1", "NaN", "Infinity", "bad"}) {
+            File file = configFile(); write(file, "battle", "postBattleRecoveryAmount", invalid);
+            try { KOMEConfigRegistry.load(file); fail("Invalid amount accepted: " + invalid); }
+            catch (KOMEConfigValidationException expected) { assertTrue(expected.getMessage().contains("postBattleRecoveryAmount")); }
+        }
+        File zero = configFile(); write(zero, "battle", "postBattleRecoveryAmount", "0");
+        KOMEConfigRegistry.load(zero); assertEquals(0F, KOMEConfigRegistry.battle().getPostBattleRecoveryAmount(), 0F);
+        KOMEConfigRegistry.load(defaults);
+    }
+
     private void write(File file, String category, String key, String value) {
         Configuration c = new Configuration(file);
         c.load();
