@@ -140,6 +140,42 @@ public class KOMECampaignMovementReconstructionTest {
         assertEquals(prior.transition,p.transition);assertEquals(prior.fence,p.fence);assertEquals(record.entity,p.alias);
         arrive();assertEquals(1,order.completedSteps);assertEquals(record.mounted?2:1,f.world.loadedEntityList.size());
     }
+    @Test public void unloadedSourceIsVerifiedAtExactLocatorBeforeSnapshotDeparture() throws Exception {
+        KOMEHiredUnitPhysicalLocatorService.observe(data,record,source,
+            KOMEHiredUnitPhysicalLocator.CaptureKind.CHUNK_UNLOAD,50,false);
+        assertNotNull(record.getPhysicalLocator());
+        final net.minecraft.world.chunk.Chunk sourceChunk=new net.minecraft.world.chunk.Chunk(f.world,
+            record.getPhysicalLocator().getChunkX(),record.getPhysicalLocator().getChunkZ());
+        sourceChunk.addEntity(source); sourceChunk.isModified=false;
+        f.world.loadedEntityList.clear();
+        final int[] loads={0};
+        f.world.testChunkProvider=(net.minecraft.world.chunk.IChunkProvider)java.lang.reflect.Proxy.newProxyInstance(
+            getClass().getClassLoader(),new Class[]{net.minecraft.world.chunk.IChunkProvider.class},(proxy,method,args)->{
+                if(method.getReturnType()==boolean.class)return true;
+                if(method.getReturnType()==net.minecraft.world.chunk.Chunk.class){
+                    int x=(Integer)args[0],z=(Integer)args[1];
+                    if(x==sourceChunk.xPosition&&z==sourceChunk.zPosition){
+                        if(!source.isDead&&!f.world.loadedEntityList.contains(source)){loads[0]++;f.world.loadedEntityList.add(source);}
+                        return sourceChunk;
+                    }
+                    return new net.minecraft.world.chunk.Chunk(f.world,x,z);
+                }
+                return null;
+            });
+        java.lang.reflect.Field chunks=World.class.getDeclaredField("chunkProvider");chunks.setAccessible(true);chunks.set(f.world,f.world.testChunkProvider);
+        depart();assertEquals(1,loads[0]);assertTrue(sourceChunk.isModified);
+        assertFalse("A subsequent source chunk save cannot retain the old body",source.writeToNBTOptional(new NBTTagCompound()));
+        arrive();assertArrived();
+    }
+    @Test public void missingVersionedSourceCannotDepartUsingOnlyItsSnapshot() throws Exception {
+        f.world.loadedEntityList.clear();
+        Method m=KOMECommandTroops.class.getDeclaredMethod("processWaitingStepDepartures",KOMEWorldData.class,World.class,long.class);
+        m.setAccessible(true);m.invoke(null,data,f.world,100L);
+        assertEquals(KOMEArmyMovementOrder.WAITING_NEXT_STEP,order.status);
+        assertEquals("INTERMEDIATE_ENTITY_NOT_LOADED",order.lastSpawnFailureCode);
+        assertNull(record.movingEntityData);assertFalse(source.isDead);assertEquals(oldId,record.entity);
+        assertEquals(oldId,company.units.get(0));assertEquals(0,order.completedSteps);
+    }
     @Test public void productionDepartureJoinRekeyAndArrivalPreserveHealthAndAuthority() throws Exception {
         depart();arrive();assertArrived();assertEquals(1,joins);
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);

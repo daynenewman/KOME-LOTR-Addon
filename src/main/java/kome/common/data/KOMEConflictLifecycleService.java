@@ -336,6 +336,8 @@ public final class KOMEConflictLifecycleService {
             lines.add("Original garrison " + cohort.detachmentId + " members="
                 + cohort.members.size() + " unresolvedOrLiving="
                 + cohort.unconfirmedTerminalMembers() + ".");
+        if (!KOMERecoveryStartup.permits(data, record))
+            lines.add("Ordinary lifecycle blocked: " + KOMERecoveryStartup.reason(data));
         lines.add("Timers response=" + timer(record.getResponseTimer())
             + "; capture=" + timer(record.getCaptureTimer()) + ".");
         lines.add("Combat episode=" + record.getCombatEpisode().episodeId + " state="

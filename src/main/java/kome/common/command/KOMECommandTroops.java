@@ -145,7 +145,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 if (record == null || !order.id.equals(record.movementOrderId))
                     throw new IllegalArgumentException("Unit record " + unitId
                         + " is missing from the conflict-held movement order.");
-                Entity entity = findLoadedEntity(orderWorld, record.entity);
+                Entity entity = findDepartureEntity(orderWorld, record);
                 NBTTagCompound snapshot;
                 if (entity != null && !entity.isDead && entity.isEntityAlive()) {
                     snapshot = KOMEEntitySnapshots.snapshot(record, entity);
@@ -153,7 +153,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                         throw new IllegalArgumentException("Could not save "
                             + displayRecordId(record) + " before formal retreat.");
                     physical.add(entity);
-                } else if (record.stationedEntityData != null) {
+                } else if (canDepartFromSnapshot(record)) {
                     snapshot = kome.common.data.KOMECampaignHealth.movementSnapshot(
                         record, record.stationedEntityData);
                 } else {
@@ -2801,12 +2801,13 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         try {
             List<String> missingUnits = new ArrayList<String>();
             for (KOMEHiredUnitRecord record : selected) {
-                Entity entity = findLoadedEntity(world, record.entity);
-                if (!(entity instanceof LOTREntityNPC) || !entity.isEntityAlive()) {
+                Entity entity = findDepartureEntity(world, record);
+                if ((!(entity instanceof LOTREntityNPC) || !entity.isEntityAlive())
+                        && !hasVersionedCampaignHealth(record)) {
                     entity = reconcileLoadedStationedUnit(data, world, company, record);
                 }
                 if (!(entity instanceof LOTREntityNPC) || !entity.isEntityAlive()) {
-                    if (record.stationedEntityData != null) {
+                    if (canDepartFromSnapshot(record)) {
                         setSavedHaltState(record, false);
                         try {
                             snapshots.add(kome.common.data.KOMECampaignHealth.movementSnapshot(record, record.stationedEntityData));
@@ -2827,9 +2828,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                 snapshots.add(snapshot);
             }
             if (!missingUnits.isEmpty()) {
-                throw new WrongUsageException("Could not load or restore " + missingUnits.size() + " company unit(s) at origin "
+                throw new WrongUsageException("Could not verify " + missingUnits.size() + " company source unit(s) at origin "
                     + company.currentTile + ": " + joinDebugList(missingUnits)
-                    + ". Stand near the company once so KOME can save their stationary data, or set/check the tile Arrival Point with /troops arrival set " + company.currentTile + ".");
+                    + ". Load their recorded physical location and retry; a health snapshot alone cannot prove removal of the original body.");
             }
             if (!kome.common.data.KOMEMovementDayService.depart(data, order, isDailyMovementMode(data),
                     () -> validateNextRouteStepEdge(data, order, order.createdAtMillis)))
@@ -3375,7 +3376,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                             "unit record " + unitId + " is missing before next route step", nowMillis);
                         continue;
                     }
-                    Entity entity = findLoadedEntity(orderWorld, record.entity);
+                    Entity entity = findDepartureEntity(orderWorld, record);
                     if (entity != null && !entity.isDead) {
                         NBTTagCompound snapshot = KOMEEntitySnapshots.snapshot(record, entity);
                         if (snapshot == null) {
@@ -3386,7 +3387,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
                         }
                         staged.put(record, snapshot);
                         physicalEntities.add(entity);
-                    } else if (record.stationedEntityData != null) {
+                    } else if (canDepartFromSnapshot(record)) {
                         try {
                             staged.put(record, kome.common.data.KOMECampaignHealth.movementSnapshot(record, record.stationedEntityData));
                         } catch (IllegalArgumentException invalidHealth) {
@@ -4408,6 +4409,31 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         }
     }
 
+    private static boolean hasVersionedCampaignHealth(KOMEHiredUnitRecord record) {
+        return record.survivingHealth != null && record.survivingHealth.hasKey("HealthFormatVersion");
+    }
+
+    /** A stored snapshot is not a deletion receipt for a still-persisted Campaign body. */
+    private static boolean canDepartFromSnapshot(KOMEHiredUnitRecord record) {
+        return record.stationedEntityData != null
+            && !hasVersionedCampaignHealth(record);
+    }
+
+    /** Bounded source lookup: load the verified address, never just the tile's arrival waypoint. */
+    private static Entity findDepartureEntity(World world, KOMEHiredUnitRecord record) {
+        Entity entity = findLoadedEntity(world, record.entity);
+        if (entity != null) return entity.isDead ? null : entity;
+        KOMEHiredUnitPhysicalLocator locator = record.getPhysicalLocator();
+        if (locator == null || world == null || world.provider == null
+                || locator.getDimensionId() != world.provider.dimensionId
+                || !locator.getEntityId().equals(record.entity)
+                || !locator.getPhysicalTileId().equals(KOMEConquestTile.normalizeId(record.currentTile))) return null;
+        if (!ensureChunkLoaded(world, MathHelper.floor_double(locator.getX()),
+                MathHelper.floor_double(locator.getZ()))) return null;
+        entity = findLoadedEntity(world, record.entity);
+        return entity == null || entity.isDead ? null : entity;
+    }
+
     private static void removeMovementEntityTree(World world, Entity entity) {
         if (entity == null) {
             return;
@@ -4416,6 +4442,10 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         entity.mountEntity(null);
         KOMEReflection.setDead(entity);
         world.removeEntity(entity);
+        // Native removal does not dirty the source chunk. Persist deletion even on an immediate save/unload.
+        if (entity.addedToChunk && world.getChunkProvider() != null
+                && world.getChunkProvider().chunkExists(entity.chunkCoordX, entity.chunkCoordZ))
+            world.getChunkFromChunkCoords(entity.chunkCoordX, entity.chunkCoordZ).setChunkModified();
         if (mount != null) {
             removeMovementEntityTree(world, mount);
         }
