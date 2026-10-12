@@ -171,14 +171,14 @@ public class KOMEProgressionHierarchyCorrectionsTest {
         for(int i=0;i<4;i++)pool.add(new KOMESerfProfessionAssignment.Candidate("tool"+i,i,0,1,"Tool "+i,KOMESerfProfessionAssignment.QuantityTier.NONSTACKABLE));
         for(int seed=0;seed<500;seed++){
             KOMESerfProfessionAssignment a=KOMESerfProfessionAssignment.generate("smith","Blacksmith","smith",pool,new Random(seed));
-            assertTrue(a.requirements.size()>=1&&a.requirements.size()<=2);
+            assertTrue(a.requirements.size()>=3&&a.requirements.size()<=4);
             Set<String> unique=new HashSet<String>();for(KOMESerfProfessionAssignment.Requirement r:a.requirements){assertTrue(unique.add(r.itemKey));assertTrue(r.required>=1&&r.required<=16);}
         }
         for(int i=0;i<4;i++)pool.add(new KOMESerfProfessionAssignment.Candidate("material"+i,10+i,0,16,"Material "+i,KOMESerfProfessionAssignment.QuantityTier.STANDARD));
         for(int seed=0;seed<500;seed++){
             KOMESerfProfessionAssignment a=KOMESerfProfessionAssignment.generate("smith","Blacksmith","smith",pool,new Random(seed));int tools=0,materials=0;
             for(KOMESerfProfessionAssignment.Requirement r:a.requirements)if(r.itemKey.startsWith("tool")){tools++;assertTrue(r.required>=1&&r.required<=16);}else{materials++;assertTrue(r.required>=32&&r.required<=64);}
-            assertTrue(tools>=1&&tools<=2);assertTrue(materials>=2&&materials<=3);
+            assertTrue(tools+materials>=3&&tools+materials<=4);assertEquals(a.requirements.size(),tools+materials);
         }
     }
 }

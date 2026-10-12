@@ -182,6 +182,7 @@ public class KOMEEvents {
 
     @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
+        KOMEProgressionTitles.forget(event.player.getUniqueID());
         if (event.player instanceof EntityPlayerMP) KOMEPacketHandler.forgetRequester((EntityPlayerMP) event.player);
         if(event.player instanceof EntityPlayerMP) kome.common.network.KOMEPublicWaypointSync.forget((EntityPlayerMP)event.player);
         KOMEAllianceRecordBuilder.clearOperatorView(event.player);
@@ -355,10 +356,10 @@ public class KOMEEvents {
             }
             KOMEWorldData data = KOMEWorldData.get(world);
             if (!processed.add(data) || !populationPayoutRuntime.hasStarted(data)) continue;
-            data.reconcileAllianceLifecycle(now, world.getTotalWorldTime());
+            if (!KOMESeasonResetService.active(data)) data.reconcileAllianceLifecycle(now, world.getTotalWorldTime());
             processCampaignTick(data, world, now, populationPayoutRuntime);
             for (KOMEArmyCompany company : new ArrayList<KOMEArmyCompany>(data.armyCompanies.values())) {
-                KOMEWartimeStewardshipService.demobilizeIfSafe(data, company, world, now);
+                if (!KOMESeasonResetService.active(data)) KOMEWartimeStewardshipService.demobilizeIfSafe(data, company, world, now);
             }
         }
     }
@@ -375,6 +376,16 @@ public class KOMEEvents {
     public static KOMEPopulationPayoutProcessor.Result processCampaignTick(KOMEWorldData data, World world,
             long nowMillis, KOMEPopulationPayoutRuntime runtime) {
         if (!runtime.hasStarted(data)) return runtime.onStartup(data, Instant.ofEpochMilli(nowMillis));
+        if (KOMESeasonResetService.active(data)) {
+            KOMESeasonResetService.process(data, world, nowMillis);
+            return runtime.onLiveCheck(data, Instant.ofEpochMilli(nowMillis));
+        }
+        KOMEGovernanceService.reconcile(data, nowMillis);
+        KOMEDailyCoordinator.Outcome coordinated = runtime.coordinate(data, world, Instant.ofEpochMilli(nowMillis));
+        if (coordinated.handled) {
+            if (coordinated.payout != null && coordinated.payout.success) KOMEFactionDefeatService.reconcile(data, nowMillis);
+            return coordinated.payout;
+        }
         KOMECommandTroops.resetDailyMovementAllowances(data, nowMillis);
         KOMECommandTroops.processMovementTick(data, world, nowMillis);
         KOMEEmergencyDefenseMobilizationService.INSTANCE.processPending(data, world,
@@ -421,6 +432,13 @@ public class KOMEEvents {
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onEntityJoinWorld(EntityJoinWorldEvent event) {
+        if(!event.world.isRemote&&event.entity instanceof net.minecraft.entity.EntityLiving)
+            KOMELivestockCropAI.install((net.minecraft.entity.EntityLiving)event.entity);
+        if (!KOMEReflection.isRemote(event.world)
+                && KOMESeasonResetDeployment.rejectStaleVirtual(KOMEWorldData.get(event.world), event.entity)) {
+            event.setCanceled(true);
+            return;
+        }
         if (!KOMEReflection.isRemote(event.world))
             KOMECampaignHealth.reconcileMount(KOMEWorldData.get(event.world), event.entity);
         if (!KOMEReflection.isRemote(event.world) && event.entity instanceof EntityItem) {
@@ -489,6 +507,14 @@ public class KOMEEvents {
         if (event.target instanceof LOTREntityNPC) {
             LOTREntityNPC offerNpc = (LOTREntityNPC) event.target;
             KOMEWorldData commissionWorld=KOMEWorldData.get(player.worldObj);
+            KOMEPlayerProgression immediate=commissionWorld.getProgression(player.getUniqueID());
+            KOMESerfKnightProgression immediateState=immediate.getSerfKnightProgression();
+            if(immediateState.getLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(offerNpc))){
+                if(immediate.getCanonicalRank()==KOMEProgressionRank.SERF
+                    &&(immediateState.isTrialCompleted()||KOMESerfKnightRecoveryService.isAssignedTo(player.getCurrentEquippedItem(),immediateState.getTrialAssignment(),player.getUniqueID()))
+                    &&KOMEProgressionNpcInteractionService.interact(player,commissionWorld,offerNpc)){event.setCanceled(true);return;}
+                if(KOMEKnightCommissionService.directPropertyHandover(player,offerNpc)){event.setCanceled(true);return;}
+            }
             // Delivery precedes offer screens, trading and the held book's ordinary use.
             if(KOMECourierService.deliverToRecipient(player,commissionWorld,offerNpc)){
                 KOMEProgressionNpcSpeech.receiveCourier(player,offerNpc,commissionWorld.getProgression(player.getUniqueID()).getSerfKnightProgression().getSerfdomMaster().displayName);
@@ -547,20 +573,8 @@ public class KOMEEvents {
         if (standingTrialCandidate && event.target instanceof LOTRUnitTradeable) {
             // Prospective Lieges retain native offers; current Lieges need only
             // their relationship. Both use the ordinary GUI that hosts Quest.
-            if (event.target instanceof LOTRTradeable
-                    && !KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.NPC_TRADE)) {
-                event.setCanceled(true);
-                return;
-            }
             int guiId = event.target instanceof LOTRTradeable ? 24 : 20;
             player.openGui(LOTRMod.instance, guiId, player.worldObj, event.target.getEntityId(), 0, 0);
-            event.setCanceled(true);
-            return;
-        }
-        if (!(event.target instanceof LOTRTradeable)) {
-            return;
-        }
-        if (!KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.NPC_TRADE)) {
             event.setCanceled(true);
             return;
         }
@@ -585,35 +599,12 @@ public class KOMEEvents {
             return;
         }
         if ((event.action == PlayerInteractEvent.Action.RIGHT_CLICK_AIR || event.action == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK)
-            && isPouch(held)
-            && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.POUCHES)) {
-            event.setCanceled(true);
-            return;
-        }
-        if ((event.action == PlayerInteractEvent.Action.RIGHT_CLICK_AIR || event.action == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK)
             && isFishingRod(held)
             && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.FARMING)) {
             event.setCanceled(true);
         }
     }
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onPlayerOpenContainer(PlayerOpenContainerEvent event) {
-        if (event.entityPlayer == null || KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityPlayer))) {
-            return;
-        }
-        if (event.entityPlayer.openContainer instanceof LOTRContainerTrade
-            && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.NPC_TRADE)) {
-            event.setResult(Event.Result.DENY);
-            event.entityPlayer.closeScreen();
-            return;
-        }
-        if ((event.entityPlayer.openContainer instanceof LOTRContainerPouch || event.entityPlayer.openContainer instanceof LOTRContainerChestWithPouch)
-            && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.POUCHES)) {
-            event.setResult(Event.Result.DENY);
-            event.entityPlayer.closeScreen();
-        }
-    }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onBlockPlace(BlockEvent.PlaceEvent event) {
@@ -672,6 +663,7 @@ public class KOMEEvents {
         if (!KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving)) && event.entityLiving instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
             KOMEWorldData progressionWorld=KOMEWorldData.get(npc.worldObj);
+            if (KOMESeasonResetDeployment.holdForReset(progressionWorld, npc)) return;
             KOMEProgressionDestinations.observe(progressionWorld,npc);
             KOMEProgressionProtectedActors.reconcile(progressionWorld,npc);
             KOMEKnightCommissionService.reconcileNpc(progressionWorld,npc);
@@ -712,6 +704,14 @@ public class KOMEEvents {
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onLivingAttack(LivingAttackEvent event) {
         if (event.entityLiving == null || KOMEReflection.isRemote(KOMEReflection.getWorld(event.entityLiving))) {
+            return;
+        }
+        Entity governanceSource = event.source == null ? null : event.source.getEntity();
+        String governanceDenial = KOMEGovernanceCombat.denial(KOMEWorldData.get(KOMEReflection.getWorld(event.entityLiving)), governanceSource, event.entityLiving);
+        if (!governanceDenial.isEmpty()) {
+            event.setCanceled(true);
+            if (governanceSource instanceof EntityPlayer)
+                ((EntityPlayer) governanceSource).addChatMessage(new ChatComponentText(governanceDenial));
             return;
         }
         if (event.entityLiving instanceof LOTREntityNPC && KOMEHaltedUnitProtection.isProtected((LOTREntityNPC) event.entityLiving)) {
@@ -1384,11 +1384,6 @@ public class KOMEEvents {
 
     private void enforceOpenContainerRestrictions(EntityPlayer player) {
         Container container = player.openContainer;
-        if (container instanceof LOTRContainerTrade && !KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.NPC_TRADE)) {
-            player.closeScreen();
-            KOMEProgressionPermissions.deny(player, "You have not unlocked NPC Trade yet.");
-            return;
-        }
         if (!KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.COOKING)) {
             if (container instanceof LOTRContainerHobbitOven) {
                 rejectCookableInputs(player, container, 0, 9);

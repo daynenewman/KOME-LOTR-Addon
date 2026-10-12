@@ -23,6 +23,9 @@ dependencies {
         "testRuntimeOnly",
         rfg.deobf(project.files("libs/LOTRMod v36.15.jar"))
     )
+    // The actual ram impact permission test links the existing production animation interface.
+    add("testCompileOnly", rfg.deobf(project.files("libs/geckolib-unofficial-1.7.10-1.0.4.jar")))
+    add("testRuntimeOnly", rfg.deobf(project.files("libs/geckolib-unofficial-1.7.10-1.0.4.jar")))
 
     testImplementation("junit:junit:4.13.2")
 }
@@ -50,7 +53,7 @@ tasks.named<Jar>("jar") {
     archiveBaseName.set("KOME-LOTR-Addon")
 }
 
-extra["modVersion"] = "1.0.8"
+extra["modVersion"] = "1.0.9-integration-g6"
 
 // Explicitly opt in for local dedicated online-mode=false testing. RFG's default UUID is a
 // cached Mojang profile even with Gradle --offline; it is NOT Minecraft's offline player UUID.

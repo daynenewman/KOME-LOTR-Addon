@@ -1,0 +1,19 @@
+{
+  "checked_at_utc": "2026-10-09T20:15:57.429900+00:00",
+  "worktrees_checked": 25,
+  "worktrees_unchanged": true,
+  "user_refs_unchanged": true,
+  "stash_unchanged": true,
+  "frozen_file_hashes_checked": 89,
+  "frozen_mismatches": [],
+  "frozen_processes": [
+    {
+      "Id": 30672,
+      "StartTime": "/Date(1791427482776)/"
+    },
+    {
+      "Id": 43016,
+      "StartTime": "/Date(1791427482684)/"
+    }
+  ]
+}

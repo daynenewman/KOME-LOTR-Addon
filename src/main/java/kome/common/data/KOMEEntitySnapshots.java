@@ -14,7 +14,8 @@ public final class KOMEEntitySnapshots {
         NBTTagCompound snapshot = new NBTTagCompound();
         if (!entity.writeMountToNBT(snapshot)) return null;
         acknowledge(entity, snapshot);
-        return snapshot;
+        // Forge shares customEntityData, including mounts. Detach after health acknowledgment.
+        return (NBTTagCompound) snapshot.copy();
     }
 
     private static void acknowledge(Entity entity, NBTTagCompound snapshot) {

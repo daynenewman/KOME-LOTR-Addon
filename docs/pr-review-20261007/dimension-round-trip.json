@@ -1,0 +1,16 @@
+{
+  "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+  "fixture": "Existing direct waypoint teleporter: T388 dimension 100 \u2192 safe Overworld 16.5/181/16.5 \u2192 T388 78017.5/200/66242.5. Non-operator retained; no portal/fast-travel permission acceptance.",
+  "native_events": [
+    "Wed Oct 07 21:50:16 CDT 2026 PLAYER_EVENT type=CHANGED cause=DIMENSION_CHANGED query=AVAILABLE freshTokens=true location=UNSUPPORTED_DIMENSION dimension=0 world=16,16 (Only the configured Middle-earth dimension is supported) thread=Server thread",
+    "Wed Oct 07 21:51:28 CDT 2026 PLAYER_EVENT type=CHANGED cause=DIMENSION_CHANGED query=AVAILABLE freshTokens=true location=RESOLVED dimension=100 world=78017,66242 mask=1419,1247 tile=T388 (Exact cell; capturability unknown) thread=Server thread"
+  ],
+  "out_reply": "yes i dont see any tile",
+  "back_reply": "yes, it is back",
+  "result": "Human HUD clears outside Middle-earth and restores T388; two native dimension transitions with fresh callback queries; observer removed.",
+  "files": {
+    "dimension-checks.log": "eebb722a4e46391de88af44619af26fff93ba88edda2fae8f01f841b7b10f5cb",
+    "DimensionAcceptanceProbe.java": "9f2c972c953760664be379d741fef3c28c3107a50d82eddac90a8ef3f4cf4b12",
+    "DimensionAcceptanceProbe.jar": "41ec483aa62a8da63dcd0d89b28989232ce1f0855b7b49efc109f35fdb540367"
+  }
+}

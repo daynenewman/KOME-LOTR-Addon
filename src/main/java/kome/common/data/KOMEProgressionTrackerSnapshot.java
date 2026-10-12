@@ -180,7 +180,8 @@ public final class KOMEProgressionTrackerSnapshot {
         int required=KOMEKnightCommissionPresentation.required(a),done=KOMEKnightCommissionPresentation.completed(a);
         String objective=KOMEKnightCommissionPresentation.objective(a);
         if(a.type==KOMEKnightCommission.Type.RELIEF&&a.stage==KOMEKnightCommission.Stage.ACTIVE&&a.encounterCreated)objective="Deliver the requested supplies";
-        return shown("commission",objective,done+"/"+required,done/(float)required);
+        ItemStack item=a.type==KOMEKnightCommission.Type.STOLEN_GOODS?KOMEProgressionLostItems.stack(a):null;
+        return new KOMEProgressionTrackerSnapshot(true,a.type==KOMEKnightCommission.Type.RELIEF?"provisioning":"commission",objective,done+"/"+required,done/(float)required,item);
     }
 
     private static KOMEProgressionTrackerSnapshot courier(
@@ -195,7 +196,7 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "courier",
                 "Carry out your Master's delivery.",
-                "In progress",
+                "",
                 0F);
         }
 
@@ -207,7 +208,7 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "courier",
                 "Return to your Master and report the delivery.",
-                "0/1",
+                "",
                 0F);
         }
 
@@ -216,14 +217,14 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "courier",
                 "Deliver the message",
-                "0/1",
+                "",
                 0F);
         }
 
         return shown(
             "courier",
             "Deliver the message",
-            "0/1",
+            "",
             0F);
     }
 
@@ -256,14 +257,14 @@ public final class KOMEProgressionTrackerSnapshot {
                 return shown(
                     "escort",
                     "Meet the traveler",
-                    "0/1",
+                    "",
                     0F);
             }
 
             return shown(
                 "escort",
                 assignment.stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE?"Report to your Liege":"Escort the traveler to safety",
-                "0/1",0F);
+                "",0F);
         }
 
         if("recovery".equals(assignment.trialId)) {
@@ -271,17 +272,8 @@ public final class KOMEProgressionTrackerSnapshot {
                 assignment.data.getBoolean(
                     KOMESerfKnightRecoveryService.DATA_RETRIEVED);
 
-            return retrieved
-                ?shown(
-                    "recovery",
-                    "Return the recovered item to your Liege.",
-                    "Recovered",
-                    0.85F)
-                :shown(
-                    "recovery",
-                    "Recover the lost item.",
-                    "Searching",
-                    0.2F);
+            ItemStack item=assignment.data.hasKey("RecoveryItem",10)?ItemStack.loadItemStackFromNBT(assignment.data.getCompoundTag("RecoveryItem")):null;
+            return new KOMEProgressionTrackerSnapshot(true,"recovery",retrieved?"Return the recovered item to your Liege.":"Recover the lost item.","",0F,item);
         }
 
         if("defense".equals(assignment.trialId)) {
@@ -336,6 +328,7 @@ public final class KOMEProgressionTrackerSnapshot {
                 "Locked",
                 0F);
         }
+        if(state.isTrialCompleted())return state.hasLiege()?promotion(player):shown("standing_trial_ready","Seek an eligible replacement Liege to hear your completed trial report.","",0F);
 
         if(!state.getSerfdomMaster().isSet()) {
             return shown(
@@ -372,8 +365,6 @@ public final class KOMEProgressionTrackerSnapshot {
                 completed+" / "+total+" duties",
                 completed/(float)total);
         }
-
-        if(state.isTrialCompleted())return promotion(player);
 
         if(!state.hasLiege()) {
             String factionKey=state.getSerfdomMaster().factionKey;
@@ -426,7 +417,7 @@ public final class KOMEProgressionTrackerSnapshot {
 
                 return shown(
                     "progression",
-                    "Reach 150 faction alignment before returning to your Master.",
+                    "Reach 150 faction alignment before returning to your Liege.",
                     current+" / "
                         +KOMESerfKnightService.REQUIRED_ALIGNMENT,
                     current/(float)
@@ -435,7 +426,7 @@ public final class KOMEProgressionTrackerSnapshot {
 
             return shown(
                 "progression",
-                "Return to your Master to receive your new standing.",
+                "Return to your Liege to receive your new standing.",
                 "Ready",
                 1F);
     }

@@ -106,7 +106,7 @@ public class KOMERecoveryJournalValidationTest {
         net.minecraft.nbt.NBTTagCompound before=source.write(); net.minecraft.entity.passive.EntityPig pig=new net.minecraft.entity.passive.EntityPig(null); pig.setHealth(3);
         KOMERecoveryJournal wal=open(empty()); KOMERecoveryJournal.Acknowledgment ack=append(wal,c); append(wal,prepare(ack,Component.RIDER));
         append(wal,new Terminal(binding(ack,Component.MOUNT),MOUNT_ALIAS,1,new UUID(11,1),Disposition.DEAD,30,"dead",null));
-        assertEquals(before,source.write()); assertEquals(3,pig.getHealth(),0); assertEquals(11,KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(before,source.write()); assertEquals(3,pig.getHealth(),0); assertEquals(12,KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertEquals(3,KOMEConflictPersistence.DATA_SCHEMA_VERSION); assertEquals(1,KOMEHiredUnitPhysicalLocator.DATA_SCHEMA_VERSION);
         for(Grant grant:c.episode.grants.values())assertEquals(GrantState.PENDING,grant.state);
     }

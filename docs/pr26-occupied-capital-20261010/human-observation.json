@@ -1,0 +1,32 @@
+{
+  "test": "occupied-capital-mounted-return-reconnect",
+  "status": "PASS",
+  "recorded_at_utc": "2026-10-10T17:31:04.163713+00:00",
+  "candidate_sha256": "e20756089e48d0962b486ad14fa11407cb0782ad709931b296da5e9ed24dab53",
+  "source_parent": "4925e931f6909bf24a6cbdbd44290bfa51c1df67",
+  "profile": "KOME PR26 Occupied Capital Repair",
+  "address": "127.0.0.1:51327",
+  "identity": "_Danye_",
+  "uuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+  "non_operator_native_verified": true,
+  "actions": "Esc → Disconnect; rejoin 127.0.0.1:51327; close any menu and look around T388 at X78080.5 Y200 Z66304.5.",
+  "expected": "Exactly two Gondor soldiers remain mounted on two horses, at separate positions, with no extra rider or horse and no disconnect.",
+  "user_reply_verbatim": "yes!",
+  "question_call_id": "call_a05f51a40ba646f3aa389b7bf417f6d7",
+  "observation_scope": "Human confirms visibility, mounted pairs, separate positions, no visible extras and no disconnect. UUIDs, exact HP, tokens, audit counts and tracking are separate native evidence.",
+  "native_after_reconnect": {
+    "server_proof_time_utc": "2026-10-10T17:24:23.324Z",
+    "network_map_time_utc": "2026-10-10T17:27:49.689Z",
+    "client_proof_time_utc": "2026-10-10T17:28:00.223Z",
+    "client_network_ids": {
+      "C2": [
+        329,
+        330
+      ],
+      "C3": [
+        327,
+        328
+      ]
+    }
+  }
+}

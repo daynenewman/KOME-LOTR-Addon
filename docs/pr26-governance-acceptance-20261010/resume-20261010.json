@@ -1,0 +1,77 @@
+{
+  "checked_at_utc": "2026-10-10T16:42:04.268388+00:00",
+  "candidate_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+  "protocol": "1.0.9-integration-g5",
+  "identity": "_Danye_",
+  "uuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+  "address": "127.0.0.1:51327",
+  "existing_server_process": 47508,
+  "server_controller": 17096,
+  "frozen_server_process": 30672,
+  "frozen_controller": 43016,
+  "live_port_observation": "127.0.0.1:51327 owned by 47508; 51326 owned by 30672; original creation times retained",
+  "persisted_fixture_sections_verified_unchanged": [
+    "HiredUnits",
+    "ConflictRecords",
+    "PlayerGovernance",
+    "WarSeason"
+  ],
+  "company_eligibility_inputs_unchanged": true,
+  "automatic_company_state_changes_since_original_checkpoint": {
+    "MovementAllowance": {
+      "before": {
+        "Initialized": 0,
+        "Schedule": "",
+        "BoundaryMillis": 0,
+        "Remaining": 0
+      },
+      "after": {
+        "Initialized": 1,
+        "Schedule": "America/Chicago@20:00",
+        "BoundaryMillis": 1791594000000,
+        "Remaining": 1
+      }
+    }
+  },
+  "checkpoint_comparison_note": "First exact comparison detected automatic movement allowance initialization; retained in this record. All other company fields and hired/conflict/governance/season authorities match. No fixture edits were needed.",
+  "common_configs_matching_recorded_hashes": 25,
+  "server_properties_values_unchanged": true,
+  "ops_empty": true,
+  "baseline_evidence_reused": "Native live-player eligibility and selected C1 returned ALLOWED before restriction on October 9; synthetic registered company, no physical-entry claim.",
+  "governance_state": "SUBMITTED revision 1 for war-00001; existing choose authority confirmed it idempotently after defeat retention",
+  "expected_panel_reason": "Your current war governance status prevents Join Battle participation.",
+  "client_resume": "Previous client exited overnight. CLI requested existing g5 instance with existing _Danye_ profile and 51327 target; no fresh connected-client observation claimed.",
+  "human_governance_observation": "PENDING",
+  "disconnect_retest": "Finished; user explicitly confirms resolved. Not repeated.",
+  "multiplayer": "DEFERRED",
+  "product_source_changes": false,
+  "product_rebuild": false,
+  "fixture_recreated": false,
+  "preservation": {
+    "checked_at_utc": "2026-10-10T16:38:50.894994+00:00",
+    "worktrees_checked": 25,
+    "worktrees_unchanged": true,
+    "user_refs_unchanged": true,
+    "stash_unchanged": true,
+    "frozen_file_hashes_checked": 89,
+    "frozen_mismatches": [],
+    "frozen_processes": [
+      {
+        "Id": 30672,
+        "StartTime": "/Date(1791427482776)/"
+      },
+      {
+        "Id": 43016,
+        "StartTime": "/Date(1791427482684)/"
+      }
+    ]
+  },
+  "prior_record_sha256": {
+    "validation.json": "f8f1dd094b9b0d8c22c60bab1614dcbc90d0a398ca9ade9fa8f5d531290a08bd",
+    "evidence.zip": "9ea4903e6104dbe1868b2d3ae46719765ca9cfb4f1ea57d5bc82bc7d6bc53d10",
+    "before.dat": "121213163227372898d8acba0dbd1bfd184773ad8b9936ea92be3b1d0a286718",
+    "eligible-baseline.dat": "0c9afdd116a4073dda55ab27b53117cbdc216bf781358a6501660848ce6d3037",
+    "restricted.dat": "458b3b42e5488d0a197db5efef9304d3d843f7298eb476d913c71e54a2f01945",
+    "human-observation.json": "90d36613d44eff00d2b991d95b3fd9d096239d610897bdb5ac0501fb6dd451b5"
+  }
+}

@@ -90,6 +90,11 @@ public final class KOMEVisualLocationTransformer implements IClassTransformer {
             NATIVE_RELATIONSHIP_RENDERER, nativeMethod.desc, nativeMethod.signature,
             nativeMethod.exceptions == null ? null : nativeMethod.exceptions.toArray(new String[0]));
         nativeMethod.accept(copy);
+        boolean nearPolicy=false;
+        for(AbstractInsnNode insn:copy.instructions.toArray())if(insn instanceof VarInsnNode&&insn.getOpcode()==Opcodes.ISTORE&&((VarInsnNode)insn).var==10){
+            copy.instructions.insertBefore(insn,new MethodInsnNode(Opcodes.INVOKESTATIC,BRIDGE,"nearRelationshipIndicator","(Z)Z",false));nearPolicy=true;break;
+        }
+        if(!nearPolicy)throw new IllegalStateException("LOTR v36.15 near indicator fingerprint changed");
         // Pouches use getIcon(stack, pass); getIconIndex() returns null for this native item.
         for(AbstractInsnNode insn=copy.instructions.getFirst();insn!=null;insn=insn.getNext())
             if(insn instanceof MethodInsnNode){MethodInsnNode call=(MethodInsnNode)insn;
@@ -97,6 +102,17 @@ public final class KOMEVisualLocationTransformer implements IClassTransformer {
                         &&("getIconIndex".equals(call.name)||"func_77954_c".equals(call.name))){
                     call.setOpcode(Opcodes.INVOKESTATIC);call.owner=BRIDGE;call.name="itemIcon";
                     call.desc="(Lnet/minecraft/item/ItemStack;)Lnet/minecraft/util/IIcon;";
+                }
+                if("net/minecraft/client/renderer/entity/RenderItem".equals(call.owner)
+                        &&("renderIcon".equals(call.name)||"func_94149_a".equals(call.name))
+                        &&"(IILnet/minecraft/util/IIcon;II)V".equals(call.desc)){
+                    call.setOpcode(Opcodes.INVOKESTATIC);call.owner=BRIDGE;call.name="renderRelationshipIcon";
+                    call.desc="(Lnet/minecraft/client/renderer/entity/RenderItem;IILnet/minecraft/util/IIcon;II)V";
+                }
+                if("net/minecraft/client/renderer/ItemRenderer".equals(call.owner)
+                        &&("renderItemIn2D".equals(call.name)||"func_78439_a".equals(call.name))
+                        &&"(Lnet/minecraft/client/renderer/Tessellator;FFFFIIF)V".equals(call.desc)){
+                    call.owner=BRIDGE;call.name="renderRelationshipItemIn2D";
                 }
             }
         boolean gatePatched = false, speechPatched = false, itemPatched = false;

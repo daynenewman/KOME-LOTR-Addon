@@ -4,6 +4,7 @@ import kome.common.KOMEAccessFixture;
 import lotr.common.entity.npc.LOTREntityGondorMan;
 import lotr.common.fac.LOTRFactionRelations;
 import net.minecraft.nbt.NBTTagCompound;
+import net.minecraft.nbt.NBTTagList;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -146,6 +147,10 @@ public class KOMEEmergencyDefenseServiceTest {
         KOMEEmergencyDefenseService.INSTANCE.anchorUnknownHistory(source, "mordor", 100L);
         NBTTagCompound schemaEight = new NBTTagCompound(); source.writeToNBT(schemaEight);
         schemaEight.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, 8);
+        schemaEight.removeTag("MovementBoundary");
+        NBTTagList historicalCompanies = schemaEight.getTagList("ArmyCompanies", 10);
+        for (int i = 0; i < historicalCompanies.tagCount(); i++)
+            historicalCompanies.getCompoundTagAt(i).removeTag("MovementAllowance");
         schemaEight.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
         schemaEight.removeTag("TacticalConfiguration");
         schemaEight.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY, 1);

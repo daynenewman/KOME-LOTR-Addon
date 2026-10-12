@@ -1,0 +1,212 @@
+{
+  "checked_at_utc": "2026-10-10T19:37:52.092678+00:00",
+  "base_dev": "ff5053e56990dc601a1f0fe22d9e26e3affc1da0",
+  "branch": "dayne/kom-59-t351-t352-open",
+  "validated_src_git_tree": "213d186bd26235f8c1be98450031dee642597cc4",
+  "source_identity_note": "PR head is supplied in the PR description; its src tree must equal this validated tree. Git-version generation is disabled. Evidence/docs-only additions do not change compiled inputs.",
+  "runtime": "Minecraft 1.7.10 / Forge 10.13.4.1614 / LOTR v36.15; Gradle 8.5, JDK 17.0.19 build launcher, existing Java 8 mod target; JUnit 4.13.2",
+  "classpath_inputs": {
+    "geckolib-unofficial-1.7.10-1.0.4.jar": "36d9d0471bfb55271f0d6649b586fe99608dad61261fac4065c008276021fe23",
+    "LOTRMod v36.15.jar": "4f296e749c0d4739ecf859217a526b4218a2a45a768c08d3d551af0d0d3d5635"
+  },
+  "commands": {
+    "focused": "gradlew.bat test --tests kome.common.data.KOMEIthilienRouteCorrectionTest --tests kome.common.data.KOMETileGameplayParityTest --tests kome.common.data.KOMETileGameplayDefaultsTest --tests kome.common.command.KOMEMountainBarrierMovementTest --tests kome.common.command.KOMEMovementDepartureGuardTest --offline --no-daemon --console=plain --max-workers=2",
+    "clean": "gradlew.bat clean test build --offline --no-daemon --console=plain --max-workers=2",
+    "docs": "python -B docs/routing/validate.py; git diff --check",
+    "artifact": "audit.py exact byte delta, protected inputs, manifest/provenance checksums, and both built JAR resource readback"
+  },
+  "coordination": "Existing same-session Local\\KOME-Heavy-Validation reservation: frozen controller 43016/server 30672 and associated child controller 47800/server 22264 verified. Serialized offline work uses Local\\KOME-Heavy-Validation-686a-Leaf. No server command, restart, attach, replacement or world operation.",
+  "results": {
+    "focused-2": {
+      "tests": 32,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 31
+    },
+    "focused-3": {
+      "tests": 32,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 31
+    },
+    "focused-4": {
+      "tests": 32,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "passed": 32
+    },
+    "clean-test-build": {
+      "tests": 3090,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 5,
+      "passed": 3085
+    }
+  },
+  "skipped_tests": [
+    "com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported",
+    "com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported",
+    "kome.core.KOMEPublicWaypointTransformerTest.originalProductionAndBuildJarsHaveExactCompatibleHooks",
+    "kome.core.KOMEWaypointTransformerTest.configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms",
+    "kome.core.KOMEWaypointTransformerTest.configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms"
+  ],
+  "focused_requirement_checks": {
+    "authorized direct routes both directions": "PASS (JUnit production path)",
+    "saved river and blocked overrides after reload": "PASS (JUnit production path)",
+    "normal origin and destination permissions": "PASS (JUnit production path)",
+    "queued T352-T358-T351 route unchanged after repeated reload": "PASS (JUnit production path)",
+    "automatic river marker absent": "PASS (JUnit production path)"
+  },
+  "parity": "Historical golden SHA-256 unchanged; both comparisons apply checked exact edge replacement + marker deletion, then strictly compare all 6054 resulting rows under baseline/current raster.",
+  "resource_and_artifact_audit": {
+    "base_dev": "ff5053e56990dc601a1f0fe22d9e26e3affc1da0",
+    "revision": "baseline-pilot-20260919-kom59-t351-t352-20261010",
+    "single_edge_single_marker_delta_exact": true,
+    "production_java_and_map_unchanged": true,
+    "protected_input_sha256": {
+      "src/test/resources/kome/tile/gameplay-baseline/production-paths.tsv": {
+        "git_sha256": "e8600f34ab4cb7ddbf289e022548c7ac32e933301fe3585451b18b09195c4d64",
+        "checkout_sha256": "e8600f34ab4cb7ddbf289e022548c7ac32e933301fe3585451b18b09195c4d64",
+        "byte_exact": true
+      },
+      "src/test/resources/kome/tile/gameplay-baseline/mask.png": {
+        "git_sha256": "a5cd6cf91b3fc1b662cffffde36a250a6e6687bcb8b2b7cd9aa06809b944b866",
+        "checkout_sha256": "a5cd6cf91b3fc1b662cffffde36a250a6e6687bcb8b2b7cd9aa06809b944b866",
+        "byte_exact": true
+      },
+      "src/main/resources/assets/kome/map/reset_conquest_tile_ids.png": {
+        "git_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+        "checkout_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+        "byte_exact": true
+      },
+      "src/main/resources/assets/kome/map/reset_conquest_tile_ids.txt": {
+        "git_sha256": "56735a1da8c62ed365fac6e8385df0a9a17ca9405daf83c84b7c5609a22d9474",
+        "checkout_sha256": "d8674747229c7a9cbfdebcd217f1423d722ff4cdacb882d55607491cea36d9e5",
+        "byte_exact": false
+      },
+      "docs/gameplay-separation-implementation-20260919/original-derived.tsv": {
+        "git_sha256": "97f31e11e33705df4eb7b4c10c355d3741b042401225c7b00edde78a8fb88efb",
+        "checkout_sha256": "97f31e11e33705df4eb7b4c10c355d3741b042401225c7b00edde78a8fb88efb",
+        "byte_exact": true
+      },
+      "docs/gameplay-separation-implementation-20260919/original-KOMEConquestTileDefaults.java.txt": {
+        "git_sha256": "f77920023fdf14d0fb8690b4d6ef9b3b4cdcb00f097f6cd3ea3f401e9bc1f682",
+        "checkout_sha256": "f77920023fdf14d0fb8690b4d6ef9b3b4cdcb00f097f6cd3ea3f401e9bc1f682",
+        "byte_exact": true
+      },
+      "docs/gameplay-separation-implementation-20260919/export-baseline.py": {
+        "git_sha256": "ea4f6755482875a1c95a9cf156e0324219c74cc1766f8d739219225ddabb8dcf",
+        "checkout_sha256": "b8785b24a10af0d22c4ce3b7728d30448eebf961d417d21c63ec56886e19d421",
+        "byte_exact": false
+      },
+      "src/main/resources/assets/kome/config/kome_tile_gameplay_points.csv": {
+        "git_sha256": "e787eb404eb23f3786653051c868e75530ab708239f084d43e9a4535a1794176",
+        "checkout_sha256": "e787eb404eb23f3786653051c868e75530ab708239f084d43e9a4535a1794176",
+        "byte_exact": true
+      },
+      "src/main/resources/assets/kome/config/kome_tile_waypoint_candidates.csv": {
+        "git_sha256": "e496a608e54fb16ab74bfcecbc91779dbf5ebce436c5c7160754d028345fb5ee",
+        "checkout_sha256": "e496a608e54fb16ab74bfcecbc91779dbf5ebce436c5c7160754d028345fb5ee",
+        "byte_exact": true
+      }
+    },
+    "resource_hashes": {
+      "kome_tile_route_defaults.csv": {
+        "sha256": "d214d0b7446b9718b303c608b125ae755adebfc6a2437c739bdb60867c2d8f5e",
+        "rows": 1319
+      },
+      "kome_tile_gameplay_points.csv": {
+        "sha256": "e787eb404eb23f3786653051c868e75530ab708239f084d43e9a4535a1794176",
+        "rows": 621
+      },
+      "kome_tile_route_markers.csv": {
+        "sha256": "4d0ea8bdd204f78b5e65eb5b0cb9d93167b1b5a2694617a7b7e25f80ab730d7d",
+        "rows": 376
+      },
+      "kome_tile_waypoint_candidates.csv": {
+        "sha256": "e496a608e54fb16ab74bfcecbc91779dbf5ebce436c5c7160754d028345fb5ee",
+        "rows": 271
+      }
+    },
+    "built_artifacts": {
+      "KOME-LOTR-Addon-1.0.8-dev.jar": {
+        "sha256": "27e4dc80dd7c5871b55b88140672551548e0c887bc9d80eda9ad48859834bed8",
+        "bytes": 17885209,
+        "exact_packaged_resources": true
+      },
+      "KOME-LOTR-Addon-1.0.8.jar": {
+        "sha256": "3c4b1d539e2605937a8cdf9dd6bf63b6736fee8c75efa5e1e69f50c7b98abd16",
+        "bytes": 17942073,
+        "exact_packaged_resources": true
+      }
+    }
+  },
+  "routing_check": "Checked 25 documents, 746 local links, 920 symbol references, 48 exact JUnit selectors.\nPASS: files, symbol presence, test selectors, and route discoverability.\nLimits: no Java execution, gameplay proof, external link checks, or method semantics.",
+  "whitespace_check": "PASS working diff; staged and base-to-head repeated before publication",
+  "retained_failures": [
+    {
+      "stage": "initial local clone",
+      "cause": "Git dubious ownership on primary .git",
+      "resolution": "Retried with command-scoped safe.directory for that source; no global configuration changed."
+    },
+    {
+      "stage": "documentation patch",
+      "cause": "Expected historical heading did not match; atomic patch rejected before modifications",
+      "resolution": "Read actual heading and reapplied exact patch."
+    },
+    {
+      "stage": "focused-1",
+      "cause": "Access denied to installed Gradle wrapper .zip.lck in filesystem sandbox",
+      "resolution": "Retried using authorized cache access and real-user same-session mutex reservation; original log retained."
+    },
+    {
+      "stage": "initial byte audit",
+      "cause": "Git blob versus CRLF checkout differed for unmodified text mapping",
+      "resolution": "Audit checks unchanged Git diff plus newline-aware equality for ordinary text; binary raster and -text golden/resources remain byte-exact."
+    },
+    {
+      "stage": "focused-2",
+      "cause": "Fixture left NextStepAvailableMillis zero; existing loader normalized it to NextStepDepartureMillis=12345",
+      "resolution": "Fixture now supplies both canonical timestamps. No production fix needed."
+    },
+    {
+      "stage": "focused-3",
+      "cause": "Fixture company lacked owner UUID; existing loader excludes ownerless companies",
+      "resolution": "Fixture now supplies matching company/order owner UUID and canonical movement link. No production fix needed."
+    },
+    {
+      "stage": "routing-check-1",
+      "cause": "Backticked ff5053e... SHA parsed as an unknown code identifier",
+      "resolution": "Use bold SHA text, consistent with routing provenance conventions; checker unchanged."
+    }
+  ],
+  "preservation": {
+    "worktrees_checked": 26,
+    "worktree_heads_branches_statuses_unchanged": true,
+    "local_heads_stash_refs_unchanged": true,
+    "runtime_file_hashes_checked": 109,
+    "runtime_file_hashes_unchanged": true,
+    "runtime_process_ids": [
+      22264,
+      30672,
+      43016,
+      47800
+    ],
+    "runtime_start_times_unchanged": true,
+    "world_operations": 0
+  },
+  "evidence_zip": {
+    "name": "evidence.zip",
+    "sha256": "e5b269455cd6650542fd3174a58f29072b11e80691cb247fe4dc7d50b96a1e83",
+    "bytes": 366468
+  },
+  "limitations": [
+    "No disposable Forge launch or live client/human check. JUnit invokes actual command BFS, departure authority and transactional WorldData NBT reload using test fixtures.",
+    "Actual generated terrain and reported server artifact/overrides/permissions remain unverified.",
+    "Multiplayer deferred. KOM-58/59 other geography decisions remain unresolved.",
+    "Saved overrides and stored queued routes are not migrated. No merge, shared deployment, runtime replacement or branch deletion."
+  ]
+}

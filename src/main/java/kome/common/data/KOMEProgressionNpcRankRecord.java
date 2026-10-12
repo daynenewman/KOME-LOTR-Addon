@@ -19,7 +19,7 @@ public final class KOMEProgressionNpcRankRecord {
     public KOMEProgressionNpcRankRecord(UUID npcUuid, String factionKey, KOMEProgressionNpcRank rank, String displayName) {
         if(npcUuid==null || rank==null || rank==KOMEProgressionNpcRank.UNRANKED) throw new IllegalArgumentException("Only NPC authority ranks may be persisted.");
         String faction=KOMEAlliance.normalizeFactionKey(factionKey); if(faction.length()==0) throw new IllegalArgumentException("NPC rank requires a faction key.");
-        this.npcUuid=npcUuid; this.factionKey=faction; this.rank=rank; this.displayName=displayName==null ? "" : displayName.trim();
+        this.npcUuid=npcUuid; this.factionKey=faction; this.rank=rank; this.displayName=KOMEProgressionNativeAuthority.personalIdentity(faction,displayName).trim();
     }
     public NBTTagCompound writeToNBT() { NBTTagCompound tag=new NBTTagCompound(); tag.setString("UUID",npcUuid.toString()); tag.setString("Faction",factionKey); tag.setString("Rank",rank.key); tag.setString("Name",displayName);
         if(rank==KOMEProgressionNpcRank.KING){tag.setBoolean("RulerInitialized",rulerInitialized);tag.setBoolean("RulerSpawned",rulerSpawned);tag.setBoolean("RulerCapitalBound",capitalBound);tag.setInteger("RulerIncarnation",incarnation);tag.setLong("RulerRespawnRemaining",respawnRemainingMillis);tag.setTag("RulerLocation",rulerLocation.writeToNBT());}return tag; }

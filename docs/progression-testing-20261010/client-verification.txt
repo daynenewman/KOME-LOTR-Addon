@@ -1,0 +1,30 @@
+Controlled UI fixture; does not establish multiplayer or server objective issuance.
+OK progression book opened
+OK Show Me available for objective
+SCREENSHOT book-before-show-me
+OK actual button mouse event opened native map
+OK rendered map at native maximum zoom
+CAMERA class=kome.client.KOMEProgressionMapFocus$FocusedMap x=906.4453 y=676.96094 prevX=906.4453 moveX=0.0 moveY=0.0 targetPixel=[213.0, 120.0] center=213,120
+SCREENSHOT show-me-camera-check
+OK rendered objective projects to exact viewport center after first draws
+OK yellow highlight active
+SCREENSHOT show-me-centered
+OK highlight expired after ten seconds
+SCREENSHOT show-me-highlight-expired
+OK prior native zoom restored on close
+OK prior manual conquest viewport restored
+SCREENSHOT manual-map-restored
+OK Show Me available for relationship-only return target
+OK return target opens native map
+OK relationship return target centered at maximum zoom
+SCREENSHOT return-to-liege-centered
+OK native Elven appearance preview opened
+SCREENSHOT avatar-before-swing
+SCREENSHOT avatar-swing
+OK preview click did not swing the live player
+OK native Elven preview preset available
+SCREENSHOT elven-feet-and-generic-pouch
+SCREENSHOT generic-pouch-front
+OK bounded native Elven foot particles active in world rendering
+PARTICLES 1
+PASS controlled native GUI fixture; screenshots require visual review

@@ -59,7 +59,7 @@ public class KOMESerfProvisioningAssignmentTest {
 
     @Test public void leaveMasterClearsPayloadAndPartialProgressButKeepsConsumedDay(){KOMESerfKnightProgression state=new KOMESerfKnightProgression();KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","rohan",0,0,0,0);assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master).success);KOMESerfProvisioningAssignment a=generate(7);a.foods.get(0).delivered=3;assertTrue(KOMESerfKnightService.assignDuty(state,KOMESerfKnightDutyType.PROVISIONING,a.writeToNBT(),12L).success);assertTrue(KOMESerfKnightService.leaveSerfdomMaster(state).success);assertFalse(state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isAssigned());assertNull(state.getDuty(KOMESerfKnightDutyType.PROVISIONING).getAssignmentData());assertEquals(12L,state.getLastAssignmentEpochDay());}
 
-    @Test public void approvedVesselsAreFactionSafe(){List<String> good=KOMESerfProvisioningCatalog.vesselsForFaction("rohan"),evil=KOMESerfProvisioningCatalog.vesselsForFaction("mordor");for(String basic:new String[]{"SKIN","BOTTLE","GOBLET_WOOD","MUG","HORN","GOBLET_COPPER"}){assertTrue(good.contains(basic));assertTrue(evil.contains(basic));}assertTrue(good.contains("GLASS"));assertFalse(good.contains("SKULL"));assertTrue(evil.contains("SKULL"));assertFalse(evil.contains("GLASS"));for(String luxury:new String[]{"MUG_CLAY","GOBLET_SILVER","GOBLET_GOLD","HORN_GOLD"}){assertFalse(good.contains(luxury));assertFalse(evil.contains(luxury));}}
+    @Test public void approvedVesselsAreFactionSafe(){assertEquals(java.util.Collections.singletonList("MUG"),KOMESerfProvisioningCatalog.vesselsForFaction("rohan"));assertEquals(java.util.Collections.singletonList("MUG"),KOMESerfProvisioningCatalog.vesselsForFaction("mordor"));}
 
     @Test public void nativeDrinkMetadataMatchesRequestedVesselAndPotency() {
         LOTRItemMug ale=new LOTRItemMug(1F);int id=Item.getIdFromItem(ale);
@@ -83,7 +83,7 @@ public class KOMESerfProvisioningAssignmentTest {
     }
 
     @Test public void legacyDrinkRemainsBroadAndStaysBroadAfterSave() {
-        NBTTagCompound old=generate(8).writeToNBT();old.removeTag("RequirementVersion");
+        KOMESerfProvisioningAssignment generated=generate(8);int seed=9;while(generated.foods.size()!=3)generated=generate(seed++);NBTTagCompound old=generated.writeToNBT();old.removeTag("RequirementVersion");
         KOMESerfProvisioningAssignment legacy=KOMESerfProvisioningAssignment.readFromNBT(old,resolver());
         assertNotNull(legacy);assertEquals("",legacy.drink.vessel);assertEquals(-1,legacy.drink.strength);
         assertTrue(KOMESerfProvisioningService.matchesIdentity(new KOMESerfProvisioningService.StackView(legacy.drink.itemId,803,1,"BOTTLE",3),legacy.drink));

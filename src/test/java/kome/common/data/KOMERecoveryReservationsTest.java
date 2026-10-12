@@ -302,7 +302,7 @@ public class KOMERecoveryReservationsTest {
             NBTTagCompound before=KOMEConflictPersistence.write(f.data.getConflictService(),f.data.getJoinBattleDeploymentReceipts(),f.data.getOrdinaryBattleRecovery());
             f.prepare(Component.RIDER);
             NBTTagCompound after=KOMEConflictPersistence.write(f.data.getConflictService(),f.data.getJoinBattleDeploymentReceipts(),f.data.getOrdinaryBattleRecovery());
-            assertEquals(3,after.getInteger(KOMEConflictPersistence.SCHEMA_KEY)); assertEquals(11,KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+            assertEquals(3,after.getInteger(KOMEConflictPersistence.SCHEMA_KEY)); assertEquals(12,KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
             assertEquals(before.getTag(KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY),after.getTag(KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY));
             assertEquals(before.getLong(KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY),after.getLong(KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY));
             assertEquals(Disposition.FORMAL_RETREAT,context().episode.participants.get(RIDER).disposition);

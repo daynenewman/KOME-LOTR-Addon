@@ -1,0 +1,66 @@
+{
+  "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+  "check": "Repaired actual production-JAR save, clean stop, completed-reset cold load and authenticated human reconnect",
+  "checks": {
+    "WarSeason_unchanged": true,
+    "SeasonReset_unchanged": true,
+    "FactionPopulations_unchanged": true,
+    "company_identity_membership_population_unchanged": true,
+    "unit_Entity_unchanged": true,
+    "unit_Owner_unchanged": true,
+    "unit_CompanyId_unchanged": true,
+    "unit_CurrentTile_unchanged": true,
+    "unit_SurvivingHealth_unchanged": true,
+    "unit_Cost_unchanged": true,
+    "unit_BaseCost_unchanged": true,
+    "unit_PopulationSpent_unchanged": true,
+    "unit_SeasonReturnToken_unchanged": true,
+    "once_only_counts_unchanged": true
+  },
+  "counts_before": {
+    "RESET_OWNERSHIP": 1,
+    "COMPANY_RETURN": 1,
+    "RESET_COMPLETE": 1
+  },
+  "counts_after": {
+    "RESET_OWNERSHIP": 1,
+    "COMPANY_RETURN": 1,
+    "RESET_COMPLETE": 1
+  },
+  "rider": "8ce35270-7847-4b9a-a1f0-d68ddd680e8b",
+  "horse": "e000ee01-3aea-463e-9a65-9276412371ad",
+  "hp_at_first_cold_load": {
+    "rider": 3.25,
+    "horse": 7.125
+  },
+  "company": "C-mounted-acceptance-safe",
+  "tile": "T388",
+  "unit_count": 1,
+  "before_sections": 78,
+  "after_sections": 78,
+  "human_reply": "yes",
+  "human_result": "Exactly one mounted rider visible, command menu opens, player HUD T388 after actual repaired-server restart.",
+  "movement_allowance": {
+    "before": {
+      "Initialized": 1,
+      "Schedule": "America/Chicago@20:00",
+      "BoundaryMillis": 1791421200000,
+      "Remaining": 0
+    },
+    "after": {
+      "Initialized": 1,
+      "Schedule": "America/Chicago@20:00",
+      "BoundaryMillis": 1791421200000,
+      "Remaining": 0
+    }
+  },
+  "limits": "Completed-reset cold restart, not a fresh season reset on this production JAR. Six fresh Forge reset launches cover repaired source; prior c494 human return is retained separately. Partial HP is first cold-load evidence; ordinary play regenerates HP. Direct-API setup is not paid hiring or multiplayer.",
+  "files": {
+    "reload-mounted-restart-before.nbt": "392b9c91de0dbba9a4dc59660ffa2489f83c28ea4239d8a0ef87024cddad089b",
+    "reload-mounted-restart-after.nbt": "cd0c8c6d9a5e93b2fdbec7dcb8295e88d5195436a06a96dd4e8c9bcfa7b96ed2",
+    "reload-mounted-checks.log": "e58eee37565afdc454951ff4b7475b5357606177b161e1e0ed1606b64a0747b1",
+    "reload-cold-server.log": "7071e252be6582c3dbb2e0adb18986e9315440d4bfb8eca500715e550e53b9ba",
+    "MountedReloadAcceptanceProbe.java": "3f55ecc9864de86637e541ae14e5028f3e8050d1f401528d453ccc73632ac3d5",
+    "MountedReloadAcceptanceProbe.jar": "baee641de76f0362a21bed2a796c68e64c4f0c1dc3396d541ca9a035713a0c8d"
+  }
+}

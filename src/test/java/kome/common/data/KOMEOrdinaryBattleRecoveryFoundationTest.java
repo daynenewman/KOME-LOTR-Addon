@@ -40,7 +40,7 @@ public class KOMEOrdinaryBattleRecoveryFoundationTest {
         assertEquals(Coverage.LEGACY_INCOMPLETE,marker.coverage);
         assertTrue(marker.participants.isEmpty()); assertTrue(marker.grants.isEmpty()); assertFalse(marker.actualHostileCombatObserved);
         assertEquals(3,upgraded.getInteger(KOMEConflictPersistence.SCHEMA_KEY));
-        assertEquals(11,KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(12,KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertEquals(1,KOMEHiredUnitPhysicalLocator.DATA_SCHEMA_VERSION);
     }
     @Test public void v1MigrationChainAndEndedV2DoNotInventHistory() {
@@ -59,7 +59,7 @@ public class KOMEOrdinaryBattleRecoveryFoundationTest {
         Fixture f=new Fixture(true); f.data.initializeIntegratedWorld(); NBTTagCompound old=save(f.data);
         old.setInteger(KOMEConflictPersistence.SCHEMA_KEY,2); old.removeTag(KOMEConflictPersistence.RECOVERY_KEY);
         KOMEWorldData loaded=new KOMEWorldData("migrated-recovery"); loaded.readFromNBT(old);
-        assertTrue(loaded.isDirty()); assertEquals(11,save(loaded).getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
+        assertTrue(loaded.isDirty()); assertEquals(12,save(loaded).getInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY));
         assertTrue(loaded.getOrdinaryBattleRecovery().get("CF1","CF1:E1").participants.isEmpty());
     }
     @Test public void episodeStartEnrollsOnlyCommittedCampaignAndLatchesActualHostilePair() {

@@ -1,0 +1,3 @@
+Checked 25 documents, 695 local links, 853 symbol references, 48 exact JUnit selectors.
+PASS: files, symbol presence, test selectors, and route discoverability.
+Limits: no Java execution, gameplay proof, external link checks, or method semantics.

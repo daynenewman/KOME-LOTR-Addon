@@ -29,6 +29,7 @@ public final class KOMEProgressionGoodsRules {
     }
     private static boolean raw(String name){return name==null||name.isEmpty()||name.startsWith("item.")||name.startsWith("tile.")||name.contains(".stackableFood")||name.contains(".unstackableFood");}
     /** Dedicated servers may not load client language packs; use the item's native English name. */
+    static String nativeText(String key){return Names.ENGLISH.get(key);}
     static String nativeName(String registryKey,String unlocalized){
         String path=registryKey.substring(registryKey.lastIndexOf(':')+1);
         for(String key:new String[]{"item.lotr:"+path+".name","tile.lotr:"+path+".name","item."+path+".name","tile."+path+".name",unlocalized+".name"}){

@@ -175,7 +175,7 @@ public class KOMECampaignHealthVersionTest {
 
 
         // Health changes do not create episodes, grants, or WAL preparation.
-        assertEquals(3,KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION); assertEquals(11,KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(3,KOMEWorldData.CONFLICT_DATA_SCHEMA_VERSION); assertEquals(12,KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
         assertTrue(registry.targets().isEmpty()); assertTrue(registry.episodes().isEmpty());
     }
     @Test public void directNbtRestoreCannotEraseNewerAuthorizedState() throws Exception {

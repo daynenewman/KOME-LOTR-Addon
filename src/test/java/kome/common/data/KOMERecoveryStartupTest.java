@@ -93,7 +93,7 @@ public class KOMERecoveryStartupTest {
         for (Grant g : e.grants.values()) assertEquals(GrantState.PENDING, g.state);
         assertEquals(p.recoveryTransitionId, e.grants.get("RIDER:" + RIDER).transition.token);
         assertEquals(2, loaded.conflicts.getNextConflictSequence()); assertEquals(2, wal.view().lastSequence);
-        assertEquals(3, plan.candidate.getInteger(KOMEConflictPersistence.SCHEMA_KEY)); assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(3, plan.candidate.getInteger(KOMEConflictPersistence.SCHEMA_KEY)); assertEquals(12,KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
     @Test public void detachedRepairRestoresMissingTargetWhileNormalDecoderStillRejects() throws Exception {
         KOMERecoveryJournal wal = open(empty()); append(wal, context());

@@ -1,0 +1,73 @@
+{
+  "candidate": "4b55b59e923028a9ed59233176e41235846efece",
+  "artifactSha256": "87b5aad2b055206f64cf5818c8b2d4a1fee3fd2a9bbca609decb9b17acd921c2",
+  "observations": [
+    {
+      "test": "Non-operator staff resolver permission denial",
+      "command": "/conquest resolve 100 189568 -86016",
+      "userObservation": "you do not have permission to use this conquest admin command",
+      "corroboration": "New profile latest.log, 2026-10-06 20:52:18 America/Chicago: [CHAT] You do not have permission to use this conquest admin command.",
+      "result": "PASS for this command and connected non-operator only; no Build permission acceptance inferred"
+    },
+    {
+      "test": "Current tile HUD walking boundary",
+      "actions": "At dimension 100 (237248.5,181,87295.5), facing south, close chat and hold W for about half a second.",
+      "userObservation": "T401 → T442, no No tile flash",
+      "corroboration": "Production PLAYER POSITION_CHANGED at 2026-10-06 20:57:33 America/Chicago, tick 11114, z=87296.12690630065, T401 to T442, query AVAILABLE with matching tokens.",
+      "result": "PASS for this walking boundary and current client graphics configuration only"
+    },
+    {
+      "test": "Connected client disconnect and reconnect",
+      "actions": "Esc, Disconnect, rejoin 127.0.0.1:51326, remain stationary.",
+      "userObservation": "T442 returns correctly",
+      "corroboration": "2026-10-06 21:00:46 CDT: PLAYER DISCONNECTED, query NOT_TRACKED. 21:01:02 CDT: same UUID INITIALIZED in T442, incarnation 21 replacing 20, query AVAILABLE and matching tokens; authenticated new connection.",
+      "result": "PASS for one stationary reconnect on this candidate; other players and broader reconnect workloads unverified"
+    },
+    {
+      "test": "Respawn setup command permission denial",
+      "command": "/kill",
+      "userObservation": "no permission do to / kill",
+      "corroboration": "New profile [CHAT] You do not have permission to use this command at 2026-10-06 21:08:26 CDT.",
+      "result": "Respawn not attempted; no respawn pass. Vanilla non-op dispatcher restriction, consistent with documented KOMEPublicCommand comment."
+    },
+    {
+      "test": "Native death and human respawn HUD",
+      "artifactSha256": "9b267eb7c19f5cdd5f60a64c6db4927fb991bd640aaa27ab40e6726517c4ef61",
+      "setup": "Server invoked vanilla CommandKill once on the non-operator test character; spawn forced at T401 in dimension 100.",
+      "actions": "Click Respawn after the native server kill.",
+      "userObservation": "T401 appears correctly",
+      "corroboration": "Tue Oct 06 21:21:25 CDT 2026 EVENT thread=Server thread id=a976a4b7-0614-49c0-b992-61a3a89bd773 kind=PLAYER type=INITIALIZED cause=RESPAWN previous={absent} current={session=1 incarnation=3 tick=4705 x=237248.5 z=87295.5 location=[RESOLVED dimension=100 world=237248,87295 mask=2663,1411 tile=T401 (Exact cell; capturability unknown)]} query=AVAILABLE queryObservation={session=1 incarnation=3 tick=4705 x=237248.5 z=87295.5 location=[RESOLVED dimension=100 world=237248,87295 mask=2663,1411 tile=T401 (Exact cell; capturability unknown)]} matchingTokens=true strategicMutation=NONE",
+      "result": "PASS for this native death and same-dimension respawn from T442 to T401; other dimensions and players unverified"
+    },
+    {
+      "test": "LOTR menu after options transformer repair",
+      "artifactSha256": "9b267eb7c19f5cdd5f60a64c6db4927fb991bd640aaa27ab40e6726517c4ef61",
+      "actions": "Press L after Respawn.",
+      "userObservation": "Menu opens normally",
+      "corroboration": "Actual repaired LaunchClassLoader options class and bridge load/link verified independently; prior menu init was the native crash trigger.",
+      "result": "PASS for opening the LOTR menu without the observed crash; individual options button interaction not inferred"
+    },
+    {
+      "test": "Current repaired map opening and border rendering",
+      "artifactSha256": "9b267eb7c19f5cdd5f60a64c6db4927fb991bd640aaa27ab40e6726517c4ef61",
+      "actions": "Click the Map tab/icon from the LOTR menu.",
+      "userObservation": "Map and tile borders appear normally",
+      "result": "PASS for opening and visible map borders; alignment, selection, other zooms/scales/resizing and resource reload remain unverified"
+    },
+    {
+      "test": "Human map hover fill, tooltip and border alignment",
+      "artifactSha256": "9b267eb7c19f5cdd5f60a64c6db4927fb991bd640aaa27ab40e6726517c4ef61",
+      "actions": "Close chat, L then Map; move mouse slowly across several tile borders without clicking. Expected fill inside outline and tooltip changes at border.",
+      "userObservation": "everything looked good",
+      "configurationEvidence": "Nearby native samples recorded 3840x2054, GUI scale 3 and map zooms 8.0 then 1.0. Exact zoom at the time of this human observation was not separately captured.",
+      "result": "PASS for the hover/fill/tooltip alignment the user observed. No exhaustive all-zoom, GUI-scale, resize or click-selection pass inferred."
+    }
+  ],
+  "pendingTest": "Hover well inside a tile, note its tooltip tile ID, then right-click that same spot. Expected Tile Command screen with matching tile ID and maintained connection.",
+  "currentCandidate": {
+    "sourceBase": "4b55b59e923028a9ed59233176e41235846efece",
+    "patchSha256": "84a44f1a31034674f7485f04f63deb7bcd8332ec86521daa52b1a8cc78520a64",
+    "artifactSha256": "9b267eb7c19f5cdd5f60a64c6db4927fb991bd640aaa27ab40e6726517c4ef61",
+    "baselineObservationsRetainOriginalArtifact": true
+  }
+}

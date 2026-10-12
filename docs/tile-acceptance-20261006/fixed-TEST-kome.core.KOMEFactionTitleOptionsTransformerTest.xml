@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="kome.core.KOMEFactionTitleOptionsTransformerTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-07T02:14:41" hostname="DAYNEPC" time="0.032">
+  <properties/>
+  <testcase name="productionSrgOptionsInitAndActionAreHookedExactlyOnce" classname="kome.core.KOMEFactionTitleOptionsTransformerTest" time="0.03"/>
+  <testcase name="optionsInitAndActionAreHookedExactlyOnce" classname="kome.core.KOMEFactionTitleOptionsTransformerTest" time="0.002"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

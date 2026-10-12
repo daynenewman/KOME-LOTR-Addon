@@ -386,7 +386,7 @@ public class KOMEMusterServiceTest {
     @Test public void unknownOrEncircledArrivalRemainsPendingWithSameRosterAndDeadline() {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         String roster=record.rosterSummary();long due=record.dueAtMillis;Delivery delivery=new Delivery();
-        assertEquals(0,KOMEMusterService.processDue(data,due));assertEquals("CAPITAL_CONFLICT_STATE_UNKNOWN",record.getPendingReason());
+        assertEquals(0,KOMEMusterService.processDue(data,due));assertTrue(record.getPendingReason().startsWith("DEPLOYMENT_DIMENSION_UNAVAILABLE"));
         int audits=data.centralAudit.size();KOMEMusterService.processDue(data,due+1);assertEquals(audits,data.centralAudit.size());
         delivery.state=KOMEMusterService.CapitalState.ENCIRCLED;
         assertEquals(0,KOMEMusterService.processDue(data,due,delivery));assertEquals(0,delivery.deliveries);
@@ -503,6 +503,10 @@ public class KOMEMusterServiceTest {
         TestWorld data=world("gondor");KOMEMusterRecord record=call(data,"gondor").record;
         NBTTagCompound root=new NBTTagCompound();data.writeToNBT(root);
         root.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY,8);
+        root.removeTag("MovementBoundary");
+        NBTTagList historicalCompanies = root.getTagList("ArmyCompanies", 10);
+        for (int i = 0; i < historicalCompanies.tagCount(); i++)
+            historicalCompanies.getCompoundTagAt(i).removeTag("MovementAllowance");
         root.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
         root.removeTag("TacticalConfiguration");
         root.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY,1);

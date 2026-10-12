@@ -602,7 +602,7 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
         }
 
         if("recovery".equals(key)) {
-            return new ItemStack(Items.gold_ingot);
+            return new ItemStack(Items.paper);
         }
 
         if("defense".equals(key)||"commission".equals(key)) {

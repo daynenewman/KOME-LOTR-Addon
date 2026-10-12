@@ -56,6 +56,7 @@ public final class KOMEMovementAccessService {
         if (data == null || order == null) {
             return false;
         }
+        if (!retreat && !governanceDecision(data, order).allowed) return false;
         return (retreat || isTileStandableForOrder(data, order, origin, false))
             && (isTileStandableForOrder(data, order, destination, retreat)
                 || !retreat && KOMEConflictMovementService.isAuthorizedHostileTerminalStep(
@@ -67,6 +68,10 @@ public final class KOMEMovementAccessService {
     }
 
     public static String movementAccessReason(KOMEWorldData data, KOMEArmyMovementOrder order, String destination) {
+        if (data != null && order != null) {
+            KOMEGovernanceService.Decision governance = governanceDecision(data, order);
+            if (!governance.allowed) return governance.reason;
+        }
         KOMEConquestTile tile = data == null ? null : data.conquestTiles.get(destination);
         String owner = tile == null ? "unknown" : KOMEAlliance.normalizeFactionKey(tile.projectRulingFaction());
         return "Military passage lost before entering " + destination + " (owner "
@@ -223,6 +228,18 @@ public final class KOMEMovementAccessService {
         return order.routeTiles.size() > order.currentRouteIndex
             ? KOMEConquestTile.normalizeId(order.routeTiles.get(order.currentRouteIndex))
             : KOMEConquestTile.normalizeId(order.originTile);
+    }
+
+    private static KOMEGovernanceService.Decision governanceDecision(KOMEWorldData data, KOMEArmyMovementOrder order) {
+        KOMEArmyCompany company = data.armyCompanies.get(order.companyId);
+        // An ownerless legacy/system order confers no player authority. Its existing
+        // company/coherence validation still owns legality; do not invent a player.
+        java.util.UUID actor = order.owner != null ? order.owner : company == null ? null : company.owner;
+        KOMEGovernanceService.Decision owner = actor == null ? KOMEGovernanceService.Decision.allow(order.ownerFaction)
+            : KOMEGovernanceService.militaryAction(data, actor, order.ownerFaction);
+        if (!owner.allowed) return owner;
+        return company != null && company.temporaryController != null
+            ? KOMEGovernanceService.militaryAction(data, company.temporaryController, order.ownerFaction) : owner;
     }
 
     private static String activeStepDestination(KOMEArmyMovementOrder order) {

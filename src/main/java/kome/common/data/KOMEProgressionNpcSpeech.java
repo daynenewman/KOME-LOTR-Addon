@@ -32,7 +32,7 @@ public final class KOMEProgressionNpcSpeech {
         say(player, master, duty == KOMESerfKnightDutyType.PROVISIONING
             ? household+"Bring me the provisions I have set down for you."
             : duty == KOMESerfKnightDutyType.PROFESSION
-                ? "I have need of materials for my trade. Bring me what I have asked for."
+                ? KOMEProgressionDialogue.materials(master,false)
                 : "I have work for you. See that it is done.");
     }
 
@@ -62,5 +62,5 @@ public final class KOMEProgressionNpcSpeech {
     public static void completedProvisions(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "That is everything I asked for. You have done well.");}
     public static void noMatchingProfessionMaterials(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "I have no use for what you carry.");}
     public static void partialProfessionMaterials(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "Good. Bring me the rest.");}
-    public static void completedProfessionMaterials(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, "That will serve. You have done well.");}
+    public static void completedProfessionMaterials(EntityPlayerMP player, LOTREntityNPC master) {say(player, master, KOMEProgressionDialogue.materials(master,true));}
 }

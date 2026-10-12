@@ -1,0 +1,38 @@
+{
+  "candidate_sha256": "2816008d37c2171fdd41e0af2354f0dd7308fff868c73e020c77449bc9bbb5de",
+  "startup_lines": [
+    "[19:34:48] [Server thread/INFO]: Starting minecraft server version 1.7.10",
+    "[19:34:53] [Server thread/INFO]: Preparing level \"review-acceptance-fresh\"",
+    "[19:34:54] [Server thread/INFO]: Done (0.893s)! For help, type \"help\" or \"?\"",
+    "[19:42:20] [Server thread/INFO]: _Danye_[/127.0.0.1:56669] logged in with entity id 244 at (237248.5, 181.0, 87295.71415408837)"
+  ],
+  "fps_groups": [
+    {
+      "phase": "layout-valid-create",
+      "screen": "kome.client.gui.KOMEGuiConquestCapture",
+      "width": "3840",
+      "height": "2054",
+      "guiScale": "2",
+      "renderChunks": "12",
+      "vsync": "true",
+      "fpsLimit": "120",
+      "samples": 60,
+      "min_fps": 120,
+      "median_fps": 120.0,
+      "max_fps": 120
+    }
+  ],
+  "native_metric_lines": [
+    "Wed Oct 07 19:45:40 CDT 2026 METRIC label=layout-one-client tick=12912 tracked=1 lookups=1 samples=100 meanMs=1.607655 p95Ms=2.089 maxMs=2.5848 heapUsedBytes=439437872 maxHeapBytes=1193279488"
+  ],
+  "workload": "One authenticated non-operator in T401, zero hired fixtures and no new forced chunks. Form/Build scenes; 60 client-thread one-second samples. Server 100 native tick-duration samples.",
+  "limits": "High-spec single-client total-workload measurements. No controlled tile-cost comparison, multiplayer or lower-spec inference.",
+  "evidence_hashes": {
+    "layout-before-build.log": "1127753dbac7ba561f285d4248162bf084c9b3257873a9d3b56ead5fff5d1ac7",
+    "layout-build-rejection.log": "f16a1f9072176fab08d1decf1ccc0901a867586cb182239ef94e42ee6d273c67",
+    "layout-client-performance.log": "f54c2df12c95339dbc90901a56b7acb07700220f4338139e6061b4fa882169ca",
+    "layout-full-build.log": "904f2f58f09513255032cfbf6ed7b75abd1cf72d65da1e34fedd68ae690957dd",
+    "layout-integration-probe.log": "a312a17b5ff87c7765d22bd0b5be7a53c05ffaf519347fc6e37cb2b95ea8d341",
+    "layout-native-checks.log": "a88c2bf7f9b7af90c9955a25f4bcf71b911cbe917abbbdc2c3eedcbcc8b8c1cd"
+  }
+}

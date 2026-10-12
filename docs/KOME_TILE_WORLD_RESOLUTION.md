@@ -1,6 +1,10 @@
 # Tile world-resolution foundation
 
-## KOM-58 exclusion metadata - 2026-10-02
+## Approved KOM-59 mountain exclusions - 2026-10-10
+
+[Exact batch and validation](kom59-mountain-separation-20261010/README.md): 45 removed cells, five mountain zones, 25 runs bound to the resulting PNG hash. All other gaps remain unclassified. Stable IDs/gameplay defaults remain unchanged. Current target-save and physical-entity impact are unknown; world adoption is gated. Earlier acceptance below remains specific to its recorded artifacts.
+
+## Historical KOM-58 exclusion metadata - 2026-10-02
 
 The canonical raster now owns validated optional cell classifications from mandatory
 bundled `assets/kome/map/tile_exclusions.tsv`. The approved production set is empty;

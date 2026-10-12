@@ -35,9 +35,9 @@ public final class KOMEVisualLocationService {
         if(state.isTrialCompleted()&&!state.hasPartingGift()&&KOMEPartingGiftService.giftMaster(state).isSet())
             markers.add(relationship(KOMEVisualMarker.Role.MASTER_GIFT,KOMEPartingGiftService.giftMaster(state)));
         KOMESerfKnightTrialAssignment standing=state.getTrialAssignment();
-        if(!state.isTrialCompleted()&&standing!=null&&standing.stage!=KOMESerfKnightTrialAssignment.Stage.FAILED){
+        if(!state.isTrialCompleted()&&standing!=null&&(standing.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED||standing.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE)){
             if("escort".equals(standing.trialId)&&KOMESerfKnightEscortService.hasDestination(standing)){
-                markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.ESCORT,"",KOMESerfKnightEscortService.destinationName(standing),"",standing.liege.dimension,standing.data.getDouble(KOMESerfKnightEscortService.DEST_X),0,standing.data.getDouble(KOMESerfKnightEscortService.DEST_Z)));
+                markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.ESCORT,"","Destination","",standing.liege.dimension,standing.data.getDouble(KOMESerfKnightEscortService.DEST_X),0,standing.data.getDouble(KOMESerfKnightEscortService.DEST_Z)));
                 KOMEProgressionNpcRef charge=KOMEProgressionNpcRef.readFromNBT(standing.data.getCompoundTag("EscortTarget"));
                 if(charge.isSet()&&standing.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE)markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.ESCORT,charge.entityUuid,charge.displayName,"",charge.dimension,charge.x,charge.y,charge.z));
             }
@@ -66,13 +66,13 @@ public final class KOMEVisualLocationService {
         if (recovery != null) markers.add(recovery);
         KOMEKnightCommission commission=progression.getKnightService().assignment();
         if(commission!=null&&commission.live()&&commission.stage!=KOMEKnightCommission.Stage.READY_TO_REPORT)
-            markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,"",KOMEKnightCommissionPresentation.title(commission.type),"",commission.dimension,commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?commission.destinationX:commission.x,0,commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?commission.destinationZ:commission.z));
+            markers.add(new KOMEVisualMarker(commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?KOMEVisualMarker.Role.ESCORT:KOMEVisualMarker.Role.COMMISSION,"",commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?"Destination":KOMEKnightCommissionPresentation.title(commission.type),"",commission.dimension,commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?commission.destinationX:commission.x,0,commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?commission.destinationZ:commission.z));
         if(commission!=null&&commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT&&commission.stage==KOMEKnightCommission.Stage.ACTIVE&&!commission.threatResolved)
             markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,"","Repel the raiders","",commission.dimension,commission.x,0,commission.z));
         KOMELordshipTrial trial=progression.getLordship().assignment();
         if(trial!=null&&trial.objective.stage==KOMEKnightCommission.Stage.ACTIVE){
             KOMEKnightCommission a=trial.objective;
-            markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,"",KOMELordshipTrialPresentation.title(trial),"",a.dimension,a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?a.destinationX:a.x,0,a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?a.destinationZ:a.z));
+            markers.add(new KOMEVisualMarker(a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?KOMEVisualMarker.Role.ESCORT:KOMEVisualMarker.Role.COMMISSION,"",a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?"Destination":KOMELordshipTrialPresentation.title(trial),"",a.dimension,a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?a.destinationX:a.x,0,a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?a.destinationZ:a.z));
             if(a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT&&!a.threatResolved)markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,"","Repel the incursion","",a.dimension,a.x,0,a.z));
         }
         KOMEKnightCommission field=trial==null?commission:trial.objective;
@@ -83,8 +83,9 @@ public final class KOMEVisualLocationService {
             if(!actor.dead&&(actor.role==KOMEKnightCommission.Role.CHARGE||actor.role==KOMEKnightCommission.Role.BENEFICIARY))
                 markers.add(new KOMEVisualMarker(field.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT&&actor.role==KOMEKnightCommission.Role.CHARGE?KOMEVisualMarker.Role.ESCORT:KOMEVisualMarker.Role.COMMISSION,actor.id,actor.displayName.isEmpty()?KOMEKnightCommissionPresentation.title(field.type):actor.displayName,"",field.dimension,actor.x,actor.y,actor.z));
         for(KOMEVisualMarker ruler:KOMEProgressionRulerService.markers(worldData)){
+            boolean objective=markers.stream().anyMatch(m->m.entityUuid.equals(ruler.entityUuid)&&m.objective);
             markers.removeIf(m->m.entityUuid.equals(ruler.entityUuid));
-            markers.add(ruler);
+            markers.add(ruler.withObjective(objective));
         }
         return markers;
     }
@@ -123,7 +124,23 @@ public final class KOMEVisualLocationService {
             (progression.getKnightService().assignment()!=null||progression.getLordship().assignment()!=null
                 ||progression.getKnightService().qualifyingTypes(ref.factionKey).size()<KOMEKnightCommission.Type.values().length
                 ||KOMELordshipTrialService.prerequisites(progression,alignment,ref.factionKey));
-        return new KOMEVisualMarker(role,ref.entityUuid,role==KOMEVisualMarker.Role.SERFDOM_MASTER?"Master "+ref.displayName:rankedLabel(ref,worldData),"",ref.dimension,ref.x,ref.y,ref.z,actionable);
+        return new KOMEVisualMarker(role,ref.entityUuid,role==KOMEVisualMarker.Role.SERFDOM_MASTER?"Master "+ref.displayName:rankedLabel(ref,worldData),"",ref.dimension,ref.x,ref.y,ref.z,actionable,returnObjective(progression,ref));
+    }
+    static boolean returnObjective(KOMEPlayerProgression p,KOMEProgressionNpcRef ref){
+        KOMESerfKnightProgression s=p.getSerfKnightProgression();
+        if(p.getCanonicalRank()==KOMEProgressionRank.SERF){
+            KOMESerfKnightTrialAssignment trial=s.getTrialAssignment();
+            if(s.isTrialCompleted()||trial!=null&&(trial.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED||trial.stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE))return ref.hasSameIdentity(s.getLiege());
+            if(trial!=null&&"recovery".equals(trial.trialId)&&trial.data.getBoolean("RecoveryRetrieved"))return ref.hasSameIdentity(s.getLiege());
+            if(trial!=null)return false;
+            if("courier".equals(s.getActiveAssignmentKind())){
+                KOMESerfCourierAssignment courier=KOMESerfCourierAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
+                return courier!=null&&(courier.stage!=KOMESerfCourierAssignment.Stage.OUTBOUND||courier.confirmedRecipientDeath)&&ref.hasSameIdentity(s.getSerfdomMaster());
+            }
+            return ref.hasSameIdentity(s.getSerfdomMaster())&&(s.hasActiveAssignment()||KOMESerfKnightService.nextDuty(s)!=null);
+        }
+        KOMEKnightCommission commission=p.getLordship().assignment()!=null?p.getLordship().assignment().objective:p.getKnightService().assignment();
+        return commission!=null&&(commission.stage==KOMEKnightCommission.Stage.OFFERED||commission.stage==KOMEKnightCommission.Stage.READY_TO_REPORT)&&ref.hasSameIdentity(s.getLiege());
     }
     static String rankedLabel(KOMEProgressionNpcRef ref,KOMEWorldData data){
         KOMEProgressionNpcRankRecord record=data==null?null:data.progressionNpcRanks.get(UUID.fromString(ref.entityUuid));

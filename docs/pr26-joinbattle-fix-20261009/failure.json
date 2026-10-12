@@ -1,0 +1,25 @@
+{
+  "reported_by": "human",
+  "reported_actions": "On KOME PR26 Integrated f154 at 127.0.0.1:51327, /kome joinbattle T388 caused fatal network error and disconnect",
+  "result": "FAIL",
+  "first_relevant_exception": "14:26:54 DecoderException caused by NullPointerException: Undefined message for discriminator 54 in channel kome",
+  "client_log_lines": "fml-client-latest.log:4376-4405",
+  "actual_connected_profile": "C:\\Users\\dayne\\AppData\\Roaming\\PrismLauncher\\instances\\kome-tile-acceptance-pr26-20261006",
+  "actual_client_sha256": "9b267eb7c19f5cdd5f60a64c6db4927fb991bd640aaa27ab40e6726517c4ef61",
+  "intended_staged_profile": "C:\\Users\\dayne\\AppData\\Roaming\\PrismLauncher\\instances\\kome-pr26-integrated-f154-20261009",
+  "intended_staged_client_sha256": "263e8ff420b0e84c81f9b802a58b7d46182dee4158bfa41c60afc213b9e43eb0",
+  "failed_server_sha256": "263e8ff420b0e84c81f9b802a58b7d46182dee4158bfa41c60afc213b9e43eb0",
+  "identity": "_Danye_",
+  "uuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+  "server_head": "1dbd46cd60b4a341c23bc8b33ddddf43915b757b",
+  "loaded_client_evidence": "Actual old-profile FML startup loads old JAR, joins 51327 14:26:50, fails decoding 54 at 14:26:54. Intended integrated profile has no launch logs and retained Oct7 lastLaunchTime. No client JVM remained when inspected.",
+  "cause": "Join Battle appended packet IDs 53-58 while retaining old g4 handshake identity; older g4 client was accepted but has no discriminator 54.",
+  "server_limits": "Configured JAR hash, native startup path and g4 handshake log agree; server was saved/stopped before agent code-source inspection.",
+  "ops": [],
+  "logs": {
+    "failed-client-fml.log": "7f7d1ea6d5142f5de721c43bee04ec9a49b87ac8091f6968f90b7e79600a961a",
+    "failed-client-latest.log": "d9ef650544d48c026539bcbe9d87dc22bce89653f832d90c812a880dfbaf3c42",
+    "failed-server-console.log": "c9bec873a6e67dcefbb4dd6c30e553ed0d58b58c6b9d7ff8a112782ce78f4481"
+  },
+  "recorded_at_utc": "2026-10-09T19:41:27.359581+00:00"
+}

@@ -1,0 +1,11 @@
+{
+  "candidate_sha256": "2816008d37c2171fdd41e0af2354f0dd7308fff868c73e020c77449bc9bbb5de",
+  "serialized_sections": 77,
+  "changed_sections": [],
+  "build_count": 1,
+  "next_sequence": 2,
+  "source": "Actual production serializer on server thread before/after human malformed-hours action",
+  "screenshot": "build-invalid-hours.png",
+  "screenshot_sha256": "cd27d86853ae445ea77a1734e0de74ca26aae20c22d70678c425c8b6656d63b9",
+  "scope": "Client validation rejects malformed hours. This is not an independent server forged-packet permission test."
+}

@@ -1,7 +1,6 @@
 package kome.common.data;
 
 import kome.common.KOMEReflection;
-import kome.common.command.KOMECommandAlliance;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -13,6 +12,8 @@ import java.util.UUID;
 
 public class KOMEProgressionTitles {
     private static final String TEAM_PREFIX = "kome_";
+    private static final java.util.Map<UUID,String> LAST=new java.util.HashMap<UUID,String>();
+    public static void forget(UUID id){LAST.remove(id);}
 
     public static void updatePlayerTitle(EntityPlayerMP player) {
         if (player == null) {
@@ -22,59 +23,25 @@ public class KOMEProgressionTitles {
         if (world == null || KOMEReflection.isRemote(world)) {
             return;
         }
-        KOMEWorldData data = KOMEWorldData.get(world);
         UUID playerID = KOMEReflection.getEntityUUID(player);
-        KOMEPlayerProgression progression = data.getProgression(playerID);
-        Rank rank = getRank(player, data, playerID, progression);
-
         Scoreboard scoreboard = world.getScoreboard();
-        ensureTeam(scoreboard, rank);
         String playerName = player.getCommandSenderName();
         ScorePlayerTeam current = scoreboard.getPlayersTeam(playerName);
-        if (current != null && !isKomeOwnedTeam(current.getRegisteredName())) {
-            return;
+        // Retire only exact legacy title teams. Never claim another mod's team.
+        if(current!=null&&isLegacyTitleTeam(current.getRegisteredName()))scoreboard.removePlayerFromTeams(playerName);
+        net.minecraft.server.MinecraftServer server=net.minecraft.server.MinecraftServer.getServer();
+        if(server==null||kome.common.network.KOMEPacketHandler.network==null)return;
+        java.util.Map<UUID,String> roster=new java.util.LinkedHashMap<UUID,String>();
+        for(Object value:server.getConfigurationManager().playerEntityList){
+            EntityPlayerMP online=(EntityPlayerMP)value;
+            LOTRFaction pledge=LOTRLevelData.getData(online).getPledgeFaction();
+            roster.put(online.getUniqueID(),KOMEProgressionIdentity.suffix(pledge==null?"":pledge.codeName(),KOMEWorldData.get(online.worldObj).getProgression(online.getUniqueID()).getCanonicalRank()));
+            if(roster.size()==1024)break;
         }
-        if (current == null || !rank.teamName.equals(current.getRegisteredName())) {
-            if (current != null) {
-                scoreboard.removePlayerFromTeams(playerName);
-            }
-            scoreboard.func_151392_a(playerName, rank.teamName);
-        }
+        String signature=roster.toString();
+        if(!signature.equals(LAST.put(playerID,signature)))kome.common.network.KOMEPacketHandler.network.sendTo(new kome.common.network.KOMEPacketProgressionIdentities(roster),player);
     }
-
-    private static void ensureTeam(Scoreboard scoreboard, Rank rank) {
-        ScorePlayerTeam team = scoreboard.getTeam(rank.teamName);
-        if (team == null) {
-            team = scoreboard.createTeam(rank.teamName);
-        }
-        if (!rank.prefix.equals(team.getColorPrefix())) {
-            team.setNamePrefix(rank.prefix);
-        }
-        if (!"".equals(team.getColorSuffix())) {
-            team.setNameSuffix("");
-        }
-    }
-
-    private static Rank getRank(EntityPlayerMP player, KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression) {
-        FactionRankKey faction = getFactionRankKey(player, progression);
-        String rankName = resolveRankName(data, playerID, progression, faction.key);
-        if ("King".equals(rankName)) {
-            return new Rank(TEAM_PREFIX + "king", "[King] ");
-        }
-        if ("Prince".equals(rankName)) {
-            return new Rank(TEAM_PREFIX + "prince", "[Prince] ");
-        }
-        if ("Lord".equals(rankName)) {
-            return new Rank(TEAM_PREFIX + "lord", "[Lord] ");
-        }
-        if ("Knight".equals(rankName)) {
-            return new Rank(TEAM_PREFIX + "knight", "[Knight] ");
-        }
-        if ("Serf".equals(rankName)) {
-            return new Rank(TEAM_PREFIX + "serf", "[Serf] ");
-        }
-        return new Rank(TEAM_PREFIX + "wander", "[Wanderer] ");
-    }
+    static boolean isLegacyTitleTeam(String name){return java.util.Arrays.asList("kome_king","kome_prince","kome_lord","kome_knight","kome_serf","kome_wander").contains(name);}
 
     static String resolveRankName(KOMEWorldData data, UUID playerID, KOMEPlayerProgression progression, String factionKey) {
         if (data != null && KOMERulerService.isRuler(data, factionKey, playerID)) {
@@ -88,32 +55,4 @@ public class KOMEProgressionTitles {
         return teamName != null && teamName.startsWith(TEAM_PREFIX);
     }
 
-    private static FactionRankKey getFactionRankKey(EntityPlayerMP player, KOMEPlayerProgression progression) {
-        LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
-        if (pledge != null) {
-            return new FactionRankKey(KOMEAlliance.normalizeFactionKey(pledge.codeName()), pledge.factionName());
-        }
-        String faction = progression == null ? "" : progression.getPledgedLordFaction();
-        return new FactionRankKey(KOMEAlliance.normalizeFactionKey(faction), KOMEAlliance.displayFactionName(faction));
-    }
-
-    private static class FactionRankKey {
-        private final String key;
-        private final String name;
-
-        private FactionRankKey(String key, String name) {
-            this.key = key == null ? "" : key;
-            this.name = name == null ? "" : name;
-        }
-    }
-
-    private static class Rank {
-        private final String teamName;
-        private final String prefix;
-
-        private Rank(String teamName, String prefix) {
-            this.teamName = teamName;
-            this.prefix = prefix;
-        }
-    }
 }

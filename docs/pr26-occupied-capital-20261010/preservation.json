@@ -1,0 +1,155 @@
+{
+  "checked_at_utc": "2026-10-10T17:24:31.269140+00:00",
+  "worktrees_checked": 25,
+  "worktrees_unchanged": true,
+  "stash_unchanged": true,
+  "frozen_file_hashes_checked": 89,
+  "frozen_mismatches": [],
+  "frozen_processes": [
+    {
+      "Id": 30672,
+      "StartTime": "/Date(1791427482776)/"
+    },
+    {
+      "Id": 43016,
+      "StartTime": "/Date(1791427482684)/"
+    }
+  ],
+  "user_refs_unchanged": false,
+  "user_ref_deltas": {
+    "refs/remotes/origin/Dayne-Branch": {
+      "before": "238906c930088518844b1b0f221a5333569f3519",
+      "now": null
+    },
+    "refs/remotes/origin/HEAD": {
+      "before": "b826ef35a0fb88ce9b2d58129ed307e9986b43d7",
+      "now": "f154deaed18ac3f1a7770ffa3bda8a88382a9e35"
+    },
+    "refs/remotes/origin/Lije's-Branch": {
+      "before": "6985582cae64ad2862d283693d87838768e4efed",
+      "now": null
+    },
+    "refs/remotes/origin/Lije-Addon-Merge": {
+      "before": "5deafb1d96f8048458e7b83ab10447dc82146cbf",
+      "now": null
+    },
+    "refs/remotes/origin/benjaminsince2001/kom-10-implement-defensive-segments-and-gate-health-from-approved": {
+      "before": "5a246b4cb2f8148a807fbaa15bd7ab1dc3c554f2",
+      "now": null
+    },
+    "refs/remotes/origin/dayne/kom-11-civilian-muster": {
+      "before": "179c3d9d564e62ca198f47fea3c3970f337073c5",
+      "now": null
+    },
+    "refs/remotes/origin/dayne/kom-29-defeat-detection": {
+      "before": "2c6a855d32e222bdc0cfc246f03d83f87a1d2a47",
+      "now": null
+    },
+    "refs/remotes/origin/dayne/kom-40-admin-diagnostics": {
+      "before": "300bb116185f0b321e5573259f51416aa2ca2217",
+      "now": null
+    },
+    "refs/remotes/origin/dayne/kom-70-server-queue-20261002": {
+      "before": "a21f01a445dded8b5459d7aaf9ec4e8e98217c91",
+      "now": null
+    },
+    "refs/remotes/origin/dayne/kom-80-mountain-barriers": {
+      "before": "5c10e77f70ab615e6b874c66b4ed298839ed0c35",
+      "now": null
+    },
+    "refs/remotes/origin/dayne/pr24-pr25-integration-20261004": {
+      "before": "4b55b59e923028a9ed59233176e41235846efece",
+      "now": "4925e931f6909bf24a6cbdbd44290bfa51c1df67"
+    },
+    "refs/remotes/origin/dayne/public-waypoints-20261002": {
+      "before": "7f11b99eb61980b30634db3e6cf137536d3758db",
+      "now": null
+    },
+    "refs/remotes/origin/dayne/tile-geography-review-20261002": {
+      "before": "4d8e9b5e703c1f45c687239fae8ea2fa29745bb7",
+      "now": null
+    },
+    "refs/remotes/origin/dev": {
+      "before": "b826ef35a0fb88ce9b2d58129ed307e9986b43d7",
+      "now": "f154deaed18ac3f1a7770ffa3bda8a88382a9e35"
+    },
+    "refs/remotes/origin/elijahrnovak/kom-10-implement-defensive-segments-and-gate-health-from-approved-build-hours": {
+      "before": "30f1ea3d8f7d2e79d4c1798d9c228208e34ef3f0",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/kom-13-implement-neutral-friends-allies-diplomacy": {
+      "before": "561cab37a6ea796540f01927d4f75076095822f1",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/kom-14-diplomacy-waypoint-access": {
+      "before": "478eaa3a6b7e9843f08798e5098978cfd5248d25",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/kom-16-separate-endgame-progression-rank-from-the-political-office": {
+      "before": "c58a4307d6bd30c0baea181ecbbbdd68f7793532",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/kom-31-40": {
+      "before": "d41c96cf454082c20c8c86cb2fab5bc6c56bc181",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/kom-35-34-33": {
+      "before": "ba9bf12a40716d630962b9c81f0996d244c3334d",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/kom-51-add-canonical-configuration-registry-and-startup-validation": {
+      "before": "e7ba2f07410d935e77d135a2097535223ceaf420",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/kom-6-implement-canonical-population-bank-and-remove-split": {
+      "before": "3caff67a1105f62facbc75ac59f2753bcd5b4103",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/kom-7-implement-rate-based-population-generation-and-daily-payout": {
+      "before": "12e8ea340b1880294799b0bd8f7c9c9f31c5aedd",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/kom-72-implement-revised-branch-based-player-progression-system": {
+      "before": "f4f9530ba6f1c6195e6afd8722120b87039c1fc0",
+      "now": "69dbad5a8d2d1cef461e8327b961ce9194d8241f"
+    },
+    "refs/remotes/origin/elijahrnovak/kom-8-implement-canonical-normal-and-defensive-build-types": {
+      "before": "fc382d5a1da407fc687e5e2e8091577bdff614d3",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/kom-9-implement-captured-normal-build-population-at-50-of-original": {
+      "before": "30f1ea3d8f7d2e79d4c1798d9c228208e34ef3f0",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/lije-addon-merge": {
+      "before": "5deafb1d96f8048458e7b83ab10447dc82146cbf",
+      "now": null
+    },
+    "refs/remotes/origin/elijahrnovak/lijes-branch": {
+      "before": "6985582cae64ad2862d283693d87838768e4efed",
+      "now": null
+    },
+    "refs/remotes/origin/pr24-integration": {
+      "before": "d19d8807bf68fffd708b99d82aeb8e5db03ee5d9",
+      "now": null
+    },
+    "refs/remotes/origin/pr25-integration": {
+      "before": "b59ec9af6f9bfee20e0049d5fe4bc6d085058b93",
+      "now": null
+    },
+    "refs/remotes/origin/review/kom-60-dev-20260926": {
+      "before": "adc7138acb74c8046b154e8ee75aa8dea26de879",
+      "now": null
+    },
+    "refs/remotes/origin/review/kom-74-conquest-sync-20260927": {
+      "before": "e39de5b48f659cbeaed9f33446c224e39a0eb0a1",
+      "now": null
+    },
+    "refs/remotes/origin/review/tile-d901976-dev-20260921": {
+      "before": "96daae9e062c3337117dd3056aee72153be9bb3e",
+      "now": null
+    }
+  },
+  "interpretation": "Remote-tracking ref deltas observed against the historical baseline; refresh/prune provenance is not established. This task fetched the independent source clone. No shared local branch ref write or rollback was performed. Original worktree states, local branch refs, stash, frozen hashes and frozen process start times match.",
+  "local_branch_refs_unchanged": true
+}

@@ -16,7 +16,7 @@ public final class KOMEPacketStandingTrialEligibility implements IMessage {
     public boolean eligible;
     public boolean passiveOffer;
     public boolean offering;
-    public int offerColor;
+    public int offerColor; public boolean relevant; public String reason="";
 
     public KOMEPacketStandingTrialEligibility() {
     }
@@ -45,7 +45,7 @@ public final class KOMEPacketStandingTrialEligibility implements IMessage {
         eligible = buffer.readBoolean();
         passiveOffer = buffer.readBoolean();
         offering = buffer.readBoolean();
-        offerColor = buffer.readInt();
+        offerColor = buffer.readInt();relevant=buffer.readBoolean();reason=cpw.mods.fml.common.network.ByteBufUtils.readUTF8String(buffer);if(reason.length()>256)throw new IllegalArgumentException("Eligibility reason too long");
     }
 
     @Override
@@ -56,7 +56,7 @@ public final class KOMEPacketStandingTrialEligibility implements IMessage {
         buffer.writeBoolean(eligible);
         buffer.writeBoolean(passiveOffer);
         buffer.writeBoolean(offering);
-        buffer.writeInt(offerColor);
+        buffer.writeInt(offerColor);buffer.writeBoolean(relevant);cpw.mods.fml.common.network.ByteBufUtils.writeUTF8String(buffer,reason);
     }
 
     public static final class Handler
@@ -75,7 +75,7 @@ public final class KOMEPacketStandingTrialEligibility implements IMessage {
                         message.eligible,
                         message.passiveOffer,
                         message.offering,
-                        message.offerColor);
+                        message.offerColor,message.relevant,message.reason);
                 }
             });
             return null;

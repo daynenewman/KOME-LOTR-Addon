@@ -1951,6 +1951,8 @@ public class EntityBattleRam extends net.minecraft.entity.EntityCreature
             TileEntitySiegeGate gate,
             AttackPoint point
     ) {
+        if (gate.getGateFaction() != null && !kome.common.data.KOMEGovernanceCombat.warActionDenial(
+                kome.common.data.KOMEWorldData.get(worldObj), getCommanderUuid(), gate.getGateFaction().codeName()).isEmpty()) return;
         markPhysicalRamImpact();
 
         int effectiveSiegeDamage = (int)Math.round(

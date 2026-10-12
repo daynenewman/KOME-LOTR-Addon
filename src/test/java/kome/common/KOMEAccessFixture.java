@@ -197,6 +197,7 @@ public final class KOMEAccessFixture {
         @Override public IChunkProvider getChunkProvider(){return testChunkProvider==null?super.getChunkProvider():testChunkProvider;}
         @Override public int getTopSolidOrLiquidBlock(int x,int z){terrainProbes++;return flatTerrain?65:super.getTopSolidOrLiquidBlock(x,z);}
         @Override public net.minecraft.block.Block getBlock(int x,int y,int z){if(flatTerrain&&structureBlocks!=null&&structureBlocks.containsKey(x+","+y+","+z))return structureBlocks.get(x+","+y+","+z);return flatTerrain?(y==64&&!unsafeSurface?net.minecraft.init.Blocks.grass:TEST_AIR):super.getBlock(x,y,z);}
+        @Override public int getBlockMetadata(int x,int y,int z){return flatTerrain?0:super.getBlockMetadata(x,y,z);}
         @Override public boolean isAirBlock(int x,int y,int z){return flatTerrain?getBlock(x,y,z).getMaterial()==net.minecraft.block.material.Material.air:super.isAirBlock(x,y,z);}
         @Override public net.minecraft.tileentity.TileEntity getTileEntity(int x,int y,int z){return flatTerrain?null:super.getTileEntity(x,y,z);}
         @Override public boolean blockExists(int x,int y,int z){return flatTerrain||super.blockExists(x,y,z);}
