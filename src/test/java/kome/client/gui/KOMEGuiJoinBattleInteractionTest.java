@@ -140,7 +140,29 @@ public class KOMEGuiJoinBattleInteractionTest {
         assertFalse(button(screen,100).displayString.contains("C3"));assertFalse(button(screen,101).displayString.contains("C4"));
         screen.actionPerformed(button(screen,1));assertEquals(1,network.sent.size());assertEquals("C4",((KOMEPacketJoinBattleSelectionRequest)network.sent.get(0)).companyId);
     }
-    private static GuiButton button(KOMEGuiJoinBattle screen,int id) throws Exception {
+    @Test public void preferredFallbackExplainsEachGuardAndNeverTreatsOtherCompaniesAsAnchorChoices() throws Exception {
+        KOMEGuiJoinBattle legal=new KOMEGuiJoinBattle(view(validToken()),"C4");
+        assertEquals("",legal.preferredEntryFallback());assertTrue(legal.beginPreferredEntry());
+        assertEquals(1,network.sent.size());assertEquals("C4",((KOMEPacketJoinBattleSelectionRequest)network.sent.get(0)).companyId);
+        assertTrue(new KOMEGuiJoinBattle(view(validToken()),"MISSING").preferredEntryFallback().contains("not selectable"));
+        KOMEGuiJoinBattle tokenless=new KOMEGuiJoinBattle(view(""),"C4");
+        assertTrue(tokenless.preferredEntryFallback().contains("expired"));assertFalse(tokenless.beginPreferredEntry());
+        assertTrue(tokenless.status().contains("Could not join"));
+        KOMEPacketJoinBattleViewResponse duplicate=view(validToken());duplicate.companies.add(duplicate.companies.get(1));
+        assertTrue(new KOMEGuiJoinBattle(duplicate,"C4").preferredEntryFallback().contains("ambiguous"));
+        KOMEPacketJoinBattleViewResponse ended=view(validToken());ended.conflictState=kome.common.data.KOMEConflictRecord.State.ENDED;
+        assertTrue(new KOMEGuiJoinBattle(ended,"C4").preferredEntryFallback().contains("no longer active"));
+        assertEquals(1,network.sent.size());
+    }
+    @Test public void physicalPlacementDenialAfterDirectSubmissionRemainsAuthoritativeAndVisible() throws Exception {
+        Display display=new Display();KOMEGuiJoinBattle screen=startJoin(display,true);
+        kome.common.network.KOMEPacketJoinBattleSelectionResult denial=selection(false);
+        denial.reason=KOMEJoinBattleService.Reason.SAFE_POSITION_UNAVAILABLE;
+        denial.message="No safe standing position is available.";
+        assertTrue(screen.acceptSelection(denial));assertEquals(denial.message,screen.status());
+        assertEquals(0,display.closes);assertTrue(display.messages.isEmpty());assertEquals(1,network.sent.size());
+        assertFalse(screen.viewModel().canSubmit());
+    }    private static GuiButton button(KOMEGuiJoinBattle screen,int id) throws Exception {
         java.lang.reflect.Field field=net.minecraft.client.gui.GuiScreen.class.getDeclaredField("buttonList");
         field.setAccessible(true);
         for(Object value:(List)field.get(screen))if(((GuiButton)value).id==id)return (GuiButton)value;

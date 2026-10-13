@@ -15,6 +15,7 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
     private boolean retreatConfirmation;
     private boolean afterMovement;
     private boolean preferredEntryAttempted;
+    private String preferredCompanyId="";
     private UUID pendingJoin, pendingRetreat;
     private long pendingJoinRevision;
     private String pendingReceipt="", pendingTile="", pendingConflict="";
@@ -42,7 +43,7 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         this(view,preferredCompany,LIVE);
     }
     KOMEGuiJoinBattle(KOMEPacketJoinBattleViewResponse view,String preferredCompany,Presentation presentation) {
-        this(view,presentation);afterMovement=true;
+        this(view,presentation);afterMovement=true;preferredCompanyId=preferredCompany;
         if(view.currentDeploymentConflict.isEmpty())model.select(preferredCompany);
         if(!view.isAllowed())model.setStatus("Could not join: "+view.reasonText);
         for(int i=0;i<view.companyRows().size();i++)if(view.companyRows().get(i).companyId.equals(model.selectedCompanyId()))page=i/PAGE_SIZE;
@@ -50,15 +51,36 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
     public String tileId(){return model.view().tileId;}
     /** Calls the same KOM-19 action as its Join button; the server still validates the physical anchor. */
     public boolean beginPreferredEntry() {
-        if(closed||actionPending()||!afterMovement||preferredEntryAttempted||!model.canSubmit()
-                ||!model.view().currentDeploymentConflict.isEmpty()||model.view().conflictId.isEmpty()
-                ||model.view().conflictState==null||model.view().conflictState==kome.common.data.KOMEConflictRecord.State.ENDED)return false;
-        int matches=0;
-        for(KOMEPacketJoinBattleViewResponse.CompanyRow row:model.view().companyRows())
-            if(row.selectable&&row.companyId.equals(model.selectedCompanyId()))matches++;
-        if(matches!=1)return false;
+        String fallback=preferredEntryFallback();
+        if(!fallback.isEmpty()) {
+            org.apache.logging.log4j.LogManager.getLogger("KOME").debug("Direct Join fallback: {}; tile={} conflict={} revision={}",
+                fallback,model.view().tileId,model.view().conflictId,model.view().conflictRevision);
+            if(afterMovement)model.setStatus("Could not join: "+fallback);
+            return false;
+        }
         preferredEntryAttempted=true;
         actionPerformed(new KOMEGuiButton(JOIN,0,0,150,22,"Select / Join Battle"));return true;
+    }
+    /** One wire row is a company, never a physical anchor. KOM-19 resolves the
+     * company's verified member anchor server-side. Duplicate rows are invalid
+     * projection evidence, not permission to pick a different company. */
+    String preferredEntryFallback() {
+        KOMEPacketJoinBattleViewResponse view=model.view();
+        if(closed||actionPending()||!afterMovement||preferredEntryAttempted)return "Continuation is no longer current.";
+        if(!view.currentDeploymentConflict.isEmpty())return "Existing deployment: "+view.currentDeploymentState.replace('_',' ')+". "+view.reasonText;
+        if(!view.isAllowed())return view.reasonText==null||view.reasonText.trim().isEmpty()?"Join denied: "+view.reason:view.reasonText;
+        if(view.conflictId.isEmpty()||view.conflictState==null||view.conflictState==kome.common.data.KOMEConflictRecord.State.ENDED)
+            return "Battle is no longer active. Refresh the battle view.";
+        if(model.selectedCompanyId().isEmpty()) {
+            for(KOMEPacketJoinBattleViewResponse.CompanyRow row:view.companyRows())
+                if(row.companyId.equals(preferredCompanyId))return "The moved company is not selectable in this battle.";
+            return "The moved company is not selectable: absent from the fresh battle view.";
+        }
+        if(!model.hasUsableActionToken())return "Battle view expired. Refresh before joining.";
+        int matches=0;
+        for(KOMEPacketJoinBattleViewResponse.CompanyRow row:view.companyRows())
+            if(row.selectable&&row.companyId.equals(model.selectedCompanyId()))matches++;
+        return matches==1?"":"Company projection is ambiguous. Refresh before joining.";
     }
     /** Reuses KOM-19's action/result state without displaying a redundant picker. */
     public boolean beginPreferredEntry(GuiScreen owner) {
@@ -89,6 +111,8 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
                     ||!pendingTile.equals(result.current.currentDeploymentTile)
                     ||!pendingConflict.equals(result.current.currentDeploymentConflict)
                     ||!"IN_BATTLE".equals(result.current.currentDeploymentState)))return false;
+        if(result.status==KOMEPacketJoinBattleSelectionResult.Status.REJECTED&&afterMovement)
+            org.apache.logging.log4j.LogManager.getLogger("KOME").debug("Direct Join rejected after successful movement: {} ({})",result.reason,result.message);
         model.accept(result);
         if(result.status==KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING){
             pendingReceipt=result.receiptId;

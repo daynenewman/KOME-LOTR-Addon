@@ -21,6 +21,24 @@ public class KOMEMapBordersTest {
     @Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
     private static final int A = 0xFF102030, B = 0xFF405060, C = 0xFF708090;
 
+    @Test public void destinationBoundaryIsExactIndependentOfHoverAndTracksPanZoom() throws Exception {
+        KOMEMapBorders borders=borders(fixture(3,1,A,B,C));
+        for(double zoom:new double[]{4,16,32})for(double pan:new double[]{0,0.5,1}) {
+            KOMEMapViewport view=new KOMEMapViewport(0,0,300,200,pan,0,zoom);
+            List<double[]> quads=new ArrayList<double[]>();
+            borders.drawDestination(view,B&0xFFFFFF,(x0,y0,x1,y1,color)->{
+                assertEquals(0xFF69DDE8,color);quads.add(new double[]{x0,y0,x1,y1});
+            });
+            assertEquals(4,quads.size());int vertical=0;
+            for(double[] q:quads)if(q[2]-q[0]==3) {
+                double mapX=view.mapX((q[0]+q[2])/2);
+                assertTrue(mapX==1||mapX==2);vertical++;
+            }
+            assertEquals(2,vertical);
+        }
+        final int[] count={0};borders.drawDestination(new KOMEMapViewport(0,0,300,200,0,0,1),0,(a,b,c,d,e)->count[0]++);
+        assertEquals(0,count[0]);
+    }
     @Test public void differentNeighborsHaveOneExactSharedEdgeAndNoMutation() throws Exception {
         KOMETileRasterSnapshot s = fixture(2, 1, A, B);
         int[] copy = s.copyArgbPixels(), before = copy.clone();

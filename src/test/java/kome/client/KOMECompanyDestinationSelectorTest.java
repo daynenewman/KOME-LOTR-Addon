@@ -71,7 +71,7 @@ public class KOMECompanyDestinationSelectorTest {
         selector.select("C1");
         KOMEPacketCompanyDestinationRequest next=selector.next();
         assertEquals(request.session,next.session);assertEquals("T100",next.destination);assertEquals("C1",next.afterCompanyId);
-        assertEquals(TOKEN,next.catalogueToken);assertTrue(selector.selectedRoute().isEmpty());assertTrue(selector.rows().isEmpty());
+        assertEquals(TOKEN,next.catalogueToken);assertEquals("C1",selector.selectedCompanyId());assertFalse(selector.selectedRoute().isEmpty());assertTrue(selector.rows().isEmpty());
         deliver(next,Result.OK,Arrays.asList(row("C2",Status.CAN_START_AND_ARRIVE_NOW)),false,0,100);
         assertEquals(2,selector.pageNumber());assertEquals("C2",selector.rows().get(0).companyId);assertFalse(selector.hasNext());
         KOMEPacketCompanyDestinationRequest previous=selector.previous();
@@ -89,7 +89,7 @@ public class KOMECompanyDestinationSelectorTest {
     @Test public void throttlingRequiresExplicitRetryAfterProjectedDelay() {
         deliver(request,Result.RATE_LIMITED,Collections.<Row>emptyList(),false,500,1000);
         assertEquals(KOMECompanyDestinationSelector.Phase.THROTTLED,selector.phase());
-        assertTrue(selector.message(1100).contains("400 ms"));assertFalse(selector.message(1100).contains("No relevant"));
+        assertTrue(selector.message(1100).contains("available shortly"));assertFalse(selector.message(1100).contains("No relevant"));
         assertNull(selector.retry(1499));assertTrue(selector.canRetry(1500));
         KOMEPacketCompanyDestinationRequest retry=selector.retry(1500);
         assertEquals(request.session,retry.session);assertEquals(2,retry.sequence);assertEquals(request.afterCompanyId,retry.afterCompanyId);
@@ -114,7 +114,7 @@ public class KOMECompanyDestinationSelectorTest {
         assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector.phase());assertTrue(selector.message(0).contains("No relevant"));
         request=selector.open("T100");
         deliver(request,Result.PROJECTION_LIMIT,Collections.<Row>emptyList(),false,0,0);
-        assertEquals(KOMECompanyDestinationSelector.Phase.ERROR,selector.phase());assertTrue(selector.message(0).contains("response limit"));
+        assertEquals(KOMECompanyDestinationSelector.Phase.ERROR,selector.phase());assertTrue(selector.message(0).contains("could not be loaded"));
     }
     @Test public void closeClearsPreviewAndRejectsOutstandingReplies() {
         KOMECompanyDestinationOptions reply=page(request,Result.OK,Arrays.asList(row("C1",Status.CAN_START_AND_ARRIVE_NOW)),false,0);

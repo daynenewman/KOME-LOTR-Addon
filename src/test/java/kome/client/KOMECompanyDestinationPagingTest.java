@@ -59,6 +59,25 @@ public class KOMECompanyDestinationPagingTest {
             assertEquals((count+7)/8,selector.historySize());
         }
     }
+    @Test public void wheelTraversesNineEighteenAndTwentyCompaniesInFullWindowsBothWays() throws Exception {
+        for(int count:new int[]{9,18,20})try(Catalogue catalogue=new Catalogue(count)) {
+            request=selector.open("T002");load(catalogue,request);int requests=1;
+            List<List<String>> windows=new ArrayList<List<String>>();Set<String> seen=new HashSet<String>();
+            while(true) {
+                List<String> current=window(4);assertEquals(4,current.size());windows.add(current);seen.addAll(current);
+                assertEquals(selector.rows().size(),new HashSet<Row>(selector.rows()).size());
+                if(!selector.canBrowse(1,0))break;
+                KOMEPacketCompanyDestinationRequest next=selector.browse(1,4,0);if(next!=null){requests++;load(catalogue,next);}
+                assertNull(selector.takeBrowseFollowup());
+            }
+            assertEquals(count,seen.size());assertEquals((count+7)/8,requests);
+            for(int i=windows.size()-2;i>=0;i--) {
+                KOMEPacketCompanyDestinationRequest back=selector.browse(-1,4,0);if(back!=null)load(catalogue,back);
+                assertEquals(windows.get(i),window(4));
+            }
+            assertFalse(selector.canBrowse(-1,0));assertEquals((count+7)/8,selector.historySize());
+        }
+    }
     @Test public void nonDivisibleLocalWindowsDoNotRepeatOrSkipRows() {
         List<Row> rows=new ArrayList<Row>();for(int i=1;i<=8;i++)rows.add(row("C"+i,Status.CAN_START_AND_ARRIVE_NOW));
         selector.scrollRows(0,5);accept(page(request,Result.OK,rows,false,0));

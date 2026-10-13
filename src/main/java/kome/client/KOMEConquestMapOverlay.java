@@ -252,6 +252,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             drawHighlightTexture(map, tileColor);
         }
         drawGeometry(map, tileColor, false);
+        drawSelectorDestination(map);
         drawMapTexture(map, getLabelTextureLocation(), 1.0f);
         drawActiveMovementRoutes(map);
         drawRoutePreview(map);
@@ -458,12 +459,15 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         sendDestinationRequest(companySelector.open(radialMenu.tileId()));
     }
     private static void sendDestinationRequest(kome.common.network.KOMEPacketCompanyDestinationRequest request) {
-        companyPreview = KOMECompanyDestinationPreview.EMPTY;
+        syncCompanyPreview();
         if (request != null) KOMEPacketHandler.network.sendToServer(request);
     }
     public static void acceptCompanyDestinationOptions(kome.common.data.KOMECompanyDestinationOptions response) {
-        if (companySelector != null && companySelector.accept(response, previewClock()))
-            companyPreview = KOMECompanyDestinationPreview.EMPTY;
+        if (companySelector != null && companySelector.accept(response, previewClock())) {
+            syncCompanyPreview();
+            kome.common.network.KOMEPacketCompanyDestinationRequest followup=companySelector.takeBrowseFollowup();
+            if(followup!=null)sendDestinationRequest(followup);
+        }
     }
     public static void acceptCompanyMovementResult(kome.common.data.KOMECompanyMovementResult result) {
         if(companySelector==null)return;
@@ -589,19 +593,22 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             if (control != null && KOMECompanyDestinationPanel.enabled(control,companySelector,layout,previewClock())) {
                 switch (control) {
                     case ROWS_UP:
-                    case PREVIOUS:
-                        sendDestinationRequest(companySelector.previous());companyPreview=KOMECompanyDestinationPreview.EMPTY;break;
+                        browseCompanies(-1,layout.capacity);break;
                     case ROWS_DOWN:
-                    case NEXT:
-                        sendDestinationRequest(companySelector.next());companyPreview=KOMECompanyDestinationPreview.EMPTY;break;
+                        browseCompanies(1,layout.capacity);break;
+                    case FILTER_ALL:case FILTER_READY:case FILTER_ARRIVE:
+                        KOMECompanyDestinationSelector.Filter filter=control==KOMECompanyDestinationPanel.Control.FILTER_ALL?KOMECompanyDestinationSelector.Filter.ALL:
+                            control==KOMECompanyDestinationPanel.Control.FILTER_READY?KOMECompanyDestinationSelector.Filter.READY:KOMECompanyDestinationSelector.Filter.ARRIVE_NOW;
+                        sendDestinationRequest(companySelector.setFilter(filter));
+                        syncCompanyPreview();break;
                     case CONFIRM:
                         kome.common.network.KOMEPacketCompanyMovementRequest order=companySelector.confirm();
                         companyPreview=KOMECompanyDestinationPreview.EMPTY;
                         if(order!=null)KOMEPacketHandler.network.sendToServer(order);
                         break;
                     case CONFIRM_JOIN:
-                        kome.common.network.KOMEPacketCompanyMovementRequest combined=companySelector.confirm(true);
-                        companyPreview=KOMECompanyDestinationPreview.EMPTY;
+                        kome.common.network.KOMEPacketCompanyMovementRequest combined=companySelector.confirmJoinClick(previewClock());
+                        syncCompanyPreview();
                         if(combined!=null)KOMEPacketHandler.network.sendToServer(combined);
                         break;
                     case RETRY: sendDestinationRequest(companySelector.retry(previewClock()));companyPreview=KOMECompanyDestinationPreview.EMPTY;break;
@@ -614,8 +621,9 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
                 }
             } else if (control == null) {
                 int index = layout.rowAt(mouseX,mouseY,companySelector.rows().size()-companySelector.rowOffset());
-                if (index >= 0) {
-                    companySelector.select(companySelector.rows().get(companySelector.rowOffset()+index).companyId);
+                kome.common.data.KOMECompanyDestinationOptions.Row row=companySelector.visibleRow(index);
+                if (row != null) {
+                    sendDestinationRequest(companySelector.selectForBrowse(row.companyId));
                     companyPreview=KOMECompanyDestinationPreview.of(companySelector.selectedRoute(),KOMEConquestMapOverlay::radialAnchorMapPosition);
                 }
             }
@@ -635,15 +643,40 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         if (client==null || client.displayWidth<=0 || client.displayHeight<=0) return delta;
         int x=Mouse.getEventX()*map.width/client.displayWidth;
         int y=map.height-Mouse.getEventY()*map.height/client.displayHeight-1;
+        return selectorWheelDelta(map,x,y,delta);
+    }
+    static int selectorWheelDelta(LOTRGuiMap map,int x,int y,int delta) {
         return onMapSelectorWheel(map,x,y,delta)?0:delta;
     }
     static boolean onMapSelectorWheel(LOTRGuiMap map,int x,int y,int delta) {
         validateCompanySelectorLifecycle();
         if (!selectorOwnsPointer(map,x,y)) return false;
-        if (delta!=0) companySelector.scrollRows(delta>0?-1:1,selectorLayout(map).capacity);
+        if (delta!=0) browseCompanies(delta>0?-1:1,selectorLayout(map).capacity);
         return true;
     }
 
+    private static void browseCompanies(int direction,int capacity) {
+        sendDestinationRequest(companySelector.browse(direction,capacity,previewClock()));
+        syncCompanyPreview();
+    }
+    private static void syncCompanyPreview() {
+        companyPreview=KOMECompanyDestinationPreview.of(companySelector.selectedRoute(),KOMEConquestMapOverlay::radialAnchorMapPosition);
+    }
+    static String selectorDestinationTile(LOTRGuiMap map) {
+        return radialMap==map&&companySelectorOpen()?companySelector.destination():"";
+    }
+    private static void drawSelectorDestination(LOTRGuiMap map) {
+        String tile=selectorDestinationTile(map);
+        Integer color=tileColorsById.get(tile);
+        if(mapBorders==null||color==null)return;
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT|GL11.GL_COLOR_BUFFER_BIT|GL11.GL_CURRENT_BIT);
+        try {
+            GL11.glDisable(GL11.GL_TEXTURE_2D);GL11.glDisable(GL11.GL_LIGHTING);GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glEnable(GL11.GL_BLEND);GL11.glBlendFunc(GL11.GL_SRC_ALPHA,GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GeometryBatch batch=new GeometryBatch(Tessellator.instance);
+            mapBorders.drawDestination(viewport(map),color,batch);batch.finish();
+        } finally {GL11.glPopAttrib();}
+    }
     private static void drawCompanyDestinationPreview(LOTRGuiMap map) {
         if (radialMap != map || !companySelectorOpen() || companyPreview.points.isEmpty()) return;
         KOMEMapViewport view=viewport(map);

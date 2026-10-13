@@ -306,7 +306,7 @@ public class KOMEMapRadialInteractionTest {
     @Test public void panelPagingAndRowsWinOverOverlappingNativeControlsAndWaypointTargets() throws Exception {
         KOMEClientProxy proxy=connectSelector();openSelector();deliverSelectorRow(proxy);
         KOMECompanyDestinationPanel.Layout layout=selectorLayout();
-        for(KOMECompanyDestinationPanel.Control c:Arrays.asList(KOMECompanyDestinationPanel.Control.PREVIOUS,KOMECompanyDestinationPanel.Control.NEXT)) {
+        for(KOMECompanyDestinationPanel.Control c:Arrays.asList(KOMECompanyDestinationPanel.Control.ROWS_UP,KOMECompanyDestinationPanel.Control.ROWS_DOWN)) {
             KOMECompanyDestinationPanel.Rect box=layout.controls.get(c);
             ((List)field(GuiScreen.class,"buttonList").get(map)).add(new GuiButton(1,box.x,box.y,box.width,box.height,"underlying filter"));
             ((List)field(LOTRGuiMap.class,"mapWidgets").get(null)).add(new LOTRGuiMapWidget(box.x,box.y,box.width,"filter",0,0));
@@ -400,33 +400,30 @@ public class KOMEMapRadialInteractionTest {
         proxy.acceptCompanyMovementResult(result,selectorConnection);assertEquals(3,network.sent.size());
         assertSame(map,field(KOMEConquestMapOverlay.class,"radialMap").get(null)); // Remains on the map.
     }
-    @Test public void visiblePagingArrowsAndNextReachAllEighteenCompaniesAndPreviousReturnsToLastWindow() throws Exception {
-        KOMEClientProxy proxy=connectSelector();openSelector();Set<String> seen=new HashSet<String>();
-        for(int serverPage=0;serverPage<3;serverPage++) {
-            KOMEPacketCompanyDestinationRequest request=(KOMEPacketCompanyDestinationRequest)network.sent.get(network.sent.size()-1);
-            if(serverPage>0)assertEquals("C"+(serverPage*8),request.afterCompanyId);
-            List<KOMECompanyDestinationOptions.Row> rows=new ArrayList<KOMECompanyDestinationOptions.Row>();
-            for(int i=serverPage*8+1;i<=Math.min(18,(serverPage+1)*8);i++)rows.add(KOMECompanyDestinationSelectorTest.row("C"+i,
-                kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW));
-            publish(proxy,KOMECompanyDestinationSelectorTest.page(request,KOMECompanyDestinationOptions.Result.OK,rows,serverPage<2,0));
-            while(true) {
-                KOMECompanyDestinationPanel.Layout layout=selectorLayout();int offset=selector().rowOffset(),sent=network.sent.size();
-                for(int i=offset;i<Math.min(rows.size(),offset+layout.capacity);i++)assertTrue(seen.add(selector().rows().get(i).companyId));
-                if(offset+layout.capacity>=rows.size())break;
-                clickControl(KOMECompanyDestinationPanel.Control.NEXT);assertEquals(sent,network.sent.size());
+    @Test public void wheelReachesEighteenCompaniesWithFullCrossPageWindowsAndBack() throws Exception {
+        KOMEClientProxy proxy=connectSelector();openSelector();Set<String> seen=new HashSet<String>();List<List<String>> windows=new ArrayList<List<String>>();
+        int served=0;
+        while(true) {
+            if(selector().phase()==KOMECompanyDestinationSelector.Phase.LOADING) {
+                KOMEPacketCompanyDestinationRequest request=(KOMEPacketCompanyDestinationRequest)network.sent.get(network.sent.size()-1);
+                int from=request.afterCompanyId.isEmpty()?1:Integer.parseInt(request.afterCompanyId.substring(1))+1;
+                List<KOMECompanyDestinationOptions.Row> rows=new ArrayList<KOMECompanyDestinationOptions.Row>();
+                for(int i=from;i<=Math.min(18,from+7);i++)rows.add(mapRow(String.format(Locale.ROOT,"C%02d",i),kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW));
+                publish(proxy,KOMECompanyDestinationSelectorTest.page(request,KOMECompanyDestinationOptions.Result.OK,rows,from+7<18,0));served++;
             }
-            if(serverPage<2) {
-                clickControl(KOMECompanyDestinationPanel.Control.ROWS_DOWN);
-                assertEquals(serverPage+2,network.sent.size());assertEquals(KOMECompanyDestinationSelector.Phase.LOADING,selector().phase());
-            }
+            List<String> current=new ArrayList<String>();for(int i=selector().rowOffset();i<selector().rowOffset()+4;i++)current.add(selector().rows().get(i).companyId);
+            assertEquals(4,current.size());seen.addAll(current);windows.add(current);
+            if(!selector().canBrowse(1,0))break;
+            KOMECompanyDestinationPanel.Rect box=selectorLayout().row(0);assertEquals(0,KOMEConquestMapOverlay.selectorWheelDelta(map,box.x+1,box.y+1,-120));
         }
-        assertEquals(18,seen.size());assertFalse(selector().hasNext());
-        clickControl(KOMECompanyDestinationPanel.Control.ROWS_UP);
-        assertEquals(4,network.sent.size());assertEquals("C8",((KOMEPacketCompanyDestinationRequest)network.sent.get(3)).afterCompanyId);
-        List<KOMECompanyDestinationOptions.Row> previous=new ArrayList<KOMECompanyDestinationOptions.Row>();
-        for(int i=9;i<=16;i++)previous.add(KOMECompanyDestinationSelectorTest.row("C"+i,kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW));
-        publish(proxy,KOMECompanyDestinationSelectorTest.page((KOMEPacketCompanyDestinationRequest)network.sent.get(3),KOMECompanyDestinationOptions.Result.OK,previous,true,0));
-        int capacity=selectorLayout().capacity;assertEquals(7/capacity*capacity,selector().rowOffset());assertPreviewRequestsOnly();
+        assertEquals(18,seen.size());assertEquals(3,served);
+        assertEquals(Arrays.asList("C06","C07","C08","C09"),windows.get(5));
+        for(int i=windows.size()-2;i>=0;i--) {
+            clickControl(KOMECompanyDestinationPanel.Control.ROWS_UP);List<String> actual=new ArrayList<String>();
+            for(int j=selector().rowOffset();j<selector().rowOffset()+4;j++)actual.add(selector().rows().get(j).companyId);
+            assertEquals(windows.get(i),actual);
+        }
+        assertEquals(3,network.sent.size());assertPreviewRequestsOnly();
     }
     @Test public void activeBattleShortcutOpensTheSameSelectorAndBoundedDestinationRequestAsMoveHere() throws Exception {
         KOMEClientProxy proxy=connectSelector();
@@ -441,7 +438,7 @@ public class KOMEMapRadialInteractionTest {
             proxy.acceptJoinBattleView(view,selectorConnection);assertEquals(KOMEMapRadialMenu.Action.REINFORCE,menu.segments().get(0).action);
             assertTrue(click(400,240,0));assertEquals(2,network.sent.size());
             KOMEPacketCompanyDestinationRequest battle=(KOMEPacketCompanyDestinationRequest)network.sent.get(1);
-            assertEquals("T001",battle.destination);assertEquals(8,battle.limit);assertEquals(KOMECompanyDestinationSelector.Phase.LOADING,selector().phase());
+            assertEquals("T001",KOMEConquestMapOverlay.selectorDestinationTile(map));assertEquals("T001",battle.destination);assertEquals(8,battle.limit);assertEquals(KOMECompanyDestinationSelector.Phase.LOADING,selector().phase());
             clickControl(KOMECompanyDestinationPanel.Control.BACK);click(400,360,0);clickRoot(0);click(400,240,0);
             assertTrue(network.sent.get(2) instanceof KOMEPacketJoinBattleViewRequest);
             KOMEPacketCompanyDestinationRequest movement=(KOMEPacketCompanyDestinationRequest)network.sent.get(3);
@@ -461,6 +458,7 @@ public class KOMEMapRadialInteractionTest {
         KOMEClientProxy proxy=connectSelector();openSelector();deliverSelectorRow(proxy,kome.common.command.KOMECompanyMovementService.Consequence.EXPECTED_CREATE_CONFLICT);
         KOMECompanyDestinationPanel.Rect row=selectorLayout().row(0);assertTrue(click(row.x+2,row.y+2,0));
         assertTrue(selector().canConfirmAndJoin());assertNotNull(selectorLayout().controls.get(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN));
+        clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);assertEquals(1,network.sent.size());
         clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);
         assertEquals(2,network.sent.size());KOMEPacketCompanyMovementRequest move=(KOMEPacketCompanyMovementRequest)network.sent.get(1);
         KOMECompanyMovementResult result=new KOMECompanyMovementResult(move.session,move.sequence,move.previewSequence,move.companyId,move.destination,
@@ -635,6 +633,7 @@ public class KOMEMapRadialInteractionTest {
     }
     private KOMECompanyMovementResult prepareDirect(KOMEClientProxy proxy,kome.common.command.KOMECompanyMovementService.Consequence consequence) throws Exception {
         openSelector();deliverSelectorRow(proxy,consequence);KOMECompanyDestinationPanel.Rect row=selectorLayout().row(0);assertTrue(click(row.x+2,row.y+2,0));
+        clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);assertEquals(1,network.sent.size());
         clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);assertEquals(2,network.sent.size());
         KOMEPacketCompanyMovementRequest move=(KOMEPacketCompanyMovementRequest)network.sent.get(1);
         KOMECompanyMovementResult arrived=new KOMECompanyMovementResult(move.session,move.sequence,move.previewSequence,move.companyId,move.destination,
@@ -688,6 +687,211 @@ public class KOMEMapRadialInteractionTest {
         List<String> messages;
         private DirectPlayer(){super(null,null,null,null,null);}
         @Override public void addChatMessage(net.minecraft.util.IChatComponent message){messages.add(message.getUnformattedText());}
+    }
+    @Test public void filterControlRetainsVisibleSelectionAndClearsHiddenRoutePreview() throws Exception {
+        KOMEClientProxy proxy=connectSelector();openSelector();
+        KOMEPacketCompanyDestinationRequest request=(KOMEPacketCompanyDestinationRequest)network.sent.get(0);
+        centers().put("T002",new int[]{2280,58});centers().put("T050",new int[]{2290,58});
+        publish(proxy,KOMECompanyDestinationSelectorTest.page(request,KOMECompanyDestinationOptions.Result.OK,
+            Arrays.asList(mapRow("I",kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW),
+                mapRow("L",kome.common.command.KOMECompanyMovementService.Status.CAN_START_BUT_CONTINUES_LATER)),false,0));
+        KOMECompanyDestinationPanel.Rect later=selectorLayout().row(1);assertTrue(click(later.x+1,later.y+1,0));
+        assertEquals("L",selector().selected().companyId);assertFalse(preview().points.isEmpty());
+        KOMECompanyDestinationPreview old=preview();clickControl(KOMECompanyDestinationPanel.Control.FILTER_READY);
+        assertEquals(KOMECompanyDestinationSelector.Filter.READY,selector().filter());assertEquals("L",selector().selected().companyId);
+        assertEquals(old.points.size(),preview().points.size());assertTrue(selector().canConfirm());
+        clickControl(KOMECompanyDestinationPanel.Control.FILTER_ARRIVE);assertEquals(KOMECompanyDestinationSelector.Filter.ARRIVE_NOW,selector().filter());
+        assertNull(selector().selected());assertFalse(selector().canConfirm());assertTrue(preview().points.isEmpty());assertEquals(1,network.sent.size());
+    }
+    @Test public void moveAndBattleEntriesShareTheSameFilterAndWheelContinuation() throws Exception {
+        for(boolean battle:new boolean[]{false,true})try(DirectClient client=new DirectClient()) {
+            client.mc.thePlayer=null; // Battle context needs no native player bootstrap in this input fixture.
+            KOMEClientProxy proxy=connectSelector();
+            if(battle) {
+                click(400,300,1);clickRoot(1);KOMEPacketJoinBattleViewRequest context=(KOMEPacketJoinBattleViewRequest)network.sent.get(0);
+                proxy.acceptJoinBattleView(battleView(context,KOMEConflictRecord.State.ORDINARY),selectorConnection);assertTrue(click(400,240,0));
+            }else openSelector();
+            KOMEPacketCompanyDestinationRequest request=(KOMEPacketCompanyDestinationRequest)network.sent.get(network.sent.size()-1);
+            publish(proxy,KOMECompanyDestinationSelectorTest.page(request,KOMECompanyDestinationOptions.Result.OK,
+                Arrays.asList(mapRow("I",kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW),
+                    mapRow("I2",kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW),
+                    mapRow("I3",kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW),
+                    mapRow("I4",kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW),
+                    mapRow("L",kome.common.command.KOMECompanyMovementService.Status.CAN_START_BUT_CONTINUES_LATER),
+                    mapRow("Z",kome.common.command.KOMECompanyMovementService.Status.BLOCKED)),true,0));
+            clickControl(KOMECompanyDestinationPanel.Control.FILTER_READY);assertEquals(KOMECompanyDestinationSelector.Filter.READY,selector().filter());assertEquals(5,selector().rows().size());
+            int sent=network.sent.size();KOMECompanyDestinationPanel.Rect row=selectorLayout().row(0);
+            assertEquals(0,KOMEConquestMapOverlay.selectorWheelDelta(map,row.x+1,row.y+1,-120));assertEquals(sent,network.sent.size());
+            assertEquals(0,KOMEConquestMapOverlay.selectorWheelDelta(map,row.x+1,row.y+1,-120));assertEquals(sent+1,network.sent.size());
+            KOMEPacketCompanyDestinationRequest next=(KOMEPacketCompanyDestinationRequest)network.sent.get(sent);
+            assertEquals("Z",next.afterCompanyId);assertEquals(8,next.limit);assertEquals(KOMECompanyDestinationSelector.Filter.READY,selector().filter());
+            for(IMessage message:network.sent)assertTrue(message instanceof KOMEPacketCompanyDestinationRequest||message instanceof KOMEPacketJoinBattleViewRequest);
+            network.sent.clear();
+        }
+    }
+    @Test public void panelOwnsWheelClicksAndDragAtSeveralGuiScalesWhileOutsideDeltaPassesThrough() throws Exception {
+        KOMEClientProxy proxy=connectSelector();openSelector();KOMEPacketCompanyDestinationRequest request=(KOMEPacketCompanyDestinationRequest)network.sent.get(0);
+        List<KOMECompanyDestinationOptions.Row> rows=new ArrayList<KOMECompanyDestinationOptions.Row>();
+        for(int i=0;i<8;i++)rows.add(mapRow("C"+i,kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW));
+        publish(proxy,KOMECompanyDestinationSelectorTest.page(request,KOMECompanyDestinationOptions.Result.OK,rows,false,0));
+        float zoom=field(LOTRGuiMap.class,"zoomScale").getFloat(map);
+        for(int[] size:new int[][]{{320,240},{480,270},{640,360},{960,540}}) {
+            map.width=size[0];map.height=size[1];field(LOTRGuiMap.class,"mapXMax").setInt(null,size[0]);field(LOTRGuiMap.class,"mapYMax").setInt(null,size[1]);
+            field(LOTRGuiMap.class,"mapWidth").setInt(null,size[0]);field(LOTRGuiMap.class,"mapHeight").setInt(null,size[1]);
+            KOMECompanyDestinationPanel.Layout layout=selectorLayout();selector().scrollRows(-100,layout.capacity);KOMECompanyDestinationPanel.Rect row=layout.row(0);
+            assertEquals(0,KOMEConquestMapOverlay.selectorWheelDelta(map,row.x+1,row.y+1,-120));assertEquals(1,selector().rowOffset());
+            assertEquals(-120,KOMEConquestMapOverlay.selectorWheelDelta(map,2,2,-120));assertEquals(zoom,field(LOTRGuiMap.class,"zoomScale").getFloat(map),0);
+            assertTrue(click(row.x+1,row.y+1,0));assertFalse(KOMEConquestMapOverlay.mapDragButtonDown(map,true));
+            assertTrue(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,row.x+1,row.y+1,1));
+            assertFalse(KOMEConquestMapOverlay.mapDragButtonDown(map,false));assertTrue(KOMEConquestMapOverlay.mapDragButtonDown(map,true));
+            assertNull(field(LOTRGuiMap.class,"selectedWaypoint").get(map));
+        }
+        assertEquals(1,network.sent.size());
+    }
+    @Test public void filteredEmptyRepliesFollowBoundedSearchAndLoadingWheelNeverFloodsRequests() throws Exception {
+        KOMEClientProxy proxy=connectSelector();openSelector();KOMEPacketCompanyDestinationRequest request=(KOMEPacketCompanyDestinationRequest)network.sent.get(0);
+        publish(proxy,KOMECompanyDestinationSelectorTest.page(request,KOMECompanyDestinationOptions.Result.OK,
+            Collections.singletonList(mapRow("B0",kome.common.command.KOMECompanyMovementService.Status.BLOCKED)),true,0));
+        clickControl(KOMECompanyDestinationPanel.Control.FILTER_READY);
+        for(int i=1;i<=KOMECompanyDestinationSelector.MAX_SEARCH_PAGES;i++) {
+            assertEquals(i+1,network.sent.size());KOMECompanyDestinationPanel.Rect row=selectorLayout().row(0);
+            for(int wheel=0;wheel<20;wheel++)assertEquals(0,KOMEConquestMapOverlay.selectorWheelDelta(map,row.x+1,row.y+1,-120));
+            assertEquals(i+1,network.sent.size());request=(KOMEPacketCompanyDestinationRequest)network.sent.get(i);
+            publish(proxy,KOMECompanyDestinationSelectorTest.page(request,KOMECompanyDestinationOptions.Result.OK,
+                Collections.singletonList(mapRow("B"+i,kome.common.command.KOMECompanyMovementService.Status.BLOCKED)),true,0));
+        }
+        assertEquals(4,network.sent.size());assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector().phase());
+        assertTrue(selector().message(0).contains("keep looking"));assertFalse(selector().canConfirm());assertTrue(preview().points.isEmpty());
+        for(int render=0;render<100;render++)selectorLayout();assertEquals(4,network.sent.size());
+    }
+
+    @Test public void joinFirstClickSendsNothingSecondClickOnceAndRefreshBackCloseEscapeDisarm() throws Exception {
+        for(int action=0;action<5;action++)try(DirectClient client=new DirectClient()) {
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();openSelector();
+            deliverSelectorRow(proxy,kome.common.command.KOMECompanyMovementService.Consequence.EXPECTED_CREATE_CONFLICT);
+            KOMECompanyDestinationPanel.Rect row=selectorLayout().row(0);click(row.x+1,row.y+1,0);
+            KOMECompanyDestinationSelector original=selector();KOMECompanyDestinationPanel.Rect join=selectorLayout().controls.get(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);
+            clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);assertEquals(1,network.sent.size());assertTrue(original.joinArmed(System.nanoTime()/1000000L));
+            if(action==0) {
+                for(int rapid=0;rapid<4;rapid++)assertTrue(click(join.x+1,join.y+1,0));
+                assertEquals(2,network.sent.size());assertTrue(network.sent.get(1) instanceof KOMEPacketCompanyMovementRequest);
+                for(IMessage packet:network.sent)assertFalse(packet instanceof KOMEPacketJoinBattleSelectionRequest);
+            }else if(action==1)clickControl(KOMECompanyDestinationPanel.Control.RETRY);
+            else if(action==2)clickControl(KOMECompanyDestinationPanel.Control.BACK);
+            else if(action==3)clickControl(KOMECompanyDestinationPanel.Control.CLOSE);
+            else assertTrue(KOMEConquestMapOverlay.onMapKeyTyped(map,org.lwjgl.input.Keyboard.KEY_ESCAPE));
+            assertFalse(original.joinArmed(System.nanoTime()/1000000L));network.sent.clear();
+        }
+    }
+    @Test public void destinationCueFollowsSelectorContextWithoutOwningMapInput() throws Exception {
+        KOMEClientProxy proxy=connectSelector();openSelector();
+        assertEquals("T001",KOMEConquestMapOverlay.selectorDestinationTile(map));
+        assertEquals("",KOMEConquestMapOverlay.selectorDestinationTile(KOMEAccessFixture.allocate(LOTRGuiMap.class)));
+        assertFalse(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,2,2,0));
+        assertEquals(120,KOMEConquestMapOverlay.selectorWheelDelta(map,2,2,120));
+        selector().open("T050");assertEquals("T050",KOMEConquestMapOverlay.selectorDestinationTile(map));
+        selector().close();assertEquals("",KOMEConquestMapOverlay.selectorDestinationTile(map));
+        selector().open("T050");proxy.destinationOptions().start(new Object());
+        assertEquals("",KOMEConquestMapOverlay.selectorDestinationTile(map));
+    }
+    @Test public void displayOnlyScrollbarCapturesClicksAndDragAndNeverPansOrZoomsMap() throws Exception {
+        KOMEClientProxy proxy=connectSelector();openSelector();deliverSelectorRow(proxy);
+        KOMECompanyDestinationPanel.Rect track=selectorLayout().scrollTrack;float zoom=field(LOTRGuiMap.class,"zoomScale").getFloat(map);
+        assertTrue(click(track.x+1,track.y+1,0));assertNull(selector().selected());assertFalse(KOMEConquestMapOverlay.mapDragButtonDown(map,true));
+        assertEquals(0,KOMEConquestMapOverlay.selectorWheelDelta(map,track.x+1,track.y+1,-120));
+        assertEquals(zoom,field(LOTRGuiMap.class,"zoomScale").getFloat(map),0);assertEquals(1,network.sent.size());
+    }
+    @Test public void everyVisibleRowUsesCanonicalIdentityBeforeAndAfterCachedPageRevalidationForEveryEntryPath() throws Exception {
+        for(int entry=0;entry<3;entry++)try(BattlePresentationClient client=new BattlePresentationClient()) {
+            new KOMEConquestMapOverlay().onMapScreenChange(new GuiOpenEvent(null));client.owner("mordor");network.sent.clear();KOMEClientProxy proxy=connectSelector();
+            if(entry==0)openSelector();
+            else {
+                click(400,300,1);clickRoot(1);
+                KOMEPacketJoinBattleViewRequest context=(KOMEPacketJoinBattleViewRequest)network.sent.get(0);
+                proxy.acceptJoinBattleView(battleView(context,entry==1?null:KOMEConflictRecord.State.ORDINARY),selectorConnection);
+                click(400,240,0);
+            }
+            assertEquals("T001",KOMEConquestMapOverlay.selectorDestinationTile(map));
+            deliverSelectionPage(proxy);
+            for(int visible=0;visible<4;visible++)clickAndAssertSelection(proxy,visible);
+            for(int i=0;i<4;i++)clickControl(KOMECompanyDestinationPanel.Control.ROWS_DOWN);
+            assertEquals(4,selector().rowOffset());
+            for(int visible=0;visible<4;visible++)clickAndAssertSelection(proxy,visible);
+            clickControl(KOMECompanyDestinationPanel.Control.ROWS_DOWN);deliverSelectionPage(proxy);
+            assertEquals("C06",selector().visibleRow(0).companyId);
+            assertEquals("C09",selector().visibleRow(3).companyId);
+            for(int visible=0;visible<4;visible++)clickAndAssertSelection(proxy,visible);
+            clickControl(KOMECompanyDestinationPanel.Control.ROWS_DOWN);
+            for(int visible=0;visible<4;visible++)clickAndAssertSelection(proxy,visible);
+            clickControl(KOMECompanyDestinationPanel.Control.CLEAR);
+            assertEquals("",selector().selectedCompanyId());
+            clickAndAssertSelection(proxy,0);selector().open("T050");
+            assertEquals("",selector().selectedCompanyId());
+        }
+    }
+    @Test public void normalCompanyMarkerRenderingHasNoSelectionOrHoverEmphasisPath() throws Exception {
+        String source=new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(
+            "src/main/java/kome/client/KOMEConquestMapOverlay.java")),java.nio.charset.StandardCharsets.UTF_8);
+        int start=source.indexOf("private static List<String> drawLiveUnitMarkers");
+        String renderer=source.substring(start,source.indexOf("private static List<String> drawBuildMarkers",start));
+        assertTrue(renderer.contains("drawTexturedMarker("));assertTrue(renderer.contains("drawTroopCount("));
+        assertFalse(renderer.contains("companySelector"));assertFalse(renderer.contains("selectedCompanyId"));
+        assertFalse(renderer.contains("hover"));assertFalse(renderer.contains("emphasized"));
+        assertFalse(renderer.contains("Gui.drawRect"));assertFalse(renderer.contains("ROUTE_GOLD"));assertFalse(renderer.contains("ROUTE_DARK"));
+        String call="drawLiveUnitMarkers(map, event.mouseX, event.mouseY)";
+        assertEquals(source.indexOf(call),source.lastIndexOf(call));assertTrue(source.indexOf(call)>=0);
+        for(java.lang.reflect.Method method:KOMEConquestMapOverlay.class.getDeclaredMethods()) {
+            assertFalse(Arrays.asList("companyMarkerEmphasized","companyMarkerInPass","updateSelectorHover").contains(method.getName()));
+        }
+        for(java.lang.reflect.Method method:KOMECompanyDestinationSelector.class.getDeclaredMethods()) {
+            assertFalse(Arrays.asList("hover","emphasizedCompany","markerEmphasized").contains(method.getName()));
+        }
+        for(Field field:KOMECompanyDestinationSelector.class.getDeclaredFields())assertNotEquals("hoveredCompany",field.getName());
+        assertEquals(String.class,KOMECompanyDestinationSelector.class.getDeclaredField("selectedCompanyId").getType());
+        // Panel hover styling remains local to the panel and selection remains ID-based.
+        String panel=new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(
+            "src/main/java/kome/client/KOMECompanyDestinationPanel.java")),java.nio.charset.StandardCharsets.UTF_8);
+        assertTrue(panel.contains("model.isSelected(row.companyId)"));assertTrue(panel.contains("selected||hover"));
+        assertTrue(source.contains("drawSelectorDestination(map)"));
+    }    private void deliverSelectionPage(KOMEClientProxy proxy) throws Exception {
+        KOMEPacketCompanyDestinationRequest request=(KOMEPacketCompanyDestinationRequest)network.sent.get(network.sent.size()-1);
+        int from=request.afterCompanyId.isEmpty()?1:Integer.parseInt(request.afterCompanyId.substring(1))+1;
+        List<KOMECompanyDestinationOptions.Row> rows=new ArrayList<KOMECompanyDestinationOptions.Row>();
+        for(int i=from;i<=Math.min(20,from+7);i++) {
+            KOMECompanyDestinationOptions.Row r=mapRow(String.format(Locale.ROOT,"C%02d",i),kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW);
+            rows.add(new KOMECompanyDestinationOptions.Row(r.evaluationState,r.companyId,"Same company name",r.currentTile,r.destinationTile,r.entitlement,
+                r.tilesPerDay,r.remainingAllowance,r.distance,r.route,r.status,r.scheduleMode,r.canStartNow,r.canArriveNow,r.legalRoute,r.timingAvailable,
+                r.futureBoundaries,r.nextBoundaryMillis,r.estimatedCompletionMillis,r.denialCode,r.denialDetail,r.heldConflictId,r.heldConflictRevision,
+                r.consequence,r.destinationConflictId,r.destinationConflictRevision,r.legacyFingerprint,r.confirmationFingerprint));
+        }
+        publish(proxy,KOMECompanyDestinationSelectorTest.page(request,KOMECompanyDestinationOptions.Result.OK,rows,from+7<20,0));
+    }
+    private void clickAndAssertSelection(KOMEClientProxy proxy,int visible) throws Exception {
+        KOMECompanyDestinationOptions.Row backing=selector().visibleRow(visible);String company=backing.companyId;
+        if(selector().isSelected(company))selector().clearSelection();
+        KOMECompanyDestinationPanel.Rect box=selectorLayout().row(visible);assertEquals(4,selectorLayout().capacity);
+        assertTrue(click(box.x+1,box.y+1,0));
+        assertEquals(company,selector().selectedCompanyId());assertTrue(selector().isSelected(company));
+
+
+        // Selection and route presentation remain independent of the deferred map-marker feature.
+        assertEquals(backing.route,selector().selectedRoute());
+        assertEquals(company,selector().selectedCompanyId());
+        if(selector().phase()==KOMECompanyDestinationSelector.Phase.LOADING) {
+            assertFalse(selector().canConfirm());assertNull(selector().confirm());
+            deliverSelectionPage(proxy);
+            assertNotSame(backing,selector().selected());
+            assertEquals(company,selector().selectedCompanyId());assertTrue(selector().isSelected(company));
+
+        }
+        assertTrue(selector().canConfirm());
+    }    private static KOMECompanyDestinationOptions.Row mapRow(String id,kome.common.command.KOMECompanyMovementService.Status status) {
+        boolean legal=status!=kome.common.command.KOMECompanyMovementService.Status.BLOCKED;
+        boolean immediate=status==kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW;
+        return new KOMECompanyDestinationOptions.Row(id,"Company "+id,"T002","T001",KOMECompanyDestinationOptions.Entitlement.MOUNTED,4,4,2,
+            legal?Arrays.asList("T002","T050","T001"):Collections.<String>emptyList(),status,kome.common.command.KOMECompanyMovementService.ScheduleMode.DAILY,
+            legal,immediate,legal,legal,immediate?0:1,10000,20000,legal?"":"CONFLICT_HELD",legal?"":"Held","",-1,
+            kome.common.command.KOMECompanyMovementService.Consequence.NONE,"",-1,legal?KOMECompanyDestinationSelectorTest.HASH:"",legal?KOMECompanyDestinationSelectorTest.HASH:"");
     }
     private static KOMEPacketJoinBattleViewResponse battleView(KOMEPacketJoinBattleViewRequest request,KOMEConflictRecord.State state) {
         KOMEPacketJoinBattleViewResponse view=new KOMEPacketJoinBattleViewResponse();view.tileId=request.tileId;view.correlation=request.correlation;
