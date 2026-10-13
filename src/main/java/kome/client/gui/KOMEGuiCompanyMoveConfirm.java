@@ -15,6 +15,8 @@ public class KOMEGuiCompanyMoveConfirm extends GuiScreen {
         this.move = move;
     }
 
+    @Override public boolean doesGuiPauseGame(){return false;}
+
     @Override
     public void initGui() {
         buttonList.clear();

@@ -35,6 +35,12 @@ public class KOMEGuiJoinBattleInteractionTest {
 
     @After public void cleanup(){KOMEPacketHandler.network=previous;}
 
+    @Test public void battleAndMovementConfirmScreensExplicitlyDoNotPauseIntegratedGameplay() throws Exception {
+        assertFalse(new KOMEGuiJoinBattle(view(validToken())).doesGuiPauseGame());
+        assertFalse(new KOMEGuiCompanyMoveConfirm(null).doesGuiPauseGame());
+        assertEquals(boolean.class,KOMEGuiJoinBattle.class.getDeclaredMethod("doesGuiPauseGame").getReturnType());
+        assertEquals(boolean.class,KOMEGuiCompanyMoveConfirm.class.getDeclaredMethod("doesGuiPauseGame").getReturnType());
+    }
     @Test public void selectingC4AndClickingJoinSendsExactlyOneFiveFieldRequest() throws Exception {
         KOMEGuiJoinBattle screen=new KOMEGuiJoinBattle(view(validToken()));screen.initGui();
         screen.actionPerformed(button(screen,101));
@@ -126,7 +132,7 @@ public class KOMEGuiJoinBattleInteractionTest {
         assertEquals("",new KOMEGuiJoinBattle(deployed,"C4").viewModel().selectedCompanyId());
     }
     @Test public void existingAuthorityDenialIsDisplayedAfterMovementWithoutAnotherMovementRequest() throws Exception {
-        KOMEGuiJoinBattle screen=new KOMEGuiJoinBattle(view(validToken()),"C4");screen.initGui();screen.actionPerformed(button(screen,1));
+        Display display=new Display();KOMEGuiJoinBattle screen=new KOMEGuiJoinBattle(view(validToken()),"C4",display);display.current=screen;screen.initGui();screen.actionPerformed(button(screen,1));
         KOMEAccessFixture f=new KOMEAccessFixture();
         kome.common.network.KOMEPacketJoinBattleSelectionResult denial=(kome.common.network.KOMEPacketJoinBattleSelectionResult)
             new KOMEPacketJoinBattleSelectionRequest.Handler().onMessage((KOMEPacketJoinBattleSelectionRequest)network.sent.get(0),f.context);
@@ -194,6 +200,18 @@ public class KOMEGuiJoinBattleInteractionTest {
         kome.common.network.KOMEPacketJoinBattleSelectionResult success=selection(true);success.correlation=new java.util.UUID(0,0);
         success.receiptId="OTHER";screen.acceptSelection(success);assertEquals(0,display.closes);
         success.receiptId=pending.receiptId;screen.acceptSelection(success);assertEquals(1,display.closes);
+    }
+    @Test public void successNotificationCannotCloseScreenThatReplacedOwnerDuringNotification() throws Exception {
+        final Object replacement=new Object();
+        final Object[] current={null};final int[] closes={0};
+        KOMEGuiJoinBattle.Presentation display=new KOMEGuiJoinBattle.Presentation(){
+            public boolean isCurrent(KOMEGuiJoinBattle screen){return current[0]==screen;}
+            public void notifySuccess(String message){current[0]=replacement;}
+            public void close(KOMEGuiJoinBattle screen){closes[0]++;current[0]=null;}
+        };
+        KOMEGuiJoinBattle screen=new KOMEGuiJoinBattle(view(validToken()),display);current[0]=screen;screen.initGui();
+        screen.actionPerformed(button(screen,101));screen.actionPerformed(button(screen,1));
+        assertTrue(screen.acceptSelection(selection(true)));assertEquals(0,closes[0]);assertSame(replacement,current[0]);
     }
     @Test public void successfulRetreatClosesOnceAfterResultAndAllOtherCodesKeepReason() throws Exception {
         for(kome.common.data.KOMEFormalRetreatService.Code code:kome.common.data.KOMEFormalRetreatService.Code.values()) {
@@ -267,7 +285,7 @@ public class KOMEGuiJoinBattleInteractionTest {
         Object current;int closes;List<String> messages=new ArrayList<String>();
         public boolean isCurrent(KOMEGuiJoinBattle screen){return current==screen;}
         public void notifySuccess(String message){messages.add(message);}
-        public void close(){closes++;current=null;}
+        public void close(KOMEGuiJoinBattle screen){closes++;current=null;}
     }
     private static String validToken(){return "0123456789abcdef0123456789abcdef";}
 

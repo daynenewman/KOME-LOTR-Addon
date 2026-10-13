@@ -278,18 +278,26 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @Override public void acceptJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message,Object connection) {
         if(destinationOptions().isConnection(connection))displayJoinBattleSelectionResult(message);
+        else KOMEJoinBattleDiagnostics.event("result ignored; close skipped: connection/session mismatch");
     }
     @Override public void acceptJoinBattleRetreatResult(kome.common.network.KOMEPacketJoinBattleRetreatResult message,Object connection) {
         if(destinationOptions().isConnection(connection))displayJoinBattleRetreatResult(message);
     }
 
       @Override public void displayJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message) {
-          if(KOMEConquestMapOverlay.acceptDirectJoinResult(message))return;
           net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
-          if(current instanceof kome.client.gui.KOMEGuiJoinBattle)
+          // The visible chooser owns its own request. A retired map continuation must
+          // never swallow its result while cleaning up its former screen ownership.
+          if(current instanceof kome.client.gui.KOMEGuiJoinBattle) {
+              KOMEJoinBattleDiagnostics.event("result delivered to visible chooser");
               ((kome.client.gui.KOMEGuiJoinBattle)current).acceptSelection(message);
-          else if(net.minecraft.client.Minecraft.getMinecraft().thePlayer!=null
-                  &&message.status!=kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING)
+              return;
+          }
+          if(KOMEConquestMapOverlay.acceptDirectJoinResult(message))return;
+          KOMEJoinBattleDiagnostics.event("result unowned; close skipped: no owning KOME screen/action");
+          if(net.minecraft.client.Minecraft.getMinecraft().thePlayer!=null
+                  &&message.status!=kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING
+                  &&message.status!=kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.DEPLOYED)
               net.minecraft.client.Minecraft.getMinecraft().thePlayer.addChatMessage(
                   new net.minecraft.util.ChatComponentText(message.message));
       }

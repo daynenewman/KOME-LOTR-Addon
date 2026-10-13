@@ -15,6 +15,7 @@ final class KOMEMapRadialMenu {
     private static final double MAX_PHYSICAL_GUI_FACTOR = 2.55;
     enum State { ROOT, MOVEMENT, BATTLE }
     enum Action {
+        JOIN_BATTLE("Join Battle", true, "Confirm entry, then choose a committed company"),
         MOVEMENT("Move", true, "Open movement prototype"),
         BATTLE("Battle", true, "Open battle shell"),
         COMPANIES("Units", false, "Company browsing is not wired in this prototype"),
@@ -36,27 +37,34 @@ final class KOMEMapRadialMenu {
     // Root starts upper-left, flows through upper-right/lower-right/bottom/lower-left.
     private static final List<Segment> ROOT = layout(44, -126,
         Action.MOVEMENT, Action.BATTLE, Action.INFO, Action.CLOSE, Action.COMPANIES);
+    private static final List<Segment> ROOT_JOIN=layout(44,-90,Action.JOIN_BATTLE,Action.BATTLE,Action.INFO,Action.CLOSE,Action.COMPANIES,Action.MOVEMENT);
     private static final List<Segment> MOVEMENT = layout(56, -90, Action.MOVE_HERE, Action.BACK);
     private static final List<Segment> BATTLE = layout(44, -90, Action.BATTLE_ACTIONS, Action.BACK);
     private static final List<Segment> REINFORCEMENT = layout(56,-90,Action.REINFORCE,Action.BACK);
     private static final List<Segment> ATTACK = layout(56,-90,Action.ATTACK,Action.BACK);
-    private boolean activeBattle, knownHostile;
+    private boolean activeBattle, knownHostile, rootJoinAvailable, rootJoinArmed, rootJoinBusy;
+    private String rootStatus="";
     private String tileId = "";
     private State state = State.ROOT;
     boolean open(String tile) {
         if (!KOMEConquestTile.isCanonicalTileId(tile)) return false;
-        tileId = tile; state = State.ROOT; activeBattle=false;knownHostile=false;return true;
+        tileId = tile; state = State.ROOT; activeBattle=false;knownHostile=false;rootJoin(false,false,"");return true;
     }
-    void close() { tileId = ""; state = State.ROOT; }
+    void close() { tileId = ""; state = State.ROOT; rootJoin(false,false,""); }
     boolean isOpen() { return !tileId.isEmpty(); }
     String tileId() { return tileId; }
     State state() { return state; }
     void battleContext(boolean active,boolean hostile) {activeBattle=active;knownHostile=hostile;}
-    List<Segment> segments() { return state == State.MOVEMENT ? MOVEMENT : state == State.BATTLE ? activeBattle?REINFORCEMENT:knownHostile?ATTACK:BATTLE : ROOT; }
+    void rootJoin(boolean available,boolean armed,String status){rootJoin(available,armed,status,false);}
+    void rootJoin(boolean available,boolean armed,String status,boolean busy){rootJoinAvailable=available;rootJoinArmed=available&&armed;rootJoinBusy=busy;rootStatus=status;}
+    boolean enabled(Action action){return action.enabled&&!(action==Action.JOIN_BATTLE&&rootJoinBusy);}
+    String label(Action action){return action==Action.JOIN_BATTLE?(rootJoinBusy?"Loading Join Battle...":rootJoinArmed?"Confirm":"Join Battle"):action.label;}
+    String status(){return state==State.ROOT?rootStatus:"";}
+    List<Segment> segments() { return state == State.MOVEMENT ? MOVEMENT : state == State.BATTLE ? activeBattle?REINFORCEMENT:knownHostile?ATTACK:BATTLE : rootJoinAvailable?ROOT_JOIN:ROOT; }
     Action activate(int index) {
         if (!isOpen() || index < 0 || index >= segments().size()) return null;
         Action action = segments().get(index).action;
-        if (!action.enabled) return null;
+        if (!enabled(action)) return null;
         if (action == Action.MOVEMENT) state = State.MOVEMENT;
         else if (action == Action.BATTLE) state = State.BATTLE;
         else if (action == Action.BACK) state = State.ROOT;

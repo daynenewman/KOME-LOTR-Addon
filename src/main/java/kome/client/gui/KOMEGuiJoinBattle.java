@@ -4,6 +4,7 @@ import kome.common.network.*;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
 import kome.client.KOMEMinecraftClient;
+import kome.client.KOMEJoinBattleDiagnostics;
 import java.util.UUID;
 
 /** Compact KOM-19 Join Battle entry surface. */
@@ -17,6 +18,8 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
     private boolean preferredEntryAttempted;
     private String preferredCompanyId="";
     private UUID pendingJoin, pendingRetreat;
+    private kome.client.KOMECompanyDestinationClientState joinSessionState;
+    private UUID joinSession;
     private long pendingJoinRevision;
     private String pendingReceipt="", pendingTile="", pendingConflict="";
     private boolean closed;
@@ -25,14 +28,22 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
     interface Presentation {
         boolean isCurrent(KOMEGuiJoinBattle screen);
         void notifySuccess(String message);
-        void close();
+        void close(KOMEGuiJoinBattle screen);
     }
     private static final Presentation LIVE=new Presentation() {
         public boolean isCurrent(KOMEGuiJoinBattle screen){return KOMEMinecraftClient.currentScreen()==screen.successOwner;}
         public void notifySuccess(String message){
             if(KOMEMinecraftClient.player()!=null)KOMEMinecraftClient.player().addChatMessage(new net.minecraft.util.ChatComponentText(message));
         }
-        public void close(){KOMEMinecraftClient.displayGui(null);}
+        public void close(KOMEGuiJoinBattle screen){
+            // Use the mapped vanilla method directly: do not hide an invocation failure
+            // inside the reflection compatibility helper after publishing success.
+            KOMEMinecraftClient.get().displayGuiScreen(null);
+            GuiScreen after=KOMEMinecraftClient.currentScreen();
+            if(after==screen.successOwner)KOMEJoinBattleDiagnostics.event("close skipped: GUI-open event retained owning screen");
+            else if(after!=null)KOMEJoinBattleDiagnostics.event("close target replaced by GUI-open event; replacement left open");
+            else KOMEJoinBattleDiagnostics.event("close completed: world view");
+        }
     };
     public KOMEGuiJoinBattle(KOMEPacketJoinBattleViewResponse view){this(view,LIVE);}
     KOMEGuiJoinBattle(KOMEPacketJoinBattleViewResponse view,Presentation presentation){
@@ -89,6 +100,20 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         if(beginPreferredEntry())return true;
         successOwner=this;return false;
     }
+    /** Root confirmation already chose the sole fresh server-listed company; anchors remain server-only. */
+    public boolean beginRootEntry(GuiScreen owner) {
+        KOMEPacketJoinBattleViewResponse view=model.view();
+        if(closed||preferredEntryAttempted||actionPending()||owner==null||KOMEMinecraftClient.currentScreen()!=owner
+                ||!view.isAllowed()||!model.hasUsableActionToken()||!view.currentDeploymentConflict.isEmpty())return false;
+        String sole="";int count=0;
+        for(KOMEPacketJoinBattleViewResponse.CompanyRow row:view.companyRows())
+            if(row.selectable&&!row.companyId.isEmpty()&&row.campaignCombatMembers>0){sole=row.companyId;count++;}
+        if(count!=1)return false;
+        model.select(sole);successOwner=owner;preferredEntryAttempted=true;
+        actionPerformed(new KOMEGuiButton(JOIN,0,0,150,22,"Select / Join Battle"));
+        return pendingJoin!=null;
+    }
+    @Override public boolean doesGuiPauseGame(){return false;}
     public boolean matchesEntryView(KOMEPacketJoinBattleViewResponse view) {
         return pendingJoin!=null&&pendingTile.equals(view.tileId)&&pendingConflict.equals(view.conflictId)
             &&pendingJoinRevision==view.conflictRevision;
@@ -102,15 +127,24 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         tokenRefreshPending=false;model.accept(view);if(mc!=null)initGui();
     }
     public boolean acceptSelection(KOMEPacketJoinBattleSelectionResult result){
-        if(closed||pendingJoin==null||result==null||result.current==null||result.status==null
-                ||result.reason==null||result.message==null||result.message.trim().isEmpty()||result.receiptId==null)return false;
+        if(result!=null)KOMEJoinBattleDiagnostics.event(result.status==KOMEPacketJoinBattleSelectionResult.Status.DEPLOYED
+            ?"DEPLOYED received":"non-DEPLOYED received: "+result.status);
+        if(joinSessionState!=null&&(!joinSessionState.isConnected()||!joinSessionState.isSession(joinSession)))
+            return rejectSelection("session mismatch");
+        if(closed)return rejectSelection("owning action/screen closed");
+        if(pendingJoin==null)return rejectSelection("no pending Join action (retired or duplicate)");
+        if(result==null||result.current==null||result.status==null||result.reason==null
+                ||result.message==null||result.message.trim().isEmpty()||result.receiptId==null)
+            return rejectSelection("malformed result");
         boolean recovery=new UUID(0,0).equals(result.correlation)&&!pendingReceipt.isEmpty()&&pendingReceipt.equals(result.receiptId);
-        if(!pendingJoin.equals(result.correlation)&&!recovery)return false;
+        if(!pendingJoin.equals(result.correlation)&&!recovery)return rejectSelection("request correlation mismatch");
+        if(!presentation.isCurrent(this))return rejectSelection("screen ownership mismatch");
         if(result.status==KOMEPacketJoinBattleSelectionResult.Status.DEPLOYED
                 &&(result.reason!=kome.common.data.KOMEJoinBattleService.Reason.ALLOWED||result.receiptId.isEmpty()
                     ||!pendingTile.equals(result.current.currentDeploymentTile)
                     ||!pendingConflict.equals(result.current.currentDeploymentConflict)
-                    ||!"IN_BATTLE".equals(result.current.currentDeploymentState)))return false;
+                    ||!"IN_BATTLE".equals(result.current.currentDeploymentState)))
+            return rejectSelection("DEPLOYED receipt/deployment evidence mismatch");
         if(result.status==KOMEPacketJoinBattleSelectionResult.Status.REJECTED&&afterMovement)
             org.apache.logging.log4j.LogManager.getLogger("KOME").debug("Direct Join rejected after successful movement: {} ({})",result.reason,result.message);
         model.accept(result);
@@ -124,6 +158,9 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         }
         if(mc!=null)initGui();
         return true;
+    }
+    private boolean rejectSelection(String reason){
+        KOMEJoinBattleDiagnostics.event("result ignored; close skipped: "+reason);return false;
     }
     public void acceptRetreat(KOMEPacketJoinBattleRetreatResult result){
         if(closed||pendingRetreat==null||result==null||result.code==null||result.message==null
@@ -139,10 +176,15 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
     }
     private boolean actionPending(){return pendingJoin!=null||pendingRetreat!=null;}
     private void closeAfterSuccess(String message){
-        if(closed||!presentation.isCurrent(this))return;
+        if(closed){KOMEJoinBattleDiagnostics.event("close skipped: owning action/screen closed");return;}
+        if(!presentation.isCurrent(this)){KOMEJoinBattleDiagnostics.event("close skipped: screen ownership mismatch");return;}
+        KOMEJoinBattleDiagnostics.event("close attempted: authoritative success for owning screen");
         closed=true;
         try {presentation.notifySuccess(message);}
-        finally {presentation.close();}
+        finally {
+            if(presentation.isCurrent(this))presentation.close(this);
+            else KOMEJoinBattleDiagnostics.event("close skipped: screen ownership changed during success notification");
+        }
     }
     @Override public void onGuiClosed(){closed=true;pendingJoin=null;pendingRetreat=null;pendingReceipt="";}
 
@@ -197,6 +239,10 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
                 model.view().tileId,model.view().conflictId,model.view().conflictRevision,
                 model.selectedCompanyId(),model.view().actionToken);
             pendingJoin=request.correlation=UUID.randomUUID();
+            if(presentation==LIVE&&kome.common.KOMEAddon.proxy instanceof kome.client.KOMEClientProxy) {
+                joinSessionState=((kome.client.KOMEClientProxy)kome.common.KOMEAddon.proxy).destinationOptions();
+                joinSession=joinSessionState.sessionId();
+            }
             pendingTile=request.tileId;pendingConflict=request.conflictId;pendingJoinRevision=request.conflictRevision;
             KOMEPacketHandler.network.sendToServer(request);initGui();
         }

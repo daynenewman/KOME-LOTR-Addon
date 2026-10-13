@@ -27,15 +27,20 @@ final class KOMEMapRadialRenderer {
             for (int i = 0; i < menu.segments().size(); i++) {
                 KOMEMapRadialMenu.Segment segment = menu.segments().get(i);
                 KOMEMapRadialMenu.Action action = segment.action;
-                int border = hover == i ? KOMEGuiTheme.COLOR_GOLD : action.enabled ? KOMEGuiTheme.COLOR_GOLD_DARK : KOMEGuiTheme.COLOR_TEXT_DISABLED;
-                int fill = !action.enabled ? KOMEGuiTheme.COLOR_PANEL_DARK : hover == i ? KOMEGuiTheme.COLOR_PARCHMENT_LIGHT : KOMEGuiTheme.COLOR_PARCHMENT_DARK;
-                cells(segment, fill, border);
+                int border=borderColor(menu,action,hover==i);
+                int fill=fillColor(menu,action,hover==i);
+                cells(segment, fill, border,borderStroke(action));
             }
             GL11.glEnable(GL11.GL_TEXTURE_2D);
-            for (KOMEMapRadialMenu.Segment segment : menu.segments())
-                centered(font, segment.action.label, segment.labelX(), segment.labelY() - 4,
-                    segment.action.enabled ? KOMEGuiTheme.COLOR_TEXT_LIGHT : KOMEGuiTheme.COLOR_TEXT_DISABLED);
+            for (KOMEMapRadialMenu.Segment segment : menu.segments()) {
+                String[] lines=labelLines(menu,segment.action);
+                for(int line=0;line<lines.length;line++)centered(font,lines[line],segment.labelX(),
+                    segment.labelY()-4-(lines.length-1)*4+line*8,
+                    menu.enabled(segment.action)?KOMEGuiTheme.COLOR_TEXT_LIGHT:KOMEGuiTheme.COLOR_TEXT_DISABLED);
+            }
             centered(font, menu.tileId(), 0, 12, KOMEGuiTheme.COLOR_GOLD);
+            if(!menu.status().isEmpty())centered(font,font.trimStringToWidth(menu.status(),300),0,
+                KOMEMapRadialMenu.OUTER_RADIUS+24,KOMEGuiTheme.COLOR_WARN);
             if (hover >= 0) centered(font, menu.segments().get(hover).action.description, 0,
                 KOMEMapRadialMenu.OUTER_RADIUS + 8, KOMEGuiTheme.COLOR_TEXT_LIGHT);
         } finally { GL11.glPopMatrix(); GL11.glPopAttrib(); }
@@ -49,7 +54,21 @@ final class KOMEMapRadialRenderer {
                 (int)Math.round(y / scale), color);
         } finally { GL11.glPopMatrix(); }
     }
-    private static void cells(KOMEMapRadialMenu.Segment segment, int fill, int border) {
+    static String[] labelLines(KOMEMapRadialMenu menu,KOMEMapRadialMenu.Action action) {
+        return action==KOMEMapRadialMenu.Action.JOIN_BATTLE?menu.label(action).split(" "):new String[]{menu.label(action)};
+    }
+    static int fillColor(KOMEMapRadialMenu menu,KOMEMapRadialMenu.Action action,boolean hover) {
+        if(!menu.enabled(action))return KOMEGuiTheme.COLOR_PANEL_DARK;
+        if(action==KOMEMapRadialMenu.Action.JOIN_BATTLE)return hover?0xFF945242:0xFF572C24;
+        return hover?KOMEGuiTheme.COLOR_PARCHMENT_LIGHT:KOMEGuiTheme.COLOR_PARCHMENT_DARK;
+    }
+    static int borderColor(KOMEMapRadialMenu menu,KOMEMapRadialMenu.Action action,boolean hover) {
+        if(action==KOMEMapRadialMenu.Action.JOIN_BATTLE)return KOMEGuiTheme.COLOR_WARN;
+        return !menu.enabled(action)?KOMEGuiTheme.COLOR_TEXT_DISABLED:
+            hover?KOMEGuiTheme.COLOR_GOLD:KOMEGuiTheme.COLOR_GOLD_DARK;
+    }
+    static int borderStroke(KOMEMapRadialMenu.Action action){return action==KOMEMapRadialMenu.Action.JOIN_BATTLE?2:1;}
+    private static void cells(KOMEMapRadialMenu.Segment segment, int fill, int border,int stroke) {
         Tessellator tess = Tessellator.instance;
         tess.startDrawingQuads();
         tess.setColorRGBA_I(fill & 0xFFFFFF, fill >>> 24);
@@ -58,10 +77,10 @@ final class KOMEMapRadialRenderer {
         tess.setColorRGBA_I(border & 0xFFFFFF, border >>> 24);
         for (KOMEMapRadialMenu.Cell cell : segment.cells) {
             int x = cell.x, y = cell.y, edges = cell.edges;
-            if ((edges & KOMEMapRadialMenu.Cell.LEFT) != 0) quad(tess, x, y, x + 1, y + grid);
-            if ((edges & KOMEMapRadialMenu.Cell.RIGHT) != 0) quad(tess, x + grid - 1, y, x + grid, y + grid);
-            if ((edges & KOMEMapRadialMenu.Cell.TOP) != 0) quad(tess, x, y, x + grid, y + 1);
-            if ((edges & KOMEMapRadialMenu.Cell.BOTTOM) != 0) quad(tess, x, y + grid - 1, x + grid, y + grid);
+            if ((edges & KOMEMapRadialMenu.Cell.LEFT) != 0) quad(tess, x, y, x + stroke, y + grid);
+            if ((edges & KOMEMapRadialMenu.Cell.RIGHT) != 0) quad(tess, x + grid - stroke, y, x + grid, y + grid);
+            if ((edges & KOMEMapRadialMenu.Cell.TOP) != 0) quad(tess, x, y, x + grid, y + stroke);
+            if ((edges & KOMEMapRadialMenu.Cell.BOTTOM) != 0) quad(tess, x, y + grid - stroke, x + grid, y + grid);
         }
         tess.draw();
     }

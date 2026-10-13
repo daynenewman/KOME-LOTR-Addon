@@ -25,7 +25,7 @@ public class KOMEMapRadialInteractionTest {
     @Before public void setup() throws Exception {
         map=KOMEAccessFixture.allocate(LOTRGuiMap.class); map.width=800; map.height=600;
         for (String name : new String[] {"mapXMin","mapXMax","mapYMin","mapYMax","mapWidth","mapHeight","mapWidgets"}) save(field(LOTRGuiMap.class,name));
-        for (String name : new String[] {"tileRaster","showConquestTiles","destinationCompanyId","routePreviewMove","radialMap","radialLeftCaptured","radialDragMap","companySelector","companyPreview","selectorOnLeft"}) save(field(KOMEConquestMapOverlay.class,name));
+        for (String name : new String[] {"tileRaster","showConquestTiles","destinationCompanyId","routePreviewMove","radialMap","radialLeftCaptured","radialDragMap","companySelector","companyPreview","selectorOnLeft","rootJoin","directJoinScreen","directJoinFromRoot","directJoinViewCorrelation","directJoinSession"}) save(field(KOMEConquestMapOverlay.class,name));
         for (String name : new String[] {"tileColorsById","tileIdsByColor","tileCentersById"}) preserve((Map)field(KOMEConquestMapOverlay.class,name).get(null));
         preserve(KOMEClientData.INSTANCE.tileWaypointLinksByTileId);
         field(LOTRGuiMap.class,"mapXMin").setInt(null,0); field(LOTRGuiMap.class,"mapXMax").setInt(null,800);
@@ -42,7 +42,7 @@ public class KOMEMapRadialInteractionTest {
         menu=(KOMEMapRadialMenu)field(KOMEConquestMapOverlay.class,"radialMenu").get(null);
         save(field(kome.common.KOMEAddon.class,"proxy"));
         save(field(KOMEPacketHandler.class,"network")); network=KOMEAccessFixture.allocate(RecordingNetwork.class);
-        network.sent=new ArrayList<IMessage>(); KOMEPacketHandler.network=network;
+        network.sent=new ArrayList<IMessage>();network.rootDiscovery=new ArrayList<IMessage>();network.autoRootDiscovery=true; KOMEPacketHandler.network=network;
     }
     @After public void cleanup() throws Exception {
         new KOMEConquestMapOverlay().onMapScreenChange(new GuiOpenEvent(null));
@@ -853,6 +853,195 @@ public class KOMEMapRadialInteractionTest {
             "src/main/java/kome/client/KOMECompanyDestinationPanel.java")),java.nio.charset.StandardCharsets.UTF_8);
         assertTrue(panel.contains("model.isSelected(row.companyId)"));assertTrue(panel.contains("selected||hover"));
         assertTrue(source.contains("drawSelectorDestination(map)"));
+    }    @Test public void rootMultipleCompaniesOpenFreshChooserOnFirstClickAndSubmitOnce() throws Exception {
+        for(boolean success:new boolean[]{true,false})try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;pan(2292,58,1);network.autoRootDiscovery=false;network.sent.clear();KOMEClientProxy proxy=connectSelector();
+            assertTrue(click(400,300,1));assertEquals(1,network.sent.size());assertEquals(5,menu.segments().size());
+            KOMEPacketJoinBattleViewRequest initial=(KOMEPacketJoinBattleViewRequest)network.sent.get(0);
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.allowed(initial),selectorConnection);
+            assertEquals(6,menu.segments().size());assertTrue(clickRoot(0));
+            assertEquals(2,network.sent.size());assertSame(map,client.mc.currentScreen);
+            assertEquals(0,client.mc.screenChanges);
+            assertEquals(6,menu.segments().size());assertFalse(menu.enabled(KOMEMapRadialMenu.Action.JOIN_BATTLE));
+            assertEquals("Loading Join Battle...",menu.label(menu.segments().get(0).action));
+            KOMEPacketJoinBattleViewRequest fresh=(KOMEPacketJoinBattleViewRequest)network.sent.get(1);
+            assertNotEquals(initial.correlation,fresh.correlation);
+            for(int rapid=0;rapid<10;rapid++)click(400,243,0);assertEquals(2,network.sent.size());
+            KOMEPacketJoinBattleViewResponse current=KOMERootJoinBattleTest.allowed(fresh);
+            current.companies.clear();KOMERootJoinBattleTest.addRow(current,"CURRENT_COMPANY",true);KOMERootJoinBattleTest.addRow(current,"OTHER_COMPANY",true);
+            proxy.acceptJoinBattleView(current,selectorConnection);
+            assertTrue(client.mc.currentScreen instanceof kome.client.gui.KOMEGuiJoinBattle);
+            kome.client.gui.KOMEGuiJoinBattle gui=(kome.client.gui.KOMEGuiJoinBattle)client.mc.currentScreen;
+            java.lang.reflect.Field modelField=field(gui.getClass(),"model");
+            kome.client.gui.KOMEJoinBattleViewModel model=(kome.client.gui.KOMEJoinBattleViewModel)modelField.get(gui);
+            assertEquals("",model.selectedCompanyId());assertEquals("CURRENT_COMPANY",model.view().companyRows().get(0).companyId);
+            assertFalse(model.canSubmit());assertEquals(2,network.sent.size());
+            invokeChooserButton(gui,100);assertEquals("CURRENT_COMPANY",model.selectedCompanyId());
+            invokeChooserButton(gui,1);invokeChooserButton(gui,1);assertEquals(3,network.sent.size());
+            KOMEPacketJoinBattleSelectionRequest selection=(KOMEPacketJoinBattleSelectionRequest)network.sent.get(2);
+            assertEquals("CURRENT_COMPANY",selection.companyId);assertEquals(current.conflictId,selection.conflictId);
+            assertEquals(current.conflictRevision,selection.conflictRevision);assertEquals(current.actionToken,selection.actionToken);
+            for(IMessage packet:network.sent)assertFalse(packet instanceof KOMEPacketCompanyMovementRequest);
+            KOMEPacketJoinBattleSelectionResult result=directResult(selection,current,success);
+            if(!success){result.reason=KOMEJoinBattleService.Reason.SAFE_POSITION_UNAVAILABLE;result.message="No safe standing position is available.";}
+            client.mc.thePlayer=client.player;
+            // A retired map handler must not intercept the visible chooser's request.
+            field(KOMEConquestMapOverlay.class,"directJoinScreen").set(null,new kome.client.gui.KOMEGuiJoinBattle(current));
+            result=kome.common.network.KOMEPopulationWire.copyForPublication(result,KOMEPacketJoinBattleSelectionResult::new);
+            proxy.acceptJoinBattleSelectionResult(result,selectorConnection);proxy.acceptJoinBattleSelectionResult(result,selectorConnection);gui.acceptSelection(result);
+            if(success){assertNull(client.mc.currentScreen);assertEquals(2,client.mc.screenChanges);assertEquals(1,client.player.messages.size());}
+            else {assertSame(gui,client.mc.currentScreen);assertEquals(result.message,gui.status());assertTrue(client.player.messages.isEmpty());}
+            assertEquals(3,network.sent.size());
+        }
+    }
+    @Test public void soleFreshCompanyArmsThenRevalidatesAndDirectlyJoinsWithoutOpeningChooser() throws Exception {
+        for(int outcome=0;outcome<4;outcome++)try(DirectClient client=new DirectClient()) {
+            client.mc.thePlayer=null;pan(2292,58,1);network.autoRootDiscovery=false;network.sent.clear();
+            KOMEClientProxy proxy=connectSelector();click(400,300,1);
+            // Old radial evidence deliberately says multiple; the activation read decides.
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.allowed((KOMEPacketJoinBattleViewRequest)network.sent.get(0)),selectorConnection);
+            clickRoot(0);assertEquals(2,network.sent.size());assertSame(map,client.mc.currentScreen);
+            KOMEPacketJoinBattleViewRequest first=(KOMEPacketJoinBattleViewRequest)network.sent.get(1);
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.one(first),selectorConnection);
+            assertEquals("Confirm",menu.label(KOMEMapRadialMenu.Action.JOIN_BATTLE));
+            assertEquals(2,network.sent.size());assertEquals(0,client.mc.screenChanges);
+            clickRoot(0);assertEquals(3,network.sent.size());
+            KOMEPacketJoinBattleViewRequest second=(KOMEPacketJoinBattleViewRequest)network.sent.get(2);
+            assertNotEquals(first.correlation,second.correlation);
+            KOMEPacketJoinBattleViewResponse latest=KOMERootJoinBattleTest.allowed(second);
+            if(outcome!=1)latest.companies.clear();
+            if(outcome!=1&&outcome!=2)KOMERootJoinBattleTest.addRow(latest,"FRESH_SOLE",true);
+            if(outcome==2){latest.reason=KOMEJoinBattleService.Reason.WITHDRAWN;latest.reasonText="You have withdrawn.";}
+            proxy.acceptJoinBattleView(latest,selectorConnection);
+            if(outcome==1) {
+                assertTrue(client.mc.currentScreen instanceof kome.client.gui.KOMEGuiJoinBattle);assertEquals(3,network.sent.size());
+                kome.client.gui.KOMEJoinBattleViewModel model=(kome.client.gui.KOMEJoinBattleViewModel)field(kome.client.gui.KOMEGuiJoinBattle.class,"model").get(client.mc.currentScreen);
+                assertEquals("",model.selectedCompanyId());continue;
+            }
+            if(outcome==2){assertSame(map,client.mc.currentScreen);assertEquals(5,menu.segments().size());assertEquals(3,network.sent.size());continue;}
+            assertSame(map,client.mc.currentScreen);assertEquals(0,client.mc.screenChanges);assertEquals(4,network.sent.size());
+            KOMEPacketJoinBattleSelectionRequest join=(KOMEPacketJoinBattleSelectionRequest)network.sent.get(3);
+            assertEquals("FRESH_SOLE",join.companyId);assertEquals(latest.actionToken,join.actionToken);
+            assertEquals(latest.conflictId,join.conflictId);assertEquals(latest.conflictRevision,join.conflictRevision);
+            for(int rapid=0;rapid<8;rapid++)click(400,243,0);assertEquals(4,network.sent.size());
+            KOMEPacketJoinBattleSelectionResult result=directResult(join,latest,outcome==0);
+            if(outcome==3){result.reason=KOMEJoinBattleService.Reason.SAFE_POSITION_UNAVAILABLE;result.message="No safe standing position.";}
+            client.mc.thePlayer=client.player;proxy.acceptJoinBattleSelectionResult(result,selectorConnection);proxy.acceptJoinBattleSelectionResult(result,selectorConnection);
+            if(outcome==0){assertNull(client.mc.currentScreen);assertEquals(1,client.mc.screenChanges);assertEquals(1,client.player.messages.size());}
+            else {assertTrue(client.mc.currentScreen instanceof kome.client.gui.KOMEGuiJoinBattle);assertEquals(result.message,((kome.client.gui.KOMEGuiJoinBattle)client.mc.currentScreen).status());}
+            assertEquals(4,network.sent.size());
+        }
+    }
+    @Test public void soleRootDirectResultCannotCloseWrongScreenSessionOrDuplicateAction() throws Exception {
+        for(int invalidation=0;invalidation<5;invalidation++)try(DirectClient client=new DirectClient()) {
+            client.mc.thePlayer=null;pan(2292,58,1);network.autoRootDiscovery=false;network.sent.clear();
+            KOMEClientProxy proxy=connectSelector();click(400,300,1);
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.one((KOMEPacketJoinBattleViewRequest)network.sent.get(0)),selectorConnection);
+            clickRoot(0);proxy.acceptJoinBattleView(KOMERootJoinBattleTest.one((KOMEPacketJoinBattleViewRequest)network.sent.get(1)),selectorConnection);
+            clickRoot(0);KOMEPacketJoinBattleViewResponse view=KOMERootJoinBattleTest.one((KOMEPacketJoinBattleViewRequest)network.sent.get(2));
+            proxy.acceptJoinBattleView(view,selectorConnection);
+            KOMEPacketJoinBattleSelectionResult result=directResult((KOMEPacketJoinBattleSelectionRequest)network.sent.get(3),view,true);
+            GuiScreen expected=map;
+            if(invalidation==0)result.correlation=UUID.randomUUID();
+            if(invalidation==1){expected=new GuiScreen();client.mc.displayGuiScreen(expected);}
+            if(invalidation==2)proxy.destinationOptions().start(new Object());
+            if(invalidation==3)proxy.destinationOptions().start(selectorConnection);
+            if(invalidation==4)result.current.currentDeploymentConflict="WRONG";
+            int changes=client.mc.screenChanges;client.mc.thePlayer=client.player;
+            proxy.acceptJoinBattleSelectionResult(result,selectorConnection);
+            assertSame(expected,client.mc.currentScreen);assertEquals(changes,client.mc.screenChanges);
+            assertEquals(4,network.sent.size());assertTrue(client.player.messages.isEmpty());
+        }
+    }
+    @Test public void mapOwningMovementSelectorAlreadyInheritsNonPausingLOTRScreen() {
+        assertFalse(map.doesGuiPauseGame());
+    }
+    @Test public void rootChooserRejectsWrongActionReplacementAndSessionResults() throws Exception {
+        for(int invalidation=0;invalidation<4;invalidation++)try(DirectClient client=new DirectClient()) {
+            client.mc.thePlayer=null;pan(2292,58,1);network.autoRootDiscovery=false;network.sent.clear();
+            KOMEClientProxy proxy=connectSelector();click(400,300,1);
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.allowed((KOMEPacketJoinBattleViewRequest)network.sent.get(0)),selectorConnection);
+            clickRoot(0);clickRoot(0);
+            KOMEPacketJoinBattleViewResponse view=KOMERootJoinBattleTest.allowed((KOMEPacketJoinBattleViewRequest)network.sent.get(1));
+            proxy.acceptJoinBattleView(view,selectorConnection);
+            kome.client.gui.KOMEGuiJoinBattle gui=(kome.client.gui.KOMEGuiJoinBattle)client.mc.currentScreen;
+            invokeChooserButton(gui,100);invokeChooserButton(gui,1);
+            KOMEPacketJoinBattleSelectionResult result=directResult((KOMEPacketJoinBattleSelectionRequest)network.sent.get(2),view,true);
+            net.minecraft.client.gui.GuiScreen owner=gui;
+            if(invalidation==0)result.correlation=UUID.randomUUID();
+            if(invalidation==1){owner=new kome.client.gui.KOMEGuiJoinBattle(view);client.mc.displayGuiScreen(owner);}
+            if(invalidation==2)proxy.destinationOptions().start(new Object());
+            if(invalidation==3)proxy.destinationOptions().start(selectorConnection);
+            int changes=client.mc.screenChanges;client.mc.thePlayer=client.player;
+            proxy.acceptJoinBattleSelectionResult(result,selectorConnection);
+            assertSame(owner,client.mc.currentScreen);assertEquals(changes,client.mc.screenChanges);
+            assertTrue(client.player.messages.isEmpty());assertEquals(3,network.sent.size());
+        }
+    }    @Test public void rootFreshEligibilityLossNeverOpensChooserAndDynamicRefreshRemovesGhostJoin() throws Exception {
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;network.autoRootDiscovery=false;KOMEClientProxy proxy=connectSelector();
+            click(400,300,1);KOMEPacketJoinBattleViewRequest first=(KOMEPacketJoinBattleViewRequest)network.sent.get(0);
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.allowed(first),selectorConnection);
+            assertEquals(0,menu.hit(0,-57));clickRoot(0);clickRoot(0);
+            KOMEPacketJoinBattleViewRequest fresh=(KOMEPacketJoinBattleViewRequest)network.sent.get(1);
+            KOMEPacketJoinBattleViewResponse denied=KOMERootJoinBattleTest.allowed(fresh);denied.reason=KOMEJoinBattleService.Reason.WITHDRAWN;denied.reasonText="You have withdrawn.";
+            proxy.acceptJoinBattleView(denied,selectorConnection);
+            assertSame(map,client.mc.currentScreen);assertEquals(0,client.mc.screenChanges);assertEquals(5,menu.segments().size());
+            assertEquals(-1,menu.hit(0,-57));assertFalse(KOMEConquestMapOverlay.radialOwnsPointer(map,400,243));assertTrue(menu.status().contains("withdrawn"));
+            KOMEConquestMapOverlay.refreshRootJoinBattle();fresh=(KOMEPacketJoinBattleViewRequest)network.sent.get(2);
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.allowed(fresh),selectorConnection);assertEquals(6,menu.segments().size());
+            KOMEConquestMapOverlay.refreshRootJoinBattle();fresh=(KOMEPacketJoinBattleViewRequest)network.sent.get(3);
+            denied=KOMERootJoinBattleTest.allowed(fresh);denied.conflictState=KOMEConflictRecord.State.ENDED;
+            proxy.acceptJoinBattleView(denied,selectorConnection);assertEquals(5,menu.segments().size());assertEquals(-1,menu.hit(0,-57));
+            for(int frame=0;frame<100;frame++)KOMEConquestMapOverlay.radialOwnsPointer(map,400,243);
+            assertEquals(4,network.sent.size());assertEquals(-1,menu.hit(0,0));
+        }
+    }
+    @Test public void rootArmClearsOnEscapeCloseTileOtherActionStaleSessionAndScreenReplacement() throws Exception {
+        for(int clear=0;clear<7;clear++)try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;pan(2292,58,1);network.autoRootDiscovery=false;network.sent.clear();KOMEClientProxy proxy=connectSelector();
+            click(400,300,1);KOMEPacketJoinBattleViewRequest first=(KOMEPacketJoinBattleViewRequest)network.sent.get(0);
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.allowed(first),selectorConnection);clickRoot(0);
+            KOMERootJoinBattle root=(KOMERootJoinBattle)field(KOMEConquestMapOverlay.class,"rootJoin").get(null);
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.one((KOMEPacketJoinBattleViewRequest)network.sent.get(1)),selectorConnection);
+            assertTrue(root.armed(System.nanoTime()/1000000L));
+            if(clear==0)KOMEConquestMapOverlay.onMapKeyTyped(map,org.lwjgl.input.Keyboard.KEY_ESCAPE);
+            if(clear==1)clickRoot(3);
+            if(clear==2){centers().put("T050",new int[]{2291,58});assertTrue(KOMEConquestMapOverlay.focusRadialForTile(map,"T050"));}
+            if(clear==3)clickRoot(5);
+            if(clear==4)proxy.acceptJoinBattleView(KOMERootJoinBattleTest.allowed(first),selectorConnection);
+            if(clear==5){proxy.destinationOptions().start(new Object());KOMEConquestMapOverlay.radialOwnsPointer(map,400,243);}
+            if(clear==6)new KOMEConquestMapOverlay().onMapScreenChange(new GuiOpenEvent(null));
+            assertFalse(root.armed(System.nanoTime()/1000000L));
+            for(IMessage packet:network.sent)assertTrue(packet instanceof KOMEPacketJoinBattleViewRequest);
+            assertFalse(client.mc.currentScreen instanceof kome.client.gui.KOMEGuiJoinBattle);
+            // The first stale root response can never reopen a chooser after these context changes.
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.allowed(first),selectorConnection);
+            assertFalse(client.mc.currentScreen instanceof kome.client.gui.KOMEGuiJoinBattle);
+        }
+    }
+    @Test public void knownTileFocusHookKeepsZoomAndLateRootReplyCannotCancelMovementDirectJoin() throws Exception {
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();
+            pan(100,200,2);assertFalse(KOMEConquestMapOverlay.focusRadialForTile(map,"unknown"));
+            assertTrue(KOMEConquestMapOverlay.focusRadialForTile(map,"T001"));
+            double[] anchor=KOMEConquestMapOverlay.radialAnchorMapPosition("T001");
+            assertEquals(anchor[0],field(LOTRGuiMap.class,"posX").getFloat(map),0);assertEquals(anchor[1],field(LOTRGuiMap.class,"posY").getFloat(map),0);
+            assertEquals(2,field(LOTRGuiMap.class,"zoomScale").getFloat(map),0);
+            new KOMEConquestMapOverlay().onMapScreenChange(new GuiOpenEvent(null));pan(2292,58,1);network.sent.clear();network.rootDiscovery.clear();
+            prepareDirect(proxy,kome.common.command.KOMECompanyMovementService.Consequence.EXPECTED_CREATE_CONFLICT);
+            assertEquals(1,network.rootDiscovery.size());
+            KOMEPacketJoinBattleViewRequest old=(KOMEPacketJoinBattleViewRequest)network.rootDiscovery.get(0);
+            proxy.acceptJoinBattleView(KOMERootJoinBattleTest.allowed(old),selectorConnection);
+            assertEquals(KOMECompanyDestinationSelector.Phase.JOINING,selector().phase());assertEquals(3,network.sent.size());
+            proxy.acceptJoinBattleView(directView("company",true,1),selectorConnection);
+            assertEquals(4,network.sent.size());assertTrue(network.sent.get(3) instanceof KOMEPacketJoinBattleSelectionRequest);
+        }
+    }
+    private void invokeChooserButton(kome.client.gui.KOMEGuiJoinBattle gui,int id) throws Exception {
+        GuiButton button=null;for(Object value:(List)field(GuiScreen.class,"buttonList").get(gui))if(((GuiButton)value).id==id)button=(GuiButton)value;
+        assertNotNull(button);java.lang.reflect.Method action=gui.getClass().getDeclaredMethod("actionPerformed",GuiButton.class);
+        action.setAccessible(true);action.invoke(gui,button);
     }    private void deliverSelectionPage(KOMEClientProxy proxy) throws Exception {
         KOMEPacketCompanyDestinationRequest request=(KOMEPacketCompanyDestinationRequest)network.sent.get(network.sent.size()-1);
         int from=request.afterCompanyId.isEmpty()?1:Integer.parseInt(request.afterCompanyId.substring(1))+1;
@@ -972,8 +1161,23 @@ public class KOMEMapRadialInteractionTest {
     private void preserve(Map map) {savedMaps.put(map,new HashMap(map));map.clear();}
     private static Field field(Class<?> type,String name) throws Exception {Field f=type.getDeclaredField(name);f.setAccessible(true);return f;}
     public static class RecordingNetwork extends SimpleNetworkWrapper {
-        List<IMessage> sent;
+        List<IMessage> sent,rootDiscovery;
+        boolean autoRootDiscovery;
         public RecordingNetwork() {super("radial-test");}
-        @Override public void sendToServer(IMessage message) {sent.add(message);}
+        @Override public void sendToServer(IMessage message) {
+            // Existing movement/native-input fixtures model an ordinary ineligible root.
+            // Keep its new read-only discovery queries separately; root-flow tests record all packets.
+            if(autoRootDiscovery&&message instanceof KOMEPacketJoinBattleViewRequest)try {
+                KOMERootJoinBattle root=(KOMERootJoinBattle)field(KOMEConquestMapOverlay.class,"rootJoin").get(null);
+                if(root!=null&&root.pending()==message&&!root.chooserPending()) {
+                    rootDiscovery.add(message);
+                    KOMEPacketJoinBattleViewResponse denied=new KOMEPacketJoinBattleViewResponse();
+                    denied.tileId=((KOMEPacketJoinBattleViewRequest)message).tileId;denied.correlation=((KOMEPacketJoinBattleViewRequest)message).correlation;
+                    denied.reason=kome.common.data.KOMEJoinBattleService.Reason.NO_ACTIVE_CONFLICT;
+                    denied.reasonText="No active conflict.";KOMEConquestMapOverlay.acceptJoinBattleView(denied);return;
+                }
+            } catch(Exception failure){throw new AssertionError(failure);}
+            sent.add(message);
+        }
     }
 }
