@@ -19,6 +19,7 @@ public class KOMECompanyDestinationPanelTest {
                 assertTrue(layout.panel.y+layout.panel.height<=size[1]);
                 for(KOMECompanyDestinationPanel.Control c:KOMECompanyDestinationPanel.Control.values()) {
                     KOMECompanyDestinationPanel.Rect rect=layout.controls.get(c);
+                    if(c==KOMECompanyDestinationPanel.Control.CONFIRM_JOIN) {assertNull(rect);continue;}
                     assertEquals(c,layout.controlAt(rect.x+1,rect.y+1));assertTrue(layout.panel.contains(rect.x+1,rect.y+1));
                 }
                 for(int i=0;i<layout.capacity;i++)assertEquals(i,layout.rowAt(layout.row(i).x+1,layout.row(i).y+1,8));

@@ -30,6 +30,22 @@ public class KOMEJoinBattlePacketTest {
         assertFalse(f.data.isDirty());
         assertTrue(f.data.getConflictService().records().isEmpty());
     }
+    @Test public void viewCorrelationRoundTripsAndIsEchoedWithoutBecomingAuthority() throws Exception {
+        KOMEAccessFixture f=new KOMEAccessFixture();java.util.UUID correlation=java.util.UUID.randomUUID();
+        ByteBuf bytes=Unpooled.buffer();
+        try {
+            new KOMEPacketJoinBattleViewRequest("T100",correlation).toBytes(bytes);
+            KOMEPacketJoinBattleViewRequest request=new KOMEPacketJoinBattleViewRequest();request.fromBytes(bytes);
+            assertEquals(correlation,request.correlation);
+            KOMEPacketJoinBattleViewResponse response=(KOMEPacketJoinBattleViewResponse)new KOMEPacketJoinBattleViewRequest.Handler().onMessage(request,f.context);
+            assertEquals(KOMEJoinBattleService.Reason.NO_ACTIVE_CONFLICT,response.reason);assertEquals(correlation,response.correlation);
+            KOMEPacketJoinBattleViewResponse copy=KOMEPopulationWire.copyForPublication(response,KOMEPacketJoinBattleViewResponse::new);
+            assertEquals(correlation,copy.correlation);assertTrue(f.data.getConflictService().records().isEmpty());
+        } finally {bytes.release();}
+        ByteBuf missing=Unpooled.buffer();
+        try {KOMEPopulationWire.writeText(missing,"T100");new KOMEPacketJoinBattleViewRequest().fromBytes(missing);fail("Missing g8 correlation accepted");}
+        catch(IndexOutOfBoundsException expected) { } finally {missing.release();}
+    }
 
     @Test public void viewAndSelectionWireAreBoundedAndContainNoClientFactionOrPosition() throws Exception {
         KOMEPacketJoinBattleSelectionRequest request=new KOMEPacketJoinBattleSelectionRequest("T100","CF4",9L,"C2","token");
@@ -109,6 +125,7 @@ public class KOMEJoinBattlePacketTest {
 
         ByteBuf encoded=Unpooled.buffer();
         try{
+            encoded.writeLong(0);encoded.writeLong(0);
             KOMEPopulationWire.writeText(encoded,"T100");KOMEPopulationWire.writeText(encoded,"CF1");encoded.writeLong(3L);
             KOMEPopulationWire.writeText(encoded,"ORDINARY");KOMEPopulationWire.writeText(encoded,"gondor");
             KOMEPopulationWire.writeText(encoded,"ALLOWED");KOMEPopulationWire.writeText(encoded,"allowed");
@@ -163,6 +180,63 @@ public class KOMEJoinBattlePacketTest {
             KOMEPacketJoinBattleRetreatRequest decoded=new KOMEPacketJoinBattleRetreatRequest();
             decoded.fromBytes(bytes);assertEquals("CF2",decoded.conflictId);
         }finally{bytes.release();}
+    }
+
+    @Test public void actionCorrelationRoundTripsAndServerEchoesWithoutChangingAuthority() throws Exception {
+        KOMEAccessFixture f=new KOMEAccessFixture();java.util.UUID id=java.util.UUID.randomUUID();
+        KOMEPacketJoinBattleSelectionRequest join=new KOMEPacketJoinBattleSelectionRequest("T100","CF1",1L,"C1","missing-token");
+        join.correlation=id;
+        KOMEPacketJoinBattleSelectionRequest copied=KOMEPopulationWire.copyForPublication(join,KOMEPacketJoinBattleSelectionRequest::new);
+        assertEquals(id,copied.correlation);
+        KOMEPacketJoinBattleSelectionResult result=(KOMEPacketJoinBattleSelectionResult)new KOMEPacketJoinBattleSelectionRequest.Handler().onMessage(copied,f.context);
+        assertEquals(id,result.correlation);assertEquals(KOMEPacketJoinBattleSelectionResult.Status.REJECTED,result.status);
+        assertEquals(id,KOMEPopulationWire.copyForPublication(result,KOMEPacketJoinBattleSelectionResult::new).correlation);
+        KOMEPacketJoinBattleRetreatRequest retreat=new KOMEPacketJoinBattleRetreatRequest("CF1");retreat.correlation=id;
+        KOMEPacketJoinBattleRetreatRequest retreatCopy=KOMEPopulationWire.copyForPublication(retreat,KOMEPacketJoinBattleRetreatRequest::new);
+        assertEquals(id,retreatCopy.correlation);
+        KOMEPacketJoinBattleRetreatResult retreatResult=(KOMEPacketJoinBattleRetreatResult)new KOMEPacketJoinBattleRetreatRequest.Handler().onMessage(retreatCopy,f.context);
+        assertEquals(id,retreatResult.correlation);assertFalse(retreatResult.code==kome.common.data.KOMEFormalRetreatService.Code.RETREATED);
+        assertEquals(id,KOMEPopulationWire.copyForPublication(retreatResult,KOMEPacketJoinBattleRetreatResult::new).correlation);
+        assertTrue(f.data.getConflictService().records().isEmpty());
+        assertFalse("Old live g8 action layout must not connect to g9",KOMEPopulationWire.accepts("1.0.9-integration-g8"));
+    }
+
+    @Test public void oldConnectionResultsCannotReachReplacementSessionPresentation() throws Exception {
+        RecordingClient proxy=KOMEAccessFixture.allocate(RecordingClient.class);Object old=new Object(),fresh=new Object();
+        proxy.destinationOptions().start(old);
+        KOMEPacketJoinBattleSelectionResult join=new KOMEPacketJoinBattleSelectionResult();
+        KOMEPacketJoinBattleRetreatResult retreat=new KOMEPacketJoinBattleRetreatResult();
+        proxy.acceptJoinBattleSelectionResult(join,old);proxy.acceptJoinBattleRetreatResult(retreat,old);
+        assertEquals(2,proxy.results);
+        proxy.destinationOptions().start(fresh);
+        proxy.acceptJoinBattleSelectionResult(join,old);proxy.acceptJoinBattleRetreatResult(retreat,old);assertEquals(2,proxy.results);
+        proxy.acceptJoinBattleSelectionResult(join,fresh);proxy.acceptJoinBattleRetreatResult(retreat,fresh);assertEquals(4,proxy.results);
+        proxy.destinationOptions().start(null);
+        proxy.acceptJoinBattleSelectionResult(join,fresh);proxy.acceptJoinBattleRetreatResult(retreat,fresh);assertEquals(4,proxy.results);
+    }
+    public static class RecordingClient extends kome.client.KOMEClientProxy {
+        int results;
+        java.util.List<Runnable> tasks;
+        @Override public void enqueueClientTask(Runnable task){tasks.add(task);}
+        @Override public void displayJoinBattleSelectionResult(KOMEPacketJoinBattleSelectionResult result){results++;}
+        @Override public void displayJoinBattleRetreatResult(KOMEPacketJoinBattleRetreatResult result){results++;}
+    }
+    @Test public void queuedHandlersCaptureOriginalConnectionAndCannotPublishAfterReconnect() throws Exception {
+        RecordingClient proxy=KOMEAccessFixture.allocate(RecordingClient.class);proxy.tasks=new java.util.ArrayList<Runnable>();
+        net.minecraft.client.network.NetHandlerPlayClient handler=KOMEAccessFixture.allocate(net.minecraft.client.network.NetHandlerPlayClient.class);
+        java.lang.reflect.Constructor<cpw.mods.fml.common.network.simpleimpl.MessageContext> constructor=
+            cpw.mods.fml.common.network.simpleimpl.MessageContext.class.getDeclaredConstructor(net.minecraft.network.INetHandler.class,cpw.mods.fml.relauncher.Side.class);
+        constructor.setAccessible(true);
+        cpw.mods.fml.common.network.simpleimpl.MessageContext context=constructor.newInstance(handler,cpw.mods.fml.relauncher.Side.CLIENT);
+        kome.common.KOMECommonProxy previous=kome.common.KOMEAddon.proxy;
+        try {
+            kome.common.KOMEAddon.proxy=proxy;proxy.destinationOptions().start(handler);
+            new KOMEPacketJoinBattleSelectionResult.Handler().onMessage(new KOMEPacketJoinBattleSelectionResult(),context);
+            new KOMEPacketJoinBattleRetreatResult.Handler().onMessage(new KOMEPacketJoinBattleRetreatResult(),context);
+            assertEquals(2,proxy.tasks.size());assertEquals(0,proxy.results);
+            proxy.destinationOptions().start(new Object());
+            for(Runnable task:proxy.tasks)task.run();assertEquals(0,proxy.results);
+        } finally {kome.common.KOMEAddon.proxy=previous;}
     }
 
     private static String source(String path)throws Exception{return new String(Files.readAllBytes(Paths.get(path)),StandardCharsets.UTF_8);}

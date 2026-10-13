@@ -10,7 +10,7 @@ import kome.common.data.KOMECompanyMovementResult;
 
 /** Presentation/navigation over accepted server projections. Submits only explicitly confirmed server evidence; never derives eligibility. */
 final class KOMECompanyDestinationSelector {
-    enum Phase { CLOSED, LOADING, READY, THROTTLED, ERROR, SUBMITTING }
+    enum Phase { CLOSED, LOADING, READY, THROTTLED, ERROR, SUBMITTING, JOINING }
     private static final class Cursor {
         final String after, catalogue;
         final int start;
@@ -37,6 +37,10 @@ final class KOMECompanyDestinationSelector {
     private Result failure;
     private KOMEPacketCompanyMovementRequest movement;
     private String notice="";
+    private boolean joinAfterArrival;
+    private kome.common.network.KOMEPacketJoinBattleViewRequest joinView;
+    private String arrivedCompany="";
+    private KOMECompanyMovementResult arrivedMovement;
     KOMECompanyDestinationSelector(KOMECompanyDestinationClientState queries) {this.queries=Objects.requireNonNull(queries);}
     KOMEPacketCompanyDestinationRequest open(String tile) {
         close();queries.close();session=queries.sessionId();destination=tile;
@@ -52,6 +56,7 @@ final class KOMECompanyDestinationSelector {
         clear();
     }
     private void clear() {
+        joinAfterArrival=false;joinView=null;arrivedCompany="";arrivedMovement=null;
         phase=Phase.CLOSED;session=null;destination="";history.clear();page=null;pending=null;selected=null;rowOffset=0;pageIndex=0;error="";failure=null;movement=null;notice="";enterAtEnd=false;orderedRows=Collections.emptyList();
     }
     private KOMEPacketCompanyDestinationRequest request() {
@@ -109,7 +114,7 @@ final class KOMECompanyDestinationSelector {
     }
     boolean canRetry(long now) {return isOpen()&&(phase==Phase.READY||phase==Phase.ERROR||phase==Phase.THROTTLED&&now>=retryAt);}
     boolean hasNext() {return isOpen()&&phase==Phase.READY&&page!=null&&(rowOffset+windowCapacity<rows().size()||page.hasMore&&pageIndex+1<MAX_PAGE_HISTORY);}
-    boolean hasPrevious() {return isOpen()&&phase!=Phase.LOADING&&phase!=Phase.SUBMITTING&&(pageIndex>0||phase==Phase.READY&&rowOffset>0);}
+    boolean hasPrevious() {return isOpen()&&phase!=Phase.LOADING&&phase!=Phase.SUBMITTING&&phase!=Phase.JOINING&&(pageIndex>0||phase==Phase.READY&&rowOffset>0);}
     Phase phase() {isOpen();return phase;}
     String destination() {isOpen();return destination;}
     int pageNumber() {return pageIndex+1;}
@@ -150,6 +155,7 @@ final class KOMECompanyDestinationSelector {
     String message(long now) {
         switch(phase()) {
             case SUBMITTING:return "Submitting movement order...";
+            case JOINING:return "Company arrived. Loading Join Battle...";
             case LOADING:return "Loading company options...";
             case THROTTLED:return now<retryAt?"Server busy; retry in "+(retryAt-now)+" ms.":"Server busy; Retry is available.";
             case ERROR:return error;
@@ -163,19 +169,36 @@ final class KOMECompanyDestinationSelector {
             &&row.legacyFingerprint.matches("[0-9a-f]{64}")&&row.confirmationFingerprint.matches("[0-9a-f]{64}");
     }
     KOMEPacketCompanyMovementRequest confirm() {
+        return confirm(false);
+    }
+    boolean canConfirmAndJoin() {
+        Row row=selected();return canConfirm()&&row.canArriveNow&&row.status==KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW
+            &&(row.consequence==KOMECompanyMovementService.Consequence.EXPECTED_CREATE_CONFLICT||row.consequence==KOMECompanyMovementService.Consequence.EXPECTED_JOIN_CONFLICT);
+    }
+    KOMEPacketCompanyMovementRequest confirm(boolean join) {
+        if(join&&!canConfirmAndJoin())return null;
         if(!canConfirm())return null;
+        joinAfterArrival=join;
         movement=queries.submit(selected);phase=Phase.SUBMITTING;notice="";return movement;
     }
     /** Connection/session acceptance happens in the proxy before this presentation transition. */
     KOMEPacketCompanyDestinationRequest acceptMovement(KOMECompanyMovementResult result) {
         if(!isOpen()||phase!=Phase.SUBMITTING||movement==null||!session.equals(result.session)
                 ||movement.sequence!=result.sequence||movement.previewSequence!=result.previewSequence
-                ||!movement.companyId.equals(result.companyId)||!destination.equals(result.destination))return null;
+                ||!movement.companyId.equals(result.companyId)||!destination.equals(result.destination)) {cancelJoinIntent();return null;}
+        boolean continueJoin=joinAfterArrival&&result.outcome==KOMECompanyMovementResult.Outcome.ARRIVED
+            &&kome.common.data.KOMEArmyMovementOrder.CONFLICT_HELD.equals(result.orderStatus)&&destination.equals(result.currentTile);
+        joinAfterArrival=false;
         selected=null;page=null;movement=null;
         if(result.accepted()) {
             notice=result.outcome==KOMECompanyMovementResult.Outcome.ARRIVED?"Arrived at "+destination+("conflict_held".equals(result.orderStatus)?"; committed to battle.":
                 "access_halted".equals(result.orderStatus)?"; halted after access changed.":"."):
                 "Order accepted: "+result.orderStatus.replace('_',' ')+". Arrival not completed.";
+            if(continueJoin) {
+                arrivedMovement=result;
+                arrivedCompany=result.companyId;joinView=new kome.common.network.KOMEPacketJoinBattleViewRequest(destination,UUID.randomUUID());
+                phase=Phase.JOINING;return null;
+            }
             history.clear();history.add(new Cursor("",""));pageIndex=0;return request();
         }
         phase=Phase.ERROR;failure=Result.CATALOGUE_CHANGED;
@@ -183,6 +206,27 @@ final class KOMECompanyDestinationSelector {
         notice=error+" Refresh Preview before confirming again.";return null;
     }
     String notice() {return notice;}
+    boolean isDuplicateArrival(KOMECompanyMovementResult result) {
+        KOMECompanyMovementResult accepted=arrivedMovement;
+        return isOpen()&&accepted!=null&&accepted.session.equals(result.session)&&accepted.sequence==result.sequence
+            &&accepted.previewSequence==result.previewSequence&&accepted.companyId.equals(result.companyId)
+            &&accepted.destination.equals(result.destination)&&accepted.outcome==result.outcome
+            &&accepted.orderId.equals(result.orderId)&&accepted.orderStatus.equals(result.orderStatus)
+            &&accepted.currentTile.equals(result.currentTile);
+    }
+    UUID sessionId() {return session;}
+    boolean ownsJoinContinuation(UUID expected) {return isOpen()&&phase==Phase.JOINING&&arrivedMovement!=null&&session.equals(expected);}
+    void joinStatus(String message) {if(isOpen()&&phase==Phase.JOINING)notice=message;}
+    void cancelJoinIntent() {
+        joinAfterArrival=false;joinView=null;arrivedCompany="";arrivedMovement=null;
+        if(phase==Phase.JOINING) {phase=Phase.ERROR;failure=Result.CATALOGUE_CHANGED;error="Company moved successfully. Join Battle continuation was cancelled.";notice=error;}
+    }
+    kome.common.network.KOMEPacketJoinBattleViewRequest joinViewRequest() {return isOpen()?joinView:null;}
+    String acceptJoinView(kome.common.network.KOMEPacketJoinBattleViewResponse view) {
+        if(!isOpen()||phase!=Phase.JOINING||joinView==null)return null;
+        if(!joinView.correlation.equals(view.correlation)||!destination.equals(view.tileId)) {cancelJoinIntent();return null;}
+        String company=arrivedCompany;joinView=null;arrivedCompany="";return company;
+    }
     static List<String> confirmationSummary(Row row) {
         return Arrays.asList(name(row)+": "+row.currentTile+" -> "+row.destinationTile,population(row),
             classification(row)+" | "+row.distance+" tiles | "+eta(row),

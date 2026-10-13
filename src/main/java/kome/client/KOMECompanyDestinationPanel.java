@@ -9,7 +9,7 @@ import net.minecraft.client.gui.Gui;
 /** Compact native-GUI-space selector; rectangle geometry is shared by drawing and click capture. */
 final class KOMECompanyDestinationPanel {
     static final int ROW_HEIGHT=44;
-    enum Control { ROWS_UP, ROWS_DOWN, PREVIOUS, NEXT, RETRY, CONFIRM, BACK, CLEAR, CLOSE }
+    enum Control { ROWS_UP, ROWS_DOWN, PREVIOUS, NEXT, RETRY, CONFIRM, CONFIRM_JOIN, BACK, CLEAR, CLOSE }
     static final class Rect {
         final int x,y,width,height;
         Rect(int x,int y,int width,int height) {this.x=x;this.y=y;this.width=width;this.height=height;}
@@ -17,21 +17,28 @@ final class KOMECompanyDestinationPanel {
     }
     static final class Layout {
         final Rect panel;
+        final boolean showJoin;
         final int capacity,rowTop,detailTop,detailHeight,viewRight,viewBottom,viewTop;
         final EnumMap<Control,Rect> controls=new EnumMap<Control,Rect>(Control.class);
         Layout(KOMEMapViewport view,boolean left) {
+            this(view,left,false);
+        }
+        Layout(KOMEMapViewport view,boolean left,boolean showJoin) {
+            this.showJoin=showJoin;
             viewRight=(int)view.right;viewBottom=(int)view.bottom;viewTop=(int)view.top;
             int available=Math.max(1,(int)(view.bottom-view.top)-16);
             int width=Math.min((int)(view.right-view.left)-16,Math.min(260,Math.max(180,(int)(view.right-view.left)/3)));
-            capacity=Math.max(1,Math.min(6,(available-212)/ROW_HEIGHT));
-            int height=Math.min(available,212+capacity*ROW_HEIGHT);
+            int chrome=showJoin?234:212;
+            capacity=Math.max(1,Math.min(6,(available-chrome)/ROW_HEIGHT));
+            int height=Math.min(available,chrome+capacity*ROW_HEIGHT);
             int x=left?(int)view.left+8:(int)view.right-width-8,y=(int)view.top+8;
             panel=new Rect(x,y,width,height);rowTop=y+36;detailTop=rowTop+capacity*ROW_HEIGHT+4;
-            int footer=y+height-66;detailHeight=Math.max(0,footer-detailTop-4);
+            int footer=y+height-(showJoin?88:66);detailHeight=Math.max(0,footer-detailTop-4);
             controls.put(Control.ROWS_UP,new Rect(x+width-44,y+18,18,14));
             controls.put(Control.ROWS_DOWN,new Rect(x+width-24,y+18,18,14));
             controls.put(Control.CONFIRM,new Rect(x+6,footer,panel.width-12,20));
             footer+=22;
+            if(showJoin) {controls.put(Control.CONFIRM_JOIN,new Rect(x+6,footer,panel.width-12,20));footer+=22;}
             int buttonWidth=(width-20)/3;
             Control[] upper={Control.PREVIOUS,Control.NEXT,Control.RETRY},lower={Control.BACK,Control.CLEAR,Control.CLOSE};
             for(int i=0;i<3;i++) {
@@ -44,7 +51,7 @@ final class KOMECompanyDestinationPanel {
             for(int i=0;i<Math.min(capacity,count);i++)if(row(i).contains(x,y))return i;
             return -1;
         }
-        Control controlAt(int x,int y) {for(Control c:Control.values())if(controls.get(c).contains(x,y))return c;return null;}
+        Control controlAt(int x,int y) {for(Control c:Control.values())if(controls.get(c)!=null&&controls.get(c).contains(x,y))return c;return null;}
     }
     static boolean enabled(Control control,KOMECompanyDestinationSelector model,Layout layout,long now) {
         switch(control) {
@@ -54,6 +61,7 @@ final class KOMECompanyDestinationPanel {
             case NEXT:return model.hasNext();
             case RETRY:return model.canRetry(now);
             case CONFIRM:return model.canConfirm();
+            case CONFIRM_JOIN:return model.canConfirmAndJoin();
             case CLEAR:return model.selected()!=null&&model.phase()!=KOMECompanyDestinationSelector.Phase.SUBMITTING;
             default:return true;
         }
@@ -103,11 +111,12 @@ final class KOMECompanyDestinationPanel {
                 line==0?KOMEGuiTheme.COLOR_WARN:KOMEGuiTheme.COLOR_TEXT_MUTED);
         for(Control control:Control.values()) {
             Rect rect=layout.controls.get(control);
+            if(rect==null)continue;
             boolean active=enabled(control,model,layout,now);
             KOMEGuiTheme.drawCard(rect.x,rect.y,rect.width,rect.height,active&&rect.contains(mouseX,mouseY));
             String label=control==Control.ROWS_UP?"<":control==Control.ROWS_DOWN?">":
                 control==Control.PREVIOUS?"Prev":control==Control.NEXT?"Next":control==Control.RETRY?(model.phase()==KOMECompanyDestinationSelector.Phase.THROTTLED?"Retry":"Refresh"):
-                control==Control.CONFIRM?(model.phase()==KOMECompanyDestinationSelector.Phase.SUBMITTING?"Submitting...":
+                control==Control.CONFIRM_JOIN?"Confirm & Join Battle":control==Control.CONFIRM?(model.phase()==KOMECompanyDestinationSelector.Phase.SUBMITTING?"Submitting...":
                     model.canConfirm()?"Confirm Move":"Movement unavailable"):control==Control.BACK?"Back":control==Control.CLEAR?"Clear":"Close";
             font.drawString(label,rect.x+(rect.width-font.getStringWidth(label))/2,rect.y+(rect.height-8)/2,
                 active?KOMEGuiTheme.COLOR_TEXT_LIGHT:KOMEGuiTheme.COLOR_TEXT_DISABLED);

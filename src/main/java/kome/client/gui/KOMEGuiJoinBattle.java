@@ -3,6 +3,8 @@ package kome.client.gui;
 import kome.common.network.*;
 import net.minecraft.client.gui.GuiButton;
 import net.minecraft.client.gui.GuiScreen;
+import kome.client.KOMEMinecraftClient;
+import java.util.UUID;
 
 /** Compact KOM-19 Join Battle entry surface. */
 public final class KOMEGuiJoinBattle extends GuiScreen {
@@ -11,26 +13,114 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
     private int page;
     private boolean tokenRefreshPending;
     private boolean retreatConfirmation;
-    public KOMEGuiJoinBattle(KOMEPacketJoinBattleViewResponse view){model=new KOMEJoinBattleViewModel(view);}
+    private boolean afterMovement;
+    private boolean preferredEntryAttempted;
+    private UUID pendingJoin, pendingRetreat;
+    private long pendingJoinRevision;
+    private String pendingReceipt="", pendingTile="", pendingConflict="";
+    private boolean closed;
+    private GuiScreen successOwner=this;
+    private final Presentation presentation;
+    interface Presentation {
+        boolean isCurrent(KOMEGuiJoinBattle screen);
+        void notifySuccess(String message);
+        void close();
+    }
+    private static final Presentation LIVE=new Presentation() {
+        public boolean isCurrent(KOMEGuiJoinBattle screen){return KOMEMinecraftClient.currentScreen()==screen.successOwner;}
+        public void notifySuccess(String message){
+            if(KOMEMinecraftClient.player()!=null)KOMEMinecraftClient.player().addChatMessage(new net.minecraft.util.ChatComponentText(message));
+        }
+        public void close(){KOMEMinecraftClient.displayGui(null);}
+    };
+    public KOMEGuiJoinBattle(KOMEPacketJoinBattleViewResponse view){this(view,LIVE);}
+    KOMEGuiJoinBattle(KOMEPacketJoinBattleViewResponse view,Presentation presentation){
+        model=new KOMEJoinBattleViewModel(view);this.presentation=presentation;
+    }
+    /** Preference is presentation only: select accepts only the current server's eligible rows. */
+    public KOMEGuiJoinBattle(KOMEPacketJoinBattleViewResponse view,String preferredCompany) {
+        this(view,preferredCompany,LIVE);
+    }
+    KOMEGuiJoinBattle(KOMEPacketJoinBattleViewResponse view,String preferredCompany,Presentation presentation) {
+        this(view,presentation);afterMovement=true;
+        if(view.currentDeploymentConflict.isEmpty())model.select(preferredCompany);
+        if(!view.isAllowed())model.setStatus("Could not join: "+view.reasonText);
+        for(int i=0;i<view.companyRows().size();i++)if(view.companyRows().get(i).companyId.equals(model.selectedCompanyId()))page=i/PAGE_SIZE;
+    }
     public String tileId(){return model.view().tileId;}
+    /** Calls the same KOM-19 action as its Join button; the server still validates the physical anchor. */
+    public boolean beginPreferredEntry() {
+        if(closed||actionPending()||!afterMovement||preferredEntryAttempted||!model.canSubmit()
+                ||!model.view().currentDeploymentConflict.isEmpty()||model.view().conflictId.isEmpty()
+                ||model.view().conflictState==null||model.view().conflictState==kome.common.data.KOMEConflictRecord.State.ENDED)return false;
+        int matches=0;
+        for(KOMEPacketJoinBattleViewResponse.CompanyRow row:model.view().companyRows())
+            if(row.selectable&&row.companyId.equals(model.selectedCompanyId()))matches++;
+        if(matches!=1)return false;
+        preferredEntryAttempted=true;
+        actionPerformed(new KOMEGuiButton(JOIN,0,0,150,22,"Select / Join Battle"));return true;
+    }
+    /** Reuses KOM-19's action/result state without displaying a redundant picker. */
+    public boolean beginPreferredEntry(GuiScreen owner) {
+        if(closed||preferredEntryAttempted||actionPending()||owner==null||KOMEMinecraftClient.currentScreen()!=owner)return false;
+        successOwner=owner;
+        if(beginPreferredEntry())return true;
+        successOwner=this;return false;
+    }
+    public boolean matchesEntryView(KOMEPacketJoinBattleViewResponse view) {
+        return pendingJoin!=null&&pendingTile.equals(view.tileId)&&pendingConflict.equals(view.conflictId)
+            &&pendingJoinRevision==view.conflictRevision;
+    }
+    public void useOwnScreen(){successOwner=this;}
+    public String status(){return model.status();}
     KOMEJoinBattleViewModel viewModel(){return model;}
-    public void acceptView(KOMEPacketJoinBattleViewResponse view){tokenRefreshPending=false;model.accept(view);if(mc!=null)initGui();}
-    public void acceptSelection(KOMEPacketJoinBattleSelectionResult result){
+    public void acceptView(KOMEPacketJoinBattleViewResponse view){
+        if(closed)return;
+        pendingJoin=null;pendingRetreat=null;pendingReceipt="";retreatConfirmation=false;
+        tokenRefreshPending=false;model.accept(view);if(mc!=null)initGui();
+    }
+    public boolean acceptSelection(KOMEPacketJoinBattleSelectionResult result){
+        if(closed||pendingJoin==null||result==null||result.current==null||result.status==null
+                ||result.reason==null||result.message==null||result.message.trim().isEmpty()||result.receiptId==null)return false;
+        boolean recovery=new UUID(0,0).equals(result.correlation)&&!pendingReceipt.isEmpty()&&pendingReceipt.equals(result.receiptId);
+        if(!pendingJoin.equals(result.correlation)&&!recovery)return false;
+        if(result.status==KOMEPacketJoinBattleSelectionResult.Status.DEPLOYED
+                &&(result.reason!=kome.common.data.KOMEJoinBattleService.Reason.ALLOWED||result.receiptId.isEmpty()
+                    ||!pendingTile.equals(result.current.currentDeploymentTile)
+                    ||!pendingConflict.equals(result.current.currentDeploymentConflict)
+                    ||!"IN_BATTLE".equals(result.current.currentDeploymentState)))return false;
         model.accept(result);
-        if(mc!=null&&result.status==KOMEPacketJoinBattleSelectionResult.Status.DEPLOYED){
-            if(mc.thePlayer!=null)mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText(result.message));
-            mc.displayGuiScreen(null);return;
+        if(result.status==KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING){
+            pendingReceipt=result.receiptId;
+        }else{
+            pendingJoin=null;pendingReceipt="";
+        }
+        if(result.status==KOMEPacketJoinBattleSelectionResult.Status.DEPLOYED){
+            closeAfterSuccess(result.message);return true;
         }
         if(mc!=null)initGui();
+        return true;
     }
     public void acceptRetreat(KOMEPacketJoinBattleRetreatResult result){
+        if(closed||pendingRetreat==null||result==null||result.code==null||result.message==null
+                ||result.message.trim().isEmpty()||!pendingRetreat.equals(result.correlation))return;
+        if(result.code==kome.common.data.KOMEFormalRetreatService.Code.RETREATED
+                &&(!pendingTile.equals(result.tileId)||!pendingConflict.equals(result.conflictId)))return;
+        pendingRetreat=null;
         retreatConfirmation=false;model.setStatus(result.message);
-        if(mc!=null&&result.code==kome.common.data.KOMEFormalRetreatService.Code.RETREATED){
-            if(mc.thePlayer!=null)mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText(result.message));
-            mc.displayGuiScreen(null);return;
+        if(result.code==kome.common.data.KOMEFormalRetreatService.Code.RETREATED){
+            closeAfterSuccess(result.message);return;
         }
         if(mc!=null)initGui();
     }
+    private boolean actionPending(){return pendingJoin!=null||pendingRetreat!=null;}
+    private void closeAfterSuccess(String message){
+        if(closed||!presentation.isCurrent(this))return;
+        closed=true;
+        try {presentation.notifySuccess(message);}
+        finally {presentation.close();}
+    }
+    @Override public void onGuiClosed(){closed=true;pendingJoin=null;pendingRetreat=null;pendingReceipt="";}
 
     @Override public void initGui(){
         buttonList.clear();int x=(width-WIDTH)/2,y=(height-HEIGHT)/2;
@@ -40,24 +130,26 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         for(int i=0;i<shown;i++){
             KOMEPacketJoinBattleViewResponse.CompanyRow row=model.view().companyRows().get(start+i);
             KOMEGuiButton button=new KOMEGuiButton(ROW+i,x+24,y+106+i*25,WIDTH-48,21,
-                row.displayName+" ["+row.companyId+"] - "+row.campaignCombatMembers+" combat");
+                (row.displayName.trim().isEmpty()||row.displayName.equals(row.companyId)?"Campaign Company":row.displayName)
+                    +" - "+row.campaignCombatMembers+" combat");
             button.enabled=row.selectable&&model.view().currentDeploymentConflict.isEmpty();
             button.setSelected(row.companyId.equals(model.selectedCompanyId()));buttonList.add(button);
         }
         KOMEGuiButton previous=new KOMEGuiButton(PREVIOUS,x+24,y+238,80,20,"Previous");previous.enabled=page>0;buttonList.add(previous);
         KOMEGuiButton next=new KOMEGuiButton(NEXT,x+112,y+238,80,20,"Next");next.enabled=page+1<pages;buttonList.add(next);
         KOMEGuiButton join=new KOMEGuiButton(JOIN,x+24,y+HEIGHT-36,150,22,"Select / Join Battle");
-        join.enabled=model.canAttemptSubmit()&&model.view().currentDeploymentConflict.isEmpty();buttonList.add(join);
+        join.enabled=!actionPending()&&model.canAttemptSubmit()&&model.view().currentDeploymentConflict.isEmpty();buttonList.add(join);
         if(!model.view().formalRetreatCompanyIds.isEmpty()){
             KOMEGuiButton retreat=new KOMEGuiButton(RETREAT,x+24,y+HEIGHT-64,382,22,
                 retreatConfirmation?"Confirm Formal Retreat":"Formal Retreat");
-            retreat.enabled=model.view().formalRetreatAvailable;buttonList.add(retreat);
+            retreat.enabled=!actionPending()&&model.view().formalRetreatAvailable;buttonList.add(retreat);
         }
-        buttonList.add(new KOMEGuiButton(REFRESH,x+184,y+HEIGHT-36,100,22,"Refresh"));
+        KOMEGuiButton refresh=new KOMEGuiButton(REFRESH,x+184,y+HEIGHT-36,100,22,"Refresh");
+        refresh.enabled=!actionPending();buttonList.add(refresh);
         buttonList.add(new KOMEGuiButton(CLOSE,x+294,y+HEIGHT-36,112,22,"Close"));
     }
     @Override protected void actionPerformed(GuiButton button){
-        if(!button.enabled)return;
+        if(closed||!button.enabled||actionPending()&&button.id!=CLOSE)return;
         if(button.id>=ROW&&button.id<ROW+PAGE_SIZE){model.select(model.view().companyRows().get(page*PAGE_SIZE+button.id-ROW).companyId);initGui();return;}
         if(button.id==PREVIOUS){page--;initGui();return;}if(button.id==NEXT){page++;initGui();return;}
         if(button.id==REFRESH){requestFreshView();return;}
@@ -66,8 +158,10 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
             if(!retreatConfirmation){retreatConfirmation=true;model.setStatus(
                 "Confirm: retreat all personally commanded companies in "+model.view().conflictId+".");initGui();return;}
             retreatConfirmation=false;
-            KOMEPacketHandler.network.sendToServer(new KOMEPacketJoinBattleRetreatRequest(
-                model.view().conflictId));return;
+            KOMEPacketJoinBattleRetreatRequest request=new KOMEPacketJoinBattleRetreatRequest(model.view().conflictId);
+            pendingRetreat=request.correlation=UUID.randomUUID();
+            pendingTile=model.view().tileId;pendingConflict=model.view().conflictId;
+            KOMEPacketHandler.network.sendToServer(request);initGui();return;
         }
         if(button.id==JOIN&&model.canAttemptSubmit()){
             if(!model.canSubmit()){
@@ -75,9 +169,12 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
                 if(!tokenRefreshPending){tokenRefreshPending=true;requestFreshView();}
                 return;
             }
-            KOMEPacketHandler.network.sendToServer(new KOMEPacketJoinBattleSelectionRequest(
+            KOMEPacketJoinBattleSelectionRequest request=new KOMEPacketJoinBattleSelectionRequest(
                 model.view().tileId,model.view().conflictId,model.view().conflictRevision,
-                model.selectedCompanyId(),model.view().actionToken));
+                model.selectedCompanyId(),model.view().actionToken);
+            pendingJoin=request.correlation=UUID.randomUUID();
+            pendingTile=request.tileId;pendingConflict=request.conflictId;pendingJoinRevision=request.conflictRevision;
+            KOMEPacketHandler.network.sendToServer(request);initGui();
         }
     }
     @Override public void drawScreen(int mouseX,int mouseY,float partial){
@@ -94,6 +191,7 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         fontRendererObj.drawString(fontRendererObj.trimStringToWidth(model.status(),WIDTH-48),x+24,y+91,
             v.isAllowed()?KOMEGuiTheme.COLOR_GOOD:KOMEGuiTheme.COLOR_WARN);
         if(v.companyRows().isEmpty())fontRendererObj.drawString("No eligible committed Campaign companies.",x+24,y+120,KOMEGuiTheme.COLOR_TEXT_MUTED);
+        if(afterMovement)fontRendererObj.drawString("Company moved successfully.",x+24,y+260,KOMEGuiTheme.COLOR_GOOD);
         if(!v.currentDeploymentConflict.isEmpty()){
             String deployment="IN_BATTLE".equals(v.currentDeploymentState)?"In battle":
                 "RETURNING".equals(v.currentDeploymentState)?"Returning from":"Joining";

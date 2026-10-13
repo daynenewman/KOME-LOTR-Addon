@@ -18,6 +18,13 @@ import static kome.common.command.KOMECompanyMovementServiceTest.Fixture;
 
 /** Real map submission, NPC recreation, verified physical publication and canonical conflict commit. */
 public class KOMECompanyMapMovementArrivalTest {
+    /** Allows client composition tests to use this native arrival fixture and the real KOM-19 packet boundary. */
+    public interface Scenario {
+        kome.common.network.KOMEPacketCompanyMovementRequest confirm(KOMECompanyDestinationOptions.Row row);
+        kome.common.network.KOMEPacketJoinBattleViewRequest afterMovement(KOMECompanyMovementResult result,KOMEWorldData data,net.minecraft.entity.player.EntityPlayerMP actor);
+        void afterView(kome.common.network.KOMEPacketJoinBattleViewResponse view);
+    }
+    public void exercise(boolean join,Scenario scenario) throws Exception {arrive(true,join,scenario);}
     @Rule public final KOMETileTestResources geometry=new KOMETileTestResources();
     private KOMEPopulationTestConfig config;
     @Before public void before() throws Exception {config=new KOMEPopulationTestConfig();}
@@ -30,6 +37,9 @@ public class KOMECompanyMapMovementArrivalTest {
     @Test public void hostileJoinCommitsToExistingConflictAfterVerifiedPhysicalArrival() throws Exception {arrive(true,true);}
 
     private void arrive(boolean hostile,boolean join) throws Exception {
+        arrive(hostile,join,null);
+    }
+    private void arrive(boolean hostile,boolean join,Scenario scenario) throws Exception {
         String type="kome.test.MapArrivalSoldier";
         Object previousClass=EntityList.stringToClassMapping.put(type,ArrivalSoldier.class);
         Object previousName=EntityList.classToStringMapping.put(ArrivalSoldier.class,type);
@@ -60,8 +70,11 @@ public class KOMECompanyMapMovementArrivalTest {
             }
             Evaluation preview=f.evaluate();assertTrue(preview.denial==null?"":preview.denial.reason,preview.allowed());
             UUID oldEntity=f.unit.entity;
-            KOMECompanyMovementResult result=KOMECompanyMapMovementSubmission.submit(f.service,f.data,f.player,UUID.randomUUID(),1,1,
-                "C1",f.destination,preview.previewFingerprint,preview.confirmation.serviceFingerprint);
+            kome.common.network.KOMEPacketCompanyMovementRequest request=scenario==null?
+                new kome.common.network.KOMEPacketCompanyMovementRequest(UUID.randomUUID(),1,1,"C1",f.destination,preview.previewFingerprint,preview.confirmation.serviceFingerprint):
+                scenario.confirm(new KOMECompanyDestinationOptions.Row(preview));
+            KOMECompanyMovementResult result=KOMECompanyMapMovementSubmission.submit(f.service,f.data,f.player,request.session,request.sequence,request.previewSequence,
+                request.companyId,request.destination,request.legacyFingerprint,request.confirmationFingerprint);
             KOMEArmyMovementOrder order=f.data.armyMovements.get(result.orderId);assertNotNull(result.detail,order);
             assertEquals(order.pendingSpawnReason,KOMECompanyMovementResult.Outcome.ARRIVED,result.outcome);
             assertEquals(0,f.company.movementAllowance);assertEquals(f.destination,f.company.currentTile);
@@ -83,6 +96,22 @@ public class KOMECompanyMapMovementArrivalTest {
             } else {
                 assertEquals(KOMEArmyMovementOrder.ARRIVED,order.status);assertTrue(f.company.movementOrderId.isEmpty());
                 assertNull(f.data.getConflictService().get(f.destination));
+            }
+            if(scenario!=null) {
+                kome.common.network.KOMEPacketJoinBattleViewRequest viewRequest=scenario.afterMovement(result,f.data,f.player);assertNotNull(viewRequest);
+                java.lang.reflect.Constructor<cpw.mods.fml.common.network.simpleimpl.MessageContext> constructor=
+                    cpw.mods.fml.common.network.simpleimpl.MessageContext.class.getDeclaredConstructor(net.minecraft.network.INetHandler.class,cpw.mods.fml.relauncher.Side.class);
+                constructor.setAccessible(true);
+                cpw.mods.fml.common.network.simpleimpl.MessageContext context=constructor.newInstance(f.player.playerNetServerHandler,cpw.mods.fml.relauncher.Side.SERVER);
+                kome.common.network.KOMEPacketJoinBattleViewResponse view=(kome.common.network.KOMEPacketJoinBattleViewResponse)
+                    new kome.common.network.KOMEPacketJoinBattleViewRequest.Handler().onMessage(viewRequest,context);
+                assertEquals(f.data.getConflictService().get(f.destination).getConflictId(),view.conflictId);
+                if(view.isAllowed())assertTrue(KOMEJoinBattleService.INSTANCE.validateSelectedCompany(f.data,f.player,f.destination,
+                    KOMEConflictContracts.ExpectedConflict.at(view.conflictId,view.conflictRevision),"C1").isAllowed());
+                scenario.afterView(view);
+                assertEquals(1,f.data.armyMovements.size());assertEquals(0,f.company.movementAllowance);
+                assertEquals(f.destination,f.company.currentTile);assertEquals(1,physical.world.loadedEntityList.size());
+                assertNotNull(f.data.getConflictService().get(f.destination).getCommitments().get("C1"));
             }
             int audits=f.data.centralAudit.size();assertFalse(KOMECompanyMapMovementSubmission.submit(f.service,f.data,f.player,
                 UUID.randomUUID(),2,1,"C1",f.destination,preview.previewFingerprint,preview.confirmation.serviceFingerprint).accepted());

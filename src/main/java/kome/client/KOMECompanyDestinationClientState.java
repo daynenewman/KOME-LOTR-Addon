@@ -48,6 +48,8 @@ public final class KOMECompanyDestinationClientState {
     }
     public synchronized UUID sessionId() {return session;}
     public synchronized boolean isSession(UUID expected) {return session.equals(expected);}
+    public synchronized boolean isConnection(Object expected) {return connection!=null&&connection==expected;}
+    public synchronized boolean isConnected() {return connection!=null;}
     public synchronized KOMECompanyDestinationOptions latest() {return latest;}
     public synchronized boolean isLoading() {return loading;}
 }

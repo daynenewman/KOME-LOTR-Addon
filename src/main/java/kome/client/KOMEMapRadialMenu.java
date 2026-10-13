@@ -21,6 +21,8 @@ final class KOMEMapRadialMenu {
         INFO("Info", true, "Open existing tile information"),
         CLOSE("Close", true, "Dismiss this ring"),
         MOVE_HERE("Move Here", true, "Choose a company and preview its route"),
+        REINFORCE("Reinforce", true, "Choose a company to move to this battle"),
+        ATTACK("Attack", true, "Choose a company and preview hostile movement"),
         BATTLE_ACTIONS("Battle", false, "Battle actions are not wired in this prototype"),
         BACK("Back", true, "Return to the first ring");
         final String label, description;
@@ -36,17 +38,21 @@ final class KOMEMapRadialMenu {
         Action.MOVEMENT, Action.BATTLE, Action.INFO, Action.CLOSE, Action.COMPANIES);
     private static final List<Segment> MOVEMENT = layout(56, -90, Action.MOVE_HERE, Action.BACK);
     private static final List<Segment> BATTLE = layout(44, -90, Action.BATTLE_ACTIONS, Action.BACK);
+    private static final List<Segment> REINFORCEMENT = layout(56,-90,Action.REINFORCE,Action.BACK);
+    private static final List<Segment> ATTACK = layout(56,-90,Action.ATTACK,Action.BACK);
+    private boolean activeBattle, knownHostile;
     private String tileId = "";
     private State state = State.ROOT;
     boolean open(String tile) {
         if (!KOMEConquestTile.isCanonicalTileId(tile)) return false;
-        tileId = tile; state = State.ROOT; return true;
+        tileId = tile; state = State.ROOT; activeBattle=false;knownHostile=false;return true;
     }
     void close() { tileId = ""; state = State.ROOT; }
     boolean isOpen() { return !tileId.isEmpty(); }
     String tileId() { return tileId; }
     State state() { return state; }
-    List<Segment> segments() { return state == State.MOVEMENT ? MOVEMENT : state == State.BATTLE ? BATTLE : ROOT; }
+    void battleContext(boolean active,boolean hostile) {activeBattle=active;knownHostile=hostile;}
+    List<Segment> segments() { return state == State.MOVEMENT ? MOVEMENT : state == State.BATTLE ? activeBattle?REINFORCEMENT:knownHostile?ATTACK:BATTLE : ROOT; }
     Action activate(int index) {
         if (!isOpen() || index < 0 || index >= segments().size()) return null;
         Action action = segments().get(index).action;

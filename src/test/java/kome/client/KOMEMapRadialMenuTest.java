@@ -5,6 +5,24 @@ import static org.junit.Assert.*;
 import static kome.client.KOMEMapRadialMenu.*;
 
 public class KOMEMapRadialMenuTest {
+    @Test public void contextSelectsReinforceAttackOrDisabledShellWithoutMovementAuthority() {
+        KOMEMapRadialMenu menu=open();menu.activate(1);
+        menu.battleContext(true,false);assertEquals(Action.REINFORCE,menu.activate(0));assertEquals("Reinforce",menu.segments().get(0).action.label);
+        menu.battleContext(false,true);assertEquals(Action.ATTACK,menu.activate(0));assertEquals("Attack",menu.segments().get(0).action.label);
+        menu.battleContext(false,false);assertNull(menu.activate(0));assertEquals(Action.BATTLE_ACTIONS,menu.segments().get(0).action);
+        menu.open("T001");menu.activate(1);assertNull(menu.activate(0));
+    }
+    @Test public void hostileOwnerHintUsesNativeDiplomacyAndFailsClosedForUnknownOrFriendlyContext() {
+        lotr.common.fac.LOTRFactionRelations.overrideRelations(lotr.common.fac.LOTRFaction.GONDOR,lotr.common.fac.LOTRFaction.MORDOR,lotr.common.fac.LOTRFactionRelations.Relation.ENEMY);
+        try {
+            assertTrue(KOMEConquestMapOverlay.knownHostileOwner("gondor","mordor"));
+            assertFalse(KOMEConquestMapOverlay.knownHostileOwner("gondor","gondor"));
+            assertFalse(KOMEConquestMapOverlay.knownHostileOwner("","mordor"));assertFalse(KOMEConquestMapOverlay.knownHostileOwner("gondor",""));
+            assertFalse(KOMEConquestMapOverlay.knownHostileOwner("gondor","unknown-faction"));
+            lotr.common.fac.LOTRFactionRelations.overrideRelations(lotr.common.fac.LOTRFaction.GONDOR,lotr.common.fac.LOTRFaction.MORDOR,lotr.common.fac.LOTRFactionRelations.Relation.FRIEND);
+            assertFalse(KOMEConquestMapOverlay.knownHostileOwner("gondor","mordor"));
+        } finally {lotr.common.fac.LOTRFactionRelations.overrideRelations(lotr.common.fac.LOTRFaction.GONDOR,lotr.common.fac.LOTRFaction.MORDOR,lotr.common.fac.LOTRFactionRelations.Relation.NEUTRAL);}
+    }
     @Test public void rootMovementBackPreservesSelectedTile() {
         KOMEMapRadialMenu menu = open();
         assertEquals(5,menu.segments().size()); assertEquals(Action.MOVEMENT,menu.activate(0));

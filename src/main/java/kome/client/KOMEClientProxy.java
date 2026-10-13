@@ -138,6 +138,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @Override public void acceptCompanyMovementResult(kome.common.data.KOMECompanyMovementResult result,Object connection) {
         if(destinationOptions().acceptMovement(result,connection))KOMEConquestMapOverlay.acceptCompanyMovementResult(result);
+        else KOMEConquestMapOverlay.cancelMovementJoinIntent(result);
     }
 
     @Override
@@ -269,8 +270,21 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
             ((kome.client.gui.KOMEGuiJoinBattle)current).acceptView(message);
         else KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiJoinBattle(message));
     }
+    @Override public void acceptJoinBattleView(kome.common.network.KOMEPacketJoinBattleViewResponse message,Object connection) {
+        if(!destinationOptions().isConnection(connection))return;
+        if(!message.correlation.equals(new java.util.UUID(0,0)))KOMEConquestMapOverlay.acceptJoinBattleView(message);
+        else displayJoinBattleGui(message);
+    }
+
+    @Override public void acceptJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message,Object connection) {
+        if(destinationOptions().isConnection(connection))displayJoinBattleSelectionResult(message);
+    }
+    @Override public void acceptJoinBattleRetreatResult(kome.common.network.KOMEPacketJoinBattleRetreatResult message,Object connection) {
+        if(destinationOptions().isConnection(connection))displayJoinBattleRetreatResult(message);
+    }
 
       @Override public void displayJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message) {
+          if(KOMEConquestMapOverlay.acceptDirectJoinResult(message))return;
           net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
           if(current instanceof kome.client.gui.KOMEGuiJoinBattle)
               ((kome.client.gui.KOMEGuiJoinBattle)current).acceptSelection(message);

@@ -113,17 +113,146 @@ public class KOMEGuiJoinBattleInteractionTest {
         assertEquals("CF2",((KOMEPacketJoinBattleRetreatRequest)network.sent.get(0)).conflictId);
     }
 
+    @Test public void movementPreferenceUsesOnlyServerSelectableRowsAndTheExistingJoinAction() throws Exception {
+        KOMEGuiJoinBattle screen=new KOMEGuiJoinBattle(view(validToken()),"C4");screen.initGui();
+        assertEquals("C4",screen.viewModel().selectedCompanyId());assertTrue(network.sent.isEmpty());
+        assertTrue(screen.beginPreferredEntry());assertFalse(screen.beginPreferredEntry());assertEquals(1,network.sent.size());
+        assertEquals("C4",((KOMEPacketJoinBattleSelectionRequest)network.sent.get(0)).companyId);
+        assertEquals("",new KOMEGuiJoinBattle(view(validToken()),"C999").viewModel().selectedCompanyId());
+        KOMEPacketJoinBattleViewResponse denied=view(validToken());denied.reason=KOMEJoinBattleService.Reason.WITHDRAWN;denied.reasonText="You have withdrawn from this conflict.";
+        KOMEGuiJoinBattle blocked=new KOMEGuiJoinBattle(denied,"C4");assertEquals("",blocked.viewModel().selectedCompanyId());assertTrue(blocked.viewModel().status().contains("Could not join"));
+        assertFalse(blocked.beginPreferredEntry());assertFalse(new KOMEGuiJoinBattle(view(validToken()),"C999").beginPreferredEntry());
+        KOMEPacketJoinBattleViewResponse deployed=view(validToken());deployed.currentDeploymentConflict="CF2";
+        assertEquals("",new KOMEGuiJoinBattle(deployed,"C4").viewModel().selectedCompanyId());
+    }
+    @Test public void existingAuthorityDenialIsDisplayedAfterMovementWithoutAnotherMovementRequest() throws Exception {
+        KOMEGuiJoinBattle screen=new KOMEGuiJoinBattle(view(validToken()),"C4");screen.initGui();screen.actionPerformed(button(screen,1));
+        KOMEAccessFixture f=new KOMEAccessFixture();
+        kome.common.network.KOMEPacketJoinBattleSelectionResult denial=(kome.common.network.KOMEPacketJoinBattleSelectionResult)
+            new KOMEPacketJoinBattleSelectionRequest.Handler().onMessage((KOMEPacketJoinBattleSelectionRequest)network.sent.get(0),f.context);
+        screen.acceptSelection(denial);assertEquals(denial.message,screen.viewModel().status());assertFalse(screen.viewModel().canSubmit());
+        assertTrue(KOMEGuiJoinBattle.class.getDeclaredField("afterMovement").getType()==boolean.class);
+        assertEquals(1,network.sent.size());assertTrue(f.data.armyMovements.isEmpty());
+    }
+    @Test public void standaloneJoinStillWaitsForExplicitPlayerClickAndDoesNotDisplayStableIds() throws Exception {
+        KOMEGuiJoinBattle screen=new KOMEGuiJoinBattle(view(validToken()));screen.initGui();
+        screen.actionPerformed(button(screen,101));assertFalse(screen.beginPreferredEntry());assertTrue(network.sent.isEmpty());
+        assertFalse(button(screen,100).displayString.contains("C3"));assertFalse(button(screen,101).displayString.contains("C4"));
+        screen.actionPerformed(button(screen,1));assertEquals(1,network.sent.size());assertEquals("C4",((KOMEPacketJoinBattleSelectionRequest)network.sent.get(0)).companyId);
+    }
     private static GuiButton button(KOMEGuiJoinBattle screen,int id) throws Exception {
         java.lang.reflect.Field field=net.minecraft.client.gui.GuiScreen.class.getDeclaredField("buttonList");
         field.setAccessible(true);
         for(Object value:(List)field.get(screen))if(((GuiButton)value).id==id)return (GuiButton)value;
         throw new AssertionError("Missing button "+id);
     }
+    @Test public void deployedClosesOnceAndNotifiesOnlyAfterActualSuccess() throws Exception {
+        Display display=new Display();KOMEGuiJoinBattle screen=startJoin(display,false);
+        screen.actionPerformed(button(screen,1));assertEquals(1,network.sent.size());assertEquals(0,display.closes);
+        kome.common.network.KOMEPacketJoinBattleSelectionResult result=selection(true);
+        screen.acceptSelection(result);screen.acceptSelection(result);screen.actionPerformed(new KOMEGuiButton(1,0,0,1,1,"Join"));
+        assertEquals(1,display.closes);assertEquals(1,display.messages.size());assertEquals(result.message,display.messages.get(0));
+        assertEquals(1,network.sent.size());
+    }
+    @Test public void everyJoinDenialKeepsGuiAndReasonIncludingAfterSuccessfulMovement() throws Exception {
+        for(boolean afterMovement:new boolean[]{false,true})for(KOMEJoinBattleService.Reason reason:KOMEJoinBattleService.Reason.values()) {
+            network.sent.clear();Display display=new Display();KOMEGuiJoinBattle screen=startJoin(display,afterMovement);
+            kome.common.network.KOMEPacketJoinBattleSelectionResult result=selection(false);result.reason=reason;result.message="Denied: "+reason;
+            screen.acceptSelection(result);assertEquals(0,display.closes);assertTrue(display.messages.isEmpty());
+            assertEquals(result.message,screen.viewModel().status());assertEquals(1,network.sent.size());
+            java.lang.reflect.Field moved=KOMEGuiJoinBattle.class.getDeclaredField("afterMovement");moved.setAccessible(true);
+            assertEquals(afterMovement,moved.getBoolean(screen));
+        }
+    }
+    @Test public void entryPendingWaitsForMatchingReceiptRecoverySuccess() throws Exception {
+        Display display=new Display();KOMEGuiJoinBattle screen=startJoin(display,false);
+        kome.common.network.KOMEPacketJoinBattleSelectionResult pending=selection(true);
+        pending.status=kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING;
+        screen.acceptSelection(pending);assertEquals(0,display.closes);
+        kome.common.network.KOMEPacketJoinBattleSelectionResult success=selection(true);success.correlation=new java.util.UUID(0,0);
+        success.receiptId="OTHER";screen.acceptSelection(success);assertEquals(0,display.closes);
+        success.receiptId=pending.receiptId;screen.acceptSelection(success);assertEquals(1,display.closes);
+    }
+    @Test public void successfulRetreatClosesOnceAfterResultAndAllOtherCodesKeepReason() throws Exception {
+        for(kome.common.data.KOMEFormalRetreatService.Code code:kome.common.data.KOMEFormalRetreatService.Code.values()) {
+            network.sent.clear();Display display=new Display();KOMEPacketJoinBattleViewResponse view=view(validToken());
+            view.formalRetreatAvailable=true;view.formalRetreatCompanyIds.add("C4");
+            KOMEGuiJoinBattle screen=new KOMEGuiJoinBattle(view,display);display.current=screen;screen.initGui();
+            screen.actionPerformed(button(screen,6));screen.actionPerformed(button(screen,6));
+            screen.actionPerformed(new KOMEGuiButton(6,0,0,1,1,"Retreat"));assertEquals(1,network.sent.size());assertEquals(0,display.closes);
+            kome.common.network.KOMEPacketJoinBattleRetreatResult result=new kome.common.network.KOMEPacketJoinBattleRetreatResult();
+            result.correlation=((KOMEPacketJoinBattleRetreatRequest)network.sent.get(0)).correlation;
+            result.tileId="T402";result.conflictId="CF2";result.code=code;result.message="Retreat: "+code;
+            screen.acceptRetreat(result);screen.acceptRetreat(result);
+            assertEquals(code==kome.common.data.KOMEFormalRetreatService.Code.RETREATED?1:0,display.closes);
+            assertEquals(display.closes,display.messages.size());assertEquals(result.message,screen.viewModel().status());
+        }
+    }
+    @Test public void lateSuccessCannotCloseReplacementEvenWithItsOwnPendingAction() throws Exception {
+        Display display=new Display();KOMEGuiJoinBattle old=startJoin(display,false);
+        kome.common.network.KOMEPacketJoinBattleSelectionResult late=selection(true);
+        old.onGuiClosed();KOMEGuiJoinBattle replacement=startJoin(display,false);
+        replacement.acceptSelection(late);old.acceptSelection(late);assertEquals(0,display.closes);
+        kome.common.network.KOMEPacketJoinBattleSelectionResult fresh=selection(true);replacement.acceptSelection(fresh);assertEquals(1,display.closes);
+    }
+    @Test public void replacementViewInvalidatesEarlierActionEvenOnSameScreenInstance() throws Exception {
+        Display display=new Display();KOMEGuiJoinBattle screen=startJoin(display,false);
+        kome.common.network.KOMEPacketJoinBattleSelectionResult late=selection(true);
+        screen.acceptView(view(validToken()));screen.initGui();screen.actionPerformed(button(screen,101));screen.actionPerformed(button(screen,1));
+        screen.acceptSelection(late);assertEquals(0,display.closes);
+        screen.acceptSelection(selection(true));assertEquals(1,display.closes);
+    }
+    @Test public void malformedOrMismatchedSuccessCannotCloseAndInactiveScreenCannotCloseAnotherGui() throws Exception {
+        Display display=new Display();KOMEGuiJoinBattle screen=startJoin(display,false);
+        kome.common.network.KOMEPacketJoinBattleSelectionResult result=selection(true);
+        result.receiptId="";screen.acceptSelection(result);assertEquals(0,display.closes);
+        result=selection(true);result.current.currentDeploymentConflict="OTHER";screen.acceptSelection(result);assertEquals(0,display.closes);
+        result=selection(true);result.reason=KOMEJoinBattleService.Reason.INVALID_REQUEST;screen.acceptSelection(result);assertEquals(0,display.closes);
+        result=selection(true);result.message="";screen.acceptSelection(result);assertEquals(0,display.closes);
+        display.current=new Object();screen.acceptSelection(selection(true));assertEquals(0,display.closes);assertTrue(display.messages.isEmpty());
+    }
+    @Test public void staleRetreatCannotCloseReplacementOrResurrectClosedScreen() throws Exception {
+        Display display=new Display();KOMEPacketJoinBattleViewResponse view=view(validToken());
+        view.formalRetreatAvailable=true;view.formalRetreatCompanyIds.add("C4");
+        KOMEGuiJoinBattle old=new KOMEGuiJoinBattle(view,display);display.current=old;old.initGui();
+        old.actionPerformed(button(old,6));old.actionPerformed(button(old,6));
+        kome.common.network.KOMEPacketJoinBattleRetreatResult late=new kome.common.network.KOMEPacketJoinBattleRetreatResult();
+        late.correlation=((KOMEPacketJoinBattleRetreatRequest)network.sent.get(0)).correlation;
+        late.tileId="T402";late.conflictId="CF2";late.code=kome.common.data.KOMEFormalRetreatService.Code.RETREATED;late.message="Retreated";
+        old.onGuiClosed();KOMEGuiJoinBattle replacement=new KOMEGuiJoinBattle(view,display);display.current=replacement;replacement.initGui();
+        replacement.actionPerformed(button(replacement,6));replacement.actionPerformed(button(replacement,6));
+        replacement.acceptRetreat(late);old.acceptRetreat(late);assertEquals(0,display.closes);
+        late.correlation=((KOMEPacketJoinBattleRetreatRequest)network.sent.get(1)).correlation;
+        late.tileId="OTHER";replacement.acceptRetreat(late);assertEquals(0,display.closes);
+        late.tileId="T402";replacement.acceptRetreat(late);assertEquals(1,display.closes);
+    }
+    private KOMEGuiJoinBattle startJoin(Display display,boolean moved) throws Exception {
+        KOMEGuiJoinBattle screen=moved?new KOMEGuiJoinBattle(view(validToken()),"C4",display):new KOMEGuiJoinBattle(view(validToken()),display);
+        display.current=screen;screen.initGui();
+        if(moved)assertTrue(screen.beginPreferredEntry());else {screen.actionPerformed(button(screen,101));screen.actionPerformed(button(screen,1));}
+        return screen;
+    }
+    private kome.common.network.KOMEPacketJoinBattleSelectionResult selection(boolean success) {
+        kome.common.network.KOMEPacketJoinBattleSelectionResult result=new kome.common.network.KOMEPacketJoinBattleSelectionResult();
+        result.correlation=((KOMEPacketJoinBattleSelectionRequest)network.sent.get(network.sent.size()-1)).correlation;
+        result.status=success?kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.DEPLOYED:kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.REJECTED;
+        result.reason=success?KOMEJoinBattleService.Reason.ALLOWED:KOMEJoinBattleService.Reason.INVALID_REQUEST;
+        result.message=success?"Deployed":"Denied";result.receiptId="JB1";result.current=view(validToken());
+        if(success){result.current.currentDeploymentTile="T402";result.current.currentDeploymentConflict="CF2";result.current.currentDeploymentState="IN_BATTLE";}
+        return result;
+    }
+    private static final class Display implements KOMEGuiJoinBattle.Presentation {
+        Object current;int closes;List<String> messages=new ArrayList<String>();
+        public boolean isCurrent(KOMEGuiJoinBattle screen){return current==screen;}
+        public void notifySuccess(String message){messages.add(message);}
+        public void close(){closes++;current=null;}
+    }
     private static String validToken(){return "0123456789abcdef0123456789abcdef";}
 
     private static KOMEPacketJoinBattleViewResponse view(String token){
         ByteBuf encoded=Unpooled.buffer();
         try{
+            encoded.writeLong(0);encoded.writeLong(0);
             KOMEPopulationWire.writeText(encoded,"T402");
             KOMEPopulationWire.writeText(encoded,"CF2");encoded.writeLong(2L);
             KOMEPopulationWire.writeText(encoded,"ORDINARY");
