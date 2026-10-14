@@ -4,6 +4,22 @@
 
 Owns canonical rank and permission unlocks, NPC role/relationship authority, Serf/Knight tasks, courier correspondence, commissions, and Lordship trials. Character race/appearance is a separate integrated system.
 
+Pass 2 (2026-10-13): [implementation report](../../../PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt).
+`KOMEProgressionPermissionRegistry.Ability` supplies stable IDs, rank floors,
+native icon keys and dependencies. `KOMEProgressionAbilityPolicy` reads current
+canonical rank without creating records or storing unlock flags. Read-only
+outcomes distinguish rank locks, unavailable context and action-specific checks.
+Campaign hiring and the book share `recruitmentAuthorityDenial`. New Build
+intents require Serf; new Join Battle entry Knight; new company transfers and
+command delegation Lord. Existing legal company control and registered battle
+participation are maintained after correction. The g9 projection carries bounded
+ability rows in packet 9, with existing connection/revision/dimension fences.
+Current service precedes privileges. Warfare rank eligibility is metadata only;
+no specialist rewards are advertised. Standard gear remains native; exceptional
+gear and quest property retain their own restrictions. Follow
+[hiring](../hiring-companies/README.md), [conflicts](../conflict-tactical/README.md),
+[politics](../politics-diplomacy/README.md) and [starting return](../waypoints/README.md).
+
 Cleanup Pass 1 (2026-10-13): ordinary survival, mounts, trading, pouches and native
 hires no longer depend on legacy permission flags. IDs/history remain intact;
 the baseline permission ledger is hidden from the advancement tab, with command

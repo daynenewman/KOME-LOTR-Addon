@@ -102,6 +102,11 @@ public class KOMEPacketBuildAction implements IMessage {
             String tile = kome.common.data.KOMEConquestTile.normalizeId(message.tileId);
             try {
                 if (data.getPublicConquestTile(tile) == null) throw new IllegalArgumentException("Unknown or unavailable conquest tile.");
+                if (!admin && ("create".equals(action) || "contribute".equals(action))) {
+                    String denial=kome.common.data.KOMEProgressionAbilityPolicy.rankDenial(data,actorId,
+                        kome.common.data.KOMEProgressionPermissionRegistry.Ability.BUILD_SUBMISSION);
+                    if (!denial.isEmpty()) throw new IllegalArgumentException(denial);
+                }
                 if ("create".equals(action)) {
                     if (message.dimension != player.worldObj.provider.dimensionId) {
                         throw new IllegalArgumentException("The selected Build dimension is not the player's current dimension.");

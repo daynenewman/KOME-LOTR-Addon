@@ -44,3 +44,7 @@ For heavy Java/Forge validation, coordinate with `Local\KOME-Heavy-Validation` a
 ## Progression cleanup Pass 1
 
 The October 13 [implementation report](../PROGRESSION_CLEANUP_PASS1_REPORT.txt) records retired survival gates, Crown-checked new Campaign hiring, manual claim denial, protocol g8 progression projection and exact validation. Existing armies, native population costs, peaceful ruler transfers and Emergency Defense are retained. KOM-87 warrants and the newer dev KOM-18 resolver are integration dependencies, not delivered by this pass.
+
+## Progression Pass 2 integration
+
+The [Pass 2 report](../PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt) supersedes the preceding resolver dependency: dev `6d1669a` is merged locally at `8aea11b`. Ordinary battle resolution, ConflictData 3, recovery WAL 1 and Campaign health 1 are retained. Rank eligibility is derived through `KOMEProgressionPermissionRegistry.Ability` and `KOMEProgressionAbilityPolicy`; domain services retain final authority. New battle entry requires Knight, new Build submissions Serf, and new company ownership/delegation Lord. Existing command and conflict maintenance remain available after rank correction. The native Rank page shows current/next privileges through the fenced g9 projection. Return travel uses only the exact applied character-creation starting waypoint. Warrants, personal troop ceilings, fiefs and specialist rewards remain deferred. Automated validation is distinct from outstanding live acceptance.

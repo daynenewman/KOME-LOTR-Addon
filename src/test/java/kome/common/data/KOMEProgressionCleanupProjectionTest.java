@@ -15,6 +15,34 @@ import static org.junit.Assert.*;
 
 public class KOMEProgressionCleanupProjectionTest {
     @After public void cleanup() { KOMEClientData.INSTANCE.resetClientState(); KOMEProgressionAutoCompleter.resetSession(); }
+    @Test public void crownAndResourceChangesRefreshAvailabilityWithoutChangingRankOrHistory() throws Exception {
+        try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()) {
+            s.p.setCanonicalRank(KOMEProgressionRank.LORD);
+            s.f.data.lastKnownPlayerFactions.put(s.f.player.id,"rohan");
+            KOMEProgressionAutoCompleter.runForPlayer(s.f.player,false);
+            KOMEPacketProgressionData first=latest(s);
+            assertTrue(recruitment(first).reason.contains("Crown"));
+            KOMERulerService.assignRuler(s.f.data,"rohan",s.f.player.id,"Ruler");
+            KOMEProgressionAutoCompleter.runForPlayer(s.f.player,false);
+            KOMEPacketProgressionData appointed=latest(s);
+            assertTrue(appointed.revision>first.revision);
+            s.f.data.grantFactionPopulationCenti("rohan",10000L);
+            KOMEProgressionAutoCompleter.runForPlayer(s.f.player,false);
+            KOMEPacketProgressionData funded=latest(s);
+            assertTrue(funded.revision>appointed.revision);
+            assertEquals(KOMEProgressionAbilityPolicy.Availability.CONTEXT_REQUIRED,recruitment(funded).availability);
+            KOMERulerService.removeRuler(s.f.data,"rohan");
+            KOMEProgressionAutoCompleter.runForPlayer(s.f.player,false);
+            assertTrue(latest(s).revision>funded.revision);
+            assertTrue(recruitment(latest(s)).rankUnlocked);
+            assertTrue(recruitment(latest(s)).reason.contains("Crown"));
+            assertEquals("lord",latest(s).canonicalRankKey);
+        }
+    }
+    private static KOMEProgressionAbilityPolicy.Outcome recruitment(KOMEPacketProgressionData packet) {
+        for(KOMEProgressionAbilityPolicy.Outcome row:packet.abilities)if("campaign.recruit".equals(row.abilityId))return row;
+        throw new AssertionError("Missing campaign privilege");
+    }
 
     @Test public void machineRankAndPermissionFlagsRoundTripAndPublishTogether() throws Exception {
         try (KOMEProgressionFollowupTest.Session s = new KOMEProgressionFollowupTest.Session()) {

@@ -4,6 +4,13 @@
 
 Owns the integrated Character Creation stage flow, starting faction/location, race/sex/appearance, recreation, body/eye/traits, and custom-skin catalog/transfer. It does not own KOME progression rank.
 
+Pass 2 reads existing persisted `startingWaypoint` plus
+`startingWaypointApplied` for Serf-or-higher return eligibility. Character
+creation selection/application is unchanged; missing starts (including native
+Wanderer creation without a faction waypoint) receive no invented destination.
+The [waypoint route](../waypoints/README.md) owns request/final native travel
+checks. No second saved start or rank ledger is created.
+
 October 11: `KOMEElvenFootGlow` additionally recognizes the native Elf NPC
 hierarchy and excludes Tormented Elves; players still use synchronized completed
 Elf race. Activation uses world celestial nighttime, with skyless dimensions

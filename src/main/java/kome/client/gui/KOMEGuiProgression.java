@@ -44,6 +44,15 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private static String leaveRelationshipLabel = "";
     private static String leaveRelationshipName = "";
     private static KOMEProgressionRankSummary rankSummary = KOMEProgressionRankSummary.EMPTY;
+    private static List<kome.common.data.KOMEProgressionAbilityPolicy.Outcome> abilities=java.util.Collections.emptyList();
+    private final List<AbilityHit> abilityHits=new ArrayList<>();
+    private static final class AbilityHit {
+        final kome.common.data.KOMEProgressionAbilityPolicy.Outcome row; final int y;
+        AbilityHit(kome.common.data.KOMEProgressionAbilityPolicy.Outcome row,int y){this.row=row;this.y=y;}
+    }
+    public static void updateAbilities(List<kome.common.data.KOMEProgressionAbilityPolicy.Outcome> rows) {
+        abilities=java.util.Collections.unmodifiableList(new ArrayList<>(rows));
+    }
     private static int snapshotWorldIdentity;
     private enum View { ADVANCEMENTS, RANKS }
     private static View lastSelectedView=View.ADVANCEMENTS;
@@ -151,6 +160,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         leaveRelationshipLabel = "";
         leaveRelationshipName = "";
         rankSummary = KOMEProgressionRankSummary.EMPTY;
+        abilities=java.util.Collections.emptyList();
         snapshotWorldIdentity = 0;
     }
 
@@ -207,6 +217,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         else drawRanks();
         super.drawScreen(mouseX, mouseY, partialTicks);
         if(view==View.ADVANCEMENTS)drawAchievementTooltip(mouseX, mouseY, getGroupAchievements());
+        else drawAbilityTooltip(mouseX,mouseY);
     }
 
     static String displayNameForGroup(String group, String factionKey) {
@@ -279,6 +290,14 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         }
 
         if (view == View.RANKS) {
+            AbilityHit hit=abilityAt(mouseX,mouseY);
+            if (hit!=null && hit.row.rankUnlocked && "travel.start".equals(hit.row.abilityId)
+                    && hit.row.availability==kome.common.data.KOMEProgressionAbilityPolicy.Availability.AVAILABLE
+                    && KOMEPacketHandler.network!=null) {
+                lotr.common.world.map.LOTRWaypoint target=lotr.common.world.map.LOTRWaypoint.waypointForName(hit.row.targetKey);
+                if(target!=null)KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketWaypointTravelRequest(target));
+                return;
+            }
             toggleRankRequirement(mouseX, mouseY);
             return;
         }
@@ -404,10 +423,12 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private void drawRanks(){
         if(knightView()){drawKnightRanks();return;}
         drawRankLadder();
-        int max=maxRankScroll();if(focusDuty&&!dutyFocusApplied&&rankSummary.hasActivity()){rankScroll=max;dutyFocusApplied=true;}rankScroll=Math.max(0,Math.min(max,rankScroll));
+        int max=maxRankScroll();if(focusDuty&&!dutyFocusApplied&&rankSummary.hasActivity()){rankScroll=0;dutyFocusApplied=true;}rankScroll=Math.max(0,Math.min(max,rankScroll));
         int contentTop=guiTop+RANK_CONTENT_TOP,contentBottom=guiTop+ySize-RANK_CONTENT_BOTTOM_MARGIN-relationshipFooterHeight();
         KOMEGuiTheme.enableScissor(mc,guiLeft+7,contentTop,xSize-14,contentBottom-contentTop);
         int y=contentTop-rankScroll;
+        mc.fontRenderer.drawString(trimToWidth("Standing: "+rankSummary.currentRank,184),guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=14;
+        if(rankSummary.hasActivity()) y=drawCurrentActivity(y);
         mc.fontRenderer.drawString(rankSummary.promotionTitle,guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=14;
         for(KOMEProgressionRankSummary.Requirement requirement:rankSummary.requirements){
             drawRankRequirement(requirement,y);
@@ -420,13 +441,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
             }
             y+=KOMEProgressionRankLayout.requirementHeight(requirement,dutiesExpanded);
         }
-        if(rankSummary.hasActivity()){
-            y+=5;KOMEGuiTheme.drawDivider(guiLeft+12,y,196);y+=7;
-            mc.fontRenderer.drawString(rankSummary.activityHeading,guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=13;
-            mc.fontRenderer.drawString(rankSummary.activityTitle,guiLeft+17,y,5652783);y+=12;
-            List<String> lines=mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184);
-            for(Object line:lines){mc.fontRenderer.drawString(String.valueOf(line),guiLeft+17,y,8019267);y+=10;}
-        }
+        drawAbilities(y);
         KOMEGuiTheme.disableScissor();
         if(max>0)drawRankScrollbar(max);
     }
@@ -437,6 +452,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         KOMEGuiTheme.enableScissor(mc,guiLeft+7,top,xSize-14,bottom-top);
         try{
             int y=top-rankScroll;
+            mc.fontRenderer.drawString(trimToWidth("Standing: "+rankSummary.currentRank,184),guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=14;
             mc.fontRenderer.drawString("Current service",guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=13;
             for(Object line:mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityTitle,184)){mc.fontRenderer.drawString(String.valueOf(line),guiLeft+17,y,5652783);y+=10;}
             for(Object line:mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184)){mc.fontRenderer.drawString(String.valueOf(line),guiLeft+17,y,8019267);y+=10;}
@@ -444,6 +460,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
             for(KOMEProgressionRankSummary.Requirement r:rankSummary.requirements){drawRankRequirement(r,y);y+=KOMEProgressionRankLayout.REQUIREMENT_HEIGHT;}
             y+=6;
             for(Object line:mc.fontRenderer.listFormattedStringToWidth(canonicalSummary,184)){mc.fontRenderer.drawString(String.valueOf(line),guiLeft+17,y,8019267);y+=10;}
+            drawAbilities(y);
         }finally{KOMEGuiTheme.disableScissor();}
         if(maxRankScroll()>0)drawRankScrollbar(maxRankScroll());
     }
@@ -460,6 +477,43 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
             }
             if(i<names.length-1)mc.fontRenderer.drawString("\u2192",(centers[i]+centers[i+1])/2-3,y+9,8019267);
         }
+    }
+
+    private int drawCurrentActivity(int y) {
+        mc.fontRenderer.drawString(rankSummary.activityHeading,guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=13;
+        for(Object line:mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityTitle,184)){mc.fontRenderer.drawString(String.valueOf(line),guiLeft+17,y,5652783);y+=10;}
+        for(Object line:mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184)){mc.fontRenderer.drawString(String.valueOf(line),guiLeft+17,y,8019267);y+=10;}
+        y+=7;KOMEGuiTheme.drawDivider(guiLeft+12,y,184);return y+7;
+    }
+    private void drawAbilities(int y) {
+        abilityHits.clear();
+        for(boolean unlocked:new boolean[]{true,false}) {
+            boolean heading=false;
+            for(kome.common.data.KOMEProgressionAbilityPolicy.Outcome row:abilities) {
+                if(row.rankUnlocked!=unlocked)continue;
+                if(!heading){y+=6;mc.fontRenderer.drawString(unlocked?"Current privileges":"Next standing privileges",guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=14;heading=true;}
+                kome.common.data.KOMEProgressionPermissionRegistry.Ability ability=kome.common.data.KOMEProgressionPermissionRegistry.Ability.forId(row.abilityId);
+                net.minecraft.item.Item icon=(net.minecraft.item.Item)net.minecraft.item.Item.itemRegistry.getObject("minecraft:"+ability.icon);
+                if(icon!=null){RenderHelper.enableGUIStandardItemLighting();itemRender.renderItemAndEffectIntoGUI(mc.fontRenderer,mc.getTextureManager(),new net.minecraft.item.ItemStack(icon),guiLeft+13,y);RenderHelper.disableStandardItemLighting();}
+                boolean unavailable=row.availability==kome.common.data.KOMEProgressionAbilityPolicy.Availability.UNAVAILABLE;
+                mc.fontRenderer.drawString(trimToWidth(ability.title,144),guiLeft+33,y+4,unlocked?8019267:5652783);
+                mc.fontRenderer.drawString(unlocked?(unavailable?"!":"\u2713"):"\u25A1",guiLeft+185,y+4,unlocked?(unavailable?0x9A6A20:0x376B31):0x5A171A);
+                abilityHits.add(new AbilityHit(row,y));y+=20;
+            }
+        }
+    }
+    private AbilityHit abilityAt(int mouseX,int mouseY) {
+        int top=guiTop+RANK_CONTENT_TOP,bottom=guiTop+ySize-RANK_CONTENT_BOTTOM_MARGIN-relationshipFooterHeight();
+        if(mouseX<guiLeft+12||mouseX>=guiLeft+199||mouseY<top||mouseY>=bottom)return null;
+        for(AbilityHit hit:abilityHits)if(mouseY>=hit.y&&mouseY<hit.y+20)return hit;
+        return null;
+    }
+    private void drawAbilityTooltip(int mouseX,int mouseY) {
+        AbilityHit hit=abilityAt(mouseX,mouseY);
+        if(hit==null)return;
+        List<String> lines=new ArrayList<>();
+        for(String paragraph:hit.row.tooltip().split("\n"))lines.addAll(mc.fontRenderer.listFormattedStringToWidth(paragraph,220));
+        func_146283_a(lines,mouseX,mouseY);
     }
 
     private void drawRankRequirement(KOMEProgressionRankSummary.Requirement requirement,int y){
@@ -488,7 +542,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         int contentTop=guiTop+RANK_CONTENT_TOP;
         int contentBottom=guiTop+ySize-RANK_CONTENT_BOTTOM_MARGIN-relationshipFooterHeight();
         if(mouseX<guiLeft+9||mouseX>=guiLeft+199||mouseY<contentTop||mouseY>=contentBottom)return;
-        int y=contentTop-rankScroll+14;
+        int y=contentTop-rankScroll+28+(rankSummary.hasActivity()?currentActivityHeight():0);
         for(KOMEProgressionRankSummary.Requirement requirement:rankSummary.requirements){
             if(requirement.hasChildren()&&mouseY>=y&&mouseY<y+24){
                 dutiesExpanded=!dutiesExpanded;
@@ -500,11 +554,12 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     }
 
     private int rankContentHeight(){
-        if(knightView())return 40+(mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityTitle,184).size()+mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184).size())*10+KOMEProgressionRankLayout.requirementsHeight(rankSummary.requirements,false)+mc.fontRenderer.listFormattedStringToWidth(canonicalSummary,184).size()*10;
-        int height=14+KOMEProgressionRankLayout.requirementsHeight(rankSummary.requirements,dutiesExpanded);
-        if(rankSummary.hasActivity()){int lines=mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184).size();height+=37+lines*10;}
-        return height;
+        if(knightView())return KOMEProgressionRankLayout.abilityHeight(abilities)+54+(mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityTitle,184).size()+mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184).size())*10+KOMEProgressionRankLayout.requirementsHeight(rankSummary.requirements,false)+mc.fontRenderer.listFormattedStringToWidth(canonicalSummary,184).size()*10;
+        int height=28+KOMEProgressionRankLayout.requirementsHeight(rankSummary.requirements,dutiesExpanded);
+        if(rankSummary.hasActivity())height+=currentActivityHeight();
+        return height+KOMEProgressionRankLayout.abilityHeight(abilities);
     }
+    private int currentActivityHeight(){return 27+10*(mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityTitle,184).size()+mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184).size());}
 
     private int maxRankScroll(){
         int visibleHeight = ySize - RANK_CONTENT_BOTTOM_MARGIN - RANK_CONTENT_TOP - relationshipFooterHeight();

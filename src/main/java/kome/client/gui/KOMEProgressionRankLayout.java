@@ -9,6 +9,11 @@ final class KOMEProgressionRankLayout {
     static final int CHILD_HEIGHT = 20;
 
     private KOMEProgressionRankLayout() {}
+    static int abilityHeight(List<kome.common.data.KOMEProgressionAbilityPolicy.Outcome> rows) {
+        boolean current=false,next=false;
+        for(kome.common.data.KOMEProgressionAbilityPolicy.Outcome row:rows){if(row.rankUnlocked)current=true;else next=true;}
+        return rows.size()*20+(current?20:0)+(next?20:0);
+    }
 
     static int requirementHeight(KOMEProgressionRankSummary.Requirement requirement,
             boolean childrenExpanded) {

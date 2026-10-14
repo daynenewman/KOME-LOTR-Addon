@@ -23,7 +23,7 @@ public class KOMECanonicalPopulationNavigationTest {
         assertFalse(actions.contains("sendPopulationUpdate(")); assertFalse(actions.contains("sendAllocationUpdate("));
         assertFalse(init.contains("initPopulationControls(")); assertFalse(init.contains("initAllocationControls("));
         assertTrue(source.contains(
-            "create.enabled = KOMEBuildCreatePresentation.canCreateBuild(selectablePopulationOwners)"));
+            "create.enabled = canSubmitBuilds && KOMEBuildCreatePresentation.canCreateBuild(selectablePopulationOwners)"));
     }
 
     @Test public void selectedTabRendersOnlyCanonicalPopulationOrExistingBuildContent() throws Exception {

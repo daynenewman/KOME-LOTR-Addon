@@ -18,6 +18,11 @@ public class KOMEPacketProgressionData implements IMessage {
     public Map assignments = new HashMap();
     public String canonicalSummary="", findLabel="", leaveRelationshipType="", leaveRelationshipLabel="", leaveRelationshipName="";
     public KOMEProgressionRankSummary rankSummary = KOMEProgressionRankSummary.EMPTY;
+    public List<kome.common.data.KOMEProgressionAbilityPolicy.Outcome> abilities = java.util.Collections.emptyList();
+    public KOMEPacketProgressionData abilities(List<kome.common.data.KOMEProgressionAbilityPolicy.Outcome> rows) {
+        abilities=java.util.Collections.unmodifiableList(new ArrayList<>(rows));
+        return this;
+    }
     public java.util.UUID playerId = new java.util.UUID(0L, 0L);
     public String canonicalRankKey = "wanderer";
     public long revision;
@@ -76,6 +81,22 @@ public class KOMEPacketProgressionData implements IMessage {
         int requirementCount=readCount(buf);List requirements=new ArrayList();
         for(int i=0;i<requirementCount;i++)requirements.add(readRequirement(buf));
         rankSummary=new KOMEProgressionRankSummary(factionKey,current,next,promotion,requirements,KOMEPopulationWire.readText(buf),KOMEPopulationWire.readText(buf),KOMEPopulationWire.readText(buf));
+        int abilityCount=buf.readInt();
+        if (abilityCount<0 || abilityCount>kome.common.data.KOMEProgressionPermissionRegistry.Ability.values().length)
+            throw new IllegalArgumentException("Invalid ability count");
+        List<kome.common.data.KOMEProgressionAbilityPolicy.Outcome> rows=new ArrayList<>();
+        java.util.Set<String> ids=new java.util.HashSet<>();
+        for (int i=0;i<abilityCount;i++) {
+            String id=KOMEPopulationWire.readText(buf);
+            if (!ids.add(id)) throw new IllegalArgumentException("Duplicate ability");
+            boolean unlocked=buf.readBoolean();
+            kome.common.data.KOMEProgressionAbilityPolicy.Availability state=
+                kome.common.data.KOMEProgressionAbilityPolicy.Availability.valueOf(KOMEPopulationWire.readText(buf));
+            rows.add(new kome.common.data.KOMEProgressionAbilityPolicy.Outcome(id,unlocked,state,
+                KOMEPopulationWire.readText(buf),KOMEPopulationWire.readText(buf)));
+        }
+        abilities(rows);
+        KOMEPopulationWire.requireFullyRead(buf);
     }
 
     @Override
@@ -103,6 +124,12 @@ public class KOMEPacketProgressionData implements IMessage {
         KOMEPopulationWire.writeText(buf,ranks.factionKey);KOMEPopulationWire.writeText(buf,ranks.currentRank);KOMEPopulationWire.writeText(buf,ranks.nextRank);KOMEPopulationWire.writeText(buf,ranks.promotionTitle);buf.writeInt(ranks.requirements.size());
         for(KOMEProgressionRankSummary.Requirement requirement:ranks.requirements)writeRequirement(buf,requirement);
         KOMEPopulationWire.writeText(buf,ranks.activityHeading);KOMEPopulationWire.writeText(buf,ranks.activityTitle);KOMEPopulationWire.writeText(buf,ranks.activityObjective);
+        buf.writeInt(abilities.size());
+        for (kome.common.data.KOMEProgressionAbilityPolicy.Outcome row:abilities) {
+            KOMEPopulationWire.writeText(buf,row.abilityId);buf.writeBoolean(row.rankUnlocked);
+            KOMEPopulationWire.writeText(buf,row.availability.name());
+            KOMEPopulationWire.writeText(buf,row.reason);KOMEPopulationWire.writeText(buf,row.targetKey);
+        }
     }
 
     private static int readCount(ByteBuf buf) {
@@ -116,7 +143,7 @@ public class KOMEPacketProgressionData implements IMessage {
         return new KOMEPacketProgressionData(playerName, new ArrayList(completed),
             new HashMap(assignments), canonicalSummary, findLabel, leaveRelationshipType,
             leaveRelationshipLabel, leaveRelationshipName, rankSummary)
-            .authority(playerId, canonicalRankKey, revision, dimension, progressionEnabled);
+            .authority(playerId, canonicalRankKey, revision, dimension, progressionEnabled).abilities(abilities);
     }
     private static KOMEProgressionRankSummary.Requirement readRequirement(ByteBuf buf) {
         String label=KOMEPopulationWire.readText(buf);int current=buf.readInt(),required=buf.readInt();boolean complete=buf.readBoolean();

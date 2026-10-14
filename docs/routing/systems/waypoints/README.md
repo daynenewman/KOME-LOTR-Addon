@@ -7,8 +7,16 @@ Owns KOME public waypoint proposals/registry, native waypoint bridges, access de
 Pass 1 synchronizes legacy travel permission reads with the server progression
 snapshot and uses its current faction context on the client once available.
 Request/final server guards, native cooldown/attack/sleep/discovery and territory
-policy remain unchanged. Serf original-start return is still a future ability,
-not implemented by this cache fix. See [Pass 1](../../../PROGRESSION_CLEANUP_PASS1_REPORT.txt).
+policy remain unchanged. Pass 1 did not implement original-start return;
+Pass 2 now adds `KOMEWaypointAccessService.hasTravelPermission` for the exact
+applied `PlayerRaceData` starting waypoint at Serf-or-higher standing.
+`originalStartingWaypoint` never invents a missing or legacy destination.
+Native request, addon request and final guard share this permission supplement.
+Native discovery/region, cooldown, safety, sleep and territory rules still apply.
+The Rank-page return row uses the existing waypoint request packet. There is no
+new teleport service or universal rank travel ladder. See
+[Pass 2](../../../PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt) and
+[Pass 1](../../../PROGRESSION_CLEANUP_PASS1_REPORT.txt).
 
 ## Authority and entry points
 

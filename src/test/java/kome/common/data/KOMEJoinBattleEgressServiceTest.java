@@ -339,6 +339,7 @@ public class KOMEJoinBattleEgressServiceTest {
         KOMEConflictRecord record;
         Fixture() throws Exception {
             access = new KOMEAccessFixture(); data = access.data; playerId = access.player.id;
+            KOMECanonicalRankService.setCanonicalRank(data,playerId,KOMEProgressionRank.KNIGHT);
             access.pledge(LOTRFaction.GONDOR);
             record = ok(data.getConflictService().start("T100", KOMEConflictRecord.State.ORDINARY,
                 ExpectedConflict.absent(), Collections.<GarrisonSeed>emptyList(), context(10L)));

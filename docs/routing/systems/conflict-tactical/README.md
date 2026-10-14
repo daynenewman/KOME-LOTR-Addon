@@ -2,18 +2,22 @@
 
 [Index](../../INDEX.md)
 
-Owns one canonical conflict record per tile, validated commitments/readiness, explicit ending/repair, and persistent tactical deployment areas/Siege Complex geometry with administrative editors. It is not a complete battle or siege simulation.
+Owns one canonical conflict record per tile, validated commitments/readiness, ordinary battle resolution, explicit ending/repair, and persistent tactical deployment areas/Siege Complex geometry with administrative editors. Fortified resolution and full battlefield interference enforcement remain separate unfinished systems.
 
 Pass 1 retires the manual player claim-to-war route. `KOMEConquestClaimService.claim`
 denies rank/flag claims without changing ownership, timers, diplomacy or wars;
 the Tile Command button explains canonical battle resolution. Ruler peaceful
-offer/accept and staff transfers remain separate. Linear KOM-18 is now merged on
-newer dev, but that resolver/ConflictData v3 is not in this checkout's baseline;
-it is an integration dependency, not reimplemented by progression cleanup.
+offer/accept and staff transfers remain separate. Pass 2 merged dev `6d1669a`
+at `8aea11b`: ordinary lifecycle/resolution, ConflictData v3, recovery WAL and
+Campaign health authority are now in this checkout. No progression resolver is
+introduced. See [Pass 2](../../../PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt).
 Existing commitment, Join Battle, retreat/abandonment and Emergency Defense
 services remain intact. See [Pass 1 evidence](../../../PROGRESSION_CLEANUP_PASS1_REPORT.txt).
 
 ## Authority and entry points
+
+- [KOMEOrdinaryBattleLifecycleService](../../../../src/main/java/kome/common/data/KOMEOrdinaryBattleLifecycleService.java) owns server-active response timing, continuity, abandonment and recovery evidence. [KOMEOrdinaryBattleResolutionService](../../../../src/main/java/kome/common/data/KOMEOrdinaryBattleResolutionService.java) preflights live military/ownership/fortification authority and commits canonical ownership/history; [KOMEOrdinaryBattleOwnershipResolver](../../../../src/main/java/kome/common/data/KOMEOrdinaryBattleOwnershipResolver.java) selects surviving allied/default/continuity candidates. Fortified contexts fail closed rather than bypassing siege completion. `KOMEEvents.processCampaignTick` invokes lifecycle/resolution/recovery after movement and Emergency Defense.
+- [KOMECompanyCommandAuthority.newMilitaryOperationDenial](../../../../src/main/java/kome/common/data/KOMECompanyCommandAuthority.java) supplements new player order validation in `KOMECommandTroops.validateCompanyMove`: native-hostile attacks outside declared war require the recognized ruler or staff. Existing queued movement, retreat and recovery are unchanged. New Join Battle participation requires Knight; registered participants retain maintenance eligibility.
 
 - [KOMEConflictService.acceptValidatedCommitment](../../../../src/main/java/kome/common/data/KOMEConflictService.java), `releaseValidatedCommitment`, `endWithMovementHandoff`; [KOMEConflictRecord](../../../../src/main/java/kome/common/data/KOMEConflictRecord.java), [KOMEConflictContracts](../../../../src/main/java/kome/common/data/KOMEConflictContracts.java): expected IDs/revisions, faction participation, validated events and ended snapshots.
 - [KOMEConflictMovementService](../../../../src/main/java/kome/common/data/KOMEConflictMovementService.java), [KOMEConflictLifecycleService.diagnose](../../../../src/main/java/kome/common/data/KOMEConflictLifecycleService.java), `previewRepair`, `applyRepair`; [KOMECommandKome](../../../../src/main/java/kome/common/command/KOMECommandKome.java): legal arrival/hold bridge, `/kome conflict` inspection/end/guarded repair.

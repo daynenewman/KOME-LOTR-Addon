@@ -75,16 +75,7 @@ public class KOMEProgressionPermissions {
     /** New recruitment only. Existing companies, retreat and Emergency Defense use their own authority. */
     public static String campaignRecruitmentDenial(KOMEWorldData data, UUID actor,
             String faction, boolean administrative) {
-        if (data == null || actor == null) return "Campaign recruitment authority is unavailable.";
-        if (administrative) return "";
-        KOMEPlayerProgression progression = data.progressions.get(actor);
-        if (progression == null || progression.getCanonicalRank().order < KOMEProgressionRank.LORD.order)
-            return "Campaign recruitment requires Lord standing. Ordinary native followers remain available under LOTR rules.";
-        String key = KOMEAlliance.normalizeFactionKey(faction);
-        if (key.isEmpty() || !key.equals(KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor))))
-            return "Campaign recruitment requires a current pledge to the population-owning faction.";
-        if (KOMERulerAuthorization.canActAsRuler(data, key, actor)) return "";
-        return "Lord standing does not authorize spending the faction bank. Crown recruitment warrants and delegated population authority (KOM-87) are not implemented yet.";
+        return KOMEProgressionAbilityPolicy.recruitmentAuthorityDenial(data,actor,faction,administrative);
     }
 
     public static void deny(EntityPlayer player, String message) {

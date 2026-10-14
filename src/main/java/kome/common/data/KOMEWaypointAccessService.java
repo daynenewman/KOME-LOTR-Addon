@@ -23,6 +23,23 @@ public final class KOMEWaypointAccessService {
     private KOMEWaypointAccessService() {
     }
 
+    /** Exact applied character-creation identity; missing/legacy starts are never guessed. */
+    public static LOTRWaypoint originalStartingWaypoint(EntityPlayerMP player) {
+        if (player==null || !com.lotrcharactercreation.race.PlayerRaceData.isStartingWaypointApplied(player)) return null;
+        String key=com.lotrcharactercreation.race.PlayerRaceData.getStartingWaypointCodeName(player);
+        return key==null || key.isEmpty()?null:LOTRWaypoint.waypointForName(key);
+    }
+
+    /** Rank return only supplements the addon permission; native and territory gates remain. */
+    public static boolean hasTravelPermission(EntityPlayer player, LOTRAbstractWaypoint target) {
+        if (KOMEProgressionPermissions.has(player,KOMEProgressionPermissions.FAST_TRAVEL)) return true;
+        if (!(player instanceof EntityPlayerMP) || !(target instanceof LOTRWaypoint)) return false;
+        EntityPlayerMP serverPlayer=(EntityPlayerMP)player;
+        return target==originalStartingWaypoint(serverPlayer)
+            && KOMEProgressionAbilityPolicy.unlocked(KOMEWorldData.get(player.worldObj),player.getUniqueID(),
+                KOMEProgressionPermissionRegistry.Ability.START_RETURN);
+    }
+
     public static Decision evaluate(KOMEWorldData data, UUID playerId, String playerFaction, boolean operator,
             LOTRAbstractWaypoint waypoint, boolean nativeEligible) {
         String normalizedPlayerFaction = KOMEAlliance.normalizeFactionKey(playerFaction);
@@ -297,8 +314,7 @@ public final class KOMEWaypointAccessService {
             System.err.println("[KOME FT] native-request denied: missing player or waypoint");
             return false;
         }
-        if (!KOMEProgressionPermissions.has(
-                player, KOMEProgressionPermissions.FAST_TRAVEL)) {
+        if (!hasTravelPermission(player,target)) {
             player.addChatMessage(new ChatComponentText(
                 "Fast travel denied: you have not unlocked Fast Travel yet."));
             System.out.println("[KOME FT] native-request player="
@@ -333,7 +349,7 @@ public final class KOMEWaypointAccessService {
             playerData.setTargetFTWaypoint(null);
             return false;
         }
-        if (!KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.FAST_TRAVEL)) {
+        if (!hasTravelPermission(player,target)) {
             player.addChatMessage(new ChatComponentText("Fast travel denied: you have not unlocked Fast Travel yet."));
             playerData.setTargetFTWaypoint(null);
             return false;

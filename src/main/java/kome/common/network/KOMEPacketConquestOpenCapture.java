@@ -133,6 +133,10 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         packet.population = kome.common.data.KOMEPopulationProjection.of(data, ownerFaction);
         populateBuildViews(packet, data, player, tile, viewerFaction, ownerFaction, viewerId);
         packet.focusBuildId = focusBuildId == null ? "" : focusBuildId;
+        packet.buildSubmissionReason=player.canCommandSenderUseCommand(2,"build")?"":
+            kome.common.data.KOMEProgressionAbilityPolicy.rankDenial(data,viewerId,
+                kome.common.data.KOMEProgressionPermissionRegistry.Ability.BUILD_SUBMISSION);
+        packet.canSubmitBuilds=packet.buildSubmissionReason.isEmpty();
         packet.claimConfirmationArmed = false;
         packet.claimWarning = kome.common.data.KOMEConquestClaimService.manualClaimDenial(data, tile, viewerFaction);
         KOMEPacketHandler.network.sendTo(packet, player);

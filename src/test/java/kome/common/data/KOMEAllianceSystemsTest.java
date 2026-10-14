@@ -567,6 +567,7 @@ public class KOMEAllianceSystemsTest {
         company.id = "transfer-test"; company.owner = owner; company.ownerName = "Old"; company.faction = "gondor";
         company.nativeFaction = "gondor"; company.units.add(unit.entity); unit.companyId = company.id;
         data.hiredUnits.put(unit.entity, unit); data.armyCompanies.put(company.id, company);
+        KOMECanonicalRankService.setCanonicalRank(data,recipient,KOMEProgressionRank.LORD);
         assertTrue(KOMECompanyTransferService.offer(data, company, owner, recipient, "New", 100L).success);
         assertFalse(KOMECompanyTransferService.accept(data, company, recipient, "New", 101L).success);
         assertEquals(owner, company.owner);
@@ -854,6 +855,7 @@ public class KOMEAllianceSystemsTest {
         company.units.add(unit.entity);
         unit.companyId = company.id;
         data.hiredUnits.put(unit.entity, unit);
+        KOMECanonicalRankService.setCanonicalRank(data,recipient,KOMEProgressionRank.LORD);
         assertTrue(KOMECompanyTransferService.offer(data, company, owner, recipient, "New", 10L).success);
         assertFalse(KOMECompanyTransferService.accept(data, company, recipient, "New", 11L).success);
         assertEquals(owner, company.owner);
@@ -924,6 +926,7 @@ public class KOMEAllianceSystemsTest {
         KOMEArmyCompany company = company("faction-bank-transfer", owner, unit);
         data.hiredUnits.put(unit.entity, unit);
         data.armyCompanies.put(company.id, company);
+        KOMECanonicalRankService.setCanonicalRank(data,recipient,KOMEProgressionRank.LORD);
         assertTrue(KOMECompanyTransferService.offer(data, company, owner, recipient, "New", 10L).success);
 
         KOMECompanyTransferService.Result result = KOMECompanyTransferService.accept(data, company, recipient, "New", 11L);

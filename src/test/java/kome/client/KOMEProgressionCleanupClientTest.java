@@ -45,6 +45,7 @@ public class KOMEProgressionCleanupClientTest {
             proxy.acceptProgressionData(packet(id,"lord",21L,0),first.handler);
             proxy.onClientDisconnect(KOMEAccessFixture.clientDisconnected());queue.drain();
             assertTrue(KOMEClientData.INSTANCE.progressions.isEmpty());assertEquals("",book().currentRank);
+            assertTrue(abilities().isEmpty());
             proxy.acceptProgressionData(packet(id,"prince",100L,0),first.handler);assertEquals(0,queue.pendingTasks());
             FMLNetworkEvent.ClientConnectedToServerEvent second=KOMEAccessFixture.clientConnected();
             proxy.onClientConnect(second);
@@ -67,11 +68,22 @@ public class KOMEProgressionCleanupClientTest {
         KOMEProgressionRankSummary summary=new KOMEProgressionRankSummary("rohan",rank,"","",
             Collections.emptyList(),"","","");
         return new KOMEPacketProgressionData("Player",Arrays.asList("baseline.fast_travel"),Collections.emptyMap(),
-            "summary","","","","",summary).authority(id,rank,revision,dimension,true);
+            "summary","","","","",summary).authority(id,rank,revision,dimension,true)
+            .abilities(Collections.singletonList(new KOMEProgressionAbilityPolicy.Outcome(
+                KOMEProgressionPermissionRegistry.Ability.BUILD_SUBMISSION.id,
+                KOMEProgressionRank.forKey(rank).order>=KOMEProgressionRank.SERF.order,
+                KOMEProgressionRank.forKey(rank).order>=KOMEProgressionRank.SERF.order
+                    ?KOMEProgressionAbilityPolicy.Availability.CONTEXT_REQUIRED:KOMEProgressionAbilityPolicy.Availability.LOCKED,
+                rank,"")));
     }
     private static void assertRank(UUID id,String rank) throws Exception {
         assertEquals(rank,KOMEClientData.INSTANCE.progressions.get(id).getCanonicalRank().key);
         assertEquals(rank,book().currentRank);
+        assertEquals(rank,abilities().get(0).reason);
+    }
+    private static java.util.List<KOMEProgressionAbilityPolicy.Outcome> abilities() throws Exception {
+        Field rows=KOMEGuiProgression.class.getDeclaredField("abilities");rows.setAccessible(true);
+        return (java.util.List<KOMEProgressionAbilityPolicy.Outcome>)rows.get(null);
     }
     private static KOMEProgressionRankSummary book() throws Exception {
         Field rank=KOMEGuiProgression.class.getDeclaredField("rankSummary");rank.setAccessible(true);

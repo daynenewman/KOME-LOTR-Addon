@@ -1,5 +1,14 @@
 # Hiring, unit identity, and companies
 
+Pass 2: [report](../../../PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt).
+New Campaign hiring and its Rank-page explanation share
+`KOMEProgressionAbilityPolicy.recruitmentAuthorityDenial`; Lord is eligibility,
+and pledged ruler office is the existing spending authority pending KOM-87.
+New company ownership offers/acceptance and command delegation require Lord
+recipients. Existing ownership, delegated control continuation, reorganization,
+retreat and recovery remain governed by their established services. No
+rank-based disbanding, reclassification, population grant or personal ceiling.
+
 [Index](../../INDEX.md) · [Hire flow](../../flows/troop-hiring.md)
 
 Owns ordinary versus campaign classification, population investment, recruitment transactions, company admission/coherence, and unit lifecycle records. Actual NPC/mount NBT is a second authority beside strategic records.

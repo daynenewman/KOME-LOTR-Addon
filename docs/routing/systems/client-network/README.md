@@ -1,5 +1,17 @@
 # Client presentation and networking
 
+Pass 2 current matching-artifact version: `1.0.9-integration-g9`.
+Packet 9 appends bounded, immutable rank-ability outcomes (ID, rank eligibility,
+availability, domain reason and optional original-start target). Packet 5 adds
+server-authored Build submission eligibility/reason. No packet ID is reused or
+added. g8 and g9 cannot mix. `KOMEClientProxy.acceptProgressionData` publishes
+abilities only after the existing viewer/connection/revision/dimension fences.
+Disconnect/world transitions clear the book outcomes. The existing five-second
+progression check compares ability explanations as well as rank/pledge/history;
+changed office, bank or company/conflict context triggers a new snapshot.
+Context-dependent rows never promise final action authorization. See
+[Pass 2](../../../PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt).
+
 Pass 1 current matching-artifact version is `1.0.9-integration-g8`. Packet IDs
 remain unchanged. ProgressionData now carries UUID, canonical rank key, enabled
 mode, dimension and monotonic publication revision, with bounded text/counts.

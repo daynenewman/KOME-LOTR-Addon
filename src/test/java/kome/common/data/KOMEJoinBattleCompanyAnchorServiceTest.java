@@ -267,6 +267,7 @@ public class KOMEJoinBattleCompanyAnchorServiceTest {
             access = new KOMEAccessFixture(); data = access.data;
             access.world.provider.dimensionId = KOMETileTestResources.dimension();
             access.pledge(LOTRFaction.GONDOR);
+            KOMECanonicalRankService.setCanonicalRank(data,access.player.id,KOMEProgressionRank.KNIGHT);
             company = new KOMEArmyCompany(); company.id = "C1"; company.name = "Company";
             company.owner = UUID.randomUUID(); company.ownerName = "Owner";
             company.faction = "gondor"; company.currentTile = "T100";

@@ -354,11 +354,12 @@ public class KOMEPublicAccessPacketTest {
         assertTrue(registration.contains("KOMEPacketConquestOpenCapture.class, 7, Side.SERVER"));
         assertTrue(registration.contains("KOMEPacketBuildAction.class, 36, Side.SERVER"));
         assertTrue(registration.contains("IDs 23 and 24 are retired"));
-        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g8"));
+        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g9"));
         assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
 
     @Test public void validNonOperatorCreationPassesQueuedPacketAndExactGeometry() {
+        KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,KOMEProgressionRank.SERF);f.data.setDirty(false);
         KOMEPacketBuildAction request = validCreation();
         request.centiHours = 125L; request.x += 0.5; request.z += 0.75;
         assertFalse(f.player.operator);
@@ -376,6 +377,7 @@ public class KOMEPublicAccessPacketTest {
     }
 
     @Test public void spatialPacketRejectionsLeaveRecordsCountersAuditAndResponsesUnchanged() {
+        KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,KOMEProgressionRank.SERF);
         // Include an existing Build to detect unintended reconciliation or deletion.
         KOMEBuildService.create(f.data, "Existing", tile.id, KOMETileTestResources.dimension(),
             KOMETileTestResources.x(), 64, KOMETileTestResources.z(), f.player.id, "Builder",
@@ -427,6 +429,14 @@ public class KOMEPublicAccessPacketTest {
             0L, KOMETileTestResources.dimension(), KOMETileTestResources.x(), 64D, KOMETileTestResources.z());
     }
 
+    @Test public void wandererCannotForgeSerfBuildEligibilityOrUseHistoricalFlags() {
+        f.data.getProgression(f.player.id).grant("baseline.grow_population");
+        assertFalse(tilePacket().canSubmitBuilds);
+        rejectWithoutMutation(validCreation(),"Requires Serf standing.");
+        KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,KOMEProgressionRank.SERF);
+        assertTrue(tilePacket().canSubmitBuilds);
+    }
+
     private void rejectWithoutMutation(KOMEPacketBuildAction request, String reason) {
         String before = savedWorld(); f.data.setDirty(false);
         int audit = f.data.centralAudit.size();
@@ -455,6 +465,7 @@ public class KOMEPublicAccessPacketTest {
         return new String(Files.readAllBytes(Paths.get("src/main/java/" + path)), StandardCharsets.UTF_8);
     }
     @Test public void unpledgedAndForeignCreationRejectThroughQueuedHandlerAfterValidGeometry() throws Exception {
+        KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,KOMEProgressionRank.SERF);
         KOMEPacketBuildAction request = validCreation();
         assertTrue(KOMEBuildService.validateCoordinates(request.tileId, request.dimension, request.x, request.y, request.z).allowed);
         f.pledge(null);
@@ -465,6 +476,7 @@ public class KOMEPublicAccessPacketTest {
     }
 
     @Test public void invalidNumericBuildInputsRejectAtomicallyThroughQueuedHandler() {
+        KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,KOMEProgressionRank.SERF);
         for (double input : new double[] {Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY}) {
             KOMEPacketBuildAction request = validCreation(); request.x = input;
             rejectWithoutMutation(request, "finite");

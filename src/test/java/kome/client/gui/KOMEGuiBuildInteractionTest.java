@@ -41,6 +41,7 @@ public class KOMEGuiBuildInteractionTest {
         // Eligible server-snapshot input: owner generation has separate production-builder tests.
         data.selectablePopulationOwners.add("dunedain");
         data.viewerDimension = 100; data.viewerX = 24127.25; data.viewerY = 67; data.viewerZ = -834.75;
+        data.canSubmitBuilds=true;
         screen = new Screen(data);
         screen.prepare(minecraft, KOMEAccessFixture.allocate(TestFont.class), 788, 458);
         minecraft.currentScreen = screen;

@@ -23,6 +23,24 @@ import static org.junit.Assert.*;
 import kome.common.network.KOMEPacketJoinBattleSelectionResult;
 
 public class KOMEJoinBattleServiceTest {
+    @Test public void freshEntryRequiresKnightDespiteLegacyFlagsAndOwnedArmy() throws Exception {
+        Fixture f=new Fixture(LOTRFaction.GONDOR);f.participate("gondor");
+        KOMEArmyCompany company=f.company("C1","gondor","T100",KOMEHiredUnitClass.CAMPAIGN,KOMEPopulationType.OFFENSIVE,false);
+        company.owner=f.access.player.id;f.commit("C1",EntryOrigin.LEGAL_ARRIVAL);
+        f.data.getProgression(f.access.player.id).grant("baseline.hire_units");
+        KOMECanonicalRankService.setCanonicalRank(f.data,f.access.player.id,KOMEProgressionRank.SERF);
+        assertReason(Reason.RANK_REQUIRED,f.evaluate());
+        assertEquals("Requires Knight standing.",KOMEJoinBattleText.forReason(f.evaluate().reason));
+        assertEquals(Reason.RANK_REQUIRED,f.select("C1").reason);
+        assertSame(company,f.data.armyCompanies.get("C1"));
+    }
+    @Test public void correctedRankDoesNotInvalidateExistingBattleParticipant() throws Exception {
+        Fixture f=new Fixture(LOTRFaction.GONDOR);f.participate("gondor");
+        f.company("C1","gondor","T100",KOMEHiredUnitClass.CAMPAIGN,KOMEPopulationType.OFFENSIVE,false);
+        f.commit("C1",EntryOrigin.LEGAL_ARRIVAL);f.registerPlayer("gondor");
+        KOMECanonicalRankService.setCanonicalRank(f.data,f.access.player.id,KOMEProgressionRank.WANDERER);
+        assertTrue(f.evaluate().isAllowed());
+    }
     @After public void resetRelations() {
         LOTRFactionRelations.overrideRelations(LOTRFaction.GONDOR, LOTRFaction.ROHAN,
             LOTRFactionRelations.Relation.NEUTRAL);
@@ -413,6 +431,7 @@ public class KOMEJoinBattleServiceTest {
             access = new KOMEAccessFixture();
             data = access.data;
             access.pledge(pledge);
+            KOMECanonicalRankService.setCanonicalRank(data,access.player.id,KOMEProgressionRank.KNIGHT);
             if (start) start(State.ORDINARY, Collections.<GarrisonSeed>emptyList());
         }
 

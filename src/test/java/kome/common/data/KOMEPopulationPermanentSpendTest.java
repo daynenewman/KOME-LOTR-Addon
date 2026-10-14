@@ -98,6 +98,7 @@ public class KOMEPopulationPermanentSpendTest {
         record.companyId = company.id;
         data.hiredUnits.put(record.entity, record);
 
+        KOMECanonicalRankService.setCanonicalRank(data,recipient,KOMEProgressionRank.LORD);
         assertTrue(KOMECompanyTransferService.offer(data, company, owner, recipient, "Recipient", 10L).success);
         assertTrue(KOMECompanyTransferService.accept(data, company, recipient, "Recipient", 11L).success);
         assertEquals(2400L, KOMEPopulationService.getAvailablePopulationCenti(data, "gondor"));

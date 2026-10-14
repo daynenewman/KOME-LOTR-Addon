@@ -43,6 +43,29 @@ public final class KOMEProgressionPermissionRegistry {
         GATES=Collections.unmodifiableMap(gates);
     }
     private KOMEProgressionPermissionRegistry() { }
+
+    /** Rank eligibility metadata, separate from the retained achievement inventory. */
+    public enum Ability {
+        BUILD_SUBMISSION("build.submit", KOMEProgressionRank.SERF, "Faction build submissions", "Submit legitimate faction work; existing review and time rules apply.", "paper", "Construction permission; Build manager/reviewer", "KOMEPacketBuildAction; KOMEBuildService"),
+        START_RETURN("travel.start", KOMEProgressionRank.SERF, "Starting waypoint return", "Return to your saved character-creation waypoint under native travel rules. Click to request travel.", "compass", "Saved original start; native travel and territory rules", "KOMEWaypointAccessService; KOMEPacketWaypointTravelRequest"),
+        MILITARY_EQUIPMENT("equipment.standard", KOMEProgressionRank.KNIGHT, "Faction military equipment", "Standard equipment follows native LOTR rules, including before Knight standing. Crafting and exceptional items retain their own requirements.", "iron_chestplate", "Native faction/alignment and item rules", "Native LOTR items; KOMEGearRestrictionService"),
+        BATTLE_SERVICE("battle.join", KOMEProgressionRank.KNIGHT, "Company & battle service", "Join legal formal battles beside your faction's committed campaign company. This does not grant company ownership or recruitment authority.", "iron_sword", "Committed faction company; legal active conflict", "KOMEJoinBattleService"),
+        COMPANY_COMMAND("company.command", KOMEProgressionRank.LORD, "Command companies", "Receive and command legally owned or delegated companies. Existing legal command and safe withdrawal remain available after rank correction.", "map", "Company ownership or existing lawful delegation", "KOMECompanyTransferService; KOMECompanyDiplomacyAuthorization; KOMECompanyCommandAuthority"),
+        CAMPAIGN_RECRUITMENT("campaign.recruit", KOMEProgressionRank.LORD, "Recruit campaign troops", "Raise strategic troops with Crown authority and faction population. Company control does not authorize recruitment spending.", "gold_nugget", "Recognized ruler; KOM-87 delegation pending; population", "KOMECampaignRecruitmentService"),
+        STRATEGIC_ORDERS("company.orders", KOMEProgressionRank.LORD, "Issue strategic orders", "Order a legally controlled company along valid strategic routes. New hostile operations outside a declared war require the recognized ruler; route and conflict checks still apply.", "compass", "Lawful company command; legal route and current state", "KOMECommandTroops.validateCompanyMove");
+
+        public final String id, title, description, icon, dependencies, enforcementSite;
+        public final KOMEProgressionRank minimumRank;
+        Ability(String id, KOMEProgressionRank rank, String title, String description,
+                String icon, String dependencies, String site) {
+            this.id=id; minimumRank=rank; this.title=title; this.description=description;
+            this.icon=icon; this.dependencies=dependencies; enforcementSite=site;
+        }
+        public static Ability forId(String id) {
+            for (Ability ability : values()) if (ability.id.equals(id)) return ability;
+            return null;
+        }
+    }
     private static void gate(Map<String,Gate> m,String id,String unlock,String site,Status status){m.put(id,new Gate(id,unlock,site,status));}
     public static Map<String, Gate> gates() { return GATES; }
     public static Gate gate(String id) { return id == null ? null : GATES.get(id.toLowerCase(java.util.Locale.ROOT)); }

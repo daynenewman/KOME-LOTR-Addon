@@ -49,7 +49,10 @@ public final class KOMEPacketWaypointTravelRequest implements IMessage {
                 return null;
             }
             LOTRWaypoint waypoint = waypoints[message.waypointId];
-            if (!KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.FAST_TRAVEL)) return null;
+            if (!KOMEWaypointAccessService.hasTravelPermission(player,waypoint)) {
+                player.addChatMessage(new ChatComponentText("Fast travel denied: requires existing travel permission or Serf standing for your saved starting waypoint."));
+                return null;
+            }
             boolean nativeProgression = KOMEWaypointAccessService.hasNativeProgression(player, waypoint);
             KOMEWaypointAccessService.Decision decision = KOMEWaypointAccessService.evaluatePlayer(player, waypoint, nativeProgression);
             if (!decision.finalAllowed) {

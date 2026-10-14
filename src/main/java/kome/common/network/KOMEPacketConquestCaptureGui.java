@@ -59,6 +59,8 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
     public double viewerY;
     public double viewerZ;
     public String focusBuildId = "";
+    public boolean canSubmitBuilds;
+    public String buildSubmissionReason="";
 
     public KOMEPacketConquestCaptureGui() {
     }
@@ -125,6 +127,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
         viewerY = buf.readDouble();
         viewerZ = buf.readDouble();
         focusBuildId = KOMEPopulationWire.readText(buf);
+        canSubmitBuilds=buf.readBoolean();buildSubmissionReason=KOMEPopulationWire.readText(buf);
         KOMEPopulationWire.requireFullyRead(buf);
     }
 
@@ -184,6 +187,7 @@ public class KOMEPacketConquestCaptureGui implements IMessage {
             buf.writeDouble(viewerY);
             buf.writeDouble(viewerZ);
             KOMEPopulationWire.writeText(buf, focusBuildId == null ? "" : focusBuildId);
+            buf.writeBoolean(canSubmitBuilds);KOMEPopulationWire.writeText(buf,buildSubmissionReason);
         });
     }
 

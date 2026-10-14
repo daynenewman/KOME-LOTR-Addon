@@ -63,6 +63,7 @@ public class KOMECompanyDiplomacyAuthorizationTest {
 
         UUID neutralRecipient = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(neutralRecipient, "neutral_test");
+        KOMECanonicalRankService.setCanonicalRank(data,neutralRecipient,KOMEProgressionRank.LORD);
 
         assertTrue(KOMECompanyDiplomacyAuthorization
             .canStartDelegation(data, "native_test", nativeKing, neutralRecipient).allowed);
@@ -71,6 +72,7 @@ public class KOMECompanyDiplomacyAuthorizationTest {
 
         UUID unpledgedRecipient = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(unpledgedRecipient, "");
+        KOMECanonicalRankService.setCanonicalRank(data,unpledgedRecipient,KOMEProgressionRank.LORD);
 
         assertTrue(KOMECompanyDiplomacyAuthorization
             .canStartDelegation(data, "native_test", nativeKing, unpledgedRecipient).allowed);
@@ -87,6 +89,7 @@ public class KOMECompanyDiplomacyAuthorizationTest {
         UUID nativeKing = crown(data, "native_test", "Native King");
         UUID recipient = UUID.randomUUID();
         data.lastKnownPlayerFactions.put(recipient, "recipient_test");
+        KOMECanonicalRankService.setCanonicalRank(data,recipient,KOMEProgressionRank.LORD);
 
         assertTrue(KOMECompanyDiplomacyAuthorization
             .canStartDelegation(data, "native_test", nativeKing, recipient).allowed);

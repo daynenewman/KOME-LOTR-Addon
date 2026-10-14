@@ -64,7 +64,8 @@ public final class KOMEJoinBattleService {
         ENTRY_CANCELLED,
         ENTRY_ALREADY_IN_PROGRESS,
         ALREADY_DEPLOYED,
-        GOVERNANCE_RESTRICTED
+        GOVERNANCE_RESTRICTED,
+        RANK_REQUIRED
     }
 
     /** Immutable company row suitable for a later server-produced Join Battle UI. */
@@ -230,6 +231,10 @@ public final class KOMEJoinBattleService {
         PlayerParticipation player = record.getPlayers().get(playerId);
         if (player != null && player.status == PlayerStatus.WITHDRAWN)
             return new Base(data, playerId, tile, playerFaction, record, Reason.WITHDRAWN);
+        // Existing deployment/egress is maintained; a new entry requires earned standing.
+        if (player==null && !KOMEProgressionAbilityPolicy.unlocked(data,playerId,
+                KOMEProgressionPermissionRegistry.Ability.BATTLE_SERVICE))
+            return new Base(data,playerId,tile,playerFaction,record,Reason.RANK_REQUIRED);
         // Entry, retry and client projection share the existing war-scoped military authority.
         if (!KOMEGovernanceService.militaryAction(data, playerId, playerFaction).allowed)
             return new Base(data, playerId, tile, playerFaction, record,

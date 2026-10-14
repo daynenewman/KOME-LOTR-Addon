@@ -29,6 +29,9 @@ public final class KOMECompanyTransferService {
             return Result.failure("Transfer rejected: recipient is not currently pledged to the company's required faction "
                 + KOMEAlliance.displayFactionName(requiredFaction) + ".");
         }
+        String standing=KOMEProgressionAbilityPolicy.rankDenial(data,recipient,
+            KOMEProgressionPermissionRegistry.Ability.COMPANY_COMMAND);
+        if(!standing.isEmpty())return Result.failure(standing);
         company.transferRecipient = recipient;
         company.transferRecipientName = recipientName == null ? "" : recipientName;
         company.transferOfferedBy = owner;
@@ -51,6 +54,9 @@ public final class KOMECompanyTransferService {
             return Result.failure("The company transfer offer expired.");
         }
         if (company.isMoving()) return Result.failure("The company began moving; transfer cannot complete across a movement boundary.");
+        String standing=KOMEProgressionAbilityPolicy.rankDenial(data,recipient,
+            KOMEProgressionPermissionRegistry.Ability.COMPANY_COMMAND);
+        if(!standing.isEmpty())return Result.failure(standing);
         String requiredFaction = KOMEAlliance.normalizeFactionKey(company.faction);
         String recipientFaction = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(recipient));
         if (requiredFaction.length() == 0 || !requiredFaction.equals(recipientFaction)) {

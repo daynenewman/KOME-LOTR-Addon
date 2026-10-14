@@ -1,5 +1,14 @@
 # Membership, rulers, diplomacy, and delegated authority
 
+Pass 2: `KOMECompanyCommandAuthority.newMilitaryOperationDenial` guards new player
+orders against native-hostile conquest outside declared war without recognized
+ruler/staff authority. Canonical KOM-18 capture-history/diplomacy publication
+remains unchanged. `canStartDelegation` requires Lord for a new command recipient;
+`canContinueDelegation` preserves established authority after rank correction.
+Neither company control nor rank grants recruitment spending. King office stays
+exclusively in `KOMERulerService`. See
+[Pass 2 report](../../../PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt).
+
 [Index](../../INDEX.md)
 
 Owns ruler authorization, bilateral native LOTR relations/pending consent, foreign construction, voluntary company delegation, pledge cleanup, and restricted kingless stewardship. Legacy alliance records remain for compatibility; the historical four-stage ladder is not the current relation authority.

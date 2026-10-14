@@ -48,6 +48,9 @@ public final class KOMECompanyDiplomacyAuthorization {
             return Decision.deny("Only the recognized, pledged native King may delegate company control.");
         }
 
+        String standing=KOMEProgressionAbilityPolicy.rankDenial(data,recipient,
+            KOMEProgressionPermissionRegistry.Ability.COMPANY_COMMAND);
+        if(!standing.isEmpty())return Decision.deny(standing);
         return recipientDecision(data, nativeKey, recipient);
     }
 

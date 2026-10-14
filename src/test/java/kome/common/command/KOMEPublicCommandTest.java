@@ -177,6 +177,7 @@ public class KOMEPublicCommandTest {
 
     private static void makeJoinBattleEligible(KOMEAccessFixture f) throws Exception {
         f.pledge(LOTRFaction.GONDOR);long now=10L;
+        kome.common.data.KOMECanonicalRankService.setCanonicalRank(f.data,f.player.id,kome.common.data.KOMEProgressionRank.KNIGHT);
         kome.common.data.KOMEConflictService.Result started=f.data.getConflictService().start(
             "T100",kome.common.data.KOMEConflictRecord.State.ORDINARY,
             kome.common.data.KOMEConflictContracts.ExpectedConflict.absent(),

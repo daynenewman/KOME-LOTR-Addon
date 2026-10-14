@@ -33,7 +33,8 @@ public class KOMEProgressionAutoCompleter {
         return progression.getCanonicalRank().key + "|" + KOMEWorldData.get(player.worldObj).isProgressionEnabled()
             + "|" + (pledge == null ? "" : pledge.codeName()) + "|"
             + (pledge == null ? 0F : LOTRLevelData.getData(player).getAlignment(pledge))
-            + "|" + player.dimension + "|" + completed + "|" + new java.util.TreeMap<>(progression.getAssignments());
+            + "|" + player.dimension + "|" + completed + "|" + new java.util.TreeMap<>(progression.getAssignments())
+            + "|" + KOMEProgressionAbilityPolicy.project(KOMEWorldData.get(player.worldObj),player);
     }
 
     static {
@@ -205,6 +206,7 @@ public class KOMEProgressionAutoCompleter {
                 player.inventory==null?null:player.inventory.mainInventory));
         snapshot.authority(player.getUniqueID(), progression.getCanonicalRank().key,
             PUBLICATION.incrementAndGet(), player.dimension, KOMEWorldData.get(player.worldObj).isProgressionEnabled());
+        snapshot.abilities(KOMEProgressionAbilityPolicy.project(KOMEWorldData.get(player.worldObj),player));
         KOMEPacketHandler.network.sendTo(snapshot, player);
         LAST_PERMISSION_STATE.put(player.getUniqueID(), permissionState(player, progression));
         KOMEVisualLocationService.syncIfChanged(player, progression, false);

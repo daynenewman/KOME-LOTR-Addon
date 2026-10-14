@@ -4728,6 +4728,9 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         String companyFaction = normalizeFaction(company.faction);
         boolean admin = player.canCommandSenderUseCommand(2, getCommandName());
         boolean temporary = company.isTemporarilyControlledBy(KOMEReflection.getEntityUUID(player));
+        String politicalDenial=kome.common.data.KOMECompanyCommandAuthority.newMilitaryOperationDenial(
+            data,company,KOMEReflection.getEntityUUID(player),destination,admin);
+        if(!politicalDenial.isEmpty())throw new WrongUsageException(politicalDenial);
         if (!admin && !playerFaction.equals(companyFaction) && !temporary) {
             throw new WrongUsageException("Company faction does not match your faction.");
         }

@@ -168,6 +168,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
                 updateProgressionData(message.playerName, message.completed, message.assignments,
                     message.canonicalSummary, message.findLabel, message.leaveRelationshipType,
                     message.leaveRelationshipLabel, message.leaveRelationshipName, message.rankSummary);
+                KOMEGuiProgression.updateAbilities(message.abilities);
             });
         } catch (java.util.concurrent.RejectedExecutionException busy) {
             progressionRefreshPending = true;

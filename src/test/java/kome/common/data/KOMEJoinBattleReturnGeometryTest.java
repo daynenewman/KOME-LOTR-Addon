@@ -31,6 +31,7 @@ public class KOMEJoinBattleReturnGeometryTest {
         f.access.player.dimension=KOMETileTestResources.dimension();
         f.access.pledge(lotr.common.fac.LOTRFaction.GONDOR);
         KOMEWorldData data=f.access.data;
+        KOMECanonicalRankService.setCanonicalRank(data,f.access.player.id,KOMEProgressionRank.KNIGHT);
         KOMEArmyCompany company=new KOMEArmyCompany();
         company.id="C1";company.name="Exact";company.owner=f.access.player.id;
         company.faction=company.nativeFaction="gondor";company.currentTile="T100";

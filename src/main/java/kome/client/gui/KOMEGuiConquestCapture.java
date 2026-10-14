@@ -143,6 +143,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     private GuiTextField buildNameField;
     private GuiTextField buildHoursField;
     private String buildHoursValidation = "";
+    private boolean canSubmitBuilds;
+    private String buildSubmissionReason="";
     private String pendingDestructiveBuildAction = "";
     private String pendingDestructiveBuildId = "";
 
@@ -192,6 +194,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         claimWarDestination = safe(message.claimWarDestination);
         buildViews.addAll(message.builds);
         selectablePopulationOwners.addAll(message.selectablePopulationOwners);
+        canSubmitBuilds=message.canSubmitBuilds;buildSubmissionReason=message.buildSubmissionReason;
         viewerDimension = message.viewerDimension;
         viewerWorldX = message.viewerX;
         viewerWorldY = message.viewerY;
@@ -300,7 +303,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (buildMode == BUILD_MODE_LIST) {
             GuiButton create = new KOMEGuiButton(ID_BUILD_NEW, panelX + panelW - PANEL_MARGIN - 132, footerY,
                 132, 22, "Create Build");
-            create.enabled = KOMEBuildCreatePresentation.canCreateBuild(selectablePopulationOwners);
+            create.enabled = canSubmitBuilds && KOMEBuildCreatePresentation.canCreateBuild(selectablePopulationOwners);
             buttonList.add(create);
             int visible = buildVisibleRows();
             buildScroll = clamp(buildScroll, 0, Math.max(0, buildViews.size() - visible));
@@ -353,7 +356,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         int actionY = contentY + 121;
         int gap = 7;
         int actionW = Math.max(72, (panelW - PANEL_MARGIN * 2 - gap * 2) / 3);
-        buttonList.add(new KOMEGuiButton(ID_BUILD_CONTRIBUTE, actionX, actionY, actionW, 20, "Add Hours"));
+        GuiButton contribute=new KOMEGuiButton(ID_BUILD_CONTRIBUTE, actionX, actionY, actionW, 20, "Add Hours");
+        contribute.enabled=canSubmitBuilds;buttonList.add(contribute);
         GuiButton rename = new KOMEGuiButton(ID_BUILD_RENAME, actionX + actionW + gap, actionY, actionW, 20, "Rename");
         rename.enabled = selected.canManage;
         buttonList.add(rename);
@@ -549,6 +553,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
     private void sendBuildAction(String action, String buildId, String contributionId, String text, String owner) {
+        if(!canSubmitBuilds && ("create".equals(action)||"contribute".equals(action))) {
+            mc.thePlayer.addChatMessage(new net.minecraft.util.ChatComponentText(buildSubmissionReason));return;
+        }
         KOMEPacketHandler.network.sendToServer(new KOMEPacketBuildAction(action, tileId, buildId,
             contributionId, text, owner, editBuildType.key, editCentiHours,
             viewerDimension, viewerWorldX, viewerWorldY, viewerWorldZ));
@@ -1117,6 +1124,8 @@ public class KOMEGuiConquestCapture extends GuiScreen {
     }
 
     private String disabledReason(int id) {
+        if(!canSubmitBuilds && (id==ID_BUILD_NEW || id==ID_BUILD_CONTRIBUTE
+                || id==ID_BUILD_SUBMIT_CREATE || id==ID_BUILD_SUBMIT_CONTRIBUTION))return buildSubmissionReason;
         if (id == ID_SET_RECRUITMENT_TILE) {
             if (tileId.equals(activeRecruitmentTile)) {
                 return "This is already your active recruitment tile.";

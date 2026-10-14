@@ -29,7 +29,7 @@ public class KOMEProgressionCleanupRecruitmentTest {
             Fixture f = new Fixture(); f.rank(KOMEProgressionRank.LORD);
             long before = f.bank(); KOMECampaignRecruitmentService.Result result = f.recruit(false);
             assertEquals(KOMECampaignRecruitmentService.Code.UNAUTHORIZED, result.code);
-            assertTrue(result.reason.contains("KOM-87"));
+            assertTrue(result.reason.contains("Royal recruitment commissions are not available"));
             assertEquals(0, f.effect.deployments); assertEquals(0, f.effect.nativeHires);
             assertEquals(before, f.bank()); assertFalse(f.data.progressions.get(f.owner)
                 .isCompleted(KOMEProgressionAchievement.forID("baseline.hire_units")));

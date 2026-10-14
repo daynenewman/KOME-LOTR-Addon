@@ -44,6 +44,7 @@ public final class KOMEJoinBattleText {
             case ENTRY_ALREADY_IN_PROGRESS: return "The server is safely completing an accepted Join Battle.";
             case ALREADY_DEPLOYED: return "You are already deployed through another Join Battle entry.";
             case GOVERNANCE_RESTRICTED: return "Your current war governance status prevents Join Battle participation.";
+            case RANK_REQUIRED: return "Requires Knight standing.";
             case INVALID_REQUEST:
             default: return "The Join Battle request was invalid.";
         }
