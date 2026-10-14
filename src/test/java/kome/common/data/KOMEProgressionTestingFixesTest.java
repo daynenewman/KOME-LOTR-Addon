@@ -105,7 +105,7 @@ public class KOMEProgressionTestingFixesTest {
     }
     @Test public void basicNativePermissionsNoLongerDependOnStoredFlags()throws Exception{
         KOMEAccessFixture f=new KOMEAccessFixture();assertTrue(KOMEProgressionPermissions.has(f.player,KOMEProgressionPermissions.POUCHES));assertTrue(KOMEProgressionPermissions.has(f.player,KOMEProgressionPermissions.NPC_TRADE));
-        assertTrue(f.data.progressions.isEmpty());assertFalse(KOMEProgressionPermissions.has(f.player,KOMEProgressionPermissions.COOKING));assertFalse(KOMEProgressionPermissions.has(f.player,KOMEProgressionPermissions.FACTION_GEAR));
+        assertTrue(f.data.progressions.isEmpty());assertTrue(KOMEProgressionPermissions.has(f.player,KOMEProgressionPermissions.COOKING));assertFalse(KOMEProgressionPermissions.has(f.player,KOMEProgressionPermissions.FACTION_GEAR));
         assertEquals(KOMEProgressionPermissionRegistry.Status.OBSOLETE,KOMEProgressionPermissionRegistry.gate(KOMEProgressionPermissions.POUCHES).status);
     }
     @Test public void drinkBookNamesExposeTheActualNativeVariant()throws Exception{

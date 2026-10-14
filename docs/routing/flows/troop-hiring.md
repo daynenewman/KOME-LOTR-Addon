@@ -21,3 +21,7 @@ flowchart LR
 ```
 
 Verification: [recruitment transaction](../../../src/test/java/kome/common/data/KOMECampaignRecruitmentServiceTest.java), [packet](../../../src/test/java/kome/common/network/KOMEPacketCampaignHireTest.java), [ordinary registration](../../../src/test/java/kome/common/data/KOMENativeHireRegistrationServiceTest.java), [cost](../../../src/test/java/kome/common/data/KOMEUnitPopulationCostServiceTest.java), [permanent spending](../../../src/test/java/kome/common/data/KOMEPopulationPermanentSpendTest.java). Use guide commands, then disposable hire/failure/reload checks for bank, UUID, class, company, and mount. Cost reduction/death/dismissal does not automatically refund the investment; Emergency Defense reserves follow a separate policy.
+
+## Pass 1 authority (2026-10-13)
+
+Ordinary native hires use native eligibility and the recruiter's canonical bank, never automatic Campaign enrollment. Campaign recruitment rechecks current Lord-or-higher standing and pledged Crown office (or explicit server admin) before deployment and debit. Historical Knight/hire flags do not grant authority; KOM-87 non-ruler recruitment warrants remain unavailable. Farmhands retain zero population and the existing separate foreign cooperation rule. Emergency Defense, existing companies, costs and movement/recovery are unchanged. See [Pass 1 report](../../PROGRESSION_CLEANUP_PASS1_REPORT.txt).

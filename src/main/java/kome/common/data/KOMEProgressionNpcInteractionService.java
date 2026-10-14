@@ -5,6 +5,7 @@ import lotr.common.LOTRLevelData;
 import lotr.common.entity.npc.LOTREntityNPC;
 import lotr.common.fac.LOTRFaction;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.ChatComponentText;
 
 /**
@@ -40,10 +41,15 @@ public final class KOMEProgressionNpcInteractionService {
             return true;
         }
 
-        if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&state.getLiege().hasSameIdentity(clicked)) {
+        if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT) {
+            KOMELordshipTrial trial=progression.getLordship().assignment();
+            if(trial!=null&&trial.ready()&&KOMELordshipTrialService.eligible(player,npc))
+                return KOMELordshipTrialService.promote(player,npc);
             KOMEKnightCommission commission=progression.getKnightService().assignment();
-            return commission!=null&&commission.stage!=KOMEKnightCommission.Stage.OFFERED
-                &&KOMEKnightCommissionService.acceptOrReport(player,npc);
+            if(commission!=null&&commission.stage==KOMEKnightCommission.Stage.READY_TO_REPORT
+                &&(commission.type!=KOMEKnightCommission.Type.STOLEN_GOODS||commission.adminForced
+                    ||KOMEKnightCommissionService.hasProperty(new ItemStack[]{player.getCurrentEquippedItem()},commission,player.getUniqueID()))
+                &&KOMEKnightCommissionService.acceptOrReport(player,npc))return true;
         }
 
         if(state.getSerfdomMaster()

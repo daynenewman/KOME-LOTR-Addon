@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class KOMEGuiProgression extends LOTRGuiMenuBase {
-    private static final String[] GROUPS = new String[] {"baseline", "wanderer", "serf", "knight", "lord", "prince_king"};
+    private static final String[] GROUPS = new String[] {"wanderer", "serf", "knight", "lord", "prince_king"};
     // --- Layout constants (panel-relative: add to guiLeft/guiTop) ---
     private static final int LIST_TOP = 47;
     private static final int ROW_HEIGHT = 50;
@@ -65,7 +65,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     private View view;
 
     public KOMEGuiProgression(){this(false);}
-    private KOMEGuiProgression(boolean focusDuty){this.focusDuty=focusDuty;view=focusDuty?View.RANKS:lastSelectedView;if(focusDuty)lastSelectedView=View.RANKS;}
+    private KOMEGuiProgression(boolean focusDuty){this.focusDuty=focusDuty;view=focusDuty||knightView()?View.RANKS:lastSelectedView;if(focusDuty)lastSelectedView=View.RANKS;}
     public static KOMEGuiProgression dutyView(){return new KOMEGuiProgression(true);}
 
     public static void updateProgressionData(String name, List completedIds) {
@@ -187,6 +187,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
 
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
+        if(knightView()&&!dutyFocusApplied){selectView(View.RANKS);dutyFocusApplied=true;}
         refreshRelationshipButton();
         if(buttonShowMe!=null)buttonShowMe.visible=kome.client.KOMEProgressionMapFocus.target()!=null;
         if (view == View.ADVANCEMENTS) {
@@ -245,7 +246,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         buttonCategoryNext = new GuiButton(1, guiLeft + 187, guiTop + 9, 20, 20, ">");
         buttonList.add(buttonCategoryNext);
         buttonAdvancements=(KOMEGuiButton)new KOMEGuiButton(20,guiLeft+11,guiTop+29,97,18,"Advancements").setStyle(KOMEGuiButton.Style.TAB);
-        buttonRanks=(KOMEGuiButton)new KOMEGuiButton(21,guiLeft+112,guiTop+29,97,18,"Ranks").setStyle(KOMEGuiButton.Style.TAB);
+        buttonRanks=(KOMEGuiButton)new KOMEGuiButton(21,guiLeft+112,guiTop+29,97,18,knightView()?"Service & Rank":"Ranks").setStyle(KOMEGuiButton.Style.TAB);
         buttonList.add(buttonAdvancements);buttonList.add(buttonRanks);
 
         buttonLeaveRelationship =
@@ -399,7 +400,9 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         drawScrollbar(groupAchievements.size());
     }
 
+    private static boolean knightView(){return kome.common.data.KOMEKnightBookPresentation.isKnight(rankSummary.currentRank,rankSummary.factionKey);}
     private void drawRanks(){
+        if(knightView()){drawKnightRanks();return;}
         drawRankLadder();
         int max=maxRankScroll();if(focusDuty&&!dutyFocusApplied&&rankSummary.hasActivity()){rankScroll=max;dutyFocusApplied=true;}rankScroll=Math.max(0,Math.min(max,rankScroll));
         int contentTop=guiTop+RANK_CONTENT_TOP,contentBottom=guiTop+ySize-RANK_CONTENT_BOTTOM_MARGIN-relationshipFooterHeight();
@@ -428,6 +431,22 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         if(max>0)drawRankScrollbar(max);
     }
 
+    private void drawKnightRanks(){
+        drawRankLadder();rankScroll=Math.max(0,Math.min(maxRankScroll(),rankScroll));
+        int top=guiTop+RANK_CONTENT_TOP,bottom=guiTop+ySize-RANK_CONTENT_BOTTOM_MARGIN-relationshipFooterHeight();
+        KOMEGuiTheme.enableScissor(mc,guiLeft+7,top,xSize-14,bottom-top);
+        try{
+            int y=top-rankScroll;
+            mc.fontRenderer.drawString("Current service",guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=13;
+            for(Object line:mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityTitle,184)){mc.fontRenderer.drawString(String.valueOf(line),guiLeft+17,y,5652783);y+=10;}
+            for(Object line:mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184)){mc.fontRenderer.drawString(String.valueOf(line),guiLeft+17,y,8019267);y+=10;}
+            y+=7;mc.fontRenderer.drawString(rankSummary.promotionTitle,guiLeft+13,y,KOMEGuiTheme.COLOR_BORDER_RED);y+=14;
+            for(KOMEProgressionRankSummary.Requirement r:rankSummary.requirements){drawRankRequirement(r,y);y+=KOMEProgressionRankLayout.REQUIREMENT_HEIGHT;}
+            y+=6;
+            for(Object line:mc.fontRenderer.listFormattedStringToWidth(canonicalSummary,184)){mc.fontRenderer.drawString(String.valueOf(line),guiLeft+17,y,8019267);y+=10;}
+        }finally{KOMEGuiTheme.disableScissor();}
+        if(maxRankScroll()>0)drawRankScrollbar(maxRankScroll());
+    }
     private void drawRankLadder(){
         int y=guiTop+10;String[] names=KOMEFactionProgressionTitles.ladder(rankSummary.factionKey);
         int[] centers={guiLeft+31,guiLeft+83,guiLeft+137,guiLeft+190};
@@ -449,7 +468,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
         if(requirement.complete)drawTexturedModalRect(guiLeft+13,y+4,190,17,16,16);
         else {Gui.drawRect(guiLeft+16,y+7,guiLeft+25,y+16,0xFF5A171A);Gui.drawRect(guiLeft+17,y+8,guiLeft+24,y+15,0x55FFFFFF);}
         int color=requirement.complete?8019267:5652783;
-        String quota=requirement.current+" / "+requirement.required;
+        String quota=requirement.required==1?"":requirement.current+" / "+requirement.required;
         boolean expandable=requirement.hasChildren();
         int quotaRight=guiLeft+(expandable?181:193);
         int quotaX=quotaRight-mc.fontRenderer.getStringWidth(quota);
@@ -481,6 +500,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     }
 
     private int rankContentHeight(){
+        if(knightView())return 40+(mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityTitle,184).size()+mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184).size())*10+KOMEProgressionRankLayout.requirementsHeight(rankSummary.requirements,false)+mc.fontRenderer.listFormattedStringToWidth(canonicalSummary,184).size()*10;
         int height=14+KOMEProgressionRankLayout.requirementsHeight(rankSummary.requirements,dutiesExpanded);
         if(rankSummary.hasActivity()){int lines=mc.fontRenderer.listFormattedStringToWidth(rankSummary.activityObjective,184).size();height+=37+lines*10;}
         return height;
@@ -535,6 +555,7 @@ public class KOMEGuiProgression extends LOTRGuiMenuBase {
     }
 
     private void selectView(View selected) {
+        if(knightView())dutyFocusApplied=true;
         view = selected;
         lastSelectedView = selected;
         scroll = 0;

@@ -129,13 +129,13 @@ public class KOMEProgressionUxInteractionTest {
         try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
             KOMEPlayerProgression p=f.s.p;KOMEKnightCommission a=new KOMEKnightCommission(Type.BORDER_INCURSION,p.getSerfKnightProgression().getLiege());
             a.stage=Stage.OFFERED;assertTrue(p.getKnightService().offer(a));
-            assertTrue(KOMELiegeProgressionInteraction.ownsQuest(f.s.f.player,f.liege));
+            assertTrue(KOMELiegeProgressionInteraction.ownsQuest(f.s.f.player,f.lord));
             assertEquals(KOMELiegeProgressionInteraction.Action.COMMISSION,KOMELiegeProgressionInteraction.action(p,150,"rohan"));
-            assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.liege));assertEquals(Stage.ACTIVE,a.stage);String token=a.token;
+            assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.lord));assertEquals(Stage.ACTIVE,a.stage);String token=a.token;
             assertEquals(KOMELiegeProgressionInteraction.Action.STATUS,KOMELiegeProgressionInteraction.action(p,150,"rohan"));
-            assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.liege));assertEquals(token,p.getKnightService().assignment().token);
+            assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.lord));assertEquals(token,p.getKnightService().assignment().token);
             a.stage=Stage.READY_TO_REPORT;assertEquals(KOMELiegeProgressionInteraction.Action.REPORT,KOMELiegeProgressionInteraction.action(p,150,"rohan"));
-            assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.liege));assertNull(p.getKnightService().assignment());
+            assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.lord));assertNull(p.getKnightService().assignment());
             assertEquals(KOMELiegeProgressionInteraction.Action.COMMISSION,KOMELiegeProgressionInteraction.action(p,150,"rohan"));
             KOMEKnightCommissionGameplayTest.TestNpc unrelated=f.s.npc(LOTRFaction.ROHAN);assertFalse(KOMELiegeProgressionInteraction.ownsQuest(f.s.f.player,unrelated));
         }

@@ -66,10 +66,15 @@ public final class KOMEVisualLocationService {
         if (recovery != null) markers.add(recovery);
         KOMEKnightCommission commission=progression.getKnightService().assignment();
         if(commission!=null&&commission.live()&&commission.stage!=KOMEKnightCommission.Stage.READY_TO_REPORT)
-            markers.add(new KOMEVisualMarker(commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?KOMEVisualMarker.Role.ESCORT:KOMEVisualMarker.Role.COMMISSION,"",commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?"Destination":KOMEKnightCommissionPresentation.title(commission.type),"",commission.dimension,commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?commission.destinationX:commission.x,0,commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?commission.destinationZ:commission.z));
+            markers.add(new KOMEVisualMarker(commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?KOMEVisualMarker.Role.ESCORT:commission.type==KOMEKnightCommission.Type.RELIEF?KOMEVisualMarker.Role.RELIEF:KOMEVisualMarker.Role.COMMISSION,"",commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?"Destination":KOMEKnightCommissionPresentation.title(commission.type),"",commission.dimension,commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?commission.destinationX:commission.x,0,commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?commission.destinationZ:commission.z));
         if(commission!=null&&commission.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT&&commission.stage==KOMEKnightCommission.Stage.ACTIVE&&!commission.threatResolved)
             markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.COMMISSION,"","Repel the raiders","",commission.dimension,commission.x,0,commission.z));
         KOMELordshipTrial trial=progression.getLordship().assignment();
+        if(trial!=null&&trial.authority.isSet()){
+            KOMEProgressionNpcRef authority=trial.authority;
+            markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.LORD_LIEGE,authority.entityUuid,rankedLabel(authority,worldData),"Trial authority",authority.dimension,authority.x,authority.y,authority.z,true,
+                trial.ready()||trial.objective.stage==KOMEKnightCommission.Stage.OFFERED||trial.objective.stage==KOMEKnightCommission.Stage.FAILED||trial.objective.activationPending));
+        }
         if(trial!=null&&trial.objective.stage==KOMEKnightCommission.Stage.ACTIVE){
             KOMEKnightCommission a=trial.objective;
             markers.add(new KOMEVisualMarker(a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?KOMEVisualMarker.Role.ESCORT:KOMEVisualMarker.Role.COMMISSION,"",a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?"Destination":KOMELordshipTrialPresentation.title(trial),"",a.dimension,a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?a.destinationX:a.x,0,a.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?a.destinationZ:a.z));
@@ -79,9 +84,9 @@ public final class KOMEVisualLocationService {
         if(field!=null&&field.stage==KOMEKnightCommission.Stage.ACTIVE)for(KOMEKnightCommission.Actor actor:field.actors)
             if(actor.role==KOMEKnightCommission.Role.ENEMY&&!actor.dead)
                 markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.ENCOUNTER_ENEMY,actor.id,"Attacker","",field.dimension,actor.x,actor.y,actor.z));
-        if(field!=null&&field.stage==KOMEKnightCommission.Stage.ACTIVE)for(KOMEKnightCommission.Actor actor:field.actors)
+        if(field!=null&&field.type!=KOMEKnightCommission.Type.SETTLEMENT_DEFENSE&&field.stage==KOMEKnightCommission.Stage.ACTIVE)for(KOMEKnightCommission.Actor actor:field.actors)
             if(!actor.dead&&(actor.role==KOMEKnightCommission.Role.CHARGE||actor.role==KOMEKnightCommission.Role.BENEFICIARY))
-                markers.add(new KOMEVisualMarker(field.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT&&actor.role==KOMEKnightCommission.Role.CHARGE?KOMEVisualMarker.Role.ESCORT:KOMEVisualMarker.Role.COMMISSION,actor.id,actor.displayName.isEmpty()?KOMEKnightCommissionPresentation.title(field.type):actor.displayName,"",field.dimension,actor.x,actor.y,actor.z));
+                markers.add(new KOMEVisualMarker(field.type==KOMEKnightCommission.Type.DANGEROUS_ESCORT&&actor.role==KOMEKnightCommission.Role.CHARGE?KOMEVisualMarker.Role.ESCORT:field.type==KOMEKnightCommission.Type.RELIEF?KOMEVisualMarker.Role.RELIEF:KOMEVisualMarker.Role.COMMISSION,actor.id,actor.displayName.isEmpty()?KOMEKnightCommissionPresentation.title(field.type):actor.displayName,"",field.dimension,actor.x,actor.y,actor.z));
         for(KOMEVisualMarker ruler:KOMEProgressionRulerService.markers(worldData)){
             boolean objective=markers.stream().anyMatch(m->m.entityUuid.equals(ruler.entityUuid)&&m.objective);
             markers.removeIf(m->m.entityUuid.equals(ruler.entityUuid));
@@ -124,7 +129,17 @@ public final class KOMEVisualLocationService {
             (progression.getKnightService().assignment()!=null||progression.getLordship().assignment()!=null
                 ||progression.getKnightService().qualifyingTypes(ref.factionKey).size()<KOMEKnightCommission.Type.values().length
                 ||KOMELordshipTrialService.prerequisites(progression,alignment,ref.factionKey));
-        return new KOMEVisualMarker(role,ref.entityUuid,role==KOMEVisualMarker.Role.SERFDOM_MASTER?"Master "+ref.displayName:rankedLabel(ref,worldData),"",ref.dimension,ref.x,ref.y,ref.z,actionable,returnObjective(progression,ref));
+        String label=role==KOMEVisualMarker.Role.SERFDOM_MASTER?"Master "+ref.displayName:rankedLabel(ref,worldData);
+        if(role==KOMEVisualMarker.Role.SERFDOM_MASTER){
+            if("provisioning".equals(state.getActiveAssignmentKind()))role=KOMEVisualMarker.Role.PROVISION_DUTY;
+            if("profession".equals(state.getActiveAssignmentKind()))role=KOMEVisualMarker.Role.PROFESSION_DUTY;
+        }
+        KOMEVisualMarker marker=new KOMEVisualMarker(role,ref.entityUuid,label,"",ref.dimension,ref.x,ref.y,ref.z,actionable,returnObjective(progression,ref));
+        if(role==KOMEVisualMarker.Role.PROFESSION_DUTY){
+            KOMESerfProfessionAssignment assignment=KOMESerfProfessionAssignment.readFromNBT(state.getDuty(KOMESerfKnightDutyType.PROFESSION).getAssignmentData());
+            if(assignment!=null)for(KOMESerfProfessionAssignment.Requirement r:assignment.requirements)if(!r.complete()){marker=marker.withItemIcon(r.requestedStack());break;}
+        }
+        return marker;
     }
     static boolean returnObjective(KOMEPlayerProgression p,KOMEProgressionNpcRef ref){
         KOMESerfKnightProgression s=p.getSerfKnightProgression();
@@ -140,7 +155,7 @@ public final class KOMEVisualLocationService {
             return ref.hasSameIdentity(s.getSerfdomMaster())&&(s.hasActiveAssignment()||KOMESerfKnightService.nextDuty(s)!=null);
         }
         KOMEKnightCommission commission=p.getLordship().assignment()!=null?p.getLordship().assignment().objective:p.getKnightService().assignment();
-        return commission!=null&&(commission.stage==KOMEKnightCommission.Stage.OFFERED||commission.stage==KOMEKnightCommission.Stage.READY_TO_REPORT)&&ref.hasSameIdentity(s.getLiege());
+        return p.getLordship().assignment()==null&&commission!=null&&(commission.stage==KOMEKnightCommission.Stage.OFFERED||commission.stage==KOMEKnightCommission.Stage.READY_TO_REPORT||commission.activationPending)&&ref.hasSameIdentity(s.getLiege());
     }
     static String rankedLabel(KOMEProgressionNpcRef ref,KOMEWorldData data){
         KOMEProgressionNpcRankRecord record=data==null?null:data.progressionNpcRanks.get(UUID.fromString(ref.entityUuid));
@@ -175,6 +190,18 @@ public final class KOMEVisualLocationService {
             if (!(value instanceof LOTREntityNPC)) continue;
             LOTREntityNPC npc = (LOTREntityNPC) value;
             String id = KOMEReflection.getEntityUUID(npc).toString();
+            for(KOMEProgressionNpcRef known:progression.getKnightService().knownPrinces())if(id.equals(known.entityUuid)){
+                if(!npc.isEntityAlive()||KOMEProgressionNpcRankService.effectiveRank(data,npc)!=KOMEProgressionNpcRank.PRINCE)progression.getKnightService().forgetPrince(id);
+                else if(materiallyChanged(known,npc))progression.getKnightService().rememberPrince(KOMEProgressionNpcRankService.referenceOf(npc));
+            }
+            KOMELordshipTrial lordship=progression.getLordship().assignment();
+            if(lordship!=null&&id.equals(lordship.authority.entityUuid)&&materiallyChanged(lordship.authority,npc)){
+                lordship.authority=KOMEProgressionNpcRankService.referenceOf(npc);changed=true;
+            }
+            if(lordship!=null&&id.equals(lordship.authority.entityUuid)&&(!npc.isEntityAlive()
+                    ||KOMEProgressionNpcRankService.effectiveRank(data,npc)!=KOMEProgressionNpcRank.PRINCE)){
+                lordship.authority=KOMEProgressionNpcRef.EMPTY;changed=true;
+            }
             KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();
             KOMEProgressionNpcRef charge=KOMESerfKnightEscortService.target(trial);
             if(trial!=null&&trial.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE&&id.equals(charge.entityUuid)
@@ -232,6 +259,14 @@ public final class KOMEVisualLocationService {
         lotr.common.fac.LOTRFaction pledge=lotr.common.LOTRLevelData.getData(player).getPledgeFaction();
         double alignment=pledge==null?0D:lotr.common.LOTRLevelData.getData(player).getAlignment(pledge);
         List<KOMEVisualMarker> markers = markersFor(progression, worldData,alignment);
+        if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&progression.getKnightService().assignment()==null
+                &&(progression.getLordship().assignment()==null&&KOMELordshipTrialService.prerequisites(progression,alignment,pledge==null?"":pledge.codeName())
+                    ||progression.getLordship().assignment()!=null&&!progression.getLordship().assignment().authority.isSet())){
+            KOMEProgressionNpcRef ref=knownPrince(progression,worldData,player.dimension,player.posX,player.posZ,pledge==null?"":pledge.codeName());
+            if(ref!=null){
+                markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.LORD_LIEGE,ref.entityUuid,rankedLabel(ref,worldData),"Trial of Lordship",ref.dimension,ref.x,ref.y,ref.z,true,true));
+            }
+        }
         markers.removeIf(marker->marker.role==KOMEVisualMarker.Role.RULER&&!ownRuler(marker,worldData,pledge));
         // Role leases also include non-actionable witnesses and Trial guards. Hide their
         // native indicators without inventing another visible relationship/action icon.
@@ -265,4 +300,15 @@ public final class KOMEVisualLocationService {
 
     public static void clearPlayer(UUID playerId) { if (playerId != null) LAST_SENT.remove(playerId); }
     public static void resetSession() { LAST_SENT.clear(); }
+    static KOMEProgressionNpcRef knownPrince(KOMEPlayerProgression p,KOMEWorldData data,int dimension,double x,double z,String faction){
+        KOMEProgressionNpcRef nearest=null;double distance=Double.POSITIVE_INFINITY;
+        // A Knight whose Lord died may still use legitimately credited faction service.
+        for(KOMEProgressionNpcRef ref:p.getKnightService().knownPrinces()){
+            KOMEProgressionNpcRankRecord record=data.progressionNpcRanks.get(UUID.fromString(ref.entityUuid));
+            if(record==null||record.rank!=KOMEProgressionNpcRank.PRINCE||ref.dimension!=dimension
+                ||!faction.isEmpty()&&!KOMEProgressionRelationshipLifecycle.sameFaction(faction,ref.factionKey))continue;
+            double d=(ref.x-x)*(ref.x-x)+(ref.z-z)*(ref.z-z);if(d<distance){nearest=ref;distance=d;}
+        }
+        return nearest;
+    }
 }

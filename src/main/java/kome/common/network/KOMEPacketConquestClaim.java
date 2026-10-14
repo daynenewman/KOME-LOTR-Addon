@@ -10,7 +10,6 @@ import kome.common.data.KOMEAlliance;
 import kome.common.data.KOMEConquestTile;
 import kome.common.data.KOMEConquestClaimService;
 import kome.common.data.KOMEWar;
-import kome.common.data.KOMEProgressionPermissions;
 import kome.common.data.KOMEWorldData;
 import lotr.common.LOTRLevelData;
 import lotr.common.fac.LOTRFaction;
@@ -57,10 +56,7 @@ public class KOMEPacketConquestClaim implements IMessage {
                 player.addChatMessage(new ChatComponentText("Unknown or unavailable conquest tile."));
                 return null;
             }
-            String priorOwner = tile.projectRulingFaction();
-            String permission = pledge.equals(priorOwner) ? KOMEProgressionPermissions.RECLAIM_WAYPOINTS
-                : KOMEProgressionPermissions.TAKE_WAYPOINTS;
-            if (!KOMEProgressionPermissions.require(player, permission)) return null;
+            // Rank history is not a conquest receipt or sovereign authorization.
             KOMEConquestClaimService.Result result = KOMEConquestClaimService.claim(data, tile, pledge,
                 KOMEReflection.getEntityUUID(player), player.getCommandSenderName(),
                 KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player)), System.currentTimeMillis());

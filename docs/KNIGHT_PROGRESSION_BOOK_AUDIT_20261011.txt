@@ -1,0 +1,164 @@
+KNIGHT PROGRESSION BOOK UX AUDIT — 2026-10-11
+
+Scope and evidence
+------------------
+This is a source and automated-test audit of the existing progression branch.
+It is not a screenshot review or Minecraft acceptance test. No live client was
+launched for this pass. The native LOTR book textures, buttons, font, rank names,
+scrolling and map navigation remain the presentation framework.
+
+1. Original presentation problems
+---------------------------------
+The Ranks page put advancement requirements ahead of current work. A Knight
+opening the general book could initially see the Advancements tab, while opening
+the duty shortcut selected Ranks and scrolled to the bottom. The resulting
+experience depended on the entry point and previous tab preference.
+
+Knight service was described through several overlapping server projections:
+KOMEKnightCommissionPresentation.summary, KOMEProgressionSummary and
+KOMEProgressionRankSummary. The rank projection assigned Knight activity text
+twice. Its summary mixed Liege identity, credits, preparation instructions,
+historical descriptions and the active commission. The historical information
+sent in canonicalSummary was not consistently useful in the rank-page layout.
+
+An inactive Lordship trial could be used as the activity heading while the
+player was still completing commissions. Report-ready commissions retained
+destination and combat explanations. Relief inventory enrichment could replace
+the current-stage context and continue showing supply instructions after the
+field task was complete. A report-stage tracker showed 0/1 even though the
+action was a conversation. Binary rank requirements also occupied space with
+1/1 or 0/1 labels.
+
+The old Lordship narrative directed the player to the existing Lord Liege and
+required returning surviving soldiers. Both conflicted with the requested
+Prince-issued invasion and personal-survival rule. The general commission
+summary repeated a preparation line even when there was current field work.
+
+Legacy rank-quota rows were already filtered out of the Advancements view by
+KOMEProgressionAchievement.forAdvancementsGroup. This pass does not claim to
+have removed a legacy checklist that was still visible there. Saved legacy
+achievement and quota data remain compatible.
+
+2. Classes and GUI methods
+--------------------------
+KOMEGuiProgression:
+  constructor, drawScreen, selectView, drawRanks, drawKnightRanks,
+  drawRankRequirement, rankContentHeight and refreshViewButtons.
+KOMEProgressionRankSummary.project:
+  server-authored current rank, real requirements and active activity.
+KOMEKnightBookPresentation.context:
+  relationship and compact credited-service footer.
+KOMEProgressionSummary.text (alignment-aware overload):
+  Knight context supplied to the native book, separate from current activity.
+KOMEKnightCommissionPresentation:
+  objective, stageLabel and details.
+KOMELordshipTrialPresentation:
+  native invasion orders, current stage, Prince guidance and report narrative.
+KOMEProgressionGoodsPresentation.objective/enrich:
+  inventory-aware relief detail, restricted to an active field delivery.
+KOMEProgressionTrackerSnapshot.commission/lordship:
+  binary versus quantitative objective presentation.
+KOMEVisualLocationService and KOMEProgressionMapFocus:
+  authoritative objective identity and native Show Me target selection.
+KOMEPacketProgressionData and KOMEPacketVisualMarkers:
+  existing server-to-client projection boundaries.
+
+3. Improvements implemented
+---------------------------
+Knights receive a Service & Rank tab within the existing book. The normal book
+and duty shortcut both begin with current service, including when the first
+snapshot arrives after the GUI opens. Explicit selection of Advancements is
+still respected. Serf and higher-rank page layouts retain their existing flow.
+
+The Knight page now reads in this order:
+  Current service: only the active commission/trial, or a concise next action.
+  Standing: distinct faction-attributed service credits, current alignment and
+            the actual Lordship field/report requirement.
+  Relationship: current Lord Liege and separate Prince trial authority, using
+                the existing faction-specific native authority titles.
+  Credited service: one compact entry per credited commission type.
+
+Travel, battle, recovery, delivery, report and technical preparation have
+different text. Report-ready work is a short return instruction; it does not
+repeat the full encounter description. Relief supplies are not presented as
+current work after delivery. The book preserves the marked recipient and
+subsequent report instruction when showing inventory-aware relief quantities.
+
+Eligibility directs a qualified Knight toward a Prince, explains that the
+service/alignment requirements are fulfilled, and describes the actual invasion
+trial without pretending it is already active. Cultural authority definitions
+provide general native spawn-host guidance. An exact Prince map target requires
+a personally encountered saved identity or the actual issuing authority.
+Unencountered loaded Princes are not automatically revealed.
+
+Show Me follows the saved settlement/attack anchor during travel/battle and the
+correct Lord or Prince during reporting. If no Prince is known, the button has
+no fictional destination. The book provides general discovery guidance instead.
+Technical preparation text explains retry/reassignment; it does not blame the
+player for unloaded chunks or a failed spawn transaction.
+
+Binary tracker objectives have no fraction or bar. Goods, combat, service-count
+and alignment requirements retain real quantities. Binary book requirement rows
+keep the native completion indicator and omit the redundant numerical quota.
+Provision markers use native bread; profession markers use the requested native
+material stack, including metadata. This applies to tracker, map and NPC icon
+paths while retaining existing indicator priority.
+
+4. Remaining limitations
+------------------------
+The narrow native page still needs scrolling for long invasion orders and
+cultural discovery guidance. There is no new pagination system. The compact
+history shows credited types for the current faction, not a complete chronology
+of every attempt or service for former factions. Full historical evidence is
+still persisted by the service record.
+
+Known Prince locations are last observed locations and can become stale while
+unloaded. Loaded movement/rank/death evidence refreshes or removes guidance.
+The book has no omniscient global noble search. Native noble availability can
+still make the discovery step difficult, particularly in explored old worlds
+whose existing noble records were migrated as Lords.
+
+New explanatory strings are English, with native item/faction/title naming.
+They have not received a complete localization or typography review. The
+remaining higher-rank legacy progression pages are outside this pass.
+
+5. Contradictory text and state
+------------------------------
+The live Knight activity/report paths no longer instruct players to keep two
+soldiers alive or have a Lord issue a new Lordship trial. Compatibility language
+keys for survivor/report messages were corrected as well.
+
+Saved version-1 trials retain their original field objectives and are labelled
+as saved trials. Their original Lord remains the provenance of those field
+orders; a Prince receives the final report and grants Lord standing. Such a
+trial may still protect a civilian or deliver a legacy charge. This is explicit
+continuation, not a claim that an old generic encounter was a native invasion.
+
+The compatibility three-argument commission summary remains available for
+non-book callers. The actual Knight book uses the alignment-aware context and
+rank activity projection. A future consolidation could retire that duplicate
+summary path after auditing its command/admin consumers.
+
+6. Recommended further improvements
+-----------------------------------
+Use live screenshots at common GUI scales to decide whether the cultural
+guidance needs a short secondary page. Measure actual journey times in several
+factions before tuning geography again. Consider a compact optional service
+chronology and a clearly labelled last-seen timestamp for known authorities.
+Complete localization after the live wording/layout has been accepted.
+
+7. Required live visual tests
+----------------------------
+Open the normal book and duty shortcut as a Knight, including after reconnect.
+Check travel, active combat, stolen-item recovery, relief delivery, ready report,
+failed gameplay attempt, technical preparation and qualified idle states.
+Verify the correct Lord/Prince title, no duplicated inactive assignment text,
+no clipped long titles, scrollbar extent and footer/button spacing.
+Verify Show Me during travel, combat and reporting; test an unknown Prince,
+a known moving Prince, an unloaded Prince and a dead/replacement authority.
+Check bread and profession icons on HUD, map and NPC head without overlaps.
+Repeat at multiple GUI scales and with a multiplayer client/server pair.
+
+Exact automated test/build evidence is recorded in
+PROGRESSION_KNIGHT_LORDSHIP_PASS_20261011.md and
+PROGRESSION_SUPPLEMENTAL_IMMERSION_20261011.md.

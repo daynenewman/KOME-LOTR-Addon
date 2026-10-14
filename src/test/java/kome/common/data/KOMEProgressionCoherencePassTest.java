@@ -57,10 +57,10 @@ public class KOMEProgressionCoherencePassTest {
         lotr.common.entity.npc.LOTRTradeEntries old=lotr.common.entity.npc.LOTRTradeEntries.GONDOR_BLACKSMITH_BUY;
         try{lotr.common.entity.npc.LOTRTradeEntries.GONDOR_BLACKSMITH_BUY=new lotr.common.entity.npc.LOTRTradeEntries(lotr.common.entity.npc.LOTRTradeEntries.TradeType.BUY,new lotr.common.entity.npc.LOTRTradeEntry(new ItemStack(item,16),8));assertEquals(125,KOMEProgressionGoodsValue.unitMilli(new ItemStack(item)));}finally{lotr.common.entity.npc.LOTRTradeEntries.GONDOR_BLACKSMITH_BUY=old;}
     }
-    @Test public void cookedFoodsRequireAnActualPermittedCookingRoute()throws Exception{
+    @Test public void ordinaryCookedFoodsNeedNoLegacyCookingFlag()throws Exception{
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()){
             Map recipes=net.minecraft.item.crafting.FurnaceRecipes.smelting().getSmeltingList();Map before=new HashMap(recipes);
-            try{recipes.put(new ItemStack(Items.beef),new ItemStack(Items.cooked_beef));assertFalse(KOMEProgressionGoodsEligibility.provision(s.f.player,new ItemStack(Items.cooked_beef)));assertTrue(KOMEProgressionGoodsEligibility.provision(s.f.player,new ItemStack(Items.apple)));s.p.grant("baseline.cooking");assertTrue(KOMEProgressionGoodsEligibility.provision(s.f.player,new ItemStack(Items.cooked_beef)));}finally{recipes.clear();recipes.putAll(before);}
+            try{recipes.put(new ItemStack(Items.beef),new ItemStack(Items.cooked_beef));assertTrue(KOMEProgressionGoodsEligibility.provision(s.f.player,new ItemStack(Items.cooked_beef)));assertTrue(KOMEProgressionGoodsEligibility.provision(s.f.player,new ItemStack(Items.apple)));s.p.grant("baseline.cooking");assertTrue(KOMEProgressionGoodsEligibility.provision(s.f.player,new ItemStack(Items.cooked_beef)));}finally{recipes.clear();recipes.putAll(before);}
         }
     }
     @Test public void cumulativeCompensationPaysOnlyDepositsOnceAcrossReload()throws Exception {

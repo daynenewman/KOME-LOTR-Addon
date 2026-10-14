@@ -47,6 +47,9 @@ public final class KOMEProgressionDestinations {
         return find(world,origin,minimum,maximum,null);
     }
     static KOMEKnightCommissionLocations.Destination find(World world,KOMEProgressionNpcRef origin,int minimum,int maximum,KOMEProgressionVariety variety){
+        return find(world,origin,minimum,maximum,variety,0);
+    }
+    static KOMEKnightCommissionLocations.Destination find(World world,KOMEProgressionNpcRef origin,int minimum,int maximum,KOMEProgressionVariety variety,int typical){
         if(world==null||world.provider==null||origin==null||world.provider.dimensionId!=origin.dimension)return null;
         LOTRFaction faction=KOMEProgressionFactionResolver.resolve(origin.factionKey);
         if(faction==null)return null;
@@ -58,7 +61,9 @@ public final class KOMEProgressionDestinations {
             if(saved.getInteger("Dimension")!=origin.dimension||!KOMEProgressionFactionResolver.matches(saved.getString("Faction"),faction))continue;
             double dx=saved.getDouble("ArrivalX")-origin.x,dz=saved.getDouble("ArrivalZ")-origin.z,d=dx*dx+dz*dz;
             if(!valid(world,saved)){savedSites.remove();data.markDirty();continue;}
-            double score=d+(variety==null?0:variety.penalty(origin,saved.getDouble("ArrivalX"),saved.getDouble("ArrivalZ")))*maximum*(double)maximum;
+            int burden=typical==0?0:KOMEKnightCommissionLocations.routeQuality(world,origin,saved.getDouble("ArrivalX"),saved.getDouble("ArrivalZ"));
+            if(burden>=12)continue;
+            double score=(typical==0?d:Math.pow(Math.sqrt(d)-typical,2)+burden*400D*400D)+(variety==null?0:variety.penalty(origin,saved.getDouble("ArrivalX"),saved.getDouble("ArrivalZ")))*maximum*(double)maximum;
             if(d>=minimum*(double)minimum&&d<=maximum*(double)maximum&&score<nearestDistance){nearest=saved;nearestDistance=score;}
         }
         KOMEKnightCommissionLocations.Destination fallback=nearest==null?null:new KOMEKnightCommissionLocations.Destination(nearest.getDouble("ArrivalX"),nearest.getDouble("ArrivalZ"),"the shelter marked on your map",nearest);

@@ -19,12 +19,28 @@ import java.util.UUID;
 
 public class KOMEProgressionAutoCompleter {
     private static final Set<String> DERIVED_BASELINE_UNLOCKS = new HashSet<>();
+    private static final java.util.Map<UUID, String> LAST_PERMISSION_STATE = new java.util.HashMap<>();
+    private static final java.util.concurrent.atomic.AtomicLong PUBLICATION = new java.util.concurrent.atomic.AtomicLong();
+
+    public static void resetSession() { LAST_PERMISSION_STATE.clear(); }
+    public static void forgetPlayer(UUID id) { LAST_PERMISSION_STATE.remove(id); }
+
+    private static String permissionState(EntityPlayerMP player, KOMEPlayerProgression progression) {
+        LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
+        java.util.Set<String> completed = new java.util.TreeSet<>();
+        for (KOMEProgressionAchievement achievement : KOMEProgressionAchievement.ALL)
+            if (progression.isCompleted(achievement)) completed.add(achievement.id);
+        return progression.getCanonicalRank().key + "|" + KOMEWorldData.get(player.worldObj).isProgressionEnabled()
+            + "|" + (pledge == null ? "" : pledge.codeName()) + "|"
+            + (pledge == null ? 0F : LOTRLevelData.getData(player).getAlignment(pledge))
+            + "|" + player.dimension + "|" + completed + "|" + new java.util.TreeMap<>(progression.getAssignments());
+    }
 
     static {
         addDerived("baseline.fast_travel", "baseline.fire", "baseline.stonework", "baseline.cooking", "baseline.alcohol_pipeweed");
         addDerived("baseline.hunting", "baseline.house_waypoints", "baseline.farming", "baseline.npc_trade", "baseline.miniquests");
         addDerived("baseline.non_faction_gear", "baseline.brewing", "baseline.non_faction_armor", "baseline.mounts", "baseline.pledge");
-        addDerived("baseline.faction_armor", "baseline.hire_units", "baseline.pouches", "baseline.meat");
+        addDerived("baseline.faction_armor", "baseline.pouches", "baseline.meat");
         addDerived("baseline.faction_gear", "baseline.fellowship", "baseline.take_waypoints", "baseline.reclaim_waypoints");
         addDerived("baseline.redstone", "baseline.scrolls_modifiers", "baseline.grow_population", "baseline.protective_banners");
         addDerived("baseline.free_war", "baseline.mithril_gear", "baseline.enchanted_books");
@@ -75,6 +91,8 @@ public class KOMEProgressionAutoCompleter {
         changed += applyUnlocks(progression);
         if (changed > 0) {
             data.markDirty();
+            syncPlayer(player, progression);
+        } else if (!permissionState(player, progression).equals(LAST_PERMISSION_STATE.get(playerID))) {
             syncPlayer(player, progression);
         }
         return changed;
@@ -133,7 +151,7 @@ public class KOMEProgressionAutoCompleter {
         changed += grantAfter(progression, "serf.non_faction_armor", "baseline.non_faction_armor");
         changed += grantAfter(progression, "serf.tame_ride", "baseline.mounts");
         changed += grantAfter(progression, "serf.pledge", "baseline.pledge");
-        changed += grantAfter(progression, "serf.title_knight", "baseline.faction_armor", "baseline.hire_units");
+        changed += grantAfter(progression, "serf.title_knight", "baseline.faction_armor");
 
         changed += grantAfter(progression, "knight.fanny_pack", "baseline.pouches");
         changed += grantAfter(progression, "knight.meat", "baseline.meat");
@@ -176,7 +194,19 @@ public class KOMEProgressionAutoCompleter {
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();String pledgeName=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.factionName():"";
         double alignment=pledge==null?0D:LOTRLevelData.getData(player).getAlignment(pledge);
         String pledgeKey=pledge!=null&&pledge.isPlayableAlignmentFaction()?pledge.codeName():"";
-        KOMEPacketHandler.network.sendTo(new KOMEPacketProgressionData(player.getCommandSenderName(), completed, progression.getAssignments(), KOMEProgressionSummary.text(progression,pledgeName,pledgeKey,alignment)+KOMEProgressionSummary.courierCopy(progression,player.worldObj.getTotalWorldTime()), KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression), KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression), KOMEProgressionGoodsPresentation.enrich(KOMEProgressionLiegePolicy.presentAuthority(KOMEProgressionRankSummary.project(progression,alignment,pledgeKey,player.getUniqueID()),KOMEWorldData.get(player.worldObj),progression,pledgeKey),progression,player.inventory==null?null:player.inventory.mainInventory)), player);
+        KOMEPacketProgressionData snapshot = new KOMEPacketProgressionData(player.getCommandSenderName(),
+            completed, new java.util.HashMap<>(progression.getAssignments()),
+            KOMEProgressionSummary.text(progression,pledgeName,pledgeKey,alignment)+KOMEProgressionSummary.courierCopy(progression,player.worldObj.getTotalWorldTime()),
+            KOMEProgressionSummary.findLabel(progression), KOMEProgressionSummary.leaveRelationshipType(progression),
+            KOMEProgressionSummary.leaveRelationshipLabel(progression), KOMEProgressionSummary.leaveRelationshipName(progression),
+            KOMEProgressionGoodsPresentation.enrich(KOMEProgressionLiegePolicy.presentAuthority(
+                KOMEProgressionRankSummary.project(progression,alignment,pledgeKey,player.getUniqueID()),
+                KOMEWorldData.get(player.worldObj),progression,pledgeKey),progression,
+                player.inventory==null?null:player.inventory.mainInventory));
+        snapshot.authority(player.getUniqueID(), progression.getCanonicalRank().key,
+            PUBLICATION.incrementAndGet(), player.dimension, KOMEWorldData.get(player.worldObj).isProgressionEnabled());
+        KOMEPacketHandler.network.sendTo(snapshot, player);
+        LAST_PERMISSION_STATE.put(player.getUniqueID(), permissionState(player, progression));
         KOMEVisualLocationService.syncIfChanged(player, progression, false);
         KOMEProgressionTrackerService.syncIfChanged(player, KOMEWorldData.get(player.worldObj), false);
     }

@@ -1,0 +1,533 @@
+KOME-LOTR-ADDON - PROGRESSION CLEANUP PASS 1 IMPLEMENTATION REPORT
+2026-10-13
+
+Scope: bounded survival/permission correctness and recruitment/conquest safeguards.
+This is an implementation report, not another general progression audit.
+No full rank-ability architecture, new branches, fiefs, warrants, budgets,
+succession, Lord/Prince gameplay or rank-abilities strip was implemented.
+
+A. REPOSITORY BASELINE
+======================
+
+Branch: elijahrnovak/kom-72-implement-revised-branch-based-player-progression-system
+HEAD at start: 00287ec6a44102807e8bae0930b941cb0a34e3f2
+Initial working tree: 80 porcelain entries, 64 modified and 16 untracked entries.
+The original October 11 progression work, tests, rendering/network changes,
+build.gradle.kts edits, routing changes, untracked native invasion/property code
+and reports were already present. The October 12 audit was also untracked.
+This is the same HEAD and substantially the same dirty progression baseline as
+the audit. Existing source was backed up before edits, and baseline hashes/status/
+diff were recorded under the ignored evidence directory below. Changes in this
+report are additional to that pre-existing work, not the whole Git diff from HEAD.
+
+Evidence directory:
+outputs/progression-cleanup-pass1-20261012-234830/
+  baseline-status.txt; baseline-hashes.json; pre-existing-work.patch; original/
+  baseline-validation.log; focused-1.log through focused-7.log; full-1.log/full-2.log
+  preserved baseline/focused/full XML results and final counts/inventories.
+
+Available native dependency: libs/LOTRMod v36.15.jar
+SHA-256: 4F296E749C0D4739ECF859217A526B4218A2A45A768C08D3D551AF0D0D3D5635
+The required geckolib dependency is also present. No dependency versions were changed.
+
+Read-only stash inspection retained:
+61f81972fe98afe0497ddd376d571ebb019883ad - local artifacts before progression sync
+1f7c28e4ab11eb929b64d247de5800048fc9b34a - KOM-40 handoff WIP
+7d9c99bc5cfa9d5bd96dbe81fe4203449d007221 - old waypoint transformer WIP
+All three were listed and their file inventories inspected; the old waypoint
+FrameNode import patch was inspected without applying it. No stash was altered.
+
+Linear issues and available comments were read before shared-boundary changes:
+KOM-72 In Progress; KOM-36 Done; KOM-76 Done; KOM-71 Done; KOM-87 Todo;
+KOM-18 Done; KOM-75 Done; KOM-19 Done; KOM-86 Backlog.
+Later issue text confirms both ordinary and Campaign combat units pay the same
+canonical population resource, farmhands remain zero population, company control
+is not a recruitment warrant, and native ruler office remains separate from rank.
+
+Important contributor integration limit:
+The October 12 KOM-18 comment reports merge 6d1669a29c572161fa8b14b0779734eb63323af9
+on dev, PR head d3b4da8f77e22863275853faf3e6ab02029fe8ed. Its pre-merge dev is this
+checkout's HEAD. That newer commit is not in this local object store/check-out;
+the local code lacks its ordinary battle resolver/ConflictData v3/recovery WAL.
+No dev merge, fetch-and-copy implementation, or alternate battle resolver was made.
+Current ConflictData v2 commitment/Join Battle/retreat and root schema12 remain.
+KOM-87 grants/warrants and KOM-86 ruler-default state are also not implemented here.
+
+Relevant source decisions were compared with the actual code, not audit line numbers.
+KOM-75 already retires supportingKingDecision/Wartime Stewardship and implements
+separate Emergency Defense. That authority was preserved, not revived.
+
+Safety: no commit, push, merge, reset, stash application, saved-player migration,
+world/runtime replacement, old-report overwrite or automatic promotion/demotion.
+The build produces ignored validation artifacts; it does not install a runtime JAR.
+
+B. FEATURE-BY-FEATURE IMPLEMENTATION STATUS
+===========================================
+
+IMPLEMENTED - Ordinary fire/light, cooking, stone tools/recipes, farming/tilling,
+  fishing/breeding, food/drink consumption and ordinary native mounting no longer
+  depend on old KOME advancement flags. Actual denial/removal hooks were retired.
+IMPLEMENTED - Cooked-food deletion, furnace/oven input rejection and stone result
+  clearing were removed; normal inventory/hopper transfers remain native.
+ALREADY FIXED - NPC trade and pouch restrictions had been retired before this pass;
+  their native eligibility remains unchanged.
+IMPLEMENTED - Ordinary native combat hires remain ORDINARY and pay canonical
+  population exactly once; farmhands do not inherit military advancement authority.
+IMPLEMENTED - Native-eligible foreign ordinary bodyguards no longer inherit the
+  retired foreign campaign stewardship gate; they pay the recruiter's faction bank.
+PARTIAL - Full delegated Campaign recruitment: Lord floor plus current pledged
+  ruler/admin authority is enforced now. Non-ruler recruitment fails safely because
+  KOM-87 warrants/budgets are unavailable. No budget or free allowance was invented.
+IMPLEMENTED - New-hire safeguards do not revoke existing troops/companies or block
+  their established command/retreat/recovery paths. No retroactive debit/refund.
+ALREADY FIXED - Player kingless stewardship is already retired; Emergency Defense
+  uses its own reserve/conflict authority and does not pass through the new hire gate.
+IMPLEMENTED - Manual player claims cannot mutate ownership, war or diplomacy merely
+  from rank/old flags, even on replay or when progression restrictions are disabled.
+PARTIAL - Complete canonical battle-to-conquest integration: the later KOM-18 dev
+  resolver is absent here. No victory/timer/receipt is fabricated. Ruler peaceful
+  transfers, staff corrections and existing conflict/retreat infrastructure remain.
+IMPLEMENTED - One accepted session-scoped server progression projection now feeds
+  legacy permission reads and book/title views, with rank UUID/mode/revision/dimension.
+IMPLEMENTED - Connection/world fences, duplicate/stale rejection, reconnect clearing,
+  initial/world refresh and rank/faction/admin/completion/mode updates.
+IMPLEMENTED - Matching-artifact protocol g8; published packet registration IDs retained.
+IMPLEMENTED - 58 targeted requirement descriptions corrected; obsolete/informational
+  gate inventory corrected; baseline permission checklist hidden from the normal tab.
+IMPLEMENTED - All 96 IDs and saved completion/assignment/offerings formats retained.
+  Historical hire flag is not revoked by unrelated derived-flag recomputation.
+IMPLEMENTED - Focused deterministic regression tests, including actual client proxy
+  queue/lifecycle execution with inert Minecraft objects (not a live client).
+IMPLEMENTED - Final full suite, normal Gradle build and reobfuscation passed; exact results in I.
+NOT IMPLEMENTED - Crown allocations, the 200 ceiling, new rank abilities registry,
+  starting-return unlock, specialization branches, fiefs, Prince journey, King
+  eligibility redesign and abilities strip. These are explicitly outside this pass.
+
+C. LEGACY SURVIVAL CHANGES
+===========================
+
+Primary file: src/main/java/kome/common/data/KOMEEvents.java.
+Removed:
+- onBlockPlace fire/light advancement cancellation.
+- onPlayerInteract farming/fishing checks; the generic exceptional/bound gear check stays.
+- onEntityInteract mount/breeding advancement cancellation; native entity interaction stays.
+- onPlayerUseItemStart lighting/meat/alcohol advancement cancellation; bound/special gear stays.
+- onItemSmelted cooked-food removal. No post-smelt item deletion remains.
+- enforceOpenContainerRestrictions and rejectCookableInputs for furnace/Hobbit oven inputs.
+- clearBlockedStoneToolResult, isStoneTool consumer and stone denial throttling.
+- enforceMountPermission periodic dismounting and its call from the player tick.
+- Unused survival classification/removal helpers and their now-unused imports.
+
+KOMEGearRestrictionService.defaults retains stone item/category identifiers but
+their normal rule has empty advancement permissions. Quest-bound use/armor checks,
+configured faction/boss/NPC restrictions and exceptional equipment rules remain.
+KOMEProgressionPermissions.isRetiredNativeGate returns native access for old ordinary
+survival/trade/pouch/hire identifiers without creating a progression record. This
+does not make Campaign recruitment read HIRE_UNITS; that consumer was removed.
+
+Preserved: native recipes, faction crafting-table alignment, NPC canTradeWith,
+native coin/alignment/pledge rules, unusual mount eligibility, other world event
+cancellation, bound property processing/use guards and exceptional gear policy.
+The change does not force a cancelled native/protection event back to allowed.
+
+Deterministic tests call actual remaining event adapters, native furnace/hopper/
+Hobbit oven inventory APIs and serialization, and verify retained food/input/output.
+The headless subscriber dispatcher invokes actual annotated adapters without
+bootstrapping Forge's LaunchClassLoader. It is not a full live Forge event-bus test.
+Complete native cooking cycles, real hopper networks, relog/world restart and
+connected protected-world behavior remain live acceptance work.
+
+D. RECRUITMENT AUTHORITY
+=========================
+
+Ordinary hire:
+KOMEEvents.handleHiredUnit no longer checks HIRE_UNITS. It still observes native
+ownership/task, avoids secondary mount/double registration, requires the established
+combat population pledge, calculates the same unit cost and uses
+KOMENativeHireRegistrationService.registerOrdinaryCombatHire.
+The stored class stays ORDINARY; no company admission or strategic mobilization occurs.
+Native trading/hiring checks and coin deduction still precede this observation hook.
+
+The ordinary foreign-warrior branch previously demanded retired political
+stewardship. Ordinary bodyguards are now outside that Campaign authority rule and
+spend their recruiter's bank, preserving the NPC's native faction and ordinary
+classification. This follows the accepted native-follower/KOM-76 distinction;
+it does not authorize foreign Campaign recruitment or foreign army control.
+
+Farmhands:
+Military progression flags are not checked. Native price, AI/task and existing
+classification remain. KOME cost/populationSpent remain zero, no company enrollment.
+The existing foreign Stage 1 Cooperation check remains specifically for farmhands;
+this pass does not guess a new Friends/Allies agricultural policy.
+
+Campaign hire:
+KOMEProgressionPermissions.campaignRecruitmentDenial is a narrow current-operation
+check, not the future rank-ability framework. For a normal new Campaign hire:
+1. Current canonical rank must be Lord or Prince (not historical Knight/title flags).
+2. Current observed pledged population faction must match the spending faction.
+3. Actor must currently hold that faction's recognized ruler office.
+   Non-ruler Lords receive the explicit KOM-87 delegation-not-implemented blocker.
+4. Existing governance, native trade/coins, legal selected/default recruitment tile,
+   physical deployment, faction bank debit, Campaign classification/admission and
+   transaction rollback all remain authoritative.
+
+The real native adapter derives administrative permission on the SERVER from
+canCommandSenderUseCommand(2,"troops"). It is stored only in trusted PreparedRecruitment,
+not Request or the client packet. Explicit server admin authority bypasses the new
+rank/office floor, not native price, location, bank, unit/class or governance checks.
+The adapter checks authority before creating a new NPC candidate; the common
+transaction rechecks it before deployment or economic/native effects, including
+future source adapters. Request fields remain trader ID, trade index and squadron;
+there is no client-supplied rank, administrative bit, price, population or territory.
+
+The political ruler is an existing explicit Crown authority under KOM-87's design
+(the ruler needs no own credential). A Lord title alone, a company delegation,
+legacy HIRE_UNITS flag, disabled progression or arbitrary credential item is not
+a grant. No persisted recruitment warrant provider exists here, so no officer is
+silently treated as having unlimited delegated bank access.
+
+Population:
+Canonical costs, mounted surcharge, overrides, centi-population accounting,
+permanent/high-water investment, legal recruitment-location rules and farmhand
+zero-cost treatment are unchanged. Both ordinary and Campaign combat hires spend
+the same established bank. Existing duplicate detection/record admission/debit
+rollback remains; native re-observation of an already tracked hire does not pay twice.
+
+Existing units:
+No recruitment-floor check was added to existing troop ownership, company control,
+movement, retreat, recovery, conflict egress or terminal cleanup. No army removal,
+classification conversion, refund or retroactive charge. Existing pledge-release
+semantics and conflict-protected recovery are unchanged. Separate explicit ordinary
+mobilization has no production workflow in this checkout; it was not reimplemented.
+Any future mobilization must consume its own legal authority/identity/location/reset
+transaction without charging the prior purchase again.
+
+Kingless:
+Current supportingKingDecision denies retired KOM-31 stewardship. That is not revived
+as a substitute Crown budget. The real KOM-75 Emergency Defense mobilization path
+uses separate reserves/conflicts/native-force ownership and is untouched.
+
+Remaining dependency: KOM-87 canonical grants, scope/budget/revocation/commit semantics.
+The proposed Lord 200-population ceiling is not implemented or emulated with the
+faction payout cap. Its exact accounting/legacy policy still needs a decision.
+
+E. CONQUEST AUTHORITY
+======================
+
+Unsafe prior path:
+KOMEPacketConquestClaim required pledge plus TAKE/RECLAIM flag/current Lord, then
+KOMEConquestClaimService.claim called claimTile and recordHostileCapture. The latter
+could create a war and apply Mortal Enemy diplomacy; a fingerprinted second click
+was not political authority or actual battle evidence.
+
+Safeguard:
+The existing player claim service now returns a read-only denial. It validates the
+known target/pledge or explains already-owned status, but never calls claimTile,
+recordHostileCapture, changes confirmation state, advances timers or grants victory.
+Rank/achievement checks no longer masquerade as sufficient claim authority.
+Forged/replayed packets reach the same service and are denied even with progression
+disabled. Existing historical confirmations remain loadable but confer no authority.
+
+Tile Command canClaim is generated from the same denial policy. The compact disabled
+Conquest button explains battle resolution or existing ownership, not a missing
+"Take Waypoints" advancement. Old claim-confirmation/war-destination presentation
+is not armed. No separate victory interface or progression-owned battle resolver.
+
+Preserved legitimate paths:
+- KOMEPacketConquestTransfer sovereign offer/accept/cancel, existing player ruler
+  authorization, native valid target factions and both-ruler requirements.
+- KOMECommandConquest explicit staff correction/transfer operations.
+- KOMEWorldData.claimTile as the existing authoritative mutation seam for validated
+  domain/staff operations; WarService/DiplomacyService remain their existing owners.
+- Existing ConflictService commitments, Join Battle, formal retreat/abandonment,
+  defense and territorial state persistence.
+
+Allies, friends, neutral, enemies, mortal enemies, already-owned and unclaimed cases
+are covered by the denial tests. Genuine peaceful ruler transfer still succeeds;
+the safeguard is not a ban on all peaceful/allied operations. Staff transfer remains
+functional. A ruler office also does not manufacture battle evidence for manual claim.
+
+Integration limit:
+The later KOM-18 resolver, configurable response timers, winner/continuity selection,
+fortified completion, recovery WAL and authoritative outcome commit are not in the
+local baseline. This pass preserves the existing conflict code rather than copying
+or recreating those systems. Full concluded-battle-to-capture/reclaim acceptance is
+BLOCKED on deliberate integration of that contributor work. A legal political
+occupation of unclaimed land is not silently invented; its manual intent fails safely.
+
+F. CLIENT/SERVER CONSISTENCY
+=============================
+
+Before: ProgressionData updated static book/title summaries but not
+KOMEClientData.progressions, which legacy permission/waypoint readers use.
+
+After:
+- Server packet carries authoritative UUID, stable canonical rank key, progression
+  enabled mode, dimension and monotonic publication revision plus existing completion,
+  assignment, cultural rank/service and relationship presentation.
+- Packet counts/text are bounded; unknown machine rank and mismatched g8 header fail.
+- Real client proxy copies mutable collections, queues on the existing client task
+  queue, verifies current connection/world epoch and viewer/dimension, then accepts
+  only newer revisions. No rank is inferred from cultural display-title text.
+- KOMEClientData accepts one transient viewer projection, replacing rank/completion/
+  faction/mode coherently BEFORE book/title publication. Both current consumers read
+  that accepted state; all server actions still validate their own authority.
+- Connect/disconnect reset clears state and queued work. Dimension unload clears
+  visible values, retains the connection revision fence, invalidates pending intake
+  and requests fresh state once a usable client world/connection exists.
+- Login already syncs explicitly; respawn/dimension now sync progression too. Native
+  pledge changes sync on observation. Rank/admin/advancement paths retain existing
+  immediate publication. Periodic diff publication catches permission-affecting rank,
+  native pledge/alignment, enabled mode and assignments even when no flag was granted.
+- Server publication/signature memory is transient, cleared for session/logout;
+  no new NBT, unlock ledger or client authority was introduced.
+
+Waypoints use the accepted faction on client policy evaluation once a server
+projection exists, avoiding a conflicting older native pledge cache. Native region,
+cooldown/under-attack/sleep/config and server request/final destination checks remain.
+This does not implement Serf original-start return or a new waypoint ladder.
+
+Protocol: 1.0.9-integration-g8. Packet IDs are unchanged, including Join Battle53-58,
+progression identity59, progression data9 and marker43. Both ends require g8;
+g7 interoperability is intentionally rejected, not claimed. Normal metadata/build
+version was advanced without changing dependencies or persistent schemas.
+
+Actual proxy tests execute queue/reset/accept/book/cache code using inert Minecraft
+objects; stale revision, old connection, queued pre-unload and wrong-dimension
+packets cannot overwrite accepted state. These are headless tests, not live network
+or graphical acceptance.
+
+G. LEGACY CONTENT
+==================
+
+58 targeted requirement descriptions now distinguish historical self-reports,
+native accomplishments, implemented exceptional item USE gates, ungated native
+gameplay and actual resource/domain authority. Examples:
+- Fire/cooking/farming/mounts/meat: ordinary gameplay, not an advancement unlock.
+- Smithery/Craftsman: legacy self-reported steps controlling listed special item
+  usage; their craft-count/trader-proximity text is not server-validated manufacture.
+- Population: approved Builds, developed rates and bank authority, not flag growth.
+- Early Beginnings: actual >=200 represented faction population predicate, not
+  five native NPC roads.
+- Brewing/banner/pouch records: actual native achievements, not generic random
+  tasks or permission to perform the native activity.
+- Redstone/fellowship/books/modifiers: no false general implemented addon unlock.
+- Capital/crown/King record steps: historical records, no political appointment.
+- Lord-to-Prince: explicitly current legacy checklist, no fief/King grant. Existing
+  recipe behavior is retained; the redesign is not performed silently.
+
+Registry metadata marks retired ordinary/manual-claim/hire gates OBSOLETE and
+disconnected native/domain flags INFORMATIONAL rather than falsely enforced.
+No new functional-looking branch/capstone content is added.
+
+The main advancement tab no longer lists the 35 baseline permission flags. The
+same native-themed page, rank/service structure, active quest emphasis, direct NPC
+reports, tracker/map icons and native interactions are preserved. Baseline history
+remains available through /progression list baseline and the unchanged registry/NBT.
+All 96 stable definitions remain; no completion, offerings inventory, player rank,
+quest reward or troop record is migrated/reset. HIRE_UNITS is no longer written by
+Knight promotion and is removed from destructive derived-flag recomputation, so
+old stored history is preserved rather than converted into new validated expertise.
+
+H. FILES CHANGED
+================
+
+The inventory below is relative to the initial dirty checkout, not git diff HEAD.
+Pre-existing unrelated work and all prior reports remain untouched.
+Existing files changed by this pass (45):
+  build.gradle.kts
+  docs/routing/INDEX.md
+  docs/routing/flows/troop-hiring.md
+  docs/routing/systems/client-network/README.md
+  docs/routing/systems/conflict-tactical/README.md
+  docs/routing/systems/hiring-companies/README.md
+  docs/routing/systems/politics-diplomacy/README.md
+  docs/routing/systems/progression/README.md
+  docs/routing/systems/waypoints/README.md
+  src/main/java/kome/client/KOMEClientProxy.java
+  src/main/java/kome/client/gui/KOMEGuiConquestCapture.java
+  src/main/java/kome/client/gui/KOMEGuiProgression.java
+  src/main/java/kome/common/KOMECommonProxy.java
+  src/main/java/kome/common/command/KOMECommandProgression.java
+  src/main/java/kome/common/data/KOMECampaignRecruitmentService.java
+  src/main/java/kome/common/data/KOMEClientData.java
+  src/main/java/kome/common/data/KOMEConquestClaimService.java
+  src/main/java/kome/common/data/KOMEEvents.java
+  src/main/java/kome/common/data/KOMEGearRestrictionService.java
+  src/main/java/kome/common/data/KOMENativeTraderCampaignRecruitment.java
+  src/main/java/kome/common/data/KOMEProgressionAchievement.java
+  src/main/java/kome/common/data/KOMEProgressionAutoCompleter.java
+  src/main/java/kome/common/data/KOMEProgressionPermissionRegistry.java
+  src/main/java/kome/common/data/KOMEProgressionPermissions.java
+  src/main/java/kome/common/data/KOMEProgressionRankSummary.java
+  src/main/java/kome/common/data/KOMEWaypointAccessService.java
+  src/main/java/kome/common/network/KOMEPacketConquestClaim.java
+  src/main/java/kome/common/network/KOMEPacketConquestOpenCapture.java
+  src/main/java/kome/common/network/KOMEPacketProgressionData.java
+  src/main/java/kome/common/network/KOMEPopulationWire.java
+  src/test/java/kome/client/gui/KOMECanonicalPopulationNavigationTest.java
+  src/test/java/kome/common/KOMEAccessFixture.java
+  src/test/java/kome/common/command/KOMECommandTroopsMovementTest.java
+  src/test/java/kome/common/data/KOMEAllianceSystemsTest.java
+  src/test/java/kome/common/data/KOMECampaignRecruitmentServiceTest.java
+  src/test/java/kome/common/data/KOMECombatHireMountSafetyTest.java
+  src/test/java/kome/common/data/KOMEGearRestrictionServiceTest.java
+  src/test/java/kome/common/data/KOMEProgressionAuditCleanupTest.java
+  src/test/java/kome/common/data/KOMEProgressionCoherencePassTest.java
+  src/test/java/kome/common/data/KOMEProgressionLifecycleAuditTest.java
+  src/test/java/kome/common/data/KOMEProgressionTestingFixesTest.java
+  src/test/java/kome/common/data/KOMESerfKnightStabilizationTest.java
+  src/test/java/kome/common/network/KOMEConquestSyncTest.java
+  src/test/java/kome/common/network/KOMEPopulationProtocolTest.java
+  src/test/java/kome/common/network/KOMEPublicAccessPacketTest.java
+
+New files (6):
+  src/test/java/kome/common/data/KOMEProgressionCleanupSurvivalTest.java
+  src/test/java/kome/common/data/KOMEProgressionCleanupRecruitmentTest.java
+  src/test/java/kome/common/data/KOMEProgressionCleanupProjectionTest.java
+  src/test/java/kome/common/data/KOMEProgressionCleanupConquestTest.java
+  src/test/java/kome/client/KOMEProgressionCleanupClientTest.java
+  docs/PROGRESSION_CLEANUP_PASS1_REPORT.txt
+
+I. VERIFICATION
+================
+
+Java environment recovery: unlike the audit's sandbox-default cache context,
+the actual populated user cache is usable. Commands used process-local:
+JAVA_HOME=C:/Users/elija/.gradle/jdks/azul_systems__inc_-17-amd64-windows.2
+GRADLE_USER_HOME=C:/Users/elija/.gradle
+Gradle 8.5 runs on Java17; compilation/tests/legacy code use the established Java8
+toolchain/Forge1.7.10 dependencies. No project/dependency versions were changed to
+manufacture success. The build version change is solely the required g8 protocol.
+Every heavy run acquired/released Local\KOME-Heavy-Validation. No concurrent native
+world checks were run. Evidence is in the ignored directory recorded in A.
+
+Baseline command:
+  .\gradlew.bat test --tests kome.common.data.KOMEProgressionPermissionRegistryTest
+  --offline --no-daemon --max-workers=2 --console=plain
+Result: BUILD SUCCESSFUL, exit0, 6 tests passed, 0 failures/errors/skips.
+
+Focused selection 1 (final successful focused-5 run):
+  --tests kome.common.data.KOMEProgressionCleanup*Test
+  --tests kome.common.data.KOMECampaignRecruitmentServiceTest
+  --tests kome.common.data.KOMEGearRestrictionServiceTest
+  --tests kome.common.network.KOMEPopulationProtocolTest
+  --tests kome.common.data.KOMEAllianceSystemsTest
+  --tests kome.common.network.KOMEConquestSyncTest
+Result: 117 tests passed, 0 failures/errors/skips, 9 suites; BUILD SUCCESSFUL, exit0.
+Later foreign-ordinary cleanup is verified in selection2/full run, not claimed
+as part of this earlier exact-source result.
+
+Focused selection 2 (focused-7):
+  --tests kome.common.data.KOMEProgressionCleanup*Test
+  --tests kome.client.KOMEProgressionCleanupClientTest
+  --tests kome.common.data.KOMESerfKnightStabilizationTest
+  --tests kome.common.data.KOMEProgressionCoherencePassTest
+  --tests kome.common.network.KOMEPublicAccessPacketTest
+Result: 87 tests passed, 0 failures/errors/skips, 8 suites; BUILD SUCCESSFUL, exit0.
+Both focused commands used test --offline --no-daemon --max-workers=2 --console=plain.
+The subsets overlap and must not be summed as independent coverage.
+
+21 new deterministic tests cover retired survival/no flag creation, actual native
+inventory/hopper/oven and retained food, event/world cancellation, ordinary/mounted
+accounting safeguards, farmhands/foreign bodyguards, authority before effects,
+replay, Crown/admin/location/bank, existing army preservation, all 96 history IDs,
+relation/forged/manual claims, ruler transfer, bounded protocol, native faction/admin
+refresh, and actual client proxy book/cache/reconnect/dimension fences.
+Existing price, unit-cost/mount, ordinary/Campaign classification, population,
+progression/native properties, conflict/retreat/war, character, waypoint, GUI/network
+and common/dedicated-loading suites are retained in the full project run.
+
+Earlier failing runs are recorded honestly:
+- focused-1: new tests initially had 6 native API/fixture compile errors; no tests ran.
+- focused-2: 117 executed, 11 failures, 0 skips; fixture/provisional expectation issues.
+- focused-3: 117 executed, 6 failures, 0 skips; canonical-territory fixture, native
+  faction code, queue timing and NPC fixture identity corrected without relaxing rules.
+- focused-4: one final native method override compile error; no tests ran.
+- focused-6: 2 inert client fixture compile errors; no tests ran.
+- full-1: 3,230 executed, 8 failures, 5 skips. Seven old contract expectations and
+  one invalid headless NPC fixture were corrected. The obsolete survival/claim flags
+  were not restored to satisfy them. Failed XML/logs are retained separately.
+
+Final command:
+  .\gradlew.bat test build --offline --no-daemon --max-workers=2 --console=plain
+Result: BUILD SUCCESSFUL in 52s, exit0; 3,231 tests across 326 suites,
+3,226 passed / 0 failed / 0 errors / 5 skipped. All 21 new tests passed.
+Normal jar/sources and reobfJar/assemble/check/build completed.
+Final skipped methods (existing environment assumptions, not new skips):
+  com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported
+  com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported
+  kome.core.KOMEPublicWaypointTransformerTest.originalProductionAndBuildJarsHaveExactCompatibleHooks
+  kome.core.KOMEWaypointTransformerTest.configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms
+  kome.core.KOMEWaypointTransformerTest.configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms
+Two skip platform symbolic-link support; three skip optional original-JAR/fingerprint
+inputs in waypoint transformer fixtures. Available dependency-bytecode tests execute.
+Artifact: build/libs/KOME-LOTR-Addon-1.0.9-integration-g8.jar
+SHA-256: 495A7E62A1B7AF4805F1CB567C6F402116B78FAB2F11F146400D75F05FEE2933
+Java class major version52 confirms Java8 output. Artifact not installed or published.
+git diff --check: exit0. Report encoding/inventory/legacy IDs and local routing
+links were checked separately. The Python routing checker was not executed:
+python/py are unavailable in the inspected command/program paths. This does not
+affect the completed Java suite/build; static link checks are a separate evidence level.
+
+Environment warnings: Gradle17 runner/legacy token deprecations and normal Java
+deprecated/unchecked API notes. These are not test failures. No test was removed
+or newly skipped to get a green result.
+
+Minecraft was NOT launched. No live dedicated/integrated world, connected client,
+gameplay journey, visual/FPS or real restart/relog acceptance is claimed. Inert native
+classes and server/client transport fixtures are distinct from live Minecraft.
+
+J. REMAINING CONCERNS
+======================
+
+1. KOM-87 grants/delegated population: missing. Non-ruler new Campaign hire intentionally
+   denied; Crown/admin remains real existing authority. No unrestricted fallback.
+2. New dev KOM-18 integration: required for full battle/conquest/reclaim acceptance,
+   timers/ownership results and recovery. This cleanup does not merge or recreate it.
+3. Lord 200-population ceiling: no accounting choice or migration implemented. Decide
+   current cost versus high-water investment, living Campaign scope, transfer/level-up,
+   demotion and existing over-cap treatment; no troops deleted in this pass.
+4. Fast travel: original-start Serf ability and higher-rank expansion still pending.
+   Cache correction alone does not change its current travel10/discovery policy.
+5. Exceptional gear: retained current rules/self-report use unlocks. Material list,
+   manufacturing specialization and history/grandfather policy need design. The audit's
+   broader melee/projectile gear-enforcement concern is not silently redesigned here.
+6. Specialization content: no new rewards/branches or self-report-to-validated conversions.
+7. Lord-to-Prince: legacy recipe remains labeled accurately; responsibility journey future.
+8. Fiefs/appointments and higher offices: no territorial grant or King eligibility/succession
+   implementation; ruler office remains separate from rank, existing appointments retained.
+9. Player-facing abilities strip: deferred; current page copy only corrected.
+10. Foreign agricultural cooperation: legacy Stage1 remains, separately unresolved.
+11. Future mobilization/retirement: absent production operation here; must use explicit
+   legal authority/location/native reset and prevent charging the old purchase twice.
+12. Live acceptance: real native hire pricing/refunds and unusual mounts, representative
+   protected crafting/farming, full oven/furnace/hopper cycles, old worlds/relog/death,
+   actual client packet sequencing/GUI scale/tooltips and canonical concluded battles
+   after integration. No imagined coverage of those complete journeys.
+
+K. NEXT IMPLEMENTATION RECOMMENDATION
+=====================================
+
+The bounded correctness foundation is ready for derived rank eligibility work
+after final verification, with important operation dependencies explicitly isolated.
+Do not call the entire target progression system complete.
+
+Small dependency checklist for the next pass:
+- Deliberately integrate/review the newer KOM-18 and related contributor source,
+  preserving this dirty work and protocol/persistence version boundaries.
+- Settle/implement KOM-87 authoritative grants and scoped budget commits before
+  non-ruler recruitment is enabled. Company control grants are not resource budgets.
+- Decide personal ceiling accounting and old army compatibility before enforcing 200.
+- Decide missing/changed original-start and higher-rank travel policies.
+- Retain one canonical rank and one transient client projection; derive eligibility
+  rather than persisting another unlocked set. Compose existing domain decisions.
+- Choose exceptional equipment/specialty migration scope without turning unverified
+  history into authoritative expert evidence or removing legitimate existing access.
+- Implement only real operations; defer fiefs, capstones and royal responsibility
+  content until their authoritative gameplay and appointment rules exist.
+- Complete disposable connected gameplay acceptance before server rollout.
+
+The next pass may centralize derived rank eligibility and existing operation denial
+reasons. It must not invent grants/fiefs merely to populate the book. This report
+does not implement that next pass, merge branches or authorize publication.

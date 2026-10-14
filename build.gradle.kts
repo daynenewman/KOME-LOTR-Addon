@@ -49,4 +49,4 @@ tasks.named<Jar>("jar") {
     archiveBaseName.set("KOME-LOTR-Addon")
 }
 
-extra["modVersion"] = "1.0.9-integration-g6"
+extra["modVersion"] = "1.0.9-integration-g8"

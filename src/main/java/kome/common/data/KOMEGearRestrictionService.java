@@ -20,7 +20,7 @@ import net.minecraft.item.ItemStack;
 public final class KOMEGearRestrictionService {
     public enum Category { MITHRIL, UTUMNO, GONDOLIN, MALLORN, MORGUL, GALVORN, STONE_TOOL, BOSS, FUTURE }
     public enum Action { POSSESS, STORE, DISPLAY, HOLD, EQUIP_ARMOR, USE, NPC_EQUIP }
-    public enum Reason { ALLOWED, UNRESTRICTED, POSSESSION_ALLOWED, MISSING_PROGRESSION, FACTION_NOT_PERMITTED, NPC_NOT_PERMITTED, BOSS_EXCLUSIVE }
+    public enum Reason { ALLOWED, UNRESTRICTED, POSSESSION_ALLOWED, MISSING_PROGRESSION, FACTION_NOT_PERMITTED, NPC_NOT_PERMITTED, BOSS_EXCLUSIVE, QUEST_PROPERTY }
 
     public static final class Decision {
         public final boolean allowed;
@@ -29,6 +29,7 @@ public final class KOMEGearRestrictionService {
         private Decision(boolean allowed, Category category, Reason reason) { this.allowed = allowed; this.category = category; this.reason = reason; }
         public String playerMessage() {
             if (allowed) return "";
+            if(reason==Reason.QUEST_PROPERTY)return "This entrusted property must be returned to its owner.";
             if (reason == Reason.MISSING_PROGRESSION) return "You have not unlocked the progression required to use this " + category.name().toLowerCase(Locale.ROOT) + " item.";
             if (reason == Reason.FACTION_NOT_PERMITTED) return "Your faction is not permitted to use this " + category.name().toLowerCase(Locale.ROOT) + " item.";
             if (reason == Reason.BOSS_EXCLUSIVE) return "This boss-exclusive item cannot be used by players.";
@@ -75,6 +76,8 @@ public final class KOMEGearRestrictionService {
     public static Rule ruleForId(String itemId) { return rules().get(normalize(itemId)); }
 
     public static Decision evaluatePlayer(EntityPlayer player, ItemStack stack, Action action) {
+        if(KOMEQuestPropertyUseGuard.bound(stack)&&(action==Action.USE||action==Action.EQUIP_ARMOR))
+            return new Decision(false,null,Reason.QUEST_PROPERTY);
         Rule rule = ruleFor(stack);
         if (rule == null) return new Decision(true, null, Reason.UNRESTRICTED);
         String permission = action == Action.EQUIP_ARMOR ? rule.armorPermission : rule.gearPermission;
@@ -133,7 +136,8 @@ public final class KOMEGearRestrictionService {
         add(rules, Category.MALLORN, "baseline.non_faction_gear", "baseline.non_faction_armor", "lotr:shovelMallorn", "lotr:pickaxeMallorn", "lotr:axeMallorn", "lotr:swordMallorn", "lotr:hoeMallorn", "lotr:mallornBow", "lotr:maceMallornCharred");
         add(rules, Category.MORGUL, "baseline.faction_gear", "baseline.faction_armor", "lotr:morgulBlade", "lotr:helmetMorgul", "lotr:bodyMorgul", "lotr:legsMorgul", "lotr:bootsMorgul", "lotr:horseArmorMorgul");
         add(rules, Category.GALVORN, "baseline.faction_gear", "baseline.faction_armor", "lotr:helmetGalvorn", "lotr:bodyGalvorn", "lotr:legsGalvorn", "lotr:bootsGalvorn");
-        add(rules, Category.STONE_TOOL, "baseline.stonework", "baseline.stonework", "minecraft:stone_sword", "minecraft:stone_pickaxe", "minecraft:stone_axe", "minecraft:stone_shovel", "minecraft:stone_hoe", "lotr:spearStone");
+        // Retain the category/IDs for compatibility, with no advancement requirement.
+        add(rules, Category.STONE_TOOL, "", "", "minecraft:stone_sword", "minecraft:stone_pickaxe", "minecraft:stone_axe", "minecraft:stone_shovel", "minecraft:stone_hoe", "lotr:spearStone");
         return Collections.unmodifiableMap(rules);
     }
 }

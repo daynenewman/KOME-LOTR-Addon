@@ -70,11 +70,14 @@ public final class KOMEProgressionTrackerSnapshot {
         if(player!=null&&progression!=null&&progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT){
             LOTRFaction faction=LOTRLevelData.getData(player).getPledgeFaction();String key=faction==null?"":faction.codeName();
             double alignment=faction==null?0:LOTRLevelData.getData(player).getAlignment(faction);
-            String standing=KOMELordshipTrialPresentation.standing(progression,alignment,key);
             KOMELordshipTrial trial=progression.getLordship().assignment();
-            if(trial!=null)return commission(trial.objective);
+            if(trial!=null)return lordship(trial);
             KOMEKnightCommission commission=progression.getKnightService().assignment();
-            if(commission==null)return shown("commission",KOMEProgressionFactionResolver.missingNativeLiege(key)?KOMEKnightCommissionPresentation.unavailableLiege():KOMELordshipTrialPresentation.status(progression,alignment,key),standing,progression.getKnightService().qualifyingTypes(key).size()/3F);
+            if(commission==null){
+                if(KOMELordshipTrialService.prerequisites(progression,alignment,key))return shown("commission","Seek a Prince for your Trial of Lordship","",0F);
+                int credits=progression.getKnightService().qualifyingTypes(key).size();
+                return shown("commission",KOMELordshipTrialPresentation.status(progression,alignment,key),credits<3?credits+" / 3 commissions":(int)alignment+" / 2000 alignment",credits<3?credits/3F:(float)alignment/2000F);
+            }
             return commission(commission);
         }
         if(player==null
@@ -108,7 +111,7 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "provisioning",
                 "Bring the requested provisions to your Master.",
-                "In progress",
+                "",
                 0F);
         }
 
@@ -136,7 +139,7 @@ public final class KOMEProgressionTrackerSnapshot {
         return shown(
             "provisioning",
             "Return to your Master to finish this duty.",
-            "Ready",
+            "",
             1F);
     }
 
@@ -152,7 +155,7 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "profession",
                 "Bring the requested materials to your Master.",
-                "In progress",
+                "",
                 0F);
         }
 
@@ -171,17 +174,26 @@ public final class KOMEProgressionTrackerSnapshot {
         return shown(
             "profession",
             "Return to your Master to finish this duty.",
-            "Ready",
+            "",
             1F);
     }
 
-    private static KOMEProgressionTrackerSnapshot commission(KOMEKnightCommission a){
+    static KOMEProgressionTrackerSnapshot commission(KOMEKnightCommission a){
+        if(a.activationPending)return shown(a.type==KOMEKnightCommission.Type.RELIEF?"provisioning":"commission",KOMEKnightCommissionPresentation.objective(a),"",0F);
         if(a.stage==KOMEKnightCommission.Stage.FAILED)return shown("commission",KOMEKnightCommissionPresentation.objective(a),"",0F);
         int required=KOMEKnightCommissionPresentation.required(a),done=KOMEKnightCommissionPresentation.completed(a);
         String objective=KOMEKnightCommissionPresentation.objective(a);
         if(a.type==KOMEKnightCommission.Type.RELIEF&&a.stage==KOMEKnightCommission.Stage.ACTIVE&&a.encounterCreated)objective="Deliver the requested supplies";
         ItemStack item=a.type==KOMEKnightCommission.Type.STOLEN_GOODS?KOMEProgressionLostItems.stack(a):null;
-        return new KOMEProgressionTrackerSnapshot(true,a.type==KOMEKnightCommission.Type.RELIEF?"provisioning":"commission",objective,done+"/"+required,done/(float)required,item);
+        if(a.type==KOMEKnightCommission.Type.RELIEF&&a.stage==KOMEKnightCommission.Stage.ACTIVE&&a.encounterCreated){
+            done=0;required=0;for(KOMEKnightCommission.Goods g:a.goods){done+=g.delivered;required+=g.required;}
+        } else if(!KOMEKnightCommissionPresentation.combatCounter(a))required=0;
+        return new KOMEProgressionTrackerSnapshot(true,a.type==KOMEKnightCommission.Type.RELIEF?"provisioning":"commission",objective,required>0?done+"/"+required:"",required>0?done/(float)required:0F,item);
+    }
+    static KOMEProgressionTrackerSnapshot lordship(KOMELordshipTrial t){
+        if(!t.nativeInvasion)return t.ready()?shown("commission","Report to your Prince","",0F):commission(t.objective);
+        boolean combat=t.objective.stage==KOMEKnightCommission.Stage.ACTIVE&&t.objective.encounterCreated&&!t.objective.activationPending;
+        return shown("commission",t.ready()?"Report to your Prince":t.objective.activationPending?"Return to your Prince for reassignment":t.objective.stage==KOMEKnightCommission.Stage.FAILED?"Request another trial from your Prince":combat?"Defeat the invasion and survive":"Travel to the invasion ground",combat?t.invasionRemaining+" / "+t.invasionSize+" strength remaining":"",combat&&t.invasionSize>0?1-t.invasionRemaining/(float)t.invasionSize:0F);
     }
 
     private static KOMEProgressionTrackerSnapshot courier(
@@ -238,7 +250,7 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "progression",
                 "Complete your Trial of Standing.",
-                "Trial",
+                "",
                 0F);
         }
 
@@ -247,7 +259,7 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 assignment.trialId,
                 "This trial is lost. Seek a new Liege.",
-                "Failed",
+                "",
                 0F);
         }
 
@@ -282,7 +294,7 @@ public final class KOMEProgressionTrackerSnapshot {
                 return shown(
                     "defense",
                     "Defend your people from the attack.",
-                    "Awaiting attack",
+                    "",
                     0F);
             }
 
@@ -298,7 +310,7 @@ public final class KOMEProgressionTrackerSnapshot {
                 return shown(
                     "defense",
                     "Defeat the attackers threatening your people.",
-                    "In progress",
+                    "",
                     0F);
             }
 
@@ -312,7 +324,7 @@ public final class KOMEProgressionTrackerSnapshot {
         return shown(
             "progression",
             "Complete your Trial of Standing.",
-            "Trial",
+            "",
             0F);
     }
 
@@ -325,7 +337,7 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "progression",
                 "Progression service is locked after betrayal.",
-                "Locked",
+                "",
                 0F);
         }
         if(state.isTrialCompleted())return state.hasLiege()?promotion(player):shown("standing_trial_ready","Seek an eligible replacement Liege to hear your completed trial report.","",0F);
@@ -334,7 +346,7 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "progression",
                 "Find a Master in your pledged faction.",
-                "Find a Master",
+                "",
                 0F);
         }
 
@@ -362,8 +374,7 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "progression",
                 "Talk with your Master",
-                completed+" / "+total+" duties",
-                completed/(float)total);
+                "",0F);
         }
 
         if(!state.hasLiege()) {
@@ -396,14 +407,14 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "standing_trial_ready",
                 "Request your Trial of Standing from your Liege.",
-                "Ready for trial",
+                "",
                 0.7F);
         }
 
         return shown(
             "progression",
             "Complete your Trial of Standing.",
-            "Trial",
+            "",
             0.75F);
     }
 
@@ -427,7 +438,7 @@ public final class KOMEProgressionTrackerSnapshot {
             return shown(
                 "progression",
                 "Return to your Liege to receive your new standing.",
-                "Ready",
+                "",
                 1F);
     }
 
@@ -445,7 +456,7 @@ public final class KOMEProgressionTrackerSnapshot {
         return shown(
             "daily_complete",
             "You have already received a Trial of Standing today.",
-            "Return another day",
+            "",
             1F);
     }
 

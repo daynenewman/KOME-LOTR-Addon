@@ -15,8 +15,14 @@ import static kome.common.data.KOMEKnightCommission.*;
 final class KOMELordshipTrialFixture implements AutoCloseable {
     final KOMEKnightCommissionGameplayTest.Session s=new KOMEKnightCommissionGameplayTest.Session();
     final LOTREntityNPC liege;
+    final LOTREntityNPC lord;
     KOMELordshipTrialFixture() throws Exception {
-        s.f.player.posY=65;liege=KOMEKnightCommissionInteractionTest.captain(s);alignment(2000);
+        s.f.player.posY=65;
+        lord=KOMEKnightCommissionInteractionTest.captain(s);lord.setEntityId(12346);
+        KOMEProgressionNpcRef oldLiege=s.p.getSerfKnightProgression().getLiege();
+        liege=KOMEKnightCommissionInteractionTest.captain(s);s.p.getSerfKnightProgression().setLiege(oldLiege);
+        s.f.data.progressionNpcRanks.put(liege.getUniqueID(),new KOMEProgressionNpcRankRecord(liege.getUniqueID(),"rohan",KOMEProgressionNpcRank.PRINCE,liege.getNPCName()));
+        alignment(2000);
         KOMEKnightCommissionService.npcFactory=(world,type)->{try{return type.contains("Guard")?guard():s.npc(type.contains("Enemy")?LOTRFaction.MORDOR:LOTRFaction.ROHAN);}catch(Exception e){throw new RuntimeException(e);}};
     }
     void alignment(float value)throws Exception {

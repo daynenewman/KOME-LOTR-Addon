@@ -4,6 +4,12 @@
 
 Owns KOME public waypoint proposals/registry, native waypoint bridges, access decisions, and visibility publication. Native LOTR still owns target/cooldown/final teleport state; tile rally links are separate strategic metadata.
 
+Pass 1 synchronizes legacy travel permission reads with the server progression
+snapshot and uses its current faction context on the client once available.
+Request/final server guards, native cooldown/attack/sleep/discovery and territory
+policy remain unchanged. Serf original-start return is still a future ability,
+not implemented by this cache fix. See [Pass 1](../../../PROGRESSION_CLEANUP_PASS1_REPORT.txt).
+
 ## Authority and entry points
 
 - [KOMEPublicWaypointRegistry.propose](../../../../src/main/java/kome/common/data/KOMEPublicWaypointRegistry.java), `adjust`, `approveProposal`, `reject`, `move`, `remove`: revision-checked proposals and approved identities/history/quarantine. The `PublicWaypoints` section persists in [KOMEWorldData](../../../../src/main/java/kome/common/data/KOMEWorldData.java).
@@ -22,4 +28,4 @@ References: [public access policy](../../../KOME_PUBLIC_ACCESS_POLICY.md), [wayp
 .\gradlew.bat test --tests 'kome.common.data.KOMEWaypointWorkflowTest' --tests 'kome.common.data.KOMEWaypointAccessServiceTest' --tests 'kome.common.network.KOMEPublicWaypointSyncTest' --no-daemon --max-workers=2
 ```
 
-Use [shared prerequisites](../../INDEX.md). Reproduce propose → revise → approve, stale approval rejection, reconnect visibility, unlock, target request, and final teleport with a connected client. Native cooldown/under-attack/sleep/config guards still apply. A correct server unlock does not prove the client permission cache is current; see the [projection gap](../client-network/README.md).
+Use [shared prerequisites](../../INDEX.md). Reproduce proposal/revision/approval, stale rejection, reconnect visibility, unlock, request and final teleport with a connected client. Native safeguards still apply. Pass 1 fixes the source-wired permission projection; visible/native final travel still needs connected acceptance.

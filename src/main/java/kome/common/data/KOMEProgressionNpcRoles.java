@@ -42,6 +42,7 @@ public final class KOMEProgressionNpcRoles {
         if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&commission!=null&&commission.live())for(KOMEKnightCommission.Actor actor:commission.actors)if(!actor.dead)
             add(world,player,new KOMEProgressionNpcRef(actor.id,commission.place,actor.role==KOMEKnightCommission.Role.ENEMY?commission.enemyFaction:commission.faction,commission.dimension,actor.x,actor.y,actor.z),actor.role==KOMEKnightCommission.Role.ENEMY?KOMEProgressionNpcRoleLease.Role.COMMISSION_ENEMY:KOMEProgressionNpcRoleLease.Role.COMMISSION_BENEFICIARY,commission.token);
         KOMELordshipTrial lordship=progression.getLordship().assignment();
+        if(lordship!=null)add(world,player,lordship.authority,KOMEProgressionNpcRoleLease.Role.LIEGE,lordship.objective.token);
         if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&lordship!=null&&!lordship.forceReleased&&(lordship.objective.stage==KOMEKnightCommission.Stage.ACTIVE||lordship.ready()))for(KOMEKnightCommission.Actor actor:lordship.objective.actors)if(!actor.dead&&(!lordship.ready()||actor.role==KOMEKnightCommission.Role.GUARD)){
             KOMEKnightCommission a=lordship.objective;
             add(world,player,new KOMEProgressionNpcRef(actor.id,a.place,actor.role==KOMEKnightCommission.Role.ENEMY?a.enemyFaction:a.faction,a.dimension,actor.x,actor.y,actor.z),KOMEProgressionNpcRoleLease.Role.LORDSHIP_GUARD,a.token);

@@ -35,6 +35,12 @@ public final class KOMEProgressionEncounterMarker {
     public static Marker read(LOTREntityNPC npc) {
         return npc == null ? null : read(npc.getEntityData());
     }
+    public static void mark(lotr.common.entity.LOTREntityInvasionSpawner controller,String kind,UUID owner,String token){
+        if(controller!=null)mark(controller.getEntityData(),kind,owner,token);
+    }
+    public static Marker read(lotr.common.entity.LOTREntityInvasionSpawner controller){
+        return controller==null?null:read(controller.getEntityData());
+    }
 
     public static void clear(LOTREntityNPC npc) {
         if (npc != null) {

@@ -36,7 +36,8 @@ public class KOMEConquestSyncTest {
     private void send() { KOMEPacketConquestData.sendIfChanged(fixture.data, fixture.player); }
     private List<KOMEPacketConquestData> take() {
         List<KOMEPacketConquestData> result = new ArrayList<KOMEPacketConquestData>();
-        for (IMessage m : fixture.network.messages) result.add((KOMEPacketConquestData)m);
+        for (IMessage m : fixture.network.messages)
+            if (m instanceof KOMEPacketConquestData) result.add((KOMEPacketConquestData)m);
         fixture.network.messages.clear(); return result;
     }
     private static NBTTagCompound assembled(List<KOMEPacketConquestData> packets) {

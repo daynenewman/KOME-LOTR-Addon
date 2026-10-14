@@ -32,13 +32,47 @@ public class KOMEClientData extends KOMEWorldData {
     }
 
     public boolean clientViewerIsAdmin;
+    private long progressionRevision;
+    private java.util.UUID progressionViewer;
+
+    /** A single transient server projection shared by the book and legacy permission readers. */
+    public boolean acceptProgression(java.util.UUID viewer, long revision, String rankKey,
+            String faction, boolean enabled, java.util.List completed, java.util.Map assignments) {
+        KOMEProgressionRank rank = KOMEProgressionRank.forKey(rankKey);
+        if (viewer == null || viewer.equals(new java.util.UUID(0L, 0L))
+                || revision <= 0L || revision <= progressionRevision || rank == null
+                || progressionViewer != null && !progressionViewer.equals(viewer)) return false;
+        KOMEPlayerProgression projection = new KOMEPlayerProgression();
+        projection.setCanonicalRank(rank);
+        for (Object id : completed) projection.grant(String.valueOf(id));
+        for (Object value : assignments.entrySet()) {
+            java.util.Map.Entry entry = (java.util.Map.Entry) value;
+            projection.setAssignment(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+        }
+        clearProgressionProjection();
+        progressions.put(viewer, projection);
+        lastKnownPlayerFactions.put(viewer, KOMEAlliance.normalizeFactionKey(faction));
+        setProgressionEnabled(enabled);
+        progressionViewer = viewer;
+        progressionRevision = revision;
+        return true;
+    }
+
+    /** Dimension changes clear visible values but retain the connection's stale-update fence. */
+    public void clearProgressionProjection() {
+        progressions.clear();
+        lastKnownPlayerFactions.clear();
+        setProgressionEnabled(true);
+    }
 
     private KOMEClientData() {
         super("KOME_ClientData");
     }
 
     public void resetClientState() {
-        progressions.clear();
+        clearProgressionProjection();
+        progressionRevision = 0L;
+        progressionViewer = null;
         hiredUnits.clear();
         conquestTiles.clear();
         conquestRenderOwners = java.util.Collections.emptyMap();

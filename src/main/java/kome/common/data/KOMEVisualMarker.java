@@ -4,6 +4,8 @@ package kome.common.data;
 public final class KOMEVisualMarker {
     public enum Role {
         SERFDOM_MASTER("serfdom_master", "Master"),
+        PROVISION_DUTY("provision_duty", "Provisions"),
+        PROFESSION_DUTY("profession_duty", "Materials"),
         MASTER_GIFT("master_gift", "Parting Gift"),
         KNIGHT_LIEGE("knight_liege", "Liege"),
         LORD_LIEGE("lord_liege", "Liege"),
@@ -12,6 +14,7 @@ public final class KOMEVisualMarker {
         ENCOUNTER_ENEMY("encounter_enemy", "Objective enemy"),
         PARTICIPANT("participant", "Progression participant"),
         COMMISSION("commission", "Commission"),
+        RELIEF("relief", "Relief supplies"),
         ESCORT("escort", "Escort Destination"),
         DEFENSE("defense", "Defend your people"),
         RECOVERY_SEARCH("recovery_search", "Recovery Search");
@@ -30,6 +33,7 @@ public final class KOMEVisualMarker {
     public final boolean actionable;
     public final boolean objective;
     public final double x, y, z;
+    public final net.minecraft.item.ItemStack itemIcon;
 
     public KOMEVisualMarker(Role role, String entityUuid, String title, String subtitle,
             int dimension, double x, double y, double z) {
@@ -43,6 +47,10 @@ public final class KOMEVisualMarker {
     }
     public KOMEVisualMarker(Role role,String entityUuid,String title,String subtitle,int dimension,
             double x,double y,double z,boolean actionable,boolean objective) {
+        this(role,entityUuid,title,subtitle,dimension,x,y,z,actionable,objective,null);
+    }
+    private KOMEVisualMarker(Role role,String entityUuid,String title,String subtitle,int dimension,
+            double x,double y,double z,boolean actionable,boolean objective,net.minecraft.item.ItemStack icon) {
         if (role == null) throw new IllegalArgumentException("Marker role is required.");
         this.role = role;
         this.entityUuid = entityUuid == null ? "" : entityUuid;
@@ -54,15 +62,17 @@ public final class KOMEVisualMarker {
         this.z = z;
         this.actionable=actionable;
         this.objective=objective;
+        this.itemIcon=icon==null?null:icon.copy();
     }
-    public KOMEVisualMarker withObjective(boolean value){return new KOMEVisualMarker(role,entityUuid,title,subtitle,dimension,x,y,z,actionable,value);}
+    public KOMEVisualMarker withObjective(boolean value){return new KOMEVisualMarker(role,entityUuid,title,subtitle,dimension,x,y,z,actionable,value).withItemIcon(itemIcon);}
+    public KOMEVisualMarker withItemIcon(net.minecraft.item.ItemStack item){return new KOMEVisualMarker(role,entityUuid,title,subtitle,dimension,x,y,z,actionable,objective,item);}
 
     public boolean isRelationship() {
-        return role == Role.MASTER_GIFT || role == Role.SERFDOM_MASTER || role == Role.KNIGHT_LIEGE
+        return role == Role.MASTER_GIFT || role == Role.SERFDOM_MASTER || role == Role.PROVISION_DUTY || role == Role.PROFESSION_DUTY || role == Role.KNIGHT_LIEGE
             || role == Role.LORD_LIEGE || role == Role.RULER;
     }
     public String signature() {
         return role.key + '|' + entityUuid + '|' + title + '|' + subtitle + '|'
-            + dimension + '|' + x + '|' + y + '|' + z+'|'+actionable+'|'+objective;
+            + dimension + '|' + x + '|' + y + '|' + z+'|'+actionable+'|'+objective+'|'+(itemIcon==null?"":itemIcon.writeToNBT(new net.minecraft.nbt.NBTTagCompound()).toString());
     }
 }

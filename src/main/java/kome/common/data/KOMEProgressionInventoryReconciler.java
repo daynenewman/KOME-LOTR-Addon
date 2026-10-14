@@ -35,6 +35,13 @@ public final class KOMEProgressionInventoryReconciler {
 
         for(int i=0;i<inventory.length;i++) {
             ItemStack stack=inventory[i];
+            if(KOMEKnightCommissionService.taggedProperty(stack)){
+                KOMEKnightCommission a=progression.getKnightService().assignment();
+                if(a==null||!a.live()||!KOMEKnightCommissionService.matchesProperty(stack,a,owner)){inventory[i]=null;removed++;continue;}
+                if(stack.getItem()==KOMEKnightCommissionService.STOLEN_PROPERTY){
+                    inventory[i]=KOMEKnightCommissionService.property(a,owner);inventory[i].stackSize=stack.stackSize;removed++;
+                }
+            }
 
             boolean staleRecovery=
                 KOMESerfKnightRecoveryService.isRecoveryTagged(stack)

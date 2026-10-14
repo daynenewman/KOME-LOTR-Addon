@@ -28,7 +28,9 @@ public class KOMEPopulationProtocolTest {
     }
 
     @Test public void g5PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.9-integration-g6", KOMEPopulationWire.VERSION); assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g5"));
+        assertEquals("1.0.9-integration-g8", KOMEPopulationWire.VERSION);
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g7"));
+        assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g6"));
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();

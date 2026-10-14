@@ -23,7 +23,7 @@ public final class KOMEProgressionGoodsPresentation {
             }
         }else{
             KOMEKnightCommission a=p.getKnightService().assignment();
-            if(a!=null&&a.live()&&a.type==KOMEKnightCommission.Type.RELIEF){
+            if(a!=null&&a.stage==KOMEKnightCommission.Stage.ACTIVE&&a.encounterCreated&&a.type==KOMEKnightCommission.Type.RELIEF){
                 text.append("Bring relief to your people:");
                 for(KOMEKnightCommission.Goods g:a.goods){
                     Item item=(Item)Item.itemRegistry.getObject(g.itemKey);if(item==null)continue;
@@ -42,6 +42,9 @@ public final class KOMEProgressionGoodsPresentation {
     private static void line(StringBuilder text,String name,int have,int required){text.append("\n").append(name).append(": ").append(Math.min(required,have)).append(" / ").append(required);}
     public static KOMEProgressionRankSummary enrich(KOMEProgressionRankSummary summary,KOMEPlayerProgression p,ItemStack[] inventory){
         String objective=objective(p,inventory);
+        if(!objective.isEmpty()&&p.getCanonicalRank()==KOMEProgressionRank.KNIGHT){KOMEKnightCommission a=p.getKnightService().assignment();
+            if(a!=null)objective="Deliver relief to the marked recipient at ("+(int)a.destinationX+", "+(int)a.destinationZ+").\n"+objective+"\nThen report to "+a.liege.displayName+".";
+        }
         return objective.isEmpty()?summary:new KOMEProgressionRankSummary(summary.factionKey,summary.currentRank,summary.nextRank,summary.promotionTitle,summary.requirements,summary.activityHeading,summary.activityTitle,objective);
     }
 }

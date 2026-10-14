@@ -328,7 +328,7 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
         GL11.glDisable(GL11.GL_BLEND);
         GL11.glDisable(GL11.GL_ALPHA_TEST);
 
-        ItemStack icon=snapshot.requestedItem==null?icon(snapshot.iconKey):snapshot.requestedItem;
+        ItemStack icon="provisioning".equals(snapshot.iconKey)||snapshot.requestedItem==null?icon(snapshot.iconKey):snapshot.requestedItem;
 
         if(icon!=null) {
             RenderHelper.enableGUIStandardItemLighting();

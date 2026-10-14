@@ -415,6 +415,11 @@ public class KOMECampaignRecruitmentServiceTest {
         record.populationOwningFaction = record.sourceFaction = "gondor";
         record.unitFaction = "gondor"; record.unitName = "Guard";
         data.lastKnownPlayerFactions.put(record.owner, "gondor");
+        // Positive transaction fixtures now carry real standing and Crown authority.
+        data.getProgression(record.owner).setCanonicalRank(KOMEProgressionRank.LORD);
+        KOMERulerService.assignRuler(data, "gondor", record.owner, "Recruiting ruler");
+        data.centralAudit.clear();
+        data.emergencyDefenseActivities.clear();
         return record;
     }
 

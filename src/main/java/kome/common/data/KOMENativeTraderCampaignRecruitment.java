@@ -63,11 +63,6 @@ public final class KOMENativeTraderCampaignRecruitment {
                 throw failure(KOMECampaignRecruitmentService.Code.INVALID_SOURCE,
                     "The server player or world is unavailable.");
             }
-            if (!KOMEProgressionPermissions.has(player,
-                    KOMEProgressionPermissions.HIRE_UNITS)) {
-                throw failure(KOMECampaignRecruitmentService.Code.INVALID_SOURCE,
-                    "You have not unlocked Hire Units yet.");
-            }
             Container open = player.openContainer;
             if (!(open instanceof LOTRContainerUnitTrade)
                     || !open.canInteractWith(player)) {
@@ -116,6 +111,10 @@ public final class KOMENativeTraderCampaignRecruitment {
                 throw failure(KOMECampaignRecruitmentService.Code.INVALID_SOURCE,
                     "A current pledged faction is required to spend population.");
             }
+            String authority = KOMEProgressionPermissions.campaignRecruitmentDenial(
+                KOMEWorldData.get(player.worldObj), player.getUniqueID(), ownerFaction,
+                player.canCommandSenderUseCommand(2, "troops"));
+            if (!authority.isEmpty()) throw failure(KOMECampaignRecruitmentService.Code.UNAUTHORIZED, authority);
             Candidate candidate = createCandidate(player, trade, hireable,
                 ownerFaction);
             int nativeCost = trade.getCost(player, hireable);
@@ -123,7 +122,8 @@ public final class KOMENativeTraderCampaignRecruitment {
                 candidate.data, candidate.record, candidate.payingFaction,
                 nativeCost,
                 new NativeHireEffect(player, hireable, traderNpc, trade,
-                    candidate.npc, candidate.mount, squadron, nativeCost));
+                    candidate.npc, candidate.mount, squadron, nativeCost),
+                player.canCommandSenderUseCommand(2, "troops"));
         }
     }
 

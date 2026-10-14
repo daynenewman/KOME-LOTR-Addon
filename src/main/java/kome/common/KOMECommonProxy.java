@@ -105,6 +105,9 @@ public class KOMECommonProxy {
     public void updateProgressionData(String playerName, java.util.List completed) {
     }
 
+    public void acceptProgressionData(kome.common.network.KOMEPacketProgressionData message,
+            Object connection) { }
+
     public void updateProgressionData(String playerName, java.util.List completed, java.util.Map assignments) {
         updateProgressionData(playerName, completed);
     }

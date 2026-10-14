@@ -71,7 +71,7 @@ public final class KOMEProgressionSummary {
                 +"\nMaster: "+s.getSerfdomMaster().displayName+"\nNext: Reach "+KOMEStandingTrialEligibility.requiredAlignment(pledgeKey)
                 +" faction alignment ("+(int)Math.floor(Math.max(0,alignment))+" / "+KOMEStandingTrialEligibility.requiredAlignment(pledgeKey)+").";
         String result=text(p,pledgeName,pledgeKey);if(p.getCanonicalRank()==KOMEProgressionRank.SERF&&!s.failures().isEmpty()&&!s.hasLiege()){net.minecraft.nbt.NBTTagCompound failure=s.failures().get(s.failures().size()-1);long remaining=Math.max(0,failure.getLong("Expiry")-KOMESerfKnightProgression.failureClock.getAsLong());result+="\nYour last Trial of Standing failed. That lord released you. Your completed duties remain honoured. Seek eligible service elsewhere.";if(remaining>0)result+="\nThe same lord will hear no new trial petition for another "+((remaining+59999)/60000)+" minutes. The daily trial limit also applies.";}
-        if(p.getCanonicalRank()==KOMEProgressionRank.KNIGHT)result+="\n"+KOMELordshipTrialPresentation.standing(p,alignment,pledgeKey)+"\n"+KOMELordshipTrialPresentation.status(p,alignment,pledgeKey);
+        if(p.getCanonicalRank()==KOMEProgressionRank.KNIGHT)return KOMEKnightBookPresentation.context(p,pledgeKey);
         return result;
     }
 

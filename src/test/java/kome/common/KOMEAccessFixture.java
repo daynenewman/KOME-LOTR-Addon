@@ -81,6 +81,11 @@ public final class KOMEAccessFixture {
         player = allocate(Player.class);
         player.id = UUID.randomUUID(); player.connected = true;
         set(Entity.class, player, "entityUniqueID", player.id);
+        // Headless tests own fresh UUIDs; never ask native disk loading to resolve them.
+        Field nativePlayers = LOTRLevelData.class.getDeclaredField("playerDataMap");
+        nativePlayers.setAccessible(true);
+        ((java.util.Map<UUID, lotr.common.LOTRPlayerData>) nativePlayers.get(null))
+            .put(player.id, new lotr.common.LOTRPlayerData(player.id));
         player.messages = new ArrayList<String>();
         player.vanillaPackets = new ArrayList<Packet>();
         player.worldObj = world;

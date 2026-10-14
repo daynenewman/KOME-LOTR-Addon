@@ -243,7 +243,7 @@ public class KOMEPublicAccessPacketTest {
         f.data.setProgressionEnabled(true); f.data.setDirty(false);
         new KOMEPacketConquestClaim.Handler().onMessage(new KOMEPacketConquestClaim(tile.id), f.context);
         assertEquals(" ROHAN ", tile.currentRulingFaction); assertEquals("gondor", tile.ownerFaction);
-        assertTrue(f.player.messages.toString().contains("Take Waypoints"));
+        assertTrue(f.player.messages.toString().contains("cannot certify a battle victory"));
         assertFalse(f.player.messages.toString().contains("already controlled"));
         assertTrue(f.data.progressions.isEmpty()); assertTrue(f.data.conquestClaimConfirmations.isEmpty());
         assertFalse(KOMEForeignConstructionService.grant(f.data, tile.id, f.player.id, "gondor", 1L).allowed);
@@ -354,7 +354,7 @@ public class KOMEPublicAccessPacketTest {
         assertTrue(registration.contains("KOMEPacketConquestOpenCapture.class, 7, Side.SERVER"));
         assertTrue(registration.contains("KOMEPacketBuildAction.class, 36, Side.SERVER"));
         assertTrue(registration.contains("IDs 23 and 24 are retired"));
-        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g6"));
+        assertTrue(source("kome/common/network/KOMEPopulationWire.java").contains("1.0.9-integration-g8"));
         assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
     }
 

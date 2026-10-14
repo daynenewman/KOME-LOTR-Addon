@@ -85,7 +85,8 @@ public class KOMECombatHireMountSafetyTest {
         String source = new String(Files.readAllBytes(Paths.get(
             "src/main/java/kome/common/data/KOMEEvents.java")), StandardCharsets.UTF_8);
         assertFalse(source.contains("KOMEReflection.setDead(npc)"));
-        assertEquals(5, occurrences(source, "discardDeniedHireEntityTree(npc)"));
+        // The obsolete progression denial is gone; native accounting failures still clean the tree.
+        assertEquals(4, occurrences(source, "discardDeniedHireEntityTree(npc)"));
         assertTrue(source.contains("catch (RuntimeException failure)"));
         String transaction = new String(Files.readAllBytes(Paths.get(
             "src/main/java/kome/common/data/KOMENativeHireRegistrationService.java")), StandardCharsets.UTF_8);

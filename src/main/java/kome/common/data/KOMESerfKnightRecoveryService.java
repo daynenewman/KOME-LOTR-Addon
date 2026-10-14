@@ -186,7 +186,7 @@ public final class KOMESerfKnightRecoveryService {
         catch(Exception ignored){return false;}
     }
     static ItemStack assignedStack(KOMESerfKnightTrialAssignment assignment,UUID owner) {
-        ItemStack stack=assignedBase(assignment); NBTTagCompound root=new NBTTagCompound(), tag=new NBTTagCompound();
+        ItemStack stack=assignedBase(assignment); NBTTagCompound root=stack.hasTagCompound()?(NBTTagCompound)stack.getTagCompound().copy():new NBTTagCompound(), tag=new NBTTagCompound();
         tag.setString(ITEM_TOKEN,assignment.assignmentToken); tag.setString(ITEM_OWNER,owner.toString()); root.setTag(ITEM_TAG,tag); stack.setTagCompound(root); return stack;
     }
     static boolean isAssignedTo(ItemStack stack,KOMESerfKnightTrialAssignment assignment,UUID owner) {

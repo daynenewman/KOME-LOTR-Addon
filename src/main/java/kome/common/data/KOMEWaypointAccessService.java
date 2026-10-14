@@ -259,7 +259,10 @@ public final class KOMEWaypointAccessService {
         }
         KOMEWorldData data = KOMEReflection.isRemote(player.worldObj) ? KOMEClientData.INSTANCE : KOMEWorldData.get(player.worldObj);
         LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
-        String faction = pledge == null ? data.getPlayerFactionKey(KOMEReflection.getEntityUUID(player)) : pledge.codeName();
+        String faction = KOMEReflection.isRemote(player.worldObj)
+                && data.progressions.containsKey(KOMEReflection.getEntityUUID(player))
+            ? data.getPlayerFactionKey(KOMEReflection.getEntityUUID(player))
+            : pledge == null ? data.getPlayerFactionKey(KOMEReflection.getEntityUUID(player)) : pledge.codeName();
         boolean operator = KOMEReflection.isRemote(player.worldObj)
             ? KOMEClientData.INSTANCE.clientViewerIsAdmin : player.canCommandSenderUseCommand(2, "alliance");
         UUID playerId = KOMEReflection.getEntityUUID(player);

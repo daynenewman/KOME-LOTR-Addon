@@ -22,7 +22,7 @@ public class KOMEProgressionGameplayPassTest {
             assertEquals("1/2",KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).progress);
             s.reload();a=s.p.getKnightService().assignment();assertEquals("1/2",KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).progress);
             a.threatResolved=true;assertEquals("Recover the stolen property",KOMEKnightCommissionPresentation.objective(a));
-            assertEquals("0/1",KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).progress);
+            assertEquals("",KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).progress);
             a.stage=Stage.READY_TO_REPORT;assertEquals("Report to your Liege",KOMEKnightCommissionPresentation.objective(a));
             assertEquals(0F,KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).completion,0F);
         }
@@ -86,11 +86,11 @@ public class KOMEProgressionGameplayPassTest {
             assertEquals(saved,resaved);
         }
     }
-    @Test public void failedDestinationUsesExistingFailureAndCleansActors()throws Exception {
+    @Test public void unavailableDestinationUsesTechnicalRecoveryAndCleansActors()throws Exception {
         try(KOMEKnightCommissionGameplayTest.Session s=new KOMEKnightCommissionGameplayTest.Session()){
             KOMEKnightCommission a=s.active(Type.DANGEROUS_ESCORT);KOMEKnightCommissionGameplayTest.TestNpc charge=KOMEKnightCommissionGameplayTest.actor(s,a,Role.CHARGE);
             s.f.world.structureBlocks.clear();KOMEKnightCommissionService.tickPlayer(s.f.player);
-            assertEquals(Stage.FAILED,a.stage);assertTrue(charge.isDead);assertTrue(KOMEKnightCommissionPresentation.objective(a).contains("Return to your Liege"));
+            assertEquals(Stage.ACTIVE,a.stage);assertTrue(a.activationPending);assertTrue(charge.isDead);assertTrue(KOMEKnightCommissionPresentation.objective(a).contains("Return to your Liege"));
         }
     }
     @Test public void hostileActorSitesAreAroundFiftyAndRejectBuildings()throws Exception {

@@ -172,10 +172,8 @@ public class KOMEProgressionLifecycleAuditTest {
                 KOMEProgressionAchievement.forID(
                     "serf.title_knight")));
 
-        assertTrue(
-            progression.isCompleted(
-                KOMEProgressionAchievement.forID(
-                    "baseline.hire_units")));
+        assertFalse("Knight promotion no longer generates a recruitment-authority flag",
+            progression.isCompleted(KOMEProgressionAchievement.forID("baseline.hire_units")));
 
         assertTrue(
             progression.isCompleted(

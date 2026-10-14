@@ -9,6 +9,7 @@ public final class KOMELiegeProgressionInteraction {
     public enum Action { COMMISSION, STATUS, REPORT, TRIAL, TRIAL_REPORT, UNAVAILABLE }
     private KOMELiegeProgressionInteraction() {}
     public static boolean ownsQuest(EntityPlayer player,LOTREntityNPC npc) {
+        if(KOMELordshipTrialService.eligible(player,npc))return true;
         if(!KOMECurrentLiege.valid(player,npc))return false;
         KOMEProgressionRank rank=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).getCanonicalRank();
         return rank==KOMEProgressionRank.SERF||rank==KOMEProgressionRank.KNIGHT;
@@ -25,14 +26,14 @@ public final class KOMELiegeProgressionInteraction {
     }
     public static boolean quest(EntityPlayerMP player,LOTREntityNPC liege) {
         if(!ownsQuest(player,liege)||player.getDistanceSqToEntity(liege)>64)return false;
+        if(KOMELordshipTrialService.eligible(player,liege)){if(KOMELordshipTrialService.prepare(player,liege)==null)KOMEProgressionNpcSpeech.say(player,liege,"No safe native invasion can be arranged in these lands. Seek another Prince of our people or return later.");else KOMELordshipTrialService.acceptOrReport(player,liege);return true;}
         KOMEWorldData world=KOMEWorldData.get(player.worldObj);
         synchronized(world){
             KOMEPlayerProgression p=world.getProgression(player.getUniqueID());
             if(p.getCanonicalRank()!=KOMEProgressionRank.KNIGHT)return false;
             Action action=action(p,lotr.common.LOTRLevelData.getData(player).getAlignment(liege.getFaction()),liege.getFaction().codeName());
             if(action==Action.TRIAL||action==Action.TRIAL_REPORT){
-                if(KOMELordshipTrialService.prepare(player,liege)==null)KOMEProgressionNpcSpeech.say(player,liege,"I cannot arrange a safe trial here. Return when a suitable destination is available.");
-                else KOMELordshipTrialService.acceptOrReport(player,liege);
+                KOMEProgressionNpcSpeech.say(player,liege,"You have served our people faithfully. Lord standing must be earned before higher authority. "+KOMEProgressionNativeAuthority.princeGuidance(liege.getFaction().codeName()));return true;
             }else if(action==Action.COMMISSION||action==Action.STATUS||action==Action.REPORT){
                 if(KOMEKnightCommissionService.prepare(player,liege)==null)KOMEProgressionNpcSpeech.say(player,liege,"I cannot arrange a safe commission here. Explore our lands and return after finding shelter among our people.");
                 else KOMEKnightCommissionService.acceptOrReport(player,liege);

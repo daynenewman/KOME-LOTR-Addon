@@ -46,7 +46,7 @@ public class KOMEPacketRelationshipAction implements IMessage {
                 KOMESerfdomMasterService.Result result=KOMESerfdomMasterService.conferKnighthood(p,data,n);
                 if(!result.success)KOMEProgressionNpcSpeech.say(p,n,result.reason);return null;
             }
-            if(exact&&KOMELiegeProgressionInteraction.quest(p,n))return null;
+            if(KOMELiegeProgressionInteraction.ownsQuest(p,n)&&KOMELiegeProgressionInteraction.quest(p,n))return null;
             if(KOMEProgressionOfferBridge.canReplaceLiegeFrom(p,n)||KOMEKnightCommissionService.eligible(p,n)||KOMELordshipTrialService.eligible(p,n)) {
                 KOMEProgressionOfferBridge.openStandingTrialOffer(p,n);
                 return null;

@@ -123,7 +123,8 @@ public class KOMESerfKnightStabilizationTest {
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()) {
             Charge charge=escort(s);new KOMEEvents().onLivingUpdate(new LivingEvent.LivingUpdateEvent(charge));
             assertFalse(charge.isDead);assertTrue(charge.hiredNPCInfo.isActive);assertTrue(s.f.data.hiredUnits.isEmpty());
-            assertFalse(KOMEProgressionPermissions.has(s.f.player,KOMEProgressionPermissions.HIRE_UNITS));
+            assertTrue(KOMEProgressionPermissions.has(s.f.player,KOMEProgressionPermissions.HIRE_UNITS));
+            assertFalse(s.p.isCompleted(KOMEProgressionAchievement.forID("baseline.hire_units")));
             NBTTagCompound marker=(NBTTagCompound)charge.getEntityData().copy();UUID id=charge.getUniqueID();
             s.f.world.loadedEntityList.remove(charge);KOMESerfKnightEscortService.tickPlayer(s.f.player);
             assertEquals(KOMESerfKnightTrialAssignment.Stage.ACTIVE,s.state.getTrialAssignment().stage);
@@ -254,6 +255,10 @@ public class KOMESerfKnightStabilizationTest {
     }
     private static Charge charge(KOMEProgressionFollowupTest.Session s,UUID id)throws Exception {
         Charge npc=KOMEAccessFixture.allocate(Charge.class);npc.worldObj=s.f.world;npc.setUniqueID(id);
+        net.minecraft.entity.DataWatcher watcher=new net.minecraft.entity.DataWatcher(npc);
+        watcher.addObject(0,(byte)0);watcher.addObject(6,20F);watcher.addObject(10,"");
+        java.lang.reflect.Field watcherField=net.minecraft.entity.Entity.class.getDeclaredField("dataWatcher");
+        watcherField.setAccessible(true);watcherField.set(npc,watcher);
         java.lang.reflect.Field equipment=net.minecraft.entity.EntityLiving.class.getDeclaredField("equipment");equipment.setAccessible(true);
         equipment.set(npc,new ItemStack[5]);
         npc.posX=s.master.posX;npc.posY=65;npc.posZ=s.master.posZ;

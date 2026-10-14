@@ -40,8 +40,8 @@ public class KOMEProgressionHardeningServiceTest {
     @Test public void alreadyLordReloadArchivesStaleTrialWithoutDemotion()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.ACTIVE);f.s.p.setCanonicalRank(KOMEProgressionRank.LORD);f.s.reload();assertEquals(KOMEProgressionRank.LORD,f.s.p.getCanonicalRank());assertNull(f.s.p.getLordship().assignment());assertEquals("rank",f.s.p.getLordship().history().get(0).failureReason);}}
     @Test public void duplicateQuestClicksAndReconnectGrantOneReport()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         KOMEProgressionOfferBridge.registerQuestType();KOMEKnightCommission a=new KOMEKnightCommission(Type.RELIEF,f.s.p.getSerfKnightProgression().getLiege());f.s.p.getKnightService().offer(a);a.stage=Stage.READY_TO_REPORT;
-        assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.liege));
-        assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.liege));f.s.reload();assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.liege));
+        assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.lord));
+        assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.lord));f.s.reload();assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.lord));
         assertEquals(1,f.s.p.getKnightService().history().size());assertEquals(1,f.s.p.getKnightService().qualifyingTypes("rohan").size());assertEquals(KOMEProgressionRank.KNIGHT,f.s.p.getCanonicalRank());
     }}
     @Test public void simultaneousReportRetriesCommitOneDeed()throws Exception {

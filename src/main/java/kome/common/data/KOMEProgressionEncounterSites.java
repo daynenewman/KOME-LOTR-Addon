@@ -8,14 +8,17 @@ import net.minecraft.world.World;
 public final class KOMEProgressionEncounterSites {
     private KOMEProgressionEncounterSites() {}
     static double[] attacker(World world,double x,double z,KOMEProgressionNpcRef liege,String token,int index){
+        return attacker(world,x,z,liege,token,index,48,64);
+    }
+    static double[] attacker(World world,double x,double z,KOMEProgressionNpcRef liege,String token,int index,int minimum,int maximum){
         int seed=(token==null?0:token.hashCode())+index*211;
         for(int attempt=0;attempt<32;attempt++){
             double angle=Math.floorMod(seed+attempt*199,6283)/1000D;
-            double distance=48+Math.floorMod(seed+attempt*7,9);
+            double distance=minimum+Math.floorMod(seed+attempt*7,Math.max(1,maximum-minimum));
             int px=(int)Math.floor(x+Math.cos(angle)*distance),pz=(int)Math.floor(z+Math.sin(angle)*distance);
             double[] site=KOMEKnightCommissionService.safeSite(world,px,pz);
             if(site==null||!openGround(world,site))continue;
-            if(squared(site[0]-x,site[2]-z)<40*40||squared(site[0]-x,site[2]-z)>64*64)continue;
+            if(squared(site[0]-x,site[2]-z)<minimum*minimum||squared(site[0]-x,site[2]-z)>maximum*maximum)continue;
             if(liege!=null&&liege.isSet()&&squared(site[0]-liege.x,site[2]-liege.z)<40*40)continue;
             return site;
         }

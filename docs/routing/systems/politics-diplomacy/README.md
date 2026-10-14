@@ -4,6 +4,16 @@
 
 Owns ruler authorization, bilateral native LOTR relations/pending consent, foreign construction, voluntary company delegation, pledge cleanup, and restricted kingless stewardship. Legacy alliance records remain for compatibility; the historical four-stage ladder is not the current relation authority.
 
+Pass 1 clarifies boundaries: current KOM-75 already retires player Wartime
+Stewardship (`supportingKingDecision` denies it); Emergency Defense is retained.
+New campaign hires require current standing and Crown/admin authority; company
+delegation does not authorize recruitment spending. KOM-87 grant/warrant authority
+is still absent. Ordinary native bodyguards are outside that military gate and
+charge the recruiter's bank; foreign farmhand cooperation is unchanged.
+Manual claim packets cannot create war/diplomacy/ownership changes. Ruler peaceful
+offer/accept transfers and staff corrections remain separate valid operations.
+See [Pass 1 report](../../../PROGRESSION_CLEANUP_PASS1_REPORT.txt).
+
 ## Entry points and state
 
 - [KOMEDiplomacyService.getRelation](../../../../src/main/java/kome/common/data/KOMEDiplomacyService.java), `requestIncrease`, `acceptPendingIncrease`, `worsenRelation`: native `LOTRFactionRelations` overrides own effective relations; KOME persists canonical consent records in [KOMEWorldData](../../../../src/main/java/kome/common/data/KOMEWorldData.java). Native LOTR player data owns pledge/alignment.

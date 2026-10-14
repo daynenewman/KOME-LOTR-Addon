@@ -31,6 +31,7 @@ public final class KOMECampaignRecruitmentService {
         INVALID_REQUEST,
         DUPLICATE_REQUEST,
         INVALID_SOURCE,
+        UNAUTHORIZED,
         INVALID_UNIT,
         FARMHAND_UNSUPPORTED,
         LOCATION_NOT_ALLOWED,
@@ -93,15 +94,24 @@ public final class KOMECampaignRecruitmentService {
         public final String payingFaction;
         public final int nativeCoinCost;
         public final RecruitmentEffect effect;
+        /** Set only by the trusted server source, never by the client request. */
+        public final boolean administrative;
 
         public PreparedRecruitment(KOMEWorldData data, KOMEHiredUnitRecord record,
                 String payingFaction, int nativeCoinCost,
                 RecruitmentEffect effect) {
+            this(data, record, payingFaction, nativeCoinCost, effect, false);
+        }
+
+        public PreparedRecruitment(KOMEWorldData data, KOMEHiredUnitRecord record,
+                String payingFaction, int nativeCoinCost,
+                RecruitmentEffect effect, boolean administrative) {
             this.data = data;
             this.record = record;
             this.payingFaction = KOMEAlliance.normalizeFactionKey(payingFaction);
             this.nativeCoinCost = nativeCoinCost;
             this.effect = effect;
+            this.administrative = administrative;
         }
     }
 
@@ -179,6 +189,12 @@ public final class KOMECampaignRecruitmentService {
     private static Result execute(Request request, PreparedRecruitment prepared) {
         Result invalid = validatePrepared(request, prepared);
         if (invalid != null) return invalid;
+        String authority = KOMEProgressionPermissions.campaignRecruitmentDenial(
+            prepared.data, request.playerId, prepared.payingFaction, prepared.administrative);
+        if (!authority.isEmpty()) {
+            safeRollback(prepared.effect);
+            return Result.failure(Code.UNAUTHORIZED, authority);
+        }
         KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(prepared.data, request.playerId, prepared.payingFaction);
         if (!governance.allowed) {
             safeRollback(prepared.effect);

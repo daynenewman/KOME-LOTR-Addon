@@ -9,7 +9,7 @@ import static kome.common.data.KOMEKnightCommission.*;
 
 public class KOMEProgressionHardeningAuthorityTest {
     @Test public void loadedLiegeAuthorityAgreesAcrossCommissionTrialAndReport()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        assertTrue(KOMECurrentLiege.valid(f.s.f.player,f.liege));assertTrue(KOMEKnightCommissionService.eligible(f.s.f.player,f.liege));f.credits(3);assertTrue(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));
+        assertTrue(KOMECurrentLiege.valid(f.s.f.player,f.lord));assertTrue(KOMEKnightCommissionService.eligible(f.s.f.player,f.lord));assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.lord));f.credits(3);assertTrue(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));
         f.liege.hiredNPCInfo.isActive=true;assertFalse(KOMECurrentLiege.valid(f.s.f.player,f.liege));assertFalse(KOMEKnightCommissionService.eligible(f.s.f.player,f.liege));assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));assertFalse(KOMELordshipTrialService.promote(f.s.f.player,f.liege));
     }}
     @Test public void wrongPledgeRejectsEveryLiegeAction()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){

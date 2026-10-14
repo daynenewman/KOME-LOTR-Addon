@@ -141,7 +141,7 @@ public class KOMEProgressionTrackerSnapshotTest {
                 progression);
 
         assertEquals("standing_trial_ready",ready.iconKey);
-        assertEquals("Ready for trial",ready.progress);
+        assertEquals("",ready.progress);
         assertTrue(ready.isReadyForStandingTrial());
     }
 }

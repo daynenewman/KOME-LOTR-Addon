@@ -187,9 +187,11 @@ public final class KOMEProgressionRankSummary {
 
         if(rank==KOMEProgressionRank.KNIGHT){
             KOMELordshipTrial t=progression.getLordship().assignment();KOMEKnightCommission a=progression.getKnightService().assignment();
-            heading=t!=null?"Trial of Lordship":"Liege Service";
-            title=t!=null?KOMELordshipTrialPresentation.title(t):a!=null?KOMEKnightCommissionPresentation.title(a.type):"Next service";
-            objective=t!=null?KOMELordshipTrialPresentation.objective(t):a!=null?KOMEKnightCommissionPresentation.details(a):KOMELordshipTrialPresentation.status(progression,pledgedFactionAlignment,factionKey);
+            boolean eligible=KOMELordshipTrialService.prerequisites(progression,pledgedFactionAlignment,factionKey);
+            heading=t!=null?"Trial of Lordship":"Current service";
+            title=t!=null?KOMELordshipTrialPresentation.title(t):a!=null?KOMEKnightCommissionPresentation.title(a.type):eligible?"Seek a Prince":"Awaiting orders";
+            objective=t!=null?KOMELordshipTrialPresentation.objective(t):a!=null?KOMEKnightCommissionPresentation.details(a):eligible?KOMELordshipTrialPresentation.status(progression,pledgedFactionAlignment,factionKey):
+                progression.getSerfKnightProgression().hasLiege()?"Speak with your Liege for a commission.":"Seek a Lord of your faction to resume Knight service.";
         }
 
 
@@ -197,6 +199,7 @@ public final class KOMEProgressionRankSummary {
         if(rank.order<=KOMEProgressionRank.KNIGHT.order&&KOMEProgressionFactionResolver.missingNativeLiege(factionKey))objective+="\n"+KOMEKnightCommissionPresentation.unavailableLiege();
         String nextName = next == null ? "" : KOMEFactionProgressionTitles.title(factionKey, next);
         String promotion = next == null ? "Highest Rank" : "Requirements for " + nextName;
+        if (rank == KOMEProgressionRank.LORD) promotion = "Legacy Prince checklist";
         return new KOMEProgressionRankSummary(factionKey, currentName, nextName, promotion, requirements,
             heading, title, objective);
     }

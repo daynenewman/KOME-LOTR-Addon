@@ -40,7 +40,7 @@ public class KOMEGuiProgressionTest {
         assertTrue(master.contains("buttonStartOffset(detailLines.size())"));
         assertTrue(master.contains("96+Math.max(0,detailLines)*10"));
         assertTrue(master.contains("KOMEGuiProgression.dutyView()"));
-        assertTrue(progression.contains("view=focusDuty?View.RANKS:lastSelectedView"));
+        assertTrue(progression.contains("view=focusDuty||knightView()?View.RANKS:lastSelectedView"));
         assertTrue(progression.contains("if(focusDuty)lastSelectedView=View.RANKS"));
     }
 

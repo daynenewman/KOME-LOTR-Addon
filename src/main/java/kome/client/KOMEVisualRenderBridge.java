@@ -51,7 +51,7 @@ public final class KOMEVisualRenderBridge {
                 if(marker.role==KOMEVisualMarker.Role.RULER)ruler=marker;
                 if(marker.isRelationship()&&relationship==null)relationship=marker;
                 if(marker.role==KOMEVisualMarker.Role.COURIER)courier=marker;
-                if(marker.role==KOMEVisualMarker.Role.ESCORT||marker.role==KOMEVisualMarker.Role.DEFENSE||marker.role==KOMEVisualMarker.Role.COMMISSION)courier=marker;
+                if(marker.role==KOMEVisualMarker.Role.ESCORT||marker.role==KOMEVisualMarker.Role.DEFENSE||marker.role==KOMEVisualMarker.Role.COMMISSION||marker.role==KOMEVisualMarker.Role.RELIEF)courier=marker;
             }
         return ruler!=null?ruler:relationship!=null?relationship:gift!=null?gift:courier;
     }
@@ -204,6 +204,7 @@ public final class KOMEVisualRenderBridge {
     }
 
     static ItemStack icon(KOMEVisualMarker marker) {
+        if(marker.role==KOMEVisualMarker.Role.PROFESSION_DUTY&&marker.itemIcon!=null)return marker.itemIcon.copy();
         return icon(marker.role);
     }
     static boolean isDestination(KOMEVisualMarker marker){return marker.role==KOMEVisualMarker.Role.ESCORT&&marker.entityUuid.isEmpty();}
@@ -221,6 +222,8 @@ public final class KOMEVisualRenderBridge {
         }finally{GL11.glPopAttrib();}
     }
     static ItemStack icon(KOMEVisualMarker.Role role) {
+        if(role==KOMEVisualMarker.Role.PROVISION_DUTY||role==KOMEVisualMarker.Role.RELIEF)return new ItemStack(Items.bread);
+        if(role==KOMEVisualMarker.Role.PROFESSION_DUTY)return new ItemStack(Items.iron_ingot);
         if(role==KOMEVisualMarker.Role.MASTER_GIFT&&lotr.common.LOTRMod.pouch!=null)return new ItemStack(lotr.common.LOTRMod.pouch,1,1);
         if (role == KOMEVisualMarker.Role.RULER)
             return new ItemStack(KOMEProgressionVisualItems.RULER);

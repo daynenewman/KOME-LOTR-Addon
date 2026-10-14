@@ -25,7 +25,6 @@ import lotr.common.entity.npc.LOTRUnitTradeEntry;
 import lotr.common.entity.npc.LOTRUnitTradeable;
 import lotr.common.inventory.LOTRContainerUnitTrade;
 import lotr.common.inventory.LOTRContainerChestWithPouch;
-import lotr.common.inventory.LOTRContainerHobbitOven;
 import lotr.common.inventory.LOTRContainerPouch;
 import lotr.common.inventory.LOTRContainerTrade;
 import lotr.common.LOTRMod;
@@ -41,28 +40,14 @@ import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.attributes.IAttributeInstance;
-import net.minecraft.entity.passive.EntityAnimal;
-import net.minecraft.entity.passive.EntityHorse;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.entity.player.InventoryPlayer;
 import net.minecraft.inventory.Container;
-import net.minecraft.inventory.ContainerFurnace;
-import net.minecraft.inventory.ContainerPlayer;
-import net.minecraft.inventory.ContainerWorkbench;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.inventory.Slot;
 import net.minecraft.init.Blocks;
 import net.minecraft.init.Items;
 import net.minecraft.item.Item;
-import net.minecraft.item.ItemBlock;
-import net.minecraft.item.ItemFishingRod;
-import net.minecraft.item.ItemFood;
-import net.minecraft.item.ItemHoe;
-import net.minecraft.item.ItemSword;
 import net.minecraft.item.ItemStack;
-import net.minecraft.item.ItemTool;
-import net.minecraft.item.crafting.FurnaceRecipes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.MathHelper;
@@ -79,7 +64,6 @@ import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LivingSetAttackTargetEvent;
 import net.minecraftforge.event.entity.living.LivingSpawnEvent;
-import net.minecraftforge.event.world.BlockEvent;
 import net.minecraft.world.World;
 import net.minecraft.world.WorldServer;
 
@@ -107,7 +91,6 @@ public class KOMEEvents {
     public static int defaultUnitCost = 25;
     private final Map<UUID, Integer> lastCoinValues = new HashMap<>();
     private final Map<UUID, int[]> lastCoinCounts = new HashMap<>();
-    private final Map<UUID, Long> lastStoneCraftDenials = new HashMap<>();
     private final Map<UUID, Long> lastGearDenials = new HashMap<>();
     private long nextMovementArrivalCheckMillis;
     private long nextLiveUnitMarkerSyncMillis;
@@ -120,7 +103,7 @@ public class KOMEEvents {
         KOMEPacketConquestData.clearSentSnapshots();
         lastCoinValues.clear();
         lastCoinCounts.clear();
-        lastStoneCraftDenials.clear();
+
         lastGearDenials.clear();
         automaticWaypointLinkCheckMillis = 0L;
         automaticWaypointLinksEnsured = false;
@@ -129,6 +112,7 @@ public class KOMEEvents {
         nextLiveUnitMarkerSyncMillis = 0L;
         KOMEVisualLocationService.resetSession();
         KOMEProgressionTrackerService.resetSession();
+        KOMEProgressionAutoCompleter.resetSession();
         KOMEJoinBattleEntryRecoveryService.INSTANCE.resetSession();
         KOMEJoinBattleEgressService.INSTANCE.resetSession();
     }
@@ -175,6 +159,7 @@ public class KOMEEvents {
     @SubscribeEvent
     public void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         KOMEProgressionTitles.forget(event.player.getUniqueID());
+        KOMEProgressionAutoCompleter.forgetPlayer(event.player.getUniqueID());
         if (event.player instanceof EntityPlayerMP) KOMEPacketHandler.forgetRequester((EntityPlayerMP) event.player);
         if(event.player instanceof EntityPlayerMP) kome.common.network.KOMEPublicWaypointSync.forget((EntityPlayerMP)event.player);
         KOMEAllianceRecordBuilder.clearOperatorView(event.player);
@@ -205,22 +190,29 @@ public class KOMEEvents {
     }
 
     private void resyncConquestAfterWorldChange(EntityPlayer player) {
-        if (player instanceof EntityPlayerMP)
+        if (player instanceof EntityPlayerMP) {
             KOMEWorldData.get(KOMEReflection.getWorld(player))
                 .syncConquestTiles((EntityPlayerMP) player);
+            KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP) player,
+                KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()));
+        }
     }
 
     @SubscribeEvent
     public void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if (event.phase == TickEvent.Phase.END && !KOMEReflection.isRemote(KOMEReflection.getWorld(event.player))) {
-            enforceOpenContainerRestrictions(event.player);
+
             if (event.player instanceof EntityPlayerMP && KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(event.player)) % 20L == 0L) {
                 KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(event.player));
+                String priorPledge = data.lastKnownPlayerFactions.get(event.player.getUniqueID());
                 KOMEPledgeReleaseService.observePledge(data, (EntityPlayerMP) event.player,
                     getActualPledgeFactionKey(event.player), System.currentTimeMillis());
+                if (!java.util.Objects.equals(priorPledge, data.lastKnownPlayerFactions.get(event.player.getUniqueID())))
+                    KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP) event.player,
+                        data.getProgression(event.player.getUniqueID()));
                 if(KOMEProgressionRelationshipLifecycle.reconcileLoadedRelationships(data,(EntityPlayerMP)event.player))
                     KOMEProgressionAutoCompleter.syncPlayer((EntityPlayerMP)event.player,data.getProgression(event.player.getUniqueID()));
-                enforceMountPermission((EntityPlayerMP) event.player);
+
                 enforceEquippedGear(event.player);
                 KOMESerfKnightEscortService.tickPlayer((EntityPlayerMP) event.player);
                 KOMESerfKnightRecoveryService.tickPlayer((EntityPlayerMP) event.player);
@@ -423,8 +415,11 @@ public class KOMEEvents {
             }
         }
 
+        if(!event.world.isRemote&&event.entity instanceof lotr.common.entity.LOTREntityInvasionSpawner)
+            KOMEObjectiveInvasionBridge.reconcileController(KOMEWorldData.get(event.world),(lotr.common.entity.LOTREntityInvasionSpawner)event.entity);
         if (!KOMEReflection.isRemote(event.world) && event.entity instanceof LOTREntityNPC) {
             KOMEWorldData data = KOMEWorldData.get(event.world);
+            KOMEObjectiveInvasionBridge.bind(data,(LOTREntityNPC)event.entity);
             if (KOMEEmergencyDefenseMobilizationService.INSTANCE.reconcileLoadedEntity(
                     data, (LOTREntityNPC) event.entity)) return;
             if(KOMEProgressionRulerService.reconcileJoin(data,(LOTREntityNPC)event.entity)){event.setCanceled(true);return;}
@@ -481,7 +476,14 @@ public class KOMEEvents {
             LOTREntityNPC offerNpc = (LOTREntityNPC) event.target;
             KOMEWorldData commissionWorld=KOMEWorldData.get(player.worldObj);
             KOMEPlayerProgression immediate=commissionWorld.getProgression(player.getUniqueID());
+            if(offerNpc.isEntityAlive()&&player.getDistanceSqToEntity(offerNpc)<=64
+                &&lotr.common.LOTRLevelData.getData(player).getPledgeFaction()==offerNpc.getFaction()
+                &&KOMEProgressionNpcRankService.effectiveRank(commissionWorld,offerNpc)==KOMEProgressionNpcRank.PRINCE){
+                immediate.getKnightService().rememberPrince(KOMEProgressionNpcRankService.referenceOf(offerNpc));commissionWorld.markDirty();
+            }
             KOMESerfKnightProgression immediateState=immediate.getSerfKnightProgression();
+            if(immediate.getCanonicalRank()==KOMEProgressionRank.KNIGHT
+                &&KOMEProgressionNpcInteractionService.interact(player,commissionWorld,offerNpc)){event.setCanceled(true);return;}
             if(immediateState.getLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(offerNpc))){
                 if(immediate.getCanonicalRank()==KOMEProgressionRank.SERF
                     &&(immediateState.isTrialCompleted()||KOMESerfKnightRecoveryService.isAssignedTo(player.getCurrentEquippedItem(),immediateState.getTrialAssignment(),player.getUniqueID()))
@@ -512,15 +514,6 @@ public class KOMEEvents {
             if (!standingTrialCandidate && offerNpc.questInfo != null
                     && KOMEProgressionOfferBridge.isExternalOffer(
                         offerNpc.questInfo.getOfferFor(player))) return;
-        }
-        if (isMountEntity(event.target) && !KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.MOUNTS)) {
-            event.setCanceled(true);
-            return;
-        }
-        if (event.target instanceof EntityAnimal && isBreedingInteraction((EntityAnimal) event.target, player.getCurrentEquippedItem())
-            && !KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.FARMING)) {
-            event.setCanceled(true);
-            return;
         }
         if (event.target instanceof LOTREntityNPC) {
             LOTREntityNPC npc = (LOTREntityNPC) event.target;
@@ -566,29 +559,9 @@ public class KOMEEvents {
             event.setCanceled(true);
             return;
         }
-        if (event.action == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK && isHoe(held)
-            && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.FARMING)) {
-            event.setCanceled(true);
-            return;
-        }
-        if ((event.action == PlayerInteractEvent.Action.RIGHT_CLICK_AIR || event.action == PlayerInteractEvent.Action.RIGHT_CLICK_BLOCK)
-            && isFishingRod(held)
-            && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.FARMING)) {
-            event.setCanceled(true);
-        }
     }
 
 
-    @SubscribeEvent(priority = EventPriority.HIGHEST)
-    public void onBlockPlace(BlockEvent.PlaceEvent event) {
-        if (event.player == null || KOMEReflection.isRemote(event.world)) {
-            return;
-        }
-        if (isFireOrLightBlock(event.placedBlock)
-            && !KOMEProgressionPermissions.require(event.player, KOMEProgressionPermissions.FIRE)) {
-            event.setCanceled(true);
-        }
-    }
 
     @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onPlayerUseItemStart(PlayerUseItemEvent.Start event) {
@@ -600,36 +573,8 @@ public class KOMEEvents {
             event.setCanceled(true);
             return;
         }
-        if (isFireOrLightItem(event.item) && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.FIRE)) {
-            event.duration = 0;
-            event.setCanceled(true);
-            return;
-        }
-        if (isMeat(event.item) && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.MEAT)) {
-            event.duration = 0;
-            event.setCanceled(true);
-            return;
-        }
-        if (isAlcoholicDrink(event.item) && !KOMEProgressionPermissions.require(event.entityPlayer, KOMEProgressionPermissions.ALCOHOL_PIPEWEED)) {
-            event.duration = 0;
-            event.setCanceled(true);
-        }
     }
 
-    @SubscribeEvent
-    public void onItemSmelted(PlayerEvent.ItemSmeltedEvent event) {
-        if (event.player == null || KOMEReflection.isRemote(KOMEReflection.getWorld(event.player)) || event.smelting == null) {
-            return;
-        }
-        if (!(event.smelting.getItem() instanceof ItemFood)) {
-            return;
-        }
-        if (KOMEProgressionPermissions.has(event.player, KOMEProgressionPermissions.COOKING)) {
-            return;
-        }
-        removeMatchingItems(event.player, event.smelting, event.smelting.stackSize);
-        KOMEProgressionPermissions.deny(event.player, "You have not unlocked Cooking yet. Cooked food removed.");
-    }
 
     @SubscribeEvent
     public void onLivingUpdate(LivingEvent.LivingUpdateEvent event) {
@@ -806,6 +751,7 @@ public class KOMEEvents {
 
         LOTREntityNPC npc = (LOTREntityNPC) event.entityLiving;
         KOMEProgressionEncounterMarker.Marker commissionMarker=KOMEProgressionEncounterMarker.read(npc);
+        if(KOMEObjectiveInvasionBridge.nativeInvader(KOMEWorldData.get(npc.worldObj),npc))return;
         if (KOMECourierRecipientSpawner.isActiveGeneratedRecipient(npc)||commissionMarker!=null&&(KOMEKnightCommissionService.MARKER.equals(commissionMarker.kind)||KOMELordshipTrialService.MARKER.equals(commissionMarker.kind))) {
             event.drops.clear();
         }
@@ -815,6 +761,8 @@ public class KOMEEvents {
     /** Observe an uncancelled native death after protection handlers have run. */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void onCourierRecipientDeath(LivingDeathEvent event) {
+        if(!event.isCanceled()&&event.entityLiving instanceof EntityPlayer&&!event.entityLiving.worldObj.isRemote)
+            KOMEObjectiveInvasionBridge.playerDeath((EntityPlayer)event.entityLiving);
             if(!event.isCanceled()&&event.entityLiving instanceof LOTREntityNPC&&!event.entityLiving.worldObj.isRemote) {
               LOTREntityNPC npc=(LOTREntityNPC)event.entityLiving;
               KOMESerfKnightDefenseService.handleNpcDeath(KOMEWorldData.get(npc.worldObj),npc.getUniqueID().toString(),npc.worldObj);
@@ -939,12 +887,6 @@ public class KOMEEvents {
         if (owner == null) {
             return;
         }
-        if (!KOMEProgressionPermissions.has(owner, KOMEProgressionPermissions.HIRE_UNITS)) {
-            int refund = refundDeniedHire(owner, npc);
-            KOMEProgressionPermissions.deny(owner, "You have not unlocked Hire Units yet" + (refund > 0 ? ". Refunded " + refund + " coins." : "."));
-            discardDeniedHireEntityTree(npc);
-            return;
-        }
         String ownerFaction = getPlayerFactionKey(owner, data);
         if (!isFarmhand && ownerFaction.length() == 0) {
             int refund = refundDeniedHire(owner, npc);
@@ -958,19 +900,13 @@ public class KOMEEvents {
         boolean alliedHire = ownerFaction.length() > 0 && unitFaction.length() > 0 && !ownerFaction.equals(unitFaction);
         String alliancePair = alliedHire ? KOMEAlliance.pairKey(ownerFaction, unitFaction) : "";
         KOMEAllianceAuthority allianceAuthority = new KOMEAllianceAuthority(data);
-        boolean stewardshipHire = alliedHire && !isFarmhand && !data.hasFactionKing(unitFaction)
-            && KOMEWarService.supportingKingDecision(data, unitFaction, ownerFaction,
-                info.getHiringPlayerUUID()).allowed;
-        if (alliedHire) {
-            boolean allowed = isFarmhand
-                ? allianceAuthority.canFactionHireAlliedFarmhand(ownerFaction, unitFaction)
-                : stewardshipHire;
-            if (!allowed) {
-                denyAlliedHire(owner, npc, isFarmhand
-                    ? "Stage 1 Cooperation is required to hire a farmhand from " + KOMEAlliance.displayFactionName(unitFaction) + "."
-                    : "Allied combat hiring requires a recognized supporting ruler with valid kingless wartime stewardship authority.");
-                return;
-            }
+        // Native combat bodyguards are ORDINARY, not a grant of foreign campaign command.
+        // Keep the separately unresolved agricultural cooperation policy unchanged.
+        if (alliedHire && isFarmhand
+                && !allianceAuthority.canFactionHireAlliedFarmhand(ownerFaction, unitFaction)) {
+            denyAlliedHire(owner, npc, "Stage 1 Cooperation is required to hire a farmhand from "
+                + KOMEAlliance.displayFactionName(unitFaction) + ".");
+            return;
         }
         if (isFarmhand) {
             KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
@@ -1010,7 +946,7 @@ public class KOMEEvents {
         String unitEntityId = getUnitEntityId(npc);
         int populationCost = KOMEUnitPopulationCostService.calculate(unitEntityId, healthCost, mounted, false);
         UUID hiringPlayer = info.getHiringPlayerUUID();
-        String payingFaction = stewardshipHire ? unitFaction : ownerFaction;
+        String payingFaction = ownerFaction;
         KOMEHiredUnitRecord record = new KOMEHiredUnitRecord();
         record.entity = entityID;
         record.owner = info.getHiringPlayerUUID();
@@ -1031,16 +967,14 @@ public class KOMEEvents {
                 record.sourceTileId = KOMEConquestTile.normalizeId(hireLocation.tileId);
             }
         }
-        if (stewardshipHire) KOMEPopulationService.recordStewardshipCombatHirePayment(record, unitFaction);
-        else KOMEPopulationService.recordCombatHirePayment(record, ownerFaction);
+        KOMEPopulationService.recordCombatHirePayment(record, ownerFaction);
         record.unitFaction = unitFaction;
         record.alliancePair = alliancePair;
         // Persisted identifier retained so existing hired-unit records remain compatible.
-        record.benefitSource = stewardshipHire ? "MILITARY_T3_STEWARDSHIP" : "";
+        record.benefitSource = "";
         record.spawningFaction = KOMEAlliance.normalizeFactionKey(ownerFaction);
         record.controller = hiringPlayer;
-        record.controllerAuthority = stewardshipHire
-            ? KOMEArmyCompany.AUTHORITY_STEWARDSHIP : KOMEArmyCompany.AUTHORITY_NATIVE;
+        record.controllerAuthority = KOMEArmyCompany.AUTHORITY_NATIVE;
         record.stewardshipWarIds = "";
         record.stationedEntityData = KOMEEntitySnapshots.snapshot(record, npc);
         boolean registered;
@@ -1096,17 +1030,6 @@ public class KOMEEvents {
         discardDeniedHireEntityTree(npc);
     }
 
-    private void enforceMountPermission(EntityPlayerMP player) {
-        if (KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.MOUNTS)) {
-            return;
-        }
-        Entity riding = KOMEReflection.getRidingEntity(player);
-        if (!isMountEntity(riding)) {
-            return;
-        }
-        player.mountEntity(null);
-        KOMEProgressionPermissions.require(player, KOMEProgressionPermissions.MOUNTS);
-    }
 
     private void updateTrackedPopulationCost(final LOTREntityNPC npc, boolean skipSnapshot) {
         KOMEWorldData data = KOMEWorldData.get(KOMEReflection.getWorld(npc));
@@ -1339,147 +1262,19 @@ public class KOMEEvents {
         return stack != null && stack.getItem() instanceof LOTRItemCoin && stack.getItemDamage() == coinType;
     }
 
-    private void enforceOpenContainerRestrictions(EntityPlayer player) {
-        Container container = player.openContainer;
-        if (!KOMEProgressionPermissions.has(player, KOMEProgressionPermissions.COOKING)) {
-            if (container instanceof LOTRContainerHobbitOven) {
-                rejectCookableInputs(player, container, 0, 9);
-            } else if (container instanceof ContainerFurnace) {
-                rejectCookableInputs(player, container, 0, 1);
-            }
-        }
-        clearBlockedStoneToolResult(player, container);
-    }
 
-    private void clearBlockedStoneToolResult(EntityPlayer player, Container container) {
-        IInventory craftResult = null;
-        if (container instanceof ContainerWorkbench) {
-            craftResult = ((ContainerWorkbench) container).craftResult;
-        } else if (container instanceof ContainerPlayer) {
-            craftResult = ((ContainerPlayer) container).craftResult;
-        }
-        if (craftResult == null) {
-            return;
-        }
-        ItemStack result = craftResult.getStackInSlot(0);
-        if (!isStoneTool(result)) {
-            return;
-        }
-        KOMEGearRestrictionService.Decision decision = KOMEGearRestrictionService.evaluatePlayer(player, result, KOMEGearRestrictionService.Action.USE);
-        if (decision.allowed) return;
-        craftResult.setInventorySlotContents(0, null);
-        UUID playerID = KOMEReflection.getEntityUUID(player);
-        long now = KOMEReflection.getTotalWorldTime(KOMEReflection.getWorld(player));
-        Long last = lastStoneCraftDenials.get(playerID);
-        if (last == null || now - last.longValue() >= 40L) {
-            lastStoneCraftDenials.put(playerID, now);
-            KOMEProgressionPermissions.deny(player, decision.playerMessage());
-        }
-    }
 
-    private void rejectCookableInputs(EntityPlayer player, Container container, int startSlot, int endSlot) {
-        boolean rejected = false;
-        for (int i = startSlot; i < endSlot && i < container.inventorySlots.size(); i++) {
-            Slot slot = (Slot) container.inventorySlots.get(i);
-            ItemStack stack = slot == null ? null : slot.getStack();
-            if (stack == null || !isCookableFood(stack)) {
-                continue;
-            }
-            ItemStack returned = stack.copy();
-            slot.putStack(null);
-            slot.onSlotChanged();
-            if (!player.inventory.addItemStackToInventory(returned)) {
-                player.dropPlayerItemWithRandomChoice(returned, false);
-            }
-            rejected = true;
-        }
-        if (rejected) {
-            KOMEProgressionPermissions.deny(player, "You have not unlocked Cooking yet. Cookable food returned.");
-        }
-    }
 
-    private boolean isCookableFood(ItemStack stack) {
-        ItemStack result = FurnaceRecipes.smelting().getSmeltingResult(stack);
-        return result != null && result.getItem() instanceof ItemFood;
-    }
 
-    private boolean isFireOrLightItem(ItemStack stack) {
-        if (stack == null) {
-            return false;
-        }
-        if (stack.getItem() instanceof ItemBlock) {
-            return isFireOrLightBlock(Block.getBlockFromItem(stack.getItem()));
-        }
-        String text = getItemText(stack);
-        return text.contains("flintandsteel") || text.contains("firecharge") || text.contains("match");
-    }
 
-    private boolean isFireOrLightBlock(Block block) {
-        if (block == null) {
-            return false;
-        }
-        String name = String.valueOf(Block.blockRegistry.getNameForObject(block)).toLowerCase();
-        return block == Blocks.torch
-            || block == Blocks.fire
-            || block == Blocks.lit_pumpkin
-            || name.contains("torch")
-            || name.contains("lantern")
-            || name.contains("chandelier")
-            || name.contains("brazier")
-            || name.contains("lamp");
-    }
 
-    private boolean isMeat(ItemStack stack) {
-        if (stack == null || !(stack.getItem() instanceof ItemFood)) {
-            return false;
-        }
-        Item item = stack.getItem();
-        return item == net.minecraft.init.Items.beef
-            || item == net.minecraft.init.Items.cooked_beef
-            || item == net.minecraft.init.Items.porkchop
-            || item == net.minecraft.init.Items.cooked_porkchop
-            || item == net.minecraft.init.Items.chicken
-            || item == net.minecraft.init.Items.cooked_chicken
-            || item == net.minecraft.init.Items.fish
-            || item == net.minecraft.init.Items.cooked_fished
-            || containsMeatWord(stack);
-    }
 
-    private boolean isAlcoholicDrink(ItemStack stack) {
-        if (stack == null || !(stack.getItem() instanceof LOTRItemMug)) {
-            return false;
-        }
-        LOTRItemMug mug = (LOTRItemMug) stack.getItem();
-        return mug.isFullMug && mug.alcoholicity > 0.0f;
-    }
 
-    private boolean isHoe(ItemStack stack) {
-        return stack != null && stack.getItem() instanceof ItemHoe;
-    }
 
-    private boolean isFishingRod(ItemStack stack) {
-        return stack != null && (stack.getItem() == Items.fishing_rod || stack.getItem() instanceof ItemFishingRod);
-    }
 
-    private boolean isPouch(ItemStack stack) {
-        return stack != null && stack.getItem() instanceof LOTRItemPouch;
-    }
 
-    private boolean isBreedingInteraction(EntityAnimal animal, ItemStack stack) {
-        return animal != null
-            && stack != null
-            && animal.getGrowingAge() == 0
-            && !animal.isInLove()
-            && animal.isBreedingItem(stack);
-    }
 
-    private boolean isMountEntity(Entity entity) {
-        return entity instanceof EntityHorse || entity instanceof LOTRNPCMount;
-    }
 
-    private boolean isStoneTool(ItemStack stack) {
-        return KOMEGearRestrictionService.isStoneTool(stack);
-    }
 
     private boolean requireGearAction(EntityPlayer player, ItemStack stack, KOMEGearRestrictionService.Action action) {
         KOMEGearRestrictionService.Decision decision = KOMEGearRestrictionService.evaluatePlayer(player, stack, action);
@@ -1513,57 +1308,8 @@ public class KOMEEvents {
         }
     }
 
-    private boolean containsMeatWord(ItemStack stack) {
-        String text = getItemText(stack);
-        return text.contains("meat")
-            || text.contains("mutton")
-            || text.contains("venison")
-            || text.contains("deer")
-            || text.contains("rabbit")
-            || text.contains("gammon")
-            || text.contains("kebab")
-            || text.contains("fish")
-            || text.contains("salmon")
-            || text.contains("pork")
-            || text.contains("beef")
-            || text.contains("steak")
-            || text.contains("chicken")
-            || text.contains("camel")
-            || text.contains("lion")
-            || text.contains("rhino");
-    }
 
-    private String getItemText(ItemStack stack) {
-        return (String.valueOf(Item.itemRegistry.getNameForObject(stack.getItem())) + " " + stack.getDisplayName() + " " + stack.getUnlocalizedName()).toLowerCase();
-    }
 
-    private void removeMatchingItems(EntityPlayer player, ItemStack target, int amount) {
-        if (target == null || amount <= 0) {
-            return;
-        }
-        InventoryPlayer inv = player.inventory;
-        ItemStack held = inv.getItemStack();
-        if (matchesItem(held, target)) {
-            int removed = Math.min(amount, held.stackSize);
-            held.stackSize -= removed;
-            amount -= removed;
-            if (held.stackSize <= 0) {
-                inv.setItemStack(null);
-            }
-        }
-        for (int slot = 0; slot < inv.mainInventory.length && amount > 0; slot++) {
-            ItemStack stack = inv.mainInventory[slot];
-            if (!matchesItem(stack, target)) {
-                continue;
-            }
-            int removed = Math.min(amount, stack.stackSize);
-            stack.stackSize -= removed;
-            amount -= removed;
-            if (stack.stackSize <= 0) {
-                inv.mainInventory[slot] = null;
-            }
-        }
-    }
 
     private boolean matchesItem(ItemStack stack, ItemStack target) {
         return stack != null

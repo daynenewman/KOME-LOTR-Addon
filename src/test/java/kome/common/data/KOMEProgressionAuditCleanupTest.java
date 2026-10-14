@@ -16,7 +16,8 @@ public class KOMEProgressionAuditCleanupTest {
                 assertEquals("Advancement", achievement.category);
             }
         }
-        assertFalse(KOMEProgressionAchievement.forAdvancementsGroup("baseline").isEmpty());
+        assertTrue(KOMEProgressionAchievement.forAdvancementsGroup("baseline").isEmpty());
+        assertEquals(35,KOMEProgressionAchievement.forGroup("baseline").size());
         assertFalse(contains(KOMEProgressionAchievement.forAdvancementsGroup("serf"), "serf.food_quota_1"));
         assertFalse(contains(KOMEProgressionAchievement.forAdvancementsGroup("knight"), "knight.drop_quota_1"));
         assertFalse(contains(KOMEProgressionAchievement.forAdvancementsGroup("lord"), "lord.title_prince_king"));

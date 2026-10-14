@@ -1,6 +1,5 @@
 package kome.common.network;
 
-import cpw.mods.fml.common.network.ByteBufUtils;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
@@ -19,7 +18,6 @@ import kome.common.data.KOMEPlayerBuild;
 import kome.common.data.KOMETileWaypointLink;
 import kome.common.data.KOMEWorldData;
 import kome.common.data.KOMERulerAuthorization;
-import kome.common.data.KOMEClaimConfirmation;
 import kome.common.data.KOMEWar;
 import kome.common.data.KOMEWarService;
 import lotr.common.LOTRLevelData;
@@ -82,8 +80,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         boolean canInspectWaypoint = canInspectWaypoint(data, player, tile);
         TroopSummary summary = summarizeTroops(data, ownerFaction, tileId, viewerId);
         boolean canMoveTroops = hasControllableCompanyAtTile(data, viewerId, viewerFaction, tileId, player.canCommandSenderUseCommand(2, "troops"));
-        boolean canClaim = viewerFaction.length() > 0 && !viewerFaction.equals(ownerFaction)
-            && kome.common.data.KOMEProgressionPermissions.has(player, kome.common.data.KOMEProgressionPermissions.TAKE_WAYPOINTS);
+        boolean canClaim = kome.common.data.KOMEConquestClaimService.manualClaimDenial(
+            data, tile, viewerFaction).isEmpty();
         boolean ownerKing = KOMERulerAuthorization.canActAsRuler(data, ownerFaction, KOMEReflection.getEntityUUID(player));
         boolean canTransfer = !tile.projectRulingFaction().isEmpty() && viewerFaction.equals(ownerFaction) && ownerKing;
         boolean canAccept = tile.hasPendingTransfer() && viewerFaction.equals(pendingToFaction) && KOMERulerAuthorization.canActAsRuler(data, pendingToFaction, KOMEReflection.getEntityUUID(player));
@@ -135,25 +133,8 @@ public class KOMEPacketConquestOpenCapture implements IMessage {
         packet.population = kome.common.data.KOMEPopulationProjection.of(data, ownerFaction);
         populateBuildViews(packet, data, player, tile, viewerFaction, ownerFaction, viewerId);
         packet.focusBuildId = focusBuildId == null ? "" : focusBuildId;
-        if (canClaim && ownerFaction.length() > 0) {
-            boolean alliedConfirmation = KOMEWarService.requiresHostileConfirmation(data, viewerFaction, ownerFaction);
-            KOMEClaimConfirmation confirmation = data.conquestClaimConfirmations.get(viewerId);
-            long now = System.currentTimeMillis();
-            packet.claimConfirmationArmed = alliedConfirmation && confirmation != null && confirmation.expiresAtMillis >= now
-                && tileId.equals(confirmation.tileId) && ownerFaction.equals(confirmation.expectedOwner)
-                && KOMEWarService.allianceFingerprint(data, viewerFaction, ownerFaction).equals(confirmation.expectedAllianceState);
-            StringBuilder warning = new StringBuilder("This tile is controlled by ").append(KOMEAlliance.displayFactionName(ownerFaction))
-                .append(". Capturing it is a hostile act.");
-            if (alliedConfirmation) warning.append(" Capturing it will immediately end all direct Civil, Trade, and Military agreements between ")
-                .append(KOMEAlliance.displayFactionName(viewerFaction)).append(" and ").append(KOMEAlliance.displayFactionName(ownerFaction))
-                .append(", revoke delegated authority, and begin or update a war. Confirmation expires 30 seconds after the first click.");
-            java.util.List<KOMEWar> sameSide = KOMEWarService.findActiveSameSide(data, viewerFaction, ownerFaction);
-            if (!sameSide.isEmpty()) warning.append(" WARNING: current same-side coalition membership will become contradictory and require operator correction.");
-            packet.claimWarning = warning.toString();
-            KOMEWar existingWar = KOMEWarService.findActiveOpposition(data, viewerFaction, ownerFaction);
-            packet.claimWarDestination = existingWar == null ? "This claim will create a new two-side coalition war."
-                : "This claim will append a tile-capture event to " + (existingWar.displayName.length() == 0 ? existingWar.id : existingWar.displayName + " (" + existingWar.id + ")") + ".";
-        }
+        packet.claimConfirmationArmed = false;
+        packet.claimWarning = kome.common.data.KOMEConquestClaimService.manualClaimDenial(data, tile, viewerFaction);
         KOMEPacketHandler.network.sendTo(packet, player);
     }
 

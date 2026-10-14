@@ -1,5 +1,17 @@
 # Client presentation and networking
 
+Pass 1 current matching-artifact version is `1.0.9-integration-g8`. Packet IDs
+remain unchanged. ProgressionData now carries UUID, canonical rank key, enabled
+mode, dimension and monotonic publication revision, with bounded text/counts.
+The client proxy queues a detached snapshot and fences it by connection/world
+epoch; one `KOMEClientData` projection is accepted before book/title publication.
+Old/duplicate revisions and wrong viewers/connections/dimensions are rejected.
+Disconnect clears the projection; dimension unload clears values but retains the
+revision fence and requests fresh state on the next usable world. Native pledge,
+rank/admin/completion/mode changes refresh from server authority. g7 and g8 must
+not mix. [Pass 1 report](../../../PROGRESSION_CLEANUP_PASS1_REPORT.txt) separates
+automated evidence from outstanding connected-client acceptance.
+
 [Index](../../INDEX.md)
 
 October 10 progression integration uses matching-artifact protocol
@@ -12,6 +24,16 @@ uses the native LOTR base class so subclasses remain supported. See
 [testing report](../../../PROGRESSION_TESTING_FIXES_20261010.md).
 
 Owns authenticated request scheduling, packet codecs/publication, client snapshots, menus/maps/HUDs, and server-record presentation. Server domain services remain authoritative; client caches are transient.
+
+October 11 matching-artifact protocol is `1.0.9-integration-g7`. Marker packet 43
+retains its registration ID and adds native item-icon metadata and duty/relief
+roles; g6 clients/servers must not mix with g7. The native Quest packet dispatches
+to an eligible Prince without changing registration IDs. Personal objective
+enemy markers drive the shared native-body hull, including an occluded depth
+pass bounded to 96 blocks. GL state restoration and codec/ownership tests are
+automated evidence; driver/shader appearance and connected multiplayer behavior
+remain live-test requirements. The Knight Service & Rank page uses the same native
+book framework and authoritative map focus. See [October 11 report](../../../PROGRESSION_KNIGHT_LORDSHIP_PASS_20261011.md).
 
 ## Entry points and boundaries
 
@@ -35,4 +57,7 @@ Existing references: [server queue](../../../KOME_SERVER_TASK_QUEUE.md), [conque
 
 Use [shared prerequisites](../../INDEX.md). Trace persistence → packet construction/delivery → client projection → GUI eligibility. Test disconnect/reconnect, dimension change, rejected requests, and reopened screens with a connected client before claiming visible correctness.
 
-At this baseline [KOMEPacketProgressionData.Handler](../../../../src/main/java/kome/common/network/KOMEPacketProgressionData.java) calls `updateProgressionData`; the client proxy updates progression UI/title summaries. Do not assume that also updates `KOMEClientData.progressions`, which permissions read. The separate waypoint-cache correction is not present here; investigate that boundary for a persisted unlock that still appears locked. Packet-specific application must be checked even when a general client queue exists.
+The previous ProgressionData-to-book-only gap is corrected in Pass 1: the handler
+calls `acceptProgressionData`, which publishes the accepted authoritative rank,
+completion/mode/faction projection into `KOMEClientData.progressions` before the
+book/title update. Server action checks remain independent of this transient cache.

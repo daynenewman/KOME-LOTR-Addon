@@ -31,7 +31,7 @@ public class KOMELordshipTrialGenerationTest {
                 KOMEProgressionRegionalFixture.threats(biome,LOTRFaction.ROHAN);
                 for(KOMELordshipTrial.Scenario scenario:KOMELordshipTrial.Scenario.values()){
                     KOMELordshipTrial t=KOMELordshipTrialService.generate(f.s.f.player,f.liege,scenario);assertNotNull(scenario.name(),t);
-                    assertEquals(4,t.guardClasses.size());assertEquals(2,t.requiredSurvivors);assertEquals(5,t.objective.enemyClasses.size());
+                    assertEquals(4,t.guardClasses.size());assertEquals(0,t.requiredSurvivors);assertTrue(t.nativeInvasion);assertTrue(t.objective.enemyClasses.isEmpty());assertEquals(LOTRInvasions.DUNLAND.codeName(),t.invasionType);
                     for(String type:t.guardClasses)assertTrue(KOMELordshipTrialService.suitableGuard(KOMEKnightCommissionService.construct(f.s.f.world,type),LOTRFaction.ROHAN));
                     assertTrue(KOMESerfKnightDefenseService.hostile(LOTRFaction.ROHAN,KOMEProgressionFactionResolver.resolve(t.objective.enemyFaction)));
                     assertEquals(t.writeToNBT(),KOMELordshipTrial.readFromNBT(t.writeToNBT()).writeToNBT());

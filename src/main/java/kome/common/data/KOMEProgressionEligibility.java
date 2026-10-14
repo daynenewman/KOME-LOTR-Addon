@@ -20,6 +20,13 @@ public final class KOMEProgressionEligibility {
         if(pledge==null)return no("You must first pledge to a faction.");
         if(pledge!=npc.getFaction())return no("You have sworn yourself to another faction.");
         if(p.getCanonicalRank()==KOMEProgressionRank.WANDERER)return no("You must first serve a Master.");
+        if(p.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&rank==KOMEProgressionNpcRank.PRINCE){
+            if(p.getKnightService().assignment()!=null)return no("Finish and report your current commission first.");
+            if(p.getLordship().assignment()==null&&p.getKnightService().qualifyingTypes(pledge.codeName()).size()<3)return no("Report three distinct commissions for this faction first.");
+            if(p.getLordship().assignment()==null&&LOTRLevelData.getData(player).getAlignment(pledge)<2000)return no("Reach 2,000 current faction alignment first.");
+            if(KOMELordshipTrialService.eligible(player,npc))return new KOMEProgressionEligibility(true,true,"");
+            return no("Report to the Prince who entrusted your current trial.");
+        }
         if(!KOMEProgressionLiegePolicy.accepts(data,p.getCanonicalRank(),rank,pledge.codeName(),npc.getFaction().codeName()))return no(rank==KOMEProgressionNpcRank.PRINCE?"This prince cannot accept your service at your current standing.":rank==KOMEProgressionNpcRank.KING?"This king cannot offer a progression quest at your current standing.":"This lord cannot accept your service at your current standing.");
         KOMEProgressionNpcRef ref=KOMEProgressionNpcRankService.referenceOf(npc);
         if(p.getCanonicalRank()==KOMEProgressionRank.SERF&&s.failedLiegeRemaining(ref,KOMESerfKnightProgression.failureClock.getAsLong())>0)return no("You must wait before approaching this lord again.");

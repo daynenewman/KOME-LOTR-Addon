@@ -64,6 +64,13 @@ public class KOMECommandProgression extends KOMEPublicCommand {
             boolean enabled = "enable".equalsIgnoreCase(args[0]);
             KOMEWorldData data = KOMEWorldData.get(getSenderWorld(sender));
             data.setProgressionEnabled(enabled);
+            net.minecraft.server.MinecraftServer server = net.minecraft.server.MinecraftServer.getServer();
+            if (server != null) for (Object value : server.getConfigurationManager().playerEntityList)
+                if (value instanceof EntityPlayerMP) {
+                    EntityPlayerMP online = (EntityPlayerMP) value;
+                    if (KOMEWorldData.get(online.worldObj) == data)
+                        KOMEProgressionAutoCompleter.syncPlayer(online, data.getProgression(online.getUniqueID()));
+                }
             sender.addChatMessage(new ChatComponentText("KOME progression restrictions are now " + (enabled ? "enabled." : "disabled.")));
             return;
         }

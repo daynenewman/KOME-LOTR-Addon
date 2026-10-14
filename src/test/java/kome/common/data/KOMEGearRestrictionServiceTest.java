@@ -52,10 +52,10 @@ public class KOMEGearRestrictionServiceTest {
     @Test public void progressionRegistryShowsSingleGearAndStoneworkEnforcementAuthority() {
         assertEquals(KOMEProgressionPermissionRegistry.Status.CANONICAL_ENFORCED,
                 KOMEProgressionPermissionRegistry.gate(KOMEProgressionPermissions.FACTION_GEAR).status);
-        assertTrue(KOMEProgressionPermissionRegistry.gate(KOMEProgressionPermissions.STONEWORK).enforcementSite.contains("KOMEGearRestrictionService"));
+        assertEquals(KOMEProgressionPermissionRegistry.Status.OBSOLETE,
+            KOMEProgressionPermissionRegistry.gate(KOMEProgressionPermissions.STONEWORK).status);
         KOMEGearRestrictionService.Rule stone = KOMEGearRestrictionService.ruleForId("minecraft:stone_pickaxe");
-        assertEquals(KOMEGearRestrictionService.Reason.MISSING_PROGRESSION,
-                KOMEGearRestrictionService.evaluate(stone, KOMEGearRestrictionService.Action.USE, false, "").reason);
+        assertTrue(KOMEGearRestrictionService.evaluate(stone, KOMEGearRestrictionService.Action.USE, false, "").allowed);
     }
 
     private static void assertCategory(String id, KOMEGearRestrictionService.Category category) {

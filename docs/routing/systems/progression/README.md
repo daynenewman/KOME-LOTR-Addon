@@ -4,9 +4,40 @@
 
 Owns canonical rank and permission unlocks, NPC role/relationship authority, Serf/Knight tasks, courier correspondence, commissions, and Lordship trials. Character race/appearance is a separate integrated system.
 
+Cleanup Pass 1 (2026-10-13): ordinary survival, mounts, trading, pouches and native
+hires no longer depend on legacy permission flags. IDs/history remain intact;
+the baseline permission ledger is hidden from the advancement tab, with command
+inspection retained. Exceptional gear and bound-property guards remain active.
+`KOMEProgressionPermissions.campaignRecruitmentDenial` checks new campaign hiring
+against current Lord-or-higher standing plus pledged ruler authority (or explicit
+server administrative authority). KOM-87 warrants are not implemented; rank alone
+does not authorize bank spending. Existing armies/control/recovery are unchanged.
+`KOMEPacketProgressionData` g8 publishes machine rank, UUID, mode, dimension and
+revision into the shared client permission projection before book/title updates.
+See [implementation and evidence](../../../PROGRESSION_CLEANUP_PASS1_REPORT.txt).
+
+October 11 Knight/Lordship pass: report-ready interactions precede native GUI
+dispatch, binary tracker stages omit numerical bars, and provision/material
+markers carry native icons. Knight encounters save travel/preparation separately
+from successful activation and allow rate-limited technical reassignment.
+`KOMEObjectiveInvasionBridge` binds a real native invasion controller and observes
+its outcome through `KOMEObjectiveInvasionTransformer`. New Lordship trials and
+Lord conferral require a same-faction Prince; the current Lord remains Knight
+service provenance until promotion. Version-1 trials continue their actual saved
+field objectives with no guard-survival quota and Prince-only final conferral.
+`KOMEKnightBookPresentation` supplies compact relationship/history context;
+`KOMEProgressionRankSummary` owns current work and standing. Personal known-Prince
+locations are saved in `KOMEKnightServiceRecord`. Bound native stolen equipment
+uses the existing item/actor tokens; `KOMEQuestPropertyUseGuard` protects native
+processing entry points. See [combined report](../../../PROGRESSION_KNIGHT_LORDSHIP_PASS_20261011.md),
+[supplemental report](../../../PROGRESSION_SUPPLEMENTAL_IMMERSION_20261011.md), and
+[book audit](../../../KNIGHT_PROGRESSION_BOOK_AUDIT_20261011.txt). These are wired
+implementation/fixture results, not live Minecraft acceptance.
+
 October 10 testing pass: ordinary pouches and NPC trading follow native LOTR rules;
 `baseline.pouches` and `baseline.npc_trade` remain compatibility records without
-action gates. Other equipment, crafting and political permissions remain active.
+action gates. The later Pass 1 also retires basic survival restrictions; exceptional
+equipment, native crafting/alignment and political restrictions remain active.
 Native authority display names use `KOMEProgressionNativeAuthority` and the narrow
 `KOMEProgressionNativeInteractionTransformer`; personal identity stays in the rank
 record. `KOMEVisualLocationService` publishes the current navigation objective,

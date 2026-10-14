@@ -4,6 +4,15 @@
 
 Owns one canonical conflict record per tile, validated commitments/readiness, explicit ending/repair, and persistent tactical deployment areas/Siege Complex geometry with administrative editors. It is not a complete battle or siege simulation.
 
+Pass 1 retires the manual player claim-to-war route. `KOMEConquestClaimService.claim`
+denies rank/flag claims without changing ownership, timers, diplomacy or wars;
+the Tile Command button explains canonical battle resolution. Ruler peaceful
+offer/accept and staff transfers remain separate. Linear KOM-18 is now merged on
+newer dev, but that resolver/ConflictData v3 is not in this checkout's baseline;
+it is an integration dependency, not reimplemented by progression cleanup.
+Existing commitment, Join Battle, retreat/abandonment and Emergency Defense
+services remain intact. See [Pass 1 evidence](../../../PROGRESSION_CLEANUP_PASS1_REPORT.txt).
+
 ## Authority and entry points
 
 - [KOMEConflictService.acceptValidatedCommitment](../../../../src/main/java/kome/common/data/KOMEConflictService.java), `releaseValidatedCommitment`, `endWithMovementHandoff`; [KOMEConflictRecord](../../../../src/main/java/kome/common/data/KOMEConflictRecord.java), [KOMEConflictContracts](../../../../src/main/java/kome/common/data/KOMEConflictContracts.java): expected IDs/revisions, faction participation, validated events and ended snapshots.

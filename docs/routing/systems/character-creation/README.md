@@ -4,6 +4,16 @@
 
 Owns the integrated Character Creation stage flow, starting faction/location, race/sex/appearance, recreation, body/eye/traits, and custom-skin catalog/transfer. It does not own KOME progression rank.
 
+October 11: `KOMEElvenFootGlow` additionally recognizes the native Elf NPC
+hierarchy and excludes Tormented Elves; players still use synchronized completed
+Elf race. Activation uses world celestial nighttime, with skyless dimensions
+excluded. `KOMEClientConfig` owns separate aura/optional-illumination toggles,
+bounded opacity and particle cadence. `KOMEElvenDynamicLights` is an optional
+AtomicStryker 1.7.10 API adapter with unsaved foot attachments and cleanup; it
+does not bundle a lighting engine. Without that compatible client engine the
+effect is cosmetic only. Eligibility/configuration/mock lifecycle tests are not
+real light propagation or FPS evidence. See [illumination and acceptance limits](../../../PROGRESSION_KNIGHT_LORDSHIP_PASS_20261011.md).
+
 October 10: `StartingFactionApplication.tryApply` applies an additive -1 to the
 unique native enemy/mortal-enemy factions before committing its existing once-only
 starting-faction marker. Preview, Back, completed-player login and recreation do

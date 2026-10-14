@@ -411,24 +411,14 @@ public class KOMECommandTroopsMovementTest {
         assertTrue(order.accessLostAtMillis > 0L);
     }
 
-    @Test
-    public void completedPlayerClaimRevalidatesQueuedMovement() {
+    @Test public void deniedPlayerClaimLeavesQueuedMovementAndTerritoryUntouched() {
         KOMEWorldData data = new KOMEWorldData("test");
-        claim(data, "T001", "gondor");
-        claim(data, "T002", "rohan");
-        KOMEArmyMovementOrder order = queuedOrder();
-        data.armyMovements.put(order.id, order);
-
-        KOMEConquestClaimService.Result result = KOMEConquestClaimService.claim(
-            data, data.conquestTiles.get("T002"), "mordor", UUID.randomUUID(), "Claimant", 0L, 920L);
-
-        assertTrue(result.success);
-        assertEquals("mordor", data.conquestTiles.get("T002").currentRulingFaction());
-        assertEquals(KOMEArmyMovementOrder.ACCESS_HALTED, order.status);
-        assertEquals("T001", order.currentTile);
-        assertEquals(0, order.currentRouteIndex);
-        assertEquals(1, order.nextRouteIndex);
-        assertTrue(order.accessLossReason.contains("T002"));
+        claim(data,"T001","gondor"); claim(data,"T002","rohan");
+        KOMEArmyMovementOrder order=queuedOrder(); data.armyMovements.put(order.id,order);
+        net.minecraft.nbt.NBTTagCompound before=order.writeToNBT();
+        KOMEConquestClaimService.Result result=KOMEConquestClaimService.claim(data,data.conquestTiles.get("T002"),"mordor",UUID.randomUUID(),"Claimant",0L,920L);
+        assertFalse(result.success); assertEquals("rohan",data.conquestTiles.get("T002").currentRulingFaction());
+        assertEquals(before,order.writeToNBT()); assertTrue(data.wars.isEmpty());
     }
 
     @Test

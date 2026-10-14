@@ -263,7 +263,7 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         int buttonCount = hasPendingTransfer() ? 5 : 4;
         int buttonW = Math.max(52, (panelW - PANEL_MARGIN * 2 - gap * (buttonCount - 1)) / buttonCount);
         KOMEGuiButton claim = new KOMEGuiButton(ID_CLAIM, startX, actionY, buttonW, ACTION_BUTTON_HEIGHT,
-            claimConfirmationArmed ? "Confirm Hostile Claim" : "Claim");
+            "Conquest");
         if (claimConfirmationArmed) claim.setStyle(KOMEGuiButton.Style.DESTRUCTIVE);
         claim.enabled = canClaim;
         buttonList.add(claim);
@@ -1128,7 +1128,9 @@ public class KOMEGuiConquestCapture extends GuiScreen {
         if (id == ID_CLAIM) {
             if (!hasViewerFaction()) return "Pledge to a faction before claiming tiles.";
             if (isOwnedByPledge()) return "This tile is already controlled by your faction.";
-            return "You have not unlocked Take Waypoints yet.";
+            return claimWarning.isEmpty()
+                ? "Conquest requires canonical battle resolution; Lord standing alone cannot claim a tile."
+                : claimWarning;
         }
         if (id == ID_TRANSFER_MODE || id == ID_TRANSFER) {
             if (!isOwnedByPledge()) {

@@ -66,6 +66,11 @@ public final class KOMEProgressionNativeAuthority {
         personal=personalIdentity(faction,personal);
         return personal+", "+title+(territory.isEmpty()?"":" of "+territory);
     }
+    public static String princeGuidance(String faction){
+        Definition d=definition(faction);
+        return d==null?"No supported native Prince authority is known for this faction.":
+            "Seek a "+d.princeTitle+" (Prince standing) among "+d.places+". These are places where eligible nobles can occur, not a report of a particular noble's presence.";
+    }
     /** Retire only our exact cultural authority suffix. Commas and epithets belong to identity. */
     public static String personalIdentity(String faction,String personal){
         if(personal==null)return "";

@@ -35,7 +35,8 @@ public class KOMEProgressionPermissions {
         if (player == null || permissionID == null) {
             return false;
         }
-        if(NPC_TRADE.equals(permissionID)||POUCHES.equals(permissionID))return true;
+        // These identifiers survive as history, not restrictions on native gameplay.
+        if (isRetiredNativeGate(permissionID)) return true;
         KOMEProgressionAchievement permission = KOMEProgressionAchievement.forID(permissionID);
         if (permission == null) {
             return false;
@@ -62,6 +63,28 @@ public class KOMEProgressionPermissions {
             deny(player, "You have not unlocked " + getTitle(permissionID) + " yet.");
         }
         return false;
+    }
+
+    public static boolean isRetiredNativeGate(String id) {
+        return NPC_TRADE.equals(id) || POUCHES.equals(id) || HIRE_UNITS.equals(id)
+            || FIRE.equals(id) || COOKING.equals(id) || STONEWORK.equals(id)
+            || FARMING.equals(id) || MEAT.equals(id) || ALCOHOL_PIPEWEED.equals(id)
+            || MOUNTS.equals(id);
+    }
+
+    /** New recruitment only. Existing companies, retreat and Emergency Defense use their own authority. */
+    public static String campaignRecruitmentDenial(KOMEWorldData data, UUID actor,
+            String faction, boolean administrative) {
+        if (data == null || actor == null) return "Campaign recruitment authority is unavailable.";
+        if (administrative) return "";
+        KOMEPlayerProgression progression = data.progressions.get(actor);
+        if (progression == null || progression.getCanonicalRank().order < KOMEProgressionRank.LORD.order)
+            return "Campaign recruitment requires Lord standing. Ordinary native followers remain available under LOTR rules.";
+        String key = KOMEAlliance.normalizeFactionKey(faction);
+        if (key.isEmpty() || !key.equals(KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(actor))))
+            return "Campaign recruitment requires a current pledge to the population-owning faction.";
+        if (KOMERulerAuthorization.canActAsRuler(data, key, actor)) return "";
+        return "Lord standing does not authorize spending the faction bank. Crown recruitment warrants and delegated population authority (KOM-87) are not implemented yet.";
     }
 
     public static void deny(EntityPlayer player, String message) {

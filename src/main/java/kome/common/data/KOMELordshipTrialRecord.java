@@ -8,6 +8,7 @@ import static kome.common.data.KOMEKnightCommission.Stage;
 /** One ordinary trial, with bounded attempt history and retained successful evidence. */
 public final class KOMELordshipTrialRecord {
     private KOMELordshipTrial assignment;
+    private long technicalReassignmentAfter;
     private final List<KOMELordshipTrial> history=new ArrayList<KOMELordshipTrial>();
     public synchronized KOMELordshipTrial assignment() { return assignment; }
     public synchronized List<KOMELordshipTrial> history() { return Collections.unmodifiableList(new ArrayList<>(history)); }
@@ -18,13 +19,14 @@ public final class KOMELordshipTrialRecord {
         if(!recorded(assignment.objective.token))history.add(assignment);assignment=null;
         while(history.size()>16){int remove=0;for(int i=0;i<history.size();i++)if(history.get(i).objective.stage==Stage.FAILED){remove=i;break;}history.remove(remove);}
     }
-    public synchronized void reset() { assignment=null;history.clear(); }
+    public synchronized void reset() { assignment=null;technicalReassignmentAfter=0;history.clear(); }
+    synchronized boolean discardTechnical(long now){if(assignment==null||!assignment.objective.activationPending||now<technicalReassignmentAfter||now<assignment.objective.activationRetryAt)return false;technicalReassignmentAfter=now+1200;assignment=null;return true;}
     public synchronized NBTTagCompound writeToNBT() {
-        NBTTagCompound n=new NBTTagCompound();n.setInteger("Version",1);if(assignment!=null)n.setTag("Assignment",assignment.writeToNBT());
+        NBTTagCompound n=new NBTTagCompound();n.setInteger("Version",1);n.setLong("TechnicalReassignmentAfter",technicalReassignmentAfter);if(assignment!=null)n.setTag("Assignment",assignment.writeToNBT());
         NBTTagList h=new NBTTagList();for(KOMELordshipTrial trial:history)h.appendTag(trial.writeToNBT());n.setTag("History",h);return n;
     }
     public synchronized void readFromNBT(NBTTagCompound n) {
-        reset();if(n==null)return;assignment=KOMELordshipTrial.readFromNBT(n.getCompoundTag("Assignment"));
+        reset();if(n==null)return;technicalReassignmentAfter=n.getLong("TechnicalReassignmentAfter");assignment=KOMELordshipTrial.readFromNBT(n.getCompoundTag("Assignment"));
         NBTTagList h=n.getTagList("History",10);for(int i=Math.max(0,h.tagCount()-16);i<h.tagCount();i++){
             KOMELordshipTrial t=KOMELordshipTrial.readFromNBT(h.getCompoundTagAt(i));
             if(t!=null&&!recorded(t.objective.token)&&(t.objective.stage==Stage.REPORTED||t.objective.stage==Stage.FAILED))history.add(t);

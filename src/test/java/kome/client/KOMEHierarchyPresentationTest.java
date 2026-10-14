@@ -46,9 +46,9 @@ public class KOMEHierarchyPresentationTest {
         assertFalse(KOMECourierInteractionPriority.deliveryTarget(book,"wrong",100));assertFalse(KOMECourierInteractionPriority.deliveryTarget(book,"recipient",0));
         assertFalse(KOMECourierInteractionPriority.deliveryTarget(new ItemStack(Items.written_book),"recipient",100));
     }
-    @Test public void redSilhouetteIsPlayerSpecificLoadedBoundEnemyAtThirtyTwoToNinetySixBlocks(){
+    @Test public void redSilhouetteIsPlayerSpecificLoadedBoundEnemyUpToNinetySixBlocks(){
         KOMEVisualMarkerClientState.update(Arrays.asList(new KOMEVisualMarker(KOMEVisualMarker.Role.ENCOUNTER_ENEMY,"enemy","Enemy","",100,0,0,0)));
-        assertFalse(KOMEProgressionEnemyOutline.relevant("enemy",100,31*31));
+        assertTrue(KOMEProgressionEnemyOutline.relevant("enemy",100,31*31));
         assertTrue(KOMEProgressionEnemyOutline.relevant("enemy",100,32*32));assertTrue(KOMEProgressionEnemyOutline.relevant("enemy",100,96*96));
         assertFalse(KOMEProgressionEnemyOutline.relevant("enemy",100,97*97));assertFalse(KOMEProgressionEnemyOutline.relevant("other",100,64*64));assertFalse(KOMEProgressionEnemyOutline.relevant("enemy",0,64*64));
         KOMEVisualMarkerClientState.clear();assertFalse(KOMEProgressionEnemyOutline.relevant("enemy",100,64*64));

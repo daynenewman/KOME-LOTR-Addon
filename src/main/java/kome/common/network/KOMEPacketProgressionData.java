@@ -1,6 +1,5 @@
 package kome.common.network;
 
-import cpw.mods.fml.common.network.ByteBufUtils;
 import cpw.mods.fml.common.network.simpleimpl.IMessage;
 import cpw.mods.fml.common.network.simpleimpl.IMessageHandler;
 import cpw.mods.fml.common.network.simpleimpl.MessageContext;
@@ -19,6 +18,21 @@ public class KOMEPacketProgressionData implements IMessage {
     public Map assignments = new HashMap();
     public String canonicalSummary="", findLabel="", leaveRelationshipType="", leaveRelationshipLabel="", leaveRelationshipName="";
     public KOMEProgressionRankSummary rankSummary = KOMEProgressionRankSummary.EMPTY;
+    public java.util.UUID playerId = new java.util.UUID(0L, 0L);
+    public String canonicalRankKey = "wanderer";
+    public long revision;
+    public int dimension;
+    public boolean progressionEnabled = true;
+
+    public KOMEPacketProgressionData authority(java.util.UUID id, String rankKey,
+            long publication, int worldDimension, boolean enabled) {
+        playerId = id;
+        canonicalRankKey = rankKey;
+        revision = publication;
+        dimension = worldDimension;
+        progressionEnabled = enabled;
+        return this;
+    }
 
     public KOMEPacketProgressionData() {
     }
@@ -37,63 +51,91 @@ public class KOMEPacketProgressionData implements IMessage {
 
     @Override
     public void fromBytes(ByteBuf buf) {
-        playerName = ByteBufUtils.readUTF8String(buf);
-        int count = buf.readInt();
+        KOMEPopulationWire.readHeader(buf);
+        playerId = new java.util.UUID(buf.readLong(), buf.readLong());
+        canonicalRankKey = KOMEPopulationWire.readText(buf);
+        if (kome.common.data.KOMEProgressionRank.forKey(canonicalRankKey) == null)
+            throw new IllegalArgumentException("Unknown canonical progression rank");
+        revision = buf.readLong();
+        dimension = buf.readInt();
+        progressionEnabled = buf.readBoolean();
+        playerName = KOMEPopulationWire.readText(buf);
+        int count = readCount(buf);
         completed = new ArrayList();
         for (int i = 0; i < count; i++) {
-            completed.add(ByteBufUtils.readUTF8String(buf));
+            completed.add(KOMEPopulationWire.readText(buf));
         }
-        int assignmentCount = buf.readInt();
+        int assignmentCount = readCount(buf);
         assignments = new HashMap();
         for (int i = 0; i < assignmentCount; i++) {
-            assignments.put(ByteBufUtils.readUTF8String(buf), ByteBufUtils.readUTF8String(buf));
+            assignments.put(KOMEPopulationWire.readText(buf), KOMEPopulationWire.readText(buf));
         }
-        canonicalSummary=ByteBufUtils.readUTF8String(buf);findLabel=ByteBufUtils.readUTF8String(buf);leaveRelationshipType=ByteBufUtils.readUTF8String(buf);leaveRelationshipLabel=ByteBufUtils.readUTF8String(buf);leaveRelationshipName=ByteBufUtils.readUTF8String(buf);
-        String factionKey=ByteBufUtils.readUTF8String(buf);
-        String current=ByteBufUtils.readUTF8String(buf),next=ByteBufUtils.readUTF8String(buf),promotion=ByteBufUtils.readUTF8String(buf);
-        int requirementCount=buf.readInt();List requirements=new ArrayList();
+        canonicalSummary=KOMEPopulationWire.readText(buf);findLabel=KOMEPopulationWire.readText(buf);leaveRelationshipType=KOMEPopulationWire.readText(buf);leaveRelationshipLabel=KOMEPopulationWire.readText(buf);leaveRelationshipName=KOMEPopulationWire.readText(buf);
+        String factionKey=KOMEPopulationWire.readText(buf);
+        String current=KOMEPopulationWire.readText(buf),next=KOMEPopulationWire.readText(buf),promotion=KOMEPopulationWire.readText(buf);
+        int requirementCount=readCount(buf);List requirements=new ArrayList();
         for(int i=0;i<requirementCount;i++)requirements.add(readRequirement(buf));
-        rankSummary=new KOMEProgressionRankSummary(factionKey,current,next,promotion,requirements,ByteBufUtils.readUTF8String(buf),ByteBufUtils.readUTF8String(buf),ByteBufUtils.readUTF8String(buf));
+        rankSummary=new KOMEProgressionRankSummary(factionKey,current,next,promotion,requirements,KOMEPopulationWire.readText(buf),KOMEPopulationWire.readText(buf),KOMEPopulationWire.readText(buf));
     }
 
     @Override
     public void toBytes(ByteBuf buf) {
-        ByteBufUtils.writeUTF8String(buf, playerName);
+        KOMEPopulationWire.writeHeader(buf);
+        buf.writeLong(playerId.getMostSignificantBits());
+        buf.writeLong(playerId.getLeastSignificantBits());
+        KOMEPopulationWire.writeText(buf, canonicalRankKey);
+        buf.writeLong(revision);
+        buf.writeInt(dimension);
+        buf.writeBoolean(progressionEnabled);
+        KOMEPopulationWire.writeText(buf, playerName);
         buf.writeInt(completed.size());
         for (Object id : completed) {
-            ByteBufUtils.writeUTF8String(buf, String.valueOf(id));
+            KOMEPopulationWire.writeText(buf, String.valueOf(id));
         }
         buf.writeInt(assignments.size());
         for (Object entryObject : assignments.entrySet()) {
             Map.Entry entry = (Map.Entry) entryObject;
-            ByteBufUtils.writeUTF8String(buf, String.valueOf(entry.getKey()));
-            ByteBufUtils.writeUTF8String(buf, String.valueOf(entry.getValue()));
+            KOMEPopulationWire.writeText(buf, String.valueOf(entry.getKey()));
+            KOMEPopulationWire.writeText(buf, String.valueOf(entry.getValue()));
         }
-        ByteBufUtils.writeUTF8String(buf,canonicalSummary);ByteBufUtils.writeUTF8String(buf,findLabel);ByteBufUtils.writeUTF8String(buf,leaveRelationshipType);ByteBufUtils.writeUTF8String(buf,leaveRelationshipLabel);ByteBufUtils.writeUTF8String(buf,leaveRelationshipName);
+        KOMEPopulationWire.writeText(buf,canonicalSummary);KOMEPopulationWire.writeText(buf,findLabel);KOMEPopulationWire.writeText(buf,leaveRelationshipType);KOMEPopulationWire.writeText(buf,leaveRelationshipLabel);KOMEPopulationWire.writeText(buf,leaveRelationshipName);
         KOMEProgressionRankSummary ranks=rankSummary==null?KOMEProgressionRankSummary.EMPTY:rankSummary;
-        ByteBufUtils.writeUTF8String(buf,ranks.factionKey);ByteBufUtils.writeUTF8String(buf,ranks.currentRank);ByteBufUtils.writeUTF8String(buf,ranks.nextRank);ByteBufUtils.writeUTF8String(buf,ranks.promotionTitle);buf.writeInt(ranks.requirements.size());
+        KOMEPopulationWire.writeText(buf,ranks.factionKey);KOMEPopulationWire.writeText(buf,ranks.currentRank);KOMEPopulationWire.writeText(buf,ranks.nextRank);KOMEPopulationWire.writeText(buf,ranks.promotionTitle);buf.writeInt(ranks.requirements.size());
         for(KOMEProgressionRankSummary.Requirement requirement:ranks.requirements)writeRequirement(buf,requirement);
-        ByteBufUtils.writeUTF8String(buf,ranks.activityHeading);ByteBufUtils.writeUTF8String(buf,ranks.activityTitle);ByteBufUtils.writeUTF8String(buf,ranks.activityObjective);
+        KOMEPopulationWire.writeText(buf,ranks.activityHeading);KOMEPopulationWire.writeText(buf,ranks.activityTitle);KOMEPopulationWire.writeText(buf,ranks.activityObjective);
     }
 
+    private static int readCount(ByteBuf buf) {
+        int count = buf.readInt();
+        if (count < 0 || count > 256) throw new IllegalArgumentException("Invalid progression row count");
+        return count;
+    }
+
+    /** Detach queued publication from the network message and its mutable collections. */
+    public KOMEPacketProgressionData copy() {
+        return new KOMEPacketProgressionData(playerName, new ArrayList(completed),
+            new HashMap(assignments), canonicalSummary, findLabel, leaveRelationshipType,
+            leaveRelationshipLabel, leaveRelationshipName, rankSummary)
+            .authority(playerId, canonicalRankKey, revision, dimension, progressionEnabled);
+    }
     private static KOMEProgressionRankSummary.Requirement readRequirement(ByteBuf buf) {
-        String label=ByteBufUtils.readUTF8String(buf);int current=buf.readInt(),required=buf.readInt();boolean complete=buf.readBoolean();
-        int childCount=buf.readInt();List<KOMEProgressionRankSummary.Requirement> children=new ArrayList<KOMEProgressionRankSummary.Requirement>();
+        String label=KOMEPopulationWire.readText(buf);int current=buf.readInt(),required=buf.readInt();boolean complete=buf.readBoolean();
+        int childCount=readCount(buf);List<KOMEProgressionRankSummary.Requirement> children=new ArrayList<KOMEProgressionRankSummary.Requirement>();
         for(int i=0;i<childCount;i++)children.add(new KOMEProgressionRankSummary.Requirement(
-            ByteBufUtils.readUTF8String(buf),buf.readInt(),buf.readInt(),buf.readBoolean()));
+            KOMEPopulationWire.readText(buf),buf.readInt(),buf.readInt(),buf.readBoolean()));
         return new KOMEProgressionRankSummary.Requirement(label,current,required,complete,children);
     }
 
     private static void writeRequirement(ByteBuf buf,KOMEProgressionRankSummary.Requirement requirement) {
-        ByteBufUtils.writeUTF8String(buf,requirement.label);buf.writeInt(requirement.current);buf.writeInt(requirement.required);buf.writeBoolean(requirement.complete);
+        KOMEPopulationWire.writeText(buf,requirement.label);buf.writeInt(requirement.current);buf.writeInt(requirement.required);buf.writeBoolean(requirement.complete);
         buf.writeInt(requirement.children.size());
-        for(KOMEProgressionRankSummary.Requirement child:requirement.children){ByteBufUtils.writeUTF8String(buf,child.label);buf.writeInt(child.current);buf.writeInt(child.required);buf.writeBoolean(child.complete);}
+        for(KOMEProgressionRankSummary.Requirement child:requirement.children){KOMEPopulationWire.writeText(buf,child.label);buf.writeInt(child.current);buf.writeInt(child.required);buf.writeBoolean(child.complete);}
     }
 
     public static class Handler implements IMessageHandler<KOMEPacketProgressionData, IMessage> {
         @Override
         public IMessage onMessage(KOMEPacketProgressionData message, MessageContext ctx) {
-            KOMEAddon.proxy.updateProgressionData(message.playerName, message.completed, message.assignments, message.canonicalSummary, message.findLabel, message.leaveRelationshipType, message.leaveRelationshipLabel, message.leaveRelationshipName, message.rankSummary);
+            KOMEAddon.proxy.acceptProgressionData(message, ctx.getClientHandler());
             return null;
         }
     }

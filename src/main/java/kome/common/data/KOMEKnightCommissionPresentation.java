@@ -11,6 +11,7 @@ public final class KOMEKnightCommissionPresentation {
     public static String title(Type type) { return text("title."+type.name().toLowerCase(java.util.Locale.ROOT)); }
     private static String text(String key,Object... args) { return KOMEProgressionLanguage.text("kome.commission."+key,args); }
     public static String objective(KOMEKnightCommission a) {
+        if(a.activationPending)return "The encounter could not be prepared safely. Return to your Liege for fresh orders, or approach the marked ground to retry.";
         if(a.stage==Stage.FAILED)return text("failed");
         if(a.stage==Stage.READY_TO_REPORT)return text("report");
         if(a.stage==Stage.OFFERED)return text("receive_orders");
@@ -26,6 +27,17 @@ public final class KOMEKnightCommissionPresentation {
             int total=0;for(Actor actor:a.actors)if(actor.role==Role.ENEMY)total++;return Math.max(1,total);
         }
         return 1;
+    }
+    public static boolean combatCounter(KOMEKnightCommission a) {
+        return a.stage==Stage.ACTIVE&&a.encounterCreated&&!a.threatResolved&&a.type!=Type.RELIEF;
+    }
+    static String stageLabel(KOMEKnightCommission a){
+        if(a.activationPending)return "Preparing";
+        if(a.stage==Stage.OFFERED)return "Receive orders";
+        if(a.stage==Stage.READY_TO_REPORT)return "Ready to report";
+        if(a.stage==Stage.FAILED)return "Failed";
+        if(!a.encounterCreated)return "Traveling";
+        return combatCounter(a)?"Battle":"Complete the field objective";
     }
     public static int completed(KOMEKnightCommission a){
         if(a.stage==Stage.ACTIVE&&a.encounterCreated&&!a.threatResolved&&a.type!=Type.RELIEF){
@@ -65,10 +77,12 @@ public final class KOMEKnightCommissionPresentation {
     }
     public static String unavailableLiege(){return text("native_liege_unavailable");}
     public static String details(KOMEKnightCommission a){
-        String result="Stage: "+(a.stage==Stage.OFFERED?"Receive orders":a.stage==Stage.READY_TO_REPORT?"Ready to report":a.stage==Stage.FAILED?"Failed":"In service")+"\n"+objective(a)
+        if(a.stage==Stage.READY_TO_REPORT)return "Report to "+a.liege.displayName+"."+(a.type==Type.STOLEN_GOODS?" Hold the recovered "+KOMEProgressionLostItems.name(a)+" for handover.":"");
+        if(a.activationPending)return objective(a);
+        String result="Stage: "+stageLabel(a)+"\n"+objective(a)
             +"\nDestination: "+location(a)+" ("+(int)a.destinationX+", "+(int)a.destinationZ+")";
         Actor charge=a.protectedActor();if(charge!=null&&!charge.dead)result+="\nCharge: "+(charge.displayName.isEmpty()?"the marked traveler":charge.displayName);
-        if(a.type==Type.STOLEN_GOODS)result+="\nProperty: "+KOMEProgressionLostItems.name(a)+"\nReturn the bound item in your hand. Lost copies have a limited replacement allowance.";
+        if(a.type==Type.STOLEN_GOODS)result+="\nProperty: "+KOMEProgressionLostItems.name(a)+". Identify the thief carrying it, then return it in your hand.";
         if(a.type==Type.DANGEROUS_ESCORT)result+="\nKeep your traveler close. Speak to follow or recalculate; sneak and speak to wait. Arrival must include your traveler.";
         return result+"\nReport personally to "+a.liege.displayName+".";
     }

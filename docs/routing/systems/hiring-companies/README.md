@@ -4,6 +4,16 @@
 
 Owns ordinary versus campaign classification, population investment, recruitment transactions, company admission/coherence, and unit lifecycle records. Actual NPC/mount NBT is a second authority beside strategic records.
 
+Pass 1: ordinary native bodyguards use native eligibility and the recruiter's
+canonical faction bank, including native-eligible foreign bodyguards; they remain
+ORDINARY without company enrollment. Farmhands keep zero population and their
+separate existing foreign cooperation policy. Campaign hiring rechecks current
+Lord standing and pledged Crown office, or explicit server admin authority, before
+deployment/debit. Legacy Knight/hire flags never authorize it. No general recruitment
+warrants/budgets exist here (KOM-87); non-ruler Lords receive that explicit blocker.
+Emergency Defense is a separate retained reserve path. Existing troops, companies,
+movement/recovery and costs are unchanged. See [Pass 1](../../../PROGRESSION_CLEANUP_PASS1_REPORT.txt).
+
 ## Entry points and storage
 
 - [KOMEEvents](../../../../src/main/java/kome/common/data/KOMEEvents.java) routes native hire/join/death observations; [KOMENativeHireRegistrationService.registerOrdinaryCombatHire](../../../../src/main/java/kome/common/data/KOMENativeHireRegistrationService.java) debits/registers ORDINARY units without campaign enrollment.

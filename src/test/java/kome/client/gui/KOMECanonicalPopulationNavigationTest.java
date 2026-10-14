@@ -58,7 +58,7 @@ public class KOMECanonicalPopulationNavigationTest {
             "private boolean hasViewerFaction()");
         int pledge = reason.indexOf("!hasViewerFaction()");
         int owned = reason.indexOf("isOwnedByPledge()");
-        int authorization = reason.indexOf("Take Waypoints");
+        int authorization = reason.indexOf("canonical battle resolution");
         assertTrue(pledge >= 0);
         assertTrue(owned > pledge);
         assertTrue(authorization > owned);

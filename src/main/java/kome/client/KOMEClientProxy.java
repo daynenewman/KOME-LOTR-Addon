@@ -87,6 +87,9 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        progressionConnection = event == null ? null : event.handler;
+        progressionEpoch++;
+        progressionRefreshPending = true;
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(event == null ? null : event.handler);
         conquestSnapshots.resetSession();
@@ -99,6 +102,9 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        progressionConnection = null;
+        progressionEpoch++;
+        progressionRefreshPending = false;
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(null);
         conquestSnapshots.resetSession();
@@ -109,6 +115,11 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @SubscribeEvent
     public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
         if (event.world != null && event.world.isRemote) {
+            progressionEpoch++;
+            progressionRefreshPending = true;
+            KOMEClientData.INSTANCE.clearProgressionProjection();
+            KOMEGuiProgression.resetData();
+            KOMEFactionTitleClientBridge.reset();
             invalidateTacticalEditorPublications();
             if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
             if (tacticalEditor != null) tacticalEditor.clearScope();
@@ -121,6 +132,46 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @Override
     public void enqueueClientTask(Runnable task) {
         clientTasks.enqueue(task);
+    }
+
+    private volatile Object progressionConnection;
+    private volatile long progressionEpoch;
+    private volatile boolean progressionRefreshPending;
+
+    @SubscribeEvent
+    public void refreshProgressionAfterWorldChange(cpw.mods.fml.common.gameevent.TickEvent.ClientTickEvent event) {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getMinecraft();
+        if (event.phase == cpw.mods.fml.common.gameevent.TickEvent.Phase.END
+                && progressionRefreshPending && mc.thePlayer != null && mc.theWorld != null
+                && progressionConnection != null && mc.getNetHandler() == progressionConnection
+                && kome.common.network.KOMEPacketHandler.network != null) {
+            progressionRefreshPending = false;
+            kome.common.network.KOMEPacketHandler.network.sendToServer(
+                new kome.common.network.KOMEPacketProgressionRequest());
+        }
+    }
+
+    @Override public void acceptProgressionData(kome.common.network.KOMEPacketProgressionData packet,
+            final Object connection) {
+        final long epoch = progressionEpoch;
+        if (connection == null || connection != progressionConnection) return;
+        final kome.common.network.KOMEPacketProgressionData message = packet.copy();
+        try {
+            clientTasks.enqueue(() -> {
+                if (epoch != progressionEpoch || connection != progressionConnection) return;
+                net.minecraft.entity.player.EntityPlayer player = net.minecraft.client.Minecraft.getMinecraft().thePlayer;
+                if (player != null && (!player.getUniqueID().equals(message.playerId)
+                        || player.dimension != message.dimension)) return;
+                if (!KOMEClientData.INSTANCE.acceptProgression(message.playerId, message.revision,
+                        message.canonicalRankKey, message.rankSummary.factionKey,
+                        message.progressionEnabled, message.completed, message.assignments)) return;
+                updateProgressionData(message.playerName, message.completed, message.assignments,
+                    message.canonicalSummary, message.findLabel, message.leaveRelationshipType,
+                    message.leaveRelationshipLabel, message.leaveRelationshipName, message.rankSummary);
+            });
+        } catch (java.util.concurrent.RejectedExecutionException busy) {
+            progressionRefreshPending = true;
+        }
     }
 
     @Override
