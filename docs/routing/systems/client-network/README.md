@@ -55,3 +55,26 @@ Units uses read-only source metadata. Join screen ownership/correlation, success
 non-pausing command screens remain client presentation rules, not deployment authority.
 Verify registration/protocol/public-access tests, company network tests and Join GUI tests alongside
 Campaign health/recovery/reconstruction and ordinary battle suites after reconciliation.
+
+## KOM-91 return surface recovery (Slice 1)
+
+Join Battle return placement keeps the exact persisted pre-entry pose first. If unsupported,
+`KOMEJoinBattlePhysicalAccess.resolveReturnPlacement` uses the center column and deterministic
+nearest-first columns within the existing +/-8 X/Z envelope. Each column probes nine support
+blocks near saved Y and five near the native heightmap, deriving standing Y from collision-box
+tops and retaining full terrain/liquid/body and mount/rider clearance checks. There is no full
+vertical column scan: at most 289 height lookups, 4,046 support-block probes and 4,047 placement
+validations including the exact-pose check. These are candidate-generation limits; existing
+collision/footprint validation performs its normal bounded local checks as well.
+
+The canonical captured tile resolver fences fallbacks to the original player return tile when
+that anchor resolves. Mounted placement uses the persisted mount base but the player's return
+anchor owns this fence. An unresolved source receives only the same local physical search;
+no tile, spawn or strategic destination is substituted. There is no flight exemption inferred
+from current capabilities. No receipt/schema, conflict-end, registry, retry or transfer-phase
+change is part of this slice. Failure remains pending; Slice 2 owns durable diagnostics/escalation.
+
+Regressions: `KOMEJoinBattleReturnGeometryTest`, `KOMEJoinBattleSurfaceRecoveryTest`, and the
+ordinary-resolution integration in `KOMEOrdinaryBattleResolutionServiceTest`. Retain existing
+mounted publication, entry/persistence, Formal Retreat and canonical tile-resolution suites.
+Automated verification does not substitute for live return/terrain confirmation.

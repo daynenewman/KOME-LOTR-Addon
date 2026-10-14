@@ -254,7 +254,7 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
                 if(mountTarget==null||mountTarget.dimensionId!=target.dimensionId)
                     return KOMEJoinBattleEgressService.Preparation.unavailable(
                         "Recorded mounted return authority is inconsistent.");
-                ReturnResolution resolved=resolveReturnPlacement(targetWorld,mountTarget,
+                ReturnResolution resolved=resolveReturnPlacement(targetWorld,mountTarget,target,
                     player,riding);
                 if(!resolved.valid)return KOMEJoinBattleEgressService.Preparation.unavailable(
                     resolved.reason);
@@ -481,33 +481,83 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
         static ReturnResolution failed(String reason){return new ReturnResolution(false,null,reason);}
     }
 
-    /** Exact durable anchor first, then a deterministic bounded safe search around that anchor. */
+    private static final List<int[]> EGRESS_COLUMNS=returnColumns();
+
+    /** Exact durable pose first. Fallbacks stay local and use terrain surfaces, never a saved Y fraction. */
     static ReturnResolution resolveReturnPlacement(World world,
             KOMEJoinBattleDeploymentReceipt.Pose anchor,EntityPlayerMP player,Entity mount){
-        if(world==null||anchor==null||player==null||world.provider==null
-                ||world.provider.dimensionId!=anchor.dimensionId)
+        return resolveReturnPlacement(world,anchor,anchor,player,mount);
+    }
+
+    /** Mounted placement uses the mount base, but the persisted player return pose owns the tile fence. */
+    private static ReturnResolution resolveReturnPlacement(World world,
+            KOMEJoinBattleDeploymentReceipt.Pose anchor,KOMEJoinBattleDeploymentReceipt.Pose source,
+            EntityPlayerMP player,Entity mount){
+        if(world==null||anchor==null||source==null||player==null||world.provider==null
+                ||world.provider.dimensionId!=anchor.dimensionId||source.dimensionId!=anchor.dimensionId)
             return ReturnResolution.failed("Saved return dimension is unavailable.");
         int x=MathHelper.floor_double(anchor.x),z=MathHelper.floor_double(anchor.z);
         if(!KOMEStrategicDeploymentResolver.ensureChunkAvailable(world,x,z))
             return ReturnResolution.failed("Saved return chunk could not be loaded.");
         if(validateReturnPlacement(world,anchor,player,mount))return ReturnResolution.ok(anchor);
-        for(int radius=1;radius<=EGRESS_SEARCH_RADIUS;radius++){
-            for(int dx=-radius;dx<=radius;dx++)for(int dz=-radius;dz<=radius;dz++){
-                if(Math.max(Math.abs(dx),Math.abs(dz))!=radius)continue;
-                for(int vertical=0;vertical<=EGRESS_VERTICAL_RANGE;vertical++){
-                    int[] offsets=vertical==0?new int[]{0}:new int[]{vertical,-vertical};
-                    for(int dy:offsets){
-                        KOMEJoinBattleDeploymentReceipt.Pose candidate=shift(anchor,dx,dy,dz);
-                        if(validateReturnPlacement(world,candidate,player,mount))
-                            return ReturnResolution.ok(candidate);
-                    }
+        KOMETileWorldResolver.ReadView tiles=KOMETileWorldResolver.INSTANCE.readView();
+        KOMETileResolution origin=tiles.resolveWorldPosition(source.dimensionId,source.x,source.z);
+        boolean fenced=origin.status==KOMETileResolution.Status.RESOLVED,rejectedByFence=false;
+        for(int[] offset:EGRESS_COLUMNS){
+            double cx=anchor.x+offset[0],cz=anchor.z+offset[1];
+            if(fenced){
+                KOMETileResolution candidate=tiles.resolveWorldPosition(anchor.dimensionId,cx,cz);
+                KOMETileResolution rider=tiles.resolveWorldPosition(source.dimensionId,
+                    source.x+offset[0],source.z+offset[1]);
+                if(candidate.status!=KOMETileResolution.Status.RESOLVED||!origin.tileId.equals(candidate.tileId)
+                        ||rider.status!=KOMETileResolution.Status.RESOLVED||!origin.tileId.equals(rider.tileId)){
+                    rejectedByFence=true;continue;
                 }
             }
+            int bx=MathHelper.floor_double(cx),bz=MathHelper.floor_double(cz);
+            if(!KOMEStrategicDeploymentResolver.ensureChunkAvailable(world,bx,bz))continue;
+            java.util.Set<Double> surfaces=new java.util.TreeSet<Double>(
+                java.util.Comparator.comparingDouble((Double y)->Math.abs(y-anchor.y)).thenComparingDouble(y->y));
+            // Nine local support blocks preserve cave/structure recovery. Five heightmap-adjacent
+            // blocks recover high airborne anchors without scanning a world column (14 probes max).
+            int local=MathHelper.floor_double(anchor.y)-1;
+            for(int dy=-EGRESS_VERTICAL_RANGE;dy<=EGRESS_VERTICAL_RANGE;dy++)
+                addReturnSurface(world,bx,local+dy,bz,surfaces);
+            try{
+                int top=world.getHeightValue(bx,bz)-1;
+                for(int depth=0;depth<=EGRESS_VERTICAL_RANGE;depth++)
+                    addReturnSurface(world,bx,top-depth,bz,surfaces);
+            }catch(RuntimeException unavailable){ /* Local support probes may still be usable. */ }
+            for(double y:surfaces){
+                KOMEJoinBattleDeploymentReceipt.Pose candidate=new KOMEJoinBattleDeploymentReceipt.Pose(
+                    anchor.dimensionId,cx,y,cz,anchor.yaw,anchor.pitch);
+                if(validateReturnPlacement(world,candidate,player,mount))return ReturnResolution.ok(candidate);
+            }
         }
-        return ReturnResolution.failed(mount!=null
-            ?"Your mounted return location is obstructed or unsupported and no nearby safe position could be found."
-            :"Saved return position is obstructed or unsupported, and no safe position was found within "
-                +EGRESS_SEARCH_RADIUS+" blocks.");
+        return ReturnResolution.failed("No supported "+(mount==null?"player":"mount and rider")
+            +" return surface and no nearby safe position was found within 8 blocks"
+            +(fenced?" on source tile "+origin.tileId:"")
+            +(rejectedByFence?"; candidates outside the source tile were rejected.":"."));
+    }
+
+    private static void addReturnSurface(World world,int x,int y,int z,java.util.Set<Double> surfaces){
+        if(y<0||y>=world.getActualHeight())return;
+        try{
+            net.minecraft.block.Block block=world.getBlock(x,y,z);
+            if(block==null||block.getMaterial().isLiquid())return;
+            AxisAlignedBB collision=block.getCollisionBoundingBoxFromPool(world,x,y,z);
+            if(collision!=null&&Double.isFinite(collision.maxY)&&collision.maxY>0
+                    &&collision.maxY<world.getActualHeight())surfaces.add(collision.maxY);
+        }catch(RuntimeException unavailable){ /* Unavailable terrain never authorizes placement. */ }
+    }
+
+    private static List<int[]> returnColumns(){
+        List<int[]> columns=new ArrayList<int[]>();
+        for(int dx=-EGRESS_SEARCH_RADIUS;dx<=EGRESS_SEARCH_RADIUS;dx++)
+            for(int dz=-EGRESS_SEARCH_RADIUS;dz<=EGRESS_SEARCH_RADIUS;dz++)columns.add(new int[]{dx,dz});
+        columns.sort(java.util.Comparator.comparingInt((int[] p)->p[0]*p[0]+p[1]*p[1])
+            .thenComparingInt(p->p[0]).thenComparingInt(p->p[1]));
+        return Collections.unmodifiableList(columns);
     }
 
     private static KOMEJoinBattleDeploymentReceipt.Pose shift(
