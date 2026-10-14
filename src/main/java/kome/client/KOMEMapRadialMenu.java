@@ -15,18 +15,18 @@ final class KOMEMapRadialMenu {
     private static final double MAX_PHYSICAL_GUI_FACTOR = 2.55;
     enum State { ROOT, MOVEMENT, BATTLE }
     enum Action {
-        JOIN_BATTLE("Join Battle", true, "Confirm entry, then choose a committed company"),
-        MOVEMENT("Move", true, "Open movement prototype"),
-        BATTLE("Battle", true, "Open battle shell"),
+        JOIN_BATTLE("Join Battle", true, "One company: confirm to join; several: choose a company"),
+        MOVEMENT("Move", true, "Choose how to move your companies"),
+        BATTLE("Battle", true, "View battle actions for this tile"),
         COMPANIES("Units", true, "Inspect your Campaign companies on this tile"),
         INFO("Info", true, "Open existing tile information"),
         CLOSE("Close", true, "Dismiss this ring"),
         MOVE_HERE("Move Here", true, "Choose a company and preview its route"),
         RALLY_HERE("Rally Here", true, "Preview immediate Rally; confirm when ready"),
-        MOVE_TO("Move To...", true, "Choose a company here, then a destination"),
+        MOVE_TO("Move To...", true, "Choose destination, then a company from here; preview and confirm"),
         REINFORCE("Reinforce", true, "Choose a company to move to this battle"),
         ATTACK("Attack", true, "Choose a company and preview hostile movement"),
-        BATTLE_ACTIONS("Battle", false, "Battle actions are not wired in this prototype"),
+        BATTLE_ACTIONS("Battle", false, "No battle actions available here yet"),
         BACK("Back", true, "Return to the first ring");
         final String label, description;
         final boolean enabled;

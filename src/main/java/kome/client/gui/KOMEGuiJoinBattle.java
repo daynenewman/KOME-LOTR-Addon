@@ -196,8 +196,7 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         for(int i=0;i<shown;i++){
             KOMEPacketJoinBattleViewResponse.CompanyRow row=model.view().companyRows().get(start+i);
             KOMEGuiButton button=new KOMEGuiButton(ROW+i,x+24,y+106+i*25,WIDTH-48,21,
-                (row.displayName.trim().isEmpty()||row.displayName.equals(row.companyId)?"Campaign Company":row.displayName)
-                    +" - "+row.campaignCombatMembers+" combat");
+                companyLabel(row));
             button.enabled=row.selectable&&model.view().currentDeploymentConflict.isEmpty();
             button.setSelected(row.companyId.equals(model.selectedCompanyId()));buttonList.add(button);
         }
@@ -222,7 +221,7 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         if(button.id==CLOSE){mc.displayGuiScreen(null);return;}
         if(button.id==RETREAT){
             if(!retreatConfirmation){retreatConfirmation=true;model.setStatus(
-                "Confirm: retreat all personally commanded companies in "+model.view().conflictId+".");initGui();return;}
+                "Confirm: "+retreatCompanies(model.view())+" will retreat.");initGui();return;}
             retreatConfirmation=false;
             KOMEPacketJoinBattleRetreatRequest request=new KOMEPacketJoinBattleRetreatRequest(model.view().conflictId);
             pendingRetreat=request.correlation=UUID.randomUUID();
@@ -252,10 +251,10 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         KOMEGuiTheme.drawMainPanel(x,y,WIDTH,HEIGHT);KOMEGuiTheme.drawHeader(fontRendererObj,"Join Battle",x+100,y+12,WIDTH-200);
         KOMEPacketJoinBattleViewResponse v=model.view();
         fontRendererObj.drawString("Tile: "+shown(v.tileId),x+24,y+48,KOMEGuiTheme.COLOR_TEXT);
-        fontRendererObj.drawString("Conflict: "+(v.conflictId.isEmpty()?"none":v.conflictId+" r"+v.conflictRevision+" "+v.conflictState),x+24,y+62,KOMEGuiTheme.COLOR_TEXT);
+        fontRendererObj.drawString(battleSummary(v),x+24,y+62,KOMEGuiTheme.COLOR_TEXT);
         fontRendererObj.drawString("Faction: "+shown(v.playerFactionId),x+24,y+76,KOMEGuiTheme.COLOR_TEXT);
-        String stateLabel=v.currentDeploymentConflict.isEmpty()?(v.isAllowed()?"ALLOWED":"BLOCKED"):
-            v.currentDeploymentState.replace('_',' ');
+        String stateLabel=v.currentDeploymentConflict.isEmpty()?(v.isAllowed()?"Can join":"Cannot join"):
+            readable(v.currentDeploymentState);
         fontRendererObj.drawString(stateLabel,x+330,y+48,v.currentDeploymentConflict.isEmpty()
             ?(v.isAllowed()?KOMEGuiTheme.COLOR_GOOD:KOMEGuiTheme.COLOR_BAD):KOMEGuiTheme.COLOR_WARN);
         fontRendererObj.drawString(fontRendererObj.trimStringToWidth(model.status(),WIDTH-48),x+24,y+91,
@@ -263,15 +262,11 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         if(v.companyRows().isEmpty())fontRendererObj.drawString("No eligible committed Campaign companies.",x+24,y+120,KOMEGuiTheme.COLOR_TEXT_MUTED);
         if(afterMovement)fontRendererObj.drawString("Company moved successfully.",x+24,y+260,KOMEGuiTheme.COLOR_GOOD);
         if(!v.currentDeploymentConflict.isEmpty()){
-            String deployment="IN_BATTLE".equals(v.currentDeploymentState)?"In battle":
-                "RETURNING".equals(v.currentDeploymentState)?"Returning from":"Joining";
-            fontRendererObj.drawString(deployment+": "+v.currentDeploymentTile+" / "
-                +v.currentDeploymentConflict,x+24,y+270,KOMEGuiTheme.COLOR_WARN);
+            fontRendererObj.drawString(deploymentSummary(v),x+24,y+270,KOMEGuiTheme.COLOR_WARN);
         }
         if(!v.formalRetreatCompanyIds.isEmpty()){
-            String companies=v.formalRetreatCompanyIds.isEmpty()?"none":join(v.formalRetreatCompanyIds);
             fontRendererObj.drawString(fontRendererObj.trimStringToWidth(
-                "Formal Retreat from "+v.conflictId+": "+companies,WIDTH-48),x+24,y+286,KOMEGuiTheme.COLOR_TEXT);
+                "Formal Retreat: "+retreatCompanies(v),WIDTH-48),x+24,y+286,KOMEGuiTheme.COLOR_TEXT);
             fontRendererObj.drawString(fontRendererObj.trimStringToWidth(
                 v.formalRetreatAvailable
                     ?"Withdraws only companies you personally command in this battle."
@@ -281,7 +276,34 @@ public final class KOMEGuiJoinBattle extends GuiScreen {
         super.drawScreen(mouseX,mouseY,partial);
     }
     private static String shown(String value){return value==null||value.isEmpty()?"none":value;}
-    private static String join(java.util.List<String> values){StringBuilder out=new StringBuilder();for(String value:values){if(out.length()>0)out.append(", ");out.append(value);}return out.toString();}
+    static String companyLabel(KOMEPacketJoinBattleViewResponse.CompanyRow row){
+        String name=row.displayName.trim();
+        if(name.isEmpty()||name.equals(row.companyId)||name.matches("C[0-9]+"))name="Campaign Company";
+        return name+" - "+row.campaignCombatMembers+(row.campaignCombatMembers==1?" combat unit":" combat units");
+    }
+    static String battleSummary(KOMEPacketJoinBattleViewResponse view){
+        if(view.conflictId.isEmpty()||view.conflictState==null)return "Battle: None";
+        switch(view.conflictState){
+            case ORDINARY:return "Battle: Active";
+            case ENCIRCLEMENT:return "Battle: Encirclement";
+            case ENDED:return "Battle: Ended";
+            default:return "Battle: Unknown";
+        }
+    }
+    static String deploymentSummary(KOMEPacketJoinBattleViewResponse view){
+        String deployment="IN_BATTLE".equals(view.currentDeploymentState)?"In battle":
+            "RETURNING".equals(view.currentDeploymentState)?"Returning from":"Joining";
+        return deployment+": "+shown(view.currentDeploymentTile);
+    }
+    static String retreatCompanies(KOMEPacketJoinBattleViewResponse view){
+        int count=view.formalRetreatCompanyIds.size();
+        return count+(count==1?" personally commanded company":" personally commanded companies");
+    }
+    private static String readable(String value){
+        if(value==null||value.isEmpty())return "Unknown";
+        String text=value.replace('_',' ').toLowerCase(java.util.Locale.ROOT);
+        return Character.toUpperCase(text.charAt(0))+text.substring(1);
+    }
     private void requestFreshView(){
         KOMEPacketHandler.network.sendToServer(new KOMEPacketJoinBattleViewRequest(model.view().tileId));
     }

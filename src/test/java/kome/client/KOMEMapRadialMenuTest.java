@@ -5,6 +5,13 @@ import static org.junit.Assert.*;
 import static kome.client.KOMEMapRadialMenu.*;
 
 public class KOMEMapRadialMenuTest {
+    @Test public void helpDescribesFinalDestinationThenCompanyAndAdaptiveJoinFlows(){
+        assertEquals("Choose destination, then a company from here; preview and confirm",Action.MOVE_TO.description);
+        assertEquals("One company: confirm to join; several: choose a company",Action.JOIN_BATTLE.description);
+        for(Action action:Action.values()){
+            assertFalse(action.description.contains("prototype"));assertFalse(action.description.contains("shell"));
+        }
+    }
     @Test public void compactRallyLabelHoverAndDisabledInputUseUnchangedSiblingGeometry(){
         KOMEMapRadialMenu menu=open();menu.activate(0);java.util.List<Segment> geometry=menu.segments();
         assertEquals("Rally Here",menu.label(Action.RALLY_HERE));assertTrue(menu.enabled(Action.RALLY_HERE));

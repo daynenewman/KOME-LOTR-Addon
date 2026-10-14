@@ -35,6 +35,40 @@ public class KOMEGuiJoinBattleInteractionTest {
 
     @After public void cleanup(){KOMEPacketHandler.network=previous;}
 
+    @Test public void companyLabelsHideStableIdsButSelectionSubmitsTheOriginalIdentity() throws Exception {
+        for(String name:new String[]{"C3"," C3 ","C999","   "}){
+            KOMEGuiJoinBattle screen=new KOMEGuiJoinBattle(view(validToken(),name,"Relief Company"));screen.initGui();
+            assertEquals("Campaign Company - 2 combat units",button(screen,100).displayString);
+            assertEquals("Relief Company - 1 combat unit",button(screen,101).displayString);
+            screen.actionPerformed(button(screen,100));assertEquals("C3",screen.viewModel().selectedCompanyId());
+            assertEquals("Campaign Company - 2 combat units",button(screen,100).displayString);
+            screen.actionPerformed(button(screen,1));
+            KOMEPacketJoinBattleSelectionRequest request=(KOMEPacketJoinBattleSelectionRequest)network.sent.get(network.sent.size()-1);
+            assertEquals("C3",request.companyId);assertEquals("CF2",request.conflictId);
+            assertEquals(2L,request.conflictRevision);assertEquals(validToken(),request.actionToken);
+        }
+        assertEquals(4,network.sent.size());
+    }
+    @Test public void battleDeploymentAndRetreatTextUseStateLocationAndCountsInsteadOfInternalIds() throws Exception {
+        KOMEPacketJoinBattleViewResponse v=view(validToken());v.conflictRevision=987654L;
+        assertEquals("Battle: Active",KOMEGuiJoinBattle.battleSummary(v));
+        v.conflictState=kome.common.data.KOMEConflictRecord.State.ENCIRCLEMENT;
+        assertEquals("Battle: Encirclement",KOMEGuiJoinBattle.battleSummary(v));
+        v.conflictState=kome.common.data.KOMEConflictRecord.State.ENDED;
+        assertEquals("Battle: Ended",KOMEGuiJoinBattle.battleSummary(v));
+        v.conflictId="";assertEquals("Battle: None",KOMEGuiJoinBattle.battleSummary(v));v.conflictId="CF2";
+        v.currentDeploymentTile="T402";v.currentDeploymentConflict="CF2";v.currentDeploymentState="IN_BATTLE";
+        assertEquals("In battle: T402",KOMEGuiJoinBattle.deploymentSummary(v));
+        v.formalRetreatAvailable=true;v.formalRetreatCompanyIds.add("C3");
+        assertEquals("1 personally commanded company",KOMEGuiJoinBattle.retreatCompanies(v));
+        v.formalRetreatCompanyIds.add("C4");
+        assertEquals("2 personally commanded companies",KOMEGuiJoinBattle.retreatCompanies(v));
+        KOMEGuiJoinBattle screen=new KOMEGuiJoinBattle(v);screen.initGui();screen.actionPerformed(button(screen,6));
+        assertEquals("Confirm: 2 personally commanded companies will retreat.",screen.status());
+        assertTrue(network.sent.isEmpty());screen.actionPerformed(button(screen,6));screen.actionPerformed(button(screen,6));
+        assertEquals(1,network.sent.size());assertEquals("CF2",((KOMEPacketJoinBattleRetreatRequest)network.sent.get(0)).conflictId);
+        assertEquals(java.util.Arrays.asList("C3","C4"),v.formalRetreatCompanyIds);
+    }
     @Test public void battleAndMovementConfirmScreensExplicitlyDoNotPauseIntegratedGameplay() throws Exception {
         assertFalse(new KOMEGuiJoinBattle(view(validToken())).doesGuiPauseGame());
         assertFalse(new KOMEGuiCompanyMoveConfirm(null).doesGuiPauseGame());
@@ -289,7 +323,8 @@ public class KOMEGuiJoinBattleInteractionTest {
     }
     private static String validToken(){return "0123456789abcdef0123456789abcdef";}
 
-    private static KOMEPacketJoinBattleViewResponse view(String token){
+    private static KOMEPacketJoinBattleViewResponse view(String token){return view(token,"Minas Morgul Company","Minas Morgul Company");}
+    private static KOMEPacketJoinBattleViewResponse view(String token,String firstName,String secondName){
         ByteBuf encoded=Unpooled.buffer();
         try{
             encoded.writeLong(0);encoded.writeLong(0);
@@ -300,7 +335,7 @@ public class KOMEGuiJoinBattleInteractionTest {
             KOMEPopulationWire.writeText(encoded,KOMEJoinBattleService.Reason.ALLOWED.name());
             KOMEPopulationWire.writeText(encoded,"You may join this battle.");
             KOMEPopulationWire.writeText(encoded,token);encoded.writeInt(2);
-            row(encoded,"C3",2);row(encoded,"C4",1);
+            row(encoded,"C3",firstName,2);row(encoded,"C4",secondName,1);
             KOMEPopulationWire.writeText(encoded,"");KOMEPopulationWire.writeText(encoded,"");
             KOMEPopulationWire.writeText(encoded,"");encoded.writeBoolean(false);
             KOMEPopulationWire.writeText(encoded,"");encoded.writeInt(0);
@@ -309,9 +344,9 @@ public class KOMEGuiJoinBattleInteractionTest {
         }finally{encoded.release();}
     }
 
-    private static void row(ByteBuf encoded,String id,int combat){
+    private static void row(ByteBuf encoded,String id,String name,int combat){
         KOMEPopulationWire.writeText(encoded,id);
-        KOMEPopulationWire.writeText(encoded,"Minas Morgul Company");
+        KOMEPopulationWire.writeText(encoded,name);
         KOMEPopulationWire.writeText(encoded,"mordor");
         encoded.writeInt(combat);encoded.writeBoolean(true);
     }
