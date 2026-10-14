@@ -103,6 +103,42 @@ public class KOMECompanyOriginQueryTest {
             assertFalse(result.accepted());assertTrue(f.data.armyMovements.isEmpty());
         }
     }
+    @Test public void destinationAwareSourcePageExcludesOtherTilesOrdinaryAndUnauthorizedAndMatchesCanonicalRows()throws Exception{
+        for(int kind=0;kind<5;kind++)try(Fixture f=new Fixture(false,kind==1?2:1)){
+            add(f,"C2","T001");add(f,"C3","T002");KOMEArmyCompany other=add(f,"C4","T001");other.owner=new UUID(9,9);
+            KOMEArmyCompany ordinary=add(f,"C5","T001");KOMEHiredUnitRecord u=f.data.hiredUnits.get(ordinary.units.get(0));NBTTagCompound n=u.writeToNBT();n.setString("UnitClass","ORDINARY");u.readFromNBT(n);
+            if(kind==2)f.company.movementAllowance=0;if(kind==3)f.hostileDestination();if(kind==4)f.hostileConflict();
+            KOMECompanyDestinationOptions p=new KOMECompanyOriginQuery(f.service).destination(f.data,f.player,session,1,"T001",f.destination,"","");
+            assertEquals(Result.OK,p.result);assertEquals(2,p.rows.size());assertEquals("C1",p.rows.get(0).companyId);assertEquals("C2",p.rows.get(1).companyId);
+            for(Row row:p.rows){KOMECompanyMovementService.Evaluation canonical=f.service.evaluate(f.data,f.player,row.companyId,f.destination);
+                assertEquals("T001",row.currentTile);assertEquals(f.destination,row.destinationTile);assertEquals(canonical.status,row.status);assertEquals(canonical.routeTiles,row.route);assertEquals(canonical.consequence,row.consequence);
+                assertEquals(canonical.denial==null?"":canonical.denial.code,row.denialCode);assertEquals(canonical.confirmation==null?"":canonical.confirmation.serviceFingerprint,row.confirmationFingerprint);assertEquals(1,row.unitCount);assertTrue(row.populationCenti>0);
+            }
+            assertTrue(f.data.armyMovements.isEmpty());
+        }
+    }
+    @Test public void sourceDestinationPagingCompletesBeyondEightAndInvalidatesChangedSourceCatalogue()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            for(int i=2;i<=20;i++)add(f,String.format(Locale.ROOT,"C%02d",i),"T001");add(f,"OTHER_TILE","T002");
+            KOMECompanyOriginQuery query=new KOMECompanyOriginQuery(f.service);Set<String> seen=new HashSet<>();String after="",token="";KOMECompanyDestinationOptions page;
+            do{page=query.destination(f.data,f.player,session,1,"T001",f.destination,after,token);assertEquals(Result.OK,page.result);assertTrue(page.rows.size()<=8);
+                for(Row row:page.rows){assertEquals("T001",row.currentTile);assertTrue(seen.add(row.companyId));}after=page.nextCompanyId;token=page.catalogueToken;
+            }while(page.hasMore);
+            assertEquals(20,seen.size());add(f,"NEW","T001");assertEquals(Result.CATALOGUE_CHANGED,query.destination(f.data,f.player,session,2,"T001",f.destination,after,token).result);
+        }
+    }
+    @Test public void sourceDestinationPageSharesArrivalBudgetAndContinuationAdvancesWithoutSkippingCompanies()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            for(int i=1;i<=20;i++){String id=String.format(Locale.ROOT,"T%03d",i);KOMEConquestTile tile=new KOMEConquestTile(id);tile.claim("gondor",1);tile.setAnchor(0,i*16,64,0);f.data.conquestTiles.put(id,tile);}
+            for(int i=1;i<=20;i++)for(int j=i+1;j<=20;j++)f.edge(String.format(Locale.ROOT,"T%03d",i),String.format(Locale.ROOT,"T%03d",j),j==i+1?KOMEConquestRouteEdge.OPEN:KOMEConquestRouteEdge.RIVER);
+            for(int i=2;i<=8;i++)add(f,"C"+i,"T001");final int[] checks={0};f.world.arrivalInspection=()->checks[0]++;
+            KOMECompanyOriginQuery query=new KOMECompanyOriginQuery(f.service);Set<String> ids=new HashSet<>();String after="",token="";KOMECompanyDestinationOptions page;
+            do{checks[0]=0;page=query.destination(f.data,f.player,session,1,"T001","T020",after,token);assertEquals(Result.OK,page.result);assertFalse(page.rows.isEmpty());assertTrue(page.rows.size()<=3);assertTrue(checks[0]<=MAX_ARRIVAL_CHECKS);
+                for(Row row:page.rows)assertTrue(ids.add(row.companyId));after=page.nextCompanyId;token=page.catalogueToken;
+            }while(page.hasMore);
+            assertEquals(8,ids.size());assertTrue(f.data.armyMovements.isEmpty());
+        }
+    }
     @Test public void sourcePagesAreBoundedAndInvalidatedWhenCatalogueChanges()throws Exception{
         try(Fixture f=new Fixture(false,1)){
             for(int i=2;i<=20;i++)add(f,String.format(Locale.ROOT,"C%02d",i),"T001");

@@ -36,7 +36,7 @@ final class KOMECompanyDestinationSelector {
     // Byte packing can return fewer than eight rows. At least one candidate advances per page.
     static final int MAX_PAGE_HISTORY=KOMECompanyDestinationOptions.MAX_CATALOGUE;
     private UUID session;
-    private String destination="",exactCompany="",exactSource="";
+    private String destination="",exactCompany="",exactSource="",catalogueSource="";
     private Phase phase=Phase.CLOSED;
     private KOMEPacketCompanyDestinationRequest pending;
     private KOMECompanyDestinationOptions page;
@@ -73,9 +73,16 @@ final class KOMECompanyDestinationSelector {
     KOMEPacketCompanyDestinationRequest openExact(String source,String company,String destination) {
         KOMEPacketCompanyDestinationRequest request=open(destination);exactSource=source;exactCompany=company;return request;
     }
+    KOMEPacketCompanyDestinationRequest openSource(String source,String destination){
+        KOMEPacketCompanyDestinationRequest request=open(destination);catalogueSource=source;return request;
+    }
+    boolean sourceScoped(){return !catalogueSource.isEmpty();}
+    String source(){return sourceScoped()?catalogueSource:exactSource;}
+    boolean originQuery(){return exact()||sourceScoped();}
     boolean exact(){return !exactCompany.isEmpty();}
-    kome.common.network.KOMEPacketCompanyOriginRequest targeted(KOMEPacketCompanyDestinationRequest descriptor){
-        return kome.common.network.KOMEPacketCompanyOriginRequest.target(descriptor.session,descriptor.sequence,exactSource,exactCompany,descriptor.destination);
+    kome.common.network.KOMEPacketCompanyOriginRequest originRequest(KOMEPacketCompanyDestinationRequest descriptor){
+        return exact()?kome.common.network.KOMEPacketCompanyOriginRequest.target(descriptor.session,descriptor.sequence,exactSource,exactCompany,descriptor.destination):
+            kome.common.network.KOMEPacketCompanyOriginRequest.destination(descriptor.session,descriptor.sequence,catalogueSource,descriptor.destination,descriptor.afterCompanyId,descriptor.catalogueToken);
     }
     boolean isOpen() {
         if(phase!=Phase.CLOSED&&!queries.isSession(session))clear();
@@ -89,7 +96,7 @@ final class KOMECompanyDestinationSelector {
         joinAfterArrival=false;joinView=null;arrivedCompany="";arrivedMovement=null;
         window.clear();window.refilter(Filter.ALL);rolling=false;filterSuperseded=filterNeedsRestart=filterResetPending=false;pendingStep=0;pendingSelection="";joinLatch.clear();
         filter=Filter.ALL;filteredRows=Collections.emptyList();searchDirection=0;searchRemaining=0;wheelAtEnd=false;browseFollowup=null;
-        phase=Phase.CLOSED;session=null;destination="";exactCompany=exactSource="";history.clear();page=null;pending=null;setSelected(null);rowOffset=0;pageIndex=0;error="";failure=null;movement=null;notice="";enterAtEnd=false;orderedRows=Collections.emptyList();
+        phase=Phase.CLOSED;session=null;destination="";exactCompany=exactSource=catalogueSource="";history.clear();page=null;pending=null;setSelected(null);rowOffset=0;pageIndex=0;error="";failure=null;movement=null;notice="";enterAtEnd=false;orderedRows=Collections.emptyList();
     }
     private KOMEPacketCompanyDestinationRequest request() {
         joinLatch.clear();if(!rolling){page=null;orderedRows=Collections.emptyList();filteredRows=Collections.emptyList();rowOffset=0;}error="";failure=null;phase=Phase.LOADING;
@@ -102,8 +109,8 @@ final class KOMECompanyDestinationSelector {
         if(!isOpen()||phase!=Phase.LOADING||pending==null||queries.latest()!=response
                 ||!pending.session.equals(response.session)||pending.sequence!=response.sequence
                 ||!destination.equals(response.destination))return false;
-        if(exact()&&response.result==Result.OK&&(response.rows.size()>1||response.rows.stream()
-                .anyMatch(row->!exactCompany.equals(row.companyId)||!exactSource.equals(row.currentTile)))){
+        if(originQuery()&&response.result==Result.OK&&(exact()&&response.rows.size()>1||response.rows.stream()
+                .anyMatch(row->!source().equals(row.currentTile)||exact()&&!exactCompany.equals(row.companyId)))){
             joinLatch.clear();setSelected(null);pending=null;page=null;orderedRows=filteredRows=Collections.emptyList();
             phase=Phase.ERROR;error="Source company evidence changed. Back to choose again.";return true;
         }
@@ -356,7 +363,7 @@ final class KOMECompanyDestinationSelector {
                 if(!rows().isEmpty())return "Select a company to preview.";
                 if(laterRows()&&pageIndex+1<MAX_PAGE_HISTORY)return "More companies may match. Scroll down to keep looking.";
                 if(pageIndex>0)return "No matches here. Scroll up to browse earlier companies.";
-                return filter==Filter.ALL?"No relevant Campaign companies.":"No matching companies.";
+                return sourceScoped()?"No controlled Campaign companies on source "+catalogueSource+".":filter==Filter.ALL?"No relevant Campaign companies.":"No matching companies.";
             default:return "";
         }
     }

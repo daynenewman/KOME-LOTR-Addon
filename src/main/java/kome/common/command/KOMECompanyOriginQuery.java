@@ -45,6 +45,23 @@ public final class KOMECompanyOriginQuery {
         }
         return new KOMECompanySourceOptions(session,seq,source,Result.OK,rows,current,last,more,0);
     }
+    /** Destination-aware source-only page: shared projection and one shared arrival budget per request. */
+    public KOMECompanyDestinationOptions destination(KOMEWorldData data,EntityPlayerMP actor,UUID session,long seq,
+            String source,String destination,String after,String token){
+        KOMECompanySourceOptions candidates=source(data,actor,session,seq,source,after,token);
+        if(candidates.result!=Result.OK)return KOMECompanyDestinationQuery.error(session,seq,destination,candidates.result);
+        List<Row> rows=new ArrayList<Row>();String last=after;
+        KOMECompanyMovementService.ArrivalBudget budget=new KOMECompanyMovementService.ArrivalBudget(MAX_ARRIVAL_CHECKS,MAX_ROUTE_TILES);
+        for(KOMECompanySourceOptions.Row candidate:candidates.rows){
+            try{rows.add(projections.evaluateRow(data,actor,candidate.companyId,destination,budget));last=candidate.companyId;}
+            catch(KOMECompanyMovementService.EvaluationLimitExceeded limited){
+                if(!limited.deferred.exceedsSingleRouteLimit)
+                    return new KOMECompanyDestinationOptions(session,seq,destination,Result.OK,rows,candidates.token,last,true);
+                rows.add(new Row(limited.deferred));last=candidate.companyId;
+            }
+        }
+        return new KOMECompanyDestinationOptions(session,seq,destination,Result.OK,rows,candidates.token,last,candidates.more);
+    }
     public KOMECompanyDestinationOptions target(KOMEWorldData data,EntityPlayerMP actor,UUID session,long seq,
             String source,String company,String destination) {
         if(data==null||!candidate(data,actor,data.armyCompanies.get(company),source))

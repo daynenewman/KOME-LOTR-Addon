@@ -7,7 +7,7 @@ import kome.common.command.*;
 import kome.common.data.*;
 import net.minecraft.entity.player.EntityPlayerMP;
 
-/** Two bounded read-only queries: source metadata or exact company/destination evidence. */
+/** Bounded read-only source metadata, source/destination catalogue, or exact-company evidence. */
 public final class KOMEPacketCompanyOriginRequest implements IMessage {
     public UUID session;
     public long sequence;
@@ -22,6 +22,10 @@ public final class KOMEPacketCompanyOriginRequest implements IMessage {
         KOMEPacketCompanyOriginRequest r=new KOMEPacketCompanyOriginRequest();r.session=session;r.sequence=seq;
         r.targeted=true;r.source=source;r.company=company;r.destination=destination;r.validate();return r;
     }
+    public static KOMEPacketCompanyOriginRequest destination(UUID session,long seq,String source,String destination,String after,String token){
+        KOMEPacketCompanyOriginRequest r=new KOMEPacketCompanyOriginRequest();r.session=session;r.sequence=seq;
+        r.source=source;r.destination=destination;r.after=after;r.token=token;r.validate();return r;
+    }
     private void validate(){
         if(session==null||sequence<1)throw new IllegalArgumentException("Invalid origin query correlation");
         KOMECompanyDestinationWire.tile(source,false);
@@ -29,7 +33,8 @@ public final class KOMEPacketCompanyOriginRequest implements IMessage {
             KOMECompanyDestinationWire.id(company,false);KOMECompanyDestinationWire.tile(destination,false);
             if(!after.isEmpty()||!token.isEmpty())throw new IllegalArgumentException("Targeted queries have no catalogue cursor");
         }else{
-            if(!company.isEmpty()||!destination.isEmpty())throw new IllegalArgumentException("Source queries have no destination");
+            if(!company.isEmpty())throw new IllegalArgumentException("Source catalogue queries have no selected company");
+            KOMECompanyDestinationWire.tile(destination,true);
             KOMECompanyDestinationWire.id(after,true);KOMECompanyDestinationWire.check(token,36);
             if(after.isEmpty()!=token.isEmpty())throw new IllegalArgumentException("Incomplete source cursor");
             if(!token.isEmpty())UUID.fromString(token);
@@ -50,12 +55,13 @@ public final class KOMEPacketCompanyOriginRequest implements IMessage {
         public IMessage onMessage(KOMEPacketCompanyOriginRequest m,MessageContext ctx){
             m.validate();EntityPlayerMP actor=ctx.getServerHandler().playerEntity;long now=System.nanoTime();
             KOMECompanyDestinationRateLimit.Result admission=KOMEPacketHandler.DESTINATION_RATE_LIMIT.acquire(ctx.getServerHandler(),m.receivedNanos==0?now:m.receivedNanos,now);
-            if(m.targeted) {
+            if(m.targeted||!m.destination.isEmpty()) {
                 KOMECompanyDestinationOptions result=admission.accepted?
-                    KOMECompanyOriginQuery.INSTANCE.target(KOMEWorldData.get(actor.worldObj),actor,m.session,m.sequence,m.source,m.company,m.destination):
+                    (m.targeted?KOMECompanyOriginQuery.INSTANCE.target(KOMEWorldData.get(actor.worldObj),actor,m.session,m.sequence,m.source,m.company,m.destination):
+                    KOMECompanyOriginQuery.INSTANCE.destination(KOMEWorldData.get(actor.worldObj),actor,m.session,m.sequence,m.source,m.destination,m.after,m.token)):
                     new KOMECompanyDestinationOptions(m.session,m.sequence,m.destination,KOMECompanyDestinationOptions.Result.RATE_LIMITED,
                         Collections.<KOMECompanyDestinationOptions.Row>emptyList(),"","",false,admission.retryMillis);
-                try{return KOMEPacketCompanyDestinationResponse.validated(result);}
+                try{return KOMEPacketCompanyDestinationResponse.forQuery(result);}
                 catch(IllegalArgumentException oversized){return new KOMEPacketCompanyDestinationResponse(
                     KOMECompanyDestinationQuery.error(m.session,m.sequence,m.destination,KOMECompanyDestinationOptions.Result.PROJECTION_LIMIT));}
             }

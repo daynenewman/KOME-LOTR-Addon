@@ -15,6 +15,8 @@ public class KOMECompanyOriginNetworkTest {
         KOMEPacketCompanyOriginRequest exact=KOMEPacketCompanyOriginRequest.target(session,2,"T001","C20","T500");
         copy=KOMEPopulationWire.copyForPublication(exact,KOMEPacketCompanyOriginRequest::new);
         assertTrue(copy.targeted);assertEquals("C20",copy.company);assertEquals("T500",copy.destination);assertEquals("",copy.after);
+        KOMEPacketCompanyOriginRequest scoped=KOMEPacketCompanyOriginRequest.destination(session,3,"T001","T200","C8",UUID.randomUUID().toString());
+        copy=KOMEPopulationWire.copyForPublication(scoped,KOMEPacketCompanyOriginRequest::new);assertFalse(copy.targeted);assertEquals("T001",copy.source);assertEquals("T200",copy.destination);assertEquals("C8",copy.after);assertEquals("",copy.company);
         exact.after="C1";ByteBuf b=Unpooled.buffer();try{exact.toBytes(b);fail();}catch(IllegalArgumentException expected){assertEquals(0,b.readableBytes());}finally{b.release();}
     }
     @Test public void sourceResponseDetachedAndLimitedToEightMetadataRows(){
@@ -28,7 +30,7 @@ public class KOMECompanyOriginNetworkTest {
         catch(IllegalArgumentException expected){ }
     }
     @Test public void malformedTrailingBytesAndWrongProtocolAreRejected(){
-        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g11"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g9"));
+        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g12"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g9"));assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g11"));
         ByteBuf b=Unpooled.buffer();try{
             new KOMEPacketCompanyOriginRequest(session,1,"T001","","").toBytes(b);b.writeInt(42);
             try{new KOMEPacketCompanyOriginRequest().fromBytes(b);fail();}catch(IllegalArgumentException expected){ }

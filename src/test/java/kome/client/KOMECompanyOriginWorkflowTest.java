@@ -12,57 +12,51 @@ public class KOMECompanyOriginWorkflowTest {
     private final Object connection=new Object();
     private KOMECompanyDestinationClientState state;
     private KOMECompanyOriginWorkflow flow;
-    private KOMEPacketCompanyOriginRequest request;
-    @Before public void setup(){state=new KOMECompanyDestinationClientState();state.start(connection);flow=new KOMECompanyOriginWorkflow(state);request=flow.open("T001");}
-    static KOMECompanySourceOptions page(KOMEPacketCompanyOriginRequest r,int total){
-        int from=r.after.isEmpty()?1:Integer.parseInt(r.after.substring(1))+1;List<KOMECompanySourceOptions.Row> rows=new ArrayList<>();
-        for(int i=from;i<=Math.min(total,from+7);i++)rows.add(new KOMECompanySourceOptions.Row(String.format(Locale.ROOT,"C%02d",i),
-            "Same company name",1,100,false,1,1,"Stationed",false));
-        return new KOMECompanySourceOptions(r.session,r.sequence,r.source,Result.OK,rows,KOMECompanyDestinationSelectorTest.TOKEN,
-            rows.isEmpty()?"":rows.get(rows.size()-1).companyId,from+7<total,0);
+    @Before public void setup(){state=new KOMECompanyDestinationClientState();state.start(connection);flow=new KOMECompanyOriginWorkflow(state);flow.open("T001");}
+    private KOMEPacketCompanyDestinationRequest choose(KOMECompanyDestinationSelector selector,String tile){
+        KOMEPacketCompanyDestinationRequest r=selector.openSource(flow.source(),tile);flow.chooseDestination(tile);return r;
     }
-    @Test public void sourceRowsPickStableCompanyAndNoDestinationEvidenceOrMutationExists(){
-        flow.accept(page(request,4),0);assertTrue(flow.select(3));assertEquals("C04",flow.selectedCompanyId());
-        assertEquals(KOMECompanyOriginWorkflow.Stage.PICK,flow.stage());assertEquals("T001",flow.source());assertEquals("Same company name",flow.selectedName());
-        assertFalse(flow.select(0));assertEquals("C04",flow.selectedCompanyId());
-        assertEquals("Campaign Company",KOMECompanyOriginWorkflow.name(new KOMECompanySourceOptions.Row("C1","C1",1,100,false,1,1,"Stationed",false)));
+    private KOMECompanyDestinationOptions page(KOMEPacketCompanyDestinationRequest r,int total){
+        int from=r.afterCompanyId.isEmpty()?1:Integer.parseInt(r.afterCompanyId.substring(1))+1;
+        List<Row> rows=new ArrayList<>();for(int i=from;i<=Math.min(total,from+7);i++)rows.add(KOMECompanyDestinationSelectorTest.row(String.format(Locale.ROOT,"C%02d",i),Status.CAN_START_AND_ARRIVE_NOW));
+        return KOMECompanyDestinationSelectorTest.page(r,Result.OK,rows,from+7<total,0);
     }
-    @Test public void nineEighteenTwentyRowsTraverseContiguousWindowsBothDirectionsAndStayBounded(){
+    private void accept(KOMECompanyDestinationSelector selector,KOMECompanyDestinationOptions p){assertTrue(state.accept(p,connection));assertTrue(selector.accept(p,0));}
+    @Test public void destinationPickPrecedesCompanyAndOriginalSourceStaysBound(){
+        assertEquals(KOMECompanyOriginWorkflow.Stage.PICK,flow.stage());assertEquals("T001",flow.source());assertEquals("",flow.selectedCompanyId());assertNull(state.latest());
+        KOMECompanyDestinationSelector selector=new KOMECompanyDestinationSelector(state);
+        KOMEPacketCompanyDestinationRequest r=choose(selector,"T100");assertEquals(KOMECompanyOriginWorkflow.Stage.SOURCE,flow.stage());
+        KOMEPacketCompanyOriginRequest source=selector.originRequest(r);assertFalse(source.targeted);assertEquals("T001",source.source);assertEquals("T100",source.destination);assertEquals("",source.company);
+        accept(selector,page(r,1));assertEquals("",selector.selectedCompanyId());assertFalse(selector.canConfirm());
+        selector.select("C01");flow.preview(selector.selected());assertEquals(KOMECompanyOriginWorkflow.Stage.PREVIEW,flow.stage());
+        assertEquals("C01",flow.selectedCompanyId());assertEquals("T001",flow.source());assertEquals("T100",flow.destination());assertTrue(selector.canConfirm());assertFalse(selector.selectedRoute().isEmpty());
+    }
+    @Test public void sourceScopedPagesReuseContinuousBoundedBrowseAndNeverBecomeGlobalRequests(){
         for(int count:new int[]{9,18,20,40}){
-            setup();flow.accept(page(request,count),0);
+            setup();KOMECompanyDestinationSelector selector=new KOMECompanyDestinationSelector(state);KOMEPacketCompanyDestinationRequest r=choose(selector,"T100");accept(selector,page(r,count));
             for(int top=0;top<=count-4;top++){
-                for(int i=0;i<4;i++)assertEquals(String.format(Locale.ROOT,"C%02d",top+i+1),flow.visible(i).companyId);
-                assertTrue(flow.rows().size()<=24);
-                if(top<count-4){KOMEPacketCompanyOriginRequest next=flow.scroll(1,4,0);if(next!=null)assertTrue(flow.accept(page(next,count),0));}
+                for(int i=0;i<4;i++)assertEquals(String.format(Locale.ROOT,"C%02d",top+i+1),selector.visibleRow(i).companyId);
+                assertTrue(selector.retainedBrowseProjections()<=32);
+                if(top<count-4){r=selector.browse(1,4,0);while(r!=null){assertEquals("T001",selector.originRequest(r).source);assertEquals("T100",selector.originRequest(r).destination);accept(selector,page(r,count));r=selector.takeBrowseFollowup();}}
             }
-            for(int top=count-4;top>=0;top--){
-                for(int i=0;i<4;i++)assertEquals(String.format(Locale.ROOT,"C%02d",top+i+1),flow.visible(i).companyId);
-                assertTrue(flow.rows().size()<=24);
-                if(top>0){KOMEPacketCompanyOriginRequest next=flow.scroll(-1,4,0);if(next!=null)flow.accept(page(next,count),0);}
-            }
+            for(int top=count-5;top>=0;top--){r=selector.browse(-1,4,0);while(r!=null){accept(selector,page(r,count));r=selector.takeBrowseFollowup();}for(int i=0;i<4;i++)assertEquals(String.format(Locale.ROOT,"C%02d",top+i+1),selector.visibleRow(i).companyId);}
         }
     }
-    @Test public void sourceLoadingThrottleAndStaleResponsesNeverPollOrReplaceCurrentState(){
-        assertTrue(flow.loading());assertNull(flow.scroll(1,4,0));
-        KOMECompanySourceOptions throttled=new KOMECompanySourceOptions(request.session,request.sequence,request.source,Result.RATE_LIMITED,Collections.emptyList(),"","",false,1000);
-        assertTrue(flow.accept(throttled,0));assertTrue(flow.message().contains("shortly"));assertNull(flow.scroll(1,4,999));
-        KOMEPacketCompanyOriginRequest retry=flow.scroll(1,4,1000);assertNotNull(retry);
-        assertFalse(flow.accept(page(request,8),1001));assertTrue(flow.loading());
-        flow.accept(page(retry,8),1002);assertFalse(flow.loading());
-        flow.select(0);assertFalse(flow.accept(page(retry,8),1003));assertEquals(KOMECompanyOriginWorkflow.Stage.PICK,flow.stage());
-    }
-    @Test public void backRefreshCloseAndSessionReplacementClearAllSelectionAndQueries(){
-        flow.accept(page(request,4),0);flow.select(1);KOMEPacketCompanyOriginRequest back=flow.backToSource();
-        assertEquals("",flow.selectedCompanyId());assertNotEquals(request.session,back.session);assertFalse(flow.accept(page(request,4),1));
-        flow.accept(page(back,4),2);state.start(new Object());assertFalse(flow.active());assertEquals("",flow.source());
-        setup();flow.clear();assertFalse(flow.accept(page(request,4),0));assertEquals("",flow.selectedCompanyId());
+    @Test public void backAndNewDestinationDiscardPriorSelectionLatchAndCorrelation(){
+        KOMECompanyDestinationSelector selector=new KOMECompanyDestinationSelector(state);KOMEPacketCompanyDestinationRequest first=choose(selector,"T100");KOMECompanyDestinationOptions old=page(first,1);accept(selector,old);
+        selector.select("C01");flow.preview(selector.selected());selector.close();flow.pickAgain();
+        assertEquals(KOMECompanyOriginWorkflow.Stage.PICK,flow.stage());assertEquals("T001",flow.source());assertEquals("",flow.destination());assertEquals("",flow.selectedCompanyId());
+        KOMEPacketCompanyDestinationRequest second=choose(selector,"T200");assertNotEquals(first.session,second.session);assertFalse(state.accept(old,connection));assertFalse(selector.accept(old,0));
+        assertEquals("T001",flow.source());assertEquals("T200",flow.destination());assertNull(selector.selected());assertTrue(selector.selectedRoute().isEmpty());assertNull(selector.confirm());
+        state.start(new Object());assertFalse(flow.active());assertEquals("",flow.source());assertFalse(selector.isOpen());
     }
     @Test public void targetedSelectorPreselectsExactCompanyAndSharesNormalSubmissionAndJoinLatch(){
         for(Consequence consequence:Consequence.values()){
-            setup();flow.accept(page(request,1),0);flow.select(0);
+            setup();
+            flow.chooseDestination("T100");
             KOMECompanyDestinationSelector selector=new KOMECompanyDestinationSelector(state);
-            KOMEPacketCompanyDestinationRequest descriptor=selector.openExact(flow.source(),flow.selectedCompanyId(),"T100");flow.preview();
-            KOMEPacketCompanyOriginRequest exact=selector.targeted(descriptor);assertEquals("C01",exact.company);assertTrue(exact.targeted);
+            KOMEPacketCompanyDestinationRequest descriptor=selector.openExact(flow.source(),"C01","T100");flow.adoptSession();
+            KOMEPacketCompanyOriginRequest exact=selector.originRequest(descriptor);assertEquals("C01",exact.company);assertTrue(exact.targeted);
             Row row=KOMECompanyDestinationSelectorTest.row("C01",Status.CAN_START_AND_ARRIVE_NOW,Entitlement.FOOT_OR_MIXED,EvaluationState.COMPLETE,consequence);
             KOMECompanyDestinationOptions p=KOMECompanyDestinationSelectorTest.page(descriptor,Result.OK,Arrays.asList(row),false,0);
             assertTrue(state.accept(p,connection));assertTrue(selector.accept(p,0));assertEquals("C01",selector.selectedCompanyId());
@@ -96,10 +90,8 @@ public class KOMECompanyOriginWorkflowTest {
         assertTrue(state.accept(p,connection));assertTrue(selector.accept(p,0));assertEquals(KOMECompanyDestinationSelector.Phase.ERROR,selector.phase());
         assertEquals("",selector.selectedCompanyId());assertFalse(selector.canConfirm());assertNull(selector.confirmJoinClick(0));assertTrue(selector.selectedRoute().isEmpty());
     }
-    @Test public void sourcePanelHasNoDestinationFiltersOrConfirmButtons(){
-        KOMECompanyDestinationPanel.Layout layout=KOMECompanyDestinationPanel.sourceLayout(new KOMEMapViewport(0,0,800,600,0,0,1),false);
-        assertEquals(4,layout.capacity);assertFalse(layout.controls.containsKey(KOMECompanyDestinationPanel.Control.FILTER_READY));
-        assertFalse(layout.controls.containsKey(KOMECompanyDestinationPanel.Control.FILTER_ARRIVE));assertFalse(layout.controls.containsKey(KOMECompanyDestinationPanel.Control.FILTER_ALL));
-        assertFalse(layout.controls.containsKey(KOMECompanyDestinationPanel.Control.CONFIRM));
+    @Test public void differentSourceRowCannotBecomeSelectionOrConfirmation(){
+        KOMECompanyDestinationSelector selector=new KOMECompanyDestinationSelector(state);KOMEPacketCompanyDestinationRequest r=selector.openSource("T002","T100");
+        KOMECompanyDestinationOptions p=page(r,1);accept(selector,p);assertEquals(KOMECompanyDestinationSelector.Phase.ERROR,selector.phase());assertNull(selector.selected());assertFalse(selector.canConfirm());
     }
 }
