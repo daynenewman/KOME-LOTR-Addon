@@ -208,5 +208,7 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketCompanyDestinationResponse.Handler.class, KOMEPacketCompanyDestinationResponse.class, 60, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyMovementRequest>(new KOMEPacketCompanyMovementRequest.Handler()) {}, KOMEPacketCompanyMovementRequest.class, 61, Side.SERVER);
         network.registerMessage(KOMEPacketCompanyMovementResult.Handler.class, KOMEPacketCompanyMovementResult.class, 62, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyOriginRequest>(new KOMEPacketCompanyOriginRequest.Handler()) {}, KOMEPacketCompanyOriginRequest.class, 63, Side.SERVER);
+        network.registerMessage(KOMEPacketCompanySourceResponse.Handler.class, KOMEPacketCompanySourceResponse.class, 64, Side.CLIENT);
     }
 }

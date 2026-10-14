@@ -58,6 +58,40 @@ final class KOMECompanyDestinationPanel {
         }
         Control controlAt(int x,int y) {for(Control c:Control.values())if(controls.get(c)!=null&&controls.get(c).contains(x,y))return c;return null;}
     }
+    static Layout sourceLayout(KOMEMapViewport view,boolean left) {
+        Layout layout=new Layout(view,left);
+        for(Control control:new Control[]{Control.FILTER_ALL,Control.FILTER_READY,Control.FILTER_ARRIVE,Control.CONFIRM,Control.CONFIRM_JOIN,Control.CLEAR})
+            layout.controls.remove(control);
+        return layout;
+    }
+    static void drawSource(KOMECompanyOriginWorkflow model,Layout layout,FontRenderer font,int mx,int my) {
+        Rect panel=layout.panel;KOMEGuiTheme.drawSubPanel(panel.x,panel.y,panel.width,panel.height);
+        text(font,"Move from "+model.source(),panel.x+8,panel.y+6,panel.width-60,KOMEGuiTheme.COLOR_GOLD);
+        text(font,"Choose a company",panel.x+8,panel.y+28,panel.width-16,KOMEGuiTheme.COLOR_TEXT_MUTED);
+        for(int i=0;i<layout.capacity;i++){
+            kome.common.data.KOMECompanySourceOptions.Row row=model.visible(i);if(row==null)break;
+            Rect box=layout.row(i);KOMEGuiTheme.drawCard(box.x,box.y,box.width,box.height,box.contains(mx,my));
+            text(font,KOMECompanyOriginWorkflow.name(row),box.x+5,box.y+2,box.width-10,KOMEGuiTheme.COLOR_TEXT_LIGHT);
+            text(font,(row.mounted?"Mounted":"Foot / mixed")+" | "+row.allowance+"/"+row.tilesPerDay+" allowance",
+                box.x+5,box.y+12,box.width-10,KOMEGuiTheme.COLOR_TEXT_MUTED);
+            text(font,row.units+" units | "+(row.populationCenti<0?"Population unknown":new java.math.BigDecimal(row.populationCenti).movePointLeft(2).stripTrailingZeros().toPlainString()+" population"),
+                box.x+5,box.y+22,box.width-10,KOMEGuiTheme.COLOR_TEXT_MUTED);
+            text(font,row.held?"Committed to battle":row.state,box.x+5,box.y+32,box.width-10,KOMEGuiTheme.COLOR_WARN);
+        }
+        List<String> lines=font.listFormattedStringToWidth(model.message(),panel.width-16);
+        for(int i=0;i<lines.size()&&i*10+9<=layout.detailHeight;i++)
+            text(font,lines.get(i),panel.x+8,layout.detailTop+i*10,panel.width-16,KOMEGuiTheme.COLOR_TEXT_MUTED);
+        for(Control control:layout.controls.keySet()){
+            Rect r=layout.controls.get(control);KOMEGuiTheme.drawCard(r.x,r.y,r.width,r.height,!model.loading()&&r.contains(mx,my));
+            String label=control==Control.ROWS_UP?"^":control==Control.ROWS_DOWN?"v":control==Control.RETRY?"Refresh":control==Control.BACK?"Back":"Close";
+            font.drawString(label,r.x+(r.width-font.getStringWidth(label))/2,r.y+5,KOMEGuiTheme.COLOR_TEXT_LIGHT);
+        }
+        // Honest display-only loaded-window scrollbar; continuation extent remains unknown.
+        Gui.drawRect(layout.scrollTrack.x,layout.scrollTrack.y,layout.scrollTrack.x+8,layout.scrollTrack.y+layout.scrollTrack.height,0xFF120D08);
+        int count=Math.max(layout.capacity,model.rows().size()),height=Math.max(8,layout.scrollTrack.height*layout.capacity/count);
+        int y=layout.scrollTrack.y+(layout.scrollTrack.height-height)*model.offset()/Math.max(1,count-layout.capacity);
+        Gui.drawRect(layout.scrollTrack.x,y,layout.scrollTrack.x+8,y+height,model.loading()?KOMEGuiTheme.COLOR_WARN:KOMEGuiTheme.COLOR_GOLD);
+    }
     static boolean enabled(Control control,KOMECompanyDestinationSelector model,Layout layout,long now) {
         switch(control) {
             case ROWS_UP:return model.canBrowse(-1,now);

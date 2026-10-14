@@ -36,7 +36,7 @@ final class KOMECompanyDestinationSelector {
     // Byte packing can return fewer than eight rows. At least one candidate advances per page.
     static final int MAX_PAGE_HISTORY=KOMECompanyDestinationOptions.MAX_CATALOGUE;
     private UUID session;
-    private String destination="";
+    private String destination="",exactCompany="",exactSource="";
     private Phase phase=Phase.CLOSED;
     private KOMEPacketCompanyDestinationRequest pending;
     private KOMECompanyDestinationOptions page;
@@ -70,6 +70,13 @@ final class KOMECompanyDestinationSelector {
         history.add(new Cursor("",""));pageIndex=0;
         return request();
     }
+    KOMEPacketCompanyDestinationRequest openExact(String source,String company,String destination) {
+        KOMEPacketCompanyDestinationRequest request=open(destination);exactSource=source;exactCompany=company;return request;
+    }
+    boolean exact(){return !exactCompany.isEmpty();}
+    kome.common.network.KOMEPacketCompanyOriginRequest targeted(KOMEPacketCompanyDestinationRequest descriptor){
+        return kome.common.network.KOMEPacketCompanyOriginRequest.target(descriptor.session,descriptor.sequence,exactSource,exactCompany,descriptor.destination);
+    }
     boolean isOpen() {
         if(phase!=Phase.CLOSED&&!queries.isSession(session))clear();
         return phase!=Phase.CLOSED;
@@ -82,7 +89,7 @@ final class KOMECompanyDestinationSelector {
         joinAfterArrival=false;joinView=null;arrivedCompany="";arrivedMovement=null;
         window.clear();window.refilter(Filter.ALL);rolling=false;filterSuperseded=filterNeedsRestart=filterResetPending=false;pendingStep=0;pendingSelection="";joinLatch.clear();
         filter=Filter.ALL;filteredRows=Collections.emptyList();searchDirection=0;searchRemaining=0;wheelAtEnd=false;browseFollowup=null;
-        phase=Phase.CLOSED;session=null;destination="";history.clear();page=null;pending=null;setSelected(null);rowOffset=0;pageIndex=0;error="";failure=null;movement=null;notice="";enterAtEnd=false;orderedRows=Collections.emptyList();
+        phase=Phase.CLOSED;session=null;destination="";exactCompany=exactSource="";history.clear();page=null;pending=null;setSelected(null);rowOffset=0;pageIndex=0;error="";failure=null;movement=null;notice="";enterAtEnd=false;orderedRows=Collections.emptyList();
     }
     private KOMEPacketCompanyDestinationRequest request() {
         joinLatch.clear();if(!rolling){page=null;orderedRows=Collections.emptyList();filteredRows=Collections.emptyList();rowOffset=0;}error="";failure=null;phase=Phase.LOADING;
@@ -95,6 +102,11 @@ final class KOMECompanyDestinationSelector {
         if(!isOpen()||phase!=Phase.LOADING||pending==null||queries.latest()!=response
                 ||!pending.session.equals(response.session)||pending.sequence!=response.sequence
                 ||!destination.equals(response.destination))return false;
+        if(exact()&&response.result==Result.OK&&(response.rows.size()>1||response.rows.stream()
+                .anyMatch(row->!exactCompany.equals(row.companyId)||!exactSource.equals(row.currentTile)))){
+            joinLatch.clear();setSelected(null);pending=null;page=null;orderedRows=filteredRows=Collections.emptyList();
+            phase=Phase.ERROR;error="Source company evidence changed. Back to choose again.";return true;
+        }
         joinLatch.clear();rowOffset=0;failure=response.result;
         // First-page requests have no wire cursor. Revisited first pages still must match retained history.
         String expectedCatalogue=history.get(pageIndex).catalogue;
@@ -124,6 +136,7 @@ final class KOMECompanyDestinationSelector {
             rowOffset=enterAtEnd&&!filteredRows.isEmpty()?(wheelAtEnd?filteredRows.size()-1:
                 (filteredRows.size()-1)/windowCapacity*windowCapacity):0;
             enterAtEnd=false;wheelAtEnd=false;phase=Phase.READY;error="";
+            if(exact())for(Row row:orderedRows)if(row.companyId.equals(exactCompany))setSelected(row);
             if(!selectedCompanyId.isEmpty())for(Row row:orderedRows)if(isSelected(row.companyId)){setSelected(filter.matches(row)?row:null);break;}
             if(rolling)acceptRolling(response);
             else if(filteredRows.isEmpty()&&searchRemaining>0)browseFollowup=browsePage(searchDirection);
@@ -473,6 +486,7 @@ final class KOMECompanyDestinationSelector {
     }
     private static String queryError(Result result) {
         switch(result) {
+            case SOURCE_CHANGED:return "Company moved, changed control or is no longer a Campaign company. Back to choose again.";
             case CATALOGUE_CHANGED:return "Company list changed. Retry to refresh.";
             case CATALOGUE_LIMIT:return "Company list is too large to load.";
             case COMPANY_LIMIT:return "A company is too large to load.";

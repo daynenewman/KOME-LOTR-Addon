@@ -42,10 +42,7 @@ public final class KOMECompanyDestinationQuery {
             if(!after.isEmpty() && company.compareTo(after)<=0) continue;
             if(rows.size()==limit) return page(session,sequence,destination,Result.OK,rows,token,last,true);
             try {
-                KOMECompanyMovementService.Evaluation evaluation=movement.evaluate(data,actor,company,destination,budget);
-                long eta=evaluation.allowed() && evaluation.scheduleMode==KOMECompanyMovementService.ScheduleMode.DAILY
-                    && evaluation.dailyTiming!=null ? Math.max(0,evaluation.dailyTiming.estimatedCompletionMillis-evaluation.evaluatedAtMillis) : -1;
-                rows.add(projectPopulation(data,data.armyCompanies.get(company),new Row(evaluation),eta));last=company;
+                rows.add(evaluateRow(data,actor,company,destination,budget));last=company;
             } catch(KOMECompanyMovementService.EvaluationLimitExceeded exhausted) {
                 if (!exhausted.deferred.exceedsSingleRouteLimit)
                     return page(session,sequence,destination,Result.ARRIVAL_BUDGET_EXCEEDED,rows,token,last,true);
@@ -54,6 +51,14 @@ public final class KOMECompanyDestinationQuery {
             }
         }
         return page(session,sequence,destination,Result.OK,rows,token,last,false);
+    }
+    /** Shared bounded row projection for catalogue and exact-company queries. */
+    Row evaluateRow(KOMEWorldData data,EntityPlayerMP actor,String company,String destination,
+            KOMECompanyMovementService.ArrivalBudget budget) {
+        KOMECompanyMovementService.Evaluation evaluation=movement.evaluate(data,actor,company,destination,budget);
+        long eta=evaluation.allowed()&&evaluation.scheduleMode==KOMECompanyMovementService.ScheduleMode.DAILY&&evaluation.dailyTiming!=null
+            ?Math.max(0,evaluation.dailyTiming.estimatedCompletionMillis-evaluation.evaluatedAtMillis):-1;
+        return projectPopulation(data,data.armyCompanies.get(company),new Row(evaluation),eta);
     }
     /** Bounded member-index reads. Reuse canonical investment authority, never entity types or a world-wide scan. */
     private static Row projectPopulation(KOMEWorldData data,KOMEArmyCompany company,Row row,long eta) {

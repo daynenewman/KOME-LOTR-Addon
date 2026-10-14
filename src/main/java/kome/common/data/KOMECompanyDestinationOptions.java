@@ -8,7 +8,7 @@ public final class KOMECompanyDestinationOptions {
     public static final int MAX_ROWS = 8, MAX_ROUTE_TILES = 64, MAX_ARRIVAL_CHECKS = 64;
     public static final int MAX_CATALOGUE = 4096, MAX_MEMBERS = 256;
     public enum Result { OK, INVALID_REQUEST, CATALOGUE_LIMIT, COMPANY_LIMIT, CATALOGUE_CHANGED,
-        ARRIVAL_BUDGET_EXCEEDED, PROJECTION_LIMIT, RATE_LIMITED }
+        ARRIVAL_BUDGET_EXCEEDED, PROJECTION_LIMIT, RATE_LIMITED, SOURCE_CHANGED }
     public enum EvaluationState { COMPLETE, DEFERRED_ROUTE_LIMIT }
     public enum Entitlement { FOOT_OR_MIXED, MOUNTED }
     public static final class Row {

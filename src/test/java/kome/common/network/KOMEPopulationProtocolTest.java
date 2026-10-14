@@ -17,7 +17,7 @@ import static org.junit.Assert.*;
 
 public class KOMEPopulationProtocolTest {
     @Test public void g4PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.9-integration-g9", KOMEPopulationWire.VERSION);
+        assertEquals("1.0.9-integration-g10", KOMEPopulationWire.VERSION);
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();

@@ -26,8 +26,8 @@ public class KOMEMapRadialMenuTest {
     @Test public void rootMovementBackPreservesSelectedTile() {
         KOMEMapRadialMenu menu = open();
         assertEquals(5,menu.segments().size()); assertEquals(Action.MOVEMENT,menu.activate(0));
-        assertEquals(State.MOVEMENT,menu.state()); assertEquals(2,menu.segments().size());
-        assertEquals(Action.BACK,menu.activate(1)); assertEquals(State.ROOT,menu.state()); assertEquals("T357",menu.tileId());
+        assertEquals(State.MOVEMENT,menu.state()); assertEquals(3,menu.segments().size());
+        assertEquals(Action.BACK,menu.activate(2)); assertEquals(State.ROOT,menu.state()); assertEquals("T357",menu.tileId());
     }
     @Test public void battleShellAndBackHaveNoGameplayAction() {
         KOMEMapRadialMenu menu = open(); menu.activate(1);
@@ -75,8 +75,8 @@ public class KOMEMapRadialMenuTest {
         Segment move = menu.segments().get(0);
         menu.activate(0);
         assertEquals(56,menu.segments().get(0).widthDegrees,0); assertEquals(56,menu.segments().get(1).widthDegrees,0);
-        assertEquals(0,menu.hit(0,-57)); assertEquals(1,menu.hit(0,57)); assertEquals(-1,menu.hit(57,0));
-        menu.activate(1); assertSame(move,menu.segments().get(0));
+        assertEquals(0,menu.hit(0,-57)); assertEquals(-1,menu.hit(0,57)); assertEquals(-1,menu.hit(57,0));
+        menu.activate(2); assertSame(move,menu.segments().get(0));
     }
     @Test public void centerAndOutsidePassThroughAtEveryAngleAndState() {
         KOMEMapRadialMenu menu = open();

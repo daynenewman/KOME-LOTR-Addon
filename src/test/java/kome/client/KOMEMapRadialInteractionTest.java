@@ -25,7 +25,7 @@ public class KOMEMapRadialInteractionTest {
     @Before public void setup() throws Exception {
         map=KOMEAccessFixture.allocate(LOTRGuiMap.class); map.width=800; map.height=600;
         for (String name : new String[] {"mapXMin","mapXMax","mapYMin","mapYMax","mapWidth","mapHeight","mapWidgets"}) save(field(LOTRGuiMap.class,name));
-        for (String name : new String[] {"tileRaster","showConquestTiles","destinationCompanyId","routePreviewMove","radialMap","radialLeftCaptured","radialDragMap","companySelector","companyPreview","selectorOnLeft","rootJoin","directJoinScreen","directJoinFromRoot","directJoinViewCorrelation","directJoinSession"}) save(field(KOMEConquestMapOverlay.class,name));
+        for (String name : new String[] {"tileRaster","showConquestTiles","destinationCompanyId","routePreviewMove","radialMap","radialLeftCaptured","radialDragMap","companySelector","originWorkflow","companyPreview","selectorOnLeft","rootJoin","directJoinScreen","directJoinFromRoot","directJoinViewCorrelation","directJoinSession"}) save(field(KOMEConquestMapOverlay.class,name));
         for (String name : new String[] {"tileColorsById","tileIdsByColor","tileCentersById"}) preserve((Map)field(KOMEConquestMapOverlay.class,name).get(null));
         preserve(KOMEClientData.INSTANCE.tileWaypointLinksByTileId);
         field(LOTRGuiMap.class,"mapXMin").setInt(null,0); field(LOTRGuiMap.class,"mapXMax").setInt(null,800);
@@ -71,7 +71,7 @@ public class KOMEMapRadialInteractionTest {
         click(400,300,1); assertTrue(clickRoot(0)); assertEquals(KOMEMapRadialMenu.State.MOVEMENT,menu.state());
         assertFalse(KOMEConquestMapOverlay.mapDragButtonDown(map,true));
         assertTrue(click(400,240,0)); assertEquals(KOMEMapRadialMenu.State.MOVEMENT,menu.state());
-        assertTrue(click(400,360,0)); assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());
+        assertTrue(clickRoot(2)); assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());
         assertTrue(menu.isOpen()); assertTrue(network.sent.isEmpty());
         assertFalse(KOMEConquestMapOverlay.mapDragButtonDown(map,false)); assertTrue(KOMEConquestMapOverlay.mapDragButtonDown(map,true));
     }
@@ -108,7 +108,7 @@ public class KOMEMapRadialInteractionTest {
         click(400,300,1); clickRoot(0); double[] anchor=KOMEConquestMapOverlay.radialAnchorMapPosition("T001");
         pan(2392,108,2);KOMEMapViewport view=KOMEConquestMapOverlay.viewport(map);
         assertEquals(200,view.screenX(anchor[0]),0);assertEquals(200,view.screenY(anchor[1]),0);
-        assertTrue(click(200,260,0));assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());
+        KOMEMapRadialMenu.Segment back=menu.segments().get(2);assertTrue(click(200+(int)Math.round(back.labelX()),200+(int)Math.round(back.labelY()),0));assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());
         pan(3292,58,2);view=KOMEConquestMapOverlay.viewport(map);assertTrue(view.screenX(anchor[0]) < -KOMEMapRadialMenu.OUTER_RADIUS);
         assertTrue(menu.isOpen());assertEquals("T001",menu.tileId());assertTrue(network.sent.isEmpty());
     }
@@ -149,7 +149,7 @@ public class KOMEMapRadialInteractionTest {
         assertFalse(click(400,300,0)); // Fallback center is still pass-through, without a fictitious waypoint.
         assertTrue(menu.isOpen()); assertTrue(KOMEConquestMapOverlay.suppressMapInspection(map));
         clickRoot(0); assertTrue(KOMEConquestMapOverlay.suppressMapInspection(map));
-        click(400,360,0); assertTrue(KOMEConquestMapOverlay.suppressMapInspection(map));
+        clickRoot(2); assertTrue(KOMEConquestMapOverlay.suppressMapInspection(map));
         assertTrue(clickRoot(3)); assertFalse(menu.isOpen());
         assertFalse(KOMEConquestMapOverlay.suppressMapInspection(map)); assertEquals("",menu.tileId());
         assertFalse(KOMEConquestMapOverlay.onMapKeyTyped(map,1)); assertTrue(network.sent.isEmpty());
@@ -228,7 +228,7 @@ public class KOMEMapRadialInteractionTest {
                 KOMEMapRadialMenu.Segment move=menu.segments().get(0);
                 assertTrue(click(400+(int)Math.round(move.labelX()*scale),300+(int)Math.round(move.labelY()*scale),0));
                 assertEquals(KOMEMapRadialMenu.State.MOVEMENT,menu.state());
-                assertTrue(click(400,300+(int)Math.round(57*scale),0));
+                KOMEMapRadialMenu.Segment back=menu.segments().get(2);assertTrue(click(400+(int)Math.round(back.labelX()*scale),300+(int)Math.round(back.labelY()*scale),0));
                 assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());
             }
             client.gameSettings.guiScale=3;client.gameSettings.forceUnicodeFont=true;
@@ -1036,6 +1036,98 @@ public class KOMEMapRadialInteractionTest {
             assertEquals(KOMECompanyDestinationSelector.Phase.JOINING,selector().phase());assertEquals(3,network.sent.size());
             proxy.acceptJoinBattleView(directView("company",true,1),selectorConnection);
             assertEquals(4,network.sent.size());assertTrue(network.sent.get(3) instanceof KOMEPacketJoinBattleSelectionRequest);
+        }
+    }
+    private KOMECompanyOriginWorkflow origin()throws Exception{return (KOMECompanyOriginWorkflow)field(KOMEConquestMapOverlay.class,"originWorkflow").get(null);}
+    private void openOrigin(KOMEClientProxy proxy)throws Exception{
+        click(400,300,1);clickRoot(0);assertEquals("Move To...",menu.segments().get(1).action.label);clickRoot(1);
+        assertTrue(network.sent.get(network.sent.size()-1) instanceof KOMEPacketCompanyOriginRequest);
+        KOMEPacketCompanyOriginRequest request=(KOMEPacketCompanyOriginRequest)network.sent.get(network.sent.size()-1);
+        assertEquals("T001",request.source);assertFalse(request.targeted);
+        proxy.acceptCompanySourceOptions(KOMECompanyOriginWorkflowTest.page(request,4),selectorConnection);
+        assertEquals(0,KOMEConquestMapOverlay.selectorWheelDelta(map,790,100,120));assertEquals("T001",KOMEConquestMapOverlay.originSourceTile(map));
+        KOMECompanyDestinationPanel.Layout source=KOMECompanyDestinationPanel.sourceLayout(KOMEConquestMapOverlay.viewport(map),false);
+        KOMECompanyDestinationPanel.Rect row=source.row(2);assertTrue(click(row.x+2,row.y+2,0));
+        assertEquals("C03",origin().selectedCompanyId());assertEquals(KOMECompanyOriginWorkflow.Stage.PICK,origin().stage());
+    }
+    @Test public void originPickUsesRightClickTileAtCurrentPanZoomLeftDragNeverChoosesAndBackIsStepwise()throws Exception{
+        try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;KOMEClientProxy proxy=connectSelector();openOrigin(proxy);
+            int packets=network.sent.size();assertFalse(click(400,300,0));assertTrue(KOMEConquestMapOverlay.mapDragButtonDown(map,true));
+            assertEquals(packets,network.sent.size());assertEquals(120,KOMEConquestMapOverlay.selectorWheelDelta(map,400,300,120));
+            assertFalse(KOMEConquestMapOverlay.radialOwnsPointer(map,400,243));
+            assertEquals("T001",origin().source());assertEquals("T001",KOMEConquestMapOverlay.originSourceTile(map));assertEquals("Same company name",origin().selectedName());
+            // Canonical hover is resolved after pan/zoom, rather than reusing the source click's pixels.
+            pan(2292,58,2);assertEquals("T001",KOMEConquestMapOverlay.originSourceTile(map));assertEquals(400,KOMEConquestMapOverlay.viewport(map).screenX(2292),0);assertTrue(click(400,300,1));
+            KOMEPacketCompanyOriginRequest exact=(KOMEPacketCompanyOriginRequest)network.sent.get(network.sent.size()-1);
+            assertTrue(exact.targeted);assertEquals("T001",exact.source);assertEquals("T001",exact.destination);assertEquals("C03",exact.company);
+            assertEquals(KOMECompanyOriginWorkflow.Stage.PREVIEW,origin().stage());assertTrue(selector().exact());
+            KOMECompanyDestinationOptions.Row blocked=new KOMECompanyDestinationOptions.Row("C03","Company","T001","T001",
+                KOMECompanyDestinationOptions.Entitlement.FOOT_OR_MIXED,1,1,0,Collections.emptyList(),
+                kome.common.command.KOMECompanyMovementService.Status.BLOCKED,kome.common.command.KOMECompanyMovementService.ScheduleMode.DAILY,
+                false,false,false,false,0,0,0,"INVALID_DESTINATION","Already on this tile.","",-1,kome.common.command.KOMECompanyMovementService.Consequence.NONE,"",-1,"","");
+            proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(exact.session,exact.sequence,exact.destination,
+                KOMECompanyDestinationOptions.Result.OK,Arrays.asList(blocked),"","C03",false),selectorConnection);
+            assertEquals("C03",selector().selectedCompanyId());assertFalse(selector().canConfirm());assertEquals(blocked.denialDetail,KOMECompanyDestinationSelector.reason(selector().selected()));
+            clickControl(KOMECompanyDestinationPanel.Control.BACK);assertEquals(KOMECompanyOriginWorkflow.Stage.PICK,origin().stage());
+            assertEquals("C03",origin().selectedCompanyId());assertNull(selector());assertTrue(((KOMECompanyDestinationPreview)field(KOMEConquestMapOverlay.class,"companyPreview").get(null)).points.isEmpty());
+            // Destination-pick Back then source-list Back returns to the source Move submenu.
+            assertTrue(click(12,50,0));assertEquals(KOMECompanyOriginWorkflow.Stage.SOURCE,origin().stage());
+            KOMEPacketCompanyOriginRequest list=(KOMEPacketCompanyOriginRequest)network.sent.get(network.sent.size()-1);
+            proxy.acceptCompanySourceOptions(KOMECompanyOriginWorkflowTest.page(list,4),selectorConnection);
+            KOMECompanyDestinationPanel.Layout layout=KOMECompanyDestinationPanel.sourceLayout(KOMEConquestMapOverlay.viewport(map),false);
+            KOMECompanyDestinationPanel.Rect back=layout.controls.get(KOMECompanyDestinationPanel.Control.BACK);click(back.x+2,back.y+2,0);
+            assertNull(origin());assertEquals(KOMEMapRadialMenu.State.MOVEMENT,menu.state());assertEquals("T001",menu.tileId());
+            for(IMessage packet:network.sent)assertFalse(packet instanceof KOMEPacketCompanyMovementRequest);
+        }
+    }
+    @Test public void originHostileCreateAndJoinReuseTwoClickMovementAndFreshDirectJoin()throws Exception{
+        for(kome.common.command.KOMECompanyMovementService.Consequence consequence:new kome.common.command.KOMECompanyMovementService.Consequence[]{
+                kome.common.command.KOMECompanyMovementService.Consequence.EXPECTED_CREATE_CONFLICT,
+                kome.common.command.KOMECompanyMovementService.Consequence.EXPECTED_JOIN_CONFLICT})try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;network.sent.clear();KOMEClientProxy proxy=connectSelector();openOrigin(proxy);
+            KOMEConquestMapOverlay.chooseOriginDestination(map,"T100");
+            KOMEPacketCompanyOriginRequest target=(KOMEPacketCompanyOriginRequest)network.sent.get(1);
+            KOMECompanyDestinationOptions.Row row=KOMECompanyDestinationSelectorTest.row("C03",
+                kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW,KOMECompanyDestinationOptions.Entitlement.FOOT_OR_MIXED,
+                KOMECompanyDestinationOptions.EvaluationState.COMPLETE,consequence);
+            proxy.acceptCompanyDestinationOptions(new KOMECompanyDestinationOptions(target.session,target.sequence,target.destination,
+                KOMECompanyDestinationOptions.Result.OK,Arrays.asList(row),"","C03",false),selectorConnection);
+            assertEquals("C03",selector().selectedCompanyId());assertTrue(selector().canConfirmAndJoin());
+            KOMECompanyDestinationPanel.Rect joinBox=selectorLayout().controls.get(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);
+            clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);assertEquals(2,network.sent.size());
+            assertTrue(selector().joinArmed(System.nanoTime()/1000000L));
+            clickControl(KOMECompanyDestinationPanel.Control.CONFIRM_JOIN);assertEquals(3,network.sent.size());
+            KOMEPacketCompanyMovementRequest move=(KOMEPacketCompanyMovementRequest)network.sent.get(2);
+            assertEquals("C03",move.companyId);assertEquals("T100",move.destination);
+            assertTrue(click(joinBox.x+2,joinBox.y+2,0));assertEquals(3,network.sent.size());
+            KOMECompanyMovementResult arrival=new KOMECompanyMovementResult(move.session,move.sequence,move.previewSequence,move.companyId,move.destination,
+                KOMECompanyMovementResult.Outcome.ARRIVED,"M3",KOMEArmyMovementOrder.CONFLICT_HELD,"T100",2,2,"","");
+            proxy.acceptCompanyMovementResult(arrival,selectorConnection);
+            assertEquals(4,network.sent.size());KOMEPacketJoinBattleViewRequest fresh=(KOMEPacketJoinBattleViewRequest)network.sent.get(3);
+            assertEquals("T100",fresh.tileId);
+            KOMEPacketJoinBattleViewResponse view=KOMERootJoinBattleTest.allowed(fresh);
+            if(consequence==kome.common.command.KOMECompanyMovementService.Consequence.EXPECTED_JOIN_CONFLICT){
+                view.conflictId=row.destinationConflictId;view.conflictRevision=row.destinationConflictRevision;
+            }
+            view.companies.clear();KOMERootJoinBattleTest.addRow(view,"C03",true);
+            proxy.acceptJoinBattleView(view,selectorConnection);assertEquals(5,network.sent.size());assertSame(map,client.mc.currentScreen);
+            KOMEPacketJoinBattleSelectionRequest join=(KOMEPacketJoinBattleSelectionRequest)network.sent.get(4);assertEquals("C03",join.companyId);
+            client.mc.thePlayer=client.player;proxy.acceptJoinBattleSelectionResult(directResult(join,view,true),selectorConnection);
+            assertNull(client.mc.currentScreen);assertNull(origin());assertEquals(1,client.player.messages.size());assertEquals(5,network.sent.size());
+        }
+    }
+    @Test public void originEscapeSessionCloseAndSourceReplacementRemoveGhostMode()throws Exception{
+        for(int clear=0;clear<4;clear++)try(DirectClient client=new DirectClient()){
+            client.mc.thePlayer=null;network.sent.clear();KOMEClientProxy proxy=connectSelector();openOrigin(proxy);
+            KOMEPacketCompanyOriginRequest old=(KOMEPacketCompanyOriginRequest)network.sent.get(0);
+            if(clear==0)assertTrue(KOMEConquestMapOverlay.onMapKeyTyped(map,org.lwjgl.input.Keyboard.KEY_ESCAPE));
+            if(clear==1)new KOMEConquestMapOverlay().onMapScreenChange(new GuiOpenEvent(null));
+            if(clear==2){proxy.destinationOptions().start(new Object());KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,400,300,0);}
+            if(clear==3){centers().put("T050",new int[]{2291,58});KOMEConquestMapOverlay.focusRadialForTile(map,"T050");}
+            assertNull(origin());assertNull(selector());assertEquals("",KOMEConquestMapOverlay.originSourceTile(map));
+            proxy.acceptCompanySourceOptions(KOMECompanyOriginWorkflowTest.page(old,4),selectorConnection);assertNull(origin());
+            assertFalse(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,400,300,0));
         }
     }
     private void invokeChooserButton(kome.client.gui.KOMEGuiJoinBattle gui,int id) throws Exception {

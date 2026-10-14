@@ -136,6 +136,9 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         if (destinationOptions().accept(snapshot,connection)) KOMEConquestMapOverlay.acceptCompanyDestinationOptions(snapshot);
     }
 
+    @Override public void acceptCompanySourceOptions(kome.common.data.KOMECompanySourceOptions snapshot,Object connection) {
+        if(destinationOptions().isConnection(connection))KOMEConquestMapOverlay.acceptCompanySourceOptions(snapshot);
+    }
     @Override public void acceptCompanyMovementResult(kome.common.data.KOMECompanyMovementResult result,Object connection) {
         if(destinationOptions().acceptMovement(result,connection))KOMEConquestMapOverlay.acceptCompanyMovementResult(result);
         else KOMEConquestMapOverlay.cancelMovementJoinIntent(result);

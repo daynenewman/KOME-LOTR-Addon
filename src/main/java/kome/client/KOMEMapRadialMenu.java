@@ -22,6 +22,7 @@ final class KOMEMapRadialMenu {
         INFO("Info", true, "Open existing tile information"),
         CLOSE("Close", true, "Dismiss this ring"),
         MOVE_HERE("Move Here", true, "Choose a company and preview its route"),
+        MOVE_TO("Move To...", true, "Choose a company here, then a destination"),
         REINFORCE("Reinforce", true, "Choose a company to move to this battle"),
         ATTACK("Attack", true, "Choose a company and preview hostile movement"),
         BATTLE_ACTIONS("Battle", false, "Battle actions are not wired in this prototype"),
@@ -38,7 +39,7 @@ final class KOMEMapRadialMenu {
     private static final List<Segment> ROOT = layout(44, -126,
         Action.MOVEMENT, Action.BATTLE, Action.INFO, Action.CLOSE, Action.COMPANIES);
     private static final List<Segment> ROOT_JOIN=layout(44,-90,Action.JOIN_BATTLE,Action.BATTLE,Action.INFO,Action.CLOSE,Action.COMPANIES,Action.MOVEMENT);
-    private static final List<Segment> MOVEMENT = layout(56, -90, Action.MOVE_HERE, Action.BACK);
+    private static final List<Segment> MOVEMENT = layout(56, -90, Action.MOVE_HERE, Action.MOVE_TO, Action.BACK);
     private static final List<Segment> BATTLE = layout(44, -90, Action.BATTLE_ACTIONS, Action.BACK);
     private static final List<Segment> REINFORCEMENT = layout(56,-90,Action.REINFORCE,Action.BACK);
     private static final List<Segment> ATTACK = layout(56,-90,Action.ATTACK,Action.BACK);
