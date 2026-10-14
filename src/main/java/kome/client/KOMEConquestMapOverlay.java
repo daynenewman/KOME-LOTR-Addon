@@ -121,6 +121,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static Field mapButtonsField;
     private static KOMECompanyDestinationSelector companySelector;
     private static KOMECompanyOriginWorkflow originWorkflow;
+    private static KOMECompanyRallyClient rally;
     private static kome.client.gui.KOMEGuiJoinBattle directJoinScreen;
     private static boolean directJoinFromRoot;
     private static java.util.UUID directJoinViewCorrelation, directJoinSession;
@@ -352,7 +353,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
                 int screenHeight = KOMEMinecraftClient.screenHeight(screen);
                 int mouseX = Mouse.getX() * screenWidth / KOMEMinecraftClient.displayWidth();
                 int mouseY = screenHeight - Mouse.getY() * screenHeight / KOMEMinecraftClient.displayHeight() - 1;
-                if (originActive() || selectorOwnsPointer(map,mouseX,mouseY) || radialOwnsPointer(map,mouseX,mouseY)) {
+                if (rallyActive() || originActive() || selectorOwnsPointer(map,mouseX,mouseY) || radialOwnsPointer(map,mouseX,mouseY)) {
                     // Panel input cannot also activate the independently polled KOME controls.
                 } else if (isPreviewingRoute() && isOverRouteConfirmButton(map, mouseX, mouseY)) {
                     KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction(
@@ -418,6 +419,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
 
     private static void closeRadialInteraction() {
         battleContextRequest=null;
+        closeRally();
         if(originWorkflow!=null)originWorkflow.clear();originWorkflow=null;
         if(rootJoin!=null)rootJoin.close();
         closeCompanySelector(); radialMenu.close(); radialMap = null; releaseRadialCapture();
@@ -486,6 +488,8 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static boolean companySelectorOpen() { return companySelector != null && companySelector.isOpen(); }
     private static void validateCompanySelectorLifecycle() {
         syncRootJoin();
+        if(rally!=null&&!rally.active()){closeRadialInteraction();return;}
+        syncRally();
         if(originWorkflow!=null&&!originWorkflow.active()){closeRadialInteraction();return;}
         if (companySelector != null && !companySelector.isOpen()) closeRadialInteraction();
         if(directJoinScreen!=null&&!(directJoinFromRoot
@@ -503,6 +507,27 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         KOMEMapViewport view = viewport(map);
         selectorOnLeft = anchor != null && view.screenX(anchor[0]) > (view.left + view.right) / 2;
         sendDestinationRequest(companySelector.open(radialMenu.tileId()));
+    }
+    private static boolean rallyActive(){return rally!=null&&rally.active();}
+    private static void sendRally(kome.common.network.KOMEPacketCompanyRallyRequest request){if(request!=null)KOMEPacketHandler.network.sendToServer(request);}
+    private static void syncRally(){radialMenu.rally(rallyActive()?rally.label():"Rally Here",!rallyActive()||rally.enabled(),rallyActive()?rally.summary():"");}
+    private static void closeRally(){
+        if(rally!=null)sendRally(rally.cancel());rally=null;radialMenu.rally("Rally Here",true,"");
+    }
+    private static void clickRally(){
+        if(rallyActive()&&rally.canConfirm()){sendRally(rally.confirm());syncRally();return;}
+        if(rallyActive()&&!rally.canRefresh())return;
+        if(!(kome.common.KOMEAddon.proxy instanceof KOMEClientProxy))return;
+        closeCompanySelector();closeRally();battleContextRequest=null;
+        rally=new KOMECompanyRallyClient(((KOMEClientProxy)kome.common.KOMEAddon.proxy).destinationOptions());
+        sendRally(rally.open(radialMenu.tileId()));syncRally();
+    }
+    public static void acceptCompanyRally(kome.common.data.KOMECompanyRallySnapshot snapshot){
+        validateCompanySelectorLifecycle();
+        if(radialMap==null||KOMEMinecraftClient.currentScreen()!=radialMap||!rallyActive()||!rally.accept(snapshot))return;
+        syncRally();
+        if(snapshot.phase==kome.common.data.KOMECompanyRallySnapshot.Phase.DONE&&KOMEMinecraftClient.player()!=null)
+            KOMEMinecraftClient.player().addChatMessage(new net.minecraft.util.ChatComponentText(snapshot.message));
     }
     private static boolean originActive(){return originWorkflow!=null&&originWorkflow.active();}
     static String originSourceTile(LOTRGuiMap map){return radialMap==map&&originActive()&&!companySelectorOpen()?originWorkflow.source():"";}
@@ -711,6 +736,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         if (button!=0) return true; // Segment-owned auxiliary clicks never reach the map underneath.
         int index=radialHit(map,mouseX,mouseY);
         KOMEMapRadialMenu.Action clicked=radialMenu.segments().get(index).action;
+        if(clicked!=KOMEMapRadialMenu.Action.RALLY_HERE)closeRally();
         KOMEMapRadialMenu.Action action = radialMenu.activate(index);
         if(clicked==KOMEMapRadialMenu.Action.JOIN_BATTLE) {
             kome.common.network.KOMEPacketJoinBattleViewRequest request=rootJoin==null?null:rootJoin.click(previewClock());
@@ -720,6 +746,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         if(action==KOMEMapRadialMenu.Action.BACK)refreshRootJoinBattle();
         if (action == KOMEMapRadialMenu.Action.INFO)
             KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(radialMenu.tileId()));
+        if(action==KOMEMapRadialMenu.Action.RALLY_HERE)clickRally();
         if (action == KOMEMapRadialMenu.Action.MOVE_TO)openOriginSelector(map);
         if (action == KOMEMapRadialMenu.Action.MOVE_HERE) openCompanySelector(map);
         if(action==KOMEMapRadialMenu.Action.REINFORCE||action==KOMEMapRadialMenu.Action.ATTACK)openCompanySelector(map);
@@ -817,7 +844,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         companyPreview=KOMECompanyDestinationPreview.of(companySelector.selectedRoute(),KOMEConquestMapOverlay::radialAnchorMapPosition);
     }
     static String selectorDestinationTile(LOTRGuiMap map) {
-        return radialMap==map&&companySelectorOpen()?companySelector.destination():"";
+        return radialMap==map?(rallyActive()?rally.destination():companySelectorOpen()?companySelector.destination():""):"";
     }
     private static void drawSelectorDestination(LOTRGuiMap map) {
         drawTileCue(map,selectorDestinationTile(map));

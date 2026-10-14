@@ -25,7 +25,7 @@ public class KOMEMapRadialInteractionTest {
     @Before public void setup() throws Exception {
         map=KOMEAccessFixture.allocate(LOTRGuiMap.class); map.width=800; map.height=600;
         for (String name : new String[] {"mapXMin","mapXMax","mapYMin","mapYMax","mapWidth","mapHeight","mapWidgets"}) save(field(LOTRGuiMap.class,name));
-        for (String name : new String[] {"tileRaster","showConquestTiles","destinationCompanyId","routePreviewMove","radialMap","radialLeftCaptured","radialDragMap","companySelector","originWorkflow","companyPreview","selectorOnLeft","rootJoin","directJoinScreen","directJoinFromRoot","directJoinViewCorrelation","directJoinSession"}) save(field(KOMEConquestMapOverlay.class,name));
+        for (String name : new String[] {"tileRaster","showConquestTiles","destinationCompanyId","routePreviewMove","radialMap","radialLeftCaptured","radialDragMap","companySelector","originWorkflow","rally","companyPreview","selectorOnLeft","rootJoin","directJoinScreen","directJoinFromRoot","directJoinViewCorrelation","directJoinSession"}) save(field(KOMEConquestMapOverlay.class,name));
         for (String name : new String[] {"tileColorsById","tileIdsByColor","tileCentersById"}) preserve((Map)field(KOMEConquestMapOverlay.class,name).get(null));
         preserve(KOMEClientData.INSTANCE.tileWaypointLinksByTileId);
         field(LOTRGuiMap.class,"mapXMin").setInt(null,0); field(LOTRGuiMap.class,"mapXMax").setInt(null,800);
@@ -71,7 +71,7 @@ public class KOMEMapRadialInteractionTest {
         click(400,300,1); assertTrue(clickRoot(0)); assertEquals(KOMEMapRadialMenu.State.MOVEMENT,menu.state());
         assertFalse(KOMEConquestMapOverlay.mapDragButtonDown(map,true));
         assertTrue(click(400,240,0)); assertEquals(KOMEMapRadialMenu.State.MOVEMENT,menu.state());
-        assertTrue(clickRoot(2)); assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());
+        assertTrue(clickRoot(3)); assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());
         assertTrue(menu.isOpen()); assertTrue(network.sent.isEmpty());
         assertFalse(KOMEConquestMapOverlay.mapDragButtonDown(map,false)); assertTrue(KOMEConquestMapOverlay.mapDragButtonDown(map,true));
     }
@@ -108,7 +108,7 @@ public class KOMEMapRadialInteractionTest {
         click(400,300,1); clickRoot(0); double[] anchor=KOMEConquestMapOverlay.radialAnchorMapPosition("T001");
         pan(2392,108,2);KOMEMapViewport view=KOMEConquestMapOverlay.viewport(map);
         assertEquals(200,view.screenX(anchor[0]),0);assertEquals(200,view.screenY(anchor[1]),0);
-        KOMEMapRadialMenu.Segment back=menu.segments().get(2);assertTrue(click(200+(int)Math.round(back.labelX()),200+(int)Math.round(back.labelY()),0));assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());
+        KOMEMapRadialMenu.Segment back=menu.segments().get(3);assertTrue(click(200+(int)Math.round(back.labelX()),200+(int)Math.round(back.labelY()),0));assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());
         pan(3292,58,2);view=KOMEConquestMapOverlay.viewport(map);assertTrue(view.screenX(anchor[0]) < -KOMEMapRadialMenu.OUTER_RADIUS);
         assertTrue(menu.isOpen());assertEquals("T001",menu.tileId());assertTrue(network.sent.isEmpty());
     }
@@ -149,7 +149,7 @@ public class KOMEMapRadialInteractionTest {
         assertFalse(click(400,300,0)); // Fallback center is still pass-through, without a fictitious waypoint.
         assertTrue(menu.isOpen()); assertTrue(KOMEConquestMapOverlay.suppressMapInspection(map));
         clickRoot(0); assertTrue(KOMEConquestMapOverlay.suppressMapInspection(map));
-        clickRoot(2); assertTrue(KOMEConquestMapOverlay.suppressMapInspection(map));
+        clickRoot(3); assertTrue(KOMEConquestMapOverlay.suppressMapInspection(map));
         assertTrue(clickRoot(3)); assertFalse(menu.isOpen());
         assertFalse(KOMEConquestMapOverlay.suppressMapInspection(map)); assertEquals("",menu.tileId());
         assertFalse(KOMEConquestMapOverlay.onMapKeyTyped(map,1)); assertTrue(network.sent.isEmpty());
@@ -228,7 +228,7 @@ public class KOMEMapRadialInteractionTest {
                 KOMEMapRadialMenu.Segment move=menu.segments().get(0);
                 assertTrue(click(400+(int)Math.round(move.labelX()*scale),300+(int)Math.round(move.labelY()*scale),0));
                 assertEquals(KOMEMapRadialMenu.State.MOVEMENT,menu.state());
-                KOMEMapRadialMenu.Segment back=menu.segments().get(2);assertTrue(click(400+(int)Math.round(back.labelX()*scale),300+(int)Math.round(back.labelY()*scale),0));
+                KOMEMapRadialMenu.Segment back=menu.segments().get(3);assertTrue(click(400+(int)Math.round(back.labelX()*scale),300+(int)Math.round(back.labelY()*scale),0));
                 assertEquals(KOMEMapRadialMenu.State.ROOT,menu.state());
             }
             client.gameSettings.guiScale=3;client.gameSettings.forceUnicodeFont=true;
@@ -1202,6 +1202,78 @@ public class KOMEMapRadialInteractionTest {
             if(oldPlayer==null)nativePlayers.remove(id);else nativePlayers.put(id,oldPlayer);
             lotr.common.fac.LOTRFactionRelations.overrideRelations(lotr.common.fac.LOTRFaction.GONDOR,lotr.common.fac.LOTRFaction.MORDOR,oldRelation);
         }
+    }
+    @Test public void moveAndBothBattleRallyEntriesUseCompactTwoClickFlowWithoutPanelOrPlayerDeployment() throws Exception {
+        for(int entry=0;entry<3;entry++)try(DirectClient client=new DirectClient()) {
+            client.mc.thePlayer=null;network.sent.clear();KOMEClientProxy proxy=connectSelector();
+            click(400,300,1);clickRoot(entry==0?0:1);
+            if(entry>0){menu.battleContext(entry==2,entry==1);network.sent.clear();}
+            int index=entry==0?2:1;assertTrue(clickRoot(index));
+            assertEquals(1,network.sent.size());KOMEPacketCompanyRallyRequest request=(KOMEPacketCompanyRallyRequest)network.sent.get(0);
+            assertEquals(KOMEPacketCompanyRallyRequest.Action.OPEN,request.action);assertEquals("T001",request.destination);
+            assertEquals("Loading Rally...",menu.label(KOMEMapRadialMenu.Action.RALLY_HERE));assertFalse(menu.enabled(KOMEMapRadialMenu.Action.RALLY_HERE));
+            assertNull(selector());assertNull(field(KOMEConquestMapOverlay.class,"originWorkflow").get(null));assertTrue(preview().points.isEmpty());
+            assertSame(map,client.mc.currentScreen);assertTrue(menu.isOpen());assertEquals("T001",KOMEConquestMapOverlay.selectorDestinationTile(map));
+            KOMECompanyRallyClient model=rally();UUID token=UUID.randomUUID();
+            assertTrue(KOMEConquestMapOverlay.radialOwnsPointer(map,400+(int)Math.round(menu.segments().get(index).labelX()),300+(int)Math.round(menu.segments().get(index).labelY())));
+            assertFalse(KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,700,100,0)); // Former panel rectangle is native map space.
+            assertEquals(-120,KOMEConquestMapOverlay.selectorWheelDelta(map,700,100,-120));
+            for(int i=0;i<6;i++){
+                assertTrue(clickRoot(index));assertEquals(1,network.sent.size()); // Loading clicks never restart or confirm.
+                proxy.acceptCompanyRally(new KOMECompanyRallySnapshot(request.session,token,"T001",
+                    i==5?KOMECompanyRallySnapshot.Phase.READY:KOMECompanyRallySnapshot.Phase.LOADING,i+1,6,i+1,i+1,0,0,"6 will rally",
+                    new KOMECompanyRallySnapshot.Entry(i,mapRow("C"+(i+1),kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW),"gondor",true,KOMECompanyRallySnapshot.Outcome.PREVIEW,"Will rally")),selectorConnection);
+            }
+            assertTrue(model.canConfirm());assertEquals("Confirm Rally",menu.label(KOMEMapRadialMenu.Action.RALLY_HERE));assertEquals("6 ready / 0 skipped",menu.status());
+            assertEquals(6,model.readyCompanyIds().size());assertEquals(1,network.sent.size());assertTrue(preview().points.isEmpty());
+            for(int rapid=0;rapid<4;rapid++)assertTrue(clickRoot(index));
+            assertEquals(2,network.sent.size());assertEquals(KOMEPacketCompanyRallyRequest.Action.CONFIRM,((KOMEPacketCompanyRallyRequest)network.sent.get(1)).action);
+            assertEquals("Rallying...",menu.label(KOMEMapRadialMenu.Action.RALLY_HERE));assertFalse(model.canConfirm());
+            for(IMessage packet:network.sent)assertTrue(packet instanceof KOMEPacketCompanyRallyRequest);
+            client.mc.thePlayer=client.player;double x=client.player.posX,y=client.player.posY,z=client.player.posZ;
+            KOMECompanyRallySnapshot done=new KOMECompanyRallySnapshot(request.session,token,"T001",KOMECompanyRallySnapshot.Phase.DONE,14,6,6,6,6,6,"6 companies rallied. 0 skipped.",null);
+            proxy.acceptCompanyRally(done,selectorConnection);proxy.acceptCompanyRally(done,selectorConnection);
+            assertEquals(Collections.singletonList(done.message),client.player.messages);assertEquals(done.message,menu.status());
+            assertEquals("Rally Here",menu.label(KOMEMapRadialMenu.Action.RALLY_HERE));assertFalse(model.canConfirm());assertSame(map,client.mc.currentScreen);
+            assertEquals(x,client.player.posX,0);assertEquals(y,client.player.posY,0);assertEquals(z,client.player.posZ,0);assertEquals(0,client.mc.screenChanges);
+            assertTrue(KOMEConquestMapOverlay.onMapKeyTyped(map,1));assertFalse(model.active());assertEquals("",KOMEConquestMapOverlay.selectorDestinationTile(map));
+        }
+    }
+    @Test public void compactRallyActionTileSessionEscapeAndMapCloseDiscardConfirmation() throws Exception {
+        for(int action=0;action<6;action++)try(DirectClient client=new DirectClient()) {
+            client.mc.thePlayer=null;network.sent.clear();KOMEClientProxy proxy=connectSelector();click(400,300,1);clickRoot(0);clickRoot(2);
+            KOMECompanyRallyClient model=rally();KOMEPacketCompanyRallyRequest old=(KOMEPacketCompanyRallyRequest)network.sent.get(0);
+            KOMECompanyRallySnapshot ready=rallyReady(old);proxy.acceptCompanyRally(ready,selectorConnection);assertTrue(model.canConfirm());
+            if(action==0)clickRoot(3); // Back is another radial action.
+            if(action==1)clickRoot(0); // Move Here must invalidate Rally before opening its selector.
+            if(action==2)assertTrue(KOMEConquestMapOverlay.onMapKeyTyped(map,1));
+            if(action==3)new KOMEConquestMapOverlay().onMapScreenChange(new GuiOpenEvent(null));
+            if(action==4){proxy.destinationOptions().start(new Object());KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,2,2,0);}
+            if(action==5){centers().put("T050",new int[]{2300,58});assertTrue(KOMEConquestMapOverlay.focusRadialForTile(map,"T050"));assertEquals("T050",menu.tileId());}
+            assertFalse(model.active());assertFalse(model.canConfirm());proxy.acceptCompanyRally(ready,selectorConnection);assertFalse(model.canConfirm());
+            assertEquals("Rally Here",menu.label(KOMEMapRadialMenu.Action.RALLY_HERE));
+            for(IMessage packet:network.sent)if(packet instanceof KOMEPacketCompanyRallyRequest)assertNotEquals(KOMEPacketCompanyRallyRequest.Action.CONFIRM,((KOMEPacketCompanyRallyRequest)packet).action);
+        }
+    }
+    @Test public void compactRallyZeroErrorAndTimeoutNeverConfirmAndRetryStartsNewPreview() throws Exception {
+        for(int failure=0;failure<3;failure++)try(DirectClient client=new DirectClient()) {
+            client.mc.thePlayer=null;network.sent.clear();KOMEClientProxy proxy=connectSelector();click(400,300,1);clickRoot(0);clickRoot(2);
+            KOMECompanyRallyClient oldModel=rally();KOMEPacketCompanyRallyRequest old=(KOMEPacketCompanyRallyRequest)network.sent.get(0);
+            if(failure==0)proxy.acceptCompanyRally(new KOMECompanyRallySnapshot(old.session,UUID.randomUUID(),"T001",KOMECompanyRallySnapshot.Phase.READY,1,0,0,0,0,0,"0 will rally. 0 skipped.",null),selectorConnection);
+            if(failure==1)proxy.acceptCompanyRally(new KOMECompanyRallySnapshot(old.session,new UUID(0,0),"T001",KOMECompanyRallySnapshot.Phase.ERROR,0,0,0,0,0,0,"Rally supports at most 64 Campaign companies. No partial Rally was prepared.",null),selectorConnection);
+            if(failure==2){proxy.acceptCompanyRally(rallyReady(old),selectorConnection);field(KOMECompanyRallyClient.class,"expiresAt").setLong(oldModel,0);KOMEConquestMapOverlay.onMapSelectorMouseClicked(map,2,2,0);}
+            assertFalse(oldModel.canConfirm());assertEquals("Rally Here",menu.label(KOMEMapRadialMenu.Action.RALLY_HERE));
+            assertTrue(menu.status().contains(failure==0?"No companies can arrive now":failure==1?"No partial":"expired"));
+            assertTrue(clickRoot(2));assertEquals(3,network.sent.size());KOMEPacketCompanyRallyRequest fresh=(KOMEPacketCompanyRallyRequest)network.sent.get(2);
+            assertEquals(KOMEPacketCompanyRallyRequest.Action.CANCEL,((KOMEPacketCompanyRallyRequest)network.sent.get(1)).action);
+            assertEquals(KOMEPacketCompanyRallyRequest.Action.OPEN,fresh.action);assertNotEquals(old.session,fresh.session);assertFalse(oldModel.active());
+            proxy.acceptCompanyRally(rallyReady(old),selectorConnection);assertFalse(rally().canConfirm());assertEquals("Loading Rally...",menu.label(KOMEMapRadialMenu.Action.RALLY_HERE));
+        }
+    }
+    private KOMECompanyRallyClient rally()throws Exception{return (KOMECompanyRallyClient)field(KOMEConquestMapOverlay.class,"rally").get(null);}
+    private KOMECompanyRallySnapshot rallyReady(KOMEPacketCompanyRallyRequest request){
+        return new KOMECompanyRallySnapshot(request.session,UUID.randomUUID(),request.destination,KOMECompanyRallySnapshot.Phase.READY,1,1,1,1,0,0,"1 will rally.",
+            new KOMECompanyRallySnapshot.Entry(0,mapRow("C1",kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW),"gondor",true,KOMECompanyRallySnapshot.Outcome.PREVIEW,"Will rally"));
     }
     private KOMEClientProxy connectSelector() throws Exception {
         KOMEClientProxy proxy=KOMEAccessFixture.allocate(KOMEClientProxy.class);

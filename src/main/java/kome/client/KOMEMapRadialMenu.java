@@ -22,6 +22,7 @@ final class KOMEMapRadialMenu {
         INFO("Info", true, "Open existing tile information"),
         CLOSE("Close", true, "Dismiss this ring"),
         MOVE_HERE("Move Here", true, "Choose a company and preview its route"),
+        RALLY_HERE("Rally Here", true, "Preview immediate Rally; confirm when ready"),
         MOVE_TO("Move To...", true, "Choose a company here, then a destination"),
         REINFORCE("Reinforce", true, "Choose a company to move to this battle"),
         ATTACK("Attack", true, "Choose a company and preview hostile movement"),
@@ -39,28 +40,30 @@ final class KOMEMapRadialMenu {
     private static final List<Segment> ROOT = layout(44, -126,
         Action.MOVEMENT, Action.BATTLE, Action.INFO, Action.CLOSE, Action.COMPANIES);
     private static final List<Segment> ROOT_JOIN=layout(44,-90,Action.JOIN_BATTLE,Action.BATTLE,Action.INFO,Action.CLOSE,Action.COMPANIES,Action.MOVEMENT);
-    private static final List<Segment> MOVEMENT = layout(56, -90, Action.MOVE_HERE, Action.MOVE_TO, Action.BACK);
+    private static final List<Segment> MOVEMENT = layout(56, -90, Action.MOVE_HERE, Action.MOVE_TO, Action.RALLY_HERE, Action.BACK);
     private static final List<Segment> BATTLE = layout(44, -90, Action.BATTLE_ACTIONS, Action.BACK);
-    private static final List<Segment> REINFORCEMENT = layout(56,-90,Action.REINFORCE,Action.BACK);
-    private static final List<Segment> ATTACK = layout(56,-90,Action.ATTACK,Action.BACK);
+    private static final List<Segment> REINFORCEMENT = layout(56,-90,Action.REINFORCE,Action.RALLY_HERE,Action.BACK);
+    private static final List<Segment> ATTACK = layout(56,-90,Action.ATTACK,Action.RALLY_HERE,Action.BACK);
     private boolean activeBattle, knownHostile, rootJoinAvailable, rootJoinArmed, rootJoinBusy;
-    private String rootStatus="";
+    private String rootStatus="",rallyLabel="Rally Here",rallyStatus="";
+    private boolean rallyEnabled=true;
     private String tileId = "";
     private State state = State.ROOT;
     boolean open(String tile) {
         if (!KOMEConquestTile.isCanonicalTileId(tile)) return false;
-        tileId = tile; state = State.ROOT; activeBattle=false;knownHostile=false;rootJoin(false,false,"");return true;
+        tileId = tile; state = State.ROOT; activeBattle=false;knownHostile=false;rootJoin(false,false,"");rally("Rally Here",true,"");return true;
     }
-    void close() { tileId = ""; state = State.ROOT; rootJoin(false,false,""); }
+    void close() { tileId = ""; state = State.ROOT; rootJoin(false,false,"");rally("Rally Here",true,""); }
     boolean isOpen() { return !tileId.isEmpty(); }
     String tileId() { return tileId; }
     State state() { return state; }
     void battleContext(boolean active,boolean hostile) {activeBattle=active;knownHostile=hostile;}
     void rootJoin(boolean available,boolean armed,String status){rootJoin(available,armed,status,false);}
     void rootJoin(boolean available,boolean armed,String status,boolean busy){rootJoinAvailable=available;rootJoinArmed=available&&armed;rootJoinBusy=busy;rootStatus=status;}
-    boolean enabled(Action action){return action.enabled&&!(action==Action.JOIN_BATTLE&&rootJoinBusy);}
-    String label(Action action){return action==Action.JOIN_BATTLE?(rootJoinBusy?"Loading Join Battle...":rootJoinArmed?"Confirm":"Join Battle"):action.label;}
-    String status(){return state==State.ROOT?rootStatus:"";}
+    void rally(String label,boolean enabled,String status){rallyLabel=label;rallyEnabled=enabled;rallyStatus=status;}
+    boolean enabled(Action action){return action.enabled&&!(action==Action.JOIN_BATTLE&&rootJoinBusy)&&!(action==Action.RALLY_HERE&&!rallyEnabled);}
+    String label(Action action){return action==Action.RALLY_HERE?rallyLabel:action==Action.JOIN_BATTLE?(rootJoinBusy?"Loading Join Battle...":rootJoinArmed?"Confirm":"Join Battle"):action.label;}
+    String status(){return state==State.ROOT?rootStatus:rallyStatus;}
     List<Segment> segments() { return state == State.MOVEMENT ? MOVEMENT : state == State.BATTLE ? activeBattle?REINFORCEMENT:knownHostile?ATTACK:BATTLE : rootJoinAvailable?ROOT_JOIN:ROOT; }
     Action activate(int index) {
         if (!isOpen() || index < 0 || index >= segments().size()) return null;

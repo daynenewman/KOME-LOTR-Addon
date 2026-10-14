@@ -5,6 +5,21 @@ import static org.junit.Assert.*;
 import static kome.client.KOMEMapRadialMenu.*;
 
 public class KOMEMapRadialMenuTest {
+    @Test public void compactRallyLabelHoverAndDisabledInputUseUnchangedSiblingGeometry(){
+        KOMEMapRadialMenu menu=open();menu.activate(0);java.util.List<Segment> geometry=menu.segments();
+        assertEquals("Rally Here",menu.label(Action.RALLY_HERE));assertTrue(menu.enabled(Action.RALLY_HERE));
+        assertArrayEquals(new String[]{"Rally","Here"},KOMEMapRadialRenderer.labelLines(menu,Action.RALLY_HERE));
+        menu.rally("Loading Rally...",false,"Loading complete Rally preview...");
+        assertEquals("Loading Rally...",menu.label(Action.RALLY_HERE));assertNull(menu.activate(2));
+        assertEquals(KOMEMapRadialRenderer.fillColor(menu,Action.RALLY_HERE,false),KOMEMapRadialRenderer.fillColor(menu,Action.RALLY_HERE,true));
+        menu.rally("Confirm Rally",true,"5 ready / 2 skipped | Will enter battle");
+        assertEquals("Confirm Rally",menu.label(Action.RALLY_HERE));assertArrayEquals(new String[]{"Confirm","Rally"},KOMEMapRadialRenderer.labelLines(menu,Action.RALLY_HERE));
+        assertEquals("5 ready / 2 skipped | Will enter battle",menu.status());assertEquals(Action.RALLY_HERE,menu.activate(2));
+        assertNotEquals(KOMEMapRadialRenderer.fillColor(menu,Action.RALLY_HERE,false),KOMEMapRadialRenderer.fillColor(menu,Action.RALLY_HERE,true));
+        assertSame(geometry,menu.segments());
+        menu.open("T002");menu.activate(0);assertEquals("Rally Here",menu.label(Action.RALLY_HERE));assertEquals("",menu.status());
+        menu.rally("Confirm Rally",true,"ready");menu.close();assertEquals("Rally Here",menu.label(Action.RALLY_HERE));assertEquals("",menu.status());
+    }
     @Test public void contextSelectsReinforceAttackOrDisabledShellWithoutMovementAuthority() {
         KOMEMapRadialMenu menu=open();menu.activate(1);
         menu.battleContext(true,false);assertEquals(Action.REINFORCE,menu.activate(0));assertEquals("Reinforce",menu.segments().get(0).action.label);
@@ -26,8 +41,8 @@ public class KOMEMapRadialMenuTest {
     @Test public void rootMovementBackPreservesSelectedTile() {
         KOMEMapRadialMenu menu = open();
         assertEquals(5,menu.segments().size()); assertEquals(Action.MOVEMENT,menu.activate(0));
-        assertEquals(State.MOVEMENT,menu.state()); assertEquals(3,menu.segments().size());
-        assertEquals(Action.BACK,menu.activate(2)); assertEquals(State.ROOT,menu.state()); assertEquals("T357",menu.tileId());
+        assertEquals(State.MOVEMENT,menu.state()); assertEquals(4,menu.segments().size());
+        assertEquals(Action.BACK,menu.activate(3)); assertEquals(State.ROOT,menu.state()); assertEquals("T357",menu.tileId());
     }
     @Test public void battleShellAndBackHaveNoGameplayAction() {
         KOMEMapRadialMenu menu = open(); menu.activate(1);
@@ -75,8 +90,8 @@ public class KOMEMapRadialMenuTest {
         Segment move = menu.segments().get(0);
         menu.activate(0);
         assertEquals(56,menu.segments().get(0).widthDegrees,0); assertEquals(56,menu.segments().get(1).widthDegrees,0);
-        assertEquals(0,menu.hit(0,-57)); assertEquals(-1,menu.hit(0,57)); assertEquals(-1,menu.hit(57,0));
-        menu.activate(2); assertSame(move,menu.segments().get(0));
+        assertEquals(0,menu.hit(0,-57)); assertEquals(2,menu.hit(0,57)); assertEquals(1,menu.hit(57,0));
+        menu.activate(3); assertSame(move,menu.segments().get(0));
     }
     @Test public void centerAndOutsidePassThroughAtEveryAngleAndState() {
         KOMEMapRadialMenu menu = open();

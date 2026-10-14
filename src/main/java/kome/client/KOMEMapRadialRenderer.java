@@ -55,7 +55,7 @@ final class KOMEMapRadialRenderer {
         } finally { GL11.glPopMatrix(); }
     }
     static String[] labelLines(KOMEMapRadialMenu menu,KOMEMapRadialMenu.Action action) {
-        return action==KOMEMapRadialMenu.Action.JOIN_BATTLE?menu.label(action).split(" "):new String[]{menu.label(action)};
+        return action==KOMEMapRadialMenu.Action.JOIN_BATTLE||action==KOMEMapRadialMenu.Action.RALLY_HERE?menu.label(action).split(" "):new String[]{menu.label(action)};
     }
     static int fillColor(KOMEMapRadialMenu menu,KOMEMapRadialMenu.Action action,boolean hover) {
         if(!menu.enabled(action))return KOMEGuiTheme.COLOR_PANEL_DARK;

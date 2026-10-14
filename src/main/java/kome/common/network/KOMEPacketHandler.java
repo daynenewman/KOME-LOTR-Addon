@@ -25,6 +25,7 @@ public class KOMEPacketHandler {
     static final KOMEServerRecordCooldown SERVER_RECORD_COOLDOWNS = new KOMEServerRecordCooldown(1024);
     static final KOMECompanyDestinationRateLimit DESTINATION_RATE_LIMIT = new KOMECompanyDestinationRateLimit(1024);
     static final KOMECompanyMovementReplayGuard MOVEMENT_REPLAY_GUARD = new KOMECompanyMovementReplayGuard();
+    static final kome.common.command.KOMECompanyRallyService RALLY=new kome.common.command.KOMECompanyRallyService(kome.common.command.KOMECompanyMovementService.INSTANCE);
     private static volatile ServerSession session;
 
     /** Called on the server thread after native guards succeed, before accepting player intents. */
@@ -60,7 +61,8 @@ public class KOMEPacketHandler {
         ServerSession current = session;
         if (current == null) return 0;
         current.requireServerThread();
-        return SERVER_TASKS.drain(KOMEPacketHandler::reportServerTaskFailure, System::nanoTime);
+        int drained=SERVER_TASKS.drain(KOMEPacketHandler::reportServerTaskFailure, System::nanoTime);
+        RALLY.tick(System.currentTimeMillis());return drained;
     }
     public static void forgetRequester(EntityPlayerMP player) {
         ServerSession current = session;
@@ -68,6 +70,7 @@ public class KOMEPacketHandler {
         SERVER_TASKS.forget(player.playerNetServerHandler);
         SERVER_RECORD_COOLDOWNS.forget(player.playerNetServerHandler);
         DESTINATION_RATE_LIMIT.forget(player.playerNetServerHandler);
+        RALLY.forget(player.playerNetServerHandler);
         MOVEMENT_REPLAY_GUARD.forget(player.playerNetServerHandler);
         kome.common.command.KOMECompanyMovementSessions.forget(player.playerNetServerHandler);
     }
@@ -114,7 +117,7 @@ public class KOMEPacketHandler {
         session = null;
         SERVER_TASKS.close();
         SERVER_RECORD_COOLDOWNS.clear();
-        DESTINATION_RATE_LIMIT.clear();
+        DESTINATION_RATE_LIMIT.clear();RALLY.clear();
         MOVEMENT_REPLAY_GUARD.clear();
         kome.common.command.KOMECompanyMovementSessions.clear();
     }
@@ -210,5 +213,7 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketCompanyMovementResult.Handler.class, KOMEPacketCompanyMovementResult.class, 62, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyOriginRequest>(new KOMEPacketCompanyOriginRequest.Handler()) {}, KOMEPacketCompanyOriginRequest.class, 63, Side.SERVER);
         network.registerMessage(KOMEPacketCompanySourceResponse.Handler.class, KOMEPacketCompanySourceResponse.class, 64, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyRallyRequest>(new KOMEPacketCompanyRallyRequest.Handler()) {}, KOMEPacketCompanyRallyRequest.class, 65, Side.SERVER);
+        network.registerMessage(KOMEPacketCompanyRallyResponse.Handler.class, KOMEPacketCompanyRallyResponse.class, 66, Side.CLIENT);
     }
 }

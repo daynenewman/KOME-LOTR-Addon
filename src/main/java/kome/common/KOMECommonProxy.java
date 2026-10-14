@@ -80,6 +80,7 @@ public class KOMECommonProxy {
         displayCompanyListGui(tileId, companies, canCreate);
     }
 
+    public void acceptCompanyRally(kome.common.data.KOMECompanyRallySnapshot snapshot,Object connection) { }
     public void acceptCompanySourceOptions(kome.common.data.KOMECompanySourceOptions snapshot,Object connection) { }
     public void displayCompanyMoveConfirmGui(kome.common.network.KOMEPacketCompanyMoveConfirmGui message) {
     }
