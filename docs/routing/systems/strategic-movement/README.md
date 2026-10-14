@@ -29,3 +29,17 @@ References: [KOM-80 queued edge checks](../../../kom80-mountain-barriers/README.
 Use [shared prerequisites](../../INDEX.md). Test queued-edge changes and retreat/resume/force-arrival paths, save/reload credit, UUID/mount/HP preservation, failed spawn rollback, and marker/UI state. Startup anchors missed days; population catch-up does not grant missed movement days. The audit's hardcoded speed defect is fixed here.
 
 Conflict release methods exist but have no production caller at this baseline; an ended hold must not be assumed to resume automatically. Arrival placement defaults to ordinary placement; the provider seam can retain pending exterior requirements, but no specialized provider is installed in production. Neither seam proves complete battle/siege resolution.
+
+## KOM-84/dev reconciliation
+
+`KOMECompanyMovementService` owns the shared read-only evaluation and confirmation boundary for
+Move Here, source-scoped Move To, and Rally. `KOMECommandTroops.executeCompanyMove` retains the
+current KOM-18 health/recovery/reconstruction executor. Its validation delegates to the service,
+including dev's governance military-action denial, conflict/retreat holds and coherence checks;
+the extracted boundary must not restore an older reconstruction path. Confirmations remain
+connection-bound and revalidated immediately before execution. Rally creates fresh confirmation
+evidence for each included company so subsequent arrivals observe a prior CREATE as JOIN.
+
+Reconciliation checks include `KOMECompanyMovementServiceTest`, `KOMECommandTroopsMovementTest`,
+`KOMECampaignMovementReconstructionTest`, `KOMEFormalRetreatBatchTest`, and ordinary-battle/recovery
+suites. Source wiring and automated checks do not establish new live acceptance.

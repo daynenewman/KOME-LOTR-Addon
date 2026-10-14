@@ -1,6 +1,8 @@
 package kome.common.command;
 
 import kome.common.KOMEReflection;
+import kome.common.command.KOMECompanyMovementService.RouteResult;
+import kome.common.command.KOMECompanyMovementService.RouteBlocker;
 import kome.common.data.KOMEArmyMovementOrder;
 import kome.common.data.KOMEArmyCompany;
 import kome.common.data.KOMECompanyDiplomacyAuthorization;
@@ -2516,30 +2518,26 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private void previewCompanyMove(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, UUID owner, String companyId, String destination) {
-        KOMEArmyCompany company = validateCompanyMove(player, data, owner, companyId, destination);
-        RouteResult route = findLegalRoute(data, company.currentTile, destination, company.faction, company);
-        validateStewardshipRoute(data, company, route);
-        if (!route.valid) {
+        KOMECompanyMovementService.Evaluation evaluation =
+            KOMECompanyMovementService.INSTANCE.evaluate(data, player, companyId, destination);
+        if (evaluation.denial != null && evaluation.denial.stage == KOMECompanyMovementService.FailureStage.VALIDATION)
+            throw new WrongUsageException(evaluation.denial.reason);
+        KOMEArmyCompany company = data.armyCompanies.get(companyId);
+        RouteResult route = evaluation.routeForPresentation();
+        if (evaluation.denial != null && evaluation.denial.stage == KOMECompanyMovementService.FailureStage.ROUTE) {
             sendMovePreviewFailure(player, company, destination, route);
             sender.addChatMessage(new ChatComponentText("Route blocked to " + destination + ". See map panel for details."));
             return;
         }
-        SpawnTarget routeArrival = validateRouteArrivalTargets(data, KOMEReflection.getWorld(player), route);
-        if (!routeArrival.valid) {
-            sendMovePreviewFailure(player, company, destination, routeArrival.failureReason);
+        if (evaluation.denial != null && evaluation.denial.stage == KOMECompanyMovementService.FailureStage.ARRIVAL) {
+            sendMovePreviewFailure(player, company, destination, evaluation.denial.reason);
             sender.addChatMessage(new ChatComponentText("Route blocked to " + destination + ". See map panel for details."));
             return;
         }
-        SpawnTarget arrival = requireArrivalTarget(data, KOMEReflection.getWorld(player), destination);
-        if (!arrival.valid) {
-            sendMovePreviewFailure(player, company, destination, arrival.failureReason);
-            sender.addChatMessage(new ChatComponentText("Route blocked to " + destination + ". See map panel for details."));
-            return;
-        }
-        int distance = route.distance();
-        int speed = company.getTilesPerDay();
-        long now = System.currentTimeMillis();
-        KOMEMovementRoutePreview.Timing timing = KOMEMovementRoutePreview.timing(company, distance, now);
+        int distance = evaluation.distanceTiles;
+        int speed = evaluation.tilesPerDay;
+        long now = evaluation.evaluatedAtMillis;
+        KOMEMovementRoutePreview.Timing timing = evaluation.dailyTiming;
         if (isDailyMovementMode(data) && timing.exhausted) {
             KOMEPacketCompanyMovePreviewResult blocked = basePreviewFailure(company, destination);
             blocked.failureCode = KOMEMovementRoutePreview.NO_ALLOWANCE;
@@ -2552,7 +2550,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             blocked.nextMovementBoundaryText = formatTimestamp(timing.nextBoundaryMillis);
             blocked.distanceTiles = distance;
             blocked.routeTiles.addAll(route.routeTiles);
-            KOMEPacketHandler.network.sendTo(blocked, player);
+            publishMovementFailure(blocked, player);
             sender.addChatMessage(new ChatComponentText(blocked.failureSummary + " Next boundary: "
                 + formatTimestamp(timing.nextBoundaryMillis) + "."));
             return;
@@ -2584,14 +2582,14 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             ? "Moves now, then needs " + timing.requiredBoundaries + " future movement boundary(s)."
             : "Current allowance can complete this route immediately.";
         message.routeSummary = routeSummary(route);
-        message.arrivalDimension = arrival.dimensionId;
-        message.arrivalX = arrival.x;
-        message.arrivalY = arrival.y;
-        message.arrivalZ = arrival.z;
-        message.arrivalSource = arrival.label;
+        message.arrivalDimension = evaluation.arrival.dimension;
+        message.arrivalX = evaluation.arrival.x;
+        message.arrivalY = evaluation.arrival.y;
+        message.arrivalZ = evaluation.arrival.z;
+        message.arrivalSource = evaluation.arrival.source;
         message.routeTiles.addAll(route.routeTiles);
-        message.previewToken = previewToken(data, company, destination, route, arrival);
-        KOMEPacketHandler.network.sendTo(message, player);
+        message.previewToken = evaluation.previewFingerprint;
+        publishMovementPreview(message, player);
         sender.addChatMessage(new ChatComponentText("Previewed company " + company.name + " (" + company.id + ") route "
             + formatRouteTiles(route.routeTiles) + " to " + destination + "."));
     }
@@ -2612,13 +2610,21 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         if (message.failureDetails.isEmpty() && route.failureReason != null && route.failureReason.length() > 0) {
             message.failureDetails.add(KOMEConquestTile.normalizeId(destination) + ": " + stripTrailingPeriod(route.failureReason));
         }
-        KOMEPacketHandler.network.sendTo(message, player);
+        publishMovementFailure(message, player);
     }
 
     private void sendMovePreviewFailure(EntityPlayerMP player, KOMEArmyCompany company, String destination, String reason) {
         KOMEPacketCompanyMovePreviewResult message = basePreviewFailure(company, destination);
         message.failureCode = previewFailureCode(reason);
         message.failureSummary = reason == null || reason.length() == 0 ? "No legal route to this tile." : reason;
+        publishMovementFailure(message, player);
+    }
+
+    void publishMovementPreview(KOMEPacketCompanyMoveConfirmGui message, EntityPlayerMP player) {
+        KOMEPacketHandler.network.sendTo(message, player);
+    }
+
+    void publishMovementFailure(KOMEPacketCompanyMovePreviewResult message, EntityPlayerMP player) {
         KOMEPacketHandler.network.sendTo(message, player);
     }
 
@@ -2672,33 +2678,34 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private List<RouteBlocker> sortedRouteBlockers(RouteResult route) {
-        List<RouteBlocker> blockers = new ArrayList<RouteBlocker>();
-        if (route != null) {
-            blockers.addAll(route.blockers);
-        }
-        Collections.sort(blockers, new Comparator<RouteBlocker>() {
-            @Override
-            public int compare(RouteBlocker first, RouteBlocker second) {
-                if (first.priority != second.priority) {
-                    return second.priority - first.priority;
-                }
-                int from = first.fromTile.compareTo(second.fromTile);
-                return from != 0 ? from : first.toTile.compareTo(second.toTile);
-            }
-        });
-        return blockers;
+        return KOMECompanyMovementService.INSTANCE.sortedRouteBlockers(route);
     }
 
     private void moveCompany(ICommandSender sender, EntityPlayerMP player, KOMEWorldData data, UUID owner,
             String companyId, String destination, String expectedPreviewToken) {
+        KOMECompanyMovementService service = new KOMECompanyMovementService(this, System::currentTimeMillis);
+        KOMECompanyMovementService.Submission result = expectedPreviewToken == null || expectedPreviewToken.isEmpty()
+            ? service.submitUnpreviewed(data, player, companyId, destination)
+            : service.submit(data, player, companyId, destination, expectedPreviewToken);
+        if (!result.accepted) throw new WrongUsageException(result.denial.reason);
+        KOMEArmyCompany company = data.armyCompanies.get(companyId);
+        sender.addChatMessage(new ChatComponentText("Movement order " + result.orderId + " started for company "
+            + company.name + " (" + company.id + ") route " + formatRouteTiles(result.routeTiles)
+            + ". First step resolves immediately; current status " + result.orderStatus + ", progress "
+            + result.completedSteps + "/" + result.distanceTiles + "."));
+    }
+
+    KOMEArmyMovementOrder executeCompanyMove(EntityPlayerMP player, KOMEWorldData data, UUID owner,
+            String companyId, String destination, String expectedPreviewToken,
+            KOMECompanyMovementService.Confirmation expectedConfirmation) {
         requireOrdinaryMovementMutation(data, companyId, null);
         KOMEArmyCompany company = validateCompanyMove(player, data, owner, companyId, destination);
         if (isDailyMovementMode(data) && company.movementAllowance <= 0)
-            throw new WrongUsageException("Company has no movement allowance remaining until the next movement day.");
+            throw new KOMECompanyMovementService.MovementDenied("NO_ALLOWANCE", "Company has no movement allowance remaining until the next movement day.");
         RouteResult route = findLegalRoute(data, company.currentTile, destination, company.faction, company);
         validateStewardshipRoute(data, company, route);
         if (!route.valid) {
-            throw new WrongUsageException(route.failureReason);
+            throw new KOMECompanyMovementService.MovementDenied(route.failureCode, route.failureReason);
         }
         KOMEArmyMovementOrder departurePlan = KOMEArmyMovementOrder.newRoute(company.getTilesPerDay());
         departurePlan.companyId = company.id;
@@ -2712,24 +2719,25 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             throw new WrongUsageException(departurePlan.pendingSpawnReason);
         SpawnTarget routeArrival = validateRouteArrivalTargets(data, KOMEReflection.getWorld(player), route);
         if (!routeArrival.valid) {
-            throw new WrongUsageException(routeArrival.failureReason);
+            throw new KOMECompanyMovementService.MovementDenied("ARRIVAL_UNAVAILABLE", routeArrival.failureReason);
         }
         SpawnTarget arrival = requireArrivalTarget(data, KOMEReflection.getWorld(player), destination);
         if (!arrival.valid) {
-            throw new WrongUsageException(arrival.failureReason);
+            throw new KOMECompanyMovementService.MovementDenied("ARRIVAL_UNAVAILABLE", arrival.failureReason);
         }
         if (expectedPreviewToken != null && expectedPreviewToken.length() > 0) {
             String currentToken = previewToken(data, company, destination, route, arrival);
             if (!constantTimeEquals(expectedPreviewToken, currentToken)) {
-                throw new WrongUsageException("Movement preview is stale; preview the route again before confirming.");
+                throw new KOMECompanyMovementService.MovementDenied("STALE_PREVIEW", "Movement preview is stale; preview the route again before confirming.");
             }
+            KOMECompanyMovementService.requireCurrentConfirmation(data, player, company, destination, currentToken, expectedConfirmation);
         }
         List<KOMEHiredUnitRecord> selected = new ArrayList<KOMEHiredUnitRecord>();
         for (UUID unitId : company.units) {
             KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
             String blocked = movementBlockReasonForCompanyUnit(record, company);
             if (blocked.length() > 0) {
-                throw new WrongUsageException("Company " + company.name + " cannot move: " + blocked);
+                throw new KOMECompanyMovementService.MovementDenied("INELIGIBLE_MEMBER", "Company " + company.name + " cannot move: " + blocked);
             }
             selected.add(record);
         }
@@ -2737,7 +2745,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         String firstStepDestination = route.routeTiles.size() > 1 ? KOMEConquestTile.normalizeId(route.routeTiles.get(1)) : destination;
         SpawnTarget firstStepArrival = requireArrivalTarget(data, KOMEReflection.getWorld(player), firstStepDestination);
         if (!firstStepArrival.valid) {
-            throw new WrongUsageException(firstStepArrival.failureReason);
+            throw new KOMECompanyMovementService.MovementDenied("ARRIVAL_UNAVAILABLE", firstStepArrival.failureReason);
         }
         // All permission, route, unit and arrival checks passed before reconciliation.
         refreshCompany(data, company);
@@ -2859,13 +2867,10 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             releaseTemporaryArrivalChunk(originTicket);
         }
         data.syncConquestTiles();
-        sender.addChatMessage(new ChatComponentText("Movement order " + order.id + " started for company "
-            + company.name + " (" + company.id + ") route " + formatRouteTiles(order.routeTiles)
-            + ". First step resolves immediately; current status " + order.status + ", progress "
-            + order.completedSteps + "/" + order.distanceTiles + "."));
+        return order;
     }
 
-    private String previewToken(KOMEWorldData data, KOMEArmyCompany company, String destination,
+    static String previewToken(KOMEWorldData data, KOMEArmyCompany company, String destination,
             RouteResult route, SpawnTarget arrival) {
         return KOMEMovementRoutePreview.fingerprint(company, destination, route.routeTiles, route.edgeNotes,
             arrival.dimensionId, arrival.x, arrival.y, arrival.z, arrival.label,
@@ -3720,7 +3725,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             || Math.abs(order.arrivalZ) > 0.001D);
     }
 
-    private static SpawnTarget validateRouteArrivalTargets(KOMEWorldData data, World world, RouteResult route) {
+    static SpawnTarget validateRouteArrivalTargets(KOMEWorldData data, World world, RouteResult route) {
         SpawnTarget result = new SpawnTarget();
         result.valid = true;
         if (route == null || route.routeTiles.size() < 2) {
@@ -3740,7 +3745,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         return result;
     }
 
-    private static SpawnTarget requireArrivalTarget(KOMEWorldData data, World world, String tileId) {
+    static SpawnTarget requireArrivalTarget(KOMEWorldData data, World world, String tileId) {
         SpawnTarget result = new SpawnTarget();
         String normalizedTile = KOMEConquestTile.normalizeId(tileId);
         KOMEConquestTile tile = data == null ? null : data.getConquestTileIfPresent(normalizedTile);
@@ -4700,8 +4705,7 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private static void requireOrdinaryMovementMutation(KOMEWorldData data, String companyId, String orderId) {
-        String reason = kome.common.data.KOMEFormalRetreatAuthority.ordinaryMovementBlockReason(data, companyId, orderId);
-        if (!reason.isEmpty()) throw new WrongUsageException(reason);
+        KOMECompanyMovementService.requireOrdinaryMovementAllowed(data, companyId, orderId);
     }
 
     private static void requireOrdinaryBulkMovementMutation(KOMEWorldData data) {
@@ -4712,135 +4716,23 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private KOMEArmyCompany validateCompanyMove(EntityPlayerMP player, KOMEWorldData data, UUID owner, String companyId, String destination) {
-        // Request validation must not repair companies before authorization. Login,
-        // canonical lifecycle changes and movement ticks own reconciliation.
-        KOMEArmyCompany company = data.armyCompanies.get(companyId);
-        if (company == null) {
-            throw new WrongUsageException("Unknown company " + companyId + ".");
-        }
-        kome.common.data.KOMEGovernanceService.Decision governance =
-            kome.common.data.KOMEGovernanceService.militaryAction(data, KOMEReflection.getEntityUUID(player), company.faction);
-        if (!governance.allowed) throw new WrongUsageException(governance.reason);
-        if (!canPlayerControlCompany(data, player, company)) {
-            throw new WrongUsageException("You do not own " + company.name + ".");
-        }
-        String playerFaction = normalizeFaction(getPlayerFaction(data, player));
-        String companyFaction = normalizeFaction(company.faction);
-        boolean admin = player.canCommandSenderUseCommand(2, getCommandName());
-        boolean temporary = company.isTemporarilyControlledBy(KOMEReflection.getEntityUUID(player));
-        if (!admin && !playerFaction.equals(companyFaction) && !temporary) {
-            throw new WrongUsageException("Company faction does not match your faction.");
-        }
-        KOMEConflictRecord activeConflict =
-            KOMEConflictMovementService.activeConflictForDetachment(data, company.id);
-        if (activeConflict != null
-                || KOMEConflictMovementService.isActivelyCommitted(data, company.id)) {
-            throw new WrongUsageException(company.name + " is committed to active conflict "
-                + (activeConflict == null ? "(ambiguous authority)"
-                    : activeConflict.getConflictId() + " at " + activeConflict.getTileId()) + ".");
-        }
-        // canPlayerControlCompany already checks live stewardship/delegation
-        // authorization. Revocation and withdrawal cleanup stay in the lifecycle.
-        if (company.isMoving()) {
-            throw new WrongUsageException(company.name + " is already moving.");
-        }
-        if (company.units.isEmpty()) {
-            throw new WrongUsageException(company.name + " has no units.");
-        }
-        String origin = KOMEConquestTile.normalizeId(company.currentTile);
-        destination = KOMEConquestTile.normalizeId(destination);
-        if (origin.equals(destination)) {
-            throw new WrongUsageException("Origin and destination must be different tiles.");
-        }
-        requireCompanyStandableTile(data, company, origin, "Origin");
-        for (UUID unitId : company.units) {
-            KOMEHiredUnitRecord record = data.hiredUnits.get(unitId);
-            String blocked = movementBlockReasonForCompanyUnit(record, company);
-            if (blocked.length() > 0) {
-                throw new WrongUsageException(company.name + " cannot move: " + blocked);
-            }
-        }
-        KOMECompanyCoherenceService.Assessment coherence =
-            KOMECompanyCoherenceService.INSTANCE.assess(data, company);
-        if (coherence.status == KOMECompanyCoherenceService.Status.INCOHERENT) {
-            throw new WrongUsageException(company.name
-                + " is strategically incoherent and cannot receive a movement order.");
-        }
-        return company;
+        return KOMECompanyMovementService.INSTANCE.validateCompanyMove(player, data, owner, companyId, destination);
     }
 
     private void validateStewardshipRoute(KOMEWorldData data, KOMEArmyCompany company, RouteResult route) {
-        if (company == null || route == null || !KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)) {
-            return;
-        }
-        for (String tileId : route.routeTiles) {
-            KOMEConquestTile tile = data.conquestTiles.get(KOMEConquestTile.normalizeId(tileId));
-            String owner = tile == null ? "" : normalizeFaction(tile.projectRulingFaction());
-            if (!KOMEWartimeStewardshipService.canEnter(data, company, owner, false)) {
-                route.valid = false;
-                route.failureCode = "PASSAGE_DENIED";
-                route.failureReason = "Wartime Stewardship cannot enter " + tileId + " ("
-                    + displayFaction(owner) + "). Legal territory is native land, Stage 3 partner passage, or an opposing side of an authorized active war.";
-                return;
-            }
-        }
+        KOMECompanyMovementService.INSTANCE.validateStewardshipRoute(data, company, route);
     }
 
     private String movementBlockReasonForCompanyUnit(KOMEHiredUnitRecord record, KOMEArmyCompany company) {
-        if (company == null) {
-            return "company data is missing.";
-        }
-        if (record == null) {
-            return "a tracked unit record is missing.";
-        }
-        String unit = displayUnitId(record);
-        if (!KOMEHiredUnitClassification.isCampaignUnit(record)) {
-            return unit + " is ordinary; only campaign units can move strategically.";
-        }
-        if (record.farmhand) {
-            return unit + " is a farmhand; farmhands cannot move in companies.";
-        }
-        if (record.type != KOMEPopulationType.OFFENSIVE) {
-            return unit + " is defensive; only offensive units can move.";
-        }
-        if (!company.id.equals(record.companyId)) {
-            return unit + " is assigned to company " + record.companyId + " instead of " + company.id + ".";
-        }
-        if (company.owner == null || !company.owner.equals(record.owner)) {
-            return unit + " is owned by a different player than company " + company.id + ".";
-        }
-        if (record.isMoving()) {
-            return unit + " is already attached to movement order " + record.movementOrderId + ".";
-        }
-        if (!KOMEConquestTile.normalizeId(company.currentTile).equals(KOMEConquestTile.normalizeId(record.currentTile))) {
-            return unit + " is stationed at " + KOMEConquestTile.normalizeId(record.currentTile)
-                + " instead of company tile " + KOMEConquestTile.normalizeId(company.currentTile) + ".";
-        }
-        return "";
+        return KOMECompanyMovementService.INSTANCE.movementBlockReasonForCompanyUnit(record, company);
     }
 
     private static boolean canUseDelegatedCompanyControl(
             KOMEWorldData data, KOMEArmyCompany company, UUID actor) {
-        if (data == null || company == null || actor == null
-                || !KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)
-                || !company.isTemporarilyControlledBy(actor)) {
-            return false;
-        }
-        return KOMECompanyDiplomacyAuthorization.canContinueDelegation(
-            data, KOMEWartimeStewardshipService.nativeFaction(company), actor).allowed;
+        return KOMECompanyMovementService.canUseDelegatedCompanyControl(data, company, actor);
     }
     private boolean canPlayerControlCompany(KOMEWorldData data, EntityPlayerMP player, KOMEArmyCompany company) {
-        if (player == null || company == null) {
-            return false;
-        }
-        UUID actor = KOMEReflection.getEntityUUID(player);
-        boolean temporary = KOMEArmyCompany.AUTHORITY_STEWARDSHIP.equals(company.controllerAuthority)
-            || KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority);
-        if (KOMEArmyCompany.AUTHORITY_ALLIANCE_DELEGATE.equals(company.controllerAuthority)) {
-            return canUseDelegatedCompanyControl(data, company, actor);
-        }
-        if (temporary) return new KOMEAllianceAuthority(data).canControlTemporaryCompany(company, actor).allowed;
-        return player.canCommandSenderUseCommand(2, getCommandName()) || actor.equals(company.owner);
+        return KOMECompanyMovementService.INSTANCE.canPlayerControlCompany(data, player, company);
     }
 
     private boolean canPlayerControlMovementOrder(EntityPlayerMP player, KOMEWorldData data, KOMEArmyMovementOrder order) {
@@ -4939,34 +4831,6 @@ public class KOMECommandTroops extends KOMEPublicCommand {
         return tile;
     }
 
-    private KOMEConquestTile requireCompanyStandableTile(KOMEWorldData data, KOMEArmyCompany company, String tileId, String role) {
-        String normalizedTile = KOMEConquestTile.normalizeId(tileId);
-        KOMEConquestTile tile = data.conquestTiles.get(normalizedTile);
-        String owner = tile == null ? "" : normalizeFaction(tile.projectRulingFaction());
-        if (company != null && tile != null && owner.length() > 0
-                && KOMEWartimeStewardshipService.canEnter(data, company, owner, false)) return tile;
-        return requireFactionStandableTile(data, company == null ? "" : company.faction, tileId, role);
-    }
-
-    private KOMEConquestTile requireFactionStandableTile(KOMEWorldData data, String factionKey, String tileId, String role) {
-        String normalizedTile = KOMEConquestTile.normalizeId(tileId);
-        KOMEConquestTile tile = data.conquestTiles.get(normalizedTile);
-        if (tile == null) {
-            throw new WrongUsageException(role + " tile " + normalizedTile + " was not found in conquest data.");
-        }
-        String owner = normalizeFaction(tile.projectRulingFaction());
-        String companyFaction = normalizeFaction(factionKey);
-        if (owner.length() == 0) {
-            throw new WrongUsageException(role + " tile " + normalizedTile + " is not claimed.");
-        }
-        if (owner.equals(companyFaction) || data.canFactionUseMilitaryPassage(companyFaction, owner)) {
-            return tile;
-        }
-        throw new WrongUsageException(role + " tile " + normalizedTile + " is owned by " + displayFaction(owner)
-            + " (" + emptyKey(owner) + "), and " + displayFaction(companyFaction) + " (" + emptyKey(companyFaction)
-            + ") has no LOTR Ally passage there.");
-    }
-
     private String companyStandBlockReason(KOMEWorldData data, KOMEArmyCompany company, String tileId) {
         String normalizedTile = KOMEConquestTile.normalizeId(tileId);
         KOMEConquestTile tile = data.conquestTiles.get(normalizedTile);
@@ -5042,227 +4906,16 @@ public class KOMECommandTroops extends KOMEPublicCommand {
     }
 
     private RouteResult findLegalRoute(KOMEWorldData data, String origin, String destination, String factionKey) {
-        return findLegalRoute(data, origin, destination, factionKey, null);
+        return KOMECompanyMovementService.INSTANCE.findLegalRoute(data, origin, destination, factionKey);
     }
 
     private RouteResult findLegalRoute(KOMEWorldData data, String origin, String destination, String factionKey,
             KOMEArmyCompany company) {
-        RouteResult result = new RouteResult();
-        String start = KOMEConquestTile.normalizeId(origin);
-        String goal = KOMEConquestTile.normalizeId(destination);
-        String faction = normalizeFaction(factionKey);
-        if (faction.length() == 0) {
-            KOMEConquestTile originTile = data == null ? null : data.getConquestTileIfPresent(start);
-            faction = originTile == null ? "" : normalizeFaction(originTile.projectRulingFaction());
-        }
-        if (data == null) {
-            result.failureCode = "GEOGRAPHY_UNAVAILABLE";
-            result.failureReason = "Conquest data is unavailable.";
-            return result;
-        }
-        if (start.length() == 0 || goal.length() == 0) {
-            result.failureCode = "INVALID_DESTINATION";
-            result.failureReason = "Origin and destination tiles are required.";
-            return result;
-        }
-        if (start.equals(goal)) {
-            result.failureCode = "INVALID_DESTINATION";
-            result.failureReason = "Origin and destination must be different tiles.";
-            return result;
-        }
-        KOMEConquestTile originTile = data.getConquestTileIfPresent(start);
-        if (originTile == null) {
-            result.failureCode = "UNKNOWN_GEOGRAPHY";
-            result.failureReason = "Origin tile " + start + " was not found in conquest data.";
-            return result;
-        }
-        String originOwner = normalizeFaction(originTile.projectRulingFaction());
-        if (originOwner.length() == 0) {
-            result.failureCode = "PASSAGE_DENIED";
-            result.failureReason = "Origin tile " + start + " is not claimed.";
-            return result;
-        }
-        if (!originOwner.equals(faction) && !data.canFactionUseMilitaryPassage(faction, originOwner)
-                && (company == null || !KOMEWartimeStewardshipService.canEnter(data, company, originOwner, false))) {
-            result.failureCode = "PASSAGE_DENIED";
-            result.failureReason = "Origin tile " + start + " is owned by " + displayFaction(originOwner)
-                + " (" + emptyKey(originOwner) + "), but moving faction is " + displayFaction(faction)
-                + " (" + emptyKey(faction) + ") and has no LOTR Ally passage there.";
-            return result;
-        }
-        String destinationBlock = routeTileBlockReason(data, goal, faction, true, company);
-        if (destinationBlock != null) {
-            result.failureCode = "PASSAGE_DENIED";
-            result.failureReason = destinationBlock;
-            return result;
-        }
-
-        Queue<String> queue = new LinkedList<String>();
-        Set<String> visited = new HashSet<String>();
-        Map<String, String> previous = new HashMap<String, String>();
-        queue.add(start);
-        visited.add(start);
-        result.visitedTiles.add(start);
-        while (!queue.isEmpty()) {
-            String current = queue.remove();
-            List<String> neighbors = new ArrayList<String>(data.getRouteNeighbors(current));
-            sortRouteNeighborsForGoal(data, current, neighbors, goal);
-            for (String neighbor : neighbors) {
-                String next = KOMEConquestTile.normalizeId(neighbor);
-                if (next.length() == 0 || visited.contains(next)) {
-                    continue;
-                }
-                KOMEConquestRouteEdge edge = data.getRouteEdge(current, next);
-                if (edge == null) {
-                    continue;
-                }
-                if (!edge.isPassable()) {
-                    addRouteBlocker(result, current, next, edge.describeBlock(),
-                        next.equals(goal) ? 100 : routeBlockPriority(edge), routeEdgeDenialCode(edge));
-                    continue;
-                }
-                String tileBlock = routeTileBlockReason(data, next, faction, next.equals(goal), company);
-                if (tileBlock != null) {
-                    addRouteBlocker(result, current, next, tileBlock, next.equals(goal) ? 100 : 70, "PASSAGE_DENIED");
-                    continue;
-                }
-                previous.put(next, current);
-                if (next.equals(goal)) {
-                    result.valid = true;
-                    buildRoute(result, previous, start, goal);
-                    addRouteEdgeNotes(data, result);
-                    return result;
-                }
-                visited.add(next);
-                result.visitedTiles.add(next);
-                queue.add(next);
-            }
-        }
-        result.failureReason = buildRouteFailureReason(result, start, goal, faction, visited);
-        if (result.failureCode.length() == 0) {
-            List<RouteBlocker> ordered = sortedRouteBlockers(result);
-            result.failureCode = ordered.isEmpty() ? "ROUTE_EDGE_MISSING" : ordered.get(0).code;
-        }
-        return result;
-    }
-
-    private void sortRouteNeighborsForGoal(final KOMEWorldData data, final String current, List<String> neighbors, final String goal) {
-        Collections.sort(neighbors, new Comparator<String>() {
-            @Override
-            public int compare(String first, String second) {
-                String a = KOMEConquestTile.normalizeId(first);
-                String b = KOMEConquestTile.normalizeId(second);
-                int passable = routeEdgePassRank(data, current, a) - routeEdgePassRank(data, current, b);
-                if (passable != 0) {
-                    return passable;
-                }
-                double distance = routeCenterDistanceSq(a, goal) - routeCenterDistanceSq(b, goal);
-                if (distance < 0.0D) {
-                    return -1;
-                }
-                if (distance > 0.0D) {
-                    return 1;
-                }
-                return a.compareTo(b);
-            }
-        });
-    }
-
-    private int routeEdgePassRank(KOMEWorldData data, String fromTile, String toTile) {
-        KOMEConquestRouteEdge edge = data == null ? null : data.getRouteEdge(fromTile, toTile);
-        if (edge == null) {
-            return 3;
-        }
-        if (edge.isPassable()) {
-            return edge.isSpecialPassage() ? 1 : 0;
-        }
-        return 2;
+        return KOMECompanyMovementService.INSTANCE.findLegalRoute(data, origin, destination, factionKey, company);
     }
 
     private double routeCenterDistanceSq(String tileId, String goalTileId) {
-        kome.common.data.KOMETileGameplayDefaults.Point tile = kome.common.data.KOMETileGameplayDefaults.get().getRouteReference(tileId);
-        kome.common.data.KOMETileGameplayDefaults.Point goal = kome.common.data.KOMETileGameplayDefaults.get().getRouteReference(goalTileId);
-        if (tile == null || goal == null) {
-            return Double.MAX_VALUE;
-        }
-        double dx = tile.x - goal.x;
-        double dz = tile.z - goal.z;
-        return dx * dx + dz * dz;
-    }
-
-    private void addRouteBlocker(RouteResult result, String fromTile, String toTile, String reason, int priority,
-            String code) {
-        if (result == null || reason == null || reason.length() == 0) {
-            return;
-        }
-        String from = KOMEConquestTile.normalizeId(fromTile);
-        String to = KOMEConquestTile.normalizeId(toTile);
-        for (RouteBlocker blocker : result.blockers) {
-            if (blocker.fromTile.equals(from) && blocker.toTile.equals(to) && blocker.reason.equals(reason)) {
-                blocker.priority = Math.max(blocker.priority, priority);
-                return;
-            }
-        }
-        if (result.blockers.size() >= 32 && priority < 100) {
-            return;
-        }
-        result.blockers.add(new RouteBlocker(from, to, reason, priority, code));
-    }
-
-    private String routeEdgeDenialCode(KOMEConquestRouteEdge edge) {
-        if (edge == null) return "ROUTE_EDGE_MISSING";
-        if (KOMEConquestRouteEdge.MOUNTAIN.equals(edge.edgeType)) return "MOUNTAIN_EDGE_BLOCKED";
-        if (KOMEConquestRouteEdge.RIVER.equals(edge.edgeType)) return "RIVER_EDGE_BLOCKED";
-        return "ROUTE_EDGE_BLOCKED";
-    }
-
-    private int routeBlockPriority(KOMEConquestRouteEdge edge) {
-        if (edge == null) {
-            return 0;
-        }
-        if (KOMEConquestRouteEdge.RIVER.equals(edge.edgeType) || KOMEConquestRouteEdge.MOUNTAIN.equals(edge.edgeType)) {
-            return 50;
-        }
-        return 20;
-    }
-
-    private String buildRouteFailureReason(RouteResult result, String start, String goal, String faction, Set<String> visited) {
-        StringBuilder message = new StringBuilder();
-        message.append("No legal route from ").append(start).append(" to ").append(goal).append(".");
-        message.append(" Destination ").append(goal).append(" was not reachable through claimed ")
-            .append(displayFaction(faction)).append(" tiles or partner tiles unlocked by an actual LOTR Ally relation.");
-        if (visited == null || visited.size() <= 1) {
-            message.append(" The origin has no legal outgoing route steps.");
-        }
-        List<RouteBlocker> blockers = new ArrayList<RouteBlocker>(result.blockers);
-        Collections.sort(blockers, new Comparator<RouteBlocker>() {
-            @Override
-            public int compare(RouteBlocker first, RouteBlocker second) {
-                if (first.priority != second.priority) {
-                    return second.priority - first.priority;
-                }
-                int from = first.fromTile.compareTo(second.fromTile);
-                return from != 0 ? from : first.toTile.compareTo(second.toTile);
-            }
-        });
-        if (!blockers.isEmpty()) {
-            message.append(" Blocked checks: ");
-            int shown = Math.min(3, blockers.size());
-            for (int i = 0; i < shown; i++) {
-                if (i > 0) {
-                    message.append("; ");
-                }
-                RouteBlocker blocker = blockers.get(i);
-                message.append(blocker.fromTile).append(" -> ").append(blocker.toTile).append(": ")
-                    .append(stripTrailingPeriod(blocker.reason));
-            }
-            if (blockers.size() > shown) {
-                message.append("; +").append(blockers.size() - shown).append(" more.");
-            }
-        } else {
-            message.append(" No adjacent path was found in the route graph.");
-        }
-        return message.toString();
+        return KOMECompanyMovementService.INSTANCE.routeCenterDistanceSq(tileId, goalTileId);
     }
 
     private String stripTrailingPeriod(String value) {
@@ -5274,73 +4927,6 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             text = text.substring(0, text.length() - 1);
         }
         return text;
-    }
-
-    private String routeTileBlockReason(KOMEWorldData data, String tileId, String factionKey, boolean destination) {
-        return routeTileBlockReason(data, tileId, factionKey, destination, null);
-    }
-
-    private String routeTileBlockReason(KOMEWorldData data, String tileId, String factionKey, boolean destination,
-            KOMEArmyCompany company) {
-        String tileKey = KOMEConquestTile.normalizeId(tileId);
-        KOMEConquestTile tile = data.getConquestTileIfPresent(tileKey);
-        if (tile == null) {
-            return "Tile " + tileKey + " was not found in conquest data.";
-        }
-        String owner = normalizeFaction(tile.projectRulingFaction());
-        String faction = normalizeFaction(factionKey);
-        if (owner.length() == 0) {
-            return (destination ? "Destination tile " : "Tile ") + tileKey + " is not claimed.";
-        }
-        if (owner.equals(faction)) {
-            return null;
-        }
-        if (data.canFactionUseMilitaryPassage(faction, owner)) {
-            return null;
-        }
-        if (company != null && KOMEWartimeStewardshipService.canEnter(data, company, owner, false)) {
-            return null;
-        }
-        if (destination && company != null
-                && KOMEConflictMovementService.evaluateHostileDestination(
-                    data, company, tileKey, true).allowed()) {
-            return null;
-        }
-        if (destination) {
-            return "Destination tile " + tileKey + " is owned by " + displayFaction(owner) + " ("
-                + emptyKey(owner) + "), and this detachment has neither LOTR passage nor an authorized hostile "
-                + "attack-destination commitment.";
-        }
-        return "Tile " + tileKey + " is controlled by " + displayFaction(owner) + " and no military passage permission exists.";
-    }
-
-    private void buildRoute(RouteResult result, Map<String, String> previous, String start, String goal) {
-        List<String> route = new ArrayList<String>();
-        String cursor = goal;
-        route.add(cursor);
-        while (!cursor.equals(start)) {
-            cursor = previous.get(cursor);
-            if (cursor == null || cursor.length() == 0) {
-                result.valid = false;
-                result.failureReason = "Route reconstruction failed.";
-                result.routeTiles.clear();
-                return;
-            }
-            route.add(cursor);
-        }
-        Collections.reverse(route);
-        result.routeTiles.addAll(route);
-    }
-
-    private void addRouteEdgeNotes(KOMEWorldData data, RouteResult result) {
-        for (int i = 1; i < result.routeTiles.size(); i++) {
-            KOMEConquestRouteEdge edge = data.getRouteEdge(result.routeTiles.get(i - 1), result.routeTiles.get(i));
-            if (edge != null && edge.isSpecialPassage()) {
-                String name = edge.name == null || edge.name.length() == 0 ? "" : " " + edge.name;
-                result.edgeNotes.add(KOMEConquestRouteEdge.displayEdgeType(edge.edgeType) + name
-                    + " (" + edge.fromTile + " <-> " + edge.toTile + ")");
-            }
-        }
     }
 
     private String formatRouteTiles(List<String> routeTiles) {
@@ -5498,36 +5084,6 @@ public class KOMECommandTroops extends KOMEPublicCommand {
             }
         }
         return edges.size();
-    }
-
-    private static class RouteResult {
-        public boolean valid;
-        public String failureCode = "";
-        public String failureReason = "";
-        public final List<String> routeTiles = new ArrayList<String>();
-        public final List<String> edgeNotes = new ArrayList<String>();
-        public final List<RouteBlocker> blockers = new ArrayList<RouteBlocker>();
-        public final Set<String> visitedTiles = new HashSet<String>();
-
-        public int distance() {
-            return Math.max(0, routeTiles.size() - 1);
-        }
-    }
-
-    private static class RouteBlocker {
-        public final String fromTile;
-        public final String toTile;
-        public final String reason;
-        public final String code;
-        public int priority;
-
-        private RouteBlocker(String fromTile, String toTile, String reason, int priority, String code) {
-            this.fromTile = fromTile;
-            this.toTile = toTile;
-            this.reason = reason;
-            this.code = code == null ? "ROUTE_BLOCKED" : code;
-            this.priority = priority;
-        }
     }
 
     private static String previousTileFor(KOMEArmyMovementOrder order) {

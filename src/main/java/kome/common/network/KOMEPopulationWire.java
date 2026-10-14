@@ -7,8 +7,12 @@ import kome.common.data.KOMEPopulationProjection;
 
 /** Shared exact projection codec and one matching-artifact protocol identity. */
 public final class KOMEPopulationWire {
-    // Retain published IDs 53-58; progression adds ID 59 and objective/eligibility payloads.
-    public static final String VERSION = "1.0.9-integration-g6";
+    // g13 reconciles dev and KOM-84: progression identities retain ID 59; ID 60 stays unused.
+    // Destination queries use 61/62; confirmed movement uses 63/64; source queries use 65/66.
+    // Rally retains its g11 payloads on 67/68; g12 source-scoped query semantics are preserved.
+    // KOM-84 correlations on Join Battle IDs 53-58 and embedded views remain unchanged.
+    // Dev objective/eligibility payloads remain intact. Neither g6 nor g12 is compatible.
+    public static final String VERSION = "1.0.9-integration-g13";
     public static final int MAX_DECIMAL_DIGITS = 64;
     public static final int MAX_ROWS = 4096;
     public static final int MAX_TEXT_BYTES = 4096;

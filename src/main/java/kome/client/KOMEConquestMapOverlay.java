@@ -114,11 +114,28 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     private static float savedMapZoomScale;
     private static float savedMapZoomScaleStable;
     private static float savedMapZoomExp;
+    private static final KOMEMapRadialMenu radialMenu = new KOMEMapRadialMenu();
+    private static LOTRGuiMap radialMap;
+    private static boolean radialLeftCaptured;
+    private static LOTRGuiMap radialDragMap;
+    private static Field mapButtonsField;
+    private static KOMECompanyDestinationSelector companySelector;
+    private static KOMECompanyOriginWorkflow originWorkflow;
+    private static KOMECompanyRallyClient rally;
+    private static KOMECompanyUnitsBrowser unitsBrowser;
+    private static kome.client.gui.KOMEGuiJoinBattle directJoinScreen;
+    private static boolean directJoinFromRoot;
+    private static java.util.UUID directJoinViewCorrelation, directJoinSession;
+    private static KOMECompanyDestinationPreview companyPreview = KOMECompanyDestinationPreview.EMPTY;
+    private static kome.common.network.KOMEPacketJoinBattleViewRequest battleContextRequest;
+    private static KOMERootJoinBattle rootJoin;
+    private static boolean selectorOnLeft;
     private boolean wasRightMouseDown;
     private boolean wasLeftMouseDown;
     private boolean wasEscapeDown;
 
     public static void beginDestinationSelection(String companyId, String companyName, String originTile) {
+        closeRadialInteraction();
         destinationCompanyId = companyId == null ? "" : companyId;
         destinationCompanyName = companyName == null ? "Company" : companyName;
         destinationOriginTile = KOMEConquestTile.normalizeId(originTile);
@@ -139,6 +156,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
 
     public static void beginRoutePreview(KOMEPacketCompanyMoveConfirmGui move) {
+        closeRadialInteraction();
         clearDestinationSelection();
         clearRoutePreviewError();
         routePreviewMove = move;
@@ -185,6 +203,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
     }
 
     public static void resetDestinationSelection() {
+        closeRadialInteraction();
         clearDestinationSelection();
         clearRoutePreview();
         clearRoutePreviewError();
@@ -216,6 +235,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         }
         LOTRGuiMap map = (LOTRGuiMap) event.gui;
         updateMapViewportState(map);
+        validateCompanySelectorLifecycle();
         if (shouldSkipMap(map)) {
             return;
         }
@@ -230,26 +250,32 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
 
         if (!ensureTileMaskLoaded()) return;
         int tileColor = getHoveredTileColor(map, event.mouseX, event.mouseY);
+        int radialHover = radialHit(map, event.mouseX, event.mouseY);
         drawClaimedTexture(map);
         drawMapTexture(map, getDesertShadeTextureLocation(), 1.0f);
         if (tileColor != 0) {
             drawHighlightTexture(map, tileColor);
         }
         drawGeometry(map, tileColor, false);
+        drawSelectorDestination(map);
+        drawTileCue(map,originSourceTile(map));
         drawMapTexture(map, getLabelTextureLocation(), 1.0f);
         drawActiveMovementRoutes(map);
         drawRoutePreview(map);
+        drawCompanyDestinationPreview(map);
         List<String> automaticBridgeTooltip = drawAutomaticBridgeDebugMarkers(map, event.mouseX, event.mouseY);
         List<String> riverBlockTooltip = drawAutomaticRiverBlockMarkers(map, event.mouseX, event.mouseY);
         drawRouteEdgeMarkers(map);
         drawTroopMarkers(map);
         List<String> liveUnitTooltip = drawLiveUnitMarkers(map, event.mouseX, event.mouseY);
         List<String> buildTooltip = drawBuildMarkers(map, event.mouseX, event.mouseY);
-        if (tileColor != 0 && automaticBridgeTooltip == null && riverBlockTooltip == null
+        if (!suppressMapInspection(map) && tileColor != 0 && automaticBridgeTooltip == null && riverBlockTooltip == null
                 && liveUnitTooltip == null && buildTooltip == null) {
             drawTileTooltip(map, tileColor, event.mouseX, event.mouseY);
         }
-        if (automaticBridgeTooltip != null) {
+        if (suppressMapInspection(map)) {
+            // Command mode and tile/marker inspection mode are mutually exclusive.
+        } else if (automaticBridgeTooltip != null) {
             drawAutomaticBridgeTooltip(map, automaticBridgeTooltip, event.mouseX, event.mouseY);
         } else if (riverBlockTooltip != null) {
             drawMarkerTooltip(map, riverBlockTooltip, event.mouseX, event.mouseY);
@@ -260,6 +286,32 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         }
         drawRoutePreviewPanel(map, event.mouseX, event.mouseY);
         drawRouteErrorPanel(map);
+        if (radialMap == map && radialMenu.isOpen() && !companySelectorOpen() && !originActive() && !unitsActive()) {
+            double[] anchor = radialAnchorMapPosition(radialMenu.tileId());
+            if (anchor != null) {
+                KOMEMapViewport view = viewport(map);
+                KOMEMapRadialRenderer.draw(radialMenu, view, view.screenX(anchor[0]), view.screenY(anchor[1]), radialHover,
+                    KOMEMinecraftClient.fontRenderer(), radialScale());
+            }
+        }
+    }
+
+    /** Last relevant map layer. Native marker depth must not occlude panel fills or text. */
+    @SubscribeEvent(priority = cpw.mods.fml.common.eventhandler.EventPriority.LOWEST)
+    public void onDrawCompanySelector(GuiScreenEvent.DrawScreenEvent.Post event) {
+        if (!(event.gui instanceof LOTRGuiMap)) return;
+        LOTRGuiMap map=(LOTRGuiMap)event.gui;
+        validateCompanySelectorLifecycle();
+        if (radialMap!=map || (!companySelectorOpen()&&!originActive()&&!unitsActive()) || shouldSkipMap(map)) return;
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_DEPTH_BUFFER_BIT | GL11.GL_CURRENT_BIT);
+        try {
+            GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glDepthMask(false);
+            if(unitsActive())KOMECompanyUnitsPanel.draw(unitsBrowser,unitsLayout(map),KOMEMinecraftClient.fontRenderer(),event.mouseX,event.mouseY);
+            else if(originPicking())drawOriginPrompt(map,event.mouseX,event.mouseY);
+            else KOMECompanyDestinationPanel.draw(companySelector,selectorLayout(map),KOMEMinecraftClient.fontRenderer(),
+                event.mouseX,event.mouseY,previewClock());
+        } finally {GL11.glPopAttrib();}
     }
 
     @SubscribeEvent
@@ -269,6 +321,8 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         }
         GuiScreen screen = KOMEMinecraftClient.currentScreen();
         updateMapViewportState(screen);
+        validateCompanySelectorLifecycle();
+        if ((radialMap != null && screen != radialMap) || (radialDragMap != null && screen != radialDragMap)) closeRadialInteraction();
         if (screen == null) {
             if (isChoosingDestination()) {
                 clearDestinationSelection();
@@ -292,14 +346,16 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             wasLeftMouseDown = leftMouseDown;
             return;
         }
-        if (leftMouseDown && !wasLeftMouseDown && screen instanceof LOTRGuiMap) {
+        if (leftMouseDown && !wasLeftMouseDown && !radialLeftCaptured && screen instanceof LOTRGuiMap) {
             LOTRGuiMap map = (LOTRGuiMap) screen;
             if (!shouldSkipMap(map)) {
                 int screenWidth = KOMEMinecraftClient.screenWidth(screen);
                 int screenHeight = KOMEMinecraftClient.screenHeight(screen);
                 int mouseX = Mouse.getX() * screenWidth / KOMEMinecraftClient.displayWidth();
                 int mouseY = screenHeight - Mouse.getY() * screenHeight / KOMEMinecraftClient.displayHeight() - 1;
-                if (isPreviewingRoute() && isOverRouteConfirmButton(map, mouseX, mouseY)) {
+                if (unitsActive() || rallyActive() || originActive() || selectorOwnsPointer(map,mouseX,mouseY) || radialOwnsPointer(map,mouseX,mouseY)) {
+                    // Panel input cannot also activate the independently polled KOME controls.
+                } else if (isPreviewingRoute() && isOverRouteConfirmButton(map, mouseX, mouseY)) {
                     KOMEPacketHandler.network.sendToServer(new kome.common.network.KOMEPacketTroopGuiAction(
                         "move", routePreviewMove.companyId, routePreviewMove.destinationTile,
                         routePreviewMove.originTile, routePreviewMove.previewToken));
@@ -326,7 +382,7 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
         wasLeftMouseDown = leftMouseDown;
 
         boolean rightMouseDown = Mouse.isButtonDown(1);
-        if (isPreviewingRoute() || !showConquestTiles || !rightMouseDown || wasRightMouseDown || !(screen instanceof LOTRGuiMap)) {
+        if (!isChoosingDestination() || isPreviewingRoute() || !showConquestTiles || !rightMouseDown || wasRightMouseDown || !(screen instanceof LOTRGuiMap)) {
             wasRightMouseDown = rightMouseDown;
             return;
         }
@@ -353,10 +409,592 @@ public class KOMEConquestMapOverlay implements net.minecraft.client.resources.IR
             wasRightMouseDown = rightMouseDown;
             return;
         }
-        if (tileId != null) {
-            KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(tileId));
-        }
         wasRightMouseDown = rightMouseDown;
+    }
+
+    @SubscribeEvent
+    public void onMapScreenChange(net.minecraftforge.client.event.GuiOpenEvent event) {
+        if ((radialMap != null && event.gui != radialMap) || (radialDragMap != null && event.gui != radialDragMap)) closeRadialInteraction();
+    }
+
+    private static void closeRadialInteraction() {
+        battleContextRequest=null;
+        closeUnits();closeRally();
+        if(originWorkflow!=null)originWorkflow.clear();originWorkflow=null;
+        if(rootJoin!=null)rootJoin.close();
+        closeCompanySelector(); radialMenu.close(); radialMap = null; releaseRadialCapture();
+    }
+
+    /** Called after LOTR's native waypoint picker and controls, before its base GUI handler. */
+    public static boolean onMapMouseClicked(LOTRGuiMap map, int mouseX, int mouseY, int button) {
+        validateCompanySelectorLifecycle();
+        if (button == 0) releaseRadialCapture(); // A fresh press starts a new gesture, even between render frames.
+        if (shouldSkipMap(map) || !showConquestTiles || isChoosingDestination() || isPreviewingRoute()
+                || !viewport(map).contains(mouseX, mouseY) || isOverMapControl(map, mouseX, mouseY)) return false;
+        if (button == 1) {
+            int color = getHoveredTileColor(map, mouseX, mouseY);
+            String tile = tileIdsByColor.get(color);
+            // A gap or unusable anchor leaves the existing interaction intact.
+            return openRadialAt(map,tile);
+        }
+        return false;
+    }
+
+    private static boolean openRadialAt(LOTRGuiMap map,String tile) {
+        if(!KOMEConquestTile.isCanonicalTileId(tile)||radialAnchorMapPosition(tile)==null)return false;
+        closeRadialInteraction();radialMenu.open(tile);radialMap=map;refreshRootJoinBattle();return true;
+    }
+    /** Small future notification seam: an already-open map and a currently known tile only. */
+    public static boolean focusRadialForTile(LOTRGuiMap map,String tile) {
+        if(map==null||KOMEMinecraftClient.get()==null||KOMEMinecraftClient.currentScreen()!=map||!showConquestTiles||shouldSkipMap(map)
+                ||isChoosingDestination()||isPreviewingRoute()||!tileColorsById.containsKey(tile))return false;
+        double[] anchor=radialAnchorMapPosition(tile);if(anchor==null)return false;
+        try {
+            setMapFieldValue(map,"posX",(float)anchor[0]);setMapFieldValue(map,"posY",(float)anchor[1]);
+            setMapFieldValue(map,"prevPosX",(float)anchor[0]);setMapFieldValue(map,"prevPosY",(float)anchor[1]);
+            setMapFieldValue(map,"posXMove",0);setMapFieldValue(map,"posYMove",0);
+        } catch(Exception unavailable){return false;}
+        return openRadialAt(map,tile);
+    }
+    /** Explicit refresh seam; called on open/return, never by a render tick or polling timer. */
+    public static void refreshRootJoinBattle() {
+        if(radialMap==null||radialMenu.state()!=KOMEMapRadialMenu.State.ROOT||KOMEMinecraftClient.get()==null||KOMEMinecraftClient.currentScreen()!=radialMap)return;
+        if(!(kome.common.KOMEAddon.proxy instanceof KOMEClientProxy))return;
+        KOMECompanyDestinationClientState state=((KOMEClientProxy)kome.common.KOMEAddon.proxy).destinationOptions();
+        if(rootJoin==null||!rootJoin.boundTo(state))rootJoin=new KOMERootJoinBattle(state);
+        kome.common.network.KOMEPacketJoinBattleViewRequest request=rootJoin.open(radialMenu.tileId());
+        syncRootJoin();
+        if(request!=null)KOMEPacketHandler.network.sendToServer(request);
+    }
+    private static void syncRootJoin() {
+        boolean active=rootJoin!=null&&radialMap!=null&&radialMenu.state()==KOMEMapRadialMenu.State.ROOT
+            &&radialMenu.tileId().equals(rootJoinTile());
+        long now=previewClock();boolean available=active&&rootJoin.available(now);
+        boolean busy=active&&rootJoin.chooserPending();
+        radialMenu.rootJoin(available||busy,available&&rootJoin.armed(now),active?rootJoin.status():"",busy);
+    }
+    private static String rootJoinTile(){return rootJoin==null?"":rootJoin.tile();}
+    private static long previewClock() { return System.nanoTime() / 1000000L; }
+
+    private static void closeCompanySelector() {
+        clearDirectJoin();
+        if (companySelector != null) companySelector.close();
+        companySelector = null; companyPreview = KOMECompanyDestinationPreview.EMPTY;
+    }
+    private static void clearDirectJoin() {
+        if(directJoinScreen!=null)directJoinScreen.onGuiClosed();
+        directJoinScreen=null;directJoinViewCorrelation=null;directJoinSession=null;directJoinFromRoot=false;
+    }
+    private static boolean companySelectorOpen() { return companySelector != null && companySelector.isOpen(); }
+    private static void validateCompanySelectorLifecycle() {
+        syncRootJoin();
+        if(unitsBrowser!=null&&!unitsBrowser.active()){closeRadialInteraction();return;}
+        if(rally!=null&&!rally.active()){closeRadialInteraction();return;}
+        syncRally();
+        if(originWorkflow!=null&&!originWorkflow.active()){closeRadialInteraction();return;}
+        if (companySelector != null && !companySelector.isOpen()) closeRadialInteraction();
+        if(directJoinScreen!=null&&!(directJoinFromRoot
+                ?rootJoin!=null&&rootJoin.deploying()&&java.util.Objects.equals(directJoinSession,rootJoin.session())
+                :companySelector!=null&&companySelector.ownsJoinContinuation(directJoinSession)))clearDirectJoin();
+    }
+    private static void openCompanySelector(LOTRGuiMap map) {
+        if (companySelectorOpen()) return;
+        if (!(kome.common.KOMEAddon.proxy instanceof KOMEClientProxy)) return;
+        closeCompanySelector();
+        battleContextRequest=null;
+        KOMEClientProxy proxy = (KOMEClientProxy)kome.common.KOMEAddon.proxy;
+        companySelector = new KOMECompanyDestinationSelector(proxy.destinationOptions());
+        double[] anchor = radialAnchorMapPosition(radialMenu.tileId());
+        KOMEMapViewport view = viewport(map);
+        selectorOnLeft = anchor != null && view.screenX(anchor[0]) > (view.left + view.right) / 2;
+        sendDestinationRequest(companySelector.open(radialMenu.tileId()));
+    }
+    private static boolean unitsActive(){return unitsBrowser!=null&&unitsBrowser.active();}
+    private static KOMECompanyDestinationPanel.Layout unitsLayout(LOTRGuiMap map){return KOMECompanyUnitsPanel.layout(viewport(map),selectorOnLeft);}
+    private static void closeUnits(){if(unitsBrowser!=null)unitsBrowser.clear();unitsBrowser=null;}
+    private static void sendUnits(kome.common.network.KOMEPacketCompanyOriginRequest request){if(request!=null)KOMEPacketHandler.network.sendToServer(request);}
+    private static void openUnits(){
+        if(!(kome.common.KOMEAddon.proxy instanceof KOMEClientProxy))return;
+        closeCompanySelector();closeUnits();battleContextRequest=null;
+        unitsBrowser=new KOMECompanyUnitsBrowser(((KOMEClientProxy)kome.common.KOMEAddon.proxy).destinationOptions());
+        selectorOnLeft=false;sendUnits(unitsBrowser.open(radialMenu.tileId()));
+    }
+    public static void acceptCompanySourceOptions(kome.common.data.KOMECompanySourceOptions response){
+        validateCompanySelectorLifecycle();
+        if(radialMap!=null&&KOMEMinecraftClient.currentScreen()==radialMap&&unitsActive())unitsBrowser.accept(response,previewClock());
+    }
+    private static boolean unitsInput(LOTRGuiMap map,int x,int y,int button){
+        KOMECompanyDestinationPanel.Layout layout=unitsLayout(map);
+        if(!viewport(map).contains(x,y)||!layout.panel.contains(x,y))return false;
+        if(button==0){
+            KOMECompanyDestinationPanel.Control control=layout.controlAt(x,y);
+            if(control==KOMECompanyDestinationPanel.Control.BACK){closeUnits();refreshRootJoinBattle();}
+            else if(control==KOMECompanyDestinationPanel.Control.CLOSE)closeRadialInteraction();
+            else if(control==KOMECompanyDestinationPanel.Control.CLEAR)unitsBrowser.clearSelection();
+            else if(control==KOMECompanyDestinationPanel.Control.RETRY&&!unitsBrowser.loading())sendUnits(unitsBrowser.refresh());
+            else if(control==KOMECompanyDestinationPanel.Control.ROWS_UP||control==KOMECompanyDestinationPanel.Control.ROWS_DOWN)
+                sendUnits(unitsBrowser.scroll(control==KOMECompanyDestinationPanel.Control.ROWS_UP?-1:1,layout.capacity,previewClock()));
+            else if(control==null)unitsBrowser.select(layout.rowAt(x,y,unitsBrowser.rows().size()-unitsBrowser.offset()));
+            radialLeftCaptured=true;radialDragMap=map;
+        }
+        return true;
+    }
+    private static boolean rallyActive(){return rally!=null&&rally.active();}
+    private static void sendRally(kome.common.network.KOMEPacketCompanyRallyRequest request){if(request!=null)KOMEPacketHandler.network.sendToServer(request);}
+    private static void syncRally(){radialMenu.rally(rallyActive()?rally.label():"Rally Here",!rallyActive()||rally.enabled(),rallyActive()?rally.summary():"");}
+    private static void closeRally(){
+        if(rally!=null)sendRally(rally.cancel());rally=null;radialMenu.rally("Rally Here",true,"");
+    }
+    private static void clickRally(){
+        if(rallyActive()&&rally.canConfirm()){sendRally(rally.confirm());syncRally();return;}
+        if(rallyActive()&&!rally.canRefresh())return;
+        if(!(kome.common.KOMEAddon.proxy instanceof KOMEClientProxy))return;
+        closeCompanySelector();closeRally();battleContextRequest=null;
+        rally=new KOMECompanyRallyClient(((KOMEClientProxy)kome.common.KOMEAddon.proxy).destinationOptions());
+        sendRally(rally.open(radialMenu.tileId()));syncRally();
+    }
+    public static void acceptCompanyRally(kome.common.data.KOMECompanyRallySnapshot snapshot){
+        validateCompanySelectorLifecycle();
+        if(radialMap==null||KOMEMinecraftClient.currentScreen()!=radialMap||!rallyActive()||!rally.accept(snapshot))return;
+        syncRally();
+        if(snapshot.phase==kome.common.data.KOMECompanyRallySnapshot.Phase.DONE&&KOMEMinecraftClient.player()!=null)
+            KOMEMinecraftClient.player().addChatMessage(new net.minecraft.util.ChatComponentText(snapshot.message));
+    }
+    private static boolean originActive(){return originWorkflow!=null&&originWorkflow.active();}
+    static String originSourceTile(LOTRGuiMap map){return radialMap==map&&originActive()?originWorkflow.source():"";}
+    private static boolean originPicking(){return originActive()&&originWorkflow.stage()==KOMECompanyOriginWorkflow.Stage.PICK;}
+    private static void openOriginSelector(LOTRGuiMap map){
+        if(!(kome.common.KOMEAddon.proxy instanceof KOMEClientProxy))return;
+        closeCompanySelector();battleContextRequest=null;
+        originWorkflow=new KOMECompanyOriginWorkflow(((KOMEClientProxy)kome.common.KOMEAddon.proxy).destinationOptions());
+        selectorOnLeft=false;originWorkflow.open(radialMenu.tileId());
+    }
+    private static KOMECompanyDestinationPanel.Rect originPrompt(LOTRGuiMap map){
+        KOMEMapViewport v=viewport(map);return new KOMECompanyDestinationPanel.Rect((int)v.left+8,(int)v.top+8,Math.min(340,(int)(v.right-v.left)-16),56);
+    }
+    private static void drawOriginPrompt(LOTRGuiMap map,int mx,int my){
+        KOMECompanyDestinationPanel.Rect p=originPrompt(map);net.minecraft.client.gui.FontRenderer font=KOMEMinecraftClient.fontRenderer();
+        KOMEGuiTheme.drawSubPanel(p.x,p.y,p.width,p.height);
+        font.drawString(KOMEGuiTheme.trimToWidth(font,"Choose destination from "+originWorkflow.source(),p.width-16),p.x+8,p.y+6,KOMEGuiTheme.COLOR_GOLD);
+        font.drawString(KOMEGuiTheme.trimToWidth(font,"Source "+originWorkflow.source()+" | Right-click a tile",p.width-16),p.x+8,p.y+20,KOMEGuiTheme.COLOR_TEXT_LIGHT);
+        font.drawString("Back",p.x+8,p.y+40,KOMEGuiTheme.COLOR_TEXT_LIGHT);
+        font.drawString("Cancel",p.x+p.width-52,p.y+40,KOMEGuiTheme.COLOR_TEXT_LIGHT);
+    }
+    /** Right-click chooses a canonical tile at the current pan/zoom. Left drag and wheel stay native. */
+    private static boolean originInput(LOTRGuiMap map,int x,int y,int button){
+        if(!originPicking())return false;
+        KOMEMapViewport view=viewport(map);if(!view.contains(x,y))return false;
+        if(originPicking()){
+            KOMECompanyDestinationPanel.Rect p=originPrompt(map);
+            if(p.contains(x,y)){
+                if(button==0&&y>=p.y+34){
+                    if(x>=p.x+p.width/2)closeRadialInteraction();else {originWorkflow.clear();originWorkflow=null;}
+                    radialLeftCaptured=true;radialDragMap=map;
+                }
+                return true;
+            }
+            if(button!=1||isOverMapControl(map,x,y))return false;
+            String tile=tileIdsByColor.get(getHoveredTileColor(map,x,y));
+            if(tile!=null)chooseOriginDestination(map,tile);
+            return true;
+        }
+        return false;
+    }
+    static void chooseOriginDestination(LOTRGuiMap map,String tile){
+        if(!originPicking()||radialMap!=map||!kome.common.data.KOMEConquestTile.isCanonicalTileId(tile))return;
+        openOriginCompanies(tile);
+    }
+    private static void openOriginCompanies(String tile){
+        String source=originWorkflow.source();closeCompanySelector();
+        KOMEClientProxy proxy=(KOMEClientProxy)kome.common.KOMEAddon.proxy;
+        companySelector=new KOMECompanyDestinationSelector(proxy.destinationOptions());
+        kome.common.network.KOMEPacketCompanyDestinationRequest query=companySelector.openSource(source,tile);
+        originWorkflow.chooseDestination(tile);companyPreview=KOMECompanyDestinationPreview.EMPTY;sendDestinationRequest(query);
+    }
+    private static void sendDestinationRequest(kome.common.network.KOMEPacketCompanyDestinationRequest request) {
+        syncCompanyPreview();
+        if (request != null) KOMEPacketHandler.network.sendToServer(companySelector!=null&&companySelector.originQuery()?companySelector.originRequest(request):request);
+    }
+    public static void acceptCompanyDestinationOptions(kome.common.data.KOMECompanyDestinationOptions response) {
+        if (companySelector != null && companySelector.accept(response, previewClock())) {
+            if(originActive()&&originWorkflow.stage()==KOMECompanyOriginWorkflow.Stage.PREVIEW&&companySelector.selected()==null&&companySelector.phase()!=KOMECompanyDestinationSelector.Phase.LOADING)originWorkflow.chooser();
+            syncCompanyPreview();
+            kome.common.network.KOMEPacketCompanyDestinationRequest followup=companySelector.takeBrowseFollowup();
+            if(followup!=null)sendDestinationRequest(followup);
+        }
+    }
+    public static void acceptCompanyMovementResult(kome.common.data.KOMECompanyMovementResult result) {
+        if(companySelector==null)return;
+        kome.common.network.KOMEPacketCompanyDestinationRequest refresh=companySelector.acceptMovement(result);
+        companyPreview=KOMECompanyDestinationPreview.EMPTY;
+        if(refresh!=null)sendDestinationRequest(refresh);
+        kome.common.network.KOMEPacketJoinBattleViewRequest join=companySelector.joinViewRequest();
+        if(join!=null)KOMEPacketHandler.network.sendToServer(join);
+    }
+    public static void cancelMovementJoinIntent(kome.common.data.KOMECompanyMovementResult result) {
+        if(companySelector!=null&&companySelector.isDuplicateArrival(result))return;
+        cancelMovementJoinIntent();
+    }
+    public static void cancelMovementJoinIntent() {
+        clearDirectJoin();
+        if(companySelector!=null)companySelector.cancelJoinIntent();
+    }
+    public static void acceptJoinBattleView(kome.common.network.KOMEPacketJoinBattleViewResponse view) {
+        validateCompanySelectorLifecycle();
+        if(radialMap==null||KOMEMinecraftClient.currentScreen()!=radialMap)return;
+        if(rootJoin!=null&&rootJoin.owns(view.correlation)) {
+            if(radialMenu.state()!=KOMEMapRadialMenu.State.ROOT)return;
+            KOMERootJoinBattle.Reception result=rootJoin.accept(view,previewClock());syncRootJoin();
+            if(result==KOMERootJoinBattle.Reception.OPEN_CHOOSER) {
+                closeRadialInteraction();KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiJoinBattle(view));
+            } else if(result==KOMERootJoinBattle.Reception.DIRECT_JOIN) {
+                kome.client.gui.KOMEGuiJoinBattle screen=new kome.client.gui.KOMEGuiJoinBattle(view);
+                directJoinScreen=screen;directJoinFromRoot=true;
+                directJoinViewCorrelation=view.correlation;directJoinSession=rootJoin.session();
+                if(!screen.beginRootEntry(radialMap)) {
+                    directJoinScreen=null;directJoinFromRoot=false;directJoinViewCorrelation=null;directJoinSession=null;
+                    closeRadialInteraction();KOMEMinecraftClient.displayGui(screen);
+                }
+            } else if(result==KOMERootJoinBattle.Reception.DENIED&&KOMEMinecraftClient.player()!=null)
+                KOMEMinecraftClient.player().addChatMessage(new net.minecraft.util.ChatComponentText(rootJoin.status()));
+            return;
+        }
+        if(battleContextRequest!=null&&battleContextRequest.correlation.equals(view.correlation)) {
+            String tile=battleContextRequest.tileId;battleContextRequest=null;
+            if(radialMenu.state()==KOMEMapRadialMenu.State.BATTLE&&tile.equals(view.tileId)&&tile.equals(radialMenu.tileId()))
+                radialMenu.battleContext(!view.conflictId.isEmpty()&&view.conflictState!=null&&view.conflictState!=kome.common.data.KOMEConflictRecord.State.ENDED,knownHostileTile(tile));
+            return;
+        }
+        if(radialMenu.state()==KOMEMapRadialMenu.State.ROOT&&rootJoin!=null&&rootJoin.current()){
+            rootJoin.accept(view,previewClock());syncRootJoin();validateCompanySelectorLifecycle();return;
+        }
+        if(companySelector==null)return;
+        if(directJoinScreen!=null) {
+            if(!view.correlation.equals(directJoinViewCorrelation)||!directJoinScreen.matchesEntryView(view))cancelMovementJoinIntent();
+            return;
+        }
+        String company=companySelector.acceptJoinView(view);if(company==null)return;
+        kome.client.gui.KOMEGuiJoinBattle screen=new kome.client.gui.KOMEGuiJoinBattle(view,company);
+        // Retain the map/selector session until the direct request completes or is cancelled.
+        directJoinScreen=screen;directJoinViewCorrelation=view.correlation;directJoinSession=companySelector.sessionId();
+        if(screen.beginPreferredEntry(radialMap)) {
+            companySelector.joinStatus("Company moved successfully. Joining battle...");return;
+        }
+        directJoinScreen=null;directJoinViewCorrelation=null;directJoinSession=null;directJoinFromRoot=false;
+        closeRadialInteraction();
+        KOMEMinecraftClient.displayGui(screen);
+    }
+    /** Proxy has already checked the connection; the selector still owns movement/view correlation. */
+    public static boolean acceptDirectJoinResult(kome.common.network.KOMEPacketJoinBattleSelectionResult result) {
+        boolean owned=directJoinScreen!=null;
+        validateCompanySelectorLifecycle();
+        if(directJoinScreen==null){
+            if(owned)KOMEJoinBattleDiagnostics.event("retained map/direct handler discarded result: continuation/session invalidated");
+            return owned;
+        }
+        boolean continuation=directJoinFromRoot
+            ?rootJoin!=null&&rootJoin.deploying()&&java.util.Objects.equals(directJoinSession,rootJoin.session())
+            :companySelector!=null&&companySelector.ownsJoinContinuation(directJoinSession);
+        if(radialMap==null||KOMEMinecraftClient.currentScreen()!=radialMap||!continuation) {
+            KOMEJoinBattleDiagnostics.event("retained map/direct handler discarded result; close skipped: screen/continuation ownership mismatch");
+            clearDirectJoin();return true;
+        }
+        KOMEJoinBattleDiagnostics.event(directJoinFromRoot?"result consumed by root direct handler":"result consumed by movement direct handler");
+        kome.client.gui.KOMEGuiJoinBattle screen=directJoinScreen;
+        if(screen.acceptSelection(result)) {
+            if(result.status==kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.REJECTED) {
+                directJoinScreen=null;directJoinViewCorrelation=null;directJoinSession=null;directJoinFromRoot=false;
+                screen.useOwnScreen();closeRadialInteraction();KOMEMinecraftClient.displayGui(screen);
+            }else if(result.status==kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING&&!directJoinFromRoot) {
+                companySelector.joinStatus("Company moved successfully. "+screen.status());
+            }
+        }
+        return true;
+    }
+    private static boolean knownHostileTile(String tile) {
+        net.minecraft.client.Minecraft client=KOMEMinecraftClient.get();
+        net.minecraft.entity.player.EntityPlayer player=client==null?null:client.thePlayer;
+        if(player==null)return false;
+        lotr.common.fac.LOTRFaction pledge=lotr.common.LOTRLevelData.getData(player).getPledgeFaction();
+        String owner=KOMEClientData.INSTANCE.conquestRenderOwners().get(tile);
+        if(pledge==null||!pledge.isPlayableAlignmentFaction()||owner==null||owner.isEmpty())return false;
+        return knownHostileOwner(pledge.codeName(),owner);
+    }
+    static boolean knownHostileOwner(String pledge,String owner) {
+        lotr.common.fac.LOTRFaction faction=kome.common.data.KOMEAlliance.findLotrFaction(pledge);
+        if(faction==null||!faction.isPlayableAlignmentFaction()||owner==null||owner.isEmpty()||kome.common.data.KOMEAlliance.findLotrFaction(owner)==null)return false;
+        kome.common.data.KOMEDiplomacyRelation relation=kome.common.data.KOMEDiplomacyService.getRelation(KOMEClientData.INSTANCE,pledge,owner);
+        return relation==kome.common.data.KOMEDiplomacyRelation.ENEMIES||relation==kome.common.data.KOMEDiplomacyRelation.MORTAL_ENEMIES;
+    }
+    /** Discard cached conflict wording; refresh only on an explicit entry/return to Battle. */
+    private static void refreshBattleContext() {
+        battleContextRequest=null;
+        radialMenu.battleContext(false,knownHostileTile(radialMenu.tileId()));
+        if(kome.common.KOMEAddon.proxy instanceof KOMEClientProxy&&((KOMEClientProxy)kome.common.KOMEAddon.proxy).destinationOptions().isConnected()) {
+            battleContextRequest=new kome.common.network.KOMEPacketJoinBattleViewRequest(radialMenu.tileId(),java.util.UUID.randomUUID());
+            KOMEPacketHandler.network.sendToServer(battleContextRequest);
+        }
+    }
+    private static KOMECompanyDestinationPanel.Layout selectorLayout(LOTRGuiMap map) {
+        KOMECompanyDestinationPanel.Layout layout = new KOMECompanyDestinationPanel.Layout(viewport(map), selectorOnLeft,companySelectorOpen()&&companySelector.canConfirmAndJoin());
+        if(companySelectorOpen()&&companySelector.originQuery())for(KOMECompanyDestinationPanel.Control c:new KOMECompanyDestinationPanel.Control[]{KOMECompanyDestinationPanel.Control.FILTER_ALL,KOMECompanyDestinationPanel.Control.FILTER_READY,KOMECompanyDestinationPanel.Control.FILTER_ARRIVE})layout.controls.remove(c);
+        if(originActive()&&originWorkflow.stage()==KOMECompanyOriginWorkflow.Stage.SOURCE)
+            for(KOMECompanyDestinationPanel.Control c:new KOMECompanyDestinationPanel.Control[]{KOMECompanyDestinationPanel.Control.CONFIRM,KOMECompanyDestinationPanel.Control.CONFIRM_JOIN,KOMECompanyDestinationPanel.Control.CLEAR})layout.controls.remove(c);
+        if (companySelectorOpen()) companySelector.scrollRows(0,layout.capacity);
+        return layout;
+    }
+
+    /** Only visible UI cells/rectangles run before native picking; radial gaps/center remain pass-through. */
+    static boolean radialOwnsPointer(LOTRGuiMap map,int x,int y) {
+        return map!=null && !companySelectorOpen() && !originActive() && !unitsActive() && showConquestTiles && !shouldSkipMap(map)
+            && !isChoosingDestination() && !isPreviewingRoute() && radialHit(map,x,y)>=0;
+    }
+    private static boolean onMapRadialSegmentMouseClicked(LOTRGuiMap map,int mouseX,int mouseY,int button) {
+        if (!radialOwnsPointer(map,mouseX,mouseY)) return false;
+        if (button!=0) return true; // Segment-owned auxiliary clicks never reach the map underneath.
+        int index=radialHit(map,mouseX,mouseY);
+        KOMEMapRadialMenu.Action clicked=radialMenu.segments().get(index).action;
+        if(clicked!=KOMEMapRadialMenu.Action.RALLY_HERE)closeRally();
+        KOMEMapRadialMenu.Action action = radialMenu.activate(index);
+        if(clicked==KOMEMapRadialMenu.Action.JOIN_BATTLE) {
+            kome.common.network.KOMEPacketJoinBattleViewRequest request=rootJoin==null?null:rootJoin.click(previewClock());
+            syncRootJoin();if(request!=null)KOMEPacketHandler.network.sendToServer(request);
+        } else if(rootJoin!=null)rootJoin.cancelAction();
+        syncRootJoin();
+        if(action==KOMEMapRadialMenu.Action.BACK)refreshRootJoinBattle();
+        if (action == KOMEMapRadialMenu.Action.INFO)
+            KOMEPacketHandler.network.sendToServer(new KOMEPacketConquestOpenCapture(radialMenu.tileId()));
+        if(action==KOMEMapRadialMenu.Action.COMPANIES)openUnits();
+        if(action==KOMEMapRadialMenu.Action.RALLY_HERE)clickRally();
+        if (action == KOMEMapRadialMenu.Action.MOVE_TO)openOriginSelector(map);
+        if (action == KOMEMapRadialMenu.Action.MOVE_HERE) openCompanySelector(map);
+        if(action==KOMEMapRadialMenu.Action.REINFORCE||action==KOMEMapRadialMenu.Action.ATTACK)openCompanySelector(map);
+        if(action==KOMEMapRadialMenu.Action.BATTLE)refreshBattleContext();
+        if (action == KOMEMapRadialMenu.Action.CLOSE) closeRadialInteraction();
+        // Keep the closing press captured until release, even though the interaction itself is now cleared.
+        radialLeftCaptured = true; radialDragMap = map;
+        return true; // Disabled segments consume their own click without issuing any order/query.
+    }
+
+    /** Selector panel first, then the rendered radial button cells, before native picking. */
+    public static boolean onMapSelectorMouseClicked(LOTRGuiMap map, int mouseX, int mouseY, int button) {
+        validateCompanySelectorLifecycle();
+        if (button == 0) releaseRadialCapture();
+        if(unitsActive()&&radialMap==map&&!shouldSkipMap(map)&&unitsInput(map,mouseX,mouseY,button))return true;
+        if(originActive()&&radialMap==map&&!shouldSkipMap(map)&&originInput(map,mouseX,mouseY,button))return true;
+        if (!selectorOwnsPointer(map,mouseX,mouseY)) return onMapRadialSegmentMouseClicked(map,mouseX,mouseY,button);
+        KOMECompanyDestinationPanel.Layout layout = selectorLayout(map);
+        if (!layout.panel.contains(mouseX,mouseY)) return false;
+        if (button == 0) {
+            KOMECompanyDestinationPanel.Control control = layout.controlAt(mouseX,mouseY);
+            if (control != null && KOMECompanyDestinationPanel.enabled(control,companySelector,layout,previewClock())) {
+                switch (control) {
+                    case ROWS_UP:
+                        browseCompanies(-1,layout.capacity);break;
+                    case ROWS_DOWN:
+                        browseCompanies(1,layout.capacity);break;
+                    case FILTER_ALL:case FILTER_READY:case FILTER_ARRIVE:
+                        KOMECompanyDestinationSelector.Filter filter=control==KOMECompanyDestinationPanel.Control.FILTER_ALL?KOMECompanyDestinationSelector.Filter.ALL:
+                            control==KOMECompanyDestinationPanel.Control.FILTER_READY?KOMECompanyDestinationSelector.Filter.READY:KOMECompanyDestinationSelector.Filter.ARRIVE_NOW;
+                        sendDestinationRequest(companySelector.setFilter(filter));
+                        syncCompanyPreview();break;
+                    case CONFIRM:
+                        kome.common.network.KOMEPacketCompanyMovementRequest order=companySelector.confirm();
+                        companyPreview=KOMECompanyDestinationPreview.EMPTY;
+                        if(order!=null)KOMEPacketHandler.network.sendToServer(order);
+                        break;
+                    case CONFIRM_JOIN:
+                        kome.common.network.KOMEPacketCompanyMovementRequest combined=companySelector.confirmJoinClick(previewClock());
+                        syncCompanyPreview();
+                        if(combined!=null)KOMEPacketHandler.network.sendToServer(combined);
+                        break;
+                    case RETRY:
+                        if(originActive()){companySelector.clearSelection();originWorkflow.chooser();}
+                        sendDestinationRequest(companySelector.retry(previewClock()));companyPreview=KOMECompanyDestinationPreview.EMPTY;break;
+                    case BACK:
+                        if(originWorkflow!=null){
+                            if(originWorkflow.stage()==KOMECompanyOriginWorkflow.Stage.PREVIEW)openOriginCompanies(originWorkflow.destination());
+                            else {closeCompanySelector();originWorkflow.pickAgain();}break;
+                        }
+                        closeCompanySelector();
+                        if(radialMenu.state()==KOMEMapRadialMenu.State.BATTLE)refreshBattleContext();
+                        break;
+                    case CLEAR: companySelector.clearSelection();if(originActive())originWorkflow.chooser();companyPreview=KOMECompanyDestinationPreview.EMPTY; break;
+                    case CLOSE: closeRadialInteraction(); break;
+                }
+            } else if (control == null) {
+                int index = layout.rowAt(mouseX,mouseY,companySelector.rows().size()-companySelector.rowOffset());
+                kome.common.data.KOMECompanyDestinationOptions.Row row=companySelector.visibleRow(index);
+                if (row != null) {
+                    sendDestinationRequest(companySelector.selectForBrowse(row.companyId));
+                    if(originActive()){if(companySelector.isSelected(row.companyId))originWorkflow.preview(row);else originWorkflow.chooser();}
+                    companyPreview=KOMECompanyDestinationPreview.of(companySelector.selectedRoute(),KOMEConquestMapOverlay::radialAnchorMapPosition);
+                }
+            }
+            radialLeftCaptured=true;radialDragMap=map;
+        }
+        return true;
+    }
+
+    static boolean selectorOwnsPointer(LOTRGuiMap map,int mouseX,int mouseY) {
+        return map!=null && radialMap==map && companySelectorOpen() && !shouldSkipMap(map)
+            && viewport(map).contains(mouseX,mouseY) && selectorLayout(map).panel.contains(mouseX,mouseY);
+    }
+    /** Native wheel poll seam; map zoom keeps the original wheel value outside this panel. */
+    public static int mapMouseWheel(LOTRGuiMap map) {
+        int delta=Mouse.getEventDWheel();
+        net.minecraft.client.Minecraft client=KOMEMinecraftClient.get();
+        if (client==null || client.displayWidth<=0 || client.displayHeight<=0) return delta;
+        int x=Mouse.getEventX()*map.width/client.displayWidth;
+        int y=map.height-Mouse.getEventY()*map.height/client.displayHeight-1;
+        return selectorWheelDelta(map,x,y,delta);
+    }
+    static int selectorWheelDelta(LOTRGuiMap map,int x,int y,int delta) {
+        return onMapSelectorWheel(map,x,y,delta)?0:delta;
+    }
+    static boolean onMapSelectorWheel(LOTRGuiMap map,int x,int y,int delta) {
+        validateCompanySelectorLifecycle();
+        if(unitsActive()&&radialMap==map&&unitsLayout(map).panel.contains(x,y)){if(delta!=0)sendUnits(unitsBrowser.scroll(delta>0?-1:1,unitsLayout(map).capacity,previewClock()));return true;}
+        if (!selectorOwnsPointer(map,x,y)) return false;
+        if (delta!=0) browseCompanies(delta>0?-1:1,selectorLayout(map).capacity);
+        return true;
+    }
+
+    private static void browseCompanies(int direction,int capacity) {
+        sendDestinationRequest(companySelector.browse(direction,capacity,previewClock()));
+        syncCompanyPreview();
+    }
+    private static void syncCompanyPreview() {
+        companyPreview=KOMECompanyDestinationPreview.of(companySelector.selectedRoute(),KOMEConquestMapOverlay::radialAnchorMapPosition);
+    }
+    static String selectorDestinationTile(LOTRGuiMap map) {
+        return radialMap==map?(unitsActive()?unitsBrowser.tile():rallyActive()?rally.destination():companySelectorOpen()?companySelector.destination():""):"";
+    }
+    private static void drawSelectorDestination(LOTRGuiMap map) {
+        drawTileCue(map,selectorDestinationTile(map));
+    }
+    private static void drawTileCue(LOTRGuiMap map,String tile) {
+        Integer color=tileColorsById.get(tile);
+        if(mapBorders==null||color==null)return;
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT|GL11.GL_COLOR_BUFFER_BIT|GL11.GL_CURRENT_BIT);
+        try {
+            GL11.glDisable(GL11.GL_TEXTURE_2D);GL11.glDisable(GL11.GL_LIGHTING);GL11.glDisable(GL11.GL_DEPTH_TEST);
+            GL11.glEnable(GL11.GL_BLEND);GL11.glBlendFunc(GL11.GL_SRC_ALPHA,GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GeometryBatch batch=new GeometryBatch(Tessellator.instance);
+            mapBorders.drawDestination(viewport(map),color,batch);batch.finish();
+        } finally {GL11.glPopAttrib();}
+    }
+    private static void drawCompanyDestinationPreview(LOTRGuiMap map) {
+        if (radialMap != map || !companySelectorOpen() || companyPreview.points.isEmpty()) return;
+        KOMEMapViewport view=viewport(map);
+        GL11.glPushAttrib(GL11.GL_ENABLE_BIT | GL11.GL_SCISSOR_BIT | GL11.GL_COLOR_BUFFER_BIT | GL11.GL_CURRENT_BIT);
+        try {
+            KOMEGuiTheme.enableScissor(KOMEMinecraftClient.get(),(int)view.left,(int)view.top,(int)(view.right-view.left),(int)(view.bottom-view.top));
+            for(int i=0;i<companyPreview.points.size();i++) {
+                KOMECompanyDestinationPreview.Point point=companyPreview.points.get(i);
+                if(point==null)continue;
+                int x=(int)Math.round(view.screenX(point.x)),y=(int)Math.round(view.screenY(point.y));
+                if(i>0) {
+                    KOMECompanyDestinationPreview.Point previous=companyPreview.points.get(i-1);
+                    if(previous!=null) {
+                        int px=(int)Math.round(view.screenX(previous.x)),py=(int)Math.round(view.screenY(previous.y));
+                        drawLine(px,py,x,y,ROUTE_LINE_SHADOW,2.25F);drawLine(px,py,x,y,ROUTE_LINE_COLOR,1.25F);
+                    }
+                }
+                if(i==0)drawRouteOriginMarker(x,y);
+                else if(i==companyPreview.points.size()-1)drawRouteDestinationMarker(x,y);
+                else drawRouteIntermediatePoint(x,y);
+            }
+        } finally { GL11.glPopAttrib(); }
+    }
+
+    /** Native picker success, for ANY waypoint. No visibility/travel rules are duplicated here. */
+    public static void onNativeWaypointClick(LOTRGuiMap map) {
+        if(originActive())return;
+        if (radialMap == map && radialMenu.isOpen()) closeRadialInteraction();
+    }
+
+    static double radialScale() {
+        net.minecraft.client.Minecraft client = KOMEMinecraftClient.get();
+        if (client == null || client.gameSettings == null) return 1;
+        net.minecraft.client.gui.ScaledResolution resolution =
+            new net.minecraft.client.gui.ScaledResolution(client, client.displayWidth, client.displayHeight);
+        return KOMEMapRadialMenu.scaleForGuiFactor(resolution.getScaleFactor());
+    }
+
+    /** Escape dismisses the interaction first; native map/waypoint keys otherwise remain untouched. */
+    public static boolean onMapKeyTyped(LOTRGuiMap map, int key) {
+        if (key != Keyboard.KEY_ESCAPE || radialMap != map || !radialMenu.isOpen() || shouldSkipMap(map)) return false;
+        closeRadialInteraction(); return true;
+    }
+
+    /** LOTR polls drag state during drawing, independently of mouseClicked. Capture only a segment-origin gesture. */
+    public static boolean isMapDragButtonDown(int button, LOTRGuiMap map) {
+        return mapDragButtonDown(map, Mouse.isButtonDown(button));
+    }
+    static boolean mapDragButtonDown(LOTRGuiMap map, boolean down) {
+        if (!down) releaseRadialCapture();
+        return down && !(radialDragMap == map && radialLeftCaptured);
+    }
+
+    private static void releaseRadialCapture() { radialLeftCaptured = false; radialDragMap = null; }
+
+    /** Presentation-only guard shared by native waypoint and KOME inspection renderers. */
+    public static boolean suppressMapInspection(LOTRGuiMap map) {
+        return map != null && radialMap == map && radialMenu.isOpen() && showConquestTiles && !shouldSkipMap(map);
+    }
+
+    private static int radialHit(LOTRGuiMap map, int mouseX, int mouseY) {
+        syncRootJoin();
+        if (radialMap != map || !radialMenu.isOpen() || !viewport(map).contains(mouseX, mouseY)) return -1;
+        double[] anchor = radialAnchorMapPosition(radialMenu.tileId());
+        if (anchor == null) return -1;
+        KOMEMapViewport view = viewport(map);
+        return radialMenu.hit(mouseX - view.screenX(anchor[0]), mouseY - view.screenY(anchor[1]), radialScale());
+    }
+
+    /** Same projected waypoint and raster-center sources used by the existing map markers, in map space. */
+    static double[] radialAnchorMapPosition(String tileId) {
+        String tile = KOMEConquestTile.normalizeId(tileId);
+        double[] waypoint = radialWaypointMapPosition(tile);
+        if (waypoint != null) return waypoint;
+        int[] center = tileCentersById.get(tile);
+        if (center == null || tileRaster == null) return null;
+        return new double[] {center[0] * (double) tileRaster.transform.mapWidth / tileRaster.width,
+            center[1] * (double) tileRaster.transform.mapHeight / tileRaster.height};
+    }
+
+    private static double[] radialWaypointMapPosition(String tile) {
+        KOMETileWaypointLink link = KOMEClientData.INSTANCE.tileWaypointLinksByTileId.get(tile);
+        if (link != null && link.dimensionId == LOTRDimension.MIDDLE_EARTH.dimensionID) {
+            lotr.common.world.map.LOTRWaypoint waypoint = link.resolveWaypoint();
+            if (waypoint != null || link.waypointWorldX != 0 || link.waypointWorldZ != 0) {
+                int x = waypoint == null ? link.waypointWorldX : waypoint.getXCoord();
+                int z = waypoint == null ? link.waypointWorldZ : waypoint.getZCoord();
+                return new double[] {x / (double) LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originX,
+                    z / (double) LOTRGenLayerWorld.scale + LOTRGenLayerWorld.originZ};
+            }
+        }
+        return null;
+    }
+
+    private static boolean isOverMapControl(LOTRGuiMap map, int mouseX, int mouseY) {
+        if (isOverConquestToggleButton(map, mouseX, mouseY) || isOverRiverBlockToggleButton(map, mouseX, mouseY)
+                || isOverBridgeToggleButton(map, mouseX, mouseY) || isOverTroopToggleButton(map, mouseX, mouseY)) return true;
+        for (Object object : (List) mapFieldValue(null, "mapWidgets")) {
+            lotr.client.gui.LOTRGuiMapWidget widget = (lotr.client.gui.LOTRGuiMapWidget) object;
+            if (widget.isMouseOver(mouseX - mapInt("mapXMin"), mouseY - mapInt("mapYMin"), mapInt("mapWidth"), mapInt("mapHeight"))) return true;
+        }
+        List buttons;
+        try {
+            if (mapButtonsField == null) mapButtonsField = cpw.mods.fml.relauncher.ReflectionHelper.findField(GuiScreen.class, "buttonList", "field_146292_n");
+            buttons = (List) mapButtonsField.get(map);
+        } catch (IllegalAccessException failure) { throw new IllegalStateException("Could not read native map controls", failure); }
+        if (buttons != null) for (Object object : buttons) {
+            net.minecraft.client.gui.GuiButton button = (net.minecraft.client.gui.GuiButton) object;
+            if (button.visible && KOMEGuiTheme.isHovered(mouseX, mouseY, button.xPosition, button.yPosition, button.width, button.height)) return true;
+        }
+        return false;
     }
 
     private static int getHoveredTileColor(LOTRGuiMap map, int mouseX, int mouseY) {

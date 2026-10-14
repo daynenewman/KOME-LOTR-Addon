@@ -29,6 +29,7 @@ public class KOMEClientProxy extends KOMECommonProxy {
             () -> net.minecraft.client.Minecraft.getMinecraft().func_152345_ab());
     private final KOMEConquestSnapshotPublisher conquestSnapshots =
         new KOMEConquestSnapshotPublisher(clientTasks);
+    private KOMECompanyDestinationClientState destinationOptions;
     private KOMECurrentTileHud currentTileHud;
     private final KOMEProgressionTrackerOverlay progressionTrackerOverlay =
         new KOMEProgressionTrackerOverlay();
@@ -87,6 +88,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientConnect(FMLNetworkEvent.ClientConnectedToServerEvent event) {
+        destinationOptions().start(event == null ? null : event.handler);
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(event == null ? null : event.handler);
         conquestSnapshots.resetSession();
@@ -99,6 +101,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
 
     @SubscribeEvent
     public void onClientDisconnect(FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        destinationOptions().start(null);
         invalidateTacticalEditorPublications();
         kome.common.data.KOMEPublicWaypointClientState.INSTANCE.start(null);
         conquestSnapshots.resetSession();
@@ -109,6 +112,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     @SubscribeEvent
     public void onClientWorldUnload(net.minecraftforge.event.world.WorldEvent.Unload event) {
         if (event.world != null && event.world.isRemote) {
+            destinationOptions().close();
             invalidateTacticalEditorPublications();
             if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
             if (tacticalEditor != null) tacticalEditor.clearScope();
@@ -116,6 +120,32 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
             conquestSnapshots.resetSession();
             KOMEClientData.INSTANCE.clearConquestTooltip();
         }
+    }
+
+    public synchronized KOMECompanyDestinationClientState destinationOptions() {
+        if (destinationOptions == null) destinationOptions = new KOMECompanyDestinationClientState();
+        return destinationOptions;
+    }
+
+    /** Explicit future interaction hook; never invoked by ticks/rendering. */
+    public void requestCompanyDestinationOptions(String tile,int limit,String after,String catalogue) {
+        kome.common.network.KOMEPacketHandler.network.sendToServer(destinationOptions().request(tile,limit,after,catalogue));
+    }
+
+    @Override public void acceptCompanyDestinationOptions(
+            kome.common.data.KOMECompanyDestinationOptions snapshot,Object connection) {
+        if (destinationOptions().accept(snapshot,connection)) KOMEConquestMapOverlay.acceptCompanyDestinationOptions(snapshot);
+    }
+
+    @Override public void acceptCompanySourceOptions(kome.common.data.KOMECompanySourceOptions snapshot,Object connection){
+        if(destinationOptions().isConnection(connection))KOMEConquestMapOverlay.acceptCompanySourceOptions(snapshot);
+    }
+    @Override public void acceptCompanyRally(kome.common.data.KOMECompanyRallySnapshot snapshot,Object connection){
+        if(destinationOptions().isConnection(connection))KOMEConquestMapOverlay.acceptCompanyRally(snapshot);
+    }
+    @Override public void acceptCompanyMovementResult(kome.common.data.KOMECompanyMovementResult result,Object connection) {
+        if(destinationOptions().acceptMovement(result,connection))KOMEConquestMapOverlay.acceptCompanyMovementResult(result);
+        else KOMEConquestMapOverlay.cancelMovementJoinIntent(result);
     }
 
     @Override
@@ -250,13 +280,34 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
             ((kome.client.gui.KOMEGuiJoinBattle)current).acceptView(message);
         else KOMEMinecraftClient.displayGui(new kome.client.gui.KOMEGuiJoinBattle(message));
     }
+    @Override public void acceptJoinBattleView(kome.common.network.KOMEPacketJoinBattleViewResponse message,Object connection) {
+        if(!destinationOptions().isConnection(connection))return;
+        if(!message.correlation.equals(new java.util.UUID(0,0)))KOMEConquestMapOverlay.acceptJoinBattleView(message);
+        else displayJoinBattleGui(message);
+    }
+
+    @Override public void acceptJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message,Object connection) {
+        if(destinationOptions().isConnection(connection))displayJoinBattleSelectionResult(message);
+        else KOMEJoinBattleDiagnostics.event("result ignored; close skipped: connection/session mismatch");
+    }
+    @Override public void acceptJoinBattleRetreatResult(kome.common.network.KOMEPacketJoinBattleRetreatResult message,Object connection) {
+        if(destinationOptions().isConnection(connection))displayJoinBattleRetreatResult(message);
+    }
 
       @Override public void displayJoinBattleSelectionResult(kome.common.network.KOMEPacketJoinBattleSelectionResult message) {
           net.minecraft.client.gui.GuiScreen current=KOMEMinecraftClient.currentScreen();
-          if(current instanceof kome.client.gui.KOMEGuiJoinBattle)
+          // The visible chooser owns its own request. A retired map continuation must
+          // never swallow its result while cleaning up its former screen ownership.
+          if(current instanceof kome.client.gui.KOMEGuiJoinBattle) {
+              KOMEJoinBattleDiagnostics.event("result delivered to visible chooser");
               ((kome.client.gui.KOMEGuiJoinBattle)current).acceptSelection(message);
-          else if(net.minecraft.client.Minecraft.getMinecraft().thePlayer!=null
-                  &&message.status!=kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING)
+              return;
+          }
+          if(KOMEConquestMapOverlay.acceptDirectJoinResult(message))return;
+          KOMEJoinBattleDiagnostics.event("result unowned; close skipped: no owning KOME screen/action");
+          if(net.minecraft.client.Minecraft.getMinecraft().thePlayer!=null
+                  &&message.status!=kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.ENTRY_PENDING
+                  &&message.status!=kome.common.network.KOMEPacketJoinBattleSelectionResult.Status.DEPLOYED)
               net.minecraft.client.Minecraft.getMinecraft().thePlayer.addChatMessage(
                   new net.minecraft.util.ChatComponentText(message.message));
       }

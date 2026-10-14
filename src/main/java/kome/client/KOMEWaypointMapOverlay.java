@@ -33,6 +33,7 @@ public final class KOMEWaypointMapOverlay {
             return;
         }
         LOTRGuiMap map = (LOTRGuiMap) event.gui;
+        if (KOMEConquestMapOverlay.suppressMapInspection(map)) return;
         LOTRAbstractWaypoint waypoint = getSelectedWaypoint(map);
         Minecraft minecraft = Minecraft.getMinecraft();
         if (waypoint == null || minecraft.thePlayer == null) {

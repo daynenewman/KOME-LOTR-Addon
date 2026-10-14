@@ -2,8 +2,8 @@
 
 [Index](../../INDEX.md)
 
-October 10 progression integration uses matching-artifact protocol
-`1.0.9-integration-g6`. Published Join Battle IDs 53–58 are retained; the previously
+KOM-84/dev reconciliation uses matching-artifact protocol
+`1.0.9-integration-g13`. Published Join Battle IDs 53–58 are retained; the previously
 unpublished progression identity packet moves to 59. Visual marker ID 43 includes
 the authoritative current-objective flag, and Standing eligibility retains its
 expanded payload. The existing network check rejects older artifacts. Progression
@@ -21,7 +21,7 @@ Owns authenticated request scheduling, packet codecs/publication, client snapsho
 - [KOMEGuiConquestCapture](../../../../src/main/java/kome/client/gui/KOMEGuiConquestCapture.java), [KOMEConquestMapOverlay](../../../../src/main/java/kome/client/KOMEConquestMapOverlay.java), [KOMEGuiCompanyList](../../../../src/main/java/kome/client/gui/KOMEGuiCompanyList.java), [KOMEGuiLordMenu](../../../../src/main/java/kome/client/gui/KOMEGuiLordMenu.java): visible consumers and intent creation.
 - [KOMEPacketServerRecordRequest](../../../../src/main/java/kome/common/network/KOMEPacketServerRecordRequest.java), [KOMEGuiServerRecords](../../../../src/main/java/kome/client/gui/KOMEGuiServerRecords.java): server-built permitted records, pagination, display. [KOMEGuiTheme](../../../../src/main/java/kome/client/gui/KOMEGuiTheme.java) and [KOMEGuiScrollPanel](../../../../src/main/java/kome/client/gui/KOMEGuiScrollPanel.java) own shared layout.
 
-Join Battle packet registration and [KOMEPopulationWire](../../../../src/main/java/kome/common/network/KOMEPopulationWire.java) now use integration-g5. [Disconnect evidence](../../../pr26-joinbattle-fix-20261009/README.md) records why an older client lacking response 54 must fail the exact-version handshake. [KOMEGuiJoinBattle](../../../../src/main/java/kome/client/gui/KOMEGuiJoinBattle.java) is a client projection; physical entry/receipt authority remains server-owned in the [conflict route](../conflict-tactical/README.md).
+Join Battle packet registration and [KOMEPopulationWire](../../../../src/main/java/kome/common/network/KOMEPopulationWire.java) now use integration-g13 (the earlier Join Battle integration used g5). [Disconnect evidence](../../../pr26-joinbattle-fix-20261009/README.md) records why an older client lacking response 54 must fail the exact-version handshake. [KOMEGuiJoinBattle](../../../../src/main/java/kome/client/gui/KOMEGuiJoinBattle.java) is a client projection; physical entry/receipt authority remains server-owned in the [conflict route](../conflict-tactical/README.md).
 
 Dependencies: [runtime/session ownership](../runtime-state/README.md), [population](../build-population/README.md), [geography](../geography/README.md), [progression](../progression/README.md), [waypoint synchronization](../waypoints/README.md). Integrated Character/Aqua/siege channels use their own dispatch; KOME queue guarantees do not automatically apply to them.
 
@@ -39,4 +39,19 @@ At this baseline [KOMEPacketProgressionData.Handler](../../../../src/main/java/k
 
 ## KOM-18 merge compatibility
 
-The merge retains dev's integration-g6 packet contract, including progression identities at 59 and Join Battle at 53?58. The removed KOM-89 presentation workaround belonged to the incompatible 1.0.8 artifact; the exact-version handshake rejects that artifact before packet handling. No custom hired-presentation queue or packet is restored. ID 60 remains unused. Dev-only offline identity opt-in and its credential guards remain in Gradle.
+The merged g13 contract retains dev's progression identities at 59, its objective/eligibility payloads, and KOM-84's correlated Join Battle shapes at 53-58. The removed KOM-89 presentation workaround belonged to the incompatible 1.0.8 artifact; the exact-version handshake rejects that artifact before packet handling. No custom hired-presentation queue or packet is restored. ID 60 remains unused. Dev-only offline identity opt-in and its credential guards remain in Gradle.
+
+## KOM-84 reconciled packet and workflow boundary
+
+ID 60 remains unused. Destination queries use 61/62, confirmed single-company movement uses 63/64,
+source metadata/source-scoped destination queries use 65/66, and Rally sessions use 67/68.
+KOM-84 payloads are unchanged by discriminator reassignment. Matching g13 artifacts are required;
+g6, g12 and 1.0.8 are rejected. Server intents retain the bounded server-thread handlers;
+tactical ID 48 continues to own its separate bounded queue.
+
+Map Move Here, Move To, Rally, root Join and tile-local Units share connection-fenced client state.
+Rally executes only frozen server-preview inclusions through fresh canonical company submissions;
+Units uses read-only source metadata. Join screen ownership/correlation, success-only close and
+non-pausing command screens remain client presentation rules, not deployment authority.
+Verify registration/protocol/public-access tests, company network tests and Join GUI tests alongside
+Campaign health/recovery/reconstruction and ordinary battle suites after reconciliation.

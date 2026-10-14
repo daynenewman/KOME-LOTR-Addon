@@ -27,6 +27,7 @@ public class KOMEWaypointTransformerTest {
                 KOMEWaypointTransformer.class.getName(),
                 kome.core.KOMECampaignHealthTransformer.class.getName(),
                 KOMEPublicWaypointTransformer.class.getName(),
+                KOMEMapInputTransformer.class.getName(),
                 KOMEProgressionOfferTransformer.class.getName(),
                 KOMEProgressionOfferGuiTransformer.class.getName(),
                 KOMEFactionTitleTransformer.class.getName(),
@@ -70,12 +71,13 @@ public class KOMEWaypointTransformerTest {
         }
         ClassNode node = new ClassNode();
         new ClassReader(transformed).accept(node, 0);
-        int publicWidgets = 0, publicVisibility = 0, progressionMarkers = 0;
+        int publicWidgets = 0, publicVisibility = 0, progressionMarkers = 0, radialInput = 0;
         for (MethodNode method : node.methods) {
             for (AbstractInsnNode instruction = method.instructions.getFirst(); instruction != null;
                     instruction = instruction.getNext()) {
                 if (instruction instanceof MethodInsnNode) {
                     MethodInsnNode call = (MethodInsnNode) instruction;
+                    if (KOMEMapInputTransformer.HOOK.equals(call.owner)) radialInput++;
                     if (KOMEPublicWaypointTransformer.CLIENT.equals(call.owner)) {
                         if ("beforeWidgets".equals(call.name)) publicWidgets++;
                         if ("isPublicVisible".equals(call.name)) publicVisibility++;
@@ -85,7 +87,8 @@ public class KOMEWaypointTransformerTest {
                 }
             }
             if ("renderMapWidgets".equals(method.name) || "isWaypointVisible".equals(method.name)
-                    || "renderMiniQuests".equals(method.name)) {
+                    || "renderMiniQuests".equals(method.name) || "mouseClicked".equals(method.name)
+                    || "keyTyped".equals(method.name) || "drawScreen".equals(method.name) || "renderWaypointTooltip".equals(method.name)) {
                 new org.objectweb.asm.tree.analysis.Analyzer(
                     new org.objectweb.asm.tree.analysis.BasicVerifier()).analyze(node.name, method);
             }
@@ -93,6 +96,7 @@ public class KOMEWaypointTransformerTest {
         assertEquals(1, publicWidgets);
         assertEquals(1, publicVisibility);
         assertEquals(1, progressionMarkers);
+        assertEquals(7, radialInput);
     }
 
     @Test

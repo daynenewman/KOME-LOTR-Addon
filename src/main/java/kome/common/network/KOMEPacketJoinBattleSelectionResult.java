@@ -7,6 +7,7 @@ import kome.common.data.*;
 
 /** Server-authoritative physical Join Battle entry result. */
 public final class KOMEPacketJoinBattleSelectionResult implements IMessage {
+    public java.util.UUID correlation=new java.util.UUID(0,0);
     public enum Status { DEPLOYED, ENTRY_PENDING, REJECTED }
     public Status status=Status.REJECTED;
     public KOMEJoinBattleService.Reason reason=KOMEJoinBattleService.Reason.INVALID_REQUEST;
@@ -33,6 +34,7 @@ public final class KOMEPacketJoinBattleSelectionResult implements IMessage {
             kome.common.KOMEReflection.getEntityUUID(player),KOMEWorldData.get(player.worldObj));return result;
     }
     @Override public void fromBytes(ByteBuf buf){
+        correlation=new java.util.UUID(buf.readLong(),buf.readLong());
         try{status=Status.valueOf(KOMEJoinBattleWire.text(buf,32,"selection status"));}
         catch(RuntimeException invalid){throw new IllegalArgumentException("Invalid Join Battle selection status",invalid);}
         reason=KOMEJoinBattleWire.reason(KOMEJoinBattleWire.text(buf,64,"reason"));
@@ -41,6 +43,7 @@ public final class KOMEPacketJoinBattleSelectionResult implements IMessage {
         current=new KOMEPacketJoinBattleViewResponse();current.fromBytes(buf);
     }
     @Override public void toBytes(ByteBuf buf){KOMEPopulationWire.writePacket(buf,out->{
+        out.writeLong(correlation.getMostSignificantBits());out.writeLong(correlation.getLeastSignificantBits());
         KOMEJoinBattleWire.write(out,status.name(),32,"selection status");
         KOMEJoinBattleWire.write(out,reason.name(),64,"reason");KOMEJoinBattleWire.write(out,message,256,"message");
         KOMEJoinBattleWire.write(out,receiptId,KOMEJoinBattleWire.MAX_RECEIPT_LENGTH,"receipt");current.toBytes(out);
@@ -48,7 +51,10 @@ public final class KOMEPacketJoinBattleSelectionResult implements IMessage {
     public static final class Handler implements IMessageHandler<KOMEPacketJoinBattleSelectionResult,IMessage>{
         @Override public IMessage onMessage(KOMEPacketJoinBattleSelectionResult message,MessageContext context){
             final KOMEPacketJoinBattleSelectionResult copy=KOMEPopulationWire.copyForPublication(message,KOMEPacketJoinBattleSelectionResult::new);
-            KOMEAddon.proxy.enqueueClientTask(()->KOMEAddon.proxy.displayJoinBattleSelectionResult(copy));return null;
+            final Object connection=context.getClientHandler();
+            try { KOMEAddon.proxy.enqueueClientTask(()->KOMEAddon.proxy.acceptJoinBattleSelectionResult(copy,connection)); }
+            catch(java.util.concurrent.RejectedExecutionException closed) { /* Disconnected publication. */ }
+            return null;
         }
     }
 }
