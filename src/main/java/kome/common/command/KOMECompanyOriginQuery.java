@@ -12,15 +12,21 @@ public final class KOMECompanyOriginQuery {
     private final KOMECompanyDestinationQuery projections;
     public KOMECompanyOriginQuery(KOMECompanyMovementService movement){this.movement=movement;projections=new KOMECompanyDestinationQuery(movement);}
     private boolean candidate(KOMEWorldData data,EntityPlayerMP actor,KOMEArmyCompany c,String source) {
-        if(c==null||!source.equals(c.currentTile)||!movement.canPlayerConsiderCompany(data,actor,c)
+        if(c==null||c.owner==null||data.armyCompanies.get(c.id)!=c||!source.equals(c.currentTile)||!movement.canPlayerConsiderCompany(data,actor,c)
                 ||c.units.isEmpty()||c.units.size()>MAX_MEMBERS)return false;
-        Set<UUID> seen=new HashSet<UUID>();
+        if(c.isMoving()){
+            KOMEArmyMovementOrder order=data.armyMovements.get(c.movementOrderId);
+            if(order==null||!c.id.equals(order.companyId)||!source.equals(order.currentTile))return false;
+        }
+        long total=0,mounted=0;Set<UUID> seen=new HashSet<UUID>();
         for(UUID member:c.units) {
             KOMEHiredUnitRecord record=data.hiredUnits.get(member);
             if(!seen.add(member)||record==null||!member.equals(record.entity)||!c.id.equals(record.companyId)
-                    ||!KOMEHiredUnitClassification.isCampaignUnit(record))return false;
+                    ||!KOMEHiredUnitClassification.isCampaignUnit(record)||!Objects.equals(c.owner,record.owner)
+                    ||!source.equals(record.currentTile)||record.farmhand||record.type!=KOMEPopulationType.OFFENSIVE)return false;
+            total+=Math.max(0,record.cost);if(record.mounted)mounted+=Math.max(0,record.cost);
         }
-        return true;
+        return total==c.totalPopulation&&mounted==c.mountedPopulation&&total-mounted==c.groundPopulation;
     }
     public KOMECompanySourceOptions source(KOMEWorldData data,EntityPlayerMP actor,UUID session,long seq,String source,String after,String token) {
         List<KOMECompanySourceOptions.Row> rows=new ArrayList<KOMECompanySourceOptions.Row>();

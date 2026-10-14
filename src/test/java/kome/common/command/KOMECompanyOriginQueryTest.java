@@ -139,6 +139,23 @@ public class KOMECompanyOriginQueryTest {
             assertEquals(8,ids.size());assertTrue(f.data.armyMovements.isEmpty());
         }
     }
+    @Test public void metadataInspectionIncludesExhaustedAndBattleHeldWithoutRouteEvaluationOrMutation()throws Exception{
+        try(Fixture f=new Fixture(false,1)){
+            f.company.movementAllowance=0;KOMEConflictService conflicts=f.data.getConflictService();
+            KOMEConflictRecord conflict=conflicts.start("T001",KOMEConflictRecord.State.ORDINARY,KOMEConflictContracts.ExpectedConflict.absent(),Collections.emptyList(),new KOMEConflictContracts.Context(1,"test","fixture")).record;
+            conflicts.commit("T001",KOMEConflictContracts.ExpectedConflict.at(conflict.getConflictId(),conflict.getRevision()),new KOMEConflictContracts.CommitmentInput("C1",KOMEHiredUnitClass.CAMPAIGN,KOMEConflictRecord.EntryOrigin.LEGAL_ARRIVAL,"M0"),new KOMEConflictContracts.Context(1,"test","fixture"));
+            NBTTagCompound before=f.company.writeToNBT(),unitBefore=f.unit.writeToNBT();f.data.setDirty(false);final int[] checks={0};f.world.arrivalInspection=()->checks[0]++;
+            KOMECompanySourceOptions page=source(f);assertEquals(1,page.rows.size());assertEquals(0,page.rows.get(0).allowance);assertTrue(page.rows.get(0).held);
+            assertEquals(before,f.company.writeToNBT());assertEquals(unitBefore,f.unit.writeToNBT());assertTrue(f.data.armyMovements.isEmpty());assertEquals(0,checks[0]);assertFalse(f.data.isDirty());
+        }
+    }
+    @Test public void staleSourceMemberOwnerLocationMissingAndDuplicateRecordsAreExcluded()throws Exception{
+        for(int stale=0;stale<9;stale++)try(Fixture f=new Fixture(false,1)){
+            if(stale==0)f.unit.owner=new UUID(9,9);if(stale==1)f.unit.currentTile="T003";if(stale==2)f.data.hiredUnits.clear();if(stale==3)f.company.units.add(f.unit.entity);
+            if(stale==4)f.company.id="C999";if(stale==5)f.unit.farmhand=true;if(stale==6)f.company.totalPopulation++;if(stale==7)f.unit.type=KOMEPopulationType.DEFENSIVE;if(stale==8)f.company.status=KOMEArmyCompany.MOVING;
+            assertTrue(source(f).rows.isEmpty());assertTrue(f.data.armyMovements.isEmpty());
+        }
+    }
     @Test public void sourcePagesAreBoundedAndInvalidatedWhenCatalogueChanges()throws Exception{
         try(Fixture f=new Fixture(false,1)){
             for(int i=2;i<=20;i++)add(f,String.format(Locale.ROOT,"C%02d",i),"T001");

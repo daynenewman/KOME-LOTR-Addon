@@ -18,7 +18,7 @@ final class KOMEMapRadialMenu {
         JOIN_BATTLE("Join Battle", true, "Confirm entry, then choose a committed company"),
         MOVEMENT("Move", true, "Open movement prototype"),
         BATTLE("Battle", true, "Open battle shell"),
-        COMPANIES("Units", false, "Company browsing is not wired in this prototype"),
+        COMPANIES("Units", true, "Inspect your Campaign companies on this tile"),
         INFO("Info", true, "Open existing tile information"),
         CLOSE("Close", true, "Dismiss this ring"),
         MOVE_HERE("Move Here", true, "Choose a company and preview its route"),

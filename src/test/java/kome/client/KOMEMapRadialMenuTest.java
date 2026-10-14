@@ -51,7 +51,7 @@ public class KOMEMapRadialMenuTest {
     }
     @Test public void disabledActionsDoNotTransition() {
         KOMEMapRadialMenu menu = open();
-        assertNull(menu.activate(4)); assertEquals(State.ROOT,menu.state()); menu.activate(0);
+        assertEquals(Action.COMPANIES,menu.activate(4)); assertEquals(State.ROOT,menu.state()); menu.activate(0);
         assertEquals(Action.MOVE_HERE,menu.activate(0)); assertEquals(State.MOVEMENT,menu.state());
     }
     @Test public void replacementAndInvalidEmptySelectionBehaveDeliberately() {
