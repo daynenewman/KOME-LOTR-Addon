@@ -56,6 +56,9 @@ public class KOMEHiredUnitRecord {
     /** Compatibility field: true means cleanup handled funding; canonical population is never refunded. */
     public boolean populationReturned;
     public String releaseState = "";
+    /** Receipt expected on a reset-returned physical entity; stale virtual disk copies are rejected. */
+    public String seasonReturnToken = "";
+    public boolean seasonReturnVirtual;
     public NBTTagCompound movingEntityData;
     /** Reconstruction payload only; never a verified Join Battle/chunk locator. */
     public NBTTagCompound stationedEntityData;
@@ -63,6 +66,7 @@ public class KOMEHiredUnitRecord {
     private KOMEHiredUnitPhysicalLocator physicalLocator;
     transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedEntity;
     transient java.lang.ref.WeakReference<net.minecraft.entity.Entity> healthObservedMount;
+    transient KOMEWorldData healthAuthorityData;
 
     public void readFromNBT(NBTTagCompound nbt) {
         entity = UUID.fromString(nbt.getString("Entity"));
@@ -117,6 +121,8 @@ public class KOMEHiredUnitRecord {
         stewardshipWarIds = nbt.getString("StewardshipWarIds");
         populationReturned = nbt.getBoolean("PopulationReturned");
         releaseState = nbt.getString("ReleaseState");
+        seasonReturnToken = nbt.getString("SeasonReturnToken");
+        seasonReturnVirtual = nbt.getBoolean("SeasonReturnVirtual");
         movingEntityData = nbt.hasKey("MovingEntityData", 10) ? nbt.getCompoundTag("MovingEntityData") : null;
         stationedEntityData = nbt.hasKey("StationedEntityData", 10) ? nbt.getCompoundTag("StationedEntityData") : null;
         if (nbt.hasKey("SurvivingHealth") && !nbt.hasKey("SurvivingHealth", 10))
@@ -134,6 +140,8 @@ public class KOMEHiredUnitRecord {
                 || !KOMEConquestTile.normalizeId(currentTile).equals(
                     physicalLocator.getPhysicalTileId())))
             throw new IllegalArgumentException("Physical locator attached to an ineligible hired-unit state");
+        KOMECampaignHealth.validate(survivingHealth);
+        KOMECampaignHealth.logicalTarget(survivingHealth, entity, KOMEOrdinaryBattleRecoveryRegistry.Component.RIDER);
         healthObservedEntity = null;
         healthObservedMount = null;
         if (farmhand) {
@@ -147,6 +155,8 @@ public class KOMEHiredUnitRecord {
         KOMECampaignHealth.refresh(this);
         NBTTagCompound nbt = new NBTTagCompound();
         nbt.setString("Entity", entity.toString());
+        nbt.setString("SeasonReturnToken", seasonReturnToken);
+        nbt.setBoolean("SeasonReturnVirtual", seasonReturnVirtual);
         nbt.setString("Owner", owner.toString());
         nbt.setString("UnitClass", persistedUnitClass().name());
         nbt.setString("Type", type.key);
@@ -231,6 +241,7 @@ public class KOMEHiredUnitRecord {
     void assignPersistedUnitClass(KOMEHiredUnitClass value) {
         unitClass = value == KOMEHiredUnitClass.CAMPAIGN
             ? KOMEHiredUnitClass.CAMPAIGN : KOMEHiredUnitClass.ORDINARY;
+        if (healthAuthorityData != null) healthAuthorityData.campaignAssociations.track(this);
     }
 
     public boolean isFactionPopulationBankFunded() {

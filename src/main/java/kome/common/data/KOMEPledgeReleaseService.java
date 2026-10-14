@@ -32,6 +32,8 @@ public final class KOMEPledgeReleaseService {
         String current = KOMEAlliance.normalizeFactionKey(currentFaction);
         if (!data.lastKnownPlayerFactions.containsKey(playerId)) {
             String migrationBaseline = KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(playerId));
+            KOMEGovernanceService.retainDefeat(data, playerId, migrationBaseline, nowMillis);
+            KOMEGovernanceService.retainDefeat(data, playerId, current, nowMillis);
             data.lastKnownPlayerFactions.put(playerId, current);
             if (migrationBaseline.length() > 0 && !migrationBaseline.equals(current)) {
                 KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);
@@ -42,6 +44,7 @@ public final class KOMEPledgeReleaseService {
             return Result.noop("Pledge baseline recorded.");
         }
         String former = KOMEAlliance.normalizeFactionKey(data.lastKnownPlayerFactions.get(playerId));
+        KOMEGovernanceService.retainDefeat(data, playerId, former, nowMillis);
         if (former.equals(current)) return Result.noop("Pledge unchanged.");
         data.lastKnownPlayerFactions.put(playerId, current);
         KOMEProgressionRelationshipLifecycle.reconcilePledgeChange(data, player, current);
@@ -216,6 +219,8 @@ public final class KOMEPledgeReleaseService {
             KOMEHiredUnitPhysicalLocatorService.clear(data, record);
             if (tombstone.complete() && tombstone.completedTimestamp <= 0L) tombstone.completedTimestamp = nowMillis;
             data.removeUnitFromCompany(record);
+            KOMEOrdinaryBattleRecoveryService.terminal(data, record.entity, KOMEOrdinaryBattleRecoveryRegistry.Disposition.UNAVAILABLE,
+                System.currentTimeMillis(), "Campaign administrative removal");
             data.hiredUnits.remove(record.entity);
             result.unitsReleased++;
         }

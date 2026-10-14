@@ -392,6 +392,9 @@ public final class KOMECompanyMovementService {
         if (company == null) {
             throw new MovementDenied("UNKNOWN_COMPANY", "Unknown company " + companyId + ".");
         }
+        kome.common.data.KOMEGovernanceService.Decision governance =
+            kome.common.data.KOMEGovernanceService.militaryAction(data, KOMEReflection.getEntityUUID(player), company.faction);
+        if (!governance.allowed) throw new WrongUsageException(governance.reason);
         if (!canPlayerControlCompany(data, player, company)) {
             throw new MovementDenied("UNAUTHORIZED", "You do not own " + company.name + ".");
         }

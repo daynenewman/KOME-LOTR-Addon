@@ -1,0 +1,35 @@
+// Test-only mod and world. Invoke through validate.ps1 (Local\KOME-Heavy-Validation).
+import org.gradle.api.tasks.compile.JavaCompile
+import org.gradle.jvm.tasks.Jar
+
+allprojects { afterEvaluate {
+    tasks.register('compileCampaignVerification', JavaCompile) {
+        dependsOn tasks.named('classes')
+        source = project.fileTree('tools/campaign-lifecycle/java') { include '**/*.java' }
+        classpath = sourceSets.main.compileClasspath + sourceSets.main.output
+        destinationDirectory.set(layout.buildDirectory.dir('campaign-lifecycle/verification-classes'))
+        sourceCompatibility = '8'; targetCompatibility = '8'
+    }
+    tasks.register('campaignVerificationJar', Jar) {
+        dependsOn tasks.named('compileCampaignVerification')
+        from layout.buildDirectory.dir('campaign-lifecycle/verification-classes')
+        archiveFileName.set('campaign-verification.jar')
+        destinationDirectory.set(layout.buildDirectory.dir('campaign-lifecycle/forge/mods'))
+    }
+    tasks.named('runServer') {
+        dependsOn tasks.named('campaignVerificationJar')
+        workingDir = project.file('build/campaign-lifecycle/forge')
+        timeout.set(java.time.Duration.ofMinutes(4))
+        doFirst {
+            String phase = project.findProperty('campaignVerificationPhase') ?: 'first'
+            if (!(phase in ['first', 'restart'])) throw new GradleException('Use first or restart verification phase')
+            File world = new File(workingDir, 'campaign-lifecycle-disposable')
+            if (phase == 'first' && world.exists()) throw new GradleException('Disposable world already exists; do not overwrite evidence')
+            if (phase == 'restart' && !world.exists()) throw new GradleException('First verification world is missing')
+            workingDir.mkdirs()
+            new File(workingDir, 'verification-phase.txt').text = phase
+            new File(workingDir, 'eula.txt').text = 'eula=true\n'
+            new File(workingDir, 'server.properties').text = 'server-port=0\nlevel-name=campaign-lifecycle-disposable\nonline-mode=false\nview-distance=2\nmax-tick-time=120000\n'
+        }
+    }
+} }

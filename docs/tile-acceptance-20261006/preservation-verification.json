@@ -1,0 +1,28 @@
+{
+  "checkedAt": "2026-10-07T02:21:08.1298861Z",
+  "worktreesChecked": 25,
+  "worktreeDifferences": [],
+  "refsUnchanged": false,
+  "userRefsUnchanged": true,
+  "codexInternalRefDifferences": [
+    {
+      "InputObject": "2dc14b5a9228e07f1f700f73d1ab408e0c5ebe34 refs/codex/turn-diffs/captures/1791338927843/07f5d7f0-1aea-47b9-aa66-d45b85ec0f65/base",
+      "SideIndicator": "=>"
+    },
+    {
+      "InputObject": "2dc14b5a9228e07f1f700f73d1ab408e0c5ebe34 refs/codex/turn-diffs/checkpoints/e86ba13cd36863d22a064fbedf1d3ea0/9abcf7298b5bc197eb0be46e829b600c/1791338881047/091e2672-a9ca-4242-afb2-61bc98c2dd4f",
+      "SideIndicator": "=>"
+    },
+    {
+      "InputObject": "d56d68c8c55718a53af5fc773e93594773a1191f refs/codex/turn-diffs/captures/1791336900545/c18a1a4e-b516-40df-8819-a6958435ff99/base",
+      "SideIndicator": "<="
+    }
+  ],
+  "stashUnchanged": true,
+  "existingRuntimeRootsChecked": 5,
+  "existingRuntimeFileMetadataDifferences": [],
+  "originalClientProfile": "C:\\Users\\dayne\\AppData\\Roaming\\PrismLauncher\\instances\\kom60-pr12-20260926T205642Z-a86a68",
+  "originalClientProfileMetadataDifferences": [],
+  "intentionalNewWorkspaceFiles": "docs/tile-acceptance-20261006/* and ignored build/tile-acceptance-20261006/*",
+  "limitations": "Worktree HEAD/status and refs/stash verified. Runtime/profile path, size and modification timestamps verified; no initial full byte hashes or dirty-worktree byte snapshot were captured."
+}

@@ -35,7 +35,8 @@ public class KOMEProgressionHardeningGeographyTest {
     @Test public void loadedInvalidSurfaceRejectsOfferRatherThanAcceptingBadCoordinates()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         territory(f);f.s.chunks=true;f.s.f.world.unsafeSurface=true;
         KOMEProgressionGameplayFixture.record(f.s.f.world,1800,1000,"rohan");
-        assertNull(KOMEKnightCommissionLocations.choose(origin(f),f.s.f.world,Type.RELIEF,"seed"));assertTrue(f.s.f.world.terrainProbes>0);assertNull(f.s.p.getKnightService().assignment());
+        net.minecraft.nbt.NBTTagCompound proof=f.s.f.data.progressionShelters.values().iterator().next();
+        assertNull(KOMEKnightCommissionLocations.choose(origin(f),f.s.f.world,Type.RELIEF,"seed"));assertFalse(KOMEProgressionDestinations.usableArrival(f.s.f.world,proof));assertNull(f.s.p.getKnightService().assignment());
     }}
     @Test public void steepTerrainAndWrongFactionAreRejected()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         territory(f);f.s.chunks=false;((KOMECourierGeographyTest.TestManager)f.s.f.world.getWorldChunkManager()).biome.heightBaseParameter=2;

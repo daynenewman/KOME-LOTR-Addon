@@ -138,6 +138,9 @@ public class KOMECommonProxy {
     public void updateProgressionTracker(kome.common.data.KOMEProgressionTrackerSnapshot snapshot) {
     }
 
+    public void updateProgressionIdentities(java.util.Map<java.util.UUID,String> identities) {}
+
+public void updateStandingTrialEligibility(int id,long most,long least,boolean eligible,boolean passive,boolean offering,int color,boolean relevant,String reason) {}
     public void updateStandingTrialEligibility(
             int entityId,
             long entityUuidMost,

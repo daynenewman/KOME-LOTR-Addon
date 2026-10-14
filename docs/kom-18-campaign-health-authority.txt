@@ -1,0 +1,160 @@
+KOM-18 Phase 4B2A2: Campaign health authority
+
+Scope
+-----
+This phase versions current HP only. It does not append gameplay WAL records,
+prepare/adopt recovery transitions, apply rewards, consume grants, advance
+resolution intents, or enforce either future healing policy. ConflictData remains
+3, root remains 11, PhysicalLocator remains 1, and movement release remains 2.
+
+Health format 1
+---------------
+SurvivingHealth on KOMEHiredUnitRecord contains the rider projection:
+  HealthFormatVersion: int = 1
+  LogicalTargetId: canonical UUID string
+  Component: string RIDER or MOUNT
+  PhysicalAlias: canonical UUID string
+  CurrentHP: finite nonnegative float
+  HealthRevision: nonnegative long, below Long.MAX_VALUE
+  LastTransitionId: canonical UUID string
+  Terminal: byte 0 or 1
+  RecoveryFence: optional compound
+    JournalId: canonical UUID string
+    PrepareSequence: positive long, below Long.MAX_VALUE
+    RecoveryTransitionId: canonical UUID string
+  EntityId / Current: validated compatibility mirrors of PhysicalAlias / CurrentHP
+No mutable Max HP is stored. Projection to a live entity checks its normal Max HP;
+incompatible current HP fails closed instead of silently capping authority.
+
+Riding retains the last associated mount projection for existing consumers.
+AttachedMountAlias records the currently observed attachment (empty when dismounted).
+Retained history alone never authorizes reconstructing a formerly ridden mount.
+Mounts is a deterministically UUID-ordered compound list retaining independent
+mount projections, including dismounted mounts. Entries and selected Riding must
+be coherent, have MOUNT kind and unique target/physical identities. History has a
+4096-entry bound and is not pruned. Each projection is independently decoded;
+mutable NBT compounds are never retained as the entity acknowledgment.
+
+Identity and revisions
+----------------------
+An already-enrolled B1 Target.id is reused. Before a unit's first episode, its
+health projection allocates the same kind of UUID logical target; B1 enrollment
+adopts that verified ID instead of allocating a competing ID. Existing registry
+identities must agree. No additional ConflictData fields or global body registry
+were introduced. The physical UUID is only the current alias.
+
+Actual HP changes allocate revision+1 and a fresh UUID transition. Zero-delta
+setHealth, refresh, snapshot copying, reattachment, and reconstruction preserve
+revision and transition. Terminalization is also a new transition, even when HP
+is unchanged. Overflow, nonfinite HP and conflicting state fail closed with
+CAMPAIGN_HEALTH diagnostics. Authoritative DEAD/DESTROYED evidence terminalizes
+health; ordinary unload and B1 UNAVAILABLE/released status do not invent death.
+
+The optional recovery fence is immutable and inherited by every subsequent
+normal transition. Reconciliation rejects losing/changing an existing fence.
+A3/B2B must add a WAL-validated adoption/advance operation when a new recovery
+PREPARE supersedes an earlier fence; ordinary mutation cannot do that. Tests seed
+already-fenced authority, without executing recovery.
+
+Entity acknowledgment and mutation observation
+---------------------------------------------
+KOMECampaignHealthEntity uses Forge IExtendedEntityProperties for detached
+per-entity state. The namespaced root NBT compound is KOME:CampaignHealth.
+The narrowly scoped core transformer hooks EntityLivingBase.setHealth HEAD and
+RETURN, plus Entity.readFromNBT HEAD/RETURN and Entity.writeToNBT RETURN. MCP and
+SRG method fingerprints are checked. It is registered with the existing coremod.
+
+Forge 1.7.10 writes ForgeData by reference and swallows extended-property callback
+exceptions. Therefore the health codec runs at the Entity serialization endpoints,
+not in those swallowed callbacks. Save requires emitted HealF to match the immutable
+acknowledgment and writes a new compound. Load validates actual physical UUID,
+emitted HealF and decoded HP after subclass attribute/health loading. Deserialization
+and controlled projection do not generate extra transitions. Loading an older NBT
+snapshot into an already-versioned entity retains the newer projection. Missing or
+contradictory acknowledgment is rejected when ordering cannot be established.
+
+Native damage, native heal and direct setHealth share the setter hooks, including
+KOME level caps/protection and custom Mumakil healing/attribute adjustments.
+Snapshot/save/unload refresh also observes HP, providing an explicit consistency
+seam. No production KOME code writes watcher index 6 directly. Normal damage/healing
+uses memory/UUID updates and markDirty only; it performs no synchronous disk I/O.
+Player and ordinary NPC health without a Campaign acknowledgment are untouched.
+The custom howdah archer's conversion is for a visual/passive formation passenger,
+not the Campaign hired rider identity; it does not receive transferred Campaign
+acknowledgment. Join Battle's player transport remains outside this substrate.
+
+Reconciliation and movement
+---------------------------
+Both projections must identify the exact same logical target, component and current
+physical alias. Higher revision wins. Equal revisions require identical transition,
+HP, terminal flag and fence. Older terminal evidence cannot be replaced with live
+state. A newer persisted increase is projected; newer loaded damage is adopted.
+An acknowledgment-free legacy entity is bootstrapped only with coherent exact HP
+and alias; disagreement is unresolved, never min(live,saved). Valid unversioned
+legacy movement snapshots retain KOM-47's exact fractional HP compatibility; health
+metadata, when present, must match snapshot UUIDs. They do not prove recovery ancestry.
+
+Movement combines authoritative projections with geometry only after exact UUID/
+logical checks. A stale nested mount can never target whichever mount is now ridden.
+Detached replacement NBT receives new physical UUIDs and copied health acknowledgment
+before deserialization. Registry and record rekeys publish only inside the verified
+spawn transaction. Its rollback restores prior registry/record state. Formal Retreat
+uses this same strategic reconstruction path. Name/type/owner heuristic rekey is
+blocked for versioned Campaign records. There are no irreversible WAL LINEAGE writes.
+Dismounted mounts retain their independent entity acknowledgment and saved history;
+standalone mount joins reconcile exact-alias history, including terminal evidence.
+Unloaded logical-target lookup reconciles every retained owner copy, including shared
+mounts; physical alias normalization requires the existing B1 verified lineage.
+
+Save ordering and the next phase
+--------------------------------
+World-first: a newer persisted projection wins over an older coherent entity ack.
+Entity-first: a newer entity projection wins over an older record. A descendant
+carrying the same recovery fence preserves later damage instead of restoring the
+recovery target HP. Equal-revision contradictions, missing acknowledgment with
+ambiguous HP, incompatible fences and unrelated aliases remain unresolved.
+
+This is not an exactly-once recovery executor. markDirty is not a durability
+acknowledgment. A3 must scan/reconcile the durable WAL and gate target mutation
+before ordinary lifecycle processing, repair stale/missing context and grants,
+and establish any WAL-verified alias lineage before recovery execution is enabled.
+B2B must durably PREPARE, reserve the revision and adopt its fence before side effects,
+then reconcile APPLIED/TERMINAL and closure. Crash recovery across an in-flight
+reconstruction still requires that verified lineage/startup protocol; this phase
+only supplies the version-preserving reversible reconstruction substrate.
+No ConflictData v4/layout requirement was found.
+
+Validation
+----------
+Focused health/transformer tests cover revision ordering, same-revision contradictions,
+fences, native executable setter/serialization bridges, unloaded NBT, independent
+mounts, terminal state, reconstruction, exact HP, schema/registry isolation, and B1
+identity adoption/Formal Retreat retention. Existing movement, retreat, recovery
+foundation, WAL and atomic-load suites are included. The full suite is required
+because native health and reconstruction are shared infrastructure. Exact run counts
+are reported with the implementation result.
+
+Changed files
+-------------
+Production:
+  src/main/java/kome/common/data/KOMECampaignHealthProjection.java (new)
+  src/main/java/kome/common/data/KOMECampaignHealthEntity.java (new)
+  src/main/java/kome/core/KOMECampaignHealthTransformer.java (new)
+  src/main/java/kome/common/data/KOMECampaignHealth.java
+  src/main/java/kome/common/data/KOMEHiredUnitRecord.java
+  src/main/java/kome/common/data/KOMEEntitySnapshots.java
+  src/main/java/kome/common/data/KOMEEvents.java
+  src/main/java/kome/common/data/KOMEOrdinaryBattleRecoveryRegistry.java
+  src/main/java/kome/common/data/KOMEOrdinaryBattleRecoveryService.java
+  src/main/java/kome/common/command/KOMECommandTroops.java
+  src/main/java/kome/core/KOMECorePlugin.java
+Tests:
+  src/test/java/kome/common/data/KOMECampaignHealthVersionTest.java (new)
+  src/test/java/kome/core/KOMECampaignHealthTransformerTest.java (new)
+  src/test/java/kome/common/data/KOMECampaignHealthTest.java
+  src/test/java/kome/common/data/KOMEOrdinaryBattleRecoveryFoundationTest.java
+  src/test/java/kome/common/data/KOMECampaignTileConfinementHookTest.java
+  src/test/java/kome/core/KOMEWaypointTransformerTest.java
+  src/test/java/kome/integration/CharacterCreationIsolationTest.java
+Notes:
+  docs/kom-18-campaign-health-authority.txt (this file)

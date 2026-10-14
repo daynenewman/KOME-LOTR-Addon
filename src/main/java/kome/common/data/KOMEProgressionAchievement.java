@@ -124,7 +124,7 @@ public class KOMEProgressionAchievement {
         a(list, "baseline.hunting", "baseline", "War & Population", "Hunt and Kill", "Hunt and kill intentionally.");
         a(list, "baseline.house_waypoints", "baseline", "Travel", "Home and Custom Waypoints", "Own a house and make custom waypoints.");
         a(list, "baseline.farming", "baseline", "Food & Drink", "Farming", "Grow crops, have livestock, and fish.");
-        a(list, "baseline.npc_trade", "baseline", "Other", "NPC Trade", "Trade with NPCs.");
+        a(list, "baseline.npc_trade", "baseline", "Other", "NPC Trade", "Legacy record. Trading follows native LOTR alignment and hostility rules.");
         a(list, "baseline.miniquests", "baseline", "Other", "NPC Mini-Quests", "Legacy milestone; LOTR mini-quests are always available under LOTR rules.");
         a(list, "baseline.non_faction_gear", "baseline", "Crafting & Gear", "Non-Faction Gear", "Make non-faction gear.");
         a(list, "baseline.non_faction_armor", "baseline", "Crafting & Gear", "Non-Faction Armor", "Wear non-faction armor.");
@@ -133,7 +133,7 @@ public class KOMEProgressionAchievement {
         a(list, "baseline.pledge", "baseline", "War & Population", "Pledge", "Pledge to a faction.");
         a(list, "baseline.faction_armor", "baseline", "Crafting & Gear", "Faction Armor", "Wear faction armor.");
         a(list, "baseline.utumno_gear", "baseline", "Crafting & Gear", "Utumno Gear", "Wear and use Utumno gear.");
-        a(list, "baseline.pouches", "baseline", "Other", "Pouches", "Use pouches.");
+        a(list, "baseline.pouches", "baseline", "Other", "Pouches", "Legacy record. Pouches follow native LOTR rules and need no advancement unlock.");
         a(list, "baseline.meat", "baseline", "Food & Drink", "Meat", "Eat meat.");
         a(list, "baseline.fellowship", "baseline", "War & Population", "Fellowship", "Form a fellowship.");
         a(list, "baseline.faction_gear", "baseline", "Crafting & Gear", "Faction Gear", "Craft faction gear.");

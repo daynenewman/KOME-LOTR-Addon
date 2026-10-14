@@ -206,8 +206,8 @@ public class KOMEJoinBattleCompanyAnchorServiceTest {
     }
 
     @Test public void schemaVersionsRemainOwnedByTheirExistingAuthorities() {
-        assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
-        assertEquals(2, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
+        assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(3, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEHiredUnitPhysicalLocator.DATA_SCHEMA_VERSION);
     }
 

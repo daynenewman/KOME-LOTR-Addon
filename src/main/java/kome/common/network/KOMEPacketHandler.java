@@ -207,13 +207,16 @@ public class KOMEPacketHandler {
         network.registerMessage(KOMEPacketJoinBattleSelectionResult.Handler.class, KOMEPacketJoinBattleSelectionResult.class, 56, Side.CLIENT);
         network.registerMessage(new ServerThreadHandler<KOMEPacketJoinBattleRetreatRequest>(new KOMEPacketJoinBattleRetreatRequest.Handler()) {}, KOMEPacketJoinBattleRetreatRequest.class, 57, Side.SERVER);
         network.registerMessage(KOMEPacketJoinBattleRetreatResult.Handler.class, KOMEPacketJoinBattleRetreatResult.class, 58, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyDestinationRequest>(new KOMEPacketCompanyDestinationRequest.Handler()) {}, KOMEPacketCompanyDestinationRequest.class, 59, Side.SERVER);
-        network.registerMessage(KOMEPacketCompanyDestinationResponse.Handler.class, KOMEPacketCompanyDestinationResponse.class, 60, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyMovementRequest>(new KOMEPacketCompanyMovementRequest.Handler()) {}, KOMEPacketCompanyMovementRequest.class, 61, Side.SERVER);
-        network.registerMessage(KOMEPacketCompanyMovementResult.Handler.class, KOMEPacketCompanyMovementResult.class, 62, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyOriginRequest>(new KOMEPacketCompanyOriginRequest.Handler()) {}, KOMEPacketCompanyOriginRequest.class, 63, Side.SERVER);
-        network.registerMessage(KOMEPacketCompanySourceResponse.Handler.class, KOMEPacketCompanySourceResponse.class, 64, Side.CLIENT);
-        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyRallyRequest>(new KOMEPacketCompanyRallyRequest.Handler()) {}, KOMEPacketCompanyRallyRequest.class, 65, Side.SERVER);
-        network.registerMessage(KOMEPacketCompanyRallyResponse.Handler.class, KOMEPacketCompanyRallyResponse.class, 66, Side.CLIENT);
+        // Preserve dev's published progression identity ID; g13 requires matching artifacts.
+        network.registerMessage(KOMEPacketProgressionIdentities.Handler.class, KOMEPacketProgressionIdentities.class, 59, Side.CLIENT);
+        // Former KOM-89 request ID 60 remains unused; no hired-presentation workaround survives.
+        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyDestinationRequest>(new KOMEPacketCompanyDestinationRequest.Handler()) {}, KOMEPacketCompanyDestinationRequest.class, 61, Side.SERVER);
+        network.registerMessage(KOMEPacketCompanyDestinationResponse.Handler.class, KOMEPacketCompanyDestinationResponse.class, 62, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyMovementRequest>(new KOMEPacketCompanyMovementRequest.Handler()) {}, KOMEPacketCompanyMovementRequest.class, 63, Side.SERVER);
+        network.registerMessage(KOMEPacketCompanyMovementResult.Handler.class, KOMEPacketCompanyMovementResult.class, 64, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyOriginRequest>(new KOMEPacketCompanyOriginRequest.Handler()) {}, KOMEPacketCompanyOriginRequest.class, 65, Side.SERVER);
+        network.registerMessage(KOMEPacketCompanySourceResponse.Handler.class, KOMEPacketCompanySourceResponse.class, 66, Side.CLIENT);
+        network.registerMessage(new ServerThreadHandler<KOMEPacketCompanyRallyRequest>(new KOMEPacketCompanyRallyRequest.Handler()) {}, KOMEPacketCompanyRallyRequest.class, 67, Side.SERVER);
+        network.registerMessage(KOMEPacketCompanyRallyResponse.Handler.class, KOMEPacketCompanyRallyResponse.class, 68, Side.CLIENT);
     }
 }

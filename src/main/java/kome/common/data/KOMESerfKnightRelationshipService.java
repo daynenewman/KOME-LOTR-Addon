@@ -31,8 +31,9 @@ public final class KOMESerfKnightRelationshipService {
     private static Result reject(String reason) { return new Result(false, reason); }
 
     public static boolean canEstablishLiege(KOMEPlayerProgression progression,long day) {
-        if(progression==null||progression.getCanonicalRank().order<KOMEProgressionRank.KNIGHT.order)return false;
+        if(progression==null||progression.getCanonicalRank().order<KOMEProgressionRank.SERF.order)return false;
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
+        if(progression.getCanonicalRank()==KOMEProgressionRank.SERF&&!state.isTrialCompleted())return false;
         return !state.hasLiege()&&!state.isLockedOut(day);
     }
 

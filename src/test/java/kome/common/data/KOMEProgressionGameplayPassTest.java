@@ -31,7 +31,7 @@ public class KOMEProgressionGameplayPassTest {
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()){
             KOMESerfCourierAssignment a=s.courier();a.documentIssued=true;a.nextReplacementWorldTime=2400;s.state.setDutyAssignmentData(KOMESerfKnightDutyType.COURIER,a.writeToNBT());
             KOMEProgressionTrackerSnapshot hud=KOMEProgressionTrackerSnapshot.project(s.f.player,s.p);
-            assertEquals("Deliver the message",hud.objective);assertEquals("0/1",hud.progress);assertEquals(0F,hud.completion,0F);
+            assertEquals("Deliver the message",hud.objective);assertEquals("",hud.progress);assertFalse(hud.hasNumericProgress());assertEquals(0F,hud.completion,0F);
             assertTrue(KOMEProgressionSummary.courierCopy(s.p,0).contains("Speak with your Master in"));
         }
     }
@@ -191,21 +191,23 @@ public class KOMEProgressionGameplayPassTest {
             KOMESerfKnightDefenseService.tickPlayer(s.f.player);assertEquals(0,state.getTrialAssignment().data.getInteger("DefenseObjectiveMissingTicks"));s.f.world.loadedEntityList.removeIf(value->value==restored);
             for(int i=0;i<30;i++)KOMESerfKnightDefenseService.tickPlayer(s.f.player);s.reload();
             for(int i=0;i<30;i++)KOMESerfKnightDefenseService.tickPlayer(s.f.player);
-            assertEquals(KOMESerfKnightTrialAssignment.Stage.FAILED,state.getTrialAssignment().stage);assertFalse(state.isTrialCompleted());assertEquals(0,s.original.drops());
+            assertNull(state.getTrialAssignment());assertFalse(state.hasLiege());assertFalse(state.failures().isEmpty());assertFalse(state.isTrialCompleted());assertEquals(0,s.original.drops());
         }
     }
-    @Test public void unavailablePhysicalTrialDoesNotRemainAssignedAfterInteraction()throws Exception {
+    @Test public void unavailablePhysicalTrialRemainsRetryableWithoutFailurePenalty()throws Exception {
         try(KOMEKnightCommissionGameplayTest.Session s=new KOMEKnightCommissionGameplayTest.Session()){
             s.original.ready();s.p.setCanonicalRank(KOMEProgressionRank.SERF);
             lotr.common.entity.npc.LOTREntityNPC liege=KOMEKnightCommissionInteractionTest.captain(s);
             KOMESerfKnightProgression state=s.p.getSerfKnightProgression();
             state.setTrial(KOMESerfKnightTrialAssignment.create(KOMESerfKnightTrial.forId("defense"),state.getLiege(),10,0));
             KOMEProgressionNpcInteractionService.activateTrial(s.f.player,s.p,liege,"defense");
-            assertEquals(KOMESerfKnightTrialAssignment.Stage.FAILED,state.getTrialAssignment().stage);
+            assertNotNull(state.getTrialAssignment());assertTrue(state.hasLiege());assertTrue(state.failures().isEmpty());
+            assertEquals(KOMESerfKnightTrialAssignment.Stage.ASSIGNED,state.getTrialAssignment().stage);
+            String token=state.getTrialAssignment().assignmentToken;
             assertTrue(s.f.player.messages.stream().anyMatch(m->m.contains("cannot arrange this trial safely")));
             assertFalse(state.isTrialCompleted());assertEquals(0,s.original.drops());
-            String token=state.getTrialAssignment().assignmentToken;KOMEProgressionNpcInteractionService.activateTrial(s.f.player,s.p,liege,"defense");
-            assertEquals(token,state.getTrialAssignment().assignmentToken);assertEquals(0,s.original.drops());
+            int failures=state.failures().size();KOMEProgressionNpcInteractionService.activateTrial(s.f.player,s.p,liege,"defense");
+            assertNotNull(state.getTrialAssignment());assertEquals(token,state.getTrialAssignment().assignmentToken);assertEquals(failures,state.failures().size());assertEquals(0,s.original.drops());
         }
     }
 }

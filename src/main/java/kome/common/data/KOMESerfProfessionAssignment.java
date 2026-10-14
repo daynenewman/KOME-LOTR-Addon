@@ -25,28 +25,25 @@ public final class KOMESerfProfessionAssignment {
         public static Candidate runtime(Item item,int damage,QuantityTier tier){if(item==null||tier==null)throw new IllegalArgumentException("Profession candidate item and tier are required.");ItemStack stack=new ItemStack(item,1,damage);return new Candidate(String.valueOf(Item.itemRegistry.getNameForObject(item)),Item.getIdFromItem(item),damage,stack.getMaxStackSize(),KOMEProgressionGoodsRules.name(stack,stack.getDisplayName()),tier);}
     }
     public static final class Requirement {
-        public final String itemKey,displayName,metadataPolicy;public final int itemId,damage,required;public int delivered;
+        public final String itemKey,displayName,metadataPolicy;public final int itemId,damage,required;public int delivered;public int valueMilli;
         Requirement(Candidate item,int required){this(item.key,item.itemId,item.damage,item.metadataPolicy,required,0,item.displayName);}
         Requirement(String key,int id,int damage,String policy,int required,int delivered,String display){this.itemKey=key==null?"":key;this.itemId=id;this.damage=damage;this.metadataPolicy=policy==null?"":policy;this.required=required;this.delivered=delivered;this.displayName=display==null?"":display;}
         public boolean complete(){return delivered>=required;}
         public ItemStack requestedStack(){Item item=(Item)Item.itemRegistry.getObject(itemKey);return item==null?null:new ItemStack(item,1,damage);}
-        NBTTagCompound write(){NBTTagCompound tag=new NBTTagCompound();tag.setString("ItemKey",itemKey);tag.setInteger("Item",itemId);tag.setInteger("Damage",damage);tag.setString("MetadataPolicy",metadataPolicy);tag.setInteger("Required",required);tag.setInteger("Delivered",delivered);tag.setString("Display",displayName);return tag;}
-        static Requirement read(NBTTagCompound tag,CandidateResolver resolver){if(tag==null||resolver==null)return null;String key=tag.getString("ItemKey"),policy=tag.getString("MetadataPolicy");int damage=tag.getInteger("Damage"),required=tag.getInteger("Required"),delivered=tag.getInteger("Delivered");if(!EXACT_METADATA.equals(policy)||required<=0||delivered<0||delivered>required)return null;Candidate candidate=resolver.resolve(key,tag.getInteger("Item"),damage);if(candidate==null||candidate.key.length()==0)return null;String display=tag.getString("Display");if(display.trim().length()==0)display=candidate.displayName;return display.trim().length()==0?null:new Requirement(candidate.key,candidate.itemId,damage,policy,required,delivered,display);}
+        NBTTagCompound write(){NBTTagCompound tag=new NBTTagCompound();tag.setString("ItemKey",itemKey);tag.setInteger("Item",itemId);tag.setInteger("Damage",damage);tag.setString("MetadataPolicy",metadataPolicy);tag.setInteger("Required",required);tag.setInteger("Delivered",delivered);tag.setInteger("ValueMilli",valueMilli);tag.setString("Display",displayName);return tag;}
+        static Requirement read(NBTTagCompound tag,CandidateResolver resolver){if(tag==null||resolver==null)return null;String key=tag.getString("ItemKey"),policy=tag.getString("MetadataPolicy");int damage=tag.getInteger("Damage"),required=tag.getInteger("Required"),delivered=tag.getInteger("Delivered");if(!EXACT_METADATA.equals(policy)||required<=0||delivered<0||delivered>required)return null;Candidate candidate=resolver.resolve(key,tag.getInteger("Item"),damage);if(candidate==null||candidate.key.length()==0)return null;String display=tag.getString("Display");if(display.trim().length()==0)display=candidate.displayName;if(display.trim().length()==0)return null;Requirement r=new Requirement(candidate.key,candidate.itemId,damage,policy,required,delivered,display);r.valueMilli=Math.max(0,Math.min(1000,tag.getInteger("ValueMilli")));return r;}
     }
 
     public final String tradeKey,tradeDisplayName,materialProfileKey;
     public final List<Requirement> requirements;
     public KOMESerfProfessionAssignment(String tradeKey,String tradeDisplayName,String profile,List<Requirement> requirements){this.tradeKey=tradeKey==null?"":tradeKey;this.tradeDisplayName=tradeDisplayName==null?"":tradeDisplayName;this.materialProfileKey=profile==null?"":profile;this.requirements=requirements;}
 
-    public static KOMESerfProfessionAssignment generate(KOMESerfProfessionClassifier.Profession profession,String faction,Random random){if(profession==null)profession=KOMESerfProfessionClassifier.forKey("general_labor");return generate(profession.key,profession.displayName,profession.materialProfile.key,KOMESerfProfessionCatalog.candidatesFor(profession.materialProfile,faction),random);}
+    public static KOMESerfProfessionAssignment generate(KOMESerfProfessionClassifier.Profession profession,String faction,Random random){if(profession==null)profession=KOMESerfProfessionClassifier.forKey("general_labor");KOMESerfProfessionAssignment a=generate(profession.key,profession.displayName,profession.materialProfile.key,KOMESerfProfessionCatalog.candidatesFor(profession.materialProfile,faction),random);for(Requirement r:a.requirements)r.valueMilli=KOMEProgressionGoodsValue.unitMilli(r.requestedStack());return a;}
     static KOMESerfProfessionAssignment generate(String tradeKey,String tradeName,String profile,List<Candidate> pool,Random random){
         if(KOMESerfProfessionClassifier.forKey(tradeKey)==null||KOMESerfMaterialProfile.forKey(profile)==null||tradeName==null||tradeName.trim().length()==0||pool==null||pool.isEmpty()||random==null)throw new IllegalArgumentException("Complete Profession candidates are required.");
         List<Candidate> available=distinct(pool),selected=new ArrayList<Candidate>();
-        for(boolean stackable:new boolean[]{true,false}){
-            List<Candidate> group=new ArrayList<Candidate>();for(Candidate c:available)if((c.maxStack>1)==stackable)group.add(c);
-            int count=KOMEProgressionGoodsRules.types(stackable?64:1,group.size(),random);
-            for(int i=0;i<count;i++){Candidate chosen=group.remove(random.nextInt(group.size()));selected.add(chosen);}
-        }
+        int count=Math.min(available.size(),3+random.nextInt(2));
+        for(int i=0;i<count;i++)selected.add(available.remove(random.nextInt(available.size())));
         List<Requirement> requirements=new ArrayList<Requirement>();for(Candidate candidate:selected)requirements.add(new Requirement(candidate,quantity(candidate,random)));
         return new KOMESerfProfessionAssignment(tradeKey,tradeName,profile,requirements);
     }

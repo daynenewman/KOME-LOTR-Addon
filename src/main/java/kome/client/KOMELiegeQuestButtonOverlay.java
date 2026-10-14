@@ -36,6 +36,7 @@ public final class KOMELiegeQuestButtonOverlay {
         addQuestButton(activeGui, activeButtons);
     }
 
+    public static void updateEligibility(int id,UUID uuid,boolean eligible,boolean passive,boolean offering,int color,boolean relevant,String reason){ELIGIBILITY.update(id,uuid,eligible,passive,relevant,reason);updateNativeIndicator(id,uuid,offering,color);addQuestButton(activeGui,activeButtons);}
     public static void reset() {
         ELIGIBILITY.clear();
         activeGui = null;
@@ -51,8 +52,10 @@ public final class KOMELiegeQuestButtonOverlay {
 
     private static void addQuestButton(GuiScreen gui, List<GuiButton> buttons) {
         LOTREntityNPC npc = npc(gui);
-        syncQuestButton(gui, buttons, isStandingTrialAvailableFor(
-            Minecraft.getMinecraft().thePlayer, npc));
+        boolean enabled=isStandingTrialAvailableFor(Minecraft.getMinecraft().thePlayer,npc);
+        boolean relevant=npc!=null&&ELIGIBILITY.isRelevant(npc.getEntityId(),npc.getUniqueID());
+        syncQuestButton(gui,buttons,enabled||relevant);
+        GuiButton button=findButton(buttons,QUEST_BUTTON_ID);if(button!=null)button.enabled=enabled;
     }
 
     static void syncQuestButton(
@@ -101,6 +104,9 @@ public final class KOMELiegeQuestButtonOverlay {
         }
     }
 
+    private static final Tip TIP=new Tip();
+    private static final class Tip extends GuiScreen {void show(GuiScreen screen,String reason,int x,int y){this.mc=Minecraft.getMinecraft();this.fontRendererObj=mc.fontRenderer;this.width=screen.width;this.height=screen.height;drawHoveringText(java.util.Collections.singletonList(reason),x,y,fontRendererObj);}}
+    @SubscribeEvent public void draw(GuiScreenEvent.DrawScreenEvent.Post event){LOTREntityNPC npc=npc(event.gui);GuiButton b=findButton(activeButtons,QUEST_BUTTON_ID);if(npc!=null&&event.gui==activeGui&&b!=null&&!b.enabled&&event.mouseX>=b.xPosition&&event.mouseX<b.xPosition+b.width&&event.mouseY>=b.yPosition&&event.mouseY<b.yPosition+b.height){String reason=ELIGIBILITY.reason(npc.getEntityId(),npc.getUniqueID());if(!reason.isEmpty())TIP.show(event.gui,reason,event.mouseX,event.mouseY);}}
     @SubscribeEvent
     public void onAction(GuiScreenEvent.ActionPerformedEvent.Pre event) {
         if (event.button == null || event.button.id != QUEST_BUTTON_ID) return;

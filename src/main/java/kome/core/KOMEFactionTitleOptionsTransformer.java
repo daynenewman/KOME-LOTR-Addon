@@ -37,10 +37,12 @@ public final class KOMEFactionTitleOptionsTransformer implements IClassTransform
         int actionHooks = 0;
 
         for (MethodNode method : node.methods) {
-            if (!initAlreadyHooked && "initGui".equals(method.name) && "()V".equals(method.desc)) {
+            if (!initAlreadyHooked
+                    && ("initGui".equals(method.name) || "func_73866_w_".equals(method.name))
+                    && "()V".equals(method.desc)) {
                 initHooks += hookInitReturns(method);
             } else if (!actionAlreadyHooked
-                    && "actionPerformed".equals(method.name)
+                    && ("actionPerformed".equals(method.name) || "func_146284_a".equals(method.name))
                     && "(Lnet/minecraft/client/gui/GuiButton;)V".equals(method.desc)) {
                 actionHooks += hookAction(method);
             }

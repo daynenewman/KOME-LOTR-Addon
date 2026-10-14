@@ -1,0 +1,16 @@
+{
+  "affected_markdown_documents": 5,
+  "existing_local_links_and_embedded_images_checked": 121,
+  "introduced_missing_links": 0,
+  "inherited_missing_historical_links": [
+    {
+      "document": "docs/KOME_TILE_WORLD_RESOLUTION.md",
+      "destination": "tile-border-rendering-20260920/land-before-after.png",
+      "unchanged_in_base_dev": true
+    }
+  ],
+  "initial_expanded_link_check": "FAILED on inherited missing land-before-after.png; failure preserved here; no introduced broken links",
+  "routing_checker": "PASS",
+  "whitespace_check": "PASS",
+  "external_link_validation": false
+}

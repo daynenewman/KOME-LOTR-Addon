@@ -35,6 +35,7 @@ public class KOMEProgressionPermissions {
         if (player == null || permissionID == null) {
             return false;
         }
+        if(NPC_TRADE.equals(permissionID)||POUCHES.equals(permissionID))return true;
         KOMEProgressionAchievement permission = KOMEProgressionAchievement.forID(permissionID);
         if (permission == null) {
             return false;

@@ -348,6 +348,33 @@ public class KOMEJoinBattleServiceTest {
         assertFalse(f.data.isDirty());
     }
 
+    @Test public void defeatedAndSubmittedPlayersCannotUseAnotherOwnersCommittedCompany() throws Exception {
+        Fixture f = new Fixture(LOTRFaction.GONDOR);
+        f.participate("gondor");
+        f.company("C1", "gondor", "T100", KOMEHiredUnitClass.CAMPAIGN,
+            KOMEPopulationType.OFFENSIVE, false);
+        f.commit("C1", EntryOrigin.LEGAL_ARRIVAL);
+        assertTrue(f.evaluate().isAllowed());
+        KOMEWar war = new KOMEWar(); war.id = "W1";
+        war.sideOneFactions.add("gondor"); war.sideTwoFactions.add("mordor");
+        f.data.wars.put(war.id, war);
+        f.data.lastKnownPlayerFactions.put(f.access.player.id, "gondor");
+        f.data.warSeason.phase = KOMEWarSeasonState.Phase.WAR;
+        f.data.warSeason.factionDefeats.put("gondor", 1L);
+        assertFalse("Defeated player must not bypass governance via Join Battle", f.evaluate().isAllowed());
+        assertFalse(f.select("C1").isAllowed());
+        assertTrue(KOMEGovernanceService.choose(f.data, f.access.player.id, "W1",
+            KOMEPlayerGovernance.State.SUBMITTED, "", 20L).allowed);
+        int audits = f.data.centralAudit.size();
+        f.data.setDirty(false);
+        assertFalse(f.evaluate().isAllowed());
+        assertFalse(f.select("C1").isAllowed());
+        assertEquals(audits, f.data.centralAudit.size());
+        assertFalse(f.data.isDirty());
+        war.status = KOMEWar.ENDED;
+        assertTrue("Ended war does not restrict another battle", f.evaluate().isAllowed());
+    }
+
     private static void assertReason(Reason expected,
             KOMEJoinBattleService.Projection actual) {
         assertEquals(expected, actual.reason);

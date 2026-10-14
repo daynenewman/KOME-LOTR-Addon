@@ -1,0 +1,232 @@
+{
+  "recorded_at_utc": "2026-10-09T20:20:03.711568+00:00",
+  "candidate": {
+    "source_parent": "1dbd46cd60b4a341c23bc8b33ddddf43915b757b",
+    "protocol": "1.0.9-integration-g5",
+    "sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+    "profile": "C:\\Users\\dayne\\AppData\\Roaming\\PrismLauncher\\instances\\kome-pr26-joinbattle-g5-20261009",
+    "display_name": "KOME PR26 Join Battle g5",
+    "server": "C:\\Users\\dayne\\.codex\\worktrees\\686a\\KOME-LOTR-Addon\\build\\pr26-integration-20261009\\joinbattle-fix\\runtime\\server",
+    "address": "127.0.0.1:51327",
+    "world": "pr26-integration-disposable",
+    "world_source": "Copied failed integrated world after orderly exit 0; original world preserved",
+    "identity": "_Danye_",
+    "uuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+    "ops_empty": true,
+    "config_hashes": {
+      "AppleCore.cfg": "77c4f048cee10e2c07522a72bc7357bb7448f5850eaab05dd81cd6afab2700cc",
+      "aquaacrobatics.cfg": "5a4d9542bf32f5e376a99b0b51e94e02669e0d35e93b1c39fbbeb28890e1da2c",
+      "bettersprinting.cfg": "dc92d2a7b0eb3b9cc9c0ce1de9788422ff079394269870d6d74cc2886da078f6",
+      "CodeChickenCore.cfg": "b579542f31f0fd1e7ab098bc3a92009ca15ff3800e769ad791c9dc293e0665fa",
+      "fastcraft.ini": "ef789b1b596981b30a5882d6274653d45153008564c176d6772613b2a86a8ac5",
+      "foamfix.cfg": "4b0a4a0362a7a1ef694a54f6236b6f73431e9da8b4e080c80fdbd2bbb321ee9e",
+      "forge.cfg": "56acf28c2653e1d5d159648edbbbd9bc86832bd956a8a4e7be7adf7c558a5c7e",
+      "forgeChunkLoading.cfg": "ef4ca42f2810a1b5fef2d14fed9d7ef0bb5e1751b71966ec5c0e08addf3479f5",
+      "geckolib3.cfg": "5707bc7a418fb8c2a0fc7742b246087ecbae662952a41f2cf00ab6514368637b",
+      "gravestone.cfg": "083d4e88b1397ddd76d943c0f51cb008fb22e098ab3b157c432a9e26d6e219aa",
+      "kome.cfg": "d9207c6a9d5ac4a0bdfd4faa05e7212e77e0afe5ec19f6075050ffbb29a6abdf",
+      "lotr.cfg": "e44c5109c335401295fbb6b349078ab660170e21c480116a20ed3bfd11966829",
+      "lotrbiomeids.cfg": "3d0d0b2b0df0de755f70f3a285619abc2197972b078bde8fa789f7abf45e0a05",
+      "lotrcharactercreation.cfg": "e5e1d3740eb3c15a9ec893e8093e658c793ab8cc265ccc9608a9862d199bd004",
+      "lotrmoremobs.cfg": "1a1e17114e9b02e8b301416c3c4fd7f52a8869a6a2c6b6d173187dcb225d1f32",
+      "LOTR_EntityRegistry.txt": "f90351b9198dd83a5377e0347cc351acc5fe1e0301229647cbc07e07a8af7707",
+      "metweaks-ASM.properties": "2a7abcfbc28fe67c37a80efb50c1d9153606315955e6a1736a41030295e0f745",
+      "metweaks.cfg": "223b56a0ea4b7fde3a6ebb27f58d106f1c359b8f60d347a4760bd2b23cbc9f35",
+      "CustomNpcPlus\\client.cfg": "88c35858d7477d16b318819ddd5ddb22d2be3d697771b3ebbb0066015a3b9410",
+      "CustomNpcPlus\\debug.cfg": "16820b7ece65dbd7029dd238547b5d0846b1bd0331946e3498020adca16ea112",
+      "CustomNpcPlus\\experimental.cfg": "6834f5dd781dcaee48de6bf75b5e4f3c55bdb8eb3cf244e1fae38edf4ce21027",
+      "CustomNpcPlus\\item.cfg": "6a69939b5b35df607fb02f04d1b7f02df2ed841f8ec41d8ed04922cb8668dacc",
+      "CustomNpcPlus\\main.cfg": "61dd38ad81fac2e3eb103fd62fb580fbf03b992625276deea092050cc036ce77",
+      "CustomNpcPlus\\mixin.cfg": "81a7aba8168b581d5b8d910bb3dbb6334cb45be30727c9bac7e56676288a621b",
+      "CustomNpcPlus\\script.cfg": "a360d22aa105e1ad317b457070b6a39006b1438fd2d506be11059211c8a679c5"
+    },
+    "server_properties_sha256": "c7ff52dd6e1abef17395380e9797703fb96b6d6c146e32b9748696a171a83152",
+    "minecraft": "1.7.10",
+    "forge": "10.13.4.1614",
+    "java": "8u482",
+    "client_heap_mib": 1536,
+    "server_heap_mib": 1280,
+    "limits": "Exact isolated setup; final native and human observations are recorded separately in validation.json. No multiplayer pass.",
+    "native_production_verified": true,
+    "human_retest": "PASS all four expectations; reply yes",
+    "process": {
+      "controller": 17096,
+      "server": 47508,
+      "client": 40424
+    }
+  },
+  "published_head_at_start": "4925e931f6909bf24a6cbdbd44290bfa51c1df67",
+  "scope": "One-account Join Battle defeated/submitted governance denial; no battle entry or physical deployment",
+  "fixture": {
+    "tile": "T388",
+    "dimension": 100,
+    "player_position": [
+      78017.5,
+      200,
+      66242.5
+    ],
+    "prior_native_pledge": "DALE",
+    "fixture_native_pledge": "GONDOR",
+    "company": "C1",
+    "company_owner": "f107f077-470a-49ee-93c2-692b51fbcfb1",
+    "company_member": "1f52a2fa-07d0-49d7-82d4-c3b8755ec36d",
+    "campaign_combat_members": 1,
+    "member_setup": "Synthetic canonical registered record, no spawned physical NPC or population debit",
+    "coherence": "UNKNOWN_PHYSICAL_STATE; permitted by current eligibility authority",
+    "conflict": "CF1",
+    "revision": 4,
+    "state": "ORDINARY",
+    "faction_participants": [
+      "gondor",
+      "mordor"
+    ],
+    "war": "war-00001",
+    "phase": "WAR",
+    "season": 1
+  },
+  "native_baseline": {
+    "result": "PASS",
+    "production_service_live_player": "ALLOWED",
+    "selected_company_revalidation": "ALLOWED",
+    "fresh_player_action_token_issued": true
+  },
+  "restriction": {
+    "canonical_defeat_publication": "KOMEWorldData.publishFactionDefeat(gondor) with explicit acceptance fixture audit",
+    "governance_authority": "KOMEGovernanceService.choose(data, live player UUID, war-00001, SUBMITTED, empty host, monotonic timestamp)",
+    "choose_allowed": true,
+    "automatic_defeat_retention": "SUBMITTED revision 1 created for known Gondor members",
+    "choose_idempotent": true,
+    "record": {
+      "Origin": "gondor",
+      "Player": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+      "Revision": 1,
+      "State": "SUBMITTED",
+      "ChangedAt": 1791576905869,
+      "War": "war-00001",
+      "Host": "",
+      "Season": 1,
+      "Reason": "Defeat retains civilian status; choose a valid allied exile host to participate"
+    },
+    "company_member_conflict_unchanged": true
+  },
+  "native_restricted": {
+    "result": "PASS",
+    "production_service_live_player": "GOVERNANCE_RESTRICTED",
+    "selected_company_revalidation": "GOVERNANCE_RESTRICTED",
+    "action_token_empty": true,
+    "packet_reason_text": "Your current war governance status prevents Join Battle participation."
+  },
+  "connected_client_automation": {
+    "result": "PASS",
+    "loaded_client_server_sha256_match": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+    "identity": "_Danye_",
+    "uuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+    "actions": [
+      "public command",
+      "panel observation",
+      "actual Refresh request/response",
+      "panel observation",
+      "close to world"
+    ],
+    "observed": "T388 GOVERNANCE_RESTRICTED exact reason text; disabled Join; remains connected",
+    "human": false
+  },
+  "save_evidence": {
+    "server_save_all": "Saving... / Saved the world at 15:15:35 local",
+    "saved_authority_sections_equal_restricted_snapshot": [
+      "ArmyCompanies",
+      "HiredUnits",
+      "ConflictRecords",
+      "PlayerGovernance",
+      "WarSeason"
+    ],
+    "cold_restart_tested": false
+  },
+  "preservation": {
+    "checked_at_utc": "2026-10-09T20:15:57.429900+00:00",
+    "worktrees_checked": 25,
+    "worktrees_unchanged": true,
+    "user_refs_unchanged": true,
+    "stash_unchanged": true,
+    "frozen_file_hashes_checked": 89,
+    "frozen_mismatches": [],
+    "frozen_processes": [
+      {
+        "Id": 30672,
+        "StartTime": "/Date(1791427482776)/"
+      },
+      {
+        "Id": 43016,
+        "StartTime": "/Date(1791427482684)/"
+      }
+    ]
+  },
+  "configuration_reverified": {
+    "common_cfg_files": 25,
+    "server_properties_values_unchanged": true,
+    "server_properties_current_sha256": "b813c11296253c5f5c74e762ca09231ef1e487509e18aa0b73665c427ebf0301",
+    "server_properties_prelaunch_sha256": "c7ff52dd6e1abef17395380e9797703fb96b6d6c146e32b9748696a171a83152",
+    "server_properties_byte_difference": "Minecraft rewrote timestamp/order on original g5 startup at 14:41:36; exact key/value comparison to retained prelaunch file has zero differences. No configuration changes for this test.",
+    "ops_empty": true
+  },
+  "harness_failures_preserved": [
+    "V1 reflection ambiguity before mutation",
+    "V2 package-private classification lookup after disposable pledge/war setup; original snapshot retained",
+    "V3 noncanonical fixture company ID rejected by CommitmentInput; fixture corrected using existing canonical allocator without replacing world",
+    "V2 initial compile lacked target directory; no agent ran; corrected before attach"
+  ],
+  "product_source_changes": false,
+  "product_rebuild": false,
+  "runtime_replacement": false,
+  "human_observation": {
+    "status": "PENDING",
+    "test": "joinbattle-governance-restriction-T388",
+    "candidate_sha256": "ec5181d81faa279a59fa228f3f830f6564e704ca631a533271b2dba3bac4c823",
+    "authenticated_player": "_Danye_",
+    "uuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+    "address": "127.0.0.1:51327",
+    "command": "/kome joinbattle T388",
+    "expected": "T388 panel: Your current war governance status prevents Join Battle participation.; Select / Join Battle disabled; remains connected",
+    "reply": null,
+    "limits": "One authenticated non-operator. Multiplayer deferred. Native checks are recorded separately."
+  },
+  "limits": [
+    "No validated legal arrival, physical deployment, capital capture, complete defeat predicate or population debit is claimed.",
+    "This is native production authority and one real authenticated connection with synthetic setup; human observation remains separate.",
+    "No multiplayer, lower-spec performance, merge or deployment. Frozen port 51326 unchanged."
+  ],
+  "evidence_sha256": {
+    "before.dat": "121213163227372898d8acba0dbd1bfd184773ad8b9936ea92be3b1d0a286718",
+    "candidate.json": "13509bc954e4768fae805e010e4356d51b5dcc98a3dc334b08a9eb16c8a925ec",
+    "client-manifest.txt": "46d86baac0b6da59f3e439d5a8ff1a0efa3cdc0d466078a6e3814be939d0f2dd",
+    "client-production-proof.txt": "64d37cdc4a193021dfb7906d4b5ab03e92f3477f2de068b937461909e599d22b",
+    "collect-governance.py": "8a749129daf6f59c3d4f78e1a5d0b015d34c9b65ff8160ffc0c1200f1335e962",
+    "eligible-baseline.dat": "0c9afdd116a4073dda55ab27b53117cbdc216bf781358a6501660848ce6d3037",
+    "expected-jar-sha256.txt": "cdf47a9468992847bb768454f187ce0d37b3e145aa9abd336b2f3a14241b5b65",
+    "GovernanceAcceptanceProbe.java": "4f81ec4b32fe7ff22d5434b21cd85f510f706a1da20b8b7e92ff1c9937c618e6",
+    "GovernanceAcceptanceProbeV2.java": "9bf2b99d68ad41554b1594c380a2bbfe0ce2912e85343b0d90defa5d880c09c0",
+    "GovernanceAcceptanceProbeV3.java": "4d315d955cc403edcd8d695f8a4867264c31283aea9adcf59eace356494ede3d",
+    "GovernanceAcceptanceProbeV4.java": "8046026655c2cafb6521efd240cd13489eb8b7b86ffb7f0c66f71302482f0fcd",
+    "human-observation.json": "90d36613d44eff00d2b991d95b3fd9d096239d610897bdb5ac0501fb6dd451b5",
+    "JoinBattleGovernanceClientProbe.java": "df13a41811d4fc65bf3ca23f2ad009f73f6ff1efde9d0d7e53eaee1b6d26d7b3",
+    "kome.cfg": "d9207c6a9d5ac4a0bdfd4faa05e7212e77e0afe5ec19f6075050ffbb29a6abdf",
+    "lotr-player-before.dat": "1a14202d68afd05cd47bb3251da8031f2241a6b38f893b028ee010d86972ad70",
+    "lotr-player-saved.dat": "ca4db6365099972f0455020c8636117c8ae607dda0798b1b0dc6fbcbbf48093a",
+    "manifest-v2.txt": "a175545f7efc8bef49417b86d93aaf61673ec6f7354a84a076c0b14ae39399a0",
+    "manifest-v3.txt": "0ef6aaa8ff81e6092109221f921ce75c30fb4b341b6f143a8e2cfe769b39d02a",
+    "manifest-v4.txt": "af216b45e66c7049f46a96bdc09f3daaa813d791729005a79bc63c7d9b9be3d7",
+    "manifest.txt": "37da187fb65f3cbfefe5431b53c9b166dacc5fbec609d082d934019b331271c9",
+    "ops.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "player-before.dat": "642d73d2cdb7b0facba0cbe1b52cc49d45d56c4247eea737e939fcf531f53bae",
+    "preservation.json": "eae1a599313eb6e2ce786556e8ca4f4c76b7faaae88e2f3fb1b3dd394119ef69",
+    "process.json": "b3e2123c23aef92a5635114b2c3e17c69d25d5a8e7ddd89f4ef4e167fb660367",
+    "ready.txt": "7c9ab127b5966acfa1e365ec98a1cd9345e0b4ce130f2b8e3821dec216bbb7f7",
+    "restricted.dat": "458b3b42e5488d0a197db5efef9304d3d843f7298eb476d913c71e54a2f01945",
+    "saved-world-authority.dat": "7924118f6e2faa6f8f10ab9da2e99c01fa4fac7df9536f3d4e9e79e1de23c020",
+    "server-console-at-staging.log": "26e4a67ebd5f7cf842776b6277d67ae1b994d038184efc8191531ccea94a1835",
+    "server-latest-at-staging.log": "c47cbb212c935c79aa486a45e13712741679e4a5fe38601ab1beca395829a053",
+    "server-proof.txt": "db49d0bf7e68cdac5170d0174de5896e7b40b346653504c95bf609d93dd3f9ce",
+    "server.properties": "b813c11296253c5f5c74e762ca09231ef1e487509e18aa0b73665c427ebf0301"
+  },
+  "archive_sha256": "9ea4903e6104dbe1868b2d3ae46719765ca9cfb4f1ea57d5bc82bc7d6bc53d10"
+}

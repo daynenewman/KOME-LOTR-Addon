@@ -169,11 +169,225 @@ public class KOMEConflictAbandonmentReconciliationTest {
         assertTrue(fresh.isActive());
         assertTrue(fresh.getCommitments().containsKey("C3"));
         assertEquals(TimerStatus.NOT_STARTED, fresh.getResponseTimer().status);
+        KOMEOrdinaryBattleLifecycleService lifecycle = lifecycle();
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.EPISODE_STARTED,
+            lifecycle.process(f.data, "T402", 80L).code);
+        assertEquals("CF2:E1", f.data.getConflictService().get("T402").getCombatEpisode().episodeId);
+        assertEquals(0L, f.data.getConflictService().get("T402").getResponseTimer().elapsedMillis);
+    }
+
+    @Test public void productionObjectiveContinuesAfterDefenderLossAndCompletesForConquest() throws Exception {
+        try (KOMEPopulationTestConfig ignored = new KOMEPopulationTestConfig()) {
+            Fixture f = new Fixture();
+            f.commit("C1", "mordor", "");
+            f.commit("C2", "gondor", "");
+            KOMEOrdinaryBattleLifecycleService lifecycle = lifecycle();
+            KOMEOrdinaryBattleLifecycleService.Observation fighting = lifecycle.inspect(f.data, f.record());
+            assertTrue(fighting.objective.objectiveContested);
+            assertTrue(fighting.hostileMilitaryPairPresent);
+            lifecycle.process(f.data, "T402", 100L);
+            lifecycle.process(f.data, "T402", 5_100L);
+            assertEquals(5_000L, f.record().getResponseTimer().elapsedMillis);
+            f.release(f.record(), "C2", "gondor", 5_101L);
+            assertEquals(KOMEConflictLifecycleService.OrdinaryAbandonmentCode.OFFENSIVE_COMMITMENT_REMAINS,
+                f.reconcile(f.record(), 5_102L).code);
+            KOMEOrdinaryBattleLifecycleService.Observation unopposed = lifecycle.inspect(f.data, f.record());
+            assertTrue(unopposed.objective.objectiveContested);
+            assertFalse(unopposed.hostileMilitaryPairPresent);
+            assertTrue(unopposed.militaryAuthorityKnown);
+            lifecycle.process(f.data, "T402", 10_100L);
+            assertEquals("CF1:E1", f.record().getCombatEpisode().episodeId);
+            assertEquals(EpisodeState.ACTIVE, f.record().getCombatEpisode().state);
+            assertEquals(10_000L, f.record().getResponseTimer().elapsedMillis);
+            assertEquals("gondor", f.data.conquestTiles.get("T402").projectRulingFaction());
+            assertEquals(KOMEOrdinaryBattleResolutionService.Code.WAITING_RESPONSE_WINDOW,
+                resolution().preflight(f.data, "T402").code);
+            assertEquals(KOMEOrdinaryBattleLifecycleService.Code.TIMER_COMPLETED_RESOLUTION_ELIGIBLE,
+                lifecycle.process(f.data, "T402", 60_100L).code);
+            assertEquals("CF1:E1", f.record().getCombatEpisode().episodeId);
+            assertEquals(EpisodeState.ACTIVE, f.record().getCombatEpisode().state);
+            assertEquals(KOMEOrdinaryBattleResolutionService.Code.READY,
+                resolution().preflight(f.data, "T402").code);
+            assertTrue(resolution().resolve(f.data, "T402", 500L, 60_101L).resolved());
+            assertEquals("mordor", f.data.conquestTiles.get("T402").projectRulingFaction());
+            assertEquals(EpisodeState.INACTIVE, f.record().getCombatEpisode().state);
+        }
+    }
+
+    @Test public void productionReinforcementAndReturningDefenderNeverRestartContestedEpisode() {
+        Fixture f = new Fixture();
+        f.commit("C1", "mordor", "");
+        f.commit("C2", "gondor", "");
+        KOMEOrdinaryBattleLifecycleService lifecycle = lifecycle();
+        lifecycle.process(f.data, "T402", 100L);
+        f.release(f.record(), "C2", "gondor", 101L);
+        lifecycle.process(f.data, "T402", 5_100L);
+        f.commit("C3", "mordor", "");
+        lifecycle.process(f.data, "T402", 5_110L);
+        f.commit("C2", "gondor", "");
+        lifecycle.process(f.data, "T402", 10_100L);
+        assertEquals("CF1:E1", f.record().getCombatEpisode().episodeId);
+        assertEquals(Long.valueOf(100L), f.record().getCombatEpisode().startedAtMillis);
+        assertEquals(10_000L, f.record().getResponseTimer().elapsedMillis);
+        assertTrue(lifecycle.inspect(f.data, f.record()).hostileMilitaryPairPresent);
+    }
+
+    @Test public void incompleteAttackerRetreatStopsThenAbandonsWithoutOwnership() {
+        Fixture f = new Fixture();
+        f.commit("C1", "mordor", "");
+        f.commit("C2", "gondor", "");
+        KOMEOrdinaryBattleLifecycleService lifecycle = lifecycle();
+        lifecycle.process(f.data, "T402", 100L);
+        f.release(f.record(), "C1", "mordor", 101L);
+        assertFalse(lifecycle.inspect(f.data, f.record()).objective.objectiveContested);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.EPISODE_STOPPED,
+            lifecycle.process(f.data, "T402", 5_100L).code);
+        assertEquals(EpisodeState.INACTIVE, f.record().getCombatEpisode().state);
+        assertEquals(TimerStatus.PAUSED, f.record().getResponseTimer().status);
+        assertEquals(5_000L, f.record().getResponseTimer().elapsedMillis);
+        assertEquals(KOMEOrdinaryBattleResolutionService.Code.WAITING_RESPONSE_WINDOW,
+            resolution().preflight(f.data, "T402").code);
+        assertEquals(KOMEOrdinaryBattleResolutionService.Code.WAITING_RESPONSE_WINDOW,
+            resolution().resolve(f.data, "T402", 500L, 5_101L).code);
+        assertTrue(f.reconcile(f.record(), 5_102L).ended());
+        assertEquals("gondor", f.data.conquestTiles.get("T402").projectRulingFaction());
+        assertTrue(f.data.wars.isEmpty());
+        assertEquals(EpisodeState.INACTIVE, f.record().getCombatEpisode().state);
+        assertEquals(TimerStatus.PAUSED, f.record().getResponseTimer().status);
+    }
+
+    @Test public void abandonmentBeforeNextLifecycleTickNormalizesActiveEpisodeWithoutAddingTime() {
+        Fixture f = new Fixture();
+        f.commit("C1", "mordor", "");
+        KOMEOrdinaryBattleLifecycleService lifecycle = lifecycle();
+        lifecycle.process(f.data, "T402", 100L);
+        lifecycle.process(f.data, "T402", 5_100L);
+        f.release(f.record(), "C1", "mordor", 5_101L);
+        assertTrue(f.reconcile(f.record(), 10_100L).ended());
+        assertEquals(EpisodeState.INACTIVE, f.record().getCombatEpisode().state);
+        assertEquals("CF1:E1", f.record().getCombatEpisode().episodeId);
+        assertEquals(Long.valueOf(100L), f.record().getCombatEpisode().startedAtMillis);
+        assertEquals(Long.valueOf(10_100L), f.record().getCombatEpisode().endedAtMillis);
+        assertEquals(TimerStatus.PAUSED, f.record().getResponseTimer().status);
+        assertEquals(5_000L, f.record().getResponseTimer().elapsedMillis);
+        assertEquals(60_000L, f.record().getResponseTimer().durationSnapshotMillis);
+    }
+
+    @Test public void diplomacyGenuinelyStopsObjectiveAndRenewalGetsFreshTimerWithinSameConflict() {
+        Fixture f = new Fixture();
+        f.commit("C1", "mordor", "");
+        KOMEOrdinaryBattleLifecycleService lifecycle = lifecycle();
+        lifecycle.process(f.data, "T402", 100L);
+        relation("gondor", "mordor", LOTRFactionRelations.Relation.NEUTRAL);
+        assertFalse(lifecycle.inspect(f.data, f.record()).objective.objectiveContested);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.EPISODE_STOPPED,
+            lifecycle.process(f.data, "T402", 5_100L).code);
+        assertEquals(TimerStatus.PAUSED, f.record().getResponseTimer().status);
+        lifecycle.process(f.data, "T402", 10_100L);
+        assertEquals(5_000L, f.record().getResponseTimer().elapsedMillis);
+        // No abandonment has been requested: a legitimately retained record needs E2, not E1's timer.
+        relation("gondor", "mordor", LOTRFactionRelations.Relation.ENEMY);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.EPISODE_STARTED,
+            lifecycle.process(f.data, "T402", 10_101L).code);
+        assertEquals("CF1:E2", f.record().getCombatEpisode().episodeId);
+        assertEquals(0L, f.record().getResponseTimer().elapsedMillis);
+    }
+
+    @Test public void unrelatedPlayerWithdrawalAndPhysicalCacheUnloadDoNotChangeStrategicEpisode() {
+        Fixture f = new Fixture();
+        KOMEConflictRecord conflict = f.commit("C1", "mordor", "");
+        UUID player = UUID.randomUUID();
+        conflict = ok(f.data.getConflictService().registerPlayer("T402", expected(conflict),
+            player, "mordor", context(30L, "player arrives")));
+        KOMEOrdinaryBattleLifecycleService lifecycle = lifecycle();
+        lifecycle.process(f.data, "T402", 100L);
+        ok(f.data.getConflictService().withdrawPlayer("T402", expected(f.record()), player,
+            context(101L, "player withdrawal")));
+        KOMEHiredUnitRecord unit = f.data.hiredUnits.get(f.data.armyCompanies.get("C1").units.get(0));
+        unit.healthObservedEntity = null;
+        unit.healthObservedMount = null;
+        // Physical UNKNOWN is explicitly allowed by production strategic coherence.
+        lifecycle.process(f.data, "T402", 5_100L);
+        assertEquals("CF1:E1", f.record().getCombatEpisode().episodeId);
+        assertEquals(EpisodeState.ACTIVE, f.record().getCombatEpisode().state);
+        assertEquals(5_000L, f.record().getResponseTimer().elapsedMillis);
+        assertTrue(lifecycle.inspect(f.data, f.record()).objective.objectiveContested);
+        assertFalse(lifecycle.inspect(f.data, f.record()).hostileMilitaryPairPresent);
+    }
+
+    @Test public void diplomacyStopCannotTurnHistoricalCompleteTimerIntoHostileCapture() {
+        Fixture f = new Fixture();
+        f.commit("C1", "mordor", "");
+        KOMEOrdinaryBattleLifecycleService lifecycle = lifecycle();
+        lifecycle.process(f.data, "T402", 100L);
+        lifecycle.process(f.data, "T402", 60_100L);
+        relation("gondor", "mordor", LOTRFactionRelations.Relation.NEUTRAL);
+        assertEquals(KOMEOrdinaryBattleLifecycleService.Code.EPISODE_STOPPED,
+            lifecycle.process(f.data, "T402", 60_101L).code);
+        assertEquals(TimerStatus.COMPLETE, f.record().getResponseTimer().status);
+        assertEquals(KOMEOrdinaryBattleResolutionService.Code.DEFERRED_NO_WINNER,
+            resolution().resolve(f.data, "T402", 500L, 60_102L).code);
+        assertEquals("gondor", f.data.conquestTiles.get("T402").projectRulingFaction());
+        assertTrue(f.data.wars.isEmpty());
+        assertTrue(f.reconcile(f.record(), 60_103L).ended());
+        assertEquals(TimerStatus.COMPLETE, f.record().getResponseTimer().status);
+    }
+
+    @Test public void oldConflictCaptureReceiptCannotReserveNewConflictOnSameTile() {
+        Fixture f = new Fixture();
+        KOMEConflictRecord first = f.commit("C1", "mordor", "");
+        first = f.release(first, "C1", "mordor", 40L);
+        assertTrue(f.reconcile(first, 50L).ended());
+        f.legalArrival("C3", "M3", "mordor", 70L);
+        KOMEWar old = new KOMEWar();
+        old.id = "W-old";
+        KOMEWar.TileCaptureEvent receipt = new KOMEWar.TileCaptureEvent();
+        receipt.tileId = "T402"; receipt.formerOwner = "gondor"; receipt.newOwner = "mordor";
+        receipt.claimMethod = KOMEOrdinaryBattleResolutionService.CAPTURE_METHOD_PREFIX + first.getConflictId();
+        old.tileCaptureHistory.add(receipt); f.data.wars.put(old.id, old);
+        KOMEConflictRecord current = f.release(f.record(), "C3", "mordor", 80L);
+        assertTrue(f.reconcile(current, 81L).ended());
+        assertEquals("gondor", f.data.conquestTiles.get("T402").projectRulingFaction());
+    }
+
+    private static KOMEOrdinaryBattleLifecycleService lifecycle() {
+        return new KOMEOrdinaryBattleLifecycleService(
+            new KOMEOrdinaryBattleLifecycleService.EvaluationSource() {
+                public KOMECombatStateEvaluator.Result evaluate(KOMEWorldData data, KOMEConflictRecord conflict) {
+                    return new KOMECombatStateEvaluator().evaluate(data, conflict);
+                }
+            }, new KOMEOrdinaryBattleLifecycleService.FortificationSource() {
+                public KOMEFortificationContextResolver.Decision evaluate(KOMEWorldData data, String tile) {
+                    return KOMEFortificationContextResolver.Decision.clear();
+                }
+            }, new KOMEOrdinaryBattleLifecycleService.DurationSource() {
+                public KOMEOrdinaryBattlePlanner.DurationPlan select(KOMEWorldData data, KOMEConflictRecord conflict) {
+                    return KOMEOrdinaryBattlePlanner.responseDuration(1, 1, 2, 3);
+                }
+            }, new KOMEOrdinaryBattleLifecycleService.NotificationSink() {
+                public void episodeStarted(KOMEConflictRecord conflict, long duration) { }
+            }, KOMEOrdinaryBattleLifecycleService.BeforePublication.NONE);
+    }
+
+    private static KOMEOrdinaryBattleResolutionService resolution() {
+        return new KOMEOrdinaryBattleResolutionService(
+            new KOMEOrdinaryBattleResolutionService.EvaluationSource() {
+                public KOMECombatStateEvaluator.Result evaluate(KOMEWorldData data, KOMEConflictRecord conflict) {
+                    return new KOMECombatStateEvaluator().evaluate(data, conflict);
+                }
+            }, new KOMEOrdinaryBattleResolutionService.FortificationSource() {
+                public KOMEFortificationContextResolver.Decision evaluate(KOMEWorldData data, String tile) {
+                    return KOMEFortificationContextResolver.Decision.clear();
+                }
+            }, new KOMEOrdinaryBattleResolutionService.NotificationSink() {
+                public void resolved(KOMEOrdinaryBattleResolutionService.Plan plan, KOMEConflictRecord conflict) { }
+            }, KOMEOrdinaryBattleResolutionService.PublicationObserver.NONE,
+            KOMEOrdinaryBattleResolutionService.ResolutionFinalizer.NONE);
     }
 
     @Test public void schemasRemainUnchanged() {
-        assertEquals(11, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
-        assertEquals(2, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
+        assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
+        assertEquals(3, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEHiredUnitPhysicalLocator.DATA_SCHEMA_VERSION);
     }
 
@@ -194,6 +408,7 @@ public class KOMEConflictAbandonmentReconciliationTest {
             KOMEArmyCompany company = data.armyCompanies.get(id);
             if (company == null) company(id, faction, "T402", UUID.randomUUID());
             KOMEConflictRecord current = data.getConflictService().get("T402");
+            transitionTime = Math.max(transitionTime, current.getLastTransition().timestampMillis + 1L);
             FactionParticipation participation =
                 current.getFactionParticipation().get(faction);
             if (participation == null || !participation.isActive())
@@ -204,6 +419,8 @@ public class KOMEConflictAbandonmentReconciliationTest {
                     EntryOrigin.EXTERIOR_ARRIVAL, movementId),
                 context(transitionTime++, "commit")));
         }
+
+        KOMEConflictRecord record() { return data.getConflictService().get("T402"); }
 
         KOMEConflictRecord release(KOMEConflictRecord conflict, String id,
                 String faction, long now) {
@@ -290,6 +507,7 @@ public class KOMEConflictAbandonmentReconciliationTest {
 
         void tile(String id, String faction) {
             KOMEConquestTile tile = new KOMEConquestTile(id);
+            tile.setWaypointDefaults(1, faction, "test");
             tile.setCurrentRulingFaction(faction);
             data.conquestTiles.put(id, tile);
         }

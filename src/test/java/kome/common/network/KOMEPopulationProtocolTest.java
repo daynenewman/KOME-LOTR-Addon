@@ -16,8 +16,28 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class KOMEPopulationProtocolTest {
-    @Test public void g4PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.9-integration-g12", KOMEPopulationWire.VERSION);
+    @Test public void mergedG13RequiresMatchingArtifactsOnBothSides() {
+        KOMEAddon addon = new KOMEAddon();
+        for (String old : new String[] {"1.0.8", "1.0.9-integration-g6", "1.0.9-integration-g12"}) {
+            assertFalse(KOMEPopulationWire.accepts(old));
+            for (Side side : new Side[] {Side.CLIENT, Side.SERVER})
+                assertFalse(old + " / " + side, addon.acceptsRemoteKome(java.util.Collections.singletonMap("kome", old), side));
+        }
+        assertTrue(KOMEPopulationWire.accepts("1.0.9-integration-g13"));
+    }
+    @Test public void preJoinBattleG4CannotHandshakeWithTheExtendedPacketTable() {
+        KOMEAddon addon = new KOMEAddon();
+        for (Side side : new Side[] {Side.CLIENT, Side.SERVER}) {
+            assertFalse("g4 lacks Join Battle response discriminator 54: " + side,
+                addon.acceptsRemoteKome(java.util.Collections.singletonMap(
+                    "kome", "1.0.9-integration-g4"), side));
+            assertTrue(addon.acceptsRemoteKome(java.util.Collections.singletonMap(
+                "kome", KOMEPopulationWire.VERSION), side));
+        }
+    }
+
+    @Test public void g13PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
+        assertEquals("1.0.9-integration-g13", KOMEPopulationWire.VERSION); assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g5"));
         KOMEPacketPopulationGui sent = new KOMEPacketPopulationGui();
         sent.population = projection(1025L); sent.playerName = "Player"; sent.viewerFaction = "gondor";
         KOMEPacketPopulationGui.PlayerInvestment player = new KOMEPacketPopulationGui.PlayerInvestment();

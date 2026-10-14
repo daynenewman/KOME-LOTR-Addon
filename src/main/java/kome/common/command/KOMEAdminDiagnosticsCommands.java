@@ -16,7 +16,7 @@ import net.minecraftforge.common.DimensionManager;
 
 /** Parsing only; inspection and mutations remain in authoritative domain services. */
 final class KOMEAdminDiagnosticsCommands {
-    static final String HELP = "/kome diagnostics <population|ruler|capital> <faction> | diplomacy <a> <b> | ownership <tile> | waypoint <uuid>"
+    static final String HELP = "/kome diagnostics <population|ruler|capital|muster> <faction> | diplomacy <a> <b> | ownership <tile> | waypoint <uuid> | governance <uuid> | daily status | company <id> | gate <build>"
         + " | /kome repair preview <ownership tile|diplomacy a b|ruler faction player|waypoint uuid> | /kome repair apply <token>";
     private final KOMEAdminRepairService repairs = new KOMEAdminRepairService();
 

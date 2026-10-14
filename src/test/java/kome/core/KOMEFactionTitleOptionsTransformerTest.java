@@ -2,6 +2,7 @@ package kome.core;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.zip.ZipFile;
 import org.junit.Test;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.AbstractInsnNode;
@@ -13,9 +14,26 @@ import static org.junit.Assert.*;
 
 public class KOMEFactionTitleOptionsTransformerTest {
     @Test
-    public void optionsInitAndActionAreHookedExactlyOnce() throws Exception {
-        byte[] original = readResource("/lotr/client/gui/LOTRGuiOptions.class");
+    public void productionSrgOptionsInitAndActionAreHookedExactlyOnce() throws Exception {
+        try (ZipFile jar = new ZipFile("libs/LOTRMod v36.15.jar")) {
+            try (InputStream input = jar.getInputStream(
+                    jar.getEntry("lotr/client/gui/LOTRGuiOptions.class"))) {
+                byte[] original = readBytes(input);
+                ClassNode node = new ClassNode();
+                new ClassReader(original).accept(node, 0);
+                assertTrue(node.methods.stream().anyMatch(m -> "func_73866_w_".equals(m.name)));
+                assertTrue(node.methods.stream().anyMatch(m -> "func_146284_a".equals(m.name)));
+                verifyHooks(original);
+            }
+        }
+    }
 
+    @Test
+    public void optionsInitAndActionAreHookedExactlyOnce() throws Exception {
+        verifyHooks(readResource("/lotr/client/gui/LOTRGuiOptions.class"));
+    }
+
+    private static void verifyHooks(byte[] original) {
         KOMEFactionTitleOptionsTransformer transformer =
             new KOMEFactionTitleOptionsTransformer();
 
@@ -70,15 +88,17 @@ public class KOMEFactionTitleOptionsTransformerTest {
         assertNotNull(path, input);
 
         try {
-            ByteArrayOutputStream output = new ByteArrayOutputStream();
-            byte[] buffer = new byte[8192];
-            int read;
-            while ((read = input.read(buffer)) != -1) {
-                output.write(buffer, 0, read);
-            }
-            return output.toByteArray();
+            return readBytes(input);
         } finally {
             input.close();
         }
+    }
+
+    private static byte[] readBytes(InputStream input) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int read;
+        while ((read = input.read(buffer)) != -1) output.write(buffer, 0, read);
+        return output.toByteArray();
     }
 }

@@ -12,9 +12,17 @@ public final class KOMEEntitySnapshots {
             return null;
         }
         NBTTagCompound snapshot = new NBTTagCompound();
-        return entity.writeMountToNBT(snapshot) ? snapshot : null;
+        if (!entity.writeMountToNBT(snapshot)) return null;
+        acknowledge(entity, snapshot);
+        // Forge shares customEntityData, including mounts. Detach after health acknowledgment.
+        return (NBTTagCompound) snapshot.copy();
     }
 
+    private static void acknowledge(Entity entity, NBTTagCompound snapshot) {
+        KOMECampaignHealthEntity.endWrite(entity, snapshot);
+        Entity mount = kome.common.KOMEReflection.getRidingEntity(entity);
+        if (mount != null && snapshot.hasKey("Riding", 10)) acknowledge(mount, snapshot.getCompoundTag("Riding"));
+    }
     public static NBTTagCompound snapshot(KOMEHiredUnitRecord record, Entity entity) {
         KOMECampaignHealth.observe(record, entity);
         return snapshot(entity);

@@ -55,10 +55,10 @@ public class KOMETileExclusionsTest {
         }
     }
 
-    @Test public void bundledEmptySetKeepsAllProtectedControlsUnclassified() {
+    @Test public void bundledMountainSetKeepsAllProtectedControlsUnclassified() {
         KOMETileRasterSnapshot s = KOMETileTestResources.real(); int d = s.transform.dimension;
-        assertEquals(0, s.exclusions.zoneCount()); assertEquals(0, s.exclusions.classifiedCells);
-        assertEquals(0, s.exclusions.cellIndexBytes()); assertTrue(s.exclusions.diagnostic.contains("Validated"));
+        assertEquals(5, s.exclusions.zoneCount()); assertEquals(45, s.exclusions.classifiedCells);
+        assertEquals(25600000L, s.exclusions.cellIndexBytes()); assertTrue(s.exclusions.diagnostic.contains("Validated"));
         assertEquals(IN_BOUNDS_GAP, s.resolve(d, 189568, -86016).status);
         assertEquals("T001", s.resolve(d, 189696, -86016).tileId);
         assertEquals(IN_BOUNDS_GAP, s.resolve(d, 34944, 640).status);

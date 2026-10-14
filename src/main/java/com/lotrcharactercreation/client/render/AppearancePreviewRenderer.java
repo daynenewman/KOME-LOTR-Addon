@@ -28,6 +28,9 @@ public final class AppearancePreviewRenderer {
 
     private static final float MODEL_UNIT = 0.0625F;
     private static final float VANILLA_PLAYER_RENDER_SCALE = 0.9375F;
+    private final AppearancePreviewSwing swing=new AppearancePreviewSwing();
+    public void swing(){swing.click();}
+    public void update(){swing.update();}
 
     private final ModelBiped vanillaPlayerModel = new ModelBiped(0.0F);
     private final PlayerManModelAdapter manModel = new PlayerManModelAdapter();
@@ -82,9 +85,10 @@ public final class AppearancePreviewRenderer {
                 .getTextureManager()
                 .bindTexture(texture);
             model.isChild = false;
-            model.onGround = 0.0F;
+            model.onGround = swing.progress(partialTicks);
             model.render(player, 0.0F, 0.0F, player.ticksExisted + partialTicks, headYaw, headPitch, MODEL_UNIT);
         } finally {
+            model.onGround=0F;
             resetModel(preset);
             GL11.glPopMatrix();
             GL11.glPopAttrib();

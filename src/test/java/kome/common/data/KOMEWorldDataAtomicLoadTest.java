@@ -167,6 +167,9 @@ public class KOMEWorldDataAtomicLoadTest {
         for (int schema : new int[]{7, 8}) {
             NBTTagCompound source = stableDocument(); source.setInteger(KOMEWorldData.KOME_DATA_SCHEMA_KEY, schema);
             removeEmergencyDefenseSection(source);
+            source.removeTag("MovementBoundary");
+            NBTTagList companies = source.getTagList("ArmyCompanies", 10);
+            for (int i = 0; i < companies.tagCount(); i++) companies.getCompoundTagAt(i).removeTag("MovementAllowance");
             source.removeTag(KOMEWorldData.TACTICAL_CONFIGURATION_REQUIRED_KEY);
             source.getCompoundTag("TacticalConfiguration").setString("Revision", "corrupt");
             assertRejectedWithoutPublication(source, "TacticalConfiguration");
@@ -491,24 +494,31 @@ public class KOMEWorldDataAtomicLoadTest {
 
     /** Test-only deep snapshot, including private collections/scalars and raw tile ownership fields. */
     private static Object freeze(Object value) throws Exception {
+        return freeze(value, new java.util.IdentityHashMap<Object, Integer>());
+    }
+    private static Object freeze(Object value, java.util.IdentityHashMap<Object, Integer> seen) throws Exception {
         if (value == null || value instanceof String || value instanceof Number
                 || value instanceof Boolean || value instanceof UUID || value instanceof Enum) return value;
         if (value instanceof NBTBase) return ((NBTBase) value).copy();
+        // Runtime projections point back to their canonical world/records. Inspect every object
+        // once, retaining reference topology rather than recursively following the same cycle.
+        if (seen.containsKey(value)) return "reference:" + value.getClass().getName() + ":" + seen.get(value);
+        seen.put(value, seen.size());
         if (value instanceof Map) {
             Map<Object, Object> copy = new HashMap<Object, Object>();
-            for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) copy.put(freeze(entry.getKey()), freeze(entry.getValue()));
+            for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) copy.put(freeze(entry.getKey(), seen), freeze(entry.getValue(), seen));
             return copy;
         }
         if (value instanceof Collection) {
             Collection<Object> copy = value instanceof Set ? new HashSet<Object>() : new ArrayList<Object>();
-            for (Object item : (Collection<?>) value) copy.add(freeze(item));
+            for (Object item : (Collection<?>) value) copy.add(freeze(item, seen));
             return copy;
         }
         Map<String, Object> fields = new TreeMap<String, Object>();
         for (Field field : value.getClass().getDeclaredFields()) {
             if (Modifier.isStatic(field.getModifiers())) continue;
             if (value instanceof KOMEWorldData && Arrays.asList("writeBlocked", "loadFailureReason", "loadSection").contains(field.getName())) continue;
-            field.setAccessible(true); fields.put(field.getName(), freeze(field.get(value)));
+            field.setAccessible(true); fields.put(field.getName(), freeze(field.get(value), seen));
         }
         return fields;
     }

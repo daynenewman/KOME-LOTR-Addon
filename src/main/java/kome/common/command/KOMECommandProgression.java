@@ -104,6 +104,7 @@ public class KOMECommandProgression extends KOMEPublicCommand {
                 if (!result.success) throw new WrongUsageException(result.reason);
                 progression = data.getProgression(playerId);
                 syncProgression(player, progression);
+                kome.common.data.KOMEProgressionAnnouncements.earned(player,KOMEHigherRankTransitionService.forMarker(achievement.id).fromRank,false);
                 String rankTitle = KOMEFactionProgressionTitles.title(
                     data.getPlayerFactionKey(playerId), result.newRank);
                 player.addChatMessage(new ChatComponentText("Advanced to " + rankTitle + "."));

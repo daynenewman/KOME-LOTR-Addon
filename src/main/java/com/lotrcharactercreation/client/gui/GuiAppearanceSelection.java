@@ -174,6 +174,18 @@ public class GuiAppearanceSelection extends GuiScreen {
         }
     }
 
+    @Override public void updateScreen(){super.updateScreen();previewRenderer.update();}
+    @Override protected void mouseClicked(int x,int y,int button){
+        if(button==0&&getSelectedPreset()!=null&&!selectionPending
+                &&com.lotrcharactercreation.client.render.AppearancePreviewSwing.hitsAvatar(x,y,width/2,height/2)){
+            for(Object entry:buttonList){GuiButton control=(GuiButton)entry;
+                if(control.visible&&x>=control.xPosition&&x<control.xPosition+control.width&&y>=control.yPosition&&y<control.yPosition+control.height){super.mouseClicked(x,y,button);return;}
+            }
+            previewRenderer.swing();return;
+        }
+        super.mouseClicked(x,y,button);
+    }
+
     @Override
     public void drawScreen(int mouseX, int mouseY, float partialTicks) {
         drawDefaultBackground();

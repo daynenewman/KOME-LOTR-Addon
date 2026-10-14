@@ -1,5 +1,11 @@
 # KOM-40 scoped audit/repair foundation
 
+Current status (October 7): KOM-40 Done records the delivered bounded foundation
+merged in PR #20. Remaining campaign integrations belong to KOM-82. Current
+available company/coherence/movement audit integration and its explicit dependencies
+are mapped in [KOM-82 coverage](pr-review-20261007/KOM-82-coverage.md).
+Validation below remains historical evidence at the stated revisions.
+
 Original base: `fa6a43cc4876f68fd59f361fa6182b21ae26d974` (dev). Integrated latest dev
 `a8ee2665d69ed5eb51df1edf047c8395b37080a9` by merge. This is a partial foundation for
 [KOM-40](https://linear.app/kome-development/issue/KOM-40/add-centralized-audit-logging-reason-strings-and-admin-repair-tools), not completion of the issue.
@@ -77,7 +83,7 @@ relinking, company location/state repair, corrupted-conflict repair, combat/fina
 milestone logging, a daily notification batch, global milestone notifications or Discord.
 Existing conflict, stewardship and war repair commands are retained, not expanded or
 claimed as covered by these new plans. Broader blocked-action reason coverage and audit
-coverage across all canonical actions remain KOM-40 work. Ambiguous corruption, unavailable
+coverage across all canonical actions remain KOM-82 work. Ambiguous corruption, unavailable
 geometry and quarantined waypoint evidence require review; no guessed ownership, population,
 ruler, capital or destination is created.
 

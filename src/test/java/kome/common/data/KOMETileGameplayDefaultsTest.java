@@ -100,7 +100,7 @@ public class KOMETileGameplayDefaultsTest {
         }
     }
     @Test public void baselineAndSelectedV2HaveIdenticalActualGameplayPaths()throws Exception{
-        List<String> expected=Files.readAllLines(Paths.get("src/test/resources/kome/tile/gameplay-baseline/production-paths.tsv"),StandardCharsets.UTF_8);
+        List<String> expected=KOMETileGameplayParityTest.expectedWithKom59Correction();
         for(final String mask:new String[]{"src/test/resources/kome/tile/gameplay-baseline/mask.png","src/main/resources/assets/kome/map/reset_conquest_tile_ids.png"}){
             try(URLClassLoader loader=new URLClassLoader(classpath(),ClassLoader.getSystemClassLoader().getParent()){
                 @Override public InputStream getResourceAsStream(String path){

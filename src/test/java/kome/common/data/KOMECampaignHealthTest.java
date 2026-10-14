@@ -29,7 +29,8 @@ public class KOMECampaignHealthTest {
         KOMEAccessFixture fixture = new KOMEAccessFixture();
         EntityPig rider = new EntityPig(fixture.world), mount = new EntityPig(fixture.world);
         rider.setHealth(3.375F); mount.setHealth(7.625F); rider.mountEntity(mount);
-        KOMEHiredUnitRecord record = record(); record.mounted = true;
+        KOMEHiredUnitRecord record = record(); record.entity = rider.getUniqueID(); record.mounted = true;
+        record.stationedEntityData = KOMEEntitySnapshots.snapshot(rider);
         record.movingEntityData = KOMEEntitySnapshots.snapshot(record, rider);
         assertEquals(3.375F, record.movingEntityData.getFloat("HealF"), 0F);
         assertEquals(7.625F, record.movingEntityData.getCompoundTag("Riding").getFloat("HealF"), 0F);
@@ -49,7 +50,8 @@ public class KOMECampaignHealthTest {
         KOMEAccessFixture fixture = new KOMEAccessFixture();
         EntityPig rider = new EntityPig(fixture.world), mount = new EntityPig(fixture.world);
         rider.setHealth(9F); mount.setHealth(9F); rider.mountEntity(mount);
-        KOMEHiredUnitRecord record = record(); record.mounted = true;
+        KOMEHiredUnitRecord record = record(); record.entity = rider.getUniqueID(); record.mounted = true;
+        record.stationedEntityData = KOMEEntitySnapshots.snapshot(rider);
         record.stationedEntityData = KOMEEntitySnapshots.snapshot(record, rider);
         rider.setHealth(2.125F); mount.setHealth(4.875F); // damage after the last stored full snapshot
         KOMEHiredUnitRecord restored = new KOMEHiredUnitRecord(); restored.readFromNBT(record.writeToNBT());
@@ -64,11 +66,14 @@ public class KOMECampaignHealthTest {
 
     @Test public void unloadAndReloadCannotReplaceKnownDamageWithStaleHigherHealth() throws Exception {
         KOMEAccessFixture fixture = new KOMEAccessFixture();
-        EntityPig original = new EntityPig(fixture.world); original.setHealth(1.875F);
-        KOMEHiredUnitRecord record = record(); KOMECampaignHealth.observe(record, original);
+        EntityPig original = new EntityPig(fixture.world); original.setHealth(9F);
+        KOMEHiredUnitRecord record = record(); record.entity = original.getUniqueID();
+        NBTTagCompound old = KOMEEntitySnapshots.snapshot(record, original);
+        original.setHealth(1.875F); KOMECampaignHealth.observe(record, original);
         record.healthObservedEntity = null; // unload detaches physical authority
         KOMEHiredUnitRecord restored = new KOMEHiredUnitRecord(); restored.readFromNBT(record.writeToNBT());
-        EntityPig stale = new EntityPig(fixture.world); stale.setHealth(9F);
+                EntityPig stale = new EntityPig(fixture.world);
+        KOMECampaignHealthEntity.beginRead(stale, old); stale.readFromNBT(old); KOMECampaignHealthEntity.endRead(stale, old);
         KOMECampaignHealth.reconcileLoaded(restored, stale);
         assertEquals(1.875F, stale.getHealth(), 0F);
         stale.setHealth(1.25F); KOMECampaignHealth.observe(restored, stale);
@@ -78,10 +83,16 @@ public class KOMECampaignHealthTest {
     @Test public void mountAttachedAfterRiderJoinCannotReplaceFresherSavedDamage() throws Exception {
         KOMEAccessFixture fixture = new KOMEAccessFixture();
         EntityPig rider = new EntityPig(fixture.world), mount = new EntityPig(fixture.world);
-        rider.mountEntity(mount); rider.setHealth(4.125F); mount.setHealth(2.875F);
-        KOMEHiredUnitRecord record = record(); record.mounted = true; KOMECampaignHealth.observe(record, rider);
+        rider.mountEntity(mount); rider.setHealth(9F); mount.setHealth(9F);
+        KOMEHiredUnitRecord record = record(); record.entity = rider.getUniqueID(); record.mounted = true;
+        record.stationedEntityData = KOMEEntitySnapshots.snapshot(rider);
+        NBTTagCompound old = KOMEEntitySnapshots.snapshot(record, rider);
+        rider.setHealth(4.125F); mount.setHealth(2.875F); KOMECampaignHealth.observe(record, rider);
         KOMEHiredUnitRecord restored = new KOMEHiredUnitRecord(); restored.readFromNBT(record.writeToNBT());
-        rider.mountEntity(null); rider.setHealth(9F); mount.setHealth(9F);
+        rider = new EntityPig(fixture.world); mount = new EntityPig(fixture.world);
+        KOMECampaignHealthEntity.beginRead(rider, old); rider.readFromNBT(old); KOMECampaignHealthEntity.endRead(rider, old);
+        NBTTagCompound oldMount = old.getCompoundTag("Riding");
+        KOMECampaignHealthEntity.beginRead(mount, oldMount); mount.readFromNBT(oldMount); KOMECampaignHealthEntity.endRead(mount, oldMount);
         KOMECampaignHealth.reconcileLoaded(restored, rider); // rider joins before Riding is attached
         assertEquals(4.125F, rider.getHealth(), 0F);
         rider.mountEntity(mount); KOMECampaignHealth.observe(restored, rider);
@@ -137,6 +148,7 @@ public class KOMECampaignHealthTest {
         EntityPig rider = new EntityPig(fixture.world), mount = new EntityPig(fixture.world);
         rider.mountEntity(mount); rider.setHealth(4.625F); mount.setHealth(9F);
         KOMEHiredUnitRecord record = record(); record.entity = rider.getUniqueID(); record.mounted = true;
+        record.stationedEntityData = KOMEEntitySnapshots.snapshot(rider);
         fixture.data.hiredUnits.put(record.entity, record); fixture.data.setDirty(false);
         new KOMEEvents().onCampaignHealthDamage(new net.minecraftforge.event.entity.living.LivingHurtEvent(mount, net.minecraft.util.DamageSource.generic, 2F));
         mount.setHealth(6.125F); // native damage is applied after the event

@@ -16,6 +16,7 @@ There is no active three-track alliance model, king-loss grace timer, or allianc
 
 ## Documentation
 
+- [Task and symptom routing map](docs/routing/INDEX.md) — start here for current code, dependencies, and tests; linked historical documents may describe earlier behavior.
 - [Build system](docs/KOME_BUILD_SYSTEM.md)
 - [Population system](docs/KOME_POPULATION_SYSTEM.md)
 - [Character Creation](docs/KOME_CHARACTER_CREATION.md)

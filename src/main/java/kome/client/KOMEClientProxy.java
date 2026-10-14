@@ -47,6 +47,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
     public void init() {
         super.init();
         FMLCommonHandler.instance().bus().register(clientTasks);
+        FMLCommonHandler.instance().bus().register(new KOMEElvenFootGlow());
         kome.client.tactical.KOMETacticalAreaInteractionHandler tacticalInput = new kome.client.tactical.KOMETacticalAreaInteractionHandler(this);
         FMLCommonHandler.instance().bus().register(tacticalInput);
         MinecraftForge.EVENT_BUS.register(tacticalInput);
@@ -67,7 +68,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         MinecraftForge.EVENT_BUS.register(new KOMEQuotaLedgerOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEUnitOverviewCapOverlay());
         MinecraftForge.EVENT_BUS.register(new KOMEEntityHighlightOverlay());
-        MinecraftForge.EVENT_BUS.register(new KOMEProgressionEnemyOutline());
+
         MinecraftForge.EVENT_BUS.register(progressionTrackerOverlay);
         FMLCommonHandler.instance().bus().register(progressionTrackerOverlay);
         KOMEWaypointMapOverlay waypointMapOverlay = new KOMEWaypointMapOverlay();
@@ -163,7 +164,10 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         enqueueClientTask(() -> kome.common.data.KOMEPublicWaypointClientState.INSTANCE.accept(connection,chunk));
     }
 
+    @Override public void updateProgressionIdentities(java.util.Map<java.util.UUID,String> identities) { KOMEPlayerNameplate.update(identities); }
+
     private void resetClientSessionState() {
+        KOMEPlayerNameplate.clear();
         if (tacticalAreaEditor != null) tacticalAreaEditor.reset();
         if (tacticalEditor != null) tacticalEditor.reset();
         tacticalEditorStatus = null;
@@ -410,7 +414,7 @@ com.fuzs.aquaacrobatics.AquaAcrobatics.proxy =
         progressionTrackerOverlay.update(snapshot);
     }
 
-    @Override
+    @Override public void updateStandingTrialEligibility(int id,long most,long least,boolean eligible,boolean passive,boolean offering,int color,boolean relevant,String reason) { KOMELiegeQuestButtonOverlay.updateEligibility(id,new java.util.UUID(most,least),eligible,passive,offering,color,relevant,reason); }
     public void updateStandingTrialEligibility(
             int entityId,
             long entityUuidMost,

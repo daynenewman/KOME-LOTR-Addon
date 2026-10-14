@@ -1,0 +1,12 @@
+269: [14:26:50] [User Authenticator #1/INFO]: UUID of player _Danye_ is a976a4b7-0614-49c0-b992-61a3a89bd773
+270: [14:26:50] [Server thread/INFO] [STDOUT]: [lotr.common.coremod.LOTRClassTransformer:patchFoodStats:1346]: LOTRCore: Patched method func_75113_a
+271: [14:26:50] [Netty IO #2/INFO] [FML]: Client protocol version 2
+272: [14:26:50] [Netty IO #2/INFO] [FML]: Client attempting to join with 6 mods : lotr@Update v36.15 for Minecraft 1.7.10,FML@7.10.99.99,Forge@10.13.4.1614,geckolib3@3.0.40,mcp@9.05,kome@1.0.9-integration-g4
+273: [14:26:50] [Netty IO #2/INFO] [FML]: Attempting connection with missing mods [tileacceptanceprobe] at CLIENT
+274: [14:26:50] [Server thread/INFO] [FML]: [Server thread] Server side modded connection established
+275: [14:26:51] [Server thread/INFO]: _Danye_[/127.0.0.1:54554] logged in with entity id 2540 at (78017.5, 200.0, 66242.5)
+276: [14:26:51] [Server thread/INFO]: _Danye_ joined the game
+277: [14:26:51] [Server thread/INFO] [lotrcharactercreation]: Sending custom skin manifest revision 1 (epoch 1791573175500, 0 external preset(s)) to _Danye_
+278: [14:26:51] [Server thread/INFO]: [Wanderer] _Danye_ has just earned the Middle-earth achievement [The Townlands]
+345: [14:26:54] [Server thread/INFO]: _Danye_ lost connection: TextComponent{text='Disconnected', siblings=[], style=Style{hasParent=false, color=null, bold=null, italic=null, underlined=null, obfuscated=null, clickEvent=null, hoverEvent=null}}
+346: [14:26:54] [Server thread/INFO]: [Wanderer] _Danye_ left the game

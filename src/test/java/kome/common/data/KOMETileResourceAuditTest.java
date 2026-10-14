@@ -52,6 +52,8 @@ public class KOMETileResourceAuditTest {
         for (String id : active.values()) stats.put(id, new Stats());
         long transparent = 0, retiredPixels = 0, partialAlpha = 0, transitions = 0, gapTransitions = 0;
         List<String> examples = new ArrayList<String>();
+        Map<Integer,KOMEMountainSeparationTest.Cell> approved = KOMEMountainSeparationTest.cells();
+        int classified = 0;
         for (int p = 0; p < pixels.length; p++) {
             int argb = pixels[p], alpha = argb >>> 24, rgb = argb & 0xFFFFFF;
             String id = null;
@@ -65,7 +67,13 @@ public class KOMETileResourceAuditTest {
             KOMETileResolution resolved = snapshot.resolve(snapshot.transform.dimension,
                 (p % w - 810) * 128, (p / w - 730) * 128);
             if (id == null) {
-                assertEquals(KOMETileResolution.Status.IN_BOUNDS_GAP, resolved.status);
+                KOMEMountainSeparationTest.Cell cell = approved.get(p);
+                if (cell == null) {
+                    assertEquals(KOMETileResolution.Status.IN_BOUNDS_GAP, resolved.status);
+                    assertFalse(resolved.exclusion().isPresent());
+                } else {
+                    assertEquals(0, argb); KOMEMountainSeparationTest.assertMountain(resolved, cell.zone); classified++;
+                }
                 assertEquals("", resolved.tileId);
                 pixels[p] = 0;
             } else {
@@ -135,6 +143,7 @@ public class KOMETileResourceAuditTest {
             }
         }
         assertEquals((long)w*h, assigned+transparent+retiredPixels);
+        assertEquals(45, classified);
         Files.write(output.resolve("tiles.csv"), table, StandardCharsets.UTF_8);
         Files.write(output.resolve("components.csv"), components, StandardCharsets.UTF_8);
         List<String> report = Arrays.asList("# Production tile raster audit", "",
@@ -143,6 +152,7 @@ public class KOMETileResourceAuditTest {
             "LOTR map SHA-256: `"+hash("assets/lotr/map/map.png")+"`", "",
             "Dimensions: "+w+"x"+h+"; cells: "+pixels.length+"; mapping IDs: "+all.size()+"; active: "+active.size()+"; retired exclusions: "+retired.size()+".",
             "Assigned cells: "+assigned+"; transparent cells (alpha <= 24): "+transparent+"; retired-colored cells: "+retiredPixels+"; nontransparent partial-alpha cells: "+partialAlpha+".",
+            "Approved mountain exclusion cells: "+classified+"; all other gaps remain unclassified (independent pinned manifest).",
             "Every cell matched the integer resolver against independent source-image identity. Unknown opaque colors / invalid active IDs: zero (asserted).",
             "Ownership metadata rows: "+metadataIds.size()+"; duplicate/unknown IDs: zero (asserted); active IDs without metadata: "+missingMetadata+". SHA-256: `"+hash(ownership)+"`.",
             "Active IDs without coverage: "+missing+".",

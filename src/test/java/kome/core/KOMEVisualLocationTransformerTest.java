@@ -52,13 +52,18 @@ public class KOMEVisualLocationTransformerTest {
             KOMEVisualLocationTransformer.NATIVE_RELATIONSHIP_RENDERER,
             KOMEVisualLocationTransformer.NPC_RENDER_DESC);
         assertEquals("The native renderer body must be cloned, not approximated",
-            nativeBook.instructions.size() + 2, relationship.instructions.size());
+            nativeBook.instructions.size() + 3, relationship.instructions.size());
         List<String> calls = calls(transformed,
             KOMEVisualLocationTransformer.NATIVE_RELATIONSHIP_RENDERER,
             KOMEVisualLocationTransformer.NPC_RENDER_DESC, true);
         assertTrue(contains(calls, "java/lang/Math.pow"));
         assertTrue(contains(calls, "org/lwjgl/opengl/GL11.glDepthMask"));
-        assertTrue(contains(calls, "net/minecraft/client/renderer/ItemRenderer.renderItemIn2D"));
+        assertTrue(contains(calls, KOMEVisualLocationTransformer.BRIDGE + ".renderRelationshipItemIn2D"));
+        assertTrue(contains(calls, KOMEVisualLocationTransformer.BRIDGE + ".renderRelationshipIcon"));
+        assertTrue(contains(calls, KOMEVisualLocationTransformer.BRIDGE + ".nearRelationshipIndicator"));
+        assertTrue(contains(calls(readResource("/kome/client/KOMEVisualRenderBridge.class"),
+            "renderRelationshipItemIn2D", "(Lnet/minecraft/client/renderer/Tessellator;FFFFIIF)V",true),
+            "net/minecraft/client/renderer/ItemRenderer.renderItemIn2D"));
         assertTrue(contains(calls, KOMEVisualLocationTransformer.BRIDGE + ".relationshipIconForNative"));
         assertTrue(contains(calls, KOMEVisualLocationTransformer.BRIDGE + ".itemIcon"));
         assertFalse(contains(calls, "net/minecraft/item/ItemStack.getIconIndex"));

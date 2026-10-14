@@ -40,6 +40,8 @@ public final class KOMECompanyDiplomacyAuthorization {
         if (delegatingKing.equals(recipient)) {
             return Decision.deny("Delegation requires another player.");
         }
+        KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(data, delegatingKing, nativeKey);
+        if (!governance.allowed) return Decision.deny(governance.reason);
         if (!KOMERulerAuthorization.canActAsRuler(data, nativeKey, delegatingKing)
                 || !nativeKey.equals(KOMEAlliance.normalizeFactionKey(
                     data.getPlayerFactionKey(delegatingKing)))) {
@@ -74,6 +76,8 @@ public final class KOMECompanyDiplomacyAuthorization {
 
     private static Decision recipientDecision(
             KOMEWorldData data, String nativeFaction, UUID recipient) {
+        KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(data, recipient, nativeFaction);
+        if (!governance.allowed) return Decision.deny(governance.reason);
         String recipientFaction =
             KOMEAlliance.normalizeFactionKey(data.getPlayerFactionKey(recipient));
 

@@ -54,6 +54,23 @@ public class KOMEJoinBattleEntryServiceTest {
                 f.record.getConflictId(),f.record.getRevision(),"C1",100L));
     }
 
+    @Test public void previouslyIssuedTokenCannotBypassNewGovernanceRestriction() throws Exception {
+        Fixture f=new Fixture(); String token=f.token();
+        KOMEWar war=new KOMEWar(); war.id="W1";
+        war.sideOneFactions.add("gondor"); war.sideTwoFactions.add("mordor");
+        f.data.wars.put(war.id,war);f.data.lastKnownPlayerFactions.put(f.playerId,"gondor");
+        f.data.warSeason.phase=KOMEWarSeasonState.Phase.WAR;
+        f.data.warSeason.factionDefeats.put("gondor",1L);
+        FakePhysical physical=new FakePhysical(f.data);
+        KOMEJoinBattleEntryService.Result result=KOMEJoinBattleEntryService.INSTANCE.enter(
+            f.data,f.access.player,f.request(token,"C1"),physical);
+        assertEquals(KOMEJoinBattleEntryService.Status.REJECTED,result.status);
+        assertEquals("GOVERNANCE_RESTRICTED",result.reason.name());
+        assertEquals(0,physical.preparations);assertEquals(0,physical.deployments);
+        assertTrue(f.data.getJoinBattleDeploymentReceipts().records().isEmpty());
+        assertTrue(f.data.getConflictService().get("T100").getPlayers().isEmpty());
+    }
+
     @Test public void firstEntryPublishesReceiptBeforeMovementRegistersOnceAndReplaysIdempotently() throws Exception{
         Fixture f=new Fixture();FakePhysical physical=new FakePhysical(f.data);
         long before=f.record.getRevision();String token=f.token();

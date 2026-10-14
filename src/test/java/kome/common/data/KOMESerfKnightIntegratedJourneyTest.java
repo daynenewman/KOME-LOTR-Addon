@@ -42,10 +42,10 @@ public class KOMESerfKnightIntegratedJourneyTest {
         assertEquals(1,before.requirements.get(2).current);
         assertEquals(3,before.requirements.size());
 
-        assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,liege,"rohan",150D).success);
+        assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"rohan",150D).success);
         assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"gondor",150D).success);
         assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"rohan",149D).success);
-        assertTrue(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"rohan",150D).success);
+        assertTrue(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,liege,"rohan",150D).success);
         assertFalse("Unclaimed reward is optional",state.hasPartingGift());assertTrue(state.isPromoted());
         assertEquals(KOMEProgressionRank.KNIGHT,progression.getCanonicalRank());
         assertFalse("The former Serfdom Master is no longer an active relationship after Knighthood",state.getSerfdomMaster().isSet());

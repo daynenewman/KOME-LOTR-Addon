@@ -111,7 +111,7 @@ public class KOMESerfKnightRecoveryServiceTest {
             KOMEProgressionNpcRef ref=KOMEProgressionNpcRankService.referenceOf(s.master);s.state.setLiege(ref);
             KOMESerfKnightTrialAssignment a=new KOMESerfKnightTrialAssignment("recovery",java.util.UUID.randomUUID().toString(),ref,"rohan",10,KOMESerfKnightTrialAssignment.Stage.ACTIVE,0,data);
             s.state.setTrial(a);assertTrue(KOMESerfKnightRecoveryService.deliver(s.f.player,s.p,s.master));
-            assertFalse(s.state.isTrialCompleted());assertEquals(KOMESerfKnightTrialAssignment.Stage.FAILED,s.state.getTrialAssignment().stage);
+            assertFalse(s.state.isTrialCompleted());assertNull(s.state.getTrialAssignment());assertFalse(s.state.hasLiege());assertFalse(s.state.failures().isEmpty());
             assertTrue(s.f.player.messages.stream().anyMatch(m->m.contains("lost again")));assertEquals(0,s.drops());
         }
     }

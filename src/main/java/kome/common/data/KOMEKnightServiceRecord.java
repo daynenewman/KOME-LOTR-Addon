@@ -16,7 +16,7 @@ public final class KOMEKnightServiceRecord {
         EnumSet<KOMEKnightCommission.Type> result=EnumSet.noneOf(KOMEKnightCommission.Type.class);
         lotr.common.fac.LOTRFaction served=KOMEProgressionFactionResolver.resolve(faction);
         if(served!=null)for(KOMEKnightCommission a:history)
-            if(a.stage==KOMEKnightCommission.Stage.REPORTED&&KOMEProgressionFactionResolver.matches(a.faction,served))result.add(a.type);
+            if(a.stage==KOMEKnightCommission.Stage.REPORTED&&!a.adminForced&&KOMEProgressionFactionResolver.matches(a.faction,served))result.add(a.type);
         return Collections.unmodifiableSet(result);
     }
     private boolean recorded(String token) { for(KOMEKnightCommission a:history)if(a.token.equals(token))return true;return false; }
@@ -41,6 +41,7 @@ public final class KOMEKnightServiceRecord {
         completed.add(assignment.type);history.add(evidence);trimHistory();assignment=null;return true;
     }
     public synchronized void discardOffer() { if(assignment!=null&&assignment.stage==KOMEKnightCommission.Stage.OFFERED)assignment=null; }
+    synchronized void discardTestAssignment(){assignment=null;}
     public synchronized void clearFailed() { if(assignment!=null&&assignment.stage==KOMEKnightCommission.Stage.FAILED){history.add(assignment);trimHistory();assignment=null;} }
     /** Failed attempts are bounded; successful reports retain their Liege and faction provenance. */
     private void trimHistory() { while(history.size()>32){int remove=-1;for(int i=0;i<history.size();i++)if(history.get(i).stage==KOMEKnightCommission.Stage.FAILED){remove=i;break;}if(remove<0)break;history.remove(remove);} }

@@ -51,8 +51,11 @@ public final class KOMESerfCourierAssignment {
 
     public static KOMESerfCourierAssignment create(KOMEProgressionNpcRef master){LOTRWaypoint w=chooseDestination(master);return w==null?null:create(master,w);}
     public static KOMESerfCourierAssignment create(KOMEProgressionNpcRef master,World world){
+        return create(master,world,null);
+    }
+    static KOMESerfCourierAssignment create(KOMEProgressionNpcRef master,World world,KOMEProgressionVariety variety){
         if(master==null||!master.isSet()||world==null||world.provider.dimensionId!=master.dimension)return null;
-        String token=UUID.randomUUID().toString();GeographicDestination destination=chooseGeographic(master,world,token);
+        String token=UUID.randomUUID().toString();GeographicDestination destination=chooseGeographic(master,world,token,variety);
         if(destination==null)return null;
         return new KOMESerfCourierAssignment(master.factionKey,token,master.dimension,master.x,master.y,master.z,
             MIN_COURIER_DISTANCE,Stage.OUTBOUND,KOMEProgressionNpcRef.EMPTY,destination.key,destination.name,
@@ -68,11 +71,12 @@ public final class KOMESerfCourierAssignment {
     static LOTRWaypoint chooseDestination(KOMEProgressionNpcRef master){return master==null||!master.isSet()?null:
         chooseDestination(master.factionKey,master.dimension,master.x,master.z,master.entityUuid,null,0);}
 
-    private static GeographicDestination chooseGeographic(KOMEProgressionNpcRef master,World world,String seed){
+    private static GeographicDestination chooseGeographic(KOMEProgressionNpcRef master,World world,String seed,KOMEProgressionVariety variety){
         LOTRFaction faction=faction(master.factionKey);if(faction==null||master.dimension!=LOTRDimension.MIDDLE_EARTH.dimensionID)return null;
         java.util.Random random=new java.util.Random((seed==null?0:seed.hashCode())*31L
             +Double.doubleToLongBits(master.x)+Double.doubleToLongBits(master.z));
         java.util.Map<LOTRBiome,Boolean> recipients=new java.util.HashMap<LOTRBiome,Boolean>();
+        GeographicDestination fallback=null;
         for(int attempt=0;attempt<192;attempt++){
             double distance=MIN_COURIER_DISTANCE+random.nextDouble()*(MAX_COURIER_DISTANCE-MIN_COURIER_DISTANCE);
             double angle=random.nextDouble()*Math.PI*2D;
@@ -87,9 +91,11 @@ public final class KOMESerfCourierAssignment {
             Boolean available=recipients.get(biome);
             if(available==null){available=!KOMECourierRecipientSpawner.eligibleClasses(world,biome,faction).isEmpty();recipients.put(biome,available);}
             if(!available)continue;
-            return new GeographicDestination(key,biome.getBiomeDisplayName(),cx,cz);
+            GeographicDestination candidate=new GeographicDestination(key,biome.getBiomeDisplayName(),cx,cz);
+            if(variety==null||variety.penalty(master,cx,cz)==0)return candidate;
+            if(fallback==null||variety.penalty(master,cx,cz)<variety.penalty(master,fallback.x,fallback.z))fallback=candidate;
         }
-        return null;
+        return fallback;
     }
 
     static boolean isTerritoryCandidate(World world,LOTRFaction faction,LOTRBiome biome,int x,int z){

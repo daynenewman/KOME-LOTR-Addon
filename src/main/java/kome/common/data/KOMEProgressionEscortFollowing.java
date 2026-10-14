@@ -6,7 +6,16 @@ import net.minecraft.nbt.NBTTagCompound;
 /** A reversible lease of LOTR's supported teleportAutomatically flag, saved on the NPC. */
 public final class KOMEProgressionEscortFollowing {
     static final String ORIGINAL="KOMEProgressionEscortTeleport";
+    private static final ThreadLocal<Boolean> DELIVERED=new ThreadLocal<Boolean>();
     private KOMEProgressionEscortFollowing() {}
+    public static void nativeDismissalMessage(net.minecraft.entity.player.EntityPlayer player,net.minecraft.util.IChatComponent message){
+        if(!Boolean.TRUE.equals(DELIVERED.get())&&player!=null)player.addChatMessage(message);
+    }
+    public static void releaseDelivered(LOTREntityNPC npc){
+        restore(npc);
+        Boolean previous=DELIVERED.get();DELIVERED.set(Boolean.TRUE);
+        try{npc.hiredNPCInfo.dismissUnit(false);}finally{if(previous==null)DELIVERED.remove();else DELIVERED.set(previous);}
+    }
     public static boolean interact(net.minecraft.entity.player.EntityPlayerMP player,LOTREntityNPC npc){
         if(player==null||npc==null||player.worldObj!=npc.worldObj||player.getDistanceSqToEntity(npc)>64)return false;
         KOMEWorldData world=KOMEWorldData.get(npc.worldObj);
@@ -37,6 +46,7 @@ public final class KOMEProgressionEscortFollowing {
                 ||!a.protectedActor().id.equals(npc.getUniqueID().toString())))return;
         disable(npc);
         net.minecraft.entity.player.EntityPlayer owner=npc.hiredNPCInfo.getHiringPlayer();
+        if(owner instanceof net.minecraft.entity.player.EntityPlayerMP)KOMEProgressionEscortJourney.tick((net.minecraft.entity.player.EntityPlayerMP)owner,npc);
         if(npc.getAttackTarget()!=null&&(npc.isCivilianNPC()||owner==null||owner.getDistanceSqToEntity(npc.getAttackTarget())>16*16)){
             npc.setAttackTarget(null);npc.getNavigator().clearPathEntity();
         }
@@ -49,6 +59,7 @@ public final class KOMEProgressionEscortFollowing {
     }
     public static void restore(LOTREntityNPC npc) {
         if(npc==null||npc.hiredNPCInfo==null)return;
+        KOMEProgressionEscortJourney.release(npc);
         NBTTagCompound tag=npc.getEntityData();
         if(tag.hasKey(ORIGINAL)){npc.hiredNPCInfo.teleportAutomatically=tag.getBoolean(ORIGINAL);tag.removeTag(ORIGINAL);}
     }

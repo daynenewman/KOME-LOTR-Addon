@@ -1,0 +1,1053 @@
+KOME-LOTR-Addon
+PROGRESSION COHERENCE AUDIT
+Post-implementation review of the actual verified working tree
+======================================================================
+
+Repository: KOME-LOTR-Addon / Kings of Middle-earth Server Addon
+Branch: elijahrnovak/kom-72-implement-revised-branch-based-player-progression-system
+HEAD baseline: 69dbad5a8d2d1cef461e8327b961ce9194d8241f
+Baseline meaning: the dev/progression synchronization merge, plus this pass's
+uncommitted gameplay implementation and regression tests.
+Date: 2026-10-08, America/Chicago; final review after implementation/verification.
+Uncommitted changes included: YES. No commit, push, merge or stash mutation.
+Source manifest: outputs/progression-coherence/verified-source-sha256.txt
+Manifest SHA-256: b0820a83f5a12cbcd52d4fc6e58bda6d7652defd465fdc9f11bf533867427846
+This manifest covers the 80 changed/added source and test files, not this report.
+Native dependency: libs/LOTRMod v36.15.jar
+Native JAR SHA-256: 4f296e749c0d4739ecf859217a526b4218a2a45a768c08d3d551af0d0d3d5635
+
+Verification completed before this audit:
+  New focused regressions: 34 passed, 0 failed, 0 skipped.
+  Expanded focused run: 914 total; 911 passed, 0 failed, 3 skipped.
+  Full project run: 2,853 total; 2,848 passed, 0 failed, 5 skipped; 287 suites.
+  Normal Gradle test/build: BUILD SUCCESSFUL, exit 0, including reobfuscation.
+  git diff --check: passed.
+  Build: build/libs/KOME-LOTR-Addon-1.0.8.jar.
+  Minecraft actually launched: NO. No dedicated server or multiplayer session
+  was launched. No installed game JAR or existing world was replaced.
+
+Final review includes the reverified direct-item transfer cases before tracker
+refresh and completed-trial conferral after ordinary former-Master loss.
+The final source was reread after those corrections; no new Lord/Prince
+features were implemented during the audit.
+
+Scope: creation, pledge, Master service, Standing trials, Knight service,
+Lordship, existing Lord/Prince architecture, NPC authority, UI/navigation,
+economy, persistence, administrative testing and native integration.
+This is a separate critical review, not a restatement of the requested changes.
+It does not implement a new Lord/Prince design. Prior reports were useful
+context, but the findings below are grounded in the final source and tests.
+
+Limits: headless fixtures do not reproduce physical pathfinding, GPU rendering,
+actual settlement coverage, player motivation, hostile density, server TPS,
+network timing or third-party mods. Native trade price tests use real native
+entries/costs/stack quantities with a headless matching seam; the production
+matcher remains LOTRTradeEntry.matches. Forge's actual ore-dictionary bootstrap
+requires its game class loader. Test counts are not measurements of fun or
+proof that names, outlines, maps or speech look correct in Minecraft.
+
+Evidence labels used throughout:
+  VERIFIED IMPLEMENTATION: directly established from final executable code.
+  AUTOMATED TEST EVIDENCE: exercised in the completed JVM/source/bytecode tests.
+  LIVE-TESTING REQUIRED: cannot be settled by this verification environment.
+  DESIGN CONCERN: a judgment about pacing, meaning or player experience.
+  KNOWN LIMITATION: an explicit current boundary, including incomplete systems.
+
+Code-reference notation:
+  D/ = src/main/java/kome/common/data/
+  C/ = src/main/java/kome/client/
+  N/ = src/main/java/kome/common/network/
+  Q/ = src/main/java/kome/common/command/
+  X/ = src/main/java/com/lotrcharactercreation/
+References are relative to the repository root. Line numbers refer to this
+working tree and are anchors, not claims about later revisions.
+
+A. ACTUAL PLAYER JOURNEY
+======================================================================
+
+A1. New-world character creation
+Action and authority: the server derives race -> gender where selectable ->
+starting faction -> appearance -> confirmation from persisted choices.
+Orcs/Uruk-hai receive inherent sex and skip the selectable gender step. A
+starting allegiance can be applied at finalization when configuration enables
+it; selecting a starting faction is not itself a canonical KOME promotion.
+Discovery/HUD/book: mandatory native-style creation screens explain this
+stage. The later progression HUD/book belongs to the separate KOME progression
+record. ESC/pause and reconnect resume the derived mandatory stage.
+Indicators/world: race traits, appearance, starting alignment/pledge and the
+configured starting waypoint are the material effects; no Master/Liege is
+invented by character creation.
+Blockers/recovery: invalid race/faction/preset combinations and unfinished
+choices prevent finalization; existing choices permit resumption.
+Continuity: technically sound, but the handoff from creation to personal
+service needs a live first-session test. The two modules have distinct state
+authorities, which is appropriate if the player is clearly handed onward.
+Evidence: X/creation/CharacterCreationFlowService.java:22,61;
+X/faction/StartingFactionApplication.java:19,31.
+
+A2. Faction pledge
+Action and authority: use native LOTR pledge rules, or the configured creation
+finalization route. The actual LOTRPlayerData pledge is authoritative. Native
+alignment, competing pledges and replacement/betrayal rules still matter.
+Discovery/HUD/book: an unpledged Wanderer sees "Pledge to a faction"; a pledged
+Wanderer sees "Find a Master to serve." The book shows pledge and current rank.
+Indicators/world: native faction UI and alignment remain native. The world
+nameplate receives canonical standing/faction presentation, not a new profile.
+Blockers/recovery: native pledge restrictions are not bypassed; resolve the
+native blocker or choose another permitted allegiance. Ordinary pledge changes
+clean up incompatible progression relationships and objectives.
+Continuity: a pledge establishes belonging, not earned household service.
+That distinction is coherent and should be preserved.
+Evidence: D/KOMEProgressionTrackerSnapshot.java:53;
+D/KOMEProgressionRelationshipLifecycle.java:38;
+D/KOMEProgressionIdentity.java:6.
+
+A3. Finding a Master and entering Serf standing
+Action and authority: accept a valid adult, same-faction, unranked NPC's
+Master offer. The native offer shell is presentation; acceptance commits the
+KOME relationship and then enters canonical Serf standing.
+Discovery/HUD/book: the search HUD is text/icon only; native offer indicators
+and NPC speech expose an opportunity. Offers are selected for roughly one
+third of otherwise eligible player/NPC pairs in a three-calendar-day window.
+The book does not supply a global list of reachable Masters.
+Indicators/world: the saved Master identity/location gains relationship
+presentation; native NPC behavior remains the base behavior. New standing is
+publicly announced on the successful gameplay transition.
+Blockers/recovery: wrong pledge, social rank, child/ineligible NPC, an existing
+Master, betrayal lockout or no available native offer. Explore other eligible
+NPCs; ordinary loss has existing replacement routes.
+Continuity: service gives standing a social origin. However, deterministic
+offer scarcity is an unexplained discovery hurdle rather than a demonstrated
+gameplay necessity.
+Evidence: D/KOMEProgressionOfferBridge.java:26,45,190;
+D/KOMESerfdomMasterService.java:44;
+D/KOMECanonicalRankService.java:74.
+
+A4. Serf duties
+Action and authority: the current Master issues Provision, Profession and
+Courier duties, once each toward this path. All three must be completed.
+Ordinary issuance is limited to one task per configured server calendar day.
+Provisions request 3-4 distinct goods including native water; foods come from
+local/common pools. Profession requests 3-4 nonfood goods from the classified
+occupation profile and conservative acquisition allow-list. Small pools may
+produce fewer legitimate goods instead of duplicates or invented items.
+Discovery/HUD/book: speech announces work, the HUD shows an outstanding goods
+line with the native requested item/count, and the book lists the saved
+requirements/deposits. Courier instead shows concise delivery/report text
+without numeric progress; replacement details remain in the book.
+Indicators/world: saved Master/correspondent/objective markers; physical
+dispatches and native coin compensation. Incremental goods delivery consumes
+real inventory and saves cumulative deposits. A successful direct handover
+precedes ordinary NPC GUI opening and uses the native pouch sound.
+Blockers/recovery: daily cadence, missing goods, unmatched metadata/vessel,
+invalid relationship or missing correspondent. Courier has limited copies
+and recovery after confirmed recipient death. Obsolete goods can be replaced
+on an explicit Master visit; they are not rerolled on login.
+Continuity: this is recognizably household/occupational service. Quantities
+and compensation can still make the same duty much more burdensome for one
+profession than another. Occupation affects the pool, but not a complete
+NPC-specific interpretation of every trade and piece of equipment.
+Evidence: D/KOMESerfdomMasterService.java:110;
+D/KOMESerfProfessionClassifier.java:43;
+D/KOMEProgressionGoodsRules.java:17;
+D/KOMEProgressionGoodsRecovery.java:9;
+D/KOMEProgressionServiceRewards.java:21;
+D/KOMECourierIssuance.java:45.
+
+A5. Alignment before greater service
+Action and authority: acquire current positive native faction alignment in
+addition to completing duties. The prospective-Liege threshold is 150 for
+many factions, 200/250/300 for specified higher-threshold factions, and the
+actual captain's native canTradeWith check is also retained.
+Discovery/HUD/book: the tracker and book expose the faction threshold and
+current amount when this is the next blocker. Native alignment UI supplies
+the ordinary means of understanding faction favor.
+Indicators/world: no invented objective coordinates or replacement native
+alignment system. Optional native miniquests/combat remain important ways
+to earn alignment, subject to existing permission rules.
+Blockers/recovery: insufficient alignment or a stricter native captain gate.
+Continue permitted native gameplay. After acceptance, ordinary alignment
+changes do not automatically dissolve a valid relationship; conferral still
+checks the existing 150-point floor.
+Continuity: the gate gives faction trust meaning. Different native captain
+thresholds and separate legacy permission unlocks can make the displayed
+generic threshold feel insufficiently explanatory.
+Evidence: D/KOMEStandingTrialEligibility.java:16;
+D/KOMEProgressionOfferBridge.java:364;
+D/KOMEProgressionTrackerSnapshot.java:370;
+D/KOMESerfdomMasterService.java:89.
+
+A6. Seeking a prospective Liege
+Action and authority: approach an eligible same-faction combat-unit-hiring
+NPC of exact NPC Lord authority. Quest opens the relevant native offer; the
+relationship is committed on acceptance, not merely seeing an icon.
+Discovery/HUD/book: "Seek a prospective Liege," faction-specific authority
+guidance, native action indicators and the ordinary Talk/Hire/Quest host.
+The new disabled Quest presentation exposes most server-evaluated blockers.
+Indicators/world: acceptance replaces the active household relationship with
+prospective Liege service while retaining the old Master's service witness.
+The corresponding saved UUID has a Liege marker.
+Blockers/recovery: incomplete duties, alignment, wrong authority/faction,
+native trade eligibility, an active task, the daily trial limit or a failed
+NPC's unexpired restriction. Seek another valid Lord or wait as appropriate.
+Fangorn lacks the native hiring/Quest host needed by this architecture.
+Continuity: the authority change is now logical. Ordinary Master completion
+does not itself make the Master a noble or a Knight-making authority.
+Evidence: D/KOMEProgressionLiegePolicy.java:6,15;
+D/KOMESerfKnightService.java:38,73;
+D/KOMEProgressionNativeAuthority.java:54;
+D/KOMEProgressionFactionResolver.java:29.
+
+A7. Trial of Standing
+Action and authority: complete the saved Liege trial. Escort binds a real
+faction NPC and an existing verified destination; recovery binds one actual
+saved native item; defense binds a protected actor and required native foes.
+The Liege's authority, exact assignment and world services own transitions.
+Discovery/HUD/book: current trial/action, actual item icon or enemy counts,
+saved destination/charge and follow/wait/recalculate instructions. Show Me
+focuses supported objective markers at native maximum zoom for ten seconds.
+Indicators/world: native hired following with no automatic escort teleport,
+owned property, required enemy markers, temporary home/follow leases and
+native speech. Incidental escort ambushes have no mission enemy binding.
+Blockers/recovery: actual loss/death, invalidated shelter, unavailable actors,
+no native regional enemies, loaded missing evidence or lost property. A failed
+trial cleans its temporary roles, releases the prospective Liege, retains
+completed duties, records failure context, and imposes 20 real elapsed minutes
+for that NPC as well as the existing daily trial restriction.
+Continuity: the trial is a meaningful test of personal responsibility. Server
+activation failures can nevertheless produce the same consequences as player
+failure. This is unfair friction unless the feasibility boundary is improved.
+Evidence: D/KOMEProgressionNpcInteractionService.java:397,424;
+D/KOMESerfKnightEscortService.java:19,66;
+D/KOMESerfKnightRecoveryService.java:22,74;
+D/KOMEProgressionEncounterCleanup.java:16;
+D/KOMESerfKnightProgression.java:46;
+D/KOMEProgressionEscortJourney.java:12.
+
+A8. Knight promotion
+Action and authority: report/interact personally with the legitimate current
+Liege after authoritative trial completion, all three duties and required
+current alignment. The Liege gives the promotion speech and commits Knight
+standing. Recovery handover acknowledges the item first; a later personal
+interaction confers standing. A dead/lost Liege's completed trial can remain
+honored and be heard by a valid replacement Liege.
+Discovery/HUD/book: return-to-Liege guidance or replacement-Liege guidance;
+new faction title, tracker/book/faction presentation and synchronized player
+nameplate then reflect canonical Knight standing.
+Indicators/world: new standing is public; the Master retires to former-Master
+identity; the Liege remains the superior. The former Master's physical gift
+is optional, can remain pending and is never promotion evidence.
+Blockers/recovery: wrong NPC/faction, unfinished duties/trial, lost authority
+or low alignment. Correct the blocker or establish eligible replacement
+service. A gift failure or full inventory does not block standing.
+Continuity: this fixes the central ownership contradiction of the previous
+implementation. The old Master acknowledges service but does not award rank.
+Evidence: D/KOMESerfdomMasterService.java:54,75,89;
+D/KOMEProgressionNpcInteractionService.java:104,334;
+N/KOMEPacketRelationshipAction.java:43;
+D/KOMESerfKnightRelationshipService.java:31.
+
+A9. Receiving Knight commissions
+Action and authority: the current NPC Lord gives one current commission
+through Quest. Existing types are settlement defense, stolen goods, border
+incursion, dangerous escort and relief. Three distinct reported types in the
+current faction are the Lordship service prerequisite; up to five types are
+available. Credited types are excluded rather than repeatedly farmed.
+Discovery/HUD/book: current orders, stage and assignment-specific instructions.
+The active service page now uses only its current commission/trial rather
+than mixing detailed descriptions of possible services.
+Indicators/world: saved native geography/proof, required enemies, protected
+actors or supplies. New type/destination histories reduce repeated failed
+types and destinations when legitimate alternatives exist.
+Blockers/recovery: wrong relationship, incompatible pledge, active Lordship,
+already credited types or unavailable valid geography/actors. Unsupported
+generation declines rather than claiming a nonexistent settlement.
+Continuity: greater responsibility is suggested by aid to others and border
+service. In practice several types share a travel -> bound fight -> secondary
+task structure, so nominal variety exceeds mechanical variety.
+Evidence: D/KOMEKnightCommissionService.java:28,39,47;
+D/KOMEKnightServiceRecord.java:14,37;
+D/KOMEProgressionVariety.java:9,17;
+D/KOMEProgressionRankSummary.java:188.
+
+A10. Completing and reporting commissions
+Action and authority: field evidence reaches ready-to-report; the current
+Liege accepts a personal report before faction service credit and reward.
+Recovery validates/consumes the correct held sealed property. Relief goes to
+the actual assignment beneficiary, followed by reporting to the Liege.
+Discovery/HUD/book: the objective changes from travel/fight/recovery/delivery
+to report. The book names the saved Liege and distinguishes field completion
+from formal reporting. Map targeting is less helpful on relationship-only
+return stages, an unresolved presentation limitation.
+Indicators/world: physical followers/required enemies release their temporary
+roles through cleanup; obsolete tokens/actors are reconciled on natural load.
+Blockers/recovery: missing/wrong property, wrong NPC, unmet combat/arrival or
+survivor evidence, faction change or destroyed shelter. Failed commissions
+are accounted for to the Liege before another order. Property reissuance has
+bounded attempts/revisions rather than unlimited usable weapon creation.
+Continuity: personal reporting makes authority consequential. Stolen-property
+direct handover/report uses fewer clicks than some other report routes.
+Evidence: D/KOMEKnightCommissionService.java:93,104,227,239;
+D/KOMEKnightServiceRecord.java:43;
+D/KOMEKnightCommissionPresentation.java:82.
+
+A11. Trial of Lordship
+Action and authority: three distinct reported current-faction commissions and
+2,000 current alignment qualify the Knight. The Liege lends four ordinary
+faction soldiers; at least two must survive. Relief-force, border-patrol and
+protected-expedition scenarios reuse commission encounters, with five bound
+enemies. The player must actually fulfill the objective and report with the
+surviving force, unless existing legitimate recall rules preserve field proof.
+Discovery/HUD/book: service/alignment requirements, current scenario, remaining
+field objective, survivor requirement and wait/follow commands.
+Indicators/world: actual temporary guards/charge, native enemies/destination
+and scoped markers. Temporary command does not create permanent army records.
+Blockers/recovery: missing service provenance, low alignment, active ordinary
+commission, invalid geography, force/charge loss or insufficient participation.
+Failed trials retain earlier service and use the existing return/account/retry
+route. The new Standing-only 20-minute penalty is not applied here.
+Continuity: this is the strongest existing expression of increased rank
+responsibility: a future Lord answers for other people's survival.
+Evidence: D/KOMELordshipTrialService.java:23,40,49,162,222;
+D/KOMELordshipTrial.java:24;
+D/KOMELordshipTrialPresentation.java:14.
+
+A12. Lord promotion
+Action and authority: the valid Liege receives the fulfilled trial report,
+rechecks service/faction/alignment and returned survivors, cleans the temporary
+force and commits canonical Lord standing. Replay cannot confer it again.
+Discovery/HUD/book: native appointment speech, public earned-standing message
+and changed rank requirements. Administrative test completion suppresses earned
+announcements and rewards.
+Indicators/world: existing canonical Lord capture/reclaim permissions unlock.
+The former NPC Lord is no longer the correct superior for a player Lord;
+authority policy now requires NPC Prince.
+Blockers/recovery: current standing/integrity/survivor/report requirements.
+Completed field evidence survives the appropriate existing recall/loss paths.
+Continuity: the promotion itself is justified. Its immediate aftermath is not
+a comparably complete service loop. The player receives authority without a
+specific first Lord responsibility to explain its practical use.
+Evidence: D/KOMELordshipTrialService.java:222;
+D/KOMEProgressionAutoCompleter.java:140;
+D/KOMEProgressionLiegePolicy.java:9.
+
+A13. Current Lord gameplay
+Action and authority: participate in the existing capture/reclaim, faction,
+population, army and strategic systems according to their existing permission
+and political policies. Lord can establish service to an eligible NPC Prince.
+This is not a newly implemented Prince commission system.
+Discovery/HUD/book: the rank page projects Lord -> Prince requirements from
+the higher-rank legacy transition. The progression HUD returns EMPTY for Lord
+and Prince. Generic book relationship guidance can say "eligible captain"
+instead of clearly introducing the necessary Prince authority.
+Indicators/world: existing political/ruler, relationship and strategic map
+systems remain. There is no new Lord-duty destination or Lord-quest HUD.
+Blockers/recovery: faction/war/capture permissions, finding the proper superior,
+and the separate legacy advancement requirements. Political setbacks are
+handled by existing systems, not a dedicated Lord personal-service lifecycle.
+Continuity: this is a real design cliff. The Wanderer -> Lord journey arrives
+at a broad toolbox and a checklist, rather than a clear new responsibility.
+Evidence: D/KOMEProgressionTrackerSnapshot.java:80;
+D/KOMEProgressionRankSummary.java:166;
+D/KOMEProgressionSummary.java:36;
+D/KOMELiegeProgressionInteraction.java:10.
+
+A14. Current Lord -> Prince architecture
+Action and authority: satisfy 3,000 pledged-faction alignment, global absolute
+alignment thresholds, the capture-five-waypoints flag, the assigned high-threat
+achievement and butterfly capture. Then use the existing completion-marker
+transition. It is not conferred through an implemented Prince quest/report.
+Discovery/HUD/book: separate rank requirements, legacy achievement text and
+random task rolling. The GUI does not expose ordinary manual complete buttons;
+the legacy /progression complete command still exists for eligible nonautomatic
+steps, including self-attestation where no automatic evidence service exists.
+Indicators/world: canonical Prince and native title change; political King
+office is not created by that transition.
+Blockers/recovery: missing flags/current canonical rank and native achievement
+conditions. No new higher-rank trial or political appointment is present.
+Continuity: technically bridged, thematically unfinished. "Fell Beast" actually
+rolls Balrog Slayer or Ent/troll-chieftain achievements; it is not a currently
+implemented assignment to spawn and fight a literal fell beast. Butterfly
+capture and global alignment do not clearly express noble responsibility.
+Evidence: D/KOMEHigherRankTransitionService.java:72,126,155;
+Q/KOMECommandProgression.java:100;
+D/KOMEProgressionTaskGenerator.java:90,120;
+D/KOMEProgressionAutoCompleter.java:225,248.
+
+A15. Prince/King authority relationships
+Action and authority: a player Prince's superior is NPC King if there is no
+player King; an existing player King takes political precedence. King is a
+separate political office and is not the sixth canonical progression rank.
+Discovery/HUD/book: authority/sovereign guidance and existing relationship and
+ruler presentation. No finished Prince commission progression is exposed by
+the new disabled Quest buttons.
+Indicators/world: supported factions have a canonical NPC ruler slot tied to
+the capital, native captain body, incarnation and safe loaded deployment.
+NPC Kings have the existing ten-minute active-runtime replacement policy.
+Only the player's own faction ruler marker is published for this purpose.
+Blockers/recovery: unsupported faction body/host, missing/unloaded capital,
+player-sovereign precedence, native authority validity and safe spawn location.
+Loaded absence is handled cautiously; no unloaded-chunk certainty is claimed.
+Continuity: the authority skeleton exists. A Prince/King relationship is not
+evidence that Prince duties, kingship accession or a complete political story
+have been implemented. Those designs remain outside this pass.
+Evidence: D/KOMEProgressionLiegePolicy.java:18,27;
+D/KOMEProgressionRulerService.java:14,69;
+D/KOMEProgressionNativeAuthority.java:23;
+D/KOMERulerService.java.
+
+B. DOES THIS FEEL LIKE ONE JOURNEY?
+======================================================================
+
+VERIFIED IMPLEMENTATION: the main personal-service spine now has a consistent
+logic: household service earns trust; a Lord tests the prospective servant;
+that Lord confers Knight standing; commissions demonstrate service; temporary
+command tests responsibility for others; the Liege appoints a Lord. Canonical
+rank, saved relationships and faction provenance rather than names/checkboxes
+authorize these core transitions. Former-Master gifts are independent.
+
+DESIGN CONCERN: three additional systems remain visible around that spine:
+legacy advancement permissions, native alignment/miniquests, and strategic
+politics/conquest. They can coexist, but the book does not consistently explain
+which is mandatory for rank, which unlocks tools, and which is optional flavor.
+For example, Knight standing does not automatically unlock faction weapons:
+knight.craftsman still unlocks baseline.faction_gear. This is a meaningful
+second gate, not merely an old label (AutoCompleter.java:138).
+
+The authority hierarchy is clearer than the content hierarchy. NPC Lord ->
+Prince -> King is exact policy; a new player Lord can find a Prince, but there
+is no implemented Prince-owned Lord service sequence to justify the search.
+The Lord -> Prince marker is still a legacy completion route. The four-soldier
+Lordship trial promises leadership; subsequent generic checklist behavior
+does not fulfill that promise.
+
+Names now communicate standing publicly. Culture-specific names can differ
+from canonical keys: Gondor's canonical Lord is displayed as Captain and
+canonical Prince as Lord. This is intentional existing title data, not a
+corrupt rank. The UI still needs to make that distinction understandable.
+The player formatter avoids "Rider of Rohan of Rohan"; political King office
+does not replace the canonical rank in its new suffix.
+
+KNOWN LIMITATION: the full journey is not universal. Fangorn has rank titles
+and native pledge support but no native combat-unit-hiring Liege host in this
+architecture. A warning is honest; it does not complete that route.
+
+C. PLAYER EXPERIENCE AND FRICTION
+======================================================================
+
+Improvements supported by code/tests: text-only courier guidance; actual saved
+recovery icons; provision food icons; direct physical handovers; no required
+gift collection; current-service filtering; maximum zoom on supported map
+targets; once-only promotion transitions; failed-Liege release and explicit
+cooldown context; occasional traveler warnings and gratitude.
+
+Remaining friction with grounded causes:
+  - Three ordinary Serf duties require at least three configured real calendar
+    days. Sleeping through Minecraft nights does not advance that cadence.
+    Rejection/generation failure can therefore waste a substantial session.
+  - The ordinary duty-complete HUD expires after about five seconds. A player
+    returning later may need to reopen the book to learn why no task is visible.
+  - Provision/Profession still request 32-64 units for stackable items,
+    regardless of economic rarity. Distinct types improve variety, not balance.
+  - Quest availability is eligible plus passive-offer-ready on the client,
+    whereas some explanatory results describe eligibility alone. An occupied
+    native offer or failed offer preparation can leave a disabled button with
+    no explanatory string. Existing native quests are correctly preserved.
+  - Show Me excludes relationship markers. A return-to-Liege/Master objective
+    can therefore lose navigation even though the saved NPC location exists.
+  - Native escort pathfinding is still physical. Fences, rivers, unloaded
+    routes and fleeing AI are genuine challenges; unreliable navigation is
+    accidental frustration, not a test of noble leadership.
+
+LIVE-TESTING REQUIRED: measure the click sequence and dialogue timing with real
+native screens, including full inventory, simultaneous client/server actions,
+walking NPCs, low FPS and latency. Reading a canceled Forge event in a fixture
+does not establish that the player heard and understood the acknowledgment.
+
+D. WORLD BELIEVABILITY AND LOTR AUTHENTICITY
+======================================================================
+
+VERIFIED IMPLEMENTATION: native factions, enemy relationships, invasion data,
+NPC classes, common crops/materials, native item stacks, speech, hiring AI,
+map geometry and coin denominations are reused. Profession classification
+recognizes smith/bartender/farmhand interfaces, concrete occupations and native
+trade pools before falling back to general labor. Military faction equipment
+does not automatically become a Serf supply request.
+
+New structure-dependent objectives require physical roof/support/arrival
+evidence and retain it in saved assignments. "The shelter marked on your map"
+and "the ground marked on your map" are more defensible than fictitious town
+names. No automatic refuge construction was added. Native waypoint or village
+prediction data alone is not treated as proof of a standing building.
+
+KNOWN LIMITATION: physical shelter proof is a geometric heuristic. It does
+not prove that a structure is native-generated, occupied, culturally matching,
+protected by a particular player, or reachable along the intended route. A
+roof near a native home witness can be a player construction. These services
+do not write blocks, but can still create NPC combat near that witness.
+
+DESIGN CONCERN: most new drinking requests conservatively collapse to water
+in ordinary mugs. This is accessible and preferable to unverifiable Miruvor
+or specialized brewing, but weakens regional flavor. Native-verified accessible
+faction drinks would be a worthwhile later extension.
+
+Curated culture/role templates improve smiths, farmers, travelers and promotion
+speech. They do not review every existing sentence into a unique cultural
+voice. Human "blessing" gift language remains shared, including nonhuman/evil
+cultures. That is a concrete polish gap, not a reason to build a dialogue engine.
+
+No new precise fictional village/person/refuge was found in the new objective
+generation. General native-authority guidance names real generator/region
+categories, but does not prove a specific structure near the player. Legacy
+trial registry prose describing recovery of NPCs/patrols/livestock is stale
+relative to the actual bound-item recovery (SerfKnightTrial.java:31).
+
+E. REWARDS, ECONOMY AND INCENTIVES
+======================================================================
+
+VERIFIED IMPLEMENTATION: material compensation uses saved per-unit quotes and
+actual cumulative delivered counts. Native standard trade entries supply the
+cheapest observed per-unit pool price; the reimbursement is one quarter of
+that price, rounded down to milli-silver, with at most one silver per unit and
+128 silver per duty. Dynamic barrel/enchantment entries are excluded from
+ordinary unit valuation. Unknown goods fall back conservatively to 0.01 silver
+per unit, or 0.10 for recognized ordinary ingots. No service bonus is added.
+
+Payment is cumulative: floor(total delivered milli-value / 1000), capped at
+128, minus already reserved material payment. Fractional value carries across
+handovers; replay of the same delivered state has zero new payment. Reservation
+precedes physical coin issuance. Active legacy requests acquire quotes without
+rerolling their goods/deposit counts; completed legacy rewards receive no new
+windfall. Courier/other small secondary rewards retain existing conventions.
+Administrative completions carry provenance and do not mint compensation.
+Evidence: D/KOMEProgressionGoodsValue.java:17,30,33;
+D/KOMEProgressionServiceRewards.java:21;
+D/KOMEProgressionGoodsRecovery.java:31.
+
+Concrete calculated examples, using shipped standard trade-bytecode prices:
+  Inexpensive builder: 32 cobblestone at 31 milli, 32 oak planks at 62 milli,
+  and 32 clay balls at the 10-milli fallback. Total 3,296 milli -> 3 silver.
+  Moderate smith: 32 coal at 125 milli, 32 iron ingots at 750 milli, and
+  32 copper ingots at 750 milli. Total 52,000 milli -> 52 silver.
+  Expensive goldsmith: 64 gold ingots at the 1,000-milli unit cap, 64 gold
+  nuggets at 500 milli, 64 copper at 750 milli, and 64 coal at 125 milli.
+  Total 152,000 milli -> the 128-silver duty cap.
+These are possible request compositions/calculations, not live assignments or
+claims about actual player shopping. Native values came from the shipped JAR's
+standard entries; runtime matching, discounts and third-party tables need live
+confirmation. Diagnostic evidence is under outputs/progression-coherence/.
+
+Exploit assessment: ordinary buy-and-deliver profit is deliberately discouraged
+by using a quarter of the lowest standard pool price, even below many native
+sale values. Daily restrictions and finite duty/commission credit also remain.
+Gathering/farming earns money for genuine supplied resources; that is intended,
+not itself money printing. Conversion recipes and third-party discounted/free
+trades deserve a targeted market test, particularly ingot/nugget conversions.
+No serious repeatable profit exploit was established by this audit.
+
+DESIGN CONCERN: this anti-arbitrage policy is intentionally harsher than full
+reimbursement. Expensive requests can reach the cap before their last delivery,
+which then pays nothing. A player might reasonably prefer selling to a native
+trader and resent a mandatory duty. Item-count tiers currently all share the
+same stackable range, despite their names. Balance should account for effort,
+not simply use a larger capped coin number.
+
+KNOWN LIMITATION: a failed coin spawn consumes its saved reservation. This
+prevents replay minting but can lose legitimate compensation. Separate world,
+player-inventory and entity saves are not crash-atomic. Normal save/relog tests
+do not simulate every process interruption between consumption and issuance.
+Obsolete-request replacement preserves matching selected deposits, not every
+old deposited resource or a universal refund. Do not promise lossless repair.
+
+F. TECHNICAL ARCHITECTURE
+======================================================================
+
+State authority: KOMEPlayerProgression stores canonical rank; SerfKnight,
+KnightServiceRecord and Lordship records own separate consecutive lifecycles.
+There is no new parallel promotion state machine. Native offer shells do not
+create native quest credit/rewards for KOME progression. Legacy achievements
+remain a distinct permission/compatibility layer. This last overlap is a design
+and maintenance concern rather than evidence that canonical rank is inferred
+from arbitrary title strings.
+
+Server/client boundary: direct NPC consumption occurs in server-side Forge
+interaction handling before native GUI opening. Mutating packets retain the
+existing server-thread wrapper. Public identities, tracker state, map markers
+and Quest reasons are one-way projections; client timers/strings do not confer
+rank. The new public roster carries only UUID/suffix, not private quest data.
+The name transformer modifies only native world lettering after native range/
+visibility checks. GameProfile, command names, chat and tab identity are not
+rewritten. Only exact legacy KOME title-team memberships are retired.
+Evidence: D/KOMEEvents.java:417; Q/KOMECommandKome.java:103;
+N/KOMEPacketHandler.java; C/KOMEPlayerNameplate.java;
+src/main/java/kome/core/KOMEPlayerNameplateTransformer.java:12.
+
+Persistence: item keys/metadata, tokens/revisions, destinations, deposits,
+reward reservations, forced-completion provenance, failed-NPC identity/context/
+timestamps and bounded eight-destination history are saved. New tags are
+additive inside existing records. Sixteen recent failure records are retained.
+Ordinary faction changes use relationship lifecycle methods, retaining the
+historical failed-NPC ledger rather than client timer authority. The new
+20-minute wall-clock restriction is distinct from calendar-day cadence.
+
+Entity ownership: required enemies and temporary charges use existing binding
+and lease reconciliation. Incidental ambush mobs only carry an incidental tag;
+they have no objective token, required-enemy outline or progression persistence
+lease. They retain native despawn behavior. Escort cleanup restores the original
+teleport flag; protected actors restore their native home lease. Unloaded roles
+are reconciled on natural entity/item load, not force-loaded for convenience.
+
+Rendering: old outline code reserved Forge stencil bits, which are normally zero
+without a special display configuration. The new native-model hook draws a
+front-culled enlarged red hull after ordinary model depth, with scoped attribute/
+matrix state and restored active texture. It does not mutate framebuffers or
+recursively render whole entities. Only loaded, natively rendered, owner-relevant
+required NPCs at 32-96 blocks qualify. It does not glow through terrain and
+does not include a separate armor-shell outline. Visual success is unverified.
+Evidence: C/KOMEProgressionEnemyOutline.java:18,23;
+src/main/java/kome/core/KOMEProgressionOutlineTransformer.java:12.
+
+Network compatibility: existing IDs, retired holes and synchronized dev tactical
+IDs 48-51 plus response 52 remain. Public identity appends 53. Eligibility payload
+now also includes relevance/reason. Identical updated builds on client/server are
+required; old-build network interoperability was not tested or promised. The
+artifact version is still 1.0.8, so distribution must distinguish this build.
+
+Commands: /kome progression finishDuty/status/why/resetDuty are behind native
+staff permission before player/world access. Mutations enter existing completion/
+cleanup routes, log to the central audit stream, preserve personal reporting and
+do not auto-grant rank. Forced commission reports do not earn faction service
+credit; forced trials/duties suppress earned announcements/rewards. Console
+execution without a player is rejected. Existing admin rank/relationship/cadence
+tools are separate explicit overrides and remain available.
+
+Performance: new variety searches remain bounded; no new global history database
+or block-generation infrastructure exists. The surrounding NPC reconciliation
+and offer code still scans loaded NPCs and saved progression records frequently.
+The public name roster builds an online-player roster during each player's title
+refresh. These deserve TPS/network profiling under realistic population; a
+small JVM fixture cannot certify scale. Compact one-line domain methods also
+make audits and future maintenance harder than the passing suite suggests.
+
+G. IN-GAME PLAUSIBILITY / ACCEPTANCE MATRIX
+======================================================================
+
+Every item below is LIVE-TESTING REQUIRED; none was live-tested in this pass.
+
+Nameplates: verify actual font size, long faction titles, skins/nicknames,
+scoreboard below-name objectives, sneaking, invisibility, line wrapping (native
+nameplates generally do not wrap), relog and two observers after promotion.
+The profile-preservation and world-only hook tests do not establish readability.
+
+Outlines: test standard NPCs, armor, capes/transparent textures, riders, distant
+entities, chunk/frustum limits, through-terrain absence, shaders/render mods and
+NVIDIA drivers. Confirm a red silhouette rather than a subtle/unreadable rim.
+Capture GL errors/frame rate before and after. No inference links the prior
+NVIDIA crash conclusively to this code or establishes that this change fixes it.
+
+Map: verify full zoom, correct center, moving escort markers, manual preference
+restoration after close/resizing, highlight removal at approximately ten seconds
+and persistent assignment marker. Also explicitly test return/report stages,
+where the current target policy excludes relationship markers.
+
+Escorts: fences, rivers, bridges, slopes, fleeing, owner death/logout, another
+player loading the charge's chunk, wait/recalculate controls and a genuinely
+reachable shelter. Arrival currently depends on actual NPC proximity, not
+player-only travel. That is correct but does not make pathfinding reliable.
+
+Ambushes: friendly chance is 6% versus 18% in other eligible territory at the
+minute gate after at least 128 accumulated travel blocks. Maximum group is two,
+nearby hostile/incidental threshold four, and existing nearby hostility blocks
+additional special rolls. Record realized encounters per journey, not just the
+configured probability. Native terrain/spawn checks may suppress most attempts.
+Confirm ordinary despawning and zero bound combat credit/outline. Cumulative
+travel does not require new forward progress before every later roll, so
+camping after initial travel deserves observation.
+
+Refuges and geography: measure actual successful assignment frequency in fresh
+and existing worlds across factions. Physical observation has loaded-world,
+distance and registry limits; a native settlement existing somewhere is not
+proof that this request can find it. Incursions require native hostility across
+the selected boundary, not invented territorial ownership.
+
+Speech/handover: confirm the actual speaker, timely native speech, pouch sound
+at the receiving NPC, pop only for deliberate progression drops, no duplicate
+client/server sound, closed GUI on success and normal native interaction when
+no immediate handover applies. Test negative cases and unrelated held items.
+
+NPC nobility/rulers: sample real Lord/Prince encounter frequencies and capitals.
+Prince is assigned to one quarter of new eligible hiring NPCs, despite the
+RARE descriptor. Capitals must be loaded and safely placeable before a ruler
+can physically appear. Singleton/incarnation tests do not certify every faction
+capital or guarantee a recognizable royal residence.
+
+Dedicated/integrated: same updated JAR on both sides; restart with real NBT,
+death/chunk unload/faction change, lagged/replayed interaction packets, operators
+and nonoperators, failed spawn hooks and changed mod/protection combinations.
+The full suite validates common-side linkage, not an actual running dedicated
+server. Do not certify production readiness from the build alone.
+
+H. CONTRADICTIONS AND UNFINISHED DESIGN
+======================================================================
+
+Resolved in this working tree: the former Master no longer confers Knight;
+gift collection is optional; courier HUD no longer pretends numeric progress;
+recovery icons use actual saved contents; failed Standing relationships release;
+new incidental ambushes are separate from required attackers.
+
+Still present:
+  1. Personal service is the canonical Knight/Lord route, while legacy
+     advancement flags still unlock tools and content independently.
+  2. Lordship tests command of others; Lord gameplay lacks the matching new
+     personal-responsibility introduction and dedicated service HUD.
+  3. Lord -> Prince is an achievement/completion-marker bridge, not implemented
+     service to the NPC Prince. Its capture-five step can be self-attested.
+  4. "Fell Beast" is a label for rolled Balrog or Ent/troll-chieftain achievements,
+     and "Early Beginnings" says connect five builds to roads while its current
+     automatic implementation checks represented faction population >= 200.
+  5. Generic recovery registry prose mentions NPCs/caravans/livestock, but the
+     implemented Standing recovery is one bound lost item.
+  6. General escort danger is incidental, but the existing dangerous Knight
+     escort still requires its bound encounter's threatResolved flag before
+     arrival completes. Escaping its mandatory attackers cannot finish that
+     commission, even though escaping new incidental mobs can.
+  7. Availability reasoning and passive native offer readiness are separate;
+     some unavailable Quest-button cases still lack the promised reason.
+  8. Native playable factions and KOME supported Liege definitions are not
+     identical: Fangorn has no legitimate native host for this service path.
+
+These are not proposed new implementation requirements secretly carried out
+during the audit. They are grounded issues for subsequent design/coding review.
+Legacy rank-quota/standing rows are filtered from the Advancements tab; it
+would be inaccurate to say all old rank checklists are simultaneously displayed
+there. Their definitions, commands, offering inventory and unlock consequences
+still exist and need deliberate disposition.
+Evidence: D/KOMEProgressionAchievement.java:76,162,201;
+C/gui/KOMEGuiProgression.java:692;
+D/KOMEProgressionLords.java:27;
+D/KOMEProgressionQuotas.java:18;
+D/KOMEProgressionAutoCompleter.java:64,129,248.
+
+I. ACTIONABLE FINDINGS AND PRIORITIES
+======================================================================
+
+Severity meanings:
+  CRITICAL: blocks an advertised progression path, risks saved/world state,
+            or establishes a serious exploit.
+  HIGH: major confusion, an incomplete main-stage handoff, or unreliable core
+        behavior that needs resolution before a readiness claim.
+  MEDIUM: substantial friction, balance or architecture inconsistency.
+  LOW: limited polish/diagnostic/maintenance concern.
+An unverified feature is not automatically a confirmed bug. Evidence status
+is explicitly given in each relevant finding.
+
+P-001 | CRITICAL | Fangorn / prospective Liege
+Problem: this native pledge/rank context has no native combat-unit-hiring
+Liege/Quest host, so the canonical service route cannot finish there.
+Evidence: VERIFIED IMPLEMENTATION / KNOWN LIMITATION;
+D/KOMEProgressionFactionResolver.java:29, NativeAuthority.java:23,54 and
+OfferBridge.java:364 require the missing host. Native Fangorn ranks include a
+pledge rank; the character-creation starting list is not the whole native
+pledge universe. Existing hierarchy tests explicitly exclude its authority.
+Consequence: a player choosing native Fangorn allegiance cannot obtain the
+same Wanderer -> Lord journey; an honest warning does not restore eligibility.
+Fix: decide and prominently publish supported progression factions; then
+design a narrowly justified native-compatible exception or explicitly define
+the unsupported route. Do not spawn fictitious captains to conceal the gap.
+Requires: design discussion and coding, followed by live faction testing.
+
+P-002 | HIGH | Newly promoted Lord
+Problem: the leadership trial ends in a progression-content cliff.
+Evidence: VERIFIED IMPLEMENTATION; TrackerSnapshot.java:80 returns EMPTY for
+Lord/Prince; LiegeProgressionInteraction.java:10 limits Quest ownership to
+Serf/Knight; RankSummary.java:166 uses the legacy Lord -> Prince requirements.
+Consequence: a justified promotion gives a toolbox/checklist instead of a
+clear first responsibility or a clear introduction to NPC Prince authority.
+Fix: design the Lord landing experience and responsibility before expanding
+Prince content. Explain the current authority/strategic permissions immediately.
+Requires: design discussion, coding and live Wanderer -> Lord playthrough.
+
+P-003 | HIGH | Required-enemy visibility
+Problem: the replacement outline has not been visually established. It is an
+inverted main-model hull, not modern spectral/glowing behavior through terrain.
+Evidence: VERIFIED IMPLEMENTATION / LIVE-TESTING REQUIRED;
+C/KOMEProgressionEnemyOutline.java:23; native model-hook bytecode tests pass.
+Consequence: armor, distance, frustum culling or shaders may make the intended
+rim ineffective despite the missing-stencil problem being removed.
+Fix: execute the acceptance matrix, capture real visibility/GL/FPS evidence,
+then adjust narrowly if needed. Do not make framebuffer/stencil changes merely
+to assert that a silhouette must now work.
+Requires: live testing first; coding conditional on measured failures.
+
+P-004 | HIGH | Standing trial assignment/activation
+Problem: unavailable physical activation is penalized as player failure.
+Evidence: VERIFIED IMPLEMENTATION; NpcInteractionService.java:424 calls
+EncounterCleanup.failTrial when the assigned trial could not activate; issuance
+has already recorded the daily trial day. Failure releases the Liege and adds
+the new 20-minute record (SerfKnightProgression.java:46).
+Consequence: no nearby charge/protected actor or unusable spawn context can
+consume a real-day attempt and reject a player who never had a playable trial.
+Fix: distinguish preflight/technical issuance failure from gameplay failure;
+validate actors/sites before committing the relationship/cadence, or retain
+a safe same-assignment activation-recovery path with truthful speech.
+Requires: coding and live geography/spawn testing; agree penalty semantics.
+
+P-005 | HIGH | Rank unlocks and legacy advancement layer
+Problem: core earned standing and old optional/self-attested advancement flags
+authorize different parts of the player's practical capabilities.
+Evidence: VERIFIED IMPLEMENTATION; AutoCompleter.java:129-145 still grants
+NPC trade, weapons, mounts and other permissions from separate advancement
+flags. PermissionRegistry.java:48 allows eligible nonautomatic completion;
+CommandProgression.java:100 retains the corresponding command route.
+Consequence: a Knight may still be unable to use expected faction weapons;
+the player may mistake old activities for mandatory rank gates or vice versa.
+Fix: explicitly classify remaining unlocks, hide/deprecate obsolete authority
+claims and explain intentional secondary training. Preserve save IDs while
+making the player-facing relationship between rank and capabilities coherent.
+Requires: design discussion and coding; live onboarding validation.
+
+P-006 | HIGH | Disabled Quest reasons
+Problem: eligible does not always mean a passive native offer is ready.
+Evidence: VERIFIED IMPLEMENTATION; OfferBridge.java:122,172 preserves an
+occupied native offer; Eligibility.evaluate can return enabled with an empty
+reason; C/KOMEStandingTrialEligibilityState.java:43 and QuestButtonOverlay use
+eligible AND passiveOffer to enable the button.
+Consequence: an otherwise relevant disabled Quest button can have no useful
+tooltip when native offer occupancy or preparation prevents opening it.
+Fix: publish one complete authoritative action result including native-offer
+readiness/primary blocker. Preserve unrelated native quests and explain the
+need to finish/decline them instead of guessing on the client.
+Requires: coding and live native-GUI interaction testing.
+
+P-007 | HIGH | Lord -> Prince integrity/meaning
+Problem: the higher transition is partly achievement-based and partly
+self-attested, rather than an implemented superior's service appointment.
+Evidence: VERIFIED IMPLEMENTATION / KNOWN LIMITATION;
+HigherRankTransitionService.java:72,155; CommandProgression.java:100;
+lord.capture_5_waypoints is not in the automatic-ID list and no automatic
+capture-five updater was found. The nonautomatic command can grant that flag.
+Consequence: five conquests are not proven by the transition; Prince standing
+does not consistently represent demonstrated political responsibility.
+Fix: decide which requirements stay, then establish authoritative evidence
+and appointment ownership in the later Lord/Prince design. Do not represent
+the existing completion marker as a finished quest system.
+Requires: design discussion and coding; outside this implementation scope.
+
+P-008 | MEDIUM | Return/report navigation
+Problem: Show Me rejects every relationship marker.
+Evidence: VERIFIED IMPLEMENTATION; C/KOMEProgressionMapFocus.java:27 excludes
+isRelationship; C/gui/KOMEGuiProgression.java:264 hides the button on null target.
+Consequence: returning to an already known Master/Liege can lack Show Me,
+precisely when the current objective is that NPC rather than a field site.
+Fix: select the saved/current relationship actor as fallback only when the
+authoritative current stage is return/report. Avoid highlighting an unrelated
+gift or ruler instead of the current task.
+Requires: coding and live moving-NPC/map verification.
+
+P-009 | MEDIUM | Serf quantities/compensation
+Problem: named quantity tiers still share 32-64 stackable units, and capped
+quarter-price payments can undercompensate costly compulsory requests.
+Evidence: VERIFIED IMPLEMENTATION / DESIGN CONCERN;
+GoodsRules.java:17; SerfProfessionAssignment.java:17,53;
+GoodsValue.java:30-32 and the calculations in section E.
+Consequence: goldsmith/miner service can demand far more effort than farmer
+service. The final delivered material may pay nothing after the duty cap.
+Fix: tune requested quantities by acquisition effort/native value first;
+then choose a conservative reimbursement/service-bonus policy with market
+conversion tests and an upfront estimate/cap in the book.
+Requires: design discussion, coding and live economy testing.
+
+P-010 | MEDIUM | Invalidated goods recovery and payout failure
+Problem: replacement preserves only selected matching deposits; issuance
+reservations are consumed even when physical coin spawning fails.
+Evidence: VERIFIED IMPLEMENTATION / KNOWN LIMITATION;
+GoodsRecovery.java:9; ServiceRewards.java:21 reserves before ItemDrops.drop.
+Consequence: a recoverable duty can still lose previously supplied value;
+the player can finish, but recovery is not a fair/lossless reimbursement path.
+Fix: preserve outstanding valid lines and explicit deposit value/provenance;
+consider a bounded pending-payment claim transaction using the gift's safer
+retry pattern. Do not introduce a replayable refund/coin duplication route.
+Requires: coding and failure-injection/live save testing.
+
+P-011 | MEDIUM | Calendar-day pacing
+Problem: one-duty/one-trial calendar cadence is a much longer delay than a
+Minecraft day, and the short complete HUD does not provide lasting guidance.
+Evidence: VERIFIED IMPLEMENTATION / DESIGN CONCERN;
+ProgressionCalendar.java:10; SerfKnightService.java:111;
+C/KOMEProgressionTrackerOverlay.java:58,190.
+Consequence: a casual player's first service arc can be several sessions of
+waiting; a failed technical attempt compounds that wait.
+Fix: decide whether server-social pacing is intentional and state the next
+availability clearly. Separate intentional cadence from technical failure.
+Requires: design discussion and live session-duration testing; coding later.
+
+P-012 | MEDIUM | Escort philosophy
+Problem: new incidental danger is escapable, but the existing dangerous Knight
+escort still requires its bound combat threat to be resolved.
+Evidence: VERIFIED IMPLEMENTATION; KnightCommissionService.java:202 requires
+threatResolved, backed by the existing required-enemy death evidence.
+Consequence: the player can outmaneuver incidental attackers but cannot finish
+that commission by simply delivering a protected traveler safely.
+Fix: clarify a deliberately combat-bound commission versus a general escort,
+or later revise encounter outcomes without silently changing the credit quota.
+Requires: design discussion, then coding/live escort testing if changed.
+
+P-013 | MEDIUM | Shelter coverage and reachability
+Problem: roof/wall/approach evidence is not route reachability or native
+settlement provenance, and observation/search coverage is limited.
+Evidence: VERIFIED IMPLEMENTATION / LIVE-TESTING REQUIRED;
+ProgressionDestinations.java:18,33,74,108; registry cap 256, loaded witness cap
+32, standing range 256-3000, ordinary commission range 500-1500.
+Consequence: valid-looking assignments can be tedious or impossible to walk;
+otherwise real settlements may be outside observed/accepted coverage.
+Fix: gather assignment-success and traversal evidence across factions. Add
+bounded route/site-quality validation or truthful recovery before considering
+any protection-safe construction infrastructure.
+Requires: live testing first, coding/design based on results.
+
+P-014 | MEDIUM | NPC personality/cultural consistency
+Problem: occupational pools and selected culture templates do not cover all
+progression dialogue; generic blessings/household praise still recur.
+Evidence: VERIFIED IMPLEMENTATION / DESIGN CONCERN;
+NpcInteractionService.java:37,75; NpcSpeech.java; ProgressionDialogue.java:9.
+Consequence: an Orc commander, Elven leader and human householder can still
+sound alike in parts of the service arc.
+Fix: curate remaining high-frequency assignment, partial delivery, failure,
+gift and report templates using actual role/faction/context. No personality
+meter, generative dialogue or new dialogue-tree engine is needed.
+Requires: writing/design and small coding changes; live speech review.
+
+P-015 | MEDIUM | Lord requirement descriptions
+Problem: labels and implementation diverge. Early Beginnings says five road-
+connected builds but checks represented population >= 200. Fell Beast rolls
+Balrog/Ent/troll-chieftain achievements instead of a literal fell beast.
+Evidence: VERIFIED IMPLEMENTATION;
+ProgressionAchievement.java:201,207; AutoCompleter.java:64,248;
+ProgressionTaskGenerator.java:90.
+Consequence: players pursue the wrong activity or infer nonexistent mission
+content. The higher rank's checklist also lacks a political justification.
+Fix: align copy with current truth immediately in a later polish pass; decide
+whether those prerequisites belong in future noble progression at all.
+Requires: design discussion and coding; do not invent missing Lord quests.
+
+P-016 | MEDIUM | Noble scarcity/discovery
+Problem: RARE Prince authority is assigned to 25% of newly eligible hiring
+NPCs, while Prince/King records prevent natural despawn.
+Evidence: VERIFIED IMPLEMENTATION; NpcRankService.java:13,84;
+ProgressionNpcRank.java:6. Frequency of eligible captain spawns is not measured.
+Consequence: nobles may be scarce in one region and accumulate in another;
+the "rare" label alone does not ensure a convincing authority population.
+Fix: measure real density and travel-to-superior times before changing spawn
+rates or persistence. Provide role-specific discovery guidance.
+Requires: live geography/population testing, then design/coding if warranted.
+
+P-017 | MEDIUM | Scaling and build interoperability
+Problem: NPC reconciliations traverse progression data frequently; the public
+identity roster is rebuilt per player's title refresh. Network payload/ID
+changes retain artifact version 1.0.8.
+Evidence: VERIFIED IMPLEMENTATION / LIVE-TESTING REQUIRED;
+KOMEEvents.java:613; KnightCommissionService.java:262;
+ProgressionTitles.java:17; N/KOMEPacketHandler.java and StandingTrialEligibility.
+Consequence: large/offline player histories and NPC populations may cost TPS;
+mixed old/new 1.0.8 clients can accept the version yet disagree on packets.
+Fix: profile before indexing/caching hot loops; identify releases/builds and
+enforce/document matching protocol versions. Do not claim old-client support.
+Requires: live load/network tests and release/coding decisions.
+
+P-018 | LOW | Diagnostics and ownership naming
+Problem: why can diagnose the nearest noble rather than the NPC the admin
+means; Liege-owned Knight conferral still lives in a Master-named service
+with parameters called clickedMaster and an unused old eligibility helper.
+Evidence: VERIFIED IMPLEMENTATION; ProgressionDevelopment.java:66;
+SerfdomMasterService.java:54,75; NpcInteractionService.java:431.
+Consequence: debugging and future changes can accidentally revive the old
+ownership assumption, even though current authoritative validation is correct.
+Fix: add explicit inspected-target/context diagnostics; rename/extract the
+conferral boundary without changing saved state or adding a second machine.
+Requires: small later coding/refactoring; no player-system redesign.
+
+No confirmed new save-corruption or repeatable material-payment exploit was
+established. P-001 is a documented progression-path blocker, not a claim that
+all supported factions are broken. P-003 is an unverified core visual result,
+not proof of a rendering crash. These distinctions matter for prioritization.
+
+J. OVERALL ASSESSMENT AND NEXT FIVE IMPROVEMENTS
+======================================================================
+
+Scale: 1 = absent/incoherent or a major unresolved barrier; 2 = substantial
+gaps; 3 = usable foundation with noticeable friction; 4 = coherent by code and
+strong tests with bounded unresolved concerns; 5 = coherent and demonstrated
+in sustained live play. No dimension is awarded 5 without live evidence.
+
+Progression clarity: 3/5. The path into Knight and through Lordship is readable
+in current objectives, but secondary unlocks, real-day cadence and Lord's
+arrival still require interpretation. Live onboarding remains necessary.
+
+Rank/relationship coherence: 4/5. Current Liege owns Knight/Lord appointments,
+Master retirement is explicit and gifts are optional. Exact superior policy
+and political King independence are strong. The Prince transition remains a
+different, incomplete appointment philosophy.
+
+LOTR authenticity: 3/5. Native factions, item stacks, occupation signals,
+enemy geography and speech are substantial integration. Common water fallback,
+shared gift language and universal late checklists reduce cultural specificity.
+
+Quest variety: 3/5. Three Master duties, three Standing trials, five commission
+types and three Lordship scenarios exist; bounded history adds useful variation.
+Several services still share the same travel/combat skeleton. Live repetition
+and destination feasibility must be sampled before adding more nominal types.
+
+NPC believability: 3/5. Role-based requests and actual-speaker warnings/thanks
+help; public earned standing gives service social consequence. Not every
+occupation/culture has distinctive dialogue or a meaningful higher-rank role.
+
+World integration: 3/5. No fictional refuge construction or invented borders;
+real actors and native relationships matter. Shelter observation/reachability,
+NPC noble density and ruler placement need actual-world validation.
+
+UI consistency: 3/5. Concise courier HUD, real icons, current-service filtering
+and max zoom are improvements. Relationship-only navigation and passive-offer
+reason gaps remain; Lord HUD is absent. No visual readability claim is made.
+
+Failure recovery: 3/5. Failed Standing relationships release; cooldowns and
+history persist; lost-item attempts and leases are bounded and reconciled.
+Technical activation penalties, deposit replacement and failed reward issuance
+still create avoidable losses/frustration.
+
+Technical reliability: 4/5. The complete suite and normal build pass; canonical
+authority, binding, replay guards, additive NBT and preserved packet IDs are
+good foundations. Real crash/save ordering, dedicated multiplayer, rendering
+mods and performance are not certified by those tests.
+
+Readiness for further Lord/Prince development: 2/5. The temporary-command trial
+provides a good starting point, but the Lord landing experience, authority
+content and legacy permission/checklist disposition should be decided first.
+Adding Prince features immediately would amplify the current discontinuity.
+
+The five most important next improvements for a coherent Wanderer -> Lord
+experience, in priority order:
+  1. Resolve/publish native-faction support boundaries, especially Fangorn,
+     before a player invests in an allegiance without a viable service path.
+  2. Design the Lord arrival and first responsibility, explicitly introducing
+     Prince authority and the existing strategic powers instead of a cliff.
+  3. Reconcile legacy permission activities with earned standing and make the
+     optional-training versus mandatory-promotion distinction unmistakable.
+  4. Preflight trial actors/geography and distinguish technical issuance failure
+     from a failed undertaking that deserves rejection and real-day penalties.
+  5. Complete a recorded live acceptance playthrough: real names, outlines,
+     dialogue/handover, maps, escort paths/ambushes and payout effort. Tune from
+     observed player behavior and failures, not source presence or test totals.
+
+Preserve what already works: canonical rank separate from political office;
+native pledge/faction authority; UUID-based service relationships; Liege-owned
+appointments; optional gift pickup; current-stage objectives; actual NPC arrival;
+no escort teleport; conservative real-world destinations; bound property tokens/
+revisions; required-versus-incidental enemy ownership; temporary-command
+survival responsibility; server-side consumption/reservations; saved daily
+cadence and failure context; and the integrated dev strategic/conflict systems.
+
+Final assessment: the personal-service journey to Lord is now substantially
+more coherent in its authority and interactions. It is a tested code foundation,
+not a completed live-validated progression experience or finished Lord/Prince
+design. The next pass should resolve the supported-path and Lord-handoff
+decisions while measuring the actual Minecraft experience.

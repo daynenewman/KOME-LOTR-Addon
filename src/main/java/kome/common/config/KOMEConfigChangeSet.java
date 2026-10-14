@@ -33,6 +33,9 @@ public final class KOMEConfigChangeSet {
         add(r,"season","warInactivityDurationMillis",a.getSeason().getWarInactivityDurationMillis(),b.getSeason().getWarInactivityDurationMillis());add(r,"season","warBondsEnabled",a.getSeason().isWarBondsEnabled(),b.getSeason().isWarBondsEnabled());add(r,"season","attackerWarBond",a.getSeason().getAttackerWarBond(),b.getSeason().getAttackerWarBond());add(r,"season","participationWarBond",a.getSeason().getParticipationWarBond(),b.getSeason().getParticipationWarBond());
         add(r,"season","emergencyDefenseRulerInactivityDays",a.getSeason().getEmergencyDefenseRulerInactivityDays(),b.getSeason().getEmergencyDefenseRulerInactivityDays());
         add(r,"network","serverRecordCooldownMillis",a.getNetwork().getServerRecordCooldownMillis(),b.getNetwork().getServerRecordCooldownMillis());
+        add(r,"battle","postBattleRecoveryAmount",a.getBattle().getPostBattleRecoveryAmount(),b.getBattle().getPostBattleRecoveryAmount());
+        add(r,"battle",KOMEConfigRegistry.DISABLE_NORMAL_HEALING_IN_BATTLE,a.getBattle().isNormalHealingDisabledInBattle(),b.getBattle().isNormalHealingDisabledInBattle());
+        add(r,"battle",KOMEConfigRegistry.DISABLE_NORMAL_HEALING_DURING_CAMPAIGN_COMMITMENT,a.getBattle().isNormalHealingDisabledDuringCampaignCommitment(),b.getBattle().isNormalHealingDisabledDuringCampaignCommitment());
         return new KOMEConfigChangeSet(r);
     }
     private static void add(List<Entry> r,String c,String k,Object a,Object b){String x=format(a),y=format(b);if(!x.equals(y))r.add(new Entry(c,k,x,y));}

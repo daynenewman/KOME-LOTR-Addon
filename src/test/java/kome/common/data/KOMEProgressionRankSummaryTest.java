@@ -95,7 +95,7 @@ public class KOMEProgressionRankSummaryTest {
         KOMEHigherRankTransitionService.Transition transition=KOMEHigherRankTransitionService.forCurrentRank(KOMEProgressionRank.KNIGHT);
         for(KOMEHigherRankTransitionService.RequirementGroup group:transition.groups)for(String id:group.achievementIds)player.grant(id);
         KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(player,2000D,"rohan");
-        assertEquals("Trial of Lordship",summary.activityHeading);assertEquals("Service to your Liege",summary.activityTitle);
+        assertEquals("Liege Service",summary.activityHeading);assertEquals("Next service",summary.activityTitle);
         assertFalse(player.isCompleted(KOMEProgressionAchievement.forID("knight.craftsman")));
         assertFalse(summary.requirements.get(0).complete);assertTrue(summary.requirements.get(1).complete);assertFalse(summary.requirements.get(2).complete);
     }

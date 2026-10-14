@@ -1,0 +1,14 @@
+OK spawn native mount 1
+OK spawn native rider 1
+OK snapshot mounted survivor 1
+OK spawn native mount 2
+OK spawn native rider 2
+OK snapshot mounted survivor 2
+OK begin canonical reset
+OK interrupted after actual Anvil receipts: intentional interruption after durable entity return
+OK strategic publication remains pending after physical save
+OK stationary survivor still loaded
+OK pending completion denied
+OK real save-all completed
+PASS first origin-first; no connected client
+OK injected obsolete virtual source rider/mount into disposable Anvil after shutdown

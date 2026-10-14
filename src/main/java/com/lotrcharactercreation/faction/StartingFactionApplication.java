@@ -32,6 +32,7 @@ public final class StartingFactionApplication {
 
         if (!ModConfiguration.isAutomaticStartingAllegianceEnabled()) {
             applyInitialAlignmentView(LOTRLevelData.getData(player),startingFaction.getLotrFaction());
+            applyStartingHostility(LOTRLevelData.getData(player),startingFaction.getLotrFaction());
             PlayerRaceData.setStartingFactionApplied(player, true);
             return startingFaction;
         }
@@ -91,8 +92,22 @@ public final class StartingFactionApplication {
 
         // One-time default; native manual choices and region preferences persist thereafter.
         applyInitialAlignmentView(lotrData,selectedPledge);
+        applyStartingHostility(lotrData,selectedPledge);
         PlayerRaceData.setStartingFactionApplied(player, true);
         return startingFaction;
+    }
+    public static java.util.Set<LOTRFaction> hostileFactions(LOTRFaction selected){
+        java.util.Set<LOTRFaction> hostiles=java.util.EnumSet.noneOf(LOTRFaction.class);
+        if(selected!=null){
+            hostiles.addAll(selected.getOthersOfRelation(lotr.common.fac.LOTRFactionRelations.Relation.ENEMY));
+            hostiles.addAll(selected.getOthersOfRelation(lotr.common.fac.LOTRFactionRelations.Relation.MORTAL_ENEMY));
+            hostiles.remove(selected);
+        }
+        return hostiles;
+    }
+    /** Called only immediately before the existing once-only starting-faction marker is committed. */
+    static void applyStartingHostility(LOTRPlayerData data,LOTRFaction selected){
+        for(LOTRFaction hostile:hostileFactions(selected))data.setAlignment(hostile,data.getAlignment(hostile)-1F);
     }
     static void applyInitialAlignmentView(LOTRPlayerData data,LOTRFaction selected) {
         if(data==null||selected==null)return;

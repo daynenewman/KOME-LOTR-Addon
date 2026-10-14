@@ -21,4 +21,5 @@ public final class KOMEProgressionLostItems {
         KOMEKnightCommission.Goods g=a.goods.get(0);Item item=(Item)Item.itemRegistry.getObject(g.itemKey);
         return item==null?"the stolen property":new ItemStack(item,1,g.damage).getDisplayName();
     }
+    public static ItemStack stack(KOMEKnightCommission a){if(a==null||a.goods.isEmpty())return null;KOMEKnightCommission.Goods g=a.goods.get(0);Item item=(Item)Item.itemRegistry.getObject(g.itemKey);return item==null?null:new ItemStack(item,1,g.damage);}
 }

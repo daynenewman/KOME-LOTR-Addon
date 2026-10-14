@@ -40,6 +40,24 @@ public class KOMECompanyMovementServiceTest {
     private static void relation(LOTRFactionRelations.Relation value) {
         LOTRFactionRelations.overrideRelations(LOTRFaction.GONDOR, LOTRFaction.MORDOR, value);
     }
+    @Test public void devGovernanceDenialAppliesToSharedPreviewAndPreviouslyConfirmedMovement() throws Exception {
+        try (Fixture f = new Fixture(false, 1)) {
+            Evaluation preview = f.evaluate(); assertTrue(preview.allowed());
+            f.data.lastKnownPlayerFactions.put(f.player.id, "gondor");
+            KOMEWar war = new KOMEWar(); war.id = "W1";
+            war.sideOneFactions.add("gondor"); war.sideTwoFactions.add("mordor"); f.data.wars.put(war.id, war);
+            NBTTagCompound season = new NBTTagCompound(); f.data.warSeason.writeToNBT(season);
+            net.minecraft.nbt.NBTTagList defeats = new net.minecraft.nbt.NBTTagList();
+            NBTTagCompound defeat = new NBTTagCompound(); defeat.setString("Faction", "gondor"); defeat.setLong("DefeatedAtMillis", NOW);
+            defeats.appendTag(defeat); season.setTag("FactionDefeats", defeats); f.data.warSeason.readFromNBT(season);
+            KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(f.data, f.player.id, "gondor");
+            assertFalse(governance.allowed);
+            Evaluation blocked = f.evaluate(); assertFalse(blocked.allowed());
+            assertEquals(FailureStage.VALIDATION, blocked.denial.stage); assertEquals(governance.reason, blocked.denial.reason);
+            Submission rejected = assertRejected(f, preview, "MOVEMENT_REJECTED");
+            assertEquals(governance.reason, rejected.denial.reason);
+        }
+    }
     @Test public void immediateFootMoveAndCommandPreviewAgree() throws Exception {
         try (Fixture f = new Fixture(false, 1)) {
             Evaluation e = f.evaluate(); assertTrue(e.denial == null ? "" : e.denial.reason, e.allowed());

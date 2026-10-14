@@ -135,6 +135,7 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverAboutToStart(FMLServerAboutToStartEvent event) {
+        kome.common.data.KOMERecoveryStartup.beginSession(event.getServer());
         kome.common.data.KOMEServerTileAwareness.INSTANCE.setBoundaryGuard(
             kome.common.data.KOMECampaignTileConfinementService.INSTANCE);
         kome.common.data.KOMEServerTileAwareness.INSTANCE.startSession();
@@ -159,6 +160,7 @@ public class KOMEAddon {
         event.registerServerCommand(new KOMECommandWar());
         event.registerServerCommand(new KOMECommandSeason());
         event.registerServerCommand(new kome.common.command.KOMECommandMuster());
+        event.registerServerCommand(new kome.common.command.KOMECommandGovernance());
 
         characterCreation.registerServerCommands(event);
         lotrMoreMobs.serverStarting(event);
@@ -166,7 +168,9 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopping(FMLServerStoppingEvent event) {
+        kome.common.data.KOMERecoveryStartup.stopSession();
         kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
+        kome.common.data.KOMEOrdinaryBattleLifecycleService.INSTANCE.resetRuntimeState();
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();
         kome.common.network.KOMEPublicWaypointSync.reset();
         kome.common.network.KOMEPacketConquestData.clearSentSnapshots();
@@ -177,7 +181,9 @@ public class KOMEAddon {
 
     @Mod.EventHandler
     public void serverStopped(FMLServerStoppedEvent event) {
+        kome.common.data.KOMERecoveryStartup.stopSession();
         kome.common.tactical.edit.KOMETacticalEditRuntime.resetServerState();
+        kome.common.data.KOMEOrdinaryBattleLifecycleService.INSTANCE.resetRuntimeState();
         // Also covers failed startup/crash paths that skip serverStopping. Idempotent.
         KOMEPacketHandler.clearPendingServerTasks();
         kome.common.data.KOMEServerTileAwareness.INSTANCE.stopSession();

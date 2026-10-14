@@ -179,6 +179,11 @@ public final class KOMECampaignRecruitmentService {
     private static Result execute(Request request, PreparedRecruitment prepared) {
         Result invalid = validatePrepared(request, prepared);
         if (invalid != null) return invalid;
+        KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(prepared.data, request.playerId, prepared.payingFaction);
+        if (!governance.allowed) {
+            safeRollback(prepared.effect);
+            return Result.failure(Code.INVALID_REQUEST, governance.reason);
+        }
         KOMERecruitmentLocationService.Selection selection =
             KOMERecruitmentLocationService.resolveSelectedOrDefault(prepared.data,
                 request.playerId, prepared.payingFaction);

@@ -1,0 +1,29 @@
+{
+  "revision": "kom59-approved-mountain-separation-20261010",
+  "base_dev": "26ba6cb7d1bbe7d4e0e4482b4f5855e15747c04d",
+  "approval_commit": "4475f90d6269408a3d2f170b97276d91dcf568b9",
+  "authority_sha256": "f14472b0e865974634bc5b6e791e0ce872687f1fda6a56958ec038165a9b4b5e",
+  "before_png_sha256": "ab792277f61882d415963bf5af1b8d2705458c68de80f5b3cbb9102e30d1b4a7",
+  "after_png_sha256": "89bd8ccc9ceff3e7d3f9271d61125b07f5f9b1122fb51726ab2f2f5a95364a12",
+  "exclusions_sha256": "56c72566cdbe9717053de57597fc4ebf52a4fd0491663c737d3d65d95d641aa3",
+  "changed_cells": 45,
+  "zones": 5,
+  "runs": 25,
+  "removed_by_tile": {
+    "T654": 2,
+    "T420": 10,
+    "T329": 4,
+    "T355": 8,
+    "T352": 2,
+    "T356": 4,
+    "T218": 15
+  },
+  "historical_golden_unchanged": true,
+  "gameplay_resources_unchanged": true,
+  "excluded": [
+    "T340/T352",
+    "Harnen",
+    "T364"
+  ],
+  "world_adoption": "BLOCKED pending authoritative stopped target-save and physical-entity inventory"
+}

@@ -65,6 +65,7 @@ public final class KOMECampaignCompanyAdmissionService {
             return Result.failure(Code.INVALID_RECORD, 0,
                 "Authoritative KOME world data is unavailable.");
         }
+        if (KOMESeasonResetService.active(data)) return Result.failure(Code.INVALID_RECORD, 0, "Campaign hiring is paused during season reset");
         synchronized (data) {
             String tile = KOMEConquestTile.normalizeId(strategicTile);
             String invalid = validateNewMember(data, record, tile);
@@ -73,6 +74,8 @@ public final class KOMECampaignCompanyAdmissionService {
                     ? Code.ALREADY_ASSIGNED : Code.INVALID_RECORD, 0, invalid);
             }
             String faction = data.resolveCampaignCompanyFaction(record);
+            KOMEGovernanceService.Decision governance = KOMEGovernanceService.militaryAction(data, record.owner, faction);
+            if (!governance.allowed) return Result.failure(Code.INVALID_RECORD, 0, governance.reason);
             if (faction.length() == 0) {
                 return Result.failure(Code.INVALID_RECORD, 0,
                     "The campaign unit has no authoritative strategic faction.");

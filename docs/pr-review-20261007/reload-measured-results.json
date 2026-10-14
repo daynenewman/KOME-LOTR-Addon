@@ -1,0 +1,133 @@
+{
+  "candidate_sha256": "9fc21f5b469d8d31e4ac54c039aaf8a5b9948a429c061c3a271b7681a544f9ef",
+  "workload": "One authenticated non-operator, original mounted Gondor fixture in enclosed T388 arena; ordinary idle/menu interaction, no forced multiplayer or paid recruitment workload.",
+  "client": {
+    "samples": 60,
+    "period_seconds": 1,
+    "fps_min": 14,
+    "fps_max": 121,
+    "fps_mean": 103.06666666666666,
+    "heap_used_bytes_min": 550526040,
+    "heap_used_bytes_max": 1326783456,
+    "settings_groups": [
+      {
+        "screen": "WORLD",
+        "width": "854",
+        "height": "480",
+        "gui_scale": "2",
+        "render_chunks": "12",
+        "vsync": "true",
+        "fps_limit": "120",
+        "samples": 9,
+        "fps_min": 120,
+        "fps_median": 120,
+        "fps_max": 120
+      },
+      {
+        "screen": "WORLD",
+        "width": "3840",
+        "height": "2054",
+        "gui_scale": "2",
+        "render_chunks": "12",
+        "vsync": "true",
+        "fps_limit": "120",
+        "samples": 7,
+        "fps_min": 89,
+        "fps_median": 120,
+        "fps_max": 121
+      },
+      {
+        "screen": "lotr.client.gui.LOTRGuiHiredInteract",
+        "width": "3840",
+        "height": "2054",
+        "gui_scale": "2",
+        "render_chunks": "12",
+        "vsync": "true",
+        "fps_limit": "120",
+        "samples": 3,
+        "fps_min": 118,
+        "fps_median": 120,
+        "fps_max": 120
+      },
+      {
+        "screen": "lotr.client.gui.LOTRGuiHiredWarrior",
+        "width": "3840",
+        "height": "2054",
+        "gui_scale": "2",
+        "render_chunks": "12",
+        "vsync": "true",
+        "fps_limit": "120",
+        "samples": 26,
+        "fps_min": 120,
+        "fps_median": 120.0,
+        "fps_max": 121
+      },
+      {
+        "screen": "lotr.client.gui.LOTRGuiMenu",
+        "width": "3840",
+        "height": "2054",
+        "gui_scale": "2",
+        "render_chunks": "12",
+        "vsync": "true",
+        "fps_limit": "120",
+        "samples": 1,
+        "fps_min": 89,
+        "fps_median": 89,
+        "fps_max": 89
+      },
+      {
+        "screen": "lotr.client.gui.LOTRGuiMap",
+        "width": "3840",
+        "height": "2054",
+        "gui_scale": "2",
+        "render_chunks": "12",
+        "vsync": "true",
+        "fps_limit": "120",
+        "samples": 14,
+        "fps_min": 14,
+        "fps_median": 58.0,
+        "fps_max": 63
+      }
+    ],
+    "hardware": "AMD Ryzen 5 7600X / NVIDIA RTX 4060, previously recorded host inventory; no new lower-spec measurement",
+    "first_map_sample": {
+      "phase": "mounted-post-reload-fix",
+      "n": "20",
+      "thread": "Client",
+      "fps": "17",
+      "screen": "lotr.client.gui.LOTRGuiMap",
+      "width": "3840",
+      "height": "2054",
+      "guiScale": "2",
+      "renderChunks": "12",
+      "vsync": "true",
+      "fpsLimit": "120",
+      "connectedWorld": "true",
+      "dimension": "100",
+      "mapZoom": "1.0",
+      "playerX": "78017.19593735014",
+      "playerZ": "66242.48235872816",
+      "heapUsedBytes": "1190699760",
+      "maxHeapBytes": "1609039872"
+    },
+    "fps_median": 120.0
+  },
+  "server": {
+    "label": "mounted-post-reload-fix",
+    "tick": "2913",
+    "tracked": "2",
+    "lookups": "2",
+    "samples": "100",
+    "meanMs": "1.883281",
+    "p95Ms": "2.5551",
+    "maxMs": "4.0695",
+    "heapUsedBytes": "522461112",
+    "maxHeapBytes": "1193279488"
+  },
+  "limits": "Total-workload observations. No incremental tile-cost baseline, frame-time distribution, representative lower-spec or simultaneous-player acceptance. FPS is capped/VSync enabled; the window changed during this run.",
+  "files": {
+    "reload-client-performance.log": "1026855369a88b915dd05a001cd94e3b16aa9a1786c976e234b2825b374b6fac",
+    "reload-native-checks.log": "10de9e6b0dd2a4b98386e8a05de03a7bca8b065e8a33da9cc686431fb5b3a83a",
+    "reload-mounted-checks.log": "e58eee37565afdc454951ff4b7475b5357606177b161e1e0ed1606b64a0747b1"
+  }
+}

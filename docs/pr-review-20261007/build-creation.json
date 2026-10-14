@@ -1,0 +1,71 @@
+{
+  "candidate_sha256": "2816008d37c2171fdd41e0af2354f0dd7308fff868c73e020c77449bc9bbb5de",
+  "actor_operator": false,
+  "source": "Actual production KOMEWorldData serializer on server thread",
+  "before_builds": 0,
+  "after_builds": 1,
+  "next_sequence_before": 1,
+  "next_sequence_after": 2,
+  "approved_centi_hours": 100,
+  "developed_native_centi_hours": 0,
+  "pending_native_centi_hours": 100,
+  "build": {
+    "UpdatedAtMillis": 1791420346203,
+    "DefensiveGateRecords": [],
+    "ManagerName": "_Danye_",
+    "DeletionReason": "",
+    "DevelopedNativeCentiHours": 0,
+    "Contributions": [
+      {
+        "Status": "APPROVED",
+        "ContributorFaction": "gondor",
+        "DecisionReason": "Manager contribution approved immediately",
+        "ContributorUuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "ContributorName": "_Danye_",
+        "SubmittedAtMillis": 1791420346203,
+        "DecidedByUuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+        "CentiHours": 100,
+        "Id": "H1",
+        "DecidedByName": "_Danye_",
+        "DecidedAtMillis": 1791420346203
+      }
+    ],
+    "DeletedByName": "",
+    "MarkerLabel": "acceptance valid",
+    "DisplayName": "acceptance valid",
+    "TileId": "T401",
+    "X": 237248.5,
+    "BuilderUuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+    "Y": 181.0,
+    "DeletedByUuid": "",
+    "BuildType": "NORMAL",
+    "Z": 87295.71415408837,
+    "CreatedAtMillis": 1791420346203,
+    "DeletedAtMillis": 0,
+    "ManagerUuid": "a976a4b7-0614-49c0-b992-61a3a89bd773",
+    "OriginalBuilderFaction": "gondor",
+    "MarkerVisible": 1,
+    "Dimension": 100,
+    "BuilderName": "_Danye_",
+    "BuildSchemaVersion": 4,
+    "Active": 1,
+    "DefensiveGateRecordSequence": 0,
+    "PopulationFaction": "gondor",
+    "AuditHistory": [
+      "1791420346203|REGISTER|a976a4b7-0614-49c0-b992-61a3a89bd773|_Danye_|Build registered|;approvedHours=0.00;type=NORMAL;populationFaction=gondor;tile=T401",
+      "1791420346203|SUBMIT|a976a4b7-0614-49c0-b992-61a3a89bd773|_Danye_|Initial submission|contribution=H1;status=PENDING;hours=1.00;approvedCentiHoursDelta=0;approvedHours=0.00;type=NORMAL;populationFaction=gondor;tile=T401",
+      "1791420346203|APPROVE|a976a4b7-0614-49c0-b992-61a3a89bd773|_Danye_|Manager contribution approved immediately|contribution=H1;status=APPROVED;priorHours=1.00;hours=1.00;approvedCentiHoursDelta=100;approvedHours=1.00;type=NORMAL;populationFaction=gondor;tile=T401"
+    ],
+    "Id": "B1"
+  },
+  "changed_sections": [
+    "NextBuildSequence",
+    "Builds",
+    "CentralAudit"
+  ],
+  "file_hashes": {
+    "build-creation-before.nbt": "d1820a1193b0e112a37f2566a9701e45f077dd2f0aff1d009eac0fc9e73b770b",
+    "build-creation-after.nbt": "e14ac69d040473d11da621aa923d64342b40dac8603e594953479acb30a3fc7f",
+    "build-created.png": "e0979559ce15cd2be4cdae6d33dbc2db7653a318135236b65836dae105276119"
+  }
+}
