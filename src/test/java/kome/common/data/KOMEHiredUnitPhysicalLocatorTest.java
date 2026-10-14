@@ -37,7 +37,7 @@ public class KOMEHiredUnitPhysicalLocatorTest {
             KOMEHiredUnitPhysicalLocator.CaptureKind.LIVE_OBSERVATION,
             f.entity.posX, f.entity.posY, f.entity.posZ);
         assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
-        assertEquals(2, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
+        assertEquals(3, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
     }
 
     @Test public void strictNestedCodecRejectsFutureSchemaUuidChunkTileCoordinatesAndKind() throws Exception {

@@ -22,6 +22,7 @@ public final class KOMEWorldCheckpoint implements KOMEDailyCoordinator.Checkpoin
 
     public static KOMEWorldCheckpoint forWorld(KOMEWorldData data, World world) throws Exception {
         if (world == null || KOMEReflection.isRemote(world)) throw new IOException("Server world unavailable");
+        world = KOMERecoveryStartup.root(world);
         MapStorage storage = KOMEReflection.getMapStorage(world);
         if (storage == null || storage.loadData(KOMEWorldData.class, KOMEWorldData.DATA_NAME) != data)
             throw new IOException("Canonical MapStorage identity unavailable");

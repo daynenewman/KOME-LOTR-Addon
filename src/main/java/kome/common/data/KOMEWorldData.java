@@ -32,7 +32,7 @@ import java.util.UUID;
 public class KOMEWorldData extends WorldSavedData {
     static final String DATA_NAME = "KOME_ServerRules";
     public static final String KOME_DATA_SCHEMA_KEY = "KOMEDataSchemaVersion";
-    /** Schema 12 combines reset/governance/daily authority with dev; ConflictData v2 owns Join Battle receipts. */
+    /** Schema 12 combines reset/governance/daily authority with dev; ConflictData v3 retains Join Battle receipts and ordinary battle recovery. */
     public static final int KOME_DATA_SCHEMA_VERSION = 12;
     public static final int CONFLICT_DATA_SCHEMA_VERSION = KOMEConflictPersistence.DATA_SCHEMA_VERSION;
     /** Additional integrity marker for roots that require persisted tactical configuration. */
@@ -71,7 +71,8 @@ public class KOMEWorldData extends WorldSavedData {
     final Map<String,NBTTagCompound> progressionShelters = new java.util.LinkedHashMap<String,NBTTagCompound>();
     final Map<UUID, java.util.Set<KOMEProgressionNpcRoleLease>> progressionNpcRoleLeases = new HashMap<UUID, java.util.Set<KOMEProgressionNpcRoleLease>>();
     final Map<UUID, KOMEProgressionNpcRoyalRestoration> progressionNpcRoyalRestorations = new HashMap<UUID, KOMEProgressionNpcRoyalRestoration>();
-    public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = new HashMap<>();
+    final KOMECampaignAssociationIndex campaignAssociations = new KOMECampaignAssociationIndex(this);
+    public final Map<UUID, KOMEHiredUnitRecord> hiredUnits = campaignAssociations.records();
     public final Map<String, KOMEConquestTile> conquestTiles = new HashMap<>();
     public final Map<String, String> activeRecruitmentTiles = new HashMap<>();
     public final KOMEPublicWaypointRegistry publicWaypoints = new KOMEPublicWaypointRegistry();
@@ -139,6 +140,8 @@ public class KOMEWorldData extends WorldSavedData {
     /** Sole tile-conflict registry/allocator authority; all snapshots are immutable. */
     private final KOMEConflictService conflictService = new KOMEConflictService();
     /** Conflict-domain physical delivery receipts; never a second participation registry. */
+    private final KOMEOrdinaryBattleRecoveryRegistry ordinaryBattleRecovery = new KOMEOrdinaryBattleRecoveryRegistry();
+    public KOMEOrdinaryBattleRecoveryRegistry getOrdinaryBattleRecovery() { return ordinaryBattleRecovery; }
     private final KOMEJoinBattleDeploymentRegistry joinBattleDeploymentReceipts =
         new KOMEJoinBattleDeploymentRegistry();
     /** Next never-reused canonical Campaign Detachment identity (C1, C2, ...). */
@@ -174,6 +177,8 @@ public class KOMEWorldData extends WorldSavedData {
     private String loadFailureReason = "";
     /** Candidate-only diagnostic context; never gameplay state or persisted data. */
     private String loadSection = "root";
+    /** Runtime session only; never part of root schema 11 or ConflictData v3. */
+    KOMERecoveryStartup recoveryStartup;
 
     public KOMEWorldData() {
         super(DATA_NAME);
@@ -187,18 +192,31 @@ public class KOMEWorldData extends WorldSavedData {
         if (KOMEReflection.isRemote(world)) {
             return KOMEClientData.INSTANCE;
         }
-        MapStorage storage = KOMEReflection.getMapStorage(world);
-        KOMEWorldData data = (KOMEWorldData) storage.loadData(KOMEWorldData.class, DATA_NAME);
-        if (data == null) {
-            data = new KOMEWorldData();
-            storage.setData(DATA_NAME, data);
+        World root = KOMERecoveryStartup.root(world);
+        KOMERecoveryStartup startup = KOMERecoveryStartup.beforeLoad(root);
+        try {
+            MapStorage storage = KOMEReflection.getMapStorage(root);
+            KOMEWorldData data = (KOMEWorldData) storage.loadData(KOMEWorldData.class, DATA_NAME);
+            if (startup != null) startup.requireLoaded();
+            if (data == null) {
+                if (startup != null) {
+                    java.io.File persisted = root.getSaveHandler().getMapFileFromName(DATA_NAME);
+                    if (persisted != null && persisted.exists()) throw new IllegalStateException("Refusing to replace unreadable canonical KOME world data: " + persisted);
+                }
+                data = new KOMEWorldData();
+                storage.setData(DATA_NAME, data);
+            }
+            KOMERecoveryStartup.afterLoad(startup, data);
+            return data;
+        } finally {
+            KOMERecoveryStartup.endLoad(startup);
         }
-        return data;
     }
 
     /** Durable reset intent boundary. MapStorage's legacy saver logs and swallows I/O failure. */
     public synchronized void checkpointReset(World world) {
         ensureWritable();
+        world = KOMERecoveryStartup.root(world);
         if (world == null || get(world) != this)
             throw new IllegalStateException("Canonical reset storage world is unavailable");
         java.io.File file = KOMEReflection.getMapSaveHandler(world).getMapFileFromName(mapName);
@@ -1880,6 +1898,8 @@ public class KOMEWorldData extends WorldSavedData {
         ensureWritable();
         KOMEHiredUnitRecord record = hiredUnits.get(entityId);
         if (record == null || isVirtualMovingHiredUnit(record)) return null;
+        KOMEOrdinaryBattleRecoveryService.terminal(this, entityId,
+            KOMEOrdinaryBattleRecoveryRegistry.Disposition.UNAVAILABLE, System.currentTimeMillis(), reason);
         record.clearPhysicalLocator();
         hiredUnits.remove(entityId);
         KOMEArmyMovementOrder order = armyMovements.get(record.movementOrderId);
@@ -2134,6 +2154,8 @@ public class KOMEWorldData extends WorldSavedData {
     public synchronized void readFromNBT(NBTTagCompound nbt) {
         ensureWritable();
         KOMEWorldData candidate = new KOMEWorldData(DATA_NAME);
+        candidate.recoveryStartup = KOMERecoveryStartup.loadingSession();
+        if (candidate.recoveryStartup != null) candidate.getConflictService().bindRecoveryStartup(candidate);
         try {
             // Preserve the existing empty-root lifecycle: defaults are installed only at START tick.
             if (nbt != null && nbt.hasNoTags()) {
@@ -2142,9 +2164,10 @@ public class KOMEWorldData extends WorldSavedData {
             }
             // Readers may retain nested tags. Neither candidate reconciliation nor later gameplay
             // may share mutable NBT with the caller's persisted source.
-            candidate.readCandidateFromNBT(nbt == null ? null : (NBTTagCompound) nbt.copy());
+            candidate.readCandidateFromNBT(KOMERecoveryStartup.prepareCandidate(nbt == null ? null : (NBTTagCompound) nbt.copy()));
             KOMEProgressionNpcRoles.rebuild(candidate);
         } catch (RuntimeException invalid) {
+            KOMERecoveryStartup.failedLoad(invalid);
             writeBlocked = true;
             loadFailureReason = "Invalid KOME world data in " + candidate.loadSection + ": "
                 + invalid.getMessage();
@@ -2262,7 +2285,7 @@ public class KOMEWorldData extends WorldSavedData {
         loadSection = "ConflictRecords";
         KOMEConflictPersistence.Loaded loadedConflictData = schemaSixUpgrade
             ? KOMEConflictPersistence.Loaded.empty() : KOMEConflictPersistence.readSection(nbt);
-        loadedStateReconciled |= loadedConflictData.migratedFromV1;
+        loadedStateReconciled |= loadedConflictData.migrated;
         loadSection = "EmergencyDefenseActivities";
         KOMEEmergencyDefensePersistence.Loaded loadedEmergencyDefense;
         if (!hasEmergencyDefenseSection) {
@@ -2346,6 +2369,7 @@ public class KOMEWorldData extends WorldSavedData {
         emergencyDefenseObservations.putAll(loadedEmergencyDefense.observations);
         conflictService.replaceFrom(loadedConflictData.conflicts);
         joinBattleDeploymentReceipts.replaceFrom(loadedConflictData.joinBattleReceipts);
+        ordinaryBattleRecovery.replaceFrom(loadedConflictData.recovery);
         movementHistory.clear();
         playerNames.clear();
         adminUnitMapMarkerOptOuts.clear();
@@ -3112,6 +3136,8 @@ public class KOMEWorldData extends WorldSavedData {
         emergencyDefenseObservations.putAll(candidate.emergencyDefenseObservations);
         conflictService.replaceFrom(candidate.conflictService);
         joinBattleDeploymentReceipts.replaceFrom(candidate.joinBattleDeploymentReceipts);
+        ordinaryBattleRecovery.replaceFrom(candidate.ordinaryBattleRecovery);
+        campaignAssociations.rebuild();
         movementHistory.clear();
         movementHistory.putAll(candidate.movementHistory);
         playerNames.clear();
@@ -3350,7 +3376,7 @@ public class KOMEWorldData extends WorldSavedData {
         validateEmergencyDefenseCommitments();
         KOMEEmergencyDefenseService.INSTANCE.validatePersistedAuthority(this);
         NBTTagCompound conflictsForWrite = KOMEConflictPersistence.write(conflictService,
-            joinBattleDeploymentReceipts);
+            joinBattleDeploymentReceipts, ordinaryBattleRecovery);
         NBTTagCompound emergencyDefenseForWrite =
             KOMEEmergencyDefensePersistence.write(emergencyDefenseActivities,
                 emergencyDefenseCommitments, emergencyDefenseObservations);
@@ -3373,6 +3399,8 @@ public class KOMEWorldData extends WorldSavedData {
             conflictsForWrite.getLong(KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY));
         nbt.setTag(KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY,
             conflictsForWrite.getTag(KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY).copy());
+        nbt.setTag(KOMEConflictPersistence.RECOVERY_KEY,
+            conflictsForWrite.getTag(KOMEConflictPersistence.RECOVERY_KEY).copy());
         nbt.setInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY,
             emergencyDefenseForWrite.getInteger(KOMEEmergencyDefensePersistence.SCHEMA_KEY));
         nbt.setTag(KOMEEmergencyDefensePersistence.RECORDS_KEY,

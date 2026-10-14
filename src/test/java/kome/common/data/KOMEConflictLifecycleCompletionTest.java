@@ -85,8 +85,13 @@ public class KOMEConflictLifecycleCompletionTest {
 
         assertEquals(State.ENDED, ended.getState());
         assertEquals(garrison, ended.getOriginalGarrison().size());
-        assertSame(response, ended.getResponseTimer());
-        assertSame(episode, ended.getCombatEpisode());
+        assertEquals(TimerStatus.PAUSED, ended.getResponseTimer().status);
+        assertEquals(response.elapsedMillis, ended.getResponseTimer().elapsedMillis);
+        assertEquals(response.durationSnapshotMillis, ended.getResponseTimer().durationSnapshotMillis);
+        assertEquals(EpisodeState.INACTIVE, ended.getCombatEpisode().state);
+        assertEquals(episode.episodeId, ended.getCombatEpisode().episodeId);
+        assertEquals(episode.startedAtMillis, ended.getCombatEpisode().startedAtMillis);
+        assertEquals(Long.valueOf(60L), ended.getCombatEpisode().endedAtMillis);
         assertEquals(ComplexState.ASSAULT_ACTIVE,
             ended.getComplexes().get("castle").state);
         assertEquals("assault-1", ended.getComplexes().get("castle").activeAssaultId);

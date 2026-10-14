@@ -510,6 +510,9 @@ public final class KOMEEmergencyDefenseMobilizationService {
 
     private static void update(KOMEWorldData data, KOMEEmergencyDefenseCommitment value,
             KOMEEmergencyDefenseCommitment.Defender defender) {
+        KOMEConflictRecord conflict = data.getConflictService().get(value.tileId);
+        if (conflict != null && value.conflictId.equals(conflict.getConflictId()))
+            KOMEOrdinaryBattleRecoveryService.observe(data, conflict, System.currentTimeMillis());
         KOMEEmergencyDefenseCommitment.State state = value.state;
         data.emergencyDefenseCommitments.put(value.conflictId,
             value.withDefender(defender, state, value.diagnostic));

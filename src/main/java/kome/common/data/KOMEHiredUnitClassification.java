@@ -19,6 +19,16 @@ public final class KOMEHiredUnitClassification {
         return data != null && entityId != null && isCampaignUnit(data.hiredUnits.get(entityId));
     }
 
+    /** Strategic membership survives unloading, movement pauses and Formal Retreat. */
+    public static boolean isWithinCommittedCampaignLifespan(KOMEWorldData data, KOMEHiredUnitRecord record) {
+        if (data == null || record == null || data.hiredUnits.get(record.entity) != record
+                || !isCampaignUnit(record) || record.populationReturned) return false;
+        KOMEOrdinaryBattleRecoveryRegistry.Target target = data.getOrdinaryBattleRecovery().targetForPhysical(record.entity);
+        if (target != null && target.terminal) return false;
+        return !KOMECampaignHealth.versioned(record.survivingHealth)
+            || !KOMECampaignHealthProjection.read(record.survivingHealth).terminal;
+    }
+
     public static KOMEHiredUnitRecord requireCampaignUnit(KOMEHiredUnitRecord record) {
         if (!isCampaignUnit(record)) {
             throw new IllegalArgumentException();

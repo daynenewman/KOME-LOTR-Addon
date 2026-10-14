@@ -25,6 +25,7 @@ public class KOMEWaypointTransformerTest {
     public void corePluginRegistersKomeAndLotrMoreMobsTransformers() {
         assertArrayEquals(new String[] {
                 KOMEWaypointTransformer.class.getName(),
+                kome.core.KOMECampaignHealthTransformer.class.getName(),
                 KOMEPublicWaypointTransformer.class.getName(),
                 KOMEProgressionOfferTransformer.class.getName(),
                 KOMEProgressionOfferGuiTransformer.class.getName(),

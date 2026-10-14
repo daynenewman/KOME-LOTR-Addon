@@ -49,7 +49,14 @@ public class KOMEJoinBattlePersistenceTest {
         registry.publishNew(closed("JB4", "token-closed",
             UUID.fromString("31000000-0000-0000-0000-000000000004"), "CF1", "T100"));
 
-        KOMEWorldData loaded = load(save(data));
+        NBTTagCompound v2 = save(data);
+        v2.setInteger(KOMEConflictPersistence.SCHEMA_KEY, 2);
+        v2.removeTag(KOMEConflictPersistence.RECOVERY_KEY);
+        KOMEWorldData loaded = load(v2);
+        NBTTagCompound v3 = save(loaded);
+        for (String key : new String[]{KOMEConflictPersistence.RECORDS_KEY, KOMEConflictPersistence.SEQUENCE_KEY,
+                KOMEConflictPersistence.JOIN_BATTLE_RECEIPTS_KEY, KOMEConflictPersistence.JOIN_BATTLE_SEQUENCE_KEY})
+            assertEquals(v2.getTag(key), v3.getTag(key));
         assertEquals(5L, loaded.getJoinBattleDeploymentReceipts().getNextReceiptSequence());
         assertEquals(State.PENDING_ENTRY, loaded.getJoinBattleDeploymentReceipts().get("JB1").getState());
         assertEquals(State.DEPLOYED, loaded.getJoinBattleDeploymentReceipts().get("JB2").getState());
@@ -103,7 +110,7 @@ public class KOMEJoinBattlePersistenceTest {
             restored.getMountTransferPhase());
         assertEquals("required", restored.getTemporaryMountNbt().getString("Recovery"));
         assertEquals(12, KOMEWorldData.KOME_DATA_SCHEMA_VERSION);
-        assertEquals(2, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
+        assertEquals(3, KOMEConflictPersistence.DATA_SCHEMA_VERSION);
         assertEquals(1, KOMEHiredUnitPhysicalLocator.DATA_SCHEMA_VERSION);
     }
 
@@ -220,7 +227,7 @@ public class KOMEJoinBattlePersistenceTest {
         expectInvalid(mountOnUnmounted, "Unmounted receipt contains MountUuid");
 
         NBTTagCompound futureConflict = save(data);
-        futureConflict.setInteger(KOMEConflictPersistence.SCHEMA_KEY, 3);
+        futureConflict.setInteger(KOMEConflictPersistence.SCHEMA_KEY, 4);
         expectInvalid(futureConflict, "Unsupported ConflictDataSchemaVersion");
 
         NBTTagCompound futureRoot = save(data);

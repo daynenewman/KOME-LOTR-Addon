@@ -23,9 +23,64 @@ public final class KOMEConflictLifecycleService {
     public enum OrdinaryAbandonmentCode {
         NOT_APPLICABLE,
         OFFENSIVE_COMMITMENT_REMAINS,
+        RESOLUTION_PENDING,
         ENDED_ABANDONED,
         UNRESOLVED_AUTHORITY,
         END_FAILED
+    }
+
+    public enum ObjectiveContestStatus { CONTESTED, UNCONTESTED, UNKNOWN }
+
+    /** Strategic objective authority only; this does not assert that two military sides fought. */
+    public static final class ObjectiveContest {
+        public final ObjectiveContestStatus status;
+        public final boolean objectiveContested;
+        public final String reason;
+
+        ObjectiveContest(ObjectiveContestStatus status, String reason) {
+            this.status = status;
+            objectiveContested = status == ObjectiveContestStatus.CONTESTED;
+            this.reason = reason;
+        }
+    }
+
+    /** Shared read-only predicate used by response episodes and KOM-19 abandonment. */
+    public ObjectiveContest inspectOrdinaryObjective(KOMEWorldData data,
+            KOMEConflictRecord conflict) {
+        if (data == null || conflict == null || !conflict.isActive()
+                || conflict.getState() != State.ORDINARY)
+            return new ObjectiveContest(ObjectiveContestStatus.UNKNOWN,
+                "An active ordinary conflict is required.");
+        if (conflict.getCommitments().isEmpty())
+            return new ObjectiveContest(ObjectiveContestStatus.UNCONTESTED,
+                "No committed offensive Campaign force remains.");
+        KOMEConquestTile objective = data.getConquestTileIfPresent(conflict.getTileId());
+        String ruler = objective == null ? ""
+            : KOMEAlliance.normalizeFactionKey(objective.projectRulingFaction());
+        if (ruler.length() == 0 || KOMEAlliance.findLotrFaction(ruler) == null)
+            return new ObjectiveContest(ObjectiveContestStatus.UNKNOWN,
+                "The objective's current ruling faction cannot be resolved.");
+        String unresolved = "";
+        for (Commitment commitment : conflict.getCommitments().values()) {
+            String issue = offensiveCommitmentIssue(data, conflict, commitment);
+            if (issue.length() > 0) {
+                unresolved = commitment.detachmentId + ": " + issue;
+                continue;
+            }
+            KOMEArmyCompany company = data.armyCompanies.get(commitment.detachmentId);
+            String faction = KOMEAlliance.normalizeFactionKey(company.faction);
+            Hostility hostility = data.getConflictService().currentHostility(data, faction, ruler);
+            if (hostility == Hostility.HOSTILE)
+                return new ObjectiveContest(ObjectiveContestStatus.CONTESTED,
+                    "Committed offensive force " + commitment.detachmentId + " still sustains the attack.");
+            if (hostility == Hostility.UNKNOWN)
+                unresolved = "Current hostility for " + faction + " versus " + ruler
+                    + " cannot be resolved.";
+        }
+        return new ObjectiveContest(unresolved.length() == 0
+                ? ObjectiveContestStatus.UNCONTESTED : ObjectiveContestStatus.UNKNOWN,
+            unresolved.length() == 0 ? "No qualifying offensive commitment is hostile to the ruler."
+                : unresolved);
     }
 
     /**
@@ -219,33 +274,18 @@ public final class KOMEConflictLifecycleService {
             return abandonment(OrdinaryAbandonmentCode.NOT_APPLICABLE, current,
                 "Only an active ORDINARY conflict can be abandoned by this lifecycle rule.", 0);
 
-        if (!current.getCommitments().isEmpty()) {
-            KOMEConquestTile objective = data.conquestTiles.get(tile);
-            String defender = objective == null ? ""
-                : KOMEAlliance.normalizeFactionKey(objective.projectRulingFaction());
-            if (defender.length() == 0 || KOMEAlliance.findLotrFaction(defender) == null)
-                return abandonment(OrdinaryAbandonmentCode.UNRESOLVED_AUTHORITY, current,
-                    "The objective's current ruling faction cannot be resolved.", 0);
-            for (Commitment commitment : current.getCommitments().values()) {
-                String issue = offensiveCommitmentIssue(data, current, commitment);
-                if (issue.length() > 0)
-                    return abandonment(OrdinaryAbandonmentCode.UNRESOLVED_AUTHORITY,
-                        current, commitment.detachmentId + ": " + issue, 0);
-                KOMEArmyCompany company = data.armyCompanies.get(commitment.detachmentId);
-                String faction = KOMEAlliance.normalizeFactionKey(company.faction);
-                Hostility hostility = data.getConflictService().currentHostility(
-                    data, faction, defender);
-                if (hostility == Hostility.UNKNOWN)
-                    return abandonment(OrdinaryAbandonmentCode.UNRESOLVED_AUTHORITY,
-                        current, "Current hostility for " + faction + " versus " + defender
-                            + " cannot be resolved.", 0);
-                if (hostility == Hostility.HOSTILE)
-                    return abandonment(
-                        OrdinaryAbandonmentCode.OFFENSIVE_COMMITMENT_REMAINS, current,
-                        "Committed offensive force " + commitment.detachmentId
-                            + " still sustains the attack.", 0);
-            }
-        }
+        // A capture receipt reserves this exact conflict for Phase-3 reconciliation. Its new
+        // owner must not be used to reclassify a partly published conquest as abandonment.
+        if (KOMEOrdinaryBattleResolutionService.hasResolutionReservation(data, current))
+            return abandonment(OrdinaryAbandonmentCode.RESOLUTION_PENDING, current,
+                "Conflict-specific capture publication must reconcile before abandonment.", 0);
+        ObjectiveContest objective = inspectOrdinaryObjective(data, current);
+        if (objective.status == ObjectiveContestStatus.UNKNOWN)
+            return abandonment(OrdinaryAbandonmentCode.UNRESOLVED_AUTHORITY, current,
+                objective.reason, 0);
+        if (objective.objectiveContested)
+            return abandonment(OrdinaryAbandonmentCode.OFFENSIVE_COMMITMENT_REMAINS,
+                current, objective.reason, 0);
 
         Context endContext = new Context(context.timestampMillis, context.actor,
             FORMAL_RETREAT_ABANDONMENT_REASON);
@@ -296,6 +336,8 @@ public final class KOMEConflictLifecycleService {
             lines.add("Original garrison " + cohort.detachmentId + " members="
                 + cohort.members.size() + " unresolvedOrLiving="
                 + cohort.unconfirmedTerminalMembers() + ".");
+        if (!KOMERecoveryStartup.permits(data, record))
+            lines.add("Ordinary lifecycle blocked: " + KOMERecoveryStartup.reason(data));
         lines.add("Timers response=" + timer(record.getResponseTimer())
             + "; capture=" + timer(record.getCaptureTimer()) + ".");
         lines.add("Combat episode=" + record.getCombatEpisode().episodeId + " state="

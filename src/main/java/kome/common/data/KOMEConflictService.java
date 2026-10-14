@@ -36,6 +36,8 @@ public final class KOMEConflictService {
     }
     private final Map<String, KOMEConflictRecord> records = new LinkedHashMap<String, KOMEConflictRecord>();
     private final KOMEConflictIdAllocator allocator;
+    private KOMEWorldData recoveryOwner;
+    void bindRecoveryStartup(KOMEWorldData data) { recoveryOwner = data; }
 
     public KOMEConflictService() { this(1L); }
     public KOMEConflictService(long nextConflictSequence) { allocator = new KOMEConflictIdAllocator(nextConflictSequence); }
@@ -140,6 +142,9 @@ public final class KOMEConflictService {
                 return Result.failure(Code.INVALID_REQUEST, null, !owner.allowed ? owner.reason : controller.reason);
         }
         data.ensureWritable();
+        KOMEConflictRecord reserved = request == null ? null : get(request.destinationTileId);
+        if (reserved != null && data.getOrdinaryBattleRecovery().hasIntent(reserved))
+            return Result.failure(Code.INVALID_REQUEST, reserved, "Prepared ordinary resolution reserves this conflict.");
         Result result = acceptValidatedCommitment(request,
             new HostilityResolver() {
                 @Override public Hostility resolve(String first, String second) {
@@ -148,6 +153,7 @@ public final class KOMEConflictService {
             }, productionDetachmentResolver(data), context);
         if (result.code == Code.SUCCESS) {
             data.markDirty();
+            KOMEOrdinaryBattleRecoveryService.observe(data, result.record, context.timestampMillis);
             KOMEAuditService.record(data, context.timestampMillis, "CONFLICT", "COMMIT",
                 context.actor, result.record.getConflictId(), context.reason,
                 request.detachmentId + " -> " + request.destinationTileId
@@ -344,10 +350,19 @@ public final class KOMEConflictService {
                 "The persisted world conflict authority is required.");
         }
         data.ensureWritable();
+        KOMEConflictRecord recoveryBefore = request == null ? null : get(request.tileId);
+        java.util.List<UUID> recoveryMembers = new java.util.ArrayList<UUID>();
+        KOMEArmyCompany recoveryCompany = request == null ? null : data.armyCompanies.get(request.detachmentId);
+        if (recoveryCompany != null) recoveryMembers.addAll(recoveryCompany.units);
+        if (request != null && context != null && guard(recoveryBefore, request.expectedConflict, context) == Code.SUCCESS)
+            KOMEOrdinaryBattleRecoveryService.observe(data, recoveryBefore, context.timestampMillis);
         Result result = releaseValidatedCommitment(request,
             productionDetachmentResolver(data), context);
         if (result.code == Code.SUCCESS) {
             data.markDirty();
+            if (recoveryBefore != null && data.getOrdinaryBattleRecovery().exit(recoveryBefore, recoveryMembers,
+                    KOMEOrdinaryBattleRecoveryRegistry.Disposition.DEPARTED, context.timestampMillis, context.reason))
+                data.markDirty();
             KOMEAuditService.record(data, context.timestampMillis, "CONFLICT", "DEPART",
                 context.actor, result.record.getConflictId(), context.reason,
                 request.detachmentId + " <- " + request.tileId);
@@ -427,37 +442,43 @@ public final class KOMEConflictService {
     private static DetachmentResolver productionDetachmentResolver(final KOMEWorldData data) {
         return new DetachmentResolver() {
             @Override public DetachmentResolution resolve(String detachmentId) {
-                KOMEArmyCompany company = data.armyCompanies.get(detachmentId);
-                if (company == null) return new DetachmentResolution(detachmentId,
-                    ReferenceStatus.MISSING, null, "", "", "Campaign Detachment is missing.");
-                String factionId = KOMEAlliance.normalizeFactionKey(company.faction);
-                String tileId = KOMEConquestTile.normalizeId(company.currentTile);
-                if (factionId.length() == 0 || KOMEAlliance.findLotrFaction(factionId) == null
-                        || tileId.length() == 0)
-                    return new DetachmentResolution(detachmentId,
-                        ReferenceStatus.INCOHERENT, null, "", "",
-                        "Campaign Detachment lacks faction or strategic tile authority.");
-                for (UUID member : company.units) {
-                    KOMEHiredUnitRecord record = data.hiredUnits.get(member);
-                    if (record == null) return new DetachmentResolution(detachmentId,
-                        ReferenceStatus.MISSING, null, "", "",
-                        "A Campaign Detachment member record is missing.");
-                    if (!KOMEHiredUnitClassification.isCampaignUnit(record))
-                        return new DetachmentResolution(detachmentId,
-                            ReferenceStatus.RESOLVED, KOMEHiredUnitClass.ORDINARY,
-                            factionId, tileId, "An ORDINARY member cannot form a commitment.");
-                }
-                KOMECompanyCoherenceService.Assessment assessment =
-                    KOMECompanyCoherenceService.INSTANCE.assess(data, company);
-                if (assessment.status == KOMECompanyCoherenceService.Status.INCOHERENT)
-                    return new DetachmentResolution(detachmentId,
-                        ReferenceStatus.INCOHERENT, null, "", "",
-                        "Campaign Detachment coherence failed.");
-                return new DetachmentResolution(detachmentId, ReferenceStatus.RESOLVED,
-                    KOMEHiredUnitClass.CAMPAIGN, factionId, tileId,
-                    assessment.status.name());
+                return resolveProductionDetachment(data, detachmentId);
             }
         };
+    }
+
+    /** Shared canonical strategic projection; UNKNOWN physical state remains a valid detachment. */
+    static DetachmentResolution resolveProductionDetachment(KOMEWorldData data,
+            String detachmentId) {
+        KOMEArmyCompany company = data.armyCompanies.get(detachmentId);
+        if (company == null) return new DetachmentResolution(detachmentId,
+            ReferenceStatus.MISSING, null, "", "", "Campaign Detachment is missing.");
+        String factionId = KOMEAlliance.normalizeFactionKey(company.faction);
+        String tileId = KOMEConquestTile.normalizeId(company.currentTile);
+        if (factionId.length() == 0 || KOMEAlliance.findLotrFaction(factionId) == null
+                || tileId.length() == 0)
+            return new DetachmentResolution(detachmentId,
+                ReferenceStatus.INCOHERENT, null, "", "",
+                "Campaign Detachment lacks faction or strategic tile authority.");
+        for (UUID member : company.units) {
+            KOMEHiredUnitRecord record = data.hiredUnits.get(member);
+            if (record == null) return new DetachmentResolution(detachmentId,
+                ReferenceStatus.MISSING, null, "", "",
+                "A Campaign Detachment member record is missing.");
+            if (!KOMEHiredUnitClassification.isCampaignUnit(record))
+                return new DetachmentResolution(detachmentId,
+                    ReferenceStatus.RESOLVED, KOMEHiredUnitClass.ORDINARY,
+                    factionId, tileId, "An ORDINARY member cannot form a commitment.");
+        }
+        KOMECompanyCoherenceService.Assessment assessment =
+            KOMECompanyCoherenceService.INSTANCE.assess(data, company);
+        if (assessment.status == KOMECompanyCoherenceService.Status.INCOHERENT)
+            return new DetachmentResolution(detachmentId,
+                ReferenceStatus.INCOHERENT, null, "", "",
+                "Campaign Detachment coherence failed.");
+        return new DetachmentResolution(detachmentId, ReferenceStatus.RESOLVED,
+            KOMEHiredUnitClass.CAMPAIGN, factionId, tileId,
+            assessment.status.name());
     }
 
     private static Code validateDetachment(DetachmentResolution resolution,
@@ -590,6 +611,14 @@ public final class KOMEConflictService {
         return mutate(tileId, expected, context, Operation.END, "", draft -> {
             draft.state = State.ENDED;
             draft.endedAtMillis = context.timestampMillis;
+            CombatEpisode episode = draft.combatEpisode;
+            if (episode.state == EpisodeState.ACTIVE)
+                draft.combatEpisode = new CombatEpisode(episode.sequence, episode.episodeId,
+                    EpisodeState.INACTIVE, episode.startedAtMillis, context.timestampMillis);
+            // Ending is not timer expiry: preserve accumulated time without counting downtime
+            // or manufacturing COMPLETE. This covers abandonment and every canonical end path.
+            draft.responseTimer = pauseEndedTimer(draft.responseTimer, context.timestampMillis);
+            draft.captureTimer = pauseEndedTimer(draft.captureTimer, context.timestampMillis);
             for (String id : draft.factionParticipation.keySet()) {
                 FactionParticipation faction = draft.factionParticipation.get(id);
                 if (faction.isActive()) draft.factionParticipation.put(id, new FactionParticipation(id,
@@ -600,6 +629,12 @@ public final class KOMEConflictService {
                 draft.encirclement.checkpointAtMillis, context.timestampMillis);
             return Code.SUCCESS;
         });
+    }
+
+    private static TimerSlot pauseEndedTimer(TimerSlot timer, long nowMillis) {
+        return timer.status == TimerStatus.RUNNING
+            ? new TimerSlot(TimerStatus.PAUSED, timer.durationSnapshotMillis,
+                timer.elapsedMillis, nowMillis, timer.episodeId) : timer;
     }
 
     /**
@@ -657,8 +692,10 @@ public final class KOMEConflictService {
             holds.add(order);
         }
 
+        KOMEOrdinaryBattleRecoveryService.observe(data, current, context.timestampMillis);
         Result ended = end(normalized, expected, context);
         if (ended.code != Code.SUCCESS) return new EndResult(ended, 0);
+        KOMEOrdinaryBattleRecoveryService.conflictClosed(data, current, ended.record, context.timestampMillis);
         for (KOMEArmyMovementOrder order : holds) {
             KOMEConflictLifecycleService.releaseEndedHold(order,
                 ended.record.getConflictId());
@@ -912,7 +949,9 @@ public final class KOMEConflictService {
         }
     }
 
-    private static Code guard(KOMEConflictRecord previous, ExpectedConflict expected, Context context) {
+    private Code guard(KOMEConflictRecord previous, ExpectedConflict expected, Context context) {
+        if (recoveryOwner != null && (previous == null || previous.getState() == State.ORDINARY)
+                && !KOMERecoveryStartup.permits(recoveryOwner, previous)) return Code.AMBIGUOUS_REFERENCE;
         if (expected.isAbsent()) {
             if (previous != null) return previous.isActive() ? Code.ACTIVE_CONFLICT_EXISTS : Code.STALE_CONFLICT_ID;
             return Code.SUCCESS;

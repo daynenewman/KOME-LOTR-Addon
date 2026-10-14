@@ -150,6 +150,7 @@ public final class KOMEConflictMovementHandoff {
         Plan prepared = prepare(data, order, before.getConflictId(), released.revision, outcome, context);
         KOMEConflictService.Result release = data.getConflictService().releaseValidatedCommitment(data, request, context);
         if (!release.isSuccess()) return result(Code.INVALID_RELEASE, release.code + ": " + release.reason);
+        KOMEOrdinaryBattleRecoveryService.departed(data, before, new java.util.ArrayList<java.util.UUID>(order.units), outcome, context.timestampMillis);
         return publish(data, order, prepared, context);
     }
 

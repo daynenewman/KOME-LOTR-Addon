@@ -18,14 +18,15 @@ import static kome.common.data.KOMEConflictContracts.*;
 import static kome.common.data.KOMEConflictRecord.*;
 
 /**
- * Strict independently versioned conflict-domain codec. KOM-19 owns schema 2; later conflict
+ * Strict independently versioned conflict-domain codec. KOM-18 extends KOM-19 schema 2 with v3 recovery; later conflict
  * tickets must inspect the merged version rather than assuming their preferred version number.
  */
 final class KOMEConflictPersistence {
-    static final int DATA_SCHEMA_VERSION = 2;
+    static final int DATA_SCHEMA_VERSION = 3;
     static final String SCHEMA_KEY = "ConflictDataSchemaVersion";
     static final String SEQUENCE_KEY = "NextConflictSequence";
     static final String RECORDS_KEY = "ConflictRecords";
+    static final String RECOVERY_KEY = "OrdinaryBattleRecovery";
     static final String JOIN_BATTLE_SEQUENCE_KEY = "NextJoinBattleReceiptSequence";
     static final String JOIN_BATTLE_RECEIPTS_KEY = "JoinBattleDeploymentReceipts";
 
@@ -38,6 +39,11 @@ final class KOMEConflictPersistence {
 
     static NBTTagCompound write(KOMEConflictService source,
             KOMEJoinBattleDeploymentRegistry joinBattleSource) {
+        return write(source, joinBattleSource, new KOMEOrdinaryBattleRecoveryRegistry());
+    }
+
+    static NBTTagCompound write(KOMEConflictService source, KOMEJoinBattleDeploymentRegistry joinBattleSource,
+            KOMEOrdinaryBattleRecoveryRegistry recovery) {
         KOMEConflictService.PersistenceSnapshot snapshot = required(source, "Conflict service").persistenceSnapshot();
         KOMEConflictService validated = KOMEConflictService.restore(snapshot.records, snapshot.nextConflictSequence);
         KOMEConflictService.PersistenceSnapshot stable = validated.persistenceSnapshot();
@@ -74,6 +80,8 @@ final class KOMEConflictPersistence {
         for (KOMEJoinBattleDeploymentReceipt receipt : orderedReceipts)
             joinReceipts.appendTag(writeJoinBattleReceipt(receipt));
         section.setTag(JOIN_BATTLE_RECEIPTS_KEY, joinReceipts);
+        validateRecoveryReferences(stable.records, stable.nextConflictSequence, recovery);
+        section.setTag(RECOVERY_KEY, recovery.write());
         return section;
     }
 
@@ -84,7 +92,7 @@ final class KOMEConflictPersistence {
     static Loaded readSection(NBTTagCompound root) {
         require(root, SCHEMA_KEY, 3);
         int schema = root.getInteger(SCHEMA_KEY);
-        if (schema != 1 && schema != DATA_SCHEMA_VERSION)
+        if (schema != 1 && schema != 2 && schema != DATA_SCHEMA_VERSION)
             throw new IllegalArgumentException("Unsupported " + SCHEMA_KEY + ": " + schema);
         if (schema == 1 && (root.hasKey(JOIN_BATTLE_SEQUENCE_KEY)
                 || root.hasKey(JOIN_BATTLE_RECEIPTS_KEY)))
@@ -133,26 +141,57 @@ final class KOMEConflictPersistence {
             joinBattle = KOMEJoinBattleDeploymentRegistry.restore(receipts, nextJoinSequence);
         }
         validateReceiptReferences(records, nextSequence, joinBattle.records());
-        return new Loaded(conflicts, joinBattle, schema == 1);
+        KOMEOrdinaryBattleRecoveryRegistry recovery;
+        if (schema == 3) {
+            require(root, RECOVERY_KEY, 10);
+            recovery = KOMEOrdinaryBattleRecoveryRegistry.read(root.getCompoundTag(RECOVERY_KEY));
+        } else {
+            if (root.hasKey(RECOVERY_KEY)) throw new IllegalArgumentException("Legacy ConflictData cannot contain recovery authority.");
+            recovery = new KOMEOrdinaryBattleRecoveryRegistry();
+            for (KOMEConflictRecord record : records.values())
+                if (record.isActive() && record.getState() == State.ORDINARY && record.getCombatEpisode().sequence > 0L)
+                    recovery.begin(record, KOMEOrdinaryBattleRecoveryRegistry.Coverage.LEGACY_INCOMPLETE);
+        }
+        validateRecoveryReferences(records, nextSequence, recovery);
+        return new Loaded(conflicts, joinBattle, recovery, schema == 1, schema < 3);
     }
 
     static final class Loaded {
         final KOMEConflictService conflicts;
         final KOMEJoinBattleDeploymentRegistry joinBattleReceipts;
         final boolean migratedFromV1;
+        final boolean migrated;
+        final KOMEOrdinaryBattleRecoveryRegistry recovery;
 
         Loaded(KOMEConflictService conflicts,
                 KOMEJoinBattleDeploymentRegistry joinBattleReceipts,
-                boolean migratedFromV1) {
+                KOMEOrdinaryBattleRecoveryRegistry recovery, boolean migratedFromV1, boolean migrated) {
             this.conflicts = required(conflicts, "Conflict service");
             this.joinBattleReceipts = required(joinBattleReceipts,
                 "Join Battle receipt registry");
             this.migratedFromV1 = migratedFromV1;
+            this.migrated = migrated;
+            this.recovery = required(recovery, "Recovery registry");
         }
 
         static Loaded empty() {
             return new Loaded(new KOMEConflictService(),
-                new KOMEJoinBattleDeploymentRegistry(), false);
+                new KOMEJoinBattleDeploymentRegistry(), new KOMEOrdinaryBattleRecoveryRegistry(), false, false);
+        }
+    }
+
+    private static void validateRecoveryReferences(Map<String, KOMEConflictRecord> records,
+            long nextSequence, KOMEOrdinaryBattleRecoveryRegistry recovery) {
+        Map<String, KOMEConflictRecord> byId = new LinkedHashMap<String, KOMEConflictRecord>();
+        for (KOMEConflictRecord c : records.values()) byId.put(c.getConflictId(), c);
+        for (KOMEOrdinaryBattleRecoveryRegistry.Episode e : recovery.episodes().values()) {
+            if (KOMEConflictIdAllocator.sequenceOf(e.conflictId) >= nextSequence)
+                throw new IllegalArgumentException("Recovery references unissued conflict identity");
+            KOMEConflictRecord c = byId.get(e.conflictId);
+            if (c != null && (!c.getTileId().equals(e.tileId)
+                    || Long.parseLong(e.episodeId.substring(e.episodeId.lastIndexOf('E') + 1)) > c.getCombatEpisode().sequence
+                    || e.intent != null && e.intent.expectedRevision > c.getRevision()))
+                throw new IllegalArgumentException("Recovery contradicts current conflict/episode authority");
         }
     }
 

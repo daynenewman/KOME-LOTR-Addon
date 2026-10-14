@@ -61,3 +61,7 @@ The previous ProgressionData-to-book-only gap is corrected in Pass 1: the handle
 calls `acceptProgressionData`, which publishes the accepted authoritative rank,
 completion/mode/faction projection into `KOMEClientData.progressions` before the
 book/title update. Server action checks remain independent of this transient cache.
+
+## KOM-18 merge compatibility
+
+The progression merge retains the matching-artifact integration-g8 contract and Pass 1 projection, including progression identities at 59 and Join Battle at 53–58. The removed KOM-89 presentation workaround belonged to the incompatible 1.0.8 artifact; the exact-version handshake rejects that artifact before packet handling. No custom hired-presentation queue or packet is restored. ID 60 remains unused. Dev-only offline identity opt-in and its credential guards remain in Gradle.

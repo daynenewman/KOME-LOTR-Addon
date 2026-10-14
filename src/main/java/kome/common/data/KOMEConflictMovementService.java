@@ -470,10 +470,7 @@ public final class KOMEConflictMovementService {
     }
 
     private static boolean hasActiveDefensiveBuild(KOMEWorldData data, String tileId) {
-        for (KOMEPlayerBuild build : KOMEBuildService.activeDefensiveBuilds(data)) {
-            if (tileId.equals(KOMEConquestTile.normalizeId(build.tileId))) return true;
-        }
-        return false;
+        return KOMEFortificationContextResolver.requireForArrival(data, tileId);
     }
 
     private static boolean detachmentReady(KOMEWorldData data,
