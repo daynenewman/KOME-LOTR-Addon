@@ -119,6 +119,17 @@ restart, diagnostic suppression/change, player text and Formal Retreat precedenc
 See [Slice 2 evidence and concurrency boundary](../../../kom91-slice2/README.md).
 These deterministic tests do not claim connected-client or live acceptance for Slice 2.
 
+## KOM-88 progression tracker render isolation
+
+`KOMEProgressionTrackerOverlay.drawTracker` owns an exception-safe all-attribute and
+matrix scope around its textures, progress bar, text, item and chat-edit outline.
+Both the HUD and chat redraw use that same protected path. Native LOTR alignment
+renders later at FML render-tick END and relies on inherited alpha/blend state;
+the tracker restores its incoming state rather than overriding native alignment.
+Minecraft 1.7.10 binds textures directly, so no ResourceLocation restoration cache
+is introduced. `KOMEProgressionTrackerOverlayTest` checks scope coverage and normal/
+exceptional cleanup in bytecode; manual live visual acceptance remains required.
+
 ## KOM-97 destination browser budget continuation
 
 Move Here and Attack both open `KOMECompanyDestinationSelector` through

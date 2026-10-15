@@ -247,127 +247,135 @@ public final class KOMEProgressionTrackerOverlay extends Gui {
 
         int y=bounds.y;
 
-        GL11.glEnable(GL11.GL_ALPHA_TEST);
-        GL11.glEnable(GL11.GL_BLEND);
-        GL11.glBlendFunc(
-            GL11.GL_SRC_ALPHA,
-            GL11.GL_ONE_MINUS_SRC_ALPHA);
+        // Native LOTR alignment renders later in the tick and relies on inherited HUD state.
+        GL11.glPushAttrib(GL11.GL_ALL_ATTRIB_BITS);
+        GL11.glPushMatrix();
+        try {
+            GL11.glEnable(GL11.GL_ALPHA_TEST);
+            GL11.glEnable(GL11.GL_BLEND);
+            GL11.glBlendFunc(
+                GL11.GL_SRC_ALPHA,
+                GL11.GL_ONE_MINUS_SRC_ALPHA);
 
-        minecraft.getTextureManager().bindTexture(
-            TRACKER_TEXTURE);
+            minecraft.getTextureManager().bindTexture(
+                TRACKER_TEXTURE);
 
-        GL11.glColor4f(1F,1F,1F,1F);
-
-        drawTexturedModalRect(
-            iconX,
-            y,
-            0,
-            0,
-            ICON_WIDTH,
-            ICON_HEIGHT);
-
-        int iconDrawX=
-            iconX+(ICON_WIDTH-16)/2;
-
-        int iconDrawY=
-            y+(ICON_HEIGHT-16)/2;
-
-        int meterWidth=
-            BAR_WIDTH-BAR_EDGE*2;
-
-        if(snapshot.hasNumericProgress()) {
-        meterWidth=
-            Math.round(
-                meterWidth*snapshot.completion);
-
-        minecraft.getTextureManager().bindTexture(
-            TRACKER_TEXTURE);
-
-        GL11.glColor4f(
-            GOLD_R,
-            GOLD_G,
-            GOLD_B,
-            1F);
-
-        drawTexturedModalRect(
-            barX+BAR_EDGE,
-            y,
-            ICON_WIDTH+BAR_EDGE,
-            BAR_HEIGHT,
-            meterWidth,
-            BAR_HEIGHT);
-
-        GL11.glColor4f(1F,1F,1F,1F);
-
-        drawTexturedModalRect(
-            barX,
-            y,
-            ICON_WIDTH,
-            0,
-            BAR_WIDTH,
-            BAR_HEIGHT);
-
-        LOTRTickHandlerClient.drawAlignmentText(
-            font,
-            barX+BAR_WIDTH/2
-                -font.getStringWidth(snapshot.progress)/2,
-            y+BAR_HEIGHT
-                -BAR_HEIGHT/2
-                -font.FONT_HEIGHT/2,
-            snapshot.progress,
-            1F);
-        }
-
-        font.drawSplitString(
-            snapshot.objective,
-            barX,
-            y+(snapshot.hasNumericProgress()?BAR_HEIGHT+GAP:0),
-            BAR_WIDTH,
-            0xFFFFFF);
-
-        GL11.glDisable(GL11.GL_BLEND);
-        GL11.glDisable(GL11.GL_ALPHA_TEST);
-
-        ItemStack icon=snapshot.requestedItem==null?icon(snapshot.iconKey):snapshot.requestedItem;
-
-        if(icon!=null) {
-            RenderHelper.enableGUIStandardItemLighting();
-
-            GL11.glDisable(GL11.GL_LIGHTING);
-            GL11.glEnable(32826);
-            GL11.glEnable(GL11.GL_LIGHTING);
-            GL11.glEnable(GL11.GL_CULL_FACE);
             GL11.glColor4f(1F,1F,1F,1F);
 
-            RENDER_ITEM
-                .renderItemAndEffectIntoGUI(
-                    font,
-                    minecraft.getTextureManager(),
-                    icon,
-                    iconDrawX,
-                    iconDrawY);
+            drawTexturedModalRect(
+                iconX,
+                y,
+                0,
+                0,
+                ICON_WIDTH,
+                ICON_HEIGHT);
 
-            GL11.glDisable(GL11.GL_LIGHTING);
-        }
+            int iconDrawX=
+                iconX+(ICON_WIDTH-16)/2;
 
-        GL11.glColor4f(1F,1F,1F,1F);
+            int iconDrawY=
+                y+(ICON_HEIGHT-16)/2;
 
-        if(editMode) {
-            int mouseX=
-                Mouse.getX()
-                    *resolution.getScaledWidth()
-                    /Math.max(1,minecraft.displayWidth);
+            int meterWidth=
+                BAR_WIDTH-BAR_EDGE*2;
 
-            int mouseY=
-                resolution.getScaledHeight()
-                    -Mouse.getY()
-                        *resolution.getScaledHeight()
-                        /Math.max(1,minecraft.displayHeight)
-                    -1;
+            if(snapshot.hasNumericProgress()) {
+            meterWidth=
+                Math.round(
+                    meterWidth*snapshot.completion);
 
-            if(dragging||bounds.contains(mouseX,mouseY)) {
-                drawDragOutline(bounds);
+            minecraft.getTextureManager().bindTexture(
+                TRACKER_TEXTURE);
+
+            GL11.glColor4f(
+                GOLD_R,
+                GOLD_G,
+                GOLD_B,
+                1F);
+
+            drawTexturedModalRect(
+                barX+BAR_EDGE,
+                y,
+                ICON_WIDTH+BAR_EDGE,
+                BAR_HEIGHT,
+                meterWidth,
+                BAR_HEIGHT);
+
+            GL11.glColor4f(1F,1F,1F,1F);
+
+            drawTexturedModalRect(
+                barX,
+                y,
+                ICON_WIDTH,
+                0,
+                BAR_WIDTH,
+                BAR_HEIGHT);
+
+            LOTRTickHandlerClient.drawAlignmentText(
+                font,
+                barX+BAR_WIDTH/2
+                    -font.getStringWidth(snapshot.progress)/2,
+                y+BAR_HEIGHT
+                    -BAR_HEIGHT/2
+                    -font.FONT_HEIGHT/2,
+                snapshot.progress,
+                1F);
             }
+
+            font.drawSplitString(
+                snapshot.objective,
+                barX,
+                y+(snapshot.hasNumericProgress()?BAR_HEIGHT+GAP:0),
+                BAR_WIDTH,
+                0xFFFFFF);
+
+            GL11.glDisable(GL11.GL_BLEND);
+            GL11.glDisable(GL11.GL_ALPHA_TEST);
+
+            ItemStack icon=snapshot.requestedItem==null?icon(snapshot.iconKey):snapshot.requestedItem;
+
+            if(icon!=null) {
+                RenderHelper.enableGUIStandardItemLighting();
+
+                GL11.glDisable(GL11.GL_LIGHTING);
+                GL11.glEnable(32826);
+                GL11.glEnable(GL11.GL_LIGHTING);
+                GL11.glEnable(GL11.GL_CULL_FACE);
+                GL11.glColor4f(1F,1F,1F,1F);
+
+                RENDER_ITEM
+                    .renderItemAndEffectIntoGUI(
+                        font,
+                        minecraft.getTextureManager(),
+                        icon,
+                        iconDrawX,
+                        iconDrawY);
+
+                GL11.glDisable(GL11.GL_LIGHTING);
+            }
+
+            GL11.glColor4f(1F,1F,1F,1F);
+
+            if(editMode) {
+                int mouseX=
+                    Mouse.getX()
+                        *resolution.getScaledWidth()
+                        /Math.max(1,minecraft.displayWidth);
+
+                int mouseY=
+                    resolution.getScaledHeight()
+                        -Mouse.getY()
+                            *resolution.getScaledHeight()
+                            /Math.max(1,minecraft.displayHeight)
+                        -1;
+
+                if(dragging||bounds.contains(mouseX,mouseY)) {
+                    drawDragOutline(bounds);
+                }
+            }
+        } finally {
+            GL11.glPopMatrix();
+            GL11.glPopAttrib();
         }
     }
 
