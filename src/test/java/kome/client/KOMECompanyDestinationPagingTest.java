@@ -36,6 +36,36 @@ public class KOMECompanyDestinationPagingTest {
         for(int i=selector.rowOffset();i<Math.min(selector.rows().size(),selector.rowOffset()+capacity);i++)ids.add(selector.rows().get(i).companyId);
         return ids;
     }
+    @Test public void expensiveStablePrefixContinuesThroughTheRealQueryWithoutRestartOrSkippedCompanies() throws Exception {
+        try(Catalogue catalogue=new Catalogue(10,20)) {
+            request=selector.open("T020");
+            KOMECompanyDestinationOptions first=catalogue.query(request);
+            assertEquals(Result.ARRIVAL_BUDGET_EXCEEDED,first.result);
+            assertEquals(3,first.rows.size());assertEquals("C2",first.nextCompanyId);
+            KOMECompanyDestinationOptions restarted=catalogue.query(request);
+            assertEquals(first.catalogueToken,restarted.catalogueToken);
+            assertEquals(first.nextCompanyId,restarted.nextCompanyId); // The old Retry livelock.
+            Set<String> visited=new HashSet<String>();int pages=0,gestures=0;
+            KOMEPacketCompanyDestinationRequest next=request;
+            while(next!=null||selector.canBrowse(1,0)) {
+                if(next==null) {assertTrue(++gestures<80);next=selector.browse(1,4,0);continue;}
+                int before=catalogue.inspections();KOMECompanyDestinationOptions response=catalogue.query(next);
+                assertTrue(response.result==Result.OK||response.result==Result.ARRIVAL_BUDGET_EXCEEDED);
+                assertTrue(catalogue.inspections()-before<=KOMECompanyDestinationOptions.MAX_ARRIVAL_CHECKS);
+                assertEquals(first.catalogueToken,response.catalogueToken);
+                assertTrue(response.nextCompanyId.compareTo(next.afterCompanyId)>0);
+                for(Row row:response.rows)assertTrue("Repeated company "+row.companyId,visited.add(row.companyId));
+                pages++;assertTrue(pages<=4);accept(response);
+                assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector.phase());
+                assertFalse(state.accept(response,connection));assertFalse(selector.accept(response,0));
+                assertTrue(selector.retainedBrowseProjections()<=KOMECompanyListWindow.MAX_ROWS);
+                next=selector.takeBrowseFollowup();
+            }
+            assertEquals(4,pages);assertEquals(10,visited.size());
+            for(int i=1;i<=10;i++)assertTrue(visited.contains("C"+i));
+            assertFalse(selector.laterRows());
+        }
+    }
     @Test public void nineAndTwentyCompaniesAreReachableAcrossLocalAndServerBoundariesAndBack() throws Exception {
         for(int count:new int[]{9,20})try(Catalogue catalogue=new Catalogue(count)) {
             request=selector.open("T002");selector.scrollRows(0,4);load(catalogue,request);

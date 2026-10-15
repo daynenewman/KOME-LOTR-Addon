@@ -118,3 +118,31 @@ later Join, mounted transfer/interruption, boundary rejection, default rejection
 restart, diagnostic suppression/change, player text and Formal Retreat precedence.
 See [Slice 2 evidence and concurrency boundary](../../../kom91-slice2/README.md).
 These deterministic tests do not claim connected-client or live acceptance for Slice 2.
+
+## KOM-97 destination browser budget continuation
+
+Move Here and Attack both open `KOMECompanyDestinationSelector` through
+`KOMEConquestMapOverlay.openCompanySelector`. The destination query already returns
+completed rows, a catalogue token and the last completed company ID when its shared
+arrival budget expires. The next request excludes that completed prefix and evaluates
+the first deferred company with a fresh budget. Routes exceeding the individual
+limit remain explicit unknown-eligibility rows, never eligible or denied guesses.
+
+The selector now accepts `ARRIVAL_BUDGET_EXCEEDED` as a recoverable page only with
+`hasMore`, a nonempty token and a strictly advancing cursor (and ordered rows ending
+at that cursor when present). It applies the same retained-catalogue identity check
+as ordinary pages. The existing bounded rolling window and All/Ready/Arrive Now
+filters retain only authoritative projections; zero matches do not end continuation.
+The panel offers Continue instead of restarting the prefix with Refresh. Filter and
+browse follow-ups still stop after three pages per gesture; throttle responses wait
+for their server deadline and retry the outstanding cursor. Nonadvancing evidence
+fails closed without an automatic retry loop. No server or protocol change.
+
+Verification: `KOMECompanyDestinationQueryTest`, `KOMECompanyDestinationSelectorTest`,
+`KOMECompanyDestinationPagingTest`, `KOMECompanyDestinationBrowsingTest`, and
+`KOMEMapRadialInteractionTest` pass (176 tests). The paging regression first reproduced
+ERROR on a real budget-exhausted query, then traversed ten companies in four bounded
+pages without skips or duplicate accepted rows. Radial adapter tests cover both
+Move Here and Attack, including movement confirmation and adaptive Join eligibility.
+Move To/source queries, Rally and Units retain their separate authority and flows.
+These automated checks do not establish connected-client/live acceptance.

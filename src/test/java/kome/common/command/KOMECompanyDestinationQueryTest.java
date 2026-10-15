@@ -19,7 +19,11 @@ public class KOMECompanyDestinationQueryTest {
         private final Fixture fixture;
         private int inspections;
         public Catalogue(int count) throws Exception {
+            this(count,0);
+        }
+        public Catalogue(int count,int routeLength) throws Exception {
             fixture=new Fixture(false,1);
+            if(routeLength>0)new KOMECompanyDestinationQueryTest().chain(fixture,routeLength);
             for(int i=2;i<=count;i++)add("C"+i);
             fixture.world.arrivalInspection=()->inspections++;
         }
