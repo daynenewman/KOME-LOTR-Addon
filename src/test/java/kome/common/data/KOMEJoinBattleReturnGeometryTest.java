@@ -25,6 +25,108 @@ import static kome.common.data.KOMEJoinBattleDeploymentReceipt.*;
 public class KOMEJoinBattleReturnGeometryTest {
     @org.junit.Rule public final KOMETileTestResources geometry = new KOMETileTestResources();
 
+    @Test public void airborneCenterColumnReturnPreparationFindsGroundBelowSavedAnchor() throws Exception {
+        Fixture f=new Fixture();f.world.loadedEntityList.clear();f.world.onlyGroundX=8;f.world.onlyGroundZ=9;
+        Pose anchor=new Pose(0,8.5D,82D,9.5D,15F,20F);
+        assertFalse(KOMEJoinBattlePhysicalAccess.validateReturnPlacement(f.world,anchor,f.access.player,null));
+        KOMEJoinBattleEgressService.Preparation result=prepareReturn(f,returnReceipt(f,anchor));
+        assertTrue(result.failureReason,result.ready);
+        assertEquals(anchor.x,result.playerTarget.x,0D);assertEquals(anchor.z,result.playerTarget.z,0D);
+        assertEquals(74D,result.playerTarget.y,0D);
+    }
+    @Test public void fractionalAirborneReturnPreparationUsesActualSurfaceRatherThanSavedYFraction() throws Exception {
+        Fixture f=new Fixture();f.world.loadedEntityList.clear();
+        Pose anchor=new Pose(0,8.5D,76.5D,9.5D,15F,20F);
+        assertFalse(KOMEJoinBattlePhysicalAccess.validateReturnPlacement(f.world,anchor,f.access.player,null));
+        KOMEJoinBattleEgressService.Preparation result=prepareReturn(f,returnReceipt(f,anchor));
+        assertTrue(result.failureReason,result.ready);assertEquals(74D,result.playerTarget.y,0D);
+        assertTrue(KOMEJoinBattlePhysicalAccess.validateReturnPlacement(f.world,result.playerTarget,f.access.player,null));
+    }
+    static KOMEJoinBattleDeploymentReceipt returnReceipt(Fixture f,Pose anchor){
+        return KOMEJoinBattleDeploymentReceipt.builder().receiptId("JB1").actionToken("surface-return")
+            .playerId(f.access.player.id).conflictId("CF1").tileId("T100").acceptedConflictRevision(1L)
+            .factionId("gondor").selectedCompanyId("C1").createdAtMillis(1L).updatedAtMillis(3L)
+            .state(State.PENDING_EGRESS).deployedAtMillis(2L).egressRequestedAtMillis(3L)
+            .egressReason("The associated conflict ended.").returnAnchor(anchor)
+            .deploymentDestination(new Pose(0,100D,74D,100D,0F,0F))
+            .participationRecovery(ParticipationRecovery.PREEXISTING_ACTIVE).build();
+    }
+    static KOMEJoinBattleEgressService.Preparation prepareReturn(Fixture f,KOMEJoinBattleDeploymentReceipt receipt) throws Exception {
+        try(ReturnBinding binding=new ReturnBinding(f)){
+            return KOMEJoinBattlePhysicalAccess.prepareEgress(f.access.player,receipt);
+        }
+    }
+    static final class ReturnBinding implements AutoCloseable {
+        final kome.common.KOMETestServerSession session;
+        final java.util.Map<Integer,net.minecraft.world.WorldServer> worlds;
+        final net.minecraft.world.WorldServer previous;final int dimension;
+        ReturnBinding(Fixture f) throws Exception {
+            Field field=net.minecraftforge.common.DimensionManager.class.getDeclaredField("worlds");field.setAccessible(true);
+            worlds=(java.util.Map<Integer,net.minecraft.world.WorldServer>)field.get(null);
+            dimension=f.world.provider.dimensionId;previous=worlds.put(dimension,f.world);
+            session=new kome.common.KOMETestServerSession(f.access);session.server.worldServers=new net.minecraft.world.WorldServer[]{f.world};
+        }
+        public void close() throws Exception {session.close();if(previous==null)worlds.remove(dimension);else worlds.put(dimension,previous);}
+    }
+    @Test public void surfaceColumnsAreNearestFirstAndMissingGroundHasFixedWorkBound() throws Exception {
+        Fixture f=new Fixture();f.world.loadedEntityList.clear();
+        f.world.groundFilter=(x,z)->x==9&&z==9||x==7&&z==8;
+        Pose anchor=new Pose(0,8.5D,82.5D,9.5D,0F,0F);
+        KOMEJoinBattlePhysicalAccess.ReturnResolution result=KOMEJoinBattlePhysicalAccess.resolveReturnPlacement(f.world,anchor,f.access.player,null);
+        assertTrue(result.reason,result.valid);assertEquals(9.5D,result.pose.x,0D);assertEquals(9.5D,result.pose.z,0D);
+        f.world.noGround=true;f.world.heightQueries=0;
+        assertFalse(KOMEJoinBattlePhysicalAccess.resolveReturnPlacement(f.world,anchor,f.access.player,null).valid);
+        assertEquals("One heightmap lookup for each of 17 x 17 columns, no vertical world scan",289,f.world.heightQueries);
+    }
+    @Test public void mountedElevatedSourceUsesSurfaceAndStillRequiresBothBodiesAndFootprint() throws Exception {
+        Object previous=net.minecraft.entity.EntityList.classToStringMapping.put(LOTREntityMordorWarg.class,"lotr.MordorWarg");
+        try{
+            Fixture f=new Fixture();f.access.player.mountEntity(f.mount);f.mount.updateRiderPosition();
+            Pose base=new Pose(0,f.mount.posX,82.5D,f.mount.posZ,0F,0F);
+            Pose rider=new Pose(0,base.x,base.y+f.mount.getMountedYOffset()+f.access.player.getYOffset(),base.z,0F,0F);
+            KOMEJoinBattleDeploymentReceipt receipt=KOMEJoinBattleDeploymentReceipt.copyOf(returnReceipt(f,rider))
+                .enteredMounted(true).mountUuid(f.mount.getUniqueID()).mountEntityType("lotr.MordorWarg")
+                .mountProfile(MountProfile.LOTR_WARG).mountSourceAnchor(base)
+                .mountTransferPhase(MountTransferPhase.DEPLOYMENT_COMPLETE).build();
+            KOMEJoinBattleEgressService.Preparation prepared=prepareReturn(f,receipt);
+            assertTrue(prepared.failureReason,prepared.ready);assertTrue(prepared.transferRecordedMount);
+            assertEquals(74D,prepared.mountTarget.y,0D);
+            assertEquals(74D+f.mount.getMountedYOffset()+f.access.player.getYOffset(),prepared.playerTarget.y,1E-7D);
+            assertTrue(KOMEJoinBattlePhysicalAccess.validateReturnPlacement(f.world,prepared.mountTarget,f.access.player,f.mount));
+            assertFalse(f.mount.isDead);assertSame(f.mount,f.access.player.ridingEntity);
+            f.world.noGround=true;assertFalse(prepareReturn(f,receipt).ready);assertFalse(f.mount.isDead);
+        }finally{if(previous==null)net.minecraft.entity.EntityList.classToStringMapping.remove(LOTREntityMordorWarg.class);
+            else net.minecraft.entity.EntityList.classToStringMapping.put(LOTREntityMordorWarg.class,previous);}
+    }
+    @Test public void unresolvedSourceUsesOnlyLocalPhysicalRecoveryWithoutInventingTileAuthority() throws Exception {
+        Fixture f=new Fixture();f.world.loadedEntityList.clear();f.world.provider.dimensionId=Integer.MAX_VALUE;
+        Pose anchor=new Pose(Integer.MAX_VALUE,8.5D,82.5D,9.5D,0F,0F);
+        assertNotEquals(KOMETileResolution.Status.RESOLVED,KOMETileWorldResolver.INSTANCE.resolveWorldPosition(anchor.dimensionId,anchor.x,anchor.z).status);
+        KOMEJoinBattlePhysicalAccess.ReturnResolution result=KOMEJoinBattlePhysicalAccess.resolveReturnPlacement(f.world,anchor,f.access.player,null);
+        assertTrue(result.reason,result.valid);assertEquals(anchor.x,result.pose.x,0D);assertEquals(anchor.z,result.pose.z,0D);assertEquals(74D,result.pose.y,0D);
+    }
+    @Test public void localFallbackDoesNotCrossCanonicalSourceTileEvenWhenOtherTileHasGround() throws Exception {
+        Fixture f=new Fixture();f.world.loadedEntityList.clear();
+        KOMETileRasterSnapshot previous=KOMETileWorldResolver.INSTANCE.snapshot().get();
+        java.awt.image.BufferedImage image=new java.awt.image.BufferedImage(2,1,java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        image.setRGB(0,0,0xFF000001);image.setRGB(1,0,0xFF000002);
+        java.io.ByteArrayOutputStream bytes=new java.io.ByteArrayOutputStream();javax.imageio.ImageIO.write(image,"png",bytes);
+        KOMETileRasterSnapshot tiles=KOMETileRasterSnapshot.load(new java.io.ByteArrayInputStream(bytes.toByteArray()),
+            new java.io.ByteArrayInputStream("0,0,1=T100\n0,0,2=T101\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+            new KOMETileRasterSnapshot.Transform(0,0,0,1,32,16),new java.util.HashSet<String>(java.util.Arrays.asList("T100","T101")),java.util.Collections.<String>emptySet());
+        KOMETileWorldResolver.INSTANCE.publish(tiles);
+        try{
+            Pose anchor=new Pose(0,15.5D,82.5D,8.5D,0F,0F);
+            assertEquals("T100",KOMETileWorldResolver.INSTANCE.resolveWorldPosition(0,anchor.x,anchor.z).tileId);
+            f.world.groundFilter=(x,z)->x>=16;
+            KOMEJoinBattlePhysicalAccess.ReturnResolution blocked=KOMEJoinBattlePhysicalAccess.resolveReturnPlacement(f.world,anchor,f.access.player,null);
+            assertFalse(blocked.valid);assertTrue(blocked.reason.contains("source tile T100"));assertTrue(blocked.reason.contains("rejected"));
+            f.world.groundFilter=(x,z)->x>=16||x==14;
+            KOMEJoinBattlePhysicalAccess.ReturnResolution safe=KOMEJoinBattlePhysicalAccess.resolveReturnPlacement(f.world,anchor,f.access.player,null);
+            assertTrue(safe.reason,safe.valid);assertEquals("T100",KOMETileWorldResolver.INSTANCE.resolveWorldPosition(0,safe.pose.x,safe.pose.z).tileId);
+            assertEquals(14.5D,safe.pose.x,0D);
+        }finally{KOMETileWorldResolver.INSTANCE.publish(previous);}
+    }
     @Test public void fullJoinPrepareResolvesBesideNativeNearbyEntityWithoutNullQuery() throws Exception {
         Fixture f=new Fixture();f.world.loadedEntityList.clear();
         f.world.provider.dimensionId=KOMETileTestResources.dimension();
@@ -305,7 +407,7 @@ public class KOMEJoinBattleReturnGeometryTest {
         assertFalse(KOMEJoinBattlePhysicalAccess.validatePlayerPlacement(f.world,target,f.access.player));
     }
 
-    private static final class Fixture {
+    static final class Fixture {
         // Uses native World collision implementations; only terrain/entity storage is deterministic.
         final KOMEAccessFixture access=new KOMEAccessFixture();
         final GeometryWorld world=KOMEAccessFixture.allocate(GeometryWorld.class);
@@ -341,7 +443,11 @@ public class KOMEJoinBattleReturnGeometryTest {
         private static final Block AIR=new Block(Material.air){
             @Override public AxisAlignedBB getCollisionBoundingBoxFromPool(World world,int x,int y,int z){return null;}
         };
-        boolean noGround,spawnSawForce;AxisAlignedBB obstruction;
+        boolean noGround,spawnSawForce,publicationReady;Integer onlyGroundX,onlyGroundZ;AxisAlignedBB obstruction;
+        java.util.function.BiPredicate<Integer,Integer> groundFilter;
+        net.minecraft.server.management.PlayerManager manager;
+        net.minecraft.entity.EntityTracker tracker;
+        int heightQueries;
         IChunkProvider terrainProvider;
         private GeometryWorld(){super(null,null,"unused",0,null,null);}
         @Override protected IChunkProvider createChunkProvider(){return null;}
@@ -353,12 +459,15 @@ public class KOMEJoinBattleReturnGeometryTest {
         @Override public void updateEntityWithOptionalForce(Entity entity,boolean force){}
         @Override public IChunkProvider getChunkProvider(){return terrainProvider;}
         @Override public Chunk getChunkFromChunkCoords(int x,int z){
-            return new Chunk(this,x,z){@Override public int getTopFilledSegment(){return 64;}};
+            Chunk chunk=new Chunk(this,x,z){@Override public int getTopFilledSegment(){return 64;}};chunk.isTerrainPopulated=publicationReady;return chunk;
         }
+        @Override public net.minecraft.server.management.PlayerManager getPlayerManager(){return manager;}
+        @Override public net.minecraft.entity.EntityTracker getEntityTracker(){return tracker;}
+        @Override public List func_147486_a(int a,int b,int c,int d,int e,int f){return java.util.Collections.emptyList();}
         @Override public boolean blockExists(int x,int y,int z){return true;}
-        @Override public int getHeightValue(int x,int z){return 74;}
+        @Override public int getHeightValue(int x,int z){heightQueries++;return 74;}
         @Override public int getTopSolidOrLiquidBlock(int x,int z){return 74;}
-        @Override public Block getBlock(int x,int y,int z){return !noGround&&y==73?GROUND:AIR;}
+        @Override public Block getBlock(int x,int y,int z){return !noGround&&y==73&&(onlyGroundX==null||x==onlyGroundX&&z==onlyGroundZ)&&(groundFilter==null||groundFilter.test(x,z))?GROUND:AIR;}
         @Override public List func_147461_a(AxisAlignedBB box){
             List result=super.func_147461_a(box);
             if(obstruction!=null&&obstruction.intersectsWith(box))result.add(obstruction);

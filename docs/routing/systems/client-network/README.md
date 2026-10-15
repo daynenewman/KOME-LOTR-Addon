@@ -55,3 +55,66 @@ Units uses read-only source metadata. Join screen ownership/correlation, success
 non-pausing command screens remain client presentation rules, not deployment authority.
 Verify registration/protocol/public-access tests, company network tests and Join GUI tests alongside
 Campaign health/recovery/reconstruction and ordinary battle suites after reconciliation.
+
+## KOM-91 return surface recovery (Slice 1)
+
+Join Battle return placement keeps the exact persisted pre-entry pose first. If unsupported,
+`KOMEJoinBattlePhysicalAccess.resolveReturnPlacement` uses the center column and deterministic
+nearest-first columns within the existing +/-8 X/Z envelope. Each column probes nine support
+blocks near saved Y and five near the native heightmap, deriving standing Y from collision-box
+tops and retaining full terrain/liquid/body and mount/rider clearance checks. There is no full
+vertical column scan: at most 289 height lookups, 4,046 support-block probes and 4,047 placement
+validations including the exact-pose check. These are candidate-generation limits; existing
+collision/footprint validation performs its normal bounded local checks as well.
+
+The canonical captured tile resolver fences fallbacks to the original player return tile when
+that anchor resolves. Mounted placement uses the persisted mount base but the player's return
+anchor owns this fence. An unresolved source receives only the same local physical search;
+no tile, spawn or strategic destination is substituted. There is no flight exemption inferred
+from current capabilities. No receipt/schema, conflict-end, registry, retry or transfer-phase
+change was part of Slice 1. Slice 2 below extends only egress recovery and diagnostics.
+
+Regressions: `KOMEJoinBattleReturnGeometryTest`, `KOMEJoinBattleSurfaceRecoveryTest`, and the
+ordinary-resolution integration in `KOMEOrdinaryBattleResolutionServiceTest`. Retain existing
+mounted publication, entry/persistence, Formal Retreat and canonical tile-resolution suites.
+Automated verification does not substitute for live return/terrain confirmation.
+
+## KOM-91 same-source-tile fallback and diagnostics (Slice 2)
+
+`KOMEJoinBattlePhysicalAccess.prepareEgress` keeps exact/local recovery first, then
+uses the read-only `KOMEJoinBattleReturnAuthority`: saved WorldData RALLY first,
+packaged `KOMETileGameplayDefaults.getArrivalDefault` second, with duplicate anchors
+removed. Every canonical anchor, rider offset and search candidate must resolve to
+the original persisted player source tile in the source dimension. Gaps, exclusions,
+other tiles and historical out-of-tile arrival exceptions never authorize fallback.
+Unresolved original anchors receive exact/local recovery only. Entry rollback still
+uses the original resolver without the canonical fallback extension.
+
+Each of at most two canonical anchors reuses Slice 1's center-inclusive +/-8 surface
+search and physical checks. Across original, saved and packaged searches the maximum
+is 867 height lookups, 12,138 support probes and 12,141 placement validations; existing
+footprint/collision queries remain additional bounded work. Closure still follows
+verified physical application only. Mounted interrupted-egress discovery loads bounded
+original/fallback areas and the current same-source-tile player area to find the exact
+recorded UUID; that discovery pose does not authorize a return destination or missing-evidence
+recreation. UUID/type/profile, snapshot, attachment, uniqueness, rollback and publication
+contracts remain in force. Formal Retreat gates run before physical preparation.
+
+`KOMEJoinBattleEgressService` classifies real failed attempts without receipt fields.
+The existing capped persistent audit records receipt/player/conflict/source-tile identity
+and concise classification/reason. It compares the latest retained event for that exact
+receipt, so identical retries (including after restart) do not append again; changed
+category/reason does. The global audit cap remains 500. Login waits, five-second polling,
+60-second physical-failure backoff and durable-receipt restart recovery remain unchanged.
+
+`KOMEPacketJoinBattleViewResponse.forPlayer` uses the existing `reasonText` field for
+RETURNING. `pendingReason` maps classifications to concise player wording without raw
+receipt/conflict/player IDs, using runtime failure state or the last retained audit after
+restart. No packet shape/protocol change. Truly impossible source authority stays pending;
+operator repair remains separate work.
+
+`KOMEJoinBattleSameTileFallbackTest` covers real search/application/closure, unrelated
+later Join, mounted transfer/interruption, boundary rejection, default rejection, NBT
+restart, diagnostic suppression/change, player text and Formal Retreat precedence.
+See [Slice 2 evidence and concurrency boundary](../../../kom91-slice2/README.md).
+These deterministic tests do not claim connected-client or live acceptance for Slice 2.
