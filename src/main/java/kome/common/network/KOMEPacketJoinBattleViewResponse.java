@@ -78,8 +78,7 @@ public final class KOMEPacketJoinBattleViewResponse implements IMessage {
                     +result.currentDeploymentConflict+"). The server is safely completing your deployment.";
             }else if(open.getState()==KOMEJoinBattleDeploymentReceipt.State.PENDING_EGRESS){
                 result.currentDeploymentState="RETURNING";
-                result.reasonText="Returning from "+result.currentDeploymentTile+" ("
-                    +result.currentDeploymentConflict+"). The server is safely completing your return.";
+                result.reasonText=KOMEJoinBattleEgressService.INSTANCE.pendingReason(data,open);
             }else{
                 result.currentDeploymentState="IN_BATTLE";
                 result.reasonText="In battle: "+result.currentDeploymentTile+" ("

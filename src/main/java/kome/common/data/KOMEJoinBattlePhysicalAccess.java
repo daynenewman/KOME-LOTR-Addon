@@ -226,16 +226,22 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
 
     static KOMEJoinBattleEgressService.Preparation prepareEgress(EntityPlayerMP player,
             KOMEJoinBattleDeploymentReceipt receipt){
+        return prepareEgress(null,player,receipt);
+    }
+
+    static KOMEJoinBattleEgressService.Preparation prepareEgress(KOMEWorldData data,
+            EntityPlayerMP player,KOMEJoinBattleDeploymentReceipt receipt){
         if(player==null||receipt==null||receipt.getReturnAnchor()==null)
             return KOMEJoinBattleEgressService.Preparation.unavailable();
         KOMEJoinBattleDeploymentReceipt.Pose target=receipt.getReturnAnchor();
         World targetWorld=world(target.dimensionId);
         if(targetWorld==null)return KOMEJoinBattleEgressService.Preparation.unavailable(
+            KOMEJoinBattleEgressService.Failure.RETURN_DIMENSION_UNAVAILABLE,
             "Saved return dimension " + target.dimensionId + " is unavailable.");
 
         if(receipt.isEnteredMounted() && receipt.getMountTransferPhase()==
                 KOMEJoinBattleDeploymentReceipt.MountTransferPhase.EGRESS_TRANSFER_PENDING){
-            String unresolved=recoverArmedEgress(player,receipt);
+            String unresolved=recoverArmedEgress(data,player,receipt);
             if(unresolved!=null)return KOMEJoinBattleEgressService.Preparation.unavailable(unresolved);
             return KOMEJoinBattleEgressService.Preparation.restoredSource();
         }
@@ -254,10 +260,10 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
                 if(mountTarget==null||mountTarget.dimensionId!=target.dimensionId)
                     return KOMEJoinBattleEgressService.Preparation.unavailable(
                         "Recorded mounted return authority is inconsistent.");
-                ReturnResolution resolved=resolveReturnPlacement(targetWorld,mountTarget,target,
+                ReturnResolution resolved=resolveEgressReturnPlacement(data,targetWorld,mountTarget,target,
                     player,riding);
                 if(!resolved.valid)return KOMEJoinBattleEgressService.Preparation.unavailable(
-                    resolved.reason);
+                    resolved.failure,resolved.reason);
                 NBTTagCompound snapshot=new NBTTagCompound();
                 try{
                     if(!riding.writeMountToNBT(snapshot))
@@ -274,9 +280,9 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
                     :KOMEJoinBattleEgressService.Preparation.mounted(snapshot,
                         playerTarget,resolved.pose);
             }
-            ReturnResolution resolved=resolveReturnPlacement(targetWorld,target,player,null);
+            ReturnResolution resolved=resolveEgressReturnPlacement(data,targetWorld,target,target,player,null);
             if(!resolved.valid)return KOMEJoinBattleEgressService.Preparation.unavailable(
-                resolved.reason);
+                resolved.failure,resolved.reason);
             Entity recorded=findLoaded(receipt.getMountUuid());
             KOMEJoinBattleDeploymentReceipt.MountDisposition disposition=recorded==null
                 ?KOMEJoinBattleDeploymentReceipt.MountDisposition.UNAVAILABLE
@@ -285,10 +291,10 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
                     :KOMEJoinBattleDeploymentReceipt.MountDisposition.SEPARATED;
             return KOMEJoinBattleEgressService.Preparation.playerOnly(disposition,resolved.pose);
         }
-        ReturnResolution resolved=resolveReturnPlacement(targetWorld,target,player,null);
+        ReturnResolution resolved=resolveEgressReturnPlacement(data,targetWorld,target,target,player,null);
         return resolved.valid
             ?KOMEJoinBattleEgressService.Preparation.playerOnly(null,resolved.pose)
-            :KOMEJoinBattleEgressService.Preparation.unavailable(resolved.reason);
+            :KOMEJoinBattleEgressService.Preparation.unavailable(resolved.failure,resolved.reason);
     }
 
     static boolean isRidingRecordedMount(EntityPlayerMP player,KOMEJoinBattleDeploymentReceipt receipt){
@@ -299,6 +305,11 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
 
     /** An armed egress owns the exact mount even while the rider is temporarily detached. */
     static String recoverArmedEgress(EntityPlayerMP player,KOMEJoinBattleDeploymentReceipt receipt){
+        return recoverArmedEgress(null,player,receipt);
+    }
+
+    private static String recoverArmedEgress(KOMEWorldData data,EntityPlayerMP player,
+            KOMEJoinBattleDeploymentReceipt receipt){
         NBTTagCompound snapshot=receipt.getTemporaryMountNbt();
         if(snapshot==null)return "Mounted return recovery snapshot is unavailable.";
         try{
@@ -313,19 +324,30 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
                     MathHelper.floor_double(sourcePose.x),MathHelper.floor_double(sourcePose.z)))
                 return "Mounted return recovery source chunk is unavailable.";
             KOMEJoinBattleDeploymentReceipt.Pose target=receipt.getMountSourceAnchor();
-            // A previous bounded nearby return may have crossed the anchor's chunk boundary.
-            for(int cx=MathHelper.floor_double(target.x-EGRESS_SEARCH_RADIUS)>>4;
-                    cx<=(MathHelper.floor_double(target.x+EGRESS_SEARCH_RADIUS)>>4);cx++)
-                for(int cz=MathHelper.floor_double(target.z-EGRESS_SEARCH_RADIUS)>>4;
-                        cz<=(MathHelper.floor_double(target.z+EGRESS_SEARCH_RADIUS)>>4);cz++)
-                    if(!KOMEStrategicDeploymentResolver.ensureChunkAvailable(sourceWorld,cx<<4,cz<<4))
-                        return "Mounted return recovery target chunk is unavailable.";
+            List<KOMEJoinBattleDeploymentReceipt.Pose> recoveryTargets=new ArrayList<KOMEJoinBattleDeploymentReceipt.Pose>();
+            recoveryTargets.add(target);
+            KOMEJoinBattleDeploymentReceipt.Pose original=receipt.getReturnAnchor();
+            KOMETileWorldResolver.ReadView tiles=KOMETileWorldResolver.INSTANCE.readView();
+            KOMETileResolution origin=tiles.resolveWorldPosition(original.dimensionId,original.x,original.z);
+            if(origin.status==KOMETileResolution.Status.RESOLVED){
+                recoveryTargets.addAll(KOMEJoinBattleReturnAuthority.resolve(data,origin.tileId,target,tiles).poses);
+                // Vanilla persists the player's physical pose/nested Riding separately. This is
+                // discovery of the recorded UUID, never authority for a new return destination.
+                if(returnTileMatches(receipt,pose(player)))recoveryTargets.add(pose(player));
+            }
+            for(KOMEJoinBattleDeploymentReceipt.Pose recoveryTarget:recoveryTargets)
+                if(!loadReturnArea(sourceWorld,recoveryTarget))
+                    return "Mounted return recovery target chunk is unavailable.";
             List<Entity> copies=includeNestedMount(player,receipt,findLoadedMounts(receipt.getMountUuid()));
             if(copies.size()>1)return "Mounted return recovery found ambiguous exact-UUID copies.";
             Entity mount=copies.isEmpty()?null:copies.get(0);
-            if(mount!=null&&(!exactMount(mount,receipt)
-                    ||!withinRecoveryArea(mount,sourcePose)&&!withinRecoveryArea(mount,target)))
-                return "Mounted return recovery identity or location is ambiguous.";
+            if(mount!=null){
+                boolean located=withinRecoveryArea(mount,sourcePose);
+                for(KOMEJoinBattleDeploymentReceipt.Pose recoveryTarget:recoveryTargets)
+                    located|=withinRecoveryArea(mount,recoveryTarget);
+                if(!exactMount(mount,receipt)||!located)
+                    return "Mounted return recovery identity or location is ambiguous.";
+            }
             Entity riding=KOMEReflection.getRidingEntity(player);
             if(riding!=null&&riding!=mount)return "Mounted return recovery cannot detach an unrelated mount.";
             if(mount!=null&&KOMEReflection.getRiddenByEntity(mount)!=null
@@ -347,6 +369,16 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
         }catch(RuntimeException failure){return "Mounted return recovery could not verify exact source authority.";}
     }
 
+    private static boolean loadReturnArea(World world,KOMEJoinBattleDeploymentReceipt.Pose target){
+        if(target==null||world.provider.dimensionId!=target.dimensionId)return false;
+        for(int cx=MathHelper.floor_double(target.x-EGRESS_SEARCH_RADIUS)>>4;
+                cx<=(MathHelper.floor_double(target.x+EGRESS_SEARCH_RADIUS)>>4);cx++)
+            for(int cz=MathHelper.floor_double(target.z-EGRESS_SEARCH_RADIUS)>>4;
+                    cz<=(MathHelper.floor_double(target.z+EGRESS_SEARCH_RADIUS)>>4);cz++)
+                if(!KOMEStrategicDeploymentResolver.ensureChunkAvailable(world,cx<<4,cz<<4))return false;
+        return true;
+    }
+
     static KOMEJoinBattleEgressService.PhysicalResult egress(EntityPlayerMP player,
             KOMEJoinBattleDeploymentReceipt receipt,
             KOMEJoinBattleEgressService.Preparation preparation){
@@ -358,7 +390,8 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
             KOMEJoinBattleDeploymentReceipt.Pose target=preparation.playerTarget==null
                 ?receipt.getReturnAnchor():preparation.playerTarget;
             movePlayer(player,target);
-            return verifyReturn(player,target)
+            return verifyReturn(player,target)&&returnTileMatches(receipt,pose(player))
+                    &&validateReturnPlacement(player.worldObj,pose(player),player,null)
                 ?KOMEJoinBattleEgressService.PhysicalResult.completed(
                     preparation.playerOnlyDisposition)
                 :KOMEJoinBattleEgressService.PhysicalResult.failed(
@@ -467,18 +500,71 @@ final class KOMEJoinBattlePhysicalAccess implements KOMEJoinBattleEntryService.P
         if(!riderPositionCoherent(player,mount))return "Returned rider position did not match the mount.";
         if(!validateReturnPlacement(mount.worldObj,target,player,mount))
             return "Returned mount/rider clearance or support is unsafe.";
+        if(!returnTileMatches(receipt,target)||!returnTileMatches(receipt,pose(player)))
+            return "Returned mount/rider is outside the original source tile.";
         return null;
     }
 
     static final class ReturnResolution{
         final boolean valid;final KOMEJoinBattleDeploymentReceipt.Pose pose;final String reason;
-        private ReturnResolution(boolean valid,KOMEJoinBattleDeploymentReceipt.Pose pose,String reason){
+        final KOMEJoinBattleEgressService.Failure failure;
+        private ReturnResolution(boolean valid,KOMEJoinBattleDeploymentReceipt.Pose pose,String reason,
+                KOMEJoinBattleEgressService.Failure failure){
             this.valid=valid;this.pose=pose;this.reason=reason==null?"":reason;
+            this.failure=failure;
         }
         static ReturnResolution ok(KOMEJoinBattleDeploymentReceipt.Pose pose){
-            return new ReturnResolution(true,pose,"");
+            return new ReturnResolution(true,pose,"",null);
         }
-        static ReturnResolution failed(String reason){return new ReturnResolution(false,null,reason);}
+        static ReturnResolution failed(String reason){return failed(
+            KOMEJoinBattleEgressService.Failure.LOCAL_SURFACE_NOT_FOUND,reason);}
+        static ReturnResolution failed(KOMEJoinBattleEgressService.Failure failure,String reason){
+            return new ReturnResolution(false,null,reason,failure);
+        }
+    }
+
+    private static boolean returnTileMatches(KOMEJoinBattleDeploymentReceipt receipt,
+            KOMEJoinBattleDeploymentReceipt.Pose target){
+        KOMEJoinBattleDeploymentReceipt.Pose source=receipt.getReturnAnchor();
+        if(source.dimensionId!=target.dimensionId)return false;
+        KOMETileWorldResolver.ReadView tiles=KOMETileWorldResolver.INSTANCE.readView();
+        KOMETileResolution origin=tiles.resolveWorldPosition(source.dimensionId,source.x,source.z);
+        if(origin.status!=KOMETileResolution.Status.RESOLVED)return true; // Legacy exact/local recovery only.
+        KOMETileResolution candidate=tiles.resolveWorldPosition(target.dimensionId,target.x,target.z);
+        return candidate.status==KOMETileResolution.Status.RESOLVED&&origin.tileId.equals(candidate.tileId);
+    }
+
+    /** Egress-only extension: entry rollback continues to use the existing exact/local resolver. */
+    static ReturnResolution resolveEgressReturnPlacement(KOMEWorldData data,World world,
+            KOMEJoinBattleDeploymentReceipt.Pose anchor,KOMEJoinBattleDeploymentReceipt.Pose source,
+            EntityPlayerMP player,Entity mount){
+        ReturnResolution local=resolveReturnPlacement(world,anchor,source,player,mount);
+        if(local.valid)return local;
+        if(world==null||world.provider==null||world.provider.dimensionId!=source.dimensionId)
+            return ReturnResolution.failed(KOMEJoinBattleEgressService.Failure.RETURN_DIMENSION_UNAVAILABLE,
+                "Saved return dimension is unavailable.");
+        KOMETileWorldResolver.ReadView tiles=KOMETileWorldResolver.INSTANCE.readView();
+        KOMETileResolution origin=tiles.resolveWorldPosition(source.dimensionId,source.x,source.z);
+        if(origin.status!=KOMETileResolution.Status.RESOLVED)
+            return ReturnResolution.failed(KOMEJoinBattleEgressService.Failure.SOURCE_TILE_UNRESOLVED,
+                "Exact/local recovery failed and the persisted return anchor has no canonical source tile.");
+        KOMEJoinBattleReturnAuthority.Anchors fallbacks=KOMEJoinBattleReturnAuthority.resolve(data,origin.tileId,anchor,tiles);
+        if(fallbacks.poses.isEmpty())return ReturnResolution.failed(fallbacks.unavailableFailure(),
+            fallbacks.rejected?"Canonical arrival anchors were rejected outside the original source tile.":
+                "The original source tile has no canonical arrival anchor.");
+        for(int i=0;i<fallbacks.poses.size();i++){
+            KOMEJoinBattleDeploymentReceipt.Pose fallback=fallbacks.poses.get(i);
+            // Preserve the persisted mount-base/rider offset; both centers must remain in the source tile.
+            KOMEJoinBattleDeploymentReceipt.Pose rider=shift(source,
+                fallback.x-anchor.x,fallback.y-anchor.y,fallback.z-anchor.z);
+            KOMETileResolution riderTile=tiles.resolveWorldPosition(rider.dimensionId,rider.x,rider.z);
+            if(riderTile.status!=KOMETileResolution.Status.RESOLVED||!origin.tileId.equals(riderTile.tileId))continue;
+            ReturnResolution result=resolveReturnPlacement(world,fallback,rider,player,mount);
+            if(result.valid)return result;
+        }
+        return ReturnResolution.failed(KOMEJoinBattleEgressService.Failure.LOCAL_SURFACE_NOT_FOUND,
+            "No safe same-tile surface within 8 blocks of the persisted anchor or canonical "
+                +fallbacks.authorities+" on source tile "+origin.tileId+".");
     }
 
     private static final List<int[]> EGRESS_COLUMNS=returnColumns();

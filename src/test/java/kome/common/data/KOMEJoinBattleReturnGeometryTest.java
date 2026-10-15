@@ -446,6 +446,7 @@ public class KOMEJoinBattleReturnGeometryTest {
         boolean noGround,spawnSawForce,publicationReady;Integer onlyGroundX,onlyGroundZ;AxisAlignedBB obstruction;
         java.util.function.BiPredicate<Integer,Integer> groundFilter;
         net.minecraft.server.management.PlayerManager manager;
+        net.minecraft.entity.EntityTracker tracker;
         int heightQueries;
         IChunkProvider terrainProvider;
         private GeometryWorld(){super(null,null,"unused",0,null,null);}
@@ -461,6 +462,7 @@ public class KOMEJoinBattleReturnGeometryTest {
             Chunk chunk=new Chunk(this,x,z){@Override public int getTopFilledSegment(){return 64;}};chunk.isTerrainPopulated=publicationReady;return chunk;
         }
         @Override public net.minecraft.server.management.PlayerManager getPlayerManager(){return manager;}
+        @Override public net.minecraft.entity.EntityTracker getEntityTracker(){return tracker;}
         @Override public List func_147486_a(int a,int b,int c,int d,int e,int f){return java.util.Collections.emptyList();}
         @Override public boolean blockExists(int x,int y,int z){return true;}
         @Override public int getHeightValue(int x,int z){heightQueries++;return 74;}
