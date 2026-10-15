@@ -425,6 +425,49 @@ public class KOMEMapRadialInteractionTest {
         }
         assertEquals(3,network.sent.size());assertPreviewRequestsOnly();
     }
+    @Test public void moveHereConsumesBudgetContinuationThroughTheLiveOverlayAdapter() throws Exception {
+        budgetContinuationFromRadial(false);
+    }
+    @Test public void attackConsumesBudgetContinuationAndRetainsAdaptiveJoin() throws Exception {
+        budgetContinuationFromRadial(true);
+    }
+    private void budgetContinuationFromRadial(boolean attack) throws Exception {
+        try(BattlePresentationClient client=new BattlePresentationClient()) {
+            KOMEClientProxy proxy=connectSelector();
+            if(attack) {
+                client.owner("mordor");click(400,300,1);clickRoot(1);
+                assertEquals(KOMEMapRadialMenu.Action.ATTACK,menu.segments().get(0).action);
+                assertTrue(click(400,240,0));
+            } else openSelector();
+            KOMEPacketCompanyDestinationRequest first=(KOMEPacketCompanyDestinationRequest)network.sent.get(network.sent.size()-1);
+            publish(proxy,budgetRadialPage(first,"A",true,attack));
+            assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector().phase());
+            assertEquals("A",selector().rows().get(0).companyId);
+            int sent=network.sent.size();clickControl(KOMECompanyDestinationPanel.Control.RETRY);
+            assertEquals(sent+1,network.sent.size());
+            KOMEPacketCompanyDestinationRequest next=(KOMEPacketCompanyDestinationRequest)network.sent.get(sent);
+            assertEquals("A",next.afterCompanyId);assertEquals(KOMECompanyDestinationSelectorTest.TOKEN,next.catalogueToken);
+            assertEquals(first.session,next.session);assertEquals(first.destination,next.destination);
+            assertEquals("A",selector().rows().get(0).companyId);
+            publish(proxy,budgetRadialPage(next,"B",false,attack));
+            assertEquals(2,selector().rows().size());
+            selector().select("B");assertTrue(selector().canConfirm());
+            assertEquals(attack,selector().canConfirmAndJoin());
+            int accepted=network.sent.size();publish(proxy,budgetRadialPage(first,"A",true,attack));
+            assertEquals(accepted,network.sent.size());assertEquals("B",selector().selectedCompanyId());
+        }
+    }
+    private KOMECompanyDestinationOptions budgetRadialPage(KOMEPacketCompanyDestinationRequest request,String id,boolean more,boolean attack) {
+        KOMECompanyDestinationOptions.Row row=new KOMECompanyDestinationOptions.Row(id,"Company "+id,"T002","T001",
+            KOMECompanyDestinationOptions.Entitlement.FOOT_OR_MIXED,2,2,1,Arrays.asList("T002","T001"),
+            kome.common.command.KOMECompanyMovementService.Status.CAN_START_AND_ARRIVE_NOW,
+            kome.common.command.KOMECompanyMovementService.ScheduleMode.DAILY,true,true,true,true,0,10000,20000,
+            "","","",-1,attack?kome.common.command.KOMECompanyMovementService.Consequence.EXPECTED_CREATE_CONFLICT:
+                kome.common.command.KOMECompanyMovementService.Consequence.NONE,"",-1,
+            KOMECompanyDestinationSelectorTest.HASH,KOMECompanyDestinationSelectorTest.HASH);
+        return KOMECompanyDestinationSelectorTest.page(request,more?KOMECompanyDestinationOptions.Result.ARRIVAL_BUDGET_EXCEEDED:
+            KOMECompanyDestinationOptions.Result.OK,Collections.singletonList(row),more,0);
+    }
     @Test public void activeBattleShortcutOpensTheSameSelectorAndBoundedDestinationRequestAsMoveHere() throws Exception {
         KOMEClientProxy proxy=connectSelector();
         net.minecraft.client.Minecraft client=KOMEAccessFixture.allocate(net.minecraft.client.Minecraft.class);client.currentScreen=map;

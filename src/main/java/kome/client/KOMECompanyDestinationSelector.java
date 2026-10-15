@@ -104,6 +104,20 @@ final class KOMECompanyDestinationSelector {
         try {pending=queries.request(destination,KOMECompanyDestinationOptions.MAX_ROWS,cursor.after,cursor.after.isEmpty()?"":cursor.catalogue);return pending;}
         catch(IllegalStateException disconnected) {pending=null;phase=Phase.ERROR;error="Not connected. Reopen after reconnect.";return null;}
     }
+    /** Shared-budget exhaustion is a page only when the server provides forward progress.
+     * The cursor is the last completed company, not the first company deferred to a fresh budget.
+     * Empty projections may advance an authoritative cursor, but must never repeat it.
+     */
+    private boolean resumableBudgetPage(KOMECompanyDestinationOptions response) {
+        if(originQuery()||response.result!=Result.ARRIVAL_BUDGET_EXCEEDED||!response.hasMore
+                ||response.catalogueToken.isEmpty()||response.nextCompanyId.compareTo(pending.afterCompanyId)<=0)return false;
+        String last=pending.afterCompanyId;
+        for(Row row:response.rows) {
+            if(row.companyId.compareTo(last)<=0)return false;
+            last=row.companyId;
+        }
+        return response.rows.isEmpty()||last.equals(response.nextCompanyId);
+    }
     /** Proxy already accepted connection/session/sequence/destination through Slice 2 state. */
     boolean accept(KOMECompanyDestinationOptions response,long now) {
         if(!isOpen()||phase!=Phase.LOADING||pending==null||queries.latest()!=response
@@ -114,16 +128,17 @@ final class KOMECompanyDestinationSelector {
             joinLatch.clear();setSelected(null);pending=null;page=null;orderedRows=filteredRows=Collections.emptyList();
             phase=Phase.ERROR;error="Source company evidence changed. Back to choose again.";return true;
         }
+        boolean acceptedPage=response.result==Result.OK||resumableBudgetPage(response);
         joinLatch.clear();rowOffset=0;failure=response.result;
         // First-page requests have no wire cursor. Revisited first pages still must match retained history.
         String expectedCatalogue=history.get(pageIndex).catalogue;
-        if(response.result==Result.OK&&!expectedCatalogue.isEmpty()&&!expectedCatalogue.equals(response.catalogueToken)) {
+        if(acceptedPage&&!expectedCatalogue.isEmpty()&&!expectedCatalogue.equals(response.catalogueToken)) {
             window.clear();setSelected(null);page=null;orderedRows=filteredRows=Collections.emptyList();filterSuperseded=filterNeedsRestart=filterResetPending=false;pendingSelection="";pendingStep=0;searchRemaining=0;browseFollowup=null;
             phase=Phase.ERROR;failure=Result.CATALOGUE_CHANGED;error=queryError(failure);return true;
         }
         // Filter-free wire queries are serialized. A superseded search response only drains
         // its outstanding request; it must not restore its rows, position or selection.
-        if(filterSuperseded&&page!=null&&(response.result==Result.OK||response.result==Result.RATE_LIMITED)) {
+        if(filterSuperseded&&page!=null&&(acceptedPage||response.result==Result.RATE_LIMITED)) {
             filterSuperseded=false;pending=null;browseFollowup=null;pendingStep=0;
             if(response.result==Result.RATE_LIMITED) {
                 phase=Phase.THROTTLED;retryAt=now+(response.retryAfterMillis<0?1000:response.retryAfterMillis);
@@ -134,7 +149,7 @@ final class KOMECompanyDestinationSelector {
             }
             return true;
         }
-        if(response.result==Result.OK) {
+        if(acceptedPage) {
             if(filterResetPending){window.clear();filterResetPending=false;}
             filterSuperseded=false;page=response;orderedRows=new ArrayList<Row>(response.rows);orderedRows.sort(ROW_ORDER);
             orderedRows=Collections.unmodifiableList(orderedRows);applyFilter();
@@ -171,6 +186,7 @@ final class KOMECompanyDestinationSelector {
     }
     KOMEPacketCompanyDestinationRequest retry(long now) {
         if(!canRetry(now))return null;
+        if(canContinueBudget())return browse(1,windowCapacity,now);
         joinLatch.clear();if(phase!=Phase.THROTTLED)setSelected(null);
         browseFollowup=null;searchRemaining=filter==Filter.ALL?0:MAX_SEARCH_PAGES;
         if(phase!=Phase.THROTTLED)searchDirection=1;
@@ -181,6 +197,7 @@ final class KOMECompanyDestinationSelector {
         }
         return request();
     }
+    boolean canContinueBudget() {return phase()==Phase.READY&&page!=null&&page.result==Result.ARRIVAL_BUDGET_EXCEEDED&&canBrowse(1,0);}
     boolean canRetry(long now) {return isOpen()&&(phase==Phase.READY||phase==Phase.ERROR||phase==Phase.THROTTLED&&now>=retryAt);}
     boolean hasNext() {if(rolling)return canBrowse(1,0);return isOpen()&&phase==Phase.READY&&page!=null&&(rowOffset+windowCapacity<rows().size()||page.hasMore&&pageIndex+1<MAX_PAGE_HISTORY);}
     boolean hasPrevious() {if(rolling)return canBrowse(-1,0);return isOpen()&&phase!=Phase.LOADING&&phase!=Phase.SUBMITTING&&phase!=Phase.JOINING&&(pageIndex>0||phase==Phase.READY&&rowOffset>0);}
@@ -360,6 +377,7 @@ final class KOMECompanyDestinationSelector {
             case THROTTLED:return now<retryAt?"More companies available shortly":"Scroll or Retry to load more companies.";
             case ERROR:return error;
             case READY:
+                if(canContinueBudget())return "More companies remain to be evaluated. Scroll down or Continue to load more.";
                 if(!rows().isEmpty())return "Select a company to preview.";
                 if(laterRows()&&pageIndex+1<MAX_PAGE_HISTORY)return "More companies may match. Scroll down to keep looking.";
                 if(pageIndex>0)return "No matches here. Scroll up to browse earlier companies.";
@@ -497,7 +515,7 @@ final class KOMECompanyDestinationSelector {
             case CATALOGUE_CHANGED:return "Company list changed. Retry to refresh.";
             case CATALOGUE_LIMIT:return "Company list is too large to load.";
             case COMPANY_LIMIT:return "A company is too large to load.";
-            case ARRIVAL_BUDGET_EXCEEDED:return "Movement preview could not finish. Retry to continue.";
+            case ARRIVAL_BUDGET_EXCEEDED:return "Movement preview did not advance. Refresh the company list.";
             case PROJECTION_LIMIT:return "Company details could not be loaded. Retry to continue.";
             default:return "Could not load companies. Retry or choose another destination.";
         }

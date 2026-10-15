@@ -30,6 +30,61 @@ public class KOMECompanyDestinationBrowsingTest {
         assertTrue(state.accept(response,connection));assertTrue(selector.accept(response,now));return response;
     }
     private List<String> ids() {List<String> out=new ArrayList<String>();for(Row r:selector.rows())out.add(r.companyId);return out;}
+    @Test public void budgetPageRetainsRowsAndContinueUsesItsCursorInsteadOfRestarting() {
+        deliver(request,Result.ARRIVAL_BUDGET_EXCEEDED,Collections.singletonList(row("A",Status.BLOCKED)),true,0,0);
+        assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector.phase());
+        assertEquals(Collections.singletonList("A"),ids());assertTrue(selector.canChangeFilter());
+        assertTrue(selector.message(0).contains("Continue"));
+        assertEquals("Continue",KOMECompanyDestinationPanel.label(KOMECompanyDestinationPanel.Control.RETRY,selector,0));
+        KOMEPacketCompanyDestinationRequest next=selector.retry(0);
+        assertNotNull(next);assertEquals("A",next.afterCompanyId);assertEquals(TOKEN,next.catalogueToken);
+        assertEquals(Collections.singletonList("A"),ids());
+        deliver(next,Collections.singletonList(row("B",Status.CAN_START_AND_ARRIVE_NOW)),false);
+        assertEquals(Arrays.asList("A","B"),ids());
+    }
+    @Test public void budgetPagesWithNoFilterMatchesCanStillFindLaterAuthoritativeMatches() {
+        for(KOMECompanyDestinationSelector.Filter filter:Arrays.asList(READY,ARRIVE_NOW)) {
+            request=selector.open("T100");
+            deliver(request,Result.ARRIVAL_BUDGET_EXCEEDED,Collections.singletonList(row("A",Status.BLOCKED)),true,0,0);
+            KOMEPacketCompanyDestinationRequest next=selector.setFilter(filter);
+            assertNotNull(next);assertEquals("A",next.afterCompanyId);assertTrue(selector.rows().isEmpty());
+            deliver(next,Result.ARRIVAL_BUDGET_EXCEEDED,Collections.singletonList(row("B",Status.BLOCKED)),true,0,0);
+            KOMEPacketCompanyDestinationRequest followup=selector.takeBrowseFollowup();
+            assertNotNull(followup);assertEquals("B",followup.afterCompanyId);
+            deliver(followup,Collections.singletonList(row("C",Status.CAN_START_AND_ARRIVE_NOW)),false);
+            assertEquals(Collections.singletonList("C"),ids());assertNull(selector.takeBrowseFollowup());
+        }
+    }
+    @Test public void emptyBudgetPageWithAdvancingEvidenceRemainsRecoverable() {
+        KOMECompanyDestinationOptions response=new KOMECompanyDestinationOptions(request.session,request.sequence,request.destination,
+            Result.ARRIVAL_BUDGET_EXCEEDED,Collections.<Row>emptyList(),TOKEN,"A",true);
+        assertTrue(state.accept(response,connection));assertTrue(selector.accept(response,0));
+        assertEquals(KOMECompanyDestinationSelector.Phase.READY,selector.phase());assertTrue(selector.rows().isEmpty());
+        assertTrue(selector.canBrowse(1,0));assertTrue(selector.message(0).contains("Continue"));
+        assertEquals("A",selector.retry(0).afterCompanyId);
+    }
+    @Test public void budgetContinuationPreservesThrottleCursorAndRejectsChangedCatalogue() {
+        deliver(request,Result.ARRIVAL_BUDGET_EXCEEDED,Collections.singletonList(row("A",Status.BLOCKED)),true,0,0);
+        KOMEPacketCompanyDestinationRequest next=selector.browse(1,4,0);
+        deliver(next,Result.RATE_LIMITED,Collections.<Row>emptyList(),false,500,1000);
+        assertEquals(KOMECompanyDestinationSelector.Phase.THROTTLED,selector.phase());
+        assertNull(selector.retry(1499));assertEquals(Collections.singletonList("A"),ids());
+        KOMEPacketCompanyDestinationRequest retry=selector.retry(1500);
+        assertEquals(next.afterCompanyId,retry.afterCompanyId);assertEquals(next.catalogueToken,retry.catalogueToken);
+        KOMECompanyDestinationOptions changed=new KOMECompanyDestinationOptions(retry.session,retry.sequence,retry.destination,
+            Result.ARRIVAL_BUDGET_EXCEEDED,Collections.singletonList(row("B",Status.BLOCKED)),UUID.randomUUID().toString(),"B",true);
+        assertTrue(state.accept(changed,connection));assertTrue(selector.accept(changed,1500));
+        assertEquals(KOMECompanyDestinationSelector.Phase.ERROR,selector.phase());assertTrue(selector.rows().isEmpty());
+        assertTrue(selector.retry(1500).afterCompanyId.isEmpty());
+    }
+    @Test public void nonAdvancingBudgetEvidenceFailsClosedInsteadOfLooping() {
+        deliver(request,Collections.singletonList(row("A",Status.BLOCKED)),true);
+        KOMEPacketCompanyDestinationRequest next=selector.browse(1,4,0);
+        KOMECompanyDestinationOptions stuck=new KOMECompanyDestinationOptions(next.session,next.sequence,next.destination,
+            Result.ARRIVAL_BUDGET_EXCEEDED,Collections.<Row>emptyList(),TOKEN,next.afterCompanyId,true);
+        assertTrue(state.accept(stuck,connection));assertTrue(selector.accept(stuck,0));
+        assertEquals(KOMECompanyDestinationSelector.Phase.ERROR,selector.phase());assertNull(selector.takeBrowseFollowup());
+    }
     @Test public void allReadyAndArriveNowUseOnlyCompleteProjectedStatusNotDistanceOrAdjacency() {
         Row immediate=copy(row("I",Status.CAN_START_AND_ARRIVE_NOW),2,99,""),later=row("L",Status.CAN_START_BUT_CONTINUES_LATER);
         Row blocked=copy(row("B",Status.BLOCKED),2,1,"PASSAGE_DENIED"),exhausted=copy(row("E",Status.BLOCKED),0,1,"NO_ALLOWANCE");

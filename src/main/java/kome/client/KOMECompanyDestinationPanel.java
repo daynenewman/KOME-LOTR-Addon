@@ -163,7 +163,7 @@ final class KOMECompanyDestinationPanel {
     }
     static String label(Control control,KOMECompanyDestinationSelector model,long now) {
         return control==Control.ROWS_UP?"^":control==Control.ROWS_DOWN?"v":
-                control==Control.FILTER_ALL?"All":control==Control.FILTER_READY?"Ready":control==Control.FILTER_ARRIVE?"Arrive Now":control==Control.RETRY?(model.phase()==KOMECompanyDestinationSelector.Phase.THROTTLED?"Retry":"Refresh"):
+                control==Control.FILTER_ALL?"All":control==Control.FILTER_READY?"Ready":control==Control.FILTER_ARRIVE?"Arrive Now":control==Control.RETRY?(model.canContinueBudget()?"Continue":model.phase()==KOMECompanyDestinationSelector.Phase.THROTTLED?"Retry":"Refresh"):
                 control==Control.CONFIRM_JOIN?(model.joinArmed(now)?"Confirm Join Battle":"Move & Join Battle"):control==Control.CONFIRM?(model.phase()==KOMECompanyDestinationSelector.Phase.SUBMITTING?"Submitting...":
                     model.canConfirm()?"Confirm Move":"Movement unavailable"):control==Control.BACK?"Back":control==Control.CLEAR?"Clear":"Close";
     }

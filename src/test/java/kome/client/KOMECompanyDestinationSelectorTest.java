@@ -280,7 +280,7 @@ public class KOMECompanyDestinationSelectorTest {
     static final String TOKEN="12345678-1234-1234-1234-123456789012";
     static KOMECompanyDestinationOptions page(KOMEPacketCompanyDestinationRequest request,Result result,List<Row> rows,boolean more,long retry) {
         return new KOMECompanyDestinationOptions(request.session,request.sequence,request.destination,result,rows,
-            result==Result.OK?TOKEN:"",rows.isEmpty()?"":rows.get(rows.size()-1).companyId,more,retry);
+            result==Result.OK||result==Result.ARRIVAL_BUDGET_EXCEEDED?TOKEN:"",rows.isEmpty()?"":rows.get(rows.size()-1).companyId,more,retry);
     }
     static Row row(String id,Status status) {return row(id,status,Entitlement.FOOT_OR_MIXED,EvaluationState.COMPLETE,Consequence.NONE);}
     static Row row(String id,Status status,Entitlement entitlement,EvaluationState evaluation,Consequence consequence) {
