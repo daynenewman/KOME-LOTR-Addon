@@ -64,7 +64,7 @@ final class KOMELordshipTrialFixture implements AutoCloseable {
     }
     @Override public void close()throws Exception {s.close();}
     public static class TestGuard extends LOTREntityRohanMan {
-        private TestGuard(){super(null);}
+        protected TestGuard(){super(null);}
         @Override public LOTRFaction getFaction(){return LOTRFaction.ROHAN;}
         @Override public boolean isCivilianNPC(){return false;}
         @Override public String getNPCName(){return "Guard";}

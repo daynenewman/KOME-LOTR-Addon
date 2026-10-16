@@ -188,6 +188,7 @@ public final class KOMEAccessFixture {
         private static final net.minecraft.block.Block TEST_AIR=new net.minecraft.block.Block(net.minecraft.block.material.Material.air){@Override public net.minecraft.util.AxisAlignedBB getCollisionBoundingBoxFromPool(World world,int x,int y,int z){return null;}};
         public long testWorldTime;
         public boolean flatTerrain,spawnSucceeds,unsafeSurface,blockedCollision;
+        public boolean checkEntityOccupancy;
         public java.util.function.Consumer<Entity> spawnCallback;
         public java.util.Map<String,net.minecraft.block.Block> structureBlocks;
         public void shelter(int x,int z){
@@ -232,7 +233,12 @@ public final class KOMEAccessFixture {
             }
             return result;
         }
-        @Override public boolean checkNoEntityCollision(net.minecraft.util.AxisAlignedBB box,Entity entity){return flatTerrain||super.checkNoEntityCollision(box,entity);}
+        @Override public boolean checkNoEntityCollision(net.minecraft.util.AxisAlignedBB box,Entity entity){
+            if(!flatTerrain)return super.checkNoEntityCollision(box,entity);
+            if(checkEntityOccupancy)for(Object value:getEntitiesWithinAABBExcludingEntity(entity,box))
+                if(((Entity)value).preventEntitySpawning)return false;
+            return true;
+        }
         @Override public boolean spawnEntityInWorld(Entity entity){if(!flatTerrain)return super.spawnEntityInWorld(entity);if(spawnSucceeds){if(spawnCallback!=null)spawnCallback.accept(entity);loadedEntityList.add(entity);}return spawnSucceeds;}
         @Override public void playSoundAtEntity(Entity entity,String sound,float volume,float pitch){if(playedSounds!=null)playedSounds.add(sound);}
         @Override protected int func_152379_p() { return 0; }

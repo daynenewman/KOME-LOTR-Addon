@@ -11,7 +11,9 @@ public final class KOMEKnightCommissionPresentation {
     public static String title(Type type) { return type==Type.NATIVE_INVASION?"Repel an Invasion":type==Type.RESCUE_PATROL?"Rescue the Missing Patrol":type==Type.PROTECT_LIEGE?"Protect Your Liege":type==Type.RAID_CAMP?"Raid an Enemy Field Post":type==Type.WAR_PLANS?"Steal the War Plans":type==Type.FIELD_COMMAND?"Lead the Patrol":type==Type.GO_FOR_HELP?"Go for Help!":text("title."+type.name().toLowerCase(java.util.Locale.ROOT)); }
     private static String text(String key,Object... args) { return KOMEProgressionLanguage.text("kome.commission."+key,args); }
     public static String objective(KOMEKnightCommission a) {
-        if(a.activationPending)return "The encounter could not be prepared safely. Return to your Liege for fresh orders, or approach the marked ground to retry.";
+        if(a.activationPending)return a.type==Type.FIELD_COMMAND
+            ?"The patrol could not be prepared safely. Return to your Liege for fresh orders."
+            :"The encounter could not be prepared safely. Return to your Liege for fresh orders, or approach the marked ground to retry.";
         if(a.stage==Stage.FAILED)return a.failureReason.isEmpty()?text("failed"):a.failureReason;
         if(a.stage==Stage.READY_TO_REPORT)return text("report");
         if(a.stage==Stage.OFFERED)return text("receive_orders");

@@ -178,7 +178,12 @@ public final class KOMEKnightCommissionService {
         if(role==Role.GUARD&&!KOMELordshipTrialService.suitableGuard(npc,faction))return null;
         if(role!=Role.ENEMY&&role!=Role.GUARD&&!npc.isCivilianNPC()
                 &&!(role==Role.BENEFICIARY&&(a.type==Type.SETTLEMENT_DEFENSE||a.type==Type.RELIEF||a.type==Type.RESCUE_PATROL)&&KOMELordshipTrialService.suitableGuard(npc,faction)))return null;
-        if(!player.worldObj.checkNoEntityCollision(npc.boundingBox)||!player.worldObj.getCollidingBoundingBoxes(npc,npc.boundingBox).isEmpty())return null;
+        if(!player.worldObj.checkNoEntityCollision(npc.boundingBox)||!player.worldObj.getCollidingBoundingBoxes(npc,npc.boundingBox).isEmpty()){
+            // A patrol is entrusted beside a populated Liege. Try the actual native
+            // footprint on nearby ground instead of rejecting an otherwise safe group.
+            if(role!=Role.GUARD||a.type!=Type.FIELD_COMMAND
+                    ||safeSite(player.worldObj,(int)Math.floor(site[0]),(int)Math.floor(site[2]),npc)==null)return null;
+        }
         Actor actor=new Actor(npc.getUniqueID().toString(),npc.getClass().getName(),role,npc.posX,npc.posY,npc.posZ);a.actors.add(actor);
         actor.displayName=npc.getNPCName();
         KOMEProgressionEncounterMarker.mark(npc,markerKind,player.getUniqueID(),a.token);KOMEWorldData.get(player.worldObj).markDirty();
@@ -203,7 +208,20 @@ public final class KOMEKnightCommissionService {
     private static LOTREntityNPC nativeNpc(World world,String className) { try{if(!className.startsWith("lotr.common.entity.npc."))return null;return (LOTREntityNPC)Class.forName(className).getConstructor(World.class).newInstance(world);}catch(Exception invalid){return null;} }
     static boolean loaded(World world,double x,double z) { return world.getChunkProvider()!=null&&world.getChunkProvider().chunkExists(((int)Math.floor(x))>>4,((int)Math.floor(z))>>4); }
     static double[] safeSite(World world,int x,int z) {
-        for(int i=0;i<64;i++){int px=x+(i%8)-4,pz=z+(i/8)-4;if(!loaded(world,px,pz))continue;int y=world.getTopSolidOrLiquidBlock(px,pz);if(y<2||y>=world.getActualHeight()-2)continue;if(!world.getBlock(px,y-1,pz).getMaterial().isSolid()||world.getBlock(px,y-1,pz)==net.minecraft.init.Blocks.cactus||!world.isAirBlock(px,y,pz)||!world.isAirBlock(px,y+1,pz))continue;return new double[]{px+0.5,y,pz+0.5};}return null;
+        return safeSite(world,x,z,null);
+    }
+    private static double[] safeSite(World world,int x,int z,LOTREntityNPC footprint) {
+        for(int i=0;i<64;i++){
+            int px=x+(i%8)-4,pz=z+(i/8)-4;if(!loaded(world,px,pz))continue;
+            int y=world.getTopSolidOrLiquidBlock(px,pz);if(y<2||y>=world.getActualHeight()-2)continue;
+            if(!world.getBlock(px,y-1,pz).getMaterial().isSolid()||world.getBlock(px,y-1,pz)==net.minecraft.init.Blocks.cactus||!world.isAirBlock(px,y,pz)||!world.isAirBlock(px,y+1,pz))continue;
+            if(footprint!=null){
+                footprint.setLocationAndAngles(px+0.5,y,pz+0.5,0,0);
+                if(!world.checkNoEntityCollision(footprint.boundingBox)||!world.getCollidingBoundingBoxes(footprint,footprint.boundingBox).isEmpty())continue;
+            }
+            return new double[]{px+0.5,y,pz+0.5};
+        }
+        return null;
     }
     public static void tickPlayer(EntityPlayerMP player) {
         if(player==null||player.worldObj.isRemote)return;KOMEWorldData world=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=world.getProgression(player.getUniqueID());
@@ -216,6 +234,9 @@ public final class KOMEKnightCommissionService {
             a.stage=Stage.ACTIVE;changed(world,player,p);
         }
         if(a.stage!=Stage.ACTIVE)return;
+        // A rolled-back patrol needs an explicit visit for fresh orders, not a
+        // new partial group on every update while the owner remains by the Liege.
+        if(a.type==Type.FIELD_COMMAND&&a.activationPending)return;
         if(a.tier>0&&(a.type==Type.DANGEROUS_ESCORT&&a.protectedActor()==null||a.type==Type.FIELD_COMMAND&&a.actors.isEmpty())){
             Entity issuer=findLoaded(player.worldObj,a.liege.entityUuid);if(!(issuer instanceof LOTREntityNPC)||player.getDistanceSqToEntity(issuer)>64)return;
             if(a.type==Type.DANGEROUS_ESCORT?!spawnCharge(player,a,(LOTREntityNPC)issuer):!KOMEKnightFieldService.startSoldiers(player,a)){technicalRetry(player,a);return;}
