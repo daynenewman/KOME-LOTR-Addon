@@ -35,21 +35,14 @@ public final class KOMELordshipTrialService {
             &&KOMEProgressionLords.isStandingTrialLiegeCandidate(npc)
             &&KOMEProgressionNpcRankService.effectiveRank(data,npc)==KOMEProgressionNpcRank.PRINCE;
     }
-    /** An ongoing/failed trial remains discussable even if live alignment subsequently falls. */
+    /** An ongoing/failed service remains discussable even if live alignment subsequently falls. */
     public static boolean eligible(EntityPlayer player,LOTREntityNPC npc) {
-        if(!validLiege(player,npc))return false;
-        KOMEPlayerProgression p=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID());
-        KOMELordshipTrial trial=p.getLordship().assignment();
-        if(trial!=null)return KOMEProgressionFactionResolver.matches(trial.objective.faction,npc.getFaction())&&(!trial.authority.isSet()||trial.authority.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc)));
-        KOMEKnightCommission commission=p.getKnightService().assignment();
-        return commission==null&&prerequisites(p,LOTRLevelData.getData(player).getAlignment(npc.getFaction()),npc.getFaction().codeName());
+        if(!KOMECurrentLiege.valid(player,npc))return false;
+        KOMELordshipTrial t=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).getLordship().assignment();
+        return t!=null&&t.ordinaryService&&t.objective.liege.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc));
     }
-    public static KOMELordshipTrial prepare(EntityPlayerMP player,LOTREntityNPC liege) {
-        if(!eligible(player,liege))return null;
-        KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=data.getProgression(player.getUniqueID());
-        if(p.getLordship().assignment()!=null)return p.getLordship().assignment();
-        KOMELordshipTrial t=generate(player,liege,KOMELordshipTrial.Scenario.NATIVE_INVASION);
-        if(t!=null&&p.getLordship().offer(t)){data.markDirty();return t;}return null;
+    public static KOMELordshipTrial prepare(EntityPlayerMP player,LOTREntityNPC lord){
+        return eligible(player,lord)?KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).getLordship().assignment():null;
     }
     static KOMELordshipTrial generate(EntityPlayerMP player,LOTREntityNPC prince,KOMELordshipTrial.Scenario scenario) {
         KOMEProgressionNpcRef ref=KOMEProgressionNpcRankService.referenceOf(prince);
@@ -85,13 +78,19 @@ public final class KOMELordshipTrialService {
         if(!eligible(player,liege)||player.getDistanceSqToEntity(liege)>64)return false;
         KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=data.getProgression(player.getUniqueID());
         KOMELordshipTrial t=p.getLordship().assignment();if(t==null)return false;KOMEKnightCommission a=t.objective;
-        if(a.activationPending){if(!p.getLordship().discardTechnical(player.worldObj.getTotalWorldTime())){speech(player,liege,t,"progress");return true;}cleanup(player.worldObj,player.getUniqueID(),t);KOMEProgressionNpcSpeech.say(player,liege,"This field could not sustain a safe trial. Your service remains honoured. Petition me for a new invasion trial.");changed(data,player,p);return true;}
+        if(a.activationPending){if(!p.getLordship().discardTechnical(player.worldObj.getTotalWorldTime())){speech(player,liege,t,"progress");return true;}cleanup(player.worldObj,player.getUniqueID(),t);KOMEProgressionNpcSpeech.say(player,liege,"This field could not sustain a safe service. Your service remains honoured. Petition me for a new invasion service.");changed(data,player,p);return true;}
         if(a.stage==Stage.FAILED){cleanup(player.worldObj,player.getUniqueID(),t);p.getLordship().archive();speech(player,liege,t,"retry");changed(data,player,p);return true;}
-        if(t.ready())return promote(player,liege);
+        if(t.ready()){
+            if(!t.ordinaryService)return false;
+            a.reportedAt=player.worldObj.getTotalWorldTime();
+            if(p.getKnightService().reportInvasion(t,KOMEProgressionNpcRankService.referenceOf(liege))){
+                cleanup(player.worldObj,player.getUniqueID(),t);p.getLordship().archive();
+                KOMEProgressionServiceRewards.commission(player,a);KOMEServicePromotionService.report(player,liege);changed(data,player,p);
+            }return true;
+        }
         if(a.stage==Stage.OFFERED){
             LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
-            if(!prerequisites(p,LOTRLevelData.getData(player).getAlignment(pledge),pledge==null?"":pledge.codeName())||p.getKnightService().assignment()!=null
-                    ||!validLiege(player,liege))return false;
+            if(!t.ordinaryService||p.getKnightService().assignment()!=null||!KOMECurrentLiege.valid(player,liege))return false;
             t.authority=KOMEProgressionNpcRankService.referenceOf(liege);a.stage=Stage.ACTIVE;a.acceptedAt=player.worldObj.getTotalWorldTime();
             for(int i=0;i<t.guardClasses.size();i++){
                 double[] site=KOMEKnightCommissionService.safeSite(player.worldObj,(int)liege.posX+i*2,(int)liege.posZ+3);
@@ -242,23 +241,9 @@ public final class KOMELordshipTrialService {
             }
         }
     }
-    /** Only this personal report can perform gameplay promotion into Lord. */
-    public static synchronized boolean promote(EntityPlayerMP player,LOTREntityNPC liege) {
-        if(!validLiege(player,liege)||player.getDistanceSqToEntity(liege)>64)return false;
-        KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=data.getProgression(player.getUniqueID());
-        KOMELordshipTrial t=p.getLordship().assignment();LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
-        if(t==null||!t.ready()||!eligible(player,liege)||!KOMEProgressionFactionResolver.matches(t.objective.faction,pledge)
-                ||!prerequisites(p,LOTRLevelData.getData(player).getAlignment(pledge),pledge==null?"":pledge.codeName())){
-            if(t!=null)speech(player,liege,t,"standing");return false;
-        }
-        if(t.playerDied||t.nativeInvasion&&!t.nativeVictory)return false;
-        t.acknowledgedLosses=0;for(Actor actor:t.objective.actors)if(actor.role==Role.GUARD&&actor.dead)t.acknowledgedLosses++;
-        cleanup(player.worldObj,player.getUniqueID(),t);t.forceReleased=true;
-        if(!KOMECanonicalRankService.setCanonicalRank(data,player.getUniqueID(),KOMEProgressionRank.LORD))return false;
-        t.objective.stage=Stage.REPORTED;t.objective.reportedAt=player.worldObj.getTotalWorldTime();
-        p.getSerfKnightProgression().setLiege(KOMEProgressionNpcRankService.referenceOf(liege));p.getLordship().archive();p.grant("knight.title_lord");KOMEProgressionAutoCompleter.applyUnlocks(p);
-        speech(player,liege,t,"promoted");KOMEProgressionAnnouncements.earned(player,KOMEProgressionRank.KNIGHT,t.objective.adminForced);changed(data,player,p);return true;
-    }
+    /** Retired promotion endpoint, retained for old callers to fail safely. */
+    @Deprecated
+    public static synchronized boolean promote(EntityPlayerMP player,LOTREntityNPC liege){return false;}
     static void fail(KOMEWorldData data,World world,UUID owner,KOMELordshipTrial t,String reason) {
         t.objective.stage=Stage.FAILED;t.objective.cleanupPending=true;t.failureReason=reason;
         cleanup(world,owner,t);KOMEProgressionNpcRoles.syncPlayer(data,owner);data.markDirty();

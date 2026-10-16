@@ -13,7 +13,7 @@ public final class KOMESerfdomMasterService {
     private KOMESerfdomMasterService() { }
     private static Result ok(){return new Result(true,"",false);} private static Result entered(){return new Result(true,"",true);} private static Result reject(String value){return new Result(false,value,false);}
     public static Result validateMasterSelection(KOMEProgressionRank playerRank, String pledgeKey, String npcFactionKey, KOMEProgressionNpcRank npcRank, boolean validNpc) {
-        if(playerRank != KOMEProgressionRank.WANDERER && playerRank != KOMEProgressionRank.SERF) return reject("Only a Wanderer or a player in their first faction rank may choose a Master.");
+        if(playerRank != KOMEProgressionRank.SERF) return reject("Pledge allegiance to attain Serf standing before choosing a Master.");
         if(!validNpc || npcRank != KOMEProgressionNpcRank.UNRANKED) return reject("That NPC is not an eligible Master.");
         if(pledgeKey == null || KOMEProgressionFactionResolver.resolve(pledgeKey)==null || !KOMEProgressionFactionResolver.resolve(pledgeKey).isPlayableAlignmentFaction()) return reject("You must first pledge yourself to this faction.");
         if(npcFactionKey == null || !KOMEProgressionFactionResolver.matches(npcFactionKey,KOMEProgressionFactionResolver.resolve(pledgeKey))) return reject("You have sworn yourself elsewhere.");
@@ -29,9 +29,18 @@ public final class KOMESerfdomMasterService {
     public static Result validateCurrentMasterInteraction(EntityPlayerMP player, KOMEWorldData data, LOTREntityNPC npc, boolean requireRange) {
         return validateRuntime(player,data,npc,requireRange,true);
     }
+    public static boolean ordinaryMaster(LOTREntityNPC npc) {
+        return npc!=null&&npc.getFaction()!=null&&(npc.isCivilianNPC()||KOMESerfProfessionClassifier.farmerOnly(npc))
+            &&(npc.hiredNPCInfo==null||!npc.hiredNPCInfo.isActive)
+            &&!npc.isTraderEscort&&KOMEProgressionEncounterMarker.read(npc)==null;
+    }
     private static Result validateRuntime(EntityPlayerMP player, KOMEWorldData data, LOTREntityNPC npc, boolean requireRange, boolean currentInteraction) {
+        if(player!=null&&npc!=null&&(player.worldObj.isRemote||npc.worldObj!=player.worldObj
+                ||data!=KOMEWorldData.get(player.worldObj)||!ordinaryMaster(npc)))return reject("An ordinary native faction civilian Master is required.");
         if(player == null || data == null || npc == null || !npc.isEntityAlive() || npc.isChild()) return reject("A valid adult Master is required.");
         if(requireRange && player.getDistanceSqToEntity(npc)>64.0D) return reject("That Master is no longer close enough.");
+        if(!npc.isFriendlyAndAligned(player))return reject("This Master cannot receive your service while hostile or unaligned.");
+        if(npc instanceof lotr.common.entity.npc.LOTRTradeable&&!((lotr.common.entity.npc.LOTRTradeable)npc).canTradeWith(player))return reject("Meet this civilian's native interaction requirements first.");
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
         LOTRFaction faction=npc.getFaction();
         String pledgeKey=pledge==null || !pledge.isPlayableAlignmentFaction()?"":pledge.codeName();
@@ -39,69 +48,29 @@ public final class KOMESerfdomMasterService {
         KOMEPlayerProgression progression=data.getProgression(KOMEReflection.getEntityUUID(player));
         KOMEProgressionNpcRef master=progression.getSerfKnightProgression().getSerfdomMaster();
         if(master.isSet()&&!master.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc)))return reject("Return to your own Master.");
+        if(!currentInteraction&&!master.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))
+                &&!KOMEProgressionServiceLocation.factionTerritory(npc))return reject("Seek an ordinary Master in your faction's native territory.");
         return currentInteraction?validateCurrentMasterInteraction(progression.getCanonicalRank(),pledgeKey,factionKey,KOMEProgressionNpcRankService.effectiveRank(data,npc),KOMEProgressionNpcRankService.isValidFactionNpc(npc)):validateMasterSelection(progression.getCanonicalRank(),pledgeKey,factionKey,KOMEProgressionNpcRankService.effectiveRank(data,npc),KOMEProgressionNpcRankService.isValidFactionNpc(npc));
     }
     public static Result serve(EntityPlayerMP player, KOMEWorldData data, LOTREntityNPC npc) {
         Result validation=validateMasterSelection(player,data,npc,true); if(!validation.success)return validation;
         UUID playerId=KOMEReflection.getEntityUUID(player);KOMEPlayerProgression progression=data.getProgression(playerId);KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         if(!KOMESerfKnightService.canSelectReplacement(state,KOMESerfKnightService.calendarDayNow())) return reject("Progression assignments are locked after betrayal.");
-        if(state.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))){KOMEProgressionNpcRoles.syncPlayer(data,playerId);return KOMECanonicalRankService.enterSerfdom(data,playerId)?entered():ok();}
+        if(state.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))){KOMEProgressionNpcRoles.syncPlayer(data,playerId);return ok();}
         KOMESerfKnightService.Result result=KOMESerfKnightService.selectSerfdomMaster(state,data,npc);
         if(!result.success)return reject(result.reason);
-        boolean promoted=KOMECanonicalRankService.enterSerfdom(data,playerId);KOMEProgressionNpcRoles.syncPlayer(data,playerId);data.markDirty(); KOMEProgressionOfferBridge.refreshPlayerOffers(player); if(promoted)KOMEProgressionAnnouncements.earned(player,KOMEProgressionRank.WANDERER,false);return promoted?entered():ok();
+        boolean promoted=false;KOMEProgressionNpcRoles.syncPlayer(data,playerId);data.markDirty(); KOMEProgressionOfferBridge.refreshPlayerOffers(player); if(promoted)KOMEProgressionAnnouncements.earned(player,KOMEProgressionRank.WANDERER,false);return promoted?entered():ok();
     }
-    /** Reward and rank transition share one locked, validated server transaction. */
+    /** Compatibility facade; only the current Master may conclude service. */
     public static Result conferKnighthood(EntityPlayerMP player,KOMEWorldData data,LOTREntityNPC npc) {
-        if(player==null||data==null||npc==null||player.worldObj.isRemote||npc.worldObj!=player.worldObj||!npc.isEntityAlive()||player.getDistanceSqToEntity(npc)>64D)return reject("Return to your Liege to receive your standing.");
-        synchronized(data){
-            if(!KOMECurrentLiege.valid(player,npc))return reject("Only your Liege may confer your standing.");
-            Result validation;
-            LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
-            String pledgeKey=pledge==null?"":pledge.codeName();double alignment=pledge==null?0D:LOTRLevelData.getData(player).getAlignment(pledge);
-            UUID owner=player.getUniqueID();KOMEProgressionNpcRef master=KOMEProgressionNpcRankService.referenceOf(npc);
-            validation=validateConfer(data,owner,master,pledgeKey,alignment);if(!validation.success)return validation;
-            KOMESerfKnightProgression state=data.getProgression(owner).getSerfKnightProgression();
-            KOMEPartingGiftService.pending(state,player.worldObj.rand);
-            Result result=conferKnighthood(data,owner,master,pledgeKey,alignment);
-            if(result.success){
-                KOMEProgressionNpcSpeech.say(player,npc,KOMEProgressionDialogue.promotion(npc,pledgeKey));
-                KOMEProgressionAnnouncements.earned(player,KOMEProgressionRank.SERF,state.adminForced());
-                KOMEProgressionAutoCompleter.syncPlayer(player,data.getProgression(owner));KOMEProgressionTitles.updatePlayerTitle(player);
-            }
-            return result;
-        }
+        if(player==null||data!=KOMEWorldData.get(player.worldObj)||data.getProgression(player.getUniqueID()).getCanonicalRank()!=KOMEProgressionRank.SERF)return reject("Return to your Master after three qualifying duties.");
+        KOMEServicePromotionService.report(player,npc);
+        return data.getProgression(player.getUniqueID()).getCanonicalRank()==KOMEProgressionRank.KNIGHT?ok():reject("Complete three qualifying duties and reach 150 faction alignment, then report to your current Master.");
     }
-    /** Server-only transition shared by the live NPC interaction and integrated progression tests. */
-    static Result conferKnighthood(KOMEWorldData data,UUID playerId,KOMEProgressionNpcRef clickedMaster,String pledgeKey,double alignment) {
-        Result validation=validateConfer(data,playerId,clickedMaster,pledgeKey,alignment);if(!validation.success)return validation;
-        KOMEPlayerProgression progression=data.getProgression(playerId);
-        KOMESerfKnightProgression state=progression.getSerfKnightProgression();
-        KOMESerfKnightService.Result promotion=KOMESerfKnightService.markPromoted(state,alignment);
-        if(!promotion.success)throw new IllegalStateException("Validated promotion could not complete knighthood: "+promotion.reason);
-        KOMECanonicalRankService.setCanonicalRank(data,playerId,KOMEProgressionRank.KNIGHT);
-        state.retireSerfdomMasterAfterPromotion();
-        progression.grant("serf.title_knight");
-        KOMEProgressionAutoCompleter.applyUnlocks(progression);
-        KOMEProgressionNpcRoles.syncPlayer(data,playerId);
-        data.markDirty();
-        return ok();
-    }
-    private static Result validateConfer(KOMEWorldData data,UUID playerId,KOMEProgressionNpcRef clickedMaster,String pledgeKey,double alignment) {
-        if(data==null||playerId==null||clickedMaster==null)return reject("A valid Master is required.");
-        KOMEPlayerProgression progression=data.getProgression(playerId);
-        KOMESerfKnightProgression state=progression.getSerfKnightProgression();
-        if(progression.getCanonicalRank()!=KOMEProgressionRank.SERF||state.isPromoted())return reject("Your next standing has already been conferred or is unavailable.");
-        if(!state.getLiege().hasSameIdentity(clickedMaster))return reject("Return to your own Liege.");
-        LOTRFaction pledgedFaction=KOMEProgressionFactionResolver.resolve(pledgeKey);
-        KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();
-        if(pledgedFaction==null||!KOMEProgressionFactionResolver.matches(state.getLiege().factionKey,pledgedFaction)
-            ||trial==null||!KOMEProgressionFactionResolver.matches(trial.factionKey,pledgedFaction))return reject("Your current faction pledge must match your Master and completed Trial.");
-        if(!KOMESerfKnightService.allDutiesComplete(state)||!state.isTrialCompleted()
-            ||trial.stage==KOMESerfKnightTrialAssignment.Stage.FAILED
-            ||!trial.isValidFor(state.getTrialId(),trial.liege))
-            return reject("Complete your duties and your Liege's Trial of Standing first.");
-        if(alignment<KOMESerfKnightService.REQUIRED_ALIGNMENT)return reject("Requires at least 150 positive faction alignment.");
-        return ok();
+    static Result conferKnighthood(KOMEWorldData data,UUID owner,KOMEProgressionNpcRef master,String faction,double alignment) {
+        String reason=KOMEServicePromotionService.reason(data.getProgression(owner),master,faction,alignment);
+        if(!reason.isEmpty())return reject(reason);
+        return KOMEServicePromotionService.commit(data,owner,master,faction,alignment,0L)?ok():reject("Promotion unavailable.");
     }
     public static Result requestDuty(EntityPlayerMP player,KOMEWorldData data,LOTREntityNPC npc) {
         if(player==null||data==null||player.worldObj.isRemote)return reject("Server-side Master interaction required.");
@@ -110,10 +79,27 @@ public final class KOMESerfdomMasterService {
     private static Result requestDutyLocked(EntityPlayerMP player,KOMEWorldData data,LOTREntityNPC npc) {
         Result validation=validateCurrentMasterInteraction(player,data,npc,true); if(!validation.success)return validation;
         KOMESerfKnightProgression state=data.getProgression(KOMEReflection.getEntityUUID(player)).getSerfKnightProgression();
+        if(KOMEServicePromotionService.duties(state)>=3)return reject("Your service is complete. Report to me for Knight standing; 150 faction alignment is required.");
         if(state.hasActiveAssignment())return reject("Finish the work I have already given you.");
         if(!KOMESerfKnightService.mayIssueAssignment(state,KOMESerfKnightService.calendarDayNow(),player.getUniqueID()))
-            return reject("You have already received a progression task today. Return tomorrow.");
-        java.util.Random random=new java.util.Random();KOMESerfKnightDutyType next=KOMESerfKnightService.chooseAvailableDuty(state,random);net.minecraft.nbt.NBTTagCompound assignmentData=null;
+            return reject("Finish your active assignment before requesting another.");
+        java.util.Random random=player.worldObj.rand;
+        java.util.List<KOMESerfKnightDutyType> candidates=new java.util.ArrayList<KOMESerfKnightDutyType>();
+        for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values())if(!state.getDuty(type).isCompleted()){
+            if(type==KOMESerfKnightDutyType.ESCORT&&KOMESerfKnightEscortService.findCharge(player,state,npc)==null)continue;
+            if(type==KOMESerfKnightDutyType.DEFENSE&&(KOMESerfKnightDefenseService.findObjective(player,state,npc)==null||KOMEProgressionRegionalEnemies.choices(player.worldObj,npc.getFaction(),npc.posX,npc.posZ).isEmpty()))continue;
+            // Avoid two successive delivery experiences when a distinct local activity is feasible.
+            if(type==KOMESerfKnightDutyType.PROVISIONING&&state.getDuty(KOMESerfKnightDutyType.PROFESSION).isCompleted())continue;
+            if(type==KOMESerfKnightDutyType.PROFESSION&&state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isCompleted())continue;
+            candidates.add(type);
+        }
+        java.util.Collections.shuffle(candidates,random);
+        if(candidates.isEmpty())return reject("No suitable local work can be arranged here. Your completed service is preserved.");
+        KOMESerfKnightDutyType next=candidates.get(0);net.minecraft.nbt.NBTTagCompound assignmentData=null;
+        if(KOMESerfServiceObjectives.objective(next)){
+            if(!KOMESerfServiceObjectives.prepare(player,state,npc,next))return reject("No safe destination is available here. Your service is preserved.");
+            state.assignDuty(next,state.getTrialAssignment().writeToNBT());data.markDirty();KOMESerfServiceObjectives.interact(player,npc);return ok();
+        }
         if(next==KOMESerfKnightDutyType.PROVISIONING)assignmentData=KOMESerfProvisioningAssignment.generate(player,npc.getFaction().codeName(),random).writeToNBT();
         else if(next==KOMESerfKnightDutyType.PROFESSION)assignmentData=KOMESerfProfessionAssignment.generate(KOMESerfProfessionClassifier.classify(npc),npc.getFaction().codeName(),random).writeToNBT();
         else if(next==KOMESerfKnightDutyType.COURIER) { KOMESerfCourierAssignment courier=KOMESerfCourierAssignment.create(KOMEProgressionNpcRankService.referenceOf(npc),KOMEReflection.getWorld(player),state.variety);if(courier==null||!KOMECourierRecipientSpawner.prepareCorrespondent(player.worldObj,courier,npc))return reject("No suitable faction correspondent is available for courier work.");assignmentData=courier.writeToNBT(); }
@@ -135,7 +121,7 @@ public final class KOMESerfdomMasterService {
         if(state==null || clickedMaster==null || !clickedMaster.isSet()) return reject("A valid Master is required.");
         if(!state.getSerfdomMaster().hasSameIdentity(clickedMaster)) return reject("You may only request duties from your current Master.");
         KOMESerfCourierAssignment courier=suppliedAssignmentData==null?null:KOMESerfCourierAssignment.readFromNBT(suppliedAssignmentData);KOMESerfKnightDutyType next=suppliedAssignmentData!=null&&suppliedAssignmentData.hasKey("TradeKey")?KOMESerfKnightDutyType.PROFESSION:courier!=null?KOMESerfKnightDutyType.COURIER:suppliedAssignmentData!=null&&suppliedAssignmentData.hasKey("Foods",9)?KOMESerfKnightDutyType.PROVISIONING:KOMESerfKnightService.chooseAvailableDuty(state,random); if(next==null)return reject("All duties are already complete.");
-        if(!KOMESerfKnightService.mayIssueAssignment(state,calendarDay,playerId))return reject("You have already received a progression task today. Return later for another assignment.");
+        if(!KOMESerfKnightService.mayIssueAssignment(state,calendarDay,playerId))return reject("Finish your active assignment before requesting another.");
         net.minecraft.nbt.NBTTagCompound data=null;if(next==KOMESerfKnightDutyType.PROVISIONING)data=suppliedAssignmentData==null?KOMESerfProvisioningAssignment.generate(clickedMaster.factionKey,random).writeToNBT():(net.minecraft.nbt.NBTTagCompound)suppliedAssignmentData.copy();else if((next==KOMESerfKnightDutyType.PROFESSION||next==KOMESerfKnightDutyType.COURIER)&&suppliedAssignmentData!=null)data=(net.minecraft.nbt.NBTTagCompound)suppliedAssignmentData.copy();
         KOMESerfKnightService.Result result=playerId==null?KOMESerfKnightService.assignDuty(state,next,data,calendarDay):KOMESerfKnightService.assignDuty(state,next,data,calendarDay,playerId);
         if(!result.success)return reject(result.reason);

@@ -55,10 +55,10 @@ public class KOMEProgressionTrackerSnapshotTest {
 
         assertTrue(cooldown.visible);
         assertEquals(
-            "daily_complete",
+            "progression",
             cooldown.iconKey);
         assertEquals(
-            "Today's duty is complete.",
+            "Speak with your Master for your next duty",
             cooldown.objective);
         assertEquals(
             "1 / 3 duties",
@@ -73,7 +73,7 @@ public class KOMEProgressionTrackerSnapshotTest {
 
         assertTrue(available.visible);
         assertEquals(
-            "Talk with your Master",
+            "Speak with your Master for your next duty",
             available.objective);
 
         state.assignDuty(
@@ -98,9 +98,9 @@ public class KOMEProgressionTrackerSnapshotTest {
                 progression);
 
         assertTrue(nextPhase.visible);
-        assertEquals("standing_trial_ready",nextPhase.iconKey);
+        assertEquals("progression",nextPhase.iconKey);
         assertEquals(
-            "Seek a prospective Liege",
+            "Report to your Master for Knight standing",
             nextPhase.objective);
 
         state.setLastTrialAssignmentEpochDay(today);
@@ -108,9 +108,9 @@ public class KOMEProgressionTrackerSnapshotTest {
             KOMEProgressionTrackerSnapshot.project(
                 fixture.player,
                 progression);
-        assertEquals("daily_complete",trialCooldown.iconKey);
+        assertEquals("progression",trialCooldown.iconKey);
         assertEquals(
-            "You have already received a Trial of Standing today.",
+            "Report to your Master for Knight standing",
             trialCooldown.objective);
 
         state.setLastTrialAssignmentEpochDay(today-1L);
@@ -120,11 +120,11 @@ public class KOMEProgressionTrackerSnapshotTest {
                 fixture.player,
                 progression);
 
-        assertEquals("standing_trial_ready",prospectiveReady.iconKey);
+        assertEquals("progression",prospectiveReady.iconKey);
         assertEquals(
-            "Seek a prospective Liege",
+            "Report to your Master for Knight standing",
             prospectiveReady.objective);
-        assertTrue(prospectiveReady.isReadyForStandingTrial());
+        assertFalse(prospectiveReady.isReadyForStandingTrial());
 
         state.setLiege(
             new KOMEProgressionNpcRef(
@@ -140,8 +140,8 @@ public class KOMEProgressionTrackerSnapshotTest {
                 fixture.player,
                 progression);
 
-        assertEquals("standing_trial_ready",ready.iconKey);
+        assertEquals("progression",ready.iconKey);
         assertEquals("",ready.progress);
-        assertTrue(ready.isReadyForStandingTrial());
+        assertFalse(ready.isReadyForStandingTrial());
     }
 }

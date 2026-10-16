@@ -90,6 +90,7 @@ public final class StartingFactionApplication {
             return null;
         }
 
+        kome.common.data.KOMECanonicalRankService.recognizePledge(player, false);
         // One-time default; native manual choices and region preferences persist thereafter.
         applyInitialAlignmentView(lotrData,selectedPledge);
         applyStartingHostility(lotrData,selectedPledge);

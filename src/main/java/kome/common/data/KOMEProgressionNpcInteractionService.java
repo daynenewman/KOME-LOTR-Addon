@@ -35,6 +35,8 @@ public final class KOMEProgressionNpcInteractionService {
         KOMEProgressionNpcRef clicked=
             KOMEProgressionNpcRankService.referenceOf(npc);
 
+        if(KOMEServicePromotionService.report(player,npc))return true;
+        KOMERecommendationService.recognizeFormer(player,npc);
         if(KOMEPartingGiftService.drop(player,data,npc)){
             KOMEProgressionNpcSpeech.say(player,npc,"You have served me well. Take this gift with my blessing for the road.");
             KOMEProgressionAutoCompleter.syncPlayer(player,progression);
@@ -42,9 +44,9 @@ public final class KOMEProgressionNpcInteractionService {
         }
 
         if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT) {
-            KOMELordshipTrial trial=progression.getLordship().assignment();
-            if(trial!=null&&trial.ready()&&KOMELordshipTrialService.eligible(player,npc))
-                return KOMELordshipTrialService.promote(player,npc);
+            KOMELordshipTrial invasion=progression.getLordship().assignment();
+            if(invasion!=null&&invasion.ordinaryService&&invasion.ready()&&KOMELordshipTrialService.acceptOrReport(player,npc))return true;
+
             KOMEKnightCommission commission=progression.getKnightService().assignment();
             if(commission!=null&&commission.stage==KOMEKnightCommission.Stage.READY_TO_REPORT
                 &&(commission.type!=KOMEKnightCommission.Type.STOLEN_GOODS||commission.adminForced
@@ -106,7 +108,7 @@ public final class KOMEProgressionNpcInteractionService {
             return false;
         }
 
-        if(state.isTrialCompleted()) { KOMEProgressionNpcSpeech.say(player,npc,"You are ready for greater service. Return to your Liege, who will confer your new standing.");return false; }
+        if(state.ordinaryObjective())return KOMESerfServiceObjectives.interact(player,npc);
 
         String active=state.getActiveAssignmentKind();
         if(KOMEProgressionGoodsRecovery.repair(player,npc))return true;
@@ -152,8 +154,7 @@ public final class KOMEProgressionNpcInteractionService {
                 LOTRLevelData.getData(player).getAlignment(pledge),pledge.codeName())){
             KOMEProgressionNpcSpeech.say(player,npc,KOMEProgressionNativeAuthority.guidance(pledge.codeName()));return true;
         }
-        if(next==null&&state.getLastAssignmentEpochDay()==KOMESerfKnightService.calendarDayNow()){KOMEProgressionNpcSpeech.sameDay(player,npc);return true;}
-        if(next==null) {
+if(next==null) {
             return false;
         }
 
@@ -234,6 +235,7 @@ public final class KOMEProgressionNpcInteractionService {
             assignment.writeToNBT());
 
         if(assignment.complete()) {
+            if(KOMEServicePromotionService.report(player,npc))return true;
             KOMESerfKnightService.completeDuty(
                 progression,
                 KOMESerfKnightDutyType.PROVISIONING);
@@ -251,6 +253,7 @@ public final class KOMEProgressionNpcInteractionService {
             progression);
 
         if(assignment.complete()) {
+            if(KOMEServicePromotionService.report(player,npc))return true;
             KOMEProgressionServiceRewards.duty(player,state,KOMESerfKnightDutyType.PROVISIONING);
             KOMEProgressionNpcSpeech.completedProvisions(
                 player,
@@ -313,6 +316,7 @@ public final class KOMEProgressionNpcInteractionService {
             progression);
 
         if(assignment.complete()) {
+            if(KOMEServicePromotionService.report(player,npc))return true;
             KOMEProgressionServiceRewards.duty(player,state,KOMESerfKnightDutyType.PROFESSION);
             KOMEProgressionNpcSpeech
                 .completedProfessionMaterials(
@@ -334,7 +338,8 @@ public final class KOMEProgressionNpcInteractionService {
             KOMEPlayerProgression progression,
             KOMESerfKnightProgression state,
             LOTREntityNPC npc) {
-        return KOMECourierIssuance.interact(player,data,npc);
+        boolean handled=KOMECourierIssuance.interact(player,data,npc);
+        if(handled)KOMEServicePromotionService.report(player,npc);return handled;
     }
 
     private static boolean interactLiege(
@@ -343,6 +348,7 @@ public final class KOMEProgressionNpcInteractionService {
             KOMEPlayerProgression progression,
             KOMESerfKnightProgression state,
             LOTREntityNPC npc) {
+
         if(!validLiegeInteraction(
                 player,
                 progression,
@@ -350,7 +356,7 @@ public final class KOMEProgressionNpcInteractionService {
                 npc)) {
             return false;
         }
-        if(state.isTrialCompleted())return KOMESerfdomMasterService.conferKnighthood(player,data,npc).success;
+
 
         if(state.getTrialId().length()!=0) {
             KOMESerfKnightTrialAssignment assignment=

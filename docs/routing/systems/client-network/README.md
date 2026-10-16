@@ -1,6 +1,15 @@
 # Client presentation and networking
 
-Pass 2 current matching-artifact version: `1.0.9-integration-g9`.
+Pass 3 current matching-artifact version: `1.0.10-service-g10`.
+The existing Rank page, tracker, relationship actions and native offer shells now
+publish pledge-based Serf standing and direct three-service promotions. Recommendation
+and mentor context comes from server progression history. Rank-derived ability rows
+and connection/revision/dimension fences remain unchanged. Old g9 artifacts cannot
+mix with g10. Native invasion reporting and map objectives target the current Liege;
+no additional Prince/trial objective is injected. See
+[implementation and acceptance limits](../../../PROGRESSION_PASS3_SERVICE_PROMOTION_REPORT.txt).
+
+Pass 2 historical matching-artifact version: `1.0.9-integration-g9`.
 Packet 9 appends bounded, immutable rank-ability outcomes (ID, rank eligibility,
 availability, domain reason and optional original-start target). Packet 5 adds
 server-authored Build submission eligibility/reason. No packet ID is reused or
@@ -12,7 +21,7 @@ changed office, bank or company/conflict context triggers a new snapshot.
 Context-dependent rows never promise final action authorization. See
 [Pass 2](../../../PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt).
 
-Pass 1 current matching-artifact version is `1.0.9-integration-g8`. Packet IDs
+Pass 1 historical matching-artifact version is `1.0.9-integration-g8`. Packet IDs
 remain unchanged. ProgressionData now carries UUID, canonical rank key, enabled
 mode, dimension and monotonic publication revision, with bounded text/counts.
 The client proxy queues a detached snapshot and fences it by connection/world

@@ -30,7 +30,7 @@ public final class KOMEProgressionServiceRewards {
         }
     }
     public static void trial(EntityPlayerMP player,KOMESerfKnightProgression state){
-        if(player.worldObj.isRemote||!state.isTrialCompleted()||state.trialRewardReserved)return;
+        if(state.ordinaryObjective()||player.worldObj.isRemote||!state.isTrialCompleted()||state.trialRewardReserved)return;
         state.trialRewardReserved=true;KOMEWorldData.get(player.worldObj).markDirty();issue(player,state.getLiege().factionKey,false);
     }
     public static void commission(EntityPlayerMP player,KOMEKnightCommission a){

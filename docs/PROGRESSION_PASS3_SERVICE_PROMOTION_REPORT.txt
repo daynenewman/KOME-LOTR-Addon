@@ -1,0 +1,663 @@
+KOME-LOTR-ADDON - PROGRESSION PASS 3: ALLEGIANCE, SERVICE AND PROMOTION
+Date: 2026-10-14
+Evidence: current checkout, LOTR v36.15 bytecode, connected Linear issues,
+deterministic production-service fixtures and complete Gradle validation.
+Minecraft gameplay, a live dedicated server and connected-client acceptance
+were NOT performed. Automated evidence is not live gameplay acceptance.
+
+A. EXECUTIVE ASSESSMENT
+=======================
+The core Wanderer -> Serf -> Knight -> Lord loop is IMPLEMENTED AND TESTED in
+headless production-service tests, with LIVE ACCEPTANCE PENDING. Native allegiance
+grants Serf. Three ordinary Master duties and 150 alignment earn Knight directly
+from that Master. Three regional Liege commissions and 2000 alignment earn Lord
+directly from that Lord or Prince. There is no fourth assignment, mandatory trial,
+different conferring NPC, calendar-day issuance quota or next-stage obligation.
+
+The work already present in this dirty checkout was preserved, investigated,
+extended and validated. It was not replaced. Pass 2's derived abilities and
+KOM-18 strategy integration remain intact. No new permission, Crown delegation,
+population budget, political office or general quest engine was introduced.
+
+Regional admission is PARTIAL in world compatibility: verified native generator
+provenance and native home bounds enforce new entry, but old unproven placements
+cannot safely be reconstructed from v36.15's available records. Existing accepted
+relationships remain usable. No guessed fortress radius or loose biome substitute
+was introduced. Fangorn still lacks a supported native unit-trader Liege.
+
+Recommendations and former-superior history are IMPLEMENTED AND TESTED. The item
+is a readable keepsake; the saved record authorizes one next relationship. Recovery
+does not require a living/loaded issuer. Lord recommendations address the existing
+NPC Crown at the capital. That authority/location seam is IMPLEMENTED AND TESTED;
+the actual Lord -> Prince royal leadership loop is DEFERRED by the supplied scope.
+Its existing legacy checklist remains available and is labelled accurately.
+
+Commander hunting and unsolicited no-letter petitions are DEFERRED. No shallow
+named-enemy/trophy placeholder or invented reputation threshold was implemented.
+
+B. GIT BASELINE, BACKUPS AND WORKTREE SAFETY
+===========================================
+Branch, unchanged throughout:
+elijahrnovak/kom-72-implement-revised-branch-based-player-progression-system
+HEAD, unchanged: b81b7e9effc24cbfc19e10c29978df851729b1cf
+Worktree: C:/Users/elija/OneDrive/Desktop/Gaming/Minecraft/My Mincraft Modding/
+CustomMods/KOME-LOTR-Addon
+One registered worktree was observed. Existing branches and refs were preserved.
+Local origin/dev: 6d1669a29c572161fa8b14b0779734eb63323af9, an ancestor of HEAD.
+This is the locally available remote-tracking state; no fetch was performed.
+
+At the start of this continuation: 79 modified tracked files and 6 untracked
+files, including substantial unfinished Pass 3 source/tests and the preserved
+Pass 2 report. No baseline compile success was assumed. Fresh baseline compilation
+found a missing KOMEAccessFixture import in KOMEProgressionCoherencePassTest.
+
+All 85 existing dirty files were copied and SHA-256 verified BEFORE edits:
+build/pass3-baseline/20261014-074200/
+The same verified snapshot was retained outside build output in:
+outputs/progression-pass3/baseline-20261014-074200/
+It includes files/, manifest.json, tracked.patch, status, worktree and stash
+inventories, plus a verified repository.bundle containing all current refs.
+The earlier pre-existing backup recorded by the unfinished pass was left alone:
+../KOME-Progression-Pass3-Backups/20261013-225422
+
+Recovery: restore into a separate disposable checkout at the recorded HEAD and
+copy files/ with their relative paths. Never reset/overwrite the current checkout,
+apply a stash over existing work, or replace a saved world to recover the baseline.
+
+All three stashes remain unchanged:
+61f81972fe98afe0497ddd376d571ebb019883ad - local artifacts before progression sync
+1f7c28e4ab11eb929b64d247de5800048fc9b34a - KOM-40 handoff WIP
+7d9c99bc5cfa9d5bd96dbe81fe4203449d007221 - old waypoint transformer WIP
+No commit, push, fetch, merge, reset, stash application/deletion, runtime install,
+world edit, real saved-player migration or real gameplay launch occurred.
+Gradle used the existing cache under C:/Users/elija/.gradle with cache-lock access.
+
+Active build dependencies: Gradle wrapper 8.5, GTNH/RetroFuturaGradle, JUnit 4.13.2,
+Minecraft 1.7.10, Forge 10.13.4.1614 and the existing Java 8 toolchain/cache.
+Native LOTR dependency SHA-256:
+4F296E749C0D4739ECF859217A526B4218A2A45A768C08D3D551AF0D0D3D5635
+Geckolib dependency SHA-256:
+36D9D0471BFB55271F0D6649B586FE99608DAD61261FAC4065C008276021FE23
+Neither dependency or strategic contributor implementation was replaced.
+
+C. CONFIRMED DESIGN, SOURCE AUDIT AND SCOPE
+==========================================
+Permanent rank remains Wanderer -> Serf -> Knight -> Lord -> Prince; faction titles
+are presentation of one canonical ladder. King remains a conditional office.
+NPC conferral recognizes personal standing, not political bank-spending authority.
+
+Authoritative transition map established from source:
+1. StartingFactionApplication.tryApply commits/checks LOTR allegiance; the existing
+   KOMEAlignmentSyncTransformer native setPledgeFaction hook calls
+   KOMEProgressionPledgeBridge.changed. Login/tick observation uses
+   KOMEPledgeReleaseService and KOMECanonicalRankService.recognizePledge.
+2. KOMESerfdomMasterService validates ordinary Master service. Existing duty
+   delivery, courier and encounter services own real completion and rewards.
+3. KOMEProgressionOfferBridge / KOMESerfKnightRelationshipService validate new
+   Liege admission. KOMECurrentLiege maintains accepted relationship authority.
+4. KOMEKnightServiceRecord stores token-bound reported commissions with faction
+   and issuer provenance. KOMEObjectiveInvasionBridge owns native invasion evidence.
+5. KOMEServicePromotionService.report commits canonical promotion, completion of
+   the old relationship, history and recommendation, then publishes presentation.
+6. KOMEPlayerProgression persists service/relationship/recognition records inside
+   KOMEWorldData. Entity NBT holds encounter identities and native seat receipts.
+7. Existing packet projections, Rank summary, tracker, offers and map are clients
+   of server authority. Pass 2 ability/domain services remain final action gates.
+
+Routing index, progression/geography/creation/network/runtime guides and relevant
+Pass 1, Pass 2, rank-ability audit, Knight/Lordship and supplemental reports were
+read alongside current source. Older Prince-only/trial descriptions were treated
+as historical, not instructions overriding this pass.
+
+Linear was read only. KOM-72 is In Progress, related to KOM-36, KOM-16 and KOM-37;
+its comments endpoint returned no comments. KOM-36 and KOM-16 are Done and retain
+permission/rank-office separation. KOM-39 capital records, KOM-71 population and
+KOM-76 ordinary/campaign separation are Done. KOM-18 is Done with its canonical
+ordinary resolver/recovery ownership. KOM-87 is Todo, blocks KOM-86 and owns future
+warrants/delegation. This pass does not implement it. References:
+https://linear.app/kome-development/issue/KOM-72/implement-revised-branch-based-player-progression-system
+https://linear.app/kome-development/issue/KOM-87/add-ruler-issued-signets-warrants-and-scoped-delegation-authority
+https://linear.app/kome-development/issue/KOM-18/implement-ordinary-battle-response-timers-and-conquest-resolution
+
+D. WANDERER -> SERF: PLEDGE AND RECONCILIATION
+============================================
+IMPLEMENTED AND TESTED; LIVE ACCEPTANCE PENDING.
+recognizePledge reads the actual committed native pledge and checks a playable
+alignment faction. Creation calls it after native commitment is confirmed.
+Selecting a race, appearance or starting location does not grant allegiance/rank.
+The unaffiliated creation path remains Wanderer. Late native pledges use the
+existing setter bridge; login/tick reconciliation covers old pledged Wanderers,
+missed observations and world transitions. No automatic pledge is created.
+
+Only canonical Wanderer becomes Serf. Repeated observation, relog or faction
+switch cannot demote a higher rank or reset service. Migration/login recognition
+does not replay a ceremony. Master service no longer calls enterSerfdom to grant
+rank; that deprecated transition rejects mutation. Existing rank markers/IDs stay
+loadable but do not manufacture genuine service or a recommendation.
+
+Pledge revocation/faction changes retain rank under existing rules. Relationship
+cleanup and military release still belong to their established services. Prior
+recommendations expire across an incompatible pledge; historical service remains.
+
+E. MASTER SERVICE AND SERF -> KNIGHT
+===================================
+IMPLEMENTED AND TESTED; LIVE ACCEPTANCE PENDING.
+A Serf can serve an eligible adult native ordinary civilian of their current
+faction, including farmer-only hire traders. Selection checks identity, native
+faction, civilian/occupation role, recruitment/hired state, encounter exclusion,
+friendliness/native interaction eligibility, shared server world and range.
+New service requires native faction territory, not a fort, capital or rare noble.
+Returning to an already accepted Master is not treated as new location admission.
+The Master remains personally UNRANKED and does not become a noble by conferring
+the player's standing on the faction's behalf.
+
+One active duty is saved. Completed types are not repeated. Live random selection
+filters unavailable local escort/defense work and persists the accepted objective,
+items, target/token and destination. Reopening cannot reroll the accepted duty.
+Provisioning and occupational materials are alternative delivery experiences:
+the live selector excludes the second when the first has been completed.
+The normal three-duty journey therefore uses other world interactions too.
+
+No one-duty-per-calendar-day limit remains. Assignment/replay checks and short
+technical recovery throttles remain. The separately established betrayal lockout
+and strategic daily population/movement cadence were not redesigned.
+
+Final completion/report invokes KOMEServicePromotionService.report at the current
+Master. Three non-forced duty credits plus 150 current alignment confer Knight,
+end active Master service, retain history and issue the regional recommendation.
+If alignment is short, all three credits remain and recognition is available here
+later without a fourth duty. No final-assignment alignment issuance lock remains.
+The existing optional parting gift is once-only and is not an admission/rank gate.
+
+F. REGIONAL LIEGES AND KNIGHT -> LORD
+====================================
+Direct promotion: IMPLEMENTED AND TESTED; LIVE ACCEPTANCE PENDING.
+Location enforcement: IMPLEMENTED AND TESTED for observed native placements;
+legacy placement coverage is PARTIAL / BLOCKED by missing authoritative records.
+
+Both Lords and Princes can receive regional Knight service. Current pledge,
+native role, adulthood, unhired state, native unit-trader interaction and saved
+relationship eligibility remain necessary. A recommendation guarantees admission
+at a genuinely eligible superior; no lottery or calendar waiting is added.
+Native canTradeWith controls the NPC's alignment requirement; an obsolete extra
+Standing-trial alignment threshold is not imposed on sponsored entry.
+
+KOMEProgressionSeatTransformer observes successful native structure spawning.
+It preserves the native spawn return value and does not spawn or place anything.
+KOMERegionalSeat v1 records generator, exact NPC UUID, faction, dimension and spawn
+anchor in normal persisted entity data. Admission also requires the generator's
+native saved home boundary and a home still tied to the recorded placement.
+Leaving that home or moving it elsewhere cannot turn a wandering noble into a seat.
+No generic roof proof, native waypoint radius, regional biome or predicted village
+cache is accepted as proof of a generated regional authority location.
+
+Native host categories represented in the explicit allowlist:
+Hobbit: HobbitTavern; Bree: BreeOffice; Dunedain: RangerCamp.
+Blue Mountains: BlueMountainsStronghold; High Elves: HighElvenTower/RivendellHall.
+Gundabad: GundabadCamp/RuinedDwarvenTower; Angmar: AngmarTower/HillmanChieftainHouse.
+Wood Elves: WoodElfTower; Dol Guldur: DolGuldurTower; Dale: Fortress/Watchtower.
+Durin's Folk: DwarvenTower; Lothlorien: ElfLordHouse; Dunland: DunlandHillFort.
+Isengard: UrukCamp; Rohan: RohanFortress/RohanWatchtower/MeadHall.
+Gondor: native Gondor, Blackroot, Lamedon, Lebennin, Lossarnach, Pelargir and
+Pinnath Gelin fortress/watchfort/watchtower variants; Dol Amroth watchfort/watchtower.
+Mordor: MordorTower/BlackUrukFort; Dorwinion: DorwinionCaptainTent.
+Rhun: EasterlingFortress; Harad: UmbarFortress/SouthronFortress/GulfWarCamp.
+Morwaith: MoredainHutChieftain; Taurethrim: TauredainChieftainPyramid.
+Half-trolls: HalfTrollWarlordHouse. Fangorn: no supported native Liege.
+An allowlisted structure without a generated eligible noble supplies no admission.
+This inventory is source/native catalog evidence, not live noble availability proof.
+
+v36.15 has no general persisted placement registry for these decorator structures.
+Its village/structure caches do not certify all generated buildings. Old NPC home
+and location-name fields do not retain the originating generator type. Consequently
+previously generated, untagged nobles cannot safely acquire new seat provenance.
+Already accepted old relationships are retained without retroactive seat rejection.
+No replacement NPC, forced discovery, guaranteed noble spawn or wilderness repair
+was added. This is the specific old-world compatibility limit of regional entry.
+
+Three distinct reported commissions for the current faction plus 2000 alignment
+confer Lord from the current Liege. Native invasion can be any qualifying service,
+including the third. Low alignment preserves credits and permits later recognition
+at that same superior. The former Liege is historical afterward; no new Liege is
+automatically assigned. New Lord rank abilities update immediately through Pass 2.
+
+G. DUTY/SERVICE INVENTORY AND REAL VARIETY
+========================================
+Master pool: provisioning; occupation-specific material assistance; courier;
+escort; property recovery; local defense. Provisioning uses existing culturally
+appropriate, attainable food/drink catalogs. Profession reuses genuine occupation
+and material catalogs but remains a delivery activity; it is not advertised as a
+new crafting simulation. At most one of those delivery categories is selected in
+the normal live journey. Courier requires a bound message, actual recipient and
+return report. Escort uses a real charge and verified destination. Recovery uses
+bound property. Defense requires real protected-NPC survival and participation.
+
+Knight pool: settlement defense; border incursion; dangerous escort; relief;
+stolen property; native invasion. Field objectives, travel, recipient aid, inventory
+handover, participation and loss conditions differ. Native enemy/faction/territory
+tables and feasible destination checks are reused. Three different types qualify;
+players are not assigned an identical exact sequence. Saved offers and objectives
+prevent reopening rerolls. Infeasible types fall back to other eligible types.
+If genuine local evidence is insufficient, issuance explains that service cannot
+be arranged and preserves credit rather than inventing a settlement or target.
+
+Genuine gameplay failures retain their existing objective consequences. One failure
+does not erase unrelated reported service. A dead courier recipient cancels the
+undeliverable duty after bound-message recovery; it does not earn delivery credit.
+Technical activation/spawn failures preserve credit and offer retry/reassignment.
+
+H. TRIAL RETIREMENT, OBJECTIVE REUSE AND MIGRATION
+================================================
+IMPLEMENTED AND TESTED; real-world cold restart acceptance pending.
+Normal Standing offer eligibility is false. Old Standing response/action slots
+cannot issue a promotion exam. Lordship issuance is now an ordinary native invasion
+commission from the current regional Liege, not a Prince-only fourth assignment.
+The higher-rank manual Knight -> Lord bridge denies obsolete advancement claims.
+Old quest kinds, item registrations, trial assignment IDs and field serializers
+remain loadable. Retired offer shells cannot be accepted as new Standing trials.
+
+KOMEServicePromotionService.migrate runs once using ServiceRecognition migration v1.
+It archives obsolete Standing data and old Lordship records, cleans loaded actors/
+controllers and releases obsolete active relationships/leases as appropriate.
+Actors/controllers absent during cleanup reconcile on natural load using existing
+token/owner checks. It never force-loads their chunks. No migration promotion,
+service reward, gift, announcement or firework is replayed.
+
+Existing three-duty/three-commission qualification remains reportable at the
+current legitimate Master/Liege without completing an obsolete trial. Active old
+trials are non-punitively retired; completed old trials are retained as history.
+Those old normal trials already required three ordinary services, so this pass
+does not award an unnecessary fourth credit or duplicate reward for retiring them.
+Ordinary reused encounter assignments are distinguished by OrdinaryDuty or
+OrdinaryService and retain their token and active state across migration.
+
+Legacy recommendation reconstruction requires genuine saved duty/service records
+and a real saved superior. Canonical titles or historical achievement flags alone
+do not create recommendations. Newly staff-forced structural duty records are
+explicitly non-qualifying. Existing rank/history is not demoted or erased.
+Repeated player NBT save/load, legacy trials, unloaded guards and repeated reports
+are covered in deterministic tests. Preserved property IDs/bindings remain covered
+by existing recovery, wrapper migration and item-use regression tests.
+
+I. NATIVE INVASION AND COMMANDER HUNT
+====================================
+Native invasion commission: IMPLEMENTED AND TESTED; LIVE ACCEPTANCE PENDING.
+Uses the existing LOTREntityInvasionSpawner, native invasion composition and outcome
+hook. Real enemy faction/region, native spawn/terrain checks, actual participation,
+victory, personal survival and current-Liege reporting remain authoritative.
+Temporary allied soldiers remain encounter-owned followers. They create no
+Campaign companies, permanent troops, population grants or recruitment investment.
+Soldier losses alone do not invalidate native victory. Technical controller/spawn
+failure is recoverable, rather than a fabricated combat defeat.
+KOM-18 remains the strategic conflict/conquest owner; personal commissions do not
+publish tile captures or create a second battle resolver.
+
+Feared named commander hunt: DEFERRED, no enum/dialogue-only implementation.
+The existing property carrier/drop lifecycle is not a convincing commander-hunt
+contract: generic carrier death can produce property without proving the intended
+dangerous named commander's defeat by the player. A faction-specific native
+commander/equipment/retinue roster, dangerous encounter balance, real trophy policy
+and proof/recovery design need a separate bounded implementation and gameplay
+acceptance. No generic drop, custom head, boss-name swap or impossible target was
+substituted. Other confirmed progression features were completed independently.
+
+J. PROMOTION AUTHORITY, CEREMONY AND DIALOGUE
+===========================================
+IMPLEMENTED AND TESTED; visuals/live dialogue acceptance pending.
+Final reports validate the native pledge, faction, current superior, saved credits
+and current alignment, then mutate through KOMECanonicalRankService. The service
+record and recommendation are stored, old service ends, titles/ability projections
+refresh and the existing public announcement is broadcast once for an earned
+transition. A small firework uses the native faction color and vanilla rocket
+presentation; native hired-NPC leveling/health/XP is never invoked.
+
+A Lord conferring Lord standing acknowledges equal standing; a Prince recognizes
+entry into the faction's nobility. The civilian Master speaks as a faction witness.
+Displayed standing uses faction titles. Rohan, Gondor, Dwarven and harsh-faction
+letter language differs. Celebration is absent on migration, relog, duplicate
+report, rank refresh or staff correction. Cosmetic exceptions are caught after
+standing is saved and do not undo promotion; synchronization/recovery remain.
+
+K. RECOMMENDATION BOOKS, SECURITY, ADMISSION AND RECOVERY
+=======================================================
+IMPLEMENTED AND TESTED; physical book appearance acceptance pending.
+Uses the existing native-compatible written-book item and courier book paginator.
+No custom quest-letter renderer or replacement Red Book is introduced. Pages
+contain real player/issuer identity, faction, witnessed service, current promoted
+standing and receiving authority. Regional introductions name Lord/Prince seats;
+Lord letters name the culturally appropriate Crown at the capital. The paginator
+uses conservative native book width, 13-line and 256-character bounds, tested
+without losing the service text. Actual Minecraft font/GUI acceptance is pending.
+
+Server record fields include recipient UUID, recommendation UUID, issuer NPC ref,
+faction, service stage, conferred standing, accomplishments, time, prior deceased
+superior where applicable, redemption and permanent invalidation. Destination tier
+is derived from earned standing. The item carries identifying metadata only.
+Admission checks saved authority, correct current player/faction/rank, actual NPC
+status, native interaction and regional location before redemption. Copies,
+renaming and forged book metadata create no new saved recommendation. Redemption
+is once-only, with one active relationship. The physical letter is retained and
+marked as a keepsake; later duplicates cannot restore its admission authority.
+
+The issuer can reissue the same stored recommendation. The self-only existing
+progression command now supports /progression recommendation for narrow recovery
+when the issuer is dead, unloaded or legitimately unavailable. Full inventory
+leaves the record safe and retries when room exists. Recovery neither spawns an
+NPC nor repeats duties. Returning to an old faction after revocation/change does
+not silently restore an expired recommendation's authority.
+
+Loss of an accepted Liege has a narrow existing-service recovery route using
+saved same-faction relationship/history evidence; regional eligibility still
+applies. General unsolicited no-letter petitions are DEFERRED: no newly invented
+alignment score, chance roll, waiting day or disguised promotion trial.
+
+L. FORMER SUPERIORS
+===================
+IMPLEMENTED AND TESTED; LIVE ACCEPTANCE PENDING.
+History retains superior UUID, faction, previous service stage, rank conferred,
+accomplishments and recommendation status. Completed Master identity also uses
+the existing former-Master reference. Completed Liege identity lives in service
+history/recognition. No completed superior is killed, teleported, replaced,
+force-loaded or explicitly despawned by promotion. Active role leases end.
+Native lifetime rules continue; history does not make every mentor permanently
+loaded. Returning NPCs recognize the real relationship, may recover a valid letter
+and keep native trade/talk interactions. Finished duties are no longer offered.
+
+M. GUI, RANK PAGE, TRACKER AND SYNCHRONIZATION
+=============================================
+IMPLEMENTED AND TESTED for projections/layout bounds; LIVE ACCEPTANCE PENDING.
+The existing compact Rank privileges interface is preserved. No additional screen.
+Wanderer guidance is allegiance; Serf guidance is ordinary Master service. Active
+duties/commissions, actual superior, three-service credit and current alignment are
+shown. Three completed services point to that current superior for recognition.
+Knight without Liege has earned standing and an optional next-service introduction,
+with accurate missing/used/expired recommendation context. Lord standing is shown
+immediately; future Crown service is explicitly pending beside the legacy Prince
+checklist. No extra trial progress bar or promotion-at-a-different-NPC marker remains.
+
+Native invasion offer wording, final return markers and ordinary reused objective
+navigation use the current superior. Old automatic known-Prince promotion marker
+injection and unused calendar/trial tracker helpers were removed. Native offer
+serialization IDs remain compatible, but retired kinds have retired presentation.
+Legacy allegiance/rank registry descriptions no longer say Master service grants
+Serf. Optional historical IDs remain inspectable without becoming current gates.
+
+Existing server-authored progression packets, canonical rank, title synchronization,
+ability rows and viewer/connection/revision/dimension fences remain authoritative.
+Native alignment and KOME standing are not duplicated in the default interface;
+the existing alternate native-title display preference is preserved.
+
+N. RANK ABILITY AND MILITARY REGRESSIONS
+=======================================
+IMPLEMENTED AND TESTED preservation; LIVE MULTIPLAYER ACCEPTANCE PENDING.
+The full suite includes rank abilities/layout, Build packet authorization,
+starting-waypoint access, ordinary native hiring, campaign recruitment, company
+authority/movement, formal Join Battle, native population costs, King office,
+ordinary conflict/conquest/recovery and client projection/codec tests.
+Representative passing classes and test counts:
+KOMEProgressionAbilityLayoutTest: 2
+KOMECanonicalBuildPacketTest: 4
+KOMEWaypointAccessServiceTest: 18
+KOMECampaignRecruitmentServiceTest: 13
+KOMEJoinBattleServiceTest: 18
+KOMEOrdinaryBattleResolutionServiceTest: 16
+KOMEProgressionMilitaryAuthorityTest: 3
+KOMEProgressionSchemaTest: 4
+KOMEPopulationProtocolTest: 19
+KOMEProgressionServerLoadingTest: 1, including every new service/seat transformer
+with client packages forbidden.
+Additional corresponding domain tests ran in the full suite; counts above are
+representative classes, not the entire integration inventory.
+
+Promotion grants the same derived eligibility as Pass 2. Serf Build submission,
+exact saved starting-return, Knight formal battle participation and Lord company/
+recruitment rank floors remain. Actual population, Crown, ownership, diplomacy,
+unit classification, conflict/deployment and resource checks still apply.
+No free soldiers/population, fiefs, warrants, war declaration, King office or
+specialist equipment rewards were granted. No strategic daily subsystem changed.
+
+O. FILES CHANGED
+================
+The complete combined worktree inventory, including inherited work, is appended
+below. It distinguishes inherited-unchanged, inherited-extended and continuation
+changes/new files using the verified starting SHA-256 manifest. The unchanged
+untracked Pass 2 report is preserved evidence, not newly authored Pass 3 content.
+Production additions in the complete pass are KOMEServicePromotionService,
+KOMEServiceRecognition, KOMERecommendationService, KOMESerfServiceObjectives,
+KOMEProgressionServiceLocation and KOMEProgressionSeatTransformer. Existing service,
+offer, relationship, event, command, packet, presentation, reward and persistence
+classes were extended rather than replaced. Routing changes cover progression,
+geography, character creation, client/network and runtime/persistence.
+
+P. PERSISTENT SCHEMAS AND PROTOCOL
+==================================
+Root KOME data schema: 12, unchanged.
+ConflictData: 3; recovery WAL: 1; campaign health: 1, preserved from Pass 2.
+ServiceRecognition: version 1, migration version 1, nested in player progression;
+at most two conferred-service records, plus retired Standing evidence.
+KOMERegionalSeat: version 1 in normal NPC entity data, no separate placement ledger.
+Existing Serf duty/trial/relationship fields and bound-item registrations remain.
+Knight service record version 1 retains old type IDs and adds NATIVE_INVASION.
+Lordship assignment version 2 retains its old fields/IDs and adds OrdinaryService
+and Retired flags. Lordship record version 1 retains archived retired evidence.
+No additional saved rank, permission, political budget or native pledge ledger.
+
+Matching build/wire version: 1.0.10-service-g10.
+Both build.gradle.kts and KOMEPopulationWire agree. Packet registration IDs and
+Pass 2 derived ability projection/fences are preserved. g9/g10 may not be mixed.
+
+Q. EXACT VALIDATION, SKIPS, BUILD AND LIVE TESTING
+================================================
+Final full command, coordinated with Local\KOME-Heavy-Validation:
+gradlew.bat test build reobfJar --offline --no-daemon --max-workers=2 --console=plain
+Final log: outputs/progression-pass3/final-server-verified.log
+Result: BUILD SUCCESSFUL, 3640 total JUnit cases:
+3635 PASSED, 0 failures, 0 errors, 5 SKIPPED.
+This replaces the historical Pass 2 count; skips are not counted as passes.
+
+New Pass 3 authority/compatibility classes:
+KOMEServicePromotionPass3Test: 21
+KOMEProgressionServiceLocationTest: 10
+KOMERecommendationPass3Test: 11
+KOMEProgressionPass3MigrationTest: 6
+KOMEProgressionSeatTransformerTest: 2
+Total in these classes: 50 passing deterministic tests.
+Existing tests were corrected/expanded for the new contract rather than retaining
+Prince-only conferral, daily duty quotas, additional trials or false UI promises.
+Native structure hook stack balance/idempotency is checked against the actual
+shipped v36.15 jar with ASM verification; this is not a live generator run.
+
+Exact skips, unchanged environment categories:
+com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported
+com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported
+kome.core.KOMEPublicWaypointTransformerTest.originalProductionAndBuildJarsHaveExactCompatibleHooks
+kome.core.KOMEWaypointTransformerTest.configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms
+kome.core.KOMEWaypointTransformerTest.configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms
+
+Full tests, jar, sources jar, assemble, check, build and reobfJar succeeded.
+The prior full run actually rebuilt/reobfuscated production; the final full run
+retested the expanded server-loading fixture and reused unchanged packaging tasks.
+Packaged artifact:
+build/libs/KOME-LOTR-Addon-1.0.10-service-g10.jar
+SHA-256: 9574A0B8A10B1823A730A7BC43C20902388ACA0FB7A694D64ADFA8B1C9FD6FAB
+It was not installed into an existing runtime.
+
+Routing validator and git diff --check results are recorded below after the final
+documentation/inventory pass. Full XML results/counts/skips and file hashes are
+retained under outputs/progression-pass3/final-results and final-files.json.
+Transient failed baseline/iteration logs are retained honestly; they are not
+treated as acceptance. The initial missing import and stale trial/daily/Prince
+test assertions were resolved. Gradle cache access was resolved using the existing
+cache, without changing dependencies or fetching contributor work.
+
+Live Minecraft testing: NOT PERFORMED.
+No connected GUI screenshots, actual fortress generation, measured travel/fun,
+native invasion playthrough, cold real-world restart, shader/firework rendering,
+population spend or multiplayer conquest was claimed tested.
+
+R. OUTSTANDING IMPLEMENTATION/DESIGN BLOCKERS
+============================================
+PARTIAL / BLOCKED: old generated regional seats lack recoverable native generator
+provenance. Native homes/location text cannot safely prove their structure type.
+New entry fails closed; existing accepted service is safe. A future audited
+existing-structure adoption/repair policy is needed without fabricated geography.
+PARTIAL native replacement compatibility: LOTREntityTraderRespawn restores the
+trader class, native home/location and LOTRTraderNPCInfo, but does not copy generic
+Forge entity data containing the regional-seat receipt. A replacement noble can
+therefore lack provenance even at a newly generated seat. New admission fails
+closed; this pass does not infer authority from its restored home or create a
+replacement superior. A narrow audited native respawn provenance bridge remains
+needed, with identity rebinding and save/restart tests.
+BLOCKED native faction gap: Fangorn has no supported LOTRUnitTradeable Liege host.
+PARTIAL content availability: actual nearby shelter/charge/enemy evidence can leave
+a local service pool too small. Credit is preserved; no artificial settlement is
+spawned to guarantee progression. Live faction/site availability remains unverified.
+DEFERRED: feared named commander hunt, with real dangerous archetype/trophy proof.
+DEFERRED: unsolicited no-letter entry, including policy for retained-rank players
+who switch factions or have no genuine recommendation history. Expired letters
+cannot authorize a new faction; no numerical petition threshold was invented.
+DEFERRED by approved scope: Lord -> Prince stewardship/leadership service. Crown/
+capital authority is a tested seam, not an implemented quest loop or admission.
+DEFERRED elsewhere: KOM-87 delegation/warrants, fiefs, resource budgets, personal
+troop ceilings, specialist rewards and other separately owned strategy features.
+IMPLEMENTED, LIVE ACCEPTANCE PENDING: complete journeys, native seat spawning,
+encounter failure/reload, actual book/GUI/marker layout and multiplayer regressions.
+
+S. RECOMMENDED NEXT PASS
+========================
+1. Disposable native-world/client acceptance of ordinary Master service, both
+   regional ranks, native invasion as the third commission, letters/ceremony and
+   restart/death/full-inventory/faction-switch recovery; preserve original worlds.
+2. Audit/approve a narrow reliable old-seat adoption policy using actual structures
+   and native evidence; preserve receipts through native trader replacement and
+   document unsupported faction/site availability.
+3. Approve the Lord -> Prince stewardship loop at the existing Crown/capital seam;
+   keep political office, resources and KOM-87 authority separate.
+4. Design and implement a small faction-appropriate commander-hunt roster with
+   credible native combat/trophy proof; define optional petition policy separately.
+
+No commit or push has been made. This is a local, reviewable implementation/report.
+
+FINAL INVENTORY AND DOCUMENTATION VERIFICATION
+==============================================
+
+Combined dirty/review paths: 107 (includes preserved Pass 2 report).
+Layer codes: I = inherited unchanged; E = inherited extended; C = changed/new
+in this continuation. C may be an existing tracked file previously clean.
+
+I | build.gradle.kts
+I | docs/PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt
+C | docs/PROGRESSION_PASS3_SERVICE_PROMOTION_REPORT.txt
+C | docs/routing/INDEX.md
+C | docs/routing/systems/character-creation/README.md
+C | docs/routing/systems/client-network/README.md
+C | docs/routing/systems/geography/README.md
+C | docs/routing/systems/progression/README.md
+C | docs/routing/systems/runtime-state/README.md
+I | src/main/java/com/lotrcharactercreation/faction/StartingFactionApplication.java
+I | src/main/java/kome/client/gui/KOMEGuiSerfdomMaster.java
+I | src/main/java/kome/common/command/KOMECommandProgression.java
+I | src/main/java/kome/common/data/KOMECanonicalRankService.java
+I | src/main/java/kome/common/data/KOMECourierIssuance.java
+I | src/main/java/kome/common/data/KOMECourierService.java
+I | src/main/java/kome/common/data/KOMEEvents.java
+C | src/main/java/kome/common/data/KOMEHigherRankTransitionService.java
+E | src/main/java/kome/common/data/KOMEKnightBookPresentation.java
+I | src/main/java/kome/common/data/KOMEKnightCommission.java
+I | src/main/java/kome/common/data/KOMEKnightCommissionPresentation.java
+E | src/main/java/kome/common/data/KOMEKnightCommissionService.java
+I | src/main/java/kome/common/data/KOMEKnightServiceRecord.java
+E | src/main/java/kome/common/data/KOMELiegeOfferQuest.java
+E | src/main/java/kome/common/data/KOMELiegeProgressionInteraction.java
+I | src/main/java/kome/common/data/KOMELordshipTrial.java
+I | src/main/java/kome/common/data/KOMELordshipTrialPresentation.java
+I | src/main/java/kome/common/data/KOMELordshipTrialRecord.java
+I | src/main/java/kome/common/data/KOMELordshipTrialService.java
+I | src/main/java/kome/common/data/KOMEObjectiveInvasionBridge.java
+I | src/main/java/kome/common/data/KOMEPartingGiftService.java
+I | src/main/java/kome/common/data/KOMEPlayerProgression.java
+I | src/main/java/kome/common/data/KOMEPledgeReleaseService.java
+C | src/main/java/kome/common/data/KOMEProgressionAchievement.java
+E | src/main/java/kome/common/data/KOMEProgressionAnnouncements.java
+E | src/main/java/kome/common/data/KOMEProgressionEligibility.java
+I | src/main/java/kome/common/data/KOMEProgressionEncounterCleanup.java
+C | src/main/java/kome/common/data/KOMEProgressionLiegePolicy.java
+E | src/main/java/kome/common/data/KOMEProgressionNpcInteractionService.java
+I | src/main/java/kome/common/data/KOMEProgressionNpcSpeech.java
+E | src/main/java/kome/common/data/KOMEProgressionOfferBridge.java
+E | src/main/java/kome/common/data/KOMEProgressionRankSummary.java
+I | src/main/java/kome/common/data/KOMEProgressionRelationshipLifecycle.java
+C | src/main/java/kome/common/data/KOMEProgressionServiceLocation.java
+I | src/main/java/kome/common/data/KOMEProgressionServiceRewards.java
+I | src/main/java/kome/common/data/KOMEProgressionSummary.java
+E | src/main/java/kome/common/data/KOMEProgressionTrackerSnapshot.java
+I | src/main/java/kome/common/data/KOMEProgressionVariety.java
+E | src/main/java/kome/common/data/KOMERecommendationService.java
+I | src/main/java/kome/common/data/KOMESerfKnightDefenseService.java
+I | src/main/java/kome/common/data/KOMESerfKnightDutyType.java
+I | src/main/java/kome/common/data/KOMESerfKnightEscortService.java
+I | src/main/java/kome/common/data/KOMESerfKnightProgression.java
+I | src/main/java/kome/common/data/KOMESerfKnightRecoveryService.java
+E | src/main/java/kome/common/data/KOMESerfKnightRelationshipService.java
+E | src/main/java/kome/common/data/KOMESerfKnightService.java
+C | src/main/java/kome/common/data/KOMESerfProfessionClassifier.java
+I | src/main/java/kome/common/data/KOMESerfServiceObjectives.java
+E | src/main/java/kome/common/data/KOMESerfdomMasterService.java
+E | src/main/java/kome/common/data/KOMEServicePromotionService.java
+I | src/main/java/kome/common/data/KOMEServiceRecognition.java
+E | src/main/java/kome/common/data/KOMEVisualLocationService.java
+I | src/main/java/kome/common/network/KOMEPacketRelationshipAction.java
+E | src/main/java/kome/common/network/KOMEPacketSerfdomMasterAction.java
+I | src/main/java/kome/common/network/KOMEPopulationWire.java
+C | src/main/java/kome/core/KOMECorePlugin.java
+C | src/main/java/kome/core/KOMEProgressionSeatTransformer.java
+C | src/main/resources/assets/kome/lang/en_US.lang
+I | src/test/java/kome/common/data/KOMECanonicalPlayerRankTest.java
+I | src/test/java/kome/common/data/KOMEKnightCommissionStateTest.java
+E | src/test/java/kome/common/data/KOMEKnightLordshipPassTest.java
+I | src/test/java/kome/common/data/KOMELordshipTrialGameplayTest.java
+I | src/test/java/kome/common/data/KOMELordshipTrialIntegrationTest.java
+I | src/test/java/kome/common/data/KOMELordshipTrialStateTest.java
+E | src/test/java/kome/common/data/KOMEProgressionCoherencePassTest.java
+E | src/test/java/kome/common/data/KOMEProgressionFixesTest.java
+E | src/test/java/kome/common/data/KOMEProgressionFollowupTest.java
+I | src/test/java/kome/common/data/KOMEProgressionHardeningAuthorityTest.java
+E | src/test/java/kome/common/data/KOMEProgressionHardeningFactionTest.java
+I | src/test/java/kome/common/data/KOMEProgressionHardeningServiceTest.java
+E | src/test/java/kome/common/data/KOMEProgressionHierarchyCorrectionsTest.java
+I | src/test/java/kome/common/data/KOMEProgressionLifecycleAuditTest.java
+I | src/test/java/kome/common/data/KOMEProgressionNpcDeathLifecycleTest.java
+I | src/test/java/kome/common/data/KOMEProgressionNpcInteractionServiceTest.java
+I | src/test/java/kome/common/data/KOMEProgressionNpcRankTest.java
+E | src/test/java/kome/common/data/KOMEProgressionOfferBridgeTest.java
+C | src/test/java/kome/common/data/KOMEProgressionPass3MigrationTest.java
+E | src/test/java/kome/common/data/KOMEProgressionRankSummaryTest.java
+C | src/test/java/kome/common/data/KOMEProgressionServerLoadingTest.java
+C | src/test/java/kome/common/data/KOMEProgressionServiceLocationTest.java
+I | src/test/java/kome/common/data/KOMEProgressionTestingFixesTest.java
+E | src/test/java/kome/common/data/KOMEProgressionTrackerSnapshotTest.java
+E | src/test/java/kome/common/data/KOMEProgressionUxInteractionTest.java
+C | src/test/java/kome/common/data/KOMERecommendationPass3Test.java
+I | src/test/java/kome/common/data/KOMESerfKnightCadenceOverrideTest.java
+I | src/test/java/kome/common/data/KOMESerfKnightCadenceTest.java
+I | src/test/java/kome/common/data/KOMESerfKnightIntegratedJourneyTest.java
+E | src/test/java/kome/common/data/KOMESerfKnightProgressionTest.java
+E | src/test/java/kome/common/data/KOMESerfKnightRecoveryServiceTest.java
+E | src/test/java/kome/common/data/KOMESerfKnightStabilizationTest.java
+I | src/test/java/kome/common/data/KOMESerfProfessionAssignmentTest.java
+I | src/test/java/kome/common/data/KOMESerfProvisioningAssignmentTest.java
+I | src/test/java/kome/common/data/KOMEServicePromotionPass3Test.java
+I | src/test/java/kome/common/network/KOMEPopulationProtocolTest.java
+I | src/test/java/kome/common/network/KOMEPublicAccessPacketTest.java
+C | src/test/java/kome/core/KOMEProgressionSeatTransformerTest.java
+C | src/test/java/kome/core/KOMEWaypointTransformerTest.java
+C | src/test/java/kome/integration/CharacterCreationIsolationTest.java
+
+Final documentation checks: PASS.
+Routing validator: 25 documents, 792 local links, 1004 symbol references,
+48 exact JUnit selectors; source/link/route discoverability checks passed.
+git diff --check: exit 0, no whitespace errors.
+Branch/HEAD/worktree and all three stash hashes were rechecked unchanged.
+Final full test/build/reobfuscation: 3635 passed + 5 skipped = 3640 cases;
+0 failures/errors. New services passed client-forbidden class initialization.
+No live Minecraft acceptance or runtime installation was performed.

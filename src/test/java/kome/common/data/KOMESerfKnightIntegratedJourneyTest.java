@@ -23,33 +23,26 @@ public class KOMESerfKnightIntegratedJourneyTest {
 
         KOMEProgressionNpcRef master=ref("Master"),liege=ref("Liege");
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master,KOMEProgressionNpcRank.UNRANKED,true).success);
-        assertTrue(KOMECanonicalRankService.enterSerfdom(fixture.data,playerId));
+        assertTrue(KOMECanonicalRankService.recognizeCommittedPledge(fixture.data,playerId,"rohan"));
         assertEquals(KOMEProgressionRank.SERF,progression.getCanonicalRank());
         long day=10L;
-        for(KOMESerfKnightDutyType duty:KOMESerfKnightDutyType.values()){
+        for(KOMESerfKnightDutyType duty:new KOMESerfKnightDutyType[]{KOMESerfKnightDutyType.PROVISIONING,KOMESerfKnightDutyType.PROFESSION,KOMESerfKnightDutyType.COURIER}){
             assertTrue(KOMESerfKnightService.assignDuty(state,duty,null,day++).success);
             assertTrue(KOMESerfKnightService.completeDuty(progression,duty).success);
         }
         assertFalse(state.hasLiege());
-        assertTrue(KOMESerfKnightService.acceptStandingTrial(
-            state,liege,KOMEProgressionNpcRank.LORD,true,new Random(4L),day,playerId).success);
-        assertTrue(state.getLiege().hasSameIdentity(liege));
-        assertTrue(KOMESerfKnightService.markTrialObjectiveComplete(state).success);
-        assertTrue(state.isTrialCompleted());
-        assertFalse(state.hasPartingGift());
+        assertTrue(state.getTrialId().isEmpty());
         assertEquals(KOMEProgressionRank.SERF,progression.getCanonicalRank());
         KOMEProgressionRankSummary before=KOMEProgressionRankSummary.project(progression,150D);
-        assertEquals(1,before.requirements.get(2).current);
-        assertEquals(3,before.requirements.size());
-
-        assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"rohan",150D).success);
+        assertEquals(3,before.requirements.get(0).current);assertEquals(2,before.requirements.size());
+        assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,liege,"rohan",150D).success);
         assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"gondor",150D).success);
         assertFalse(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"rohan",149D).success);
-        assertTrue(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,liege,"rohan",150D).success);
+        assertTrue(KOMESerfdomMasterService.conferKnighthood(fixture.data,playerId,master,"rohan",150D).success);
         assertFalse("Unclaimed reward is optional",state.hasPartingGift());assertTrue(state.isPromoted());
         assertEquals(KOMEProgressionRank.KNIGHT,progression.getCanonicalRank());
         assertFalse("The former Serfdom Master is no longer an active relationship after Knighthood",state.getSerfdomMaster().isSet());
-        assertTrue(state.getLiege().hasSameIdentity(liege));
+        assertFalse(state.hasLiege());
         assertTrue(KOMESerfKnightService.allDutiesComplete(state));
         assertTrue(progression.isCompleted(KOMEProgressionAchievement.forID("serf.title_knight")));
         assertEquals("Knight",KOMEProgressionRankSummary.project(progression,150D).currentRank);
@@ -58,7 +51,8 @@ public class KOMESerfKnightIntegratedJourneyTest {
         assertEquals(KOMEProgressionRank.KNIGHT,reloaded.getCanonicalRank());
         assertFalse(reloaded.getSerfKnightProgression().hasPartingGift());
         assertFalse(reloaded.getSerfKnightProgression().getSerfdomMaster().isSet());
-        assertTrue(reloaded.getSerfKnightProgression().getLiege().hasSameIdentity(liege));
+        assertFalse(reloaded.getSerfKnightProgression().hasLiege());
+        assertTrue(KOMERecommendationService.redeem(reloaded,playerId,"rohan",liege));
         assertTrue(KOMESerfKnightService.leaveLiege(reloaded).success);
         assertFalse(reloaded.getSerfKnightProgression().hasLiege());
         assertEquals(KOMEProgressionRank.KNIGHT,reloaded.getCanonicalRank());

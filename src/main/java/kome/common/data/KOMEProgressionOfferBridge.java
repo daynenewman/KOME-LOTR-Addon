@@ -195,8 +195,6 @@ public final class KOMEProgressionOfferBridge {
             if (!((KOMESerfdomOfferQuest) current).isExpired(window)) {sendStandingTrialEligibility(player,npc,false);return true;}
             npc.questInfo.clearPlayerSpecificOffer(player);
         } else if (current != null) return false;
-        if (KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).declinedSerfdomOfferToday(npc.getUniqueID().toString(), KOMESerfKnightService.calendarDayNow())) return false;
-        if (!isSelected(player.getUniqueID(), npc.getUniqueID(), window)) return false;
         KOMESerfdomOfferQuest offer = KOMESerfdomOfferQuest.create(LOTRLevelData.getData(player), npc, window, storyFor(npc));
         // Never attach a partially initialized offer: LOTR serializes an NPC's offer
         // during interaction and world save, so construction must be valid up front.
@@ -343,14 +341,18 @@ public final class KOMEProgressionOfferBridge {
         return true;
     }
 
-    public static boolean canRequestStandingTrialFrom(EntityPlayer player,LOTREntityNPC npc){if(player==null||npc==null||player.worldObj==null||npc.worldObj!=player.worldObj||!npc.isEntityAlive()||npc.questInfo==null)return false;KOMEWorldData data=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression progression=data.getProgression(player.getUniqueID());KOMESerfKnightProgression state=progression.getSerfKnightProgression();KOMEProgressionNpcRef ref=KOMEProgressionNpcRankService.referenceOf(npc);LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();long day=KOMESerfKnightService.calendarDayNow();return progression.getCanonicalRank()==KOMEProgressionRank.SERF&&KOMESerfKnightService.canRequestTrialFromProspectiveLiege(state,ref,day,player.getUniqueID())&&pledge!=null&&pledge.isPlayableAlignmentFaction()&&pledge==npc.getFaction()&&KOMEStandingTrialEligibility.meetsAlignment(state,LOTRLevelData.getData(player).getAlignment(pledge),pledge.codeName())&&KOMEProgressionFactionResolver.matches(state.getSerfdomMaster().factionKey,npc.getFaction())&&!npc.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(npc)&&KOMEProgressionLords.isStandingTrialLiegeCandidate(npc)&&((lotr.common.entity.npc.LOTRUnitTradeable)npc).canTradeWith(player)&&KOMEProgressionNpcRankService.effectiveRank(data,npc)==KOMEProgressionLiegePolicy.requiredSuperior(progression.getCanonicalRank())&&npc.hiredNPCInfo!=null&&!npc.hiredNPCInfo.isActive;}
+    public static boolean canRequestStandingTrialFrom(EntityPlayer player,LOTREntityNPC npc){return false;}
 
     public static boolean canRequestLiegeOfferFrom(EntityPlayer player,LOTREntityNPC npc) {
-        return canRequestStandingTrialFrom(player, npc)||canReplaceLiegeFrom(player,npc)||KOMEKnightCommissionService.eligible(player,npc)||KOMELordshipTrialService.eligible(player,npc);
+        return canRequestStandingTrialFrom(player, npc)||canReplaceLiegeFrom(player,npc)||KOMEKnightCommissionService.eligible(player,npc);
     }
 
     public static boolean canReplaceLiegeFrom(EntityPlayer player,LOTREntityNPC npc) {
-        return eligibleLiegeNpc(player,npc)&&KOMESerfKnightRelationshipService.canEstablishLiege(
+        if(!eligibleLiegeNpc(player,npc))return false;
+        KOMEPlayerProgression p=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID());
+        if(p.getCanonicalRank()==KOMEProgressionRank.LORD)return false; // Royal service awaits its approved leadership loop.
+        if(p.getCanonicalRank()!=KOMEProgressionRank.PRINCE&&!KOMERecommendationService.hasIntroduction(player)&&!KOMERecommendationService.recoveryAdmission(p,npc.getFaction().codeName()))return false;
+        return KOMESerfKnightRelationshipService.canEstablishLiege(
             KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()),KOMESerfKnightService.calendarDayNow());
     }
 
@@ -360,11 +362,11 @@ public final class KOMEProgressionOfferBridge {
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
         KOMEWorldData data=KOMEWorldData.get(player.worldObj);
         return pledge!=null&&pledge.isPlayableAlignmentFaction()&&pledge==npc.getFaction()
-            &&LOTRLevelData.getData(player).getAlignment(pledge)>=KOMEStandingTrialEligibility.requiredAlignment(pledge.codeName())
             &&KOMEProgressionNpcRankService.isValidFactionNpc(npc)
             &&KOMEProgressionLords.isStandingTrialLiegeCandidate(npc)
             &&((lotr.common.entity.npc.LOTRUnitTradeable)npc).canTradeWith(player)
             &&KOMEProgressionLiegePolicy.accepts(data,data.getProgression(player.getUniqueID()).getCanonicalRank(),KOMEProgressionNpcRankService.effectiveRank(data,npc),pledge.codeName(),npc.getFaction().codeName())
+            &&(data.getProgression(player.getUniqueID()).getCanonicalRank()!=KOMEProgressionRank.KNIGHT||KOMEProgressionServiceLocation.regional(npc))
             &&npc.hiredNPCInfo!=null&&!npc.hiredNPCInfo.isActive;
     }
 
@@ -384,14 +386,15 @@ public final class KOMEProgressionOfferBridge {
         KOMEWorldData data = KOMEWorldData.get(player.worldObj);
         KOMEPlayerProgression progression = data.getProgression(player.getUniqueID());
         KOMEProgressionRank rank = progression.getCanonicalRank();
-        if (rank == KOMEProgressionRank.WANDERER) return !progression.getSerfKnightProgression().getSerfdomMaster().isSet();
+        if (rank == KOMEProgressionRank.WANDERER) return false;
         return rank == KOMEProgressionRank.SERF && !progression.getSerfKnightProgression().getSerfdomMaster().isSet()
             && KOMESerfKnightService.canSelectReplacement(progression.getSerfKnightProgression(), KOMESerfKnightService.calendarDayNow());
     }
     private static boolean eligibleNpc(EntityPlayer player, LOTREntityNPC npc) {
-        if (npc == null || !npc.isEntityAlive() || npc.isChild() || !KOMEProgressionNpcRankService.isValidFactionNpc(npc)) return false;
+        if (npc == null || npc.worldObj!=player.worldObj||!npc.isEntityAlive() || npc.isChild() || !KOMESerfdomMasterService.ordinaryMaster(npc)) return false;
         LOTRFaction pledge = LOTRLevelData.getData(player).getPledgeFaction();
         return pledge != null && pledge == npc.getFaction()
+            &&KOMEProgressionServiceLocation.factionTerritory(npc)
             && KOMEProgressionNpcRankService.effectiveRank(KOMEWorldData.get(npc.worldObj), npc) == KOMEProgressionNpcRank.UNRANKED;
     }
     private static String storyFor(LOTREntityNPC npc) {

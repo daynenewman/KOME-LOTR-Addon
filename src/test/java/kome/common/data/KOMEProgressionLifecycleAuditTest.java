@@ -25,7 +25,7 @@ public class KOMEProgressionLifecycleAuditTest {
 
     private static void completeDuties(KOMESerfKnightProgression state) {
         long day=10L;
-        for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()) {
+        for(KOMESerfKnightDutyType type:new KOMESerfKnightDutyType[]{KOMESerfKnightDutyType.PROVISIONING,KOMESerfKnightDutyType.PROFESSION,KOMESerfKnightDutyType.COURIER}) {
             assertTrue(
                 KOMESerfKnightService.assignDuty(
                     state,type,null,day++).success);

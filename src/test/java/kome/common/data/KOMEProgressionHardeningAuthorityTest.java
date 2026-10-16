@@ -9,7 +9,7 @@ import static kome.common.data.KOMEKnightCommission.*;
 
 public class KOMEProgressionHardeningAuthorityTest {
     @Test public void loadedLiegeAuthorityAgreesAcrossCommissionTrialAndReport()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        assertTrue(KOMECurrentLiege.valid(f.s.f.player,f.lord));assertTrue(KOMEKnightCommissionService.eligible(f.s.f.player,f.lord));assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.lord));f.credits(3);assertTrue(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));
+        assertTrue(KOMECurrentLiege.valid(f.s.f.player,f.lord));assertTrue(KOMEKnightCommissionService.eligible(f.s.f.player,f.lord));assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.lord));f.credits(3);assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));assertEquals("",KOMEServicePromotionService.reason(f.s.p,KOMEProgressionNpcRankService.referenceOf(f.lord),"rohan",2000));
         f.liege.hiredNPCInfo.isActive=true;assertFalse(KOMECurrentLiege.valid(f.s.f.player,f.liege));assertFalse(KOMEKnightCommissionService.eligible(f.s.f.player,f.liege));assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));assertFalse(KOMELordshipTrialService.promote(f.s.f.player,f.liege));
     }}
     @Test public void wrongPledgeRejectsEveryLiegeAction()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
@@ -33,7 +33,7 @@ public class KOMEProgressionHardeningAuthorityTest {
     }}
     @Test public void rankViewBookAndIdleHudUseCurrentFactionServiceAndLiveStanding()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         f.credits(3);KOMEProgressionRankSummary rohan=KOMEProgressionRankSummary.project(f.s.p,2100,"rohan"),gondor=KOMEProgressionRankSummary.project(f.s.p,2100,"gondor");assertEquals(3,rohan.requirements.get(0).current);assertEquals(0,gondor.requirements.get(0).current);
-        assertEquals(3,gondor.requirements.size());assertFalse(KOMEProgressionRankSummary.project(f.s.p,Double.POSITIVE_INFINITY,"rohan").requirements.get(1).complete);
+        assertEquals(2,gondor.requirements.size());assertFalse(KOMEProgressionRankSummary.project(f.s.p,Double.POSITIVE_INFINITY,"rohan").requirements.get(1).complete);
         String book=KOMEProgressionSummary.text(f.s.p,"Gondor","gondor",2100);assertFalse(book.contains("drunk"));assertFalse(book.contains("spear"));assertTrue(KOMEProgressionTrackerSnapshot.project(f.s.f.player,f.s.p).visible);
         assertTrue(KOMEProgressionFactionResolver.missingNativeLiege("fangorn"));assertFalse(KOMEProgressionFactionResolver.missingNativeLiege("rohan"));
     }}

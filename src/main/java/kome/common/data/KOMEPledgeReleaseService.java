@@ -44,6 +44,7 @@ public final class KOMEPledgeReleaseService {
             return Result.noop("Pledge baseline recorded.");
         }
         String former = KOMEAlliance.normalizeFactionKey(data.lastKnownPlayerFactions.get(playerId));
+        KOMECanonicalRankService.recognizePledge(player, former.isEmpty()&&!current.isEmpty());
         KOMEGovernanceService.retainDefeat(data, playerId, former, nowMillis);
         if (former.equals(current)) return Result.noop("Pledge unchanged.");
         data.lastKnownPlayerFactions.put(playerId, current);

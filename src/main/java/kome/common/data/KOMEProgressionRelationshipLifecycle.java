@@ -47,6 +47,7 @@ public final class KOMEProgressionRelationshipLifecycle {
             progression.getSerfKnightProgression();
 
         String current=KOMEAlliance.normalizeFactionKey(currentFaction);
+        progression.getServiceRecognition().allegianceChanged(current);
 
         boolean masterMismatch=
             state.getSerfdomMaster().isSet()

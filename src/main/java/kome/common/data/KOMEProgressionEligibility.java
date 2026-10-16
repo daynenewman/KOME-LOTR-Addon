@@ -19,34 +19,19 @@ public final class KOMEProgressionEligibility {
         LOTRFaction pledge=LOTRLevelData.getData(player).getPledgeFaction();
         if(pledge==null)return no("You must first pledge to a faction.");
         if(pledge!=npc.getFaction())return no("You have sworn yourself to another faction.");
-        if(p.getCanonicalRank()==KOMEProgressionRank.WANDERER)return no("You must first serve a Master.");
-        if(p.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&rank==KOMEProgressionNpcRank.PRINCE){
-            if(p.getKnightService().assignment()!=null)return no("Finish and report your current commission first.");
-            if(p.getLordship().assignment()==null&&p.getKnightService().qualifyingTypes(pledge.codeName()).size()<3)return no("Report three distinct commissions for this faction first.");
-            if(p.getLordship().assignment()==null&&LOTRLevelData.getData(player).getAlignment(pledge)<2000)return no("Reach 2,000 current faction alignment first.");
-            if(KOMELordshipTrialService.eligible(player,npc))return new KOMEProgressionEligibility(true,true,"");
-            return no("Report to the Prince who entrusted your current trial.");
-        }
-        if(!KOMEProgressionLiegePolicy.accepts(data,p.getCanonicalRank(),rank,pledge.codeName(),npc.getFaction().codeName()))return no(rank==KOMEProgressionNpcRank.PRINCE?"This prince cannot accept your service at your current standing.":rank==KOMEProgressionNpcRank.KING?"This king cannot offer a progression quest at your current standing.":"This lord cannot accept your service at your current standing.");
-        KOMEProgressionNpcRef ref=KOMEProgressionNpcRankService.referenceOf(npc);
-        if(p.getCanonicalRank()==KOMEProgressionRank.SERF&&s.failedLiegeRemaining(ref,KOMESerfKnightProgression.failureClock.getAsLong())>0)return no("You must wait before approaching this lord again.");
+        if(p.getCanonicalRank()==KOMEProgressionRank.WANDERER)return no("Pledge allegiance to enter Serf standing.");
+        if(p.getCanonicalRank()==KOMEProgressionRank.SERF)return no("Your Master confers Knight standing after three reported duties. Seek higher service after that promotion.");
+        if(!KOMEProgressionLiegePolicy.accepts(data,p.getCanonicalRank(),rank,pledge.codeName(),npc.getFaction().codeName()))return no("This superior cannot receive service at your current standing.");
         if(KOMELiegeProgressionInteraction.ownsQuest(player,npc)){
-            if(p.getCanonicalRank()==KOMEProgressionRank.SERF){if(s.isTrialCompleted()&&LOTRLevelData.getData(player).getAlignment(pledge)<KOMESerfKnightService.REQUIRED_ALIGNMENT)return no("You need more faction alignment before receiving your standing.");return new KOMEProgressionEligibility(true,true,"");}
-            if(KOMELiegeProgressionInteraction.action(p,LOTRLevelData.getData(player).getAlignment(pledge),pledge.codeName())!=KOMELiegeProgressionInteraction.Action.UNAVAILABLE)return new KOMEProgressionEligibility(true,true,"");
+            if(p.getKnightService().qualifyingTypes(pledge.codeName()).size()>=3&&LOTRLevelData.getData(player).getAlignment(pledge)<2000)return no("Your service is complete. Reach 2000 faction alignment, then report to your Lord.");
+            return new KOMEProgressionEligibility(true,true,"");
         }
         if(KOMEProgressionOfferBridge.canRequestLiegeOfferFrom(player,npc))return new KOMEProgressionEligibility(true,true,"");
         if(s.isLockedOut(KOMESerfKnightService.calendarDayNow()))return no("Your betrayal prevents new service today.");
-        if(s.hasLiege()&&!s.getLiege().hasSameIdentity(ref))return no("You already serve another Liege.");
-        if(p.getCanonicalRank()==KOMEProgressionRank.SERF){
-            if(!s.getSerfdomMaster().isSet())return no("You must first find a Master.");
-            if(!KOMESerfKnightService.allDutiesComplete(s))return no("Complete your Master's duties first.");
-            if(s.hasActiveAssignment())return no("You must first complete your current trial.");
-            if(!KOMESerfKnightService.mayIssueTrial(s,KOMESerfKnightService.calendarDayNow(),player.getUniqueID()))return no("You have already attempted a trial today.");
-        }
-        int needed=p.getCanonicalRank()==KOMEProgressionRank.KNIGHT?KOMELordshipTrialService.REQUIRED_ALIGNMENT:KOMEStandingTrialEligibility.requiredAlignment(pledge.codeName());
-        if(LOTRLevelData.getData(player).getAlignment(pledge)<needed)return no("You need more faction alignment.");
-        if(p.getKnightService().assignment()!=null)return no("You must first complete your current commission.");
-        if(npc instanceof lotr.common.entity.npc.LOTRUnitTradeable&&!((lotr.common.entity.npc.LOTRUnitTradeable)npc).canTradeWith(player))return no("This lord will not hear your petition yet.");
-        return no("No progression quest is available at your current standing.");
+        if(s.hasLiege())return no("You already serve another superior.");
+        if(p.getCanonicalRank()==KOMEProgressionRank.LORD)return no("Royal service belongs to the Crown at the capital; its leadership duties await redesign. The legacy Prince path remains in your book.");
+        if(p.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&!KOMEProgressionServiceLocation.regional(npc))return no("Seek a Lord or Prince based at a verified native regional seat. Wilderness nobles cannot receive new Knight service.");
+        if(npc instanceof lotr.common.entity.npc.LOTRUnitTradeable&&!((lotr.common.entity.npc.LOTRUnitTradeable)npc).canTradeWith(player))return no("Your native faction alignment does not meet this superior's requirement.");
+        return no("An earned recommendation grants reliable admission. Recover yours with /progression recommendation.");
     }
 }

@@ -37,10 +37,14 @@ public class KOMEProgressionHardeningFactionTest {
             java.lang.reflect.Field alignments=lotr.common.LOTRPlayerData.class.getDeclaredField("alignments");alignments.setAccessible(true);
             ((Map)alignments.get(lotr.common.LOTRLevelData.getData(f.s.f.player))).put(faction,2000F);
             f.s.p.getSerfKnightProgression().releaseLiegeAfterPromotion();
+            f.s.p.getServiceRecognition().earn(f.s.f.player.id,new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Former Master",faction.codeName(),0,0,65,0),KOMEProgressionRank.SERF,KOMEProgressionRank.KNIGHT,"Three reported duties",0);
             liege.posX=f.s.f.player.posX;liege.posY=65;liege.posZ=f.s.f.player.posZ;
             f.s.f.world.isRemote=false;
-            assertEquals(hasLiege,KOMEProgressionOfferBridge.canReplaceLiegeFrom(f.s.f.player,liege));
-            if(hasLiege){assertTrue(KOMESerfKnightRelationshipService.establishLiege(f.s.f.player,f.s.f.data,liege).success);assertTrue(KOMEKnightCommissionService.eligible(f.s.f.player,liege));}
+            assertTrue(KOMERecommendationService.deliver(f.s.f.player));
+            // Constructed nobles lack regional-seat provenance. Preserve commission coverage
+            // through the existing-relationship compatibility path, not new admission.
+            assertFalse(KOMEProgressionOfferBridge.canReplaceLiegeFrom(f.s.f.player,liege));
+            if(hasLiege){f.s.p.getSerfKnightProgression().setLiege(KOMEProgressionNpcRankService.referenceOf(liege));assertTrue(KOMEKnightCommissionService.eligible(f.s.f.player,liege));}
             f.s.f.world.isRemote=true;
             CoverageSpawns spawns=KOMEAccessFixture.allocate(CoverageSpawns.class);spawns.faction=faction;
             KOMECourierGeographyTest.TestBiome biome=KOMEAccessFixture.allocate(KOMECourierGeographyTest.TestBiome.class);biome.heightBaseParameter=.2F;biome.npcSpawnList=spawns;

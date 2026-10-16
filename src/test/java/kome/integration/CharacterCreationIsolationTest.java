@@ -364,6 +364,8 @@ public class CharacterCreationIsolationTest {
             } else if(relativePath.endsWith("KOMEProgressionEscortJourney.java")){
                 assertTrue(text.contains("LOTREntityNPC traveler"));assertTrue(text.contains("traveler.getEntityData()"));
                 assertFalse(text.contains("player.getEntityData"));assertTrue(text.contains("KOMEEscortAmbush"));
+            } else if(relativePath.endsWith("KOMEProgressionServiceLocation.java")){
+                assertTrue(text.contains("LOTREntityNPC npc"));assertTrue(text.contains("KOMERegionalSeat"));assertFalse(text.contains("player.getEntityData"));
             } else if (!relativePath.endsWith("KOMECourierRecipientSpawner.java") && !relativePath.endsWith("KOMECourierService.java") && !relativePath.endsWith("KOMEProgressionEncounterMarker.java") && !relativePath.endsWith("KOMEEmergencyDefenseEntityMarker.java") && !relativePath.endsWith("KOMESeasonResetDeployment.java"))
                 assertFalse(relativePath, Pattern.compile("\\bgetEntityData\\s*\\(").matcher(text).find());
             assertFalse(relativePath, text.contains("EntityPlayer.PERSISTED_NBT_TAG"));
@@ -435,6 +437,7 @@ public class CharacterCreationIsolationTest {
                 KOMEFactionTitleOptionsTransformer.class.getName(),
                 KOMEVisualLocationTransformer.class.getName(),
                 KOMEProgressionNpcDespawnTransformer.class.getName(),
+                kome.core.KOMEProgressionSeatTransformer.class.getName(),
                 kome.core.KOMEProgressionNativeInteractionTransformer.class.getName(),
                 kome.core.KOMEProgressionBanditTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),

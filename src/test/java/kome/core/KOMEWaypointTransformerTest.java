@@ -39,6 +39,7 @@ public class KOMEWaypointTransformerTest {
                 KOMEFactionTitleOptionsTransformer.class.getName(),
                 KOMEVisualLocationTransformer.class.getName(),
                 KOMEProgressionNpcDespawnTransformer.class.getName(),
+                KOMEProgressionSeatTransformer.class.getName(),
                 KOMEProgressionNativeInteractionTransformer.class.getName(),
                 KOMEProgressionBanditTransformer.class.getName(),
                 com.enovak.lotrmoremobs.coremod.MortalGandalfTransformer.class.getName(),

@@ -25,6 +25,7 @@ public final class KOMEProgressionEncounterCleanup {
         net.minecraft.nbt.NBTTagCompound data=(net.minecraft.nbt.NBTTagCompound)state.getTrialAssignment().data.copy();
         long previous=trial.data.hasKey("PreviousTrialDay",99)?trial.data.getLong("PreviousTrialDay"):-1L;
         data.setLong("PreviousTrialDay",previous);data.setBoolean("ActivationPending",true);
+        data.setInteger("ActivationFailures",trial.data.getInteger("ActivationFailures")+1);
         data.setLong("ActivationRetryAt",liveWorld==null?0:liveWorld.getTotalWorldTime()+100);
         state.updateTrialAssignment(trial.withStage(KOMESerfKnightTrialAssignment.Stage.ASSIGNED,data));
         state.setLastTrialAssignmentEpochDay(previous);
@@ -45,6 +46,15 @@ public final class KOMEProgressionEncounterCleanup {
         KOMESerfKnightTrialAssignment trial=state.getTrialAssignment();
         if(world==null||trial==null)return;
         state.updateTrialAssignment(trial.withStage(KOMESerfKnightTrialAssignment.Stage.FAILED,null));
+        if(state.ordinaryObjective()){
+            for(java.util.Map.Entry<UUID,KOMEPlayerProgression> row:world.progressions.entrySet())if(row.getValue().getSerfKnightProgression()==state){
+                KOMESerfKnightEscortService.cleanup(liveWorld,row.getKey(),trial);
+                KOMESerfKnightRecoveryService.cleanup(liveWorld,row.getKey(),trial);
+                KOMESerfKnightDefenseService.cleanup(liveWorld,row.getKey(),trial);
+                KOMEProgressionNpcRoles.syncPlayer(world,row.getKey());
+            }
+            world.markDirty();return;
+        }
         UUID failedOwner=null;
         for(java.util.Map.Entry<UUID,KOMEPlayerProgression> row:world.progressions.entrySet()) {
             if(row.getValue().getSerfKnightProgression()!=state)continue;

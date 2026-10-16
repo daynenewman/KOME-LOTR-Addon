@@ -31,7 +31,7 @@ public final class KOMESerfKnightRelationshipService {
     private static Result reject(String reason) { return new Result(false, reason); }
 
     public static boolean canEstablishLiege(KOMEPlayerProgression progression,long day) {
-        if(progression==null||progression.getCanonicalRank().order<KOMEProgressionRank.SERF.order)return false;
+        if(progression==null||progression.getCanonicalRank().order<KOMEProgressionRank.KNIGHT.order)return false;
         KOMESerfKnightProgression state=progression.getSerfKnightProgression();
         if(progression.getCanonicalRank()==KOMEProgressionRank.SERF&&!state.isTrialCompleted())return false;
         return !state.hasLiege()&&!state.isLockedOut(day);
@@ -51,7 +51,12 @@ public final class KOMESerfKnightRelationshipService {
                 ||!KOMEProgressionOfferBridge.canReplaceLiegeFrom(player,npc))
             return reject("That NPC is not eligible to become your Liege.");
         KOMEPlayerProgression progression=data.getProgression(player.getUniqueID());
-        progression.getSerfKnightProgression().setLiege(KOMEProgressionNpcRankService.referenceOf(npc));
+        if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT||progression.getCanonicalRank()==KOMEProgressionRank.LORD){
+            lotr.common.fac.LOTRFaction pledge=lotr.common.LOTRLevelData.getData(player).getPledgeFaction();
+            if(pledge!=null&&KOMERecommendationService.recoveryAdmission(progression,pledge.codeName()))progression.getSerfKnightProgression().setLiege(KOMEProgressionNpcRankService.referenceOf(npc));
+            else if(pledge==null||!KOMERecommendationService.redeem(progression,player.getUniqueID(),pledge.codeName(),KOMEProgressionNpcRankService.referenceOf(npc)))return reject("An earned recommendation is required. Use /progression recommendation to recover yours.");
+        }else progression.getSerfKnightProgression().setLiege(KOMEProgressionNpcRankService.referenceOf(npc));
+        KOMERecommendationService.keepsake(player);
         KOMEProgressionNpcRoles.syncPlayer(data,player.getUniqueID());
         data.markDirty();
         return ok();
@@ -76,6 +81,7 @@ public final class KOMESerfKnightRelationshipService {
             for (KOMESerfKnightDutyType duty : KOMESerfKnightDutyType.values()) {
                 state.assignDuty(duty, null);
                 state.completeDuty(duty);
+                state.getDuty(duty).adminForced=true;
             }
             state.setLiege(target);
         }

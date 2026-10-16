@@ -48,3 +48,18 @@ The October 13 [implementation report](../PROGRESSION_CLEANUP_PASS1_REPORT.txt) 
 ## Progression Pass 2 integration
 
 The [Pass 2 report](../PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt) supersedes the preceding resolver dependency: dev `6d1669a` is merged locally at `8aea11b`. Ordinary battle resolution, ConflictData 3, recovery WAL 1 and Campaign health 1 are retained. Rank eligibility is derived through `KOMEProgressionPermissionRegistry.Ability` and `KOMEProgressionAbilityPolicy`; domain services retain final authority. New battle entry requires Knight, new Build submissions Serf, and new company ownership/delegation Lord. Existing command and conflict maintenance remain available after rank correction. The native Rank page shows current/next privileges through the fenced g9 projection. Return travel uses only the exact applied character-creation starting waypoint. Warrants, personal troop ceilings, fiefs and specialist rewards remain deferred. Automated validation is distinct from outstanding live acceptance.
+
+## Progression Pass 3 service and promotion
+
+The [Pass 3 report](../PROGRESSION_PASS3_SERVICE_PROMOTION_REPORT.txt) and
+[progression route](systems/progression/README.md) describe committed pledge-to-Serf,
+three ordinary Master duties earning Knight and three regional Liege commissions
+earning Lord directly from the current superior. Recommendations authorize the
+next relationship through saved provenance; promotion is already earned. New
+regional admission uses native generation/home evidence, with unproven old
+placements failing closed and existing accepted relationships preserved. Trials
+are retired with idempotent cleanup; reusable objectives remain. NPC Crown/capital
+integration is established for future royal service, while Lord-to-Prince's legacy
+path remains available. Matching artifacts use `1.0.10-service-g10`. Pass 2 abilities,
+military authority, population and strategic cadence remain intact. Native world,
+client GUI and multiplayer acceptance are still pending.

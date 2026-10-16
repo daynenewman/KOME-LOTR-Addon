@@ -19,7 +19,7 @@ public class KOMESerfKnightCadenceTest {
     }
     private static void completeDuties(KOMESerfKnightProgression state) {
         long day = 10L;
-        for (KOMESerfKnightDutyType type : KOMESerfKnightDutyType.values()) {
+        for (KOMESerfKnightDutyType type : new KOMESerfKnightDutyType[]{KOMESerfKnightDutyType.PROVISIONING,KOMESerfKnightDutyType.PROFESSION,KOMESerfKnightDutyType.COURIER}) {
             assertTrue(KOMESerfKnightService.assignDuty(state, type, null, day++).success);
             assertTrue(KOMESerfKnightService.completeDuty(state, type).success);
         }
@@ -69,8 +69,8 @@ public class KOMESerfKnightCadenceTest {
         assertEquals(10L, state.getLastAssignmentEpochDay());
         assertTrue(KOMESerfKnightService.completeDuty(state, KOMESerfKnightDutyType.PROVISIONING).success);
         assertNotEquals(KOMESerfKnightDutyType.PROVISIONING, KOMESerfKnightService.chooseAvailableDuty(state,new Random(1)));
-        assertFalse(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROFESSION, null, 10L).success);
-        assertTrue(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROFESSION, null, 11L).success);
+        assertTrue(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROFESSION, null, 10L).success);
+        assertFalse(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.PROFESSION, null, 11L).success);
         assertTrue(KOMESerfKnightService.completeDuty(state, KOMESerfKnightDutyType.PROFESSION).success);
         assertTrue(KOMESerfKnightService.assignDuty(state, KOMESerfKnightDutyType.COURIER, null, 20L).success);
         assertEquals(20L, state.getLastAssignmentEpochDay());
@@ -87,7 +87,7 @@ public class KOMESerfKnightCadenceTest {
     @Test public void finalDutyAndTrialMayShareADayButTrialRetryStillWaits() {
         KOMESerfKnightProgression state = new KOMESerfKnightProgression(); master(state);
         long day=18L;
-        for (KOMESerfKnightDutyType type : KOMESerfKnightDutyType.values()) {
+        for (KOMESerfKnightDutyType type : new KOMESerfKnightDutyType[]{KOMESerfKnightDutyType.PROVISIONING,KOMESerfKnightDutyType.PROFESSION,KOMESerfKnightDutyType.COURIER}) {
             assertTrue(KOMESerfKnightService.assignDuty(state, type, null, day).success);
             assertTrue(KOMESerfKnightService.completeDuty(state, type).success);
             day++;
@@ -144,7 +144,7 @@ public class KOMESerfKnightCadenceTest {
         assertTrue(KOMESerfKnightService.assignDuty(normal, KOMESerfKnightDutyType.PROVISIONING, null, 20L).success);
         assertTrue(KOMESerfKnightService.handleNpcDeath(normal, normalMaster.entityUuid, false, 20L));
         assertTrue(KOMESerfKnightService.canSelectReplacement(normal, 20L));
-        assertFalse(KOMESerfKnightService.mayIssueAssignment(normal, 20L));
+        assertTrue(KOMESerfKnightService.mayIssueAssignment(normal, 20L));
     }
 
     @Test public void oldAndCorruptCadenceNbtLoadsSafelyAndMultipleActiveDutiesReconcileInOrder() {

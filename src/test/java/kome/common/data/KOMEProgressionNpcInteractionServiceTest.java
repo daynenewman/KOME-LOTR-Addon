@@ -55,7 +55,7 @@ public class KOMEProgressionNpcInteractionServiceTest {
             "KOMESerfKnightEscortService.activate"));
 
         assertTrue(source.contains(
-            "KOMESerfdomMasterService.conferKnighthood"));
+            "KOMEServicePromotionService.report"));
 
         assertFalse(source.contains(
             "sendMenu"));

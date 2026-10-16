@@ -21,12 +21,12 @@ public class KOMELordshipTrialIntegrationTest {
         f.s.f.world.loadedEntityList.removeIf(e->e instanceof KOMELordshipTrialFixture.TestGuard);
         for(int i=0;i<59;i++)KOMELordshipTrialService.tickPlayer(f.s.f.player);assertFalse(t.forceReleased);assertTrue(t.ready());
         KOMELordshipTrialService.tickPlayer(f.s.f.player);assertTrue(t.forceReleased);assertEquals(4,t.confirmedSurvivors());assertTrue(t.ready());
-        f.s.reload();assertTrue(KOMELordshipTrialService.promote(f.s.f.player,f.liege));
+        f.s.reload();assertTrue(KOMEServicePromotionService.report(f.s.f.player,f.lord));
     }}
     @Test public void reportDoesNotRequireSoldierReturnAndPromotionCleansOwnership()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         f.credits(3);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.READY_TO_REPORT);
         for(Actor a:t.objective.actors){LOTREntityNPC n=(LOTREntityNPC)KOMEKnightCommissionService.findLoaded(f.s.f.world,a.id);n.posX+=200;}
-        assertTrue(KOMELordshipTrialService.promote(f.s.f.player,f.liege));assertEquals(KOMEProgressionRank.LORD,f.s.p.getCanonicalRank());
+        assertTrue(KOMEServicePromotionService.report(f.s.f.player,f.lord));assertEquals(KOMEProgressionRank.LORD,f.s.p.getCanonicalRank());
         for(int i=0;i<2;i++){LOTREntityNPC n=(LOTREntityNPC)KOMEKnightCommissionService.findLoaded(f.s.f.world,t.objective.actors.get(i).id);n.posX=f.liege.posX;}
         assertFalse("Promotion replay",KOMELordshipTrialService.promote(f.s.f.player,f.liege));
         for(Actor a:t.objective.actors){LOTREntityNPC n=(LOTREntityNPC)KOMEKnightCommissionService.findLoaded(f.s.f.world,a.id);assertTrue(n.isDead);assertFalse(n.hiredNPCInfo.isActive);assertFalse(KOMEProgressionNpcRoles.protects(f.s.f.data,n.getUniqueID()));}
@@ -40,14 +40,14 @@ public class KOMELordshipTrialIntegrationTest {
         KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.READY_TO_REPORT);for(int i=0;i<3;i++)f.kill((LOTREntityNPC)KOMEKnightCommissionService.findLoaded(f.s.f.world,t.objective.actors.get(i).id));
         assertEquals(Stage.READY_TO_REPORT,t.objective.stage);assertEquals("",t.failureReason);
     }}
-    @Test public void knightQuestPacketOpensSavedTrialThroughNativeTransport()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        f.credits(3);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.OFFERED);KOMEProgressionOfferBridge.registerQuestType();
-        KOMEProgressionOfferBridge.OfferSender old=KOMEProgressionOfferBridge.offerSender;List<NBTTagCompound> sent=new ArrayList<NBTTagCompound>();
-        try{KOMEProgressionOfferBridge.offerSender=(player,npc,tag)->sent.add(tag);
-            new kome.common.network.KOMEPacketRelationshipAction.Handler().onMessage(new kome.common.network.KOMEPacketRelationshipAction(f.liege.getEntityId(),kome.common.network.KOMEPacketRelationshipAction.LIEGE,kome.common.network.KOMEPacketRelationshipAction.SERVICE),f.s.f.context);
-            assertTrue("Trial starts without a second native acceptance",sent.isEmpty());assertEquals(Stage.ACTIVE,t.objective.stage);assertEquals(4,t.confirmedSurvivors());
-        }finally{KOMEProgressionOfferBridge.offerSender=old;}
-    }}
+    @Test public void knightQuestPacketOpensSavedTrialThroughNativeTransport()throws Exception {
+        try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
+            f.credits(2);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.OFFERED);t.ordinaryService=true;
+            t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();
+            new kome.common.network.KOMEPacketRelationshipAction.Handler().onMessage(new kome.common.network.KOMEPacketRelationshipAction(f.lord.getEntityId(),kome.common.network.KOMEPacketRelationshipAction.LIEGE,kome.common.network.KOMEPacketRelationshipAction.SERVICE),f.s.f.context);
+            assertEquals(Stage.ACTIVE,t.objective.stage);assertEquals(4,t.confirmedSurvivors());assertTrue(f.s.f.data.hiredUnits.isEmpty());
+        }
+    }
     @Test public void staleOfferTokenCannotAcceptOrPromoteCurrentTrial()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         f.credits(3);KOMELordshipTrial old=f.trial(BORDER_PATROL,Stage.OFFERED);KOMELiegeOfferQuest shell=KOMELiegeOfferQuest.createLordship(lotr.common.LOTRLevelData.getData(f.s.f.player),f.liege,1,old);
         old.objective.stage=Stage.FAILED;f.s.p.getLordship().archive();KOMELordshipTrial current=f.trial(RELIEF_FORCE,Stage.OFFERED);
@@ -58,10 +58,16 @@ public class KOMELordshipTrialIntegrationTest {
         f.credits(3);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.OFFERED);f.alignment(1999);
         assertFalse(KOMELordshipTrialService.acceptOrReport(f.s.f.player,f.liege));assertEquals(Stage.OFFERED,t.objective.stage);assertTrue(t.objective.actors.isEmpty());
     }}
-    @Test public void previewSurvivesReloadAndReopeningWithoutChangingForceOrDestination()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        f.credits(3);KOMELordshipTrial t=f.trial(PROTECTED_EXPEDITION,Stage.OFFERED);NBTTagCompound before=t.writeToNBT();f.s.reload();
-        assertEquals(before,KOMELordshipTrialService.prepare(f.s.f.player,f.liege).writeToNBT());KOMEProgressionOfferBridge.prepareStandingTrialInteraction(f.s.f.player,f.liege);assertEquals(before,f.s.p.getLordship().assignment().writeToNBT());
-    }}
+    @Test public void previewSurvivesReloadAndReopeningWithoutChangingForceOrDestination()throws Exception {
+        try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
+            KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.OFFERED);t.ordinaryService=true;
+            assertSame(t,KOMELordshipTrialService.prepare(f.s.f.player,f.lord));
+            String token=t.objective.token;double x=t.objective.x,z=t.objective.z;f.s.reload();
+            KOMELordshipTrial loaded=KOMELordshipTrialService.prepare(f.s.f.player,f.lord);
+            assertEquals(token,loaded.objective.token);assertEquals(x,loaded.objective.x,0);assertEquals(z,loaded.objective.z,0);
+            assertEquals(4,loaded.guardClasses.size());assertTrue(loaded.ordinaryService);
+        }
+    }
     @Test public void forgedMarkerCannotExemptAnUnboundOrdinaryHire()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.ACTIVE);LOTREntityNPC npc=f.guard();npc.hiredNPCInfo.isActive=true;npc.hiredNPCInfo.setHiringPlayer(f.s.f.player);
         KOMEProgressionEncounterMarker.mark(npc,KOMELordshipTrialService.MARKER,f.s.f.player.id,t.objective.token);
@@ -73,20 +79,21 @@ public class KOMELordshipTrialIntegrationTest {
         assertTrue(KOMELordshipTrialService.interactFollower(f.s.f.player,guard));assertTrue(guard.hiredNPCInfo.isHalted());assertFalse(KOMEHaltedUnitProtection.isProtected(guard));
         assertTrue(KOMELordshipTrialService.interactFollower(f.s.f.player,guard));assertFalse(guard.hiredNPCInfo.isHalted());assertTrue(f.s.f.data.hiredUnits.isEmpty());
     }}
-    @Test public void nativeQuestAcceptsFourGuardsAndRepeatedInterfaceDoesNotReroll()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        f.credits(3);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.OFFERED);
-        assertTrue(KOMEProgressionOfferBridge.prepareStandingTrialInteraction(f.s.f.player,f.liege));
-        assertNull(f.liege.questInfo.getOfferFor(f.s.f.player));
-        assertEquals(Stage.OFFERED,t.objective.stage);
-        KOMEProgressionOfferBridge.prepareStandingTrialInteraction(f.s.f.player,f.liege);assertSame(t,KOMELordshipTrialService.prepare(f.s.f.player,f.liege));
-        assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.liege));assertEquals(Stage.ACTIVE,t.objective.stage);assertEquals(4,t.confirmedSurvivors());
-        assertTrue(f.s.f.data.hiredUnits.isEmpty());f.s.reload();assertEquals(t.objective.token,f.s.p.getLordship().assignment().objective.token);
-    }}
+    @Test public void nativeQuestAcceptsFourGuardsAndRepeatedInterfaceDoesNotReroll()throws Exception {
+        try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
+            f.credits(2);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.OFFERED);t.ordinaryService=true;
+            t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();
+            assertTrue(KOMEProgressionOfferBridge.prepareStandingTrialInteraction(f.s.f.player,f.lord));
+            assertNull(f.lord.questInfo.getOfferFor(f.s.f.player));assertSame(t,KOMELordshipTrialService.prepare(f.s.f.player,f.lord));
+            assertTrue(KOMELiegeProgressionInteraction.quest(f.s.f.player,f.lord));assertEquals(Stage.ACTIVE,t.objective.stage);assertEquals(4,t.confirmedSurvivors());
+            assertTrue(f.s.f.data.hiredUnits.isEmpty());f.s.reload();assertEquals(t.objective.token,f.s.p.getLordship().assignment().objective.token);
+        }
+    }
     @Test public void fieldTrialNeverAutoPromotesAndLowLiveStandingPreventsReport()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         f.credits(3);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.READY_TO_REPORT);f.alignment(1999);f.s.p.grant("knight.alignment_2000");
         KOMELordshipTrialService.tickPlayer(f.s.f.player);assertEquals(KOMEProgressionRank.KNIGHT,f.s.p.getCanonicalRank());
         assertFalse(KOMELordshipTrialService.promote(f.s.f.player,f.liege));assertTrue(t.ready());f.alignment(2000);
-        KOMEProgressionOfferBridge.prepareStandingTrialInteraction(f.s.f.player,f.liege);KOMELiegeProgressionInteraction.quest(f.s.f.player,f.liege);
+        KOMEProgressionOfferBridge.prepareStandingTrialInteraction(f.s.f.player,f.liege);KOMELiegeProgressionInteraction.quest(f.s.f.player,f.lord);
         assertEquals(KOMEProgressionRank.LORD,f.s.p.getCanonicalRank());String liege=f.s.p.getSerfKnightProgression().getLiege().entityUuid;
         f.s.reload();assertEquals(KOMEProgressionRank.LORD,f.s.p.getCanonicalRank());assertEquals(liege,f.s.p.getSerfKnightProgression().getLiege().entityUuid);
     }}
@@ -98,9 +105,31 @@ public class KOMELordshipTrialIntegrationTest {
         assertEquals(KOMEProgressionRank.KNIGHT,f.s.p.getCanonicalRank());assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));
     }}
     @Test public void completedTrialStillRequiresThreeServiceCredits()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(2);f.trial(BORDER_PATROL,Stage.READY_TO_REPORT);assertFalse(KOMELordshipTrialService.promote(f.s.f.player,f.liege));}}
-    @Test public void failureMustBeAccountedForThenRetryIsImmediatelyRecoverable()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.ACTIVE);f.force(t);KOMELordshipTrialService.cancel(f.s.f.world,f.s.f.player.id,f.s.p);assertTrue(KOMELordshipTrialService.acceptOrReport(f.s.f.player,f.liege));assertNull(f.s.p.getLordship().assignment());assertTrue(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));assertEquals(3,f.s.p.getKnightService().completedTypes().size());}}
-    @Test public void loadedInvalidLiegeCancelsActiveTrialAndReplacementCanRetry()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.ACTIVE);f.force(t);f.lord.setDead();assertTrue(KOMEProgressionRelationshipLifecycle.reconcileLoadedRelationships(f.s.f.data,f.s.f.player));assertEquals(Stage.FAILED,t.objective.stage);assertFalse(f.s.p.getSerfKnightProgression().hasLiege());LOTREntityNPC replacement=KOMEKnightCommissionInteractionTest.captain(f.s);f.s.f.data.progressionNpcRanks.put(replacement.getUniqueID(),new KOMEProgressionNpcRankRecord(replacement.getUniqueID(),"rohan",KOMEProgressionNpcRank.PRINCE,replacement.getNPCName()));assertTrue(KOMELordshipTrialService.acceptOrReport(f.s.f.player,replacement));assertTrue(KOMELordshipTrialService.eligible(f.s.f.player,replacement));}}
-    @Test public void completedFieldEvidenceSurvivesLiegeDeathAndReplacementReport()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);KOMELordshipTrial t=f.trial(RELIEF_FORCE,Stage.READY_TO_REPORT);f.lord.setDead();KOMEProgressionRelationshipLifecycle.reconcileLoadedRelationships(f.s.f.data,f.s.f.player);assertTrue(t.ready());assertFalse(f.s.p.getSerfKnightProgression().hasLiege());f.s.reload();LOTREntityNPC replacement=KOMEKnightCommissionInteractionTest.captain(f.s);f.s.f.data.progressionNpcRanks.put(replacement.getUniqueID(),new KOMEProgressionNpcRankRecord(replacement.getUniqueID(),"rohan",KOMEProgressionNpcRank.PRINCE,replacement.getNPCName()));assertTrue(KOMELordshipTrialService.promote(f.s.f.player,replacement));assertEquals(KOMEProgressionRank.LORD,f.s.p.getCanonicalRank());}}
+    @Test public void failureMustBeAccountedForThenRetryIsImmediatelyRecoverable()throws Exception {
+        try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
+            f.credits(2);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.FAILED);t.ordinaryService=true;
+            assertTrue(KOMELordshipTrialService.acceptOrReport(f.s.f.player,f.lord));assertNull(f.s.p.getLordship().assignment());
+            assertEquals(2,f.s.p.getKnightService().qualifyingTypes("rohan").size());assertEquals(KOMEProgressionRank.KNIGHT,f.s.p.getCanonicalRank());
+            assertTrue(KOMEKnightCommissionService.eligible(f.s.f.player,f.lord));assertEquals(Stage.FAILED,f.s.p.getLordship().history().get(0).objective.stage);
+        }
+    }
+    @Test public void loadedInvalidLiegeCancelsActiveTrialAndReplacementCanRetry()throws Exception {
+        try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
+            f.credits(2);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.ACTIVE);f.force(t);
+            f.lord.hiredNPCInfo.isActive=true;assertTrue(KOMEProgressionRelationshipLifecycle.reconcileLoadedRelationships(f.s.f.data,f.s.f.player));
+            assertFalse(f.s.p.getSerfKnightProgression().hasLiege());assertEquals(2,f.s.p.getKnightService().qualifyingTypes("rohan").size());
+            assertTrue(KOMERecommendationService.recoveryAdmission(f.s.p,"ROHAN"));assertEquals(KOMEProgressionRank.KNIGHT,f.s.p.getCanonicalRank());
+        }
+    }
+    @Test public void completedFieldEvidenceSurvivesLiegeDeathAndReplacementReport()throws Exception {
+        try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
+            f.credits(3);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.READY_TO_REPORT);
+            assertTrue(KOMEServicePromotionService.migrate(f.s.f.player));assertTrue(t.retired);assertTrue(t.ready());
+            f.s.reload();assertTrue(f.s.p.getLordship().history().get(0).retired);
+            assertEquals(3,f.s.p.getKnightService().qualifyingTypes("rohan").size());
+            assertTrue(KOMEServicePromotionService.report(f.s.f.player,f.lord));assertEquals(KOMEProgressionRank.LORD,f.s.p.getCanonicalRank());
+        }
+    }
     @Test public void lostLiegeDeathEventPreservesReadyEvidence()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.READY_TO_REPORT);KOMELordshipTrialService.npcDeath(f.s.f.data,f.s.f.world,f.liege.getUniqueID().toString());assertTrue(t.ready());}}
     @Test public void changedPledgeCannotUseOldTrialEvidence()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.trial(BORDER_PATROL,Stage.READY_TO_REPORT);f.s.f.pledge(lotr.common.fac.LOTRFaction.GONDOR);KOMELordshipTrialService.tickPlayer(f.s.f.player);assertNull(f.s.p.getLordship().assignment());assertEquals(Stage.FAILED,f.s.p.getLordship().history().get(0).objective.stage);}}
     @Test public void beneficiaryDeathFailsReliefAndExpedition()throws Exception {for(KOMELordshipTrial.Scenario scenario:new KOMELordshipTrial.Scenario[]{RELIEF_FORCE,PROTECTED_EXPEDITION})try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){KOMELordshipTrial t=f.trial(scenario,Stage.ACTIVE);f.force(t);f.kill(f.actor(t,scenario==PROTECTED_EXPEDITION?Role.CHARGE:Role.BENEFICIARY));assertEquals(Stage.FAILED,t.objective.stage);assertEquals("beneficiary",t.failureReason);}}
@@ -111,6 +140,6 @@ public class KOMELordshipTrialIntegrationTest {
     @Test public void orphanAfterCancellationIsDismissedOnNaturalReload()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.ACTIVE);LOTREntityNPC guard=f.actor(t,Role.GUARD);f.s.f.world.loadedEntityList.removeIf(e->e==guard);KOMELordshipTrialService.cancel(f.s.f.world,f.s.f.player.id,f.s.p);f.s.reload();KOMELordshipTrialService.reconcileNpc(f.s.f.data,guard);assertTrue(guard.isDead);assertFalse(guard.hiredNPCInfo.isActive);}}
     @Test public void guardFollowerOwnershipIsRestoredWithoutOrdinaryArmyRecord()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.ACTIVE);LOTREntityNPC guard=f.actor(t,Role.GUARD);guard.hiredNPCInfo.dismissUnit(false);KOMELordshipTrialService.reconcileNpc(f.s.f.data,guard);assertTrue(KOMELordshipTrialService.temporaryFollower(f.s.f.data,guard));assertTrue(f.s.f.data.hiredUnits.isEmpty());}}
     @Test public void guardWaitDoesNotGrantHaltedInvulnerability()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.ACTIVE);LOTREntityNPC guard=f.actor(t,Role.GUARD);guard.hiredNPCInfo.halt();assertFalse(KOMEHaltedUnitProtection.isProtected(guard));assertTrue(KOMELordshipTrialService.interactFollower(f.s.f.player,guard));}}
-    @Test public void rankBookHudAndMarkersShowActualRulesWithoutTokens()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.ACTIVE);KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(f.s.p,1999,"rohan");assertEquals("Service to your Liege",summary.requirements.get(0).label);assertTrue(summary.requirements.get(0).complete);assertFalse(summary.requirements.get(1).complete);assertEquals("Trial of Lordship",summary.requirements.get(2).label);assertFalse(summary.activityObjective.contains(t.objective.token));assertFalse(KOMEProgressionSummary.text(f.s.p,"Rohan","rohan").contains(t.objective.token));assertTrue(KOMEProgressionTrackerSnapshot.project(f.s.f.player,f.s.p).visible);assertTrue(KOMEVisualLocationService.markersFor(f.s.p).stream().anyMatch(m->m.role==KOMEVisualMarker.Role.COMMISSION));t.objective.stage=Stage.READY_TO_REPORT;assertEquals(0,KOMEProgressionTrackerSnapshot.project(f.s.f.player,f.s.p).completion,0);assertEquals("",KOMEProgressionTrackerSnapshot.project(f.s.f.player,f.s.p).progress);assertFalse(KOMEVisualLocationService.markersFor(f.s.p).stream().anyMatch(m->m.role==KOMEVisualMarker.Role.COMMISSION));}}
+    @Test public void rankBookHudAndMarkersShowActualRulesWithoutTokens()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){f.credits(3);KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.ACTIVE);KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(f.s.p,1999,"rohan");assertEquals("Reported commissions",summary.requirements.get(0).label);assertTrue(summary.requirements.get(0).complete);assertFalse(summary.requirements.get(1).complete);assertEquals(2,summary.requirements.size());assertFalse(summary.activityObjective.contains("Trial"));assertFalse(summary.activityObjective.contains(t.objective.token));assertFalse(KOMEProgressionSummary.text(f.s.p,"Rohan","rohan").contains(t.objective.token));assertTrue(KOMEProgressionTrackerSnapshot.project(f.s.f.player,f.s.p).visible);assertTrue(KOMEVisualLocationService.markersFor(f.s.p).stream().anyMatch(m->m.role==KOMEVisualMarker.Role.COMMISSION));t.objective.stage=Stage.READY_TO_REPORT;assertEquals(0,KOMEProgressionTrackerSnapshot.project(f.s.f.player,f.s.p).completion,0);assertEquals("",KOMEProgressionTrackerSnapshot.project(f.s.f.player,f.s.p).progress);assertFalse(KOMEVisualLocationService.markersFor(f.s.p).stream().anyMatch(m->m.role==KOMEVisualMarker.Role.COMMISSION));}}
     @Test public void nativeLordshipShellRoundTripsTokenAndZeroRewards()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){KOMELordshipTrial t=f.trial(BORDER_PATROL,Stage.OFFERED);KOMEProgressionOfferBridge.registerQuestType();KOMELiegeOfferQuest shell=KOMELiegeOfferQuest.createLordship(lotr.common.LOTRLevelData.getData(f.s.f.player),f.liege,4,t);NBTTagCompound n=new NBTTagCompound();shell.writeToNBT(n);KOMELiegeOfferQuest loaded=new KOMELiegeOfferQuest(lotr.common.LOTRLevelData.getData(f.s.f.player));loaded.readFromNBT(n);assertTrue(loaded.isLordshipOffer());assertEquals(t.objective.token,loaded.commissionToken());assertEquals(0,loaded.getCoinBonus());assertEquals(0,loaded.getAlignmentBonus(),0);}}
 }

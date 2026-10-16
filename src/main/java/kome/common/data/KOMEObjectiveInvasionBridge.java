@@ -29,7 +29,7 @@ public final class KOMEObjectiveInvasionBridge {
         if(!a.encounterCreated){
             if(player.worldObj.getTotalWorldTime()<a.activationRetryAt||!a.atSite(player.dimension,player.posX,player.posZ,40)
                     ||!KOMEKnightCommissionService.loadedAround(player.worldObj,a.x,a.z))return;
-            if(!activate(player,t)){retry(player,t,"The invasion could not be prepared safely. Return to your Prince for reassignment, or try approaching again.");return;}
+            if(!activate(player,t)){retry(player,t,"The invasion could not be prepared safely. Return to your Lord for reassignment, or try approaching again.");return;}
         }
         Entity entity=KOMEKnightCommissionService.findLoaded(player.worldObj,t.invasionId);
         if(entity instanceof LOTREntityInvasionSpawner&&!entity.isDead){
@@ -38,7 +38,7 @@ public final class KOMEObjectiveInvasionBridge {
             t.controllerMissingTicks=0;
         }else if(a.atSite(player.dimension,player.posX,player.posZ,96)&&KOMEKnightCommissionService.loadedAround(player.worldObj,a.x,a.z)){
             // Never recreate a lost controller with its old remaining counter: that could manufacture victory.
-            t.controllerMissingTicks+=20;if(t.controllerMissingTicks>=1200)retry(player,t,"The invasion controller is unavailable. Return to your Prince for reassignment.");
+            t.controllerMissingTicks+=20;if(t.controllerMissingTicks>=1200)retry(player,t,"The invasion controller is unavailable. Return to your Lord for reassignment.");
         }
         for(Actor actor:a.actors)if(!actor.dead){Entity npc=KOMEKnightCommissionService.findLoaded(player.worldObj,actor.id);if(npc!=null){actor.x=npc.posX;actor.y=npc.posY;actor.z=npc.posZ;}}
         data.markDirty();

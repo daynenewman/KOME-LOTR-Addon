@@ -58,7 +58,7 @@ public class KOMEProgressionFollowupTest {
         ItemStack latest(){ItemStack result=null;for(Object entity:f.world.loadedEntityList)if(entity instanceof EntityItem)result=((EntityItem)entity).getEntityItem();return result;}
         int drops(){int count=0;for(Object entity:f.world.loadedEntityList)if(entity instanceof EntityItem)count++;return count;}
         void ready()throws Exception {
-            for(KOMESerfKnightDutyType duty:KOMESerfKnightDutyType.values()){state.assignDuty(duty,null);state.completeDuty(duty);}
+            for(KOMESerfKnightDutyType duty:new KOMESerfKnightDutyType[]{KOMESerfKnightDutyType.PROVISIONING,KOMESerfKnightDutyType.PROFESSION,KOMESerfKnightDutyType.COURIER}){state.assignDuty(duty,null);state.completeDuty(duty);}
             KOMEProgressionNpcRef liege=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Liege","rohan",0,20,64,30);
             assertTrue(KOMESerfKnightService.acceptStandingTrial(state,liege,KOMEProgressionNpcRank.LORD,true,new Random(4),10,f.player.id).success);
             assertTrue(KOMESerfKnightService.markTrialObjectiveComplete(state).success);
@@ -141,7 +141,7 @@ public class KOMEProgressionFollowupTest {
             s.state.readFromNBT(s.state.writeToNBT());assertTrue(s.active().confirmedRecipientDeath);assertEquals("Eadric",s.active().recipient.displayName);
             assertTrue(KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).objective.contains("Return to your Master"));
             s.f.player.inventory.mainInventory[0]=book;s.f.world.testWorldTime=s.active().nextReplacementWorldTime;
-            assertTrue(s.interact());assertTrue(s.state.getDuty(KOMESerfKnightDutyType.COURIER).isCompleted());assertNull(s.f.player.inventory.mainInventory[0]);assertEquals(1,s.drops());
+            assertTrue(s.interact());assertFalse(s.state.getDuty(KOMESerfKnightDutyType.COURIER).isCompleted());assertFalse(s.state.hasActiveAssignment());assertNull(s.f.player.inventory.mainInventory[0]);assertEquals(1,s.drops());
             assertFalse(KOMECourierService.reportToMaster(s.f.player,s.f.data,s.p));
         }
     }
@@ -175,11 +175,11 @@ public class KOMEProgressionFollowupTest {
             s.ready();Arrays.fill(s.f.player.inventory.mainInventory,new ItemStack(Items.bread));
             ItemStack pending=KOMEPartingGiftService.pending(s.state,new Random(5));assertNotNull(pending);assertFalse(s.state.hasPartingGift());
             s.state.readFromNBT(s.state.writeToNBT());assertTrue(ItemStack.areItemStacksEqual(pending,s.state.getPendingPartingGift()));
-            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.liege()).success);
-            assertEquals(0,s.drops());assertTrue(KOMEProgressionNpcInteractionService.interact(s.f.player,s.f.data,s.master));
+            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);
+            assertEquals(1,s.drops());assertFalse(KOMEProgressionNpcInteractionService.interact(s.f.player,s.f.data,s.master));
             assertTrue(ItemStack.areItemStacksEqual(pending,s.latest()));assertEquals(Items.bread,s.f.player.inventory.mainInventory[4].getItem());assertEquals(1,s.drops());assertEquals(1,s.f.world.playedSounds.size());assertTrue(s.state.hasPartingGift());assertEquals(KOMEProgressionRank.KNIGHT,s.p.getCanonicalRank());
-            assertFalse(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);assertNull(KOMEPartingGiftService.pending(s.state,new Random(5)));
-            s.state.readFromNBT(s.state.writeToNBT());assertTrue(s.state.hasPartingGift());
+            assertFalse(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);assertFalse(KOMEPartingGiftService.drop(s.f.player,s.f.data,s.master));assertNull(s.state.getPendingPartingGift());
+            s.p.readFromNBT(s.p.writeToNBT());assertTrue(s.state.hasPartingGift());
         }
     }
     @Test public void giftAndMedallionHaveIndependentOwnersAcrossReloadAndClaim()throws Exception {
@@ -188,7 +188,7 @@ public class KOMEProgressionFollowupTest {
             List<KOMEVisualMarker> markers=KOMEVisualLocationService.markersFor(s.p);assertEquals(2,markers.size());assertEquals(liege,markers.get(0).entityUuid);assertEquals(KOMEVisualMarker.Role.MASTER_GIFT,markers.get(1).role);assertEquals(master,markers.get(1).entityUuid);
             KOMEPlayerProgression reload=new KOMEPlayerProgression();reload.readFromNBT(s.p.writeToNBT());assertEquals(KOMEVisualLocationService.signature(markers),KOMEVisualLocationService.signature(KOMEVisualLocationService.markersFor(reload)));
             ByteBuf buffer=Unpooled.buffer();new KOMEPacketVisualMarkers(markers).toBytes(buffer);KOMEPacketVisualMarkers decoded=new KOMEPacketVisualMarkers();decoded.fromBytes(buffer);assertEquals(0,buffer.readableBytes());assertEquals(KOMEVisualMarker.Role.MASTER_GIFT,decoded.markers.get(1).role);
-            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.liege()).success);assertEquals(0,s.drops());assertTrue(KOMEProgressionNpcInteractionService.interact(s.f.player,s.f.data,s.master));assertEquals(1,s.drops());assertTrue(s.state.hasPartingGift());markers=KOMEVisualLocationService.markersFor(s.p);assertEquals(1,markers.size());assertEquals(liege,markers.get(0).entityUuid);
+            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);assertEquals(1,s.drops());assertFalse(KOMEProgressionNpcInteractionService.interact(s.f.player,s.f.data,s.master));assertEquals(1,s.drops());assertTrue(s.state.hasPartingGift());markers=KOMEVisualLocationService.markersFor(s.p);assertTrue(markers.isEmpty());assertFalse(s.state.hasLiege());
             KOMESerfKnightService.leaveLiege(s.p);assertTrue(KOMEVisualLocationService.markersFor(s.p).isEmpty());
         }
     }

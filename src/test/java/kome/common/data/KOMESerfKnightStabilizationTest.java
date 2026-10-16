@@ -28,10 +28,10 @@ public class KOMESerfKnightStabilizationTest {
             assertTrue(KOMESerfKnightService.markTrialObjectiveComplete(s.state).success);
             assertTrue(KOMESerfKnightService.handleNpcDeath(s.state,captain.getUniqueID().toString(),false,11));
             reload(s);assertFalse(s.state.hasLiege());assertTrue(s.state.isTrialCompleted());
-            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.liege()).success);
+            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);
             assertEquals(KOMEProgressionRank.KNIGHT,s.p.getCanonicalRank());
-            assertEquals(0,s.drops());assertTrue(KOMEProgressionNpcInteractionService.interact(s.f.player,s.f.data,s.master));
-            assertTrue(s.latest().getItem() instanceof lotr.common.item.LOTRItemPouch);assertEquals(1,s.drops());assertNull(s.f.player.inventory.mainInventory[0]);
+            assertEquals(1,s.drops());assertFalse(KOMEProgressionNpcInteractionService.interact(s.f.player,s.f.data,s.master));
+            assertTrue(s.latest().getItem() instanceof lotr.common.item.LOTRItemPouch);assertEquals(1,s.drops());assertSame(net.minecraft.init.Items.written_book,s.f.player.inventory.mainInventory[0].getItem());
             assertFalse(s.state.getSerfdomMaster().isSet());assertTrue(s.state.getFormerMaster().hasSameIdentity(master));
             KOMEPlayerProgression restored=new KOMEPlayerProgression();restored.readFromNBT(s.p.writeToNBT());
             assertEquals(master.entityUuid,restored.getSerfKnightProgression().getFormerMaster().entityUuid);
@@ -53,8 +53,8 @@ public class KOMESerfKnightStabilizationTest {
             KOMEProgressionFixesTest.Worker replacement=KOMEAccessFixture.allocate(KOMEProgressionFixesTest.Worker.class);
             replacement.worldObj=s.f.world;replacement.setUniqueID(UUID.randomUUID());
             replacement.posX=s.master.posX;replacement.posY=64;replacement.posZ=s.master.posZ;s.f.world.loadedEntityList.add(replacement);
-            assertTrue(KOMESerfdomMasterService.serve(s.f.player,s.f.data,replacement).success);
-            assertFalse(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,replacement).success);assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.liege()).success);
+            KOMEProgressionServiceLocationTest.territory(s.f);assertTrue(KOMESerfdomMasterService.serve(s.f.player,s.f.data,replacement).success);
+            assertFalse(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,replacement).success);
             assertEquals(KOMEProgressionRank.KNIGHT,s.p.getCanonicalRank());
             assertEquals(replacement.getUniqueID().toString(),s.state.getFormerMaster().entityUuid);
         }
@@ -64,32 +64,26 @@ public class KOMESerfKnightStabilizationTest {
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()) {
             s.ready();assertTrue(KOMESerfKnightService.leaveLiege(s.p).success);
             reload(s);assertTrue(s.state.isTrialCompleted());assertFalse(s.state.hasLiege());
-            assertFalse(KOMESerfdomMasterService.conferKnighthood(s.f.data,s.f.player.id,s.state.getSerfdomMaster(),"rohan",150).success);assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.liege()).success);
+            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.data,s.f.player.id,s.state.getSerfdomMaster(),"rohan",150).success);assertFalse(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);
         }
     }
 
-    @Test public void incompleteLiegeDeathClearsOldTrialAndAcceptsReplacement()throws Exception {
+    @Test public void incompleteLegacyTrialRetiresAndMasterConfersWithoutReplacementLiege()throws Exception {
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()) {
-            duties(s.state);TrialCaptain old=captain(s);
-            assertTrue(KOMESerfKnightService.acceptStandingTrial(s.state,s.f.data,old,new Random(4),10,s.f.player.id).success);
-            String token=s.state.getTrialAssignment().assignmentToken;
-            KOMEProgressionEncounterCleanup.cleanup(s.f.player,s.p);
-            assertTrue(KOMESerfKnightService.handleNpcDeath(s.state,old.getUniqueID().toString(),false,11));
-            reload(s);assertFalse(s.state.hasLiege());assertEquals("",s.state.getTrialId());assertNull(s.state.getTrialAssignment());
-            assertFalse(s.state.hasActiveAssignment());
-            TrialCaptain replacement=captain(s);
-            assertTrue(KOMEProgressionOfferBridge.canRequestStandingTrialFrom(s.f.player,replacement));
-            assertTrue(KOMESerfKnightService.acceptStandingTrial(s.state,s.f.data,replacement,new Random(4),11,s.f.player.id).success);
-            assertNotEquals(token,s.state.getTrialAssignment().assignmentToken);
-            assertEquals(KOMEProgressionRank.SERF,s.p.getCanonicalRank());
+            s.ready();TrialCaptain old=captain(s);
+            assertFalse(KOMESerfKnightService.acceptStandingTrial(s.state,s.f.data,old,new Random(4),10,s.f.player.id).success);
+            assertTrue(KOMEServicePromotionService.migrate(s.f.player));
+            assertNull(s.state.getTrialAssignment());assertFalse(s.state.hasLiege());assertEquals(3,KOMEServicePromotionService.duties(s.state));
+            reload(s);assertFalse(KOMEProgressionOfferBridge.canRequestStandingTrialFrom(s.f.player,old));
+            assertTrue(KOMESerfdomMasterService.conferKnighthood(s.f.player,s.f.data,s.master).success);
+            assertEquals(KOMEProgressionRank.KNIGHT,s.p.getCanonicalRank());assertFalse(s.state.hasLiege());
         }
     }
-
     @Test public void knightReplacementUsesNpcOfferAndRestoresOfferingsWithoutRetrial()throws Exception {
         try(KOMEProgressionFollowupTest.NativeItems items=new KOMEProgressionFollowupTest.NativeItems();
                 KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()) {
-            s.p.setCanonicalRank(KOMEProgressionRank.KNIGHT);s.state.retireSerfdomMasterAfterPromotion();
-            TrialCaptain captain=captain(s);
+            s.p.setCanonicalRank(KOMEProgressionRank.KNIGHT);s.state.retireSerfdomMasterAfterPromotion();s.p.getServiceRecognition().earn(s.f.player.id,KOMEProgressionNpcRankService.referenceOf(s.master),KOMEProgressionRank.SERF,KOMEProgressionRank.KNIGHT,"Three reported duties",0);assertTrue(KOMERecommendationService.deliver(s.f.player));
+            TrialCaptain captain=captain(s);KOMEProgressionServiceLocationTest.generatedHome(captain,"RohanFortress");
             assertTrue(KOMEProgressionOfferBridge.prepareStandingTrialInteraction(s.f.player,captain));
             KOMELiegeOfferQuest offer=(KOMELiegeOfferQuest)captain.questInfo.getOfferFor(s.f.player);
             assertTrue(offer.isReplacementOffer());assertFalse(offer.isStandingTrialOffer());
@@ -229,7 +223,7 @@ public class KOMESerfKnightStabilizationTest {
     }
 
     private static void reload(KOMEProgressionFollowupTest.Session s){s.p.readFromNBT(s.p.writeToNBT());KOMEProgressionNpcRoles.syncPlayer(s.f.data,s.f.player.id);}
-    private static void duties(KOMESerfKnightProgression state){for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()){state.assignDuty(type,null);state.completeDuty(type);}}
+    private static void duties(KOMESerfKnightProgression state){for(KOMESerfKnightDutyType type:new KOMESerfKnightDutyType[]{KOMESerfKnightDutyType.PROVISIONING,KOMESerfKnightDutyType.PROFESSION,KOMESerfKnightDutyType.COURIER}){state.assignDuty(type,null);state.completeDuty(type);}}
     private static void alignment(KOMEProgressionFollowupTest.Session s,float value)throws Exception {
         java.lang.reflect.Field field=LOTRPlayerData.class.getDeclaredField("alignments");field.setAccessible(true);
         ((Map)field.get(LOTRLevelData.getData(s.f.player))).put(LOTRFaction.ROHAN,value);
@@ -282,7 +276,7 @@ public class KOMESerfKnightStabilizationTest {
         @Override public boolean isEntityAlive(){return !isDead;}
         @Override public boolean isChild(){return false;}
         @Override public String getNPCName(){return "Captain";}
-        @Override public boolean canTradeWith(net.minecraft.entity.player.EntityPlayer player){return accessible;}
+        @Override public boolean canTradeWith(net.minecraft.entity.player.EntityPlayer player){return accessible&&LOTRLevelData.getData(player).getAlignment(getFaction())>=150;}
         @Override public lotr.common.quest.LOTRMiniQuest createMiniQuest(){return new Template();}
     }
     private static class Template extends lotr.common.quest.LOTRMiniQuest {

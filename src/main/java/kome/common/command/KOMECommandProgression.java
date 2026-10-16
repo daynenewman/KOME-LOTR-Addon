@@ -37,8 +37,8 @@ public class KOMECommandProgression extends KOMEPublicCommand {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        if (!isStaff(sender)) return "/progression status | get | list <group> | offerings | complete/uncomplete <id> | roll <id> (details are self-only)";
-        return "/progression status | enable | disable | get [player] | list [player] <group> | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | setrank <player> <rank> | reset <player>";
+        if (!isStaff(sender)) return "/progression status | recommendation | get | list <group> | offerings | complete/uncomplete <id> | roll <id> (details are self-only)";
+        return "/progression status | recommendation | enable | disable | get [player] | list [player] <group> | offerings | complete/uncomplete <id> | roll <id> | reroll <player> <id> | grant/revoke <player> <id> | grantall <player> | setrank <player> <rank> | reset <player>";
     }
 
     @Override
@@ -50,6 +50,12 @@ public class KOMECommandProgression extends KOMEPublicCommand {
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length < 1) {
             throw new WrongUsageException(getCommandUsage(sender));
+        }
+        if ("recommendation".equalsIgnoreCase(args[0])) {
+            if(args.length!=1)throw new WrongUsageException("/progression recommendation");
+            EntityPlayerMP player=getCommandSenderAsPlayer(sender);
+            if(!kome.common.data.KOMERecommendationService.deliver(player))sender.addChatMessage(new ChatComponentText("No current earned recommendation can be delivered. Check your pledge and inventory space."));
+            return;
         }
         if ("status".equalsIgnoreCase(args[0])) {
             KOMEWorldData data = KOMEWorldData.get(getSenderWorld(sender));

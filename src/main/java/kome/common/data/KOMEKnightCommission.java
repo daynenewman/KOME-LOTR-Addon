@@ -6,7 +6,7 @@ import net.minecraft.nbt.NBTTagList;
 
 /** Concrete Knight charge, independent of legacy achievements and promotion gates. */
 public final class KOMEKnightCommission {
-    public enum Type { SETTLEMENT_DEFENSE, STOLEN_GOODS, BORDER_INCURSION, DANGEROUS_ESCORT, RELIEF }
+    public enum Type { SETTLEMENT_DEFENSE, STOLEN_GOODS, BORDER_INCURSION, DANGEROUS_ESCORT, RELIEF, NATIVE_INVASION }
     public enum Stage { OFFERED, ACCEPTED, ACTIVE, READY_TO_REPORT, REPORTED, FAILED }
     public enum Role { BENEFICIARY, CHARGE, ENEMY, GUARD }
     public final Type type;

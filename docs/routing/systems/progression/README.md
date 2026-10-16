@@ -2,7 +2,53 @@
 
 [Index](../../INDEX.md)
 
-Owns canonical rank and permission unlocks, NPC role/relationship authority, Serf/Knight tasks, courier correspondence, commissions, and Lordship trials. Character race/appearance is a separate integrated system.
+Owns canonical rank and permission unlocks, NPC role/relationship authority, Serf/Knight tasks, courier correspondence, commissions, and legacy objective compatibility. Character race/appearance is a separate integrated system.
+
+Pass 3 (2026-10-14) supersedes the historical trial/promotion paths below.
+[Implementation and evidence](../../../PROGRESSION_PASS3_SERVICE_PROMOTION_REPORT.txt).
+`KOMECanonicalRankService.recognizePledge` reads committed native allegiance;
+creation, the native setter bridge, login and tick observation reconcile Wanderer
+to Serf once. Master selection requires Serf and an ordinary native civilian
+(including farmer-only hire traders) in native faction territory. No seat is
+required for ordinary service. Three distinct reported, non-forced duties and
+150 alignment earn Knight from the current Master. Three distinct current-faction
+commissions and 2000 alignment earn Lord from the current Liege. Credits survive
+an alignment shortfall; issuance has no calendar-day quota.
+
+`KOMEServicePromotionService.report` owns earned conferral, relationship completion,
+history, recommendation and synchronization. `KOMESerfServiceObjectives` reuses
+escort/recovery/defense as ordinary duties. `KOMELordshipTrialService` hosts optional
+native invasion commissions under its retained serialization IDs. Mandatory
+Standing/Lordship offers are disabled; one-time migration retires old objectives
+without rewarding or celebrating them and preserves genuine service/ranks.
+
+New Knight Lieges may be Lords or Princes. `KOMEProgressionServiceLocation.regional`
+requires native generated-seat provenance plus the generator's native home boundary.
+`KOMEProgressionSeatTransformer` observes existing native structure spawn calls;
+it creates no buildings/NPCs. Unproven pre-Pass-3 placements fail closed for new
+admission; already accepted relationships remain usable. Fangorn's missing native
+Liege remains an explicit gap. See [geography](../geography/README.md).
+
+`KOMEServiceRecognition` v1 saves historical superior identity, accomplishments,
+earned standing, recommendation UUID, recipient, faction, redemption/invalidation
+and migration version inside existing player progression. `KOMERecommendationService`
+uses native written-book presentation; saved evidence, native eligibility and
+regional location authorize one relationship, never copied item NBT alone.
+Redeemed letters remain keepsakes. Former mentors recognize real service without
+retaining active role leases. Lost letters recover from the issuer or the self-only
+`/progression recommendation` command, including unloaded/dead issuers and full
+inventory retry. No-letter unsolicited petitions await an approved policy.
+
+Lord recommendations address the existing NPC Crown at the authoritative capital.
+`KOMEProgressionServiceLocation.royal` is a tested future integration seam independent
+of the player King office. It issues no royal duties or admission. The existing
+Lord-to-Prince checklist remains explicitly labelled legacy/pending redesign;
+existing Lord/Prince ranks and higher relationships remain compatible.
+
+The existing Rank page, tracker and map point final reports at the current superior.
+Pass 2 privileges remain derived from canonical rank, with g10 matching artifacts
+and unchanged strategic resource/office checks. Headless authority, save/load,
+native bytecode and layout tests are distinct from pending Minecraft acceptance.
 
 Pass 2 (2026-10-13): [implementation report](../../../PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt).
 `KOMEProgressionPermissionRegistry.Ability` supplies stable IDs, rank floors,
@@ -32,7 +78,7 @@ does not authorize bank spending. Existing armies/control/recovery are unchanged
 revision into the shared client permission projection before book/title updates.
 See [implementation and evidence](../../../PROGRESSION_CLEANUP_PASS1_REPORT.txt).
 
-October 11 Knight/Lordship pass: report-ready interactions precede native GUI
+Historical October 11 Knight/Lordship pass (superseded by Pass 3): report-ready interactions precede native GUI
 dispatch, binary tracker stages omit numerical bars, and provision/material
 markers carry native icons. Knight encounters save travel/preparation separately
 from successful activation and allow rate-limited technical reassignment.

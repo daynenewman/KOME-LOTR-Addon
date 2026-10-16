@@ -130,7 +130,7 @@ public final class KOMEHigherRankTransitionService {
     }
 
     public static String promotionReason(KOMEPlayerProgression progression, Transition transition) {
-        if (transition == KNIGHT_TO_LORD) return "Return to your Liege after completing your Trial of Lordship.";
+        if (transition == KNIGHT_TO_LORD) return "Report three qualifying commissions to your current Liege with 2000 faction alignment.";
         if (progression == null) return "Missing player progression.";
         if (transition == null) return "That progression step is not a canonical rank transition.";
         if (progression.getCanonicalRank() != transition.fromRank) {

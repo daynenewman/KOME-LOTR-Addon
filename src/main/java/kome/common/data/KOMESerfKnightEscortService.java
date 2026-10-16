@@ -154,7 +154,7 @@ public final class KOMESerfKnightEscortService {
                     &&assignment.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE
                     &&marker.token.equals(assignment.assignmentToken)
                     &&npc.getUniqueID().toString().equals(target(assignment).entityUuid)
-                    &&assignment.isValidFor(state.getTrialId(),state.getLiege())
+                    &&assignment.isValidFor(state.getTrialId(),state.objectiveSuperior())
                     &&KOMEProgressionFactionResolver.matches(assignment.factionKey,npc.getFaction());
             }
         }
@@ -167,5 +167,5 @@ public final class KOMESerfKnightEscortService {
     static boolean sameEntityId(String uuid,java.util.UUID entityUuid){return uuid!=null&&entityUuid!=null&&uuid.equals(entityUuid.toString());}
     private static Entity findLoaded(EntityPlayerMP player,String uuid){return player==null?null:findLoaded(player.worldObj,uuid);}
     private static Entity findLoaded(World world,String uuid){if(world==null||uuid==null)return null;for(Object object:world.loadedEntityList)if(object instanceof Entity&&sameEntityId(uuid,KOMEReflection.getEntityUUID((Entity)object)))return (Entity)object;return null;}
-    private static LOTREntityNPC findCharge(EntityPlayerMP player,KOMESerfKnightProgression state,LOTREntityNPC liege){LOTRFactionLoop:for(Object object:player.worldObj.loadedEntityList)if(object instanceof LOTREntityNPC){LOTREntityNPC npc=(LOTREntityNPC)object;if(!npc.isEntityAlive()||npc.isChild()||player.getDistanceSqToEntity(npc)>2304D||npc==liege||KOMEProgressionLords.isStandingTrialLiegeCandidate(npc)||state.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))||!KOMEProgressionNpcRoles.availableForNewRole(KOMEWorldData.get(player.worldObj),npc.getUniqueID())||npc.hiredNPCInfo==null||npc.hiredNPCInfo.isActive||!KOMEProgressionNpcRankService.isValidFactionNpc(npc)||npc.getFaction()!=liege.getFaction())continue LOTRFactionLoop;return npc;}return null;}
+    static LOTREntityNPC findCharge(EntityPlayerMP player,KOMESerfKnightProgression state,LOTREntityNPC liege){LOTRFactionLoop:for(Object object:player.worldObj.loadedEntityList)if(object instanceof LOTREntityNPC){LOTREntityNPC npc=(LOTREntityNPC)object;if(!npc.isEntityAlive()||npc.isChild()||player.getDistanceSqToEntity(npc)>2304D||npc==liege||KOMEProgressionLords.isStandingTrialLiegeCandidate(npc)||state.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))||!KOMEProgressionNpcRoles.availableForNewRole(KOMEWorldData.get(player.worldObj),npc.getUniqueID())||npc.hiredNPCInfo==null||npc.hiredNPCInfo.isActive||!KOMEProgressionNpcRankService.isValidFactionNpc(npc)||npc.getFaction()!=liege.getFaction())continue LOTRFactionLoop;return npc;}return null;}
 }

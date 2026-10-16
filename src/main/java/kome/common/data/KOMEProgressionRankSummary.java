@@ -82,78 +82,36 @@ public final class KOMEProgressionRankSummary {
         List<Requirement> requirements = new ArrayList<Requirement>();
         String heading = "", title = "", objective = "";
 
-        if(rank==KOMEProgressionRank.WANDERER&&!progression.getSerfKnightProgression().getSerfdomMaster().isSet()) {
-            heading="Begin your service";title="Find a Master";objective="Find a Master to serve.";
-        } else if (rank == KOMEProgressionRank.SERF) {
-            KOMESerfKnightProgression state = progression.getSerfKnightProgression();
-            int alignment = (int) Math.floor(Math.max(0D, pledgedFactionAlignment));
-            int duties = 0;
-            List<Requirement> dutyRequirements = new ArrayList<Requirement>();
-            for (KOMESerfKnightDutyType type : KOMESerfKnightDutyType.values()) {
-                boolean dutyComplete = state.getDuty(type).isCompleted();
-                if (dutyComplete) duties++;
-                dutyRequirements.add(new Requirement(type.displayName, dutyComplete ? 1 : 0,
-                    1, dutyComplete));
+        if(rank==KOMEProgressionRank.WANDERER){
+            heading="Allegiance";title="Pledge to a faction";objective="A legitimate faction pledge earns Serf standing.";
+        } else if(rank==KOMEProgressionRank.SERF){
+            KOMESerfKnightProgression state=progression.getSerfKnightProgression();
+            int credits=KOMEServicePromotionService.duties(state);
+            requirements.add(new Requirement("Reported service",credits,3,credits>=3));
+            requirements.add(new Requirement("Faction Alignment",Double.isFinite(pledgedFactionAlignment)?(int)Math.floor(Math.max(0,pledgedFactionAlignment)):0,150,Double.isFinite(pledgedFactionAlignment)&&pledgedFactionAlignment>=150));
+            heading="Master service";title=state.getSerfdomMaster().isSet()?state.getSerfdomMaster().displayName:"Seek a Master";
+            String active=state.getActiveAssignmentKind();
+            objective=!state.getSerfdomMaster().isSet()?"Enter service with a Master. Three duties earn Knight standing.":credits>=3?"Report to your Master. Your service is complete; Knight standing requires 150 faction alignment.":
+                "Speak with your ordinary same-faction Master for your next duty. Three reported duties and 150 faction alignment earn Knight standing here.";
+            if("provisioning".equals(active)){heading="Current Duty";title="Provisions";objective=provisioningObjective(state);}
+            else if("profession".equals(active)){heading="Current Duty";title="Trade Assistance";objective=professionObjective(state);}
+            else if("courier".equals(active)){heading="Current Duty";title="Courier Service";objective=courierObjective(state);}
+            else if(state.ordinaryObjective()){
+                heading="Current Duty";title=KOMESerfKnightDutyType.forKey(state.getTrialId()).displayName;
+                objective=state.getTrialAssignment().stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE?"Report to your Master.":trialObjective(state,KOMESerfKnightTrial.forId(state.getTrialId())).replace("Liege","Master").replace("trial","duty");
             }
-            int requiredAlignment=state.hasLiege()||state.isTrialCompleted()?KOMESerfKnightService.REQUIRED_ALIGNMENT:KOMEStandingTrialEligibility.requiredAlignment(factionKey);
-            requirements.add(new Requirement("Faction Alignment", alignment,
-                requiredAlignment,
-                pledgedFactionAlignment >= requiredAlignment));
-            requirements.add(new Requirement("Duties", duties,
-                KOMESerfKnightDutyType.values().length, KOMESerfKnightService.allDutiesComplete(state),
-                dutyRequirements));
-            requirements.add(new Requirement("Trial of Standing", state.isTrialCompleted() ? 1 : 0,
-                1, state.isTrialCompleted()));
-
-            String active = state.getActiveAssignmentKind();
-            if ("provisioning".equals(active)) {
-                heading = "Current Duty";
-                title = "Deliver Provisions";
-                objective = provisioningObjective(state);
-            } else if ("profession".equals(active)) {
-                heading = "Current Duty";
-                title = "Gather Materials";
-                objective = professionObjective(state);
-            } else if ("courier".equals(active)) {
-                heading = "Current Duty";
-                title = "Courier Service";
-                objective = courierObjective(state);
-            } else if ("trial".equals(active)) {
-                heading = "Trial of Standing";
-                KOMESerfKnightTrial trial = KOMESerfKnightTrial.forId(state.getTrialId());
-                title = trial == null ? "Trial" : trial.displayName;
-                objective = trialObjective(state, trial);
-            } else if(state.isTrialCompleted()) {
-                heading="New standing";title=pledgedFactionAlignment>=KOMESerfKnightService.REQUIRED_ALIGNMENT?"Ready":"Faction Alignment";
-                objective=!state.hasLiege()?"Seek an eligible replacement Liege to hear your completed trial report.":
-                    pledgedFactionAlignment>=KOMESerfKnightService.REQUIRED_ALIGNMENT?"Return to your Liege to receive your new standing.":"Reach 150 faction alignment before returning to your Liege.";
-            } else if (KOMESerfKnightService.allDutiesComplete(state)
-                    && state.getSerfdomMaster().isSet()
-                    && safe(factionKey).length() != 0
-                    && state.getTrialId().length() == 0
-                    && KOMESerfKnightService.mayIssueTrial(
-                        state, KOMESerfKnightService.calendarDayNow(), playerId)) {
-                heading = "Trial of Standing";
-                if(!state.hasLiege()&&!KOMEStandingTrialEligibility.meetsAlignment(state,pledgedFactionAlignment,factionKey)) {
-                    heading="Faction Alignment";
-                    title=KOMEFactionProgressionTitles.title(factionKey,KOMEProgressionRank.SERF);
-                    objective="Reach "+requiredAlignment+" faction alignment before seeking a Liege.";
-                } else if (state.hasLiege()) {
-                    title = "Ready to request";
-                    objective = "Request your Trial of Standing from your Liege.";
-                } else {
-                    title = "Seek a prospective Liege";
-                    objective = KOMEProgressionNativeAuthority.guidance(factionKey);
-                }
-            }
-        } else if (rank == KOMEProgressionRank.KNIGHT) {
-            int credits=Math.min(3,progression.getKnightService().qualifyingTypes(factionKey).size());
-            requirements.add(new Requirement("Service to your Liege",credits,3,credits>=3));
-            requirements.add(new Requirement("Faction Alignment",Double.isFinite(pledgedFactionAlignment)?(int)Math.floor(Math.max(0D,pledgedFactionAlignment)):0,2000,Double.isFinite(pledgedFactionAlignment)&&pledgedFactionAlignment>=2000D));
-            KOMELordshipTrial trial=progression.getLordship().assignment();
-            requirements.add(new Requirement("Trial of Lordship",trial!=null&&trial.ready()?1:0,1,trial!=null&&trial.ready()));
-            heading="Trial of Lordship";title=trial==null?"Service to your Liege":KOMELordshipTrialPresentation.title(trial);
-            objective=KOMELordshipTrialPresentation.status(progression,pledgedFactionAlignment,factionKey);
+        } else if(rank==KOMEProgressionRank.KNIGHT){
+            int credits=progression.getKnightService().qualifyingTypes(factionKey).size();
+            requirements.add(new Requirement("Reported commissions",credits,3,credits>=3));
+            requirements.add(new Requirement("Faction Alignment",Double.isFinite(pledgedFactionAlignment)?(int)Math.floor(Math.max(0,pledgedFactionAlignment)):0,2000,Double.isFinite(pledgedFactionAlignment)&&pledgedFactionAlignment>=2000));
+            heading="Lord service";KOMEProgressionNpcRef lord=progression.getSerfKnightProgression().getLiege();title=lord.isSet()?lord.displayName:"Your recommendation";
+            KOMEServiceRecognition.Record introduction=null;
+            for(KOMEServiceRecognition.Record r:progression.getServiceRecognition().records())if(r.conferred==rank&&KOMEProgressionRelationshipLifecycle.sameFaction(r.faction,factionKey))introduction=r;
+            title=lord.isSet()?lord.displayName:introduction==null?"Regional service":introduction.invalidated?"Recommendation expired":introduction.redeemed?"Introduction used":"Your recommendation";
+            objective=!lord.isSet()?(introduction==null?"Seek advice about sponsored regional service; no earned recommendation is recorded.":introduction.invalidated?"Your former faction's letter remains a keepsake. It cannot sponsor service under a new pledge.":introduction.redeemed?"Your introduction has been used. Saved service survives the legitimate loss of a Liege.":"When ready, take your recommendation to a Lord or Prince at a verified native regional seat. Recover a lost copy with /progression recommendation."):credits>=3?"Report to your Liege. Your service is complete; Lord standing requires 2000 faction alignment.":"Three commissions earn Lord standing from this Liege on their final report. Required faction alignment: 2000.";
+            KOMEKnightCommission a=progression.getKnightService().assignment();KOMELordshipTrial invasion=progression.getLordship().assignment();
+            if(a!=null){heading="Current commission";title=KOMEKnightCommissionPresentation.title(a.type);objective=KOMEKnightCommissionPresentation.details(a);}
+            else if(invasion!=null&&invasion.ordinaryService){heading="Current commission";title="Repel an Invasion";objective=KOMELordshipTrialPresentation.objective(invasion);}
         } else if (rank == KOMEProgressionRank.LORD) {
             KOMEHigherRankTransitionService.Transition transition =
                 KOMEHigherRankTransitionService.forCurrentRank(rank);
@@ -185,21 +143,17 @@ public final class KOMEProgressionRankSummary {
             }
         }
 
-        if(rank==KOMEProgressionRank.KNIGHT){
-            KOMELordshipTrial t=progression.getLordship().assignment();KOMEKnightCommission a=progression.getKnightService().assignment();
-            boolean eligible=KOMELordshipTrialService.prerequisites(progression,pledgedFactionAlignment,factionKey);
-            heading=t!=null?"Trial of Lordship":"Current service";
-            title=t!=null?KOMELordshipTrialPresentation.title(t):a!=null?KOMEKnightCommissionPresentation.title(a.type):eligible?"Seek a Prince":"Awaiting orders";
-            objective=t!=null?KOMELordshipTrialPresentation.objective(t):a!=null?KOMEKnightCommissionPresentation.details(a):eligible?KOMELordshipTrialPresentation.status(progression,pledgedFactionAlignment,factionKey):
-                progression.getSerfKnightProgression().hasLiege()?"Speak with your Liege for a commission.":"Seek a Lord of your faction to resume Knight service.";
-        }
-
-
         String currentName = KOMEFactionProgressionTitles.title(factionKey, rank);
         if(rank.order<=KOMEProgressionRank.KNIGHT.order&&KOMEProgressionFactionResolver.missingNativeLiege(factionKey))objective+="\n"+KOMEKnightCommissionPresentation.unavailableLiege();
         String nextName = next == null ? "" : KOMEFactionProgressionTitles.title(factionKey, next);
         String promotion = next == null ? "Highest Rank" : "Requirements for " + nextName;
-        if (rank == KOMEProgressionRank.LORD) promotion = "Legacy Prince checklist";
+        if (rank == KOMEProgressionRank.LORD) {
+            promotion = "Legacy Prince checklist";
+            heading="Future royal service";title="Crown at the faction capital";
+            objective="Lord standing is earned. Royal leadership service awaits redesign; the legacy Prince checklist remains available.";
+            for(KOMEServiceRecognition.Record r:progression.getServiceRecognition().records())if(r.conferred==rank&&!r.invalidated&&KOMEProgressionRelationshipLifecycle.sameFaction(r.faction,factionKey))
+                objective+=" Your former Liege's recommendation is addressed to the Crown. Recover a lost copy with /progression recommendation.";
+        }
         return new KOMEProgressionRankSummary(factionKey, currentName, nextName, promotion, requirements,
             heading, title, objective);
     }

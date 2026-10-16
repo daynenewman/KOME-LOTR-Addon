@@ -10,7 +10,8 @@ public final class KOMEProgressionLiegePolicy {
         if(rank==KOMEProgressionRank.PRINCE) return KOMEProgressionNpcRank.KING;
         return null;
     }
-    public static boolean hasRequiredNpcRank(KOMEProgressionRank playerRank, KOMEProgressionNpcRank npcRank) { return requiredNpcRankForPlayerRank(playerRank)==npcRank; }
+    public static boolean hasRequiredNpcRank(KOMEProgressionRank playerRank, KOMEProgressionNpcRank npcRank) { return playerRank==KOMEProgressionRank.KNIGHT
+        ? npcRank==KOMEProgressionNpcRank.LORD||npcRank==KOMEProgressionNpcRank.PRINCE : requiredNpcRankForPlayerRank(playerRank)==npcRank; }
     /** Serfs approach the Lord they will serve as Knights; this is not a Master check. */
     public static KOMEProgressionNpcRank requiredSuperior(KOMEProgressionRank rank) {
         return rank==KOMEProgressionRank.SERF?KOMEProgressionNpcRank.LORD:requiredNpcRankForPlayerRank(rank);
@@ -19,7 +20,10 @@ public final class KOMEProgressionLiegePolicy {
             String pledge,String npcFaction) {
         lotr.common.fac.LOTRFaction faction=KOMEProgressionFactionResolver.resolve(pledge);
         return faction!=null&&faction.isPlayableAlignmentFaction()
-            &&KOMEProgressionFactionResolver.matches(npcFaction,faction)&&requiredSuperior(rank)==npcRank
+            &&KOMEProgressionFactionResolver.matches(npcFaction,faction)
+            &&(rank==KOMEProgressionRank.KNIGHT
+                ? npcRank==KOMEProgressionNpcRank.LORD||npcRank==KOMEProgressionNpcRank.PRINCE
+                : requiredSuperior(rank)==npcRank)
             &&(rank!=KOMEProgressionRank.PRINCE||!KOMERulerService.hasRuler(data,pledge));
     }
     /** Political authority seam for later Prince service; it issues no quests or promotion. */

@@ -4,20 +4,20 @@ import java.util.Locale;
 import net.minecraft.util.StatCollector;
 import static kome.common.data.KOMEKnightCommission.Stage;
 
-/** Localized trial language; the rank screen uses the same live values as promotion. */
+/** Localized commission language; the rank screen uses the same live values as promotion. */
 public final class KOMELordshipTrialPresentation {
     private KOMELordshipTrialPresentation() {}
     private static String text(String key,Object... args) { return KOMEProgressionLanguage.text("kome.lordship."+key,args); }
-    public static String title(KOMELordshipTrial t) { return t.nativeInvasion?"Trial of Lordship: Invasion":text("title."+t.scenario.name().toLowerCase(Locale.ROOT))+" (saved trial)"; }
+    public static String title(KOMELordshipTrial t) { return t.nativeInvasion?"Repel an Invasion":text("title."+t.scenario.name().toLowerCase(Locale.ROOT))+" (saved commission)"; }
     public static String objective(KOMELordshipTrial t) {
-        if(t.ready())return "Report your victory to "+(t.authority.isSet()?"Prince "+t.authority.displayName:"a Prince of your faction")+" to receive Lord standing.";
-        if(t.objective.stage==Stage.FAILED)return t.playerDied?"You fell during the trial. Return to your Prince to request another attempt.":text("failed");
-        if(t.objective.activationPending)return "The encounter could not be prepared safely. Return to your Prince for reassignment, or approach the marked ground to retry.";
-        if(t.nativeInvasion)return (t.objective.stage==Stage.OFFERED?"Accept the Prince's trial.":!t.objective.encounterCreated?"Travel to the invasion ground marked on your map.":"Defeat the native invasion: "+t.invasionRemaining+" / "+t.invasionSize+" invasion strength remaining.")
+        if(t.ready())return "Report your victory to "+(t.authority.isSet()?"Lord "+t.authority.displayName:"a Lord of your faction")+" to report this commission. The final qualifying report earns Lord standing.";
+        if(t.objective.stage==Stage.FAILED)return t.playerDied?"You fell during the commission. Return to your Lord to request another attempt.":text("failed");
+        if(t.objective.activationPending)return "The encounter could not be prepared safely. Return to your Lord for reassignment, or approach the marked ground to retry.";
+        if(t.nativeInvasion)return (t.objective.stage==Stage.OFFERED?"Accept the Lord's commission.":!t.objective.encounterCreated?"Travel to the invasion ground marked on your map.":"Defeat the native invasion: "+t.invasionRemaining+" / "+t.invasionSize+" invasion strength remaining.")
             +"\nDestination: "+t.objective.place+" ("+(int)t.objective.x+", "+(int)t.objective.z+")."
-            +"\nSurvive the trial and take part in defeating the invasion. Your soldiers may fall; your own death ends the attempt.";
+            +"\nSurvive the commission and take part in defeating the invasion. Your soldiers may fall; your own death ends the attempt.";
         return KOMEKnightCommissionPresentation.objective(t.objective)
-            +"\nComplete your saved field objective and survive. Soldier losses do not end the trial.";
+            +"\nComplete your saved field objective and survive. Soldier losses do not end the commission.";
     }
     public static String speech(KOMELordshipTrial t,String event) {
         if(t.nativeInvasion&&("offer".equals(event)||"assigned".equals(event))){
@@ -26,7 +26,7 @@ public final class KOMELordshipTrialPresentation {
                 "gondor".equals(KOMEAlliance.normalizeFactionKey(t.objective.faction))?"The watch brings word of an enemy assault.":"A hostile host threatens our lands.";
             return opening+" Face "+(enemy==null?"the assigned invaders":enemy.factionName())+" on the marked ground in "+t.objective.place
                 +" ("+(int)t.objective.x+", "+(int)t.objective.z+"). Four of our soldiers will follow your commands. Travel and prepare before the invasion begins."
-                +" Survive, take part in defeating the host, and bring me your account. Soldier losses alone will not end your trial.";
+                +" Survive, take part in defeating the host, and bring me your account. Soldier losses alone will not end your commission.";
         }
         if("promoted".equals(event)){
             String outcome=t.acknowledgedLosses==0?"You brought victory without a recorded loss among the entrusted soldiers.":
@@ -43,8 +43,9 @@ public final class KOMELordshipTrialPresentation {
     public static String status(KOMEPlayerProgression p,double alignment,String faction) {
         KOMELordshipTrial t=p.getLordship().assignment();
         if(t!=null)return objective(t);
-        if(KOMELordshipTrialService.prerequisites(p,alignment,faction))return "Seek a Prince of your faction for your Trial of Lordship. Your required service and alignment are fulfilled. Face a native invasion, survive, and report your victory to the Prince.\n"+KOMEProgressionNativeAuthority.princeGuidance(faction);
-        if(!p.getSerfKnightProgression().hasLiege())return text("seek_liege");
-        return "Report three distinct commissions and reach 2,000 current faction alignment to seek a Prince.";
+        int credits=p.getKnightService().qualifyingTypes(faction).size();
+        if(!p.getSerfKnightProgression().hasLiege())return "Your recommendation introduces you to a Lord when you are ready. Recover it with /progression recommendation.";
+        if(credits>=3)return alignment>=2000?"Report to your current Lord for Lord standing.":"Your service is complete. Reach 2000 faction alignment, then report to your Lord.";
+        return "Complete three varied commissions. Their final eligible report earns Lord standing. Required faction alignment: 2000.";
     }
 }

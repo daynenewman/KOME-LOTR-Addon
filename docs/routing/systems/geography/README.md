@@ -8,6 +8,24 @@ Owns world/map coordinate resolution, bundled tile geometry, gameplay defaults, 
 
 [Approved KOM-59 mountain separation](../../../kom59-mountain-separation-20261010/README.md) removes exactly 45 canonical cells across five mountain contacts and classifies them using 25 hash-bound runs. Active IDs and gameplay graph/defaults stay unchanged; adoption into existing worlds requires an authoritative stopped-save and physical-entity inventory. Other geography proposals remain outside this approval.
 
+Pass 3 personal-service geography is separate from strategic ownership and
+recruitment-tile development. `KOMEProgressionServiceLocation.factionTerritory`
+reads native Middle-earth faction control zones/biome NPC-faction presence for
+ordinary Master service, with no settlement requirement. Regional Knight admission
+uses persisted native generator/NPC/faction/dimension provenance and the native
+home boundary through `KOMEProgressionServiceLocation.regional`. It does not infer
+a fort from a roof, waypoint radius, noble title or biome. The narrow
+`KOMEProgressionSeatTransformer` observes native generator spawn calls and places
+nothing. Old unproven placements fail closed for new entry; existing service is
+preserved. The faction-host inventory and compatibility gaps are in the
+[Pass 3 report](../../../PROGRESSION_PASS3_SERVICE_PROMOTION_REPORT.txt).
+Native trader replacement restores home information without the generic entity
+receipt; replacement nobles also fail closed for new admission until provenance
+transfer is implemented and validated.
+`KOMEProgressionServiceLocation.royal` joins the existing persistent NPC King slot,
+incarnation and authoritative capital tile for a future service seam; no royal
+leadership quests or succession rules are implemented.
+
 ## Authorities and entry points
 
 - [KOMETileWorldResolver.resolveWorldPosition](../../../../src/main/java/kome/common/data/KOMETileWorldResolver.java), `resolveMapPosition`, and [KOMETileResolution](../../../../src/main/java/kome/common/data/KOMETileResolution.java): explicit `RESOLVED`, `IN_BOUNDS_GAP`, `OUTSIDE_MASK`, unsupported/invalid states. Never substitute a nearby tile for a failed resolution.

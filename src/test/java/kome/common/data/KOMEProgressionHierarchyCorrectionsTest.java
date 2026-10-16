@@ -17,23 +17,23 @@ public class KOMEProgressionHierarchyCorrectionsTest {
         assertEquals("Pledge to a faction",KOMEProgressionTrackerSnapshot.project(f.player,p).objective);
         assertFalse(KOMEProgressionTrackerSnapshot.project(f.player,p).hasNumericProgress());
         f.pledge(LOTRFaction.ROHAN);
-        assertEquals("Find a Master to serve",KOMEProgressionTrackerSnapshot.project(f.player,p).objective);
+        assertEquals("Pledge to a faction",KOMEProgressionTrackerSnapshot.project(f.player,p).objective);
         KOMEPlayerProgression loaded=new KOMEPlayerProgression();loaded.readFromNBT(p.writeToNBT());
-        assertEquals("Find a Master to serve",KOMEProgressionTrackerSnapshot.project(f.player,loaded).objective);
+        assertEquals("Pledge to a faction",KOMEProgressionTrackerSnapshot.project(f.player,loaded).objective);
         assertEquals(0F,KOMEProgressionTrackerSnapshot.project(f.player,loaded).completion,0F);
     }
     @Test public void masterPledgeChecksRejectNoneWrongFactionAndStaleAliases(){
         assertFalse(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.WANDERER,"","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
         assertFalse(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.WANDERER,"gondor","rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
         assertFalse(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.WANDERER,"retired_rohan","retired_rohan",KOMEProgressionNpcRank.UNRANKED,true).success);
-        assertTrue(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.WANDERER,"rohan","ROHAN",KOMEProgressionNpcRank.UNRANKED,true).success);
+        assertTrue(KOMESerfdomMasterService.validateMasterSelection(KOMEProgressionRank.SERF,"rohan","ROHAN",KOMEProgressionNpcRank.UNRANKED,true).success);
     }
     @Test public void realMasterServiceRequiresMatchingPledge()throws Exception{
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()){
             s.state.reset();s.p.setCanonicalRank(KOMEProgressionRank.WANDERER);s.f.pledge(null);
             assertFalse(KOMESerfdomMasterService.serve(s.f.player,s.f.data,s.master).success);assertFalse(s.state.getSerfdomMaster().isSet());
             s.f.pledge(LOTRFaction.GONDOR);assertFalse(KOMESerfdomMasterService.serve(s.f.player,s.f.data,s.master).success);
-            s.f.pledge(LOTRFaction.ROHAN);assertTrue(KOMESerfdomMasterService.serve(s.f.player,s.f.data,s.master).success);
+            KOMEProgressionServiceLocationTest.territory(s.f);s.f.pledge(LOTRFaction.ROHAN);assertTrue(KOMECanonicalRankService.recognizePledge(s.f.player,false));assertTrue(KOMESerfdomMasterService.serve(s.f.player,s.f.data,s.master).success);
             assertEquals(KOMEProgressionRank.SERF,s.p.getCanonicalRank());assertTrue(s.state.hasMasterRelationship());
         }
     }
@@ -46,13 +46,13 @@ public class KOMEProgressionHierarchyCorrectionsTest {
     }
     @Test public void alignmentTransitionIsANewNonNumericObjective()throws Exception{
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()){
-            for(KOMESerfKnightDutyType t:KOMESerfKnightDutyType.values()){s.state.assignDuty(t,null);s.state.completeDuty(t);}
+            for(KOMESerfKnightDutyType t:new KOMESerfKnightDutyType[]{KOMESerfKnightDutyType.PROVISIONING,KOMESerfKnightDutyType.PROFESSION,KOMESerfKnightDutyType.COURIER}){s.state.assignDuty(t,null);s.state.completeDuty(t);}
             java.lang.reflect.Field a=lotr.common.LOTRPlayerData.class.getDeclaredField("alignments");a.setAccessible(true);
             ((Map)a.get(LOTRLevelData.getData(s.f.player))).put(LOTRFaction.ROHAN,149F);
-            assertEquals("alignment",KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).iconKey);
+            assertEquals("progression",KOMEProgressionTrackerSnapshot.project(s.f.player,s.p).iconKey);
             ((Map)a.get(LOTRLevelData.getData(s.f.player))).put(LOTRFaction.ROHAN,150F);
             KOMEProgressionTrackerSnapshot next=KOMEProgressionTrackerSnapshot.project(s.f.player,s.p);
-            assertEquals("Seek a prospective Liege",next.objective);assertEquals("",next.progress);assertEquals(0F,next.completion,0F);
+            assertEquals("Report to your Master for Knight standing",next.objective);assertEquals("",next.progress);assertEquals(0F,next.completion,0F);
             assertTrue(s.state.hasMasterRelationship());assertFalse(next.hasNumericProgress());
         }
     }
@@ -61,20 +61,17 @@ public class KOMEProgressionHierarchyCorrectionsTest {
             s.state.assignDuty(KOMESerfKnightDutyType.PROFESSION,null);s.state.completeDuty(KOMESerfKnightDutyType.PROFESSION);
             s.state.setLastAssignmentEpochDay(KOMESerfKnightService.calendarDayNow());
             List<KOMEVisualMarker> markers=KOMEVisualLocationService.markersFor(s.p,s.f.data,150D);
-            assertEquals(KOMEVisualMarker.Role.SERFDOM_MASTER,markers.get(0).role);assertFalse(markers.get(0).actionable);
-            assertTrue(KOMEProgressionNpcInteractionService.interact(s.f.player,s.f.data,s.master));
-            assertTrue(s.f.player.messages.toString().contains("Return tomorrow"));assertFalse(s.state.hasActiveAssignment());
-            KOMEPlayerProgression reload=new KOMEPlayerProgression();reload.readFromNBT(s.p.writeToNBT());assertTrue(reload.getSerfKnightProgression().hasMasterRelationship());
-            for(KOMESerfKnightDutyType t:KOMESerfKnightDutyType.values()){s.state.assignDuty(t,null);s.state.completeDuty(t);}
-            s.state.setLiege(ref("Liege","rohan"));
-            assertFalse(s.state.hasMasterRelationship());assertEquals(KOMEVisualMarker.Role.KNIGHT_LIEGE,KOMEVisualLocationService.markersFor(s.p).get(0).role);
-            reload.readFromNBT(s.p.writeToNBT());assertFalse(reload.getSerfKnightProgression().hasMasterRelationship());
+            assertEquals(KOMEVisualMarker.Role.SERFDOM_MASTER,markers.get(0).role);assertTrue(markers.get(0).actionable);
+            assertTrue(KOMESerfKnightService.mayIssueAssignment(s.state,KOMESerfKnightService.calendarDayNow()));
+            KOMEPlayerProgression loaded=new KOMEPlayerProgression();loaded.readFromNBT(s.p.writeToNBT());
+            assertTrue(loaded.getSerfKnightProgression().hasMasterRelationship());assertEquals(1,KOMEServicePromotionService.duties(loaded.getSerfKnightProgression()));
         }
     }
     @Test public void exactAuthorityAndPlayerKingPrecedenceUseOnePolicy(){
         KOMEWorldData data=new KOMEWorldData("authority");
         assertTrue(KOMEProgressionLiegePolicy.accepts(data,KOMEProgressionRank.KNIGHT,KOMEProgressionNpcRank.LORD,"rohan","rohan"));
-        for(KOMEProgressionNpcRank rank:new KOMEProgressionNpcRank[]{KOMEProgressionNpcRank.UNRANKED,KOMEProgressionNpcRank.PRINCE,KOMEProgressionNpcRank.KING})
+        assertTrue(KOMEProgressionLiegePolicy.accepts(data,KOMEProgressionRank.KNIGHT,KOMEProgressionNpcRank.PRINCE,"rohan","rohan"));
+        for(KOMEProgressionNpcRank rank:new KOMEProgressionNpcRank[]{KOMEProgressionNpcRank.UNRANKED,KOMEProgressionNpcRank.KING})
             assertFalse(KOMEProgressionLiegePolicy.accepts(data,KOMEProgressionRank.KNIGHT,rank,"rohan","rohan"));
         assertFalse(KOMEProgressionLiegePolicy.accepts(data,KOMEProgressionRank.KNIGHT,KOMEProgressionNpcRank.LORD,"rohan","gondor"));
         assertTrue(KOMEProgressionLiegePolicy.accepts(data,KOMEProgressionRank.LORD,KOMEProgressionNpcRank.PRINCE,"rohan","rohan"));
@@ -145,7 +142,7 @@ public class KOMEProgressionHierarchyCorrectionsTest {
     }
     @Test public void failedFealtyAssignmentDoesNotReleaseMasterOrHideTheirMedallion(){
         KOMEPlayerProgression p=new KOMEPlayerProgression();p.setCanonicalRank(KOMEProgressionRank.SERF);KOMESerfKnightProgression state=p.getSerfKnightProgression();
-        state.setSerfdomMaster(ref("Master","rohan"));for(KOMESerfKnightDutyType t:KOMESerfKnightDutyType.values()){state.assignDuty(t,null);state.completeDuty(t);}
+        state.setSerfdomMaster(ref("Master","rohan"));for(KOMESerfKnightDutyType t:new KOMESerfKnightDutyType[]{KOMESerfKnightDutyType.PROVISIONING,KOMESerfKnightDutyType.PROFESSION,KOMESerfKnightDutyType.COURIER}){state.assignDuty(t,null);state.completeDuty(t);}
         state.setLastTrialAssignmentEpochDay(10);
         assertFalse(KOMESerfKnightService.acceptStandingTrial(state,ref("Liege","rohan"),KOMEProgressionNpcRank.LORD,true,new Random(1),10,UUID.randomUUID()).success);
         assertFalse(state.hasLiege());assertTrue(state.hasMasterRelationship());

@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Set;
 
 public class KOMEPlayerProgression {
+    private final KOMEServiceRecognition serviceRecognition = new KOMEServiceRecognition();
+    public KOMEServiceRecognition getServiceRecognition() { return serviceRecognition; }
     /** Short-lived per-NPC decline ledger; entries are pruned when a new server day is observed. */
     private final java.util.Map<String, Long> serfdomOfferDeclines = new java.util.HashMap<String, Long>();
     public boolean declinedSerfdomOfferToday(String npcId, long day) { pruneSerfdomOfferDeclines(day); Long value=serfdomOfferDeclines.get(npcId); return value != null && value.longValue()==day; }
@@ -249,6 +251,7 @@ public class KOMEPlayerProgression {
     }
 
     public void readFromNBT(NBTTagCompound nbt) {
+        serviceRecognition.read(nbt.hasKey("ServiceRecognition",10)?nbt.getCompoundTag("ServiceRecognition"):null);
         offerPledge=nbt.getString("OfferPledge");offerPledgeRevision=Math.max(0L,nbt.getLong("OfferPledgeRevision"));
         serfdomOfferDeclines.clear(); long now=KOMESerfKnightService.calendarDayNow(); NBTTagList declined=nbt.getTagList("SerfdomOfferDeclines",10);for(int i=0;i<declined.tagCount();i++){NBTTagCompound e=declined.getCompoundTagAt(i);if(e.getLong("Day")==now)serfdomOfferDeclines.put(e.getString("NPC"),Long.valueOf(now));}
         completed.clear();
@@ -341,6 +344,7 @@ public class KOMEPlayerProgression {
         nbt.setDouble("PledgedLordY", pledgedLordY);
         nbt.setDouble("PledgedLordZ", pledgedLordZ);
         nbt.setString("CanonicalRank", canonicalRank.key);
+        nbt.setTag("ServiceRecognition", serviceRecognition.write());
         nbt.setTag("Lordship", lordship.writeToNBT());
         nbt.setTag("KnightService", knightService.writeToNBT());
         nbt.setTag("SerfKnightProgression", serfKnightProgression.writeToNBT());

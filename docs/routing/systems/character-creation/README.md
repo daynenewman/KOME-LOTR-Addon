@@ -4,6 +4,13 @@
 
 Owns the integrated Character Creation stage flow, starting faction/location, race/sex/appearance, recreation, body/eye/traits, and custom-skin catalog/transfer. It does not own KOME progression rank.
 
+Pass 3: `StartingFactionApplication.tryApply` calls
+`KOMECanonicalRankService.recognizePledge` only after the native pledge is confirmed.
+A cultural/race selection or starting waypoint alone grants no standing. The
+unaffiliated choice remains Wanderer. Login/late native pledge reconciliation
+belongs to the [progression route](../progression/README.md), and never creates a
+pledge or demotes an existing higher rank. Creation-time recognition is idempotent.
+
 Pass 2 reads existing persisted `startingWaypoint` plus
 `startingWaypointApplied` for Serf-or-higher return eligibility. Character
 creation selection/application is unchanged; missing starts (including native

@@ -76,11 +76,15 @@ public class KOMEKnightLordshipPassTest {
         KOMEVisualMarker anchor=markers.stream().filter(m->m.role==KOMEVisualMarker.Role.COMMISSION).findFirst().get();assertEquals(a.x,anchor.x,0);assertEquals(a.z,anchor.z,0);
         s.reload();assertTrue(KOMEVisualLocationService.markersFor(s.p).stream().anyMatch(m->m.role==KOMEVisualMarker.Role.COMMISSION&&m.x==anchor.x&&m.z==anchor.z));
     }}
-    @Test public void princeOnlyAuthorityKeepsSameFactionServiceAndAlignmentGates()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        f.credits(3);LOTREntityNPC lord=(LOTREntityNPC)KOMEKnightCommissionService.findLoaded(f.s.f.world,f.s.p.getSerfKnightProgression().getLiege().entityUuid);
-        assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,lord));assertTrue(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));
-        assertTrue(KOMEProgressionEligibility.evaluate(f.s.f.player,f.liege).enabled);f.alignment(1999);assertFalse(KOMEProgressionEligibility.evaluate(f.s.f.player,f.liege).enabled);
-    }}
+    @Test public void princeOnlyAuthorityKeepsSameFactionServiceAndAlignmentGates()throws Exception {
+        try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
+            f.credits(3);assertFalse(KOMELordshipTrialService.eligible(f.s.f.player,f.liege));
+            assertFalse(KOMEProgressionEligibility.evaluate(f.s.f.player,f.liege).enabled);
+            assertTrue(KOMEProgressionEligibility.evaluate(f.s.f.player,f.lord).enabled);
+            f.alignment(1999);assertFalse(KOMEProgressionEligibility.evaluate(f.s.f.player,f.lord).enabled);
+            assertEquals(KOMEProgressionRank.KNIGHT,f.s.p.getCanonicalRank());
+        }
+    }
     @Test public void playerDeathIsRecordedAndCannotBeErasedByReload()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         f.credits(3);KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.ACTIVE);
         KOMEObjectiveInvasionBridge.playerDeath(f.s.f.player);assertTrue(t.playerDied);assertEquals(Stage.FAILED,t.objective.stage);
@@ -88,16 +92,16 @@ public class KOMEKnightLordshipPassTest {
     }}
     @Test public void nativeOutcomeRequiresParticipationAndDoesNotPromoteWithoutPrinceReport()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         f.credits(3);KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.ACTIVE);
-        t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();t.authority=KOMEProgressionNpcRankService.referenceOf(f.liege);t.objective.encounterCreated=true;t.objective.participated=true;
+        t.ordinaryService=true;t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();t.authority=KOMEProgressionNpcRankService.referenceOf(f.lord);t.objective.encounterCreated=true;t.objective.participated=true;
         LOTREntityInvasionSpawner controller=KOMEAccessFixture.allocate(LOTREntityInvasionSpawner.class);controller.worldObj=f.s.f.world;KOMEKnightCommissionGameplayTest.setField(net.minecraft.entity.Entity.class,controller,"entityUniqueID",UUID.randomUUID());
         KOMEKnightCommissionGameplayTest.setField(LOTREntityInvasionSpawner.class,controller,"invasionSize",30);controller.posX=f.s.f.player.posX;controller.posY=f.s.f.player.posY;controller.posZ=f.s.f.player.posZ;t.invasionId=controller.getUniqueID().toString();
         KOMEObjectiveInvasionBridge.ended(controller,true);assertTrue(t.nativeVictory);assertTrue(t.ready());assertEquals(KOMEProgressionRank.KNIGHT,f.s.p.getCanonicalRank());
-        KOMEObjectiveInvasionBridge.ended(controller,true);assertTrue(KOMELordshipTrialService.promote(f.s.f.player,f.liege));assertFalse(KOMELordshipTrialService.promote(f.s.f.player,f.liege));
-        assertEquals(KOMEProgressionRank.LORD,f.s.p.getCanonicalRank());assertTrue(f.s.p.getSerfKnightProgression().getLiege().hasSameIdentity(t.authority));
+        KOMEObjectiveInvasionBridge.ended(controller,true);assertTrue(KOMELordshipTrialService.acceptOrReport(f.s.f.player,f.lord));assertFalse(KOMELordshipTrialService.promote(f.s.f.player,f.liege));
+        assertEquals(KOMEProgressionRank.LORD,f.s.p.getCanonicalRank());assertFalse(f.s.p.getSerfKnightProgression().hasLiege());
     }}
     @Test public void knightBookContainsOnlyActiveWorkAndCompactCreditedHistory()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
         f.credits(3);String context=KOMEKnightBookPresentation.context(f.s.p,"rohan");assertTrue(context.contains("Credited service"));assertFalse(context.contains("Stage:"));
-        KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(f.s.p,2000,"rohan");assertTrue(summary.activityObjective.contains("Seek a Prince"));assertFalse(summary.activityObjective.contains("survivors"));
+        KOMEProgressionRankSummary summary=KOMEProgressionRankSummary.project(f.s.p,2000,"rohan");assertTrue(summary.activityObjective.contains("Report to your Liege"));assertFalse(summary.activityObjective.contains("survivors"));
         KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.READY_TO_REPORT);assertFalse(KOMEProgressionTrackerSnapshot.lordship(t).hasNumericProgress());
     }}
     @Test public void unknownPrinceRemainsPrivateAndPersonalDiscoverySurvivesReload()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
@@ -123,15 +127,15 @@ public class KOMEKnightLordshipPassTest {
         assertEquals(trial.objective.destinationX,migrated.objective.destinationX,0);assertEquals(0,migrated.requiredSurvivors);assertFalse(migrated.nativeInvasion);assertEquals(3,f.s.p.getKnightService().qualifyingTypes("rohan").size());
     }}
     @Test public void nativeAbortedControllerIsTechnicalAndCannotProduceFreeVictory()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.ACTIVE);t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();t.objective.encounterCreated=true;
+        KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.ACTIVE);t.ordinaryService=true;t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();t.objective.encounterCreated=true;
         LOTREntityInvasionSpawner controller=KOMEAccessFixture.allocate(LOTREntityInvasionSpawner.class);controller.worldObj=f.s.f.world;
         KOMEKnightCommissionGameplayTest.setField(net.minecraft.entity.Entity.class,controller,"entityUniqueID",UUID.randomUUID());KOMEKnightCommissionGameplayTest.setField(LOTREntityInvasionSpawner.class,controller,"invasionSize",30);
         t.invasionId=controller.getUniqueID().toString();KOMEObjectiveInvasionBridge.ended(controller,false);
         assertEquals(Stage.ACTIVE,t.objective.stage);assertTrue(t.objective.activationPending);assertFalse(t.nativeVictory);assertFalse(t.playerDied);assertFalse(t.ready());
     }}
     @Test public void princeEntrustsFourSoldiersButNoInvadersBeforeStaging()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        f.credits(3);KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.OFFERED);t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();
-        assertTrue(KOMELordshipTrialService.acceptOrReport(f.s.f.player,f.liege));assertEquals(Stage.ACTIVE,t.objective.stage);assertEquals(4,t.confirmedSurvivors());
+        f.credits(3);KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.OFFERED);t.ordinaryService=true;t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();
+        assertTrue(KOMELordshipTrialService.acceptOrReport(f.s.f.player,f.lord));assertEquals(Stage.ACTIVE,t.objective.stage);assertEquals(4,t.confirmedSurvivors());
         assertFalse(t.objective.encounterCreated);assertTrue(t.invasionId.isEmpty());assertFalse(t.objective.actors.stream().anyMatch(a->a.role==Role.ENEMY));
         KOMELordshipTrialService.tickPlayer(f.s.f.player);assertFalse(t.objective.encounterCreated);assertEquals(4,t.objective.actors.size());
         f.s.reload();t=f.s.p.getLordship().assignment();assertTrue(t.invasionId.isEmpty());assertEquals(4,t.confirmedSurvivors());
@@ -148,13 +152,13 @@ public class KOMEKnightLordshipPassTest {
         grid.setInventorySlotContents(0,standingProperty);assertTrue(KOMEQuestPropertyUseGuard.boundRecipe(grid));
     }}
     @Test public void offlineParticipantRetainsRealNativeVictoryUntilPersonalPrinceReport()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        f.credits(3);KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.ACTIVE);t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();t.objective.encounterCreated=true;t.objective.participated=true;
+        f.credits(3);KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.ACTIVE);t.ordinaryService=true;t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();t.objective.encounterCreated=true;t.objective.participated=true;
         LOTREntityInvasionSpawner controller=KOMEAccessFixture.allocate(LOTREntityInvasionSpawner.class);controller.worldObj=f.s.f.world;KOMEKnightCommissionGameplayTest.setField(net.minecraft.entity.Entity.class,controller,"entityUniqueID",UUID.randomUUID());KOMEKnightCommissionGameplayTest.setField(LOTREntityInvasionSpawner.class,controller,"invasionSize",30);t.invasionId=controller.getUniqueID().toString();
         f.s.f.world.playerEntities.remove(f.s.f.player);KOMEObjectiveInvasionBridge.ended(controller,true);assertTrue(t.ready());assertTrue(t.nativeVictory);assertEquals(KOMEProgressionRank.KNIGHT,f.s.p.getCanonicalRank());
-        f.s.f.world.playerEntities.add(f.s.f.player);f.s.reload();assertTrue(f.s.p.getLordship().assignment().ready());assertTrue(KOMELordshipTrialService.promote(f.s.f.player,f.liege));
+        f.s.f.world.playerEntities.add(f.s.f.player);f.s.reload();assertTrue(f.s.p.getLordship().assignment().ready());assertTrue(KOMELordshipTrialService.acceptOrReport(f.s.f.player,f.lord));
     }}
     @Test public void realInvadersKeepNativeLootAndCannotReceiveFriendlyGuardCommands()throws Exception {try(KOMELordshipTrialFixture f=new KOMELordshipTrialFixture()){
-        KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.ACTIVE);t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();
+        KOMELordshipTrial t=f.trial(KOMELordshipTrial.Scenario.BORDER_PATROL,Stage.ACTIVE);t.ordinaryService=true;t.nativeInvasion=true;t.invasionType=lotr.common.world.spawning.LOTRInvasions.DUNLAND.codeName();
         LOTREntityNPC enemy=f.actor(t,Role.ENEMY);assertFalse(KOMELordshipTrialService.interactFollower(f.s.f.player,enemy));
         UUID controller=UUID.randomUUID();t.invasionId=controller.toString();KOMEKnightCommissionGameplayTest.setField(LOTREntityNPC.class,enemy,"invasionID",controller);
         assertTrue(KOMEObjectiveInvasionBridge.nativeInvader(f.s.f.data,enemy));t.objective.actors.get(0).dead=true;assertTrue(KOMEObjectiveInvasionBridge.nativeInvader(f.s.f.data,enemy));

@@ -16,7 +16,8 @@ import net.minecraft.item.ItemStack;
 public final class KOMEPartingGiftService {
     private KOMEPartingGiftService() { }
     public static ItemStack pending(KOMESerfKnightProgression state,Random random) {
-        if(state==null||!state.isTrialCompleted()||state.hasPartingGift()||!giftMaster(state).isSet())return null;
+        if(state!=null&&state.ordinaryObjective())return null;
+        if(state==null||(!state.isTrialCompleted()&&!state.isPromoted())||state.hasPartingGift()||!giftMaster(state).isSet())return null;
         ItemStack saved=state.getPendingPartingGift();
         if(saved==null){saved=generate(giftMaster(state).factionKey,random);state.setPendingPartingGift(saved);}
         return saved==null?null:saved.copy();

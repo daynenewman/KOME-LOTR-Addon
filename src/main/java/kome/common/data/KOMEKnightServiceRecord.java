@@ -25,6 +25,14 @@ public final class KOMEKnightServiceRecord {
         return Collections.unmodifiableSet(result);
     }
     private boolean recorded(String token) { for(KOMEKnightCommission a:history)if(a.token.equals(token))return true;return false; }
+    synchronized boolean reportInvasion(KOMELordshipTrial t,KOMEProgressionNpcRef clicked){
+        if(t==null||!t.ordinaryService||!t.nativeInvasion||!t.nativeVictory||!t.ready()||t.playerDied
+            ||!t.objective.participated||t.objective.adminForced||recorded(t.objective.token)
+            ||!t.objective.liege.hasSameIdentity(clicked)||!t.objective.faction.equals(clicked.factionKey))return false;
+        NBTTagCompound n=t.objective.writeToNBT();n.setString("Type","NATIVE_INVASION");
+        KOMEKnightCommission a=KOMEKnightCommission.readFromNBT(n);if(a==null)return false;
+        a.stage=KOMEKnightCommission.Stage.REPORTED;completed.add(a.type);history.add(a);t.objective.stage=KOMEKnightCommission.Stage.REPORTED;return true;
+    }
     public synchronized List<KOMEKnightCommission> history() { return Collections.unmodifiableList(new ArrayList<>(history)); }
     public synchronized boolean offer(KOMEKnightCommission a) { if(a==null||assignment!=null||recorded(a.token)||a.stage==KOMEKnightCommission.Stage.REPORTED)return false;assignment=a;return true; }
     public synchronized boolean accept(KOMEProgressionRank rank,KOMEProgressionNpcRef currentLiege,String pledge) {
@@ -40,7 +48,12 @@ public final class KOMEKnightServiceRecord {
         for(KOMEKnightCommission.Type type:available)if(!credited.contains(type))result.add(type);return result;
     }
     public synchronized boolean report(KOMEProgressionNpcRef liege) {
-        if(assignment==null||assignment.stage!=KOMEKnightCommission.Stage.READY_TO_REPORT||recorded(assignment.token)||!assignment.liege.hasSameIdentity(liege)||!KOMEProgressionRelationshipLifecycle.sameFaction(assignment.faction,liege.factionKey))return false;
+        return report(liege,KOMEProgressionNpcRef.EMPTY);
+    }
+    synchronized boolean report(KOMEProgressionNpcRef liege,KOMEProgressionNpcRef deceased) {
+        if(assignment==null||assignment.stage!=KOMEKnightCommission.Stage.READY_TO_REPORT||recorded(assignment.token)
+            ||(!assignment.liege.hasSameIdentity(liege)&&!assignment.liege.hasSameIdentity(deceased))
+            ||!KOMEProgressionRelationshipLifecycle.sameFaction(assignment.faction,liege.factionKey))return false;
         KOMEKnightCommission evidence=KOMEKnightCommission.readFromNBT(assignment.writeToNBT());if(evidence==null)return false;
         assignment.stage=KOMEKnightCommission.Stage.REPORTED;evidence.stage=KOMEKnightCommission.Stage.REPORTED;
         completed.add(assignment.type);history.add(evidence);trimHistory();assignment=null;return true;

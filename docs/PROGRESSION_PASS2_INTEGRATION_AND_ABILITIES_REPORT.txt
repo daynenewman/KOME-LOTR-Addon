@@ -1,0 +1,865 @@
+KOME-LOTR-ADDON - PROGRESSION PASS 2: INTEGRATION AND RANK ABILITIES
+Date: 2026-10-13
+Evidence: current source, native v36.15 bytecode, Linear decisions and automated tests.
+Minecraft was not launched. Wired behavior is not live gameplay acceptance.
+
+A. EXECUTIVE SUMMARY
+====================
+The original progression feature branch now includes origin/dev's KOM-18 history
+through 6d1669a29c572161fa8b14b0779734eb63323af9. Pass 1 and the older unpublished
+Knight/Lordship work were backed up and checkpointed first. No work was discarded,
+no existing stash was applied or changed, and nothing was pushed.
+
+A modest extension of the existing permission registry derives standing eligibility
+from KOMEPlayerProgression.getCanonicalRank(). There is no second rank, unlock save
+ledger, political authority service, recruitment service or battle resolver.
+
+New faction Build intents require Serf, new formal battle entry requires Knight,
+new company ownership/delegation requires Lord, and new Campaign hiring retains
+Lord plus actual Crown authority. Existing legitimate command, battle maintenance,
+retreat and recovery are preserved. A new hostile player order outside a declared
+war requires recognized ruler/staff authority; ordinary commanders cannot use that
+path to originate a capture-created war. KOM-18's timer/victory/publication is intact.
+
+The Rank page keeps current service first and adds a compact current/next privilege
+list with item icons and concise hover reasons. Rank unlock and current availability
+are separate. Exact original-start return is implemented where character creation
+saved and applied a valid built-in waypoint; native travel rules remain mandatory.
+
+Standard equipment remains native LOTR gameplay. Exceptional equipment, advanced
+manufacture, Warfare rewards, royal warrants, troop ceilings, fiefs and capstones
+were not invented. King remains a political office, independent of Prince standing.
+
+B. GIT AND CONTRIBUTOR INTEGRATION
+=================================
+Starting and final branch:
+elijahrnovak/kom-72-implement-revised-branch-based-player-progression-system
+Starting HEAD: 00287ec6a44102807e8bae0930b941cb0a34e3f2
+Starting state: 98 modified tracked files, 23 untracked files; nothing staged.
+All 121 paths were reviewed as source, tests, documentation or build configuration.
+No generated worlds, caches, runtime jars, secrets or temporary logs were staged.
+The older work includes the October 11 commission/Lordship, invasion/property,
+client rendering, immersion and book changes. Pass 1 adds survival cleanup,
+Campaign spending authority, manual-claim denial and the fenced g8 projection.
+Layer counts: 6 Added during Pass 1; 70 Older preserved work, unchanged by Pass 1; 45 Older work with Pass 1 changes.
+The per-file layer inventory below was computed against Pass 1's saved baseline
+hashes, rather than assuming all initial dirty files belonged to Pass 1.
+
+Initial durable backup, outside this working source tree:
+C:\Users\elija\OneDrive\Desktop\Gaming\Minecraft\My Mincraft Modding\CustomMods\KOME-Progression-Pass2-Backups\20261013-214821
+It contains verified copies of all 121 dirty files, SHA-256 hashes, binary tracked
+diff, staged diff, branch/HEAD/status/worktree records, three exported stash patches,
+and a verified git bundle containing all existing refs/history.
+The completed local commit and this final TXT are additionally preserved there as
+final-repository.bundle and verified-final-report.txt, with final Git state recorded.
+
+Recovery procedure was recorded before history changes:
+Clone repository.bundle into a separate disposable directory; check out the saved
+starting HEAD; copy working-files preserving their relative paths. The binary patch
+is also retained. Prefer the local checkpoint commits for normalized recovery.
+Do not reset or overwrite the active checkout or apply/remove an existing stash.
+
+Local preservation/integration commits:
+b3aa6612db5e0f96946a10d99d27d2b876730f19 - exact reviewed dirty-work checkpoint.
+4b7fb219259dbe8d8ebb5a58966d8ad9092ac2c3 - normalize checkpoint text line endings for merging.
+8aea11b34bce6504337c0bef75a1110e0c954ddf - regular merge of origin/dev.
+b81b7e9effc24cbfc19e10c29978df851729b1cf - verified rank policy, action guards, GUI and routing; final branch HEAD.
+The final completed TXT is deliberately a local, uncommitted review artifact at this HEAD.
+
+The first checkpoint used an inappropriate line-ending option, making CRLF-only
+changes noisy. A separate normalization commit corrected the index, without
+rewriting history or changing the preserved source content. The original snapshot
+remains in the durable backup and checkpoint. The combined checkpoint diff has
+the intended content changes and new files.
+
+The fetch advanced origin/dev from 00287ec to 6d1669a. Incoming history contains
+20 commits, including PR #34, d3b4da8's contributor integration, ordinary battle
+planning/lifecycle/resolution, ConflictData v3, versioned health, recovery WAL,
+startup replay, recovery execution/healing policy, movement reconstruction/source
+removal fixes and dev offline identity diagnostics. Contributor history was merged,
+not copied or wholesale cherry-picked.
+
+Only two mechanical conflicts occurred:
+1. build.gradle.kts: retained Pass 1's g8 contract at integration and kept dev's
+   offline development identity opt-in/credential guards. The subsequent ability
+   payload advances both build version and wire contract consistently to g9.
+2. client-network routing guide: retained the corrected authoritative client
+   projection; incorporated dev's packet compatibility notes and removed its
+   now-inapplicable description of the old cache gap.
+
+Automatic merges were inspected in Events, native Campaign recruitment, core
+transformer registration and test fixtures. Recovery load/unload, healing/death
+ordering, native association snapshots and health transformer remain. Pass 1's
+ordinary follower/population behavior and claim denial remain. Objective invasion
+and quest property transformers coexist with the new Campaign health transformer.
+No character-creation selection, waypoint application or strategic resolver was
+replaced. No contributor tests were removed or weakened.
+
+Stashes preserved exactly:
+61f81972fe98afe0497ddd376d571ebb019883ad - local artifacts before progression sync.
+1f7c28e4ab11eb929b64d247de5800048fc9b34a - KOM-40 handoff work.
+7d9c99bc5cfa9d5bd96dbe81fe4203449d007221 - older waypoint transformer work.
+
+Final fetched origin/dev: 6d1669a29c572161fa8b14b0779734eb63323af9.
+Ancestry check confirms that complete dev history is included.
+HEAD/origin-dev ahead/behind counts: 4 / 0.
+No newer origin/dev divergence was found at the final fetch.
+No push, force-push, remote dev update, PR, branch deletion/rename, hard reset,
+stash application or stash deletion occurred. Worlds and existing runtimes were
+not launched, replaced or edited. Deliberate ignored evidence remains under
+outputs/progression-pass2. This final TXT is retained as a local review artifact.
+
+References inspected before implementation:
+- docs/routing/INDEX.md and relevant progression, conflict, hiring, politics,
+  population/travel, networking, runtime, character and physical-gate routes.
+- PROGRESSION_RANK_ABILITIES_AND_CLEANUP_AUDIT.txt; PROGRESSION_CLEANUP_PASS1_REPORT.txt;
+  Knight/Lordship pass, supplemental immersion and book audit reports.
+- Linear KOM-72, 36, 76, 71, 87, 18, 19, 75, 86, including available comments.
+- Accepted Draft 0.4 decision addendum, plus later KOM-18 merge/recovery comments.
+  https://linear.app/kome-development/document/draft-04-rules-alignment-and-accepted-decision-addendum-2026-10-03-688f1d1f6535
+KOM-87 remains Todo; KOM-86 remains Backlog with KOM-87 dependency. Completed
+KOM-75 Emergency Defense supersedes older open kingless-stewardship wording.
+
+C. CONQUEST INTEGRATION
+=======================
+KOMEConflictMovementService validates legal hostile terminal arrival and Campaign
+commitment. KOMEConflictService owns the canonical per-tile ConflictRecord.
+KOMEOrdinaryBattleLifecycleService owns episode continuity, server-active response
+time, reinforcement non-reset, abandonment and genuine hostile recovery evidence.
+KOMEOrdinaryBattleResolutionService preflights current military, timer, tile,
+fortification, survivor and movement-hold authority before publication.
+KOMEOrdinaryBattleOwnershipResolver selects the eligible surviving faction using
+default-owner/allied coalition/continuous-participation rules and deterministic
+tie-breaking. KOMEWorldData.claimTile remains the canonical ownership mutation seam.
+KOMEWarService owns capture history/war state; KOMEDiplomacyService owns diplomacy.
+KOMEEvents.processCampaignTick invokes the merged lifecycle/resolution/recovery.
+
+Timer expiry alone is not victory while hostile committed factions remain. Retreat
+and abandonment do not manufacture a capture. Fortified/Encirclement contexts defer
+to siege authority; ordinary resolution cannot complete uncaptured Siege Complexes.
+Recovery uses versioned health, durable intents and WAL acknowledgment/replay,
+not progression flags or client victory requests. +5 current-HP recovery is the
+configured contributor policy, not a new reward or population adjustment here.
+
+Manual claim service/packet remains a read-only denial even for high rank, legacy
+flags, disabled progression and replay. Tile Command's Conquest action remains
+disabled with the canonical resolution/peaceful-transfer explanation. No duplicate
+victory button or progression-owned battle referee was added.
+
+Significant authority interaction found after integration:
+KOM-18's legitimate hostile capture records history through recordHostileCapture,
+which can create a capture-origin war when one does not yet exist. Changing the
+resolver would risk its durable publication/recovery semantics. Instead,
+KOMECompanyCommandAuthority.newMilitaryOperationDenial is called by the actual
+new-order/preview validation in KOMECommandTroops.validateCompanyMove. A native-
+hostile target outside declared war requires recognized ruler or server staff.
+An ordinary Lord/Prince commander can issue otherwise legal wartime orders, but
+rank/ownership alone cannot initiate the operation that originates a new war.
+Already queued orders and already committed conflicts keep their accepted authority;
+there is no retroactive cancellation that strands existing troops.
+
+Ruler peaceful offers/acceptance and staff ownership corrections remain separate
+legitimate operations. Recognized office is read from KOMERulerService, not the
+displayed King title or Prince rank. Native relations, passage, unit classification,
+movement geometry and battlefield participation are still domain decisions.
+
+Regression coverage retained/run:
+- Legal hostile capture, unchanged-owner defender outcome and idempotent history.
+- Timer expiry with hostile forces still present; reinforcement and continuity.
+- Formal retreat, abandonment, recovery and later new episodes.
+- Multiple allied attackers/default-owner selection and continuity tie-breaks.
+- Fortified deferral, legal siege timer/state contracts and no ordinary bypass.
+- Emergency Defense native ownership, pending/active defender contributions.
+- Peaceful ruler transfer, staff correction and forged/replayed manual claims.
+- ConflictData v3 save/reload, Join Battle receipts, health/WAL startup/replay.
+- New Lord pre-war order denial, ruler/staff exception and declared-war acceptance.
+
+Unclaimed land does not acquire a new player claim route. The hostile-arrival path
+requires an authoritative defender; ambiguous/unclaimed targets fail safely under
+the existing domain rules. Staff/political ownership operations remain separate.
+This is not a new designed civilian occupation mechanic.
+
+Outstanding contributor follow-ups remain: KOM-91 stale egress between battles,
+KOM-92 Emergency Defense protection and KOM-20 battlefield interference/referee
+acceptance. Full multi-complex siege completion is not implemented by this pass.
+Existing contributor live observations were read; they are not this pass's tests.
+
+D. IMPLEMENTED RANK-ABILITY ARCHITECTURE
+=======================================
+Reused: KOMECanonicalRankService, KOMEPlayerProgression, progression rank enum,
+KOMEProgressionPermissions, KOMEProgressionPermissionRegistry, existing rank/service
+summaries, KOMEProgressionAutoCompleter, packet 9 and Pass 1 client lifecycle fences.
+
+Added one production class: KOMEProgressionAbilityPolicy.
+Added a small Ability enum inside the existing permission registry. Each ability
+has one stable ID, minimum canonical rank, title, description, native item icon
+key, appointment/context dependency metadata and enforcement-site inventory.
+The old advancement Gate inventory remains intact.
+
+Ability IDs and minimum standing:
+build.submit - Serf
+travel.start - Serf
+equipment.standard - Knight
+battle.join - Knight
+company.command - Lord
+campaign.recruit - Lord
+company.orders - Lord
+
+Rank inheritance uses the canonical enum order; Prince inherits all these floors.
+King is absent from that enum. Reads do not create a missing progression record.
+Historical completion markers and disabled legacy progression do not satisfy a
+new ability rank floor. Explicit existing server administrative hiring authority
+is still supported, but is never read from client requests or presented as earned
+standing. No persistent unlock flags or rank migration were added.
+
+Outcome structure: stable ID, rankUnlocked, Availability, reason, optional target.
+LOCKED means the rank floor is missing. UNAVAILABLE means standing is earned but
+an identified live requirement is missing. AVAILABLE is used for an exact legal
+starting return. CONTEXT_REQUIRED truthfully requires a selected unit, company,
+destination, item, Build or deployment before final authorization can be decided.
+Unknown action context is never presented as a definite grant.
+
+Campaign rank/pledge/Crown checks are shared with actual recruitment through
+KOMEProgressionPermissions.campaignRecruitmentDenial. The domain recruitment
+transaction still checks governance, native hiring, actual costs, legal location,
+deployment, bank debit, company admission and rollback. A positive bank balance
+does not promise enough population for every unit. A zero balance has the real
+resource denial; no arbitrary troop price or budget is guessed for the book.
+
+Battle availability queries the real KOMEJoinBattleService over active conflicts.
+Company availability reads KOMECompanyCommandAuthority. Destination-specific route
+checks remain in CommandTroops. Existing unpledged/foreign command delegation
+contracts are preserved: the generic pledge warning does not override an already
+legal company command appointment. Equipment is delegated to native/item rules.
+
+Synchronization: packet 9 appends at most seven outcomes with bounded IDs/counts,
+duplicate-ID and contradictory-state rejection; collections are detached/immutable.
+Packet 5 carries Build submission eligibility and reason. Existing packet IDs are
+unchanged. Both build and wire protocol are 1.0.9-integration-g9; g8 is rejected.
+Client abilities publish only after accepted viewer, connection, revision and
+dimension checks, together with existing book data. Disconnect/world transitions
+clear them. No duplicate client rank was introduced.
+
+The existing 100-tick progression check compares outcome explanations alongside
+rank, pledge, alignment, mode, assignments and history. Changed appointment,
+population/company/conflict context yields a refreshed snapshot without publishing
+every unrelated tick. Login, promotion/admin, faction and dimension lifecycles
+remain. Final actions always revalidate the server state. Availability can be a
+few seconds old between snapshots; it is never an authority token.
+
+E. ACTUAL RANK-ABILITY MATRIX
+=============================
+WANDERER
+Normal survival, crafting, farming, cooking, trading, pouches, exploration,
+ordinary mounts and native quests:
+  IMPLEMENTED AND ENFORCED (Pass 1 preservation of unrestricted baseline).
+  Sites: KOMEEvents cleaned event hooks; isRetiredNativeGate; native LOTR rules.
+  GUI: no duplicate baseline survival checklist or artificial unlock rows.
+Faction strategic command:
+  IMPLEMENTED WITH ADDITIONAL AUTHORITY REQUIRED for pre-existing legal command
+  maintenance only; no automatic standing grant or new appointment at Wanderer.
+
+SERF
+Faction participation/ordinary service:
+  DISPLAY ONLY / EXISTING DOMAIN OPERATION. Native pledge plus saved Master/Liege
+  and service systems remain. Current activity/service is first in the book.
+Build submission, build.submit:
+  IMPLEMENTED WITH ADDITIONAL AUTHORITY REQUIRED.
+  Rank site: KOMEPacketBuildAction.Handler, new create/contribute intents.
+  Domain sites: KOMEBuildService, ForeignConstructionService, tactical locks,
+  contribution/manager/reviewer and population development services.
+  GUI: current privilege after Serf; locked next privilege at Wanderer;
+  Tile Command new/add-hours eligibility and denial use server-authored fields.
+  Rank never grants approved hours/population. The existing Build domain already
+  auto-approves its registering manager's own hours; other contribution review
+  remains. That pre-existing manager rule was not broadened or replaced with
+  an automatic rank-based approval. Universal outside review would require a
+  separate accepted Build-authority change.
+Exact original-start return, travel.start:
+  IMPLEMENTED AND ENFORCED for verified saved/applied starts.
+  Sites: KOMEWaypointAccessService.originalStartingWaypoint/hasTravelPermission,
+  allowNativeRequest/allowFinalTravel; KOMEPacketWaypointTravelRequest.Handler.
+  GUI: Serf unlock; exact destination and current native/territory denial; click
+  the available row requests the existing server travel path.
+  Missing, invalid or unapplied starts: DEFERRED - DESIGN DECISION for a fallback
+  or repair policy. No faction capital/new waypoint is substituted.
+
+KNIGHT
+Standard faction military equipment, equipment.standard:
+  DISPLAY ONLY / EXISTING DOMAIN OPERATION.
+  Sites: native LOTR item/crafting/alignment behavior; evaluatePlayer in
+  KOMEGearRestrictionService for configured/exceptional/bound items.
+  GUI: standing eligibility is shown, explicitly stating standard gear remains
+  native even before Knight. No new possession/wear/wield restriction is imposed.
+  Crafting and exceptional items do not become automatic Knight rewards.
+  Actual material rules retained: Mithril, Utumno, Gondolin, Mallorn, Morgul and
+  Galvorn. The latter rarer/ambiguous categories keep existing safe permissions
+  pending standard-versus-exceptional decisions. Passive possession/storage/display
+  remains allowed; active use/armor checks remain in GearRestrictionService and
+  the existing Events adapters. Native crafting-table alignment is untouched.
+Company service and formal participation, battle.join:
+  IMPLEMENTED WITH ADDITIONAL AUTHORITY REQUIRED for actual Join Battle.
+  Site: KOMEJoinBattleService.base; entry/selection/anchor paths share it.
+  Need current faction commitment, coherent CAMPAIGN combat company, exact
+  conflict expectations, governance and safe physical deployment. Proximity,
+  ordinary hires and possession of a company do not grant battle entry.
+  Already ACTIVE registered participation is maintained after rank correction;
+  new/unregistered entry must meet Knight. WITHDRAWN still denies.
+  GUI: one combined service row; actual domain denial on hover; use Join Battle
+  for selected-company deployment. No duplicate enlistment or command menu.
+Warfare specialization eligibility:
+  DISPLAY ONLY / EXISTING DOMAIN OPERATION for the read-only rank filter
+  warfareRankEligible; DEFERRED - MISSING GAMEPLAY SYSTEM for specialist rewards.
+  No functional specialist row/reward or full Warfare tree is advertised.
+Campaign recruiting at Knight:
+  IMPLEMENTED AND ENFORCED denial, even with old hire/title achievement flags.
+
+LORD
+Recruit strategic troops, campaign.recruit:
+  IMPLEMENTED WITH ADDITIONAL AUTHORITY REQUIRED.
+  Sites: shared recruitmentAuthorityDenial; native Campaign adapter and
+  KOMECampaignRecruitmentService predeployment/commit checks.
+  GUI: Lord unlock stays earned when Crown authority/population is absent.
+  Non-ruler spending remains closed pending KOM-87; recognized pledged Lord/
+  Prince ruler is the existing authority. No company grant is a bank warrant.
+Create/receive/command companies, company.command:
+  IMPLEMENTED WITH ADDITIONAL AUTHORITY REQUIRED.
+  New raising/admission comes through authorized Campaign recruitment.
+  New control appointments: KOMECompanyDiplomacyAuthorization.canStartDelegation.
+  New ownership: KOMECompanyTransferService.offer and accept, with rank recheck.
+  Ongoing control: KOMECompanyCommandAuthority and CommandTroops retain real
+  ownership/delegation/state checks. Existing command is not revoked by rank.
+  GUI: Lord floor plus actual company-control availability. No free company,
+  automatic appointment or recruitment permission is created on promotion.
+Strategic movement and legal operations, company.orders:
+  IMPLEMENTED WITH ADDITIONAL AUTHORITY REQUIRED.
+  Sites: CommandTroops.validateCompanyMove and existing route/departure/domain
+  services; newMilitaryOperationDenial guards pre-war hostile initiation.
+  GUI: Lord eligibility plus company requirement; route and target context are
+  checked in the actual movement preview/command. Existing movement/retreat and
+  borrowed legal control remain maintainable after rank correction.
+Lord personal 200-population ceiling:
+  DEFERRED - DESIGN DECISION. No calculation, disbanding or historical-spend cap.
+Siege-gate command:
+  DISPLAY ONLY / EXISTING DOMAIN OPERATION for actual gate operation, which stays
+  in TileEntitySiegeGate/GateAccess and Owner/Editor/Operator/alignment roles.
+  DEFERRED - DESIGN DECISION for a distinct Lord siege-command entitlement.
+  GUI: no invented Lord gate grant. Lord standing does not override physical
+  access, role, faction, alignment, governance or gate state. Ordinary doors and
+  existing trusted lower-rank gate operators remain unaffected.
+Larger holdings/workers:
+  DEFERRED - MISSING GAMEPLAY SYSTEM for estates/holdings management.
+  Existing Build management/native farmhands remain their actual domain behavior;
+  no estate-management row or rank-based worker framework is advertised.
+
+PRINCE
+Inherited lower privileges:
+  IMPLEMENTED AND ENFORCED through canonical ordered rank comparisons, with
+  all native/domain/appointment/resource conditions still applicable.
+No personal rank troop ceiling:
+  DISPLAY ONLY / EXISTING DOMAIN OPERATION: this pass adds no personal ceiling
+  at any rank; global economy/safety limits remain. No cap-removal reward exists.
+Fief appointment eligibility/territory assignment:
+  DEFERRED - MISSING GAMEPLAY SYSTEM. No fief, automatic territory or row.
+Broader regional/military delegation:
+  DEFERRED - MISSING GAMEPLAY SYSTEM beyond existing company appointments.
+Prince capstones:
+  DEFERRED - MISSING GAMEPLAY SYSTEM. No fictional expertise/reward rows.
+
+KING (OFFICE)
+Recognized ruler diplomacy, war and existing sovereign operations:
+  DISPLAY ONLY / EXISTING DOMAIN OPERATION, enforced by KOMERulerAuthorization,
+  KOMERulerService and the existing diplomacy/war/political handlers.
+  No rank ability can assign King or infer ruler authority from a displayed title.
+Kingship eligibility/succession/new Crown delegation:
+  DEFERRED - DESIGN DECISION / KOM-87 dependency as applicable.
+  Assigning ruler does not assign Prince; reaching Prince does not assign ruler.
+
+F. RECRUITMENT COMPATIBILITY
+============================
+Ordinary LOTR followers retain native follower/travel/ambient behavior and remain
+ORDINARY. Native combat hiring still charges canonical faction population exactly
+once through ordinary registration; farmhands retain native price and zero population.
+It does not enroll proximity-observed followers into companies or formal conflict.
+Foreign ordinary bodyguards retain Pass 1's native-eligibility distinction.
+
+CAMPAIGN identity remains explicit, persisted and exclusive to legal strategic
+admission. No ordinary mobilization/retirement operation is invented here. Both
+combat classes use the same faction bank/cost model. Mounted costs, overrides,
+fixed-point fractions, permanent investment, rollback and native coin charging
+remain. New rank checks precede economic/gameplay effects.
+
+Knight cannot recruit a new Campaign army through a historical achievement. Lord
+eligibility is insufficient to spend shared population. Non-ruler authority remains
+unavailable until real royal warrants/budgets exist. Ruler and trusted server admin
+exceptions remain separate from rank inheritance. Existing companies, legitimate
+transfers/control maintenance, Emergency Defense, retreat, health reconstruction
+and WAL recovery remain safe; no retroactive debit, refund, reclassification or
+disbanding occurs. New recipient appointments now require Lord, but already
+established lower-rank ownership/delegation remains maintainable.
+
+G. GUI CHANGES
+===============
+The existing native LOTR book panel and Rank/Service & Rank tab remain.
+Layout: standing line; current service/activity; promotion requirements and
+existing relationship/history context; current privileges; next-standing privileges.
+The current service remains above the privilege inventory. Existing Show Me,
+relationship footer, advancement browsing and rank scrolling remain.
+
+Seven supported rows maximum, with only the immediate next rank previewed.
+Wanderer sees two Serf future rows; Serf sees two current/two Knight future rows;
+Knight sees four current/three Lord future rows; Lord/Prince see seven inherited
+rows without fictional Prince/Fief/capstone content. The legacy baseline checklist
+remains hidden. Warfare scaffolding is not another advancement tree in this tab.
+
+Rows use 20-pixel height, vanilla/native item icons (paper, compass, iron armor,
+iron sword, map, gold nugget), existing parchment/red/brown visual formatting,
+earned checkmarks, locked boxes and an amber unavailable mark. Titles trim to the
+available width; hover text contains the full title, standing/state reason and
+short scope. Tooltip hit testing respects the clipped viewport. Content-height
+calculations include both headings, rows and the existing relationship footer.
+
+Unlocked-but-unavailable remains an earned privilege with a specific denial,
+rather than a rank lock. Context-required rows avoid claiming complete access
+before selection. Build controls use server-authored rank eligibility and the
+same concise rank denial; the disabled Conquest button remains canonical.
+
+Only the available exact starting-return row has a new direct click action, using
+the existing request packet and complete server revalidation. Native map behavior
+and other travel permissions are not broadened into a universal ladder.
+
+Limits: pure layout calculations, packet/lifecycle execution and existing real
+GuiScreen Build mouse tests ran. The Rank page itself was not drawn in Minecraft;
+actual icon rendering, long cultural titles, hover position, mouse scrolling and
+GUI scale/clipping need connected-client inspection. No screenshot/live visual
+acceptance or performance claim is made.
+
+H. LEGACY ADVANCEMENT COMPATIBILITY
+===================================
+All 96 historical definitions/stable IDs remain. Completed/assignment/offering,
+relationship, commission, trial and objective save formats are retained. Retired
+survival/hire/capture identifiers never substitute for canonical rank/action
+authority. Old self-attested records do not become Warfare expertise.
+No completed history is deleted and no permission-ledger save migration is needed.
+Exceptional material gates deliberately remain under their existing policy pending
+classification decisions. Serf->Knight and Knight->Lord recipes are not changed
+to require optional specialization. Lord->Prince legacy redesign remains deferred.
+
+Merged persistence remains root 12, ConflictData 3, WAL 1, Campaign health 1,
+PhysicalLocator 1, ConflictMovementRelease 2. Dev's root-11/v3 and root-12/v2
+upgrade paths retain old sections, without inventing hostile episode participants
+or recovery grants. New rank abilities add no world/player schema section.
+Automated save/reload tests passed; preserved real worlds were not opened.
+
+I. FILES CHANGED
+================
+Direct Pass 2 source/test/configuration/documentation paths (relative to merge):
+  build.gradle.kts
+  docs/PROGRESSION_PASS2_INTEGRATION_AND_ABILITIES_REPORT.txt
+  docs/routing/INDEX.md
+  docs/routing/systems/character-creation/README.md
+  docs/routing/systems/client-network/README.md
+  docs/routing/systems/conflict-tactical/README.md
+  docs/routing/systems/hiring-companies/README.md
+  docs/routing/systems/politics-diplomacy/README.md
+  docs/routing/systems/progression/README.md
+  docs/routing/systems/waypoints/README.md
+  src/main/java/kome/client/KOMEClientProxy.java
+  src/main/java/kome/client/gui/KOMEGuiConquestCapture.java
+  src/main/java/kome/client/gui/KOMEGuiProgression.java
+  src/main/java/kome/client/gui/KOMEProgressionRankLayout.java
+  src/main/java/kome/common/command/KOMECommandTroops.java
+  src/main/java/kome/common/data/KOMECompanyCommandAuthority.java
+  src/main/java/kome/common/data/KOMECompanyDiplomacyAuthorization.java
+  src/main/java/kome/common/data/KOMECompanyTransferService.java
+  src/main/java/kome/common/data/KOMEJoinBattleService.java
+  src/main/java/kome/common/data/KOMEJoinBattleText.java
+  src/main/java/kome/common/data/KOMEProgressionAbilityPolicy.java
+  src/main/java/kome/common/data/KOMEProgressionAutoCompleter.java
+  src/main/java/kome/common/data/KOMEProgressionPermissionRegistry.java
+  src/main/java/kome/common/data/KOMEProgressionPermissions.java
+  src/main/java/kome/common/data/KOMEWaypointAccessService.java
+  src/main/java/kome/common/network/KOMEPacketBuildAction.java
+  src/main/java/kome/common/network/KOMEPacketConquestCaptureGui.java
+  src/main/java/kome/common/network/KOMEPacketConquestOpenCapture.java
+  src/main/java/kome/common/network/KOMEPacketProgressionData.java
+  src/main/java/kome/common/network/KOMEPacketWaypointTravelRequest.java
+  src/main/java/kome/common/network/KOMEPopulationWire.java
+  src/test/java/kome/client/KOMEProgressionCleanupClientTest.java
+  src/test/java/kome/client/gui/KOMECanonicalPopulationNavigationTest.java
+  src/test/java/kome/client/gui/KOMEGuiBuildInteractionTest.java
+  src/test/java/kome/client/gui/KOMEProgressionAbilityLayoutTest.java
+  src/test/java/kome/common/command/KOMEPublicCommandTest.java
+  src/test/java/kome/common/data/KOMEAllianceSystemsTest.java
+  src/test/java/kome/common/data/KOMECompanyDiplomacyAuthorizationTest.java
+  src/test/java/kome/common/data/KOMEJoinBattleCompanyAnchorServiceTest.java
+  src/test/java/kome/common/data/KOMEJoinBattleEgressServiceTest.java
+  src/test/java/kome/common/data/KOMEJoinBattleEntryServiceTest.java
+  src/test/java/kome/common/data/KOMEJoinBattleReturnGeometryTest.java
+  src/test/java/kome/common/data/KOMEJoinBattleServiceTest.java
+  src/test/java/kome/common/data/KOMEPopulationPermanentSpendTest.java
+  src/test/java/kome/common/data/KOMEProgressionCleanupProjectionTest.java
+  src/test/java/kome/common/data/KOMEProgressionCleanupRecruitmentTest.java
+  src/test/java/kome/common/data/KOMEProgressionMilitaryAuthorityTest.java
+  src/test/java/kome/common/data/KOMEProgressionRankAbilitiesTest.java
+  src/test/java/kome/common/network/KOMEPopulationProtocolTest.java
+  src/test/java/kome/common/network/KOMEPublicAccessPacketTest.java
+
+Incoming contributor paths, preserved by the regular dev merge:
+  build.gradle.kts
+  docs/kom-18-campaign-health-authority.txt
+  docs/kom-18-recovery-wal.txt
+  docs/routing/flows/daily-movement.md
+  docs/routing/systems/client-network/README.md
+  docs/routing/systems/runtime-state/README.md
+  src/main/java/kome/common/KOMEAddon.java
+  src/main/java/kome/common/command/KOMECommandTroops.java
+  src/main/java/kome/common/command/KOMESpawnHelpers.java
+  src/main/java/kome/common/config/KOMEConfigChangeSet.java
+  src/main/java/kome/common/config/KOMEConfigInspection.java
+  src/main/java/kome/common/config/KOMEConfigRegistry.java
+  src/main/java/kome/common/data/KOMECampaignAssociationIndex.java
+  src/main/java/kome/common/data/KOMECampaignHealingPolicy.java
+  src/main/java/kome/common/data/KOMECampaignHealth.java
+  src/main/java/kome/common/data/KOMECampaignHealthDiagnostics.java
+  src/main/java/kome/common/data/KOMECampaignHealthEntity.java
+  src/main/java/kome/common/data/KOMECampaignHealthProjection.java
+  src/main/java/kome/common/data/KOMECombatStateEvaluator.java
+  src/main/java/kome/common/data/KOMEConflictLifecycleService.java
+  src/main/java/kome/common/data/KOMEConflictMovementHandoff.java
+  src/main/java/kome/common/data/KOMEConflictMovementService.java
+  src/main/java/kome/common/data/KOMEConflictPersistence.java
+  src/main/java/kome/common/data/KOMEConflictService.java
+  src/main/java/kome/common/data/KOMEEmergencyDefenseMobilizationService.java
+  src/main/java/kome/common/data/KOMEEntitySnapshots.java
+  src/main/java/kome/common/data/KOMEEvents.java
+  src/main/java/kome/common/data/KOMEFortificationContextResolver.java
+  src/main/java/kome/common/data/KOMEHiredUnitClassification.java
+  src/main/java/kome/common/data/KOMEHiredUnitRecord.java
+  src/main/java/kome/common/data/KOMENativeTraderCampaignRecruitment.java
+  src/main/java/kome/common/data/KOMEOrdinaryBattleLifecycleService.java
+  src/main/java/kome/common/data/KOMEOrdinaryBattleOwnershipResolver.java
+  src/main/java/kome/common/data/KOMEOrdinaryBattlePlanner.java
+  src/main/java/kome/common/data/KOMEOrdinaryBattleRecoveryPersistence.java
+  src/main/java/kome/common/data/KOMEOrdinaryBattleRecoveryRegistry.java
+  src/main/java/kome/common/data/KOMEOrdinaryBattleRecoveryService.java
+  src/main/java/kome/common/data/KOMEOrdinaryBattleResolutionService.java
+  src/main/java/kome/common/data/KOMEPledgeReleaseService.java
+  src/main/java/kome/common/data/KOMERecoveryExecutor.java
+  src/main/java/kome/common/data/KOMERecoveryHealthEvidence.java
+  src/main/java/kome/common/data/KOMERecoveryJournal.java
+  src/main/java/kome/common/data/KOMERecoveryJournalCodec.java
+  src/main/java/kome/common/data/KOMERecoveryJournalIO.java
+  src/main/java/kome/common/data/KOMERecoveryJournalManager.java
+  src/main/java/kome/common/data/KOMERecoveryJournalRecord.java
+  src/main/java/kome/common/data/KOMERecoveryJournalView.java
+  src/main/java/kome/common/data/KOMERecoveryReservations.java
+  src/main/java/kome/common/data/KOMERecoveryRuntime.java
+  src/main/java/kome/common/data/KOMERecoveryStartup.java
+  src/main/java/kome/common/data/KOMERecoveryStartupPlan.java
+  src/main/java/kome/common/data/KOMERecoveryTargetJournal.java
+  src/main/java/kome/common/data/KOMEWartimeStewardshipService.java
+  src/main/java/kome/common/data/KOMEWorldCheckpoint.java
+  src/main/java/kome/common/data/KOMEWorldData.java
+  src/main/java/kome/common/network/KOMEPacketHandler.java
+  src/main/java/kome/core/KOMECampaignHealthTransformer.java
+  src/main/java/kome/core/KOMECorePlugin.java
+  src/test/java/kome/common/KOMEAccessFixture.java
+  src/test/java/kome/common/config/KOMECampaignHealingConfigTest.java
+  src/test/java/kome/common/config/KOMEConfigInspectionTest.java
+  src/test/java/kome/common/config/KOMEConfigRegistryTest.java
+  src/test/java/kome/common/data/KOMECampaignHealingPolicyTest.java
+  src/test/java/kome/common/data/KOMECampaignHealingRecoveryTest.java
+  src/test/java/kome/common/data/KOMECampaignHealthDiagnosticsTest.java
+  src/test/java/kome/common/data/KOMECampaignHealthTest.java
+  src/test/java/kome/common/data/KOMECampaignHealthVersionTest.java
+  src/test/java/kome/common/data/KOMECampaignMovementReconstructionTest.java
+  src/test/java/kome/common/data/KOMECampaignTileConfinementHookTest.java
+  src/test/java/kome/common/data/KOMEConflictAbandonmentReconciliationTest.java
+  src/test/java/kome/common/data/KOMEConflictLifecycleCompletionTest.java
+  src/test/java/kome/common/data/KOMEConflictPersistenceTest.java
+  src/test/java/kome/common/data/KOMEConflictServiceTest.java
+  src/test/java/kome/common/data/KOMEFormalRetreatServiceTest.java
+  src/test/java/kome/common/data/KOMEHiredUnitPhysicalLocatorTest.java
+  src/test/java/kome/common/data/KOMEJoinBattleCompanyAnchorServiceTest.java
+  src/test/java/kome/common/data/KOMEJoinBattleEgressServiceTest.java
+  src/test/java/kome/common/data/KOMEJoinBattlePersistenceTest.java
+  src/test/java/kome/common/data/KOMENativeHiredIdentityTest.java
+  src/test/java/kome/common/data/KOMEOrdinaryBattleDevIntegrationTest.java
+  src/test/java/kome/common/data/KOMEOrdinaryBattleLifecycleServiceTest.java
+  src/test/java/kome/common/data/KOMEOrdinaryBattlePlanningTest.java
+  src/test/java/kome/common/data/KOMEOrdinaryBattleRecoveryFoundationTest.java
+  src/test/java/kome/common/data/KOMEOrdinaryBattleResolutionServiceTest.java
+  src/test/java/kome/common/data/KOMEOrdinaryBattleRestartTest.java
+  src/test/java/kome/common/data/KOMERecoveryExecutorTest.java
+  src/test/java/kome/common/data/KOMERecoveryJournalManagerTest.java
+  src/test/java/kome/common/data/KOMERecoveryJournalTest.java
+  src/test/java/kome/common/data/KOMERecoveryJournalTestSupport.java
+  src/test/java/kome/common/data/KOMERecoveryJournalValidationTest.java
+  src/test/java/kome/common/data/KOMERecoveryReservationsTest.java
+  src/test/java/kome/common/data/KOMERecoveryRootCrashTest.java
+  src/test/java/kome/common/data/KOMERecoveryStartupFixture.java
+  src/test/java/kome/common/data/KOMERecoveryStartupTest.java
+  src/test/java/kome/common/data/KOMESeasonResetDeploymentTest.java
+  src/test/java/kome/common/data/KOMEServerTileAwarenessIsolationTest.java
+  src/test/java/kome/common/data/KOMEWorldDataAtomicLoadTest.java
+  src/test/java/kome/common/data/KOMEWorldDataSchemaTest.java
+  src/test/java/kome/common/network/KOMEPacketRegistrationTest.java
+  src/test/java/kome/core/KOMECampaignHealthTransformerTest.java
+  src/test/java/kome/core/KOMEWaypointTransformerTest.java
+  src/test/java/kome/integration/CharacterCreationIsolationTest.java
+  src/test/java/kome/integration/KOMEDevOfflineIdentityConfigurationTest.java
+  src/test/java/lotr/common/network/LOTRPacketHandler.java
+
+Preserved initial dirty-work paths and their Pass 1/older-work layer:
+  build.gradle.kts | Older work with Pass 1 changes
+  docs/KNIGHT_PROGRESSION_BOOK_AUDIT_20261011.txt | Older preserved work, unchanged by Pass 1
+  docs/PROGRESSION_CLEANUP_PASS1_REPORT.txt | Added during Pass 1
+  docs/PROGRESSION_KNIGHT_LORDSHIP_FILES_20261011.txt | Older preserved work, unchanged by Pass 1
+  docs/PROGRESSION_KNIGHT_LORDSHIP_PASS_20261011.md | Older preserved work, unchanged by Pass 1
+  docs/PROGRESSION_RANK_ABILITIES_AND_CLEANUP_AUDIT.txt | Older preserved work, unchanged by Pass 1
+  docs/PROGRESSION_SUPPLEMENTAL_IMMERSION_20261011.md | Older preserved work, unchanged by Pass 1
+  docs/routing/flows/troop-hiring.md | Older work with Pass 1 changes
+  docs/routing/INDEX.md | Older work with Pass 1 changes
+  docs/routing/systems/character-creation/README.md | Older preserved work, unchanged by Pass 1
+  docs/routing/systems/client-network/README.md | Older work with Pass 1 changes
+  docs/routing/systems/conflict-tactical/README.md | Older work with Pass 1 changes
+  docs/routing/systems/hiring-companies/README.md | Older work with Pass 1 changes
+  docs/routing/systems/politics-diplomacy/README.md | Older work with Pass 1 changes
+  docs/routing/systems/progression/README.md | Older work with Pass 1 changes
+  docs/routing/systems/waypoints/README.md | Older work with Pass 1 changes
+  src/main/java/kome/client/gui/KOMEGuiConquestCapture.java | Older work with Pass 1 changes
+  src/main/java/kome/client/gui/KOMEGuiProgression.java | Older work with Pass 1 changes
+  src/main/java/kome/client/KOMEClientConfig.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/client/KOMEClientProxy.java | Older work with Pass 1 changes
+  src/main/java/kome/client/KOMEElvenDynamicLights.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/client/KOMEElvenFootGlow.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/client/KOMEProgressionEnemyOutline.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/client/KOMEProgressionTrackerOverlay.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/client/KOMEVisualRenderBridge.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/command/KOMECommandProgression.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMECampaignRecruitmentService.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEClientData.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEConquestClaimService.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEEvents.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEGearRestrictionService.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEKnightBookPresentation.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEKnightCommission.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEKnightCommissionLocations.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEKnightCommissionPresentation.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEKnightCommissionService.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEKnightServiceRecord.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMELiegeProgressionInteraction.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMELordshipTrial.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMELordshipTrialPresentation.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMELordshipTrialRecord.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMELordshipTrialService.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMENativeTraderCampaignRecruitment.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEObjectiveInvasionBridge.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionAchievement.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEProgressionAutoCompleter.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEProgressionDestinations.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionEligibility.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionEncounterMarker.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionEncounterSites.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionGoodsPresentation.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionInventoryReconciler.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionNativeAuthority.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionNpcInteractionService.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionNpcRoles.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionPermissionRegistry.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEProgressionPermissions.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEProgressionRankSummary.java | Older work with Pass 1 changes
+  src/main/java/kome/common/data/KOMEProgressionSummary.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEProgressionTrackerSnapshot.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEQuestPropertyUseGuard.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMESerfKnightRecoveryService.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEVisualLocationService.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEVisualMarker.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/data/KOMEWaypointAccessService.java | Older work with Pass 1 changes
+  src/main/java/kome/common/KOMECommonProxy.java | Older work with Pass 1 changes
+  src/main/java/kome/common/network/KOMEPacketConquestClaim.java | Older work with Pass 1 changes
+  src/main/java/kome/common/network/KOMEPacketConquestOpenCapture.java | Older work with Pass 1 changes
+  src/main/java/kome/common/network/KOMEPacketProgressionData.java | Older work with Pass 1 changes
+  src/main/java/kome/common/network/KOMEPacketRelationshipAction.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/network/KOMEPacketVisualMarkers.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/common/network/KOMEPopulationWire.java | Older work with Pass 1 changes
+  src/main/java/kome/core/KOMECorePlugin.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/core/KOMEObjectiveInvasionTransformer.java | Older preserved work, unchanged by Pass 1
+  src/main/java/kome/core/KOMEQuestPropertyTransformer.java | Older preserved work, unchanged by Pass 1
+  src/main/resources/assets/kome/lang/en_US.lang | Older preserved work, unchanged by Pass 1
+  src/test/java/atomicstryker/dynamiclights/client/DynamicLights.java | Older preserved work, unchanged by Pass 1
+  src/test/java/atomicstryker/dynamiclights/client/IDynamicLightSource.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/client/gui/KOMECanonicalPopulationNavigationTest.java | Older work with Pass 1 changes
+  src/test/java/kome/client/gui/KOMEGuiProgressionTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/client/KOMEElvenDynamicLightsTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/client/KOMEHierarchyPresentationTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/client/KOMEKnightPassPresentationTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/client/KOMEProgressionCleanupClientTest.java | Added during Pass 1
+  src/test/java/kome/client/KOMEProgressionCoherencePresentationTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/command/KOMECommandTroopsMovementTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/data/KOMEAllianceSystemsTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/data/KOMECampaignRecruitmentServiceTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/data/KOMECombatHireMountSafetyTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/data/KOMEGearRestrictionServiceTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/data/KOMEKnightCommissionGameplayTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMEKnightCommissionInteractionTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMEKnightLordshipPassTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMELordshipTrialFixture.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMELordshipTrialGameplayTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMELordshipTrialGenerationTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMELordshipTrialIntegrationTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMELordshipTrialStateTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMEProgressionAuditCleanupTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/data/KOMEProgressionCleanupConquestTest.java | Added during Pass 1
+  src/test/java/kome/common/data/KOMEProgressionCleanupProjectionTest.java | Added during Pass 1
+  src/test/java/kome/common/data/KOMEProgressionCleanupRecruitmentTest.java | Added during Pass 1
+  src/test/java/kome/common/data/KOMEProgressionCleanupSurvivalTest.java | Added during Pass 1
+  src/test/java/kome/common/data/KOMEProgressionCoherencePassTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/data/KOMEProgressionGameplayPassTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMEProgressionHardeningAuthorityTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMEProgressionHardeningGeographyTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMEProgressionHardeningServiceTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMEProgressionLifecycleAuditTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/data/KOMEProgressionRankSummaryTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMEProgressionTestingFixesTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/data/KOMEProgressionTrackerSnapshotTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMEProgressionUxInteractionTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/common/data/KOMESerfKnightStabilizationTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/KOMEAccessFixture.java | Older work with Pass 1 changes
+  src/test/java/kome/common/network/KOMEConquestSyncTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/network/KOMEPopulationProtocolTest.java | Older work with Pass 1 changes
+  src/test/java/kome/common/network/KOMEPublicAccessPacketTest.java | Older work with Pass 1 changes
+  src/test/java/kome/core/KOMEKnightNativeHooksTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/core/KOMEWaypointTransformerTest.java | Older preserved work, unchanged by Pass 1
+  src/test/java/kome/integration/CharacterCreationIsolationTest.java | Older preserved work, unchanged by Pass 1
+
+No art resource bundle, new gameplay asset or external dependency was introduced
+by Pass 2. Earlier resource/language/transformer work is included in the preserved
+checkpoint; contributor source/health/recovery assets remain as merged.
+Generated jars, logs, test XML, native javap text, inventory/hashes and helper scripts
+are ignored local evidence, not staged source or runtime installations.
+
+J. VERIFICATION
+================
+Final matching client/server protocol: 1.0.9-integration-g9.
+Packet IDs unchanged, including Join Battle 53-58, progression identity 59 and
+unused ID 60. Ability rows append to 9; Build eligibility appends to 5.
+
+New focused tests:
+- KOMEProgressionRankAbilitiesTest: catalog, inheritance, read-only queries,
+  history/mode non-bypass, King separation, no population grant, missing Crown/
+  resources, faction switch, owned army maintenance, appointment/transfer recheck,
+  current/next rows, native equipment, exact/missing start, codec and outcome states.
+- KOMEProgressionMilitaryAuthorityTest: ordinary Lord cannot initiate native-hostile
+  conquest outside declared war; ruler/staff and declared-war paths; no war mutation.
+- KOMEProgressionAbilityLayoutTest: compact row/header height measurements.
+- Expanded JoinBattleService tests: lower-rank fresh entry denial and existing
+  ACTIVE participant maintenance after correction.
+- Expanded public packet tests: forged Wanderer Build request and Serf projection.
+- Expanded projection tests: Crown/resource/revocation refresh without rank change.
+- Expanded actual client proxy test: abilities follow stale/reconnect/dimension
+  fences and clear with the book. Existing assertions remain.
+
+Focused successful run: 347 passed, 0 failed/errors/skips, 29 suites.
+Final appointment/Build-focused run: 107 passed, 0 failed/errors/skips, 6 suites.
+Final actual complete suite: 3590 executed in 351 suites;
+3585 passed, 5 skipped, 0 failures, 0 errors.
+Command: gradlew.bat test build --offline --no-daemon --max-workers=2 --console=plain.
+BUILD SUCCESSFUL in 1m 1s; reobfJar, assemble, check and build completed.
+
+Failures investigated before the successful final run:
+- The established validation helper stopped on a Java-8 deprecation message sent
+  to stderr because PowerShell treated it as a terminating NativeCommandError.
+  A task-local wrapper retained the same shared mutex/offline workflow and used
+  nonterminating stderr handling. Build/dependency configuration was not changed
+  to hide a failure. No unrelated IntelliJ Java process was stopped or altered.
+- New tests initially used two nonexistent ruler/diplomacy convenience APIs;
+  those test-only mistakes were corrected to the actual canonical APIs.
+- First full run: 3,582 executed; 3,554 passed, 23 failed, 5 skipped. Legitimate
+  battle/build fixtures needed explicit earned rank/new packet fields; protocol
+  assertions advanced to g9. Public-tile rejection order was preserved. No existing
+  assertions were removed, test disabled or gameplay predicate weakened.
+- An added Warfare query test incorrectly expected no default-unlocked historical
+  baseline rows; it now compares retained history before/after the read-only query.
+
+Existing five skipped tests, separate from passes:
+1. CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported
+2. ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported
+3. KOMEPublicWaypointTransformerTest.originalProductionAndBuildJarsHaveExactCompatibleHooks
+4. KOMEWaypointTransformerTest.configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms
+5. KOMEWaypointTransformerTest.configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms
+The skipped environment/symlink/configured-original-jar cases were not counted
+as successes. Available dependency/native classes were separately inspected with
+actual javap bytecode; that does not turn a skipped transformer test into a pass.
+
+Build/reobfuscation: final normal Gradle test/build workflow and reobfJar verified.
+Final generated packaged JAR: build/libs/KOME-LOTR-Addon-1.0.9-integration-g9.jar
+Packaged JAR SHA-256: 9C1B84398863F34087CF5E3CB547F49D4CE64710687E38E661C88FB81FA07CC3
+The development jar and sources jar also remain under build/libs. None was
+installed into a preserved runtime or copied to a gameplay world.
+Whitespace: git diff --check and staged check completed without whitespace errors.
+Routing validator: PASS - 25 documents, 784 local links, 987 symbol references,
+48 exact JUnit selectors; run with the existing cached Python executable.
+Dev offline identity verification: PASS. verifyDevOfflineIdentity -Pkome.devOfflineIdentity=true
+verified runClient, runClient17 and runClient21 using the canonical offline UUID.
+This task inspected launch arguments only and did not start Minecraft.
+
+Native dependency: libs/LOTRMod v36.15.jar
+SHA-256: 4F296E749C0D4739ECF859217A526B4218A2A45A768C08D3D551AF0D0D3D5635
+Geckolib dependency SHA-256:
+36D9D0471BFB55271F0D6649B586FE99608DAD61261FAC4065C008276021FE23
+
+Minecraft/live Forge/connected client: NOT PERFORMED during this pass.
+No real-world save/reload, native hire interaction, visual Rank-page, battle
+deployment, conquest/recovery gameplay or multiplayer acceptance is claimed.
+Full automated coverage includes common/client isolation and packet registration;
+a passing build is not proof of every client/dedicated-server runtime transformer.
+
+Evidence directory: outputs/progression-pass2, with per-run logs, XML snapshots,
+exact count/skip inventories, native bytecode inspection and Git safety records.
+Historical Pass 1 totals were not reused as this pass's results.
+
+K. REMAINING BLOCKERS
+=====================
+- KOM-87 royal warrants, revocable scopes and transactional delegated budgets:
+  required before ordinary non-ruler Lords recruit/spend shared faction population.
+- KOM-86 destination/default authority: still depends on KOM-87; existing legal
+  selection/location behavior is retained, not replaced with a second authority.
+- Lord 200 ceiling: finalize living personally commanded population accounting,
+  transferred/borrowed/ordinary/legacy units and safe correction behavior first.
+- Higher-rank travel ladder and missing-start fallback/repair decisions: unresolved.
+  Exact saved-start Serf return is implemented narrowly; no broader ladder.
+- Exceptional/legendary equipment and specialist manufacturing classifications.
+- Fief appointments and wider regional delegation: real systems missing.
+- Prince capstones and Lord->Prince responsibility redesign: deferred.
+- Full optional Warfare, Craft & Lore, Exploration and Husbandry branches: deferred.
+- Distinct Lord siege-command privilege versus existing gate roles: design decision.
+- Existing manager Build self-approval policy: preserved; if universal external
+  review is desired, that requires a separate accepted domain change.
+- KOM-91/KOM-92/KOM-20 battle egress, Emergency Defense protection and referee
+  follow-ups; full fortified siege completion remains outside this ordinary pass.
+- Real Minecraft acceptance: rank icons/layout at GUI scales; return cooldown/
+  faction-change behavior; ordinary hire costs/class; Knight battle entry; Lord
+  Crown denial; declared-war/ruler orders; legal conquest, retreat and old save reload.
+- Performance acceptance: the bounded five-second projection queries active
+  conflict/company state; large real-world player/army loads remain unmeasured.
+
+L. RECOMMENDED NEXT PASS
+========================
+Required dependency first: implement KOM-87 in the existing ruler/delegation and
+recruitment transaction boundaries, including revoke/faction/office change,
+budget double-spend/replay and restart safety. Then integrate KOM-86 with it.
+Do not turn the existing company commission into unrestricted recruitment funds.
+
+Before broader progression work, run disposable connected-client/gameplay checks
+on this g9 artifact, and finish focused egress/referee correctness follow-ups.
+These are correctness/acceptance requirements, not optional cosmetic polish.
+
+Second, settle the Lord living-commanded-population accounting policy before
+enforcing 200. A promotion or correction must not delete/strand existing armies.
+
+Optional content expansion afterward: design a few useful specializations with
+real native gameplay/rewards. Keep them independent of established social promotion.
+Lord/Prince responsibility progression and fief appointments should follow actual
+delegation/resource and territorial responsibility systems, not placeholder perks.

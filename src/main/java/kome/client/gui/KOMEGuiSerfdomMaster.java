@@ -23,12 +23,12 @@ public class KOMEGuiSerfdomMaster extends LOTRGuiMenuBase {
         xSize=230;detailLines=wrappedDetails(194);int buttons=buttonCount();
         ySize=panelHeight(detailLines.size(),buttons);super.initGui();
         buttonList.clear();buttonMenuReturn=null;detailY=guiTop+88;buttonY=guiTop+buttonStartOffset(detailLines.size());int center=width/2,row=0;
-        if(mode==1&&dutyStatus.startsWith("Trial complete"))buttonList.add(KOMEGuiButton.wide(8,center-72,buttonY+24*row++,"View Liege service"));
-        else if(mode==1&&canRequestDuty)buttonList.add(KOMEGuiButton.wide(1,center-72,buttonY+24*row++,"Request today's duty"));
+        if(mode==1&&(dutyStatus.startsWith("Service complete")||dutyStatus.startsWith("Duty complete")))buttonList.add(KOMEGuiButton.wide(8,center-72,buttonY+24*row++,"Report service"));
+        else if(mode==1&&canRequestDuty)buttonList.add(KOMEGuiButton.wide(1,center-72,buttonY+24*row++,"Request a duty"));
         if(mode==1&&hasActiveDuty){int action=activeAction();if(action>=0)buttonList.add(KOMEGuiButton.wide(action,center-72,buttonY+24*row++,actionLabel(action)));buttonList.add(KOMEGuiButton.wide(2,center-72,buttonY+24*row,"View current duty"));}
     }
 
-    private int buttonCount(){if(mode!=1)return 0;if(dutyStatus.startsWith("Trial complete"))return 1;if(hasActiveDuty)return activeAction()>=0?2:1;return canRequestDuty?1:0;}
+    private int buttonCount(){if(mode!=1)return 0;if((dutyStatus.startsWith("Service complete")||dutyStatus.startsWith("Duty complete")))return 1;if(hasActiveDuty)return activeAction()>=0?2:1;return canRequestDuty?1:0;}
     static int buttonStartOffset(int detailLines){return 96+Math.max(0,detailLines)*10;}
     static int panelHeight(int detailLines,int buttons){return Math.max(164,buttonStartOffset(detailLines)+Math.max(0,buttons)*24+8);}
     static int detailBottomOffsetForTest(int detailLines){return 88+Math.max(0,detailLines)*10;}
@@ -49,7 +49,8 @@ public class KOMEGuiSerfdomMaster extends LOTRGuiMenuBase {
 
     @Override public void actionPerformed(GuiButton button){
         if(!button.enabled)return;
-        if(button.id==2||button.id==8){KOMEMinecraftClient.displayGui(KOMEGuiProgression.dutyView());return;}
+        if(button.id==8){KOMEPacketHandler.network.sendToServer(new KOMEPacketSerfdomMasterAction(entityId,8));KOMEMinecraftClient.displayGui(null);return;}
+        if(button.id==2){KOMEMinecraftClient.displayGui(KOMEGuiProgression.dutyView());return;}
         int action=button.id==8?KOMEPacketSerfdomMasterAction.RECEIVE_PARTING_GIFT:button.id==1?KOMEPacketSerfdomMasterAction.REQUEST_DUTY:button.id==4?KOMEPacketSerfdomMasterAction.DELIVER_PROVISIONS:button.id==5?KOMEPacketSerfdomMasterAction.DELIVER_PROFESSION:button.id==6?KOMEPacketSerfdomMasterAction.REPLACE_COURIER_MESSAGE:button.id==7?KOMEPacketSerfdomMasterAction.REPORT_COURIER:-1;
         if(action>=0)KOMEPacketHandler.network.sendToServer(new KOMEPacketSerfdomMasterAction(entityId,action));
     }

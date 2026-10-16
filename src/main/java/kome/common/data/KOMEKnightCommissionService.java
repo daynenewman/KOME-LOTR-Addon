@@ -33,15 +33,24 @@ public final class KOMEKnightCommissionService {
         KOMEKnightCommission a=p.getKnightService().assignment();
         if(a!=null&&!KOMEProgressionFactionResolver.matches(a.faction,npc.getFaction()))return false;
         return p.getLordship().assignment()==null&&p.getCanonicalRank()==KOMEProgressionRank.KNIGHT
-            &&(p.getKnightService().assignment()!=null||p.getKnightService().qualifyingTypes(npc.getFaction().codeName()).size()<Type.values().length);
+            &&(p.getKnightService().assignment()!=null||p.getKnightService().qualifyingTypes(npc.getFaction().codeName()).size()<3);
     }
     /** Preview persists once; reopening offers never changes type, goods, enemies or geography. */
     public static KOMEKnightCommission prepare(EntityPlayerMP player,LOTREntityNPC liege) {
+        KOMEPlayerProgression existing=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID());
+        KOMELordshipTrial ongoing=existing.getLordship().assignment();
+        if(ongoing!=null&&ongoing.ordinaryService&&KOMECurrentLiege.valid(player,liege))return ongoing.objective;
         if(!eligible(player,liege))return null;
         KOMEWorldData world=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=world.getProgression(player.getUniqueID());KOMEKnightServiceRecord state=p.getKnightService();
         if(state.assignment()!=null)return state.assignment();
         List<Type> types=KOMEProgressionVariety.order(state.eligible(Arrays.asList(Type.values()),liege.getFaction().codeName()),state.history(),liege.getFaction().codeName(),player.worldObj.rand);
-        for(Type type:types){KOMEKnightCommission a=generate(player,liege,type);if(a!=null&&state.offer(a)){p.getSerfKnightProgression().variety.remember(a.liege,a.type.name(),a.destinationX,a.destinationZ);world.markDirty();return a;}}return null;
+        for(Type type:types){
+            if(type==Type.NATIVE_INVASION){
+                KOMELordshipTrial invasion=KOMELordshipTrialService.generate(player,liege,KOMELordshipTrial.Scenario.NATIVE_INVASION);
+                if(invasion!=null){invasion.ordinaryService=true;if(p.getLordship().offer(invasion)){world.markDirty();return invasion.objective;}}
+                continue;
+            }
+            KOMEKnightCommission a=generate(player,liege,type);if(a!=null&&state.offer(a)){p.getSerfKnightProgression().variety.remember(a.liege,a.type.name(),a.destinationX,a.destinationZ);world.markDirty();return a;}}return null;
     }
     static KOMEKnightCommission generate(EntityPlayerMP player,LOTREntityNPC liege,Type type) {
         World world=player.worldObj;KOMEProgressionNpcRef ref=KOMEProgressionNpcRankService.referenceOf(liege);
@@ -100,12 +109,13 @@ public final class KOMEKnightCommissionService {
         for(Item item:KOMELocalProvisionFoods.forFaction(faction))if(item!=null&&Item.itemRegistry.getNameForObject(item)!=null&&item.getItemStackLimit()>0){String key=String.valueOf(Item.itemRegistry.getNameForObject(item));if(!seen.add(key))continue;goods.add(new Goods(key,0,item.getItemStackLimit()<=1?6+random.nextInt(3):16+random.nextInt(17)));if(goods.size()==3)break;}return goods;
     }
     public static boolean acceptOrReport(EntityPlayerMP player,LOTREntityNPC liege) {
+        if(KOMELordshipTrialService.eligible(player,liege))return KOMELordshipTrialService.acceptOrReport(player,liege);
         if(!eligible(player,liege)||player.getDistanceSqToEntity(liege)>64)return false;
         KOMEWorldData world=KOMEWorldData.get(player.worldObj);KOMEPlayerProgression p=world.getProgression(player.getUniqueID());KOMEKnightServiceRecord state=p.getKnightService();KOMEKnightCommission a=state.assignment();if(a==null)return false;
         if(a.stage==Stage.READY_TO_REPORT&&!a.liege.hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
         if(a.activationPending){if(!state.discardTechnical(player.worldObj.getTotalWorldTime())){KOMEProgressionNpcSpeech.say(player,liege,"Preparations are still being checked. Return shortly for fresh orders.");return true;}cleanup(player.worldObj,player.getUniqueID(),a);KOMEProgressionNpcSpeech.say(player,liege,"The encounter could not be arranged safely. Your credited service is preserved. Ask me for fresh orders.");changed(world,player,p);return true;}
         if(a.stage==Stage.FAILED){cleanup(player.worldObj,player.getUniqueID(),a);state.clearFailed();KOMEProgressionNpcSpeech.commission(player,liege,a,"retry");changed(world,player,p);return true;}
-        if(a.stage==Stage.READY_TO_REPORT){if(a.type==Type.STOLEN_GOODS&&!a.adminForced&&!consumeHeldProperty(player,a)){a.stage=Stage.ACTIVE;a.nextRecoveryTick=0;changed(world,player,p);KOMEProgressionNpcSpeech.say(player,liege,"Place the recovered property in your hand, and return it to me.");return true;}if(a.type==Type.STOLEN_GOODS&&!a.adminForced)KOMEProgressionExchangeSounds.handover(player,liege);player.inventory.markDirty();player.inventoryContainer.detectAndSendChanges();cleanup(player.worldObj,player.getUniqueID(),a);a.reportedAt=player.worldObj.getTotalWorldTime();if(state.report(KOMEProgressionNpcRankService.referenceOf(liege))){KOMEProgressionServiceRewards.commission(player,a);KOMEProgressionNpcSpeech.commission(player,liege,a,"reported");}}
+        if(a.stage==Stage.READY_TO_REPORT){if(a.type==Type.STOLEN_GOODS&&!a.adminForced&&!consumeHeldProperty(player,a)){a.stage=Stage.ACTIVE;a.nextRecoveryTick=0;changed(world,player,p);KOMEProgressionNpcSpeech.say(player,liege,"Place the recovered property in your hand, and return it to me.");return true;}if(a.type==Type.STOLEN_GOODS&&!a.adminForced)KOMEProgressionExchangeSounds.handover(player,liege);player.inventory.markDirty();player.inventoryContainer.detectAndSendChanges();cleanup(player.worldObj,player.getUniqueID(),a);a.reportedAt=player.worldObj.getTotalWorldTime();if(state.report(KOMEProgressionNpcRankService.referenceOf(liege),p.getSerfKnightProgression().getDeceasedLiege())){KOMEProgressionServiceRewards.commission(player,a);KOMEProgressionNpcSpeech.commission(player,liege,a,"reported");KOMEServicePromotionService.report(player,liege);}}
         else if(a.stage==Stage.OFFERED){if(!state.accept(p.getCanonicalRank(),p.getSerfKnightProgression().getLiege(),LOTRLevelData.getData(player).getPledgeFaction().codeName()))return false;a.acceptedAt=player.worldObj.getTotalWorldTime();a.stage=Stage.ACTIVE;if(a.type==Type.DANGEROUS_ESCORT&&!spawnCharge(player,a,liege))fail(world,player.worldObj,player.getUniqueID(),a);KOMEProgressionNpcSpeech.commission(player,liege,a,a.stage==Stage.FAILED?"failed":"assigned");}
         else KOMEProgressionNpcSpeech.commission(player,liege,a,"progress");
         changed(world,player,p);return true;

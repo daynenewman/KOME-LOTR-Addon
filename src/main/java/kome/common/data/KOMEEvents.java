@@ -134,6 +134,8 @@ public class KOMEEvents {
             data.rebuildArmyCompaniesForPlayer(world, KOMEReflection.getEntityUUID(event.player));
             data.rememberPlayerName(KOMEReflection.getEntityUUID(event.player), event.player.getCommandSenderName());
             KOMERelationshipDeathNotificationService.deliverPending((EntityPlayerMP) event.player, data, true);
+            KOMECanonicalRankService.recognizePledge((EntityPlayerMP)event.player,false);
+            KOMEServicePromotionService.migrate((EntityPlayerMP)event.player);
             KOMEPledgeReleaseService.observePledge(data, (EntityPlayerMP) event.player,
                 getActualPledgeFactionKey(event.player), System.currentTimeMillis());
             kome.common.network.KOMEPublicWaypointSync.send(data,(EntityPlayerMP)event.player);

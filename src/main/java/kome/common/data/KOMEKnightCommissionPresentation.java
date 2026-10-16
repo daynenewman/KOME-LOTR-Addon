@@ -8,7 +8,7 @@ import static kome.common.data.KOMEKnightCommission.*;
 /** All new charge language is localized here, outside server decisions. */
 public final class KOMEKnightCommissionPresentation {
     private KOMEKnightCommissionPresentation() {}
-    public static String title(Type type) { return text("title."+type.name().toLowerCase(java.util.Locale.ROOT)); }
+    public static String title(Type type) { return type==Type.NATIVE_INVASION?"Repel an Invasion":text("title."+type.name().toLowerCase(java.util.Locale.ROOT)); }
     private static String text(String key,Object... args) { return KOMEProgressionLanguage.text("kome.commission."+key,args); }
     public static String objective(KOMEKnightCommission a) {
         if(a.activationPending)return "The encounter could not be prepared safely. Return to your Liege for fresh orders, or approach the marked ground to retry.";
@@ -60,7 +60,7 @@ public final class KOMEKnightCommissionPresentation {
     public static String summary(KOMEPlayerProgression p) {return summary(p,p.getSerfKnightProgression().getLiege().factionKey);}
     public static String summary(KOMEPlayerProgression p,String faction) {
         KOMEKnightServiceRecord s=p.getKnightService();KOMEKnightCommission a=s.assignment();KOMEProgressionNpcRef liege=p.getSerfKnightProgression().getLiege();
-        String summary="\n"+text("liege",liege.isSet()?liege.displayName:text("none"))+"\n"+text("credits",Math.min(3,s.qualifyingTypes(faction).size()))+"\n"+text("preparing");
+        String summary="\n"+text("liege",liege.isSet()?liege.displayName:text("none"))+"\n"+text("credits",Math.min(3,s.qualifyingTypes(faction).size()))+"\nThree reports earn Lord standing. Required faction alignment: 2000.";
         if(!s.completedTypes().isEmpty()){
             summary+="\n"+text("services");java.util.Set<Type> attributed=java.util.EnumSet.noneOf(Type.class);
             for(KOMEKnightCommission deed:s.history())if(deed.stage==Stage.REPORTED){

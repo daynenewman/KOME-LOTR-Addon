@@ -50,23 +50,13 @@ public final class KOMEProgressionTrackerSnapshot {
             && "standing_trial_ready".equals(iconKey);
     }
 
-    static KOMEProgressionTrackerSnapshot opening(LOTRFaction pledge) {
-        return shown("progression", pledge!=null&&pledge.isPlayableAlignmentFaction()
-            ?"Find a Master to serve":"Pledge to a faction", "", 0F);
-    }
-
-    static KOMEProgressionTrackerSnapshot seekLiege() {
-        return shown("standing_trial_ready", "Seek a prospective Liege", "", 0F);
-    }
-
     public boolean hasNumericProgress() { return !progress.isEmpty(); }
 
     public static KOMEProgressionTrackerSnapshot project(
             EntityPlayerMP player,
             KOMEPlayerProgression progression) {
-        if(progression!=null&&progression.getCanonicalRank()==KOMEProgressionRank.WANDERER
-                &&!progression.getSerfKnightProgression().getSerfdomMaster().isSet())
-            return opening(player==null?null:LOTRLevelData.getData(player).getPledgeFaction());
+        if(progression!=null&&progression.getCanonicalRank()==KOMEProgressionRank.WANDERER)
+            return shown("progression","Pledge to a faction","",0F);
         if(player!=null&&progression!=null&&progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT){
             LOTRFaction faction=LOTRLevelData.getData(player).getPledgeFaction();String key=faction==null?"":faction.codeName();
             double alignment=faction==null?0:LOTRLevelData.getData(player).getAlignment(faction);
@@ -74,7 +64,7 @@ public final class KOMEProgressionTrackerSnapshot {
             if(trial!=null)return lordship(trial);
             KOMEKnightCommission commission=progression.getKnightService().assignment();
             if(commission==null){
-                if(KOMELordshipTrialService.prerequisites(progression,alignment,key))return shown("commission","Seek a Prince for your Trial of Lordship","",0F);
+                if(KOMELordshipTrialService.prerequisites(progression,alignment,key))return shown("commission","Report to your current Lord for Lord standing","",0F);
                 int credits=progression.getKnightService().qualifyingTypes(key).size();
                 return shown("commission",KOMELordshipTrialPresentation.status(progression,alignment,key),credits<3?credits+" / 3 commissions":(int)alignment+" / 2000 alignment",credits<3?credits/3F:(float)alignment/2000F);
             }
@@ -94,7 +84,7 @@ public final class KOMEProgressionTrackerSnapshot {
         if("provisioning".equals(active))return provisioning(state);
         if("profession".equals(active))return profession(state);
         if("courier".equals(active))return courier(player,state);
-        if("trial".equals(active))return trial(player,state);
+        if(state.ordinaryObjective())return trial(player,state);
 
         return nextStep(player,state);
     }
@@ -191,9 +181,9 @@ public final class KOMEProgressionTrackerSnapshot {
         return new KOMEProgressionTrackerSnapshot(true,a.type==KOMEKnightCommission.Type.RELIEF?"provisioning":"commission",objective,required>0?done+"/"+required:"",required>0?done/(float)required:0F,item);
     }
     static KOMEProgressionTrackerSnapshot lordship(KOMELordshipTrial t){
-        if(!t.nativeInvasion)return t.ready()?shown("commission","Report to your Prince","",0F):commission(t.objective);
+        if(!t.nativeInvasion)return t.ready()?shown("commission","Report to your current Liege","",0F):commission(t.objective);
         boolean combat=t.objective.stage==KOMEKnightCommission.Stage.ACTIVE&&t.objective.encounterCreated&&!t.objective.activationPending;
-        return shown("commission",t.ready()?"Report to your Prince":t.objective.activationPending?"Return to your Prince for reassignment":t.objective.stage==KOMEKnightCommission.Stage.FAILED?"Request another trial from your Prince":combat?"Defeat the invasion and survive":"Travel to the invasion ground",combat?t.invasionRemaining+" / "+t.invasionSize+" strength remaining":"",combat&&t.invasionSize>0?1-t.invasionRemaining/(float)t.invasionSize:0F);
+        return shown("commission",t.ready()?"Report to your current Liege":t.objective.activationPending?"Return to your Liege for reassignment":t.objective.stage==KOMEKnightCommission.Stage.FAILED?"Request another commission from your Liege":combat?"Defeat the invasion and survive":"Travel to the invasion ground",combat?t.invasionRemaining+" / "+t.invasionSize+" strength remaining":"",combat&&t.invasionSize>0?1-t.invasionRemaining/(float)t.invasionSize:0F);
     }
 
     private static KOMEProgressionTrackerSnapshot courier(
@@ -249,7 +239,7 @@ public final class KOMEProgressionTrackerSnapshot {
         if(assignment==null) {
             return shown(
                 "progression",
-                "Complete your Trial of Standing.",
+                "Complete your current duty.",
                 "",
                 0F);
         }
@@ -258,7 +248,7 @@ public final class KOMEProgressionTrackerSnapshot {
                 KOMESerfKnightTrialAssignment.Stage.FAILED) {
             return shown(
                 assignment.trialId,
-                "This trial is lost. Seek a new Liege.",
+                "This duty was lost. Return to your Master for new work.",
                 "",
                 0F);
         }
@@ -275,7 +265,7 @@ public final class KOMEProgressionTrackerSnapshot {
 
             return shown(
                 "escort",
-                assignment.stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE?"Report to your Liege":"Escort the traveler to safety",
+                assignment.stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE?"Report to your Master":"Escort the traveler to safety",
                 "",0F);
         }
 
@@ -285,7 +275,7 @@ public final class KOMEProgressionTrackerSnapshot {
                     KOMESerfKnightRecoveryService.DATA_RETRIEVED);
 
             ItemStack item=assignment.data.hasKey("RecoveryItem",10)?ItemStack.loadItemStackFromNBT(assignment.data.getCompoundTag("RecoveryItem")):null;
-            return new KOMEProgressionTrackerSnapshot(true,"recovery",retrieved?"Return the recovered item to your Liege.":"Recover the lost item.","",0F,item);
+            return new KOMEProgressionTrackerSnapshot(true,"recovery",retrieved?"Return the recovered item to your Master.":"Recover the lost item.","",0F,item);
         }
 
         if("defense".equals(assignment.trialId)) {
@@ -323,143 +313,17 @@ public final class KOMEProgressionTrackerSnapshot {
 
         return shown(
             "progression",
-            "Complete your Trial of Standing.",
+            "Complete your current duty.",
             "",
             0F);
     }
 
-    private static KOMEProgressionTrackerSnapshot nextStep(
-            EntityPlayerMP player,
-            KOMESerfKnightProgression state) {
-        long day=KOMESerfKnightService.calendarDayNow();
-
-        if(state.isLockedOut(day)) {
-            return shown(
-                "progression",
-                "Progression service is locked after betrayal.",
-                "",
-                0F);
-        }
-        if(state.isTrialCompleted())return state.hasLiege()?promotion(player):shown("standing_trial_ready","Seek an eligible replacement Liege to hear your completed trial report.","",0F);
-
-        if(!state.getSerfdomMaster().isSet()) {
-            return shown(
-                "progression",
-                "Find a Master in your pledged faction.",
-                "",
-                0F);
-        }
-
-        int completed=0;
-
-        for(KOMESerfKnightDutyType type:
-                KOMESerfKnightDutyType.values()) {
-            if(state.getDuty(type).isCompleted()) {
-                completed++;
-            }
-        }
-
-        int total=KOMESerfKnightDutyType.values().length;
-
-        if(completed<total) {
-            if(!KOMESerfKnightService.mayIssueAssignment(
-                    state,
-                    day,
-                    player.getUniqueID())) {
-                return dailyComplete(
-                    completed,
-                    total);
-            }
-
-            return shown(
-                "progression",
-                "Talk with your Master",
-                "",0F);
-        }
-
-        if(!state.hasLiege()) {
-            String factionKey=state.getSerfdomMaster().factionKey;
-            int required=KOMEStandingTrialEligibility.requiredAlignment(factionKey);
-            double alignment=currentAlignment(player);
-            String title=KOMEFactionProgressionTitles.title(factionKey,KOMEProgressionRank.SERF);
-            if(!KOMEStandingTrialEligibility.meetsAlignment(state,alignment,factionKey)) {
-                int current=(int)Math.floor(alignment);
-                return shown("alignment","Earn faction alignment as a "+title+" before seeking a Liege.",current+" / "+required,current/(float)required);
-            }
-            if(!KOMESerfKnightService.mayIssueTrial(
-                    state,
-                    day,
-                    player.getUniqueID())) {
-                return trialDailyComplete();
-            }
-
-            return seekLiege();
-        }
-
-        if(state.getTrialId().length()==0) {
-            if(!KOMESerfKnightService.mayIssueTrial(
-                    state,
-                    day,
-                    player.getUniqueID())) {
-                return trialDailyComplete();
-            }
-
-            return shown(
-                "standing_trial_ready",
-                "Request your Trial of Standing from your Liege.",
-                "",
-                0.7F);
-        }
-
-        return shown(
-            "progression",
-            "Complete your Trial of Standing.",
-            "",
-            0.75F);
+    private static KOMEProgressionTrackerSnapshot nextStep(EntityPlayerMP player,KOMESerfKnightProgression state){
+        int credits=KOMEServicePromotionService.duties(state);double alignment=currentAlignment(player);
+        if(!state.getSerfdomMaster().isSet())return shown("progression","Enter Master service to earn Knight standing","",0F);
+        if(credits>=3)return shown("progression",alignment>=150?"Report to your Master for Knight standing":"Reach 150 faction alignment, then report to your Master",alignment>=150?"":(int)alignment+" / 150 alignment",0F);
+        return shown("progression","Speak with your Master for your next duty",credits+" / 3 duties",credits/3F);
     }
-
-    private static KOMEProgressionTrackerSnapshot promotion(EntityPlayerMP player) {
-            double alignment=currentAlignment(player);
-
-            if(alignment<
-                    KOMESerfKnightService.REQUIRED_ALIGNMENT) {
-                int current=
-                    (int)Math.floor(Math.max(0D,alignment));
-
-                return shown(
-                    "progression",
-                    "Reach 150 faction alignment before returning to your Liege.",
-                    current+" / "
-                        +KOMESerfKnightService.REQUIRED_ALIGNMENT,
-                    current/(float)
-                        KOMESerfKnightService.REQUIRED_ALIGNMENT);
-            }
-
-            return shown(
-                "progression",
-                "Return to your Liege to receive your new standing.",
-                "",
-                1F);
-    }
-
-    private static KOMEProgressionTrackerSnapshot dailyComplete(
-            int completed,
-            int total) {
-        return shown(
-            "daily_complete",
-            "Today's duty is complete.",
-            completed+" / "+total+" duties",
-            total<=0?1F:completed/(float)total);
-    }
-
-    private static KOMEProgressionTrackerSnapshot trialDailyComplete() {
-        return shown(
-            "daily_complete",
-            "You have already received a Trial of Standing today.",
-            "",
-            1F);
-    }
-
     private static KOMEProgressionTrackerSnapshot requirement(
             String icon,
             String description,

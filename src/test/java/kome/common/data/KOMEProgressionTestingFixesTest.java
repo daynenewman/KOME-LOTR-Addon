@@ -66,8 +66,8 @@ public class KOMEProgressionTestingFixesTest {
     }
     @Test public void escortDestinationNameIsIndependentOfSavedShelterName()throws Exception{
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()){
-            KOMEProgressionNpcRef liege=ref("Liege");s.state.setLiege(liege);
-            NBTTagCompound data=new NBTTagCompound();data.setDouble(KOMESerfKnightEscortService.DEST_X,400);data.setDouble(KOMESerfKnightEscortService.DEST_Z,700);data.setString(KOMESerfKnightEscortService.DEST_NAME,"the shelter marked on your map");
+            KOMEProgressionNpcRef liege=s.state.getSerfdomMaster();
+            NBTTagCompound data=new NBTTagCompound();data.setBoolean("OrdinaryDuty",true);s.state.assignDuty(KOMESerfKnightDutyType.ESCORT,data);data.setDouble(KOMESerfKnightEscortService.DEST_X,400);data.setDouble(KOMESerfKnightEscortService.DEST_Z,700);data.setString(KOMESerfKnightEscortService.DEST_NAME,"the shelter marked on your map");
             s.state.setTrial(new KOMESerfKnightTrialAssignment("escort",UUID.randomUUID().toString(),liege,"rohan",1,KOMESerfKnightTrialAssignment.Stage.ACTIVE,0,data));
             KOMEVisualMarker destination=KOMEVisualLocationService.markersFor(s.p).stream().filter(m->m.role==KOMEVisualMarker.Role.ESCORT&&m.entityUuid.isEmpty()).findFirst().get();
             assertEquals("Destination",destination.title);assertEquals(400,destination.x,0);assertEquals(700,destination.z,0);
@@ -97,7 +97,7 @@ public class KOMEProgressionTestingFixesTest {
     }
     @Test public void genuineFailureStillReleasesLiegeAndPreservesConsequences()throws Exception{
         try(KOMEProgressionFollowupTest.Session s=new KOMEProgressionFollowupTest.Session()){
-            KOMEProgressionNpcRef liege=ref("Liege");s.state.setLiege(liege);s.state.setLastTrialAssignmentEpochDay(10);
+            KOMEProgressionNpcRef liege=s.state.getSerfdomMaster();s.state.setLastTrialAssignmentEpochDay(10);
             s.state.setTrial(new KOMESerfKnightTrialAssignment("defense",UUID.randomUUID().toString(),liege,"rohan",10,KOMESerfKnightTrialAssignment.Stage.ACTIVE,0,new NBTTagCompound()));
             KOMEProgressionEncounterCleanup.failTrial(s.f.data,null,s.state);assertFalse(s.state.hasLiege());assertEquals(10,s.state.getLastTrialAssignmentEpochDay());
             assertTrue(s.state.failedLiegeRemaining(liege,System.currentTimeMillis())>0);

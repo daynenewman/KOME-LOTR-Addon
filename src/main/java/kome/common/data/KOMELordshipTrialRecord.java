@@ -29,7 +29,7 @@ public final class KOMELordshipTrialRecord {
         reset();if(n==null)return;technicalReassignmentAfter=n.getLong("TechnicalReassignmentAfter");assignment=KOMELordshipTrial.readFromNBT(n.getCompoundTag("Assignment"));
         NBTTagList h=n.getTagList("History",10);for(int i=Math.max(0,h.tagCount()-16);i<h.tagCount();i++){
             KOMELordshipTrial t=KOMELordshipTrial.readFromNBT(h.getCompoundTagAt(i));
-            if(t!=null&&!recorded(t.objective.token)&&(t.objective.stage==Stage.REPORTED||t.objective.stage==Stage.FAILED))history.add(t);
+            if(t!=null&&!recorded(t.objective.token)&&(t.retired||t.objective.stage==Stage.REPORTED||t.objective.stage==Stage.FAILED))history.add(t);
         }
         if(assignment!=null&&(recorded(assignment.objective.token)||assignment.objective.stage==Stage.REPORTED))assignment=null;
     }

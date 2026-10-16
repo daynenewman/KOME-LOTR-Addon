@@ -35,9 +35,9 @@ public class KOMEProgressionOfferBridgeTest {
     }
     @Test public void liegeOfferAndRelationshipRoutesRetainTheirCanonicalGuards() throws Exception {
         String bridge=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/data/KOMEProgressionOfferBridge.java")),StandardCharsets.UTF_8);
-        assertTrue(bridge.contains("canRequestTrialFromProspectiveLiege"));assertTrue(bridge.contains("KOMEProgressionRank.SERF"));assertTrue(bridge.contains("KOMEProgressionLiegePolicy.requiredSuperior(progression.getCanonicalRank())"));assertTrue(bridge.contains("KOMEProgressionLords.isStandingTrialLiegeCandidate"));assertTrue(bridge.contains("isChild()"));assertTrue(bridge.contains("hiredNPCInfo.isActive"));assertTrue(bridge.contains("getDistanceSqToEntity(npc)>64.0D"));assertTrue(bridge.contains("acceptStandingTrial"));
+        assertTrue(bridge.contains("KOMERecommendationService.hasIntroduction"));assertTrue(bridge.contains("KOMEProgressionRank.SERF"));assertTrue(bridge.contains("KOMEProgressionLiegePolicy.accepts"));assertTrue(bridge.contains("KOMEProgressionLords.isStandingTrialLiegeCandidate"));assertTrue(bridge.contains("isChild()"));assertTrue(bridge.contains("hiredNPCInfo.isActive"));assertTrue(bridge.contains("getDistanceSqToEntity(npc)>64.0D"));assertTrue(bridge.contains("acceptStandingTrial"));
         String route=new String(Files.readAllBytes(Paths.get("src/main/java/kome/common/network/KOMEPacketRelationshipAction.java")),StandardCharsets.UTF_8);
-        assertTrue(route.contains("n.interactFirst(p)"));assertTrue(route.contains("openStandingTrialOffer(p,n)"));assertTrue(route.contains("mayIssueTrial(s,day,p.getUniqueID())"));assertFalse(route.contains("mayIssueAssignment(s,day,p.getUniqueID())"));assertFalse(route.contains("assignTrial(s,p.worldObj.rand,day"));assertFalse(route.contains("KOMEPacketLordMenu"));assertFalse(route.contains("KOMEGuiLordMenu"));
+        assertTrue(route.contains("n.interactFirst(p)"));assertTrue(route.contains("openStandingTrialOffer(p,n)"));assertFalse(route.contains("mayIssueTrial(s,day,p.getUniqueID())"));assertFalse(route.contains("mayIssueAssignment(s,day,p.getUniqueID())"));assertFalse(route.contains("assignTrial(s,p.worldObj.rand,day"));assertFalse(route.contains("KOMEPacketLordMenu"));assertFalse(route.contains("KOMEGuiLordMenu"));
     }
 
     @Test public void eligibleProspectiveLiegeGetsQuestButtonAndTrialUsesNativeOfferScreen() throws Exception {
@@ -50,7 +50,7 @@ public class KOMEProgressionOfferBridgeTest {
         assertTrue(bridge.contains("KOMEPacketStandingTrialEligibility"));
         assertTrue(events.contains("The current Liege's native interaction GUI owns service through Quest"));
         assertFalse(events.contains("currentLiege && progression.getCanonicalRank()==KOMEProgressionRank.SERF"));
-        assertTrue(offer.contains("Trial of Standing"));assertTrue(offer.contains("KOMEKind"));
+        assertTrue(offer.contains("standing_trial"));assertTrue(offer.contains("KOMEKind"));assertFalse(offer.contains("Trial of Standing"));
     }
 
     @Test public void standingTrialIndicatorLifecycleUsesNativeOfferStateAndCanonicalEligibility() throws Exception {
@@ -78,7 +78,7 @@ public class KOMEProgressionOfferBridgeTest {
         assertFalse(bridge.contains("selectProspectiveLiege"));
         assertFalse(offer.contains("public static KOMELiegeOfferQuest create("));
         assertTrue(bridge.contains("Compatibility cleanup for old saves"));
-        assertTrue(offer.contains("return isStandingTrialOffer()"));
+        assertFalse(offer.contains("return isStandingTrialOffer()"));assertTrue(offer.contains("return isReplacementOffer()"));
     }
 
     @Test public void escortUsesNativeHiredFollowAndTrustedCompletionOnly() throws Exception {

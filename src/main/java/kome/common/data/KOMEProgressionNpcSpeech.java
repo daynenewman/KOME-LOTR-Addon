@@ -26,6 +26,7 @@ public final class KOMEProgressionNpcSpeech {
     }
 
     public static void assignDuty(EntityPlayerMP player, LOTREntityNPC master, KOMESerfKnightDutyType duty) {
+        if(KOMESerfServiceObjectives.objective(duty)){say(player,master,KOMESerfKnightService.trialSpeech(KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).getSerfKnightProgression().getTrialAssignment()));return;}
         String culture=master.getFaction().codeName();
         String household="rohan".equals(culture)?"There must be food at our hearths, even when the riders are away. ":
             "gondor".equals(culture)?"Our folk must be supplied through these troubled days. ":"Our household has need of your service. ";
@@ -37,7 +38,7 @@ public final class KOMEProgressionNpcSpeech {
     }
 
     public static void sameDay(EntityPlayerMP player, LOTREntityNPC master) {
-        say(player, master, "You have done enough for today. Return tomorrow, and I may have more work for you.");
+        say(player, master, "Finish the work already entrusted to you before requesting another assignment.");
     }
     public static void assignCourier(EntityPlayerMP player, LOTREntityNPC master) {
         KOMESerfKnightProgression state=KOMEWorldData.get(player.worldObj).getProgression(player.getUniqueID()).getSerfKnightProgression();
@@ -53,7 +54,7 @@ public final class KOMEProgressionNpcSpeech {
         if (state != null && "provisioning".equals(state.getActiveAssignmentKind())) say(player, master, "I am still waiting on those provisions.");
         else if (state != null && "profession".equals(state.getActiveAssignmentKind())) say(player, master, "I am still waiting on those materials.");
         else if (state != null && state.getActiveAssignmentKind().length() != 0) say(player, master, "The work I gave you is not yet done.");
-        else if (state != null && state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isCompleted()) say(player, master, "You have done what I asked. There is nothing more for you today.");
+        else if (state != null && state.getDuty(KOMESerfKnightDutyType.PROVISIONING).isCompleted()) say(player, master, "Your work is remembered. Speak with me when you are ready for another duty.");
         else say(player, master, "I have no task for you at present.");
     }
 

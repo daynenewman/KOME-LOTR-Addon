@@ -62,7 +62,7 @@ public class KOMEProgressionNpcRankTest {
         KOMESerfKnightProgression state=new KOMESerfKnightProgression(); KOMEProgressionNpcRef master=ref("master"), liege=ref("liege");
         assertTrue(KOMESerfKnightService.setSerfdomMaster(state,master,KOMEProgressionNpcRank.UNRANKED,true).success);
         long day=10L;
-        for(KOMESerfKnightDutyType type:KOMESerfKnightDutyType.values()) { assertTrue(KOMESerfKnightService.assignDuty(state,type,null,day++).success); assertTrue(KOMESerfKnightService.completeDuty(state,type).success); }
+        for(KOMESerfKnightDutyType type:new KOMESerfKnightDutyType[]{KOMESerfKnightDutyType.PROVISIONING,KOMESerfKnightDutyType.PROFESSION,KOMESerfKnightDutyType.COURIER}) { assertTrue(KOMESerfKnightService.assignDuty(state,type,null,day++).success); assertTrue(KOMESerfKnightService.completeDuty(state,type).success); }
         assertFalse(KOMESerfKnightService.commitLiegeForTrial(state,liege,KOMEProgressionNpcRank.UNRANKED,true).success);
         assertFalse(KOMESerfKnightService.commitLiegeForTrial(state,liege,KOMEProgressionNpcRank.PRINCE,true).success);
         assertFalse(KOMESerfKnightService.commitLiegeForTrial(state,liege,KOMEProgressionNpcRank.KING,true).success);

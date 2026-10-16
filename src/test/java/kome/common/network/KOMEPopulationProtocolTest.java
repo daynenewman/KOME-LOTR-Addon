@@ -28,7 +28,7 @@ public class KOMEPopulationProtocolTest {
     }
 
     @Test public void g5PopulationRowsAndTacticalCaptureFieldsRoundTripWithoutLegacySlots() {
-        assertEquals("1.0.9-integration-g9", KOMEPopulationWire.VERSION);
+        assertEquals("1.0.10-service-g10", KOMEPopulationWire.VERSION);
         assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g8"));
         assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g7"));
         assertFalse(KOMEPopulationWire.accepts("1.0.9-integration-g6"));

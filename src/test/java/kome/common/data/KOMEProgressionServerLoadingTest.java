@@ -31,6 +31,14 @@ public class KOMEProgressionServerLoadingTest {
             Class.forName("kome.common.data.KOMECourierCorrespondence",true,loader);
             Class.forName("kome.common.data.KOMEPartingGiftService",true,loader);
             Class.forName("kome.common.data.KOMELocalProvisionFoods",true,loader);
+            Class.forName("kome.common.data.KOMECanonicalRankService",true,loader);
+            Class.forName("kome.common.data.KOMEServicePromotionService",true,loader);
+            Class.forName("kome.common.data.KOMEServiceRecognition",true,loader);
+            Class.forName("kome.common.data.KOMERecommendationService",true,loader);
+            Class.forName("kome.common.data.KOMESerfServiceObjectives",true,loader);
+            Class<?> seats=Class.forName("kome.common.data.KOMEProgressionServiceLocation",true,loader);
+            assertFalse(((java.util.Map)seats.getMethod("supportedHosts").invoke(null)).isEmpty());
+            Class.forName("kome.core.KOMEProgressionSeatTransformer",true,loader);
         }
     }
 }

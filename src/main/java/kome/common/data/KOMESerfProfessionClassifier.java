@@ -64,7 +64,7 @@ public final class KOMESerfProfessionClassifier {
         return null;
     }
 
-    private static boolean farmerOnly(LOTREntityNPC npc) {
+    static boolean farmerOnly(LOTREntityNPC npc) {
         if(!(npc instanceof LOTRUnitTradeable))return false;
         LOTRUnitTradeEntries entries=((LOTRUnitTradeable)npc).getUnits();
         if(entries==null||entries.tradeEntries==null||entries.tradeEntries.length==0)return false;

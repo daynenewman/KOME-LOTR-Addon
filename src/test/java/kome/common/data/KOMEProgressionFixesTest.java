@@ -45,7 +45,7 @@ public class KOMEProgressionFixesTest {
         java.lang.reflect.Field field=LOTRPlayerData.class.getDeclaredField("alignments");field.setAccessible(true);
         ((Map)field.get(LOTRLevelData.getData(f.player))).put(LOTRFaction.ROHAN,value);
     }
-    private static void duties(KOMESerfKnightProgression s){for(KOMESerfKnightDutyType t:KOMESerfKnightDutyType.values()){s.assignDuty(t,null);s.completeDuty(t);}}
+    private static void duties(KOMESerfKnightProgression s){for(KOMESerfKnightDutyType t:new KOMESerfKnightDutyType[]{KOMESerfKnightDutyType.PROVISIONING,KOMESerfKnightDutyType.PROFESSION,KOMESerfKnightDutyType.COURIER}){s.assignDuty(t,null);s.completeDuty(t);}}
 
     @Test public void acceptingMasterClearsOnlyThatPlayersOffersAndReloadedShells()throws Exception {
         KOMEAccessFixture f=new KOMEAccessFixture();f.pledge(LOTRFaction.ROHAN);
@@ -57,6 +57,7 @@ public class KOMEProgressionFixesTest {
         cpw.mods.fml.common.network.simpleimpl.SimpleNetworkWrapper kome=KOMEPacketHandler.network;
         try {
             KOMEPacketHandler.network=f.network;
+            f.data.getProgression(f.player.id).setCanonicalRank(KOMEProgressionRank.SERF);KOMEProgressionServiceLocationTest.territory(f);
             assertTrue(KOMESerfdomMasterService.serve(f.player,f.data,master).success);
             assertNull(master.questInfo.getOfferFor(f.player));assertNull(other.questInfo.getOfferFor(f.player));
             assertSame(shell,other.questInfo.getOfferFor(stranger.player));
@@ -70,22 +71,12 @@ public class KOMEProgressionFixesTest {
     }
 
     @Test public void dutiesAlignmentAndOwnCaptainRequirementsUseOneGate()throws Exception {
-        KOMEAccessFixture f=new KOMEAccessFixture();f.pledge(LOTRFaction.ROHAN);
-        KOMEPlayerProgression p=f.data.getProgression(f.player.id);p.setCanonicalRank(KOMEProgressionRank.SERF);
-        KOMESerfKnightProgression s=p.getSerfKnightProgression();s.setSerfdomMaster(new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","rohan",0,0,64,0));
-        Captain captain=KOMEAccessFixture.allocate(Captain.class);captain.worldObj=f.world;captain.setUniqueID(UUID.randomUUID());captain.accessible=true;
-        captain.questInfo=new LOTREntityQuestInfo(captain);captain.hiredNPCInfo=new LOTRHiredNPCInfo(captain);
-        alignment(f,150F);assertFalse(KOMEProgressionOfferBridge.canRequestStandingTrialFrom(f.player,captain));
-        duties(s);alignment(f,149F);assertFalse(KOMEProgressionOfferBridge.canRequestStandingTrialFrom(f.player,captain));
-        assertFalse(KOMESerfKnightService.acceptStandingTrial(s,f.data,captain,new Random(2),KOMESerfKnightService.calendarDayNow(),f.player.id).success);
-        assertFalse(s.hasLiege());assertEquals("alignment",KOMEProgressionTrackerSnapshot.project(f.player,p).iconKey);
-        alignment(f,150F);assertTrue(KOMEProgressionOfferBridge.canRequestStandingTrialFrom(f.player,captain));
-        assertEquals("standing_trial_ready",KOMEProgressionTrackerSnapshot.project(f.player,p).iconKey);
-        captain.accessible=false;assertFalse(KOMEProgressionOfferBridge.canRequestStandingTrialFrom(f.player,captain));
-        captain.accessible=true;
-        assertTrue(KOMESerfKnightService.acceptStandingTrial(s,f.data,captain,new Random(2),KOMESerfKnightService.calendarDayNow(),f.player.id).success);
-        alignment(f,0F);assertTrue(s.hasLiege());assertEquals("trial",s.getActiveAssignmentKind());
-        assertTrue(KOMEProgressionTrackerSnapshot.project(f.player,p).visible);
+        KOMEAccessFixture f=new KOMEAccessFixture();f.pledge(LOTRFaction.ROHAN);KOMEPlayerProgression p=f.data.getProgression(f.player.id);p.setCanonicalRank(KOMEProgressionRank.SERF);
+        KOMESerfKnightProgression s=p.getSerfKnightProgression();KOMEProgressionNpcRef master=new KOMEProgressionNpcRef(UUID.randomUUID().toString(),"Master","rohan",0,0,64,0);s.setSerfdomMaster(master);duties(s);
+        Captain captain=KOMEAccessFixture.allocate(Captain.class);captain.worldObj=f.world;captain.setUniqueID(UUID.randomUUID());captain.accessible=true;captain.questInfo=new LOTREntityQuestInfo(captain);captain.hiredNPCInfo=new LOTRHiredNPCInfo(captain);
+        alignment(f,149F);assertFalse(KOMEProgressionOfferBridge.canRequestStandingTrialFrom(f.player,captain));assertFalse(KOMEServicePromotionService.reason(p,master,"ROHAN",149).isEmpty());
+        alignment(f,150F);assertFalse(KOMEProgressionOfferBridge.canRequestStandingTrialFrom(f.player,captain));assertEquals("",KOMEServicePromotionService.reason(p,master,"ROHAN",150));
+        assertFalse(s.hasLiege());assertTrue(KOMEProgressionTrackerSnapshot.project(f.player,p).objective.contains("Master"));assertFalse(KOMEProgressionTrackerSnapshot.project(f.player,p).objective.contains("Trial"));
     }
 
     @Test public void verifiedFactionThresholdsIgnoreExceptionalCaptains(){

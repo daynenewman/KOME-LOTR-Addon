@@ -42,50 +42,10 @@ public class KOMEPacketRelationshipAction implements IMessage {
             if(m.action==TALK){n.interactFirst(p);return null;}
             if(m.action!=SERVICE){p.addChatMessage(new ChatComponentText("Unknown relationship action."));return null;}
             if(m.relationship==MASTER){KOMEPacketSerfdomMasterAction.sendMenu(p,n);return null;}
-            if(exact&&s.isTrialCompleted()&&progression.getCanonicalRank()==KOMEProgressionRank.SERF){
-                KOMESerfdomMasterService.Result result=KOMESerfdomMasterService.conferKnighthood(p,data,n);
-                if(!result.success)KOMEProgressionNpcSpeech.say(p,n,result.reason);return null;
-            }
             if(KOMELiegeProgressionInteraction.ownsQuest(p,n)&&KOMELiegeProgressionInteraction.quest(p,n))return null;
-            if(KOMEProgressionOfferBridge.canReplaceLiegeFrom(p,n)||KOMEKnightCommissionService.eligible(p,n)||KOMELordshipTrialService.eligible(p,n)) {
-                KOMEProgressionOfferBridge.openStandingTrialOffer(p,n);
-                return null;
-            }
-            if(progression.getCanonicalRank()!=KOMEProgressionRank.SERF){
-                p.addChatMessage(new ChatComponentText("A Trial of Standing can only be requested while serving a Master."));
-                return null;
-            }
-            if(exact&&s.getTrialId().isEmpty()&&validLiegeService(p,progression,data,n)){
-                net.minecraft.nbt.NBTTagCompound before=s.writeToNBT();
-                KOMESerfKnightService.Result result=KOMESerfKnightService.assignTrial(s,p.worldObj.rand,KOMESerfKnightService.calendarDayNow(),p.getUniqueID());
-                if(!result.success){KOMEProgressionNpcSpeech.say(p,n,result.reason);return null;}
-                if(!KOMESerfKnightEscortService.prepareDestination(s,p.worldObj)){
-                    s.readFromNBT(before);KOMEProgressionNpcSpeech.say(p,n,"No safe escort destination is available here.");return null;
-                }
-                data.markDirty();KOMEProgressionNpcRoles.syncPlayer(data,p.getUniqueID());
-            }
-            if(s.getTrialId().length()!=0){
-                if(!validLiegeService(p,progression,data,n)){p.addChatMessage(new ChatComponentText("That Liege relationship is no longer valid."));return null;}
-                if("recovery".equals(s.getTrialId())) {
-                    if(!KOMESerfKnightRecoveryService.deliver(p,progression,n)) KOMEProgressionNpcInteractionService.activateTrial(p,progression,n,s.getTrialId());
-                } else KOMEProgressionNpcInteractionService.activateTrial(p,progression,n,s.getTrialId());
-                if(!s.isTrialCompleted()) KOMEProgressionNpcSpeech.say(p,n,KOMESerfKnightService.existingTrialSpeech(s.getTrialAssignment()));
-                return null;
-            }
-            if(!KOMEProgressionOfferBridge.canRequestStandingTrialFrom(p,n)){p.addChatMessage(new ChatComponentText("That NPC is not eligible to offer your Trial of Standing."));return null;}
-            long day=KOMESerfKnightService.calendarDayNow();
-            if(!KOMESerfKnightService.mayIssueTrial(s,day,p.getUniqueID())){KOMEProgressionNpcSpeech.say(p,n,"I cannot set another Trial of Standing for you today. Return tomorrow.");return null;}
-            if(!KOMEProgressionOfferBridge.openStandingTrialOffer(p,n)){
-                p.addChatMessage(new ChatComponentText("Your Trial of Standing cannot be opened right now."));
-            }
+            if(KOMEProgressionOfferBridge.canReplaceLiegeFrom(p,n)){KOMEProgressionOfferBridge.openStandingTrialOffer(p,n);return null;}
+            p.addChatMessage(new ChatComponentText("Complete service with your current superior. Separate promotion trials have been retired."));
             return null;
-        }
-        private static boolean validLiegeService(EntityPlayerMP p,KOMEPlayerProgression progression,KOMEWorldData data,LOTREntityNPC n){
-            KOMESerfKnightProgression s=progression.getSerfKnightProgression();
-            return progression.getCanonicalRank()==KOMEProgressionRank.SERF&&s.getSerfdomMaster().isSet()&&KOMESerfKnightService.allDutiesComplete(s)&&(!s.hasActiveAssignment()||s.getTrialId().length()!=0)&&
-                !s.isLockedOut(KOMESerfKnightService.calendarDayNow())&&LOTRLevelData.getData(p).getPledgeFaction()!=null&&LOTRLevelData.getData(p).getPledgeFaction()==n.getFaction()&&
-                KOMEProgressionFactionResolver.matches(s.getSerfdomMaster().factionKey,n.getFaction())&&!n.isChild()&&KOMEProgressionNpcRankService.isValidFactionNpc(n)&&KOMEProgressionLords.isStandingTrialLiegeCandidate(n)&&
-                KOMEProgressionNpcRankService.effectiveRank(data,n)==KOMEProgressionLiegePolicy.requiredSuperior(progression.getCanonicalRank())&&n.hiredNPCInfo!=null&&!n.hiredNPCInfo.isActive;
         }
     }
 }

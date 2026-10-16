@@ -21,6 +21,8 @@ public final class KOMELordshipTrial {
     public String failureReason="";
     public KOMEProgressionNpcRef authority=KOMEProgressionNpcRef.EMPTY;
     public boolean nativeInvasion, nativeVictory, playerDied, invasionEnded;
+    public boolean ordinaryService;
+    public boolean retired;
     public String invasionId="", invasionType="";
     public int invasionRemaining, invasionSize, controllerMissingTicks;
     public int acknowledgedLosses;
@@ -38,6 +40,8 @@ public final class KOMELordshipTrial {
     public NBTTagCompound writeToNBT() {
         NBTTagCompound n=new NBTTagCompound();n.setInteger("Version",2);n.setString("Scenario",scenario.name());
         n.setTag("Authority",authority.writeToNBT());n.setBoolean("NativeInvasion",nativeInvasion);n.setBoolean("NativeVictory",nativeVictory);
+        n.setBoolean("OrdinaryService",ordinaryService);
+        n.setBoolean("Retired",retired);
         n.setBoolean("PlayerDied",playerDied);n.setBoolean("InvasionEnded",invasionEnded);n.setString("InvasionId",invasionId);n.setString("InvasionType",invasionType);
         n.setInteger("InvasionRemaining",invasionRemaining);n.setInteger("InvasionSize",invasionSize);n.setInteger("ControllerMissingTicks",controllerMissingTicks);
         n.setInteger("AcknowledgedLosses",acknowledgedLosses);
@@ -54,6 +58,8 @@ public final class KOMELordshipTrial {
             KOMELordshipTrial t=new KOMELordshipTrial(Scenario.valueOf(n.getString("Scenario")),KOMEKnightCommission.readFromNBT(n.getCompoundTag("Objective")),guards);
             // Version 1 field encounters continue with their saved objective and no casualty quota.
             t.authority=KOMEProgressionNpcRef.readFromNBT(n.getCompoundTag("Authority"));t.nativeInvasion=n.getBoolean("NativeInvasion");
+            t.ordinaryService=n.getBoolean("OrdinaryService");
+            t.retired=n.getBoolean("Retired");
             t.nativeVictory=n.getBoolean("NativeVictory");t.playerDied=n.getBoolean("PlayerDied");t.invasionEnded=n.getBoolean("InvasionEnded");
             t.invasionId=n.getString("InvasionId");t.invasionType=n.getString("InvasionType");t.invasionRemaining=n.getInteger("InvasionRemaining");t.invasionSize=n.getInteger("InvasionSize");t.controllerMissingTicks=n.getInteger("ControllerMissingTicks");
             t.acknowledgedLosses=Math.max(0,Math.min(5,n.getInteger("AcknowledgedLosses")));

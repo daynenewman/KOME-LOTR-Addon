@@ -173,6 +173,8 @@ public final class KOMECourierService {
         if(assignment.confirmedRecipientDeath&&!state.getDuty(KOMESerfKnightDutyType.COURIER).adminForced){
             if(!hasMessage(player,assignment,state.getSerfdomMaster()))return false;
             removeMessage(player,assignment,state.getSerfdomMaster());
+            cleanup(player,assignment,state.getSerfdomMaster());state.cancelTestDuty(KOMESerfKnightDutyType.COURIER);
+            world.markDirty();KOMEProgressionAutoCompleter.syncPlayer(player,progression);return true;
         }else if(assignment.stage!=KOMESerfCourierAssignment.Stage.DELIVERED||!assignment.recipient.isSet()&&!state.getDuty(KOMESerfKnightDutyType.COURIER).adminForced)return false;
         if(!KOMESerfKnightService.completeDuty(progression,KOMESerfKnightDutyType.COURIER).success)return false;
         if(!assignment.confirmedRecipientDeath)KOMEProgressionServiceRewards.duty(player,state,KOMESerfKnightDutyType.COURIER);

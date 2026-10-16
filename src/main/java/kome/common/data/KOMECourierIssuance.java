@@ -46,7 +46,7 @@ public final class KOMECourierIssuance {
             KOMESerfCourierAssignment a=active(state);
             if(a==null||!state.getSerfdomMaster().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(npc))
                     ||!KOMESerfdomMasterService.validateCurrentMasterInteraction(p,world,npc,true).success)return false;
-            if(KOMECourierService.reportToMaster(p,world,progression)){dialogue.completed(p,npc);return true;}
+            if(KOMECourierService.reportToMaster(p,world,progression)){dialogue.completed(p,npc);KOMEServicePromotionService.report(p,npc);return true;}
             if(a.stage==KOMESerfCourierAssignment.Stage.DELIVERED)return true;
             long now=p.worldObj.getTotalWorldTime();
             if(a.letterText.length()==0){freezeCorrespondence(a,state.getSerfdomMaster(),npc);save(world,state,a);}

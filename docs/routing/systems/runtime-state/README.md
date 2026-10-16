@@ -4,6 +4,15 @@
 
 Owns addon startup, server lifecycle, canonical strategic storage, validated configuration, and administrative diagnostics. Domain services own their rules; this guide locates shared infrastructure.
 
+Pass 3 adds `ServiceRecognition` v1 (migration v1) inside existing player progression,
+with at most two earned service/recommendation records. Root schema 12 and strategic
+schemas remain unchanged. Native regional-seat receipts live in the NPC entity's
+normal persisted data under the regional-seat tag (version 1), not a new world placement ledger.
+`KOMEServicePromotionService.migrate` retires old trials once on login/report with
+loaded encounter cleanup; orphan actors/controllers reconcile on natural load.
+No migration promotion, item reward or ceremony is replayed. Exact evidence and
+legacy boundaries are in the [report](../../../PROGRESSION_PASS3_SERVICE_PROMOTION_REPORT.txt).
+
 ## Authority and entry points
 
 - [KOMEAddon.preInit](../../../../src/main/java/kome/common/KOMEAddon.java), `init`, `postInit`, `serverStarting`, and [KOMECommonProxy.init](../../../../src/main/java/kome/common/KOMECommonProxy.java): module initialization, events, commands, GUI/network registration. [KOMECorePlugin](../../../../src/main/java/kome/core/KOMECorePlugin.java) registers KOME, LOTRMoreMobs, and Aqua ASM hooks.

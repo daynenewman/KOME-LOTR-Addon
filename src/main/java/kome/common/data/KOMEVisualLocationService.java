@@ -32,7 +32,7 @@ public final class KOMEVisualLocationService {
         KOMESerfKnightProgression state = progression.getSerfKnightProgression();
         KOMEVisualMarker relationship = relationshipMarker(progression, state, worldData,alignment);
         if (relationship != null) markers.add(relationship);
-        if(state.isTrialCompleted()&&!state.hasPartingGift()&&KOMEPartingGiftService.giftMaster(state).isSet())
+        if(!state.ordinaryObjective()&&state.isTrialCompleted()&&!state.hasPartingGift()&&KOMEPartingGiftService.giftMaster(state).isSet())
             markers.add(relationship(KOMEVisualMarker.Role.MASTER_GIFT,KOMEPartingGiftService.giftMaster(state)));
         KOMESerfKnightTrialAssignment standing=state.getTrialAssignment();
         if(!state.isTrialCompleted()&&standing!=null&&(standing.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED||standing.stage==KOMESerfKnightTrialAssignment.Stage.ACTIVE)){
@@ -72,7 +72,7 @@ public final class KOMEVisualLocationService {
         KOMELordshipTrial trial=progression.getLordship().assignment();
         if(trial!=null&&trial.authority.isSet()){
             KOMEProgressionNpcRef authority=trial.authority;
-            markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.LORD_LIEGE,authority.entityUuid,rankedLabel(authority,worldData),"Trial authority",authority.dimension,authority.x,authority.y,authority.z,true,
+            markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.LORD_LIEGE,authority.entityUuid,rankedLabel(authority,worldData),"Service authority",authority.dimension,authority.x,authority.y,authority.z,true,
                 trial.ready()||trial.objective.stage==KOMEKnightCommission.Stage.OFFERED||trial.objective.stage==KOMEKnightCommission.Stage.FAILED||trial.objective.activationPending));
         }
         if(trial!=null&&trial.objective.stage==KOMEKnightCommission.Stage.ACTIVE){
@@ -123,11 +123,11 @@ public final class KOMEVisualLocationService {
         boolean actionable=false;
         if(rank==KOMEProgressionRank.SERF){
             if(ref.hasSameIdentity(state.getLiege()))actionable=!state.isTrialCompleted();
-            else actionable=state.isTrialCompleted()&&alignment>=KOMESerfKnightService.REQUIRED_ALIGNMENT||state.hasActiveAssignment()&&state.getTrialId().isEmpty()
+            else actionable=KOMEServicePromotionService.duties(state)>=3&&alignment>=KOMESerfKnightService.REQUIRED_ALIGNMENT||state.hasActiveAssignment()
                 ||KOMESerfKnightService.nextDuty(state)!=null&&KOMESerfKnightService.mayIssueAssignment(state,KOMESerfKnightService.calendarDayNow());
         }else if(rank==KOMEProgressionRank.KNIGHT)actionable=state.hasLiege()&&
             (progression.getKnightService().assignment()!=null||progression.getLordship().assignment()!=null
-                ||progression.getKnightService().qualifyingTypes(ref.factionKey).size()<KOMEKnightCommission.Type.values().length
+                ||progression.getKnightService().qualifyingTypes(ref.factionKey).size()<3
                 ||KOMELordshipTrialService.prerequisites(progression,alignment,ref.factionKey));
         String label=role==KOMEVisualMarker.Role.SERFDOM_MASTER?"Master "+ref.displayName:rankedLabel(ref,worldData);
         if(role==KOMEVisualMarker.Role.SERFDOM_MASTER){
@@ -145,17 +145,18 @@ public final class KOMEVisualLocationService {
         KOMESerfKnightProgression s=p.getSerfKnightProgression();
         if(p.getCanonicalRank()==KOMEProgressionRank.SERF){
             KOMESerfKnightTrialAssignment trial=s.getTrialAssignment();
-            if(s.isTrialCompleted()||trial!=null&&(trial.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED||trial.stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE))return ref.hasSameIdentity(s.getLiege());
-            if(trial!=null&&"recovery".equals(trial.trialId)&&trial.data.getBoolean("RecoveryRetrieved"))return ref.hasSameIdentity(s.getLiege());
+            if(s.isTrialCompleted()||trial!=null&&(trial.stage==KOMESerfKnightTrialAssignment.Stage.ASSIGNED||trial.stage==KOMESerfKnightTrialAssignment.Stage.OBJECTIVE_COMPLETE))return ref.hasSameIdentity(s.objectiveSuperior());
+            if(trial!=null&&"recovery".equals(trial.trialId)&&trial.data.getBoolean("RecoveryRetrieved"))return ref.hasSameIdentity(s.objectiveSuperior());
             if(trial!=null)return false;
             if("courier".equals(s.getActiveAssignmentKind())){
                 KOMESerfCourierAssignment courier=KOMESerfCourierAssignment.readFromNBT(s.getDuty(KOMESerfKnightDutyType.COURIER).getAssignmentData());
                 return courier!=null&&(courier.stage!=KOMESerfCourierAssignment.Stage.OUTBOUND||courier.confirmedRecipientDeath)&&ref.hasSameIdentity(s.getSerfdomMaster());
             }
-            return ref.hasSameIdentity(s.getSerfdomMaster())&&(s.hasActiveAssignment()||KOMESerfKnightService.nextDuty(s)!=null);
+            return ref.hasSameIdentity(s.getSerfdomMaster())&&(s.hasActiveAssignment()||KOMESerfKnightService.nextDuty(s)!=null||KOMEServicePromotionService.duties(s)>=3);
         }
         KOMEKnightCommission commission=p.getLordship().assignment()!=null?p.getLordship().assignment().objective:p.getKnightService().assignment();
-        return p.getLordship().assignment()==null&&commission!=null&&(commission.stage==KOMEKnightCommission.Stage.OFFERED||commission.stage==KOMEKnightCommission.Stage.READY_TO_REPORT||commission.activationPending)&&ref.hasSameIdentity(s.getLiege());
+        return ref.hasSameIdentity(s.getLiege())&&(commission!=null&&(commission.stage==KOMEKnightCommission.Stage.OFFERED||commission.stage==KOMEKnightCommission.Stage.READY_TO_REPORT||commission.activationPending)
+            ||p.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&commission==null&&p.getKnightService().qualifyingTypes(ref.factionKey).size()>=3);
     }
     static String rankedLabel(KOMEProgressionNpcRef ref,KOMEWorldData data){
         KOMEProgressionNpcRankRecord record=data==null?null:data.progressionNpcRanks.get(UUID.fromString(ref.entityUuid));
@@ -259,14 +260,6 @@ public final class KOMEVisualLocationService {
         lotr.common.fac.LOTRFaction pledge=lotr.common.LOTRLevelData.getData(player).getPledgeFaction();
         double alignment=pledge==null?0D:lotr.common.LOTRLevelData.getData(player).getAlignment(pledge);
         List<KOMEVisualMarker> markers = markersFor(progression, worldData,alignment);
-        if(progression.getCanonicalRank()==KOMEProgressionRank.KNIGHT&&progression.getKnightService().assignment()==null
-                &&(progression.getLordship().assignment()==null&&KOMELordshipTrialService.prerequisites(progression,alignment,pledge==null?"":pledge.codeName())
-                    ||progression.getLordship().assignment()!=null&&!progression.getLordship().assignment().authority.isSet())){
-            KOMEProgressionNpcRef ref=knownPrince(progression,worldData,player.dimension,player.posX,player.posZ,pledge==null?"":pledge.codeName());
-            if(ref!=null){
-                markers.add(new KOMEVisualMarker(KOMEVisualMarker.Role.LORD_LIEGE,ref.entityUuid,rankedLabel(ref,worldData),"Trial of Lordship",ref.dimension,ref.x,ref.y,ref.z,true,true));
-            }
-        }
         markers.removeIf(marker->marker.role==KOMEVisualMarker.Role.RULER&&!ownRuler(marker,worldData,pledge));
         // Role leases also include non-actionable witnesses and Trial guards. Hide their
         // native indicators without inventing another visible relationship/action icon.

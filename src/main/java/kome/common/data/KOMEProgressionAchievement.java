@@ -156,9 +156,9 @@ public class KOMEProgressionAchievement {
         a(list, "wanderer.smoke_drink", "wanderer", "Advancement", "Well, If You Insist", "Legacy self-reported random task. Retained as history; ordinary consumption follows native rules.");
         a(list, "wanderer.dangerous_business", "wanderer", "Quota", "Dangerous Business", "Explore 20 regions of Middle-earth.");
         a(list, "wanderer.travel_30km", "wanderer", "Quota", "30 km Traveler", "Travel a total of 30 km in game across all travel modes.");
-        a(list, "wanderer.find_serf_lord", "wanderer", "Entering Service", "Enter Service", "Take service with a Master and enter your first faction rank.");
-        a(list, "wanderer.place_weapon_holder", "wanderer", "Entering Service", "Place Weapon Holder", "Place a weapon holder near the area your prospective Master roams.");
-        a(list, "wanderer.hoe_agreement", "wanderer", "Entering Service", "Hoe Agreement", "Place a hoe on your Master's weapon holder.");
+        a(list, "wanderer.find_serf_lord", "wanderer", "Allegiance", "Pledge Allegiance", "A successfully committed native faction pledge grants Serf standing.");
+        a(list, "wanderer.place_weapon_holder", "wanderer", "Entering Service", "Place Weapon Holder", "Legacy historical record. It is not a current promotion requirement.");
+        a(list, "wanderer.hoe_agreement", "wanderer", "Entering Service", "Hoe Agreement", "Legacy historical record. It is not a current promotion requirement.");
 
         a(list, "serf.bartering", "serf", "Advancement", "Bartering", "Legacy self-reported random task. Trading follows native LOTR eligibility and is not unlocked by this record.");
         a(list, "serf.quest_seeker", "serf", "Advancement", "Quest Seeker", "Complete 5 native LOTR mini-quests for NPCs.");
@@ -170,15 +170,15 @@ public class KOMEProgressionAchievement {
         a(list, "serf.drink_quota", "serf", "Rank Quota", "Drink Quota", "Complete your assigned drink quota.");
         a(list, "serf.deliver_quota", "serf", "Rank Quota", "Deliver Quota", "Bring the food and drink quota to your Master.");
         a(list, "serf.alignment_100", "serf", "Rank Quota", "Master Faction Alignment", "Hold at least +150 alignment to your Master's faction.");
-        a(list, "serf.find_knight_lord", "serf", "Trial of Standing", "Find a Worthy Liege", "Find an eligible prospective Liege.");
-        a(list, "serf.place_weapon_holder", "serf", "Trial of Standing", "Place Weapon Holder", "Place a weapon holder near the area your Liege roams.");
-        a(list, "serf.pledge", "serf", "Trial of Standing", "Pledge to Liege's Faction", "Pledge after reaching +100 alignment, or +150 for elite factions.");
-        a(list, "serf.tame_ride", "serf", "Trial of Standing", "Tame a Ride", "Legacy self-reported mount record. Ordinary riding and taming follow native eligibility.");
-        a(list, "serf.defeat_invasion", "serf", "Trial of Standing", "Defeat Invasion", "Fight and defeat an enemy invasion of your faction's caliber.");
-        a(list, "serf.sword_agreement", "serf", "Trial of Standing", "Sword Agreement", "Place a sword on the weapon holder.");
-        a(list, "serf.record_knight_lord", "serf", "Trial of Standing", "Record Liege", "Add the name and screenshot/picture of your Liege.");
-        a(list, "serf.assign_knight_quota", "serf", "Trial of Standing", "Assign Rank Quota", "Assign two enemy drops and two factions for alignment quotas.");
-        a(list, "serf.title_knight", "serf", "Trial of Standing", "Earn New Standing", "Advance to your faction's next progression title.");
+        a(list, "serf.find_knight_lord", "serf", "Standing History", "Find a Worthy Liege", "Legacy historical record. It is not a current promotion requirement.");
+        a(list, "serf.place_weapon_holder", "serf", "Standing History", "Place Weapon Holder", "Legacy historical record. It is not a current promotion requirement.");
+        a(list, "serf.pledge", "serf", "Standing History", "Faction Allegiance", "Maintain a legitimate pledge to the faction you serve.");
+        a(list, "serf.tame_ride", "serf", "Standing History", "Tame a Ride", "Legacy self-reported mount record. Ordinary riding and taming follow native eligibility.");
+        a(list, "serf.defeat_invasion", "serf", "Standing History", "Defeat Invasion", "Fight and defeat an enemy invasion of your faction's caliber.");
+        a(list, "serf.sword_agreement", "serf", "Standing History", "Sword Agreement", "Legacy historical record. It is not a current promotion requirement.");
+        a(list, "serf.record_knight_lord", "serf", "Standing History", "Record Liege", "Legacy historical record. It is not a current promotion requirement.");
+        a(list, "serf.assign_knight_quota", "serf", "Standing History", "Assign Rank Quota", "Legacy historical record. It is not a current promotion requirement.");
+        a(list, "serf.title_knight", "serf", "Standing History", "Earn Knight Standing", "Your current Master recognizes three reported duties and 150 current faction alignment.");
 
         a(list, "knight.fanny_pack", "knight", "Advancement", "Fanny Pack", "Earn the native LOTR pouch achievement. Pouch use does not require this accomplishment.");
         a(list, "knight.meat", "knight", "Advancement", "The Finer Things of Life", "Legacy self-reported random task. Retained as history; normal meat consumption needs no unlock.");
@@ -196,7 +196,7 @@ public class KOMEProgressionAchievement {
         a(list, "knight.crown_king", "knight", "Rise in Standing", "Crown a King", "Historical checklist record; does not appoint a player ruler or create an NPC King.");
         a(list, "knight.record_king", "knight", "Rise in Standing", "Record King", "Historical checklist record; current ruler records are separate authority.");
         a(list, "knight.conquest_fellowship", "knight", "Rise in Standing", "Conquest Fellowship", "Historical checklist record; does not authorize campaign participation or ownership.");
-        a(list, "knight.title_lord", "knight", "Rise in Standing", "Earn New Standing", "Advance to your faction's next progression title.");
+        a(list, "knight.title_lord", "knight", "Rise in Standing", "Earn Knight Standing", "Your current Master recognizes three reported duties and 150 current faction alignment.");
 
         a(list, "lord.redstone", "lord", "Advancement", "What Is This Magic", "Legacy self-reported random task. Ordinary redstone needs no KOME unlock.");
         a(list, "lord.smithing_apprentice", "lord", "Advancement", "Smithing Apprentice", "Legacy self-reported random task. No general scroll or modifier permission reward is connected.");

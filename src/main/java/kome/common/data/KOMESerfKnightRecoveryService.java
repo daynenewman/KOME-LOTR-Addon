@@ -74,7 +74,7 @@ public final class KOMESerfKnightRecoveryService {
     public static boolean deliver(EntityPlayerMP player,KOMEPlayerProgression progression,LOTREntityNPC liege) {
         if(player==null||progression==null||liege==null)return false;
         KOMESerfKnightProgression state=progression.getSerfKnightProgression(); KOMESerfKnightTrialAssignment assignment=state.getTrialAssignment();
-        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE||!state.getLiege().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
+        if(!isRecovery(assignment)||assignment.stage!=KOMESerfKnightTrialAssignment.Stage.ACTIVE||!state.objectiveSuperior().hasSameIdentity(KOMEProgressionNpcRankService.referenceOf(liege)))return false;
         if(!assignment.data.getBoolean(DATA_RETRIEVED)&&!isAssignedTo(player.getCurrentEquippedItem(),assignment,player.getUniqueID()))return false;
         int slot=findAssignedStack(player,assignment);
         if(slot<0){

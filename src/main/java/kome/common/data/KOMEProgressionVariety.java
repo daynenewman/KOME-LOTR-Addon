@@ -20,5 +20,6 @@ public final class KOMEProgressionVariety {
             int roll=random.nextInt(total);for(KOMEKnightCommission.Type type:remaining){roll-=weight(type,history,faction);if(roll<0){ordered.add(type);remaining.remove(type);break;}}
         }return ordered;
     }
-    private static int weight(KOMEKnightCommission.Type type,List<KOMEKnightCommission> history,String faction){for(int i=history.size()-1;i>=Math.max(0,history.size()-3);i--){KOMEKnightCommission a=history.get(i);if(a.type==type&&KOMEProgressionRelationshipLifecycle.sameFaction(a.faction,faction))return 1;}return 4;}
+    static int category(KOMEKnightCommission.Type type){return type==KOMEKnightCommission.Type.SETTLEMENT_DEFENSE||type==KOMEKnightCommission.Type.BORDER_INCURSION||type==KOMEKnightCommission.Type.NATIVE_INVASION?0:type==KOMEKnightCommission.Type.DANGEROUS_ESCORT?1:type==KOMEKnightCommission.Type.RELIEF?2:3;}
+    private static int weight(KOMEKnightCommission.Type type,List<KOMEKnightCommission> history,String faction){for(int i=history.size()-1;i>=Math.max(0,history.size()-3);i--){KOMEKnightCommission a=history.get(i);if(category(a.type)==category(type)&&KOMEProgressionRelationshipLifecycle.sameFaction(a.faction,faction))return 1;}return 4;}
 }
