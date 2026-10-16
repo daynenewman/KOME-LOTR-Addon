@@ -1,0 +1,358 @@
+KOME PROGRESSION PASS 3 - LOCAL DEV SYNC REPORT
+Completed: 2026-10-15 (America/Chicago)
+Evidence: current source, actual Git merge, deterministic tests, offline build and packaged jar.
+Live Minecraft, dedicated-server and connected-client acceptance: NOT PERFORMED.
+No jar was installed; no saved world was changed; nothing was pushed.
+
+GIT STATE AND SCOPE
+Repository: C:/Users/elija/OneDrive/Desktop/Gaming/Minecraft/My Mincraft Modding/CustomMods/KOME-LOTR-Addon
+Branch: elijahrnovak/kom-72-implement-revised-branch-based-player-progression-system
+Origin fetch/push URL: https://github.com/daynenewman/KOME-LOTR-Addon.git
+Original HEAD: b81b7e9effc24cbfc19e10c29978df851729b1cf
+Original origin/dev: 6d1669a29c572161fa8b14b0779734eb63323af9
+Freshly fetched and finally rechecked remote dev: b593f5fa8975f76e5c3dfc5ed83e1f5b4ca95e30
+Pass 3 checkpoint: 632b17147acd5923112259bda903ca62c64924bf
+Verified integration merge: 21266df878d72524fd1f4c910b963e26fb73e7c8
+Merge parents: 632b17147acd5923112259bda903ca62c64924bf and b593f5fa8975f76e5c3dfc5ed83e1f5b4ca95e30.
+A final documentation-only commit containing this report follows the verified merge;
+resolve its exact SHA with git log -1 --format=%H -- docs/PROGRESSION_PASS3_DEV_SYNC_REPORT.txt.
+No rebase, reset, clean, force operation, stash apply/pop/drop, runtime install or push occurred.
+
+The initial checkout had 94 unstaged modified tracked files, 13 untracked files,
+and no staged changes. Pass 2's rank abilities and KOM-18 integration were already
+committed in b81b7e9 and its ancestry. Pass 3's service work and both untracked Pass 2/
+Pass 3 reports were not committed. All 107 dirty files were preserved in the checkpoint
+(3183 insertions, 886 deletions), with generated and ignored materials excluded from Git.
+One worktree was registered before and after. Other branches and old backups remain intact.
+Two new local safety refs point to the original HEAD and the complete Pass 3 checkpoint:
+backup/progression-devsync-20261015-205250-before-checkpoint
+backup/progression-devsync-20261015-205250-pass3
+
+FRESH RECOVERY BACKUP - CREATED BEFORE SOURCE/INDEX/REF MUTATION
+C:/Users/elija/OneDrive/Desktop/Gaming/Minecraft/My Mincraft Modding/CustomMods/KOME-Progression-DevSync-Backups/20261015-205250
+This new timestamped sibling directory is outside the repository and build directories.
+checkout/ is a complete copy, including .git, index, all objects, refs and reflogs,
+all tracked/untracked/ignored files, dependencies, prior outputs, build materials and run/.
+Every one of 28,816 copied files matched its source SHA-256. A separate Python pass
+independently rechecked all 28,816 files successfully. The manifest records paths,
+byte lengths and SHA-256 values. Complete raw .git preserves all older stash objects
+and the stash reflog, beyond what the portable --all bundle alone guarantees.
+
+sha256-manifest.csv SHA-256:
+687421CA8167D8D43E88A7BB6116EF8E9A9D0BD53BF1F9C0D20D903F102FF63F
+repository.bundle SHA-256:
+42F16BBF30BAAF0AC4C3895B564719FFEB4544444861CD2179DEEA4333C1C1BC
+Git bundle verification passed with exit 0 (27 original refs). The first PowerShell
+invocation interpreted Git's successful stderr notice as an error; verification and
+recovery notes were completed before checkpointing. No copy/hash mismatch occurred.
+Supplemental unstaged.patch/staged.patch are binary/full-index diffs. inventory-0..8
+record original status, worktrees, origin, refs, stash SHAs, untracked/ignored files,
+history and reflogs. RECOVERY.txt gives the recovery procedure.
+
+Recovery procedure:
+1. Keep the active checkout intact. Choose a NEW empty directory outside it.
+2. Copy checkout/ into that directory, including hidden .git. Do not replace an existing
+   checkout, runtime, world or worktree. Example PowerShell: after creating a new empty
+   recovery directory, Get-ChildItem -LiteralPath '<backup>/checkout' -Force |
+   Copy-Item -Destination '<new recovery directory>' -Recurse -Force.
+3. In the recovery directory, run git status and git fsck. The copied index retains
+   original staging; original modified/untracked/ignored files are already in place.
+   Inspect git reflog show refs/stash and the three exact stash SHAs before any change.
+4. Import-Csv sha256-manifest.csv and verify each checkout/<Path> with
+   Get-FileHash -Algorithm SHA256. The bundle is a separate portable history source;
+   raw .git is the recovery source for the complete stash stack. Do not apply a stash
+   over dirty files or use an older Pass 3 snapshot as this pre-sync snapshot.
+Keep this full backup private because it includes ignored local materials.
+
+Stashes, rechecked unchanged after the merge:
+61f81972fe98afe0497ddd376d571ebb019883ad - local artifacts before progression dev sync
+1f7c28e4ab11eb929b64d247de5800048fc9b34a - KOM-40 WIP
+7d9c99bc5cfa9d5bd96dbe81fe4203449d007221 - old waypoint transformer WIP
+All three commit objects were also verified inside the external raw-.git backup.
+
+INCORPORATED DEV FUNCTIONALITY
+22 incoming commits across 103 changed files were incorporated with a normal merge:
+- KOM-84: canonical shared company movement evaluation/confirmation; destination,
+  origin/source and Rally queries/submissions; map radial input and overlays; Move Here,
+  Move To, Rally Here, Units browser, contextual root Join and correlated battle entry.
+- KOM-91: exact/local return-surface recovery, saved RALLY/packaged same-source-tile
+  fallback, bounded mounted discovery, failure classifications and deduplicated diagnostics.
+  Physical verification, source tile/dimension, UUID/snapshot/attachment and Formal Retreat
+  authority remain required; failed returns remain pending instead of fabricating closure.
+- KOM-97: bounded arrival-budget continuation, advancing catalogue/cursor evidence,
+  retained paging/filter state and no automatic nonadvancing retry loop.
+- KOM-88: exception-safe tracker GL attribute/matrix restoration for HUD/chat redraws.
+KOM-18 health/reconstruction/recovery, ordinary battle ownership, population, diplomacy,
+conflict and Crown authorities are retained. No second movement/battle/progression
+system was introduced. Lord-to-Prince and other deferred features were not implemented.
+
+EXACT TEXTUAL CONFLICTS AND SEMANTIC RESOLUTIONS
+1. build.gradle.kts: service-g10 versus dev integration-g13. Use the distinct combined
+   version 1.0.10-service-g14, retaining all dependencies, Java/Forge setup and dev identity guards.
+2. docs/routing/systems/client-network/README.md: preserve progression projection/rank
+   documentation and all dev movement, return, paging and rendering sections; document
+   the combined g14 contract and both independent client reset/fencing paths.
+3. src/main/java/kome/client/KOMEClientProxy.java: connect/disconnect/world unload must
+   perform BOTH progression epoch/projection invalidation and destination-state reset.
+   Preserve revision/viewer/dimension fencing and movement connection/sequence fencing.
+4. src/main/java/kome/client/KOMEProgressionTrackerOverlay.java: retain dev's full
+   push-attribute/push-matrix try/finally render isolation and progression's provisioning
+   icon choice. Binary objective presentation and other item icons remain intact.
+5. src/main/java/kome/common/command/KOMECommandTroops.java: retain dev's delegation to
+   KOMECompanyMovementService.validateCompanyMove. Move Pass 2's existing
+   KOMECompanyCommandAuthority.newMilitaryOperationDenial into that shared validator,
+   so commands, map/source previews, confirmations and Rally all enforce it. Recheck
+   before execution; Lord standing/company command never authorize a new native-hostile
+   operation outside declared war. Governance, ownership/delegation, faction, coherence,
+   route, conflict/retreat, population and physical-unit checks remain independent.
+6. src/main/java/kome/common/network/KOMEPopulationWire.java: combined g14 identity with
+   dev packet shapes/IDs and Pass 3 projections. Both service-g10 and integration-g13
+   artifacts are rejected; old clients cannot silently decode the combined packets.
+7. src/test/java/kome/common/network/KOMEPopulationProtocolTest.java: retain both codec
+   suites and strengthen explicit previous-artifact rejection on both handshake sides;
+   assert the new g14 identity without removing payload/security assertions.
+8. src/test/java/kome/common/network/KOMEPublicAccessPacketTest.java: assert the combined
+   identity while preserving public-access, retired-ID and schema assertions.
+
+Other reviewed integration surfaces:
+- KOMECorePlugin and expected-transformer arrays auto-merged to retain BOTH the native
+  map input and progression seat hooks, plus Campaign health, waypoints, Aqua and mobs.
+- Packet registration retains Join Battle 53-58, progression identities 59, unused 60,
+  destination 61/62, confirmed movement 63/64, source 65/66 and Rally 67/68. Full registry
+  tests check exact IDs/sides, retired holes and unique handlers/discriminators.
+- Build version, wire header, @Mod annotation and packaged mcmod.info all agree on g14.
+- Login pledge recognition, service migration, recommendation history, regional admission,
+  rank-derived abilities, population spending/Crown authority and new Join Knight floor
+  remain intact. Ten key Pass 3/server-authority files (including KOMEEvents) were compared
+  byte-for-byte in Git with the checkpoint and are unchanged.
+- Updated index and progression, client/network, strategic movement and runtime routing
+  guides distinguish source wiring/headless tests from pending native/live acceptance.
+
+TEST FIXTURES AND ITERATION EVIDENCE
+The first targeted run compiled but had 24 failures; the second had one new-test failure.
+These failed logs/XML were retained, followed by a fully passing targeted run.
+Authorized hostile-route fixtures now explicitly establish recognized Crown authority;
+foreign delegated Rally requires its separate declared war. New-Join fixtures explicitly
+meet Knight standing; successful company movement/return does not confer player rank.
+Existing contributor CREATE/JOIN/arrival/staleness/return assertions were preserved.
+Two added shared-validator tests cover non-ruler Lord command/map/query denial, declared
+war permission, Crown loss after preview and no order/conflict/allowance mutation.
+The new command test was corrected to assert its actual failure packet/chat response,
+rather than expecting an exception swallowed by the existing command adapter.
+A Windows-default-encoding scripted edit briefly corrupted Unicode test text; it was
+restored to original UTF-8, verified against dev, and subsequent scripts use explicit UTF-8.
+No tests were disabled, suppressed or weakened; production permission gates were not relaxed.
+
+VERIFICATION RESULTS
+Before merge: routing validator passed (25 documents, 792 local links, 1004 symbol
+references, 48 exact JUnit selectors); git diff --check passed. Prior Pass 3's reported
+3635 passes/5 skips were historical evidence, not assumed to be a fresh baseline run.
+After integration: no unmerged index entries or conflict markers; full merge diff and
+staged git diff --check passed. Final routing validation passed: 25 documents,
+796 local links, 1055 symbol references and 48 exact JUnit selectors.
+
+Targeted offline run, under Local\KOME-Heavy-Validation:
+1288 PASSED, 2 SKIPPED, 0 failures/errors = 1290 cases.
+Exact selectors and flags: outputs/progression-devsync/validate.ps1 (without -Full).
+Coverage includes every conflicted/shared surface: promotions, migration, recommendations,
+regional service, rank/military authority, company movement/source/Rally/arrival, Join
+entry/return/packets, client map/radial/paging/tracker, registry/handshake, server loading,
+ordinary resolution/recovery and native ASM/coremod composition.
+Targeted XML: outputs/progression-devsync/targeted-final-results/
+Targeted summary/log: outputs/progression-devsync/targeted-summary.json and targeted.log.
+Earlier failing snapshots: targeted-first-results/, targeted-second-results/ and corresponding logs.
+
+Required full command, under the same mutex and existing C:/Users/elija/.gradle cache:
+gradlew.bat test build reobfJar --offline --no-daemon --max-workers=2 --console=plain
+Result: BUILD SUCCESSFUL in 1m 7s; 18 actionable tasks, 6 executed and 12 up-to-date.
+4091 PASSED, 5 SKIPPED, 0 failures/errors = 4096 cases.
+Full XML: outputs/progression-devsync/full-results/
+Full summary: outputs/progression-devsync/full-summary.json
+Full output: outputs/progression-devsync/full-build.log
+Jar, sourcesJar, assemble, check, build and reobfJar succeeded. Existing RFG Java runtime/
+Gradle-token deprecations and unchecked/deprecated Java API warnings remain. PowerShell
+labels captured stderr as NativeCommandError; the actual final Gradle exit code is 0.
+No dependencies were upgraded/downloaded or tests changed to avoid genuine regressions.
+
+Exact skips (same five categories as Pass 3):
+com.lotrcharactercreation.appearance.CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported
+com.lotrcharactercreation.client.appearance.ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported
+kome.core.KOMEPublicWaypointTransformerTest.originalProductionAndBuildJarsHaveExactCompatibleHooks
+kome.core.KOMEWaypointTransformerTest.configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms
+kome.core.KOMEWaypointTransformerTest.configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms
+
+Packaged artifact: build/libs/KOME-LOTR-Addon-1.0.10-service-g14.jar
+Bytes: 18586326
+SHA-256: CDDABDE6CB330AF4A2CF049248964D35609B63E807394BF0DC42274CCE838714
+Package inspection verified mcmod.info and @Mod identity, g14 wire constant, manifest
+FMLCorePlugin=kome.core.KOMECorePlugin, both map/seat transformer registrations and the
+new movement/service classes. This is packaged/ASM evidence, not a launched Forge client.
+
+LOCAL MATERIAL PRESERVATION
+5,489 pre-existing protected ignored/local files match the fresh backup, including
+run/, dependencies, old outputs, assets, review diffs and restored original logs.
+JUnit's existing Log4j setup rotated seven historical archives and latest.log.
+The complete current logs/.idea snapshot was copied and SHA-verified in
+outputs/progression-devsync/validation-local-materials/ before restoring those eight
+original log files byte-for-byte from the external backup. New validation archives
+remain available. Ignored .idea/workspace.xml changed during the session; that concurrent
+IDE state was retained as found, with original and current copies preserved. It was not
+overwritten or committed. Existing external older backups were not modified.
+Evidence: protected-materials-final.json and local-materials-preservation.json.
+
+REMAINING GAMEPLAY RISKS / DEFERRED CONCERNS
+No live Minecraft, connected-client, multiplayer, new structure generation, real saved-player
+migration, restart acceptance or actual terrain/return journey was performed. Automated
+Forge 1.7.10/Java 8 compile, native bytecode, server-loading and headless physical fixtures
+are separate evidence levels. Radial/HUD rendering, real mounted return terrain and full
+progression journeys still need disposable live acceptance. Neither jar installation nor
+saved-world edits were part of this sync.
+Inherited Pass 3 limits remain: unproven old native seats fail closed for new admission;
+accepted relationships remain usable; native trader replacement may lose seat provenance;
+Fangorn lacks a supported native Liege; real local content can constrain assignment pools.
+Unsolicited petitions, commander hunting, Lord-to-Prince royal service, warrants/fiefs/
+personal troop ceilings and specialist rewards remain deferred. No new permissions or
+political/spending authority were granted to work around these limits.
+
+FINAL LOCAL STATE
+The integration merge includes current origin/dev by ancestry. A final ls-remote check
+still reported b593f5fa8975f76e5c3dfc5ed83e1f5b4ca95e30 before merge commit.
+The final report commit follows locally; tracked/staged/untracked Git status is clean
+after that commit. Ignored backup/evidence/build materials remain intentionally local.
+One worktree and the same three original stash hashes remain. The local progression
+branch is ahead of its untouched origin progression tracking ref; no remote branch
+was updated. Nothing was pushed to GitHub.
+
+ALL INCOMING DEV COMMITS (OLDEST FIRST)
+53932e8f380436867aa8e056b472aa1c2fcb93f1 KOM-84 add canonical company movement service
+73495b93af99506273902e230bb60ad08b2d5998 KOM-84 add destination movement query projection
+18174d595393a3a0e6a2e535ad4c0d9641f118bd KOM-84 add conquest map radial command prototype
+8c7aa03a6f3b07e6f3e4e630d690c46c5be2a579 KOM-84 add destination company selector and route preview
+6e59f70ef616d7d3627c3b6779e9987c0932c7cf KOM-84 add map movement execution workflow
+1f58d618dabfbd108c159fc1cb96024bd9248261 KOM-84 add battle movement and direct join flow
+33e3bd777ea59af1364b62cc2aa22b610673a47c KOM-84 polish company selector browsing and filters
+88a45b9c7968450e3592d8d2de66d8a1d5fc867e KOM-84 add contextual root join battle flow
+5aff5c883793a61179ad976b21e424425054942c KOM-84 add origin-first company movement workflow
+9a1ce03cac0ed0d290636b7d2aa6e9b7911cf669 KOM-84 add Rally Here bulk movement workflow
+0a29725c0299ecdd5479c55138a6396c97798db3 KOM-84 refine Move To interaction flow
+337ee36f3cbf7d7ea60adfc0431e8c54dab59262 KOM-84 add tile-local Units browser
+edd9198e8a7f727a7e9a53a891e33b2af3d9e46c KOM-84 clean up final map and battle UI wording
+51ccd3e61a7889ed83e50114b72c5af82b7779ba Merge dev into KOM-84 preserving movement UX and KOM-18 authority
+683e84dcaee0d0549f67fe10b546186fd14173e4 Merge pull request #35 from daynenewman/benjaminsince2001/kom-84-rework-strategic-movement-map-ux-and-add-fast-company
+2325c5e21ba618185f4ee7de6943b4327e4d3986 KOM-91 improve Join Battle return placement
+fbb145db0c143009900614b202cc1456d35d3c68 KOM-91 add same-tile return fallback and diagnostics
+8d63c36ce85d052925da762976617613373a927d Merge pull request #36 from daynenewman/benjaminsince2001/kom-91-clear-stale-join-battle-egress-after-conflict-resolution
+978fb09403ba2a9b15cbdfcb1b61613ba7e6bf63 KOM-97 fix destination preview budget continuation
+ed97fdbd96cecadd6af662191e387e2fbfa5b3bc Merge pull request #37 from daynenewman/benjaminsince2001/kom-97-fix-move-here-and-attack-preview-livelock-on-arrival-budget
+7091efe393e4c793af91d50b74226d8ec567856c KOM-88 restore progression tracker render state
+b593f5fa8975f76e5c3dfc5ed83e1f5b4ca95e30 Merge pull request #38 from daynenewman/benjaminsince2001/kom-88-fix-lotr-alignment-hud-texture-rendering-regression
+
+FILES CHANGED BY THE VERIFIED MERGE RELATIVE TO THE PASS 3 CHECKPOINT
+106 files; 12663 insertions, 758 deletions. The checkpoint separately contains the 107
+original dirty files. The final reporting commit adds this report and its routing link.
+M	build.gradle.kts
+A	docs/kom91-slice2/README.md
+M	docs/routing/INDEX.md
+M	docs/routing/systems/client-network/README.md
+M	docs/routing/systems/progression/README.md
+M	docs/routing/systems/runtime-state/README.md
+M	docs/routing/systems/strategic-movement/README.md
+M	src/main/java/kome/client/KOMEClientProxy.java
+A	src/main/java/kome/client/KOMECompanyBrowseWindow.java
+A	src/main/java/kome/client/KOMECompanyDestinationClientState.java
+A	src/main/java/kome/client/KOMECompanyDestinationPanel.java
+A	src/main/java/kome/client/KOMECompanyDestinationPreview.java
+A	src/main/java/kome/client/KOMECompanyDestinationSelector.java
+A	src/main/java/kome/client/KOMECompanyListWindow.java
+A	src/main/java/kome/client/KOMECompanyOriginWorkflow.java
+A	src/main/java/kome/client/KOMECompanyRallyClient.java
+A	src/main/java/kome/client/KOMECompanyUnitsBrowser.java
+A	src/main/java/kome/client/KOMECompanyUnitsPanel.java
+M	src/main/java/kome/client/KOMEConquestMapOverlay.java
+A	src/main/java/kome/client/KOMEJoinBattleDiagnostics.java
+A	src/main/java/kome/client/KOMEJoinConfirmationLatch.java
+M	src/main/java/kome/client/KOMEMapBorders.java
+A	src/main/java/kome/client/KOMEMapRadialMenu.java
+A	src/main/java/kome/client/KOMEMapRadialRenderer.java
+M	src/main/java/kome/client/KOMEProgressionTrackerOverlay.java
+A	src/main/java/kome/client/KOMERootJoinBattle.java
+M	src/main/java/kome/client/KOMEWaypointMapOverlay.java
+M	src/main/java/kome/client/gui/KOMEGuiCompanyMoveConfirm.java
+M	src/main/java/kome/client/gui/KOMEGuiJoinBattle.java
+M	src/main/java/kome/common/KOMECommonProxy.java
+M	src/main/java/kome/common/command/KOMECommandTroops.java
+A	src/main/java/kome/common/command/KOMECompanyDestinationQuery.java
+A	src/main/java/kome/common/command/KOMECompanyMapMovementSubmission.java
+A	src/main/java/kome/common/command/KOMECompanyMovementService.java
+A	src/main/java/kome/common/command/KOMECompanyMovementSessions.java
+A	src/main/java/kome/common/command/KOMECompanyOriginQuery.java
+A	src/main/java/kome/common/command/KOMECompanyRallyService.java
+A	src/main/java/kome/common/data/KOMECompanyDestinationOptions.java
+A	src/main/java/kome/common/data/KOMECompanyMovementResult.java
+A	src/main/java/kome/common/data/KOMECompanyRallySnapshot.java
+A	src/main/java/kome/common/data/KOMECompanySourceOptions.java
+M	src/main/java/kome/common/data/KOMEJoinBattleEgressService.java
+M	src/main/java/kome/common/data/KOMEJoinBattlePhysicalAccess.java
+A	src/main/java/kome/common/data/KOMEJoinBattleReturnAuthority.java
+A	src/main/java/kome/common/network/KOMECompanyDestinationRateLimit.java
+A	src/main/java/kome/common/network/KOMECompanyDestinationWire.java
+A	src/main/java/kome/common/network/KOMECompanyMovementReplayGuard.java
+A	src/main/java/kome/common/network/KOMEPacketCompanyDestinationRequest.java
+A	src/main/java/kome/common/network/KOMEPacketCompanyDestinationResponse.java
+A	src/main/java/kome/common/network/KOMEPacketCompanyMovementRequest.java
+A	src/main/java/kome/common/network/KOMEPacketCompanyMovementResult.java
+A	src/main/java/kome/common/network/KOMEPacketCompanyOriginRequest.java
+A	src/main/java/kome/common/network/KOMEPacketCompanyRallyRequest.java
+A	src/main/java/kome/common/network/KOMEPacketCompanyRallyResponse.java
+A	src/main/java/kome/common/network/KOMEPacketCompanySourceResponse.java
+M	src/main/java/kome/common/network/KOMEPacketHandler.java
+M	src/main/java/kome/common/network/KOMEPacketJoinBattleRetreatRequest.java
+M	src/main/java/kome/common/network/KOMEPacketJoinBattleRetreatResult.java
+M	src/main/java/kome/common/network/KOMEPacketJoinBattleSelectionRequest.java
+M	src/main/java/kome/common/network/KOMEPacketJoinBattleSelectionResult.java
+M	src/main/java/kome/common/network/KOMEPacketJoinBattleViewRequest.java
+M	src/main/java/kome/common/network/KOMEPacketJoinBattleViewResponse.java
+M	src/main/java/kome/common/network/KOMEPopulationWire.java
+M	src/main/java/kome/core/KOMECorePlugin.java
+A	src/main/java/kome/core/KOMEMapInputTransformer.java
+M	src/main/resources/mcmod.info
+A	src/test/java/kome/client/KOMECompanyBattleArrivalIntegrationTest.java
+A	src/test/java/kome/client/KOMECompanyBattleContinuationTest.java
+A	src/test/java/kome/client/KOMECompanyDestinationBrowsingTest.java
+A	src/test/java/kome/client/KOMECompanyDestinationPagingTest.java
+A	src/test/java/kome/client/KOMECompanyDestinationPanelLayerTest.java
+A	src/test/java/kome/client/KOMECompanyDestinationPanelTest.java
+A	src/test/java/kome/client/KOMECompanyDestinationPreviewTest.java
+A	src/test/java/kome/client/KOMECompanyDestinationSelectorTest.java
+A	src/test/java/kome/client/KOMECompanyOriginWorkflowTest.java
+A	src/test/java/kome/client/KOMECompanyRallyClientTest.java
+A	src/test/java/kome/client/KOMECompanySelectorPolishTest.java
+A	src/test/java/kome/client/KOMECompanyUnitsBrowserTest.java
+M	src/test/java/kome/client/KOMEMapBordersTest.java
+A	src/test/java/kome/client/KOMEMapRadialInteractionTest.java
+A	src/test/java/kome/client/KOMEMapRadialMenuTest.java
+M	src/test/java/kome/client/KOMEProgressionTrackerOverlayTest.java
+A	src/test/java/kome/client/KOMERootJoinBattleTest.java
+M	src/test/java/kome/client/gui/KOMEGuiJoinBattleInteractionTest.java
+A	src/test/java/kome/common/command/KOMECompanyDestinationQueryTest.java
+A	src/test/java/kome/common/command/KOMECompanyMapMovementArrivalTest.java
+A	src/test/java/kome/common/command/KOMECompanyMapMovementSubmissionTest.java
+A	src/test/java/kome/common/command/KOMECompanyMovementServiceTest.java
+A	src/test/java/kome/common/command/KOMECompanyMovementSessionsTest.java
+A	src/test/java/kome/common/command/KOMECompanyOriginQueryTest.java
+A	src/test/java/kome/common/command/KOMECompanyRallyServiceTest.java
+M	src/test/java/kome/common/data/KOMEJoinBattleReturnGeometryTest.java
+A	src/test/java/kome/common/data/KOMEJoinBattleSameTileFallbackTest.java
+A	src/test/java/kome/common/data/KOMEJoinBattleSurfaceRecoveryTest.java
+M	src/test/java/kome/common/data/KOMEOrdinaryBattleResolutionServiceTest.java
+A	src/test/java/kome/common/network/KOMECompanyDestinationNetworkTest.java
+A	src/test/java/kome/common/network/KOMECompanyMovementNetworkTest.java
+A	src/test/java/kome/common/network/KOMECompanyOriginNetworkTest.java
+A	src/test/java/kome/common/network/KOMECompanyRallyNetworkTest.java
+M	src/test/java/kome/common/network/KOMEJoinBattlePacketTest.java
+M	src/test/java/kome/common/network/KOMEPacketRegistrationTest.java
+M	src/test/java/kome/common/network/KOMEPopulationProtocolTest.java
+M	src/test/java/kome/common/network/KOMEPublicAccessPacketTest.java
+A	src/test/java/kome/core/KOMEMapInputTransformerTest.java
+M	src/test/java/kome/core/KOMEWaypointTransformerTest.java
+M	src/test/java/kome/integration/CharacterCreationIsolationTest.java

@@ -66,7 +66,7 @@ client GUI and multiplayer acceptance are still pending.
 
 ## Progression Pass 3 dev sync
 
-The October 15 local sync combines Pass 3 with dev **b593f5f**: company destination,
+The [October 15 local sync report](../PROGRESSION_PASS3_DEV_SYNC_REPORT.txt) records Pass 3 integration with dev **b593f5f**: company destination,
 source, Rally and Units workflows; map radial input; correlated Join Battle;
 same-source-tile return recovery; destination budget continuation; tracker GL state
 restoration. The shared movement validator retains the Crown/declared-war guard.
