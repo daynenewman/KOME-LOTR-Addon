@@ -39,6 +39,15 @@ Guide test commands are targeted **future gameplay validation**, not tests execu
 
 For heavy Java/Forge validation, coordinate with `Local\KOME-Heavy-Validation` and use disposable fixtures. The existing [validation helper](../../tools/kom11/validate.ps1) accepts `-Mode Build` (offline full test/build) or `-Mode Native` (launches a disposable Forge roster check); it does not accept test filters. Focused guide commands need the same mutex coordination. Add `--offline` only with a populated dependency cache. Some transformer tests need original LOTR input jars; report skips independently from passes. JUnit, disposable Forge, connected client, and live acceptance are separate evidence levels.
 
+For general Windows and overnight work, use the [development procedure](../development/OVERNIGHT_WORKFLOW.md).
+The [general validation script](../../scripts/kome-validate.ps1) shares that mutex:
+Fast compiles and runs selected/default focused tests; Full runs all tests, build
+and reobfuscation with unique evidence directories. Existing domain/Native tools
+remain. The [backup](../../scripts/kome-overnight-backup.ps1) and
+[recovery](../../scripts/kome-overnight-restore.ps1) helpers preserve supported
+primary source checkouts; [tool tests](../../scripts/test-overnight-tools.ps1)
+exercise disposable Git recovery and failure handling without touching worlds.
+
 [Verification record and routing walkthroughs](VERIFICATION.md) gives the completed documentation checks and representative investigations. Historical [test plan](../KOME_TEST_PLAN.md) describes older alliance/capacity rules; use the selected guide's current tests and invariants.
 
 ## Progression cleanup Pass 1

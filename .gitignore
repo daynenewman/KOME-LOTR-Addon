@@ -17,3 +17,8 @@ desktop.ini
 
 # Local mod dependencies
 libs/*.jar
+
+# Private local development snapshots, evidence, and the supplied infrastructure kit
+/KOME-Overnight-Backups/
+/backups/
+/KOME_Overnight_Kit_Safe_Merge.zip
