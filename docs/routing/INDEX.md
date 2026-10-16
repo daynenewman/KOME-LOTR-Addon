@@ -84,3 +84,16 @@ respawners remain closed to new admission. Native class/generation audits find
 plausible Masters in 22 factions and regional combat traders in 23; Fangorn and
 Half-troll Master availability remain unsupported. Automated NBT/ASM/service tests
 are distinct from the report's pending fresh-world and older-copy live checklist.
+
+## Progression Pass 5 field service
+
+The [Knight field service report](../PROGRESSION_PASS5_KNIGHT_FIELD_SERVICE_REPORT.txt)
+records tiered, Liege-assigned commissions, authenticated native theft, physical
+rescue/reinforcement/follower stages, and narrow personal battle evidence. Follow
+[progression](systems/progression/README.md), [geography](systems/geography/README.md),
+[conflicts](systems/conflict-tactical/README.md), and [runtime](systems/runtime-state/README.md).
+Three genuine current-faction reports and 2,000 alignment still earn immediate
+Lord recognition from the current Liege. g14 and strategic permissions remain.
+Operator exercises use `/kome progression commission`; they cannot earn standing
+or rewards. Production-service tests and a controlled disposable native Forge
+fixture are distinct from connected-client and natural-world acceptance.

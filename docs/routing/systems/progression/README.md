@@ -133,6 +133,37 @@ alignment rules, g14, military authority and deferred Lord-to-Prince are unchang
 
 ## Authority and entry points
 
+Pass 5: [KOMEKnightFieldService](../../../../src/main/java/kome/common/data/KOMEKnightFieldService.java)
+derives tiers from genuine reports and extends existing commission phases;
+`KOMEProgressionVariety.order` ranks feasible types before one persisted offer.
+No mission browsing/reroll action is added. Tier zero preserves existing objectives.
+[KOMEKnightEspionage](../../../../src/main/java/kome/common/data/KOMEKnightEspionage.java)
+adapts the shipped native pickpocket helper only for the exact saved officer;
+[KOMEKnightPickpocketTransformer](../../../../src/main/java/kome/core/KOMEKnightPickpocketTransformer.java)
+preserves native witnesses, effects and ordinary targets. Assigned infiltration
+uses native sight to suppress omnidirectional hostile acquisition only while the
+assignee crouches unseen before alarm; hurt retaliation remains. Sealed dispatches
+require saved theft state, owner, target, token, faction and revision.
+[KOMEKnightHelpService](../../../../src/main/java/kome/common/data/KOMEKnightHelpService.java)
+requires a real second regional commander and physically returning followers.
+Rescue/escort/command save native NPC UUIDs and disable follower teleportation.
+Temporary actors have no strategic company or population entitlement.
+
+`KOMEProgressionDevelopment.commission` exposes operator-only list/start/complication/
+status/reset/end using an authentic current Liege. Persisted test sessions block
+earned promotion; forced reports are discarded and test actors yield no native
+loot/XP/alignment/kill achievement or invasion victory payment. Earned work cannot
+be replaced. `KOMEKnightBattlefieldService` observes actual combat and successful
+ordinary battle closure; see the conflict route. Existing rank/2000 alignment,
+recommendations and deceased-Liege recovery remain authoritative. See
+[Pass 5 report and per-mission checklist](../../../PROGRESSION_PASS5_KNIGHT_FIELD_SERVICE_REPORT.txt).
+New verification: `KOMEKnightFieldServiceTest`, `KOMEKnightFieldOperationsTest`,
+`KOMEKnightFieldGeographyTest`, `KOMEKnightHelpServiceTest`,
+`KOMEKnightBattlefieldServiceTest`, `KOMEKnightPickpocketTransformerTest` and the
+extended `KOMEOrdinaryBattleResolutionServiceTest`. Native fixture source is
+[KnightNativeVerification.java](../../../../tools/progression-pass5/java/kome/common/data/KnightNativeVerification.java).
+It proves controlled mechanics, not client/pathfinding adventure acceptance.
+
 - [KOMEPlayerProgression](../../../../src/main/java/kome/common/data/KOMEPlayerProgression.java), [KOMEProgressionAchievement](../../../../src/main/java/kome/common/data/KOMEProgressionAchievement.java), [KOMECanonicalRankService](../../../../src/main/java/kome/common/data/KOMECanonicalRankService.java), [KOMEProgressionPermissions.has](../../../../src/main/java/kome/common/data/KOMEProgressionPermissions.java): persisted player progression in [KOMEWorldData](../../../../src/main/java/kome/common/data/KOMEWorldData.java), definitions, canonical rank, action gates. Native pledge/alignment and NPC/entity NBT are additional authorities.
 - [KOMEProgressionAutoCompleter.runForPlayer](../../../../src/main/java/kome/common/data/KOMEProgressionAutoCompleter.java), `applyUnlocks`, `syncPlayer`, [KOMEEvents](../../../../src/main/java/kome/common/data/KOMEEvents.java): login/player tick, item/entity/NPC events, unlock recomputation and synchronization.
 - [KOMEProgressionNpcInteractionService.interact](../../../../src/main/java/kome/common/data/KOMEProgressionNpcInteractionService.java), [KOMEProgressionNpcRankService](../../../../src/main/java/kome/common/data/KOMEProgressionNpcRankService.java), [KOMEProgressionRelationshipLifecycle](../../../../src/main/java/kome/common/data/KOMEProgressionRelationshipLifecycle.java): NPC rank/role leases, master/liege selection, death/release/succession.

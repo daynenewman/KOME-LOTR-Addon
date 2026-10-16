@@ -70,6 +70,18 @@ Dependencies: [runtime/session ownership](../runtime-state/README.md), [populati
 
 ## Verification and gaps
 
+Pass 5 retains matching `1.0.10-service-g14`, packet IDs, fields and registrations.
+Knight tier/phase/complication and objective evidence are authoritative server save
+data. Existing progression text and visual-location projections present the current
+stage: rescue refuge, reinforcement commander/return, theft escape and personal
+report. No commission-selection menu or client evidence authority exists.
+`KOMEKnightCommissionPresentation`, `KOMEProgressionTrackerSnapshot` and
+`KOMEVisualLocationService` own the presentation. Stealth objectives have no
+decorative kill-count bar. Packet registration, server-only loading and transformer
+registry tests retain existing fences. Native sounds/particles execute in the
+disposable Forge fixture; visible/audible connected-client acceptance is pending.
+See [Pass 5 report](../../../PROGRESSION_PASS5_KNIGHT_FIELD_SERVICE_REPORT.txt).
+
 Existing references: [server queue](../../../KOME_SERVER_TASK_QUEUE.md), [conquest sync](../../../KOME_CONQUEST_SYNC.md), [records](../../../KOME_SERVER_RECORDS.md), [GUI handoff](../../../KOME_GUI_HANDOFF.md). Tests: [server queue](../../../../src/test/java/kome/common/network/KOMEServerTaskQueueTest.java), [client queue](../../../../src/test/java/kome/client/KOMEClientTaskQueueTest.java), [sync](../../../../src/test/java/kome/common/network/KOMEConquestSyncTest.java), [record presentation](../../../../src/test/java/kome/client/gui/KOMEGuiServerRecordsPresentationTest.java).
 
 ```powershell

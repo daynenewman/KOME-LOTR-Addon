@@ -47,6 +47,20 @@ Consumers: [Build placement/rates](../build-population/README.md), [recruitment]
 
 ## Documentation and verification
 
+Pass 5 Knight profiles: `KOMEKnightCommissionLocations.choose` first tries local
+192–1200-block tier-one sites, then bounded legacy regional/short fallbacks.
+Raid/espionage require actual enemy territory/presence from native biome and
+conquest ownership evidence, excluding friendly territory, with a bounded
+256–6000-block search. Distance alone never establishes hostility. The encounter
+is a temporary NPC command post on validated open ground; it does not claim a
+native generated fort was discovered. No blocks, political claims, waypoint
+discoveries or distant chunk loads are created. Unloaded terrain is checked at
+activation; unsafe surfaces cause technical recovery. Verified shelter proof
+governs rescue arrival and Go for Help; the latter needs a genuine second commander.
+`KOMEKnightFieldGeographyTest` covers hostile/friendly distinctions, unsupported
+dimensions and no forced terrain probes. See
+[Pass 5 evidence and limits](../../../PROGRESSION_PASS5_KNIGHT_FIELD_SERVICE_REPORT.txt).
+
 [Resolver](../../../KOME_TILE_WORLD_RESOLUTION.md), [server awareness](../../../KOME_SERVER_TILE_AWARENESS.md), [gameplay/geometry separation](../../../tile-gameplay-separation-20260919/README.md), [border rendering](../../../tile-border-rendering-20260920/README.md), and [KOM-80 geometry-only contacts](../../../kom80-mountain-barriers/README.md) explain independent authorities. [October geography review](../../../tile-geography-review-20261002/README.md) is evidence/proposals, not blanket approval for edits.
 
 Tests: [resolver](../../../../src/test/java/kome/common/data/KOMETileWorldResolverTest.java), [gameplay parity](../../../../src/test/java/kome/common/data/KOMETileGameplayParityTest.java), [render lifecycle](../../../../src/test/java/kome/client/KOMEMapRenderLifecycleTest.java), [queued barrier recovery](../../../../src/test/java/kome/common/command/KOMEMountainBarrierRecoveryTest.java).

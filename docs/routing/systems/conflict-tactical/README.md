@@ -31,6 +31,23 @@ Dependencies/consumers: [movement receipts/holds](../strategic-movement/README.m
 
 ## Verification and boundaries
 
+Pass 5 [KOMEKnightBattlefieldService](../../../../src/main/java/kome/common/data/KOMEKnightBattlefieldService.java)
+records bounded per-target positive damage and real deaths only for the assignee's
+compatible active commission, exact assigned raster tile, committed campaign enemy,
+pledge and existing governance/hostility permissions. Formal active registration
+and a DEPLOYED Join Battle receipt are required; registration alone is insufficient.
+A validated military commitment must exist, excluding raw administrative conflicts.
+`KOMEOrdinaryBattleResolutionService` snapshots alive deployed presence immediately
+before successful canonical closure (which may start return egress), then publishes
+personal report readiness after its own winning outcome. No second resolver,
+tile transfer or war permission is introduced. Owner/token/faction/timestamps and
+consumed conflict identity reject stale/foreign/replayed evidence. Admin ending,
+waypoint visits/unlocks/transfers, losses and spectators do not publish credit.
+Support-only service, allied winners and fortified outcomes are not integrated.
+Single-player field objectives remain available. See `KOMEKnightBattlefieldServiceTest`,
+the closure/egress test in `KOMEOrdinaryBattleResolutionServiceTest`, and the
+[Pass 5 report](../../../PROGRESSION_PASS5_KNIGHT_FIELD_SERVICE_REPORT.txt).
+
 [Foundation](../../../KOM17_PHASE1_CONFLICT_FOUNDATION.md), [persistence](../../../KOM17_PHASE2_CONFLICT_PERSISTENCE.md), [lifecycle](../../../KOM17_PHASE3_CONFLICT_LIFECYCLE.md), [movement integration](../../../KOM17_PHASE4_MOVEMENT_INTEGRATION.md), and [admin/end handoff](../../../KOM17_PHASE5_LIFECYCLE_ADMIN.md) document the slices. Tactical editor details are in current code/tests.
 
 Tests: [conflict movement](../../../../src/test/java/kome/common/data/KOMEConflictMovementServiceTest.java), [lifecycle](../../../../src/test/java/kome/common/data/KOMEConflictLifecycleServiceTest.java), [area sessions](../../../../src/test/java/kome/common/data/KOMETacticalAreaEditorSessionTest.java), [complex sessions](../../../../src/test/java/kome/common/data/KOMETacticalComplexEditorSessionTest.java), [readiness](../../../../src/test/java/kome/common/data/KOMESiegeReadinessResolverTest.java), [GUI](../../../../src/test/java/kome/client/tactical/KOMETacticalEditorGuiTest.java).

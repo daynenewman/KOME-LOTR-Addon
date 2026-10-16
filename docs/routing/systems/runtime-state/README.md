@@ -37,6 +37,20 @@ native NBT round-trips and ASM checks remain separate from live save/restart acc
 
 ## Dependencies and checks
 
+Pass 5 adds nested commission NBT version 2 fields (tier, phase, seeded complication,
+theft/alarm/target, acceptance timestamp, commander and bounded battle evidence).
+Missing tier reads as zero: accepted legacy objectives retain original rules.
+Original six type IDs/order and old histories remain; new types append. Root
+world schema and g14 wire identity are unchanged; text/marker projections use
+existing packet contracts. Knight service saves a separate testing-session flag;
+forced actor reward-denial provenance is saved in entity NBT. UUID slots/leases are
+reserved before spawn. New encounters never respawn individual missing UUIDs:
+loaded absence triggers bounded transactional recovery; unloaded chunks wait.
+No distant force loads or follower teleport restoration occur. Deceased legitimate
+Liege recovery retains report-ready evidence; betrayal cleanup remains separate.
+See [Pass 5 report](../../../PROGRESSION_PASS5_KNIGHT_FIELD_SERVICE_REPORT.txt) for
+backup/recovery, reload tests and outstanding live restart acceptance.
+
 Storage consumers include every strategic guide. Physical entities/chunks, native LOTR data, [character NBT/skins](../character-creation/README.md), and [gate/ram ledgers](../physical-siege/README.md) have additional save authorities. [Networking](../client-network/README.md) publishes projections; saving a client cache cannot repair server data.
 
 [Atomic-load tests](../../../../src/test/java/kome/common/data/KOMEWorldDataAtomicLoadTest.java), [schema tests](../../../../src/test/java/kome/common/data/KOMEWorldDataSchemaTest.java), and [actual diagnostics-command tests](../../../../src/test/java/kome/common/command/KOMEAdminDiagnosticsCommandsTest.java) cover candidate publication, mandatory sections, and non-loading inspection paths.

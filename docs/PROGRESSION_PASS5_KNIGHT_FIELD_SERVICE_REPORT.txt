@@ -1,0 +1,558 @@
+KOME PROGRESSION PASS 5 -- THE KNIGHT'S SERVICE
+Implementation and evidence report, 2026-10-16
+
+Status vocabulary
+  Implemented and tested: production behavior exercised by automated tests.
+  Implemented, live acceptance pending: working production path with service/native
+    evidence; connected-client/natural-world journey has not been accepted.
+  Partially implemented: a narrower playable experience exists; limits below matter.
+  Deferred or blocked: absent functionality, not an enum or promised GUI objective.
+Automated service tests, controlled native Forge checks and human gameplay are
+separate evidence levels throughout this report.
+
+1. BASELINE, BACKUP AND RECOVERY
+
+Started from clean completed Pass 4, not a Pass 3 snapshot:
+  HEAD 243aa4f3ba72a546b251b09fc64756fda4ab051c
+  Branch elijahrnovak/kom-72-implement-revised-branch-based-player-progression-system
+  One worktree; all existing stashes/branches preserved. Local origin/dev b593f5f.
+  Existing stashes: 61f81972fe98afe0497ddd376d571ebb019883ad,
+    1f7c28e4ab11eb929b64d247de5800048fc9b34a,
+    7d9c99bc5cfa9d5bd96dbe81fe4203449d007221.
+Routing index and relevant progression, geography, native hiring, conflict,
+runtime and presentation dependencies were read before editing, together with
+Pass 3 implementation, dev-sync and Pass 4 reliability reports. Inspected process
+and local session lifecycle evidence to avoid an active second editor. Other
+processes existed; no concurrent editing turn was found. No parallel agents used.
+Original runtime/worlds and existing Java processes were left alone.
+
+Before editing, created and hash-verified 2,337 baseline files (tracked source,
+native libraries and original root logs) and an all-refs Git bundle:
+  outputs/progression-pass5/baseline-20261015-223222/
+    manifest.json, files/, repository.bundle, HEAD.txt, RECOVERY.txt,
+    status/stash/worktree inventories.
+Bundle verified; local safety branch:
+  backup/progression-pass5-20261015-223222 -> 243aa4f3
+The existing sibling KOME-Progression-Pass4-Backups/20261015-212545 retains raw
+Git/stash reflogs and ignored materials and was not modified.
+Recovery: in a NEW directory, clone repository.bundle, checkout HEAD.txt, then
+copy files/ preserving relative paths and verify manifest hashes. For older
+stash reflog/ignored materials use the preserved Pass 4 raw backup. Do not reset
+this checkout or overwrite a running world. Stop any source server cleanly before
+making a disposable gameplay copy; no original save was used for this pass.
+
+The final local commits are discoverable with:
+  git log --oneline 243aa4f3..HEAD
+Verified implementation checkpoint: 4b9b92c (field services, tests, native probe).
+No push or PR is authorized or performed. Final verification/preservation results
+are recorded in section 12; generated evidence stays ignored under outputs/.
+
+2. ARCHITECTURE AND SHIPPED NATIVE SOURCE AUDIT
+
+Authoritative system remains KOMEKnightCommission / KOMEKnightCommissionService /
+KOMEKnightServiceRecord, with existing KOMELordshipTrialService and
+KOMEObjectiveInvasionBridge retaining ordinary native-invasion ownership. Added
+small field-profile, espionage, help and personal-battle adapters; no new general
+quest ledger, rank ledger, war resolver, resource registry or strategic company.
+Traced offer/accept/tick/death/report/reward/cleanup, relationships, packets,
+tracking, follower recovery, Join Battle receipts and canonical battle closure.
+
+Local native dependencies: LOTRMod v36.15.jar (28,936,383 bytes),
+SHA256 4F296E749C0D4739ECF859217A526B4218A2A45A768C08D3D551AF0D0D3D5635;
+geckolib-unofficial-1.7.10-1.0.4.jar (4,238,778 bytes). Inspected actual jar
+bytecode/javap and local decompiled native implementations, not guessed APIs.
+Java 8 / Forge 1.7.10 retained. Baseline and resulting wire/build identity remains
+1.0.10-service-g14; root world schema 12 and ConflictData 3 remain unchanged.
+
+Native discoveries relevant to implementation:
+* LOTRMiniQuestPickpocket.onInteractOther uses IPickpocketable, sneaking/empty-hand
+  approach, a native 1-in-3 theft roll, target/witness sight, NPC response, item
+  placement, LOTRPickpocket metadata, sounds/particles and native achievement.
+  Its private isEntityWatching supplies native visibility and a 130-degree field
+  of view. Native hostile target acquisition otherwise has no facing restriction,
+  making infiltration against an ordinary hostile captain impractical without a
+  narrowly scoped approach guard. This pass reuses that actual sight helper.
+* Actual military traders include RohirrimMarshal, GondorianCaptain, native Orc
+  mercenary captains, Dwarf commanders and Elven Lords. The adapter audits actual
+  faction/class suitability; no enemy King is required or made pickpocketable.
+* Native hiredNPCInfo persists hiring UUID, task and teleport setting. Native
+  following/holding/combat can be reused; teleportAutomatically must be disabled
+  for a credible escort. Native region/home protection must release its leash
+  during a mission-owned follower stage. No cross-chunk teleport substitutes travel.
+* Native miniquest encounter spawning and loot cannot serve as an independent
+  KOME completion ledger. Saved owner/token/UUID roles authenticate our actors.
+  Native death rewards also occur in LOTREventHandler and NPC methods: staff-only
+  actors need scoped XP/alignment/achievement/loot suppression at those actual sites.
+* LOTREntityInvasionSpawner owns native composition, pacing, victory and native
+  rewards. Existing bridge outcome hooks remain, with a forced-test reward guard.
+* Native structures are generated through varied biome-specific generators; there
+  is no audited, dependable universal persisted search API for an already-generated
+  hostile fort. This pass uses a truthful temporary NPC command post on valid
+  hostile natural ground, not a fabricated native building or placed block camp.
+* KOME conquest raster tiles, native LOTR waypoints and personal waypoint discovery
+  are different authorities. A waypoint visit, unlock, teleport or administrative
+  transfer is never a military outcome or individual participation proof.
+
+3. EXACT CHANGES AND PRESERVED RULES
+
+Rank ladder remains Wanderer -> Serf -> Knight -> Lord -> Prince. King remains
+political office. A legitimate current regional Lord/Prince assigns service;
+three distinct genuine current-faction reports and 2,000 current pledge alignment
+give immediate Lord recognition through existing promotion/ceremony/announcement/
+recommendation history. No fourth trial, extra promotion NPC or mandatory day.
+Eligibility for higher service does not force a Knight to accept it.
+Lord -> Prince, fiefs, delegation, government, permanent troop authority,
+population budgets and Crown/war permissions are not expanded.
+
+Production additions:
+* KOMEKnightFieldService: tiers, native enemy profiles, real Liege protection,
+  bounded counterattack, four temporary followers, survivor extraction and goals.
+* KOMEKnightEspionage: scoped native theft/sight adapter and bound sealed dispatch.
+* KOMEKnightHelpService: real commander interaction and physical reinforcement return.
+* KOMEKnightBattlefieldService: bounded authentic personal combat evidence only.
+* KOMEKnightPickpocketTransformer: narrow native interaction/reward hooks, registered
+  after existing invasion transformer with previous registry ordering preserved.
+Existing services own acceptance, rewards and reports. Existing event hooks route
+actual damage/death/interaction/evidence, not client-supplied objective flags.
+Presentation uses existing tracker/map/native speech, cultural confidence phrases
+for Gondor/Rohan/Dwarves/Elves/Orcs, and phase-specific goals. No mission menu added.
+
+New encounter actors are reserved with saved UUID/class/role/token and leases
+before world spawn. Failed spawn rolls back its slot. Generated traders cannot
+create native replacement respawners. Technical retry cleans owned entities,
+invalidates stale item revisions/evidence and retains the mission profile.
+New missing UUIDs are never individually respawned. A minute of loaded absence
+allows transactional recovery; an unloaded chunk is never treated as a death.
+Partial-wave failure cannot grant victory. New player death fails the current
+field attempt, preserving unrelated reports. Faction changes clean incompatible
+work using existing allegiance rules. Legitimate deceased-Liege recovery preserves
+report-ready evidence/property for the current replacement; betrayal remains
+subject to existing cancellation rules. The Liege is never an owned cleanup actor.
+
+4. MISSION-BY-MISSION STATUS
+
+All following mission paths have actual objectives/actors, not enum-only entries.
+Overall status of new playable paths: Implemented, live acceptance pending.
+Automated evidence is detailed in section 12. Additional scope limits are explicit.
+
+BORDER_INCURSION -- Border Patrol / Skirmish
+  Implemented and tested (service); live acceptance pending.
+  Saved frontier location and native hostile force; arriving investigates the
+  encounter, actual owned threats and personal damage resolve it, optional second
+  direction counterattack, personal return. Builds on original Border Incursion.
+  Partially implemented investigation: arrival discovers actors; there is no new
+  placed trail/evidence block or optional noncombat intelligence branch.
+
+STOLEN_GOODS -- Secure the Roads / recovery
+  Implemented and tested (service); live acceptance pending.
+  Native hostile group has a specific authenticated property carrier. Actual
+  death/drop/recovery and held-item handover required. Random loot/renaming cannot
+  substitute. Uses original property/dropped-item recovery and processing guard.
+
+DANGEROUS_ESCORT -- Secure the Roads / traveler
+  Implemented and tested (service); live acceptance pending.
+  One owned native traveler starts beside the Liege, follows physically, meets
+  a real hostile route encounter and must reach verified shelter with the player.
+  No repeated accepted-offer spawn, no teleport travel, no simple courier credit.
+  Long-distance native pathfinding remains a live tuning/recovery concern.
+
+SETTLEMENT_DEFENSE
+  Implemented and tested (service); live acceptance pending.
+  Verified refuge/settlement proof, real beneficiary/defender and native attackers
+  that threaten the charge. Actual personal protection/combat; optional flank.
+
+RELIEF
+  Implemented and tested (service); live acceptance pending.
+  New tiers combine actual faction-appropriate provision handover and defense of
+  the beneficiary. Both objectives required. Existing tier-zero delivery-only
+  relief retains its original saved rules. No optional counterattack on this path.
+
+RESCUE_PATROL -- Rescue the Missing Patrol
+  Implemented and tested (service); live acceptance pending.
+  Real saved soldier survivor at ambush site, native captors, personal combat,
+  then native no-teleport follower extraction to a verified refuge. Saved casualty
+  fails this attempt only. No synthetic replacement survivor after relog.
+  Partially implemented roster variants: one survivor, no dead-patrol intelligence
+  alternative or multiple survivor simulation. Genuine rescue route is complete.
+
+PROTECT_LIEGE
+  Implemented and tested (service); live acceptance pending.
+  Threat starts only near the loaded authentic source Liege on safe ground.
+  Enemies explicitly target that NPC; Liege retains native combat/vulnerability.
+  Player contribution and loaded surviving Liege required. Optional second attack.
+  Death/replacement uses existing relationship recovery, never permanent deadlock.
+  Presentation is an assigned defense, not a random conversation-time assassination.
+
+GO_FOR_HELP
+  Implemented and tested (service); live acceptance pending.
+  Visit threatened verified refuge; interact with actual beneficiary; visit a
+  different authentic allied regional commander; interact for four real mission
+  soldiers there; lead at least one physically back; personally defend the refuge.
+  Same-faction commander is required and must genuinely be available. Death,
+  missing loaded commander/group and technical spawn failure have distinct recovery.
+  No teleport reinforcement, claimed unseen march, resources or strategic company.
+  Availability is deliberately narrower than arbitrary allied/garrison invention.
+
+RAID_CAMP -- Raid an Enemy Command Post
+  Implemented and tested (service); live acceptance pending.
+  Verified hostile land; actual high-ranking native officer plus native guards;
+  defeat the assigned threat, recover officer's bound faction property, withdraw
+  beyond the post, report personally with it held. No KOME war/tile ownership effect.
+  Partially implemented camp presentation: temporary NPC bivouac, no new blocks or
+  discovered native fort. Prisoner/cache/dispatch-seizure raid variants deferred.
+
+WAR_PLANS -- Steal the War Plans
+  Implemented and tested (service/native); live acceptance pending.
+  Hostile command post, exact native officer, stealth approach/native pickpocket,
+  authenticated sealed dispatch, actual escape from post/pursuers, held return.
+  Detection alerts real guards; optional seeded complication guarantees an alarm
+  on successful theft. No kill substitute; target killed before theft fails.
+  Details and bounded stealth limitation in section 9.
+
+NATIVE_INVASION -- Repel an Invasion
+  Implemented and tested (existing/native bridge tests); live acceptance pending.
+  Ordinary commission, not additional trial. Actual native controller, faction
+  roster, participation/damage, native victory and player survival required.
+  New tier-three size is 36 (legacy/default 30); native pacing/composition preserved.
+  No extra counterattack layered on the native lifecycle. No territory conquest.
+  Controlled Forge fixture verifies controller class/hook loading, not a played
+  full invasion. Staff forced controller outcomes cannot distribute victory rewards.
+
+FIELD_COMMAND -- Temporary Military Leadership
+  Implemented and tested (service/native follower NBT); live acceptance pending.
+  Four native faction soldiers follow from Liege to bounded field combat; actual
+  player contribution required. Soldiers can suffer legitimate casualties without
+  a perfection gate. Dismissed/cleaned on report/failure/reset. No campaign unit,
+  company, population expense, recruitment right or command over unrelated troops.
+
+Compatible KOME battlefield substitution
+  Implemented and tested (production evidence/ordinary resolver); multiplayer
+  live acceptance pending. Narrow limits in section 8. Field route always remains.
+
+5. DIFFICULTY, AUTOMATIC ASSIGNMENT AND VARIETY
+
+Tier = min(3, 1 + distinct genuine reports for current faction). Forced test work
+never raises it. Tier zero identifies old saved objectives and is not retrofitted.
+Tier 1 prefers patrol/recovery/escort/settlement defense; advanced raid/theft/
+invasion/leadership/rescue/help/Liege attack are excluded from the first offer.
+Tier 2 prefers rescue/Liege protection/command/help/relief/escort.
+Tier 3 prefers raid/theft/invasion/command/Liege protection.
+Current category-history weighting still separates protection, recovery, patrol,
+relief and military experiences; types already genuinely reported are excluded.
+Preference partitions are shuffled/weighted once and tried for real feasibility.
+No exact category quota traps a faction with unavailable content. Other legitimate
+types remain bounded fallback choices and receive the current difficulty profile.
+No feasible native geography/actors means a truthful unavailable offer, not fake
+content. Existing Pass 4 unsupported faction admission limits are not invented away.
+
+Offer type/tier/coordinates/enemy classes/goods/token/phase/complication/rewards
+are persisted. Opening dialogue and reconnecting return the same offer. Failure
+and explicit technical reassignment are separate from ordinary offer shopping.
+Normal enemy counts: tier 1 three-four, tier 2 five-six, tier 3 seven-eight;
+native elites/berserkers excluded at tier 1 and bounded at higher tiers where
+ordinary composition exists; heavy siege/troll/mumak/bomber units excluded.
+Officer/second-wave actors add responsibility rather than health multiplication.
+Tier combat evidence requires personal positive damage of at least 4*tier,
+in addition to real saved enemy deaths and mission-specific protection/property/
+extraction conditions. Native allies merely killing everything is insufficient.
+No health multipliers or arbitrary late-game equipment requirement were added.
+
+6. UNEXPECTED DEVELOPMENTS
+
+Server token hash modulo three selects COUNTERATTACK for roughly one-third of
+eligible new field offers. Saved choice and triggered flag never reroll on login.
+Relief/native invasion use their existing multiobjective/native lifecycle instead.
+After the first threat is genuinely cleared and the Knight contributes, two
+reserved native attackers approach the player/charge/Liege from another direction.
+The phase cannot complete before that wave; partial spawning rolls back safely.
+Reload sees existing UUIDs/trigger state and does not generate another wave.
+Rescue remains surrounded before extraction, protection faces a second threat,
+and escort faces a threat to its traveler. War Plans uses detection/pursuit by
+existing guards instead of spawning an unrelated extra enemy count.
+Only one optional complication family is implemented; bespoke commander return,
+multiple ambush families and invasion secondary threats are Deferred or blocked
+pending gameplay tuning rather than advertised as selectable fake variants.
+
+7. WORLD GEOGRAPHY AND TRAVEL
+
+Existing native biome/faction/control, regional enemies, verified shelter and
+frontier services remain authoritative. Tier-one local range is attempted first
+(192-1200); existing regional/short fallbacks prevent arbitrary long trips.
+Raid/theft search up to 512 bounded candidates, 256-6000 blocks, require an actual
+native hostile presence and enemy territorial eligibility, and exclude friendly
+land. Officer and roster must belong to that legitimate enemy. Their activation
+requires safe open loaded ground; no fabricated enemy fortress is asserted.
+Biomes with unsuitable ocean/mountain terrain and unsupported dimensions fail
+closed. Unknown unloaded surface is deferred for actual activation checks, not
+declared safe. No distant terrain force-load/generation. Unsafe activation invokes
+technical retry/reassignment rather than awarding completion or punishing rank.
+Rescue destination is actual verified refuge proof. Help has an actual different
+commander 128-3000 blocks from the refuge; physical soldiers must return with the
+player. Navigation changes with phase through existing markers/native map view.
+No discovery, ownership, waypoint teleport entitlement or political claim is added.
+Advanced structure-based route discovery remains Deferred or blocked: see section 14.
+
+8. MULTIPLAYER BATTLE EVIDENCE
+
+Compatible types: new active BORDER_INCURSION, SETTLEMENT_DEFENSE and FIELD_COMMAND.
+Only within the assigned actual conquest raster tile against its expected enemy.
+Actual uncancelled player damage must hit a live, same-world actual campaign unit
+present in its committed company; both player and NPC resolve to that battle tile.
+Current pledge, Knight standing, saved source relationship, military governance,
+native/KOME hostility, active formal participation and DEPLOYED Join Battle receipt
+are all checked. Raw administrative conflict creation without validated commitment
+cannot collect evidence. No service objective grants attack/movement authority.
+
+Saved evidence binds owner, token, faction, conflict, tile, acceptance/last-combat
+time; at most 32 targets with bounded damage/death facts. Qualification needs at
+least max(2,tier) actually dead enemies with at least four personal damage each
+and total personal damage at least max(16,8*tier). Registration or victory alone
+is insufficient. Defeated old conflicts and prior consumed conflict IDs cannot
+provide a second credit. Withdrawn player, wrong winner/token/faction, spectator,
+test session and stale damage are rejected.
+
+Canonical ordinary resolver alone publishes the outcome. Immediately before its
+successful closure, a transaction-local snapshot verifies alive physical deployed
+presence; closure may legitimately move the receipt to PENDING_EGRESS. Only then
+may matching surviving player/evidence and winning current faction mark the
+commission READY_TO_REPORT. This ordering avoids losing real credit merely because
+the canonical resolver already began return travel. The Liege must still receive
+the personal report; no automatic rank, reward or fourth service is created.
+The adapter cannot invalidate canonical battle success if its publication errors.
+
+Limits: support-only activity, allied-but-different winners, fortified/siege
+outcomes, unrelated tiles and passive physical presence do not qualify. No general
+war participation score was invented. A real battle is an optional replacement
+for compatible field combat, never required for single-player promotion.
+
+9. PICKPOCKETING AND AUTHENTICITY
+
+KOMEKnightPickpocketTransformer adapts native helper INSTANCEOF/CHECKCAST sites
+only within the server ThreadLocal authorized attempt for that exact officer;
+ordinary native IPickpocketable interactions retain their methods. A temporary
+native LOTRMiniQuestPickpocket instance runs real onInteractOther; its quest-update
+callback is inert because the existing commission owns persistence/rewards. It
+does not register a separate quest or introduce general NPC robbery.
+Native sight/witnesses, random success, detection/retaliation, sound/particles,
+inventory placement and LOTRPickpocket tagging remain. Before alarm, only this
+mission's owned enemies suppress omnidirectional target acquisition against the
+crouched unseen assignee using native sight; direct hurt retaliation, standing in
+view, other players and unrelated NPCs remain normal. Detection is persisted and
+alerts existing real guards. Interaction requires sneaking, empty hand, within
+three blocks and visibility, with a saved 40-tick attempt interval.
+
+Saved exact target UUID/class/faction/token/owner must authenticate. Sealed
+written-book dispatch has owner/token/target/faction/revision and requires saved
+dispatchStolen. Renamed books, unrelated native stolen items, foreign targets and
+stale revisions fail. No second item can be minted from the saved officer after
+theft. Duplicate copies cannot produce additional reports/credits; held handover
+consumes once and cleanup invalidates remaining owned evidence. Privileged NBT
+editing is not treated as an unprivileged client capability.
+Escape requires alive assignee with real dispatch >128 blocks from post and no
+living loaded pursuer within48; then return to actual current Liege holding book.
+Killing target before theft fails. If detected before theft or dispatch lost,
+withdraw and crouch when seeking orders from Liege for recoverable fresh attempt.
+Dropped dispatch is owner-protected and retained; native processing guard rejects
+bound quest-property misuse. No unrelated loot can replace server theft state.
+
+Limit: mission-specific crouched sight is a bounded native adaptation, not a broad
+stealth AI overhaul. Native detection remains dangerous. A connected-client test
+must tune guard spacing/approach and confirm presentation before release acceptance.
+
+10. STAFF TESTING
+
+All command mutations are operator level2, rechecked inside the service and audited
+through existing KOMEAuditService. Requires an authentic CURRENT Knight Liege
+loaded nearby; command does not create rank, recommendation, seat or relationship.
+Existing earned assignment cannot be overwritten. Force still respects geography/
+native availability and explains when a requested mission cannot be arranged.
+
+  /kome progression commission list
+  /kome progression commission start BORDER_INCURSION 1
+  /kome progression commission complication none
+  /kome progression commission start WAR_PLANS 3
+  /kome progression commission complication counterattack
+  /kome progression commission status
+  /kome progression commission reset
+  /kome progression commission end
+
+Speak to same Liege to accept/play/report. Reset before starting another type;
+complication must be set before activation; relief/native reject unsupported
+optional waves. Tiers1/2/3 accepted, types from list. Testing-session flag persists
+across reconnect and after reports/resets so three exercises never promote. End
+explicitly resumes earned service. Forced reports are discarded, not entered into
+canonical earned/failed history. Existing finish tooling remains visibly forced.
+Status shows token/revision, phase/tier, actors/deaths, target, complication,
+participation, battle evidence and failure. No client shortcut weakens production.
+Test actors suppress native loot/XP/alignment/kill achievements, and forced native
+invasion victory cannot distribute native rewards. No strategic troops/resources.
+Earned histories remain intact and normal promotion tests run independently.
+
+11. MIGRATION AND COMPATIBILITY
+
+Nested commission codec advances to version2 with additive defaults; missing tier
+is zero, original six type names/order unchanged; new types append. Existing active
+objectives/actors/difficulty finish under old rules. No history deletion/recredit,
+no retroactive enemy increase. Unknown/forged provenance cannot become earned
+credit. Existing recommendations, former-superior recognition, migration records,
+rank abilities and political eligibility remain. Root schema/network registration
+contracts unchanged: current packets project text/markers rather than this NBT.
+New test flag is additive server state; reward-denial marker does not grant rights.
+Java8 source/bytecode and Forge1.7.10 maintained. Existing transformer ordering and
+native nonmission interactions are regression-tested. Save downgrade to an older
+build cannot play new enum missions; use the pre-pass backup for a full rollback.
+
+12. VALIDATION AND FINAL ARTIFACTS
+
+Required coordinated command (Local\KOME-Heavy-Validation, existing offline cache):
+  gradlew.bat test build reobfJar --offline --no-daemon --max-workers=2 --console=plain
+  BUILD SUCCESSFUL in 1m 5s; 18 actionable tasks: four executed, fourteen up-to-date.
+  JUnit XML: 394 suites, 4,149 tests; 4,144 passed, five skipped, zero failures/errors.
+  outputs/progression-pass5/full-build.log and final-evidence/test-results retain proof.
+Five existing environment-dependent skips (none introduced or suppressed here):
+  CustomSkinLibraryFoundationTest.symbolicLinkSkinIsRejectedWhenSupported;
+  ClientCustomSkinCacheTest.symbolicLinkAtHashPathIsNeverAcceptedWhenSupported:
+    Windows symbolic-link support/privilege unavailable to these fixtures.
+  KOMEPublicWaypointTransformerTest.originalProductionAndBuildJarsHaveExactCompatibleHooks;
+  KOMEWaypointTransformerTest.configuredProductionV3615JarHasVerifiedClassFingerprintAndTransforms;
+  KOMEWaypointTransformerTest.configuredBuildDependencyV3615JarHasVerifiedClassFingerprintAndTransforms:
+    optional external original/build validation jar pair at default runtime location
+    unavailable (KOME_LOTR_VALIDATION_DIRECTORY was not configured). Ordinary build
+    class waypoint tests and new actual shipped native jar tests executed normally.
+Routing validator (installed Python 3.14.3): PASS, 25 documents, 813 local links,
+1,106 symbol references, 48 exact JUnit selectors. git diff --check: PASS.
+Focused service suite discovered 776 tests with two skips before final extra cases;
+774 passed with no failures on that completed run. The full suite above includes
+the additional staff/withdrawal/administrative-evidence cases.
+later expanded checks caught test-fixture mistakes (malformed synthetic tile and
+wrong departure faction), corrected without changing authority/assertions.
+Initial native fixtures exposed missing FakePlayer chat/world UUID/packet transport;
+fixture corrected, not production rules. Native raw class name RohanWarrior was
+corrected to real shipped RohirrimWarrior after jar inspection. Earlier logs are
+retained in outputs/progression-pass5/, not presented as passing runs.
+
+New deterministic production suites cover tier/variety, saved offers, geography,
+native actor authenticity/complications/reload, rescue/extraction, real Liege
+attack, raid/property/escape/report, relief both objectives, native soldier command,
+help interaction/physical return/death/unload recovery, theft/forgery/alarm/revision,
+staff reward isolation and repeated exercises after three credits, battlefield
+damage/withdrawal/replay/administrative provenance and canonical closure/egress.
+Existing migration, relationship, three-service/2000 promotion, network, invasion,
+military permission, movement/conquest and server-loading tests remain enabled.
+ASM tests use actual native jar and basic verifier/idempotence checks; no test
+suppression or weaker gameplay assertions introduced to make this pass succeed.
+
+Controlled native run:
+  gradlew.bat runServer -I tools/progression-pass5/verify-forge.gradle
+    --offline --no-daemon --max-workers=2 --console=plain
+  BUILD SUCCESSFUL (22s), fresh outputs/progression-pass5/forge-*/disposable world.
+  forge-1792154443270/knight-native.txt: PASS checks=16. Real transformed native officer enters
+  actual Forge world; native stealth sight/theft yields authenticated native-tagged
+  book; no duplicate; real test XP/alignment zero; follower UUID/hiring/teleport
+  and marker survive full native entity NBT; invasion class verifies/denies unowned
+  test bypass; owned cleanup removes actor/dispatch; no strategic/earned reward.
+  Expected development Forge missing binary/signature warnings, fresh-world absent
+  ban/ops/whitelist JSON warnings and Forge version-check response warning remain.
+  Earlier FakePlayer packet errors are absent in final native run after local sink.
+  Probe uses controlled seeded native success and existing source references; it
+  does not prove natural seat generation, a full invasion or connected client.
+
+Final artifact: build/libs/KOME-LOTR-Addon-1.0.10-service-g14.jar
+  18,639,850 bytes
+  SHA256 4A730ACBD04F184FCDC439AEB158EAA88B9F3410BF97FED536BFC157DD222C3D
+Development artifact SHA256
+  E2C46FA32E822B8D5859C1163B9B13FDF005963FE8A7762B1490FEB7D9BA16C0
+Native library hashes match baseline (including GeckoLib
+  36D9D0471BFB55271F0D6649B586FE99608DAD61261FAC4065C008276021FE23).
+Preservation: saved new root logs under final-evidence/, restored 15 rotated
+original root logs from verified baseline, then hash-checked 2,294 unaffected
+baseline files: zero unexpected changes. Existing run/worlds were never launched
+or edited. All three stashes, branch, one worktree and safety branch remain.
+Only requested implementation/tests/tooling/routing/report are committed locally;
+generated artifacts/evidence remain ignored. No remote ref/push/PR was changed.
+
+13. LIVE GAMEPLAY ACCEPTANCE AND MANUAL CHECKLIST
+
+Implemented, live acceptance pending: no human-controlled connected client or
+end-to-end natural-world promotion journey was conducted. Original saves/runtime
+were not modified. Dedicated fixture above is genuine native server execution,
+not manual adventure acceptance. Use a NEW world or cleanly stopped disposable
+copy with matching g14 client/server artifact and actual native libraries.
+
+For EACH mission below: use same authentic regional Liege; record command status,
+accept, complete real objectives, reconnect mid-stage, restart server mid-stage,
+verify same token/UUIDs/difficulty/complication and no duplicate actors. Personally
+report; forced sessions must give no credit/rank/payment/native rewards. Repeat
+none/counterattack where supported; reset/end and verify cleanup. Also play genuine
+automatic assignments separately: staff finish/force is never earned evidence.
+
+[ ] BORDER_INCURSION 1: follow frontier marker, fight actual patrol, contribute;
+    final first-wave death must not skip seeded second-direction attack. Return.
+[ ] STOLEN_GOODS 1/2: identify carrier, defeat road raiders, recover real property;
+    renamed/foreign/stale item fails; held handover once; dropped item persists.
+[ ] DANGEROUS_ESCORT 1/2: traveler appears once by Liege, native follow/hold works,
+    fight route ambush, physically reach verified shelter together. Leave chunks,
+    reconnect, test traveler casualty; no teleport or false arrival.
+[ ] SETTLEMENT_DEFENSE 1/2/3: genuine refuge/beneficiary, attackers target charge;
+    protect and contribute; casualty fails current attempt only; counterattack.
+[ ] RELIEF 2: hand over actual faction provisions, defend actual beneficiary;
+    delivery alone and allies-only combat cannot finish new profile. Old tier0
+    saved delivery-only objective still works with unchanged requirements.
+[ ] RESCUE_PATROL 2: reach ambush survivor, fight captors, lead saved survivor to
+    real refuge with no teleport; follow/hold, unload/reload, casualty/recovery.
+[ ] PROTECT_LIEGE 2/3: accept near actual source, confirm no unloaded attack,
+    enemies threaten him, native combat/vulnerability retained, protect/second
+    wave; test death/replacement and no loss of unrelated reported credits.
+[ ] GO_FOR_HELP 2/3: refuge beneficiary explains need; different real commander
+    supplies four followers there; at least one physically returns; resolve actual
+    attack and report. No commander means no fake offer; test loaded absence/death.
+[ ] RAID_CAMP 3: marker truly in hostile territory, believable native officer/
+    guard post, actual property recovery plus withdrawal; no KOME claim/war change.
+[ ] WAR_PLANS 3: crouch unseen behind real assigned officer, empty hand; native
+    success/detection/audio/particles, guard pursuit, exact sealed book, escape,
+    held return. Test in-view alarm, officer casualty, lost book/fresh orders,
+    duplicate/renamed/unrelated item rejection and other player's lack of access.
+[ ] NATIVE_INVASION 3: real controller/waves/roster, real participation and survival,
+    native victory/defeat/unload/restart, personal report as one ordinary service;
+    no extra trial/conquest; forced test outcome gives no native victory payment.
+[ ] FIELD_COMMAND 2/3: four faction soldiers entrusted at Liege; lead/follow/hold,
+    genuine combat, tolerable losses; no teleport/permanent hire/company/population
+    benefit; all survivors released/cleaned at ending.
+[ ] Battlefield substitution: authorized real ordinary battle on assigned raster
+    tile, formal Join Battle deployment, real campaign enemies and personal damage/
+    deaths; winning canonical closure and normal egress give report readiness only.
+    Spectator, withdrawn/dead/foreign player, raw admin conflict, waypoint transfer,
+    wrong tile/enemy and replay cannot qualify. Crown/war restrictions still deny.
+[ ] Staff: nonoperator denied; start/reset cannot replace earned active mission;
+    repeat >3 exercises and repeat same type from same Liege; reconnect/restart
+    retains test isolation; end resumes genuine work with unchanged earned history.
+[ ] Genuine progression: three varied auto-assigned services, tiers1/2/3; report
+    third at 1999 alignment remains Knight, 2000 current pledge promotes through
+    current Liege with existing ceremony/recommendation/public/history behavior.
+    Remain Knight by not seeking/accepting higher service. No fourth gate.
+[ ] Legacy copy: accepted old six mission types, all old credits/recommendations,
+    former superior/deceased issuer, faction switch, death and restart recovery.
+[ ] Regression: map/tracker goals and GL state, native waypoint rights, Join Battle
+    return/receipts, denied hostile orders, movement arrival/budget, conquest single
+    resolver, population/hiring/Crown resources and unrelated native pickpocketing.
+
+14. REMAINING BLOCKERS AND FOLLOW-UP
+
+Implemented, live acceptance pending: all new playable field paths need real
+client/natural terrain/pathfinding/balance/lag/multiplayer acceptance listed above.
+Enemy counts/profile weights/one-third surprise rate need play tuning, not invented
+automated proof of fun or reliable long-distance native navigation.
+Partially implemented: patrol investigation is encounter discovery, raid camp is
+NPC bivouac, rescue has one survivor, Liege attack is an assigned safe defense.
+Deferred or blocked: reliable native fort discovery needs an audited generated
+structure index/generator-specific evidence; placing decorative buildings would
+not solve authenticity. Multiple clue/noncombat rescue/raid variants, broader
+surprise families and client cinematics were not substituted with fake objectives.
+Deferred or blocked: support-only/allied/fortified battle service needs genuine
+authoritative support/outcome evidence; no passive score or second siege resolver.
+Go for Help deliberately requires a real available commander; arbitrary distant
+garrisons/allied factions need additional trustworthy discovery/interaction data.
+No strategic command, population, Lord->Prince or political scope is smuggled in.
+The complete original commission framework remains usable when ambitious content
+is unavailable; automatic selection tries legitimate alternatives without deleting
+old objectives/history or requiring multiplayer war for promotion.
