@@ -20,8 +20,10 @@ manageable checkpoints. Inspect owning routes and code, then implement one compl
 feature within the approved design. Autonomously compile, test, diagnose and repair
 ordinary regressions; do not stop for routine implementation choices.
 
-Run task-specific Fast tests during development and Full before declaring automated
-completion. Preserve authority, serialization, network and GUI behavior. Do not
+For code/gameplay, run task-specific Fast tests during development and Full before
+declaring automated completion. For documentation-only work, check formatting,
+links, commands and source correspondence without another Gradle build.
+Preserve authority, serialization, network and GUI behavior. Do not
 delete valid calls, add stubs, suppress tests or replace current classes with older
 snapshots. Keep live Minecraft/GUI/multiplayer acceptance separate from test results.
 
@@ -33,8 +35,16 @@ Stage only your verified paths/hunks and inspect the index. Leave unrelated stag
 and dirty work untouched. Make local commits only for this assignment. Do not push,
 open PRs, install jars, change global security settings or alter original saved worlds.
 
+After the verified gameplay implementation checkpoint, follow docs/testing/README.md
+to generate PLAYTEST_LATEST.md (about 10-15 focused Yes/No observations), optional
+PLAYTEST_EXTENDED.md and a pending PLAYTEST_HISTORY.md entry from actual source.
+Preserve returned answers before regeneration; never count automated passes as
+manual acceptance.
+
 Update CURRENT_STATUS.md with the tested source/Git state, commits, test counts,
-skips/logs, outstanding live checklist and blockers. Give a concise morning handoff.
+skips/logs, outstanding live checklist and blockers. Commit the verified checklist
+and status documentation locally. Give a concise morning handoff identifying the
+first practical Minecraft session to run next.
 Do not start another feature after this brief or claim acceptance without evidence.
 
 Approved brief: [REPLACE WITH THE APPROVED BRIEF PATH OR TEXT]

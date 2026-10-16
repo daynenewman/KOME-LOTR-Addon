@@ -18,9 +18,13 @@
 - [ ] Happy path and authoritative state behave as specified.
 - [ ] Applicable failure/death/relog/restart/stale-token and duplicate-reward cases.
 - [ ] Appropriate focused selectors: [route/tests; agent may add justified coverage].
-- [ ] Full `scripts/kome-validate.ps1 -Mode Full` passes; skips reported separately.
+- [ ] For code/gameplay, Full `scripts/kome-validate.ps1 -Mode Full` passes; skips
+  reported separately. Documentation-only work uses link/format/source checks.
 - [ ] User-visible wording/layout follows actual state; relevant GUI scales reviewed.
-- [ ] Disposable Minecraft/manual checklist: [exact setup and expected observations].
+- [ ] After the verified gameplay checkpoint, generate source-based latest/extended
+  Yes/No checklists and a pending history entry using `docs/testing/README.md`
+  (repository-root path, also valid when this template is copied under briefs/).
+  Specify exact disposable setup and expected observations; preserve prior answers.
 - [ ] Evidence distinguishes implemented code, automated tests and actual acceptance.
 
 **Open decisions requiring owner approval:** [None, or exact unresolved decisions.]

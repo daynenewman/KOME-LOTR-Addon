@@ -27,23 +27,32 @@ scope. Completing it does not authorize another roadmap item.
 2. Run `scripts/kome-overnight-backup.ps1` before editing. Confirm exit 0 and the
    `COMPLETE.json` marker. Record its path in the handoff. If the supported backup
    cannot protect this checkout, stop before editing; never stash/reset around it.
-3. Establish the baseline with Fast and the relevant route's tests. Separate any
-   inherited failure from your own regressions. Make a short checkpoint plan
-   covering authority, persistence/recovery, packets, presentation and tests where
+3. For code/gameplay work, establish the baseline with Fast and the relevant
+   route's tests. Separate inherited failures from your own regressions. Make a
+   short checkpoint plan covering authority, persistence/recovery, packets, presentation and tests where
    applicable. Routine implementation details are the agent's decisions.
 4. Implement one complete feature through those checkpoints. Compile and run
    meaningful focused tests during development. Inspect failures, identify causes,
    repair within scope, then repeat the affected checks. Keep valid calls, behavior
    and assertions; do not use stubs, test suppression or historical source replacement.
-5. Run Full on the final source. Inspect skips and the evidence summary. A failing,
-   skipped or unavailable acceptance check is not a pass. Update affected routes.
+5. For code/gameplay work, run Full on the final source. Inspect skips and the
+   evidence summary. A failing, skipped or unavailable acceptance check is not a
+   pass. Update affected routes.
+   Documentation-only assignments use formatting, link, command and source checks;
+   do not run another Gradle build solely for documentation changes.
 6. Review the diff and explicitly stage only the assignment's verified files/hunks.
    Inspect `git diff --cached`; inherited staged changes must stay out of the
    commit. If safe separation is impossible, hand off that boundary for review.
    Create local commits after relevant checks pass; no push or PR.
-7. Update [current status](CURRENT_STATUS.md). Record the tested checkpoint and
+7. After the verified implementation commit, follow [gameplay acceptance](../testing/README.md)
+   to update the focused [latest checklist](../testing/PLAYTEST_LATEST.md), optional
+   extended coverage and cumulative manual history for gameplay work. Use actual
+   current source and exact build identity. Preserve returned results before
+   regeneration; leave new answers unselected.
+8. Update [current status](CURRENT_STATUS.md). Record the tested checkpoint and
    dirty input state, local commits, exact test counts/skips, evidence paths and
-   remaining live checklist. Finish with a short morning summary. Stop.
+   remaining live checklist. Verify and locally commit the checklist/status
+   documentation, then finish with a short morning summary. Stop.
 
 Safe stop: an unresolved design choice, dangerous operation, unsupported migration,
 significant architectural conflict, or missing user-controlled prerequisite needs
@@ -129,7 +138,10 @@ conversion or deletion occurs. Do not run backup concurrently with any writer.
 ## Morning review
 
 Read current status and the run's final handoff, inspect commits and inherited
-dirty work separately, then follow the disposable-world acceptance checklist.
-Review native interactions, death/relog/restart, GUI scales and multiplayer where
-relevant. Mark actual acceptance only from observed Minecraft evidence. No new
-feature begins until its own brief is approved.
+dirty work separately, then follow [the latest disposable-world checklist](../testing/PLAYTEST_LATEST.md).
+The handoff names the highest-priority next session; optional persistence, GUI and
+multiplayer tests remain in [extended coverage](../testing/PLAYTEST_EXTENDED.md).
+Return bold Yes/No answers and Notes using [the processing protocol](../testing/README.md).
+Append observed results and repair/retest links to history; missing prerequisites
+remain untested. Mark actual acceptance only from observed Minecraft evidence.
+No new feature begins until its own brief is approved.

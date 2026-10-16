@@ -48,6 +48,13 @@ remain. The [backup](../../scripts/kome-overnight-backup.ps1) and
 primary source checkouts; [tool tests](../../scripts/test-overnight-tools.ps1)
 exercise disposable Git recovery and failure handling without touching worlds.
 
+After each verified gameplay checkpoint, use [manual acceptance](../testing/README.md)
+to generate the current-source Yes/No checklist, preserve returned results and
+record manual history separately from automated passes. Start with
+[the latest essential session](../testing/PLAYTEST_LATEST.md); optional deeper
+coverage is separate. Documentation-only changes need documentation checks, not
+another full Gradle build.
+
 [Verification record and routing walkthroughs](VERIFICATION.md) gives the completed documentation checks and representative investigations. Historical [test plan](../KOME_TEST_PLAN.md) describes older alliance/capacity rules; use the selected guide's current tests and invariants.
 
 ## Progression cleanup Pass 1
